@@ -86,7 +86,6 @@ class Transform
     }
 
    private:
-    friend class Registry;
     // Bitwise per double: -0.0 vs 0.0 and NaN payloads count as changes, equal bits never do (no padding compared)
     static bool differs(double a, double b) { return std::memcmp(&a, &b, sizeof(double)) != 0; }
     static bool differs(const Vec3& a, const Vec3& b)

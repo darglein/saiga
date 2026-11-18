@@ -129,8 +129,6 @@ class ComponentPool final : public PoolBase
         uint32_t d = denseIndex(entityIndex);
         return d == kNone ? nullptr : &data[d];
     }
-    // Dense access (views)
-    T& atDense(size_t dense) { return data[dense]; }
 
    private:
     std::vector<T> data;

@@ -975,7 +975,7 @@ index (deterministic). Used for ticking, gameplay queries and replication intere
 
 ### 9.6 Far from players: persistence and simulation policy [planned: S25]
 
-Stages: the `PersistentId` type in S07 (`engine/world/PersistentId.h`); `Persistent`, `makePersistent` and `resolve` in
+Stages: the `PersistentId` type in S07 (`engine/ecs/PersistentId.h`); `Persistent`, `makePersistent` and `resolve` in
 S10; unloading and the rest of this section in S25.
 
 - Player entities of connected players are never unloaded by chunk unloading (leaving players: §13.7). Entities with
@@ -2089,8 +2089,9 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   against §17.10 and `streamingStalls`.
 - Terraforming benchmark [S22, extended in S28]: 8 brushes at 10 edits/s; S22 measures the integer result and the CPU
   tile/pyramid update, S28 re-runs it with collider patches; the step time stays within §17.10.
-- ECS benchmark: `tests/test_engine_ecs_benchmark.cpp` (non-gating) prints ns per entity for create, view iteration over
-  1/2/3 components and destroy at 10^5 entities [planned: S07].
+- ECS benchmark: `tests/test_engine_ecs_benchmark.cpp` (non-gating) prints the total ms of create, views over one
+  component, `Transform` plus one and three components, random reads, remove + re-add and destroy at 10^5 entities
+  [exists: S07].
 - `data/tests/benchmarks.json` [exists] maps GPU name -> benchmark -> result; a regression of more than 5% must be
   explained. Local only. The S03 baseline is for the development GPU (an NVIDIA RTX 5080 Laptop GPU at 1920 x 1080):
   it is not the budget reference of §17.10 (an RTX 3060 / RX 6600 class card at 1440p); a baseline on that class is

@@ -178,6 +178,20 @@ struct CopiedHealthId
     }
 };
 
+// Another ID, but Health's name
+struct SameNameAsHealth
+{
+    static constexpr const char* name = "Health";
+    static constexpr ComponentId id   = 120;
+    static constexpr uint32_t version = 1;
+    double x                          = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("x", x);
+    }
+};
+
 void registerTest(Registry& r)
 {
     r.registerComponent<Health>(Replicate::Host);
@@ -403,6 +417,8 @@ TEST(EcsDeathTest, MisuseAsserts)
     r.add<Health>(c);
     EXPECT_DEATH(r.get<CopiedHealthId>(c), "registered as Health, not Mana");
     EXPECT_DEATH(r.has<CopiedHealthId>(c), "registered as Health, not Mana");
+    // A second component with an existing name (saves load by name)
+    EXPECT_DEATH(r.registerComponent<SameNameAsHealth>(), "name Health is already used");
 }
 
 TEST(EcsDeathTest, StructuralChangeDuringIteration)
@@ -414,6 +430,8 @@ TEST(EcsDeathTest, StructuralChangeDuringIteration)
     EXPECT_DEATH(r.view<Health>().each([&](Entity x, Health&) { r.add<Tag>(x); }), "while a view iterates");
     EXPECT_DEATH(r.view<Health>().each([&](Entity x, Health&) { r.destroy(x); }), "while a view iterates");
     EXPECT_DEATH(r.view<Health>().each([&](Entity, Health&) { r.create(); }), "while a view iterates");
+    r.add<Tag>(e);
+    EXPECT_DEATH(r.view<Health>().each([&](Entity x, Health&) { r.remove<Tag>(x); }), "while a view iterates");
 }
 
 TEST(EcsDeathTest, RegistrationGap)

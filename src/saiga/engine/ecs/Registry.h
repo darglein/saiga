@@ -99,7 +99,9 @@ class SAIGA_ENGINE_API Registry
 
     // ---- components ------------------------------------------------------------------------------------------------
 
-    // Asserts if e already has T (use get to change it)
+    // Asserts if e already has T (use get to change it). Aggregates are brace-initialized from args: the argument
+    // types must match the fields exactly (add<Health>(e, 50.0, 100.0)); a narrowing conversion (50 for a double) is a
+    // warning on GCC but an error on Clang and MSVC.
     template <class T, class... A>
     void add(Entity e, A&&... args);
     template <class T>
@@ -169,6 +171,11 @@ void Registry::registerComponent(Replicate mode, Saved saved)
     SAIGA_ASSERT(!infos[T::id].registered, std::string("registerComponent: ID ") + std::to_string(int(T::id)) + " of " +
                                                T::name + " is already used by " +
                                                (infos[T::id].name ? infos[T::id].name : "?"));
+    // Names are unique (saves load components by name, §15.2)
+    for (size_t i = 0; i < kMaxComponents; ++i)
+        SAIGA_ASSERT(
+            !infos[i].registered || std::strcmp(infos[i].name, T::name) != 0,
+            std::string("registerComponent: the name ") + T::name + " is already used by ID " + std::to_string(i));
     ComponentInfo& info = infos[T::id];
     info.name           = T::name;
     info.version        = T::version;
@@ -190,6 +197,9 @@ ComponentPool<T>& Registry::pool() const
     SAIGA_ASSERT(p->name == T::name || std::strcmp(p->name, T::name) == 0,
                  std::string("component ID ") + std::to_string(int(T::id)) + " is registered as " + p->name + ", not " +
                      T::name);
+    // A copy that kept both name and ID: at least the layout must match before the static_cast
+    SAIGA_ASSERT(p->elementSize == sizeof(T),
+                 std::string("component ") + T::name + " has another size than the registered type");
     return static_cast<ComponentPool<T>&>(*p);
 }
 

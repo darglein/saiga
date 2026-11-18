@@ -46,6 +46,7 @@ void Registry::validateRegistration() const
     {
         bool gap  = false;
         int gapId = -1;
+        (void)gapId;  // read only in the assert message (unused without SAIGA_ASSERTS)
         for (int id = first; id <= last; ++id)
         {
             if (!infos[id].registered)

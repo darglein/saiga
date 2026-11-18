@@ -46,9 +46,9 @@ S04, S05, S06.
   types; `float`, `vec*`, `quat`, `mat*` only in a component that declares `static constexpr bool allowFloat = true`
   (render components). Anything else is a compile error.
 - `VisitBinary.h`: `BinaryWriter` / `BinaryReader` visitors (little-endian, the double bit pattern, strings and vectors
-  with a u64 length, enums as `int64`); `toBytes(const T&)`, `fromBytes(T&, bytes)` (asserts on truncated input;
-  replaced in review round 1 by `fromBytes` returning false with a message in every build). The base for `world.save()`
-  (S11) and `world.hash()` (S08).
+  with a u64 length, enums as `int64`); `toBytes(const T&)`, `fromBytes(T&, bytes)` (on truncated input: an assert,
+  changed in review round 1 to replaced in review round 1 by `fromBytes` returning false with a message in every build).
+  The base for `world.save()` (S11) and `world.hash()` (S08).
 - `FieldList.h`: `describeFields<T>()` -> `std::vector<FieldInfo{name, type}>` (type names such as `"double"`,
   `"vec3d"`, `"vector<ItemStack>"`, `"enum"` with the value names): the field list of the schema tables (S11) and
   `inspect` (S14).
@@ -121,8 +121,9 @@ Tests and docs:
   dense order of the smallest pool and is identical for two registries with the same history; removed and destroyed
   entities are not visited.
 - `visit`: the binary round trip of a component with every supported field type (incl. a nested struct in a vector,
-  `std::array`, an enum with names, `Entity`, `ChunkId`, `Quat`, `Mat4`); truncated input asserts; `describeFields`
-  names and types; `Transform` round trip and its bitwise setters (`changedThisStep` only on a real change).
+  `std::array`, an enum with names, `Entity`, `ChunkId`, `Quat`, `Mat4`); malformed input is rejected (`fromBytes`
+  returns false); `describeFields` names and types; `Transform` round trip and its bitwise setters (`changedThisStep`
+  only on a real change).
 - `ChunkId`/`RegionId`/`InstanceKey` comparisons; `SAIGA_LOG_E` prefixes the entity.
 - Compile-time checks (not executable tests): a `static_assert`-based helper that a forbidden field type (float in a
   non-render component, `std::map`, a raw pointer) is rejected, demonstrated with a trait test.
@@ -162,6 +163,23 @@ implemented API.
   read and accepts only 0 and 1 for `bool`; the Windows stack trace goes to stderr as well; a test registers a
   `Render*` component with floats (the accepted side of the rule); §7.2: the gap check is `validateRegistration()`;
   AGENTS.md: build before ctest (compile-fail cases rebuild a stale build).
+- Review round 3: `pool<T>()` also checks the element size; component names are unique at registration (saves
+  load by name); the aggregate `add` documents exact argument types (narrowing is an error on Clang and MSVC); the
+  remove-during-iteration death test; doc fixes (§9.6 file, §17.7 benchmark text, Visit.h comments).
+
+## Notes for S08
+
+From review round 3, for the World built on this registry:
+
+- `Transform&` references from a view point into `std::vector<Transform>`; `create()` grows it. When `create`/`spawn`
+  during a step reserve entities (§7.6), reserving must not reallocate `transforms`/`slots` while a view runs: reserve
+  ahead outside of views, or store transforms in stable pages like the sparse pages.
+- `hash()`, `save()` and `dumpJson()` need a type-erased path to the component data: a per-pool binary write/visit
+  (a virtual in `PoolBase` or a function pointer filled by `registerComponent`), plus `Transform`; hash in entity
+  index order (dense order depends on history).
+- Const iteration (`hash() const`) and an atomic or worker-forbidden `iterationDepth` for nested views inside
+  `parallelEach`; a flag predicate in `View` for `Simulated`; access to slot generations, states and the free list
+  for saves (§15.1); the structural log hook in `destroy` (decide whether `Transform` is logged).
 
 ## Results
 

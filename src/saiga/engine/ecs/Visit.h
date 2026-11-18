@@ -27,8 +27,9 @@
 // Supported field types: bool, fixed-width integers (int8_t .. uint64_t), double, enums (only with EnumNames),
 // std::string, Entity, PersistentId, Vec2/3/4, Quat, Mat3/4, nested structs with name, version and visit (e.g.
 // ChunkId), and std::array / std::vector of supported types (no enums inside containers). float, vec2/3/4, quat, mat3/4
-// only in a component with `static constexpr bool allowFloat = true` (render components, R-MATH-1). Anything else is a
-// compile error in every engine visitor (checkFieldType).
+// only in a Render* component with `static constexpr bool allowFloat = true` (R-MATH-1). Anything else is a compile
+// error when the component is registered (registerComponent runs checkFieldType over all fields); the binary and
+// field-list visitors only reject types they cannot encode.
 
 namespace Saiga
 {
@@ -44,7 +45,8 @@ struct EnumNames
     constexpr EnumNames(const char* const (&n)[N]) : names(n) {}
 };
 
-// Network quantization of a field (stored for S16): v("pos", p, Quantize{0.01})
+// Network quantization of a field: v("pos", p, Quantize{0.01}). Accepted and checked (double, Vec, Mat, Quat); the
+// current visitors ignore the step, S16 adds it to the field list and the replication encoding.
 struct Quantize
 {
     double step;
