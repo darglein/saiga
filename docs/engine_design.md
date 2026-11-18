@@ -364,9 +364,10 @@ struct Health
   (`EngineEvent`, game from 64) use the same scheme; every `GameObject` subclass declares `static constexpr ClassId id =
   ClassId(<Game>Class::X); static constexpr const char* name = "...";` (`spawn<T>` and `Behaviour::classId` use
   `T::id`).
-- Plain structs; no pointers; entity references as `Entity` or `PersistentId`. Engine-internal exceptions (not in
-  `visit`, rebuilt on load): `Behaviour::object` (`std::unique_ptr<GameObject>`) and `RigidBody::body` (the body is
-  recreated from the components on load, §11).
+- Plain structs with noexcept move construction and assignment (checked by `registerComponent`, so removal cannot throw
+  halfway); no pointers; entity references as `Entity` or `PersistentId`. Engine-internal exceptions (not in `visit`,
+  rebuilt on load): `Behaviour::object` (`std::unique_ptr<GameObject>`) and `RigidBody::body` (the body is recreated
+  from the components on load, §11).
 - `visit` lists every field: `v(name, field)` or `v(name, field, options)`. Field types: those of R-MATH-1, plus (only
   in `Render*` components that declare `static constexpr bool allowFloat = true`) `float`, `vec*`, `quat`, `mat*`;
   integers only as the fixed-width types (`int8_t` .. `uint64_t`: `long` differs between platforms); `std::array` and
@@ -379,8 +380,8 @@ struct Health
   patterns of doubles, `bool` as one byte, enums as `int64`, strings and vectors with a u64 length, matrices
   column-major, quaternions w, x, y, z. The reader treats its input as untrusted (saves, packets): every check runs in
   every build, `fromBytes` returns false with a message (truncated input, an enum value out of range, a vector longer
-  than the input can hold, bytes left over). `describeFields<T>()` lists name and type per field, enums with their value
-  names.
+  than the input can hold, bytes left over; vectors of zero-byte elements such as empty structs store only their count,
+  capped at 2^16). `describeFields<T>()` lists name and type per field, enums with their value names.
 - At 200 registered types registration logs a warning (prefer fields on an existing component or a tag).
 
 ### 7.3 Storage

@@ -268,10 +268,11 @@ class BinaryReader
             uint64_t n = readUnsigned(8);
             if (failed()) return;
             // The elements must fit into the remaining input: a corrupt length cannot allocate more than the input
-            // allows (each element takes at least minEncodedSize bytes)
-            // (an element without fields counts as one byte: vectors of empty structs are not supported)
-            const size_t minSize = std::max<size_t>(1, minEncodedSize<typename T::value_type>());
-            if (n > (size - pos) / minSize)
+            // allows (each element takes at least minEncodedSize bytes). Elements without bytes (empty structs,
+            // zero-length arrays) are written as a count only; their count is capped instead.
+            const size_t minSize    = minEncodedSize<typename T::value_type>();
+            const uint64_t maxCount = minSize == 0 ? kMaxEmptyElements : (size - pos) / minSize;
+            if (n > maxCount)
             {
                 fail("vector of " + std::to_string(n) + " elements does not fit into the input");
                 return;
@@ -293,6 +294,9 @@ class BinaryReader
             static_assert(AlwaysFalse<T>::value, "BinaryReader: unsupported field type (see Visit.h)");
         }
     }
+
+    // The largest count of a vector whose elements encode to zero bytes
+    static constexpr uint64_t kMaxEmptyElements = 1 << 16;
 
     bool ok() const { return err.empty(); }
     const std::string& error() const { return err; }

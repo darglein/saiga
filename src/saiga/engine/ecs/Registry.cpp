@@ -106,21 +106,26 @@ void Registry::destroy(Entity e)
     checkNotIterating("destroy");
     checkAlive(e, "destroy");
     Slot& s = slots[e.index];
-    // Components in ID order (deterministic; the order matters for the structural log of S08)
+    // The only step that can throw (the free list allocates) comes first: on failure nothing changed. A slot whose
+    // generation wraps around is retired (a stale handle could match again).
+    const uint32_t nextGeneration = s.generation + 1;
+    if (nextGeneration != 0) freeSlots.push_back(e.index);
+    // Components in ID order (deterministic; the order matters for the structural log of S08). Cannot throw:
+    // components have noexcept moves and the sparse pages exist.
     for (size_t id = 1; id < kMaxComponents; ++id)
         if (s.mask.test(ComponentId(id))) pools[id]->remove(e.index);
     s.mask.clear();
-    s.state = SlotState::Free;
-    s.flags = 0;
-    s.generation++;
-    // A slot whose generation wrapped around is retired (a stale handle could match again)
-    if (s.generation != 0) freeSlots.push_back(e.index);
+    s.state      = SlotState::Free;
+    s.flags      = 0;
+    s.generation = nextGeneration;
     aliveEntities--;
 }
 
 void Registry::debugSetGeneration(uint32_t index, uint32_t generation)
 {
-    SAIGA_ASSERT(index != 0 && index < slots.size());
+    // Only free slots: an alive entity's handles are also stored in the pools
+    SAIGA_ASSERT(index != 0 && index < slots.size() && slots[index].state == SlotState::Free,
+                 "debugSetGeneration: only on free slots");
     slots[index].generation = generation;
 }
 

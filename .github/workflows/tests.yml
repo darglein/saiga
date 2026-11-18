@@ -90,11 +90,12 @@ jobs:
           if [ "$rc" -eq 0 ]; then echo "skipped tests (see the files above)"; exit 1; fi
           if [ "$rc" -ne 1 ]; then echo "could not scan the gtest reports"; exit 1; fi
 
-      # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
-      # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
+      # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens, and
+      # the timings of the non-gating ECS benchmark. Read from ctest's log (ctest hides the output of passing tests), so
+      # nothing runs twice.
       - name: Golden image metrics
         if: success() || failure()
-        run: grep -E '^golden|trees per lod' build/Testing/Temporary/LastTest.log || true
+        run: grep -E '^golden|trees per lod|^ECS benchmark' build/Testing/Temporary/LastTest.log || true
 
       # Golden image tests (tests/golden_image.h) write the actual and difference images of a failed comparison to
       # golden_failed/ in the test working directory.
@@ -184,11 +185,12 @@ jobs:
           if [ "$rc" -eq 0 ]; then echo "skipped tests (see the files above)"; exit 1; fi
           if [ "$rc" -ne 1 ]; then echo "could not scan the gtest reports"; exit 1; fi
 
-      # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
-      # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
+      # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens, and
+      # the timings of the non-gating ECS benchmark. Read from ctest's log (ctest hides the output of passing tests), so
+      # nothing runs twice.
       - name: Golden image metrics
         if: success() || failure()
-        run: grep -E '^golden|trees per lod' build/Testing/Temporary/LastTest.log || true
+        run: grep -E '^golden|trees per lod|^ECS benchmark' build/Testing/Temporary/LastTest.log || true
 
       # Golden image tests (tests/golden_image.h) write the actual and difference images of a failed comparison to
       # golden_failed/ in the test working directory.

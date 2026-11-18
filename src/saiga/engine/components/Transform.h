@@ -33,6 +33,10 @@ class Transform
     static constexpr ComponentId id   = ComponentId(EngineComponent::Transform);
     static constexpr uint32_t version = 1;
 
+    Transform()                     = default;
+    Transform(const Transform&)     = default;
+    Transform(Transform&&) noexcept = default;
+
     SpaceId space() const { return sp; }
     const Vec3& position() const { return p; }
     const Quat& rotation() const { return r; }
@@ -86,6 +90,12 @@ class Transform
     }
 
    private:
+    friend class Registry;
+    // Whole-object assignment would bypass the setters and the change flags (R-STATE-3); only the registry resets a
+    // reused slot. Copy and move construction stay public (storage, tests).
+    Transform& operator=(const Transform&)     = default;
+    Transform& operator=(Transform&&) noexcept = default;
+
     // Bitwise per double: -0.0 vs 0.0 and NaN payloads count as changes, equal bits never do (no padding compared)
     static bool differs(double a, double b) { return std::memcmp(&a, &b, sizeof(double)) != 0; }
     static bool differs(const Vec3& a, const Vec3& b)

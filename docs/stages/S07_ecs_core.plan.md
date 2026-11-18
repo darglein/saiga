@@ -42,8 +42,8 @@ S04, S05, S06.
   and the visitor options `EnumNames` (enum value names; the count must equal `E::Count`, checked at compile time) and
   `Quantize{step}` (stored for S16). Supported: `bool`, all fixed-size integers, `double`, enums (only with
   `EnumNames`), `std::string`, `Entity`, `PersistentId`, `Vec2/3/4`, `Quat`, `Mat3/4`, nested structs with `name`,
-  `version` and `visit` (incl. `ChunkId`, `RegionId`, `InstanceKey`), `std::array` and `std::vector` of supported
-  types; `float`, `vec*`, `quat`, `mat*` only in a component that declares `static constexpr bool allowFloat = true`
+  `version` and `visit` (incl. `ChunkId`, `RegionId`, `InstanceKey`), `std::array` and `std::vector` of supported types;
+  `float`, `vec*`, `quat`, `mat*` only in a `Render*` component that declares `static constexpr bool allowFloat = true`
   (render components). Anything else is a compile error.
 - `VisitBinary.h`: `BinaryWriter` / `BinaryReader` visitors (little-endian, the double bit pattern, strings and vectors
   with a u64 length, enums as `int64`); `toBytes(const T&)`, `fromBytes(T&, bytes)` (on truncated input: an assert,
@@ -66,7 +66,7 @@ S04, S05, S06.
     flag of §12.3 later).
   - Slots: generation, state (`Free`, `Reserved` (used from S08), `Alive`), flags, mask. Slot 0 is never used.
   - `Transform` (ID 0) is built in: every alive entity has one, stored in an array by entity index; `remove<Transform>`
-    asserts.
+    is rejected at compile time (`static_assert`).
   - Asserts name the entity (`index:generation`) and the component (`name`).
 - `View.h`: `View<C...>` (`const C` for read access): `each(fn(Entity, C&...))` iterates the dense entity array of the
   smallest non-`Transform` pool, or the slots for a `Transform`-only view, and tests the masks; skips slots that are
@@ -102,8 +102,8 @@ Tests and docs:
   slots are reused FIFO. No hash maps anywhere in the store.
 - The field-type check is a visitor that only does `static_assert`s; `registerComponent<T>` instantiates `T::visit`
   with it, so every registered component is checked at compile time, also when no test visits it.
-- Float fields: §7.2 allows them "only in `Render*` components"; a name prefix cannot be checked at compile time, so a
-  component opts in with `allowFloat` (design change).
+- Float fields: only in a component that declares `allowFloat` and whose name starts with `Render`; both are checked at
+  compile time by `registerComponent` (`checkVisitFields`).
 - The binary visitors are deliberately simple (no schema); S11 adds the schema and migrations on top.
 
 ## Tests
@@ -125,15 +125,18 @@ Tests and docs:
   returns false); `describeFields` names and types; `Transform` round trip and its bitwise setters (`changedThisStep`
   only on a real change).
 - `ChunkId`/`RegionId`/`InstanceKey` comparisons; `SAIGA_LOG_E` prefixes the entity.
-- Compile-time checks (not executable tests): a `static_assert`-based helper that a forbidden field type (float in a
-  non-render component, `std::map`, a raw pointer) is rejected, demonstrated with a trait test.
+- Compile-time checks: ctest cases built from `tests/compile_fail/ecs_field_rules.cpp` (a control case that must
+  compile and nine cases that must fail with their `static_assert` message, checked by
+  `tests/compile_fail/expect_build_failure.cmake`); run them after the normal build with
+  `ctest -R '^compile_fail_ecs_field_' --output-on-failure`.
 
 `tests/test_engine_ecs_benchmark.cpp` (non-gating, prints times): create 10^5 entities with 3 components, iterate one,
 two and three component views, random get, remove and re-add a component on half of them, destroy all.
 
 ## Done when
 
-All tests pass in CI on GCC, Clang and MSVC; the benchmark runs in CI and prints its numbers; the design describes the
+All tests pass in CI on GCC, Clang and MSVC; the benchmark runs in CI and its line is printed in the step "Golden image
+metrics" of the Ubuntu jobs; the design describes the
 implemented API.
 
 ## Verification
@@ -143,9 +146,9 @@ implemented API.
 
 ## Design changes
 
-- §7.2: float fields need `static constexpr bool allowFloat = true` on the component (a `Render*` name prefix cannot be
-  checked at compile time); enums inside containers are not supported; `Quantize` only on double, `Vec`, `Mat` and
-  `Quat` fields; the binary layout of `VisitBinary.h` is written down.
+- §7.2: float fields need `static constexpr bool allowFloat = true` on a `Render*` component (both checked at compile
+  time); enums inside containers are not supported; `Quantize` only on double, `Vec`, `Mat` and `Quat` fields; the
+  binary layout of `VisitBinary.h` is written down.
 - §7 intro: the S07 file list and API.
 - `Replicate` has one enum for components and events (`Cosmetic` is for events only, §13.4).
 - `saiga_assert_fail` prints to stderr instead of stdout (assertion diagnostics; gtest death tests match stderr, so
@@ -167,6 +170,14 @@ implemented API.
   load by name); the aggregate `add` documents exact argument types (narrowing is an error on Clang and MSVC); the
   remove-during-iteration death test; doc fixes (§9.6 file, §17.7 benchmark text, Visit.h comments).
 
+- CodeRabbit (PR #48): components need noexcept moves (`static_assert`), so removal and `destroy` cannot throw
+  halfway; `destroy` enqueues the free slot first; `emplace` reserves `data` too; registration allocates the pool
+  before publishing it; `Transform` assignment is private (only the registry resets a reused slot, R-STATE-3);
+  `std::vector<bool>` with any allocator is rejected; the field check stops at a struct that contains itself through
+  a container (a tree); vectors of zero-byte elements round-trip (their count is capped at 2^16); the compile-fail
+  cases check the failed build and the message (`expect_build_failure.cmake`); the CI metrics step prints the ECS
+  benchmark line; tests assert that positive round trips decode.
+
 ## Notes for S08
 
 From review round 3, for the World built on this registry:
@@ -183,7 +194,7 @@ From review round 3, for the World built on this registry:
 
 ## Results
 
-- `tests/test_engine_ecs.cpp`: 24 tests pass (GCC 15), including 3 death tests that match the assert messages; the
+- `tests/test_engine_ecs.cpp`: 26 tests pass (GCC 15), including 3 death tests that match the assert messages; the
   binary layout is pinned (`VisitBinary.h`).
 - `tests/test_engine_ecs_benchmark.cpp` (GCC 15, RelWithDebInfo, i9 laptop; 10^5 entities with 3 components, ms):
   create 16.5, view<1> 0.47, view<Transform, 1> 0.86, view<3> 0.66, random read 1.56, remove + re-add on half 0.92,

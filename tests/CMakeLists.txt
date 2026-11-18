@@ -170,16 +170,20 @@ if (MODULE_ENGINE)
         target_link_libraries(${FIELD_TARGET} saiga_engine)
         target_compile_definitions(${FIELD_TARGET} PRIVATE FIELD_CASE=${FIELD_CASE})
         set_target_properties(${FIELD_TARGET} PROPERTIES FOLDER tests/compile_fail)
-        add_test(NAME ${FIELD_TARGET}
-                 COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${FIELD_TARGET} --config $<CONFIG>)
         list(GET ECS_FIELD_RULE_MESSAGES ${FIELD_CASE} FIELD_MESSAGE)
-        # One build at a time in the build directory
-        set_tests_properties(${FIELD_TARGET} PROPERTIES RESOURCE_LOCK cmake_build_dir)
         if (FIELD_CASE EQUAL 0)
             # The control case must build (exit code 0)
+            add_test(NAME ${FIELD_TARGET}
+                     COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target ${FIELD_TARGET} --config $<CONFIG>)
         else ()
-            set_tests_properties(${FIELD_TARGET} PROPERTIES PASS_REGULAR_EXPRESSION "${FIELD_MESSAGE}")
+            # The build must fail and print the static_assert message
+            add_test(NAME ${FIELD_TARGET}
+                     COMMAND ${CMAKE_COMMAND} -DBUILD_DIR=${CMAKE_BINARY_DIR} -DTARGET=${FIELD_TARGET}
+                             -DCONFIG=$<CONFIG> -DEXPECT=${FIELD_MESSAGE}
+                             -P ${CMAKE_CURRENT_SOURCE_DIR}/compile_fail/expect_build_failure.cmake)
         endif ()
+        # One build at a time in the build directory
+        set_tests_properties(${FIELD_TARGET} PROPERTIES RESOURCE_LOCK cmake_build_dir)
     endforeach ()
 endif ()
 

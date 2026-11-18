@@ -126,7 +126,7 @@ class SAIGA_ENGINE_API Registry
     // True while a view iterates (structural changes assert)
     bool iterating() const { return iterationDepth > 0; }
 
-    // Tests only: sets the generation of a free or alive slot (generation wrap-around)
+    // Tests only: sets the generation of a free slot (generation wrap-around)
     void debugSetGeneration(uint32_t index, uint32_t generation);
 
    private:
@@ -167,6 +167,9 @@ void Registry::registerComponent(Replicate mode, Saved saved)
 {
     static_assert(std::is_same_v<std::remove_cv_t<decltype(T::id)>, ComponentId>, "T::id must be a ComponentId");
     static_assert(std::is_default_constructible_v<T>, "components must be default constructible");
+    // Removal (swap-and-pop) and destroy must not throw halfway: moves must be noexcept
+    static_assert(std::is_nothrow_move_constructible_v<T> && std::is_nothrow_move_assignable_v<T>,
+                  "components must have noexcept move construction and assignment");
     checkVisitFields<T>();
     SAIGA_ASSERT(!infos[T::id].registered, std::string("registerComponent: ID ") + std::to_string(int(T::id)) + " of " +
                                                T::name + " is already used by " +
@@ -176,13 +179,16 @@ void Registry::registerComponent(Replicate mode, Saved saved)
         SAIGA_ASSERT(
             !infos[i].registered || std::strcmp(infos[i].name, T::name) != 0,
             std::string("registerComponent: the name ") + T::name + " is already used by ID " + std::to_string(i));
+    // Allocate first, publish afterwards: a failed allocation leaves the ID unregistered
+    std::unique_ptr<PoolBase> pool;
+    if constexpr (T::id != Transform::id) pool = std::make_unique<ComponentPool<T>>();
     ComponentInfo& info = infos[T::id];
     info.name           = T::name;
     info.version        = T::version;
     info.replicate      = mode;
     info.saved          = saved;
     info.registered     = true;
-    if constexpr (T::id != Transform::id) pools[T::id] = std::make_unique<ComponentPool<T>>();
+    pools[T::id]        = std::move(pool);
     countRegistration();
 }
 

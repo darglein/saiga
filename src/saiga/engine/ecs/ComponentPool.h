@@ -94,7 +94,9 @@ class ComponentPool final : public PoolBase
         // Everything that can allocate happens before the first change: if anything throws (bad_alloc, the
         // component's constructor), data, entities and the sparse pages stay consistent
         ensurePage(e.index);
-        entities.reserve(entities.size() + 1 > entities.capacity() ? 2 * entities.size() + 1 : entities.capacity());
+        if (entities.size() == entities.capacity()) entities.reserve(2 * entities.size() + 1);
+        // data too: the component is constructed in place, existing components are only moved by a reallocation here
+        if (data.size() == data.capacity()) data.reserve(2 * data.size() + 1);
         uint32_t dense = uint32_t(data.size());
         if constexpr (std::is_constructible_v<T, A...>)
             data.emplace_back(std::forward<A>(args)...);
@@ -105,6 +107,7 @@ class ComponentPool final : public PoolBase
         return data.back();
     }
 
+    // noexcept: components have noexcept moves (registerComponent), the sparse page exists
     void remove(uint32_t entityIndex) override
     {
         uint32_t dense = denseIndex(entityIndex);

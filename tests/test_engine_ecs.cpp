@@ -544,7 +544,8 @@ TEST(Ecs, VisitBinaryRoundTripOfEveryFieldType)
 
     std::vector<uint8_t> bytes = toBytes(in);
     Inventory out;
-    fromBytes(out, bytes);
+    std::string error;
+    ASSERT_TRUE(fromBytes(out, bytes, &error)) << error;
     EXPECT_EQ(out.open, true);
     EXPECT_EQ(out.i8, -3);
     EXPECT_EQ(out.u16, 65000);
@@ -571,7 +572,7 @@ TEST(Ecs, VisitBinaryRoundTripOfEveryFieldType)
     rt.alpha = 0.25f;
     RenderThing rt2;
     rt2.alpha = 0;
-    fromBytes(rt2, toBytes(rt));
+    ASSERT_TRUE(fromBytes(rt2, toBytes(rt), &error)) << error;
     EXPECT_EQ(rt2.alpha, 0.25f);
     EXPECT_EQ(rt2.color, rt.color);
 }
@@ -597,7 +598,7 @@ TEST(Ecs, MalformedBytesAreRejected)
     in.items   = {{ItemKind::Stone, 3}};
     auto bytes = toBytes(in);
     Inventory out;
-    EXPECT_TRUE(fromBytes(out, bytes, &error)) << error;
+    ASSERT_TRUE(fromBytes(out, bytes, &error)) << error;
     for (size_t cut : {size_t(1), size_t(5), bytes.size() / 2})
     {
         auto truncated = bytes;
@@ -634,6 +635,78 @@ TEST(Ecs, MalformedBytesAreRejected)
     EXPECT_FALSE(fromBytes(str, longString, &error));
 }
 
+struct TagHolder
+{
+    static constexpr const char* name = "TagHolder";
+    static constexpr uint32_t version = 1;
+    std::vector<Tag> tags;
+    template <class V>
+    void visit(V& v)
+    {
+        v("tags", tags);
+    }
+};
+
+// Regression: a vector of fieldless structs was written as a count only, and the reader rejected it (it required one
+// byte per element)
+TEST(Ecs, VectorOfEmptyStructsRoundTrips)
+{
+    using Holder = TagHolder;
+    Holder h;
+    h.tags.resize(3);
+    Holder out;
+    std::string error;
+    ASSERT_TRUE(fromBytes(out, toBytes(h), &error)) << error;
+    EXPECT_EQ(out.tags.size(), 3u);
+    // The count of zero-byte elements is capped (a corrupt count cannot allocate without bound)
+    std::vector<uint8_t> huge = {0, 0, 0, 0, 0, 1, 0, 0};
+    EXPECT_FALSE(fromBytes(out, huge, &error));
+}
+
+// Regression: a struct that contains itself through a vector (a tree) made the field check of registerComponent
+// recurse forever
+struct TreeNode
+{
+    static constexpr const char* name = "TreeNode";
+    static constexpr uint32_t version = 1;
+    int32_t value                     = 0;
+    std::vector<TreeNode> children;
+    template <class V>
+    void visit(V& v)
+    {
+        v("value", value);
+        v("children", children);
+    }
+};
+struct Tree
+{
+    static constexpr const char* name = "Tree";
+    static constexpr ComponentId id   = 110;
+    static constexpr uint32_t version = 1;
+    TreeNode root;
+    template <class V>
+    void visit(V& v)
+    {
+        v("root", root);
+    }
+};
+
+TEST(Ecs, SelfContainingStructRegistersAndRoundTrips)
+{
+    Registry r;
+    r.registerComponent<Tree>();
+    Tree t;
+    t.root.value = 1;
+    t.root.children.resize(2);
+    t.root.children[1].value = 3;
+    t.root.children[1].children.resize(1);
+    t.root.children[1].children[0].value = 4;
+    Tree out;
+    std::string error;
+    ASSERT_TRUE(fromBytes(out, toBytes(t), &error)) << error;
+    EXPECT_EQ(out.root.children[1].children[0].value, 4);
+}
+
 TEST(Ecs, DescribeFields)
 {
     auto f = describeFields<Inventory>();
@@ -653,6 +726,7 @@ TEST(Ecs, DescribeFields)
     EXPECT_EQ(types["m4"], "mat4d");
     EXPECT_EQ(types["selected"], "enum");
     auto selected = std::find_if(f.begin(), f.end(), [](const FieldInfo& x) { return x.name == "selected"; });
+    ASSERT_NE(selected, f.end());
     EXPECT_EQ(selected->enumValues, (std::vector<std::string>{"wood", "stone"}));
     EXPECT_EQ(types["slots"], "array<int32,3>");
     EXPECT_EQ(types["items"], "vector<ItemStack>");
@@ -704,7 +778,8 @@ TEST(Ecs, TransformSettersChangeOnlyOnARealChange)
 
     // visit round trip (the flags are not visited)
     Transform v;
-    fromBytes(v, toBytes(u));
+    std::string error;
+    ASSERT_TRUE(fromBytes(v, toBytes(u), &error)) << error;
     EXPECT_EQ(v.position(), Vec3(1, 2, 3));
     EXPECT_FALSE(v.changedInThisStep());
 }
@@ -717,7 +792,8 @@ TEST(Ecs, ChunkRegionAndInstanceKeys)
     EXPECT_TRUE((RegionId{0, 1, 0, 0} < RegionId{0, 2, -9, -9}));
     EXPECT_TRUE((InstanceKey{1, 9} < InstanceKey{2, 0}));
     RegionId r{3, 4, -1, 2}, r2;
-    fromBytes(r2, toBytes(r));
+    std::string error;
+    ASSERT_TRUE(fromBytes(r2, toBytes(r), &error)) << error;
     EXPECT_EQ(r, r2);
 }
 

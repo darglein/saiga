@@ -15,6 +15,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -65,6 +66,16 @@ struct IsStdVector : std::false_type
 };
 template <class T, class A>
 struct IsStdVector<std::vector<T, A>> : std::true_type
+{
+};
+
+// std::vector<bool, any allocator>
+template <class T>
+struct IsVectorOfBool : std::false_type
+{
+};
+template <class A>
+struct IsVectorOfBool<std::vector<bool, A>> : std::true_type
 {
 };
 
@@ -145,8 +156,9 @@ constexpr void checkFieldType()
     {
         static_assert(AllowFloat, "visit: vec/quat/mat (float) only in components with allowFloat (R-MATH-1)");
     }
-    else if constexpr (std::is_same_v<T, std::vector<bool>>)
+    else if constexpr (IsVectorOfBool<T>::value)
     {
+        // Any allocator: the bool specialization has proxy references, the reader cannot fill it
         static_assert(AlwaysFalse<T>::value, "visit: std::vector<bool> is not supported (use std::vector<uint8_t>)");
     }
     else if constexpr (IsStdVector<T>::value || IsStdArray<T>::value)
@@ -183,7 +195,7 @@ struct FieldTypeCheckVisitor
     void operator()(const char*, T& field)
     {
         checkFieldType<T, AllowFloat>();
-        if constexpr (VisitDetail::IsVisitStruct<T>::value) field.visit(*this);
+        if constexpr (VisitDetail::IsVisitStruct<T>::value) enterStruct(field);
         if constexpr (VisitDetail::IsStdVector<T>::value || VisitDetail::IsStdArray<T>::value)
             enterElement<typename T::value_type>();
     }
@@ -202,19 +214,33 @@ struct FieldTypeCheckVisitor
     }
 
    private:
+    // A struct that contains itself through a container (a tree of nodes) is valid; its fields are checked once, the
+    // traversal stops when it reaches a struct type that is already being checked
+    template <class S>
+    void enterStruct(S& s)
+    {
+        for (const char* n : entered)
+            if (n == S::name || std::strcmp(n, S::name) == 0) return;
+        entered.push_back(S::name);
+        s.visit(*this);
+        entered.pop_back();
+    }
+
     template <class E>
     void enterElement()
     {
         if constexpr (VisitDetail::IsVisitStruct<E>::value)
         {
             E e{};
-            e.visit(*this);
+            enterStruct(e);
         }
         else if constexpr (VisitDetail::IsStdVector<E>::value || VisitDetail::IsStdArray<E>::value)
         {
             enterElement<typename E::value_type>();
         }
     }
+
+    std::vector<const char*> entered;
 };
 
 template <class T>
@@ -224,7 +250,7 @@ void checkVisitFields()
                   "allowFloat only in Render* components (R-MATH-1)");
     T t{};
     FieldTypeCheckVisitor<AllowsFloat<T>::value> check;
-    t.visit(check);
+    check(T::name, t);
 }
 
 }  // namespace Engine
