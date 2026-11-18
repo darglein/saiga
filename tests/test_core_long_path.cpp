@@ -14,6 +14,7 @@
 #include "gtest/gtest.h"
 
 #include <fstream>
+#include <random>
 
 // Built twice on Windows: test_core_long_path is not long path aware, so it behaves like a system without
 // LongPathsEnabled, and test_core_long_path_aware has the manifest of saiga_enable_long_paths. Both must pass.
@@ -24,10 +25,29 @@ using namespace Saiga;
 static const std::wstring verbatim = LR"(\\?\)";
 #endif
 
-// A folder in the temp folder whose path is longer than 300 characters.
+// A short folder of this process in the temp folder, removed at exit: ctest runs both executables at the same time.
+struct ProcessDir
+{
+    std::filesystem::path dir = std::filesystem::temp_directory_path() /
+                                ("saiga_test_core_long_path_" + std::to_string(std::random_device()()));
+    ProcessDir() { std::filesystem::create_directories(dir); }
+    ~ProcessDir()
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(os_path(dir, LongPathPrefix::Always), ec);
+    }
+};
+
+static const std::filesystem::path& TestDir()
+{
+    static const ProcessDir process_dir;
+    return process_dir.dir;
+}
+
+// A folder below TestDir() whose path is longer than 300 characters.
 static std::filesystem::path LongDir()
 {
-    auto base = std::filesystem::temp_directory_path() / "saiga_test_core_long_path";
+    auto base = TestDir() / "long";
     std::error_code ec;
     std::filesystem::remove_all(os_path(base, LongPathPrefix::Always), ec);
 
@@ -127,9 +147,9 @@ TEST(LongPath, IsPathTooLongError)
     EXPECT_FALSE(is_path_too_long_error(std::error_code(), short_path));
 
     std::error_code ec;
-    std::filesystem::file_size(short_path.parent_path() / "saiga_test_core_long_path_missing.txt", ec);
+    std::filesystem::file_size(TestDir() / "missing.txt", ec);
     EXPECT_TRUE(ec);
-    EXPECT_FALSE(is_path_too_long_error(ec, short_path.parent_path() / "saiga_test_core_long_path_missing.txt"));
+    EXPECT_FALSE(is_path_too_long_error(ec, TestDir() / "missing.txt"));
 }
 
 TEST(LongPath, Files)
@@ -159,7 +179,7 @@ TEST(LongPath, ReplaceFile)
     EXPECT_FALSE(std::filesystem::exists(os_path(dir / "from.txt")));
 
     // From the temp folder, which can be on another drive than the target.
-    auto temp = std::filesystem::temp_directory_path() / "saiga_test_core_long_path_from.txt";
+    auto temp = TestDir() / "from.txt";
     WriteText(temp, "moved");
     EXPECT_TRUE(replace_file(temp, dir / "to.txt", ec)) << ec.message();
     EXPECT_EQ(File::loadFileString(dir / "to.txt"), "moved\n");
@@ -184,7 +204,7 @@ TEST(LongPath, WriteViaShortPath)
     EXPECT_TRUE(write_via_short_path(os_path(dir / "prefixed.mp4"), short_only_writer));
     EXPECT_EQ(File::loadFileString(dir / "prefixed.mp4"), "written\n");
 
-    auto short_target = std::filesystem::temp_directory_path() / "saiga_test_core_long_path_short.txt";
+    auto short_target = TestDir() / "short.txt";
     EXPECT_TRUE(write_via_short_path(short_target, short_only_writer));
     EXPECT_EQ(File::loadFileString(short_target), "written\n");
     std::filesystem::remove(short_target);
@@ -273,7 +293,7 @@ TEST(LongPath, Zip)
 TEST(LongPath, ZipFolderBelowShortFolder)
 {
     // The folder itself is short, the files in it are not.
-    auto dir = std::filesystem::temp_directory_path() / "saiga_test_core_long_path_short";
+    auto dir = TestDir() / "short";
     std::error_code ec;
     std::filesystem::remove_all(os_path(dir, LongPathPrefix::Always), ec);
     auto nested = dir / std::string(150, 'n') / std::string(150, 'm');
@@ -281,14 +301,14 @@ TEST(LongPath, ZipFolderBelowShortFolder)
     WriteText(nested / "file.txt", "file");
 
     {
-        ZipArchive archive(dir.parent_path() / "saiga_test_core_long_path_short.zip", ZipMode::Write);
+        ZipArchive archive(TestDir() / "short.zip", ZipMode::Write);
         EXPECT_TRUE(archive.add_folder("root", dir, ZipCompressionMethod::ZLIB)) << archive.get_last_error();
         EXPECT_TRUE(archive.close());
     }
-    ZipArchive archive(dir.parent_path() / "saiga_test_core_long_path_short.zip", ZipMode::Read);
+    ZipArchive archive(TestDir() / "short.zip", ZipMode::Read);
     auto name = std::filesystem::path("root") / std::string(150, 'n') / std::string(150, 'm') / "file.txt";
     EXPECT_TRUE(archive.find_file(name).first);
     archive.close();
-    std::filesystem::remove(dir.parent_path() / "saiga_test_core_long_path_short.zip");
+    std::filesystem::remove(TestDir() / "short.zip");
 }
 #endif
