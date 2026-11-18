@@ -17,6 +17,7 @@
 #include <cmath>
 #include <limits>
 #include <stdexcept>
+#include <utility>
 #include <vector>
 
 using namespace Saiga;
@@ -310,7 +311,7 @@ TEST(SpatialQuery, SameHistorySameResults)
     run(a);
     run(b);
     EXPECT_EQ(a, b);
-    // Each result is sorted, unique and matches a brute-force check
+    // Each result is sorted and unique (MatchesBruteForce checks the content)
     for (auto& r : a)
     {
         EXPECT_TRUE(std::is_sorted(r.begin(), r.end()));
@@ -352,7 +353,7 @@ TEST(SpatialQuery, RebuildBetweenSteps)
     EXPECT_EQ(w.queryRadius(0, Vec3(3, 0, 3), 0), std::vector<Entity>{a});
 }
 
-TEST(SpatialQuery, IdleEntitiesCauseNoGridWork)
+TEST(SpatialQuery, IdleEntitiesLeaveTheChangedListEmpty)
 {
     World w(testSetup());
     for (int i = 0; i < 100; ++i) createAt(w, Vec3(double(i), 0, 0));
@@ -416,45 +417,119 @@ TEST(SpatialQuery, AMovedEntityMissingFromTheGridEntersIt)
 
 namespace
 {
-bool g_throwInStreaming = false;
-Entity g_createdBeforeAbort;
+Phase g_throwIn = Phase::None;
+Entity g_createdBeforeAbort, g_movedInStreaming;
 void sysCreateInGameplay(World& w, double)
 {
-    if (g_throwInStreaming && !g_createdBeforeAbort.valid())
+    if (g_throwIn != Phase::None && !g_createdBeforeAbort.valid())
     {
         g_createdBeforeAbort = w.create();
         w.add<Tag>(g_createdBeforeAbort, Tag{7});
     }
 }
-void sysThrowInStreaming(World&, double)
+void throwIn(Phase p)
 {
-    if (g_throwInStreaming)
+    if (g_throwIn == p)
     {
-        g_throwInStreaming = false;
-        throw std::runtime_error("streaming failed");
+        g_throwIn = Phase::None;
+        throw std::runtime_error("step failed");
     }
+}
+void sysThrowInPhysics(World&, double)
+{
+    throwIn(Phase::Physics);
+}
+void sysMoveThenThrowInStreaming(World& w, double)
+{
+    // A move after phase 6 of the aborted step (only when the step gets this far)
+    if (g_throwIn == Phase::Streaming) w.get<Transform>(g_movedInStreaming).setPosition(Vec3(200, 0, 0));
+    throwIn(Phase::Streaming);
 }
 void abortSystems(SystemList& s)
 {
     s.add(Phase::Gameplay, "create", sysCreateInGameplay);
-    s.add(Phase::Streaming, "throw", sysThrowInStreaming);
+    s.add(Phase::Physics, "throw_physics", sysThrowInPhysics);
+    s.add(Phase::Streaming, "move_throw_streaming", sysMoveThenThrowInStreaming);
 }
 }  // namespace
 
-// An entity created in phase 4 of a step that throws in phase 7 stays (its command was applied), and the grid has it
-// after the next phase 6; the abort neither loses nor duplicates it
+// A step that throws before phase 6 (physics) or after it (streaming): the entity created in phase 4 stays (its command
+// was applied), the moves made before and after phase 6 of the aborted step reach the grid in the next step, and
+// nothing is lost or duplicated (the grid's log records and the transform flags carry over the abort)
 TEST(SpatialQuery, AnAbortedStepKeepsTheGridConsistent)
 {
-    World w(testSetup(abortSystems));
-    Entity a = createAt(w, Vec3(0, 0, 0));
+    for (Phase throwPhase : {Phase::Physics, Phase::Streaming})
+    {
+        World w(testSetup(abortSystems));
+        Entity a = createAt(w, Vec3(0, 0, 0));
+        Entity b = createAt(w, Vec3(50, 0, 0));
+        w.step();
+        g_createdBeforeAbort = Entity{};
+        g_movedInStreaming   = b;
+        g_throwIn            = throwPhase;
+        w.get<Transform>(a).setPosition(Vec3(100, 0, 0));
+        EXPECT_THROW(w.step(), std::runtime_error);
+        ASSERT_TRUE(w.alive(g_createdBeforeAbort));
+        w.step();
+        EXPECT_EQ(w.queryRadius(0, Vec3(0, 0, 0), 1, World::mask<Tag>()), std::vector<Entity>{g_createdBeforeAbort});
+        EXPECT_EQ(w.queryRadius(0, Vec3(100, 0, 0), 1), std::vector<Entity>{a});
+        const Vec3 bAt = throwPhase == Phase::Streaming ? Vec3(200, 0, 0) : Vec3(50, 0, 0);
+        EXPECT_EQ(w.queryRadius(0, bAt, 1), std::vector<Entity>{b});
+        EXPECT_EQ(w.spatialGrid().size(), 3u);
+    }
+}
+
+namespace
+{
+Entity g_teleportParent;
+bool g_teleportInStreaming = false;
+void sysTeleportInStreaming(World& w, double)
+{
+    if (!g_teleportInStreaming) return;
+    g_teleportInStreaming = false;
+    w.get<Transform>(g_teleportParent).teleport(Vec3(1000, 0, 0), Quat::Identity());
+}
+void teleportSystems(SystemList& s)
+{
+    s.add(Phase::Streaming, "teleport", sysTeleportInStreaming);
+}
+}  // namespace
+
+// A parent teleported in phase 7 moves its child before extract (propagateTeleportsBeforeExtract); the grid keeps the
+// phase-6 positions for the rest of that step and has both at the new place after the next phase 6
+TEST(SpatialQuery, ChildOfAParentTeleportedAfterPhase6)
+{
+    World w(testSetup(teleportSystems));
+    g_teleportParent = createAt(w, Vec3(0, 0, 0));
+    Entity child     = w.create();
+    w.add<Parent>(child, Parent{g_teleportParent});
+    w.add<LocalTransform>(child, LocalTransform{Vec3(5, 0, 0), Quat::Identity(), Vec3::Ones()});
     w.step();
-    g_createdBeforeAbort = Entity{};
-    g_throwInStreaming   = true;
-    w.get<Transform>(a).setPosition(Vec3(100, 0, 0));
-    EXPECT_THROW(w.step(), std::runtime_error);
-    ASSERT_TRUE(w.alive(g_createdBeforeAbort));
+    g_teleportInStreaming = true;
     w.step();
-    EXPECT_EQ(w.queryRadius(0, Vec3(0, 0, 0), 1, World::mask<Tag>()), std::vector<Entity>{g_createdBeforeAbort});
-    EXPECT_EQ(w.queryRadius(0, Vec3(100, 0, 0), 1), std::vector<Entity>{a});
-    EXPECT_EQ(w.spatialGrid().size(), 2u);
+    EXPECT_EQ(w.read<Transform>(child).position(), Vec3(1005, 0, 0));
+    EXPECT_EQ(w.queryRadius(0, Vec3(5, 0, 0), 0.5), std::vector<Entity>{child});
+    w.step();
+    EXPECT_TRUE(w.queryRadius(0, Vec3(5, 0, 0), 0.5).empty());
+    EXPECT_EQ(w.queryRadius(0, Vec3(1005, 0, 0), 0.5), std::vector<Entity>{child});
+    EXPECT_EQ(w.queryRadius(0, Vec3(1000, 0, 0), 0.5), std::vector<Entity>{g_teleportParent});
+}
+
+// The unsorted variant reports the position the query decided with (the grid's, not the live Transform)
+TEST(SpatialQuery, ForEachWithinReportsTheGridPosition)
+{
+    World w(testSetup());
+    Entity a = createAt(w, Vec3(1, 2, 3));
+    Entity b = createAt(w, Vec3(400, 0, 0));
+    w.add<Tag>(b, Tag{});
+    w.step();
+    w.get<Transform>(a).setPosition(Vec3(90, 0, 0));
+    std::vector<std::pair<Entity, Vec3>> seen;
+    w.forEachWithin(0, Vec3(0, 0, 0), 10, ComponentMask(), [&](Entity e, const Vec3& p) { seen.push_back({e, p}); });
+    ASSERT_EQ(seen.size(), 1u);
+    EXPECT_EQ(seen[0].first, a);
+    EXPECT_EQ(seen[0].second, Vec3(1, 2, 3));
+    size_t n = 0;
+    w.forEachWithin(0, Vec3(0, 0, 0), 1000, World::mask<Tag>(), [&](Entity e, const Vec3&) { n += e == b; });
+    EXPECT_EQ(n, 1u);
 }

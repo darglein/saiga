@@ -1017,7 +1017,9 @@ position, one created since is not found until then (reserved entities never); d
 (stale handles are filtered by `alive`); it visits the cells of the radius' square, or every occupied cell of the space
 if those are fewer; a negative or NaN radius finds nothing, non-finite positions are never found. `mask` defaults to no
 requirement; `Simulated` is not required (ticking uses the grid to decide it, §9.2). Queries only read and are allowed
-in `parallelEach`. The grid is derived data (not saved, not hashed); `rebuildSpatialGrid(world)` (engine-internal)
+in `parallelEach`. Engine-internal `world.forEachWithin(space, center, radius, mask, fn(Entity, gridPosition))` is the
+unsorted form for order-insensitive callers (S10 ticking, S16 interest): it reports the stored position the decision
+was made with, so distances (hysteresis, nearest player) use the same state. The grid is derived data (not saved, not hashed); `rebuildSpatialGrid(world)` (engine-internal)
 rebuilds it from all entities (S11 `load`). World-state entities (S10) are excluded.
 
 ### 9.6 Far from players: persistence and simulation policy [planned: S25]

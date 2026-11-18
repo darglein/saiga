@@ -37,7 +37,7 @@ registered in phase 6), R-DET-1 (results sorted by entity index; the grid's inte
   `rebuildSpatialGrid(world)`: clears, skips the log, inserts every alive entity (between steps; S11 `load`).
 - `World`: owns the `SpatialGrid` and its structural log consumer (registered in the constructor, before any entity);
   `queryRadius(space, center, radius, mask = {})` and the variant into `std::vector<Entity>& out`; engine-internal
-  `spatialGrid()`, `spatialGridConsumer()`.
+  `forEachWithin` (unsorted, with the grid position), `spatialGrid()`, `spatialGridConsumer()`.
 
 Tests and docs:
 
@@ -102,10 +102,14 @@ API.
   so an alive entity missing from the grid enters it when it moves; `rebuildSpatialGrid` skips the log after the
   inserts; a radius whose square overflows compares the scaled distance (an entity at 1e300 was found within 1e160),
   non-finite positions are never found; tests for both and for an aborted step.
+- Review round 2: `World::forEachWithin(space, center, radius, mask, fn(Entity, gridPosition))` (engine-internal,
+  unsorted) for S10 ticking and S16 interest, which need the distance the query decided with (hysteresis, nearest
+  player) and build sets; `queryRadius` uses it. Tests: the aborted step throws before phase 6 (physics) and after it
+  (streaming, with a move in phase 7); a parent teleported in phase 7; the grid position of `forEachWithin`.
 
 ## Results
 
-- `tests/test_engine_spatial_grid.cpp`: 15 tests pass (GCC 15); the S08 world and ECS tests are unchanged.
+- `tests/test_engine_spatial_grid.cpp`: 17 tests pass (GCC 15); the S08 world and ECS tests are unchanged.
 - Benchmark (GCC 15, RelWithDebInfo, laptop): 10^5 entities moving at 20 m/s over 2 km x 2 km: `World::step` 2.1-2.7 ms;
   10^4 `queryRadius(50 m)` 70 ms (7 us per query, about 190 hits each). The S08 step benchmark with 10^5 moving
   entities rises from 0.97 ms to 1.9 ms (R-TEST-2: the grid rewrites the stored position of every changed entity,

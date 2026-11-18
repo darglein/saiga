@@ -68,14 +68,7 @@ void World::queryRadius(SpaceId space, const Vec3& center, double radius, const 
                         std::vector<Entity>& out) const
 {
     out.clear();
-    grid.forEachWithin(space, center, radius,
-                       [&](const SpatialGrid::Item& it)
-                       {
-                           // Destroyed since the last update (the slot may be reused: the generation differs)
-                           if (!reg.alive(it.entity)) return;
-                           if (!reg.entityMask(it.entity).containsAll(mask)) return;
-                           out.push_back(it.entity);
-                       });
+    forEachWithin(space, center, radius, mask, [&](Entity e, const Vec3&) { out.push_back(e); });
     std::sort(out.begin(), out.end());
 }
 

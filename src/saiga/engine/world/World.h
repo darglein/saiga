@@ -174,6 +174,21 @@ class SAIGA_ENGINE_API World
     Registry& registry() { return reg; }
     const Registry& registry() const { return reg; }
     StructuralLog& structuralLog() { return log; }
+    // Unsorted queryRadius for order-insensitive engine callers (interest sets, ticking): fn(Entity, const Vec3&
+    // gridPosition) for each alive entity of the space within radius that has all components of mask, in an
+    // unspecified order. gridPosition is the position the decision was made with (the last phase 6), so a caller that
+    // needs the distance (hysteresis, nearest player) uses the same state as the query.
+    template <class F>
+    void forEachWithin(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask, F&& fn) const
+    {
+        grid.forEachWithin(space, center, radius,
+                           [&](const SpatialGrid::Item& it)
+                           {
+                               // Destroyed since the last update (the slot may be reused: the generation differs)
+                               if (!reg.alive(it.entity) || !reg.entityMask(it.entity).containsAll(mask)) return;
+                               fn(it.entity, it.position);
+                           });
+    }
     // The grid of queryRadius (updated by spatialGridSystem in phase 6) and its structural log consumer
     SpatialGrid& spatialGrid() { return grid; }
     const SpatialGrid& spatialGrid() const { return grid; }
