@@ -31,12 +31,14 @@ jobs:
             build-essential cmake ninja-build ccache \
             xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
             libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
-            libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers
+            libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers locales
+          # A locale with a decimal comma for Ini.IndependentOfCLocale (it skips without one; nothing may skip here)
+          sudo locale-gen de_DE.UTF-8
 
       - name: Setup ccache
         uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
         with:
-          key: ubuntu-24.04
+          key: ubuntu-24.04-gcc
           max-size: 2G
 
       # CUDA needs a GPU which the hosted runners don't have.
@@ -58,20 +60,35 @@ jobs:
 
       # A missing dependency silently disables a module, so check that Vulkan is really built.
       - name: Check enabled modules
-        run: grep -q "define SAIGA_USE_VULKAN" build/include/saiga/saiga_modules.h
+        run: |
+          grep -q "define SAIGA_USE_VULKAN" build/include/saiga/saiga_modules.h
+          grep -q "define SAIGA_USE_ENGINE" build/include/saiga/saiga_modules.h
 
       - name: Build
         run: cmake --build build --parallel -- -k 0
 
       # The Vulkan tests skip themselves without a Vulkan 1.3 driver, so check that lavapipe is really used.
       - name: Check Vulkan driver
+        shell: bash
         run: |
           ./build/tests/test_vulkan_device | tee vulkan_device.log
           ! grep -q SKIPPED vulkan_device.log
 
+      # On this runner no test may skip (Vulkan on lavapipe, OpenGL on llvmpipe): a skip means a lost driver. Every test
+      # binary writes a gtest XML report; any test case with result="skipped" fails the job (also single skipped cases
+      # in an otherwise passing binary, which ctest reports as passed).
       - name: Test
         working-directory: build
-        run: ctest --output-on-failure --parallel 4
+        shell: bash
+        env:
+          GTEST_OUTPUT: xml:${{ github.workspace }}/build/gtest_xml/
+        run: |
+          ctest --output-on-failure --parallel 4
+          # grep: 0 = skipped cases found, 1 = none, 2 = a report could not be read (fails too)
+          compgen -G 'gtest_xml/*.xml' > /dev/null || { echo "no gtest reports"; exit 1; }
+          rc=0; grep -l 'result="skipped"' gtest_xml/*.xml || rc=$?
+          if [ "$rc" -eq 0 ]; then echo "skipped tests (see the files above)"; exit 1; fi
+          if [ "$rc" -ne 1 ]; then echo "could not scan the gtest reports"; exit 1; fi
 
       # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
       # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
@@ -89,3 +106,144 @@ jobs:
           name: golden-failed-${{ github.job }}
           path: build/tests/golden_failed/
           if-no-files-found: ignore
+
+  # The same CPU-only setup built with Clang (docs/engine_design.md S04: every engine stage builds with GCC, Clang and
+  # MSVC). This job also builds the samples, so the tech demo games (samples/games/, game_flight/platformer/racing,
+  # docs/engine_design.md §18.4) are compiled in CI; they are not run (they need a window).
+  ubuntu-clang:
+    name: Ubuntu Clang (CPU only, OpenGL on llvmpipe, Vulkan on lavapipe)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential clang libomp-dev cmake ninja-build ccache \
+            xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
+            libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
+            libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers locales
+          # A locale with a decimal comma for Ini.IndependentOfCLocale (it skips without one; nothing may skip here)
+          sudo locale-gen de_DE.UTF-8
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: ubuntu-24.04-clang
+          max-size: 2G
+
+      - name: Configure
+        run: |
+          cmake -S . -B build -G Ninja \
+            -DCMAKE_C_COMPILER=clang \
+            -DCMAKE_CXX_COMPILER=clang++ \
+            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+            -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
+            -DSAIGA_MODULE_CUDA=OFF \
+            -DSAIGA_MODULE_OPENGL=ON \
+            -DSAIGA_MODULE_VULKAN=ON \
+            -DSAIGA_BUILD_SAMPLES=ON \
+            -DSAIGA_ARCHNATIVE=OFF \
+            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+
+      - name: Check enabled modules
+        run: |
+          grep -q "define SAIGA_USE_VULKAN" build/include/saiga/saiga_modules.h
+          grep -q "define SAIGA_USE_ENGINE" build/include/saiga/saiga_modules.h
+          # The headless OpenGL tests need EGL (without it they are not registered at all)
+          grep -q "define SAIGA_USE_OPENGL" build/include/saiga/saiga_modules.h
+          grep -q "define SAIGA_USE_EGL" build/include/saiga/saiga_modules.h
+
+      - name: Build
+        run: cmake --build build --parallel -- -k 0
+
+      # The Vulkan tests skip themselves without a Vulkan 1.3 driver, so check that lavapipe is really used.
+      - name: Check Vulkan driver
+        shell: bash
+        run: |
+          ./build/tests/test_vulkan_device | tee vulkan_device.log
+          ! grep -q SKIPPED vulkan_device.log
+
+      # No test may skip on this runner (see the GCC job)
+      - name: Test
+        working-directory: build
+        shell: bash
+        env:
+          GTEST_OUTPUT: xml:${{ github.workspace }}/build/gtest_xml/
+        run: |
+          ctest --output-on-failure --parallel 4
+          # grep: 0 = skipped cases found, 1 = none, 2 = a report could not be read (fails too)
+          compgen -G 'gtest_xml/*.xml' > /dev/null || { echo "no gtest reports"; exit 1; }
+          rc=0; grep -l 'result="skipped"' gtest_xml/*.xml || rc=$?
+          if [ "$rc" -eq 0 ]; then echo "skipped tests (see the files above)"; exit 1; fi
+          if [ "$rc" -ne 1 ]; then echo "could not scan the gtest reports"; exit 1; fi
+
+      # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
+      # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
+      - name: Golden image metrics
+        if: success() || failure()
+        run: grep -E '^golden|trees per lod' build/Testing/Temporary/LastTest.log || true
+
+      # Golden image tests (tests/golden_image.h) write the actual and difference images of a failed comparison to
+      # golden_failed/ in the test working directory.
+      - name: Upload failed golden images
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          # One artifact per job (artifact names must be unique within a run)
+          name: golden-failed-${{ github.job }}
+          path: build/tests/golden_failed/
+          if-no-files-found: ignore
+
+  # Windows with MSVC and shared libraries (the DLL export macros matter). Core, Vulkan and the engine with their tests;
+  # without a Vulkan driver the Vulkan tests skip themselves.
+  windows-msvc:
+    name: Windows MSVC (shared libraries)
+    runs-on: windows-2025
+    timeout-minutes: 150
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+
+      - name: Install the Vulkan SDK
+        uses: jakoch/install-vulkan-sdk-action@7fe84289ddbf750f7eff9f8e4588e600e1dd06c8 # v1.8.1
+        with:
+          vulkan_version: 1.4.363.1
+          install_runtime: true
+          cache: true
+          stripdown: true
+
+      # One output directory, so the tests find the saiga DLLs next to them.
+      - name: Configure
+        run: >
+          cmake -S . -B build -A x64
+          -DSAIGA_BUILD_SHARED=ON
+          -DSAIGA_MODULE_CUDA=OFF
+          -DSAIGA_MODULE_OPENGL=OFF
+          -DSAIGA_MODULE_VISION=OFF
+          -DSAIGA_MODULE_VULKAN=ON
+          -DSAIGA_BUILD_SAMPLES=OFF
+          -DSAIGA_ARCHNATIVE=OFF
+          -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+          -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="${{ github.workspace }}/build/bin"
+
+      - name: Check enabled modules
+        shell: bash
+        run: |
+          grep -q "define SAIGA_USE_VULKAN" build/include/saiga/saiga_modules.h
+          grep -q "define SAIGA_USE_ENGINE" build/include/saiga/saiga_modules.h
+
+      - name: Build
+        run: cmake --build build --config RelWithDebInfo --parallel
+
+      - name: Test
+        working-directory: build
+        run: ctest -C RelWithDebInfo --output-on-failure --parallel 4

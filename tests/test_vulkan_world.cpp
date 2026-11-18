@@ -450,7 +450,11 @@ class VulkanWorldGolden : public VulkanWorldRender
    protected:
     ivec2 imageSize() const override { return ivec2(512, 512); }
 
-    std::string deviceName() const { return std::string(renderer->base().physicalDevice.getProperties().deviceName); }
+    // .data(): MSVC cannot convert vk::ArrayWrapper1D<char, 256> to std::string directly
+    std::string deviceName() const
+    {
+        return std::string(renderer->base().physicalDevice.getProperties().deviceName.data());
+    }
 
     // Renders 5 frames from the camera and returns the last one
     TemplatedImage<ucvec4> Capture(WorldRenderer& world, const vec3& eye, const vec3& target)

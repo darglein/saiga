@@ -22,12 +22,21 @@ function(saiga_test FILE_NAME)
 
 
     target_link_libraries(${TARGET_NAME} PUBLIC saiga_core ${GTEST_TARGETS})
+    # gtest is a shared library (submodules/CMakeLists.txt): the tests import its symbols, e.g. the GTEST_FLAG variables
+    # on Windows (not set on gtest itself, gtest_main would then import its own main)
+    target_compile_definitions(${TARGET_NAME} PRIVATE GTEST_LINKED_AS_SHARED_LIBRARY=1)
     target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
 
     add_test(
             NAME ${TARGET_NAME}
             COMMAND ${TARGET_NAME}
     )
+    # A binary whose tests all skipped (e.g. the Vulkan tests without a driver) is reported as skipped, not passed.
+    # The pattern is gtest's summary when no test ran and none failed: "[  PASSED  ] 0 tests." followed only by the
+    # list of skipped tests up to the end of the output (a failure list after it does not match, so failures stay
+    # failures; binaries where only some tests skip count as passed)
+    set_tests_properties(${TARGET_NAME} PROPERTIES SKIP_REGULAR_EXPRESSION
+            "\\[  PASSED  \\] 0 tests\\.\n\\[  SKIPPED \\] [0-9]+ tests?, listed below:\n(\\[  SKIPPED \\] [^\n]+\n?)+$")
 
 
     #set_property(TARGET ${TARGET_NAME} PROPERTY CUDA_ARCHITECTURES ${SAIGA_CUDA_ARCH})
@@ -133,6 +142,11 @@ if (MODULE_VULKAN)
     saiga_test(test_vulkan_draw.cpp "saiga_vulkan")
     saiga_test(test_vulkan_memory.cpp "saiga_vulkan")
     saiga_test(test_vulkan_world.cpp "saiga_vulkan")
+endif ()
+
+if (MODULE_ENGINE)
+    # Engine tests: test_engine_<area>.cpp (docs/engine_design.md §18.1)
+    saiga_test(test_engine_smoke.cpp "saiga_engine")
 endif ()
 
 if (MODULE_CUDA)

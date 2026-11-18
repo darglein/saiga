@@ -437,7 +437,9 @@ TEST(TinyGlog, VlogAboveZeroIsSilent)
 TEST(TinyGlogDeathTest, CheckFails)
 {
     EXPECT_DEATH(CHECK(false), "Check failed");
-    EXPECT_DEATH(CHECK_EQ(1, 2) << "custom message", "\\(1 == 2\\) 1 == 2(.|\n)*custom message");
+    // Two checks: on Windows gtest uses its simple regular expressions (no groups or alternation)
+    EXPECT_DEATH(CHECK_EQ(1, 2) << "custom message", "\\(1 == 2\\) 1 == 2");
+    EXPECT_DEATH(CHECK_EQ(1, 2) << "custom message", "custom message");
     int* null = nullptr;
     EXPECT_DEATH(CHECK_NOTNULL(null), "null != nullptr");
 }

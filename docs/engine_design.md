@@ -114,9 +114,11 @@ automatically.
 
 **Verification**
 
-- **R-TEST-1** (from S12 for scenarios, now for the rest) Every gameplay feature has a scenario test (§17.2); every
-  engine feature a unit test; every render feature a headless Vulkan test, and a golden image if it changes the image
-  (§17.6; golden images start with S02, the S01 prototype tests check pixel relations only).
+- **R-TEST-1** (from S12 for engine scenarios, S13 for game scenarios, now for the rest) The saiga tests (`tests/`) test
+  the engine, not the games (samples). Every engine gameplay mechanism has an engine scenario with test-only game
+  objects (§17.2), every game feature a game scenario (`--scenarios`, run locally); every engine feature a unit test;
+  every render feature a headless Vulkan test, and a golden image if it changes the image (§17.6; golden images start
+  with S02, the S01 prototype tests check pixel relations only).
 - **R-TEST-2** (from S03) Changes under `engine/ecs/`, `engine/sync/`, `engine/net/`, `RenderScene`, culling, terrain,
   streaming or physics are performance relevant: run the relevant benchmarks before and after and report the numbers
   (ECS: `tests/test_engine_ecs_benchmark.cpp`; rendering, terrain, streaming: `--benchmark`, §17.7); they must stay
@@ -185,7 +187,8 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Double math `Vec3`, `Mat4`, `Quat`, `AngleAxis` (tiny-eigen and Eigen) with the R-MATH-2 subset of §7.10; float helpers and the S05 double overloads in `EigenGLMInterface.h` | `src/saiga/core/math/`, `submodules/tiny-eigen/` | [exists] |
 | Shader compiler (glslang, targets Vulkan 1.0 / SPIR-V 1.0) | `src/saiga/vulkan/Shader/GLSL.cpp` | [exists] |
 | VMA (supports virtual blocks; submodule, private to `saiga_vulkan`) | `submodules/VulkanMemoryAllocator` | [exists] |
-| Engine module `saiga_engine` | `src/saiga/engine/` | [planned: S04] |
+| Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
+| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
 rule, stage that removes it):
@@ -218,7 +221,7 @@ rule, stage that removes it):
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────────┐
-│ Games  (games/<name>/: library; samples/: thin executables)                  │
+│ Games  (samples/games/<name>/: one executable per game)                       │
 │   GameObject subclasses, game systems, generators, prefabs, data, look       │
 ├──────────────────────────────────────────────────────────────────────────────┤
 │ saiga_engine  (src/saiga/engine/, namespace Saiga::Engine)                   │
@@ -254,14 +257,17 @@ rule, stage that removes it):
    touch several sides, driven by the structural log (§7.6).
 4. Game code goes through `World` for structural changes.
 
-### 5.3 Module setup [planned: S04]
+### 5.3 Module setup [exists]
 
 Modeled on `saiga_vulkan` (`cmake/Module_CMakeLists.txt` is not used by the modules):
 
 - Root `CMakeLists.txt`: `OptionsHelper(SAIGA_MODULE_ENGINE ...)`; `unset(MODULE_ENGINE)` next to the other unsets;
-  `include(Dependencies_engine)` inside `if (MODULE_CORE)` after `Dependencies_vulkan` and `Dependencies_jolt`;
-  `add_subdirectory(games)` when `MODULE_ENGINE` is set (independent of `SAIGA_BUILD_SAMPLES`, so CI builds the games
-  and their scenario tests; S04 adds an empty `games/CMakeLists.txt`).
+  `include(Dependencies_engine)` inside `if (MODULE_CORE)` after `Dependencies_vulkan` and `Dependencies_jolt`.
+- Games are samples: `samples/CMakeLists.txt` adds `samples/games/` when `MODULE_ENGINE` is set (with
+  `SAIGA_BUILD_SAMPLES` and GLFW, like the Vulkan samples). `samples/games/CMakeLists.txt` defines `saiga_game(<name>)`
+  (an executable `game_<name>` from the `.cpp`/`.h` files of `samples/games/<name>/` with its subdirectories and
+  `samples/games/common/`, linking `saiga_engine`; include directory `samples/`) and adds the games; S04 added the tech
+  demos (§18.4). There are no game libraries, and the saiga tests (`tests/`) test the engine only (§17.2).
 - `cmake/Dependencies_engine.cmake`: sets `MODULE_ENGINE` and `SAIGA_USE_ENGINE` if `MODULE_VULKAN`; `ENGINE_TARGETS`
   (`saiga_vulkan`). From S28 `saiga_engine` requires Jolt: `MODULE_ENGINE` is set only if `JOLT_FOUND`,
   `SAIGA_WITH_JOLT` defaults to ON when `SAIGA_MODULE_ENGINE` is ON, and every CI job that builds the engine builds
@@ -488,7 +494,7 @@ struct SpaceTemplate                              // S20
 {
     std::string name;
     SpaceKind kind = SpaceKind::OpenWorld;        // OpenWorld (height map, sky) or Enclosed (authored scene)
-    int baseSpacing = 2;                          // metres: 1 (257 x 257 tiles) or 2 (129 x 129 tiles); games/world: 1
+    int baseSpacing = 2;                          // metres: 1 (257 x 257 tiles) or 2 (129 x 129 tiles); game_world: 1
     std::optional<int32_t> seaLevel = 0;          // S20: global water plane in height units, none if empty (§10.9)
     WaveSet waves;                                // S39: Gerstner waves of the sea (§10.9)
     int32_t sizeChunks = 128;                     // S20: the space covers chunks [0, sizeChunks)^2 (128 = 32 km);
@@ -724,7 +730,10 @@ The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it d
   `PlayerInput`/`PlayerAction` see only actions and axes. S13 implements keyboard and mouse, S35 gamepads.
 
 `main` fills `EngineAppSetup` from the command line (`--headless`, `--benchmark <name>`, `--screenshot <file>` after
-N frames, `--width/--height`, `--validation`, `--no-vsync`) and `SAIGA_MCP_PORT`; there is no `config.ini`.
+N frames, `--width/--height`, `--validation`, `--no-vsync`, `--scenarios [filter]`: run the game's scenarios with
+their variants headless, print the failures and their count, exit with 0 if at least one scenario ran and all pass,
+else 1; a filter that matches no scenario prints `no scenarios matched` and fails, §17.2) and `SAIGA_MCP_PORT`; there
+is no `config.ini`.
 
 - **One frame** (`EngineApp::frame()`):
   1. poll window events and input (GLFW; nothing when headless);
@@ -1350,7 +1359,7 @@ class PhysicsWorld
   (the same timeline as `RenderPose`), with velocities derived from it.
 - **Pushing** [S29]: when an owner's mover contacts a proxy of a host-owned dynamic body, it sends the contact impulse
   as an unreliable `PushImpulse {NetId body; Vec3 impulse, point}`; the host applies it in phase 5 with `addImpulse`.
-  Whether a game enables it is policy (`WorldConfig::clientPush`, default true; `games/world` uses it).
+  Whether a game enables it is policy (`WorldConfig::clientPush`, default true; `samples/games/world` uses it).
 - **Save/load**: Jolt state is not saved. Loading recreates bodies from `Collider`, `RigidBody` (with the saved
   velocities) and `Transform` through the structural log, like a chunk reload (§7.6); characters are recreated from
   their components. Sleeping state and contact caches start fresh, so a loaded world continues equivalently, not
@@ -1364,8 +1373,8 @@ class PhysicsWorld
 - Per space: **world plan** (global, low resolution: biomes, river channels carved below sea level (filled by the sea,
   §10.9), roads, sites of authored places; computed once from the seed) -> **chunk generation** (terrain heights, tier-1
   placement, grass masks) -> **prefab stamps** (authored places from prefab data files: terrain edits, placed pieces,
-  entities, loot, entrances to other spaces). Generators and prefabs are game content (`games/<name>/content/`); the
-  pipeline and stamping are engine mechanisms (`engine/content/`). A space can also be fully authored (prefabs only,
+  entities, loot, entrances to other spaces). Generators and prefabs are game content (`samples/games/<name>/content/`);
+  the pipeline and stamping are engine mechanisms (`engine/content/`). A space can also be fully authored (prefabs only,
   e.g. a dungeon).
 - S23 scope (before streaming): chunks are generated on demand like the S20 tiles; the host keeps per space the set
   of chunks whose prefab entities are stamped (saved; from S24 a flag in the chunk record); in phase 7 it
@@ -1450,17 +1459,17 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   CPU consumers interpolate with integer barycentric weights, rounded toward negative infinity (double queries
   interpolate the same triangles exactly); Jolt and the GPU agree within their quantization and float error (§11).
 - **Scope before S23** (S20, S22): tiles of all levels are generated on demand from `SpaceTemplate::prototypeHeight`
-  (the prototype noise evaluated per point by `games/world`, continuing beyond the prototype's 8 km; integer format;
-  R-CONTENT-1 applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; the chunk
-  record of §12.1 is introduced with only the edited height tile; `World::save()` blobs contain the edited tiles.
+  (the prototype noise evaluated per point by `samples/games/world`, continuing beyond the prototype's 8 km; integer
+  format; R-CONTENT-1 applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; the
+  chunk record of §12.1 is introduced with only the edited height tile; `World::save()` blobs contain the edited tiles.
   Simulation height queries (`terrainHeight`, mover, edits) evaluate the prototype height hook exactly if the base tile
   is not resident (the asynchronous path is visual only). Before S26 (S22) the host sends every live modification to
   every client, and clients keep all edited tiles in memory (never evicted); modification snapshots and the reload rules
   of §13.2 come with S26. Simulation radii and the chunk store follow in S24 and S25.
 - The base spacing is a `SpaceTemplate` parameter (1 m with 257 x 257 tiles, or 2 m with 129 x 129 tiles; shared
-  borders); `games/world` uses 1 m (the engine default stays 2 m); coarser levels double the spacing (level L covers 2^L
-  chunks) and are streamed by distance; a coarse whole-space pyramid (e.g. 32 m) is always resident on CPU and GPU. GPU:
-  texture-array atlas with a page table.
+  borders); `samples/games/world` uses 1 m (the engine default stays 2 m); coarser levels double the spacing (level L
+  covers 2^L chunks) and are streamed by distance; a coarse whole-space pyramid (e.g. 32 m) is always resident on CPU
+  and GPU. GPU: texture-array atlas with a page table.
 - CDLOD refines a node only if its tiles are resident. The view distance does not depend on the load radius.
 - **Terraforming** (engine mechanism; whether and how a game allows it is policy): `struct TerrainBrush { enum Op {Add,
   Subtract, Flatten, Smooth} op; Vec3 center; double radius, strength; };` `void World::editTerrain(SpaceId space, const
@@ -1890,7 +1899,8 @@ ring buffer (MCP `logs`) and stdout; `SAIGA_ASSERT` messages name the entity and
 ### 17.2 Scenario tests [planned: S12]
 
 ```cpp
-void registerScenarios(ScenarioList& s)
+// tests/test_engine_scenarios.cpp (Wanderer: a test-only game object of this file)
+void registerTestScenarios(ScenarioList& s)
 {
     s.add("wanderer_flees_when_damaged", [](ScenarioWorld& w)
     {
@@ -1917,8 +1927,13 @@ void registerScenarios(ScenarioList& s)
   deterministic, R-CONTENT-1).
 - A failing scenario prints the failed checks, the log lines and `dumpJson` of the involved entities.
 - Files: `engine/tools/ScenarioWorld.h`, `engine/tools/ScenarioList.h`, `engine/sync/RecordingRenderSink.h` (S19).
-- Games live in `games/<name>/` (library `saiga_game_<name>`); their scenarios run in
-  `tests/test_game_<name>_scenarios.cpp` as a value-parameterized gtest over the scenario list x variants.
+- The saiga tests test the engine only: engine scenarios use small test-only game objects and systems defined in
+  `tests/` (e.g. `Wanderer` of S12) and run in `tests/test_engine_scenarios.cpp` as a value-parameterized gtest over the
+  scenario list x variants. Games are samples (`samples/games/<name>/`, §18.1); their scenarios
+  (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (from S13;
+  headless, exit code 0 if at least one scenario ran and all pass, else 1 (a filter that matches nothing prints `no
+  scenarios matched`), the failure count is printed) or `run_scenario` (MCP), not in ctest; a stage that changes a game
+  runs them locally and reports the result in the pull request.
 
 ### 17.3 Multiplayer variant [planned: S16]
 
@@ -2100,8 +2115,9 @@ the missing target is reported as open).
 | engine component | `src/saiga/engine/components/<Name>.h` | struct `<Name>`, ID in `EngineIds.h` | |
 | engine system | `src/saiga/engine/<area>/<Name>System.cpp`, declared in `<area>/Systems.h` | `<name>System` | `SAIGA_ENGINE_API` |
 | engine tests | `tests/test_engine_<area>.cpp` | `saiga_test(test_engine_<area>.cpp "saiga_engine")` in `if (MODULE_ENGINE)` | |
-| game | `games/<name>/` (library `saiga_game_<name>`; content in `content/`), executable in `samples/vulkan/` | IDs in `<Name>Ids.h` | `Saiga::Game` |
-| game tests | `tests/test_game_<name>_<area>.cpp` | `saiga_test(... "saiga_game_<name>")` in `if (MODULE_ENGINE)` | |
+| game | `samples/games/<name>/` (executable `game_<name>`, `saiga_game(<name>)`, `main.cpp`; headers included as `"games/<name>/<File>.h"`; content in `content/`) | IDs in `<Name>Ids.h` | `Saiga::Game`, no export macros |
+| code shared by games | `samples/games/common/` (compiled into each game) | | `Saiga::Game` |
+| game scenarios | in the game, `EngineAppSetup::scenarios`; run with `game_<name> --scenarios` (not in ctest, §17.2) | | |
 | shaders | `shader/vulkan/<area>/` | `snake_case.vert/.frag/.comp`, `*.glsl` includes | |
 | game data, prefabs | `data/<game>/`, `data/<game>/prefabs/` | `snake_case.json` | |
 | golden images | `data/tests/golden/<test>.png` | | |
@@ -2114,7 +2130,7 @@ the missing target is reported as open).
 | events | `registerEngineEvents(EventRegistry&)`, `engine/world/Events.h` | `WorldSetup::events`, `<game>/Events.h` |
 | systems | `registerEngineSystems(SystemList&)` | `WorldSetup::systems` |
 | game object classes | – | `WorldSetup::classes` |
-| scenarios | `registerEngineScenarios(ScenarioList&)` (run by `tests/test_engine_scenarios.cpp`) | `EngineAppSetup::scenarios` (also used by the scenario tests) |
+| scenarios | in `tests/test_engine_scenarios.cpp` with test-only game objects (§17.2) | `EngineAppSetup::scenarios` (`--scenarios`, `run_scenario`) |
 | data file types | – | `WorldSetup::dataTypes` |
 | network messages | `registerEngineMessages(MessageList&)` | `WorldSetup::messages` |
 | generators, prefabs | – | `WorldSetup::generators` |
@@ -2145,6 +2161,40 @@ the missing target is reported as open).
 - **Debugging a failing scenario**: read the printed checks and logs; add `trace<T>` for the suspicious component; run
   it live with `run_scenario`, `pause`, `step`, `inspect`; for repeat or save/load failures use the `world.diff` output.
 
+### 18.4 Tech demo games [exists]
+
+Three small games show different aspects of the engine. They were added in S04, before the engine modules they need,
+so they are simple and built only on what exists (saiga_core double math, the forward renderer, the world prototype).
+Later stages port them and use them as tech demos: the stage table (§22) names the demo work of each stage, and each of
+these stages keeps the demos working and shows its feature in them (screenshots in the pull request).
+
+| Game | Shows | Directory, executable |
+|---|---|---|
+| Flight simulator | the large world and efficient rendering: a small airplane over the 8 km world prototype (CDLOD terrain, 200k GPU culled trees); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit | `samples/games/flight/`, `game_flight` |
+| Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level | `samples/games/platformer/`, `game_platformer` |
+| Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
+
+- **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` from a directory with a
+  `config.ini` (like the other samples). `--demo` simulates a few seconds before the first frame, so
+  `SAIGA_SCREENSHOT=<file.png>` (frame 60) shows the action. The controls are listed in each game's window. CI
+  compiles the executables in the Clang job (samples ON) but does not run them (they need a window).
+- **Structure**: each game is one executable (simulation in double, fixed step of 1/60 s in `MainLoop::update`,
+  rendered per frame with interpolation; `main.cpp` maps the keyboard); the window, loop and frame wiring is shared
+  (`samples/games/common/GameSampleHost.h`, header only). `samples/games/common` holds the shared helpers (mesh
+  renderer, procedural meshes, chase camera, input, `GameMath.h`) and is compiled into each game. The games
+  are samples and have no tests in `tests/` (the saiga tests test the engine, R-TEST-1); from S13 they have game
+  scenarios (`--scenarios`). The simulation classes take the ground as a function (`GroundHeight`).
+- **Transitional parts** (not the engine design; replaced when the stages arrive):
+
+  | Today | Replaced by | Stage |
+  |---|---|---|
+  | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios | S13 |
+  | `MeshRenderer` (flat colored meshes, one draw per object, `shader/vulkan/games/`; all three games) | `RenderScene` instance sets and materials | S19 |
+  | `ChaseCamera` (all three games) | the camera rig (third-person and chase cameras) | S35 |
+  | procedural box animation of the platformer | skinned meshes, animation state and pose LOD | S34 |
+  | platformer `CharacterController`, racing `Vehicle` | `CharacterVirtual`, Jolt's vehicle constraint | S29, S28 |
+  | `GameInput` key helpers | the input action map | S13 |
+
 ## 19. Migration of the prototype
 
 | Today | Becomes | Stage |
@@ -2152,7 +2202,7 @@ the missing target is reported as open).
 | `VulkanForwardRenderer` (MSAA, reversed-Z), `MainLoop`, `StandaloneWindow` | not used by engine apps (own loop in `EngineApp`, own frame in `RenderScene`); kept for the other samples or retired later | S13, S17 |
 | gray look | `WorldSettings::shading = WorldShading::Clay` (enum with one value) [exists] | S01 (done) |
 | wall-clock `time`, OpenMP reduction in `placeTrees` | `WorldSettings::freezeTime`; serial sum (tests in `tests/test_vulkan_world.cpp`) [exists] | S01 (done) |
-| `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); `games/world/` library (S12); thin executable on `EngineApp`, `--headless` (S13) | S03 (done), S12, S13 |
+| `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); the world game `samples/games/world/` (`game_world`) on `EngineApp`, `--headless` (S13) | S03 (done), S13 |
 | `WorldMcp` | engine tools in `engine/tools/`; walk mode etc. as `game_*` tools | S14 |
 | `WorldBenchmark` | benchmark runner in `engine/app/` (`--benchmark` of `EngineApp`) | S13 |
 | `WorldCommon.h`, `common.glsl` (world uniforms) | uniforms per pass in `saiga_vulkan`, helpers stay | S19 |
@@ -2201,6 +2251,8 @@ The sample keeps running and all tests stay green after every stage.
   game needs traveling NPCs that interact with the world far from players.
 - **Host-owned vehicles** (§13.3): no runtime ownership transfer; driving clients have one round trip of steering
   latency. Add later (ownership change with epochs) if that latency is a problem.
+- **Games are samples** (§5.3, §17.2): one executable per game in `samples/games/`, no game libraries; the saiga
+  tests test the engine with test-only game objects, games check themselves with their scenarios (`--scenarios`).
 - **No input record/replay** (`InputLog`): scenarios are the reproducible path. Add later together with live
   determinism if bugs from live sessions need replays.
 - **Plan-defined spaces only** (§12.1): no space instances created or deleted at run time. Add later (IDs from a
@@ -2257,7 +2309,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S01 | Prototype baseline (done) | Commit the prototype; clay shading enum, `freezeTime`, serial `placeTrees` sum (§19) | – | prototype committed, sample runs, existing tests green (CI) |
 | S02 | Golden image tests (done) | `compareGolden`, lavapipe goldens `world_overview` and `world_forest` of the prototype, CI upload of failed images (§17.6) | S01 | goldens pass in CI |
 | S03 | Benchmark runner (done) | `--benchmark` with `flyover` / `forest`, unsmoothed frame times, baseline file (§17.7) | S01 | baseline in `data/tests/benchmarks.json` for the development GPU (local) |
-| S04 | Engine module setup | `saiga_engine` and `games/` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI) |
+| S04 | Engine module setup and tech demos (done) | `saiga_engine` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3); three tech demo games as samples in `samples/games/`: flight simulator, platformer, racing, with `samples/games/common` (§18.4) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI); the games compile in the Clang job (CI); each demo runs with `--demo` without validation errors (local) |
 | S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
 | S06 | Core utilities | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
 | S07 | ECS core | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
@@ -2265,39 +2317,39 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S09 | Spatial grid | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
 | S10 | Game objects | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent` (§7.8, §8.4, §9.2-§9.4, §9.6) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve` (CI) |
 | S11 | Save, data and migration | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
-| S12 | Scenario framework | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `games/world` library with `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
-| S13 | Engine app | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local) |
+| S12 | Scenario framework | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
+| S13 | Engine app | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7); tech demos: flight, platformer and racing ported to `EngineApp` and to game objects in a `World` (§18.4) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner; each tech demo has a scenario that passes with `--scenarios` and runs on `EngineApp` (local) |
 | S14 | Engine MCP tools | Engine tools, prototype tools renamed to `game_*` (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
-| S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3) | S12, S15 | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI) |
+| S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15 | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
-| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5) | S18, S16, S14 | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local) |
-| S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2) | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review |
+| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S14 | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
+| S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
 | S23 | Generation pipeline | `Generator` interface, world plan with sites and space instances, chunk generation, prefab stamping (terrain patches, entities, static geometry; pieces in S30), tombstones, content hashes, pinned versions, the hash test on all CI compilers (§12.1, §15.3) | S20, S21, S22 | committed chunk hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present); a tombstoned instance is hidden on the client in the host + client variant (CI) |
 | S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
 | S26 | World over the network | Handshake with schema hash, chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
-| S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4) | S26 | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI) |
-| S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default) |
-| S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3) | S28, S16 | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local) |
+| S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4); tech demo: the flight demo shows far content to the horizon over 32 km | S26 | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
+| S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11); tech demo: the racing car on Jolt (vehicle constraint) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default); the racing demo drives on Jolt (local) |
+| S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16 | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
 | S31 | Promotion and grass edits | `promote`/`demote`, tombstones from interaction, `editGrass` (§6, §12.5) | S30 | chop-a-tree scenario incl. save/load and host + client (CI) |
 | S32 | Network production | Interest radius, snapshot rate (20 Hz), cosmetic events, loss and reordering handling, snapshot packets (§13.4) | S29, S26 | all scenarios pass in the host + client variant with seeded loss and reordering (CI); `--benchmark host_step` with 7 clients within the step budget, upload per client reported against §17.10 (local) |
 | S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; leave and rejoin before the next commit: no item lost; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
-| S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local) |
-| S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6) | S29, S34 | camera collision tests (CI); reviewed in a session (local) |
-| S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11) | S19, S20 | golden images per time of day (CI) |
-| S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10) | S36, S27 | per-pass budgets met on the desktop reference (or reported as open per §17.10 if no such card is available) and, when available, the Steam Deck (local); benchmark baselines in `data/tests/benchmarks.json` for the desktop reference class (RTX 3060 / RX 6600, §17.10; or reported as open per §17.10 if no such card is available) (local); golden images per tier (CI) |
-| S38 | Volumetric fog | Froxel fog with light shafts, fog volumes, analytic fog to the horizon (§10.5.1) | S37 | golden images with fog and local lights (CI); fog within its budget (local) |
-| S39 | Water | Global sea plane, waves, `waterHeight`, buoyancy, exclusion volumes, rendering incl. the transparent pass, underwater (§10.9) | S28, S37 | boat-floats scenario incl. host + client; a pit dug below sea level shows water; golden images above and below water (CI); water within its budget (local) |
+| S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6); tech demo: the platformer character skinned, with the animation state machine (replaces the procedural box animation) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local); platformer demo screenshots reviewed (local) |
+| S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6); tech demos: all three on the camera rig (third-person for the platformer, chase cameras for the car and the airplane; `ChaseCamera` removed) | S29, S34 | camera collision tests (CI); reviewed in a session (local); tech demo cameras reviewed (local) |
+| S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11); tech demos: lighting and shadows shown in the flight demo (day and night) | S19, S20 | golden images per time of day (CI); flight demo screenshots reviewed (local) |
+| S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10); tech demos: post chain and tiers in all three demos | S36, S27 | per-pass budgets met on the desktop reference (or reported as open per §17.10 if no such card is available) and, when available, the Steam Deck (local); benchmark baselines in `data/tests/benchmarks.json` for the desktop reference class (RTX 3060 / RX 6600, §17.10; or reported as open per §17.10 if no such card is available) (local); golden images per tier (CI); tech demo screenshots per tier reviewed (local) |
+| S38 | Volumetric fog | Froxel fog with light shafts, fog volumes, analytic fog to the horizon (§10.5.1); tech demo: flight through volumetric fog | S37 | golden images with fog and local lights (CI); fog within its budget (local); flight demo screenshots reviewed (local) |
+| S39 | Water | Global sea plane, waves, `waterHeight`, buoyancy, exclusion volumes, rendering incl. the transparent pass, underwater (§10.9); tech demos: flight over the sea, racing along the coast | S28, S37 | boat-floats scenario incl. host + client; a pit dug below sea level shows water; golden images above and below water (CI); water within its budget (local); tech demo screenshots reviewed (local) |
 | S40 | Moving platforms | `RideFrame`, local-frame movement, vehicle control through the driver's input, replication relative to platforms (§13.3) | S39, S29 | passenger stays on a host-owned boat steered by a client (turning boat, delay 2, driver and passenger on two different clients) and step-from-boat-to-dock scenarios (CI) |
 | S41 | Particles | GPU particles in the transparent pass, emitters, weather particles (§10.10) | S39 | particle golden images (CI); particle budget (local) |
-| S42 | Volumetric clouds | Depth-aware cloud ray march, fog coupling, cloud shadows (§10.11) | S38 | golden images below, inside and above the cloud band (CI); cloud pass within the High-tier budget (local) |
+| S42 | Volumetric clouds | Depth-aware cloud ray march, fog coupling, cloud shadows (§10.11); tech demo: flight through and above the clouds | S38 | golden images below, inside and above the cloud band (CI); cloud pass within the High-tier budget (local); flight demo screenshots reviewed (local) |
 | S43 | Materials and look | Full material set, colored look (§10.8) | S36 | golden images for both material models (CI); screenshots reviewed (local) |
-| S44 | First gameplay | Player, NPCs and a boss in `games/world` | S31, S35, S43, S46, S47 | scenario tests per feature (CI); screenshots reviewed (local) |
+| S44 | First gameplay | Player, NPCs and a boss in `samples/games/world` | S31, S35, S43, S46, S47 | a game scenario per feature, passing with `game_world --scenarios` (local); screenshots reviewed (local) |
 | S45 | Navigation (optional) | Navigation module for path-finding NPCs (§9.7) | S30, S20 | path-finding scenarios incl. terrain and piece edits (CI) |
 | S46 | Game UI | UI framework for HUD, menus, inventory and the loading screen; designed in its plan (§21) | S13 | UI layout tests headless (CI); screenshots reviewed (local) |
 | S47 | Audio | Audio service: positional sources, music, mixing by game policy; designed in its plan (§21) | S13 | headless mixer tests (CI); listened to in a session (local) |

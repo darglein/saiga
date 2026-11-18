@@ -165,7 +165,8 @@ class SAIGA_CORE_API EXIFInfo
         std::string Make;                   // Lens manufacturer
         std::string Model;                  // Lens model
     } LensInfo;
-    struct Geolocation_t
+    // Exported separately: nested classes are not exported with the enclosing class on MSVC
+    struct SAIGA_CORE_API Geolocation_t
     {                              // GPS information embedded in file
         double Latitude;           // Image latitude expressed as decimal
         double Longitude;          // Image longitude expressed as decimal

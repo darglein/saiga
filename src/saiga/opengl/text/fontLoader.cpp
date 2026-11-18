@@ -26,7 +26,7 @@ FT_Library FontLoader::ft = nullptr;
 
 FontLoader::FontLoader(const std::string& _file, const std::vector<Unicode::UnicodeBlock>& blocks) : blocks(blocks)
 {
-    this->file = SearchPathes::font(_file);
+    this->file = SearchPathes::font(_file).string();
     if (file == "")
     {
         std::cerr << "Could not open file " << _file << std::endl;

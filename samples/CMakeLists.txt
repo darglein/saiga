@@ -69,6 +69,10 @@ if(MODULE_VULKAN)
     # All vulkan samples use a GLFW window
     if (SAIGA_USE_GLFW)
         add_subdirectory(vulkan)
+        # The tech demo games (docs/engine_design.md §18.4)
+        if (MODULE_ENGINE)
+            add_subdirectory(games)
+        endif()
     endif()
 endif()
 

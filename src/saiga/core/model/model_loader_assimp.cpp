@@ -42,7 +42,7 @@ AssimpLoader::AssimpLoader(const std::string& _file) : file(_file)
 
 void AssimpLoader::loadFile(const std::string& _file)
 {
-    this->file = SearchPathes::model(_file);
+    this->file = SearchPathes::model(_file).string();
     if (file == "")
     {
         std::cerr << "Could not open file " << _file << std::endl;

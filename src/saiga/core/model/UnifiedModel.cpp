@@ -31,7 +31,7 @@ std::ostream& operator<<(std::ostream& strm, const UnifiedMaterial& material)
 
 UnifiedModel::UnifiedModel(const std::string& file_name)
 {
-    auto full_file = SearchPathes::model(file_name);
+    std::string full_file = SearchPathes::model(file_name).string();
     if (full_file.empty())
     {
         throw std::runtime_error("Could not open file " + file_name);
@@ -48,9 +48,9 @@ UnifiedModel::UnifiedModel(const std::string& file_name)
     std::string type = fileEnding(file_name);
     if (type == "obj")
     {
-        ObjModelLoader loader(full_file.string());
+        ObjModelLoader loader(full_file);
         *this = loader.out_model;
-        LocateTextures(full_file.string());
+        LocateTextures(full_file);
     }
     else
     {
