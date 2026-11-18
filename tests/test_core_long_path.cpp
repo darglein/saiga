@@ -228,8 +228,8 @@ TEST(LongPath, WriteViaShortPath)
     EXPECT_EQ(File::loadFileString(short_target), "written\n");
     std::filesystem::remove(short_target);
 
-    // A short target with the prefix is written through the temp folder too: without the prefix it could name another
-    // file.
+    // On Windows, a short target with the prefix is written through the temp folder too: without the prefix it could
+    // name another file. Elsewhere os_path adds no prefix and the target is written directly.
     auto prefixed_short = os_path(TestDir() / "prefixed_short.txt", LongPathPrefix::Always);
     std::filesystem::path written_to;
     EXPECT_TRUE(write_via_short_path(prefixed_short,
@@ -238,7 +238,11 @@ TEST(LongPath, WriteViaShortPath)
                                          written_to = path;
                                          return short_only_writer(path);
                                      }));
+#if defined(_WIN32)
     EXPECT_NE(written_to.parent_path(), TestDir());
+#else
+    EXPECT_EQ(written_to, prefixed_short);
+#endif
     EXPECT_EQ(File::loadFileString(TestDir() / "prefixed_short.txt"), "written\n");
 
     // A failed writer leaves nothing behind.
