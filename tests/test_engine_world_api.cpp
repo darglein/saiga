@@ -1192,3 +1192,74 @@ TEST(WorldApi, MovesKeepTheHandleOfTheStep)
     ASSERT_TRUE(r.ok) << r.error;
     EXPECT_TRUE(r.value["moved"].array_items().empty()) << r.value.dump();
 }
+
+// Regression (CodeRabbit): an entity that moved again while a window was paged was deferred out of the window
+TEST(WorldApi, AnEntityMovingAgainDuringPagingStaysInItsWindow)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    std::vector<Entity> e;
+    for (int i = 0; i < 3; ++i) e.push_back(w.create());
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    w.get<Transform>(e[0]).setPosition(Vec3(1, 0, 0));
+    w.get<Transform>(e[2]).setPosition(Vec3(1, 0, 0));
+    w.step();
+    ApiResult p1 =
+        api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}, {"limit", 1}}));
+    ASSERT_TRUE(p1.value["moved_more"].bool_value());
+    // e[2] moves again before page two: still reported in this window
+    w.get<Transform>(e[2]).setPosition(Vec3(2, 0, 0));
+    w.step();
+    ApiResult p2 = api.call("changes_since",
+                            Json(Json::object{{"cursor", p1.value["cursor"]}, {"include_moved", true}, {"limit", 1}}));
+    ASSERT_EQ(p2.value["moved"].array_items().size(), 1u);
+    EXPECT_EQ(entityOf(p2.value["moved"][0]), e[2]);
+}
+
+namespace
+{
+enum class OddClass : uint16_t
+{
+    Odd = kFirstGameClass + 1,
+};
+// Throws something that is not a std::exception
+class Odd final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(OddClass::Odd);
+    static constexpr const char* name = "Odd";
+    void onSpawn() override { throw 42; }
+};
+}  // namespace
+
+// Regression (CodeRabbit): only std::exception was caught; any exception now becomes an indexed batch failure
+TEST(WorldApi, AnyExceptionBecomesAnErrorResult)
+{
+    WorldSetup s = apiSetup();
+    s.classes    = [](ClassList& c)
+    {
+        c.add<Dummy>();
+        c.add<Odd>();
+    };
+    World w(s);
+    WorldApi api(w);
+    ApiResult r = api.call("apply", obj(R"({"operations": [{"op": "spawn", "position": [0, 0, 0]},
+                                                         {"op": "spawn", "class": "Odd", "position": [0, 0, 0]}]})"));
+    EXPECT_FALSE(r.ok);
+    EXPECT_EQ(r.value["applied"].number_value(), 1);
+}
+
+// Regression (CodeRabbit): with retained samples and no new step, the measurement returned the old history
+TEST(WorldTools, AMeasurementWithoutStepsIsEmpty)
+{
+    World w(apiSetup());
+    w.step(5);
+    McpServer server("test");
+    server.toolTimeoutSeconds = 1;
+    auto api                  = registerWorldTools(server, w);
+    Poller poller(server);
+    Json m = callTool(server, "measure_performance", obj(R"({"steps": 10})"));
+    ASSERT_FALSE(m["result"]["isError"].bool_value()) << m.dump();
+    EXPECT_EQ(toolJson(m)["samples"].number_value(), 0);
+    EXPECT_TRUE(toolJson(m)["stopped_early"].bool_value());
+}

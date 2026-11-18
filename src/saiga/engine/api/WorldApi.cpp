@@ -455,6 +455,11 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
         result = ApiResult::failure(operation + ": a game hook threw: " + ex.what() +
                                     " (side effects before the exception may remain)");
     }
+    catch (...)
+    {
+        result = ApiResult::failure(operation +
+                                    ": a game hook threw an exception (side effects before the exception may remain)");
+    }
     // Edits are logged after they ran, with their outcome (failed attempts are marked)
     if (op->edit && operation != "apply")
         SAIGA_LOG("api", "%s %s %s%s", result.ok ? "ok" : "failed:", operation.c_str(),
@@ -862,7 +867,10 @@ void WorldApi::trackMoves()
     for (Entity e : w->changedDuringLastStep())
     {
         if (e.index >= lastMoved.size()) lastMoved.resize(size_t(e.index) + 1);
-        lastMoved[e.index] = {e, stepIndex};
+        MoveRecord& r = lastMoved[e.index];
+        r.previous    = r.entity == e ? r.step : 0;  // a new entity in the slot starts fresh
+        r.entity      = e;
+        r.step        = stepIndex;
     }
 }
 
@@ -943,7 +951,7 @@ ApiResult WorldApi::changesSince(const Json& a)
             for (uint32_t i = start; i < lastMoved.size(); ++i)
             {
                 const MoveRecord& m = lastMoved[i];
-                if (m.step <= from || m.step > to || !w->alive(m.entity)) continue;
+                if (!m.in(from, to) || !w->alive(m.entity)) continue;
                 if (moved.size() == size_t(limit))
                 {
                     movedMore = true;
@@ -1257,11 +1265,15 @@ ApiResult WorldApi::step(const Json& a)
     int64_t n = 1;
     if (!intArg(a, "n", 1, 100000, 1, n, error)) return ApiResult::failure(error);
     // A wall-clock budget: a long request answers before the tool call times out
-    const auto start = std::chrono::steady_clock::now();
-    int64_t ran      = 0;
+    // Inside apply the batch's deadline applies (one budget for the whole request)
+    const auto deadline =
+        inBatch ? batchDeadline
+                : std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                                         std::chrono::duration<double>(kStepBudgetSeconds));
+    int64_t ran = 0;
     for (; ran < n; ++ran)
     {
-        if (std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() > kStepBudgetSeconds) break;
+        if (std::chrono::steady_clock::now() > deadline) break;
         w->step();
     }
     return ApiResult::success(Json::object{{"step", double(w->stepIndex())},
@@ -1292,7 +1304,15 @@ ApiResult WorldApi::apply(const Json& a)
         if (isEdit(name) && !allowEdits) return ApiResult::failure(name + ": edits are not allowed (read-only)");
     }
     Json::array results;
-    size_t index = 0;
+    size_t index  = 0;
+    inBatch       = true;
+    batchDeadline = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                                           std::chrono::duration<double>(kStepBudgetSeconds));
+    struct BatchEnd
+    {
+        bool& flag;
+        ~BatchEnd() { flag = false; }
+    } batchEnd{inBatch};
     for (const Json& op : a["operations"].array_items())
     {
         Json::object args = op.object_items();

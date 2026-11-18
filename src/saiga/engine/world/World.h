@@ -301,7 +301,18 @@ class SAIGA_ENGINE_API World
     Entity spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
                         const std::function<void(Entity)>& initial);
     // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
-    void addStepListener(std::function<bool()> fn) { stepListeners.push_back(std::move(fn)); }
+    int addStepListener(std::function<bool()> fn)
+    {
+        stepListeners.push_back({nextListenerId, std::move(fn)});
+        return nextListenerId++;
+    }
+    // Removes a step listener (also while the listeners run: it is not called any more)
+    void removeStepListener(int id)
+    {
+        for (size_t i = 0; i < stepListeners.size(); ++i)
+            if (stepListeners[i].first == id) stepListeners.erase(stepListeners.begin() + std::ptrdiff_t(i));
+        removedStepListeners.push_back(id);
+    }
     // Runs fn when the world is destroyed (observers such as the world API detach); returns an ID for removal
     int addDestroyListener(std::function<void()> fn)
     {
@@ -433,7 +444,8 @@ class SAIGA_ENGINE_API World
     uint64_t actionSequence = 0;
     Entity worldState;
     std::vector<Entity> spaceStates;  // by SpaceId
-    std::vector<std::function<bool()>> stepListeners;
+    std::vector<std::pair<int, std::function<bool()>>> stepListeners;
+    std::vector<int> removedStepListeners;  // removed while the listeners run
     std::vector<std::pair<int, std::function<void()>>> destroyListeners;
     int nextListenerId   = 0;
     int trackStepChanges = 0;

@@ -158,20 +158,24 @@ void World::runStepListeners()
 {
     // Listeners may add listeners (kept) and remove themselves (return false). A throwing listener is removed; the
     // others are still notified of this (committed) step, then the first exception is rethrown.
-    std::vector<std::function<bool()>> current;
+    std::vector<std::pair<int, std::function<bool()>>> current;
     current.swap(stepListeners);
+    removedStepListeners.clear();
     std::exception_ptr first;
     for (auto& l : current)
     {
+        if (std::find(removedStepListeners.begin(), removedStepListeners.end(), l.first) != removedStepListeners.end())
+            continue;
         try
         {
-            if (l()) stepListeners.push_back(std::move(l));
+            if (l.second()) stepListeners.push_back(std::move(l));
         }
         catch (...)
         {
             if (!first) first = std::current_exception();
         }
     }
+    removedStepListeners.clear();
     if (first) std::rethrow_exception(first);
 }
 

@@ -10,6 +10,7 @@
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/export.h"
 
+#include <chrono>
 #include <cstdint>
 #include <deque>
 #include <memory>
@@ -141,14 +142,22 @@ class SAIGA_ENGINE_API WorldApi
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
     uint32_t epoch   = 0;
+    // apply: one wall-clock deadline for the whole batch (step inside it does not start a new budget)
+    bool inBatch = false;
+    std::chrono::steady_clock::time_point batchDeadline;
     Entity lastDestroyed;  // folds the removed records that follow a destroyed record
     bool movesTracked   = false;
     uint64_t movesSince = 0;  // the step from which moves are tracked
-    // By entity index: the handle and step of its last move since tracking started (step 0: none)
+    // By entity index: the handle and the steps of its last two moves since tracking started (0: none). Two steps: an
+    // entity that moves again while a window is paged stays in that window (its earlier move is in it)
     struct MoveRecord
     {
         Entity entity;
-        uint64_t step = 0;
+        uint64_t previous = 0, step = 0;
+        bool in(uint64_t from, uint64_t to) const
+        {
+            return (step > from && step <= to) || (previous > from && previous <= to);
+        }
     };
     std::vector<MoveRecord> lastMoved;
     std::shared_ptr<bool> alive;  // the world's listeners stop when the API is gone

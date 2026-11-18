@@ -340,8 +340,9 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 bool answered  = false;
                 bool worldGone = false;
                 uint64_t start, resets;
-                World* world        = nullptr;  // holds the destroy listener
+                World* world        = nullptr;  // holds the destroy and step listeners
                 int destroyListener = -1;
+                int stepListener    = -1;
             };
             auto m             = std::make_shared<Measurement>();
             m->start           = w.profiler().sampleCount();
@@ -363,7 +364,11 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 if (!api || !api->world())
                 {
                     m->answered = true;
-                    if (!m->worldGone) m->world->removeDestroyListener(m->destroyListener);
+                    if (!m->worldGone)
+                    {
+                        m->world->removeDestroyListener(m->destroyListener);
+                        m->world->removeStepListener(m->stepListener);
+                    }
                     respond(ToolResult::Error("the world is not available"));
                     return false;
                 }
@@ -372,6 +377,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 {
                     m->answered = true;
                     world.removeDestroyListener(m->destroyListener);
+                    world.removeStepListener(m->stepListener);
                     respond(ToolResult::Error("the profile was reset during the measurement"));
                     return false;
                 }
@@ -380,6 +386,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 if (done < uint64_t(n) && elapsed() < 0.5 * timeout) return true;
                 m->answered = true;
                 world.removeDestroyListener(m->destroyListener);
+                world.removeStepListener(m->stepListener);
                 // No step ran: an empty window (report(0) would be the whole history)
                 Json report = done > 0 ? world.profiler().report(int(done))
                                        : Json(Json::object{{"unit", "ms"},
@@ -397,7 +404,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 respond(ToolResult::Text(exactJson(report)));
                 return false;
             };
-            w.addStepListener(check);
+            m->stepListener = w.addStepListener(check);
             serverPtr->addPollListener(check);
         });
     return api;
