@@ -10,6 +10,8 @@
 
 #include "saiga/engine/core/Log.h"
 
+#include <algorithm>
+
 namespace Saiga
 {
 namespace Engine
@@ -77,10 +79,15 @@ Entity Registry::create()
 Entity Registry::reserveSlot()
 {
     uint32_t index;
-    if (!freeSlots.empty())
+    if (!freeEmpty())
     {
-        index = freeSlots.front();
-        freeSlots.pop_front();
+        index = freeSlots[freeHead++];
+        // Compact now and then (moves, no allocation; the capacity stays)
+        if (freeHead >= 1024 && 2 * freeHead >= freeSlots.size())
+        {
+            freeSlots.erase(freeSlots.begin(), freeSlots.begin() + std::ptrdiff_t(freeHead));
+            freeHead = 0;
+        }
     }
     else
     {
@@ -133,7 +140,7 @@ void Registry::release(Entity e)
     Slot& s                       = slots[e.index];
     const uint32_t nextGeneration = s.generation + 1;
     // The only step that can throw comes first
-    if (nextGeneration != 0) freeSlots.push_back(e.index);
+    if (nextGeneration != 0) pushFree(e.index);
     s.state      = SlotState::Free;
     s.generation = nextGeneration;
 }
@@ -148,6 +155,17 @@ void Registry::shiftTransformFlags()
         t.changedThisStep    = 0;
         t.teleported         = 0;
     }
+}
+
+void Registry::pushFree(uint32_t index)
+{
+    freeSlots.push_back(index);
+}
+
+void Registry::reserveRelease(size_t n)
+{
+    const size_t needed = freeSlots.size() + n;
+    if (freeSlots.capacity() < needed) freeSlots.reserve(std::max(needed, 2 * freeSlots.capacity()));
 }
 
 void Registry::hashInto(Hasher& h) const
@@ -171,8 +189,8 @@ void Registry::hashInto(Hasher& h) const
         h.addU32(i).addU32(s.generation).addU64(uint64_t(bytes.size())).add(bytes.data(), bytes.size());
     }
     // The free list decides the indices and generations of future entities
-    h.addU64(uint64_t(freeSlots.size()));
-    for (uint32_t index : freeSlots) h.addU32(index).addU32(slots[index].generation);
+    h.addU64(uint64_t(freeSlots.size() - freeHead));
+    for (size_t i = freeHead; i < freeSlots.size(); ++i) h.addU32(freeSlots[i]).addU32(slots[freeSlots[i]].generation);
 }
 
 void Registry::destroy(Entity e)
@@ -183,7 +201,7 @@ void Registry::destroy(Entity e)
     // The only step that can throw (the free list allocates) comes first: on failure nothing changed. A slot whose
     // generation wraps around is retired (a stale handle could match again).
     const uint32_t nextGeneration = s.generation + 1;
-    if (nextGeneration != 0) freeSlots.push_back(e.index);
+    if (nextGeneration != 0) pushFree(e.index);
     // Components in ID order (deterministic; the order matters for the structural log of S08). Cannot throw:
     // components have noexcept moves and the sparse pages exist.
     destroying = true;

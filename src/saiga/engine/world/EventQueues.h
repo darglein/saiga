@@ -46,7 +46,8 @@ class EventQueueBase
     virtual ~EventQueueBase() = default;
     // Pending -> readable (the previous readable events are dropped)
     virtual void beginStep() = 0;
-    // Undoes beginStep of an aborted step: the readable events go back in front of the pending ones
+    // Undoes beginStep of an aborted step: the readable events are pending again, the aborted step's own events are
+    // dropped (no allocation)
     virtual void abortStep() = 0;
     // The pending events (emitted since the last beginStep) in emit order
     virtual void hashPending(Hasher& h) const = 0;
@@ -71,10 +72,10 @@ class EventQueue final : public EventQueueBase
     }
     void abortStep() override
     {
-        readable.insert(readable.end(), std::make_move_iterator(pending.begin()),
-                        std::make_move_iterator(pending.end()));
+        // The readable events become pending again; the events the aborted step emitted are dropped (like its
+        // commands). A swap: no allocation.
+        pending.clear();
         pending.swap(readable);
-        readable.clear();
     }
     void hashPending(Hasher& h) const override
     {

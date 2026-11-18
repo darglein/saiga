@@ -189,6 +189,9 @@ API.
   release independently.
 - Event queues and component pools store `typeid(T).name()` and check it before every downcast (pointer equality,
   `strcmp` across DLLs): two types with the same ID, name and size are told apart (the size check was not enough).
+- `abortStep` does not allocate: the registry's free list is a vector FIFO and `World::create` reserves the release
+  capacity with each reserved entity; the event restore is a swap (the readable events become pending again, the
+  aborted step's own events are dropped like its commands).
 
 ## Results
 

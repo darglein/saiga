@@ -21,7 +21,6 @@
 #include <array>
 #include <atomic>
 #include <cstring>
-#include <deque>
 #include <memory>
 #include <string>
 #include <vector>
@@ -92,6 +91,9 @@ class SAIGA_ENGINE_API Registry
     Entity reserve();
     void activate(Entity e);
     void release(Entity e);
+    // Capacity for n releases (or destroys) without allocation: the World calls it when it reserves an entity during a
+    // step, so releasing it on an aborted step cannot fail
+    void reserveRelease(size_t n);
     bool reserved(Entity e) const
     {
         return e.index != 0 && e.index < slots.size() && slots[e.index].generation == e.generation &&
@@ -185,7 +187,11 @@ class SAIGA_ENGINE_API Registry
 
     PagedArray<Slot> slots;
     PagedArray<Transform> transforms;  // by entity index
-    std::deque<uint32_t> freeSlots;    // FIFO reuse
+    // FIFO reuse: a vector with a head index (reserveRelease can promise capacity, so release does not allocate)
+    std::vector<uint32_t> freeSlots;
+    size_t freeHead = 0;
+    bool freeEmpty() const { return freeHead == freeSlots.size(); }
+    void pushFree(uint32_t index);
     std::array<std::unique_ptr<PoolBase>, kMaxComponents> pools;
     std::array<ComponentInfo, kMaxComponents> infos;
     uint32_t aliveEntities   = 0;

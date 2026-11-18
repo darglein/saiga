@@ -1009,6 +1009,8 @@ void sysReadThenThrow(World& w, double)
     if (g_throwOnce)
     {
         g_throwOnce = false;
+        w.events.emit(DamageEvent{Entity{}, 99});  // emitted by the aborted step: dropped with it
+        w.create();                                // reserved by the aborted step: released
         throw std::runtime_error("once");
     }
 }
@@ -1025,8 +1027,11 @@ TEST(World, AnAbortedStepKeepsItsEvents)
     w.events.emit(DamageEvent{Entity{}, 1});
     g_throwOnce = true;
     EXPECT_THROW(w.step(), std::runtime_error);
+    EXPECT_EQ(w.registry().aliveCount(), 0u);
     w.step();
-    EXPECT_EQ(g_eventsSeen, 1u);
+    EXPECT_EQ(g_eventsSeen, 1u);  // the event of before the aborted step, not the aborted step's own
+    w.step();
+    EXPECT_EQ(g_eventsSeen, 0u);
 }
 
 // Regression: every destroy sorted all Parent links; entities without children skip the cascade

@@ -60,6 +60,9 @@ Entity World::create()
     if (deferring())
     {
         // Reserved now (views skip it), alive when the command is applied; reserving never moves a Transform
+        // Everything the abort cleanup needs is allocated now (it must not allocate while an exception propagates)
+        pendingReserved.reserve(pendingReserved.size() + 1);
+        reg.reserveRelease(pendingReserved.size() + 1);
         Entity e = reg.reserve();
         pendingReserved.push_back(e);
         record(makeCommand([e](World& w) { w.activateNow(e); }));
@@ -238,29 +241,14 @@ void World::abortStep()
     flushing           = false;
     const bool restore = stepEventsBegun;
     stepEventsBegun    = false;
-    // The commands of the interrupted phase are dropped; the entities they would have activated are released; the
-    // events this step made readable are pending again (the step is repeated with them, events emitted by the aborted
-    // step after them). Best effort: called while an exception propagates, so a failure here (an allocation) must not
-    // replace it; then the events of the aborted step are lost and reserved slots are not reused.
+    // The commands of the interrupted phase are dropped, the entities they would have activated released, and the
+    // events of the step are restored: the readable ones become pending again, the ones the aborted step emitted are
+    // dropped like its commands. None of this allocates (the capacity for the releases was reserved when the entities
+    // were reserved; the event restore is a swap), so the cleanup cannot fail while the exception propagates.
     commands.clear();
-    // Each part on its own: a failed event restore does not skip the releases, a failed release not the others
-    try
-    {
-        if (restore) events.abortStep();
-    }
-    catch (...)
-    {
-    }
+    if (restore) events.abortStep();
     for (Entity e : pendingReserved)
-    {
-        try
-        {
-            if (reg.reserved(e)) reg.release(e);
-        }
-        catch (...)
-        {
-        }
-    }
+        if (reg.reserved(e)) reg.release(e);
     pendingReserved.clear();
 }
 
