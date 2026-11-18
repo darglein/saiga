@@ -75,8 +75,10 @@ Tests and docs:
   during a step (found in phase 8 of the same step and in the next step); children moved by their parent; destroying a
   parent removes the children; two worlds with the same history return the same results; brute-force comparison;
   `rebuildSpatialGrid`; idle entities leave the changed list empty; queries from `parallelEach` with 1 and 4 threads
-  give the same results; an alive entity missing from the grid enters it when it moves; an aborted step (phase 7 throws
-  after a phase-4 create) keeps the grid consistent.
+  give the same results; an alive entity missing from the grid enters it when it moves; an aborted step keeps the grid
+  consistent (a phase-4 create, then a throw in phase 5 or in phase 7 after a move there); a parent teleported in
+  phase 7 (old grid position for the rest of the step, new after the next phase 6); `forEachWithin` reports the grid
+  position.
 
 Benchmark (non-gating): `World::step` with 10^5 entities spread over 2 km x 2 km moving at 20 m/s, and 10^4
 `queryRadius` calls of 50 m.
@@ -106,6 +108,7 @@ API.
   unsorted) for S10 ticking and S16 interest, which need the distance the query decided with (hysteresis, nearest
   player) and build sets; `queryRadius` uses it. Tests: the aborted step throws before phase 6 (physics) and after it
   (streaming, with a move in phase 7); a parent teleported in phase 7; the grid position of `forEachWithin`.
+- Review round 3: a non-finite query center returns at once (it matched nothing but scanned every cell); comments.
 
 ## Results
 

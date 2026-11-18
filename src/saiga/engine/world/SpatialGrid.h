@@ -96,6 +96,8 @@ template <class F>
 void SpatialGrid::forEachWithin(SpaceId space, const Vec3& center, double radius, F&& fn) const
 {
     if (!(radius >= 0) || space >= spaces.size() || !spaces[space]) return;
+    // A non-finite center matches nothing (the distance is not finite); returning early avoids a scan of every cell
+    if (!std::isfinite(center.x()) || !std::isfinite(center.y()) || !std::isfinite(center.z())) return;
     const Cells& cells = *spaces[space];
     if (cells.empty()) return;
     const double r2 = radius * radius;

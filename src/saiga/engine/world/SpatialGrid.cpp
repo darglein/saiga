@@ -28,7 +28,8 @@ int32_t SpatialGrid::cellCoordinate(double v)
 void SpatialGrid::removeFromCell(const Entry& en)
 {
     std::vector<Item>& items = *en.cell;
-    // Swap with the last item (the order inside a cell does not matter: results are sorted)
+    // Swap with the last item (the order inside a cell does not matter: queries have no defined order, queryRadius
+    // sorts)
     if (en.slot + 1 != items.size())
     {
         items[en.slot]                            = items.back();
