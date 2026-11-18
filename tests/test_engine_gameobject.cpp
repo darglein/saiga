@@ -755,3 +755,215 @@ TEST(WorldStateDeathTest, NoParentAndNoRemovalOfWorldStateComponents)
     EXPECT_DEATH(w.remove<Flags>(w.worldStateEntity()), "world-state components cannot be removed");
 }
 #endif
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S10 round 2)
+
+namespace
+{
+enum class Round2Class : uint16_t
+{
+    Mover = kFirstGameClass + 8,
+    Vehicle,
+    Pilot,
+    Respawner,
+    BadConfig,
+    Link,
+    Count
+};
+
+Entity g_child2, g_newParent;
+// Destroys itself in update and creates a new parent; its onDestroy (at the flush) attaches a child to that parent
+class Mover final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::Mover);
+    static constexpr const char* name = "Mover";
+    void update(double) override
+    {
+        if (g_newParent.valid()) return;
+        destroy();
+        g_newParent = world().create();
+    }
+    void onDestroy() override { world().add<Parent>(g_child2, Parent{g_newParent}); }
+};
+
+int g_pilotDestroys = 0;
+Entity g_pilot;
+class Vehicle final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::Vehicle);
+    static constexpr const char* name = "Vehicle";
+    // Ejects the pilot (releases it from the cascade)
+    void onDestroy() override { world().remove<Parent>(g_pilot); }
+};
+class Pilot final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::Pilot);
+    static constexpr const char* name = "Pilot";
+    void onDestroy() override { g_pilotDestroys++; }
+};
+
+int g_respawns = 0;
+// Spawns a replacement under the same parent when destroyed (must not loop when the parent is destroyed)
+class Respawner final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::Respawner);
+    static constexpr const char* name = "Respawner";
+    void onDestroy() override
+    {
+        g_respawns++;
+        const Parent* p = world().tryRead<Parent>(entity());
+        if (!p || g_respawns > 100) return;
+        Entity r = spawn<Respawner>(Vec3::Zero());
+        world().add<Parent>(r, Parent{p->entity});
+    }
+};
+
+class BadConfig final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::BadConfig);
+    static constexpr const char* name = "BadConfig";
+    void configure() override { throw std::runtime_error("bad data"); }
+};
+
+Entity g_next;
+// Destroys the next link of a chain in its onDestroy
+class Link final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(Round2Class::Link);
+    static constexpr const char* name = "Link";
+    void onDestroy() override
+    {
+        if (has<Health>()) world().destroy(Entity{uint32_t(read<Health>().hp), uint32_t(read<Health>().maxHp)});
+    }
+};
+
+void round2Classes(ClassList& c)
+{
+    reviewClasses(c);
+    c.add<Mover>();
+    c.add<Vehicle>();
+    c.add<Pilot>();
+    c.add<Respawner>();
+    c.add<BadConfig>();
+    c.add<Link>();
+}
+WorldSetup round2Setup(void (*systems)(SystemList&) = nullptr)
+{
+    WorldSetup s = testSetup(systems);
+    s.classes    = round2Classes;
+    return s;
+}
+}  // namespace
+
+// Regression: during a flush, attaching a child to a parent reserved later in the phase destroyed the child
+TEST(GameObject, AttachingToAParentReservedLaterInTheFlush)
+{
+    World w(round2Setup());
+    spawnPlayer(w, Vec3::Zero());
+    g_child2    = w.create();
+    g_newParent = Entity{};
+    w.spawn<Mover>(Vec3::Zero());
+    w.step();
+    ASSERT_TRUE(w.alive(g_child2));
+    ASSERT_TRUE(w.alive(g_newParent));
+    EXPECT_EQ(w.read<Parent>(g_child2).entity, g_newParent);
+}
+
+// Regression: a child released from the cascade by its parent's onDestroy kept its destroying flag: its real destroy
+// never called onDestroy again
+TEST(GameObject, AChildReleasedFromTheCascadeGetsOnDestroyAgain)
+{
+    World w(round2Setup());
+    Entity v = w.spawn<Vehicle>(Vec3::Zero());
+    g_pilot  = w.spawn<Pilot>(Vec3::Zero());
+    w.add<Parent>(g_pilot, Parent{v});
+    g_pilotDestroys = 0;
+    w.destroy(v);
+    ASSERT_TRUE(w.alive(g_pilot));
+    EXPECT_EQ(g_pilotDestroys, 1);  // children first: its onDestroy ran before the vehicle ejected it
+    w.destroy(g_pilot);
+    EXPECT_EQ(g_pilotDestroys, 2);
+}
+
+// Regression: a child whose onDestroy spawns a replacement under the same parent looped forever
+TEST(GameObject, ARespawningChildDoesNotLoop)
+{
+    World w(round2Setup());
+    Entity root = w.create();
+    Entity r    = w.spawn<Respawner>(Vec3::Zero());
+    w.add<Parent>(r, Parent{root});
+    g_respawns = 0;
+    w.destroy(root);
+    EXPECT_EQ(g_respawns, 1);
+    EXPECT_EQ(w.registry().aliveCount(), 2u);  // the world-state and space-state entities
+}
+
+// Regression: an exception in configure left a half-started object that kept ticking
+TEST(GameObject, AFailedSpawnLeavesNoObject)
+{
+    World w(round2Setup());
+    EXPECT_THROW(w.spawn<BadConfig>(Vec3::Zero()), std::runtime_error);
+    EXPECT_EQ(w.registry().aliveCount(), 2u);  // the world-state and space-state entities
+}
+
+// Regression: a chain of destroys from onDestroy hooks recursed once per link (a stack overflow at 50000)
+TEST(GameObject, ChainedDestroysAreIterative)
+{
+    World w(round2Setup());
+    std::vector<Entity> links;
+    for (int i = 0; i < 50000; ++i) links.push_back(w.spawn<Link>(Vec3::Zero()));
+    for (size_t i = 0; i + 1 < links.size(); ++i)
+        w.add<Health>(links[i], Health{double(links[i + 1].index), double(links[i + 1].generation)});
+    w.destroy(links[0]);
+    EXPECT_EQ(w.registry().aliveCount(), 2u);  // the world-state and space-state entities
+}
+
+// Regression: a throwing step listener dropped the listeners after it (the world API's journal stopped)
+TEST(GameObject, AThrowingStepListenerKeepsTheOthers)
+{
+    World w(testSetup());
+    int calls = 0;
+    w.addStepListener([]() -> bool { throw std::runtime_error("listener"); });
+    w.addStepListener(
+        [&]()
+        {
+            calls++;
+            return true;
+        });
+    EXPECT_THROW(w.step(), std::runtime_error);
+    w.step();
+    EXPECT_EQ(calls, 1);
+}
+
+#ifdef SAIGA_ASSERTS
+namespace
+{
+void sysDoubleRemove(World& w, double)
+{
+    // Two deferred removes of the same component (hooks see the state before the flush)
+    w.view<const Health>().each(
+        [&](Entity e, const Health&)
+        {
+            w.remove<Health>(e);
+            w.remove<Health>(e);
+        });
+}
+}  // namespace
+
+// Regression: two deferred removes reached the pool twice (an out-of-bounds write without asserts); refused in every
+// build now
+TEST(GameObjectDeathTest, DoubleDeferredRemoveIsRefused)
+{
+    World w(round2Setup([](SystemList& l) { l.add(Phase::Gameplay, "double_remove", sysDoubleRemove); }));
+    Entity e = w.create();
+    w.add<Health>(e);
+    EXPECT_DEATH(w.step(), "has no Health");
+}
+#endif

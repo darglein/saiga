@@ -138,19 +138,37 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
 {
     SAIGA_ASSERT(!inStep(), "spawnByClass: between steps");
     const Entity e = beginSpawn(space);
-    finishSpawn(e, info, position);
-    if (initial) initial(e);
+    try
+    {
+        finishSpawn(e, info, position);
+        if (initial) initial(e);
+    }
+    catch (...)
+    {
+        abandonSpawn(e);
+        throw;
+    }
     startObject(e);
     return e;
 }
 
 void World::runStepListeners()
 {
-    // Listeners may add listeners (kept) and remove themselves (return false)
+    // Listeners may add listeners (kept) and remove themselves (return false); a throwing listener is removed, the
+    // ones after it are kept
     std::vector<std::function<bool()>> current;
     current.swap(stepListeners);
-    for (auto& l : current)
-        if (l()) stepListeners.push_back(std::move(l));
+    size_t i = 0;
+    try
+    {
+        for (; i < current.size(); ++i)
+            if (current[i]()) stepListeners.push_back(std::move(current[i]));
+    }
+    catch (...)
+    {
+        for (size_t k = i + 1; k < current.size(); ++k) stepListeners.push_back(std::move(current[k]));
+        throw;
+    }
 }
 
 Entity World::beginSpawn(SpaceId space)
@@ -188,17 +206,30 @@ void World::startObject(Entity e)
     catch (...)
     {
         hookDepth--;
+        // A half-started object must not tick: the entity is destroyed (without its onDestroy)
+        abandonSpawn(e);
         throw;
     }
     hookDepth--;
     releaseRetired();
 }
 
+void World::abandonSpawn(Entity e)
+{
+    if (!reg.alive(e)) return;
+    if (Behaviour* b = reg.tryGet<Behaviour>(e)) b->destroying = true;
+    destroyNow(e);
+}
+
 void World::queueAction(const PlayerAction& action)
 {
     checkNotParallel("queueAction");
-    SAIGA_ASSERT(reg.alive(action.player) && reg.has<Player>(action.player),
-                 "queueAction: the player is not alive or has no Player component");
+    if (!reg.alive(action.player) || !reg.has<Player>(action.player))
+    {
+        // Refused in every build
+        SAIGA_ASSERT(false, "queueAction: the player is not alive or has no Player component");
+        return;
+    }
     actions.push_back(QueuedAction{reg.read<Player>(action.player).peer, actionSequence++, action});
 }
 
@@ -214,7 +245,12 @@ void World::deliverActions()
 PersistentId World::makePersistent(Entity e)
 {
     checkNotParallel("makePersistent");
-    SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), "makePersistent: the entity is not alive");
+    if (!reg.alive(e) && !reg.reserved(e))
+    {
+        // Refused in every build
+        SAIGA_ASSERT(false, "makePersistent: the entity is not alive");
+        return PersistentId{};
+    }
     if (reg.alive(e))
         if (const Persistent* p = reg.tryRead<Persistent>(e)) return p->persistentId;
     // Assigned earlier in this phase (the component is added at the flush): the same ID (idempotent)
@@ -242,8 +278,8 @@ Entity World::resolve(PersistentId id) const
 
 World::~World()
 {
-    // Observers (the world API) stop using the world
-    for (auto& l : destroyListeners) l();
+    // Observers (the world API, waiting tools) stop using the world
+    for (auto& l : destroyListeners) l.second();
 }
 
 // ---- spatial queries
@@ -355,37 +391,62 @@ std::vector<Entity> World::collectDoomed(Entity e) const
 
 void World::destroyNow(Entity e)
 {
-    SAIGA_ASSERT(reg.alive(e), "destroy: the entity is not alive");
+    // A destroy requested while a destroy runs (an onDestroy hook) is queued and applied after it, iteratively: no
+    // recursion depth per chained destroy
+    if (destroyDepth > 0)
+    {
+        destroyQueue.push_back(e);
+        return;
+    }
+    destroyQueue.push_back(e);
+    try
+    {
+        for (size_t i = 0; i < destroyQueue.size(); ++i)
+            if (reg.alive(destroyQueue[i])) destroyOne(destroyQueue[i]);
+    }
+    catch (...)
+    {
+        destroyQueue.clear();
+        throw;
+    }
+    destroyQueue.clear();
+}
+
+void World::destroyOne(Entity e)
+{
     std::vector<Entity> doomed = collectDoomed(e);
     // The game objects first, children before parents, while all components are present. A hook may destroy other
-    // entities (or this one: no second onDestroy), spawn new ones, or attach entities to a doomed parent: the
-    // descendants are collected again until no new hook runs (the new ones get their onDestroy too).
+    // entities (queued, applied after this destroy), spawn new ones or attach entities to a doomed parent: the
+    // descendants are collected again after the hooks, and the new ones are destroyed without their onDestroy (a
+    // hook that keeps adding children cannot loop).
+    std::vector<Entity> hooked;
+    destroyDepth++;
     hookDepth++;
     try
     {
-        for (bool ran = true; ran && reg.alive(e);)
+        for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
         {
-            ran = false;
-            for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
-            {
-                if (!reg.alive(*it)) continue;
-                Behaviour* b = reg.tryGet<Behaviour>(*it);
-                if (!b || !b->object || b->destroying) continue;
-                b->destroying = true;
-                ran           = true;
-                b->object->onDestroy();
-            }
-            if (ran && reg.alive(e)) doomed = collectDoomed(e);
+            if (!reg.alive(*it)) continue;
+            Behaviour* b = reg.tryGet<Behaviour>(*it);
+            if (!b || !b->object || b->destroying) continue;
+            b->destroying = true;
+            hooked.push_back(*it);
+            b->object->onDestroy();
         }
+        if (reg.alive(e)) doomed = collectDoomed(e);
+        for (Entity x : doomed)
+            if (Behaviour* b = reg.tryGet<Behaviour>(x)) b->destroying = true;
     }
     catch (...)
     {
         // Nothing was destroyed: the entities can be destroyed again later (their onDestroy runs again then)
-        for (Entity x : doomed)
+        for (Entity x : hooked)
             if (Behaviour* b = reg.alive(x) ? reg.tryGet<Behaviour>(x) : nullptr) b->destroying = false;
+        destroyDepth--;
         hookDepth--;
         throw;
     }
+    destroyDepth--;
     hookDepth--;
     for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
     {
@@ -415,6 +476,10 @@ void World::destroyNow(Entity e)
             if (m.test(ComponentId(id))) prepared.append(x, ComponentId(id), false);
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
     }
+    // An entity whose onDestroy ran but that a hook released from the cascade (e.g. removed its Parent) lives on:
+    // its flag is reset, so its real destroy later calls onDestroy again
+    for (Entity x : hooked)
+        if (Behaviour* b = reg.alive(x) ? reg.tryGet<Behaviour>(x) : nullptr) b->destroying = false;
     releaseRetired();
 }
 
@@ -609,7 +674,7 @@ void World::runStep()
     phase           = Phase::None;
     stepEventsBegun = false;
     stepChanged.clear();
-    reg.shiftTransformFlags(trackStepChanges ? &stepChanged : nullptr);
+    reg.shiftTransformFlags(trackStepChanges > 0 ? &stepChanged : nullptr);
     // The records of this step (consumers that read after the step, e.g. the world API, keep older ones a step longer)
     prof.setCounter(recordsCounter, double(log.appendedTotal() - recordsAtStepStart));
     log.truncate();

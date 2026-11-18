@@ -78,8 +78,16 @@ Entity World::spawnIn(SpaceId space, const Vec3& position, C&&... initial)
     {
         // A command on an entity destroyed earlier in the same flush is dropped
         if (!w.alive(e)) return;
-        w.finishSpawn(e, info, position);
-        std::apply([&](auto&... c) { (w.add<std::decay_t<decltype(c)>>(e, std::move(c)), ...); }, components);
+        try
+        {
+            w.finishSpawn(e, info, position);
+            std::apply([&](auto&... c) { (w.add<std::decay_t<decltype(c)>>(e, std::move(c)), ...); }, components);
+        }
+        catch (...)
+        {
+            w.abandonSpawn(e);
+            throw;
+        }
         w.startObject(e);
     };
     if (deferring())

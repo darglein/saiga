@@ -101,7 +101,7 @@ class EventQueue final : public EventQueueBase
     bool emitJson(const json11::Json& json, std::string& error) override
     {
         E e{};
-        if (!fromJson(json, e, &error)) return false;
+        if (!fromJson(json, e, &error, true)) return false;
         pending.push_back(std::move(e));
         return true;
     }

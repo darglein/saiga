@@ -76,11 +76,13 @@ class PoolBase
     // Type-erased access by the world API (S10): a default component for the entity (registry bookkeeping is the
     // caller's), the JSON form (VisitJson.h), a dry-run check of a JSON document, a merge (false and unchanged on an
     // error), and the field list (schemas for agents)
-    virtual void emplaceDefault(Entity e)                                                      = 0;
-    virtual json11::Json toJson(uint32_t entityIndex) const                                    = 0;
-    virtual bool checkJson(const json11::Json& json, std::string& error) const                 = 0;
-    virtual bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error) = 0;
-    virtual std::vector<FieldInfo> fields() const                                              = 0;
+    virtual void emplaceDefault(Entity e)                   = 0;
+    virtual json11::Json toJson(uint32_t entityIndex) const = 0;
+    // finiteOnly: nan and inf are errors (writes from the world API)
+    virtual bool checkJson(const json11::Json& json, std::string& error, bool finiteOnly = true) const = 0;
+    virtual bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error,
+                           bool finiteOnly = true)                                                     = 0;
+    virtual std::vector<FieldInfo> fields() const                                                      = 0;
 
     const ComponentId id;
     const char* const name;
@@ -164,18 +166,18 @@ class ComponentPool final : public PoolBase
 
     void emplaceDefault(Entity e) override { emplace(e); }
     json11::Json toJson(uint32_t entityIndex) const override { return Engine::toJson(at(entityIndex)); }
-    bool checkJson(const json11::Json& json, std::string& error) const override
+    bool checkJson(const json11::Json& json, std::string& error, bool finiteOnly = true) const override
     {
         T scratch{};
-        JsonReader check(json, false);
+        JsonReader check(json, false, finiteOnly);
         scratch.visit(check);
         check.finish();
         error = check.errorMessage();
         return check.ok();
     }
-    bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error) override
+    bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error, bool finiteOnly = true) override
     {
-        return fromJson(json, at(entityIndex), &error);
+        return fromJson(json, at(entityIndex), &error, finiteOnly);
     }
     std::vector<FieldInfo> fields() const override { return describeFields<T>(); }
 

@@ -22,6 +22,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <random>
 
 namespace Saiga
 {
@@ -45,17 +46,17 @@ const std::vector<Operation>& operationTable()
     static const std::vector<Operation> table = {
         {"describe_world", false, {}},
         {"world_status", false, {}},
-        {"list_entities", false, {"class", "components", "near", "limit", "after"}},
+        {"list_entities", false, {"class", "components", "near", "include", "limit", "after"}},
         {"inspect", false, {"entity", "components"}},
         {"get_global", false, {"component", "space"}},
-        {"changes_since", false, {"cursor", "include_moved"}},
+        {"changes_since", false, {"cursor", "include_moved", "limit"}},
         {"get_profile", false, {"steps", "scopes"}},
         {"logs", false, {"since", "category"}},
         {"set_component", true, {"entity", "component", "values"}},
         {"add_component", true, {"entity", "component", "values"}},
         {"remove_component", true, {"entity", "component"}},
         {"set_transform", true, {"entity", "position", "rotation", "scale", "teleport"}},
-        {"spawn", true, {"class", "position", "space", "components"}},
+        {"spawn", true, {"class", "position", "rotation", "scale", "space", "components"}},
         {"destroy", true, {"entity"}},
         {"set_global", true, {"component", "values", "space"}},
         {"emit_event", true, {"event", "values"}},
@@ -227,10 +228,15 @@ bool isSelfOrDescendant(World& w, Entity e, Entity p)
 bool parentFromJson(World& w, Entity child, const Json& values, Parent& out, std::string& error)
 {
     Parent p = out;
-    if (!fromJson(values, p, &error)) return false;
+    if (!fromJson(values, p, &error, true)) return false;
     if (!w.alive(p.entity))
     {
         error = "Parent: the parent entity is not alive";
+        return false;
+    }
+    if (stateEntity(w.registry(), p.entity))
+    {
+        error = "Parent: a world-state entity is not a parent";
         return false;
     }
     if (child.valid() && stateEntity(w.registry(), child))
@@ -289,24 +295,36 @@ void addComponentValues(World& w, Entity e, ComponentId id, const Json& values)
     if (!values.is_null()) w.registry().poolById(id)->mergeJson(e.index, values, error);
 }
 
-// The opaque cursor of changes_since: "<seq>@<step>"
-std::string makeCursor(uint64_t seq, uint64_t step)
+// The opaque cursor of changes_since: "<epoch>.<seq>.<step>.<index>": the session (a random epoch per API, so a
+// cursor of another session is recognized), the last journal sequence number read, the step from which moves count,
+// and the entity index after which the moved list continues (0: from the start)
+struct Cursor
 {
-    return std::to_string(seq) + "@" + std::to_string(step);
+    uint32_t epoch = 0;
+    uint64_t seq = 0, step = 0;
+    uint32_t index = 0;
+};
+std::string makeCursor(const Cursor& c)
+{
+    return std::to_string(c.epoch) + "." + std::to_string(c.seq) + "." + std::to_string(c.step) + "." +
+           std::to_string(c.index);
 }
-bool parseCursor(const Json& j, uint64_t& seq, uint64_t& step, bool& fromStart)
+bool parseCursor(const std::string& s, Cursor& c)
 {
-    fromStart = j.is_null() || (j.is_number() && j.number_value() == 0);
-    if (fromStart) return true;
-    if (!j.is_string()) return false;
-    const std::string& s = j.string_value();
-    const size_t at      = s.find('@');
-    if (at == std::string::npos || at == 0 || at + 1 >= s.size()) return false;
-    char* end = nullptr;
-    seq       = std::strtoull(s.c_str(), &end, 10);
-    if (end != s.c_str() + at) return false;
-    step = std::strtoull(s.c_str() + at + 1, &end, 10);
-    return end == s.c_str() + s.size();
+    uint64_t parts[4];
+    const char* p = s.c_str();
+    for (int k = 0; k < 4; ++k)
+    {
+        char* end = nullptr;
+        if (*p < '0' || *p > '9') return false;
+        parts[k] = std::strtoull(p, &end, 10);
+        if (k < 3 && *end != '.') return false;
+        if (k == 3 && *end != 0) return false;
+        p = end + 1;
+    }
+    if (parts[0] > 0xFFFFFFFFull || parts[3] > 0xFFFFFFFFull) return false;
+    c = Cursor{uint32_t(parts[0]), parts[1], parts[2], uint32_t(parts[3])};
+    return true;
 }
 }  // namespace
 
@@ -315,6 +333,9 @@ bool parseCursor(const Json& j, uint64_t& seq, uint64_t& step, bool& fromStart)
 WorldApi::WorldApi(World& world, bool allowEdits)
     : w(&world), allowEdits(allowEdits), alive(std::make_shared<bool>(true))
 {
+    // A random session epoch: cursors of other API instances (another session, a restarted game) are rejected
+    std::random_device rd;
+    epoch                    = rd() % 1000000000u + 1;
     consumer                 = w->structuralLog().addConsumer();
     std::weak_ptr<bool> weak = alive;
     // The journal is filled after every step, so the structural log is never held back by an idle API
@@ -326,7 +347,7 @@ WorldApi::WorldApi(World& world, bool allowEdits)
             if (movesTracked) trackMoves();
             return true;
         });
-    w->addDestroyListener(
+    destroyListener = w->addDestroyListener(
         [this, weak]()
         {
             if (!weak.expired()) w = nullptr;
@@ -336,7 +357,10 @@ WorldApi::WorldApi(World& world, bool allowEdits)
 WorldApi::~WorldApi()
 {
     alive.reset();
-    if (w) w->structuralLog().removeConsumer(consumer);
+    if (!w) return;
+    w->structuralLog().removeConsumer(consumer);
+    w->removeDestroyListener(destroyListener);
+    if (movesTracked) w->releaseStepChanges();
 }
 
 std::vector<std::string> WorldApi::operations() const
@@ -344,6 +368,14 @@ std::vector<std::string> WorldApi::operations() const
     std::vector<std::string> names;
     for (const Operation& o : operationTable())
         if (allowEdits || !o.edit) names.push_back(o.name);
+    return names;
+}
+
+std::vector<std::string> WorldApi::arguments(const std::string& operation)
+{
+    std::vector<std::string> names;
+    if (const Operation* o = findOperation(operation))
+        for (const char* n : o->arguments) names.push_back(n);
     return names;
 }
 
@@ -390,9 +422,12 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
     if (op->edit && !allowEdits && operation != "apply")
         return ApiResult::failure(operation + ": edits are not allowed (read-only)");
     if (w->inStep()) return ApiResult::failure(operation + ": only between steps");
+    ApiResult result = run(operation, args);
+    // Edits are logged after they ran, with their outcome (failed attempts are marked)
     if (op->edit && operation != "apply")
-        SAIGA_LOG("api", "%s %s", operation.c_str(), truncateForLog(args.dump()).c_str());
-    return run(operation, args);
+        SAIGA_LOG("api", "%s %s %s%s", result.ok ? "ok" : "failed:", operation.c_str(),
+                  truncateForLog(args.dump()).c_str(), result.ok ? "" : (" -> " + result.error).c_str());
+    return result;
 }
 
 ApiResult WorldApi::run(const std::string& operation, const Json& args)
@@ -525,6 +560,18 @@ ApiResult WorldApi::listEntities(const Json& a)
             mask.set(id);
         }
     }
+    // include: the values of these components in each result (e.g. Health for "heal everything below 50")
+    std::vector<ComponentId> include;
+    if (!a["include"].is_null())
+    {
+        if (!a["include"].is_array()) return ApiResult::failure("include: expected an array of component names");
+        for (const Json& n : a["include"].array_items())
+        {
+            ComponentId id;
+            if (!componentId(reg, n, id, error)) return ApiResult::failure("include: " + error);
+            include.push_back(id);
+        }
+    }
     int classFilter = -1;
     if (!a["class"].is_null())
     {
@@ -539,14 +586,15 @@ ApiResult WorldApi::listEntities(const Json& a)
 
     // Candidates in index order: the grid for near (positions of the last step), else every slot
     std::vector<Entity> candidates;
-    if (!a["near"].is_null())
+    Vec3 center       = Vec3::Zero();
+    const bool isNear = !a["near"].is_null();
+    if (isNear)
     {
         const Json& near = a["near"];
         if (!near.is_object()) return ApiResult::failure("near: expected {space?, position, radius}");
         for (auto& kv : near.object_items())
             if (kv.first != "space" && kv.first != "position" && kv.first != "radius")
                 return ApiResult::failure("near: unknown argument \"" + kv.first + "\"");
-        Vec3 center = Vec3::Zero();
         if (near["position"].is_null()) return ApiResult::failure("near.position: missing");
         if (!readVec3(near["position"], center, error, "near.position")) return ApiResult::failure(error);
         const double radius = near["radius"].number_value();
@@ -583,14 +631,24 @@ ApiResult WorldApi::listEntities(const Json& a)
         const ComponentMask& m = reg.entityMask(e);
         for (size_t id = 0; id < kMaxComponents; ++id)
             if (m.test(ComponentId(id))) names.push_back(reg.componentInfo(ComponentId(id)).name);
-        Json::object o{
-            {"entity", entityJson(e)}, {"position", toJson(w->read<Transform>(e).position())}, {"components", names}};
+        const Vec3 position = w->read<Transform>(e).position();
+        Json::object o{{"entity", entityJson(e)}, {"position", toJson(position)}, {"components", names}};
         if (const char* c = className(*w, e)) o["class"] = c;
+        if (isNear) o["distance"] = (position - center).norm();
+        if (!include.empty())
+        {
+            Json::object values;
+            for (ComponentId id : include)
+                if (m.test(id)) values[reg.componentInfo(id).name] = componentJson(*w, e, id);
+            o["values"] = values;
+        }
         out.push_back(o);
         last = e.index;
     }
     Json::object result{{"entities", out}, {"count", int(out.size())}};
     if (more) result["next"] = double(last);
+    // near uses the spatial grid of the last step: entities spawned or moved since are found after the next step
+    if (isNear) result["grid_step"] = double(w->stepIndex());
     return ApiResult::success(result);
 }
 
@@ -702,10 +760,23 @@ ApiResult WorldApi::logs(const Json& a)
     const bool truncated =
         out.size() > 500 || (!lines.empty() && since > 0 && lines.front().sequence > uint64_t(since) + 1);
     if (out.size() > 500) out.erase(out.begin(), out.end() - 500);
-    return ApiResult::success(Json::object{{"lines", out},
-                                           {"first", out.empty() ? Json() : out.front()["seq"]},
-                                           {"last", double(engineLog().lastSequence())},
-                                           {"truncated", truncated}});
+    Json::object result;
+    if (out.empty() && !category.empty())
+    {
+        // A hint: the categories of the kept lines
+        std::vector<std::string> categories;
+        for (const LogRing::Line& l : lines)
+            if (std::find(categories.begin(), categories.end(), l.category) == categories.end())
+                categories.push_back(l.category);
+        Json::array known;
+        for (auto& c : categories) known.push_back(c);
+        result["categories"] = known;
+    }
+    result["lines"]     = out;
+    result["first"]     = out.empty() ? Json() : out.front()["seq"];
+    result["last"]      = double(engineLog().lastSequence());
+    result["truncated"] = truncated;
+    return ApiResult::success(result);
 }
 
 // ---- changes ------------------------------------------------------------------------------------------------------
@@ -752,40 +823,50 @@ ApiResult WorldApi::changesSince(const Json& a)
 {
     std::string error;
     bool includeMoved = false;
-    if (!boolArg(a, "include_moved", false, includeMoved, error)) return ApiResult::failure(error);
-    uint64_t cursorSeq = 0, cursorStep = 0;
-    bool fromStart = false;
-    if (!parseCursor(a["cursor"], cursorSeq, cursorStep, fromStart))
-        return ApiResult::failure("cursor: the value returned by the previous changes_since (or 0)");
+    int64_t limit     = 0;
+    if (!boolArg(a, "include_moved", false, includeMoved, error) || !intArg(a, "limit", 1, 1000, 200, limit, error))
+        return ApiResult::failure(error);
     // Changes made between steps (by the API or setup code) are in the log, not yet in the journal
     drainChanges();
-    if (!fromStart && (cursorSeq >= nextSeq || cursorStep > w->stepIndex()))
-        return ApiResult::failure("cursor: unknown (from another world or session); start again with 0");
-    if (fromStart)
+    const uint64_t head = nextSeq - 1;
+    Cursor c{epoch, 0, w->stepIndex(), 0};
+    bool fromStart = false;
+    const Json& j  = a["cursor"];
+    if (j.is_null() || (j.is_number() && j.number_value() == 0))
     {
-        cursorSeq  = journal.empty() ? nextSeq - 1 : journal.front().seq - 1;
-        cursorStep = movesTracked ? movesSince : w->stepIndex();
+        // From the oldest kept change (moves: since tracking started)
+        fromStart = true;
+        c.seq     = journal.empty() ? head : journal.front().seq - 1;
+        c.step    = movesTracked ? movesSince : w->stepIndex();
     }
+    else if (j.is_string() && j.string_value() == "now")
+    {
+        c.seq = head;  // only what happens from now on
+    }
+    else if (!j.is_string() || !parseCursor(j.string_value(), c))
+        return ApiResult::failure("cursor: the value returned by the previous changes_since, 0 or \"now\"");
+    else if (c.epoch != epoch || c.seq > head || c.step > w->stepIndex())
+        return ApiResult::failure("cursor: from another session or world; start again with 0 or \"now\"");
     // Changes older than the cursor's successor were dropped (the journal keeps the newest 100000)
-    const bool truncated = !fromStart && !journal.empty() && journal.front().seq > cursorSeq + 1;
+    const bool truncated = !fromStart && !journal.empty() && journal.front().seq > c.seq + 1;
 
     Json::array changes;
-    uint64_t last = cursorSeq;
-    for (const Change& c : journal)
+    uint64_t last = c.seq;
+    for (const Change& ch : journal)
     {
-        if (c.seq <= cursorSeq) continue;
-        if (changes.size() == 1000) break;
+        if (ch.seq <= c.seq) continue;
+        if (changes.size() == size_t(limit)) break;
         Json::object o{
-            {"seq", double(c.seq)}, {"step", double(c.step)}, {"kind", c.kind}, {"entity", entityJson(c.entity)}};
-        if (c.component >= 0) o["component"] = w->registry().componentInfo(ComponentId(c.component)).name;
+            {"seq", double(ch.seq)}, {"step", double(ch.step)}, {"kind", ch.kind}, {"entity", entityJson(ch.entity)}};
+        if (ch.component >= 0) o["component"] = w->registry().componentInfo(ComponentId(ch.component)).name;
         changes.push_back(o);
-        last = c.seq;
+        last = ch.seq;
     }
     const bool more = !journal.empty() && journal.back().seq > last;
     Json::object result{{"changes", changes}, {"more", more}, {"truncated", truncated}};
+    Cursor next{epoch, last, more ? c.step : w->stepIndex(), 0};
 
-    // Moves (coalesced per entity: one entry per entity moved after the cursor's step)
-    uint64_t newStep = more ? cursorStep : w->stepIndex();
+    // Moves (coalesced per entity: each entity moved after the cursor's step once), paged by entity index
     if (includeMoved)
     {
         if (!movesTracked)
@@ -793,33 +874,36 @@ ApiResult WorldApi::changesSince(const Json& a)
             // Tracking starts now: moves of the following steps are reported
             movesTracked = true;
             movesSince   = w->stepIndex();
-            w->setTrackStepChanges(true);
+            w->retainStepChanges();
             result["moves_tracked_from_step"] = double(movesSince);
-            newStep                           = w->stepIndex();
+            next.step                         = w->stepIndex();
         }
         Json::array moved;
-        bool movedMore = false;
-        for (uint32_t i = 1; i < lastMovedStep.size(); ++i)
+        bool movedMore     = false;
+        uint32_t lastIndex = c.index;
+        for (uint32_t i = c.index + 1; i < lastMovedStep.size(); ++i)
         {
-            if (lastMovedStep[i] <= cursorStep) continue;
+            if (lastMovedStep[i] <= c.step) continue;
             const Entity e = w->registry().aliveAt(i);
             if (!e.valid()) continue;
-            if (moved.size() == 1000)
+            if (moved.size() == size_t(limit))
             {
                 movedMore = true;
                 break;
             }
             moved.push_back(entityJson(e));
+            lastIndex = i;
         }
         result["moved"] = moved;
         if (movedMore)
         {
-            // Not all moves reported: the next call starts at the same step again
+            // The next call continues the moved list after lastIndex, at the same step
             result["moved_more"] = true;
-            newStep              = cursorStep;
+            next.step            = c.step;
+            next.index           = lastIndex;
         }
     }
-    result["cursor"] = makeCursor(last, newStep);
+    result["cursor"] = makeCursor(next);
     result["step"]   = double(w->stepIndex());
     return ApiResult::success(result);
 }
@@ -844,35 +928,42 @@ ApiResult WorldApi::setComponent(const Json& a)
                 return ApiResult::failure("Transform." + kv.first + ": only position, rotation and scale");
             args[kv.first] = kv.second;
         }
-        ApiResult r = setTransform(args);
+        const Json previous = componentJson(*w, e, id);
+        ApiResult r         = setTransform(args);
         if (!r.ok) return r;
-        return ApiResult::success(componentJson(*w, e, id));
+        return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
     }
     if (!w->registry().entityMask(e).test(id))
         return ApiResult::failure("the entity has no " + std::string(w->registry().componentInfo(id).name));
     if (id == Persistent::id) return ApiResult::failure("Persistent: assigned by makePersistent (read-only)");
+    // The previous values (for an undo by the caller)
+    const Json previous = componentJson(*w, e, id);
     if (id == Parent::id)
     {
         Parent p = w->read<Parent>(e);
         if (!parentFromJson(*w, e, values, p, error)) return ApiResult::failure(error);
         w->remove<Parent>(e);
         w->add<Parent>(e, p);
-        return ApiResult::success(componentJson(*w, e, id));
+        return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
     }
     PoolBase* pool = w->registry().poolById(id);
     if (id == Behaviour::id)
     {
         // classId is fixed; the tick times must be finite and >= 0; the interval is derived again afterwards
+        if (!values["tickInterval"].is_null())
+            return ApiResult::failure(
+                "Behaviour.tickInterval is derived from the rings around the players (set "
+                "alwaysTickEveryStep, or change the class's tick policy)");
         Behaviour check = Behaviour();
         check.classId   = w->read<Behaviour>(e).classId;
-        if (!fromJson(values, check, &error)) return ApiResult::failure(error);
+        if (!fromJson(values, check, &error, true)) return ApiResult::failure(error);
         if (check.classId != w->read<Behaviour>(e).classId) return ApiResult::failure("Behaviour.classId is fixed");
         for (double t : {check.tickInterval, check.sinceTick, check.tickOffset})
             if (!(t >= 0) || !std::isfinite(t)) return ApiResult::failure("Behaviour: tick times are finite and >= 0");
     }
     if (!pool->mergeJson(e.index, values, error)) return ApiResult::failure(error);
     if (id == Behaviour::id) assignTickInterval(*w, e, w->get<Behaviour>(e), false);
-    return ApiResult::success(componentJson(*w, e, id));
+    return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
 }
 
 ApiResult WorldApi::addComponent(const Json& a)
@@ -950,9 +1041,17 @@ ApiResult WorldApi::setTransform(const Json& a)
 ApiResult WorldApi::spawn(const Json& a)
 {
     std::string error;
-    Vec3 position = Vec3::Zero();
+    Vec3 position = Vec3::Zero(), scale = Vec3::Ones();
+    Quat rotation = Quat::Identity();
     if (a["position"].is_null()) return ApiResult::failure("position: missing");
     if (!readVec3(a["position"], position, error, "position")) return ApiResult::failure(error);
+    if (!a["scale"].is_null() && !readVec3(a["scale"], scale, error, "scale")) return ApiResult::failure(error);
+    if (!a["rotation"].is_null())
+    {
+        JsonReader r(emptyObject(), true, true);
+        r.read(a["rotation"], rotation, "rotation");
+        if (!r.ok()) return ApiResult::failure(r.errorMessage());
+    }
     int64_t space = 0;
     if (!intArg(a, "space", 0, 0, 0, space, error)) return ApiResult::failure("space: only space 0 exists (S21)");
     const ClassList::ClassInfo* info = nullptr;
@@ -977,18 +1076,37 @@ ApiResult WorldApi::spawn(const Json& a)
             initial.push_back({id, kv.second});
         }
     }
-    auto addInitial = [&](Entity e)
-    {
-        for (auto& c : initial) addComponentValues(*w, e, c.first, c.second);
-    };
     Entity e;
     if (info)
-        e = w->spawnByClass(*info, SpaceId(space), position, addInitial);
+        e = w->spawnByClass(*info, SpaceId(space), position, {});
     else
     {
         e = w->create();
         w->get<Transform>(e).setPosition(position);
-        addInitial(e);
+    }
+    if (!w->alive(e)) return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"alive", false}});
+    Transform& t = w->get<Transform>(e);
+    t.setRotation(rotation);
+    t.setScale(scale);
+    // After the class's configure and onSpawn: a component the object added itself is merged with the given values
+    for (auto& c : initial)
+    {
+        if (w->registry().entityMask(e).test(c.first))
+        {
+            if (c.first == Parent::id)
+            {
+                Parent p = w->read<Parent>(e);
+                if (parentFromJson(*w, e, c.second, p, error))
+                {
+                    w->remove<Parent>(e);
+                    w->add<Parent>(e, p);
+                }
+            }
+            else if (!c.second.is_null())
+                w->registry().poolById(c.first)->mergeJson(e.index, c.second, error);
+        }
+        else
+            addComponentValues(*w, e, c.first, c.second);
     }
     return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"alive", w->alive(e)}});
 }
@@ -1022,8 +1140,9 @@ ApiResult WorldApi::setGlobal(const Json& a)
     ComponentId id;
     parseEntity(holder.value["entity"], e, error);
     componentId(w->registry(), a["component"], id, error);
+    const Json previous = componentJson(*w, e, id);
     if (!w->registry().poolById(id)->mergeJson(e.index, a["values"], error)) return ApiResult::failure(error);
-    return ApiResult::success(componentJson(*w, e, id));
+    return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
 }
 
 ApiResult WorldApi::emitEvent(const Json& a)
@@ -1078,8 +1197,8 @@ ApiResult WorldApi::step(const Json& a)
 
 ApiResult WorldApi::timeScale(const Json& a)
 {
-    if (!a["scale"].is_number() || !std::isfinite(a["scale"].number_value()) || a["scale"].number_value() < 0)
-        return ApiResult::failure("scale: a finite number >= 0");
+    const double scale = a["scale"].number_value();
+    if (!a["scale"].is_number() || !(scale >= 0 && scale <= 1000)) return ApiResult::failure("scale: 0..1000");
     w->setTimeScale(a["scale"].number_value());
     return ApiResult::success(Json::object{{"time_scale", w->timeScale()}});
 }

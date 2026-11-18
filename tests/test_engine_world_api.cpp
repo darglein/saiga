@@ -10,6 +10,7 @@
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/GameObject.h"
@@ -36,6 +37,9 @@ using Json = json11::Json;
 
 namespace
 {
+// The api log lines of the edits are not echoed to stdout in the tests
+const bool g_noEcho = (setLogEcho(false), true);
+
 enum class TestClass : uint16_t
 {
     Dummy = kFirstGameClass,
@@ -482,7 +486,8 @@ TEST(WorldTools, EveryToolThroughHandleMessage)
         Json::object{
             {"entity", WorldApi::entityJson(d)}, {"component", "Health"}, {"values", Json::object{{"hp", 12}}}});
     ASSERT_FALSE(set["result"]["isError"].bool_value());
-    EXPECT_EQ(toolJson(set)["hp"].number_value(), 12);
+    EXPECT_EQ(toolJson(set)["values"]["hp"].number_value(), 12);
+    EXPECT_EQ(toolJson(set)["previous"]["hp"].number_value(), 100);  // for an undo
     // Paused: measure_performance runs exactly n steps
     callTool(server, "pause", Json::object{});
     Json m = callTool(server, "measure_performance", obj(R"({"steps": 5})"));
@@ -576,18 +581,24 @@ TEST(WorldApi, StrictArgumentsAndGuards)
     // Behaviour: tick flags settable, the interval derived again, classId fixed, no negative times
     Entity d = w.spawn<Dummy>(Vec3(9000, 0, 0));
     EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0.5);
+    // tickInterval is derived: an error that points to alwaysTickEveryStep
+    ApiResult derived = api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
+                                                                    {"component", "Behaviour"},
+                                                                    {"values", Json::object{{"tickInterval", 0}}}}));
+    EXPECT_FALSE(derived.ok);
+    EXPECT_NE(derived.error.find("alwaysTickEveryStep"), std::string::npos);
     ASSERT_TRUE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
                                                             {"component", "Behaviour"},
-                                                            {"values", Json::object{{"tickInterval", 0}}}}))
+                                                            {"values", Json::object{{"alwaysTickEveryStep", true}}}}))
                     .ok);
-    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0.5);  // derived again
+    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0);  // derived again
     EXPECT_FALSE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
                                                              {"component", "Behaviour"},
                                                              {"values", Json::object{{"sinceTick", -1}}}}))
                      .ok);
     EXPECT_FALSE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
                                                              {"component", "Behaviour"},
-                                                             {"values", Json::object{{"classId", "5"}}}}))
+                                                             {"values", Json::object{{"classId", 7}}}}))
                      .ok);
     // apply in read-only mode: reads only
     WorldApi readOnly(w, false);
@@ -725,4 +736,139 @@ TEST(WorldTools, EveryToolAnswers)
     for (const std::string& op : api->operations()) EXPECT_TRUE(called.count(op)) << op << " has no test call";
     // At most the profile history
     EXPECT_TRUE(callTool(server, "measure_performance", obj(R"({"steps": 601})"))["result"]["isError"].bool_value());
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S10 round 2)
+
+// Every tool schema lists exactly the arguments of its operation (a client that validates schemas must not reject
+// arguments the API accepts, and an agent reading the schema must see every option)
+TEST(WorldTools, SchemasMatchTheOperations)
+{
+    World w(apiSetup());
+    McpServer server("test");
+    auto api    = registerWorldTools(server, w);
+    Json list   = server.handleMessage(McpRequest("tools/list", Json::object{}));
+    int checked = 0;
+    for (auto& t : list["result"]["tools"].array_items())
+    {
+        const std::string name = t["name"].string_value();
+        EXPECT_EQ(t["inputSchema"]["additionalProperties"], Json(false)) << name;
+        if (name == "measure_performance") continue;
+        std::set<std::string> schema, op;
+        for (auto& kv : t["inputSchema"]["properties"].object_items()) schema.insert(kv.first);
+        for (auto& a : WorldApi::arguments(name)) op.insert(a);
+        EXPECT_EQ(schema, op) << name;
+        checked++;
+    }
+    EXPECT_EQ(checked, int(api->operations().size()));
+    // Read-only: apply stays (batches of reads)
+    McpServer observer("observer");
+    auto ro = registerWorldTools(observer, w, WorldToolsOptions{false});
+    Poller poller(observer);
+    Json r = callTool(observer, "apply", obj(R"({"operations": [{"op": "world_status"}]})"));
+    EXPECT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+}
+
+// Regression: with more than a page of moved entities, moved_more returned the same page forever
+TEST(WorldApi, MovedEntitiesArePagedAndCoalesced)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    std::vector<Entity> movers;
+    for (int i = 0; i < 25; ++i) movers.push_back(w.create());
+    ApiResult c = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true, "limit": 10})"));
+    ASSERT_TRUE(c.ok) << c.error;
+    // Every mover moves in three steps: reported once each
+    for (int s = 0; s < 3; ++s)
+    {
+        for (Entity e : movers) w.get<Transform>(e).setPosition(Vec3(double(s), 0, 0));
+        w.step();
+    }
+    std::set<uint32_t> seen;
+    Json cursor = c.value["cursor"];
+    for (int page = 0; page < 5; ++page)
+    {
+        ApiResult r =
+            api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}, {"limit", 10}}));
+        ASSERT_TRUE(r.ok) << r.error;
+        for (auto& m : r.value["moved"].array_items())
+        {
+            EXPECT_TRUE(seen.insert(uint32_t(m["index"].number_value())).second) << "reported twice";
+        }
+        cursor = r.value["cursor"];
+        if (!r.value["moved_more"].bool_value()) break;
+    }
+    EXPECT_EQ(seen.size(), movers.size());
+    // A cursor of another API (session) is refused
+    WorldApi other(w);
+    EXPECT_FALSE(other.call("changes_since", Json(Json::object{{"cursor", cursor}})).ok);
+}
+
+// Regression: agents could write nan and inf (and a zero quaternion) into components through the generic path
+TEST(WorldApi, WritesMustBeFinite)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity e      = w.create();
+    const Json ej = WorldApi::entityJson(e);
+    EXPECT_FALSE(
+        api.call("add_component",
+                 Json(Json::object{{"entity", ej}, {"component", "Health"}, {"values", Json::object{{"hp", "nan"}}}}))
+            .ok);
+    EXPECT_FALSE(
+        api.call("add_component",
+                 obj(R"({"entity": "1:0", "component": "LocalTransform", "values": {"rotation": [0, 0, 0, 0]}})"))
+            .ok);
+    ASSERT_TRUE(api.call("add_component", Json(Json::object{{"entity", ej}, {"component", "Health"}})).ok);
+    EXPECT_FALSE(
+        api.call("set_component",
+                 Json(Json::object{{"entity", ej}, {"component", "Health"}, {"values", obj(R"({"hp": 1e400})")}}))
+            .ok);
+    EXPECT_EQ(w.read<Health>(e).hp, 100);
+    EXPECT_FALSE(api.call("emit_event", obj(R"({"event": "DamageEvent", "values": {"amount": "inf"}})")).ok);
+}
+
+namespace
+{
+enum class StrictClass : uint16_t
+{
+    Turret = kFirstGameClass + 1,
+};
+// Adds Health in onSpawn without checking (an agent may pass Health as an initial component)
+class Turret final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(StrictClass::Turret);
+    static constexpr const char* name = "Turret";
+    void onSpawn() override { add<Health>(Health{10, 10}); }
+};
+}  // namespace
+
+// Regression: an agent's spawn with an initial component that the class adds itself asserted (double add)
+TEST(WorldApi, SpawnMergesInitialComponentsTheObjectAdded)
+{
+    WorldSetup s = apiSetup();
+    s.classes    = [](ClassList& c)
+    {
+        c.add<Dummy>();
+        c.add<Turret>();
+    };
+    World w(s);
+    WorldApi api(w);
+    ApiResult r = api.call("spawn", obj(R"({"class": "Turret", "position": [0, 0, 0], "rotation": [0, 0, 1, 0],
+                                           "components": {"Health": {"hp": 5}}})"));
+    ASSERT_TRUE(r.ok) << r.error;
+    const Entity t = entityOf(r.value["entity"]);
+    EXPECT_EQ(w.read<Health>(t).hp, 5);
+    EXPECT_EQ(w.read<Health>(t).maxHp, 10);
+    EXPECT_EQ(w.read<Transform>(t).rotation().y(), 1);
+    // list_entities with values and distance
+    w.step();
+    ApiResult l =
+        api.call("list_entities", obj(R"({"near": {"position": [0, 0, 0], "radius": 5}, "include": ["Health"]})"));
+    ASSERT_TRUE(l.ok) << l.error;
+    ASSERT_EQ(l.value["count"].number_value(), 1);
+    EXPECT_EQ(l.value["entities"][0]["values"]["Health"]["hp"].number_value(), 5);
+    EXPECT_EQ(l.value["entities"][0]["distance"].number_value(), 0);
 }

@@ -122,11 +122,13 @@ Profiler::Stats Profiler::counterStats(int counter, int lastSamples) const
 
 json11::Json Profiler::report(int lastSamples) const
 {
-    using Json     = json11::Json;
-    auto statsJson = [](const Stats& s)
+    using Json = json11::Json;
+    // Times rounded to 1 ns (1e-6 ms): more digits are noise
+    auto round6    = [](double v) { return std::round(v * 1e6) / 1e6; };
+    auto statsJson = [&](const Stats& s)
     {
-        return Json::object{{"samples", s.samples}, {"avg", s.avg}, {"min", s.min},
-                            {"p50", s.p50},         {"p95", s.p95}, {"max", s.max}};
+        return Json::object{{"samples", s.samples}, {"avg", round6(s.avg)}, {"min", round6(s.min)},
+                            {"p50", round6(s.p50)}, {"p95", round6(s.p95)}, {"max", round6(s.max)}};
     };
     Json::array scopeList;
     for (size_t i = 0; i < scopes.size(); ++i)
@@ -136,7 +138,7 @@ json11::Json Profiler::report(int lastSamples) const
         o["scope"]             = scopes[i].name;
         const int parent       = scopes[i].parent;
         const double parentAvg = parent >= 0 ? stats(scopes[size_t(parent)], lastSamples).avg : 0;
-        o["share_of_parent"]   = parent >= 0 && parentAvg > 0 ? s.avg / parentAvg : 1.0;
+        o["share_of_parent"]   = std::round((parent >= 0 && parentAvg > 0 ? s.avg / parentAvg : 1.0) * 1e4) / 1e4;
         scopeList.push_back(o);
     }
     Json::array counterList;
@@ -146,8 +148,20 @@ json11::Json Profiler::report(int lastSamples) const
         o["counter"]   = c.name;
         counterList.push_back(o);
     }
+    // The slowest leaf scopes (systems, command flushes) by average: where the time goes
+    std::vector<std::pair<double, std::string>> leaves;
+    for (size_t i = 0; i < scopes.size(); ++i)
+    {
+        bool leaf = true;
+        for (const Series& other : scopes) leaf = leaf && other.parent != int(i);
+        if (leaf) leaves.push_back({stats(scopes[i], lastSamples).avg, scopes[i].name});
+    }
+    std::sort(leaves.begin(), leaves.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
+    Json::array top;
+    for (size_t i = 0; i < leaves.size() && i < 10; ++i)
+        top.push_back(Json::object{{"scope", leaves[i].second}, {"avg", round6(leaves[i].first)}});
     const int n = lastSamples <= 0 ? filled : std::min(lastSamples, filled);
-    return Json::object{{"unit", "ms"}, {"samples", n}, {"scopes", scopeList}, {"counters", counterList}};
+    return Json::object{{"unit", "ms"}, {"samples", n}, {"top", top}, {"scopes", scopeList}, {"counters", counterList}};
 }
 
 }  // namespace Engine

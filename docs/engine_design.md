@@ -995,11 +995,16 @@ class GameObject
   `configure` destroyed the entity). `Behaviour` and `Persistent` cannot be added with `add` (compile error).
   `destroy` calls `onDestroy()` of the entity and its descendants (children first, while all components are present)
   before any component is removed; a hook may destroy other entities, itself (no second `onDestroy`) or spawn new ones
-  (loot); entities attached to a doomed parent by a hook are collected again (until no new hook runs) and destroyed
-  with it. A game object stays valid while one of its hooks runs, also if the hook destroys its entity or removes its
-  `Behaviour` (it is released when no hook runs). An exception in `onDestroy` aborts the destroy (nothing is
-  destroyed; a later destroy calls the hooks again). During a flush, operations on an entity reserved later in the
-  same phase follow its activation (appended to the commands). `remove<Behaviour>` drops the object without
+  (loot). Destroys requested by `onDestroy` hooks are queued and applied after the current destroy, iteratively (no
+  recursion per chained destroy). After the hooks the descendants are collected again: entities a hook attached to a
+  doomed parent are destroyed with it, without their own `onDestroy` (a hook that keeps respawning children cannot
+  loop); an entity a hook released from the cascade (e.g. removed its `Parent`) lives on and gets `onDestroy` again on
+  its real destroy. A game object stays valid while one of its hooks runs, also if the hook destroys its entity or
+  removes its `Behaviour` (it is released when no hook runs). An exception in `onDestroy` aborts the destroy (nothing
+  is destroyed; a later destroy calls the hooks again); an exception in `configure`, `onSpawn` or an initial add
+  destroys the half-spawned entity (without `onDestroy`) before it propagates. Two deferred adds of a component, or
+  removes of a missing one, are refused when applied in every build (hooks see the state before the flush). During a flush, operations on an entity reserved later in the
+  same phase follow its activation (appended to the commands); so does `add<Parent>` with such a parent. `remove<Behaviour>` drops the object without
   `onDestroy`. `onSpawn` adds a component a spawner may pass as initial only after `has<T>()` (an agent's `spawn` with
   initial components otherwise asserts on the double add). The first tick of a spawned object is staggered by
   `Behaviour::tickOffset`; `update` always gets the real time since the last update. `behaviourEventSystem` skips dead targets,
@@ -2020,17 +2025,17 @@ entity is removed after the export is acknowledged. The save directory contains 
 |---|---|---|
 | `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | prototype; in S14: `screenshot`, `measure_performance`, `set_camera`, `move_camera` become engine tools (without `height_above_ground` and `walk_mode`, which move to `game_set_camera`); `get_state` -> `game_get_state`, `set_settings` -> `game_set_settings`, `terrain_query` -> `game_terrain_query` | [exists] |
 | `describe_world`, `world_status` | the registrations (components with fields, types, replication, global/space state; classes; events; operations); step, time, paused, time scale, counts, hash | [exists: S10] |
-| `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order; `next` when more exist | [exists: S10] |
+| `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, include?: [names], limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order, the values of the `include` components, `distance` for near (which uses the grid of the last step: `grid_step`); `next` when more exist | [exists: S10] |
 | `inspect(entity, components?)` | class, flags, parent, children, every component as JSON | [exists: S10] |
-| `set_component`, `add_component`, `remove_component`, `set_transform` | applied at once (between steps); merges the given fields (missing keys keep values; unknown keys and wrong types change nothing; the error lists the fields); Transform through its setters (a teleport by default; refused for children: their `LocalTransform` decides); Parent with the cycle check; Behaviour: the tick flags (the interval is derived again; `classId` fixed); not `Behaviour` (spawn) or `Persistent` (makePersistent) | [exists: S10] |
-| `spawn(class?, position, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created; returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
+| `set_component`, `add_component`, `remove_component`, `set_transform` | applied at once (between steps); merges the given fields (missing keys keep values; unknown keys and wrong types change nothing; the error lists the fields); Transform through its setters (a teleport by default; refused for children: their `LocalTransform` decides); Parent with the cycle check (no world-state parent or child); Behaviour: the tick flags (the interval is derived again; writing `tickInterval` or `classId` is an error); not `Behaviour` (spawn) or `Persistent` (makePersistent); writes must be finite (nan and inf are errors; quaternions are normalized); `set_component` and `set_global` return the new `values` and the `previous` ones (for an undo) | [exists: S10] |
+| `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
 | `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs n steps (stops after 30 s: `ran`, `stopped_early`) | [exists: S10] |
-| `changes_since(cursor?, include_moved?)` | created, destroyed (its components folded in), component added/removed with sequence numbers and steps (a journal of 100000; `truncated`, `more`); with `include_moved` the entities moved since the cursor (coalesced, tracked from the first such call); the cursor is opaque, one from another session is an error | [exists: S10] |
+| `changes_since(cursor?, include_moved?, limit?)` | created, destroyed (its components folded in), component added/removed with sequence numbers and steps (a journal of 100000; `truncated`, `more`; `limit` per call, default 200); with `include_moved` the entities moved since the cursor (once each, paged with `moved_more`, tracked from the first such call); the cursor is opaque (`0`: everything kept, `"now"`: from now on); one of another session (a random epoch per API) is an error | [exists: S10] |
 | `get_profile(steps?, scopes?)`, `reset_profile`, `measure_performance(steps)` | step profile (§17.1), filtered by scope path prefixes; measure (at most the 600 samples of the history) runs n steps while paused or waits for n steps while running (refused at time scale 0) | [exists: S10; S13 adds frame and GPU scopes] |
-| `logs(since, category?)` | log lines with a sequence number > `since` (category `api`: the edits made through the tools) | [exists: S10] |
-| `apply(operations)` | a batch `[{op, ...arguments}]` in order; stops at the first failing operation (the earlier ones stay applied); read-only allowed when every operation reads | [exists: S10] |
+| `logs(since?, category?)` | log lines with a sequence number > `since` (at most 500, `first`, `truncated`; category `api`: the edits made through the tools, logged after they ran with `ok` or `failed:`; an empty result names the known `categories`) | [exists: S10] |
+| `apply(operations)` | a batch `[{op, ...arguments}]` in order; stops at the first failing operation (the earlier ones stay applied); available read-only when every operation reads | [exists: S10] |
 | `run_scenario(name)` | replaces the live world with the scenario, runs it, returns the checks | [planned: S14] |
 | `quit` | | [planned: S14] |
 
@@ -2042,7 +2047,8 @@ per operation plus `measure_performance` and returns the shared API (the caller 
 written through `visit` (`engine/ecs/VisitJson.h`: 64-bit integers beyond 2^53 as strings, non-finite doubles as
 `"nan"`/`"inf"`, enums by name, quaternions `[w, x, y, z]`). Unknown argument names are errors (the schemas set
 `additionalProperties: false`); integers must be integers in range (no strings). Results are compact JSON with exact
-numbers (the shortest form that reads back to the same double). The API detaches when its world is destroyed. Entities in JSON are `{"index": i, "generation": g}` (the
+numbers (integers in full, other numbers in the shortest form that reads back to the same double; profile times
+rounded to 1 ns, with a `top` list of the slowest systems). The API detaches when its world is destroyed. Entities in JSON are `{"index": i, "generation": g}` (the
 tools also accept `"i:g"`); errors are tool results with `isError: true` and a message. Tool tests use the `Poller`
 (`tests/mcp_test_helper.h`, S10). Tools that need rendered frames (`screenshot`, the frame part of
 `measure_performance`) register a frame callback and respond later; they do not render inside the handler.

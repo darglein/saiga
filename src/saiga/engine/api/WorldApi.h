@@ -45,22 +45,26 @@ struct ApiResult
  * Operations (name: arguments -> result):
  *   describe_world:   -> components (fields, types, replication, notes), classes, events, operations
  *   world_status:     -> step, time, paused, time scale, counts, hash
- *   list_entities:    class?, components?: [names], near?: {space?, position, radius}, limit? (100, <= 1000),
- *                     after? (entity index) -> entities [{entity, class?, position, components}], count, next?
+ *   list_entities:    class?, components?: [names], near?: {space?, position, radius}, include?: [names],
+ *                     limit? (100, <= 1000), after? (entity index) -> entities [{entity, class?, position, components,
+ *                     values?, distance?}], count, next?, grid_step? (near: the grid of the last step)
  *   inspect:          entity, components?: [names] -> class, flags, parent, children, components {name: values}
- *   set_component:    entity, component, values -> the new values (Transform: as set_transform; Behaviour: the tick
+ *   set_component:    entity, component, values -> values, previous (Transform: as set_transform; Behaviour: the tick
  *                     flags, the interval is derived again)
  *   add_component:    entity, component, values?      remove_component: entity, component
  *   set_transform:    entity, position?, rotation? [w,x,y,z], scale?, teleport? (true); not for children
- *   spawn:            class?, position, space? (0), components?: {name: values} -> entity
+ *   spawn:            class?, position, rotation?, scale?, space? (0), components?: {name: values} (applied after
+ *                     onSpawn, merged into components the object added) -> entity, alive
  *   destroy:          entity -> destroyed (the entity and its descendants; onDestroy runs)
- *   get_global:       component, space? (world state if missing)      set_global: component, values, space?
- *   emit_event:       event, values (readable in the next step; the gameplay path, e.g. onDamage)
- *   queue_action:     player, action, aim?
- *   pause, resume, step: n (only while paused; stops after 30 s), time_scale: scale
- *   changes_since:    cursor? (opaque; none or 0: from the oldest kept change), include_moved? -> changes
- *                     [{seq, step, kind, entity, component?}] (kinds: created, destroyed (its components with it),
- *                     added, removed), moved? [entities], cursor, more, truncated
+ *   get_global:       component, space? (world state if missing)      set_global: component, values, space? -> values,
+ *                     previous
+ *   emit_event:       event, values -> readable_in_step (the gameplay path, e.g. onDamage)
+ *   queue_action:     player, action, aim? -> readable_in_step
+ *   pause, resume, step: n (only while paused; stops after 30 s: ran, requested, stopped_early), time_scale: scale
+ *   changes_since:    cursor? (opaque; none or 0: from the oldest kept change; "now"), include_moved?, limit? (200) ->
+ *                     changes [{seq, step, kind, entity, component?}] (kinds: created, destroyed (its components with
+ *                     it), added, removed; step: the steps completed when the change was read), moved? [entities],
+ *                     moved_more?, moves_tracked_from_step?, cursor, more, truncated, step
  *   get_profile:      steps? (window), scopes? [path prefixes] -> the profiler report      reset_profile
  *   logs:             since?, category? -> lines [{seq, category, message}], first, last, truncated
  *   apply:            operations: [{op, ...arguments}] -> one result per operation, applied in order; it stops at the
@@ -82,6 +86,8 @@ class SAIGA_ENGINE_API WorldApi
     // The names of the operations (the reading ones only without edits)
     std::vector<std::string> operations() const;
     static bool isEdit(const std::string& operation);
+    // The argument names of an operation (the tool schemas list exactly these)
+    static std::vector<std::string> arguments(const std::string& operation);
     bool editsAllowed() const { return allowEdits; }
     // nullptr after the world was destroyed
     World* world() { return w; }
@@ -129,9 +135,11 @@ class SAIGA_ENGINE_API WorldApi
 
     World* w;
     bool allowEdits;
-    int consumer = -1;
+    int consumer        = -1;
+    int destroyListener = -1;
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
+    uint32_t epoch   = 0;
     Entity lastDestroyed;  // folds the removed records that follow a destroyed record
     bool movesTracked   = false;
     uint64_t movesSince = 0;              // the step from which moves are tracked

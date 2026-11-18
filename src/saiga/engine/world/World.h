@@ -301,11 +301,21 @@ class SAIGA_ENGINE_API World
                         const std::function<void(Entity)>& initial);
     // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
     void addStepListener(std::function<bool()> fn) { stepListeners.push_back(std::move(fn)); }
-    // Runs fn when the world is destroyed (observers such as the world API detach)
-    void addDestroyListener(std::function<void()> fn) { destroyListeners.push_back(std::move(fn)); }
-    // When enabled: the alive entities whose Transform changed during the last completed step (any phase), collected
-    // during the flag shift at the end of the step (the world API's change journal)
-    void setTrackStepChanges(bool enabled) { trackStepChanges = enabled; }
+    // Runs fn when the world is destroyed (observers such as the world API detach); returns an ID for removal
+    int addDestroyListener(std::function<void()> fn)
+    {
+        destroyListeners.push_back({nextListenerId, std::move(fn)});
+        return nextListenerId++;
+    }
+    void removeDestroyListener(int id)
+    {
+        for (size_t i = 0; i < destroyListeners.size(); ++i)
+            if (destroyListeners[i].first == id) destroyListeners.erase(destroyListeners.begin() + std::ptrdiff_t(i));
+    }
+    // While at least one user asked for it: the alive entities whose Transform changed during the last completed step
+    // (any phase), collected during the flag shift at the end of the step (the world API's change journal)
+    void retainStepChanges() { trackStepChanges++; }
+    void releaseStepChanges() { trackStepChanges = std::max(0, trackStepChanges - 1); }
     const std::vector<uint32_t>& changedDuringLastStep() const { return stepChanged; }
 
     // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
@@ -328,6 +338,9 @@ class SAIGA_ENGINE_API World
     Entity beginSpawn(SpaceId space);
     void finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position);
     void startObject(Entity e);
+    // A spawn that failed halfway (an exception in configure, onSpawn or an initial add): the entity is destroyed
+    // without its onDestroy, so no half-started object ticks
+    void abandonSpawn(Entity e);
     template <class T>
     Entity globalEntity()
     {
@@ -355,7 +368,10 @@ class SAIGA_ENGINE_API World
     // Allocates the parent's count slot (before Parent is added, so the add cannot leave a count missing)
     void reserveChildSlot(Entity parent);
     void destroyNow(Entity e);
+    void destroyOne(Entity e);
     std::vector<Entity> collectDoomed(Entity e) const;
+    int destroyDepth = 0;              // destroyOne is running (nested destroys are queued)
+    std::vector<Entity> destroyQueue;  // destroys requested by hooks during a destroy
     // Game objects of destroyed entities and removed Behaviours, released when no hook runs (a hook may destroy its
     // own entity and keep running)
     std::vector<std::unique_ptr<GameObject>> retired;
@@ -417,8 +433,9 @@ class SAIGA_ENGINE_API World
     Entity worldState;
     std::vector<Entity> spaceStates;  // by SpaceId
     std::vector<std::function<bool()>> stepListeners;
-    std::vector<std::function<void()>> destroyListeners;
-    bool trackStepChanges = false;
+    std::vector<std::pair<int, std::function<void()>>> destroyListeners;
+    int nextListenerId   = 0;
+    int trackStepChanges = 0;
     std::vector<uint32_t> stepChanged;
     void runStepListeners();
     uint64_t persistentCounter = 0;
@@ -444,13 +461,17 @@ void World::add(Entity e, A&&... args)
     static_assert(T::id != ComponentId(EngineComponent::Behaviour), "Behaviour is added by spawn<T>");
     static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is added by makePersistent");
     checkNotParallel("add");
-    // During a flush an entity reserved later in the phase is not active yet: the add follows its activation
-    if (deferring() || (flushing && reg.reserved(e)))
+    T value = makeComponent<T>(std::forward<A>(args)...);
+    // During a flush an entity (or a parent) reserved later in the phase is not active yet: the add follows its
+    // activation
+    bool defer = deferring() || (flushing && reg.reserved(e));
+    if constexpr (T::id == ComponentId(EngineComponent::Parent))
+        defer = defer || (flushing && reg.reserved(value.entity));
+    if (defer)
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("add<") + T::name + ">: the entity is not alive");
         // Whether e has T is checked when the command is applied (earlier commands of the phase may add or remove T:
         // remove + add re-parents, §7.4); the flush asserts with the component and the entity named
-        T value = makeComponent<T>(std::forward<A>(args)...);
         if constexpr (T::id == ComponentId(EngineComponent::Parent))
         {
             // The parent must exist now (it may be destroyed before the flush; then the child follows it)
@@ -459,7 +480,7 @@ void World::add(Entity e, A&&... args)
         record(makeCommand([e, v = std::move(value)](World& w) mutable { w.addNow<T>(e, std::move(v)); }));
         return;
     }
-    addNow<T>(e, makeComponent<T>(std::forward<A>(args)...));
+    addNow<T>(e, std::move(value));
 }
 
 template <class T>
@@ -480,6 +501,13 @@ void World::addNow(Entity e, T&& value)
 {
     // A command on an entity destroyed earlier in the same flush is dropped
     if (flushing && !reg.alive(e)) return;
+    // Two deferred adds (hooks see the state before the flush): refused in every build (the pool must not get a
+    // second entry)
+    if (reg.alive(e) && reg.has<T>(e))
+    {
+        SAIGA_ASSERT(false, std::string("add<") + T::name + ">: the entity already has " + T::name);
+        return;
+    }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
@@ -524,6 +552,12 @@ template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
+    // Two deferred removes, or none to remove: refused in every build
+    if (!reg.alive(e) || !reg.has<T>(e))
+    {
+        SAIGA_ASSERT(false, std::string("remove<") + T::name + ">: the entity has no " + T::name);
+        return;
+    }
     if ((reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)) &&
         (reg.isGlobal(T::id) || reg.isSpaceState(T::id)))
     {

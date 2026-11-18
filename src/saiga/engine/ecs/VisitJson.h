@@ -129,7 +129,10 @@ class JsonReader
    public:
     using Json = json11::Json;
 
-    JsonReader(const Json& object, bool apply) : apply(apply) { push(object, ""); }
+    JsonReader(const Json& object, bool apply, bool finiteOnly = false) : apply(apply), finiteOnly(finiteOnly)
+    {
+        push(object, "");
+    }
 
     bool ok() const { return error.empty(); }
     const std::string& errorMessage() const { return error; }
@@ -204,6 +207,8 @@ class JsonReader
                 d = -std::numeric_limits<double>::infinity();
             else
                 return fail(where, "expected a number");
+            // Writes from agents (finiteOnly): no nan or inf (also not from an overflowing literal such as 1e400)
+            if (finiteOnly && !std::isfinite(d)) return fail(where, "must be a finite number");
             if constexpr (std::is_same_v<T, float>)
                 if (std::isfinite(d) && std::abs(d) > double(std::numeric_limits<float>::max()))
                     return fail(where, "out of the float range");
@@ -243,9 +248,22 @@ class JsonReader
         else if constexpr (isQuat<T>)
         {
             if (!j.is_array() || j.array_items().size() != 4) return fail(where, "expected [w, x, y, z]");
-            double c[4] = {v.w(), v.x(), v.y(), v.z()};
+            // Read into locals in both modes (the dry run checks the length too); normalized when written
+            double c[4]         = {0, 0, 0, 0};
+            const bool wasApply = apply;
+            apply               = true;
             for (size_t k = 0; k < 4; ++k) read(j.array_items()[k], c[k], where + "[" + std::to_string(k) + "]");
-            if (apply && ok()) v = T(c[0], c[1], c[2], c[3]);
+            apply = wasApply;
+            if (!ok()) return;
+            const double n = std::sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2] + c[3] * c[3]);
+            if (std::isfinite(n) && n < 1e-12) return fail(where, "a rotation needs a quaternion of length > 0");
+            if (apply)
+            {
+                if (std::isfinite(n))
+                    v = T(c[0] / n, c[1] / n, c[2] / n, c[3] / n);
+                else
+                    v = T(c[0], c[1], c[2], c[3]);
+            }
         }
         else if constexpr (IsStdVector<T>::value)
         {
@@ -424,6 +442,7 @@ class JsonReader
     }
 
     bool apply;
+    bool finiteOnly;
     std::vector<Frame> frames;
     std::string path;
     std::string error;
@@ -436,14 +455,15 @@ json11::Json toJson(const T& value)
     return JsonWriter::write(value);
 }
 
-// Merges the fields present in json into value; false (and value unchanged) on any error
+// Merges the fields present in json into value; false (and value unchanged) on any error. finiteOnly: nan and inf
+// are errors (writes from the world API); quaternions are normalized (zero length is an error)
 template <class T>
-bool fromJson(const json11::Json& json, T& value, std::string* error = nullptr)
+bool fromJson(const json11::Json& json, T& value, std::string* error = nullptr, bool finiteOnly = false)
 {
     {
         // Dry run on a default instance: the structure, types and ranges do not depend on the current values
         T scratch{};
-        JsonReader check(json, false);
+        JsonReader check(json, false, finiteOnly);
         scratch.visit(check);
         check.finish();
         if (!check.ok())
@@ -452,7 +472,7 @@ bool fromJson(const json11::Json& json, T& value, std::string* error = nullptr)
             return false;
         }
     }
-    JsonReader reader(json, true);
+    JsonReader reader(json, true, finiteOnly);
     value.visit(reader);
     reader.finish();
     if (error && !reader.ok()) *error = reader.errorMessage();

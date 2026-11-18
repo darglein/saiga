@@ -71,14 +71,17 @@ std::vector<ToolSpec> toolSpecs()
          S::ObjectSchema({})},
         {"list_entities",
          "Lists entities in index order with class, position and component names. Filters: class, components (all "
-         "required), near {space, position, radius} (positions of the last step). Paged: limit (default 100, at most "
-         "1000), after (the index of the last entity of the previous page; the result has next when more exist). "
-         "Changes nothing.",
-         S::ObjectSchema({{"class", S::StringProperty("Class name")},
-                          {"components", arrayProperty("Component names", Json::object{{"type", "string"}})},
-                          {"near", objectProperty("{space?: 0, position: [x,y,z], radius}")},
-                          {"limit", S::IntegerProperty("Maximum entities (1..1000, default 100)")},
-                          {"after", S::IntegerProperty("Entity index to continue after")}})},
+         "required), near {space, position, radius} (uses the positions of the last step: entities spawned or moved "
+         "since are found after the next step; results then have distance). include: component names whose values "
+         "are returned per entity (values). Paged: limit (default 100, at most 1000), after (the index of the last "
+         "entity of the previous page; the result has next when more exist). Changes nothing.",
+         S::ObjectSchema(
+             {{"class", S::StringProperty("Class name")},
+              {"components", arrayProperty("Component names", Json::object{{"type", "string"}})},
+              {"near", objectProperty("{space?: 0, position: [x,y,z], radius}")},
+              {"include", arrayProperty("Return these components' values", Json::object{{"type", "string"}})},
+              {"limit", S::IntegerProperty("Maximum entities (1..1000, default 100)")},
+              {"after", S::IntegerProperty("Entity index to continue after")}})},
         {"inspect",
          "Reads one entity: class, flags (simulated, world/space state), parent, children and all components (or the "
          "named ones) as JSON. Changes nothing.",
@@ -113,10 +116,13 @@ std::vector<ToolSpec> toolSpecs()
                           {"teleport", S::BooleanProperty("Teleport (default true)")}},
                          {"entity"})},
         {"spawn",
-         "Creates an entity at position: with class a game object (configure and onSpawn run), else a plain entity. "
-         "components {name: fields} are added first (checked before anything is created). Returns the entity.",
+         "Creates an entity at position with rotation [w,x,y,z] and scale: with class a game object (configure and "
+         "onSpawn run), else a plain entity. components {name: fields} are checked before anything is created and "
+         "applied after onSpawn (merged into components the object added itself). Returns the entity.",
          S::ObjectSchema({{"class", S::StringProperty("Game object class (optional)")},
                           {"position", S::Vec3Property("Position in meters")},
+                          {"rotation", quatProperty("Rotation quaternion [w,x,y,z] (identity)")},
+                          {"scale", S::Vec3Property("Scale ([1,1,1])")},
                           {"space", S::IntegerProperty("Space (0)")},
                           {"components", objectProperty("{component name: fields}")}},
                          {"position"})},
@@ -150,15 +156,23 @@ std::vector<ToolSpec> toolSpecs()
         {"time_scale", "Sets the simulation speed (0 stops it, 1 real time).",
          S::ObjectSchema({{"scale", S::NumberProperty("Time scale >= 0")}}, {"scale"})},
         {"changes_since",
-         "Reads what changed since a cursor: created, destroyed, component added/removed, moved (per step), with the "
-         "step. Pass the returned cursor next time (0: everything kept). truncated: changes were dropped (more than "
-         "100000 since the cursor); more: call again. Changes nothing.",
-         S::ObjectSchema({{"cursor", S::IntegerProperty("Cursor of the previous call (0 at first)")}})},
+         "Reads what changed since a cursor: created, destroyed (its components with it), component added/removed, "
+         "with sequence number and step; with include_moved also the entities moved since (once each; tracking starts "
+         "with the first such call). Pass the returned cursor next time (0: everything kept, \"now\": only what "
+         "happens from now on). more / moved_more: call again; truncated: changes were dropped (more than 100000 since "
+         "the cursor). Changes nothing.",
+         S::ObjectSchema(
+             {{"cursor", Json::object{{"type", Json::array{"string", "integer"}},
+                                      {"description", "Cursor of the previous call, 0 or \"now\""}}},
+              {"include_moved", S::BooleanProperty("Also report moved entities")},
+              {"limit", S::IntegerProperty("Maximum changes and moved entities per call (1..1000, 200)")}})},
         {"get_profile",
          "Reads the step profile: per scope (step, phases, systems, command flushes) avg/min/p50/p95/max in ms and "
          "the share of the parent, plus counters (entities, game objects, objects updated, commands, structural "
          "records, grid items), over the last steps (default: the whole history of 600). Changes nothing.",
-         S::ObjectSchema({{"steps", S::IntegerProperty("Window in steps (default all kept)")}})},
+         S::ObjectSchema({{"steps", S::IntegerProperty("Window in steps (default all kept)")},
+                          {"scopes", arrayProperty("Only scopes with these path prefixes (e.g. step/phase:behaviour)",
+                                                   Json::object{{"type", "string"}})}})},
         {"reset_profile", "Drops the profile history.", S::ObjectSchema({})},
         {"logs",
          "Reads the engine log lines after a sequence number (at most the newest 500), optionally of one "
@@ -188,6 +202,12 @@ void formatExact(const Json& j, std::string& out)
                 return;
             }
             char buf[40];
+            if (v == std::floor(v) && std::abs(v) < 9007199254740992.0)
+            {
+                std::snprintf(buf, sizeof(buf), "%.0f", v);
+                out += buf;
+                return;
+            }
             for (int precision = 15; precision <= 17; ++precision)
             {
                 std::snprintf(buf, sizeof(buf), "%.*g", precision, v);
@@ -251,7 +271,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
     std::weak_ptr<WorldApi> weak = api;
     for (ToolSpec& spec : toolSpecs())
     {
-        if (WorldApi::isEdit(spec.name) && !options.allowEdits) continue;
+        // apply stays available read-only (the API allows batches of reads)
+        if (WorldApi::isEdit(spec.name) && !options.allowEdits && std::string(spec.name) != "apply") continue;
         const std::string op = spec.name;
         // Unknown arguments are errors (the API checks them too)
         Json::object schema            = spec.schema.object_items();
@@ -275,7 +296,14 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         "steps (see get_profile). Paused: runs the steps now (a pure simulation benchmark; edits must be allowed). "
         "Running: waits until the app has run them (refused at time scale 0); it answers early with fewer steps if "
         "they take too long. Changes nothing but time while paused.",
-        McpServer::ObjectSchema({{"steps", McpServer::IntegerProperty("Number of steps (1..600)")}}),
+        [&]()
+        {
+            Json::object schema =
+                McpServer::ObjectSchema({{"steps", McpServer::IntegerProperty("Number of steps (1..600)")}})
+                    .object_items();
+            schema["additionalProperties"] = false;
+            return Json(schema);
+        }(),
         [weak, timeout](const Json& args, McpServer::Respond respond)
         {
             auto a = weak.lock();
@@ -306,18 +334,32 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             if (w.timeScale() == 0)
                 return respond(ToolResult::Error("measure_performance: the time scale is 0 (no steps run)"));
             const uint64_t start = w.profiler().sampleCount();
-            w.addStepListener(
-                [weak, respond, start, n, elapsed, timeout]()
+            // Answered exactly once: after n steps, at the deadline, or when the world is destroyed meanwhile
+            auto answered     = std::make_shared<bool>(false);
+            const int destroy = w.addDestroyListener(
+                [respond, answered]()
                 {
+                    if (*answered) return;
+                    *answered = true;
+                    respond(ToolResult::Error("the world was destroyed during the measurement"));
+                });
+            w.addStepListener(
+                [weak, respond, start, n, elapsed, timeout, answered, destroy]()
+                {
+                    if (*answered) return false;
                     auto api = weak.lock();
                     if (!api || !api->world())
                     {
+                        *answered = true;
                         respond(ToolResult::Error("the world is not available"));
                         return false;
                     }
-                    const uint64_t done = api->world()->profiler().sampleCount() - start;
+                    World& world        = *api->world();
+                    const uint64_t done = world.profiler().sampleCount() - start;
                     if (done < uint64_t(n) && elapsed() < 0.8 * timeout) return true;
-                    respond(ToolResult::Text(exactJson(api->world()->profiler().report(int(done)))));
+                    *answered = true;
+                    world.removeDestroyListener(destroy);
+                    respond(ToolResult::Text(exactJson(world.profiler().report(int(done)))));
                     return false;
                 });
         });

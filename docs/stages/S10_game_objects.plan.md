@@ -238,12 +238,29 @@ new tests.
   valid ones; tool results are compact JSON with exact numbers; the entity schema uses a type list instead of `oneOf`.
   Not changed: `apply` is not atomic (documented); actions have no name registry yet (S13 input map); the spawn
   initial-component vs `onSpawn` add convention is documented (§9.2).
+- Review round 2 (robustness; agent experience by driving the tools as an agent): `add<Parent>` during a flush waits for
+  a parent reserved later in the phase; one `onDestroy` pass, then entities attached by hooks are destroyed without
+  their hooks (a respawning child looped forever), released survivors get their flag reset; nested destroys from
+  hooks are queued (a 50000-link chain overflowed the stack); a failed spawn (exception in configure/onSpawn/initial
+  adds) destroys the half-started entity; double deferred adds/removes are refused in every build (out-of-bounds write
+  without asserts); a throwing step listener keeps the others; `queueAction`/`makePersistent` refuse dead entities in
+  every build; step-change tracking is reference counted and the API removes its destroy listener;
+  `measure_performance` answers when the world is destroyed while it waits. API: the tool schemas list exactly the
+  operation arguments (test) and `apply` stays in read-only mode; moved entities are paged by entity index in the
+  cursor (moved_more returned the same page forever); the cursor carries a random session epoch and accepts "now";
+  `changes_since` has a `limit` (default 200); writes from the API must be finite and quaternions are normalized;
+  `spawn` applies initial components after `onSpawn` (merging into components the object added: an agent could
+  trigger the double-add assert) and takes rotation and scale; `list_entities` returns `include`d values, `distance`
+  and `grid_step`; `set_component`/`set_global` return `previous`; writing `Behaviour.tickInterval` is an error; edits
+  are logged after they ran with the outcome; `time_scale` at most 1000; integers printed in full; profile times
+  rounded with a `top` list. Not changed: `step` while running (an agent pauses first), `measure_performance` still
+  answers only from steps (it answers when the world is destroyed or at the deadline), no action-name registry yet.
 - The test event `DamageEvent` and the test component `Health` of `test_engine_world.cpp` and the ECS benchmark are
   renamed (`HitEvent`, `Vitality`): the engine registers those names now.
 
 ## Results
 
-- `tests/test_engine_gameobject.cpp`: 22 tests, `tests/test_engine_world_api.cpp`: 15 tests (GCC 15); the S07-S09
+- `tests/test_engine_gameobject.cpp`: 29 tests, `tests/test_engine_world_api.cpp`: 19 tests (GCC 15); the S07-S09
   tests unchanged. Full ctest (CI options, GCC 15): 57/57.
 - Benchmark (GCC 15, RelWithDebInfo, laptop): 10^4 game objects with one player: `World::step` 0.09 ms standing (411
   updates per step), 0.21 ms when every object is re-tiered each step. The S08 benchmark with 10^5 moving entities:
