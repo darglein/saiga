@@ -37,7 +37,7 @@ struct ProcessDir
 {
     std::filesystem::path dir = std::filesystem::temp_directory_path() /
                                 ("saiga_test_core_long_path_" + std::to_string(std::random_device()()));
-    ProcessDir() { std::filesystem::create_directories(dir); }
+    ProcessDir() { std::filesystem::create_directories(os_path(dir)); }
     ~ProcessDir()
     {
         std::error_code ec;
@@ -153,13 +153,16 @@ TEST(LongPath, IsPathTooLongError)
     EXPECT_FALSE(is_path_too_long_error(std::make_error_code(std::errc::no_such_file_or_directory), short_path));
     EXPECT_FALSE(is_path_too_long_error(std::error_code(), short_path));
 
+    // A missing file that the OS gets in a form it can open (prefixed if needed, as the temp folder can be long).
     std::error_code ec;
-    std::filesystem::file_size(TestDir() / "missing.txt", ec);
+    const auto missing_file = os_path(TestDir() / "missing.txt");
+    std::filesystem::file_size(missing_file, ec);
     EXPECT_TRUE(ec);
-    EXPECT_FALSE(is_path_too_long_error(ec, TestDir() / "missing.txt"));
+    EXPECT_FALSE(is_path_too_long_error(ec, missing_file));
 
     // Short enough for the file functions, even if os_path would prefix it: a missing file, not a path too long.
     auto dir = TestDir() / "folder";
+    if (dir.native().size() + 2 > 250) GTEST_SKIP() << "The temp folder is too long for this case: " << dir;
     std::filesystem::create_directories(dir);
     auto missing = dir / std::string(250 - (dir.native().size() + 1), 'm');
     ASSERT_EQ(missing.native().size(), 250u);
