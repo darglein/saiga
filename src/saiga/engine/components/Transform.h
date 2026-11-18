@@ -19,6 +19,8 @@ namespace Saiga
 namespace Engine
 {
 class Registry;
+template <class T>
+class ComponentPool;
 
 /**
  * The pose of an entity in its space (docs/engine_design.md §7.4). Every entity has one (component ID 0, stored by
@@ -94,6 +96,9 @@ class Transform
 
    private:
     friend class Registry;
+    // MSVC instantiates ComponentPool<Transform> (its swap-and-pop assignment) although Transform has no pool
+    template <class T>
+    friend class ComponentPool;
     // Whole-object assignment would bypass the setters and the change flags (R-STATE-3); only the registry resets a
     // reused slot. Copy and move construction stay public (storage, tests).
     Transform& operator=(const Transform&)     = default;
