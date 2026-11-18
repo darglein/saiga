@@ -941,8 +941,10 @@ TEST(GameObject, AThrowingStepListenerKeepsTheOthers)
             return true;
         });
     EXPECT_THROW(w.step(), std::runtime_error);
-    w.step();
+    // The other listeners still saw the committed step, and the next one
     EXPECT_EQ(calls, 1);
+    w.step();
+    EXPECT_EQ(calls, 2);
 }
 
 #ifdef SAIGA_ASSERTS
@@ -999,4 +1001,74 @@ TEST(GameObject, AFailedSpawnInsideOnDestroyLeavesNoObject)
     int objects = 0;
     w.viewAll<const Behaviour>().each([&](Entity, const Behaviour& b) { objects += b.classId == BadConfig::id; });
     EXPECT_EQ(objects, 0);
+}
+
+namespace
+{
+class ThrowingChild final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(int(Round2Class::Count) + 1);
+    static constexpr const char* name = "ThrowingChild";
+    void onDestroy() override { throw std::runtime_error("child onDestroy"); }
+};
+// Creates a child whose onDestroy throws, then fails itself
+class FailingParent final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(int(Round2Class::Count) + 2);
+    static constexpr const char* name = "FailingParent";
+    void configure() override
+    {
+        Entity c = spawn<ThrowingChild>(Vec3::Zero());
+        world().add<Parent>(c, Parent{entity()});
+        throw std::runtime_error("bad parent");
+    }
+};
+// Removes its own Behaviour by ID in onSpawn and keeps using its members
+class SelfRemover final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(int(Round2Class::Count) + 3);
+    static constexpr const char* name = "SelfRemover";
+    void onSpawn() override
+    {
+        world().removeByIdNow(entity(), Behaviour::id);
+        g_trace.push_back("still here " + std::to_string(entity().index));
+    }
+};
+WorldSetup coderabbitSetup()
+{
+    WorldSetup s = round2Setup();
+    s.classes    = [](ClassList& c)
+    {
+        round2Classes(c);
+        c.add<LootDropper>();
+        c.add<ThrowingChild>();
+        c.add<FailingParent>();
+        c.add<SelfRemover>();
+    };
+    return s;
+}
+}  // namespace
+
+// A failed spawn removes its whole subtree without hooks (a throwing child onDestroy stopped the cleanup)
+TEST(GameObject, AFailedSpawnRemovesItsSubtreeWithoutHooks)
+{
+    World w(coderabbitSetup());
+    EXPECT_THROW(w.spawn<FailingParent>(Vec3::Zero()), std::runtime_error);
+    int objects = 0;
+    w.viewAll<const Behaviour>().each([&](Entity, const Behaviour&) { objects++; });
+    EXPECT_EQ(objects, 0);
+}
+
+// Removing the own Behaviour by ID in a hook retires the object (it was freed during its own call)
+TEST(GameObject, RemovingTheOwnBehaviourByIdKeepsTheObjectAlive)
+{
+    g_trace.clear();
+    World w(coderabbitSetup());
+    Entity e = w.spawn<SelfRemover>(Vec3::Zero());
+    EXPECT_FALSE(w.has<Behaviour>(e));
+    ASSERT_FALSE(g_trace.empty());
+    EXPECT_EQ(g_trace.back(), "still here " + std::to_string(e.index));
 }

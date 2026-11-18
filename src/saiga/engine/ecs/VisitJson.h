@@ -257,13 +257,23 @@ class JsonReader
             apply = wasApply;
             if (!ok()) return;
             // Writes from agents (finiteOnly): a rotation, normalized; unit quaternions stay bit-exact (round trips)
-            const double n  = std::sqrt(c[0] * c[0] + c[1] * c[1] + c[2] * c[2] + c[3] * c[3]);
+            // The length scaled by the largest coefficient (no overflow for huge values)
+            const double m =
+                std::max(std::max(std::abs(c[0]), std::abs(c[1])), std::max(std::abs(c[2]), std::abs(c[3])));
+            double s[4] = {0, 0, 0, 0};
+            double ns   = 0;  // length of c / m
+            if (m > 0 && std::isfinite(m))
+            {
+                for (int k = 0; k < 4; ++k) s[k] = c[k] / m;
+                ns = std::sqrt(s[0] * s[0] + s[1] * s[1] + s[2] * s[2] + s[3] * s[3]);
+            }
+            const double n  = m * ns;
             const bool unit = std::abs(n - 1) <= 1e-12;
-            if (finiteOnly && n < 1e-12) return fail(where, "a rotation needs a quaternion of length > 0");
+            if (finiteOnly && !(n >= 1e-12)) return fail(where, "a rotation needs a quaternion of length > 0");
             if (apply)
             {
                 if (finiteOnly && !unit)
-                    v = T(c[0] / n, c[1] / n, c[2] / n, c[3] / n);
+                    v = T(s[0] / ns, s[1] / ns, s[2] / ns, s[3] / ns);
                 else
                     v = T(c[0], c[1], c[2], c[3]);
             }

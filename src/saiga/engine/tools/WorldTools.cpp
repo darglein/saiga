@@ -12,6 +12,7 @@
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/world/World.h"
 
+#include <charconv>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -208,12 +209,10 @@ void formatExact(const Json& j, std::string& out)
                 out += buf;
                 return;
             }
-            for (int precision = 15; precision <= 17; ++precision)
-            {
-                std::snprintf(buf, sizeof(buf), "%.*g", precision, v);
-                if (std::strtod(buf, nullptr) == v) break;
-            }
-            out += buf;
+            // The shortest round-trip form, independent of the process locale (a comma decimal separator would split
+            // a number into two array elements)
+            const auto r = std::to_chars(buf, buf + sizeof(buf), v);
+            out.append(buf, r.ptr);
             return;
         }
         case Json::ARRAY:
@@ -304,7 +303,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             schema["additionalProperties"] = false;
             return Json(schema);
         }(),
-        [weak, timeout](const Json& args, McpServer::Respond respond)
+        [weak, timeout, serverPtr = &server](const Json& args, McpServer::Respond respond)
         {
             auto a = weak.lock();
             if (!a || !a->world()) return respond(ToolResult::Error("the world is not available"));
@@ -333,35 +332,60 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             }
             if (w.timeScale() == 0)
                 return respond(ToolResult::Error("measure_performance: the time scale is 0 (no steps run)"));
-            const uint64_t start = w.profiler().sampleCount();
-            // Answered exactly once: after n steps, at the deadline, or when the world is destroyed meanwhile
-            auto answered     = std::make_shared<bool>(false);
-            const int destroy = w.addDestroyListener(
-                [respond, answered]()
+            // Answered exactly once: after n steps, at the deadline (checked after every step and every poll, so also
+            // when the world stops stepping), when the profile is reset, or when the world is destroyed
+            struct Measurement
+            {
+                bool answered = false;
+                uint64_t start, resets;
+                int destroyListener = -1;
+            };
+            auto m             = std::make_shared<Measurement>();
+            m->start           = w.profiler().sampleCount();
+            m->resets          = w.profiler().resetCount();
+            m->destroyListener = w.addDestroyListener(
+                [respond, m]()
                 {
-                    if (*answered) return;
-                    *answered = true;
+                    if (m->answered) return;
+                    m->answered = true;
                     respond(ToolResult::Error("the world was destroyed during the measurement"));
                 });
-            w.addStepListener(
-                [weak, respond, start, n, elapsed, timeout, answered, destroy]()
+            // Returns whether the measurement still runs
+            auto check = [weak, respond, n, elapsed, timeout, m]()
+            {
+                if (m->answered) return false;
+                auto api = weak.lock();
+                if (!api || !api->world())
                 {
-                    if (*answered) return false;
-                    auto api = weak.lock();
-                    if (!api || !api->world())
-                    {
-                        *answered = true;
-                        respond(ToolResult::Error("the world is not available"));
-                        return false;
-                    }
-                    World& world        = *api->world();
-                    const uint64_t done = world.profiler().sampleCount() - start;
-                    if (done < uint64_t(n) && elapsed() < 0.8 * timeout) return true;
-                    *answered = true;
-                    world.removeDestroyListener(destroy);
-                    respond(ToolResult::Text(exactJson(world.profiler().report(int(done)))));
+                    m->answered = true;
+                    respond(ToolResult::Error("the world is not available"));
                     return false;
-                });
+                }
+                World& world = *api->world();
+                if (world.profiler().resetCount() != m->resets)
+                {
+                    m->answered = true;
+                    world.removeDestroyListener(m->destroyListener);
+                    respond(ToolResult::Error("the profile was reset during the measurement"));
+                    return false;
+                }
+                const uint64_t done = world.profiler().sampleCount() - m->start;
+                if (done < uint64_t(n) && elapsed() < 0.8 * timeout) return true;
+                m->answered = true;
+                world.removeDestroyListener(m->destroyListener);
+                Json report = world.profiler().report(int(done));
+                if (done < uint64_t(n))
+                {
+                    Json::object o     = report.object_items();
+                    o["stopped_early"] = true;
+                    o["requested"]     = n;
+                    report             = o;
+                }
+                respond(ToolResult::Text(exactJson(report)));
+                return false;
+            };
+            w.addStepListener(check);
+            serverPtr->addPollListener(check);
         });
     return api;
 }

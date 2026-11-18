@@ -96,8 +96,11 @@ class SAIGA_CORE_API McpServer
     bool running() const { return listening; }
     int port() const { return boundPort; }
 
-    // Executes the pending tool calls on the calling thread.
+    // Executes the pending tool calls on the calling thread, then the poll listeners.
     void poll();
+    // Runs fn at the end of every poll() (on the polling thread), e.g. a deferred tool that checks a deadline while
+    // nothing else happens; fn returns false to be removed
+    void addPollListener(std::function<bool()> fn) { pollListeners.push_back(std::move(fn)); }
 
     // A tool call that is not answered within this time (e.g. because poll() is not called) fails.
     double toolTimeoutSeconds = 60;
@@ -136,6 +139,7 @@ class SAIGA_CORE_API McpServer
 
     std::string name, version, instructions;
     std::vector<Tool> tools;
+    std::vector<std::function<bool()>> pollListeners;
 
     std::mutex pendingMutex;
     std::deque<std::shared_ptr<PendingCall>> pendingCalls;

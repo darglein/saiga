@@ -47,10 +47,11 @@ struct ApiResult
  *   world_status:     -> step, time, paused, time scale, counts, hash
  *   list_entities:    class?, components?: [names], near?: {space?, position, radius}, include?: [names],
  *                     limit? (100, <= 1000), after? (entity index) -> entities [{entity, class?, position, components,
- *                     values?, distance?}], count, next?, grid_step? (near: the grid of the last step)
+ *                     values?, grid_position?, distance?}], count, next?, grid_step? (near selects by the grid of the
+ *                     last step)
  *   inspect:          entity, components?: [names] -> class, flags, parent, children, components {name: values}
- *   set_component:    entity, component, values -> values, previous (Transform: as set_transform; Behaviour: the tick
- *                     flags, the interval is derived again)
+ *   set_component:    entity, component, values -> values, previous (writable fields: an undo payload; Transform: as
+ *                     set_transform; Behaviour: the tick flags, the interval is derived again)
  *   add_component:    entity, component, values?      remove_component: entity, component
  *   set_transform:    entity, position?, rotation? [w,x,y,z], scale?, teleport? (true); not for children
  *   spawn:            class?, position, rotation?, scale?, space? (0), components?: {name: values} (applied after
@@ -142,9 +143,15 @@ class SAIGA_ENGINE_API WorldApi
     uint32_t epoch   = 0;
     Entity lastDestroyed;  // folds the removed records that follow a destroyed record
     bool movesTracked   = false;
-    uint64_t movesSince = 0;              // the step from which moves are tracked
-    std::vector<uint64_t> lastMovedStep;  // by entity index (0: not moved since tracking started)
-    std::shared_ptr<bool> alive;          // the world's listeners stop when the API is gone
+    uint64_t movesSince = 0;  // the step from which moves are tracked
+    // By entity index: the handle and step of its last move since tracking started (step 0: none)
+    struct MoveRecord
+    {
+        Entity entity;
+        uint64_t step = 0;
+    };
+    std::vector<MoveRecord> lastMoved;
+    std::shared_ptr<bool> alive;  // the world's listeners stop when the API is gone
 };
 
 }  // namespace Engine

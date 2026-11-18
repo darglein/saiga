@@ -263,12 +263,21 @@ new tests.
   zero refused only for API writes); the moved list is not repeated while structural changes are paged;
   `std::random_device` failures fall back to the clock; includes, docs (`tickOffset`, the two spawn orders). Built and
   tested without asserts (Release, `SAIGA_ASSERTS=OFF`) by the reviewer: passes.
+- CodeRabbit (PR #52): near results report the grid position and distance the selection used; moves are recorded with
+  their handle (a reused slot is not reported); the move window is fixed while it is paged (moves behind the page
+  index or after the window come in the next one) and independent of structural paging (cursor
+  `epoch.seq.from.to.index`); `previous` holds only writable fields (an undo payload); a hook exception during an
+  operation becomes an error result (apply reports the earlier results); quaternion lengths without overflow; tool
+  numbers locale-independent (`std::to_chars`); `measure_performance` fails on a profile reset and answers at its
+  deadline from `McpServer::addPollListener` too; `removeByIdNow(Behaviour)` retires the object; a failed spawn removes
+  its subtree without hooks; step listeners all see a committed step before the first exception is rethrown;
+  `alwaysTickEveryStep` is not folded into `tickInterval`.
 - The test event `DamageEvent` and the test component `Health` of `test_engine_world.cpp` and the ECS benchmark are
   renamed (`HitEvent`, `Vitality`): the engine registers those names now.
 
 ## Results
 
-- `tests/test_engine_gameobject.cpp`: 30 tests, `tests/test_engine_world_api.cpp`: 22 tests (GCC 15); the S07-S09
+- `tests/test_engine_gameobject.cpp`: 32 tests, `tests/test_engine_world_api.cpp`: 29 tests (GCC 15); the S07-S09
   tests unchanged. Full ctest (CI options, GCC 15): 57/57.
 - Benchmark (GCC 15, RelWithDebInfo, laptop): 10^4 game objects with one player: `World::step` 0.09 ms standing (411
   updates per step), 0.21 ms when every object is re-tiered each step. The S08 benchmark with 10^5 moving entities:

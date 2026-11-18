@@ -651,6 +651,11 @@ void McpServer::poll()
             c->answer(ToolResult::Error(std::string("Exception: ") + e.what()));
         }
     }
+    // Listeners may add listeners (kept) and remove themselves (return false)
+    std::vector<std::function<bool()>> current;
+    current.swap(pollListeners);
+    for (auto& l : current)
+        if (l()) pollListeners.push_back(std::move(l));
 }
 
 McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Json& arguments)

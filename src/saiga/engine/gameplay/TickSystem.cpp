@@ -71,7 +71,8 @@ void assign(World& w, const std::vector<Cell>& players, Entity e, Behaviour& b, 
     const TickPolicy* policy = b.object ? b.object->tickPolicy() : nullptr;
     if (!policy) policy = &w.worldConfig().ticking;
     double interval = 0;
-    if (!b.alwaysTickEveryStep && !w.has<Player>(e))
+    // alwaysTickEveryStep is not folded in (behaviourSystem reads the flag): clearing it takes effect at once
+    if (!w.has<Player>(e))
     {
         Cell c;
         const int64_t ring =

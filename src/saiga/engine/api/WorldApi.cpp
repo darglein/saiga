@@ -23,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <random>
+#include <stdexcept>
 
 namespace Saiga
 {
@@ -295,35 +296,48 @@ bool addComponentValues(World& w, Entity e, ComponentId id, const Json& values, 
     return true;
 }
 
-// The opaque cursor of changes_since: "<epoch>.<seq>.<step>.<index>": the session (a random epoch per API, so a
-// cursor of another session is recognized), the last journal sequence number read, the step from which moves count,
-// and the entity index after which the moved list continues (0: from the start)
+// The fields set_component accepts back (an undo payload): Transform without space, Behaviour without the derived and
+// fixed fields
+Json undoJson(ComponentId id, const Json& values)
+{
+    if (id != Transform::id && id != Behaviour::id) return values;
+    Json::object o = values.object_items();
+    o.erase("space");
+    o.erase("tickInterval");
+    o.erase("classId");
+    return o;
+}
+
+// The opaque cursor of changes_since: "<epoch>.<seq>.<from>.<to>.<index>": the session (a random epoch per API, so a
+// cursor of another session is recognized), the last journal sequence number read, and the move window: moves after
+// step `from` are reported; while a window is paged, `to` (> 0) is its last step and `index` the entity index after
+// which it continues. Structural paging and move paging are independent.
 struct Cursor
 {
     uint32_t epoch = 0;
-    uint64_t seq = 0, step = 0;
+    uint64_t seq = 0, from = 0, to = 0;
     uint32_t index = 0;
 };
 std::string makeCursor(const Cursor& c)
 {
-    return std::to_string(c.epoch) + "." + std::to_string(c.seq) + "." + std::to_string(c.step) + "." +
-           std::to_string(c.index);
+    return std::to_string(c.epoch) + "." + std::to_string(c.seq) + "." + std::to_string(c.from) + "." +
+           std::to_string(c.to) + "." + std::to_string(c.index);
 }
 bool parseCursor(const std::string& s, Cursor& c)
 {
-    uint64_t parts[4];
+    uint64_t parts[5];
     const char* p = s.c_str();
-    for (int k = 0; k < 4; ++k)
+    for (int k = 0; k < 5; ++k)
     {
         char* end = nullptr;
         if (*p < '0' || *p > '9') return false;
         parts[k] = std::strtoull(p, &end, 10);
-        if (k < 3 && *end != '.') return false;
-        if (k == 3 && *end != 0) return false;
+        if (k < 4 && *end != '.') return false;
+        if (k == 4 && *end != 0) return false;
         p = end + 1;
     }
-    if (parts[0] > 0xFFFFFFFFull || parts[3] > 0xFFFFFFFFull) return false;
-    c = Cursor{uint32_t(parts[0]), parts[1], parts[2], uint32_t(parts[3])};
+    if (parts[0] > 0xFFFFFFFFull || parts[4] > 0xFFFFFFFFull) return false;
+    c = Cursor{uint32_t(parts[0]), parts[1], parts[2], parts[3], uint32_t(parts[4])};
     return true;
 }
 }  // namespace
@@ -430,7 +444,17 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
     if (op->edit && !allowEdits && operation != "apply")
         return ApiResult::failure(operation + ": edits are not allowed (read-only)");
     if (w->inStep()) return ApiResult::failure(operation + ": only between steps");
-    ApiResult result = run(operation, args);
+    ApiResult result;
+    try
+    {
+        result = run(operation, args);
+    }
+    catch (const std::exception& ex)
+    {
+        // A game hook threw (e.g. onSpawn): the world cleaned up, but earlier side effects of the operation may remain
+        result = ApiResult::failure(operation + ": a game hook threw: " + ex.what() +
+                                    " (side effects before the exception may remain)");
+    }
     // Edits are logged after they ran, with their outcome (failed attempts are marked)
     if (op->edit && operation != "apply")
         SAIGA_LOG("api", "%s %s %s%s", result.ok ? "ok" : "failed:", operation.c_str(),
@@ -594,6 +618,7 @@ ApiResult WorldApi::listEntities(const Json& a)
 
     // Candidates in index order: the grid for near (positions of the last step), else every slot
     std::vector<Entity> candidates;
+    std::vector<std::pair<Entity, Vec3>> gridHits;  // near: in index order, like candidates
     Vec3 center       = Vec3::Zero();
     const bool isNear = !a["near"].is_null();
     if (isNear)
@@ -610,7 +635,12 @@ ApiResult WorldApi::listEntities(const Json& a)
             return ApiResult::failure("near.radius: a finite number >= 0");
         int64_t space = 0;
         if (!intArg(near, "space", 0, 65535, 0, space, error)) return ApiResult::failure("near." + error);
-        candidates = w->queryRadius(SpaceId(space), center, radius);
+        // The grid's positions (the ones the selection used) for the distance
+        w->forEachWithin(SpaceId(space), center, radius, ComponentMask(),
+                         [&](Entity e, const Vec3& p) { gridHits.push_back({e, p}); });
+        std::sort(gridHits.begin(), gridHits.end(),
+                  [](const std::pair<Entity, Vec3>& x, const std::pair<Entity, Vec3>& y) { return x.first < y.first; });
+        for (auto& h : gridHits) candidates.push_back(h.first);
     }
     else
     {
@@ -642,7 +672,14 @@ ApiResult WorldApi::listEntities(const Json& a)
         const Vec3 position = w->read<Transform>(e).position();
         Json::object o{{"entity", entityJson(e)}, {"position", toJson(position)}, {"components", names}};
         if (const char* c = className(*w, e)) o["class"] = c;
-        if (isNear) o["distance"] = (position - center).norm();
+        if (isNear)
+        {
+            // The selection used the grid position of the last step (the live position may have moved since)
+            auto hit           = std::lower_bound(gridHits.begin(), gridHits.end(), e,
+                                                  [](const std::pair<Entity, Vec3>& x, Entity y) { return x.first < y; });
+            o["grid_position"] = toJson(hit->second);
+            o["distance"]      = (hit->second - center).norm();
+        }
         if (!include.empty())
         {
             Json::object values;
@@ -818,12 +855,13 @@ void WorldApi::drainChanges()
 
 void WorldApi::trackMoves()
 {
-    // The entities whose Transform changed in any phase of the step that just ended
+    // The entities whose Transform changed in any phase of the step that just ended, with their handle (a reused slot
+    // is not reported as moved)
     const uint64_t stepIndex = w->stepIndex();
     for (uint32_t index : w->changedDuringLastStep())
     {
-        if (index >= lastMovedStep.size()) lastMovedStep.resize(size_t(index) + 1, 0);
-        lastMovedStep[index] = stepIndex;
+        if (index >= lastMoved.size()) lastMoved.resize(size_t(index) + 1);
+        lastMoved[index] = {w->registry().aliveAt(index), stepIndex};
     }
 }
 
@@ -836,8 +874,8 @@ ApiResult WorldApi::changesSince(const Json& a)
         return ApiResult::failure(error);
     // Changes made between steps (by the API or setup code) are in the log, not yet in the journal
     drainChanges();
-    const uint64_t head = nextSeq - 1;
-    Cursor c{epoch, 0, w->stepIndex(), 0};
+    const uint64_t head = nextSeq - 1, now = w->stepIndex();
+    Cursor c{epoch, 0, now, 0, 0};
     bool fromStart = false;
     const Json& j  = a["cursor"];
     if (j.is_null() || (j.is_number() && j.number_value() == 0))
@@ -845,7 +883,7 @@ ApiResult WorldApi::changesSince(const Json& a)
         // From the oldest kept change (moves: since tracking started)
         fromStart = true;
         c.seq     = journal.empty() ? head : journal.front().seq - 1;
-        c.step    = movesTracked ? movesSince : w->stepIndex();
+        c.from    = movesTracked ? movesSince : now;
     }
     else if (j.is_string() && j.string_value() == "now")
     {
@@ -853,7 +891,7 @@ ApiResult WorldApi::changesSince(const Json& a)
     }
     else if (!j.is_string() || !parseCursor(j.string_value(), c))
         return ApiResult::failure("cursor: the value returned by the previous changes_since, 0 or \"now\"");
-    else if (c.epoch != epoch || c.seq > head || c.step > w->stepIndex())
+    else if (c.epoch != epoch || c.seq > head || c.from > now || c.to > now)
         return ApiResult::failure("cursor: from another session or world; start again with 0 or \"now\"");
     // Changes older than the cursor's successor were dropped (the journal keeps the newest 100000)
     const bool truncated = !fromStart && !journal.empty() && journal.front().seq > c.seq + 1;
@@ -872,50 +910,65 @@ ApiResult WorldApi::changesSince(const Json& a)
     }
     const bool more = !journal.empty() && journal.back().seq > last;
     Json::object result{{"changes", changes}, {"more", more}, {"truncated", truncated}};
-    // While more structural changes follow, the step stays; index kMovesDone marks a moved list already returned
-    constexpr uint32_t kMovesDone = 0xFFFFFFFFu;
-    Cursor next{epoch, last, more ? c.step : w->stepIndex(), more ? kMovesDone : 0};
+    // Without include_moved the move window is carried along unchanged
+    Cursor next = c;
+    next.epoch  = epoch;
+    next.seq    = last;
 
-    // Moves (coalesced per entity: each entity moved after the cursor's step once), paged by entity index
     if (includeMoved)
     {
         if (!movesTracked)
         {
             // Tracking starts now: moves of the following steps are reported
             movesTracked = true;
-            movesSince   = w->stepIndex();
+            movesSince   = now;
             w->retainStepChanges();
             result["moves_tracked_from_step"] = double(movesSince);
-            next.step                         = w->stepIndex();
+            result["moved"]                   = Json::array{};
+            next.from                         = now;
+            next.to                           = 0;
+            next.index                        = 0;
         }
-        Json::array moved;
-        bool movedMore      = false;
-        uint32_t lastIndex  = c.index;
-        const uint32_t from = c.index == kMovesDone ? uint32_t(lastMovedStep.size()) : c.index + 1;
-        for (uint32_t i = from; i < lastMovedStep.size(); ++i)
+        else
         {
-            if (lastMovedStep[i] <= c.step) continue;
-            const Entity e = w->registry().aliveAt(i);
-            if (!e.valid()) continue;
-            if (moved.size() == size_t(limit))
+            // The window (from, to]: fixed while it is paged, so later moves wait for the next window (an entity
+            // that moves again after `to` is reported there, once)
+            const uint64_t from  = c.from;
+            const uint64_t to    = c.to > 0 ? c.to : now;
+            const uint32_t start = c.to > 0 ? c.index + 1 : 1;
+            Json::array moved;
+            bool movedMore     = false;
+            uint32_t lastIndex = 0;
+            for (uint32_t i = start; i < lastMoved.size(); ++i)
             {
-                movedMore = true;
-                break;
+                const MoveRecord& m = lastMoved[i];
+                if (m.step <= from || m.step > to || !w->alive(m.entity)) continue;
+                if (moved.size() == size_t(limit))
+                {
+                    movedMore = true;
+                    break;
+                }
+                moved.push_back(entityJson(m.entity));
+                lastIndex = i;
             }
-            moved.push_back(entityJson(e));
-            lastIndex = i;
-        }
-        result["moved"] = moved;
-        if (movedMore)
-        {
-            // The next call continues the moved list after lastIndex, at the same step
-            result["moved_more"] = true;
-            next.step            = c.step;
-            next.index           = lastIndex;
+            result["moved"] = moved;
+            if (movedMore)
+            {
+                result["moved_more"] = true;
+                next.from            = from;
+                next.to              = to;
+                next.index           = lastIndex;
+            }
+            else
+            {
+                next.from  = to;
+                next.to    = 0;
+                next.index = 0;
+            }
         }
     }
     result["cursor"] = makeCursor(next);
-    result["step"]   = double(w->stepIndex());
+    result["step"]   = double(now);
     return ApiResult::success(result);
 }
 
@@ -939,7 +992,7 @@ ApiResult WorldApi::setComponent(const Json& a)
                 return ApiResult::failure("Transform." + kv.first + ": only position, rotation and scale");
             args[kv.first] = kv.second;
         }
-        const Json previous = componentJson(*w, e, id);
+        const Json previous = undoJson(id, componentJson(*w, e, id));
         ApiResult r         = setTransform(args);
         if (!r.ok) return r;
         return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
@@ -947,8 +1000,8 @@ ApiResult WorldApi::setComponent(const Json& a)
     if (!w->registry().entityMask(e).test(id))
         return ApiResult::failure("the entity has no " + std::string(w->registry().componentInfo(id).name));
     if (id == Persistent::id) return ApiResult::failure("Persistent: assigned by makePersistent (read-only)");
-    // The previous values (for an undo by the caller)
-    const Json previous = componentJson(*w, e, id);
+    // The previous values, writable fields only (set_component accepts them as an undo)
+    const Json previous = undoJson(id, componentJson(*w, e, id));
     if (id == Parent::id)
     {
         Parent p = w->read<Parent>(e);

@@ -86,6 +86,7 @@ void Profiler::reset()
     for (auto& s : counters) std::fill(s.ring.begin(), s.ring.end(), 0.0), s.current = 0;
     filled = 0;
     head   = 0;
+    resets++;
 }
 
 Profiler::Stats Profiler::stats(const Series& s, int lastSamples) const

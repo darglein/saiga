@@ -54,6 +54,8 @@ class SAIGA_ENGINE_API Profiler
     bool enabled = true;
     // Samples since the start (not reset by reset())
     uint64_t sampleCount() const { return samples; }
+    // Incremented by every reset (a measurement over several samples detects a reset in between)
+    uint64_t resetCount() const { return resets; }
     int historySize() const { return capacity; }
 
     // Statistics over the last n samples (n <= 0 or larger than the history: all of it)
@@ -100,6 +102,7 @@ class SAIGA_ENGINE_API Profiler
 
     int capacity;
     uint64_t samples = 0;
+    uint64_t resets  = 0;
     int filled       = 0;  // valid samples in the rings
     int head         = 0;  // next ring position
     std::vector<Series> scopes, counters;

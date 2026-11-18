@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <exception>
 
 namespace Saiga
 {
@@ -128,6 +129,7 @@ void World::removeByIdNow(Entity e, ComponentId id)
     SAIGA_ASSERT(!inStep(), "removeByIdNow: between steps");
     if (id == Parent::id) return removeNow<Parent>(e);
     if (id == Persistent::id) return removeNow<Persistent>(e);
+    if (id == Behaviour::id) return removeNow<Behaviour>(e);  // the object may be running: retired
     auto record = log.prepare(1);
     reg.removeById(e, id);
     record.append(e, id, false);
@@ -154,21 +156,23 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
 
 void World::runStepListeners()
 {
-    // Listeners may add listeners (kept) and remove themselves (return false); a throwing listener is removed, the
-    // ones after it are kept
+    // Listeners may add listeners (kept) and remove themselves (return false). A throwing listener is removed; the
+    // others are still notified of this (committed) step, then the first exception is rethrown.
     std::vector<std::function<bool()>> current;
     current.swap(stepListeners);
-    size_t i = 0;
-    try
+    std::exception_ptr first;
+    for (auto& l : current)
     {
-        for (; i < current.size(); ++i)
-            if (current[i]()) stepListeners.push_back(std::move(current[i]));
+        try
+        {
+            if (l()) stepListeners.push_back(std::move(l));
+        }
+        catch (...)
+        {
+            if (!first) first = std::current_exception();
+        }
     }
-    catch (...)
-    {
-        for (size_t k = i + 1; k < current.size(); ++k) stepListeners.push_back(std::move(current[k]));
-        throw;
-    }
+    if (first) std::rethrow_exception(first);
 }
 
 Entity World::beginSpawn(SpaceId space)
@@ -217,7 +221,9 @@ void World::startObject(Entity e)
 void World::abandonSpawn(Entity e)
 {
     if (!reg.alive(e)) return;
-    if (Behaviour* b = reg.tryGet<Behaviour>(e)) b->destroying = true;
+    // The whole subtree without hooks (a hook of a child created by the failed configure must not stop the cleanup)
+    for (Entity x : collectDoomed(e))
+        if (Behaviour* b = reg.tryGet<Behaviour>(x)) b->destroying = true;
     // At once, also inside a destroy (the queue would be dropped by the exception that is propagating)
     destroyOne(e);
 }

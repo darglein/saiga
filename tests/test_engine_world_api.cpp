@@ -21,6 +21,7 @@
 #include "gtest/gtest.h"
 
 #include <chrono>
+#include <clocale>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -592,7 +593,10 @@ TEST(WorldApi, StrictArgumentsAndGuards)
                                                             {"component", "Behaviour"},
                                                             {"values", Json::object{{"alwaysTickEveryStep", true}}}}))
                     .ok);
-    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0);  // derived again
+    // The interval stays derived from the rings (the flag is read by the behaviour system): clearing it takes effect
+    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0.5);
+    w.get<Behaviour>(d).alwaysTickEveryStep = false;
+    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0.5);
     EXPECT_FALSE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
                                                              {"component", "Behaviour"},
                                                              {"values", Json::object{{"sinceTick", -1}}}}))
@@ -981,4 +985,183 @@ TEST(WorldApi, TheMovedListIsNotRepeatedWhileChangesArePaged)
         if (!r.value["more"].bool_value() && !r.value["moved_more"].bool_value()) break;
     }
     EXPECT_EQ(movedReports, 1u);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CodeRabbit regressions (PR #52)
+
+// near selects by the grid position of the last step: the result reports it and the distance from it
+TEST(WorldApi, NearResultsUseTheGridPosition)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity e = w.create();
+    w.get<Transform>(e).setPosition(Vec3(1, 0, 0));
+    w.step();
+    w.get<Transform>(e).setPosition(Vec3(100, 0, 0));
+    ApiResult r = api.call("list_entities", obj(R"({"near": {"position": [0, 0, 0], "radius": 2}})"));
+    ASSERT_EQ(r.value["count"].number_value(), 1);
+    EXPECT_EQ(r.value["entities"][0]["distance"].number_value(), 1);
+    EXPECT_EQ(r.value["entities"][0]["grid_position"][0].number_value(), 1);
+    EXPECT_EQ(r.value["entities"][0]["position"][0].number_value(), 100);
+}
+
+// A move recorded for an entity whose slot is reused is not reported for the new entity; moves made while a window is
+// paged are reported in the next window
+TEST(WorldApi, MoveWindowsKeepLateMovesAndHandles)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    std::vector<Entity> e;
+    for (int i = 0; i < 4; ++i) e.push_back(w.create());
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    // Step 1: e[1] and e[3] move; e[2] moves and is destroyed, its slot reused
+    w.get<Transform>(e[1]).setPosition(Vec3(1, 0, 0));
+    w.get<Transform>(e[2]).setPosition(Vec3(1, 0, 0));
+    w.get<Transform>(e[3]).setPosition(Vec3(1, 0, 0));
+    w.step();
+    w.destroy(e[2]);
+    Entity reused = w.create();
+    ASSERT_EQ(reused.index, e[2].index);
+    // Page one of the window
+    ApiResult p1 =
+        api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}, {"limit", 1}}));
+    ASSERT_TRUE(p1.ok) << p1.error;
+    ASSERT_TRUE(p1.value["moved_more"].bool_value());
+    // Step 2 before page two: e[0] (behind the page index) moves
+    w.get<Transform>(e[0]).setPosition(Vec3(2, 0, 0));
+    w.step();
+    std::set<uint32_t> reported;
+    for (auto& m : p1.value["moved"].array_items()) reported.insert(uint32_t(m["index"].number_value()));
+    Json c = p1.value["cursor"];
+    for (int page = 0; page < 6; ++page)
+    {
+        ApiResult r =
+            api.call("changes_since", Json(Json::object{{"cursor", c}, {"include_moved", true}, {"limit", 1}}));
+        ASSERT_TRUE(r.ok) << r.error;
+        for (auto& m : r.value["moved"].array_items())
+        {
+            EXPECT_EQ(uint32_t(m["generation"].number_value()),
+                      w.registry().aliveAt(uint32_t(m["index"].number_value())).generation);
+            reported.insert(uint32_t(m["index"].number_value()));
+        }
+        c = r.value["cursor"];
+    }
+    EXPECT_TRUE(reported.count(e[0].index)) << "a move behind the page index was lost";
+    EXPECT_TRUE(reported.count(e[1].index) && reported.count(e[3].index));
+    EXPECT_FALSE(reported.count(reused.index)) << "the reused slot was reported as moved";
+}
+
+// The previous values of set_component are accepted by set_component (an undo)
+TEST(WorldApi, PreviousValuesAreAnUndo)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity d      = w.spawn<Dummy>(Vec3(1, 2, 3));
+    const Json de = WorldApi::entityJson(d);
+    ApiResult t   = api.call(
+        "set_component",
+        Json(Json::object{{"entity", de}, {"component", "Transform"}, {"values", obj(R"({"position": [5, 5, 5]})")}}));
+    ASSERT_TRUE(t.ok) << t.error;
+    ApiResult undo =
+        api.call("set_component",
+                 Json(Json::object{{"entity", de}, {"component", "Transform"}, {"values", t.value["previous"]}}));
+    ASSERT_TRUE(undo.ok) << undo.error;
+    EXPECT_EQ(w.read<Transform>(d).position(), Vec3(1, 2, 3));
+    ApiResult b = api.call("set_component", Json(Json::object{{"entity", de},
+                                                              {"component", "Behaviour"},
+                                                              {"values", obj(R"({"alwaysTickEveryStep": true})")}}));
+    ASSERT_TRUE(b.ok) << b.error;
+    EXPECT_TRUE(
+        api.call("set_component",
+                 Json(Json::object{{"entity", de}, {"component", "Behaviour"}, {"values", b.value["previous"]}}))
+            .ok);
+    EXPECT_FALSE(w.read<Behaviour>(d).alwaysTickEveryStep);
+}
+
+namespace
+{
+enum class ThrowClass : uint16_t
+{
+    Faulty = kFirstGameClass + 1,
+};
+class Faulty final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ThrowClass::Faulty);
+    static constexpr const char* name = "Faulty";
+    void onSpawn() override { throw std::runtime_error("broken onSpawn"); }
+};
+}  // namespace
+
+// A throwing hook inside apply: an indexed failure with the results of the earlier operations
+TEST(WorldApi, AThrowingHookInApplyKeepsTheEarlierResults)
+{
+    WorldSetup s = apiSetup();
+    s.classes    = [](ClassList& c)
+    {
+        c.add<Dummy>();
+        c.add<Faulty>();
+    };
+    World w(s);
+    WorldApi api(w);
+    ApiResult r = api.call("apply", obj(R"({"operations": [{"op": "spawn", "position": [0, 0, 0]},
+                                                         {"op": "spawn", "class": "Faulty", "position": [0, 0, 0]}]})"));
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("operation 1"), std::string::npos) << r.error;
+    EXPECT_NE(r.error.find("broken onSpawn"), std::string::npos) << r.error;
+    ASSERT_EQ(r.value["applied"].number_value(), 1);
+    EXPECT_TRUE(w.alive(entityOf(r.value["results"][0]["entity"])));
+}
+
+// A huge quaternion is normalized without overflow (its squared length was inf: stored as zero)
+TEST(VisitJson, HugeQuaternionsAreNormalized)
+{
+    LocalTransform t;
+    ASSERT_TRUE(fromJson(obj(R"({"rotation": [1e200, 0, 0, 0]})"), t, nullptr, true));
+    EXPECT_EQ(t.rotation.w(), 1);
+}
+
+// Tool numbers do not depend on the process locale (a comma separator split numbers)
+TEST(WorldTools, NumbersIgnoreTheLocale)
+{
+    World w(apiSetup());
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Entity e = w.create();
+    w.get<Transform>(e).setPosition(Vec3(1.5, 0, 0));
+    const char* old         = std::setlocale(LC_NUMERIC, nullptr);
+    const std::string saved = old ? old : "C";
+    const bool german       = std::setlocale(LC_NUMERIC, "de_DE.UTF-8") != nullptr;
+    Poller poller(server);
+    Json r = callTool(server, "inspect", Json::object{{"entity", WorldApi::entityJson(e)}});
+    std::setlocale(LC_NUMERIC, saved.c_str());
+    EXPECT_EQ(toolJson(r)["components"]["Transform"]["position"][0].number_value(), 1.5) << (german ? "de_DE" : "C");
+}
+
+// A running measurement answers at its deadline although the world stopped stepping, and fails on a profile reset
+TEST(WorldTools, MeasurementDeadlineWithoutStepsAndReset)
+{
+    World w(apiSetup());
+    McpServer server("test");
+    server.toolTimeoutSeconds = 1;
+    auto api                  = registerWorldTools(server, w);
+    {
+        // Running, but nothing steps: answered from poll at the deadline with the steps measured so far (0)
+        Poller poller(server);
+        Json m = callTool(server, "measure_performance", obj(R"({"steps": 10})"));
+        ASSERT_FALSE(m["result"]["isError"].bool_value()) << m.dump();
+        EXPECT_TRUE(toolJson(m)["stopped_early"].bool_value());
+    }
+    {
+        int steps = 0;
+        Poller poller(server,
+                      [&]()
+                      {
+                          w.step();
+                          if (++steps == 3) w.profiler().reset();
+                      });
+        Json m = callTool(server, "measure_performance", obj(R"({"steps": 50})"));
+        EXPECT_TRUE(m["result"]["isError"].bool_value());
+    }
 }
