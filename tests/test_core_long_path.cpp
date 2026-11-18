@@ -308,15 +308,15 @@ static std::wstring AcesOf(const std::filesystem::path& file)
     return first_ace == std::wstring::npos ? L"" : result.substr(first_ace);
 }
 
-TEST(LongPath, WriteViaShortPathInheritsPermissions)
+// Gives the target folder the protected DACL folder_dacl, then expects a file staged by write_via_short_path to be
+// readable and to get the permissions of a file written into the folder directly. A file moved from the temp folder
+// would keep the temp folder's permissions instead.
+static void ExpectPermissionsOfDirectWrite(const wchar_t* folder_dacl)
 {
-    // A file moved from the temp folder keeps the permissions it got there unless they are reset. The target folder
-    // gets its own permissions (everyone, protected from those of the temp folder), so a staged file must end up with
-    // those, as a file written into the folder directly.
     auto dir                        = LongDir();
     PSECURITY_DESCRIPTOR descriptor = nullptr;
-    ASSERT_TRUE(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:P(A;OICI;FA;;;WD)", SDDL_REVISION_1,
-                                                                     &descriptor, nullptr));
+    ASSERT_TRUE(
+        ConvertStringSecurityDescriptorToSecurityDescriptorW(folder_dacl, SDDL_REVISION_1, &descriptor, nullptr));
     BOOL present = FALSE, defaulted = FALSE;
     PACL dacl = nullptr;
     ASSERT_TRUE(GetSecurityDescriptorDacl(descriptor, &present, &dacl, &defaulted));
@@ -335,9 +335,22 @@ TEST(LongPath, WriteViaShortPathInheritsPermissions)
                                          file << "staged";
                                          return file.good();
                                      }));
+    EXPECT_EQ(File::loadFileString(dir / "staged.txt"), "staged\n");
     auto direct = AcesOf(dir / "direct.txt");
     ASSERT_FALSE(direct.empty());
     EXPECT_EQ(AcesOf(dir / "staged.txt"), direct);
+}
+
+TEST(LongPath, WriteViaShortPathInheritsPermissions)
+{
+    // Everyone, inherited by new files.
+    ExpectPermissionsOfDirectWrite(L"D:P(A;OICI;FA;;;WD)");
+}
+
+TEST(LongPath, WriteViaShortPathWithoutInheritablePermissions)
+{
+    // Nothing for new files to inherit: they get the default permissions of the process.
+    ExpectPermissionsOfDirectWrite(L"D:P(A;;FA;;;WD)");
 }
 #endif
 

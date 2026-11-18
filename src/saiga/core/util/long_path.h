@@ -67,10 +67,11 @@ SAIGA_CORE_API bool replace_file(const std::filesystem::path& from, const std::f
                                  std::error_code& ec);
 
 // For writers that can't take a long path (shell and media functions, libraries with narrow paths): if the target needs
-// the \\?\ prefix or already has it, write() writes to a file of the same extension in the temp folder, which is then
-// moved to the target and gets the permissions of the target's folder. Otherwise write() writes to the target
-// directly. Returns false if write() returns false, the temp folder is too long itself or the file can't be moved; the
-// temporary file is removed in all cases.
+// the \\?\ prefix or already has it, write() writes to a file of the same extension in the temp folder, which then
+// replaces the target. On Windows it is copied next to the target first, so it gets the permissions a new file in the
+// target's folder gets. Otherwise write() writes to the target directly. Returns false if write() returns false, the
+// temp folder is too long itself or the file can't be put in place; the target is then unchanged, and the temporary
+// files are removed in all cases.
 SAIGA_CORE_API bool write_via_short_path(const std::filesystem::path& target,
                                          const std::function<bool(const std::filesystem::path&)>& write);
 }  // namespace Saiga

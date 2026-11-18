@@ -13,8 +13,6 @@
 
 #if defined(_WIN32)
 #    include <windows.h>
-// SetNamedSecurityInfoW; after windows.h
-#    include <aclapi.h>
 #else
 #    include <cerrno>
 #    include <fcntl.h>
@@ -170,8 +168,9 @@ bool replace_file(const std::filesystem::path& from, const std::filesystem::path
     std::filesystem::path staging;
     for (int attempt = 0; attempt < 16 && staging.empty(); ++attempt)
     {
-        std::filesystem::path candidate = to;
-        candidate += ".saiga_" + std::to_string(std::random_device()());
+        // A short name of its own: a suffix to the target's name could exceed the file system's name length.
+        const std::filesystem::path candidate =
+            to.parent_path() / (".saiga_" + std::to_string(std::random_device()()) + ".tmp");
         const int fd = ::open(candidate.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
         if (fd >= 0)
         {
@@ -251,23 +250,44 @@ bool write_via_short_path(const std::filesystem::path& target,
         throw;
     }
 
-    if (!written || !replace_file(temp, target, ec))
+    if (!written)
     {
         std::filesystem::remove(temp, ec);
         return false;
     }
 #if defined(_WIN32)
-    // A file moved within a drive keeps the permissions it got in the temp folder, which are often private to the
-    // user. An empty, unprotected DACL makes it inherit those of its new folder, as a file written there directly.
-    ACL empty_acl;
-    std::wstring target_path = os_path(target).native();
-    if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
+    // Copied, not moved: a file moved within a drive keeps the permissions it got in the temp folder, which are often
+    // private to the user. The copy is a new file in the target's folder, so it gets the permissions a file written
+    // there gets; renamed over the target, it replaces it, and a failed copy leaves the target as it was.
+    std::filesystem::path staging;
+    for (int attempt = 0; attempt < 16 && staging.empty(); ++attempt)
     {
-        SetNamedSecurityInfoW(target_path.data(), SE_FILE_OBJECT,
-                              DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, nullptr, nullptr,
-                              &empty_acl, nullptr);
+        const std::filesystem::path candidate =
+            target.parent_path() / ("saiga_" + std::to_string(random()) + "_" + std::to_string(counter++) + ".tmp");
+        if (CopyFileW(os_path(temp).c_str(), os_path(candidate).c_str(), TRUE))
+        {
+            staging = candidate;
+        }
+        else if (GetLastError() != ERROR_FILE_EXISTS)
+        {
+            break;
+        }
     }
-#endif
+    std::filesystem::remove(temp, ec);
+    if (staging.empty()) return false;
+    if (!replace_file(staging, target, ec))
+    {
+        std::filesystem::remove(os_path(staging), ec);
+        return false;
+    }
     return true;
+#else
+    if (!replace_file(temp, target, ec))
+    {
+        std::filesystem::remove(temp, ec);
+        return false;
+    }
+    return true;
+#endif
 }
 }  // namespace Saiga
