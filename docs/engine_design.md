@@ -189,6 +189,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | VMA (supports virtual blocks; submodule, private to `saiga_vulkan`) | `submodules/VulkanMemoryAllocator` | [exists] |
 | Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
+| ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
 | Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
@@ -306,13 +307,23 @@ Modeled on `saiga_vulkan` (`cmake/Module_CMakeLists.txt` is not used by the modu
   (game decides when).
 - Rule of thumb: what is numerous and does not change by itself is never an entity.
 
-## 7. ECS [planned: S07, extended in S08]
+## 7. ECS [exists: S07 (Registry, storage, views, visit); planned: S08 (World, commands, events, hierarchy)]
 
 Own implementation (no EnTT or flecs): ~1500 lines an agent can read completely, fitted to <= 10^5 resident entities
 and <= 256 component types, DLL safe, with reflection and a deterministic iteration order built in.
 S07 implements create/destroy/add/remove/get/read/has/view/mask on `Registry` (`engine/ecs/Registry.h`) with the
 signatures of §7.10; `World` (S08) owns a `Registry`, forwards these calls and adds commands, reserved entities and the
 `Simulated` filter.
+
+Implemented in S07 (`src/saiga/engine/ecs/`, `src/saiga/engine/components/`) [exists]: `Entity`, `PersistentId`
+(value type), `ComponentMask`, `Ids.h` (ID types, `Replicate`, `Saved`, `RunOn`), `Registry` (`registerComponent`,
+`validateRegistration`, `componentInfo`, `create`, `destroy`, `alive`, `add`, `remove`, `has`, `get`, `tryGet`,
+`read`, `tryRead`, `mask`, `entityMask`, `flags`/`setFlags`, `view`), `View<C...>::each`/`count`, `ComponentPool`,
+`Visit.h` (field rules, `EnumNames`, `Quantize`, compile-time checks), `VisitBinary.h` (`BinaryWriter`/`BinaryReader`,
+`toBytes`/`fromBytes`), `FieldList.h` (`describeFields<T>()`), `Transform` (§7.4 without the hierarchy),
+`SAIGA_LOG_E` (`ecs/EntityLog.h`); `ChunkId`, `RegionId`, `InstanceKey`, `SpaceId` in `src/saiga/core/math/ChunkId.h`.
+Structural changes while a view iterates assert; `SAIGA_ASSERT` messages name the entity (`entity i:g`, stale or
+invalid) and the component.
 
 ### 7.1 Entities
 
@@ -355,10 +366,15 @@ struct Health
   `visit`, rebuilt on load): `Behaviour::object` (`std::unique_ptr<GameObject>`) and `RigidBody::body` (the body is
   recreated from the components on load, §11).
 - `visit` lists every field: `v(name, field)` or `v(name, field, options)`. Field types: those of R-MATH-1, plus (only
-  in `Render*` components) `vec*`, `quat`, `mat*`; `std::array` and `std::vector` of supported types (e.g. an
+  in components that declare `static constexpr bool allowFloat = true`, the `Render*` components) `float`, `vec*`,
+  `quat`, `mat*`; `std::array` and `std::vector` of supported types (e.g. an
   inventory as `std::vector<ItemStack>` of a `visit`-able struct). Enums are visited with
   their names: `v("state", state, EnumNames{WandererStateNames})`; the enum ends with `Count` and the visitor checks
-  `std::size(names) == size_t(E::Count)`. Network option: `Quantize{0.01}`. Other types are compile errors.
+  `std::size(names) == size_t(E::Count)` at compile time; enums inside containers are not supported (wrap them in a
+  nested struct). Network option: `Quantize{0.01}` (on double, `Vec`, `Mat` and `Quat` fields). Other types are compile
+  errors (`registerComponent` instantiates `visit` with a checking visitor). The binary form (`VisitBinary.h`):
+  little-endian integers, bit patterns of doubles, `bool` as one byte, enums as `int64`, strings and vectors with a
+  u64 length, matrices column-major, quaternions w, x, y, z.
 - At 200 registered types registration logs a warning (prefer fields on an existing component or a tag).
 
 ### 7.3 Storage
@@ -2332,7 +2348,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S04 | Engine module setup and tech demos (done) | `saiga_engine` in CMake, export macro, module defines, test registration, Clang and Windows/MSVC (shared libraries) CI build jobs (§5.3); three tech demo games as samples in `samples/games/`: flight simulator, platformer, racing, with `samples/games/common` (§18.4) | – | `Module enabled: Engine` printed; engine library and a smoke test build and run on all CI compilers (CI); the games compile in the Clang job (CI); each demo runs with `--demo` without validation errors (local) |
 | S05 | Math additions (done) | Missing tiny-eigen functions and double helpers (§7.10, R-MATH-2) | – | tiny-eigen tests for every addition (CI); `test_core_math_functions` builds and passes with Eigen (local) |
 | S06 | Core utilities (done) | `JobPool`, `Rng`, `Hash`, logging ring buffer with `SAIGA_LOG` (§8.5, §8.6, §17.1) | S04 | unit tests: parallel-for coverage with the caller participating, RNG and hash reference values, log ring (CI) |
-| S07 | ECS core | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
+| S07 | ECS core (done) | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
 | S08 | World and step loop | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
 | S09 | Spatial grid | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
 | S10 | Game objects | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent` (§7.8, §8.4, §9.2-§9.4, §9.6) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve` (CI) |

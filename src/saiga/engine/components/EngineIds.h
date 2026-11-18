@@ -1,0 +1,25 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+
+#include <cstdint>
+
+// The IDs of the engine's components (docs/engine_design.md §7.2): 0..63, the enum grows per stage; game components
+// start at 64 (kFirstGameComponent).
+
+namespace Saiga
+{
+namespace Engine
+{
+enum class EngineComponent : uint8_t
+{
+    Transform = 0,
+    Count
+};
+
+}  // namespace Engine
+}  // namespace Saiga

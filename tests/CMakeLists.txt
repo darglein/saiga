@@ -148,6 +148,8 @@ if (MODULE_ENGINE)
     # Engine tests: test_engine_<area>.cpp (docs/engine_design.md §18.1)
     saiga_test(test_engine_smoke.cpp "saiga_engine")
     saiga_test(test_engine_core.cpp "saiga_engine")
+    saiga_test(test_engine_ecs.cpp "saiga_engine")
+    saiga_test(test_engine_ecs_benchmark.cpp "saiga_engine")
 endif ()
 
 if (MODULE_CUDA)
