@@ -83,14 +83,20 @@ struct MeshBuilder
     // Cone with a bottom cap
     void cone(const vec3& base, float h, float r, int sides, float aoBase, float aoTip, float windBase, float windTip)
     {
-        vec3 apex   = base + Y() * h + vec3(rnd(-0.01f, 0.01f), 0, rnd(-0.01f, 0.01f));
+        // One rnd() per statement: the evaluation order of function arguments is unspecified (GCC and Clang differ),
+        // so several calls in one expression gave different trees per compiler. The order is the one GCC used.
+        float jz    = rnd(-0.01f, 0.01f);
+        float jx    = rnd(-0.01f, 0.01f);
+        vec3 apex   = base + Y() * h + vec3(jx, 0, jz);
         vec3 in     = base + Y() * (h * 0.3f);
         float phase = rnd(0, 2 * pi);
         std::vector<vec3> pts;
         for (int k = 0; k < sides; ++k)
         {
             float a = phase + 2 * pi * k / sides + rnd(-0.15f, 0.15f);
-            pts.push_back(base + ring(a) * (r * rnd(0.88f, 1.08f)) + Y() * rnd(-0.015f, 0.015f));
+            float dy = rnd(-0.015f, 0.015f);  // one rnd() per statement (see above)
+            float dr = rnd(0.88f, 1.08f);
+            pts.push_back(base + ring(a) * (r * dr) + Y() * dy);
         }
         for (int k = 0; k < sides; ++k)
         {
@@ -174,7 +180,11 @@ struct MeshBuilder
     // A card facing outwards from a blob center, with a random rotation in its plane
     void blobCard(const vec3& blobCenter, float r, float size, int layer, float windScale)
     {
-        vec3 dir(rnd(-1, 1), rnd(-0.6f, 1.0f), rnd(-1, 1));
+        // One rnd() per statement: the evaluation order of constructor arguments is unspecified (the order is GCC's)
+        float dz = rnd(-1, 1);
+        float dy = rnd(-0.6f, 1.0f);
+        float dx = rnd(-1, 1);
+        vec3 dir(dx, dy, dz);
         if (dir.norm() < 1e-3f) dir = Y();
         dir.normalize();
         vec3 right = std::abs(dir(1)) < 0.95f ? Y().cross(dir).normalized() : vec3(1, 0, 0);
@@ -469,7 +479,10 @@ std::vector<TemplatedImage<unsigned char>> FoliageGenerator::foliageTextures(int
             for (float side : {-1.0f, 1.0f})
             {
                 vec2 s = vec2(0.5f, 0.03f + 0.94f * (t + rnd(-0.04f, 0.04f)));
-                vec2 e = s + vec2(side * rnd(0.22f, 0.3f) * (1.1f - t * 0.5f), rnd(0.12f, 0.2f));
+                // One rnd() per statement (unspecified argument order, the order is GCC's)
+                float ey = rnd(0.12f, 0.2f);
+                float ex = rnd(0.22f, 0.3f);
+                vec2 e   = s + vec2(side * ex * (1.1f - t * 0.5f), ey);
                 twigs.push_back({s, e});
             }
         }
@@ -504,7 +517,10 @@ std::vector<TemplatedImage<unsigned char>> FoliageGenerator::foliageTextures(int
         {
             float bx  = 0.1f + 0.8f * (k + rnd(-0.3f, 0.3f)) / (blades - 1);
             vec2 base = vec2(bx, 0.995f);
-            vec2 tip  = vec2(bx + rnd(-0.15f, 0.15f), rnd(0.04f, 0.35f));
+            // One rnd() per statement (unspecified argument order, the order is GCC's)
+            float ty  = rnd(0.04f, 0.35f);
+            float tx  = rnd(-0.15f, 0.15f);
+            vec2 tip  = vec2(bx + tx, ty);
             vec2 ctrl = vec2(bx + rnd(-0.05f, 0.05f), (base(1) + tip(1)) * 0.5f);
             float w0  = rnd(0.035f, 0.05f);
             int segs  = 8;
