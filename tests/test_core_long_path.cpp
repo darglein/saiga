@@ -30,6 +30,10 @@ using namespace Saiga;
 
 #if defined(_WIN32)
 static const std::wstring verbatim = LR"(\\?\)";
+// A short absolute path, which needs no prefix however long the temp folder is.
+static const std::filesystem::path short_absolute = LR"(C:\folder\file.txt)";
+#else
+static const std::filesystem::path short_absolute = "/folder/file.txt";
 #endif
 
 // A short folder of this process in the temp folder, removed at exit: ctest runs both executables at the same time.
@@ -79,8 +83,7 @@ TEST(LongPath, ShortPathsAreUnchanged)
     auto relative = std::filesystem::path("folder") / "file.txt";
     EXPECT_EQ(os_path(relative), relative);
 
-    auto absolute = std::filesystem::temp_directory_path() / "file.txt";
-    EXPECT_EQ(os_path(absolute), absolute);
+    EXPECT_EQ(os_path(short_absolute), short_absolute);
     EXPECT_EQ(os_path(std::filesystem::path()), std::filesystem::path());
 }
 
@@ -148,7 +151,7 @@ TEST(LongPath, PlainLongPathsWorkOnlyIfEnabled)
 
 TEST(LongPath, IsPathTooLongError)
 {
-    auto short_path = std::filesystem::temp_directory_path() / "file.txt";
+    const auto& short_path = short_absolute;
     EXPECT_TRUE(is_path_too_long_error(std::make_error_code(std::errc::filename_too_long), short_path));
     EXPECT_FALSE(is_path_too_long_error(std::make_error_code(std::errc::no_such_file_or_directory), short_path));
     EXPECT_FALSE(is_path_too_long_error(std::error_code(), short_path));

@@ -15,6 +15,10 @@
 #    include <windows.h>
 // SetNamedSecurityInfoW; after windows.h
 #    include <aclapi.h>
+#else
+#    include <cerrno>
+#    include <fcntl.h>
+#    include <unistd.h>
 #endif
 
 namespace Saiga
@@ -50,7 +54,10 @@ std::filesystem::path os_path(const std::filesystem::path& path, LongPathPrefix 
     }
 
     std::error_code ec;
-    std::filesystem::path absolute = std::filesystem::absolute(path, ec);
+    // A \\server\share path is absolute already; libstdc++'s absolute() would take it for a path on the current drive.
+    const std::wstring& raw        = path.native();
+    const bool unc                 = raw.size() >= 2 && is_separator(raw[0]) && is_separator(raw[1]);
+    std::filesystem::path absolute = unc ? path : std::filesystem::absolute(path, ec);
     if (ec) return path;
     // Windows doesn't normalize a path after the prefix, and libstdc++'s absolute() returns absolute paths as they are.
     absolute = absolute.lexically_normal().make_preferred();
@@ -150,8 +157,29 @@ bool replace_file(const std::filesystem::path& from, const std::filesystem::path
     // fails, for example when the disk is full.
     ec.clear();
     std::error_code ignored;
-    std::filesystem::path staging = to;
-    staging += ".saiga_" + std::to_string(std::random_device()());
+    // The staging file is created exclusively, so the copy can't go into an existing file or through a symlink.
+    std::filesystem::path staging;
+    for (int attempt = 0; attempt < 16 && staging.empty(); ++attempt)
+    {
+        std::filesystem::path candidate = to;
+        candidate += ".saiga_" + std::to_string(std::random_device()());
+        const int fd = ::open(candidate.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+        if (fd >= 0)
+        {
+            ::close(fd);
+            staging = candidate;
+        }
+        else if (errno != EEXIST)
+        {
+            ec = std::error_code(errno, std::generic_category());
+            return false;
+        }
+    }
+    if (staging.empty())
+    {
+        ec = std::make_error_code(std::errc::file_exists);
+        return false;
+    }
     if (!std::filesystem::copy_file(from, staging, std::filesystem::copy_options::overwrite_existing, ec))
     {
         std::filesystem::remove(staging, ignored);
@@ -197,8 +225,11 @@ bool write_via_short_path(const std::filesystem::path& target,
         if (!std::filesystem::exists(temp, ec)) break;
         temp.clear();
     }
-    // In a temp folder that is too long itself, the writer can't take the temporary file either.
+    // In a temp folder that is too long or has the prefix itself, the writer can't take the temporary file either.
     if (temp.empty() || os_path(temp).native() != temp.native()) return false;
+#if defined(_WIN32)
+    if (has_os_prefix(temp.native())) return false;
+#endif
 
     bool written = false;
     try
