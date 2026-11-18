@@ -78,8 +78,17 @@ Entity Registry::create()
     {
         SAIGA_ASSERT(slots.size() < 0xFFFFFFFFu, "create: out of entity slots");
         index = uint32_t(slots.size());
-        slots.emplace_back();
+        // Both vectors grow together: if the second allocation throws, the first is undone
         transforms.emplace_back();
+        try
+        {
+            slots.emplace_back();
+        }
+        catch (...)
+        {
+            transforms.pop_back();
+            throw;
+        }
     }
     Slot& s = slots[index];
     s.state = SlotState::Alive;

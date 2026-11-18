@@ -227,6 +227,10 @@ bool Registry::has(Entity e) const
     {
         SAIGA_ASSERT(infos[T::id].registered, std::string("component ") + T::name + " (ID " +
                                                   std::to_string(int(T::id)) + ") is not registered");
+        // Like the typed pool access: a component that kept another one's ID is not answered with that one's bit
+        SAIGA_ASSERT(infos[T::id].name == T::name || std::strcmp(infos[T::id].name, T::name) == 0,
+                     std::string("component ID ") + std::to_string(int(T::id)) + " is registered as " +
+                         infos[T::id].name + ", not " + T::name);
         return slots[e.index].mask.test(T::id);
     }
 }

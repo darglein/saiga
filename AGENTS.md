@@ -179,7 +179,8 @@ ctest -R test_core_ini --output-on-failure             # one test
   CUDA tests `"saiga_cuda"`, engine tests (`test_engine_<area>.cpp`) `"saiga_engine"` inside
   `if (MODULE_ENGINE)`; there are no game tests, the games are samples). Compile-time rules are tested with
   compile-fail cases (`tests/compile_fail/`, targets excluded from the build, built by ctest one at a time with
-  `PASS_REGULAR_EXPRESSION` on the `static_assert` message). **Tests are not globbed** — a new test file must be added there,
+  `PASS_REGULAR_EXPRESSION` on the `static_assert` message). Build before running ctest (as CI does): on a stale build
+  the first compile-fail case rebuilds the libraries while other tests run. **Tests are not globbed** — a new test file must be added there,
   inside the matching `MODULE_*` / dependency guard (e.g. the bundle-adjustment tests need
   `CERES_FOUND`).
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a

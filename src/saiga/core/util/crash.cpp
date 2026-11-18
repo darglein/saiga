@@ -168,7 +168,7 @@ void printCurrentStack()
         {
             // outWalk.append(info->Name, info->NameLen);
             // outWalk.append("\n");
-            std::cout << "[bt]: (" << i << ") " << info->Name << std::endl;
+            std::cerr << "[bt]: (" << i << ") " << info->Name << std::endl;
         }
     }
 

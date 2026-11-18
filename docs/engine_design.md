@@ -356,8 +356,9 @@ struct Health
 - **ID types**: `using ComponentId = uint8_t; using EventId = uint16_t; using ClassId = uint16_t;` (engine,
   `ecs/Ids.h`).
 - **IDs** come from an explicit enum per module: engine components 0..63, game components 64..255 (the game enum starts
-  at 64). Registration (`registry.registerComponent<Health>(Replicate::Host)`; modes §13.4; optionally `Saved::No` for derived
-  components that are rebuilt after loading, e.g. `RenderPose`) asserts that the ID is unused and every enum value up to
+  at 64). Registration (`registry.registerComponent<Health>(Replicate::Host)`; modes §13.4; optionally `Saved::No` for
+  derived components that are rebuilt after loading, e.g. `RenderPose`) asserts that the ID is unused;
+  `validateRegistration()` (called by the world after the registration lists, S08) asserts that every enum value up to
   the last one registered is registered (the enums grow per stage). `Replicate` and `RunOn` are defined in S07 and
   stored, but only evaluated from S16. Templates use `T::id` directly: no type-to-ID map, no hashing on access. Events
   (`EngineEvent`, game from 64) use the same scheme; every `GameObject` subclass declares `static constexpr ClassId id =

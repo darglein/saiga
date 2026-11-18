@@ -364,6 +364,17 @@ TEST(Ecs, ValidateRegistration)
     EXPECT_EQ(ok.registeredCount(), 5);
 }
 
+// The accepted side of the float rule: a Render* component with allowFloat registers and is usable
+TEST(Ecs, RenderComponentWithFloatsRegisters)
+{
+    Registry r;
+    r.registerComponent<RenderThing>(Replicate::Never, Saved::No);
+    Entity e = r.create();
+    r.add<RenderThing>(e);
+    EXPECT_EQ(r.read<RenderThing>(e).alpha, 1.0f);
+    EXPECT_EQ(r.componentInfo(RenderThing::id).saved, Saved::No);
+}
+
 #ifdef SAIGA_ASSERTS
 TEST(EcsDeathTest, MisuseAsserts)
 {
@@ -391,6 +402,7 @@ TEST(EcsDeathTest, MisuseAsserts)
     Entity c = r.create();
     r.add<Health>(c);
     EXPECT_DEATH(r.get<CopiedHealthId>(c), "registered as Health, not Mana");
+    EXPECT_DEATH(r.has<CopiedHealthId>(c), "registered as Health, not Mana");
 }
 
 TEST(EcsDeathTest, StructuralChangeDuringIteration)
@@ -593,6 +605,11 @@ TEST(Ecs, MalformedBytesAreRejected)
     std::vector<ItemStack> items;
     EXPECT_FALSE(fromBytes(items, hugeVector, &error));
     EXPECT_NE(error.find("does not fit"), std::string::npos) << error;
+    // A bool byte other than 0 or 1 (no second encoding of the same state)
+    std::vector<uint8_t> badBool = {2};
+    bool flag                    = false;
+    EXPECT_FALSE(fromBytes(flag, badBool, &error));
+    EXPECT_NE(error.find("neither 0 nor 1"), std::string::npos) << error;
     // A string longer than the input
     std::vector<uint8_t> longString = {100, 0, 0, 0, 0, 0, 0, 0, 'a'};
     std::string str;

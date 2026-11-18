@@ -58,16 +58,22 @@ class PoolBase
     const size_t elementSize;
 
    protected:
-    void setSparse(uint32_t entityIndex, uint32_t dense)
+    // Allocates the sparse page of the entity if needed (may throw; no other state changes)
+    void ensurePage(uint32_t entityIndex)
     {
         size_t page = entityIndex / kPageSize;
         if (page >= pages.size()) pages.resize(page + 1);
         if (!pages[page])
         {
-            pages[page] = std::make_unique<std::array<uint32_t, kPageSize>>();
-            pages[page]->fill(kNone);
+            auto p = std::make_unique<std::array<uint32_t, kPageSize>>();
+            p->fill(kNone);
+            pages[page] = std::move(p);
         }
-        (*pages[page])[entityIndex % kPageSize] = dense;
+    }
+    void setSparse(uint32_t entityIndex, uint32_t dense)
+    {
+        ensurePage(entityIndex);
+        (*pages[entityIndex / kPageSize])[entityIndex % kPageSize] = dense;
     }
 
     std::vector<Entity> entities;
@@ -85,13 +91,17 @@ class ComponentPool final : public PoolBase
     T& emplace(Entity e, A&&... args)
     {
         SAIGA_ASSERT(!has(e.index));
+        // Everything that can allocate happens before the first change: if anything throws (bad_alloc, the
+        // component's constructor), data, entities and the sparse pages stay consistent
+        ensurePage(e.index);
+        entities.reserve(entities.size() + 1 > entities.capacity() ? 2 * entities.size() + 1 : entities.capacity());
         uint32_t dense = uint32_t(data.size());
         if constexpr (std::is_constructible_v<T, A...>)
             data.emplace_back(std::forward<A>(args)...);
         else
             data.push_back(T{std::forward<A>(args)...});
-        entities.push_back(e);
-        setSparse(e.index, dense);
+        entities.push_back(e);      // no allocation (reserved)
+        setSparse(e.index, dense);  // no allocation (page exists)
         return data.back();
     }
 

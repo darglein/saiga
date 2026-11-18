@@ -157,10 +157,15 @@ implemented API.
   compares the registered name; `has<T>` on an unregistered type asserts; `describeFields` gives enum value names;
   compile-fail tests of the field rules (`tests/compile_fail/ecs_field_rules.cpp`, 10 ctest cases); `printCurrentStack`
   writes to stderr like the assert message.
+- Review round 2: `has<T>` checks the registered name too; `ComponentPool::emplace` and `Registry::create` allocate
+  before the first change (consistent state after `bad_alloc`); the reader assigns integers only after a successful
+  read and accepts only 0 and 1 for `bool`; the Windows stack trace goes to stderr as well; a test registers a
+  `Render*` component with floats (the accepted side of the rule); §7.2: the gap check is `validateRegistration()`;
+  AGENTS.md: build before ctest (compile-fail cases rebuild a stale build).
 
 ## Results
 
-- `tests/test_engine_ecs.cpp`: 23 tests pass (GCC 15), including 3 death tests that match the assert messages; the
+- `tests/test_engine_ecs.cpp`: 24 tests pass (GCC 15), including 3 death tests that match the assert messages; the
   binary layout is pinned (`VisitBinary.h`).
 - `tests/test_engine_ecs_benchmark.cpp` (GCC 15, RelWithDebInfo, i9 laptop; 10^5 entities with 3 components, ms):
   create 16.5, view<1> 0.47, view<Transform, 1> 0.86, view<3> 0.66, random read 1.56, remove + re-add on half 0.92,

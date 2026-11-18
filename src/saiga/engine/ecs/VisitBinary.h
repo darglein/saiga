@@ -207,9 +207,22 @@ class BinaryReader
         using namespace VisitDetail;
         if (failed()) return;
         if constexpr (std::is_same_v<T, bool>)
-            v = readUnsigned(1) != 0;
+        {
+            // Canonical: only 0 and 1 (saves and hashes must not have two encodings of one state)
+            uint64_t b = readUnsigned(1);
+            if (failed()) return;
+            if (b > 1)
+            {
+                fail("bool byte " + std::to_string(b) + " is neither 0 nor 1");
+                return;
+            }
+            v = b != 0;
+        }
         else if constexpr (isInteger<T>)
-            v = T(readUnsigned(sizeof(T)));
+        {
+            uint64_t x = readUnsigned(sizeof(T));
+            if (!failed()) v = T(x);
+        }
         else if constexpr (std::is_same_v<T, double>)
         {
             uint64_t bits = readUnsigned(8);
