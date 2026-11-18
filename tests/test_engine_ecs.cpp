@@ -297,6 +297,30 @@ TEST(Ecs, FreeSlotsAreReusedInFifoOrder)
     EXPECT_EQ(r.create().index, 6u);
 }
 
+// Regression: the room for releasing a reserved slot was made by the World before reserving, and destroys appended to
+// the free list afterwards could use it up; release could then allocate during an aborted step
+TEST(Ecs, DestroysKeepTheRoomForReleasingReservedSlots)
+{
+    Registry r;
+    std::vector<Entity> alive;
+    for (int i = 0; i < 64; ++i) alive.push_back(r.create());
+    Entity a = r.reserve();
+    Entity b = r.reserve();
+    EXPECT_EQ(r.reservedCount(), 2u);
+    for (Entity e : alive)
+    {
+        r.destroy(e);
+        EXPECT_TRUE(r.canReleaseWithoutAllocation());
+    }
+    r.release(a);
+    EXPECT_TRUE(r.canReleaseWithoutAllocation());
+    r.activate(b);
+    EXPECT_EQ(r.reservedCount(), 0u);
+    EXPECT_TRUE(r.alive(b));
+    EXPECT_FALSE(r.reserved(a));
+    EXPECT_EQ(r.aliveCount(), 1u);
+}
+
 TEST(Ecs, ManyCreateDestroyCycles)
 {
     Registry r;

@@ -91,9 +91,10 @@ class SAIGA_ENGINE_API Registry
     Entity reserve();
     void activate(Entity e);
     void release(Entity e);
-    // Capacity for n releases (or destroys) without allocation: the World calls it when it reserves an entity during a
-    // step, so releasing it on an aborted step cannot fail
-    void reserveRelease(size_t n);
+    // The free list always has room for releasing every Reserved slot (reserve allocates it, destroy keeps it): release
+    // never allocates, so an aborted step can return its reserved entities while an exception propagates
+    size_t reservedCount() const { return reservedSlots; }
+    bool canReleaseWithoutAllocation() const { return freeSlots.capacity() >= freeSlots.size() + reservedSlots; }
     bool reserved(Entity e) const
     {
         return e.index != 0 && e.index < slots.size() && slots[e.index].generation == e.generation &&
@@ -187,11 +188,14 @@ class SAIGA_ENGINE_API Registry
 
     PagedArray<Slot> slots;
     PagedArray<Transform> transforms;  // by entity index
-    // FIFO reuse: a vector with a head index (reserveRelease can promise capacity, so release does not allocate)
+    // FIFO reuse: a vector with a head index. Its capacity covers the size plus one entry per Reserved slot
+    // (canReleaseWithoutAllocation), so release does not allocate
     std::vector<uint32_t> freeSlots;
-    size_t freeHead = 0;
+    size_t freeHead      = 0;
+    size_t reservedSlots = 0;  // slots in state Reserved (reserve, not yet activated or released)
     bool freeEmpty() const { return freeHead == freeSlots.size(); }
-    void pushFree(uint32_t index);
+    // Grows the free list (geometrically) to hold `extra` more entries plus the reserved slots' releases
+    void ensureFreeCapacity(size_t extra);
     std::array<std::unique_ptr<PoolBase>, kMaxComponents> pools;
     std::array<ComponentInfo, kMaxComponents> infos;
     uint32_t aliveEntities   = 0;

@@ -1003,14 +1003,19 @@ namespace
 {
 bool g_throwOnce    = false;
 size_t g_eventsSeen = 0;
+std::vector<double> g_amountsSeen;
+Entity g_reservedByAbortedStep;
 void sysReadThenThrow(World& w, double)
 {
-    g_eventsSeen = w.events.read<DamageEvent>().size();
+    auto events  = w.events.read<DamageEvent>();
+    g_eventsSeen = events.size();
+    g_amountsSeen.clear();
+    for (auto& ev : events) g_amountsSeen.push_back(ev.amount);
     if (g_throwOnce)
     {
         g_throwOnce = false;
         w.events.emit(DamageEvent{Entity{}, 99});  // emitted by the aborted step: dropped with it
-        w.create();                                // reserved by the aborted step: released
+        g_reservedByAbortedStep = w.create();      // reserved by the aborted step: released
         throw std::runtime_error("once");
     }
 }
@@ -1028,8 +1033,13 @@ TEST(World, AnAbortedStepKeepsItsEvents)
     g_throwOnce = true;
     EXPECT_THROW(w.step(), std::runtime_error);
     EXPECT_EQ(w.registry().aliveCount(), 0u);
+    // Released, not left reserved: the slot is free (its generation moved on)
+    EXPECT_FALSE(w.registry().reserved(g_reservedByAbortedStep));
+    EXPECT_EQ(w.registry().reservedCount(), 0u);
+    EXPECT_FALSE(w.alive(g_reservedByAbortedStep));
     w.step();
-    EXPECT_EQ(g_eventsSeen, 1u);  // the event of before the aborted step, not the aborted step's own
+    // The event of before the aborted step (amount 1), not the aborted step's own (99)
+    EXPECT_EQ(g_amountsSeen, std::vector<double>{1});
     w.step();
     EXPECT_EQ(g_eventsSeen, 0u);
 }

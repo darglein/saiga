@@ -72,6 +72,7 @@ Entity Registry::create()
 {
     checkNotIterating("create");
     Entity e = reserveSlot();
+    reservedSlots++;
     activate(e);
     return e;
 }
@@ -119,7 +120,11 @@ Entity Registry::reserve()
 {
     SAIGA_ASSERT(!destroying, "reserve while destroy removes the components of an entity");
     SAIGA_ASSERT(!inParallelEach(), "reserve inside parallelEach");
-    return reserveSlot();
+    // Room for its release first (a pop from the free list only shrinks the size)
+    ensureFreeCapacity(1);
+    Entity e = reserveSlot();
+    reservedSlots++;
+    return e;
 }
 
 void Registry::activate(Entity e)
@@ -130,6 +135,7 @@ void Registry::activate(Entity e)
     s.state = SlotState::Alive;
     s.flags = kSimulated;
     s.mask.set(Transform::id);
+    reservedSlots--;
     aliveEntities++;
 }
 
@@ -139,8 +145,10 @@ void Registry::release(Entity e)
     SAIGA_ASSERT(reserved(e), "release: " + describe(e) + " is not reserved");
     Slot& s                       = slots[e.index];
     const uint32_t nextGeneration = s.generation + 1;
-    // The only step that can throw comes first
-    if (nextGeneration != 0) pushFree(e.index);
+    // No allocation: reserve made room and destroy keeps it (ensureFreeCapacity)
+    SAIGA_ASSERT(canReleaseWithoutAllocation(), "release: the free list has no room for the reserved slots");
+    reservedSlots--;
+    if (nextGeneration != 0) freeSlots.push_back(e.index);
     s.state      = SlotState::Free;
     s.generation = nextGeneration;
 }
@@ -157,14 +165,9 @@ void Registry::shiftTransformFlags()
     }
 }
 
-void Registry::pushFree(uint32_t index)
+void Registry::ensureFreeCapacity(size_t extra)
 {
-    freeSlots.push_back(index);
-}
-
-void Registry::reserveRelease(size_t n)
-{
-    const size_t needed = freeSlots.size() + n;
+    const size_t needed = freeSlots.size() + extra + reservedSlots;
     if (freeSlots.capacity() < needed) freeSlots.reserve(std::max(needed, 2 * freeSlots.capacity()));
 }
 
@@ -201,7 +204,12 @@ void Registry::destroy(Entity e)
     // The only step that can throw (the free list allocates) comes first: on failure nothing changed. A slot whose
     // generation wraps around is retired (a stale handle could match again).
     const uint32_t nextGeneration = s.generation + 1;
-    if (nextGeneration != 0) pushFree(e.index);
+    if (nextGeneration != 0)
+    {
+        // Keeps the room for the releases of the reserved slots (a destroy must not use it up)
+        ensureFreeCapacity(1);
+        freeSlots.push_back(e.index);
+    }
     // Components in ID order (deterministic; the order matters for the structural log of S08). Cannot throw:
     // components have noexcept moves and the sparse pages exist.
     destroying = true;

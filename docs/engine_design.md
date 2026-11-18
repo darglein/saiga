@@ -498,8 +498,9 @@ record per component in ID order (`Transform` first). Consumers: `structuralLog(
 fn)`, `unread(consumer)`, `removeConsumer(consumer)` (a consumer that stops reading must be removed, or the log grows).
 A cursor moves past a record after the callback returned (a throwing consumer gets it again). Every change reserves its
 record before it is made (`prepare`), so a record is never lost after a change; an aborted step leaves the step state
-first and cleans up without allocating (the release capacity is reserved with each reserved entity; the events are
-restored by a swap: the readable events become pending again, the aborted step's own events are dropped).
+first and cleans up without allocating (the registry's free list always has room for releasing every reserved entity;
+the events are restored by a swap: the readable events become pending again, the aborted step's own events are
+dropped).
 
 ### 7.7 Events [exists: S08]
 
