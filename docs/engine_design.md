@@ -731,8 +731,9 @@ The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it d
 
 `main` fills `EngineAppSetup` from the command line (`--headless`, `--benchmark <name>`, `--screenshot <file>` after
 N frames, `--width/--height`, `--validation`, `--no-vsync`, `--scenarios [filter]`: run the game's scenarios with
-their variants headless, print the failures and their count, exit with 0 if all pass and 1 otherwise, §17.2) and
-`SAIGA_MCP_PORT`; there is no `config.ini`.
+their variants headless, print the failures and their count, exit with 0 if at least one scenario ran and all pass,
+else 1; a filter that matches no scenario prints `no scenarios matched` and fails, §17.2) and `SAIGA_MCP_PORT`; there
+is no `config.ini`.
 
 - **One frame** (`EngineApp::frame()`):
   1. poll window events and input (GLFW; nothing when headless);
@@ -1930,8 +1931,9 @@ void registerTestScenarios(ScenarioList& s)
   `tests/` (e.g. `Wanderer` of S12) and run in `tests/test_engine_scenarios.cpp` as a value-parameterized gtest over the
   scenario list x variants. Games are samples (`samples/games/<name>/`, §18.1); their scenarios
   (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (from S13;
-  headless, exit code 0 if all pass, else 1, the failure count is printed) or `run_scenario` (MCP), not in ctest; a
-  stage that changes a game runs them locally and reports the result in the pull request.
+  headless, exit code 0 if at least one scenario ran and all pass, else 1 (also for a filter that matches nothing), the
+  failure count is printed) or `run_scenario` (MCP), not in ctest; a stage that changes a game runs them locally and
+  reports the result in the pull request.
 
 ### 17.3 Multiplayer variant [planned: S16]
 
