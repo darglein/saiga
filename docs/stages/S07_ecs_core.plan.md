@@ -184,6 +184,10 @@ implemented API.
   than the reader accepts (`kMaxEmptyElements`); the reader limits struct nesting to 64 (deep trees in untrusted input);
   `Transform::visit` is documented as detached-only.
 
+- CodeRabbit, third pass: the writer's zero-byte element limit is an error in every build (`toBytes(value, out,
+  &error)` returns false, `toBytes(value)` stops via `SAIGA_EXIT_ERROR`); the ECS tests also pass with `SAIGA_ASSERTS`
+  undefined.
+
 ## Notes for S08
 
 From review round 3, for the World built on this registry:
