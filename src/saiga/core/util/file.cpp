@@ -23,14 +23,15 @@ std::vector<char> loadFileBinary(const std::filesystem::path& file)
 {
     std::vector<char> result;
 
+    const std::filesystem::path os_file = os_path(file);
     std::error_code ec;
-    if (std::filesystem::is_directory(os_path(file), ec))
+    if (std::filesystem::is_directory(os_file, ec))
     {
         std::cout << "Not a file " << file << std::endl;
         return result;
     }
 
-    std::ifstream is(os_path(file), std::ios::binary | std::ios::in | std::ios::ate);
+    std::ifstream is(os_file, std::ios::binary | std::ios::in | std::ios::ate);
     if (!is.is_open())
     {
         std::cout << "File not found " << file << std::endl;
@@ -55,13 +56,14 @@ std::vector<char> loadFileBinary(const std::filesystem::path& file)
 std::string loadFileString(const std::filesystem::path& file)
 {
     std::string fileContent;
+    const std::filesystem::path os_file = os_path(file);
     std::error_code ec;
-    if (std::filesystem::is_directory(os_path(file), ec))
+    if (std::filesystem::is_directory(os_file, ec))
     {
         std::cout << "Not a file " << file << std::endl;
         return "";
     }
-    std::ifstream fileStream(os_path(file), std::ios::in);
+    std::ifstream fileStream(os_file, std::ios::in);
     if (!fileStream.is_open())
     {
         std::cout << "File not found " << file << std::endl;
@@ -91,13 +93,14 @@ std::string loadFileString(const std::filesystem::path& file)
 std::vector<std::string> loadFileStringArray(const std::filesystem::path& file)
 {
     std::vector<std::string> fileContent;
+    const std::filesystem::path os_file = os_path(file);
     std::error_code ec;
-    if (std::filesystem::is_directory(os_path(file), ec))
+    if (std::filesystem::is_directory(os_file, ec))
     {
         std::cout << "Not a file " << file.u8string() << std::endl;
         return {};
     }
-    std::ifstream fileStream(os_path(file), std::ios::in);
+    std::ifstream fileStream(os_file, std::ios::in);
     if (!fileStream.is_open())
     {
         std::cout << "File not found " << file.u8string() << std::endl;

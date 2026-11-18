@@ -23,6 +23,7 @@ macro(saiga_make_sample _modules)
 
     # We only need to link the saiga target
     target_link_libraries(${PROG_NAME} ${${_modules}})
+    saiga_enable_long_paths(${PROG_NAME})
 
     #set working directory for visual studio so the project can be executed from the ide
     set_target_properties(${PROG_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${OUTPUT_DIR}")

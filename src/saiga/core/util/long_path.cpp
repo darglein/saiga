@@ -13,6 +13,8 @@
 
 #if defined(_WIN32)
 #    include <windows.h>
+// SetNamedSecurityInfoW; after windows.h
+#    include <aclapi.h>
 #endif
 
 namespace Saiga
@@ -41,10 +43,17 @@ std::filesystem::path os_path(const std::filesystem::path& path, LongPathPrefix 
 {
 #if defined(_WIN32)
     if (path.empty() || has_os_prefix(path.native())) return path;
+    // Normalizing only shortens a path, so a short absolute path needs neither the prefix nor GetFullPathNameW.
+    if (prefix == LongPathPrefix::IfNeeded && path.is_absolute() && path.native().size() <= max_unprefixed_length)
+    {
+        return path;
+    }
 
     std::error_code ec;
     std::filesystem::path absolute = std::filesystem::absolute(path, ec);
     if (ec) return path;
+    // Windows doesn't normalize a path after the prefix, and libstdc++'s absolute() returns absolute paths as they are.
+    absolute = absolute.lexically_normal().make_preferred();
 
     const std::wstring& s = absolute.native();
     if (prefix == LongPathPrefix::IfNeeded && s.size() <= max_unprefixed_length) return path;
@@ -107,12 +116,16 @@ bool is_path_too_long_error(const std::error_code& ec, const std::filesystem::pa
     if (!ec) return false;
     if (ec == std::errc::filename_too_long) return true;
 #if defined(_WIN32)
-    if (ec.category() != std::system_category()) return false;
-    if (ec.value() == ERROR_FILENAME_EXCED_RANGE) return true;
-    // Below an existing folder, Windows reports a path that is too long as not found.
-    bool not_found = ec.value() == ERROR_PATH_NOT_FOUND || ec.value() == ERROR_FILE_NOT_FOUND;
-    return not_found && !long_paths_enabled() && !path.empty() && !has_os_prefix(path.native()) &&
-           os_path(path).native() != path.native();
+    const bool system = ec.category() == std::system_category();
+    if (system && ec.value() == ERROR_FILENAME_EXCED_RANGE) return true;
+
+    // Below an existing folder, Windows reports a path that is too long as not found (libstdc++ as ENOENT).
+    const bool not_found = ec == std::errc::no_such_file_or_directory || (system && ec.value() == ERROR_PATH_NOT_FOUND);
+    if (!not_found || long_paths_enabled() || path.empty() || has_os_prefix(path.native())) return false;
+    // Only paths too long for the file functions: a shorter path that isn't found is missing.
+    std::error_code absolute_ec;
+    const std::filesystem::path absolute = std::filesystem::absolute(path, absolute_ec);
+    return !absolute_ec && absolute.native().size() >= MAX_PATH;
 #else
     (void)path;
     return false;
@@ -131,25 +144,43 @@ bool replace_file(const std::filesystem::path& from, const std::filesystem::path
     return true;
 #else
     std::filesystem::rename(from, to, ec);
-    if (ec == std::errc::cross_device_link)
+    if (ec != std::errc::cross_device_link) return !ec;
+
+    // Copy next to the target and rename it over the target: copying over it directly would destroy it if the copy
+    // fails, for example when the disk is full.
+    ec.clear();
+    std::error_code ignored;
+    std::filesystem::path staging = to;
+    staging += ".saiga_" + std::to_string(std::random_device()());
+    if (!std::filesystem::copy_file(from, staging, std::filesystem::copy_options::overwrite_existing, ec))
     {
-        ec.clear();
-        if (!std::filesystem::copy_file(from, to, std::filesystem::copy_options::overwrite_existing, ec)) return false;
-        std::filesystem::remove(from, ec);
-        // The target is complete; a source that can't be removed is not an error of the move.
-        ec.clear();
+        std::filesystem::remove(staging, ignored);
+        return false;
     }
-    return !ec;
+    std::filesystem::rename(staging, to, ec);
+    if (ec)
+    {
+        std::filesystem::remove(staging, ignored);
+        return false;
+    }
+    std::filesystem::remove(from, ignored);
+    return true;
 #endif
 }
 
 bool write_via_short_path(const std::filesystem::path& target,
                           const std::function<bool(const std::filesystem::path&)>& write)
 {
-    const std::filesystem::path plain_target = strip_os_prefix(target);
-    if (os_path(plain_target).native() == plain_target.native())
+#if defined(_WIN32)
+    // A prefixed target goes through a temporary file too: without the prefix, Windows may resolve it to another
+    // file (it drops trailing dots and spaces) or not at all (volume and device paths).
+    const bool prefixed = has_os_prefix(target.native());
+#else
+    const bool prefixed = false;
+#endif
+    if (!prefixed && os_path(target).native() == target.native())
     {
-        return write(plain_target);
+        return write(target);
     }
 
     std::error_code ec;
@@ -166,7 +197,8 @@ bool write_via_short_path(const std::filesystem::path& target,
         if (!std::filesystem::exists(temp, ec)) break;
         temp.clear();
     }
-    if (temp.empty()) return false;
+    // In a temp folder that is too long itself, the writer can't take the temporary file either.
+    if (temp.empty() || os_path(temp).native() != temp.native()) return false;
 
     bool written = false;
     try
@@ -184,6 +216,18 @@ bool write_via_short_path(const std::filesystem::path& target,
         std::filesystem::remove(temp, ec);
         return false;
     }
+#if defined(_WIN32)
+    // A file moved within a drive keeps the permissions it got in the temp folder, which are often private to the
+    // user. An empty, unprotected DACL makes it inherit those of its new folder, as a file written there directly.
+    ACL empty_acl;
+    std::wstring target_path = os_path(target).native();
+    if (InitializeAcl(&empty_acl, sizeof(empty_acl), ACL_REVISION))
+    {
+        SetNamedSecurityInfoW(target_path.data(), SE_FILE_OBJECT,
+                              DACL_SECURITY_INFORMATION | UNPROTECTED_DACL_SECURITY_INFORMATION, nullptr, nullptr,
+                              &empty_acl, nullptr);
+    }
+#endif
     return true;
 }
 }  // namespace Saiga

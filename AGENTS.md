@@ -278,8 +278,10 @@ working and show their feature in them.
 - Paths longer than 260 characters (Windows' MAX_PATH): hand a path to the file system (streams, `_wfopen`, `*W`
   functions, `std::filesystem` calls that touch the disk, libraries that take a path) as `Saiga::os_path(path)`
   (`saiga/core/util/long_path.h`), which adds the `\\?\` prefix where needed. Keep paths without the prefix everywhere
-  else. Executables call `saiga_enable_long_paths(<target>)` (`cmake/saiga_long_paths.cmake`). Tested by
-  `test_core_long_path`, built on Windows a second time as the long path aware `test_core_long_path_aware`.
+  else. Applications call `saiga_enable_long_paths(<target>)` (`cmake/saiga_long_paths.cmake`), which adds a
+  long path aware manifest in MSVC and clang-cl builds (not MinGW); `saiga_make_sample` does it for the samples. Tests
+  don't, so they behave like a system without long paths. Tested by `test_core_long_path`, built with MSVC and
+  clang-cl a second time as the long path aware `test_core_long_path_aware`.
 
 ## Gotchas
 

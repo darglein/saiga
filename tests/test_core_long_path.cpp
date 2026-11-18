@@ -16,6 +16,13 @@
 #include <fstream>
 #include <random>
 
+#if defined(_WIN32)
+#    include <windows.h>
+// After windows.h
+#    include <aclapi.h>
+#    include <sddl.h>
+#endif
+
 // Built twice on Windows: test_core_long_path is not long path aware, so it behaves like a system without
 // LongPathsEnabled, and test_core_long_path_aware has the manifest of saiga_enable_long_paths. Both must pass.
 
@@ -150,6 +157,15 @@ TEST(LongPath, IsPathTooLongError)
     std::filesystem::file_size(TestDir() / "missing.txt", ec);
     EXPECT_TRUE(ec);
     EXPECT_FALSE(is_path_too_long_error(ec, TestDir() / "missing.txt"));
+
+    // Short enough for the file functions, even if os_path would prefix it: a missing file, not a path too long.
+    auto dir = TestDir() / "folder";
+    std::filesystem::create_directories(dir);
+    auto missing = dir / std::string(250 - (dir.native().size() + 1), 'm');
+    ASSERT_EQ(missing.native().size(), 250u);
+    std::filesystem::file_size(missing, ec);
+    EXPECT_TRUE(ec);
+    EXPECT_FALSE(is_path_too_long_error(ec, missing));
 }
 
 TEST(LongPath, Files)
@@ -209,10 +225,80 @@ TEST(LongPath, WriteViaShortPath)
     EXPECT_EQ(File::loadFileString(short_target), "written\n");
     std::filesystem::remove(short_target);
 
+    // A short target with the prefix is written through the temp folder too: without the prefix it could name another
+    // file.
+    auto prefixed_short = os_path(TestDir() / "prefixed_short.txt", LongPathPrefix::Always);
+    std::filesystem::path written_to;
+    EXPECT_TRUE(write_via_short_path(prefixed_short,
+                                     [&](const std::filesystem::path& path)
+                                     {
+                                         written_to = path;
+                                         return short_only_writer(path);
+                                     }));
+    EXPECT_NE(written_to.parent_path(), TestDir());
+    EXPECT_EQ(File::loadFileString(TestDir() / "prefixed_short.txt"), "written\n");
+
     // A failed writer leaves nothing behind.
     EXPECT_FALSE(write_via_short_path(dir / "failed.mp4", [](const std::filesystem::path&) { return false; }));
     EXPECT_FALSE(std::filesystem::exists(os_path(dir / "failed.mp4")));
 }
+
+#if defined(_WIN32)
+// The access control entries of a file's DACL in SDDL, without the descriptor's control flags.
+static std::wstring AcesOf(const std::filesystem::path& file)
+{
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    std::wstring path               = os_path(file).native();
+    if (GetNamedSecurityInfoW(path.data(), SE_FILE_OBJECT, DACL_SECURITY_INFORMATION, nullptr, nullptr, nullptr,
+                              nullptr, &descriptor) != ERROR_SUCCESS)
+    {
+        return L"";
+    }
+    LPWSTR text = nullptr;
+    std::wstring result;
+    if (ConvertSecurityDescriptorToStringSecurityDescriptorW(descriptor, SDDL_REVISION_1, DACL_SECURITY_INFORMATION,
+                                                             &text, nullptr))
+    {
+        result = text;
+        LocalFree(text);
+    }
+    LocalFree(descriptor);
+    auto first_ace = result.find(L'(');
+    return first_ace == std::wstring::npos ? L"" : result.substr(first_ace);
+}
+
+TEST(LongPath, WriteViaShortPathInheritsPermissions)
+{
+    // A file moved from the temp folder keeps the permissions it got there unless they are reset. The target folder
+    // gets its own permissions (everyone, protected from those of the temp folder), so a staged file must end up with
+    // those, as a file written into the folder directly.
+    auto dir                        = LongDir();
+    PSECURITY_DESCRIPTOR descriptor = nullptr;
+    ASSERT_TRUE(ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:P(A;OICI;FA;;;WD)", SDDL_REVISION_1,
+                                                                     &descriptor, nullptr));
+    BOOL present = FALSE, defaulted = FALSE;
+    PACL dacl = nullptr;
+    ASSERT_TRUE(GetSecurityDescriptorDacl(descriptor, &present, &dacl, &defaulted));
+    std::wstring dir_path = os_path(dir).native();
+    ASSERT_EQ(SetNamedSecurityInfoW(dir_path.data(), SE_FILE_OBJECT,
+                                    DACL_SECURITY_INFORMATION | PROTECTED_DACL_SECURITY_INFORMATION, nullptr, nullptr,
+                                    dacl, nullptr),
+              ERROR_SUCCESS);
+    LocalFree(descriptor);
+
+    std::ofstream(os_path(dir / "direct.txt")) << "direct";
+    EXPECT_TRUE(write_via_short_path(dir / "staged.txt",
+                                     [](const std::filesystem::path& path)
+                                     {
+                                         std::ofstream file(path);
+                                         file << "staged";
+                                         return file.good();
+                                     }));
+    auto direct = AcesOf(dir / "direct.txt");
+    ASSERT_FALSE(direct.empty());
+    EXPECT_EQ(AcesOf(dir / "staged.txt"), direct);
+}
+#endif
 
 TEST(LongPath, Images)
 {

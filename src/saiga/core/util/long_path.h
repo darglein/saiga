@@ -16,7 +16,8 @@
 // Paths longer than MAX_PATH (260 characters) on Windows.
 //
 // Windows' file functions take longer paths only if the process is long path aware (its manifest has
-// longPathAware, see saiga_enable_long_paths in cmake/saiga_long_paths.cmake) AND the system enables them
+// longPathAware, see saiga_enable_long_paths in cmake/saiga_long_paths.cmake; MSVC and clang-cl builds only) AND the
+// system enables them
 // (LongPathsEnabled in the registry, off by default), or if the path has the \\?\ prefix. os_path() adds that prefix,
 // so a path works on every system. Keep paths without the prefix everywhere else (in files, in the UI, in comparisons)
 // and call os_path() only where a path is handed to the file system:
@@ -59,14 +60,17 @@ SAIGA_CORE_API bool long_paths_enabled();
 // enabled: Windows reports those as not found once part of the path exists.
 SAIGA_CORE_API bool is_path_too_long_error(const std::error_code& ec, const std::filesystem::path& path);
 
-// Moves a file, replacing the target if it exists, also to another drive.
+// Moves a file, replacing the target if it exists, also to another drive. On failure the target is unchanged. True
+// means the target holds the file; across drives the file is copied, and a source that can't be removed afterwards
+// stays.
 SAIGA_CORE_API bool replace_file(const std::filesystem::path& from, const std::filesystem::path& to,
                                  std::error_code& ec);
 
 // For writers that can't take a long path (shell and media functions, libraries with narrow paths): if the target needs
-// the \\?\ prefix, write() writes to a file of the same extension in the temp folder, which is then moved to the
-// target. Otherwise write() writes to the target directly. Returns false if write() returns false or the file can't be
-// moved; the temporary file is removed in both cases.
+// the \\?\ prefix or already has it, write() writes to a file of the same extension in the temp folder, which is then
+// moved to the target and gets the permissions of the target's folder. Otherwise write() writes to the target
+// directly. Returns false if write() returns false, the temp folder is too long itself or the file can't be moved; the
+// temporary file is removed in all cases.
 SAIGA_CORE_API bool write_via_short_path(const std::filesystem::path& target,
                                          const std::function<bool(const std::filesystem::path&)>& write);
 }  // namespace Saiga

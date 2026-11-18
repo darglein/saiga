@@ -9,16 +9,12 @@ if (NOT GTEST_FOUND)
 else ()
 endif ()
 
-function(saiga_test FILE_NAME)
-    string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
-
-    set(TARGET_NAME ${NAME})
-
-
+# A test executable TARGET_NAME built from FILE_NAME, linked to saiga_core, gtest and the libraries that follow.
+function(saiga_test_target TARGET_NAME FILE_NAME)
     # cuda architecture
     #cmake_policy(SET CMP0104 OLD)
     add_executable(${TARGET_NAME} ${FILE_NAME})
-    message(STATUS "Test enabled:      ${NAME}")
+    message(STATUS "Test enabled:      ${TARGET_NAME}")
 
 
     target_link_libraries(${TARGET_NAME} PUBLIC saiga_core ${GTEST_TARGETS})
@@ -45,6 +41,12 @@ function(saiga_test FILE_NAME)
     set_target_properties(${TARGET_NAME} PROPERTIES FOLDER tests/${PREFIX})
 endfunction()
 
+# A test executable named after FILE_NAME.
+function(saiga_test FILE_NAME)
+    string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
+    saiga_test_target(${NAME} ${FILE_NAME} ${ARGN})
+endfunction()
+
 
 if (MODULE_CORE)
     saiga_test(test_core_align.cpp)
@@ -64,12 +66,8 @@ if (MODULE_CORE)
     saiga_test(test_core_long_path.cpp)
     if (MSVC)
         # The same tests in a long path aware executable: they pass whether or not the system enables long paths.
-        add_executable(test_core_long_path_aware test_core_long_path.cpp)
-        target_link_libraries(test_core_long_path_aware PUBLIC saiga_core ${GTEST_TARGETS})
-        target_compile_definitions(test_core_long_path_aware PRIVATE GTEST_LINKED_AS_SHARED_LIBRARY=1)
+        saiga_test_target(test_core_long_path_aware test_core_long_path.cpp)
         saiga_enable_long_paths(test_core_long_path_aware)
-        add_test(NAME test_core_long_path_aware COMMAND test_core_long_path_aware)
-        set_target_properties(test_core_long_path_aware PROPERTIES FOLDER tests/${PREFIX})
     endif ()
     saiga_test(test_core_ini.cpp)
     saiga_test(test_core_image_decode.cpp)
