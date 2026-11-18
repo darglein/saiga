@@ -651,7 +651,7 @@ class World
     std::vector<Entity> queryRadius(SpaceId space, const Vec3& center, double radius,
                                     const ComponentMask& mask = {}) const;            // §9.5 [exists: S09]
     void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
-                     std::vector<Entity>& out) const;                                 // no allocation [S09]
+                     std::vector<Entity>& out) const;     // reuses out's capacity [S09]
     template <class T> T& global();  template <class T> T& spaceState(SpaceId space);  // §7.8 [planned: S10]
     template <class T> const T& readGlobal() const;
     template <class T> const T& readSpaceState(SpaceId space) const;

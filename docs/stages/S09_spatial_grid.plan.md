@@ -95,7 +95,8 @@ API.
 
 ## Design changes
 
-- §7.10: `queryRadius` takes `mask = {}` and has a variant into an output vector (no allocation).
+- §7.10: `queryRadius` takes `mask = {}` and has a variant into an output vector (reuses its capacity:
+  no allocation when it suffices).
 - §9.5: the S09 implementation paragraph (columns, positions of the last phase 6, stale handles filtered, large radii,
   NaN, `rebuildSpatialGrid`).
 - §8.2: `spatial_grid` registered after `transform`. §3: a row for the grid; the S09 row is done.
@@ -109,10 +110,15 @@ API.
   player) and build sets; `queryRadius` uses it. Tests: the aborted step throws before phase 6 (physics) and after it
   (streaming, with a move in phase 7); a parent teleported in phase 7; the grid position of `forEachWithin`.
 - Review round 3: a non-finite query center returns at once (it matched nothing but scanned every cell); comments.
+- CodeRabbit (PR #51): a squared radius that is 0 or subnormal compares the scaled distance (radius 0 found an item
+  1e-200 away, its squared distance underflowed to 0); an infinite radius finds every finite position (p - center
+  overflowed for positions at opposite ends of the double range); callbacks of `forEachWithin` must not change the
+  grid; `Item::position` is initialized; the output-vector variant reuses capacity (no allocation only when it
+  suffices).
 
 ## Results
 
-- `tests/test_engine_spatial_grid.cpp`: 17 tests pass (GCC 15); the S08 world and ECS tests are unchanged.
+- `tests/test_engine_spatial_grid.cpp`: 18 tests pass (GCC 15); the S08 world and ECS tests are unchanged.
 - Benchmark (GCC 15, RelWithDebInfo, laptop): 10^5 entities moving at 20 m/s over 2 km x 2 km: `World::step` 2.1-2.7 ms;
   10^4 `queryRadius(50 m)` 70 ms (7 us per query, about 190 hits each). The S08 step benchmark with 10^5 moving
   entities rises from 0.97 ms to 1.9 ms (R-TEST-2: the grid rewrites the stored position of every changed entity,

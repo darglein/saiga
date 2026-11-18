@@ -139,7 +139,7 @@ class SAIGA_ENGINE_API World
     // returned. Reserved entities are not found. Allowed in parallelEach (reads only).
     std::vector<Entity> queryRadius(SpaceId space, const Vec3& center, double radius,
                                     const ComponentMask& mask = ComponentMask()) const;
-    // The same into out (cleared first; no allocation once out has the capacity)
+    // The same into out (cleared first; allocates only if out's capacity is smaller than the result)
     void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
                      std::vector<Entity>& out) const;
 
@@ -177,7 +177,9 @@ class SAIGA_ENGINE_API World
     // Unsorted queryRadius for order-insensitive engine callers (interest sets, ticking): fn(Entity, const Vec3&
     // gridPosition) for each alive entity of the space within radius that has all components of mask, in an
     // unspecified order. gridPosition is the position the decision was made with (the last phase 6), so a caller that
-    // needs the distance (hysteresis, nearest player) uses the same state as the query.
+    // needs the distance (hysteresis, nearest player) uses the same state as the query. fn must not change the grid,
+    // directly or indirectly (no step(), no rebuildSpatialGrid while the query runs); copy gridPosition to keep it.
+    // Nested read-only queries are fine.
     template <class F>
     void forEachWithin(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask, F&& fn) const
     {

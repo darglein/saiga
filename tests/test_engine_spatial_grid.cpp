@@ -145,6 +145,30 @@ TEST(SpatialGrid, LargeInvalidAndFarQueries)
     g.forEachWithin(0, Vec3(1e300, 0, -1e300), 1, [&](const SpatialGrid::Item&) { n++; });
     EXPECT_EQ(n, 1u);  // a clamped far cell
     g.forEachWithin(0, Vec3(0, 0, 0), -1, [&](const SpatialGrid::Item&) { ADD_FAILURE(); });
+}
+
+// Regression (CodeRabbit): the squared distance underflowed to 0 for radius 0, and p - center overflowed for an
+// infinite radius with the center and the item at opposite ends of the double range
+TEST(SpatialGrid, UnderflowAndOverflowOfTheDistance)
+{
+    SpatialGrid g;
+    g.update(Entity{1, 0}, 0, Vec3(0, 1e-200, 0));
+    g.update(Entity{2, 0}, 0, Vec3(0, 0, 0));
+    g.update(Entity{3, 0}, 0, Vec3(0, std::numeric_limits<double>::max(), 0));
+    std::vector<Entity> found;
+    auto collect = [&](const SpatialGrid::Item& it) { found.push_back(it.entity); };
+    g.forEachWithin(0, Vec3(0, 0, 0), 0, collect);
+    EXPECT_EQ(found, (std::vector<Entity>{{2, 0}}));
+    found.clear();
+    g.forEachWithin(0, Vec3(0, 0, 0), 1e-150, collect);  // squared: 1e-300, still normal
+    EXPECT_EQ(sorted(found), (std::vector<Entity>{{1, 0}, {2, 0}}));
+    found.clear();
+    g.forEachWithin(0, Vec3(0, 0, 0), 2e-200, collect);  // squared radius subnormal: the scaled distance decides
+    EXPECT_EQ(sorted(found), (std::vector<Entity>{{1, 0}, {2, 0}}));
+    found.clear();
+    g.forEachWithin(0, Vec3(0, -std::numeric_limits<double>::max(), 0), std::numeric_limits<double>::infinity(),
+                    collect);
+    EXPECT_EQ(sorted(found), (std::vector<Entity>{{1, 0}, {2, 0}, {3, 0}}));
     g.forEachWithin(0, Vec3(0, 0, 0), std::numeric_limits<double>::quiet_NaN(),
                     [&](const SpatialGrid::Item&) { ADD_FAILURE(); });
     g.forEachWithin(0, Vec3(std::numeric_limits<double>::quiet_NaN(), 0, 0), 10,

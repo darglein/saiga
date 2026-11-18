@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <vector>
 
@@ -44,7 +45,7 @@ class SAIGA_ENGINE_API SpatialGrid
     struct Item
     {
         Entity entity;
-        Vec3 position;
+        Vec3 position = Vec3::Zero();
     };
 
     // Puts the entity (by index; a newer handle of the same index replaces an older one) into the cell of (space,
@@ -66,7 +67,9 @@ class SAIGA_ENGINE_API SpatialGrid
     // Calls fn(const Item&) for every item of the space within radius of center (Euclidean distance in 3D, the boundary
     // included), in an unspecified order. Visits the cells overlapping the square of the radius, or every occupied cell
     // of the space if those are fewer (large radii). A negative or NaN radius finds nothing; items with a non-finite
-    // position are never found (nor is anything from a non-finite center).
+    // position are never found (nor is anything from a non-finite center). fn must not change the grid, directly or
+    // through the World (no step, update, remove or clear while the query runs: the cell being visited may move);
+    // nested read-only queries are fine. The Item reference is valid only during the call.
     template <class F>
     void forEachWithin(SpaceId space, const Vec3& center, double radius, F&& fn) const;
 
@@ -101,12 +104,18 @@ void SpatialGrid::forEachWithin(SpaceId space, const Vec3& center, double radius
     const Cells& cells = *spaces[space];
     if (cells.empty()) return;
     const double r2 = radius * radius;
-    auto within     = [&](const Vec3& p)
+    // The squared comparison is exact enough while r2 is a normal double; a squared distance that underflows is then
+    // below r2 anyway. Otherwise (r2 overflows, or is 0 or subnormal) the scaled distance is compared with the radius.
+    const bool squared  = std::isfinite(r2) && r2 >= std::numeric_limits<double>::min();
+    const bool infinite = std::isinf(radius);
+    auto within         = [&](const Vec3& p)
     {
+        // An infinite radius: every finite position (the center is finite; p - center may overflow)
+        if (infinite) return std::isfinite(p.x()) && std::isfinite(p.y()) && std::isfinite(p.z());
         const Vec3 d = p - center;
-        // A finite squared radius: an infinite or NaN distance fails the comparison by itself
-        if (std::isfinite(r2)) return d.squaredNorm() <= r2;
-        // The square of a huge radius overflows: compare the scaled distance (no overflow) with the radius
+        // An infinite or NaN distance fails the comparison by itself
+        if (squared) return d.squaredNorm() <= r2;
+        // Overflowed: the true distance is above DBL_MAX >= radius
         if (!std::isfinite(d.x()) || !std::isfinite(d.y()) || !std::isfinite(d.z())) return false;
         const double m = std::max({std::abs(d.x()), std::abs(d.y()), std::abs(d.z())});
         return m == 0 || m * std::sqrt((d / m).squaredNorm()) <= radius;
