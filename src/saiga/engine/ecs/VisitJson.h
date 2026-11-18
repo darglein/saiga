@@ -65,6 +65,12 @@ class JsonWriter
         using namespace VisitDetail;
         if constexpr (std::is_same_v<T, bool>)
             return Json(v);
+        else if constexpr (std::is_enum_v<T>)
+        {
+            // Only reachable for a component that registration rejects (enums need EnumNames): written as a number so
+            // the field check reports the real problem (MSVC stops at the first static_assert)
+            return Json(double(int64_t(v)));
+        }
         else if constexpr (isInteger<T>)
         {
             // Exact in a double below 2^53 (compared as integers: 2^53 + 1 would round to 2^53 in a double); larger
@@ -188,6 +194,13 @@ class JsonReader
         {
             if (!j.is_bool()) return fail(where, "expected a bool");
             if (apply) v = j.bool_value();
+        }
+        else if constexpr (std::is_enum_v<T>)
+        {
+            // Only reachable for a component that registration rejects (see JsonWriter::write)
+            int64_t value = 0;
+            if (!readInteger(j, value, where)) return;
+            if (apply) v = T(value);
         }
         else if constexpr (isInteger<T>)
         {
