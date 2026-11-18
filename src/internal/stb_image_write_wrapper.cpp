@@ -6,6 +6,7 @@
 #include <iostream>
 
 #include "saiga/core/image/stb_image_write.h"
+#include "saiga/core/util/long_path.h"
 
 namespace Saiga
 {
@@ -68,7 +69,7 @@ bool saveImageSTB(const std::filesystem::path& path, const Image& img)
         return false;
     }
 
-    std::ofstream file(path, std::ios::binary | std::ios::out);
+    std::ofstream file(os_path(path), std::ios::binary | std::ios::out);
     file.write((const char*)data.data(), data.size());
     file.close();
     return bool(file);

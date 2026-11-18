@@ -6,6 +6,8 @@
 #        include "EbSvtAv1Enc.h"  // Native SVT-AV1 header for log callback / init
 #    endif
 
+#    include "saiga/core/util/long_path.h"
+
 #    include <avif/avif.h>
 #    include <cstring>
 #    include <fstream>
@@ -100,7 +102,7 @@ bool loadImageFromMemoryLibAVIF(const void* data, size_t size, Image& img)
 
 bool loadImageLibAVIF(const std::filesystem::path& path, Image& img)
 {
-    std::ifstream file(path, std::ios::binary);
+    std::ifstream file(os_path(path), std::ios::binary);
     if (!file)
     {
         return false;
@@ -311,7 +313,7 @@ bool saveImageLibAVIF(const std::filesystem::path& path, const Image& img)
     }
 
     // 5. Save to disk
-    std::ofstream file(path, std::ios::binary);
+    std::ofstream file(os_path(path), std::ios::binary);
     if (!file)
     {
         std::cerr << "Failed to open file for writing: " << path << std::endl;

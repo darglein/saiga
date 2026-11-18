@@ -7,6 +7,7 @@
 #include "file.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/long_path.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -23,13 +24,13 @@ std::vector<char> loadFileBinary(const std::filesystem::path& file)
     std::vector<char> result;
 
     std::error_code ec;
-    if (std::filesystem::is_directory(file, ec))
+    if (std::filesystem::is_directory(os_path(file), ec))
     {
         std::cout << "Not a file " << file << std::endl;
         return result;
     }
 
-    std::ifstream is(file, std::ios::binary | std::ios::in | std::ios::ate);
+    std::ifstream is(os_path(file), std::ios::binary | std::ios::in | std::ios::ate);
     if (!is.is_open())
     {
         std::cout << "File not found " << file << std::endl;
@@ -55,12 +56,12 @@ std::string loadFileString(const std::filesystem::path& file)
 {
     std::string fileContent;
     std::error_code ec;
-    if (std::filesystem::is_directory(file, ec))
+    if (std::filesystem::is_directory(os_path(file), ec))
     {
         std::cout << "Not a file " << file << std::endl;
         return "";
     }
-    std::ifstream fileStream(file, std::ios::in);
+    std::ifstream fileStream(os_path(file), std::ios::in);
     if (!fileStream.is_open())
     {
         std::cout << "File not found " << file << std::endl;
@@ -91,12 +92,12 @@ std::vector<std::string> loadFileStringArray(const std::filesystem::path& file)
 {
     std::vector<std::string> fileContent;
     std::error_code ec;
-    if (std::filesystem::is_directory(file, ec))
+    if (std::filesystem::is_directory(os_path(file), ec))
     {
         std::cout << "Not a file " << file.u8string() << std::endl;
         return {};
     }
-    std::ifstream fileStream(file, std::ios::in);
+    std::ifstream fileStream(os_path(file), std::ios::in);
     if (!fileStream.is_open())
     {
         std::cout << "File not found " << file.u8string() << std::endl;
@@ -128,7 +129,7 @@ std::vector<std::string> loadFileStringArray(const std::filesystem::path& file)
 
 void saveFileBinary(const std::filesystem::path& file, const void* data, size_t size)
 {
-    std::ofstream is(file, std::ios::binary | std::ios::out);
+    std::ofstream is(os_path(file), std::ios::binary | std::ios::out);
     if (!is.is_open())
     {
         std::cout << "Could not open " << file << " for writing" << std::endl;

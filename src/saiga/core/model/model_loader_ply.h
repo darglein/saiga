@@ -7,6 +7,7 @@
 #pragma once
 #include "saiga/core/geometry/triangle_mesh.h"
 #include "saiga/core/util/color.h"
+#include "saiga/core/util/long_path.h"
 #include "saiga/core/util/tostring.h"
 
 #include <fstream>
@@ -115,7 +116,7 @@ class SAIGA_CORE_API PLYLoader
             ptr += faceSize;
         }
 
-        std::ofstream stream(file, std::ios::binary);
+        std::ofstream stream(os_path(file), std::ios::binary);
         if (!stream.is_open())
         {
             std::cerr << "Could not open file " << file << std::endl;

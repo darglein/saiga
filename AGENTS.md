@@ -275,6 +275,11 @@ working and show their feature in them.
   `#ifdef SAIGA_ASSERTS`).
 - Keep the code portable: it must build with GCC, Clang and MSVC (Linux and Windows). The MSVC CI job covers Core,
   Vulkan and Engine only (OpenGL, Vision and the samples are not built there).
+- Paths longer than 260 characters (Windows' MAX_PATH): hand a path to the file system (streams, `_wfopen`, `*W`
+  functions, `std::filesystem` calls that touch the disk, libraries that take a path) as `Saiga::os_path(path)`
+  (`saiga/core/util/long_path.h`), which adds the `\\?\` prefix where needed. Keep paths without the prefix everywhere
+  else. Executables call `saiga_enable_long_paths(<target>)` (`cmake/saiga_long_paths.cmake`). Tested by
+  `test_core_long_path`, built on Windows a second time as the long path aware `test_core_long_path_aware`.
 
 ## Gotchas
 

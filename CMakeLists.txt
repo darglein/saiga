@@ -240,6 +240,7 @@ endif ()
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC SAIGA_GIT_SHA1)
 include(saiga_version_resource)
+include(saiga_long_paths)
 
 set(SAIGA_BUILDCONFIG_DIR "${CMAKE_CURRENT_BINARY_DIR}/include" CACHE PATH "Path to the build config files")
 set(SAIGA_BUILDCONFIG_FILE "${SAIGA_BUILDCONFIG_DIR}/saiga/saiga_buildconfig.h")
