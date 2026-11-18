@@ -43,8 +43,8 @@ class Rng
 
     uint32_t nextU32()
     {
-        uint64_t old       = s.state;
-        s.state            = old * 6364136223846793005ULL + s.increment;
+        uint64_t old        = s.state;
+        s.state             = old * 6364136223846793005ULL + s.increment;
         uint32_t xorshifted = uint32_t(((old >> 18u) ^ old) >> 27u);
         uint32_t rot        = uint32_t(old >> 59u);
         return (xorshifted >> rot) | (xorshifted << ((32u - rot) & 31u));
@@ -69,6 +69,7 @@ class Rng
     // to b for u close to 1: then the largest double below b is returned.
     double uniform(double a, double b)
     {
+        SAIGA_ASSERT(a <= b, "Rng::uniform: a > b");
         double r = std::fma(b - a, uniform(), a);
         return (r < b || a == b) ? r : std::nextafter(b, a);
     }

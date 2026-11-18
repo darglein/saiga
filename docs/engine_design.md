@@ -647,7 +647,7 @@ class Rng   // PCG32 (pcg32 of pcg-random.org), engine/core/Rng.h [exists]
     explicit Rng(uint64_t seed = 0, uint64_t stream = 0);   // pcg32_srandom: Rng(42, 54) gives the reference values
     uint32_t nextU32(); uint64_t nextU64();
     double uniform();                                         // [0, 1), 53 bits from two outputs
-    double uniform(double a, double b);                       // [a, b): fma(b - a, u, a), b is moved below b
+    double uniform(double a, double b);                       // [a, b): fma(b - a, u, a); b -> largest double < b
     int64_t range(int64_t a, int64_t b);                      // [a, b] inclusive, no modulo bias
     struct State { uint64_t state, increment; };              // saved by the world
     State state() const; void setState(const State&);

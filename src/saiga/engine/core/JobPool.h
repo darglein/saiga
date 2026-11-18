@@ -8,12 +8,13 @@
 
 #include "saiga/export.h"
 
-#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <mutex>
 #include <thread>
 #include <vector>
+
+#include <condition_variable>
 
 namespace Saiga
 {

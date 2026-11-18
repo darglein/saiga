@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+// LogRing: the thread-safe ring of log lines with sequence numbers.
+
 #include "saiga/engine/core/LogRing.h"
 
 #include "saiga/core/util/assert.h"

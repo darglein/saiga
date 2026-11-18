@@ -4,6 +4,8 @@
  * See LICENSE file for more information.
  */
 
+// The process-wide engine log: SAIGA_LOG formatting, the ring and the stdout echo.
+
 #include "saiga/engine/core/Log.h"
 
 #include <atomic>
@@ -19,14 +21,21 @@ namespace Engine
 namespace
 {
 std::atomic<bool> echo{true};
-// Ring insertion and stdout echo under one lock: stdout shows the lines in sequence order, without interleaving
-std::mutex logMutex;
+
+// Ring insertion and stdout echo under one lock: stdout shows the lines in sequence order, without interleaving.
+// Never destroyed (like the ring): static objects may log from their destructors at exit.
+std::mutex& logMutex()
+{
+    static std::mutex* m = new std::mutex;
+    return *m;
+}
 }  // namespace
 
 LogRing& engineLog()
 {
-    static LogRing ring;
-    return ring;
+    // Never destroyed: logging stays valid during static destruction
+    static LogRing* ring = new LogRing;
+    return *ring;
 }
 
 void setLogEcho(bool e)
@@ -60,7 +69,7 @@ void logPrintf(const char* category, const char* format, ...)
     }
     va_end(args);
 
-    std::lock_guard<std::mutex> lock(logMutex);
+    std::lock_guard<std::mutex> lock(logMutex());
     if (echo) std::cout << "[" << category << "] " << message << std::endl;
     engineLog().add(category, std::move(message));
 }

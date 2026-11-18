@@ -136,6 +136,9 @@ All the tests above pass in CI on GCC, Clang and MSVC; `docs/engine_design.md` d
 - Review round 2: `uniform(a, b)` with `std::fma` (the same rounding with and without FMA contraction, e.g.
   `-march=native`, MSVC, aarch64); §8.5: `parallelFor` cannot host Jolt's job system, S28 adds a submit/barrier API or
   uses Jolt's thread pool; §8.4, §12.1, §12.4 use `hashCombine` instead of a non-existent `fnv1a(a, b)`.
+- Review round 3: `uniform(a, b)` asserts `a <= b` (swapped bounds gave a constant); the engine log ring and its
+  mutex are never destroyed (static objects may log at exit); the rounding test uses a one-ulp interval, so it reaches
+  the guard; the new files are clang-formatted.
 
 ## Results
 

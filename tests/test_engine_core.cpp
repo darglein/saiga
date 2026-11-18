@@ -43,7 +43,7 @@ TEST(JobPool, EveryIndexExactlyOnce)
             for (auto range : {std::pair<int64_t, int64_t>{0, 500}, {-37, 263}, {5, 6}, {10, 10}, {10, 3}})
             {
                 int64_t begin = range.first, end = range.second;
-                int64_t n     = std::max<int64_t>(0, end - begin);
+                int64_t n = std::max<int64_t>(0, end - begin);
                 std::vector<std::atomic<int>> hits(size_t(n + 1));
                 std::atomic<int> calls{0};
                 pool.parallelFor(begin, end, chunk,
@@ -55,7 +55,8 @@ TEST(JobPool, EveryIndexExactlyOnce)
                                      EXPECT_TRUE(e == end || e - b == chunk);
                                      for (int64_t i = b; i < e; ++i) hits[size_t(i - begin)]++;
                                  });
-                for (int64_t i = 0; i < n; ++i) EXPECT_EQ(hits[size_t(i)].load(), 1) << workers << " " << chunk << " " << i;
+                for (int64_t i = 0; i < n; ++i)
+                    EXPECT_EQ(hits[size_t(i)].load(), 1) << workers << " " << chunk << " " << i;
                 EXPECT_EQ(calls.load(), n == 0 ? 0 : int((n + chunk - 1) / chunk));
             }
         }
@@ -175,8 +176,8 @@ TEST(JobPool, ExceptionReachesTheCaller)
                                           if (b == 10) throw std::runtime_error("chunk 10");
                                       }),
                      std::runtime_error);
-        // Serially the chunks after the failure are skipped. With workers skipping is best effort (chunks claimed before
-        // the failure is seen still run), so it is not checked there.
+        // Serially the chunks after the failure are skipped. With workers skipping is best effort (chunks claimed
+        // before the failure is seen still run), so it is not checked there.
         if (workers == 0)
         {
             EXPECT_EQ(calls.load(), 11);
@@ -269,7 +270,7 @@ TEST(Rng, SeedsAndStreams)
 TEST(Rng, Uniform)
 {
     Rng rng(1);
-    double sum = 0;
+    double sum  = 0;
     const int n = 200000;
     for (int i = 0; i < n; ++i)
     {
@@ -357,23 +358,19 @@ TEST(Rng, FixedValuesOfRangeAndUniform)
                       3186856330796894013ll})
         EXPECT_EQ(r64.range(lo, hi), e);
     Rng r32(7, 3);
-    for (int64_t e : {1592787854, 1172360065, 893627349, 25647383, 1544824218}) EXPECT_EQ(r32.range(0, 0x80000000ll), e);
+    for (int64_t e : {1592787854, 1172360065, 893627349, 25647383, 1544824218})
+        EXPECT_EQ(r32.range(0, 0x80000000ll), e);
 }
 
 // Regression: a + (b - a) * u rounds up to b for u = 1 - 2^-53 (e.g. a = 1, b = 2), outside of [a, b)
 TEST(Rng, UniformIntervalNeverReturnsTheUpperBound)
 {
-    // A state whose next two outputs give the largest uniform() value is hard to construct; check the rounding case
-    // directly with the same formula and the guarded function on many intervals.
     const double u = 1.0 - 1.0 / 9007199254740992.0;
     EXPECT_EQ(std::fma(2.0 - 1.0, u, 1.0), 2.0);  // the unguarded formula rounds up to b
+    // With an interval of one ulp (2 at 1e16) about half of the raw results round up to b; the only value in [a, b) is
+    // a
     Rng rng(5);
-    for (int i = 0; i < 100000; ++i)
-    {
-        double v = rng.uniform(1.0, 1.5);
-        ASSERT_GE(v, 1.0);
-        ASSERT_LT(v, 1.5);
-    }
+    for (int i = 0; i < 1000; ++i) EXPECT_EQ(rng.uniform(1e16, 1e16 + 2), 1e16);
     EXPECT_EQ(rng.uniform(2.0, 2.0), 2.0);
 }
 
@@ -479,8 +476,8 @@ TEST(Log, SaigaLogFormatsIntoTheRing)
 TEST(Log, ConcurrentLoggingLosesNothing)
 {
     setLogEcho(false);
-    LogRing& ring  = engineLog();
-    uint64_t start = ring.lastSequence();
+    LogRing& ring     = engineLog();
+    uint64_t start    = ring.lastSequence();
     const int threads = 4, perThread = 200;
     std::vector<std::thread> ts;
     for (int t = 0; t < threads; ++t)
