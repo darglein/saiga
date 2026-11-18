@@ -157,6 +157,7 @@ class SAIGA_ENGINE_API Registry
     uint32_t aliveEntities   = 0;
     int registeredComponents = 0;
     int iterationDepth       = 0;
+    bool destroying          = false;  // structural changes from component destructors during destroy assert
 };
 
 // ---- template definitions

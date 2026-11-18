@@ -178,6 +178,12 @@ implemented API.
   cases check the failed build and the message (`expect_build_failure.cmake`); the CI metrics step prints the ECS
   benchmark line; tests assert that positive round trips decode.
 
+- CodeRabbit, second pass: `emplace` no longer reserves `data` ahead (an argument may refer to a component of the same
+  pool: `add<Health>(b, read<Health>(a))`; the append is the commit point); structural changes from component
+  destructors during `destroy` assert (they could get the slot being freed); the writer refuses more zero-byte elements
+  than the reader accepts (`kMaxEmptyElements`); the reader limits struct nesting to 64 (deep trees in untrusted input);
+  `Transform::visit` is documented as detached-only.
+
 ## Notes for S08
 
 From review round 3, for the World built on this registry:
@@ -191,10 +197,12 @@ From review round 3, for the World built on this registry:
 - Const iteration (`hash() const`) and an atomic or worker-forbidden `iterationDepth` for nested views inside
   `parallelEach`; a flag predicate in `View` for `Simulated`; access to slot generations, states and the free list
   for saves (§15.1); the structural log hook in `destroy` (decide whether `Transform` is logged).
+- `Transform::visit` writes the fields without the change flags: decode into a temporary and apply through the setters
+  or `teleport` (loading, replication).
 
 ## Results
 
-- `tests/test_engine_ecs.cpp`: 26 tests pass (GCC 15), including 3 death tests that match the assert messages; the
+- `tests/test_engine_ecs.cpp`: 28 tests pass (GCC 15), including 3 death tests that match the assert messages; the
   binary layout is pinned (`VisitBinary.h`).
 - `tests/test_engine_ecs_benchmark.cpp` (GCC 15, RelWithDebInfo, i9 laptop; 10^5 entities with 3 components, ms):
   create 16.5, view<1> 0.47, view<Transform, 1> 0.86, view<3> 0.66, random read 1.56, remove + re-add on half 0.92,

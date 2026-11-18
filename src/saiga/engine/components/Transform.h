@@ -80,6 +80,9 @@ class Transform
     bool changedInLastStep() const { return changedLastStep != 0; }
     bool wasTeleported() const { return teleported != 0; }
 
+    // For detached copies only (saves, hashes, network decoding into a temporary): reading through visit writes the
+    // fields without the change flags. Applying a decoded pose to a live entity goes through the setters or teleport
+    // (S08/S16).
     template <class V>
     void visit(V& v)
     {

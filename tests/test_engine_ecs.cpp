@@ -334,6 +334,25 @@ TEST(Ecs, AddGetReadRemove)
     EXPECT_EQ(r.componentInfo(Inventory::id).version, 2u);
 }
 
+// Regression: add reserved the pool storage before constructing, which invalidated an argument that refers to another
+// component of the same pool when the pool was full
+TEST(Ecs, AddCopiesFromAComponentOfTheSamePool)
+{
+    Registry r;
+    registerTest(r);
+    std::vector<Entity> e;
+    for (int i = 0; i < 64; ++i)
+    {
+        e.push_back(r.create());
+        // Each add copies from the previous entity's component, also when the pool grows
+        if (i == 0)
+            r.add<Health>(e.back(), 1.0, 7.0);
+        else
+            r.add<Health>(e.back(), r.read<Health>(e[size_t(i - 1)]));
+    }
+    for (Entity x : e) EXPECT_EQ(r.read<Health>(x).maxHp, 7.0);
+}
+
 TEST(Ecs, DestroyRemovesAllComponentsAndSwapAndPopKeepsOthers)
 {
     Registry r;
@@ -419,6 +438,46 @@ TEST(EcsDeathTest, MisuseAsserts)
     EXPECT_DEATH(r.has<CopiedHealthId>(c), "registered as Health, not Mana");
     // A second component with an existing name (saves load by name)
     EXPECT_DEATH(r.registerComponent<SameNameAsHealth>(), "name Health is already used");
+}
+
+// A component whose destructor creates an entity in the same registry (reentrant structural change during destroy)
+Registry* g_reentrantRegistry = nullptr;
+struct CreatesOnDestruction
+{
+    static constexpr const char* name = "CreatesOnDestruction";
+    static constexpr ComponentId id   = 121;
+    static constexpr uint32_t version = 1;
+    bool armed                        = false;
+    CreatesOnDestruction()            = default;
+    CreatesOnDestruction(CreatesOnDestruction&& o) noexcept : armed(o.armed) { o.armed = false; }
+    CreatesOnDestruction& operator=(CreatesOnDestruction&& o) noexcept
+    {
+        armed   = o.armed;
+        o.armed = false;
+        return *this;
+    }
+    ~CreatesOnDestruction()
+    {
+        if (armed && g_reentrantRegistry) g_reentrantRegistry->create();
+    }
+    template <class V>
+    void visit(V&)
+    {
+    }
+};
+
+TEST(EcsDeathTest, CreateFromAComponentDestructorDuringDestroy)
+{
+    Registry r;
+    r.registerComponent<CreatesOnDestruction>();
+    g_reentrantRegistry = &r;
+    Entity e            = r.create();
+    r.add<CreatesOnDestruction>(e);
+    r.get<CreatesOnDestruction>(e).armed = true;
+    // Without the check, create() got the slot that destroy was freeing
+    EXPECT_DEATH(r.destroy(e), "while destroy removes the components");
+    r.get<CreatesOnDestruction>(e).armed = false;
+    g_reentrantRegistry                  = nullptr;
 }
 
 TEST(EcsDeathTest, StructuralChangeDuringIteration)
@@ -658,9 +717,17 @@ TEST(Ecs, VectorOfEmptyStructsRoundTrips)
     std::string error;
     ASSERT_TRUE(fromBytes(out, toBytes(h), &error)) << error;
     EXPECT_EQ(out.tags.size(), 3u);
-    // The count of zero-byte elements is capped (a corrupt count cannot allocate without bound)
+    // The count of zero-byte elements is capped (a corrupt count cannot allocate without bound); the largest accepted
+    // count round-trips, the writer refuses one more (death test below)
     std::vector<uint8_t> huge = {0, 0, 0, 0, 0, 1, 0, 0};
     EXPECT_FALSE(fromBytes(out, huge, &error));
+    h.tags.resize(size_t(kMaxEmptyElements));
+    ASSERT_TRUE(fromBytes(out, toBytes(h), &error)) << error;
+    EXPECT_EQ(out.tags.size(), size_t(kMaxEmptyElements));
+#ifdef SAIGA_ASSERTS
+    h.tags.resize(size_t(kMaxEmptyElements) + 1);
+    EXPECT_DEATH(toBytes(h), "more than kMaxEmptyElements");
+#endif
 }
 
 // Regression: a struct that contains itself through a vector (a tree) made the field check of registerComponent
@@ -704,7 +771,21 @@ TEST(Ecs, SelfContainingStructRegistersAndRoundTrips)
     Tree out;
     std::string error;
     ASSERT_TRUE(fromBytes(out, toBytes(t), &error)) << error;
+    ASSERT_EQ(out.root.children.size(), 2u);
+    ASSERT_EQ(out.root.children[1].children.size(), 1u);
     EXPECT_EQ(out.root.children[1].children[0].value, 4);
+
+    // A tree deeper than the reader's nesting limit is rejected instead of overflowing the stack
+    TreeNode deep;
+    TreeNode* n = &deep;
+    for (int i = 0; i < BinaryReader::kMaxDepth + 5; ++i)
+    {
+        n->children.resize(1);
+        n = &n->children[0];
+    }
+    TreeNode deepOut;
+    EXPECT_FALSE(fromBytes(deepOut, toBytes(deep), &error));
+    EXPECT_NE(error.find("nested deeper"), std::string::npos) << error;
 }
 
 TEST(Ecs, DescribeFields)

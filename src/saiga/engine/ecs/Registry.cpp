@@ -112,8 +112,10 @@ void Registry::destroy(Entity e)
     if (nextGeneration != 0) freeSlots.push_back(e.index);
     // Components in ID order (deterministic; the order matters for the structural log of S08). Cannot throw:
     // components have noexcept moves and the sparse pages exist.
+    destroying = true;
     for (size_t id = 1; id < kMaxComponents; ++id)
         if (s.mask.test(ComponentId(id))) pools[id]->remove(e.index);
+    destroying = false;
     s.mask.clear();
     s.state      = SlotState::Free;
     s.flags      = 0;
@@ -157,6 +159,9 @@ void Registry::checkNotIterating(const char* operation) const
     SAIGA_ASSERT(iterationDepth == 0, std::string(operation) +
                                           " while a view iterates (structural changes move "
                                           "components; use commands, S08)");
+    // A component destructor that changes the registry while destroy removes the components would get the slot that
+    // is being destroyed (it is already in the free list)
+    SAIGA_ASSERT(!destroying, std::string(operation) + " while destroy removes the components of an entity");
 }
 
 std::string Registry::describe(Entity e) const

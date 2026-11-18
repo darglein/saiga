@@ -91,12 +91,12 @@ class ComponentPool final : public PoolBase
     T& emplace(Entity e, A&&... args)
     {
         SAIGA_ASSERT(!has(e.index));
-        // Everything that can allocate happens before the first change: if anything throws (bad_alloc, the
-        // component's constructor), data, entities and the sparse pages stay consistent
+        // The sparse page and the entity array are prepared first; the append to data is the commit point. It has
+        // no effect if it throws (bad_alloc or the constructor; components have noexcept moves), so data, entities and
+        // the sparse pages stay consistent. data is not reserved ahead: the arguments may refer to another component
+        // of this pool (add<Health>(b, read<Health>(a))), and the insertion reads them before it reallocates.
         ensurePage(e.index);
         if (entities.size() == entities.capacity()) entities.reserve(2 * entities.size() + 1);
-        // data too: the component is constructed in place, existing components are only moved by a reallocation here
-        if (data.size() == data.capacity()) data.reserve(2 * data.size() + 1);
         uint32_t dense = uint32_t(data.size());
         if constexpr (std::is_constructible_v<T, A...>)
             data.emplace_back(std::forward<A>(args)...);

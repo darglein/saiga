@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Visit.h"
 
 #include <algorithm>
@@ -23,6 +24,12 @@ namespace Saiga
 {
 namespace Engine
 {
+// The largest count of a vector whose elements encode to zero bytes (empty structs): written and read as a count only
+constexpr uint64_t kMaxEmptyElements = 1 << 16;
+
+template <class T>
+size_t minEncodedSize();
+
 class BinaryWriter
 {
    public:
@@ -90,6 +97,9 @@ class BinaryWriter
         }
         else if constexpr (IsStdVector<T>::value)
         {
+            // The reader accepts at most kMaxEmptyElements elements that encode to zero bytes: never write more
+            SAIGA_ASSERT(v.size() <= kMaxEmptyElements || minEncodedSize<typename T::value_type>() != 0,
+                         "BinaryWriter: more than kMaxEmptyElements elements without bytes (the reader rejects them)");
             writeUnsigned(uint64_t(v.size()), 8);
             for (const auto& e : v) write(e);
         }
@@ -119,9 +129,6 @@ class BinaryWriter
 
 // Minimum number of bytes of one encoded value (bounds the allocation of a vector from its length field). Nested
 // structs are summed over their fields at run time.
-template <class T>
-size_t minEncodedSize();
-
 struct MinSizeVisitor
 {
     size_t sum = 0;
@@ -287,7 +294,15 @@ class BinaryReader
         }
         else if constexpr (IsVisitStruct<T>::value)
         {
+            // Bounded call depth for self-containing structs (a deep tree in untrusted input cannot overflow the stack)
+            if (depth >= kMaxDepth)
+            {
+                fail("nested deeper than " + std::to_string(kMaxDepth) + " structs");
+                return;
+            }
+            depth++;
             v.visit(*this);
+            depth--;
         }
         else
         {
@@ -295,8 +310,8 @@ class BinaryReader
         }
     }
 
-    // The largest count of a vector whose elements encode to zero bytes
-    static constexpr uint64_t kMaxEmptyElements = 1 << 16;
+    // The largest nesting of structs (self-containing structs such as trees)
+    static constexpr int kMaxDepth = 64;
 
     bool ok() const { return err.empty(); }
     const std::string& error() const { return err; }
@@ -332,6 +347,7 @@ class BinaryReader
     const uint8_t* data;
     size_t size;
     size_t pos = 0;
+    int depth  = 0;
     std::string err;
 };
 
