@@ -198,3 +198,44 @@ TEST(EcsBenchmark, WorldStepHundredThousandEntities)
     EXPECT_EQ(idle.registry().aliveCount(), uint32_t(n));
     EXPECT_EQ(moving.changedTransforms().size(), size_t(n));
 }
+
+// The spatial grid (S09, R-TEST-2): World::step with 10^5 entities spread over 2 km x 2 km moving at 20 m/s (the grid
+// updates every changed transform, some change cells), and 10^4 queryRadius calls of 50 m (about 60 hits each)
+TEST(EcsBenchmark, SpatialGridHundredThousandEntities)
+{
+    const int n = 100000;
+    WorldSetup setup;
+    setup.components = benchComponents;
+    setup.systems    = benchSystems;
+    World w(setup);
+    for (int i = 0; i < n; ++i)
+    {
+        Entity e = w.create();
+        w.get<Transform>(e).setPosition(
+            Vec3(w.random().uniform(-1000.0, 1000.0), 0, w.random().uniform(-1000.0, 1000.0)));
+        const double a = w.random().uniform(0.0, 6.283185307179586);
+        w.add<Velocity>(e, Vec3(20 * std::cos(a), 0, 20 * std::sin(a)));
+    }
+    w.step();
+    Timer t;
+    w.step(10);
+    double stepMs = t.ms() / 10;
+
+    std::vector<Entity> out;
+    size_t hits = 0;
+    t           = Timer();
+    for (int q = 0; q < 10000; ++q)
+    {
+        const Vec3 c(w.random().uniform(-1000.0, 1000.0), 0, w.random().uniform(-1000.0, 1000.0));
+        w.queryRadius(0, c, 50, ComponentMask(), out);
+        hits += out.size();
+    }
+    double queryMs = t.ms();
+
+    std::printf(
+        "ECS benchmark, spatial grid with %d moving entities: World::step %.3f ms, 10^4 queryRadius(50 m) %.3f ms "
+        "(%.1f hits per query)\n",
+        n, stepMs, queryMs, double(hits) / 10000);
+    EXPECT_EQ(w.spatialGrid().size(), size_t(n));
+    EXPECT_GT(hits, 0u);
+}
