@@ -91,10 +91,14 @@ void logPrintf(const char* category, const char* format, ...)
     if (!ok) message = std::string("(invalid log format: ") + format + ")";
 
     std::lock_guard<std::mutex> lock(logMutex());
-    // Into the ring first: the line is kept even if the echo throws (a stream with exceptions enabled)
-    std::string echoLine = echo ? "[" + oneLine(category) + "] " + oneLine(message) : std::string();
-    engineLog().add(category, std::move(message));
-    if (!echoLine.empty()) std::cout << echoLine << std::endl;
+    // Into the ring before anything else can throw (building or writing the echo): the line is kept either way
+    if (!echo)
+    {
+        engineLog().add(category, std::move(message));
+        return;
+    }
+    engineLog().add(category, message);
+    std::cout << "[" << oneLine(category) << "] " << oneLine(message) << std::endl;
 }
 
 }  // namespace Engine

@@ -146,6 +146,10 @@ All the tests above pass in CI on GCC, Clang and MSVC; `docs/engine_design.md` d
   build; `uniform(a, b)` handles intervals wider than DBL_MAX; `logPrintf` ends every `va_list` before allocating,
   checks the second `vsnprintf`, adds to the ring before the echo and escapes line breaks in the echo; `LogRing::add`
   commits the sequence number after the append. §8.5 updated. Tests: 25.
+- CodeRabbit, second pass: nested calls of the same pool from two chunks run at the same time (documented in
+  `JobPool.h` and §8.5); the log line is added to the ring before the echo is built; `uniform(a, b)` detects a wide
+  interval from the operands and computes it as `b * u + a * (1 - u)` (correct also with `-ffast-math`, checked with
+  GCC and Clang); two tests check before they index.
 
 ## Results
 

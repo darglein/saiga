@@ -10,6 +10,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <limits>
 
 namespace Saiga
 {
@@ -67,14 +68,15 @@ class Rng
     // [a, b) for a < b (a for a == b). std::fma: one rounding on every compiler and CPU (a * b + c may or may not be
     // contracted to an FMA instruction depending on the build, which changes the last bit). The result can round up
     // to b for u close to 1: then the largest double below b is returned. Finite intervals wider than DBL_MAX (b - a
-    // overflows) are computed at half scale.
+    // overflows) are computed as b * u + a * (1 - u), which never forms b - a; the overflow is detected from the
+    // operands, not with isinf (which -ffast-math, SAIGA_FAST_MATH, may fold to false).
     double uniform(double a, double b)
     {
         SAIGA_ASSERT(a <= b, "Rng::uniform: a > b");
         double u = uniform();
-        double w = b - a;
-        double r = std::isinf(w) && std::isfinite(a) && std::isfinite(b) ? 2.0 * std::fma(0.5 * b - 0.5 * a, u, 0.5 * a)
-                                                                         : std::fma(w, u, a);
+        // b - a > DBL_MAX only for a < 0 < b; a + DBL_MAX does not overflow for a < 0
+        bool wide = a < 0 && b > a + std::numeric_limits<double>::max();
+        double r  = wide ? std::fma(b, u, a * (1.0 - u)) : std::fma(b - a, u, a);
         return (r < b || a == b) ? r : std::nextafter(b, a);
     }
 

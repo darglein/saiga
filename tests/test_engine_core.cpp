@@ -50,13 +50,14 @@ TEST(JobPool, EveryIndexExactlyOnce)
                                  [&](int64_t b, int64_t e)
                                  {
                                      calls++;
-                                     // Fixed chunk boundaries
-                                     EXPECT_EQ((b - begin) % chunk, 0);
-                                     EXPECT_TRUE(e == end || e - b == chunk);
-                                     // Inside the range (a chunk past end would hit the padding slot of hits)
+                                     // Inside the range, checked before any arithmetic on the bounds (a chunk past
+                                     // end would hit the padding slot of hits)
                                      ASSERT_GE(b, begin);
                                      ASSERT_LT(b, e);
                                      ASSERT_LE(e, end);
+                                     // Fixed chunk boundaries
+                                     EXPECT_EQ((b - begin) % chunk, 0);
+                                     EXPECT_TRUE(e == end || e - b == chunk);
                                      for (int64_t i = b; i < e; ++i) hits[size_t(i - begin)]++;
                                  });
                 for (int64_t i = 0; i < n; ++i)
@@ -567,8 +568,10 @@ TEST(Log, SaigaLogFormatsIntoTheRing)
     EXPECT_EQ(lines[1].sequence, lines[0].sequence + 1);
     // The ring keeps line breaks (only the stdout echo escapes them)
     SAIGA_LOG("test", "first\nsecond");
-    EXPECT_EQ(engineLog().since(lines[1].sequence)[0].message, "first\nsecond");
+    auto multiline = engineLog().since(lines[1].sequence);
     setLogEcho(true);
+    ASSERT_EQ(multiline.size(), 1u);
+    EXPECT_EQ(multiline[0].message, "first\nsecond");
 }
 
 TEST(Log, ConcurrentLoggingLosesNothing)

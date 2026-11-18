@@ -28,7 +28,9 @@ namespace Engine
  * - 0 workers: the chunks run serially on the calling thread, in order.
  * - A parallelFor called from inside a chunk of the same pool (nested, also through other pools) runs serially on that
  *   thread (no deadlock). A chunk of another pool calls this pool normally.
- * - parallelFor calls from different threads are serialized (one job at a time).
+ * - parallelFor calls from different threads are serialized (one job at a time), except nested calls: two chunks of
+ *   the same job that call this pool again each run their nested chunks serially, but at the same time (do not rely on
+ *   the pool to serialize writes of nested calls).
  * - Not allowed: pools that call each other in a cycle from different threads (a chunk of pool B on one of B's workers
  *   calls pool A while A's caller waits for B): that deadlocks like any lock cycle. The engine has one frame pool.
  * - The chunk count must fit int64 (std::length_error otherwise, in every build); a wider range needs larger chunks.
