@@ -32,16 +32,16 @@ class Registry;
 class EventQueueBase
 {
    public:
-    EventQueueBase(EventId id, const char* name, Replicate mode, const char* typeName)
-        : id(id), name(name), replicate(mode), typeName(typeName)
+    EventQueueBase(EventId id, const char* name, Replicate mode, const std::type_info& type)
+        : id(id), name(name), replicate(mode), type(&type)
     {
     }
-    // The registered C++ type is E (typeid name: pointer equality first, strcmp across DLLs)
+    // The registered C++ type is E (std::type_info equality, see PoolBase::holds: across DLLs, and types in unnamed
+    // namespaces of different translation units are told apart)
     template <class E>
     bool holds() const
     {
-        const char* n = typeid(E).name();
-        return n == typeName || std::strcmp(n, typeName) == 0;
+        return *type == typeid(E);
     }
     virtual ~EventQueueBase() = default;
     // Pending -> readable (the previous readable events are dropped)
@@ -56,14 +56,14 @@ class EventQueueBase
     const EventId id;
     const char* const name;
     const Replicate replicate;
-    const char* const typeName;  // typeid(E).name(): the registered C++ type (checked before the downcast)
+    const std::type_info* const type;  // the registered C++ type (checked before the downcast)
 };
 
 template <class E>
 class EventQueue final : public EventQueueBase
 {
    public:
-    explicit EventQueue(Replicate mode) : EventQueueBase(E::id, E::name, mode, typeid(E).name()) {}
+    explicit EventQueue(Replicate mode) : EventQueueBase(E::id, E::name, mode, typeid(E)) {}
 
     void beginStep() override
     {

@@ -1369,6 +1369,17 @@ TEST(WorldDeathTest, EventLookalikeWithTheSameIdNameAndSize)
     World w(testSetup());
     EXPECT_DEATH(w.events.read<DamageEventLookalike>(), "another C\\+\\+ type");
 }
+
+// Defined in engine_world_second_tu.cpp: reads the DamageEvent of that translation unit's unnamed namespace
+size_t readDamageEventOfTheSecondTranslationUnit(World& w);
+
+// Regression: the check compared typeid names, which GCC gives equal to types of the same name in the unnamed
+// namespaces of two translation units; the other DamageEvent was accepted and downcast to the wrong type
+TEST(WorldDeathTest, EventOfTheSameNameInAnotherTranslationUnit)
+{
+    World w(testSetup());
+    EXPECT_DEATH(readDamageEventOfTheSecondTranslationUnit(w), "another C\\+\\+ type");
+}
 #endif
 
 // Without the SAIGA_ASSERTS guard: the check uses SAIGA_EXIT_ERROR, active in every build

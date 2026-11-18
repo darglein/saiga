@@ -151,6 +151,8 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_ecs.cpp "saiga_engine")
     saiga_test(test_engine_ecs_benchmark.cpp "saiga_engine")
     saiga_test(test_engine_world.cpp "saiga_engine")
+    # A second translation unit: types of the same name in unnamed namespaces (event type check)
+    target_sources(test_engine_world PRIVATE engine_world_second_tu.cpp)
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

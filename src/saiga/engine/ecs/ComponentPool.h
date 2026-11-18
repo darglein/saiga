@@ -38,18 +38,19 @@ class PoolBase
     static constexpr uint32_t kNone     = 0xFFFFFFFFu;
     static constexpr uint32_t kPageSize = 4096;
 
-    PoolBase(ComponentId id, const char* name, size_t elementSize, const char* typeName)
-        : id(id), name(name), elementSize(elementSize), typeName(typeName)
+    PoolBase(ComponentId id, const char* name, size_t elementSize, const std::type_info& type)
+        : id(id), name(name), elementSize(elementSize), type(&type)
     {
     }
 
-    // The registered C++ type is T (typeid name: pointer equality first, strcmp across DLLs, where the pointers
-    // differ). Checked before every downcast: two types with the same ID, name and size are told apart.
+    // The registered C++ type is T. Checked before every downcast: two types with the same ID, name and size are told
+    // apart. std::type_info equality, not the name: it works across the engine DLL (libstdc++ and MSVC compare the
+    // mangled names of types with external linkage) and tells apart types in unnamed namespaces of different
+    // translation units, whose typeid names are equal on GCC (libstdc++ compares those by address)
     template <class T>
     bool holds() const
     {
-        const char* n = typeid(T).name();
-        return n == typeName || std::strcmp(n, typeName) == 0;
+        return *type == typeid(T);
     }
     virtual ~PoolBase()                  = default;
     PoolBase(const PoolBase&)            = delete;
@@ -75,7 +76,7 @@ class PoolBase
     const ComponentId id;
     const char* const name;
     const size_t elementSize;
-    const char* const typeName;
+    const std::type_info* const type;
 
    protected:
     // Allocates the sparse page of the entity if needed (may throw; no other state changes)
@@ -104,7 +105,7 @@ template <class T>
 class ComponentPool final : public PoolBase
 {
    public:
-    ComponentPool() : PoolBase(T::id, T::name, sizeof(T), typeid(T).name()) {}
+    ComponentPool() : PoolBase(T::id, T::name, sizeof(T), typeid(T)) {}
 
     // Aggregates are brace-initialized (add<Health>(e, 50.0, 100.0)), other types use their constructor
     template <class... A>

@@ -187,15 +187,18 @@ API.
   slot promised to the outer one); `consume` rejects reentry for the same consumer; `rebuildHierarchyState` returns
   false without asserting for stale parents and also rejects cycles; `abortStep` runs the event restore and each
   release independently.
-- Event queues and component pools store `typeid(T).name()` and check it before every downcast (pointer equality,
-  `strcmp` across DLLs): two types with the same ID, name and size are told apart (the size check was not enough).
+- Event queues and component pools store `typeid(T)` and check it with `std::type_info` equality before every
+  downcast: two types with the same ID, name and size are told apart (the size check was not enough). Not the typeid
+  name: GCC gives types of the same name in the unnamed namespaces of two translation units the same name
+  (test `EventOfTheSameNameInAnotherTranslationUnit`, second translation unit `tests/engine_world_second_tu.cpp`);
+  libstdc++ and MSVC compare `type_info` across DLLs by the mangled name.
 - `abortStep` does not allocate: the registry's free list is a vector FIFO and `World::create` reserves the release
   capacity with each reserved entity; the event restore is a swap (the readable events become pending again, the
   aborted step's own events are dropped like its commands).
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 44 tests pass (GCC 15), incl. 10 death tests; `tests/test_engine_ecs.cpp`: 31 tests
+- `tests/test_engine_world.cpp`: 45 tests pass (GCC 15), incl. 11 death tests; `tests/test_engine_ecs.cpp`: 31 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).
