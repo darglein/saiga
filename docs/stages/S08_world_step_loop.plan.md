@@ -41,7 +41,7 @@ S07 (and S06: `JobPool`, `Rng`, `Hash`, logging).
 `src/saiga/engine/world/` (namespace `Saiga::Engine`):
 
 - `Phase.h`: `enum class Phase { Input = 1, Events, Behaviour, Gameplay, Physics, Transform, Streaming, Extract }`
-  (§8.1), `kPhaseCount`.
+  (§8.1), `Phase::None` between steps, `kFirstPhase`/`kLastPhase`.
 - `SystemList.h/.cpp`: `using SystemFn = void (*)(World&, double dt)`; `add(Phase, const char* name, SystemFn,
   RunOn = RunOn::Host)`; systems run per phase in registration order (engine list first). Names are unique.
 - `EventRegistry.h`, `EventQueues.h/.cpp`: events with `name`, `id` (`EventId`, `EngineEvent` 0..63, game 64..),
@@ -55,7 +55,7 @@ S07 (and S06: `JobPool`, `Rng`, `Hash`, logging).
   `Transform`, in ID order); consumers register (`addConsumer()` returns an index), read from their cursor
   (`consume(consumer, fn)`); at the end of every step the log is truncated up to the smallest cursor (everything if
   there are no consumers).
-- `Commands.h/.cpp` (engine-internal): during a step `create` reserves and returns the entity; `add` (on alive or
+- `Commands.h` (engine-internal): during a step `create` reserves and returns the entity; `add` (on alive or
   reserved entities), `remove` and `destroy` are recorded (the component value is moved into the command) and applied
   at the end of the phase in recording order; a reserved entity is activated (gets its `Transform`, the log record) when
   its create command is applied. `get`/`read`/`has` on a reserved entity assert until then.
@@ -93,9 +93,9 @@ Tests and docs:
 
 - Stable storage instead of reserving ahead: a `Transform&` handed to a view callback must survive a `create()` in the
   same callback (it reserves a slot); pages of 4096 never move.
-- The command buffer stores closures (`std::function<void(World&)>`); a component value is moved into the closure. The
-  order of application is the recording order; commands recorded while flushing (from engine callbacks) are applied in
-  the same flush.
+- The command buffer stores type-erased closures (`std::unique_ptr<Command>`, `ClosureCommand<F>`, so a move-only
+  component can be moved into it). The order of application is the recording order; changes made while a flush runs
+  apply immediately (nothing is recorded during a flush).
 - The structural log is written by `World` around the `Registry` calls (the `Registry` stays a plain store).
 - The hash walks the slots in index order (dense pool order depends on the history) and appends each saved component's
   bytes through `PoolBase::appendBytes`; free-list order is included because it decides future entity indices.
@@ -153,10 +153,18 @@ API.
 - §8.3: `droppedSteps()`, `step(n)` also when paused. §17.4: the exact hash content incl. the free list.
 - `RunOn::Client` systems do not run before S16 (the world is the host).
 - §3: a row for the world; the S08 row is done.
+- Review round 1: `add<Parent>` rejects cycles (asserts; refused without asserts) and a dead parent (asserts between
+  steps; during a flush the child is destroyed, like a child of a destroyed parent); `Parent` is read-only through
+  `World::get`/`tryGet` (`static_assert`; change it with remove + add); the destroy cascade uses one sorted
+  parent-to-children list and a visited set; a throwing system or command aborts the step (pending commands dropped,
+  reserved entities released, the step index does not advance, `hash()` asserts while commands are pending); teleports
+  made in phases 7 and 8 reach the children at the end of the step; `add`/`remove` during a step check the entity and
+  the component when recorded; `StructuralLog::removeConsumer`; `advance` ignores NaN, treats +inf as a long frame and
+  counts only the discarded whole steps. §7.4, §7.6 and §8.3 updated.
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 21 tests pass (GCC 15), incl. 4 death tests; `tests/test_engine_ecs.cpp`: 31 tests
+- `tests/test_engine_world.cpp`: 30 tests pass (GCC 15), incl. 6 death tests; `tests/test_engine_ecs.cpp`: 31 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).

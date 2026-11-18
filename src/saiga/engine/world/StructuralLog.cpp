@@ -19,12 +19,21 @@ namespace Engine
 int StructuralLog::addConsumer()
 {
     cursors.push_back(firstRecord + records.size());
+    active.push_back(true);
     return int(cursors.size()) - 1;
+}
+
+void StructuralLog::removeConsumer(int consumer)
+{
+    SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size() && active[consumer],
+                 "StructuralLog::removeConsumer: unknown consumer");
+    active[consumer] = false;
 }
 
 void StructuralLog::consume(int consumer, const std::function<void(const Record&)>& fn)
 {
-    SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size(), "StructuralLog::consume: unknown consumer");
+    SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size() && active[consumer],
+                 "StructuralLog::consume: unknown consumer");
     // Records appended by fn are consumed in this call too
     while (cursors[consumer] < firstRecord + records.size())
     {
@@ -36,14 +45,16 @@ void StructuralLog::consume(int consumer, const std::function<void(const Record&
 
 size_t StructuralLog::unread(int consumer) const
 {
-    SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size(), "StructuralLog::unread: unknown consumer");
+    SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size() && active[consumer],
+                 "StructuralLog::unread: unknown consumer");
     return size_t(firstRecord + records.size() - cursors[consumer]);
 }
 
 void StructuralLog::truncate()
 {
     uint64_t end = firstRecord + records.size();
-    for (uint64_t c : cursors) end = std::min(end, c);
+    for (size_t i = 0; i < cursors.size(); ++i)
+        if (active[i]) end = std::min(end, cursors[i]);
     size_t drop = size_t(end - firstRecord);
     records.erase(records.begin(), records.begin() + std::ptrdiff_t(drop));
     firstRecord = end;

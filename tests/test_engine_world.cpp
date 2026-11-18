@@ -16,6 +16,8 @@
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <limits>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -687,7 +689,9 @@ TEST(WorldDeathTest, ParallelEachForbidsCommandsEventsAndRandom)
         static void (*current)(World&, double) = nullptr;
         current                                = sys;
         WorldSetup s                           = testSetup([](SystemList& l) { l.add(Phase::Gameplay, "p", current); });
+        s.workerThreads                        = 4;  // the assert fires on a worker thread too
         World w(s);
+        for (int i = 0; i < 63; ++i) w.add<Health>(w.create());
         w.add<Health>(w.create());
         w.step();
     };
@@ -788,4 +792,223 @@ TEST(World, HashIsEqualForTwoRunsAndSensitiveToState)
     f.destroy(Entity{2, 0});
     f.destroy(Entity{1, 0});
     EXPECT_NE(e.hash(), f.hash());  // same alive set, different free-list order
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review round 1 regressions
+
+#ifdef SAIGA_ASSERTS
+// Regression: a Parent cycle made destroy loop forever; add<Parent> rejects cycles and dead parents
+TEST(WorldDeathTest, ParentCyclesAndDeadParentsAreRejected)
+{
+    World w(testSetup());
+    Entity a = w.create(), b = w.create(), c = w.create();
+    EXPECT_DEATH(w.add<Parent>(a, Parent{a}), "a cycle");
+    w.add<Parent>(b, Parent{a});
+    w.add<Parent>(c, Parent{b});
+    EXPECT_DEATH(w.add<Parent>(a, Parent{c}), "a cycle");
+    Entity dead = w.create();
+    w.destroy(dead);
+    Entity d = w.create();
+    EXPECT_DEATH(w.add<Parent>(d, Parent{dead}), "the parent is not alive");
+}
+
+TEST(WorldDeathTest, RecordTimeChecksOfAddAndRemove)
+{
+    auto run = [](void (*sys)(World&, double))
+    {
+        static void (*current)(World&, double) = nullptr;
+        current                                = sys;
+        World w(testSetup([](SystemList& l) { l.add(Phase::Gameplay, "s", current); }));
+        Entity e = w.create();
+        w.add<Health>(e);
+        w.step();
+    };
+    EXPECT_DEATH(run([](World& w, double) { w.remove<Health>(Entity{999, 0}); }), "the entity is not alive");
+    EXPECT_DEATH(run([](World& w, double) { w.remove<Velocity>(Entity{1, 0}); }), "does not have it");
+    EXPECT_DEATH(run([](World& w, double) { w.add<Health>(Entity{1, 0}); }), "already has it");
+}
+#endif
+
+namespace
+{
+Entity g_parentToKill, g_orphan;
+void sysDestroyParentThenAttach(World& w, double)
+{
+    if (w.stepIndex() != 0) return;
+    // In one phase: destroy P, then attach C to P. The flush destroys P first; C follows its parent.
+    w.destroy(g_parentToKill);
+    w.add<Parent>(g_orphan, Parent{g_parentToKill});
+}
+void orphanSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "orphan", sysDestroyParentThenAttach);
+}
+}  // namespace
+
+// Regression: the add<Parent> was applied with a destroyed parent and phase 6 aborted
+TEST(World, AttachingToAParentDestroyedInTheSameFlushDestroysTheChild)
+{
+    World w(testSetup(orphanSystems));
+    g_parentToKill = w.create();
+    g_orphan       = w.create();
+    Entity other   = w.create();
+    w.step();
+    EXPECT_FALSE(w.alive(g_parentToKill));
+    EXPECT_FALSE(w.alive(g_orphan));
+    EXPECT_TRUE(w.alive(other));
+}
+
+namespace
+{
+Entity g_root;
+void sysDestroyRootInFlush(World& w, double)
+{
+    if (w.stepIndex() == 1) w.destroy(g_root);
+}
+void cascadeSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "cascade", sysDestroyRootInFlush);
+}
+}  // namespace
+
+TEST(World, DestroyCascadeDuringAFlush)
+{
+    World w(testSetup(cascadeSystems));
+    g_root = w.create();
+    std::vector<Entity> chain{g_root};
+    for (int i = 0; i < 50; ++i)
+    {
+        Entity c = w.create();
+        w.add<Parent>(c, Parent{chain.back()});
+        chain.push_back(c);
+    }
+    Entity sibling = w.create();
+    w.add<Parent>(sibling, Parent{g_root});
+    Entity unrelated = w.create();
+    w.step(2);
+    for (Entity e : chain) EXPECT_FALSE(w.alive(e));
+    EXPECT_FALSE(w.alive(sibling));
+    EXPECT_TRUE(w.alive(unrelated));
+    EXPECT_EQ(w.registry().aliveCount(), 1u);
+}
+
+namespace
+{
+bool g_throw = false;
+void sysCreateThenThrow(World& w, double)
+{
+    w.create();
+    w.add<Health>(w.create(), 5.0);
+    if (g_throw) throw std::runtime_error("system failed");
+}
+void throwingSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "throws", sysCreateThenThrow);
+}
+}  // namespace
+
+// Regression: a throwing system left its reserved entities and commands, applied in the next step
+TEST(World, AThrowingSystemLeavesTheWorldUsable)
+{
+    World w(testSetup(throwingSystems));
+    g_throw = true;
+    EXPECT_THROW(w.step(), std::runtime_error);
+    EXPECT_FALSE(w.inStep());
+    EXPECT_EQ(w.stepIndex(), 0u);
+    EXPECT_EQ(w.registry().aliveCount(), 0u);  // the reserved entities were released
+    uint64_t h = w.hash();                     // allowed again (no pending commands)
+    g_throw    = false;
+    w.step();
+    EXPECT_EQ(w.registry().aliveCount(), 2u);  // only this step's two entities
+    EXPECT_NE(w.hash(), h);
+}
+
+namespace
+{
+Entity g_lateParent;
+void sysTeleportInExtract(World& w, double)
+{
+    if (w.stepIndex() == 1) w.get<Transform>(g_lateParent).teleport(Vec3(100, 0, 0), Quat::Identity());
+}
+void lateTeleportSystems(SystemList& s)
+{
+    s.add(Phase::Extract, "late_teleport", sysTeleportInExtract);
+}
+}  // namespace
+
+// Regression: a teleport in phase 7/8 (after the hierarchy update) did not reach the children
+TEST(World, LateTeleportReachesTheChildren)
+{
+    World w(testSetup(lateTeleportSystems));
+    g_lateParent = w.create();
+    Entity child = w.create();
+    w.add<Parent>(child, Parent{g_lateParent});
+    w.step(2);
+    // The child jumped in the same step (and is flagged as teleported for that step's extract)
+    EXPECT_EQ(w.read<Transform>(child).position(), Vec3(100, 0, 0));
+    EXPECT_TRUE(w.read<Transform>(child).changedInLastStep());
+}
+
+TEST(World, RemovedConsumersDoNotHoldTheLog)
+{
+    World w(testSetup());
+    StructuralLog& log = w.structuralLog();
+    int a              = log.addConsumer();
+    for (int i = 0; i < 5; ++i) w.create();
+    w.step();
+    EXPECT_EQ(log.size(), 5u);
+    log.removeConsumer(a);
+    w.step();
+    EXPECT_EQ(log.size(), 0u);
+}
+
+TEST(World, AdvanceIgnoresNanAndCapsInfinity)
+{
+    World w(testSetup());
+    w.advance(std::nan(""));
+    EXPECT_EQ(w.stepIndex(), 0u);
+    w.advance(w.dt() * 1.5);
+    EXPECT_EQ(w.stepIndex(), 1u);
+    EXPECT_FALSE(std::isnan(w.alpha()));
+    w.advance(std::numeric_limits<double>::infinity());
+    EXPECT_EQ(w.stepIndex(), 5u);  // at most 4 steps, the rest dropped
+    EXPECT_GE(w.alpha(), 0.0);
+    EXPECT_LT(w.alpha(), 1.0);
+    // Dropped: exactly the whole steps beyond the 4 (not one more for the kept fraction)
+    World v(testSetup());
+    v.advance(v.dt() * 6.5);
+    EXPECT_EQ(v.stepIndex(), 4u);
+    EXPECT_EQ(v.droppedSteps(), 1u);
+}
+
+namespace
+{
+std::atomic<int> g_nested{0};
+void sysNestedViewOnWorkers(World& w, double)
+{
+    w.view<const Health>().parallelEach(
+        [&](Entity, const Health&) { g_nested += int(w.viewAll<const Velocity>().count()); }, 1);
+}
+void nestedSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "nested", sysNestedViewOnWorkers);
+}
+}  // namespace
+
+TEST(World, NestedViewsInsideParallelEachOnWorkers)
+{
+    WorldSetup s    = testSetup(nestedSystems);
+    s.workerThreads = 4;
+    World w(s);
+    for (int i = 0; i < 64; ++i)
+    {
+        Entity e = w.create();
+        w.add<Health>(e);
+        if (i < 3) w.add<Velocity>(e);
+    }
+    g_nested = 0;
+    w.step();
+    EXPECT_EQ(g_nested.load(), 64 * 3);
+    EXPECT_FALSE(w.registry().iterating());
 }

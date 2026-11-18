@@ -79,14 +79,18 @@ class SAIGA_ENGINE_API World
     void add(Entity e, A&&... args);
     template <class T>
     void remove(Entity e);
+    // Parent is read-only through the World: change it with remove + add (the hierarchy order and the cycle check
+    // depend on it)
     template <class T>
     T& get(Entity e)
     {
+        static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
         return reg.get<T>(e);
     }
     template <class T>
     T* tryGet(Entity e)
     {
+        static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
         return reg.tryGet<T>(e);
     }
     template <class T>
@@ -173,6 +177,13 @@ class SAIGA_ENGINE_API World
     void checkNotParallel(const char* operation) const;
 
     void activateNow(Entity e);
+    // add<Parent>: false if the child was destroyed because its parent is gone (during a flush); asserts between steps
+    // for a dead parent and always for a cycle
+    bool acceptParent(Entity child, Entity parent);
+    // On an exception in a step: drops the pending commands and releases the entities they would have activated
+    void abortStep();
+    // After phase 8: children of parents teleported in phases 7 and 8 (after the hierarchy update) are teleported too
+    void propagateLateTeleports();
     void destroyNow(Entity e);
     template <class T>
     void addNow(Entity e, T&& value);
@@ -194,6 +205,7 @@ class SAIGA_ENGINE_API World
     JobPool pool;
     Rng rng;
     std::vector<std::unique_ptr<Command>> commands;
+    std::vector<Entity> pendingReserved;  // reserved by create() since the last flush
     std::vector<uint32_t> changed;
 
     WorldConfig config;
@@ -216,6 +228,9 @@ void World::add(Entity e, A&&... args)
     if (deferring())
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("add<") + T::name + ">: the entity is not alive");
+        // Checked when recorded, so the failure names the system's call (an alive entity can still lose T before the
+        // flush; then add applies normally)
+        if (reg.alive(e)) SAIGA_ASSERT(!reg.has<T>(e), std::string("add<") + T::name + ">: the entity already has it");
         record(makeCommand([e, v = makeComponent<T>(std::forward<A>(args)...)](World& w) mutable
                            { w.addNow<T>(e, std::move(v)); }));
         return;
@@ -229,6 +244,9 @@ void World::remove(Entity e)
     checkNotParallel("remove");
     if (deferring())
     {
+        SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("remove<") + T::name + ">: the entity is not alive");
+        if (reg.alive(e))
+            SAIGA_ASSERT(reg.has<T>(e), std::string("remove<") + T::name + ">: the entity does not have it");
         record(makeCommand([e](World& w) { w.removeNow<T>(e); }));
         return;
     }
@@ -240,6 +258,11 @@ void World::addNow(Entity e, T&& value)
 {
     // A command on an entity destroyed earlier in the same flush is dropped
     if (flushing && !reg.alive(e)) return;
+    if constexpr (T::id == ComponentId(EngineComponent::Parent))
+    {
+        // A parent that is gone: the child follows it (destroyed); a cycle asserts
+        if (!acceptParent(e, value.entity)) return;
+    }
     reg.add<T>(e, std::move(value));
     log.append(e, T::id, true);
     if constexpr (T::id == ComponentId(EngineComponent::Parent)) hierarchyDirty = true;

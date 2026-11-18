@@ -430,8 +430,10 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
 - `World::moveToSpace(e, space, position, rotation)` moves an entity and its descendants to another space (a teleport:
   the body moves to the other space's physics system, grid and interest are re-evaluated).
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
-  its descendants changed. Destroying a parent destroys its children. Physics bodies only on roots; children with
-  colliders are kinematic (§11).
+  its descendants changed. Destroying a parent destroys its children. `add<Parent>` rejects cycles and a dead parent
+  (between steps an assert; during a flush the child is destroyed, like the child of a destroyed parent); `Parent` is
+  read-only through the World (change it with remove + add). A teleport made in phases 7 or 8 reaches the children at
+  the end of the step (S08). Physics bodies only on roots; children with colliders are kinematic (§11).
 
 ### 7.5 Views
 
@@ -482,11 +484,14 @@ Health& w = world.get<Health>(e);          // write access
 
 S08 implementation (`engine/world/World.h`, `Commands.h`, `StructuralLog.h`): `create()` during a step reserves a slot
 (`Registry::reserve`; slots and `Transform`s live in stable pages, so this never moves a `Transform` a view callback
-holds); `add` on a reserved entity is a command too; commands are type-erased closures (a component value is moved
-into its command) applied in recording order after every phase; commands on an entity destroyed earlier in the same
-flush are dropped (e.g. a second `destroy`, or one after the parent's). Creating an entity logs a `Transform` record;
-destroying it logs one removed record per component in ID order (`Transform` first). Consumers:
-`structuralLog().addConsumer()`, `consume(consumer, fn)`, `unread(consumer)`.
+holds); `add` on a reserved entity is a command too; commands are type-erased closures (a component value is moved into
+its command) applied in recording order after every phase; commands on an entity destroyed earlier in the same flush are
+dropped (e.g. a second `destroy`, or one after the parent's); `add`/`remove` check the entity and the component when
+recorded. A system or command that throws aborts the step: the pending commands are dropped, the reserved entities
+released, the step index does not advance (the changes of the finished phases remain). Creating an entity logs a
+`Transform` record; destroying it logs one removed record per component in ID order (`Transform` first). Consumers:
+`structuralLog().addConsumer()`, `consume(consumer, fn)`, `unread(consumer)`, `removeConsumer(consumer)` (a consumer
+that stops reading must be removed, or the log grows).
 
 ### 7.7 Events [exists: S08]
 
@@ -848,7 +853,9 @@ class EngineApp   // engine/app/EngineApp.h
 ```
 - `World::advance(frameDt)`: accumulator += `frameDt * timeScale`; runs whole steps, at most 4; then drops the remaining
   backlog (`accumulator = min(accumulator, 0.999 * dt)`, counted in `droppedSteps()`), so `alpha = accumulator / dt` is
-  in [0, 1). When paused: no steps. `world.step(n)` runs exactly n steps (also when paused). [exists: S08]
+  in [0, 1). When paused: no steps. `world.step(n)` runs exactly n steps (also when paused). A NaN frame time is
+  ignored,
++inf counts as a long frame. [exists: S08]
 
 ### 8.4 Ticking game objects [planned: S10]
 

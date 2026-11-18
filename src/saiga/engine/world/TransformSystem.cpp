@@ -28,8 +28,10 @@ int depthOf(World& w, Entity e)
     while (const Parent* p = w.tryRead<Parent>(e))
     {
         depth++;
+        // add<Parent> rejects cycles and dead parents; these stops keep phase 6 finite without asserts
         SAIGA_ASSERT(depth < 1000, "Transform hierarchy: a Parent cycle (or deeper than 1000 levels)");
         SAIGA_ASSERT(w.alive(p->entity), "Transform hierarchy: a Parent refers to a destroyed entity");
+        if (depth >= 1000 || !w.alive(p->entity)) break;
         e = p->entity;
     }
     return depth;

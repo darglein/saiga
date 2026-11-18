@@ -40,6 +40,8 @@ class SAIGA_ENGINE_API StructuralLog
 
     // A new consumer starts at the current end of the log
     int addConsumer();
+    // A consumer that stops reading (a replaced render sink, a disconnected peer) must be removed, or the log grows
+    void removeConsumer(int consumer);
     // Calls fn for every record after the consumer's cursor, in order, and moves the cursor to the end
     void consume(int consumer, const std::function<void(const Record&)>& fn);
     // Number of records the consumer has not read yet
@@ -53,6 +55,7 @@ class SAIGA_ENGINE_API StructuralLog
     std::deque<Record> records;
     uint64_t firstRecord = 0;       // absolute number of records[0]
     std::vector<uint64_t> cursors;  // absolute position of each consumer
+    std::vector<bool> active;       // removed consumers keep their index, not their cursor
 };
 
 }  // namespace Engine
