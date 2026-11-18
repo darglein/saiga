@@ -1931,9 +1931,9 @@ void registerTestScenarios(ScenarioList& s)
   `tests/` (e.g. `Wanderer` of S12) and run in `tests/test_engine_scenarios.cpp` as a value-parameterized gtest over the
   scenario list x variants. Games are samples (`samples/games/<name>/`, §18.1); their scenarios
   (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (from S13;
-  headless, exit code 0 if at least one scenario ran and all pass, else 1 (also for a filter that matches nothing), the
-  failure count is printed) or `run_scenario` (MCP), not in ctest; a stage that changes a game runs them locally and
-  reports the result in the pull request.
+  headless, exit code 0 if at least one scenario ran and all pass, else 1 (a filter that matches nothing prints `no
+  scenarios matched`), the failure count is printed) or `run_scenario` (MCP), not in ctest; a stage that changes a game
+  runs them locally and reports the result in the pull request.
 
 ### 17.3 Multiplayer variant [planned: S16]
 
