@@ -114,11 +114,11 @@ automatically.
 
 **Verification**
 
-- **R-TEST-1** (from S12 for scenarios, now for the rest) The saiga tests (`tests/`) test the engine, not the games
-  (samples). Every engine gameplay mechanism has an engine scenario with test-only game objects (§17.2), every game
-  feature a game scenario (`--scenarios`, run locally); every engine feature a unit test; every render feature a
-  headless Vulkan test, and a golden image if it changes the image (§17.6; golden images start with S02, the S01
-  prototype tests check pixel relations only).
+- **R-TEST-1** (from S12 for engine scenarios, S13 for game scenarios, now for the rest) The saiga tests (`tests/`) test
+  the engine, not the games (samples). Every engine gameplay mechanism has an engine scenario with test-only game
+  objects (§17.2), every game feature a game scenario (`--scenarios`, run locally); every engine feature a unit test;
+  every render feature a headless Vulkan test, and a golden image if it changes the image (§17.6; golden images start
+  with S02, the S01 prototype tests check pixel relations only).
 - **R-TEST-2** (from S03) Changes under `engine/ecs/`, `engine/sync/`, `engine/net/`, `RenderScene`, culling, terrain,
   streaming or physics are performance relevant: run the relevant benchmarks before and after and report the numbers
   (ECS: `tests/test_engine_ecs_benchmark.cpp`; rendering, terrain, streaming: `--benchmark`, §17.7); they must stay
@@ -731,7 +731,8 @@ The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it d
 
 `main` fills `EngineAppSetup` from the command line (`--headless`, `--benchmark <name>`, `--screenshot <file>` after
 N frames, `--width/--height`, `--validation`, `--no-vsync`, `--scenarios [filter]`: run the game's scenarios with
-their variants headless and exit with the number of failures, §17.2) and `SAIGA_MCP_PORT`; there is no `config.ini`.
+their variants headless, print the failures and their count, exit with 0 if all pass and 1 otherwise, §17.2) and
+`SAIGA_MCP_PORT`; there is no `config.ini`.
 
 - **One frame** (`EngineApp::frame()`):
   1. poll window events and input (GLFW; nothing when headless);
@@ -1928,9 +1929,9 @@ void registerTestScenarios(ScenarioList& s)
 - The saiga tests test the engine only: engine scenarios use small test-only game objects and systems defined in
   `tests/` (e.g. `Wanderer` of S12) and run in `tests/test_engine_scenarios.cpp` as a value-parameterized gtest over the
   scenario list x variants. Games are samples (`samples/games/<name>/`, §18.1); their scenarios
-  (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (headless, exit
-  code = failures) or `run_scenario` (MCP), not in ctest; a stage that changes a game runs them locally and reports the
-  result in the pull request.
+  (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (from S13;
+  headless, exit code 0 if all pass, else 1, the failure count is printed) or `run_scenario` (MCP), not in ctest; a
+  stage that changes a game runs them locally and reports the result in the pull request.
 
 ### 17.3 Multiplayer variant [planned: S16]
 

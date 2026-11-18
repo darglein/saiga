@@ -84,7 +84,11 @@ jobs:
           GTEST_OUTPUT: xml:${{ github.workspace }}/build/gtest_xml/
         run: |
           ctest --output-on-failure --parallel 4
-          if grep -l 'result="skipped"' gtest_xml/*.xml; then echo "skipped tests (see the files above)"; exit 1; fi
+          # grep: 0 = skipped cases found, 1 = none, 2 = a report could not be read (fails too)
+          compgen -G 'gtest_xml/*.xml' > /dev/null || { echo "no gtest reports"; exit 1; }
+          rc=0; grep -l 'result="skipped"' gtest_xml/*.xml || rc=$?
+          if [ "$rc" -eq 0 ]; then echo "skipped tests (see the files above)"; exit 1; fi
+          if [ "$rc" -ne 1 ]; then echo "could not scan the gtest reports"; exit 1; fi
 
       # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
       # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
@@ -152,6 +156,9 @@ jobs:
         run: |
           grep -q "define SAIGA_USE_VULKAN" build/include/saiga/saiga_modules.h
           grep -q "define SAIGA_USE_ENGINE" build/include/saiga/saiga_modules.h
+          # The headless OpenGL tests need EGL (without it they are not registered at all)
+          grep -q "define SAIGA_USE_OPENGL" build/include/saiga/saiga_modules.h
+          grep -q "define SAIGA_USE_EGL" build/include/saiga/saiga_modules.h
 
       - name: Build
         run: cmake --build build --parallel -- -k 0
@@ -171,7 +178,11 @@ jobs:
           GTEST_OUTPUT: xml:${{ github.workspace }}/build/gtest_xml/
         run: |
           ctest --output-on-failure --parallel 4
-          if grep -l 'result="skipped"' gtest_xml/*.xml; then echo "skipped tests (see the files above)"; exit 1; fi
+          # grep: 0 = skipped cases found, 1 = none, 2 = a report could not be read (fails too)
+          compgen -G 'gtest_xml/*.xml' > /dev/null || { echo "no gtest reports"; exit 1; }
+          rc=0; grep -l 'result="skipped"' gtest_xml/*.xml || rc=$?
+          if [ "$rc" -eq 0 ]; then echo "skipped tests (see the files above)"; exit 1; fi
+          if [ "$rc" -ne 1 ]; then echo "could not scan the gtest reports"; exit 1; fi
 
       # The metrics of the golden comparisons (also of passing runs), to see how far CI's Mesa is from the goldens.
       # Read from ctest's log (ctest hides the output of passing tests), so nothing is rendered twice.
