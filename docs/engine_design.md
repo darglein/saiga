@@ -1959,14 +1959,14 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
 - On a gating failure (also a missing, unreadable or differently sized golden) `golden_failed/<name>_actual.png` and
   `_diff.png` (only when the golden can be compared) are written to the working directory
   (`build/tests/` under ctest, git-ignored; a passing comparison removes stale ones); CI uploads them (`actions/upload-artifact`, `if: failure()`, artifact
-  `golden-failed`; the actual images are saved like goldens) and prints the metrics of every run from ctest's log (step
+  `golden-failed-<job>`; the actual images are saved like goldens) and prints the metrics of every run from ctest's log (step
   "Golden image metrics"). The committed goldens are rendered by a local lavapipe (Mesa with LLVM 21.1.8); CI's
   lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the tolerance (reference margin, run
   43754502053: `world_overview` mean 0.005/255, 0.011% of the pixels > 16/255; `world_forest` mean 0.14/255, 0.19%); a
   Mesa update on the CI runner may need the regeneration from the CI artifact below.
   Goldens are only written on lavapipe, in a dedicated commit: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
   SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world --gtest_filter='VulkanWorldGolden.*'` (it writes the PNGs
-  instead of comparing), then the printed `trees per lod` counts are copied into the `ExpectCounts` calls. If CI fails after a Mesa update, the goldens and the committed counts are taken from the failed
+  instead of comparing and does not check the counts), then the printed `trees per lod` counts are copied into the `ExpectCounts` calls. If CI fails after a Mesa update, the goldens and the committed counts are taken from the failed
   run: the `_actual.png` images of the artifact (it exists only for a run whose comparison failed) and the
   `trees per lod` lines of the step "Golden image metrics", and the Mesa/LLVM versions named here and in AGENTS.md are
   updated (the goldens then come from CI's lavapipe); the exact commands are in AGENTS.md.

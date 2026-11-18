@@ -24,6 +24,13 @@ inline bool goldenGating(const std::string& deviceName)
     return deviceName.find("llvmpipe") != std::string::npos;
 }
 
+// SAIGA_UPDATE_GOLDEN=1: compareGolden writes the goldens instead of comparing (lavapipe only)
+inline bool goldenUpdateMode()
+{
+    const char* update = std::getenv("SAIGA_UPDATE_GOLDEN");
+    return update && std::string(update) == "1";
+}
+
 // Saves an RGBA image as 8-bit grayscale if it is gray and opaque, else as RGBA
 inline bool saveGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, const std::string& file)
 {
@@ -100,10 +107,10 @@ inline GoldenLoad loadGolden(const std::string& file, Saiga::TemplatedImage<Saig
  * The comparison gates (adds a gtest failure) only on lavapipe, whose device name contains "llvmpipe"; the goldens are
  * rendered there, other drivers (GPUs) differ slightly and only print the metrics. On a gating failure
  * golden_failed/<name>_actual.png and golden_failed/<name>_diff.png are written to the working directory (build/tests/
- * under ctest; CI uploads that directory as the artifact "golden-failed"); a passing gating comparison removes stale
- * ones. With SAIGA_UPDATE_GOLDEN=1 the
- * image is written as the new golden instead (only on lavapipe). Clay goldens are gray: they are stored as 8-bit
- * grayscale PNGs when every pixel has R = G = B and alpha 255 (about half the size), else as RGBA.
+ * under ctest; CI uploads that directory as the artifact "golden-failed-<job>"); a passing gating comparison removes
+ * stale ones. With SAIGA_UPDATE_GOLDEN=1 the image is written as the new golden instead (only on lavapipe). Clay
+ * goldens are gray: they are stored as 8-bit grayscale PNGs when every pixel has R = G = B and alpha 255 (about half
+ * the size), else as RGBA.
  *
  * Returns false only on a gating failure (a mismatch, a missing golden or a failed update on lavapipe); on other
  * devices it returns true and only prints.
@@ -117,8 +124,7 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
     const bool gating   = goldenGating(deviceName);
     const fs::path file = fs::path(SAIGA_PROJECT_SOURCE_DIR) / "data/tests/golden" / (name + ".png");
 
-    const char* update = std::getenv("SAIGA_UPDATE_GOLDEN");
-    if (update && std::string(update) == "1")
+    if (goldenUpdateMode())
     {
         if (!gating)
         {
@@ -143,7 +149,7 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
         std::error_code ec;
         fs::create_directories("golden_failed", ec);
         if (ec) ADD_FAILURE() << "could not create golden_failed/: " << ec.message();
-        saveGolden(image, actualFile.string());
+        if (!saveGolden(image, actualFile.string())) ADD_FAILURE() << "could not write " << actualFile;
         // A diff of an earlier failure would not belong to this image
         fs::remove(diffFile, ec);
     };
@@ -224,7 +230,7 @@ inline bool compareGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, con
     if (!pass && gating)
     {
         writeActual();
-        diff.save(diffFile.string());
+        if (!diff.save(diffFile.string())) ADD_FAILURE() << "could not write " << diffFile;
         ADD_FAILURE() << "golden " << name << " differs: mean abs diff " << meanAbs << "/255 (limit 1), "
                       << largeFraction * 100 << "% of the pixels > 16/255 (limit 0.5%); see "
                       << fs::absolute("golden_failed", ec).string();

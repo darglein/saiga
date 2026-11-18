@@ -341,7 +341,8 @@ class VulkanWorldGolden : public VulkanWorldRender
         auto& st = world.stats();
         std::cout << name << " trees per lod: " << st.treesVisible[0] << " " << st.treesVisible[1] << " "
                   << st.treesVisible[2] << ", terrain nodes " << st.terrainNodes << std::endl;
-        if (!goldenGating(deviceName())) return;
+        // Not checked while the goldens are regenerated: the printed counts replace the committed ones
+        if (!goldenGating(deviceName()) || goldenUpdateMode()) return;
         EXPECT_EQ(st.treesVisible[0], lod0);
         EXPECT_EQ(st.treesVisible[1], lod1);
         EXPECT_EQ(st.treesVisible[2], lod2);

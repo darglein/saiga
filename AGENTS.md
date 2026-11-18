@@ -171,17 +171,17 @@ ctest -R test_core_ini --output-on-failure             # one test
 - **Golden images** (`tests/golden_image.h`, `compareGolden`; PNGs in `data/tests/golden/`): a render test compares its
   image with a golden; the comparison (and the committed counts of the world goldens) gates only on lavapipe (device
   name `llvmpipe`), other devices print the metrics. A gating failure writes `golden_failed/<name>_actual.png` and
-  `_diff.png` (the diff only when a readable golden of the same size exists) into the working directory (`build/tests/` under ctest; CI uploads them as the artifact `golden-failed` and
+  `_diff.png` (the diff only when a readable golden of the same size exists) into the working directory (`build/tests/` under ctest; CI uploads them as the artifact `golden-failed-<job>`, e.g. `golden-failed-ubuntu`, and
   prints the metrics of every run in the step "Golden image metrics"). The committed goldens are rendered by a local
   lavapipe (Mesa with LLVM 21.1.8); CI's lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the
   tolerance (run 43754502053: `world_forest` mean 0.14/255, 0.19% of the pixels > 16/255; a Mesa update on the CI
   runner may need the recipe below). Create or update goldens only on lavapipe, in a dedicated commit:
   `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world
-  --gtest_filter='VulkanWorldGolden.*'` (the goldens are written to the source tree, gray images as 8-bit grayscale
+  --gtest_filter='VulkanWorldGolden.*'` (the counts are not checked in this run; the goldens are written to the source tree, gray images as 8-bit grayscale
   PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_vulkan_world.cpp`.
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
-  `gh run download <run-id> -n golden-failed -D /tmp/golden`, then
+  `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then
   `for f in /tmp/golden/*_actual.png; do cp "$f" data/tests/golden/$(basename "$f" _actual.png).png; done`, and copy
   the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
   `tests/test_vulkan_world.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
