@@ -74,6 +74,12 @@ class BinaryWriter
             writeUnsigned(v ? 1 : 0, 1);
         else if constexpr (isInteger<T>)
             writeUnsigned(uint64_t(v), sizeof(T));
+        else if constexpr (std::is_enum_v<T>)
+        {
+            // Only reachable for a component that registration rejects (enums need EnumNames, checkFieldType); encoded
+            // like a named enum so the type check reports the real problem (MSVC stops at the first static_assert)
+            writeUnsigned(uint64_t(int64_t(v)), 8);
+        }
         else if constexpr (std::is_same_v<T, double>)
         {
             uint64_t bits;
@@ -192,6 +198,8 @@ size_t minEncodedSize()
         return 1;
     else if constexpr (isInteger<T> || std::is_same_v<T, double> || std::is_same_v<T, float>)
         return sizeof(T);
+    else if constexpr (std::is_enum_v<T>)
+        return 8;
     else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, Entity> || std::is_same_v<T, PersistentId> ||
                        IsStdVector<T>::value)
         return 8;
@@ -264,6 +272,12 @@ class BinaryReader
         {
             uint64_t x = readUnsigned(sizeof(T));
             if (!failed()) v = T(x);
+        }
+        else if constexpr (std::is_enum_v<T>)
+        {
+            // See BinaryWriter: only for components that registration rejects
+            uint64_t x = readUnsigned(8);
+            if (!failed()) v = T(int64_t(x));
         }
         else if constexpr (std::is_same_v<T, double>)
         {
