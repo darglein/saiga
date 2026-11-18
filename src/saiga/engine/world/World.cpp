@@ -161,6 +161,7 @@ void World::runStepListeners()
     std::vector<std::pair<int, std::function<bool()>>> current;
     current.swap(stepListeners);
     removedStepListeners.clear();
+    dispatchingStepListeners = true;
     std::exception_ptr first;
     for (auto& l : current)
     {
@@ -176,6 +177,7 @@ void World::runStepListeners()
         }
     }
     removedStepListeners.clear();
+    dispatchingStepListeners = false;
     if (first) std::rethrow_exception(first);
 }
 

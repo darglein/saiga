@@ -10,6 +10,7 @@
 
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/api/WorldApi.h"
+#include "saiga/engine/core/Profiler.h"
 #include "saiga/engine/world/World.h"
 
 #include <charconv>
@@ -248,6 +249,15 @@ void formatExact(const Json& j, std::string& out)
     }
 }
 
+// The profile of the last n samples of a measurement; n = 0 is an empty window (Profiler::report(0) means the whole
+// history)
+Json measurementReport(const Profiler& p, uint64_t n)
+{
+    if (n > 0) return p.report(int(n));
+    return Json::object{
+        {"unit", "ms"}, {"samples", 0}, {"top", Json::array{}}, {"scopes", Json::array{}}, {"counters", Json::array{}}};
+}
+
 std::string exactJson(const Json& j)
 {
     std::string out;
@@ -329,7 +339,15 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     w.step();
                     ran++;
                 }
-                return respond(ToolResult::Text(exactJson(w.profiler().report(ran))));
+                Json report = measurementReport(w.profiler(), uint64_t(ran));
+                if (ran < int(n))
+                {
+                    Json::object o     = report.object_items();
+                    o["stopped_early"] = true;
+                    o["requested"]     = n;
+                    report             = o;
+                }
+                return respond(ToolResult::Text(exactJson(report)));
             }
             if (w.timeScale() == 0)
                 return respond(ToolResult::Error("measure_performance: the time scale is 0 (no steps run)"));
@@ -388,12 +406,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 world.removeDestroyListener(m->destroyListener);
                 world.removeStepListener(m->stepListener);
                 // No step ran: an empty window (report(0) would be the whole history)
-                Json report = done > 0 ? world.profiler().report(int(done))
-                                       : Json(Json::object{{"unit", "ms"},
-                                                           {"samples", 0},
-                                                           {"top", Json::array{}},
-                                                           {"scopes", Json::array{}},
-                                                           {"counters", Json::array{}}});
+                Json report = measurementReport(world.profiler(), done);
                 if (done < uint64_t(n))
                 {
                     Json::object o     = report.object_items();

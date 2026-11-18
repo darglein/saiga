@@ -311,7 +311,8 @@ class SAIGA_ENGINE_API World
     {
         for (size_t i = 0; i < stepListeners.size(); ++i)
             if (stepListeners[i].first == id) stepListeners.erase(stepListeners.begin() + std::ptrdiff_t(i));
-        removedStepListeners.push_back(id);
+        // Only while the listeners run (the running pass must skip it); otherwise nothing is recorded
+        if (dispatchingStepListeners) removedStepListeners.push_back(id);
     }
     // Runs fn when the world is destroyed (observers such as the world API detach); returns an ID for removal
     int addDestroyListener(std::function<void()> fn)
@@ -446,6 +447,7 @@ class SAIGA_ENGINE_API World
     std::vector<Entity> spaceStates;  // by SpaceId
     std::vector<std::pair<int, std::function<bool()>>> stepListeners;
     std::vector<int> removedStepListeners;  // removed while the listeners run
+    bool dispatchingStepListeners = false;
     std::vector<std::pair<int, std::function<void()>>> destroyListeners;
     int nextListenerId   = 0;
     int trackStepChanges = 0;
