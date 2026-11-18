@@ -27,6 +27,14 @@ VulkanExampleBase::VulkanExampleBase(const Vulkan::ForwardRenderingParameters& r
     initCamera();
 }
 
+VulkanExampleBase::VulkanExampleBase(const WindowParameters& windowParameters,
+                                     const Vulkan::VulkanParameters& vulkanParameters,
+                                     const Vulkan::ForwardRenderingParameters& rendererParameters)
+    : StandaloneWindow(windowParameters, vulkanParameters, rendererParameters)
+{
+    initCamera();
+}
+
 void VulkanExampleBase::initCamera()
 {
     float aspect = window->getAspectRatio();

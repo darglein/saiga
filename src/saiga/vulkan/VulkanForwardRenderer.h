@@ -112,8 +112,15 @@ class SAIGA_VULKAN_API VulkanForwardRenderer : public VulkanRenderer
 
     /**
      * For automated tests: if the environment variable SAIGA_SCREENSHOT is set to a file name, a screenshot of frame
-     * 60 is saved to that file and the window is closed afterwards.
+     * 60 is saved to that file and the window is closed afterwards. disableAutoScreenshot() turns this off (e.g. for
+     * benchmark runs) and returns true if it was enabled.
      */
+    bool disableAutoScreenshot()
+    {
+        bool was = !autoScreenshotFile.empty();
+        autoScreenshotFile.clear();
+        return was;
+    }
 
    protected:
     ForwardRenderingParameters params;

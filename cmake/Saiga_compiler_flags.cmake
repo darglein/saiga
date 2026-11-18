@@ -95,9 +95,12 @@ else ()
     add_definitions(-DCUDA_NDEBUG)
 endif ()
 
+# SAIGA_ARCHNATIVE_ACTIVE: -march=native is really used (only GCC-style compilers; saiga_buildconfig.h)
+set(SAIGA_ARCHNATIVE_ACTIVE OFF)
 if (SAIGA_FULL_OPTIMIZE OR SAIGA_ARCHNATIVE)
     if (SAIGA_CXX_FLAGS_GNU)
         list(APPEND SAIGA_CXX_FLAGS "-march=native")
+        set(SAIGA_ARCHNATIVE_ACTIVE ON)
     endif ()
 endif ()
 
