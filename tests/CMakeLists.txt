@@ -64,10 +64,13 @@ if (MODULE_CORE)
     saiga_test(test_core_math_functions.cpp)
     saiga_test(test_core_file_io.cpp)
     saiga_test(test_core_long_path.cpp)
+    # They take a second; a hang shows its gtest output after the timeout instead of blocking the job.
+    set_tests_properties(test_core_long_path PROPERTIES TIMEOUT 300)
     if (MSVC)
         # The same tests in a long path aware executable: they pass whether or not the system enables long paths.
         saiga_test_target(test_core_long_path_aware test_core_long_path.cpp)
         saiga_enable_long_paths(test_core_long_path_aware)
+        set_tests_properties(test_core_long_path_aware PROPERTIES TIMEOUT 300)
     endif ()
     saiga_test(test_core_ini.cpp)
     saiga_test(test_core_image_decode.cpp)
