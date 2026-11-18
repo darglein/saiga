@@ -61,8 +61,8 @@ docs/                   engine_design.md: design and implementation stages of th
 shader/                 GLSL shaders (OpenGL / Vulkan)
 data/                   Sample assets (textures, models)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
-samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples
-                        and the engine): the tech demos flight/, platformer/, racing/ and their shared common/, compiled
+samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
+                        the engine and GLFW): the tech demos flight/, platformer/, racing/ and their shared common/, compiled
                         into each game (docs/engine_design.md §18.4). Not tested by tests/ (the tests test the engine)
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,

@@ -50,7 +50,6 @@ class MeshRenderer
 
     // Uploads a mesh, returns its id (call before the first frame or after waiting for the device)
     int addMesh(const MeshData& mesh);
-    int triangles(int mesh) const { return meshes[mesh].indexCount / 3; }
 
     // Per frame, outside of the rendering pass: the camera (view of the camera at cameraPosition, the projection) and
     // the lighting
@@ -61,7 +60,6 @@ class MeshRenderer
     // Records the queued draws (inside of the rendering pass) and clears the queue
     void render(vk::CommandBuffer cmd);
 
-    int drawnTriangles() const { return lastTriangles; }
 
    private:
     struct GpuMesh
@@ -94,7 +92,6 @@ class MeshRenderer
     std::vector<GpuMesh> meshes;
     std::vector<Draw> draws;
     Vec3 cameraPosition = Vec3(0, 0, 0);
-    int lastTriangles   = 0;
     bool initialized    = false;
 };
 

@@ -183,7 +183,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Shader compiler (glslang, targets Vulkan 1.0 / SPIR-V 1.0) | `src/saiga/vulkan/Shader/GLSL.cpp` | [exists] |
 | VMA (supports virtual blocks; submodule, private to `saiga_vulkan`) | `submodules/VulkanMemoryAllocator` | [exists] |
 | Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
-| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, fixed-step clock, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
+| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
 rule, stage that removes it):
@@ -259,10 +259,10 @@ Modeled on `saiga_vulkan` (`cmake/Module_CMakeLists.txt` is not used by the modu
 - Root `CMakeLists.txt`: `OptionsHelper(SAIGA_MODULE_ENGINE ...)`; `unset(MODULE_ENGINE)` next to the other unsets;
   `include(Dependencies_engine)` inside `if (MODULE_CORE)` after `Dependencies_vulkan` and `Dependencies_jolt`.
 - Games are samples: `samples/CMakeLists.txt` adds `samples/games/` when `MODULE_ENGINE` is set (with
-  `SAIGA_BUILD_SAMPLES`). `samples/games/CMakeLists.txt` defines `saiga_game(<name>)` (an executable `game_<name>`
-  from the `.cpp`/`.h` files of `samples/games/<name>/` and `samples/games/common/`, linking `saiga_engine`; include
-  directory `samples/`) and adds the games; S04 added the tech demos (§18.4). There are no game libraries, and the
-  saiga tests (`tests/`) test the engine only (§17.2).
+  `SAIGA_BUILD_SAMPLES` and GLFW, like the Vulkan samples). `samples/games/CMakeLists.txt` defines `saiga_game(<name>)`
+  (an executable `game_<name>` from the `.cpp`/`.h` files of `samples/games/<name>/` with its subdirectories and
+  `samples/games/common/`, linking `saiga_engine`; include directory `samples/`) and adds the games; S04 added the tech
+  demos (§18.4). There are no game libraries, and the saiga tests (`tests/`) test the engine only (§17.2).
 - `cmake/Dependencies_engine.cmake`: sets `MODULE_ENGINE` and `SAIGA_USE_ENGINE` if `MODULE_VULKAN`; `ENGINE_TARGETS`
   (`saiga_vulkan`). From S28 `saiga_engine` requires Jolt: `MODULE_ENGINE` is set only if `JOLT_FOUND`,
   `SAIGA_WITH_JOLT` defaults to ON when `SAIGA_MODULE_ENGINE` is ON, and every CI job that builds the engine builds
@@ -2115,14 +2115,14 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 - **Structure**: each game is one executable (simulation in double, fixed step of 1/60 s in `MainLoop::update`,
   rendered per frame with interpolation; `main.cpp` maps the keyboard); the window, loop and frame wiring is shared
   (`samples/games/common/GameSampleHost.h`, header only). `samples/games/common` holds the shared helpers (mesh
-  renderer, procedural meshes, chase camera, fixed step, input, `GameMath.h`) and is compiled into each game. The games
+  renderer, procedural meshes, chase camera, input, `GameMath.h`) and is compiled into each game. The games
   are samples and have no tests in `tests/` (the saiga tests test the engine, R-TEST-1); from S13 they have game
   scenarios (`--scenarios`). The simulation classes take the ground as a function (`GroundHeight`).
 - **Transitional parts** (not the engine design; replaced when the stages arrive):
 
   | Today | Replaced by | Stage |
   |---|---|---|
-  | game classes without `World` (own state, own fixed-step loop, `FixedStep`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios | S13 |
+  | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios | S13 |
   | `MeshRenderer` (flat colored meshes, one draw per object, `shader/vulkan/games/`; all three games) | `RenderScene` instance sets and materials | S19 |
   | `ChaseCamera` (all three games) | the camera rig (third-person and chase cameras) | S35 |
   | procedural box animation of the platformer | skinned meshes, animation state and pose LOD | S34 |

@@ -75,9 +75,11 @@ class Vehicle
     VehicleState state;
     GroundHeight ground;
 
-    // Standing at position (if position(1) is NaN: at the resting height above the ground, the springs compressed by
-    // the static load, so the car does not hop), heading (see yawRotation)
+    // Standing at position, heading (see yawRotation)
     void reset(const Vec3& position, double heading);
+    // Standing at (x, z) at the resting height above the ground (the springs compressed by the static load, so the car
+    // does not hop). Not a NaN height for reset(): isnan is unreliable with -ffast-math (SAIGA_FAST_MATH)
+    void resetOnGround(double x, double z, double heading);
     // Height of the center of mass above flat ground when the car rests on its wheels
     double restingHeight() const;
     void step(const VehicleControls& controls, double dt);

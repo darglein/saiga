@@ -38,7 +38,6 @@ struct MeshData
     // Appends other transformed by m (positions and normals)
     void append(const MeshData& other, const Mat4& m = Mat4::Identity());
 
-    int triangles() const { return int(indices.size() / 3); }
 };
 
 // Procedural low-poly meshes. Forward is -z, up is +y.

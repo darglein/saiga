@@ -129,7 +129,6 @@ void MeshRenderer::draw(int mesh, const Mat4& model, const Vec3& tint)
 
 void MeshRenderer::render(vk::CommandBuffer cmd)
 {
-    lastTriangles = 0;
     if (draws.empty() || !pipeline.bind(cmd))
     {
         draws.clear();
@@ -160,7 +159,6 @@ void MeshRenderer::render(vk::CommandBuffer cmd)
         cmd.bindVertexBuffers(0, vk::Buffer(m.vertices.memoryLocation()->data), vk::DeviceSize(0));
         cmd.bindIndexBuffer(m.indices.memoryLocation()->data, 0, vk::IndexType::eUint32);
         cmd.drawIndexed(m.indexCount, 1, 0, 0, 0);
-        lastTriangles += int(m.indexCount / 3);
     }
     draws.clear();
 }

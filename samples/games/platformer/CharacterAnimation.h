@@ -82,7 +82,7 @@ class CharacterAnimator
     double cyclePhase() const { return phase; }
     double runBlend() const { return run; }
 
-    // The poses of the states (public for tests and tools)
+    // The poses of the states
     static Pose idlePose(double time);
     static Pose locomotionPose(double phase, double run);
     static Pose airPose(double verticalSpeed);

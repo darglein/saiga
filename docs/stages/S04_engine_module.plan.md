@@ -45,12 +45,12 @@ Part 1, the engine module (§5.3):
 Part 2, tech-demo games (owner request; `docs/engine_design.md` §18.4):
 
 - `samples/games/CMakeLists.txt` (added by `samples/CMakeLists.txt` when `MODULE_ENGINE` is set): `saiga_game(<name>)`
-  (executable `game_<name>` from `samples/games/<name>/` and `samples/games/common/`, links `saiga_engine`, include
-  directory `samples/`, headers included as `"games/<name>/<File>.h"`) for `flight`, `platformer`, `racing`.
+  (executable `game_<name>` from `samples/games/<name>/` (recursive) and `samples/games/common/`, links `saiga_engine`,
+  include directory `samples/`, headers included as `"games/<name>/<File>.h"`) for `flight`, `platformer`, `racing`.
 - `samples/games/common/` (compiled into each game, transitional): `GameMath.h` (double helpers: axis-angle, yaw,
-  transforms, smoothing, quaternion blending, `GroundHeight`), `FixedStep.h`, `Mesh.h/.cpp` (flat colored `MeshData`,
-  builders: box, cylinder, cone, airplane, car body, wheel, traffic cone, flag), `MeshRenderer.h/.cpp` (one pipeline,
-  camera relative model matrices from double, push constants of 128 bytes, the world's lighting and height fog;
+  transforms, smoothing, quaternion blending, `GroundHeight`), `Mesh.h/.cpp` (flat colored `MeshData`, builders: box,
+  cylinder, cone, airplane, car body, wheel, traffic cone, flag), `MeshRenderer.h/.cpp` (one pipeline, camera relative
+  model matrices from double, push constants of 128 bytes, the world's lighting and height fog;
   `shader/vulkan/games/mesh.{vert,frag}`, `mesh_common.glsl`), `ChaseCamera.h/.cpp` (`reset()` after a respawn),
   `GameInput.h`, `WorldLighting.h`, `GameSampleHost.h` (header only: the window, fixed-step and frame wiring shared by
   the three executables; each executable maps its own keys).
@@ -152,3 +152,6 @@ remove the game tests (Design changes).
 - After review round 2: CI run 43967612832 (commit fd19edbd) is green on all three jobs; the Ubuntu jobs now fail on any
   skipped test, so all 44 tests ran there (GCC and Clang); Windows MSVC runs the non-Vulkan tests and skips the
   Vulkan-based ones (no driver). Locally 44/44 on the GPU and 15/15 Vulkan and game tests on lavapipe.
+- After the move to `samples/games/` (commits d98aab26 and the review fixes after it): 40/40 tests pass locally; the
+  three games run with `--demo` and the validation layer without validation messages, and their frame-60 screenshots
+  show the same scenes as before (the plane over the forest, the character on the platforms, the car on the track).

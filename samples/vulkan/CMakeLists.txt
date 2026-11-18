@@ -21,4 +21,3 @@ if (JOLT_FOUND)
 endif ()
 saiga_vulkan_sample(sample_vulkan_memory.cpp)
 saiga_vulkan_sample(sample_vulkan_world.cpp)
-

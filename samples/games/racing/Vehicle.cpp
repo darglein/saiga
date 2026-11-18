@@ -17,12 +17,16 @@ namespace
 constexpr double kGravity = 9.81;
 }
 
+void Vehicle::resetOnGround(double x, double z, double heading)
+{
+    reset(Vec3(x, (ground ? ground(x, z) : 0) + restingHeight(), z), heading);
+}
+
 void Vehicle::reset(const Vec3& position, double heading)
 {
     state             = VehicleState();
     state.orientation = yawRotation(heading);
     state.position    = position;
-    if (std::isnan(position(1))) state.position(1) = (ground ? ground(position(0), position(2)) : 0) + restingHeight();
     // Each wheel's actual compression at the spawn pose, so the damper does not see a jump in the first step.
     // Regression: all wheels got the flat-ground resting compression, which on a slope differs per wheel and gave the
     // stationary car an upward kick.

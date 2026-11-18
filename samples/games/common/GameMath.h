@@ -22,7 +22,7 @@ namespace Game
 {
 constexpr double kPi = 3.14159265358979323846;
 
-// The ground height at (x, z). The games get it from the world prototype's height field; tests use analytic functions.
+// The ground height at (x, z). The games get it from the world prototype's height field.
 using GroundHeight = std::function<double(double x, double z)>;
 
 // Rotation by angle (radians) around axis (any length > 0)

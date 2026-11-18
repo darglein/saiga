@@ -78,7 +78,7 @@ void RacingGame::init(Vulkan::VulkanForwardRenderer& renderer, bool _demo, int t
     camera.ground       = ground;
 
     Vec3 start = track.position(0);
-    car.reset(Vec3(start(0), std::nan(""), start(2)), headingOf(track.tangent(0)));
+    car.resetOnGround(start(0), start(2), headingOf(track.tangent(0)));
     previous = car.state;
     timer.reset(track);
 
@@ -138,7 +138,7 @@ void RacingGame::respawn()
     // Regression: the track search starts at the hint; a stale hint from the crash site missed the asphalt lift and the
     // car spawned 0.15 m too low (it hopped)
     surfaceHint = -1;
-    car.reset(Vec3(p(0), std::nan(""), p(2)), headingOf(track.tangent(gates[last].s + 3)));
+    car.resetOnGround(p(0), p(2), headingOf(track.tangent(gates[last].s + 3)));
     previous        = car.state;
     driver.progress = -1;
     upsideDown      = 0;
