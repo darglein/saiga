@@ -27,8 +27,8 @@ namespace Engine
  * - 0 workers: the chunks run serially on the calling thread, in order.
  * - A parallelFor called from inside a chunk (nested) runs serially on that thread (no deadlock).
  * - parallelFor calls from different threads are serialized (one job at a time).
- * - An exception thrown by a chunk is rethrown in the caller after all started chunks have finished; the chunks that
- *   were not started yet are skipped.
+ * - An exception thrown by a chunk is rethrown in the caller after all started chunks have finished; chunks are
+ *   skipped from the moment a thread sees the failure (best effort: chunks claimed before may still run).
  */
 class SAIGA_ENGINE_API JobPool
 {

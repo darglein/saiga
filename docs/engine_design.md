@@ -647,14 +647,15 @@ class Rng   // PCG32 (pcg32 of pcg-random.org), engine/core/Rng.h [exists]
     explicit Rng(uint64_t seed = 0, uint64_t stream = 0);   // pcg32_srandom: Rng(42, 54) gives the reference values
     uint32_t nextU32(); uint64_t nextU64();
     double uniform();                                         // [0, 1), 53 bits from two outputs
-    double uniform(double a, double b);                       // [a, b)
+    double uniform(double a, double b);                       // [a, b) (a rounding up to b is moved below b)
     int64_t range(int64_t a, int64_t b);                      // [a, b] inclusive, no modulo bias
     struct State { uint64_t state, increment; };              // saved by the world
     State state() const; void setState(const State&);
 };
 // No std::*_distribution anywhere in simulation or content code: their results differ between standard libraries.
 // Hashing: FNV-1a 64 (engine/core/Hash.h) for seeds, content hashes and world.hash(); never std::hash.
-//   fnv1a64(data, size) and constexpr fnv1a64(string_view); Hasher (addU8/U32/U64/I32/I64 as little-endian bytes,
+//   fnv1a64Bytes(data, size) and constexpr fnv1a64(string_view) (separate names: fnv1a64(str.c_str(), seed) must
+//   not hash seed bytes); Hasher (addU8/U32/U64/I32/I64 as little-endian bytes,
 //   addDouble as the bit pattern, addString with its length) [exists]; hashCombine(seed, value) for derived seeds.
 ```
 
@@ -837,7 +838,8 @@ class EngineApp   // engine/app/EngineApp.h
 `parallelFor(int64_t begin, int64_t end, int64_t chunk, fn(chunkBegin, chunkEnd))`. The chunk boundaries are fixed
 (they never depend on the thread count, only the assignment of chunks to threads does); the caller takes chunks too;
 with 0 workers or nested inside a chunk the chunks run serially in order; calls from different threads are serialized;
-an exception of a chunk is rethrown in the caller. saiga's `ThreadPool` is not used.
+an exception of a chunk is rethrown in the caller (the remaining chunks are skipped from the moment a thread sees the
+failure, best effort). saiga's `ThreadPool` is not used.
 
 ### 8.6 Determinism [planned: S08]
 

@@ -28,25 +28,28 @@ All in `src/saiga/engine/core/`, namespace `Saiga::Engine`:
 
 - `JobPool.h/.cpp` (`SAIGA_ENGINE_API`):
   - `explicit JobPool(int workerThreads = 0)`, `~JobPool()` (joins the workers), not copyable or movable;
-  - `void setWorkerThreads(int count)` (stops and restarts the workers; not during a `parallelFor`, asserted),
+  - `void setWorkerThreads(int count)` (stops and restarts the workers; waits for a `parallelFor` of another thread;
+    not from inside a chunk, asserted),
     `int workerThreads() const`;
   - `void parallelFor(int64_t begin, int64_t end, int64_t chunk, const std::function<void(int64_t, int64_t)>& fn)`:
     calls `fn(chunkBegin, chunkEnd)` for the fixed chunks `[begin + k * chunk, min(begin + (k + 1) * chunk, end))`
     (chunk > 0, asserted); the calling thread takes chunks too and the call returns when every chunk is done. With 0
     workers, or when called from inside a chunk (nested), the chunks run serially on the calling thread in order.
     Calls from different threads are serialized. An exception thrown by `fn` is rethrown in the caller after all
-    started chunks have finished (the remaining chunks are skipped).
+    started chunks have finished (the remaining chunks are skipped from the moment a thread sees the failure, best
+    effort).
 - `Rng.h` (header only): PCG32 (`pcg32` of pcg-random.org: XSH RR output, 64-bit LCG state, odd increment from a stream
   id):
   - `explicit Rng(uint64_t seed = 0, uint64_t stream = 0)` (pcg32 seeding: the reference values of the PCG paper's
     demo hold);
   - `uint32_t nextU32()`; `double uniform()` in [0, 1) from 53 bits (two outputs); `double uniform(double a, double b)`
-    in [a, b); `int64_t range(int64_t a, int64_t b)` uniform in [a, b] inclusive without modulo bias (asserts a <= b;
+    in [a, b) (a result rounded up to b is replaced by the largest double below b); `int64_t range(int64_t a, int64_t b)` uniform in [a, b] inclusive without modulo bias (asserts a <= b;
     one output for spans up to 2^32, two above);
   - `struct State { uint64_t state, increment; }`, `State state() const`, `void setState(const State&)` (saved by the
     world from S08/S11), `operator==`.
-- `Hash.h` (header only): `constexpr uint64_t kFnvOffset`, `kFnvPrime`; `constexpr uint64_t fnv1a64(const void*,
-  size_t, uint64_t h = kFnvOffset)` (byte-wise; a `constexpr` overload for `std::string_view`); class `Hasher`
+- `Hash.h` (header only): `constexpr uint64_t kFnvOffset`, `kFnvPrime`; `uint64_t fnv1a64Bytes(const void*,
+  size_t, uint64_t h = kFnvOffset)` and `constexpr uint64_t fnv1a64(std::string_view, uint64_t h = kFnvOffset)`
+  (separate names: with one overload set `fnv1a64(str.c_str(), seed)` would hash `seed` bytes); class `Hasher`
   (`add(const void*, size_t)`, `addU8/U32/U64/I32/I64` as little-endian bytes independent of the host, `addDouble`
   (the IEEE bit pattern, -0.0 and NaN payloads kept), `addString` (length then bytes), `uint64_t value() const`);
   `uint64_t hashCombine(uint64_t seed, uint64_t value)` (FNV-1a over the 16 little-endian bytes, for derived seeds).
@@ -126,6 +129,10 @@ All the tests above pass in CI on GCC, Clang and MSVC; `docs/engine_design.md` d
   calls, exceptions reach the caller).
 - §17.1: the ring's interface (`engineLog()`, `since`, `setLogEcho`).
 - §3: a row for the core utilities; the S06 row is done.
+- Review round 1: `fnv1a64Bytes` instead of a `fnv1a64(const void*, size_t)` overload (a `const char*` plus a seed
+  picked the byte overload); `uniform(a, b)` excludes `b` also when the formula rounds up; exceptions skip the
+  remaining chunks only best effort (documented; the test checks the skipping only serially); ring insertion and the
+  stdout echo under one lock (stdout in sequence order). §7.10 and §8.5 updated.
 
 ## Results
 

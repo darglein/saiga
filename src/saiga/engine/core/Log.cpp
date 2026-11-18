@@ -19,8 +19,8 @@ namespace Engine
 namespace
 {
 std::atomic<bool> echo{true};
-// One stdout line at a time (lines of concurrent loggers do not interleave)
-std::mutex stdoutMutex;
+// Ring insertion and stdout echo under one lock: stdout shows the lines in sequence order, without interleaving
+std::mutex logMutex;
 }  // namespace
 
 LogRing& engineLog()
@@ -60,11 +60,8 @@ void logPrintf(const char* category, const char* format, ...)
     }
     va_end(args);
 
-    if (echo)
-    {
-        std::lock_guard<std::mutex> lock(stdoutMutex);
-        std::cout << "[" << category << "] " << message << std::endl;
-    }
+    std::lock_guard<std::mutex> lock(logMutex);
+    if (echo) std::cout << "[" << category << "] " << message << std::endl;
     engineLog().add(category, std::move(message));
 }
 

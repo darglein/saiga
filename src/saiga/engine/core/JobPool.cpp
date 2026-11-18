@@ -63,8 +63,9 @@ JobPool::~JobPool()
 
 void JobPool::setWorkerThreads(int count)
 {
-    // From inside a chunk it would wait for its own parallelFor
-    SAIGA_ASSERT(!insideChunk, "JobPool::setWorkerThreads during a parallelFor");
+    // From inside a chunk it would wait for its own parallelFor (the flag is per thread, so this also rejects a chunk of
+    // another pool, which would be safe; there is no use for it)
+    SAIGA_ASSERT(!insideChunk, "JobPool::setWorkerThreads from inside a parallelFor chunk");
     std::lock_guard<std::mutex> call(callMutex);
     stopWorkers();
     startWorkers(count);

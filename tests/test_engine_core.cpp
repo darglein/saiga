@@ -85,6 +85,7 @@ TEST(JobPool, CallerParticipates)
         const auto caller = std::this_thread::get_id();
         std::atomic<bool> callerRan{false};
         std::atomic<bool> timedOut{false};
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
         pool.parallelFor(0, workers + 1, 1,
                          [&](int64_t, int64_t)
                          {
@@ -93,10 +94,9 @@ TEST(JobPool, CallerParticipates)
                                  callerRan = true;
                                  return;
                              }
-                             auto start = std::chrono::steady_clock::now();
                              while (!callerRan)
                              {
-                                 if (std::chrono::steady_clock::now() - start > std::chrono::seconds(10))
+                                 if (std::chrono::steady_clock::now() > deadline)
                                  {
                                      timedOut = true;
                                      return;
@@ -116,6 +116,8 @@ TEST(JobPool, UsesTheWorkers)
     std::mutex m;
     std::set<std::thread::id> threads;
     std::atomic<bool> timedOut{false};
+    // One deadline for all chunks: a failure takes 10 s, not 10 s per chunk
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     pool.parallelFor(0, 8, 1,
                      [&](int64_t, int64_t)
                      {
@@ -123,14 +125,13 @@ TEST(JobPool, UsesTheWorkers)
                              std::lock_guard<std::mutex> lock(m);
                              threads.insert(std::this_thread::get_id());
                          }
-                         auto start = std::chrono::steady_clock::now();
                          while (true)
                          {
                              {
                                  std::lock_guard<std::mutex> lock(m);
                                  if (threads.size() >= 2) return;
                              }
-                             if (std::chrono::steady_clock::now() - start > std::chrono::seconds(10))
+                             if (std::chrono::steady_clock::now() > deadline)
                              {
                                  timedOut = true;
                                  return;
@@ -173,8 +174,12 @@ TEST(JobPool, ExceptionReachesTheCaller)
                                           if (b == 10) throw std::runtime_error("chunk 10");
                                       }),
                      std::runtime_error);
-        // The chunks not started after the failure are skipped
-        EXPECT_LT(calls.load(), 1000);
+        // Serially the chunks after the failure are skipped. With workers skipping is best effort (chunks claimed before
+        // the failure is seen still run), so it is not checked there.
+        if (workers == 0)
+        {
+            EXPECT_EQ(calls.load(), 11);
+        }
         // The pool still works
         std::atomic<int64_t> n{0};
         pool.parallelFor(0, 100, 7, [&](int64_t b, int64_t e) { n += e - b; });
@@ -339,6 +344,33 @@ TEST(Rng, FixedValuesOfRangeAndUniform)
         EXPECT_EQ(wide.range(-(int64_t(1) << 40), int64_t(1) << 40), e);
     Rng u(42, 54);
     EXPECT_EQ(u.uniform(), 0.6303102186438938);
+
+    // The rejection paths (about half of the draws are rejected for these spans): a wrong rejection bound changes the
+    // values. 64 bits: a span of 2^63 + 21; 32 bits (Lemire): a span of 2^31 + 1.
+    Rng r64(7, 3);
+    const int64_t lo = std::numeric_limits<int64_t>::min() / 2 - 10, hi = std::numeric_limits<int64_t>::max() / 2 + 10;
+    for (int64_t e : {2497150458469127928ll, 3064514463451230757ll, -3083869450825681280ll, -1377254491934152336ll,
+                      3186856330796894013ll})
+        EXPECT_EQ(r64.range(lo, hi), e);
+    Rng r32(7, 3);
+    for (int64_t e : {1592787854, 1172360065, 893627349, 25647383, 1544824218}) EXPECT_EQ(r32.range(0, 0x80000000ll), e);
+}
+
+// Regression: a + (b - a) * u rounds up to b for u = 1 - 2^-53 (e.g. a = 1, b = 2), outside of [a, b)
+TEST(Rng, UniformIntervalNeverReturnsTheUpperBound)
+{
+    // A state whose next two outputs give the largest uniform() value is hard to construct; check the rounding case
+    // directly with the same formula and the guarded function on many intervals.
+    const double u = 1.0 - 1.0 / 9007199254740992.0;
+    EXPECT_EQ(1.0 + (2.0 - 1.0) * u, 2.0);  // the unguarded formula fails
+    Rng rng(5);
+    for (int i = 0; i < 100000; ++i)
+    {
+        double v = rng.uniform(1.0, 1.5);
+        ASSERT_GE(v, 1.0);
+        ASSERT_LT(v, 1.5);
+    }
+    EXPECT_EQ(rng.uniform(2.0, 2.0), 2.0);
 }
 
 TEST(Rng, StateSaveAndRestore)
@@ -364,7 +396,7 @@ TEST(Hash, Fnv1a64ReferenceValues)
     EXPECT_EQ(fnv1a64("a"), 0xaf63dc4c8601ec8cULL);
     EXPECT_EQ(fnv1a64("foobar"), 0x85944171f73967e8ULL);
     const char bytes[] = {'f', 'o', 'o', 'b', 'a', 'r'};
-    EXPECT_EQ(fnv1a64(bytes, sizeof(bytes)), 0x85944171f73967e8ULL);
+    EXPECT_EQ(fnv1a64Bytes(bytes, sizeof(bytes)), 0x85944171f73967e8ULL);
     // Usable at compile time (IDs from names)
     static_assert(fnv1a64("foobar") == 0x85944171f73967e8ULL, "constexpr FNV-1a");
 }
@@ -373,9 +405,9 @@ TEST(Hash, HasherIsByteOrderIndependent)
 {
     // Integers are hashed as little-endian bytes on every host
     const unsigned char le32[] = {0x78, 0x56, 0x34, 0x12};
-    EXPECT_EQ(Hasher().addU32(0x12345678u).value(), fnv1a64(le32, 4));
+    EXPECT_EQ(Hasher().addU32(0x12345678u).value(), fnv1a64Bytes(le32, 4));
     const unsigned char le64[] = {0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01};
-    EXPECT_EQ(Hasher().addU64(0x0102030405060708ull).value(), fnv1a64(le64, 8));
+    EXPECT_EQ(Hasher().addU64(0x0102030405060708ull).value(), fnv1a64Bytes(le64, 8));
     EXPECT_EQ(Hasher().addI32(-1).value(), Hasher().addU32(0xFFFFFFFFu).value());
     EXPECT_EQ(Hasher().addI64(-2).value(), Hasher().addU64(0xFFFFFFFFFFFFFFFEull).value());
     // A fixed value for a mixed sequence (equal with GCC and Clang; a change here changes every content hash and

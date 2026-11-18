@@ -20,7 +20,9 @@ namespace Engine
 constexpr uint64_t kFnvOffset = 14695981039346656037ULL;
 constexpr uint64_t kFnvPrime  = 1099511628211ULL;
 
-inline uint64_t fnv1a64(const void* data, size_t size, uint64_t h = kFnvOffset)
+// Bytes. A separate name: with one overload set, fnv1a64(str.c_str(), seed) would pick the (pointer, size) overload and
+// read seed bytes
+inline uint64_t fnv1a64Bytes(const void* data, size_t size, uint64_t h = kFnvOffset)
 {
     auto p = static_cast<const unsigned char*>(data);
     for (size_t i = 0; i < size; ++i)
@@ -52,7 +54,7 @@ class Hasher
 
     Hasher& add(const void* data, size_t size)
     {
-        h = fnv1a64(data, size, h);
+        h = fnv1a64Bytes(data, size, h);
         return *this;
     }
     Hasher& addU8(uint8_t v) { return add(&v, 1); }

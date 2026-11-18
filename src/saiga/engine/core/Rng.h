@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 
+#include <cmath>
 #include <cstdint>
 
 namespace Saiga
@@ -63,8 +64,13 @@ class Rng
         return double((a << 26) | b) * (1.0 / 9007199254740992.0);
     }
 
-    // [a, b)
-    double uniform(double a, double b) { return a + (b - a) * uniform(); }
+    // [a, b) for a < b (a for a == b). a + (b - a) * u can round up to b for u close to 1: then the largest double
+    // below b is returned.
+    double uniform(double a, double b)
+    {
+        double r = a + (b - a) * uniform();
+        return (r < b || a == b) ? r : std::nextafter(b, a);
+    }
 
     // Uniform in [a, b] (both inclusive), without modulo bias. One output for spans up to 2^32, two above.
     int64_t range(int64_t a, int64_t b)
