@@ -19,6 +19,7 @@
 #include "saiga/engine/world/TransformSystem.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace Saiga
@@ -76,7 +77,7 @@ void World::setupProfiler()
     }
     entitiesCounter = prof.counter("entities");
     objectsCounter  = prof.counter("game_objects");
-    prof.counter("objects_updated");  // behaviourSystem adds to it
+    updatedCounter  = prof.counter("objects_updated");  // behaviourSystem adds to it
     commandsCounter = prof.counter("commands_applied");
     recordsCounter  = prof.counter("structural_records");
     gridCounter     = prof.counter("grid_items");
@@ -177,8 +178,20 @@ void World::startObject(Entity e)
     Behaviour& b = reg.get<Behaviour>(e);
     assignTickInterval(*this, e, b, true);
     GameObject* o = b.object.get();
-    o->configure();
-    if (reg.alive(e) && reg.has<Behaviour>(e)) o->onSpawn();
+    // The object stays valid while its hooks run, also if they destroy its entity (released afterwards)
+    hookDepth++;
+    try
+    {
+        o->configure();
+        if (reg.alive(e) && reg.has<Behaviour>(e)) o->onSpawn();
+    }
+    catch (...)
+    {
+        hookDepth--;
+        throw;
+    }
+    hookDepth--;
+    releaseRetired();
 }
 
 void World::queueAction(const PlayerAction& action)
@@ -201,13 +214,20 @@ void World::deliverActions()
 PersistentId World::makePersistent(Entity e)
 {
     checkNotParallel("makePersistent");
-    SAIGA_ASSERT(reg.alive(e), "makePersistent: the entity is not alive");
-    if (const Persistent* p = reg.tryRead<Persistent>(e)) return p->persistentId;
+    SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), "makePersistent: the entity is not alive");
+    if (reg.alive(e))
+        if (const Persistent* p = reg.tryRead<Persistent>(e)) return p->persistentId;
+    // Assigned earlier in this phase (the component is added at the flush): the same ID (idempotent)
+    for (const auto& pending : pendingPersistent)
+        if (pending.first == e) return pending.second;
     const PersistentId id{++persistentCounter};
     Persistent value;
     value.persistentId = id;
-    if (deferring())
+    if (deferring() || (flushing && reg.reserved(e)))
+    {
+        pendingPersistent.push_back({e, id});
         record(makeCommand([e, value](World& w) mutable { w.addNow<Persistent>(e, std::move(value)); }));
+    }
     else
         addNow<Persistent>(e, std::move(value));
     return id;
@@ -220,7 +240,11 @@ Entity World::resolve(PersistentId id) const
     return it->second;
 }
 
-World::~World() = default;
+World::~World()
+{
+    // Observers (the world API) stop using the world
+    for (auto& l : destroyListeners) l();
+}
 
 // ---- spatial queries
 // ----------------------------------------------------------------------------------------------
@@ -269,9 +293,14 @@ Entity World::create()
 void World::destroy(Entity e)
 {
     checkNotParallel("destroy");
-    SAIGA_ASSERT(!reg.alive(e) || !(reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)),
-                 "destroy: world-state and space-state entities cannot be destroyed");
-    if (deferring())
+    if (reg.alive(e) && (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)))
+    {
+        // Refused in every build (the world state must stay; asserts in builds with asserts)
+        SAIGA_ASSERT(false, "destroy: world-state and space-state entities cannot be destroyed");
+        return;
+    }
+    // During a flush an entity reserved later in the phase is not active yet: the destroy follows its activation
+    if (deferring() || (flushing && reg.reserved(e)))
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), "destroy: the entity is not alive");
         // Dropped if the entity is gone when the command is applied (e.g. destroyed with its parent)
@@ -292,63 +321,91 @@ void World::activateNow(Entity e)
     record.append(e, Transform::id, true);
 }
 
-void World::destroyNow(Entity e)
+std::vector<Entity> World::collectDoomed(Entity e) const
 {
-    SAIGA_ASSERT(reg.alive(e), "destroy: the entity is not alive");
-    // The entity and its descendants (§7.4), children before parents. One pass over the Parent pool builds the
+    // The entity and its descendants (§7.4), parents before children. One pass over the Parent pool builds the
     // (parent index, child) list, sorted for a deterministic order; the visited set stops at cycles (add<Parent>
     // rejects them, this keeps destroy finite regardless).
     std::vector<Entity> doomed{e};
-    if (childCount(e) > 0)
+    if (childCount(e) == 0) return doomed;
+    std::vector<std::pair<uint32_t, Entity>> links;
+    const_cast<Registry&>(reg).view<const Parent>().each([&](Entity child, const Parent& p)
+                                                         { links.push_back({p.entity.index, child}); });
+    std::sort(links.begin(), links.end(), [](const std::pair<uint32_t, Entity>& a, const std::pair<uint32_t, Entity>& b)
+              { return a.first != b.first ? a.first < b.first : a.second.index < b.second.index; });
+    std::vector<bool> visited(reg.slotCount(), false);
+    visited[e.index] = true;
+    for (size_t i = 0; i < doomed.size(); ++i)
     {
-        std::vector<std::pair<uint32_t, Entity>> links;
-        reg.view<const Parent>().each([&](Entity child, const Parent& p) { links.push_back({p.entity.index, child}); });
-        std::sort(links.begin(), links.end(),
-                  [](const std::pair<uint32_t, Entity>& a, const std::pair<uint32_t, Entity>& b)
-                  { return a.first != b.first ? a.first < b.first : a.second.index < b.second.index; });
-        std::vector<bool> visited(reg.slotCount(), false);
-        visited[e.index] = true;
-        for (size_t i = 0; i < doomed.size(); ++i)
+        const Entity parent = doomed[i];
+        auto it =
+            std::lower_bound(links.begin(), links.end(), parent.index,
+                             [](const std::pair<uint32_t, Entity>& l, uint32_t index) { return l.first < index; });
+        for (; it != links.end() && it->first == parent.index; ++it)
         {
-            const Entity parent = doomed[i];
-            auto it =
-                std::lower_bound(links.begin(), links.end(), parent.index,
-                                 [](const std::pair<uint32_t, Entity>& l, uint32_t index) { return l.first < index; });
-            for (; it != links.end() && it->first == parent.index; ++it)
-            {
-                const Entity child = it->second;
-                if (childCount(parent) == 0) break;
-                if (visited[child.index] || reg.read<Parent>(child).entity != parent) continue;
-                visited[child.index] = true;
-                doomed.push_back(child);
-            }
+            const Entity child = it->second;
+            if (childCount(parent) == 0) break;
+            if (visited[child.index] || reg.read<Parent>(child).entity != parent) continue;
+            visited[child.index] = true;
+            doomed.push_back(child);
         }
     }
+    return doomed;
+}
+
+void World::destroyNow(Entity e)
+{
+    SAIGA_ASSERT(reg.alive(e), "destroy: the entity is not alive");
+    std::vector<Entity> doomed = collectDoomed(e);
     // The game objects first, children before parents, while all components are present. A hook may destroy other
-    // entities (or this one: no second onDestroy) and spawn new ones.
-    for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
+    // entities (or this one: no second onDestroy), spawn new ones, or attach entities to a doomed parent: the
+    // descendants are collected again until no new hook runs (the new ones get their onDestroy too).
+    hookDepth++;
+    try
     {
-        if (!reg.alive(*it)) continue;
-        Behaviour* b = reg.tryGet<Behaviour>(*it);
-        if (!b || !b->object || b->destroying) continue;
-        b->destroying = true;
-        b->object->onDestroy();
+        for (bool ran = true; ran && reg.alive(e);)
+        {
+            ran = false;
+            for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
+            {
+                if (!reg.alive(*it)) continue;
+                Behaviour* b = reg.tryGet<Behaviour>(*it);
+                if (!b || !b->object || b->destroying) continue;
+                b->destroying = true;
+                ran           = true;
+                b->object->onDestroy();
+            }
+            if (ran && reg.alive(e)) doomed = collectDoomed(e);
+        }
     }
+    catch (...)
+    {
+        // Nothing was destroyed: the entities can be destroyed again later (their onDestroy runs again then)
+        for (Entity x : doomed)
+            if (Behaviour* b = reg.alive(x) ? reg.tryGet<Behaviour>(x) : nullptr) b->destroying = false;
+        hookDepth--;
+        throw;
+    }
+    hookDepth--;
     for (auto it = doomed.rbegin(); it != doomed.rend(); ++it)
     {
         const Entity x = *it;
         // A hook (onDestroy) may have destroyed it already
         if (!reg.alive(x)) continue;
-        // Snapshot, reserve the log records, then destroy (the only step that can throw, before any change); the
-        // bookkeeping is committed afterwards without allocation
+        // Snapshot, reserve the log records and the room for the retired object, then destroy (the only step that
+        // can throw, before any change); the bookkeeping is committed afterwards without allocation
         const ComponentMask m = reg.entityMask(x);
         size_t records        = 0;
         for (size_t id = 0; id < kMaxComponents; ++id) records += m.test(ComponentId(id)) ? 1 : 0;
-        auto prepared          = log.prepare(records);
+        auto prepared = log.prepare(records);
+        retired.reserve(retired.size() + 1);
         const Parent* p        = reg.tryRead<Parent>(x);
         const Entity oldParent = p ? p->entity : Entity{};
         const Persistent* pid  = reg.tryRead<Persistent>(x);
         const uint64_t oldId   = pid ? pid->persistentId.value : 0;
+        // The game object may still be running (a hook that destroyed its own entity): it is released when no hook
+        // runs any more
+        if (Behaviour* b = reg.tryGet<Behaviour>(x); b && b->object) retired.push_back(std::move(b->object));
         reg.destroy(x);
         if (oldId) persistentIndex.erase(oldId);
         if (oldParent.valid()) changeChildCount(oldParent, -1);
@@ -358,6 +415,13 @@ void World::destroyNow(Entity e)
             if (m.test(ComponentId(id))) prepared.append(x, ComponentId(id), false);
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
     }
+    releaseRetired();
+}
+
+void World::releaseRetired()
+{
+    // Game objects of destroyed entities (or removed Behaviours) live until no hook runs any more
+    if (hookDepth == 0) retired.clear();
 }
 
 bool World::rebuildHierarchyState()
@@ -418,6 +482,12 @@ void World::changeChildCount(Entity parent, int delta)
 
 bool World::acceptParent(Entity child, Entity parent)
 {
+    // World-state entities are never children (a parent's destroy would take them along); refused in every build
+    if (reg.flags(child) & (Registry::kWorldState | Registry::kSpaceState))
+    {
+        SAIGA_ASSERT(false, "add<Parent>: world-state and space-state entities cannot have a parent");
+        return false;
+    }
     if (!reg.alive(parent))
     {
         // During a flush the parent may have been destroyed earlier in the same flush: the child follows it
@@ -454,6 +524,7 @@ void World::abortStep()
     // were reserved; the event restore is a swap), so the cleanup cannot fail while the exception propagates.
     commands.clear();
     if (restore) events.abortStep();
+    pendingPersistent.clear();
     for (Entity e : pendingReserved)
         if (reg.reserved(e)) reg.release(e);
     pendingReserved.clear();
@@ -475,7 +546,9 @@ void World::flushCommands()
     }
     commands.clear();
     pendingReserved.clear();
+    pendingPersistent.clear();
     flushing = false;
+    releaseRetired();
 }
 
 void World::checkNotParallel(const char* operation) const
@@ -494,8 +567,11 @@ Rng& World::random()
 
 void World::runStep()
 {
+    // Timed by hand: an aborted step's time must not reach the next sample (a scope timer would add it after the
+    // discard)
+    const auto stepStart = prof.enabled ? std::chrono::steady_clock::now() : std::chrono::steady_clock::time_point();
+    recordsAtStepStart   = log.appendedTotal();
     // Queued player actions become ActionEvents; with the events of the last step they become readable
-    Profiler::Timer stepTimer(prof, stepScope);
     deliverActions();
     events.beginStep();
     stepEventsBegun = true;
@@ -532,13 +608,18 @@ void World::runStep()
     }
     phase           = Phase::None;
     stepEventsBegun = false;
-    reg.shiftTransformFlags();
-    prof.setCounter(recordsCounter, double(log.size()));
+    stepChanged.clear();
+    reg.shiftTransformFlags(trackStepChanges ? &stepChanged : nullptr);
+    // The records of this step (consumers that read after the step, e.g. the world API, keep older ones a step longer)
+    prof.setCounter(recordsCounter, double(log.appendedTotal() - recordsAtStepStart));
     log.truncate();
     steps++;
     prof.setCounter(entitiesCounter, double(reg.aliveCount()));
     prof.setCounter(objectsCounter, double(reg.registered(Behaviour::id) ? reg.poolById(Behaviour::id)->size() : 0));
     prof.setCounter(gridCounter, double(grid.size()));
+    if (prof.enabled)
+        prof.add(stepScope,
+                 std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - stepStart).count());
 }
 
 void World::step(int n)
@@ -610,7 +691,8 @@ uint64_t World::hash() const
     h.addU64(uint64_t(actions.size()));
     for (const QueuedAction& a : actions)
     {
-        h.addU64(a.peer).addU64(a.sequence).addU32(a.action.player.index).addU32(a.action.player.generation);
+        // The queue order (the sequence counter itself is not state: only the order matters)
+        h.addU64(a.peer).addU32(a.action.player.index).addU32(a.action.player.generation);
         h.addU32(a.action.action);
         for (int i = 0; i < 3; ++i) h.addDouble(a.action.aim[i]);
     }

@@ -67,13 +67,13 @@ class SAIGA_ENGINE_API Profiler
     class Timer
     {
        public:
-        Timer(Profiler& p, int scope) : profiler(p), id(scope)
+        Timer(Profiler& p, int scope) : profiler(p), id(scope), active(p.enabled)
         {
-            if (p.enabled) start = std::chrono::steady_clock::now();
+            if (active) start = std::chrono::steady_clock::now();
         }
         ~Timer()
         {
-            if (profiler.enabled)
+            if (active)
                 profiler.add(
                     id, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count());
         }
@@ -83,6 +83,7 @@ class SAIGA_ENGINE_API Profiler
        private:
         Profiler& profiler;
         int id;
+        bool active;  // enabled at construction (enabling it mid-scope must not add a bogus duration)
         std::chrono::steady_clock::time_point start;
     };
 

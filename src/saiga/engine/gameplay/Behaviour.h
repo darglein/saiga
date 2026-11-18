@@ -24,8 +24,9 @@ namespace Engine
  * The game object of an entity and its tick state (docs/engine_design.md §8.4, §9.2). Added by world.spawn<T> (never
  * directly). visit covers everything but the object, which saves and replication recreate through the class factory.
  * tickInterval (seconds; 0: every step) is set by the tick evaluation from the rings around the players; sinceTick
- * counts the seconds since the last update. alwaysTickEveryStep: every step regardless of the rings; alwaysSimulate:
- * keeps ticking while its chunk is resident, also outside the simulation radius (from S24).
+ * counts the seconds since the last update (tickOffset staggers the first tick of spawned objects).
+ * alwaysTickEveryStep: every step regardless of the rings; alwaysSimulate: keeps ticking while its chunk is resident,
+ * also outside the simulation radius (from S24).
  */
 struct Behaviour
 {
@@ -34,9 +35,12 @@ struct Behaviour
     static constexpr uint32_t version = 1;
 
     std::unique_ptr<GameObject> object;
-    ClassId classId          = 0;
-    double tickInterval      = 0;
-    double sinceTick         = 0;
+    ClassId classId     = 0;
+    double tickInterval = 0;
+    double sinceTick    = 0;
+    // The stagger of a spawned object's first tick (seconds; it ticks when sinceTick + tickOffset reaches
+    // tickInterval, then the offset is 0): sinceTick stays the real time since the last update
+    double tickOffset        = 0;
     bool alwaysSimulate      = false;
     bool alwaysTickEveryStep = false;
     // Engine-internal: onDestroy is running (a destroy of the entity from inside it does not call it again)
@@ -48,6 +52,7 @@ struct Behaviour
         v("classId", classId);
         v("tickInterval", tickInterval);
         v("sinceTick", sinceTick);
+        v("tickOffset", tickOffset);
         v("alwaysSimulate", alwaysSimulate);
         v("alwaysTickEveryStep", alwaysTickEveryStep);
     }

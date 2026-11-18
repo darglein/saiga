@@ -109,12 +109,14 @@ class SAIGA_ENGINE_API World
     T& get(Entity e)
     {
         static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
+        static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is read-only (makePersistent)");
         return reg.get<T>(e);
     }
     template <class T>
     T* tryGet(Entity e)
     {
         static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
+        static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is read-only (makePersistent)");
         return reg.tryGet<T>(e);
     }
     template <class T>
@@ -136,13 +138,17 @@ class SAIGA_ENGINE_API World
     template <class... C>
     View<C...> view()
     {
-        static_assert(parentReadOnly<C...>(), "Parent in a view must be const Parent (use remove and add)");
+        static_assert(
+            parentReadOnly<C...>(),
+            "Parent and Persistent in a view must be const (Parent: remove and add; Persistent: makePersistent)");
         return reg.view<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0);
     }
     template <class... C>
     View<C...> viewAll()
     {
-        static_assert(parentReadOnly<C...>(), "Parent in a view must be const Parent (use remove and add)");
+        static_assert(
+            parentReadOnly<C...>(),
+            "Parent and Persistent in a view must be const (Parent: remove and add; Persistent: makePersistent)");
         return reg.view<C...>(0);
     }
     template <class... C>
@@ -244,6 +250,7 @@ class SAIGA_ENGINE_API World
     const ClassList& classList() const { return classes; }
     // Step timings and counters (§17.1, S10); the app adds frame and GPU numbers from S13
     Profiler& profiler() { return prof; }
+    int objectsUpdatedCounter() const { return updatedCounter; }
     const Profiler& profiler() const { return prof; }
     const WorldConfig& worldConfig() const { return config; }
     // Player cells of the last tick evaluation (space, x, z in TickPolicy::ringSize cells), sorted
@@ -294,6 +301,12 @@ class SAIGA_ENGINE_API World
                         const std::function<void(Entity)>& initial);
     // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
     void addStepListener(std::function<bool()> fn) { stepListeners.push_back(std::move(fn)); }
+    // Runs fn when the world is destroyed (observers such as the world API detach)
+    void addDestroyListener(std::function<void()> fn) { destroyListeners.push_back(std::move(fn)); }
+    // When enabled: the alive entities whose Transform changed during the last completed step (any phase), collected
+    // during the flag shift at the end of the step (the world API's change journal)
+    void setTrackStepChanges(bool enabled) { trackStepChanges = enabled; }
+    const std::vector<uint32_t>& changedDuringLastStep() const { return stepChanged; }
 
     // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
     // filled directly, e.g. by load in S11)
@@ -342,6 +355,12 @@ class SAIGA_ENGINE_API World
     // Allocates the parent's count slot (before Parent is added, so the add cannot leave a count missing)
     void reserveChildSlot(Entity parent);
     void destroyNow(Entity e);
+    std::vector<Entity> collectDoomed(Entity e) const;
+    // Game objects of destroyed entities and removed Behaviours, released when no hook runs (a hook may destroy its
+    // own entity and keep running)
+    std::vector<std::unique_ptr<GameObject>> retired;
+    int hookDepth = 0;
+    void releaseRetired();
     template <class T>
     void addNow(Entity e, T&& value);
     template <class T>
@@ -350,7 +369,9 @@ class SAIGA_ENGINE_API World
     template <class... C>
     static constexpr bool parentReadOnly()
     {
-        return ((!std::is_same_v<std::remove_cv_t<C>, Parent> || std::is_const_v<C>) && ...);
+        return (((!std::is_same_v<std::remove_cv_t<C>, Parent> && !std::is_same_v<std::remove_cv_t<C>, Persistent>) ||
+                 std::is_const_v<C>) &&
+                ...);
     }
 
     template <class T, class... A>
@@ -369,7 +390,9 @@ class SAIGA_ENGINE_API World
     int stepScope = -1;
     std::array<int, size_t(kLastPhase) + 1> phaseScopes{}, flushScopes{};
     std::array<std::vector<int>, size_t(kLastPhase) + 1> systemScopes;
-    int entitiesCounter = -1, objectsCounter = -1, commandsCounter = -1, recordsCounter = -1, gridCounter = -1;
+    int entitiesCounter = -1, objectsCounter = -1, commandsCounter = -1, recordsCounter = -1, gridCounter = -1,
+        updatedCounter          = -1;
+    uint64_t recordsAtStepStart = 0;
     void setupProfiler();
     StructuralLog log;
     SpatialGrid grid;
@@ -394,8 +417,12 @@ class SAIGA_ENGINE_API World
     Entity worldState;
     std::vector<Entity> spaceStates;  // by SpaceId
     std::vector<std::function<bool()>> stepListeners;
+    std::vector<std::function<void()>> destroyListeners;
+    bool trackStepChanges = false;
+    std::vector<uint32_t> stepChanged;
     void runStepListeners();
     uint64_t persistentCounter = 0;
+    std::vector<std::pair<Entity, PersistentId>> pendingPersistent;  // assigned in this phase, added at the flush
     std::unordered_map<uint64_t, Entity> persistentIndex;
 
     WorldConfig config;
@@ -417,7 +444,8 @@ void World::add(Entity e, A&&... args)
     static_assert(T::id != ComponentId(EngineComponent::Behaviour), "Behaviour is added by spawn<T>");
     static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is added by makePersistent");
     checkNotParallel("add");
-    if (deferring())
+    // During a flush an entity reserved later in the phase is not active yet: the add follows its activation
+    if (deferring() || (flushing && reg.reserved(e)))
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("add<") + T::name + ">: the entity is not alive");
         // Whether e has T is checked when the command is applied (earlier commands of the phase may add or remove T:
@@ -438,7 +466,7 @@ template <class T>
 void World::remove(Entity e)
 {
     checkNotParallel("remove");
-    if (deferring())
+    if (deferring() || (flushing && reg.reserved(e)))
     {
         SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), std::string("remove<") + T::name + ">: the entity is not alive");
         record(makeCommand([e](World& w) { w.removeNow<T>(e); }));
@@ -463,7 +491,6 @@ void World::addNow(Entity e, T&& value)
     {
         SAIGA_ASSERT(value.persistentId.valid() && !persistentIndex.count(value.persistentId.value),
                      "Persistent: the ID is invalid or already used");
-        persistentIndex.reserve(persistentIndex.size() + 1);
     }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
@@ -475,9 +502,18 @@ void World::addNow(Entity e, T&& value)
     }
     else if constexpr (T::id == ComponentId(EngineComponent::Persistent))
     {
+        // The index entry first (it allocates), rolled back if the add fails
         const uint64_t id = value.persistentId.value;
-        reg.add<T>(e, std::move(value));
-        persistentIndex.emplace(id, e);  // room reserved above
+        persistentIndex.emplace(id, e);
+        try
+        {
+            reg.add<T>(e, std::move(value));
+        }
+        catch (...)
+        {
+            persistentIndex.erase(id);
+            throw;
+        }
     }
     else
         reg.add<T>(e, std::move(value));
@@ -488,7 +524,20 @@ template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
+    if ((reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)) &&
+        (reg.isGlobal(T::id) || reg.isSpaceState(T::id)))
+    {
+        // Refused in every build: global<T>() and spaceState<T>() rely on them
+        SAIGA_ASSERT(false, std::string("remove<") + T::name + ">: world-state components cannot be removed");
+        return;
+    }
     auto record = log.prepare(1);
+    if constexpr (T::id == ComponentId(EngineComponent::Behaviour))
+    {
+        // The object may be running (a hook removing its own Behaviour): released when no hook runs
+        retired.reserve(retired.size() + 1);
+        if (reg.read<T>(e).object) retired.push_back(std::move(reg.get<T>(e).object));
+    }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
         changeChildCount(reg.read<Parent>(e).entity, -1);
@@ -498,6 +547,7 @@ void World::removeNow(Entity e)
         persistentIndex.erase(reg.read<T>(e).persistentId.value);
     reg.remove<T>(e);
     record.append(e, T::id, false);
+    if constexpr (T::id == ComponentId(EngineComponent::Behaviour)) releaseRetired();
 }
 
 }  // namespace Engine

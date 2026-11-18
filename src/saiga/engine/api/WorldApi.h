@@ -23,7 +23,7 @@ namespace Engine
 class World;
 
 // The result of a world API call: ok with a value, or an error message (never an assert: an agent's mistake must not
-// stop the game)
+// stop the game). A failed batch (apply) also carries the results of the operations that were applied.
 struct ApiResult
 {
     bool ok = true;
@@ -36,34 +36,38 @@ struct ApiResult
 
 /**
  * The world as JSON, by names (docs/engine_design.md §16.2, S10): what MCP tools, the scenario helpers (S12) and an
- * editor use to read and change a running world. Every operation takes a JSON object of arguments and is called between
- * steps (MCP handlers run in McpServer::poll, which the app calls between steps). Entities are written
- * {"index": i, "generation": g} or "i:g"; results always use the object form. Components, classes and events are named
- * as registered; values are their visit fields (VisitJson.h): missing keys keep their values, unknown keys and wrong
- * types are errors and change nothing. Every change is logged under the "api" category.
+ * editor use to read and change a running world. Every operation takes a JSON object of arguments (unknown argument
+ * names are errors) and is called between steps (MCP handlers run in McpServer::poll, which the app calls between
+ * steps). Entities are written {"index": i, "generation": g} or "i:g"; results always use the object form. Components,
+ * classes and events are named as registered; values are their visit fields (VisitJson.h): missing keys keep their
+ * values, unknown keys and wrong types are errors and change nothing. Every change is logged under the "api" category.
  *
  * Operations (name: arguments -> result):
- *   describe_world:   -> components, classes, events with their fields
+ *   describe_world:   -> components (fields, types, replication, notes), classes, events, operations
  *   world_status:     -> step, time, paused, time scale, counts, hash
  *   list_entities:    class?, components?: [names], near?: {space?, position, radius}, limit? (100, <= 1000),
- *                     after? (entity index) -> entities [{entity, class?, position, components}], next?
+ *                     after? (entity index) -> entities [{entity, class?, position, components}], count, next?
  *   inspect:          entity, components?: [names] -> class, flags, parent, children, components {name: values}
- *   set_component:    entity, component, values -> the new values (Transform: through its setters, a teleport)
+ *   set_component:    entity, component, values -> the new values (Transform: as set_transform; Behaviour: the tick
+ *                     flags, the interval is derived again)
  *   add_component:    entity, component, values?      remove_component: entity, component
- *   set_transform:    entity, position?, rotation? [w,x,y,z], scale?, teleport? (true)
+ *   set_transform:    entity, position?, rotation? [w,x,y,z], scale?, teleport? (true); not for children
  *   spawn:            class?, position, space? (0), components?: {name: values} -> entity
  *   destroy:          entity -> destroyed (the entity and its descendants; onDestroy runs)
  *   get_global:       component, space? (world state if missing)      set_global: component, values, space?
  *   emit_event:       event, values (readable in the next step; the gameplay path, e.g. onDamage)
  *   queue_action:     player, action, aim?
- *   pause, resume, step: n (only while paused), time_scale: scale
- *   changes_since:    cursor (0: from the oldest kept) -> changes [{seq, step, kind, entity, component?}], cursor,
- *                     truncated (kinds: created, destroyed, added, removed, moved)
- *   get_profile:      steps? (window) -> the profiler report      reset_profile
- *   logs:             since?, category? -> lines [{seq, category, message}]
- *   apply:            operations: [{op, ...arguments}] -> one result per operation (applied in order; it stops at
- *                     the first failing operation, the earlier ones stay applied)
- * With allowEdits = false only the reading operations are allowed.
+ *   pause, resume, step: n (only while paused; stops after 30 s), time_scale: scale
+ *   changes_since:    cursor? (opaque; none or 0: from the oldest kept change), include_moved? -> changes
+ *                     [{seq, step, kind, entity, component?}] (kinds: created, destroyed (its components with it),
+ *                     added, removed), moved? [entities], cursor, more, truncated
+ *   get_profile:      steps? (window), scopes? [path prefixes] -> the profiler report      reset_profile
+ *   logs:             since?, category? -> lines [{seq, category, message}], first, last, truncated
+ *   apply:            operations: [{op, ...arguments}] -> one result per operation, applied in order; it stops at the
+ *                     first failing operation (the earlier ones stay applied). Allowed read-only if every
+ *                     operation reads.
+ * With allowEdits = false only the reading operations are allowed. The API detaches when the world is destroyed
+ * (every call then fails).
  */
 class SAIGA_ENGINE_API WorldApi
 {
@@ -79,13 +83,15 @@ class SAIGA_ENGINE_API WorldApi
     std::vector<std::string> operations() const;
     static bool isEdit(const std::string& operation);
     bool editsAllowed() const { return allowEdits; }
-    World& world() { return w; }
+    // nullptr after the world was destroyed
+    World* world() { return w; }
 
     // Parses an entity argument ({"index", "generation"} or "i:g")
     static bool parseEntity(const json11::Json& j, Entity& e, std::string& error);
     static json11::Json entityJson(Entity e);
 
    private:
+    ApiResult run(const std::string& operation, const json11::Json& a);
     ApiResult describeWorld(const json11::Json& a);
     ApiResult worldStatus(const json11::Json& a);
     ApiResult listEntities(const json11::Json& a);
@@ -100,18 +106,16 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult setGlobal(const json11::Json& a);
     ApiResult emitEvent(const json11::Json& a);
     ApiResult queueAction(const json11::Json& a);
-    ApiResult pause(const json11::Json& a);
-    ApiResult resume(const json11::Json& a);
     ApiResult step(const json11::Json& a);
     ApiResult timeScale(const json11::Json& a);
     ApiResult changesSince(const json11::Json& a);
     ApiResult getProfile(const json11::Json& a);
-    ApiResult resetProfile(const json11::Json& a);
     ApiResult logs(const json11::Json& a);
     ApiResult apply(const json11::Json& a);
 
-    // The change journal of changes_since: filled from an own structural log consumer and the changed list after
-    // every step (and before every changes_since), bounded
+    // The change journal of changes_since: structural changes from an own structural log consumer (drained after every
+    // step and before every changes_since; the components of a destroyed entity are folded into "destroyed"),
+    // bounded; moves are tracked per entity index (the step of its last move) once a caller asked for them
     struct Change
     {
         uint64_t seq;
@@ -120,14 +124,19 @@ class SAIGA_ENGINE_API WorldApi
         Entity entity;
         int component;  // -1: none
     };
-    void drainChanges(bool moves);
+    void drainChanges();
+    void trackMoves();
 
-    World& w;
+    World* w;
     bool allowEdits;
     int consumer = -1;
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
-    std::shared_ptr<bool> alive;  // the step listener stops when the API is gone
+    Entity lastDestroyed;  // folds the removed records that follow a destroyed record
+    bool movesTracked   = false;
+    uint64_t movesSince = 0;              // the step from which moves are tracked
+    std::vector<uint64_t> lastMovedStep;  // by entity index (0: not moved since tracking started)
+    std::shared_ptr<bool> alive;          // the world's listeners stop when the API is gone
 };
 
 }  // namespace Engine

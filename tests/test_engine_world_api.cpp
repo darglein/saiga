@@ -18,10 +18,14 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <cmath>
 #include <limits>
+#include <memory>
 #include <set>
+#include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "mcp_test_helper.h"
@@ -342,22 +346,37 @@ TEST(WorldApi, ChangesSinceProfileLogsAndApply)
 {
     World w(apiSetup());
     WorldApi api(w);
-    ApiResult c0 = api.call("changes_since", obj(R"({"cursor": 0})"));
-    ASSERT_TRUE(c0.ok);
-    const double cursor = c0.value["cursor"].number_value();
-    Entity a            = w.create();
+    // include_moved starts the move tracking
+    ApiResult c0 = api.call("changes_since", obj(R"({"cursor": 0, "include_moved": true})"));
+    ASSERT_TRUE(c0.ok) << c0.error;
+    const Json cursor = c0.value["cursor"];
+    Entity a          = w.create();
     w.add<Health>(a);
     w.step();
     w.get<Transform>(a).setPosition(Vec3(1, 0, 0));
     w.step();
+    Entity b = w.create();
     w.destroy(a);
-    ApiResult c1 = api.call("changes_since", Json(Json::object{{"cursor", cursor}}));
-    ASSERT_TRUE(c1.ok);
+    ApiResult c1 = api.call("changes_since", Json(Json::object{{"cursor", cursor}, {"include_moved", true}}));
+    ASSERT_TRUE(c1.ok) << c1.error;
     std::vector<std::string> kinds;
     for (auto& c : c1.value["changes"].array_items()) kinds.push_back(c["kind"].string_value());
-    EXPECT_EQ(kinds, (std::vector<std::string>{"created", "added", "moved", "destroyed", "removed"}));
+    // The components of a destroyed entity are folded into "destroyed"
+    EXPECT_EQ(kinds, (std::vector<std::string>{"created", "added", "created", "destroyed"}));
+    // Moves are coalesced per entity: only alive ones (a is gone, b never moved)
+    EXPECT_TRUE(c1.value["moved"].array_items().empty());
+    w.get<Transform>(b).setPosition(Vec3(2, 0, 0));
+    w.step();
+    w.step();
+    ApiResult c2 =
+        api.call("changes_since", Json(Json::object{{"cursor", c1.value["cursor"]}, {"include_moved", true}}));
+    ASSERT_EQ(c2.value["moved"].array_items().size(), 1u);
+    EXPECT_EQ(entityOf(c2.value["moved"][0]), b);
+    // A cursor from another session is an error (it would skip every change)
+    EXPECT_FALSE(api.call("changes_since", obj(R"({"cursor": "100000@5"})")).ok);
+    EXPECT_FALSE(api.call("changes_since", obj(R"({"cursor": "garbage"})")).ok);
     // Nothing new after the returned cursor
-    EXPECT_TRUE(api.call("changes_since", Json(Json::object{{"cursor", c1.value["cursor"]}}))
+    EXPECT_TRUE(api.call("changes_since", Json(Json::object{{"cursor", c2.value["cursor"]}}))
                     .value["changes"]
                     .array_items()
                     .empty());
@@ -371,8 +390,8 @@ TEST(WorldApi, ChangesSinceProfileLogsAndApply)
     EXPECT_TRUE(hasBehaviour);
 
     // apply: in order, stops at the first failure
-    Entity b             = w.create();
-    const std::string eb = entityString(b);
+    Entity target        = w.create();
+    const std::string eb = entityString(target);
     ApiResult batch      = api.call("apply", obj(R"({"operations": [
         {"op": "add_component", "entity": )" +
                                                  eb + R"(, "component": "Health"},
@@ -384,7 +403,7 @@ TEST(WorldApi, ChangesSinceProfileLogsAndApply)
     EXPECT_FALSE(batch.ok);
     EXPECT_NE(batch.error.find("operation 2"), std::string::npos) << batch.error;
     EXPECT_EQ(batch.value["applied"].number_value(), 2);
-    EXPECT_EQ(w.read<Health>(b).hp, 3);
+    EXPECT_EQ(w.read<Health>(target).hp, 3);
     EXPECT_FALSE(api.call("apply", obj(R"({"operations": [{"op": "apply"}]})")).ok);
 
     // The edits are logged under "api"
@@ -496,4 +515,214 @@ TEST(WorldTools, MeasurePerformanceWhileRunningAndReadOnly)
     api.reset();
     Poller poller(server);
     EXPECT_TRUE(callTool(server, "world_status", Json::object{})["result"]["isError"].bool_value());
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S10 round 1)
+
+// Regression: 2^53 + 1 was written as the number 2^53 (the bound was compared in double), and the literal
+// 9007199254740993 was accepted (parsed as 2^53)
+TEST(VisitJson, IntegersAtTheDoubleBoundary)
+{
+    Player p;
+    p.characterId = (uint64_t(1) << 53) + 1;
+    Json j        = toJson(p);
+    ASSERT_TRUE(j["characterId"].is_string());
+    Player q;
+    ASSERT_TRUE(fromJson(j, q));
+    EXPECT_EQ(q.characterId, p.characterId);
+    p.characterId = (uint64_t(1) << 53) - 1;
+    EXPECT_TRUE(toJson(p)["characterId"].is_number());
+    std::string error;
+    EXPECT_FALSE(fromJson(obj(R"({"characterId": 9007199254740993})"), q, &error));
+    EXPECT_FALSE(fromJson(obj(R"({"characterId": -1})"), q, &error));
+    // An unknown field names the valid ones
+    EXPECT_FALSE(fromJson(obj(R"({"speed": 1})"), q, &error));
+    EXPECT_NE(error.find("fields: peer, characterId, moveSpeed"), std::string::npos) << error;
+}
+
+TEST(WorldApi, StrictArgumentsAndGuards)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity a = w.create();
+    Entity c = w.create();
+    w.add<Parent>(c, Parent{a});
+    // Unknown arguments, wrong types
+    ApiResult typo = api.call(
+        "set_transform", Json(Json::object{{"entity", WorldApi::entityJson(a)}, {"postion", Json::array{1, 2, 3}}}));
+    EXPECT_FALSE(typo.ok);
+    EXPECT_NE(typo.error.find("unknown argument \"postion\""), std::string::npos) << typo.error;
+    EXPECT_FALSE(api.call("list_entities", obj(R"({"after": "x"})")).ok);
+    EXPECT_FALSE(api.call("list_entities", obj(R"({"after": 1e20})")).ok);
+    EXPECT_FALSE(api.call("list_entities", obj(R"({"limit": 2.5})")).ok);
+    EXPECT_FALSE(
+        api.call("set_transform", Json(Json::object{{"entity", WorldApi::entityJson(a)}, {"teleport", "yes"}})).ok);
+    // A child follows its parent: set_transform is refused
+    ApiResult child = api.call(
+        "set_transform", Json(Json::object{{"entity", WorldApi::entityJson(c)}, {"position", Json::array{1, 2, 3}}}));
+    EXPECT_FALSE(child.ok);
+    EXPECT_NE(child.error.find("LocalTransform"), std::string::npos);
+    // World state: no Parent, no destroy (also not through a cascade)
+    EXPECT_FALSE(
+        api.call("add_component", Json(Json::object{{"entity", WorldApi::entityJson(w.worldStateEntity())},
+                                                    {"component", "Parent"},
+                                                    {"values", Json::object{{"entity", WorldApi::entityJson(a)}}}}))
+            .ok);
+    EXPECT_FALSE(api.call("remove_component", Json(Json::object{{"entity", WorldApi::entityJson(w.worldStateEntity())},
+                                                                {"component", "Weather"}}))
+                     .ok);
+    EXPECT_TRUE(w.alive(w.worldStateEntity()));
+    // Behaviour: tick flags settable, the interval derived again, classId fixed, no negative times
+    Entity d = w.spawn<Dummy>(Vec3(9000, 0, 0));
+    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0.5);
+    ASSERT_TRUE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
+                                                            {"component", "Behaviour"},
+                                                            {"values", Json::object{{"tickInterval", 0}}}}))
+                    .ok);
+    EXPECT_EQ(w.read<Behaviour>(d).tickInterval, 0.5);  // derived again
+    EXPECT_FALSE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
+                                                             {"component", "Behaviour"},
+                                                             {"values", Json::object{{"sinceTick", -1}}}}))
+                     .ok);
+    EXPECT_FALSE(api.call("set_component", Json(Json::object{{"entity", WorldApi::entityJson(d)},
+                                                             {"component", "Behaviour"},
+                                                             {"values", Json::object{{"classId", "5"}}}}))
+                     .ok);
+    // apply in read-only mode: reads only
+    WorldApi readOnly(w, false);
+    EXPECT_TRUE(
+        readOnly.call("apply", obj(R"({"operations": [{"op": "world_status"}, {"op": "describe_world"}]})")).ok);
+    EXPECT_FALSE(readOnly.call("apply", obj(R"({"operations": [{"op": "pause"}]})")).ok);
+}
+
+// Regression: the API kept a reference to a destroyed world
+TEST(WorldApi, DetachesWhenTheWorldIsDestroyed)
+{
+    auto w = std::make_unique<World>(apiSetup());
+    WorldApi api(*w);
+    EXPECT_TRUE(api.call("world_status", Json()).ok);
+    w.reset();
+    EXPECT_FALSE(api.call("world_status", Json()).ok);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Profiler
+
+TEST(Profiler, StatisticsRingTreeAndCounters)
+{
+    Profiler p(4);
+    const int step  = p.scope("step");
+    const int child = p.scope("step/phase:a");
+    const int c     = p.counter("n");
+    for (int i = 1; i <= 6; ++i)
+    {
+        p.add(step, 10.0 * i);
+        p.add(child, 2.5 * i);
+        p.add(child, 2.5 * i);  // adds up within a sample
+        p.setCounter(c, i);
+        p.endSample();
+    }
+    // The ring keeps the last 4 samples: 30, 40, 50, 60
+    Profiler::Stats s = p.scopeStats(step);
+    EXPECT_EQ(s.samples, 4);
+    EXPECT_EQ(s.min, 30);
+    EXPECT_EQ(s.max, 60);
+    EXPECT_EQ(s.avg, 45);
+    EXPECT_EQ(s.p50, 40);  // nearest rank
+    EXPECT_EQ(p.scopeStats(step, 2).avg, 55);
+    EXPECT_EQ(p.counterStats(c).max, 6);
+    Json r = p.report();
+    ASSERT_EQ(r["scopes"].array_items().size(), 2u);
+    EXPECT_NEAR(r["scopes"][1]["share_of_parent"].number_value(), 0.5, 1e-12);
+    // A discarded sample leaves no trace
+    p.add(step, 1000);
+    p.discardSample();
+    p.endSample();
+    EXPECT_EQ(p.scopeStats(step, 1).max, 0);
+    p.reset();
+    EXPECT_EQ(p.scopeStats(step).samples, 0);
+}
+
+namespace
+{
+bool g_slowThrow = false;
+void sysSlowThrow(World&, double)
+{
+    if (!g_slowThrow) return;
+    g_slowThrow = false;
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    throw std::runtime_error("aborted");
+}
+}  // namespace
+
+// Regression: an aborted step's time was added to the next sample (the step timer ended after the discard)
+TEST(Profiler, AnAbortedStepIsNotCounted)
+{
+    WorldSetup s = apiSetup();
+    s.systems    = [](SystemList& l) { l.add(Phase::Gameplay, "slow_throw", sysSlowThrow); };
+    World w(s);
+    g_slowThrow = true;
+    EXPECT_THROW(w.step(), std::runtime_error);
+    w.step();
+    const int scope = w.profiler().scope("step");
+    EXPECT_LT(w.profiler().scopeStats(scope, 1).max, 20.0);
+    EXPECT_EQ(w.profiler().sampleCount(), 1u);
+}
+
+// R-MCP-1: every tool through handleMessage (the error paths are covered by the API tests)
+TEST(WorldTools, EveryToolAnswers)
+{
+    World w(apiSetup());
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    auto call = [&](const std::string& name, const Json& args)
+    {
+        Json r = callTool(server, name, args);
+        EXPECT_FALSE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return toolJson(r);
+    };
+    std::set<std::string> called;
+    auto track = [&](const std::string& name, const Json& args)
+    {
+        called.insert(name);
+        return call(name, args);
+    };
+    track("describe_world", Json::object{});
+    track("world_status", Json::object{});
+    const Entity d =
+        entityOf(track("spawn", obj(R"({"class": "Dummy", "position": [12345.678, 0, 0.000123456789]})"))["entity"]);
+    const Entity p =
+        entityOf(track("spawn", obj(R"({"position": [0, 0, 0], "components": {"Player": {}}})"))["entity"]);
+    const Json de = WorldApi::entityJson(d);
+    // Exact numbers in the results (not shortened to 6 digits)
+    Json in = track("inspect", Json::object{{"entity", de}});
+    EXPECT_EQ(in["components"]["Transform"]["position"][0].number_value(), 12345.678);
+    EXPECT_EQ(in["components"]["Transform"]["position"][2].number_value(), 0.000123456789);
+    track("list_entities", obj(R"({"class": "Dummy"})"));
+    track("set_component", Json::object{{"entity", de}, {"component", "Health"}, {"values", Json::object{{"hp", 3}}}});
+    track("add_component", Json::object{{"entity", de}, {"component", "PlayerInput"}});
+    track("remove_component", Json::object{{"entity", de}, {"component", "PlayerInput"}});
+    track("set_transform", Json::object{{"entity", de}, {"position", Json::array{1, 2, 3}}});
+    track("get_global", obj(R"({"component": "Weather"})"));
+    track("set_global", obj(R"({"component": "Weather", "values": {"rain": 1}})"));
+    track("emit_event",
+          Json::object{{"event", "DamageEvent"}, {"values", Json::object{{"target", de}, {"amount", 2}}}});
+    track("queue_action", Json::object{{"player", WorldApi::entityJson(p)}, {"action", 7}});
+    track("changes_since", obj(R"({"include_moved": true})"));
+    track("pause", Json::object{});
+    track("step", obj(R"({"n": 2})"));
+    track("time_scale", obj(R"({"scale": 1})"));
+    track("resume", Json::object{});
+    track("get_profile", obj(R"({"scopes": ["step/phase:behaviour"]})"));
+    track("reset_profile", Json::object{});
+    track("logs", obj(R"({"category": "api"})"));
+    track("apply", obj(R"({"operations": [{"op": "world_status"}]})"));
+    track("destroy", Json::object{{"entity", de}});
+    track("pause", Json::object{});
+    track("measure_performance", obj(R"({"steps": 3})"));
+    for (const std::string& op : api->operations()) EXPECT_TRUE(called.count(op)) << op << " has no test call";
+    // At most the profile history
+    EXPECT_TRUE(callTool(server, "measure_performance", obj(R"({"steps": 601})"))["result"]["isError"].bool_value());
 }

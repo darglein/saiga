@@ -80,7 +80,7 @@ void assign(World& w, const std::vector<Cell>& players, Entity e, Behaviour& b, 
     }
     b.tickInterval = interval;
     // Spread the first ticks of objects spawned together over the interval (deterministic, by index)
-    if (spawned) b.sinceTick = double(hashCombine(0, e.index) % 1024) / 1024.0 * interval;
+    if (spawned) b.tickOffset = double(hashCombine(0, e.index) % 1024) / 1024.0 * interval;
 }
 }  // namespace
 

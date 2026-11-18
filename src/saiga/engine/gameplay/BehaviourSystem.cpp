@@ -24,14 +24,14 @@ void behaviourSystem(World& w, double dt)
             if (!b.object) return;
             b.sinceTick += dt;
             // A small tolerance: 6 steps of 1/60 s sum to slightly less than 0.1 s
-            if (!b.alwaysTickEveryStep && b.sinceTick + 1e-9 < b.tickInterval) return;
+            if (!b.alwaysTickEveryStep && b.sinceTick + b.tickOffset + 1e-9 < b.tickInterval) return;
             const double since = b.sinceTick;
             b.sinceTick        = 0;
+            b.tickOffset       = 0;
             updated++;
             b.object->update(since);
         });
-    Profiler& p = w.profiler();
-    p.addCounter(p.counter("objects_updated"), updated);
+    w.profiler().addCounter(w.objectsUpdatedCounter(), updated);
 }
 
 }  // namespace Engine

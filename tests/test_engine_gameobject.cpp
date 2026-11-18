@@ -17,6 +17,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
 #include <stdexcept>
 #include <string>
@@ -554,3 +555,203 @@ TEST(Persistent, MakeResolveDestroyAndReuse)
     EXPECT_NE(g_madeInStep, id);
     EXPECT_EQ(w.resolve(g_madeInStep), b);
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S10 round 1)
+
+namespace
+{
+enum class ReviewClass : uint16_t
+{
+    Persister = kFirstGameClass + 3,
+    Adopter,
+    SelfDestroyer,
+    Cleaner,
+    Thrower,
+    Count
+};
+
+Entity g_spawnedPersistent;
+PersistentId g_pidA, g_pidB, g_pidSpawned;
+// Calls makePersistent twice on itself in one update and on an entity it spawns (reserved)
+class Persister final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ReviewClass::Persister);
+    static constexpr const char* name = "Persister";
+    void update(double) override
+    {
+        if (g_pidA.valid()) return;
+        g_pidA              = world().makePersistent(entity());
+        g_pidB              = world().makePersistent(entity());
+        g_spawnedPersistent = spawn<Probe>(Vec3::Zero());
+        g_pidSpawned        = world().makePersistent(g_spawnedPersistent);
+    }
+};
+
+Entity g_adopted;
+// Attaches a new entity to itself in onDestroy (it must be destroyed with it)
+class Adopter final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ReviewClass::Adopter);
+    static constexpr const char* name = "Adopter";
+    void onDestroy() override
+    {
+        g_adopted = world().create();
+        world().add<Parent>(g_adopted, Parent{entity()});
+    }
+};
+
+// Destroys its own entity in onSpawn and keeps using its members afterwards (the object must stay valid)
+class SelfDestroyer final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ReviewClass::SelfDestroyer);
+    static constexpr const char* name = "SelfDestroyer";
+    void onSpawn() override
+    {
+        const Entity self = entity();
+        destroy();
+        g_trace.push_back("after destroy " + std::to_string(entity().index == self.index));
+    }
+};
+
+Entity g_effect;
+// Destroys itself in update and spawns an effect afterwards; its onDestroy (at the flush) cleans the effect up
+class Cleaner final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ReviewClass::Cleaner);
+    static constexpr const char* name = "Cleaner";
+    void update(double) override
+    {
+        if (g_effect.valid()) return;
+        destroy();
+        g_effect = world().create();
+    }
+    void onDestroy() override { world().destroy(g_effect); }
+};
+
+bool g_throwInDestroy = true;
+class Thrower final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ReviewClass::Thrower);
+    static constexpr const char* name = "Thrower";
+    void onDestroy() override
+    {
+        g_trace.push_back("thrower destroy");
+        if (g_throwInDestroy) throw std::runtime_error("onDestroy failed");
+    }
+};
+
+void reviewClasses(ClassList& c)
+{
+    testClasses(c);
+    c.add<Persister>();
+    c.add<Adopter>();
+    c.add<SelfDestroyer>();
+    c.add<Cleaner>();
+    c.add<Thrower>();
+}
+WorldSetup reviewSetup()
+{
+    WorldSetup s = testSetup();
+    s.classes    = reviewClasses;
+    return s;
+}
+}  // namespace
+
+// Regression: a second makePersistent in the same phase assigned a second ID (the flush then asserted), and a reserved
+// (just spawned) entity was refused
+TEST(Persistent, IdempotentWithinAStepAndForSpawnedEntities)
+{
+    World w(reviewSetup());
+    spawnPlayer(w, Vec3::Zero());
+    w.spawn<Persister>(Vec3::Zero());
+    g_pidA = g_pidB = g_pidSpawned = PersistentId{};
+    w.step();
+    ASSERT_TRUE(g_pidA.valid());
+    EXPECT_EQ(g_pidA, g_pidB);
+    ASSERT_TRUE(g_pidSpawned.valid());
+    EXPECT_EQ(w.resolve(g_pidSpawned), g_spawnedPersistent);
+}
+
+// Regression: an entity attached to a parent in its onDestroy survived with a Parent naming a dead entity (a later
+// destroy asserted on the child count)
+TEST(GameObject, AnEntityAttachedInOnDestroyIsDestroyedWithTheParent)
+{
+    World w(reviewSetup());
+    Entity a = w.spawn<Adopter>(Vec3::Zero());
+    w.destroy(a);
+    EXPECT_FALSE(w.alive(a));
+    EXPECT_FALSE(w.alive(g_adopted));
+    w.step();
+}
+
+// Regression: a hook that destroyed its own entity freed the running object (use after free under ASan)
+TEST(GameObject, SelfDestroyInAHookKeepsTheObjectAliveUntilItReturns)
+{
+    g_trace.clear();
+    World w(reviewSetup());
+    Entity e = w.spawn<SelfDestroyer>(Vec3::Zero());
+    EXPECT_FALSE(w.alive(e));
+    ASSERT_FALSE(g_trace.empty());
+    EXPECT_EQ(g_trace.back(), "after destroy 1");
+}
+
+// Regression: during a flush a hook destroyed an entity that was reserved later in the same phase (asserted: not
+// alive); it follows the entity's activation now
+TEST(GameObject, HooksDuringAFlushReachEntitiesReservedLaterInThePhase)
+{
+    World w(reviewSetup());
+    spawnPlayer(w, Vec3::Zero());
+    Entity c = w.spawn<Cleaner>(Vec3::Zero());
+    g_effect = Entity{};
+    w.step();
+    EXPECT_FALSE(w.alive(c));
+    ASSERT_TRUE(g_effect.valid());
+    EXPECT_FALSE(w.alive(g_effect));
+}
+
+// Regression: the stagger of the first tick was passed to update() as elapsed time
+TEST(Ticking, TheFirstUpdateGetsTheRealElapsedTime)
+{
+    World w(testSetup());
+    std::vector<Entity> objects;
+    for (int i = 0; i < 200; ++i) objects.push_back(w.spawn<Probe>(Vec3(5000, 0, 0), Health{0, 0}));  // far: 0.5 s
+    for (int s = 0; s < 40; ++s)
+    {
+        w.step();
+        const double elapsed = double(s + 1) / 60.0;
+        for (Entity e : objects)
+            if (w.read<Health>(e).hp > 0) EXPECT_LE(w.read<Health>(e).maxHp, elapsed + 1e-9);
+    }
+}
+
+// An exception in onDestroy aborts the destroy: nothing is destroyed and the next destroy calls the hook again
+TEST(GameObject, AThrowingOnDestroyLeavesTheEntityDestroyableAgain)
+{
+    g_trace.clear();
+    World w(reviewSetup());
+    Entity t         = w.spawn<Thrower>(Vec3::Zero());
+    g_throwInDestroy = true;
+    EXPECT_THROW(w.destroy(t), std::runtime_error);
+    EXPECT_TRUE(w.alive(t));
+    g_throwInDestroy = false;
+    w.destroy(t);
+    EXPECT_FALSE(w.alive(t));
+    EXPECT_EQ(std::count(g_trace.begin(), g_trace.end(), "thrower destroy"), 2);
+}
+
+#ifdef SAIGA_ASSERTS
+// Regression: world-state entities could be destroyed through a parent's cascade and their components removed
+TEST(WorldStateDeathTest, NoParentAndNoRemovalOfWorldStateComponents)
+{
+    World w(testSetup());
+    Entity p = w.create();
+    EXPECT_DEATH(w.add<Parent>(w.worldStateEntity(), Parent{p}), "cannot have a parent");
+    EXPECT_DEATH(w.remove<Flags>(w.worldStateEntity()), "world-state components cannot be removed");
+}
+#endif

@@ -153,11 +153,12 @@ void Registry::release(Entity e)
     s.generation = nextGeneration;
 }
 
-void Registry::shiftTransformFlags()
+void Registry::shiftTransformFlags(std::vector<uint32_t>* changedOut)
 {
     for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
     {
-        Transform& t         = transforms[i];
+        Transform& t = transforms[i];
+        if (changedOut && t.changedThisStep && slots[i].state == SlotState::Alive) changedOut->push_back(i);
         t.changedLastStep    = t.changedThisStep;
         t.teleportedLastStep = t.teleported;
         t.changedThisStep    = 0;

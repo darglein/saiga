@@ -66,9 +66,17 @@ class JsonWriter
             return Json(v);
         else if constexpr (isInteger<T>)
         {
-            // Exact in a double up to 2^53; larger 64-bit values as strings
-            constexpr double kExact = 9007199254740992.0;
-            if (double(v) > kExact || double(v) < -kExact) return Json(std::to_string(v));
+            // Exact in a double below 2^53 (compared as integers: 2^53 + 1 would round to 2^53 in a double); larger
+            // 64-bit values as strings
+            constexpr int64_t kExact = int64_t(1) << 53;
+            if constexpr (std::is_signed_v<T>)
+            {
+                if (int64_t(v) >= kExact || int64_t(v) <= -kExact) return Json(std::to_string(v));
+            }
+            else
+            {
+                if (uint64_t(v) >= uint64_t(kExact)) return Json(std::to_string(v));
+            }
             return Json(double(v));
         }
         else if constexpr (std::is_same_v<T, double> || std::is_same_v<T, float>)
@@ -129,12 +137,14 @@ class JsonReader
     template <class T>
     void operator()(const char* name, T& field)
     {
+        frames.back().names.push_back(name);
         const Json* j = take(name);
         if (j) read(*j, field, path + name);
     }
     template <class E, size_t N>
     void operator()(const char* name, E& field, const EnumNames<N>& names)
     {
+        frames.back().names.push_back(name);
         const Json* j = take(name);
         if (!j || !ok()) return;
         if (!j->is_string()) return fail(path + name, "expected one of the enum names");
@@ -157,7 +167,12 @@ class JsonReader
     {
         if (!ok()) return;
         for (auto& kv : frames.back().object->object_items())
-            if (!frames.back().used.count(kv.first)) return fail(path + kv.first, "unknown field");
+            if (!frames.back().used.count(kv.first))
+            {
+                std::string valid;
+                for (const char* n : frames.back().names) valid += std::string(valid.empty() ? "" : ", ") + n;
+                return fail(path + kv.first, "unknown field (fields: " + valid + ")");
+            }
     }
 
     template <class T>
@@ -189,6 +204,9 @@ class JsonReader
                 d = -std::numeric_limits<double>::infinity();
             else
                 return fail(where, "expected a number");
+            if constexpr (std::is_same_v<T, float>)
+                if (std::isfinite(d) && std::abs(d) > double(std::numeric_limits<float>::max()))
+                    return fail(where, "out of the float range");
             if (apply) v = T(d);
         }
         else if constexpr (std::is_same_v<T, std::string>)
@@ -310,6 +328,7 @@ class JsonReader
     {
         const Json* object;
         std::set<std::string> used;
+        std::vector<const char*> names;  // the fields visited (for the error message)
     };
     static constexpr size_t kMaxStructDepth = 64;
 
@@ -367,9 +386,10 @@ class JsonReader
                 fail(where, "out of range");
                 return false;
             }
-            if (std::abs(d) > 9007199254740992.0)
+            // A JSON number of 2^53 or more may already be rounded (2^53 + 1 parses as 2^53): strings are exact
+            if (std::abs(d) >= 9007199254740992.0)
             {
-                fail(where, "integers beyond 2^53 must be strings (exact)");
+                fail(where, "integers of 2^53 or more must be strings (exact)");
                 return false;
             }
             out = T(d);

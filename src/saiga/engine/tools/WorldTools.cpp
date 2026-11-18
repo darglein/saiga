@@ -13,6 +13,9 @@
 #include "saiga/engine/world/World.h"
 
 #include <chrono>
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
 
 namespace Saiga
 {
@@ -25,14 +28,9 @@ using ToolResult = McpServer::ToolResult;
 
 Json entityProperty(const std::string& description)
 {
-    return Json::object{
-        {"description", description + " ({\"index\": i, \"generation\": g} or \"i:g\")"},
-        {"oneOf",
-         Json::array{Json::object{{"type", "object"},
-                                  {"properties", Json::object{{"index", Json::object{{"type", "integer"}}},
-                                                              {"generation", Json::object{{"type", "integer"}}}}},
-                                  {"required", Json::array{"index", "generation"}}},
-                     Json::object{{"type", "string"}}}}};
+    // A type list instead of oneOf (some MCP clients reject oneOf in input schemas)
+    return Json::object{{"type", Json::array{"object", "string"}},
+                        {"description", description + " ({\"index\": i, \"generation\": g} or \"i:g\")"}};
 }
 Json objectProperty(const std::string& description)
 {
@@ -175,11 +173,74 @@ std::vector<ToolSpec> toolSpecs()
     };
 }
 
+// Compact JSON with exact numbers: integers in full, others in the shortest form that reads back to the same double
+// (McpServer::FormatJson shortens to 6 digits, too few for values an agent reads and writes back)
+void formatExact(const Json& j, std::string& out)
+{
+    switch (j.type())
+    {
+        case Json::NUMBER:
+        {
+            const double v = j.number_value();
+            if (!std::isfinite(v))
+            {
+                out += "null";
+                return;
+            }
+            char buf[40];
+            for (int precision = 15; precision <= 17; ++precision)
+            {
+                std::snprintf(buf, sizeof(buf), "%.*g", precision, v);
+                if (std::strtod(buf, nullptr) == v) break;
+            }
+            out += buf;
+            return;
+        }
+        case Json::ARRAY:
+        {
+            out += "[";
+            bool first = true;
+            for (const Json& e : j.array_items())
+            {
+                if (!first) out += ",";
+                first = false;
+                formatExact(e, out);
+            }
+            out += "]";
+            return;
+        }
+        case Json::OBJECT:
+        {
+            out += "{";
+            bool first = true;
+            for (const auto& kv : j.object_items())
+            {
+                if (!first) out += ",";
+                first = false;
+                out += Json(kv.first).dump();
+                out += ":";
+                formatExact(kv.second, out);
+            }
+            out += "}";
+            return;
+        }
+        default:
+            out += j.dump();
+    }
+}
+
+std::string exactJson(const Json& j)
+{
+    std::string out;
+    formatExact(j, out);
+    return out;
+}
+
 ToolResult toResult(const ApiResult& r)
 {
-    if (r.ok) return ToolResult::FromJson(r.value);
+    if (r.ok) return ToolResult::Text(exactJson(r.value));
     ToolResult t = ToolResult::Error(r.error);
-    if (!r.value.is_null()) t.addText(McpServer::FormatJson(r.value, true));
+    if (!r.value.is_null()) t.addText(exactJson(r.value));
     return t;
 }
 }  // namespace
@@ -192,7 +253,10 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
     {
         if (WorldApi::isEdit(spec.name) && !options.allowEdits) continue;
         const std::string op = spec.name;
-        server.addTool(spec.name, spec.description, spec.schema,
+        // Unknown arguments are errors (the API checks them too)
+        Json::object schema            = spec.schema.object_items();
+        schema["additionalProperties"] = false;
+        server.addTool(spec.name, spec.description, schema,
                        [weak, op](const Json& args, McpServer::Respond respond)
                        {
                            auto a = weak.lock();
@@ -201,45 +265,59 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                        });
     }
 
-    // Runs while paused (exactly n steps), or waits for n steps while running (answered before the tool call
-    // times out, with the steps measured so far)
+    // Runs while paused (exactly n steps, within a wall-clock budget), or waits for n steps while running (answered
+    // before the tool call times out, with the steps measured so far)
     const double timeout = server.toolTimeoutSeconds;
     server.addTool(
         "measure_performance",
-        "Measures n steps (default 120, at most 6000) and returns the step profile of exactly those steps (see "
-        "get_profile). Paused: runs the steps now (a pure simulation benchmark). Running: waits until the app has run "
-        "them; it answers early with fewer steps if they take too long. Changes nothing but time while paused.",
-        McpServer::ObjectSchema({{"steps", McpServer::IntegerProperty("Number of steps (1..6000)")}}),
+        "Measures n steps (default 120, at most 600: the profile history) and returns the step profile of exactly "
+        "those "
+        "steps (see get_profile). Paused: runs the steps now (a pure simulation benchmark; edits must be allowed). "
+        "Running: waits until the app has run them (refused at time scale 0); it answers early with fewer steps if "
+        "they take too long. Changes nothing but time while paused.",
+        McpServer::ObjectSchema({{"steps", McpServer::IntegerProperty("Number of steps (1..600)")}}),
         [weak, timeout](const Json& args, McpServer::Respond respond)
         {
             auto a = weak.lock();
-            if (!a) return respond(ToolResult::Error("the world is not available"));
+            if (!a || !a->world()) return respond(ToolResult::Error("the world is not available"));
+            for (auto& kv : args.object_items())
+                if (kv.first != "steps") return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
+            World& w       = *a->world();
             const double n = args["steps"].is_null() ? 120 : args["steps"].number_value();
-            if (!(n >= 1 && n <= 6000)) return respond(ToolResult::Error("steps: 1..6000"));
-            World& w = a->world();
+            const int max  = w.profiler().historySize();
+            if ((!args["steps"].is_null() && !args["steps"].is_number()) || !(n >= 1 && n <= max) || n != std::floor(n))
+                return respond(ToolResult::Error("steps: an integer 1.." + std::to_string(max)));
             if (w.inStep()) return respond(ToolResult::Error("measure_performance: only between steps"));
+            const auto t0 = std::chrono::steady_clock::now();
+            auto elapsed  = [t0]()
+            { return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(); };
             if (w.isPaused())
             {
                 if (!a->editsAllowed())
                     return respond(ToolResult::Error("measure_performance: running steps while paused is an edit"));
-                w.step(int(n));
-                return respond(ToolResult::FromJson(w.profiler().report(int(n))));
+                int ran = 0;
+                while (ran < int(n) && elapsed() < 0.5 * timeout)
+                {
+                    w.step();
+                    ran++;
+                }
+                return respond(ToolResult::Text(exactJson(w.profiler().report(ran))));
             }
+            if (w.timeScale() == 0)
+                return respond(ToolResult::Error("measure_performance: the time scale is 0 (no steps run)"));
             const uint64_t start = w.profiler().sampleCount();
-            const auto t0        = std::chrono::steady_clock::now();
             w.addStepListener(
-                [weak, respond, start, n, t0, timeout]()
+                [weak, respond, start, n, elapsed, timeout]()
                 {
                     auto api = weak.lock();
-                    if (!api)
+                    if (!api || !api->world())
                     {
                         respond(ToolResult::Error("the world is not available"));
                         return false;
                     }
-                    const uint64_t done  = api->world().profiler().sampleCount() - start;
-                    const double elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
-                    if (done < uint64_t(n) && elapsed < 0.8 * timeout) return true;
-                    respond(ToolResult::FromJson(api->world().profiler().report(int(done))));
+                    const uint64_t done = api->world()->profiler().sampleCount() - start;
+                    if (done < uint64_t(n) && elapsed() < 0.8 * timeout) return true;
+                    respond(ToolResult::Text(exactJson(api->world()->profiler().report(int(done)))));
                     return false;
                 });
         });

@@ -182,7 +182,8 @@ class SAIGA_ENGINE_API Registry
 
     // End of a world step for every entity (§7.4): changedLastStep = changedThisStep, teleportedLastStep = teleported,
     // changedThisStep = teleported = 0
-    void shiftTransformFlags();
+    // changedOut (optional): receives the indices of the alive entities changed in the step that ends
+    void shiftTransformFlags(std::vector<uint32_t>* changedOut = nullptr);
 
     // world.hash(): every alive entity in index order (index, generation, the saved components in ID order, Transform
     // first), then the free list

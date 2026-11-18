@@ -220,18 +220,36 @@ new tests.
   add/remove/destroy rather than from the structural log, `move` shortened to length 1, idle characters not written).
 - `World::addStepListener` (after every completed step; the API's change journal and `measure_performance`), type-erased
   `Registry::findComponent/addDefault/removeById`, `PoolBase` JSON virtuals, `EventQueues::find` and `emitJson`.
+- Review round 1 (two reviewers: gameplay core; API and tools): `makePersistent` idempotent within a phase and for
+  reserved entities; `onDestroy` collected again until no new hook runs (an entity attached to a doomed parent in a
+  hook no longer survives with a dead parent); world-state entities refuse `Parent` and the removal of their components
+  in every build; operations of hooks during a flush on entities reserved later in the phase follow the activation;
+  `Behaviour::tickOffset` staggers the first tick (update got the stagger as elapsed time); game objects stay alive
+  while their hooks run (retired, released when no hook runs); a throwing `onDestroy` aborts the destroy cleanly;
+  `Persistent` read-only through `get` and views; the step time of an aborted step is discarded (timed by hand); the
+  `structural_records` counter counts this step's records; the action hash uses the queue order. API: unknown
+  arguments and wrong-typed numbers are errors; `changes_since` with an opaque cursor (`seq@step`; a foreign one is an
+  error), destroyed entities fold their components, moves coalesced per entity and opt-in (`include_moved`; tracked in
+  the World's flag shift, `World::setTrackStepChanges`); `set_transform` refused for children; Behaviour edits derive
+  the interval again and check the times; `step` and the paused measurement have a wall-clock budget;
+  `measure_performance` at most 600 steps and refused at time scale 0; `apply` allowed read-only for reads; `logs`
+  reports `first` and `truncated`; `get_profile` filters scopes; the API detaches when the world is destroyed
+  (`World::addDestroyListener`); JSON: the 2^53 boundary in the integer domain, float range, unknown fields list the
+  valid ones; tool results are compact JSON with exact numbers; the entity schema uses a type list instead of `oneOf`.
+  Not changed: `apply` is not atomic (documented); actions have no name registry yet (S13 input map); the spawn
+  initial-component vs `onSpawn` add convention is documented (§9.2).
 - The test event `DamageEvent` and the test component `Health` of `test_engine_world.cpp` and the ECS benchmark are
   renamed (`HitEvent`, `Vitality`): the engine registers those names now.
 
 ## Results
 
-- `tests/test_engine_gameobject.cpp`: 15 tests, `tests/test_engine_world_api.cpp`: 9 tests (GCC 15); the S07-S09
+- `tests/test_engine_gameobject.cpp`: 22 tests, `tests/test_engine_world_api.cpp`: 15 tests (GCC 15); the S07-S09
   tests unchanged. Full ctest (CI options, GCC 15): 57/57.
 - Benchmark (GCC 15, RelWithDebInfo, laptop): 10^4 game objects with one player: `World::step` 0.09 ms standing (411
   updates per step), 0.21 ms when every object is re-tiered each step. The S08 benchmark with 10^5 moving entities:
   1.9 -> 2.3 ms (R-TEST-2: three more engine systems run their (empty) views and the tick system scans the changed list;
   idle 0.51 ms, unchanged).
-- AddressSanitizer + UBSan: the game object and world API tests are clean. ThreadSanitizer reports races only inside
+- AddressSanitizer + UBSan: the game object, world API and world tests are clean. ThreadSanitizer reports races only inside
   `McpServer`'s handoff between `poll` and `handleMessage` in the uninstrumented `saiga_core` (its synchronization is
   not visible to TSan; the world is only touched by the polling thread while the caller blocks).
 
