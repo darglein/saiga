@@ -62,7 +62,9 @@ Entity World::create()
         // Reserved now (views skip it), alive when the command is applied; reserving never moves a Transform
         // Everything the abort cleanup needs is allocated now (it must not allocate while an exception propagates)
         // (the registry keeps room for releasing every reserved entity)
-        pendingReserved.reserve(pendingReserved.size() + 1);
+        // Geometric growth: reserving exactly size + 1 reallocated on every create (quadratic in creates per phase)
+        if (pendingReserved.capacity() == pendingReserved.size())
+            pendingReserved.reserve(std::max<size_t>(16, 2 * pendingReserved.capacity()));
         Entity e = reg.reserve();
         pendingReserved.push_back(e);
         record(makeCommand([e](World& w) { w.activateNow(e); }));

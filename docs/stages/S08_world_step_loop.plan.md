@@ -203,7 +203,7 @@ API.
 
 ## Results
 
-- `tests/test_engine_world.cpp`: 46 tests pass (GCC 15), incl. 11 death tests; `tests/test_engine_ecs.cpp`: 32 tests
+- `tests/test_engine_world.cpp`: 47 tests pass (GCC 15), incl. 11 death tests; `tests/test_engine_ecs.cpp`: 32 tests
   (the reworked `Registry`/`View` keep the S07 behaviour; new entities are `Simulated`).
 - Benchmark (GCC 15, RelWithDebInfo, laptop): `World::step` with 10^5 entities 0.48 ms idle (the phase-6 scan),
   0.97 ms with a system that moves all of them; the S07 ECS numbers are unchanged (create 14.4 ms, view<3> 0.61 ms).

@@ -1044,6 +1044,27 @@ TEST(World, AnAbortedStepKeepsItsEvents)
     EXPECT_EQ(g_eventsSeen, 0u);
 }
 
+namespace
+{
+void sysCreateMany(World& w, double)
+{
+    for (int i = 0; i < 100000; ++i) w.create();
+}
+}  // namespace
+
+// Regression: each create during a step reserved exactly one more entry for the abort cleanup, so every create
+// reallocated and copied all entities reserved before it in the phase (quadratic)
+TEST(World, ManyCreatesDuringAStepAreLinear)
+{
+    World w(testSetup([](SystemList& l) { l.add(Phase::Gameplay, "create_many", sysCreateMany); }));
+    auto start = std::chrono::steady_clock::now();
+    w.step();
+    double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    EXPECT_EQ(w.registry().aliveCount(), 100000u);
+    // Generous bound (sanitizer builds); quadratic copying of 10^5 handles takes far longer
+    EXPECT_LT(ms, 2000.0);
+}
+
 // Regression: every destroy sorted all Parent links; entities without children skip the cascade
 TEST(World, DestroyWithoutChildrenIsCheapWithManyParents)
 {
