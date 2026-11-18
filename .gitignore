@@ -1,5 +1,6 @@
 CMakeLists.txt.user
 build*/
+golden_failed/
 *.ptx
 cmake/SAIGAConfig.cmake
 create.sh

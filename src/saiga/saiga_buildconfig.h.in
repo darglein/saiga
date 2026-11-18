@@ -16,6 +16,9 @@
 #cmakedefine SAIGA_BUILD_SHARED
 #cmakedefine SAIGA_DEBUG
 #cmakedefine SAIGA_ASSERTS
+#cmakedefine SAIGA_ARCHNATIVE
+// -march=native is really used (SAIGA_ARCHNATIVE or SAIGA_FULL_OPTIMIZE with a GCC-style compiler)
+#cmakedefine SAIGA_ARCHNATIVE_ACTIVE
 #cmakedefine SAIGA_STRICT_FP
 #cmakedefine SAIGA_FULL_OPTIMIZE
 #cmakedefine SAIGA_CUDA_DEBUG

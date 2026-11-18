@@ -50,16 +50,18 @@ src/
                         VMA's defragmentation compacts (full_defrag(), or incremental passes in update() per frame);
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
-                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools;
-                        sample_vulkan_world)
+                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools,
+                        benchmark runner WorldBenchmark; sample_vulkan_world)
     engine/             saiga_engine (namespace Saiga::Engine, needs the vulkan module): the game engine of
                         docs/engine_design.md; core/EngineVersion so far
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
-docs/                   engine_design.md: design and implementation stages of the game engine
+docs/                   engine_design.md: design and implementation stages of the game engine;
+                        stages/Sxx_<name>.plan.md: one plan per stage (template: S05_math_additions.plan.md)
 shader/                 GLSL shaders (OpenGL / Vulkan)
-data/                   Sample assets (textures, models)
+data/                   Sample assets (textures, models); test goldens in data/tests/golden/, benchmark baselines per
+                        GPU in data/tests/benchmarks.json
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the tech demos flight/, platformer/, racing/ and their shared common/, compiled
@@ -117,6 +119,19 @@ cmake --build build --parallel -- -k 0
 - Without Ninja, drop `-G Ninja` and `-- -k 0` (Makefiles: `cmake --build build --parallel $(nproc)`).
 - **CMake >= 4.0** refuses the `cmake_minimum_required(VERSION 3.0)` of `submodules/glog`; add
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
+- **GCC 15** fails on warnings in `submodules/assimp`; add `-DASSIMP_WARNINGS_AS_ERRORS=OFF` to the configure. (CI uses
+  GCC 13 and does not need it.)
+- **Eigen backend check** (math code must also compile with real Eigen, R-MATH-2 of `docs/engine_design.md`; not in CI):
+  a separate build directory with only the core module:
+  ```shell
+  cmake -S . -B build-eigen -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSAIGA_ARCHNATIVE=OFF \
+    -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_SAMPLES=OFF \
+    -DSAIGA_WITH_TINY_EIGEN=OFF -DSAIGA_WITH_TINY_GLOG=OFF \
+    -DSAIGA_MODULE_VULKAN=OFF -DSAIGA_MODULE_OPENGL=OFF -DSAIGA_MODULE_CUDA=OFF -DSAIGA_MODULE_VISION=OFF
+  cmake --build build-eigen --parallel --target test_core_math_functions
+  (cd build-eigen && ctest -R test_core_math_functions --output-on-failure)
+  ```
+  (`test_core_vectorization` and `test_core_geometry` fail with Eigen on `master` too.)
 - The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is covered
   through its headless tests (no window, swap chain or samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
   statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The Vulkan Memory
@@ -166,7 +181,7 @@ ctest -R test_core_ini --output-on-failure             # one test
   regression test carries a short comment describing the bug it guards against.
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
-  `tests/vulkan_test_context.h` (the `VulkanTest` fixture).
+  `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/golden_image.h` (`compareGolden`, golden images).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
   `OpenGLTest` fixture creates a headless EGL context (`CreateEGLContext()`, from the first EGL device —
   e.g. the NVIDIA GPU — else Mesa) and **skips** every test if there is no EGL display. Derive the
@@ -179,6 +194,43 @@ ctest -R test_core_ini --output-on-failure             # one test
   `VulkanTest` and use `TEST_F`. The validation layer is used if installed (`vulkan-validationlayers`); a validation
   error fails an assertion and aborts the test. The best device is used (e.g. the NVIDIA GPU); to run them on Mesa's
   software driver lavapipe as CI does: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json ctest -R test_vulkan`.
+- **Golden images** (`tests/golden_image.h`, `compareGolden`; PNGs in `data/tests/golden/`): a render test compares its
+  image with a golden; the comparison (and the committed counts of the world goldens) gates only on lavapipe (device
+  name `llvmpipe`), other devices print the metrics. A gating failure writes `golden_failed/<name>_actual.png` and
+  `_diff.png` (the diff only when a readable golden of the same size exists) into the working directory (`build/tests/` under ctest; CI uploads them as the artifact `golden-failed-<job>`, e.g. `golden-failed-ubuntu`, and
+  prints the metrics of every run in the step "Golden image metrics"). The committed goldens are rendered by a local
+  lavapipe (Mesa with LLVM 21.1.8); CI's lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the
+  tolerance (run 43754502053: `world_forest` mean 0.14/255, 0.19% of the pixels > 16/255; a Mesa update on the CI
+  runner may need the recipe below). Create or update goldens only on lavapipe, in a dedicated commit:
+  `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world
+  --gtest_filter='VulkanWorldGolden.*'` (the counts are not checked in this run; the goldens are written to the source tree, gray images as 8-bit grayscale
+  PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_vulkan_world.cpp`.
+  If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
+  whose comparison failed; the actual images are saved like goldens):
+  `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then
+  `for f in /tmp/golden/*_actual.png; do cp "$f" data/tests/golden/$(basename "$f" _actual.png).png; done`, and copy
+  the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
+  `tests/test_vulkan_world.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
+  (the goldens now come from CI's lavapipe). See `docs/engine_design.md` §17.6.
+- **Benchmarks** (local, GPU and display; `docs/engine_design.md` §17.7). Baselines are measured in a separate release
+  build without asserts (§17.10) and without `-march=native` (§17.7):
+  ```shell
+  cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DSAIGA_ASSERTS=OFF -DSAIGA_ARCHNATIVE=OFF \
+    -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_TESTS=OFF -DSAIGA_BUILD_SAMPLES=ON
+  # CMake >= 4: add -DCMAKE_POLICY_VERSION_MINIMUM=3.5; GCC 15: add -DASSIMP_WARNINGS_AS_ERRORS=OFF (see above)
+  cmake --build build-bench --target sample_vulkan_world --parallel
+  cd build-bench/samples/vulkan && ./sample_vulkan_world --benchmark flyover   # and --benchmark forest
+  ```
+  It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
+  ignored) and writes
+  `benchmark_<name>.json` to the working directory (here `build-bench/samples/vulkan/`); the exit code is non-zero if it
+  did not finish, could not write the result, or the rendered size changed or a frame stalled (e.g. a minimized window)
+  during the measured frames. The JSON
+  records the build (`build: {type, asserts, archnative}`: the CMake configuration, `SAIGA_ASSERTS` and whether
+  `-march=native` was really used) and the rendered size. Compare with the baseline of the GPU in
+  `data/tests/benchmarks.json` (run each benchmark twice: the frame interval `cpu_ms` median varies below 1% between
+  runs, the GPU pass medians about 1%, passes below 0.1 ms up to 5%); a regression of more than 5% must be explained
+  (R-TEST-2), and a new baseline is committed when a change is accepted.
 
 ## Game Engine
 
@@ -229,7 +281,8 @@ working and show their feature in them.
   edit them; change the `src/saiga/*.h.in` templates.
 - Do not modify the git submodules under `submodules/` (third-party code pinned by commit). The exceptions are
   `submodules/tiny-eigen` and `submodules/tiny-glog`: they are regular files of this repository and are edited here
-  (tests: `tests/test_core_tiny_eigen.cpp`).
+  (tests: `tests/test_core_tiny_eigen.cpp`). They keep their own formatting: do not clang-format them as a whole; new
+  lines follow the house style.
 - `build*/` and `cmake-build-*/` are git-ignored; build in-tree in `build/`.
 
 ## Verification

@@ -487,7 +487,7 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             // (e.g. set_settings right before), and its GPU times arrive a few frames later
             int firstFrame = c.world->frameNumber() + 1;
             c.world->frameCallbacks.push_back(
-                [c, frames, cpu, gpu, respond, deadline, firstFrame](const WorldRenderer::FrameSample& s)
+                [c, frames, cpu, gpu, respond, deadline, firstFrame](const WorldRenderer::FrameTimes& s)
                 {
                     if (s.cpuFrame >= firstFrame) cpu->push_back(s.cpuMs);
                     if (s.gpuMs >= 0 && s.gpuFrame >= firstFrame) gpu->push_back(s.gpuMs);

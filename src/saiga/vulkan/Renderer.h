@@ -83,6 +83,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     inline VulkanBase& base() { return vulkanBase; }
 
     vk::Format getColorFormat() const { return isHeadless() ? offscreenFormat : vk::Format(swapChain.colorFormat); }
+    // Size of the render surface (the swap chain or offscreen images) in pixels
+    ivec2 surfaceSize() const { return ivec2(surfaceWidth, SurfaceHeight); }
 
     /**
      * True if the window did not create a surface (HeadlessWindow). The frames are then rendered into offscreen images

@@ -205,6 +205,7 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
         timestampPeriod     = props.limits.timestampPeriod;
         // The slots refer to the queries of the previous pool (a re-init): the new pool's queries are not reset yet
         timestampSlots = {};
+        gpuQueue.clear();
         timestampIndex = 0;
         if (timestampsSupported)
         {
@@ -268,23 +269,35 @@ double WorldRenderer::readGpuTimes(std::array<double, PASS_COUNT>& passes, int& 
 {
     if (!timestampsSupported) return -1;
     uint64_t completed = base->completedFrameValue();
-    int best           = -1;
+    // All completed slots, oldest first
+    std::vector<int> ready;
     for (int i = 0; i < (int)timestampSlots.size(); ++i)
     {
         auto& s = timestampSlots[i];
-        if (s.written && s.frameValue <= completed && (best < 0 || s.frameValue > timestampSlots[best].frameValue))
-            best = i;
+        if (s.written && s.frameValue <= completed) ready.push_back(i);
     }
-    if (best < 0) return -1;
-    std::array<uint64_t, timestampsPerFrame> ts;
-    auto result =
-        base->device.getQueryPoolResults(queryPool, uint32_t(best * timestampsPerFrame), timestampsPerFrame, sizeof(ts),
-                                         ts.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
-    timestampSlots[best].written = false;
-    if (result != vk::Result::eSuccess) return -1;
-    frameNumber = timestampSlots[best].frameNumber;
-    for (int p = 0; p < PASS_COUNT; ++p) passes[p] = double(ts[p + 1] - ts[p]) * timestampPeriod * 1e-6;
-    return double(ts[PASS_COUNT] - ts[0]) * timestampPeriod * 1e-6;
+    std::sort(ready.begin(), ready.end(),
+              [&](int a, int b) { return timestampSlots[a].frameNumber < timestampSlots[b].frameNumber; });
+    for (int slot : ready)
+    {
+        std::array<uint64_t, timestampsPerFrame> ts;
+        auto result =
+            base->device.getQueryPoolResults(queryPool, uint32_t(slot * timestampsPerFrame), timestampsPerFrame,
+                                             sizeof(ts), ts.data(), sizeof(uint64_t), vk::QueryResultFlagBits::e64);
+        timestampSlots[slot].written = false;
+        if (result != vk::Result::eSuccess) continue;
+        GpuSample g;
+        g.frame = timestampSlots[slot].frameNumber;
+        for (int p = 0; p < PASS_COUNT; ++p) g.passes[p] = double(ts[p + 1] - ts[p]) * timestampPeriod * 1e-6;
+        g.total = double(ts[PASS_COUNT] - ts[0]) * timestampPeriod * 1e-6;
+        gpuQueue.push_back(g);
+    }
+    if (gpuQueue.empty()) return -1;
+    GpuSample g = gpuQueue.front();
+    gpuQueue.pop_front();
+    passes      = g.passes;
+    frameNumber = g.frame;
+    return g.total;
 }
 
 void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3& cameraPosition, float aspect)
@@ -324,16 +337,22 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
         gpuHistory[historyIndex] = float(std::max(lastGpuMs, 0.0));
         historyIndex             = (historyIndex + 1) % historySize;
     }
+    lastTimes           = FrameTimes();
+    lastTimes.cpuMs     = cpuMs > 0 ? cpuMs : -1;
+    lastTimes.cpuFrame  = statistics.frames - 1;
+    lastTimes.cpuWorkMs = frameWorkMs;
+    frameWorkMs         = -1;
+    if (gpuMs >= 0)
+    {
+        lastTimes.gpuMs     = gpuMs;
+        lastTimes.gpuPassMs = passMs;
+        lastTimes.gpuFrame  = gpuFrame;
+    }
     if (hasLastFrame && cpuMs > 0)
     {
         for (size_t i = 0; i < frameCallbacks.size();)
         {
-            FrameSample sample;
-            sample.cpuMs    = cpuMs;
-            sample.cpuFrame = statistics.frames - 1;
-            sample.gpuMs    = gpuMs;
-            sample.gpuFrame = gpuFrame;
-            if (frameCallbacks[i](sample))
+            if (frameCallbacks[i](lastTimes))
                 frameCallbacks.erase(frameCallbacks.begin() + i);
             else
                 ++i;
@@ -424,9 +443,9 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
     statistics.treeTriangles    = forestRenderer.stats().triangles;
     statistics.grassClumps      = grassRenderer.stats().clumps;
     statistics.grassTriangles   = grassRenderer.stats().triangles;
-    smooth(statistics.cpuTransferMs,
-           std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - transferStart).count(),
-           statistics.frames);
+    transferWorkMs =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - transferStart).count();
+    smooth(statistics.cpuTransferMs, transferWorkMs, statistics.frames);
 }
 
 void WorldRenderer::render(vk::CommandBuffer cmd)
@@ -471,9 +490,10 @@ void WorldRenderer::render(vk::CommandBuffer cmd)
     mark(PASS_WIREFRAME);
 
     statistics.drawCalls = calls;
-    smooth(statistics.cpuRenderMs,
-           std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count(),
-           statistics.frames);
+    double renderMs      = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    smooth(statistics.cpuRenderMs, renderMs, statistics.frames);
+    // Delivered with the frame interval of this frame by the next transfer()
+    frameWorkMs = transferWorkMs + renderMs;
 }
 
 std::vector<WorldRenderer::MemoryEntry> WorldRenderer::memoryUsage() const

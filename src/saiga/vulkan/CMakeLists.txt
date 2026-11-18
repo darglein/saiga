@@ -27,6 +27,9 @@ target_link_libraries(${MODULE_NAME} PRIVATE ${VULKAN_PRIVATE_TARGETS})
 # SYSTEM: no warnings from the VMA implementation (memory/vk_mem_alloc.cpp).
 target_include_directories(${MODULE_NAME} SYSTEM PRIVATE ${VMA_INCLUDE_DIR})
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
+# The configuration this library is compiled in (WorldBenchmark's build info): a generator expression, so it is right
+# with multi-config generators too (Visual Studio, Ninja Multi-Config), where CMAKE_BUILD_TYPE is not used
+target_compile_definitions(${MODULE_NAME} PRIVATE "SAIGA_BUILD_CONFIG=\"$<CONFIG>\"")
 
 target_include_directories(
     ${MODULE_NAME}
