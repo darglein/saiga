@@ -20,6 +20,7 @@ int StructuralLog::addConsumer()
 {
     cursors.push_back(firstRecord + records.size());
     active.push_back(true);
+    consuming.push_back(false);
     return int(cursors.size()) - 1;
 }
 
@@ -35,6 +36,17 @@ void StructuralLog::consume(int consumer, const std::function<void(const Record&
     SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size() && active[consumer],
                  "StructuralLog::consume: unknown consumer");
     // Records appended by fn are consumed in this call too
+    // A callback that consumes the same consumer again would get the current record twice and move the cursor past
+    // the end afterwards
+    SAIGA_ASSERT(!consuming[consumer], "StructuralLog::consume: reentrant call for the same consumer");
+    if (consuming[consumer]) return;
+    struct Guard
+    {
+        std::vector<bool>& flags;
+        int i;
+        ~Guard() { flags[i] = false; }
+    } guard{consuming, consumer};
+    consuming[consumer] = true;
     while (active[consumer] && cursors[consumer] < firstRecord + records.size())
     {
         const Record r = records[size_t(cursors[consumer] - firstRecord)];

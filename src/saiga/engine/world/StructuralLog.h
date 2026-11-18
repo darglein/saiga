@@ -38,13 +38,22 @@ class SAIGA_ENGINE_API StructuralLog
 
     // Reserves room for n more records: a mutation calls prepare before it changes anything and append after it
     // succeeded, so the record cannot be lost to an allocation failure after the change (append does not allocate then)
+    // Reserves room for n more records: a mutation calls prepare before it changes anything and append after it
+    // succeeded, so the record cannot be lost to an allocation failure after the change (append does not allocate
+    // then). Reservations are counted: a nested change (e.g. from a component's constructor) reserves and uses its own
+    // slot, never the one promised to the outer change.
     void prepare(size_t n)
     {
-        // Geometric growth: reserving exactly size + n made every prepare reallocate (quadratic)
-        if (records.capacity() - records.size() < n)
-            records.reserve(std::max(records.size() + n, 2 * records.capacity()));
+        reserved += n;
+        const size_t needed = records.size() + reserved;
+        // Geometric growth: reserving exactly the needed size made every prepare reallocate (quadratic)
+        if (records.capacity() < needed) records.reserve(std::max(needed, 2 * records.capacity()));
     }
-    void append(Entity e, ComponentId component, bool added) { records.push_back(Record{e, component, added}); }
+    void append(Entity e, ComponentId component, bool added)
+    {
+        if (reserved > 0) reserved--;
+        records.push_back(Record{e, component, added});
+    }
 
     // A new consumer starts at the current end of the log
     int addConsumer();
@@ -65,7 +74,10 @@ class SAIGA_ENGINE_API StructuralLog
     std::vector<Record> records;    // a vector: prepare can reserve
     uint64_t firstRecord = 0;       // absolute number of records[0]
     std::vector<uint64_t> cursors;  // absolute position of each consumer
-    std::vector<bool> active;       // removed consumers keep their index, not their cursor
+    std::vector<bool> active;
+    std::vector<bool> consuming;  // consume() of the consumer runs (reentry asserts)
+    size_t reserved = 0;  // slots promised by prepare and not yet appended       // removed consumers keep their index,
+                          // not their cursor
 };
 
 }  // namespace Engine

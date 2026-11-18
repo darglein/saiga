@@ -165,7 +165,24 @@ bool World::rebuildHierarchyState()
                 else
                     counts[p.entity.index]++;
             });
-    SAIGA_ASSERT(ok, "rebuildHierarchyState: a Parent names an entity that is not alive");
+    if (!ok) return false;
+    // No cycles: every chain must reach a root within slotCount links
+    if (reg.registered(Parent::id))
+    {
+        const uint32_t max = reg.slotCount();
+        reg.view<const Parent>().each(
+            [&](Entity, const Parent& p)
+            {
+                Entity a = p.entity;
+                for (uint32_t depth = 0; ok; ++depth)
+                {
+                    const Parent* up = reg.tryRead<Parent>(a);
+                    if (!up) break;
+                    if (depth > max || !reg.alive(up->entity)) ok = false;
+                    a = up->entity;
+                }
+            });
+    }
     if (!ok) return false;
     children.swap(counts);
     hierarchyDirty = true;
@@ -226,14 +243,23 @@ void World::abortStep()
     // step after them). Best effort: called while an exception propagates, so a failure here (an allocation) must not
     // replace it; then the events of the aborted step are lost and reserved slots are not reused.
     commands.clear();
+    // Each part on its own: a failed event restore does not skip the releases, a failed release not the others
     try
     {
         if (restore) events.abortStep();
-        for (Entity e : pendingReserved)
-            if (reg.reserved(e)) reg.release(e);
     }
     catch (...)
     {
+    }
+    for (Entity e : pendingReserved)
+    {
+        try
+        {
+            if (reg.reserved(e)) reg.release(e);
+        }
+        catch (...)
+        {
+        }
     }
     pendingReserved.clear();
 }

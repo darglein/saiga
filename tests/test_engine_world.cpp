@@ -1240,6 +1240,30 @@ TEST(World, NestedViewsInsideParallelEachOnWorkers)
 // CodeRabbit regressions
 
 // A throwing consumer leaves the record unread (delivered again); a consumer removed in its callback stops
+#ifdef SAIGA_ASSERTS
+TEST(WorldDeathTest, ReentrantConsumeOfTheSameConsumer)
+{
+    World w(testSetup());
+    StructuralLog& log = w.structuralLog();
+    int c              = log.addConsumer();
+    w.create();
+    EXPECT_DEATH(
+        log.consume(c, [&](const StructuralLog::Record&) { log.consume(c, [](const StructuralLog::Record&) {}); }),
+        "reentrant");
+}
+#endif
+
+TEST(World, NestedChangesDoNotUseTheOuterReservation)
+{
+    // prepare counts reservations: an outer prepare(1), then a nested prepare(1) + append, then the outer append
+    StructuralLog log;
+    log.prepare(1);
+    log.prepare(1);
+    log.append(Entity{1, 0}, 0, true);
+    log.append(Entity{2, 0}, 0, true);
+    EXPECT_EQ(log.size(), 2u);
+}
+
 TEST(World, StructuralLogConsumerThrowsOrIsRemoved)
 {
     World w(testSetup());
@@ -1298,16 +1322,22 @@ TEST(World, RebuildHierarchyStateRejectsStaleParents)
     w.add<Parent>(c, Parent{p});
     Entity x = w.create();
     w.registry().add<Parent>(x, Parent{dead});  // a broken direct fill
-#ifndef SAIGA_ASSERTS
     EXPECT_FALSE(w.rebuildHierarchyState());
-#endif
     w.registry().remove<Parent>(x);
+    EXPECT_TRUE(w.rebuildHierarchyState());
+    // A cycle from a direct fill is rejected too (A -> B -> A); a valid chain to a root is accepted
+    Entity ca = w.create(), cb = w.create();
+    w.registry().add<Parent>(ca, Parent{cb});
+    EXPECT_TRUE(w.rebuildHierarchyState());
+    w.registry().add<Parent>(cb, Parent{ca});
+    EXPECT_FALSE(w.rebuildHierarchyState());
+    w.registry().remove<Parent>(cb);
     EXPECT_TRUE(w.rebuildHierarchyState());
     w.destroy(p);
     EXPECT_FALSE(w.alive(c));
 }
 
-#ifdef SAIGA_ASSERTS
+// Without the SAIGA_ASSERTS guard: the check uses SAIGA_EXIT_ERROR, active in every build
 namespace
 {
 struct SameIdAsDamage
@@ -1328,4 +1358,3 @@ TEST(WorldDeathTest, DuplicateEventIdStopsInEveryBuild)
     EventRegistry r(w.events);
     EXPECT_DEATH(r.add<SameIdAsDamage>(), "already used by DamageEvent");
 }
-#endif

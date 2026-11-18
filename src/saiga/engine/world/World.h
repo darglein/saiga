@@ -175,7 +175,8 @@ class SAIGA_ENGINE_API World
     std::vector<Entity> pendingChildTeleports;
     // Recounts the children per entity from the Parent pool and marks the hierarchy order dirty (after the registry was
     // filled directly, e.g. by load in S11)
-    // Returns false (and changes nothing) if a Parent names an entity that is not alive
+    // Returns false (and changes nothing, in every build: the caller can repair the fill) if a Parent names an entity
+    // that is not alive or the Parents form a cycle
     bool rebuildHierarchyState();
 
    private:
