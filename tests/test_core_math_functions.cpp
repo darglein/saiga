@@ -445,3 +445,144 @@ TEST(MathFunctions, ProjectionMatrices)
     mat4 T = createTRSmatrix(vec3(1, 2, 3), angleAxis(radians(90.f), vec3(0, 0, 1)), vec3(2, 2, 2));
     EXPECT_NEAR((T * vec4(1, 0, 0, 1) - vec4(1, 4, 3, 1)).norm(), 0, 1e-5);
 }
+
+// ===== Stage S05: double helpers and the R-MATH-2 subset (docs/engine_design.md §7.10). These tests run with
+// tiny-eigen and with Eigen, so the subset compiles and behaves the same with both backends. =====
+
+TEST(MathDouble, SubsetMatchesBothBackends)
+{
+    EXPECT_TRUE((Vec3::UnitX() + Vec3::UnitY() + Vec3::UnitZ()).isApprox(Vec3(1, 1, 1)));
+    Mat4 m = Mat4::Zero();
+    m.setIdentity();
+    EXPECT_TRUE(m.isApprox(Mat4::Identity()));
+    Vec3 a(1, -2, 3), b(4, 5, -6);
+    EXPECT_TRUE(a.cwiseProduct(b).isApprox(Vec3(4, -10, -18)));
+    EXPECT_TRUE(a.cwiseMin(b).isApprox(Vec3(1, -2, -6)));
+    EXPECT_TRUE(a.cwiseMax(b).isApprox(Vec3(4, 5, 3)));
+
+    Mat3 r  = angleAxis(0.4, Vec3(0, 1, 0)).matrix();
+    Mat3 rr = r;
+    rr *= r;
+    Mat3 expect = angleAxis(0.8, Vec3(0, 1, 0)).matrix();
+    EXPECT_TRUE(rr.isApprox(expect));
+
+    Quat q  = angleAxis(0.4, Vec3(0, 1, 0));
+    Quat q2 = q;
+    q2 *= q;
+    EXPECT_TRUE(q2.isApprox(angleAxis(0.8, Vec3(0, 1, 0))));
+    EXPECT_NEAR(q.angularDistance(q2), 0.4, 1e-12);
+
+    AngleAxis aa(0.4, Vec3(0, 1, 0));
+    EXPECT_TRUE(Quat(aa).isApprox(q));
+    EXPECT_TRUE(aa.toRotationMatrix().isApprox(r));
+    AngleAxis back(q2);
+    EXPECT_NEAR(back.angle(), 0.8, 1e-12);
+
+    // *= multiplies in the order this * other (rotations around different axes do not commute)
+    Quat x  = angleAxis(0.6, Vec3(1, 0, 0));
+    Quat y  = angleAxis(0.9, Vec3(0, 1, 0));
+    Quat xy = x;
+    xy *= y;
+    EXPECT_TRUE(xy.isApprox(x * y));
+    EXPECT_FALSE(xy.isApprox(y * x));
+    // Self-aliasing matrix product
+    Mat3 sq = r * r;
+    Mat3 rs = r;
+    rs *= rs;
+    EXPECT_TRUE(rs.isApprox(sq));
+    // Angles above pi come back as 2 pi - angle around the negated axis
+    AngleAxis big{Quat(AngleAxis(4.0, Vec3(0, 0, 1)))};
+    EXPECT_NEAR(big.angle(), 2 * 3.14159265358979323846 - 4.0, 1e-12);
+    EXPECT_TRUE(big.axis().isApprox(Vec3(0, 0, -1)));
+}
+
+TEST(MathDouble, CreateTRSmatrixMatchesFloat)
+{
+    Vec3 t(1, 2, 3), s(2, 3, 4);
+    Quat r = angleAxis(0.6, Vec3(1, 1, 0).normalized());
+    Mat4 m = createTRSmatrix(t, r, s);
+
+    vec3 tf = t.cast<float>(), sf = s.cast<float>();
+    mat4 mf = createTRSmatrix(tf, r.cast<float>(), sf);
+    EXPECT_TRUE(m.cast<float>().isApprox(mf, 1e-5f));
+
+    // Applied to a point: rotate(scale(p)) + t
+    Vec4 p(1, -1, 2, 1);
+    Vec3 expected = r * Vec3(1 * 2, -1 * 3, 2 * 4) + t;
+    Vec4 result   = m * p;
+    EXPECT_TRUE(Vec3(result(0), result(1), result(2)).isApprox(expected));
+
+    // The Vec4 overload uses xyz and ignores w
+    Mat4 m4 = createTRSmatrix(Vec4(t(0), t(1), t(2), 7), r, Vec4(s(0), s(1), s(2), 9));
+    EXPECT_TRUE(m4.isApprox(m));
+
+    // Regression: block views as arguments did not compile (single-index access on a view)
+    Mat4 storage              = Mat4::Zero();
+    storage.block<3, 1>(0, 3) = t;
+    storage.block<3, 1>(0, 2) = s;
+    Mat4 mb                   = createTRSmatrix(storage.block<3, 1>(0, 3), r, storage.block<3, 1>(0, 2));
+    EXPECT_TRUE(mb.isApprox(m));
+}
+
+TEST(MathDouble, LookAtMatchesFloatAndIsExactFarFromTheOrigin)
+{
+    Vec3 eye(1, 2, 3), center(4, 0, -1), up(0, 1, 0);
+    Mat4 v  = lookAt(eye, center, up);
+    vec3 ef = eye.cast<float>(), cf = center.cast<float>(), uf = up.cast<float>();
+    mat4 vf = lookAt(ef, cf, uf);
+    EXPECT_TRUE(v.cast<float>().isApprox(vf, 1e-5f));
+
+    // Far from the origin the double version keeps sub-millimeter precision (the reason for the overload)
+    Vec3 far(1e6 + 0.25, 10, 2e6 + 0.5);
+    Mat4 vfar = lookAt(far, Vec3(far + Vec3(0, 0, -1)), up);
+    Vec4 p    = vfar * Vec4(far(0) + 0.001, far(1), far(2) - 1, 1);
+    EXPECT_NEAR(p(0), 0.001, 1e-9);
+    EXPECT_NEAR(p(2), -1, 1e-9);
+
+    // An expression as an argument (Eigen: no ambiguity between the float and the double overload)
+    Mat4 v2 = lookAt(eye, eye + Vec3(3, -2, -4), up);
+    EXPECT_TRUE(v2.isApprox(v));
+}
+
+TEST(MathDouble, MakeQuatAndQuatCast)
+{
+    Quat q = angleAxis(1.1, Vec3(0.3, 0.9, -0.2).normalized());
+    Mat3 r = q.matrix();
+    Mat4 m = Mat4::Identity();
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) m(i, j) = r(i, j);
+
+    // Double precision: a conversion through float would lose about 1e-7
+    EXPECT_NEAR(make_quat(r).angularDistance(q), 0, 1e-12);
+    EXPECT_NEAR(make_quat(m).angularDistance(q), 0, 1e-12);
+    // quat_cast normalizes: a scaled rotation matrix still gives a unit quaternion
+    Mat3 scaled = r * 1.0000001;
+    EXPECT_NEAR(quat_cast(scaled).norm(), 1, 1e-12);
+    // ... and still the same rotation
+    EXPECT_NEAR(quat_cast(scaled).angularDistance(q), 0, 1e-6);
+    EXPECT_NEAR(quat_cast(m).angularDistance(q), 0, 1e-12);
+    // 180 degree rotations (trace <= 0: the other branches of the matrix to quaternion conversion)
+    for (Vec3 axis : {Vec3(0, 1, 0), Vec3(1, 0, 0), Vec3(0, 0, 1), Vec3(1, 1, 0).normalized()})
+    {
+        Quat half = angleAxis(3.14159265358979323846, axis);
+        Mat3 hr   = half.matrix();
+        EXPECT_NEAR(make_quat(hr).angularDistance(half), 0, 1e-12);
+        EXPECT_NEAR(quat_cast(hr).angularDistance(half), 0, 1e-12);
+    }
+    // The float overloads are still selected for float arguments
+    mat3 rf = r.cast<float>();
+    quat qf = make_quat(rf);
+    EXPECT_NEAR(double(qf.angularDistance(q.cast<float>())), 0, 1e-3);
+}
+
+#ifdef SAIGA_ASSERTS
+// The double lookAt asserts on degenerate input instead of returning a NaN or singular matrix
+TEST(MathDoubleDeathTest, LookAtRejectsDegenerateInput)
+{
+    Vec3 eye(1, 2, 3), up(0, 1, 0);
+    // saiga prints the assertion message to stdout, so the death tests cannot match it: the empty pattern accepts any
+    // death, also a crash for another reason
+    EXPECT_DEATH(lookAt(eye, eye, up), "");
+    EXPECT_DEATH(lookAt(eye, Vec3(eye + up), up), "");
+}
+#endif

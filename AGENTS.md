@@ -55,7 +55,8 @@ src/
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
-docs/                   engine_design.md: design and implementation stages of the game engine
+docs/                   engine_design.md: design and implementation stages of the game engine;
+                        stages/Sxx_<name>.plan.md: one plan per stage (template: S05_math_additions.plan.md)
 shader/                 GLSL shaders (OpenGL / Vulkan)
 data/                   Sample assets (textures, models)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
@@ -107,6 +108,19 @@ cmake --build build --parallel -- -k 0
 - Without Ninja, drop `-G Ninja` and `-- -k 0` (Makefiles: `cmake --build build --parallel $(nproc)`).
 - **CMake >= 4.0** refuses the `cmake_minimum_required(VERSION 3.0)` of `submodules/glog`; add
   `-DCMAKE_POLICY_VERSION_MINIMUM=3.5` to the configure. (CI uses CMake 3.28 and does not need it.)
+- **GCC 15** fails on warnings in `submodules/assimp`; add `-DASSIMP_WARNINGS_AS_ERRORS=OFF` to the configure. (CI uses
+  GCC 13 and does not need it.)
+- **Eigen backend check** (math code must also compile with real Eigen, R-MATH-2 of `docs/engine_design.md`; not in CI):
+  a separate build directory with only the core module:
+  ```shell
+  cmake -S . -B build-eigen -DCMAKE_BUILD_TYPE=RelWithDebInfo -DSAIGA_ARCHNATIVE=OFF \
+    -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_SAMPLES=OFF \
+    -DSAIGA_WITH_TINY_EIGEN=OFF -DSAIGA_WITH_TINY_GLOG=OFF \
+    -DSAIGA_MODULE_VULKAN=OFF -DSAIGA_MODULE_OPENGL=OFF -DSAIGA_MODULE_CUDA=OFF -DSAIGA_MODULE_VISION=OFF
+  cmake --build build-eigen --parallel --target test_core_math_functions
+  (cd build-eigen && ctest -R test_core_math_functions --output-on-failure)
+  ```
+  (`test_core_vectorization` and `test_core_geometry` fail with Eigen on `master` too.)
 - The CUDA module needs a GPU / CUDA toolkit and is **not covered by CI**. The Vulkan module is covered
   through its headless tests (no window, swap chain or samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
   statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The Vulkan Memory
@@ -210,7 +224,8 @@ designed in `docs/engine_design.md`. Read its Section 1 (Rules) before changing 
   edit them; change the `src/saiga/*.h.in` templates.
 - Do not modify the git submodules under `submodules/` (third-party code pinned by commit). The exceptions are
   `submodules/tiny-eigen` and `submodules/tiny-glog`: they are regular files of this repository and are edited here
-  (tests: `tests/test_core_tiny_eigen.cpp`).
+  (tests: `tests/test_core_tiny_eigen.cpp`). They keep their own formatting: do not clang-format them as a whole; new
+  lines follow the house style.
 - `build*/` and `cmake-build-*/` are git-ignored; build in-tree in `build/`.
 
 ## Verification

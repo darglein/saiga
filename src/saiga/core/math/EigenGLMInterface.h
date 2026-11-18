@@ -9,8 +9,11 @@
 #include "saiga/config.h"
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/math/Types.h"
+#include "saiga/core/util/assert.h"
 
 #include "EigenGLMInterfaceFloat.h"
+
+#include <type_traits>
 
 namespace Saiga
 {
@@ -356,5 +359,85 @@ SAIGA_CORE_API extern mat4 ortho(float left, float right, float bottom, float to
 SAIGA_CORE_API extern mat4 createTRSmatrix(const vec3& t, const quat& r, const vec3& s);
 SAIGA_CORE_API extern mat4 createTRSmatrix(const vec4& t, const quat& r, const vec4& s);
 
+// ===== Double overloads (R-MATH-2 of docs/engine_design.md) =====
+// Templates restricted to double scalars, so that float arguments keep using the float functions above and Eigen
+// expressions (e.g. eye + dir) are not ambiguous between the float and the double version.
+namespace detail
+{
+template <typename... Derived>
+constexpr bool AllDouble = (std::is_same_v<typename Derived::Scalar, double> && ...);
+// A 3D or 4D vector
+template <typename D>
+constexpr bool Vec3or4 = (D::RowsAtCompileTime == 3 || D::RowsAtCompileTime == 4) && D::ColsAtCompileTime == 1;
+// A 3x3 or 4x4 matrix
+template <typename D>
+constexpr bool Mat3or4 =
+    (D::RowsAtCompileTime == 3 || D::RowsAtCompileTime == 4) && D::ColsAtCompileTime == D::RowsAtCompileTime;
+}  // namespace detail
+
+// Translation * rotation * scale
+template <typename D1, typename D2, std::enable_if_t<detail::AllDouble<D1, D2>, int> = 0>
+Mat4 createTRSmatrix(const MatrixBase<D1>& t, const Quat& r, const MatrixBase<D2>& s)
+{
+    static_assert(detail::Vec3or4<D1> && detail::Vec3or4<D2>, "t and s must be 3D or 4D vectors");
+    Mat4 m = Mat4::Identity();
+    Mat3 R = r.matrix();
+    for (int i = 0; i < 3; ++i)
+    {
+        // Two-index access: block views (MatrixView) have no single-index operator
+        for (int j = 0; j < 3; ++j) m(i, j) = R(i, j) * s(j, 0);
+        m(i, 3) = t(i, 0);
+    }
+    return m;
+}
+
+// View matrix of a right handed camera at eye looking at center (like the float lookAt). Requires eye != center and
+// up not parallel to the view direction (asserted; like the float version the result is not usable otherwise).
+template <typename D1, typename D2, typename D3, std::enable_if_t<detail::AllDouble<D1, D2, D3>, int> = 0>
+Mat4 lookAt(const MatrixBase<D1>& eye, const MatrixBase<D2>& center, const MatrixBase<D3>& up)
+{
+    static_assert(D1::RowsAtCompileTime == 3 && D2::RowsAtCompileTime == 3 && D3::RowsAtCompileTime == 3 &&
+                      D1::ColsAtCompileTime == 1 && D2::ColsAtCompileTime == 1 && D3::ColsAtCompileTime == 1,
+                  "lookAt takes 3D vectors");
+    Vec3 e = eye, c = center, u0 = up;
+    SAIGA_ASSERT((c - e).squaredNorm() > 0, "lookAt: eye == center");
+    Vec3 f = (c - e).normalized();
+    SAIGA_ASSERT(f.cross(u0).squaredNorm() > 0, "lookAt: up is parallel to the view direction");
+    Vec3 s = f.cross(u0).normalized();
+    Vec3 u = s.cross(f);
+
+    Mat4 m  = Mat4::Identity();
+    m(0, 0) = s.x();
+    m(0, 1) = s.y();
+    m(0, 2) = s.z();
+    m(1, 0) = u.x();
+    m(1, 1) = u.y();
+    m(1, 2) = u.z();
+    m(2, 0) = -f.x();
+    m(2, 1) = -f.y();
+    m(2, 2) = -f.z();
+    m(0, 3) = -s.dot(e);
+    m(1, 3) = -u.dot(e);
+    m(2, 3) = f.dot(e);
+    return m;
+}
+
+// Rotation of a 3x3 or 4x4 (upper left 3x3) rotation matrix. make_quat does not normalize, quat_cast does (like the
+// float versions).
+template <typename D, std::enable_if_t<detail::AllDouble<D>, int> = 0>
+Quat make_quat(const MatrixBase<D>& m)
+{
+    static_assert(detail::Mat3or4<D>, "make_quat takes a 3x3 or 4x4 matrix");
+    Mat3 R;
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) R(i, j) = m(i, j);
+    return Quat(R);
+}
+
+template <typename D, std::enable_if_t<detail::AllDouble<D>, int> = 0>
+Quat quat_cast(const MatrixBase<D>& m)
+{
+    return make_quat(m).normalized();
+}
 
 }  // namespace Saiga
