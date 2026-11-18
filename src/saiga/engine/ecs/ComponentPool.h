@@ -9,10 +9,12 @@
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/ecs/VisitBinary.h"
 
 #include <array>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -52,6 +54,9 @@ class PoolBase
     const std::vector<Entity>& denseEntities() const { return entities; }
 
     virtual void remove(uint32_t entityIndex) = 0;
+    // Appends the binary form (VisitBinary.h) of the entity's component; it must have one. Type-erased access for the
+    // world hash (S08) and saves (S11).
+    virtual void appendBytes(uint32_t entityIndex, std::vector<uint8_t>& out) const = 0;
 
     const ComponentId id;
     const char* const name;
@@ -122,6 +127,14 @@ class ComponentPool final : public PoolBase
         data.pop_back();
         entities.pop_back();
         setSparse(entityIndex, kNone);
+    }
+
+    void appendBytes(uint32_t entityIndex, std::vector<uint8_t>& out) const override
+    {
+        BinaryWriter w(out);
+        w.write(at(entityIndex));
+        // Registered components pass the field check, so only the reader's limits can fail here (S07)
+        SAIGA_ASSERT(w.ok(), std::string("appendBytes: ") + name + ": " + w.error());
     }
 
     // The entity must have the component (checked by the registry)

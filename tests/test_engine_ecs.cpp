@@ -381,11 +381,12 @@ TEST(Ecs, FlagsAndTransformDefaultsOfAReusedSlot)
 {
     Registry r;
     Entity e = r.create();
-    r.setFlags(e, 1);
+    EXPECT_EQ(r.flags(e), Registry::kSimulated);  // every new entity is Simulated (§12.3)
+    r.setFlags(e, 0x80);
     r.get<Transform>(e).setPosition(Vec3(1, 2, 3));
     r.destroy(e);
     Entity n = r.create();
-    EXPECT_EQ(r.flags(n), 0);
+    EXPECT_EQ(r.flags(n), Registry::kSimulated);  // the old flags are gone
     EXPECT_EQ(r.read<Transform>(n).position(), Vec3::Zero());
 }
 

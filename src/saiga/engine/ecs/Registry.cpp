@@ -17,8 +17,8 @@ namespace Engine
 Registry::Registry()
 {
     // Slot 0 is never used: {0, 0} is never alive
-    slots.emplace_back();
-    transforms.emplace_back();
+    slots.push_back();
+    transforms.push_back();
 
     // Transform (ID 0) is built in: stored by entity index, present on every entity
     ComponentInfo& t = infos[Transform::id];
@@ -69,6 +69,13 @@ void Registry::validateRegistration() const
 Entity Registry::create()
 {
     checkNotIterating("create");
+    Entity e = reserveSlot();
+    activate(e);
+    return e;
+}
+
+Entity Registry::reserveSlot()
+{
     uint32_t index;
     if (!freeSlots.empty())
     {
@@ -79,11 +86,12 @@ Entity Registry::create()
     {
         SAIGA_ASSERT(slots.size() < 0xFFFFFFFFu, "create: out of entity slots");
         index = uint32_t(slots.size());
-        // Both vectors grow together: if the second allocation throws, the first is undone
-        transforms.emplace_back();
+        // Both arrays grow together: if the second allocation throws, the first is undone. Pages never move, so this
+        // is safe while a view holds references.
+        transforms.push_back();
         try
         {
-            slots.emplace_back();
+            slots.push_back();
         }
         catch (...)
         {
@@ -92,13 +100,77 @@ Entity Registry::create()
         }
     }
     Slot& s = slots[index];
-    s.state = SlotState::Alive;
+    s.state = SlotState::Reserved;
     s.flags = 0;
     s.mask.clear();
-    s.mask.set(Transform::id);
+    // A fresh slot: no view holds a reference to this Transform
     transforms[index] = Transform();
-    aliveEntities++;
     return Entity{index, s.generation};
+}
+
+Entity Registry::reserve()
+{
+    SAIGA_ASSERT(!destroying, "reserve while destroy removes the components of an entity");
+    SAIGA_ASSERT(!inParallelEach(), "reserve inside parallelEach");
+    return reserveSlot();
+}
+
+void Registry::activate(Entity e)
+{
+    checkNotIterating("activate");
+    SAIGA_ASSERT(reserved(e), "activate: " + describe(e) + " is not reserved");
+    Slot& s = slots[e.index];
+    s.state = SlotState::Alive;
+    s.flags = kSimulated;
+    s.mask.set(Transform::id);
+    aliveEntities++;
+}
+
+void Registry::release(Entity e)
+{
+    SAIGA_ASSERT(reserved(e), "release: " + describe(e) + " is not reserved");
+    Slot& s                       = slots[e.index];
+    const uint32_t nextGeneration = s.generation + 1;
+    // The only step that can throw comes first
+    if (nextGeneration != 0) freeSlots.push_back(e.index);
+    s.state      = SlotState::Free;
+    s.generation = nextGeneration;
+}
+
+void Registry::shiftTransformFlags()
+{
+    for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
+    {
+        Transform& t      = transforms[i];
+        t.changedLastStep = t.changedThisStep;
+        t.changedThisStep = 0;
+        t.teleported      = 0;
+    }
+}
+
+void Registry::hashInto(Hasher& h) const
+{
+    std::vector<uint8_t> bytes;
+    h.addU64(uint64_t(slots.size()));
+    for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
+    {
+        const Slot& s = slots[i];
+        if (s.state != SlotState::Alive) continue;
+        bytes.clear();
+        BinaryWriter w(bytes);
+        w.write(transforms[i]);
+        // The saved components in ID order, each with its ID
+        for (size_t id = 1; id < kMaxComponents; ++id)
+        {
+            if (!s.mask.test(ComponentId(id)) || !savedComponent(ComponentId(id))) continue;
+            bytes.push_back(uint8_t(id));
+            pools[id]->appendBytes(i, bytes);
+        }
+        h.addU32(i).addU32(s.generation).addU64(uint64_t(bytes.size())).add(bytes.data(), bytes.size());
+    }
+    // The free list decides the indices and generations of future entities
+    h.addU64(uint64_t(freeSlots.size()));
+    for (uint32_t index : freeSlots) h.addU32(index).addU32(slots[index].generation);
 }
 
 void Registry::destroy(Entity e)
