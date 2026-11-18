@@ -249,6 +249,13 @@ void formatExact(const Json& j, std::string& out)
     }
 }
 
+// When a handler must answer: the caller's deadline minus a tenth of the timeout (formatting and returning the result)
+std::chrono::steady_clock::time_point answerDeadline(const McpServer& server)
+{
+    return server.callDeadline() - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                       std::chrono::duration<double>(0.1 * server.toolTimeoutSeconds));
+}
+
 // The profile of the last n samples of a measurement; n = 0 is an empty window (Profiler::report(0) means the whole
 // history)
 Json measurementReport(const Profiler& p, uint64_t n)
@@ -291,8 +298,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                        {
                            auto a = weak.lock();
                            if (!a) return respond(ToolResult::Error("the world is not available"));
-                           // Half the tool timeout: the call may have waited in the server's queue
-                           a->setTimeBudget(0.5 * serverPtr->toolTimeoutSeconds);
+                           // The request's real deadline (from when it was queued) minus a margin for the answer
+                           a->setDeadline(answerDeadline(*serverPtr));
                            respond(toResult(a->call(op, args)));
                        });
     }
@@ -316,9 +323,9 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         }(),
         [weak, serverPtr = &server](const Json& args, McpServer::Respond respond)
         {
-            // The current timeout (the app may change it after registration)
-            const double timeout = serverPtr->toolTimeoutSeconds;
-            auto a               = weak.lock();
+            // The request's deadline (from when it was queued, minus a margin for the answer)
+            const auto deadline = answerDeadline(*serverPtr);
+            auto a              = weak.lock();
             if (!a || !a->world()) return respond(ToolResult::Error("the world is not available"));
             for (auto& kv : args.object_items())
                 if (kv.first != "steps") return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
@@ -328,15 +335,13 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             if ((!args["steps"].is_null() && !args["steps"].is_number()) || !(n >= 1 && n <= max) || n != std::floor(n))
                 return respond(ToolResult::Error("steps: an integer 1.." + std::to_string(max)));
             if (w.inStep()) return respond(ToolResult::Error("measure_performance: only between steps"));
-            const auto t0 = std::chrono::steady_clock::now();
-            auto elapsed  = [t0]()
-            { return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(); };
+            auto over = [deadline]() { return std::chrono::steady_clock::now() >= deadline; };
             if (w.isPaused())
             {
                 if (!a->editsAllowed())
                     return respond(ToolResult::Error("measure_performance: running steps while paused is an edit"));
                 int ran = 0;
-                while (ran < int(n) && elapsed() < 0.5 * timeout)
+                while (ran < int(n) && !over())
                 {
                     w.step();
                     ran++;
@@ -377,7 +382,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     respond(ToolResult::Error("the world was destroyed during the measurement"));
                 });
             // Returns whether the measurement still runs
-            auto check = [weak, respond, n, elapsed, timeout, m]()
+            auto check = [weak, respond, n, over, m]()
             {
                 if (m->answered) return false;
                 auto api = weak.lock();
@@ -402,8 +407,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     return false;
                 }
                 const uint64_t done = world.profiler().sampleCount() - m->start;
-                // Half the tool timeout: the call may have waited in the server's queue before the handler ran
-                if (done < uint64_t(n) && elapsed() < 0.5 * timeout) return true;
+                if (done < uint64_t(n) && !over()) return true;
                 m->answered = true;
                 world.removeDestroyListener(m->destroyListener);
                 world.removeStepListener(m->stepListener);

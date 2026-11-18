@@ -1383,3 +1383,34 @@ TEST(WorldTools, RepeatedMeasurementsWithoutStepsLeaveNoListeners)
     // Read after the polling thread stopped
     EXPECT_EQ(w.stepListenerCount(), listeners);
 }
+
+// Regression (CodeRabbit): a call that waited in the queue for more than half the timeout got a fresh budget and
+// answered after its caller had timed out; the handler now works to the request's real deadline
+TEST(WorldTools, ALongQueueWaitStillAnswersInTime)
+{
+    WorldSetup setup = apiSetup();
+    setup.systems    = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "slow",
+              [](World&, double) { std::this_thread::sleep_for(std::chrono::milliseconds(1)); });
+    };
+    World w(setup);
+    w.setPaused(true);
+    McpServer server("test");
+    server.toolTimeoutSeconds = 1.0;
+    auto api                  = registerWorldTools(server, w);
+    Json response;
+    // 5000 steps of 1 ms: far more than the 0.3 s left after the queue wait
+    std::thread caller([&]() { response = callTool(server, "step", obj(R"({"n": 5000})")); });
+    // The main loop is busy for 0.6 s before it polls
+    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    const auto start = std::chrono::steady_clock::now();
+    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(2))
+    {
+        server.poll();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    caller.join();
+    ASSERT_FALSE(response["result"]["isError"].bool_value()) << response.dump();
+    EXPECT_TRUE(toolJson(response)["stopped_early"].bool_value());
+}

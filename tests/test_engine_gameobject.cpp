@@ -1072,3 +1072,16 @@ TEST(GameObject, RemovingTheOwnBehaviourByIdKeepsTheObjectAlive)
     ASSERT_FALSE(g_trace.empty());
     EXPECT_EQ(g_trace.back(), "still here " + std::to_string(e.index));
 }
+
+// Clearing alwaysTickEveryStep from C++ takes effect at once (the flag is not folded into tickInterval)
+TEST(Ticking, ClearingAlwaysTickEveryStepNeedsNoReTier)
+{
+    World w(testSetup());
+    Entity far                                = w.spawn<Probe>(Vec3(0, 0, 5000), Health{0, 0});
+    w.get<Behaviour>(far).alwaysTickEveryStep = true;
+    w.step(30);
+    const double before                       = w.read<Health>(far).hp;
+    w.get<Behaviour>(far).alwaysTickEveryStep = false;
+    w.step(30);  // 0.5 s: at most one far tick
+    EXPECT_LE(w.read<Health>(far).hp - before, 1.0);
+}

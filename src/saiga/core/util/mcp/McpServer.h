@@ -10,6 +10,7 @@
 #include "saiga/core/util/json11.hpp"
 
 #include <atomic>
+#include <chrono>
 #include <deque>
 #include <functional>
 #include <map>
@@ -96,6 +97,10 @@ class SAIGA_CORE_API McpServer
     bool running() const { return listening; }
     int port() const { return boundPort; }
 
+    // While a handler runs (in poll()): when its caller stops waiting (queued time + toolTimeoutSeconds). A handler
+    // that works long (or answers later) finishes before it, e.g. with a partial result.
+    std::chrono::steady_clock::time_point callDeadline() const { return currentDeadline; }
+
     // Executes the pending tool calls on the calling thread, then the poll listeners.
     void poll();
     // Runs fn at the end of every poll() (on the polling thread), e.g. a deferred tool that checks a deadline while
@@ -140,6 +145,7 @@ class SAIGA_CORE_API McpServer
     std::string name, version, instructions;
     std::vector<Tool> tools;
     std::vector<std::function<bool()>> pollListeners;
+    std::chrono::steady_clock::time_point currentDeadline;
 
     std::mutex pendingMutex;
     std::deque<std::shared_ptr<PendingCall>> pendingCalls;

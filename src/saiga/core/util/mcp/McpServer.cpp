@@ -539,6 +539,8 @@ struct McpServer::PendingCall
     std::atomic_bool answered{false};
     // Set once by whoever gets the call first: poll() (it runs) or callTool() on a timeout (it never runs)
     std::atomic_bool claimed{false};
+    // When the caller stops waiting (the call's timeout, from when it was queued)
+    std::chrono::steady_clock::time_point deadline;
 
     void answer(ToolResult result)
     {
@@ -643,6 +645,8 @@ void McpServer::poll()
         auto c = call;
         // Claimed by a timeout: the client was told that the call failed, so it must not run anymore
         if (c->claimed.exchange(true)) continue;
+        // Handlers can read how long the caller still waits (callDeadline)
+        currentDeadline = c->deadline;
         try
         {
             (*c->handler)(c->arguments, [c](ToolResult result) { c->answer(std::move(result)); });
@@ -680,6 +684,8 @@ McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Jso
     call->handler   = &it->handler;
     call->arguments = arguments.is_object() ? arguments : Json(Json::object{});
     auto future     = call->promise.get_future();
+    call->deadline = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                                            std::chrono::duration<double>(toolTimeoutSeconds));
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
         if (stopping) return ToolResult::Error("The application is shutting down");
@@ -691,7 +697,7 @@ McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Jso
 
     // On a timeout the call is claimed: if poll() has not started it yet, it never runs; if it has started, the error
     // says so (its effects may have happened, a deferred answer arriving later is dropped).
-    auto deadline = std::chrono::steady_clock::now() + std::chrono::duration<double>(toolTimeoutSeconds);
+    const auto deadline = call->deadline;
     while (future.wait_for(std::chrono::milliseconds(50)) != std::future_status::ready)
     {
         if (stopping)
