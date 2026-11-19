@@ -18,9 +18,8 @@ namespace Saiga
 {
 /**
  * Creates the window of windowParameters.backend: a glfw_Window or, for Backend::Headless, an OffscreenWindow
- * (HiddenGLFWWindow where saiga was built without EGL, such as on Windows). Returns nullptr if saiga was built without
- * that backend or the window could not be created (for example without a display or an EGL driver); the reason is
- * printed to std::cerr.
+ * (without EGL, a HiddenGLFWWindow). Returns nullptr if saiga was built without that backend or the window could not
+ * be created (for example without a display or an EGL driver); the reason is printed to std::cerr.
  */
 SAIGA_OPENGL_API std::unique_ptr<OpenGLWindow> CreateOpenGLWindow(const WindowParameters& windowParameters,
                                                                   const OpenGLParameters& openglParameters);

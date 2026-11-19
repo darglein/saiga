@@ -55,7 +55,6 @@ void HiddenGLFWWindow::setSize(int width, int height)
 
 void HiddenGLFWWindow::checkEvents()
 {
-    // Keeps the window's message queue empty; a hidden window gets no input.
     glfwPollEvents();
 }
 
@@ -72,7 +71,6 @@ void HiddenGLFWWindow::freeContext()
         window = nullptr;
         glfwTerminate();
     }
-    // Also called when create() failed before the OpenGL functions were loaded.
     if (OpenGLisInitialized()) terminateOpenGL();
 }
 
@@ -105,7 +103,6 @@ bool HiddenGLFWWindow::initWindow()
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_FALSE);
     glfwWindowHint(GLFW_DOUBLEBUFFER, GLFW_TRUE);
-    // The default framebuffer of a visible glfw_Window.
     glfwWindowHint(GLFW_RED_BITS, 8);
     glfwWindowHint(GLFW_GREEN_BITS, 8);
     glfwWindowHint(GLFW_BLUE_BITS, 8);
