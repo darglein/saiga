@@ -40,6 +40,8 @@ class SAIGA_CORE_API ImGuiHeadlessPlatform
     std::string clipboard;
     std::chrono::steady_clock::time_point last_frame;
     bool first_frame = true;
+    // The context whose callbacks this object set.
+    ImGuiContext* context = nullptr;
 
     static const char* GetClipboardText(ImGuiContext* ctx);
     static void SetClipboardText(ImGuiContext* ctx, const char* text);

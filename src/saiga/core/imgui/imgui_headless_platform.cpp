@@ -12,7 +12,7 @@
 
 namespace Saiga
 {
-ImGuiHeadlessPlatform::ImGuiHeadlessPlatform()
+ImGuiHeadlessPlatform::ImGuiHeadlessPlatform() : context(ImGui::GetCurrentContext())
 {
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags &= ~ImGuiConfigFlags_ViewportsEnable;
@@ -26,11 +26,14 @@ ImGuiHeadlessPlatform::ImGuiHeadlessPlatform()
 
 ImGuiHeadlessPlatform::~ImGuiHeadlessPlatform()
 {
+    ImGuiContext* previous = ImGui::GetCurrentContext();
+    ImGui::SetCurrentContext(context);
     ImGuiPlatformIO& platform_io            = ImGui::GetPlatformIO();
     platform_io.Platform_ClipboardUserData  = nullptr;
     platform_io.Platform_GetClipboardTextFn = nullptr;
     platform_io.Platform_SetClipboardTextFn = nullptr;
     ImGui::GetIO().BackendPlatformName      = nullptr;
+    ImGui::SetCurrentContext(previous);
 }
 
 void ImGuiHeadlessPlatform::NewFrame(int width, int height)

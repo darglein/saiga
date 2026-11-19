@@ -10,6 +10,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_main_menu.h"
+#include "saiga/opengl/egl/offscreen_window.h"
 #include "saiga/opengl/opengl.h"
 #include "saiga/opengl/rendering/empty_renderer.h"
 #include "saiga/opengl/window/StandaloneWindow.h"
@@ -78,6 +79,18 @@ class HeadlessApp : public StandaloneWindow
     int presses             = 0;
 };
 
+// A raw EGL context, created once and released again, tells whether this machine has an EGL display at all.
+bool EGLAvailable()
+{
+    static const bool available = []()
+    {
+        if (!CreateEGLContext()) return false;
+        TerminateEGLContext();
+        return true;
+    }();
+    return available;
+}
+
 class OpenGLWindowTest : public ::testing::Test
 {
    protected:
@@ -89,14 +102,9 @@ class OpenGLWindowTest : public ::testing::Test
         params.height  = 240;
         // Needs SAIGA_WRITE_PROJECT_DIR_TO_HEADER, as the other tests that load files.
         params.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
-        try
-        {
-            app = std::make_unique<HeadlessApp>(params);
-        }
-        catch (const std::runtime_error& e)
-        {
-            GTEST_SKIP() << e.what();
-        }
+        if (!EGLAvailable()) GTEST_SKIP() << "No EGL display available";
+        // On a machine with EGL, a window that can't be created fails the test.
+        app = std::make_unique<HeadlessApp>(params);
         // ImGui shows a new window from its second frame on.
         app->Frame();
     }

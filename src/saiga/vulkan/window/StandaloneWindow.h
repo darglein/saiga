@@ -54,10 +54,10 @@ class SAIGA_VULKAN_API StandaloneWindow : public Updating
     void run(const MainLoopParameters& mainLoopParameters = MainLoopParameters());
 
    protected:
-    // Takes ownership of the renderer, which renders the given interface (usually this object). Once per window: each
-    // renderer creates the window's ImGui context.
+    // Takes ownership of the renderer, which renders the given interface (usually this object, which derives from the
+    // renderer's InterfaceType). Once per window: each renderer creates the window's ImGui context.
     template <typename Renderer>
-    Renderer* SetRenderer(std::unique_ptr<Renderer> new_renderer, RenderingInterface& rendering)
+    Renderer* SetRenderer(std::unique_ptr<Renderer> new_renderer, typename Renderer::InterfaceType& rendering)
     {
         SAIGA_ASSERT(!owned_renderer, "The window already has a renderer");
         Renderer* result = new_renderer.get();
@@ -67,14 +67,15 @@ class SAIGA_VULKAN_API StandaloneWindow : public Updating
     }
 
     template <typename Renderer>
-    Renderer* CreateRenderer(RenderingInterface& rendering, const typename Renderer::ParameterType& params)
+    Renderer* CreateRenderer(typename Renderer::InterfaceType& rendering,
+                             const typename Renderer::ParameterType& params)
     {
         return SetRenderer(std::make_unique<Renderer>(*window, vulkan_parameters, params), rendering);
     }
 
     // With the renderer's parameters from the config file this window was created with, if any.
     template <typename Renderer>
-    Renderer* CreateRenderer(RenderingInterface& rendering)
+    Renderer* CreateRenderer(typename Renderer::InterfaceType& rendering)
     {
         typename Renderer::ParameterType params;
         if (!config_file.empty()) params.fromConfigFile(config_file);

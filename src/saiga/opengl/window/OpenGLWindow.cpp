@@ -85,6 +85,7 @@ void OpenGLWindow::renderImGui(bool* p_open)
 
 bool OpenGLWindow::create()
 {
+    created = false;
     initSaiga(windowParameters.saigaParameters);
 
     // init window and opengl context
@@ -116,6 +117,7 @@ bool OpenGLWindow::create()
 
 void OpenGLWindow::destroy()
 {
+    created = false;
     terminateOpenGL();
     cleanupSaiga();
     freeContext();

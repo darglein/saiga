@@ -27,12 +27,15 @@ ImGui_Headless_Renderer::~ImGui_Headless_Renderer()
 
 void ImGui_Headless_Renderer::beginFrame()
 {
+    // Creates the device objects, the font texture among them, on the first frame.
+    ImGui_ImplOpenGL3_NewFrame();
     ImGuiIO& io = ImGui::GetIO();
     if (!io.Fonts->IsBuilt())
     {
+        // The font settings changed: replace the texture of the old atlas.
+        ImGui_ImplOpenGL3_DestroyFontsTexture();
         ImGui_ImplOpenGL3_CreateFontsTexture();
     }
-    ImGui_ImplOpenGL3_NewFrame();
 
     int w = window.getWidth();
     int h = window.getHeight();

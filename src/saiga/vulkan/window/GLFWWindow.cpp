@@ -61,6 +61,8 @@ ivec2 GLFWWindow::getFramebufferSize()
 
 void GLFWWindow::setSize(int width, int height)
 {
+    // There is no size callback: the window can't be resized otherwise.
+    resize(width, height);
     // GLFW sizes windows in screen coordinates, which differ from pixels with display scaling.
     int window_w, window_h, framebuffer_w, framebuffer_h;
     glfwGetWindowSize(window, &window_w, &window_h);

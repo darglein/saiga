@@ -450,6 +450,8 @@ float glfw_Window::getContentScale()
 
 bool glfw_Window::isShown()
 {
+    // Destroyed by freeContext.
+    if (!window) return false;
     return glfwGetWindowAttrib(window, GLFW_VISIBLE) && !glfwGetWindowAttrib(window, GLFW_ICONIFIED);
 }
 
