@@ -22,11 +22,13 @@ ImGui_Headless_Renderer::ImGui_Headless_Renderer(OpenGLWindow& window, const ImG
 
 ImGui_Headless_Renderer::~ImGui_Headless_Renderer()
 {
+    ImGui::SetCurrentContext(imguiContext());
     ImGui_ImplOpenGL3_Shutdown();
 }
 
 void ImGui_Headless_Renderer::beginFrame()
 {
+    ImGui::SetCurrentContext(imguiContext());
     // Creates the device objects, the font texture among them, on the first frame.
     ImGui_ImplOpenGL3_NewFrame();
     ImGuiIO& io = ImGui::GetIO();

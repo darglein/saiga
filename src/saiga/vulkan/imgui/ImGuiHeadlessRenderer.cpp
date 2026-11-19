@@ -24,6 +24,7 @@ ImGuiHeadlessRenderer::ImGuiHeadlessRenderer(size_t frameCount, const ImGuiParam
 
 void ImGuiHeadlessRenderer::beginFrame()
 {
+    ImGui::SetCurrentContext(imguiContext());
     platform.NewFrame(window.getWidth(), window.getHeight());
     ImGui::NewFrame();
 }

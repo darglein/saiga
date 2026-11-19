@@ -61,8 +61,6 @@ ivec2 GLFWWindow::getFramebufferSize()
 
 void GLFWWindow::setSize(int width, int height)
 {
-    // There is no size callback: the window can't be resized otherwise.
-    resize(width, height);
     // GLFW sizes windows in screen coordinates, which differ from pixels with display scaling.
     int window_w, window_h, framebuffer_w, framebuffer_h;
     glfwGetWindowSize(window, &window_w, &window_h);
@@ -152,6 +150,12 @@ void GLFWWindow::createSurface(VkInstance instance, VkSurfaceKHR* surface)
 void GLFWWindow::update(float dt)
 {
     glfwPollEvents();
+    // The stored size follows the drawable area, which setSize changes asynchronously on some platforms.
+    ivec2 framebuffer = getFramebufferSize();
+    if (framebuffer.x() > 0 && framebuffer.y() > 0 && (framebuffer.x() != getWidth() || framebuffer.y() != getHeight()))
+    {
+        resize(framebuffer.x(), framebuffer.y());
+    }
     if (glfwWindowShouldClose(window)) close();
     if (updating) updating->update(dt);
 }
