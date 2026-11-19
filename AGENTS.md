@@ -37,7 +37,8 @@ src/
     opengl/             saiga_opengl: buffers, shaders, textures, rendering, window, imgui, ffmpeg, vr
                         window/StandaloneWindow: the base of OpenGL apps; its window backend is chosen at runtime
                         (WindowParameters::backend, `window_backend` in config.ini): glfw_Window or, headless, the
-                        OffscreenWindow (egl/, an EGL pbuffer with ImGui and no window system)
+                        OffscreenWindow (egl/, an EGL pbuffer with ImGui and no window system), or without EGL (Windows) the
+                        HiddenGLFWWindow (a GLFW window that is never shown, with the same ImGui)
     vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer (VulkanForwardRenderer with
                         ForwardRenderingParameters: MSAA, reversed-Z with an infinite far plane). Vulkan 1.3 core only
                         (instance/device API version 1.3 also on 1.4 drivers; extensions: only surface/swapchain and

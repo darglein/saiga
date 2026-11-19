@@ -9,6 +9,7 @@
 #include "saiga/core/window/MainLoop.h"
 #ifdef SAIGA_USE_GLFW
 #    include "saiga/opengl/window/glfw_window.h"
+#    include "saiga/opengl/window/hidden_glfw_window.h"
 #endif
 #ifdef SAIGA_USE_EGL
 #    include "saiga/opengl/egl/offscreen_window.h"
@@ -35,10 +36,12 @@ std::unique_ptr<OpenGLWindow> CreateOpenGLWindow(const WindowParameters& windowP
 #endif
                 break;
             case WindowParameters::Backend::Headless:
-#ifdef SAIGA_USE_EGL
+#if defined(SAIGA_USE_EGL)
                 window = std::make_unique<OffscreenWindow>(windowParameters, openglParameters);
+#elif defined(SAIGA_USE_GLFW)
+                window = std::make_unique<HiddenGLFWWindow>(windowParameters, openglParameters);
 #else
-                std::cerr << "Saiga was built without EGL, which headless OpenGL windows need." << std::endl;
+                std::cerr << "Saiga was built without EGL and GLFW, which headless OpenGL windows need." << std::endl;
 #endif
                 break;
         }

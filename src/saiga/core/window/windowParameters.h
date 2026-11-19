@@ -30,8 +30,9 @@ struct SAIGA_CORE_API WindowParameters
     {
         // A window of the window system (needs a display).
         GLFW = 0,
-        // No window system: OpenGL renders into an EGL pbuffer, Vulkan into offscreen images. There is no input from
-        // the window system; the application feeds ImGui's input queue itself if it needs input.
+        // No window system: OpenGL renders into an EGL pbuffer (without EGL, as on Windows, into a GLFW window that
+        // is never shown), Vulkan into offscreen images. There is no input from the window system; the application
+        // feeds ImGui's input queue itself if it needs input.
         Headless = 1,
     };
 
