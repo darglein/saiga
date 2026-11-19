@@ -26,7 +26,7 @@
 namespace Saiga
 {
 OpenGLWindow::OpenGLWindow(WindowParameters _windowParameters, OpenGLParameters openglParameters)
-    : WindowBase(_windowParameters), openglParameters(openglParameters)
+    : WindowBase(_windowParameters), openglParameters(openglParameters), window_title(_windowParameters.name)
 {
     initSaigaGL(openglParameters);
 }
@@ -110,6 +110,7 @@ bool OpenGLWindow::create()
 
     assert_no_glerror();
 
+    created = true;
     return true;
 }
 

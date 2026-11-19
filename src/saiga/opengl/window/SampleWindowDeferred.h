@@ -8,16 +8,16 @@
 
 #include "saiga/config.h"
 #include "saiga/core/glfw/all.h"
+#include "saiga/opengl/assets/AssetRenderSystem.h"
 #include "saiga/opengl/assets/all.h"
 #include "saiga/opengl/rendering/deferredRendering/deferredRendering.h"
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/StandaloneWindow.h"
 #include "saiga/opengl/window/glfw_window.h"
 #include "saiga/opengl/world/LineSoup.h"
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
-#include "saiga/opengl/assets/AssetRenderSystem.h"
 
 
 namespace Saiga
@@ -28,8 +28,7 @@ namespace Saiga
  *
  * @brief The SampleWindowDeferred class
  */
-class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>,
-                                              public glfw_KeyListener
+class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow, public glfw_KeyListener
 {
    public:
     SampleWindowDeferred();
@@ -47,6 +46,7 @@ class SAIGA_OPENGL_API SampleWindowDeferred : public StandaloneWindow<WindowMana
 
 
    protected:
+    DeferredRenderer* renderer;
     std::shared_ptr<DirectionalLight> sun;
     Glfw_Camera<PerspectiveCamera> camera;
 

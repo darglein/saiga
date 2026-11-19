@@ -15,6 +15,8 @@
 
 #    include "GLFWWindow.h"
 
+#    include <cmath>
+
 #    if defined(SAIGA_OPENGL_INCLUDED)
 #        error OpenGL was included somewhere.
 #    endif
@@ -55,6 +57,20 @@ ivec2 GLFWWindow::getFramebufferSize()
     int w, h;
     glfwGetFramebufferSize(window, &w, &h);
     return ivec2(w, h);
+}
+
+void GLFWWindow::setSize(int width, int height)
+{
+    // GLFW sizes windows in screen coordinates, which differ from pixels with display scaling.
+    int window_w, window_h, framebuffer_w, framebuffer_h;
+    glfwGetWindowSize(window, &window_w, &window_h);
+    glfwGetFramebufferSize(window, &framebuffer_w, &framebuffer_h);
+    if (framebuffer_w > 0 && framebuffer_h > 0)
+    {
+        width  = (int)std::lround(double(width) * window_w / framebuffer_w);
+        height = (int)std::lround(double(height) * window_h / framebuffer_h);
+    }
+    glfwSetWindowSize(window, width, height);
 }
 
 std::vector<std::string> GLFWWindow::getRequiredInstanceExtensions()

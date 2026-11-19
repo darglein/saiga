@@ -128,7 +128,7 @@ class WorldSample : public VulkanExampleBase
         if (port > 0)
         {
             Vulkan::WorldMcpContext context;
-            context.renderer  = renderer.get();
+            context.renderer  = renderer;
             context.world     = &world;
             context.camera    = &camera;
             context.walkMode  = &walkMode;

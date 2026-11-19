@@ -24,6 +24,9 @@ class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
     bool create();
     void destroy();
 
+    // False if create() failed, for example without a display or without a usable OpenGL driver.
+    bool isCreated() const { return created; }
+
     void renderImGui(bool* p_open = nullptr);
 
 
@@ -33,6 +36,20 @@ class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
 
 
     virtual std::shared_ptr<ImGuiRenderer> createImGui() { return nullptr; }
+
+    // Operations of a window of the window system. A window without one (headless) keeps the title, ignores the
+    // icon, attention, raising and maximizing, and is always shown.
+    virtual void setWindowTitle(const std::string& title) { window_title = title; }
+    const std::string& getWindowTitle() const { return window_title; }
+    virtual void setWindowIcon(Image* image) {}
+    virtual void requestAttention() {}
+    virtual void bringToFront() {}
+    virtual void maximize() {}
+    virtual float getContentScale() { return windowParameters.headlessContentScale; }
+    // False while the window is hidden or minimized: its default framebuffer then holds no pixels of its own.
+    virtual bool isShown() { return true; }
+    // Resizes the drawable area to the given size in pixels.
+    virtual void setSize(int width, int height) = 0;
 
     virtual void swap();
     virtual void update(float dt);
@@ -51,6 +68,8 @@ class SAIGA_OPENGL_API OpenGLWindow : public WindowBase
     void sleep(tick_t ticks);
 
     bool auto_reload_shaders = false;
+    bool created             = false;
+    std::string window_title;
 };
 
 }  // namespace Saiga

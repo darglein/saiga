@@ -33,6 +33,9 @@ class SAIGA_VULKAN_API VulkanWindow : public WindowBase
     // Size of the drawable area in pixels. Can differ from the window size with display scaling.
     virtual ivec2 getFramebufferSize() { return ivec2(getWidth(), getHeight()); }
 
+    // Resizes the drawable area to the given size in pixels. The renderer adapts its images in the next frame.
+    virtual void setSize(int width, int height) = 0;
+
     virtual std::vector<std::string> getRequiredInstanceExtensions()       = 0;
     virtual void createSurface(VkInstance instance, VkSurfaceKHR* surface) = 0;
 };

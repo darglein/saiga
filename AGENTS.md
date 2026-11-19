@@ -35,6 +35,9 @@ src/
     vision/             saiga_vision: ba, pgo, imu, features, reconstruction, slam, recursive solvers, ceres/g2o glue
     cuda/               saiga_cuda: device helpers, reduce/scan/shfl, memory, streams, imageProcessing, thrust helpers
     opengl/             saiga_opengl: buffers, shaders, textures, rendering, window, imgui, ffmpeg, vr
+                        window/StandaloneWindow: the base of OpenGL apps; its window backend is chosen at runtime
+                        (WindowParameters::backend, `window_backend` in config.ini): glfw_Window or, headless, the
+                        OffscreenWindow (egl/, an EGL pbuffer with ImGui and no window system)
     vulkan/             saiga_vulkan: instance, swapchain, pipelines, memory, renderer (VulkanForwardRenderer with
                         ForwardRenderingParameters: MSAA, reversed-Z with an infinite far plane). Vulkan 1.3 core only
                         (instance/device API version 1.3 also on 1.4 drivers; extensions: only surface/swapchain and
@@ -52,6 +55,9 @@ src/
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
                         world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools,
                         benchmark runner WorldBenchmark; sample_vulkan_world)
+                        window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
+                        chosen at runtime as in opengl/: GLFWWindow or HeadlessWindow (offscreen images, ImGui through
+                        ImGuiHeadlessRenderer; core/imgui/imgui_headless_platform.h is shared with OpenGL)
     engine/             saiga_engine (namespace Saiga::Engine, needs the vulkan module): the game engine of
                         docs/engine_design.md; core/: EngineVersion, JobPool (parallelFor, the caller
                         participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h), Profiler; ecs/: Registry,
@@ -145,7 +151,7 @@ cmake --build build --parallel -- -k 0
   through its headless tests (no window, swap chain or samples); it needs the Vulkan headers. glslang comes from `submodules/glslang`, is linked
   statically into `saiga_vulkan` and needs CMake >= 3.22.1 (the module is skipped with a warning below that). The Vulkan Memory
   Allocator (header only) comes from `submodules/VulkanMemoryAllocator`; no saiga header includes it (the handles are forward declared). The OpenGL module is covered, but only through its
-  headless tests (no window, renderers or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
+  headless tests (an EGL context or the headless OffscreenWindow with ImGui; no window system or samples). For a CUDA build leave `SAIGA_MODULE_CUDA=ON` and pin the archs with
   `-DSAIGA_CUDA_ARCH="86;89"` (dotless, e.g. `75;80;86;89+PTX`), otherwise the installed GPU is
   autodetected.
 - The first build also compiles the submodules (their tests are off) and takes a while; later builds
@@ -169,7 +175,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-57 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+59 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -202,6 +208,12 @@ ctest -R test_core_ini --output-on-failure             # one test
   suite from `OpenGLTest` and use `TEST_F`; it fails a test that leaves a GL error behind. The core
   profile needs a bound VAO to draw. To run them on Mesa's software renderer as CI does:
   `__EGL_VENDOR_LIBRARY_FILENAMES=/usr/share/glvnd/egl_vendor.d/50_mesa.json LIBGL_ALWAYS_SOFTWARE=1 ctest -R test_opengl`.
+- **Window tests**: `test_opengl_window` and `test_vulkan_standalone_window` run a `StandaloneWindow` with the
+  headless backend (ImGui drawn into the frame, clicks through ImGui's input queue, resizing). They create a window per
+  test instead of using the `OpenGLTest` / `VulkanTest` fixtures; the OpenGL one checks for GL errors in `TearDown` as
+  the fixture does. ImGui shows a new window
+  from its second frame on, and spreads a mouse move and a button change of one frame over two frames, so they send one
+  input event per frame.
 - **Vulkan tests** (`test_vulkan_*`) need no window system either: the `VulkanTest` fixture creates a
   `Vulkan::HeadlessWindow` with the forward renderer (no surface or swap chain, the frames are rendered into offscreen
   images; `RenderFrame()` returns one) and **skips** every test without a Vulkan 1.3 driver. Derive the suite from
