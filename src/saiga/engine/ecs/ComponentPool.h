@@ -8,9 +8,11 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/engine/ecs/Entity.h"
+#include "saiga/engine/ecs/FieldList.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/ecs/TypeCheck.h"
 #include "saiga/engine/ecs/VisitBinary.h"
+#include "saiga/engine/ecs/VisitJson.h"
 
 #include <array>
 #include <cstdint>
@@ -71,6 +73,16 @@ class PoolBase
     // Appends the binary form (VisitBinary.h) of the entity's component; it must have one. Type-erased access for the
     // world hash (S08) and saves (S11).
     virtual void appendBytes(uint32_t entityIndex, std::vector<uint8_t>& out) const = 0;
+    // Type-erased access by the world API (S10): a default component for the entity (registry bookkeeping is the
+    // caller's), the JSON form (VisitJson.h), a dry-run check of a JSON document, a merge (false and unchanged on an
+    // error), and the field list (schemas for agents)
+    virtual void emplaceDefault(Entity e)                   = 0;
+    virtual json11::Json toJson(uint32_t entityIndex) const = 0;
+    // finiteOnly: nan and inf are errors (writes from the world API)
+    virtual bool checkJson(const json11::Json& json, std::string& error, bool finiteOnly = true) const = 0;
+    virtual bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error,
+                           bool finiteOnly = true)                                                     = 0;
+    virtual std::vector<FieldInfo> fields() const                                                      = 0;
 
     const ComponentId id;
     const char* const name;
@@ -151,6 +163,23 @@ class ComponentPool final : public PoolBase
         // Registered components pass the field check, so only the reader's limits can fail here (S07)
         SAIGA_ASSERT(w.ok(), std::string("appendBytes: ") + name + ": " + w.error());
     }
+
+    void emplaceDefault(Entity e) override { emplace(e); }
+    json11::Json toJson(uint32_t entityIndex) const override { return Engine::toJson(at(entityIndex)); }
+    bool checkJson(const json11::Json& json, std::string& error, bool finiteOnly = true) const override
+    {
+        T scratch{};
+        JsonReader check(json, false, finiteOnly);
+        scratch.visit(check);
+        check.finish();
+        error = check.errorMessage();
+        return check.ok();
+    }
+    bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error, bool finiteOnly = true) override
+    {
+        return fromJson(json, at(entityIndex), &error, finiteOnly);
+    }
+    std::vector<FieldInfo> fields() const override { return describeFields<T>(); }
 
     // The entity must have the component (checked by the registry)
     T& at(uint32_t entityIndex) { return data[denseIndex(entityIndex)]; }

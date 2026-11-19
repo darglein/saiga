@@ -71,6 +71,13 @@ size_t EventQueues::registeredCount() const
     return n;
 }
 
+EventQueueBase* EventQueues::find(const std::string& name) const
+{
+    for (auto& q : queues)
+        if (q && name == q->name) return q.get();
+    return nullptr;
+}
+
 void EventQueues::checkNotParallel() const
 {
     SAIGA_ASSERT(!registry.inParallelEach(), "events.emit inside parallelEach (R-PAR-1)");

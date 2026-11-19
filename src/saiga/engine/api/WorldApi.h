@@ -1,0 +1,192 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+
+#include "saiga/core/util/json11.hpp"
+#include "saiga/engine/ecs/Entity.h"
+#include "saiga/export.h"
+
+#include <chrono>
+#include <cstdint>
+#include <deque>
+#include <memory>
+#include <string>
+#include <vector>
+
+namespace Saiga
+{
+namespace Engine
+{
+class World;
+
+// The result of a world API call: ok with a value, or an error message (never an assert: an agent's mistake must not
+// stop the game). A failed batch (apply) also carries the results of the operations that were applied.
+struct ApiResult
+{
+    bool ok = true;
+    std::string error;
+    json11::Json value;
+
+    static ApiResult success(json11::Json v) { return ApiResult{true, {}, std::move(v)}; }
+    static ApiResult failure(std::string message) { return ApiResult{false, std::move(message), {}}; }
+};
+
+/**
+ * The world as JSON, by names (docs/engine_design.md §16.2, S10): what MCP tools, the scenario helpers (S12) and an
+ * editor use to read and change a running world. Every operation takes a JSON object of arguments (unknown argument
+ * names are errors) and is called between steps (MCP handlers run in McpServer::poll, which the app calls between
+ * steps). Entities are written {"index": i, "generation": g} or "i:g"; results always use the object form. Components,
+ * classes and events are named as registered; values are their visit fields (VisitJson.h): missing keys keep their
+ * values, unknown keys and wrong types are errors and change nothing. Every change is logged under the "api" category.
+ *
+ * Operations (name: arguments -> result):
+ *   describe_world:   -> components (fields, types, replication, notes), classes, events, operations
+ *   world_status:     -> step, time, paused, time scale, counts, hash
+ *   list_entities:    class?, components?: [names], near?: {space?, position, radius}, include?: [names],
+ *                     limit? (100, <= 1000), after? (entity index) -> entities [{entity, class?, position, components,
+ *                     values?, grid_position?, distance?}], count, next?, grid_step? (near selects by the grid of the
+ *                     last step)
+ *   inspect:          entity, components?: [names] -> class, flags, parent, children, components {name: values}
+ *   set_component:    entity, component, values -> values, previous (writable fields: an undo payload; Transform: as
+ *                     set_transform; Behaviour: the tick flags, the interval is derived again)
+ *   add_component:    entity, component, values?      remove_component: entity, component
+ *   set_transform:    entity, position?, rotation? [w,x,y,z], scale?, teleport? (true); not for children
+ *   spawn:            class?, position, rotation?, scale?, space? (0), components?: {name: values} (applied after
+ *                     onSpawn, merged into components the object added) -> entity, alive
+ *   destroy:          entity -> destroyed (the entity and its descendants; onDestroy runs)
+ *   get_global:       component, space? (world state if missing)      set_global: component, values, space? -> values,
+ *                     previous
+ *   emit_event:       event, values -> readable_in_step (the gameplay path, e.g. onDamage)
+ *   queue_action:     player, action, aim? -> readable_in_step
+ *   pause, resume, step: n (only while paused; stops after 30 s: ran, requested, stopped_early), time_scale: scale
+ *   changes_since:    cursor? (opaque; none or 0: from the oldest kept change; "now"), include_moved?, limit? (200) ->
+ *                     changes [{seq, step, kind, entity, component?}] (kinds: created, destroyed (its components with
+ *                     it), added, removed; step: the steps completed when the change was read), moved? [entities],
+ *                     moved_more?, moves_tracked_from_step?, cursor, more, truncated, step
+ *   get_profile:      steps? (window), scopes? [path prefixes] -> the profiler report      reset_profile
+ *   logs:             since?, category? -> lines [{seq, category, message}], first, last, truncated
+ *   apply:            operations: [{op, ...arguments}] -> one result per operation, applied in order; it stops at the
+ *                     first failing operation (the earlier ones stay applied). Allowed read-only if every
+ *                     operation reads.
+ * With allowEdits = false only the reading operations are allowed. The API detaches when the world is destroyed
+ * (every call then fails).
+ */
+class SAIGA_ENGINE_API WorldApi
+{
+   public:
+    explicit WorldApi(World& world, bool allowEdits = true);
+    ~WorldApi();
+    WorldApi(const WorldApi&)            = delete;
+    WorldApi& operator=(const WorldApi&) = delete;
+
+    // Runs one operation by name
+    ApiResult call(const std::string& operation, const json11::Json& arguments);
+    // The names of the operations (the reading ones only without edits)
+    std::vector<std::string> operations() const;
+    static bool isEdit(const std::string& operation);
+    // The argument names of an operation (the tool schemas list exactly these)
+    static std::vector<std::string> arguments(const std::string& operation);
+    bool editsAllowed() const { return allowEdits; }
+    // The wall-clock budget of one request in seconds (step and apply stop when it ends; default 30). The MCP tools
+    // set the request's real deadline for every call instead (setDeadline).
+    void setTimeBudget(double seconds)
+    {
+        budget      = seconds;
+        hasDeadline = false;
+    }
+    void setDeadline(std::chrono::steady_clock::time_point d)
+    {
+        deadline    = d;
+        hasDeadline = true;
+    }
+    // nullptr after the world was destroyed
+    World* world() { return w; }
+
+    // Parses an entity argument ({"index", "generation"} or "i:g")
+    static bool parseEntity(const json11::Json& j, Entity& e, std::string& error);
+    static json11::Json entityJson(Entity e);
+
+   private:
+    ApiResult run(const std::string& operation, const json11::Json& a);
+    ApiResult describeWorld(const json11::Json& a);
+    ApiResult worldStatus(const json11::Json& a);
+    ApiResult listEntities(const json11::Json& a);
+    ApiResult inspect(const json11::Json& a);
+    ApiResult setComponent(const json11::Json& a);
+    ApiResult addComponent(const json11::Json& a);
+    ApiResult removeComponent(const json11::Json& a);
+    ApiResult setTransform(const json11::Json& a);
+    ApiResult spawn(const json11::Json& a);
+    ApiResult destroy(const json11::Json& a);
+    ApiResult getGlobal(const json11::Json& a);
+    ApiResult setGlobal(const json11::Json& a);
+    ApiResult emitEvent(const json11::Json& a);
+    ApiResult queueAction(const json11::Json& a);
+    ApiResult step(const json11::Json& a);
+    ApiResult timeScale(const json11::Json& a);
+    ApiResult changesSince(const json11::Json& a);
+    ApiResult getProfile(const json11::Json& a);
+    ApiResult logs(const json11::Json& a);
+    ApiResult apply(const json11::Json& a);
+
+    // The change journal of changes_since: structural changes from an own structural log consumer (drained after every
+    // step and before every changes_since; the components of a destroyed entity are folded into "destroyed"),
+    // bounded; moves are tracked per entity index (the step of its last move) once a caller asked for them
+    struct Change
+    {
+        uint64_t seq;
+        uint64_t step;
+        const char* kind;
+        Entity entity;
+        int component;  // -1: none
+    };
+    void drainChanges();
+    void trackMoves();
+
+    World* w;
+    bool allowEdits;
+    int consumer        = -1;
+    int destroyListener = -1;
+    std::deque<Change> journal;
+    uint64_t nextSeq = 1;
+    uint32_t epoch   = 0;
+    // apply: one wall-clock deadline for the whole batch (step inside it does not start a new budget)
+    bool inBatch     = false;
+    double budget    = 30;
+    bool hasDeadline = false;
+    std::chrono::steady_clock::time_point deadline;
+    std::chrono::steady_clock::time_point budgetDeadline() const;
+    std::chrono::steady_clock::time_point batchDeadline;
+    Entity lastDestroyed;  // folds the removed records that follow a destroyed record
+    bool movesTracked   = false;
+    uint64_t movesSince = 0;  // the step from which moves are tracked
+    // By entity index: the handle and the steps of its last two moves since tracking started (0: none). Two steps: an
+    // entity that moves again while a window is paged stays in that window (its earlier move is in it)
+    struct MoveRecord
+    {
+        Entity entity;
+        uint64_t previous = 0, step = 0;
+        bool in(uint64_t from, uint64_t to) const
+        {
+            return (step > from && step <= to) || (previous > from && previous <= to);
+        }
+    };
+    std::vector<MoveRecord> lastMoved;
+    // The members of move windows that are being paged, fixed when the window opened (every entity that moved in the
+    // window is delivered, also if it moves again meanwhile); the newest 16 windows are kept
+    struct WindowSnapshot
+    {
+        uint64_t from = 0, to = 0;
+        std::vector<Entity> members;  // index order
+        bool truncated = false;       // rebuilt after eviction: may miss entities (every cursor is told)
+    };
+    std::deque<WindowSnapshot> windows;
+    std::shared_ptr<bool> alive;  // the world's listeners stop when the API is gone
+};
+
+}  // namespace Engine
+}  // namespace Saiga

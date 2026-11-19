@@ -20,6 +20,18 @@ enum class EngineComponent : uint8_t
     Transform = 0,
     Parent,
     LocalTransform,
+    Behaviour,
+    Persistent,
+    Player,
+    Health,
+    PlayerInput,
+    CharacterIntent,
+    Count
+};
+
+// The engine's game object classes (ClassId 0..63; none yet); game classes start at 64 (kFirstGameClass)
+enum class EngineClass : uint16_t
+{
     Count
 };
 

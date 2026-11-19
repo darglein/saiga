@@ -89,6 +89,8 @@ class SAIGA_ENGINE_API StructuralLog
     // End of a step: drops the records every consumer has read
     void truncate();
     size_t size() const { return records.size(); }
+    // Records appended since the log was created (truncation does not change it)
+    uint64_t appendedTotal() const { return firstRecord + records.size(); }
 
    private:
     std::vector<Record> records;    // a vector: prepare can reserve

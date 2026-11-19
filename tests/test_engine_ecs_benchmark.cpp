@@ -8,7 +8,9 @@
 // the times of the basic operations; compare before and after changes under engine/ecs/. The only checks are
 // correctness checks (the timings depend on the machine and are not compared).
 
+#include "saiga/engine/components/Player.h"
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
@@ -25,16 +27,16 @@ namespace
 {
 enum class BenchComponent : uint8_t
 {
-    Health = kFirstGameComponent,
+    Vitality = kFirstGameComponent,
     Velocity,
     Lifetime,
     Count
 };
 
-struct Health
+struct Vitality
 {
-    static constexpr const char* name = "Health";
-    static constexpr ComponentId id   = ComponentId(BenchComponent::Health);
+    static constexpr const char* name = "Vitality";
+    static constexpr ComponentId id   = ComponentId(BenchComponent::Vitality);
     static constexpr uint32_t version = 1;
     double hp = 100, maxHp = 100;
     template <class V>
@@ -85,7 +87,7 @@ TEST(EcsBenchmark, HundredThousandEntities)
 {
     const int n = 100000;
     Registry r;
-    r.registerComponent<Health>();
+    r.registerComponent<Vitality>();
     r.registerComponent<Velocity>();
     r.registerComponent<Lifetime>();
 
@@ -95,7 +97,7 @@ TEST(EcsBenchmark, HundredThousandEntities)
     for (int i = 0; i < n; ++i)
     {
         Entity e = r.create();
-        r.add<Health>(e);
+        r.add<Vitality>(e);
         r.add<Velocity>(e, Vec3(i, 0, 1));
         r.add<Lifetime>(e);
         entities.push_back(e);
@@ -104,7 +106,7 @@ TEST(EcsBenchmark, HundredThousandEntities)
 
     t          = Timer();
     double sum = 0;
-    r.view<const Health>().each([&](Entity, const Health& h) { sum += h.hp; });
+    r.view<const Vitality>().each([&](Entity, const Vitality& h) { sum += h.hp; });
     double view1 = t.ms();
 
     t = Timer();
@@ -113,8 +115,8 @@ TEST(EcsBenchmark, HundredThousandEntities)
     double view2 = t.ms();
 
     t = Timer();
-    r.view<Health, const Velocity, Lifetime>().each(
-        [](Entity, Health& h, const Velocity& v, Lifetime& l)
+    r.view<Vitality, const Velocity, Lifetime>().each(
+        [](Entity, Vitality& h, const Velocity& v, Lifetime& l)
         {
             l.remaining -= 1.0 / 60.0;
             h.hp -= v.v(2) * 0.001;
@@ -165,7 +167,7 @@ void benchSystems(SystemList& s)
 }
 void benchComponents(Registry& r)
 {
-    r.registerComponent<Health>();
+    r.registerComponent<Vitality>();
     r.registerComponent<Velocity>();
     r.registerComponent<Lifetime>();
 }
@@ -239,4 +241,53 @@ TEST(EcsBenchmark, SpatialGridHundredThousandEntities)
         n, stepMs, queryMs, double(hits) / 10000);
     EXPECT_EQ(w.spatialGrid().size(), size_t(n));
     EXPECT_GT(hits, 0u);
+}
+
+namespace
+{
+// A game object that does a little work per update (the Behaviour state counts the updates)
+class BenchObject final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = kFirstGameClass;
+    static constexpr const char* name = "BenchObject";
+    void update(double dt) override
+    {
+        Transform& t = transformWrite();
+        t.setPosition(t.position() + Vec3(0, 0, 0.1 * dt));
+    }
+};
+}  // namespace
+
+// Game objects (S10, R-TEST-2): World::step with 10^4 objects spread over 2 km x 2 km and one player (ticking by
+// grid-cell rings: the ones near the player every step, the others every 0.1 or 0.5 s), with the player standing and
+// with the player crossing a cell border every step (every object re-tiered)
+TEST(EcsBenchmark, GameObjectsAndTicking)
+{
+    const int n = 10000;
+    WorldSetup setup;
+    setup.classes = [](ClassList& c) { c.add<BenchObject>(); };
+    World w(setup);
+    Entity player = w.create();
+    w.add<Player>(player);
+    for (int i = 0; i < n; ++i)
+        w.spawn<BenchObject>(Vec3(w.random().uniform(-1000.0, 1000.0), 0, w.random().uniform(-1000.0, 1000.0)));
+    w.step(60);
+    w.profiler().reset();
+    Timer t;
+    w.step(60);
+    const double standMs = t.ms() / 60;
+    const double updated = w.profiler().counterStats(w.profiler().counter("objects_updated")).avg;
+    t                    = Timer();
+    for (int s = 0; s < 60; ++s)
+    {
+        w.get<Transform>(player).setPosition(Vec3(double(s) * 33, 0, 0));
+        w.step();
+    }
+    const double crossMs = t.ms() / 60;
+    std::printf(
+        "ECS benchmark, %d game objects (1 player): World::step %.3f ms standing (%.0f updates per step), %.3f ms "
+        "crossing a cell border every step\n",
+        n, standMs, updated, crossMs);
+    EXPECT_GT(updated, 0);
 }

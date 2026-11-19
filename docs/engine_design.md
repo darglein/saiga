@@ -192,6 +192,8 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
 | World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
+| Game objects (`GameObject`, `Behaviour`, `ClassList`, `spawn`, hooks), ticking by grid-cell rings (`tickSystem`), gameplay basics (`Player`, `Health`, `PlayerInput`, `CharacterIntent`, engine events, `queueAction`, player control, kinematic mover), world-state entities, `Persistent` (§7.8, §8.4, §9.2, §9.3, §9.6) | `src/saiga/engine/gameplay/`, `src/saiga/engine/components/`, `tests/test_engine_gameobject.cpp` | [exists] |
+| World API (JSON by names, `WorldApi`), MCP world tools (`registerWorldTools`), JSON visitors, profiler (§16.2, §17.1) | `src/saiga/engine/api/`, `src/saiga/engine/tools/`, `src/saiga/engine/ecs/VisitJson.h`, `src/saiga/engine/core/Profiler.*`, `tests/test_engine_world_api.cpp` | [exists] |
 | Spatial grid: 32 m cells per space updated in phase 6 (`spatialGridSystem`), `World::queryRadius` sorted by entity index (§9.5) | `src/saiga/engine/world/SpatialGrid.*`, `SpatialGridSystem.*`, `tests/test_engine_spatial_grid.cpp` | [exists] |
 | Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
@@ -524,8 +526,16 @@ clients whose player is in that space. Access:
 component asserts: world-state components are added at world creation by their registration). Both kinds are flagged
 in the slot state and excluded from the spatial grid, chunk membership, chunk unloading and radius interest; their
 interest and residency follow only the rules above.
-`WorldTime` (global) and `Weather` (per space) are added in S36. [planned: S10 for the mechanism (`global`,
+`WorldTime` (global) and `Weather` (per space) are added in S36. [exists: S10 for the mechanism (`global`,
 `spaceState`, `readGlobal`, `readSpaceState`; only space 0 before S21)]
+
+S10 implementation: the World creates the world-state entity when at least one component is registered with
+`registerGlobal`, and the space-state entity of space 0 when one is registered with `registerSpaceState` (a world
+without them has neither, so entity counts of plain worlds are unchanged); the slot flags `kWorldState` and
+`kSpaceState` keep them out of the grid and ticking; `destroy` asserts on them (the world API returns an error). They
+are visible in views and in the world API, so agents read and change them like other entities (`get_global`,
+`set_global`). In every build they are not destroyed, get no `Parent` (a parent's cascade would take them along) and
+keep their global and space-state components (the refusals assert in builds with asserts).
 
 ### 7.9 World setup
 
@@ -579,7 +589,8 @@ struct WorldSetup
     void (*components)(Registry&) = nullptr;      // S07
     void (*events)(EventRegistry&) = nullptr;     // S08
     void (*systems)(SystemList&) = nullptr;       // S08
-    void (*classes)(ClassList&) = nullptr;        // [planned: S10]
+    void (*classes)(ClassList&) = nullptr;        // S10
+    bool profiling = true;                        // S10: step, phase, system timings and counters (§17.1)
     void (*dataTypes)(DataTypeList&) = nullptr;   // [planned: S11]
     std::string dataDirectory;                    // [planned: S11] e.g. SAIGA_PROJECT_SOURCE_DIR "/data/world"
     void (*messages)(MessageList&) = nullptr;     // [planned: S15]
@@ -623,7 +634,7 @@ class World
 {
    public:
     Entity create();
-    template <class T, class... C> Entity spawn(const Vec3& position, C&&... initial);   // space 0 [planned: S10]
+    template <class T, class... C> Entity spawn(const Vec3& position, C&&... initial);   // space 0 [exists: S10]
     template <class T, class... C> Entity spawnIn(SpaceId space, const Vec3& position, C&&... initial);  // [S10]
                                                                     // (asserts space == 0 before S21)
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);              // [S21]
@@ -652,10 +663,11 @@ class World
                                     const ComponentMask& mask = {}) const;            // §9.5 [exists: S09]
     void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
                      std::vector<Entity>& out) const;     // reuses out's capacity [S09]
-    template <class T> T& global();  template <class T> T& spaceState(SpaceId space);  // §7.8 [planned: S10]
+    template <class T> T& global();  template <class T> T& spaceState(SpaceId space);  // §7.8 [exists: S10]
     template <class T> const T& readGlobal() const;
     template <class T> const T& readSpaceState(SpaceId space) const;
-    PersistentId makePersistent(Entity e);   // §9.6 [planned: S10]
+    PersistentId makePersistent(Entity e);   // §9.6 [exists: S10]
+    void queueAction(const PlayerAction& a); // §9.3 [exists: S10; S15: a message]
     void setRenderSink(RenderSink* sink);    // §10.3; forwards the registered meshes and materials and creates the
                                              // render instances; null allowed; any time [planned: S19]
     MeshId registerMesh(const std::string& name, const MeshLods& lods, MaterialId material);   // [planned: S19]
@@ -673,12 +685,13 @@ class World
     void ownerTeleport(Entity e, const Vec3& p, const Quat& r);    // host; direct or OwnerCommand [S16]
     void ownerImpulse(Entity e, const Vec3& impulse);               // host; direct or OwnerCommand [S28]
     static std::string diff(const World& a, const World& b);  // first differing entities/fields [planned: S11]
-    uint8_t localPeer() const; bool isHost() const;   // [planned: S10; before S16: 0 and true]
+    uint8_t localPeer() const; bool isHost() const;   // [exists: S10; before S16: 0 and true]
     template <class T> const T& data(const std::string& name) const;   // §14 [planned: S11]
     double terrainHeight(SpaceId space, double x, double z) const;     // §12.2 [planned: S20]
     double waterHeight(SpaceId space, double x, double z) const;       // §10.9 [planned: S39]
-    Entity resolve(PersistentId id) const;                             // §9.6 [planned: S10]
-    template <class... C> View<C...> ownedBy(uint8_t peer);   // §13.3 [planned: S10: all entities; S16: filtered]
+    Entity resolve(PersistentId id) const;                             // §9.6 [exists: S10]
+    template <class... C> View<C...> ownedBy(uint8_t peer);   // §13.3 [exists: S10: all entities; S16: filtered]
+    Profiler& profiler();                    // §17.1 [exists: S10]
 };
 
 class EventQueues
@@ -762,13 +775,15 @@ clients apply received live modifications in phase 1.
 void registerEngineSystems(SystemList& s)
 {
     s.add(Phase::Transform, "transform", transformSystem, RunOn::Both);   // S08: hierarchy, changed list
-    s.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);   // S09: §9.5
-    s.add(Phase::Events, "behaviour_events", behaviourEventSystem);
-    s.add(Phase::Behaviour, "behaviour", behaviourSystem);
+    s.add(Phase::Events, "behaviour_events", behaviourEventSystem);       // S10
+    s.add(Phase::Behaviour, "behaviour", behaviourSystem);                // S10
+    s.add(Phase::Gameplay, "player_control", playerControlSystem, RunOn::Both);   // S10: PlayerInput -> intent
     s.add(Phase::Gameplay, "character_move", characterMoveSystem, RunOn::Both);
         // S10: kinematic, phase 4 (position += desiredVelocity * dt; y = terrain height, 0 before S20).
         // From S29 the system is registered in Phase::Physics and runs after the Jolt step, in entity order, on the
         // owner (ownedBy); phase 4 only produces CharacterIntent.
+    s.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);   // S09: §9.5
+    s.add(Phase::Transform, "tick", tickSystem, RunOn::Both);                  // S10: §8.4, after the grid
     // ...
 }
 ```
@@ -870,14 +885,25 @@ class EngineApp   // engine/app/EngineApp.h
   in [0, 1). When paused: no steps. `world.step(n)` runs exactly n steps (also when paused). A NaN frame time is
   ignored, +inf counts as a long frame. [exists: S08]
 
-### 8.4 Ticking game objects [planned: S10]
+### 8.4 Ticking game objects [exists: S10]
 
-- `behaviourSystem` calls `update(dtSinceLastTick)` (seconds, double) for objects with `sinceTick >= tickInterval`
-  (both seconds), in the dense order of the `Behaviour` pool. Policy (R-MECH-1):
-  `struct TickPolicy { double nearDistance = 50, midDistance = 200, midInterval = 0.1, farInterval = 0.5; };` in
-  `WorldConfig`; a class overrides it with `virtual const TickPolicy* tickPolicy() const { return nullptr; }`; players
-  and objects with `Behaviour::alwaysTickEveryStep` tick every step. `sinceTick` starts at
-  `(hashCombine(0, index) % 1024) / 1024.0 * tickInterval`.
+- `behaviourSystem` (phase 3) calls `update(dtSinceLastTick)` (seconds, double) for objects with `sinceTick >=
+  tickInterval` (both seconds; a tolerance of 1e-9 s, so six steps of 1/60 s make 0.1 s), in the dense order of the
+  `Behaviour` pool. Policy (R-MECH-1), by grid-cell rings around the players (decided in S10 instead of distances):
+  `struct TickPolicy { double ringSize = 32; int nearRing = 1, midRing = 6; double midInterval = 0.1, farInterval =
+  0.5; };` in `WorldConfig`. The x/z plane is divided into `ringSize` cells; the ring of an object is the Chebyshev
+  distance in cells between its cell and the nearest player's cell in its space: `<= nearRing` every step (3 x 3 cells,
+  96 m), `<= midRing` every `midInterval` (13 x 13 cells, about 200 m), else `farInterval` (also without a player in the
+  space). A class overrides the rings and intervals with `virtual const TickPolicy* tickPolicy() const { return
+  nullptr; }` (the cell size is always the world's); players and objects with `Behaviour::alwaysTickEveryStep` tick
+  every step (the flag is read by `behaviourSystem`, not folded into `tickInterval`, so clearing it takes effect at
+  once). The first tick of a spawned object is staggered by `Behaviour::tickOffset = (hashCombine(0, index) %
+  1024) / 1024.0 * tickInterval` (it ticks when `sinceTick + tickOffset` reaches the interval; `update` gets the real
+  `sinceTick`).
+- `tickSystem` (phase 6, after the grid) keeps the sorted player cells: when they change (a player crossed a cell
+  border, joined or left) every object is re-evaluated, otherwise only the objects of the changed list; `spawn`
+  evaluates the new object at once. Exact and deterministic (no round-robin delay); cost per step is the moved objects
+  (the S10 benchmark: 10^4 objects 0.09 ms per step with a standing player, 0.21 ms re-tiering all every step).
 - `ScenarioWorld` ticks every object every step unless `w.enableDistanceTicking()`.
 
 ### 8.5 Threading [exists: S06 (JobPool); streaming pool: S20; network thread: S33]
@@ -922,7 +948,7 @@ regenerate chunks after patches.
 - Render data of tier 1/1p and terrain is float relative to its chunk or region origin; rendering is camera relative
   (§10.1).
 
-### 9.2 GameObject [planned: S10]
+### 9.2 GameObject [exists: S10]
 
 ```cpp
 class GameObject
@@ -958,18 +984,40 @@ class GameObject
 ```
 
 - Optional per entity, owned by the `Behaviour` component (`std::unique_ptr<GameObject>`, `classId`, `tickInterval`,
-  `sinceTick`, `alwaysSimulate`, `alwaysTickEveryStep`; `visit` covers all but the pointer; the object is recreated
+  `sinceTick`, `tickOffset`, `alwaysSimulate`, `alwaysTickEveryStep`; `visit` covers all but the pointer; the object is recreated
   through its factory).
-  `tickInterval` is recomputed in phase 6 from the distance to the nearest player, round-robin: a cursor over the
-  resident entity slots in index order advances by ceil(n/16) per step; additionally entities created or reloaded in
-  this step and the player entities themselves (`ScenarioWorld`: all entities every step):
-  below `nearDistance` 0 (every step),
-  below `midDistance` `midInterval`, else `farInterval`.
+  `tickInterval` is recomputed in phase 6 from the grid-cell rings around the players (§8.4; `ScenarioWorld`: all
+  objects tick every step).
+- S10 implementation (`engine/gameplay/`): `GameObject.h` (the class; `entity()`, `world()`, `read/write/has/add/
+  remove<T>`, `spawn`, `spawnIn`, `destroy`, `transform()`, `transformWrite()`), `Behaviour.h` (the component and
+  `World::spawn`/`spawnIn`), `ClassList.h` (`add<T>`, IDs contiguous like components: `EngineClass` 0..63, game classes
+  from `kFirstGameClass` = 64; names unique; `find(name)` for the world API), `TickPolicy.h`, `Systems.h`.
+  `spawn<T>(position, initial...)`: between steps at once; during a step the entity is reserved and returned, the rest
+  is a command (dropped if the entity is destroyed earlier in the same flush): `Transform` position, `Behaviour` with
+  the object from the factory, the initial components, the tick interval, `configure()`, `onSpawn()` (skipped if
+  `configure` destroyed the entity). `Behaviour` and `Persistent` cannot be added with `add` (compile error).
+  `destroy` calls `onDestroy()` of the entity and its descendants (children first, while all components are present)
+  before any component is removed; a hook may destroy other entities, itself (no second `onDestroy`) or spawn new ones
+  (loot). Destroys requested by `onDestroy` hooks are queued and applied after the current destroy, iteratively (no
+  recursion per chained destroy). After the hooks the descendants are collected again: entities a hook attached to a
+  doomed parent are destroyed with it, without their own `onDestroy` (a hook that keeps respawning children cannot
+  loop); an entity a hook released from the cascade (e.g. removed its `Parent`) lives on and gets `onDestroy` again on
+  its real destroy. A game object stays valid while one of its hooks runs, also if the hook destroys its entity or
+  removes its `Behaviour` (it is released when no hook runs). An exception in `onDestroy` aborts the destroy (nothing
+  is destroyed; a later destroy calls the hooks again); an exception in `configure`, `onSpawn` or an initial add
+  destroys the half-spawned entity (without `onDestroy`) before it propagates. Two deferred adds of a component, or
+  removes of a missing one, are refused when applied in every build (hooks see the state before the flush). During a flush, operations on an entity reserved later in the
+  same phase follow its activation (appended to the commands); so does `add<Parent>` with such a parent. `remove<Behaviour>` drops the object without
+  `onDestroy`. C++ `spawn<T>` adds the initial components before `configure`/`onSpawn` (a hook that adds one of them
+  again asserts: check `has<T>()`); the world API's `spawn` applies them after `onSpawn`, merged into components the
+  object added itself. The first tick of a spawned object is staggered by
+  `Behaviour::tickOffset`; `update` always gets the real time since the last update. `behaviourEventSystem` skips dead targets,
+  entities without a game object and entities without `Simulated`.
 - The player's `GameObject` holds only host-side logic (damage, inventory, quests); movement is a system (§8.2).
 - Game-specific events reach game objects through the game's own systems, which call methods of the game's own
   subclasses; the engine `GameObject` is not changed for game events.
 
-### 9.3 Engine gameplay basics [planned: S10]
+### 9.3 Engine gameplay basics [exists: S10]
 
 | Type | Fields | Replicate |
 |---|---|---|
@@ -986,9 +1034,17 @@ class GameObject
 
 Flat terrain (before S20) is the plane y = 0.
 
-Engine system `playerControlSystem` (phase 4, `RunOn::Both`, over `ownedBy<PlayerInput, CharacterIntent>`):
-`desiredVelocity = move * Player::moveSpeed`; games add their own control
-systems for actions.
+Engine system `playerControlSystem` (phase 4, `RunOn::Both`, over `ownedBy<const Player, const PlayerInput,
+CharacterIntent>`): `desiredVelocity = move * Player::moveSpeed` (a `move` longer than 1 is shortened to 1; NaN gives 0);
+games add their own control systems for actions.
+
+S10 implementation: the components in `engine/components/` (`Player.h`, `Health.h` (default 100/100), `PlayerInput.h`,
+`CharacterIntent.h`), the events in `engine/world/Events.h` (`EngineEvent` 0..3), `PlayerAction` in
+`engine/gameplay/PlayerAction.h`. `world.queueAction(action)` (the player must be alive with a `Player`) queues with
+the player's peer and a sequence number; at the start of the next step the queue becomes pending `ActionEvent`s in
+(peer, sequence) order, readable in that step (an aborted step keeps them like other events); the queue is part of
+the hash. `characterMoveSystem` (phase 4) moves entities with a non-zero `desiredVelocity` (`y = 0`) and does not
+write idle ones.
 
 ### 9.4 Classes decide, systems execute
 
@@ -1016,9 +1072,9 @@ in 3D (boundary included) against the position stored at the last phase 6: an en
 position, one created since is not found until then (reserved entities never); destroyed entities are never returned
 (stale handles are filtered by `alive`); it visits the cells of the radius' square, or every occupied cell of the space
 if those are fewer; a negative or NaN radius finds nothing, non-finite positions are never found. `mask` defaults to no
-requirement; `Simulated` is not required (ticking uses the grid to decide it, §9.2). Queries only read and are allowed
+requirement; `Simulated` is not required. Queries only read and are allowed
 in `parallelEach`. Engine-internal `world.forEachWithin(space, center, radius, mask, fn(Entity, gridPosition))` is the
-unsorted form for order-insensitive callers (S10 ticking, S16 interest): it reports the stored position the decision
+unsorted form for order-insensitive callers (S16 interest, the world API): it reports the stored position the decision
 was made with, so distances (hysteresis, nearest player) use the same state. The grid is derived data (not saved, not hashed); `rebuildSpatialGrid(world)` (engine-internal)
 rebuilds it from all entities (S11 `load`). World-state entities (S10) are excluded.
 
@@ -1026,6 +1082,14 @@ rebuilds it from all entities (S11 `load`). World-state entities (S10) are exclu
 
 Stages: the `PersistentId` type in S07 (`engine/ecs/PersistentId.h`); `Persistent`, `makePersistent` and `resolve` in
 S10; unloading and the rest of this section in S25.
+
+S10 implementation: `Persistent {PersistentId persistentId}` (engine component, `Replicate::Host`); `makePersistent`
+returns the existing ID or assigns the next counter value (between steps the component is added at once, during a step
+at the flush; the counter is part of the hash). The World keeps the ID -> entity index in `add`, `remove` and `destroy`
+of `Persistent` (not from the structural log: resolve is then current between steps); `resolve` returns `Entity{}`
+for a destroyed entity (also after its slot is reused). `add<Persistent>` does not compile (use `makePersistent`);
+`Persistent` is read-only through `get`, `tryGet` and views. During a step `makePersistent` is idempotent (a second call
+in the same phase returns the pending ID) and accepts entities reserved in the step (a fresh `spawn`).
 
 - Player entities of connected players are never unloaded by chunk unloading (leaving players: §13.7). Entities with
   `Behaviour::alwaysSimulate` (game decides: world events, important NPCs) keep ticking while their chunk is resident,
@@ -1964,28 +2028,56 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Tool | Contract | Status |
 |---|---|---|
 | `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | prototype; in S14: `screenshot`, `measure_performance`, `set_camera`, `move_camera` become engine tools (without `height_above_ground` and `walk_mode`, which move to `game_set_camera`); `get_state` -> `game_get_state`, `set_settings` -> `game_set_settings`, `terrain_query` -> `game_terrain_query` | [exists] |
-| `list_entities(filter)` | `{component?: [names], class?: name, near?: {position, radius}, limit?}` -> entity, class, position | [planned: S14] |
-| `inspect(entity)` | all components as JSON (`dumpJson`) | [planned: S14] |
-| `set_component(entity, component, json)` | applied between steps; missing keys keep values | [planned: S14] |
-| `spawn(class, position, components?)`, `destroy(entity)` | applied between steps; initial components as JSON; returns the entity | [planned: S14] |
-| `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs exactly n steps | [planned: S14] |
-| `logs(since)` | log lines with a sequence number > `since` | [planned: S14] |
+| `describe_world`, `world_status` | the registrations (components with fields, types, replication, global/space state; classes; events; operations); step, time, paused, time scale, counts, hash | [exists: S10] |
+| `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, include?: [names], limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order, the values of the `include` components; near selects by the grid of the last step (`grid_step`) and reports that `grid_position` and the `distance` from it next to the live `position`; `next` when more exist | [exists: S10] |
+| `inspect(entity, components?)` | class, flags, parent, children, every component as JSON | [exists: S10] |
+| `set_component`, `add_component`, `remove_component`, `set_transform` | applied at once (between steps); merges the given fields (missing keys keep values; unknown keys and wrong types change nothing; the error lists the fields); Transform through its setters (a teleport by default; refused for children: their `LocalTransform` decides); Parent with the cycle check (no world-state parent or child); Behaviour: the tick flags (the interval is derived again; writing `tickInterval` or `classId` is an error); not `Behaviour` (spawn) or `Persistent` (makePersistent); writes must be finite (nan and inf are errors; quaternions are normalized); `set_component` and `set_global` return the new `values` and the `previous` writable ones (an undo payload `set_component` accepts) | [exists: S10] |
+| `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
+| `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
+| `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
+| `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs n steps (stops at the request's time budget, half the tool timeout: `ran`, `stopped_early`; `apply` shares one budget and stops between operations) | [exists: S10] |
+| `changes_since(cursor?, include_moved?, limit?)` | created, destroyed (its components folded in), component added/removed with sequence numbers and steps (a journal of 100000; `truncated`, `more`; `limit` per call, default 200); with `include_moved` the entities moved since the cursor (once each, with the handle they moved with; a move window's members are fixed when it opens (a snapshot shared by the cursors paging it; the newest 16 windows are kept, an older continued window reports `moves_truncated`) and paged by entity index with `moved_more`, so every entity that moved in it is delivered; moves made meanwhile come in the next window; tracked from the first such call); the cursor is opaque (`0`: everything kept, `"now"`: from now on); one of another session (a random epoch per API) is an error | [exists: S10] |
+| `get_profile(steps?, scopes?)`, `reset_profile`, `measure_performance(steps)` | step profile (§17.1), filtered by scope path prefixes; measure (at most the 600 samples of the history) runs n steps while paused or waits for n steps while running (refused at time scale 0) | [exists: S10; S13 adds frame and GPU scopes] |
+| `logs(since?, category?)` | log lines with a sequence number > `since` (at most 500, `first`, `truncated`; category `api`: the edits made through the tools, logged after they ran with `ok` or `failed:`; an empty result names the known `categories`) | [exists: S10] |
+| `apply(operations)` | a batch `[{op, ...arguments}]` in order; stops at the first failing operation (the earlier ones stay applied); available read-only when every operation reads | [exists: S10] |
 | `run_scenario(name)` | replaces the live world with the scenario, runs it, returns the checks | [planned: S14] |
-| `world_hash`, `quit` | | [planned: S14] |
+| `quit` | | [planned: S14] |
 
-Entities in JSON are `{"index": i, "generation": g}`; errors are tool results with `isError: true` and a message. Tool
-tests use the `Poller` (moved to `tests/mcp_test_helper.h` in S14). Tools that need rendered frames (`screenshot`,
+S10 implementation: the operations are `WorldApi` calls (`engine/api/WorldApi.h`: JSON arguments and results by
+names, errors instead of asserts, only between steps, edits logged under `api`; S12's scenario helpers and an editor
+use the same API); `registerWorldTools(server, world, {allowEdits})` (`engine/tools/WorldTools.h`) registers one tool
+per operation plus `measure_performance` and returns the shared API (the caller keeps it while the tools are used;
+`allowEdits = false` registers only the reading tools for observing agents). Components and events are read and
+written through `visit` (`engine/ecs/VisitJson.h`: 64-bit integers beyond 2^53 as strings, non-finite doubles as
+`"nan"`/`"inf"`, enums by name, quaternions `[w, x, y, z]`). Unknown argument names are errors (the schemas set
+`additionalProperties: false`); integers must be integers in range (no strings). Results are compact JSON with exact
+numbers (integers in full, other numbers in the shortest form that reads back to the same double; profile times
+rounded to 1 ns, with a `top` list of the slowest systems). The API detaches when its world is destroyed. An exception from a game hook during an operation becomes an error result
+(an `apply` batch reports the operations before it). `McpServer::addPollListener` lets a deferred tool check its
+deadline in every poll (`measure_performance` answers although the world stops stepping, and fails on a profile reset). Entities in JSON are `{"index": i, "generation": g}` (the
+tools also accept `"i:g"`); errors are tool results with `isError: true` and a message. Tool tests use the `Poller`
+(`tests/mcp_test_helper.h`, S10). Tools that need rendered frames (`screenshot`, the frame part of
 `measure_performance`) register a frame callback and respond later; they do not render inside the handler.
 
 ## 17. Verification
 
-### 17.1 Logging [exists: S06; SAIGA_LOG_E: S07]
+### 17.1 Logging and profiling [exists: S06; SAIGA_LOG_E: S07; profiler: S10]
 
 `SAIGA_LOG(category, format, ...)` (printf style, S06) and `SAIGA_LOG_E(category, entity, format, ...)` (S07) into a
 ring buffer (MCP `logs`) and stdout; `SAIGA_ASSERT` messages name the entity and component. The ring
 (`engine/core/LogRing.h`, process-wide `engineLog()`, default 4096 lines) numbers its lines 1, 2, ... and returns the
 lines after a sequence number (`since(seq)`, for `logs(since)` and scenario failure output); `setLogEcho(false)` turns
 the stdout echo off (tests, benchmarks).
+
+Profiler (`engine/core/Profiler.h`, S10; `world.profiler()`): scopes in a tree by path (`step`, `step/phase:<name>`,
+`step/phase:<name>/system:<name>`, `step/phase:<name>/commands`) and counters (`entities`, `game_objects`,
+`objects_updated`, `commands_applied`, `structural_records`, `grid_items`), one sample per step, each with a ring of the
+last 600 samples; `report(n)` gives count, avg, min, p50, p95, max (ms) and the share of the parent per scope (the MCP
+tools `get_profile` and `measure_performance`). Wall-clock time (steady clock) only for these numbers, never for the
+simulation (R-DET-1); `WorldSetup::profiling = false` makes no clock calls; an aborted step's sample is discarded. From
+S13 the app adds `frame`, `extract`, `recording` and the GPU passes (timestamps) to the same profiler, and its ImGui
+window "Engine statistics" (history plots, per-phase and per-system tables like the prototype's "World Statistics")
+reads it.
 
 ### 17.2 Scenario tests [planned: S12]
 
@@ -2409,11 +2501,11 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S07 | ECS core (done) | `Entity`, registry, pools, component IDs, `visit`, views, `SAIGA_LOG_E`, `ChunkId`/`RegionId`/`SpaceId`/`InstanceKey`/`PersistentId` value types (§7.1-§7.5) | S04, S05, S06 | unit tests: stale handles, deterministic order, `visit` round trip; non-gating 10^5-entity benchmark (CI) |
 | S08 | World and step loop (done) | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
 | S09 | Spatial grid (done) | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
-| S10 | Game objects | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent` (§7.8, §8.4, §9.2-§9.4, §9.6) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve` (CI) |
+| S10 | Game objects (done) | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent`, the world API (`WorldApi`), the MCP world tools and the profiler (§7.8, §8.4, §9.2-§9.4, §9.6, §16.2, §17.1) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve`, JSON visitors, every API operation and every tool through `handleMessage` (CI) |
 | S11 | Save, data and migration | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
 | S12 | Scenario framework | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
 | S13 | Engine app | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7); tech demos: flight, platformer and racing ported to `EngineApp` and to game objects in a `World` (§18.4) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner; each tech demo has a scenario that passes with `--scenarios` and runs on `EngineApp` (local) |
-| S14 | Engine MCP tools | Engine tools, prototype tools renamed to `game_*` (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
+| S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`, `quit`), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
 | S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15 | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |

@@ -29,16 +29,16 @@ namespace
 {
 enum class TestComponent : uint8_t
 {
-    Health = kFirstGameComponent,
+    Vitality = kFirstGameComponent,
     Velocity,
     Derived,
     Count
 };
 
-struct Health
+struct Vitality
 {
-    static constexpr const char* name = "Health";
-    static constexpr ComponentId id   = ComponentId(TestComponent::Health);
+    static constexpr const char* name = "Vitality";
+    static constexpr ComponentId id   = ComponentId(TestComponent::Vitality);
     static constexpr uint32_t version = 1;
     double hp                         = 100;
     template <class V>
@@ -81,9 +81,9 @@ enum class TestEvent : uint16_t
     Count
 };
 
-struct DamageEvent
+struct HitEvent
 {
-    static constexpr const char* name = "DamageEvent";
+    static constexpr const char* name = "HitEvent";
     static constexpr EventId id       = EventId(TestEvent::Damage);
     static constexpr uint32_t version = 1;
     Entity target;
@@ -98,14 +98,14 @@ struct DamageEvent
 
 void testComponents(Registry& r)
 {
-    r.registerComponent<Health>(Replicate::Host);
+    r.registerComponent<Vitality>(Replicate::Host);
     r.registerComponent<Velocity>(Replicate::OwnerAuthoritative);
     r.registerComponent<Derived>(Replicate::Never, Saved::No);
 }
 
 void testEvents(EventRegistry& e)
 {
-    e.add<DamageEvent>();
+    e.add<HitEvent>();
 }
 
 WorldSetup testSetup(void (*systems)(SystemList&) = nullptr)
@@ -130,8 +130,8 @@ TEST(World, EngineListsFirstAndRegistration)
     EXPECT_TRUE(w.registry().registered(Transform::id));
     EXPECT_TRUE(w.registry().registered(Parent::id));
     EXPECT_TRUE(w.registry().registered(LocalTransform::id));
-    EXPECT_TRUE(w.registry().registered(Health::id));
-    EXPECT_TRUE(w.events.registered(DamageEvent::id));
+    EXPECT_TRUE(w.registry().registered(Vitality::id));
+    EXPECT_TRUE(w.events.registered(HitEvent::id));
     EXPECT_EQ(w.dt(), 1.0 / 60.0);
     EXPECT_EQ(w.stepIndex(), 0u);
     EXPECT_EQ(w.currentPhase(), Phase::None);
@@ -205,8 +205,8 @@ size_t g_countInSamePhase = 0, g_countInNextPhase = 0;
 
 void sysCreateInGameplay(World& w, double)
 {
-    w.view<Health>().each(
-        [&](Entity, Health&)
+    w.view<Vitality>().each(
+        [&](Entity, Vitality&)
         {
             if (g_created.valid()) return;
             g_created = w.create();
@@ -232,7 +232,7 @@ TEST(World, CreateDuringAStepIsAppliedAfterThePhase)
     g_sawReserved = false;
     World w(testSetup(createSystems));
     Entity a = w.create();
-    w.add<Health>(a);
+    w.add<Vitality>(a);
     w.step();
     ASSERT_TRUE(g_created.valid());
     EXPECT_TRUE(g_sawReserved);         // reserved, not alive inside the phase
@@ -247,13 +247,13 @@ namespace
 void sysDestroyAll(World& w, double)
 {
     // Destroy and remove during a view are deferred, so the view is not disturbed
-    w.view<Health>().each(
-        [&](Entity e, Health& h)
+    w.view<Vitality>().each(
+        [&](Entity e, Vitality& h)
         {
             if (h.hp < 50)
                 w.destroy(e);
             else
-                w.remove<Health>(e);
+                w.remove<Vitality>(e);
         });
 }
 void destroySystems(SystemList& s)
@@ -269,7 +269,7 @@ TEST(World, DestroyAndRemoveDuringAViewAreDeferred)
     for (int i = 0; i < 10; ++i)
     {
         e.push_back(w.create());
-        w.add<Health>(e.back(), double(i * 10));
+        w.add<Vitality>(e.back(), double(i * 10));
     }
     w.step();
     for (int i = 0; i < 10; ++i)
@@ -279,7 +279,7 @@ TEST(World, DestroyAndRemoveDuringAViewAreDeferred)
         else
         {
             EXPECT_TRUE(w.alive(e[size_t(i)])) << i;
-            EXPECT_FALSE(w.has<Health>(e[size_t(i)])) << i;
+            EXPECT_FALSE(w.has<Vitality>(e[size_t(i)])) << i;
         }
     }
 }
@@ -291,9 +291,9 @@ void sysRecordingOrder(World& w, double)
 {
     if (w.stepIndex() != 0) return;
     Entity e = w.create();
-    w.add<Health>(e, 1.0);
-    w.remove<Health>(e);
-    w.add<Health>(e, 2.0);  // applied in recording order: the final value is 2
+    w.add<Vitality>(e, 1.0);
+    w.remove<Vitality>(e);
+    w.add<Vitality>(e, 2.0);  // applied in recording order: the final value is 2
     g_created = e;
     // A second destroy of the same entity is dropped (it is gone when the command runs)
     Entity d = w.create();
@@ -310,7 +310,7 @@ TEST(World, CommandsApplyInRecordingOrder)
 {
     World w(testSetup(orderCommandSystems));
     w.step();
-    EXPECT_EQ(w.read<Health>(g_created).hp, 2.0);
+    EXPECT_EQ(w.read<Vitality>(g_created).hp, 2.0);
     EXPECT_EQ(w.registry().aliveCount(), 1u);
 }
 
@@ -319,10 +319,10 @@ TEST(World, ChangesBetweenStepsApplyImmediately)
     World w(testSetup());
     Entity e = w.create();
     EXPECT_TRUE(w.alive(e));
-    w.add<Health>(e, 5.0);
-    EXPECT_EQ(w.read<Health>(e).hp, 5.0);
-    w.remove<Health>(e);
-    EXPECT_FALSE(w.has<Health>(e));
+    w.add<Vitality>(e, 5.0);
+    EXPECT_EQ(w.read<Vitality>(e).hp, 5.0);
+    w.remove<Vitality>(e);
+    EXPECT_FALSE(w.has<Vitality>(e));
     w.destroy(e);
     EXPECT_FALSE(w.alive(e));
 }
@@ -332,8 +332,8 @@ namespace
 bool g_referenceStable = false;
 void sysCreateWhileHoldingTransform(World& w, double)
 {
-    w.view<Transform, Health>().each(
-        [&](Entity, Transform& t, Health&)
+    w.view<Transform, Vitality>().each(
+        [&](Entity, Transform& t, Vitality&)
         {
             const Transform* before = &t;
             // Many reservations: the slot and Transform arrays grow by pages, existing ones do not move
@@ -353,7 +353,7 @@ TEST(World, TransformReferenceSurvivesCreateInAView)
 {
     World w(testSetup(stableSystems));
     Entity e = w.create();
-    w.add<Health>(e);
+    w.add<Vitality>(e);
     w.step();
     EXPECT_TRUE(g_referenceStable);
     EXPECT_EQ(w.read<Transform>(e).position(), Vec3(7, 7, 7));
@@ -390,21 +390,21 @@ TEST(World, StructuralLogRecordsAndConsumers)
     StructuralLog& log = w.structuralLog();
     int a              = log.addConsumer();
     Entity e           = w.create();
-    w.add<Health>(e);
+    w.add<Vitality>(e);
     w.add<Velocity>(e);
-    w.remove<Health>(e);
+    w.remove<Vitality>(e);
     int b = log.addConsumer();  // starts at the current end
     w.destroy(e);
 
     std::vector<StructuralLog::Record> ra, rb;
     log.consume(a, [&](const StructuralLog::Record& r) { ra.push_back(r); });
     log.consume(b, [&](const StructuralLog::Record& r) { rb.push_back(r); });
-    // create (Transform added), add Health, add Velocity, remove Health, destroy: Transform and Velocity removed
+    // create (Transform added), add Vitality, add Velocity, remove Vitality, destroy: Transform and Velocity removed
     ASSERT_EQ(ra.size(), 6u);
     EXPECT_TRUE(ra[0].added && ra[0].component == Transform::id);
-    EXPECT_TRUE(ra[1].added && ra[1].component == Health::id);
+    EXPECT_TRUE(ra[1].added && ra[1].component == Vitality::id);
     EXPECT_TRUE(ra[2].added && ra[2].component == Velocity::id);
-    EXPECT_TRUE(!ra[3].added && ra[3].component == Health::id);
+    EXPECT_TRUE(!ra[3].added && ra[3].component == Vitality::id);
     EXPECT_TRUE(!ra[4].added && ra[4].component == Transform::id);
     EXPECT_TRUE(!ra[5].added && ra[5].component == Velocity::id);
     ASSERT_EQ(rb.size(), 2u);
@@ -441,14 +441,14 @@ namespace
 std::vector<std::pair<uint64_t, double>> g_events;  // (step, amount) read
 void sysEmitAndRead(World& w, double)
 {
-    for (const DamageEvent& d : w.events.read<DamageEvent>()) g_events.push_back({w.stepIndex(), d.amount});
-    if (w.stepIndex() == 1) w.events.emit(DamageEvent{Entity{}, 10});
-    if (w.stepIndex() == 1) w.events.emit(DamageEvent{Entity{}, 11});
+    for (const HitEvent& d : w.events.read<HitEvent>()) g_events.push_back({w.stepIndex(), d.amount});
+    if (w.stepIndex() == 1) w.events.emit(HitEvent{Entity{}, 10});
+    if (w.stepIndex() == 1) w.events.emit(HitEvent{Entity{}, 11});
 }
 void sysReadLater(World& w, double)
 {
     // A later phase of the same step sees the same readable events
-    for (const DamageEvent& d : w.events.read<DamageEvent>()) g_events.push_back({w.stepIndex() + 100, d.amount});
+    for (const HitEvent& d : w.events.read<HitEvent>()) g_events.push_back({w.stepIndex() + 100, d.amount});
 }
 void eventSystems(SystemList& s)
 {
@@ -461,7 +461,7 @@ TEST(World, EventsAreReadableInTheNextStepOnly)
 {
     g_events.clear();
     World w(testSetup(eventSystems));
-    w.events.emit(DamageEvent{Entity{}, 1});  // before the first step: readable in step 0 (the first step)
+    w.events.emit(HitEvent{Entity{}, 1});  // before the first step: readable in step 0 (the first step)
     w.step(4);
     // Step index during a step is the index of that step (0-based): emitted between steps -> read in step 0;
     // emitted in step 1 -> read in step 2 (emit order), then cleared
@@ -667,19 +667,19 @@ namespace
 {
 void sysParallelCommand(World& w, double)
 {
-    w.view<Health>().parallelEach([&](Entity e, Health&) { w.destroy(e); });
+    w.view<Vitality>().parallelEach([&](Entity e, Vitality&) { w.destroy(e); });
 }
 void sysParallelEmit(World& w, double)
 {
-    w.view<Health>().parallelEach([&](Entity, Health&) { w.events.emit(DamageEvent{}); });
+    w.view<Vitality>().parallelEach([&](Entity, Vitality&) { w.events.emit(HitEvent{}); });
 }
 void sysParallelRandom(World& w, double)
 {
-    w.view<Health>().parallelEach([&](Entity, Health& h) { h.hp = w.random().uniform(); });
+    w.view<Vitality>().parallelEach([&](Entity, Vitality& h) { h.hp = w.random().uniform(); });
 }
 void sysParallelCreate(World& w, double)
 {
-    w.view<Health>().parallelEach([&](Entity, Health&) { w.create(); });
+    w.view<Vitality>().parallelEach([&](Entity, Vitality&) { w.create(); });
 }
 }  // namespace
 
@@ -692,8 +692,8 @@ TEST(WorldDeathTest, ParallelEachForbidsCommandsEventsAndRandom)
         WorldSetup s                           = testSetup([](SystemList& l) { l.add(Phase::Gameplay, "p", current); });
         s.workerThreads                        = 4;  // the assert fires on a worker thread too
         World w(s);
-        for (int i = 0; i < 63; ++i) w.add<Health>(w.create());
-        w.add<Health>(w.create());
+        for (int i = 0; i < 63; ++i) w.add<Vitality>(w.create());
+        w.add<Vitality>(w.create());
         w.step();
     };
     EXPECT_DEATH(run(sysParallelCommand), "inside parallelEach");
@@ -708,12 +708,12 @@ namespace
 size_t g_simulatedSeen = 0, g_allSeen = 0, g_extractSeen = 0;
 void sysCountSimulated(World& w, double)
 {
-    g_simulatedSeen = w.view<Health>().count();
-    g_allSeen       = w.viewAll<Health>().count();
+    g_simulatedSeen = w.view<Vitality>().count();
+    g_allSeen       = w.viewAll<Vitality>().count();
 }
 void sysCountInExtract(World& w, double)
 {
-    g_extractSeen = w.view<Health>().count();
+    g_extractSeen = w.view<Vitality>().count();
 }
 void simulatedSystems(SystemList& s)
 {
@@ -726,8 +726,8 @@ TEST(World, ViewSkipsNonSimulatedEntitiesInPhases2To5)
 {
     World w(testSetup(simulatedSystems));
     Entity a = w.create(), b = w.create();
-    w.add<Health>(a);
-    w.add<Health>(b);
+    w.add<Vitality>(a);
+    w.add<Vitality>(b);
     w.registry().setFlags(b, 0);  // frozen (streaming clears the flag from S24)
     w.step();
     EXPECT_EQ(g_simulatedSeen, 1u);
@@ -742,9 +742,9 @@ namespace
 {
 void sysRandomWalk(World& w, double)
 {
-    w.view<Health>().each([&](Entity, Health& h) { h.hp += w.random().uniform(-1, 1); });
-    if (w.stepIndex() % 3 == 0) w.events.emit(DamageEvent{Entity{}, double(w.stepIndex())});
-    if (w.stepIndex() % 5 == 0) w.add<Health>(w.create(), 1.0);
+    w.view<Vitality>().each([&](Entity, Vitality& h) { h.hp += w.random().uniform(-1, 1); });
+    if (w.stepIndex() % 3 == 0) w.events.emit(HitEvent{Entity{}, double(w.stepIndex())});
+    if (w.stepIndex() % 5 == 0) w.add<Vitality>(w.create(), 1.0);
 }
 void walkSystems(SystemList& s)
 {
@@ -758,7 +758,7 @@ TEST(World, HashIsEqualForTwoRunsAndSensitiveToState)
     s.seed       = 7;
     World a(s), b(s);
     for (World* w : {&a, &b})
-        for (int i = 0; i < 10; ++i) w->add<Health>(w->create(), double(i));
+        for (int i = 0; i < 10; ++i) w->add<Vitality>(w->create(), double(i));
     for (int i = 0; i < 30; ++i)
     {
         a.step();
@@ -771,9 +771,9 @@ TEST(World, HashIsEqualForTwoRunsAndSensitiveToState)
     a.add<Derived>(Entity{1, 0}, 3.0);
     EXPECT_EQ(a.hash(), h);
     // A changed field, the RNG state, a pending event and the free-list order do
-    a.get<Health>(Entity{1, 0}).hp += 1;
+    a.get<Vitality>(Entity{1, 0}).hp += 1;
     EXPECT_NE(a.hash(), h);
-    a.get<Health>(Entity{1, 0}).hp -= 1;
+    a.get<Vitality>(Entity{1, 0}).hp -= 1;
     EXPECT_EQ(a.hash(), h);
     a.random().nextU32();
     EXPECT_NE(a.hash(), b.hash());
@@ -782,7 +782,7 @@ TEST(World, HashIsEqualForTwoRunsAndSensitiveToState)
     for (World* w : {&c, &d})
         for (int i = 0; i < 3; ++i) w->create();
     EXPECT_EQ(c.hash(), d.hash());
-    c.events.emit(DamageEvent{});
+    c.events.emit(HitEvent{});
     EXPECT_NE(c.hash(), d.hash());
 
     World e(s), f(s);
@@ -822,13 +822,13 @@ TEST(WorldDeathTest, RecordTimeChecksOfAddAndRemove)
         current                                = sys;
         World w(testSetup([](SystemList& l) { l.add(Phase::Gameplay, "s", current); }));
         Entity e = w.create();
-        w.add<Health>(e);
+        w.add<Vitality>(e);
         w.step();
     };
-    EXPECT_DEATH(run([](World& w, double) { w.remove<Health>(Entity{999, 0}); }), "the entity is not alive");
+    EXPECT_DEATH(run([](World& w, double) { w.remove<Vitality>(Entity{999, 0}); }), "the entity is not alive");
     // Whether the entity has the component is checked when the command is applied (re-parenting needs remove + add)
     EXPECT_DEATH(run([](World& w, double) { w.remove<Velocity>(Entity{1, 0}); }), "has no Velocity");
-    EXPECT_DEATH(run([](World& w, double) { w.add<Health>(Entity{1, 0}); }), "already has Health");
+    EXPECT_DEATH(run([](World& w, double) { w.add<Vitality>(Entity{1, 0}); }), "already has Vitality");
 }
 #endif
 
@@ -901,7 +901,7 @@ bool g_throw = false;
 void sysCreateThenThrow(World& w, double)
 {
     w.create();
-    w.add<Health>(w.create(), 5.0);
+    w.add<Vitality>(w.create(), 5.0);
     if (g_throw) throw std::runtime_error("system failed");
 }
 void throwingSystems(SystemList& s)
@@ -1007,14 +1007,14 @@ std::vector<double> g_amountsSeen;
 Entity g_reservedByAbortedStep;
 void sysReadThenThrow(World& w, double)
 {
-    auto events  = w.events.read<DamageEvent>();
+    auto events  = w.events.read<HitEvent>();
     g_eventsSeen = events.size();
     g_amountsSeen.clear();
     for (auto& ev : events) g_amountsSeen.push_back(ev.amount);
     if (g_throwOnce)
     {
         g_throwOnce = false;
-        w.events.emit(DamageEvent{Entity{}, 99});  // emitted by the aborted step: dropped with it
+        w.events.emit(HitEvent{Entity{}, 99});  // emitted by the aborted step: dropped with it
         g_reservedByAbortedStep = w.create();      // reserved by the aborted step: released
         throw std::runtime_error("once");
     }
@@ -1029,7 +1029,7 @@ void abortEventSystems(SystemList& s)
 TEST(World, AnAbortedStepKeepsItsEvents)
 {
     World w(testSetup(abortEventSystems));
-    w.events.emit(DamageEvent{Entity{}, 1});
+    w.events.emit(HitEvent{Entity{}, 1});
     g_throwOnce = true;
     EXPECT_THROW(w.step(), std::runtime_error);
     EXPECT_EQ(w.registry().aliveCount(), 0u);
@@ -1246,8 +1246,8 @@ namespace
 std::atomic<int> g_nested{0};
 void sysNestedViewOnWorkers(World& w, double)
 {
-    w.view<const Health>().parallelEach(
-        [&](Entity, const Health&) { g_nested += int(w.viewAll<const Velocity>().count()); }, 1);
+    w.view<const Vitality>().parallelEach(
+        [&](Entity, const Vitality&) { g_nested += int(w.viewAll<const Velocity>().count()); }, 1);
 }
 void nestedSystems(SystemList& s)
 {
@@ -1263,7 +1263,7 @@ TEST(World, NestedViewsInsideParallelEachOnWorkers)
     for (int i = 0; i < 64; ++i)
     {
         Entity e = w.create();
-        w.add<Health>(e);
+        w.add<Vitality>(e);
         if (i < 3) w.add<Velocity>(e);
     }
     g_nested = 0;
@@ -1407,10 +1407,10 @@ TEST(World, RebuildHierarchyStateRejectsStaleParents)
 #ifdef SAIGA_ASSERTS
 namespace
 {
-// Same ID, name and size as DamageEvent, but another C++ type (never registered)
+// Same ID, name and size as HitEvent, but another C++ type (never registered)
 struct DamageEventLookalike
 {
-    static constexpr const char* name = "DamageEvent";
+    static constexpr const char* name = "HitEvent";
     static constexpr EventId id       = EventId(TestEvent::Damage);
     static constexpr uint32_t version = 1;
     Entity target;
@@ -1427,16 +1427,16 @@ struct DamageEventLookalike
 // Regression: the queue lookup checked ID, name and size only, so a same-sized lookalike was downcast to the wrong type
 TEST(WorldDeathTest, EventLookalikeWithTheSameIdNameAndSize)
 {
-    static_assert(sizeof(DamageEventLookalike) == sizeof(DamageEvent), "the test needs the same size");
+    static_assert(sizeof(DamageEventLookalike) == sizeof(HitEvent), "the test needs the same size");
     World w(testSetup());
     EXPECT_DEATH(w.events.read<DamageEventLookalike>(), "another C\\+\\+ type");
 }
 
-// Defined in engine_world_second_tu.cpp: reads the DamageEvent of that translation unit's unnamed namespace
+// Defined in engine_world_second_tu.cpp: reads the HitEvent of that translation unit's unnamed namespace
 size_t readDamageEventOfTheSecondTranslationUnit(World& w);
 
 // Regression: the check compared typeid names, which GCC gives equal to types of the same name in the unnamed
-// namespaces of two translation units; the other DamageEvent was accepted and downcast to the wrong type
+// namespaces of two translation units; the other HitEvent was accepted and downcast to the wrong type
 TEST(WorldDeathTest, EventOfTheSameNameInAnotherTranslationUnit)
 {
     World w(testSetup());
@@ -1463,5 +1463,5 @@ TEST(WorldDeathTest, DuplicateEventIdStopsInEveryBuild)
 {
     World w(testSetup());
     EventRegistry r(w.events);
-    EXPECT_DEATH(r.add<SameIdAsDamage>(), "already used by DamageEvent");
+    EXPECT_DEATH(r.add<SameIdAsDamage>(), "already used by HitEvent");
 }

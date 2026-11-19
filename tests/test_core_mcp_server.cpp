@@ -15,6 +15,8 @@
 #include <limits>
 #include <thread>
 
+#include "mcp_test_helper.h"
+
 #ifndef _WIN32
 #    include <arpa/inet.h>
 #    include <netinet/in.h>
@@ -27,33 +29,8 @@ using Json = McpServer::Json;
 
 static Json Request(const std::string& method, const Json& params, int id = 1)
 {
-    return Json::object{{"jsonrpc", "2.0"}, {"id", id}, {"method", method}, {"params", params}};
+    return McpRequest(method, params, id);
 }
-
-// Calls poll() in the background, like the main loop of an application.
-struct Poller
-{
-    McpServer& server;
-    std::atomic_bool stop{false};
-    std::thread thread;
-    explicit Poller(McpServer& s) : server(s)
-    {
-        thread = std::thread(
-            [this]()
-            {
-                while (!stop)
-                {
-                    server.poll();
-                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
-                }
-            });
-    }
-    ~Poller()
-    {
-        stop = true;
-        thread.join();
-    }
-};
 
 TEST(McpServer, Base64)
 {

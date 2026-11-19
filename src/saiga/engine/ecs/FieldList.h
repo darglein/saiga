@@ -32,6 +32,8 @@ std::string fieldTypeName()
     using namespace VisitDetail;
     if constexpr (std::is_same_v<T, bool>)
         return "bool";
+    else if constexpr (std::is_enum_v<T>)
+        return "enum";  // only reachable for a component that registration rejects (enums need EnumNames)
     else if constexpr (isInteger<T>)
         return std::string(std::is_signed_v<T> ? "int" : "uint") + std::to_string(8 * sizeof(T));
     else if constexpr (std::is_same_v<T, double>)
