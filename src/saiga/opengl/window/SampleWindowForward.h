@@ -13,7 +13,7 @@
 #    include "saiga/opengl/assets/all.h"
 #    include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #    include "saiga/opengl/rendering/renderer.h"
-#    include "saiga/opengl/window/WindowTemplate.h"
+#    include "saiga/opengl/window/StandaloneWindow.h"
 #    include "saiga/opengl/world/LineSoup.h"
 #    include "saiga/opengl/world/pointCloud.h"
 #    include "saiga/opengl/world/proceduralSkybox.h"
@@ -28,8 +28,7 @@ namespace Saiga
  *
  * @brief The SampleWindowForward class
  */
-class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManagement::GLFW, ForwardRenderer>,
-                                             public glfw_KeyListener
+class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow, public glfw_KeyListener
 {
    public:
     SampleWindowForward();
@@ -43,6 +42,7 @@ class SAIGA_OPENGL_API SampleWindowForward : public StandaloneWindow<WindowManag
     void keyPressed(int key, int scancode, int mods) override;
 
    protected:
+    ForwardRenderer* renderer;
     Glfw_Camera<PerspectiveCamera> camera;
     SimpleAssetObject groundPlane;
     ProceduralSkybox skybox;

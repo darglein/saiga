@@ -13,14 +13,15 @@
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowForward.h"
-#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/StandaloneWindow.h"
 #include "saiga/opengl/window/glfw_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 using namespace Saiga;
 
-class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, public glfw_KeyListener
+class VRSample : public StandaloneWindow, public glfw_KeyListener
 {
    public:
+    VRRenderer* renderer;
     Glfw_Camera<PerspectiveCamera> camera;
 
     SimpleAssetObject cube1, cube2;
@@ -38,6 +39,8 @@ class VRSample : public StandaloneWindow<WindowManagement::GLFW, VRRenderer>, pu
 
     VRSample() : StandaloneWindow("config.ini")
     {
+        renderer = CreateRenderer<VRRenderer>();
+
         // create a perspective camera
         float aspect = window->getAspectRatio();
         camera.setProj(60.0f, aspect, 0.1f, 50.0f);

@@ -10,12 +10,31 @@
 #include "saiga/opengl/rendering/forwardRendering/forward_renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
 #include "saiga/opengl/window/SampleWindowDeferred.h"
+#include "saiga/opengl/window/StandaloneWindow.h"
 
 using namespace Saiga;
 
-class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
+static WindowParameters HeadlessWindowParameters()
+{
+    WindowParameters params;
+    params.fromConfigFile("config.ini");
+    params.backend = WindowParameters::Backend::Headless;
+    // With ImGui, the editor layout would size the 3D view by its ImGui window instead of the window size.
+    params.imguiParameters.enable = false;
+    return params;
+}
+
+static OpenGLParameters OpenGLParametersFromConfig()
+{
+    OpenGLParameters params;
+    params.fromConfigFile("config.ini");
+    return params;
+}
+
+class Sample : public StandaloneWindow
 {
    public:
+    ForwardRenderer* renderer;
     PerspectiveCamera camera;
 
     SimpleAssetObject cube1, cube2;
@@ -23,10 +42,15 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
     SimpleAssetObject sphere;
 
     ProceduralSkybox skybox;
+    bool rendered = false;
 
 
-    Sample() : StandaloneWindow("config.ini")
+    Sample() : StandaloneWindow(HeadlessWindowParameters(), OpenGLParametersFromConfig())
     {
+        // The renderer and the main loop read their parameters from it as well.
+        config_file = "config.ini";
+        renderer = CreateRenderer<ForwardRenderer>();
+
         // create a perspective camera
         float aspect = window->getAspectRatio();
         camera.setProj(60.0f, aspect, 0.1f, 50.0f);
@@ -79,7 +103,17 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
         // We don't need to delete anything here, because objects obtained from saiga are wrapped in smart pointers.
     }
 
-    void update(float dt) override {}
+    void update(float dt) override
+    {
+        if (!rendered) return;
+        // The renderer draws the scene into its target framebuffer (the 3D view of the editor layout).
+        auto color = renderer->target_framebuffer->getTextureColor(0);
+        TemplatedImage<ucvec4> img(color->getHeight(), color->getWidth());
+        color->download(img.data8());
+        img.getImageView().flipY();
+        img.save("render.png");
+        window->close();
+    }
     void interpolate(float dt, float interpolation) override {}
 
     void render(RenderInfo render_info) override
@@ -90,9 +124,7 @@ class Sample : public StandaloneWindow<WindowManagement::EGL, ForwardRenderer>
         cube2.renderForward(render_info.camera);
         sphere.renderForward(render_info.camera);
 
-
-        window->ScreenshotDefaultFramebuffer().save("render.png");
-        window->close();
+        rendered = true;
     }
 };
 

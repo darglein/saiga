@@ -44,26 +44,22 @@ class SAIGA_OPENGL_API glfw_Window : public OpenGLWindow, public glfw_ResizeList
     void disableMouseCursor();
     void setGLFWcursor(GLFWcursor* cursor);
     GLFWcursor* createGLFWcursor(Image* image, int midX, int midY);
-    void setWindowIcon(Image* image);
-    void setWindowTitle(const std::string& title);
-    const std::string& getWindowTitle() const { return window_title; }
-
-    void requestAttention();
-    void bringToFront();
-
-    void maximize();
+    void setWindowIcon(Image* image) override;
+    void setWindowTitle(const std::string& title) override;
+    void requestAttention() override;
+    void bringToFront() override;
+    void maximize() override;
+    float getContentScale() override;
+    bool isShown() override;
+    void setSize(int width, int height) override;
 
 #ifdef WIN32
     HWND getNative();
 #endif
 
-    float getContentScale();
-
     virtual void window_size_callback(int width, int height) override;
 
    protected:
-    std::string window_title;
-
     virtual bool initWindow() override;
     virtual bool initInput() override;
     virtual bool shouldClose() override;

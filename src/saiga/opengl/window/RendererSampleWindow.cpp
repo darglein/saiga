@@ -12,6 +12,8 @@ namespace Saiga
 {
 RendererSampleWindow::RendererSampleWindow() : StandaloneWindow("config.ini")
 {
+    renderer = CreateRenderer<SampleRenderer>();
+
     // create a perspective camera
     float aspect = window->getAspectRatio();
     camera.setProj(60.0f, aspect, 0.1f, 140.0f);

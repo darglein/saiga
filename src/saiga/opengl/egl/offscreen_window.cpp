@@ -7,6 +7,7 @@
 #include "saiga/config.h"
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_EGL)
 #    include "saiga/core/util/assert.h"
+#    include "saiga/opengl/imgui/imgui_impl_headless_gl3.h"
 #    include "saiga/opengl/rendering/deferredRendering/deferred_renderer.h"
 
 #    include <EGL/egl.h>
@@ -23,6 +24,7 @@ struct EGLHandles
     EGLDisplay display = EGL_NO_DISPLAY;
     EGLSurface surface = EGL_NO_SURFACE;
     EGLContext context = EGL_NO_CONTEXT;
+    EGLConfig config   = nullptr;
 };
 
 static bool HasClientExtension(const char* name)
@@ -102,9 +104,15 @@ static bool TryDisplay(EGLDisplay dpy, int width, int height, const std::vector<
 
     EGLint numConfigs = 0;
     EGLConfig eglCfg;
+    // The default framebuffer of a GLFW window: RGBA8, 24 bit depth, 8 bit stencil.
+    // clang-format off
     EGLint configAttribs[] = {
-        EGL_SURFACE_TYPE,    EGL_PBUFFER_BIT, EGL_BLUE_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_RED_SIZE, 8, EGL_DEPTH_SIZE, 8,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,  EGL_NONE};
+        EGL_SURFACE_TYPE, EGL_PBUFFER_BIT,
+        EGL_RED_SIZE, 8, EGL_GREEN_SIZE, 8, EGL_BLUE_SIZE, 8, EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 24, EGL_STENCIL_SIZE, 8,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_BIT,
+        EGL_NONE};
+    // clang-format on
     if (!eglChooseConfig(dpy, configAttribs, &eglCfg, 1, &numConfigs) || numConfigs < 1 || !eglBindAPI(EGL_OPENGL_API))
     {
         eglTerminate(dpy);
@@ -141,6 +149,7 @@ static bool TryDisplay(EGLDisplay dpy, int width, int height, const std::vector<
     out.display = dpy;
     out.surface = surf;
     out.context = ctx;
+    out.config  = eglCfg;
     return true;
 }
 
@@ -172,6 +181,47 @@ OffscreenWindow::OffscreenWindow(WindowParameters windowParameters, OpenGLParame
     create();
 }
 
+OffscreenWindow::~OffscreenWindow()
+{
+    cleanupSaiga();
+    freeContext();
+}
+
+std::shared_ptr<ImGuiRenderer> OffscreenWindow::createImGui()
+{
+    if (windowParameters.imguiParameters.enable)
+    {
+        return std::make_shared<ImGui_Headless_Renderer>(*this, windowParameters.imguiParameters);
+    }
+    return {};
+}
+
+void OffscreenWindow::setSize(int width, int height)
+{
+    SAIGA_ASSERT(width > 0 && height > 0);
+    if (!eglDpy || (width == getWidth() && height == getHeight())) return;
+
+    // A pbuffer has a fixed size: replace it with one of the new size and keep the context.
+    EGLint attribs[]   = {EGL_WIDTH, width, EGL_HEIGHT, height, EGL_NONE};
+    EGLSurface surface = eglCreatePbufferSurface(eglDpy, eglCfg, attribs);
+    if (surface == EGL_NO_SURFACE)
+    {
+        std::cerr << "OffscreenWindow: failed to resize to " << width << "x" << height << " (EGL error 0x" << std::hex
+                  << eglGetError() << std::dec << ")" << std::endl;
+        return;
+    }
+    if (!eglMakeCurrent(eglDpy, surface, surface, eglCtx))
+    {
+        std::cerr << "OffscreenWindow: failed to make the resized surface current (EGL error 0x" << std::hex
+                  << eglGetError() << std::dec << ")" << std::endl;
+        eglDestroySurface(eglDpy, surface);
+        return;
+    }
+    eglDestroySurface(eglDpy, eglSurf);
+    eglSurf = surface;
+    resize(width, height);
+}
+
 void OffscreenWindow::swapBuffers()
 {
     eglSwapBuffers(eglDpy, eglSurf);
@@ -187,6 +237,9 @@ void OffscreenWindow::freeContext()
     eglDpy  = nullptr;
     eglSurf = nullptr;
     eglCtx  = nullptr;
+    eglCfg  = nullptr;
+    // Also called when create() failed before the OpenGL functions were loaded.
+    if (OpenGLisInitialized()) terminateOpenGL();
 }
 
 bool OffscreenWindow::initWindow()
@@ -201,6 +254,7 @@ bool OffscreenWindow::initWindow()
     eglDpy  = h.display;
     eglSurf = h.surface;
     eglCtx  = h.context;
+    eglCfg  = h.config;
     return true;
 }
 

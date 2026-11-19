@@ -11,6 +11,8 @@
 #    include "saiga/core/imgui/imgui_main_menu.h"
 #    include "saiga/opengl/imgui/imgui_impl_glfw_gl3.h"
 
+#    include <cmath>
+
 #    include "glfw_window.h"
 
 
@@ -333,8 +335,10 @@ bool glfw_Window::initInput()
 void glfw_Window::freeContext()
 {
     glfwDestroyWindow(window);
+    window = nullptr;
     glfwTerminate();
-    terminateOpenGL();
+    // Also called when create() failed before the OpenGL functions were loaded (e.g. without a display).
+    if (OpenGLisInitialized()) terminateOpenGL();
     std::cout << "GLFW: Terminated." << std::endl;
 }
 
@@ -442,6 +446,27 @@ float glfw_Window::getContentScale()
     float xscale, yscale;
     glfwGetWindowContentScale(window, &xscale, &yscale);
     return (xscale + yscale) * 0.5f;
+}
+
+bool glfw_Window::isShown()
+{
+    // Destroyed by freeContext.
+    if (!window) return false;
+    return glfwGetWindowAttrib(window, GLFW_VISIBLE) && !glfwGetWindowAttrib(window, GLFW_ICONIFIED);
+}
+
+void glfw_Window::setSize(int width, int height)
+{
+    // GLFW sizes windows in screen coordinates, which differ from pixels with display scaling.
+    int window_w, window_h, framebuffer_w, framebuffer_h;
+    glfwGetWindowSize(window, &window_w, &window_h);
+    glfwGetFramebufferSize(window, &framebuffer_w, &framebuffer_h);
+    if (framebuffer_w > 0 && framebuffer_h > 0)
+    {
+        width  = (int)std::lround(double(width) * window_w / framebuffer_w);
+        height = (int)std::lround(double(height) * window_h / framebuffer_h);
+    }
+    glfwSetWindowSize(window, width, height);
 }
 
 #ifdef WIN32

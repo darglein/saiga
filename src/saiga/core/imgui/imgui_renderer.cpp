@@ -10,15 +10,16 @@
 
 namespace Saiga
 {
-ImGuiRenderer::ImGuiRenderer(ImGuiParameters params)
+ImGuiRenderer::ImGuiRenderer(ImGuiParameters params) : context(ImGui::CreateContext())
 {
-    ImGui::CreateContext();
+    // CreateContext only makes the new context current if none is.
+    ImGui::SetCurrentContext(context);
     Saiga::initImGui(params);
 }
 
 ImGuiRenderer::~ImGuiRenderer()
 {
-    ImGui::DestroyContext();
+    ImGui::DestroyContext(context);
 }
 
 void ImGuiRenderer::endFrame()

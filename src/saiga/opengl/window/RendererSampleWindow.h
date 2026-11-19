@@ -13,7 +13,7 @@
 #include "saiga/opengl/rendering/deferredRendering/uberDeferredRendering.h"
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
-#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/StandaloneWindow.h"
 #include "saiga/opengl/window/glfw_window.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 
@@ -35,16 +35,15 @@ namespace Saiga
 #ifdef SINGLE_PASS_DEFERRED_PIPELINE
 #    undef MULTI_PASS_DEFERRED_PIPELINE
 #    undef SINGLE_PASS_FORWARD_PIPELINE
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::GLFW, UberDeferredRenderer>,
-                                              public glfw_KeyListener
+using SampleRenderer = UberDeferredRenderer;
 #elif defined(MULTI_PASS_DEFERRED_PIPELINE)
 #    undef SINGLE_PASS_FORWARD_PIPELINE
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>,
-                                              public glfw_KeyListener
+using SampleRenderer = DeferredRenderer;
 #elif defined(SINGLE_PASS_FORWARD_PIPELINE)
-class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowManagement::GLFW, ForwardRenderer>,
-                                              public glfw_KeyListener
+using SampleRenderer = ForwardRenderer;
 #endif
+
+class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow, public glfw_KeyListener
 {
    public:
     RendererSampleWindow();
@@ -59,6 +58,7 @@ class SAIGA_OPENGL_API RendererSampleWindow : public StandaloneWindow<WindowMana
     virtual void keyReleased(int key, int scancode, int mods) override;
 
    protected:
+    SampleRenderer* renderer;
     Glfw_Camera<PerspectiveCamera> camera;
     ProceduralSkybox skybox;
 

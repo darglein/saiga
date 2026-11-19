@@ -14,19 +14,21 @@
 #include "saiga/opengl/rendering/forwardRendering/forwardRendering.h"
 #include "saiga/opengl/rendering/renderer.h"
 #include "saiga/opengl/shader/shaderLoader.h"
-#include "saiga/opengl/window/WindowTemplate.h"
+#include "saiga/opengl/window/StandaloneWindow.h"
 #include "saiga/opengl/world/LineSoup.h"
 #include "saiga/opengl/world/pointCloud.h"
 #include "saiga/opengl/world/proceduralSkybox.h"
 using namespace Saiga;
 
-class SampleSplitScreen : public StandaloneWindow<WindowManagement::GLFW, DeferredRenderer>,
-                          public glfw_KeyListener,
-                          public glfw_ResizeListener
+class SampleSplitScreen : public StandaloneWindow, public glfw_KeyListener, public glfw_ResizeListener
 {
    public:
+    DeferredRenderer* renderer;
+
     SampleSplitScreen() : StandaloneWindow("config.ini")
     {
+        renderer = CreateRenderer<DeferredRenderer>();
+
         renderer->params.userViewPort = true;
 
         rw = window->getWidth();

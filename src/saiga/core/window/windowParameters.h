@@ -24,7 +24,20 @@ struct SAIGA_CORE_API WindowParameters
 
     };
 
+    // Where the window is created. The backend is chosen at runtime, so one build of an application can run with or
+    // without a window system.
+    enum class Backend
+    {
+        // A window of the window system (needs a display).
+        GLFW = 0,
+        // No window system: OpenGL renders into an EGL pbuffer (without EGL, a hidden GLFW window), Vulkan into
+        // offscreen images. There is no input from the window system; the application feeds ImGui's input queue
+        // itself if it needs input.
+        Headless = 1,
+    };
+
     std::string name     = "Saiga";
+    Backend backend      = Backend::GLFW;
     int width            = 1600;
     int height           = 900;
     int selected_display = 0;
@@ -37,6 +50,10 @@ struct SAIGA_CORE_API WindowParameters
     bool vsync            = false;
     bool updateJoystick   = false;
     int monitorId         = 0;  // Important for Fullscreen mode. 0 is always the primary monitor.
+
+    // The content scale (the ratio of the UI scale to the default) a headless window reports. A window of the window
+    // system reports the scale of its monitor instead.
+    float headlessContentScale = 1.0f;
 
     bool createWindowMenuItem = true;
 

@@ -15,6 +15,8 @@ namespace Saiga
 {
 SampleWindowForward::SampleWindowForward() : StandaloneWindow("config.ini")
 {
+    renderer = CreateRenderer<ForwardRenderer>();
+
     // Define GUI layout
     auto editor_layout = std::make_unique<EditorLayoutL>();
     editor_layout->RegisterImguiWindow("Saiga Sample", EditorLayoutL::WINDOW_POSITION_LEFT);

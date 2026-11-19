@@ -17,7 +17,7 @@
 #include "saiga/core/glfw/glfw_eventhandler.h"
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
-#include "saiga/vulkan/window/WindowTemplate.h"
+#include "saiga/vulkan/window/StandaloneWindow.h"
 
 namespace Saiga
 {
@@ -27,8 +27,8 @@ namespace Saiga
  *
  * Keys: ESC closes the window, G toggles the GUI, F12 saves screenshot.png.
  */
-class SAIGA_VULKAN_API VulkanExampleBase : public Saiga::Vulkan::StandaloneWindow<Saiga::Vulkan::WindowManagement::GLFW,
-                                                                                  Saiga::Vulkan::VulkanForwardRenderer>,
+class SAIGA_VULKAN_API VulkanExampleBase : public Vulkan::StandaloneWindow,
+                                           public Vulkan::VulkanForwardRenderingInterface,
                                            public glfw_KeyListener
 {
    public:
@@ -43,9 +43,10 @@ class SAIGA_VULKAN_API VulkanExampleBase : public Saiga::Vulkan::StandaloneWindo
     void renderGUI() override;
 
    protected:
+    Vulkan::VulkanForwardRenderer* renderer;
     Glfw_Camera<PerspectiveCamera> camera;
 
-    void initCamera();
+    void init(const Vulkan::ForwardRenderingParameters& rendererParameters);
 
     void keyPressed(int key, int scancode, int mods) override;
 };

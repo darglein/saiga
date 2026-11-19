@@ -13,9 +13,10 @@ namespace Saiga
 namespace Vulkan
 {
 /**
- * A window without a window system: no surface, no swap chain, no input and no GUI. A renderer created with it
+ * A window without a window system: no surface, no swap chain and no input. A renderer created with it
  * (VulkanRenderer::isHeadless) renders into offscreen images of the window size, which are read with
- * VulkanForwardRenderer::requestScreenshot.
+ * VulkanForwardRenderer::requestScreenshot. With VulkanParameters::enableImgui, ImGui is drawn into them as well
+ * (ImGuiHeadlessRenderer); it gets input only through ImGui's input queue.
  *
  * This runs without a display (CI, servers) and on software drivers such as Mesa's lavapipe.
  * Check Instance::suitableDeviceAvailable() first if a Vulkan driver may be missing.
@@ -38,6 +39,10 @@ class SAIGA_VULKAN_API HeadlessWindow : public VulkanWindow
     void createSurface(VkInstance instance, VkSurfaceKHR* surface) override;
 
     void update(float dt) override;
+
+    std::unique_ptr<ImGuiVulkanRenderer> createImGui(size_t frameCount) override;
+
+    void setSize(int width, int height) override;
 
     /**
      * Updates and renders the given number of frames as fast as possible, without the timing of the main loop

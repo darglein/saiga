@@ -14,6 +14,8 @@ namespace Saiga
 {
 SampleWindowDeferred::SampleWindowDeferred() : StandaloneWindow("config.ini")
 {
+    renderer = CreateRenderer<DeferredRenderer>();
+
     // Define GUI layout
     auto editor_layout = std::make_unique<EditorLayoutL>();
     editor_layout->RegisterImguiWindow("Saiga Sample Base", EditorLayoutL::WINDOW_POSITION_LEFT);
