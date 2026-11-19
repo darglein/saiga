@@ -10,6 +10,7 @@
 #    include "saiga/opengl/imgui/imgui_impl_headless_gl3.h"
 
 #    include <GLFW/glfw3.h>
+#    include <cmath>
 #    include <iostream>
 
 #    include "hidden_glfw_window.h"
@@ -41,7 +42,17 @@ void HiddenGLFWWindow::setSize(int width, int height)
 {
     SAIGA_ASSERT(width > 0 && height > 0);
     if (!window || (width == getWidth() && height == getHeight())) return;
-    glfwSetWindowSize(window, width, height);
+    // GLFW sizes windows in screen coordinates, which differ from pixels with display scaling.
+    int window_w, window_h, framebuffer_w, framebuffer_h;
+    glfwGetWindowSize(window, &window_w, &window_h);
+    glfwGetFramebufferSize(window, &framebuffer_w, &framebuffer_h);
+    int screen_width = width, screen_height = height;
+    if (framebuffer_w > 0 && framebuffer_h > 0)
+    {
+        screen_width  = (int)std::lround(double(width) * window_w / framebuffer_w);
+        screen_height = (int)std::lround(double(height) * window_h / framebuffer_h);
+    }
+    glfwSetWindowSize(window, screen_width, screen_height);
     int fb_width = 0, fb_height = 0;
     glfwGetFramebufferSize(window, &fb_width, &fb_height);
     if (fb_width != width || fb_height != height)
