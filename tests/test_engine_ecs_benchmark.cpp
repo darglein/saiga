@@ -9,10 +9,13 @@
 // correctness checks (the timings depend on the machine and are not compared).
 
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/save/SaveDiff.h"
+#include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
@@ -202,6 +205,71 @@ TEST(EcsBenchmark, WorldStepHundredThousandEntities)
                 moveMs);
     EXPECT_EQ(idle.registry().aliveCount(), uint32_t(n));
     EXPECT_EQ(moving.changedTransforms().size(), size_t(n));
+}
+
+namespace
+{
+void benchRenderAssets(World& w)
+{
+    auto lods = std::make_shared<Vulkan::MeshLods>();
+    Vulkan::MeshLod lod;
+    lod.vertices.resize(3);
+    lod.indices = {0, 1, 2};
+    lods->lods.push_back(lod);
+    w.registerMesh("bench/box", lods, w.registerMaterial("bench/flat", Vulkan::MaterialData()));
+}
+}  // namespace
+
+// S19b (R-TEST-2, §17.10): the extract of 10^4 moving entities with RenderInstance into a recording sink (the step's
+// extract scope), the same entities idle (changes only: no per-step work), and a paused frame's catch-up with nothing
+// changed (O(tracked) bitwise comparisons). Main-thread budget: steps + extract + recording <= 10 ms per frame.
+TEST(EcsBenchmark, ExtractTenThousandEntities)
+{
+    const int n = 10000;
+    WorldSetup s;
+    s.components   = benchComponents;
+    s.systems      = benchSystems;
+    s.renderAssets = benchRenderAssets;
+    World w(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    std::vector<Entity> entities;
+    for (int i = 0; i < n; ++i)
+    {
+        const Entity e = w.create();
+        w.get<Transform>(e).setPosition(Vec3(i % 100, 0, i / 100));
+        w.add<Velocity>(e, Vec3(1, 0, 0));
+        w.add<RenderInstance>(e, RenderInstance("bench/box"));
+        entities.push_back(e);
+    }
+    w.step(2);
+    Profiler& prof   = w.profiler();
+    const int scope  = prof.scope("step/phase:extract/extract");
+    const int steps  = prof.scope("step");
+    const int frames = 120;
+    w.step(frames);
+    const Profiler::Stats moving = prof.scopeStats(scope, frames), movingStep = prof.scopeStats(steps, frames);
+    const uint64_t setsMoving = sink.counters().setDynamic;
+    // Idle: the stop pairs of the next step, then nothing per step
+    for (Entity e : entities) w.get<Velocity>(e).v = Vec3::Zero();
+    w.step(2);
+    const uint64_t setsBefore = sink.counters().setDynamic;
+    w.step(frames);
+    const Profiler::Stats idle = prof.scopeStats(scope, frames);
+    EXPECT_EQ(sink.counters().setDynamic, setsBefore);
+    // Paused frames without changes
+    w.setPaused(true);
+    Timer t;
+    for (int i = 0; i < frames; ++i) w.extract().catchUp();
+    const double catchUpMs = t.ms() / frames;
+    EXPECT_EQ(sink.counters().setDynamic, setsBefore);
+    std::printf(
+        "ECS benchmark, extract of %d rendered entities (ms): moving: extract %.3f (median, p95 %.3f) of a step %.3f; "
+        "idle: extract %.4f; paused catch-up without changes %.3f per frame\n",
+        n, moving.p50, moving.p95, movingStep.p50, idle.p50, catchUpMs);
+    EXPECT_EQ(sink.liveDynamics(), size_t(n));
+    EXPECT_GE(setsMoving, uint64_t(n) * frames);
+    w.setRenderSink(nullptr);
 }
 
 namespace

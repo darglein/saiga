@@ -14,10 +14,13 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/ecs/EntityLog.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/net/Varint.h"
+#include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/sync/RenderSink.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
 
@@ -46,6 +49,7 @@ World::World(const WorldSetup& setup)
                      setup.config.maxStepsPerAdvance >= 1,
                  "invalid WorldConfig");
     reg.setJobPool(&pool);
+    extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
     gridConsumer = log.addConsumer();
 
@@ -99,6 +103,8 @@ World::World(const WorldSetup& setup)
     // Before the state entities: the host's replication consumer sees their creation (S16)
     repl = std::make_unique<Replication>(*this);
     createStateEntities();
+    // The game's meshes and materials by name (S19b); a sink set later receives them
+    if (setup.renderAssets) setup.renderAssets(*this);
 }
 
 void World::setupProfiler()
@@ -112,6 +118,8 @@ void World::setupProfiler()
             systemScopes[size_t(p)].push_back(prof.scope(phasePath + "/system:" + s.name));
         flushScopes[size_t(p)] = prof.scope(phasePath + "/commands");
     }
+    // The extract after phase 8's systems, replication and interpolation (S19b)
+    extractScope    = prof.scope(std::string("step/phase:") + phaseName(Phase::Extract) + "/extract");
     entitiesCounter = prof.counter("entities");
     objectsCounter  = prof.counter("game_objects");
     updatedCounter  = prof.counter("objects_updated");  // behaviourSystem adds to it
@@ -527,6 +535,8 @@ World::~World()
 {
     // Observers (the world API, waiting tools) stop using the world
     for (auto& l : destroyListeners) l.second();
+    // Before the structural log (a member declared after it): its consumer goes; the sink is not called
+    extractor.reset();
 }
 
 // ---- spatial queries
@@ -871,6 +881,8 @@ void World::abortStep()
     if (restore) events.abortStep();
     // The replication bookkeeping staged in the aborted phase is dropped (S16)
     repl->abort(aborted);
+    // The extract's staged pairs too (S19b)
+    extractor->abort();
     pendingPersistent.clear();
     for (Entity e : pendingReserved)
         if (reg.reserved(e)) reg.release(e);
@@ -994,7 +1006,13 @@ void World::runStep()
                 flushCommands();
             }
             // After phase 8's systems and their commands: replication (host), owner state (owners), interpolation
-            if (phase == Phase::Extract) repl->extract(false);
+            if (phase == Phase::Extract)
+            {
+                repl->extract(false);
+                // The render extract (S19b): after the interpolation, its own scope
+                Profiler::Timer extractTimer(prof, extractScope);
+                extractor->run();
+            }
         }
         // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
         collectLateChildTeleports(*this);
@@ -1016,6 +1034,8 @@ void World::runStep()
     repl->commit();
     stepChanged.clear();
     reg.shiftTransformFlags(trackStepChanges > 0 ? &stepChanged : nullptr);
+    // The extract's staged pairs become current (an aborted step does not shift them; S19b)
+    extractor->commit();
     // The records of this step (consumers that read after the step, e.g. the world API, keep older ones a step longer)
     prof.setCounter(recordsCounter, double(log.appendedTotal() - recordsAtStepStart));
     log.truncate();
@@ -1451,6 +1471,192 @@ void World::receiveMessages(bool engineOnly)
         throw;
     }
     inbox.swap(deferred);
+}
+
+}  // namespace Engine
+}  // namespace Saiga
+
+namespace Saiga
+{
+namespace Engine
+{
+// ---- render assets and the render sink (S19b)
+// ----------------------------------------------------------------------------------------------
+
+Vulkan::MeshId World::registerMesh(const std::string& name, std::shared_ptr<const Vulkan::MeshLods> lods,
+                                   Vulkan::MaterialId material)
+{
+    SAIGA_ASSERT(!inStep(), "World::registerMesh inside a step");
+    if (name.empty()) SAIGA_EXIT_ERROR("World::registerMesh: an empty name");
+    if (meshByName.count(name)) SAIGA_EXIT_ERROR("World::registerMesh: the mesh \"" + name + "\" is registered twice");
+    if (!lods || lods->lods.empty()) SAIGA_EXIT_ERROR("World::registerMesh: the mesh \"" + name + "\" has no LODs");
+    if (material < Vulkan::kGameReservedIds || material - Vulkan::kGameReservedIds >= materialTable.size())
+        SAIGA_EXIT_ERROR("World::registerMesh: the mesh \"" + name + "\" names an unregistered material");
+    if (Vulkan::kGameReservedIds + meshTable.size() > 0xFFFF) SAIGA_EXIT_ERROR("World::registerMesh: too many meshes");
+    const Vulkan::MeshId id = Vulkan::MeshId(Vulkan::kGameReservedIds + meshTable.size());
+    meshTable.push_back(MeshEntry{name, std::move(lods), material});
+    meshByName[name] = id;
+    if (RenderSink* sink = extractor->sink())
+    {
+        sink->registerMesh(id, name, meshTable.back().lods, material);
+        extractor->meshRegistered();
+    }
+    return id;
+}
+
+Vulkan::MaterialId World::registerMaterial(const std::string& name, const Vulkan::MaterialData& data)
+{
+    SAIGA_ASSERT(!inStep(), "World::registerMaterial inside a step");
+    if (name.empty()) SAIGA_EXIT_ERROR("World::registerMaterial: an empty name");
+    if (materialByName.count(name))
+        SAIGA_EXIT_ERROR("World::registerMaterial: the material \"" + name + "\" is registered twice");
+    if (Vulkan::kGameReservedIds + materialTable.size() > 0xFFFF)
+        SAIGA_EXIT_ERROR("World::registerMaterial: too many materials");
+    const Vulkan::MaterialId id = Vulkan::MaterialId(Vulkan::kGameReservedIds + materialTable.size());
+    materialTable.push_back(MaterialEntry{name, data});
+    materialByName[name] = id;
+    if (RenderSink* sink = extractor->sink()) sink->registerMaterial(id, name, data);
+    return id;
+}
+
+void World::registerMeshAlias(const std::string& oldName, const std::string& name)
+{
+    if (!meshByName.count(name))
+        SAIGA_EXIT_ERROR("World::registerMeshAlias: \"" + name + "\" is not a registered mesh");
+    if (meshByName.count(oldName))
+        SAIGA_EXIT_ERROR("World::registerMeshAlias: \"" + oldName + "\" is a registered mesh");
+    for (const auto& a : meshAliases)
+        if (a.first == oldName) SAIGA_EXIT_ERROR("World::registerMeshAlias: \"" + oldName + "\" has an alias already");
+    meshAliases.push_back({oldName, name});
+}
+
+Vulkan::MeshId World::findMesh(const std::string& name) const
+{
+    auto it = meshByName.find(name);
+    if (it != meshByName.end()) return it->second;
+    for (const auto& a : meshAliases)
+        if (a.first == name) return findMesh(a.second);
+    return 0;
+}
+
+Vulkan::MaterialId World::findMaterial(const std::string& name) const
+{
+    auto it = materialByName.find(name);
+    return it == materialByName.end() ? Vulkan::MaterialId(0) : it->second;
+}
+
+std::string World::meshName(Vulkan::MeshId id) const
+{
+    if (id < Vulkan::kGameReservedIds || id - Vulkan::kGameReservedIds >= meshTable.size()) return {};
+    return meshTable[id - Vulkan::kGameReservedIds].name;
+}
+
+uint64_t World::renderTableHash() const
+{
+    Hasher h;
+    h.addU64(meshTable.size());
+    for (size_t i = 0; i < meshTable.size(); ++i)
+        h.addU32(uint32_t(Vulkan::kGameReservedIds + i)).addString(meshTable[i].name).addU32(meshTable[i].material);
+    h.addU64(materialTable.size());
+    for (size_t i = 0; i < materialTable.size(); ++i)
+        h.addU32(uint32_t(Vulkan::kGameReservedIds + i)).addString(materialTable[i].name);
+    h.addU64(meshAliases.size());
+    for (const auto& a : meshAliases) h.addString(a.first).addString(a.second);
+    return h.value();
+}
+
+void World::setRenderSink(RenderSink* sink)
+{
+    SAIGA_ASSERT(!inStep(), "World::setRenderSink inside a step");
+    if (sink)
+    {
+        // Every registration so far (materials first: meshes name them)
+        for (size_t i = 0; i < materialTable.size(); ++i)
+            sink->registerMaterial(Vulkan::MaterialId(Vulkan::kGameReservedIds + i), materialTable[i].name,
+                                   materialTable[i].data);
+        for (size_t i = 0; i < meshTable.size(); ++i)
+            sink->registerMesh(Vulkan::MeshId(Vulkan::kGameReservedIds + i), meshTable[i].name, meshTable[i].lods,
+                               meshTable[i].material);
+    }
+    extractor->setSink(sink);
+}
+
+RenderSink* World::renderSink() const
+{
+    return extractor->sink();
+}
+
+bool World::resolveRenderMesh(std::string& name, Vulkan::MeshId& id) const
+{
+    id = 0;
+    if (name.empty()) return true;
+    auto it = meshByName.find(name);
+    if (it != meshByName.end())
+    {
+        id = it->second;
+        return true;
+    }
+    for (const auto& a : meshAliases)
+        if (a.first == name)
+        {
+            std::string renamed = a.second;
+            if (!resolveRenderMesh(renamed, id)) return false;
+            name = renamed;
+            return true;
+        }
+    return false;
+}
+
+void World::validateRenderInstance(Entity e, RenderInstance& value) const
+{
+    Vulkan::MeshId id = 0;
+    if (!resolveRenderMesh(value.mesh, id))
+    {
+        // Refused in every build: a game's own save (or a replicated entity) stays usable, drawn as nothing
+        SAIGA_LOG_E("render", e, "RenderInstance: the mesh \"%s\" is not registered (stored empty: tracked, not drawn)",
+                    value.mesh.c_str());
+        value.mesh.clear();
+    }
+    value.cachedMesh = id;
+}
+
+void World::renderMeshWritten(Entity e, bool added, const std::string* previous)
+{
+    RenderInstance& ri = reg.get<RenderInstance>(e);
+    validateRenderInstance(e, ri);
+    if (added || (previous && *previous == ri.mesh)) return;
+    // The name record: the extract recreates the instance (replication presence and changes_since report it so)
+    auto record = log.prepare(2);
+    record.append(e, RenderInstance::id, false);
+    record.append(e, RenderInstance::id, true);
+}
+
+void World::setRenderMesh(Entity e, const std::string& name)
+{
+    checkNotParallel("setRenderMesh");
+    std::string resolved = name;
+    Vulkan::MeshId id    = 0;
+    if (!resolveRenderMesh(resolved, id))
+    {
+        SAIGA_ASSERT(false, "World::setRenderMesh: the mesh \"" + name + "\" is not registered");
+        return;
+    }
+    if (deferring() || (flushing && reg.reserved(e)))
+    {
+        SAIGA_ASSERT(reg.alive(e) || reg.reserved(e), "setRenderMesh: the entity is not alive");
+        record(makeCommand([e, resolved](World& w) { w.setRenderMesh(e, resolved); }));
+        return;
+    }
+    if (flushing && !reg.alive(e)) return;
+    SAIGA_ASSERT(reg.alive(e), "setRenderMesh: the entity is not alive");
+    if (!reg.has<RenderInstance>(e))
+    {
+        addNow<RenderInstance>(e, RenderInstance(resolved));
+        return;
+    }
+    const std::string previous      = reg.read<RenderInstance>(e).mesh;
+    reg.get<RenderInstance>(e).mesh = resolved;
+    renderMeshWritten(e, false, &previous);
 }
 
 }  // namespace Engine

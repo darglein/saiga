@@ -167,6 +167,7 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_net.cpp "saiga_engine")
     saiga_test(test_engine_replication.cpp "saiga_engine")
     saiga_test(test_engine_net_benchmark.cpp "saiga_engine")
+    saiga_test(test_engine_extract.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

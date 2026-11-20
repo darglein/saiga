@@ -14,6 +14,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
@@ -1256,9 +1257,15 @@ bool Replication::applyComponent(Entity e, ComponentId id, const uint8_t* data, 
         w.addNow<Persistent>(e, std::move(p));
         return true;
     }
-    if (!reg.entityMask(e).test(id)) w.addDefaultInternal(e, id);
+    const bool added = !reg.entityMask(e).test(id);
+    // RenderInstance: the name before the write (an unchanged name appends no record; S19b)
+    std::string previousMesh;
+    if (id == RenderInstance::id && !added) previousMesh = reg.read<RenderInstance>(e).mesh;
+    if (added) w.addDefaultInternal(e, id);
     if (!reg.poolById(id)->netReadInto(e.index, r)) return false;
     if (id == NetOwner::id) w.markOwnersDirty();
+    // Every RenderInstance name write goes through renderMeshWritten (an unknown name is logged and stored empty)
+    if (id == RenderInstance::id) w.renderMeshWritten(e, added, &previousMesh);
     if (r.unresolved() && rememberUnresolved)
     {
         for (PendingDecode& p : pendingDecodes)

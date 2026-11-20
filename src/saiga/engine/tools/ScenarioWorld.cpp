@@ -12,6 +12,7 @@
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/SaveDiff.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 
 #include <algorithm>
 #include <cmath>
@@ -52,6 +53,8 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
     // A replacement world shares the data (also after reload_data)
     setup.sharedData = w->sharedDataStore();
     w->setTickEveryStep(true);
+    // Every world of the scenario has its own recording sink, so the extract runs in every scenario (§17.2, S19b)
+    hostSink = giveSink(*w);
     if (network.enabled)
     {
         auto report = [this](const std::string& m)
@@ -67,6 +70,7 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
             cs.localPeer  = uint8_t(i);
             clientWorlds.push_back(std::make_unique<World>(cs));
             clientWorlds.back()->setTickEveryStep(true);
+            clientSinks.push_back(giveSink(*clientWorlds.back()));
             clientWorlds.back()->replication().setWriteDetector(report);
             clientSteps.push_back(0);
         }
@@ -155,10 +159,27 @@ void ScenarioWorld::stepClients()
     applyPending();
 }
 
+RecordingRenderSink* ScenarioWorld::giveSink(World& world)
+{
+    sinks.push_back(std::make_unique<RecordingRenderSink>());
+    world.setRenderSink(sinks.back().get());
+    return sinks.back().get();
+}
+
+RecordingRenderSink& ScenarioWorld::renderSink(int peer)
+{
+    SAIGA_ASSERT(peer >= 0 && size_t(peer) <= clientSinks.size(), "ScenarioWorld::renderSink: no such peer");
+    return peer == 0 ? *hostSink : *clientSinks[size_t(peer) - 1];
+}
+
 ScenarioWorld::~ScenarioWorld()
 {
     // The API detaches from the world before the world goes away
     apiPtr.reset();
+    // The extract consumers go with the sinks (§17.2)
+    for (auto& c : clientWorlds) c->setRenderSink(nullptr);
+    if (w) w->setRenderSink(nullptr);
+    for (auto& r : retiredWorlds) r->setRenderSink(nullptr);
     clientWorlds.clear();
     if (w && stepListener >= 0) w->removeStepListener(stepListener);
     if (w && countListener >= 0) w->removeStepListener(countListener);
@@ -423,7 +444,9 @@ void ScenarioWorld::saveLoad()
     auto fresh                       = std::make_unique<World>(setup);
     // Before the load: configure() and onLoad() of the loaded game objects see the scenario's tick setting
     fresh->setTickEveryStep(w->tickEveryStep());
-    const LoadResult r = fresh->tryLoad(saved);
+    // Its own sink before the load: the load's structural records create the instances (S19b)
+    RecordingRenderSink* freshSink = giveSink(*fresh);
+    const LoadResult r             = fresh->tryLoad(saved);
     if (!r.committed)
     {
         failed.push_back("step " + std::to_string(observedSteps) + ": save/load: the load was rejected: " + r.error);
@@ -469,6 +492,9 @@ void ScenarioWorld::saveLoad()
     for (int id : ownListeners) w->removeStepListener(id);
     if (apiPtr) apiPtr->rebind(*fresh);
     std::swap(w, fresh);
+    // The replaced world's extract stops (its consumer is removed)
+    fresh->setRenderSink(nullptr);
+    hostSink = freshSink;
     attach();
     retiredWorlds.push_back(std::move(fresh));  // the old world lives until the scenario ends
 }

@@ -9,11 +9,13 @@
 // entities, restores the world state, rebuilds the derived state and recreates the game objects.
 
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
@@ -45,6 +47,8 @@ class WorldLoader
     bool checkHierarchy();
     bool checkPersistent();
     bool checkFreedStateEntities();
+    // S19b: every staged RenderInstance names a registered mesh (aliases resolved); the cached IDs are set
+    bool checkRenderMeshes();
     // The staged value index -> keep; removes the others from a typed stage
     template <class T>
     static void filterStage(StagedOf<T>& s, const std::vector<bool>& keep);
@@ -782,7 +786,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     }
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
-        !checkPersistent() || !checkFreedStateEntities())
+        !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes())
     {
         result.error = error;
         return result;
@@ -867,10 +871,28 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     return result;
 }
 
+bool WorldLoader::checkRenderMeshes()
+{
+    if (!staged[RenderInstance::id]) return true;
+    auto& s = static_cast<StagedOf<RenderInstance>&>(*staged[RenderInstance::id]);
+    for (size_t i = 0; i < s.values.size(); ++i)
+    {
+        if (generation[s.indices[i]] < 0) continue;
+        RenderInstance& r = s.values[i];
+        if (!w.resolveRenderMesh(r.mesh, r.cachedMesh))
+            return fail("entity index " + std::to_string(s.indices[i]) + ": RenderInstance names the mesh \"" + r.mesh +
+                        "\", which is not registered (World::registerMesh, registerMeshAlias)");
+    }
+    return true;
+}
+
 LoadResult World::tryLoad(const std::vector<uint8_t>& data)
 {
     WorldLoader loader(*this);
-    return loader.run(data);
+    LoadResult r = loader.run(data);
+    // The extract's catch-up between steps sends the loaded poses (the structural log recreates the instances)
+    if (r.committed) extractor->markDirty();
+    return r;
 }
 
 void World::load(const std::vector<uint8_t>& data)

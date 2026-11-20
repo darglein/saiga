@@ -11,6 +11,7 @@
 
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
@@ -19,6 +20,7 @@
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
@@ -307,6 +309,20 @@ std::string netEditRefusal(World& w, Entity e, ComponentId id, bool structural)
     return {};
 }
 
+// RenderInstance values: the mesh must be registered (aliases resolved); nothing is changed (S19b)
+bool checkRenderMeshValues(World& w, const RenderInstance& current, const Json& values, std::string& error)
+{
+    RenderInstance r = current;
+    if (!fromJson(values, r, &error, true)) return false;
+    Vulkan::MeshId id = 0;
+    if (!w.resolveRenderMesh(r.mesh, id))
+    {
+        error = "RenderInstance: the mesh \"" + r.mesh + "\" is not registered";
+        return false;
+    }
+    return true;
+}
+
 // Checks the values of an initial or added component (nothing is changed)
 bool checkComponentValues(World& w, Entity child, ComponentId id, const Json& values, std::string& error)
 {
@@ -316,6 +332,8 @@ bool checkComponentValues(World& w, Entity child, ComponentId id, const Json& va
         error = special;
         return false;
     }
+    if (id == RenderInstance::id && !values.is_null() && !checkRenderMeshValues(w, RenderInstance(), values, error))
+        return false;
     if (id == Parent::id)
     {
         Parent p;
@@ -336,8 +354,11 @@ bool addComponentValues(World& w, Entity e, ComponentId id, const Json& values, 
         return true;
     }
     w.addDefaultNow(e, id);
-    if (!values.is_null()) return w.registry().poolById(id)->mergeJson(e.index, values, error);
-    return true;
+    bool ok = true;
+    if (!values.is_null()) ok = w.registry().poolById(id)->mergeJson(e.index, values, error);
+    // The add path of the name (S19b)
+    if (id == RenderInstance::id) w.renderMeshWritten(e, true);
+    return ok;
 }
 
 // The fields set_component accepts back (an undo payload): Transform without space, Behaviour without the derived and
@@ -606,6 +627,9 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
         result = ApiResult::failure(operation +
                                     ": a game hook threw an exception (side effects before the exception may remain)");
     }
+    // An edit between steps reaches the render sink at the next catch-up (S19b; the change flags of a paused world
+    // stay set until the next step)
+    if (op->edit && w) w->extract().markDirty();
     // Edits are logged after they ran, with their outcome (failed attempts are marked)
     if (op->edit && operation != "apply")
         SAIGA_LOG("api", "%s %s %s%s", result.ok ? "ok" : "failed:", operation.c_str(),
@@ -1310,7 +1334,16 @@ ApiResult WorldApi::setComponent(const Json& a)
         for (double t : {check.tickInterval, check.sinceTick, check.tickOffset})
             if (!(t >= 0) || !std::isfinite(t)) return ApiResult::failure("Behaviour: tick times are finite and >= 0");
     }
+    // RenderInstance: a registered name; the change goes through renderMeshWritten (its name record, S19b)
+    std::string previousMesh;
+    if (id == RenderInstance::id)
+    {
+        const RenderInstance& current = w->read<RenderInstance>(e);
+        if (!checkRenderMeshValues(*w, current, values, error)) return ApiResult::failure(error);
+        previousMesh = current.mesh;
+    }
     if (!pool->mergeJson(e.index, values, error)) return ApiResult::failure(error);
+    if (id == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
     if (id == Behaviour::id) assignTickInterval(*w, e, w->get<Behaviour>(e), false);
     return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
 }
@@ -1382,6 +1415,9 @@ ApiResult WorldApi::setTransform(const Json& a)
     }
     bool teleport = true;
     if (!boolArg(a, "teleport", true, teleport, error)) return ApiResult::failure(error);
+    // A rendered entity has a uniform scale (S19b; the extract uses scale.x, tints are materials)
+    if (w->has<RenderInstance>(e) && (scale(1) != scale(0) || scale(2) != scale(0)))
+        return ApiResult::failure("scale: an entity with RenderInstance has a uniform scale (x = y = z)");
     if (teleport)
         t.teleport(position, rotation);
     else
@@ -1429,6 +1465,8 @@ ApiResult WorldApi::spawn(const Json& a)
             if (!kv.second.is_null() && !kv.second.is_object())
                 return ApiResult::failure(kv.first + ": expected an object of fields");
             if (!checkComponentValues(*w, Entity{}, id, kv.second, error)) return ApiResult::failure(error);
+            if (id == RenderInstance::id && (scale(1) != scale(0) || scale(2) != scale(0)))
+                return ApiResult::failure("scale: an entity with RenderInstance has a uniform scale (x = y = z)");
             initial.push_back({id, kv.second});
         }
     }
