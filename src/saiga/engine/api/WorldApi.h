@@ -65,7 +65,7 @@ struct ApiResult
  *   get_global:       component, space? (world state if missing)      set_global: component, values, space? -> values,
  *                     previous
  *   emit_event:       event, values -> readable_in_step (the gameplay path, e.g. onDamage)
- *   queue_action:     player, action, aim? -> readable_in_step
+ *   queue_action:     player, action, aim? -> readable_in_step (a client: forwarded, sent to the host)
  *   pause, resume, step: n (only while paused; stops after 30 s: ran, requested, stopped_early), time_scale: scale
  *   changes_since:    cursor? (opaque; none or 0: from the oldest kept change; "now"), include_moved?, limit? (200) ->
  *                     changes [{seq, step, kind, entity, component?}] (kinds: created, destroyed (its components with

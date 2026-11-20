@@ -726,15 +726,7 @@ void Replication::hostReplicate(bool networkOnly)
         return false;
     };
 
-    // 3. Destroys
-    for (NetId id : destroyed)
-        for (uint8_t p : regularPeers)
-        {
-            w.send(p, DestroyMessage{id});
-            counts.destroysSent++;
-        }
-
-    // 4. Hierarchy changes (reparenting)
+    // 3. Hierarchy changes (reparenting)
     std::sort(hierarchyNow.begin(), hierarchyNow.end());
     hierarchyNow.erase(std::unique(hierarchyNow.begin(), hierarchyNow.end()), hierarchyNow.end());
     for (Entity e : hierarchyNow)
@@ -765,6 +757,15 @@ void Replication::hostReplicate(bool networkOnly)
             counts.hierarchySent++;
         }
     }
+
+    // 4. Destroys (after the hierarchy changes: a child moved out of a destroyed parent leaves it before the client's
+    // cascade)
+    for (NetId id : destroyed)
+        for (uint8_t p : regularPeers)
+        {
+            w.send(p, DestroyMessage{id});
+            counts.destroysSent++;
+        }
 
     // 5. Component changes: additions and removals, and HostReliable components whose bytes changed
     std::sort(changedNow.begin(), changedNow.end());
@@ -838,9 +839,12 @@ void Replication::hostReplicate(bool networkOnly)
         }
     }
 
-    // 7. Joined peers: the full spawn set (roots first, then by depth)
+    // 7. Joined peers: the epoch of the host's last load (the joiner starts at 0 and would drop the snapshots), then
+    // the full spawn set (roots first, then by depth)
     if (!joinedPeers.empty())
     {
+        if (currentEpoch != 0)
+            for (uint8_t p : joinedPeers) w.send(p, ResyncMessage{currentEpoch});
         std::vector<std::pair<int, Entity>> all;
         for (uint32_t i = 1; i < host.size(); ++i)
         {

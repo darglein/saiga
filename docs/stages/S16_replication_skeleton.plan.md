@@ -384,3 +384,21 @@ Local review (one subagent round; the fixes have regression tests that fail with
 - `ownerOf`/`ownedBy` could rebuild the owner cache inside a system's parallel loop. The cache is now rebuilt before each system.
 - An owner state dropped as stale counted as received (`ownerStateSequence`).
 - On a client, a replicated entity parented under a local one was destroyed by the cascade. `destroy` now checks the descendants.
+
+CodeRabbit review (PR #61; regression tests `Review.*`, `ReviewDeathTest.OwnerRules` in `test_engine_replication`, two
+`ScenarioRunner` tests):
+- World API: the host's value restriction on client-owned entities no longer refuses destroys, adds and removes;
+  `set_component Parent` of a spawned child checks the new root's owner first and relinks in one change
+  (`World::reparentNow`); a client's `destroy` checks the whole subtree; `set_global` runs the replication write check;
+  a client's `queue_action` answers `forwarded` (no step of its own world).
+- Ownership: `removeByIdNow(NetOwner)` takes the checked path; `setOwner` and `add`/`remove<NetOwner>` of an unspawned
+  root refuse when a descendant was spawned; clients cannot add or remove `NetOwner`; `spawn<T>` on a client is
+  refused in every build; a client's queued destroy and the dead-parent fallback of `add<Parent>` recheck the subtree
+  for replicas at the flush.
+- Owner cache: `setOwner` inside a system rebuilds it at once, and a lazy rebuild inside `parallelEach` asserts; an
+  `ownedBy` view reads the World's owner table when it iterates (a kept view never reads a reallocated table).
+- Replication: Hierarchy messages go before Destroy messages (a child moved out of a destroyed parent survived the
+  host but not the client's cascade); a peer joining after a host load gets a `Resync` with the epoch before its spawn
+  set.
+- Scenarios: the final sync also waits for the owner state of client-owned entities spawned after the last step;
+  `saveLoad` fails in the host + client variants.

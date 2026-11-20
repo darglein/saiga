@@ -172,7 +172,36 @@ void World::removeByIdNow(Entity e, ComponentId id)
     if (id == Parent::id) return removeNow<Parent>(e);
     if (id == Persistent::id) return removeNow<Persistent>(e);
     if (id == Behaviour::id) return removeNow<Behaviour>(e);  // the object may be running: retired
+    if (id == NetOwner::id) return removeNow<NetOwner>(e);    // the owner rules of add/remove
     removeInternal(e, id);
+}
+
+bool World::reparentNow(Entity child, Entity parent)
+{
+    SAIGA_ASSERT(!inStep(), "reparentNow: between steps");
+    checkNotParallel("reparentNow");
+    if (!reg.alive(child) || !reg.has<Parent>(child))
+    {
+        // Refused in every build
+        SAIGA_ASSERT(false, "reparentNow: the entity is not an alive child");
+        return false;
+    }
+    if (!acceptParent(child, parent)) return false;
+    // The owner before (the old root) against the owner after (the new root): no intermediate owner change
+    if (netChangeRefused(child, Parent::id, true, parent)) return false;
+    auto record = log.prepare(2);
+    reserveChildSlot(parent);
+    Parent& p        = reg.get<Parent>(child);
+    const Entity old = p.entity;
+    p.entity         = parent;
+    changeChildCount(old, -1);
+    changeChildCount(parent, +1);
+    hierarchyDirty  = true;
+    ownerCacheDirty = true;
+    // As a remove and an add (the replication sends one Hierarchy message)
+    record.append(child, Parent::id, false);
+    record.append(child, Parent::id, true);
+    return true;
 }
 
 Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
@@ -180,6 +209,7 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
 {
     SAIGA_ASSERT(!inStep(), "spawnByClass: between steps");
     const Entity e = beginSpawn(space);
+    if (!e.valid()) return e;
     try
     {
         finishSpawn(e, info, position);
@@ -228,8 +258,12 @@ Entity World::beginSpawn(SpaceId space)
 {
     checkNotParallel("spawn");
     SAIGA_ASSERT(space == 0, "spawnIn: only space 0 exists before S21");
-    // A replicated game object only arrives on a client (§13.5)
-    SAIGA_ASSERT(isHost(), "spawn<T> on a client (game objects arrive through replication)");
+    // A replicated game object only arrives on a client (§13.5); refused in every build (no entity, no hooks)
+    if (!isHost())
+    {
+        SAIGA_ASSERT(false, "spawn<T> on a client (game objects arrive through replication)");
+        return Entity{};
+    }
     return create();
 }
 
@@ -328,6 +362,15 @@ void World::setOwner(Entity root, uint8_t peer)
             SAIGA_ASSERT(false, "setOwner: the entity's spawn was sent already (no ownership transfer, §13.3)");
             return;
         }
+        if (childCount(root) > 0)
+            for (Entity x : collectDoomed(root))
+                if (repl->spawned(x))
+                {
+                    // A spawned descendant would change its owner through its root (any NetOwner change, as add/remove)
+                    SAIGA_ASSERT(false,
+                                 "setOwner: a descendant's spawn was sent already (no ownership transfer, §13.3)");
+                    return;
+                }
         if (const Player* p = reg.tryRead<Player>(root); p && p->peer != peer)
         {
             SAIGA_ASSERT(false, "setOwner: Player.peer " + std::to_string(p->peer) + " differs from the owner " +
@@ -336,8 +379,9 @@ void World::setOwner(Entity root, uint8_t peer)
         }
         if (NetOwner* o = reg.tryGet<NetOwner>(root))
         {
-            o->peer         = peer;
-            ownerCacheDirty = true;
+            // Applied at once, also inside a system: the cache is rebuilt now (the system's parallel loops read it)
+            o->peer = peer;
+            rebuildOwnerCache();
             return;
         }
     }
@@ -358,6 +402,20 @@ void World::ownerTeleport(Entity root, const Vec3& position, const Quat& rotatio
         return;
     }
     repl->ownerTeleport(root, position, rotation);
+}
+
+void World::rebuildOwnerCacheChecked() const
+{
+    SAIGA_ASSERT(!reg.inParallelEach(), "ownerOf/ownedBy: the owner cache is stale inside parallelEach (R-PAR-1)");
+    rebuildOwnerCache();
+}
+
+bool World::clientSubtreeReplicated(Entity e) const
+{
+    if (isHost() || !reg.alive(e)) return false;
+    for (Entity x : collectDoomed(e))
+        if (repl->netIdOf(x) != 0) return true;
+    return false;
 }
 
 void World::rebuildOwnerCache() const
@@ -521,14 +579,12 @@ void World::destroy(Entity e)
         SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity");
         return;
     }
-    if (!isHost() && reg.alive(e))
-        for (Entity x : collectDoomed(e))
-            if (repl->netIdOf(x) != 0)
-            {
-                // A replicated entity parented under a local one would be destroyed by the cascade
-                SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity (a descendant)");
-                return;
-            }
+    if (clientSubtreeReplicated(e))
+    {
+        // A replicated entity parented under a local one would be destroyed by the cascade
+        SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity (a descendant)");
+        return;
+    }
     if (reg.alive(e) && (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)))
     {
         // Refused in every build (the world state must stay; asserts in builds with asserts)
@@ -543,7 +599,14 @@ void World::destroy(Entity e)
         record(makeCommand(
             [e](World& w)
             {
-                if (w.reg.alive(e)) w.destroyNow(e);
+                if (!w.reg.alive(e)) return;
+                // The subtree may have changed since (a replica linked under it earlier in the flush)
+                if (w.clientSubtreeReplicated(e))
+                {
+                    SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity (a descendant)");
+                    return;
+                }
+                w.destroyNow(e);
             }));
         return;
     }
@@ -761,7 +824,8 @@ bool World::acceptParent(Entity child, Entity parent)
         // Between steps a dead parent is an error (refused without asserts); during a flush the parent may have been
         // destroyed earlier in the same flush: the child follows it
         SAIGA_ASSERT(flushing, "add<Parent>: the parent is not alive");
-        if (flushing) destroyNow(child);
+        // A client does not destroy replicas (§13.5): the link is dropped and the child stays
+        if (flushing && !clientSubtreeReplicated(child)) destroyNow(child);
         return false;
     }
     // No cycles: the child must not be an ancestor of the parent (or the parent itself). An acyclic chain has fewer
@@ -830,7 +894,21 @@ void World::flushCommands()
 
 bool World::netChangeRefused(Entity e, ComponentId c, bool add, Entity parent)
 {
-    if (!isHost() || !reg.alive(e) || !repl->spawned(e)) return false;
+    if (!isHost() || !reg.alive(e)) return false;
+    if (c == ComponentId(EngineComponent::NetOwner) && !repl->spawned(e) && childCount(e) > 0)
+    {
+        // A NetOwner change of an unspawned root changes the owner of its spawned descendants too
+        for (Entity x : collectDoomed(e))
+            if (repl->spawned(x))
+            {
+                SAIGA_ASSERT(false, std::string(add ? "add<" : "remove<") +
+                                        "NetOwner>: it would change the owner of a spawned descendant (no transfer "
+                                        "after the spawn, §13.3)");
+                return true;
+            }
+        return false;
+    }
+    if (!repl->spawned(e)) return false;
     const uint8_t before = ownerOf(e);
     uint8_t after        = 0;
     if (c == ComponentId(EngineComponent::NetOwner))

@@ -409,6 +409,14 @@ void ScenarioWorld::saveLoad()
         abortReason = "save/load inside a step";
         throw ScenarioAbort{abortReason};
     }
+    if (network.enabled)
+    {
+        // The clients are connected to the old host world (a reload would need a new session with them)
+        failed.push_back("step " + std::to_string(observedSteps) +
+                         ": saveLoad is not supported in the host + client variants");
+        abortReason = "save/load in a host + client variant";
+        throw ScenarioAbort{abortReason};
+    }
     control.saveLoadDone             = true;
     control.swappedAtStep            = observedSteps;
     const std::vector<uint8_t> saved = w->save();
@@ -500,15 +508,20 @@ void ScenarioWorld::finishNetwork()
     pendingEdits.clear();
     // The owners whose final state the host must receive: the next owner state each one sends
     std::vector<uint64_t> finalOwnerState(clientWorlds.size() + 1, 0);
-    for (NetId id : w->replication().netIds())
+    std::vector<NetId> known = w->replication().netIds();
+    std::sort(known.begin(), known.end());
+    for (NetId id : known)
     {
         const uint8_t owner = w->ownerOf(w->replication().entityOfNetId(id));
         if (owner != 0 && size_t(owner) <= clientWorlds.size())
             finalOwnerState[owner] = client(owner).replication().ownerStateSequence(owner) + 1;
     }
+    // Client-owned entities published during the sync (created after the scenario's last step): their owner's state
+    // counts once the owner has the entity (the state it sends in the step it receives the spawn)
+    std::vector<std::pair<uint8_t, NetId>> late;
     // Host and clients 1:1 until the host has the owners' final states and every client applied a snapshot sent after
-    // that (§17.3; without loss at most 2 * delaySteps + 3 steps)
-    const int bound = 2 * network.delaySteps + 3;
+    // that (§17.3; without loss at most 2 * delaySteps + 3 steps, and delaySteps + 1 more for a late spawn)
+    int bound       = 2 * network.delaySteps + 3;
     bool ownersDone = false;
     uint64_t needed = 0;
     int steps       = 0;
@@ -517,7 +530,17 @@ void ScenarioWorld::finishNetwork()
     {
         steps++;
         w->stepNetworkOnly();
-        if (!ownersDone)
+        for (NetId id : w->replication().netIds())
+        {
+            if (std::binary_search(known.begin(), known.end(), id)) continue;
+            known.insert(std::upper_bound(known.begin(), known.end(), id), id);
+            const uint8_t owner = w->ownerOf(w->replication().entityOfNetId(id));
+            if (owner == 0 || size_t(owner) > clientWorlds.size()) continue;
+            if (late.empty()) bound += network.delaySteps + 1;
+            late.push_back({owner, id});
+            ownersDone = false;
+        }
+        if (!ownersDone && late.empty())
         {
             ownersDone = true;
             for (size_t p = 1; p < finalOwnerState.size(); ++p)
@@ -526,6 +549,18 @@ void ScenarioWorld::finishNetwork()
             if (ownersDone) needed = w->replication().snapshotSequence();
         }
         for (auto& c : clientWorlds) c->stepNetworkOnly();
+        for (size_t i = 0; i < late.size();)
+        {
+            World& owner = client(late[i].first);
+            if (!owner.replication().entityOfNetId(late[i].second).valid())
+            {
+                ++i;
+                continue;
+            }
+            finalOwnerState[late[i].first] =
+                std::max(finalOwnerState[late[i].first], owner.replication().ownerStateSequence(late[i].first));
+            late.erase(late.begin() + std::ptrdiff_t(i));
+        }
         if (ownersDone)
         {
             synced = true;

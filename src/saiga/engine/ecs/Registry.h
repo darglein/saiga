@@ -437,7 +437,7 @@ View<C...> Registry::view(uint8_t requiredFlags)
 template <class... C>
 View<C...> Registry::ownedView(uint8_t requiredFlags, const std::vector<uint8_t>& owners, uint8_t peer)
 {
-    return View<C...>(*this, requiredFlags, owners.data(), owners.size(), peer);
+    return View<C...>(*this, requiredFlags, &owners, peer);
 }
 
 }  // namespace Engine

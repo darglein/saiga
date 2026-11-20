@@ -72,6 +72,7 @@ Entity World::spawnIn(SpaceId space, const Vec3& position, C&&... initial)
                   "spawn: Transform and Behaviour are set by spawn (pass the position)");
     const ClassList::ClassInfo& info = classes.info<T>();
     const Entity e                   = beginSpawn(space);
+    if (!e.valid()) return e;  // refused (a client)
     // The initial components are moved into the command (applied at the flush during a step, at once between steps)
     auto apply = [e, &info, position,
                   components = std::make_tuple(std::decay_t<C>(std::forward<C>(initial))...)](World& w) mutable

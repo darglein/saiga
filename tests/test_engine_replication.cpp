@@ -31,7 +31,9 @@
 
 #include "gtest/gtest.h"
 
+#include <atomic>
 #include <cmath>
+#include <functional>
 #include <map>
 #include <memory>
 #include <stdexcept>
@@ -169,9 +171,12 @@ void clientSystem(World& w, double)
 {
     g_ran[{w.isHost(), 1}]++;
 }
+// A test's own work inside a Both system (phase 4); reset by the test
+std::function<void(World&)> g_inSystem;
 void bothSystem(World& w, double)
 {
     g_ran[{w.isHost(), 2}]++;
+    if (g_inSystem) g_inSystem(w);
 }
 
 // Test hooks: an ownerTeleport during phase 4, an exception in phase 4 or 6
@@ -1222,4 +1227,267 @@ TEST(Replication, TheWriteDetectorSeesAClientWriteOfAHostReliableComponent)
     n.step();
     ASSERT_FALSE(reports.empty());
     EXPECT_NE(reports[0].find("component change receiver"), std::string::npos) << reports[0];
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CodeRabbit review (S16)
+
+// Regression: the host world API refused to destroy a spawned client-owned player (destroy was treated as a write of
+// its owner-authoritative Transform)
+TEST(Review, TheHostApiDestroysAClientOwnedEntity)
+{
+    Net n;
+    const Entity player = makePlayer(*n.host, 1);
+    n.step(2);
+    WorldApi hapi(*n.host);
+    const Json hp = WorldApi::entityJson(player);
+    EXPECT_FALSE(hapi.call("set_transform", Json::object{{"entity", hp}, {"position", Json::array{1, 2, 3}}}).ok);
+    const ApiResult r = hapi.call("destroy", Json::object{{"entity", hp}});
+    EXPECT_TRUE(r.ok) << r.error;
+    EXPECT_FALSE(n.host->alive(player));
+}
+
+// Regression: set_component Parent of a spawned client-owned child removed the Parent first, which the World saw as
+// a transfer to the host (an assert); a new parent of another owner is refused without changing the link
+TEST(Review, TheApiReparentsAClientOwnedChildInOneChange)
+{
+    Net n(2);
+    const Entity a = makePlayer(*n.host, 1), b = makePlayer(*n.host, 1), other = makePlayer(*n.host, 2);
+    const Entity c = n.host->create();
+    n.host->add<Parent>(c, Parent{a});
+    n.step(2);
+    WorldApi hapi(*n.host);
+    ApiResult r =
+        hapi.call("set_component", Json::object{{"entity", WorldApi::entityJson(c)},
+                                                {"component", "Parent"},
+                                                {"values", Json::object{{"entity", WorldApi::entityJson(b)}}}});
+    EXPECT_TRUE(r.ok) << r.error;
+    EXPECT_EQ(n.host->read<Parent>(c).entity, b);
+    EXPECT_EQ(n.host->ownerOf(c), 1);
+    n.step(2);
+    EXPECT_EQ(n.client().read<Parent>(n.onClient(c)).entity, n.onClient(b));
+    r = hapi.call("set_component", Json::object{{"entity", WorldApi::entityJson(c)},
+                                                {"component", "Parent"},
+                                                {"values", Json::object{{"entity", WorldApi::entityJson(other)}}}});
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("peer 2"), std::string::npos) << r.error;
+    EXPECT_EQ(n.host->read<Parent>(c).entity, b);
+}
+
+// Regression: a client's API destroy of a local root with a replicated descendant reached World::destroy (an assert;
+// without asserts a success with nothing destroyed)
+TEST(Review, TheClientApiRefusesADestroyWithAReplicaBelow)
+{
+    Net n;
+    const Entity h = n.host->create();
+    n.step(2);
+    const Entity replica = n.onClient(h);
+    const Entity local   = n.client().create();
+    n.client().add<Parent>(replica, Parent{local});
+    WorldApi capi(n.client());
+    const ApiResult r = capi.call("destroy", Json::object{{"entity", WorldApi::entityJson(local)}});
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("descendant"), std::string::npos) << r.error;
+    EXPECT_TRUE(n.client().alive(local));
+    EXPECT_TRUE(n.client().alive(replica));
+    // An entirely local subtree is destroyed
+    const Entity below = n.client().create();
+    n.client().add<Parent>(below, Parent{local});
+    n.client().remove<Parent>(replica);
+    EXPECT_TRUE(capi.call("destroy", Json::object{{"entity", WorldApi::entityJson(local)}}).ok);
+    EXPECT_FALSE(n.client().alive(below));
+}
+
+// Regression: a view of ownedBy kept across a rebuild of the owner cache read the old (freed) table
+TEST(Review, AKeptOwnedByViewReadsTheRebuiltOwnerTable)
+{
+    World w(baseSetup());
+    makePlayer(w, 1);
+    auto view = w.ownedBy<const Transform>(1);
+    std::vector<Entity> added;
+    for (int i = 0; i < 1000; ++i)
+    {
+        const Entity e = w.create();
+        w.add<NetOwner>(e, NetOwner{1});
+        added.push_back(e);
+    }
+    EXPECT_EQ(w.ownerOf(added.back()), 1);  // rebuilds the (grown) table
+    size_t count = 0;
+    view.each([&](Entity, const Transform&) { count++; });
+    EXPECT_EQ(count, 1001u);
+}
+
+// Regression: a reparenting out of a parent destroyed in the same step was sent after the Destroy, so the client's
+// cascade took the child along
+TEST(Review, AChildMovedOutOfADestroyedParentSurvivesOnTheClient)
+{
+    Net n;
+    const Entity a = n.host->create(), b = n.host->create(), c = n.host->create();
+    n.host->add<Parent>(c, Parent{a});
+    n.step(2);
+    ASSERT_TRUE(n.onClient(c).valid());
+    n.host->remove<Parent>(c);
+    n.host->add<Parent>(c, Parent{b});
+    n.host->destroy(a);
+    n.step(2);
+    const Entity cc = n.onClient(c);
+    ASSERT_TRUE(cc.valid());
+    EXPECT_TRUE(n.client().alive(cc));
+    EXPECT_EQ(n.client().read<Parent>(cc).entity, n.onClient(b));
+}
+
+// Regression: a client that connected after a host load stayed at epoch 0 and dropped every snapshot
+TEST(Review, AClientJoiningAfterAHostLoadGetsTheEpoch)
+{
+    Net n(1, 0, false);
+    const Entity e = n.host->create();
+    n.host->add<Health>(e, Health{5, 100});
+    n.host->load(n.host->save());
+    ASSERT_EQ(n.host->replication().epoch(), 1u);
+    n.addClient(1);
+    n.step(3);
+    EXPECT_EQ(n.client().replication().epoch(), 1u);
+    EXPECT_EQ(n.client().replication().stats().snapshotsDroppedEpoch, 0u);
+    EXPECT_GT(n.client().replication().snapshotSequence(), 0u);
+}
+
+// Regression: on a client, a link from a replica to a local parent destroyed earlier in the same flush destroyed the
+// replica (the dead-parent fallback of add<Parent>)
+TEST(Review, AClientLinkToAParentDestroyedInTheFlushKeepsTheReplica)
+{
+    Net n;
+    const Entity h = n.host->create();
+    n.step(2);
+    const Entity replica = n.onClient(h);
+    const Entity local   = n.client().create();
+    g_inSystem           = [&](World& w)
+    {
+        if (w.isHost()) return;
+        w.destroy(local);
+        w.add<Parent>(replica, Parent{local});
+    };
+    n.step();
+    g_inSystem = nullptr;
+    EXPECT_FALSE(n.client().alive(local));
+    EXPECT_TRUE(n.client().alive(replica));
+    EXPECT_FALSE(n.client().has<Parent>(replica));
+}
+
+// Regression: setOwner on an existing NetOwner inside a system left the owner cache dirty, so ownerOf in the system's
+// parallel loop rebuilt it from several workers at once
+TEST(Review, SetOwnerInsideASystemKeepsTheCacheCleanForParallelLoops)
+{
+    World w(baseSetup());
+    w.setWorkerThreads(4);
+    const Entity root        = makePlayer(w, 1);
+    w.get<Player>(root).peer = 2;
+    for (int i = 0; i < 2000; ++i) w.add<Parent>(w.create(), Parent{root});
+    std::atomic<int> wrong{0};
+    g_inSystem = [&](World& world)
+    {
+        world.setOwner(root, 2);
+        world.view<const Transform>().parallelEach(
+            [&](Entity, const Transform&)
+            {
+                if (world.ownerOf(root) != 2) wrong++;
+            },
+            16);
+    };
+    w.step();
+    g_inSystem = nullptr;
+    EXPECT_EQ(wrong.load(), 0);
+}
+
+// Regression: setGlobal wrote a replicated (host) global on a client, which set_component refuses
+TEST(Review, TheClientApiRefusesSetGlobalOfAReplicatedGlobal)
+{
+    Net n;
+    n.step(2);
+    WorldApi capi(n.client());
+    const ApiResult r =
+        capi.call("set_global", Json::object{{"component", "Score"}, {"values", Json::object{{"points", 5}}}});
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("replicated"), std::string::npos) << r.error;
+    EXPECT_EQ(n.client().readGlobal<Score>().points, 0);
+}
+
+// Regression: a client's queue_action answered with a step of its own world, while the host delivers the action
+TEST(Review, TheClientApiReportsAForwardedAction)
+{
+    Net n;
+    const Entity player = makePlayer(*n.host, 1);
+    n.step(2);
+    WorldApi capi(n.client());
+    const ApiResult r =
+        capi.call("queue_action", Json::object{{"player", WorldApi::entityJson(n.onClient(player))}, {"action", 1}});
+    ASSERT_TRUE(r.ok) << r.error;
+    EXPECT_TRUE(r.value["forwarded"].bool_value());
+    EXPECT_TRUE(r.value["readable_in_step"].is_null());
+}
+
+TEST(ReviewDeathTest, OwnerRules)
+{
+#ifdef SAIGA_ASSERTS
+    // Regression: removeByIdNow (the type-erased remove) removed the NetOwner of a spawned root
+    auto removeById = []()
+    {
+        Net n;
+        const Entity e = makePlayer(*n.host, 1);
+        n.step();
+        n.host->removeByIdNow(e, NetOwner::id);
+    };
+    EXPECT_DEATH(removeById(), "change the owner of a spawned entity");
+    // Regression: setOwner of an unspawned root changed the owner of a spawned descendant
+    auto setOwnerAbove = []()
+    {
+        Net n;
+        const Entity s = n.host->create();
+        n.step();
+        const Entity root = n.host->create();
+        n.host->add<Parent>(s, Parent{root});
+        n.host->setOwner(root, 1);
+    };
+    EXPECT_DEATH(setOwnerAbove(), "descendant's spawn was sent");
+    auto addNetOwnerAbove = []()
+    {
+        Net n;
+        const Entity s = n.host->create();
+        n.step();
+        const Entity root = n.host->create();
+        n.host->add<Parent>(s, Parent{root});
+        n.host->add<NetOwner>(root, NetOwner{1});
+    };
+    EXPECT_DEATH(addNetOwnerAbove(), "owner of a spawned descendant");
+    // Regression: a client could add or remove the NetOwner of its replicas
+    auto clientNetOwner = [](bool add)
+    {
+        Net n;
+        const Entity e = makePlayer(*n.host, 1);
+        n.step(2);
+        if (add)
+            n.client().add<NetOwner>(n.client().create(), NetOwner{1});
+        else
+            n.client().remove<NetOwner>(n.onClient(e));
+    };
+    EXPECT_DEATH(clientNetOwner(true), "add<NetOwner> on a client");
+    EXPECT_DEATH(clientNetOwner(false), "remove<NetOwner> on a client");
+    // Regression: a client's destroy queued in a system was checked against the subtree at queue time; a replica
+    // linked under the root earlier in the flush was destroyed
+    auto queuedCascade = []()
+    {
+        Net n;
+        const Entity h = n.host->create();
+        n.step(2);
+        const Entity replica = n.onClient(h);
+        const Entity local   = n.client().create();
+        g_inSystem           = [=](World& w)
+        {
+            if (w.isHost()) return;
+            w.add<Parent>(replica, Parent{local});
+            w.destroy(local);
+        };
+        n.step();
+    };
+    EXPECT_DEATH(queuedCascade(), "cannot destroy a replicated entity \\(a descendant\\)");
+#endif
 }

@@ -284,7 +284,8 @@ std::string specialComponent(ComponentId id, bool adding)
 
 // The network rules of an edit (R-NET-2, §16.2; S16): empty if allowed. A client edits replicated entities only in
 // their owned owner-authoritative components (and its peer-local Never components); the host does not edit the
-// owner-authoritative components of a spawned client-owned entity. structural: an add, remove or destroy.
+// owner-authoritative values of a spawned client-owned entity (adds, removes and destroys stay with the host).
+// structural: an add, remove or destroy.
 std::string netEditRefusal(World& w, Entity e, ComponentId id, bool structural)
 {
     const Registry& reg    = w.registry();
@@ -300,7 +301,7 @@ std::string netEditRefusal(World& w, Entity e, ComponentId id, bool structural)
                ": the entity is replicated (a client writes only the owner-authoritative components of the "
                "entities it owns)";
     }
-    if (mode == Replicate::OwnerAuthoritative && w.ownerOf(e) != 0 && w.replication().spawned(e))
+    if (!structural && mode == Replicate::OwnerAuthoritative && w.ownerOf(e) != 0 && w.replication().spawned(e))
         return name + " of a client-owned entity is written by its owner, peer " + std::to_string(w.ownerOf(e)) +
                " (R-NET-2)";
     return {};
@@ -1256,8 +1257,13 @@ ApiResult WorldApi::setComponent(const Json& a)
     {
         Parent p = w->read<Parent>(e);
         if (!parentFromJson(*w, e, values, p, error)) return ApiResult::failure(error);
-        w->remove<Parent>(e);
-        w->add<Parent>(e, p);
+        // A spawned entity keeps its owner (§13.3): the new root's owner is checked before anything changes, and the
+        // link is replaced in one change (a remove and an add would pass through the host as the owner)
+        if (w->isHost() && w->replication().spawned(e) && w->ownerOf(p.entity) != w->ownerOf(e))
+            return ApiResult::failure("Parent: the new parent belongs to peer " + std::to_string(w->ownerOf(p.entity)) +
+                                      ", the entity to peer " + std::to_string(w->ownerOf(e)) +
+                                      " (no ownership transfer after the spawn, §13.3)");
+        if (!w->reparentNow(e, p.entity)) return ApiResult::failure("Parent: the link was refused");
         return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
     }
     PoolBase* pool = w->registry().poolById(id);
@@ -1449,12 +1455,13 @@ ApiResult WorldApi::destroy(const Json& a)
     Entity e;
     if (!aliveEntity(*w, a["entity"], e, error)) return ApiResult::failure(error);
     if (stateEntity(w->registry(), e)) return ApiResult::failure("world-state entities cannot be destroyed");
-    if (const std::string refused = netEditRefusal(*w, e, Transform::id, true); !refused.empty())
-        return ApiResult::failure(refused);
-    // The entity and its descendants (reported as destroyed if gone afterwards)
+    // The entity and its descendants (reported as destroyed if gone afterwards); a client destroys only local ones
     std::vector<Entity> group{e};
     for (size_t i = 0; i < group.size(); ++i)
         for (Entity c : childrenOf(*w, group[i])) group.push_back(c);
+    for (Entity x : group)
+        if (const std::string refused = netEditRefusal(*w, x, Transform::id, true); !refused.empty())
+            return ApiResult::failure(x == e ? refused : "a descendant: " + refused);
     w->destroy(e);
     Json::array destroyed;
     for (Entity x : group)
@@ -1474,6 +1481,8 @@ ApiResult WorldApi::setGlobal(const Json& a)
     ComponentId id;
     parseEntity(holder.value["entity"], e, error);
     componentId(w->registry(), a["component"], id, error);
+    if (const std::string refused = netEditRefusal(*w, e, id, false); !refused.empty())
+        return ApiResult::failure(refused);
     const Json previous = componentJson(*w, e, id);
     if (!w->registry().poolById(id)->mergeJson(e.index, a["values"], error)) return ApiResult::failure(error);
     return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
@@ -1515,6 +1524,8 @@ ApiResult WorldApi::queueAction(const Json& a)
     action.action = uint32_t(code);
     if (!a["aim"].is_null() && !readVec3(a["aim"], action.aim, error, "aim")) return ApiResult::failure(error);
     w->queueAction(action);
+    // A client sends the action to the host, which delivers it in a host step (not this world's)
+    if (!w->isHost()) return ApiResult::success(Json::object{{"forwarded", true}, {"to_peer", 0}});
     return ApiResult::success(Json::object{{"queued", true}, {"readable_in_step", double(w->stepIndex() + 1)}});
 }
 

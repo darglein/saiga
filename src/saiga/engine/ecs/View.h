@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include <type_traits>
 
@@ -32,10 +33,12 @@ class View
 
    public:
     explicit View(Registry& registry, uint8_t requiredFlags = 0) : reg(&registry), flags(requiredFlags) {}
-    // Only the entities whose owner (owners[index], 0 beyond size) is peer (World::ownedBy, §13.3): one lookup per
-    // candidate. owners must not change while the view iterates.
-    View(Registry& registry, uint8_t requiredFlags, const uint8_t* owners, size_t ownerCount, uint8_t peer)
-        : reg(&registry), flags(requiredFlags), owners(owners), ownerCount(ownerCount), peer(peer), filtered(true)
+    // Only the entities whose owner ((*owners)[index], 0 beyond its size) is peer (World::ownedBy, §13.3): one lookup
+    // per candidate. owners is the World's owner table, read when the view iterates (a view kept across an owner
+    // change never reads a reallocated table; it filters by the table's state at iteration). owners must not change
+    // while the view iterates.
+    View(Registry& registry, uint8_t requiredFlags, const std::vector<uint8_t>* owners, uint8_t peer)
+        : reg(&registry), flags(requiredFlags), owners(owners), peer(peer), filtered(true)
     {
     }
 
@@ -204,15 +207,14 @@ class View
     bool ownedOk(uint32_t index) const
     {
         if (!filtered) return true;
-        return (index < ownerCount ? owners[index] : uint8_t(0)) == peer;
+        return (index < owners->size() ? (*owners)[index] : uint8_t(0)) == peer;
     }
 
     Registry* reg;
     uint8_t flags;
-    const uint8_t* owners = nullptr;
-    size_t ownerCount     = 0;
-    uint8_t peer          = 0;
-    bool filtered         = false;
+    const std::vector<uint8_t>* owners = nullptr;
+    uint8_t peer                       = 0;
+    bool filtered                      = false;
 };
 
 }  // namespace Engine

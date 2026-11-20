@@ -274,13 +274,13 @@ class SAIGA_ENGINE_API World
         static_assert(parentReadOnly<C...>(),
                       "Parent, Persistent and NetOwner in a view must be const (remove and add, makePersistent, "
                       "setOwner)");
-        if (ownerCacheDirty) rebuildOwnerCache();
+        if (ownerCacheDirty) rebuildOwnerCacheChecked();
         return reg.ownedView<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0, ownerCache, peer);
     }
     // The owner of the entity's root (0: the host)
     uint8_t ownerOf(Entity e) const
     {
-        if (ownerCacheDirty) rebuildOwnerCache();
+        if (ownerCacheDirty) rebuildOwnerCacheChecked();
         return e.index < ownerCache.size() ? ownerCache[e.index] : uint8_t(0);
     }
     // Host: the owner of a replicated root (and its subtree), before the entity's spawn was sent (asserted); no
@@ -535,8 +535,12 @@ class SAIGA_ENGINE_API World
     // ---- type-erased access for the world API (between steps; S10) ----
     // Adds a default component by ID with its log record (not Transform, Behaviour, Persistent or Parent)
     void addDefaultNow(Entity e, ComponentId id);
-    // Removes a component by ID with its log record (Parent and Persistent keep their bookkeeping; not Transform)
+    // Removes a component by ID with its log record (Parent, Persistent and NetOwner keep their bookkeeping and
+    // checks; not Transform)
     void removeByIdNow(Entity e, ComponentId id);
+    // Replaces the Parent of a child in one change (no intermediate root: the owner rule of a spawned entity is checked
+    // for the new parent only, §13.3); false if refused (a dead parent, a cycle, another owner)
+    bool reparentNow(Entity child, Entity parent);
     // Spawns a class by its registration: Transform, Behaviour, then initial(e) adds the initial components, then the
     // tick interval, configure() and onSpawn()
     Entity spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
@@ -601,6 +605,11 @@ class SAIGA_ENGINE_API World
     mutable std::vector<uint8_t> ownerCache;
     mutable bool ownerCacheDirty = true;
     void rebuildOwnerCache() const;
+    // The lazy rebuild of ownerOf/ownedBy: never inside parallelEach (the step loop rebuilds before every system, and
+    // owner changes inside a system rebuild at once, R-PAR-1)
+    void rebuildOwnerCacheChecked() const;
+    // Client: the entity or one of its descendants is replicated (a destroy would remove a replica, §13.5)
+    bool clientSubtreeReplicated(Entity e) const;
     // Host: an add/remove of Parent or NetOwner that would change the owner of a spawned entity (no transfer after
     // the spawn, §13.3); refused in every build (asserts)
     bool netChangeRefused(Entity e, ComponentId c, bool add, Entity parent);
@@ -872,6 +881,12 @@ void World::addNow(Entity e, T&& value)
     }
     if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
     {
+        if (!isHost())
+        {
+            // Refused in every build: ownership comes from the host (the replication adds it through its own path)
+            SAIGA_ASSERT(false, "add<NetOwner> on a client (ownership is set by the host, §13.3)");
+            return;
+        }
         if (reg.alive(e) && reg.has<Parent>(e))
         {
             SAIGA_ASSERT(false, "NetOwner on a child (ownership is defined on roots, §13.3)");
@@ -934,6 +949,13 @@ void World::removeNow(Entity e)
         SAIGA_ASSERT(false, std::string("remove<") + T::name + ">: world-state components cannot be removed");
         return;
     }
+    if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
+        if (!isHost())
+        {
+            // Refused in every build: ownership comes from the host (the replication removes it through its own path)
+            SAIGA_ASSERT(false, "remove<NetOwner> on a client (ownership is set by the host, §13.3)");
+            return;
+        }
     if constexpr (T::id == ComponentId(EngineComponent::Parent) || T::id == ComponentId(EngineComponent::NetOwner))
         if (netChangeRefused(e, T::id, false, Entity{})) return;
     auto record = log.prepare(1);

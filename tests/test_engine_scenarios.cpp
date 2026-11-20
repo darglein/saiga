@@ -15,6 +15,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
 #include "saiga/engine/world/World.h"
 
@@ -1235,4 +1236,37 @@ TEST(ScenarioRunner, TheAsyncVariantIsReproducible)
     const auto first = run();
     EXPECT_EQ(first, run());
     EXPECT_GT(first.size(), 60u);
+}
+
+// Regression (CodeRabbit, S16): a client-owned player spawned after the last step was not in the final sync's list of
+// owners, so the replicas were compared before the host received its owner state
+TEST(ScenarioRunner, TheFinalSyncWaitsForTheOwnerStateOfALateSpawn)
+{
+    for (int delay : {0, 2})
+    {
+        ScenarioNetwork net;
+        net.enabled    = true;
+        net.delaySteps = delay;
+        ScenarioWorld w(scenarioSetup(), ScenarioOptions{}, net);
+        w.step(5);
+        const Entity player = w.spawnPlayer({1, 0, 0});
+        w.finishNetwork();
+        EXPECT_TRUE(w.failures().empty()) << (w.failures().empty() ? "" : w.failures()[0]);
+        EXPECT_EQ(w.world().ownerOf(player), 1);
+        EXPECT_GE(w.world().replication().ownerStateSequence(1), 1u) << "delay " << delay;
+    }
+}
+
+// Regression (CodeRabbit, S16): saveLoad in a host + client variant replaced the host world under connected clients
+TEST(ScenarioRunner, SaveLoadInAHostClientVariantFails)
+{
+    auto e                 = entry("save_load_networked",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.step(2);
+                       w.saveLoad();
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::HostClient);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "saveLoad is not supported in the host + client variants")) << r.report;
 }
