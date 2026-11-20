@@ -1504,7 +1504,14 @@ ApiResult WorldApi::spawn(const Json& a)
                 }
             }
             else if (!c.second.is_null())
+            {
+                // RenderInstance: the name write goes through renderMeshWritten (its cached ID and name record; the
+                // values were checked above)
+                std::string previousMesh;
+                if (c.first == RenderInstance::id) previousMesh = w->read<RenderInstance>(e).mesh;
                 ok = w->registry().poolById(c.first)->mergeJson(e.index, c.second, error);
+                if (c.first == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
+            }
         }
         else
             ok = addComponentValues(*w, e, c.first, c.second, error);
@@ -1551,7 +1558,16 @@ ApiResult WorldApi::setGlobal(const Json& a)
     if (const std::string refused = netEditRefusal(*w, e, id, false); !refused.empty())
         return ApiResult::failure(refused);
     const Json previous = componentJson(*w, e, id);
+    // RenderInstance: a registered name, written through renderMeshWritten (as set_component)
+    std::string previousMesh;
+    if (id == RenderInstance::id)
+    {
+        const RenderInstance& current = w->read<RenderInstance>(e);
+        if (!checkRenderMeshValues(*w, current, a["values"], error)) return ApiResult::failure(error);
+        previousMesh = current.mesh;
+    }
     if (!w->registry().poolById(id)->mergeJson(e.index, a["values"], error)) return ApiResult::failure(error);
+    if (id == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
     return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
 }
 

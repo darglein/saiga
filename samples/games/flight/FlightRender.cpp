@@ -70,12 +70,16 @@ void FlightRender::beforeRender(double alpha)
         camera.reset();
     }
     // The chase camera behind the interpolated plane (the engine draws it with the same pose); a teleport (respawn)
-    // snaps it
+    // snaps it once (the extract's snap sequence changes once per snap)
     Engine::WorldPose p;
-    bool teleported = false;
-    if (w.extract().interpolatedPose(followed, alpha, p, &teleported))
+    if (w.extract().interpolatedPose(followed, alpha, p))
     {
-        if (teleported) camera.reset();
+        const uint64_t snaps = w.extract().snapSequence(followed);
+        if (snaps != followedSnaps)
+        {
+            followedSnaps = snaps;
+            camera.reset();
+        }
         camera.update(p.position, forwardOf(p.rotation), frameDt);
     }
     // While a tool holds the camera the app ignores it (S14)

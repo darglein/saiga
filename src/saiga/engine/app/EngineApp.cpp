@@ -429,18 +429,21 @@ void EngineApp::releaseCamera()
     if (wasHeld && appSetup.onCameraReleased) appSetup.onCameraReleased(*this);
 }
 
-void EngineApp::freeCamera(double dt, bool keys)
+void EngineApp::freeCamera(double dt, bool mouseLook, bool keys)
 {
 #ifdef SAIGA_USE_GLFW
     auto& c = cameraHolder->camera;
     // The mouse look of the GLFW camera from the view camera's pose
     syncCamera();
-    const quat before = c.rot;
-    c.interpolate(float(dt), 0);
-    const quat r = c.rot;
-    // Only a turn replaces the double rotation (a tool's exact orientation stays while the mouse rests)
-    if (r.w() != before.w() || r.x() != before.x() || r.y() != before.y() || r.z() != before.z())
-        view.rotation = Quat(double(r.w()), double(r.x()), double(r.y()), double(r.z())).normalized();
+    if (mouseLook)
+    {
+        const quat before = c.rot;
+        c.interpolate(float(dt), 0);
+        const quat r = c.rot;
+        // Only a turn replaces the double rotation (a tool's exact orientation stays while the mouse rests)
+        if (r.w() != before.w() || r.x() != before.x() || r.y() != before.y() || r.z() != before.z())
+            view.rotation = Quat(double(r.w()), double(r.x()), double(r.y()), double(r.z())).normalized();
+    }
     if (keys)
     {
         // WASD, space up, shift fast; integrated in double (far from the origin a float camera would step)
@@ -453,6 +456,7 @@ void EngineApp::freeCamera(double dt, bool keys)
     syncCamera();
 #else
     (void)dt;
+    (void)mouseLook;
     (void)keys;
 #endif
 }
@@ -704,9 +708,10 @@ void EngineApp::applyPlayerInput()
 #ifdef SAIGA_USE_GLFW
         if (appWindow && !appSetup.headless)
         {
-            // The frame's time: the speed does not depend on the frame rate
+            // The frame's time: the speed does not depend on the frame rate. Regression (S19b review): the keys stopped
+            // while the mouse was over an ImGui window; only the mouse look pauses then
             if (mouseCaptured) cameraHolder->camera.resetMouse();
-            freeCamera(mouseCaptured ? 0.0 : std::min(lastFrameDt, 0.1), !captured);
+            freeCamera(std::min(lastFrameDt, 0.1), !mouseCaptured, !captured);
         }
 #endif
         return;
@@ -720,7 +725,7 @@ void EngineApp::applyPlayerInput()
         if (mouseCaptured || cameraHeld)
             cameraHolder->camera.resetMouse();
         else
-            freeCamera(std::min(lastFrameDt, 0.1), false);
+            freeCamera(std::min(lastFrameDt, 0.1), true, false);
     }
 #endif
     writePlayerInput();

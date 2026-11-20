@@ -490,9 +490,9 @@ class SAIGA_ENGINE_API World
     // refused in every build (asserts). During a step a command (applied at the phase's flush)
     void setRenderMesh(Entity e, const std::string& name);
     // Engine-internal: the single path of every RenderInstance name write (the world API, the add path, replication,
-    // loads): resolves aliases, refuses an unknown name (logged, stored as the empty name: tracked, not drawn), caches
-    // the MeshId and, for a change of an existing component (added false) whose name differs from previous, appends a
-    // remove + add record of RenderInstance (the extract recreates the instance)
+    // loads): resolves aliases, logs an unknown name (kept, cached as 0: tracked, not drawn until the mesh is
+    // registered), caches the MeshId and, for a change of an existing component (added false) whose name differs from
+    // previous, appends a remove + add record of RenderInstance (the extract recreates the instance)
     void renderMeshWritten(Entity e, bool added, const std::string* previous = nullptr);
     // Engine-internal: resolves aliases and validates a name; false for an unknown name (name unchanged)
     bool resolveRenderMesh(std::string& name, Vulkan::MeshId& id) const;
@@ -979,7 +979,7 @@ void World::addNow(Entity e, T&& value)
         }
         if (netChangeRefused(e, T::id, true, Entity{})) return;
     }
-    // RenderInstance: the add path of renderMeshWritten (an unknown name is logged and stored empty)
+    // RenderInstance: the add path of renderMeshWritten (an unknown name is logged and kept, not drawn)
     if constexpr (T::id == ComponentId(EngineComponent::RenderInstance)) validateRenderInstance(e, value);
     // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
     auto record = log.prepare(1);

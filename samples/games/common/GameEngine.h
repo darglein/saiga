@@ -110,6 +110,8 @@ class RenderCaches
         }
         // The largest pulse (Pulse, e.g. a landing speed) of the states that became current since the caller took it
         double pending = 0;
+        // The last snap of the entity the renderer saw (ExtractSystem::snapSequence: react once per snap)
+        uint64_t snapsSeen = 0;
     };
     using Enumerate = std::function<void(World&, const std::function<void(Entity)>&)>;
     using Read      = std::function<State(const World&, Entity)>;

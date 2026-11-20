@@ -183,8 +183,9 @@ class SAIGA_ENGINE_API EngineApp
     ViewCamera view;
     // The float camera of camera() (and the GLFW mouse look) from the view camera
     void syncCamera();
-    // The free camera (no local player): mouse look and the keys, the motion integrated in double
-    void freeCamera(double dt, bool keys);
+    // The free camera (no local player): mouse look (not while ImGui has the mouse) and the keys (not while it has the
+    // keyboard), the motion integrated in double
+    void freeCamera(double dt, bool mouseLook, bool keys);
     // --coop: the loopback pair (peer 0 the host, peer 1 the client) outlives both worlds; the client world (gameWorld)
     // is destroyed before the host
     std::vector<std::unique_ptr<LoopbackTransport>> coopTransports;

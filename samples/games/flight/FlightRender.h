@@ -44,6 +44,7 @@ class FlightRender
     ChaseCamera camera;
     FrameClock clock;
     Entity followed;
+    uint64_t followedSnaps = 0;  // the followed plane's last snap seen (ExtractSystem::snapSequence)
 };
 
 }  // namespace Game

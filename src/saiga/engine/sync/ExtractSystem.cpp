@@ -275,9 +275,22 @@ void ExtractSystem::track(Entity e)
     Source s;
     t.hasPose = sourcePose(e, s, p);
     t.source  = s;
-    if (t.hasPose) t.prev = t.curr = t.seen = p;
+    if (t.hasPose)
+    {
+        t.prev = t.curr = t.seen = p;
+        t.snaps                  = ++snapSeq;
+    }
     t.snap         = true;
     t.processedRun = runId;
+    // A pending Transform teleport is this creation snap: not again in the next pair (in a step: like the extract's
+    // own teleport snap; between the steps: like one the catch-up sent)
+    if (s == Source::Transform && w.registry().read<Transform>(e).wasTeleported())
+    {
+        if (w.inStep())
+            t.snapStep = w.stepIndex();
+        else
+            t.teleportHandled = true;
+    }
     tracked.push_back(t);
     slotOf[e.index] = int32_t(tracked.size() - 1);
     if (s != Source::Transform) remote.push_back(e);
@@ -354,6 +367,7 @@ void ExtractSystem::processStep(Tracked& t, uint64_t step)
         t.source  = s;
         t.prev = t.curr = t.seen = pose;
         t.snap                   = true;
+        t.snaps                  = ++snapSeq;
         syncInstance(t);
         return;
     }
@@ -383,7 +397,10 @@ void ExtractSystem::processStep(Tracked& t, uint64_t step)
     // Idle: the pair is already (curr, curr) at this pose (a teleport the catch-up handled is done with)
     if (!snap && samePose(pose, t.curr) && samePose(t.prev, t.curr))
     {
+        // The step's teleport (one the catch-up sent) is handled: a late-teleport check in the next step does not snap
+        // again
         t.teleportHandled = false;
+        t.snapStep        = snapStep;
         return;
     }
     staged.push_back(Staged{t.entity, prev, pose, snap, s, snapStep});
@@ -411,11 +428,19 @@ void ExtractSystem::run()
         Tracked* t = find(remote[i]);
         if (t && t->processedRun != runId) processStep(*t, step);
     }
+    // Unsettled pairs and the last step's late movers (their pair settles to (curr, curr) also when they are no longer
+    // in phase 6's list)
+    for (Entity e : settle)
+    {
+        Tracked* t = find(e);
+        if (t && t->processedRun != runId && w.registry().alive(e)) processStep(*t, step);
+    }
 }
 
 void ExtractSystem::commit()
 {
     if (!renderSink) return;
+    settle.clear();
     for (const Staged& s : staged)
     {
         Tracked* t = find(s.entity);
@@ -427,10 +452,14 @@ void ExtractSystem::commit()
         t->source          = s.source;
         t->snapStep        = s.snapStep;
         t->teleportHandled = false;
+        if (s.snap) t->snaps = ++snapSeq;
+        // Not yet (curr, curr): the next step's extract settles it
+        if (!samePose(s.prev, s.curr)) settle.push_back(s.entity);
     }
     staged.clear();
     // Moved in phases 7-8 (after the phase-6 list): their pair follows in the next step; the catch-up baseline is
-    // their pose now, so a catch-up before that step does not send them as edits
+    // their pose now, so a catch-up before that step does not send them as edits (a paused world's catch-up sends
+    // their pair, catchUpLateMovers)
     for (Entity e : w.changedDuringLastStep())
     {
         Tracked* t = find(e);
@@ -438,6 +467,7 @@ void ExtractSystem::commit()
         WorldPose p;
         Source s;
         if (sourcePose(e, s, p)) t->seen = p;
+        settle.push_back(e);
     }
     // The remote list keeps the tracked entities whose source is not Transform (once each)
     size_t kept = 0;
@@ -496,6 +526,7 @@ bool ExtractSystem::catchUp()
             t.source  = s;
             t.prev = t.curr = t.seen = pose;
             t.snap                   = true;
+            t.snaps                  = ++snapSeq;
             syncInstance(t);
             continue;
         }
@@ -507,9 +538,41 @@ bool ExtractSystem::catchUp()
         t.source = s;
         t.prev = t.curr = t.seen = pose;
         t.snap                   = true;
+        t.snaps                  = ++snapSeq;
         send(t);
     }
+    // No step follows (paused, time scale 0): the last step's phase 7-8 movers get the pair that step would send (from
+    // the committed curr, interpolated at the frozen alpha like every other mover); the next step settles it
+    if (w.isPaused() || w.timeScale() == 0)
+    {
+        for (Entity e : settle)
+        {
+            Tracked* t = find(e);
+            if (!t || !t->hasPose || !reg.alive(e) || t->source != Source::Transform) continue;
+            WorldPose pose;
+            Source s;
+            if (!sourcePose(e, s, pose) || s != Source::Transform || samePose(pose, t->curr)) continue;
+            // A late teleport snaps here (and is handled for the next step's late-teleport check)
+            const uint64_t lastStep = w.stepIndex() - 1;
+            const bool snap         = reg.read<Transform>(e).wasTeleportedLastStep() && t->snapStep != lastStep;
+            t->prev                 = snap ? pose : t->curr;
+            t->curr = t->seen = pose;
+            t->snap           = snap;
+            if (snap)
+            {
+                t->snapStep = lastStep;
+                t->snaps    = ++snapSeq;
+            }
+            send(*t);
+        }
+    }
     return true;
+}
+
+uint64_t ExtractSystem::snapSequence(Entity e) const
+{
+    const Tracked* t = find(e);
+    return t ? t->snaps : 0;
 }
 
 bool ExtractSystem::interpolatedPose(Entity e, double alpha, WorldPose& out, bool* teleported) const

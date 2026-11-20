@@ -1498,10 +1498,11 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   the name goes through `World::renderMeshWritten` (`World::setRenderMesh`, the world API's `set_component` /
   `add_component` / `spawn`, the `add` path, the client's `Spawn` / `ComponentChange` / `Resync` apply): it resolves
   aliases (`World::registerMeshAlias(old, name)`), refuses an unknown name (the API: an error, nothing changes;
-  `setRenderMesh`: an assert; the `add` path in every build: logged (`SAIGA_LOG_E`) and stored empty, so a game's own
-  save stays loadable) and appends the name record (a remove + add pair of `RenderInstance`) when an existing name
+  `setRenderMesh`: an assert; the `add` path in every build: logged (`SAIGA_LOG_E`) and kept with the cached ID 0,
+  tracked and not drawn until a mesh of that name is registered, which creates the instance) and appends the name record (a remove + add pair of `RenderInstance`) when an existing name
   changes. `get` / `tryGet` and mutable views of `RenderInstance` are refused at compile time. Loads check the names
-  before the commit (`checkRenderMeshes`, §15).
+  before the commit (`checkRenderMeshes`, §15; a save of an entity whose name is still unregistered loads only into a
+  world that registers it).
 - **Name tables** [exists: S19b]: the `World` owns the mesh and material tables (`registerMesh(name,
   std::shared_ptr<const MeshLods>, MaterialId)`, `registerMaterial(name, MaterialData)`, `findMesh`, `findMaterial`,
   `meshName`, `renderTableHash()`; §7.10), registered in `WorldSetup::renderAssets` at world creation (games build each
@@ -1624,7 +1625,10 @@ tracks nothing and costs nothing):
   step, after its extract) by `wasTeleportedLastStep()` unless the extract handled it in that step; `RenderPose`'s
   `kTeleported` (of the composing ancestor for a child). Changes in phases 7-8 arrive one step late (they are not in
   phase 6's list); their catch-up baseline is refreshed at the commit (from `changedDuringLastStep()`), so a catch-up
-  never sends them as edits. The pairs are staged and **commit with the step** (after the transform flags were
+  never sends them as edits. The commit keeps a settle list (the entities whose committed pair is not (curr, curr), and
+  those late movers) that the next step's extract processes, so every pair ends at (curr, curr) also when the entity
+  is in no later `changedTransforms()`. An entity tracked while its `Transform` teleport is pending snaps once (its
+  creation), not again in the next pair. The pairs are staged and **commit with the step** (after the transform flags were
   shifted): an aborted step does not shift them (its rerun computes the same pairs from the committed state); the
   structural records it consumed stay consumed. The GPU upload of all changes happens once per frame (the sink).
 - **Catch-up** (`ExtractSystem::catchUp()`, called by `EngineApp` before `beforeRender`, and by tools or tests that
@@ -1633,13 +1637,17 @@ tracks nothing and costs nothing):
   records for its consumer); it consumes the log and compares each tracked entity's source pose bitwise with its
   baseline (the last extracted or caught-up pose; the change flags cannot be used: a setter's flag stays set until the
   next step ends, `RenderPose` flags stay set after each step) and handles a pending `wasTeleported()` once; a
-  difference is sent as a snap. Cost: O(tracked entities) per frame while paused, nothing in frames between running
+  difference is sent as a snap. In a paused world (or at time scale 0) it also sends the last step's late movers the
+  pair that step's successor would send (from the committed curr; a late teleport snaps). Cost: O(tracked entities) per frame while paused, nothing in frames between running
   steps (10^4 entities: §17.7).
 - **`interpolatedPose(Entity, double alpha, WorldPose& out, bool* teleported) -> bool`** with `WorldPose {SpaceId space;
   Vec3 position; Quat rotation; double scale;}` in world space (cameras, cosmetic instances): S18's `interpolatePose`
   (`RenderSceneTypes.h`) in double on the current pair, the GPU's formula (equal within 1e-6 m / rad, tested); false for
   an untracked entity (no sink, dead, spawned since the last extract or catch-up, without `RenderInstance`, pending);
-  `teleported`: the current pair is a snap (stateless, the same for every reader until the next pair). `toChunkPose
+  `teleported`: the current pair is a snap (stateless, the same for every reader until the next pair, so it stays set
+  while the entity is idle). `snapSequence(Entity) -> uint64_t` is the World-unique number of the entity's last snap
+  pair (creation, teleport, source switch, a catch-up edit; 0: untracked): readers that keep the last value react once
+  per snap (the demos' chase camera reset, the racing wheels' reseed). `toChunkPose
   (WorldPose) -> ChunkPose {ChunkId chunk; DynamicPose pose;}` for cosmetic `setDynamic`.
 - The extract writes no components, holds no state a save needs (R-STATE-1) and never changes `world.hash()` (tested
   with a recording sink).

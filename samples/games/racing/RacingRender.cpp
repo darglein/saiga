@@ -159,11 +159,14 @@ void RacingRender::beforeRender(double alpha)
         [&](Entity car, const VehicleState& state)
         {
             Engine::WorldPose body;
-            bool teleported = false;
-            auto* c         = caches.entry(car);
-            if (!c || !w.extract().interpolatedPose(car, alpha, body, &teleported)) return;
-            if (teleported)
+            auto* c = caches.entry(car);
+            if (!c || !w.extract().interpolatedPose(car, alpha, body)) return;
+            // Once per snap (the extract's snap sequence; the level of the snap pair would reseed every frame while a
+            // car stands)
+            const uint64_t snaps = w.extract().snapSequence(car);
+            if (snaps != c->snapsSeen)
             {
+                c->snapsSeen = snaps;
                 // Regression (CodeRabbit, S13b): a respawn between steps (the GUI button while paused) kept the old
                 // wheels until the next step; reseed them from the VehicleState
                 if (!readsRenderPose(w, car)) caches.reseed(car);

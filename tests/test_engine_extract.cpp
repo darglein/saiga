@@ -18,6 +18,8 @@
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/gameplay/ClassList.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
@@ -90,6 +92,22 @@ void lateMoverSystem(World& w, double)
                                                  { t.setPosition(t.position() + Vec3(m.dx, 0, 0)); });
 }
 
+enum class TestClass : uint16_t
+{
+    Crate = kFirstGameClass,
+};
+// Adds its own RenderInstance in onSpawn (an agent's spawn may name another mesh as an initial component)
+class Crate final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(TestClass::Crate);
+    static constexpr const char* name = "Crate";
+    void onSpawn() override
+    {
+        if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance("test/box"));
+    }
+};
+
 std::shared_ptr<const MeshLods> triangle(float size)
 {
     auto lods = std::make_shared<MeshLods>();
@@ -157,6 +175,7 @@ WorldSetup baseSetup(void (*assets)(World&) = assetsBoxBall)
         l.add(Phase::Gameplay, "test_mover", moverSystem, RunOn::Host);
         l.add(Phase::Streaming, "test_late_mover", lateMoverSystem, RunOn::Host);
     };
+    s.classes      = [](ClassList& c) { c.add<Crate>(); };
     s.renderAssets = assets;
     return s;
 }
@@ -398,18 +417,58 @@ TEST(ExtractInstances, EmptyNameIsTrackedNotDrawn)
     w.setRenderSink(nullptr);
 }
 
-// Refused in every build (a game's own save or a replicated entity stays usable): logged, stored empty
-TEST(ExtractInstances, UnknownNameThroughAddIsStoredEmptyAndLogged)
+// An unknown name through add is logged and kept (tracked, not drawn); a later registration of the mesh draws it.
+// Regression (S19b review): the name was stored empty, so a mesh registered after an entity named it was never drawn
+// (ExtractSystem::meshRegistered could not find it)
+TEST(ExtractInstances, UnknownNameIsKeptAndDrawnWhenRegisteredLater)
 {
-    World w(baseSetup());
-    const Entity e        = w.create();
+    World w(baseSetup(assetsBoxOnly));
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
     const uint64_t before = engineLog().lastSequence();
-    w.add<RenderInstance>(e, RenderInstance("nope"));
-    EXPECT_EQ(w.read<RenderInstance>(e).mesh, "");
+    const Entity e        = rendered(w, "test/ball", Vec3(3, 0, 0));
+    EXPECT_EQ(w.read<RenderInstance>(e).mesh, "test/ball");
     bool logged = false;
     for (const auto& l : engineLog().since(before))
-        logged = logged || (l.message.find("nope") != std::string::npos && l.category == "render");
+        logged = logged || (l.message.find("test/ball") != std::string::npos && l.category == "render");
     EXPECT_TRUE(logged);
+    w.step();
+    EXPECT_EQ(w.extract().trackedCount(), 1u);
+    EXPECT_EQ(s.liveDynamics(), 0u);
+    // Registered later (between steps): the sink gets the mesh and the instance at the entity's pose
+    const MeshId ball = w.registerMesh("test/ball", ballLods(), w.findMaterial("test/flat"));
+    ASSERT_EQ(s.liveDynamics(), 1u);
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->mesh, ball);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 3, 1e-12);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (S19b review): the spawn's merge of an initial RenderInstance into the one the class added in onSpawn
+// bypassed renderMeshWritten: the component named test/ball while the cached ID (and the sink) kept test/box
+TEST(ExtractInstances, SpawnMergeOfAnInitialRenderInstanceIntoTheClassOne)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    WorldApi api(w);
+    const ApiResult r = api.call(
+        "spawn", Json::object{{"class", "Crate"},
+                              {"position", Json::array{1, 0, 0}},
+                              {"components", Json::object{{"RenderInstance", Json::object{{"mesh", "test/ball"}}}}}});
+    ASSERT_TRUE(r.ok) << r.error;
+    Entity e;
+    std::string error;
+    ASSERT_TRUE(WorldApi::parseEntity(r.value["entity"], e, error)) << error;
+    w.extract().catchUp();
+    EXPECT_EQ(w.read<RenderInstance>(e).mesh, "test/ball");
+    EXPECT_EQ(w.read<RenderInstance>(e).cachedMesh, w.findMesh("test/ball"));
+    ASSERT_EQ(s.liveDynamics(), 1u);
+    EXPECT_EQ(dynamicOf(w, s, e)->mesh, w.findMesh("test/ball"));
+    w.step();
+    EXPECT_EQ(dynamicOf(w, s, e)->mesh, w.findMesh("test/ball"));
+    w.setRenderSink(nullptr);
 }
 
 TEST(ExtractInstances, MeshAlias)
@@ -500,6 +559,136 @@ TEST(ExtractPairs, InterpolatedPoseMatchesTheGpuFormula)
 }
 
 // A step aborted by the sink: the unread structural record is delivered again, the pairs are not shifted twice
+// Regression (S19b review): an entity moved in phase 7 got the pair (old, new) in the next step and kept it (it was in
+// phase 6's list of that step only), so it was drawn between both poses forever
+TEST(ExtractPairs, LateMoverPairSettles)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.add<LateMover>(e, LateMover{1});
+    w.step();
+    while ((w.stepIndex() % 3) != 0) w.step();
+    w.step();  // moved in phase 7
+    w.remove<LateMover>(e);
+    const double moved                    = w.read<Transform>(e).position().x();
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    ASSERT_NE(d, nullptr);
+    w.step();
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), moved, 1e-12);
+    EXPECT_LT(worldOf(d->chunk, d->prev).position.x(), moved);
+    // Two steps after the move: (curr, curr), and nothing after that
+    w.step();
+    EXPECT_EQ(d->prev.position, d->curr.position);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), moved, 1e-12);
+    const uint64_t updates = d->updates;
+    w.step(3);
+    EXPECT_EQ(d->updates, updates);
+    WorldPose p;
+    ASSERT_TRUE(w.extract().interpolatedPose(e, 0.3, p));
+    EXPECT_NEAR(p.position.x(), moved, 1e-12);
+    w.setRenderSink(nullptr);
+}
+
+// A teleported spawn snaps once. Regression (S19b review): an entity created and teleported before the extract tracked
+// it (in a step, or before a sink was set) snapped again in the next step (its teleport looked late or pending), and a
+// teleport the catch-up sent followed by an idle step snapped again when the entity moved
+TEST(ExtractPairs, TeleportSnapsOnce)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    w.step();
+    // Created and teleported between the steps of a running world, tracked by the step's extract: one snap
+    const Entity a = w.create();
+    w.get<Transform>(a).teleport(Vec3(5, 0, 0), Quat::Identity());
+    w.add<RenderInstance>(a, RenderInstance("test/box"));
+    w.add<Mover>(a, Mover{Vec3(60, 0, 0), 0});
+    w.step();
+    const RecordingRenderSink::Dynamic* da = dynamicOf(w, s, a);
+    ASSERT_NE(da, nullptr);
+    EXPECT_EQ(da->prev.position, da->curr.position);
+    w.step();
+    EXPECT_NE(da->prev.position, da->curr.position);
+    // Tracked by a catch-up (a tool's spawn): the catch-up's snap only
+    const Entity b = w.create();
+    w.get<Transform>(b).teleport(Vec3(20, 0, 0), Quat::Identity());
+    w.add<RenderInstance>(b, RenderInstance("test/box"));
+    w.add<Mover>(b, Mover{Vec3(60, 0, 0), 0});
+    w.extract().markDirty();
+    ASSERT_TRUE(w.extract().catchUp());
+    w.step();
+    const RecordingRenderSink::Dynamic* db = dynamicOf(w, s, b);
+    ASSERT_NE(db, nullptr);
+    EXPECT_NEAR(worldOf(db->chunk, db->prev).position.x(), 20, 1e-12);
+    EXPECT_NEAR(worldOf(db->chunk, db->curr).position.x(), 21, 1e-12);
+    // A teleport sent by the paused catch-up, an idle step, then motion: interpolated
+    const Entity c = rendered(w, "test/box");
+    w.step();
+    w.setPaused(true);
+    WorldApi api(w);
+    ASSERT_TRUE(api.call("set_transform",
+                         Json::object{{"entity", WorldApi::entityJson(c)}, {"position", Json::array{0, 0, 50}}})
+                    .ok);
+    w.extract().catchUp();
+    w.setPaused(false);
+    w.step();
+    w.add<Mover>(c, Mover{Vec3(60, 0, 0), 0});
+    w.step();
+    const RecordingRenderSink::Dynamic* dc = dynamicOf(w, s, c);
+    EXPECT_NEAR(worldOf(dc->chunk, dc->prev).position.x(), 0, 1e-12);
+    EXPECT_NEAR(worldOf(dc->chunk, dc->curr).position.x(), 1, 1e-12);
+    w.setRenderSink(nullptr);
+    // A sink set between a teleport and the next step: its creation snap only
+    World v(baseSetup());
+    const Entity f = v.create();
+    v.get<Transform>(f).teleport(Vec3(40, 0, 0), Quat::Identity());
+    v.add<RenderInstance>(f, RenderInstance("test/box"));
+    v.add<Mover>(f, Mover{Vec3(60, 0, 0), 0});
+    RecordingRenderSink late;
+    v.setRenderSink(&late);
+    v.step();
+    const RecordingRenderSink::Dynamic* df = dynamicOf(v, late, f);
+    ASSERT_NE(df, nullptr);
+    EXPECT_NEAR(worldOf(df->chunk, df->prev).position.x(), 40, 1e-12);
+    EXPECT_NEAR(worldOf(df->chunk, df->curr).position.x(), 41, 1e-12);
+    v.setRenderSink(nullptr);
+}
+
+// snapSequence changes once per snap and stays while the entity is idle (the games' camera reset reacts once).
+// Regression (S19b review): the platformer reset its camera from the level of interpolatedPose's teleported, every
+// frame while the hero stood still after its spawn, so Q/E did not turn the camera
+TEST(ExtractPairs, SnapSequenceChangesOncePerTeleport)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    EXPECT_EQ(w.extract().snapSequence(e), 0u);  // not tracked yet
+    w.step();
+    const uint64_t created = w.extract().snapSequence(e);
+    EXPECT_NE(created, 0u);
+    w.step(3);
+    EXPECT_EQ(w.extract().snapSequence(e), created);
+    // A teleport: a new value once, then the same while idle (the pair's teleported level stays set)
+    w.get<Transform>(e).teleport(Vec3(30, 0, 0), Quat::Identity());
+    w.step();
+    const uint64_t teleported = w.extract().snapSequence(e);
+    EXPECT_NE(teleported, created);
+    w.step(3);
+    EXPECT_EQ(w.extract().snapSequence(e), teleported);
+    bool level = false;
+    WorldPose p;
+    ASSERT_TRUE(w.extract().interpolatedPose(e, 0.5, p, &level));
+    EXPECT_TRUE(level);
+    // Moving (no snap): unchanged
+    w.add<Mover>(e, Mover{Vec3(60, 0, 0), 0});
+    w.step(3);
+    EXPECT_EQ(w.extract().snapSequence(e), teleported);
+    w.setRenderSink(nullptr);
+}
+
 TEST(ExtractPairs, AbortedStep)
 {
     World w(baseSetup());
@@ -638,6 +827,36 @@ TEST(ExtractCatchUp, LateMoversAreNotSentByACatchUp)
     w.step();
     EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), moved, 1e-12);
     EXPECT_LT(worldOf(d->chunk, d->prev).position.x(), moved);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (S19b review): after a step with a phase 7 move the world was paused: the catch-up skipped the late mover
+// (its baseline was set at the commit), so it was drawn at its old pose for the whole pause
+TEST(ExtractCatchUp, PausedAfterALateMove)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.add<LateMover>(e, LateMover{1});
+    w.step();
+    while ((w.stepIndex() % 3) != 0) w.step();
+    w.step();  // moved in phase 7
+    const double moved                    = w.read<Transform>(e).position().x();
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    ASSERT_NE(d, nullptr);
+    const double before = worldOf(d->chunk, d->curr).position.x();
+    EXPECT_LT(before, moved);
+    w.setPaused(true);
+    for (int i = 0; i < 3; ++i) w.extract().catchUp();
+    // The pair the next step would send (interpolated at the frozen alpha like every other mover)
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), moved, 1e-12);
+    EXPECT_NEAR(worldOf(d->chunk, d->prev).position.x(), before, 1e-12);
+    w.setPaused(false);
+    w.remove<LateMover>(e);
+    w.step();
+    EXPECT_EQ(d->prev.position, d->curr.position);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), moved, 1e-12);
     w.setRenderSink(nullptr);
 }
 

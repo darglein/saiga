@@ -63,6 +63,11 @@ class SAIGA_ENGINE_API ExtractSystem
     // catch-up, without RenderInstance, a remote entity before its first RenderPose); out is untouched then.
     // teleported: the current pair is a snap (the same for every reader until the next pair).
     bool interpolatedPose(Entity e, double alpha, WorldPose& out, bool* teleported = nullptr) const;
+    // The sequence number of the last snap pair of a tracked entity (its creation, teleports, source switches, edits
+    // sent by the catch-up; unique in this World, so a re-created instance after a load gets a new one; 0: untracked):
+    // it changes once per snap and stays the same while the entity is idle, so a reader that keeps the last value
+    // reacts once (a chase camera's reset), unlike the level of interpolatedPose's teleported
+    uint64_t snapSequence(Entity e) const;
     // Between steps (the app before rendering, tools that render): when markDirty() was called since the last step, or
     // when no step completed since the last call and (the world is paused, its time scale is 0, or the structural log
     // has unread records), the log is consumed and every tracked entity whose source pose differs bitwise from the last
@@ -90,7 +95,8 @@ class SAIGA_ENGINE_API ExtractSystem
     void commit();
     // The step was aborted: the staged pairs are dropped
     void abort();
-    // A mesh was registered after entities named it (World::registerMesh with a sink): their instances are created
+    // A mesh was registered after entities named it (World::registerMesh with a sink; the unresolved name is kept):
+    // their instances are created
     void meshRegistered();
 
    private:
@@ -116,6 +122,7 @@ class SAIGA_ENGINE_API ExtractSystem
         uint64_t processedRun = 0;             // the extract or catch-up run that handled it
         uint64_t remoteRun    = 0;             // the commit that kept it in the remote list
         uint64_t snapStep     = ~uint64_t(0);  // the step whose Transform teleport the extract handled
+        uint64_t snaps        = 0;             // the sequence number of the last snap (snapSequence)
     };
     struct Staged
     {
@@ -154,8 +161,13 @@ class SAIGA_ENGINE_API ExtractSystem
     // Tracked entities whose source is not Transform (checked every step: RenderPose flags, Pending)
     std::vector<Entity> remote;
     std::vector<Staged> staged;
+    // Processed by the next step's extract (filled at the commit; an aborted step keeps it): the entities whose
+    // committed pair is not yet (curr, curr) and the phase 7-8 movers the step's extract did not see. Without it a late
+    // mover's pair (old, new) stays: it is in phase 6's list of the next step only
+    std::vector<Entity> settle;
     bool dirty                      = false;
     uint64_t runId                  = 0;  // counts extract and catch-up runs
+    uint64_t snapSeq                = 0;  // the last snap sequence number
     uint64_t committedSteps         = 0;
     uint64_t committedAtLastCatchUp = 0;
 };

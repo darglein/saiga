@@ -280,7 +280,7 @@ message).
   range from 256, a second `setRenderSink` of the same sink; replacement and null free the handles and the consumer;
   host and client tables equal; instances from the structural log (spawn, remove / add, `setRenderMesh`, the world
   API's `set_component` with a known and an unknown name, `add_component` and `spawn` with an unknown name, destroy);
-  the creation snap; the empty name (tracked, not drawn); an unknown name through `add` (stored empty, logged);
+  the creation snap; the empty name (tracked, not drawn); an unknown name through `add` (kept, logged; drawn once the mesh is registered later, see Local review);
   `registerMeshAlias`; pairs of a moving entity, the stop after the idle steps, the teleport snap, chunk-relative poses
   across the 256 m border; `interpolatedPose` against `interpolatePose` (1e-6 m / rad) and false for untracked
   entities; an aborted step (a sink that throws in `setDynamic`: the rerun's prev is the committed curr; one that throws
@@ -331,6 +331,45 @@ medians, ms, ranges in parentheses):
   entity). Against §17.10's main-thread budget (steps + extract + recording <= 10 ms per frame on the desktop
   reference) this is 7 % for 10^4 moving entities per step.
 - `data/tests/benchmarks.json` is not updated (no baseline after S18 is accepted yet).
+
+Local review (after the stage's commits; each fix with a regression test that fails without it, in
+`tests/test_engine_extract.cpp`, now 24 tests):
+
+1. **Late movers settle**: an entity moved in phase 7-8 got the pair (old, new) in the next step and kept it forever
+   (it was in phase 6's list of that step only). The commit keeps a settle list (the entities whose committed pair is
+   not (curr, curr), and the late movers the step's extract did not see), processed by the next step's extract; a
+   paused world's catch-up (or time scale 0) sends the late movers the pair the next step would send (a late teleport
+   snaps). Tests `ExtractPairs.LateMoverPairSettles`, `ExtractCatchUp.PausedAfterALateMove`.
+2. **Spawn merge of `RenderInstance`**: the world API's `spawn` merged an initial `RenderInstance` into the one the
+   class added in `onSpawn` without `renderMeshWritten` (the cached ID and the sink kept the class's mesh); the merge
+   and `set_global` now write the name through it (`set_global` also checks the name; `RenderInstance` is never a
+   global today, so that path has no test). Test `ExtractInstances.SpawnMergeOfAnInitialRenderInstanceIntoTheClassOne`.
+3. **Snaps as an edge**: `ExtractSystem::snapSequence(Entity)`, the World-unique number of the entity's last snap pair
+   (a re-created instance after a load gets a new one). The platformer reset its chase camera from the level of
+   `interpolatedPose`'s `teleported` every frame while the hero stood still after a spawn or restart (Q/E did not turn
+   the camera; confirmed headless: 90 of 90 frames, now 1); racing reseeded the wheels and reset the camera every frame
+   while a car stood. Flight, platformer and racing (per car in `RenderCaches::Entry::snapsSeen`) react once per
+   snap. Test `ExtractPairs.SnapSequenceChangesOncePerTeleport`.
+4. **One snap per teleport**: an entity tracked while its `Transform` teleport was pending (created and teleported
+   before the step's extract, or before a sink was set) snapped again in the next pair; a teleport the catch-up sent
+   followed by an idle step snapped again when the entity moved (the idle return dropped `snapStep`). `track()` marks
+   the teleport handled (in a step: `snapStep`; between steps: like a catch-up's), the idle return keeps `snapStep`.
+   Test `ExtractPairs.TeleportSnapsOnce`.
+5. **Free camera keys over ImGui**: W/A/S/D stopped while the mouse was over an ImGui window (`dt` 0); now only the
+   mouse look pauses (`freeCamera(dt, mouseLook, keys)`). No test (GLFW input; no interactive session here).
+6. **Late mesh registration**: an unknown name in the `add` path (and replication) is kept with the cached ID 0 and
+   logged per write, instead of stored empty, so `World::registerMesh` after an entity named it creates its instance
+   (`ExtractSystem::meshRegistered` could never find one before). The API (`set_component`, `add_component`, `spawn`)
+   and `setRenderMesh` still refuse an unknown name, and a load still rejects one (`checkRenderMeshes`): a save of an
+   entity whose name is still unregistered loads only into a world that registers it (before: saved empty, loadable).
+   Test `ExtractInstances.UnknownNameIsKeptAndDrawnWhenRegisteredLater` (replaces
+   `UnknownNameThroughAddIsStoredEmptyAndLogged`).
+
+After the fixes: `ctest --parallel 8` on lavapipe 67 of 68 (only `test_opengl_window`, no display); `test_engine_*` and
+`test_vulkan_*` on the RTX 5080 Laptop GPU with the validation layer 29 of 29 (no validation message); the goldens are
+unchanged; `--scenarios` 18 passed, 0 failed for each demo; `--headless --demo --validation` screenshots of the
+platformer (the hero on a platform, the flag) and racing (the car with its wheels on the track) as before, no
+validation message.
 
 Left open: CI has not run on this branch (the MSVC job builds the new `sync/` code and `test_engine_extract` there for
 the first time); an interactive window session (the free camera's double motion, the chase cameras' release under a

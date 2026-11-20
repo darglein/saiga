@@ -113,8 +113,7 @@ void PlatformerRender::beforeRender(double alpha)
         {
             auto* c = caches.entry(ent);
             Engine::WorldPose p;
-            bool teleported = false;
-            if (!c || !w.extract().interpolatedPose(ent, alpha, p, &teleported)) return;
+            if (!c || !w.extract().interpolatedPose(ent, alpha, p)) return;
             const Motion& m = c->current();
             Character& ch   = character(ent);
             ch.position     = p.position;
@@ -149,7 +148,14 @@ void PlatformerRender::beforeRender(double alpha)
                 focusPosition = p.position;
                 hasFocus      = true;
                 renderYaw     = ch.yaw;
-                if (teleported) snap = true;
+                // A teleport (restart) snaps the camera once. Regression (S19b review): the level of the snap pair
+                // reset the camera every frame while the hero stood still after its spawn, so Q/E did not turn it
+                const uint64_t snaps = w.extract().snapSequence(ent);
+                if (snaps != followedSnaps)
+                {
+                    followedSnaps = snaps;
+                    snap          = true;
+                }
                 // The camera: Q/E for the player, behind the character in the demo (not while a tool holds it)
                 if (!toolCamera && !snap)
                     cameraYaw += app->localPlayer() == ent ? app->input().axis("camera_turn") * 2.0 * frameDt

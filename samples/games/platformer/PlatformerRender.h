@@ -77,9 +77,10 @@ class PlatformerRender
     std::vector<Character> characters;
     FrameClock clock;
     Entity followed;
-    double cameraYaw = 0;
-    double renderYaw = 0;  // the followed character's
-    int loadListener = -1;
+    uint64_t followedSnaps = 0;  // the followed character's last snap seen (ExtractSystem::snapSequence)
+    double cameraYaw       = 0;
+    double renderYaw       = 0;  // the followed character's
+    int loadListener       = -1;
     std::vector<Engine::MeshId> partMeshes;
 };
 

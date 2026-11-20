@@ -1612,10 +1612,12 @@ void World::validateRenderInstance(Entity e, RenderInstance& value) const
     Vulkan::MeshId id = 0;
     if (!resolveRenderMesh(value.mesh, id))
     {
-        // Refused in every build: a game's own save (or a replicated entity) stays usable, drawn as nothing
-        SAIGA_LOG_E("render", e, "RenderInstance: the mesh \"%s\" is not registered (stored empty: tracked, not drawn)",
+        // Logged in every build (once per write); the name is kept: tracked, not drawn until a mesh of that name is
+        // registered (World::registerMesh creates the instance then). A load still rejects an unknown name
+        SAIGA_LOG_E("render", e,
+                    "RenderInstance: the mesh \"%s\" is not registered (tracked, drawn once it is registered)",
                     value.mesh.c_str());
-        value.mesh.clear();
+        id = 0;
     }
     value.cachedMesh = id;
 }

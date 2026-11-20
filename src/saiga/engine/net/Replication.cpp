@@ -1264,7 +1264,7 @@ bool Replication::applyComponent(Entity e, ComponentId id, const uint8_t* data, 
     if (added) w.addDefaultInternal(e, id);
     if (!reg.poolById(id)->netReadInto(e.index, r)) return false;
     if (id == NetOwner::id) w.markOwnersDirty();
-    // Every RenderInstance name write goes through renderMeshWritten (an unknown name is logged and stored empty)
+    // Every RenderInstance name write goes through renderMeshWritten (an unknown name is logged and kept, not drawn)
     if (id == RenderInstance::id) w.renderMeshWritten(e, added, &previousMesh);
     if (r.unresolved() && rememberUnresolved)
     {
