@@ -882,7 +882,9 @@ TEST(EngineAppNoRender, FrameClockRestartsAfterABlockingTool)
     }
     app.frame();  // the first frame after the call
     Profiler& f = app.frameProfile();
-    EXPECT_LE(f.counterStats(f.counter("steps_per_frame"), 1).max, 1);
+    // Without the restart the blocked ~300 ms come out as a burst of about 18 steps; a few steps of jitter (the
+    // poller's shutdown, Windows' coarse timer: 3 steps on the MSVC CI runner) are not the bug
+    EXPECT_LE(f.counterStats(f.counter("steps_per_frame"), 1).max, 4);
     EXPECT_EQ(f.counterStats(f.counter("dropped_steps"), 1).max, 0);
 }
 
