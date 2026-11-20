@@ -76,10 +76,11 @@ struct AircraftParameters
     // Checked when the data file is read (load and reload_data): the model divides by these
     bool validate(std::string& error) const
     {
-        // cl0 divides in trimSpeed (the take-off rotation gate)
-        if (!(mass > 0 && wingArea > 0 && airDensity > 0 && referenceSpeed > 0 && stallAngle > 0 && cl0 > 0))
+        // cl0 divides in trimSpeed (the take-off rotation gate), maxThrust in trimThrottle (the autopilot)
+        if (!(mass > 0 && wingArea > 0 && airDensity > 0 && referenceSpeed > 0 && stallAngle > 0 && cl0 > 0 &&
+              maxThrust > 0))
         {
-            error = "mass, wingArea, airDensity, referenceSpeed, stallAngle and cl0 must be positive";
+            error = "mass, wingArea, airDensity, referenceSpeed, stallAngle, cl0 and maxThrust must be positive";
             return false;
         }
         return true;
