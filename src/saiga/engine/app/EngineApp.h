@@ -74,6 +74,7 @@ class SAIGA_ENGINE_API EngineApp
 
     // Called after each rendered frame; return true to remove it
     void onFrameRendered(std::function<bool()> callback) { frameCallbacks.push_back(std::move(callback)); }
+    size_t frameCallbackCount() const { return frameCallbacks.size(); }
     // false: steps and MCP continue, no frames are rendered
     void setRenderingEnabled(bool enabled) { renderingEnabled = enabled; }
     bool isRenderingEnabled() const { return renderingEnabled; }
@@ -165,7 +166,9 @@ class SAIGA_ENGINE_API EngineApp
     int scopeGpuGame       = -1;
     uint64_t droppedBefore = 0;
     std::deque<Vulkan::FrameTimes> pendingGpu;  // completed frames waiting for the game's passes of the same frame
-    // The last 600 GPU samples with their RenderScene frame (measure_performance(frames))
+    // The last GPU samples with their RenderScene frame (measure_performance(frames)): the 600 frames of the longest
+    // measurement and those logged while it waits for the samples of its last frames (at most 8 + frames in flight)
+    static constexpr size_t kGpuLogSize = 600 + 64;
     struct GpuLogEntry
     {
         uint64_t frame = 0;

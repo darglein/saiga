@@ -35,7 +35,8 @@ struct ScenarioOptions
     bool varyThreads        = false;     // Repeat: the second run with 1 worker thread if the setup has more, else 3
     bool strictContinuation = false;     // SaveLoad: the final hash must equal Plain's
     // A wall-clock deadline (run_scenario's tool budget): passing it aborts the run (checked by the observer after each
-    // step without touching the world, its RNG or its profile); it never changes the result of a run that finishes
+    // step without touching the world, its RNG or its profile); it never changes the result of a run that finishes.
+    // The runner starts no further run of a variant (Repeat's second run and reruns, SaveLoad's run) after it
     std::optional<std::chrono::steady_clock::time_point> deadline;
 };
 

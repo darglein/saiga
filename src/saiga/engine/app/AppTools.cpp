@@ -110,19 +110,21 @@ void lookFrom(Camera& camera, const vec3& eye, vec3 dir)
 {
     if (!dir.allFinite() || dir.norm() < 1e-6f) dir = vec3(0, 0, -1);
     dir.normalize();
-    // Away from straight up/down (the view matrix needs an up vector that is not parallel)
-    if (std::abs(dir(1)) > 0.999f)
+    // Only (almost) straight up/down: the view matrix needs an up vector that is not parallel, and the heading (for
+    // relative moves) is kept with a tiny horizontal part, the camera's previous heading when there is none
+    constexpr float kMinHorizontal = 1e-3f;  // about 89.94 degrees
+    vec2 h(dir(0), dir(2));
+    if (h.norm() < kMinHorizontal)
     {
-        vec2 h(dir(0), dir(2));
-        if (h.norm() < 1e-4f)
+        if (h.norm() < 1e-6f)
         {
             const vec3 f = cameraForward(camera);
             h            = vec2(f(0), f(2));
-            if (!h.allFinite() || h.norm() < 1e-4f) h = vec2(0, 1);
+            if (!h.allFinite() || h.norm() < 1e-6f) h = vec2(0, -1);
         }
-        h          = h.normalized() * std::sqrt(1.0f - 0.999f * 0.999f);
+        h          = h.normalized() * kMinHorizontal;
         float sign = dir(1) < 0 ? -1.0f : 1.0f;
-        dir        = vec3(h(0), 0.999f * sign, h(1));
+        dir        = vec3(h(0), sign * std::sqrt(1.0f - kMinHorizontal * kMinHorizontal), h(1));
     }
     camera.setView(lookAt(vec3(0, 0, 0), dir, vec3(0, 1, 0)) * translate(-eye));
 }
@@ -170,70 +172,114 @@ TemplatedImage<ucvec3> downscale(const TemplatedImage<ucvec4>& img, int maxWidth
     return out;
 }
 
-// Screenshot requests before the next frame share it if they want the same GUI option: the first saves the GUI
-// visibility, the last restores it; a request with the other option waits for the next batch
-struct ScreenshotBatch
-{
-    int pending      = 0;
-    bool gui         = false;
-    bool previousGui = false;
-    std::vector<std::function<void()>> deferred;
-};
-
-// One screenshot request: answered exactly once (a frame or the deadline)
+// One screenshot request: answered exactly once (the frame or the deadline), then its answer (with the responder) is
+// released
 struct ScreenshotRequest
 {
-    bool answered = false, started = false, released = false, hasImage = false;
+    bool gui      = false;
+    bool answered = false;
+    std::function<void(const TemplatedImage<ucvec4>&)> answer;
+};
+
+// The screenshot requests before the next frame share one readback of it if they want the same GUI option (drawn
+// through RenderScene's ImGui override, so the user's GUI visibility is untouched); a request with the other option
+// waits for the next readback. At most one readback and one frame callback are registered (a readback cannot be
+// cancelled: with nothing rendered it stays registered, but holds no request after the deadline answered them).
+struct ScreenshotBatch
+{
+    bool inFlight = false;  // a readback and its frame callback are registered
+    bool gui      = false;  // the option of current
+    std::vector<std::shared_ptr<ScreenshotRequest>> current, deferred;
+    bool hasImage = false;
     TemplatedImage<ucvec4> image;
 };
 
-void releaseBatch(EngineApp& app, ScreenshotBatch& batch, ScreenshotRequest& r)
+void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& batch,
+                     const std::shared_ptr<ScreenshotRequest>& r);
+
+// After requests left the batch: the GUI option of the waiting ones (the deferred become current when none is left)
+void updateBatch(EngineApp& app, ScreenshotBatch& batch)
 {
-    // Only a request the batch counted (one still waiting in deferred was not)
-    if (!r.started || r.released) return;
-    r.released = true;
-    if (--batch.pending == 0)
+    if (batch.current.empty() && !batch.deferred.empty())
     {
-        if (app.scene()) app.scene()->setImguiVisible(batch.previousGui);
-        auto deferred = std::move(batch.deferred);
-        batch.deferred.clear();
-        for (auto& f : deferred) f();
+        batch.current.swap(batch.deferred);
+        batch.gui = batch.current.front()->gui;
     }
+    if (!app.scene()) return;
+    if (batch.inFlight && !batch.current.empty())
+        app.scene()->setImguiOverride(batch.gui);
+    else
+        app.scene()->setImguiOverride(std::nullopt);
 }
 
-void startScreenshot(EngineApp& app, std::shared_ptr<ScreenshotBatch> batch, bool gui,
-                     std::shared_ptr<ScreenshotRequest> r, std::function<void()> answer)
+// The frame of the readback was rendered: answers the current requests, then starts the deferred ones
+void finishScreenshots(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& batch)
+{
+    auto requests = std::move(batch->current);
+    auto deferred = std::move(batch->deferred);
+    batch->current.clear();
+    batch->deferred.clear();
+    TemplatedImage<ucvec4> image = std::move(batch->image);
+    batch->image                 = TemplatedImage<ucvec4>();
+    batch->hasImage              = false;
+    batch->inFlight              = false;
+    if (app.scene()) app.scene()->setImguiOverride(std::nullopt);
+    for (auto& r : requests)
+    {
+        if (r->answered) continue;
+        r->answered = true;
+        auto answer = std::move(r->answer);
+        r->answer   = nullptr;
+        answer(image);
+    }
+    for (auto& r : deferred)
+        if (!r->answered) startScreenshot(app, batch, r);
+}
+
+void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& batch,
+                     const std::shared_ptr<ScreenshotRequest>& r)
 {
     if (r->answered) return;
-    if (batch->pending > 0 && batch->gui != gui)
+    if (batch->inFlight)
     {
-        batch->deferred.push_back([&app, batch, gui, r, answer]() { startScreenshot(app, batch, gui, r, answer); });
+        // Joins the waiting readback (or adopts it when the deadline answered all its requests)
+        if (batch->current.empty() || batch->gui == r->gui)
+        {
+            batch->gui = r->gui;
+            batch->current.push_back(r);
+        }
+        else
+            batch->deferred.push_back(r);
+        updateBatch(app, *batch);
         return;
     }
-    r->started = true;
-    if (batch->pending++ == 0)
-    {
-        batch->gui         = gui;
-        batch->previousGui = app.scene()->imguiVisible();
-        app.scene()->setImguiVisible(gui);
-    }
+    batch->inFlight = true;
+    batch->gui      = r->gui;
+    batch->current.push_back(r);
+    updateBatch(app, *batch);
     // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers
     app.scene()->requestScreenshot(
-        [&app, batch, r](const TemplatedImage<ucvec4>& img)
+        [batch](const TemplatedImage<ucvec4>& img)
         {
-            releaseBatch(app, *batch, *r);
-            if (r->answered) return;  // the deadline answered (accepted: the readback cannot be cancelled)
-            r->image    = img;
-            r->hasImage = true;
+            batch->image    = img;
+            batch->hasImage = true;
         });
     app.onFrameRendered(
-        [r, answer]()
+        [&app, batch]()
         {
-            if (r->answered) return true;
-            if (!r->hasImage) return false;
-            answer();
+            if (!batch->hasImage) return false;
+            finishScreenshots(app, batch);
             return true;
         });
+}
+
+// The deadline answered r: it leaves the batch (its answer and responder are released)
+void dropScreenshot(EngineApp& app, ScreenshotBatch& batch, const std::shared_ptr<ScreenshotRequest>& r)
+{
+    for (auto* list : {&batch.current, &batch.deferred})
+        list->erase(std::remove(list->begin(), list->end(), r), list->end());
+    r->answer = nullptr;
+    updateBatch(app, batch);
 }
 }  // namespace
 
@@ -340,7 +386,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "Renders the next frame and returns it as an image (jpg default, or png), downscaled to max_width when wider "
         "(box filter; default 1280, 64..8192; never upscaled), followed by the camera of that frame, the step and the "
         "frame "
-        "number. The GUI is hidden unless gui=true (its visibility is restored afterwards). An error without a device "
+        "number. The GUI is hidden unless gui=true (only in that frame: the app's GUI visibility is not changed). An "
+        "error without a device "
         "or when no frame is rendered before the deadline (rendering disabled, a minimized window). Changes nothing.",
         schema({{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
                 {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
@@ -363,12 +410,11 @@ void registerAppTools(McpServer& server, EngineApp& app)
             }
             auto r              = std::make_shared<ScreenshotRequest>();
             const auto deadline = answerDeadline(server);
-            auto answer         = [&app, r, respond, format, maxWidth]()
+            r->gui              = gui;
+            r->answer           = [&app, respond, format, maxWidth](const TemplatedImage<ucvec4>& image)
             {
-                r->answered = true;
-                if (r->image.width == 0)
-                    return respond(ToolResult::Error("screenshot: the frame could not be read back"));
-                auto small = downscale(r->image, maxWidth);
+                if (image.width == 0) return respond(ToolResult::Error("screenshot: the frame could not be read back"));
+                auto small = downscale(image, maxWidth);
                 small.set_compression_quality(85);
                 const auto data = small.saveToMemory(format);
                 if (data.empty()) return respond(ToolResult::Error("screenshot: could not encode as " + format));
@@ -379,20 +425,20 @@ void registerAppTools(McpServer& server, EngineApp& app)
                                    .dump());
                 respond(result);
             };
-            // The deadline answers once if no frame came (and gives the GUI flag back)
+            // The deadline answers once if no frame came (the request leaves the batch, the GUI override is cleared)
             server.addPollListener(
                 [&app, batch, r, respond, deadline]()
                 {
                     if (r->answered) return false;
                     if (std::chrono::steady_clock::now() < deadline) return true;
                     r->answered = true;
-                    releaseBatch(app, *batch, *r);
+                    dropScreenshot(app, *batch, r);
                     respond(
                         ToolResult::Error("screenshot: no frame was rendered before the deadline (rendering "
                                           "disabled or the window minimized)"));
                     return false;
                 });
-            startScreenshot(app, batch, gui, r, answer);
+            startScreenshot(app, batch, r);
         });
 
     server.addTool(
@@ -508,7 +554,10 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "scenario_<name>; load: true also loads it into the live world, paused, after saving the live world as "
         "before_scenario (kept while the live world comes from run_scenario loads; a manual load_snapshot counts as "
         "another load); load_snapshot before_scenario goes back. At the deadline the running variant stops (failure "
-        "\"aborted: stopped: tool time budget\"). An assertion in scenario code ends the app. Changes the snapshots "
+        "\"aborted: stopped: tool time budget\"; checked after each step: a scenario that does not step blocks until "
+        "it "
+        "returns, and its end state is then not stored). An assertion in scenario code ends the app. Changes the "
+        "snapshots "
         "and, with load, the live world.",
         schema({{"name", McpServer::StringProperty("The scenario (list_scenarios)")},
                 {"variants", Json::object{{"type", "array"},
@@ -586,6 +635,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
             Json::array results;
             std::vector<uint8_t> finalSave;
             uint64_t finalStep = 0, finalHash = 0;
+            bool plainLate = false;  // the Plain run finished after the deadline (the client may have given up)
             for (ScenarioVariant v : variants)
             {
                 if (std::chrono::steady_clock::now() >= *options.deadline)
@@ -609,7 +659,12 @@ void registerAppTools(McpServer& server, EngineApp& app)
                     o["report"] = cut < r.report.size() ? r.report.substr(0, cut) + "..." : r.report;
                 }
                 results.push_back(o);
-                if (v == ScenarioVariant::Plain)
+                // A run that finished after the deadline (no step after it saw the clock, e.g. a long final check):
+                // its end state is neither stored nor loaded (the client may already have its timeout)
+                if (v == ScenarioVariant::Plain && !r.finalSave.empty() &&
+                    std::chrono::steady_clock::now() >= *options.deadline)
+                    plainLate = true;
+                else if (v == ScenarioVariant::Plain)
                 {
                     finalSave = std::move(r.finalSave);
                     finalStep = r.finalStep;
@@ -648,7 +703,10 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 }
             }
             else if ((keep || load) && plain)
-                out["snapshot_error"] = "the Plain run did not finish (no end state)";
+                out["snapshot_error"] = plainLate
+                                            ? "the Plain run finished after the tool's deadline (its end state is "
+                                              "not stored)"
+                                            : "the Plain run did not finish (no end state)";
             app.restartFrameClock();
             respond(ToolResult::Text(exactToolJson(Json(out))));
         });

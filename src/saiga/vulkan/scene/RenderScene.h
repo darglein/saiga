@@ -13,6 +13,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace Saiga
@@ -57,6 +58,10 @@ class SAIGA_VULKAN_API RenderScene : private VulkanForwardRenderingInterface
     void requestScreenshot(VulkanForwardRenderer::ScreenshotCallback callback);
     void setImguiVisible(bool visible) { renderer->should_render_imgui = visible; }
     bool imguiVisible() const { return renderer->should_render_imgui; }
+    // Draws ImGui (true) or not (false) in the rendered frames until cleared, without changing imguiVisible (the
+    // user's choice, e.g. a key that toggles it); for screenshots with or without the GUI
+    void setImguiOverride(std::optional<bool> visible) { imguiOverride = visible; }
+    std::optional<bool> imguiOverridden() const { return imguiOverride; }
 
     // The GPU times of the oldest completed frame not yet taken (2-3 frames after it was rendered); false if none
     bool takeGpuFrameTimes(FrameTimes& out);
@@ -76,6 +81,7 @@ class SAIGA_VULKAN_API RenderScene : private VulkanForwardRenderingInterface
     const Callback* renderFn           = nullptr;
     const std::function<void()>* guiFn = nullptr;
     uint64_t frameCount                = 0;
+    std::optional<bool> imguiOverride;
     // The frame numbers of the submitted frames by timeline value (GPU times arrive by timeline value)
     std::deque<std::pair<uint64_t, uint64_t>> submittedFrames;
 };

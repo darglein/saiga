@@ -114,6 +114,9 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
     hasPose               = pose.interpolated(w.alpha(), renderPose);
     const bool toolCamera = app->cameraHeldByTool();
     const bool released   = held.released(toolCamera);
+    // The facing of the interpolated pose (with the position; also an edit of the rotation while paused), before the
+    // release below turns the camera behind it
+    if (hasPose) renderYaw = headingOf(forwardOf(renderPose.rotation));
     if (pose.takeTeleport())
     {
         camera.reset();
@@ -128,8 +131,6 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
     if (hasPose)
     {
         const CharacterMotion& m = w.read<CharacterMotion>(e);
-        // The facing of the interpolated pose (with the position; also an edit of the rotation while paused)
-        renderYaw = headingOf(forwardOf(renderPose.rotation));
         // The camera: Q/E for the player, behind the character in the demo (not while a tool holds the camera)
         if (!toolCamera)
             cameraYaw += app->localPlayer() == e ? app->input().axis("camera_turn") * 2.0 * frameDt

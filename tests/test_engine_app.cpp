@@ -22,6 +22,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <thread>
@@ -636,6 +637,13 @@ void testScenarios(ScenarioList& l)
               w.addStepListener([]() { std::this_thread::sleep_for(std::chrono::milliseconds(30)); });
               w.step(10);
           });
+    // One step, then longer than run_scenario's answer deadline (4 s timeout: 3.6 s) but shorter than the timeout
+    l.add("late_finish",
+          [](ScenarioWorld& w)
+          {
+              w.step(1);
+              std::this_thread::sleep_for(std::chrono::milliseconds(3750));
+          });
     l.add("reload",
           [](ScenarioWorld& w)
           {
@@ -691,9 +699,17 @@ TEST(EngineAppNoRender, SetAndMoveCamera)
     // move_camera: along the ground plane, the pitch clamped
     c = toolJson(callApp(app, "move_camera", obj(R"({"forward": 4, "pitch_deg": 200})")));
     EXPECT_NEAR(c["position"][2].number_value(), 16, 1e-2) << c.dump();  // from z = 20, facing -z
-    // Clamped to 89, then kept off the vertical by the view matrix (|forward.y| <= 0.999: about 87.4)
-    EXPECT_GT(c["pitch_deg"].number_value(), 87) << c.dump();
-    EXPECT_LE(c["pitch_deg"].number_value(), 89) << c.dump();
+    // Clamped to 89. Regression (CodeRabbit, S14): the view kept |forward.y| <= 0.999, so 89 became about 87.4
+    EXPECT_NEAR(c["pitch_deg"].number_value(), 89, 0.05) << c.dump();
+    c = toolJson(callApp(app, "move_camera", obj(R"({"pitch_deg": -89})")));  // back to level
+    EXPECT_NEAR(c["pitch_deg"].number_value(), 0, 0.05) << c.dump();
+    c = toolJson(callApp(app, "move_camera", obj(R"({"pitch_deg": 88})")));
+    EXPECT_NEAR(c["pitch_deg"].number_value(), 88, 0.05) << c.dump();
+    // Straight down at a target: (almost) vertical, finite, the heading kept (-z)
+    c = toolJson(callApp(app, "set_camera", obj(R"({"position": [0, 10, 0], "look_at": [0, 0, 0]})")));
+    EXPECT_LE(c["pitch_deg"].number_value(), -89.85) << c.dump();
+    EXPECT_NEAR(c["yaw_deg"].number_value(), 0, 0.05) << c.dump();
+    EXPECT_TRUE(std::isfinite(c["forward"][1].number_value())) << c.dump();
     // The hold in app_status, then released
     EXPECT_TRUE(toolJson(callApp(app, "app_status", Json::object{}))["camera_held"].bool_value());
     c = toolJson(callApp(app, "set_camera", obj(R"({"release": true})")));
@@ -807,6 +823,23 @@ TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
     r = callApp(app, "run_scenario", obj(R"({"name": "walks", "keep": true})"));
     EXPECT_TRUE(isError(r));
     EXPECT_NE(errorText(r).find("full"), std::string::npos) << errorText(r);
+}
+
+// Regression (CodeRabbit, S14): a Plain run that finished after the deadline (no step saw the clock) was still stored
+// and, with load, replaced the live world although the client may already have had its timeout
+TEST(EngineAppNoRender, RunScenarioFinishingAfterTheDeadlineIsNotLoaded)
+{
+    EngineAppSetup s        = scenarioSetup();
+    s.mcpToolTimeoutSeconds = 4;
+    EngineApp app(s);
+    app.world().step(3);
+    const uint64_t liveHash = app.world().hash();
+    const Json r            = toolJson(callApp(app, "run_scenario", obj(R"({"name": "late_finish", "load": true})")));
+    EXPECT_NE(r["snapshot_error"].string_value().find("after the tool's deadline"), std::string::npos) << r.dump();
+    EXPECT_FALSE(r["loaded"].is_object()) << r.dump();
+    EXPECT_FALSE(app.api().hasSnapshot("scenario_late_finish"));
+    EXPECT_EQ(app.world().hash(), liveHash);
+    EXPECT_FALSE(app.world().isPaused());
 }
 
 // run_scenario is refused inside a step (a system polls MCP during the step; that poll is the only poll site)
@@ -1038,12 +1071,14 @@ std::string base64Decode(const std::string& in)
         return c == '+' ? 62 : c == '/' ? 63 : -1;
     };
     std::string out;
-    int bits = 0, buffer = 0;
+    // Unsigned: the accumulator shifts past 31 bits (only the low bits are read)
+    uint32_t buffer = 0;
+    int bits        = 0;
     for (char c : in)
     {
         const int v = value(c);
         if (v < 0) continue;
-        buffer = (buffer << 6) | v;
+        buffer = (buffer << 6) | uint32_t(v);
         bits += 6;
         if (bits >= 8)
         {
@@ -1106,11 +1141,60 @@ TEST_F(EngineAppRender, ScreenshotDeadlineWithoutFrames)
     EXPECT_TRUE(isError(r));
     EXPECT_NE(errorText(r).find("deadline"), std::string::npos) << errorText(r);
     EXPECT_TRUE(app.scene()->imguiVisible());
+    // Regression (CodeRabbit, S14): each expired request kept its frame callback (with its responder) while nothing was
+    // rendered; now the requests share one readback and the deadline releases them
+    EXPECT_TRUE(isError(callApp(app, "screenshot", obj(R"({"gui": true})"), true)));
+    EXPECT_EQ(app.frameCallbackCount(), 1u);
+    EXPECT_FALSE(app.scene()->imguiOverridden().has_value());
     app.setRenderingEnabled(true);
     app.runFrames(5, 1.0 / 60);  // the abandoned readback is a no-op
     EXPECT_TRUE(app.scene()->imguiVisible());
+    EXPECT_EQ(app.frameCallbackCount(), 0u);
     EXPECT_GE(app.renderedFrames(), 5u);
 }
+
+// Regression (CodeRabbit, S14): the screenshot hid the GUI through the flag the G key toggles, so a toggle while it
+// waited for its frame was undone afterwards; now the GUI option applies to the captured frame only
+TEST_F(EngineAppRender, ScreenshotKeepsAGuiToggleMeanwhile)
+{
+    EngineAppSetup s = appSetup(true);
+    s.render.imgui   = true;
+    EngineApp app(s);
+    app.scene()->setImguiVisible(true);
+    Json result;
+    std::thread caller([&]() { result = callTool(app.mcp(), "screenshot", Json::object{}); });
+    // Until the request waits for its frame (the GUI override is set)
+    for (int i = 0; i < 5000 && !app.scene()->imguiOverridden().has_value(); ++i)
+    {
+        app.mcp().poll();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_TRUE(app.scene()->imguiOverridden().has_value());
+    EXPECT_FALSE(*app.scene()->imguiOverridden());
+    app.scene()->setImguiVisible(false);  // the user presses G
+    app.runFrames(1, 1.0 / 60);
+    caller.join();
+    EXPECT_FALSE(isError(result)) << result.dump().substr(0, 400);
+    EXPECT_FALSE(app.scene()->imguiVisible());
+    EXPECT_FALSE(app.scene()->imguiOverridden().has_value());
+}
+
+namespace
+{
+// measure_performance(frames: n) started between frames, run until it answers
+Json measureDirect(EngineApp& app, int n, std::chrono::seconds budget = std::chrono::seconds(60))
+{
+    Json result;
+    app.measureFrames(n, std::chrono::steady_clock::now() + budget,
+                      [&](const McpServer::ToolResult& r)
+                      {
+                          std::string err;
+                          result = Json::parse(r.content.empty() ? "" : r.content[0]["text"].string_value(), err);
+                      });
+    for (int i = 0; i < n + 100 && result.is_null(); ++i) app.runFrames(1, 1.0 / 60);
+    return result;
+}
+}  // namespace
 
 TEST_F(EngineAppRender, MeasureFramesWhilePaused)
 {
@@ -1121,12 +1205,20 @@ TEST_F(EngineAppRender, MeasureFramesWhilePaused)
     EXPECT_EQ(r["frame"]["samples"].number_value(), 6) << r.dump();
     EXPECT_EQ(r["steps"]["ran"].number_value(), 0) << r.dump();
     EXPECT_FALSE(r["stopped_early"].bool_value());
-    // The GPU samples belong to the rendered frames of the range (lavapipe has timestamps)
-    if (r["gpu"]["samples"].number_value() > 0)
+    // The GPU samples belong to the rendered frames of the range (lavapipe has timestamps): measured from a known frame
+    // (between frames: the next loop is the first), the endpoints lie in that frame's successors
+    const uint64_t start = app.scene()->frames();
+    const Json d         = measureDirect(app, 6);
+    EXPECT_EQ(d["frame"]["samples"].number_value(), 6) << d.dump();
+    if (d["gpu"]["samples"].number_value() > 0)
     {
-        EXPECT_LE(r["gpu"]["samples"].number_value(), 6) << r.dump();
-        EXPECT_LE(r["gpu"]["frames"][0].number_value(), r["gpu"]["frames"][1].number_value());
+        EXPECT_LE(d["gpu"]["samples"].number_value(), 6) << d.dump();
+        EXPECT_GE(d["gpu"]["frames"][0].number_value(), double(start + 1)) << start << d.dump();
+        EXPECT_LE(d["gpu"]["frames"][0].number_value(), d["gpu"]["frames"][1].number_value()) << d.dump();
+        EXPECT_LE(d["gpu"]["frames"][1].number_value(), double(start + 6)) << start << d.dump();
     }
+    else
+        EXPECT_FALSE(d["gpu"]["frames"].is_array()) << d.dump();  // no timestamps: no endpoints
     // Running: the step profile has the steps of those frames
     app.world().setPaused(false);
     const Json running = toolJson(callApp(app, "measure_performance", obj(R"({"frames": 4})"), true));
@@ -1180,4 +1272,54 @@ TEST_F(EngineAppRender, MeasureFramesStartAndInvalidation)
         app.runFrames(2, 1.0 / 60);
         EXPECT_TRUE(error) << which;
     }
+}
+
+// Regression (CodeRabbit, S14): the GPU log held 600 samples, so the first sample after a 600-frame range evicted the
+// range's first one (599 reported)
+TEST_F(EngineAppRender, MeasureSixHundredFrames)
+{
+    EngineApp app(appSetup(true));
+    app.world().setPaused(true);
+    app.runFrames(3, 1.0 / 60);
+    const uint64_t start = app.scene()->frames();
+    const Json r         = measureDirect(app, 600);
+    EXPECT_EQ(r["frame"]["samples"].number_value(), 600) << r.dump();
+    if (r["gpu"]["samples"].number_value() > 0)
+    {
+        EXPECT_EQ(r["gpu"]["samples"].number_value(), 600) << r.dump();
+        EXPECT_EQ(r["gpu"]["frames"][0].number_value(), double(start + 1)) << r.dump();
+        EXPECT_EQ(r["gpu"]["frames"][1].number_value(), double(start + 600)) << r.dump();
+    }
+}
+
+// Regression (CodeRabbit, S14): the CPU and step reports were taken at the next poll's listener, after that poll's
+// tool calls (a step there was counted); and a deadline that ended the wait for the GPU samples did not say
+// stopped_early
+TEST_F(EngineAppRender, MeasureFramesEndsWithItsLastLoop)
+{
+    EngineApp app(appSetup(true));
+    app.world().setPaused(true);
+    app.runFrames(3, 1.0 / 60);
+    Json result;
+    auto respond = [&](const McpServer::ToolResult& r)
+    {
+        std::string err;
+        result = Json::parse(r.content.empty() ? "" : r.content[0]["text"].string_value(), err);
+    };
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+    app.measureFrames(3, deadline, respond);
+    app.runFrames(3, 1.0 / 60);
+    ASSERT_TRUE(result.is_null());  // waits for the GPU samples of its frames
+    // A step by a tool call after the measured loops (as in the next loop's poll)
+    ASSERT_TRUE(app.api().call("step", Json::object{{"n", 1}}).ok);
+    std::this_thread::sleep_until(deadline + std::chrono::milliseconds(10));
+    app.mcp().poll();  // the deadline ends the wait (no frame rendered meanwhile)
+    ASSERT_TRUE(result.is_object());
+    EXPECT_EQ(result["frame"]["samples"].number_value(), 3) << result.dump();
+    EXPECT_EQ(result["steps"]["ran"].number_value(), 0) << result.dump();
+    EXPECT_TRUE(result["stopped_early"].bool_value()) << result.dump();
+    // A normal completion has no stopped_early
+    const Json normal = measureDirect(app, 3);
+    EXPECT_EQ(normal["frame"]["samples"].number_value(), 3) << normal.dump();
+    EXPECT_FALSE(normal["stopped_early"].is_bool()) << normal.dump();
 }

@@ -552,6 +552,42 @@ TEST(ScenarioRunner, ThreadDependenceOnlyWithVaryThreads)
     EXPECT_TRUE(contains(r, "WorkerFlag.onWorker")) << r.report;
 }
 
+// Regression (CodeRabbit, S14): the deadline was only checked after steps, so a run that finished after it (one step,
+// then a long final check) started the Repeat rerun and the SaveLoad run anyway; and a SaveLoad baseline stopped by the
+// deadline lost its steps and report
+TEST(ScenarioRunner, NoFurtherRunAfterTheDeadline)
+{
+    auto late = entry("late",
+                      [](ScenarioWorld& w)
+                      {
+                          w.step(1);
+                          std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                      });
+    for (ScenarioVariant v : {ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
+    {
+        ScenarioOptions o;
+        o.deadline             = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        const ScenarioResult r = runScenario(scenarioSetup(), late, v, o);
+        EXPECT_FALSE(r.passed) << variantName(v);
+        EXPECT_TRUE(contains(r, "tool time budget")) << r.report;
+        EXPECT_EQ(r.steps, 1u) << r.report;
+        EXPECT_LT(r.seconds, 0.55) << variantName(v);  // one run only
+    }
+    auto slow = entry("slow",
+                      [](ScenarioWorld& w)
+                      {
+                          SAIGA_LOG("scenario", "a log line of the slow scenario");
+                          w.addStepListener([]() { std::this_thread::sleep_for(std::chrono::milliseconds(20)); });
+                          w.step(1000);
+                      });
+    ScenarioOptions o;
+    o.deadline             = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+    const ScenarioResult r = runScenario(scenarioSetup(), slow, ScenarioVariant::SaveLoad, o);
+    EXPECT_FALSE(r.passed);
+    EXPECT_GT(r.steps, 0u) << r.report;
+    EXPECT_TRUE(contains(r, "a log line of the slow scenario")) << r.report;
+}
+
 TEST(ScenarioRunner, ExceptionsStepLimitsAndOtherStepPaths)
 {
     auto throws            = entry("throws", [](ScenarioWorld&) { throw std::runtime_error("boom"); });

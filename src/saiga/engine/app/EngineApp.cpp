@@ -438,6 +438,8 @@ void EngineApp::frame(double dt)
     frameProfiler.setCounter(counterFps, dt > 0 ? 1.0 / dt : 0.0);
     frameProfiler.endSample();
     if (renderScene) collectGpuTimes();
+    // At the end of the loop: a measurement's last loop is reported before the next poll runs other tool calls
+    if (!measurements.empty()) checkMeasurements();
     if (appWindow && appWindow->shouldClose()) quitRequested = true;
 }
 
@@ -734,7 +736,7 @@ void EngineApp::collectGpuTimes()
         for (const auto& v : entry.values) gpuProfiler.add(v.first, v.second);
         gpuProfiler.endSample();
         gpuLog.push_back(std::move(entry));
-        if (gpuLog.size() > 600) gpuLog.pop_front();
+        if (gpuLog.size() > kGpuLogSize) gpuLog.pop_front();
         pendingGpu.pop_front();
     }
 }
@@ -816,14 +818,16 @@ void EngineApp::checkMeasurements()
                 const uint64_t frames = renderScene ? renderScene->frames() : 0;
                 if (frames != m.lastFrames) m.loopsWithoutRender = 0;
                 if (loops != m.lastLoops && frames == m.lastFrames) m.loopsWithoutRender++;
-                m.lastFrames     = frames;
-                m.lastLoops      = loops;
-                const bool later = !gpuLog.empty() && gpuLog.back().frame > m.sceneEnd;
-                if (m.sceneEnd == m.sceneStart || later ||
-                    frames >= m.sceneEnd + 8 + Vulkan::VulkanRenderer::framesInFlight || m.loopsWithoutRender >= 8 ||
-                    now >= m.deadline)
+                m.lastFrames       = frames;
+                m.lastLoops        = loops;
+                const bool later   = !gpuLog.empty() && gpuLog.back().frame > m.sceneEnd;
+                const bool gpuDone = m.sceneEnd == m.sceneStart || later ||
+                                     frames >= m.sceneEnd + 8 + Vulkan::VulkanRenderer::framesInFlight ||
+                                     m.loopsWithoutRender >= 8;
+                if (gpuDone || now >= m.deadline)
                 {
-                    answerMeasurement(m, false);
+                    // The deadline ended the wait for the GPU samples: some of the range may be missing
+                    answerMeasurement(m, !gpuDone);
                     done = true;
                 }
             }

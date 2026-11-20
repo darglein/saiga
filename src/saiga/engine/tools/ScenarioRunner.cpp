@@ -113,12 +113,20 @@ std::string describeDiff(const std::vector<uint8_t>& a, const std::vector<uint8_
     return out;
 }
 
+const char* const kDeadlineFailure = "aborted: stopped: tool time budget";
+
 // The run was stopped by the tool's deadline (ScenarioOptions::deadline): no further runs or comparisons
 bool stoppedByDeadline(const Run& r)
 {
     for (const std::string& f : r.failures)
-        if (f == "aborted: stopped: tool time budget") return true;
+        if (f == kDeadlineFailure) return true;
     return false;
+}
+
+// The deadline passed before a further run (it is not started: a run that reaches no step would never see it)
+bool pastDeadline(const ScenarioOptions& options)
+{
+    return options.deadline && std::chrono::steady_clock::now() >= *options.deadline;
 }
 
 std::string hex(uint64_t h)
@@ -174,7 +182,12 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         // After the deadline no second run and no comparison (they would report a difference that is not one)
         Run b;
         bool stopped = stoppedByDeadline(a);
-        if (!stopped)
+        if (!stopped && pastDeadline(options))
+        {
+            b.failures.push_back(kDeadlineFailure);  // not started
+            stopped = true;
+        }
+        else if (!stopped)
         {
             b       = runOnce(s2, entry, options, record);
             stopped = stoppedByDeadline(b);
@@ -202,7 +215,11 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
             if (hashesDiffer || a.finalHash != b.finalHash)
             {
                 std::string message;
-                if (hashesDiffer && k < a.hashes.size() && k < b.hashes.size())
+                if (hashesDiffer && k < a.hashes.size() && k < b.hashes.size() && pastDeadline(options))
+                    message = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " +
+                              hex(a.hashes[k]) + " != " + hex(b.hashes[k]) +
+                              ")\n  (the reruns that compare the saves were not run: stopped: tool time budget)";
+                else if (hashesDiffer && k < a.hashes.size() && k < b.hashes.size())
                 {
                     // Both again up to that step, then the saves are compared
                     std::vector<uint8_t> saveA, saveB;
@@ -215,8 +232,12 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
                         };
                     };
                     const Run ra = runOnce(setup, entry, options, stopAt(&saveA));
-                    const Run rb = runOnce(s2, entry, options, stopAt(&saveB));
-                    message      = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " +
+                    Run rb;
+                    if (pastDeadline(options))
+                        rb.failures.push_back(kDeadlineFailure);  // not started
+                    else
+                        rb = runOnce(s2, entry, options, stopAt(&saveB));
+                    message = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " +
                               hex(a.hashes[k]) + " != " + hex(b.hashes[k]) + ")";
                     // A rerun that ended before the step has no save to compare (its failures say why)
                     auto missed = [&](const char* which, const Run& rerun)
@@ -253,8 +274,15 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         // them (at the end for scenarios with fewer than 2 steps)
         Run plain          = runOnce(setup, entry, options, {});
         const uint64_t mid = plain.steps / 2;
-        if (stoppedByDeadline(plain))
-            result.failures = plain.failures;  // reported as is (no second run after the deadline)
+        if (stoppedByDeadline(plain) || (plain.failures.empty() && pastDeadline(options)))
+        {
+            // Reported as is (no second run after the deadline; a baseline that finished after it is not one either)
+            result.failures = plain.failures;
+            if (result.failures.empty())
+                result.failures.push_back("save/load run: not started: stopped: tool time budget");
+            result.steps = plain.steps;
+            details      = plain.report;
+        }
         else if (!plain.failures.empty())
         {
             // A failing baseline fails the variant (its step count and final state are no reference)
