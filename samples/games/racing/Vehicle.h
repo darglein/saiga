@@ -74,12 +74,13 @@ struct VehicleParameters
     // Checked when the data file is read (load and reload_data)
     bool validate(std::string& error) const
     {
-        if (!(mass > 0 && halfExtents.minCoeff() > 0 && wheelRadius > 0 && restLength > 0 && stiffness >= 0 &&
-              damping >= 0 && subSteps >= 1 && subSteps <= 64 && slipSpeed > 0 && friction >= 0))
+        // stiffness divides in restingHeight, maxSpeed in the engine force
+        if (!(mass > 0 && halfExtents.minCoeff() > 0 && wheelRadius > 0 && restLength > 0 && stiffness > 0 &&
+              maxSpeed > 0 && damping >= 0 && subSteps >= 1 && subSteps <= 64 && slipSpeed > 0 && friction >= 0))
         {
             error =
-                "mass, halfExtents, wheelRadius, restLength, slipSpeed > 0; stiffness, damping, friction >= 0; "
-                "subSteps 1..64";
+                "mass, halfExtents, wheelRadius, restLength, stiffness, maxSpeed, slipSpeed > 0; damping, friction "
+                ">= 0; subSteps 1..64";
             return false;
         }
         return true;
