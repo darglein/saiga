@@ -1226,8 +1226,9 @@ Json measureDirect(EngineApp& app, int n, std::chrono::seconds budget = std::chr
 }
 }  // namespace
 
-// S17: the gpu profile has RenderScene's sections in frame order (transfer, scene, resolve, post, imgui) and the
-// game's passes below gpu/scene (they are drawn in the scene pass); the tone map of the setup reaches RenderScene
+// S17: the gpu profile has RenderScene's sections in frame order (S19a: transfer, cull, depth and its sub-section,
+// scene and its sub-sections, resolve, post, imgui) and the game's passes below gpu/scene (they are drawn in the scene
+// pass); the tone map of the setup reaches RenderScene
 TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
 {
     EngineAppSetup s        = appSetup(true);
@@ -1253,7 +1254,13 @@ TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
     const std::vector<std::string> expected = {"gpu",
                                                "gpu/transfer",
                                                "gpu/cull",
+                                               "gpu/depth",
+                                               "gpu/depth.terrain",
                                                "gpu/scene",
+                                               "gpu/scene.terrain",
+                                               "gpu/scene.instances",
+                                               "gpu/scene.grass",
+                                               "gpu/scene.sky",
                                                "gpu/resolve",
                                                "gpu/post",
                                                "gpu/imgui",

@@ -13,6 +13,7 @@
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/MeshImport.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/HeadlessWindow.h"
 
@@ -510,14 +511,21 @@ TEST_F(VulkanScene, SampleCount)
 // The GPU sections are written in every frame and in frame order, also with Identity, 1 sample and hidden ImGui
 TEST_F(VulkanScene, GpuSections)
 {
+    // S19a: the depth pre-pass and the sub-sections of the passes (dotted names), written in every frame
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 6u);
+    ASSERT_EQ(names.size(), 12u);
     EXPECT_STREQ(names[0], "transfer");
     EXPECT_STREQ(names[1], "cull");
-    EXPECT_STREQ(names[2], "scene");
-    EXPECT_STREQ(names[3], "resolve");
-    EXPECT_STREQ(names[4], "post");
-    EXPECT_STREQ(names[5], "imgui");
+    EXPECT_STREQ(names[2], "depth");
+    EXPECT_STREQ(names[3], "depth.terrain");
+    EXPECT_STREQ(names[4], "scene");
+    EXPECT_STREQ(names[5], "scene.terrain");
+    EXPECT_STREQ(names[6], "scene.instances");
+    EXPECT_STREQ(names[7], "scene.grass");
+    EXPECT_STREQ(names[8], "scene.sky");
+    EXPECT_STREQ(names[9], "resolve");
+    EXPECT_STREQ(names[10], "post");
+    EXPECT_STREQ(names[11], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -542,7 +550,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 6u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 12u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);
@@ -2113,4 +2121,58 @@ TEST_F(VulkanSceneContent, TrackedMeshStatistics)
     EXPECT_EQ(st.trackedMeshes[0].instancesPerLod, (Counts{0, 0, 0, 0}));
 
     EXPECT_DEATH(scene->trackMeshStatistics(std::vector<MeshId>(maxTrackedMeshes + 1, 1)), "at most maxTrackedMeshes");
+}
+
+// S19a: the depth pre-pass of the opaque content (the prototype terrain and water, an opaque instance: static and
+// dynamic at alpha 0.5) gives the same image as the scene pass alone (depth test and write): the vertex shaders write
+// invariant positions, the scene pass draws them with EQUAL. MSAA with the SAMPLE_ZERO depth resolve and 1 sample
+TEST_F(VulkanSceneContent, DepthPrePassMatches)
+{
+    for (int samples : {4, 1})
+    {
+        RenderSceneParameters p;
+        p.msaaSamples = samples;
+        CreateScene(p);
+        auto heights = std::make_shared<HeightField>();
+        HeightField::Parameters hp;
+        hp.size    = 129;
+        hp.spacing = 2.0f;  // 256 m
+        heights->generate(hp);
+        PrototypeSettings ps;
+        ps.grass = false;
+        scene->setPrototypeTerrain(heights, ps, 1);
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box", boxMesh(vec3(3, 3, 3), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+        // A box half in the ground (the terrain and the box test against each other) and a moving one
+        const float x = 128, z = 120, h = heights->height(x, z);
+        scene->addInstanceSet(RegionId{0, 0, 0, 0},
+                              {makeInstance(vec3(x, h, z), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
+        DynamicPose a, b;
+        a.position = Vec3(x + 8, h + 1, z - 4);
+        b.position = Vec3(x + 14, h - 1, z + 2);
+        b.rotation = Quat(AngleAxis(0.9, Vec3(0, 1, 0)));
+        scene->setDynamic(scene->addDynamic(1), ChunkId{0, 0, 0}, a, b);
+        scene->setInterpolation(0.5f);
+        camera.position = Vec3(x - 30, h + 12, z + 30);
+        camera.rotation = lookRotation(Vec3(30, -10, -30));
+        camera.apply(*scene);
+
+        ps.depthPrePass = true;
+        scene->setPrototypeSettings(ps);
+        SceneFrame();
+        RenderStatistics st;
+        auto with = SceneFrame(&st);
+        EXPECT_EQ(st.instancesPerLod[0], 2u) << samples;
+        EXPECT_GT(st.terrainNodes, 0u);
+        ps.depthPrePass = false;
+        scene->setPrototypeSettings(ps);
+        SceneFrame();
+        auto without = SceneFrame();
+        EXPECT_EQ(maxPixelDiff(with, without), 0) << samples << " samples";
+        // The boxes are drawn (their color, not the gray clay terrain)
+        int colored = 0;
+        for (int y = 0; y < with.h; ++y)
+            for (int xx = 0; xx < with.w; ++xx) colored += with(y, xx)(0) > with(y, xx)(2) + 20;
+        EXPECT_GT(colored, 50) << samples;
+    }
 }
