@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <cstring>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <typeinfo>
 #include <utility>
@@ -98,6 +99,8 @@ class PoolBase
     // generation; -1: dropped); they must not have one yet
     virtual void commitStage(StagedValues& stage, const std::vector<int64_t>& generation) = 0;
     virtual void clearAll()                                                               = 0;
+    // Constructs and drops a default value (a load checks that the defaults it will add cannot throw)
+    virtual void probeDefault() const = 0;
 
     const ComponentId id;
     const char* const name;
@@ -175,8 +178,9 @@ class ComponentPool final : public PoolBase
     {
         BinaryWriter w(out);
         w.write(at(entityIndex));
-        // Registered components pass the field check, so only the reader's limits can fail here (S07)
-        SAIGA_ASSERT(w.ok(), std::string("appendBytes: ") + name + ": " + w.error());
+        // Registered components pass the field check, so only the reader's limits can fail here (S07, e.g. an enum
+        // value without a name): an error in every build, never a block the reader rejects
+        if (!w.ok()) throw std::runtime_error(std::string("save: ") + name + ": " + w.error());
     }
 
     void emplaceDefault(Entity e) override { emplace(e); }
@@ -235,6 +239,11 @@ class ComponentPool final : public PoolBase
             entities.push_back(Entity{index, uint32_t(generation[index])});
             setSparse(index, uint32_t(data.size() - 1));
         }
+    }
+    void probeDefault() const override
+    {
+        T probe{};
+        (void)probe;
     }
     void clearAll() override
     {

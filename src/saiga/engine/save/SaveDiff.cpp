@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <map>
 
+#include <unordered_map>
+
 namespace Saiga
 {
 namespace Engine
@@ -44,12 +46,14 @@ struct Value
     bool present         = false;
 };
 // The values of one component type by entity index
+// The values of one component type by entity index (sparse: a block's size, not the slot count, bounds the memory)
 struct Values
 {
-    std::vector<Value> byIndex;
+    std::unordered_map<uint32_t, Value> byIndex;
     const Value* find(uint32_t index) const
     {
-        return index < byIndex.size() && byIndex[index].present ? &byIndex[index] : nullptr;
+        auto it = byIndex.find(index);
+        return it == byIndex.end() ? nullptr : &it->second;
     }
 };
 struct Decoded
@@ -69,6 +73,7 @@ bool decodeAll(const std::vector<uint8_t>& data, const ParsedSave& p, Decoded& o
         // Empty blocks take no memory (a save lists every registered type)
         if (b.count == 0) continue;
         auto& values = out.components[t.name].byIndex;
+        values.reserve(size_t(b.count));
         BinaryReader r(data.data() + b.begin, b.end - b.begin);
         for (uint64_t i = 0; i < b.count; ++i)
         {
@@ -88,14 +93,11 @@ bool decodeAll(const std::vector<uint8_t>& data, const ParsedSave& p, Decoded& o
                 error = t.name + ": the entity index " + std::to_string(index) + " is not a slot";
                 return false;
             }
-            // Grown to the largest index present (not to the slot count of every block)
-            if (index >= values.size()) values.resize(size_t(index) + 1);
-            if (values[index].present)
+            if (!values.emplace(index, std::move(v)).second)
             {
-                error = t.name + ": two values for entity index " + std::to_string(index) + " (or not a slot)";
+                error = t.name + ": two values for entity index " + std::to_string(index);
                 return false;
             }
-            values[index] = std::move(v);
         }
         if (!r.atEnd())
         {
@@ -237,9 +239,12 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
           Json(Json::array{std::to_string(pb.rngState), std::to_string(pb.rngIncrement)}));
     world("counter", Json(std::to_string(pa.persistentCounter)), Json(std::to_string(pb.persistentCounter)));
     {
+        // With the generations: they decide the handles of future entities
         Json::array fa, fb;
-        for (uint32_t i : pa.freeList) fa.push_back(double(i));
-        for (uint32_t i : pb.freeList) fb.push_back(double(i));
+        for (uint32_t i : pa.freeList)
+            fa.push_back(Json::array{double(i), double(i < pa.slots.size() ? pa.slots[i].generation : 0)});
+        for (uint32_t i : pb.freeList)
+            fb.push_back(Json::array{double(i), double(i < pb.slots.size() ? pb.slots[i].generation : 0)});
         world("free_list", fa, fb);
     }
     world("actions", actionsJson(pa), actionsJson(pb));
@@ -344,16 +349,29 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
             // Equal bytes of the same type: equal (no JSON comparison)
             const SchemaType* ta = da.types[name];
             const SchemaType* tb = db.types[name];
-            bool sameType        = ta->version == tb->version && ta->fields.size() == tb->fields.size();
-            for (size_t k = 0; sameType && k < ta->fields.size(); ++k)
-                sameType = ta->fields[k].name == tb->fields[k].name && ta->fields[k].type == tb->fields[k].type &&
-                           ta->fields[k].enumValues == tb->fields[k].enumValues;
+            // Equal bytes are equal values only with the same schema (nested structs included); a Behaviour's classId
+            // is compared by class name (two builds may number the classes differently)
+            std::string reason;
+            const bool sameType =
+                name != "Behaviour" && compareTypes(pa.schema, *ta, pb.schema, *tb, reason) == SchemaMatch::Same;
             if (sameType && va->end - va->begin == vb->end - vb->begin &&
                 std::equal(a.begin() + std::ptrdiff_t(va->begin), a.begin() + std::ptrdiff_t(va->end),
                            b.begin() + std::ptrdiff_t(vb->begin)))
                 continue;
-            const Json& ja = jsonOf(*va, a, pa, *ta);
-            const Json& jb = jsonOf(*vb, b, pb, *tb);
+            Json ja = jsonOf(*va, a, pa, *ta);
+            Json jb = jsonOf(*vb, b, pb, *tb);
+            if (name == "Behaviour")
+            {
+                auto byName = [](const Json& j, const ParsedSave& p)
+                {
+                    Json::object o         = j.object_items();
+                    const std::string* cls = p.schema.className(uint32_t(j["classId"].number_value()));
+                    o["classId"]           = cls ? Json(*cls) : j["classId"];
+                    return Json(o);
+                };
+                ja = byName(ja, pa);
+                jb = byName(jb, pb);
+            }
             if (ja == jb) continue;
             std::map<std::string, bool> fields;
             for (auto& f : ja.object_items()) fields[f.first] = true;

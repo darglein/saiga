@@ -442,7 +442,8 @@ class SAIGA_ENGINE_API World
     double timeBase   = 0;
     uint64_t stepBase = 0;
     // The hooks of a load run (1: configure, 2: onLoad of loadHookEntity): structural changes are restricted
-    int loadHookPhase = 0;
+    int loadHookPhase   = 0;
+    bool loadInProgress = false;  // a load runs (until its listeners ran)
     Entity loadHookEntity;
     // False (and an assert) for a structural change a load hook may not make; refused in every build
     bool checkLoadHook(const char* operation, Entity e, ComponentId id) const;

@@ -220,7 +220,7 @@ bool SaveDecoder::decodeValue(const std::string& type, const FieldInfo& field, B
         const std::string element = type.substr(6, comma - 6);
         const std::string count   = type.substr(comma + 1, type.size() - comma - 2);
         uint64_t n                = 0;
-        if (count.empty() || count.size() > 9) return fail("malformed field type " + type);
+        if (count.empty() || count.size() > 10) return fail("malformed field type " + type);
         for (char c : count)
         {
             if (c < '0' || c > '9') return fail("malformed field type " + type);

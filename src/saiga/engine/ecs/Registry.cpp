@@ -99,7 +99,8 @@ Entity Registry::reserveSlot()
         transforms.push_back();
         try
         {
-            slots.push_back();
+            // A new slot starts at generation 0 (after a load the paged array may hand back an old element)
+            slots.push_back().generation = 0;
         }
         catch (...)
         {
@@ -234,7 +235,9 @@ void Registry::clearForLoad()
 {
     checkNotIterating("load");
     SAIGA_ASSERT(reservedSlots == 0, "load with reserved entities (inside a step)");
-    // Components first (a component destructor may look at the registry), then the slots
+    // The membership bits first (a component destructor that asks has() sees a consistent state: nothing), then the
+    // components, then the slots
+    for (uint32_t i = 0; i < uint32_t(slots.size()); ++i) slots[i].mask.clear();
     for (auto& p : pools)
         if (p) p->clearAll();
     slots.clear();

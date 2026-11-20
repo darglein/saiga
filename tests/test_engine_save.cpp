@@ -361,23 +361,21 @@ class SpawnsOnLoad final : public GameObject
 };
 }  // namespace
 
-#ifdef SAIGA_ASSERTS
-// onLoad may only add Saved::No components of its own entity (a load followed by save() gives the saved bytes)
-TEST(SaveDeathTest, StructuralChangesOfSavedComponentsInOnLoad)
+// onLoad may only add Saved::No components of its own entity (a load followed by save() gives the saved bytes): a hook
+// error in every build (an assert stopped the program before the load could report it)
+TEST(Save, StructuralChangesOfSavedComponentsInOnLoad)
 {
     WorldSetup s;
     s.classes = [](ClassList& c) { c.add<SpawnsOnLoad>(); };
     World a(s);
-    a.spawn<SpawnsOnLoad>(Vec3(0, 0, 0));
-    const auto blob = a.save();
-    EXPECT_DEATH(
-        {
-            World b(s);
-            b.load(blob);
-        },
-        "during a load");
+    const Entity e = a.spawn<SpawnsOnLoad>(Vec3(0, 0, 0));
+    World b(s);
+    const LoadResult r = b.tryLoad(a.save());
+    ASSERT_TRUE(r.committed);
+    ASSERT_EQ(r.hookErrors.size(), 1u);
+    EXPECT_NE(r.hookErrors[0].message.find("during a load"), std::string::npos) << r.hookErrors[0].message;
+    EXPECT_FALSE(b.alive(e));
 }
-#endif
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Builds that changed (two registrations of the same names in one test binary)
@@ -1551,7 +1549,7 @@ TEST(SaveRobustness, HeaderMigrationsAndActions)
     EXPECT_FALSE(r.committed);
     EXPECT_NE(r.error.find("threw: bad field"), std::string::npos) << r.error;
 
-    // A queued action of a player dropped by the load is dropped too
+    // A queued action of a player dropped by the load stays (as in the live world: delivered with the stale handle)
     World p(setupV1());
     const Entity player = p.create();
     p.add<Player>(player);
@@ -1562,7 +1560,8 @@ TEST(SaveRobustness, HeaderMigrationsAndActions)
     World q(drop);
     ASSERT_TRUE(q.tryLoad(p.save()).ok());
     q.step();
-    EXPECT_TRUE(q.events.read<ActionEvent>().empty());
+    ASSERT_EQ(q.events.read<ActionEvent>().size(), 1u);
+    EXPECT_FALSE(q.alive(q.events.read<ActionEvent>()[0].player));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1614,4 +1613,170 @@ TEST(Save, ALoadInsideAHookIsRefused)
     EXPECT_FALSE(g_innerLoad.committed);
     EXPECT_NE(g_innerLoad.error.find("only between steps"), std::string::npos) << g_innerLoad.error;
     EXPECT_TRUE(a.alive(e));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CodeRabbit (PR #54)
+
+namespace
+{
+enum class Light
+{
+    Off,
+    On,
+    Count
+};
+const char* const kLightNames[] = {"Off", "On"};
+struct Lamp
+{
+    static constexpr const char* name = "Lamp";
+    static constexpr ComponentId id   = ComponentId(kFirstGameComponent + 4);
+    static constexpr uint32_t version = 1;
+    bool lit                          = false;
+    Light light                       = Light::Off;
+    template <class V>
+    void visit(V& v)
+    {
+        v("lit", lit);
+        v("light", light, EnumNames{kLightNames});
+    }
+};
+WorldSetup lampSetup()
+{
+    WorldSetup s = baseSetup();
+    s.components = [](Registry& r)
+    {
+        baseComponents(r);
+        r.registerComponent<Lamp>();
+    };
+    return s;
+}
+}  // namespace
+
+// A new slot after a load into a world with more slots kept an old generation (the next handle differed)
+TEST(Save, NewSlotsAfterALoadStartAtGenerationZero)
+{
+    World a(baseSetup());
+    a.create();
+    World b(baseSetup());
+    std::vector<Entity> many;
+    for (int i = 0; i < 5; ++i) many.push_back(b.create());
+    for (Entity e : many) b.destroy(e);
+    for (int i = 0; i < 5; ++i) b.create();
+    ASSERT_TRUE(b.tryLoad(a.save()).ok());
+    for (int i = 0; i < 6; ++i) EXPECT_EQ(b.create(), a.create()) << i;
+}
+
+// A dropped component's values were not checked: a malformed one let the load replace the world
+TEST(SaveRobustness, DroppedComponentsAreChecked)
+{
+    World a(lampSetup());
+    a.add<Lamp>(a.create());
+    auto blob = a.save();
+    ParsedSave p;
+    std::string error;
+    ASSERT_TRUE(parseSave(blob, p, error)) << error;
+    size_t lampAt = 0;
+    for (const auto& b : p.components)
+        if (p.schema.types[b.schemaIndex].name == "Lamp") lampAt = b.begin + 4;  // after the entity index
+    ASSERT_GT(lampAt, 0u);
+    blob[lampAt] = 7;  // the bool
+    WorldSetup s;
+    s.components = baseComponents;
+    s.classes    = baseClasses;
+    s.migrations = [](MigrationList& m) { m.addRemoved("Lamp", RemovedPolicy::DropComponent); };
+    World w(s);
+    const auto before  = w.save();
+    const LoadResult r = w.tryLoad(blob);
+    EXPECT_FALSE(r.committed);
+    EXPECT_EQ(w.save(), before);
+}
+
+// save() returned a block the loader rejects (an enum value without a name; more empty events than the reader allows)
+TEST(Save, UnreadableSavesAreErrors)
+{
+    World a(lampSetup());
+    const Entity e = a.create();
+    a.add<Lamp>(e);
+    a.get<Lamp>(e).light = Light::Count;
+    EXPECT_THROW(a.save(), std::runtime_error);
+}
+
+namespace
+{
+struct Empty
+{
+    static constexpr const char* name = "Empty";
+    static constexpr EventId id       = EventId(64);
+    static constexpr uint32_t version = 1;
+    template <class V>
+    void visit(V&)
+    {
+    }
+};
+}  // namespace
+
+TEST(Save, TooManyEmptyEventsAreAnError)
+{
+    WorldSetup s = baseSetup();
+    s.events     = [](EventRegistry& r) { r.add<Empty>(); };
+    World a(s);
+    for (size_t i = 0; i < kMaxEmptyElements; ++i) a.events.emit(Empty{});
+    World b(s);
+    EXPECT_TRUE(b.tryLoad(a.save()).ok());  // exactly the limit
+    a.events.emit(Empty{});
+    EXPECT_THROW(a.save(), std::runtime_error);
+}
+
+// A load from a load listener (nested) reached the observers first; a listener removed by an earlier one was called
+TEST(Save, NestedLoadsAndRemovedListeners)
+{
+    World a(baseSetup());
+    const auto blob = a.save();
+    World w(baseSetup());
+    LoadResult inner;
+    int second   = 0;
+    int secondId = -1;
+    w.addLoadListener(
+        [&](const LoadInfo&)
+        {
+            inner = w.tryLoad(blob);
+            w.removeLoadListener(secondId);
+        });
+    secondId = w.addLoadListener([&](const LoadInfo&) { second++; });
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    EXPECT_FALSE(inner.committed);
+    EXPECT_NE(inner.error.find("another load"), std::string::npos) << inner.error;
+    EXPECT_EQ(second, 0);
+    // The guard is released: the next load works
+    EXPECT_TRUE(w.tryLoad(blob).committed);
+}
+
+// The diff: free-list generations, classes by name, nested schemas before equal bytes
+TEST(SaveDiff, GenerationsClassesAndSchemas)
+{
+    World a(baseSetup());
+    const Entity e = a.create();
+    a.destroy(e);
+    const auto first = a.save();
+    a.destroy(a.create());  // the same slot, one generation later
+    const SaveDiff d = diffSaves(first, a.save());
+    bool freeList    = false;
+    for (const auto& x : d.differences) freeList = freeList || x.kind == "free_list";
+    EXPECT_TRUE(freeList);
+
+    // The same class under another ID: no difference
+    World b(baseSetup());
+    const Entity s1  = b.spawn<Sitter>(Vec3(0, 0, 0));
+    WorldSetup other = baseSetup();
+    other.classes    = [](ClassList& c)
+    {
+        c.add<SpawnsOnLoad>();  // ID 64
+        c.add<Sitter>();        // ID 65 as before
+        c.add<Fragile>();
+    };
+    World c(other);
+    ASSERT_TRUE(c.tryLoad(b.save()).ok());
+    EXPECT_EQ(diffSaves(b.save(), c.save()).total, 0u);
+    (void)s1;
 }

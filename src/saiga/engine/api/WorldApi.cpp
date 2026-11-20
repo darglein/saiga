@@ -1456,10 +1456,11 @@ std::string hashHex(uint64_t h)
     return buf;
 }
 
-// A plain file name: letters, digits, '.', '_', '-' (no paths, no ".."), not a Windows device name (CON, NUL.bin)
+// A plain file name: letters, digits, '.', '_', '-' (no paths, no ".."), not starting with '.' (the temporary files of
+// exports), not a Windows device name (CON, NUL.bin)
 bool plainFileName(const std::string& f)
 {
-    if (f.empty() || f.size() > 128 || f == "." || f.find("..") != std::string::npos) return false;
+    if (f.empty() || f.size() > 128 || f[0] == '.' || f.find("..") != std::string::npos) return false;
     for (char c : f)
         if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' ||
               c == '-'))

@@ -20,6 +20,7 @@
 #include <cstring>
 #include <iterator>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <typeinfo>
 #include <vector>
@@ -129,7 +130,11 @@ class EventQueue final : public EventQueueBase
     {
         BinaryWriter w(out);
         for (const E& e : pending) w.write(e);
-        SAIGA_ASSERT(w.ok(), std::string("event ") + name + ": " + w.error());
+        // An error in every build (e.g. an enum value without a name): never a block the reader rejects
+        if (!w.ok()) throw std::runtime_error(std::string("save: event ") + name + ": " + w.error());
+        if (pending.size() > kMaxEmptyElements && minEncodedSize<E>() == 0)
+            throw std::runtime_error(std::string("save: more than ") + std::to_string(kMaxEmptyElements) +
+                                     " pending events " + name + " without bytes");
     }
     std::unique_ptr<StagedValues> newStage() const override { return std::make_unique<StagedOf<E>>(); }
     bool stageBinary(StagedValues& stage, BinaryReader& r) const override

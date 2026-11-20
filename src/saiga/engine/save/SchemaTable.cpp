@@ -37,7 +37,7 @@ constexpr uint32_t kMaxSchemaEntries = 1 << 20;
 constexpr size_t kMaxNameLength      = 256;
 
 // A field type string of a saved schema: bounded length and container nesting (decoding recurses over it), array
-// lengths of at most 2^16
+// lengths below 2^31 (decoding is bounded by the input and the zero-byte budget)
 bool validFieldType(const std::string& type)
 {
     if (type.empty() || type.size() > kMaxNameLength) return false;
@@ -52,10 +52,10 @@ bool validFieldType(const std::string& type)
             const size_t comma = t.rfind(',');
             if (comma == std::string::npos || comma < 7) return false;
             const std::string count = t.substr(comma + 1, t.size() - comma - 2);
-            if (count.empty() || count.size() > 5) return false;
+            if (count.empty() || count.size() > 10) return false;
             for (char c : count)
                 if (c < '0' || c > '9') return false;
-            if (std::stoul(count) > 65536) return false;
+            if (std::stoull(count) > 0x7FFFFFFFull) return false;
             t = t.substr(6, comma - 6);
         }
         else

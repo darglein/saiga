@@ -183,7 +183,23 @@ bool WorldLoader::stageComponents(const std::vector<uint8_t>& data)
                 targetType = current.find(SchemaKind::Component, removed->replacement);
             }
         }
-        if (mode == Mode::Skip) continue;
+        if (mode == Mode::Skip)
+        {
+            // Dropped, but checked like every other value (a malformed save must not replace the world)
+            for (uint64_t k = 0; k < b.count; ++k)
+            {
+                uint32_t index = 0;
+                r.read(index);
+                if (!r.ok()) return fail(what + ": " + r.error());
+                if (index == 0 || index >= p.slots.size() || !alive(p.slots[index]))
+                    return fail(what + ": the entity index " + std::to_string(index) + " is not an alive slot");
+                std::string e;
+                if (!decoder.skip(savedType, r, e))
+                    return fail(what + ", entity index " + std::to_string(index) + ": " + e);
+            }
+            if (!r.atEnd()) return fail(what + ": bytes left over");
+            continue;
+        }
         if (target == Transform::id) transformSeen = true;
         const ComponentId id = ComponentId(std::max(target, 0));
         if ((mode == Mode::Fast || mode == Mode::Slow || mode == Mode::Replace) && id != Transform::id && !staged[id])
@@ -267,7 +283,14 @@ bool WorldLoader::stageEvents(const std::vector<uint8_t>& data)
         EventQueueBase* q = w.events.find(savedType.name);
         if (!q)
         {
-            // Events live one step: a type that no longer exists is dropped (logged after the commit)
+            // Events live one step: a type that no longer exists is dropped (logged after the commit), after its
+            // values were checked
+            for (uint64_t k = 0; k < b.count; ++k)
+            {
+                std::string e;
+                if (!decoder.skip(savedType, r, e)) return fail("event " + savedType.name + ": " + e);
+            }
+            if (!r.atEnd()) return fail("event " + savedType.name + ": bytes left over");
             droppedEvents.push_back(savedType.name + " (" + std::to_string(b.count) + ")");
             continue;
         }
@@ -547,12 +570,10 @@ void WorldLoader::commit()
     for (size_t id = 0; id < queues.size(); ++id)
         if (queues[id]) queues[id]->restore(id < stagedEvents.size() ? stagedEvents[id].get() : nullptr);
     w.actions.clear();
+    // As in the live world: a queued action stays also if its player is gone (deliverActions emits it with the stale
+    // handle), so a loaded world delivers the same events
     for (const ParsedSave::Action& a : p.actions)
-    {
-        // As queueAction: only for a live player (a dropped or corrupted entry is dropped)
-        if (!reg.alive(a.player) || !reg.registered(Player::id) || !reg.has<Player>(a.player)) continue;
         w.actions.push_back(World::QueuedAction{a.peer, a.sequence, PlayerAction{a.player, a.action, a.aim}});
-    }
     w.actionSequence = p.actionSequence;
     w.rng.setState(Rng::State{p.rngState, p.rngIncrement});
     w.persistentCounter = p.persistentCounter;
@@ -724,11 +745,18 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
 {
     LoadResult result;
     // Refused in every build (the running game object and the views of the step would be destroyed under them)
-    if (w.inStep() || !w.commands.empty() || w.hookDepth != 0 || w.loadHookPhase != 0 || w.reg.iterating())
+    if (w.inStep() || !w.commands.empty() || w.hookDepth != 0 || w.loadHookPhase != 0 || w.reg.iterating() ||
+        w.loadInProgress)
     {
-        result.error = "a load only between steps, not inside a game hook or a view";
+        result.error = "a load only between steps, not inside a game hook, a view or another load (its listeners)";
         return result;
     }
+    // Held until the listeners of this load ran (a nested load would hand the observers its records first)
+    struct LoadGuard
+    {
+        bool& flag;
+        ~LoadGuard() { flag = false; }
+    } guard{w.loadInProgress = true};
     if (!parseSave(data, p, error) || !checkSlots())
     {
         result.error = error;
@@ -740,6 +768,22 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     {
         result.error = error;
         return result;
+    }
+    // The defaults of the state components the commit may add are constructed once before the world changes (a
+    // throwing constructor rejects the load instead of leaving half a world)
+    for (size_t id = 1; id < kMaxComponents; ++id)
+    {
+        if (!reg.isGlobal(ComponentId(id)) && !reg.isSpaceState(ComponentId(id))) continue;
+        try
+        {
+            reg.poolById(ComponentId(id))->probeDefault();
+        }
+        catch (const std::exception& x)
+        {
+            result.error =
+                std::string("the default of ") + reg.componentInfo(ComponentId(id)).name + " threw: " + x.what();
+            return result;
+        }
     }
 
     const uint64_t logBegin = w.log.appendedTotal();
@@ -761,6 +805,10 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     auto listeners = w.loadListeners;
     for (auto& l : listeners)
     {
+        // A listener removed by an earlier one (e.g. a world API rebound to another world) is not called
+        bool registered = false;
+        for (const auto& now : w.loadListeners) registered = registered || now.first == l.first;
+        if (!registered) continue;
         // A throwing listener must not hide the committed load from the others (the world API's journal)
         try
         {

@@ -367,6 +367,16 @@ this file.
   locale; a game that sets `LC_NUMERIC` must keep it "C"); a `save()` whose writer fails (more than 2^16 empty structs
   in a vector) asserts.
 
+- CodeRabbit (PR #54): new slots after a load start at generation 0 (the paged array handed back an old one);
+  `clearForLoad` clears the membership bits before the components; the values of dropped components and removed event
+  types are checked before the commit; queued actions stay as in the live world (also for a dropped player); the
+  defaults of state components are constructed once before the commit; a load is refused while another load's
+  listeners run, and a listener removed during the dispatch is not called; `save()` throws instead of returning a
+  block the reader rejects (an enum value without a name, more than 2^16 empty pending events); load-hook refusals
+  are catchable in every build (no assert); array lengths up to 2^31 in saved schemas; the diff stores values sparsely,
+  compares free-list generations, `Behaviour` classes by name and equal bytes only with the same schema (nested structs
+  too); export names cannot start with '.' (the temporary files).
+
 Updated: §3, R-DATA-1, §7.2, §7.9, §7.10, §14, §15 (header, §15.1, §15.2), §16.2, §17.4, the S11 row; AGENTS.md.
 
 ## Results
