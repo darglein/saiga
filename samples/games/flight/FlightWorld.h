@@ -10,6 +10,7 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/vulkan/world/HeightField.h"
 
+#include "games/common/Driving.h"
 #include "games/common/GameEngine.h"
 #include "games/flight/FlightAutopilot.h"
 #include "games/flight/FlightModel.h"
@@ -29,6 +30,10 @@ namespace Game
  * state in components (AircraftState, AircraftControls, its pose in Transform), the flight model as a system
  * (flightModelSystem, phase Gameplay), the decisions as game objects (Aircraft: respawn after a crash; Autopilot: the
  * demo's pilot). The ground is the context (FlightContext), shared by all worlds of the process and the renderer.
+ * S16b: the planes are host-owned; a player is a driver entity (AircraftControls: the sticks and throttleChange,
+ * Driver) that the plane's VehicleSeat names (games/common/Driving.h); the autopilot's plane is its own driver and sets
+ * the throttle lever directly. Replication: AircraftControls OwnerAuthoritative (the driver's owner), AircraftState
+ * (with the lever) Host.
  */
 
 // Constant configuration (World::context): the world prototype's height field and the autopilot's circuit
@@ -51,8 +56,9 @@ struct AircraftState
 {
     static constexpr const char* name       = "AircraftState";
     static constexpr Engine::ComponentId id = Engine::ComponentId(FlightComponent::AircraftState);
-    static constexpr uint32_t version       = 1;
+    static constexpr uint32_t version       = 2;  // S16b: the throttle lever moved here from AircraftControls
     Engine::DataRef<AircraftParameters> model{"default"};
+    double throttle   = 0.6;  // the lever [0, 1]: moved by the driver's throttleChange, set by the autopilot
     Vec3 velocity     = Vec3::Zero();
     Vec3 bodyRates    = Vec3::Zero();
     bool onGround     = false;
@@ -63,6 +69,7 @@ struct AircraftState
     void visit(V& v)
     {
         v("model", model);
+        v("throttle", throttle);
         v("velocity", velocity);
         v("bodyRates", bodyRates);
         v("onGround", onGround);
@@ -90,10 +97,14 @@ FlightModel flightModelOf(const World& w, Entity e);
 class AircraftBase : public Engine::GameObject
 {
    public:
+    // The control component of its driver (spawnDriven)
+    using Controls = AircraftControls;
+    // Without an initial VehicleSeat (the autopilot, a plane spawned as the player) the plane is its own driver
     void onSpawn() override;
     void update(double dt) override;
     const Engine::TickPolicy* tickPolicy() const override { return everyStepTickPolicy(); }
-    // On the circuit, heading along it, 300 m above the ground, at 65 m/s
+    // On the circuit, heading along it, 300 m above the ground, at 65 m/s (offset by the slot of VehicleSeat: behind
+    // and inside of the circuit)
     void respawn();
 };
 
@@ -121,6 +132,8 @@ class Autopilot final : public AircraftBase
 // The world setup of the flight demo (components, systems, classes, actions, data, the context)
 Engine::WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory);
 void flightScenarios(Engine::ScenarioList& list);
+// --coop's join policy: a plane for the joined peer (slot = peer), flown by the autopilot on the owner with demo
+void flightPeerJoined(World& host, uint8_t peer, bool demo);
 
 }  // namespace Game
 }  // namespace Saiga

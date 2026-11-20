@@ -6,7 +6,9 @@
 
 /**
  * Racing tech demo (samples/games/racing, docs/engine_design.md §18.4) on the engine app: drive a car around a track on
- * the terrain of the world prototype. --demo: the AI driver races. --scenarios: the game's scenarios.
+ * the terrain of the world prototype. --demo: the AI driver races. --scenarios: the game's scenarios. --coop [delay]:
+ * co-op over loopback in one process (S16b): the client's car next to the host's AI car (with --demo the client's
+ * car is driven by the AI on the client too).
  *
  * Controls (data/racing/input.json): W throttle, S brake / reverse, A/D steer, R back to the track, G GUI, ESC quit.
  */
@@ -31,11 +33,19 @@ int main(int argc, char** argv)
     setup.render.msaaSamples = 4;
     setup.world              = racingWorldSetup(context);
     setup.scenarios          = racingScenarios;
-    // The pedals and the steering follow the keys (released: neutral)
+    setup.networkVariants    = true;
+    setup.checkOptions       = clampCoopDemoDelay;
+    // --coop: the joined peer's car (R-MECH-1); a leaving peer's driver goes, its car stays empty
+    setup.onPeerJoined = [](EngineApp& app, World& host, uint8_t peer)
+    { racingPeerJoined(host, peer, app.options().has("--demo")); };
+    setup.onPeerLeft = [](EngineApp&, World& host, uint8_t peer) { removeDriver(host, peer); };
+    // The pedals and the steering follow the keys (released: neutral); the local player is the driver
     bool wasActive   = false;
     setup.applyInput = [&wasActive](const InputMap& in, World& w, Entity player)
     {
         const bool active = !in.neutral();
+        // The demo's AI on a co-op client pauses while the player drives
+        if (player.valid() && w.has<DemoPilot>(player)) w.get<DemoPilot>(player).suspended = active;
         if (!player.valid() || !w.has<VehicleControls>(player) || (!active && !wasActive)) return;
         wasActive          = active;
         VehicleControls& c = w.get<VehicleControls>(player);
@@ -65,18 +75,14 @@ int main(int argc, char** argv)
                                   if (!p.valid() || !world.alive(p) || !world.has<VehicleControls>(p)) return;
                                   world.get<VehicleControls>(p) = VehicleControls();
                               });
-                          if (options.has("--demo"))
-                          {
-                              w.spawn<RaceDriver>(Vec3::Zero());
-                              // Race a while before the first frame (a screenshot shows the car on the track)
-                              w.step(60 * 10);
-                          }
+                          // The start state on the host (the hidden host world with --coop; the client's car comes
+                          // from the join policy)
+                          World& start = app.startWorld();
+                          if (options.has("--demo") || options.coop)
+                              start.spawn<RaceDriver>(Vec3::Zero());
                           else
-                          {
-                              Player p;
-                              p.characterId  = 1;
-                              const Entity e = w.spawn<Car>(Vec3::Zero(), p, PlayerInput{});
-                              app.setLocalPlayer(e);
-                          }
+                              app.setLocalPlayer(spawnDriven<Car>(start, 0, 0).driver);
+                          // Race a while before the first frame (a screenshot shows the car on the track)
+                          if (options.has("--demo")) app.stepAll(60 * 10);
                       });
 }

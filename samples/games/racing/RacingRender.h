@@ -20,9 +20,10 @@ namespace Game
 {
 /**
  * The render side of the racing demo (GameRenderHooks; transitional until S19): the world prototype on the context's
- * height field (no grass: it would grow through the track), the track, gates and banner, the car with its wheels at
- * the pose interpolated between the last two steps (the wheels' compression, spin and steering too), the chase camera,
- * the GUI. Follows the local player, or the first car (--demo).
+ * height field (no grass: it would grow through the track), the track, gates and banner, every car with its wheels at
+ * the pose interpolated between the last two steps (the wheels' compression, spin and steering too; per car, S16b:
+ * remote cars on a co-op client from RenderPose and their wheels read as late), the chase camera, the GUI. Follows the
+ * local player's car (its driver's Driver.vehicle), or the first car (--demo).
  */
 class RacingRender
 {
@@ -41,6 +42,13 @@ class RacingRender
         std::array<double, 4> compression = {}, spin = {};
         double steer = 0;
     };
+    // A car as drawn this frame
+    struct Drawn
+    {
+        Entity car;
+        PoseHistory::Pose pose;
+        Wheels wheels;
+    };
     Entity focus();
     MeshData trackMesh() const;
 
@@ -49,17 +57,12 @@ class RacingRender
     Vulkan::WorldRenderer worldRenderer;
     MeshRenderer meshes;
     ChaseCamera camera;
-    PoseHistory pose;
+    RenderCaches<Wheels> caches;
     HeldCamera held;
     FrameClock clock;
-    PoseHistory::Pose renderPose;
-    bool hasPose = false;
-    // The wheels of the followed car after the last two steps (a step listener) and interpolated
-    Wheels previousWheels, currentWheels, renderWheels;
+    Entity followed;
+    std::vector<Drawn> drawn;
     int bodyMesh = -1, wheelMesh = -1, trackMeshId = -1, coneMesh = -1, bannerMesh = -1;
-    int stepListener = -1, loadListener = -1;
-    // Both wheel sets from the followed car's VehicleState (a new car, a load)
-    void reseedWheels();
 };
 
 }  // namespace Game

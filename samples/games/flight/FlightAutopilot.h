@@ -27,7 +27,10 @@ struct FlightAutopilot
     // Counter clockwise seen from above
     bool counterClockwise = true;
 
+    // The sticks (throttleChange 0)
     AircraftControls controls(const FlightModel& model) const;
+    // The throttle lever that holds the speed
+    double throttle(const FlightModel& model) const;
 };
 
 }  // namespace Game

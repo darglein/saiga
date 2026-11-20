@@ -10,6 +10,7 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/vulkan/world/HeightField.h"
 
+#include "games/common/Driving.h"
 #include "games/common/GameEngine.h"
 #include "games/racing/DriverModel.h"
 #include "games/racing/LapState.h"
@@ -28,9 +29,12 @@ namespace Game
 {
 /**
  * The simulation of the racing tech demo (docs/engine_design.md §18.4, S13b) in a World: the car's state in components
- * (VehicleState, VehicleControls, LapState, its pose in Transform), the vehicle model and the lap timing as systems
- * (vehicleSystem, lapTimerSystem), the decisions as game objects (Car: back to the track when stuck on the roof or on
- * the respawn action; RaceDriver: the demo's AI). The terrain and the track are the context.
+ * (VehicleState, LapState, its pose in Transform), the vehicle model and the lap timing as systems (vehicleSystem,
+ * lapTimerSystem), the decisions as game objects (Car: back to the track when stuck on the roof or on the respawn
+ * action; RaceDriver: the demo's AI). The terrain and the track are the context. S16b: the cars are host-owned; a
+ * player is a driver entity (VehicleControls, Driver) that the car's VehicleSeat names (games/common/Driving.h); the AI
+ * car is its own driver. Replication: VehicleControls OwnerAuthoritative (the driver's owner), VehicleState and
+ * LapState Host, DriverState Never (the AI on the host).
  */
 
 struct RacingContext
@@ -113,6 +117,9 @@ Vehicle vehicleOf(const World& w, Entity e);
 class CarBase : public Engine::GameObject
 {
    public:
+    // The control component of its driver (spawnDriven)
+    using Controls = VehicleControls;
+    // Without an initial VehicleSeat (an AI car, a car spawned as the player) the car is its own driver
     void onSpawn() override;
     void update(double dt) override;
     const Engine::TickPolicy* tickPolicy() const override { return everyStepTickPolicy(); }
@@ -120,7 +127,8 @@ class CarBase : public Engine::GameObject
     void respawn();
 
    protected:
-    // Standing at arc length s of the track, heading along it
+    // Standing at arc length s of the track, heading along it (offset by the slot of VehicleSeat: a grid behind the
+    // line, alternating sides)
     void placeOnTrack(double s);
 };
 
@@ -144,6 +152,8 @@ class RaceDriver final : public CarBase
 
 Engine::WorldSetup racingWorldSetup(std::shared_ptr<const RacingContext> context);
 void racingScenarios(Engine::ScenarioList& list);
+// --coop's join policy: a car for the joined peer (slot = peer), driven by the demo's AI on the owner with demo
+void racingPeerJoined(World& host, uint8_t peer, bool demo);
 
 }  // namespace Game
 }  // namespace Saiga

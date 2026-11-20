@@ -8,6 +8,7 @@
 
 #include "saiga/engine/ecs/Ids.h"
 
+#include "games/common/DrivingComponents.h"
 #include "games/common/GameMath.h"
 
 #include <string>
@@ -89,24 +90,24 @@ struct AircraftParameters
 
 enum class FlightComponent : uint8_t
 {
-    AircraftControls = Engine::kFirstGameComponent,
+    AircraftControls = kFirstDemoComponent,  // after the common components (games/common/DrivingComponents.h)
     AircraftState,
 };
 
-// Pilot inputs (a component, R-STATE-1), all in [-1, 1] except the throttle [0, 1]. Positive: pitch nose up, roll
-// right, yaw right. throttleChange moves the throttle lever (the flight model system: 0.5 per second at 1).
+// Pilot inputs (a component on the driver, R-STATE-1), all in [-1, 1]. Positive: pitch nose up, roll right, yaw right.
+// throttleChange moves the throttle lever (AircraftState::throttle; the flight model system: 0.5 per second at 1).
+// S16b: the lever moved to AircraftState (version 2), so the driver's owner writes only these inputs
 struct AircraftControls
 {
     static constexpr const char* name       = "AircraftControls";
     static constexpr Engine::ComponentId id = Engine::ComponentId(FlightComponent::AircraftControls);
-    static constexpr uint32_t version       = 1;
-    double throttle = 0.5, pitch = 0, roll = 0, yaw = 0;
+    static constexpr uint32_t version       = 2;
+    double pitch = 0, roll = 0, yaw = 0;
     double throttleChange = 0;
 
     template <class V>
     void visit(V& v)
     {
-        v("throttle", throttle);
         v("pitch", pitch);
         v("roll", roll);
         v("yaw", yaw);
@@ -144,7 +145,8 @@ class FlightModel
 
     // Airborne at position, heading (see yawRotation) and airspeed, wings level
     void reset(const Vec3& position, double heading, double speed);
-    void step(const AircraftControls& controls, double dt);
+    // throttle: the lever position [0, 1] (AircraftState::throttle)
+    void step(const AircraftControls& controls, double throttle, double dt);
 
     Vec3 forward() const { return forwardOf(state.orientation); }
     Vec3 up() const { return upOf(state.orientation); }

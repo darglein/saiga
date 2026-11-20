@@ -92,7 +92,7 @@ struct VehicleControls
 {
     static constexpr const char* name       = "VehicleControls";
     static constexpr Engine::ComponentId id = Engine::ComponentId(RacingComponent::VehicleControls);
-    static constexpr uint32_t version       = 1;
+    static constexpr uint32_t version       = 2;  // S16b: on the driver entity (OwnerAuthoritative)
     double throttle = 0, steer = 0;
 
     template <class V>

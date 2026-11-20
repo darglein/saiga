@@ -10,6 +10,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include "games/common/WorldLighting.h"
@@ -58,36 +59,20 @@ void RacingRender::init(EngineApp& _app)
     camera.targetHeight      = 1.2;
     camera.stiffness         = 6;
     camera.ground            = [ctx](double x, double z) { return ctx->terrain(x, z); };
-    pose.attach(app->world());
-    // A load (load_snapshot, also paused) replaces the wheels: no interpolation from the state before
-    loadListener = app->world().addLoadListener([this](const LoadInfo&) { reseedWheels(); });
-    stepListener = app->world().addStepListener(
-        [this]()
+    // Every car's pose and wheels (a load starts them over: no interpolation from the state before)
+    caches.attach(
+        app->world(), [](World& w, const std::function<void(Entity)>& fn)
+        { w.view<const VehicleState>().each([&](Entity e, const VehicleState&) { fn(e); }); },
+        [](const World& w, Entity e)
         {
-            World& w       = app->world();
-            const Entity e = pose.followed();
-            if (!w.alive(e) || !w.has<VehicleState>(e)) return true;
             const VehicleState& s = w.read<VehicleState>(e);
-            previousWheels        = currentWheels;
-            currentWheels         = Wheels{s.compression, s.spin, s.steerAngle};
-            return true;
+            return Wheels{s.compression, s.spin, s.steerAngle};
         });
-}
-
-void RacingRender::reseedWheels()
-{
-    World& w       = app->world();
-    const Entity e = pose.followed();
-    if (!w.alive(e) || !w.has<VehicleState>(e)) return;
-    const VehicleState& s = w.read<VehicleState>(e);
-    currentWheels = previousWheels = Wheels{s.compression, s.spin, s.steerAngle};
 }
 
 void RacingRender::shutdown()
 {
-    pose.detach();
-    app->world().removeStepListener(stepListener);
-    app->world().removeLoadListener(loadListener);
+    caches.detach();
     meshes.destroy();
     worldRenderer.destroy();
 }
@@ -131,8 +116,9 @@ MeshData RacingRender::trackMesh() const
 Entity RacingRender::focus()
 {
     World& w = app->world();
-    Entity p = app->localPlayer();
-    if (p.valid() && w.alive(p) && w.has<VehicleState>(p)) return p;
+    // The local player is a driver: its car
+    const Entity mine = drivenVehicle(w, app->localPlayer());
+    if (mine.valid() && w.has<VehicleState>(mine)) return mine;
     Entity first;
     w.view<const VehicleState>().each(
         [&](Entity e, const VehicleState&)
@@ -148,31 +134,50 @@ void RacingRender::transfer(vk::CommandBuffer cmd)
     const ivec2 size     = app->scene()->size();
     const float aspect   = float(size(0)) / float(std::max(1, size(1)));
     World& w             = app->world();
+    const double alpha   = w.alpha();
     const Entity e       = focus();
-    if (e != pose.followed())
+    if (e != followed)
     {
-        pose.follow(e);
-        reseedWheels();
+        followed = e;
+        camera.reset();
     }
-    hasPose               = pose.interpolated(w.alpha(), renderPose);
+    // Every car at its interpolated pose, the wheels between the last two (delayed) steps
+    drawn.clear();
+    PoseHistory::Pose focusPose;
+    bool hasFocus = false;
+    w.view<const VehicleState>().each(
+        [&](Entity car, const VehicleState&)
+        {
+            auto* c = caches.entry(car);
+            if (!c) return;
+            Drawn d;
+            d.car = car;
+            if (!c->pose.interpolated(w, car, alpha, d.pose)) return;
+            if (c->pose.takeTeleport())
+            {
+                // Regression (CodeRabbit, S13b): a respawn between steps (the GUI button while paused) kept the old
+                // wheels until the next step; reseed them from the VehicleState
+                if (!readsRenderPose(w, car)) caches.reseed(car);
+                if (car == followed) camera.reset();
+            }
+            const Wheels& a = c->previous();
+            const Wheels& b = c->current();
+            for (int i = 0; i < 4; ++i)
+            {
+                d.wheels.compression[i] = a.compression[i] + (b.compression[i] - a.compression[i]) * alpha;
+                d.wheels.spin[i]        = a.spin[i] + (b.spin[i] - a.spin[i]) * alpha;
+            }
+            d.wheels.steer = a.steer + (b.steer - a.steer) * alpha;
+            if (car == followed)
+            {
+                focusPose = d.pose;
+                hasFocus  = true;
+            }
+            drawn.push_back(d);
+        });
     const bool toolCamera = app->cameraHeldByTool();
     if (held.released(toolCamera)) camera.reset();
-    if (pose.takeTeleport())
-    {
-        camera.reset();
-        // Regression (CodeRabbit, S13b): a respawn between steps (the GUI button while paused) kept the old wheels
-        // until the next step; reseed both sets from the VehicleState
-        reseedWheels();
-    }
-    const double alpha = w.alpha();
-    for (int i = 0; i < 4; ++i)
-    {
-        renderWheels.compression[i] =
-            previousWheels.compression[i] + (currentWheels.compression[i] - previousWheels.compression[i]) * alpha;
-        renderWheels.spin[i] = previousWheels.spin[i] + (currentWheels.spin[i] - previousWheels.spin[i]) * alpha;
-    }
-    renderWheels.steer = previousWheels.steer + (currentWheels.steer - previousWheels.steer) * alpha;
-    if (hasPose && !toolCamera) camera.update(renderPose.position, forwardOf(renderPose.rotation), frameDt);
+    if (hasFocus && !toolCamera) camera.update(focusPose.position, forwardOf(focusPose.rotation), frameDt);
 
     // A tool holds the camera (S14): the app camera, else the chase camera
     const mat4 view = toolCamera ? app->camera().view : camera.view();
@@ -205,21 +210,21 @@ void RacingRender::render(vk::CommandBuffer cmd)
         meshes.draw(bannerMesh, transformMatrix(p, yawRotation(headingOf(g.tangent))));
     }
 
-    World& w       = app->world();
-    const Entity e = pose.followed();
-    if (hasPose && w.alive(e) && w.has<VehicleState>(e))
+    World& w = app->world();
+    for (const Drawn& d : drawn)
     {
-        const VehicleParameters& p = w.data(w.read<VehicleState>(e).model);
-        Mat4 body                  = transformMatrix(renderPose.position, renderPose.rotation);
+        if (!w.alive(d.car) || !w.has<VehicleState>(d.car)) continue;
+        const VehicleParameters& p = w.data(w.read<VehicleState>(d.car).model);
+        Mat4 body                  = transformMatrix(d.pose.position, d.pose.rotation);
         meshes.draw(bodyMesh, body);
         for (int i = 0; i < 4; ++i)
         {
             // Wheels at the suspension's current length, front wheels steered, spinning
             Vec3 mount    = p.wheelMounts[i];
-            double length = p.restLength + p.wheelRadius - renderWheels.compression[i];
+            double length = p.restLength + p.wheelRadius - d.wheels.compression[i];
             Vec3 center   = mount - Vec3(0, length - p.wheelRadius, 0);
-            Quat steer    = i < 2 ? yawRotation(-renderWheels.steer) : Quat::Identity();
-            Quat spin     = axisAngle(Vec3(1, 0, 0), -renderWheels.spin[i]);
+            Quat steer    = i < 2 ? yawRotation(-d.wheels.steer) : Quat::Identity();
+            Quat spin     = axisAngle(Vec3(1, 0, 0), -d.wheels.spin[i]);
             // The mesh has the default wheel radius; the data file's radius scales it (the width stays)
             const double r = p.wheelRadius / VehicleParameters().wheelRadius;
             meshes.draw(wheelMesh, body * transformMatrix(center, steer * spin, Vec3(1, r, r)));
@@ -231,31 +236,41 @@ void RacingRender::render(vk::CommandBuffer cmd)
 void RacingRender::gui()
 {
     worldRenderer.imgui();
-    // The GUI runs before transfer() in a frame: follow here too (the first frame's window had no fields)
-    const Entity followed = focus();
-    if (followed != pose.followed())
-    {
-        pose.follow(followed);
-        reseedWheels();
-    }
+    // The GUI runs before transfer() in a frame: the car it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 170), ImGuiCond_FirstUseEver);
     ImGui::Begin("Racing", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, G GUI");
     World& w       = app->world();
-    const Entity e = pose.followed();
+    const Entity e = focus();
     if (w.alive(e) && w.has<VehicleState>(e))
     {
         const Vehicle car   = vehicleOf(w, e);
         const LapState& lap = w.read<LapState>(e);
-        ImGui::Text("%s", app->localPlayer() == e ? "player" : "demo (AI driver)");
+        const bool mine     = drivenVehicle(w, app->localPlayer()) == e;
+        const bool ai       = w.has<VehicleSeat>(e) && w.read<VehicleSeat>(e).driver == e;
+        if (app->coop())
+            ImGui::Text("co-op client (peer %d): %s, %d cars", int(w.localPeer()),
+                        mine ? "your car" : (ai ? "the host's AI car" : "another player's car"),
+                        int(w.registry().poolById(VehicleState::id)->size()));
+        else
+            ImGui::Text("%s", mine ? "player" : "demo (AI driver)");
         ImGui::Text("speed %.0f km/h, wheels on the ground %d", car.forwardSpeed() * 3.6, car.wheelsOnGround());
         ImGui::Text("lap %d, time %.2f s, last %.2f s, best %.2f s", lap.laps + 1, lap.lapTime, lap.lastLapTime,
                     lap.bestLapTime);
         ImGui::Text("next checkpoint %d / %d, track %.0f m", lap.nextCheckpoint,
                     int(context->track.checkpoints().size()), context->track.length());
-        // Between steps: the game object's respawn directly (also the AI driver's)
-        if (ImGui::Button("back to the track"))
-            if (auto* car = gameObjectAs<CarBase>(w, e)) car->respawn();
+        // The local player's action (a message on a co-op client; it acts when steps run); without a local player
+        // (--demo on the host) the game object's respawn directly
+        const Entity player = app->localPlayer();
+        if (mine)
+        {
+            if (ImGui::Button(w.isPaused() ? "back to the track (when steps run)" : "back to the track"))
+                w.queueAction(PlayerAction{player, uint32_t(RacingAction::Respawn), Vec3::Zero()});
+        }
+        else if (w.isHost() && !player.valid() && ImGui::Button("back to the track"))
+        {
+            if (auto* c = gameObjectAs<CarBase>(w, e)) c->respawn();
+        }
     }
     ImGui::End();
 }
