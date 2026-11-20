@@ -121,6 +121,8 @@ class SAIGA_ENGINE_API WorldApi
     }
     // nullptr after the world was destroyed
     World* world() { return w; }
+    // The API's step listener in its world (it fills the journal)
+    int stepListenerId() const { return stepListener; }
     // Moves the API to another world (S12's save/load variant, S14's run_scenario): cursors, snapshots and the change
     // journal stay; the journal gets a world_loaded entry
     void rebind(World& world);

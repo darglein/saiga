@@ -253,6 +253,10 @@ class SAIGA_ENGINE_API World
     uint64_t droppedSteps() const { return dropped; }
     // Threads of parallelEach including the caller (1: serial); between steps
     void setWorkerThreads(int n);
+    int workerThreads() const { return pool.workerThreads() + 1; }
+    // The time not yet stepped by advance (app state, not saved; a replacement world of a scenario continues with it)
+    double accumulatedTime() const { return accumulator; }
+    void setAccumulatedTime(double t) { accumulator = t; }
 
     // FNV-1a 64 over the saved components of the alive entities (index order), the free list, the RNG state, the
     // pending events and the step index (§17.4). Between steps.
@@ -305,6 +309,8 @@ class SAIGA_ENGINE_API World
     // again). False with the error and nothing changed otherwise.
     bool reloadData(std::string& error) { return dataStore->reload(error); }
     const DataStore& dataTables() const { return *dataStore; }
+    // The store itself (worlds of one setup share it: WorldSetup::sharedData)
+    std::shared_ptr<DataStore> sharedDataStore() const { return dataStore; }
 
     // ---- saves (§15, S11) ------------------------------------------------------------------------------------------
 
@@ -349,6 +355,12 @@ class SAIGA_ENGINE_API World
     int objectsUpdatedCounter() const { return updatedCounter; }
     const Profiler& profiler() const { return prof; }
     const WorldConfig& worldConfig() const { return config; }
+    // Every game object ticks every step regardless of the rings (ScenarioWorld's default, §8.4; S12). Not saved (a
+    // test or tool setting); the next tickSystem evaluates every object again when it changes.
+    void setTickEveryStep(bool on) { tickAll = on; }
+    bool tickEveryStep() const { return tickAll; }
+    // The value the last tick evaluation used (gameplay/TickSystem)
+    bool tickEveryStepApplied = false;
     // Player cells of the last tick evaluation (space, x, z in TickPolicy::ringSize cells), sorted
     // (gameplay/TickSystem)
     std::vector<std::array<int64_t, 3>> tickPlayerCells;
@@ -412,6 +424,14 @@ class SAIGA_ENGINE_API World
         if (dispatchingStepListeners) removedStepListeners.push_back(id);
     }
     size_t stepListenerCount() const { return stepListeners.size(); }
+    std::vector<int> stepListenerIds() const
+    {
+        std::vector<int> ids;
+        for (const auto& l : stepListeners) ids.push_back(l.first);
+        return ids;
+    }
+    // True while the step listeners run (a listener must not step the world: the dispatch is not re-entrant)
+    bool dispatchingListeners() const { return dispatchingStepListeners; }
     // Runs fn when the world is destroyed (observers such as the world API detach); returns an ID for removal
     int addDestroyListener(std::function<void()> fn)
     {
@@ -441,6 +461,7 @@ class SAIGA_ENGINE_API World
     MigrationList migrationList;
     uint64_t loads = 0;
     std::vector<std::pair<int, std::function<void(const LoadInfo&)>>> loadListeners;
+    bool tickAll      = false;
     double timeBase   = 0;
     uint64_t stepBase = 0;
     // The hooks of a load run (1: configure, 2: onLoad of loadHookEntity): structural changes are restricted
