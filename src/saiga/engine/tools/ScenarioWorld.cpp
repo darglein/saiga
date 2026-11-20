@@ -71,6 +71,10 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
             clientWorlds.push_back(std::make_unique<World>(cs));
             clientWorlds.back()->setTickEveryStep(true);
             clientSinks.push_back(giveSink(*clientWorlds.back()));
+            // The render name tables must match (S26's handshake compares them; S19b)
+            if (clientWorlds.back()->renderTableHash() != w->renderTableHash())
+                failed.push_back("the render name tables (meshes, materials, aliases) of the host and client " +
+                                 std::to_string(i) + " differ");
             clientWorlds.back()->replication().setWriteDetector(report);
             clientSteps.push_back(0);
         }

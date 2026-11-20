@@ -107,6 +107,12 @@ void ExtractSystem::setSink(RenderSink* sink)
     for (Entity e : existing) track(e);
 }
 
+void ExtractSystem::meshRegistered()
+{
+    for (Tracked& t : tracked)
+        if (!t.handle) syncInstance(t);
+}
+
 size_t ExtractSystem::instanceCount() const
 {
     size_t n = 0;

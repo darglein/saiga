@@ -435,9 +435,12 @@ void EngineApp::freeCamera(double dt, bool keys)
     auto& c = cameraHolder->camera;
     // The mouse look of the GLFW camera from the view camera's pose
     syncCamera();
+    const quat before = c.rot;
     c.interpolate(float(dt), 0);
-    const quat r  = c.rot;
-    view.rotation = Quat(double(r.w()), double(r.x()), double(r.y()), double(r.z())).normalized();
+    const quat r = c.rot;
+    // Only a turn replaces the double rotation (a tool's exact orientation stays while the mouse rests)
+    if (r.w() != before.w() || r.x() != before.x() || r.y() != before.y() || r.z() != before.z())
+        view.rotation = Quat(double(r.w()), double(r.x()), double(r.y()), double(r.z())).normalized();
     if (keys)
     {
         // WASD, space up, shift fast; integrated in double (far from the origin a float camera would step)

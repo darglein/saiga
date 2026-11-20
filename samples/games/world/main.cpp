@@ -63,10 +63,10 @@ struct WorldGame
     int64_t stepSamplesAtStart = -1;
     // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
     // the 600 measured frames have about 1200 steps)
-    std::vector<double> stepTimes;
+    std::vector<double> stepTimes, extractTimes;
     uint64_t stepSamplesSeen = 0;
     bool stepTaken           = false;
-    json11::Json::object stepStat;
+    json11::Json::object stepStat, extractStat;
     // The app's gpu profile (the whole frame and RenderScene's sections) of the measured frames, matched by the
     // RenderScene frame number: the measured frames whose sample did not arrive yet, the values by section
     std::set<uint64_t> gpuFramesPending;
@@ -200,12 +200,18 @@ void beforeRender(EngineApp& app)
             const std::vector<double> history = wp.scopeHistory(wp.scope("step"));
             const size_t take                 = size_t(std::min<uint64_t>(n, history.size()));
             g.stepTimes.insert(g.stepTimes.end(), history.end() - std::ptrdiff_t(take), history.end());
+            // The extract of those steps (S19b; its own scope inside phase 8)
+            const std::vector<double> extract = wp.scopeHistory(wp.scope("step/phase:extract/extract"));
+            const size_t takeExtract          = size_t(std::min<uint64_t>(n, extract.size()));
+            g.extractTimes.insert(g.extractTimes.end(), extract.end() - std::ptrdiff_t(takeExtract), extract.end());
         }
         if (frame == lastMeas && g.stepSamplesAtStart >= 0 && !g.stepTaken)
         {
-            const auto s = Vulkan::WorldBenchmark::summarize(g.stepTimes);
-            g.stepStat   = json11::Json::object{{"median", s.median}, {"p95", s.p95}};
-            g.stepTaken  = true;
+            const auto s  = Vulkan::WorldBenchmark::summarize(g.stepTimes);
+            g.stepStat    = json11::Json::object{{"median", s.median}, {"p95", s.p95}};
+            const auto x  = Vulkan::WorldBenchmark::summarize(g.extractTimes);
+            g.extractStat = json11::Json::object{{"median", x.median}, {"p95", x.p95}};
+            g.stepTaken   = true;
         }
         if (frame > lastWarm && frame <= lastMeas) g.gpuFramesPending.insert(frame);
         // The app's GPU samples of the measured frames (they arrive a few frames later); collected only after the
@@ -257,6 +263,7 @@ void beforeRender(EngineApp& app)
         // (without the waits for the frame slot and the image): cpu_work_ms, RenderScene's lastRecordingMs of the
         // submitted measured frames (the app profile's frame/render/recording has a 0 for an app loop without a frame)
         result["step"]      = g.stepStat;
+        result["extract"]   = g.extractStat;
         result["recording"] = result["cpu_work_ms"];
         // The whole GPU frame and RenderScene's sections and sub-sections of the measured frames
         json11::Json::object gpuFrame;

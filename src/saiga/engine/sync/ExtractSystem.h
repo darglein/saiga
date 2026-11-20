@@ -90,8 +90,8 @@ class SAIGA_ENGINE_API ExtractSystem
     void commit();
     // The step was aborted: the staged pairs are dropped
     void abort();
-    // A mesh was registered: instances waiting for it are created at the next extract or catch-up
-    void meshRegistered() { dirty = true; }
+    // A mesh was registered after entities named it (World::registerMesh with a sink): their instances are created
+    void meshRegistered();
 
    private:
     enum class Source : uint8_t
