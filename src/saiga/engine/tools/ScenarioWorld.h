@@ -139,10 +139,11 @@ class SAIGA_ENGINE_API ScenarioWorld
     // ---- runner control (ScenarioRunner) --------------------------------------------------------------------------
     struct Control
     {
-        std::vector<uint64_t>* hashes = nullptr;                     // the hash after every step
-        uint64_t saveLoadAt = std::numeric_limits<uint64_t>::max();  // replace the world at this step (helpers)
-        bool saveLoadDone   = false;
-        uint64_t stopAt     = std::numeric_limits<uint64_t>::max();  // save into stopSave and end at this step
+        std::vector<uint64_t>* hashes = nullptr;                        // the hash after every step
+        uint64_t saveLoadAt    = std::numeric_limits<uint64_t>::max();  // replace the world at this step (helpers)
+        bool saveLoadDone      = false;
+        uint64_t swappedAtStep = 0;  // the observed steps when the world was replaced
+        uint64_t stopAt        = std::numeric_limits<uint64_t>::max();  // save into stopSave and end at this step
         std::vector<uint8_t>* stopSave = nullptr;
     };
     Control control;

@@ -597,6 +597,17 @@ TEST(ScenarioRunner, ExceptionsStepLimitsAndOtherStepPaths)
     const ScenarioResult d = runScenario(scenarioSetup(), direct, ScenarioVariant::SaveLoad);
     EXPECT_FALSE(d.passed);
     EXPECT_TRUE(contains(d, "nothing ran on the loaded world")) << d.report;
+    // Regression (CodeRabbit, S12): one call() that ran every step swapped the world only after them
+    auto oneCall           = entry("one_call",
+                                   [](ScenarioWorld& w)
+                                   {
+                             w.spawn<Counter>({0, 0, 0});
+                             w.call("pause", Json::object{});
+                             w.call("step", Json::object{{"n", 5}});
+                         });
+    const ScenarioResult o = runScenario(scenarioSetup(), oneCall, ScenarioVariant::SaveLoad);
+    EXPECT_FALSE(o.passed);
+    EXPECT_TRUE(contains(o, "nothing ran on the loaded world")) << o.report;
     // The API's step through call() swaps the world like a step helper
     auto called = entry("called_steps",
                         [](ScenarioWorld& w)

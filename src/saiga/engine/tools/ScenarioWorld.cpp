@@ -256,6 +256,7 @@ void ScenarioWorld::saveLoad()
         throw ScenarioAbort{abortReason};
     }
     control.saveLoadDone             = true;
+    control.swappedAtStep            = observedSteps;
     const std::vector<uint8_t> saved = w->save();
     auto fresh                       = std::make_unique<World>(setup);
     const LoadResult r               = fresh->tryLoad(saved);

@@ -234,7 +234,7 @@ this file.
 
 - CodeRabbit: a failing baseline run fails the save/load variant (it was dropped); `call` swaps the world like a step
   helper, and a scenario that steps after the middle only through `world()`/`api()` fails the variant (the round trip
-  ran only at the end, nothing ran on the loaded world); a listener's callable is shared by its registrations (its
+  ran only at the end, nothing ran on the loaded world; also when one `call` ran every step after the middle); a listener's callable is shared by its registrations (its
   captured state survives the swap); `saveLoad` inside a step listener is a failure; §17.2 says that `maxSteps` ends a
   loop of `api().call("step")` only through `call`.
 
