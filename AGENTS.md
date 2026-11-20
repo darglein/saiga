@@ -338,3 +338,10 @@ if it could not be built. CI covers the OpenGL and Vulkan modules only through t
 `test_opengl_*` and `test_vulkan_*` tests; for rendering changes also run a sample on a GPU (Vulkan: `samples/vulkan`, they use GLFW). The Vulkan samples save a
 screenshot of frame 60 and exit when the environment variable `SAIGA_SCREENSHOT=<file.png>` is set, which allows checking
 the output without looking at the window (F12 saves `screenshot.png` interactively).
+
+## Pull Requests
+
+PRs are squash merged (one commit on `master` per PR; `gh pr merge <n> --squash`). For stacked PRs: after the lower PR
+is squash merged, rebase the next branch onto `master` without the merged commits
+(`git rebase --onto origin/master <last commit of the merged branch> <next branch>`), force-push it and retarget its PR
+to `master`.
