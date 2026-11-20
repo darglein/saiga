@@ -61,6 +61,7 @@ struct CountPush
 struct ScanPush
 {
     uint32_t bucketCount;
+    uint32_t meshCount;
 };
 struct WritePush
 {
@@ -76,13 +77,18 @@ struct DrawPush
 };
 static_assert(sizeof(CountPush) == 100 && sizeof(DrawPush) == 80, "push constants of the scene shaders");
 
-// shader/vulkan/scene/bucket_scan.comp: Statistics
+// shader/vulkan/scene/bucket_scan.comp: Statistics. The tracked mesh IDs are written by the host (the frame's list),
+// the counts by the scan
 struct GpuStatistics
 {
     uint32_t instancesPerLod[4];
     uint32_t nonEmptyBuckets;
-    uint32_t pad[3];
+    uint32_t trackedCount;
+    uint32_t pad[2];
+    uint32_t trackedMeshes[maxTrackedMeshes];
+    uint32_t trackedPerLod[maxTrackedMeshes][4];
 };
+static_assert(sizeof(GpuStatistics) == 32 + maxTrackedMeshes * 20, "Statistics of bucket_scan.comp");
 
 DescriptorSetLayout sceneLayout()
 {
@@ -315,7 +321,14 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
     if (!dyn.empty()) instances.writeDynamics(static_cast<InstanceBuffer::GpuDynamic*>(f.dynamics.getMappedPointer()));
 
     ensureHost(f.stats, sizeof(GpuStatistics), storage, "statistics");
-    if (!f.culled) std::memset(f.stats.getMappedPointer(), 0, sizeof(GpuStatistics));
+    {
+        // The frame's tracked meshes (read by the scan and by readStatistics), zero counts (the scan overwrites them)
+        GpuStatistics g;
+        std::memset(&g, 0, sizeof(g));
+        g.trackedCount = uint32_t(trackedMeshes.size());
+        for (size_t i = 0; i < trackedMeshes.size(); ++i) g.trackedMeshes[i] = trackedMeshes[i];
+        std::memcpy(f.stats.getMappedPointer(), &g, sizeof(g));
+    }
 
     // 4. The shared device buffers (recreated when too small)
     const size_t buckets = meshes.buckets().size();
@@ -420,7 +433,7 @@ void SceneCulling::recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPo
     // Scan
     if (scanPipeline.bind(cmd))
     {
-        ScanPush push{bucketCount};
+        ScanPush push{bucketCount, meshes.meshTableSize()};
         scanPipeline.bindRawDescriptorSet(cmd, f.set);
         scanPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
         cmd.dispatch(1, 1, 1);
@@ -497,6 +510,17 @@ void SceneCulling::dispatchChunks(vk::CommandBuffer cmd, uint32_t chunkCount) co
     cmd.dispatch(x, y, 1);
 }
 
+void SceneCulling::setTrackedMeshes(const std::vector<MeshId>& meshes)
+{
+    if (meshes.size() > size_t(maxTrackedMeshes))
+    {
+        SAIGA_EXIT_ERROR("RenderScene::trackMeshStatistics: " + std::to_string(meshes.size()) +
+                         " meshes, at most maxTrackedMeshes (" + std::to_string(maxTrackedMeshes) + ")");
+        return;
+    }
+    trackedMeshes = meshes;
+}
+
 void SceneCulling::readStatistics(uint32_t frameIndex, RenderStatistics& out)
 {
     Frame& f = frames[frameIndex];
@@ -505,6 +529,14 @@ void SceneCulling::readStatistics(uint32_t frameIndex, RenderStatistics& out)
     if (f.stats) std::memcpy(&g, f.stats.getMappedPointer(), sizeof(g));
     for (int i = 0; i < 4; ++i) out.instancesPerLod[i] = g.instancesPerLod[i];
     out.nonEmptyBuckets = g.nonEmptyBuckets;
+    out.trackedMeshes.clear();
+    for (uint32_t t = 0; t < std::min<uint32_t>(g.trackedCount, maxTrackedMeshes); ++t)
+    {
+        RenderStatistics::TrackedMesh m;
+        m.mesh = MeshId(g.trackedMeshes[t]);
+        for (int l = 0; l < 4; ++l) m.instancesPerLod[l] = g.trackedPerLod[t][l];
+        out.trackedMeshes.push_back(m);
+    }
 }
 
 }  // namespace Vulkan

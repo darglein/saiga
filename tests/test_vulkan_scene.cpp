@@ -1232,7 +1232,7 @@ TEST_F(VulkanSceneContent, DynamicInterpolation)
         scene->setInterpolation(alpha);
         RenderStatistics st;
         auto img            = SceneFrame(&st);
-        const Vec3 local    = a.position + (b.position - a.position) * double(alpha);
+        const Vec3 local    = interpolatePose(a, b, double(alpha)).position;
         const Vec3 world    = chunkOrigin(chunk) + local;
         const Vec2 expected = camera.project(world);
         const Vec2 got      = centroid(img);
@@ -1772,4 +1772,294 @@ TEST_F(VulkanSceneContent, WorkGroupRows)
     EXPECT_GT(stats[0].instancesPerLod[1], 100u);
     EXPECT_EQ(stats[0].instancesPerLod, stats[1].instancesPerLod);
     EXPECT_EQ(maxPixelDiff(images[0], images[1]), 0);
+}
+
+namespace
+{
+// The camera-relative centre of a dynamic instance's bounding sphere at alpha, as the count pass computes it (in float:
+// interpolatePose<float>, the CPU reference of the shader's dynamicPose)
+Vec3 dynamicCenter(const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr, float alpha,
+                   const vec3& sphereCenter, const Vec3& cameraPosition, float* scale)
+{
+    auto toFloat = [](const DynamicPose& p)
+    {
+        InstancePose<float> f;
+        f.position = p.position.cast<float>();
+        f.rotation = quat(float(p.rotation.w()), float(p.rotation.x()), float(p.rotation.y()), float(p.rotation.z()));
+        f.scale    = float(p.scale);
+        return f;
+    };
+    const InstancePose<float> pose = interpolatePose(toFloat(prev), toFloat(curr), alpha);
+    *scale                         = pose.scale;
+    return chunkOrigin(chunk) - cameraPosition + pose.position.cast<double>() +
+           rotateD(pose.rotation, sphereCenter.cast<double>() * double(pose.scale));
+}
+
+DynamicPose randomPose(std::mt19937& rng, double range)
+{
+    std::uniform_real_distribution<double> u(-1, 1);
+    DynamicPose p;
+    p.position = Vec3(u(rng), u(rng), u(rng)) * range;
+    p.rotation = Quat(u(rng), u(rng), u(rng), u(rng)).normalized();
+    p.scale    = 1.25 + 0.75 * u(rng);
+    return p;
+}
+}  // namespace
+
+// interpolatePose (RenderSceneTypes.h) is the CPU reference of the shaders' dynamic pose: float and double agree, the
+// endpoints are the poses, q and -q give the same rotation; a marker 1 m off the mesh origin is drawn where the double
+// pose places it (slerp with dot < 0, the nlerp branch near dot = 1, scale and position mixed), and the culling of 400
+// random dynamics matches the CPU reference with interpolatePose<float>
+TEST_F(VulkanSceneContent, InterpolatePoseMatchesShader)
+{
+    {
+        std::mt19937 rng(7);
+        for (int i = 0; i < 50; ++i)
+        {
+            const DynamicPose a = randomPose(rng, 10), b = randomPose(rng, 10);
+            for (double alpha : {0.0, 0.3, 1.0})
+            {
+                const DynamicPose d = interpolatePose(a, b, alpha);
+                InstancePose<float> fa, fb;
+                fa.position = a.position.cast<float>();
+                fb.position = b.position.cast<float>();
+                fa.rotation =
+                    quat(float(a.rotation.w()), float(a.rotation.x()), float(a.rotation.y()), float(a.rotation.z()));
+                fb.rotation =
+                    quat(float(b.rotation.w()), float(b.rotation.x()), float(b.rotation.y()), float(b.rotation.z()));
+                fa.scale                    = float(a.scale);
+                fb.scale                    = float(b.scale);
+                const InstancePose<float> f = interpolatePose(fa, fb, float(alpha));
+                EXPECT_LT((f.position.cast<double>() - d.position).norm(), 1e-4);
+                EXPECT_LT(
+                    std::abs(
+                        std::abs(double(f.rotation.w()) * d.rotation.w() + double(f.rotation.x()) * d.rotation.x() +
+                                 double(f.rotation.y()) * d.rotation.y() + double(f.rotation.z()) * d.rotation.z()) -
+                        1),
+                    1e-5);
+            }
+            const DynamicPose e0 = interpolatePose(a, b, 0.0), e1 = interpolatePose(a, b, 1.0);
+            EXPECT_LT((e0.position - a.position).norm(), 1e-12);
+            EXPECT_LT((e1.rotation.matrix() - b.rotation.matrix()).norm(), 1e-9);
+            DynamicPose nb = b;
+            nb.rotation    = Quat(-b.rotation.w(), -b.rotation.x(), -b.rotation.y(), -b.rotation.z());
+            EXPECT_LT(
+                (interpolatePose(a, nb, 0.4).rotation.matrix() - interpolatePose(a, b, 0.4).rotation.matrix()).norm(),
+                1e-9);
+        }
+    }
+
+    RenderSceneParameters p;
+    p.msaaSamples = 4;
+    CreateScene(p);
+    scene->addMaterial(1, "marker", markerMaterial());
+    // A marker 1 m off the mesh origin along x
+    scene->addMesh(1, "arm", boxMesh(vec3(0.05f, 0.05f, 0.05f), vec3(1, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    camera.position = Vec3(0, 7, 4);
+    camera.rotation = lookRotation(Vec3(0, -1, -0.6));
+    camera.apply(*scene);
+    struct Case
+    {
+        Quat q0, q1;
+        double s0, s1;
+        Vec3 p0, p1;
+        float alpha;
+    };
+    const Vec3 y(0, 1, 0);
+    const std::vector<Case> cases = {
+        // dot < 0: 0° -> 270° about y (the shorter arc through -45°)
+        {Quat::Identity(), Quat(AngleAxis(1.5 * kPi, y)), 1, 1, Vec3(0, 0, 0), Vec3(0, 0, 0), 0.3f},
+        // dot > 0.9995: the nlerp branch
+        {Quat(AngleAxis(0.5, y)), Quat(AngleAxis(0.52, y)), 1, 1, Vec3(0, 0, 0), Vec3(0, 0, 0), 0.5f},
+        // a general rotation with scale and position
+        {Quat(AngleAxis(0.4, Vec3(1, 1, 0).normalized())), Quat(AngleAxis(2.0, Vec3(0, 1, 1).normalized())), 1, 2,
+         Vec3(-0.5, 0, 0.3), Vec3(0.4, 0.2, -0.6), 0.7f},
+    };
+    const ChunkId chunk{0, 0, 0};
+    auto h = scene->addDynamic(1);
+    for (size_t i = 0; i < cases.size(); ++i)
+    {
+        const Case& c = cases[i];
+        DynamicPose a, b;
+        a.rotation = c.q0;
+        b.rotation = c.q1;
+        a.scale    = c.s0;
+        b.scale    = c.s1;
+        a.position = c.p0;
+        b.position = c.p1;
+        scene->setDynamic(h, chunk, a, b);
+        scene->setInterpolation(c.alpha);
+        const DynamicPose pose = interpolatePose(a, b, double(c.alpha));
+        const Vec3 marker      = pose.position + pose.rotation.matrix() * Vec3(pose.scale, 0, 0);
+        const Vec2 got         = centroid(SceneFrame());
+        EXPECT_LT((got - camera.project(marker)).norm(), 0.5)
+            << "case " << i << " got " << got.transpose() << " expected " << camera.project(marker).transpose();
+    }
+    scene->removeDynamic(h);
+
+    // The culling of random dynamics (two chunks) against the CPU reference
+    scene->addMesh(2, "box", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(1, 0, 0), {10, 20, 35}, {ucvec4(255, 255, 255, 255)}),
+                   1);
+    camera.position = Vec3(250, 3, 5);
+    camera.rotation = lookRotation(Vec3(0.3, -0.1, -1));
+    camera.apply(*scene);
+    scene->setInterpolation(0.37f);
+    std::mt19937 rng(19);
+    struct Dyn
+    {
+        ChunkId chunk;
+        DynamicPose a, b;
+    };
+    std::vector<Dyn> dyns;
+    for (int i = 0; i < 400; ++i)
+    {
+        Dyn d;
+        d.chunk = ChunkId{0, i % 2, 0};
+        d.a     = randomPose(rng, 25);
+        d.b     = randomPose(rng, 25);
+        // Around the camera's x (250): chunk 0 near its end, chunk 1 near its start
+        const Vec3 shift = Vec3(d.chunk.x == 0 ? 250 : -6, 0, -15);
+        d.a.position += shift;
+        d.b.position += shift;
+        scene->setDynamic(scene->addDynamic(2), d.chunk, d.a, d.b);
+        dyns.push_back(d);
+    }
+    RenderStatistics st;
+    SceneFrame(&st);
+    Reference ref;
+    const auto planes = camera.planes();
+    for (const Dyn& d : dyns)
+    {
+        float scale    = 1;
+        const Vec3 c   = dynamicCenter(d.chunk, d.a, d.b, 0.37f, vec3(1, 0, 0), camera.position, &scale);
+        const double r = vec3(0.3f, 0.3f, 0.3f).norm() * scale;
+        ref.add(c, r, {10, 20, 35}, planes);
+    }
+    expectCounts(st, ref, "dynamics");
+    EXPECT_LT(ref.ambiguous, 10);
+}
+
+// Non-decreasing LOD end distances: an end distance equal to the previous one is an empty LOD (never selected, counts
+// 0); per mesh and LOD the GPU matches the CPU reference (the tracked statistics). Regression: addMesh asserted
+// strictly ascending distances, which the prototype's independently clamped tree LOD settings can violate (S19a).
+TEST_F(VulkanSceneContent, EqualDistanceLods)
+{
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    const std::vector<std::vector<float>> ends = {{10, 10, 30}, {10, 25, 25}, {15, 15, 15, 40}, {0, 20}};
+    for (size_t m = 0; m < ends.size(); ++m)
+        scene->addMesh(MeshId(m + 1), "mesh" + std::to_string(m),
+                       boxMesh(vec3(0.2f, 0.2f, 0.2f), vec3(0, 0, 0), ends[m], {ucvec4(255, 255, 255, 255)}), 1);
+    scene->trackMeshStatistics({1, 2, 3, 4});
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    std::vector<StaticInstance> v;
+    std::vector<std::array<int, 4>> expected(ends.size(), std::array<int, 4>{});
+    Reference total;
+    const auto planes = camera.planes();
+    for (size_t m = 0; m < ends.size(); ++m)
+        for (int i = 0; i < 30; ++i)
+        {
+            // Distances 2.7 .. 46.2 straight ahead (never within 1e-3 of an end distance)
+            const float d = 2.7f + 1.5f * i;
+            const vec3 pos(0.3f * float(m) - 0.45f, 0, -d);
+            v.push_back(makeInstance(pos, quat::Identity(), 1, MeshId(m + 1)));
+            Reference one;
+            one.add(pos.cast<double>(), vec3(0.2f, 0.2f, 0.2f).norm(), ends[m], planes);
+            total.add(pos.cast<double>(), vec3(0.2f, 0.2f, 0.2f).norm(), ends[m], planes);
+            EXPECT_EQ(one.ambiguous, 0);
+            for (int l = 0; l < 4; ++l) expected[m][l] += one.perLod[l];
+        }
+    scene->addInstanceSet(RegionId(), v);
+    RenderStatistics st;
+    SceneFrame(&st);
+    expectCounts(st, total, "equal distances");
+    ASSERT_EQ(st.trackedMeshes.size(), ends.size());
+    for (size_t m = 0; m < ends.size(); ++m)
+    {
+        EXPECT_EQ(st.trackedMeshes[m].mesh, MeshId(m + 1));
+        for (int l = 0; l < 4; ++l)
+            EXPECT_EQ(int(st.trackedMeshes[m].instancesPerLod[l]), expected[m][l]) << "mesh " << m + 1 << " LOD " << l;
+    }
+    // The empty LODs
+    EXPECT_EQ(expected[0][1], 0);
+    EXPECT_EQ(expected[1][2], 0);
+    EXPECT_EQ(expected[2][1] + expected[2][2], 0);
+    EXPECT_EQ(expected[3][0], 0);
+    EXPECT_GT(expected[0][2], 0);
+    EXPECT_GT(expected[2][3], 0);
+}
+
+// trackMeshStatistics: the per-LOD counts of the listed meshes (statics and dynamics), 0 for a registered mesh without
+// instances and an unregistered ID, a duplicate twice; each frame's statistics carry the list it was recorded with (a
+// change after renderFrame applies to the next frame); a frame without a camera gives zeros; more than maxTrackedMeshes
+// is a fatal error
+TEST_F(VulkanSceneContent, TrackedMeshStatistics)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMaterial(2, "two_sided", flatMaterial(true));
+    const std::vector<float> ends = {8, 20};
+    for (int m = 1; m <= 3; ++m)
+        scene->addMesh(MeshId(m), "m" + std::to_string(m),
+                       boxMesh(vec3(0.2f, 0.2f, 0.2f), vec3(0, 0, 0), ends, {ucvec4(255, 255, 255, 255)}),
+                       MaterialId(m == 2 ? 2 : 1));
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    // Mesh 1: 3 near + 2 far, mesh 2: 1 near + 4 far, mesh 3: none; a dynamic of mesh 1 (near)
+    std::vector<StaticInstance> v;
+    auto add = [&](MeshId m, float x, float d) { v.push_back(makeInstance(vec3(x, 0, -d), quat::Identity(), 1, m)); };
+    for (float d : {3.f, 5.f, 7.f, 12.f, 15.f}) add(1, -0.5f, d);
+    for (float d : {4.f, 10.f, 13.f, 16.f, 18.f}) add(2, 0.5f, d);
+    scene->addInstanceSet(RegionId(), v);
+    DynamicPose pose;
+    pose.position = Vec3(0, 0.5, -6);
+    scene->setDynamic(scene->addDynamic(1), ChunkId{0, 0, 0}, pose, pose);
+
+    using Counts                    = std::array<uint32_t, 4>;
+    const std::vector<MeshId> listA = {2, 3, 9, 1, 2};
+    scene->trackMeshStatistics(listA);
+    RenderStatistics st;
+    SceneFrame(&st);
+    const std::vector<Counts> expectedA = {{1, 4, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 2, 0, 0}, {1, 4, 0, 0}};
+    ASSERT_EQ(st.trackedMeshes.size(), listA.size());
+    for (size_t i = 0; i < listA.size(); ++i)
+    {
+        EXPECT_EQ(st.trackedMeshes[i].mesh, listA[i]);
+        EXPECT_EQ(st.trackedMeshes[i].instancesPerLod, expectedA[i]) << i;
+    }
+    EXPECT_EQ(st.instancesPerLod[0], 5u);
+    EXPECT_EQ(st.instancesPerLod[1], 6u);
+
+    // A list change after renderFrame: that frame still carries list A, the next one the new list
+    EXPECT_TRUE(scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr));
+    const uint64_t frameA = scene->frames();
+    scene->trackMeshStatistics({1});
+    scene->waitIdle();
+    st = scene->statistics();
+    EXPECT_EQ(st.frame, frameA);
+    ASSERT_EQ(st.trackedMeshes.size(), listA.size());
+    EXPECT_EQ(st.trackedMeshes[0].mesh, MeshId(2));
+    SceneFrame(&st);
+    ASSERT_EQ(st.trackedMeshes.size(), 1u);
+    EXPECT_EQ(st.trackedMeshes[0].mesh, MeshId(1));
+    EXPECT_EQ(st.trackedMeshes[0].instancesPerLod, (Counts{4, 2, 0, 0}));
+
+    // An empty list
+    scene->trackMeshStatistics({});
+    SceneFrame(&st);
+    EXPECT_TRUE(st.trackedMeshes.empty());
+
+    // Without a camera (a new scene): the list with zeros
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "m", boxMesh(vec3(0.2f, 0.2f, 0.2f), vec3(0, 0, 0), ends, {ucvec4(255, 255, 255, 255)}), 1);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -3), quat::Identity(), 1, 1)});
+    scene->trackMeshStatistics({1});
+    SceneFrame(&st);
+    ASSERT_EQ(st.trackedMeshes.size(), 1u);
+    EXPECT_EQ(st.trackedMeshes[0].instancesPerLod, (Counts{0, 0, 0, 0}));
+
+    EXPECT_DEATH(scene->trackMeshStatistics(std::vector<MeshId>(maxTrackedMeshes + 1, 1)), "at most maxTrackedMeshes");
 }

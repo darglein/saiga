@@ -154,6 +154,9 @@ class SAIGA_VULKAN_API RenderScene
 
     // The statistics of the newest completed frame (tagged with its frame number)
     const RenderStatistics& statistics();
+    // The meshes whose drawn instances per LOD the statistics carry (RenderStatistics::trackedMeshes), at most
+    // maxTrackedMeshes (more is a fatal error); from the next recorded frame (each frame's statistics carry its list)
+    void trackMeshStatistics(const std::vector<MeshId>& meshes);
     // The indirect draws use multiDrawIndirect (device feature and RenderSceneParameters::allowMultiDrawIndirect)
     bool multiDrawIndirect() const;
 

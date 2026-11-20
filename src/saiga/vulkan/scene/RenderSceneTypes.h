@@ -82,7 +82,8 @@ struct MeshVertex
 static_assert(sizeof(MeshVertex) == 28, "MeshVertex is 28 bytes");
 
 // One level of detail: used up to endDistance (distance from the camera to the instance's bounding sphere centre, not
-// scaled by the instance scale); beyond the last LOD the instance is culled
+// scaled by the instance scale), i.e. LOD i is the first with distance <= endDistance; beyond the last LOD the instance
+// is culled. An endDistance equal to the previous LOD's makes this LOD empty: it is never selected, draws nothing
 struct MeshLod
 {
     std::vector<MeshVertex> vertices;
@@ -92,7 +93,7 @@ struct MeshLod
 
 struct MeshLods
 {
-    // 1..4 LODs with ascending endDistance (asserted by RenderScene::addMesh)
+    // 1..4 LODs with non-decreasing endDistance >= 0 (asserted by RenderScene::addMesh; equal: an empty LOD)
     std::vector<MeshLod> lods;
     // The bounding sphere of all LODs (mesh space)
     vec3 sphereCenter  = vec3(0, 0, 0);
@@ -176,13 +177,52 @@ static_assert(offsetof(StaticInstance, rot01) == 12 && offsetof(StaticInstance, 
                   offsetof(StaticInstance, key) == 28,
               "StaticInstance matches the std430 layout of the shaders");
 
-// The pose of a dynamic instance, relative to its chunk's origin
-struct DynamicPose
+// The pose of an instance: position, rotation, uniform scale
+template <typename T>
+struct InstancePose
 {
-    Vec3 position = Vec3::Zero();
-    Quat rotation = Quat::Identity();
-    double scale  = 1;
+    Vector<T, 3> position  = Vector<T, 3>::Zero();
+    Quaternion<T> rotation = Quaternion<T>::Identity();
+    T scale                = 1;
 };
+
+// The pose of a dynamic instance, relative to its chunk's origin
+using DynamicPose = InstancePose<double>;
+
+// The pose of a dynamic instance at alpha between prev (0) and curr (1) as the shaders compute it (dynamicPose and
+// interpolateRotation of shader/vulkan/scene/instance_common.glsl): position and scale mixed linearly; the rotations
+// normalized, curr negated if their dot product is < 0 (the shorter arc), slerp, nlerp (normalized mix) if the dot
+// product is > 0.9995. The CPU reference of the GPU interpolation: in float as the shaders (tests), in double for the
+// extract (S19b).
+template <typename T>
+InstancePose<T> interpolatePose(const InstancePose<T>& prev, const InstancePose<T>& curr, T alpha)
+{
+    using std::acos;
+    using std::sin;
+    InstancePose<T> r;
+    r.position            = prev.position * (T(1) - alpha) + curr.position * alpha;
+    r.scale               = prev.scale * (T(1) - alpha) + curr.scale * alpha;
+    const Quaternion<T> a = prev.rotation.normalized();
+    Quaternion<T> b       = curr.rotation.normalized();
+    T d                   = a.x() * b.x() + a.y() * b.y() + a.z() * b.z() + a.w() * b.w();
+    if (d < T(0))
+    {
+        b = Quaternion<T>(-b.w(), -b.x(), -b.y(), -b.z());
+        d = -d;
+    }
+    T wa = T(1) - alpha, wb = alpha;
+    if (!(d > T(0.9995)))
+    {
+        const T theta = acos(d);
+        const T s     = sin(theta);
+        wa            = sin((T(1) - alpha) * theta) / s;
+        wb            = sin(alpha * theta) / s;
+    }
+    r.rotation = Quaternion<T>(wa * a.w() + wb * b.w(), wa * a.x() + wb * b.x(), wa * a.y() + wb * b.y(),
+                               wa * a.z() + wb * b.z())
+                     .normalized();
+    return r;
+}
 
 struct InstanceSetHandle
 {
@@ -206,7 +246,19 @@ struct RenderStatistics
     uint32_t drawCommands = 0;
     // Buckets (view, pipeline class, mesh, LOD) with at least one instance
     uint32_t nonEmptyBuckets = 0;
+    // The drawn instances per LOD of the tracked meshes (RenderScene::trackMeshStatistics), in the order of the list
+    // that this frame used (0 for an unregistered mesh and beyond its LOD count)
+    struct TrackedMesh
+    {
+        MeshId mesh = 0;
+        std::array<uint32_t, 4> instancesPerLod{};
+    };
+    std::vector<TrackedMesh> trackedMeshes;
 };
+
+// The maximum length of RenderScene::trackMeshStatistics's list: the scan writes 4 counts per tracked mesh into the
+// frame's readback buffer (one invocation each); enough for a game's species or vehicle meshes (S19a: the tree species)
+constexpr int maxTrackedMeshes = 16;
 
 // Encoders of the vertex words (the shaders decode them)
 // Octahedral normal encoding as two snorm16 (x in the low 16 bits)

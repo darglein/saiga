@@ -37,7 +37,8 @@ struct MeshVertex { vec3 position; uint32_t normal; /* oct snorm16x2 */ uint32_t
                     or a palette index */ vec2 uv; };   // 28 bytes; color is an R32_UINT attribute, decoded in the shader
 struct MeshLod { std::vector<MeshVertex> vertices; std::vector<uint32_t> indices; float endDistance; };  // LOD i is used
                                                          // up to endDistance; beyond the last LOD the instance is culled
-struct MeshLods { std::vector<MeshLod> lods; /* 1..4, ascending endDistance, asserted */ vec3 sphereCenter;
+struct MeshLods { std::vector<MeshLod> lods; /* 1..4, non-decreasing endDistance (equal: an empty LOD), asserted */
+                  vec3 sphereCenter;
                   float sphereRadius;
                   float boundsPadding = 0; /* added to the radius: wind sway etc. (R-MECH-1) */ };
 enum class ShadingModel : uint8_t { FlatColor, SmoothTextured };
@@ -143,7 +144,8 @@ meshes take IDs from the top of the range), `addInstanceSet`, `updateInstances`,
      the bounding sphere (mesh sphere rotated and scaled, radius + `boundsPadding * scale`) against 5 planes (reversed-Z
      with an infinite far plane: no far plane), LOD i = the first with distance <= `endDistance[i]`; dynamic instances
      use the interpolated pose with the frame's `alpha` (the vertex shader's: the same GLSL function, negating curr
-     when `dot < 0`, nlerp near `dot = 1`; the CPU reference uses the same formula in float); `atomicAdd`
+     when `dot < 0`, nlerp near `dot = 1`; the CPU reference uses the same formula in float: `interpolatePose` in
+     `RenderSceneTypes.h`, templated on the scalar, which S19b's extract uses in double); `atomicAdd`
      into the count of the bucket (view, pipeline class, mesh, LOD) and store the returned slot and the bucket per
      visible instance in a scratch buffer;
   3. scan: bucket offsets (one workgroup looping over the dense bucket array), writing `instanceCount` and
@@ -156,7 +158,8 @@ meshes take IDs from the top of the range), `addInstanceSet`, `updateInstances`,
      `multiDrawIndirect` (empty ones too). Pipeline classes: opaque, alpha-masked, two-sided, alpha-masked two-sided.
   The counts are cleared with `vkCmdFillBuffer` each frame; barriers (sync2): fill → count → scan → write → draw
   (`DRAW_INDIRECT` / `INDIRECT_COMMAND_READ`, vertex and storage reads).
-  Statistics: the scan writes `instancesPerLod[4]` and `nonEmptyBuckets` into the frame's small readback buffer (the CPU
+  Statistics: the scan writes `instancesPerLod[4]`, `nonEmptyBuckets` and the per-LOD counts of a short list of
+  tracked mesh IDs (`RenderScene::trackMeshStatistics`) into the frame's small readback buffer (the CPU
   never decodes buckets with a layout that `addMesh` may have changed since), read from a completed frame and tagged
   with its `RenderScene` frame number; `drawCommands` = the indirect draw calls issued (comparable to
   `ForestRenderer::drawCalls()`); a class with more buckets than `maxDrawIndirectCount` is split into several calls.
@@ -335,6 +338,16 @@ file.
   `PaletteColors`, `AlphaMaskDiscard`, `StorageBufferLimit`, `WorkGroupRows` (`test_vulkan_scene`: 24 tests). The
   culling benchmark records the
   statistics of each frame once.
+- **Plan amendment** (after the implementation: the plan's later commits for S19a and S19b, implemented here):
+  `interpolatePose` in `RenderSceneTypes.h`, templated on the scalar (`InstancePose<T>`; `DynamicPose` is
+  `InstancePose<double>`), the CPU reference of the shaders' `dynamicPose` (the tests' culling reference in float,
+  S19b's extract in double); `MeshLods` end distances non-decreasing and >= 0 (an equal one is an empty LOD: the
+  first LOD with distance <= endDistance is never the later of two equal ones; the count pass, the set test and the
+  CPU reference needed no change); `RenderScene::trackMeshStatistics` with at most `maxTrackedMeshes` = 16 IDs (S19a
+  tracks its tree species): the host writes the frame's list into the statistics buffer (352 bytes), the scan writes
+  4 counts per tracked mesh from its mesh record's `bucketBase` and LOD count (0 for an unregistered ID or a missing
+  LOD), `RenderStatistics::trackedMeshes` reports them with the list of that frame. Tests:
+  `InterpolatePoseMatchesShader`, `EqualDistanceLods`, `TrackedMeshStatistics` (`test_vulkan_scene`: 27 tests).
 - **The culling benchmark runs headless** (`HeadlessWindow`, no present): it needs no window and isolates the scene's
   sections; 120 frames without a camera give the empty scene section, `draw_ms` = `scene_ms` - its median. The trees
   are `ForestRenderer::placeTrees` on the default height field and `FoliageGenerator`'s meshes made flat (faces

@@ -126,7 +126,7 @@ vec4 instanceRotation(StaticInstance s)
 }
 
 // The interpolation of the dynamic rotations: the shorter arc (curr negated if dot < 0), slerp, nlerp near dot = 1. The
-// CPU reference of the tests uses the same formula.
+// CPU reference is interpolatePose of src/saiga/vulkan/scene/RenderSceneTypes.h (keep both in sync).
 vec4 interpolateRotation(vec4 a, vec4 b, float t)
 {
     float d = dot(a, b);

@@ -43,7 +43,8 @@ struct SceneCamera
  *   2. count pass (instance_count.comp, one workgroup per chunk, a 2D dispatch beyond maxComputeWorkGroupCount[0]):
  * rejections, frustum, LOD, atomicAdd into the bucket's count; the bucket and the returned slot are stored in the
  * scratch entry;
- *   3. scan (bucket_scan.comp): instanceCount and firstInstance of every bucket's indirect command, the statistics;
+ *   3. scan (bucket_scan.comp): instanceCount and firstInstance of every bucket's indirect command, the statistics
+ *      (with the per-LOD counts of the tracked meshes, whose IDs the frame's statistics buffer carries);
  *   4. write pass (instance_write.comp): the compacted entries uvec2(instance index | dynamic bit, slot | LOD << 24);
  *   5. draw: one vkCmdDrawIndexedIndirect per pipeline class and view over its buckets (split at
  *      maxDrawIndirectCount), or one per bucket without multiDrawIndirect.
@@ -72,12 +73,14 @@ class SAIGA_VULKAN_API SceneCulling
     // returns the number of indirect draw calls
     uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera);
 
-    // The statistics the scan wrote into the frame slot's readback (instancesPerLod, nonEmptyBuckets); zeros if the
-    // frame did not cull
+    // The statistics the scan wrote into the frame slot's readback (instancesPerLod, nonEmptyBuckets, the tracked
+    // meshes); zeros if the frame did not cull
     void readStatistics(uint32_t frameIndex, RenderStatistics& out);
     // The frame culled (work chunks and a camera)
     bool culled(uint32_t frameIndex) const { return frames[frameIndex].culled; }
     bool multiDrawIndirect() const { return multiDraw; }
+    // The tracked meshes of the statistics (RenderScene::trackMeshStatistics), from the next recordTransfer
+    void setTrackedMeshes(const std::vector<MeshId>& meshes);
 
    private:
     struct Frame
@@ -115,6 +118,7 @@ class SAIGA_VULKAN_API SceneCulling
     uint32_t bucketCount    = 0;
     UploadBatch batch;
     std::vector<WorkChunk> chunkList;
+    std::vector<MeshId> trackedMeshes;
 
     // The new size of a storage buffer: max(2x, required) within the limit; more than the limit is a fatal error
     size_t storageSize(const Buffer& b, size_t bytes, const char* what) const;

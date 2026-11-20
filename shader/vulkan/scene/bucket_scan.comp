@@ -8,9 +8,16 @@
 
 // The scan of RenderScene's culling (S18, docs/engine_design.md §10.2): one workgroup loops over the dense bucket
 // array, computes the exclusive prefix sum of the counts and writes instanceCount and firstInstance of each bucket's
-// indirect command; the drawn instances per LOD and the non-empty buckets go into the frame's statistics.
+// indirect command; the drawn instances per LOD and the non-empty buckets go into the frame's statistics, and the
+// counts per LOD of the tracked meshes (their IDs in the statistics, written by the host for this frame; a mesh beyond
+// the table, unregistered or without the LOD: 0).
+
+#include "instance_common.glsl"
 
 layout(local_size_x = 256) in;
+
+// SceneCulling.cpp / RenderSceneTypes.h: maxTrackedMeshes
+const uint maxTrackedMeshes = 16u;
 
 layout(std430, set = 0, binding = 5) readonly buffer Counts
 {
@@ -25,15 +32,21 @@ layout(std430, set = 0, binding = 8) readonly buffer BucketLods
 {
     uint bucketLods[];
 };
-layout(std430, set = 0, binding = 9) writeonly buffer Statistics
+layout(std430, set = 0, binding = 9) buffer Statistics
 {
     uint instancesPerLod[4];
     uint nonEmptyBuckets;
+    uint trackedCount;  // host
+    uint statisticsPad0;
+    uint statisticsPad1;
+    uint trackedMeshes[maxTrackedMeshes];  // host
+    uint trackedPerLod[maxTrackedMeshes * 4u];
 };
 
 layout(push_constant) uniform Push
 {
     uint bucketCount;
+    uint meshCount;
 }
 pc;
 
@@ -82,4 +95,17 @@ void main()
     }
     if (lid < 4u) instancesPerLod[lid] = lodCounts[lid];
     if (lid == 0u) nonEmptyBuckets = nonEmpty;
+    // The tracked meshes: invocation 4 t + l reads the count of mesh t's LOD l (the counts are final, view 0)
+    if (lid < maxTrackedMeshes * 4u)
+    {
+        uint t = lid >> 2;
+        uint l = lid & 3u;
+        uint v = 0u;
+        if (t < min(trackedCount, maxTrackedMeshes))
+        {
+            uint id = trackedMeshes[t];
+            if (id < pc.meshCount && l < meshes[id].lodCount) v = counts[meshes[id].bucketBase + l];
+        }
+        trackedPerLod[lid] = v;
+    }
 }

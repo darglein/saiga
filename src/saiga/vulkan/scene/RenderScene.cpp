@@ -697,6 +697,11 @@ void RenderScene::harvestStatistics()
     }
 }
 
+void RenderScene::trackMeshStatistics(const std::vector<MeshId>& meshes)
+{
+    culling->setTrackedMeshes(meshes);
+}
+
 const RenderStatistics& RenderScene::statistics()
 {
     harvestStatistics();

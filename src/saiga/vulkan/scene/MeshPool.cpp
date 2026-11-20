@@ -162,10 +162,11 @@ void MeshPool::addMesh(MeshId id, const std::string& name, const MeshLods& lods,
     m.sphereCenter  = lods.sphereCenter;
     m.sphereRadius  = lods.sphereRadius;
     m.boundsPadding = lods.boundsPadding;
-    float previous  = -1;
+    float previous  = 0;
     for (const MeshLod& l : lods.lods)
     {
-        SAIGA_ASSERT(l.endDistance > previous, "addMesh: the LODs' end distances must ascend");
+        // Non-decreasing: an end distance equal to the previous one is an empty LOD (never selected)
+        SAIGA_ASSERT(l.endDistance >= previous, "addMesh: the LODs' end distances must be >= 0 and non-decreasing");
         SAIGA_ASSERT(!l.indices.empty() && l.indices.size() % 3 == 0, "addMesh: a LOD needs triangles");
         previous = l.endDistance;
         Lod lod;

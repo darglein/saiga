@@ -1300,7 +1300,8 @@ void addMaterial(MaterialId id, const std::string& name, const MaterialData& dat
 void setMaterial(MaterialId id, const MaterialData& data);  // a class change (alphaMask, twoSided, pipelineClass)
                                                             // rebuilds the bucket layout
 void addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material);
-                            // 1..4 LODs, ascending endDistance (asserted); one material; impostor, skin: S27, S34
+                            // 1..4 LODs, non-decreasing endDistance (asserted; equal: an empty LOD, never
+                            // selected); one material; impostor, skin: S27, S34
 void setPalette(const std::vector<PaletteEntry>& palette); // at most 4096 entries (one palette per game)
 InstanceSetHandle addInstanceSet(const RegionId& region, const std::vector<StaticInstance>& instances,
                                  uint32_t capacity = 0);   // tier 1, 1p, far; capacity >= size (0: size); the
@@ -1320,10 +1321,15 @@ void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double
                             // looks along -z; aspect from size(), nearPlane from the parameters (reversed-Z, infinite
                             // far); nothing is culled or drawn before the first setCamera
 void setInterpolation(float alpha);
+template <typename T> InstancePose<T> interpolatePose(const InstancePose<T>& prev, const InstancePose<T>& curr, T alpha);
+                            // RenderSceneTypes.h: the shaders' dynamic pose on the CPU (lerp, slerp with curr negated
+                            // if dot < 0, nlerp if dot > 0.9995); DynamicPose = InstancePose<double>
 const mat4& viewMatrix() const; const mat4& projectionMatrix() const; mat4 viewProjection() const;
                             // the frame's camera-relative matrices for the game's render callback (one camera for the
                             // shared depth buffer); the view matrix holds only the camera rotation
 const RenderStatistics& statistics();    // the newest completed frame, tagged with its frame number
+void trackMeshStatistics(const std::vector<MeshId>& meshes);  // at most maxTrackedMeshes (16): their per-LOD counts in
+                            // RenderStatistics::trackedMeshes, from the next recorded frame (each frame its list)
 bool multiDrawIndirect() const;
 ```
 
@@ -1396,9 +1402,12 @@ void removeEmitter(EmitterHandle);                                  // fixed pos
 - The host renders only the space and regions around its own camera; chunks resident only for remote players get no
   GPU uploads.
 - Statistics [exists: S18]: `struct RenderStatistics { uint64_t frame; std::array<uint32_t, 4> instancesPerLod; uint32_t
-  terrainNodes, drawCommands, nonEmptyBuckets; };` from the newest completed frame (`frame` is RenderScene's frame
-  number): the scan writes `instancesPerLod` and `nonEmptyBuckets` into the frame slot's readback buffer (the CPU never
-  decodes buckets with a layout that `addMesh` may have changed since); `drawCommands` are the indirect draw calls
+  terrainNodes, drawCommands, nonEmptyBuckets; std::vector<TrackedMesh> trackedMeshes; };` from the newest completed
+  frame (`frame` is RenderScene's frame number): the scan writes `instancesPerLod`, `nonEmptyBuckets` and the per-LOD
+  counts of the tracked meshes (`trackMeshStatistics`, at most 16; the frame's list of IDs is written by the host into
+  the same buffer, so each frame's statistics carry its list; the scan reads each tracked mesh's `bucketBase` and LOD
+  count from the frame's mesh records) into the frame slot's readback buffer (the CPU never decodes buckets with a
+  layout that `addMesh` may have changed since); `drawCommands` are the indirect draw calls
   issued (comparable to `ForestRenderer::drawCalls()`); `terrainNodes` from S20. The GPU sections are
   `gpuSectionNames()` with `takeGpuFrameTimes` (no separate pass-name API; S19 adds the passes) (used by §17.5 and
   §17.7).
