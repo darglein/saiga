@@ -80,9 +80,10 @@ docs/                   engine_design.md: design and implementation stages of th
 shader/                 GLSL shaders (OpenGL / Vulkan)
 data/                   Sample assets (textures, models); test goldens in data/tests/golden/, benchmark baselines per
                         GPU in data/tests/benchmarks.json; engine test data in data/tests/engine/ (data files, the
-                        golden save save_v1.bin/.json and the engine schema schema.json: regenerate with
-                        SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_save --gtest_filter='SaveFormat.*' only after
-                        a deliberate format or version change, R-SAVE-1)
+                        golden save save_v1.bin/.json and the engine schema schema.json, R-SAVE-1): after a deliberate
+                        version change regenerate only the schema (SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_save
+                        --gtest_filter='SaveFormat.EngineSchemaIsCommitted'); the golden save is rewritten only for a new
+                        save format version (it must keep loading otherwise)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the tech demos flight/, platformer/, racing/ and their shared common/, compiled

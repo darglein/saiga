@@ -162,8 +162,9 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
         {
             uint64_t n = 0;
             r.read(n);
-            // Each action takes 49 bytes
-            if (r.ok() && n > r.remaining() / 49)
+            // Each action takes kActionBytes: peer (1), sequence (8), player (8), action (4), aim (24)
+            constexpr uint64_t kActionBytes = 45;
+            if (r.ok() && n > r.remaining() / kActionBytes)
             {
                 error = "ACTN: more actions than bytes";
                 return false;

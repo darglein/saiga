@@ -25,6 +25,8 @@
 #include <chrono>
 #include <clocale>
 #include <cmath>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <memory>
@@ -771,6 +773,7 @@ TEST(WorldTools, EveryToolAnswers)
     track("destroy", Json::object{{"entity", de}});
     track("pause", Json::object{});
     track("measure_performance", obj(R"({"steps": 3})"));
+    std::remove((::testing::TempDir() + "/saiga_tools_before.sgws").c_str());
     for (const std::string& op : api->operations()) EXPECT_TRUE(called.count(op)) << op << " has no test call";
     // At most the profile history
     EXPECT_TRUE(callTool(server, "measure_performance", obj(R"({"steps": 601})"))["result"]["isError"].bool_value());
@@ -1621,7 +1624,8 @@ TEST(WorldApi, SnapshotFiles)
     ASSERT_TRUE(api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_a.sgws", "overwrite": true})")).ok);
     // An existing file is kept unless overwrite is set; nothing partial is left behind
     EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_a.sgws"})")).ok);
-    EXPECT_FALSE(std::ifstream(::testing::TempDir() + "/saiga_api_a.sgws.partial").good());
+    for (const auto& f : std::filesystem::directory_iterator(::testing::TempDir()))
+        EXPECT_EQ(f.path().filename().string().find(".saiga-export-"), std::string::npos) << f.path();
     // Windows device names are refused
     EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "NUL.bin"})")).ok);
     EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "com1"})")).ok);
@@ -1644,6 +1648,7 @@ TEST(WorldApi, SnapshotFiles)
     EXPECT_TRUE(observer.call("diff_snapshot", obj(R"({"name": "o"})")).ok);
     EXPECT_FALSE(observer.call("load_snapshot", obj(R"({"name": "o"})")).ok);
     EXPECT_FALSE(observer.call("reload_data", Json()).ok);
+    std::remove((::testing::TempDir() + "/saiga_api_a.sgws").c_str());
 }
 
 // A running measurement fails when the world is loaded meanwhile (its samples would mix two worlds)
@@ -1765,6 +1770,7 @@ TEST(WorldApi, ImportedSnapshotsLearnTheirHashAndFiltersAreChecked)
     EXPECT_FALSE(api.call("diff_snapshot", obj(R"({"name": "a", "components": ["Healht"]})")).ok);
     // reload_data reports listener errors like load_snapshot
     EXPECT_TRUE(api.call("reload_data", Json()).value["listener_errors"].is_array());
+    std::remove((::testing::TempDir() + "/saiga_api_hash.sgws").c_str());
 }
 
 // Records made before a load carry the step before it (they got the loaded step)

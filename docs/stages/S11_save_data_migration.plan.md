@@ -1,6 +1,6 @@
 # S11: Save, data and migration
 
-Status: implemented (in review).
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -157,7 +157,7 @@ std::string World::dumpJson(Entity e = {}) const;
 - `dumpJson`: `{step, time, entities: [{entity, class?, flags, components: {Name: values}}]}` in index order, through
   `VisitJson.h` (exact numbers instead of the `%.17g` of §15.1).
 
-### 5. Data files (`engine/data/DataTypeList.h`, `engine/data/DataStore.h/.cpp`, `engine/data/DataFile.h`)
+### 5. Data files (`engine/data/DataStore.h/.cpp`, `engine/data/DataFile.h`, `engine/data/DataRef.h`)
 
 ```cpp
 template <class T> void DataTypeList::add();   // T: name, version, visit; file <dataDirectory>/<snake_case(name)>.json
@@ -186,8 +186,8 @@ bool readJsonFile(const std::string& path, json11::Json& out, std::string& error
   string lookup (R-REG-2), and a reload tunes running objects at once.
 - `readDataFile` and `readJsonFile` are the world-independent readers with the same rules and messages (non-fatal; S13's
   input map uses `readJsonFile`).
-- `World::reloadData(std::string& error)`: reads all files again and applies them only if all are valid and every entry
-  that a `DataRef` or a live object uses still exists (else an error and no change). Entries are updated in place.
+- `World::reloadData(std::string& error)`: reads all files again and applies them only if all are valid and no entry
+  was removed (else an error and no change). Entries are updated in place.
   Members set in `configure()` keep the old values until the object is configured again (`reload_data` can do that).
 - Worlds of the same setup can share the parsed files (`WorldSetup::sharedData`, the scenario runner builds one
   per run instead of re-reading the files for every world).
@@ -302,14 +302,15 @@ none between steps).
 
 ## Files
 
-`src/saiga/engine/ecs/{Visit.h,VisitBinary.h,VisitJson.h}` (`DataRef`), `src/saiga/engine/save/{SchemaTable.h,SchemaTable.cpp,SaveFormat.h,WorldSave.cpp,WorldLoad.cpp,MigrationList.h,
-MigrationList.cpp,GenericDecode.h,GenericDecode.cpp,SaveDiff.h,SaveDiff.cpp}`, `src/saiga/engine/data/{DataTypeList.h,
-DataStore.h,DataStore.cpp,DataFile.h}`, `src/saiga/engine/ecs/{ComponentPool.h,Registry.h,Registry.cpp,FieldList.h}`
-(staged load, slot table access, type walk), `src/saiga/engine/world/{World.h,World.cpp,EventQueues.h,
-EventQueues.cpp}`, `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/engine/tools/WorldTools.cpp`,
-`tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `tests/test_engine_world_api.cpp`,
-`tests/test_engine_ecs_benchmark.cpp`, `tests/CMakeLists.txt`, `data/tests/engine/{*.json,save_v1.bin}`, `docs/engine_design.md`,
-`AGENTS.md`, this file.
+`src/saiga/engine/save/{SchemaTable.h,SchemaTable.cpp,SaveFormat.h,SaveReader.h,SaveReader.cpp,WorldSave.cpp,
+WorldLoad.cpp,MigrationList.h,MigrationList.cpp,GenericDecode.h,GenericDecode.cpp,SaveDiff.h,SaveDiff.cpp,LoadResult.h}`,
+`src/saiga/engine/data/{DataStore.h,DataStore.cpp,DataFile.h,DataRef.h}`, `src/saiga/engine/ecs/{ComponentPool.h,
+Registry.h,Registry.cpp,TypeSchema.h,PagedArray.h,VisitBinary.h}`, `src/saiga/engine/world/{World.h,World.cpp,
+EventQueues.h,StructuralLog.h}`, `src/saiga/engine/gameplay/GameObject.h`, `src/saiga/engine/api/WorldApi.{h,cpp}`,
+`src/saiga/engine/tools/WorldTools.{h,cpp}`, `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`,
+`tests/test_engine_world_api.cpp`, `tests/test_engine_ecs_benchmark.cpp`, `tests/CMakeLists.txt`,
+`data/tests/engine/{creature_stats.json,save_v1.bin,save_v1.json,schema.json}`, `docs/engine_design.md`, `AGENTS.md`,
+this file.
 
 ## Design changes
 
@@ -357,11 +358,20 @@ EventQueues.cpp}`, `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/engine/to
   `reload_data` reports listener errors; records made before a load keep the step before it; exports write to a
   temporary name of their own; the `DataRef` cache is atomic (a first resolution in `parallelEach`).
 
+- Review round 3 (portability, a build without asserts, docs): the save reader's action size was wrong (49 instead of
+  45 bytes: saves with 3 or more queued actions were rejected); structural changes refused in load hooks throw (a hook
+  error) also without asserts (a spawn in `configure` crashed); a load inside a step, a game hook or a view returns an
+  error in every build (a "quick load" in `update` destroyed the running object); `DataTypeList` and `DataStore`
+  delete their copies (MSVC instantiates the copy operations of exported classes); the tests remove their files and
+  use unique temporary directories. Not changed: json11 parses numbers with the C locale functions (saiga sets no
+  locale; a game that sets `LC_NUMERIC` must keep it "C"); a `save()` whose writer fails (more than 2^16 empty structs
+  in a vector) asserts.
+
 Updated: §3, R-DATA-1, §7.2, §7.9, §7.10, §14, §15 (header, §15.1, §15.2), §16.2, §17.4, the S11 row; AGENTS.md.
 
 ## Results
 
-- `ctest`: 61 tests (new `test_engine_save` 20 tests, `test_engine_data` 6 tests; `test_engine_world_api` 46 tests).
+- `ctest`: 61 tests (new `test_engine_save` 32 tests, `test_engine_data` 8 tests; `test_engine_world_api` 52 tests).
 - ECS benchmark (RelWithDebInfo, 10^5 entities with 3 components, 10^4 game objects, 15.5 MB): save 40 ms, load
   73 ms, load with one migrated component 117 ms, `diffSaves` with one difference 105 ms. The other ECS numbers are
   unchanged (create 14.4 ms, idle step 0.52 ms, moving step 2.27 ms, 10^4 game objects 0.095 ms per step).

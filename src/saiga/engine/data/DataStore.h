@@ -106,6 +106,12 @@ class DataTable final : public DataTableBase
 class SAIGA_ENGINE_API DataTypeList
 {
    public:
+    // Movable only (MSVC instantiates the copy operations of an exported class: unique_ptr members)
+    DataTypeList()                               = default;
+    DataTypeList(DataTypeList&&)                 = default;
+    DataTypeList& operator=(DataTypeList&&)      = default;
+    DataTypeList(const DataTypeList&)            = delete;
+    DataTypeList& operator=(const DataTypeList&) = delete;
     // T: name, version and visit; its file is <dataDirectory>/<snake_case(T::name)>.json
     template <class T>
     void add()
@@ -129,6 +135,8 @@ class SAIGA_ENGINE_API DataStore
 {
    public:
     DataStore(DataTypeList types, std::string directory);
+    DataStore(const DataStore&)            = delete;
+    DataStore& operator=(const DataStore&) = delete;
     // Reads every file; false with the first error (nothing applied)
     bool load(std::string& error);
     // Reads every file again and applies them only if all are valid and no entry was removed

@@ -148,8 +148,8 @@ Json actionsJson(const ParsedSave& p)
 Json SaveDifference::toJson() const
 {
     Json::object o{{"kind", kind}};
-    if (entity.valid() || kind == "generation" || kind == "flags" || kind.compare(0, 4, "only") == 0 ||
-        kind.compare(0, 9, "component") == 0 || kind == "field")
+    if (entity.valid() || kind == "flags" || kind.compare(0, 4, "only") == 0 || kind.compare(0, 9, "component") == 0 ||
+        kind == "field")
         o["entity"] = entityJson(entity);
     if (!component.empty()) o["component"] = component;
     if (!field.empty()) o["field"] = field;
@@ -168,7 +168,7 @@ std::string SaveDifference::describe() const
         return e + " only in " + kind.substr(8) + (className.empty() ? "" : " (" + className + ")");
     if (kind == "component_only_in_a" || kind == "component_only_in_b")
         return e + " " + component + " only in " + kind.substr(18);
-    if (kind == "generation" || kind == "flags")
+    if (kind == "flags")
         return "entity index " + std::to_string(entity.index) + " " + kind + ": " + short_(a) + " != " + short_(b);
     return kind + (component.empty() ? "" : " " + component) + ": " + short_(a) + " != " + short_(b);
 }
@@ -180,7 +180,7 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
     std::vector<SaveDifference> all;
     auto add = [&](SaveDifference d)
     {
-        if (filter.hasEntity && (!d.entity.valid() && d.kind != "generation" && d.kind != "flags")) return;
+        if (filter.hasEntity && !d.entity.valid() && d.kind != "flags") return;
         if (filter.hasEntity && (d.entity.index != filter.entityIndex ||
                                  (filter.hasGeneration && d.entity.generation != filter.entityGeneration)))
             return;

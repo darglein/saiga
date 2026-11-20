@@ -1564,3 +1564,54 @@ TEST(SaveRobustness, HeaderMigrationsAndActions)
     q.step();
     EXPECT_TRUE(q.events.read<ActionEvent>().empty());
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S11 round 3)
+
+// The action size of the save reader was wrong (49 instead of 45 bytes): saves with 3 or more queued actions were
+// rejected
+TEST(Save, ManyQueuedActions)
+{
+    World a(baseSetup());
+    std::vector<Entity> players;
+    for (int i = 0; i < 5; ++i)
+    {
+        players.push_back(a.create());
+        a.add<Player>(players.back());
+        a.queueAction(PlayerAction{players.back(), uint32_t(10 + i), Vec3(i, 0, 0)});
+    }
+    World b(baseSetup());
+    const LoadResult r = b.tryLoad(a.save());
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b.save(), a.save());
+    b.step();
+    ASSERT_EQ(b.events.read<ActionEvent>().size(), 5u);
+    EXPECT_EQ(b.events.read<ActionEvent>()[4].action, 14u);
+}
+
+namespace
+{
+LoadResult g_innerLoad;
+class LoadsInUpdate final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(kFirstGameClass);
+    static constexpr const char* name = "LoadsInUpdate";
+    void update(double) override { g_innerLoad = world().tryLoad(g_loaderBlob); }
+};
+}  // namespace
+
+// A load inside a game hook (a "quick load" in update) destroyed the running object: refused in every build
+TEST(Save, ALoadInsideAHookIsRefused)
+{
+    WorldSetup s;
+    s.classes = [](ClassList& c) { c.add<LoadsInUpdate>(); };
+    World a(s);
+    g_loaderBlob                            = a.save();
+    const Entity e                          = a.spawn<LoadsInUpdate>(Vec3(0, 0, 0));
+    a.get<Behaviour>(e).alwaysTickEveryStep = true;
+    a.step();
+    EXPECT_FALSE(g_innerLoad.committed);
+    EXPECT_NE(g_innerLoad.error.find("only between steps"), std::string::npos) << g_innerLoad.error;
+    EXPECT_TRUE(a.alive(e));
+}

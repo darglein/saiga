@@ -21,8 +21,8 @@ namespace Engine
 // One difference between two saves (S11)
 struct SAIGA_ENGINE_API SaveDifference
 {
-    // field, only_in_a, only_in_b, component_only_in_a, component_only_in_b, generation, flags, step, time, rng,
-    // events, actions, free_list, counter
+    // field, only_in_a, only_in_b (also a reused slot: both), component_only_in_a, component_only_in_b, flags, step,
+    // time, rng, events, actions, free_list, counter
     std::string kind;
     Entity entity;                 // entity differences (in a's numbering; the index is the same in both)
     std::string component, field;  // field differences

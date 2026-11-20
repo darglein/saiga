@@ -13,6 +13,8 @@
 #include "saiga/engine/save/SchemaTable.h"
 #include "saiga/engine/world/World.h"
 
+#include <stdexcept>
+
 namespace Saiga
 {
 namespace Engine
@@ -194,6 +196,11 @@ bool World::checkLoadHook(const char* operation, Entity e, ComponentId id) const
     SAIGA_ASSERT(allowed, std::string(operation) +
                               " during a load: configure makes no structural changes, onLoad adds or removes only "
                               "Saved::No components of its own entity");
+    // Refused in every build: the loader reports the hook's exception as a hook error
+    if (!allowed)
+        throw std::logic_error(std::string(operation) +
+                               " during a load: configure makes no structural changes, onLoad adds or removes only "
+                               "Saved::No components of its own entity");
     return allowed;
 }
 

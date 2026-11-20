@@ -15,6 +15,7 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 
@@ -86,7 +87,10 @@ struct TempData
     std::filesystem::path dir;
     explicit TempData(const std::string& name)
     {
-        dir = std::filesystem::temp_directory_path() / ("saiga_engine_data_" + name);
+        // Unique per process: two test runs on one machine do not delete each other's files
+        dir = std::filesystem::temp_directory_path() /
+              ("saiga_engine_data_" + name + "_" +
+               std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
         std::filesystem::create_directories(dir);
     }
     ~TempData()

@@ -723,8 +723,12 @@ void WorldLoader::startObjects(LoadResult& result)
 LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
 {
     LoadResult result;
-    SAIGA_ASSERT(!w.inStep() && w.commands.empty(), "World::load inside a step");
-    SAIGA_ASSERT(w.hookDepth == 0 && w.loadHookPhase == 0, "World::load inside a game hook");
+    // Refused in every build (the running game object and the views of the step would be destroyed under them)
+    if (w.inStep() || !w.commands.empty() || w.hookDepth != 0 || w.loadHookPhase != 0 || w.reg.iterating())
+    {
+        result.error = "a load only between steps, not inside a game hook or a view";
+        return result;
+    }
     if (!parseSave(data, p, error) || !checkSlots())
     {
         result.error = error;
