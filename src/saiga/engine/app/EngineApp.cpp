@@ -150,7 +150,18 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         inputMap.setDefaults();
 
     // MCP: the server and the tools always exist (tests call handleMessage); the server listens only with a port
-    server                     = std::make_unique<McpServer>(appSetup.name, "1.0", appSetup.mcpInstructions);
+    // The game's instructions describe its renderer tools; without a device there are none
+    const std::string instructions =
+        appSetup.noRender || appSetup.mcpInstructions.empty()
+            ? "Controls a running engine game (" + appSetup.name +
+                  "). The world API tools (describe_world, list_entities, inspect, step, save_snapshot, ...) read and "
+                  "change the game world; app_status describes the app and its input bindings, set_input drives the "
+                  "local player, measure_performance measures steps" +
+                  (appSetup.noRender ? std::string(" (this app does not render)")
+                                     : std::string(", frames and the GPU")) +
+                  "."
+            : appSetup.mcpInstructions;
+    server                     = std::make_unique<McpServer>(appSetup.name, "1.0", instructions);
     server->toolTimeoutSeconds = appSetup.mcpToolTimeoutSeconds;
     WorldToolsOptions toolOptions;
     toolOptions.snapshotDirectory = appSetup.snapshotDirectory;
@@ -167,10 +178,12 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
             SAIGA_LOG("app", "MCP server: could not listen on port %d", appSetup.mcpPort);
     }
 
-    scopeFrame     = frameProfiler.scope("frame");
-    scopePoll      = frameProfiler.scope("frame/poll");
-    scopeAdvance   = frameProfiler.scope("frame/advance");
-    scopeRender    = frameProfiler.scope("frame/render");
+    scopeFrame   = frameProfiler.scope("frame");
+    scopePoll    = frameProfiler.scope("frame/poll");
+    scopeAdvance = frameProfiler.scope("frame/advance");
+    scopeRender  = frameProfiler.scope("frame/render");
+    // The command recording and submit inside render (render also waits for a frame slot and the swap chain image)
+    scopeRecording = frameProfiler.scope("frame/render/recording");
     counterFps     = frameProfiler.counter("fps");
     counterSteps   = frameProfiler.counter("steps_per_frame");
     counterDropped = frameProfiler.counter("dropped_steps");
@@ -178,6 +191,7 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     for (const char* name : Vulkan::RenderScene::gpuSectionNames())
         scopeGpuSections.push_back(gpuProfiler.scope(std::string("gpu/") + name));
     // Before the first sample: a scope created later would count the empty history as zero samples
+    if (!appSetup.renderHooks.passNames.empty()) scopeGpuGame = gpuProfiler.scope("gpu/game");
     for (const std::string& name : appSetup.renderHooks.passNames)
         scopeGpuPasses.push_back(gpuProfiler.scope("gpu/game/" + name));
 
@@ -464,6 +478,7 @@ void EngineApp::renderFrame()
             });
     }
     if (!renderScene->renderFrame(transfer, render, gui)) return;
+    frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
     lastFrameRendered = true;
     framesRendered++;
     for (size_t i = 0; i < frameCallbacks.size();)
@@ -538,9 +553,18 @@ void EngineApp::collectGpuTimes()
             gpuProfiler.add(scopeGpuSections[i], times.gpuSectionMs[i]);
         std::vector<std::pair<std::string, double>> passes;
         if (appSetup.renderHooks.passTimes && appSetup.renderHooks.passTimes(passes))
+        {
+            // gpu/game: the sum of the game's passes (the parent of their scopes)
+            double sum = 0;
             for (const auto& p : passes)
                 for (size_t k = 0; k < appSetup.renderHooks.passNames.size(); ++k)
-                    if (appSetup.renderHooks.passNames[k] == p.first) gpuProfiler.add(scopeGpuPasses[k], p.second);
+                    if (appSetup.renderHooks.passNames[k] == p.first)
+                    {
+                        gpuProfiler.add(scopeGpuPasses[k], p.second);
+                        sum += p.second;
+                    }
+            if (scopeGpuGame >= 0) gpuProfiler.add(scopeGpuGame, sum);
+        }
         gpuProfiler.endSample();
     }
 }

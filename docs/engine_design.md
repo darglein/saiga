@@ -2326,7 +2326,9 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
     flag); baselines come from the release build of AGENTS.md (asserts and `-march=native` off).
   - `SAIGA_SCREENSHOT` is ignored in benchmark mode (its automatic screenshot would close the window at frame 60).
   - No GUI and no MCP during a benchmark, and the default world (`SAIGA_WORLD_TREES` is ignored). From S13 the result
-    also has `step` and `recording`, from S19 `extract` (each `{median, p95}`).
+    also has `step` (the steps of the measured frames) and `recording` (the command recording and submit of the
+    measured frames, `frame/render/recording`, without the waits for a frame slot and the image), from S19 `extract`
+    (each `{median, p95}`).
 - Per-frame values come from `struct WorldRenderer::FrameTimes { double cpuMs; double cpuWorkMs; int cpuFrame; double
   gpuMs; std::array<double, PASS_COUNT> gpuPassMs; int gpuFrame; }; const FrameTimes& WorldRenderer::lastFrameTimes()
   const;` (unsmoothed; also passed to `WorldRenderer::frameCallbacks`) [exists]. The CPU values of frame N are known

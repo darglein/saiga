@@ -77,7 +77,6 @@ class SAIGA_ENGINE_API EngineApp
     // The entity the input writes (PlayerInput, queued actions, applyInput); none: the input moves the free camera
     void setLocalPlayer(Entity player) { localPlayerEntity = player; }
     Entity localPlayer() const { return localPlayerEntity; }
-    // A virtual input device for the next frames (the set_input tool; frames 0: until changed)
     // The virtual device for the next steps (0: until replaced); a paused world keeps it until steps run
     void setVirtualInput(const VirtualInput& input, int steps);
     void showStatistics(bool show) { statisticsVisible = show; }
@@ -127,9 +126,10 @@ class SAIGA_ENGINE_API EngineApp
     std::array<bool, 512> previousKeys{};
     bool mouseKnown = false;
     Profiler frameProfiler, gpuProfiler;
-    int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeGpuFrame = -1;
+    int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeRecording = -1, scopeGpuFrame = -1;
     int counterFps = -1, counterSteps = -1, counterDropped = -1;
     std::vector<int> scopeGpuSections, scopeGpuPasses;
+    int scopeGpuGame       = -1;
     uint64_t droppedBefore = 0;
 };
 

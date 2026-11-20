@@ -46,6 +46,8 @@ class SAIGA_VULKAN_API RenderScene : private VulkanForwardRenderingInterface
     vk::Format colorFormat() const { return renderer->getColorFormat(); }
     VulkanBase& base() { return renderer->base(); }
     VulkanForwardRenderer& forwardRenderer() { return *renderer; }
+    // CPU time of the last frame's command recording and submit (milliseconds)
+    double lastRecordingMs() const;
     bool headless() const { return renderer->isHeadless(); }
     // The size of the rendered images (0 before the first frame)
     ivec2 size() const { return renderer->surfaceSize(); }

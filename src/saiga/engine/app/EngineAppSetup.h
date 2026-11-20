@@ -57,7 +57,7 @@ struct EngineAppSetup
     double mcpToolTimeoutSeconds = 120;
     std::string inputFile;          // default: <data directory>/input.json if it exists
     std::string snapshotDirectory;  // export_snapshot / import_snapshot (empty: refused)
-    std::string mcpInstructions;    // the MCP server's instructions (initialize)
+    std::string mcpInstructions;    // the MCP server's instructions (initialize); a generic text if empty or noRender
     // The free camera's speeds (m/s; fast: with shift)
     float cameraSpeed = 10, cameraSpeedFast = 100;
     // The names --benchmark accepts (checked before the window opens; empty: the game has no benchmarks)

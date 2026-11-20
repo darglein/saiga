@@ -95,6 +95,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     bool isHeadless() const { return device->surface == VK_NULL_HANDLE; }
     // Frames submitted so far (render() skips a frame for a minimized window or an out-of-date swap chain)
     uint64_t submittedFrames() const { return submitted; }
+    // CPU time of the last frame's command recording and submit (without the wait for the frame slot and the image)
+    double lastRecordingMs() const { return recordingMs; }
     // The GPU section times of the oldest completed frame not yet taken (FrameTimings::popCompleted)
     bool takeCompletedFrame(FrameTimings<>::CompletedFrame& out) { return timings.popCompleted(out); }
 
@@ -139,6 +141,7 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
    private:
     uint32_t frameIndex = 0;
     uint64_t submitted  = 0;
+    double recordingMs  = 0;
     // The window's framebuffer size when the swap chain was created
     ivec2 swapChainFramebufferSize = ivec2(0, 0);
     std::array<FrameSync, framesInFlight> frames;

@@ -70,6 +70,19 @@ Json toolJson(const Json& r)
     return Json::parse(r["result"]["content"][0]["text"].string_value(), err);
 }
 
+// setenv/unsetenv are POSIX (MSVC: _putenv_s, an empty value removes the variable)
+void setEnv(const char* name, const char* value)
+{
+#ifdef _WIN32
+    _putenv_s(name, value ? value : "");
+#else
+    if (value)
+        setenv(name, value, 1);
+    else
+        unsetenv(name);
+#endif
+}
+
 std::vector<const char*> argv(std::initializer_list<const char*> args)
 {
     std::vector<const char*> v{"game"};
@@ -114,7 +127,7 @@ TEST(AppCommandLine, OptionsGameFlagsAndErrors)
 
     for (auto bad : {argv({"--unknown"}), argv({"--width"}), argv({"--width", "0"}), argv({"--benchmark"}),
                      argv({"--benchmark", "flyover", "--headless"}), argv({"--benchmark", "nope"}), argv({"--demo"}),
-                     argv({"--no-render", "--screenshot", "x.png"})})
+                     argv({"--no-render", "--screenshot", "x.png"}), argv({"--data", "--headless"})})
     {
         EngineAppSetup u;
         u.benchmarks = {"flyover"};
@@ -213,14 +226,14 @@ TEST(InputMapTest, ErrorsNameTheFileAndKey)
 // SAIGA_SCREENSHOT is ignored with --no-render (an argument is an error, see above)
 TEST(AppCommandLine, ScreenshotVariableWithoutRendering)
 {
-    setenv("SAIGA_SCREENSHOT", "x.png", 1);
+    setEnv("SAIGA_SCREENSHOT", "x.png");
     EngineAppSetup s;
     AppOptions o;
     std::string error;
     auto a = argv({"--no-render"});
     EXPECT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
     EXPECT_TRUE(o.screenshot.empty());
-    unsetenv("SAIGA_SCREENSHOT");
+    setEnv("SAIGA_SCREENSHOT", nullptr);
     // A known benchmark passes
     EngineAppSetup t;
     t.benchmarks = {"flyover"};

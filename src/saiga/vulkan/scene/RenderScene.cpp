@@ -52,6 +52,11 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     return true;
 }
 
+double RenderScene::lastRecordingMs() const
+{
+    return renderer->lastRecordingMs();
+}
+
 void RenderScene::transfer(vk::CommandBuffer cmd)
 {
     if (transferFn && *transferFn) (*transferFn)(cmd);

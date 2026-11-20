@@ -55,7 +55,7 @@ struct WorldGame
     Vulkan::WorldRenderer::FrameTimes lastTimes;
     bool hasTimes = false;
     // The world profiler's sample count when the measured frames began (the benchmark's step statistic)
-    int64_t stepSamplesAtStart = -1;
+    int64_t stepSamplesAtStart = -1, frameSamplesAtStart = -1;
 };
 WorldGame* g_game = nullptr;
 
@@ -128,7 +128,10 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
     const ivec2 size = app.scene()->size();
     g.world.transfer(cmd, camera.view, camera.getPosition(), float(size(0)) / float(std::max(1, size(1))));
     if (g.bench && g.stepSamplesAtStart < 0 && g.bench->measuring())
-        g.stepSamplesAtStart = int64_t(app.world().profiler().sampleCount());
+    {
+        g.stepSamplesAtStart  = int64_t(app.world().profiler().sampleCount());
+        g.frameSamplesAtStart = int64_t(app.frameProfile().sampleCount());
+    }
     if (g.bench && g.bench->finished() && !g.benchmarkDone)
     {
         const std::string file = resultFile(g.benchmarkName);
@@ -144,10 +147,15 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         // into the warm-up)
         const int stepSamples =
             int(std::max<int64_t>(1, int64_t(wp.sampleCount()) - std::max<int64_t>(0, g.stepSamplesAtStart)));
-        result["step"]      = stat(wp.scopeStats(wp.scope("step"), stepSamples));
-        result["recording"] = stat(app.frameProfile().scopeStats(app.frameProfile().scope("frame/render"),
-                                                                 Vulkan::WorldBenchmark::measuredFrames));
-        const int stalls    = result["stalled_frames"].int_value();
+        result["step"] = stat(wp.scopeStats(wp.scope("step"), stepSamples));
+        // The command recording and submit of the measured frames (frame/render/recording, without the waits for the
+        // frame slot and the image); the frame profile has one sample per frame
+        Profiler& fp           = app.frameProfile();
+        const int frameSamples = int(std::min<int64_t>(
+            Vulkan::WorldBenchmark::measuredFrames,
+            std::max<int64_t>(1, int64_t(fp.sampleCount()) - std::max<int64_t>(0, g.frameSamplesAtStart))));
+        result["recording"]    = stat(fp.scopeStats(fp.scope("frame/render/recording"), frameSamples));
+        const int stalls       = result["stalled_frames"].int_value();
         if (stalls > 0)
             std::cout << "Benchmark error: " << stalls
                       << " stalled frames (e.g. the window was minimized or the swap chain recreated)" << std::endl;

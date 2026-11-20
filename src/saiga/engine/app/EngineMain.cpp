@@ -52,7 +52,8 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
         const std::string a = argv[i];
         auto value          = [&](const char* what) -> const char*
         {
-            if (i + 1 >= argc || argv[i + 1][0] == '\0')
+            // An option is not a value (--data --headless)
+            if (i + 1 >= argc || argv[i + 1][0] == '\0' || std::strncmp(argv[i + 1], "--", 2) == 0)
             {
                 error = a + " needs " + what;
                 return nullptr;
@@ -196,18 +197,22 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         std::cerr << std::endl;
         return 1;
     }
+    bool constructed = false;
     try
     {
         if (options.runScenarios) return runGameScenarios(setup, options.scenarioFilter);
         EngineApp app(setup, options);
+        constructed = true;
         if (start) start(app, options);
         return app.run();
     }
     catch (const std::exception& e)
     {
         std::cerr << setup.name << ": " << e.what() << std::endl;
-        std::cerr << "(without a display or GPU: --headless renders offscreen, --no-render does not render)"
-                  << std::endl;
+        // The hint only for a failed start with a window or a device (a display or a GPU may be missing)
+        if (!constructed && !options.runScenarios && !setup.noRender)
+            std::cerr << "(without a display or GPU: --headless renders offscreen, --no-render does not render)"
+                      << std::endl;
         return 1;
     }
 }

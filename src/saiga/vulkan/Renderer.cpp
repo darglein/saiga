@@ -9,6 +9,8 @@
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/window/Window.h"
 
+#include <chrono>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -188,7 +190,9 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     }
 
     timings.beginFrame(frame.timelineValue);
+    const auto recordStart = std::chrono::steady_clock::now();
     render(frame);
+    recordingMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - recordStart).count();
     submitted++;
     sync.timelineValue = frame.timelineValue;
 

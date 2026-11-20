@@ -313,6 +313,12 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
   times add no samples; `EngineAppSetup::mcpInstructions` (game_world passes the world renderer's instructions); a
   `--no-render` app does not need the shader directory; the benchmark's `step` statistic covers the steps of the
   measured frames; the usage text on a command line error, `catchSegFaults`, the benchmark's no-GPU-times warning.
+- Review round 3: the benchmark's `recording` is the command recording and submit (`frame/render/recording`,
+  `VulkanRenderer::lastRecordingMs`; `frame/render` also waits for the frame slot and the image and repeated
+  `cpu_ms`), over the measured frames; `gpu/game` is the sum of the game's passes (it showed 0); an option is not
+  taken as the value of the previous one (`--data --headless`); the hint about `--headless` is printed only when the
+  app could not start; a `--no-render` app gets generic MCP instructions (the game's describe renderer tools); the
+  test sets environment variables portably (MSVC has no `setenv`).
 
 Updated: §3, §7.9 (`actions`), §8.3, §16.1, §16.2, §17.1, §17.7, §18.2, §18.4, §19, R-TEST-1, §22 (S13, the new S13b row,
 S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.
