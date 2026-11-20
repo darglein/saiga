@@ -92,13 +92,15 @@ void HeroBase::onSpawn()
 
 void HeroBase::restart()
 {
-    const Level& level   = world().context<PlatformerContext>().level;
-    CharacterMotion& m   = write<CharacterMotion>();
-    const auto model     = m.model;
-    m                    = CharacterMotion();
-    m.model              = model;
-    write<RunState>()    = RunState();
-    write<PlayerInput>() = PlayerInput();
+    const Level& level = world().context<PlatformerContext>().level;
+    CharacterMotion& m = write<CharacterMotion>();
+    const auto model   = m.model;
+    m                  = CharacterMotion();
+    m.model            = model;
+    // A jump key held through the restart does not jump: only a fresh press does
+    m.jumpWasHeld     = true;
+    write<RunState>() = RunState();
+    // PlayerInput stays: the device (or the demo runner) owns it; a held key must not look like a new press
     transformWrite().teleport(level.start, yawRotation(0));
 }
 
@@ -209,6 +211,31 @@ void platformerScenarios(ScenarioList& list)
                  };
                  w.check(w.stepUntil(onPlatform, 60 * 3), "lands on the platform");
                  w.check(w.world().read<RunState>(hero).goalTime < 0, "not at the goal");
+             });
+    // Regression: the jump key held through a restart (here: falling below the level) jumped right after it
+    list.add("held_jump_after_a_restart",
+             [](ScenarioWorld& w)
+             {
+                 const Entity hero                            = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), 0);
+                 const uint32_t jump                          = 1u << int(PlatformerButton::Jump);
+                 w.world().get<PlayerInput>(hero).heldButtons = jump;
+                 w.step(10);
+                 w.check(w.world().read<Transform>(hero).position().y() < 0.01,
+                         "a held key at the spawn does not jump");
+                 w.world().get<Transform>(hero).teleport(Vec3(0, -20, 2), yawRotation(0));
+                 double highest = -1e9;
+                 for (int i = 0; i < 40; ++i)
+                 {
+                     w.world().get<PlayerInput>(hero).heldButtons = jump;
+                     w.step();
+                     highest = std::max(highest, w.world().read<Transform>(hero).position().y());
+                 }
+                 w.check(highest < 0.01, "restarted without a jump (highest " + std::to_string(highest) + " m)");
+                 w.world().get<PlayerInput>(hero).heldButtons = 0;
+                 w.step();
+                 w.world().get<PlayerInput>(hero).heldButtons = jump;
+                 w.step(10);
+                 w.check(w.world().read<Transform>(hero).position().y() > 0.5, "a fresh press jumps");
              });
 }
 

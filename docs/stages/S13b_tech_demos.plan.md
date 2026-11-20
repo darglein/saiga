@@ -137,6 +137,15 @@ file.
   `setContext` also takes a `shared_ptr<T>`. `WorldRenderer::init` takes a `shared_ptr<const HeightField>` and shares
   it (it copied 67 MB; the games pass an aliasing pointer into their context), tested on lavapipe
   (`VulkanWorldRender.SharesAnExternalHeightField`). The games build with Clang.
+- Review round 2: `PoseHistory` reads `wasTeleportedLastStep()`: the step listeners run after the step's transform flags
+  were shifted, so `wasTeleported()` was always false there and the chase cameras glided after a respawn (and the racing
+  wheels interpolated across it); engine tests for a teleport between and inside the steps, documented in §7
+  (Transform flags). `WorldRenderer::destroy` releases the shared height field. The racing wheel mesh scales with the
+  data file's wheel radius. A platformer restart keeps the player's input and marks the jump as held, so a key held
+  through a restart (or a fall) does not jump (scenario `held_jump_after_a_restart`). The flight and racing contexts
+  (the 4097^2 height field, for racing also the 200k tree placement: about 0.4 and 0.6 s) are still built before the
+  command line is parsed: `engineMain` takes the finished `EngineAppSetup`, so a lazy context would need a factory in
+  the setup (an engine change for two samples); a command line error is reported after that time.
 
 ## Results
 
@@ -144,7 +153,7 @@ file.
   autopilot at step 600 (6506.433, 402.839, 4752.384), at step 1800 (5858.335, 362.351, 5875.344); platformer demo goal
   7.25 s; racing AI first lap 62.067 s (3724 steps). The ported games reproduce them (the scenarios assert them within
   1 m, 0.1 s and 0.5 s; the lap takes 3724 steps again).
-- `--scenarios`: flight 9, platformer 6, racing 6 runs (3 scenarios x 3 variants, 2 x 3, 2 x 3) pass.
+- `--scenarios`: flight 9, platformer 9, racing 6 runs (3 scenarios x 3 variants, 3 x 3, 2 x 3) pass.
 - `--demo` with `SAIGA_SCREENSHOT` on the RTX 5080 Laptop GPU: the plane in its turn over the world prototype, the
   character on the goal platform (the window ran at 20 fps, so frame 60 is past the 7.25 s goal; headless at 60 Hz it
   shows the jump between the platforms), the car on the track behind the chase camera; `--headless` and `--no-render`

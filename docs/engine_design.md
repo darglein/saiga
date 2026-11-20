@@ -447,7 +447,10 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
   teleports a child when its parent was teleported in this step; a teleport made in phase 7 reaches the children before
   phase 8 (`propagateTeleportsBeforeExtract`, also a second teleport in the step); after phase 8 the children whose
   parent was teleported after their last update are listed and teleported in the next phase 6.
-  `Transform::teleportedLastStep` is shifted like `changedLastStep`, for readers of the next step (S08). Physics bodies
+  `Transform::teleportedLastStep` is shifted like `changedLastStep`, for readers of the next step (S08). The flags are
+  shifted at the end of the step, before the step listeners run: a step listener reads the step's teleports (and the
+  ones made between the steps before it) with `wasTeleportedLastStep()`, `wasTeleported()` is false there (S13b; the
+  tech demos' render-side pose cache snaps the camera with it). Physics bodies
   only on roots; children with colliders are kinematic (§11).
 
 ### 7.5 Views

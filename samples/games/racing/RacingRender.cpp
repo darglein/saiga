@@ -214,7 +214,9 @@ void RacingRender::render(vk::CommandBuffer cmd)
             Vec3 center   = mount - Vec3(0, length - p.wheelRadius, 0);
             Quat steer    = i < 2 ? yawRotation(-renderWheels.steer) : Quat::Identity();
             Quat spin     = axisAngle(Vec3(1, 0, 0), -renderWheels.spin[i]);
-            meshes.draw(wheelMesh, body * transformMatrix(center, steer * spin));
+            // The mesh has the default wheel radius; the data file's radius scales it (the width stays)
+            const double r = p.wheelRadius / VehicleParameters().wheelRadius;
+            meshes.draw(wheelMesh, body * transformMatrix(center, steer * spin, Vec3(1, r, r)));
         }
     }
     meshes.render(cmd);

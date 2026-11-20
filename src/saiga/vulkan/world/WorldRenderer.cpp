@@ -271,6 +271,7 @@ void WorldRenderer::destroy()
         base->deferDelete([device, pool]() { device.destroyQueryPool(pool); });
         queryPool = nullptr;
     }
+    hf.reset();  // the shared height field
     initialized = false;
 }
 

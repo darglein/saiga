@@ -125,7 +125,9 @@ class PoseHistory
         }
         const Engine::Transform& t = w->read<Engine::Transform>(entity);
         Pose now{t.position(), t.rotation()};
-        if (!valid || t.wasTeleported())
+        // Step listeners run after the step's transform flags were shifted: the step's teleport (and one between the
+        // steps, e.g. set_transform) is wasTeleportedLastStep() there; wasTeleported() is always false
+        if (!valid || t.wasTeleportedLastStep())
         {
             previous   = now;
             teleported = true;
