@@ -312,4 +312,10 @@ S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.
   lavapipe with frames, steps, screenshots, profiles and tools); the Vulkan tests and goldens are unchanged; 63 ctest
   tests.
 - `game_world` on the RTX 5080 Laptop GPU: renders like the prototype; `--benchmark flyover` (RelWithDebInfo with
-  asserts): trees 1.49 ms (baseline 1.48 ms); the release comparison is in Verification.
+  asserts): trees 1.49 ms (baseline 1.48 ms).
+- Release benchmark (§17.7, no asserts, no `-march=native`), alternating with the prototype `sample_vulkan_world`
+  (stage-s12) on the same machine, two runs each: GPU pass medians equal within 1-2% (flyover trees 1.45-1.46 ms vs
+  1.46-1.49 ms; forest trees 0.47 ms, grass 0.63 ms in both); the frame interval `cpu_ms` median flyover 2.35/2.46 ms
+  (prototype 3.22/2.34 ms), forest 2.14/2.12 ms (prototype 2.16/2.43 ms), `cpu_work_ms` 0.042-0.047 ms in both. The
+  CPU numbers of both vary more between runs on this machine today than the committed baseline (2.36/1.97 ms) shows;
+  the app is not slower than the prototype, the baseline is unchanged.
