@@ -10,6 +10,8 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/vulkan/world/WorldRenderer.h"
 
+#include <functional>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -17,10 +19,21 @@ namespace Vulkan
 /**
  * What the MCP tools of the world control. The pointers must outlive the server.
  */
+// The app's view camera as the tools see it (double; fovy in radians)
+struct WorldMcpCamera
+{
+    Vec3 position = Vec3::Zero();
+    Quat rotation = Quat::Identity();
+    double fovy   = 1;
+};
+
 struct WorldMcpContext
 {
     WorldRenderer* world = nullptr;
-    Camera* camera       = nullptr;
+    // The app's view camera (S19b: EngineApp::viewCamera / setViewCameraByTool without a hold, set by game_world;
+    // saiga_vulkan has no engine header): game_set_camera moves it, game_set_settings' fovy sets its field of view
+    std::function<WorldMcpCamera()> getCamera;
+    std::function<void(const WorldMcpCamera&)> setCamera;
     // Optional: walk mode (the camera stays at eyeHeight above the terrain), see game_world
     bool* walkMode   = nullptr;
     float* eyeHeight = nullptr;

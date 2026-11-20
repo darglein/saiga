@@ -4,16 +4,17 @@
  * See LICENSE file for more information.
  */
 
-// The render side of the racing demo: world prototype, track, car, chase camera, GUI.
+// The render side of the racing demo: world prototype, track, wheels, chase camera, GUI (the car bodies are drawn by
+// the engine).
 
 #include "games/racing/RacingRender.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
+#include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
-#include "games/common/WorldLighting.h"
 
 namespace Saiga
 {
@@ -32,27 +33,9 @@ void RacingRender::init(EngineApp& _app)
     worldRenderer.settings.grass = false;
     // RenderScene draws the prototype world and the trees (S19a)
     worldRenderer.attach(*app->scene());
-    meshes.init(app->scene()->base(), app->scene()->formats());
-
-    const VehicleParameters vehicle;
-    bodyMesh    = meshes.addMesh(MeshBuilder::carBody(Vec3(0.85, 0.15, 0.12)));
-    wheelMesh   = meshes.addMesh(MeshBuilder::wheel(vehicle.wheelRadius, 0.28));
-    coneMesh    = meshes.addMesh(MeshBuilder::trafficCone());
-    trackMeshId = meshes.addMesh(trackMesh());
-    {
-        // Start / finish banner: two posts and a checkered bar
-        MeshData b;
-        double h = context->track.width * 0.5 + 1;
-        b.append(MeshBuilder::box(Vec3(0.15, 2.5, 0.15), Vec3(0.8, 0.8, 0.8), Vec3(-h, 2.5, 0)));
-        b.append(MeshBuilder::box(Vec3(0.15, 2.5, 0.15), Vec3(0.8, 0.8, 0.8), Vec3(h, 2.5, 0)));
-        for (int i = 0; i < 16; ++i)
-        {
-            double x = -h + (i + 0.5) * (2 * h / 16);
-            Vec3 c   = (i % 2) ? Vec3(0.1, 0.1, 0.1) : Vec3(0.95, 0.95, 0.95);
-            b.append(MeshBuilder::box(Vec3(h / 16, 0.4, 0.1), c, Vec3(x, 4.6, 0)));
-        }
-        bannerMesh = meshes.addMesh(b);
-    }
+    // The track, its cones and the banner: one instance set at the track's start (S19b)
+    level.create(*app->scene(), "racing/level", levelMesh(), context->track.position(0));
+    wheels.init(app->vulkanSink());
 
     const RacingContext* ctx = context.get();
     camera.distance          = 9;
@@ -60,7 +43,7 @@ void RacingRender::init(EngineApp& _app)
     camera.targetHeight      = 1.2;
     camera.stiffness         = 6;
     camera.ground            = [ctx](double x, double z) { return ctx->terrain(x, z); };
-    // Every car's pose and wheels (a load starts them over: no interpolation from the state before)
+    // Every car's wheels (a load starts them over: no interpolation from the state before)
     caches.attach(
         app->world(), [](World& w, const std::function<void(Entity)>& fn)
         { w.view<const VehicleState>().each([&](Entity e, const VehicleState&) { fn(e); }); },
@@ -74,11 +57,12 @@ void RacingRender::init(EngineApp& _app)
 void RacingRender::shutdown()
 {
     caches.detach();
-    meshes.destroy();
+    wheels.clear();
+    level.release();
     worldRenderer.destroy();
 }
 
-MeshData RacingRender::trackMesh() const
+MeshData RacingRender::levelMesh() const
 {
     const Track& track = context->track;
     MeshData m;
@@ -111,6 +95,33 @@ MeshData RacingRender::trackMesh() const
         m.addQuad(edge(s0, half, track.lift), edge(s0, half + curb, 0), edge(s1, half + curb, 0),
                   edge(s1, half, track.lift), cc);
     }
+    // Cones at the gates, the banner at the start: two posts and a checkered bar
+    for (auto& g : track.checkpoints())
+    {
+        Vec3 r(-g.tangent(2), 0, g.tangent(0));
+        for (double side : {-1.0, 1.0})
+        {
+            Vec3 p = g.center + r * (side * (track.width * 0.5 + 1.5));
+            p(1)   = context->terrain(p(0), p(2));
+            m.append(MeshBuilder::trafficCone(), transformMatrix(p, Quat::Identity()));
+        }
+    }
+    {
+        MeshData b;
+        const double h = track.width * 0.5 + 1;
+        b.append(MeshBuilder::box(Vec3(0.15, 2.5, 0.15), Vec3(0.8, 0.8, 0.8), Vec3(-h, 2.5, 0)));
+        b.append(MeshBuilder::box(Vec3(0.15, 2.5, 0.15), Vec3(0.8, 0.8, 0.8), Vec3(h, 2.5, 0)));
+        for (int i = 0; i < 16; ++i)
+        {
+            const double x = -h + (i + 0.5) * (2 * h / 16);
+            const Vec3 c   = (i % 2) ? Vec3(0.1, 0.1, 0.1) : Vec3(0.95, 0.95, 0.95);
+            b.append(MeshBuilder::box(Vec3(h / 16, 0.4, 0.1), c, Vec3(x, 4.6, 0)));
+        }
+        const auto& g = track.checkpoints()[0];
+        Vec3 p        = g.center;
+        p(1)          = context->terrain(p(0), p(2));
+        m.append(b, transformMatrix(p, yawRotation(headingOf(g.tangent))));
+    }
     return m;
 }
 
@@ -129,118 +140,69 @@ Entity RacingRender::focus()
     return first;
 }
 
-void RacingRender::transfer(vk::CommandBuffer cmd)
+void RacingRender::beforeRender(double alpha)
 {
-    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
     Vulkan::RenderScene& scene = *app->scene();
     worldRenderer.update();
-    meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
     World& w             = app->world();
-    const double alpha   = w.alpha();
     const Entity e       = focus();
     if (e != followed)
     {
         followed = e;
         camera.reset();
     }
-    // Every car at its interpolated pose, the wheels between the last two (delayed) steps
-    drawn.clear();
-    PoseHistory::Pose focusPose;
-    bool hasFocus = false;
+    // Every car's wheels at its interpolated pose (the engine draws the body with the same pose), the suspension, spin
+    // and steering between the last two (delayed) steps
+    wheels.begin();
     w.view<const VehicleState>().each(
-        [&](Entity car, const VehicleState&)
+        [&](Entity car, const VehicleState& state)
         {
-            auto* c = caches.entry(car);
-            if (!c) return;
-            Drawn d;
-            d.car = car;
-            if (!c->pose.interpolated(w, car, alpha, d.pose)) return;
-            if (c->pose.takeTeleport())
+            Engine::WorldPose body;
+            bool teleported = false;
+            auto* c         = caches.entry(car);
+            if (!c || !w.extract().interpolatedPose(car, alpha, body, &teleported)) return;
+            if (teleported)
             {
                 // Regression (CodeRabbit, S13b): a respawn between steps (the GUI button while paused) kept the old
                 // wheels until the next step; reseed them from the VehicleState
                 if (!readsRenderPose(w, car)) caches.reseed(car);
                 if (car == followed) camera.reset();
             }
-            const Wheels& a = c->previous();
-            const Wheels& b = c->current();
+            const Wheels& a            = c->previous();
+            const Wheels& b            = c->current();
+            const VehicleParameters& p = w.data(state.model);
+            const Engine::MeshId mesh  = w.findMesh(wheelMeshName(p.wheelRadius));
+            if (!mesh) return;
+            std::vector<Engine::MeshId> meshes(4, mesh);
+            std::vector<Engine::WorldPose> poses(4, body);
+            const double steer = a.steer + (b.steer - a.steer) * alpha;
             for (int i = 0; i < 4; ++i)
             {
-                d.wheels.compression[i] = a.compression[i] + (b.compression[i] - a.compression[i]) * alpha;
-                d.wheels.spin[i]        = a.spin[i] + (b.spin[i] - a.spin[i]) * alpha;
+                // Wheels at the suspension's current length, front wheels steered, spinning
+                const double compression = a.compression[i] + (b.compression[i] - a.compression[i]) * alpha;
+                const double spin        = a.spin[i] + (b.spin[i] - a.spin[i]) * alpha;
+                const double length      = p.restLength + p.wheelRadius - compression;
+                const Vec3 center        = p.wheelMounts[i] - Vec3(0, length - p.wheelRadius, 0);
+                const Quat local  = (i < 2 ? yawRotation(-steer) : Quat::Identity()) * axisAngle(Vec3(1, 0, 0), -spin);
+                poses[i].position = body.position + body.rotation * (center * body.scale);
+                poses[i].rotation = (body.rotation * local).normalized();
             }
-            d.wheels.steer = a.steer + (b.steer - a.steer) * alpha;
-            if (car == followed)
-            {
-                focusPose = d.pose;
-                hasFocus  = true;
-            }
-            drawn.push_back(d);
+            wheels.set(car, meshes, poses);
+            if (car == followed) camera.update(body.position, forwardOf(body.rotation), frameDt);
         });
-    const bool toolCamera = app->cameraHeldByTool();
-    if (held.released(toolCamera)) camera.reset();
-    if (hasFocus && !toolCamera) camera.update(focusPose.position, forwardOf(focusPose.rotation), frameDt);
-
-    // A tool holds the camera (S14): the app camera, else the chase camera
-    const mat4 view = toolCamera ? app->camera().view : camera.view();
-    const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
-    if (!toolCamera) app->camera().setView(view);
-    // RenderScene's camera of this frame and the time of the wind (the world's time between the steps)
-    scene.setCamera(0, eye, Vulkan::viewRotation(view), radians(double(worldRenderer.settings.fovy)));
-    scene.setTime(w.time() + w.alpha() * w.dt());
-    meshes.transfer(cmd, scene.viewMatrix(), eye, scene.projectionMatrix(), worldLighting(worldRenderer));
-}
-
-void RacingRender::render(vk::CommandBuffer cmd)
-{
-    const Track& track = context->track;
-    meshes.draw(trackMeshId, Mat4::Identity());
-    // Cones at the gates, the banner at the start
-    for (auto& g : track.checkpoints())
-    {
-        Vec3 r(-g.tangent(2), 0, g.tangent(0));
-        for (double side : {-1.0, 1.0})
-        {
-            Vec3 p = g.center + r * (side * (track.width * 0.5 + 1.5));
-            p(1)   = context->terrain(p(0), p(2));
-            meshes.draw(coneMesh, transformMatrix(p, Quat::Identity()));
-        }
-    }
-    {
-        const auto& g = track.checkpoints()[0];
-        Vec3 p        = g.center;
-        p(1)          = context->terrain(p(0), p(2));
-        meshes.draw(bannerMesh, transformMatrix(p, yawRotation(headingOf(g.tangent))));
-    }
-
-    World& w = app->world();
-    for (const Drawn& d : drawn)
-    {
-        if (!w.alive(d.car) || !w.has<VehicleState>(d.car)) continue;
-        const VehicleParameters& p = w.data(w.read<VehicleState>(d.car).model);
-        Mat4 body                  = transformMatrix(d.pose.position, d.pose.rotation);
-        meshes.draw(bodyMesh, body);
-        for (int i = 0; i < 4; ++i)
-        {
-            // Wheels at the suspension's current length, front wheels steered, spinning
-            Vec3 mount    = p.wheelMounts[i];
-            double length = p.restLength + p.wheelRadius - d.wheels.compression[i];
-            Vec3 center   = mount - Vec3(0, length - p.wheelRadius, 0);
-            Quat steer    = i < 2 ? yawRotation(-d.wheels.steer) : Quat::Identity();
-            Quat spin     = axisAngle(Vec3(1, 0, 0), -d.wheels.spin[i]);
-            // The mesh has the default wheel radius; the data file's radius scales it (the width stays)
-            const double r = p.wheelRadius / VehicleParameters().wheelRadius;
-            meshes.draw(wheelMesh, body * transformMatrix(center, steer * spin, Vec3(1, r, r)));
-        }
-    }
-    meshes.render(cmd);
+    wheels.end();
+    // While a tool holds the camera the app ignores it (S14)
+    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()),
+                       radians(double(worldRenderer.settings.fovy)));
+    // The time of the wind (the world's time between the steps)
+    scene.setTime(w.time() + alpha * w.dt());
 }
 
 void RacingRender::gui()
 {
     worldRenderer.imgui();
-    // The GUI runs before transfer() in a frame: the car it shows is focus()'s
+    // The GUI runs inside the frame (after beforeRender): the car it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 170), ImGuiCond_FirstUseEver);
     ImGui::Begin("Racing", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, G GUI");

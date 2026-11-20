@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-// The render side of the flight demo: world prototype, airplane, chase camera, GUI.
+// The render side of the flight demo: world prototype, chase camera, GUI (the airplanes are drawn by the engine).
 
 #include "games/flight/FlightRender.h"
 
@@ -12,7 +12,6 @@
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
-#include "games/common/WorldLighting.h"
 
 namespace Saiga
 {
@@ -29,8 +28,6 @@ void FlightRender::init(EngineApp& _app)
     // prototype world and the trees (S19a)
     worldRenderer.init(params, std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
     worldRenderer.attach(*app->scene());
-    meshes.init(app->scene()->base(), app->scene()->formats());
-    planeMesh = meshes.addMesh(MeshBuilder::airplane());
 
     const FlightContext* ctx = context.get();
     camera.distance          = 24;
@@ -38,16 +35,10 @@ void FlightRender::init(EngineApp& _app)
     camera.targetHeight      = 1;
     camera.stiffness         = 4;
     camera.ground            = [ctx](double x, double z) { return ctx->ground(x, z); };
-    caches.attach(
-        app->world(), [](World& w, const std::function<void(Entity)>& fn)
-        { w.view<const AircraftState>().each([&](Entity e, const AircraftState&) { fn(e); }); },
-        [](const World&, Entity) { return NoState(); });
 }
 
 void FlightRender::shutdown()
 {
-    caches.detach();
-    meshes.destroy();
     worldRenderer.destroy();
 }
 
@@ -66,65 +57,38 @@ Entity FlightRender::focus()
     return first;
 }
 
-void FlightRender::transfer(vk::CommandBuffer cmd)
+void FlightRender::beforeRender(double alpha)
 {
-    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
     Vulkan::RenderScene& scene = *app->scene();
     worldRenderer.update();
-    meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
     World& w             = app->world();
     const Entity e       = focus();
-    bool snap            = false;
     if (e != followed)
     {
         followed = e;
-        snap     = true;
+        camera.reset();
     }
-    // Every plane at its interpolated pose
-    drawn.clear();
-    PoseHistory::Pose focusPose;
-    bool hasFocus = false;
-    w.view<const AircraftState>().each(
-        [&](Entity plane, const AircraftState&)
-        {
-            auto* c = caches.entry(plane);
-            PoseHistory::Pose p;
-            if (!c || !c->pose.interpolated(w, plane, w.alpha(), p)) return;
-            const bool teleported = c->pose.takeTeleport();
-            if (plane == followed)
-            {
-                focusPose = p;
-                hasFocus  = true;
-                snap      = snap || teleported;
-            }
-            drawn.push_back(p);
-        });
-    const bool toolCamera = app->cameraHeldByTool();
-    const bool released   = held.released(toolCamera);
-    if (snap || released) camera.reset();
-    if (hasFocus && !toolCamera) camera.update(focusPose.position, forwardOf(focusPose.rotation), frameDt);
-
-    // A tool holds the camera (S14): the app camera, else the chase camera
-    const mat4 view = toolCamera ? app->camera().view : camera.view();
-    const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
-    if (!toolCamera) app->camera().setView(view);
-    // RenderScene's camera of this frame and the time of the wind (the world's time between the steps)
-    scene.setCamera(0, eye, Vulkan::viewRotation(view), radians(double(worldRenderer.settings.fovy)));
-    scene.setTime(w.time() + w.alpha() * w.dt());
-    meshes.transfer(cmd, scene.viewMatrix(), eye, scene.projectionMatrix(), worldLighting(worldRenderer));
-}
-
-void FlightRender::render(vk::CommandBuffer cmd)
-{
-    for (const PoseHistory::Pose& p : drawn) meshes.draw(planeMesh, transformMatrix(p.position, p.rotation));
-    meshes.render(cmd);
+    // The chase camera behind the interpolated plane (the engine draws it with the same pose); a teleport (respawn)
+    // snaps it
+    Engine::WorldPose p;
+    bool teleported = false;
+    if (w.extract().interpolatedPose(followed, alpha, p, &teleported))
+    {
+        if (teleported) camera.reset();
+        camera.update(p.position, forwardOf(p.rotation), frameDt);
+    }
+    // While a tool holds the camera the app ignores it (S14)
+    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()),
+                       radians(double(worldRenderer.settings.fovy)));
+    // The time of the wind (the world's time between the steps)
+    scene.setTime(w.time() + alpha * w.dt());
 }
 
 void FlightRender::gui()
 {
     worldRenderer.imgui();
-    // The GUI runs before transfer() in a frame: the plane it shows is focus()'s
+    // The GUI runs inside the frame (after beforeRender): the plane it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 160), ImGuiCond_FirstUseEver);
     ImGui::Begin("Flight", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("W/S pitch, A/D roll, Q/E yaw, shift/ctrl throttle, R respawn, G GUI");

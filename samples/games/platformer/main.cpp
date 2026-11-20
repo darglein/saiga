@@ -47,11 +47,11 @@ int main(int argc, char** argv)
     {
         if (player.valid() && w.has<DemoPilot>(player)) w.get<DemoPilot>(player).suspended = !in.neutral();
     };
-    setup.renderHooks.init     = [&](EngineApp& app) { renderer.init(app); };
-    setup.renderHooks.shutdown = [&](EngineApp&) { renderer.shutdown(); };
-    setup.renderHooks.transfer = [&](vk::CommandBuffer cmd) { renderer.transfer(cmd); };
-    setup.renderHooks.render   = [&](vk::CommandBuffer cmd) { renderer.render(cmd); };
-    setup.renderHooks.gui      = [&]() { renderer.gui(); };
+    setup.renderHooks.init         = [&](EngineApp& app) { renderer.init(app); };
+    setup.renderHooks.shutdown     = [&](EngineApp&) { renderer.shutdown(); };
+    setup.renderHooks.beforeRender = [&](EngineApp&, double alpha) { renderer.beforeRender(alpha); };
+    setup.renderHooks.gui          = [&]() { renderer.gui(); };
+    setup.onCameraReleased         = [&](EngineApp&) { renderer.cameraReleased(); };
 
     return engineMain(argc, argv, setup, {"--demo"},
                       [](EngineApp& app, const AppOptions& options)

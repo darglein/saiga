@@ -72,7 +72,7 @@ bool numberArgument(const Json& args, const char* name, double limit, double& ou
     return true;
 }
 
-bool vec3Argument(const Json& args, const char* name, vec3& out, bool& given, const McpServer::Respond& respond)
+bool vec3Argument(const Json& args, const char* name, Vec3& out, bool& given, const McpServer::Respond& respond)
 {
     const Json& j = args[name];
     given         = !j.is_null();
@@ -82,51 +82,36 @@ bool vec3Argument(const Json& args, const char* name, vec3& out, bool& given, co
     {
         ok = j[size_t(i)].is_number() && std::isfinite(j[size_t(i)].number_value()) &&
              std::abs(j[size_t(i)].number_value()) <= kCameraLimit;
-        if (ok) out(i) = float(j[size_t(i)].number_value());
+        if (ok) out(i) = j[size_t(i)].number_value();
     }
     if (!ok) respond(ToolResult::Error(std::string(name) + ": [x, y, z] with finite numbers within 1e6"));
     return ok;
 }
 
-vec3 cameraForward(const Camera& camera)
+// The view camera's forward direction (-z of its rotation)
+Vec3 cameraForward(const ViewCamera& camera)
 {
-    return -make_vec3(camera.model.col(2)).normalized();
+    return camera.rotation * Vec3(0, 0, -1);
 }
 
 // yaw: 0 looks along -z, 90 along +x; pitch: positive looks up
-vec3 directionFromYawPitch(double yawDeg, double pitchDeg)
+Vec3 directionFromYawPitch(double yawDeg, double pitchDeg)
 {
     const double y = yawDeg * kPi / 180.0, p = pitchDeg * kPi / 180.0;
-    return vec3(float(std::sin(y) * std::cos(p)), float(std::sin(p)), float(-std::cos(y) * std::cos(p)));
+    return Vec3(std::sin(y) * std::cos(p), std::sin(p), -std::cos(y) * std::cos(p));
 }
 
-void yawPitchFromDirection(const vec3& d, double& yawDeg, double& pitchDeg)
+void yawPitchFromDirection(const Vec3& d, double& yawDeg, double& pitchDeg)
 {
-    yawDeg   = std::atan2(double(d(0)), double(-d(2))) * 180.0 / kPi;
-    pitchDeg = std::asin(std::min(std::max(double(d(1)), -1.0), 1.0)) * 180.0 / kPi;
+    yawDeg   = std::atan2(d(0), -d(2)) * 180.0 / kPi;
+    pitchDeg = std::asin(std::min(std::max(d(1), -1.0), 1.0)) * 180.0 / kPi;
 }
 
-void lookFrom(Camera& camera, const vec3& eye, vec3 dir)
+// A tool's camera write (held): the view camera at eye looking along dir (a heading kept near straight up / down)
+void lookFrom(EngineApp& app, const Vec3& eye, const Vec3& dir)
 {
-    if (!dir.allFinite() || dir.norm() < 1e-6f) dir = vec3(0, 0, -1);
-    dir.normalize();
-    // Only (almost) straight up/down: the view matrix needs an up vector that is not parallel, and the heading (for
-    // relative moves) is kept with a tiny horizontal part, the camera's previous heading when there is none
-    constexpr float kMinHorizontal = 1e-3f;  // about 89.94 degrees
-    vec2 h(dir(0), dir(2));
-    if (h.norm() < kMinHorizontal)
-    {
-        if (h.norm() < 1e-6f)
-        {
-            const vec3 f = cameraForward(camera);
-            h            = vec2(f(0), f(2));
-            if (!h.allFinite() || h.norm() < 1e-6f) h = vec2(0, -1);
-        }
-        h          = h.normalized() * kMinHorizontal;
-        float sign = dir(1) < 0 ? -1.0f : 1.0f;
-        dir        = vec3(h(0), sign * std::sqrt(1.0f - kMinHorizontal * kMinHorizontal), h(1));
-    }
-    camera.setView(lookAt(vec3(0, 0, 0), dir, vec3(0, 1, 0)) * translate(-eye));
+    const ViewCamera& c = app.viewCamera();
+    app.setViewCameraByTool(c.space, eye, cameraLookRotation(dir, cameraForward(c)), c.fovy, true);
 }
 
 double round3(double x)
@@ -136,9 +121,9 @@ double round3(double x)
 
 Json cameraJson(EngineApp& app)
 {
-    const Camera& c = app.camera();
-    const vec3 p    = c.getPosition();
-    const vec3 f    = cameraForward(c);
+    const ViewCamera& c = app.viewCamera();
+    const Vec3& p       = c.position;
+    const Vec3 f        = cameraForward(c);
     double yaw, pitch;
     yawPitchFromDirection(f, yaw, pitch);
     return Json::object{{"position", Json::array{round3(p(0)), round3(p(1)), round3(p(2))}},
@@ -472,10 +457,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 app.releaseCamera();
                 return respond(ToolResult::Text(cameraJson(app).dump()));
             }
-            PerspectiveCamera& camera = app.camera();
-            vec3 pos                  = camera.getPosition();
-            vec3 dir                  = cameraForward(camera);
-            vec3 target               = vec3::Zero();
+            Vec3 pos    = app.viewCamera().position;
+            Vec3 dir    = cameraForward(app.viewCamera());
+            Vec3 target = Vec3::Zero();
             bool hasPos, hasTarget, hasYaw, hasPitch;
             double yaw = 0, pitch = 0;
             if (!vec3Argument(args, "position", pos, hasPos, respond) ||
@@ -483,7 +467,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 !numberArgument(args, "yaw_deg", 3600, yaw, hasYaw, respond) ||
                 !numberArgument(args, "pitch_deg", 90, pitch, hasPitch, respond))
                 return;
-            if (hasTarget && (target - pos).norm() < 1e-4f)
+            if (hasTarget && (target - pos).norm() < 1e-4)
                 return respond(ToolResult::Error("look_at must differ from the position"));
             if (hasTarget)
                 dir = target - pos;
@@ -493,8 +477,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 yawPitchFromDirection(dir, y0, p0);
                 dir = directionFromYawPitch(hasYaw ? yaw : y0, hasPitch ? pitch : p0);
             }
-            app.holdCamera();
-            lookFrom(camera, pos, dir);
+            lookFrom(app, pos, dir);
             respond(ToolResult::Text(cameraJson(app).dump()));
         });
 
@@ -520,18 +503,16 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 !numberArgument(args, "yaw_deg", 3600, dyaw, g, respond) ||
                 !numberArgument(args, "pitch_deg", 3600, dpitch, g, respond))
                 return;
-            PerspectiveCamera& camera = app.camera();
-            vec3 pos                  = camera.getPosition();
+            Vec3 pos = app.viewCamera().position;
             double yaw, pitch;
-            yawPitchFromDirection(cameraForward(camera), yaw, pitch);
-            const vec3 flatForward = directionFromYawPitch(yaw, 0);
-            const vec3 rightDir    = directionFromYawPitch(yaw + 90, 0);
-            pos += flatForward * float(forward) + rightDir * float(right) + vec3(0, 1, 0) * float(up);
-            for (int i = 0; i < 3; ++i) pos(i) = float(std::min(std::max(double(pos(i)), -kCameraLimit), kCameraLimit));
+            yawPitchFromDirection(cameraForward(app.viewCamera()), yaw, pitch);
+            const Vec3 flatForward = directionFromYawPitch(yaw, 0);
+            const Vec3 rightDir    = directionFromYawPitch(yaw + 90, 0);
+            pos += flatForward * forward + rightDir * right + Vec3(0, 1, 0) * up;
+            for (int i = 0; i < 3; ++i) pos(i) = std::min(std::max(pos(i), -kCameraLimit), kCameraLimit);
             yaw += dyaw;
             pitch = std::min(std::max(pitch + dpitch, -89.0), 89.0);
-            app.holdCamera();
-            lookFrom(camera, pos, directionFromYawPitch(yaw, pitch));
+            lookFrom(app, pos, directionFromYawPitch(yaw, pitch));
             respond(ToolResult::Text(cameraJson(app).dump()));
         });
 

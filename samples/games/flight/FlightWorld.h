@@ -129,6 +129,9 @@ class Autopilot final : public AircraftBase
     FlightAutopilot pilot;  // constant configuration (configure)
 };
 
+// The airplane's mesh (WorldSetup::renderAssets; RenderInstance of every plane)
+constexpr const char* kAirplaneMesh = "flight/airplane";
+
 // The world setup of the flight demo (components, systems, classes, actions, data, the context)
 Engine::WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory);
 void flightScenarios(Engine::ScenarioList& list);

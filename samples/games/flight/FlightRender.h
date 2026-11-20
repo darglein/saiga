@@ -11,7 +11,6 @@
 
 #include "games/common/ChaseCamera.h"
 #include "games/common/GameEngine.h"
-#include "games/common/MeshRenderer.h"
 #include "games/flight/FlightWorld.h"
 
 namespace Saiga
@@ -19,10 +18,10 @@ namespace Saiga
 namespace Game
 {
 /**
- * The render side of the flight demo (GameRenderHooks; transitional until the RenderScene instances of S19): the
- * world prototype on the context's height field, every airplane at its pose interpolated between the last two steps
- * (S16b: remote planes on a co-op client from RenderPose), the chase camera, the GUI. Follows the local player's plane
- * (its driver's Driver.vehicle), or the first airplane (--demo).
+ * The render side of the flight demo (GameRenderHooks): the world prototype on the context's height field, the chase
+ * camera, the GUI. The airplanes are entities with RenderInstance (drawn by the engine's extract, S19b; remote planes
+ * on a co-op client from RenderPose); the camera follows the interpolated pose of the local player's plane (its
+ * driver's Driver.vehicle), or of the first airplane (--demo).
  */
 class FlightRender
 {
@@ -31,27 +30,20 @@ class FlightRender
 
     void init(Engine::EngineApp& app);
     void shutdown();
-    void transfer(vk::CommandBuffer cmd);
-    void render(vk::CommandBuffer cmd);
+    void beforeRender(double alpha);
     void gui();
+    // The camera hold of a tool ended (EngineAppSetup::onCameraReleased)
+    void cameraReleased() { camera.reset(); }
 
    private:
-    struct NoState
-    {
-    };
     Entity focus();
 
     std::shared_ptr<const FlightContext> context;
     Engine::EngineApp* app = nullptr;
     Vulkan::WorldRenderer worldRenderer;
-    MeshRenderer meshes;
     ChaseCamera camera;
-    RenderCaches<NoState> caches;
-    HeldCamera held;
     FrameClock clock;
     Entity followed;
-    std::vector<PoseHistory::Pose> drawn;
-    int planeMesh = -1;
 };
 
 }  // namespace Game

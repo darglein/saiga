@@ -8,6 +8,7 @@
 
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/world/World.h"
 
 #include "games/common/DrivingComponents.h"
@@ -42,9 +43,9 @@ struct Driven
 };
 
 // The host's player of a peer with a vehicle of class T (T::Controls: the game's control component): the driver
-// entity first (Player{peer}, PlayerInput, T::Controls), then the vehicle (host-owned) with the initial VehicleSeat
-// {driver, slot}, then Driver.vehicle, the driver's pose at the vehicle and setOwner(driver, peer) (peer 0: the
-// host's own player, no NetOwner). Between steps, on the host; does not step.
+// entity first (Player{peer}, PlayerInput, T::Controls, an empty RenderInstance: tracked, not drawn), then the vehicle
+// (host-owned) with the initial VehicleSeat {driver, slot}, then Driver.vehicle, the driver's pose at the vehicle and
+// setOwner(driver, peer) (peer 0: the host's own player, no NetOwner). Between steps, on the host; does not step.
 template <class T>
 Driven spawnDriven(World& w, uint8_t peer, int slot)
 {
@@ -55,6 +56,8 @@ Driven spawnDriven(World& w, uint8_t peer, int slot)
     w.add<Engine::Player>(driver, p);
     w.add<Engine::PlayerInput>(driver);
     w.add<typename T::Controls>(driver);
+    // Tracked by the extract, not drawn (interpolatedPose; S19b)
+    w.add<Engine::RenderInstance>(driver);
     VehicleSeat seat;
     seat.driver          = driver;
     seat.slot            = slot;

@@ -11,6 +11,7 @@
 
 #include "games/common/Driving.h"
 #include "games/common/GameEngine.h"
+#include "games/common/Mesh.h"
 #include "games/platformer/CharacterController.h"
 #include "games/platformer/PlatformerDemo.h"
 
@@ -158,6 +159,10 @@ class PlatformerHero final : public HeroBase
     static constexpr Engine::ClassId id = Engine::ClassId(PlatformerClass::PlatformerHero);
     static constexpr const char* name   = "PlatformerHero";
 };
+
+// The meshes of the hero's body parts by joint (WorldSetup::renderAssets; drawn as cosmetic instances, S19b)
+std::string heroPartMeshName(int joint);
+MeshData heroPartMesh(int joint);
 
 // The demo: runs through the level by itself (writes its PlayerInput) and starts over after the goal
 class DemoRunner final : public HeroBase

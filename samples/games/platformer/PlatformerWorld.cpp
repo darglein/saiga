@@ -10,11 +10,15 @@
 #include "games/platformer/PlatformerWorld.h"
 
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/net/MessageList.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
+
+#include "games/common/RenderAssets.h"
+#include "games/platformer/CharacterAnimation.h"
 
 namespace Saiga
 {
@@ -171,6 +175,9 @@ void HeroBase::onSpawn()
     if (!has<CharacterMotion>()) add<CharacterMotion>();
     if (!has<RunState>()) add<RunState>();
     if (!has<PlayerInput>()) add<PlayerInput>();
+    // Tracked by the extract, not drawn (interpolatedPose; the body parts are the renderer's cosmetic instances until
+    // the skinned meshes of S34)
+    if (!has<RenderInstance>()) add<RenderInstance>();
     restart();
 }
 
@@ -254,6 +261,49 @@ void platformerPeerJoined(World& host, uint8_t peer, bool demo)
     if (demo) host.add<DemoPilot>(e);
 }
 
+std::string heroPartMeshName(int joint)
+{
+    return "platformer/hero/part" + std::to_string(joint);
+}
+
+MeshData heroPartMesh(int joint)
+{
+    // Body parts: boxes hanging from their joints
+    const Vec3 skin(0.95, 0.75, 0.6), shirt(0.25, 0.45, 0.8), pants(0.3, 0.3, 0.35), shoes(0.2, 0.15, 0.12);
+    switch (joint)
+    {
+        case JointPelvis:
+            return MeshBuilder::box(Vec3(0.18, 0.1, 0.11), pants, Vec3(0, 0, 0));
+        case JointSpine:
+            return MeshBuilder::box(Vec3(0.22, 0.25, 0.13), shirt, Vec3(0, 0.27, 0));
+        case JointUpperArmL:
+        case JointUpperArmR:
+            return MeshBuilder::box(Vec3(0.065, 0.15, 0.065), shirt, Vec3(0, -0.14, 0));
+        case JointLowerArmL:
+        case JointLowerArmR:
+            return MeshBuilder::box(Vec3(0.055, 0.15, 0.055), skin, Vec3(0, -0.15, 0));
+        case JointThighL:
+        case JointThighR:
+            return MeshBuilder::box(Vec3(0.085, 0.22, 0.085), pants, Vec3(0, -0.22, 0));
+        case JointShinL:
+        case JointShinR:
+        {
+            // Shins with feet
+            MeshData shin = MeshBuilder::box(Vec3(0.075, 0.2, 0.075), pants, Vec3(0, -0.2, 0));
+            shin.append(MeshBuilder::box(Vec3(0.08, 0.05, 0.13), shoes, Vec3(0, -0.4, -0.05)));
+            return shin;
+        }
+        default:
+        {
+            // The head with eyes, so the facing is visible
+            MeshData head = MeshBuilder::box(Vec3(0.14, 0.15, 0.14), skin, Vec3(0, 0.15, 0));
+            head.append(MeshBuilder::box(Vec3(0.025, 0.03, 0.01), Vec3(0.1, 0.1, 0.12), Vec3(-0.06, 0.18, -0.14)));
+            head.append(MeshBuilder::box(Vec3(0.025, 0.03, 0.01), Vec3(0.1, 0.1, 0.12), Vec3(0.06, 0.18, -0.14)));
+            return head;
+        }
+    }
+}
+
 WorldSetup platformerWorldSetup(std::shared_ptr<const PlatformerContext> context)
 {
     WorldSetup s;
@@ -280,7 +330,13 @@ WorldSetup platformerWorldSetup(std::shared_ptr<const PlatformerContext> context
         a.addHeld(int(PlatformerButton::Jump), "jump");
         a.addHeld(int(PlatformerButton::Walk), "walk");
     };
-    s.dataTypes = [](DataTypeList& d) { d.add<CharacterParameters>(); };
+    s.dataTypes    = [](DataTypeList& d) { d.add<CharacterParameters>(); };
+    s.renderAssets = [](World& w)
+    {
+        const Vulkan::MaterialId flat = w.registerMaterial("platformer/flat", demoMaterial());
+        for (int j = 0; j < JointCount; ++j)
+            registerDemoMesh(w, heroPartMeshName(j), [j]() { return heroPartMesh(j); }, flat, 500);
+    };
     s.setContext(std::move(context));
     return s;
 }

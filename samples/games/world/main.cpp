@@ -56,9 +56,9 @@ struct WorldGame
     bool walkMode   = false;
     float eyeHeight = 1.8f;
     bool fWasDown   = false;
-    // The frame interval: from the previous frame's transfer to this one's (renderFrame to renderFrame)
-    std::chrono::steady_clock::time_point lastTransfer;
-    bool hasLastTransfer = false;
+    // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
+    std::chrono::steady_clock::time_point lastBeforeRender;
+    bool hasLastBeforeRender = false;
     // The engine's steps of the measured frames, taken at the frame boundaries that close them
     int64_t stepSamplesAtStart = -1;
     // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
@@ -109,15 +109,15 @@ void initWorld(EngineApp& app)
     g.world.attach(*app.scene());
 
     // Start on a hill: next to the highest point, looking over the world center
-    PerspectiveCamera& camera = app.camera();
-    auto& hf                  = g.world.heightField();
-    vec3 peak                 = hf.highestPoint();
-    vec3 center               = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
-    vec3 toPeak               = vec3(peak(0) - center(0), 0, peak(2) - center(2));
-    vec3 eye                  = peak + (toPeak.norm() > 1 ? toPeak.normalized() * 150.0f : vec3(150, 0, 0));
-    eye(1)                    = std::max(hf.height(eye(0), eye(2)), peak(1) - 40) + 60;
-    center(1)                 = hf.height(center(0), center(2));
-    camera.setView(eye, center, vec3(0, 1, 0));
+    auto& hf    = g.world.heightField();
+    vec3 peak   = hf.highestPoint();
+    vec3 center = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    vec3 toPeak = vec3(peak(0) - center(0), 0, peak(2) - center(2));
+    vec3 eye    = peak + (toPeak.norm() > 1 ? toPeak.normalized() * 150.0f : vec3(150, 0, 0));
+    eye(1)      = std::max(hf.height(eye(0), eye(2)), peak(1) - 40) + 60;
+    center(1)   = hf.height(center(0), center(2));
+    app.setViewCamera(0, eye.cast<double>(), cameraLookRotation((center - eye).cast<double>()),
+                      radians(double(g.world.settings.fovy)));
 
     if (!g.benchmarkName.empty())
     {
@@ -128,27 +128,32 @@ void initWorld(EngineApp& app)
     }
 }
 
-void transfer(EngineApp& app, vk::CommandBuffer cmd)
+void beforeRender(EngineApp& app)
 {
-    (void)cmd;
     WorldGame& g               = *g_game;
-    PerspectiveCamera& camera  = app.camera();
     Vulkan::RenderScene& scene = *app.scene();
     // The frame being recorded
     const uint64_t frame = scene.frames() + 1;
     g.world.update();
+    // The app's free camera is this game's camera: the walk mode and the field of view of the settings adjust it as
+    // tool writes (also while a tool holds it, S14)
+    ViewCamera cam    = app.viewCamera();
+    const double fovy = radians(double(g.world.settings.fovy));
+    bool changed      = cam.fovy != fovy;
+    cam.fovy          = fovy;
     if (g.walkMode)
     {
-        vec3 p          = camera.getPosition();
-        p(1)            = g.world.heightField().height(p(0), p(2)) + g.eyeHeight;
-        camera.position = make_vec4(p, 1);
-        camera.calculateModel();
-        camera.updateFromModel();
+        const double y =
+            double(g.world.heightField().height(float(cam.position(0)), float(cam.position(2)))) + double(g.eyeHeight);
+        changed         = changed || y != cam.position(1);
+        cam.position(1) = y;
     }
+    if (changed) app.setViewCameraByTool(cam.space, cam.position, cam.rotation, cam.fovy, false);
     if (g.bench)
     {
         auto pose = g.bench->currentPose(frame);
-        camera.setView(pose.eye, pose.target, vec3(0, 1, 0));
+        app.setViewCamera(0, pose.eye.cast<double>(), cameraLookRotation((pose.target - pose.eye).cast<double>()),
+                          fovy);
         if (g.bench->measuring(frame))
         {
             ivec2 size = scene.size();
@@ -157,34 +162,31 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
             g.bench->height = size(1);
         }
     }
-    // The camera of this frame (RenderScene's double camera; the projection from the settings' fovy) and the time of
-    // the wind (benchmarks: 0)
-    const vec3 eye = camera.getPosition();
-    scene.setCamera(0, eye.cast<double>(), Vulkan::viewRotation(camera.view), radians(double(g.world.settings.fovy)));
+    // The time of the wind (benchmarks: 0); the app sets the camera of the frame
     World& w = app.world();
     scene.setTime(g.bench ? 0.0 : w.time() + w.alpha() * w.dt());
 
     // The CPU times of the previous frame: its interval (until now) and its recording and submit
     const auto now = std::chrono::steady_clock::now();
-    if (g.bench && g.hasLastTransfer)
+    if (g.bench && g.hasLastBeforeRender)
     {
         Vulkan::WorldBenchmark::Sample sample;
         sample.frame      = frame - 1;
-        sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastTransfer).count();
+        sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
         sample.workMs     = scene.lastRecordingMs();
         g.bench->addSample(sample);
     }
-    g.lastTransfer    = now;
-    g.hasLastTransfer = true;
+    g.lastBeforeRender    = now;
+    g.hasLastBeforeRender = true;
 
     if (g.bench)
     {
         // Frame k is RenderScene's frame being recorded (W: the last warm-up frame, M1..Mn: the measured frames). In a
-        // frame the steps run before transfer.
+        // frame the steps run before beforeRender.
         const uint64_t lastWarm = Vulkan::WorldBenchmark::warmupFrames;
         const uint64_t lastMeas = lastWarm + Vulkan::WorldBenchmark::measuredFrames;
         Profiler& wp            = app.world().profiler();
-        // Steps: from after W's steps (transfer of W) to after Mn's steps (transfer of Mn)
+        // Steps: from after W's steps (beforeRender of W) to after Mn's steps (beforeRender of Mn)
         if (frame == lastWarm)
         {
             g.stepSamplesAtStart = int64_t(wp.sampleCount());
@@ -293,9 +295,9 @@ void gui(EngineApp& app)
     ImGui::SliderFloat("eye height", &g.eyeHeight, 0.5f, 50.0f);
     ImGui::SliderFloat("speed", &app.cameraSpeed(), 1, 200);
     ImGui::SliderFloat("speed fast", &app.cameraSpeedFast(), 10, 2000);
-    vec3 p = app.camera().getPosition();
+    const Vec3 p = app.viewCamera().position;
     ImGui::Text("camera %.1f %.1f %.1f (%.1f m above ground)", p(0), p(1), p(2),
-                p(1) - g.world.heightField().height(p(0), p(2)));
+                p(1) - double(g.world.heightField().height(float(p(0)), float(p(2)))));
     if (app.mcp().running()) ImGui::Text("MCP: http://127.0.0.1:%d/mcp", app.mcp().port());
     ImGui::End();
 }
@@ -320,15 +322,25 @@ int main(int argc, char* argv[])
         game.benchmarkName = app.options().benchmark;
         initWorld(app);
     };
-    setup.renderHooks.shutdown = [&](EngineApp&) { game.world.destroy(); };
-    setup.renderHooks.transfer = [&](vk::CommandBuffer cmd) { transfer(*appPtr, cmd); };
-    setup.renderHooks.gui      = [&]() { gui(*appPtr); };
-    setup.gameTools            = [&](McpServer& server, EngineApp& app)
+    setup.renderHooks.shutdown     = [&](EngineApp&) { game.world.destroy(); };
+    setup.renderHooks.beforeRender = [&](EngineApp& app, double) { beforeRender(app); };
+    setup.renderHooks.gui          = [&]() { gui(*appPtr); };
+    setup.gameTools                = [&](McpServer& server, EngineApp& app)
     {
         if (!app.scene()) return;
         Vulkan::WorldMcpContext context;
         context.world     = &game.world;
-        context.camera    = &app.camera();
+        context.getCamera = [&app]()
+        {
+            Vulkan::WorldMcpCamera c;
+            c.position = app.viewCamera().position;
+            c.rotation = app.viewCamera().rotation;
+            c.fovy     = app.viewCamera().fovy;
+            return c;
+        };
+        // A tool write without a hold (game_set_camera moves the camera this game renders from)
+        context.setCamera = [&app](const Vulkan::WorldMcpCamera& c)
+        { app.setViewCameraByTool(app.viewCamera().space, c.position, c.rotation, c.fovy, false); };
         context.walkMode  = &game.walkMode;
         context.eyeHeight = &game.eyeHeight;
         Vulkan::registerWorldMcpTools(server, context);
