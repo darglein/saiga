@@ -680,11 +680,14 @@ TEST_F(VulkanWorldRender, GameTools)
 
     // game_terrain_query: the field's heights, limits and errors
     const float x = hf.worldSize() * 0.25f, z = hf.worldSize() * 0.75f;
-    Json q = toolResultJson(
-        callWorldTool(server, "game_terrain_query", Json::object{{"points", Json::array{Json::array{x, z}}}}));
+    // Nested arrays built explicitly: Json::array{Json::array{...}} is a copy, not a nesting, with Clang
+    Json::array points;
+    points.push_back(Json::array{x, z});
+    Json q = toolResultJson(callWorldTool(server, "game_terrain_query", Json::object{{"points", points}}));
     EXPECT_NEAR(q[0]["height"].number_value(), hf.height(x, z), 0.01) << q.dump();
-    EXPECT_TRUE(callWorldTool(server, "game_terrain_query",
-                              Json::object{{"points", Json::array{Json::array{1}}}})["result"]["isError"]
+    Json::array badPoints;
+    badPoints.push_back(Json::array{1});
+    EXPECT_TRUE(callWorldTool(server, "game_terrain_query", Json::object{{"points", badPoints}})["result"]["isError"]
                     .bool_value());
 
     // game_set_camera: [x, z] with a height above ground keeps the view direction; walk mode on and off
