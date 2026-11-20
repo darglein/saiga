@@ -24,7 +24,7 @@ void Vehicle::resetOnGround(double x, double z, double heading)
 
 void Vehicle::reset(const Vec3& position, double heading)
 {
-    state             = VehicleState();
+    state             = VehicleKinematics();
     state.orientation = yawRotation(heading);
     state.position    = position;
     // Each wheel's actual compression at the spawn pose, so the damper does not see a jump in the first step.

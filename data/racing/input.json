@@ -1,0 +1,7 @@
+{
+    "bindings": {"respawn": ["R"]},
+    "axes": {
+        "throttle": {"negative": ["S"], "positive": ["W"]},
+        "steer": {"negative": ["A"], "positive": ["D"]}
+    }
+}

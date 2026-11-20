@@ -6,13 +6,13 @@
 
 // AI driver of the racing demo mode.
 
-#include "games/racing/RaceDriver.h"
+#include "games/racing/DriverModel.h"
 
 namespace Saiga
 {
 namespace Game
 {
-VehicleControls RaceDriver::controls(const Vehicle& car, const Track& track)
+VehicleControls DriverModel::controls(const Vehicle& car, const Track& track)
 {
     VehicleControls c;
     const auto& p = car.state.position;

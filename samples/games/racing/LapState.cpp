@@ -6,19 +6,19 @@
 
 // Lap timing of the racing tech demo: checkpoints in order, laps, lap times.
 
-#include "games/racing/LapTimer.h"
+#include "games/racing/LapState.h"
 
 namespace Saiga
 {
 namespace Game
 {
-void LapTimer::reset(const Track& track)
+void LapState::reset(const Track& track)
 {
-    *this          = LapTimer();
+    *this          = LapState();
     nextCheckpoint = track.checkpoints().size() > 1 ? 1 : 0;
 }
 
-void LapTimer::update(const Track& track, const Vec3& before, const Vec3& after, double dt)
+void LapState::update(const Track& track, const Vec3& before, const Vec3& after, double dt)
 {
     lapTime += dt;
     const auto& gates = track.checkpoints();
