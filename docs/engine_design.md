@@ -2165,7 +2165,11 @@ void registerEngineScenarios(ScenarioList& s)
   `world()` returns the current `World`: the save/load variant replaces it, so scenario code calls `world()` each time
   and never keeps the reference across a step helper (entity handles stay valid; replaced worlds live until the
   scenario ends). Steps are observed by a step listener, so `world().step()`, `advance()` and the API's `step` count
-  too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths. A scenario
+  too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths (through
+  the step helpers and `call`, which throw the abort; a direct `api().call("step", ...)` returns it as an error, and a
+  loop that ignores errors does not end: use `call`). The save/load variant swaps the world at the first step helper
+  or `call` at or after half of the plain run's steps; a scenario that steps after that only through `world()` or
+  `api()` fails the variant (nothing would run on the loaded world). A scenario
   adds its own step listeners with `ScenarioWorld::addStepListener` (they move to the replacement world; a listener
   added to `world()` directly fails the save/load variant), and never steps inside a step listener (a failure: the
   world's listener dispatch is not re-entrant: `World::step`/`advance` and the world API's edits are refused inside a

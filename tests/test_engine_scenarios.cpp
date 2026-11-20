@@ -587,11 +587,30 @@ TEST(ScenarioRunner, ExceptionsStepLimitsAndOtherStepPaths)
                             w.world().step(5);
                             w.check(w.steps() == 5, "5 steps observed");
                         });
-    for (ScenarioVariant v : {ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
+    for (ScenarioVariant v : {ScenarioVariant::Plain, ScenarioVariant::Repeat})
     {
         const ScenarioResult r = runScenario(scenarioSetup(), direct, v);
         EXPECT_TRUE(r.passed) << r.report;
     }
+    // Regression (CodeRabbit, S12): without a step helper or call() after the middle the round trip ran only at the end
+    // and the variant passed although nothing ran on the loaded world
+    const ScenarioResult d = runScenario(scenarioSetup(), direct, ScenarioVariant::SaveLoad);
+    EXPECT_FALSE(d.passed);
+    EXPECT_TRUE(contains(d, "nothing ran on the loaded world")) << d.report;
+    // The API's step through call() swaps the world like a step helper
+    auto called = entry("called_steps",
+                        [](ScenarioWorld& w)
+                        {
+                            w.spawn<Counter>({0, 0, 0});
+                            w.call("pause", Json::object{});
+                            w.call("step", Json::object{{"n", 5}});
+                            w.call("step", Json::object{{"n", 5}});
+                            w.check(w.steps() == 10, "10 steps observed");
+                        });
+    ScenarioOptions strict;
+    strict.strictContinuation = true;
+    const ScenarioResult c    = runScenario(scenarioSetup(), called, ScenarioVariant::SaveLoad, strict);
+    EXPECT_TRUE(c.passed) << c.report;
     // No steps at all: the save/load round trip happens at the end
     auto none = entry("no_steps", [](ScenarioWorld& w) { w.spawn<Counter>({0, 0, 0}); });
     EXPECT_TRUE(runScenario(scenarioSetup(), none, ScenarioVariant::SaveLoad).passed);
@@ -707,6 +726,57 @@ TEST(ScenarioRunner, SteppingInsideAStepListenerFails)
                           for (;;) w.world().step();
                       });
     EXPECT_TRUE(contains(runScenario(scenarioSetup(), loop, ScenarioVariant::Plain, small), "more than 10 steps"));
+}
+
+// Review regressions (CodeRabbit, S12)
+
+// A failure of the plain baseline run fails the save/load variant (it was dropped when the second run passed)
+TEST(ScenarioRunner, SaveLoadReportsAFailingBaseline)
+{
+    auto runs              = std::make_shared<int>(0);
+    auto e                 = entry("fails_once",
+                                   [runs](ScenarioWorld& w)
+                                   {
+                       w.step(4);
+                       if ((*runs)++ == 0) throw std::runtime_error("first run only");
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "baseline run: ")) << r.report;
+    EXPECT_TRUE(contains(r, "first run only")) << r.report;
+}
+
+// A listener's captured state survives the swap (each registration copied the callable, the copy in the replacement
+// started from the registration-time state)
+TEST(ScenarioRunner, ListenerStateSurvivesTheSwap)
+{
+    auto e                 = entry("stateful_listener",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.addStepListener(
+                           [&w, n = uint64_t(0)]() mutable
+                           {
+                               n++;
+                               w.check(n == w.steps(), "the listener counted " + std::to_string(n) + " steps");
+                           });
+                       w.step(20);
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    EXPECT_TRUE(r.passed) << r.report;
+}
+
+// saveLoad inside a step listener would replace the world while it runs its listeners
+TEST(ScenarioRunner, SaveLoadInsideAStepListenerFails)
+{
+    auto e                 = entry("swapping_listener",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.addStepListener([&w]() { w.saveLoad(); });
+                       w.step(2);
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Plain);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "saveLoad was called from a step listener")) << r.report;
 }
 
 // The tick setting carries over from the world (also when set on world() directly)

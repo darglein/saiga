@@ -186,24 +186,44 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         // them (at the end for scenarios with fewer than 2 steps)
         Run plain          = runOnce(setup, entry, options, {});
         const uint64_t mid = plain.steps / 2;
-        Run r              = runOnce(
-            setup, entry, options,
-            [&](ScenarioWorld& w, Run&)
-            {
-                if (plain.steps >= 2) w.control.saveLoadAt = mid;
-            },
-            [](ScenarioWorld& w, Run&)
-            {
-                if (!w.control.saveLoadDone) w.saveLoad();
-            });
-        result.failures = r.failures;
-        result.steps    = r.steps;
-        details         = r.report;
-        if (options.strictContinuation && r.failures.empty() && r.finalHash != plain.finalHash)
-            result.failures.push_back("save/load: the final state differs from the plain run (hash " +
-                                      hex(r.finalHash) + " != " + hex(plain.finalHash) +
-                                      "): state outside the saved components changed the behavior (R-STATE-1)" +
-                                      describeDiff(plain.finalSave, r.finalSave));
+        if (!plain.failures.empty())
+        {
+            // A failing baseline fails the variant (its step count and final state are no reference)
+            for (const std::string& f : plain.failures) result.failures.push_back("baseline run: " + f);
+            result.steps = plain.steps;
+            details      = plain.report;
+        }
+        else
+        {
+            bool swappedAtEnd = false;
+            Run r             = runOnce(
+                setup, entry, options,
+                [&](ScenarioWorld& w, Run&)
+                {
+                    if (plain.steps >= 2) w.control.saveLoadAt = mid;
+                },
+                [&](ScenarioWorld& w, Run&)
+                {
+                    if (w.control.saveLoadDone) return;
+                    swappedAtEnd = true;
+                    w.saveLoad();
+                });
+            result.failures = r.failures;
+            result.steps    = r.steps;
+            details         = r.report;
+            // Steps only through world() or api() (no step helper or call() after the middle): no continuation ran on
+            // the loaded world, the variant would claim coverage it did not have
+            if (plain.steps >= 2 && swappedAtEnd && r.failures.empty())
+                result.failures.push_back(
+                    "save/load: no step helper or call() ran at or after step " + std::to_string(mid) +
+                    " (the scenario stepped through world() or api() directly), so nothing ran on the loaded world: "
+                    "step with the ScenarioWorld helpers or call()");
+            if (options.strictContinuation && result.failures.empty() && r.finalHash != plain.finalHash)
+                result.failures.push_back("save/load: the final state differs from the plain run (hash " +
+                                          hex(r.finalHash) + " != " + hex(plain.finalHash) +
+                                          "): state outside the saved components changed the behavior (R-STATE-1)" +
+                                          describeDiff(plain.finalSave, r.finalSave));
+        }
     }
 
     result.passed  = result.failures.empty();

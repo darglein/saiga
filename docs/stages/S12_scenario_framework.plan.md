@@ -232,9 +232,15 @@ this file.
   aborted the process); the step observation re-registers itself after it threw (later steps were neither counted nor
   stopped); `ScenarioList::add` refuses bad names in every build (R-REG-1).
 
+- CodeRabbit: a failing baseline run fails the save/load variant (it was dropped); `call` swaps the world like a step
+  helper, and a scenario that steps after the middle only through `world()`/`api()` fails the variant (the round trip
+  ran only at the end, nothing ran on the loaded world); a listener's callable is shared by its registrations (its
+  captured state survives the swap); `saveLoad` inside a step listener is a failure; §17.2 says that `maxSteps` ends a
+  loop of `api().call("step")` only through `call`.
+
 Updated: §3, §9.3 (`characterId` in scenarios), §16.2, §17.2, §17.4, §18.3, §20, the S12 row; AGENTS.md.
 
 ## Results
 
 - `test_engine_scenarios`: 8 engine scenarios x 3 variants (with `varyThreads` and `strictContinuation`) and 15 runner
-  tests pass (39 tests); 62 ctest tests.
+  tests pass (42 tests); 62 ctest tests.

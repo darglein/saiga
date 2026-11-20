@@ -75,18 +75,19 @@ void ScenarioWorld::attach()
         ownListeners.push_back(w->addStepListener(
             [fn]()
             {
-                fn();
+                (*fn)();
                 return true;
             }));
 }
 
 void ScenarioWorld::addStepListener(std::function<void()> fn)
 {
-    listeners.push_back(fn);
+    auto shared = std::make_shared<std::function<void()>>(std::move(fn));
+    listeners.push_back(shared);
     ownListeners.push_back(w->addStepListener(
-        [fn]()
+        [shared]()
         {
-            fn();
+            (*shared)();
             return true;
         }));
 }
@@ -135,6 +136,9 @@ ApiResult ScenarioWorld::call(const std::string& operation, const json11::Json& 
     checkAbort();
     ApiResult r = api().call(operation, arguments);
     checkAbort();
+    // The API's step counts like a step helper for the save/load variant's swap (after the call, between steps)
+    if (!control.saveLoadDone && observedSteps >= control.saveLoadAt && stepDepth == 0 && !w->dispatchingListeners())
+        saveLoad();
     return r;
 }
 
@@ -242,6 +246,15 @@ double ScenarioWorld::distance(Entity a, Entity b)
 
 void ScenarioWorld::saveLoad()
 {
+    // The old world must not be replaced while it runs its listeners (the rest of them would see the old world)
+    if (w->dispatchingListeners())
+    {
+        failed.push_back("step " + std::to_string(observedSteps) +
+                         ": saveLoad was called from a step listener (not supported: call it in the scenario "
+                         "function)");
+        abortReason = "save/load inside a step listener";
+        throw ScenarioAbort{abortReason};
+    }
     control.saveLoadDone             = true;
     const std::vector<uint8_t> saved = w->save();
     auto fresh                       = std::make_unique<World>(setup);

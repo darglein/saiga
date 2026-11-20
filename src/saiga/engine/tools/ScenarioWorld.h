@@ -166,7 +166,9 @@ class SAIGA_ENGINE_API ScenarioWorld
     int stepListener = -1;
     int stepDepth    = 0;           // step helpers running (the swap happens only at depth 0, between listeners)
     std::vector<int> ownListeners;  // IDs in the current world of the listeners of addStepListener
-    std::vector<std::function<void()>> listeners;
+    // One callable per listener, shared by its registrations in the replaced and the replacement world (its captured
+    // state survives the swap)
+    std::vector<std::shared_ptr<std::function<void()>>> listeners;
     // Replaced worlds live until the scenario ends (a World& kept by mistake, or a listener still running on it,
     // stays valid)
     std::vector<std::unique_ptr<World>> retiredWorlds;
