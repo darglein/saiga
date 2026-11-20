@@ -965,12 +965,11 @@ TEST(ExtractSave, ByNameIndependentOfRegistrationOrder)
     EXPECT_EQ(a.hash(), b.hash());
     EXPECT_EQ(b.read<RenderInstance>(e).mesh, "test/ball");
     EXPECT_EQ(b.read<RenderInstance>(e).cachedMesh, b.findMesh("test/ball"));
-    // A missing mesh is a load error naming the entity (the world is unchanged)
+    // A missing mesh: the load succeeds and keeps the name (ExtractSave.UnknownNameLoadsAndIsDrawnWhenRegistered)
     World c(baseSetup(assetsBoxOnly));
-    const LoadResult r = c.tryLoad(blob);
-    EXPECT_FALSE(r.committed);
-    EXPECT_NE(r.error.find("entity index " + std::to_string(e.index)), std::string::npos) << r.error;
-    EXPECT_NE(r.error.find("test/ball"), std::string::npos) << r.error;
+    ASSERT_TRUE(c.tryLoad(blob).ok());
+    EXPECT_EQ(c.read<RenderInstance>(e).mesh, "test/ball");
+    EXPECT_EQ(c.read<RenderInstance>(e).cachedMesh, 0);
     // A renamed mesh through an alias
     World d(baseSetup(assetsRenamed));
     ASSERT_TRUE(d.tryLoad(blob).ok());
@@ -978,6 +977,42 @@ TEST(ExtractSave, ByNameIndependentOfRegistrationOrder)
     d.registry().view<const RenderInstance>().each([&](Entity, const RenderInstance& ri)
                                                    { renamed = renamed || ri.mesh == "test/crate"; });
     EXPECT_TRUE(renamed);
+}
+
+// A save of an entity whose mesh name is not registered (kept by the add path) loads into a world without that mesh
+// (logged once), and a later registration draws it. Regression (S19b review): the load rejected the unknown name, so a
+// game's own save of such an entity could not be loaded
+TEST(ExtractSave, UnknownNameLoadsAndIsDrawnWhenRegistered)
+{
+    World a(baseSetup(assetsBoxOnly));
+    const Entity e = rendered(a, "test/ball", Vec3(7, 0, 0));
+    rendered(a, "test/ball", Vec3(8, 0, 0));
+    rendered(a, "test/box");
+    a.step();
+    const std::vector<uint8_t> blob = a.save();
+    World b(baseSetup(assetsBoxOnly));
+    RecordingRenderSink s;
+    b.setRenderSink(&s);
+    const uint64_t before = engineLog().lastSequence();
+    const LoadResult r    = b.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    int lines = 0;
+    for (const auto& l : engineLog().since(before))
+        if (l.category == "render" && l.message.find("test/ball") != std::string::npos) lines++;
+    EXPECT_EQ(lines, 1);
+    EXPECT_EQ(b.read<RenderInstance>(e).mesh, "test/ball");
+    EXPECT_EQ(b.hash(), a.hash());
+    b.extract().catchUp();
+    EXPECT_EQ(b.extract().trackedCount(), 3u);
+    EXPECT_EQ(s.liveDynamics(), 1u);  // the box
+    // Registered later: both balls are drawn at their poses
+    const MeshId ball = b.registerMesh("test/ball", ballLods(), b.findMaterial("test/flat"));
+    ASSERT_EQ(s.liveDynamics(), 3u);
+    const RecordingRenderSink::Dynamic* d = dynamicOf(b, s, e);
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->mesh, ball);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 7, 1e-12);
+    b.setRenderSink(nullptr);
 }
 
 TEST(ExtractSave, NonUniformScaleOfARenderedEntityIsAnApiError)

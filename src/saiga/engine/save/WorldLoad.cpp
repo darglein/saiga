@@ -20,6 +20,7 @@
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
+#include <set>
 
 #include <unordered_set>
 
@@ -47,7 +48,8 @@ class WorldLoader
     bool checkHierarchy();
     bool checkPersistent();
     bool checkFreedStateEntities();
-    // S19b: every staged RenderInstance names a registered mesh (aliases resolved); the cached IDs are set
+    // S19b: resolves the staged RenderInstance names (aliases) and sets the cached IDs; an unregistered name is kept
+    // (cached 0: tracked, drawn once the mesh is registered) and counted for one log line after the commit
     bool checkRenderMeshes();
     // The staged value index -> keep; removes the others from a typed stage
     template <class T>
@@ -70,6 +72,9 @@ class WorldLoader
     std::vector<std::unique_ptr<StagedValues>> stateDefaults =
         std::vector<std::unique_ptr<StagedValues>>(kMaxComponents);
     std::vector<std::string> droppedEvents;
+    // RenderInstance names that are not registered (kept; logged once after the commit) and their entity count
+    std::set<std::string> unknownMeshes;
+    size_t unknownMeshEntities = 0;
     std::vector<bool> drop;           // by entity index: dropped by a removed type (DropEntity)
     std::vector<int64_t> generation;  // by entity index after the load: the generation, -1 if not alive
 };
@@ -815,6 +820,15 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     w.loads++;
     for (const std::string& e : droppedEvents)
         SAIGA_LOG("save", "load: dropped the pending events of the unregistered type %s", e.c_str());
+    if (!unknownMeshes.empty())
+    {
+        std::string names;
+        for (const std::string& n : unknownMeshes) names += (names.empty() ? "\"" : ", \"") + n + "\"";
+        SAIGA_LOG("render",
+                  "load: %zu entities name meshes that are not registered (%s): tracked, drawn once registered "
+                  "(World::registerMesh, registerMeshAlias)",
+                  unknownMeshEntities, names.c_str());
+    }
     startObjects(result);
     // Messages encoded from the replaced state are not sent (S15); the listeners' sends go out (a Resync, S16)
     w.discardOutboxAfterLoad();
@@ -880,8 +894,12 @@ bool WorldLoader::checkRenderMeshes()
         if (generation[s.indices[i]] < 0) continue;
         RenderInstance& r = s.values[i];
         if (!w.resolveRenderMesh(r.mesh, r.cachedMesh))
-            return fail("entity index " + std::to_string(s.indices[i]) + ": RenderInstance names the mesh \"" + r.mesh +
-                        "\", which is not registered (World::registerMesh, registerMeshAlias)");
+        {
+            // Kept, as the add path and replication do: the save stays loadable
+            r.cachedMesh = 0;
+            unknownMeshes.insert(r.mesh);
+            unknownMeshEntities++;
+        }
     }
     return true;
 }

@@ -1499,10 +1499,11 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   `add_component` / `spawn`, the `add` path, the client's `Spawn` / `ComponentChange` / `Resync` apply): it resolves
   aliases (`World::registerMeshAlias(old, name)`), refuses an unknown name (the API: an error, nothing changes;
   `setRenderMesh`: an assert; the `add` path in every build: logged (`SAIGA_LOG_E`) and kept with the cached ID 0,
-  tracked and not drawn until a mesh of that name is registered, which creates the instance) and appends the name record (a remove + add pair of `RenderInstance`) when an existing name
-  changes. `get` / `tryGet` and mutable views of `RenderInstance` are refused at compile time. Loads check the names
-  before the commit (`checkRenderMeshes`, §15; a save of an entity whose name is still unregistered loads only into a
-  world that registers it).
+  tracked and not drawn until a mesh of that name is registered, which creates the instance) and appends the name
+  record (a remove + add pair of `RenderInstance`) when an existing name changes. `get` / `tryGet` and mutable views of
+  `RenderInstance` are refused at compile time. Loads resolve the names before the commit (`checkRenderMeshes`, §15)
+  and keep an unknown one like the `add` path (cached 0, one log line per load), so a game's own save stays loadable
+  and a later `registerMesh` draws the entity.
 - **Name tables** [exists: S19b]: the `World` owns the mesh and material tables (`registerMesh(name,
   std::shared_ptr<const MeshLods>, MaterialId)`, `registerMaterial(name, MaterialData)`, `findMesh`, `findMaterial`,
   `meshName`, `renderTableHash()`; §7.10), registered in `WorldSetup::renderAssets` at world creation (games build each
@@ -2543,7 +2544,8 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
 - **Mesh names** (S19b): `RenderInstance` is saved by mesh name; the loader step `checkRenderMeshes` (over the staged
   `RenderInstance` values, before the commit, validate-then-commit) resolves aliases (`World::registerMeshAlias(old,
   name)`: a game renames a mesh; `MigrationList` is keyed by the engine component's version, which a game cannot bump)
-  and rejects an unknown name as a load error naming the entity index; the cached `MeshId`s are set there. The IDs of a
+  and sets the cached `MeshId`s; an unknown name is kept (cached 0: tracked, drawn once the mesh is registered) and
+  reported in one `render` log line per load with the names and the entity count, so a save stays loadable. The IDs of a
   save's names follow the loading world's registration order (the hash does not depend on it).
 
 ### 15.3 Generator versions [planned: S23]

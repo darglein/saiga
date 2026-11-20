@@ -236,6 +236,10 @@ the client only), `src/saiga/vulkan/scene/RenderScene.*` (`reserveIds`),
   `RenderInstance` initial component.
 - **`setRenderMesh` on an entity without `RenderInstance`** adds it (through the add path); during a step it is a
   command. An unknown name asserts (refused in every build).
+- **Unknown mesh names are kept** (local review): the plan's "stored as the empty name" (the `add` path) and "an
+  unknown name is a load error" (loads) became: the name is kept with the cached ID 0 (tracked, not drawn), logged
+  (per write; one line per load), and a later `World::registerMesh` creates the instance; a game's own save stays
+  loadable. The world API and `setRenderMesh` still refuse an unknown name.
 - **Name records on the client**: `Replication::applyComponent` calls `renderMeshWritten` with the previous name, so an
   unchanged name (a `ComponentChange` of other bytes, never for `RenderInstance` today) appends no record.
 - **Camera**: `ViewCamera` (`EngineApp.h`) with `cameraLookRotation(dir)` (double); `setViewCameraByTool(..., hold)` is
@@ -289,7 +293,7 @@ message).
   7 movers not sent by a catch-up after a tool call; a client frame without a step sends nothing (and draws the remote
   entity from `RenderPose`); a client's `ComponentChange` of the name; the host draws a client-owned root only after its
   first `RenderPose` and its child composed from it; saves by name (another registration order: equal hash; an unknown
-  name: a load error naming the entity index; an alias); the non-uniform scale (API error, logged once).
+  name: loaded and kept, see Local review; an alias); the non-uniform scale (API error, logged once).
 - `tests/test_engine_app.cpp` (44 tests): `ViewCameraHoldAndRelease` (the double camera, the hold returns false to the
   game, tool writes without a hold, the release callback once, `move_camera` on it), `BeforeRenderAfterCatchUp`,
   `CoopClientHasTheSink`; `FramesStepsScreenshotsAndProfiles` counts `beforeRender` instead of `transfer` / `render`,
@@ -333,7 +337,7 @@ medians, ms, ranges in parentheses):
 - `data/tests/benchmarks.json` is not updated (no baseline after S18 is accepted yet).
 
 Local review (after the stage's commits; each fix with a regression test that fails without it, in
-`tests/test_engine_extract.cpp`, now 24 tests):
+`tests/test_engine_extract.cpp`, now 25 tests):
 
 1. **Late movers settle**: an entity moved in phase 7-8 got the pair (old, new) in the next step and kept it forever
    (it was in phase 6's list of that step only). The commit keeps a settle list (the entities whose committed pair is
@@ -360,10 +364,13 @@ Local review (after the stage's commits; each fix with a regression test that fa
 6. **Late mesh registration**: an unknown name in the `add` path (and replication) is kept with the cached ID 0 and
    logged per write, instead of stored empty, so `World::registerMesh` after an entity named it creates its instance
    (`ExtractSystem::meshRegistered` could never find one before). The API (`set_component`, `add_component`, `spawn`)
-   and `setRenderMesh` still refuse an unknown name, and a load still rejects one (`checkRenderMeshes`): a save of an
-   entity whose name is still unregistered loads only into a world that registers it (before: saved empty, loadable).
-   Test `ExtractInstances.UnknownNameIsKeptAndDrawnWhenRegisteredLater` (replaces
-   `UnknownNameThroughAddIsStoredEmptyAndLogged`).
+   and `setRenderMesh` still refuse an unknown name. Loads keep one too (`checkRenderMeshes` resolves aliases, caches 0
+   for an unknown name and the load logs one `render` line with the names and the entity count after the commit)
+   instead of rejecting the load, so a game's own save stays loadable and a later registration draws the entity. Tests
+   `ExtractInstances.UnknownNameIsKeptAndDrawnWhenRegisteredLater` (replaces
+   `UnknownNameThroughAddIsStoredEmptyAndLogged`), `ExtractSave.UnknownNameLoadsAndIsDrawnWhenRegistered` (a save with
+   an unregistered name loads into a world without the mesh, one log line, a later `registerMesh` draws both entities;
+   `ByNameIndependentOfRegistrationOrder` no longer expects the load error).
 
 After the fixes: `ctest --parallel 8` on lavapipe 67 of 68 (only `test_opengl_window`, no display); `test_engine_*` and
 `test_vulkan_*` on the RTX 5080 Laptop GPU with the validation layer 29 of 29 (no validation message); the goldens are
