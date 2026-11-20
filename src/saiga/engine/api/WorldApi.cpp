@@ -59,7 +59,7 @@ const std::vector<Operation>& operationTable()
         {"inspect", false, {"entity", "components"}},
         {"get_global", false, {"component", "space"}},
         {"changes_since", false, {"cursor", "include_moved", "limit"}},
-        {"get_profile", false, {"steps", "scopes"}},
+        {"get_profile", false, {"steps", "scopes", "frames"}},
         {"logs", false, {"since", "category"}},
         {"save_snapshot", false, {"name", "overwrite"}},
         {"list_snapshots", false, {}},
@@ -685,6 +685,10 @@ ApiResult WorldApi::describeWorld(const Json&)
         dataTypes.push_back(Json::object{
             {"name", t->name}, {"file", t->file}, {"fields", fieldsJson(t->fields())}, {"entries", names}});
     }
+    Json::array actions, held;
+    for (const auto& x : w->actionList().actions)
+        actions.push_back(Json::object{{"name", x.name}, {"id", double(x.id)}});
+    for (const auto& x : w->actionList().held) held.push_back(Json::object{{"name", x.name}, {"bit", x.bit}});
     Json::array ops;
     for (auto& o : operations()) ops.push_back(o);
     return ApiResult::success(Json::object{{"components", components},
@@ -693,6 +697,8 @@ ApiResult WorldApi::describeWorld(const Json&)
                                            {"entity_format", "{\"index\": i, \"generation\": g} or \"i:g\""},
                                            {"operations", ops},
                                            {"data_types", dataTypes},
+                                           {"actions", actions},
+                                           {"held_buttons", held},
                                            {"save_format_version", double(kSaveFormatVersion)},
                                            {"edits_allowed", allowEdits}});
 }
@@ -901,27 +907,37 @@ ApiResult WorldApi::getGlobal(const Json& a)
 ApiResult WorldApi::getProfile(const Json& a)
 {
     std::string error;
-    int64_t steps = 0;
-    if (!intArg(a, "steps", 0, 1000000, 0, steps, error)) return ApiResult::failure(error);
-    Json report = w->profiler().report(int(steps));
-    if (a["scopes"].is_null()) return ApiResult::success(report);
-    if (!a["scopes"].is_array()) return ApiResult::failure("scopes: expected an array of path prefixes");
+    int64_t steps = 0, frames = 0;
+    if (!intArg(a, "steps", 0, 1000000, 0, steps, error) || !intArg(a, "frames", 0, 1000000, 0, frames, error))
+        return ApiResult::failure(error);
     std::vector<std::string> prefixes;
-    for (const Json& p : a["scopes"].array_items())
+    if (!a["scopes"].is_null())
     {
-        if (!p.is_string()) return ApiResult::failure("scopes: expected strings");
-        prefixes.push_back(p.string_value());
+        if (!a["scopes"].is_array()) return ApiResult::failure("scopes: expected an array of path prefixes");
+        for (const Json& p : a["scopes"].array_items())
+        {
+            if (!p.is_string()) return ApiResult::failure("scopes: expected strings");
+            prefixes.push_back(p.string_value());
+        }
     }
-    Json::array kept;
-    for (const Json& s : report["scopes"].array_items())
-        for (const std::string& prefix : prefixes)
-            if (s["scope"].string_value().compare(0, prefix.size(), prefix) == 0)
-            {
-                kept.push_back(s);
-                break;
-            }
-    Json::object o = report.object_items();
-    o["scopes"]    = kept;
+    auto filter = [&](const Json& report)
+    {
+        if (prefixes.empty()) return report;
+        Json::array kept;
+        for (const Json& s : report["scopes"].array_items())
+            for (const std::string& prefix : prefixes)
+                if (s["scope"].string_value().compare(0, prefix.size(), prefix) == 0)
+                {
+                    kept.push_back(s);
+                    break;
+                }
+        Json::object o = report.object_items();
+        o["scopes"]    = kept;
+        return Json(o);
+    };
+    // The step profile at the top level (S10's shape), the app's frame and GPU profiles under their keys (S13)
+    Json::object o = filter(w->profiler().report(int(steps))).object_items();
+    for (const auto& extra : profiles) o[extra.first] = filter(extra.second->report(int(frames)));
     return ApiResult::success(o);
 }
 
@@ -1399,7 +1415,15 @@ ApiResult WorldApi::queueAction(const Json& a)
     action.player = p;
     int64_t code  = 0;
     if (a["action"].is_null()) return ApiResult::failure("action: missing");
-    if (!intArg(a, "action", 0, 0xFFFFFFFFll, 0, code, error)) return ApiResult::failure(error);
+    if (a["action"].is_string())
+    {
+        // By name (WorldSetup::actions; describe_world lists them)
+        const ActionList::Action* named = w->actionList().find(a["action"].string_value());
+        if (!named) return ApiResult::failure("action: no action \"" + a["action"].string_value() + "\"");
+        code = named->id;
+    }
+    else if (!intArg(a, "action", 0, 0xFFFFFFFFll, 0, code, error))
+        return ApiResult::failure(error);
     action.action = uint32_t(code);
     if (!a["aim"].is_null() && !readVec3(a["aim"], action.aim, error, "aim")) return ApiResult::failure(error);
     w->queueAction(action);

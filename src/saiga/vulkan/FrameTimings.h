@@ -10,6 +10,7 @@
 #include "Queue.h"
 
 #include <chrono>
+#include <deque>
 #include <map>
 #include <optional>
 #include <set>
@@ -57,6 +58,17 @@ struct FindMinPause
 template <typename Finder = FindMinPause>
 class SAIGA_VULKAN_API FrameTimings
 {
+   public:
+    // A completed frame's GPU times: per registered section (in section index order) and from the first section's
+    // begin to the last one's end, in milliseconds
+    struct CompletedFrame
+    {
+        uint64_t timelineValue = 0;
+        std::vector<double> sectionMs;
+        double frameMs = 0;
+    };
+
+
    private:
     using SectionTimes     = std::vector<std::pair<uint64_t, uint64_t>>;
     using SectionTimesIter = SectionTimes::iterator;
@@ -98,6 +110,7 @@ class SAIGA_VULKAN_API FrameTimings
     std::set<Entry, KeyComparator> frameSections;
     std::map<std::string, uint32_t> nameToSectionMap;
     Finder finder;
+    std::deque<CompletedFrame> completedFrames;
     void destroyPool();
 
     inline uint32_t getCount() const { return static_cast<uint32_t>(frameSections.size() * 2); }
@@ -106,6 +119,15 @@ class SAIGA_VULKAN_API FrameTimings
     inline uint32_t getEnd(uint32_t index) const { return getFirst(current) + index * 2 + 1; }
 
    public:
+    // The oldest completed frame not yet taken (at most 16 are kept); false if none
+    bool popCompleted(CompletedFrame& out)
+    {
+        if (completedFrames.empty()) return false;
+        out = std::move(completedFrames.front());
+        completedFrames.pop_front();
+        return true;
+    }
+
     FrameTimings() = default;
     ~FrameTimings() { destroyPool(); }
 

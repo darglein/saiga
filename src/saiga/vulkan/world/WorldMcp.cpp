@@ -471,6 +471,7 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             respond(ToolResult::FromJson(result));
         });
 
+    if (!c.measurePerformance) return;
     server.addTool(
         "measure_performance",
         "Renders the given number of frames (default 120) without changing anything and reports the CPU frame time "

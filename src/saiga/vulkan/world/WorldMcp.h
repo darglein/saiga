@@ -26,6 +26,8 @@ struct WorldMcpContext
     // Optional: walk mode (the camera stays at eyeHeight above the terrain), see sample_vulkan_world
     bool* walkMode   = nullptr;
     float* eyeHeight = nullptr;
+    // false: no measure_performance (the engine app registers its own, which also reports frames and the GPU)
+    bool measurePerformance = true;
 };
 
 /**

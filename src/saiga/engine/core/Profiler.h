@@ -61,6 +61,8 @@ class SAIGA_ENGINE_API Profiler
     // Statistics over the last n samples (n <= 0 or larger than the history: all of it)
     Stats scopeStats(int scope, int lastSamples = 0) const;
     Stats counterStats(int counter, int lastSamples = 0) const;
+    // The kept samples of a scope, oldest first (plots)
+    std::vector<double> scopeHistory(int scope) const;
     // The tree of scopes with their statistics and the share of their parent, and the counters, as JSON
     json11::Json report(int lastSamples = 0) const;
 

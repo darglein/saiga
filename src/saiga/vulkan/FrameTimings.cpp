@@ -79,6 +79,15 @@ void FrameTimings<Finder>::update(vk::Semaphore _frameTimeline)
             bestSection = finder.findSuitablePause(recentFramePauses, insertionPoint);
 
             lastFrameSections = timing.sections;
+            {
+                CompletedFrame c;
+                c.timelineValue = timing.timelineValue;
+                for (auto& sec : timing.sections) c.sectionMs.push_back(double(sec.second - sec.first) * 1e-6);
+                if (!timing.sections.empty())
+                    c.frameMs = double(timing.sections.back().second - timing.sections.front().first) * 1e-6;
+                completedFrames.push_back(std::move(c));
+                if (completedFrames.size() > 16) completedFrames.pop_front();
+            }
             insertionPoint++;
             if (insertionPoint == recentFramePauses.end())
             {

@@ -41,11 +41,8 @@ class SAIGA_VULKAN_API VulkanSwapChain
     // The usage flags the images were created with (color attachment + transfer src/dst if supported)
     VkImageUsageFlags imageUsage = 0;
 
-    ~VulkanSwapChain()
-    {
-        cleanup();
-        destroySurface();
-    }
+    // The surface belongs to the VulkanDevice (destroyed there)
+    ~VulkanSwapChain() { cleanup(); }
     void initSurface(VkSurfaceKHR _surface);
 
     /**
