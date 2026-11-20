@@ -100,7 +100,10 @@ class PoolBase
     virtual void commitStage(StagedValues& stage, const std::vector<int64_t>& generation) = 0;
     virtual void clearAll()                                                               = 0;
     // Constructs and drops a default value (a load checks that the defaults it will add cannot throw)
-    virtual void probeDefault() const = 0;
+    // A default value built before a load commits (a throwing constructor rejects the load), moved in by
+    // emplaceStaged (no second construction after the world was cleared)
+    virtual std::unique_ptr<StagedValues> stageDefault() const = 0;
+    virtual void emplaceStaged(Entity e, StagedValues& stage)  = 0;
 
     const ComponentId id;
     const char* const name;
@@ -240,10 +243,18 @@ class ComponentPool final : public PoolBase
             setSparse(index, uint32_t(data.size() - 1));
         }
     }
-    void probeDefault() const override
+    std::unique_ptr<StagedValues> stageDefault() const override
     {
-        T probe{};
-        (void)probe;
+        auto s = std::make_unique<StagedOf<T>>();
+        s->values.emplace_back();
+        return s;
+    }
+    void emplaceStaged(Entity e, StagedValues& stage) override
+    {
+        auto& s = static_cast<StagedOf<T>&>(stage);
+        SAIGA_ASSERT(!s.values.empty(), std::string("emplaceStaged: no staged value of ") + name);
+        emplace(e, std::move(s.values.back()));
+        s.values.pop_back();
     }
     void clearAll() override
     {

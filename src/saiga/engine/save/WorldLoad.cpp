@@ -61,6 +61,9 @@ class WorldLoader
     StagedOf<Transform> transforms;
     std::vector<std::vector<bool>> seen = std::vector<std::vector<bool>>(kMaxComponents);
     std::vector<std::unique_ptr<StagedValues>> stagedEvents;
+    // The defaults of the state components the commit may add, built before it (restoreStateEntities moves them in)
+    std::vector<std::unique_ptr<StagedValues>> stateDefaults =
+        std::vector<std::unique_ptr<StagedValues>>(kMaxComponents);
     std::vector<std::string> droppedEvents;
     std::vector<bool> drop;           // by entity index: dropped by a removed type (DropEntity)
     std::vector<int64_t> generation;  // by entity index after the load: the generation, -1 if not alive
@@ -645,7 +648,10 @@ void WorldLoader::restoreStateEntities()
         {
             if (!(reg.*is)(ComponentId(id)) || reg.entityMask(e).test(ComponentId(id))) continue;
             auto record = w.log.prepare(1);
-            reg.addDefault(e, ComponentId(id));
+            if (stateDefaults[id])
+                reg.addStaged(e, ComponentId(id), *stateDefaults[id]);
+            else
+                reg.addDefault(e, ComponentId(id));
             record.append(e, ComponentId(id), true);
         }
     };
@@ -773,14 +779,14 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
         result.error = error;
         return result;
     }
-    // The defaults of the state components the commit may add are constructed once before the world changes (a
-    // throwing constructor rejects the load instead of leaving half a world)
+    // The defaults of the state components the commit may add are built before the world changes and moved in by the
+    // commit (a throwing constructor rejects the load instead of leaving half a world)
     for (size_t id = 1; id < kMaxComponents; ++id)
     {
         if (!reg.isGlobal(ComponentId(id)) && !reg.isSpaceState(ComponentId(id))) continue;
         try
         {
-            reg.poolById(ComponentId(id))->probeDefault();
+            stateDefaults[id] = reg.poolById(ComponentId(id))->stageDefault();
         }
         catch (const std::exception& x)
         {

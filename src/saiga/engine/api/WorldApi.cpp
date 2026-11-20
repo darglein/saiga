@@ -1525,6 +1525,7 @@ ApiResult WorldApi::saveSnapshot(const Json& a)
             "memory)");
     Json result = Json::object{
         {"name", name}, {"bytes", double(s.bytes.size())}, {"step", double(s.step)}, {"hash", hashHex(s.hash)}};
+    s.revision      = nextSnapshotRevision++;
     snapshots[name] = std::move(s);
     return ApiResult::success(result);
 }
@@ -1538,14 +1539,23 @@ ApiResult WorldApi::loadSnapshot(const Json& a)
     if (it == snapshots.end()) return ApiResult::failure("load_snapshot: no snapshot \"" + name + "\"");
     // A copy: a load listener may change the snapshots (not the API's own, but be safe)
     const std::vector<uint8_t> bytes = it->second.bytes;
-    const LoadResult r               = w->tryLoad(bytes);
+    const uint64_t revision          = it->second.revision;
+    World* const destination         = w;
+    const LoadResult r               = destination->tryLoad(bytes);
     if (!r.committed) return ApiResult::failure("load_snapshot: " + r.error + " (the world is unchanged)");
+    // A load listener rebound the API to another world: the snapshot is in the previous world; neither paused nor the
+    // results of the new world apply to it
+    if (w != destination)
+        return ApiResult::failure("load_snapshot: \"" + name +
+                                  "\" was loaded into the previous world, but a load listener rebound the API to "
+                                  "another world (paused was not applied)");
     if (a["paused"].is_bool()) w->setPaused(a["paused"].bool_value());
-    // An imported snapshot learns its hash (the snapshot describes exactly this world unless a hook failed)
+    // An imported snapshot learns its hash (the snapshot describes exactly this world unless a hook failed), unless a
+    // listener replaced it under the same name
     if (r.ok())
     {
         auto again = snapshots.find(name);
-        if (again != snapshots.end() && !again->second.hasHash)
+        if (again != snapshots.end() && again->second.revision == revision && !again->second.hasHash)
         {
             again->second.hash    = w->hash();
             again->second.hasHash = true;
@@ -1731,6 +1741,7 @@ ApiResult WorldApi::importSnapshot(const Json& a)
     if (!parseSave(s.bytes, parsed, error)) return ApiResult::failure("import_snapshot: " + error);
     s.step          = parsed.steps;
     s.hasHash       = false;  // the hash of the world it came from is not known
+    s.revision      = nextSnapshotRevision++;
     snapshots[name] = std::move(s);
     return ApiResult::success(
         Json::object{{"name", name}, {"bytes", double(size)}, {"step", double(parsed.steps)}, {"hash", Json()}});

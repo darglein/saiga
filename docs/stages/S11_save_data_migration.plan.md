@@ -370,7 +370,9 @@ this file.
 - CodeRabbit (PR #54): new slots after a load start at generation 0 (the paged array handed back an old one);
   `clearForLoad` clears the membership bits before the components; the values of dropped components and removed event
   types are checked before the commit (each entity once); queued actions stay as in the live world (also for a dropped player); the
-  defaults of state components are constructed once before the commit; a load is refused while another load's
+  defaults of state components are built before the commit and moved in (no construction after the world was
+  cleared); `load_snapshot` notices a load listener that rebinds the API, and an imported snapshot learns only its own
+  hash (a revision per stored snapshot); a load is refused while another load's
   listeners run, and a listener removed during the dispatch is not called; `save()` throws instead of returning a
   block the reader rejects (an enum value without a name, more than 2^16 empty pending events); load-hook refusals
   are catchable in every build (no assert); array lengths up to 2^31 in saved schemas; the diff stores values sparsely,

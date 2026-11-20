@@ -200,8 +200,10 @@ class SAIGA_ENGINE_API WorldApi
     {
         std::vector<uint8_t> bytes;
         uint64_t step = 0, hash = 0;
-        bool hasHash = true;  // false for imported snapshots
+        bool hasHash      = true;  // false for imported snapshots
+        uint64_t revision = 0;     // unique per stored snapshot (a replacement under the same name has another)
     };
+    uint64_t nextSnapshotRevision = 1;
     std::map<std::string, Snapshot> snapshots;
     std::string snapshotDirectory;
     std::deque<Change> journal;

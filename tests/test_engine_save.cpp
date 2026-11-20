@@ -1861,3 +1861,61 @@ TEST(SaveRobustness, ArrayLengthsAroundTwoToTheSixteen)
     roundTripBigArray<65536>();
     roundTripBigArray<65537>();
 }
+
+// Regression (CodeRabbit, S11): the default of a state component missing from the save was constructed once as a probe
+// before the commit and again after the world was cleared; a constructor that threw the second time left half a world.
+// The value built before the commit is moved in now.
+namespace
+{
+int flakyConstructionsLeft = 1000;
+struct Flaky
+{
+    static constexpr const char* name = "Flaky";
+    static constexpr ComponentId id   = ComponentId(kFirstGameComponent + 4);
+    static constexpr uint32_t version = 1;
+    int value                         = 3;
+    Flaky()
+    {
+        if (flakyConstructionsLeft-- <= 0) throw std::runtime_error("no more Flaky");
+    }
+    template <class V>
+    void visit(V& v)
+    {
+        v("value", value);
+    }
+};
+}  // namespace
+
+TEST(SaveRobustness, StateDefaultsAreBuiltBeforeTheCommit)
+{
+    World a(baseSetup());
+    a.create();
+    const auto blob = a.save();  // without Flaky
+    WorldSetup s    = baseSetup();
+    s.components    = [](Registry& r)
+    {
+        baseComponents(r);
+        r.registerGlobal<Flaky>();
+    };
+    flakyConstructionsLeft = 1000;
+    World b(s);
+    // The schema of the world builds a throwaway instance of each type (before the commit, harmless)
+    int left = flakyConstructionsLeft;
+    (void)SchemaTable::fromWorld(b);
+    const int schema = left - flakyConstructionsLeft;
+    // The load builds the default once: the schema's instances and one staged default, none after the commit
+    left         = flakyConstructionsLeft;
+    LoadResult r = b.tryLoad(blob);
+    ASSERT_TRUE(r.committed) << r.error;
+    EXPECT_EQ(left - flakyConstructionsLeft, schema + 1);
+    EXPECT_EQ(b.readGlobal<Flaky>().value, 3);
+    // The staged default throws: the load is rejected before the world changes
+    const auto before      = b.save();
+    flakyConstructionsLeft = schema;
+    r                      = b.tryLoad(blob);
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("no more Flaky"), std::string::npos) << r.error;
+    flakyConstructionsLeft = 1000;
+    EXPECT_EQ(b.save(), before);
+    flakyConstructionsLeft = 1000;
+}

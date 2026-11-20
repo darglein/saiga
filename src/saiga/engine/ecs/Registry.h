@@ -199,6 +199,8 @@ class SAIGA_ENGINE_API Registry
     PoolBase* poolById(ComponentId id) const { return pools[id].get(); }
     // Adds a default-constructed component by ID (the entity must not have it; not Transform)
     void addDefault(Entity e, ComponentId id);
+    // Adds the value of a stage (PoolBase::stageDefault) without constructing another
+    void addStaged(Entity e, ComponentId id, StagedValues& stage);
     // Removes a component by ID (the entity must have it; not Transform)
     void removeById(Entity e, ComponentId id);
 

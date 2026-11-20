@@ -1788,3 +1788,57 @@ TEST(WorldApi, RecordsBeforeALoadKeepTheirStep)
     EXPECT_EQ(c.value["changes"][0]["kind"].string_value(), "created");
     EXPECT_EQ(c.value["changes"][0]["step"].number_value(), 4);
 }
+
+// Regression (CodeRabbit, S11): a load listener that rebinds the API made load_snapshot apply paused to the new world
+// and report its numbers as the loaded ones
+TEST(WorldApi, LoadSnapshotNoticesARebindInAListener)
+{
+    World a(apiSetup());
+    World b(apiSetup());
+    WorldApi api(a);
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "x"})")).ok);
+    const int id      = a.addLoadListener([&](const LoadInfo&) { api.rebind(b); });
+    const ApiResult r = api.call("load_snapshot", obj(R"({"name": "x", "paused": true})"));
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("rebound"), std::string::npos) << r.error;
+    EXPECT_FALSE(b.isPaused());
+    EXPECT_EQ(api.world(), &b);
+    a.removeLoadListener(id);
+}
+
+// Regression (CodeRabbit, S11): a listener that replaced an imported snapshot under the same name gave the replacement
+// the hash of the bytes loaded before
+TEST(WorldApi, ImportedSnapshotLearnsOnlyItsOwnHash)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    api.setSnapshotDirectory(::testing::TempDir());
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "one"})")).ok);
+    ASSERT_TRUE(
+        api.call("export_snapshot", obj(R"({"name": "one", "file": "saiga_rev_1.sgws", "overwrite": true})")).ok);
+    w.create();
+    w.step();
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "two"})")).ok);
+    ASSERT_TRUE(
+        api.call("export_snapshot", obj(R"({"name": "two", "file": "saiga_rev_2.sgws", "overwrite": true})")).ok);
+    ASSERT_TRUE(api.call("import_snapshot", obj(R"({"name": "b", "file": "saiga_rev_1.sgws"})")).ok);
+    bool replaced = false;
+    const int id  = w.addLoadListener(
+        [&](const LoadInfo&)
+        {
+            if (replaced) return;
+            replaced = true;
+            EXPECT_TRUE(
+                api.call("import_snapshot", obj(R"({"name": "b", "file": "saiga_rev_2.sgws", "overwrite": true})")).ok);
+        });
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "b"})")).ok);
+    w.removeLoadListener(id);
+    const ApiResult first = api.call("list_snapshots", Json());
+    for (auto& x : first.value["snapshots"].array_items())
+        if (x["name"] == "b") EXPECT_TRUE(x["hash"].is_null()) << x.dump();
+    // Loaded without a replacement, it learns its hash
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "b"})")).ok);
+    const ApiResult second = api.call("list_snapshots", Json());
+    for (auto& x : second.value["snapshots"].array_items())
+        if (x["name"] == "b") EXPECT_FALSE(x["hash"].is_null()) << x.dump();
+}
