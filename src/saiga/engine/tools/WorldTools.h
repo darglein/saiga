@@ -50,7 +50,8 @@ SAIGA_ENGINE_API std::string exactToolJson(const json11::Json& j);
  * remove_component, set_transform, spawn, destroy, get_global, set_global, emit_event, queue_action, pause, resume,
  * step, time_scale, changes_since, get_profile, reset_profile, logs, save_snapshot, load_snapshot, list_snapshots,
  * delete_snapshot, diff_snapshot, export_snapshot, import_snapshot, get_data, reload_data, apply) and
- * measure_performance. The handlers run
+ * measure_performance (steps; frames through WorldToolsOptions::measureFrames, set by the engine app, S14). In the
+ * engine app a load also neutralizes the local player's input (the app's load listener, S14). The handlers run
  * in McpServer::poll(), which the app calls between steps (the world must not be in a step then). Register before
  * McpServer::start. Returns the API the tools share: the caller keeps it while the tools are used and releases it
  * before the world goes away (the tools then answer with an error).

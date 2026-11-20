@@ -36,7 +36,9 @@ namespace Engine
  * the World, the MCP server and the input map, and the frame loop: poll events and input, mcp.poll(), the frame time,
  * the camera, the input to the local player, world.advance(), render. Headless it renders into offscreen images (or,
  * with noRender, not at all) and paces the frames to the step rate. When no frame can be presented (a minimized window)
- * the loop keeps polling MCP and advancing the world.
+ * the loop keeps polling MCP and advancing the world. S14: the camera hold of the camera tools, the frame clock restart
+ * after blocking tool calls, the frame measurement of measure_performance(frames), the input reset on loads and the
+ * scenario-load mark of run_scenario.
  */
 class SAIGA_ENGINE_API EngineApp
 {

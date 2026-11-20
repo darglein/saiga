@@ -146,21 +146,27 @@ Json cameraJson(EngineApp& app)
                         {"held", app.cameraHeldByTool()}};
 }
 
-// Integer box filter so that the width is <= maxWidth (never upscaled)
+// Box filter to exactly maxWidth when wider (the height keeps the aspect ratio; never upscaled)
 TemplatedImage<ucvec3> downscale(const TemplatedImage<ucvec4>& img, int maxWidth)
 {
-    const int f = std::max(1, (img.w + maxWidth - 1) / std::max(maxWidth, 1));
-    const int w = img.w / f, h = img.h / f;
+    const int w = std::min(img.w, maxWidth);
+    const int h = std::max(1, int(std::lround(double(img.h) * w / std::max(1, img.w))));
     TemplatedImage<ucvec3> out(h, w);
+    const double sx = double(img.w) / w, sy = double(img.h) / h;
     for (int y = 0; y < h; ++y)
+    {
+        const int y0 = int(y * sy), y1 = std::max(y0 + 1, std::min(img.h, int(std::ceil((y + 1) * sy))));
         for (int x = 0; x < w; ++x)
         {
+            const int x0 = int(x * sx), x1 = std::max(x0 + 1, std::min(img.w, int(std::ceil((x + 1) * sx))));
             int sum[3] = {0, 0, 0};
-            for (int dy = 0; dy < f; ++dy)
-                for (int dx = 0; dx < f; ++dx)
-                    for (int k = 0; k < 3; ++k) sum[k] += img(y * f + dy, x * f + dx)(k);
-            for (int k = 0; k < 3; ++k) out(y, x)(k) = (unsigned char)(sum[k] / (f * f));
+            for (int yy = y0; yy < y1; ++yy)
+                for (int xx = x0; xx < x1; ++xx)
+                    for (int k = 0; k < 3; ++k) sum[k] += img(yy, xx)(k);
+            const int n = (y1 - y0) * (x1 - x0);
+            for (int k = 0; k < 3; ++k) out(y, x)(k) = (unsigned char)(sum[k] / n);
         }
+    }
     return out;
 }
 
@@ -177,13 +183,14 @@ struct ScreenshotBatch
 // One screenshot request: answered exactly once (a frame or the deadline)
 struct ScreenshotRequest
 {
-    bool answered = false, released = false, hasImage = false;
+    bool answered = false, started = false, released = false, hasImage = false;
     TemplatedImage<ucvec4> image;
 };
 
 void releaseBatch(EngineApp& app, ScreenshotBatch& batch, ScreenshotRequest& r)
 {
-    if (r.released) return;
+    // Only a request the batch counted (one still waiting in deferred was not)
+    if (!r.started || r.released) return;
     r.released = true;
     if (--batch.pending == 0)
     {
@@ -203,6 +210,7 @@ void startScreenshot(EngineApp& app, std::shared_ptr<ScreenshotBatch> batch, boo
         batch->deferred.push_back([&app, batch, gui, r, answer]() { startScreenshot(app, batch, gui, r, answer); });
         return;
     }
+    r->started = true;
     if (batch->pending++ == 0)
     {
         batch->gui         = gui;
@@ -330,7 +338,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
     server.addTool(
         "screenshot",
         "Renders the next frame and returns it as an image (jpg default, or png), downscaled to max_width when wider "
-        "(default 1280, 64..8192; never upscaled), followed by the camera of that frame, the step and the frame "
+        "(box filter; default 1280, 64..8192; never upscaled), followed by the camera of that frame, the step and the "
+        "frame "
         "number. The GUI is hidden unless gui=true (its visibility is restored afterwards). An error without a device "
         "or when no frame is rendered before the deadline (rendering disabled, a minimized window). Changes nothing.",
         schema({{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
@@ -388,8 +397,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
 
     server.addTool(
         "set_camera",
-        "Places the app camera: position [x, y, z], the view from look_at [x, y, z] or from yaw_deg (0 looks along -z, "
-        "90 along +x) and pitch_deg (positive looks up); missing values stay. Takes the camera from the game (camera "
+        "Places the app camera: position [x, y, z], the view from look_at [x, y, z] (not the position) or from yaw_deg "
+        "(0 looks along -z, 90 along +x; within +-3600) and pitch_deg (-90..90, positive looks up); missing values "
+        "stay. Takes the camera from the game (camera "
         "hold: games that drive the camera stop doing so) until release: true (alone). While held, relative moves of "
         "the input (keys, set_input) use this camera's heading. The field of view is a game setting. Returns the "
         "camera. Changes the camera.",
@@ -416,9 +426,11 @@ void registerAppTools(McpServer& server, EngineApp& app)
             double yaw = 0, pitch = 0;
             if (!vec3Argument(args, "position", pos, hasPos, respond) ||
                 !vec3Argument(args, "look_at", target, hasTarget, respond) ||
-                !numberArgument(args, "yaw_deg", 1e6, yaw, hasYaw, respond) ||
-                !numberArgument(args, "pitch_deg", 1e6, pitch, hasPitch, respond))
+                !numberArgument(args, "yaw_deg", 3600, yaw, hasYaw, respond) ||
+                !numberArgument(args, "pitch_deg", 90, pitch, hasPitch, respond))
                 return;
+            if (hasTarget && (target - pos).norm() < 1e-4f)
+                return respond(ToolResult::Error("look_at must differ from the position"));
             if (hasTarget)
                 dir = target - pos;
             else if (hasYaw || hasPitch)
@@ -451,8 +463,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
             if (!numberArgument(args, "forward", kCameraLimit, forward, g, respond) ||
                 !numberArgument(args, "right", kCameraLimit, right, g, respond) ||
                 !numberArgument(args, "up", kCameraLimit, up, g, respond) ||
-                !numberArgument(args, "yaw_deg", 1e6, dyaw, g, respond) ||
-                !numberArgument(args, "pitch_deg", 1e6, dpitch, g, respond))
+                !numberArgument(args, "yaw_deg", 3600, dyaw, g, respond) ||
+                !numberArgument(args, "pitch_deg", 3600, dpitch, g, respond))
                 return;
             PerspectiveCamera& camera = app.camera();
             vec3 pos                  = camera.getPosition();
@@ -548,7 +560,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 return respond(ToolResult::Error("run_scenario: only between steps, not inside a game hook"));
             WorldApi& api              = app.api();
             const std::string snapName = "scenario_" + entry->name;
-            const bool saveBefore      = load && !(app.liveWorldFromScenario() && api.hasSnapshot("before_scenario"));
+            if ((keep || load) && snapName.size() > 128)
+                return respond(ToolResult::Error("run_scenario: the scenario name is too long for a snapshot name"));
+            const bool saveBefore = load && !(app.liveWorldFromScenario() && api.hasSnapshot("before_scenario"));
             // The snapshot slots before the run (the bytes of the scenario's state are known only after it)
             size_t newNames = 0;
             if ((keep || load) && !api.hasSnapshot(snapName)) newNames++;
@@ -587,7 +601,13 @@ void registerAppTools(McpServer& server, EngineApp& app)
                                {"failures", failures},
                                {"steps", double(r.steps)},
                                {"seconds", r.seconds}};
-                if (!r.passed) o["report"] = r.report.size() > 16384 ? r.report.substr(0, 16384) + "..." : r.report;
+                if (!r.passed)
+                {
+                    // Cut at a UTF-8 character boundary (no continuation byte first)
+                    size_t cut = std::min<size_t>(r.report.size(), 16384);
+                    while (cut > 0 && cut < r.report.size() && (uint8_t(r.report[cut]) & 0xC0) == 0x80) cut--;
+                    o["report"] = cut < r.report.size() ? r.report.substr(0, cut) + "..." : r.report;
+                }
                 results.push_back(o);
                 if (v == ScenarioVariant::Plain)
                 {

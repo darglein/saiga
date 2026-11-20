@@ -785,20 +785,28 @@ TEST(EngineAppNoRender, RunScenarioLoadsTheEndState)
 TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
 {
     EngineAppSetup s        = scenarioSetup();
-    s.mcpToolTimeoutSeconds = 1;
+    s.mcpToolTimeoutSeconds = 3;
     EngineApp app(s);
+    // The deadline stops a long scenario: no snapshot even with keep
+    Json r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "slow", "keep": true})")));
+    ASSERT_EQ(r["results"].array_items().size(), 1u) << r.dump();
+    EXPECT_FALSE(r["results"][0]["passed"].bool_value());
+    EXPECT_EQ(r["results"][0]["failures"][0].string_value(), "aborted: stopped: tool time budget") << r.dump();
+    EXPECT_FALSE(app.api().hasSnapshot("scenario_slow"));
+    // Regression (S14 review): a Repeat stopped by the deadline reported a false determinism failure ("the runs took
+    // N and 1 steps"); now only the abort, and the remaining variants are skipped
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "slow", "variants": ["Repeat", "SaveLoad"]})")));
+    ASSERT_EQ(r["results"].array_items().size(), 2u) << r.dump();
+    ASSERT_EQ(r["results"][0]["failures"].array_items().size(), 1u) << r.dump();
+    EXPECT_EQ(r["results"][0]["failures"][0].string_value(), "aborted: stopped: tool time budget") << r.dump();
+    EXPECT_TRUE(r["results"][1]["skipped"].bool_value()) << r.dump();
     // Full snapshot slots are checked before the run
     const auto blob = app.world().save();
     for (size_t i = 0; app.api().snapshotCount() < WorldApi::kMaxSnapshotCount; ++i)
         ASSERT_TRUE(app.api().putSnapshot("s" + std::to_string(i), blob, 0, 0, false).ok);
-    Json r = callApp(app, "run_scenario", obj(R"({"name": "walks", "keep": true})"));
+    r = callApp(app, "run_scenario", obj(R"({"name": "walks", "keep": true})"));
     EXPECT_TRUE(isError(r));
     EXPECT_NE(errorText(r).find("full"), std::string::npos) << errorText(r);
-    // The deadline stops a long scenario (no snapshot)
-    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "slow"})")));
-    ASSERT_EQ(r["results"].array_items().size(), 1u) << r.dump();
-    EXPECT_FALSE(r["results"][0]["passed"].bool_value());
-    EXPECT_EQ(r["results"][0]["failures"][0].string_value(), "aborted: stopped: tool time budget") << r.dump();
 }
 
 // run_scenario is refused inside a step (a system polls MCP during the step; that poll is the only poll site)
@@ -832,14 +840,17 @@ TEST(EngineAppNoRender, RunScenarioRefusedInsideAStep)
 TEST(EngineAppNoRender, FrameClockRestartsAfterABlockingTool)
 {
     EngineApp app(scenarioSetup());
+    app.frame();  // starts the frame clock
     {
-        Poller poller(app.mcp(), [&app]() { app.frame(); });
+        // The call blocks about 300 ms inside a poll (between frames)
+        Poller poller(app.mcp());
         const Json r = toolJson(callTool(app.mcp(), "run_scenario", obj(R"({"name": "slow_short"})")));
         EXPECT_TRUE(r["results"][0]["passed"].bool_value()) << r.dump();
-        std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
+    app.frame();  // the first frame after the call
     Profiler& f = app.frameProfile();
-    EXPECT_EQ(f.counterStats(f.counter("dropped_steps"), 5).max, 0);
+    EXPECT_LE(f.counterStats(f.counter("steps_per_frame"), 1).max, 1);
+    EXPECT_EQ(f.counterStats(f.counter("dropped_steps"), 1).max, 0);
 }
 
 // Device input is transient: a load neutralizes the local player's restored held input
@@ -1071,8 +1082,10 @@ TEST_F(EngineAppRender, ScreenshotTool)
     image(callApp(app, "screenshot", obj(R"({"format": "png", "max_width": 128})"), true), 128, "image/png");
     // The GUI visibility is restored after the frame
     EXPECT_TRUE(app.scene()->imguiVisible());
+    // The previous (hidden) state comes back after a gui: true screenshot
+    app.scene()->setImguiVisible(false);
     image(callApp(app, "screenshot", obj(R"({"gui": true})"), true), 256, "image/jpeg");
-    EXPECT_TRUE(app.scene()->imguiVisible());
+    EXPECT_FALSE(app.scene()->imguiVisible());
     // Argument errors
     EXPECT_TRUE(isError(callApp(app, "screenshot", obj(R"({"max_width": 63})"), true)));
     EXPECT_TRUE(isError(callApp(app, "screenshot", obj(R"({"max_width": 8193})"), true)));
@@ -1085,7 +1098,7 @@ TEST_F(EngineAppRender, ScreenshotDeadlineWithoutFrames)
 {
     EngineAppSetup s        = appSetup(true);
     s.render.imgui          = true;
-    s.mcpToolTimeoutSeconds = 1;
+    s.mcpToolTimeoutSeconds = 3;
     EngineApp app(s);
     app.scene()->setImguiVisible(true);
     app.setRenderingEnabled(false);
@@ -1119,4 +1132,52 @@ TEST_F(EngineAppRender, MeasureFramesWhilePaused)
     const Json running = toolJson(callApp(app, "measure_performance", obj(R"({"frames": 4})"), true));
     EXPECT_EQ(running["frame"]["samples"].number_value(), 4) << running.dump();
     EXPECT_GE(running["steps"]["ran"].number_value(), 3) << running.dump();
+}
+
+// The frames measurement started inside a frame (a frame callback) and between frames measures the same number of loops
+// and exactly their steps (one step per loop at dt = 1/60); a reset or a load during it answers with an error
+TEST_F(EngineAppRender, MeasureFramesStartAndInvalidation)
+{
+    EngineApp app(appSetup(true));
+    app.runFrames(3, 1.0 / 60);
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    auto measure        = [&](bool insideFrame)
+    {
+        Json result;
+        auto respond = [&](const McpServer::ToolResult& r)
+        {
+            std::string err;
+            result = Json::parse(r.content.empty() ? "" : r.content[0]["text"].string_value(), err);
+        };
+        if (insideFrame)
+            app.onFrameRendered(
+                [&]()
+                {
+                    app.measureFrames(3, deadline, respond);
+                    return true;
+                });
+        else
+            app.measureFrames(3, deadline, respond);
+        for (int i = 0; i < 30 && result.is_null(); ++i) app.runFrames(1, 1.0 / 60);
+        return result;
+    };
+    for (bool inside : {false, true})
+    {
+        const Json r = measure(inside);
+        EXPECT_EQ(r["frame"]["samples"].number_value(), 3) << inside << r.dump();
+        EXPECT_EQ(r["steps"]["ran"].number_value(), 3) << inside << r.dump();
+    }
+    // Invalidation: a profile reset and a load during the measurement
+    for (int which = 0; which < 2; ++which)
+    {
+        bool error = false;
+        app.measureFrames(50, deadline, [&](const McpServer::ToolResult& r) { error = r.isError; });
+        app.runFrames(2, 1.0 / 60);
+        if (which == 0)
+            ASSERT_TRUE(app.api().call("reset_profile", Json::object{}).ok);
+        else
+            ASSERT_TRUE(app.world().tryLoad(app.world().save()).ok());
+        app.runFrames(2, 1.0 / 60);
+        EXPECT_TRUE(error) << which;
+    }
 }

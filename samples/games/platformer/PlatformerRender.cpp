@@ -113,10 +113,17 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
     pose.follow(e);
     hasPose               = pose.interpolated(w.alpha(), renderPose);
     const bool toolCamera = app->cameraHeldByTool();
-    if (pose.takeTeleport() || held.released(toolCamera))
+    const bool released   = held.released(toolCamera);
+    if (pose.takeTeleport())
     {
         camera.reset();
         cameraYaw = 0;
+    }
+    else if (released)
+    {
+        // Back behind the character (not a fixed world direction)
+        camera.reset();
+        cameraYaw = renderYaw;
     }
     if (hasPose)
     {

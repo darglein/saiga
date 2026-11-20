@@ -113,6 +113,14 @@ std::string describeDiff(const std::vector<uint8_t>& a, const std::vector<uint8_
     return out;
 }
 
+// The run was stopped by the tool's deadline (ScenarioOptions::deadline): no further runs or comparisons
+bool stoppedByDeadline(const Run& r)
+{
+    for (const std::string& f : r.failures)
+        if (f == "aborted: stopped: tool time budget") return true;
+    return false;
+}
+
 std::string hex(uint64_t h)
 {
     char buf[32];
@@ -163,61 +171,80 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         Run a         = runOnce(setup, entry, options, record);
         WorldSetup s2 = setup;
         if (options.varyThreads) s2.workerThreads = setup.workerThreads > 1 ? 1 : 3;
-        Run b           = runOnce(s2, entry, options, record);
-        result.failures = a.failures;
-        for (const std::string& f : b.failures)
-            if (std::find(result.failures.begin(), result.failures.end(), f) == result.failures.end())
-                result.failures.push_back("second run: " + f);
-        result.steps = a.steps;
-        details      = a.report;
-        if (!b.failures.empty()) details += "  second run:\n" + b.report;
-        // The first differing step (or the end of the shorter run)
-        size_t k = 0;
-        while (k < a.hashes.size() && k < b.hashes.size() && a.hashes[k] == b.hashes[k]) k++;
-        const bool hashesDiffer = k < a.hashes.size() || k < b.hashes.size();
-        if (hashesDiffer || a.finalHash != b.finalHash)
+        // After the deadline no second run and no comparison (they would report a difference that is not one)
+        Run b;
+        bool stopped = stoppedByDeadline(a);
+        if (!stopped)
         {
-            std::string message;
-            if (hashesDiffer && k < a.hashes.size() && k < b.hashes.size())
+            b       = runOnce(s2, entry, options, record);
+            stopped = stoppedByDeadline(b);
+        }
+        if (stopped)
+        {
+            result.failures = a.failures;
+            for (const std::string& f : b.failures) result.failures.push_back("second run: " + f);
+            result.steps = a.steps;
+            details      = a.report + b.report;
+        }
+        else
+        {
+            result.failures = a.failures;
+            for (const std::string& f : b.failures)
+                if (std::find(result.failures.begin(), result.failures.end(), f) == result.failures.end())
+                    result.failures.push_back("second run: " + f);
+            result.steps = a.steps;
+            details      = a.report;
+            if (!b.failures.empty()) details += "  second run:\n" + b.report;
+            // The first differing step (or the end of the shorter run)
+            size_t k = 0;
+            while (k < a.hashes.size() && k < b.hashes.size() && a.hashes[k] == b.hashes[k]) k++;
+            const bool hashesDiffer = k < a.hashes.size() || k < b.hashes.size();
+            if (hashesDiffer || a.finalHash != b.finalHash)
             {
-                // Both again up to that step, then the saves are compared
-                std::vector<uint8_t> saveA, saveB;
-                auto stopAt = [k](std::vector<uint8_t>* out)
+                std::string message;
+                if (hashesDiffer && k < a.hashes.size() && k < b.hashes.size())
                 {
-                    return [k, out](ScenarioWorld& w, Run&)
+                    // Both again up to that step, then the saves are compared
+                    std::vector<uint8_t> saveA, saveB;
+                    auto stopAt = [k](std::vector<uint8_t>* out)
                     {
-                        w.control.stopAt   = uint64_t(k) + 1;
-                        w.control.stopSave = out;
+                        return [k, out](ScenarioWorld& w, Run&)
+                        {
+                            w.control.stopAt   = uint64_t(k) + 1;
+                            w.control.stopSave = out;
+                        };
                     };
-                };
-                const Run ra = runOnce(setup, entry, options, stopAt(&saveA));
-                const Run rb = runOnce(s2, entry, options, stopAt(&saveB));
-                message = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " + hex(a.hashes[k]) +
-                          " != " + hex(b.hashes[k]) + ")";
-                // A rerun that ended before the step has no save to compare (its failures say why)
-                auto missed = [&](const char* which, const Run& rerun)
-                {
-                    message += std::string("\n  (the ") + which + " rerun ended before step " + std::to_string(k + 1);
-                    for (const std::string& f : rerun.failures) message += "; " + f;
-                    message += ")";
-                };
-                if (saveA.empty()) missed("first", ra);
-                if (saveB.empty()) missed("second", rb);
-                if (!saveA.empty() && !saveB.empty())
-                {
-                    if (saveA == saveB)
-                        message += "\n  (the reruns did not differ at that step: the difference is not reproducible)";
-                    else
-                        message += describeDiff(saveA, saveB);
+                    const Run ra = runOnce(setup, entry, options, stopAt(&saveA));
+                    const Run rb = runOnce(s2, entry, options, stopAt(&saveB));
+                    message      = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " +
+                              hex(a.hashes[k]) + " != " + hex(b.hashes[k]) + ")";
+                    // A rerun that ended before the step has no save to compare (its failures say why)
+                    auto missed = [&](const char* which, const Run& rerun)
+                    {
+                        message +=
+                            std::string("\n  (the ") + which + " rerun ended before step " + std::to_string(k + 1);
+                        for (const std::string& f : rerun.failures) message += "; " + f;
+                        message += ")";
+                    };
+                    if (saveA.empty()) missed("first", ra);
+                    if (saveB.empty()) missed("second", rb);
+                    if (!saveA.empty() && !saveB.empty())
+                    {
+                        if (saveA == saveB)
+                            message +=
+                                "\n  (the reruns did not differ at that step: the difference is not reproducible)";
+                        else
+                            message += describeDiff(saveA, saveB);
+                    }
                 }
+                else if (hashesDiffer)
+                    message = "repeat: the runs took " + std::to_string(a.hashes.size()) + " and " +
+                              std::to_string(b.hashes.size()) + " steps";
+                else
+                    message = "repeat: the final states differ (hash " + hex(a.finalHash) + " != " + hex(b.finalHash) +
+                              "): a change after the last step" + describeDiff(a.finalSave, b.finalSave);
+                result.failures.push_back(message);
             }
-            else if (hashesDiffer)
-                message = "repeat: the runs took " + std::to_string(a.hashes.size()) + " and " +
-                          std::to_string(b.hashes.size()) + " steps";
-            else
-                message = "repeat: the final states differ (hash " + hex(a.finalHash) + " != " + hex(b.finalHash) +
-                          "): a change after the last step" + describeDiff(a.finalSave, b.finalSave);
-            result.failures.push_back(message);
         }
     }
     else
@@ -226,7 +253,9 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         // them (at the end for scenarios with fewer than 2 steps)
         Run plain          = runOnce(setup, entry, options, {});
         const uint64_t mid = plain.steps / 2;
-        if (!plain.failures.empty())
+        if (stoppedByDeadline(plain))
+            result.failures = plain.failures;  // reported as is (no second run after the deadline)
+        else if (!plain.failures.empty())
         {
             // A failing baseline fails the variant (its step count and final state are no reference)
             for (const std::string& f : plain.failures) result.failures.push_back("baseline run: " + f);

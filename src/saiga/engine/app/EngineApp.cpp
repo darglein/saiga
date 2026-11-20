@@ -405,7 +405,13 @@ void EngineApp::restartFrameClock()
 void EngineApp::frame(double dt)
 {
     framesRun++;
-    inFrame = true;
+    // Also reset when the frame throws (a later measurement from outside a frame must not skip a loop)
+    struct InFrame
+    {
+        bool& flag;
+        explicit InFrame(bool& f) : flag(f) { flag = true; }
+        ~InFrame() { flag = false; }
+    } inFrameGuard(inFrame);
     {
         Profiler::Timer frameTimer(frameProfiler, scopeFrame);
         {
@@ -431,7 +437,6 @@ void EngineApp::frame(double dt)
     }
     frameProfiler.setCounter(counterFps, dt > 0 ? 1.0 / dt : 0.0);
     frameProfiler.endSample();
-    inFrame = false;
     if (renderScene) collectGpuTimes();
     if (appWindow && appWindow->shouldClose()) quitRequested = true;
 }
@@ -505,7 +510,8 @@ void EngineApp::applyPlayerInput()
 #ifdef SAIGA_USE_GLFW
     if (appWindow && !appSetup.headless)
     {
-        if (mouseCaptured)
+        // A camera held by a tool moves only through the tools
+        if (mouseCaptured || cameraHeld)
             cameraHolder->camera.resetMouse();
         else
             cameraHolder->camera.interpolate(float(std::min(lastFrameDt, 0.1)), 0);
@@ -743,6 +749,7 @@ struct EngineApp::FrameMeasurement
     uint64_t firstLoop = 0;  // frame profiler sample index of the first measured loop
     bool started = false, ended = false;
     uint64_t worldStart = 0, sceneStart = 0, sceneEnd = 0, endLoop = 0, stepsRan = 0;
+    uint64_t lastFrames = 0, lastLoops = 0, loopsWithoutRender = 0;
     json11::Json frameReport, stepReport;
     uint64_t worldResets = 0, frameResets = 0, gpuResets = 0, loads = 0, scenarioRuns = 0;
 };
@@ -803,10 +810,18 @@ void EngineApp::checkMeasurements()
             }
             if (m.ended)
             {
-                // The GPU samples of the range arrive frames later: until a later frame's sample is logged, 10 more
-                // loops passed (the app drops unmatched frames after 8), or the range is empty
+                // The GPU samples of the range arrive frames later: until a later frame's sample is logged, the scene
+                // rendered 8 frames (the app's drop bound for unmatched frames) plus the frames in flight past the
+                // range, 8 loops passed without a rendered frame, or the range is empty
+                const uint64_t frames = renderScene ? renderScene->frames() : 0;
+                if (frames != m.lastFrames) m.loopsWithoutRender = 0;
+                if (loops != m.lastLoops && frames == m.lastFrames) m.loopsWithoutRender++;
+                m.lastFrames     = frames;
+                m.lastLoops      = loops;
                 const bool later = !gpuLog.empty() && gpuLog.back().frame > m.sceneEnd;
-                if (m.sceneEnd == m.sceneStart || later || loops >= m.endLoop + 10 || now >= m.deadline)
+                if (m.sceneEnd == m.sceneStart || later ||
+                    frames >= m.sceneEnd + 8 + Vulkan::VulkanRenderer::framesInFlight || m.loopsWithoutRender >= 8 ||
+                    now >= m.deadline)
                 {
                     answerMeasurement(m, false);
                     done = true;

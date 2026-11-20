@@ -6,12 +6,8 @@
 
 #include "saiga/vulkan/world/WorldMcp.h"
 
-#include "saiga/core/image/managedImage.h"
-
 #include <algorithm>
-#include <chrono>
 #include <cmath>
-#include <memory>
 
 namespace Saiga
 {

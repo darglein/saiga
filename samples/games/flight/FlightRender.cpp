@@ -68,7 +68,8 @@ void FlightRender::transfer(vk::CommandBuffer cmd)
     pose.follow(focus());
     hasPose               = pose.interpolated(app->world().alpha(), renderPose);
     const bool toolCamera = app->cameraHeldByTool();
-    if (pose.takeTeleport() || held.released(toolCamera)) camera.reset();
+    const bool released   = held.released(toolCamera);
+    if (pose.takeTeleport() || released) camera.reset();
     if (hasPose && !toolCamera) camera.update(renderPose.position, forwardOf(renderPose.rotation), frameDt);
 
     // A tool holds the camera (S14): the app camera, else the chase camera
