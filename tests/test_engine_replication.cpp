@@ -1317,6 +1317,21 @@ TEST(Review, AKeptOwnedByViewReadsTheRebuiltOwnerTable)
     EXPECT_EQ(count, 1001u);
 }
 
+// Regression: a kept ownedBy view iterated the stale owner table after an owner change (no ownerOf call in between)
+TEST(Review, AKeptOwnedByViewRefreshesADirtyOwnerTable)
+{
+    World w(baseSetup());
+    const Entity a = makePlayer(w, 1);
+    auto view      = w.ownedBy<const Transform>(1);
+    const Entity b = w.create();
+    w.setOwner(b, 1);
+    std::vector<Entity> seen;
+    view.each([&](Entity e, const Transform&) { seen.push_back(e); });
+    EXPECT_EQ(seen, (std::vector<Entity>{a, b}));
+    w.remove<NetOwner>(a);
+    EXPECT_EQ(view.count(), 1u);
+}
+
 // Regression: a reparenting out of a parent destroyed in the same step was sent after the Destroy, so the client's
 // cascade took the child along
 TEST(Review, AChildMovedOutOfADestroyedParentSurvivesOnTheClient)
@@ -1458,6 +1473,19 @@ TEST(ReviewDeathTest, OwnerRules)
         n.host->add<NetOwner>(root, NetOwner{1});
     };
     EXPECT_DEATH(addNetOwnerAbove(), "owner of a spawned descendant");
+    // Regression: a spawned host entity under an unspawned host root took the owner of a client's root when that root
+    // was linked under it (the edited root was not spawned)
+    auto parentAbove = []()
+    {
+        Net n;
+        const Entity s = n.host->create();
+        n.step();
+        const Entity root = n.host->create();
+        n.host->add<Parent>(s, Parent{root});
+        const Entity owned = makePlayer(*n.host, 1);
+        n.host->add<Parent>(root, Parent{owned});
+    };
+    EXPECT_DEATH(parentAbove(), "add<Parent>: it would change the owner of a spawned entity");
     // Regression: a client could add or remove the NetOwner of its replicas
     auto clientNetOwner = [](bool add)
     {

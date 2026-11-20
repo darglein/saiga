@@ -274,8 +274,7 @@ class SAIGA_ENGINE_API World
         static_assert(parentReadOnly<C...>(),
                       "Parent, Persistent and NetOwner in a view must be const (remove and add, makePersistent, "
                       "setOwner)");
-        if (ownerCacheDirty) rebuildOwnerCacheChecked();
-        return reg.ownedView<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0, ownerCache, peer);
+        return reg.ownedView<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0, ownerTable, peer);
     }
     // The owner of the entity's root (0: the host)
     uint8_t ownerOf(Entity e) const
@@ -608,6 +607,14 @@ class SAIGA_ENGINE_API World
     // The lazy rebuild of ownerOf/ownedBy: never inside parallelEach (the step loop rebuilds before every system, and
     // owner changes inside a system rebuild at once, R-PAR-1)
     void rebuildOwnerCacheChecked() const;
+    // The owner table of ownedBy views: rebuilt when a view starts iterating with a stale cache
+    struct OwnerTableOfWorld final : OwnerTable
+    {
+        const World* world;
+        explicit OwnerTableOfWorld(const World* w) : world(w) {}
+        const std::vector<uint8_t>& table() const override;
+    };
+    OwnerTableOfWorld ownerTable{this};
     // Client: the entity or one of its descendants is replicated (a destroy would remove a replica, §13.5)
     bool clientSubtreeReplicated(Entity e) const;
     // Host: an add/remove of Parent or NetOwner that would change the owner of a spawned entity (no transfer after

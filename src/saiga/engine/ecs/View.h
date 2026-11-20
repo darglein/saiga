@@ -33,12 +33,16 @@ class View
 
    public:
     explicit View(Registry& registry, uint8_t requiredFlags = 0) : reg(&registry), flags(requiredFlags) {}
-    // Only the entities whose owner ((*owners)[index], 0 beyond its size) is peer (World::ownedBy, §13.3): one lookup
-    // per candidate. owners is the World's owner table, read when the view iterates (a view kept across an owner
-    // change never reads a reallocated table; it filters by the table's state at iteration). owners must not change
-    // while the view iterates.
-    View(Registry& registry, uint8_t requiredFlags, const std::vector<uint8_t>* owners, uint8_t peer)
-        : reg(&registry), flags(requiredFlags), owners(owners), peer(peer), filtered(true)
+    // Only the entities whose owner (table()[index], 0 beyond its size) is peer (World::ownedBy, §13.3): one lookup
+    // per candidate. The World's owner table is brought up to date when an iteration starts (a view kept across an
+    // owner change never reads a stale or reallocated table); owners must not change while the view iterates.
+    View(Registry& registry, uint8_t requiredFlags, const OwnerTable& ownerTable, uint8_t peer)
+        : reg(&registry),
+          flags(requiredFlags),
+          ownerTable(&ownerTable),
+          owners(&ownerTable.table()),
+          peer(peer),
+          filtered(true)
     {
     }
 
@@ -46,6 +50,7 @@ class View
     template <class F>
     void each(F&& fn)
     {
+        refreshOwners();
         IterationGuard guard(*reg);
         auto access              = std::make_tuple(Accessor<C>(*reg)...);
         const ComponentMask mask = Registry::mask<C...>();
@@ -66,6 +71,7 @@ class View
     template <class F>
     void parallelEach(F&& fn, int64_t chunk = 256)
     {
+        refreshOwners();  // before the parallel guard (a rebuild inside parallelEach asserts)
         IterationGuard guard(*reg);
         ParallelGuard parallel(*reg);
         const ComponentMask mask = Registry::mask<C...>();
@@ -204,6 +210,12 @@ class View
             return &reg->pool<T>();
     }
 
+    // The table object never moves (owners stays valid); only its content is brought up to date
+    void refreshOwners() const
+    {
+        if (filtered) ownerTable->table();
+    }
+
     bool ownedOk(uint32_t index) const
     {
         if (!filtered) return true;
@@ -212,6 +224,7 @@ class View
 
     Registry* reg;
     uint8_t flags;
+    const OwnerTable* ownerTable       = nullptr;
     const std::vector<uint8_t>* owners = nullptr;
     uint8_t peer                       = 0;
     bool filtered                      = false;

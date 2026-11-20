@@ -410,6 +410,12 @@ void World::rebuildOwnerCacheChecked() const
     rebuildOwnerCache();
 }
 
+const std::vector<uint8_t>& World::OwnerTableOfWorld::table() const
+{
+    if (world->ownerCacheDirty) world->rebuildOwnerCacheChecked();
+    return world->ownerCache;
+}
+
 bool World::clientSubtreeReplicated(Entity e) const
 {
     if (isHost() || !reg.alive(e)) return false;
@@ -908,14 +914,26 @@ bool World::netChangeRefused(Entity e, ComponentId c, bool add, Entity parent)
             }
         return false;
     }
-    if (!repl->spawned(e)) return false;
-    const uint8_t before = ownerOf(e);
-    uint8_t after        = 0;
-    if (c == ComponentId(EngineComponent::NetOwner))
-        after = add ? uint8_t(255) : 0;  // any NetOwner change of a spawned root is a transfer
-    else if (add)
-        after = reg.alive(parent) ? ownerOf(parent) : before;
-    if (c != ComponentId(EngineComponent::NetOwner) && after == before) return false;
+    if (c == ComponentId(EngineComponent::Parent))
+    {
+        // The moved subtree's owner before and after (a child has no NetOwner: without a parent it belongs to the
+        // host); refused when it changes for a spawned entity in the subtree, also below an unspawned root
+        const uint8_t before = ownerOf(e);
+        const uint8_t after  = add ? (reg.alive(parent) ? ownerOf(parent) : before) : uint8_t(0);
+        if (after == before) return false;
+        bool spawned = repl->spawned(e);
+        if (!spawned && childCount(e) > 0)
+            for (Entity x : collectDoomed(e))
+                if (repl->spawned(x))
+                {
+                    spawned = true;
+                    break;
+                }
+        if (!spawned) return false;
+    }
+    else if (!repl->spawned(e))
+        return false;  // NetOwner of an unspawned root without spawned descendants
+    // Any NetOwner change of a spawned root is a transfer
     SAIGA_ASSERT(false, std::string(add ? "add<" : "remove<") + reg.componentInfo(c).name +
                             ">: it would change the owner of a spawned entity (no transfer after the spawn, §13.3)");
     return true;

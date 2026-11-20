@@ -396,7 +396,10 @@ CodeRabbit review (PR #61; regression tests `Review.*`, `ReviewDeathTest.OwnerRu
   refused in every build; a client's queued destroy and the dead-parent fallback of `add<Parent>` recheck the subtree
   for replicas at the flush.
 - Owner cache: `setOwner` inside a system rebuilds it at once, and a lazy rebuild inside `parallelEach` asserts; an
-  `ownedBy` view reads the World's owner table when it iterates (a kept view never reads a reallocated table).
+  `ownedBy` view brings the World's owner table up to date when it starts iterating (`OwnerTable`; a kept view never
+  reads a stale or reallocated table).
+- A `Parent` change (add, remove, `reparentNow`) that changes the owner of the moved subtree is refused when any entity
+  in it was spawned, also below an unspawned root (the subtree is walked only when the owner changes).
 - Replication: Hierarchy messages go before Destroy messages (a child moved out of a destroyed parent survived the
   host but not the client's cascade); a peer joining after a host load gets a `Resync` with the epoch before its spawn
   set.

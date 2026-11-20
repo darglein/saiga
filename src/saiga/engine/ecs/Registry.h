@@ -34,6 +34,17 @@ namespace Engine
 template <class... C>
 class View;
 
+// The owner table of World::ownedBy (§13.3): table() brings it up to date (a rebuild when it is stale) and returns it;
+// the returned vector is always the same object
+class OwnerTable
+{
+   public:
+    virtual const std::vector<uint8_t>& table() const = 0;
+
+   protected:
+    ~OwnerTable() = default;
+};
+
 enum class SlotState : uint8_t
 {
     Free,
@@ -172,9 +183,9 @@ class SAIGA_ENGINE_API Registry
     // requiredFlags: only entities that have all these flags (the World passes kSimulated in phases 2-5)
     template <class... C>
     View<C...> view(uint8_t requiredFlags = 0);
-    // A view of the entities whose owner (owners[index]) is peer (World::ownedBy, S16)
+    // A view of the entities whose owner (owners.table()[index]) is peer (World::ownedBy, S16)
     template <class... C>
-    View<C...> ownedView(uint8_t requiredFlags, const std::vector<uint8_t>& owners, uint8_t peer);
+    View<C...> ownedView(uint8_t requiredFlags, const OwnerTable& owners, uint8_t peer);
 
     // True while a view iterates (structural changes assert); atomic: views nested in parallelEach run on workers
     bool iterating() const { return iterationDepth.load(std::memory_order_relaxed) > 0; }
@@ -435,9 +446,9 @@ View<C...> Registry::view(uint8_t requiredFlags)
     return View<C...>(*this, requiredFlags);
 }
 template <class... C>
-View<C...> Registry::ownedView(uint8_t requiredFlags, const std::vector<uint8_t>& owners, uint8_t peer)
+View<C...> Registry::ownedView(uint8_t requiredFlags, const OwnerTable& owners, uint8_t peer)
 {
-    return View<C...>(*this, requiredFlags, &owners, peer);
+    return View<C...>(*this, requiredFlags, owners, peer);
 }
 
 }  // namespace Engine
