@@ -10,6 +10,7 @@
 #include "games/racing/RacingIds.h"
 
 #include <array>
+#include <string>
 
 namespace Saiga
 {
@@ -69,6 +70,19 @@ struct VehicleParameters
         v("rollingResistance", rollingResistance);
         v("airDrag", airDrag);
         v("subSteps", subSteps);
+    }
+    // Checked when the data file is read (load and reload_data)
+    bool validate(std::string& error) const
+    {
+        if (!(mass > 0 && halfExtents.minCoeff() > 0 && wheelRadius > 0 && restLength > 0 && stiffness >= 0 &&
+              damping >= 0 && subSteps >= 1 && subSteps <= 64 && slipSpeed > 0 && friction >= 0))
+        {
+            error =
+                "mass, halfExtents, wheelRadius, restLength, slipSpeed > 0; stiffness, damping, friction >= 0; "
+                "subSteps 1..64";
+            return false;
+        }
+        return true;
     }
 };
 

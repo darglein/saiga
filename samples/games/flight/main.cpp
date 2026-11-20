@@ -52,10 +52,24 @@ int main(int argc, char** argv)
     setup.renderHooks.gui      = [&]() { renderer.gui(); };
 
     return engineMain(argc, argv, setup, {"--demo"},
-                      [](EngineApp& app, const AppOptions& options)
+                      [&wasActive](EngineApp& app, const AppOptions& options)
                       {
                           app.showStatistics(false);
                           World& w = app.world();
+                          // Regression (CodeRabbit, S13b): a save taken with the stick held restored the stick values,
+                          // and neutral input never cleared them (the gate writes only active input and its release).
+                          // The local player's sticks are device input: a load centers them (the throttle lever is
+                          // state and stays); the next active input or an agent writes them again.
+                          w.addLoadListener(
+                              [&app, &wasActive](const LoadInfo&)
+                              {
+                                  wasActive      = false;
+                                  World& world   = app.world();
+                                  const Entity p = app.localPlayer();
+                                  if (!p.valid() || !world.alive(p) || !world.has<AircraftControls>(p)) return;
+                                  AircraftControls& c = world.get<AircraftControls>(p);
+                                  c.pitch = c.roll = c.yaw = c.throttleChange = 0;
+                              });
                           if (options.has("--demo"))
                           {
                               w.spawn<Autopilot>(Vec3::Zero());

@@ -122,10 +122,17 @@ class PoseHistory
             // once, without interpolation; a teleport (its flag is not shifted before the next step) also snaps the
             // camera
             const Engine::Transform& t = w->read<Engine::Transform>(entity);
-            if (!samePose(current, t))
+            // Regression (CodeRabbit, S13b): a teleport to the current pose kept interpolating from the previous
+            // one; a pending teleport (not yet handled since the last step) snaps also when the pose is unchanged
+            const bool pendingTeleport = t.wasTeleported() && !teleportHandled;
+            if (pendingTeleport || !samePose(current, t))
             {
                 previous = current = Pose{t.position(), t.rotation()};
-                teleported         = teleported || t.wasTeleported();
+                if (t.wasTeleported())
+                {
+                    teleported      = true;
+                    teleportHandled = true;
+                }
             }
         }
         out.position = previous.position + (current.position - previous.position) * alpha;
@@ -168,13 +175,15 @@ class PoseHistory
             previous = current;
         current = now;
         valid   = true;
+        // Between steps a teleport stays flagged until the next step: recorded here, it is handled
+        teleportHandled = t.wasTeleported();
     }
 
     World* w         = nullptr;
     int stepListener = -1, loadListener = -1;
     Entity entity;
     Pose previous, current;
-    bool valid = false, teleported = false;
+    bool valid = false, teleported = false, teleportHandled = false;
 };
 
 }  // namespace Game

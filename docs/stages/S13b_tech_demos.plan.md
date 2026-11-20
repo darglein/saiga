@@ -156,6 +156,15 @@ file.
   `held_jump_after_a_restart` presses after the spawn, lands with the key held, falls and restarts without a jump).
   `WorldRenderer::init` without a height field stops in every build; `TerrainRenderer::destroy` drops its height
   field pointer; the shared height field test checks the release.
+- CodeRabbit (PR #57): a pending teleport (flagged, not yet handled since the last step) snaps the pose cache also
+  when the pose is unchanged. After a load the local player's transient controls (flight sticks and throttle change,
+  racing pedals and steering) are neutral and the input gate is reset (a load listener in `main.cpp`; the throttle lever
+  is state and stays): a save taken with a key held restored the values and neutral input never cleared them. The
+  platformer draws the facing of the interpolated rotation and reads `RunState` only if present. Data types may define
+  `validate(std::string&)`, checked when a data file is read (`readDataEntries`: fatal at load, a rejected
+  `reload_data` keeps the old values; engine test `Data.ValidateRejectsEntriesAndKeepsTheOldValues`); the three
+  parameter types check their divisors (a collision radius of 0 divided by zero), and the controller bounds its sub
+  step count. A teleport reseeds the racing wheel caches (a respawn between steps kept the old wheels).
 
 ## Results
 

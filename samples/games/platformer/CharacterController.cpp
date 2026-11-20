@@ -8,6 +8,9 @@
 
 #include "games/platformer/CharacterController.h"
 
+#include <algorithm>
+#include <cmath>
+
 namespace Saiga
 {
 namespace Game
@@ -91,8 +94,10 @@ void CharacterController::step(const CharacterInput& in, double dt)
     s.velocity(1) -= g * dt;
 
     // Move in sub steps
-    Vec3 delta  = s.velocity * dt;
-    int steps   = std::max(1, int(std::ceil(delta.norm() / (p.radius * 0.5))));
+    Vec3 delta = s.velocity * dt;
+    // Sub steps of at most half the radius; bounded (a radius near 0 or a huge velocity must not overflow the int)
+    const double subSteps = std::ceil(delta.norm() / (p.radius * 0.5));
+    int steps             = std::isfinite(subSteps) ? int(std::min(std::max(subSteps, 1.0), 1000.0)) : 1;
     bool landed = false, verticalBlocked = false;
     for (int i = 0; i < steps; ++i)
     {

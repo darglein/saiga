@@ -8,6 +8,8 @@
 
 #include "games/platformer/Level.h"
 
+#include <string>
+
 namespace Saiga
 {
 namespace Game
@@ -51,6 +53,17 @@ struct CharacterParameters
         v("coyoteTime", coyoteTime);
         v("jumpBuffer", jumpBuffer);
         v("turnRate", turnRate);
+    }
+    // Checked when the data file is read (load and reload_data): the controller divides by the radius
+    bool validate(std::string& error) const
+    {
+        if (!(radius >= 0.01 && height > 0 && gravity >= 0 && jumpSpeed >= 0 && runSpeed >= 0 && walkSpeed >= 0 &&
+              groundAcceleration >= 0 && airAcceleration >= 0 && coyoteTime >= 0 && jumpBuffer >= 0 && turnRate >= 0))
+        {
+            error = "radius >= 0.01, height > 0, and the speeds, accelerations, times and rates >= 0";
+            return false;
+        }
+        return true;
     }
 };
 

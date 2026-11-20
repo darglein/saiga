@@ -10,6 +10,8 @@
 
 #include "games/common/GameMath.h"
 
+#include <string>
+
 namespace Saiga
 {
 namespace Game
@@ -70,6 +72,16 @@ struct AircraftParameters
         v("crashSinkRate", crashSinkRate);
         v("crashBank", crashBank);
         v("crashPitch", crashPitch);
+    }
+    // Checked when the data file is read (load and reload_data): the model divides by these
+    bool validate(std::string& error) const
+    {
+        if (!(mass > 0 && wingArea > 0 && airDensity > 0 && referenceSpeed > 0 && stallAngle > 0))
+        {
+            error = "mass, wingArea, airDensity, referenceSpeed and stallAngle must be positive";
+            return false;
+        }
+        return true;
     }
 };
 

@@ -13,6 +13,9 @@
 #include <map>
 #include <stdexcept>
 #include <string>
+#include <utility>
+
+#include <type_traits>
 
 // Reading data files (docs/engine_design.md §14, R-DATA-1; S11): JSON, missing keys keep the struct defaults, unknown
 // keys, wrong types and out-of-range values are errors naming the file and the key path. These readers report errors;
@@ -37,6 +40,19 @@ SAIGA_ENGINE_API bool readJsonFile(const std::string& path, json11::Json& out, s
 SAIGA_ENGINE_API std::string snakeCase(const std::string& name);
 
 // An object of named entries, each merged into a default T. On an error out is unchanged.
+// A data type may check its values beyond the field types: bool validate(std::string& error) const (S13b; e.g. a
+// positive collision radius). A failing entry fails the file: fatal when the world loads it (R-DATA-1), a rejected
+// reload_data that keeps the old values.
+template <class T, class = void>
+struct HasDataValidate : std::false_type
+{
+};
+template <class T>
+struct HasDataValidate<T, std::void_t<decltype(std::declval<const T&>().validate(std::declval<std::string&>()))>>
+    : std::true_type
+{
+};
+
 template <class T>
 bool readDataEntries(const json11::Json& json, const std::string& path, std::map<std::string, T>& out,
                      std::string& error)
@@ -59,6 +75,15 @@ bool readDataEntries(const json11::Json& json, const std::string& path, std::map
             else
                 error = path + ": " + kv.first + "." + e;
             return false;
+        }
+        if constexpr (HasDataValidate<T>::value)
+        {
+            std::string invalid;
+            if (!value.validate(invalid))
+            {
+                error = path + ": " + kv.first + ": " + invalid;
+                return false;
+            }
         }
         entries.emplace(kv.first, std::move(value));
     }

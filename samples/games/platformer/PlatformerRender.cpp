@@ -120,7 +120,8 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
     if (hasPose)
     {
         const CharacterMotion& m = w.read<CharacterMotion>(e);
-        renderYaw                = m.yaw;
+        // The facing of the interpolated pose (with the position; also an edit of the rotation while paused)
+        renderYaw = headingOf(forwardOf(renderPose.rotation));
         // The camera: Q/E for the player, behind the character in the demo
         if (app->localPlayer() == e)
             cameraYaw += app->input().axis("camera_turn") * 2.0 * frameDt;
@@ -172,17 +173,19 @@ void PlatformerRender::gui()
     if (w.alive(e) && w.has<CharacterMotion>(e))
     {
         const CharacterMotion& m = w.read<CharacterMotion>(e);
-        const RunState& run      = w.read<RunState>(e);
+        // Regression (CodeRabbit, S13b): an entity with CharacterMotion but no RunState (made through the world API)
+        // asserted here
+        const RunState* run = w.has<RunState>(e) ? &w.read<RunState>(e) : nullptr;
         ImGui::Text("%s", app->localPlayer() == e ? "player" : "demo");
         const auto& wt = animator.weights();
         ImGui::Text("blend weights: idle %.2f, move %.2f, air %.2f (run blend %.2f)", wt.idle, wt.move, wt.air,
                     animator.runBlend());
         ImGui::Text("speed %.1f m/s, %s", Vec3(m.velocity(0), 0, m.velocity(2)).norm(),
                     m.grounded ? "grounded" : "in the air");
-        if (run.goalTime >= 0)
-            ImGui::Text("goal reached in %.1f s", run.goalTime);
-        else
-            ImGui::Text("time %.1f s", run.runTime);
+        if (run && run->goalTime >= 0)
+            ImGui::Text("goal reached in %.1f s", run->goalTime);
+        else if (run)
+            ImGui::Text("time %.1f s", run->runTime);
         // Between steps: the game object's restart directly (also the demo runner's)
         if (ImGui::Button("restart"))
             if (auto* hero = gameObjectAs<HeroBase>(w, e)) hero->restart();

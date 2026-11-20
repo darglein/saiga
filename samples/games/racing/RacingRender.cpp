@@ -158,7 +158,9 @@ void RacingRender::transfer(vk::CommandBuffer cmd)
     if (pose.takeTeleport())
     {
         camera.reset();
-        previousWheels = currentWheels;
+        // Regression (CodeRabbit, S13b): a respawn between steps (the GUI button while paused) kept the old wheels
+        // until the next step; reseed both sets from the VehicleState
+        reseedWheels();
     }
     const double alpha = w.alpha();
     for (int i = 0; i < 4; ++i)

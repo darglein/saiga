@@ -49,10 +49,22 @@ int main(int argc, char** argv)
     setup.renderHooks.gui      = [&]() { renderer.gui(); };
 
     return engineMain(argc, argv, setup, {"--demo"},
-                      [](EngineApp& app, const AppOptions& options)
+                      [&wasActive](EngineApp& app, const AppOptions& options)
                       {
                           app.showStatistics(false);
                           World& w = app.world();
+                          // Regression (CodeRabbit, S13b): a save taken with a pedal or the steering held restored
+                          // them, and neutral input never cleared them. The local player's pedals and steering are
+                          // device input: a load sets them neutral; the next active input or an agent writes them.
+                          w.addLoadListener(
+                              [&app, &wasActive](const LoadInfo&)
+                              {
+                                  wasActive      = false;
+                                  World& world   = app.world();
+                                  const Entity p = app.localPlayer();
+                                  if (!p.valid() || !world.alive(p) || !world.has<VehicleControls>(p)) return;
+                                  world.get<VehicleControls>(p) = VehicleControls();
+                              });
                           if (options.has("--demo"))
                           {
                               w.spawn<RaceDriver>(Vec3::Zero());
