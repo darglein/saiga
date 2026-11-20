@@ -107,16 +107,24 @@ struct TempDirectory
 {
     TempDirectory()
     {
+        // create_directory is false for an existing path (another process, a stale directory): then another name
         static int counter = 0;
-        path               = std::filesystem::path(::testing::TempDir()) /
-               ("saiga_engine_app_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) +
-                "_" + std::to_string(counter++));
-        std::filesystem::create_directories(path);
+        const std::filesystem::path base(::testing::TempDir());
+        for (int attempt = 0; attempt < 1000; ++attempt)
+        {
+            path = base /
+                   ("saiga_engine_app_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) +
+                    "_" + std::to_string(counter++));
+            std::error_code ec;
+            if (std::filesystem::create_directory(path, ec)) return;
+        }
+        path.clear();  // never remove a directory this object did not create
+        ADD_FAILURE() << "could not create a private temporary directory in " << base;
     }
     ~TempDirectory()
     {
         std::error_code ec;
-        std::filesystem::remove_all(path, ec);
+        if (!path.empty()) std::filesystem::remove_all(path, ec);
     }
     std::filesystem::path path;
 };
