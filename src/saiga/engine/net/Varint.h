@@ -38,7 +38,8 @@ inline size_t varintSize(uint64_t v)
     return n;
 }
 
-// Reads a varint at data[pos] (pos advances); false on truncated, over-long (more than 10 bytes) or overflowing input
+// Reads a varint at data[pos] (pos advances); false on truncated, over-long (more than 10 bytes or not minimal) or
+// overflowing input
 inline bool readVarint(const uint8_t* data, size_t size, size_t& pos, uint64_t& v)
 {
     v = 0;
@@ -49,7 +50,7 @@ inline bool readVarint(const uint8_t* data, size_t size, size_t& pos, uint64_t& 
         // The 10th byte holds only the top bit of 64
         if (i == 9 && (b & 0xFE) != 0) return false;
         v |= uint64_t(b & 0x7F) << (7 * i);
-        if ((b & 0x80) == 0) return true;
+        if ((b & 0x80) == 0) return i == 0 || b != 0;  // a non-minimal encoding (a final 0x00 byte) is rejected
     }
     return false;
 }

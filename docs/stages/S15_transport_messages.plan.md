@@ -287,17 +287,25 @@ The CI recipe of AGENTS.md (re-run the configure: the engine sources are globbed
 
 ## Design changes
 
-- Bandwidth: with saturating unreliable traffic (snapshots demanding more than the budget) the rule "reliable data
-  does not spend in a round in which an unreliable packet was dropped for budget" starved the reliable streams forever;
-  every 4th round of a link the reliable streams now go first (a quarter of a saturated link). Found by the planned
-  test (a 1100-byte packet every round under 400 bytes per round and a 20 KB chunk).
+- Bandwidth: two token buckets per link instead of one with "unreliable first, reliable not after an unreliable drop":
+  each class gets half of the budget while both have data (all of it otherwise), each capped at max(budget, 1200).
+  The planned rule starved the reliable streams forever under saturating unreliable traffic (found by the planned
+  test: 1100-byte packets every round at 400 bytes per round); a first fix (reliable first every 4th round) still
+  starved them for other sizes (local review, 800/800 and 400/600) or, with an overdraft, starved the snapshots.
+- `createNetwork` returns `LoopbackTransport` pointers (the tests need `injectFragment`); `createPair` returns
+  `Transport` pointers as §13.1.
+- The batching scope of a load covers its listeners (object-start sends are dropped anyway).
+- Local review fixes: a handled message's sends survive a later abort in phase 1 (exactly once with its reply); kept
+  outbox entries lose their phase tag; incomplete fragments are stored as they arrive (a hostile count allocates
+  nothing); `Connected` comes before any packet or `Disconnected` of a peer; non-minimal varints are rejected;
+  `messagesIn` counts only handled messages; `world_status` has `dropped_during_object_start`.
 - Message structs are visit structs, so they need `version` next to `id` and `name` (the binary reader's rule).
 - `World::send` stops the program in every build for an unregistered type, a world without a transport and the own
   peer; `parallelEach` is the existing assert.
 
 ## Results
 
-- `tests/test_engine_net.cpp`: 25 tests (varints; the loopback: channel order, delay, seeded and per-link loss,
+- `tests/test_engine_net.cpp`: 29 tests (after the local review; first 25) (varints; the loopback: channel order, delay, seeded and per-link loss,
   fragmentation at 1200 / 1201 / 4 MB, the oversized-packet death test, channel independence and the budget below a
   packet, snapshots during a chunk transfer, the star and disconnects, hostile fragments and the injected bad fragment;
   messages: registration errors, delivery, raw messages, coalescing and send order across channels, (peer, sequence)

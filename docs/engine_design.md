@@ -1951,24 +1951,27 @@ S15 implementation (`engine/net/`; `docs/stages/S15_transport_messages.plan.md`)
 - `LoopbackTransport::createNetwork(n, LoopbackOptions{dropRate, delayRounds, seed, bytesPerRound})` (and §13.1's
   `createPair`): a star (clients link to peer 0 only), single-threaded. A receiver's round starts with its first poll
   after the previous round ended; a packet sent before round r starts is visible from round r + delay. Loss is drawn at
-  send time per link from its own seeded stream. The budget is a token bucket per link (capped at max(budget, 1200), so
-  every packet passes eventually): unreliable packets first (one that does not fit is dropped), then reliable data
-  round-robin between the channels, fragment by fragment; reliable data does not spend in a round in which an
-  unreliable packet was dropped for budget, except every 4th round, when it goes first (a quarter of a saturated link).
+  send time per link from its own seeded stream. The budget is two token buckets per link, one for unreliable and one
+  for reliable data: each gets half of the budget per round while both classes have data (all of it otherwise) and is
+  capped at max(budget, 1200), so every packet of either class passes eventually and neither starves the other; an
+  unreliable packet that does not fit its bucket is dropped; reliable data goes round-robin between the channels,
+  fragment by fragment.
   Reliable packets over 1200 bytes are fragmented (`Fragmenter`: 12-byte header); the reassembler treats fragments as
   untrusted (index, count, duplicates, limits) and a bad one disconnects the link. Destroying an end delivers its
   earlier packets, then `Disconnected`.
 - Messages: `MessageList` (engine IDs 0..63, game IDs from 64; typed visit structs or raw payloads; registration errors
   are fatal), `World::send` / `sendRaw` encode into an outbox with per-receiver sequence numbers in send order; the
   outbox is flushed after phase 8, and at once between steps outside a batching scope (world API calls, step listener
-  dispatch, a load's listeners flush once at their end). Messages are coalesced per (peer, channel, reliability) into
+  dispatch, the load listeners flush once at their end). Messages are coalesced per (peer, channel, reliability) into
   packets `[base sequence][count]` + per message `[sequence delta][id u16][length][payload]` (varints, `Varint.h`;
   `kMaxMessagePayload` = 1174 bytes for an unreliable payload at any sequence). Phase 1 polls the transport, updates
   `connectedPeers` / `peersJoined` / `peersLeft` (replaced at the next receive after a completed step) and runs the
   handlers in (peer, sequence) order, flushing each handler's commands. Malformed packets, unknown IDs and payloads
   that do not decode are dropped and counted (`NetStats::rejected`, at most 8 log lines per peer and step). An aborted
-  step: the throwing message and the ones before it are consumed, the rest is handled first in the next step; the
-  outbox drops the interrupted phase's entries; handler events are lost with the step's events. A load discards the
+  step: the throwing message and the ones before it are consumed (with their applied changes and their sends), the rest
+  is handled first in the next step; the outbox drops the interrupted phase's entries (the kept ones lose their phase
+  tag); handler events are lost with the step's events. Each end announces the peers of the topology at creation as
+  `Connected` in its first round, before any packet or `Disconnected` of them. A load discards the
   outbox before its listeners; sends from `configure` / `onLoad` of a load are dropped. Profiler counters
   `net/sent_bytes`, `net/received_bytes`, `net/messages_in`, `net/messages_out`, `net/rejected`; `world_status.net`,
   `describe_world.messages`.

@@ -80,6 +80,9 @@ TEST(Varint, RoundTripAndRejects)
     overflow.push_back(0x02);  // more than 64 bits
     pos = 0;
     EXPECT_FALSE(readVarint(overflow.data(), overflow.size(), pos, r));
+    const std::vector<uint8_t> nonMinimal{0x80, 0x00};
+    pos = 0;
+    EXPECT_FALSE(readVarint(nonMinimal.data(), nonMinimal.size(), pos, r));
     const std::vector<uint8_t> truncated{0x80};
     pos = 0;
     EXPECT_FALSE(readVarint(truncated.data(), truncated.size(), pos, r));
@@ -238,10 +241,50 @@ TEST(Loopback, SnapshotsDuringAChunkTransfer)
         }
     }
     EXPECT_TRUE(chunk) << rounds;
-    // The snapshots keep arriving (the budget passes one 1100-byte packet about every third round; every 4th round
-    // the reliable stream goes first)
-    EXPECT_GE(snapshots, rounds / 5) << rounds;
+    // The snapshots keep arriving (their half of the budget, 200 bytes per round, passes one 1100-byte packet about
+    // every sixth round)
+    EXPECT_GE(snapshots, rounds / 8) << rounds;
     EXPECT_GT(net[1]->stats().droppedBandwidth, 0u);
+}
+
+// Regression (S15 review): with other budget and packet sizes the reliable stream starved forever; unreliable and
+// reliable data now have a bucket each (half the budget each while both have data)
+TEST(Loopback, ReliableProgressForAnyBudget)
+{
+    for (auto [budget, snapshot] : {std::pair<size_t, size_t>{800, 800}, {400, 600}, {400, 1100}, {100, 1200}})
+    {
+        LoopbackOptions o;
+        o.bytesPerRound = budget;
+        auto net        = LoopbackTransport::createNetwork(2, o);
+        net[0]->send(1, Channel::ChunkData, bytes(20000), Reliability::Reliable);
+        bool chunk = false;
+        int rounds = 0, snapshots = 0;
+        for (; rounds < 2000 && !chunk; ++rounds)
+        {
+            net[0]->send(1, Channel::State, bytes(snapshot), Reliability::Unreliable);
+            net[0]->send(1, Channel::Control, bytes(20), Reliability::Reliable);  // small reliable traffic too
+            for (const auto& e : packets(round(*net[1])))
+            {
+                if (e.channel == Channel::ChunkData) chunk = true;
+                if (e.channel == Channel::State) snapshots++;
+            }
+        }
+        EXPECT_TRUE(chunk) << budget << " " << snapshot;
+        EXPECT_GT(snapshots, 0) << budget << " " << snapshot;
+    }
+}
+
+// A peer that goes away before the other end's first poll is still announced first (no Disconnected without Connected)
+TEST(Loopback, ConnectedBeforeDisconnected)
+{
+    auto net = LoopbackTransport::createNetwork(2);
+    net[1]->send(0, Channel::Control, {1}, Reliability::Reliable);
+    net[1].reset();
+    const auto events = round(*net[0]);
+    ASSERT_EQ(events.size(), 3u);
+    EXPECT_EQ(events[0].type, TransportEvent::Connected);
+    EXPECT_EQ(events[1].type, TransportEvent::Packet);
+    EXPECT_EQ(events[2].type, TransportEvent::Disconnected);
 }
 
 TEST(Loopback, StarTopologyAndDisconnect)
@@ -388,6 +431,18 @@ struct Spawned
     }
 };
 constexpr MessageId kRaw = 66;
+struct Echo
+{
+    static constexpr MessageId id     = 68;
+    static constexpr const char* name = "Echo";
+    static constexpr uint32_t version = 1;
+    uint32_t value                    = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("value", value);
+    }
+};
 
 struct Received
 {
@@ -414,6 +469,11 @@ void onRaw(World& w, uint8_t from, const uint8_t* data, size_t size)
     g_received.push_back(
         {&w, from, "raw " + std::to_string(size) + ":" + std::to_string(size ? data[0] : 0), w.stepIndex()});
 }
+// Replies with a Ping (value + 500)
+void onEcho(World& w, uint8_t from, const Echo& e)
+{
+    w.send(from, Ping{e.value + 500});
+}
 // Creates an entity; the next handler of the batch can use it (the commands are flushed after each handler)
 void onSpawned(World& w, uint8_t from, const Spawned& s)
 {
@@ -433,6 +493,7 @@ void testMessages(MessageList& l)
     l.add<Note>(Reliability::Unreliable, onNote);
     l.addRaw(kRaw, "Raw", Reliability::Reliable, Channel::ChunkData, onRaw);
     l.add<Spawned>(Reliability::Reliable, onSpawned);
+    l.add<Echo>(Reliability::Reliable, onEcho);
 }
 
 WorldSetup netSetup(Transport* t)
@@ -640,6 +701,16 @@ TEST(Messages, AbortedStepKeepsTheUnhandledRest)
     EXPECT_EQ(client.peersJoined(), std::vector<uint8_t>{0});  // the join stayed visible in the completed step
     client.step();
     EXPECT_TRUE(client.peersJoined().empty());
+    EXPECT_EQ(client.netStats().messagesIn, 2u);  // counted once per handled message, kept across the abort
+    // Regression (S15 review): the reply of a handled message was dropped when a later handler of the batch threw
+    host.beginSendBatch();
+    host.send(1, Echo{7});
+    host.send(1, Ping{2});
+    host.endSendBatch();
+    EXPECT_THROW(client.step(), std::runtime_error);
+    client.step();  // the kept reply goes out with the next flush
+    host.step();
+    EXPECT_EQ(receivedBy(host), std::vector<std::string>{"ping 507"});
     g_poison = 0xFFFFFFFF;
 }
 
@@ -649,6 +720,7 @@ int g_throwInPhase         = 0;
 Transport* g_sendTransport = nullptr;
 void sendInBehaviour(World& w, double)
 {
+    if (g_throwInPhase == 2) throw std::runtime_error("behaviour failed");
     if (g_throwInPhase) w.send(1, Ping{100});
 }
 void sendAndThrowInGameplay(World& w, double)
@@ -672,6 +744,9 @@ TEST(Messages, AbortedPhaseDropsItsSends)
     hs.systems    = throwingSystems;
     World host(hs), client(netSetup(ct.get()));
     g_throwInPhase = 1;
+    EXPECT_THROW(host.step(), std::runtime_error);
+    // Regression (S15 review): the kept entry kept its phase tag, so a later abort in that phase dropped it
+    g_throwInPhase = 2;
     EXPECT_THROW(host.step(), std::runtime_error);
     g_throwInPhase = 0;
     host.step();  // flushes the kept entry of the finished phase
@@ -818,3 +893,74 @@ TEST(Messages, DeterministicWithLoss)
     const auto a = run();
     EXPECT_EQ(a, run());
 }
+
+// Delays in steps between worlds, the peers' leave, packet-level rejects, the counters and the batching scopes of the
+// world API and the listener dispatch
+TEST(Messages, DelayLeavesRejectsCountersAndBatches)
+{
+    g_received.clear();
+    LoopbackOptions o;
+    o.delayRounds = 2;
+    auto net      = LoopbackTransport::createNetwork(2, o);
+    World host(netSetup(net[0].get())), client(netSetup(net[1].get()));
+    host.send(1, Ping{1});
+    client.step();
+    client.step();
+    EXPECT_TRUE(receivedBy(client).empty());
+    client.step();  // sent before the client's first round: visible in its third (1 + delay 2)
+    EXPECT_EQ(receivedBy(client), std::vector<std::string>{"ping 1"});
+    // Packet-level rejects: count 0, a length beyond the packet
+    net[0]->send(1, Channel::Control, {0, 0}, Reliability::Reliable);
+    std::vector<uint8_t> beyond;
+    writeVarint(beyond, 0);
+    writeVarint(beyond, 1);
+    writeVarint(beyond, 0);
+    beyond.push_back(64);
+    beyond.push_back(0);
+    writeVarint(beyond, 100);
+    beyond.push_back(1);
+    net[0]->send(1, Channel::Control, beyond, Reliability::Reliable);
+    for (int i = 0; i < 4; ++i) client.step();
+    EXPECT_EQ(client.netStats().rejected, 2u);
+    // The counters of the host's profile
+    Profiler& p = host.profiler();
+    host.send(1, Ping{2});
+    host.step();
+    EXPECT_GT(p.counterStats(p.counter("net/messages_out"), 1).max, 0);
+    // A step listener's sends go out as one packet when the dispatch ends (also when it throws)
+    const uint64_t before = net[0]->stats().packetsOut[0];
+    host.addStepListener(
+        [&]()
+        {
+            host.send(1, Ping{10});
+            host.send(1, Ping{11});
+            throw std::runtime_error("listener failed");
+            return true;
+        });
+    EXPECT_THROW(host.step(), std::runtime_error);
+    EXPECT_EQ(net[0]->stats().packetsOut[0], before + 1);
+    // A world API call batches its sends too (an operation that sends nothing still flushes nothing)
+    WorldApi api(host);
+    EXPECT_TRUE(api.call("world_status", Json::object{}).ok);
+    // The client leaves: peersLeft on the host
+    net[1].reset();
+    for (int i = 0; i < 4 && host.peersLeft().empty(); ++i) host.step();
+    EXPECT_EQ(host.peersLeft(), std::vector<uint8_t>{1});
+    EXPECT_TRUE(host.connectedPeers().empty());
+}
+
+#ifdef SAIGA_ASSERTS
+TEST(MessagesDeathTest, SendInParallelEach)
+{
+    auto run = []()
+    {
+        auto pair       = LoopbackTransport::createPair();
+        WorldSetup s    = netSetup(pair.first.get());
+        s.workerThreads = 2;
+        World w(s);
+        for (int i = 0; i < 1000; ++i) w.add<Health>(w.create());
+        w.view<Health>().parallelEach([&](Entity, Health&) { w.send(1, Ping{1}); });
+    };
+    EXPECT_DEATH(run(), "parallelEach");
+}
+#endif

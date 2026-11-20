@@ -40,17 +40,19 @@ struct Link
     std::array<Reassembler, kChannelCount> reassembler;  // on the receiver's side
     bool disconnectPending     = false;
     uint64_t disconnectVisible = 0;
-    double budget              = 0;
+    double budgetUnreliable    = 0;  // token buckets (bytesPerRound > 0)
+    double budgetReliable      = 0;
     Rng loss;
     uint32_t nextFragmentSequence = 0;
     size_t nextChannel            = 0;  // round-robin start
-    uint64_t rounds               = 0;  // rounds of the receiver with this link
 };
 
 struct Endpoint
 {
     bool alive     = true;
-    bool announced = false;  // Connected events delivered
+    bool announced = false;             // Connected events delivered
+    std::vector<uint8_t> initialPeers;  // announced as Connected by the first round (the topology at creation)
+    std::vector<TransportEvent> pendingDisconnects;  // a break before the first round: after the Connected events
     bool inRound   = false;
     uint64_t round = 0;
     std::deque<TransportEvent> ready;
@@ -101,8 +103,20 @@ struct LoopbackTransport::Hub
             l->connected = false;
             l->unreliable.clear();
             for (auto& q : l->reliable) q.clear();
+            for (auto& r : l->reassembler) r = Reassembler();  // frees incomplete packets
             l->disconnectPending = false;
-            if (ends[size_t(key.second)].alive) disconnected(key.second, key.first);
+            Endpoint& to         = ends[size_t(key.second)];
+            if (!to.alive) continue;
+            if (to.announced)
+                disconnected(key.second, key.first);
+            else
+            {
+                // After the Connected events of its first round
+                TransportEvent ev;
+                ev.type = TransportEvent::Disconnected;
+                ev.peer = uint8_t(key.first);
+                to.pendingDisconnects.push_back(std::move(ev));
+            }
         }
     }
 
@@ -113,15 +127,18 @@ struct LoopbackTransport::Hub
         e.inRound = true;
         if (!e.announced)
         {
+            // Every peer of the topology at creation is announced, also one that went away since (its packets and
+            // Disconnected follow), so no end sees a Disconnected or a packet of a peer it never saw connected
             e.announced = true;
-            for (auto& kv : links)
-                if (kv.first.second == r && kv.second.connected && ends[size_t(kv.first.first)].alive)
-                {
-                    TransportEvent ev;
-                    ev.type = TransportEvent::Connected;
-                    ev.peer = uint8_t(kv.first.first);
-                    e.ready.push_back(std::move(ev));
-                }
+            for (uint8_t p : e.initialPeers)
+            {
+                TransportEvent ev;
+                ev.type = TransportEvent::Connected;
+                ev.peer = p;
+                e.ready.push_back(std::move(ev));
+            }
+            for (auto& d : e.pendingDisconnects) e.ready.push_back(std::move(d));
+            e.pendingDisconnects.clear();
         }
         const size_t perRound = options.bytesPerRound;
         const bool unlimited  = perRound == 0;
@@ -131,70 +148,74 @@ struct LoopbackTransport::Hub
             const int from = kv.first.first;
             Link& l        = kv.second;
             if (!l.connected) continue;
-            if (!unlimited) l.budget = std::min(l.budget + double(perRound), double(std::max(perRound, kMaxPacket)));
-            auto fits  = [&](size_t n) { return unlimited || double(n) <= l.budget; };
-            auto spend = [&](size_t n)
+            auto visibleReliable = [&]()
             {
-                if (!unlimited) l.budget -= double(n);
+                for (const auto& q : l.reliable)
+                    if (!q.empty() && q.front().visibleRound <= e.round) return true;
+                return false;
             };
-            // Unreliable first: a chunk transfer never starves the snapshots; every 4th round reliable data goes first,
-            // so saturating unreliable traffic does not starve the reliable streams either (a quarter of the budget)
-            const bool reliableFirst = !unlimited && (++l.rounds % 4 == 0);
-            bool droppedForBudget    = false;
-            auto reliableUnits       = [&]()
+            const bool hasUnreliable = !l.unreliable.empty() && l.unreliable.front().visibleRound <= e.round;
+            const bool hasReliable   = visibleReliable();
+            if (!unlimited)
             {
-                bool progress = true;
-                while (progress && l.connected)
-                {
-                    progress = false;
-                    for (size_t k = 0; k < kChannelCount && l.connected; ++k)
-                    {
-                        const size_t c = (l.nextChannel + k) % kChannelCount;
-                        auto& q        = l.reliable[c];
-                        if (q.empty() || q.front().visibleRound > e.round || !fits(q.front().bytes.size())) continue;
-                        Unit u = std::move(q.front());
-                        q.pop_front();
-                        spend(u.bytes.size());
-                        progress = true;
-                        if (!u.fragment)
-                        {
-                            deliver(r, uint8_t(from), u.channel, std::move(u.bytes));
-                            continue;
-                        }
-                        e.stats.fragmentsIn++;
-                        std::vector<uint8_t> packet;
-                        std::string error;
-                        const auto result = l.reassembler[c].add(u.bytes, packet, error);
-                        if (result == Reassembler::Result::Complete)
-                            deliver(r, uint8_t(from), u.channel, std::move(packet));
-                        else if (result == Reassembler::Result::Error)
-                        {
-                            e.stats.rejectedInput++;
-                            breakLink(from, r);
-                        }
-                    }
-                    l.nextChannel = (l.nextChannel + 1) % kChannelCount;
-                }
-            };
-            if (reliableFirst) reliableUnits();
-            while (l.connected && !l.unreliable.empty() && l.unreliable.front().visibleRound <= e.round)
+                // Two buckets: unreliable and reliable data share the link half and half (all of it for the one class
+                // that has data), each capped at max(budget, kMaxPacket), so every packet of either class passes
+                // eventually and neither class starves the other
+                const double cap   = double(std::max(perRound, kMaxPacket));
+                const double half  = double(perRound) / 2;
+                const double toU   = hasUnreliable ? (hasReliable ? half : double(perRound)) : 0;
+                const double toR   = hasReliable ? (hasUnreliable ? half : double(perRound)) : 0;
+                l.budgetUnreliable = std::min(l.budgetUnreliable + toU, cap);
+                l.budgetReliable   = std::min(l.budgetReliable + toR, cap);
+            }
+            auto fits = [&](double budget, size_t n) { return unlimited || double(n) <= budget; };
+            while (!l.unreliable.empty() && l.unreliable.front().visibleRound <= e.round)
             {
                 Unit u = std::move(l.unreliable.front());
                 l.unreliable.pop_front();
-                if (fits(u.bytes.size()))
+                if (fits(l.budgetUnreliable, u.bytes.size()))
                 {
-                    spend(u.bytes.size());
+                    if (!unlimited) l.budgetUnreliable -= double(u.bytes.size());
                     deliver(r, uint8_t(from), u.channel, std::move(u.bytes));
                 }
                 else
-                {
                     e.stats.droppedBandwidth++;
-                    droppedForBudget = true;
-                }
             }
-            // Then reliable data round-robin between the channels, fragment by fragment, only when the budget covers
-            // it (not in a round in which an unreliable packet was dropped for budget: the bucket refills)
-            if (!reliableFirst && !droppedForBudget) reliableUnits();
+            // Reliable data round-robin between the channels, fragment by fragment, while its bucket covers it
+            bool progress = true;
+            while (progress && l.connected)
+            {
+                progress = false;
+                for (size_t k = 0; k < kChannelCount && l.connected; ++k)
+                {
+                    const size_t c = (l.nextChannel + k) % kChannelCount;
+                    auto& q        = l.reliable[c];
+                    if (q.empty() || q.front().visibleRound > e.round ||
+                        !fits(l.budgetReliable, q.front().bytes.size()))
+                        continue;
+                    Unit u = std::move(q.front());
+                    q.pop_front();
+                    if (!unlimited) l.budgetReliable -= double(u.bytes.size());
+                    progress = true;
+                    if (!u.fragment)
+                    {
+                        deliver(r, uint8_t(from), u.channel, std::move(u.bytes));
+                        continue;
+                    }
+                    e.stats.fragmentsIn++;
+                    std::vector<uint8_t> packet;
+                    std::string error;
+                    const auto result = l.reassembler[c].add(u.bytes, packet, error);
+                    if (result == Reassembler::Result::Complete)
+                        deliver(r, uint8_t(from), u.channel, std::move(packet));
+                    else if (result == Reassembler::Result::Error)
+                    {
+                        e.stats.rejectedInput++;
+                        breakLink(from, r);
+                    }
+                }
+                l.nextChannel = (l.nextChannel + 1) % kChannelCount;
+            }
             // A sender that went away: Disconnected after its earlier packets
             bool empty = l.unreliable.empty();
             for (auto& q : l.reliable) empty = empty && q.empty();
@@ -210,7 +231,7 @@ struct LoopbackTransport::Hub
 std::vector<std::unique_ptr<LoopbackTransport>> LoopbackTransport::createNetwork(int peers,
                                                                                  const LoopbackOptions& options)
 {
-    SAIGA_ASSERT(peers >= 1 && peers <= 255, "LoopbackTransport::createNetwork: 1..255 peers");
+    if (peers < 1 || peers > 255) SAIGA_EXIT_ERROR("LoopbackTransport::createNetwork: 1..255 peers");
     auto hub     = std::make_shared<Hub>();
     hub->options = options;
     hub->ends.resize(size_t(peers));
@@ -222,6 +243,7 @@ std::vector<std::unique_ptr<LoopbackTransport>> LoopbackTransport::createNetwork
             l.loss = Rng(hashCombine(hashCombine(hashCombine(options.seed, uint64_t(key.first)), uint64_t(key.second)),
                                      fnv1a64("loss")));
             hub->links.emplace(key, std::move(l));
+            hub->ends[size_t(key.second)].initialPeers.push_back(uint8_t(key.first));
         }
     std::vector<std::unique_ptr<LoopbackTransport>> out;
     for (int p = 0; p < peers; ++p)
@@ -323,7 +345,7 @@ TransportStats LoopbackTransport::stats() const
 void LoopbackTransport::injectFragment(uint8_t from, uint8_t to, Channel channel, const std::vector<uint8_t>& fragment)
 {
     Link* l = hub->link(from, to);
-    SAIGA_ASSERT(l, "injectFragment: no link");
+    if (!l) SAIGA_EXIT_ERROR("injectFragment: no link from " + std::to_string(from) + " to " + std::to_string(to));
     l->reliable[size_t(channel)].push_back(
         Unit{channel, fragment, true, hub->ends[to].round + 1 + uint64_t(std::max(0, hub->options.delayRounds))});
 }

@@ -432,8 +432,9 @@ std::vector<uint8_t> toBytes(const T& value)
     return out;
 }
 
-// Reads a visit struct written by toBytes. Returns false on malformed input (truncated, an enum out of range, a vector
-// longer than the input, bytes left over) and sets *error if given; value may be partially written then.
+// Reads a visit struct written by toBytes from a byte range (a payload inside a larger buffer, no copy). Returns false
+// on malformed input (truncated, an enum out of range, a vector longer than the input, bytes left over) and sets
+// *error if given; value may be partially written then.
 template <class T>
 bool fromBytes(T& value, const uint8_t* data, size_t size, std::string* error = nullptr)
 {
@@ -446,6 +447,7 @@ bool fromBytes(T& value, const uint8_t* data, size_t size, std::string* error = 
     return message.empty();
 }
 
+// The same for a whole vector
 template <class T>
 bool fromBytes(T& value, const std::vector<uint8_t>& bytes, std::string* error = nullptr)
 {

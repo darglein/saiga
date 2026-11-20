@@ -755,6 +755,7 @@ ApiResult WorldApi::worldStatus(const Json&)
                                 {"rejected", double(n.rejected)},
                                 {"handler_exceptions", double(n.handlerExceptions)},
                                 {"dropped_on_load", double(n.droppedOnLoad)},
+                                {"dropped_during_object_start", double(n.droppedDuringObjectStart)},
                                 {"transport", Json::object{{"bytes_out", perChannel(ts.bytesOut)},
                                                            {"bytes_in", perChannel(ts.bytesIn)},
                                                            {"fragments_out", double(ts.fragmentsOut)},

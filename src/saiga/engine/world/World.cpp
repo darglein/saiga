@@ -637,6 +637,8 @@ void World::abortStep()
     outbox.erase(
         std::remove_if(outbox.begin(), outbox.end(), [aborted](const OutboxEntry& e) { return e.phase == aborted; }),
         outbox.end());
+    // The kept entries belong to no phase any more (a later abort in their phase must not drop them)
+    for (OutboxEntry& e : outbox) e.phase = Phase::None;
     // The world leaves the step first (whatever happens below, the next step can run)
     phase              = Phase::None;
     flushing           = false;
@@ -916,32 +918,37 @@ void World::flushOutbox()
         size_t k = 0;
         while (k < g.entries.size())
         {
-            // [base sequence][count] then per message [sequence delta][id u16][length][payload]
-            std::vector<uint8_t> body;
+            // [base sequence][count] then per message [sequence delta][id u16][length][payload]: the messages of
+            // the packet are chosen first, then written straight into it (one copy of each payload)
             const uint64_t base = outbox[g.entries[k]].sequence;
             uint64_t previous   = base;
-            size_t count        = 0;
-            while (k < g.entries.size())
+            size_t end = k, bodySize = 0;
+            while (end < g.entries.size())
             {
-                const OutboxEntry& e = outbox[g.entries[k]];
+                const OutboxEntry& e = outbox[g.entries[end]];
                 const size_t size =
                     varintSize(e.sequence - previous) + 2 + varintSize(e.payload.size()) + e.payload.size();
                 // A packet holds what fits kMaxPacket; a single larger (reliable) message is a packet of its own
-                if (count > 0 && kMaxPacketHeader + body.size() + size > kMaxPacket) break;
-                writeVarint(body, e.sequence - previous);
-                body.push_back(uint8_t(e.id & 0xFF));
-                body.push_back(uint8_t(e.id >> 8));
-                writeVarint(body, e.payload.size());
-                body.insert(body.end(), e.payload.begin(), e.payload.end());
+                if (end > k && kMaxPacketHeader + bodySize + size > kMaxPacket) break;
+                bodySize += size;
                 previous = e.sequence;
-                count++;
-                k++;
+                end++;
             }
             std::vector<uint8_t> packet;
-            packet.reserve(body.size() + kMaxPacketHeader);
+            packet.reserve(varintSize(base) + varintSize(end - k) + bodySize);
             writeVarint(packet, base);
-            writeVarint(packet, count);
-            packet.insert(packet.end(), body.begin(), body.end());
+            writeVarint(packet, end - k);
+            previous = base;
+            for (; k < end; ++k)
+            {
+                const OutboxEntry& e = outbox[g.entries[k]];
+                writeVarint(packet, e.sequence - previous);
+                packet.push_back(uint8_t(e.id & 0xFF));
+                packet.push_back(uint8_t(e.id >> 8));
+                writeVarint(packet, e.payload.size());
+                packet.insert(packet.end(), e.payload.begin(), e.payload.end());
+                previous = e.sequence;
+            }
             bytes += packet.size();
             net->send(g.peer, g.channel, packet, g.reliability);
         }
@@ -1066,15 +1073,18 @@ void World::receiveMessages()
                 continue;
             }
             std::string error;
-            netCounts.messagesIn++;
-            if (counterMessagesIn >= 0) prof.addCounter(counterMessagesIn, 1);
+            const size_t outboxMark = outbox.size();
             if (!e->dispatch(*this, m.peer, m.payload.data(), m.payload.size(), error))
             {
                 rejectInput(m.peer, e->name + ": " + error);
                 continue;
             }
+            netCounts.messagesIn++;
+            if (counterMessagesIn >= 0) prof.addCounter(counterMessagesIn, 1);
             // The handler's structural changes apply before the next handler: a message is consumed together with them
+            // and with its sends (an abort later in phase 1 must not drop a consumed message's reply)
             flushCommands();
+            for (size_t k = outboxMark; k < outbox.size(); ++k) outbox[k].phase = Phase::None;
         }
     }
     catch (...)

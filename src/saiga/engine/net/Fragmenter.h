@@ -45,9 +45,9 @@ class SAIGA_ENGINE_API Reassembler
    private:
     struct Partial
     {
-        uint32_t count    = 0;
-        uint32_t received = 0;
-        std::vector<std::vector<uint8_t>> parts;
+        uint32_t count = 0;
+        // By index, as they arrive (no allocation by the hostile count alone)
+        std::map<uint32_t, std::vector<uint8_t>> parts;
     };
     std::map<uint32_t, Partial> partial;
     size_t bytes = 0;

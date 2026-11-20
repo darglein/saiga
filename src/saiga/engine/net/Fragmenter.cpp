@@ -89,7 +89,6 @@ Reassembler::Result Reassembler::add(const std::vector<uint8_t>& fragment, std::
         }
         it               = partial.emplace(sequence, Partial{}).first;
         it->second.count = count;
-        it->second.parts.resize(count);
     }
     Partial& p = it->second;
     if (p.count != count)
@@ -97,7 +96,7 @@ Reassembler::Result Reassembler::add(const std::vector<uint8_t>& fragment, std::
         error = "packet " + std::to_string(sequence) + " changed its fragment count";
         return Result::Error;
     }
-    if (!p.parts[index].empty())
+    if (p.parts.count(index))
     {
         error = "fragment " + std::to_string(index) + " of packet " + std::to_string(sequence) + " twice";
         return Result::Error;
@@ -109,13 +108,12 @@ Reassembler::Result Reassembler::add(const std::vector<uint8_t>& fragment, std::
     }
     p.parts[index].assign(fragment.begin() + kFragmentHeader, fragment.end());
     bytes += payload;
-    p.received++;
-    if (p.received < p.count) return Result::Incomplete;
+    if (p.parts.size() < p.count) return Result::Incomplete;
     packet.clear();
     for (auto& part : p.parts)
     {
-        bytes -= part.size();
-        packet.insert(packet.end(), part.begin(), part.end());
+        bytes -= part.second.size();
+        packet.insert(packet.end(), part.second.begin(), part.second.end());
     }
     partial.erase(it);
     return Result::Complete;
