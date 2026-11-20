@@ -2137,7 +2137,7 @@ reads it.
 
 ```cpp
 // tests/test_engine_scenarios.cpp (Wanderer: a test-only game object of this file)
-void registerTestScenarios(ScenarioList& s)
+void registerEngineScenarios(ScenarioList& s)
 {
     s.add("wanderer_flees_when_damaged", [](ScenarioWorld& w)
     {
@@ -2168,7 +2168,8 @@ void registerTestScenarios(ScenarioList& s)
   too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths. A scenario
   adds its own step listeners with `ScenarioWorld::addStepListener` (they move to the replacement world; a listener
   added to `world()` directly fails the save/load variant), and never steps inside a step listener (a failure: the
-  world's listener dispatch is not re-entrant).
+  world's listener dispatch is not re-entrant: `World::step`/`advance` and the world API's edits are refused inside a
+  step listener in every build).
 - `ScenarioWorld` overrides the radii of every `SpaceTemplate` with small defaults (`fullRadius = simulationRadius =
   interestRadius = clientPhysicsRadius = 128`, `prefetchMargin = 0`), which a scenario can raise; it requests no visual
   tiles or far content, and all worlds of one test process share a cache of generated base chunks (content is
@@ -2213,7 +2214,8 @@ extrapolation), for the scenario's entities, within the quantization tolerances.
   `diffSaves` of the two saves; with `ScenarioOptions::varyThreads` the second run uses another worker thread count
   (1 <-> 3; the engine's own scenarios use it: the engine's `parallelEach` systems must not depend on the thread count,
   games need not, §20); (b) **save/load**: after a plain run that counts the steps, `ScenarioWorld` saves at the first
-  step-helper boundary at or after half of them (at the end for scenarios with fewer than 2 steps), loads the save into
+  step-helper boundary at or after half of them (at the end for scenarios with fewer than 2 steps or that step only
+  outside the helpers), loads the save into
   a fresh `World` of the same setup and continues with it; the loaded world's `save()` must equal the saved bytes
   (`diffSaves` explains a mismatch), hook errors of the load fail, and the scenario's checks must still pass (catches
   state outside components, R-STATE-1); with `ScenarioOptions::strictContinuation` the final hash must also equal the

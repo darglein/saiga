@@ -47,14 +47,29 @@ ScenarioWorld::~ScenarioWorld()
         if (w) w->removeStepListener(id);
 }
 
-void ScenarioWorld::attach()
+void ScenarioWorld::attachObserver()
 {
     stepListener = w->addStepListener(
         [this]()
         {
-            onStep();
+            try
+            {
+                onStep();
+            }
+            catch (...)
+            {
+                // The world removes a throwing listener: the observation continues in a new registration (adding
+                // listeners while they run is allowed), so later steps are still counted and still end the scenario
+                attachObserver();
+                throw;
+            }
             return true;
         });
+}
+
+void ScenarioWorld::attach()
+{
+    attachObserver();
     ownListeners.clear();
     for (auto& fn : listeners)
         ownListeners.push_back(w->addStepListener(
@@ -78,7 +93,7 @@ void ScenarioWorld::addStepListener(std::function<void()> fn)
 
 void ScenarioWorld::onStep()
 {
-    // Never throws (a throwing listener would be removed; the helpers end the scenario)
+    // Throws ScenarioAbort past maxSteps (the observer registers itself again, see attachObserver)
     observedSteps++;
     if (control.hashes) control.hashes->push_back(w->hash());
     for (Trace& t : traces)

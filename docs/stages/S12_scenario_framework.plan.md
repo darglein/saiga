@@ -1,6 +1,6 @@
 # S12: Scenario framework
 
-Status: implemented (in review).
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -90,9 +90,9 @@ struct ScenarioOptions
 - Steps are observed through a World step listener (`addStepListener`), so `world().step()` and the API's `step` are
   covered too (hashes, traces, the step count). The save/load point is taken only inside the step helpers; a scenario
   that steps only outside them gets the round trip at its end.
-- Exceeding `maxSteps` (or the runner stopping a rerun at a step) sets an abort flag in the step listener (which never
-  throws: a throwing listener is removed, and `WorldApi::call` turns exceptions into error results); the step helpers
-  and `api()` calls through `ScenarioWorld` check it and throw an internal abort exception that the runner catches.
+- Exceeding `maxSteps` (or the runner stopping a rerun at a step) makes the step observation throw `ScenarioAbort`
+  (it registers itself again, since the world removes a throwing listener); the world API turns it into an error
+  result, so `ScenarioWorld::call` and the step helpers check the abort flag again; the runner catches it.
 - Entities created through the helpers are "involved": a failure report dumps them (at most 10).
 
 ### 3. Runner and variants (`engine/tools/ScenarioRunner.h/.cpp`)
@@ -206,8 +206,8 @@ this file.
 
 ## Design changes
 
-- `ScenarioWorld::call(op, args)`: an API call that also ends the scenario after `maxSteps` (the step listener only
-  sets a flag; `ScenarioAbort` is not a `std::exception`, so neither the world API nor game code swallows it).
+- `ScenarioWorld::call(op, args)`: an API call that also ends the scenario after `maxSteps` (the world API catches
+  every exception, so the abort flag is checked again after the call).
 - `spawnPlayer` numbers the character IDs 1, 2, ... instead of drawing them from `world.random()` (§9.3 updated): the
   RNG stream of a scenario is not changed by the helper.
 - `World::setTickEveryStep` (not saved): the scenario runner carries it to the replacement world.
@@ -227,9 +227,14 @@ this file.
   `ScenarioAbort` past `maxSteps`, so loops over `world().step()` end too; the tick setting carries over from the
   world; the final save of a run is guarded; the thread-dependence test waits for a worker instead of a fixed delay.
 
+- Review round 3: `World::step`/`advance` inside a step listener are refused in every build (an exception; they
+  corrupted the listener dispatch without asserts), the world API refuses edits inside a step listener (a `step` there
+  aborted the process); the step observation re-registers itself after it threw (later steps were neither counted nor
+  stopped); `ScenarioList::add` refuses bad names in every build (R-REG-1).
+
 Updated: §3, §9.3 (`characterId` in scenarios), §16.2, §17.2, §17.4, §18.3, §20, the S12 row; AGENTS.md.
 
 ## Results
 
-- `test_engine_scenarios`: 8 engine scenarios x 3 variants (with `varyThreads` and `strictContinuation`) and 8 runner
-  tests pass; 62 ctest tests.
+- `test_engine_scenarios`: 8 engine scenarios x 3 variants (with `varyThreads` and `strictContinuation`) and 15 runner
+  tests pass (39 tests); 62 ctest tests.

@@ -552,6 +552,8 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
     if (op->edit && !allowEdits && operation != "apply")
         return ApiResult::failure(operation + ": edits are not allowed (read-only)");
     if (w->inStep()) return ApiResult::failure(operation + ": only between steps");
+    // A step listener must not change the world through the API (a step inside it is not supported)
+    if (op->edit && w->dispatchingListeners()) return ApiResult::failure(operation + ": not inside a step listener");
     ApiResult result;
     try
     {

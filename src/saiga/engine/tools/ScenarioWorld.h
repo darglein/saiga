@@ -155,6 +155,7 @@ class SAIGA_ENGINE_API ScenarioWorld
 
    private:
     void attach();
+    void attachObserver();
     void involve(Entity e);
     void onStep();
 

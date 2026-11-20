@@ -632,7 +632,7 @@ TEST(ScenarioRunner, ListAndRunAll)
     for (const ScenarioResult& r : results) EXPECT_TRUE(r.passed) << r.report;
 }
 
-#ifdef SAIGA_ASSERTS
+// Refused in every build
 TEST(ScenarioRunnerDeathTest, NamesAreUniqueAndSnakeCase)
 {
     ScenarioList list;
@@ -640,7 +640,6 @@ TEST(ScenarioRunnerDeathTest, NamesAreUniqueAndSnakeCase)
     EXPECT_DEATH(list.add("one", [](ScenarioWorld&) {}), "already used");
     EXPECT_DEATH(list.add("Not Snake", [](ScenarioWorld&) {}), "snake_case");
 }
-#endif
 
 // Review regressions (S12 round 1)
 
@@ -758,4 +757,42 @@ TEST(ScenarioRunner, FindIsExact)
     ASSERT_TRUE(list.find("walk"));
     EXPECT_EQ(list.find("walk")->name, "walk");
     EXPECT_FALSE(list.find("wal"));
+}
+
+// Review regressions (S12 round 3)
+
+// After the first abort the observer was removed by the world: later API steps were neither counted nor stopped
+TEST(ScenarioRunner, TheObserverSurvivesAnAbort)
+{
+    ScenarioOptions small;
+    small.maxSteps         = 10;
+    auto e                 = entry("api_loop",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.api().call("pause", Json::object{});
+                       for (int i = 0; i < 50; ++i) w.api().call("step", Json::object{{"n", 1}});
+                       w.check(w.steps() == 50, "every step observed (" + std::to_string(w.steps()) + ")");
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Plain, small);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "more than 10 steps")) << r.report;
+    EXPECT_FALSE(contains(r, "every step observed")) << r.report;
+}
+
+// The world API refuses edits (a step) from inside a step listener (it aborted the process)
+TEST(ScenarioRunner, ApiStepInsideAListenerIsAnError)
+{
+    World w(scenarioSetup());
+    WorldApi api(w);
+    api.call("pause", Json::object{});
+    ApiResult inner;
+    w.addStepListener(
+        [&]()
+        {
+            inner = api.call("step", Json::object{{"n", 1}});
+            return false;
+        });
+    w.step();
+    EXPECT_FALSE(inner.ok);
+    EXPECT_NE(inner.error.find("not inside a step listener"), std::string::npos) << inner.error;
 }

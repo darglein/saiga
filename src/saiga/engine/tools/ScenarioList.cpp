@@ -16,12 +16,13 @@ namespace Engine
 {
 void ScenarioList::add(const char* name, ScenarioFn run, bool localOnly)
 {
-    SAIGA_ASSERT(name && *name && run, "ScenarioList::add: a name and a function");
+    // Refused in every build (R-REG-1, like the other registration lists)
+    if (!name || !*name || !run) SAIGA_EXIT_ERROR("ScenarioList::add: a name and a function");
     for (const char* c = name; *c; ++c)
-        SAIGA_ASSERT((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9') || *c == '_',
-                     std::string("ScenarioList::add: the name ") + name + " is not snake_case");
+        if (!((*c >= 'a' && *c <= 'z') || (*c >= '0' && *c <= '9') || *c == '_'))
+            SAIGA_EXIT_ERROR(std::string("ScenarioList::add: the name ") + name + " is not snake_case");
     for (const Entry& e : list)
-        SAIGA_ASSERT(e.name != name, std::string("ScenarioList::add: the name ") + name + " is already used");
+        if (e.name == name) SAIGA_EXIT_ERROR(std::string("ScenarioList::add: the name ") + name + " is already used");
     list.push_back(Entry{name, std::move(run), localOnly});
 }
 
