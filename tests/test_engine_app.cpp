@@ -48,6 +48,7 @@ EngineAppSetup appSetup(bool render)
     s.mcpPort       = 0;
     s.world.actions = actions;
     s.render.imgui  = false;
+    s.validation    = render;  // a validation error fails the render tests (if the layer is installed)
     return s;
 }
 
@@ -112,9 +113,11 @@ TEST(AppCommandLine, OptionsGameFlagsAndErrors)
     EXPECT_NE(t.world.dataDirectory.find("data/flight"), std::string::npos);
 
     for (auto bad : {argv({"--unknown"}), argv({"--width"}), argv({"--width", "0"}), argv({"--benchmark"}),
-                     argv({"--benchmark", "flyover", "--headless"}), argv({"--demo"})})
+                     argv({"--benchmark", "flyover", "--headless"}), argv({"--benchmark", "nope"}), argv({"--demo"}),
+                     argv({"--no-render", "--screenshot", "x.png"})})
     {
         EngineAppSetup u;
+        u.benchmarks = {"flyover"};
         AppOptions q;
         EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1];
     }
@@ -207,6 +210,25 @@ TEST(InputMapTest, ErrorsNameTheFileAndKey)
     EXPECT_FALSE(m.parse(obj(R"({"keys": {}})"), "in.json", a, error));
 }
 
+// SAIGA_SCREENSHOT is ignored with --no-render (an argument is an error, see above)
+TEST(AppCommandLine, ScreenshotVariableWithoutRendering)
+{
+    setenv("SAIGA_SCREENSHOT", "x.png", 1);
+    EngineAppSetup s;
+    AppOptions o;
+    std::string error;
+    auto a = argv({"--no-render"});
+    EXPECT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
+    EXPECT_TRUE(o.screenshot.empty());
+    unsetenv("SAIGA_SCREENSHOT");
+    // A known benchmark passes
+    EngineAppSetup t;
+    t.benchmarks = {"flyover"};
+    AppOptions q;
+    auto b = argv({"--benchmark", "flyover"});
+    EXPECT_TRUE(parseCommandLine(int(b.size()), b.data(), {}, t, q, error)) << error;
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // The app without a device (servers, agents, CI without Vulkan)
 
@@ -267,6 +289,29 @@ TEST(EngineAppNoRender, InputToTheLocalPlayer)
     EXPECT_EQ(w.events.read<ActionEvent>()[0].action, 1u);
     app.runFrames(1, 1.0 / 60);
     EXPECT_TRUE(w.events.read<ActionEvent>().empty());  // pressed once
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
+    // Regression: the release (the first neutral frame) reached the player only through the next active input, the held
+    // button stayed down. It is written once; later neutral frames leave an agent's value alone again.
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
+    w.get<PlayerInput>(p).heldButtons = 2;
+    app.runFrames(2, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 2u);
+    // set_input through the tool: the default axes move the player; unknown names are rejected
+    {
+        Poller poller(app.mcp());
+        Json ok = callTool(app.mcp(), "set_input", obj(R"({"axes": {"move_x": 1}, "frames": 0})"));
+        EXPECT_FALSE(ok["result"]["isError"].bool_value()) << ok.dump();
+        EXPECT_TRUE(
+            callTool(app.mcp(), "set_input", obj(R"({"axes": {"mvoe_x": 1}})"))["result"]["isError"].bool_value());
+        EXPECT_TRUE(callTool(app.mcp(), "set_input", obj(R"({"held": ["fly"]})"))["result"]["isError"].bool_value());
+        Json st = toolJson(callTool(app.mcp(), "app_status", Json::object{}));
+        EXPECT_EQ(st["input"]["actions"].array_items().size(), 2u) << st.dump();
+        EXPECT_EQ(st["input"]["held_buttons"].array_items().size(), 1u) << st.dump();
+        EXPECT_TRUE(st["input"]["axes"]["move_x"].is_object()) << st.dump();
+    }
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_GT(w.read<PlayerInput>(p).move.norm(), 0.5);
     // After a load the local player is still the same entity
     const auto blob = w.save();
     ASSERT_TRUE(w.tryLoad(blob).ok());
@@ -328,6 +373,7 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
         Poller poller(app.mcp());
         Json p = toolJson(callTool(app.mcp(), "get_profile", Json::object{}));
         EXPECT_TRUE(p["gpu"].is_object()) << p.dump();
+        EXPECT_GT(p["gpu"]["samples"].number_value(), 0) << p.dump();
         Json st = toolJson(callTool(app.mcp(), "app_status", Json::object{}));
         EXPECT_TRUE(st["rendering"].bool_value());
         EXPECT_EQ(st["size"][0].number_value(), 64);

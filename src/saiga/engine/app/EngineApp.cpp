@@ -116,6 +116,16 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     cam.setProj(60.0f, float(appSetup.width) / float(appSetup.height), 0.1f, 50.0f, true);
     cam.setView(vec3(0, 2, 6), vec3(0, 0, 0), vec3(0, 1, 0));
     if (appWindow) appWindow->setCamera(&cam);
+#ifdef SAIGA_USE_GLFW
+    auto& controls             = cameraHolder->camera;
+    controls.mode0             = CameraControlMode::ROTATE_FIRST_PERSON_FIX_UP_VECTOR;
+    controls.mode1             = CameraControlMode::ROTATE_FIRST_PERSON_FIX_UP_VECTOR;
+    controls.movementSpeed     = appSetup.cameraSpeed;
+    controls.movementSpeedFast = appSetup.cameraSpeedFast;
+#else
+    cameraSpeedValue     = appSetup.cameraSpeed;
+    cameraSpeedFastValue = appSetup.cameraSpeedFast;
+#endif
 
     inputMap.setActions(gameWorld->actionList());
     // The input bindings (fatal on errors, R-DATA-1)
@@ -128,9 +138,11 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     if (!inputFile.empty())
     {
         std::string error;
-        if (!inputMap.load(inputFile, "input.user.json", gameWorld->actionList(), error))
+        if (!inputMap.load(inputFile, "input." + appSetup.name + ".user.json", gameWorld->actionList(), error))
             SAIGA_EXIT_ERROR("input bindings: " + error);
     }
+    else
+        inputMap.setDefaults();
 
     // MCP: the server and the tools always exist (tests call handleMessage); the server listens only with a port
     server                     = std::make_unique<McpServer>(appSetup.name, "1.0");
@@ -166,7 +178,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         [this](const LoadInfo&)
         {
             World& w = *gameWorld;
-            if (localPlayerEntity.valid() && w.alive(localPlayerEntity)) return;
+            if (localPlayerEntity.valid() && w.alive(localPlayerEntity) && w.registry().registered(Player::id) &&
+                w.has<Player>(localPlayerEntity))
+                return;
             localPlayerEntity = Entity{};
             if (!w.registry().registered(Player::id)) return;
             w.viewAll<const Player>().each(
@@ -178,8 +192,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
 
     if (renderScene && appSetup.renderHooks.init)
     {
-        appSetup.renderHooks.init(*this);
+        // Before init: shutdown also runs if init threw after creating some GPU state
         hooksInitialized = true;
+        appSetup.renderHooks.init(*this);
     }
 }
 
@@ -200,6 +215,24 @@ EngineApp::~EngineApp()
 PerspectiveCamera& EngineApp::camera()
 {
     return cameraHolder->camera;
+}
+
+float& EngineApp::cameraSpeed()
+{
+#ifdef SAIGA_USE_GLFW
+    return cameraHolder->camera.movementSpeed;
+#else
+    return cameraSpeedValue;
+#endif
+}
+
+float& EngineApp::cameraSpeedFast()
+{
+#ifdef SAIGA_USE_GLFW
+    return cameraHolder->camera.movementSpeedFast;
+#else
+    return cameraSpeedFastValue;
+#endif
 }
 
 void EngineApp::quit(int code)
@@ -223,8 +256,9 @@ int EngineApp::run()
         const auto start = std::chrono::steady_clock::now();
         frame();
         if (appWindow && appWindow->shouldClose() && !appSetup.headless) break;
-        // Headless (or no frame presented): paced to the step rate, MCP and the world keep going
-        if (appSetup.headless || !renderingEnabled)
+        // Headless, or no frame presented (rendering disabled, a minimized window): paced to the step rate, MCP and the
+        // world keep going
+        if (appSetup.headless || !lastFrameRendered)
             std::this_thread::sleep_until(start + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                                                       std::chrono::duration<double>(stepDt)));
     }
@@ -264,6 +298,7 @@ void EngineApp::frame(double dt)
             frameProfiler.setCounter(counterDropped, double(gameWorld->droppedSteps() - droppedBefore));
             droppedBefore = gameWorld->droppedSteps();
         }
+        lastFrameRendered = false;
         if (renderScene && renderingEnabled)
         {
             Profiler::Timer t(frameProfiler, scopeRender);
@@ -279,23 +314,29 @@ void EngineApp::frame(double dt)
 void EngineApp::pollInput(double dt)
 {
     if (appWindow) appWindow->update(float(dt));
+    lastFrameDt = dt;
 }
 
 void EngineApp::applyPlayerInput()
 {
     // The devices (a window with GLFW input; a headless app has none)
     InputState state;
-    bool captured = false;
+    bool captured = false, mouseCaptured = false;
     if (appWindow && !appSetup.headless)
     {
+        if (ImGui::GetCurrentContext())
+        {
+            captured      = ImGui::GetIO().WantCaptureKeyboard;
+            mouseCaptured = ImGui::GetIO().WantCaptureMouse;
+        }
         for (int k = 0; k < int(state.keys.size()); ++k) state.keys[size_t(k)] = keyboard().getKeyState(k) != 0;
+        // Clicks and drags on ImGui windows do not reach the game
         for (int b = 0; b < int(state.mouseButtons.size()); ++b)
-            state.mouseButtons[size_t(b)] = mouse.getKeyState(b) != 0;
+            state.mouseButtons[size_t(b)] = !mouseCaptured && mouse.getKeyState(b) != 0;
         const Vec2 m(double(mouse.getX()), double(mouse.getY()));
-        if (mouseKnown) state.mouseDelta = m - lastMouse;
+        if (mouseKnown && !mouseCaptured) state.mouseDelta = m - lastMouse;
         lastMouse  = m;
         mouseKnown = true;
-        if (ImGui::GetCurrentContext()) captured = ImGui::GetIO().WantCaptureKeyboard;
         // The app's keys: ESC quits, G toggles ImGui, F1 the statistics window, F12 saves screenshot.png
         auto pressedKey = [&](int k) { return !captured && state.keys[size_t(k)] && !previousKeys[size_t(k)]; };
         if (pressedKey(256)) quit(0);
@@ -330,17 +371,25 @@ void EngineApp::applyPlayerInput()
     {
         // The free camera (WASD and mouse) when no player is driven
 #ifdef SAIGA_USE_GLFW
-        if (appWindow && !appSetup.headless && !captured)
+        if (appWindow && !appSetup.headless)
         {
-            cameraHolder->camera.update(1.0f / 60.0f);
-            cameraHolder->camera.interpolate(1.0f / 60.0f, 0);
+            // The frame's time: the speed does not depend on the frame rate
+            const float dt = float(std::min(lastFrameDt, 0.1));
+            if (mouseCaptured)
+                cameraHolder->camera.resetMouse();
+            else
+                cameraHolder->camera.interpolate(dt, 0);
+            if (!captured) cameraHolder->camera.update(dt);
         }
 #endif
         return;
     }
-    // Neutral device input does not overwrite what an agent set (set_component); a changed or active input does
-    const bool active = !inputMap.neutral();
-    if (w.has<PlayerInput>(localPlayerEntity) && active)
+    // Neutral device input does not overwrite what an agent set (set_component); an active input does, and its release
+    // (the first neutral frame after it) writes the neutral values once
+    const bool active  = !inputMap.neutral();
+    const bool release = !active && inputWasActive;
+    inputWasActive     = active;
+    if (w.has<PlayerInput>(localPlayerEntity) && (active || release))
     {
         // The move axes relative to the camera's heading
         const vec3 f = cam.rot * vec3(0, 0, -1);
@@ -374,8 +423,10 @@ void EngineApp::renderFrame()
         if (h.gui) h.gui();
         if (statisticsVisible) statisticsWindow();
     };
-    if (!appOptions.screenshot.empty() && framesRendered + 1 == uint64_t(appOptions.screenshotFrame))
+    if (!appOptions.screenshot.empty() && !screenshotRequested &&
+        framesRendered + 1 >= uint64_t(appOptions.screenshotFrame))
     {
+        screenshotRequested    = true;
         const std::string file = appOptions.screenshot;
         renderScene->requestScreenshot(
             [this, file](const TemplatedImage<ucvec4>& img)
@@ -388,6 +439,7 @@ void EngineApp::renderFrame()
             });
     }
     if (!renderScene->renderFrame(transfer, render, gui)) return;
+    lastFrameRendered = true;
     framesRendered++;
     for (size_t i = 0; i < frameCallbacks.size();)
     {

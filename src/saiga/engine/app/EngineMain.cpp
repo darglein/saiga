@@ -45,7 +45,7 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             return false;
         }
     if (const char* shot = std::getenv("SAIGA_SCREENSHOT"); shot && *shot) options.screenshot = shot;
-    bool dataGiven = false;
+    bool dataGiven = false, screenshotFromArgument = false;
     for (int i = 1; i < argc; ++i)
     {
         const std::string a = argv[i];
@@ -76,7 +76,8 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
         {
             const char* v = value("a file");
             if (!v) return false;
-            options.screenshot = v;
+            options.screenshot     = v;
+            screenshotFromArgument = true;
         }
         else if (a == "--screenshot-frame" || a == "--width" || a == "--height" || a == "--mcp-port")
         {
@@ -115,13 +116,41 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             return false;
         }
     }
-    if (!options.benchmark.empty() && setup.headless)
+    if (!options.benchmark.empty())
     {
-        error = "--benchmark needs a window (not --headless)";
-        return false;
+        if (setup.headless)
+        {
+            error = "--benchmark needs a window (not --headless)";
+            return false;
+        }
+        if (std::find(setup.benchmarks.begin(), setup.benchmarks.end(), options.benchmark) == setup.benchmarks.end())
+        {
+            error = "unknown benchmark '" + options.benchmark + "'";
+            if (!setup.benchmarks.empty())
+            {
+                error += " (";
+                for (size_t k = 0; k < setup.benchmarks.size(); ++k) error += (k ? ", " : "") + setup.benchmarks[k];
+                error += ")";
+            }
+            return false;
+        }
+    }
+    if (setup.noRender && !options.screenshot.empty())
+    {
+        if (screenshotFromArgument)
+        {
+            error = "--screenshot needs rendering (not --no-render)";
+            return false;
+        }
+        std::cerr << "SAIGA_SCREENSHOT is ignored with --no-render" << std::endl;
+        options.screenshot.clear();
     }
     if (!dataGiven && setup.world.dataDirectory.empty())
-        setup.world.dataDirectory = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/" + setup.name;
+    {
+        // The source tree's data (SAIGA_WRITE_PROJECT_DIR_TO_HEADER), else data/<name> next to the working directory
+        const std::string source  = SAIGA_PROJECT_SOURCE_DIR;
+        setup.world.dataDirectory = (source.empty() ? std::string("data") : source + "/data") + "/" + setup.name;
+    }
     return true;
 }
 
@@ -160,10 +189,20 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         std::cerr << error << std::endl;
         return 1;
     }
-    if (options.runScenarios) return runGameScenarios(setup, options.scenarioFilter);
-    EngineApp app(setup, options);
-    if (start) start(app, options);
-    return app.run();
+    try
+    {
+        if (options.runScenarios) return runGameScenarios(setup, options.scenarioFilter);
+        EngineApp app(setup, options);
+        if (start) start(app, options);
+        return app.run();
+    }
+    catch (const std::exception& e)
+    {
+        std::cerr << setup.name << ": " << e.what() << std::endl;
+        std::cerr << "(without a display or GPU: --headless renders offscreen, --no-render does not render)"
+                  << std::endl;
+        return 1;
+    }
 }
 
 }  // namespace Engine

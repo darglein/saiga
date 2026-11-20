@@ -41,6 +41,9 @@ class ActionList
         SAIGA_ASSERT(name && *name, "ActionList::add: a name");
         for (const Action& a : actions)
             SAIGA_ASSERT(a.id != id && a.name != name, std::string("ActionList::add: ") + name + " is not unique");
+        // One namespace for actions and held buttons (input bindings, set_input)
+        for (const Held& h : held)
+            SAIGA_ASSERT(h.name != name, std::string("ActionList::add: ") + name + " is a held button");
         actions.push_back(Action{id, name});
     }
     void addHeld(int bit, const char* name)
@@ -49,6 +52,8 @@ class ActionList
         for (const Held& h : held)
             SAIGA_ASSERT(h.bit != bit && h.name != name,
                          std::string("ActionList::addHeld: ") + name + " is not unique");
+        for (const Action& a : actions)
+            SAIGA_ASSERT(a.name != name, std::string("ActionList::addHeld: ") + name + " is an action");
         held.push_back(Held{bit, name});
     }
 

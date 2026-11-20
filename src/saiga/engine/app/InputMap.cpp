@@ -85,6 +85,22 @@ int InputMap::keyCode(const std::string& name)
     return it == keyTable().end() ? -1 : it->second;
 }
 
+void InputMap::setDefaults()
+{
+    Axis x, z, lx, ly;
+    x.negative   = {'A'};
+    x.positive   = {'D'};
+    z.negative   = {'S'};
+    z.positive   = {'W'};
+    lx.mouseAxis = 0;
+    lx.scale     = 0.002;
+    ly.mouseAxis = 1;
+    ly.scale     = 0.002;
+    axes         = {{"move_x", x}, {"move_z", z}, {"look_x", lx}, {"look_y", ly}};
+    moveX        = "move_x";
+    moveZ        = "move_z";
+}
+
 bool InputMap::load(const std::string& file, const std::string& user, const ActionList& actions, std::string& error)
 {
     Json json;
@@ -319,6 +335,21 @@ Json InputMap::describe() const
     };
     Json::object b, x;
     for (const auto& kv : bindings) b[kv.first] = names(kv.second);
+    // Every registered action and held button, also without a key
+    Json::array actionNames, heldNames;
+    if (actionList)
+    {
+        for (const auto& a : actionList->actions)
+        {
+            actionNames.push_back(Json::object{{"name", a.name}, {"id", double(a.id)}});
+            if (!b.count(a.name)) b[a.name] = Json::array{};
+        }
+        for (const auto& h : actionList->held)
+        {
+            heldNames.push_back(Json::object{{"name", h.name}, {"bit", h.bit}});
+            if (!b.count(h.name)) b[h.name] = Json::array{};
+        }
+    }
     for (const auto& kv : axes)
     {
         Json::object o{{"negative", names(kv.second.negative)}, {"positive", names(kv.second.positive)}};
@@ -329,7 +360,11 @@ Json InputMap::describe() const
         }
         x[kv.first] = o;
     }
-    return Json::object{{"bindings", b}, {"axes", x}, {"move", Json::array{moveX, moveZ}}};
+    return Json::object{{"bindings", b},
+                        {"axes", x},
+                        {"move", Json::array{moveX, moveZ}},
+                        {"actions", actionNames},
+                        {"held_buttons", heldNames}};
 }
 
 }  // namespace Engine

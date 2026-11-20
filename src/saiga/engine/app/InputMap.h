@@ -56,6 +56,10 @@ class SAIGA_ENGINE_API InputMap
     bool load(const std::string& file, const std::string& user, const ActionList& actions, std::string& error);
     // The game's actions and held buttons (also without bindings: virtual input uses the names)
     void setActions(const ActionList& actions) { actionList = &actions; }
+    // The bindings of a game without input.json: move_x (A, D), move_z (S, W), look_x/look_y (mouse), move =
+    // [move_x, move_z]
+    void setDefaults();
+    bool hasAxis(const std::string& name) const { return axes.count(name) != 0; }
     // From JSON (tests); file names the source in errors
     bool parse(const json11::Json& json, const std::string& file, const ActionList& actions, std::string& error);
 

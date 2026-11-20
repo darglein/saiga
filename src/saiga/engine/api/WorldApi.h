@@ -129,8 +129,8 @@ class SAIGA_ENGINE_API WorldApi
     // journal stay; the journal gets a world_loaded entry
     void rebind(World& world);
     // A profile of the app reported by get_profile under key (S13: "frame", "gpu"); it must outlive the API
-    void addProfile(const std::string& key, const Profiler* profiler) { profiles.push_back({key, profiler}); }
-    const std::vector<std::pair<std::string, const Profiler*>>& extraProfiles() const { return profiles; }
+    void addProfile(const std::string& key, Profiler* profiler) { profiles.push_back({key, profiler}); }
+    const std::vector<std::pair<std::string, Profiler*>>& extraProfiles() const { return profiles; }
     // The directory of export_snapshot / import_snapshot (empty: refused)
     void setSnapshotDirectory(const std::string& directory) { snapshotDirectory = directory; }
 
@@ -213,7 +213,7 @@ class SAIGA_ENGINE_API WorldApi
     uint64_t nextSnapshotRevision = 1;
     std::map<std::string, Snapshot> snapshots;
     std::string snapshotDirectory;
-    std::vector<std::pair<std::string, const Profiler*>> profiles;
+    std::vector<std::pair<std::string, Profiler*>> profiles;
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
     uint32_t epoch   = 0;

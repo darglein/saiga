@@ -162,6 +162,8 @@ void gui(EngineApp& app)
     ImGui::Begin("World");
     ImGui::Checkbox("walk mode (F)", &g.walkMode);
     ImGui::SliderFloat("eye height", &g.eyeHeight, 0.5f, 50.0f);
+    ImGui::SliderFloat("speed", &app.cameraSpeed(), 1, 200);
+    ImGui::SliderFloat("speed fast", &app.cameraSpeedFast(), 10, 2000);
     vec3 p = app.camera().getPosition();
     ImGui::Text("camera %.1f %.1f %.1f (%.1f m above ground)", p(0), p(1), p(2),
                 p(1) - g.world.heightField().height(p(0), p(2)));
@@ -178,6 +180,9 @@ int main(int argc, char* argv[])
     EngineAppSetup setup;
     setup.name               = "world";
     setup.render.msaaSamples = 4;
+    setup.cameraSpeed        = 25;
+    setup.cameraSpeedFast    = 250;
+    setup.benchmarks         = Vulkan::WorldBenchmark::names();
     EngineApp* appPtr        = nullptr;
     setup.renderHooks.init   = [&](EngineApp& app)
     {
@@ -210,14 +215,16 @@ int main(int argc, char* argv[])
         Vulkan::registerWorldMcpTools(server, context);
     };
 
-    return engineMain(argc, argv, setup, {},
-                      [&](EngineApp& app, const AppOptions& options)
-                      {
-                          if (!options.benchmark.empty() && !Vulkan::WorldBenchmark::known(options.benchmark))
-                          {
-                              std::cerr << "Unknown benchmark '" << options.benchmark << "'" << std::endl;
-                              app.quit(1);
-                          }
-                          if (options.benchmark.empty()) app.showStatistics(false);
-                      });
+    const int code = engineMain(argc, argv, setup, {},
+                                [&](EngineApp& app, const AppOptions& options)
+                                {
+                                    if (options.benchmark.empty()) app.showStatistics(false);
+                                });
+    // A window closed before the end of the path
+    if (code == 0 && !game.benchmarkName.empty() && !game.benchmarkDone)
+    {
+        std::cout << "Benchmark error: did not finish" << std::endl;
+        return 1;
+    }
+    return code;
 }

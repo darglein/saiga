@@ -59,6 +59,9 @@ class SAIGA_ENGINE_API EngineApp
     McpServer& mcp() { return *server; }
     WorldApi& api() { return *worldApi; }
     PerspectiveCamera& camera();
+    // The free camera's speeds (initially EngineAppSetup::cameraSpeed/cameraSpeedFast)
+    float& cameraSpeed();
+    float& cameraSpeedFast();
     // nullptr with noRender
     Vulkan::RenderScene* scene() { return renderScene.get(); }
     Vulkan::VulkanWindow* window() { return appWindow.get(); }
@@ -112,7 +115,12 @@ class SAIGA_ENGINE_API EngineApp
     int exitStatus        = 0;
     bool hooksInitialized = false;
     std::chrono::steady_clock::time_point lastFrame;
-    bool firstFrame         = true;
+    bool firstFrame        = true;
+    bool lastFrameRendered = false;
+    bool inputWasActive    = false;  // the last frame wrote non-neutral input to the local player
+    double lastFrameDt     = 0;
+    float cameraSpeedValue = 10, cameraSpeedFastValue = 100;  // without GLFW (no camera controls)
+    bool screenshotRequested = false;
     uint64_t framesRendered = 0, framesRun = 0;
     Vec2 lastMouse = Vec2::Zero();
     std::array<bool, 512> previousKeys{};

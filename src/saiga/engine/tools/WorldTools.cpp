@@ -173,14 +173,16 @@ std::vector<ToolSpec> toolSpecs()
          "Reads the step profile: per scope (step, phases, systems, command flushes) avg/min/p50/p95/max in ms and "
          "the share of the parent, plus counters (entities, game objects, objects updated, commands, structural "
          "records, grid items), over the last steps (default: the whole history of 600). In the app also frame "
-         "(frame, poll, advance, render, present; fps, steps per frame, dropped steps) and gpu (the GPU frame and its "
+         "(frame and its poll, advance and render scopes; fps, steps per frame, dropped steps) and gpu (the GPU frame "
+         "and its "
          "sections, from timestamps) over the last frames. Changes nothing.",
          S::ObjectSchema(
              {{"steps", S::IntegerProperty("Window in steps (default all kept)")},
               {"frames", S::IntegerProperty("Window of the frame and GPU profiles in frames (default all)")},
               {"scopes", arrayProperty("Only scopes with these path prefixes (e.g. step/phase:behaviour)",
                                        Json::object{{"type", "string"}})}})},
-        {"reset_profile", "Drops the profile history.", S::ObjectSchema({})},
+        {"reset_profile", "Drops the profile history (in the app also the frame and GPU profiles).",
+         S::ObjectSchema({})},
         {"logs",
          "Reads the engine log lines after a sequence number (at most the newest 500), optionally of one "
          "category (\"api\" lists the changes made through these tools). Changes nothing.",
@@ -388,7 +390,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         "those "
         "steps (see get_profile). Paused: runs the steps now (a pure simulation benchmark; edits must be allowed). "
         "Running: waits until the app has run them (refused at time scale 0); it answers early with fewer steps if "
-        "they take too long. Changes nothing but time while paused.",
+        "they take too long; in the app the result also has the frame and gpu profiles of those frames. Changes "
+        "nothing but time while paused.",
         [&]()
         {
             Json::object schema =

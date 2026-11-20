@@ -53,7 +53,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
                            {"frames", double(app.frameCount())},
                            {"frames_rendered", double(app.renderedFrames())},
                            {"step", double(app.world().stepIndex())},
-                           {"input", app.input().describe()}};
+                           {"input", app.input().describe()},
+                           {"benchmark", app.options().benchmark}};
             if (app.scene())
             {
                 const ivec2 size = app.scene()->size();
@@ -91,6 +92,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 if (!args["axes"].is_object()) return respond(ToolResult::Error("axes: expected {name: value}"));
                 for (auto& kv : args["axes"].object_items())
                 {
+                    if (!app.input().hasAxis(kv.first))
+                        return respond(ToolResult::Error("axes: no axis \"" + kv.first + "\" (app_status)"));
                     if (!kv.second.is_number() || !std::isfinite(kv.second.number_value()))
                         return respond(ToolResult::Error("axes." + kv.first + ": expected a number"));
                     v.axes[kv.first] = kv.second.number_value();

@@ -617,6 +617,7 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "reset_profile")
     {
         w->profiler().reset();
+        for (auto& extra : profiles) extra.second->reset();
         return ApiResult::success(Json::object{{"reset", true}});
     }
     return apply(args);
