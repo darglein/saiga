@@ -169,9 +169,10 @@ class PoseHistory
         if (!valid || t.wasTeleportedLastStep())
         {
             previous = now;
-            // Regression (CodeRabbit, S13b): a teleport between steps already snapped the camera in interpolated();
-            // the step after it saw the shifted flag and reset the camera a second time
-            if (!valid || !teleportHandled) teleported = true;
+            // Also after a teleport between steps that interpolated() already handled: the shifted flag cannot tell it
+            // from a teleport of the step itself (e.g. the platformer's restart below the kill height), and a missed
+            // snap glides the camera across the map while a second snap one step later is not visible
+            teleported = true;
         }
         else
             previous = current;
