@@ -48,6 +48,8 @@ class PagedArray
     // Undoes the last push_back (the element and its page stay allocated; the next push_back returns it again, the
     // caller resets it)
     void pop_back() { count--; }
+    // Empties the array (the pages stay allocated; push_back returns the old elements again, the caller resets them)
+    void clear() { count = 0; }
 
    private:
     std::vector<std::unique_ptr<std::array<T, PageSize>>> pages;

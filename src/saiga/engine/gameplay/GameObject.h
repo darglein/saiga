@@ -93,6 +93,7 @@ class SAIGA_ENGINE_API GameObject
 
    private:
     friend class World;
+    friend class WorldLoader;
     World* owner = nullptr;
     Entity self;
 };

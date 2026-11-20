@@ -9,6 +9,7 @@
 #include "saiga/export.h"
 
 #include <memory>
+#include <string>
 
 namespace Saiga
 {
@@ -23,13 +24,17 @@ struct WorldToolsOptions
 {
     // false: only the reading tools are registered (observing agents)
     bool allowEdits = true;
+    // The directory of export_snapshot / import_snapshot (empty: those tools are refused)
+    std::string snapshotDirectory;
 };
 
 /**
  * Registers the engine's world tools (docs/engine_design.md §16.2, R-MCP-1; S10) on an MCP server: one tool per
  * WorldApi operation (describe_world, world_status, list_entities, inspect, set_component, add_component,
  * remove_component, set_transform, spawn, destroy, get_global, set_global, emit_event, queue_action, pause, resume,
- * step, time_scale, changes_since, get_profile, reset_profile, logs, apply) and measure_performance. The handlers run
+ * step, time_scale, changes_since, get_profile, reset_profile, logs, save_snapshot, load_snapshot, list_snapshots,
+ * delete_snapshot, diff_snapshot, export_snapshot, import_snapshot, get_data, reload_data, apply) and
+ * measure_performance. The handlers run
  * in McpServer::poll(), which the app calls between steps (the world must not be in a step then). Register before
  * McpServer::start. Returns the API the tools share: the caller keeps it while the tools are used and releases it
  * before the world goes away (the tools then answer with an error).

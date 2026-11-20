@@ -366,6 +366,14 @@ class BinaryReader
     const std::string& error() const { return err; }
     size_t position() const { return pos; }
     bool atEnd() const { return pos == size; }
+    size_t remaining() const { return size - pos; }
+    // Skips n bytes (false and an error if fewer are left)
+    bool skip(uint64_t n)
+    {
+        if (!need(n, "skipped block")) return false;
+        pos += size_t(n);
+        return true;
+    }
 
    private:
     bool failed() const { return !err.empty(); }

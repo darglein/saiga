@@ -10,13 +10,18 @@
 #include "saiga/engine/components/EngineIds.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
+#include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/engine/core/Rng.h"
+#include "saiga/engine/data/DataRef.h"
+#include "saiga/engine/data/DataStore.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/gameplay/ClassList.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/gameplay/TickPolicy.h"
+#include "saiga/engine/save/LoadResult.h"
+#include "saiga/engine/save/MigrationList.h"
 #include "saiga/engine/world/Commands.h"
 #include "saiga/engine/world/EventQueues.h"
 #include "saiga/engine/world/EventRegistry.h"
@@ -60,6 +65,14 @@ struct WorldSetup
     void (*events)(EventRegistry&) = nullptr;
     void (*systems)(SystemList&)   = nullptr;
     void (*classes)(ClassList&)    = nullptr;  // game object classes (S10)
+    // Migrations of changed and removed saved types (§15.2, S11)
+    void (*migrations)(MigrationList&) = nullptr;
+    // Data files (§14, S11): one JSON file per registered type in dataDirectory, loaded by the constructor (an error
+    // stops the program in every build, R-DATA-1). sharedData: an already loaded store of the same types (worlds of
+    // one setup, e.g. scenario runs) instead of reading the files
+    void (*dataTypes)(DataTypeList&) = nullptr;
+    std::string dataDirectory;
+    std::shared_ptr<DataStore> sharedData;
     // Times every step, phase, system and command flush and counts entities, objects and updates (Profiler, S10);
     // false: no clock calls
     bool profiling = true;
@@ -223,7 +236,8 @@ class SAIGA_ENGINE_API World
     // The world's random stream (PCG32 seeded from WorldSetup::seed; part of the hash and saves). Not in parallelEach.
     Rng& random();
     double dt() const { return stepDt; }
-    double time() const { return double(steps) * stepDt; }
+    // timeBase: a loaded save keeps its time also if it was saved with another step rate (S11)
+    double time() const { return timeBase + double(steps - stepBase) * stepDt; }
     uint64_t stepIndex() const { return steps; }
     // Interpolation factor between the last two steps, in [0, 1) (set by advance)
     double alpha() const { return accumulator / stepDt; }
@@ -243,6 +257,87 @@ class SAIGA_ENGINE_API World
     // FNV-1a 64 over the saved components of the alive entities (index order), the free list, the RNG state, the
     // pending events and the step index (§17.4). Between steps.
     uint64_t hash() const;
+
+    // ---- data (§14, S11) -------------------------------------------------------------------------------------------
+
+    // The entry of a registered data type; throws DataError for an unknown name or type (fatal unless caught: a load
+    // and the world API report it)
+    template <class T>
+    const T& data(const std::string& name) const
+    {
+        const DataTable<T>* t = dataStore->table<T>();
+        if (!t)
+            throw DataError(std::string("data: the type ") + T::name + " is not registered (WorldSetup::dataTypes)");
+        const T* v = t->find(name);
+        if (!v) throw DataError(std::string("data: ") + t->file + " has no entry \"" + name + "\"");
+        return *v;
+    }
+    // Through a DataRef field: resolved once per data store, then without a string lookup
+    template <class T>
+    const T& data(const DataRef<T>& ref) const
+    {
+        const uint64_t name = fnv1a64Bytes(ref.entry.data(), ref.entry.size());
+        if (ref.resolvedStore.load(std::memory_order_acquire) != dataStore->id() ||
+            ref.resolvedName.load(std::memory_order_relaxed) != name)
+        {
+            const T* entry = &data<T>(ref.entry);
+            ref.cached.store(entry, std::memory_order_relaxed);
+            ref.resolvedName.store(name, std::memory_order_relaxed);
+            ref.resolvedStore.store(dataStore->id(), std::memory_order_release);
+            return *entry;
+        }
+        return *ref.cached.load(std::memory_order_relaxed);
+    }
+    template <class T>
+    bool hasData(const std::string& name) const
+    {
+        const DataTable<T>* t = dataStore->table<T>();
+        return t && t->find(name);
+    }
+    template <class T>
+    std::vector<std::string> dataNames() const
+    {
+        const DataTable<T>* t = dataStore->table<T>();
+        return t ? t->names() : std::vector<std::string>();
+    }
+    // Reads the data files again: applied only if all are valid and no entry was removed (entries are updated in
+    // place: DataRefs and references see the new values; members set in configure() keep theirs until configured
+    // again). False with the error and nothing changed otherwise.
+    bool reloadData(std::string& error) { return dataStore->reload(error); }
+    const DataStore& dataTables() const { return *dataStore; }
+
+    // ---- saves (§15, S11) ------------------------------------------------------------------------------------------
+
+    // The saved state as a byte blob (docs/engine_design.md §15.1): the schema table, the slot table, the saved
+    // components (Saved::Yes) in dense order, the pending events, the queued actions, the RNG, the Persistent counter,
+    // the step index and the time. Deterministic. Between steps, not inside a game hook.
+    std::vector<uint8_t> save() const;
+    // Replaces the world with a save (§15.2): checks everything first (rejected: the world is unchanged), maps the
+    // saved types to the registered ones by name (migrations, removed types), then commits and recreates the game
+    // objects (configure, then onLoad; a hook that throws removes its entity, see LoadResult). Between steps, not
+    // inside a game hook.
+    LoadResult tryLoad(const std::vector<uint8_t>& data);
+    // tryLoad; stops the program unless the result is ok()
+    void load(const std::vector<uint8_t>& data);
+    // The saved components of one entity (or of all, in index order) as JSON, for debugging (§15.1)
+    std::string dumpJson(Entity e = Entity{}) const;
+    // The differences of the saved state of two worlds, one line each (at most maxLines, then "... and N more");
+    // empty if equal. Components are compared by name (diffSaves of a.save() and b.save())
+    static std::string diff(const World& a, const World& b, int maxLines = 20);
+    // Committed loads so far
+    uint64_t loadCount() const { return loads; }
+    // Runs fn after every committed load (render caches, the world API); returns an ID for removal
+    int addLoadListener(std::function<void(const LoadInfo&)> fn)
+    {
+        loadListeners.push_back({nextListenerId, std::move(fn)});
+        return nextListenerId++;
+    }
+    void removeLoadListener(int id)
+    {
+        for (size_t i = 0; i < loadListeners.size(); ++i)
+            if (loadListeners[i].first == id) loadListeners.erase(loadListeners.begin() + std::ptrdiff_t(i));
+    }
+    const MigrationList& migrations() const { return migrationList; }
 
     // ---- engine-internal -----------------------------------------------------------------------------------------
 
@@ -281,6 +376,8 @@ class SAIGA_ENGINE_API World
     int spatialGridConsumer() const { return gridConsumer; }
     Phase currentPhase() const { return phase; }
     bool inStep() const { return phase != Phase::None; }
+    // save() is allowed: between steps and not inside a game hook (save() asserts otherwise)
+    bool canSave() const { return !inStep() && hookDepth == 0 && loadHookPhase == 0; }
     // Entities whose Transform changed in this or the previous step, sorted by index (built in phase 6)
     const std::vector<uint32_t>& changedTransforms() const { return changed; }
     std::vector<uint32_t>& changedTransformsForUpdate() { return changed; }
@@ -339,6 +436,20 @@ class SAIGA_ENGINE_API World
     bool rebuildHierarchyState();
 
    private:
+    friend class WorldLoader;
+    std::shared_ptr<DataStore> dataStore;
+    MigrationList migrationList;
+    uint64_t loads = 0;
+    std::vector<std::pair<int, std::function<void(const LoadInfo&)>>> loadListeners;
+    double timeBase   = 0;
+    uint64_t stepBase = 0;
+    // The hooks of a load run (1: configure, 2: onLoad of loadHookEntity): structural changes are restricted
+    int loadHookPhase   = 0;
+    bool loadInProgress = false;  // a load runs (until its listeners ran)
+    Entity loadHookEntity;
+    // False (and an assert) for a structural change a load hook may not make; refused in every build
+    bool checkLoadHook(const char* operation, Entity e, ComponentId id) const;
+
     // Structural changes are deferred during a step, except while commands are applied
     bool deferring() const { return phase != Phase::None && !flushing; }
     void record(std::unique_ptr<Command> c);
@@ -522,6 +633,7 @@ void World::addNow(Entity e, T&& value)
 {
     // A command on an entity destroyed earlier in the same flush is dropped
     if (flushing && !reg.alive(e)) return;
+    if (loadHookPhase && !checkLoadHook("add", e, T::id)) return;
     // Two deferred adds (hooks see the state before the flush): refused in every build (the pool must not get a
     // second entry)
     if (reg.alive(e) && reg.has<T>(e))
@@ -573,6 +685,7 @@ template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
+    if (loadHookPhase && !checkLoadHook("remove", e, T::id)) return;
     // Two deferred removes, or none to remove: refused in every build
     if (!reg.alive(e) || !reg.has<T>(e))
     {

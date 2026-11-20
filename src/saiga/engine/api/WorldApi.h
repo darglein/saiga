@@ -8,11 +8,14 @@
 
 #include "saiga/core/util/json11.hpp"
 #include "saiga/engine/ecs/Entity.h"
+#include "saiga/engine/save/LoadResult.h"
+#include "saiga/engine/world/StructuralLog.h"
 #include "saiga/export.h"
 
 #include <chrono>
 #include <cstdint>
 #include <deque>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -69,11 +72,24 @@ struct ApiResult
  *                     moved_more?, moves_tracked_from_step?, cursor, more, truncated, step
  *   get_profile:      steps? (window), scopes? [path prefixes] -> the profiler report      reset_profile
  *   logs:             since?, category? -> lines [{seq, category, message}], first, last, truncated
+ *   save_snapshot:    name, overwrite? -> name, bytes, step, hash (World::save kept in the API's memory: at most 16
+ *                     snapshots and 256 MB; reading, the world does not change)
+ *   load_snapshot:    name, paused? -> step, hash, entities, paused, world_generation, hook_errors (World::tryLoad)
+ *   list_snapshots:   -> snapshots [{name, bytes, step, hash}]      delete_snapshot: name
+ *   diff_snapshot:    name, against? (another snapshot; default the live world), entity?, components?, limit? (20),
+ *                     after? -> summary, differences [{kind, entity?, component?, field?, a, b, class?, position?}],
+ *                     total, next?
+ *   export_snapshot, import_snapshot: name, file (a plain file name in the snapshot directory), overwrite?
+ *   get_data:         type, name? -> entry values, or the entry names
+ *   reload_data:      reconfigure? (true) -> types, entries, hook_errors (re-reads the data files; with reconfigure
+ *                     the world is saved and loaded so every game object runs configure() again)
  *   apply:            operations: [{op, ...arguments}] -> one result per operation, applied in order; it stops at the
  *                     first failing operation (the earlier ones stay applied). Allowed read-only if every
  *                     operation reads.
  * With allowEdits = false only the reading operations are allowed. The API detaches when the world is destroyed
- * (every call then fails).
+ * (every call then fails). A committed load (load_snapshot, World::tryLoad from anywhere) appears in changes_since as
+ * one entry {kind: "world_loaded", step, from_step, world_generation}; a cursor from before it stays valid and its
+ * answer has reloaded: true (re-list the entities: handles from after the snapshot may now name other entities).
  */
 class SAIGA_ENGINE_API WorldApi
 {
@@ -105,6 +121,11 @@ class SAIGA_ENGINE_API WorldApi
     }
     // nullptr after the world was destroyed
     World* world() { return w; }
+    // Moves the API to another world (S12's save/load variant, S14's run_scenario): cursors, snapshots and the change
+    // journal stay; the journal gets a world_loaded entry
+    void rebind(World& world);
+    // The directory of export_snapshot / import_snapshot (empty: refused)
+    void setSnapshotDirectory(const std::string& directory) { snapshotDirectory = directory; }
 
     // Parses an entity argument ({"index", "generation"} or "i:g")
     static bool parseEntity(const json11::Json& j, Entity& e, std::string& error);
@@ -132,6 +153,23 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult getProfile(const json11::Json& a);
     ApiResult logs(const json11::Json& a);
     ApiResult apply(const json11::Json& a);
+    ApiResult saveSnapshot(const json11::Json& a);
+    ApiResult loadSnapshot(const json11::Json& a);
+    ApiResult listSnapshots(const json11::Json& a);
+    ApiResult deleteSnapshot(const json11::Json& a);
+    ApiResult diffSnapshot(const json11::Json& a);
+    ApiResult exportSnapshot(const json11::Json& a);
+    ApiResult importSnapshot(const json11::Json& a);
+    ApiResult getData(const json11::Json& a);
+    ApiResult reloadData(const json11::Json& a);
+    void attach();
+    void detach();
+    void onLoaded(const LoadInfo& info);
+    static json11::Json hookErrorsJson(const LoadResult& r);
+    static json11::Json listenerErrorsJson(const LoadResult& r);
+    static json11::Json removedJson(const LoadResult& r);
+    void markLoaded(uint64_t step, uint64_t fromStep);
+    void journalRecord(const StructuralLog::Record& r, uint64_t stepIndex);
 
     // The change journal of changes_since: structural changes from an own structural log consumer (drained after every
     // step and before every changes_since; the components of a destroyed entity are folded into "destroyed"),
@@ -143,14 +181,31 @@ class SAIGA_ENGINE_API WorldApi
         const char* kind;
         Entity entity;
         int component;  // -1: none
+        // world_loaded: the step before the load and the world's load count
+        uint64_t fromStep = 0, generation = 0;
     };
     void drainChanges();
     void trackMoves();
 
     World* w;
     bool allowEdits;
-    int consumer        = -1;
-    int destroyListener = -1;
+    int consumer         = -1;
+    int destroyListener  = -1;
+    int stepListener     = -1;
+    int loadListener     = -1;
+    uint64_t lastLoadSeq = 0;  // the journal entry of the last load (cursors before it get reloaded: true)
+    // Loads and world swaps this API has seen (world_status and the world_loaded entries report it; it only grows)
+    uint64_t generation = 0;
+    struct Snapshot
+    {
+        std::vector<uint8_t> bytes;
+        uint64_t step = 0, hash = 0;
+        bool hasHash      = true;  // false for imported snapshots
+        uint64_t revision = 0;     // unique per stored snapshot (a replacement under the same name has another)
+    };
+    uint64_t nextSnapshotRevision = 1;
+    std::map<std::string, Snapshot> snapshots;
+    std::string snapshotDirectory;
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
     uint32_t epoch   = 0;
