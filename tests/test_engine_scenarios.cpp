@@ -557,9 +557,11 @@ TEST(ScenarioRunner, ThreadDependenceOnlyWithVaryThreads)
 // deadline lost its steps and report
 TEST(ScenarioRunner, NoFurtherRunAfterTheDeadline)
 {
-    auto late = entry("late",
-                      [](ScenarioWorld& w)
-                      {
+    static int calls = 0;
+    auto late        = entry("late",
+                             [](ScenarioWorld& w)
+                             {
+                          calls++;
                           w.step(1);
                           std::this_thread::sleep_for(std::chrono::milliseconds(300));
                       });
@@ -567,11 +569,12 @@ TEST(ScenarioRunner, NoFurtherRunAfterTheDeadline)
     {
         ScenarioOptions o;
         o.deadline             = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
+        calls                  = 0;
         const ScenarioResult r = runScenario(scenarioSetup(), late, v, o);
         EXPECT_FALSE(r.passed) << variantName(v);
         EXPECT_TRUE(contains(r, "tool time budget")) << r.report;
         EXPECT_EQ(r.steps, 1u) << r.report;
-        EXPECT_LT(r.seconds, 0.55) << variantName(v);  // one run only
+        EXPECT_EQ(calls, 1) << variantName(v);  // one run only
     }
     auto slow = entry("slow",
                       [](ScenarioWorld& w)
