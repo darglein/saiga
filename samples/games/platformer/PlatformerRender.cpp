@@ -111,8 +111,9 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
     World& w             = app->world();
     const Entity e       = focus();
     pose.follow(e);
-    hasPose = pose.interpolated(w.alpha(), renderPose);
-    if (pose.takeTeleport())
+    hasPose               = pose.interpolated(w.alpha(), renderPose);
+    const bool toolCamera = app->cameraHeldByTool();
+    if (pose.takeTeleport() || held.released(toolCamera))
     {
         camera.reset();
         cameraYaw = 0;
@@ -122,11 +123,10 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
         const CharacterMotion& m = w.read<CharacterMotion>(e);
         // The facing of the interpolated pose (with the position; also an edit of the rotation while paused)
         renderYaw = headingOf(forwardOf(renderPose.rotation));
-        // The camera: Q/E for the player, behind the character in the demo
-        if (app->localPlayer() == e)
-            cameraYaw += app->input().axis("camera_turn") * 2.0 * frameDt;
-        else
-            cameraYaw += wrapAngle(m.yaw - cameraYaw) * smoothFactor(1.5, frameDt);
+        // The camera: Q/E for the player, behind the character in the demo (not while a tool holds the camera)
+        if (!toolCamera)
+            cameraYaw += app->localPlayer() == e ? app->input().axis("camera_turn") * 2.0 * frameDt
+                                                 : wrapAngle(m.yaw - cameraYaw) * smoothFactor(1.5, frameDt);
 
         // The animation runs per frame from the interpolated pose
         CharacterState s;
@@ -139,14 +139,16 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
         if (pendingLanding > 0) animator.land(pendingLanding);
         pendingLanding = 0;
         animator.update(s, Vec3(m.velocity(0), 0, m.velocity(2)).norm(), frameDt);
-        camera.update(renderPose.position, forwardOf(yawRotation(cameraYaw)), frameDt);
+        if (!toolCamera) camera.update(renderPose.position, forwardOf(yawRotation(cameraYaw)), frameDt);
     }
-    const mat4 view = camera.view();
-    app->camera().setView(view);
+    // A tool holds the camera (S14): the app camera, else the chase camera
+    const mat4 view = toolCamera ? app->camera().view : camera.view();
+    const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
+    if (!toolCamera) app->camera().setView(view);
     MeshRenderer::Lighting light;
     light.sunDirection = Vec3(0.4, 0.8, 0.35);
     light.ambient      = 0.35;
-    meshes.transfer(cmd, view, camera.eye(), Vulkan::reversedZInfinitePerspective(radians(60.0f), aspect, 0.1f), light);
+    meshes.transfer(cmd, view, eye, Vulkan::reversedZInfinitePerspective(radians(60.0f), aspect, 0.1f), light);
 }
 
 void PlatformerRender::render(vk::CommandBuffer cmd)

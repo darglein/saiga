@@ -29,8 +29,10 @@ struct Run
     std::string report;
     uint64_t steps     = 0;
     uint64_t finalHash = 0;
+    uint64_t finalStep = 0;
     std::vector<uint64_t> hashes;
     std::vector<uint8_t> finalSave;
+    bool ended = false;  // a ScenarioAbort or an exception ended the run (its final state is not the scenario's end)
 };
 
 Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const ScenarioOptions& options,
@@ -64,15 +66,18 @@ Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const Sce
     }
     catch (const ScenarioAbort& a)
     {
+        r.ended = true;
         if (a.reason.compare(0, std::strlen(kStoppedByRunner), kStoppedByRunner) != 0)
             r.failures.push_back("aborted: " + a.reason);
     }
     catch (const std::exception& e)
     {
+        r.ended = true;
         r.failures.push_back(std::string("exception: ") + e.what());
     }
     catch (...)
     {
+        r.ended = true;
         r.failures.push_back("an exception that is not a std::exception");
     }
     for (const std::string& f : w.failures()) r.failures.push_back(f);
@@ -82,6 +87,7 @@ Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const Sce
         if (!w.world().inStep())
         {
             r.finalHash = w.world().hash();
+            r.finalStep = w.world().stepIndex();
             r.finalSave = w.world().save();
         }
         r.report = w.report();
@@ -144,6 +150,12 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         result.failures = r.failures;
         result.steps    = r.steps;
         details         = r.report;
+        if (!r.ended)
+        {
+            result.finalSave = std::move(r.finalSave);
+            result.finalStep = r.finalStep;
+            result.finalHash = r.finalHash;
+        }
     }
     else if (variant == ScenarioVariant::Repeat)
     {

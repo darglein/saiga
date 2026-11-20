@@ -20,9 +20,11 @@
 
 #include "gtest/gtest.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
+#include <thread>
 
 #include "mcp_test_helper.h"
 
@@ -567,6 +569,297 @@ TEST(EngineAppNoRender, LocalPlayerFallbackAfterALoad)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
+// S14: camera and scenario tools (no device)
+
+namespace
+{
+// A tool call while a Poller runs poll() (and optionally frames) on its own thread; the Poller is gone when it returns,
+// so the test thread may read the app afterwards
+Json callApp(EngineApp& app, const std::string& name, const Json& args, bool frames = false)
+{
+    Poller poller(app.mcp(),
+                  frames ? std::function<void()>([&app]() { app.runFrames(1, 1.0 / 60); }) : std::function<void()>());
+    return callTool(app.mcp(), name, args);
+}
+bool isError(const Json& r)
+{
+    return r["result"]["isError"].bool_value();
+}
+std::string errorText(const Json& r)
+{
+    return r["result"]["content"][0]["text"].string_value();
+}
+
+std::atomic_bool g_pollInStep{false};
+EngineApp* g_app = nullptr;
+
+void testScenarios(ScenarioList& l)
+{
+    l.add("walks",
+          [](ScenarioWorld& w)
+          {
+              const Entity p = w.spawnPlayer(Vec3::Zero());
+              w.move(p, Vec3(1, 0, 0));
+              w.step(10);
+              w.move(p, Vec3::Zero());
+              w.step(1);
+              w.check(w.world().read<Transform>(p).position().x() > 0.5, "walked");
+          });
+    l.add("fails",
+          [](ScenarioWorld& w)
+          {
+              w.step(2);
+              w.check(false, "always fails");
+          });
+    l.add("moving_at_end",
+          [](ScenarioWorld& w)
+          {
+              const Entity p = w.spawnPlayer(Vec3::Zero());
+              w.move(p, Vec3(1, 0, 0));
+              w.step(5);
+          });
+    l.add("throws",
+          [](ScenarioWorld& w)
+          {
+              w.step(1);
+              throw std::runtime_error("boom");
+          });
+    l.add("slow",
+          [](ScenarioWorld& w)
+          {
+              w.addStepListener([]() { std::this_thread::sleep_for(std::chrono::milliseconds(20)); });
+              w.step(100000);
+          });
+    l.add("slow_short",
+          [](ScenarioWorld& w)
+          {
+              w.addStepListener([]() { std::this_thread::sleep_for(std::chrono::milliseconds(30)); });
+              w.step(10);
+          });
+    l.add("reload",
+          [](ScenarioWorld& w)
+          {
+              std::string error;
+              w.check(!w.world().reloadData(error), "World::reloadData is refused");
+              w.check(!w.call("reload_data", Json::object{}).ok, "the reload_data operation is refused");
+          });
+}
+
+void pollInStepSystem(World&, double)
+{
+    if (g_pollInStep && g_app) g_app->mcp().poll();
+}
+void testSystems(SystemList& s)
+{
+    s.add(Phase::Gameplay, "poll_in_step", pollInStepSystem);
+}
+
+EngineAppSetup scenarioSetup()
+{
+    EngineAppSetup s = appSetup(false);
+    s.scenarios      = testScenarios;
+    s.world.systems  = testSystems;
+    return s;
+}
+}  // namespace
+
+TEST(EngineAppNoRender, FrameToolsNeedADevice)
+{
+    EngineApp app(appSetup(false));
+    EXPECT_TRUE(isError(callApp(app, "screenshot", Json::object{})));
+    const Json r = callApp(app, "measure_performance", Json::object{{"frames", 5}});
+    EXPECT_TRUE(isError(r));
+    EXPECT_NE(errorText(r).find("renders no frames"), std::string::npos) << errorText(r);
+    EXPECT_TRUE(isError(callApp(app, "measure_performance", Json::object{{"frames", 5}, {"steps", 5}})));
+}
+
+TEST(EngineAppNoRender, SetAndMoveCamera)
+{
+    EngineApp app(appSetup(false));
+    Json c = toolJson(callApp(app, "set_camera", obj(R"({"position": [10, 5, 20], "yaw_deg": 90, "pitch_deg": 0})")));
+    EXPECT_NEAR(c["position"][0].number_value(), 10, 1e-3) << c.dump();
+    EXPECT_NEAR(c["forward"][0].number_value(), 1, 1e-3) << c.dump();  // yaw 90: +x
+    EXPECT_TRUE(c["held"].bool_value());
+    // look_at wins over yaw/pitch
+    c = toolJson(callApp(app, "set_camera", obj(R"({"look_at": [10, 5, 0], "yaw_deg": 90})")));
+    EXPECT_NEAR(c["forward"][2].number_value(), -1, 1e-3) << c.dump();
+    // Errors: non-finite or out-of-range values, unknown arguments, release with others
+    EXPECT_TRUE(isError(callApp(app, "set_camera", obj(R"({"position": [1e7, 0, 0]})"))));
+    EXPECT_TRUE(isError(callApp(app, "set_camera", obj(R"({"position": [1, 2]})"))));
+    EXPECT_TRUE(isError(callApp(app, "set_camera", obj(R"({"fovy_deg": 50})"))));
+    EXPECT_TRUE(isError(callApp(app, "set_camera", obj(R"({"release": true, "yaw_deg": 3})"))));
+    // move_camera: along the ground plane, the pitch clamped
+    c = toolJson(callApp(app, "move_camera", obj(R"({"forward": 4, "pitch_deg": 200})")));
+    EXPECT_NEAR(c["position"][2].number_value(), 16, 1e-2) << c.dump();  // from z = 20, facing -z
+    // Clamped to 89, then kept off the vertical by the view matrix (|forward.y| <= 0.999: about 87.4)
+    EXPECT_GT(c["pitch_deg"].number_value(), 87) << c.dump();
+    EXPECT_LE(c["pitch_deg"].number_value(), 89) << c.dump();
+    // The hold in app_status, then released
+    EXPECT_TRUE(toolJson(callApp(app, "app_status", Json::object{}))["camera_held"].bool_value());
+    c = toolJson(callApp(app, "set_camera", obj(R"({"release": true})")));
+    EXPECT_FALSE(app.cameraHeldByTool());
+}
+
+// Relative moves of the input use the heading of the (held) camera
+TEST(EngineAppNoRender, InputMovesRelativeToAHeldCamera)
+{
+    EngineApp app(appSetup(false));
+    World& w       = app.world();
+    const Entity p = w.create();
+    w.add<Player>(p);
+    w.add<PlayerInput>(p);
+    app.setLocalPlayer(p);
+    callApp(app, "set_camera", obj(R"({"yaw_deg": 90, "pitch_deg": 0})"));
+    VirtualInput v;
+    v.axes["move_z"] = 1;
+    app.setVirtualInput(v, 0);
+    const Vec3 m = w.read<PlayerInput>(p).move;
+    EXPECT_NEAR(m.x(), 1, 1e-3) << m.transpose();
+    EXPECT_NEAR(m.z(), 0, 1e-3) << m.transpose();
+}
+
+TEST(EngineAppNoRender, ListAndRunScenarios)
+{
+    EngineApp app(scenarioSetup());
+    Json l = toolJson(callApp(app, "list_scenarios", obj(R"({"filter": "walk"})")));
+    ASSERT_EQ(l["scenarios"].array_items().size(), 1u) << l.dump();
+    EXPECT_EQ(l["scenarios"][0]["name"].string_value(), "walks");
+    // A passing run in two variants; no snapshot without keep / load
+    Json r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "walks", "variants": ["Plain", "Repeat"]})")));
+    ASSERT_EQ(r["results"].array_items().size(), 2u) << r.dump();
+    EXPECT_TRUE(r["results"][0]["passed"].bool_value()) << r.dump();
+    EXPECT_EQ(r["results"][1]["variant"].string_value(), "Repeat");
+    EXPECT_FALSE(app.api().hasSnapshot("scenario_walks"));
+    // A failing run has its report
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "fails"})")));
+    EXPECT_FALSE(r["results"][0]["passed"].bool_value());
+    EXPECT_NE(r["results"][0]["report"].string_value().find("always fails"), std::string::npos) << r.dump();
+    // Errors
+    EXPECT_TRUE(isError(callApp(app, "run_scenario", obj(R"({"name": "nope"})"))));
+    EXPECT_TRUE(isError(callApp(app, "run_scenario", obj(R"({"name": "walks", "variants": ["Fast"]})"))));
+    EXPECT_TRUE(
+        isError(callApp(app, "run_scenario", obj(R"({"name": "walks", "variants": ["Repeat"], "load": true})"))));
+    // The tool-run worlds refuse to reload the shared data
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "reload"})")));
+    EXPECT_TRUE(r["results"][0]["passed"].bool_value()) << r.dump();
+    // keep stores the end state; a throwing scenario stores nothing
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "walks", "keep": true})")));
+    EXPECT_EQ(r["snapshot"].string_value(), "scenario_walks") << r.dump();
+    EXPECT_TRUE(app.api().hasSnapshot("scenario_walks"));
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "throws", "keep": true})")));
+    EXPECT_FALSE(app.api().hasSnapshot("scenario_throws")) << r.dump();
+    EXPECT_FALSE(r["snapshot_error"].string_value().empty()) << r.dump();
+}
+
+TEST(EngineAppNoRender, RunScenarioLoadsTheEndState)
+{
+    EngineApp app(scenarioSetup());
+    World& w            = app.world();
+    const Entity before = w.create();
+    w.step(3);
+    const uint64_t gameHash = w.hash();
+    Json r                  = toolJson(callApp(app, "run_scenario", obj(R"({"name": "walks", "load": true})")));
+    ASSERT_TRUE(r["loaded"].is_object()) << r.dump();
+    // The live world has the scenario's end state (neutral input at its end: the hash equals the snapshot's), paused
+    EXPECT_TRUE(w.isPaused());
+    EXPECT_EQ(r["loaded"]["hash"].string_value(), r["snapshot_hash"].string_value()) << r.dump();
+    EXPECT_TRUE(app.liveWorldFromScenario());
+    // A second load keeps the first before_scenario (the game's state)
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "walks", "load": true})")));
+    ASSERT_TRUE(r["loaded"].is_object()) << r.dump();
+    ApiResult back = app.api().call("load_snapshot", obj(R"({"name": "before_scenario"})"));
+    ASSERT_TRUE(back.ok) << back.error;
+    EXPECT_EQ(w.hash(), gameHash);
+    EXPECT_TRUE(w.alive(before));
+    EXPECT_FALSE(app.liveWorldFromScenario());
+    // A scenario that ends with input held: the load neutralizes the local player's input, so the loaded hash differs
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "moving_at_end", "load": true})")));
+    ASSERT_TRUE(r["loaded"].is_object()) << r.dump();
+    EXPECT_NE(r["loaded"]["hash"].string_value(), r["snapshot_hash"].string_value()) << r.dump();
+    // Deleting before_scenario makes the next load save it again
+    ASSERT_TRUE(app.api().call("delete_snapshot", obj(R"({"name": "before_scenario"})")).ok);
+    callApp(app, "run_scenario", obj(R"({"name": "walks", "load": true})"));
+    EXPECT_TRUE(app.api().hasSnapshot("before_scenario"));
+}
+
+TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
+{
+    EngineAppSetup s        = scenarioSetup();
+    s.mcpToolTimeoutSeconds = 1;
+    EngineApp app(s);
+    // Full snapshot slots are checked before the run
+    const auto blob = app.world().save();
+    for (size_t i = 0; app.api().snapshotCount() < WorldApi::kMaxSnapshotCount; ++i)
+        ASSERT_TRUE(app.api().putSnapshot("s" + std::to_string(i), blob, 0, 0, false).ok);
+    Json r = callApp(app, "run_scenario", obj(R"({"name": "walks", "keep": true})"));
+    EXPECT_TRUE(isError(r));
+    EXPECT_NE(errorText(r).find("full"), std::string::npos) << errorText(r);
+    // The deadline stops a long scenario (no snapshot)
+    r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "slow"})")));
+    ASSERT_EQ(r["results"].array_items().size(), 1u) << r.dump();
+    EXPECT_FALSE(r["results"][0]["passed"].bool_value());
+    EXPECT_EQ(r["results"][0]["failures"][0].string_value(), "aborted: stopped: tool time budget") << r.dump();
+}
+
+// run_scenario is refused inside a step (a system polls MCP during the step; that poll is the only poll site)
+TEST(EngineAppNoRender, RunScenarioRefusedInsideAStep)
+{
+    EngineApp app(scenarioSetup());
+    g_app = &app;
+    std::atomic_bool done{false};
+    Json result;
+    std::thread caller(
+        [&]()
+        {
+            result = callTool(app.mcp(), "run_scenario", obj(R"({"name": "walks"})"));
+            done   = true;
+        });
+    g_pollInStep = true;
+    for (int i = 0; i < 2000 && !done; ++i)
+    {
+        app.world().step();
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    g_pollInStep = false;
+    caller.join();
+    g_app = nullptr;
+    EXPECT_TRUE(isError(result));
+    EXPECT_NE(errorText(result).find("between steps"), std::string::npos) << errorText(result);
+}
+
+// Regression (S14): the frame after a blocking tool call (run_scenario) had the blocked time as its dt: a burst of
+// steps and dropped steps
+TEST(EngineAppNoRender, FrameClockRestartsAfterABlockingTool)
+{
+    EngineApp app(scenarioSetup());
+    {
+        Poller poller(app.mcp(), [&app]() { app.frame(); });
+        const Json r = toolJson(callTool(app.mcp(), "run_scenario", obj(R"({"name": "slow_short"})")));
+        EXPECT_TRUE(r["results"][0]["passed"].bool_value()) << r.dump();
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+    Profiler& f = app.frameProfile();
+    EXPECT_EQ(f.counterStats(f.counter("dropped_steps"), 5).max, 0);
+}
+
+// Device input is transient: a load neutralizes the local player's restored held input
+TEST(EngineAppNoRender, LoadNeutralizesTheLocalPlayersInput)
+{
+    EngineApp app(appSetup(false));
+    World& w       = app.world();
+    const Entity p = w.create();
+    w.add<Player>(p);
+    w.add<PlayerInput>(p);
+    w.get<PlayerInput>(p).move        = Vec3(1, 0, 0);
+    w.get<PlayerInput>(p).heldButtons = 1;
+    const auto blob                   = w.save();
+    app.setLocalPlayer(p);
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    EXPECT_EQ(w.read<PlayerInput>(p).move, Vec3::Zero());
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
 // The app with a headless Vulkan device (lavapipe in CI; skipped without a driver)
 
 class EngineAppRender : public ::testing::Test
@@ -719,4 +1012,111 @@ TEST_F(EngineAppRender, ShutdownAfterAThrowingInit)
     s.renderHooks.shutdown = [&](EngineApp&) { shutdown = true; };
     EXPECT_THROW(EngineApp app(s), std::runtime_error);
     EXPECT_TRUE(shutdown);
+}
+
+// S14: screenshot and the frames form of measure_performance through handleMessage
+namespace
+{
+std::string base64Decode(const std::string& in)
+{
+    auto value = [](char c) -> int
+    {
+        if (c >= 'A' && c <= 'Z') return c - 'A';
+        if (c >= 'a' && c <= 'z') return c - 'a' + 26;
+        if (c >= '0' && c <= '9') return c - '0' + 52;
+        return c == '+' ? 62 : c == '/' ? 63 : -1;
+    };
+    std::string out;
+    int bits = 0, buffer = 0;
+    for (char c : in)
+    {
+        const int v = value(c);
+        if (v < 0) continue;
+        buffer = (buffer << 6) | v;
+        bits += 6;
+        if (bits >= 8)
+        {
+            bits -= 8;
+            out.push_back(char((buffer >> bits) & 0xFF));
+        }
+    }
+    return out;
+}
+}  // namespace
+
+TEST_F(EngineAppRender, ScreenshotTool)
+{
+    EngineAppSetup s = appSetup(true);
+    s.width          = 256;
+    s.height         = 144;
+    s.render.imgui   = true;
+    EngineApp app(s);
+    app.scene()->setImguiVisible(true);
+    auto image = [](const Json& r, int expectedWidth, const std::string& mime)
+    {
+        ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump().substr(0, 400);
+        const Json& c = r["result"]["content"];
+        EXPECT_EQ(c[0]["mimeType"].string_value(), mime);
+        const std::string data = base64Decode(c[0]["data"].string_value());
+        TemplatedImage<ucvec3> img;
+        ASSERT_TRUE(
+            img.loadFromMemory(ArrayView<const char>(data.data(), data.size()), mime == "image/png" ? "png" : "jpg"));
+        EXPECT_EQ(img.width, expectedWidth);
+        std::string err;
+        const Json text = Json::parse(c[1]["text"].string_value(), err);
+        EXPECT_TRUE(text["camera"].is_object()) << c[1]["text"].string_value();
+        EXPECT_GT(text["frame"].number_value(), 0);
+    };
+    image(callApp(app, "screenshot", Json::object{}, true), 256, "image/jpeg");
+    image(callApp(app, "screenshot", obj(R"({"format": "png", "max_width": 128})"), true), 128, "image/png");
+    // The GUI visibility is restored after the frame
+    EXPECT_TRUE(app.scene()->imguiVisible());
+    image(callApp(app, "screenshot", obj(R"({"gui": true})"), true), 256, "image/jpeg");
+    EXPECT_TRUE(app.scene()->imguiVisible());
+    // Argument errors
+    EXPECT_TRUE(isError(callApp(app, "screenshot", obj(R"({"max_width": 63})"), true)));
+    EXPECT_TRUE(isError(callApp(app, "screenshot", obj(R"({"max_width": 8193})"), true)));
+    EXPECT_TRUE(isError(callApp(app, "screenshot", obj(R"({"format": "bmp"})"), true)));
+}
+
+// Regression (S14): with no frame rendered the screenshot answers with an error at the deadline; a later frame does
+// not answer a second time and the GUI flag is restored
+TEST_F(EngineAppRender, ScreenshotDeadlineWithoutFrames)
+{
+    EngineAppSetup s        = appSetup(true);
+    s.render.imgui          = true;
+    s.mcpToolTimeoutSeconds = 1;
+    EngineApp app(s);
+    app.scene()->setImguiVisible(true);
+    app.setRenderingEnabled(false);
+    const Json r = callApp(app, "screenshot", Json::object{}, true);
+    EXPECT_TRUE(isError(r));
+    EXPECT_NE(errorText(r).find("deadline"), std::string::npos) << errorText(r);
+    EXPECT_TRUE(app.scene()->imguiVisible());
+    app.setRenderingEnabled(true);
+    app.runFrames(5, 1.0 / 60);  // the abandoned readback is a no-op
+    EXPECT_TRUE(app.scene()->imguiVisible());
+    EXPECT_GE(app.renderedFrames(), 5u);
+}
+
+TEST_F(EngineAppRender, MeasureFramesWhilePaused)
+{
+    EngineApp app(appSetup(true));
+    app.world().setPaused(true);
+    app.runFrames(5, 1.0 / 60);
+    const Json r = toolJson(callApp(app, "measure_performance", obj(R"({"frames": 6})"), true));
+    EXPECT_EQ(r["frame"]["samples"].number_value(), 6) << r.dump();
+    EXPECT_EQ(r["steps"]["ran"].number_value(), 0) << r.dump();
+    EXPECT_FALSE(r["stopped_early"].bool_value());
+    // The GPU samples belong to the rendered frames of the range (lavapipe has timestamps)
+    if (r["gpu"]["samples"].number_value() > 0)
+    {
+        EXPECT_LE(r["gpu"]["samples"].number_value(), 6) << r.dump();
+        EXPECT_LE(r["gpu"]["frames"][0].number_value(), r["gpu"]["frames"][1].number_value());
+    }
+    // Running: the step profile has the steps of those frames
+    app.world().setPaused(false);
+    const Json running = toolJson(callApp(app, "measure_performance", obj(R"({"frames": 4})"), true));
+    EXPECT_EQ(running["frame"]["samples"].number_value(), 4) << running.dump();
+    EXPECT_GE(running["steps"]["ran"].number_value(), 3) << running.dump();
 }

@@ -1,6 +1,6 @@
 # S14: Engine MCP tools
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -227,3 +227,26 @@ ScenarioRunner}.{h,cpp}`, `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/en
 `src/saiga/vulkan/world/WorldMcp.{h,cpp}`, `samples/games/{world,flight,platformer,racing,common}/`,
 `tests/test_engine_app.cpp`, `tests/test_engine_world_api.cpp`, `tests/test_vulkan_world.cpp`,
 `tests/test_core_mcp_server.cpp`, `docs/engine_design.md`, `AGENTS.md`, this file.
+
+## Design changes
+
+- `measure_performance(frames)` returns `frame`, `steps` (with `ran`, `truncated`), `gpu` (with `frames`) and
+  `requested_frames`; the app logs its last 600 GPU samples with their `RenderScene` frame and builds the gpu report from
+  a temporary `Profiler` with the same scopes. The tools' helpers `answerDeadline`, `profileWindow` and `exactToolJson`
+  are exported from `WorldTools.h`.
+- `run_scenario` also reports `snapshot_hash` (the stored end state's hash) next to the loaded hash, so the effect of
+  the input reset is visible; `load_error` when the load itself fails.
+- The tech demos share `HeldCamera` (`samples/games/common/GameEngine.h`) for the release edge.
+- `game_get_state` reports the camera's ground state under `camera` (ground height, height above ground, walk mode).
+
+## Results
+
+- Tests: `test_engine_app` 30 (12 new: frame tools without a device, set/move camera, input relative to a held camera,
+  list/run scenarios, load of the end state with `before_scenario`, snapshot slots and the deadline, refusal inside a
+  step, the frame clock restart, the input reset on load, screenshot, the screenshot deadline, frames while paused and
+  running), `test_vulkan_world` `GameTools`, `test_engine_world_api` `PutSnapshot`, `test_core_mcp_server`
+  `DuplicateToolName`. Full ctest on lavapipe passes except the known local `test_opengl_window` display check.
+- A scripted session against `game_racing --headless`: the chase-camera screenshot, `set_camera` (the screenshot shows
+  the tool's view), release, `run_scenario accelerates_on_track` with `load: true` (passed, 180 steps; the screenshot
+  shows the chase camera behind the car at the scenario's end), `measure_performance(frames: 30)` (30 frames, 30 gpu
+  samples of frames 39-68), `load_snapshot before_scenario`.

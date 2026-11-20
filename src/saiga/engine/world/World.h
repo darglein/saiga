@@ -76,6 +76,9 @@ struct WorldSetup
     void (*dataTypes)(DataTypeList&) = nullptr;
     std::string dataDirectory;
     std::shared_ptr<DataStore> sharedData;
+    // The shared store must not be reloaded by this world (reloadData and the reload_data operation fail): the worlds
+    // run_scenario creates share the live world's store (S14)
+    bool sharedDataReadOnly = false;
     // Times every step, phase, system and command flush and counts entities, objects and updates (Profiler, S10);
     // false: no clock calls
     bool profiling = true;
@@ -339,7 +342,15 @@ class SAIGA_ENGINE_API World
     // Reads the data files again: applied only if all are valid and no entry was removed (entries are updated in
     // place: DataRefs and references see the new values; members set in configure() keep theirs until configured
     // again). False with the error and nothing changed otherwise.
-    bool reloadData(std::string& error) { return dataStore->reload(error); }
+    bool reloadData(std::string& error)
+    {
+        if (dataReadOnly)
+        {
+            error = "this world shares the data of another world and must not reload it";
+            return false;
+        }
+        return dataStore->reload(error);
+    }
     const DataStore& dataTables() const { return *dataStore; }
     // The store itself (worlds of one setup share it: WorldSetup::sharedData)
     std::shared_ptr<DataStore> sharedDataStore() const { return dataStore; }
@@ -491,6 +502,7 @@ class SAIGA_ENGINE_API World
    private:
     friend class WorldLoader;
     std::shared_ptr<DataStore> dataStore;
+    bool dataReadOnly = false;  // WorldSetup::sharedDataReadOnly
     MigrationList migrationList;
     uint64_t loads = 0;
     std::vector<std::pair<int, std::function<void(const LoadInfo&)>>> loadListeners;

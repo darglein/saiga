@@ -8,12 +8,14 @@
 #include "saiga/vulkan/world/HeightField.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 #include "saiga/vulkan/world/WorldCommon.h"
+#include "saiga/vulkan/world/WorldMcp.h"
 #include "saiga/vulkan/world/WorldRenderer.h"
 
 #include <cmath>
 #include <cstdlib>
 
 #include "golden_image.h"
+#include "mcp_test_helper.h"
 #include "vulkan_test_context.h"
 
 using namespace Saiga;
@@ -624,4 +626,84 @@ TEST_F(VulkanWorldRender, FrameTimes)
 
     renderer->waitIdle();
     app = VulkanTestApp();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// S14: the game tools of the world prototype (game_world) through handleMessage
+
+namespace
+{
+McpServer::Json callWorldTool(McpServer& server, const std::string& name, const McpServer::Json& args)
+{
+    Poller poller(server);
+    return server.handleMessage(McpRequest("tools/call", McpServer::Json::object{{"name", name}, {"arguments", args}}));
+}
+McpServer::Json toolResultJson(const McpServer::Json& r)
+{
+    std::string err;
+    return McpServer::Json::parse(r["result"]["content"][0]["text"].string_value(), err);
+}
+}  // namespace
+
+TEST_F(VulkanWorldRender, GameTools)
+{
+    using Json = McpServer::Json;
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 129;
+    params.treeCount    = 100;
+    world.init(*renderer, params);
+    PerspectiveCamera camera;
+    camera.setView(lookAt(vec3(10, 50, 10), vec3(20, 40, 20), vec3(0, 1, 0)));
+    bool walkMode   = false;
+    float eyeHeight = 1.7f;
+    McpServer server("test");
+    Vulkan::WorldMcpContext context;
+    context.world     = &world;
+    context.camera    = &camera;
+    context.walkMode  = &walkMode;
+    context.eyeHeight = &eyeHeight;
+    Vulkan::registerWorldMcpTools(server, context);
+    const HeightField& hf = world.heightField();
+
+    // game_get_state: the extent, statistics, settings and the camera's ground state
+    Json s = toolResultJson(callWorldTool(server, "game_get_state", Json::object{}));
+    EXPECT_EQ(s["world"]["size_m"].number_value(), hf.worldSize()) << s.dump();
+    EXPECT_TRUE(s["settings"].is_object());
+    EXPECT_TRUE(s["camera"]["ground_height"].is_number());
+    EXPECT_FALSE(s["camera"]["walk_mode"].bool_value());
+
+    // game_set_settings: valid, clamped and invalid keys
+    s = toolResultJson(callWorldTool(server, "game_set_settings", Json::object{{"fovy", 1000.0}, {"nope", 1}}));
+    EXPECT_LT(s["settings"]["fovy"].number_value(), 1000) << s.dump();  // clamped to the GUI range
+    EXPECT_EQ(s["invalid_keys"][0].string_value(), "nope") << s.dump();
+
+    // game_terrain_query: the field's heights, limits and errors
+    const float x = hf.worldSize() * 0.25f, z = hf.worldSize() * 0.75f;
+    Json q = toolResultJson(
+        callWorldTool(server, "game_terrain_query", Json::object{{"points", Json::array{Json::array{x, z}}}}));
+    EXPECT_NEAR(q[0]["height"].number_value(), hf.height(x, z), 0.01) << q.dump();
+    EXPECT_TRUE(callWorldTool(server, "game_terrain_query",
+                              Json::object{{"points", Json::array{Json::array{1}}}})["result"]["isError"]
+                    .bool_value());
+
+    // game_set_camera: [x, z] with a height above ground keeps the view direction; walk mode on and off
+    const vec3 dir = -make_vec3(camera.model.col(2)).normalized();
+    Json c         = toolResultJson(callWorldTool(
+        server, "game_set_camera", Json::object{{"position", Json::array{x, z}}, {"height_above_ground", 30.0}}));
+    EXPECT_NEAR(c["height_above_ground"].number_value(), 30, 0.02) << c.dump();
+    EXPECT_NEAR(c["ground_height"].number_value(), hf.height(x, z), 0.02) << c.dump();
+    EXPECT_NEAR(camera.getPosition()(0), x, 1e-2);
+    EXPECT_LT((-make_vec3(camera.model.col(2)).normalized() - dir).norm(), 1e-3);
+    c = toolResultJson(callWorldTool(server, "game_set_camera", Json::object{{"walk_mode", true}}));
+    EXPECT_TRUE(walkMode);
+    EXPECT_NEAR(c["height_above_ground"].number_value(), eyeHeight, 0.02) << c.dump();
+    callWorldTool(server, "game_set_camera", Json::object{{"walk_mode", false}});
+    EXPECT_FALSE(walkMode);
+    EXPECT_TRUE(
+        callWorldTool(server, "game_set_camera", Json::object{{"position", Json::array{1}}})["result"]["isError"]
+            .bool_value());
+    EXPECT_TRUE(
+        callWorldTool(server, "game_set_camera", Json::object{{"yaw_deg", 3}})["result"]["isError"].bool_value());
+    world.destroy();
 }

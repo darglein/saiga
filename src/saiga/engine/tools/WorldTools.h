@@ -6,19 +6,23 @@
 
 #pragma once
 
+#include "saiga/core/util/json11.hpp"
+#include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/export.h"
 
+#include <chrono>
+#include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
 namespace Saiga
 {
-class McpServer;
-
 namespace Engine
 {
 class World;
 class WorldApi;
+class Profiler;
 
 struct WorldToolsOptions
 {
@@ -26,7 +30,19 @@ struct WorldToolsOptions
     bool allowEdits = true;
     // The directory of export_snapshot / import_snapshot (empty: those tools are refused)
     std::string snapshotDirectory;
+    // measure_performance(frames: n): set by the app that renders (S14); answers later through respond, before the
+    // deadline. Without it the frames form is an error.
+    std::function<void(int frames, std::chrono::steady_clock::time_point deadline, McpServer::Respond respond)>
+        measureFrames;
 };
+
+// When a tool handler must answer: the caller's deadline minus a tenth of the tool timeout (formatting and returning
+// the result)
+SAIGA_ENGINE_API std::chrono::steady_clock::time_point answerDeadline(const McpServer& server);
+// The profile of the last n samples (n = 0: an empty window, not the whole history)
+SAIGA_ENGINE_API json11::Json profileWindow(const Profiler& profiler, uint64_t samples);
+// Compact JSON with exact numbers (the tools' result format)
+SAIGA_ENGINE_API std::string exactToolJson(const json11::Json& j);
 
 /**
  * Registers the engine's world tools (docs/engine_design.md §16.2, R-MCP-1; S10) on an MCP server: one tool per

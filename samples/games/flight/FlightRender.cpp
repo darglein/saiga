@@ -66,14 +66,17 @@ void FlightRender::transfer(vk::CommandBuffer cmd)
     const ivec2 size     = app->scene()->size();
     const float aspect   = float(size(0)) / float(std::max(1, size(1)));
     pose.follow(focus());
-    hasPose = pose.interpolated(app->world().alpha(), renderPose);
-    if (pose.takeTeleport()) camera.reset();
-    if (hasPose) camera.update(renderPose.position, forwardOf(renderPose.rotation), frameDt);
+    hasPose               = pose.interpolated(app->world().alpha(), renderPose);
+    const bool toolCamera = app->cameraHeldByTool();
+    if (pose.takeTeleport() || held.released(toolCamera)) camera.reset();
+    if (hasPose && !toolCamera) camera.update(renderPose.position, forwardOf(renderPose.rotation), frameDt);
 
-    const mat4 view = camera.view();
-    app->camera().setView(view);
-    worldRenderer.transfer(cmd, view, camera.eye().cast<float>(), aspect);
-    meshes.transfer(cmd, view, camera.eye(), worldRenderer.projection(aspect), worldLighting(worldRenderer));
+    // A tool holds the camera (S14): the app camera, else the chase camera
+    const mat4 view = toolCamera ? app->camera().view : camera.view();
+    const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
+    if (!toolCamera) app->camera().setView(view);
+    worldRenderer.transfer(cmd, view, eye.cast<float>(), aspect);
+    meshes.transfer(cmd, view, eye, worldRenderer.projection(aspect), worldLighting(worldRenderer));
 }
 
 void FlightRender::render(vk::CommandBuffer cmd)

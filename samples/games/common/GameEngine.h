@@ -189,5 +189,19 @@ class PoseHistory
     bool valid = false, teleported = false, teleportHandled = false;
 };
 
+// The camera hold of S14 (EngineApp::cameraHeldByTool): while a tool holds the camera the game renders from the app
+// camera and does not update its own; on the release edge it resets its own camera (no glide back)
+struct HeldCamera
+{
+    // True once when the hold ended since the last call
+    bool released(bool held)
+    {
+        const bool r = wasHeld && !held;
+        wasHeld      = held;
+        return r;
+    }
+    bool wasHeld = false;
+};
+
 }  // namespace Game
 }  // namespace Saiga

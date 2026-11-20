@@ -179,7 +179,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Forward renderer with MSAA, reversed-Z, infinite far plane | `src/saiga/vulkan/VulkanForwardRenderer.*` | [exists] |
 | World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window; the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
-| World MCP tools: `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | `src/saiga/vulkan/world/WorldMcp.*` | [exists], no `handleMessage` tests |
+| Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
 | Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step` and `recording`; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics of the prototype renderer), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
 | Engine app: `EngineApp` (window or headless or no device, `RenderScene` frame shell around the forward renderer, MCP polling, input map, frame and GPU profiles, statistics window), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
@@ -208,7 +208,6 @@ rule, stage that removes it):
   serial): R-PAR-1, accepted inside `vulkan/world/` until S23.
 - Time advances with the wall clock in `WorldRenderer::transfer` unless `WorldSettings::freezeTime` holds it at 0
   (goldens, benchmarks): R-DET-1, S19.
-- WorldMcp tools have no `handleMessage` tests: R-MCP-1, S14.
 - Float noise in the generators: R-CONTENT-1, S23.
 
 ## 4. Terms
@@ -836,6 +835,15 @@ the input map writes the local player only when the input is not neutral (an age
 relative to the camera's heading; `set_input` is a virtual device. ESC quits, G toggles ImGui, F1 the "Engine
 statistics" window, F12 saves `screenshot.png`.
 
+S14 (`docs/stages/S14_engine_mcp_tools.plan.md`): the camera hold (`EngineApp::cameraHeldByTool`, `holdCamera`,
+`releaseCamera`): `set_camera` / `move_camera` take the app camera from the game; a game that drives the camera (the
+tech demos' chase cameras) skips its update while held, renders from `camera()` and resets its own camera on the
+release edge (`HeldCamera` in `samples/games/common/GameEngine.h`); relative input moves follow a held camera.
+`restartFrameClock()` after a blocking tool call (`run_scenario`), so the next frame's dt is not the blocked time. The
+app's load listener neutralizes the local player's `PlayerInput` (`move`, `heldButtons`) after every load (device
+input is transient). `run_scenario` does not replace the live world (the sketch below): it runs the scenario in its own
+worlds and brings the end state back as a snapshot (§16.2).
+
 The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it does not use saiga's `MainLoop`,
 `StandaloneWindow` or `VulkanForwardRenderer` (they stay for the other samples, §0). `EngineApp` owns:
 
@@ -915,7 +923,7 @@ class EngineApp   // engine/app/EngineApp.h
     void frame();                                             // one iteration of the loop
     void onFrameRendered(std::function<bool()> callback);     // return true to remove it
     void setRenderingEnabled(bool enabled);                   // false: steps and MCP continue, no frames rendered
-    // run_scenario: EngineApp holds std::unique_ptr<ScenarioWorld>; world() returns its world while one is active
+    // run_scenario (S14): runs in its own scenario worlds; the end state comes back as a snapshot (§16.2)
 };
 // main: parse the command line (above), fill EngineAppSetup, EngineApp app(setup); return app.run();
 // RenderScene frame shell (S13), src/saiga/vulkan/scene/RenderScene.h:
@@ -2108,7 +2116,9 @@ entity is removed after the export is acknowledged. The save directory contains 
 
 | Tool | Contract | Status |
 |---|---|---|
-| `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | prototype; in S14: `screenshot`, `measure_performance`, `set_camera`, `move_camera` become engine tools (without `height_above_ground` and `walk_mode`, which move to `game_set_camera`); `get_state` -> `game_get_state`, `set_settings` -> `game_set_settings`, `terrain_query` -> `game_terrain_query` | [exists] |
+| `screenshot(gui?, format?, max_width?)` | the next rendered frame as jpg (default) or png, downscaled to `max_width` (default 1280, 64..8192, never upscaled), with the camera, step and frame; GUI hidden unless `gui`; an error without a device or when no frame is rendered before the deadline (answered once; the GUI flag restored) | [exists: S14] |
+| `set_camera(position?, look_at?, yaw_deg?, pitch_deg?, release?)`, `move_camera(forward?, right?, up?, yaw_deg?, pitch_deg?)` | place / move the app camera (within ±1e6 m; `look_at` wins over yaw/pitch; move along the ground plane, pitch clamped to ±89); both take the camera hold (§8.3) until `set_camera(release: true)` | [exists: S14] |
+| `game_get_state`, `game_set_camera(position?, height_above_ground?, walk_mode?)`, `game_set_settings`, `game_terrain_query` | the world prototype's game tools (`game_world`): extent, statistics, settings and the camera's ground height; position [x, y, z] or [x, z], height above the terrain, walk mode (no hold: the app camera is that game's render camera); render settings; terrain heights | [exists: S14, renamed from `get_state`, `set_camera`, `set_settings`, `terrain_query`] |
 | `describe_world`, `world_status` | the registrations (components with fields, types, replication, global/space state; classes; events; operations); step, time, paused, time scale, counts, hash | [exists: S10] |
 | `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, include?: [names], limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order, the values of the `include` components; near selects by the grid of the last step (`grid_step`) and reports that `grid_position` and the `distance` from it next to the live `position`; `next` when more exist | [exists: S10] |
 | `inspect(entity, components?)` | class, flags, parent, children, every component as JSON | [exists: S10] |
@@ -2116,14 +2126,14 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
-| `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs n steps (stops at the request's time budget, half the tool timeout: `ran`, `stopped_early`; `apply` shares one budget and stops between operations) | [exists: S10] |
+| `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs n steps (stops at the request's answer deadline, the tool timeout minus a tenth: `ran`, `stopped_early`; `apply` shares one budget and stops between operations) | [exists: S10] |
 | `changes_since(cursor?, include_moved?, limit?)` | created, destroyed (its components folded in), component added/removed with sequence numbers and steps (a journal of 100000; `truncated`, `more`; `limit` per call, default 200); with `include_moved` the entities moved since the cursor (once each, with the handle they moved with; a move window's members are fixed when it opens (a snapshot shared by the cursors paging it; the newest 16 windows are kept, an older continued window reports `moves_truncated`) and paged by entity index with `moved_more`, so every entity that moved in it is delivered; moves made meanwhile come in the next window; tracked from the first such call); the cursor is opaque (`0`: everything kept, `"now"`: from now on); one of another session (a random epoch per API) is an error | [exists: S10] |
-| `get_profile(steps?, scopes?)`, `reset_profile`, `measure_performance(steps)` | step profile (§17.1), filtered by scope path prefixes; measure (at most the 600 samples of the history) runs n steps while paused or waits for n steps while running (refused at time scale 0) | [exists: S10; S13 adds frame and GPU scopes] |
+| `get_profile(steps?, scopes?)`, `reset_profile`, `measure_performance(steps? \| frames?)` | step profile (§17.1), filtered by scope path prefixes; measure (at most the 600 samples of the history) runs n steps while paused or waits for n steps while running (refused at time scale 0); `frames: n` (the app with a device, `WorldToolsOptions::measureFrames`) measures the next n frame loops, also while paused: their frame profile, the steps they ran (`steps.ran`, `truncated` beyond 600) and the GPU samples of the frames they rendered (`gpu.frames`); a load, a profile reset or `run_scenario` meanwhile is an error | [exists: S10; S13 adds frame and GPU scopes; S14 `frames`] |
 | `logs(since?, category?)` | log lines with a sequence number > `since` (at most 500, `first`, `truncated`; category `api`: the edits made through the tools, logged after they ran with `ok` or `failed:`; an empty result names the known `categories`) | [exists: S10] |
 | `apply(operations)` | a batch `[{op, ...arguments}]` in order; stops at the first failing operation (the earlier ones stay applied); available read-only when every operation reads | [exists: S10] |
 | `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file, overwrite?)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
-| `run_scenario(name)` | replaces the live world with the scenario, runs it, returns the checks | [planned: S14] |
+| `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
 | `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings; drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run) | [exists: S13] |
 
 S10 implementation: the operations are `WorldApi` calls (`engine/api/WorldApi.h`: JSON arguments and results by
@@ -2199,7 +2209,11 @@ void registerEngineScenarios(ScenarioList& s)
   step, and the observer of hashes, traces and limits last, after the scenario's own listeners), so `world().step()`,
   `advance()` and the API's `step` count too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths (through
   the step helpers and `call`, which throw the abort; a direct `api().call("step", ...)` returns it as an error, and a
-  loop that ignores errors does not end: use `call`). The save/load variant swaps the world at the first step helper
+  loop that ignores errors does not end: use `call`). `ScenarioOptions::deadline` (S14, `run_scenario`'s tool budget)
+  aborts a run at a wall-clock time without touching the world, so it never changes a run that finishes;
+  `ScenarioResult::finalSave` / `finalStep` / `finalHash` keep the Plain run's end state (empty after an abort or an
+  exception); `WorldSetup::sharedDataReadOnly` makes a world that shares another's data store refuse `reloadData`.
+  The save/load variant swaps the world at the first step helper
   or `call` at or after half of the plain run's steps (after the call); a scenario in which no step runs on the
   replacement (steps after the middle only through `world()` or `api()`, or one `call` that runs all of them) fails the
   variant, as `saveLoad` called during a step or from a step listener does. A scenario adds its own step listeners with `ScenarioWorld::addStepListener` (they move to the replacement world; a listener
@@ -2469,7 +2483,8 @@ the missing target is reported as open).
   `w.world()` each time (the save/load variant replaces the world), add step listeners with `w.addStepListener` and
   never step inside one; it runs in the plain, repeat and save/load variants.
 - **Debugging a failing scenario**: read the printed checks and logs; add `trace<T>` for the suspicious component; run
-  it live with `run_scenario`, `pause`, `step`, `inspect`; for repeat or save/load failures read the `diffSaves` lines
+  it live with `run_scenario` (`load: true` puts the end state into the live world; `load_snapshot before_scenario`
+  goes back), `pause`, `step`, `inspect`; for repeat or save/load failures read the `diffSaves` lines
   of the report.
 
 ### 18.4 Tech demo games [exists]
@@ -2527,7 +2542,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | gray look | `WorldSettings::shading = WorldShading::Clay` (enum with one value) [exists] | S01 (done) |
 | wall-clock `time`, OpenMP reduction in `placeTrees` | `WorldSettings::freezeTime`; serial sum (tests in `tests/test_vulkan_world.cpp`) [exists] | S01 (done) |
 | `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); the world game `samples/games/world/` (`game_world`) on `EngineApp`, `--headless` [exists] (S13, done) | S03 (done), S13 (done) |
-| `WorldMcp` | engine tools in `engine/tools/`; walk mode etc. as `game_*` tools | S14 |
+| `WorldMcp` | screenshot and camera tools in `engine/app/AppTools`, the rest as `game_*` tools of `game_world` | S14 (done) |
 | `WorldBenchmark` | `--benchmark` of `EngineApp` [exists] (S13); the paths and statistics move with the prototype renderer's passes | S13 (done), S19 |
 | `WorldCommon.h`, `common.glsl` (world uniforms) | uniforms per pass in `saiga_vulkan`, helpers stay | S19 |
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | `RenderScene` instance sets, generic culling and instance shaders | S18, S19 |
@@ -2644,7 +2659,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S12 | Scenario framework (done) | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
 | S13 | Engine app (done) | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, `--benchmark` on the command line (the runner stays in `vulkan/world/WorldBenchmark`), sample on `EngineApp` (§8.3, §17.7) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner |
 | S13b | Tech demos on the engine (done) | Flight, platformer and racing ported to `EngineApp` and to game objects, components and systems in a `World`, `WorldSetup::context`, input maps and data files per demo, game scenarios (§18.4) | S13 | each tech demo has scenarios that pass with `--scenarios` and runs on `EngineApp` (local); the games compile in the Clang CI job |
-| S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
+| S14 | Engine MCP tools (done) | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
 | S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15, S13b | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |

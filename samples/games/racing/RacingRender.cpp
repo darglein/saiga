@@ -154,7 +154,9 @@ void RacingRender::transfer(vk::CommandBuffer cmd)
         pose.follow(e);
         reseedWheels();
     }
-    hasPose = pose.interpolated(w.alpha(), renderPose);
+    hasPose               = pose.interpolated(w.alpha(), renderPose);
+    const bool toolCamera = app->cameraHeldByTool();
+    if (held.released(toolCamera)) camera.reset();
     if (pose.takeTeleport())
     {
         camera.reset();
@@ -170,12 +172,14 @@ void RacingRender::transfer(vk::CommandBuffer cmd)
         renderWheels.spin[i] = previousWheels.spin[i] + (currentWheels.spin[i] - previousWheels.spin[i]) * alpha;
     }
     renderWheels.steer = previousWheels.steer + (currentWheels.steer - previousWheels.steer) * alpha;
-    if (hasPose) camera.update(renderPose.position, forwardOf(renderPose.rotation), frameDt);
+    if (hasPose && !toolCamera) camera.update(renderPose.position, forwardOf(renderPose.rotation), frameDt);
 
-    const mat4 view = camera.view();
-    app->camera().setView(view);
-    worldRenderer.transfer(cmd, view, camera.eye().cast<float>(), aspect);
-    meshes.transfer(cmd, view, camera.eye(), worldRenderer.projection(aspect), worldLighting(worldRenderer));
+    // A tool holds the camera (S14): the app camera, else the chase camera
+    const mat4 view = toolCamera ? app->camera().view : camera.view();
+    const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
+    if (!toolCamera) app->camera().setView(view);
+    worldRenderer.transfer(cmd, view, eye.cast<float>(), aspect);
+    meshes.transfer(cmd, view, eye, worldRenderer.projection(aspect), worldLighting(worldRenderer));
 }
 
 void RacingRender::render(vk::CommandBuffer cmd)

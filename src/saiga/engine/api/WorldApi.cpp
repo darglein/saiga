@@ -1465,7 +1465,7 @@ ApiResult WorldApi::timeScale(const Json& a)
 
 namespace
 {
-constexpr size_t kMaxSnapshots     = 16;
+constexpr size_t kMaxSnapshots     = WorldApi::kMaxSnapshotCount;
 constexpr size_t kMaxSnapshotBytes = size_t(256) << 20;
 
 bool snapshotName(const Json& a, std::string& name, std::string& error)
@@ -1553,6 +1553,34 @@ ApiResult WorldApi::saveSnapshot(const Json& a)
         return ApiResult::failure(
             "save_snapshot: the snapshots would use more than 256 MB (delete_snapshot frees "
             "memory)");
+    Json result = Json::object{
+        {"name", name}, {"bytes", double(s.bytes.size())}, {"step", double(s.step)}, {"hash", hashHex(s.hash)}};
+    s.revision      = nextSnapshotRevision++;
+    snapshots[name] = std::move(s);
+    return ApiResult::success(result);
+}
+
+ApiResult WorldApi::putSnapshot(const std::string& name, std::vector<uint8_t> save, uint64_t step, uint64_t hash,
+                                bool overwrite)
+{
+    if (name.empty() || name.size() > 128)
+        return ApiResult::failure("name: a non-empty string (at most 128 characters)");
+    auto existing = snapshots.find(name);
+    if (existing != snapshots.end() && !overwrite)
+        return ApiResult::failure("save_snapshot: \"" + name + "\" exists (overwrite: true replaces it)");
+    size_t total = save.size();
+    for (const auto& kv : snapshots)
+        if (kv.first != name) total += kv.second.bytes.size();
+    if (existing == snapshots.end() && snapshots.size() >= kMaxSnapshots)
+        return ApiResult::failure("save_snapshot: at most " + std::to_string(kMaxSnapshots) +
+                                  " snapshots (delete_snapshot frees one)");
+    if (total > kMaxSnapshotBytes)
+        return ApiResult::failure(
+            "save_snapshot: the snapshots would use more than 256 MB (delete_snapshot frees memory)");
+    Snapshot s;
+    s.bytes     = std::move(save);
+    s.step      = step;
+    s.hash      = hash;
     Json result = Json::object{
         {"name", name}, {"bytes", double(s.bytes.size())}, {"step", double(s.step)}, {"hash", hashHex(s.hash)}};
     s.revision      = nextSnapshotRevision++;

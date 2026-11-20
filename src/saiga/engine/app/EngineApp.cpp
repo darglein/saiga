@@ -158,18 +158,28 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
                   "change the game world; app_status describes the app and its input bindings, set_input drives the "
                   "local player, measure_performance measures steps" +
                   (appSetup.noRender ? std::string(" (this app does not render)")
-                                     : std::string(", frames and the GPU")) +
-                  "."
+                                     : std::string(" or frames and the GPU; screenshot shows the next frame, "
+                                                   "set_camera / move_camera place the camera")) +
+                  "; list_scenarios / run_scenario run the game's scenarios."
             : appSetup.mcpInstructions;
     server                     = std::make_unique<McpServer>(appSetup.name, "1.0", instructions);
     server->toolTimeoutSeconds = appSetup.mcpToolTimeoutSeconds;
     WorldToolsOptions toolOptions;
     toolOptions.snapshotDirectory = appSetup.snapshotDirectory;
-    worldApi                      = registerWorldTools(*server, *gameWorld, toolOptions);
+    if (renderScene)
+        toolOptions.measureFrames = [this](int n, std::chrono::steady_clock::time_point deadline,
+                                           McpServer::Respond respond) { measureFrames(n, deadline, respond); };
+    worldApi = registerWorldTools(*server, *gameWorld, toolOptions);
     worldApi->addProfile("frame", &frameProfiler);
     worldApi->addProfile("gpu", &gpuProfiler);
     registerAppTools(*server, *this);
     if (appSetup.gameTools) appSetup.gameTools(*server, *this);
+    server->addPollListener(
+        [this]()
+        {
+            checkMeasurements();
+            return true;
+        });
     if (appSetup.mcpPort > 0)
     {
         if (server->start(appSetup.mcpPort))
@@ -187,13 +197,21 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     counterFps     = frameProfiler.counter("fps");
     counterSteps   = frameProfiler.counter("steps_per_frame");
     counterDropped = frameProfiler.counter("dropped_steps");
-    scopeGpuFrame  = gpuProfiler.scope("gpu");
+    // The gpu scopes with their names (a frame measurement rebuilds a profile of logged samples with the same scopes)
+    auto gpuScope = [this](const std::string& name)
+    {
+        const int id = gpuProfiler.scope(name);
+        if (int(gpuScopeNames.size()) <= id) gpuScopeNames.resize(size_t(id) + 1);
+        gpuScopeNames[size_t(id)] = name;
+        return id;
+    };
+    scopeGpuFrame = gpuScope("gpu");
     for (const char* name : Vulkan::RenderScene::gpuSectionNames())
-        scopeGpuSections.push_back(gpuProfiler.scope(std::string("gpu/") + name));
+        scopeGpuSections.push_back(gpuScope(std::string("gpu/") + name));
     // Before the first sample: a scope created later would count the empty history as zero samples
-    if (!appSetup.renderHooks.passNames.empty()) scopeGpuGame = gpuProfiler.scope("gpu/game");
+    if (!appSetup.renderHooks.passNames.empty()) scopeGpuGame = gpuScope("gpu/game");
     for (const std::string& name : appSetup.renderHooks.passNames)
-        scopeGpuPasses.push_back(gpuProfiler.scope("gpu/game/" + name));
+        scopeGpuPasses.push_back(gpuScope("gpu/game/" + name));
 
     // set_input expires after its steps also inside one world().step(n) or a multi-step advance: released right after
     // the last step it covers, before the next step can read it
@@ -214,9 +232,25 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         [this](const LoadInfo&)
         {
             World& w = *gameWorld;
+            // Only run_scenario's own load keeps the "descends from a scenario" mark (before_scenario stays)
+            worldFromScenario = scenarioLoadInProgress;
+            // Device input is transient: a held state restored by the load would never be released by neutral input
+            // (S14; the games reset their own controls the same way)
+            auto neutralInput = [&](Entity e)
+            {
+                if (!e.valid() || !w.alive(e) || !w.registry().registered(PlayerInput::id) || !w.has<PlayerInput>(e))
+                    return;
+                PlayerInput& in = w.get<PlayerInput>(e);
+                in.move         = Vec3::Zero();
+                in.heldButtons  = 0;
+            };
             if (localPlayerEntity.valid() && w.alive(localPlayerEntity) && w.registry().registered(Player::id) &&
                 w.has<Player>(localPlayerEntity))
+            {
+                neutralInput(localPlayerEntity);
+                inputWasActive = false;
                 return;
+            }
             // Another player: the loaded state replaced the old one's input, no release is pending for the new one
             localPlayerEntity = Entity{};
             inputWasActive    = false;
@@ -226,6 +260,7 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
                 {
                     if (!localPlayerEntity.valid() && p.peer == 0) localPlayerEntity = e;
                 });
+            neutralInput(localPlayerEntity);
         });
 
     if (renderScene && appSetup.renderHooks.init)
@@ -362,9 +397,15 @@ void EngineApp::frame()
     frame(dt);
 }
 
+void EngineApp::restartFrameClock()
+{
+    if (!firstFrame) lastFrame = std::chrono::steady_clock::now();
+}
+
 void EngineApp::frame(double dt)
 {
     framesRun++;
+    inFrame = true;
     {
         Profiler::Timer frameTimer(frameProfiler, scopeFrame);
         {
@@ -390,6 +431,7 @@ void EngineApp::frame(double dt)
     }
     frameProfiler.setCounter(counterFps, dt > 0 ? 1.0 / dt : 0.0);
     frameProfiler.endSample();
+    inFrame = false;
     if (renderScene) collectGpuTimes();
     if (appWindow && appWindow->shouldClose()) quitRequested = true;
 }
@@ -665,9 +707,11 @@ void EngineApp::collectGpuTimes()
             pendingGpu.pop_front();
             continue;
         }
-        gpuProfiler.add(scopeGpuFrame, t.gpuMs);
+        GpuLogEntry entry;
+        entry.frame = t.frame;
+        entry.values.push_back({scopeGpuFrame, t.gpuMs});
         for (size_t i = 0; i < t.gpuSectionMs.size() && i < scopeGpuSections.size(); ++i)
-            gpuProfiler.add(scopeGpuSections[i], t.gpuSectionMs[i]);
+            entry.values.push_back({scopeGpuSections[i], t.gpuSectionMs[i]});
         if (gamePasses)
         {
             // gpu/game: the sum of the game's passes (the parent of their scopes)
@@ -676,14 +720,148 @@ void EngineApp::collectGpuTimes()
                 for (size_t k = 0; k < appSetup.renderHooks.passNames.size(); ++k)
                     if (appSetup.renderHooks.passNames[k] == p.first)
                     {
-                        gpuProfiler.add(scopeGpuPasses[k], p.second);
+                        entry.values.push_back({scopeGpuPasses[k], p.second});
                         sum += p.second;
                     }
-            if (scopeGpuGame >= 0) gpuProfiler.add(scopeGpuGame, sum);
+            if (scopeGpuGame >= 0) entry.values.push_back({scopeGpuGame, sum});
         }
+        for (const auto& v : entry.values) gpuProfiler.add(v.first, v.second);
         gpuProfiler.endSample();
+        gpuLog.push_back(std::move(entry));
+        if (gpuLog.size() > 600) gpuLog.pop_front();
         pendingGpu.pop_front();
     }
+}
+
+// measure_performance(frames: n): the frame loops S..S+n-1 after the call (S: the next loop, or the current one when
+// the call came from a poll outside a frame), the steps they ran and the GPU samples of the frames they rendered
+struct EngineApp::FrameMeasurement
+{
+    int frames = 0;
+    std::chrono::steady_clock::time_point deadline;
+    McpServer::Respond respond;
+    uint64_t firstLoop = 0;  // frame profiler sample index of the first measured loop
+    bool started = false, ended = false;
+    uint64_t worldStart = 0, sceneStart = 0, sceneEnd = 0, endLoop = 0, stepsRan = 0;
+    json11::Json frameReport, stepReport;
+    uint64_t worldResets = 0, frameResets = 0, gpuResets = 0, loads = 0, scenarioRuns = 0;
+};
+
+void EngineApp::measureFrames(int frames, std::chrono::steady_clock::time_point deadline, McpServer::Respond respond)
+{
+    auto m          = std::make_shared<FrameMeasurement>();
+    m->frames       = frames;
+    m->deadline     = deadline;
+    m->respond      = std::move(respond);
+    m->firstLoop    = frameProfiler.sampleCount() + (inFrame ? 1 : 0);
+    m->worldResets  = gameWorld->profiler().resetCount();
+    m->frameResets  = frameProfiler.resetCount();
+    m->gpuResets    = gpuProfiler.resetCount();
+    m->loads        = gameWorld->loadCount();
+    m->scenarioRuns = scenarioRuns;
+    measurements.push_back(m);
+    checkMeasurements();
+}
+
+void EngineApp::checkMeasurements()
+{
+    const auto now = std::chrono::steady_clock::now();
+    for (size_t i = 0; i < measurements.size();)
+    {
+        FrameMeasurement& m = *measurements[i];
+        bool done           = false;
+        if (gameWorld->profiler().resetCount() != m.worldResets || frameProfiler.resetCount() != m.frameResets ||
+            gpuProfiler.resetCount() != m.gpuResets || gameWorld->loadCount() != m.loads ||
+            scenarioRuns != m.scenarioRuns)
+        {
+            m.respond(McpServer::ToolResult::Error(
+                gameWorld->loadCount() != m.loads ? "measure_performance: the world was loaded during the measurement"
+                : scenarioRuns != m.scenarioRuns  ? "measure_performance: run_scenario ran during the measurement"
+                                                  : "measure_performance: a profile was reset during the measurement"));
+            done = true;
+        }
+        else
+        {
+            const uint64_t loops = frameProfiler.sampleCount();
+            if (!m.started && loops >= m.firstLoop)
+            {
+                // At the first measured loop's poll: its steps run after it
+                m.started    = true;
+                m.worldStart = gameWorld->profiler().sampleCount();
+                m.sceneStart = renderScene ? renderScene->frames() : 0;
+            }
+            if (m.started && !m.ended && loops >= m.firstLoop + uint64_t(m.frames))
+            {
+                m.ended       = true;
+                m.endLoop     = loops;
+                m.frameReport = profileWindow(frameProfiler, uint64_t(m.frames));
+                m.stepsRan    = gameWorld->profiler().sampleCount() - m.worldStart;
+                m.stepReport =
+                    profileWindow(gameWorld->profiler(),
+                                  std::min<uint64_t>(m.stepsRan, uint64_t(gameWorld->profiler().historySize())));
+                m.sceneEnd = renderScene ? renderScene->frames() : 0;
+            }
+            if (m.ended)
+            {
+                // The GPU samples of the range arrive frames later: until a later frame's sample is logged, 10 more
+                // loops passed (the app drops unmatched frames after 8), or the range is empty
+                const bool later = !gpuLog.empty() && gpuLog.back().frame > m.sceneEnd;
+                if (m.sceneEnd == m.sceneStart || later || loops >= m.endLoop + 10 || now >= m.deadline)
+                {
+                    answerMeasurement(m, false);
+                    done = true;
+                }
+            }
+            else if (now >= m.deadline)
+            {
+                // Stopped early: the loops measured so far
+                const uint64_t measured = m.started ? loops - m.firstLoop : 0;
+                m.frameReport           = profileWindow(frameProfiler, measured);
+                m.stepsRan              = m.started ? gameWorld->profiler().sampleCount() - m.worldStart : 0;
+                m.stepReport =
+                    profileWindow(gameWorld->profiler(),
+                                  std::min<uint64_t>(m.stepsRan, uint64_t(gameWorld->profiler().historySize())));
+                m.sceneEnd = renderScene ? renderScene->frames() : 0;
+                if (!m.started) m.sceneStart = m.sceneEnd;
+                answerMeasurement(m, true);
+                done = true;
+            }
+        }
+        if (done)
+            measurements.erase(measurements.begin() + std::ptrdiff_t(i));
+        else
+            ++i;
+    }
+}
+
+void EngineApp::answerMeasurement(FrameMeasurement& m, bool stoppedEarly)
+{
+    using json11::Json;
+    // The GPU samples of the frames rendered in the range, as a profile with the app's gpu scopes
+    Profiler gpu(int(gpuLog.size()) + 1);
+    std::vector<int> ids(gpuScopeNames.size(), -1);
+    for (size_t k = 0; k < gpuScopeNames.size(); ++k)
+        if (!gpuScopeNames[k].empty()) ids[k] = gpu.scope(gpuScopeNames[k]);
+    uint64_t first = 0, last = 0, samples = 0;
+    for (const GpuLogEntry& e : gpuLog)
+    {
+        if (e.frame <= m.sceneStart || e.frame > m.sceneEnd) continue;
+        for (const auto& v : e.values)
+            if (v.first >= 0 && size_t(v.first) < ids.size() && ids[size_t(v.first)] >= 0)
+                gpu.add(ids[size_t(v.first)], v.second);
+        gpu.endSample();
+        if (samples == 0) first = e.frame;
+        last = e.frame;
+        samples++;
+    }
+    Json::object gpuReport = profileWindow(gpu, samples).object_items();
+    if (samples > 0) gpuReport["frames"] = Json::array{double(first), double(last)};
+    Json::object steps = m.stepReport.object_items();
+    steps["ran"]       = double(m.stepsRan);
+    if (m.stepsRan > uint64_t(gameWorld->profiler().historySize())) steps["truncated"] = true;
+    Json::object o{{"frame", m.frameReport}, {"steps", steps}, {"gpu", gpuReport}, {"requested_frames", m.frames}};
+    if (stoppedEarly) o["stopped_early"] = true;
+    m.respond(McpServer::ToolResult::Text(exactToolJson(Json(o))));
 }
 
 }  // namespace Engine

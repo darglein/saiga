@@ -83,6 +83,21 @@ class SAIGA_ENGINE_API EngineApp
     void setVirtualInput(const VirtualInput& input, int steps);
     void showStatistics(bool show) { statisticsVisible = show; }
 
+    // Camera hold (S14): set_camera / move_camera take the camera from the game; a game that drives the camera itself
+    // skips its update while held, renders from camera() and resets its own camera on the release edge
+    bool cameraHeldByTool() const { return cameraHeld; }
+    void holdCamera() { cameraHeld = true; }
+    void releaseCamera() { cameraHeld = false; }
+    // After a tool call that blocked the loop (run_scenario): the next frame's dt does not contain the blocked time
+    void restartFrameClock();
+    // run_scenario's load: the live world then descends from a scenario (before_scenario is kept) until another load
+    void setScenarioLoadInProgress(bool inProgress) { scenarioLoadInProgress = inProgress; }
+    bool liveWorldFromScenario() const { return worldFromScenario; }
+    // Counted by run_scenario (a frame measurement running meanwhile answers with an error)
+    void countScenarioRun() { scenarioRuns++; }
+    // measure_performance(frames: n) (WorldToolsOptions::measureFrames): the next n frame loops
+    void measureFrames(int frames, std::chrono::steady_clock::time_point deadline, McpServer::Respond respond);
+
     // The app's profiles (get_profile: frame, gpu): one sample per frame loop / per completed GPU frame
     Profiler& frameProfile() { return frameProfiler; }
     Profiler& gpuProfile() { return gpuProfiler; }
@@ -101,6 +116,10 @@ class SAIGA_ENGINE_API EngineApp
     // Writes the neutral input to the local player now (an expired set_input between steps)
     void releaseInputNow();
     void collectGpuTimes();
+    struct FrameMeasurement;
+    // Checks the running frame measurements (from a poll listener and when one starts)
+    void checkMeasurements();
+    void answerMeasurement(FrameMeasurement& m, bool stoppedEarly);
     void statisticsWindow();
 
     EngineAppSetup appSetup;
@@ -144,6 +163,17 @@ class SAIGA_ENGINE_API EngineApp
     int scopeGpuGame       = -1;
     uint64_t droppedBefore = 0;
     std::deque<Vulkan::FrameTimes> pendingGpu;  // completed frames waiting for the game's passes of the same frame
+    // The last 600 GPU samples with their RenderScene frame (measure_performance(frames))
+    struct GpuLogEntry
+    {
+        uint64_t frame = 0;
+        std::vector<std::pair<int, double>> values;  // gpu profiler scope, ms
+    };
+    std::deque<GpuLogEntry> gpuLog;
+    std::vector<std::string> gpuScopeNames;  // by gpu profiler scope id
+    std::vector<std::shared_ptr<FrameMeasurement>> measurements;
+    bool inFrame = false, cameraHeld = false, scenarioLoadInProgress = false, worldFromScenario = false;
+    uint64_t scenarioRuns = 0;
 };
 
 }  // namespace Engine

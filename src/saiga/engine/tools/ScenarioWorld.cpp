@@ -131,6 +131,8 @@ void ScenarioWorld::onStep()
     }
     if (observedSteps > options.maxSteps && abortReason.empty())
         abortReason = "more than " + std::to_string(options.maxSteps) + " steps";
+    if (options.deadline && abortReason.empty() && std::chrono::steady_clock::now() >= *options.deadline)
+        abortReason = "stopped: tool time budget";
     // Ends the scenario also when it steps outside the helpers (world().step(), advance()): the exception leaves the
     // world's step; the world API turns it into an error result, after which call() ends the scenario
     if (!abortReason.empty()) throw ScenarioAbort{abortReason};

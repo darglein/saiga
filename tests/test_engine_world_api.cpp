@@ -1528,6 +1528,35 @@ TEST(WorldApi, SnapshotLimits)
     EXPECT_FALSE(api.call("save_snapshot", obj(R"({"name": ""})")).ok);
 }
 
+// putSnapshot (run_scenario, S14): given save bytes with save_snapshot's limits and a new revision
+TEST(WorldApi, PutSnapshot)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    const Entity e = w.create();
+    w.step(2);
+    const auto blob     = w.save();
+    const uint64_t hash = w.hash();
+    w.destroy(e);
+    ApiResult r = api.putSnapshot("given", blob, w.stepIndex(), hash, false);
+    ASSERT_TRUE(r.ok) << r.error;
+    EXPECT_EQ(r.value["step"].number_value(), 2);
+    EXPECT_TRUE(api.hasSnapshot("given"));
+    EXPECT_FALSE(api.putSnapshot("given", blob, 2, hash, false).ok);  // exists
+    EXPECT_TRUE(api.putSnapshot("given", blob, 2, hash, true).ok);    // overwrite
+    EXPECT_FALSE(api.putSnapshot("", blob, 2, hash, false).ok);
+    // load_snapshot of it restores the state
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "given"})")).ok);
+    EXPECT_TRUE(w.alive(e));
+    EXPECT_EQ(w.hash(), hash);
+    // The count limit
+    for (int i = 0; api.snapshotCount() < WorldApi::kMaxSnapshotCount; ++i)
+        ASSERT_TRUE(api.putSnapshot("s" + std::to_string(i), blob, 2, hash, false).ok);
+    r = api.putSnapshot("one_more", blob, 2, hash, false);
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("at most 16"), std::string::npos) << r.error;
+}
+
 // A load (from anywhere) is one journal entry; cursors from before it stay valid and say reloaded
 TEST(WorldApi, LoadsAppearAsOneJournalEntry)
 {

@@ -54,7 +54,7 @@ src/
                         VMA's defragmentation compacts (full_defrag(), or incremental passes in update() per frame);
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
-                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools,
+                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, the game_* MCP tools,
                         benchmark paths WorldBenchmark; used by game_world)
                         scene/RenderScene: the engine app's frame shell (wraps VulkanForwardRenderer until S17);
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app)
@@ -77,7 +77,8 @@ src/
                         MigrationList, SaveDecoder, diffSaves); data/: data files (DataTypeList, DataStore, DataRef,
                         readDataFile); app/: EngineApp (the engine's frame loop: window or headless, RenderScene, MCP,
                         input map, frame/GPU profiles), engineMain and the command line of engine games, InputMap,
-                        the app tools (quit, app_status, set_input)
+                        the app tools (quit, app_status, set_input; screenshot, set_camera/move_camera with the camera
+                        hold, list_scenarios/run_scenario)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists

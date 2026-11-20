@@ -197,7 +197,8 @@ std::vector<ToolSpec> toolSpecs()
         {"load_snapshot",
          "Replaces the live world with a snapshot (game objects are recreated: configure and onLoad run). Entity "
          "handles from before the snapshot stay valid; ones obtained after it may name other entities now. "
-         "changes_since reports one world_loaded entry. paused: set the paused state after the load.",
+         "changes_since reports one world_loaded entry. paused: set the paused state after the load. In the engine "
+         "app a load neutralizes the local player's input (device input is transient).",
          S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
                           {"paused", S::BooleanProperty("Paused after the load (default: unchanged)")}},
                          {"name"})},
@@ -310,13 +311,6 @@ void formatExact(const Json& j, std::string& out)
     }
 }
 
-// When a handler must answer: the caller's deadline minus a tenth of the timeout (formatting and returning the result)
-std::chrono::steady_clock::time_point answerDeadline(const McpServer& server)
-{
-    return server.callDeadline() - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                                       std::chrono::duration<double>(0.1 * server.toolTimeoutSeconds));
-}
-
 // The profile of the last n samples of a measurement; n = 0 is an empty window (Profiler::report(0) means the whole
 // history)
 Json measurementReport(const Profiler& p, uint64_t n)
@@ -358,6 +352,22 @@ ToolResult toResult(const ApiResult& r)
 }
 }  // namespace
 
+std::chrono::steady_clock::time_point answerDeadline(const McpServer& server)
+{
+    return server.callDeadline() - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                       std::chrono::duration<double>(0.1 * server.toolTimeoutSeconds));
+}
+
+json11::Json profileWindow(const Profiler& profiler, uint64_t samples)
+{
+    return measurementReport(profiler, samples);
+}
+
+std::string exactToolJson(const json11::Json& j)
+{
+    return exactJson(j);
+}
+
 std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, const WorldToolsOptions& options)
 {
     auto api = std::make_shared<WorldApi>(world, options.allowEdits);
@@ -391,23 +401,41 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         "steps (see get_profile). Paused: runs the steps now (a pure simulation benchmark; edits must be allowed). "
         "Running: waits until the app has run them (refused at time scale 0); it answers early with fewer steps if "
         "they take too long; in the app the result also has the frame and gpu profiles of those frames. Changes "
-        "nothing but time while paused.",
+        "nothing but time while paused. frames: n (1..600, instead of steps; the app with a device) measures the next "
+        "n frame loops instead, also while paused (a render-only measurement): the frame profile of those loops, the "
+        "gpu profile of the frames they rendered and the step profile of the steps they ran.",
         [&]()
         {
             Json::object schema =
-                McpServer::ObjectSchema({{"steps", McpServer::IntegerProperty("Number of steps (1..600)")}})
+                McpServer::ObjectSchema(
+                    {{"steps", McpServer::IntegerProperty("Number of steps (1..600)")},
+                     {"frames", McpServer::IntegerProperty("Number of frame loops (1..600), instead of steps")}})
                     .object_items();
             schema["additionalProperties"] = false;
             return Json(schema);
         }(),
-        [weak, serverPtr = &server](const Json& args, McpServer::Respond respond)
+        [weak, serverPtr = &server, measureFrames = options.measureFrames](const Json& args, McpServer::Respond respond)
         {
             // The request's deadline (from when it was queued, minus a margin for the answer)
             const auto deadline = answerDeadline(*serverPtr);
             auto a              = weak.lock();
             if (!a || !a->world()) return respond(ToolResult::Error("the world is not available"));
             for (auto& kv : args.object_items())
-                if (kv.first != "steps") return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
+                if (kv.first != "steps" && kv.first != "frames")
+                    return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
+            if (!args["frames"].is_null())
+            {
+                if (!args["steps"].is_null())
+                    return respond(ToolResult::Error("measure_performance: steps or frames, not both"));
+                const double f = args["frames"].number_value();
+                if (!args["frames"].is_number() || !(f >= 1 && f <= 600) || f != std::floor(f))
+                    return respond(ToolResult::Error("frames: an integer 1..600"));
+                if (!measureFrames)
+                    return respond(
+                        ToolResult::Error("measure_performance: this app renders no frames (frames needs "
+                                          "an app with a device)"));
+                return measureFrames(int(f), deadline, respond);
+            }
             World& w       = *a->world();
             const double n = args["steps"].is_null() ? 120 : args["steps"].number_value();
             const int max  = w.profiler().historySize();
