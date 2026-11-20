@@ -54,8 +54,10 @@ struct WorldGame
     // GPU pass times of the newest frame of the world renderer (for the engine's gpu profile)
     Vulkan::WorldRenderer::FrameTimes lastTimes;
     bool hasTimes = false;
-    // The world profiler's sample count when the measured frames began (the benchmark's step statistic)
+    // The engine's numbers of the measured frames (step, recording), taken at the frame boundaries that close them
     int64_t stepSamplesAtStart = -1, frameSamplesAtStart = -1;
+    bool stepTaken = false, recordingTaken = false;
+    json11::Json::object stepStat, recordingStat;
 };
 WorldGame* g_game = nullptr;
 
@@ -127,12 +129,35 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
     }
     const ivec2 size = app.scene()->size();
     g.world.transfer(cmd, camera.view, camera.getPosition(), float(size(0)) / float(std::max(1, size(1))));
-    if (g.bench && g.stepSamplesAtStart < 0 && g.bench->measuring())
+    if (g.bench)
     {
-        g.stepSamplesAtStart  = int64_t(app.world().profiler().sampleCount());
-        g.frameSamplesAtStart = int64_t(app.frameProfile().sampleCount());
+        // Frame k is the world renderer's frame number after its transfer (W: the last warm-up frame, M1..Mn: the
+        // measured frames). In a frame the steps run before transfer; its recording sample is added after transfer
+        // and counted when the frame ends.
+        const int frame    = g.world.frameNumber();
+        const int lastWarm = Vulkan::WorldBenchmark::warmupFrames;
+        const int lastMeas = lastWarm + Vulkan::WorldBenchmark::measuredFrames;
+        auto stat    = [](const Profiler::Stats& s) { return json11::Json::object{{"median", s.p50}, {"p95", s.p95}}; };
+        Profiler& wp = app.world().profiler();
+        Profiler& fp = app.frameProfile();
+        // Steps: from after W's steps (transfer of W) to after Mn's steps (transfer of Mn)
+        if (frame == lastWarm) g.stepSamplesAtStart = int64_t(wp.sampleCount());
+        if (frame == lastMeas && g.stepSamplesAtStart >= 0 && !g.stepTaken)
+        {
+            const int n = int(std::max<int64_t>(1, int64_t(wp.sampleCount()) - g.stepSamplesAtStart));
+            g.stepStat  = stat(wp.scopeStats(wp.scope("step"), n));
+            g.stepTaken = true;
+        }
+        // Recordings: the frames completed from the transfer of M1 (through W) to the transfer of Mn+1 (through Mn)
+        if (frame == lastWarm + 1) g.frameSamplesAtStart = int64_t(fp.sampleCount());
+        if (frame == lastMeas + 1 && g.frameSamplesAtStart >= 0 && !g.recordingTaken)
+        {
+            const int n      = int(std::max<int64_t>(1, int64_t(fp.sampleCount()) - g.frameSamplesAtStart));
+            g.recordingStat  = stat(fp.scopeStats(fp.scope("frame/render/recording"), n));
+            g.recordingTaken = true;
+        }
     }
-    if (g.bench && g.bench->finished() && !g.benchmarkDone)
+    if (g.bench && g.bench->finished() && g.recordingTaken && !g.benchmarkDone)
     {
         const std::string file = resultFile(g.benchmarkName);
         if (g.bench->width != 1920 || g.bench->height != 1080)
@@ -140,22 +165,11 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
                       << " instead of 1920 x 1080 (not comparable with the baseline)" << std::endl;
         if (g.sizeChanged) std::cout << "Benchmark error: the rendered size changed during the run" << std::endl;
         json11::Json::object result = g.bench->result().object_items();
-        // The engine's numbers: the step and the frame recording (S13)
-        auto stat    = [](const Profiler::Stats& s) { return json11::Json::object{{"median", s.p50}, {"p95", s.p95}}; };
-        Profiler& wp = app.world().profiler();
-        // The steps of the measured frames (not the last 600 steps: at hundreds of frames per second they reach back
-        // into the warm-up)
-        const int stepSamples =
-            int(std::max<int64_t>(1, int64_t(wp.sampleCount()) - std::max<int64_t>(0, g.stepSamplesAtStart)));
-        result["step"] = stat(wp.scopeStats(wp.scope("step"), stepSamples));
-        // The command recording and submit of the measured frames (frame/render/recording, without the waits for the
-        // frame slot and the image); the frame profile has one sample per frame
-        Profiler& fp           = app.frameProfile();
-        const int frameSamples = int(std::min<int64_t>(
-            Vulkan::WorldBenchmark::measuredFrames,
-            std::max<int64_t>(1, int64_t(fp.sampleCount()) - std::max<int64_t>(0, g.frameSamplesAtStart))));
-        result["recording"]    = stat(fp.scopeStats(fp.scope("frame/render/recording"), frameSamples));
-        const int stalls       = result["stalled_frames"].int_value();
+        // The engine's numbers of exactly the measured frames (S13): the steps and the command recording and submit
+        // (frame/render/recording, without the waits for the frame slot and the image)
+        result["step"]      = g.stepStat;
+        result["recording"] = g.recordingStat;
+        const int stalls    = result["stalled_frames"].int_value();
         if (stalls > 0)
             std::cout << "Benchmark error: " << stalls
                       << " stalled frames (e.g. the window was minimized or the swap chain recreated)" << std::endl;

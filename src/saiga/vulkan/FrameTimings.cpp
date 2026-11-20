@@ -54,6 +54,8 @@ void FrameTimings<Finder>::update(vk::Semaphore _frameTimeline)
                                                      vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
             SAIGA_ASSERT(result == vk::Result::eSuccess);
 
+            // The durations from the raw ticks (masked difference, see timestampDifferenceMs)
+            const auto rawSections = timing.sections;
             // Ticks -> nanoseconds
             for (auto& s : timing.sections)
             {
@@ -82,9 +84,11 @@ void FrameTimings<Finder>::update(vk::Semaphore _frameTimeline)
             {
                 CompletedFrame c;
                 c.timelineValue = timing.timelineValue;
-                for (auto& sec : timing.sections) c.sectionMs.push_back(double(sec.second - sec.first) * 1e-6);
-                if (!timing.sections.empty())
-                    c.frameMs = double(timing.sections.back().second - timing.sections.front().first) * 1e-6;
+                for (auto& sec : rawSections)
+                    c.sectionMs.push_back(timestampDifferenceMs(sec.first, sec.second, timestampMask, timestampPeriod));
+                if (!rawSections.empty())
+                    c.frameMs = timestampDifferenceMs(rawSections.front().first, rawSections.back().second,
+                                                      timestampMask, timestampPeriod);
                 completedFrames.push_back(std::move(c));
                 if (completedFrames.size() > 16) completedFrames.pop_front();
             }

@@ -55,6 +55,13 @@ struct FindMinPause
     }
 };
 
+// The duration between two raw timestamps in milliseconds: the difference of the valid bits (mask), so a section that
+// crosses a wrap of a counter with fewer than 64 valid bits stays short
+inline double timestampDifferenceMs(uint64_t begin, uint64_t end, uint64_t mask, double periodNs)
+{
+    return double((end - begin) & mask) * periodNs * 1e-6;
+}
+
 template <typename Finder = FindMinPause>
 class SAIGA_VULKAN_API FrameTimings
 {

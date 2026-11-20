@@ -357,6 +357,53 @@ TEST(EngineAppNoRender, VirtualInputCountsSteps)
     EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
 }
 
+// Regression (CodeRabbit, S13): steps run between frames (world().step(), the step tool) did not count against
+// set_input, so the input stayed active on a paused world after its steps
+TEST(EngineAppNoRender, VirtualInputCountsStepsBetweenFrames)
+{
+    EngineApp app(appSetup(false));
+    World& w       = app.world();
+    const Entity p = w.create();
+    w.add<Player>(p);
+    w.add<PlayerInput>(p);
+    app.setLocalPlayer(p);
+    w.setPaused(true);
+    VirtualInput v;
+    v.held = {"walk"};
+    app.setVirtualInput(v, 1);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
+    w.step();  // the one step reads the input
+    app.runFrames(2, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);  // released before another step could read it
+}
+
+// Regression (CodeRabbit, S13): a pending release went to the new local player, the previous one kept its input
+TEST(EngineAppNoRender, ChangingTheLocalPlayerReleasesThePreviousOne)
+{
+    EngineApp app(appSetup(false));
+    World& w       = app.world();
+    const Entity a = w.create();
+    const Entity b = w.create();
+    for (Entity e : {a, b})
+    {
+        w.add<Player>(e);
+        w.add<PlayerInput>(e);
+    }
+    app.setLocalPlayer(a);
+    VirtualInput v;
+    v.held = {"walk"};
+    app.setVirtualInput(v, 0);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(a).heldButtons, 1u);
+    w.get<PlayerInput>(b).heldButtons = 2;  // an agent's value on b
+    app.setLocalPlayer(b);
+    EXPECT_EQ(w.read<PlayerInput>(a).heldButtons, 0u);
+    app.setVirtualInput(VirtualInput(), 1);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(b).heldButtons, 2u);  // no release of a's input on b
+}
+
 // The local player's handle is dead after a load: the first player of peer 0 in the loaded world
 TEST(EngineAppNoRender, LocalPlayerFallbackAfterALoad)
 {
@@ -402,7 +449,29 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
             rendered++;
             return rendered == 10;  // removed after 10
         });
+    // Regression (CodeRabbit, S13): a callback was called as a copy, so its own state never advanced (a mutable counter
+    // that removes itself after 10 calls ran forever); one that adds a callback while it runs
+    int stateful = 0, added = 0;
+    app.onFrameRendered(
+        [&stateful, n = 0]() mutable
+        {
+            stateful++;
+            return ++n == 10;
+        });
+    app.onFrameRendered(
+        [&]()
+        {
+            app.onFrameRendered(
+                [&]()
+                {
+                    added++;
+                    return true;
+                });
+            return true;
+        });
     app.runFrames(60, 1.0 / 60);
+    EXPECT_EQ(stateful, 10);
+    EXPECT_EQ(added, 1);
     EXPECT_EQ(app.world().stepIndex(), 60u);
     EXPECT_EQ(app.renderedFrames(), 60u);
     EXPECT_EQ(transfers, 60);

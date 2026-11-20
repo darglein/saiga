@@ -40,7 +40,8 @@ struct VirtualInput
  * S35). The names come from the game's ActionList; the bindings from data/<game>/input.json:
  *
  *   {"bindings": {"jump": ["Space"], "walk": ["LeftShift"]},
- *    "axes": {"move_x": {"negative": ["A"], "positive": ["D"]}, "look_x": {"mouse": "x", "scale": 0.002}},
+ *    "axes": {"move_x": {"negative": ["A"], "positive": ["D"]}, "move_z": {"negative": ["S"], "positive": ["W"]},
+ *             "look_x": {"mouse": "x", "scale": 0.002}},
  *    "move": ["move_x", "move_z"]}
  *
  * bindings: an action or held button name -> keys (GLFW key names: A..Z, 0..9, Space, LeftShift, Up, F1, ...) or mouse

@@ -75,7 +75,8 @@ class SAIGA_ENGINE_API EngineApp
     void setRenderingEnabled(bool enabled) { renderingEnabled = enabled; }
     bool isRenderingEnabled() const { return renderingEnabled; }
     // The entity the input writes (PlayerInput, queued actions, applyInput); none: the input moves the free camera
-    void setLocalPlayer(Entity player) { localPlayerEntity = player; }
+    // A pending release of the device input goes to the previous player (not the new one)
+    void setLocalPlayer(Entity player);
     Entity localPlayer() const { return localPlayerEntity; }
     // The virtual device for the next steps (0: until replaced); a paused world keeps it until steps run
     void setVirtualInput(const VirtualInput& input, int steps);
@@ -106,8 +107,9 @@ class SAIGA_ENGINE_API EngineApp
     std::unique_ptr<CameraHolder> cameraHolder;
     InputMap inputMap;
     VirtualInput virtualInput;
-    int virtualSteps = 0;
-    bool hasVirtual  = false;
+    int virtualSteps          = 0;
+    uint64_t virtualStartStep = 0;  // the world's step index when set_input was called
+    bool hasVirtual           = false;
     Entity localPlayerEntity;
     std::vector<std::function<bool()>> frameCallbacks;
     bool renderingEnabled = true, statisticsVisible = false;

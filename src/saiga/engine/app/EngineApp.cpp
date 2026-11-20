@@ -203,7 +203,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
             if (localPlayerEntity.valid() && w.alive(localPlayerEntity) && w.registry().registered(Player::id) &&
                 w.has<Player>(localPlayerEntity))
                 return;
+            // Another player: the loaded state replaced the old one's input, no release is pending for the new one
             localPlayerEntity = Entity{};
+            inputWasActive    = false;
             if (!w.registry().registered(Player::id)) return;
             w.viewAll<const Player>().each(
                 [&](Entity e, const Player& p)
@@ -276,9 +278,27 @@ void EngineApp::quit(int code)
 
 void EngineApp::setVirtualInput(const VirtualInput& input, int steps)
 {
-    virtualInput = input;
-    virtualSteps = steps;
-    hasVirtual   = true;
+    virtualInput     = input;
+    virtualSteps     = steps;
+    virtualStartStep = gameWorld->stepIndex();
+    hasVirtual       = true;
+}
+
+void EngineApp::setLocalPlayer(Entity player)
+{
+    if (player == localPlayerEntity) return;
+    // The previous player's active device input is released on it (the release of the next neutral frame would go to
+    // the new player)
+    World& w = *gameWorld;
+    if (inputWasActive && localPlayerEntity.valid() && w.alive(localPlayerEntity) &&
+        w.has<PlayerInput>(localPlayerEntity))
+    {
+        PlayerInput& in = w.get<PlayerInput>(localPlayerEntity);
+        in.move         = Vec3::Zero();
+        in.heldButtons  = 0;
+    }
+    inputWasActive    = false;
+    localPlayerEntity = player;
 }
 
 int EngineApp::run()
@@ -327,16 +347,6 @@ void EngineApp::frame(double dt)
             Profiler::Timer t(frameProfiler, scopeAdvance);
             const uint64_t before = gameWorld->stepIndex();
             gameWorld->advance(dt);
-            // set_input lasts a number of steps (a paused world or a frame shorter than a step runs none)
-            if (hasVirtual && virtualSteps > 0 && gameWorld->stepIndex() > before)
-            {
-                virtualSteps -= int(std::min<uint64_t>(gameWorld->stepIndex() - before, uint64_t(virtualSteps)));
-                if (virtualSteps == 0)
-                {
-                    hasVirtual   = false;
-                    virtualInput = VirtualInput();
-                }
-            }
             frameProfiler.setCounter(counterSteps, double(gameWorld->stepIndex() - before));
             frameProfiler.setCounter(counterDropped, double(gameWorld->droppedSteps() - droppedBefore));
             droppedBefore = gameWorld->droppedSteps();
@@ -392,6 +402,18 @@ void EngineApp::applyPlayerInput()
                     if (img.width > 0 && img.save("screenshot.png")) SAIGA_LOG("app", "saved screenshot.png");
                 });
         previousKeys = state.keys;
+    }
+    // set_input lasts a number of world steps, counted from when it was set: steps of advance and steps run between
+    // frames (world().step(), the step tool) alike; it is released before the next step could read it again (a load to
+    // an earlier step ends it too)
+    if (hasVirtual && virtualSteps > 0)
+    {
+        const uint64_t now = gameWorld->stepIndex();
+        if (now < virtualStartStep || now - virtualStartStep >= uint64_t(virtualSteps))
+        {
+            hasVirtual   = false;
+            virtualInput = VirtualInput();
+        }
     }
     if (hasVirtual)
     {
@@ -483,12 +505,13 @@ void EngineApp::renderFrame()
     framesRendered++;
     for (size_t i = 0; i < frameCallbacks.size();)
     {
-        // A callback may add callbacks
-        auto cb = frameCallbacks[i];
+        // Called in place, keeping its state; moved out while it runs because it may add callbacks (the vector may
+        // reallocate; new ones are appended, so index i stays its slot)
+        auto cb = std::move(frameCallbacks[i]);
         if (cb())
             frameCallbacks.erase(frameCallbacks.begin() + std::ptrdiff_t(i));
         else
-            ++i;
+            frameCallbacks[i++] = std::move(cb);
     }
 }
 

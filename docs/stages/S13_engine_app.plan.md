@@ -319,13 +319,18 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
   taken as the value of the previous one (`--data --headless`); the hint about `--headless` is printed only when the
   app could not start; a `--no-render` app gets generic MCP instructions (the game's describe renderer tools); the
   test sets environment variables portably (MSVC has no `setenv`).
+- CodeRabbit (PR #56): the benchmark's `step` and `recording` cover exactly the measured frames (taken at the frame
+  boundaries that close them, no cap); `set_input` counts every world step since it was set (also steps between
+  frames) and is released before the next step could read it; frame callbacks keep their state (called in place);
+  changing the local player releases the previous player's active input; the input map example defines `move_z`;
+  GPU durations are masked raw-tick differences (`timestampDifferenceMs`, counters with fewer than 64 valid bits).
 
 Updated: §3, §7.9 (`actions`), §8.3, §16.1, §16.2, §17.1, §17.7, §18.2, §18.4, §19, R-TEST-1, §22 (S13, the new S13b row,
 S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.
 
 ## Results
 
-- `test_engine_app` (12 tests: command line, scenario exit codes, input map, the app without a device, the app on
+- `test_engine_app` (14 tests: command line, scenario exit codes, input map, the app without a device, the app on
   lavapipe with frames, steps, screenshots, profiles and tools); the Vulkan tests and goldens are unchanged; 63 ctest
   tests.
 - `game_world` on the RTX 5080 Laptop GPU: renders like the prototype; `--benchmark flyover` (RelWithDebInfo with
