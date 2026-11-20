@@ -193,6 +193,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
+| Transport and network messages: `Transport`, `LoopbackTransport` (star, rounds, delay, seeded loss, per-link budget, fragmentation), `MessageList`, `World::send` / `sendRaw` with coalesced packets and phase-1 delivery (§13.1, §13.6) | `src/saiga/engine/net/`, `tests/test_engine_net.cpp`, `tests/test_engine_net_benchmark.cpp` | [exists] |
 | World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
 | Scenarios: `ScenarioWorld` (helpers, step observation, save/load swap), `ScenarioList`, runner with the plain, repeat and save/load variants; engine scenarios with test-only game objects (`Wanderer`) (§17.2, §17.4) | `src/saiga/engine/tools/Scenario*`, `tests/test_engine_scenarios.cpp` | [exists] |
 | Game objects (`GameObject`, `Behaviour`, `ClassList`, `spawn`, hooks), ticking by grid-cell rings (`tickSystem`), gameplay basics (`Player`, `Health`, `PlayerInput`, `CharacterIntent`, engine events, `queueAction`, player control, kinematic mover), world-state entities, `Persistent` (§7.8, §8.4, §9.2, §9.3, §9.6) | `src/saiga/engine/gameplay/`, `src/saiga/engine/components/`, `tests/test_engine_gameobject.cpp` | [exists] |
@@ -594,7 +595,7 @@ struct WorldSetup
     WorldConfig config;
     NetRole role = NetRole::Host;                 // [planned: S16] Host or Client
     uint8_t localPeer = 0;                        // [planned: S16]
-    Transport* transport = nullptr;               // [planned: S15] null: single player
+    Transport* transport = nullptr;               // S15: null: single player (not owned)
     // The game's registration lists; the engine's lists are always registered first.
     void (*components)(Registry&) = nullptr;      // S07
     void (*events)(EventRegistry&) = nullptr;     // S08
@@ -607,7 +608,7 @@ struct WorldSetup
     void (*dataTypes)(DataTypeList&) = nullptr;   // S11
     std::string dataDirectory;                    // S11 e.g. SAIGA_PROJECT_SOURCE_DIR "/data/world"
     std::shared_ptr<DataStore> sharedData;        // S11: an already loaded store (worlds of one setup, scenario runs)
-    void (*messages)(MessageList&) = nullptr;     // [planned: S15]
+    void (*messages)(MessageList&) = nullptr;     // S15
     void (*generators)(GeneratorList&) = nullptr; // [planned: S23] world plan, chunk generators, prefabs
     void (*pieceTypes)(PieceTypeList&) = nullptr; // [planned: S30]
     void (*migrations)(MigrationList&) = nullptr; // S11 §15.2
@@ -637,7 +638,9 @@ template <class T> void ClassList::add();         // uses T::id and T::name; fac
 template <class E> void EventRegistry::add(Replicate mode = Replicate::Never);
 void ScenarioList::add(const char* name, std::function<void(ScenarioWorld&)> run, bool localOnly = false);  // [S12]
 template <class T> void DataTypeList::add();      // file <dataDirectory>/<snake_case(T::name)>.json  [exists: S11]
-template <class M> void MessageList::add(Reliability r, void (*handler)(World&, uint8_t fromPeer, const M&));
+template <class M> void MessageList::add(Reliability r, void (*handler)(World&, uint8_t fromPeer, const M&));   // [S15]
+void MessageList::addRaw(MessageId id, const char* name, Reliability r, Channel channel,
+                         void (*handler)(World&, uint8_t fromPeer, const uint8_t* data, size_t size));   // [S15]
                                                   // M: struct with name, id, visit; handlers run in phase 1  [S15]
 ```
 
@@ -692,7 +695,7 @@ class World
     template <class T> const T& readGlobal() const;
     template <class T> const T& readSpaceState(SpaceId space) const;
     PersistentId makePersistent(Entity e);   // §9.6 [exists: S10]
-    void queueAction(const PlayerAction& a); // §9.3 [exists: S10; S15: a message]
+    void queueAction(const PlayerAction& a); // §9.3 [exists: S10; S16: a message]
     void setRenderSink(RenderSink* sink);    // §10.3; forwards the registered meshes and materials and creates the
                                              // render instances; null allowed; any time [planned: S19]
     MeshId registerMesh(const std::string& name, const MeshLods& lods, MaterialId material);   // [planned: S19]
@@ -704,7 +707,8 @@ class World
     void requestTransition(Entity player, Entity link);   // §12.4 [planned: S21]; called by the game (policy)
     bool requestArrival(Entity e, SpaceId space, const Vec3& position);   // §12.3; false: rejected by a game limit
                                                                           // [planned: S24]
-    template <class M> void send(uint8_t peer, const M& message);   // §13.6 [planned: S15]
+    template <class M> void send(uint8_t peer, const M& message);   // §13.6 [exists: S15]; also sendRaw, flushOutbox,
+                                             // connectedPeers / peersJoined / peersLeft, netStats
     void setOwner(Entity root, uint8_t peer);   // host; before the entity is replicated (player characters at join);
                                                 // no runtime ownership transfer (§13.3) [planned: S16]
     void ownerTeleport(Entity e, const Vec3& p, const Quat& r);    // host; direct or OwnerCommand [S16]
@@ -783,7 +787,7 @@ generic change detection (only the `Transform` flags), access declarations per s
 
 | Phase | Work | Runs on |
 |---|---|---|
-| 1 Input | local input and received messages (client actions, owner commands, §13.3) in (peer, sequence) order -> components | all peers (each for what it owns) |
+| 1 Input | local input and received messages (client actions, owner commands, §13.3) in (peer, sequence) order within a receive round (across rounds only per channel and reliability) -> components; each handler's commands are applied before the next handler | all peers (each for what it owns) |
 | 2 Events | `behaviourEventSystem` delivers the previous step's `DamageEvent`, `InteractEvent`, `ContactEvent` to `GameObject` handlers | host |
 | 3 Behaviour | `behaviourSystem`: `GameObject::update` for objects whose tick is due (§8.4) | host |
 | 4 Gameplay | engine and game systems in registration order (player control; the kinematic mover until S29) | per system (`RunOn`) |
@@ -1936,7 +1940,38 @@ A client never calls `onSpawn`, `onLoad`, `onCatchUp`, `onDestroy`, `update` or 
 `configure()` and `onReplicatedSpawn()` when an entity arrives and `onReplicatedDestroy()` when it is destroyed (not on
 `Despawn`).
 
-### 13.6 Transport [planned: S15 loopback; S33 network]
+### 13.6 Transport [exists: S15 loopback, messages; planned: S33 network]
+
+S15 implementation (`engine/net/`; `docs/stages/S15_transport_messages.plan.md`):
+
+- `Transport` (`Transport.h`): `localPeer`, `send(peer, channel, packet, reliability)`, `poll`, `TransportStats`
+  (cumulative bytes and packets per channel, fragments, drops by loss, budget and missing peer, rejected input). An
+  unreliable packet is at most `kMaxPacket` (1200) bytes, a reliable one at most 64 MB (both stop the program); a send to
+  a peer that is not connected is dropped and counted.
+- `LoopbackTransport::createNetwork(n, LoopbackOptions{dropRate, delayRounds, seed, bytesPerRound})` (and §13.1's
+  `createPair`): a star (clients link to peer 0 only), single-threaded. A receiver's round starts with its first poll
+  after the previous round ended; a packet sent before round r starts is visible from round r + delay. Loss is drawn at
+  send time per link from its own seeded stream. The budget is a token bucket per link (capped at max(budget, 1200), so
+  every packet passes eventually): unreliable packets first (one that does not fit is dropped), then reliable data
+  round-robin between the channels, fragment by fragment; reliable data does not spend in a round in which an
+  unreliable packet was dropped for budget, except every 4th round, when it goes first (a quarter of a saturated link).
+  Reliable packets over 1200 bytes are fragmented (`Fragmenter`: 12-byte header); the reassembler treats fragments as
+  untrusted (index, count, duplicates, limits) and a bad one disconnects the link. Destroying an end delivers its
+  earlier packets, then `Disconnected`.
+- Messages: `MessageList` (engine IDs 0..63, game IDs from 64; typed visit structs or raw payloads; registration errors
+  are fatal), `World::send` / `sendRaw` encode into an outbox with per-receiver sequence numbers in send order; the
+  outbox is flushed after phase 8, and at once between steps outside a batching scope (world API calls, step listener
+  dispatch, a load's listeners flush once at their end). Messages are coalesced per (peer, channel, reliability) into
+  packets `[base sequence][count]` + per message `[sequence delta][id u16][length][payload]` (varints, `Varint.h`;
+  `kMaxMessagePayload` = 1174 bytes for an unreliable payload at any sequence). Phase 1 polls the transport, updates
+  `connectedPeers` / `peersJoined` / `peersLeft` (replaced at the next receive after a completed step) and runs the
+  handlers in (peer, sequence) order, flushing each handler's commands. Malformed packets, unknown IDs and payloads
+  that do not decode are dropped and counted (`NetStats::rejected`, at most 8 log lines per peer and step). An aborted
+  step: the throwing message and the ones before it are consumed, the rest is handled first in the next step; the
+  outbox drops the interrupted phase's entries; handler events are lost with the step's events. A load discards the
+  outbox before its listeners; sends from `configure` / `onLoad` of a load are dropped. Profiler counters
+  `net/sent_bytes`, `net/received_bytes`, `net/messages_in`, `net/messages_out`, `net/rejected`; `world_status.net`,
+  `describe_world.messages`.
 
 Internet sessions need NAT traversal: candidates in S33 are Steam Networking Sockets (relay, NAT traversal) and ENet
 (LAN, tests), both behind the `Transport` interface (§13.1). `using MessageId = uint16_t;` with an `EngineMessage` enum
@@ -2198,7 +2233,7 @@ void registerEngineScenarios(ScenarioList& s)
   `spawnPlayer(position, peer = 0)` (entity with `Transform`, `Player{peer, characterId 1, 2, ...}`, `PlayerInput`,
   `CharacterIntent`; in the host + client variant owned by the client) and `spawnPlayer<T>(position, peer, initial...)`
   (a game object player without `CharacterIntent`), `move(player, direction)` (sets `PlayerInput.move`, length <= 1),
-  `input(player, action, aim)` (queues a `PlayerAction`; a message from S15; both from the owning peer; `spawnPlayer`
+  `input(player, action, aim)` (queues a `PlayerAction`; a message from S16; both from the owning peer; `spawnPlayer`
   steps both worlds until the client has the entity, helpers translate host `Entity` to the client's through `NetId`),
   `damage(target, amount, source)` (a `DamageEvent`), `check(cond, msg)` (collects failures with the step; works under
   gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`, `api()` and `call(op, args)` (the
@@ -2662,7 +2697,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S13 | Engine app (done) | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, `--benchmark` on the command line (the runner stays in `vulkan/world/WorldBenchmark`), sample on `EngineApp` (§8.3, §17.7) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner |
 | S13b | Tech demos on the engine (done) | Flight, platformer and racing ported to `EngineApp` and to game objects, components and systems in a `World`, `WorldSetup::context`, input maps and data files per demo, game scenarios (§18.4) | S13 | each tech demo has scenarios that pass with `--scenarios` and runs on `EngineApp` (local); the games compile in the Clang CI job |
 | S14 | Engine MCP tools (done) | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
-| S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
+| S15 | Transport and messages (done) | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
 | S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15, S13b | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |

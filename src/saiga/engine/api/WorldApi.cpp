@@ -557,6 +557,13 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
     if (op->edit && w->dispatchingListeners() && operation != "apply")
         return ApiResult::failure(operation + ": not inside a step listener");
     ApiResult result;
+    // The operation's sends go out together when it ends (S15)
+    struct SendBatch
+    {
+        World* world;
+        explicit SendBatch(World* w) : world(w) { world->beginSendBatch(); }
+        ~SendBatch() { world->endSendBatch(); }
+    } batch(w);
     try
     {
         result = run(operation, args);
@@ -692,7 +699,18 @@ ApiResult WorldApi::describeWorld(const Json&)
     for (const auto& x : w->actionList().held) held.push_back(Json::object{{"name", x.name}, {"bit", x.bit}});
     Json::array ops;
     for (auto& o : operations()) ops.push_back(o);
+    // The registered network messages (S15)
+    Json::array messages;
+    static const char* channelNames[] = {"control", "state", "chunk_data"};
+    for (const MessageList::Entry& m : w->messageList().entries())
+        messages.push_back(
+            Json::object{{"id", int(m.id)},
+                         {"name", m.name},
+                         {"reliability", m.reliability == Reliability::Reliable ? "reliable" : "unreliable"},
+                         {"channel", channelNames[size_t(m.channel)]},
+                         {"raw", m.raw}});
     return ApiResult::success(Json::object{{"components", components},
+                                           {"messages", messages},
                                            {"classes", classes},
                                            {"events", events},
                                            {"entity_format", "{\"index\": i, \"generation\": g} or \"i:g\""},
@@ -710,15 +728,43 @@ ApiResult WorldApi::worldStatus(const Json&)
     const size_t objects = reg.registered(Behaviour::id) ? reg.poolById(Behaviour::id)->size() : 0;
     char hash[32];
     std::snprintf(hash, sizeof(hash), "%016llx", (unsigned long long)w->hash());
-    return ApiResult::success(Json::object{{"step", double(w->stepIndex())},
-                                           {"time", w->time()},
-                                           {"paused", w->isPaused()},
-                                           {"time_scale", w->timeScale()},
-                                           {"steps_per_second", w->worldConfig().stepsPerSecond},
-                                           {"entities", double(reg.aliveCount())},
-                                           {"game_objects", double(objects)},
-                                           {"hash", hash},
-                                           {"world_generation", double(generation)}});
+    Json::object o{{"step", double(w->stepIndex())},
+                   {"time", w->time()},
+                   {"paused", w->isPaused()},
+                   {"time_scale", w->timeScale()},
+                   {"steps_per_second", w->worldConfig().stepsPerSecond},
+                   {"entities", double(reg.aliveCount())},
+                   {"game_objects", double(objects)},
+                   {"hash", hash},
+                   {"world_generation", double(generation)}};
+    if (const Transport* t = w->transport())
+    {
+        // Cumulative: the world's message counts and the transport's packet counts (S15)
+        const World::NetStats& n = w->netStats();
+        const TransportStats ts  = t->stats();
+        Json::array connected;
+        for (uint8_t p : w->connectedPeers()) connected.push_back(int(p));
+        auto perChannel = [](const std::array<uint64_t, kChannelCount>& a)
+        { return Json::array{double(a[0]), double(a[1]), double(a[2])}; };
+        o["net"] = Json::object{{"peer", int(t->localPeer())},
+                                {"connected", connected},
+                                {"messages_in", double(n.messagesIn)},
+                                {"messages_out", double(n.messagesOut)},
+                                {"bytes_in", double(n.bytesIn)},
+                                {"bytes_out", double(n.bytesOut)},
+                                {"rejected", double(n.rejected)},
+                                {"handler_exceptions", double(n.handlerExceptions)},
+                                {"dropped_on_load", double(n.droppedOnLoad)},
+                                {"transport", Json::object{{"bytes_out", perChannel(ts.bytesOut)},
+                                                           {"bytes_in", perChannel(ts.bytesIn)},
+                                                           {"fragments_out", double(ts.fragmentsOut)},
+                                                           {"fragments_in", double(ts.fragmentsIn)},
+                                                           {"dropped_loss", double(ts.droppedLoss)},
+                                                           {"dropped_bandwidth", double(ts.droppedBandwidth)},
+                                                           {"dropped_no_peer", double(ts.droppedNoPeer)},
+                                                           {"rejected_input", double(ts.rejectedInput)}}}};
+    }
+    return ApiResult::success(o);
 }
 
 ApiResult WorldApi::listEntities(const Json& a)

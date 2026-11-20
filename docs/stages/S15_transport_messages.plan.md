@@ -1,6 +1,6 @@
 # S15: Transport and messages
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -284,3 +284,25 @@ The CI recipe of AGENTS.md (re-run the configure: the engine sources are globbed
 `src/saiga/engine/ecs/VisitBinary.h` (`fromBytes` from a range), `src/saiga/engine/world/World.{h,cpp}`,
 `src/saiga/engine/api/WorldApi.cpp`, `tests/test_engine_net.cpp`, `tests/test_engine_net_benchmark.cpp`, `tests/CMakeLists.txt`, `docs/engine_design.md`,
 `AGENTS.md`, this file.
+
+## Design changes
+
+- Bandwidth: with saturating unreliable traffic (snapshots demanding more than the budget) the rule "reliable data
+  does not spend in a round in which an unreliable packet was dropped for budget" starved the reliable streams forever;
+  every 4th round of a link the reliable streams now go first (a quarter of a saturated link). Found by the planned
+  test (a 1100-byte packet every round under 400 bytes per round and a 20 KB chunk).
+- Message structs are visit structs, so they need `version` next to `id` and `name` (the binary reader's rule).
+- `World::send` stops the program in every build for an unregistered type, a world without a transport and the own
+  peer; `parallelEach` is the existing assert.
+
+## Results
+
+- `tests/test_engine_net.cpp`: 25 tests (varints; the loopback: channel order, delay, seeded and per-link loss,
+  fragmentation at 1200 / 1201 / 4 MB, the oversized-packet death test, channel independence and the budget below a
+  packet, snapshots during a chunk transfer, the star and disconnects, hostile fragments and the injected bad fragment;
+  messages: registration errors, delivery, raw messages, coalescing and send order across channels, (peer, sequence)
+  order with three peers, a handler's structural change before the next handler, malformed input, aborted steps and
+  phases, loads and the outbox, the send death tests incl. `onLoad`, the world API's net fields, determinism with loss).
+- `tests/test_engine_net_benchmark.cpp` (non-gating): 10^4 small messages per step through a pair in 1.3 ms per step and
+  102 packets per step; a 16 MB raw reliable message at 1 MB per round in 17 steps (52 ms) (RelWithDebInfo, local).
+- Full ctest on lavapipe passes except the known local `test_opengl_window` display check.

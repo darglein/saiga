@@ -435,6 +435,18 @@ std::vector<uint8_t> toBytes(const T& value)
 // Reads a visit struct written by toBytes. Returns false on malformed input (truncated, an enum out of range, a vector
 // longer than the input, bytes left over) and sets *error if given; value may be partially written then.
 template <class T>
+bool fromBytes(T& value, const uint8_t* data, size_t size, std::string* error = nullptr)
+{
+    BinaryReader r(data, size);
+    r.read(value);
+    std::string message = r.error();
+    if (message.empty() && !r.atEnd())
+        message = std::to_string(size - r.position()) + " bytes left over after the value";
+    if (error) *error = message;
+    return message.empty();
+}
+
+template <class T>
 bool fromBytes(T& value, const std::vector<uint8_t>& bytes, std::string* error = nullptr)
 {
     BinaryReader r(bytes.data(), bytes.size());

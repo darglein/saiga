@@ -21,6 +21,8 @@
 #include "saiga/engine/gameplay/ClassList.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/gameplay/TickPolicy.h"
+#include "saiga/engine/net/MessageList.h"
+#include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
 #include "saiga/engine/world/Commands.h"
@@ -68,6 +70,10 @@ struct WorldSetup
     void (*systems)(SystemList&)   = nullptr;
     void (*classes)(ClassList&)    = nullptr;  // game object classes (S10)
     void (*actions)(ActionList&)   = nullptr;  // player actions and held buttons by name (S13)
+    // Network messages (§13.6, S15): the engine's first, then the game's (IDs from 64)
+    void (*messages)(MessageList&) = nullptr;
+    // The transport to the other peers (not owned; it outlives the world's use of it); null: single player
+    Transport* transport = nullptr;
     // Migrations of changed and removed saved types (§15.2, S11)
     void (*migrations)(MigrationList&) = nullptr;
     // Data files (§14, S11): one JSON file per registered type in dataDirectory, loaded by the constructor (an error
@@ -199,9 +205,49 @@ class SAIGA_ENGINE_API World
 
     // ---- gameplay (§7.8, §9.3, §9.6) ------------------------------------------------------------------------------
 
-    // A one-shot player action (before S15 a local queue): delivered as ActionEvent, readable in the next step, in
-    // (peer, sequence) order, exactly once. The player must be alive and have a Player component.
+    // A one-shot player action (a local queue; a message from S16): delivered as ActionEvent, readable in the next
+    // step, in (peer, sequence) order, exactly once. The player must be alive and have a Player component.
     void queueAction(const PlayerAction& action);
+
+    // ---- network messages (§13.6; S15) ---------------------------------------------------------------------------
+
+    // Cumulative counts of the world's message traffic (not reset by aborted steps)
+    struct NetStats
+    {
+        uint64_t messagesIn = 0, messagesOut = 0, bytesIn = 0, bytesOut = 0;
+        uint64_t rejected                 = 0;  // malformed packets, unknown IDs, payloads that do not decode
+        uint64_t handlerExceptions        = 0;
+        uint64_t droppedOnLoad            = 0;  // outbox entries a load discarded
+        uint64_t droppedDuringObjectStart = 0;  // sends from configure / onLoad of a load
+    };
+    // A registered message to a peer: encoded at once into the outbox (flushed after phase 8, or at once between steps
+    // outside a batching scope). An unregistered type, no transport or the own peer stop the program in every build.
+    template <class M>
+    void send(uint8_t peer, const M& message)
+    {
+        const MessageList::Entry* e = messages.find(M::id);
+        if (!e || e->raw || e->name != M::name)
+            SAIGA_EXIT_ERROR(std::string("World::send: the message ") + M::name + " is not registered");
+        std::vector<uint8_t> payload;
+        std::string error;
+        if (!toBytes(message, payload, &error)) SAIGA_EXIT_ERROR(std::string("World::send ") + M::name + ": " + error);
+        enqueueMessage(peer, *e, std::move(payload));
+    }
+    // A raw message (MessageList::addRaw): the size is checked before the buffer is read
+    void sendRaw(uint8_t peer, MessageId id, const uint8_t* data, size_t size);
+    // Sends the outbox now (coalesced into packets per peer, channel and reliability)
+    void flushOutbox();
+    // Sends between steps are batched while a scope is open (world API calls, step listener dispatch, loads) and
+    // flushed when the outermost closes
+    void beginSendBatch() { sendBatchDepth++; }
+    void endSendBatch();
+    Transport* transport() const { return net; }
+    const MessageList& messageList() const { return messages; }
+    // The connected peers; the peers that connected / disconnected in the last receive (kept until a step completes)
+    const std::vector<uint8_t>& connectedPeers() const { return peers; }
+    const std::vector<uint8_t>& peersJoined() const { return joined; }
+    const std::vector<uint8_t>& peersLeft() const { return left; }
+    const NetStats& netStats() const { return netCounts; }
     // Before S16 the world is the host and the only peer
     uint8_t localPeer() const { return 0; }
     bool isHost() const { return true; }
@@ -518,6 +564,44 @@ class SAIGA_ENGINE_API World
 
     // Structural changes are deferred during a step, except while commands are applied
     bool deferring() const { return phase != Phase::None && !flushing; }
+
+    // ---- network (S15)
+    struct OutboxEntry
+    {
+        uint8_t peer;
+        Channel channel;
+        Reliability reliability;
+        Phase phase;  // the phase that sent it (an aborted phase's entries are dropped)
+        uint64_t sequence;
+        MessageId id;
+        std::vector<uint8_t> payload;
+    };
+    struct ReceivedMessage
+    {
+        uint8_t peer;
+        uint64_t sequence;
+        MessageId id;
+        std::vector<uint8_t> payload;
+    };
+    void enqueueMessage(uint8_t peer, const MessageList::Entry& entry, std::vector<uint8_t> payload);
+    // Phase 1: polls the transport and runs the handlers in (peer, sequence) order
+    void receiveMessages();
+    bool decodePacket(uint8_t peer, const std::vector<uint8_t>& packet, std::vector<ReceivedMessage>& out);
+    void rejectInput(uint8_t peer, const std::string& why);
+    // A load: discards the outbox (encoded from the replaced state)
+    void discardOutboxAfterLoad();
+    MessageList messages;
+    Transport* net = nullptr;
+    std::vector<OutboxEntry> outbox;
+    std::vector<ReceivedMessage> inbox;  // the batch of a receive; a leftover of an aborted step is handled first
+    std::array<uint64_t, 256> sendSequence{};
+    std::vector<uint8_t> peers, joined, left;
+    bool peerListsCommitted = true;  // the last receive's step completed (the lists are replaced at the next receive)
+    std::array<int, 256> rejectLogs{};
+    int sendBatchDepth = 0;
+    NetStats netCounts;
+    int counterSentBytes = -1, counterReceivedBytes = -1, counterMessagesIn = -1, counterMessagesOut = -1,
+        counterRejected = -1;
     void record(std::unique_ptr<Command> c);
     void flushCommands();
     void runStep();

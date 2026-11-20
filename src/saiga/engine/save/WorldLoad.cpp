@@ -804,6 +804,8 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     for (const std::string& e : droppedEvents)
         SAIGA_LOG("save", "load: dropped the pending events of the unregistered type %s", e.c_str());
     startObjects(result);
+    // Messages encoded from the replaced state are not sent (S15); the listeners' sends go out (a Resync, S16)
+    w.discardOutboxAfterLoad();
 
     result.hash = w.hash();
     LoadInfo info;
@@ -812,6 +814,13 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     info.logEnd    = w.log.appendedTotal();
     info.fromStep  = fromStep;
     info.toStep    = w.steps;
+    // The listeners' sends go out together when they ran
+    struct SendBatch
+    {
+        World& w;
+        explicit SendBatch(World& world) : w(world) { w.beginSendBatch(); }
+        ~SendBatch() { w.endSendBatch(); }
+    } batch(w);
     // A copy: a listener may add or remove listeners
     auto listeners = w.loadListeners;
     for (auto& l : listeners)

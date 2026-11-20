@@ -13,8 +13,10 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/core/Hash.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/net/Varint.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
 
@@ -63,6 +65,11 @@ World::World(const WorldSetup& setup)
     classes.validateRegistration();
     if (setup.migrations) setup.migrations(migrationList);
     if (setup.actions) setup.actions(actionNames);
+    // Network messages: the engine's, then the game's (R-REG-1; errors are fatal in every build)
+    registerEngineMessages(messages);
+    messages.beginGameMessages();
+    if (setup.messages) setup.messages(messages);
+    net = setup.transport;
 
     // Data files: an error stops the program in every build (R-DATA-1: a game must not run on half-read data)
     dataReadOnly = setup.sharedDataReadOnly;
@@ -100,6 +107,14 @@ void World::setupProfiler()
     commandsCounter = prof.counter("commands_applied");
     recordsCounter  = prof.counter("structural_records");
     gridCounter     = prof.counter("grid_items");
+    if (net)
+    {
+        counterSentBytes     = prof.counter("net/sent_bytes");
+        counterReceivedBytes = prof.counter("net/received_bytes");
+        counterMessagesIn    = prof.counter("net/messages_in");
+        counterMessagesOut   = prof.counter("net/messages_out");
+        counterRejected      = prof.counter("net/rejected");
+    }
 }
 
 void World::createStateEntities()
@@ -180,6 +195,8 @@ void World::runStepListeners()
     current.swap(stepListeners);
     removedStepListeners.clear();
     dispatchingStepListeners = true;
+    // Their sends between steps go out together when the dispatch ends (also when a listener threw)
+    beginSendBatch();
     std::exception_ptr first;
     for (auto& l : current)
     {
@@ -196,6 +213,7 @@ void World::runStepListeners()
     }
     removedStepListeners.clear();
     dispatchingStepListeners = false;
+    endSendBatch();
     if (first) std::rethrow_exception(first);
 }
 
@@ -613,6 +631,12 @@ bool World::acceptParent(Entity child, Entity parent)
 
 void World::abortStep()
 {
+    // The outbox entries of the interrupted phase are dropped like its commands (in place: no allocation); those of the
+    // finished phases stay and are sent with the next flush
+    const Phase aborted = phase;
+    outbox.erase(
+        std::remove_if(outbox.begin(), outbox.end(), [aborted](const OutboxEntry& e) { return e.phase == aborted; }),
+        outbox.end());
     // The world leaves the step first (whatever happens below, the next step can run)
     phase              = Phase::None;
     flushing           = false;
@@ -683,6 +707,8 @@ void World::runStep()
             Profiler::Timer phaseTimer(prof, phaseScopes[size_t(p)]);
             // Teleports made in phase 7 reach the children before extract reads them (§7.4)
             if (phase == Phase::Extract) propagateTeleportsBeforeExtract(*this);
+            // Received messages before the phase's systems (§8.1 phase 1)
+            if (phase == Phase::Input && net) receiveMessages();
             const auto& list = systems.systems(phase);
             for (size_t i = 0; i < list.size(); ++i)
             {
@@ -697,6 +723,8 @@ void World::runStep()
         }
         // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
         collectLateChildTeleports(*this);
+        // The step's messages go out after phase 8
+        flushOutbox();
     }
     catch (...)
     {
@@ -706,8 +734,9 @@ void World::runStep()
         prof.discardSample();
         throw;
     }
-    phase           = Phase::None;
-    stepEventsBegun = false;
+    phase              = Phase::None;
+    stepEventsBegun    = false;
+    peerListsCommitted = true;
     stepChanged.clear();
     reg.shiftTransformFlags(trackStepChanges > 0 ? &stepChanged : nullptr);
     // The records of this step (consumers that read after the step, e.g. the world API, keep older ones a step longer)
@@ -810,6 +839,253 @@ uint64_t World::hash() const
     h.addU64(persistentCounter);
     h.addU64(steps);
     return h.value();
+}
+
+// ---- network messages (S15)
+// -----------------------------------------------------------------------------------------------------------
+
+void World::enqueueMessage(uint8_t peer, const MessageList::Entry& entry, std::vector<uint8_t> payload)
+{
+    checkNotParallel("send");
+    if (!net) SAIGA_EXIT_ERROR("World::send " + entry.name + ": the world has no transport");
+    if (peer == net->localPeer()) SAIGA_EXIT_ERROR("World::send " + entry.name + ": to the own peer");
+    if (entry.reliability == Reliability::Unreliable && payload.size() > kMaxMessagePayload)
+        SAIGA_EXIT_ERROR("World::send: the unreliable message " + entry.name + " has " +
+                         std::to_string(payload.size()) + " bytes (at most " + std::to_string(kMaxMessagePayload) +
+                         ")");
+    if (payload.size() > kMaxReliablePayload)
+        SAIGA_EXIT_ERROR("World::send: the message " + entry.name + " has " + std::to_string(payload.size()) +
+                         " bytes (at most " + std::to_string(kMaxReliablePayload) + ")");
+    if (loadHookPhase != 0)
+    {
+        // configure / onLoad rebuild local state from the save; telling the peers is the load listeners' job
+        netCounts.droppedDuringObjectStart++;
+        SAIGA_LOG("net", "send of %s during a load's object start dropped", entry.name.c_str());
+        SAIGA_ASSERT(false, "World::send during configure / onLoad of a load (dropped)");
+        return;
+    }
+    outbox.push_back(
+        OutboxEntry{peer, entry.channel, entry.reliability, phase, sendSequence[peer]++, entry.id, std::move(payload)});
+    if (!inStep() && sendBatchDepth == 0) flushOutbox();
+}
+
+void World::sendRaw(uint8_t peer, MessageId id, const uint8_t* data, size_t size)
+{
+    const MessageList::Entry* e = messages.find(id);
+    if (!e || !e->raw) SAIGA_EXIT_ERROR("World::sendRaw: the message " + std::to_string(id) + " is not a raw message");
+    // The size before the buffer is read
+    if (e->reliability == Reliability::Unreliable ? size > kMaxMessagePayload : size > kMaxReliablePayload)
+        SAIGA_EXIT_ERROR("World::sendRaw: the message " + e->name + " has " + std::to_string(size) + " bytes");
+    enqueueMessage(peer, *e, std::vector<uint8_t>(data, data + size));
+}
+
+void World::endSendBatch()
+{
+    SAIGA_ASSERT(sendBatchDepth > 0, "endSendBatch without beginSendBatch");
+    if (--sendBatchDepth == 0 && !inStep()) flushOutbox();
+}
+
+void World::flushOutbox()
+{
+    if (outbox.empty() || !net) return;
+    // Groups per (peer, channel, reliability) in first-seen order; send order inside a group
+    struct Group
+    {
+        uint8_t peer;
+        Channel channel;
+        Reliability reliability;
+        std::vector<size_t> entries;
+    };
+    std::vector<Group> groups;
+    for (size_t i = 0; i < outbox.size(); ++i)
+    {
+        const OutboxEntry& e = outbox[i];
+        Group* g             = nullptr;
+        for (Group& x : groups)
+            if (x.peer == e.peer && x.channel == e.channel && x.reliability == e.reliability) g = &x;
+        if (!g)
+        {
+            groups.push_back(Group{e.peer, e.channel, e.reliability, {}});
+            g = &groups.back();
+        }
+        g->entries.push_back(i);
+    }
+    uint64_t bytes = 0;
+    for (const Group& g : groups)
+    {
+        size_t k = 0;
+        while (k < g.entries.size())
+        {
+            // [base sequence][count] then per message [sequence delta][id u16][length][payload]
+            std::vector<uint8_t> body;
+            const uint64_t base = outbox[g.entries[k]].sequence;
+            uint64_t previous   = base;
+            size_t count        = 0;
+            while (k < g.entries.size())
+            {
+                const OutboxEntry& e = outbox[g.entries[k]];
+                const size_t size =
+                    varintSize(e.sequence - previous) + 2 + varintSize(e.payload.size()) + e.payload.size();
+                // A packet holds what fits kMaxPacket; a single larger (reliable) message is a packet of its own
+                if (count > 0 && kMaxPacketHeader + body.size() + size > kMaxPacket) break;
+                writeVarint(body, e.sequence - previous);
+                body.push_back(uint8_t(e.id & 0xFF));
+                body.push_back(uint8_t(e.id >> 8));
+                writeVarint(body, e.payload.size());
+                body.insert(body.end(), e.payload.begin(), e.payload.end());
+                previous = e.sequence;
+                count++;
+                k++;
+            }
+            std::vector<uint8_t> packet;
+            packet.reserve(body.size() + kMaxPacketHeader);
+            writeVarint(packet, base);
+            writeVarint(packet, count);
+            packet.insert(packet.end(), body.begin(), body.end());
+            bytes += packet.size();
+            net->send(g.peer, g.channel, packet, g.reliability);
+        }
+    }
+    netCounts.messagesOut += outbox.size();
+    netCounts.bytesOut += bytes;
+    if (counterMessagesOut >= 0)
+    {
+        prof.addCounter(counterMessagesOut, double(outbox.size()));
+        prof.addCounter(counterSentBytes, double(bytes));
+    }
+    outbox.clear();
+}
+
+void World::discardOutboxAfterLoad()
+{
+    netCounts.droppedOnLoad += outbox.size();
+    outbox.clear();
+}
+
+void World::rejectInput(uint8_t peer, const std::string& why)
+{
+    netCounts.rejected++;
+    if (counterRejected >= 0) prof.addCounter(counterRejected, 1);
+    // At most 8 lines per peer and step (input from outside the process must not flood the log)
+    if (rejectLogs[peer]++ < 8) SAIGA_LOG("net", "rejected input from peer %d: %s", int(peer), why.c_str());
+}
+
+bool World::decodePacket(uint8_t peer, const std::vector<uint8_t>& packet, std::vector<ReceivedMessage>& out)
+{
+    const uint8_t* d = packet.data();
+    const size_t n   = packet.size();
+    size_t pos       = 0;
+    uint64_t base, count;
+    if (!readVarint(d, n, pos, base) || !readVarint(d, n, pos, count) || count == 0 || count > (n - pos) / 4)
+    {
+        rejectInput(peer, "a malformed packet header");
+        return false;
+    }
+    const size_t first = out.size();
+    uint64_t sequence  = base;
+    for (uint64_t i = 0; i < count; ++i)
+    {
+        uint64_t delta, length;
+        // The first message has the base sequence, each later one a delta of at least 1 (send order, gaps allowed)
+        if (!readVarint(d, n, pos, delta) || (i == 0 ? delta != 0 : delta == 0 || sequence + delta < sequence) ||
+            pos + 2 > n)
+        {
+            out.resize(first);
+            rejectInput(peer, "a malformed message header");
+            return false;
+        }
+        sequence += delta;
+        const MessageId id = MessageId(d[pos] | (uint16_t(d[pos + 1]) << 8));
+        pos += 2;
+        if (!readVarint(d, n, pos, length) || length > n - pos)
+        {
+            out.resize(first);
+            rejectInput(peer, "a message length beyond the packet");
+            return false;
+        }
+        out.push_back(ReceivedMessage{peer, sequence, id, std::vector<uint8_t>(d + pos, d + pos + length)});
+        pos += size_t(length);
+    }
+    if (pos != n)
+    {
+        out.resize(first);
+        rejectInput(peer, "bytes after the last message");
+        return false;
+    }
+    return true;
+}
+
+void World::receiveMessages()
+{
+    // The peer lists of a completed step are replaced; after an aborted step they stay until a step completes
+    if (peerListsCommitted)
+    {
+        joined.clear();
+        left.clear();
+        peerListsCommitted = false;
+    }
+    rejectLogs.fill(0);
+    std::vector<ReceivedMessage> received;
+    uint64_t bytes = 0;
+    TransportEvent ev;
+    while (net->poll(ev))
+    {
+        if (ev.type == TransportEvent::Connected)
+        {
+            if (std::find(peers.begin(), peers.end(), ev.peer) == peers.end()) peers.push_back(ev.peer);
+            joined.push_back(ev.peer);
+        }
+        else if (ev.type == TransportEvent::Disconnected)
+        {
+            peers.erase(std::remove(peers.begin(), peers.end(), ev.peer), peers.end());
+            left.push_back(ev.peer);
+        }
+        else
+        {
+            bytes += ev.packet.size();
+            decodePacket(ev.peer, ev.packet, received);
+        }
+    }
+    netCounts.bytesIn += bytes;
+    if (counterReceivedBytes >= 0) prof.addCounter(counterReceivedBytes, double(bytes));
+    // Within a round the order is (peer, sequence), independent of the arrival order; a leftover of an aborted step
+    // comes first
+    std::stable_sort(received.begin(), received.end(), [](const ReceivedMessage& a, const ReceivedMessage& b)
+                     { return a.peer != b.peer ? a.peer < b.peer : a.sequence < b.sequence; });
+    for (auto& m : received) inbox.push_back(std::move(m));
+    size_t i = 0;
+    try
+    {
+        for (; i < inbox.size(); ++i)
+        {
+            const ReceivedMessage& m    = inbox[i];
+            const MessageList::Entry* e = messages.find(m.id);
+            if (!e)
+            {
+                rejectInput(m.peer, "an unknown message " + std::to_string(m.id));
+                continue;
+            }
+            std::string error;
+            netCounts.messagesIn++;
+            if (counterMessagesIn >= 0) prof.addCounter(counterMessagesIn, 1);
+            if (!e->dispatch(*this, m.peer, m.payload.data(), m.payload.size(), error))
+            {
+                rejectInput(m.peer, e->name + ": " + error);
+                continue;
+            }
+            // The handler's structural changes apply before the next handler: a message is consumed together with them
+            flushCommands();
+        }
+    }
+    catch (...)
+    {
+        // The throwing message is consumed too (a poison message must not abort every later step); its partial
+        // commands are dropped by abortStep; the rest is handled first in the next step
+        netCounts.handlerExceptions++;
+        inbox.erase(inbox.begin(), inbox.begin() + std::ptrdiff_t(i + 1));
+        throw;
+    }
+    inbox.clear();
 }
 
 }  // namespace Engine
