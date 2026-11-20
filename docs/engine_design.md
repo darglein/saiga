@@ -187,7 +187,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
 | Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step`, `recording` and (S17) `gpu_frame_ms`; S19a: its own samples fed by the game, the S03 `gpu_ms` keys from `RenderScene`'s sections; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
-| Engine app: `EngineApp` (window or headless or no device, the `RenderScene` frame (S17: its own HDR frame), MCP polling, input map, frame and GPU profiles, statistics window), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
+| Engine app: `EngineApp` (window or headless or no device, the `RenderScene` frame (S17: its own HDR frame), MCP polling, input map, frame and GPU profiles, statistics window; S19b: the World's `VulkanRenderSink`, the view camera, `beforeRender`), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
 | Golden images: `compareGolden` (lavapipe gating, `SAIGA_UPDATE_GOLDEN`), goldens `world_overview` and `world_forest`, CI upload of failed images | `tests/golden_image.h`, `data/tests/golden/`, `.github/workflows/tests.yml` | [exists] |
 | Jolt (optional FetchContent, static, `SAIGA_WITH_JOLT` default OFF, not in CI, no saiga library links it) | `cmake/Dependencies_jolt.cmake` | [exists] |
@@ -207,7 +207,8 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World API (JSON by names, `WorldApi`), MCP world tools (`registerWorldTools`), JSON visitors, profiler (§16.2, §17.1) | `src/saiga/engine/api/`, `src/saiga/engine/tools/`, `src/saiga/engine/ecs/VisitJson.h`, `src/saiga/engine/core/Profiler.*`, `tests/test_engine_world_api.cpp` | [exists] |
 | Saves: `World::save`/`tryLoad`/`load` (schema tables, migrations, removed types, validate-then-commit, game objects recreated with `configure` + `onLoad`), `diffSaves`/`World::diff`, `dumpJson`; data files (`DataTypeList`, `World::data`, `DataRef`, `reloadData`); world API snapshot and data tools (§14, §15.1, §15.2, §16.2) | `src/saiga/engine/save/`, `src/saiga/engine/data/`, `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `data/tests/engine/` | [exists] |
 | Spatial grid: 32 m cells per space updated in phase 6 (`spatialGridSystem`), `World::queryRadius` sorted by entity index (§9.5) | `src/saiga/engine/world/SpatialGrid.*`, `SpatialGridSystem.*`, `tests/test_engine_spatial_grid.cpp` | [exists] |
-| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` and `--coop` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers, render caches, the driver-entity pattern) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
+| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` and `--coop` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (procedural meshes and their `MeshLods` (`RenderAssets`), level geometry as instance sets, cosmetic dynamic instances, chase camera, input helpers, render caches, the driver-entity pattern); S19b: the vehicles render through the extract | `samples/games/` | [exists], transitional |
+| Render sink and extract (S19b): `RenderSink`, `VulkanRenderSink` (over `RenderScene`), `RecordingRenderSink` (tests, every scenario world); the `World`'s mesh and material name tables (`registerMesh`, `registerMaterial`, `registerMeshAlias`, `WorldSetup::renderAssets`, `setRenderSink`); `RenderInstance {mesh name}`; `ExtractSystem` (instances from the structural log, pose pairs from `Transform` or `RenderPose`, the catch-up between steps, `interpolatedPose`); `EngineApp::setViewCamera` (the one double camera) and `GameRenderHooks::beforeRender` (§7.10, §8.3, §10.1, §10.3) | `src/saiga/engine/sync/`, `src/saiga/engine/components/RenderInstance.h`, `src/saiga/engine/world/World.*`, `src/saiga/engine/app/`, `tests/test_engine_extract.cpp` | [exists: S19b] |
 | Co-op in one process: `--coop [delay]` (a hidden host world and the rendered client world over a loopback pair, interleaved stepping, the join policy hooks, MCP on both worlds) (§8.3, §16.2) | `src/saiga/engine/app/`, `src/saiga/engine/api/WorldApi.*`, `src/saiga/engine/gameplay/DestroyOwnedBy.*`, `tests/test_engine_app.cpp` | [exists: S16b] |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
@@ -450,7 +451,10 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
   entities with either flag set, so changes made in phases 7 and 8 (chunk reloads, replication) are not missed. Physics
   compares a body's last written pose with `Transform` instead (§11). The flags are excluded from `visit`, the hash and
   saves; `load()` sets `changedThisStep` and `teleported` on every transform and rebuilds the depth list and the spatial
-  grid (derived data, no hash change).
+  grid (derived data, no hash change). **Between steps** the flags are not a change signal (S19b): a setter's flag
+  stays set until the next step ends and `RenderPose`'s flags stay set after each step, so the extract's catch-up
+  compares the poses bitwise with its baseline instead and handles a pending `wasTeleported()` once (§10.3); the extract
+  reads the entities changed in phases 7-8 of a step from `changedDuringLastStep()` (`retainStepChanges`).
 - `World::moveToSpace(e, space, position, rotation)` moves an entity and its descendants to another space (a teleport:
   the body moves to the other space's physics system, grid and interest are re-evaluated).
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
@@ -514,7 +518,11 @@ Health& w = world.get<Health>(e);          // write access
   are appended too). The consumers `sync/`, `physics/` and `net/` each keep a read cursor and consume at fixed points
   (physics at the start of phase 5, extract and replication in phase 8) to create and free render instances, bodies
   and network IDs; records appended after a consumer ran are consumed in its next run. At the end of `World::step` the
-  log is truncated up to the smallest cursor. Not an observer API; S08 tests it with a recording consumer.
+  log is truncated up to the smallest cursor. Not an observer API; S08 tests it with a recording consumer. S19b: the
+  extract's consumer exists while a render sink is set (added and removed by `setRenderSink`); it reads the
+  `RenderInstance` records (instances), the **name record** (a remove + add pair of `RenderInstance` that
+  `World::renderMeshWritten` appends when an existing name changes; replication presence and `changes_since` report it
+  as such) and the `RenderPose`, `Parent` and `NetOwner` records (the pose source, §10.3).
 - `load()` appends one add record per loaded component to the structural log; `sync/`, `physics/` and `net/` create
   render instances, bodies (from `Collider`, `RigidBody` and the saved velocities, §11) and network IDs from it.
   The replacement world of `ScenarioWorld` gets its `RecordingRenderSink` like any world (`setRenderSink`, at any time).
@@ -637,8 +645,9 @@ struct WorldSetup
     void (*generators)(GeneratorList&) = nullptr; // [planned: S23] world plan, chunk generators, prefabs
     void (*pieceTypes)(PieceTypeList&) = nullptr; // [planned: S30]
     void (*migrations)(MigrationList&) = nullptr; // S11 §15.2
-    void (*renderAssets)(World&) = nullptr;       // [planned: S19] registers meshes and materials by name into the
-                                                  // World (world.registerMesh/registerMaterial); reads data files
+    void (*renderAssets)(World&) = nullptr;       // [exists: S19b] registers meshes and materials by name into the
+                                                  // World (world.registerMesh/registerMaterial) at the end of its
+                                                  // construction; reads data files; MeshLods built once per process
     void (*collisionAssets)(CollisionAssetList&) = nullptr;     // [planned: S28] named collision meshes and shapes
     // S13b: constant configuration that is not a data file (a level, a track, a height field), built once per process
     // before the worlds and shared by every world of the setup (scenario runs too); read in configure() and systems
@@ -672,7 +681,10 @@ void MessageList::addRaw(MessageId id, const char* name, Reliability r, Channel 
 Meshes and materials are registered by name into the `World` in `WorldSetup::renderAssets` (called once at world
 creation): the `World` owns the mesh, material and piece type name tables, assigns the IDs and forwards every
 registration to the render sink whenever one is set (also when it is set later), so headless worlds have the same name
-tables and saving does not depend on a sink; saves store mesh and piece type names (§15.2). Collision geometry does not
+tables and saving does not depend on a sink; saves store mesh and piece type names (§15.2). [exists: S19b for meshes and
+materials: the data is kept by `shared_ptr<const MeshLods>` (no duplicate for a sink set later), the IDs start at
+`kGameReservedIds` (§10.1), a name is registered once (a second registration stops the program in every build).]
+Collision geometry does not
 come from the sink: named collision meshes and shapes (integer or fixed-point vertices) are registered in
 `WorldSetup::collisionAssets` (`CollisionAssetList::add(const char* name, const CollisionMeshData&)`, S28), independent
 of rendering, so headless hosts have the same shapes; `Collider::mesh` names them.
@@ -724,11 +736,14 @@ class World
     PersistentId makePersistent(Entity e);   // §9.6 [exists: S10]
     void queueAction(const PlayerAction& a); // §9.3 [exists: S10]; on a client a PlayerAction message for an
                                              // owned player (S16)
-    void setRenderSink(RenderSink* sink);    // §10.3; forwards the registered meshes and materials and creates the
-                                             // render instances; null allowed; any time [planned: S19]
-    MeshId registerMesh(const std::string& name, const MeshLods& lods, MaterialId material);   // [planned: S19]
-    MaterialId registerMaterial(const std::string& name, const MaterialData& data);           // [planned: S19]
-    MeshId findMesh(const std::string& name) const;                    // name tables owned by the World [S19]
+    void setRenderSink(RenderSink* sink);    // §10.1, §10.3; forwards the registered meshes and materials and creates
+                                             // the render instances; null allowed; any time between steps [S19b]
+    MeshId registerMesh(const std::string& name, std::shared_ptr<const MeshLods> lods, MaterialId material);
+    MaterialId registerMaterial(const std::string& name, const MaterialData& data);   // [S19b] IDs from 256 upward
+    MeshId findMesh(const std::string& name) const;   // name tables owned by the World (aliases resolved) [S19b]
+    void registerMeshAlias(const std::string& oldName, const std::string& name);       // a renamed mesh [S19b]
+    void setRenderMesh(Entity e, const std::string& name);   // RenderInstance's name (a command during a step) [S19b]
+    ExtractSystem& extract();                // catchUp, interpolatedPose (§10.3) [S19b]
     PhysicsWorld& physics();                 // §11 [planned: S28]
     Animation& anim();                       // §10.6 [planned: S34]
     Navigation& nav();                       // §9.7 [planned: S45]
@@ -879,7 +894,9 @@ statistics" window, F12 saves `screenshot.png`.
 S14 (`docs/stages/S14_engine_mcp_tools.plan.md`): the camera hold (`EngineApp::cameraHeldByTool`, `holdCamera`,
 `releaseCamera`): `set_camera` / `move_camera` take the app camera from the game; a game that drives the camera (the
 tech demos' chase cameras) skips its update while held, renders from `camera()` and resets its own camera on the
-release edge (`HeldCamera` in `samples/games/common/GameEngine.h`); relative input moves follow a held camera.
+release edge (`HeldCamera` in `samples/games/common/GameEngine.h`; S19b: the app ignores the game's `setViewCamera`
+while held and calls `EngineAppSetup::onCameraReleased`, `HeldCamera` is gone); relative input moves follow a held
+camera.
 `restartFrameClock()` after a blocking tool call (`run_scenario`), so the next frame's dt is not the blocked time. The
 app's load listener neutralizes the local player's `PlayerInput` (`move`, `heldButtons`) after every load (device
 input is transient). `run_scenario` does not replace the live world (the sketch below): it runs the scenario in its own
@@ -937,33 +954,44 @@ is no `config.ini`.
   4. apply look input to the camera immediately (no step latency; the prototype camera before S35, the rig of §10.6
      after);
   5. `world.advance(frameDt)`;
-  6. render: before S19b: `RenderScene::renderFrame` calls the `GameRenderHooks` (S19a: `RenderScene` draws the
-     prototype world itself; the game's `transfer` hook sets the camera (`setCamera`, used by the frame being recorded)
-     and the time (`setTime`), the demos' meshes draw in the `render` hook); from S19b the extract results and the
-     interpolated camera go to the `RenderScene`, which records and submits the frame (ImGui and game UI included) and
-     presents. Skipped when rendering is disabled or no frame can be presented; frame
-     callbacks registered with `onFrameRendered` run after each rendered frame (screenshots, measurements).
+  6. render [exists: S19b]: the extract's catch-up (`ExtractSystem::catchUp`, §10.3), the game's
+     `GameRenderHooks::beforeRender(app, alpha)` (the camera from `interpolatedPose` with `setViewCamera`, cosmetic
+     instances, the prototype's settings and time), then the sink's `setInterpolation(world.alpha())` and `setCamera`
+     with the view camera, then `RenderScene::renderFrame`, which records and submits the frame (ImGui and game UI
+     included) and presents (no game callbacks in the recording; before S19b the game's `transfer` hook set the camera
+     and the demos' meshes drew in the `render` hook). Skipped when rendering is disabled or no frame can be presented
+     (`beforeRender` is not called with `--no-render`); frame callbacks registered with `onFrameRendered` run after each
+     rendered frame (screenshots, measurements).
 - **The host never stalls the session on rendering**: when no frame can be presented (minimized window, swap chain
   unavailable, loading screen, shader compilation), the loop keeps calling `mcp.poll()` and `world.advance()` at least
   at the step rate; rendering work during a transition is budgeted per frame. The dropped-backlog count is a host
   statistic visible to clients. Test: a headless `EngineApp` with rendering disabled still advances.
 
+S19b (`docs/stages/S19b_extract_render_sink.plan.md`): **the view camera** is one double camera, `EngineApp::setViewCamera
+(SpaceId, Vec3 position, Quat rotation, double fovy, bool snap = false) -> bool` (`ViewCamera`, `viewCamera()`): the
+camera of the next rendered frame, used as is (games set it every frame in `beforeRender`; `snap` is for later
+consumers such as the S35 rig). While a tool holds the camera the app ignores the game's calls and returns false (the
+games need no branch); `releaseCamera` calls `EngineAppSetup::onCameraReleased` on the release edge (the chase cameras'
+`reset()`). `set_camera` / `move_camera` write it through `setViewCameraByTool(..., hold = true)` (the ±1e6 m range
+stays; positions are kept in double); `game_set_camera`, `game_set_settings`' `fovy` and `game_world`'s walk mode are
+tool writes without a hold (`WorldMcpContext::getCamera` / `setCamera`, set by `game_world`). The free camera (no local
+player) turns with the GLFW camera's mouse look and integrates its motion in double. `app.camera()` is `const
+PerspectiveCamera&` derived from it (the input map's heading, old GUI code). The app owns the World's
+`VulkanRenderSink` (set before `init`; with `--coop` the client world's only) and removes it before the scene goes.
+
 ```cpp
-struct GameRenderHooks                                        // until S19b (S19a: the prototype draws in RenderScene)
+struct GameRenderHooks                                        // [exists: S19b]
 {
-    std::function<void(EngineApp&)> init;                     // after the device exists (create game GPU state; S19a:
-                                                              // setPrototypeTerrain and the tree sets)
+    std::function<void(EngineApp&)> init;                     // after the device and the sink exist (game GPU state:
+                                                              // setPrototypeTerrain, the tree sets, level geometry)
     std::function<void(EngineApp&)> shutdown;                 // after the device is idle (destroy it)
-    std::function<void(vk::CommandBuffer)> transfer, render;  // called by the frame recording (removed in S19b)
+    std::function<void(EngineApp&, double alpha)> beforeRender;   // after the catch-up, before recording; not with
+                                                              // --no-render (S19b; transfer, render, passNames and
+                                                              // passTimes are removed)
     std::function<void()> gui;
-    std::vector<std::string> passNames;                       // [exists as implemented in S13: passNames / passTimes]
-    std::function<bool(uint64_t frame, std::vector<std::pair<std::string, double>>&)> passTimes;
-                                                              // the game's own GPU passes below gpu/scene/game; unused
-                                                              // since S19a (game_world's passes are RenderScene's
-                                                              // sections), removed in S19b
-    std::function<double(double x, double z)> groundHeight;   // benchmark paths; the only hook kept in S19b, removed
-                                                              // in S20 (world.terrainHeight)
 };
+// groundHeight (benchmark paths) was planned here until S20; the benchmark reads the height field itself, the hook
+// never existed
 struct EngineAppSetup
 {
     WorldSetup world;
@@ -973,7 +1001,8 @@ struct EngineAppSetup
     RenderSceneParameters render;                             // MSAA samples (S13), tone map, exposure (S17); quality (S37)
     void (*scenarios)(ScenarioList&) = nullptr;               // for run_scenario
     void (*gameTools)(McpServer&, EngineApp&) = nullptr;      // game_* tools
-    GameRenderHooks renderHooks;                              // transitional (S13 until S19; groundHeight until S20)
+    GameRenderHooks renderHooks;                              // S19b: init, shutdown, beforeRender, gui
+    std::function<void(EngineApp&)> onCameraReleased;         // S19b: the tool's camera hold ended
     int mcpPort = 8765;                                       // 0: no MCP
 };
 class EngineApp   // engine/app/EngineApp.h
@@ -1295,8 +1324,9 @@ const FrameTimes& lastGpuFrameTimes() const;   // S19a: the newest frame takeGpu
 `linear(clearColor) * preExposure()`; post scales by `exposure / preExposure`, so an exposure change shows in the next
 frame without a flash. Otherwise (Identity) the scene shaders write display values clamped to [0, 1] (their own sRGB
 encoding, as the clay prototype). The prototype (`finalColor` in `shading.glsl`, `WorldUniforms::shading.w`) and the
-demos (`mesh.frag`) take it through `WorldRenderer::setOutputLinear(bool, float)` / `MeshRenderer::setOutputLinear`
-(S19a: the prototype's shaders read it from `RenderScene`'s frame, `setOutputLinear` of `WorldRenderer` is gone).
+demos (`mesh.frag`) took it through `WorldRenderer::setOutputLinear(bool, float)` / `MeshRenderer::setOutputLinear`
+(S19a: the prototype's shaders read it from `RenderScene`'s frame, `setOutputLinear` of `WorldRenderer` is gone; S19b:
+the demos' meshes are instances, `MeshRenderer` and `mesh.frag` are gone).
 
 The scene content [exists: S18] (types in `RenderSceneTypes.h`; explicit IDs, asserted free and with unique names: the
 `World`'s name tables assign them in S19's `RenderSink`, S30's generated meshes take IDs from the top of the range;
@@ -1460,33 +1490,56 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   prototype's sun, hemisphere ambient, height fog and wind (until S36); the flat classes have a fog variant
   (`SCENE_FOG`), chosen per frame (the camera-relative position as a varying costs ~7 % of the flat draws).
   `freezeTime` and `freezeCulling` are removed (`setTime` covers goldens and benchmarks).
-- Engine side: `RenderInstance {MeshId mesh;}` (saved by mesh name) selects what an entity renders. `RenderSink`
-  (`engine/sync/RenderSink.h`) is the engine's interface to rendering, implemented by `VulkanRenderSink`
-  (`engine/sync/VulkanRenderSink.h`, over
-  `RenderScene`) and `RecordingRenderSink` (headless tests; records calls and provides the mesh name table):
+- **Engine side** [exists: S19b]: `RenderInstance {std::string mesh;}` (`engine/components/RenderInstance.h`; a cached
+  `MeshId`, not visited) selects what an entity renders, by the name of a mesh registered in the `World` (like `DataRef`:
+  `visit` needs no World context, saves keep names, `world.hash()` hashes the name, so it does not depend on the
+  registration order). An empty name: tracked by the extract, not drawn (`interpolatedPose` of a character before
+  S34). Registered `Replicate::HostReliable` (rarely changing; names stay out of the snapshots) and saved. Every write of
+  the name goes through `World::renderMeshWritten` (`World::setRenderMesh`, the world API's `set_component` /
+  `add_component` / `spawn`, the `add` path, the client's `Spawn` / `ComponentChange` / `Resync` apply): it resolves
+  aliases (`World::registerMeshAlias(old, name)`), refuses an unknown name (the API: an error, nothing changes;
+  `setRenderMesh`: an assert; the `add` path in every build: logged (`SAIGA_LOG_E`) and stored empty, so a game's own
+  save stays loadable) and appends the name record (a remove + add pair of `RenderInstance`) when an existing name
+  changes. `get` / `tryGet` and mutable views of `RenderInstance` are refused at compile time. Loads check the names
+  before the commit (`checkRenderMeshes`, §15).
+- **Name tables** [exists: S19b]: the `World` owns the mesh and material tables (`registerMesh(name,
+  std::shared_ptr<const MeshLods>, MaterialId)`, `registerMaterial(name, MaterialData)`, `findMesh`, `findMaterial`,
+  `meshName`, `renderTableHash()`; §7.10), registered in `WorldSetup::renderAssets` at world creation (games build each
+  `MeshLods` once per process and share it by `shared_ptr`). **ID ranges**: content registered directly on
+  `RenderScene` (S19a's tree meshes and material, the demos' level geometry; `VulkanRenderSink::scene()`) takes IDs of
+  the game range `1 .. kGameReservedIds - 1` through `RenderScene::reserveIds`; the World assigns mesh and material IDs
+  from `kGameReservedIds` (256) upward in registration order; S30's generated meshes take the top. The table hash
+  (names, IDs, aliases) is what S26's handshake compares; the host + client scenario variant fails on different tables.
+- `RenderSink` (`engine/sync/RenderSink.h`) is the engine's interface to rendering, implemented by `VulkanRenderSink`
+  (`engine/sync/VulkanRenderSink.h`, over `RenderScene`; an identical (ID, name) registration again is a no-op, a
+  different one asserts) and `RecordingRenderSink` (headless tests and every scenario world: state (the registered
+  names, the live dynamic instances with their last poses, counters) and an opt-in call log, so long scenarios do not
+  grow; it never changes the World). `World::setRenderSink(sink)` (any time between steps, null allowed) forwards every
+  registration (materials first) and creates the render instances of the existing entities; a replacement or null
+  removes the old sink's instances and the extract's structural log consumer:
 
 ```cpp
-class RenderSink   // engine/sync/RenderSink.h [planned: S19]; types from saiga/vulkan/scene/RenderSceneTypes.h
+class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/vulkan/scene/RenderSceneTypes.h
 {
    public:
     virtual ~RenderSink() = default;
     // IDs are assigned by the World's name tables (§7.10); the World forwards every registration (also those made
     // before the sink was set) with its ID, the sink stores the GPU data under that ID
     virtual void registerMaterial(MaterialId id, const std::string& name, const MaterialData& data) = 0;
-    virtual void registerMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material) = 0;
-    virtual InstanceSetHandle addInstanceSet(RegionId region, const std::vector<StaticInstance>& instances,
+    virtual void registerMesh(MeshId id, const std::string& name, std::shared_ptr<const MeshLods> lods,
+                              MaterialId material) = 0;
+    virtual InstanceSetHandle addInstanceSet(const RegionId& region, const std::vector<StaticInstance>& instances,
                                              uint32_t capacity = 0) = 0;
     virtual void updateInstances(InstanceSetHandle set, uint32_t first, const std::vector<StaticInstance>& v) = 0;
     virtual void removeInstance(InstanceSetHandle set, uint32_t index) = 0;
     virtual void removeInstanceSet(InstanceSetHandle set) = 0;
-    virtual MeshId addGeneratedMesh(RegionId region, const MeshLods& lods, MaterialId material) = 0;   // [S30]
-    virtual void removeGeneratedMesh(MeshId mesh) = 0;                                                 // [S30]
     virtual InstanceHandle addDynamic(MeshId mesh) = 0;
-    virtual void setDynamic(InstanceHandle h, ChunkId chunk, const DynamicPose& prev, const DynamicPose& curr,
-                            uint32_t boneOffset) = 0;
+    virtual void setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
+                            uint32_t boneOffset = 0) = 0;
     virtual void removeDynamic(InstanceHandle h) = 0;
     virtual void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) = 0;
     virtual void setInterpolation(float alpha) = 0;
+    // [planned: S30] addGeneratedMesh(RegionId, const MeshLods&, MaterialId) -> MeshId, removeGeneratedMesh(MeshId)
     // [planned: S20]
     virtual void setTerrainTile(RegionId region, const TerrainTileData& tile) = 0;   // integer heights, level
     virtual void removeTerrainTile(RegionId region) = 0;
@@ -1538,23 +1591,64 @@ camera or instances). Buffers and shaders have a view dimension from the start (
 lod`); S18 implements one view, the shadow views (S36) add more. The buffers do not preclude Hi-Z occlusion culling
 against the previous frame's depth (open option, §21).
 
-### 10.3 Extract and interpolation [planned: S19]
+### 10.3 Extract and interpolation [exists: S19b]
 
-- The extract keeps per rendered entity the previous and current pose in double.
-- In phase 8, for entities with `RenderInstance` whose `Transform` changed in this or the previous step: prev = old
-  curr, curr = new pose (`teleported`: prev = curr), both relative to the chunk of the current pose; render instances
-  are created and freed from the structural log. Every peer uses `RenderPose` when present (clients for remote entities,
-  the host for client-owned entities; written by the interpolation buffer, §13.3/§13.4) instead of `Transform`; then the
-  selection uses the `RenderPose` changed flags set by the interpolation buffer (same this/previous-step rule), not the
-  `Transform` flags (tested in S19). The GPU upload of all changes happens once per frame.
+`ExtractSystem` (`engine/sync/ExtractSystem.{h,cpp}`, owned by the `World`, `World::extract()`; without a render sink it
+tracks nothing and costs nothing):
+
+- **Placement**: `World::runStep` calls it explicitly after S16's replication and interpolation at the end of phase 8
+  (not a `SystemList` system), in its own profiler scope `step/phase:extract/extract` (§17.1). `stepNetworkOnly` does
+  not run it (the next real step or catch-up consumes those structural records). In `--coop` only the client world has
+  a sink.
+- **Tracked entities**: every entity with `RenderInstance` (§10.1). Instances are created and freed from the
+  structural log (its own consumer, added by `setRenderSink`): spawn, destroy, add / remove of `RenderInstance` and the
+  name record (a remove + add pair of `RenderInstance`, appended by `World::renderMeshWritten` when a name changes); a
+  creation always sends the current pose as a snap (a spawn in phase 7 or 8 is not in `changedTransforms()`). An empty
+  name, or a pose that is not valid yet, is tracked without a sink instance. A load appends removes and adds and marks
+  all transforms changed, so it recreates the instances with snaps. A redelivered record (a sink that threw) is
+  tolerated (`track` of a tracked entity only syncs its instance).
+- **Source**: "has `RenderPose` → `RenderPose`, else `Transform`" on every peer (the host uses `RenderPose` for
+  client-owned roots; §13.3/§13.4); a child without `RenderPose` under an ancestor with one composes that `RenderPose`
+  with its local chain (`LocalTransform`s, as `interpolationSystem` composes a remote child), so it stays with the
+  delayed parent. A remote root (replicated and owned by another peer: on a client every replicated root it does not
+  own, on the host the client-owned roots) and its children are **pending** until the root's first `RenderPose`
+  (tracked, no instance, `interpolatedPose` false: no pop back by the interpolation delay). Adding or removing
+  `RenderPose` (or a `Parent` or owner change) switches the source with a snap. The position and rotation come from the
+  source, the space and the uniform scale (`scale.x`) from `Transform`; a non-uniform scale is logged once per entity
+  (`SAIGA_LOG_E`; the world API rejects it, tints are materials).
+- **Per step**: the entities of phase 6's `changedTransforms()` (changed in this or the previous step) and the tracked
+  entities whose source is not `Transform` (checked every step by value: S16b's driver poses and the interpolation
+  write `RenderPose` in phases 4 and 8) get the pair prev = old curr, curr = new pose (a teleport: prev = curr), sent
+  with `setDynamic` relative to the chunk of the current pose; an idle entity whose pair is already (curr, curr) is not
+  sent (the stop after two idle steps). Teleports: `Transform::wasTeleported()`, a late one (phases 7-8 of the last
+  step, after its extract) by `wasTeleportedLastStep()` unless the extract handled it in that step; `RenderPose`'s
+  `kTeleported` (of the composing ancestor for a child). Changes in phases 7-8 arrive one step late (they are not in
+  phase 6's list); their catch-up baseline is refreshed at the commit (from `changedDuringLastStep()`), so a catch-up
+  never sends them as edits. The pairs are staged and **commit with the step** (after the transform flags were
+  shifted): an aborted step does not shift them (its rerun computes the same pairs from the committed state); the
+  structural records it consumed stay consumed. The GPU upload of all changes happens once per frame (the sink).
+- **Catch-up** (`ExtractSystem::catchUp()`, called by `EngineApp` before `beforeRender`, and by tools or tests that
+  render): runs when `markDirty()` was called since the last step (every world API edit, a load), or when no step
+  completed since the last call and (the world is paused, or `timeScale() == 0`, or the structural log has unread
+  records for its consumer); it consumes the log and compares each tracked entity's source pose bitwise with its
+  baseline (the last extracted or caught-up pose; the change flags cannot be used: a setter's flag stays set until the
+  next step ends, `RenderPose` flags stay set after each step) and handles a pending `wasTeleported()` once; a
+  difference is sent as a snap. Cost: O(tracked entities) per frame while paused, nothing in frames between running
+  steps (10^4 entities: §17.7).
+- **`interpolatedPose(Entity, double alpha, WorldPose& out, bool* teleported) -> bool`** with `WorldPose {SpaceId space;
+  Vec3 position; Quat rotation; double scale;}` in world space (cameras, cosmetic instances): S18's `interpolatePose`
+  (`RenderSceneTypes.h`) in double on the current pair, the GPU's formula (equal within 1e-6 m / rad, tested); false for
+  an untracked entity (no sink, dead, spawned since the last extract or catch-up, without `RenderInstance`, pending);
+  `teleported`: the current pair is a snap (stateless, the same for every reader until the next pair). `toChunkPose
+  (WorldPose) -> ChunkPose {ChunkId chunk; DynamicPose pose;}` for cosmetic `setDynamic`.
+- The extract writes no components, holds no state a save needs (R-STATE-1) and never changes `world.hash()` (tested
+  with a recording sink).
 - S16 (`engine/net/InterpolationSystem.*`): `RenderPose {Vec3 position; Quat rotation; uint8_t flags}` (`kChanged`,
   `kChangedLastStep`, `kTeleported`, shifted every step) is written in phase 8 after the replication: on clients for
   remote entities (added by the spawn; children from their parent's `RenderPose` and `LocalTransform`), on the host for
   client-owned roots (added with their first owner state). The buffer keeps every received pose by host step and is
   sampled at the estimated host step - `interpolationDelaySteps` (linear / slerp, the last pose held when dry, a
   teleport counter change snaps and sets `kTeleported`).
-- `RenderSink` (engine interface in `engine/sync/`): the Vulkan implementation over `RenderScene` and a
-  `RecordingRenderSink` for tests. `World` may run without a sink.
 
 ### 10.4 Far content [planned: S27]
 
@@ -2200,8 +2294,8 @@ belongs to the peer. Actions name the driver; the vehicle's game object maps the
 
 - Components are registered `Replicate::Never | Host | HostReliable | OwnerAuthoritative`; events
   `Replicate::Never | Cosmetic`. `HostReliable` is for large, rarely changing components (inventories, container
-  contents): sent reliably on `Channel::State` with the spawn and whenever they change (in step order with the
-  snapshots' host step), never in snapshots.
+  contents; S19b: `RenderInstance`, whose mesh name stays out of the snapshots): sent reliably on `Channel::State` with
+  the spawn and whenever they change (in step order with the snapshots' host step), never in snapshots.
 - **Snapshot size per entity**: the unreliable snapshot state of one entity (its `Host` and `OwnerAuthoritative`
   components) is at most 1100 bytes after serialization (quantized); serialization asserts and names the entity and the
   largest component otherwise. Each packet has a header of at most 16 bytes (host step, flags) including a 1-byte
@@ -2437,7 +2531,12 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   saved values need no `Removed` entry; pending events of unregistered event types are dropped (logged); a component
   now registered `Saved::No` is dropped. Cross-component migrations (split, merge) come with the save directory (S25)
   when a game needs them. A committed golden save (`data/tests/engine/save_v1.bin`) and the committed engine schema
-  (`data/tests/engine/schema.json`) make R-SAVE-1 violations of engine types fail in CI.
+  (`data/tests/engine/schema.json`, S19b: with `RenderInstance`) make R-SAVE-1 violations of engine types fail in CI.
+- **Mesh names** (S19b): `RenderInstance` is saved by mesh name; the loader step `checkRenderMeshes` (over the staged
+  `RenderInstance` values, before the commit, validate-then-commit) resolves aliases (`World::registerMeshAlias(old,
+  name)`: a game renames a mesh; `MigrationList` is keyed by the engine component's version, which a game cannot bump)
+  and rejects an unknown name as a load error naming the entity index; the cached `MeshId`s are set there. The IDs of a
+  save's names follow the loading world's registration order (the hash does not depend on it).
 
 ### 15.3 Generator versions [planned: S23]
 
@@ -2501,8 +2600,8 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Tool | Contract | Status |
 |---|---|---|
 | `screenshot(gui?, format?, max_width?)` | the next rendered frame as jpg (default) or png, downscaled to `max_width` (default 1280, 64..8192, never upscaled), with the camera, step and frame; GUI hidden unless `gui`; an error without a device or when no frame is rendered before the deadline (answered once; the GUI flag restored) | [exists: S14] |
-| `set_camera(position?, look_at?, yaw_deg?, pitch_deg?, release?)`, `move_camera(forward?, right?, up?, yaw_deg?, pitch_deg?)` | place / move the app camera (within ±1e6 m; `look_at` wins over yaw/pitch; move along the ground plane, pitch clamped to ±89); both take the camera hold (§8.3) until `set_camera(release: true)` | [exists: S14] |
-| `game_get_state`, `game_set_camera(position?, height_above_ground?, walk_mode?)`, `game_set_settings`, `game_terrain_query` | the world prototype's game tools (`game_world`): extent, statistics, settings and the camera's ground height; position [x, y, z] or [x, z], height above the terrain, walk mode (no hold: the app camera is that game's render camera); render settings; terrain heights | [exists: S14, renamed from `get_state`, `set_camera`, `set_settings`, `terrain_query`] |
+| `set_camera(position?, look_at?, yaw_deg?, pitch_deg?, release?)`, `move_camera(forward?, right?, up?, yaw_deg?, pitch_deg?)` | place / move the app camera (within ±1e6 m; `look_at` wins over yaw/pitch; move along the ground plane, pitch clamped to ±89); both take the camera hold (§8.3) until `set_camera(release: true)`; S19b: they write the double view camera (`setViewCameraByTool`), the field of view stays the game's | [exists: S14] |
+| `game_get_state`, `game_set_camera(position?, height_above_ground?, walk_mode?)`, `game_set_settings`, `game_terrain_query` | the world prototype's game tools (`game_world`): extent, statistics, settings and the camera's ground height; position [x, y, z] or [x, z], height above the terrain, walk mode (no hold: the app camera is that game's render camera); render settings (S19b: `fovy` sets the view camera's field of view); terrain heights. S19b: `WorldMcp` (`saiga_vulkan`, no engine header) reaches the app's view camera through `WorldMcpContext::getCamera` / `setCamera` (a tool write without a hold), which `game_world` sets | [exists: S14, renamed from `get_state`, `set_camera`, `set_settings`, `terrain_query`] |
 | `describe_world`, `world_status` | the registrations (components with fields, types, replication, global/space state; classes; events; operations); step, time, paused, time scale, counts, hash | [exists: S10] |
 | `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, include?: [names], limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order, the values of the `include` components; near selects by the grid of the last step (`grid_step`) and reports that `grid_position` and the `distance` from it next to the live `position`; `next` when more exist | [exists: S10] |
 | `inspect(entity, components?)` | class, flags, parent, children, every component as JSON | [exists: S10] |
@@ -2573,7 +2672,8 @@ S13 the app keeps two more profilers that `get_profile` and `measure_performance
 frame loop: `frame`, `frame/poll`, `frame/advance`, `frame/render`; counters `fps`, `steps_per_frame`,
 `dropped_steps`) and `gpu` (one sample per completed GPU frame: `gpu`, its sections `gpu/transfer`, `gpu/scene`,
 `gpu/resolve`, `gpu/post`, `gpu/imgui` (S17; S13: `transfer`, `main`, `imgui`), the game's passes under
-`gpu/scene/game/<pass>` (drawn in the scene pass; S13/S14: `gpu/game/<pass>`)); S19 adds `extract`. Its ImGui window "Engine statistics" (F1: frame and step plots, the step profile per phase and system, the
+`gpu/scene/game/<pass>` (drawn in the scene pass; S13/S14: `gpu/game/<pass>`; removed in S19b)); S19b adds the step
+scope `step/phase:extract/extract` (the extract after the interpolation, §10.3). Its ImGui window "Engine statistics" (F1: frame and step plots, the step profile per phase and system, the
 GPU, the counters) reads them.
 
 ### 17.2 Scenario tests [exists: S12; terrain, streaming, render sink and clients with their stages]
@@ -2595,7 +2695,10 @@ void registerEngineScenarios(ScenarioList& s)
 
 - `ScenarioWorld(const WorldSetup&, const ScenarioOptions& = {})` [exists: S12]: headless, reproducible (§8.6: the
   setup's seed and worker thread count, profiling off, synchronous chunk loading from S24), flat terrain (seeded
-  terrain from S20), `RecordingRenderSink` (from S19); every object ticks every step (`World::setTickEveryStep`) unless
+  terrain from S20), its own `RecordingRenderSink` per world (S19b: the host, each client, the save/load replacement
+  (set before its load), repeat runs; the consumer is removed on teardown, so the extract runs in every scenario; the
+  host + client variant fails when the render name tables differ; `ScenarioWorld::renderSink(peer)`); every object
+  ticks every step (`World::setTickEveryStep`) unless
   `w.enableDistanceTicking()`; helpers `step(n)`, `stepSeconds`, `stepUntil(pred, maxSteps)`, `spawn<T>`,
   `spawnPlayer(position, std::optional<uint8_t> peer)` (entity with `Transform`, `Player{peer, characterId 1, 2, ...}`,
   `PlayerInput`, `CharacterIntent`; `Player.peer` is `peer.value_or(0)` in the single-world variants and
@@ -2784,7 +2887,7 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   median and above 50 ms, e.g. a minimized window or a swap chain recreation; an old result file is deleted at the
   start, a bare `--benchmark` and unknown arguments are errors).
   - `cpu_ms` is the frame interval (one `transfer()` to the next; S19a: one `renderFrame` to the next, measured at the
-    game's transfer hook): it includes waiting for the GPU and presenting, so it is at least the GPU frame time.
+    game's transfer hook; S19b: at `beforeRender`, right before `renderFrame`): it includes waiting for the GPU and presenting, so it is at least the GPU frame time.
     `cpu_work_ms` is the CPU work of the frame: until S18 the world renderer's `transfer()` and `render()`, from S19a
     `RenderScene::lastRecordingMs()` of each submitted measured frame (the app's `frame/render/recording`; not
     comparable with the S03 value; the baseline note of the next accepted baseline says so).
@@ -2829,7 +2932,8 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   tile/pyramid update, S28 re-runs it with collider patches; the step time stays within §17.10.
 - ECS benchmark: `tests/test_engine_ecs_benchmark.cpp` (non-gating) prints the total ms of create, views over one
   component, `Transform` plus one and three components, random reads, remove + re-add and destroy at 10^5 entities
-  [exists: S07].
+  [exists: S07]; S19b: `ExtractTenThousandEntities` (10^4 moving entities with `RenderInstance` into a recording sink:
+  the step's `extract` scope; the same entities idle; a paused frame's catch-up without changes).
 - `data/tests/benchmarks.json` [exists] maps GPU name -> benchmark -> result; a regression of more than 5% must be
   explained. Local only. The S03 baseline is for the development GPU (an NVIDIA RTX 5080 Laptop GPU at 1920 x 1080):
   it is not the budget reference of §17.10 (an RTX 3060 / RX 6600 class card at 1440p); a baseline on that class is
@@ -2982,13 +3086,21 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   (`WorldSetup::setContext`, built once per process and shared by the game world, the scenario worlds and the
   renderer). `EngineAppSetup::applyInput` writes the game's control components from the input map (flight: pitch,
   roll, yaw, the throttle lever; racing: throttle, steer; the platformer uses `PlayerInput` with the jump and walk
-  bits). The render side (`<Game>Render.h/.cpp`, the render hooks) draws the poses interpolated by `World::alpha()`
-  from a step-listener cache (`PoseHistory` in `samples/games/common/GameEngine.h`). The demo objects tick every step
+  bits). S19b: the vehicles are entities with `RenderInstance` drawn by the engine's extract (their meshes, built by
+  `MeshBuilder` and converted to `MeshLods` by `RenderAssets.h`, are registered in `WorldSetup::renderAssets`, once per
+  process); the drivers and the platformer's heroes have an empty `RenderInstance` (tracked for `interpolatedPose`, not
+  drawn). The render side (`<Game>Render.h/.cpp`, the render hooks `init`, `shutdown`, `beforeRender`, `gui`) sets the
+  chase camera from `ExtractSystem::interpolatedPose` with `EngineApp::setViewCamera`, creates the level geometry (the
+  platformer's level and flag, the race track with its cones and banner) as one instance set registered directly on
+  the scene (`LevelGeometry`: an ID of the game range, region level 0, region-relative vertices, one LOD beyond the
+  extent) and draws the racing wheels and the platformer's limbs as cosmetic dynamic instances (`CosmeticDynamics`,
+  reconciled per frame, prev = curr from the interpolated pose; one wheel mesh per radius); the colors are the vertex
+  colors (sRGB8 words) with one two-sided flat material per game. The demo objects tick every step
   (`TickPolicy` without distance intervals). The game scenarios (`--scenarios`) assert the behavior recorded before
   the port (autopilot positions, the demo runner's goal time, the AI's lap time). The physics models
   (`FlightModel`, `CharacterController`, `Vehicle`) stay plain classes that the systems run on a copy of the
-  components. `samples/games/common` holds the shared helpers (mesh renderer, procedural meshes, chase camera,
-  `GameEngine.h`, `GameMath.h`) and is compiled into each game. The games are samples and have no tests in `tests/`
+  components. `samples/games/common` holds the shared helpers (procedural meshes, `RenderAssets`, `CosmeticDynamics`,
+  chase camera, `GameEngine.h`, `GameMath.h`) and is compiled into each game. The games are samples and have no tests in `tests/`
   (the saiga tests test the engine, R-TEST-1).
 - **Co-op** (S16b): `--coop [delay]` (§8.3) runs each demo as host + client in one process: the host keeps its demo
   AI vehicle (autopilot, AI driver, demo runner) with and without `--demo`, the join policy gives the client its plane,
@@ -3024,10 +3136,10 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   The host decides the platformer's kill height and goal from the received owner pose (extrapolated up to 6 steps).
   The demo's restart after the goal of a client's hero is the owner's pilot's decision (it queues the restart action
   once, unless the player took over: `suspended` exists only on the owner).
-  Rendering on a client: the pose caches (`PoseHistory`, `RenderCaches` in `GameEngine.h`) read `RenderPose` for remote
-  entities and `Transform` for owned ones; the render state besides the pose (racing wheels, the platformer's motion)
-  comes from snapshots and is read `interpolationDelaySteps` steps late from a per-entity ring (flushed on a snap), so
-  it matches the drawn body approximately. The renderers draw every vehicle or character and follow the local player's.
+  Rendering on a client: the extract draws remote entities from `RenderPose` and owned ones from `Transform` (S19b;
+  before: the demos' `PoseHistory`); the render state besides the pose (racing wheels, the platformer's motion,
+  `RenderCaches` in `GameEngine.h`) comes from snapshots and is read `interpolationDelaySteps` steps late from a
+  per-entity ring (flushed on a snap), so it matches the drawn body approximately. The renderers draw every vehicle or character and follow the local player's.
   A key reaches the rendered vehicle about 1 + 2 · delay + `interpolationDelaySteps` steps later. The GUI buttons queue
   the action on the local player (they act when steps run); without a local player on the host (`--demo`) they call
   the game object as before.
@@ -3036,12 +3148,13 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   | Today | Replaced by | Stage |
   |---|---|---|
   | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios [done: S13b] | S13b |
-  | `MeshRenderer` (flat colored meshes, one draw per object, `shader/vulkan/games/`; all three games) | `RenderScene` instance sets and materials | S19b |
+  | `MeshRenderer` (flat colored meshes, one draw per object, `shader/vulkan/games/`; all three games) | `RenderInstance` entities, level geometry as instance sets, cosmetic dynamics [done: S19b] | S19b |
   | `ChaseCamera` (all three games) | the camera rig (third-person and chase cameras) | S35 |
   | procedural box animation of the platformer | skinned meshes, animation state and pose LOD | S34 |
   | platformer `CharacterController`, racing `Vehicle` | `CharacterVirtual`, Jolt's vehicle constraint | S29, S28 |
   | `GameInput` key helpers | the input action map [done: S13b] | S13b |
-  | the render-side pose cache (`PoseHistory`), the world context for the height field | the render sink with `RenderPose` (S19b), `world.terrainHeight` (S20) | S19b, S20 |
+  | the render-side pose cache (`PoseHistory`) [done: S19b], the world context for the height field | the extract with `RenderPose` and `interpolatedPose` (S19b), `world.terrainHeight` (S20) | S19b, S20 |
+  | cosmetic dynamic instances of the racing wheels and the platformer's limbs (`CosmeticDynamics`), level geometry registered directly on the scene (`LevelGeometry`) | skinned meshes (S34); level content from the world plan and tier-1 pieces (S23, S30) | S34, S23 |
 
 ## 19. Migration of the prototype
 
@@ -3052,6 +3165,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | wall-clock `time`, OpenMP reduction in `placeTrees` | `WorldSettings::freezeTime`; serial sum (tests in `tests/test_vulkan_world.cpp`) [exists]; S19a: `RenderScene::setTime` (the caller's time, wind phases computed in double), `freezeTime` removed [exists] | S01 (done), S19a (done) |
 | `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); the world game `samples/games/world/` (`game_world`) on `EngineApp`, `--headless` [exists] (S13, done) | S03 (done), S13 (done) |
 | `WorldMcp` | screenshot and camera tools in `engine/app/AppTools`, the rest as `game_*` tools of `game_world` | S14 (done) |
+| the app's float camera (`Glfw_Camera<PerspectiveCamera>`), the games' camera writes in the transfer hook | S19b: one double view camera (`EngineApp::setViewCamera`, the camera tools and `game_set_camera` on it; the free camera integrates in double, `camera()` derived), set in `beforeRender` [exists]; the camera rig in S35 | S19b (done), S35 |
 | `WorldBenchmark` | `--benchmark` of `EngineApp` [exists] (S13); S19a: its own samples fed by `game_world`, the S03 keys from `RenderScene`'s sections [exists] | S13 (done), S19a (done) |
 | `WorldCommon.h`, `common.glsl` (world uniforms) | S19a: the uniforms of `PrototypeWorld`'s terrain, grass and sky passes (time replaced by the grass wind phases), the frustum helpers stay; the instance draws read `RenderScene`'s lighting block [exists]; replaced with the passes (S20, S36) | S19a (done), S20 |
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | S18: the generic path in `RenderScene` (instance sets, culling with `tree_cull.comp`'s rule generalized, flat instance shaders) [exists]; S19a: the trees as instance sets (`PrototypeForest`), `tree.vert` / `foliage.frag` ported onto the instance layout as the transitional `PrototypeFoliage` class (`prototype_foliage.vert/.frag`; `foliage.frag` stays for the grass, the shading in `prototype_shading.glsl`), `ForestRenderer` reduced to `placeTrees`, `tree.vert` and `tree_cull.comp` removed [exists] | S18 (done), S19a (done) |
@@ -3060,7 +3174,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | `GrassRenderer`, `grass.vert` | region-relative cells, mask from the prototype generator (S20); generated masks (S23); edited masks (S31) | S20 |
 | `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | double camera position, sea level from `SpaceTemplate` (S20; the shaders are camera relative already); sky and lighting replaced in S36, water in S39 | S20 |
 | `FoliageGenerator`, `HeightField::generate`, `placeTrees` | generation pipeline with integer math (R-CONTENT-1) | S23 |
-| `tests/test_vulkan_world.cpp` | render tests on `RenderScene` (S19a: the forward-renderer fixture dropped) [exists] + engine tests | S19a (done), S19b |
+| `tests/test_vulkan_world.cpp` | render tests on `RenderScene` (S19a: the forward-renderer fixture dropped) [exists] + engine tests (S19b: `tests/test_engine_extract.cpp`, the app's view camera in `tests/test_engine_app.cpp`) [exists] | S19a (done), S19b (done) |
 
 The sample keeps running and all tests stay green after every stage.
 
@@ -3175,7 +3289,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S17 | HDR frame (done) | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling (done) | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
 | S19a | Prototype passes (done) | The prototype's terrain, water, grass and sky inside `RenderScene` (`setPrototypeTerrain`, `PrototypeSettings`), the trees as instance sets with the transitional `PrototypeFoliage` pipeline class, the lighting block, `setTime`, `setMeshLodDistances`, `reserveIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections (§10.1, §10.5, §17.7); tech demos: `game_world`, flight and racing render their world through it | S18 | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance) (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time and the whole frame <= the baseline committed after S18 + 5 %, or an explained budget (local) |
-| S19b | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), `RenderInstance`, name tables (§10.3); tech demos: all three (flight, platformer, racing) render their entities through `RenderScene` (`MeshRenderer` removed) | S19a, S16, S16b, S14, S13b | client extract from `RenderPose` flags (CI); tech demo screenshots reviewed (local) |
+| S19b | Extract and render sink (done) | `RenderSink`, `VulkanRenderSink`, `RecordingRenderSink`, the extract with interpolation (`RenderPose`, composed children, pending remote roots), the catch-up between steps, `interpolatedPose`, `RenderInstance`, the `World`'s name tables and `renderAssets`, the app's view camera and `beforeRender` (§7.10, §8.3, §10.1, §10.3); tech demos: all three (flight, platformer, racing) render their entities through `RenderScene` (`MeshRenderer` and `PoseHistory` removed; level geometry as instance sets, cosmetic dynamics) | S19a, S16, S16b, S14, S13b | client extract from `RenderPose` flags (CI); tech demo screenshots reviewed (local) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |

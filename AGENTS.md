@@ -82,7 +82,9 @@ src/
                         participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h), Profiler; ecs/: Registry,
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
-                        LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent; world/: World
+                        LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
+                        (S19b: the mesh name an entity renders); world/: World (also the mesh and material name
+                        tables, WorldSetup::renderAssets, setRenderSink)
                         (step loop, the setup's context WorldSetup::setContext / World::context, phases, SystemList,
                         commands, StructuralLog, EventQueues, transformSystem, SpatialGrid and spatialGridSystem for
                         World::queryRadius, Events.h); gameplay/: GameObject,
@@ -94,7 +96,13 @@ src/
                         readDataFile); net/: Transport, LoopbackTransport, Fragmenter, MessageList (network messages,
                         World::send), the replication (S16: Replication with the host's NetId table and the client
                         handlers, NetVisitors.h, EngineMessages, NetOwner.h, HostClock, InterpolationSystem;
-                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld); app/: EngineApp (the engine's frame loop: window or headless, RenderScene, MCP,
+                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld);
+                        sync/ (S19b, depends on saiga_vulkan): RenderSink, VulkanRenderSink (over RenderScene),
+                        RecordingRenderSink (tests, every scenario world), ExtractSystem (render instances from the
+                        structural log, pose pairs from Transform or RenderPose, the catch-up between steps,
+                        interpolatedPose; tests/test_engine_extract.cpp); app/: EngineApp (the engine's frame loop:
+                        window or headless, RenderScene and the World's VulkanRenderSink, the view camera
+                        setViewCamera, the render hooks init/shutdown/beforeRender/gui, MCP,
                         input map, frame/GPU profiles), engineMain and the command line of engine games, InputMap,
                         the app tools (quit, app_status, set_input; screenshot, set_camera/move_camera with the camera
                         hold, list_scenarios/run_scenario)
@@ -212,7 +220,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-66 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+67 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests

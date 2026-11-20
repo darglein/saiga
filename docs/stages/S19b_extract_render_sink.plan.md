@@ -1,6 +1,6 @@
 # S19b: Extract and render sink
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -208,3 +208,133 @@ the client only), `src/saiga/vulkan/scene/RenderScene.*` (`reserveIds`),
 `common/{MeshRenderer.*,GameEngine.h}` parts and `shader/vulkan/games/`), `tests/test_engine_ecs_benchmark.cpp`, `tests/test_engine_extract.cpp`,
 `tests/test_engine_app.cpp`, `tests/CMakeLists.txt`, `data/tests/engine/schema.json`, `docs/engine_design.md`,
 `AGENTS.md`, this file.
+
+## Design changes
+
+- **The sink and the consumer belong together**: without a render sink the extract tracks nothing and has no structural
+  log consumer (a world without a sink, e.g. the `--coop` host or `--no-render`, pays nothing); `interpolatedPose` is
+  false there. `setRenderSink` adds the consumer and creates the instances of the existing entities (snaps); a
+  replacement or null removes the old instances and the consumer. The World destroys the extract before its log (the
+  sink is not called from the destructor). `World::renderSink()`, `ExtractSystem::instanceOf` / `instanceCount` /
+  `trackedCount` and `World::meshName`, `meshCount`, `materialCount`, `resolveRenderMesh` were added for tests and tools.
+- **Catch-up trigger**: `markDirty()` (every world API edit, a committed load) makes the next `catchUp()` run also in a
+  frame that ran steps, unless a step committed after it (the step's extract covers edits made before it). The plan's
+  "the frame ran no step and (... a tool or a load ran ...)" missed a tool call after the step tool in the same
+  `mcp.poll()`. The step's commit clears the mark. Tested by `ExtractCatchUp.LateMoversAreNotSentByACatchUp`.
+- **Source evaluation**: the extract processes phase 6's `changedTransforms()` plus a list of the tracked entities
+  whose source is not `Transform` (RenderPose, composed children, pending remotes), evaluated every step by value
+  (pose differs from curr, or the pair is not yet (curr, curr)) instead of reading the `RenderPose` flags: this covers
+  the plan's "changed this or last step" rule, the composed children (their root's `RenderPose` changes without a flag
+  on them) and the pending-to-valid transition. A `RenderPose`, `Parent` or `NetOwner` record re-evaluates the sources
+  (O(tracked) on such steps; a client's spawns). The phase 7-8 movers are found through `changedDuringLastStep()` at
+  the commit (the extract retains the step changes while a sink is set): O(changed), no scan of the tracked entities.
+- **Teleports**: a `Transform` teleport snaps in the step it is seen; a late one (`wasTeleportedLastStep()`) snaps only
+  if the extract did not already handle it in the previous step (otherwise every teleport would snap twice); a teleport
+  that the catch-up sent stays a snap only there (the next step interpolates from it).
+- **Scale and logging**: the non-uniform scale is logged by the extract (once per entity, `SAIGA_LOG_E` category
+  `extract`), not by `Transform` (no World there); the world API rejects it in `set_transform` and in `spawn` with a
+  `RenderInstance` initial component.
+- **`setRenderMesh` on an entity without `RenderInstance`** adds it (through the add path); during a step it is a
+  command. An unknown name asserts (refused in every build).
+- **Name records on the client**: `Replication::applyComponent` calls `renderMeshWritten` with the previous name, so an
+  unchanged name (a `ComponentChange` of other bytes, never for `RenderInstance` today) appends no record.
+- **Camera**: `ViewCamera` (`EngineApp.h`) with `cameraLookRotation(dir)` (double); `setViewCameraByTool(..., hold)` is
+  the single tool path (set_camera / move_camera hold, `game_set_camera`, `game_set_settings`' fovy and the walk mode
+  do not); the tools keep the view camera's field of view. The free camera keeps the GLFW camera's mouse look (the
+  rotation is taken only when the mouse turned, so a tool's exact orientation stays) and integrates WASD / space /
+  shift in double. `WorldMcpContext::camera` became `getCamera` / `setCamera` with `WorldMcpCamera {position, rotation,
+  fovy}`; `game_set_camera` keeps the rotation exactly.
+- **`GameRenderHooks::groundHeight`** (§8.3's sketch) never existed in the code: not added (the benchmark reads the
+  height field itself); the sketch is updated.
+- **Benchmark JSON**: `game_world --benchmark` also reports `extract` (`{median, p95}` of the measured steps' extract
+  scope, §17.7, §17.10); `cpu_ms` is measured at `beforeRender` (right before `renderFrame`; S19a: the transfer hook).
+- **Demos**:
+  - Meshes: `samples/games/common/RenderAssets.{h,cpp}`: `meshLods(MeshData)` (one LOD; the linear vertex colors as sRGB8
+    color words: the colors stay vertex colors, not one material per color), `demoMaterial()` (flat color, two-sided:
+    some builders are not consistently wound, the normals follow the winding, so `flat.frag`'s `gl_FrontFacing` flip
+    lights the visible side as `mesh.frag` did), `registerDemoMesh` (a static cache by name, behind a mutex).
+  - Level geometry: `LevelGeometry` (one mesh and one instance set per level, registered on the scene with
+    `reserveIds`, reused by name on a second init); the racing level merges the track, the cones and the banner, the
+    platformer's the boxes and the flag.
+  - `CosmeticDynamics` (`common/CosmeticDynamics.{h,cpp}`): `begin` / `set(entity, meshes, poses)` / `end` per frame
+    (the parts of entities not set are freed), `clear` in shutdown.
+  - Wheels: one mesh per wheel radius of the vehicle data (`racing/wheel/r<radius>`); the platformer's 11 body parts are
+    meshes `platformer/hero/part<j>` registered in `renderAssets` (`heroPartMesh` moved to `PlatformerWorld.cpp`).
+  - The platformer has no world prototype: its meshes use RenderScene's fixed S18 light (sun `normalize(0.4, 1, 0.7)`,
+    ambient 0.35) instead of its own (sun (0.4, 0.8, 0.35), hemisphere ambient 0.35): slightly different shades.
+  - `HeldCamera` is gone (`EngineAppSetup::onCameraReleased` calls the renderer's camera reset); the chase cameras keep
+    updating while a tool holds the camera (the app ignores their writes), so the release needs no glide.
+  - `RenderCaches<State>` keeps only the state ring (the pose comes from `interpolatedPose`); its snap detection reads
+    the `RenderPose` teleport flag or `wasTeleportedLastStep()` directly. `WorldLighting.h` keeps only `worldGround`.
+- **Files**: no change was needed in `WorldTools.cpp`, `EngineMain.cpp` and `RenderScene.*` (`reserveIds` existed
+  since S19a): the world API marks the extract dirty for every edit (also the tools'), the app creates the sink.
+
+## Results
+
+Tests (`VK_DRIVER_FILES=.../lvp_icd.json ctest --parallel 8`, RelWithDebInfo, GCC 15): 67 of 68 pass; only
+`test_opengl_window` fails locally (no display, as before). `test_vulkan_*`, `test_engine_app` and
+`test_engine_extract` (15 tests) also pass on the RTX 5080 Laptop GPU with the validation layer (no validation
+message).
+
+- `tests/test_engine_extract.cpp` (new, 19 tests, no device): registrations forwarded when the sink is set late, the ID
+  range from 256, a second `setRenderSink` of the same sink; replacement and null free the handles and the consumer;
+  host and client tables equal; instances from the structural log (spawn, remove / add, `setRenderMesh`, the world
+  API's `set_component` with a known and an unknown name, `add_component` and `spawn` with an unknown name, destroy);
+  the creation snap; the empty name (tracked, not drawn); an unknown name through `add` (stored empty, logged);
+  `registerMeshAlias`; pairs of a moving entity, the stop after the idle steps, the teleport snap, chunk-relative poses
+  across the 256 m border; `interpolatedPose` against `interpolatePose` (1e-6 m / rad) and false for untracked
+  entities; an aborted step (a sink that throws in `setDynamic`: the rerun's prev is the committed curr; one that throws
+  in `addDynamic`: the record is delivered again); the recording sink keeps the hash; the paused catch-up (an API edit
+  and a spawn reach the sink once over 5 frames, `load_snapshot` recreates one instance per entity); time scale 0; phase
+  7 movers not sent by a catch-up after a tool call; a client frame without a step sends nothing (and draws the remote
+  entity from `RenderPose`); a client's `ComponentChange` of the name; the host draws a client-owned root only after its
+  first `RenderPose` and its child composed from it; saves by name (another registration order: equal hash; an unknown
+  name: a load error naming the entity index; an alias); the non-uniform scale (API error, logged once).
+- `tests/test_engine_app.cpp` (44 tests): `ViewCameraHoldAndRelease` (the double camera, the hold returns false to the
+  game, tool writes without a hold, the release callback once, `move_camera` on it), `BeforeRenderAfterCatchUp`,
+  `CoopClientHasTheSink`; `FramesStepsScreenshotsAndProfiles` counts `beforeRender` instead of `transfer` / `render`,
+  `GpuSectionsAndGamePasses` became `GpuSections` (no game passes). S14's camera tests (`SetAndMoveCamera`,
+  `InputMovesRelativeToAHeldCamera`) are unchanged and pass on the double camera. `test_vulkan_world`'s `GameTools`
+  uses the camera callbacks and checks that `game_set_settings`' fovy reaches the camera.
+- Schema golden regenerated (`RenderInstance {mesh: string}` added; nothing else changed).
+- Game scenarios (`--scenarios`, with the host + client variants and a recording sink in every world): `game_flight`,
+  `game_platformer`, `game_racing` 18 passed, 0 failed each.
+- Screenshots (`SAIGA_SCREENSHOT`, `--headless`, RTX 5080, with `--validation`: no message): `--demo` of the three
+  demos next to the S19a tip's: the same views (flight: the plane over the forest; racing: the car with its wheels on the
+  track; platformer: the hero on a platform with the flag); the platformer's shades differ slightly (the scene's fixed
+  light). `--coop --demo`: flight both planes, racing both cars, platformer the client's hero. `game_world`'s start view
+  is pixel-equal to the S19a tip's in the 3D view (only the ImGui panel differs).
+
+Benchmarks (release build of AGENTS.md with tests, RTX 5080 Laptop GPU, 1920 x 1080; before = the bb89f993 tip built
+from a copy in a scratch directory, after = this stage; 5 runs each, before and after interleaved; medians of the run
+medians, ms, ranges in parentheses):
+
+| | flyover before | flyover after | forest before | forest after |
+|---|---|---|---|---|
+| `cpu_ms` (frame interval) | 2.494 (2.48-3.36) | 2.423 (2.35-2.47) (-2.9 %) | 2.410 (2.34-2.96) | 2.357 (2.34-2.88) (-2.2 %) |
+| `cpu_work_ms` (recording) | 0.181 | 0.179 (-1.2 %) | 0.158 | 0.151 (-4.3 %) |
+| `gpu_frame_ms.gpu` | 2.279 (2.12-2.31) | 2.125 (2.12-2.36) | 1.828 (1.81-1.91) | 1.822 (1.80-1.84) (-0.3 %) |
+| `scene.instances` | 1.431 | 1.431 (0.0 %) | 0.466 | 0.466 (-0.1 %) |
+| `cull` | 0.070 | 0.070 | 0.033 | 0.033 |
+| `scene.terrain` / `scene.grass` | 0.094 / 0 | 0.095 / 0 | 0.052 / 0.688 | 0.051 / 0.687 |
+| `step` (us) | 3.7 | 4.0 | 3.2 | 3.6 |
+
+- `game_world` is within 5 % everywhere except the step, which has no entities: +0.4 us per step (the extract's run and
+  commit with nothing tracked, and the step-change collection of the flag shift that the extract retains while a sink
+  is set). The flyover's GPU frame is bimodal between batches as in S19a (both builds have runs at 2.12 and 2.31-2.36).
+- ECS benchmark (release, 3 runs each, interleaved): the existing numbers are unchanged (e.g. `World::step` of 10^5
+  moving entities 1.87-2.02 ms before, 1.84-1.89 after; the spatial grid step 2.12-2.14 vs 2.10-2.12; a first
+  whole-suite run showed save / load +8-12 %, which the isolated save test does not reproduce: before 34-42 / 110-117
+  ms, after 35-36 / 110-113 ms). New `ExtractTenThousandEntities`: 10^4 moving entities with `RenderInstance` into the
+  recording sink: the extract scope 0.67-0.68 ms of a 0.98 ms step (67 ns per entity, including the recording sink's
+  map lookups); the same entities idle: 0.0000 ms; a paused frame's catch-up without changes 0.10 ms (10 ns per tracked
+  entity). Against §17.10's main-thread budget (steps + extract + recording <= 10 ms per frame on the desktop
+  reference) this is 7 % for 10^4 moving entities per step.
+- `data/tests/benchmarks.json` is not updated (no baseline after S18 is accepted yet).
+
+Left open: CI has not run on this branch (the MSVC job builds the new `sync/` code and `test_engine_extract` there for
+the first time); an interactive window session (the free camera's double motion, the chase cameras' release under a
+real mouse) was not run (no interactive window here); the extract's per-entity cost with `VulkanRenderSink`
+(`RenderScene::setDynamic`) is only covered by the demos (a handful of entities), not by a benchmark of 10^4 rendered
+entities; the Steam Deck target of §17.10 is not measured (no hardware).
+
