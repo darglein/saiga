@@ -838,8 +838,9 @@ The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it d
 - the `World`, the `McpServer` and the camera: a `Glfw_Camera<PerspectiveCamera>` (WASD and mouse) until S35 replaces
   it with the camera rig;
 - the **input map** (`engine/app/InputMap.h`): devices (keyboard, mouse; gamepad from S35) are mapped to named actions
-  (buttons) and axes by a per-game data file (`data/<game>/input.json`, rebinding writes a user copy). Game code and
-  `PlayerInput`/`PlayerAction` see only actions and axes. S13 implements keyboard and mouse, S35 gamepads.
+  (buttons) and axes by a per-game data file (`data/<game>/input.json`; rebinding writes a user copy,
+  `input.<game>.user.json` in the working directory). Game code and `PlayerInput`/`PlayerAction` see only actions and
+  axes. S13 implements keyboard and mouse, S35 gamepads.
 
 `main` fills `EngineAppSetup` from the command line (`--headless`, `--benchmark <name>`, `--screenshot <file>` after
 N frames, `--width/--height`, `--validation`, `--no-vsync`, `--scenarios [filter]`: run the game's scenarios with

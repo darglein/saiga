@@ -292,13 +292,23 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
   needed yet (the paths use the prototype's height field).
 - `WindowBase::markRunning` (the app runs its own loop); `VulkanRenderer::submittedFrames`/`takeCompletedFrame` and
   `FrameTimings::popCompleted` (GPU times by timeline value).
+- Review round 1: the release of the device input (the first neutral frame after an active one) is written to the
+  local player once (a held button stayed down); `set_input` rejects unknown axes; without `input.json` the input map
+  has default axes (`move_x` A/D, `move_z` S/W, mouse look) and `app_status` lists the actions, held buttons, axes and
+  the benchmark; the loop sleeps to the step rate when no frame was presented (a minimized window spun); the camera
+  moves with the frame's time and ignores the mouse over ImGui; `EngineAppSetup::cameraSpeed/cameraSpeedFast` (game_world
+  keeps the prototype's 25/250 and sliders) and `EngineAppSetup::benchmarks` (`--benchmark` names are checked before
+  the window opens); `--screenshot` with `--no-render` is an error (`SAIGA_SCREENSHOT` is ignored with a warning);
+  `reset_profile` resets the frame and GPU profiles; `engineMain` reports exceptions with a hint and exits with 1;
+  `game_world --benchmark` exits with 1 if the window closed before the end; action and held-button names share one
+  namespace; the user input file is `input.<game>.user.json`.
 
 Updated: §3, §7.9 (`actions`), §8.3, §16.1, §16.2, §17.1, §17.7, §18.2, §18.4, §19, R-TEST-1, §22 (S13, the new S13b row,
 S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.
 
 ## Results
 
-- `test_engine_app` (8 tests: command line, scenario exit codes, input map, the app without a device, the app on
+- `test_engine_app` (9 tests: command line, scenario exit codes, input map, the app without a device, the app on
   lavapipe with frames, steps, screenshots, profiles and tools); the Vulkan tests and goldens are unchanged; 63 ctest
   tests.
 - `game_world` on the RTX 5080 Laptop GPU: renders like the prototype; `--benchmark flyover` (RelWithDebInfo with
