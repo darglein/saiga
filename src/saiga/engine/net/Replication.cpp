@@ -329,6 +329,7 @@ void Replication::commit()
     slotUndo.clear();
     hashUndo.clear();
     netIdUndo.clear();
+    teleportUndo.clear();
     replicatedThisStep = false;
 }
 
@@ -353,6 +354,23 @@ void Replication::abort(Phase aborted)
             else
                 hostByNetId.erase(netIdUndo[i].id);
         }
+    for (size_t i = teleportUndo.size(); i-- > 0;)
+        if (teleportUndo[i].phase == aborted)
+        {
+            TeleportUndo& u = teleportUndo[i];
+            if (u.hadRecord)
+                ownerRecords[u.index] = u.record;
+            else
+                ownerRecords.erase(u.index);
+            if (u.hadBuffer)
+                buffers[u.index] = u.buffer;
+            else
+                buffers.erase(u.index);
+        }
+    teleportUndo.erase(std::remove_if(teleportUndo.begin(), teleportUndo.end(),
+                                      [&](const TeleportUndo& u) { return u.phase == aborted; }),
+                       teleportUndo.end());
+    for (TeleportUndo& u : teleportUndo) u.phase = Phase::None;
     slotUndo.erase(
         std::remove_if(slotUndo.begin(), slotUndo.end(), [&](const SlotUndo& u) { return u.phase == aborted; }),
         slotUndo.end());
@@ -733,8 +751,13 @@ void Replication::hostReplicate(bool networkOnly)
             continue;
         }
         // Reparenting never changes the owner (§13.3)
-        SAIGA_ASSERT(w.ownerOf(e) == s->owner, describe(e) + ": reparenting changed its owner from peer " +
-                                                   std::to_string(s->owner) + " to " + std::to_string(w.ownerOf(e)));
+        if (w.ownerOf(e) != s->owner)
+        {
+            // Refused by add/remove<Parent> (World::netChangeRefused); a hierarchy that changed the owner is not sent
+            SAIGA_ASSERT(false, describe(e) + ": reparenting changed its owner from peer " + std::to_string(s->owner) +
+                                    " to " + std::to_string(w.ownerOf(e)));
+            continue;
+        }
         if (const LocalTransform* l = reg.tryRead<LocalTransform>(e)) m.local = *l;
         for (uint8_t peer : regularPeers)
         {
@@ -953,8 +976,16 @@ void Replication::ownerTeleport(Entity root, const Vec3& position, const Quat& r
     m.counter  = ws.command;
     w.send(owner, m);
     // The owner's states in flight carry the old counter and are dropped; the stored one is stale
-    ownerRecords.erase(root.index);
     auto b = buffers.find(root.index);
+    if (w.inStep())
+    {
+        auto r = ownerRecords.find(root.index);
+        TeleportUndo u{w.phase, root.index, r != ownerRecords.end(), {}, b != buffers.end(), {}};
+        if (u.hadRecord) u.record = r->second;
+        if (u.hadBuffer) u.buffer = b->second;
+        teleportUndo.push_back(std::move(u));
+    }
+    ownerRecords.erase(root.index);
     if (b != buffers.end() && b->second.first == root.generation)
         b->second.second.push(double(w.steps), position, rotation, ws.command);
     noteWritten(root, Transform::id);
@@ -1059,7 +1090,8 @@ void Replication::onOwnerState(uint8_t from, const uint8_t* data, size_t size)
         w.rejectInput(from, "OwnerState: a malformed header");
         return;
     }
-    ownerSeq[from] = std::max(ownerSeq[from], seq);
+    // The sequence counts as received only if no record was dropped as stale (finishNetwork waits for it)
+    bool stale = false;
     EntityRecord rec;
     for (uint64_t i = 0; i < n; ++i)
     {
@@ -1082,6 +1114,7 @@ void Replication::onOwnerState(uint8_t from, const uint8_t* data, size_t size)
         if (!rs || int8_t(uint8_t(rec.counter - rs->command)) < 0)
         {
             counts.ownerStatesDropped++;
+            stale = true;
             continue;
         }
         OwnerRecord& o = ownerRecords[e.index];
@@ -1135,6 +1168,7 @@ void Replication::onOwnerState(uint8_t from, const uint8_t* data, size_t size)
             if (!replaced) o.components.push_back({c.id, std::vector<uint8_t>(c.data, c.data + c.size)});
         }
     }
+    if (!stale) ownerSeq[from] = std::max(ownerSeq[from], seq);
 }
 
 void Replication::ownerPose(bool extrapolate)
@@ -1447,9 +1481,20 @@ void Replication::destroyReplicated(Entity e, bool callbacks)
         }
         catch (...)
         {
-            for (Entity x : hooked)
-                if (Behaviour* b = reg.alive(x) ? reg.tryGet<Behaviour>(x) : nullptr) b->destroying = false;
             w.hookDepth--;
+            // The host dropped the NetId and the Destroy is consumed: the replica is destroyed anyway (it must stay in
+            // sync, as the spawn path keeps it), then the exception propagates
+            if (reg.alive(e))
+            {
+                for (Entity x : w.collectDoomed(e))
+                {
+                    if (!reg.alive(x)) continue;
+                    if (Behaviour* bh = reg.tryGet<Behaviour>(x)) bh->destroying = true;
+                    unmapClient(x);
+                }
+                w.destroyOne(e);
+                w.releaseRetired();
+            }
             throw;
         }
         w.hookDepth--;
@@ -1493,7 +1538,10 @@ void Replication::onHierarchy(uint8_t from, const HierarchyMessage& m)
     Immediate scope(w.flushing);
     if (reg.entityMask(e).test(Parent::id)) w.removeNow<Parent>(e);
     if (reg.entityMask(e).test(LocalTransform::id))
+    {
+        checkWritten(e, LocalTransform::id, "hierarchy receiver");
         reg.get<LocalTransform>(e) = m.local;
+    }
     else
         w.addNow<LocalTransform>(e, LocalTransform(m.local));
     noteWritten(e, LocalTransform::id);
@@ -1530,6 +1578,7 @@ void Replication::onComponentChange(uint8_t from, const uint8_t* data, size_t si
     const bool has = reg.entityMask(e).test(c);
     if (kind == kChangeSet)
     {
+        if (has) checkWritten(e, c, "component change receiver");
         if (!applyComponent(e, c, data + r.pos, size - r.pos, true, NetId(id)))
             w.rejectInput(from, "ComponentChange: the component does not decode");
         else

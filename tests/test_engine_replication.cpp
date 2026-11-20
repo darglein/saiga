@@ -143,7 +143,12 @@ class Probe final : public GameObject
     void configure() override { g_hooks[world().isHost()].configure++; }
     void onSpawn() override { g_hooks[world().isHost()].spawn++; }
     void onReplicatedSpawn() override { g_hooks[world().isHost()].replicatedSpawn++; }
-    void onReplicatedDestroy() override { g_hooks[world().isHost()].replicatedDestroy++; }
+    void onReplicatedDestroy() override
+    {
+        g_hooks[world().isHost()].replicatedDestroy++;
+        if (throwOnReplicatedDestroy) throw std::runtime_error("replicated destroy boom");
+    }
+    static inline bool throwOnReplicatedDestroy = false;
     void onDestroy() override { g_hooks[world().isHost()].destroy++; }
     void update(double) override { g_hooks[world().isHost()].update++; }
 };
@@ -510,7 +515,33 @@ TEST(RolesDeathTest, OwnershipAsserts)
         n.host->add<Parent>(c, Parent{b});
         n.step();
     };
-    EXPECT_DEATH(acrossOwners(), "changed its owner");
+    EXPECT_DEATH(acrossOwners(), "change the owner of a spawned entity");
+    auto removeParentOfOwnedChild = []()
+    {
+        Net n;
+        const Entity a = makePlayer(*n.host, 1);
+        const Entity c = n.host->create();
+        n.host->add<Parent>(c, Parent{a});
+        n.step();
+        n.host->remove<Parent>(c);
+    };
+    EXPECT_DEATH(removeParentOfOwnedChild(), "change the owner of a spawned entity");
+    auto addNetOwnerAfterSpawn = []()
+    {
+        Net n;
+        const Entity e = n.host->create();
+        n.step();
+        n.host->add<NetOwner>(e, NetOwner{1});
+    };
+    EXPECT_DEATH(addNetOwnerAfterSpawn(), "change the owner of a spawned entity");
+    auto removeNetOwnerAfterSpawn = []()
+    {
+        Net n;
+        const Entity e = makePlayer(*n.host, 1);
+        n.step();
+        n.host->remove<NetOwner>(e);
+    };
+    EXPECT_DEATH(removeNetOwnerAfterSpawn(), "change the owner of a spawned entity");
     auto ownedChild = []()
     {
         World w(baseSetup());
@@ -533,6 +564,14 @@ TEST(RolesDeathTest, ClientRestrictions)
         fn(n, n.onClient(e));
     };
     EXPECT_DEATH(withClient([](Net& n, Entity e) { n.client().destroy(e); }), "cannot destroy a replicated");
+    // Regression (local review, S16): a replicated entity under a local one was destroyed by the cascade
+    auto cascade = [](Net& n, Entity e)
+    {
+        const Entity local = n.client().create();
+        n.client().add<Parent>(e, Parent{local});
+        n.client().destroy(local);
+    };
+    EXPECT_DEATH(withClient(cascade), "cannot destroy a replicated entity \\(a descendant\\)");
     EXPECT_DEATH(withClient([](Net& n, Entity e) { n.client().setOwner(e, 1); }), "setOwner on a client");
     EXPECT_DEATH(withClient([](Net& n, Entity) { n.client().save(); }), "save on a client");
     EXPECT_DEATH(withClient([](Net& n, Entity) { n.client().tryLoad(n.host->save()); }), "load on a client");
@@ -1104,4 +1143,83 @@ TEST(Replication, AnAbortKeepsTheCommandsOfFinishedPhases)
     n.step(3);
     EXPECT_EQ(n.client().replication().commandCounter(n.onClient(p)), 1);
     EXPECT_NEAR(n.client().read<Transform>(n.onClient(p)).position().x(), 7, 1e-9);
+}
+
+// Regression (local review, S16): a throwing onReplicatedDestroy left the entity alive and mapped on the client
+TEST(Replication, AThrowingOnReplicatedDestroyStillDestroysTheReplica)
+{
+    Net n;
+    const Entity e = n.host->spawn<Probe>(Vec3::Zero());
+    n.step(2);
+    const Entity c = n.onClient(e);
+    ASSERT_TRUE(c.valid());
+    n.host->destroy(e);
+    n.host->step();
+    Probe::throwOnReplicatedDestroy = true;
+    EXPECT_THROW(n.client().step(), std::runtime_error);
+    Probe::throwOnReplicatedDestroy = false;
+    EXPECT_FALSE(n.client().alive(c));
+    n.step(3);
+    EXPECT_EQ(n.client().replication().netIds(), n.host->replication().netIds());
+}
+
+// Regression (local review, S16): an aborted ownerTeleport left its sample (with the new counter) in the host's
+// interpolation buffer and erased the owner's last state
+TEST(Replication, AnAbortedOwnerTeleportLeavesNoSample)
+{
+    Net n;
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(5);
+    g_teleportInStep = p;
+    g_throwIn        = Phase::Gameplay;  // after test_teleport in the same phase
+    EXPECT_THROW(n.host->step(), std::runtime_error);
+    g_teleportInStep = Entity{};
+    g_throwIn        = Phase::None;
+    EXPECT_EQ(n.host->replication().commandCounter(p), 0);
+    InterpolationBuffer* b = n.host->replication().buffer(p);
+    ASSERT_NE(b, nullptr);
+    Vec3 position;
+    Quat rotation;
+    bool snapped = false;
+    ASSERT_TRUE(b->sample(1e9, position, rotation, snapped));
+    EXPECT_LT(position.norm(), 1.0);
+    EXPECT_FALSE(snapped);
+}
+
+// Regression (local review, S16): an owner state dropped as stale (before the last OwnerCommand) counted as received
+TEST(Replication, AStaleOwnerStateDoesNotCountAsReceived)
+{
+    Net n(1, 2);
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(10);
+    const uint64_t before  = n.host->replication().ownerStateSequence(1);
+    const uint64_t dropped = n.host->replication().stats().ownerStatesDropped;
+    n.host->ownerTeleport(p, Vec3(3, 0, 0), Quat::Identity());
+    n.host->step();
+    ASSERT_GT(n.host->replication().stats().ownerStatesDropped, dropped);
+    EXPECT_EQ(n.host->replication().ownerStateSequence(1), before);
+    n.step(10);
+    EXPECT_GT(n.host->replication().ownerStateSequence(1), before);
+}
+
+// Regression (local review, S16): the receivers of ComponentChange and Hierarchy did not check for foreign writes
+TEST(Replication, TheWriteDetectorSeesAClientWriteOfAHostReliableComponent)
+{
+    Net n;
+    const Entity e = n.host->create();
+    n.host->add<Inventory>(e);
+    n.step(2);
+    std::vector<std::string> reports;
+    n.client().replication().setWriteDetector([&](const std::string& r) { reports.push_back(r); });
+    n.step();
+    const Entity c = n.onClient(e);
+    ASSERT_TRUE(c.valid());
+    n.host->get<Inventory>(e).items = {1};
+    n.step();
+    EXPECT_TRUE(reports.empty());
+    n.client().get<Inventory>(c).items = {2};  // a foreign write
+    n.host->get<Inventory>(e).items    = {3};
+    n.step();
+    ASSERT_FALSE(reports.empty());
+    EXPECT_NE(reports[0].find("component change receiver"), std::string::npos) << reports[0];
 }

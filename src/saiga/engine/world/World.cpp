@@ -521,6 +521,14 @@ void World::destroy(Entity e)
         SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity");
         return;
     }
+    if (!isHost() && reg.alive(e))
+        for (Entity x : collectDoomed(e))
+            if (repl->netIdOf(x) != 0)
+            {
+                // A replicated entity parented under a local one would be destroyed by the cascade
+                SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity (a descendant)");
+                return;
+            }
     if (reg.alive(e) && (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)))
     {
         // Refused in every build (the world state must stay; asserts in builds with asserts)
@@ -820,6 +828,21 @@ void World::flushCommands()
     releaseRetired();
 }
 
+bool World::netChangeRefused(Entity e, ComponentId c, bool add, Entity parent)
+{
+    if (!isHost() || !reg.alive(e) || !repl->spawned(e)) return false;
+    const uint8_t before = ownerOf(e);
+    uint8_t after        = 0;
+    if (c == ComponentId(EngineComponent::NetOwner))
+        after = add ? uint8_t(255) : 0;  // any NetOwner change of a spawned root is a transfer
+    else if (add)
+        after = reg.alive(parent) ? ownerOf(parent) : before;
+    if (c != ComponentId(EngineComponent::NetOwner) && after == before) return false;
+    SAIGA_ASSERT(false, std::string(add ? "add<" : "remove<") + reg.componentInfo(c).name +
+                            ">: it would change the owner of a spawned entity (no transfer after the spawn, §13.3)");
+    return true;
+}
+
 void World::checkNotParallel(const char* operation) const
 {
     SAIGA_ASSERT(!reg.inParallelEach(), std::string(operation) + " inside parallelEach (R-PAR-1)");
@@ -864,6 +887,8 @@ void World::runStep()
             {
                 // RunOn filtering (§8.2): the host runs Host and Both, a client Client and Both
                 if (list[i].runOn == skip) continue;
+                // ownerOf/ownedBy must not rebuild the cache inside the system's parallel loops (R-PAR-1)
+                if (ownerCacheDirty) rebuildOwnerCache();
                 Profiler::Timer systemTimer(prof, systemScopes[size_t(p)][i]);
                 list[i].fn(*this, stepDt);
             }

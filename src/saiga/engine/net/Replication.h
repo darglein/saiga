@@ -208,6 +208,17 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         std::vector<std::pair<ComponentId, std::vector<uint8_t>>> components;
     };
     std::map<uint32_t, OwnerRecord> ownerRecords;
+    // ownerTeleport's changes of the owner record and the interpolation buffer, undone by an abort of their phase
+    struct TeleportUndo
+    {
+        Phase phase;
+        uint32_t index;
+        bool hadRecord;
+        OwnerRecord record;
+        bool hadBuffer;
+        std::pair<uint32_t, InterpolationBuffer> buffer;
+    };
+    std::vector<TeleportUndo> teleportUndo;
 
     // ---- client ----
     struct ClientEntry

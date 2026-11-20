@@ -601,6 +601,9 @@ class SAIGA_ENGINE_API World
     mutable std::vector<uint8_t> ownerCache;
     mutable bool ownerCacheDirty = true;
     void rebuildOwnerCache() const;
+    // Host: an add/remove of Parent or NetOwner that would change the owner of a spawned entity (no transfer after
+    // the spawn, §13.3); refused in every build (asserts)
+    bool netChangeRefused(Entity e, ComponentId c, bool add, Entity parent);
     void markOwnersDirty() { ownerCacheDirty = true; }
     // Client hook calls (§13.5): a replicated destroy and the addition of a component by ID inside a step
     void addDefaultInternal(Entity e, ComponentId id);
@@ -865,6 +868,7 @@ void World::addNow(Entity e, T&& value)
         }
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
         if (!acceptParent(e, value.entity)) return;
+        if (netChangeRefused(e, T::id, true, value.entity)) return;
     }
     if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
     {
@@ -873,6 +877,7 @@ void World::addNow(Entity e, T&& value)
             SAIGA_ASSERT(false, "NetOwner on a child (ownership is defined on roots, §13.3)");
             return;
         }
+        if (netChangeRefused(e, T::id, true, Entity{})) return;
     }
     // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
     auto record = log.prepare(1);
@@ -929,6 +934,8 @@ void World::removeNow(Entity e)
         SAIGA_ASSERT(false, std::string("remove<") + T::name + ">: world-state components cannot be removed");
         return;
     }
+    if constexpr (T::id == ComponentId(EngineComponent::Parent) || T::id == ComponentId(EngineComponent::NetOwner))
+        if (netChangeRefused(e, T::id, false, Entity{})) return;
     auto record = log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Behaviour))
     {

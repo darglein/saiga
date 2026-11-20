@@ -375,3 +375,12 @@ scenarios,ecs_benchmark,net_benchmark}.cpp`, `tests/CMakeLists.txt`, `data/tests
     with 100 systems steps in 2.6 us), so the idle difference is noise. The other ECS numbers are unchanged within 3 %.
     New: `ownedBy<1>(0)` over 10^5 entities (half client-owned) 0.17 ms vs `view<1>` 0.18 ms; `ownedBy<Transform>(1)`
     0.10 ms; 100 empty systems with 50 skipped by `RunOn` 2.6 us per step.
+
+Local review (one subagent round; the fixes have regression tests that fail without them):
+- A throwing `onReplicatedDestroy` left the replica alive and mapped. The replica is now destroyed anyway, then the exception propagates (as the spawn path keeps the entity in sync).
+- A host could change the owner of a spawned entity through `add`/`remove<NetOwner>` or `remove<Parent>`. Without asserts, phase 8 then sent the Hierarchy anyway and desynced the owner. `World::netChangeRefused` now refuses these in every build, and phase 8 skips a Hierarchy whose owner changed.
+- The ComponentChange and Hierarchy receivers did not run the write detector's check.
+- An aborted `ownerTeleport` kept its interpolation sample and the erased owner record. Both are now journaled (`TeleportUndo`).
+- `ownerOf`/`ownedBy` could rebuild the owner cache inside a system's parallel loop. The cache is now rebuilt before each system.
+- An owner state dropped as stale counted as received (`ownerStateSequence`).
+- On a client, a replicated entity parented under a local one was destroyed by the cascade. `destroy` now checks the descendants.
