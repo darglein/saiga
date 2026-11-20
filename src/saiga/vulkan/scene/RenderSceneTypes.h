@@ -44,11 +44,19 @@ struct RenderSceneParameters
     // The camera's near plane (reversed-Z with an infinite far plane, S18)
     float nearPlane = 0.1f;
     // The initial capacities of the scene content in elements (S18): the mesh pool's vertices and indices, the static
-    // instances and the dynamic instances. Every buffer grows when needed (2x or the required size).
+    // instances and the dynamic instances. Every buffer grows when needed (2x or the required size). The storage
+    // buffers of the culling and the draws (static instances 32 bytes each, dynamics 80, compacted entries 8 per
+    // static and dynamic instance, scratch 2 KiB per work chunk of 256 visited instances, offset table 32 per set and
+    // chunk of a dynamic) are bound whole: each is limited to the device's maxStorageBufferRange (128 MiB on lavapipe
+    // and many mobile GPUs, e.g. about 4.19M static instances; 4 GiB on desktop GPUs). Growth stops at the limit; a
+    // content change that needs more is a fatal error (SAIGA_EXIT_ERROR, every build).
     uint32_t vertexCapacity         = 1 << 16;
     uint32_t indexCapacity          = 1 << 17;
     uint32_t staticInstanceCapacity = 1 << 14;
     uint32_t dynamicCapacity        = 1 << 10;
+    // Lower limits than the device's for tests (0: the device's maxStorageBufferRange and maxComputeWorkGroupCount)
+    uint64_t storageBufferLimit = 0;
+    uint32_t workGroupLimit     = 0;
     // Draw a pipeline class's buckets with one multi-draw-indirect call if the device supports it; false draws them
     // one by one (tests compare both paths without a new device)
     bool allowMultiDrawIndirect = true;

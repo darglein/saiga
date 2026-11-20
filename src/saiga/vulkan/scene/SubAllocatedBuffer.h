@@ -24,10 +24,10 @@ namespace Vulkan
  * key (a mesh, an instance set).
  *
  * Growth: a virtual block has a fixed size and offsets can not be chosen, so an allocation that does not fit creates a
- * new buffer of max(2x, required) elements and a new block, re-allocates every live range in it (new offsets, read
- * them again with offset()) and records the copy of the ranges whose data is already on the GPU (resident) for the next
- * recordGrowth(); the old buffer is released through deferDelete after the copy. Several growths before a recordGrowth
- * copy from the buffer that holds the data. Main thread only.
+ * new buffer of max(2x, required) elements (at most the size limit) and a new block, re-allocates every live range in
+ * it (new offsets, read them again with offset()) and records the copy of the ranges whose data is already on the GPU
+ * (resident) for the next recordGrowth(); the old buffer is released through deferDelete after the copy. Several
+ * growths before a recordGrowth copy from the buffer that holds the data. Main thread only.
  */
 class SAIGA_VULKAN_API SubAllocatedBuffer
 {
@@ -37,7 +37,10 @@ class SAIGA_VULKAN_API SubAllocatedBuffer
     SubAllocatedBuffer(const SubAllocatedBuffer&)            = delete;
     SubAllocatedBuffer& operator=(const SubAllocatedBuffer&) = delete;
 
-    void init(VulkanBase& base, uint32_t elementSize, uint64_t capacity, vk::BufferUsageFlags usage);
+    // maxBytes: the buffer's size limit (e.g. maxStorageBufferRange of a storage buffer bound whole): the capacity is
+    // clamped to it, an allocation beyond it is a fatal error naming `what` (every build)
+    void init(VulkanBase& base, uint32_t elementSize, uint64_t capacity, vk::BufferUsageFlags usage,
+              uint64_t maxBytes = ~uint64_t(0), const char* what = "elements");
     void destroy();
 
     // Allocates count (> 0) elements for the key (not allocated yet); grows if needed. Returns the first element.
@@ -73,6 +76,8 @@ class SAIGA_VULKAN_API SubAllocatedBuffer
     vk::BufferUsageFlags usage;
     uint32_t elemSize         = 1;
     uint64_t capacityElements = 0;
+    uint64_t maxElements      = ~uint64_t(0);
+    const char* name          = "elements";
     uint64_t growths          = 0;
     VmaVirtualBlock block     = nullptr;
     Buffer current;

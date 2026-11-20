@@ -1266,7 +1266,10 @@ struct RenderSceneParameters { int msaaSamples = 4; vec4 clearColor; bool imgui 
                                ToneMap toneMap = ToneMap::Identity; float exposure = 1;
                                float nearPlane = 0.1f;                       // S18: the camera's near plane
                                uint32_t vertexCapacity, indexCapacity, staticInstanceCapacity, dynamicCapacity;
-                                                           // S18: initial capacities in elements (grown when needed)
+                                                           // S18: initial capacities in elements (grown when needed,
+                                                           // storage buffers up to maxStorageBufferRange)
+                               uint64_t storageBufferLimit = 0; uint32_t workGroupLimit = 0;
+                                                           // S18: lower limits for tests (0: the device's)
                                bool allowMultiDrawIndirect = true; };        // S18: false draws bucket by bucket
 bool renderFrame(const Callback& transfer, const Callback& render, const std::function<void()>& gui);
 RenderingFormats formats() const;      // the scene pass: R16G16B16A16 float, D32 (reversed-Z), the sample count
@@ -1367,7 +1370,12 @@ void removeEmitter(EmitterHandle);                                  // fixed pos
   copies), never through a host mapping, since frames in flight read them. Per-frame host-visible buffers (offset table,
   work chunks, dynamics, statistics, staging) recreate that frame slot's buffer when too small; the scratch, compacted,
   count, command and bucket-LOD buffers are recreated at frame start when too small (`deferDelete`, no copy). One
-  descriptor set per frame slot with every binding (13 storage buffers), rewritten for the frame being recorded.
+  descriptor set per frame slot with every binding (13 storage buffers), rewritten for the frame being recorded. The
+  storage buffers are bound whole, so each grows at most to `maxStorageBufferRange` (128 MiB on lavapipe and many
+  mobile GPUs: about 4.19M static instances; 4 GiB on desktop GPUs); content that needs more is a fatal error
+  (`SAIGA_EXIT_ERROR`, every build: at `addInstanceSet` / `updateInstances` for the static instances, at the next
+  frame for the per-frame buffers). The draws use the bucket layout and vertex and index buffers of the frame's
+  transfer (a snapshot): content changes in the render callback take effect in the next frame.
   Uploads are recorded in the transfer section after a barrier from the previous frames' reads (vertex, compute,
   indirect) and writes (compute) to the transfer writes, so a range freed and reused between two frames is safe.
 - **Offset table** [exists: S18]: rewritten every frame (per frame slot): per slot two `vec4`s, `hi.xyz` = float(origin -
@@ -1451,7 +1459,8 @@ As implemented in S18 (`SceneCulling`, `shader/vulkan/scene/`), the prototype's 
 1. CPU: each instance set of the camera's space: its bounds (camera-relative in double) against the 5 frustum planes and
    its meshes' largest end distance -> visible sets; their used ranges are split into **work chunks** of at most 256
    instances `{first, count, slot}`; the dynamics are chunked with `slot = 0xFFFFFFFF` (each carries its chunk's slot).
-   A direct dispatch, one workgroup per chunk (asserted `<= maxComputeWorkGroupCount[0]`, at least 65535).
+   A direct dispatch, one workgroup per chunk, 2D beyond `maxComputeWorkGroupCount[0]` (chunk = y * x-count + x; the
+   shaders skip the rest of the last row; beyond the y limit a fatal error).
 2. **Count pass** (`instance_count.comp`; invocation i of chunk c handles `chunk.first + i` if `i < chunk.count`; its
    scratch entry is `c * 256 + i`, written "not visible" when rejected and for `i >= chunk.count`, since the scratch
    buffer is reused across frames): rejects tombstones (`scale == 0`), unset or removed dynamics (mesh 0), zeroed mesh

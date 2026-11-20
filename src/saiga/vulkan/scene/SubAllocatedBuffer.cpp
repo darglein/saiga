@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <string>
 #include <vector>
 
 #include <vk_mem_alloc.h>
@@ -39,13 +40,16 @@ SubAllocatedBuffer::~SubAllocatedBuffer()
     destroy();
 }
 
-void SubAllocatedBuffer::init(VulkanBase& b, uint32_t elementSize, uint64_t capacity, vk::BufferUsageFlags u)
+void SubAllocatedBuffer::init(VulkanBase& b, uint32_t elementSize, uint64_t capacity, vk::BufferUsageFlags u,
+                              uint64_t maxBytes, const char* what)
 {
     destroy();
-    base     = &b;
-    usage    = u | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst;
-    elemSize = elementSize;
-    capacity = std::max<uint64_t>(capacity, 1);
+    base        = &b;
+    usage       = u | vk::BufferUsageFlagBits::eTransferSrc | vk::BufferUsageFlagBits::eTransferDst;
+    elemSize    = elementSize;
+    maxElements = std::max<uint64_t>(maxBytes / elementSize, 1);
+    name        = what;
+    capacity    = std::clamp<uint64_t>(capacity, 1, maxElements);
     createBlock(capacity);
     current.createBuffer(*base, capacity * elemSize, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
 }
@@ -109,7 +113,14 @@ uint64_t SubAllocatedBuffer::allocate(uint64_t key, uint64_t count)
 
 void SubAllocatedBuffer::grow(uint64_t required)
 {
-    uint64_t capacity = std::max(capacityElements * 2, required);
+    auto tooLarge = [&](uint64_t elements)
+    {
+        SAIGA_EXIT_ERROR("RenderScene: the " + std::string(name) + " need " + std::to_string(elements * elemSize) +
+                         " bytes, more than the buffer's limit (maxStorageBufferRange: " +
+                         std::to_string(maxElements * elemSize) + " bytes)");
+    };
+    if (required > maxElements) tooLarge(required);
+    uint64_t capacity = std::min(std::max(capacityElements * 2, required), maxElements);
     for (;;)
     {
         // The data on the GPU stays in the buffer that holds it until recordGrowth copies it (an earlier growth
@@ -136,7 +147,9 @@ void SubAllocatedBuffer::grow(uint64_t required)
         std::sort(order.begin(), order.end(), [](const Range* a, const Range* b) { return a->offset < b->offset; });
         for (Range* r : order) ok = ok && tryAllocate(*r);
         if (ok) break;
-        capacity *= 2;
+        // A fresh block packs the ranges in order: not expected to fail below the limit
+        if (capacity == maxElements) tooLarge(capacity + 1);
+        capacity = std::min(capacity * 2, maxElements);
     }
     current.createBuffer(*base, capacity * elemSize, usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
     growths++;

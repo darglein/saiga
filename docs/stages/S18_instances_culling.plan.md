@@ -322,6 +322,19 @@ file.
   The scene tests are the fixture `VulkanSceneContent` (derived from `VulkanScene`), the import test
   `VulkanMeshImport.FlatBox` (no device). The CPU reference's tolerance is the plan's: per LOD and in total the GPU
   count differs by at most the number of instances within 1e-3 relative of a plane or an end distance.
+- **Local review** (after the results below): the draws use a snapshot of the frame's transfer (each pipeline class's
+  bucket range, the vertex, index and command buffers), so `addMesh` or a class change of `setMaterial` in the render
+  callback takes effect in the next frame (before, the draws read the new layout against the old commands buffer:
+  `VUID-vkCmdDrawIndexedIndirect-drawCount-00540`, and bound a grown vertex buffer before its copy). The storage
+  buffers bound whole (static instances, dynamics, compacted, scratch, work chunks, offset table, counts, commands,
+  bucket LODs, statistics) grow at most to `maxStorageBufferRange` (128 MiB on lavapipe); more is a fatal error
+  (`SAIGA_EXIT_ERROR`) in every build; the tables of mesh records and materials are bounded by the 16-bit IDs (7.3 MB,
+  below the minimum 2^27 of the limit). The count and write passes dispatch in 2D beyond
+  `maxComputeWorkGroupCount[0]` (before: an assert only). `RenderSceneParameters::storageBufferLimit` and
+  `workGroupLimit` lower the limits for tests. New tests: `ContentChangesInRenderCallback`, `MaterialClassChange`,
+  `PaletteColors`, `AlphaMaskDiscard`, `StorageBufferLimit`, `WorkGroupRows` (`test_vulkan_scene`: 24 tests). The
+  culling benchmark records the
+  statistics of each frame once.
 - **The culling benchmark runs headless** (`HeadlessWindow`, no present): it needs no window and isolates the scene's
   sections; 120 frames without a camera give the empty scene section, `draw_ms` = `scene_ms` - its median. The trees
   are `ForestRenderer::placeTrees` on the default height field and `FoliageGenerator`'s meshes made flat (faces

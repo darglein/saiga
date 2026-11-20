@@ -30,10 +30,11 @@ Vec3 rotate(const quat& q, const Vec3& v)
 }
 }  // namespace
 
-void InstanceBuffer::init(VulkanBase& base, uint32_t staticCapacity)
+void InstanceBuffer::init(VulkanBase& base, uint32_t staticCapacity, uint64_t maxBytes)
 {
     destroy();
-    buffer.init(base, sizeof(StaticInstance), staticCapacity, vk::BufferUsageFlagBits::eStorageBuffer);
+    buffer.init(base, sizeof(StaticInstance), staticCapacity, vk::BufferUsageFlagBits::eStorageBuffer, maxBytes,
+                "static instances");
 }
 
 void InstanceBuffer::destroy()

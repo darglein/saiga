@@ -301,8 +301,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (s.renderFn && *s.renderFn) (*s.renderFn)(cmd);
         // The scene's instances after the game's draws
         viewport(cmd);
-        s.slotStatistics[frame.frameIndex].drawCommands =
-            s.culling->recordDraw(cmd, frame.frameIndex, *s.meshPool, camera);
+        s.slotStatistics[frame.frameIndex].drawCommands = s.culling->recordDraw(cmd, frame.frameIndex, camera);
         cmd.endRendering();
     }
     timings.leaveSection("scene", cmd);
@@ -419,10 +418,11 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     renderer            = std::make_unique<SceneFrameRenderer>(*this, window, vp);
     meshPool            = std::make_unique<MeshPool>();
     meshPool->init(base(), params.vertexCapacity, params.indexCapacity);
-    instanceBuffer = std::make_unique<InstanceBuffer>();
-    instanceBuffer->init(base(), params.staticInstanceCapacity);
     culling = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params);
+    // The static instance buffer is bound whole: it grows up to the storage buffer limit
+    instanceBuffer = std::make_unique<InstanceBuffer>();
+    instanceBuffer->init(base(), params.staticInstanceCapacity, culling->storageLimit());
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }

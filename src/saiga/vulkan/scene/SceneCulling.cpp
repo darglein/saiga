@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <string>
 
 namespace Saiga
 {
@@ -55,10 +56,15 @@ struct CountPush
     uint32_t meshCount;
     uint32_t bucketsPerView;
     uint32_t view;
+    uint32_t chunkCount;
 };
 struct ScanPush
 {
     uint32_t bucketCount;
+};
+struct WritePush
+{
+    uint32_t chunkCount;
 };
 struct DrawPush
 {
@@ -68,7 +74,7 @@ struct DrawPush
     uint32_t linear;
     uint32_t pad;
 };
-static_assert(sizeof(CountPush) == 96 && sizeof(DrawPush) == 80, "push constants of the scene shaders");
+static_assert(sizeof(CountPush) == 100 && sizeof(DrawPush) == 80, "push constants of the scene shaders");
 
 // shader/vulkan/scene/bucket_scan.comp: Statistics
 struct GpuStatistics
@@ -126,6 +132,10 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     const auto limits    = base->physicalDevice.getProperties().limits;
     maxDrawIndirectCount = std::max(1u, limits.maxDrawIndirectCount);
     maxWorkGroups        = limits.maxComputeWorkGroupCount[0];
+    maxWorkGroupsY       = limits.maxComputeWorkGroupCount[1];
+    if (params.workGroupLimit > 0) maxWorkGroups = std::min(maxWorkGroups, params.workGroupLimit);
+    storageBytes = limits.maxStorageBufferRange;
+    if (params.storageBufferLimit > 0) storageBytes = std::min<uint64_t>(storageBytes, params.storageBufferLimit);
 
     auto initCompute = [&](ComputePipeline& p, const char* shader, uint32_t pushSize)
     {
@@ -137,7 +147,7 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     };
     initCompute(countPipeline, "vulkan/scene/instance_count.comp", sizeof(CountPush));
     initCompute(scanPipeline, "vulkan/scene/bucket_scan.comp", sizeof(ScanPush));
-    initCompute(writePipeline, "vulkan/scene/instance_write.comp", 4);
+    initCompute(writePipeline, "vulkan/scene/instance_write.comp", sizeof(WritePush));
 
     for (int c = 0; c < pipelineClassCount; ++c)
     {
@@ -194,23 +204,32 @@ void SceneCulling::destroy()
     base = nullptr;
 }
 
-void SceneCulling::ensureHost(Buffer& b, size_t bytes, vk::BufferUsageFlags usage)
+size_t SceneCulling::storageSize(const Buffer& b, size_t bytes, const char* what) const
+{
+    if (bytes > storageBytes)
+    {
+        SAIGA_EXIT_ERROR("RenderScene: the " + std::string(what) + " need " + std::to_string(bytes) +
+                         " bytes, more than maxStorageBufferRange (" + std::to_string(storageBytes) + " bytes)");
+    }
+    return size_t(std::min<uint64_t>(std::max<size_t>(bytes, size_t(b.size()) * 2), storageBytes));
+}
+
+void SceneCulling::ensureHost(Buffer& b, size_t bytes, vk::BufferUsageFlags usage, const char* what)
 {
     bytes = std::max<size_t>(bytes, 256);
     if (b && b.size() >= bytes) return;
-    // The frame slot's previous frame has completed; max(2x, required)
-    b.createBuffer(*base, std::max<size_t>(bytes, size_t(b.size()) * 2), usage,
+    // The frame slot's previous frame has completed; max(2x, required) within the limit
+    b.createBuffer(*base, storageSize(b, bytes, what), usage,
                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 }
 
-void SceneCulling::ensureDevice(Buffer& b, size_t bytes, vk::BufferUsageFlags usage, bool& recreated)
+void SceneCulling::ensureDevice(Buffer& b, size_t bytes, vk::BufferUsageFlags usage, bool& recreated, const char* what)
 {
     bytes = std::max<size_t>(bytes, 256);
     if (b && b.size() >= bytes) return;
     // No copy: the content is rewritten every frame (or the static fields by the caller); the old buffer is released
     // after the frames in flight
-    b.createBuffer(*base, std::max<size_t>(bytes, size_t(b.size()) * 2), usage,
-                   vk::MemoryPropertyFlagBits::eDeviceLocal);
+    b.createBuffer(*base, storageSize(b, bytes, what), usage, vk::MemoryPropertyFlagBits::eDeviceLocal);
     recreated = true;
 }
 
@@ -244,17 +263,20 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             chunkList.push_back({i, std::min(workChunkSize, dynamicCount - i), dynamicChunk, 0});
     }
     if (meshes.buckets().empty()) chunkList.clear();
-    SAIGA_ASSERT(chunkList.size() <= maxWorkGroups, "RenderScene: more work chunks than maxComputeWorkGroupCount[0]");
+    // A 2D dispatch beyond maxComputeWorkGroupCount[0] (the scratch buffer's limit is reached long before y's)
+    if ((uint64_t(chunkList.size()) + maxWorkGroups - 1) / maxWorkGroups > maxWorkGroupsY)
+        SAIGA_EXIT_ERROR("RenderScene: " + std::to_string(chunkList.size()) +
+                         " work chunks exceed maxComputeWorkGroupCount");
     f.chunkCount = uint32_t(chunkList.size());
     f.culled     = f.chunkCount > 0;
 
     // 3. The frame's host visible buffers
     const auto storage = vk::BufferUsageFlagBits::eStorageBuffer;
-    ensureHost(f.chunks, chunkList.size() * sizeof(WorkChunk), storage);
+    ensureHost(f.chunks, chunkList.size() * sizeof(WorkChunk), storage, "work chunks");
     if (!chunkList.empty()) std::memcpy(f.chunks.getMappedPointer(), chunkList.data(), chunkList.size() * 16);
 
     const auto& slots = instances.slots();
-    ensureHost(f.offsets, slots.size() * 32, storage);
+    ensureHost(f.offsets, slots.size() * 32, storage, "offset table entries");
     {
         auto* o = static_cast<float*>(f.offsets.getMappedPointer());
         for (size_t i = 0; i < slots.size(); ++i)
@@ -288,23 +310,24 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
     }
 
     const auto& dyn = instances.dynamics();
-    ensureHost(f.dynamics, std::max<size_t>(dyn.size(), dynamicCapacity) * sizeof(InstanceBuffer::GpuDynamic), storage);
+    ensureHost(f.dynamics, std::max<size_t>(dyn.size(), dynamicCapacity) * sizeof(InstanceBuffer::GpuDynamic), storage,
+               "dynamic instances");
     if (!dyn.empty()) instances.writeDynamics(static_cast<InstanceBuffer::GpuDynamic*>(f.dynamics.getMappedPointer()));
 
-    ensureHost(f.stats, sizeof(GpuStatistics), storage);
+    ensureHost(f.stats, sizeof(GpuStatistics), storage, "statistics");
     if (!f.culled) std::memset(f.stats.getMappedPointer(), 0, sizeof(GpuStatistics));
 
     // 4. The shared device buffers (recreated when too small)
     const size_t buckets = meshes.buckets().size();
     bool layoutBuffers = false, other = false;
     const auto devStorage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst;
-    ensureDevice(counts, buckets * 4, devStorage | vk::BufferUsageFlagBits::eTransferSrc, other);
+    ensureDevice(counts, buckets * 4, devStorage | vk::BufferUsageFlagBits::eTransferSrc, other, "bucket counts");
     ensureDevice(commands, buckets * commandStride, devStorage | vk::BufferUsageFlagBits::eIndirectBuffer,
-                 layoutBuffers);
-    ensureDevice(bucketLods, buckets * 4, devStorage, layoutBuffers);
-    ensureDevice(scratch, size_t(f.chunkCount) * workChunkSize * 8, devStorage, other);
+                 layoutBuffers, "indirect commands");
+    ensureDevice(bucketLods, buckets * 4, devStorage, layoutBuffers, "bucket LODs");
+    ensureDevice(scratch, size_t(f.chunkCount) * workChunkSize * 8, devStorage, other, "scratch entries");
     ensureDevice(compacted, (size_t(instances.capacity()) + std::max<size_t>(dyn.size(), dynamicCapacity)) * 8,
-                 devStorage, other);
+                 devStorage, other, "compacted entries");
 
     // 5. Uploads: meshes, instances, tables, the commands' static fields and bucket LODs after a layout change
     meshes.queueUploads(batch);
@@ -329,6 +352,14 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
     batch.record(*base, cmd, f.staging);
 
     writeDescriptors(f, meshes, instances);
+
+    // The draws' snapshot: a content change in the render callback (a layout change, a growth of the vertex or index
+    // buffer) takes effect in the next frame, whose transfer uploads it
+    for (int c = 0; c < pipelineClassCount; ++c)
+        f.ranges[c] = {meshes.classRanges()[c].first, meshes.classRanges()[c].count};
+    f.vertices = handle(meshes.vertexBuffer());
+    f.indices  = handle(meshes.indexBuffer());
+    f.commands = handle(commands);
 }
 
 void SceneCulling::writeDescriptors(Frame& f, MeshPool& meshes, InstanceBuffer& instances)
@@ -378,9 +409,10 @@ void SceneCulling::recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPo
         push.meshCount      = meshes.meshTableSize();
         push.bucketsPerView = bucketCount;
         push.view           = 0;
+        push.chunkCount     = f.chunkCount;
         countPipeline.bindRawDescriptorSet(cmd, f.set);
         countPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
-        cmd.dispatch(f.chunkCount, 1, 1);
+        dispatchChunks(cmd, f.chunkCount);
     }
     memoryBarrier(cmd, Stage::eComputeShader, Access::eShaderStorageWrite, Stage::eComputeShader,
                   Access::eShaderStorageRead | Access::eShaderStorageWrite);
@@ -399,10 +431,10 @@ void SceneCulling::recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPo
     // Write
     if (writePipeline.bind(cmd))
     {
-        uint32_t pad = 0;
+        WritePush push{f.chunkCount};
         writePipeline.bindRawDescriptorSet(cmd, f.set);
-        writePipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(pad), &pad);
-        cmd.dispatch(f.chunkCount, 1, 1);
+        writePipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
+        dispatchChunks(cmd, f.chunkCount);
     }
     // The draws read the commands and the compacted entries; the host reads the statistics after the frame
     memoryBarrier(cmd, Stage::eComputeShader, Access::eShaderStorageWrite,
@@ -410,29 +442,29 @@ void SceneCulling::recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPo
                   Access::eIndirectCommandRead | Access::eShaderStorageRead | Access::eHostRead);
 }
 
-uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes,
-                                  const SceneCamera& camera)
+uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera)
 {
     Frame& f = frames[frameIndex];
     if (!f.culled) return 0;
     uint32_t calls = 0;
     DrawPush push;
-    push.viewProj                  = camera.viewProj;
-    push.alpha                     = camera.alpha;
-    push.preExposure               = camera.preExposure;
-    push.linear                    = camera.linear ? 1 : 0;
-    push.pad                       = 0;
-    const vk::Buffer commandBuffer = handle(commands);
+    push.viewProj    = camera.viewProj;
+    push.alpha       = camera.alpha;
+    push.preExposure = camera.preExposure;
+    push.linear      = camera.linear ? 1 : 0;
+    push.pad         = 0;
+    // The snapshot of recordTransfer (the layout of the uploaded commands), not the mesh pool's current state
+    const vk::Buffer commandBuffer = f.commands;
     for (int c = 0; c < pipelineClassCount; ++c)
     {
-        const auto range = meshes.classRanges()[c];
+        const auto range = f.ranges[c];
         if (range.count == 0) continue;
         Pipeline& p = drawPipelines[c];
         if (!p.bind(cmd)) continue;
         p.bindRawDescriptorSet(cmd, f.set);
         p.pushConstant(cmd, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(push), &push);
-        cmd.bindVertexBuffers(0, handle(meshes.vertexBuffer()), vk::DeviceSize(0));
-        cmd.bindIndexBuffer(handle(meshes.indexBuffer()), 0, vk::IndexType::eUint32);
+        cmd.bindVertexBuffers(0, f.vertices, vk::DeviceSize(0));
+        cmd.bindIndexBuffer(f.indices, 0, vk::IndexType::eUint32);
         if (multiDraw)
         {
             for (uint32_t first = 0; first < range.count; first += maxDrawIndirectCount)
@@ -454,6 +486,15 @@ uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, Me
         }
     }
     return calls;
+}
+
+void SceneCulling::dispatchChunks(vk::CommandBuffer cmd, uint32_t chunkCount) const
+{
+    // Chunk c = y * x-count + x; the shaders skip c >= chunkCount
+    if (chunkCount == 0) return;
+    const uint32_t x = std::min(chunkCount, maxWorkGroups);
+    const uint32_t y = (chunkCount + x - 1) / x;
+    cmd.dispatch(x, y, 1);
 }
 
 void SceneCulling::readStatistics(uint32_t frameIndex, RenderStatistics& out)

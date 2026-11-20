@@ -51,7 +51,8 @@ struct SceneCamera;
  * one instance buffer each; every frame the offset table holds origin - camera (double, split into float hi + lo) per
  * set and per chunk of a dynamic, the instances are culled on the GPU and drawn camera-relative (the view matrix holds
  * only the camera rotation). Nothing is culled or drawn before the first setCamera. Main thread only; the calls take
- * effect in the next renderFrame.
+ * effect in the next renderFrame (also from the render callback: the frame draws its transfer's snapshot). The storage
+ * buffers grow at most to maxStorageBufferRange (RenderSceneParameters' capacities; more is a fatal error).
  */
 class SAIGA_VULKAN_API RenderScene
 {

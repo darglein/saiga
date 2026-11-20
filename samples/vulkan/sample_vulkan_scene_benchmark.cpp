@@ -168,7 +168,9 @@ int main(int argc, char** argv)
     const uint64_t firstMeasured = lastEmpty + warmup + 1, lastMeasured = firstMeasured + measured - 1;
     std::vector<double> cullMs, sceneMs, emptyMs, transferMs, recordingMs, drawCalls;
     std::array<std::vector<double>, 4> perLod;
-    auto collect = [&]()
+    // statistics() returns the newest completed frame, which may not have changed since the last call
+    uint64_t lastStatisticsFrame = 0;
+    auto collect                 = [&]()
     {
         FrameTimes t;
         while (scene.takeGpuFrameTimes(t))
@@ -182,8 +184,9 @@ int main(int argc, char** argv)
             }
         }
         const RenderStatistics& st = scene.statistics();
-        if (st.frame >= firstMeasured && st.frame <= lastMeasured)
+        if (st.frame != lastStatisticsFrame && st.frame >= firstMeasured && st.frame <= lastMeasured)
         {
+            lastStatisticsFrame = st.frame;
             for (int l = 0; l < 4; ++l) perLod[l].push_back(st.instancesPerLod[l]);
             drawCalls.push_back(st.drawCommands);
         }

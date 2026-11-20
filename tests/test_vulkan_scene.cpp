@@ -1533,3 +1533,243 @@ TEST_F(VulkanSceneContent, DrawPaths)
     EXPECT_GE(stats[0].nonEmptyBuckets, 4u);
     EXPECT_EQ(stats[0].instancesPerLod[0] + stats[0].instancesPerLod[1] + stats[0].instancesPerLod[2], 13u);
 }
+
+namespace
+{
+// The pixels that are not the (black) clear color
+int coveredPixels(const TemplatedImage<ucvec4>& img)
+{
+    int n = 0;
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x)
+            if (img(y, x)(0) > 0 || img(y, x)(1) > 0 || img(y, x)(2) > 0) n++;
+    return n;
+}
+}  // namespace
+
+// Regression: recordDraw read the mesh pool's current bucket layout and vertex/index buffers, so addMesh and a
+// pipeline-class change of setMaterial in the render callback (after the frame's transfer) drew more buckets than the
+// commands buffer held (VUID-vkCmdDrawIndexedIndirect-drawCount-00540) and bound the grown vertex buffer before its
+// copy. Now the frame draws its transfer's snapshot and the changes take effect in the next frame.
+TEST_F(VulkanSceneContent, ContentChangesInRenderCallback)
+{
+    RenderSceneParameters p;
+    // Exactly mesh 1 (4 LODs of 24 vertices and 36 indices): the next mesh grows both buffers
+    p.vertexCapacity = 96;
+    p.indexCapacity  = 144;
+    CreateScene(p);
+    scene->addMaterial(1, "opaque", flatMaterial());
+    scene->addMaterial(2, "two_sided", flatMaterial(true));
+    // Vertex alpha 100: drawn while opaque, discarded once the material is alpha-masked
+    const std::vector<float> ends = {10, 20, 30, 100};
+    scene->addMesh(1, "box", boxMesh(vec3(0.5f, 0.5f, 0.5f), vec3(0, 0, 0), ends, {ucvec4(220, 180, 40, 100)}), 1);
+    camera.position = Vec3(0, 0, 15);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(-1, 0, 0), quat::Identity(), 1, 1)});
+    RenderStatistics st;
+    const auto before = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[1], 1u);
+    EXPECT_GT(coveredPixels(before), 30);
+
+    // 4 buckets -> 16 (more than the commands buffer's 12), a growth, a class change of mesh 1's material
+    MaterialData masked = flatMaterial();
+    masked.alphaMask    = true;
+    bool changed        = false;
+    auto render         = [&](vk::CommandBuffer)
+    {
+        if (changed) return;
+        changed = true;
+        for (int k = 0; k < 3; ++k)
+            scene->addMesh(MeshId(10 + k), "late" + std::to_string(k),
+                           boxMesh(vec3(0.5f, 0.5f, 0.5f), vec3(0, 0, 0), ends, {ucvec4(40, 200, 220, 255)}), 2);
+        scene->setMaterial(1, masked);
+    };
+    TemplatedImage<ucvec4> during;
+    scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { during = shot; });
+    EXPECT_TRUE(scene->renderFrame([](vk::CommandBuffer) {}, render, nullptr));
+    scene->waitIdle();
+    st = scene->statistics();
+    EXPECT_EQ(st.frame, scene->frames());
+    EXPECT_EQ(st.instancesPerLod[1], 1u);
+    // The frame of the change is drawn as before
+    ASSERT_EQ(during.w, W);
+    EXPECT_EQ(maxPixelDiff(during, before), 0);
+
+    // The next frame: mesh 1 alpha-masked (discarded, still counted), a new mesh's instance drawn
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(1, 0, 0), quat::Identity(), 1, 11)});
+    const auto after = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[1], 2u);
+    EXPECT_EQ(st.nonEmptyBuckets, 2u);
+    const Vec2 left = camera.project(Vec3(-1, 0, 0)), right = camera.project(Vec3(1, 0, 0));
+    EXPECT_EQ(after(int(left(1)), int(left(0))), ucvec4(0, 0, 0, 255));
+    EXPECT_NE(after(int(right(1)), int(right(0))), ucvec4(0, 0, 0, 255));
+}
+
+// A pipeline-class change of setMaterial between frames reorders the buckets (mesh 1 moves behind mesh 2): the same
+// counts and pixels, then back
+TEST_F(VulkanSceneContent, MaterialClassChange)
+{
+    CreateScene();
+    scene->addMaterial(1, "a", flatMaterial());
+    scene->addMaterial(2, "b", flatMaterial());
+    scene->addMesh(1, "m1", boxMesh(vec3(0.4f, 0.4f, 0.4f), vec3(0, 0, 0), {100}, {ucvec4(255, 0, 0, 255)}), 1);
+    scene->addMesh(2, "m2", boxMesh(vec3(0.4f, 0.4f, 0.4f), vec3(0, 0, 0), {15, 100}, {ucvec4(0, 255, 0, 255)}), 2);
+    camera.position = Vec3(0, 0, 20);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(-2, 0, 0), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(2, 0, 0), quat::Identity(), 1, 2)});
+    RenderStatistics st[3];
+    const auto a = SceneFrame(&st[0]);
+    scene->setMaterial(1, flatMaterial(true));
+    const auto b = SceneFrame(&st[1]);
+    scene->setMaterial(2, flatMaterial(true));
+    scene->setMaterial(1, flatMaterial(false));
+    const auto c = SceneFrame(&st[2]);
+    for (int i = 0; i < 3; ++i)
+    {
+        EXPECT_EQ(st[i].instancesPerLod[0], 1u) << i;
+        EXPECT_EQ(st[i].instancesPerLod[1], 1u) << i;
+        EXPECT_EQ(st[i].nonEmptyBuckets, 2u) << i;
+    }
+    EXPECT_GT(coveredPixels(a), 60);
+    EXPECT_EQ(maxPixelDiff(a, b), 0);
+    EXPECT_EQ(maxPixelDiff(a, c), 0);
+}
+
+// usePalette: the vertex color word indexes the palette (an index beyond it is clamped to the last entry); setPalette
+// between frames recolors
+TEST_F(VulkanSceneContent, PaletteColors)
+{
+    CreateScene();
+    MaterialData pal = flatMaterial();
+    pal.usePalette   = true;
+    scene->addMaterial(1, "palette", pal);
+    scene->setPalette({PaletteEntry{ucvec4(255, 0, 0, 255)}, PaletteEntry{ucvec4(0, 0, 255, 255)}});
+    MeshLods first = boxMesh(vec3(0.8f, 0.8f, 0.8f), vec3(0, 0, 0), {100}, {ucvec4(0, 0, 0, 255)});
+    MeshLods last  = first;
+    for (auto& v : first.lods[0].vertices) v.color = 0;
+    for (auto& v : last.lods[0].vertices) v.color = 77;  // beyond the palette: the last entry
+    scene->addMesh(1, "first", first, 1);
+    scene->addMesh(2, "last", last, 1);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(-2, 0, 0), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(2, 0, 0), quat::Identity(), 1, 2)});
+    const Vec2 l = camera.project(Vec3(-2, 0, 0.8)), r = camera.project(Vec3(2, 0, 0.8));
+    auto img = SceneFrame();
+    auto pl = img(int(l(1)), int(l(0))), pr = img(int(r(1)), int(r(0)));
+    EXPECT_GT(pl(0), 50);
+    EXPECT_EQ(pl(1), 0);
+    EXPECT_EQ(pl(2), 0);
+    EXPECT_EQ(pr(0), 0);
+    EXPECT_EQ(pr(1), 0);
+    EXPECT_GT(pr(2), 50);
+    scene->setPalette({PaletteEntry{ucvec4(0, 255, 0, 255)}});
+    img = SceneFrame();
+    pl  = img(int(l(1)), int(l(0)));
+    pr  = img(int(r(1)), int(r(0)));
+    EXPECT_EQ(pl, pr);
+    EXPECT_EQ(pl(0), 0);
+    EXPECT_GT(pl(1), 50);
+    EXPECT_EQ(pl(2), 0);
+}
+
+// alphaMask: vertex alpha * baseColor.a < 0.5 is discarded (counted by the culling, not drawn); without alphaMask the
+// alpha is ignored
+TEST_F(VulkanSceneContent, AlphaMaskDiscard)
+{
+    CreateScene();
+    MaterialData masked = flatMaterial();
+    masked.alphaMask    = true;
+    MaterialData faded  = masked;
+    faded.baseColor     = vec4(1, 1, 1, 0.4f);
+    scene->addMaterial(1, "masked", masked);
+    scene->addMaterial(2, "opaque", flatMaterial());
+    scene->addMaterial(3, "faded", faded);
+    const vec3 half(0.5f, 0.5f, 0.5f);
+    scene->addMesh(1, "low", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 1);
+    scene->addMesh(2, "high", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 200)}), 1);
+    scene->addMesh(3, "low_opaque", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 2);
+    scene->addMesh(4, "faded", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 3);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    const float xs[4] = {-3, -1, 1, 3};
+    std::vector<StaticInstance> v;
+    for (int i = 0; i < 4; ++i) v.push_back(makeInstance(vec3(xs[i], 0, 0), quat::Identity(), 1, MeshId(i + 1)));
+    scene->addInstanceSet(RegionId(), v);
+    RenderStatistics st;
+    const auto img = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 4u);
+    const bool drawn[4] = {false, true, true, false};
+    for (int i = 0; i < 4; ++i)
+    {
+        const Vec2 p = camera.project(Vec3(xs[i], 0, 0.5));
+        EXPECT_EQ(img(int(p(1)), int(p(0))) != ucvec4(0, 0, 0, 255), drawn[i]) << i;
+    }
+}
+
+// The storage buffers bound whole stop growing at the limit (maxStorageBufferRange, here a lower test limit of 48 KiB =
+// 1536 static instances; 2x growth from 1000 would need 64 KiB) and a set beyond it is a fatal error. The device's
+// limit itself is not tested: on lavapipe (128 MiB) it needs 4.2M instances (a 134 MB CPU copy, uploads and buffers).
+TEST_F(VulkanSceneContent, StorageBufferLimit)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    RenderSceneParameters p;
+    p.staticInstanceCapacity = 16;
+    p.dynamicCapacity        = 16;
+    p.storageBufferLimit     = 48 * 1024;
+    CreateScene(p);
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(0.02f, 0.02f, 0.02f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    auto grid = [](int n, float y)
+    {
+        std::vector<StaticInstance> v;
+        for (int i = 0; i < n; ++i)
+            v.push_back(makeInstance(vec3(-3 + (i % 50) * 0.12f, y + (i / 50) * 0.12f, 0), quat::Identity(), 1, 1));
+        return v;
+    };
+    scene->addInstanceSet(RegionId(), grid(1000, -2));
+    RenderStatistics st;
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 1000u);
+    scene->addInstanceSet(RegionId(), grid(536, 0.5f));
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 1536u);
+    EXPECT_DEATH(scene->addInstanceSet(RegionId(), grid(1, 2)),
+                 "more than the buffer's limit \\(maxStorageBufferRange");
+}
+
+// The count and write passes as a 2D dispatch (work groups limited to 3 per row, 11 chunks: a partial last row) give
+// the counts and pixels of the 1D dispatch
+TEST_F(VulkanSceneContent, WorkGroupRows)
+{
+    TemplatedImage<ucvec4> images[2];
+    RenderStatistics stats[2];
+    for (int run = 0; run < 2; ++run)
+    {
+        RenderSceneParameters p;
+        p.workGroupLimit = run == 0 ? 0 : 3;
+        CreateScene(p);
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box",
+                       boxMesh(vec3(0.05f, 0.05f, 0.05f), vec3(0, 0, 0), {12, 100}, {ucvec4(220, 180, 40, 255)}), 1);
+        camera.position = Vec3(0, 0, 10);
+        camera.apply(*scene);
+        // 2600 instances in two sets: 6 + 5 chunks (the last of each partial)
+        std::vector<StaticInstance> a, b;
+        for (int i = 0; i < 1500; ++i)
+            a.push_back(makeInstance(vec3(-4 + (i % 50) * 0.16f, -3 + (i / 50) * 0.2f, -(i % 7) * 1.0f),
+                                     quat::Identity(), 1, 1));
+        for (int i = 0; i < 1100; ++i)
+            b.push_back(makeInstance(vec3(-4 + (i % 50) * 0.16f, -3 + (i / 50) * 0.2f, -8), quat::Identity(), 1, 1));
+        scene->addInstanceSet(RegionId(), a);
+        scene->addInstanceSet(RegionId(), b);
+        images[run] = SceneFrame(&stats[run]);
+    }
+    EXPECT_GT(stats[0].instancesPerLod[0], 100u);
+    EXPECT_GT(stats[0].instancesPerLod[1], 100u);
+    EXPECT_EQ(stats[0].instancesPerLod, stats[1].instancesPerLod);
+    EXPECT_EQ(maxPixelDiff(images[0], images[1]), 0);
+}

@@ -81,7 +81,8 @@ class SAIGA_VULKAN_API InstanceBuffer
     };
     static_assert(sizeof(GpuDynamic) == 80, "DynamicInstance of instance_common.glsl");
 
-    void init(VulkanBase& base, uint32_t staticCapacity);
+    // maxBytes: the limit of the instance buffer (maxStorageBufferRange; growth beyond it is a fatal error)
+    void init(VulkanBase& base, uint32_t staticCapacity, uint64_t maxBytes);
     void destroy();
 
     InstanceSetHandle addSet(const RegionId& region, const std::vector<StaticInstance>& instances, uint32_t capacity,

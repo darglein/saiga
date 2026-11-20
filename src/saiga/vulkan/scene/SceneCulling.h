@@ -40,8 +40,9 @@ struct SceneCamera
  * The GPU culling and the instance draws of RenderScene (S18, docs/engine_design.md §10.2):
  *   1. CPU: the instance sets' bounds against the frustum and their meshes' end distances -> work chunks of at most 256
  *      instances {first, count, slot} over each visible set's used size; the dynamics chunked with slot 0xFFFFFFFF;
- *   2. count pass (instance_count.comp, one workgroup per chunk): rejections, frustum, LOD, atomicAdd into the bucket's
- *      count; the bucket and the returned slot are stored in the scratch entry;
+ *   2. count pass (instance_count.comp, one workgroup per chunk, a 2D dispatch beyond maxComputeWorkGroupCount[0]):
+ * rejections, frustum, LOD, atomicAdd into the bucket's count; the bucket and the returned slot are stored in the
+ * scratch entry;
  *   3. scan (bucket_scan.comp): instanceCount and firstInstance of every bucket's indirect command, the statistics;
  *   4. write pass (instance_write.comp): the compacted entries uvec2(instance index | dynamic bit, slot | LOD << 24);
  *   5. draw: one vkCmdDrawIndexedIndirect per pipeline class and view over its buckets (split at
@@ -49,12 +50,16 @@ struct SceneCamera
  * Shared device buffers (counts, scratch, compacted, commands, bucket LODs) are recreated at frame start when too
  * small; the per-frame host visible buffers (offset table, work chunks, dynamics, statistics, staging) belong to a
  * frame slot (its previous frame has completed). One descriptor set per frame slot with every binding, rewritten for
- * the frame being recorded.
+ * the frame being recorded. Every storage buffer bound whole stays within storageLimit() (maxStorageBufferRange);
+ * more is a fatal error. The draws use the frame's snapshot of the bucket layout and the vertex and index buffers
+ * (taken in recordTransfer): content changes in the render callback take effect in the next frame.
  */
 class SAIGA_VULKAN_API SceneCulling
 {
    public:
     void init(VulkanBase& base, const RenderingFormats& formats, const RenderSceneParameters& params);
+    // The size limit of a storage buffer bound whole (maxStorageBufferRange or the parameters' lower test limit)
+    uint64_t storageLimit() const { return storageBytes; }
     void destroy();
 
     // The transfer section: growth copies, uploads (meshes, instances, tables, the commands' static fields), the
@@ -63,8 +68,9 @@ class SAIGA_VULKAN_API SceneCulling
                         const SceneCamera& camera);
     // The cull section (between transfer and scene): fill, count, scan, write
     void recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, const SceneCamera& camera);
-    // Inside the scene pass; returns the number of indirect draw calls
-    uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, const SceneCamera& camera);
+    // Inside the scene pass, from the frame's snapshot (not the mesh pool: the render callback may have changed it);
+    // returns the number of indirect draw calls
+    uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera);
 
     // The statistics the scan wrote into the frame slot's readback (instancesPerLod, nonEmptyBuckets); zeros if the
     // frame did not cull
@@ -80,6 +86,13 @@ class SAIGA_VULKAN_API SceneCulling
         vk::DescriptorSet set;
         uint32_t chunkCount = 0;
         bool culled         = false;
+        // The snapshot of recordTransfer for the draws: each pipeline class's buckets, the buffers
+        struct Range
+        {
+            uint32_t first = 0, count = 0;
+        };
+        std::array<Range, pipelineClassCount> ranges = {};
+        vk::Buffer vertices, indices, commands;
     };
     struct WorkChunk
     {
@@ -92,6 +105,8 @@ class SAIGA_VULKAN_API SceneCulling
     uint32_t dynamicCapacity      = 0;
     uint32_t maxDrawIndirectCount = 1;
     uint32_t maxWorkGroups        = 65535;
+    uint32_t maxWorkGroupsY       = 65535;
+    uint64_t storageBytes         = 0;
     ComputePipeline countPipeline, scanPipeline, writePipeline;
     std::array<Pipeline, pipelineClassCount> drawPipelines;
     std::array<Frame, 2> frames;
@@ -101,9 +116,13 @@ class SAIGA_VULKAN_API SceneCulling
     UploadBatch batch;
     std::vector<WorkChunk> chunkList;
 
-    void ensureHost(Buffer& b, size_t bytes, vk::BufferUsageFlags usage);
-    void ensureDevice(Buffer& b, size_t bytes, vk::BufferUsageFlags usage, bool& recreated);
+    // The new size of a storage buffer: max(2x, required) within the limit; more than the limit is a fatal error
+    size_t storageSize(const Buffer& b, size_t bytes, const char* what) const;
+    void ensureHost(Buffer& b, size_t bytes, vk::BufferUsageFlags usage, const char* what);
+    void ensureDevice(Buffer& b, size_t bytes, vk::BufferUsageFlags usage, bool& recreated, const char* what);
     void writeDescriptors(Frame& f, MeshPool& meshes, InstanceBuffer& instances);
+    // One workgroup per chunk, 2D beyond maxWorkGroups
+    void dispatchChunks(vk::CommandBuffer cmd, uint32_t chunkCount) const;
 };
 
 }  // namespace Vulkan
