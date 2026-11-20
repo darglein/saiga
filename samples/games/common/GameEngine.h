@@ -262,6 +262,8 @@ class RenderCaches
         en->delay  = delayOf(e);
         en->pose.record(*w, e);
         en->ring.push_back(readState(*w, e));
+        // The first state's pulse is collected too (an entity first seen on a landing step)
+        if (pulseOf) en->pending = pulseOf(en->current());
         entries.push_back(std::move(en));
         return entries.back().get();
     }

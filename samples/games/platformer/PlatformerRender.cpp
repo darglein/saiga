@@ -242,7 +242,12 @@ void PlatformerRender::gui()
         }
         else if (w.isHost() && !player.valid() && ImGui::Button("restart"))
         {
-            if (auto* hero = gameObjectAs<HeroBase>(w, e)) hero->restart();
+            if (auto* hero = gameObjectAs<HeroBase>(w, e))
+            {
+                hero->restart();
+                // Between steps (paused) the cache would keep the motion from before the restart
+                caches.reseed(e);
+            }
         }
     }
     ImGui::End();
