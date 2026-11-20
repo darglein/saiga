@@ -207,9 +207,18 @@ class Recorder final : public GameObject
 };
 
 // A class with its own (very slow) ticking policy: ScenarioWorld still ticks it every step
+bool g_lastConfigureTick    = false;  // the world's tick setting when a Lazy was last configured
+bool g_throwingLoadListener = false;  // Lazy::onLoad adds a load listener that throws
+
 class Lazy final : public GameObject
 {
    public:
+    void configure() override { g_lastConfigureTick = world().tickEveryStep(); }
+    void onLoad() override
+    {
+        if (g_throwingLoadListener)
+            world().addLoadListener([](const LoadInfo&) { throw std::runtime_error("listener boom"); });
+    }
     static constexpr ClassId id       = ClassId(TestClass::Lazy);
     static constexpr const char* name = "Lazy";
     void onSpawn() override
@@ -230,26 +239,13 @@ void actionLogSystem(World& w, double)
 }
 
 std::thread::id g_mainThread;
-// Writes whether a worker thread ran the entity: the result depends on the thread count (caught by varyThreads)
-std::atomic<bool> g_workerRan{false};
-int g_threads = 1;
+// Writes whether the world has worker threads: the result depends on the thread count (caught by varyThreads).
+// Regression (CodeRabbit, S12): the flag came from the thread that ran a chunk, so the test waited for a worker with a
+// timeout and depended on the scheduling; a serial pass over the configured count is deterministic.
 void workerFlagSystem(World& w, double)
 {
-    g_workerRan = false;
-    g_threads   = w.workerThreads();
-    w.view<WorkerFlag>().parallelEach(
-        [](Entity, WorkerFlag& f)
-        {
-            const bool worker = std::this_thread::get_id() != g_mainThread;
-            if (worker) g_workerRan = true;
-            // The caller waits (up to 1 s) until a worker took a chunk, so a run with workers always has some
-            if (!worker && g_threads > 1)
-            {
-                const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(1);
-                while (!g_workerRan && std::chrono::steady_clock::now() < until) std::this_thread::yield();
-            }
-            f.onWorker = worker;
-        });
+    const bool workers = w.workerThreads() > 1;
+    w.view<WorkerFlag>().each([workers](Entity, WorkerFlag& f) { f.onWorker = workers; });
 }
 
 WorldSetup scenarioSetup()
@@ -876,4 +872,197 @@ TEST(ScenarioRunner, ApiStepInsideAListenerIsAnError)
     w.step();
     EXPECT_FALSE(inner.ok);
     EXPECT_NE(inner.error.find("not inside a step listener"), std::string::npos) << inner.error;
+}
+
+// Review regressions (CodeRabbit, S12, second review)
+
+// Regression (CodeRabbit, S12): the Repeat hash was taken before the scenario's step listeners ran, so a listener that
+// wrote different saved values on step 1 (reset by the scenario later) was not noticed
+TEST(ScenarioRunner, RepeatHashesAfterTheStepListeners)
+{
+    auto runs              = std::make_shared<int>(0);
+    auto e                 = entry("listener_marker",
+                                   [runs](ScenarioWorld& w)
+                                   {
+                       const Entity m = w.world().create();
+                       w.world().add<Marker>(m);
+                       const int run = (*runs)++;
+                       w.addStepListener(
+                           [&w, m, run]()
+                           {
+                               if (w.steps() == 1) w.world().get<Marker>(m).value = 1 + run;
+                           });
+                       w.step();
+                       w.world().get<Marker>(m).value = 0;
+                       w.step();
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Repeat);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "differ after step 1")) << r.report;
+}
+
+// Regression (CodeRabbit, S12): a diagnostic rerun that ended before the differing step left an empty save, and the
+// report said the difference was not reproducible
+TEST(ScenarioRunner, ARerunThatEndsEarlyIsReported)
+{
+    auto runs              = std::make_shared<int>(0);
+    auto e                 = entry("rerun_fails",
+                                   [runs](ScenarioWorld& w)
+                                   {
+                       const int run = (*runs)++;
+                       if (run >= 2) throw std::runtime_error("rerun fails");
+                       const Entity m = w.world().create();
+                       w.world().add<Marker>(m);
+                       w.world().get<Marker>(m).value = run;
+                       w.step();
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Repeat);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "rerun ended before step 1")) << r.report;
+    EXPECT_TRUE(contains(r, "rerun fails")) << r.report;
+    EXPECT_FALSE(contains(r, "not reproducible")) << r.report;
+}
+
+// Regression (CodeRabbit, S12): an exception of a WorldSetup callback left runOnce and ended the whole run
+TEST(ScenarioRunner, AFailingWorldSetupFailsTheVariant)
+{
+    WorldSetup s = scenarioSetup();
+    s.components = [](Registry&) { throw std::runtime_error("setup boom"); };
+    auto e       = entry("any", [](ScenarioWorld& w) { w.step(); });
+    for (ScenarioVariant v : {ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
+    {
+        const ScenarioResult r = runScenario(s, e, v);
+        EXPECT_FALSE(r.passed);
+        EXPECT_TRUE(contains(r, "could not be created: setup boom")) << r.report;
+    }
+}
+
+Json obj(const std::string& text)
+{
+    std::string err;
+    Json j = Json::parse(text, err);
+    EXPECT_TRUE(err.empty()) << err;
+    return j;
+}
+
+ScenarioWorld* g_scenario = nullptr;
+bool g_swapInSystem       = false;
+
+// Regression (CodeRabbit, S12): saveLoad from a system (during the step) reached World::save, which asserts
+TEST(ScenarioRunner, SaveLoadDuringAStepFails)
+{
+    WorldSetup s = scenarioSetup();
+    s.systems    = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "swapper",
+              [](World&, double)
+              {
+                  if (!g_swapInSystem || !g_scenario) return;
+                  g_swapInSystem = false;
+                  g_scenario->saveLoad();
+              });
+    };
+    auto e                 = entry("swap_in_system",
+                                   [](ScenarioWorld& w)
+                                   {
+                       g_scenario     = &w;
+                       g_swapInSystem = true;
+                       w.step();
+                   });
+    const ScenarioResult r = runScenario(s, e, ScenarioVariant::Plain);
+    g_scenario             = nullptr;
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "during a step")) << r.report;
+}
+
+// Regression (CodeRabbit, S12): the replacement got the scenario's tick setting after the load, so configure() of the
+// loaded game objects saw the default
+TEST(ScenarioRunner, TheReplacementHasTheTickSettingBeforeTheLoad)
+{
+    auto e                 = entry("tick_setting_on_load",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.spawn<Lazy>({0, 0, 0});
+                       w.step(4);
+                       w.step(4);
+                       w.check(g_lastConfigureTick, "configure saw tickEveryStep");
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    EXPECT_TRUE(r.passed) << r.report;
+}
+
+// Regression (CodeRabbit, S12): a failing load listener of the swap was not reported
+TEST(ScenarioRunner, LoadListenerErrorsOfTheSwapFail)
+{
+    auto e                 = entry("throwing_load_listener",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.spawn<Lazy>({0, 0, 0});
+                       w.step(4);
+                       w.step(4);
+                   });
+    g_throwingLoadListener = true;
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    g_throwingLoadListener = false;
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "a load listener failed: listener boom")) << r.report;
+}
+
+// Regression (CodeRabbit, S12): the swap compared listener counts; a scenario listener the world dropped after it threw
+// hid a direct listener, which was lost silently
+TEST(ScenarioRunner, ADirectListenerIsFoundByItsId)
+{
+    auto e                 = entry("dropped_and_direct",
+                                   [](ScenarioWorld& w)
+                                   {
+                       auto thrown = std::make_shared<bool>(false);
+                       w.addStepListener(
+                           [thrown]()
+                           {
+                               if (*thrown) return;
+                               *thrown = true;
+                               throw std::runtime_error("once");
+                           });
+                       try
+                       {
+                           w.step();
+                       }
+                       catch (const std::runtime_error&)
+                       {
+                       }
+                       w.world().addStepListener([]() { return true; });
+                       w.step(20);
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "addStepListener")) << r.report;
+}
+
+// Regression (CodeRabbit, S12): a read-only apply batch inside a step listener was refused; one with an edit is refused
+// before any of its operations runs
+TEST(ScenarioRunner, ReadOnlyApplyInsideAStepListener)
+{
+    auto e                 = entry("apply_in_listener",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.api();
+                       auto done = std::make_shared<bool>(false);
+                       w.addStepListener(
+                           [&w, done]()
+                           {
+                               if (*done) return;
+                               *done = true;
+                               const ApiResult read =
+                                   w.api().call("apply", obj(R"({"operations": [{"op": "world_status"}]})"));
+                               w.check(read.ok, "read-only apply: " + read.error);
+                               const ApiResult edit = w.api().call(
+                                   "apply", obj(R"({"operations": [{"op": "world_status"}, {"op": "pause"}]})"));
+                               w.check(!edit.ok && edit.error.find("nothing of the batch") != std::string::npos,
+                                                       "edit batch refused: " + edit.error);
+                               w.check(!w.world().isPaused(), "not paused");
+                           });
+                       w.step();
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Plain);
+    EXPECT_TRUE(r.passed) << r.report;
 }

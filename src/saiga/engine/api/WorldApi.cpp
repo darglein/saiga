@@ -553,7 +553,9 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
         return ApiResult::failure(operation + ": edits are not allowed (read-only)");
     if (w->inStep()) return ApiResult::failure(operation + ": only between steps");
     // A step listener must not change the world through the API (a step inside it is not supported)
-    if (op->edit && w->dispatchingListeners()) return ApiResult::failure(operation + ": not inside a step listener");
+    // (apply checks its operations before running any: a read-only batch is allowed)
+    if (op->edit && w->dispatchingListeners() && operation != "apply")
+        return ApiResult::failure(operation + ": not inside a step listener");
     ApiResult result;
     try
     {
@@ -1815,6 +1817,8 @@ ApiResult WorldApi::apply(const Json& a)
         if (name == "apply") return ApiResult::failure("apply cannot be nested");
         if (!findOperation(name)) return ApiResult::failure("unknown operation \"" + name + "\"");
         if (isEdit(name) && !allowEdits) return ApiResult::failure(name + ": edits are not allowed (read-only)");
+        if (isEdit(name) && w->dispatchingListeners())
+            return ApiResult::failure(name + ": not inside a step listener (nothing of the batch was applied)");
     }
     Json::array results;
     size_t index  = 0;

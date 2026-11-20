@@ -424,6 +424,12 @@ class SAIGA_ENGINE_API World
         if (dispatchingStepListeners) removedStepListeners.push_back(id);
     }
     size_t stepListenerCount() const { return stepListeners.size(); }
+    std::vector<int> stepListenerIds() const
+    {
+        std::vector<int> ids;
+        for (const auto& l : stepListeners) ids.push_back(l.first);
+        return ids;
+    }
     // True while the step listeners run (a listener must not step the world: the dispatch is not re-entrant)
     bool dispatchingListeners() const { return dispatchingStepListeners; }
     // Runs fn when the world is destroyed (observers such as the world API detach); returns an ID for removal

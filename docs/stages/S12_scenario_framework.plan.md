@@ -88,8 +88,9 @@ struct ScenarioOptions
   `tickSystem`: it overrides the world's and the classes' `tickPolicy()` and also applies without players) unless
   `enableDistanceTicking()` turns it off.
 - Steps are observed through a World step listener (`addStepListener`), so `world().step()` and the API's `step` are
-  covered too (hashes, traces, the step count). The save/load point is taken only inside the step helpers; a scenario
-  that steps only outside them gets the round trip at its end.
+  covered too (hashes, traces, the step count). The save/load point is taken only inside the step helpers and `call`;
+  a scenario that steps after the middle only outside them gets the round trip at its end, and the save/load variant
+  fails (no step ran on the loaded world): such a scenario steps through the helpers or `call` in parts.
 - Exceeding `maxSteps` (or the runner stopping a rerun at a step) makes the step observation throw `ScenarioAbort`
   (it registers itself again, since the world removes a throwing listener); the world API turns it into an error
   result, so `ScenarioWorld::call` and the step helpers check the abort flag again; the runner catches it.
@@ -234,13 +235,21 @@ this file.
 
 - CodeRabbit: a failing baseline run fails the save/load variant (it was dropped); `call` swaps the world like a step
   helper, and a scenario that steps after the middle only through `world()`/`api()` fails the variant (the round trip
-  ran only at the end, nothing ran on the loaded world; also when one `call` ran every step after the middle); a listener's callable is shared by its registrations (its
-  captured state survives the swap); `saveLoad` inside a step listener is a failure; §17.2 says that `maxSteps` ends a
-  loop of `api().call("step")` only through `call`.
+  ran only at the end, nothing ran on the loaded world; also when one `call` ran every step after the middle); a
+  listener's callable is shared by its registrations (its captured state survives the swap); `saveLoad` inside a step
+  listener is a failure; §17.2 says that `maxSteps` ends a loop of `api().call("step")` only through `call`.
+- CodeRabbit (second review): the step observation is two listeners, a counter first (listeners see `steps()` with the
+  current step) and the observer last (hash, traces, stop-save and limits after the scenario's listeners; it moves
+  behind listeners added later); `saveLoad` during a step (from a system) is a failure; the replacement gets the tick
+  setting before the load (`configure`/`onLoad` see it) and failing load listeners of the swap are failures; the swap
+  finds direct listeners by ID (a dropped scenario listener hid one in the count); an exception of a `WorldSetup`
+  callback fails the variant (it ended the whole run); a diagnostic rerun that ends before the differing step is
+  reported; read-only `apply` batches are allowed inside step listeners (a batch with an edit is refused before any of
+  its operations); the `varyThreads` test is deterministic (the flag comes from the configured thread count).
 
 Updated: §3, §9.3 (`characterId` in scenarios), §16.2, §17.2, §17.4, §18.3, §20, the S12 row; AGENTS.md.
 
 ## Results
 
 - `test_engine_scenarios`: 8 engine scenarios x 3 variants (with `varyThreads` and `strictContinuation`) and 15 runner
-  tests pass (42 tests); 62 ctest tests.
+  tests pass (50 tests); 62 ctest tests.

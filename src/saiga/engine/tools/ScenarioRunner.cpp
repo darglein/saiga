@@ -38,7 +38,23 @@ Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const Sce
             const std::function<void(ScenarioWorld&, Run&)>& finish = {})
 {
     Run r;
-    ScenarioWorld w(setup, options);
+    // An exception of a WorldSetup callback (components, systems, classes, data) fails this variant, not the whole run
+    std::unique_ptr<ScenarioWorld> owned;
+    try
+    {
+        owned = std::make_unique<ScenarioWorld>(setup, options);
+    }
+    catch (const std::exception& e)
+    {
+        r.failures.push_back(std::string("the world could not be created: ") + e.what());
+        return r;
+    }
+    catch (...)
+    {
+        r.failures.push_back("the world could not be created (an exception that is not a std::exception)");
+        return r;
+    }
+    ScenarioWorld& w = *owned;
     if (configure) configure(w, r);
     try
     {
@@ -162,14 +178,26 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
                         w.control.stopSave = out;
                     };
                 };
-                runOnce(setup, entry, options, stopAt(&saveA));
-                runOnce(s2, entry, options, stopAt(&saveB));
+                const Run ra = runOnce(setup, entry, options, stopAt(&saveA));
+                const Run rb = runOnce(s2, entry, options, stopAt(&saveB));
                 message = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " + hex(a.hashes[k]) +
                           " != " + hex(b.hashes[k]) + ")";
-                if (saveA == saveB)
-                    message += "\n  (the reruns did not differ at that step: the difference is not reproducible)";
-                else
-                    message += describeDiff(saveA, saveB);
+                // A rerun that ended before the step has no save to compare (its failures say why)
+                auto missed = [&](const char* which, const Run& rerun)
+                {
+                    message += std::string("\n  (the ") + which + " rerun ended before step " + std::to_string(k + 1);
+                    for (const std::string& f : rerun.failures) message += "; " + f;
+                    message += ")";
+                };
+                if (saveA.empty()) missed("first", ra);
+                if (saveB.empty()) missed("second", rb);
+                if (!saveA.empty() && !saveB.empty())
+                {
+                    if (saveA == saveB)
+                        message += "\n  (the reruns did not differ at that step: the difference is not reproducible)";
+                    else
+                        message += describeDiff(saveA, saveB);
+                }
             }
             else if (hashesDiffer)
                 message = "repeat: the runs took " + std::to_string(a.hashes.size()) + " and " +

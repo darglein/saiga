@@ -156,7 +156,12 @@ class SAIGA_ENGINE_API ScenarioWorld
 
    private:
     void attach();
+    // The step observation is two listeners: the counter first (listeners see steps() including the current step) and
+    // the observer last (hash, traces, stop-save and limits see the world after every scenario listener ran)
+    void attachCounter();
     void attachObserver();
+    // Moves the observer behind listeners added after it
+    void moveObserverLast();
     void involve(Entity e);
     void onStep();
 
@@ -164,8 +169,9 @@ class SAIGA_ENGINE_API ScenarioWorld
     ScenarioOptions options;
     std::unique_ptr<World> w;
     std::unique_ptr<WorldApi> apiPtr;
-    int stepListener = -1;
-    int stepDepth    = 0;           // step helpers running (the swap happens only at depth 0, between listeners)
+    int stepListener  = -1;         // the observer (last)
+    int countListener = -1;         // the counter (first)
+    int stepDepth     = 0;          // step helpers running (the swap happens only at depth 0, between listeners)
     std::vector<int> ownListeners;  // IDs in the current world of the listeners of addStepListener
     // One callable per listener, shared by its registrations in the replaced and the replacement world (its captured
     // state survives the swap)

@@ -2164,14 +2164,14 @@ void registerEngineScenarios(ScenarioList& s)
   world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`).
   `world()` returns the current `World`: the save/load variant replaces it, so scenario code calls `world()` each time
   and never keeps the reference across a step helper (entity handles stay valid; replaced worlds live until the
-  scenario ends). Steps are observed by a step listener, so `world().step()`, `advance()` and the API's `step` count
-  too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths (through
+  scenario ends). Steps are observed by step listeners (a counter first, so listeners see `steps()` with the current
+  step, and the observer of hashes, traces and limits last, after the scenario's own listeners), so `world().step()`,
+  `advance()` and the API's `step` count too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths (through
   the step helpers and `call`, which throw the abort; a direct `api().call("step", ...)` returns it as an error, and a
   loop that ignores errors does not end: use `call`). The save/load variant swaps the world at the first step helper
   or `call` at or after half of the plain run's steps (after the call); a scenario in which no step runs on the
   replacement (steps after the middle only through `world()` or `api()`, or one `call` that runs all of them) fails the
-  variant. A scenario
-  adds its own step listeners with `ScenarioWorld::addStepListener` (they move to the replacement world; a listener
+  variant, as `saveLoad` called during a step or from a step listener does. A scenario adds its own step listeners with `ScenarioWorld::addStepListener` (they move to the replacement world; a listener
   added to `world()` directly fails the save/load variant), and never steps inside a step listener (a failure: the
   world's listener dispatch is not re-entrant: `World::step`/`advance` and the world API's edits are refused inside a
   step listener in every build).

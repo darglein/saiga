@@ -43,8 +43,28 @@ ScenarioWorld::~ScenarioWorld()
     // The API detaches from the world before the world goes away
     apiPtr.reset();
     if (w && stepListener >= 0) w->removeStepListener(stepListener);
+    if (w && countListener >= 0) w->removeStepListener(countListener);
     for (int id : ownListeners)
         if (w) w->removeStepListener(id);
+}
+
+void ScenarioWorld::attachCounter()
+{
+    countListener = w->addStepListener(
+        [this]()
+        {
+            observedSteps++;
+            return true;
+        });
+}
+
+void ScenarioWorld::moveObserverLast()
+{
+    // Not while the listeners run: a listener added now runs from the next step on, and the observer must not miss
+    // this one
+    if (w->dispatchingListeners()) return;
+    w->removeStepListener(stepListener);
+    attachObserver();
 }
 
 void ScenarioWorld::attachObserver()
@@ -69,7 +89,7 @@ void ScenarioWorld::attachObserver()
 
 void ScenarioWorld::attach()
 {
-    attachObserver();
+    attachCounter();
     ownListeners.clear();
     for (auto& fn : listeners)
         ownListeners.push_back(w->addStepListener(
@@ -78,6 +98,7 @@ void ScenarioWorld::attach()
                 (*fn)();
                 return true;
             }));
+    attachObserver();
 }
 
 void ScenarioWorld::addStepListener(std::function<void()> fn)
@@ -90,12 +111,13 @@ void ScenarioWorld::addStepListener(std::function<void()> fn)
             (*shared)();
             return true;
         }));
+    moveObserverLast();
 }
 
 void ScenarioWorld::onStep()
 {
-    // Throws ScenarioAbort past maxSteps (the observer registers itself again, see attachObserver)
-    observedSteps++;
+    // After the scenario's listeners (the counter already counted this step). Throws ScenarioAbort past maxSteps (the
+    // observer registers itself again, see attachObserver)
     if (control.hashes) control.hashes->push_back(w->hash());
     for (Trace& t : traces)
     {
@@ -247,19 +269,21 @@ double ScenarioWorld::distance(Entity a, Entity b)
 void ScenarioWorld::saveLoad()
 {
     // The old world must not be replaced while it runs its listeners (the rest of them would see the old world)
-    if (w->dispatchingListeners())
+    if (w->dispatchingListeners() || w->inStep())
     {
-        failed.push_back("step " + std::to_string(observedSteps) +
-                         ": saveLoad was called from a step listener (not supported: call it in the scenario "
-                         "function)");
-        abortReason = "save/load inside a step listener";
+        failed.push_back("step " + std::to_string(observedSteps) + ": saveLoad was called from " +
+                         (w->inStep() ? "a system or game object during a step" : "a step listener") +
+                         " (not supported: call it in the scenario function)");
+        abortReason = "save/load inside a step";
         throw ScenarioAbort{abortReason};
     }
     control.saveLoadDone             = true;
     control.swappedAtStep            = observedSteps;
     const std::vector<uint8_t> saved = w->save();
     auto fresh                       = std::make_unique<World>(setup);
-    const LoadResult r               = fresh->tryLoad(saved);
+    // Before the load: configure() and onLoad() of the loaded game objects see the scenario's tick setting
+    fresh->setTickEveryStep(w->tickEveryStep());
+    const LoadResult r = fresh->tryLoad(saved);
     if (!r.committed)
     {
         failed.push_back("step " + std::to_string(observedSteps) + ": save/load: the load was rejected: " + r.error);
@@ -269,6 +293,8 @@ void ScenarioWorld::saveLoad()
         failed.push_back("step " + std::to_string(observedSteps) + ": save/load: the game object of entity " +
                          std::to_string(e.entity.index) + ":" + std::to_string(e.entity.generation) + " (" +
                          e.className + ") failed: " + e.message);
+    for (const std::string& e : r.listenerErrors)
+        failed.push_back("step " + std::to_string(observedSteps) + ": save/load: a load listener failed: " + e);
     const std::vector<uint8_t> again = fresh->save();
     if (again != saved)
     {
@@ -283,8 +309,13 @@ void ScenarioWorld::saveLoad()
                          text);
     }
     // Step listeners the runner does not know would be lost with the old world: fail instead of losing them silently
-    const size_t known = 1 + ownListeners.size() + (apiPtr ? 1 : 0);
-    if (w->stepListenerCount() > known)
+    // (by ID: a scenario listener the world removed after it threw must not hide a direct one)
+    bool unknown = false;
+    for (int id : w->stepListenerIds())
+        unknown = unknown || (id != stepListener && id != countListener &&
+                              std::find(ownListeners.begin(), ownListeners.end(), id) == ownListeners.end() &&
+                              !(apiPtr && id == apiPtr->stepListenerId()));
+    if (unknown)
         failed.push_back("step " + std::to_string(observedSteps) +
                          ": save/load: the world has step listeners that are lost with it (add them with "
                          "ScenarioWorld::addStepListener)");
@@ -293,8 +324,8 @@ void ScenarioWorld::saveLoad()
     fresh->setTimeScale(w->timeScale());
     fresh->setAccumulatedTime(w->accumulatedTime());
     fresh->setWorkerThreads(w->workerThreads());
-    fresh->setTickEveryStep(w->tickEveryStep());
     w->removeStepListener(stepListener);
+    w->removeStepListener(countListener);
     for (int id : ownListeners) w->removeStepListener(id);
     if (apiPtr) apiPtr->rebind(*fresh);
     std::swap(w, fresh);
