@@ -1,6 +1,6 @@
 # S17: HDR frame
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -233,3 +233,77 @@ RenderSceneTypes.h}`, `src/saiga/vulkan/Shader/GLSL.cpp`, `shader/vulkan/scene/{
 comment), `EngineMain.h` (usage text), `tests/test_vulkan_scene.cpp`, `tests/test_vulkan_world.cpp`,
 `tests/test_engine_app.cpp`, `tests/CMakeLists.txt`, `data/tests/golden/hdr_tonemap.png`, `data/tests/benchmarks.json` (if
 updated), `docs/engine_design.md`, `AGENTS.md`, this file.
+
+## Design changes
+
+- **No `WorldMcpContext::renderer` to replace**: S14 had already removed it (the context has no renderer and no ImGui
+  toggle), so nothing moved to `RenderScene::setImguiVisible` through a callback; the app's G key and tools use
+  `RenderScene::setImguiVisible` directly as before.
+- **`reversedZInfinitePerspective` moved** from `VulkanForwardRenderer.h` to `Renderer.h` (definition in
+  `Renderer.cpp`): `WorldRenderer.cpp` and the platformer use it and no longer include the forward renderer.
+- **`WorldUniforms::shading.w` / the demos' `shading.w`** carry the plan's "one uniform": 0 = display values (clamped,
+  `pow(1/2.2)`), > 0 = linear values times `w` (the pre-exposure). The previous "linear for an SRGB swap chain without
+  encoding" case of the forward renderer is gone (default `setOutputLinear(false)` encodes), as the plan accepted.
+- **`--tonemap` / `--exposure`** write `EngineAppSetup::render.toneMap` / `exposure` (the `RenderSceneParameters` that
+  reach `RenderScene`), not new `AppOptions` fields; a benchmark keeps them (clay by default).
+- **`shader/vulkan/scene/color.glsl`**: the shared helpers of `resolve.frag` and `post.frag` (sanitize, luma, the sRGB
+  curves, ACES) in an include next to the three planned files.
+- **`EngineApp::gpuFrameSample(frame, values)`** (new public accessor of the app's gpu log by RenderScene frame) feeds
+  `gpu_frame_ms` in `samples/games/world/main.cpp`; the benchmark waits up to 16 frames after the last measured frame
+  for these samples.
+- **The `hdr_tonemap` gradient is exponential** (`16 * 2^(-12 (1 - x / 255))`, 16 / 4096 .. 16): a linear 0..16 ramp
+  is white after ~40 of 256 pixels under ACES and would pin little of the curve. The edge is a triangle with slanted
+  sides (bright 16 on a dark clear color 0.05).
+- **Tests**: the GLSL tests are in `tests/test_vulkan_shader.cpp` (`VulkanShader.SpirvVersion16`,
+  `.EveryStageFileCompiles`, `.DiscardPipeline`, which also checks that the SPIR-V has `OpDemoteToHelperInvocation`
+  and no `OpKill`); the frame tests in `tests/test_vulkan_scene.cpp` (`VulkanScene.*`); `VulkanWorldGolden` is its own
+  fixture inside `tests/test_vulkan_world.cpp`.
+- **Tried and rejected**: submitting the scene and resolve without waiting for the swap chain image (a second submit for
+  post + ImGui that waits for `imageAvailable`) made both benchmarks slower and noisier (forest frame interval 2.15-2.89
+  ms), so the frame stays one submit as in the forward renderer.
+
+## Results
+
+Tests (`VK_DRIVER_FILES=.../lvp_icd.json ctest --parallel 8`, RelWithDebInfo, GCC 15): 65 of 66 pass; only
+`test_opengl_window` fails locally (no display, as before). `test_vulkan_scene` (8 tests), `test_vulkan_world`,
+`test_vulkan_shader` and `test_engine_app` also pass on the RTX 5080 Laptop GPU with the validation layer (clean). The
+demos' `--scenarios` pass (9/9 each).
+
+Goldens (lavapipe, Mesa with LLVM 21.1.8): `world_overview` mean 0.129/255, max 1/255; `world_forest` mean 0.088/255,
+max 1/255 (through `RenderScene`, clay mode; the committed tree counts unchanged); `hdr_tonemap` new (RTX 5080, not
+gating: mean 0.0075/255, max 1/255).
+
+Screenshots (`SAIGA_SCREENSHOT`, RTX 5080): the three demos with `--demo` and `game_world` look as before (the
+differences are the GUI's numbers and the demos' timing); `game_world --tonemap aces` is linear and tone mapped once
+(the sky's fog color 0.42 shows as 196/255 = sRGB(ACES(0.42))).
+
+Benchmarks (release build of AGENTS.md, RTX 5080 Laptop GPU, 1920 x 1080; before = the plan commit with only the
+`gpu_frame_ms` addition, 3 runs each; after = this stage, 6 runs each; medians of the run medians, ms):
+
+| | flyover before | flyover after | forest before | forest after |
+|---|---|---|---|---|
+| `cpu_ms` (frame interval) | 2.31 (2.27-2.47) | 2.39; bimodal: 2.31-2.41 or 3.83-3.84 (2 of 6 runs) | 2.03 (2.02-2.14) | 2.10 (2.08-2.17), +3.5 % |
+| world passes sum | 1.58 | 1.59 | 1.18 | 1.24 |
+| terrain + water | 0.090 | 0.105 (+16 %) | 0.050 | 0.063 (+26 %) |
+| trees | 1.458 | 1.451 | 0.473 | 0.471 |
+| grass | 0 | 0 | 0.627 | 0.676 (+7.7 %) |
+| sky | 0.011 | 0.011 | 0.006 | 0.008 |
+| `gpu_frame_ms.gpu` (whole frame) | 1.58 | 2.08 | 1.18 | 1.61 (1.45 or 1.75) |
+| sections | transfer 0.025, main 1.55 | transfer 0.027, scene 2.04, resolve 0, post 0.010, imgui 0 | transfer 0.024, main 1.15 | transfer 0.026, scene 1.42, resolve 0, post 0.010, imgui 0 |
+
+Explanation (R-TEST-2): the regressions above 5 % are the cost of the fp16 scene target the plan chose (§10.5).
+(1) The fill-rate bound passes (terrain + water, grass, sky) write twice the color bytes into the 4x MSAA target: an
+experiment with an 8-bit scene target (same code otherwise, one run each) gave terrain + water 0.096 (flyover) and
+0.050 (forest), grass 0.626, sky 0.011 / 0.006 ms: the baseline values. Trees (geometry bound) are unchanged. (2) The whole-frame `gpu` number is not comparable:
+S13's frame ended with the last timestamp inside the pass, before the end-of-pass MSAA resolve; `scene` now includes the
+clear and the hardware resolve of the fp16 image (with the 8-bit experiment the whole frame was 1.37 ms in forest:
+about 0.2 ms of the increase is this accounting, the rest, 0.1 ms and up to 0.4 ms in the slow runs, the fp16 resolve
+and bandwidth). The post pass
+costs 0.010 ms (the plan estimated 0.05-0.1). (3) The flyover frame interval became bimodal (2 of 6 runs at 3.8 ms,
+with the GPU frame at 2.3 instead of 2.05 ms); the other runs are within 5 % of the before runs; forest's interval is
++3.5 %. An 8-bit clay target would remove (1) but the game's pipelines are created once with `formats()` and the tone
+map can switch at run time, so the scene format must not depend on the tone map. `data/tests/benchmarks.json` is not
+updated (the new baseline needs to be accepted first; it would add `gpu_frame_ms`).
+
+Left open: the bimodal flyover interval (not investigated further: present timing / clocks of the laptop GPU); CI
+(lavapipe on the runner) has not run on this branch yet, so the `hdr_tonemap` margin on CI's Mesa is unknown.
