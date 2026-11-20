@@ -21,8 +21,10 @@ namespace Engine
  * The command line of an engine game (docs/engine_design.md §8.3; S13): --headless, --no-render, --benchmark <name>,
  * --screenshot <file> (after --screenshot-frame N, default 60, then quit; SAIGA_SCREENSHOT is the same),
  * --width/--height N, --validation, --no-vsync, --scenarios [filter], --mcp-port N (also SAIGA_MCP_PORT; 0: off),
- * --data <dir> (default: data/<setup.name> of the source tree). Declared game flags (e.g. --demo) are passed on in
- * options.gameFlags; anything else is an error. No config.ini.
+ * --data <dir> (default: data/<setup.name> of the source tree), --coop [delay] (S16b: a hidden host and the rendered
+ * client world over a loopback pair, delay 0..30 steps, default 2; not with --scenarios or --benchmark). Declared game
+ * flags (e.g. --demo) are passed on in options.gameFlags; anything else is an error. EngineAppSetup::checkOptions runs
+ * last. No config.ini.
  */
 SAIGA_ENGINE_API bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::string>& gameFlags,
                                        EngineAppSetup& setup, AppOptions& options, std::string& error);

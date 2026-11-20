@@ -298,7 +298,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "app_status",
         "Reads the app: headless, rendering enabled, rendered size, frames, frames rendered, fps of the last frame, "
         "steps, the local player (whose input the devices and set_input drive), and the input bindings (actions, held "
-        "buttons, axes), the app camera and whether a tool holds it. Changes nothing.",
+        "buttons, axes), the app camera and whether a tool holds it; with --coop also coop {host_step, client_step, "
+        "client_peer, delay_steps, dropped_steps} (the tools see the client world). Changes nothing.",
         schema({}),
         [&app](const Json&, McpServer::Respond respond)
         {
@@ -318,6 +319,13 @@ void registerAppTools(McpServer& server, EngineApp& app)
             }
             const Entity p    = app.localPlayer();
             o["local_player"] = p.valid() ? WorldApi::entityJson(p) : Json();
+            // --coop (S16b): both worlds' steps (host and client advance interleaved), the delay, the dropped steps
+            if (World* host = app.hostWorld())
+                o["coop"] = Json::object{{"host_step", double(host->stepIndex())},
+                                         {"client_step", double(app.world().stepIndex())},
+                                         {"client_peer", int(app.world().localPeer())},
+                                         {"delay_steps", app.options().coopDelay},
+                                         {"dropped_steps", double(host->droppedSteps())}};
             const Profiler& f = app.frameProfile();
             o["fps"]          = f.counterStats(const_cast<Profiler&>(f).counter("fps"), 1).avg;
             respond(ToolResult::Text(Json(o).dump()));
@@ -555,13 +563,15 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "before_scenario (kept while the live world comes from run_scenario loads; a manual load_snapshot counts as "
         "another load); load_snapshot before_scenario goes back. At the deadline the running variant stops (failure "
         "\"aborted: stopped: tool time budget\"; checked after each step: a scenario that does not step blocks until "
-        "it "
-        "returns, and its end state is then not stored). An assertion in scenario code ends the app. Changes the "
-        "snapshots "
-        "and, with load, the live world.",
+        "it returns, and its end state is then not stored). The host + client variants (HostClient, HostClientDelay, "
+        "HostClientAsync) run a host and a client over loopback (not for local-only scenarios). With --coop keep and "
+        "load are refused (the live world is a client). An assertion in scenario code ends the app. Changes the "
+        "snapshots and, with load, the live world.",
         schema({{"name", McpServer::StringProperty("The scenario (list_scenarios)")},
-                {"variants", Json::object{{"type", "array"},
-                                          {"items", McpServer::StringProperty("", {"Plain", "Repeat", "SaveLoad"})}}},
+                {"variants",
+                 Json::object{{"type", "array"},
+                              {"items", McpServer::StringProperty("", {"Plain", "Repeat", "SaveLoad", "HostClient",
+                                                                       "HostClientDelay", "HostClientAsync"})}}},
                 {"keep", McpServer::BooleanProperty("Store the end state as the snapshot scenario_<name>")},
                 {"load", McpServer::BooleanProperty("Store and load the end state into the live world")}}),
         [&app, &server](const Json& args, McpServer::Respond respond)
@@ -584,27 +594,36 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 variants.push_back(ScenarioVariant::Plain);
             else
             {
+                const char* names = "Plain, Repeat, SaveLoad, HostClient, HostClientDelay, HostClientAsync";
                 if (!args["variants"].is_array() || args["variants"].array_items().empty())
-                    return respond(ToolResult::Error("variants: a non-empty list of Plain, Repeat, SaveLoad"));
+                    return respond(ToolResult::Error(std::string("variants: a non-empty list of ") + names));
                 for (const Json& v : args["variants"].array_items())
                 {
                     bool found = false;
-                    for (ScenarioVariant x :
-                         {ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
+                    for (ScenarioVariant x : {ScenarioVariant::Plain, ScenarioVariant::Repeat,
+                                              ScenarioVariant::SaveLoad, ScenarioVariant::HostClient,
+                                              ScenarioVariant::HostClientDelay, ScenarioVariant::HostClientAsync})
                         if (v.is_string() && v.string_value() == variantName(x))
                         {
+                            // A local-only scenario has no host + client variants
+                            if (entry->localOnly && networkOf(x).enabled)
+                                return respond(ToolResult::Error("variants: " + v.string_value() + ": \"" +
+                                                                 entry->name + "\" is local-only"));
                             if (std::find(variants.begin(), variants.end(), x) == variants.end()) variants.push_back(x);
                             found = true;
                         }
                     if (!found)
-                        return respond(
-                            ToolResult::Error("variants: unknown variant " + v.dump() + " (Plain, Repeat, SaveLoad)"));
+                        return respond(ToolResult::Error("variants: unknown variant " + v.dump() + " (" + names + ")"));
                 }
             }
             const bool plain = std::find(variants.begin(), variants.end(), ScenarioVariant::Plain) != variants.end();
             if ((keep || load) && !plain)
                 return respond(ToolResult::Error("run_scenario: keep and load need the Plain variant"));
-            World& live = app.world();
+            if ((keep || load) && app.coop())
+                return respond(ToolResult::Error(
+                    "run_scenario: keep and load are refused in --coop (the live world is a client; it cannot load)"));
+            // The world the scenario's data come from: with --coop the hidden host (its data store, its steps)
+            World& live = app.startWorld();
             if (!live.canSave())
                 return respond(ToolResult::Error("run_scenario: only between steps, not inside a game hook"));
             WorldApi& api              = app.api();

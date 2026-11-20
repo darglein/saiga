@@ -104,6 +104,27 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             setup.world.dataDirectory = v;
             dataGiven                 = true;
         }
+        else if (a == "--coop")
+        {
+            options.coop = true;
+            // An optional delay in steps: an integer argument is consumed (0..30), anything else is not
+            if (i + 1 < argc)
+            {
+                const char* next = argv[i + 1];
+                char* end        = nullptr;
+                const long v     = std::strtol(next, &end, 10);
+                if (*next != 0 && *end == 0)
+                {
+                    if (v < 0 || v > 30)
+                    {
+                        error = "--coop: the delay is 0..30 steps";
+                        return false;
+                    }
+                    options.coopDelay = int(v);
+                    ++i;
+                }
+            }
+        }
         else if (a == "--scenarios")
         {
             options.runScenarios = true;
@@ -137,6 +158,13 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             return false;
         }
     }
+    if (options.coop && (options.runScenarios || !options.benchmark.empty()))
+    {
+        error = options.runScenarios ? "--coop with --scenarios (the scenarios run their own host + client variants)"
+                                     : "--coop with --benchmark";
+        return false;
+    }
+    if (setup.checkOptions && !setup.checkOptions(options, error)) return false;
     if (setup.noRender && !options.screenshot.empty())
     {
         if (screenshotFromArgument)
@@ -194,7 +222,7 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         std::cerr << error << "\nUsage: " << setup.name
                   << " [--headless] [--no-render] [--benchmark <name>] [--screenshot <file>] [--screenshot-frame N] "
                      "[--width N] [--height N] [--validation] [--no-vsync] [--scenarios [filter]] [--mcp-port N] "
-                     "[--data <dir>]";
+                     "[--data <dir>] [--coop [delay]]";
         for (const std::string& f : gameFlags) std::cerr << " [" << f << "]";
         std::cerr << std::endl;
         return 1;

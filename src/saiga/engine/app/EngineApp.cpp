@@ -16,6 +16,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/saiga_buildconfig.h"
 #include "saiga/saiga_modules.h"
@@ -93,7 +94,42 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         initSaiga(p);
     }
 
-    gameWorld = std::make_unique<World>(appSetup.world);
+    if (appOptions.coop)
+    {
+        // --coop (S16b): a hidden host world (peer 0) and the client world (peer 1) the app renders, over a loopback
+        // pair with the given delay; the client shares the host's data store (reload_data reloads it once)
+        LoopbackOptions lo;
+        lo.delayRounds = appOptions.coopDelay;
+        lo.seed        = appSetup.world.seed;
+        coopTransports = LoopbackTransport::createNetwork(2, lo);
+        WorldSetup hs  = appSetup.world;
+        hs.transport   = coopTransports[0].get();
+        hs.role        = NetRole::Host;
+        hs.localPeer   = 0;
+        hostWorldPtr   = std::make_unique<World>(hs);
+        WorldSetup cs  = appSetup.world;
+        cs.transport   = coopTransports[1].get();
+        cs.role        = NetRole::Client;
+        cs.localPeer   = 1;
+        cs.sharedData  = hostWorldPtr->sharedDataStore();
+        gameWorld      = std::make_unique<World>(cs);
+        SAIGA_LOG("app", "co-op: a host and a client world over loopback, delay %d steps", appOptions.coopDelay);
+        // The join policy (R-MECH-1): the peers of the host step that connected / disconnected them (the lists are
+        // replaced at the next receive, so the step listener sees each change once)
+        hostWorldPtr->addStepListener(
+            [this]()
+            {
+                World& h                          = *hostWorldPtr;
+                const std::vector<uint8_t> joined = h.peersJoined(), left = h.peersLeft();
+                if (appSetup.onPeerJoined)
+                    for (uint8_t p : joined) appSetup.onPeerJoined(*this, h, p);
+                if (appSetup.onPeerLeft)
+                    for (uint8_t p : left) appSetup.onPeerLeft(*this, h, p);
+                return true;
+            });
+    }
+    else
+        gameWorld = std::make_unique<World>(appSetup.world);
 
     if (!appSetup.noRender)
     {
@@ -170,6 +206,8 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         toolOptions.measureFrames = [this](int n, std::chrono::steady_clock::time_point deadline,
                                            McpServer::Respond respond) { measureFrames(n, deadline, respond); };
     worldApi = registerWorldTools(*server, *gameWorld, toolOptions);
+    // --coop: the tools see the client world; pause, step, time scale and reload act on both (S16b)
+    if (hostWorldPtr) worldApi->setCoop(WorldApi::CoopHooks{hostWorldPtr.get(), [this](int n) { stepAll(n); }});
     worldApi->addProfile("frame", &frameProfiler);
     worldApi->addProfile("gpu", &gpuProfiler);
     registerAppTools(*server, *this);
@@ -227,7 +265,7 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
             return true;
         });
 
-    // The local player survives a load (its handle is kept); otherwise the first player of peer 0, or none
+    // The local player survives a load (its handle is kept); otherwise the first player of the world's peer, or none
     gameWorld->addLoadListener(
         [this](const LoadInfo&)
         {
@@ -258,7 +296,7 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
             w.viewAll<const Player>().each(
                 [&](Entity e, const Player& p)
                 {
-                    if (!localPlayerEntity.valid() && p.peer == 0) localPlayerEntity = e;
+                    if (!localPlayerEntity.valid() && p.peer == w.localPeer()) localPlayerEntity = e;
                 });
             neutralInput(localPlayerEntity);
         });
@@ -292,7 +330,10 @@ EngineApp::~EngineApp()
     renderScene.reset();
     worldApi.reset();
     server.reset();
+    // The client before the host, both before their transports
     gameWorld.reset();
+    hostWorldPtr.reset();
+    coopTransports.clear();
     appWindow.reset();
 }
 
@@ -343,6 +384,12 @@ void EngineApp::setVirtualInput(const VirtualInput& input, int steps)
 void EngineApp::setLocalPlayer(Entity player)
 {
     if (player == localPlayerEntity) return;
+    if (hostWorldPtr && player.valid() && gameWorld->alive(player) && gameWorld->registry().registered(Player::id) &&
+        gameWorld->has<Player>(player))
+        SAIGA_ASSERT(gameWorld->read<Player>(player).peer == gameWorld->localPeer(),
+                     "EngineApp::setLocalPlayer: --coop drives the client's own player (Player.peer " +
+                         std::to_string(int(gameWorld->read<Player>(player).peer)) + ", the client is peer " +
+                         std::to_string(int(gameWorld->localPeer())) + ")");
     // The previous player's active device input is released on it (the release of the next neutral frame would go to
     // the new player)
     World& w = *gameWorld;
@@ -381,6 +428,38 @@ int EngineApp::run()
                                                       std::chrono::duration<double>(stepDt)));
     }
     return exitStatus;
+}
+
+void EngineApp::stepAll(int n)
+{
+    if (!hostWorldPtr)
+    {
+        gameWorld->step(n);
+        return;
+    }
+    for (int i = 0; i < n; ++i)
+    {
+        hostWorldPtr->step();
+        gameWorld->step();
+    }
+}
+
+uint64_t EngineApp::droppedTotal() const
+{
+    return hostWorldPtr ? hostWorldPtr->droppedSteps() : gameWorld->droppedSteps();
+}
+
+void EngineApp::advanceWorlds(double dt)
+{
+    if (!hostWorldPtr)
+    {
+        gameWorld->advance(dt);
+        return;
+    }
+    // One accumulator (the host's) for both worlds; the client's alpha follows it
+    const int n = hostWorldPtr->stepsForAdvance(dt);
+    stepAll(n);
+    gameWorld->setAccumulatedTime(hostWorldPtr->accumulatedTime());
 }
 
 void EngineApp::runFrames(int count, double dt)
@@ -423,10 +502,10 @@ void EngineApp::frame(double dt)
         {
             Profiler::Timer t(frameProfiler, scopeAdvance);
             const uint64_t before = gameWorld->stepIndex();
-            gameWorld->advance(dt);
+            advanceWorlds(dt);
             frameProfiler.setCounter(counterSteps, double(gameWorld->stepIndex() - before));
-            frameProfiler.setCounter(counterDropped, double(gameWorld->droppedSteps() - droppedBefore));
-            droppedBefore = gameWorld->droppedSteps();
+            frameProfiler.setCounter(counterDropped, double(droppedTotal() - droppedBefore));
+            droppedBefore = droppedTotal();
         }
         lastFrameRendered = false;
         if (renderScene && renderingEnabled)
@@ -489,7 +568,21 @@ void EngineApp::applyPlayerInput()
     updateInputMap(state, captured);
 
     World& w = *gameWorld;
-    if (localPlayerEntity.valid() && !w.alive(localPlayerEntity)) localPlayerEntity = Entity{};
+    if (localPlayerEntity.valid() && !w.alive(localPlayerEntity))
+    {
+        // Gone (also a client's player after a Resync: the replicas are destroyed and arrive again)
+        localPlayerEntity = Entity{};
+        inputWasActive    = false;
+    }
+    if (!localPlayerEntity.valid() && !w.isHost() && w.registry().registered(Player::id))
+    {
+        // A client (--coop): its player arrives 1 + delay steps after the host's join step
+        w.viewAll<const Player>().each(
+            [&](Entity e, const Player& p)
+            {
+                if (!localPlayerEntity.valid() && p.peer == w.localPeer()) localPlayerEntity = e;
+            });
+    }
     if (!localPlayerEntity.valid())
     {
         // The free camera (WASD and mouse) when no player is driven

@@ -69,7 +69,8 @@ std::vector<ToolSpec> toolSpecs()
          S::ObjectSchema({})},
         {"world_status",
          "Reads step index, simulation time, paused, time scale, entity and game object counts and the "
-         "world hash. Changes nothing.",
+         "world hash; in an app with --coop (the tools see the client world) also host: the hidden host world's "
+         "step, time, paused, time scale, counts, dropped steps and hash. Changes nothing.",
          S::ObjectSchema({})},
         {"list_entities",
          "Lists entities in index order with class, position and component names. Filters: class, components (all "
@@ -152,11 +153,13 @@ std::vector<ToolSpec> toolSpecs()
                                                   {"description", "Action name (describe_world lists them) or code"}}},
                           {"aim", S::Vec3Property("Aim point")}},
                          {"player", "action"})},
-        {"pause", "Pauses the simulation (frames continue).", S::ObjectSchema({})},
-        {"resume", "Resumes the simulation.", S::ObjectSchema({})},
-        {"step", "Runs exactly n steps (default 1, at most 100000); only while paused. Returns the step index.",
+        {"pause", "Pauses the simulation (frames continue; with --coop the host and the client).", S::ObjectSchema({})},
+        {"resume", "Resumes the simulation (with --coop the host and the client).", S::ObjectSchema({})},
+        {"step",
+         "Runs exactly n steps (default 1, at most 100000); only while paused (with --coop host and client "
+         "interleaved, one step each). Returns the step index.",
          S::ObjectSchema({{"n", S::IntegerProperty("Number of steps")}})},
-        {"time_scale", "Sets the simulation speed (0 stops it, 1 real time).",
+        {"time_scale", "Sets the simulation speed (0 stops it, 1 real time; with --coop of both worlds).",
          S::ObjectSchema({{"scale", S::NumberProperty("Time scale >= 0")}}, {"scale"})},
         {"changes_since",
          "Reads what changed since a cursor: created, destroyed (its components with it), component added/removed, "
@@ -175,7 +178,8 @@ std::vector<ToolSpec> toolSpecs()
          "records, grid items), over the last steps (default: the whole history of 600). In the app also frame "
          "(frame and its poll, advance and render scopes; fps, steps per frame, dropped steps) and gpu (the GPU frame "
          "and its "
-         "sections, from timestamps) over the last frames. Changes nothing.",
+         "sections, from timestamps) over the last frames; with --coop also host: the hidden host world's step "
+         "profile (the client runs no game systems). Changes nothing.",
          S::ObjectSchema(
              {{"steps", S::IntegerProperty("Window in steps (default all kept)")},
               {"frames", S::IntegerProperty("Window of the frame and GPU profiles in frames (default all)")},
@@ -190,7 +194,8 @@ std::vector<ToolSpec> toolSpecs()
                           {"category", S::StringProperty("Category filter")}})},
         {"save_snapshot",
          "Saves the whole world state under a name in memory (at most 16 snapshots, 256 MB). Use it before an "
-         "experiment: diff_snapshot shows what changed, load_snapshot rolls back. Changes nothing in the world.",
+         "experiment: diff_snapshot shows what changed, load_snapshot rolls back (the snapshot tools are refused in "
+         "--coop: the tools see the client world). Changes nothing in the world.",
          S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
                           {"overwrite", S::BooleanProperty("Replace an existing snapshot (false)")}},
                          {"name"})},
@@ -237,7 +242,8 @@ std::vector<ToolSpec> toolSpecs()
          S::ObjectSchema({{"type", S::StringProperty("Data type name")}, {"name", S::StringProperty("Entry name")}},
                          {"type"})},
         {"reload_data",
-         "Re-reads the data files after you edited them (nothing changes if one is invalid or an entry was removed). "
+         "Re-reads the data files after you edited them (nothing changes if one is invalid or an entry was removed; "
+         "with --coop the store both worlds share, reconfigured through the host, whose load resyncs the client). "
          "Values read through DataRefs change at once. With reconfigure (default true) the world is saved and loaded "
          "so every game object runs configure() again: derived (unsaved) state is rebuilt, changes_since reports a "
          "world_loaded entry (cursors answer reloaded: true, move tracking restarts) and a running "
@@ -336,6 +342,15 @@ Json withExtras(const Json& report, const WorldApi& api, const std::vector<uint6
     return o;
 }
 
+// Co-op (S16b): the host's step profile over the steps it ran since start (the client runs no game systems)
+Json withHost(const Json& report, const World* host, uint64_t start)
+{
+    if (!host) return report;
+    Json::object o = report.object_items();
+    o["host"]      = measurementReport(host->profiler(), host->profiler().sampleCount() - start);
+    return o;
+}
+
 std::string exactJson(const Json& j)
 {
     std::string out;
@@ -401,7 +416,9 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         "steps (see get_profile). Paused: runs the steps now (a pure simulation benchmark; edits must be allowed). "
         "Running: waits until the app has run them (refused at time scale 0); it answers early with fewer steps if "
         "they take too long; in the app the result also has the frame and gpu profiles of those frames. Changes "
-        "nothing but time while paused. frames: n (1..600, instead of steps; the app with a device) measures the next "
+        "nothing but time while paused. With --coop paused steps run host and client interleaved and the result has "
+        "host: the host's step profile of the same steps. frames: n (1..600, instead of steps; the app with a device) "
+        "measures the next "
         "n frame loops instead, also while paused (a render-only measurement): the frame profile of those loops, the "
         "gpu profile of the frames they rendered and the step profile of the steps they ran.",
         [&]()
@@ -449,12 +466,19 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     return respond(ToolResult::Error("measure_performance: running steps while paused is an edit"));
                 int ran                            = 0;
                 const std::vector<uint64_t> starts = extraStarts(*a);
+                World* host                        = a->inCoop() ? a->coop().host : nullptr;
+                const uint64_t hostStart           = host ? host->profiler().sampleCount() : 0;
                 while (ran < int(n) && !over())
                 {
-                    w.step();
+                    // Co-op (S16b): host one step, then the client one step
+                    if (host && a->coop().stepAll)
+                        a->coop().stepAll(1);
+                    else
+                        w.step();
                     ran++;
                 }
-                Json report = withExtras(measurementReport(w.profiler(), uint64_t(ran)), *a, starts);
+                Json report =
+                    withHost(withExtras(measurementReport(w.profiler(), uint64_t(ran)), *a, starts), host, hostStart);
                 if (ran < int(n))
                 {
                     Json::object o     = report.object_items();
@@ -474,6 +498,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 bool worldGone = false;
                 uint64_t start, resets, loads;
                 std::vector<uint64_t> extras;
+                World* host         = nullptr;  // co-op (S16b): the host's profile over the same time
+                uint64_t hostStart  = 0;
                 World* world        = nullptr;  // holds the destroy and step listeners
                 int destroyListener = -1;
                 int stepListener    = -1;
@@ -483,6 +509,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             m->resets          = w.profiler().resetCount();
             m->loads           = w.loadCount();
             m->extras          = extraStarts(*a);
+            m->host            = a->inCoop() ? a->coop().host : nullptr;
+            m->hostStart       = m->host ? m->host->profiler().sampleCount() : 0;
             m->world           = &w;
             m->destroyListener = w.addDestroyListener(
                 [respond, m]()
@@ -537,7 +565,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 world.removeDestroyListener(m->destroyListener);
                 world.removeStepListener(m->stepListener);
                 // No step ran: an empty window (report(0) would be the whole history)
-                Json report = withExtras(measurementReport(world.profiler(), done), *api, m->extras);
+                Json report = withHost(withExtras(measurementReport(world.profiler(), done), *api, m->extras), m->host,
+                                       m->hostStart);
                 if (done < uint64_t(n))
                 {
                     Json::object o     = report.object_items();
