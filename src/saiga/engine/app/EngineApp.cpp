@@ -771,9 +771,12 @@ void EngineApp::statisticsWindow()
         int toneMap                = int(renderScene->parameters().toneMap);
         const char* toneMapNames[] = {"identity (clay)", "ACES"};
         if (ImGui::Combo("tone map", &toneMap, toneMapNames, 2)) renderScene->setToneMap(Vulkan::ToneMap(toneMap));
+        // The exposure acts only on tone-mapped output (the range of --exposure)
         float exposure = renderScene->parameters().exposure;
-        if (ImGui::SliderFloat("exposure", &exposure, 1.0f / 16, 16, "%.3f", ImGuiSliderFlags_Logarithmic))
+        ImGui::BeginDisabled(renderScene->parameters().toneMap == Vulkan::ToneMap::Identity);
+        if (ImGui::SliderFloat("exposure", &exposure, 1.0f / 1024, 1024, "%.3f", ImGuiSliderFlags_Logarithmic))
             renderScene->setExposure(exposure);
+        ImGui::EndDisabled();
     }
     const json11::Json report = wp.report(120);
     if (ImGui::BeginTable("scopes", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 260)))

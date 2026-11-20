@@ -388,7 +388,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
                          const RenderSceneParameters& parameters)
     : params(parameters)
 {
-    params.exposure     = std::clamp(params.exposure, 1.0f / 1024, 1024.0f);
+    // As setExposure: a NaN is 1
+    params.exposure     = std::isnan(params.exposure) ? 1.0f : std::clamp(params.exposure, 1.0f / 1024, 1024.0f);
     VulkanParameters vp = vulkanParameters;
     vp.enableImgui      = parameters.imgui;
     renderer            = std::make_unique<SceneFrameRenderer>(*this, window, vp);
@@ -405,9 +406,10 @@ RenderScene::~RenderScene()
 bool RenderScene::renderFrame(const Callback& transferCb, const Callback& renderCb, const std::function<void()>& gui)
 {
     // Latched once, before any callback (setters apply from the next frame)
-    frameToneMap     = params.toneMap;
-    frameExposure    = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
-    framePreExposure = lastExposure;
+    frameToneMap  = params.toneMap;
+    frameExposure = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
+    // Clay mode ignores exposure: its pre-exposure is 1 (not the last ACES frame's)
+    framePreExposure = frameToneMap == ToneMap::Identity ? 1.0f : lastExposure;
 
     transferFn              = &transferCb;
     renderFn                = &renderCb;
