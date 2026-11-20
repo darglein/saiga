@@ -61,12 +61,19 @@ Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const Sce
     }
     for (const std::string& f : w.failures()) r.failures.push_back(f);
     r.steps = w.steps();
-    if (!w.world().inStep())
+    try
     {
-        r.finalHash = w.world().hash();
-        r.finalSave = w.world().save();
+        if (!w.world().inStep())
+        {
+            r.finalHash = w.world().hash();
+            r.finalSave = w.world().save();
+        }
+        r.report = w.report();
     }
-    r.report = w.report();
+    catch (const std::exception& e)
+    {
+        r.failures.push_back(std::string("the final state could not be saved: ") + e.what());
+    }
     return r;
 }
 

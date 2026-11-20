@@ -93,6 +93,9 @@ void ScenarioWorld::onStep()
     }
     if (observedSteps > options.maxSteps && abortReason.empty())
         abortReason = "more than " + std::to_string(options.maxSteps) + " steps";
+    // Ends the scenario also when it steps outside the helpers (world().step(), advance()): the exception leaves the
+    // world's step; the world API turns it into an error result, after which call() ends the scenario
+    if (!abortReason.empty()) throw ScenarioAbort{abortReason};
 }
 
 void ScenarioWorld::checkAbort() const
@@ -166,6 +169,14 @@ void ScenarioWorld::enableDistanceTicking()
 
 void ScenarioWorld::step(int n)
 {
+    if (w->dispatchingListeners())
+    {
+        failed.push_back("step " + std::to_string(observedSteps) +
+                         ": a step helper was called from a step listener (not supported: step in the scenario "
+                         "function)");
+        abortReason = "stepped inside a step listener";
+        throw ScenarioAbort{abortReason};
+    }
     for (int i = 0; i < n; ++i)
     {
         checkAbort();
@@ -253,7 +264,7 @@ void ScenarioWorld::saveLoad()
     fresh->setTimeScale(w->timeScale());
     fresh->setAccumulatedTime(w->accumulatedTime());
     fresh->setWorkerThreads(w->workerThreads());
-    fresh->setTickEveryStep(tickEverything);
+    fresh->setTickEveryStep(w->tickEveryStep());
     w->removeStepListener(stepListener);
     for (int id : ownListeners) w->removeStepListener(id);
     if (apiPtr) apiPtr->rebind(*fresh);

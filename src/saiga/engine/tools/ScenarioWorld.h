@@ -34,8 +34,9 @@ struct ScenarioOptions
     bool strictContinuation = false;     // SaveLoad: the final hash must equal Plain's
 };
 
-// Thrown by the step helpers to end a scenario (maxSteps, the runner stopping a rerun); caught by the runner. Not a
-// std::exception, so the world API and game code do not swallow it.
+// Thrown by the step helpers and the step observation to end a scenario (maxSteps, the runner stopping a rerun);
+// caught by the runner. The world API and the world's listener dispatch catch it too (the API returns an error), so
+// the abort flag is checked again after every call() and helper step.
 struct ScenarioAbort
 {
     std::string reason;

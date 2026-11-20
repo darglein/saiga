@@ -222,6 +222,11 @@ this file.
   final-hash mismatches show `diffSaves`. Not changed: per-step hashes in Repeat (fine for engine scenarios; game
   scenarios may need sampling later), `enableDistanceTicking` takes effect from the next tick evaluation.
 
+- Review round 2: stepping inside a step listener is a scenario failure (and `World::step`/`advance` assert inside
+  one): the world's listener dispatch is not re-entrant, a nested step skipped listeners; the step observation throws
+  `ScenarioAbort` past `maxSteps`, so loops over `world().step()` end too; the tick setting carries over from the
+  world; the final save of a run is guarded; the thread-dependence test waits for a worker instead of a fixed delay.
+
 Updated: §3, §9.3 (`characterId` in scenarios), §16.2, §17.2, §17.4, §18.3, §20, the S12 row; AGENTS.md.
 
 ## Results

@@ -720,6 +720,7 @@ void World::runStep()
 void World::step(int n)
 {
     SAIGA_ASSERT(!inStep(), "World::step inside a step");
+    SAIGA_ASSERT(!dispatchingStepListeners, "World::step inside a step listener (not supported)");
     for (int i = 0; i < n; ++i)
     {
         runStep();
@@ -732,6 +733,7 @@ void World::step(int n)
 void World::advance(double frameDt)
 {
     SAIGA_ASSERT(!inStep(), "World::advance inside a step");
+    SAIGA_ASSERT(!dispatchingStepListeners, "World::advance inside a step listener (not supported)");
     if (paused) return;
     // NaN would poison the accumulator for good; +inf is a very long frame (the backlog is dropped below)
     if (std::isnan(frameDt)) frameDt = 0;

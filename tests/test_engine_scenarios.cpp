@@ -231,19 +231,22 @@ void actionLogSystem(World& w, double)
 
 std::thread::id g_mainThread;
 // Writes whether a worker thread ran the entity: the result depends on the thread count (caught by varyThreads)
+std::atomic<bool> g_workerRan{false};
+int g_threads = 1;
 void workerFlagSystem(World& w, double)
 {
+    g_workerRan = false;
+    g_threads   = w.workerThreads();
     w.view<WorkerFlag>().parallelEach(
         [](Entity, WorkerFlag& f)
         {
             const bool worker = std::this_thread::get_id() != g_mainThread;
-            // The caller is slow, so the workers take chunks
-            if (!worker)
+            if (worker) g_workerRan = true;
+            // The caller waits (up to 1 s) until a worker took a chunk, so a run with workers always has some
+            if (!worker && g_threads > 1)
             {
-                const auto until = std::chrono::steady_clock::now() + std::chrono::microseconds(20);
-                while (std::chrono::steady_clock::now() < until)
-                {
-                }
+                const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(1);
+                while (!g_workerRan && std::chrono::steady_clock::now() < until) std::this_thread::yield();
             }
             f.onWorker = worker;
         });
@@ -679,25 +682,49 @@ TEST(ScenarioRunner, ListenersAndTheAccumulatorSurviveTheSwap)
     EXPECT_TRUE(a.passed) << a.report;
 }
 
-// A listener that steps (the swap point is reached inside it): the swap waits for the next helper step (it crashed)
-TEST(ScenarioRunner, NoSwapInsideAStepListener)
+// A step helper inside a step listener (the world's listener dispatch is not re-entrant): a scenario failure, not a
+// crash or a swap of the running world
+TEST(ScenarioRunner, SteppingInsideAStepListenerFails)
 {
-    auto e                 = entry("stepping_listener",
-                                   [](ScenarioWorld& w)
-                                   {
+    auto e = entry("stepping_listener",
+                   [](ScenarioWorld& w)
+                   {
                        w.spawn<Counter>({0, 0, 0});
-                       auto inner = std::make_shared<bool>(false);
-                       w.addStepListener(
-                           [&w, inner]()
-                           {
-                               if (*inner) return;
-                               *inner = true;
-                               w.step();  // a nested step helper
-                               *inner = false;
-                           });
-                       w.step(6);
+                       w.addStepListener([&w]() { w.step(); });
+                       w.world().step(6);
                    });
-    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    for (ScenarioVariant v : {ScenarioVariant::Plain, ScenarioVariant::SaveLoad})
+    {
+        const ScenarioResult r = runScenario(scenarioSetup(), e, v);
+        EXPECT_FALSE(r.passed);
+        EXPECT_TRUE(contains(r, "from a step listener")) << r.report;
+    }
+    // maxSteps ends a loop of world().step() too
+    ScenarioOptions small;
+    small.maxSteps = 10;
+    auto loop      = entry("endless",
+                           [](ScenarioWorld& w)
+                           {
+                          for (;;) w.world().step();
+                      });
+    EXPECT_TRUE(contains(runScenario(scenarioSetup(), loop, ScenarioVariant::Plain, small), "more than 10 steps"));
+}
+
+// The tick setting carries over from the world (also when set on world() directly)
+TEST(ScenarioRunner, TheTickSettingOfTheWorldCarriesOver)
+{
+    auto e = entry("tick_setting",
+                   [](ScenarioWorld& w)
+                   {
+                       w.world().setTickEveryStep(false);
+                       w.spawnPlayer({0, 0, 0});
+                       auto far = w.spawn<Counter>({1000, 0, 0});
+                       w.step(60);
+                       w.check(w.world().read<TickCount>(far).updates <= 3, "far objects tick slowly");
+                   });
+    ScenarioOptions strict;
+    strict.strictContinuation = true;
+    const ScenarioResult r    = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad, strict);
     EXPECT_TRUE(r.passed) << r.report;
 }
 

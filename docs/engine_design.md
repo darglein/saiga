@@ -2163,9 +2163,12 @@ void registerTestScenarios(ScenarioList& s)
   gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`, `api()` and `call(op, args)` (the
   world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`).
   `world()` returns the current `World`: the save/load variant replaces it, so scenario code calls `world()` each time
-  and never keeps the reference across a step helper (entity handles stay valid). Steps are observed by a step
-  listener, so `world().step()` and the API's `step` count too; `ScenarioOptions::maxSteps` (default 36000) ends a
-  scenario that runs longer.
+  and never keeps the reference across a step helper (entity handles stay valid; replaced worlds live until the
+  scenario ends). Steps are observed by a step listener, so `world().step()`, `advance()` and the API's `step` count
+  too; `ScenarioOptions::maxSteps` (default 36000) ends a scenario that runs longer, by any of these paths. A scenario
+  adds its own step listeners with `ScenarioWorld::addStepListener` (they move to the replacement world; a listener
+  added to `world()` directly fails the save/load variant), and never steps inside a step listener (a failure: the
+  world's listener dispatch is not re-entrant).
 - `ScenarioWorld` overrides the radii of every `SpaceTemplate` with small defaults (`fullRadius = simulationRadius =
   interestRadius = clientPhysicsRadius = 128`, `prefetchMargin = 0`), which a scenario can raise; it requests no visual
   tiles or far content, and all worlds of one test process share a cache of generated base chunks (content is
@@ -2215,7 +2218,8 @@ extrapolation), for the scenario's entities, within the quantization tolerances.
   (`diffSaves` explains a mismatch), hook errors of the load fail, and the scenario's checks must still pass (catches
   state outside components, R-STATE-1); with `ScenarioOptions::strictContinuation` the final hash must also equal the
   plain run's (the engine's own scenarios use it; it catches member state that no check looks at). Paused, time scale,
-  the tick setting and the world API carry over to the new world. The save/load variant runs single-world only; a host
+  the advance accumulator, the worker thread count, the shared data store, the tick setting, the listeners of
+  `ScenarioWorld::addStepListener` and the world API carry over to the new world. The save/load variant runs single-world only; a host
   reload with connected clients is a session restart (§13.7). A loaded world is not required to continue
   bit-identically (§8.6).
 
@@ -2420,9 +2424,11 @@ the missing target is reported as open).
   visible; benchmark and budget check if in a hot path; quality tier settings.
 - **Scenario**: a function `void(ScenarioWorld& w)` added to a `ScenarioList` (engine: `tests/test_engine_scenarios.cpp`;
   game: `EngineAppSetup::scenarios`): spawn through the helpers, `step`/`stepSeconds`/`stepUntil`, `w.check(...)`; call
-  `w.world()` each time (the save/load variant replaces the world); it runs in the plain, repeat and save/load variants.
+  `w.world()` each time (the save/load variant replaces the world), add step listeners with `w.addStepListener` and
+  never step inside one; it runs in the plain, repeat and save/load variants.
 - **Debugging a failing scenario**: read the printed checks and logs; add `trace<T>` for the suspicious component; run
-  it live with `run_scenario`, `pause`, `step`, `inspect`; for repeat or save/load failures use the `world.diff` output.
+  it live with `run_scenario`, `pause`, `step`, `inspect`; for repeat or save/load failures read the `diffSaves` lines
+  of the report.
 
 ### 18.4 Tech demo games [exists]
 
