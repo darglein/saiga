@@ -119,7 +119,8 @@ class SAIGA_ENGINE_API EngineApp
     bool lastFrameRendered = false;
     bool inputWasActive    = false;  // the last frame wrote non-neutral input to the local player
     double lastFrameDt     = 0;
-    float cameraSpeedValue = 10, cameraSpeedFastValue = 100;  // without GLFW (no camera controls)
+    // Without GLFW (no camera controls); unconditional, so the class layout does not depend on the macro
+    [[maybe_unused]] float cameraSpeedValue = 10, cameraSpeedFastValue = 100;
     bool screenshotRequested = false;
     uint64_t framesRendered = 0, framesRun = 0;
     Vec2 lastMouse = Vec2::Zero();
