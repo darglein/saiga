@@ -19,7 +19,7 @@ constexpr double kGravity = 9.81;
 
 void FlightModel::reset(const Vec3& position, double heading, double speed)
 {
-    state             = AircraftState();
+    state             = AircraftKinematics();
     state.position    = position;
     state.orientation = yawRotation(heading);
     state.velocity    = forwardOf(state.orientation) * speed;

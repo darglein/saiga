@@ -1,0 +1,9 @@
+{
+    "bindings": {"respawn": ["R"]},
+    "axes": {
+        "pitch": {"negative": ["S"], "positive": ["W"]},
+        "roll": {"negative": ["A"], "positive": ["D"]},
+        "yaw": {"negative": ["Q"], "positive": ["E"]},
+        "throttle": {"negative": ["LeftControl"], "positive": ["LeftShift"]}
+    }
+}
