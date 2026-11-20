@@ -271,7 +271,7 @@ void World::deliverActions()
 PersistentId World::makePersistent(Entity e)
 {
     checkNotParallel("makePersistent");
-    if (loadHookPhase) checkLoadHook("makePersistent", e, Persistent::id);
+    if (loadHookPhase && !checkLoadHook("makePersistent", e, Persistent::id)) return PersistentId{};
     if (!reg.alive(e) && !reg.reserved(e))
     {
         // Refused in every build
@@ -334,6 +334,7 @@ void World::queryRadius(SpaceId space, const Vec3& center, double radius, const 
 Entity World::create()
 {
     checkNotParallel("create");
+    // A refused create still returns an entity handle the caller expects: refused only with asserts
     if (loadHookPhase) checkLoadHook("create", Entity{}, Transform::id);
     if (deferring())
     {
@@ -357,7 +358,7 @@ Entity World::create()
 void World::destroy(Entity e)
 {
     checkNotParallel("destroy");
-    if (loadHookPhase) checkLoadHook("destroy", e, Transform::id);
+    if (loadHookPhase && !checkLoadHook("destroy", e, Transform::id)) return;
     if (reg.alive(e) && (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)))
     {
         // Refused in every build (the world state must stay; asserts in builds with asserts)

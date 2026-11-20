@@ -138,14 +138,28 @@ SchemaTable SchemaTable::fromWorld(const World& world)
     }
     for (const ClassList::ClassInfo& c : world.classList().all())
         if (c.factory) table.classes.push_back({uint32_t(c.id), c.name});
+    table.buildIndex();
     return table;
+}
+
+void SchemaTable::buildIndex()
+{
+    index.clear();
+    for (size_t i = 0; i < types.size(); ++i)
+        index.emplace(std::to_string(int(types[i].kind)) + ":" + types[i].name, i);
 }
 
 const SchemaType* SchemaTable::find(SchemaKind kind, const std::string& name) const
 {
-    for (const SchemaType& t : types)
-        if (t.kind == kind && t.name == name) return &t;
-    return nullptr;
+    if (index.size() != types.size())
+    {
+        // Not indexed (types changed directly): a linear search
+        for (const SchemaType& t : types)
+            if (t.kind == kind && t.name == name) return &t;
+        return nullptr;
+    }
+    auto it = index.find(std::to_string(int(kind)) + ":" + name);
+    return it == index.end() ? nullptr : &types[it->second];
 }
 
 const std::string* SchemaTable::className(uint32_t id) const
@@ -243,6 +257,7 @@ bool SchemaTable::read(BinaryReader& r, std::string& error)
         }
         classes.push_back(std::move(c));
     }
+    buildIndex();
     if (!r.ok())
     {
         error = "schema: " + r.error();

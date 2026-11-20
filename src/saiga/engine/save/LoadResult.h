@@ -29,6 +29,8 @@ struct LoadResult
         std::string className, message;
     };
     std::vector<HookError> hookErrors;
+    // Descendants of the failed objects, removed with them (without hooks)
+    std::vector<Entity> removed;
     // Load listeners that threw (the others still ran)
     std::vector<std::string> listenerErrors;
     bool ok() const { return committed && hookErrors.empty(); }

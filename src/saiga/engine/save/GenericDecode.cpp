@@ -328,15 +328,20 @@ bool SaveDecoder::skip(const SchemaType& savedType, BinaryReader& r, std::string
         return false;
     }
     depth++;
+    const size_t start = r.position();
     for (const FieldInfo& f : savedType.fields)
-        if (!skipValue(f.type, f, r, error))
+    {
+        const size_t before = r.position();
+        if (!skipValue(f.type, f, r, error) || !spendZeroByte(before, r, error))
         {
             depth--;
             if (error.find(savedType.name) != 0) error = savedType.name + "." + error;
             return false;
         }
+    }
     depth--;
-    return true;
+    // A value without bytes (an empty struct) counts too
+    return spendZeroByte(start, r, error);
 }
 
 bool SaveDecoder::decode(const SchemaType& savedType, BinaryReader& r, const SchemaType* target, Json& out,
@@ -359,10 +364,12 @@ bool SaveDecoder::decode(const SchemaType& savedType, BinaryReader& r, const Sch
     }
     depth++;
     FieldMap fields;
+    const size_t start = r.position();
     for (const FieldInfo& f : savedType.fields)
     {
         Json v;
-        if (!decodeValue(f.type, f, r, v, error))
+        const size_t before = r.position();
+        if (!decodeValue(f.type, f, r, v, error) || !spendZeroByte(before, r, error))
         {
             depth--;
             if (error.empty())
@@ -374,9 +381,30 @@ bool SaveDecoder::decode(const SchemaType& savedType, BinaryReader& r, const Sch
         fields.fields[f.name] = v;
     }
     depth--;
+    if (!spendZeroByte(start, r, error)) return false;
     if (current && !migrate(savedType.name, savedType.version, target, fields, error)) return false;
     out = Json(fields.fields);
     return true;
+}
+
+// A game migration runs on untrusted values: an exception is a load error (the world is unchanged)
+bool SaveDecoder::runMigration(MigrationList::Fn fn, const std::string& typeName, uint32_t version, FieldMap& fields,
+                               std::string& error)
+{
+    try
+    {
+        fn(fields);
+        return true;
+    }
+    catch (const std::exception& e)
+    {
+        error = "the migration of " + typeName + " from version " + std::to_string(version) + " threw: " + e.what();
+    }
+    catch (...)
+    {
+        error = "the migration of " + typeName + " from version " + std::to_string(version) + " threw";
+    }
+    return false;
 }
 
 bool SaveDecoder::migrate(const std::string& typeName, uint32_t fromVersion, const SchemaType* target, FieldMap& fields,
@@ -399,7 +427,7 @@ bool SaveDecoder::migrate(const std::string& typeName, uint32_t fromVersion, con
                         std::to_string(fromVersion) + ", registered " + std::to_string(target->version) + ")";
                 return false;
             }
-            fn(fields);
+            if (!runMigration(fn, typeName, v, fields, error)) return false;
         }
         // Fields that no longer exist are dropped (new fields keep their defaults when the result is merged)
         for (auto it = fields.fields.begin(); it != fields.fields.end();)
@@ -416,7 +444,7 @@ bool SaveDecoder::migrate(const std::string& typeName, uint32_t fromVersion, con
     {
         MigrationList::Fn fn = migrations->find(typeName, v);
         if (!fn) break;
-        fn(fields);
+        if (!runMigration(fn, typeName, v, fields, error)) return false;
     }
     return true;
 }

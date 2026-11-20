@@ -10,6 +10,7 @@
 #include "saiga/engine/components/EngineIds.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
+#include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/engine/core/Rng.h"
@@ -275,13 +276,17 @@ class SAIGA_ENGINE_API World
     template <class T>
     const T& data(const DataRef<T>& ref) const
     {
-        if (ref.resolvedStore != dataStore->id() || ref.resolvedName != ref.entry)
+        const uint64_t name = fnv1a64Bytes(ref.entry.data(), ref.entry.size());
+        if (ref.resolvedStore.load(std::memory_order_acquire) != dataStore->id() ||
+            ref.resolvedName.load(std::memory_order_relaxed) != name)
         {
-            ref.cached        = &data<T>(ref.entry);
-            ref.resolvedStore = dataStore->id();
-            ref.resolvedName  = ref.entry;
+            const T* entry = &data<T>(ref.entry);
+            ref.cached.store(entry, std::memory_order_relaxed);
+            ref.resolvedName.store(name, std::memory_order_relaxed);
+            ref.resolvedStore.store(dataStore->id(), std::memory_order_release);
+            return *entry;
         }
-        return *ref.cached;
+        return *ref.cached.load(std::memory_order_relaxed);
     }
     template <class T>
     bool hasData(const std::string& name) const
@@ -439,7 +444,8 @@ class SAIGA_ENGINE_API World
     // The hooks of a load run (1: configure, 2: onLoad of loadHookEntity): structural changes are restricted
     int loadHookPhase = 0;
     Entity loadHookEntity;
-    void checkLoadHook(const char* operation, Entity e, ComponentId id) const;
+    // False (and an assert) for a structural change a load hook may not make; refused in every build
+    bool checkLoadHook(const char* operation, Entity e, ComponentId id) const;
 
     // Structural changes are deferred during a step, except while commands are applied
     bool deferring() const { return phase != Phase::None && !flushing; }
@@ -624,7 +630,7 @@ void World::addNow(Entity e, T&& value)
 {
     // A command on an entity destroyed earlier in the same flush is dropped
     if (flushing && !reg.alive(e)) return;
-    if (loadHookPhase) checkLoadHook("add", e, T::id);
+    if (loadHookPhase && !checkLoadHook("add", e, T::id)) return;
     // Two deferred adds (hooks see the state before the flush): refused in every build (the pool must not get a
     // second entry)
     if (reg.alive(e) && reg.has<T>(e))
@@ -676,7 +682,7 @@ template <class T>
 void World::removeNow(Entity e)
 {
     if (flushing && !reg.alive(e)) return;
-    if (loadHookPhase) checkLoadHook("remove", e, T::id);
+    if (loadHookPhase && !checkLoadHook("remove", e, T::id)) return;
     // Two deferred removes, or none to remove: refused in every build
     if (!reg.alive(e) || !reg.has<T>(e))
     {

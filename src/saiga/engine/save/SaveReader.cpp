@@ -11,6 +11,7 @@
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/save/SaveFormat.h"
 
+#include <cmath>
 #include <cstring>
 
 namespace Saiga
@@ -125,6 +126,11 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
             r.read(out.stepsPerSecond);
             r.read(out.steps);
             r.read(out.time);
+            if (r.ok() && (!std::isfinite(out.time) || !std::isfinite(out.stepsPerSecond) || out.stepsPerSecond <= 0))
+            {
+                error = "HEAD: the time and the step rate must be finite (and the step rate positive)";
+                return false;
+            }
         }
         else if (tag == kTagSchema)
             ok = out.schema.read(r, sectionError);
@@ -132,7 +138,8 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
         {
             uint32_t slots = 0;
             r.read(slots);
-            if (r.ok() && (slots == 0 || uint64_t(slots - 1) * 6 > r.remaining()))
+            // At most 2^24 slots (a few bytes per free slot in the save become a Transform each in memory)
+            if (r.ok() && (slots == 0 || slots > (1u << 24) || uint64_t(slots - 1) * 6 > r.remaining()))
             {
                 error = "ENTS: the slot table does not fit into the section";
                 return false;

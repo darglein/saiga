@@ -472,7 +472,8 @@ void WorldApi::onLoaded(const LoadInfo& info)
                 [&](const StructuralLog::Record& r)
                 {
                     const uint64_t at = index++;
-                    if (at < info.logBegin) return journalRecord(r, stepIndex);
+                    // Records before the load happened at the step before it
+                    if (at < info.logBegin) return journalRecord(r, info.fromStep);
                     if (at < info.logEnd) return;
                     if (!marked)
                     {
@@ -1475,6 +1476,13 @@ bool plainFileName(const std::string& f)
 }
 }  // namespace
 
+Json WorldApi::removedJson(const LoadResult& r)
+{
+    Json::array a;
+    for (Entity e : r.removed) a.push_back(entityJson(e));
+    return a;
+}
+
 Json WorldApi::listenerErrorsJson(const LoadResult& r)
 {
     Json::array a;
@@ -1531,12 +1539,23 @@ ApiResult WorldApi::loadSnapshot(const Json& a)
     const LoadResult r               = w->tryLoad(bytes);
     if (!r.committed) return ApiResult::failure("load_snapshot: " + r.error + " (the world is unchanged)");
     if (a["paused"].is_bool()) w->setPaused(a["paused"].bool_value());
+    // An imported snapshot learns its hash (the snapshot describes exactly this world unless a hook failed)
+    if (r.ok())
+    {
+        auto again = snapshots.find(name);
+        if (again != snapshots.end() && !again->second.hasHash)
+        {
+            again->second.hash    = w->hash();
+            again->second.hasHash = true;
+        }
+    }
     return ApiResult::success(Json::object{{"step", double(w->stepIndex())},
                                            {"hash", hashHex(w->hash())},
                                            {"entities", double(w->registry().aliveCount())},
                                            {"paused", w->isPaused()},
                                            {"world_generation", double(generation)},
                                            {"hook_errors", hookErrorsJson(r)},
+                                           {"removed", removedJson(r)},
                                            {"listener_errors", listenerErrorsJson(r)}});
 }
 
@@ -1586,6 +1605,9 @@ ApiResult WorldApi::diffSnapshot(const Json& a)
         for (const Json& n : a["components"].array_items())
         {
             if (!n.is_string()) return ApiResult::failure("components: expected an array of names");
+            // A typo must not silently match nothing
+            if (w->registry().findComponent(n.string_value()) < 0 && n.string_value() != Transform::name)
+                return ApiResult::failure("components: no component \"" + n.string_value() + "\"");
             filter.components.push_back(n.string_value());
         }
     }
@@ -1623,9 +1645,12 @@ ApiResult WorldApi::exportSnapshot(const Json& a)
         return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-'; no device names)");
     auto it = snapshots.find(name);
     if (it == snapshots.end()) return ApiResult::failure("export_snapshot: no snapshot \"" + name + "\"");
-    namespace fs           = std::filesystem;
-    const fs::path path    = fs::path(snapshotDirectory) / a["file"].string_value();
-    const fs::path partial = fs::path(path.string() + ".partial");
+    namespace fs        = std::filesystem;
+    const fs::path path = fs::path(snapshotDirectory) / a["file"].string_value();
+    // A temporary name of its own in the directory (never a user's file)
+    static uint64_t exportCounter = 0;
+    const fs::path partial        = fs::path(snapshotDirectory) / (".saiga-export-" + std::to_string(epoch) + "-" +
+                                                            std::to_string(++exportCounter) + ".partial");
     std::error_code ec;
     if (fs::exists(path, ec) && !overwrite)
         return ApiResult::failure("export_snapshot: " + path.string() + " exists (overwrite: true replaces it)");
@@ -1727,6 +1752,7 @@ ApiResult WorldApi::reloadData(const Json& a)
         if (!r.committed)
             return ApiResult::failure("reload_data: the data were reloaded, the reconfigure failed: " + r.error);
         result["hook_errors"]      = hookErrorsJson(r);
+        result["listener_errors"]  = listenerErrorsJson(r);
         result["world_generation"] = double(generation);
     }
     return ApiResult::success(result);

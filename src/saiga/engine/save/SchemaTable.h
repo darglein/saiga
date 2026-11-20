@@ -14,6 +14,8 @@
 #include <utility>
 #include <vector>
 
+#include <unordered_map>
+
 namespace Saiga
 {
 namespace Engine
@@ -29,6 +31,8 @@ struct SAIGA_ENGINE_API SchemaTable
 {
     std::vector<SchemaType> types;
     std::vector<std::pair<uint32_t, std::string>> classes;
+    // Rebuilds the lookup index (after types were changed directly)
+    void buildIndex();
 
     static SchemaTable fromWorld(const World& world);
 
@@ -39,6 +43,9 @@ struct SAIGA_ENGINE_API SchemaTable
 
     void write(BinaryWriter& w) const;
     bool read(BinaryReader& r, std::string& error);
+
+   private:
+    std::unordered_map<std::string, size_t> index;  // "kind:name" -> types index
 };
 
 // How a saved type relates to the registered one of the same name

@@ -296,12 +296,20 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
         }
         if (ea.generation != eb.generation)
         {
-            SaveDifference d;
-            d.kind   = "generation";
-            d.entity = ea;
-            d.a      = double(ea.generation);
-            d.b      = double(eb.generation);
-            add(std::move(d));
+            // The slot was reused: two different entities, each reported with its class and position (a filter on
+            // either handle finds its side)
+            SaveDifference left;
+            left.kind      = "only_in_a";
+            left.entity    = ea;
+            left.className = classOf(a, pa, da, i);
+            left.position  = positionOf(a, pa, da, i);
+            add(std::move(left));
+            SaveDifference right;
+            right.kind      = "only_in_b";
+            right.entity    = eb;
+            right.className = classOf(b, pb, db, i);
+            right.position  = positionOf(b, pb, db, i);
+            add(std::move(right));
             continue;
         }
         if (pa.slots[i].flags != pb.slots[i].flags)

@@ -186,7 +186,7 @@ std::string World::diff(const World& a, const World& b, int maxLines)
     return out;
 }
 
-void World::checkLoadHook(const char* operation, Entity e, ComponentId id) const
+bool World::checkLoadHook(const char* operation, Entity e, ComponentId id) const
 {
     // configure (phase 1) makes no structural changes; onLoad (phase 2) only adds or removes Saved::No components of
     // its own entity, so a load followed by save() gives the saved bytes
@@ -194,6 +194,7 @@ void World::checkLoadHook(const char* operation, Entity e, ComponentId id) const
     SAIGA_ASSERT(allowed, std::string(operation) +
                               " during a load: configure makes no structural changes, onLoad adds or removes only "
                               "Saved::No components of its own entity");
+    return allowed;
 }
 
 }  // namespace Engine

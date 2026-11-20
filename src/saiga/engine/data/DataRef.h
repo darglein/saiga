@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <string>
 
@@ -50,11 +51,12 @@ struct DataRef
         v("entry", entry);
     }
 
-    // Engine-internal cache (World::data): the entry resolved for this name in this store (by its unique ID, so a new
-    // store at the same address does not match). Checked against the name on every use: changing entry resolves again.
-    mutable const T* cached        = nullptr;
-    mutable uint64_t resolvedStore = 0;
-    mutable std::string resolvedName;
+    // Engine-internal cache (World::data): the entry resolved for this store (by its unique ID, not its address) and
+    // this name (by a hash of it: changing entry resolves again). Atomic: the first resolution may happen in
+    // parallelEach on several threads (they store the same values).
+    mutable std::atomic<const T*> cached{nullptr};
+    mutable std::atomic<uint64_t> resolvedStore{0};
+    mutable std::atomic<uint64_t> resolvedName{0};
 };
 
 }  // namespace Engine

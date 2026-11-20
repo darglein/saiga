@@ -346,6 +346,17 @@ EventQueues.cpp}`, `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/engine/to
   `DataRef` entry fails when it is read (`DataError`), not at load time; `rebuildHierarchyState` is linear in the depth
   of the chains; a shared data store is reloaded for all worlds that share it (scenario runs do not reload).
 
+- Review round 2 (robustness, regressions, agent experience): the zero-byte budget also covers struct fields and
+  whole values (nested empty structs multiplied the work, 10^depth field visits from a few KB); migrations that throw
+  are load errors; the schema has a lookup index; the header's time and step rate must be finite, at most 2^24 slots;
+  a reused slot is reported as two one-sided entities with class and position (the entity filter hid it); a failed
+  object is removed at once with its descendants, which are listed in `LoadResult::removed` (`load_snapshot`:
+  `removed`) and get no further hooks; refused structural changes in load hooks are refused in every build; queued
+  actions of players that the load dropped are dropped; `World::load` is also fatal on listener errors; an imported
+  snapshot learns its hash when it is loaded; a typo in the `diff_snapshot` components filter is an error;
+  `reload_data` reports listener errors; records made before a load keep the step before it; exports write to a
+  temporary name of their own; the `DataRef` cache is atomic (a first resolution in `parallelEach`).
+
 Updated: §3, R-DATA-1, §7.2, §7.9, §7.10, §14, §15 (header, §15.1, §15.2), §16.2, §17.4, the S11 row; AGENTS.md.
 
 ## Results

@@ -46,6 +46,8 @@ class SAIGA_ENGINE_API SaveDecoder
                  std::string& error) const;
 
    private:
+    static bool runMigration(MigrationList::Fn fn, const std::string& typeName, uint32_t version, FieldMap& fields,
+                             std::string& error);
     bool skipValue(const std::string& type, const FieldInfo& field, BinaryReader& r, std::string& error);
     bool decodeValue(const std::string& type, const FieldInfo& field, BinaryReader& r, json11::Json& out,
                      std::string& error);

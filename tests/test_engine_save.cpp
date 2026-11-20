@@ -27,6 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -1437,4 +1438,129 @@ TEST(SaveMigration, NestedTypeChangesWithoutAVersionAreRejected)
     const LoadResult r = loadInto<v1b::Stats>(a.save());
     EXPECT_FALSE(r.committed);
     EXPECT_NE(r.error.find("Item.count changed its type"), std::string::npos) << r.error;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S11 round 2)
+
+// Nested structs of zero-byte fields multiplied the decoding work (10^depth field visits from a few KB)
+TEST(SaveRobustness, NestedEmptyStructsAreBounded)
+{
+    World a(baseSetup());
+    const auto blob = a.save();
+    SchemaTable t   = readSchema(blob);
+    const int depth = 12;
+    for (int k = 0; k < depth; ++k)
+    {
+        SchemaType s{SchemaKind::Struct, "F" + std::to_string(k), 0, 1, {}};
+        if (k + 1 < depth)
+            for (int f = 0; f < 10; ++f)
+                s.fields.push_back(FieldInfo{"f" + std::to_string(f), "F" + std::to_string(k + 1), {}});
+        t.types.push_back(s);
+    }
+    for (SchemaType& s : t.types)
+        if (s.name == "Weather") s.fields.push_back(FieldInfo{"x", "F0", {}});
+    const auto bad   = withSchema(blob, t);
+    const auto start = std::chrono::steady_clock::now();
+    World w(baseSetup());
+    const LoadResult r = w.tryLoad(bad);
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("without bytes"), std::string::npos) << r.error;
+    EXPECT_FALSE(diffSaves(a.save(), bad).error.empty());
+    EXPECT_LT(std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(), 5.0);
+}
+
+// A reused slot was one "generation" difference that an entity filter on the new handle could not find
+TEST(SaveDiff, AReusedSlotIsTwoEntities)
+{
+    World a(baseSetup());
+    const Entity old = a.create();
+    a.add<Health>(old);
+    const auto before = a.save();
+    a.destroy(old);
+    const Entity fresh = a.spawn<Sitter>(Vec3(4, 5, 6));
+    ASSERT_EQ(fresh.index, old.index);
+    const SaveDiff d = diffSaves(before, a.save());
+    bool inA = false, inB = false;
+    for (const SaveDifference& x : d.differences)
+    {
+        if (x.kind == "only_in_a" && x.entity == old) inA = true;
+        if (x.kind == "only_in_b" && x.entity == fresh)
+        {
+            inB = true;
+            EXPECT_EQ(x.className, "Sitter");
+            EXPECT_EQ(x.position[0].number_value(), 4);
+        }
+    }
+    EXPECT_TRUE(inA && inB);
+    DiffFilter f;
+    f.hasEntity        = true;
+    f.entityIndex      = fresh.index;
+    f.hasGeneration    = true;
+    f.entityGeneration = fresh.generation;
+    EXPECT_EQ(diffSaves(before, a.save(), f).total, 1u);
+}
+
+// A failed parent removed children whose hooks had run, unreported
+TEST(Save, DescendantsOfAFailedObjectAreReportedAndNotHooked)
+{
+    World a(baseSetup());
+    const Entity fragile = a.spawn<Fragile>(Vec3(0, 0, 0));
+    const Entity child   = a.spawn<Walker>(Vec3(1, 0, 0));
+    a.add<Parent>(child, Parent{fragile});
+    g_throwOnLoad = true;
+    g_onLoads     = 0;
+    World b(baseSetup());
+    const LoadResult r = b.tryLoad(a.save());
+    g_throwOnLoad      = false;
+    ASSERT_EQ(r.hookErrors.size(), 1u);
+    ASSERT_EQ(r.removed.size(), 1u);
+    EXPECT_EQ(r.removed[0], child);
+    EXPECT_EQ(g_onLoads, 0);  // the child's onLoad did not run
+}
+
+// Non-finite header values, throwing migrations and queued actions of dropped players
+TEST(SaveRobustness, HeaderMigrationsAndActions)
+{
+    World a(baseSetup());
+    auto blob             = a.save();
+    const size_t head     = sectionOffset(blob, kTagHeader);
+    const double nan      = std::numeric_limits<double>::quiet_NaN();
+    uint64_t versionBytes = 0;
+    std::memcpy(&versionBytes, blob.data() + head, 8);  // the engine version string's length
+    const size_t timeAt = head + 8 + size_t(versionBytes) + 8 + 8;
+    auto bad            = blob;
+    std::memcpy(bad.data() + timeAt, &nan, 8);
+    World w(baseSetup());
+    LoadResult r = w.tryLoad(bad);
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("finite"), std::string::npos) << r.error;
+
+    // A migration that throws is a load error (the world unchanged)
+    World v1w(setupV1());
+    v1w.add<v1::Stats>(v1w.create());
+    WorldSetup s = setupV2();
+    s.migrations = [](MigrationList& m)
+    {
+        m.add<v2::Stats>(1, [](FieldMap&) { throw std::runtime_error("bad field"); });
+        m.add<v2::Item>(1, [](FieldMap&) {});
+        m.addRemoved("Old", RemovedPolicy::DropComponent);
+    };
+    World v2w(s);
+    r = v2w.tryLoad(v1w.save());
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("threw: bad field"), std::string::npos) << r.error;
+
+    // A queued action of a player dropped by the load is dropped too
+    World p(setupV1());
+    const Entity player = p.create();
+    p.add<Player>(player);
+    p.add<v1::Old>(player);
+    p.queueAction(PlayerAction{player, 5, Vec3::Zero()});
+    WorldSetup drop = baseSetup();
+    drop.migrations = [](MigrationList& m) { m.addRemoved("Old", RemovedPolicy::DropEntity); };
+    World q(drop);
+    ASSERT_TRUE(q.tryLoad(p.save()).ok());
+    q.step();
+    EXPECT_TRUE(q.events.read<ActionEvent>().empty());
 }

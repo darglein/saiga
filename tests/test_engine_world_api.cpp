@@ -1740,3 +1740,45 @@ TEST(WorldApi, DiffEntityFilterUsesTheGeneration)
         api.call("diff_snapshot", Json::object{{"name", "s"}, {"entity", WorldApi::entityJson(stale)}}).value["total"],
         0);
 }
+
+// Review regressions (S11 round 2)
+
+TEST(WorldApi, ImportedSnapshotsLearnTheirHashAndFiltersAreChecked)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    api.setSnapshotDirectory(::testing::TempDir());
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "a"})")).ok);
+    ASSERT_TRUE(
+        api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_hash.sgws", "overwrite": true})")).ok);
+    ASSERT_TRUE(api.call("import_snapshot", obj(R"({"name": "b", "file": "saiga_api_hash.sgws"})")).ok);
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "b"})")).ok);
+    const ApiResult listed = api.call("list_snapshots", Json());
+    for (auto& x : listed.value["snapshots"].array_items())
+    {
+        if (x["name"] == "b")
+        {
+            EXPECT_EQ(x["hash"].string_value().size(), 16u);
+        }
+    }
+    // A typo in the components filter is an error, not an empty result
+    EXPECT_FALSE(api.call("diff_snapshot", obj(R"({"name": "a", "components": ["Healht"]})")).ok);
+    // reload_data reports listener errors like load_snapshot
+    EXPECT_TRUE(api.call("reload_data", Json()).value["listener_errors"].is_array());
+}
+
+// Records made before a load carry the step before it (they got the loaded step)
+TEST(WorldApi, RecordsBeforeALoadKeepTheirStep)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "s"})")).ok);
+    w.step(4);
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now"})")).value["cursor"];
+    w.create();
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "s"})")).ok);
+    ApiResult c = api.call("changes_since", Json::object{{"cursor", cursor}});
+    ASSERT_GE(c.value["changes"].array_items().size(), 2u);
+    EXPECT_EQ(c.value["changes"][0]["kind"].string_value(), "created");
+    EXPECT_EQ(c.value["changes"][0]["step"].number_value(), 4);
+}

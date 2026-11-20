@@ -167,6 +167,7 @@ class SAIGA_ENGINE_API WorldApi
     void onLoaded(const LoadInfo& info);
     static json11::Json hookErrorsJson(const LoadResult& r);
     static json11::Json listenerErrorsJson(const LoadResult& r);
+    static json11::Json removedJson(const LoadResult& r);
     void markLoaded(uint64_t step, uint64_t fromStep);
     void journalRecord(const StructuralLog::Record& r, uint64_t stepIndex);
 

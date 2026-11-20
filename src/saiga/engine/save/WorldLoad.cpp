@@ -8,6 +8,7 @@
 // every rule checked before the world changes (a rejected save leaves it unchanged); then the commit replaces the
 // entities, restores the world state, rebuilds the derived state and recreates the game objects.
 
+#include "saiga/engine/components/Player.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/save/GenericDecode.h"
@@ -547,7 +548,11 @@ void WorldLoader::commit()
         if (queues[id]) queues[id]->restore(id < stagedEvents.size() ? stagedEvents[id].get() : nullptr);
     w.actions.clear();
     for (const ParsedSave::Action& a : p.actions)
+    {
+        // As queueAction: only for a live player (a dropped or corrupted entry is dropped)
+        if (!reg.alive(a.player) || !reg.registered(Player::id) || !reg.has<Player>(a.player)) continue;
         w.actions.push_back(World::QueuedAction{a.peer, a.sequence, PlayerAction{a.player, a.action, a.aim}});
+    }
     w.actionSequence = p.actionSequence;
     w.rng.setState(Rng::State{p.rngState, p.rngIncrement});
     w.persistentCounter = p.persistentCounter;
@@ -638,9 +643,19 @@ void WorldLoader::startObjects(LoadResult& result)
     std::vector<Entity> failed;
     auto failure = [&](Entity e, const std::string& message)
     {
-        const ClassList::ClassInfo* c = w.classes.find(reg.read<Behaviour>(e).classId);
+        const Behaviour* b            = reg.alive(e) ? reg.tryRead<Behaviour>(e) : nullptr;
+        const ClassList::ClassInfo* c = b ? w.classes.find(b->classId) : nullptr;
         result.hookErrors.push_back(LoadResult::HookError{e, c ? c->name : "?", message});
         failed.push_back(e);
+    };
+    // A failed object is removed at once with its descendants, without hooks (their later hooks do not run); the
+    // descendants are reported as removed
+    auto removeFailed = [&](Entity e)
+    {
+        if (!reg.alive(e)) return;
+        for (Entity x : w.collectDoomed(e))
+            if (x != e) result.removed.push_back(x);
+        w.abandonSpawn(e);
     };
     // Pass 1: every object exists before any hook runs (a hook may look at other objects)
     for (Entity e : objects)
@@ -662,17 +677,18 @@ void WorldLoader::startObjects(LoadResult& result)
             failure(e, "the factory threw");
         }
     }
+    for (Entity e : failed) removeFailed(e);
     // Pass 2: configure; pass 3: onLoad
     for (int phase = 1; phase <= 2; ++phase)
     {
         w.loadHookPhase = phase;
         for (Entity e : objects)
         {
-            if (std::find(failed.begin(), failed.end(), e) != failed.end()) continue;
             if (!reg.alive(e) || !reg.has<Behaviour>(e) || !reg.read<Behaviour>(e).object) continue;
             GameObject* o    = reg.get<Behaviour>(e).object.get();
             w.loadHookEntity = e;
             w.hookDepth++;
+            bool threw = false;
             try
             {
                 if (phase == 1)
@@ -682,20 +698,25 @@ void WorldLoader::startObjects(LoadResult& result)
             }
             catch (const std::exception& x)
             {
+                threw = true;
                 failure(e, std::string(phase == 1 ? "configure" : "onLoad") + " threw: " + x.what());
             }
             catch (...)
             {
+                threw = true;
                 failure(e, std::string(phase == 1 ? "configure" : "onLoad") + " threw");
             }
             w.hookDepth--;
+            if (threw)
+            {
+                w.loadHookPhase = 0;
+                removeFailed(e);
+                w.loadHookPhase = phase;
+            }
         }
     }
     w.loadHookPhase  = 0;
     w.loadHookEntity = Entity{};
-    // Objects whose hooks threw are removed with their descendants, without hooks
-    for (Entity e : failed)
-        if (reg.alive(e)) w.abandonSpawn(e);
     w.releaseRetired();
 }
 
@@ -763,6 +784,7 @@ void World::load(const std::vector<uint8_t>& data)
 {
     const LoadResult r = tryLoad(data);
     if (!r.committed) SAIGA_EXIT_ERROR("World::load: " + r.error);
+    if (!r.listenerErrors.empty()) SAIGA_EXIT_ERROR("World::load: a load listener threw: " + r.listenerErrors[0]);
     if (!r.hookErrors.empty())
         SAIGA_EXIT_ERROR("World::load: the game object of entity " + std::to_string(r.hookErrors[0].entity.index) +
                          " (" + r.hookErrors[0].className + ") failed: " + r.hookErrors[0].message);
