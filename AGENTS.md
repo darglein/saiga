@@ -287,9 +287,12 @@ Tech demo games (§18.4): `game_flight`, `game_platformer`, `game_racing` in `sa
 `EngineApp` (the engine app's command line, no `config.ini`). `--demo` plays by itself (autopilot, demo runner, AI
 driver) and simulates a few seconds before the first frame, so `SAIGA_SCREENSHOT=<file.png>` shows the action:
 `SAIGA_SCREENSHOT=/tmp/racing.png ./build/samples/games/game_racing --demo`. Their scenarios run with
-`./build/samples/games/game_<name> --scenarios` (headless, exit code 0 if all pass); they have no tests in `tests/`
-(the saiga tests test the engine). Stages that change the renderer, physics, animation or camera keep the demos
-working, run their scenarios and show their feature in them.
+`./build/samples/games/game_<name> --scenarios` (headless, exit code 0 if all pass; also in the host + client
+variants); they have no tests in `tests/` (the saiga tests test the engine). `--coop [delay]` (any engine game, S16b)
+runs co-op in one process: a hidden host world and the rendered client world over loopback (default delay 2 steps), the
+client's plane, car or character next to the host's demo one, the MCP tools on the client world:
+`SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --coop --demo`. Stages that change the
+renderer, physics, animation or camera keep the demos working, run their scenarios and show their feature in them.
 
 ## Code Conventions
 

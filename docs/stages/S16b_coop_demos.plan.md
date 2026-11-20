@@ -1,6 +1,6 @@
 # S16b: Co-op tech demos
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -190,3 +190,77 @@ demos as in Tests.
 `src/saiga/engine/app/{EngineApp,EngineMain,EngineAppSetup,AppTools}.*`, `src/saiga/engine/tools/{ScenarioWorld,
 WorldTools}.*`, `src/saiga/engine/api/WorldApi.*`, `src/saiga/engine/world/World.*` (`stepsForAdvance`),
 `samples/games/{flight,platformer,racing,common}/`, `tests/test_engine_app.cpp`, `docs/engine_design.md`, `AGENTS.md`, this file.
+
+## Design changes
+
+- Common component IDs: registration IDs must be dense (`Registry::validateRegistration`), so `Driver`, `VehicleSeat`
+  and `DemoPilot` (`samples/games/common/DrivingComponents.h`) take the IDs 64-66 in every demo and the demos' own enums
+  start at `kFirstDemoComponent` (67). The demos' component IDs shift (no demo saves exist outside tests; the save
+  format maps by name anyway).
+- `DemoPilot` is one common component `{suspended, progress, waypoint}` (racing progress, platformer waypoint; the
+  flight autopilot has no state) instead of a per-game field list.
+- The leave path: `removeDriver` (common) calls the new engine mechanism `destroyOwnedBy(host, peer)`
+  (`src/saiga/engine/gameplay/DestroyOwnedBy.*`: the peer's roots with their descendants) and clears the seats of
+  vehicles whose driver is gone; the platformer uses the same helper (its hero is the peer's only entity). Reason: the
+  plan's demo-independent engine test of the leave path cannot use sample code (R-TEST-1); which entities a leaving
+  peer loses stays the game's call (R-MECH-1).
+- `EngineAppSetup::checkOptions(AppOptions&, error)` (new): the engine does not know `--demo`, so the clamp of the co-op
+  delay to 8 with `--demo` is the games' `clampCoopDemoDelay`, called after the command line was parsed.
+- The co-op hooks of the MCP tools live in `WorldApi` (`setCoop(CoopHooks {host, stepAll})`) instead of
+  `WorldToolsOptions`, so the operations inside an `apply` batch act on both worlds too; `measure_performance` (a
+  `WorldTools` tool) reads them from the API. All seven snapshot tools are refused in co-op (also `list_snapshots`,
+  `delete_snapshot`, `diff_snapshot`: the client's API has no snapshots).
+- `run_scenario` accepts the host + client variants also without `--coop` (refused for local-only scenarios).
+- Resync: no explicit hook; a `Resync` destroys the client's replicas, so the app drops the dead local player handle
+  and takes the new replica with `Player.peer == localPeer()` when it arrives (tested).
+- The vehicle systems iterate all vehicles (`view<Transform, VehicleState>` / `<Transform, AircraftState>`) and read
+  the controls through `seatControls<C>(world, vehicle)`; the owner-side pilot systems: racing and flight in phase
+  Gameplay, the platformer's in phase Behaviour (before the controller, as `DemoRunner::update`).
+- Render caches: `PoseHistory` lost its own listeners; `RenderCaches<State>` (`GameEngine.h`) keeps one `PoseHistory`
+  and a state ring per entity, recorded by one step listener per renderer, with a pulse (`Entry::pending`, the
+  platformer's landing speed) collected when a state becomes current.
+- Slots: racing rows 8 m behind the line, alternating 3 m left / right; flight 60 m behind and 20 m inside the circuit
+  per slot (so both planes are in the `--coop --demo` screenshot); platformer 1.5 m steps next to the start, three per
+  row. `RunState` gains `slot` (a new field with a default: no version bump); `AircraftControls` (the lever left) and
+  `AircraftState` (the lever arrived) are version 2, `VehicleControls` version 2 (it moved to the driver). No
+  migrations (R-SAVE-1: no demo saves exist outside tests).
+- Scenarios: `accelerates_on_track` waits until 25 m along the track (at most 6 s), then checks the speed (> 12 m/s),
+  the window (< 40 m) and the wheels; `crashes_into_terrain`'s second part levels the sticks, waits until the plane is
+  100 m from the respawn point and checks that the driver's `Respawn` brings it back (< 5 m); `held_jump_after_a_restart`
+  also checks that the hero is back at the start after the restart. The platformer's `jumps_onto_platform` teleports
+  the hero with `ownerTeleport` before its spawn (a plain teleport in every variant). No scenario is local-only.
+- The GUI's own-vehicle buttons queue the action for the local player only when the shown vehicle is the local
+  player's; the label says "(when steps run)" while paused.
+
+## Results
+
+- Tests: `tests/test_engine_app.cpp` 37 tests (6 new): `AppCommandLine.Coop` (the delay, an argument that is not
+  consumed, the range, the errors with `--scenarios` / `--benchmark`, `checkOptions`),
+  `EngineAppCoop.InterleavedStepsAndTheClientsPlayer` (`hostWorld`, `startWorld`, the join once, the local player
+  found 1 + delay steps later, interleaved host / client steps at a low frame rate with every host snapshot applied,
+  the input to the host through the owner state, `app_status.coop`, the local player after a `Resync`),
+  `EngineAppCoopDeathTest.SetLocalPlayerOfAnotherPeer`, `EngineAppCoop.ToolsActOnBothWorlds` (pause, step, time scale,
+  `measure_performance(steps)` with `host`, `world_status` / `get_profile` with `host`, the snapshot tools refused,
+  `run_scenario` Plain + HostClient, `keep` refused, `reload_data` through the host),
+  `EngineAppCoop.StepsForAdvanceMatchesAdvance`, `EngineCoopLeave.PeersLeftAndDestroyOwnedBy` (destroy the client
+  world, then its transport end: the host's `peersLeft()`, the helper keeps host-owned entities).
+- Full ctest (RelWithDebInfo, lavapipe): 65 of 66 pass; `test_opengl_window` fails locally because of the display (as
+  before).
+- Game scenarios (`--scenarios`, now with the host + client variants): `game_flight`, `game_platformer`, `game_racing`
+  18 passed, 0 failed each (3 scenarios x 6 variants). Scenario changes: flight `climbs_with_full_throttle` and
+  `crashes_into_terrain` (driver of `defaultPeer()`, the lever on the plane, the sticks through `edit`, `stepUntil`, the
+  respawn action of the driver); platformer `jumps_onto_platform` and `held_jump_after_a_restart` (a client's hero, the
+  jump decided inside `edit`, the fall an owner-side teleport, the restart through `RestartRun` + `ownerTeleport`, the
+  release held 5 host steps, `stepUntil`); racing `accelerates_on_track` (`spawnDriven`, controls through `edit`, a
+  progress window); unchanged: `autopilot_flies_the_circuit`, `demo_reaches_goal`, `ai_completes_a_lap` (host AI,
+  the recorded positions, 7.25 s and 62.07 s still hold), `checkpoint_out_of_range` (the car is its own driver).
+- `SAIGA_SCREENSHOT=<file> ./game_<game> --coop --demo --headless`: racing shows both cars, flight both planes (the
+  client's 60 m behind the autopilot), the platformer the client's hero (the host's demo runner runs the same path a
+  few steps ahead and is mostly hidden behind it); the GUI says "co-op client (peer 1)" with the vehicle count.
+- Instead of an interactive window session (no display here): headless `--coop --no-render` sessions over MCP per demo:
+  racing `set_input throttle` moved the client's car 34 m in 3 s through the host and back (the driver entity sits at
+  its car), flight `set_input throttle, pitch` moved the lever to 1 and climbed 78 m, platformer `set_input move_z`
+  moved the client's hero and its `queue_action restart` went through the host (`RestartRun` + `ownerTeleport`) back to
+  its start slot.
+- Not covered: an interactive session with a window and a keyboard (no display in this environment).
+
