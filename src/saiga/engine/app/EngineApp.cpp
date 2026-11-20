@@ -458,6 +458,17 @@ void EngineApp::applyPlayerInput()
 #endif
         return;
     }
+    // Regression (CodeRabbit, S13): mouse look ran only for the free camera, so with a local player the view (and
+    // PlayerInput.look) never turned. Look input turns the camera every frame (§8.3); the keys move the player, not it.
+#ifdef SAIGA_USE_GLFW
+    if (appWindow && !appSetup.headless)
+    {
+        if (mouseCaptured)
+            cameraHolder->camera.resetMouse();
+        else
+            cameraHolder->camera.interpolate(float(std::min(lastFrameDt, 0.1)), 0);
+    }
+#endif
     writePlayerInput();
 }
 
