@@ -163,6 +163,9 @@ constexpr void checkFieldType()
     }
     else if constexpr (IsStdVector<T>::value || IsStdArray<T>::value)
     {
+        if constexpr (IsStdArray<T>::value)
+            static_assert(std::tuple_size<T>::value <= 0x7FFFFFFFull,
+                          "visit: a std::array has at most 2^31 - 1 elements (the save schema's limit)");
         checkFieldType<typename T::value_type, AllowFloat>();
     }
     else if constexpr (IsVisitStruct<T>::value)

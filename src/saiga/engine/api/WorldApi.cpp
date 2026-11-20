@@ -22,6 +22,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
@@ -1635,6 +1636,21 @@ ApiResult WorldApi::diffSnapshot(const Json& a)
     return ApiResult::success(result);
 }
 
+namespace
+{
+// Creates a new file for writing, fails (errno EEXIST) if it exists
+std::FILE* openExclusive(const std::filesystem::path& p)
+{
+#ifdef _WIN32
+    std::FILE* f = nullptr;
+    if (_wfopen_s(&f, p.c_str(), L"wbx") != 0) return nullptr;
+    return f;
+#else
+    return std::fopen(p.c_str(), "wbx");
+#endif
+}
+}  // namespace
+
 ApiResult WorldApi::exportSnapshot(const Json& a)
 {
     std::string name, error;
@@ -1648,24 +1664,30 @@ ApiResult WorldApi::exportSnapshot(const Json& a)
     if (it == snapshots.end()) return ApiResult::failure("export_snapshot: no snapshot \"" + name + "\"");
     namespace fs        = std::filesystem;
     const fs::path path = fs::path(snapshotDirectory) / a["file"].string_value();
-    // A temporary name of its own in the directory (never a user's file)
-    static uint64_t exportCounter = 0;
-    const fs::path partial        = fs::path(snapshotDirectory) / (".saiga-export-" + std::to_string(epoch) + "-" +
-                                                            std::to_string(++exportCounter) + ".partial");
     std::error_code ec;
     if (fs::exists(path, ec) && !overwrite)
         return ApiResult::failure("export_snapshot: " + path.string() + " exists (overwrite: true replaces it)");
+    // A temporary file of its own in the directory, created exclusively (never a user's file or another export's
+    // temporary, also one left over by an earlier process): written completely, then renamed into place, so a failed
+    // write never leaves a truncated snapshot file; only the file created here is removed on failure
+    static uint64_t exportCounter = 0;
+    fs::path partial;
+    std::FILE* f = nullptr;
+    for (int attempt = 0; attempt < 100 && !f; ++attempt)
     {
-        // Written completely, then renamed into place: a failed write never leaves a truncated snapshot file
-        std::ofstream f(partial, std::ios::binary | std::ios::trunc);
-        f.write(reinterpret_cast<const char*>(it->second.bytes.data()), std::streamsize(it->second.bytes.size()));
-        f.flush();
-        if (!f)
-        {
-            f.close();
-            fs::remove(partial, ec);
-            return ApiResult::failure("export_snapshot: cannot write " + path.string());
-        }
+        partial = fs::path(snapshotDirectory) /
+                  (".saiga-export-" + std::to_string(epoch) + "-" + std::to_string(++exportCounter) + ".partial");
+        f = openExclusive(partial);
+        if (!f && errno != EEXIST) break;
+    }
+    if (!f) return ApiResult::failure("export_snapshot: cannot create a temporary file in " + snapshotDirectory);
+    const auto& bytes  = it->second.bytes;
+    const bool written = std::fwrite(bytes.data(), 1, bytes.size(), f) == bytes.size() && std::fflush(f) == 0;
+    const bool closed  = std::fclose(f) == 0;
+    if (!written || !closed)
+    {
+        fs::remove(partial, ec);
+        return ApiResult::failure("export_snapshot: cannot write " + path.string());
     }
     fs::rename(partial, path, ec);
     if (ec)

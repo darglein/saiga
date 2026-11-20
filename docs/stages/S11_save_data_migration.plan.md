@@ -375,7 +375,8 @@ this file.
   block the reader rejects (an enum value without a name, more than 2^16 empty pending events); load-hook refusals
   are catchable in every build (no assert); array lengths up to 2^31 in saved schemas; the diff stores values sparsely,
   compares free-list generations, `Behaviour` classes by name and equal bytes only with the same schema (nested structs
-  too); export names cannot start with '.' (the temporary files).
+  too); export names cannot start with '.' and the temporary file is created exclusively (never a file of an
+  earlier process); a registered `std::array` has at most 2^31 - 1 elements (a `static_assert`, the schema's limit).
 
 Updated: §3, R-DATA-1, §7.2, §7.9, §7.10, §14, §15 (header, §15.1, §15.2), §16.2, §17.4, the S11 row; AGENTS.md.
 

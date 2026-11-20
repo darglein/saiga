@@ -23,6 +23,7 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <chrono>
 #include <cstdlib>
 #include <cstring>
@@ -1812,4 +1813,51 @@ TEST(SaveDiff, GenerationsClassesAndSchemas)
     ASSERT_TRUE(c.tryLoad(b.save()).ok());
     EXPECT_EQ(diffSaves(b.save(), c.save()).total, 0u);
     (void)s1;
+}
+
+// Regression (CodeRabbit, S11): the schema reader limits array lengths; registered std::arrays (compile-time lengths,
+// at most 2^31 - 1 by a static_assert of the field rules) round-trip around the old limit of 2^16
+namespace
+{
+template <size_t N>
+struct BigArray
+{
+    static constexpr const char* name = "BigArray";
+    static constexpr ComponentId id   = ComponentId(kFirstGameComponent + 4);
+    static constexpr uint32_t version = 1;
+    std::array<uint8_t, N> bytes{};
+    std::array<std::array<uint8_t, N>, 0> none{};  // no elements, the inner length is only in the schema
+    template <class V>
+    void visit(V& v)
+    {
+        v("bytes", bytes);
+        v("none", none);
+    }
+};
+template <size_t N>
+void roundTripBigArray()
+{
+    WorldSetup s = baseSetup();
+    s.components = [](Registry& r)
+    {
+        baseComponents(r);
+        r.registerComponent<BigArray<N>>();
+    };
+    World a(s);
+    const Entity e = a.create();
+    a.add<BigArray<N>>(e);
+    a.get<BigArray<N>>(e).bytes[N - 1] = 7;
+    const auto blob                    = a.save();
+    World b(s);
+    const LoadResult r = b.tryLoad(blob);
+    ASSERT_TRUE(r.committed) << r.error;
+    EXPECT_EQ(b.read<BigArray<N>>(e).bytes[N - 1], 7);
+    EXPECT_EQ(b.save(), blob);
+}
+}  // namespace
+
+TEST(SaveRobustness, ArrayLengthsAroundTwoToTheSixteen)
+{
+    roundTripBigArray<65536>();
+    roundTripBigArray<65537>();
 }
