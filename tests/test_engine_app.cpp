@@ -281,7 +281,7 @@ TEST(EngineAppNoRender, InputToTheLocalPlayer)
     v.held    = {"walk"};
     v.pressed = {"jump"};
     app.setVirtualInput(v, 2);
-    // Without bindings the input map knows no axes; held and pressed names still count
+    // Held and pressed names count (the default bindings have no keys for them)
     app.runFrames(1, 1.0 / 60);
     EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
     // Queued in the frame, delivered by its step
@@ -300,7 +300,7 @@ TEST(EngineAppNoRender, InputToTheLocalPlayer)
     // set_input through the tool: the default axes move the player; unknown names are rejected
     {
         Poller poller(app.mcp());
-        Json ok = callTool(app.mcp(), "set_input", obj(R"({"axes": {"move_x": 1}, "frames": 0})"));
+        Json ok = callTool(app.mcp(), "set_input", obj(R"({"axes": {"move_x": 1}, "steps": 0})"));
         EXPECT_FALSE(ok["result"]["isError"].bool_value()) << ok.dump();
         EXPECT_TRUE(
             callTool(app.mcp(), "set_input", obj(R"({"axes": {"mvoe_x": 1}})"))["result"]["isError"].bool_value());
@@ -316,6 +316,48 @@ TEST(EngineAppNoRender, InputToTheLocalPlayer)
     const auto blob = w.save();
     ASSERT_TRUE(w.tryLoad(blob).ok());
     EXPECT_EQ(app.localPlayer(), p);
+}
+
+// set_input lasts world steps, not frames: a paused world (or a frame shorter than a step) keeps it until a step read
+// it (a move set while paused was released before the next step)
+TEST(EngineAppNoRender, VirtualInputCountsSteps)
+{
+    EngineApp app(appSetup(false));
+    World& w       = app.world();
+    const Entity p = w.create();
+    w.add<Player>(p);
+    w.add<PlayerInput>(p);
+    app.setLocalPlayer(p);
+    w.setPaused(true);
+    VirtualInput v;
+    v.held = {"walk"};
+    app.setVirtualInput(v, 1);
+    app.runFrames(3, 1.0 / 60);
+    EXPECT_EQ(w.stepIndex(), 0u);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
+    w.setPaused(false);
+    app.runFrames(1, 1.0 / 240);  // shorter than a step: none runs
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
+    app.runFrames(4, 1.0 / 240);  // the step runs with the input, the next frame releases it
+    EXPECT_GE(w.stepIndex(), 1u);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
+}
+
+// The local player's handle is dead after a load: the first player of peer 0 in the loaded world
+TEST(EngineAppNoRender, LocalPlayerFallbackAfterALoad)
+{
+    EngineApp app(appSetup(false));
+    World& w       = app.world();
+    const Entity b = w.create();
+    w.add<Player>(b);
+    const auto blob = w.save();
+    const Entity a  = w.create();
+    w.add<Player>(a);
+    app.setLocalPlayer(a);
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    EXPECT_FALSE(w.alive(a));
+    EXPECT_EQ(app.localPlayer(), b);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -400,4 +442,21 @@ TEST_F(EngineAppRender, ScreenshotOption)
     TemplatedImage<ucvec4> img;
     EXPECT_TRUE(img.load(o.screenshot));
     std::remove(o.screenshot.c_str());
+    // Regression: a screenshot that could not be saved exited with 0
+    AppOptions bad;
+    bad.screenshot      = ::testing::TempDir() + "/no_such_directory/shot.png";
+    bad.screenshotFrame = 1;
+    EngineApp app2(appSetup(true), bad);
+    EXPECT_EQ(app2.run(), 1);
+}
+
+// A throwing init hook: shutdown runs for the GPU state it created (the constructor never finishes, no destructor runs)
+TEST_F(EngineAppRender, ShutdownAfterAThrowingInit)
+{
+    EngineAppSetup s       = appSetup(true);
+    bool shutdown          = false;
+    s.renderHooks.init     = [](EngineApp&) { throw std::runtime_error("init failed"); };
+    s.renderHooks.shutdown = [&](EngineApp&) { shutdown = true; };
+    EXPECT_THROW(EngineApp app(s), std::runtime_error);
+    EXPECT_TRUE(shutdown);
 }

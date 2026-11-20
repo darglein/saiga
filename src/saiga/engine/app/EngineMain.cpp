@@ -8,6 +8,7 @@
 
 #include "saiga/engine/app/EngineMain.h"
 
+#include "saiga/core/util/crash.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
@@ -184,9 +185,15 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
 {
     AppOptions options;
     std::string error;
+    catchSegFaults();
     if (!parseCommandLine(argc, argv, gameFlags, setup, options, error))
     {
-        std::cerr << error << std::endl;
+        std::cerr << error << "\nUsage: " << setup.name
+                  << " [--headless] [--no-render] [--benchmark <name>] [--screenshot <file>] [--screenshot-frame N] "
+                     "[--width N] [--height N] [--validation] [--no-vsync] [--scenarios [filter]] [--mcp-port N] "
+                     "[--data <dir>]";
+        for (const std::string& f : gameFlags) std::cerr << " [" << f << "]";
+        std::cerr << std::endl;
         return 1;
     }
     try

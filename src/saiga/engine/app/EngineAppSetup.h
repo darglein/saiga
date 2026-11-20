@@ -33,7 +33,9 @@ struct GameRenderHooks
     std::function<void(vk::CommandBuffer)> transfer, render;
     std::function<void()> gui;
     // The game's GPU passes of the newest measured frame (milliseconds by pass name), false if none since the last
-    // call; they join the gpu profile
+    // call; they join the gpu profile as gpu/game/<name> (only the names of passNames, registered before the first
+    // sample)
+    std::vector<std::string> passNames;
     std::function<bool(std::vector<std::pair<std::string, double>>& passMs)> passTimes;
 };
 
@@ -55,6 +57,7 @@ struct EngineAppSetup
     double mcpToolTimeoutSeconds = 120;
     std::string inputFile;          // default: <data directory>/input.json if it exists
     std::string snapshotDirectory;  // export_snapshot / import_snapshot (empty: refused)
+    std::string mcpInstructions;    // the MCP server's instructions (initialize)
     // The free camera's speeds (m/s; fast: with shift)
     float cameraSpeed = 10, cameraSpeedFast = 100;
     // The names --benchmark accepts (checked before the window opens; empty: the game has no benchmarks)

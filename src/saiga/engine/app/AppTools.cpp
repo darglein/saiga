@@ -70,19 +70,18 @@ void registerAppTools(McpServer& server, EngineApp& app)
     server.addTool(
         "set_input",
         "Drives the local player like a player at the keyboard: axes {name: value} (e.g. move_x, move_z in -1..1), "
-        "held "
-        "button names and pressed action names (once), for the next frames frames (default 1; 0: until set_input is "
-        "called again). The names are the input bindings of app_status. Changes the local player's PlayerInput and "
-        "queues its actions.",
-        schema(
-            {{"axes", Json::object{{"type", "object"}, {"description", "{axis name: value}"}}},
-             {"held", Json::object{{"type", "array"}, {"items", Json::object{{"type", "string"}}}}},
-             {"pressed", Json::object{{"type", "array"}, {"items", Json::object{{"type", "string"}}}}},
-             {"frames", Json::object{{"type", "integer"}, {"description", "Frames (default 1; 0: until changed)"}}}}),
+        "held button names and pressed action names (queued once), for the next steps world steps (default 1; 0: until "
+        "set_input is called again; a paused world keeps the input until steps run). The names are the input "
+        "bindings of app_status. Changes the local player's PlayerInput and queues its actions.",
+        schema({{"axes", Json::object{{"type", "object"}, {"description", "{axis name: value}"}}},
+                {"held", Json::object{{"type", "array"}, {"items", Json::object{{"type", "string"}}}}},
+                {"pressed", Json::object{{"type", "array"}, {"items", Json::object{{"type", "string"}}}}},
+                {"steps",
+                 Json::object{{"type", "integer"}, {"description", "World steps (default 1; 0: until changed)"}}}}),
         [&app](const Json& args, McpServer::Respond respond)
         {
             for (auto& kv : args.object_items())
-                if (kv.first != "axes" && kv.first != "held" && kv.first != "pressed" && kv.first != "frames")
+                if (kv.first != "axes" && kv.first != "held" && kv.first != "pressed" && kv.first != "steps")
                     return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
             if (!app.localPlayer().valid())
                 return respond(ToolResult::Error("set_input: the app has no local player (app_status)"));
@@ -113,16 +112,16 @@ void registerAppTools(McpServer& server, EngineApp& app)
                     (std::string(key) == "held" ? v.held : v.pressed).push_back(n.string_value());
                 }
             }
-            int frames = 1;
-            if (!args["frames"].is_null())
+            int steps = 1;
+            if (!args["steps"].is_null())
             {
-                const double f = args["frames"].number_value();
-                if (!args["frames"].is_number() || f != std::floor(f) || f < 0 || f > 1e6)
-                    return respond(ToolResult::Error("frames: an integer 0..1000000"));
-                frames = int(f);
+                const double f = args["steps"].number_value();
+                if (!args["steps"].is_number() || f != std::floor(f) || f < 0 || f > 1e6)
+                    return respond(ToolResult::Error("steps: an integer 0..1000000"));
+                steps = int(f);
             }
-            app.setVirtualInput(v, frames);
-            respond(ToolResult::Text(Json(Json::object{{"frames", frames}}).dump()));
+            app.setVirtualInput(v, steps);
+            respond(ToolResult::Text(Json(Json::object{{"steps", steps}}).dump()));
         });
 }
 

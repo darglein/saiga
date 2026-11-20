@@ -23,7 +23,7 @@ struct WorldMcpContext
     VulkanForwardRenderer* renderer = nullptr;
     WorldRenderer* world            = nullptr;
     Camera* camera                  = nullptr;
-    // Optional: walk mode (the camera stays at eyeHeight above the terrain), see sample_vulkan_world
+    // Optional: walk mode (the camera stays at eyeHeight above the terrain), see game_world
     bool* walkMode   = nullptr;
     float* eyeHeight = nullptr;
     // false: no measure_performance (the engine app registers its own, which also reports frames and the GPU)
@@ -38,7 +38,8 @@ struct WorldMcpContext
 SAIGA_VULKAN_API void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context);
 
 // The instructions for the agent (McpServer constructor)
-SAIGA_VULKAN_API std::string worldMcpInstructions();
+// measurePerformance: mention the renderer's measure_performance (false: the engine app's, see registerWorldTools)
+SAIGA_VULKAN_API std::string worldMcpInstructions(bool measurePerformance = true);
 
 }  // namespace Vulkan
 }  // namespace Saiga

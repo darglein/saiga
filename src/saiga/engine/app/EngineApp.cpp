@@ -86,7 +86,12 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         appOptions.screenshot.clear();
     }
     SAIGA_ASSERT(!appSetup.noRender || appSetup.headless, "EngineApp: noRender needs headless");
-    initSaiga(saigaParameters());
+    {
+        SaigaParameters p = saigaParameters();
+        // Without a device no shader is loaded (a server installed without the source tree)
+        p.ensureSaigaShadersExist = !appSetup.noRender;
+        initSaiga(p);
+    }
 
     gameWorld = std::make_unique<World>(appSetup.world);
 
@@ -145,7 +150,7 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         inputMap.setDefaults();
 
     // MCP: the server and the tools always exist (tests call handleMessage); the server listens only with a port
-    server                     = std::make_unique<McpServer>(appSetup.name, "1.0");
+    server                     = std::make_unique<McpServer>(appSetup.name, "1.0", appSetup.mcpInstructions);
     server->toolTimeoutSeconds = appSetup.mcpToolTimeoutSeconds;
     WorldToolsOptions toolOptions;
     toolOptions.snapshotDirectory = appSetup.snapshotDirectory;
@@ -172,6 +177,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     scopeGpuFrame  = gpuProfiler.scope("gpu");
     for (const char* name : Vulkan::RenderScene::gpuSectionNames())
         scopeGpuSections.push_back(gpuProfiler.scope(std::string("gpu/") + name));
+    // Before the first sample: a scope created later would count the empty history as zero samples
+    for (const std::string& name : appSetup.renderHooks.passNames)
+        scopeGpuPasses.push_back(gpuProfiler.scope("gpu/game/" + name));
 
     // The local player survives a load (its handle is kept); otherwise the first player of peer 0, or none
     gameWorld->addLoadListener(
@@ -192,9 +200,20 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
 
     if (renderScene && appSetup.renderHooks.init)
     {
-        // Before init: shutdown also runs if init threw after creating some GPU state
+        // The constructor does not finish if init throws (no destructor): shutdown runs here for the GPU state init
+        // created before it threw, while the device still exists
         hooksInitialized = true;
-        appSetup.renderHooks.init(*this);
+        try
+        {
+            appSetup.renderHooks.init(*this);
+        }
+        catch (...)
+        {
+            if (server) server->stop();
+            renderScene->waitIdle();
+            if (appSetup.renderHooks.shutdown) appSetup.renderHooks.shutdown(*this);
+            throw;
+        }
     }
 }
 
@@ -241,11 +260,11 @@ void EngineApp::quit(int code)
     exitStatus    = code;
 }
 
-void EngineApp::setVirtualInput(const VirtualInput& input, int frames)
+void EngineApp::setVirtualInput(const VirtualInput& input, int steps)
 {
-    virtualInput  = input;
-    virtualFrames = frames;
-    hasVirtual    = true;
+    virtualInput = input;
+    virtualSteps = steps;
+    hasVirtual   = true;
 }
 
 int EngineApp::run()
@@ -294,6 +313,16 @@ void EngineApp::frame(double dt)
             Profiler::Timer t(frameProfiler, scopeAdvance);
             const uint64_t before = gameWorld->stepIndex();
             gameWorld->advance(dt);
+            // set_input lasts a number of steps (a paused world or a frame shorter than a step runs none)
+            if (hasVirtual && virtualSteps > 0 && gameWorld->stepIndex() > before)
+            {
+                virtualSteps -= int(std::min<uint64_t>(gameWorld->stepIndex() - before, uint64_t(virtualSteps)));
+                if (virtualSteps == 0)
+                {
+                    hasVirtual   = false;
+                    virtualInput = VirtualInput();
+                }
+            }
             frameProfiler.setCounter(counterSteps, double(gameWorld->stepIndex() - before));
             frameProfiler.setCounter(counterDropped, double(gameWorld->droppedSteps() - droppedBefore));
             droppedBefore = gameWorld->droppedSteps();
@@ -355,11 +384,6 @@ void EngineApp::applyPlayerInput()
         inputMap.update(state, captured, virtualInput);
         // Pressed actions are edges of one frame
         virtualInput.pressed.clear();
-        if (virtualFrames > 0 && --virtualFrames == 0)
-        {
-            hasVirtual   = false;
-            virtualInput = VirtualInput();
-        }
     }
     else
         inputMap.update(state, captured);
@@ -431,11 +455,12 @@ void EngineApp::renderFrame()
         renderScene->requestScreenshot(
             [this, file](const TemplatedImage<ucvec4>& img)
             {
-                if (img.width > 0 && img.save(file))
+                const bool saved = img.width > 0 && img.save(file);
+                if (saved)
                     SAIGA_LOG("app", "saved screenshot %s", file.c_str());
                 else
                     SAIGA_LOG("app", "could not save the screenshot %s", file.c_str());
-                quit(img.width > 0 ? 0 : 1);
+                quit(saved ? 0 : 1);
             });
     }
     if (!renderScene->renderFrame(transfer, render, gui)) return;
@@ -513,7 +538,9 @@ void EngineApp::collectGpuTimes()
             gpuProfiler.add(scopeGpuSections[i], times.gpuSectionMs[i]);
         std::vector<std::pair<std::string, double>> passes;
         if (appSetup.renderHooks.passTimes && appSetup.renderHooks.passTimes(passes))
-            for (const auto& p : passes) gpuProfiler.add(gpuProfiler.scope("gpu/game/" + p.first), p.second);
+            for (const auto& p : passes)
+                for (size_t k = 0; k < appSetup.renderHooks.passNames.size(); ++k)
+                    if (appSetup.renderHooks.passNames[k] == p.first) gpuProfiler.add(scopeGpuPasses[k], p.second);
         gpuProfiler.endSample();
     }
 }

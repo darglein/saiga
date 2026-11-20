@@ -78,7 +78,8 @@ class SAIGA_ENGINE_API EngineApp
     void setLocalPlayer(Entity player) { localPlayerEntity = player; }
     Entity localPlayer() const { return localPlayerEntity; }
     // A virtual input device for the next frames (the set_input tool; frames 0: until changed)
-    void setVirtualInput(const VirtualInput& input, int frames);
+    // The virtual device for the next steps (0: until replaced); a paused world keeps it until steps run
+    void setVirtualInput(const VirtualInput& input, int steps);
     void showStatistics(bool show) { statisticsVisible = show; }
 
     // The app's profiles (get_profile: frame, gpu): one sample per frame loop / per completed GPU frame
@@ -106,8 +107,8 @@ class SAIGA_ENGINE_API EngineApp
     std::unique_ptr<CameraHolder> cameraHolder;
     InputMap inputMap;
     VirtualInput virtualInput;
-    int virtualFrames = 0;
-    bool hasVirtual   = false;
+    int virtualSteps = 0;
+    bool hasVirtual  = false;
     Entity localPlayerEntity;
     std::vector<std::function<bool()>> frameCallbacks;
     bool renderingEnabled = true, statisticsVisible = false;
@@ -128,7 +129,7 @@ class SAIGA_ENGINE_API EngineApp
     Profiler frameProfiler, gpuProfiler;
     int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeGpuFrame = -1;
     int counterFps = -1, counterSteps = -1, counterDropped = -1;
-    std::vector<int> scopeGpuSections;
+    std::vector<int> scopeGpuSections, scopeGpuPasses;
     uint64_t droppedBefore = 0;
 };
 

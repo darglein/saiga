@@ -292,6 +292,10 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
   needed yet (the paths use the prototype's height field).
 - `WindowBase::markRunning` (the app runs its own loop); `VulkanRenderer::submittedFrames`/`takeCompletedFrame` and
   `FrameTimings::popCompleted` (GPU times by timeline value).
+- Not created (folded into existing files): `CommandLine.*` (in `EngineMain.*`), `EngineStatistics.cpp` (in
+  `EngineApp.cpp`), `AppBenchmark.*` (the runner stays in `WorldBenchmark`, see above), `data/world/input.json`
+  (`game_world` uses the default bindings). The default data directory without the project dir in the build is
+  `data/<name>` in the working directory, not next to the executable.
 - Review round 1: the release of the device input (the first neutral frame after an active one) is written to the
   local player once (a held button stayed down); `set_input` rejects unknown axes; without `input.json` the input map
   has default axes (`move_x` A/D, `move_z` S/W, mouse look) and `app_status` lists the actions, held buttons, axes and
@@ -302,13 +306,20 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
   `reset_profile` resets the frame and GPU profiles; `engineMain` reports exceptions with a hint and exits with 1;
   `game_world --benchmark` exits with 1 if the window closed before the end; action and held-button names share one
   namespace; the user input file is `input.<game>.user.json`.
+- Review round 2: a screenshot that cannot be saved exits with 1; a throwing `renderHooks.init` runs `shutdown` before
+  the exception leaves the constructor (the game's GPU state outlived the device); `set_input` lasts world steps
+  (`steps`, was `frames`: a paused world or a frame shorter than a step released the input before a step read it);
+  game GPU passes are declared in `GameRenderHooks::passNames` (scopes before the first sample) and frames without GPU
+  times add no samples; `EngineAppSetup::mcpInstructions` (game_world passes the world renderer's instructions); a
+  `--no-render` app does not need the shader directory; the benchmark's `step` statistic covers the steps of the
+  measured frames; the usage text on a command line error, `catchSegFaults`, the benchmark's no-GPU-times warning.
 
 Updated: §3, §7.9 (`actions`), §8.3, §16.1, §16.2, §17.1, §17.7, §18.2, §18.4, §19, R-TEST-1, §22 (S13, the new S13b row,
 S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.
 
 ## Results
 
-- `test_engine_app` (9 tests: command line, scenario exit codes, input map, the app without a device, the app on
+- `test_engine_app` (12 tests: command line, scenario exit codes, input map, the app without a device, the app on
   lavapipe with frames, steps, screenshots, profiles and tools); the Vulkan tests and goldens are unchanged; 63 ctest
   tests.
 - `game_world` on the RTX 5080 Laptop GPU: renders like the prototype; `--benchmark flyover` (RelWithDebInfo with

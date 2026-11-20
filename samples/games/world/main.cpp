@@ -54,6 +54,8 @@ struct WorldGame
     // GPU pass times of the newest frame of the world renderer (for the engine's gpu profile)
     Vulkan::WorldRenderer::FrameTimes lastTimes;
     bool hasTimes = false;
+    // The world profiler's sample count when the measured frames began (the benchmark's step statistic)
+    int64_t stepSamplesAtStart = -1;
 };
 WorldGame* g_game = nullptr;
 
@@ -125,6 +127,8 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
     }
     const ivec2 size = app.scene()->size();
     g.world.transfer(cmd, camera.view, camera.getPosition(), float(size(0)) / float(std::max(1, size(1))));
+    if (g.bench && g.stepSamplesAtStart < 0 && g.bench->measuring())
+        g.stepSamplesAtStart = int64_t(app.world().profiler().sampleCount());
     if (g.bench && g.bench->finished() && !g.benchmarkDone)
     {
         const std::string file = resultFile(g.benchmarkName);
@@ -136,11 +140,19 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         // The engine's numbers: the step and the frame recording (S13)
         auto stat    = [](const Profiler::Stats& s) { return json11::Json::object{{"median", s.p50}, {"p95", s.p95}}; };
         Profiler& wp = app.world().profiler();
-        result["step"]      = stat(wp.scopeStats(wp.scope("step"), Vulkan::WorldBenchmark::measuredFrames));
+        // The steps of the measured frames (not the last 600 steps: at hundreds of frames per second they reach back
+        // into the warm-up)
+        const int stepSamples =
+            int(std::max<int64_t>(1, int64_t(wp.sampleCount()) - std::max<int64_t>(0, g.stepSamplesAtStart)));
+        result["step"]      = stat(wp.scopeStats(wp.scope("step"), stepSamples));
         result["recording"] = stat(app.frameProfile().scopeStats(app.frameProfile().scope("frame/render"),
                                                                  Vulkan::WorldBenchmark::measuredFrames));
         const int stalls    = result["stalled_frames"].int_value();
-        if (stalls > 0) std::cout << "Benchmark error: " << stalls << " stalled frames" << std::endl;
+        if (stalls > 0)
+            std::cout << "Benchmark error: " << stalls
+                      << " stalled frames (e.g. the window was minimized or the swap chain recreated)" << std::endl;
+        if (result["gpu_ms"].is_null())
+            std::cout << "Benchmark warning: no GPU times (timestamps not supported)" << std::endl;
         const bool written = Vulkan::WorldBenchmark::writeResult(file, result);
         std::cout << (written ? "Benchmark result: " + file + "\n" + json11::Json(result).dump()
                               : "Benchmark error: could not write " + file)
@@ -183,8 +195,11 @@ int main(int argc, char* argv[])
     setup.cameraSpeed        = 25;
     setup.cameraSpeedFast    = 250;
     setup.benchmarks         = Vulkan::WorldBenchmark::names();
-    EngineApp* appPtr        = nullptr;
-    setup.renderHooks.init   = [&](EngineApp& app)
+    setup.mcpInstructions    = Vulkan::worldMcpInstructions(false);
+    for (int i = 0; i < Vulkan::WorldRenderer::PASS_COUNT; ++i)
+        setup.renderHooks.passNames.push_back(Vulkan::WorldRenderer::gpuPassName(i));
+    EngineApp* appPtr      = nullptr;
+    setup.renderHooks.init = [&](EngineApp& app)
     {
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;
@@ -198,6 +213,8 @@ int main(int argc, char* argv[])
     {
         if (!game.hasTimes) return false;
         game.hasTimes = false;
+        // No completed GPU frame or no timestamps: no samples (zeros would lower the statistics)
+        if (game.lastTimes.gpuMs < 0 || game.lastTimes.gpuPassMs.empty()) return false;
         for (int i = 0; i < Vulkan::WorldRenderer::PASS_COUNT; ++i)
             passes.push_back({Vulkan::WorldRenderer::gpuPassName(i), game.lastTimes.gpuPassMs[size_t(i)]});
         return true;
