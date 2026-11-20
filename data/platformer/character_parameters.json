@@ -1,0 +1,15 @@
+{
+    "default": {
+        "radius": 0.35,
+        "height": 1.8,
+        "gravity": 25,
+        "jumpSpeed": 9,
+        "runSpeed": 6.5,
+        "walkSpeed": 2.5,
+        "groundAcceleration": 45,
+        "airAcceleration": 14,
+        "coyoteTime": 0.1,
+        "jumpBuffer": 0.12,
+        "turnRate": 12
+    }
+}

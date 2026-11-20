@@ -1015,7 +1015,7 @@ void sysReadThenThrow(World& w, double)
     {
         g_throwOnce = false;
         w.events.emit(HitEvent{Entity{}, 99});  // emitted by the aborted step: dropped with it
-        g_reservedByAbortedStep = w.create();      // reserved by the aborted step: released
+        g_reservedByAbortedStep = w.create();   // reserved by the aborted step: released
         throw std::runtime_error("once");
     }
 }
@@ -1464,4 +1464,113 @@ TEST(WorldDeathTest, DuplicateEventIdStopsInEveryBuild)
     World w(testSetup());
     EventRegistry r(w.events);
     EXPECT_DEATH(r.add<SameIdAsDamage>(), "already used by HitEvent");
+}
+
+// The setup's context (S13b): constant configuration shared by every world of a setup, also after a load
+namespace
+{
+struct LevelContext
+{
+    double killHeight = -12;
+};
+}  // namespace
+
+TEST(World, ContextIsSharedByTheWorldsOfASetup)
+{
+    WorldSetup s = testSetup();
+    auto level   = std::make_shared<const LevelContext>(LevelContext{-7});
+    s.setContext(level);
+    World a(s), b(s);
+    EXPECT_TRUE(a.hasContext());
+    EXPECT_EQ(&a.context<LevelContext>(), level.get());
+    EXPECT_EQ(&b.context<LevelContext>(), level.get());
+    EXPECT_EQ(a.context<LevelContext>().killHeight, -7);
+    ASSERT_TRUE(b.tryLoad(a.save()).ok());
+    EXPECT_EQ(&b.context<LevelContext>(), level.get());
+    World none(testSetup());
+    EXPECT_FALSE(none.hasContext());
+}
+
+// A non-const shared_ptr is accepted (stored as const)
+TEST(World, ContextFromANonConstPointer)
+{
+    WorldSetup s = testSetup();
+    auto level   = std::make_shared<LevelContext>();
+    s.setContext(level);
+    World w(s);
+    EXPECT_EQ(&w.context<LevelContext>(), level.get());
+}
+
+// Without the SAIGA_ASSERTS guard: a missing context or another type stops the program in every build (the cast would
+// read another type)
+TEST(WorldDeathTest, ContextOfAnotherTypeStopsInEveryBuild)
+{
+    WorldSetup s = testSetup();
+    s.setContext(std::make_shared<const LevelContext>());
+    World w(s);
+    EXPECT_DEATH(w.context<int>(), "no context of type");
+    World none(testSetup());
+    EXPECT_DEATH(none.context<LevelContext>(), "no context of type");
+}
+
+// A step listener runs after the step's transform flags were shifted: it sees the step's teleport, and one made between
+// the steps, through wasTeleportedLastStep() (S13b: the tech demos' pose cache read wasTeleported(), always false
+// there, and the camera glided after a respawn)
+TEST(World, StepListenersSeeTheStepsTeleportAsLastStep)
+{
+    World w(testSetup());
+    const Entity e = w.create();
+    std::vector<std::pair<bool, bool>> seen;  // (wasTeleported, wasTeleportedLastStep) after every step
+    w.addStepListener(
+        [&]()
+        {
+            const Transform& t = w.read<Transform>(e);
+            seen.push_back({t.wasTeleported(), t.wasTeleportedLastStep()});
+            return true;
+        });
+    w.step();
+    w.get<Transform>(e).teleport(Vec3(5, 0, 0), Quat::Identity());  // between the steps (a tool, a respawn)
+    w.step();
+    w.step();
+    ASSERT_EQ(seen.size(), 3u);
+    EXPECT_EQ(seen[0], std::make_pair(false, false));
+    EXPECT_EQ(seen[1], std::make_pair(false, true));
+    EXPECT_EQ(seen[2], std::make_pair(false, false));
+}
+
+namespace
+{
+bool g_teleportInStep = false;
+}  // namespace
+
+// The same for a teleport inside the step (a respawn in phase Behaviour or Gameplay)
+TEST(World, StepListenersSeeATeleportInsideTheStep)
+{
+    World w(testSetup(
+        [](SystemList& l)
+        {
+            l.add(Phase::Gameplay, "teleportAll",
+                  [](World& world, double)
+                  {
+                      if (!g_teleportInStep) return;
+                      world.view<Transform>().each([](Entity, Transform& t)
+                                                   { t.teleport(Vec3(1, 2, 3), Quat::Identity()); });
+                  });
+        }));
+    const Entity e = w.create();
+    bool lastStep = false, now = true;
+    w.addStepListener(
+        [&]()
+        {
+            lastStep = w.read<Transform>(e).wasTeleportedLastStep();
+            now      = w.read<Transform>(e).wasTeleported();
+            return true;
+        });
+    g_teleportInStep = true;
+    w.step();
+    g_teleportInStep = false;
+    EXPECT_TRUE(lastStep);
+    EXPECT_FALSE(now);
+    w.step();
+    EXPECT_FALSE(lastStep);
 }

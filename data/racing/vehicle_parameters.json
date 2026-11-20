@@ -1,0 +1,24 @@
+{
+    "default": {
+        "mass": 1200,
+        "halfExtents": [0.9, 0.45, 2.1],
+        "wheelMounts": [[-0.82, -0.2, -1.35], [0.82, -0.2, -1.35], [-0.82, -0.2, 1.3], [0.82, -0.2, 1.3]],
+        "wheelRadius": 0.36,
+        "restLength": 0.35,
+        "stiffness": 38000,
+        "damping": 4200,
+        "engineForce": 7500,
+        "brakeForce": 11000,
+        "maxSpeed": 60,
+        "maxSteer": 0.55,
+        "friction": 1.2,
+        "slipSpeed": 0.6,
+        "rollCenterDepth": 0.3,
+        "chassisFriction": 0.8,
+        "bodyBottom": 0.35,
+        "bodyTop": 0.84,
+        "rollingResistance": 25,
+        "airDrag": 0.45,
+        "subSteps": 4
+    }
+}

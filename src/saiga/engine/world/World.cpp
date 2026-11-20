@@ -33,6 +33,8 @@ World::World(const WorldSetup& setup)
     : events(reg),
       pool(std::max(0, setup.workerThreads - 1)),
       rng(setup.seed),
+      contextPtr(setup.context),
+      contextType(setup.contextType),
       config(setup.config),
       stepDt(1.0 / setup.config.stepsPerSecond)
 {

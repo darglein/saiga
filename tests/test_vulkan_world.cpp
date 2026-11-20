@@ -370,6 +370,39 @@ TEST_F(VulkanWorldRender, RendersTerrainTreesAndSky)
     app = VulkanTestApp();
 }
 
+// An external height field (S13b: generated once for a game's simulation and its renderer) is shared, not copied, and
+// renders like a generated one
+TEST_F(VulkanWorldRender, SharesAnExternalHeightField)
+{
+    HeightField::Parameters terrain;
+    terrain.size  = 257;
+    auto external = std::make_shared<HeightField>();
+    external->generate(terrain);
+
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 129;  // ignored with an external height field
+    params.treeCount    = 500;
+    world.init(*renderer, params, external);
+    EXPECT_EQ(&world.heightField(), external.get());
+    EXPECT_EQ(world.heightField().size(), 257);
+    EXPECT_EQ(external.use_count(), 2);  // here and in the world renderer
+    auto& hf       = world.heightField();
+    vec3 c         = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    c(1)           = hf.height(c(0), c(2));
+    vec3 eye       = c + vec3(0, 60, 200);
+    mat4 view      = lookAt(eye, c + vec3(0, 20, 0), vec3(0, 1, 0));
+    float aspect   = 96.0f / 64.0f;
+    app.onTransfer = [&](vk::CommandBuffer cmd) { world.transfer(cmd, view, eye, aspect); };
+    app.onRender   = [&](vk::CommandBuffer cmd) { world.render(cmd); };
+    for (int i = 0; i < 3; ++i) RenderFrame();
+    EXPECT_GT(world.stats().terrainNodes, 0);
+    renderer->waitIdle();
+    app = VulkanTestApp();
+    world.destroy();
+    EXPECT_EQ(external.use_count(), 1);  // released by destroy()
+}
+
 // Regression: positions were passed to the fragment shader in world space as floats. Far from the origin (x = 7 km:
 // float steps of 0.5 mm) and close to the ground, dFdx/dFdy of the position (flat shading) were rounding noise and
 // the ground showed salt-and-pepper noise. The world passes now work with positions relative to the camera.

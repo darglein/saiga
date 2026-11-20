@@ -5,52 +5,60 @@
  */
 
 /**
- * Platformer tech demo (samples/games/platformer, docs/engine_design.md §18.4): one level, a procedurally animated
- * character. --demo: the character runs through the level by itself.
+ * Platformer tech demo (samples/games/platformer, docs/engine_design.md §18.4) on the engine app: one level, a
+ * procedurally animated character. --demo: the character runs through the level by itself. --scenarios: the game's
+ * scenarios.
  *
- * Controls: WASD move (relative to the camera), shift walk, space jump, Q/E turn the camera, R restart, G GUI, ESC.
+ * Controls (data/platformer/input.json): WASD move (relative to the camera), shift walk, space jump, Q/E turn the
+ * camera, R restart, G GUI, ESC quit.
  */
 
-#include "games/common/GameInput.h"
-#include "games/common/GameSampleHost.h"
-#include "games/platformer/PlatformerGame.h"
+#include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/PlayerInput.h"
+
+#include "games/platformer/PlatformerRender.h"
 
 using namespace Saiga;
+using namespace Saiga::Engine;
 using namespace Saiga::Game;
-
-class PlatformerSample : public GameSampleHost<PlatformerGame>
-{
-   public:
-    explicit PlatformerSample(bool demo) : GameSampleHost(vec4(0.62f, 0.74f, 0.86f, 1)) { game.init(*renderer, demo); }
-
-   private:
-    void stepGame(double dt, bool keyboardFree) override
-    {
-        PlatformerGame::PlayerInput in;
-        // The edge history follows the key also while the GUI has the keyboard: otherwise a release during the capture
-        // is missed and the next press after it is not seen as a new press
-        bool jump        = keyDown(GLFW_KEY_SPACE);
-        bool jumpPressed = jump && !jumpWasDown;
-        jumpWasDown      = jump;
-        if (keyboardFree)
-        {
-            in.forward     = keyAxis(GLFW_KEY_S, GLFW_KEY_W);
-            in.right       = keyAxis(GLFW_KEY_A, GLFW_KEY_D);
-            in.walk        = keyDown(GLFW_KEY_LEFT_SHIFT);
-            in.jumpHeld    = jump;
-            in.jumpPressed = jumpPressed;
-            in.cameraTurn  = keyAxis(GLFW_KEY_E, GLFW_KEY_Q) * 2.0;
-        }
-        game.step(in, dt);
-    }
-
-    bool jumpWasDown = false;
-};
 
 int main(int argc, char** argv)
 {
-    initSaigaSample();
-    PlatformerSample sample(PlatformerSample::hasFlag(argc, argv, "--demo"));
-    sample.runGame();
-    return 0;
+    auto context   = std::make_shared<PlatformerContext>();
+    context->level = Level::demoLevel();
+    PlatformerRender renderer(context);
+
+    EngineAppSetup setup;
+    setup.name                 = "platformer";
+    setup.render.msaaSamples   = 4;
+    setup.render.clearColor    = vec4(0.62f, 0.74f, 0.86f, 1);
+    setup.world                = platformerWorldSetup(context);
+    setup.scenarios            = platformerScenarios;
+    setup.renderHooks.init     = [&](EngineApp& app) { renderer.init(app); };
+    setup.renderHooks.shutdown = [&](EngineApp&) { renderer.shutdown(); };
+    setup.renderHooks.transfer = [&](vk::CommandBuffer cmd) { renderer.transfer(cmd); };
+    setup.renderHooks.render   = [&](vk::CommandBuffer cmd) { renderer.render(cmd); };
+    setup.renderHooks.gui      = [&]() { renderer.gui(); };
+
+    return engineMain(argc, argv, setup, {"--demo"},
+                      [](EngineApp& app, const AppOptions& options)
+                      {
+                          app.showStatistics(false);
+                          World& w = app.world();
+                          if (options.has("--demo"))
+                          {
+                              w.spawn<DemoRunner>(Vec3::Zero());
+                              // Run a while before the first frame (a screenshot then shows the character running
+                              // over the bridge)
+                              w.step(int(60 * 4.6));
+                          }
+                          else
+                          {
+                              Player p;
+                              p.characterId  = 1;
+                              const Entity e = w.spawn<PlatformerHero>(Vec3::Zero(), p, PlayerInput{});
+                              app.setLocalPlayer(e);
+                          }
+                      });
 }

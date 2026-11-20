@@ -5,41 +5,78 @@
  */
 
 /**
- * Racing tech demo (samples/games/racing, docs/engine_design.md §18.4): drive a car around a track on the terrain of the
- * world prototype. --demo: the AI driver races.
+ * Racing tech demo (samples/games/racing, docs/engine_design.md §18.4) on the engine app: drive a car around a track on
+ * the terrain of the world prototype. --demo: the AI driver races. --scenarios: the game's scenarios.
  *
- * Controls: W throttle, S brake / reverse, A/D steer, R back to the track, G GUI, ESC quit.
+ * Controls (data/racing/input.json): W throttle, S brake / reverse, A/D steer, R back to the track, G GUI, ESC quit.
  */
 
-#include "games/common/GameInput.h"
-#include "games/common/GameSampleHost.h"
-#include "games/racing/RacingGame.h"
+#include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/PlayerInput.h"
+
+#include "games/racing/RacingRender.h"
 
 using namespace Saiga;
+using namespace Saiga::Engine;
 using namespace Saiga::Game;
-
-class RacingSample : public GameSampleHost<RacingGame>
-{
-   public:
-    explicit RacingSample(bool demo) { game.init(*renderer, demo, worldTreeCount()); }
-
-   private:
-    void stepGame(double dt, bool keyboardFree) override
-    {
-        VehicleControls controls;
-        if (keyboardFree)
-        {
-            controls.throttle = keyAxis(GLFW_KEY_S, GLFW_KEY_W);
-            controls.steer    = keyAxis(GLFW_KEY_A, GLFW_KEY_D);
-        }
-        game.step(controls, dt);
-    }
-};
 
 int main(int argc, char** argv)
 {
-    initSaigaSample();
-    RacingSample sample(RacingSample::hasFlag(argc, argv, "--demo"));
-    sample.runGame();
-    return 0;
+    auto context = RacingContext::create();
+    RacingRender renderer(context);
+
+    EngineAppSetup setup;
+    setup.name               = "racing";
+    setup.render.msaaSamples = 4;
+    setup.world              = racingWorldSetup(context);
+    setup.scenarios          = racingScenarios;
+    // The pedals and the steering follow the keys (released: neutral)
+    bool wasActive   = false;
+    setup.applyInput = [&wasActive](const InputMap& in, World& w, Entity player)
+    {
+        const bool active = !in.neutral();
+        if (!player.valid() || !w.has<VehicleControls>(player) || (!active && !wasActive)) return;
+        wasActive          = active;
+        VehicleControls& c = w.get<VehicleControls>(player);
+        c.throttle         = in.axis("throttle");
+        c.steer            = in.axis("steer");
+    };
+    setup.renderHooks.init     = [&](EngineApp& app) { renderer.init(app); };
+    setup.renderHooks.shutdown = [&](EngineApp&) { renderer.shutdown(); };
+    setup.renderHooks.transfer = [&](vk::CommandBuffer cmd) { renderer.transfer(cmd); };
+    setup.renderHooks.render   = [&](vk::CommandBuffer cmd) { renderer.render(cmd); };
+    setup.renderHooks.gui      = [&]() { renderer.gui(); };
+
+    return engineMain(argc, argv, setup, {"--demo"},
+                      [&wasActive](EngineApp& app, const AppOptions& options)
+                      {
+                          app.showStatistics(false);
+                          World& w = app.world();
+                          // Regression (CodeRabbit, S13b): a save taken with a pedal or the steering held restored
+                          // them, and neutral input never cleared them. The local player's pedals and steering are
+                          // device input: a load sets them neutral; the next active input or an agent writes them.
+                          w.addLoadListener(
+                              [&app, &wasActive](const LoadInfo&)
+                              {
+                                  wasActive      = false;
+                                  World& world   = app.world();
+                                  const Entity p = app.localPlayer();
+                                  if (!p.valid() || !world.alive(p) || !world.has<VehicleControls>(p)) return;
+                                  world.get<VehicleControls>(p) = VehicleControls();
+                              });
+                          if (options.has("--demo"))
+                          {
+                              w.spawn<RaceDriver>(Vec3::Zero());
+                              // Race a while before the first frame (a screenshot shows the car on the track)
+                              w.step(60 * 10);
+                          }
+                          else
+                          {
+                              Player p;
+                              p.characterId  = 1;
+                              const Entity e = w.spawn<Car>(Vec3::Zero(), p, PlayerInput{});
+                              app.setLocalPlayer(e);
+                          }
+                      });
 }

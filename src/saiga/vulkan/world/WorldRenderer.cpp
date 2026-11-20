@@ -155,7 +155,26 @@ void WorldSettings::clamp()
 
 //==================================================================================================
 
-void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters& parameters)
+void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters)
+{
+    initWith(renderer, parameters, nullptr);
+}
+
+void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+                         std::shared_ptr<const HeightField> heightField)
+{
+    if (!heightField) SAIGA_EXIT_ERROR("WorldRenderer::init: no height field");
+    initWith(renderer, parameters, std::move(heightField));
+}
+
+const HeightField& WorldRenderer::heightField() const
+{
+    static const HeightField empty;
+    return hf ? *hf : empty;
+}
+
+void WorldRenderer::initWith(VulkanForwardRenderer& _renderer, const WorldParameters& parameters,
+                             std::shared_ptr<const HeightField> external)
 {
     destroy();
     renderer     = &_renderer;
@@ -164,8 +183,19 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
     hasCullState = false;
     SAIGA_ASSERT(renderer->parameters().reversedZ, "WorldRenderer: the renderer must use reversed depth");
 
-    auto t0 = std::chrono::steady_clock::now();
-    hf.generate(params.terrain);
+    auto t0           = std::chrono::steady_clock::now();
+    const bool shared = external != nullptr;
+    if (shared)
+    {
+        hf             = std::move(external);
+        params.terrain = hf->parameters();
+    }
+    else
+    {
+        auto generated = std::make_shared<HeightField>();
+        generated->generate(params.terrain);
+        hf = std::move(generated);
+    }
     auto t1 = std::chrono::steady_clock::now();
 
     uniformBuffer.init(*base, nullptr, sizeof(WorldUniforms));
@@ -178,8 +208,8 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
     }
 
     auto formats = renderer->renderingFormats();
-    terrainRenderer.init(*base, formats, uniformBuffer, hf, 64.0f);
-    forestRenderer.init(*base, formats, uniformBuffer, foliageTexture, hf, params.treeCount, params.seed);
+    terrainRenderer.init(*base, formats, uniformBuffer, *hf, 64.0f);
+    forestRenderer.init(*base, formats, uniformBuffer, foliageTexture, *hf, params.treeCount, params.seed);
     grassRenderer.init(*base, formats, uniformBuffer, foliageTexture, terrainRenderer);
     auto t2 = std::chrono::steady_clock::now();
 
@@ -218,9 +248,10 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
     gpuHistory.assign(historySize, 0.0f);
     historyIndex = 0;
 
-    std::cout << "World: terrain " << hf.size() << "^2 (" << hf.worldSize() / 1000.0f << " km) generated in "
-              << std::chrono::duration<double>(t1 - t0).count() << " s, " << forestRenderer.treeCount()
-              << " trees, GPU resources in " << std::chrono::duration<double>(t2 - t1).count() << " s" << std::endl;
+    std::cout << "World: terrain " << hf->size() << "^2 (" << hf->worldSize() / 1000.0f << " km) "
+              << (shared ? "shared" : "generated") << " in " << std::chrono::duration<double>(t1 - t0).count() << " s, "
+              << forestRenderer.treeCount() << " trees, GPU resources in "
+              << std::chrono::duration<double>(t2 - t1).count() << " s" << std::endl;
     initialized = true;
 }
 
@@ -240,6 +271,7 @@ void WorldRenderer::destroy()
         base->deferDelete([device, pool]() { device.destroyQueryPool(pool); });
         queryPool = nullptr;
     }
+    hf.reset();  // the shared height field
     initialized = false;
 }
 
@@ -410,11 +442,11 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
         uniforms.lodCameraPos   = vec4(cullPosition(0), cullPosition(1), cullPosition(2), 0);
         uniforms.sunDir         = vec4(sun(0), sun(1), sun(2), settings.sunIntensity);
         uniforms.shading  = vec4(settings.albedo, settings.ambient, settings.flatShading ? 1 : 0, srgbTarget ? 0 : 1);
-        uniforms.fog      = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, hf.waterLevel());
+        uniforms.fog      = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, hf->waterLevel());
         uniforms.fogColor = vec4(0.42f, 0.42f, 0.42f, 1);
         uniforms.skyColor = vec4(0.2f, 0.2f, 0.2f, 1);
         for (int i = 0; i < 6; ++i) uniforms.frustum[i] = cullFrustum[i];
-        uniforms.terrain = vec4(float(hf.size()), hf.spacing(), terrainRenderer.range0(), settings.morphStart);
+        uniforms.terrain = vec4(float(hf->size()), hf->spacing(), terrainRenderer.range0(), settings.morphStart);
         uniforms.terrain2 =
             vec4(float(terrainRenderer.maxLevel()), float(settings.debugMode), settings.wind, settings.alphaCutoff);
         uniforms.trees    = vec4(settings.treeLod1, settings.treeLod2, settings.trees ? settings.treeMaxDistance : 0,

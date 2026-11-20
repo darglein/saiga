@@ -14,11 +14,11 @@ namespace Saiga
 namespace Game
 {
 /**
- * The AI driver of the racing demo: steers towards a point ahead on the track (the look ahead grows with the speed)
- * and limits the speed by the curvature ahead (corner speed v = sqrt(lateral acceleration / curvature), reachable
- * within the braking distance).
+ * The AI driver model of the racing demo (the RaceDriver game object uses it): steers towards a point ahead on the
+ * track (the look ahead grows with the speed) and limits the speed by the curvature ahead (corner speed v =
+ * sqrt(lateral acceleration / curvature), reachable within the braking distance).
  */
-struct RaceDriver
+struct DriverModel
 {
     double lookAhead = 10, maxSpeed = 30, lateralAcceleration = 7.0;
     // Deceleration assumed for the braking distance (m/s^2)

@@ -1,0 +1,25 @@
+{
+    "default": {
+        "mass": 1200,
+        "wingArea": 16,
+        "maxThrust": 6500,
+        "airDensity": 1.225,
+        "cl0": 0.35,
+        "clAlpha": 5.0,
+        "stallAngle": 0.2617993877991494,
+        "cd0": 0.03,
+        "inducedDrag": 0.05,
+        "sideForce": 600,
+        "pitchRate": 1.0,
+        "rollRate": 2.2,
+        "yawRate": 0.5,
+        "referenceSpeed": 55,
+        "pitchStability": 3.0,
+        "yawStability": 2.0,
+        "rateResponse": 6.0,
+        "gearHeight": 1.5,
+        "crashSinkRate": 6.0,
+        "crashBank": 0.5235987755982988,
+        "crashPitch": 0.4363323129985824
+    }
+}

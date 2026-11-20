@@ -6,15 +6,23 @@
 
 #pragma once
 
+#include "saiga/engine/ecs/Ids.h"
+
 #include "games/common/GameMath.h"
+
+#include <string>
 
 namespace Saiga
 {
 namespace Game
 {
-// A small propeller airplane (SI units)
+// A small propeller airplane (SI units, angles in radians): the data file data/flight/aircraft_parameters.json
+// (reload_data tunes it live)
 struct AircraftParameters
 {
+    static constexpr const char* name = "AircraftParameters";
+    static constexpr uint32_t version = 1;
+
     double mass       = 1200;
     double wingArea   = 16;
     double maxThrust  = 6500;
@@ -39,15 +47,75 @@ struct AircraftParameters
     double gearHeight = 1.5;
     // Touchdown limits: faster sinking or more bank / pitch is a crash
     double crashSinkRate = 6.0, crashBank = 30.0 * kPi / 180.0, crashPitch = 25.0 * kPi / 180.0;
+
+    template <class V>
+    void visit(V& v)
+    {
+        v("mass", mass);
+        v("wingArea", wingArea);
+        v("maxThrust", maxThrust);
+        v("airDensity", airDensity);
+        v("cl0", cl0);
+        v("clAlpha", clAlpha);
+        v("stallAngle", stallAngle);
+        v("cd0", cd0);
+        v("inducedDrag", inducedDrag);
+        v("sideForce", sideForce);
+        v("pitchRate", pitchRate);
+        v("rollRate", rollRate);
+        v("yawRate", yawRate);
+        v("referenceSpeed", referenceSpeed);
+        v("pitchStability", pitchStability);
+        v("yawStability", yawStability);
+        v("rateResponse", rateResponse);
+        v("gearHeight", gearHeight);
+        v("crashSinkRate", crashSinkRate);
+        v("crashBank", crashBank);
+        v("crashPitch", crashPitch);
+    }
+    // Checked when the data file is read (load and reload_data): the model divides by these
+    bool validate(std::string& error) const
+    {
+        // cl0 divides in trimSpeed (the take-off rotation gate), maxThrust in trimThrottle (the autopilot)
+        if (!(mass > 0 && wingArea > 0 && airDensity > 0 && referenceSpeed > 0 && stallAngle > 0 && cl0 > 0 &&
+              maxThrust > 0))
+        {
+            error = "mass, wingArea, airDensity, referenceSpeed, stallAngle, cl0 and maxThrust must be positive";
+            return false;
+        }
+        return true;
+    }
 };
 
-// Pilot inputs, all in [-1, 1] except the throttle [0, 1]. Positive: pitch nose up, roll right, yaw right.
+enum class FlightComponent : uint8_t
+{
+    AircraftControls = Engine::kFirstGameComponent,
+    AircraftState,
+};
+
+// Pilot inputs (a component, R-STATE-1), all in [-1, 1] except the throttle [0, 1]. Positive: pitch nose up, roll
+// right, yaw right. throttleChange moves the throttle lever (the flight model system: 0.5 per second at 1).
 struct AircraftControls
 {
+    static constexpr const char* name       = "AircraftControls";
+    static constexpr Engine::ComponentId id = Engine::ComponentId(FlightComponent::AircraftControls);
+    static constexpr uint32_t version       = 1;
     double throttle = 0.5, pitch = 0, roll = 0, yaw = 0;
+    double throttleChange = 0;
+
+    template <class V>
+    void visit(V& v)
+    {
+        v("throttle", throttle);
+        v("pitch", pitch);
+        v("roll", roll);
+        v("yaw", yaw);
+        v("throttleChange", throttleChange);
+    }
 };
 
-struct AircraftState
+// The kinematic state the flight model integrates (the components AircraftState and Transform hold it in the world)
+struct AircraftKinematics
 {
     Vec3 position    = Vec3(0, 0, 0);
     Vec3 velocity    = Vec3(0, 0, 0);
@@ -70,7 +138,7 @@ class FlightModel
 {
    public:
     AircraftParameters params;
-    AircraftState state;
+    AircraftKinematics state;
     // Water and terrain: the plane crashes into max(terrain, water)
     GroundHeight ground;
 

@@ -7,15 +7,21 @@
 #pragma once
 
 #include "games/common/GameMath.h"
+#include "games/racing/RacingIds.h"
 
 #include <array>
+#include <string>
 
 namespace Saiga
 {
 namespace Game
 {
+// The data file data/racing/vehicle_parameters.json (reload_data tunes it live)
 struct VehicleParameters
 {
+    static constexpr const char* name = "VehicleParameters";
+    static constexpr uint32_t version = 1;
+
     double mass = 1200;
     // Half extents of the chassis box (inertia), forward is -z
     Vec3 halfExtents = Vec3(0.9, 0.45, 2.1);
@@ -40,15 +46,65 @@ struct VehicleParameters
     double rollingResistance = 25, airDrag = 0.45;
     // Sub steps per step (the suspension is stiff)
     int subSteps = 4;
+
+    template <class V>
+    void visit(V& v)
+    {
+        v("mass", mass);
+        v("halfExtents", halfExtents);
+        v("wheelMounts", wheelMounts);
+        v("wheelRadius", wheelRadius);
+        v("restLength", restLength);
+        v("stiffness", stiffness);
+        v("damping", damping);
+        v("engineForce", engineForce);
+        v("brakeForce", brakeForce);
+        v("maxSpeed", maxSpeed);
+        v("maxSteer", maxSteer);
+        v("friction", friction);
+        v("slipSpeed", slipSpeed);
+        v("rollCenterDepth", rollCenterDepth);
+        v("chassisFriction", chassisFriction);
+        v("bodyBottom", bodyBottom);
+        v("bodyTop", bodyTop);
+        v("rollingResistance", rollingResistance);
+        v("airDrag", airDrag);
+        v("subSteps", subSteps);
+    }
+    // Checked when the data file is read (load and reload_data)
+    bool validate(std::string& error) const
+    {
+        // stiffness divides in restingHeight, maxSpeed in the engine force
+        if (!(mass > 0 && halfExtents.minCoeff() > 0 && wheelRadius > 0 && restLength > 0 && stiffness > 0 &&
+              maxSpeed > 0 && damping >= 0 && subSteps >= 1 && subSteps <= 64 && slipSpeed > 0 && friction >= 0))
+        {
+            error =
+                "mass, halfExtents, wheelRadius, restLength, stiffness, maxSpeed, slipSpeed > 0; damping, friction "
+                ">= 0; subSteps 1..64";
+            return false;
+        }
+        return true;
+    }
 };
 
-// Driver inputs: throttle in [-1, 1] (negative: brake, then reverse), steer in [-1, 1] (positive: right)
+// Driver inputs (a component): throttle in [-1, 1] (negative: brake, then reverse), steer in [-1, 1] (positive: right)
 struct VehicleControls
 {
+    static constexpr const char* name       = "VehicleControls";
+    static constexpr Engine::ComponentId id = Engine::ComponentId(RacingComponent::VehicleControls);
+    static constexpr uint32_t version       = 1;
     double throttle = 0, steer = 0;
+
+    template <class V>
+    void visit(V& v)
+    {
+        v("throttle", throttle);
+        v("steer", steer);
+    }
 };
 
-struct VehicleState
+// The kinematic state the vehicle model integrates (the components VehicleState and Transform hold it in the world)
+struct VehicleKinematics
 {
     Vec3 position    = Vec3(0, 0, 0);
     Vec3 velocity    = Vec3(0, 0, 0);
@@ -72,7 +128,7 @@ class Vehicle
 {
    public:
     VehicleParameters params;
-    VehicleState state;
+    VehicleKinematics state;
     GroundHeight ground;
 
     // Standing at position, heading (see yawRotation)

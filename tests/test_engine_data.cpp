@@ -208,6 +208,46 @@ TEST(Data, ReadersReportFileAndKey)
     EXPECT_EQ(b.data<CreatureStats>("wolf").speed, 6.5);
 }
 
+namespace
+{
+// A data type with its own value check (validate)
+struct BodyStats
+{
+    static constexpr const char* name = "BodyStats";
+    static constexpr uint32_t version = 1;
+    double radius                     = 0.5;
+    template <class V>
+    void visit(V& v)
+    {
+        v("radius", radius);
+    }
+    bool validate(std::string& error) const
+    {
+        if (radius > 0) return true;
+        error = "radius must be positive";
+        return false;
+    }
+};
+}  // namespace
+
+// Regression (CodeRabbit, S13b): reload_data accepted a collision radius of 0 (finite, so a valid double) and the
+// platformer's controller divided by it; a type's validate() now rejects the entry, and a reload keeps the old values
+TEST(Data, ValidateRejectsEntriesAndKeepsTheOldValues)
+{
+    TempData t("validate");
+    t.write(R"({"default": {"radius": 0.3}})", "body_stats.json");
+    WorldSetup s;
+    s.dataTypes     = [](DataTypeList& d) { d.add<BodyStats>(); };
+    s.dataDirectory = t.path();
+    World w(s);
+    EXPECT_EQ(w.data<BodyStats>("default").radius, 0.3);
+    t.write(R"({"default": {"radius": 0}})", "body_stats.json");
+    std::string error;
+    EXPECT_FALSE(w.reloadData(error));
+    EXPECT_NE(error.find("body_stats.json: default: radius must be positive"), std::string::npos) << error;
+    EXPECT_EQ(w.data<BodyStats>("default").radius, 0.3);
+}
+
 // R-DATA-1: in every build (not only with SAIGA_ASSERTS) the World constructor stops on a bad data file, naming the
 // file and the key
 TEST(DataDeathTest, BadFilesStopTheWorldConstructor)
