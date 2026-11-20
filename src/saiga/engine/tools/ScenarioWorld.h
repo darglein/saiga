@@ -1,0 +1,174 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#pragma once
+
+#include "saiga/engine/api/WorldApi.h"
+#include "saiga/engine/components/CharacterIntent.h"
+#include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/ecs/VisitJson.h"
+#include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/world/World.h"
+#include "saiga/export.h"
+
+#include <deque>
+#include <functional>
+#include <limits>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace Saiga
+{
+namespace Engine
+{
+struct ScenarioOptions
+{
+    uint64_t maxSteps       = 60 * 600;  // 10 min at 60 Hz: more steps fail the scenario
+    bool varyThreads        = false;     // Repeat: the second run with 1 worker thread if the setup has more, else 3
+    bool strictContinuation = false;     // SaveLoad: the final hash must equal Plain's
+};
+
+// Thrown by the step helpers to end a scenario (maxSteps, the runner stopping a rerun); caught by the runner. Not a
+// std::exception, so the world API and game code do not swallow it.
+struct ScenarioAbort
+{
+    std::string reason;
+};
+
+/**
+ * A headless, reproducible world for a scenario (docs/engine_design.md §17.2; S12): typed helpers for spawning,
+ * players, input, damage, stepping and checks. Every object ticks every step unless enableDistanceTicking() is called.
+ * Profiling is off (no clock calls). The save/load variant replaces the World halfway: call world() each time, never
+ * keep the reference across a step helper (entity handles stay valid).
+ */
+class SAIGA_ENGINE_API ScenarioWorld
+{
+   public:
+    explicit ScenarioWorld(const WorldSetup& setup, const ScenarioOptions& options = {});
+    ~ScenarioWorld();
+    ScenarioWorld(const ScenarioWorld&)            = delete;
+    ScenarioWorld& operator=(const ScenarioWorld&) = delete;
+
+    World& world() { return *w; }
+    // The world API (created on first use; it follows the swap of the save/load variant)
+    WorldApi& api();
+    // An API call that also ends the scenario when it ran past maxSteps (prefer it to api().call in scenarios)
+    ApiResult call(const std::string& operation, const json11::Json& arguments);
+
+    // A game object (World::spawn)
+    template <class T, class... C>
+    Entity spawn(const Vec3& position, C&&... initial)
+    {
+        Entity e = w->spawn<T>(position, std::forward<C>(initial)...);
+        involve(e);
+        return e;
+    }
+    // A plain player entity: Transform, Player{peer, characterId 1, 2, ...}, PlayerInput, CharacterIntent (§17.2)
+    Entity spawnPlayer(const Vec3& position, uint8_t peer = 0);
+    // A game object player: Player and PlayerInput, no CharacterIntent (the game's controller moves it)
+    template <class T, class... C>
+    Entity spawnPlayer(const Vec3& position, uint8_t peer, C&&... initial)
+    {
+        Player p;
+        p.peer        = peer;
+        p.characterId = nextCharacterId++;
+        return spawn<T>(position, p, PlayerInput{}, std::forward<C>(initial)...);
+    }
+    // PlayerInput.move (shortened to length 1)
+    void move(Entity player, const Vec3& direction);
+    // A one-shot action (world.queueAction)
+    void input(Entity player, uint32_t action, const Vec3& aim = Vec3::Zero());
+    // A DamageEvent (the real path: the target's onDamage in the next step)
+    void damage(Entity target, double amount, Entity source = Entity{});
+    // The world's ticking policy instead of every object every step
+    void enableDistanceTicking();
+
+    void step(int n = 1);
+    void stepSeconds(double seconds);  // rounded to whole steps
+    // Steps until predicate() is true (checked before each step), at most maxSteps; false if not reached (no failure)
+    bool stepUntil(const std::function<bool()>& predicate, int maxSteps);
+
+    // Records a failure (with the step) if condition is false; returns condition
+    bool check(bool condition, const std::string& message);
+    // The distance of the Transform positions (a failed check and infinity if one is not alive)
+    double distance(Entity a, Entity b);
+    template <class T>
+    size_t count()
+    {
+        if constexpr (T::id == Transform::id)
+            return w->registry().aliveCount();
+        else
+            return w->registry().registered(T::id) ? w->registry().poolById(T::id)->size() : 0;
+    }
+    // Records T of the entity after every step (shown in the failure report)
+    template <class T>
+    void trace(Entity e)
+    {
+        traces.push_back(Trace{e,
+                               T::name,
+                               [e](World& world) -> json11::Json
+                               {
+                                   const T* v = world.alive(e) ? world.registry().tryRead<T>(e) : nullptr;
+                                   return v ? toJson(*v) : json11::Json();
+                               },
+                               {}});
+        involve(e);
+    }
+    std::string dumpJson(Entity e) { return w->dumpJson(e); }
+
+    const std::vector<std::string>& failures() const { return failed; }
+    // Steps run since the scenario started (by any path: helpers, world().step(), the API)
+    uint64_t steps() const { return observedSteps; }
+
+    // ---- runner control (ScenarioRunner) --------------------------------------------------------------------------
+    struct Control
+    {
+        std::vector<uint64_t>* hashes = nullptr;                     // the hash after every step
+        uint64_t saveLoadAt = std::numeric_limits<uint64_t>::max();  // replace the world at this step (helpers)
+        bool saveLoadDone   = false;
+        uint64_t stopAt     = std::numeric_limits<uint64_t>::max();  // save into stopSave and end at this step
+        std::vector<uint8_t>* stopSave = nullptr;
+    };
+    Control control;
+    // The save/load round trip of the SaveLoad variant (also called by the runner at the end of short scenarios)
+    void saveLoad();
+    // The report of a failed run: failures, log lines, dumps of the involved entities, traces
+    std::string report() const;
+    // Ends the scenario if it was asked to (maxSteps, stopAt); called by the helpers
+    void checkAbort() const;
+
+   private:
+    void attach();
+    void involve(Entity e);
+    void onStep();
+
+    WorldSetup setup;
+    ScenarioOptions options;
+    std::unique_ptr<World> w;
+    std::unique_ptr<WorldApi> apiPtr;
+    int stepListener         = -1;
+    uint64_t observedSteps   = 0;
+    uint64_t nextCharacterId = 1;
+    bool tickEverything      = true;
+    std::string abortReason;
+    uint64_t logStart = 0;
+    std::vector<std::string> failed;
+    std::vector<Entity> involved;
+    struct Trace
+    {
+        Entity entity;
+        const char* component;
+        std::function<json11::Json(World&)> read;
+        std::deque<std::pair<uint64_t, json11::Json>> values;
+    };
+    std::vector<Trace> traces;
+};
+
+}  // namespace Engine
+}  // namespace Saiga

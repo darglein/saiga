@@ -194,6 +194,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
 | World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
+| Scenarios: `ScenarioWorld` (helpers, step observation, save/load swap), `ScenarioList`, runner with the plain, repeat and save/load variants; engine scenarios with test-only game objects (`Wanderer`) (§17.2, §17.4) | `src/saiga/engine/tools/Scenario*`, `tests/test_engine_scenarios.cpp` | [exists] |
 | Game objects (`GameObject`, `Behaviour`, `ClassList`, `spawn`, hooks), ticking by grid-cell rings (`tickSystem`), gameplay basics (`Player`, `Health`, `PlayerInput`, `CharacterIntent`, engine events, `queueAction`, player control, kinematic mover), world-state entities, `Persistent` (§7.8, §8.4, §9.2, §9.3, §9.6) | `src/saiga/engine/gameplay/`, `src/saiga/engine/components/`, `tests/test_engine_gameobject.cpp` | [exists] |
 | World API (JSON by names, `WorldApi`), MCP world tools (`registerWorldTools`), JSON visitors, profiler (§16.2, §17.1) | `src/saiga/engine/api/`, `src/saiga/engine/tools/`, `src/saiga/engine/ecs/VisitJson.h`, `src/saiga/engine/core/Profiler.*`, `tests/test_engine_world_api.cpp` | [exists] |
 | Saves: `World::save`/`tryLoad`/`load` (schema tables, migrations, removed types, validate-then-commit, game objects recreated with `configure` + `onLoad`), `diffSaves`/`World::diff`, `dumpJson`; data files (`DataTypeList`, `World::data`, `DataRef`, `reloadData`); world API snapshot and data tools (§14, §15.1, §15.2, §16.2) | `src/saiga/engine/save/`, `src/saiga/engine/data/`, `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `data/tests/engine/` | [exists] |
@@ -1036,7 +1037,7 @@ class GameObject
 
 | Type | Fields | Replicate |
 |---|---|---|
-| `Player` | `uint8_t peer; uint64_t characterId; double moveSpeed = 5` (player characters; used by ticking, streaming, interest, ownership). `peer` is a session slot; `characterId` != 0 is random, created with the character file and stored in it (before S33 and in `ScenarioWorld::spawnPlayer` drawn from `world.random()`; from S33 created by the client with its character file and sent on join); everything that names a player across sessions (piece owner, game references) stores `characterId`, never a peer index | Host |
+| `Player` | `uint8_t peer; uint64_t characterId; double moveSpeed = 5` (player characters; used by ticking, streaming, interest, ownership). `peer` is a session slot; `characterId` != 0 is random, created with the character file and stored in it (before S33 set by the game; in `ScenarioWorld::spawnPlayer` numbered 1, 2, ...; from S33 created by the client with its character file and sent on join); everything that names a player across sessions (piece owner, game references) stores `characterId`, never a peer index | Host |
 | `Health` | `double hp, maxHp` | Host |
 | `PlayerInput` | `Vec3 move; Quat look; uint32_t heldButtons` (latest wins) | OwnerAuthoritative |
 | `PlayerAction` (message) | `Entity player; uint32_t action; Vec3 aim`: one-shot actions, reliable, delivered in phase 1 in (peer, sequence) order as `ActionEvent` on the host, exactly once; before S15 it is queued locally and delivered the same way | – |
@@ -2097,8 +2098,8 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `quit` | | [planned: S14] |
 
 S10 implementation: the operations are `WorldApi` calls (`engine/api/WorldApi.h`: JSON arguments and results by
-names, errors instead of asserts, only between steps, edits logged under `api`; S12's scenario helpers and an editor
-use the same API); `registerWorldTools(server, world, {allowEdits})` (`engine/tools/WorldTools.h`) registers one tool
+names, errors instead of asserts, only between steps, edits logged under `api`; S12's scenarios (`ScenarioWorld::api`) and an editor
+can use the same API); `registerWorldTools(server, world, {allowEdits})` (`engine/tools/WorldTools.h`) registers one tool
 per operation plus `measure_performance` and returns the shared API (the caller keeps it while the tools are used;
 `allowEdits = false` registers only the reading tools for observing agents). Components and events are read and
 written through `visit` (`engine/ecs/VisitJson.h`: 64-bit integers beyond 2^53 as strings, non-finite doubles as
@@ -2132,7 +2133,7 @@ S13 the app adds `frame`, `extract`, `recording` and the GPU passes (timestamps)
 window "Engine statistics" (history plots, per-phase and per-system tables like the prototype's "World Statistics")
 reads it.
 
-### 17.2 Scenario tests [planned: S12]
+### 17.2 Scenario tests [exists: S12; terrain, streaming, render sink and clients with their stages]
 
 ```cpp
 // tests/test_engine_scenarios.cpp (Wanderer: a test-only game object of this file)
@@ -2149,20 +2150,33 @@ void registerTestScenarios(ScenarioList& s)
 }
 ```
 
-- `ScenarioWorld(const WorldSetup&)`: headless, reproducible (§8.6: fixed worker thread count, synchronous chunk
-  loading), flat terrain (seeded terrain from S20), `RecordingRenderSink` (from S19); helpers `stepSeconds`,
-  `stepUntil(pred, maxSteps)`, `spawnPlayer(position, peer = last client)` (entity with `Transform`, `Player{peer,
-  characterId}`, `PlayerInput`, `CharacterIntent`; in the host + client variant owned by the client), `move(player,
-  direction)` (sets `PlayerInput.move`), `input(player, action)` (sends a `PlayerAction` message, queued locally before
-  S15; both from the owning peer; `spawnPlayer` steps both worlds until the client has the entity, helpers translate
-  host `Entity` to the client's through `NetId`), `damage(target, amount, source)`, `check(cond, msg)` (collects
-  failures; works under gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`.
+- `ScenarioWorld(const WorldSetup&, const ScenarioOptions& = {})` [exists: S12]: headless, reproducible (§8.6: the
+  setup's seed and worker thread count, profiling off, synchronous chunk loading from S24), flat terrain (seeded
+  terrain from S20), `RecordingRenderSink` (from S19); every object ticks every step (`World::setTickEveryStep`) unless
+  `w.enableDistanceTicking()`; helpers `step(n)`, `stepSeconds`, `stepUntil(pred, maxSteps)`, `spawn<T>`,
+  `spawnPlayer(position, peer = 0)` (entity with `Transform`, `Player{peer, characterId 1, 2, ...}`, `PlayerInput`,
+  `CharacterIntent`; in the host + client variant owned by the client) and `spawnPlayer<T>(position, peer, initial...)`
+  (a game object player without `CharacterIntent`), `move(player, direction)` (sets `PlayerInput.move`, length <= 1),
+  `input(player, action, aim)` (queues a `PlayerAction`; a message from S15; both from the owning peer; `spawnPlayer`
+  steps both worlds until the client has the entity, helpers translate host `Entity` to the client's through `NetId`),
+  `damage(target, amount, source)` (a `DamageEvent`), `check(cond, msg)` (collects failures with the step; works under
+  gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`, `api()` and `call(op, args)` (the
+  world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`).
+  `world()` returns the current `World`: the save/load variant replaces it, so scenario code calls `world()` each time
+  and never keeps the reference across a step helper (entity handles stay valid). Steps are observed by a step
+  listener, so `world().step()` and the API's `step` count too; `ScenarioOptions::maxSteps` (default 36000) ends a
+  scenario that runs longer.
 - `ScenarioWorld` overrides the radii of every `SpaceTemplate` with small defaults (`fullRadius = simulationRadius =
   interestRadius = clientPhysicsRadius = 128`, `prefetchMargin = 0`), which a scenario can raise; it requests no visual
   tiles or far content, and all worlds of one test process share a cache of generated base chunks (content is
   deterministic, R-CONTENT-1).
-- A failing scenario prints the failed checks, the log lines and `dumpJson` of the involved entities.
-- Files: `engine/tools/ScenarioWorld.h`, `engine/tools/ScenarioList.h`, `engine/sync/RecordingRenderSink.h` (S19).
+- A failing scenario prints the failed checks with their steps, the log lines since it started (at most 200),
+  `dumpJson` of the involved entities (spawned through the helpers, at most 10) and the traces.
+- Runner (`engine/tools/ScenarioRunner.h`, S12): `runScenario(setup, entry, variant, options)` and
+  `runScenarios(setup, list, filter, options)` (every variant) return `ScenarioResult {passed, failures, report, steps,
+  seconds}`; exceptions from the scenario or a game hook are failures, a `SAIGA_ASSERT` stops the process.
+- Files: `engine/tools/ScenarioWorld.h`, `engine/tools/ScenarioList.h`, `engine/tools/ScenarioRunner.h`,
+  `engine/sync/RecordingRenderSink.h` (S19).
 - The saiga tests test the engine only: engine scenarios use small test-only game objects and systems defined in
   `tests/` (e.g. `Wanderer` of S12) and run in `tests/test_engine_scenarios.cpp` as a value-parameterized gtest over the
   scenario list x variants. Games are samples (`samples/games/<name>/`, §18.1); their scenarios
@@ -2184,18 +2198,25 @@ client 1:1), then compares the host-authoritative components on the client with 
 components on the host with the last state received from the owner (`stepNetworkOnly` writes received poses without
 extrapolation), for the scenario's entities, within the quantization tolerances.
 
-### 17.4 Repeat and save/load tests [exists: S08 (hash); planned: S12 (variants)]
+### 17.4 Repeat and save/load tests [exists: S08 (hash), S12 (variants)]
 
 - `world.hash()` (FNV-1a 64 over the `visit` bytes) covers all saved components (`Saved::Yes`) of the alive entities in
   index order (with index and generation, `Transform` first, then the components in ID order), the free list (it decides
   future entity indices), the RNG state, the pending events, the step index and (from S25) the chunk states. It is a
   debugging aid and the check of the repeat variant.
-- Variants of every scenario: (a) **repeat**: the scenario runs twice and the per-step hashes must be equal (catches
-  wall-clock time, unordered containers and uninitialized memory); on a mismatch the runner prints `World::diff` at the
-  first differing step; (b) **save/load**: `ScenarioWorld` replaces its `World` by `load(save())` at the middle of the
-  scenario and continues; the loaded world's `save()` must equal the saved bytes (`diffSaves` explains a mismatch), and the scenario's
-  checks must still pass (catches state outside components, R-STATE-1). The save/load variant runs single-world only;
-  a host reload with connected clients is a session restart (§13.7). A loaded world is not required to continue
+- Variants of every scenario [exists: S12]: (0) **plain**: once; (a) **repeat**: the scenario runs twice and the
+  per-step hashes, the step count and the final hash must be equal (catches wall-clock time, unordered containers and
+  uninitialized memory); on a mismatch the runner runs both again up to the first differing step and prints
+  `diffSaves` of the two saves; with `ScenarioOptions::varyThreads` the second run uses another worker thread count
+  (1 <-> 3; the engine's own scenarios use it: the engine's `parallelEach` systems must not depend on the thread count,
+  games need not, §20); (b) **save/load**: after a plain run that counts the steps, `ScenarioWorld` saves at the first
+  step-helper boundary at or after half of them (at the end for scenarios with fewer than 2 steps), loads the save into
+  a fresh `World` of the same setup and continues with it; the loaded world's `save()` must equal the saved bytes
+  (`diffSaves` explains a mismatch), hook errors of the load fail, and the scenario's checks must still pass (catches
+  state outside components, R-STATE-1); with `ScenarioOptions::strictContinuation` the final hash must also equal the
+  plain run's (the engine's own scenarios use it; it catches member state that no check looks at). Paused, time scale,
+  the tick setting and the world API carry over to the new world. The save/load variant runs single-world only; a host
+  reload with connected clients is a session restart (§13.7). A loaded world is not required to continue
   bit-identically (§8.6).
 
 ### 17.5 Rendering tests [planned: S18, extended in S19]
@@ -2397,6 +2418,9 @@ the missing target is reported as open).
   through `handleMessage` with the `Poller`.
 - **Render feature**: in `saiga_vulkan`, data through `RenderScene` or pass parameters; headless test; golden image if
   visible; benchmark and budget check if in a hot path; quality tier settings.
+- **Scenario**: a function `void(ScenarioWorld& w)` added to a `ScenarioList` (engine: `tests/test_engine_scenarios.cpp`;
+  game: `EngineAppSetup::scenarios`): spawn through the helpers, `step`/`stepSeconds`/`stepUntil`, `w.check(...)`; call
+  `w.world()` each time (the save/load variant replaces the world); it runs in the plain, repeat and save/load variants.
 - **Debugging a failing scenario**: read the printed checks and logs; add `trace<T>` for the suspicious component; run
   it live with `run_scenario`, `pause`, `step`, `inspect`; for repeat or save/load failures use the `world.diff` output.
 
@@ -2480,8 +2504,8 @@ The sample keeps running and all tests stay green after every stage.
 
 **Simplifications** (each can be added later if it turns out to matter):
 
-- **Reproducible only in `ScenarioWorld`** (§8.6): no thread-count independence, no bit-identical continuation after
-  load, no Jolt snapshot or engine-allocated body IDs, streaming results apply when ready. Add later if lockstep or
+- **Reproducible only in `ScenarioWorld`** (§8.6): no thread-count independence and no bit-identical continuation after
+  load required of games (the engine's own scenarios check both, §17.4), no Jolt snapshot or engine-allocated body IDs, streaming results apply when ready. Add later if lockstep or
   replays of live sessions are needed.
 - **R32F GPU height tiles** (§12.2): no 16-bit tiles with per-tile scales and border rounding rules. Add later if
   terrain GPU memory becomes the limit.
@@ -2556,7 +2580,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S09 | Spatial grid (done) | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
 | S10 | Game objects (done) | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent`, the world API (`WorldApi`), the MCP world tools and the profiler (§7.8, §8.4, §9.2-§9.4, §9.6, §16.2, §17.1) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve`, JSON visitors, every API operation and every tool through `handleMessage` (CI) |
 | S11 | Save, data and migration (done) | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
-| S12 | Scenario framework | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
+| S12 | Scenario framework (done) | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
 | S13 | Engine app | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7); tech demos: flight, platformer and racing ported to `EngineApp` and to game objects in a `World` (§18.4) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner; each tech demo has a scenario that passes with `--scenarios` and runs on `EngineApp` (local) |
 | S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`, `quit`), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |

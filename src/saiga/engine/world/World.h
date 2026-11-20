@@ -349,6 +349,12 @@ class SAIGA_ENGINE_API World
     int objectsUpdatedCounter() const { return updatedCounter; }
     const Profiler& profiler() const { return prof; }
     const WorldConfig& worldConfig() const { return config; }
+    // Every game object ticks every step regardless of the rings (ScenarioWorld's default, §8.4; S12). Not saved (a
+    // test or tool setting); the next tickSystem evaluates every object again when it changes.
+    void setTickEveryStep(bool on) { tickAll = on; }
+    bool tickEveryStep() const { return tickAll; }
+    // The value the last tick evaluation used (gameplay/TickSystem)
+    bool tickEveryStepApplied = false;
     // Player cells of the last tick evaluation (space, x, z in TickPolicy::ringSize cells), sorted
     // (gameplay/TickSystem)
     std::vector<std::array<int64_t, 3>> tickPlayerCells;
@@ -441,6 +447,7 @@ class SAIGA_ENGINE_API World
     MigrationList migrationList;
     uint64_t loads = 0;
     std::vector<std::pair<int, std::function<void(const LoadInfo&)>>> loadListeners;
+    bool tickAll      = false;
     double timeBase   = 0;
     uint64_t stepBase = 0;
     // The hooks of a load run (1: configure, 2: onLoad of loadHookEntity): structural changes are restricted

@@ -71,8 +71,9 @@ void assign(World& w, const std::vector<Cell>& players, Entity e, Behaviour& b, 
     const TickPolicy* policy = b.object ? b.object->tickPolicy() : nullptr;
     if (!policy) policy = &w.worldConfig().ticking;
     double interval = 0;
-    // alwaysTickEveryStep is not folded in (behaviourSystem reads the flag): clearing it takes effect at once
-    if (!w.has<Player>(e))
+    // alwaysTickEveryStep is not folded in (behaviourSystem reads the flag): clearing it takes effect at once.
+    // World::setTickEveryStep (scenarios) ticks everything every step.
+    if (!w.has<Player>(e) && !w.tickEveryStep())
     {
         Cell c;
         const int64_t ring =
@@ -93,8 +94,9 @@ void assignTickInterval(World& w, Entity e, Behaviour& b, bool spawned)
 void tickSystem(World& w, double)
 {
     std::vector<Cell> players = playerCells(w);
-    if (players != w.tickPlayerCells)
+    if (players != w.tickPlayerCells || w.tickEveryStep() != w.tickEveryStepApplied)
     {
+        w.tickEveryStepApplied = w.tickEveryStep();
         // A player crossed a cell border, joined or left: every object
         w.tickPlayerCells = std::move(players);
         w.viewAll<Behaviour>().each([&](Entity e, Behaviour& b) { assign(w, w.tickPlayerCells, e, b, false); });
