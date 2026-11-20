@@ -14,10 +14,9 @@ namespace Game
 {
 void CharacterController::reset(const Vec3& position, double yaw)
 {
-    state           = CharacterState();
-    state.position  = position;
-    state.yaw       = yaw;
-    jumpBufferTimer = 0;
+    state          = CharacterState();
+    state.position = position;
+    state.yaw      = yaw;
 }
 
 bool CharacterController::overlaps(const Vec3& p, const LevelBox& b) const
@@ -76,8 +75,9 @@ void CharacterController::step(const CharacterInput& in, double dt)
     }
 
     // Jump (buffered, with coyote time)
-    jumpBufferTimer = in.jumpPressed ? p.jumpBuffer : std::max(jumpBufferTimer - dt, 0.0);
-    bool canJump    = s.grounded || s.airTime < p.coyoteTime;
+    double& jumpBufferTimer = s.jumpBufferTimer;
+    jumpBufferTimer         = in.jumpPressed ? p.jumpBuffer : std::max(jumpBufferTimer - dt, 0.0);
+    bool canJump            = s.grounded || s.airTime < p.coyoteTime;
     if (jumpBufferTimer > 0 && canJump && s.velocity(1) <= 0.5)
     {
         s.velocity(1)   = p.jumpSpeed;

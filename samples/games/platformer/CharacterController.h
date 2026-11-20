@@ -21,8 +21,12 @@ struct CharacterInput
     bool jumpHeld = false, jumpPressed = false;
 };
 
+// The data file data/platformer/character_parameters.json (reload_data tunes it live)
 struct CharacterParameters
 {
+    static constexpr const char* name = "CharacterParameters";
+    static constexpr uint32_t version = 1;
+
     // Axis aligned collision box around the feet position: half width and height
     double radius = 0.35, height = 1.8;
     double gravity = 25, jumpSpeed = 9;
@@ -32,6 +36,22 @@ struct CharacterParameters
     double coyoteTime = 0.1, jumpBuffer = 0.12;
     // Turning towards the movement direction (1/s)
     double turnRate = 12;
+
+    template <class V>
+    void visit(V& v)
+    {
+        v("radius", radius);
+        v("height", height);
+        v("gravity", gravity);
+        v("jumpSpeed", jumpSpeed);
+        v("runSpeed", runSpeed);
+        v("walkSpeed", walkSpeed);
+        v("groundAcceleration", groundAcceleration);
+        v("airAcceleration", airAcceleration);
+        v("coyoteTime", coyoteTime);
+        v("jumpBuffer", jumpBuffer);
+        v("turnRate", turnRate);
+    }
 };
 
 struct CharacterState
@@ -46,6 +66,8 @@ struct CharacterState
     // Set in the step that landed: the vertical speed at impact (m/s, positive)
     double landingSpeed = 0;
     bool jumped         = false;
+    // Time left of a buffered jump press
+    double jumpBufferTimer = 0;
 };
 
 /**
@@ -69,7 +91,6 @@ class CharacterController
     // Moves along one axis and resolves the collisions; returns true if blocked
     bool moveAxis(int axis, double delta);
     bool overlaps(const Vec3& p, const LevelBox& b) const;
-    double jumpBufferTimer = 0;
 };
 
 }  // namespace Game

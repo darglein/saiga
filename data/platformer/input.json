@@ -1,0 +1,9 @@
+{
+    "bindings": {"jump": ["Space"], "walk": ["LeftShift"], "restart": ["R"]},
+    "axes": {
+        "move_x": {"negative": ["A"], "positive": ["D"]},
+        "move_z": {"negative": ["S"], "positive": ["W"]},
+        "camera_turn": {"negative": ["E"], "positive": ["Q"]}
+    },
+    "move": ["move_x", "move_z"]
+}
