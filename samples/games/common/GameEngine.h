@@ -168,8 +168,10 @@ class PoseHistory
         // steps, e.g. set_transform) is wasTeleportedLastStep() there; wasTeleported() is always false
         if (!valid || t.wasTeleportedLastStep())
         {
-            previous   = now;
-            teleported = true;
+            previous = now;
+            // Regression (CodeRabbit, S13b): a teleport between steps already snapped the camera in interpolated();
+            // the step after it saw the shifted flag and reset the camera a second time
+            if (!valid || !teleportHandled) teleported = true;
         }
         else
             previous = current;
