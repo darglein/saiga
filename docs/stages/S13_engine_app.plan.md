@@ -1,6 +1,6 @@
 # S13: Engine app
 
-Status: planned.
+Status: implemented (in review).
 
 Sections follow the stage plan template of S05.
 
@@ -273,3 +273,33 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
 (`actions`), `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/engine/tools/WorldTools.cpp`, `samples/games/world/`,
 `samples/vulkan/sample_vulkan_world.cpp` (removed), `data/world/input.json`, `tests/test_engine_app.cpp`,
 `tests/test_vulkan_world.cpp`, `tests/CMakeLists.txt`, `.mcp.json`, `docs/engine_design.md`, `AGENTS.md`, this file.
+
+## Design changes
+
+- `RenderScene` wraps the forward renderer's frame (`VulkanForwardRenderer` driven by `renderFrame`, no `MainLoop`)
+  instead of reimplementing it: S17 replaces the frame with the HDR frame, so a copy of 600 lines of frame code would
+  be thrown away; the prototype renderers (`WorldRenderer`, the demos' `MeshRenderer`) keep their
+  `init(VulkanForwardRenderer&)` and the goldens are untouched.
+- `createVulkanDevice(VulkanWindow&, VulkanParameters, framesInFlight) -> std::unique_ptr<VulkanDevice>`: the device owns
+  the surface (the swap chain no longer destroys it); `VulkanRenderer` creates its device with it.
+- The frame and GPU numbers are two separate profilers of the app (`frame`, `gpu`), not sample domains of the world's
+  profiler: each has its own sample and reset counts without changing `Profiler`; `get_profile` keeps the S10 shape and
+  adds the keys, `measure_performance` reports them for its window. `Profiler::scopeHistory` for the plots.
+- The benchmark paths and statistics stay in `vulkan/world/WorldBenchmark` (they measure `WorldRenderer`'s passes and
+  move with it in S19); `--benchmark` is parsed by the engine's command line and run by `game_world`, whose result adds
+  the engine's `step` and `recording`. The prototype's `measure_performance` is not registered in `game_world`.
+- `GameRenderHooks::passTimes` (game pass names and times) replaces `frameTimes`/`passName`; `groundHeight` is not
+  needed yet (the paths use the prototype's height field).
+- `WindowBase::markRunning` (the app runs its own loop); `VulkanRenderer::submittedFrames`/`takeCompletedFrame` and
+  `FrameTimings::popCompleted` (GPU times by timeline value).
+
+Updated: §3, §7.9 (`actions`), §8.3, §16.1, §16.2, §17.1, §17.7, §18.2, §18.4, §19, R-TEST-1, §22 (S13, the new S13b row,
+S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.
+
+## Results
+
+- `test_engine_app` (8 tests: command line, scenario exit codes, input map, the app without a device, the app on
+  lavapipe with frames, steps, screenshots, profiles and tools); the Vulkan tests and goldens are unchanged; 63 ctest
+  tests.
+- `game_world` on the RTX 5080 Laptop GPU: renders like the prototype; `--benchmark flyover` (RelWithDebInfo with
+  asserts): trees 1.49 ms (baseline 1.48 ms); the release comparison is in Verification.

@@ -115,7 +115,7 @@ automatically.
 
 **Verification**
 
-- **R-TEST-1** (from S12 for engine scenarios, S13 for game scenarios, now for the rest) The saiga tests (`tests/`) test
+- **R-TEST-1** (from S12 for engine scenarios, S13b for game scenarios, now for the rest) The saiga tests (`tests/`) test
   the engine, not the games (samples). Every engine gameplay mechanism has an engine scenario with test-only game
   objects (§17.2), every game feature a game scenario (`--scenarios`, run locally); every engine feature a unit test;
   every render feature a headless Vulkan test, and a golden image if it changes the image (§17.6; golden images start
@@ -180,8 +180,8 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window; the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | World MCP tools: `screenshot`, `get_state`, `set_camera`, `move_camera`, `set_settings`, `terrain_query`, `measure_performance` | `src/saiga/vulkan/world/WorldMcp.*` | [exists], no `handleMessage` tests |
-| Benchmark runner (`sample_vulkan_world --benchmark flyover\|forest`: paths, median/p95, result JSON; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` | [exists], prototype (S03) |
-| Sample (GLFW window, polls MCP in `update()`), `.mcp.json` (`saiga-world`, port 8765) | `samples/vulkan/sample_vulkan_world.cpp` | [exists] |
+| Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step` and `recording`; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics of the prototype renderer), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
+| Engine app: `EngineApp` (window or headless or no device, `RenderScene` frame shell around the forward renderer, MCP polling, input map, frame and GPU profiles, statistics window), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
 | Golden images: `compareGolden` (lavapipe gating, `SAIGA_UPDATE_GOLDEN`), goldens `world_overview` and `world_forest`, CI upload of failed images | `tests/golden_image.h`, `data/tests/golden/`, `.github/workflows/tests.yml` | [exists] |
 | Jolt (optional FetchContent, static, `SAIGA_WITH_JOLT` default OFF, not in CI, no saiga library links it) | `cmake/Dependencies_jolt.cmake` | [exists] |
@@ -598,6 +598,9 @@ struct WorldSetup
     void (*events)(EventRegistry&) = nullptr;     // S08
     void (*systems)(SystemList&) = nullptr;       // S08
     void (*classes)(ClassList&) = nullptr;        // S10
+    void (*actions)(ActionList&) = nullptr;       // S13: player actions (PlayerAction codes) and held buttons
+                                                  // (PlayerInput bits) by name; input.json binds keys to the names,
+                                                  // the world API accepts them; codes are saved, never renumbered
     bool profiling = true;                        // S10: step, phase, system timings and counters (§17.1)
     void (*dataTypes)(DataTypeList&) = nullptr;   // S11
     std::string dataDirectory;                    // S11 e.g. SAIGA_PROJECT_SOURCE_DIR "/data/world"
@@ -809,7 +812,20 @@ void registerEngineSystems(SystemList& s)
   (input -> `CharacterIntent`) and the movers are such `RunOn::Both` systems, never `GameObject::update`, so they run
   on the owning peer.
 
-### 8.3 Application and main loop [planned: S13; `World::advance` and `step`: exist (S08)]
+### 8.3 Application and main loop [exists: S13; `World::advance` and `step`: S08]
+
+Implementation (S13, `engine/app/`): `EngineApp`, `EngineAppSetup`, `AppOptions`, `parseCommandLine`, `engineMain`,
+`runGameScenarios`, `InputMap`, `registerAppTools` (`quit`, `app_status`, `set_input`). Differences to the sketch below:
+the `RenderScene` frame shell (`saiga/vulkan/scene/`) wraps the forward renderer's frame (`VulkanForwardRenderer`
+driven by `renderFrame`, no `MainLoop`) until S17 replaces the frame with the HDR frame, so the prototype renderers keep
+their `init(VulkanForwardRenderer&)`; `createVulkanDevice(VulkanWindow&, VulkanParameters, framesInFlight) ->
+std::unique_ptr<VulkanDevice>` (headless is a `HeadlessWindow`, the device owns the surface; `VulkanRenderer` uses it);
+`--headless --no-render` runs without a device; the app's frame and GPU numbers are separate profilers (`frame`: one
+sample per frame loop; `gpu`: one per completed GPU frame, matched by timeline value) that `get_profile` and
+`measure_performance` report next to the step profile; `GameRenderHooks::passTimes` replaces `frameTimes`/`passName`;
+the input map writes the local player only when the input is not neutral (an agent's `set_component` stays), moves are
+relative to the camera's heading; `set_input` is a virtual device. ESC quits, G toggles ImGui, F1 the "Engine
+statistics" window, F12 saves `screenshot.png`.
 
 The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it does not use saiga's `MainLoop`,
 `StandaloneWindow` or `VulkanForwardRenderer` (they stay for the other samples, §0). `EngineApp` owns:
@@ -2067,13 +2083,13 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Step | How | Status |
 |---|---|---|
 | Configure | as in `AGENTS.md`, plus `-DSAIGA_BUILD_SAMPLES=ON` for the sample executables | [exists] |
-| Build | `cmake --build build --target sample_vulkan_world` | [exists] |
-| Start with MCP | in a working directory: `SAIGA_MCP_PORT=8765 <build>/samples/vulkan/sample_vulkan_world`; `config.ini` is created there (`enableValidationLayer`, `vsync`) | [exists]; from S13 command-line options instead of `config.ini` (§8.3) |
-| Start without a display | `--headless` | [planned: S13] |
+| Build | `cmake --build build --target game_world` | [exists] |
+| Start with MCP | `<build>/samples/games/game_world` (MCP on port 8765, `--mcp-port N` or `SAIGA_MCP_PORT`; command-line options, no `config.ini`, §8.3) | [exists: S13] |
+| Start without a display | `--headless` (offscreen frames), `--headless --no-render` (no Vulkan device) | [exists: S13] |
 | Connect | `.mcp.json` server `saiga-world` (`http://127.0.0.1:8765/mcp`); scripts can POST JSON-RPC | [exists] |
 | Ready | `tools/list` answers | [exists] |
-| Stop | MCP tool `quit` [planned: S14]; now: SIGTERM by the full executable path (the main thread is renamed `Saiga::main`, `pkill -x` by name does not match) | [exists] |
-| Benchmark | `--benchmark <name>` (§17.7) | [exists] (S03: `sample_vulkan_world`; S13: `EngineApp`) |
+| Stop | MCP tool `quit`, ESC in the window, or SIGTERM by the full executable path (the main thread is renamed `Saiga::main`, `pkill -x` by name does not match) | [exists: S13] |
+| Benchmark | `--benchmark <name>` (§17.7) | [exists] (S03; S13: `game_world` on `EngineApp`) |
 
 ### 16.2 MCP tools
 
@@ -2095,7 +2111,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file, overwrite?)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
 | `run_scenario(name)` | replaces the live world with the scenario, runs it, returns the checks | [planned: S14] |
-| `quit` | | [planned: S14] |
+| `quit`, `app_status`, `set_input(axes?, held?, pressed?, frames?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings; drives the local player through the input map like a player (a virtual device for n frames) | [exists: S13] |
 
 S10 implementation: the operations are `WorldApi` calls (`engine/api/WorldApi.h`: JSON arguments and results by
 names, errors instead of asserts, only between steps, edits logged under `api`; S12's scenarios (`ScenarioWorld::api`) and an editor
@@ -2129,9 +2145,11 @@ Profiler (`engine/core/Profiler.h`, S10; `world.profiler()`): scopes in a tree b
 last 600 samples; `report(n)` gives count, avg, min, p50, p95, max (ms) and the share of the parent per scope (the MCP
 tools `get_profile` and `measure_performance`). Wall-clock time (steady clock) only for these numbers, never for the
 simulation (R-DET-1); `WorldSetup::profiling = false` makes no clock calls; an aborted step's sample is discarded. From
-S13 the app adds `frame`, `extract`, `recording` and the GPU passes (timestamps) to the same profiler, and its ImGui
-window "Engine statistics" (history plots, per-phase and per-system tables like the prototype's "World Statistics")
-reads it.
+S13 the app keeps two more profilers that `get_profile` and `measure_performance` report under `frame` (one sample per
+frame loop: `frame`, `frame/poll`, `frame/advance`, `frame/render`; counters `fps`, `steps_per_frame`,
+`dropped_steps`) and `gpu` (one sample per completed GPU frame: `gpu`, its sections, the game's passes); S19 adds
+`extract`. Its ImGui window "Engine statistics" (F1: frame and step plots, the step profile per phase and system, the
+GPU, the counters) reads them.
 
 ### 17.2 Scenario tests [exists: S12; terrain, streaming, render sink and clients with their stages]
 
@@ -2275,9 +2293,10 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
 
 ### 17.7 Benchmarks [exists: flyover, forest (S03); later benchmarks planned as marked]
 
-- `--benchmark <name>` [exists]: parsed by `sample_vulkan_world.cpp` (needs a display); paths, statistics and the result
-  in `src/saiga/vulkan/world/WorldBenchmark.h` (`WorldBenchmark::pose`, `summarize` (median, nearest-rank p95), the
-  runner); moved to `engine/app/` in S13.
+- `--benchmark <name>` [exists]: parsed by the engine's command line (`EngineApp`: 1920 x 1080, no vsync, validation,
+  GUI, MCP or screenshot; needs a window), run by `game_world` with the prototype renderer's paths and statistics in
+  `src/saiga/vulkan/world/WorldBenchmark.h` (`WorldBenchmark::pose`, `summarize` (median, nearest-rank p95)); it stays
+  there until S19 replaces the prototype renderer (it measures `WorldRenderer`'s passes).
   Benchmarks `flyover` (one revolution in 600 frames on a circle of radius 3 km around the world center (the prototype's
   center (4096, 4096) until S27; from S27 `(sizeChunks * 128 m, sizeChunks * 128 m)` on the 32 km world), at the ground
   height below the camera + 300 m, looking at the center) and `forest` (2 m above max(terrain, water level) from center
@@ -2409,7 +2428,7 @@ the missing target is reported as open).
 | meshes, materials | – | `WorldSetup::renderAssets` (into the `World` by name; forwarded to the sink) |
 | collision meshes and shapes | – | `WorldSetup::collisionAssets` (`CollisionAssetList`, by name) |
 | migrations, removed types | – | `WorldSetup::migrations` |
-| MCP tools | `registerEngineTools(McpServer&, EngineApp&)` | `EngineAppSetup::gameTools` (`game_*`) |
+| MCP tools | `registerWorldTools(McpServer&, World&)` (S10), `registerAppTools(McpServer&, EngineApp&)` (S13) | `EngineAppSetup::gameTools` (`game_*`) |
 
 ### 18.3 Cookbook
 
@@ -2458,18 +2477,18 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   rendered per frame with interpolation; `main.cpp` maps the keyboard); the window, loop and frame wiring is shared
   (`samples/games/common/GameSampleHost.h`, header only). `samples/games/common` holds the shared helpers (mesh
   renderer, procedural meshes, chase camera, input, `GameMath.h`) and is compiled into each game. The games
-  are samples and have no tests in `tests/` (the saiga tests test the engine, R-TEST-1); from S13 they have game
+  are samples and have no tests in `tests/` (the saiga tests test the engine, R-TEST-1); from S13b they have game
   scenarios (`--scenarios`). The simulation classes take the ground as a function (`GroundHeight`).
 - **Transitional parts** (not the engine design; replaced when the stages arrive):
 
   | Today | Replaced by | Stage |
   |---|---|---|
-  | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios | S13 |
+  | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios | S13b |
   | `MeshRenderer` (flat colored meshes, one draw per object, `shader/vulkan/games/`; all three games) | `RenderScene` instance sets and materials | S19 |
   | `ChaseCamera` (all three games) | the camera rig (third-person and chase cameras) | S35 |
   | procedural box animation of the platformer | skinned meshes, animation state and pose LOD | S34 |
   | platformer `CharacterController`, racing `Vehicle` | `CharacterVirtual`, Jolt's vehicle constraint | S29, S28 |
-  | `GameInput` key helpers | the input action map | S13 |
+  | `GameInput` key helpers | the input action map | S13b |
 
 ## 19. Migration of the prototype
 
@@ -2478,9 +2497,9 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | `VulkanForwardRenderer` (MSAA, reversed-Z), `MainLoop`, `StandaloneWindow` | not used by engine apps (own loop in `EngineApp`, own frame in `RenderScene`); kept for the other samples or retired later | S13, S17 |
 | gray look | `WorldSettings::shading = WorldShading::Clay` (enum with one value) [exists] | S01 (done) |
 | wall-clock `time`, OpenMP reduction in `placeTrees` | `WorldSettings::freezeTime`; serial sum (tests in `tests/test_vulkan_world.cpp`) [exists] | S01 (done) |
-| `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); the world game `samples/games/world/` (`game_world`) on `EngineApp`, `--headless` (S13) | S03 (done), S13 |
+| `sample_vulkan_world.cpp` | `--benchmark` [exists] (S03, done); the world game `samples/games/world/` (`game_world`) on `EngineApp`, `--headless` [exists] (S13, done) | S03 (done), S13 (done) |
 | `WorldMcp` | engine tools in `engine/tools/`; walk mode etc. as `game_*` tools | S14 |
-| `WorldBenchmark` | benchmark runner in `engine/app/` (`--benchmark` of `EngineApp`) | S13 |
+| `WorldBenchmark` | `--benchmark` of `EngineApp` [exists] (S13); the paths and statistics move with the prototype renderer's passes | S13 (done), S19 |
 | `WorldCommon.h`, `common.glsl` (world uniforms) | uniforms per pass in `saiga_vulkan`, helpers stay | S19 |
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | `RenderScene` instance sets, generic culling and instance shaders | S18, S19 |
 | `WorldRenderer`, `WorldStatistics.cpp` | passes and statistics in `RenderScene`; settings in the game | S19 |
@@ -2594,13 +2613,14 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S10 | Game objects (done) | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent`, the world API (`WorldApi`), the MCP world tools and the profiler (§7.8, §8.4, §9.2-§9.4, §9.6, §16.2, §17.1) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve`, JSON visitors, every API operation and every tool through `handleMessage` (CI) |
 | S11 | Save, data and migration (done) | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
 | S12 | Scenario framework (done) | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
-| S13 | Engine app | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7); tech demos: flight, platformer and racing ported to `EngineApp` and to game objects in a `World` (§18.4) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner; each tech demo has a scenario that passes with `--scenarios` and runs on `EngineApp` (local) |
-| S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`, `quit`), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
+| S13 | Engine app (done) | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner |
+| S13b | Tech demos on the engine | Flight, platformer and racing ported to `EngineApp` and to game objects, components and systems in a `World`, `WorldSetup::context`, input maps and data files per demo, game scenarios (§18.4) | S13 | each tech demo has scenarios that pass with `--scenarios` and runs on `EngineApp` (local); the games compile in the Clang CI job |
+| S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
-| S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15 | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
+| S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15, S13b | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
-| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S14 | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
+| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
