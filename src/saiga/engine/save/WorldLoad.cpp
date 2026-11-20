@@ -185,7 +185,9 @@ bool WorldLoader::stageComponents(const std::vector<uint8_t>& data)
         }
         if (mode == Mode::Skip)
         {
-            // Dropped, but checked like every other value (a malformed save must not replace the world)
+            // Dropped, but checked like every other value (a malformed save must not replace the world): alive, each
+            // entity once, every value readable
+            std::vector<bool> seen(p.slots.size(), false);
             for (uint64_t k = 0; k < b.count; ++k)
             {
                 uint32_t index = 0;
@@ -193,6 +195,8 @@ bool WorldLoader::stageComponents(const std::vector<uint8_t>& data)
                 if (!r.ok()) return fail(what + ": " + r.error());
                 if (index == 0 || index >= p.slots.size() || !alive(p.slots[index]))
                     return fail(what + ": the entity index " + std::to_string(index) + " is not an alive slot");
+                if (seen[index]) return fail(what + ": the entity index " + std::to_string(index) + " appears twice");
+                seen[index] = true;
                 std::string e;
                 if (!decoder.skip(savedType, r, e))
                     return fail(what + ", entity index " + std::to_string(index) + ": " + e);

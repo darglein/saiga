@@ -1692,6 +1692,39 @@ TEST(SaveRobustness, DroppedComponentsAreChecked)
     EXPECT_EQ(w.save(), before);
 }
 
+// Regression (CodeRabbit, S11): a dropped component block could name the same entity twice (the staged path rejects
+// that)
+TEST(SaveRobustness, DroppedComponentsRejectDuplicateEntities)
+{
+    World a(lampSetup());
+    a.add<Lamp>(a.create());
+    a.add<Lamp>(a.create());
+    auto blob = a.save();
+    ParsedSave p;
+    std::string error;
+    ASSERT_TRUE(parseSave(blob, p, error)) << error;
+    const ParsedSave::Block* lamps = nullptr;
+    for (const auto& b : p.components)
+        if (p.schema.types[b.schemaIndex].name == "Lamp") lamps = &b;
+    ASSERT_NE(lamps, nullptr);
+    ASSERT_EQ(lamps->count, 2u);
+    // Both elements have the same size: the second index starts in the middle
+    const size_t second = lamps->begin + (lamps->end - lamps->begin) / 2;
+    std::copy(blob.begin() + std::ptrdiff_t(lamps->begin), blob.begin() + std::ptrdiff_t(lamps->begin) + 4,
+              blob.begin() + std::ptrdiff_t(second));
+    WorldSetup s;
+    s.components = baseComponents;
+    s.classes    = baseClasses;
+    s.migrations = [](MigrationList& m) { m.addRemoved("Lamp", RemovedPolicy::DropComponent); };
+    World w(s);
+    w.create();
+    const auto before  = w.save();
+    const LoadResult r = w.tryLoad(blob);
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("appears twice"), std::string::npos) << r.error;
+    EXPECT_EQ(w.save(), before);
+}
+
 // save() returned a block the loader rejects (an enum value without a name; more empty events than the reader allows)
 TEST(Save, UnreadableSavesAreErrors)
 {
