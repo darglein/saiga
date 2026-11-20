@@ -38,10 +38,10 @@ new saved component), R-TEST-1, R-TEST-2, §5.2 (`engine/sync/` depends on `saig
   creates the render instances of existing entities. `WorldSetup::renderAssets(World&)` registers them at world
   creation; games build each `MeshLods` once per process (a static cache of `shared_ptr<const MeshLods>`), so the many
   scenario worlds share them.
-- ID ranges: the World assigns mesh and material IDs from 1 upward and skips two reserved ranges at the top: S30's
-  generated meshes, and below it a game range for content registered directly on `RenderScene` (S19a's tree meshes and
-  material, the level geometry of §5: `VulkanRenderSink::scene()` gives the game the scene, `RenderScene::reserveIds`
-  hands out IDs from that range). `VulkanRenderSink` accepts an identical (ID, name) re-registration as a no-op (a
+- ID ranges: content registered directly on `RenderScene` (S19a's tree meshes and material, the level geometry of §5;
+  `VulkanRenderSink::scene()` gives the game the scene) takes IDs from the game range `1 .. kGameReservedIds - 1`
+  through `RenderScene::reserveIds`; the World assigns mesh and material IDs from `kGameReservedIds` upward; S30's
+  generated meshes take the top. `VulkanRenderSink` accepts an identical (ID, name) re-registration as a no-op (a
   second `setRenderSink` of the same sink) and asserts on a different one. The table hash (names and IDs) is part of what S26's handshake compares; S19b asserts equal tables in the
   host + client variant.
 
