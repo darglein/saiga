@@ -85,6 +85,8 @@ class SAIGA_ENGINE_API StructuralLog
     void consume(int consumer, const std::function<void(const Record&)>& fn);
     // Number of records the consumer has not read yet
     size_t unread(int consumer) const;
+    // The absolute number (appendedTotal numbering) of the consumer's next record
+    uint64_t cursor(int consumer) const { return cursors[size_t(consumer)]; }
 
     // End of a step: drops the records every consumer has read
     void truncate();

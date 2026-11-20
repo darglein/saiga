@@ -10,7 +10,9 @@
 
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
+#include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
@@ -290,4 +292,81 @@ TEST(EcsBenchmark, GameObjectsAndTicking)
         "crossing a cell border every step\n",
         n, standMs, updated, crossMs);
     EXPECT_GT(updated, 0);
+}
+
+namespace
+{
+// Vitality with a changed meaning (a migration), for the slow load path
+struct VitalityV2
+{
+    static constexpr const char* name = "Vitality";
+    static constexpr ComponentId id   = ComponentId(BenchComponent::Vitality);
+    static constexpr uint32_t version = 2;
+    double hp = 100, maxHp = 100;
+    template <class V>
+    void visit(V& v)
+    {
+        v("hp", hp);
+        v("max_hp", maxHp);
+    }
+};
+void saveComponents(Registry& r)
+{
+    r.registerComponent<Vitality>();
+    r.registerComponent<Velocity>();
+    r.registerComponent<Lifetime>();
+}
+void saveComponentsV2(Registry& r)
+{
+    r.registerComponent<VitalityV2>();
+    r.registerComponent<Velocity>();
+    r.registerComponent<Lifetime>();
+}
+}  // namespace
+
+// Saves (S11, R-TEST-2): save and load of 10^5 entities (Transform + 3 components; 10^4 of them game objects), the
+// load with one migrated component (the slow path by name), and the comparison of two saves with one difference
+TEST(EcsBenchmark, SaveAndLoadHundredThousandEntities)
+{
+    const int n = 100000, objects = 10000;
+    WorldSetup setup;
+    setup.components = saveComponents;
+    setup.classes    = [](ClassList& c) { c.add<BenchObject>(); };
+    World w(setup);
+    for (int i = 0; i < n; ++i)
+    {
+        const Vec3 p(w.random().uniform(-1000.0, 1000.0), 0, w.random().uniform(-1000.0, 1000.0));
+        const Entity e = i < objects ? w.spawn<BenchObject>(p) : w.create();
+        if (i >= objects) w.get<Transform>(e).setPosition(p);
+        w.add<Vitality>(e);
+        w.add<Velocity>(e);
+        w.add<Lifetime>(e);
+    }
+    Timer t;
+    const std::vector<uint8_t> blob = w.save();
+    const double saveMs             = t.ms();
+
+    World loaded(setup);
+    t = Timer();
+    ASSERT_TRUE(loaded.tryLoad(blob).ok());
+    const double loadMs = t.ms();
+
+    WorldSetup v2 = setup;
+    v2.components = saveComponentsV2;
+    v2.migrations = [](MigrationList& m) { m.add<VitalityV2>(1, [](FieldMap&) {}); };
+    World migrated(v2);
+    t = Timer();
+    ASSERT_TRUE(migrated.tryLoad(blob).ok());
+    const double migrateMs = t.ms();
+
+    loaded.get<Vitality>(loaded.registry().aliveAt(n / 2)).hp = 1;
+    const std::vector<uint8_t> changed                        = loaded.save();
+    t                                                         = Timer();
+    const SaveDiff d                                          = diffSaves(blob, changed);
+    const double diffMs                                       = t.ms();
+    EXPECT_EQ(d.total, 1u);
+    std::printf(
+        "ECS benchmark, saves of %d entities (%d game objects, %.1f MB): save %.1f ms, load %.1f ms, load with one "
+        "migrated component %.1f ms, diff %.1f ms\n",
+        n, objects, double(blob.size()) / 1e6, saveMs, loadMs, migrateMs, diffMs);
 }

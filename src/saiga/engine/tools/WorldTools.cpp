@@ -181,6 +181,56 @@ std::vector<ToolSpec> toolSpecs()
          "category (\"api\" lists the changes made through these tools). Changes nothing.",
          S::ObjectSchema({{"since", S::IntegerProperty("Sequence number (0: all kept)")},
                           {"category", S::StringProperty("Category filter")}})},
+        {"save_snapshot",
+         "Saves the whole world state under a name in memory (at most 16 snapshots, 256 MB). Use it before an "
+         "experiment: diff_snapshot shows what changed, load_snapshot rolls back. Changes nothing in the world.",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
+                          {"overwrite", S::BooleanProperty("Replace an existing snapshot (false)")}},
+                         {"name"})},
+        {"load_snapshot",
+         "Replaces the live world with a snapshot (game objects are recreated: configure and onLoad run). Entity "
+         "handles from before the snapshot stay valid; ones obtained after it may name other entities now. "
+         "changes_since reports one world_loaded entry. paused: set the paused state after the load.",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
+                          {"paused", S::BooleanProperty("Paused after the load (default: unchanged)")}},
+                         {"name"})},
+        {"list_snapshots", "Lists the snapshots (name, bytes, step, hash). Changes nothing.", S::ObjectSchema({})},
+        {"delete_snapshot", "Deletes a snapshot (frees its memory). Changes nothing in the world.",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")}}, {"name"})},
+        {"diff_snapshot",
+         "Compares a snapshot (a) with the live world or another snapshot (b, against): field differences per entity "
+         "and component, entities and components only on one side (with class and position), and world-level "
+         "differences (step, rng, events, actions). summary counts them per kind and component. Paged: limit "
+         "(default 20, at most 1000), after (from next). Filters: entity, components. Changes nothing.",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name (a)")},
+                          {"against", S::StringProperty("Another snapshot (b; default: the live world)")},
+                          {"entity", entityProperty("Only this entity")},
+                          {"components", arrayProperty("Only these components", Json::object{{"type", "string"}})},
+                          {"limit", S::IntegerProperty("Maximum differences (1..1000, 20)")},
+                          {"after", S::IntegerProperty("Skip this many differences (the next of the last call)")}},
+                         {"name"})},
+        {"export_snapshot",
+         "Writes a snapshot to a file in the app's snapshot directory (a plain file name), so it survives a restart "
+         "or a rebuild (to test migrations of an older save).",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")}, {"file", S::StringProperty("File name")}},
+                         {"name", "file"})},
+        {"import_snapshot",
+         "Reads a snapshot file from the app's snapshot directory into memory under a name (load_snapshot then "
+         "loads it; an older save is migrated).",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
+                          {"file", S::StringProperty("File name")},
+                          {"overwrite", S::BooleanProperty("Replace an existing snapshot (false)")}},
+                         {"name", "file"})},
+        {"get_data",
+         "Reads the game's data files (tunable values, describe_world lists the types): with name one entry's "
+         "values, else the entry names. Changes nothing.",
+         S::ObjectSchema({{"type", S::StringProperty("Data type name")}, {"name", S::StringProperty("Entry name")}},
+                         {"type"})},
+        {"reload_data",
+         "Re-reads the data files after you edited them (nothing changes if one is invalid or an entry was removed). "
+         "Values read through DataRefs change at once; with reconfigure (default true) every game object runs "
+         "configure() again (a save and load of the world). Returns the types, the entry count and hook errors.",
+         S::ObjectSchema({{"reconfigure", S::BooleanProperty("Reconfigure the game objects (true)")}})},
         {"apply",
          "Runs a batch: operations [{op: tool name, ...arguments}] in order, one result each. Stops at the first "
          "failing operation (the earlier ones stay applied; the error names it).",
@@ -283,7 +333,8 @@ ToolResult toResult(const ApiResult& r)
 
 std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, const WorldToolsOptions& options)
 {
-    auto api                     = std::make_shared<WorldApi>(world, options.allowEdits);
+    auto api = std::make_shared<WorldApi>(world, options.allowEdits);
+    api->setSnapshotDirectory(options.snapshotDirectory);
     std::weak_ptr<WorldApi> weak = api;
     for (ToolSpec& spec : toolSpecs())
     {
@@ -364,7 +415,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             {
                 bool answered  = false;
                 bool worldGone = false;
-                uint64_t start, resets;
+                uint64_t start, resets, loads;
                 World* world        = nullptr;  // holds the destroy and step listeners
                 int destroyListener = -1;
                 int stepListener    = -1;
@@ -372,6 +423,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             auto m             = std::make_shared<Measurement>();
             m->start           = w.profiler().sampleCount();
             m->resets          = w.profiler().resetCount();
+            m->loads           = w.loadCount();
             m->world           = &w;
             m->destroyListener = w.addDestroyListener(
                 [respond, m]()
@@ -398,12 +450,26 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     return false;
                 }
                 World& world = *api->world();
-                if (world.profiler().resetCount() != m->resets)
+                if (&world != m->world)
+                {
+                    // The API moved to another world (rebind)
+                    m->answered = true;
+                    if (!m->worldGone)
+                    {
+                        m->world->removeDestroyListener(m->destroyListener);
+                        m->world->removeStepListener(m->stepListener);
+                    }
+                    respond(ToolResult::Error("the world was replaced during the measurement"));
+                    return false;
+                }
+                if (world.profiler().resetCount() != m->resets || world.loadCount() != m->loads)
                 {
                     m->answered = true;
                     world.removeDestroyListener(m->destroyListener);
                     world.removeStepListener(m->stepListener);
-                    respond(ToolResult::Error("the profile was reset during the measurement"));
+                    respond(ToolResult::Error(world.loadCount() != m->loads
+                                                  ? "the world was loaded during the measurement"
+                                                  : "the profile was reset during the measurement"));
                     return false;
                 }
                 const uint64_t done = world.profiler().sampleCount() - m->start;

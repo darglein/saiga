@@ -230,6 +230,64 @@ void Registry::destroy(Entity e)
     aliveEntities--;
 }
 
+void Registry::clearForLoad()
+{
+    checkNotIterating("load");
+    SAIGA_ASSERT(reservedSlots == 0, "load with reserved entities (inside a step)");
+    // Components first (a component destructor may look at the registry), then the slots
+    for (auto& p : pools)
+        if (p) p->clearAll();
+    slots.clear();
+    transforms.clear();
+    freeSlots.clear();
+    freeHead      = 0;
+    aliveEntities = 0;
+}
+
+void Registry::restoreSlots(const std::vector<SlotRecord>& table, const std::vector<uint32_t>& free,
+                            StagedOf<Transform>& stagedTransforms)
+{
+    SAIGA_ASSERT(slots.size() == 0 && !table.empty(), "restoreSlots: clearForLoad first");
+    for (size_t i = 0; i < table.size(); ++i)
+    {
+        transforms.push_back() = Transform();
+        slots.push_back();
+        Slot& s      = slots[i];
+        s.generation = table[i].generation;
+        s.state      = table[i].state;
+        s.flags      = table[i].flags;
+        s.mask.clear();
+        if (s.state == SlotState::Alive)
+        {
+            s.mask.set(Transform::id);
+            aliveEntities++;
+        }
+    }
+    for (size_t k = 0; k < stagedTransforms.indices.size(); ++k)
+    {
+        const uint32_t index = stagedTransforms.indices[k];
+        if (index < slots.size() && slots[index].state == SlotState::Alive)
+            transforms[index] = std::move(stagedTransforms.values[k]);
+    }
+    freeSlots = free;
+    freeHead  = 0;
+    ensureFreeCapacity(0);
+}
+
+void Registry::commitStage(ComponentId id, StagedValues& stage, const std::vector<int64_t>& generation)
+{
+    SAIGA_ASSERT(id != Transform::id && pools[id], "commitStage: not a pooled component");
+    pools[id]->commitStage(stage, generation);
+    for (uint32_t index : stage.indices)
+        if (index < generation.size() && generation[index] >= 0) slots[index].mask.set(id);
+}
+
+void Registry::markAllTransformsChanged()
+{
+    for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
+        if (slots[i].state == SlotState::Alive) transforms[i].changedThisStep = 1;
+}
+
 void Registry::debugSetGeneration(uint32_t index, uint32_t generation)
 {
     // Only free slots: an alive entity's handles are also stored in the pools

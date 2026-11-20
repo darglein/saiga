@@ -205,6 +205,38 @@ class SAIGA_ENGINE_API Registry
     // Tests only: sets the generation of a free slot (generation wrap-around)
     void debugSetGeneration(uint32_t index, uint32_t generation);
 
+    // ---- saves (S11) ------------------------------------------------------------------------------------------------
+
+    struct SlotRecord
+    {
+        uint32_t generation = 0;
+        SlotState state     = SlotState::Free;
+        uint8_t flags       = 0;
+    };
+    SlotRecord slotRecord(uint32_t index) const
+    {
+        const Slot& s = slots[index];
+        return SlotRecord{s.generation, s.state, s.flags};
+    }
+    // The free list in reuse order
+    std::vector<uint32_t> freeList() const
+    {
+        return std::vector<uint32_t>(freeSlots.begin() + std::ptrdiff_t(freeHead), freeSlots.end());
+    }
+    // The Transform of a slot (any state; the value of a free slot is meaningless)
+    const Transform& transformAt(uint32_t index) const { return transforms[index]; }
+    // Removes every entity and component without checks of the world rules (a load replaces everything); not while a
+    // view iterates and not with reserved slots
+    void clearForLoad();
+    // A load: the slot table (slots[0] is the unused slot), the free list in reuse order and the Transforms of the
+    // alive slots (by index; consumed)
+    void restoreSlots(const std::vector<SlotRecord>& table, const std::vector<uint32_t>& free,
+                      StagedOf<Transform>& stagedTransforms);
+    // A load: adds the staged components of a type (generation[index] < 0: dropped entity) and sets the mask bits
+    void commitStage(ComponentId id, StagedValues& stage, const std::vector<int64_t>& generation);
+    // A load: every alive Transform counts as changed in this step (the grid, ticking and observers see every entity)
+    void markAllTransformsChanged();
+
    private:
     template <class... C>
     friend class View;

@@ -58,6 +58,19 @@ World::World(const WorldSetup& setup)
 
     if (setup.classes) setup.classes(classes);
     classes.validateRegistration();
+    if (setup.migrations) setup.migrations(migrationList);
+
+    // Data files: an error stops the program in every build (R-DATA-1: a game must not run on half-read data)
+    if (setup.sharedData)
+        dataStore = setup.sharedData;
+    else
+    {
+        DataTypeList types;
+        if (setup.dataTypes) setup.dataTypes(types);
+        dataStore = std::make_shared<DataStore>(std::move(types), setup.dataDirectory);
+        std::string error;
+        if (!dataStore->load(error)) SAIGA_EXIT_ERROR("data files: " + error);
+    }
 
     prof.enabled = setup.profiling;
     setupProfiler();
@@ -258,6 +271,7 @@ void World::deliverActions()
 PersistentId World::makePersistent(Entity e)
 {
     checkNotParallel("makePersistent");
+    if (loadHookPhase) checkLoadHook("makePersistent", e, Persistent::id);
     if (!reg.alive(e) && !reg.reserved(e))
     {
         // Refused in every build
@@ -320,6 +334,7 @@ void World::queryRadius(SpaceId space, const Vec3& center, double radius, const 
 Entity World::create()
 {
     checkNotParallel("create");
+    if (loadHookPhase) checkLoadHook("create", Entity{}, Transform::id);
     if (deferring())
     {
         // Reserved now (views skip it), alive when the command is applied; reserving never moves a Transform
@@ -342,6 +357,7 @@ Entity World::create()
 void World::destroy(Entity e)
 {
     checkNotParallel("destroy");
+    if (loadHookPhase) checkLoadHook("destroy", e, Transform::id);
     if (reg.alive(e) && (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)))
     {
         // Refused in every build (the world state must stay; asserts in builds with asserts)

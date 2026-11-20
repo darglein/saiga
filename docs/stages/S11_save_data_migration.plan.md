@@ -1,6 +1,6 @@
 # S11: Save, data and migration
 
-Status: planned.
+Status: implemented (in review).
 
 Sections follow the stage plan template of S05.
 
@@ -199,7 +199,7 @@ bool readJsonFile(const std::string& path, json11::Json& out, std::string& error
 |---|---|---|
 | `save_snapshot` | `name`, `overwrite?` (false) -> name, bytes, step, hash | keeps `world.save()` in the API's memory (at most 16 snapshots and 256 MB; refused beyond); allowed read-only |
 | `load_snapshot` | `name`, `paused?` (keep) -> step, hash, entities, paused, world_generation, hook_errors | replaces the live world (game objects get `configure` + `onLoad`); edit |
-| `export_snapshot`, `import_snapshot` | `name`, `file` (a plain file name in the directory set by `WorldApi::setSnapshotDirectory`, no paths; refused when none is set) | writes / reads a snapshot file, so a save survives a rebuild (testing migrations); export allowed read-only |
+| `export_snapshot`, `import_snapshot` | `name`, `file` (a plain file name in the directory set by `WorldApi::setSnapshotDirectory`, no paths; refused when none is set) | writes / reads a snapshot file, so a save survives a rebuild (testing migrations); edits (they touch the disk) |
 | `list_snapshots` | -> [{name, bytes, step, hash}] | reads |
 | `delete_snapshot` | `name` | API state only; allowed read-only |
 | `diff_snapshot` | `name`, `against?` (another snapshot; default the live world), `entity?`, `components?`, `limit?` (20), `after?` -> summary, differences [{kind, entity, class?, component?, field?, a, b}], next? | reads |
@@ -310,3 +310,29 @@ EventQueues.cpp}`, `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/engine/to
 `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `tests/test_engine_world_api.cpp`,
 `tests/test_engine_ecs_benchmark.cpp`, `tests/CMakeLists.txt`, `data/tests/engine/{*.json,save_v1.bin}`, `docs/engine_design.md`,
 `AGENTS.md`, this file.
+
+## Design changes
+
+- `export_snapshot` and `import_snapshot` are edits (they touch the disk), not reading operations; the directory comes
+  from `WorldToolsOptions::snapshotDirectory`.
+- Types without saved values need no `Removed` entry (a save lists every registered type; only values need a
+  counterpart). Classes need an entry only when a `Behaviour` uses them.
+- `DataRef<T>` is a nested visit struct `{entry}` (no new field type in the visitors): its JSON form is
+  `{"entry": name}`. It caches the resolved entry per data store (`world.data(ref)`); a reload never removes entries,
+  so the cached pointers stay valid.
+- `diffSaves` finds value boundaries with a skipping decoder and decodes JSON only for values whose bytes differ
+  (10^5 entities: 688 ms with full decoding, 105 ms now).
+- The fast path compares the saved and registered schema recursively (nested structs); a nested struct whose
+  registered counterpart is gone is decoded as saved and left to its parent's migration.
+- `World::load` keeps the `SAIGA_EXIT_ERROR` contract of §7.10 (fatal unless ok); tools use `tryLoad`.
+- §15.1 `dumpJson` uses the exact JSON form of `VisitJson.h` instead of `%.17g`.
+- R-DATA-1: fatal in every build (`SAIGA_EXIT_ERROR`), an unknown entry name at run time is a `DataError`.
+
+Updated: §3, R-DATA-1, §7.2, §7.9, §7.10, §14, §15 (header, §15.1, §15.2), §16.2, §17.4, the S11 row; AGENTS.md.
+
+## Results
+
+- `ctest`: 61 tests (new `test_engine_save` 20 tests, `test_engine_data` 6 tests; `test_engine_world_api` 46 tests).
+- ECS benchmark (RelWithDebInfo, 10^5 entities with 3 components, 10^4 game objects, 15.5 MB): save 40 ms, load
+  73 ms, load with one migrated component 117 ms, `diffSaves` with one difference 105 ms. The other ECS numbers are
+  unchanged (create 14.4 ms, idle step 0.52 ms, moving step 2.27 ms, 10^4 game objects 0.095 ms per step).

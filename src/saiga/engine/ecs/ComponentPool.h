@@ -11,6 +11,7 @@
 #include "saiga/engine/ecs/FieldList.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/ecs/TypeCheck.h"
+#include "saiga/engine/ecs/TypeSchema.h"
 #include "saiga/engine/ecs/VisitBinary.h"
 #include "saiga/engine/ecs/VisitJson.h"
 
@@ -83,6 +84,20 @@ class PoolBase
     virtual bool mergeJson(uint32_t entityIndex, const json11::Json& json, std::string& error,
                            bool finiteOnly = true)                                                     = 0;
     virtual std::vector<FieldInfo> fields() const                                                      = 0;
+
+    // Saves and loads (S11): the schema of the type and its nested structs; staged values of a load (decoded from the
+    // binary form or merged from JSON into a default component), committed to the pool after the whole save was
+    // checked; removing every component at once
+    virtual SchemaType describe() const                                                        = 0;
+    virtual void describeNested(std::vector<SchemaType>& out) const                            = 0;
+    virtual std::unique_ptr<StagedValues> newStage() const                                     = 0;
+    virtual bool stageBinary(StagedValues& stage, uint32_t entityIndex, BinaryReader& r) const = 0;
+    virtual bool stageJson(StagedValues& stage, uint32_t entityIndex, const json11::Json& json,
+                           std::string& error) const                                           = 0;
+    // Adds the staged components of the entities that are alive after the load (generation[index] >= 0: the entity's
+    // generation; -1: dropped); they must not have one yet
+    virtual void commitStage(StagedValues& stage, const std::vector<int64_t>& generation) = 0;
+    virtual void clearAll()                                                               = 0;
 
     const ComponentId id;
     const char* const name;
@@ -180,6 +195,53 @@ class ComponentPool final : public PoolBase
         return fromJson(json, at(entityIndex), &error, finiteOnly);
     }
     std::vector<FieldInfo> fields() const override { return describeFields<T>(); }
+
+    SchemaType describe() const override { return describeType<T>(SchemaKind::Component, T::id); }
+    void describeNested(std::vector<SchemaType>& out) const override { collectNestedTypes<T>(out); }
+    std::unique_ptr<StagedValues> newStage() const override { return std::make_unique<StagedOf<T>>(); }
+    bool stageBinary(StagedValues& stage, uint32_t entityIndex, BinaryReader& r) const override
+    {
+        auto& s = static_cast<StagedOf<T>&>(stage);
+        T value{};
+        r.read(value);
+        if (!r.ok()) return false;
+        s.indices.push_back(entityIndex);
+        s.values.push_back(std::move(value));
+        return true;
+    }
+    bool stageJson(StagedValues& stage, uint32_t entityIndex, const json11::Json& json,
+                   std::string& error) const override
+    {
+        auto& s = static_cast<StagedOf<T>&>(stage);
+        T value{};
+        // Saved values may be non-finite (finiteOnly is for agents' writes)
+        if (!fromJson(json, value, &error, false)) return false;
+        s.indices.push_back(entityIndex);
+        s.values.push_back(std::move(value));
+        return true;
+    }
+    void commitStage(StagedValues& stage, const std::vector<int64_t>& generation) override
+    {
+        auto& s = static_cast<StagedOf<T>&>(stage);
+        data.reserve(data.size() + s.values.size());
+        entities.reserve(entities.size() + s.values.size());
+        for (size_t i = 0; i < s.indices.size(); ++i)
+        {
+            const uint32_t index = s.indices[i];
+            if (index >= generation.size() || generation[index] < 0) continue;
+            SAIGA_ASSERT(!has(index), std::string("commitStage: ") + name + " is staged twice for one entity");
+            ensurePage(index);
+            data.push_back(std::move(s.values[i]));
+            entities.push_back(Entity{index, uint32_t(generation[index])});
+            setSparse(index, uint32_t(data.size() - 1));
+        }
+    }
+    void clearAll() override
+    {
+        data.clear();
+        entities.clear();
+        pages.clear();
+    }
 
     // The entity must have the component (checked by the registry)
     T& at(uint32_t entityIndex) { return data[denseIndex(entityIndex)]; }

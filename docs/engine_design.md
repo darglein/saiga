@@ -130,7 +130,9 @@ automatically.
 - **R-MCP-1** (from S14) Tools are registered before `McpServer::start`. Engine tools have generic names, game tools
   are prefixed `game_`. Each description states what the tool reads and changes. Each tool has a `handleMessage` test.
 - **R-DATA-1** (from S11) Data files (JSON): missing keys keep the struct defaults, unknown keys and malformed values
-  are fatal load errors (`SAIGA_ASSERT` in the `World` constructor, tested with death tests) naming file and key.
+  are fatal load errors in every build (`SAIGA_EXIT_ERROR` in the `World` constructor, not only with `SAIGA_ASSERTS`;
+  tested with death tests) naming file and key. An unknown entry name at run time is a `DataError` (fatal unless a load
+  or the world API reports it).
 - **R-SAVE-1** (from S11) A change of a component's fields that existing saves contain (rename, type change, meaning
   change) increments the component's version and adds a migration (§15.2). Adding a field with a default needs no
   migration.
@@ -194,6 +196,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
 | Game objects (`GameObject`, `Behaviour`, `ClassList`, `spawn`, hooks), ticking by grid-cell rings (`tickSystem`), gameplay basics (`Player`, `Health`, `PlayerInput`, `CharacterIntent`, engine events, `queueAction`, player control, kinematic mover), world-state entities, `Persistent` (§7.8, §8.4, §9.2, §9.3, §9.6) | `src/saiga/engine/gameplay/`, `src/saiga/engine/components/`, `tests/test_engine_gameobject.cpp` | [exists] |
 | World API (JSON by names, `WorldApi`), MCP world tools (`registerWorldTools`), JSON visitors, profiler (§16.2, §17.1) | `src/saiga/engine/api/`, `src/saiga/engine/tools/`, `src/saiga/engine/ecs/VisitJson.h`, `src/saiga/engine/core/Profiler.*`, `tests/test_engine_world_api.cpp` | [exists] |
+| Saves: `World::save`/`tryLoad`/`load` (schema tables, migrations, removed types, validate-then-commit, game objects recreated with `configure` + `onLoad`), `diffSaves`/`World::diff`, `dumpJson`; data files (`DataTypeList`, `World::data`, `DataRef`, `reloadData`); world API snapshot and data tools (§14, §15.1, §15.2, §16.2) | `src/saiga/engine/save/`, `src/saiga/engine/data/`, `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `data/tests/engine/` | [exists] |
 | Spatial grid: 32 m cells per space updated in phase 6 (`spatialGridSystem`), `World::queryRadius` sorted by entity index (§9.5) | `src/saiga/engine/world/SpatialGrid.*`, `SpatialGridSystem.*`, `tests/test_engine_spatial_grid.cpp` | [exists] |
 | Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
 
@@ -386,6 +389,10 @@ struct Health
   every build, `fromBytes` returns false with a message (truncated input, an enum value out of range, a vector longer
   than the input can hold, bytes left over; vectors of zero-byte elements such as empty structs store only their count,
   capped at 2^16). `describeFields<T>()` lists name and type per field, enums with their value names.
+- References to data entries: `DataRef<T>` (S11, `engine/data/DataRef.h`), a nested visit struct `{entry}` saved by
+  name; `world.data(ref)` resolves it once per data store and then reads without a string lookup (§14). Component fields
+  that hold a component, event or class ID are not remapped by a load (store names instead; `Behaviour::classId` is the
+  one field the engine remaps, §15.2).
 - At 200 registered types registration logs a warning (prefer fields on an existing component or a tag).
 
 ### 7.3 Storage
@@ -591,12 +598,13 @@ struct WorldSetup
     void (*systems)(SystemList&) = nullptr;       // S08
     void (*classes)(ClassList&) = nullptr;        // S10
     bool profiling = true;                        // S10: step, phase, system timings and counters (§17.1)
-    void (*dataTypes)(DataTypeList&) = nullptr;   // [planned: S11]
-    std::string dataDirectory;                    // [planned: S11] e.g. SAIGA_PROJECT_SOURCE_DIR "/data/world"
+    void (*dataTypes)(DataTypeList&) = nullptr;   // S11
+    std::string dataDirectory;                    // S11 e.g. SAIGA_PROJECT_SOURCE_DIR "/data/world"
+    std::shared_ptr<DataStore> sharedData;        // S11: an already loaded store (worlds of one setup, scenario runs)
     void (*messages)(MessageList&) = nullptr;     // [planned: S15]
     void (*generators)(GeneratorList&) = nullptr; // [planned: S23] world plan, chunk generators, prefabs
     void (*pieceTypes)(PieceTypeList&) = nullptr; // [planned: S30]
-    void (*migrations)(MigrationList&) = nullptr; // [planned: S11] §15.2
+    void (*migrations)(MigrationList&) = nullptr; // S11 §15.2
     void (*renderAssets)(World&) = nullptr;       // [planned: S19] registers meshes and materials by name into the
                                                   // World (world.registerMesh/registerMaterial); reads data files
     void (*collisionAssets)(CollisionAssetList&) = nullptr;     // [planned: S28] named collision meshes and shapes
@@ -607,14 +615,16 @@ template <class T> void Registry::registerComponent(Replicate mode = Replicate::
                                                   // Saved::No: not saved, rebuilt after loading (RenderPose)
 template <class T> void Registry::registerGlobal(Replicate mode);       // S10: added to the world-state entity
 template <class T> void Registry::registerSpaceState(Replicate mode);   // S10: added to each space-state entity
-template <class T> void MigrationList::add(uint32_t fromVersion, void (*fn)(FieldMap& fields));   // [S11]
+template <class T> void MigrationList::add(uint32_t fromVersion, void (*fn)(FieldMap& fields));   // [exists: S11]
+void MigrationList::add(const char* typeName, uint32_t fromVersion, void (*fn)(FieldMap& fields));   // removed types
 void MigrationList::addRemoved(const char* name, RemovedPolicy policy, const char* replacement = nullptr);
-                                                  // drop entity / drop component / replace with `replacement`
+                                                  // DropEntity / DropComponent / Replace with `replacement`
+                                                  // (components, classes, nested structs; FieldMap: the JSON fields)
 
 template <class T> void ClassList::add();         // uses T::id and T::name; factory std::make_unique<T>()  [S10]
 template <class E> void EventRegistry::add(Replicate mode = Replicate::Never);
 void ScenarioList::add(const char* name, std::function<void(ScenarioWorld&)> run, bool localOnly = false);  // [S12]
-template <class T> void DataTypeList::add();      // file data/<game>/<snake_case(T::name)>.json  [S11]
+template <class T> void DataTypeList::add();      // file <dataDirectory>/<snake_case(T::name)>.json  [exists: S11]
 template <class M> void MessageList::add(Reliability r, void (*handler)(World&, uint8_t fromPeer, const M&));
                                                   // M: struct with name, id, visit; handlers run in phase 1  [S15]
 ```
@@ -656,9 +666,12 @@ class World
     void setPaused(bool); void setTimeScale(double); void setWorkerThreads(int n);
     uint64_t hash() const;            // debug and scenario repeat checks (§17.4)
     void stepNetworkOnly();           // phases 1 and 8 only (end-of-scenario sync, §17.3) [planned: S16]
-    std::vector<uint8_t> save() const;                    // §15 [planned: S11]
-    void load(const std::vector<uint8_t>& data);          // §15 [planned: S11]
-    std::string dumpJson(Entity e = {}) const;            // all entities if e is invalid [planned: S11]
+    std::vector<uint8_t> save() const;                    // §15 [exists: S11]
+    LoadResult tryLoad(const std::vector<uint8_t>& data); // rejected: unchanged; hook errors per entity [S11]
+    void load(const std::vector<uint8_t>& data);          // tryLoad, fatal unless ok() [S11]
+    int addLoadListener(std::function<void(const LoadInfo&)> fn);   // log range of the load, load count [S11]
+    uint64_t loadCount() const;                           // [S11]
+    std::string dumpJson(Entity e = {}) const;            // all entities if e is invalid [exists: S11]
     std::vector<Entity> queryRadius(SpaceId space, const Vec3& center, double radius,
                                     const ComponentMask& mask = {}) const;            // §9.5 [exists: S09]
     void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
@@ -684,9 +697,11 @@ class World
                                                 // no runtime ownership transfer (§13.3) [planned: S16]
     void ownerTeleport(Entity e, const Vec3& p, const Quat& r);    // host; direct or OwnerCommand [S16]
     void ownerImpulse(Entity e, const Vec3& impulse);               // host; direct or OwnerCommand [S28]
-    static std::string diff(const World& a, const World& b);  // first differing entities/fields [planned: S11]
+    static std::string diff(const World& a, const World& b, int maxLines = 20);  // diffSaves of both saves [S11]
     uint8_t localPeer() const; bool isHost() const;   // [exists: S10; before S16: 0 and true]
-    template <class T> const T& data(const std::string& name) const;   // §14 [planned: S11]
+    template <class T> const T& data(const std::string& name) const;   // §14 [exists: S11]; DataError if missing
+    template <class T> const T& data(const DataRef<T>& ref) const;     // resolved once per store [S11]
+    bool reloadData(std::string& error);                               // entries updated in place [S11]
     double terrainHeight(SpaceId space, double x, double z) const;     // §12.2 [planned: S20]
     double waterHeight(SpaceId space, double x, double z) const;       // §10.9 [planned: S39]
     Entity resolve(PersistentId id) const;                             // §9.6 [exists: S10]
@@ -1911,11 +1926,16 @@ migration is not supported; the host's world save is the world.
 Reproducibility (§8.6) is a property of `ScenarioWorld` runs, used for tests, not for lockstep. Clients are not
 deterministic replicas.
 
-## 14. Content and data [planned: S11 (data files), S23 (prefabs)]
+## 14. Content and data [exists: S11 (data files); planned: S23 (prefabs)]
 
 - Tunable data: one JSON file per type, `data/<game>/<snake_case(T::name)>.json`, an object of named entries
-  (`{"wolf": {...}, "bear": {...}}`); loaded in the `World` constructor from `WorldSetup::dataDirectory` (R-DATA-1);
-  `world.data<T>(name)` asserts on a missing name. `configure()` reads its parameters there.
+  (`{"wolf": {...}, "bear": {...}}`); loaded in the `World` constructor from `WorldSetup::dataDirectory` (R-DATA-1;
+  `engine/data/`: `DataTypeList`, `DataStore`, `readDataFile`/`readJsonFile` with the same rules for other files);
+  `world.data<T>(name)` throws `DataError` on a missing name. `configure()` reads its parameters there; systems read
+  them per step through a `DataRef<T>` field (§7.2). `world.reloadData()` re-reads the files and applies them only if
+  all are valid and no entry was removed (entries are updated in place, so references and `DataRef`s see the new values;
+  members set in `configure()` change when the objects are configured again: the `reload_data` tool reloads the world
+  for that). Data are not saved. Worlds of one setup can share the parsed store (`WorldSetup::sharedData`).
 - Prefabs (authored places): data files with terrain edits, placed pieces, entities, entrances and (for enclosed
   spaces) static geometry, with their
   components (`visit` JSON), loaded and stamped by the generation pipeline (§12.1; one file per prefab version, §15.3,
@@ -1925,7 +1945,7 @@ deterministic replicas.
   palette indices; `saiga/vulkan/scene/MeshImport.h`); skinned meshes: S34]; impostor and LOD baking as an offline tool
   (S27).
 
-## 15. Persistence [planned: S11; later stages add their state as stated in their sections]
+## 15. Persistence [exists: S11 (save blobs, schema, migration); later stages add their state as stated in their sections]
 
 ### 15.1 Save content and layout
 
@@ -1946,8 +1966,24 @@ deterministic replicas.
   previous commit is kept as a backup; compaction runs on the streaming pool. The world-state snapshot is serialized
   between steps on the main thread into memory (budget: one step time, measured in S25), then compressed and written on
   the pool.
-- `world.save()` / `load()` (byte blobs) remain for scenario worlds and tests.
-- JSON dump (`world.dumpJson()`) for debugging only: doubles `%.17g`, 64-bit values and blobs as hex.
+- `world.save()` / `load()` (byte blobs) remain for scenario worlds, tests and the world API's snapshots. [exists: S11]
+  Blob layout (`engine/save/SaveFormat.h`): magic, format version, sections `HEAD` (engine version, step rate, step,
+  time), `SCHM` (schema table), `ENTS` (slot table and free list), `COMP` (per type the values in the pool's dense
+  order, so views iterate in the same order after a load), `EVNT` (pending events), `ACTN` (queued actions), `STAT`
+  (RNG, `Persistent` counter); uncompressed (S25 compresses files). `save()` is deterministic. Not saved: `Saved::No`
+  components, game objects (recreated), the grid, hierarchy order, child counts, tick evaluation, change flags (rebuilt
+  by the load); paused, time scale and accumulator (app state). A load keeps the time of the save (`time()` = the saved
+  time + steps since the load * dt, also for another step rate).
+- `tryLoad` checks everything before the world changes (a rejected save leaves the world unchanged: format, schema,
+  slot table, free list, every value, `Parent` targets and cycles, unique `PersistentId`s, class IDs), then replaces all
+  entities (removes and creates in the structural log; load listeners get the log range), rebuilds the derived state and
+  recreates the game objects in three passes (create all, `configure` all, `onLoad` all; `onSpawn` is not called; during
+  a load `configure` makes no structural changes and `onLoad` adds or removes only `Saved::No` components of its own
+  entity, asserted); a hook that throws removes its entity with its descendants without hooks and is reported in
+  `LoadResult::hookErrors`.
+- JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
+  as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
+  state; filters and paging) without building worlds; `World::diff` formats it.
 
 ### 15.2 Schema and migration (long-lived worlds across patches)
 
@@ -1964,8 +2000,18 @@ deterministic replicas.
   component, or replace with another type); otherwise loading fails with a message naming it.
 - A component whose meaning changed increments `version` (R-SAVE-1) and registers a migration that rewrites the loaded
   field values from an older version before they are applied.
-- Within one build, save -> load restores all saved state (an equivalent world; it does not continue bit-identically,
-  §8.6); across versions it is as exact as the migrations.
+- Within one build, save -> load restores all saved state (an equivalent world: equal `save()` bytes and `hash()`; the
+  engine's systems continue identically in the tests, which is not a guarantee, §8.6); across versions it is as exact
+  as the migrations.
+- Implementation (S11): a type whose saved schema equals the registered one is read straight from its binary form;
+  changed types (fields added or removed, enum values added or reordered, an older version) are decoded by the saved
+  field list into the JSON form, migrated (`FieldMap`, nested structs first), stripped of fields that no longer exist and
+  merged into a default value; a field type change without a version increment, a version gap without a migration and
+  a save from a newer version are load errors; a stored enum value whose name was removed is an error. Types without
+  saved values need no `Removed` entry; pending events of unregistered event types are dropped (logged); a component
+  now registered `Saved::No` is dropped. Cross-component migrations (split, merge) come with the save directory (S25)
+  when a game needs them. A committed golden save (`data/tests/engine/save_v1.bin`) and the committed engine schema
+  (`data/tests/engine/schema.json`) make R-SAVE-1 violations of engine types fail in CI.
 
 ### 15.3 Generator versions [planned: S23]
 
@@ -2040,6 +2086,8 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `get_profile(steps?, scopes?)`, `reset_profile`, `measure_performance(steps)` | step profile (§17.1), filtered by scope path prefixes; measure (at most the 600 samples of the history) runs n steps while paused or waits for n steps while running (refused at time scale 0) | [exists: S10; S13 adds frame and GPU scopes] |
 | `logs(since?, category?)` | log lines with a sequence number > `since` (at most 500, `first`, `truncated`; category `api`: the edits made through the tools, logged after they ran with `ok` or `failed:`; an empty result names the known `categories`) | [exists: S10] |
 | `apply(operations)` | a batch `[{op, ...arguments}]` in order; stops at the first failing operation (the earlier ones stay applied); available read-only when every operation reads | [exists: S10] |
+| `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
+| `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
 | `run_scenario(name)` | replaces the live world with the scenario, runs it, returns the checks | [planned: S14] |
 | `quit` | | [planned: S14] |
 
@@ -2140,7 +2188,7 @@ extrapolation), for the scenario's entities, within the quantization tolerances.
 - Variants of every scenario: (a) **repeat**: the scenario runs twice and the per-step hashes must be equal (catches
   wall-clock time, unordered containers and uninitialized memory); on a mismatch the runner prints `World::diff` at the
   first differing step; (b) **save/load**: `ScenarioWorld` replaces its `World` by `load(save())` at the middle of the
-  scenario and continues; `World::diff` of the state before and after the round trip must be empty, and the scenario's
+  scenario and continues; the loaded world's `save()` must equal the saved bytes (`diffSaves` explains a mismatch), and the scenario's
   checks must still pass (catches state outside components, R-STATE-1). The save/load variant runs single-world only;
   a host reload with connected clients is a session restart (§13.7). A loaded world is not required to continue
   bit-identically (§8.6).
@@ -2502,7 +2550,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S08 | World and step loop (done) | `World(WorldSetup)`, phases, `SystemList`, commands, structural log, events, `Transform` hierarchy, `advance`/`step`, `hash` (§7.6-§7.10, §8.1-§8.3, §8.6) | S07 | unit tests: deferred destroy, commands during iteration, structural log consumers, event latency, `advance` cap, hierarchy; hash equal for 2 runs (CI); step time with 10^5 idle entities (benchmark) |
 | S09 | Spatial grid (done) | Grid per space, `queryRadius` (§9.5) | S08 | query tests incl. deterministic order (CI) |
 | S10 | Game objects (done) | `GameObject`, `Behaviour`, behavior and event systems, ticking policy, engine gameplay basics incl. local `PlayerAction` queue, kinematic mover, world-state entities, `Persistent`, the world API (`WorldApi`), the MCP world tools and the profiler (§7.8, §8.4, §9.2-§9.4, §9.6, §16.2, §17.1) | S09 | lifecycle tests (spawn with initial components, commands during a step, destroy), ticking tests, `global`/`spaceState`, `PlayerAction` delivery order, `characterMoveSystem`, `makePersistent`/`resolve`, JSON visitors, every API operation and every tool through `handleMessage` (CI) |
-| S11 | Save, data and migration | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
+| S11 | Save, data and migration (done) | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
 | S12 | Scenario framework | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
 | S13 | Engine app | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, benchmark runner moved to `engine/app/`, sample on `EngineApp` (§8.3, §17.7); tech demos: flight, platformer and racing ported to `EngineApp` and to game objects in a `World` (§18.4) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner; each tech demo has a scenario that passes with `--scenarios` and runs on `EngineApp` (local) |
 | S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`, `quit`), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |

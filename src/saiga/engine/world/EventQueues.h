@@ -11,6 +11,7 @@
 #include "saiga/engine/ecs/FieldList.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/ecs/TypeCheck.h"
+#include "saiga/engine/ecs/TypeSchema.h"
 #include "saiga/engine/ecs/Visit.h"
 #include "saiga/engine/ecs/VisitBinary.h"
 #include "saiga/engine/ecs/VisitJson.h"
@@ -60,6 +61,15 @@ class EventQueueBase
     virtual bool emitJson(const json11::Json& json, std::string& error) = 0;
     virtual json11::Json readableJson() const                           = 0;
     virtual std::vector<FieldInfo> fields() const                       = 0;
+    // Saves and loads (S11): the schema, the pending events in the binary form (concatenated, emit order), staged
+    // events of a load, and the restore (pending = the staged events, nothing readable; null: none)
+    virtual SchemaType describe() const                                                             = 0;
+    virtual void describeNested(std::vector<SchemaType>& out) const                                 = 0;
+    virtual void appendPending(std::vector<uint8_t>& out) const                                     = 0;
+    virtual std::unique_ptr<StagedValues> newStage() const                                          = 0;
+    virtual bool stageBinary(StagedValues& stage, BinaryReader& r) const                            = 0;
+    virtual bool stageJson(StagedValues& stage, const json11::Json& json, std::string& error) const = 0;
+    virtual void restore(StagedValues* stage)                                                       = 0;
 
     const EventId id;
     const char* const name;
@@ -113,6 +123,37 @@ class EventQueue final : public EventQueueBase
     }
     std::vector<FieldInfo> fields() const override { return describeFields<E>(); }
 
+    SchemaType describe() const override { return describeType<E>(SchemaKind::Event, E::id); }
+    void describeNested(std::vector<SchemaType>& out) const override { collectNestedTypes<E>(out); }
+    void appendPending(std::vector<uint8_t>& out) const override
+    {
+        BinaryWriter w(out);
+        for (const E& e : pending) w.write(e);
+        SAIGA_ASSERT(w.ok(), std::string("event ") + name + ": " + w.error());
+    }
+    std::unique_ptr<StagedValues> newStage() const override { return std::make_unique<StagedOf<E>>(); }
+    bool stageBinary(StagedValues& stage, BinaryReader& r) const override
+    {
+        E e{};
+        r.read(e);
+        if (!r.ok()) return false;
+        static_cast<StagedOf<E>&>(stage).values.push_back(std::move(e));
+        return true;
+    }
+    bool stageJson(StagedValues& stage, const json11::Json& json, std::string& error) const override
+    {
+        E e{};
+        if (!fromJson(json, e, &error, false)) return false;
+        static_cast<StagedOf<E>&>(stage).values.push_back(std::move(e));
+        return true;
+    }
+    void restore(StagedValues* stage) override
+    {
+        pending.clear();
+        readable.clear();
+        if (stage) pending = std::move(static_cast<StagedOf<E>*>(stage)->values);
+    }
+
     std::vector<E> pending, readable;
 };
 
@@ -147,6 +188,8 @@ class SAIGA_ENGINE_API EventQueues
     EventQueueBase* find(const std::string& name) const;
     EventQueueBase* find(EventId id) const { return registered(id) ? queues[id].get() : nullptr; }
     size_t registeredCount() const;
+    // All queues by ID (null: not registered), for saves (S11)
+    const std::vector<std::unique_ptr<EventQueueBase>>& all() const { return queues; }
 
    private:
     template <class E>

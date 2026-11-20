@@ -1,0 +1,4 @@
+{
+    "wolf": {"speed": 6.5, "health": 30, "sound": "howl"},
+    "bear": {"speed": 4, "health": 120}
+}

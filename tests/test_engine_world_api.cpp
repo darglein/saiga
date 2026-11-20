@@ -14,9 +14,11 @@
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/VisitJson.h"
+#include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/World.h"
+#include "saiga/saiga_buildconfig.h"
 
 #include "gtest/gtest.h"
 
@@ -79,6 +81,23 @@ class Dummy final : public GameObject
     void onDamage(const DamageEvent& e) override { write<Health>().hp -= e.amount / 2; }
 };
 
+// The data type of data/tests/engine/creature_stats.json
+struct CreatureStats
+{
+    static constexpr const char* name = "CreatureStats";
+    static constexpr uint32_t version = 1;
+    double speed                      = 1;
+    double health                     = 10;
+    std::string sound;
+    template <class V>
+    void visit(V& v)
+    {
+        v("speed", speed);
+        v("health", health);
+        v("sound", sound);
+    }
+};
+
 std::vector<uint32_t> g_actions;
 void sysActions(World& w, double)
 {
@@ -88,9 +107,11 @@ void sysActions(World& w, double)
 WorldSetup apiSetup()
 {
     WorldSetup s;
-    s.components = [](Registry& r) { r.registerGlobal<Weather>(Replicate::Host); };
-    s.classes    = [](ClassList& c) { c.add<Dummy>(); };
-    s.systems    = [](SystemList& l) { l.add(Phase::Gameplay, "actions", sysActions); };
+    s.components    = [](Registry& r) { r.registerGlobal<Weather>(Replicate::Host); };
+    s.classes       = [](ClassList& c) { c.add<Dummy>(); };
+    s.systems       = [](SystemList& l) { l.add(Phase::Gameplay, "actions", sysActions); };
+    s.dataTypes     = [](DataTypeList& d) { d.add<CreatureStats>(); };
+    s.dataDirectory = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine";
     return s;
 }
 
@@ -691,7 +712,9 @@ TEST(WorldTools, EveryToolAnswers)
 {
     World w(apiSetup());
     McpServer server("test");
-    auto api = registerWorldTools(server, w);
+    WorldToolsOptions options;
+    options.snapshotDirectory = ::testing::TempDir();
+    auto api                  = registerWorldTools(server, w, options);
     Poller poller(server);
     auto call = [&](const std::string& name, const Json& args)
     {
@@ -735,6 +758,15 @@ TEST(WorldTools, EveryToolAnswers)
     track("reset_profile", Json::object{});
     track("logs", obj(R"({"category": "api"})"));
     track("apply", obj(R"({"operations": [{"op": "world_status"}]})"));
+    track("save_snapshot", obj(R"({"name": "before"})"));
+    track("list_snapshots", Json::object{});
+    track("diff_snapshot", obj(R"({"name": "before"})"));
+    track("export_snapshot", obj(R"({"name": "before", "file": "saiga_tools_before.sgws"})"));
+    track("import_snapshot", obj(R"({"name": "again", "file": "saiga_tools_before.sgws"})"));
+    track("load_snapshot", obj(R"({"name": "again"})"));
+    track("delete_snapshot", obj(R"({"name": "again"})"));
+    track("get_data", obj(R"({"type": "CreatureStats", "name": "wolf"})"));
+    track("reload_data", Json::object{});
     track("destroy", Json::object{{"entity", de}});
     track("pause", Json::object{});
     track("measure_performance", obj(R"({"steps": 3})"));
@@ -1413,4 +1445,206 @@ TEST(WorldTools, ALongQueueWaitStillAnswersInTime)
     caller.join();
     ASSERT_FALSE(response["result"]["isError"].bool_value()) << response.dump();
     EXPECT_TRUE(toolJson(response)["stopped_early"].bool_value());
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Snapshots and data (S11)
+
+TEST(WorldApi, SnapshotsSaveDiffAndRollBack)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    const Entity d = entityOf(api.call("spawn", obj(R"({"class": "Dummy", "position": [1, 0, 2]})")).value["entity"]);
+    ApiResult s    = api.call("save_snapshot", obj(R"({"name": "start"})"));
+    ASSERT_TRUE(s.ok) << s.error;
+    EXPECT_GT(s.value["bytes"].number_value(), 0);
+    EXPECT_EQ(s.value["hash"].string_value().size(), 16u);
+    // A name is not overwritten by accident
+    EXPECT_FALSE(api.call("save_snapshot", obj(R"({"name": "start"})")).ok);
+    EXPECT_TRUE(api.call("save_snapshot", obj(R"({"name": "start", "overwrite": true})")).ok);
+    // An experiment: change, spawn, destroy
+    ASSERT_TRUE(api.call("set_component", Json::object{{"entity", WorldApi::entityJson(d)},
+                                                       {"component", "Health"},
+                                                       {"values", Json::object{{"hp", 1}}}})
+                    .ok);
+    ASSERT_TRUE(api.call("spawn", obj(R"({"position": [9, 0, 9]})")).ok);
+    ApiResult diff = api.call("diff_snapshot", obj(R"({"name": "start"})"));
+    ASSERT_TRUE(diff.ok) << diff.error;
+    EXPECT_EQ(diff.value["summary"]["components"]["Health"].number_value(), 1);
+    EXPECT_EQ(diff.value["summary"]["kinds"]["only_in_b"].number_value(), 1);
+    bool field = false;
+    for (auto& x : diff.value["differences"].array_items())
+        if (x["kind"] == "field")
+        {
+            field = true;
+            EXPECT_EQ(x["component"].string_value(), "Health");
+            EXPECT_EQ(x["field"].string_value(), "hp");
+            EXPECT_EQ(x["b"].number_value(), 1);
+        }
+    EXPECT_TRUE(field);
+    // Filters and paging
+    EXPECT_EQ(api.call("diff_snapshot", obj(R"({"name": "start", "components": ["Health"]})")).value["total"], 1);
+    ApiResult page = api.call("diff_snapshot", obj(R"({"name": "start", "limit": 1})"));
+    ASSERT_TRUE(page.ok);
+    EXPECT_EQ(page.value["differences"].array_items().size(), 1u);
+    EXPECT_EQ(page.value["next"].number_value(), 1);
+    // Against another snapshot
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "after"})")).ok);
+    EXPECT_EQ(api.call("diff_snapshot", obj(R"({"name": "after", "against": "after"})")).value["total"], 0);
+    // Roll back, paused
+    ApiResult l = api.call("load_snapshot", obj(R"({"name": "start", "paused": true})"));
+    ASSERT_TRUE(l.ok) << l.error;
+    EXPECT_TRUE(l.value["paused"].bool_value());
+    EXPECT_EQ(l.value["world_generation"].number_value(), 1);
+    EXPECT_TRUE(l.value["hook_errors"].array_items().empty());
+    EXPECT_EQ(w.read<Health>(d).hp, Health().hp);
+    EXPECT_EQ(api.call("diff_snapshot", obj(R"({"name": "start"})")).value["total"], 0);
+    EXPECT_EQ(api.call("world_status", Json()).value["world_generation"].number_value(), 1);
+    // The game object came back
+    EXPECT_TRUE(w.read<Behaviour>(d).object);
+    // List, delete, unknown names
+    EXPECT_EQ(api.call("list_snapshots", Json()).value["snapshots"].array_items().size(), 2u);
+    EXPECT_TRUE(api.call("delete_snapshot", obj(R"({"name": "after"})")).ok);
+    EXPECT_FALSE(api.call("delete_snapshot", obj(R"({"name": "after"})")).ok);
+    EXPECT_FALSE(api.call("load_snapshot", obj(R"({"name": "nope"})")).ok);
+    EXPECT_FALSE(api.call("diff_snapshot", obj(R"({"name": "start", "against": "nope"})")).ok);
+}
+
+TEST(WorldApi, SnapshotLimits)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    for (int i = 0; i < 16; ++i)
+        ASSERT_TRUE(api.call("save_snapshot", Json::object{{"name", "s" + std::to_string(i)}}).ok);
+    ApiResult r = api.call("save_snapshot", obj(R"({"name": "one_more"})"));
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("at most 16"), std::string::npos) << r.error;
+    // Overwriting one is fine at the limit
+    EXPECT_TRUE(api.call("save_snapshot", obj(R"({"name": "s3", "overwrite": true})")).ok);
+    EXPECT_FALSE(api.call("save_snapshot", obj(R"({"name": ""})")).ok);
+}
+
+// A load (from anywhere) is one journal entry; cursors from before it stay valid and say reloaded
+TEST(WorldApi, LoadsAppearAsOneJournalEntry)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    const auto blob = w.save();
+    // More entities than the journal holds: a load must not flood it
+    for (int i = 0; i < 1000; ++i) w.create();
+    Json cursor         = api.call("changes_since", obj(R"({"cursor": "now", "include_moved": true})")).value["cursor"];
+    const Entity before = w.create();  // a change before the load is still reported
+    w.step(3);
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    ApiResult c = api.call("changes_since", Json::object{{"cursor", cursor}, {"include_moved", true}});
+    ASSERT_TRUE(c.ok) << c.error;
+    EXPECT_TRUE(c.value["reloaded"].bool_value());
+    const auto& changes = c.value["changes"].array_items();
+    ASSERT_EQ(changes.size(), 2u) << c.value.dump();
+    EXPECT_EQ(changes[0]["kind"].string_value(), "created");
+    EXPECT_EQ(entityOf(changes[0]["entity"]), before);
+    EXPECT_EQ(changes[1]["kind"].string_value(), "world_loaded");
+    EXPECT_EQ(changes[1]["from_step"].number_value(), 3);
+    EXPECT_EQ(changes[1]["step"].number_value(), 0);
+    EXPECT_EQ(changes[1]["world_generation"].number_value(), 1);
+    // The next call with the new cursor continues normally
+    Json next = c.value["cursor"];
+    w.create();
+    c = api.call("changes_since", Json::object{{"cursor", next}});
+    ASSERT_TRUE(c.ok) << c.error;
+    EXPECT_FALSE(c.value["reloaded"].bool_value());
+    EXPECT_EQ(c.value["changes"].array_items().size(), 1u);
+}
+
+// rebind moves the API to another world: snapshots and cursors stay
+TEST(WorldApi, RebindKeepsSnapshotsAndCursors)
+{
+    World a(apiSetup());
+    WorldApi api(a);
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "x"})")).ok);
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now"})")).value["cursor"];
+    World b(apiSetup());
+    b.step(4);
+    api.rebind(b);
+    EXPECT_EQ(api.world(), &b);
+    ApiResult c = api.call("changes_since", Json::object{{"cursor", cursor}});
+    ASSERT_TRUE(c.ok) << c.error;
+    ASSERT_EQ(c.value["changes"].array_items().size(), 1u);
+    EXPECT_EQ(c.value["changes"][0]["kind"].string_value(), "world_loaded");
+    EXPECT_TRUE(api.call("load_snapshot", obj(R"({"name": "x"})")).ok);
+    EXPECT_EQ(b.stepIndex(), 0u);
+    // The old world is no longer observed: its changes do not appear
+    a.create();
+    a.step();
+    c = api.call("changes_since", Json::object{{"cursor", c.value["cursor"]}});
+    ASSERT_TRUE(c.ok) << c.error;
+    for (auto& x : c.value["changes"].array_items()) EXPECT_EQ(x["kind"].string_value(), "world_loaded");
+}
+
+TEST(WorldApi, DataTools)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    ApiResult d = api.call("describe_world", Json());
+    ASSERT_EQ(d.value["data_types"].array_items().size(), 1u);
+    EXPECT_EQ(d.value["data_types"][0]["file"].string_value(), "creature_stats.json");
+    EXPECT_EQ(d.value["save_format_version"].number_value(), 1);
+    ApiResult names = api.call("get_data", obj(R"({"type": "CreatureStats"})"));
+    ASSERT_TRUE(names.ok) << names.error;
+    EXPECT_EQ(names.value["entries"].array_items().size(), 2u);
+    ApiResult wolf = api.call("get_data", obj(R"({"type": "CreatureStats", "name": "wolf"})"));
+    ASSERT_TRUE(wolf.ok);
+    EXPECT_EQ(wolf.value["values"]["speed"].number_value(), 6.5);
+    EXPECT_FALSE(api.call("get_data", obj(R"({"type": "CreatureStats", "name": "cat"})")).ok);
+    EXPECT_FALSE(api.call("get_data", obj(R"({"type": "Nope"})")).ok);
+    ApiResult r = api.call("reload_data", obj(R"({"reconfigure": false})"));
+    ASSERT_TRUE(r.ok) << r.error;
+    EXPECT_EQ(r.value["entries"].number_value(), 2);
+    EXPECT_EQ(w.loadCount(), 0u);
+    r = api.call("reload_data", Json());
+    ASSERT_TRUE(r.ok) << r.error;
+    EXPECT_EQ(w.loadCount(), 1u);
+}
+
+TEST(WorldApi, SnapshotFiles)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "a"})")).ok);
+    // No directory: refused
+    EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "a.sgws"})")).ok);
+    api.setSnapshotDirectory(::testing::TempDir());
+    // Only plain file names
+    EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "../a.sgws"})")).ok);
+    EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "dir/a.sgws"})")).ok);
+    ASSERT_TRUE(api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_a.sgws"})")).ok);
+    ApiResult i = api.call("import_snapshot", obj(R"({"name": "b", "file": "saiga_api_a.sgws"})"));
+    ASSERT_TRUE(i.ok) << i.error;
+    EXPECT_EQ(api.call("diff_snapshot", obj(R"({"name": "a", "against": "b"})")).value["total"], 0);
+    EXPECT_FALSE(api.call("import_snapshot", obj(R"({"name": "c", "file": "missing.sgws"})")).ok);
+    // Read-only observers cannot load, import or export
+    WorldApi observer(w, false);
+    EXPECT_TRUE(observer.call("save_snapshot", obj(R"({"name": "o"})")).ok);
+    EXPECT_TRUE(observer.call("diff_snapshot", obj(R"({"name": "o"})")).ok);
+    EXPECT_FALSE(observer.call("load_snapshot", obj(R"({"name": "o"})")).ok);
+    EXPECT_FALSE(observer.call("reload_data", Json()).ok);
+}
+
+// A running measurement fails when the world is loaded meanwhile (its samples would mix two worlds)
+TEST(WorldTools, MeasurementFailsOnALoad)
+{
+    World w(apiSetup());
+    McpServer server("test");
+    auto api        = registerWorldTools(server, w);
+    const auto blob = w.save();
+    int steps       = 0;
+    Poller poller(server,
+                  [&]()
+                  {
+                      w.step();
+                      if (++steps == 5) w.tryLoad(blob);
+                  });
+    Json m = callTool(server, "measure_performance", obj(R"({"steps": 300})"));
+    ASSERT_TRUE(m["result"]["isError"].bool_value()) << m.dump();
+    EXPECT_NE(m["result"]["content"][0]["text"].string_value().find("loaded"), std::string::npos) << m.dump();
 }

@@ -15,6 +15,9 @@
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/save/SaveDiff.h"
+#include "saiga/engine/save/SaveFormat.h"
+#include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
@@ -22,7 +25,10 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
+#include <fstream>
 #include <random>
+#include <sstream>
 #include <stdexcept>
 
 namespace Saiga
@@ -52,6 +58,15 @@ const std::vector<Operation>& operationTable()
         {"changes_since", false, {"cursor", "include_moved", "limit"}},
         {"get_profile", false, {"steps", "scopes"}},
         {"logs", false, {"since", "category"}},
+        {"save_snapshot", false, {"name", "overwrite"}},
+        {"list_snapshots", false, {}},
+        {"delete_snapshot", false, {"name"}},
+        {"diff_snapshot", false, {"name", "against", "entity", "components", "limit", "after"}},
+        {"get_data", false, {"type", "name"}},
+        {"load_snapshot", true, {"name", "paused"}},
+        {"export_snapshot", true, {"name", "file"}},
+        {"import_snapshot", true, {"name", "file", "overwrite"}},
+        {"reload_data", true, {"reconfigure"}},
         {"set_component", true, {"entity", "component", "values"}},
         {"add_component", true, {"entity", "component", "values"}},
         {"remove_component", true, {"entity", "component"}},
@@ -357,10 +372,15 @@ WorldApi::WorldApi(World& world, bool allowEdits)
         // random_device may be unavailable (sandboxes): the clock is unique enough for a session epoch
         epoch = uint32_t(std::chrono::steady_clock::now().time_since_epoch().count() % 1000000000) + 1;
     }
+    attach();
+}
+
+void WorldApi::attach()
+{
     consumer                 = w->structuralLog().addConsumer();
     std::weak_ptr<bool> weak = alive;
     // The journal is filled after every step, so the structural log is never held back by an idle API
-    w->addStepListener(
+    stepListener = w->addStepListener(
         [this, weak]()
         {
             if (weak.expired()) return false;
@@ -373,15 +393,81 @@ WorldApi::WorldApi(World& world, bool allowEdits)
         {
             if (!weak.expired()) w = nullptr;
         });
+    loadListener = w->addLoadListener(
+        [this, weak](const LoadInfo& info)
+        {
+            if (!weak.expired()) onLoaded(info);
+        });
+    if (movesTracked) w->retainStepChanges();
+}
+
+void WorldApi::detach()
+{
+    if (!w) return;
+    w->structuralLog().removeConsumer(consumer);
+    w->removeDestroyListener(destroyListener);
+    w->removeStepListener(stepListener);
+    w->removeLoadListener(loadListener);
+    if (movesTracked) w->releaseStepChanges();
 }
 
 WorldApi::~WorldApi()
 {
     alive.reset();
-    if (!w) return;
-    w->structuralLog().removeConsumer(consumer);
-    w->removeDestroyListener(destroyListener);
-    if (movesTracked) w->releaseStepChanges();
+    detach();
+}
+
+void WorldApi::rebind(World& world)
+{
+    const uint64_t fromStep = w ? w->stepIndex() : 0;
+    if (w) drainChanges();
+    detach();
+    w = &world;
+    attach();
+    // Like a load: one journal entry, moves start again
+    journal.push_back(Change{nextSeq++, w->stepIndex(), "world_loaded", Entity{}, -1, fromStep, w->loadCount()});
+    if (journal.size() > kJournalCapacity) journal.pop_front();
+    lastLoadSeq = journal.back().seq;
+    lastMoved.clear();
+    windows.clear();
+    movesSince = w->stepIndex();
+}
+
+void WorldApi::onLoaded(const LoadInfo& info)
+{
+    // The records before the load are journaled as usual, the load's own records are folded into one entry
+    StructuralLog& log       = w->structuralLog();
+    const uint64_t before    = info.logBegin > log.cursor(consumer) ? info.logBegin - log.cursor(consumer) : 0;
+    uint64_t seen            = 0;
+    const uint64_t stepIndex = w->stepIndex();
+    log.consume(
+        consumer,
+        [&](const StructuralLog::Record& r)
+        {
+            const bool beforeLoad = seen++ < before;
+            if (!beforeLoad) return;
+            if (r.component == Transform::id)
+            {
+                lastDestroyed = r.added ? Entity{} : r.entity;
+                journal.push_back(Change{nextSeq++, stepIndex, r.added ? "created" : "destroyed", r.entity, -1});
+            }
+            else if (!r.added && r.entity == lastDestroyed)
+                return;
+            else
+            {
+                lastDestroyed = Entity{};
+                journal.push_back(
+                    Change{nextSeq++, stepIndex, r.added ? "added" : "removed", r.entity, int(r.component)});
+            }
+            if (journal.size() > kJournalCapacity) journal.pop_front();
+        });
+    lastDestroyed = Entity{};
+    journal.push_back(Change{nextSeq++, info.toStep, "world_loaded", Entity{}, -1, info.fromStep, info.loadCount});
+    if (journal.size() > kJournalCapacity) journal.pop_front();
+    lastLoadSeq = journal.back().seq;
+    lastMoved.clear();
+    windows.clear();
+    movesSince = info.toStep;
 }
 
 std::vector<std::string> WorldApi::operations() const
@@ -498,6 +584,15 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
         return ApiResult::success(Json::object{{"paused", w->isPaused()}, {"step", double(w->stepIndex())}});
     }
     if (operation == "step") return step(args);
+    if (operation == "save_snapshot") return saveSnapshot(args);
+    if (operation == "load_snapshot") return loadSnapshot(args);
+    if (operation == "list_snapshots") return listSnapshots(args);
+    if (operation == "delete_snapshot") return deleteSnapshot(args);
+    if (operation == "diff_snapshot") return diffSnapshot(args);
+    if (operation == "export_snapshot") return exportSnapshot(args);
+    if (operation == "import_snapshot") return importSnapshot(args);
+    if (operation == "get_data") return getData(args);
+    if (operation == "reload_data") return reloadData(args);
     if (operation == "time_scale") return timeScale(args);
     if (operation == "reset_profile")
     {
@@ -562,6 +657,14 @@ ApiResult WorldApi::describeWorld(const Json&)
     for (int id = 0; id < 65536; ++id)
         if (const EventQueueBase* q = w->events.find(EventId(id)))
             events.push_back(Json::object{{"name", q->name}, {"id", id}, {"fields", fieldsJson(q->fields())}});
+    Json::array dataTypes;
+    for (const auto& t : w->dataTables().tables())
+    {
+        Json::array names;
+        for (auto& n : t->names()) names.push_back(n);
+        dataTypes.push_back(Json::object{
+            {"name", t->name}, {"file", t->file}, {"fields", fieldsJson(t->fields())}, {"entries", names}});
+    }
     Json::array ops;
     for (auto& o : operations()) ops.push_back(o);
     return ApiResult::success(Json::object{{"components", components},
@@ -569,6 +672,8 @@ ApiResult WorldApi::describeWorld(const Json&)
                                            {"events", events},
                                            {"entity_format", "{\"index\": i, \"generation\": g} or \"i:g\""},
                                            {"operations", ops},
+                                           {"data_types", dataTypes},
+                                           {"save_format_version", double(kSaveFormatVersion)},
                                            {"edits_allowed", allowEdits}});
 }
 
@@ -585,7 +690,8 @@ ApiResult WorldApi::worldStatus(const Json&)
                                            {"steps_per_second", w->worldConfig().stepsPerSecond},
                                            {"entities", double(reg.aliveCount())},
                                            {"game_objects", double(objects)},
-                                           {"hash", hash}});
+                                           {"hash", hash},
+                                           {"world_generation", double(w->loadCount())}});
 }
 
 ApiResult WorldApi::listEntities(const Json& a)
@@ -906,7 +1012,17 @@ ApiResult WorldApi::changesSince(const Json& a)
     }
     else if (!j.is_string() || !parseCursor(j.string_value(), c))
         return ApiResult::failure("cursor: the value returned by the previous changes_since, 0 or \"now\"");
-    else if (c.epoch != epoch || c.seq > head || c.from > now || c.to > now)
+    else if (c.epoch != epoch || c.seq > head)
+        return ApiResult::failure("cursor: from another session or world; start again with 0 or \"now\"");
+    // A cursor from before the last load: valid, but its move window refers to the replaced world
+    const bool reloaded = !fromStart && lastLoadSeq > 0 && c.seq < lastLoadSeq;
+    if (reloaded)
+    {
+        c.from  = movesTracked ? movesSince : now;
+        c.to    = 0;
+        c.index = 0;
+    }
+    else if (c.from > now || c.to > now)
         return ApiResult::failure("cursor: from another session or world; start again with 0 or \"now\"");
     // Changes older than the cursor's successor were dropped (the journal keeps the newest 100000)
     const bool truncated = !fromStart && !journal.empty() && journal.front().seq > c.seq + 1;
@@ -917,14 +1033,22 @@ ApiResult WorldApi::changesSince(const Json& a)
     {
         if (ch.seq <= c.seq) continue;
         if (changes.size() == size_t(limit)) break;
-        Json::object o{
-            {"seq", double(ch.seq)}, {"step", double(ch.step)}, {"kind", ch.kind}, {"entity", entityJson(ch.entity)}};
-        if (ch.component >= 0) o["component"] = w->registry().componentInfo(ComponentId(ch.component)).name;
+        Json::object o{{"seq", double(ch.seq)}, {"step", double(ch.step)}, {"kind", ch.kind}};
+        if (ch.entity.valid()) o["entity"] = entityJson(ch.entity);
+        if (std::strcmp(ch.kind, "world_loaded") == 0)
+        {
+            o["from_step"]        = double(ch.fromStep);
+            o["world_generation"] = double(ch.generation);
+        }
+        // The name as registered now (after a load into another build the ID may name another component)
+        if (ch.component >= 0 && w->registry().registered(ComponentId(ch.component)))
+            o["component"] = w->registry().componentInfo(ComponentId(ch.component)).name;
         changes.push_back(o);
         last = ch.seq;
     }
     const bool more = !journal.empty() && journal.back().seq > last;
     Json::object result{{"changes", changes}, {"more", more}, {"truncated", truncated}};
+    if (reloaded) result["reloaded"] = true;
     // Without include_moved the move window is carried along unchanged
     Cursor next = c;
     next.epoch  = epoch;
@@ -1311,6 +1435,264 @@ ApiResult WorldApi::timeScale(const Json& a)
     if (!a["scale"].is_number() || !(scale >= 0 && scale <= 1000)) return ApiResult::failure("scale: 0..1000");
     w->setTimeScale(a["scale"].number_value());
     return ApiResult::success(Json::object{{"time_scale", w->timeScale()}});
+}
+
+// ---- snapshots and data (S11) ------------------------------------------------------------------------------------
+
+namespace
+{
+constexpr size_t kMaxSnapshots     = 16;
+constexpr size_t kMaxSnapshotBytes = size_t(256) << 20;
+
+bool snapshotName(const Json& a, std::string& name, std::string& error)
+{
+    if (!a["name"].is_string() || a["name"].string_value().empty() || a["name"].string_value().size() > 128)
+    {
+        error = "name: a non-empty string (at most 128 characters)";
+        return false;
+    }
+    name = a["name"].string_value();
+    return true;
+}
+
+std::string hashHex(uint64_t h)
+{
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%016llx", (unsigned long long)h);
+    return buf;
+}
+
+// A plain file name: letters, digits, '.', '_', '-' (no paths, no "..")
+bool plainFileName(const std::string& f)
+{
+    if (f.empty() || f.size() > 128 || f == "." || f.find("..") != std::string::npos) return false;
+    for (char c : f)
+        if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' ||
+              c == '-'))
+            return false;
+    return true;
+}
+}  // namespace
+
+Json WorldApi::hookErrorsJson(const LoadResult& r)
+{
+    Json::array a;
+    for (const LoadResult::HookError& e : r.hookErrors)
+        a.push_back(Json::object{{"entity", entityJson(e.entity)}, {"class", e.className}, {"message", e.message}});
+    return a;
+}
+
+ApiResult WorldApi::saveSnapshot(const Json& a)
+{
+    std::string name, error;
+    bool overwrite = false;
+    if (!snapshotName(a, name, error) || !boolArg(a, "overwrite", false, overwrite, error))
+        return ApiResult::failure(error);
+    auto existing = snapshots.find(name);
+    if (existing != snapshots.end() && !overwrite)
+        return ApiResult::failure("save_snapshot: \"" + name + "\" exists (overwrite: true replaces it)");
+    Snapshot s;
+    s.bytes      = w->save();
+    s.step       = w->stepIndex();
+    s.hash       = w->hash();
+    size_t total = s.bytes.size();
+    for (const auto& kv : snapshots)
+        if (kv.first != name) total += kv.second.bytes.size();
+    if (existing == snapshots.end() && snapshots.size() >= kMaxSnapshots)
+        return ApiResult::failure("save_snapshot: at most " + std::to_string(kMaxSnapshots) +
+                                  " snapshots (delete_snapshot frees one)");
+    if (total > kMaxSnapshotBytes)
+        return ApiResult::failure(
+            "save_snapshot: the snapshots would use more than 256 MB (delete_snapshot frees "
+            "memory)");
+    Json result = Json::object{
+        {"name", name}, {"bytes", double(s.bytes.size())}, {"step", double(s.step)}, {"hash", hashHex(s.hash)}};
+    snapshots[name] = std::move(s);
+    return ApiResult::success(result);
+}
+
+ApiResult WorldApi::loadSnapshot(const Json& a)
+{
+    std::string name, error;
+    if (!snapshotName(a, name, error)) return ApiResult::failure(error);
+    if (!a["paused"].is_null() && !a["paused"].is_bool()) return ApiResult::failure("paused: expected a bool");
+    auto it = snapshots.find(name);
+    if (it == snapshots.end()) return ApiResult::failure("load_snapshot: no snapshot \"" + name + "\"");
+    // A copy: a load listener may change the snapshots (not the API's own, but be safe)
+    const std::vector<uint8_t> bytes = it->second.bytes;
+    const LoadResult r               = w->tryLoad(bytes);
+    if (!r.committed) return ApiResult::failure("load_snapshot: " + r.error + " (the world is unchanged)");
+    if (a["paused"].is_bool()) w->setPaused(a["paused"].bool_value());
+    return ApiResult::success(Json::object{{"step", double(w->stepIndex())},
+                                           {"hash", hashHex(w->hash())},
+                                           {"entities", double(w->registry().aliveCount())},
+                                           {"paused", w->isPaused()},
+                                           {"world_generation", double(w->loadCount())},
+                                           {"hook_errors", hookErrorsJson(r)}});
+}
+
+ApiResult WorldApi::listSnapshots(const Json&)
+{
+    Json::array list;
+    for (const auto& kv : snapshots)
+        list.push_back(Json::object{{"name", kv.first},
+                                    {"bytes", double(kv.second.bytes.size())},
+                                    {"step", double(kv.second.step)},
+                                    {"hash", hashHex(kv.second.hash)}});
+    return ApiResult::success(Json::object{{"snapshots", list}});
+}
+
+ApiResult WorldApi::deleteSnapshot(const Json& a)
+{
+    std::string name, error;
+    if (!snapshotName(a, name, error)) return ApiResult::failure(error);
+    if (!snapshots.erase(name)) return ApiResult::failure("delete_snapshot: no snapshot \"" + name + "\"");
+    return ApiResult::success(Json::object{{"deleted", name}});
+}
+
+ApiResult WorldApi::diffSnapshot(const Json& a)
+{
+    std::string name, error;
+    if (!snapshotName(a, name, error)) return ApiResult::failure(error);
+    auto it = snapshots.find(name);
+    if (it == snapshots.end()) return ApiResult::failure("diff_snapshot: no snapshot \"" + name + "\"");
+    DiffFilter filter;
+    int64_t limit = 0, after = 0;
+    if (!intArg(a, "limit", 1, 1000, 20, limit, error) || !intArg(a, "after", 0, int64_t(1) << 40, 0, after, error))
+        return ApiResult::failure(error);
+    filter.limit = size_t(limit);
+    filter.after = size_t(after);
+    if (!a["entity"].is_null())
+    {
+        Entity e;
+        if (!parseEntity(a["entity"], e, error)) return ApiResult::failure(error);
+        filter.hasEntity   = true;
+        filter.entityIndex = e.index;
+    }
+    if (!a["components"].is_null())
+    {
+        if (!a["components"].is_array()) return ApiResult::failure("components: expected an array of names");
+        for (const Json& n : a["components"].array_items())
+        {
+            if (!n.is_string()) return ApiResult::failure("components: expected an array of names");
+            filter.components.push_back(n.string_value());
+        }
+    }
+    std::vector<uint8_t> other;
+    std::string against = "live world";
+    if (!a["against"].is_null())
+    {
+        if (!a["against"].is_string()) return ApiResult::failure("against: a snapshot name");
+        auto o = snapshots.find(a["against"].string_value());
+        if (o == snapshots.end())
+            return ApiResult::failure("diff_snapshot: no snapshot \"" + a["against"].string_value() + "\"");
+        other   = o->second.bytes;
+        against = o->first;
+    }
+    else
+        other = w->save();
+    const SaveDiff d = diffSaves(it->second.bytes, other, filter);
+    if (!d.error.empty()) return ApiResult::failure("diff_snapshot: " + d.error);
+    Json::array diffs;
+    for (const SaveDifference& x : d.differences) diffs.push_back(x.toJson());
+    Json::object result{
+        {"a", name}, {"b", against}, {"summary", d.summary}, {"differences", diffs}, {"total", double(d.total)}};
+    if (filter.after + d.differences.size() < d.total) result["next"] = double(filter.after + d.differences.size());
+    return ApiResult::success(result);
+}
+
+ApiResult WorldApi::exportSnapshot(const Json& a)
+{
+    std::string name, error;
+    if (!snapshotName(a, name, error)) return ApiResult::failure(error);
+    if (snapshotDirectory.empty()) return ApiResult::failure("export_snapshot: no snapshot directory is set");
+    if (!a["file"].is_string() || !plainFileName(a["file"].string_value()))
+        return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-')");
+    auto it = snapshots.find(name);
+    if (it == snapshots.end()) return ApiResult::failure("export_snapshot: no snapshot \"" + name + "\"");
+    const std::string path = snapshotDirectory + "/" + a["file"].string_value();
+    std::ofstream f(path, std::ios::binary);
+    f.write(reinterpret_cast<const char*>(it->second.bytes.data()), std::streamsize(it->second.bytes.size()));
+    if (!f) return ApiResult::failure("export_snapshot: cannot write " + path);
+    return ApiResult::success(Json::object{{"file", path}, {"bytes", double(it->second.bytes.size())}});
+}
+
+ApiResult WorldApi::importSnapshot(const Json& a)
+{
+    std::string name, error;
+    bool overwrite = false;
+    if (!snapshotName(a, name, error) || !boolArg(a, "overwrite", false, overwrite, error))
+        return ApiResult::failure(error);
+    if (snapshotDirectory.empty()) return ApiResult::failure("import_snapshot: no snapshot directory is set");
+    if (!a["file"].is_string() || !plainFileName(a["file"].string_value()))
+        return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-')");
+    if (snapshots.count(name) && !overwrite)
+        return ApiResult::failure("import_snapshot: \"" + name + "\" exists (overwrite: true replaces it)");
+    if (!snapshots.count(name) && snapshots.size() >= kMaxSnapshots)
+        return ApiResult::failure("import_snapshot: at most " + std::to_string(kMaxSnapshots) + " snapshots");
+    const std::string path = snapshotDirectory + "/" + a["file"].string_value();
+    std::ifstream f(path, std::ios::binary);
+    if (!f) return ApiResult::failure("import_snapshot: cannot read " + path);
+    std::stringstream ss;
+    ss << f.rdbuf();
+    const std::string data = ss.str();
+    size_t total           = data.size();
+    for (const auto& kv : snapshots)
+        if (kv.first != name) total += kv.second.bytes.size();
+    if (total > kMaxSnapshotBytes)
+        return ApiResult::failure("import_snapshot: the snapshots would use more than 256 MB");
+    Snapshot s;
+    s.bytes.assign(data.begin(), data.end());
+    ParsedSave parsed;
+    if (!parseSave(s.bytes, parsed, error)) return ApiResult::failure("import_snapshot: " + error);
+    s.step          = parsed.steps;
+    snapshots[name] = std::move(s);
+    return ApiResult::success(
+        Json::object{{"name", name}, {"bytes", double(data.size())}, {"step", double(parsed.steps)}});
+}
+
+ApiResult WorldApi::getData(const Json& a)
+{
+    if (!a["type"].is_string()) return ApiResult::failure("type: a data type name (describe_world lists them)");
+    const DataTableBase* t = w->dataTables().find(a["type"].string_value());
+    if (!t) return ApiResult::failure("get_data: no data type \"" + a["type"].string_value() + "\"");
+    if (a["name"].is_null())
+    {
+        Json::array names;
+        for (auto& n : t->names()) names.push_back(n);
+        return ApiResult::success(Json::object{{"type", t->name}, {"file", t->file}, {"entries", names}});
+    }
+    if (!a["name"].is_string()) return ApiResult::failure("name: an entry name");
+    const Json v = t->entryJson(a["name"].string_value());
+    if (v.is_null())
+        return ApiResult::failure("get_data: " + t->file + " has no entry \"" + a["name"].string_value() + "\"");
+    return ApiResult::success(Json::object{{"type", t->name}, {"name", a["name"]}, {"values", v}});
+}
+
+ApiResult WorldApi::reloadData(const Json& a)
+{
+    std::string error;
+    bool reconfigure = true;
+    if (!boolArg(a, "reconfigure", true, reconfigure, error)) return ApiResult::failure(error);
+    if (!w->reloadData(error)) return ApiResult::failure("reload_data: " + error + " (nothing changed)");
+    Json::array types;
+    double entries = 0;
+    for (const auto& t : w->dataTables().tables())
+    {
+        types.push_back(t->name);
+        entries += double(t->names().size());
+    }
+    Json::object result{{"types", types}, {"entries", entries}};
+    if (reconfigure)
+    {
+        // Every game object runs configure() with the new values (a save and load of the world)
+        const LoadResult r = w->tryLoad(w->save());
+        if (!r.committed)
+            return ApiResult::failure("reload_data: the data were reloaded, the reconfigure failed: " + r.error);
+        result["hook_errors"]      = hookErrorsJson(r);
+        result["world_generation"] = double(w->loadCount());
+    }
+    return ApiResult::success(result);
 }
 
 ApiResult WorldApi::apply(const Json& a)

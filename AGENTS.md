@@ -68,8 +68,10 @@ src/
                         (step loop, phases, SystemList, commands, StructuralLog, EventQueues, transformSystem,
                         SpatialGrid and spatialGridSystem for World::queryRadius, Events.h); gameplay/: GameObject,
                         Behaviour (+ World::spawn), ClassList, TickPolicy, the gameplay systems (Systems.h); api/:
-                        WorldApi (the world as JSON by names, for MCP, scenarios, editors); tools/: registerWorldTools
-                        (MCP world tools)
+                        WorldApi (the world as JSON by names, for MCP, scenarios, editors; snapshots); tools/:
+                        registerWorldTools (MCP world tools); save/: World::save/tryLoad (SaveFormat.h, SchemaTable,
+                        MigrationList, SaveDecoder, diffSaves); data/: data files (DataTypeList, DataStore, DataRef,
+                        readDataFile)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -77,7 +79,10 @@ docs/                   engine_design.md: design and implementation stages of th
                         stages/Sxx_<name>.plan.md: one plan per stage (template: S05_math_additions.plan.md)
 shader/                 GLSL shaders (OpenGL / Vulkan)
 data/                   Sample assets (textures, models); test goldens in data/tests/golden/, benchmark baselines per
-                        GPU in data/tests/benchmarks.json
+                        GPU in data/tests/benchmarks.json; engine test data in data/tests/engine/ (data files, the
+                        golden save save_v1.bin/.json and the engine schema schema.json: regenerate with
+                        SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_save --gtest_filter='SaveFormat.*' only after
+                        a deliberate format or version change, R-SAVE-1)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the tech demos flight/, platformer/, racing/ and their shared common/, compiled
@@ -176,7 +181,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-59 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+61 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
