@@ -22,6 +22,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <chrono>
 #include <clocale>
 #include <cmath>
@@ -29,6 +30,7 @@
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <map>
 #include <memory>
 #include <set>
 #include <stdexcept>
@@ -682,6 +684,42 @@ TEST(Profiler, StatisticsRingTreeAndCounters)
     EXPECT_EQ(p.scopeStats(step, 1).max, 0);
     p.reset();
     EXPECT_EQ(p.scopeStats(step).samples, 0);
+}
+
+// Regression (S19a review): RenderScene's GPU sub-sections (gpu/scene.instances) were siblings of their pass
+// (gpu/scene) under gpu, so the report's top leaves counted the pass and its sub-sections twice and share_of_parent was
+// relative to the whole frame. A dotted last part is reported below its pass if the pass exists
+TEST(Profiler, DottedSubSectionsBelowTheirPass)
+{
+    Profiler p(4);
+    const int gpu       = p.scope("gpu");
+    const int scene     = p.scope("gpu/scene");
+    const int instances = p.scope("gpu/scene.instances");
+    const int terrain   = p.scope("gpu/scene.terrain");
+    const int post      = p.scope("gpu/post");
+    // No scope "gpu/other": the dotted name stays below gpu
+    const int orphan = p.scope("gpu/other.x");
+    p.add(gpu, 10);
+    p.add(scene, 8);
+    p.add(instances, 4);
+    p.add(terrain, 2);
+    p.add(post, 1);
+    p.add(orphan, 0.5);
+    p.endSample();
+    Json r = p.report();
+    std::map<std::string, double> share;
+    for (const auto& o : r["scopes"].array_items())
+        share[o["scope"].string_value()] = o["share_of_parent"].number_value();
+    EXPECT_NEAR(share["gpu/scene"], 0.8, 1e-12);
+    EXPECT_NEAR(share["gpu/scene.instances"], 0.5, 1e-12);  // of gpu/scene, not of gpu
+    EXPECT_NEAR(share["gpu/scene.terrain"], 0.25, 1e-12);
+    EXPECT_NEAR(share["gpu/other.x"], 0.05, 1e-12);
+    // The pass with sub-sections is not a leaf: the top list holds each time once
+    std::vector<std::string> top;
+    for (const auto& o : r["top"].array_items()) top.push_back(o["scope"].string_value());
+    EXPECT_EQ(std::count(top.begin(), top.end(), "gpu/scene"), 0);
+    EXPECT_EQ(std::count(top.begin(), top.end(), "gpu/scene.instances"), 1);
+    EXPECT_EQ(std::count(top.begin(), top.end(), "gpu/post"), 1);
 }
 
 namespace

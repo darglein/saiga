@@ -55,15 +55,17 @@ inline float prototypeTreePadding(const WorldSettings& settings)
 
 /**
  * The prototype's trees in a RenderScene (S19a; used by game_world, flight, racing and the tests): registers one mesh
- * per species (IDs of RenderScene::reserveIds, names "prototype/tree/<species>") with the PrototypeFoliage material
- * ("prototype/foliage"), creates the instance sets (prototypeTreeSets) and tracks the species meshes' statistics.
+ * per species (IDs of RenderScene::reserveIds, names "prototype/tree/<seed>/<species>") with the PrototypeFoliage
+ * material ("prototype/foliage"); on a scene that already has them (a WorldRenderer attached again) they are reused by
+ * name. Creates the instance sets (prototypeTreeSets) and tracks the species meshes' statistics.
  * apply() follows the settings: the trees toggle removes and re-adds the sets, treeLod1/2/treeMaxDistance and wind
  * rewrite the mesh records (setMeshLodDistances).
  */
 class SAIGA_VULKAN_API PrototypeForest
 {
    public:
-    // The scene must have the prototype terrain (the foliage texture of the PrototypeFoliage class). Once per scene.
+    // The scene must have the prototype terrain (the foliage texture of the PrototypeFoliage class). Once per object;
+    // a new PrototypeForest on the same scene reuses the registered meshes and material
     void init(RenderScene& scene, const HeightField& heightField, int treeCount, uint32_t seed,
               const WorldSettings& settings);
     // The trees toggle, the LOD distances and the wind's bounds padding

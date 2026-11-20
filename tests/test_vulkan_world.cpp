@@ -896,6 +896,120 @@ TEST_F(VulkanWorldScene, Sections)
     EXPECT_EQ(scene->lastGpuFrameTimes().frame, frames.back());
 }
 
+// S19a review: a WorldRenderer attached to the same scene again (init + attach after destroy) asserted on the
+// registered name "prototype/foliage" and leaked reserved IDs; it now reuses the tree meshes and the material by name
+// and renders the same image with the same counts
+TEST_F(VulkanWorldScene, ReattachReusesTreeMeshes)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 257;
+    params.treeCount    = 2000;
+    Attach(world, params);
+    auto& hf            = world.heightField();
+    vec3 c              = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    c(1)                = hf.height(c(0), c(2));
+    const vec3 eye      = c + vec3(0, 40, 120);
+    auto a              = Capture(world, eye, c, 3);
+    const auto sa       = world.forest().stats();
+    const auto meshes   = world.forest().meshes();
+    const auto material = world.forest().material();
+    ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
+
+    world.destroy();
+    Attach(world, params);
+    EXPECT_EQ(world.forest().meshes(), meshes);
+    EXPECT_EQ(world.forest().material(), material);
+    auto b        = Capture(world, eye, c, 3);
+    const auto sb = world.forest().stats();
+    EXPECT_EQ(sb.visible, sa.visible);
+    EXPECT_EQ(differingPixels(a, b), 0);
+
+    // Another seed: other species meshes (their names carry the seed), the same material
+    world.destroy();
+    params.seed = 2;
+    Attach(world, params);
+    EXPECT_NE(world.forest().meshes(), meshes);
+    EXPECT_EQ(world.forest().material(), material);
+    Capture(world, eye, c, 2);
+}
+
+// S19a review (untested path): setPrototypeTerrain again with an attached forest (waits for the device, rebinds the
+// foliage texture of the instance draws) gives the same image and tree counts
+TEST_F(VulkanWorldScene, ReplacePrototypeTerrain)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 257;
+    params.treeCount    = 2000;
+    Attach(world, params);
+    auto& hf       = world.heightField();
+    vec3 c         = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    c(1)           = hf.height(c(0), c(2));
+    const vec3 eye = c + vec3(0, 40, 120);
+    auto a         = Capture(world, eye, c, 3);
+    const auto sa  = world.forest().stats();
+    const auto ta  = scene->statistics().terrainNodes;
+    ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
+    scene->setPrototypeTerrain(world.sharedHeightField(), world.settings.prototype(), params.seed);
+    auto b = Capture(world, eye, c, 3);
+    EXPECT_EQ(world.forest().stats().visible, sa.visible);
+    EXPECT_EQ(scene->statistics().terrainNodes, ta);
+    EXPECT_EQ(differingPixels(a, b), 0);
+}
+
+// S19a review (untested path): a resize recreates the depth image and the SAMPLE_ZERO depth resolve target; the
+// prototype then renders at the new size, with the pre-pass the same image (validation clean)
+TEST_F(VulkanWorldScene, ResizeWithPrototype)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 257;
+    params.treeCount    = 2000;
+    Attach(world, params);
+    auto& hf       = world.heightField();
+    vec3 c         = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    c(1)           = hf.height(c(0), c(2));
+    const vec3 eye = c + vec3(0, 40, 120);
+    Capture(world, eye, c, 2);
+    window->setSize(160, 80);
+    auto without = Capture(world, eye, c, 3);
+    EXPECT_EQ(without.w, 160);
+    EXPECT_EQ(without.h, 80);
+    EXPECT_GT(scene->statistics().terrainNodes, 0u);
+    world.settings.depthPrePass = true;
+    auto with                   = Capture(world, eye, c, 3);
+    EXPECT_EQ(with.w, 160);
+    EXPECT_EQ(differingPixels(with, without), 0);
+}
+
+// S19a review (untested path): the trees toggle in consecutive frames (the sets removed and added while earlier frames
+// are in flight) ends in the same image and counts
+TEST_F(VulkanWorldScene, TreesToggleInFlight)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 513;
+    params.treeCount    = 5000;
+    Attach(world, params);
+    auto& hf       = world.heightField();
+    vec3 c         = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    c(1)           = hf.height(c(0), c(2));
+    const vec3 eye = c + vec3(0, 60, 200);
+    auto a         = Capture(world, eye, c, 3);
+    const auto sa  = world.forest().stats();
+    ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
+    for (int i = 0; i < 6; ++i)
+    {
+        world.settings.trees = i % 2 == 1;
+        RenderFrame(world);
+    }
+    world.settings.trees = true;
+    auto b               = Capture(world, eye, c, 3);
+    EXPECT_EQ(world.forest().stats().visible, sa.visible);
+    EXPECT_EQ(differingPixels(a, b), 0);
+}
+
 // S19a: the PrototypeFoliage class needs the foliage texture of setPrototypeTerrain (asserted at addMaterial and
 // setMaterial, no frame needed)
 TEST_F(VulkanWorldScene, FoliageClassNeedsTexture)
@@ -1035,9 +1149,24 @@ TEST_F(VulkanWorldScene, GameTools)
 
     // game_get_state: the extent, statistics, settings and the camera's ground state
     Capture(world, vec3(10, 50, 10), vec3(128, 0, 128), 3);
+    // The app takes the GPU times (EngineApp); here the test
+    FrameTimes gpuTimes;
+    bool gpuTaken = false;
+    while (scene->takeGpuFrameTimes(gpuTimes)) gpuTaken = true;
     world.update();
     Json s = toolResultJson(callWorldTool(server, "game_get_state", Json::object{}));
     EXPECT_EQ(s["world"]["size_m"].number_value(), hf.worldSize()) << s.dump();
+    // S19a renamed gpu_world_ms / gpu_pass_ms (the prototype's own passes) to RenderScene's frame and sections
+    EXPECT_TRUE(s["stats"]["gpu_frame_ms"].is_number()) << s.dump();
+    EXPECT_TRUE(s["stats"]["gpu_section_ms"].is_object()) << s.dump();
+    EXPECT_TRUE(s["stats"]["gpu_world_ms"].is_null()) << s.dump();
+    EXPECT_TRUE(s["stats"]["gpu_pass_ms"].is_null()) << s.dump();
+    if (gpuTaken)
+    {
+        EXPECT_GE(s["stats"]["gpu_frame_ms"].number_value(), 0) << s.dump();
+        for (const char* name : RenderScene::gpuSectionNames())
+            EXPECT_TRUE(s["stats"]["gpu_section_ms"][name].is_number()) << name << " " << s.dump();
+    }
     // The per-LOD tree counts and triangles from the tracked meshes, the trees and the terrain nodes
     const auto fs = world.forest().stats();
     EXPECT_EQ(s["stats"]["trees_total"].int_value(), world.forest().treeCount()) << s.dump();

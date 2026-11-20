@@ -762,6 +762,16 @@ void RenderScene::addMesh(MeshId id, const std::string& name, const MeshLods& lo
     meshPool->addMesh(id, name, lods, material);
 }
 
+MeshId RenderScene::findMesh(const std::string& name) const
+{
+    return meshPool->findMesh(name);
+}
+
+MaterialId RenderScene::findMaterial(const std::string& name) const
+{
+    return meshPool->findMaterial(name);
+}
+
 void RenderScene::setPalette(const std::vector<PaletteEntry>& palette)
 {
     meshPool->setPalette(palette);

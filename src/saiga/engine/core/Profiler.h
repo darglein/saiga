@@ -63,7 +63,8 @@ class SAIGA_ENGINE_API Profiler
     Stats counterStats(int counter, int lastSamples = 0) const;
     // The kept samples of a scope, oldest first (plots)
     std::vector<double> scopeHistory(int scope) const;
-    // The tree of scopes with their statistics and the share of their parent, and the counters, as JSON
+    // The tree of scopes with their statistics and the share of their parent, and the counters, as JSON. A dotted last
+    // part "a.b" is reported below the scope "a" if it exists (the GPU sub-sections inside their pass)
     json11::Json report(int lastSamples = 0) const;
 
 

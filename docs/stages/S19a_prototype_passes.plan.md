@@ -306,3 +306,21 @@ Left open: CI has not run on this branch (lavapipe on the runner: the world gold
 job: the new code on MSVC); the bound on the culling and instance passes is exceeded by 2.4-2.7 % (the generic culling's
 passes, explained above); the flyover interval stays bimodal (S17); no committed baseline after S18 exists yet (the
 comparison is against the S18 tip measured here).
+
+Local review (Opus, after the implementation):
+
+- A `WorldRenderer` attached to the same scene again (`init` + `attach` after `destroy`) asserted on the registered
+  name `prototype/foliage` and leaked reserved IDs: `PrototypeForest::init` reuses the material and the species meshes
+  by name (`RenderScene::findMesh` / `findMaterial`); the mesh names carry the seed (`prototype/tree/<seed>/<species>`,
+  the geometry depends on it). Test `VulkanWorldScene.ReattachReusesTreeMeshes`.
+- The engine's `gpu` profile counted the GPU sub-sections twice (`gpu/scene.instances` was a sibling of `gpu/scene`
+  under `gpu`): `Profiler::report` puts a dotted last part `a.b` below an existing scope `a` (`share_of_parent` and
+  the `top` leaves). Test `Profiler.DottedSubSectionsBelowTheirPass`.
+- Paths checked by hand and now tested (lavapipe and the RTX 5080 with validation): `setPrototypeTerrain` again with an
+  attached forest (`ReplacePrototypeTerrain`: pixel- and count-identical), a resize with the prototype and then the
+  pre-pass (`ResizeWithPrototype`), the trees toggle in consecutive frames (`TreesToggleInFlight`), and
+  `gpu_frame_ms` / `gpu_section_ms` (every section) in `game_get_state` (`GameTools`). `test_vulkan_world` has 27
+  tests. Also checked by hand: the trees toggle with 200k trees, wind 4, crossed LOD distances and the pre-pass over
+  MCP in `game_world --headless --validation` (no message).
+- Goldens unchanged; full ctest on lavapipe passes except `test_opengl_window` (no display); `test_vulkan_*` and
+  `test_engine_app` pass on the RTX 5080 with validation.

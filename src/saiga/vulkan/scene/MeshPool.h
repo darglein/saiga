@@ -82,6 +82,17 @@ class SAIGA_VULKAN_API MeshPool
 
     // nullptr if not registered
     const Mesh* mesh(MeshId id) const;
+    // The ID of a registered name (0: none)
+    MeshId findMesh(const std::string& name) const
+    {
+        auto it = meshNames.find(name);
+        return it == meshNames.end() ? MeshId(0) : it->second;
+    }
+    MaterialId findMaterial(const std::string& name) const
+    {
+        auto it = materialNames.find(name);
+        return it == materialNames.end() ? MaterialId(0) : it->second;
+    }
     // Highest registered MeshId + 1
     uint32_t meshTableSize() const { return uint32_t(meshes.size()); }
     uint32_t meshCount() const { return registeredMeshes; }

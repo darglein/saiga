@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <map>
+#include <string>
 
 namespace Saiga
 {
@@ -107,7 +108,7 @@ std::array<float, 3> prototypeTreeLodEnds(const WorldSettings& s)
 void PrototypeForest::init(RenderScene& _scene, const HeightField& hf, int treeCount, uint32_t seed,
                            const WorldSettings& settings)
 {
-    SAIGA_ASSERT(!scene, "PrototypeForest::init: once per scene");
+    SAIGA_ASSERT(!scene, "PrototypeForest::init: once per object");
     SAIGA_ASSERT(_scene.hasPrototypeTerrain(),
                  "PrototypeForest: the scene needs setPrototypeTerrain (foliage texture)");
     scene   = &_scene;
@@ -115,18 +116,30 @@ void PrototypeForest::init(RenderScene& _scene, const HeightField& hf, int treeC
     ends    = prototypeTreeLodEnds(settings);
     padding = prototypeTreePadding(settings);
 
-    MaterialData material;
-    material.pipelineClass = uint8_t(PipelineClass::PrototypeFoliage);
-    material.twoSided      = true;
-    materialId             = MaterialId(scene->reserveIds(SceneIdKind::Material, 1));
-    scene->addMaterial(materialId, "prototype/foliage", material);
-    const MeshId first = MeshId(scene->reserveIds(SceneIdKind::Mesh, uint32_t(species.size())));
+    // A scene keeps the meshes and the material after the forest is gone (RenderScene removes neither): a forest
+    // attached to the same scene again reuses them by name (no reserved IDs leak, no name assert). The species meshes
+    // depend on the seed, which is part of their names
+    materialId = scene->findMaterial("prototype/foliage");
+    if (materialId == 0)
+    {
+        MaterialData material;
+        material.pipelineClass = uint8_t(PipelineClass::PrototypeFoliage);
+        material.twoSided      = true;
+        materialId             = MaterialId(scene->reserveIds(SceneIdKind::Material, 1));
+        scene->addMaterial(materialId, "prototype/foliage", material);
+    }
     meshIds.clear();
     for (size_t s = 0; s < species.size(); ++s)
     {
-        const MeshId id = MeshId(first + s);
-        scene->addMesh(id, std::string("prototype/tree/") + species[s].name,
-                       prototypeTreeMesh(species[s], ends, padding), materialId);
+        const std::string name = "prototype/tree/" + std::to_string(seed) + "/" + species[s].name;
+        MeshId id              = scene->findMesh(name);
+        if (id != 0)
+            scene->setMeshLodDistances(id, {ends[0], ends[1], ends[2]}, padding);
+        else
+        {
+            id = MeshId(scene->reserveIds(SceneIdKind::Mesh, 1));
+            scene->addMesh(id, name, prototypeTreeMesh(species[s], ends, padding), materialId);
+        }
         meshIds.push_back(id);
     }
     scene->trackMeshStatistics(meshIds);

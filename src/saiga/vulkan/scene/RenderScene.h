@@ -149,6 +149,9 @@ class SAIGA_VULKAN_API RenderScene
     // Reserves count consecutive IDs of the game range [1, kGameReservedIds) for content the game registers directly
     // on the scene (S19a: the prototype's tree meshes and material); returns the first (the range is asserted)
     uint16_t reserveIds(SceneIdKind kind, uint32_t count);
+    // The ID of a registered mesh or material name (0: none); e.g. a game re-attaching its content to the scene
+    MeshId findMesh(const std::string& name) const;
+    MaterialId findMaterial(const std::string& name) const;
     // The game's palette (at most 4096 entries), read by the materials with usePalette
     void setPalette(const std::vector<PaletteEntry>& palette);
 

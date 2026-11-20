@@ -63,7 +63,8 @@ class SAIGA_VULKAN_API WorldRenderer
     void init(const WorldParameters& parameters, std::shared_ptr<const HeightField> heightField);
     // setPrototypeTerrain with the settings, then the trees' instance sets (outside of renderFrame)
     void attach(RenderScene& scene);
-    // Forgets the scene (its instance sets are removed if the scene lives on) and the height field
+    // Forgets the scene (its instance sets are removed if the scene lives on) and the height field; the tree meshes and
+    // material stay registered on the scene, and a later init + attach to the same scene reuses them by name
     void destroy();
 
     // Per frame, before the scene records the frame: the settings (setPrototypeSettings, the trees) and the statistics
