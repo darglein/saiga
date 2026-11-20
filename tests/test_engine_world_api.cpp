@@ -1842,3 +1842,72 @@ TEST(WorldApi, ImportedSnapshotLearnsOnlyItsOwnHash)
     for (auto& x : second.value["snapshots"].array_items())
         if (x["name"] == "b") EXPECT_FALSE(x["hash"].is_null()) << x.dump();
 }
+
+// Regression (CodeRabbit, S11): save_snapshot (and diff_snapshot against the live world) from inside a game hook
+// reached World::save's assert instead of returning a failure
+namespace
+{
+WorldApi* g_hookApi = nullptr;
+std::vector<ApiResult> g_hookResults;
+enum class HookSaveClass : uint16_t
+{
+    Saver = kFirstGameClass + 1,
+};
+class Saver final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(HookSaveClass::Saver);
+    static constexpr const char* name = "Saver";
+    void onSpawn() override
+    {
+        g_hookResults.push_back(g_hookApi->call("save_snapshot", obj(R"({"name": "in_hook"})")));
+        g_hookResults.push_back(g_hookApi->call("diff_snapshot", obj(R"({"name": "before"})")));
+    }
+};
+}  // namespace
+
+TEST(WorldApi, SnapshotSavesAreRefusedInsideGameHooks)
+{
+    WorldSetup s = apiSetup();
+    s.classes    = [](ClassList& c)
+    {
+        c.add<Dummy>();
+        c.add<Saver>();
+    };
+    World w(s);
+    WorldApi api(w);
+    g_hookApi = &api;
+    g_hookResults.clear();
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "before"})")).ok);
+    w.spawn<Saver>(Vec3::Zero());
+    g_hookApi = nullptr;
+    ASSERT_EQ(g_hookResults.size(), 2u);
+    for (const ApiResult& r : g_hookResults)
+    {
+        EXPECT_FALSE(r.ok);
+        EXPECT_NE(r.error.find("not inside a game hook"), std::string::npos) << r.error;
+    }
+    EXPECT_TRUE(api.call("save_snapshot", obj(R"({"name": "after"})")).ok);
+}
+
+// Regression (CodeRabbit, S11): an imported snapshot learned the hash of the world after the load listeners changed it
+TEST(WorldApi, ImportedSnapshotLearnsTheHashBeforeTheListeners)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    api.setSnapshotDirectory(::testing::TempDir());
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "one"})")).ok);
+    const ApiResult saved = api.call("list_snapshots", Json());
+    std::string hashOne;
+    for (auto& x : saved.value["snapshots"].array_items())
+        if (x["name"] == "one") hashOne = x["hash"].string_value();
+    ASSERT_TRUE(
+        api.call("export_snapshot", obj(R"({"name": "one", "file": "saiga_hash_1.sgws", "overwrite": true})")).ok);
+    ASSERT_TRUE(api.call("import_snapshot", obj(R"({"name": "b", "file": "saiga_hash_1.sgws"})")).ok);
+    const int id = w.addLoadListener([&](const LoadInfo&) { w.create(); });
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "b"})")).ok);
+    w.removeLoadListener(id);
+    const ApiResult listed = api.call("list_snapshots", Json());
+    for (auto& x : listed.value["snapshots"].array_items())
+        if (x["name"] == "b") EXPECT_EQ(x["hash"].string_value(), hashOne) << x.dump();
+}

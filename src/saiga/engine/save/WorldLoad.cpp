@@ -805,6 +805,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
         SAIGA_LOG("save", "load: dropped the pending events of the unregistered type %s", e.c_str());
     startObjects(result);
 
+    result.hash = w.hash();
     LoadInfo info;
     info.loadCount = w.loads;
     info.logBegin  = logBegin;

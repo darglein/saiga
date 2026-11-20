@@ -33,6 +33,8 @@ struct LoadResult
     std::vector<Entity> removed;
     // Load listeners that threw (the others still ran)
     std::vector<std::string> listenerErrors;
+    // The hash of the loaded world before the load listeners ran (they may change it)
+    uint64_t hash = 0;
     bool ok() const { return committed && hookErrors.empty(); }
 };
 

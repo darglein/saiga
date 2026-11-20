@@ -1509,6 +1509,7 @@ ApiResult WorldApi::saveSnapshot(const Json& a)
     auto existing = snapshots.find(name);
     if (existing != snapshots.end() && !overwrite)
         return ApiResult::failure("save_snapshot: \"" + name + "\" exists (overwrite: true replaces it)");
+    if (!w->canSave()) return ApiResult::failure("save_snapshot: a save only between steps, not inside a game hook");
     Snapshot s;
     s.bytes      = w->save();
     s.step       = w->stepIndex();
@@ -1557,7 +1558,7 @@ ApiResult WorldApi::loadSnapshot(const Json& a)
         auto again = snapshots.find(name);
         if (again != snapshots.end() && again->second.revision == revision && !again->second.hasHash)
         {
-            again->second.hash    = w->hash();
+            again->second.hash    = r.hash;  // before the load listeners could change the world
             again->second.hasHash = true;
         }
     }
@@ -1635,7 +1636,12 @@ ApiResult WorldApi::diffSnapshot(const Json& a)
         against = o->first;
     }
     else
+    {
+        if (!w->canSave())
+            return ApiResult::failure(
+                "diff_snapshot: the live world is saved only between steps, not inside a game hook");
         other = w->save();
+    }
     const SaveDiff d = diffSaves(it->second.bytes, other, filter);
     if (!d.error.empty()) return ApiResult::failure("diff_snapshot: " + d.error);
     Json::array diffs;
@@ -1782,6 +1788,10 @@ ApiResult WorldApi::reloadData(const Json& a)
     if (reconfigure)
     {
         // Every game object runs configure() with the new values (a save and load of the world)
+        if (!w->canSave())
+            return ApiResult::failure(
+                "reload_data: the data were reloaded, the reconfigure needs a save between steps, "
+                "not inside a game hook");
         const LoadResult r = w->tryLoad(w->save());
         if (!r.committed)
             return ApiResult::failure("reload_data: the data were reloaded, the reconfigure failed: " + r.error);

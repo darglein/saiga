@@ -376,6 +376,8 @@ class SAIGA_ENGINE_API World
     int spatialGridConsumer() const { return gridConsumer; }
     Phase currentPhase() const { return phase; }
     bool inStep() const { return phase != Phase::None; }
+    // save() is allowed: between steps and not inside a game hook (save() asserts otherwise)
+    bool canSave() const { return !inStep() && hookDepth == 0 && loadHookPhase == 0; }
     // Entities whose Transform changed in this or the previous step, sorted by index (built in phase 6)
     const std::vector<uint32_t>& changedTransforms() const { return changed; }
     std::vector<uint32_t>& changedTransformsForUpdate() { return changed; }
