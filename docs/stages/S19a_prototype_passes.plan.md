@@ -1,6 +1,6 @@
 # S19a: Prototype passes in RenderScene
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -195,3 +195,114 @@ the benchmark recipe of AGENTS.md; the demos' screenshots.
 `samples/games/{world,flight,racing,common}/`, `src/saiga/engine/app/` (`passNames` / `passTimes` removed for
 `game_world`), `src/saiga/vulkan/scene/RenderSceneTypes.h` (`kGameReservedIds`), `tests/test_vulkan_world.cpp`, `tests/test_engine_app.cpp` (sections),
 `data/tests/benchmarks.json`, `docs/engine_design.md`, `AGENTS.md`, this file.
+
+## Design changes
+
+- **Files**: `TerrainRenderer` and `GrassRenderer` moved to `vulkan/scene/` (used by `PrototypeWorld`); `WorldCommon.h`
+  stays in `vulkan/world/` (the prototype's `WorldUniforms` and the frustum helpers of the tests); `WorldSettings` got
+  its own `vulkan/world/WorldSettings.{h,cpp}` (`PrototypeForest` needs it, `WorldRenderer` owns a `PrototypeForest`);
+  `PrototypeForest` (with `prototypeTreeSets`, `prototypeTreeMesh`, `prototypeTreeLodEnds`) is in
+  `vulkan/world/PrototypeForest.{h,cpp}`. Shaders: `scene/prototype_foliage.vert/.frag`, `scene/scene_lighting.glsl`
+  (the lighting block), `world/prototype_shading.glsl` (the shared include: clay light, fog, LOD tint, output, alpha
+  sharpening; `shading.glsl` wraps it with the world uniforms); `world/tree.vert` and `tree_cull.comp` removed,
+  `world/foliage.frag` stays for the grass.
+- **`WorldRenderer` keeps more than the height field and generators**: the settings, the `PrototypeForest`, the GUI and
+  the statistics window (from `RenderScene`'s statistics and the newest GPU frame), `attach(RenderScene&)` (the
+  `setPrototypeTerrain` and the trees) and `update()` (per frame: `setPrototypeSettings`, `PrototypeForest::apply`). It
+  has no GPU resources; `WorldMcp`, `WorldLighting.h` and the three games keep using it. `statsJson` (game_get_state)
+  keeps the tree counts per LOD, `tree_triangles` and `terrain_nodes`; `gpu_world_ms` / `gpu_pass_ms` became
+  `gpu_frame_ms` / `gpu_section_ms` (RenderScene's frame and sections), the CPU `transfer` / `render` times are gone.
+- **The depth pre-pass is off for the prototype** (`PrototypeSettings::depthPrePass` and `WorldSettings::depthPrePass`
+  default false; the setting `depth_pre_pass` in the GUI and `game_set_settings`): measured slower in both benchmarks
+  (Results), as the plan anticipated. The mechanism stays (tests compare it pixel-exact) for S37.
+- **A fog variant of the flat pipelines** (`SCENE_FOG`, injected define; `SceneCulling` picks the variant per frame from
+  the lighting block's fog flag): the camera-relative position as a varying cost 7 % of the flat draws in the culling
+  benchmark (1.375 vs 1.285 ms) also with the fog off. The foliage class always has the fog.
+- **The camera from the transfer callback**: the frame's camera is computed again after the game's transfer callback,
+  and `setCamera` updates `viewMatrix()` / `projectionMatrix()` at once (with the last surface size), so a game sets the
+  camera in its transfer hook and its `MeshRenderer` reads `RenderScene`'s matrices in the same callback (the plan's
+  "the demos' meshes ... using `RenderScene::viewProjection()`"; S19b adds `beforeRender`).
+- **`reserveIds(SceneIdKind kind, uint32_t count) -> uint16_t`**: one function for the two ID spaces (mesh, material);
+  `addMesh` / `addMaterial` do not check that a game-range ID was reserved.
+- **Lighting block** (set 1 of the instance draws, `SceneLighting`, per frame slot, with the foliage texture in binding
+  1): the flat model keeps S18's constant ambient by default (`scene_flat_box` bit-identical) and uses the prototype's
+  hemisphere ambient `ambient * (0.6 + 0.4 n.y)` with `setPrototypeTerrain` (`mesh.frag`'s model, so S19b's demo meshes
+  match the world).
+- **Set bounds**: the padded set bounds are the unpadded AABB grown by the largest padding of the set's meshes times
+  the largest scale, also at `addInstanceSet` (S18: exact per instance); the per-instance count pass still decides,
+  the set test only gets more conservative.
+- **Statistics**: `RenderStatistics::terrainNodes` is filled by the prototype (the goldens' terrain node count);
+  `drawCommands` counts the scene pass's indirect draws (the pre-pass repeats those of the opaque classes).
+- **Prototype draws need a camera**: `PrototypeWorld` draws nothing in a frame without a camera (its node lists and
+  uniforms are written in the transfer only with one).
+- **Foliage vertices**: the normals are normalized before the oct encoding; AO and the wind weight are unorm8 in the
+  color word (rounded), the layer 0xFF for the opaque parts.
+- **Benchmark**: the frame interval is measured at the game's transfer hook (each `renderFrame`'s recording);
+  `WorldBenchmark` takes the GPU samples when `game_world` collects them from the app's profile (after the measured
+  frames, as before); `--benchmark` still needs a window (the runs used `SAIGA_SCREENSHOT` with a timeout, which the
+  benchmark ignores).
+- **Engine app**: `GameRenderHooks::passNames` / `passTimes` stay (their test stays); `game_world` no longer uses them
+  (its passes are `RenderScene`'s sections), S19b removes them with `transfer` / `render`.
+- **Tests**: `test_vulkan_world` (23 tests; the forward-renderer fixture `VulkanWorldRender` dropped): new
+  `VulkanWorld.PrototypeTreeSets`, `.TreeLodEnds`, `.FoliageColorWord`; the fixture `VulkanWorldScene` with
+  `RendersTerrainTreesAndSky`, `SharesAnExternalHeightField`, `FlatShadingIsStableFarFromTheOrigin`,
+  `ForestFollowsSettings` (wind 0 -> 4, crossed LOD distances, the trees toggle against the CPU reference),
+  `GrassToggle`, `TimeIndependentOfWallClock`, `DepthResolveAndPrePass` (4 and 1 samples, validation clean, pixel-equal),
+  `Sections`, `FoliageClassNeedsTexture` (death tests), `GameTools`; `VulkanWorldGolden` derives from it.
+  `test_vulkan_scene` (28 tests): `DepthPrePassMatches` (terrain, a static and a dynamic opaque instance at alpha 0.5,
+  4 and 1 samples), `GpuSections` with the 12 sections; `test_engine_app`: the gpu scopes with the new sections.
+
+## Results
+
+Tests (`VK_DRIVER_FILES=.../lvp_icd.json ctest --parallel 8`, RelWithDebInfo, GCC 15): 65 of 66 pass; only
+`test_opengl_window` fails locally (no display, as before). `test_vulkan_*` and `test_engine_app` (14 tests) also pass
+on the RTX 5080 Laptop GPU with the validation layer (no validation message). The demos' `--scenarios` pass (9/9 each);
+the `--demo` screenshots of flight and racing and `game_world`'s start view (`SAIGA_SCREENSHOT`, RTX 5080, with
+`--validation`: no message) look as S18's.
+
+Goldens (lavapipe, Mesa with LLVM 21.1.8): unchanged and passing, with the committed counts: `world_overview` (0, 7,
+3575) trees per LOD and 45 terrain nodes, mean 0.13/255, 0.0072% of the pixels > 16/255, max 38/255; `world_forest`
+(43, 281, 677) and 38 terrain nodes, mean 0.11/255, 0.034%, max 28/255. The CPU reference of the culling rule over
+`placeTrees` gives the same counts (14 and 34 trees in the 1e-3 band). `scene_flat_box` and `hdr_tonemap`: 0/255. On
+the RTX 5080 (not gating): `world_overview` mean 0.13/255 (0.027%), `world_forest` mean 0.61/255 (0.60% > 16/255; the
+NVIDIA alpha-to-coverage edges), the same counts.
+
+Benchmarks (release build of AGENTS.md, RTX 5080 Laptop GPU, 1920 x 1080; before = the S18 tip (the plan commit, built
+from `git archive` in a scratch directory), after = this stage with the pre-pass off; 5 runs each, before and after
+interleaved (the GPU clocks drift between batches: the S18 report measured the forest frame at 1.47 ms); medians of the
+run medians, ms):
+
+| | flyover before | flyover after | forest before | forest after |
+|---|---|---|---|---|
+| `cpu_ms` (frame interval) | 2.412 (2.32-3.84) | 2.481 (2.39-2.50) (+2.9 %) | 2.878 (2.50-3.02) | 2.336 (2.27-2.37) |
+| `recording` | 0.126 | 0.187 | 0.115 | 0.157 |
+| `gpu_frame_ms.gpu` (whole frame) | 2.132 (2.03-2.32) | 2.120 (2.08-2.22) (-0.5 %) | 1.867 (1.80-1.88) | 1.837 (1.81-1.86) (-1.6 %) |
+| trees (`scene.instances`) | 1.440 | 1.429 (-0.8 %) | 0.468 | 0.466 (-0.6 %) |
+| upload + cull (`transfer` + `cull`) | 0.024 | 0.076 (0.005 + 0.070) | 0.024 | 0.038 (0.005 + 0.033) |
+| terrain + water | 0.106 | 0.094 | 0.066 | 0.051 |
+| grass | 0 | 0 | 0.675 | 0.687 (+1.8 %) |
+| sky | 0.011 | 0.011 | 0.008 | 0.008 |
+
+- The bound `transfer` + `cull` + `scene.instances` <= S03 `trees` + `upload + cull`: flyover 1.504 vs 1.464 ms
+  (+0.040 ms, +2.7 %), forest 0.504 vs 0.492 ms (+0.012 ms, +2.4 %): exceeded, an explained budget (R-TEST-2): the tree
+  draws are 0.6-0.8 % faster, the difference is the generic culling (S18's count, scan and write passes over 928 sets,
+  0.070 ms in the flyover, the culling benchmark's 0.068 ms) against the prototype's single `tree_cull.comp` pass
+  (inside 0.024 ms with the uploads). The whole frame is within the bound: the GPU frame -0.5 % / -1.6 %, the frame
+  interval +2.9 % in the flyover (the forest's before runs are in the slow mode of the bimodal interval).
+- `recording` (the app's recording and submit, `cpu_work_ms` from now on) grows by 0.04-0.06 ms: the instance path's
+  per-frame CPU work (the work chunks and the offset table of 928 sets, the descriptor writes), as in S18's culling
+  benchmark. `terrain + water` is 11-23 % lower (passes below 0.1 ms, timed now by marks inside the scene pass instead
+  of the prototype's marks around its own draws; §17.7's timer noise for such passes is up to 5 %); the grass +1.8 %.
+- With the depth pre-pass (2 runs each, not interleaved, same build otherwise): flyover `gpu_frame_ms.gpu` 2.38 / 2.29
+  vs 2.16 / 2.13 without, `terrain + water` 0.154 (`depth.terrain` 0.068 + `scene.terrain` 0.086) vs 0.095; forest 1.96 /
+  1.99 vs 1.93 / 1.92 (`depth.terrain` 0.032 + `scene.terrain` 0.046 vs 0.052). The second CDLOD vertex pass costs more
+  than the removed terrain self-overdraw saves, so the pre-pass is off for the prototype.
+- Culling benchmark (`sample_vulkan_scene_benchmark`, 3 runs each, interleaved with the S18 tip): `cull_ms` 0.068 (both),
+  `draw_ms` 1.285 vs 1.284 (with the fog variant; 1.375 before it), `scene_empty_ms` 0.045 vs 0.035-0.047 (the
+  `SAMPLE_ZERO` depth resolve, about 0.01 ms), `recording_ms` 0.14-0.16 (both).
+- `data/tests/benchmarks.json` is not updated (S17's baseline is not accepted yet).
+
+Left open: CI has not run on this branch (lavapipe on the runner: the world goldens' margin on CI's Mesa; the MSVC
+job: the new code on MSVC); the bound on the culling and instance passes is exceeded by 2.4-2.7 % (the generic culling's
+passes, explained above); the flyover interval stays bimodal (S17); no committed baseline after S18 exists yet (the
+comparison is against the S18 tip measured here).
