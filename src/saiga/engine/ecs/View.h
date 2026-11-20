@@ -32,6 +32,12 @@ class View
 
    public:
     explicit View(Registry& registry, uint8_t requiredFlags = 0) : reg(&registry), flags(requiredFlags) {}
+    // Only the entities whose owner (owners[index], 0 beyond size) is peer (World::ownedBy, §13.3): one lookup per
+    // candidate. owners must not change while the view iterates.
+    View(Registry& registry, uint8_t requiredFlags, const uint8_t* owners, size_t ownerCount, uint8_t peer)
+        : reg(&registry), flags(requiredFlags), owners(owners), ownerCount(ownerCount), peer(peer), filtered(true)
+    {
+    }
 
     // fn(Entity, C&...)
     template <class F>
@@ -162,7 +168,7 @@ class View
             (void)tr;
             if (k == 0) return false;
             const Registry::Slot& s = reg->slots[k];
-            if (s.state != SlotState::Alive || (s.flags & flags) != flags) return false;
+            if (s.state != SlotState::Alive || (s.flags & flags) != flags || !ownedOk(uint32_t(k))) return false;
             e = Entity{uint32_t(k), s.generation};
             return true;
         }
@@ -170,7 +176,8 @@ class View
         {
             e                       = tr.pool->denseEntities()[k];
             const Registry::Slot& s = reg->slots[e.index];
-            return s.state == SlotState::Alive && s.mask.containsAll(mask) && (s.flags & flags) == flags;
+            return s.state == SlotState::Alive && s.mask.containsAll(mask) && (s.flags & flags) == flags &&
+                   ownedOk(e.index);
         }
     }
 
@@ -194,8 +201,18 @@ class View
             return &reg->pool<T>();
     }
 
+    bool ownedOk(uint32_t index) const
+    {
+        if (!filtered) return true;
+        return (index < ownerCount ? owners[index] : uint8_t(0)) == peer;
+    }
+
     Registry* reg;
     uint8_t flags;
+    const uint8_t* owners = nullptr;
+    size_t ownerCount     = 0;
+    uint8_t peer          = 0;
+    bool filtered         = false;
 };
 
 }  // namespace Engine

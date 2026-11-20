@@ -11,6 +11,7 @@
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
@@ -146,6 +147,8 @@ void registerEngineSystems(SystemList& systems)
     systems.add(Phase::Behaviour, "behaviour", behaviourSystem);
     systems.add(Phase::Gameplay, "player_control", playerControlSystem, RunOn::Both);
     systems.add(Phase::Gameplay, "character_move", characterMoveSystem, RunOn::Both);
+    // S16: the owners' states of client-owned roots (§13.3)
+    systems.add(Phase::Physics, "owner_pose", ownerPoseSystem, RunOn::Host);
     systems.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);
     // After the hierarchy and the grid: the tick intervals use the positions of this step
     systems.add(Phase::Transform, "tick", tickSystem, RunOn::Both);

@@ -46,8 +46,9 @@ struct EnumNames
     constexpr EnumNames(const char* const (&n)[N]) : names(n) {}
 };
 
-// Network quantization of a field: v("pos", p, Quantize{0.01}). Accepted and checked (double, Vec, Mat, Quat); the
-// current visitors ignore the step, S16 adds it to the field list and the replication encoding.
+// Network quantization of a field: v("pos", p, Quantize{0.01}) (double, Vec, Mat, Quat). The replication encoding
+// sends round(v / step) as a zigzag varint (NetVisitors.h, S16) and the field list keeps the step; the binary visitors
+// (saves, the hash) ignore it.
 struct Quantize
 {
     double step;

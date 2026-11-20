@@ -16,6 +16,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/net/Varint.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
@@ -69,7 +70,15 @@ World::World(const WorldSetup& setup)
     registerEngineMessages(messages);
     messages.beginGameMessages();
     if (setup.messages) setup.messages(messages);
-    net = setup.transport;
+    net      = setup.transport;
+    role     = setup.role;
+    selfPeer = setup.localPeer;
+    if (net && net->localPeer() != selfPeer)
+        SAIGA_EXIT_ERROR("WorldSetup::localPeer " + std::to_string(selfPeer) + " differs from the transport's peer " +
+                         std::to_string(net->localPeer()));
+    if (role == NetRole::Host && selfPeer != 0) SAIGA_EXIT_ERROR("WorldSetup: the host is peer 0");
+    if (role == NetRole::Client && (selfPeer == 0 || !net))
+        SAIGA_EXIT_ERROR("WorldSetup: a client needs a transport and a peer other than 0");
 
     // Data files: an error stops the program in every build (R-DATA-1: a game must not run on half-read data)
     dataReadOnly = setup.sharedDataReadOnly;
@@ -87,6 +96,8 @@ World::World(const WorldSetup& setup)
     prof.enabled = setup.profiling;
     setupProfiler();
 
+    // Before the state entities: the host's replication consumer sees their creation (S16)
+    repl = std::make_unique<Replication>(*this);
     createStateEntities();
 }
 
@@ -152,9 +163,7 @@ void World::addDefaultNow(Entity e, ComponentId id)
     SAIGA_ASSERT(!inStep(), "addDefaultNow: between steps");
     SAIGA_ASSERT(id != Transform::id && id != Behaviour::id && id != Persistent::id && id != Parent::id,
                  "addDefaultNow: this component has its own path");
-    auto record = log.prepare(1);
-    reg.addDefault(e, id);
-    record.append(e, id, true);
+    addDefaultInternal(e, id);
 }
 
 void World::removeByIdNow(Entity e, ComponentId id)
@@ -163,9 +172,7 @@ void World::removeByIdNow(Entity e, ComponentId id)
     if (id == Parent::id) return removeNow<Parent>(e);
     if (id == Persistent::id) return removeNow<Persistent>(e);
     if (id == Behaviour::id) return removeNow<Behaviour>(e);  // the object may be running: retired
-    auto record = log.prepare(1);
-    reg.removeById(e, id);
-    record.append(e, id, false);
+    removeInternal(e, id);
 }
 
 Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
@@ -221,6 +228,8 @@ Entity World::beginSpawn(SpaceId space)
 {
     checkNotParallel("spawn");
     SAIGA_ASSERT(space == 0, "spawnIn: only space 0 exists before S21");
+    // A replicated game object only arrives on a client (§13.5)
+    SAIGA_ASSERT(isHost(), "spawn<T> on a client (game objects arrive through replication)");
     return create();
 }
 
@@ -279,7 +288,125 @@ void World::queueAction(const PlayerAction& action)
         SAIGA_ASSERT(false, "queueAction: the player is not alive or has no Player component");
         return;
     }
+    if (!isHost())
+    {
+        // A client sends the actions of the players it owns (§9.3); refused in every build otherwise
+        if (ownerOf(action.player) != selfPeer)
+        {
+            SAIGA_ASSERT(false, "queueAction: a client queues actions only for the players it owns");
+            return;
+        }
+        repl->sendPlayerAction(action);
+        return;
+    }
     actions.push_back(QueuedAction{reg.read<Player>(action.player).peer, actionSequence++, action});
+}
+
+void World::setOwner(Entity root, uint8_t peer)
+{
+    checkNotParallel("setOwner");
+    // Refused in every build
+    if (!isHost())
+    {
+        SAIGA_ASSERT(false, "setOwner on a client (ownership is set by the host)");
+        return;
+    }
+    if (!reg.alive(root) && !reg.reserved(root))
+    {
+        SAIGA_ASSERT(false, "setOwner: the entity is not alive");
+        return;
+    }
+    if (reg.alive(root))
+    {
+        if (reg.has<Parent>(root))
+        {
+            SAIGA_ASSERT(false, "setOwner: the entity is a child (ownership is defined on roots, §13.3)");
+            return;
+        }
+        if (repl->spawned(root))
+        {
+            SAIGA_ASSERT(false, "setOwner: the entity's spawn was sent already (no ownership transfer, §13.3)");
+            return;
+        }
+        if (const Player* p = reg.tryRead<Player>(root); p && p->peer != peer)
+        {
+            SAIGA_ASSERT(false, "setOwner: Player.peer " + std::to_string(p->peer) + " differs from the owner " +
+                                    std::to_string(peer));
+            return;
+        }
+        if (NetOwner* o = reg.tryGet<NetOwner>(root))
+        {
+            o->peer         = peer;
+            ownerCacheDirty = true;
+            return;
+        }
+    }
+    add<NetOwner>(root, NetOwner{peer});
+}
+
+void World::ownerTeleport(Entity root, const Vec3& position, const Quat& rotation)
+{
+    checkNotParallel("ownerTeleport");
+    if (!isHost())
+    {
+        SAIGA_ASSERT(false, "ownerTeleport on a client (a host command)");
+        return;
+    }
+    if (!reg.alive(root) || reg.has<Parent>(root))
+    {
+        SAIGA_ASSERT(false, "ownerTeleport: the entity is not an alive root");
+        return;
+    }
+    repl->ownerTeleport(root, position, rotation);
+}
+
+void World::rebuildOwnerCache() const
+{
+    ownerCache.assign(size_t(reg.slotCount()), uint8_t(0));
+    ownerCacheDirty = false;
+    if (!reg.registered(NetOwner::id)) return;
+    Registry& r = const_cast<Registry&>(reg);
+    bool any    = false;
+    r.view<const NetOwner>().each(
+        [&](Entity e, const NetOwner& o)
+        {
+            ownerCache[e.index] = o.peer;
+            any                 = any || o.peer != 0;
+        });
+    if (!any || !reg.registered(Parent::id)) return;
+    // Descendants inherit the root's owner (bounded walk: a broken registry cannot loop)
+    const uint32_t max = reg.slotCount();
+    r.view<const Parent>().each(
+        [&](Entity e, const Parent& p)
+        {
+            Entity a = p.entity;
+            for (uint32_t depth = 0; depth <= max && reg.alive(a); ++depth)
+            {
+                const Parent* up = reg.tryRead<Parent>(a);
+                if (!up) break;
+                a = up->entity;
+            }
+            if (reg.alive(a)) ownerCache[e.index] = ownerCache[a.index];
+        });
+}
+
+void World::addDefaultInternal(Entity e, ComponentId id)
+{
+    auto record = log.prepare(1);
+    reg.addDefault(e, id);
+    record.append(e, id, true);
+    if (id == NetOwner::id) ownerCacheDirty = true;
+}
+
+void World::removeInternal(Entity e, ComponentId id)
+{
+    if (id == Parent::id) return removeNow<Parent>(e);
+    if (id == Persistent::id) return removeNow<Persistent>(e);
+    if (id == Behaviour::id) return removeNow<Behaviour>(e);
+    auto record = log.prepare(1);
+    reg.removeById(e, id);
+    record.append(e, id, false);
+    if (id == NetOwner::id) ownerCacheDirty = true;
 }
 
 void World::deliverActions()
@@ -294,6 +421,12 @@ void World::deliverActions()
 PersistentId World::makePersistent(Entity e)
 {
     checkNotParallel("makePersistent");
+    // The client's counter would collide with the host's IDs; refused in every build
+    if (!isHost())
+    {
+        SAIGA_ASSERT(false, "makePersistent on a client (Persistent IDs come from the host)");
+        return PersistentId{};
+    }
     if (loadHookPhase && !checkLoadHook("makePersistent", e, Persistent::id)) return PersistentId{};
     if (!reg.alive(e) && !reg.reserved(e))
     {
@@ -382,6 +515,12 @@ void World::destroy(Entity e)
 {
     checkNotParallel("destroy");
     if (loadHookPhase && !checkLoadHook("destroy", e, Transform::id)) return;
+    if (!isHost() && repl->netIdOf(e) != 0)
+    {
+        // Refused in every build: replicated entities are destroyed by the host (§13.5)
+        SAIGA_ASSERT(false, "destroy: a client cannot destroy a replicated entity");
+        return;
+    }
     if (reg.alive(e) && (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState)))
     {
         // Refused in every build (the world state must stay; asserts in builds with asserts)
@@ -528,6 +667,7 @@ void World::destroyOne(Entity e)
         for (size_t id = 0; id < kMaxComponents; ++id)
             if (m.test(ComponentId(id))) prepared.append(x, ComponentId(id), false);
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
+        if (m.test(Parent::id) || m.test(NetOwner::id) || doomed.size() > 1) ownerCacheDirty = true;
     }
     // An entity whose onDestroy ran but that a hook released from the cascade (e.g. removed its Parent) lives on:
     // its flag is reset, so its real destroy later calls onDestroy again
@@ -577,7 +717,8 @@ bool World::rebuildHierarchyState()
     }
     if (!ok) return false;
     children.swap(counts);
-    hierarchyDirty = true;
+    hierarchyDirty  = true;
+    ownerCacheDirty = true;
     return true;
 }
 
@@ -650,6 +791,8 @@ void World::abortStep()
     // were reserved; the event restore is a swap), so the cleanup cannot fail while the exception propagates.
     commands.clear();
     if (restore) events.abortStep();
+    // The replication bookkeeping staged in the aborted phase is dropped (S16)
+    repl->abort(aborted);
     pendingPersistent.clear();
     for (Entity e : pendingReserved)
         if (reg.reserved(e)) reg.release(e);
@@ -709,19 +852,28 @@ void World::runStep()
             Profiler::Timer phaseTimer(prof, phaseScopes[size_t(p)]);
             // Teleports made in phase 7 reach the children before extract reads them (§7.4)
             if (phase == Phase::Extract) propagateTeleportsBeforeExtract(*this);
-            // Received messages before the phase's systems (§8.1 phase 1)
-            if (phase == Phase::Input && net) receiveMessages();
+            // Received messages before the phase's systems (§8.1 phase 1); a client applies the newest snapshot
+            if (phase == Phase::Input && net)
+            {
+                receiveMessages();
+                repl->afterReceive(false);
+            }
             const auto& list = systems.systems(phase);
+            const RunOn skip = isHost() ? RunOn::Client : RunOn::Host;
             for (size_t i = 0; i < list.size(); ++i)
             {
-                // Before S16 the world is the host: client-only systems do not run
-                if (list[i].runOn == RunOn::Client) continue;
+                // RunOn filtering (§8.2): the host runs Host and Both, a client Client and Both
+                if (list[i].runOn == skip) continue;
                 Profiler::Timer systemTimer(prof, systemScopes[size_t(p)][i]);
                 list[i].fn(*this, stepDt);
             }
-            Profiler::Timer flushTimer(prof, flushScopes[size_t(p)]);
-            prof.addCounter(commandsCounter, double(commands.size()));
-            flushCommands();
+            {
+                Profiler::Timer flushTimer(prof, flushScopes[size_t(p)]);
+                prof.addCounter(commandsCounter, double(commands.size()));
+                flushCommands();
+            }
+            // After phase 8's systems and their commands: replication (host), owner state (owners), interpolation
+            if (phase == Phase::Extract) repl->extract(false);
         }
         // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
         collectLateChildTeleports(*this);
@@ -739,6 +891,8 @@ void World::runStep()
     phase              = Phase::None;
     stepEventsBegun    = false;
     peerListsCommitted = true;
+    // The step completed: the staged replication bookkeeping is committed
+    repl->commit();
     stepChanged.clear();
     reg.shiftTransformFlags(trackStepChanges > 0 ? &stepChanged : nullptr);
     // The records of this step (consumers that read after the step, e.g. the world API, keep older ones a step longer)
@@ -751,6 +905,48 @@ void World::runStep()
     if (prof.enabled)
         prof.add(stepScope,
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - stepStart).count());
+}
+
+void World::stepNetworkOnly()
+{
+    SAIGA_ASSERT(!inStep(), "World::stepNetworkOnly inside a step");
+    if (dispatchingStepListeners)
+    {
+        SAIGA_ASSERT(false, "World::stepNetworkOnly inside a step listener (not supported)");
+        throw std::logic_error("World::stepNetworkOnly inside a step listener (not supported)");
+    }
+    try
+    {
+        phase = Phase::Input;
+        if (net)
+        {
+            receiveMessages(true);
+            repl->afterReceive(true);
+        }
+        flushCommands();
+        if (isHost())
+        {
+            phase = Phase::Physics;
+            repl->ownerPose(false);
+            flushCommands();
+        }
+        // Derived child transforms follow (phase 6's hierarchy)
+        phase = Phase::Transform;
+        transformSystem(*this, stepDt);
+        flushCommands();
+        phase = Phase::Extract;
+        repl->extract(true);
+        flushCommands();
+        flushOutbox();
+    }
+    catch (...)
+    {
+        abortStep();
+        throw;
+    }
+    phase              = Phase::None;
+    peerListsCommitted = true;
+    repl->commit();
 }
 
 void World::step(int n)
@@ -1022,7 +1218,7 @@ bool World::decodePacket(uint8_t peer, const std::vector<uint8_t>& packet, std::
     return true;
 }
 
-void World::receiveMessages()
+void World::receiveMessages(bool engineOnly)
 {
     // The peer lists of a completed step are replaced; after an aborted step they stay until a step completes
     if (peerListsCommitted)
@@ -1061,11 +1257,18 @@ void World::receiveMessages()
                      { return a.peer != b.peer ? a.peer < b.peer : a.sequence < b.sequence; });
     for (auto& m : received) inbox.push_back(std::move(m));
     size_t i = 0;
+    // stepNetworkOnly: game messages stay queued (in order) for the next step
+    std::vector<ReceivedMessage> deferred;
     try
     {
         for (; i < inbox.size(); ++i)
         {
-            const ReceivedMessage& m    = inbox[i];
+            const ReceivedMessage& m = inbox[i];
+            if (engineOnly && m.id >= MessageId(EngineMessage::FirstGame))
+            {
+                deferred.push_back(std::move(inbox[i]));
+                continue;
+            }
             const MessageList::Entry* e = messages.find(m.id);
             if (!e)
             {
@@ -1093,9 +1296,10 @@ void World::receiveMessages()
         // commands are dropped by abortStep; the rest is handled first in the next step
         netCounts.handlerExceptions++;
         inbox.erase(inbox.begin(), inbox.begin() + std::ptrdiff_t(i + 1));
+        inbox.insert(inbox.begin(), std::make_move_iterator(deferred.begin()), std::make_move_iterator(deferred.end()));
         throw;
     }
-    inbox.clear();
+    inbox.swap(deferred);
 }
 
 }  // namespace Engine

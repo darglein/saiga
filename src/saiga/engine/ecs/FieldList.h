@@ -24,6 +24,8 @@ struct FieldInfo
     std::string type;
     // For type "enum": the value names in value order (the name tables of the schema, §15.2)
     std::vector<std::string> enumValues;
+    // The network quantization step (Quantize, §13.4; 0: none). Not part of the save schema.
+    double quantize = 0;
 };
 
 template <class T>
@@ -83,9 +85,10 @@ class FieldListVisitor
         fields.push_back(f);
     }
     template <class T>
-    void operator()(const char* name, T& field, const Quantize&)
+    void operator()(const char* name, T& field, const Quantize& q)
     {
         (*this)(name, field);
+        fields.back().quantize = q.step;
     }
 
     std::vector<FieldInfo> fields;

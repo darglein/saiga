@@ -94,6 +94,7 @@ class SAIGA_ENGINE_API GameObject
    private:
     friend class World;
     friend class WorldLoader;
+    friend class Replication;
     World* owner = nullptr;
     Entity self;
 };

@@ -172,6 +172,9 @@ class SAIGA_ENGINE_API Registry
     // requiredFlags: only entities that have all these flags (the World passes kSimulated in phases 2-5)
     template <class... C>
     View<C...> view(uint8_t requiredFlags = 0);
+    // A view of the entities whose owner (owners[index]) is peer (World::ownedBy, S16)
+    template <class... C>
+    View<C...> ownedView(uint8_t requiredFlags, const std::vector<uint8_t>& owners, uint8_t peer);
 
     // True while a view iterates (structural changes assert); atomic: views nested in parallelEach run on workers
     bool iterating() const { return iterationDepth.load(std::memory_order_relaxed) > 0; }
@@ -430,6 +433,11 @@ template <class... C>
 View<C...> Registry::view(uint8_t requiredFlags)
 {
     return View<C...>(*this, requiredFlags);
+}
+template <class... C>
+View<C...> Registry::ownedView(uint8_t requiredFlags, const std::vector<uint8_t>& owners, uint8_t peer)
+{
+    return View<C...>(*this, requiredFlags, owners.data(), owners.size(), peer);
 }
 
 }  // namespace Engine

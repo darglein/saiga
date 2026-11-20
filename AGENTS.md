@@ -76,7 +76,9 @@ src/
                         (scenario tests, §17.2); save/: World::save/tryLoad (SaveFormat.h, SchemaTable,
                         MigrationList, SaveDecoder, diffSaves); data/: data files (DataTypeList, DataStore, DataRef,
                         readDataFile); net/: Transport, LoopbackTransport, Fragmenter, MessageList (network messages,
-                        World::send); app/: EngineApp (the engine's frame loop: window or headless, RenderScene, MCP,
+                        World::send), the replication (S16: Replication with the host's NetId table and the client
+                        handlers, NetVisitors.h, EngineMessages, NetOwner.h, HostClock, InterpolationSystem;
+                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld); app/: EngineApp (the engine's frame loop: window or headless, RenderScene, MCP,
                         input map, frame/GPU profiles), engineMain and the command line of engine games, InputMap,
                         the app tools (quit, app_status, set_input; screenshot, set_camera/move_camera with the camera
                         hold, list_scenarios/run_scenario)
@@ -193,7 +195,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-65 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+66 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests

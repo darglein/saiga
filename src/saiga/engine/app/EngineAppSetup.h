@@ -49,7 +49,10 @@ struct EngineAppSetup
     int width = 1600, height = 900;
     bool vsync = true, validation = false;
     Vulkan::RenderSceneParameters render;
-    void (*scenarios)(ScenarioList&) = nullptr;             // --scenarios, list_scenarios, run_scenario
+    void (*scenarios)(ScenarioList&) = nullptr;  // --scenarios, list_scenarios, run_scenario
+    // --scenarios also runs the host + client variants (ScenarioOptions::networkVariants, §17.3); the tech demos turn
+    // it on when they are ported (S16b)
+    bool networkVariants = false;
     std::function<void(McpServer&, EngineApp&)> gameTools;  // game_* tools
     // Writes the game's own control components from the input map (e.g. flight sticks); with a local player
     std::function<void(const InputMap&, World&, Entity localPlayer)> applyInput;

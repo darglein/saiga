@@ -1,6 +1,6 @@
 # S16: Replication skeleton
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -303,3 +303,75 @@ Systems.h,PlayerAction.h}`, `src/saiga/engine/save/WorldLoad.cpp` (epoch, `Resyn
 (incl. `ScenarioRunner`), `src/saiga/engine/app/EngineAppSetup.h` (`networkVariants`), `src/saiga/engine/api/WorldApi.cpp`, `tests/test_engine_{net,replication,
 scenarios,ecs_benchmark,net_benchmark}.cpp`, `tests/CMakeLists.txt`, `data/tests/engine/schema.json` (new components),
 `docs/engine_design.md`, `AGENTS.md`, this file.
+
+## Design changes
+
+- Owner table: `World::ownedBy` / `ownerOf` read a cached owner per entity slot that is rebuilt lazily (one pass over
+  the `NetOwner` and `Parent` pools) when a `Parent`, `NetOwner` or destroy change (or a load) marked it dirty, instead
+  of updating the subtree at each change. Same lookup cost per entity; simpler and correct for slot reuse.
+- Owner states of descendants: the `OwnerState` message carries one record per owned entity (root and descendants,
+  each with its `NetId` and the root's command counter; the descendants without their derived `Transform`) instead of
+  nesting the descendants' components inside the root's record. The content is the same, the decoder is the snapshot
+  one.
+- Replication bookkeeping: staged as an undo journal per phase (old slot values, hashes, NetId map entries, the NetId
+  counter and the snapshot sequence), committed when the step or `stepNetworkOnly` completes. An abort undoes only the
+  aborted phase's entries, rewinds the log consumer when phase 8's replication ran, and untags the kept entries (found
+  in the local review: an `ownerTeleport` in phase 4 followed by aborts in phase 6 and then in phase 4 of the next step
+  undid the counter of a sent `OwnerCommand`; regression test).
+- Host messages without anything to replicate: no snapshot is sent when no entity is replicated, and a client sends
+  `Ping` only once it has a clock estimate (a snapshot arrived), so worlds that only exchange game messages (S15's
+  tests) see no engine traffic.
+- `WorldSetup` checks (every build): a host is peer 0 and a client needs a transport and a peer other than 0 (besides
+  the planned `localPeer == transport->localPeer()`). S15's message tests now give their worlds on peers above 0 the
+  client role.
+- Engine message names are reserved for game messages too (`MessageList` names are unique): the S15 test message
+  `Ping` was renamed `TestPing`.
+- The spawn header carries the root's snap and command counters (a late joiner or a respawned set starts from the
+  host's current counters).
+- A spawn's `NetOwner` from the header is added only on roots (a child inherits its root's owner; found by a test:
+  the client asserted on `add<Parent>` of an owned child).
+- `ScenarioWorld` gets its network as a third constructor argument (`ScenarioNetwork {enabled, delaySteps, async}`,
+  `networkOf(variant)`), `variantsFor(entry, options)` lists the variants of an entry, and `finishNetwork()` (called by
+  the runner after the scenario) does the final sync and the comparison. The final sync waits for the next owner
+  state each owning client sends after the scenario (its owner-state sequence) and then for every client to apply a
+  snapshot the host sent after receiving them.
+- `World::systemList()` (engine-internal accessor) for the `RunOn` test; `Replication::debugAfterReplication` is
+  `World::debugAfterReplication` (a test hook that runs right after the replication in phase 8).
+- `NetVisitors.h` writes and reads containers of plain types (no `Entity`, no visit struct) in one piece through the
+  binary visitors (found by the `HostReliable` benchmark: 2.4 ms -> 1.7 ms per step).
+
+## Results
+
+- Tests: `tests/test_engine_replication.cpp` (new) 34 tests (network visitors incl. the 1100-byte death test and the
+  zstd/raw choice, `RunOn` filtering and the engine systems' `RunOn`, `ownedBy` with owners and descendants, the
+  ownership and client-restriction death tests, the world API on clients and for client-owned entities, spawn with
+  class, a parent with a higher index, reparenting, destroy and cascade, spawned and destroyed in one step, bound
+  state entities, `HostReliable` changes, unresolved `Entity` fields, several host steps in one batch, a host teleport
+  snapping `RenderPose`, owner state with the extrapolation clamp, `ownerTeleport` before the spawn and after it with
+  dropped older states and the counter wrap, a third client snapping, `PlayerAction` exactly once / in order / a
+  non-owned one dropped, `Ping`/`Pong` and the host clock, the interpolation buffer, `Resync` after a host load with
+  an old-epoch snapshot dropped, an aborted phase 8 after the replication, local and `NetLocal` entities, no peers,
+  a late joiner, a throwing `onReplicatedSpawn`, an animated child `LocalTransform`, an abort keeping finished phases'
+  commands); `tests/test_engine_scenarios.cpp` 77 tests: every engine scenario (8) in the six variants (48 cases),
+  plus the runner tests incl. the host + client runs, the write detector (a host write after the spawn and a host
+  system writing every step) and the reproducible asynchronous variant; `tests/test_engine_net.cpp` 29 tests
+  (unchanged count; worlds on peers above 0 are clients now).
+- Engine scenarios changed: `action_reaches_listener` waits with `stepUntil` (the single-world variants still check
+  the next step); `player_walks_with_input` allows the latency (12 steps of movement on the host) and waits for the
+  stop with `stepUntil` (5 unchanged steps). No scenario is local-only; no scenario writes a player's components on
+  the host (they use `move` / `input`, which write on the owner).
+- Full ctest (RelWithDebInfo, lavapipe): 65 of 66 pass; `test_opengl_window` fails locally because of the display (as
+  before). `game_flight`, `game_platformer`, `game_racing --scenarios`: 9 passed, 0 failed each (three variants, the
+  network variants stay off for the games).
+- Schema golden `data/tests/engine/schema.json` regenerated (`NetOwner`, `NetLocal`; `RenderPose` is not saved).
+- Benchmarks (RelWithDebInfo, local, non-gating):
+  - `test_engine_net_benchmark`: snapshots of 10^4 moving entities: host step 4.2 ms (0.23 ms without peers), client
+    step 2.6 ms, 84 KB in 417 messages per step (the bandwidth is S32's job); `HostReliable` change detection of 10^3
+    entities with 1 KB: 1.7 ms per host step idle and with 1 % changing; S15's numbers unchanged (10^4 small messages
+    1.6 ms per step, 102 packets; 16 MB in 17 steps).
+  - `test_engine_ecs_benchmark` before / after (two runs each): `World::step` with 10^5 entities idle 0.508 / 0.521 ->
+    0.549 / 0.544 ms, moving 2.289 / 2.302 -> 2.284 / 2.277 ms; isolated runs of the idle case vary from 0.62 to 0.77 ms
+    on this machine, and the no-peer replication path reads an empty structural log in an idle world (an empty world
+    with 100 systems steps in 2.6 us), so the idle difference is noise. The other ECS numbers are unchanged within 3 %.
+    New: `ownedBy<1>(0)` over 10^5 entities (half client-owned) 0.17 ms vs `view<1>` 0.18 ms; `ownedBy<Transform>(1)`
+    0.10 ms; 100 empty systems with 50 skipped by `RunOn` 2.6 us per step.

@@ -88,6 +88,10 @@ class SAIGA_ENGINE_API StructuralLog
     // The absolute number (appendedTotal numbering) of the consumer's next record
     uint64_t cursor(int consumer) const { return cursors[size_t(consumer)]; }
 
+    // Moves the consumer back to an earlier cursor (an aborted step re-reads what its replication consumed, S16). Safe
+    // because the log is truncated only after a completed step: the records from cursor on are still there.
+    void rewind(int consumer, uint64_t cursor);
+
     // End of a step: drops the records every consumer has read
     void truncate();
     size_t size() const { return records.size(); }

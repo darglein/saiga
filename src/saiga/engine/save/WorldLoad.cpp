@@ -11,6 +11,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
@@ -754,6 +755,13 @@ void WorldLoader::startObjects(LoadResult& result)
 LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
 {
     LoadResult result;
+    // A client's state comes from the host (S16); refused in every build
+    if (!w.isHost())
+    {
+        SAIGA_ASSERT(false, "load on a client (its state comes from the host)");
+        result.error = "a client cannot load (its state comes from the host)";
+        return result;
+    }
     // Refused in every build (the running game object and the views of the step would be destroyed under them)
     if (w.inStep() || !w.commands.empty() || w.hookDepth != 0 || w.loadHookPhase != 0 || w.reg.iterating() ||
         w.loadInProgress)
@@ -806,6 +814,8 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     startObjects(result);
     // Messages encoded from the replaced state are not sent (S15); the listeners' sends go out (a Resync, S16)
     w.discardOutboxAfterLoad();
+    // A new replication epoch: the clients resync and receive every entity again (S16)
+    w.repl->onHostLoad();
 
     result.hash = w.hash();
     LoadInfo info;

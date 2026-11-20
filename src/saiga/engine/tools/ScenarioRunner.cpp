@@ -37,14 +37,14 @@ struct Run
 
 Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const ScenarioOptions& options,
             const std::function<void(ScenarioWorld&, Run&)>& configure,
-            const std::function<void(ScenarioWorld&, Run&)>& finish = {})
+            const std::function<void(ScenarioWorld&, Run&)>& finish = {}, const ScenarioNetwork& network = {})
 {
     Run r;
     // An exception of a WorldSetup callback (components, systems, classes, data) fails this variant, not the whole run
     std::unique_ptr<ScenarioWorld> owned;
     try
     {
-        owned = std::make_unique<ScenarioWorld>(setup, options);
+        owned = std::make_unique<ScenarioWorld>(setup, options, network);
     }
     catch (const std::exception& e)
     {
@@ -62,6 +62,8 @@ Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const Sce
     {
         entry.run(w);
         w.checkAbort();
+        // Host + client: the final sync and the comparison of the replicas
+        w.finishNetwork();
         if (finish) finish(w, r);
     }
     catch (const ScenarioAbort& a)
@@ -147,8 +149,34 @@ const char* variantName(ScenarioVariant v)
             return "Repeat";
         case ScenarioVariant::SaveLoad:
             return "SaveLoad";
+        case ScenarioVariant::HostClient:
+            return "HostClient";
+        case ScenarioVariant::HostClientDelay:
+            return "HostClientDelay";
+        case ScenarioVariant::HostClientAsync:
+            return "HostClientAsync";
     }
     return "?";
+}
+
+ScenarioNetwork networkOf(ScenarioVariant v)
+{
+    ScenarioNetwork n;
+    n.enabled = v == ScenarioVariant::HostClient || v == ScenarioVariant::HostClientDelay ||
+                v == ScenarioVariant::HostClientAsync;
+    n.delaySteps = v == ScenarioVariant::HostClientDelay ? 2 : 0;
+    n.async      = v == ScenarioVariant::HostClientAsync;
+    return n;
+}
+
+std::vector<ScenarioVariant> variantsFor(const ScenarioList::Entry& entry, const ScenarioOptions& options)
+{
+    std::vector<ScenarioVariant> v{ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad};
+    if (options.networkVariants && !entry.localOnly)
+        for (ScenarioVariant x :
+             {ScenarioVariant::HostClient, ScenarioVariant::HostClientDelay, ScenarioVariant::HostClientAsync})
+            v.push_back(x);
+    return v;
 }
 
 ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& entry, ScenarioVariant variant,
@@ -160,7 +188,15 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
     result.variant  = variant;
     std::string details;
 
-    if (variant == ScenarioVariant::Plain)
+    if (networkOf(variant).enabled)
+    {
+        // One run of host and clients (checks on the host), then the final sync and the comparison
+        Run r           = runOnce(setup, entry, options, {}, {}, networkOf(variant));
+        result.failures = r.failures;
+        result.steps    = r.steps;
+        details         = r.report;
+    }
+    else if (variant == ScenarioVariant::Plain)
     {
         Run r           = runOnce(setup, entry, options, {});
         result.failures = r.failures;
@@ -339,8 +375,7 @@ std::vector<ScenarioResult> runScenarios(const WorldSetup& setup, const Scenario
 {
     std::vector<ScenarioResult> results;
     for (const ScenarioList::Entry* e : list.match(filter))
-        for (ScenarioVariant v : {ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
-            results.push_back(runScenario(setup, *e, v, options));
+        for (ScenarioVariant v : variantsFor(*e, options)) results.push_back(runScenario(setup, *e, v, options));
     return results;
 }
 
