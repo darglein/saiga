@@ -131,6 +131,9 @@ class SAIGA_VULKAN_API VulkanMemory
 
     VmaAllocator getAllocator() const { return allocator; }
 
+    // The number of live buffer and image allocations (tests: resources released after their frames)
+    size_t allocationCount();
+
    private:
     // A move of the current defragmentation pass (VmaDefragmentationMove i of the pass).
     struct Move

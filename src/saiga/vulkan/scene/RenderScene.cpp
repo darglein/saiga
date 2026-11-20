@@ -10,6 +10,9 @@
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/InstanceBuffer.h"
+#include "saiga/vulkan/scene/MeshPool.h"
+#include "saiga/vulkan/scene/SceneCulling.h"
 #include "saiga/vulkan/texture/Sampler.h"
 #include "saiga/vulkan/texture/Texture.h"
 #include "saiga/vulkan/window/Window.h"
@@ -64,7 +67,8 @@ class SceneFrameRenderer : public VulkanRenderer
 {
    public:
     SceneFrameRenderer(RenderScene& scene, VulkanWindow& window, const VulkanParameters& vulkanParameters)
-        : VulkanRenderer(window, vulkanParameters, {"transfer", "scene", "resolve", "post", "imgui"}), scene(scene)
+        : VulkanRenderer(window, vulkanParameters, {"transfer", "cull", "scene", "resolve", "post", "imgui"}),
+          scene(scene)
     {
         const int requested = scene.params.msaaSamples;
         samples             = selectSampleCount(base().physicalDevice, requested, hdrFormat);
@@ -190,22 +194,35 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     vk::CommandBuffer cmd = beginCommands(frame);
     timings.resetFrame(cmd);
 
+    // The scene's camera of this frame (the aspect of the surface) and the statistics slot
+    SceneCamera camera;
+    s.beginSceneFrame(frame.frameIndex, surfaceWidth, SurfaceHeight, camera);
+
     timings.enterSection("transfer", cmd);
     {
-        // The buffers written in transfer (uniform buffers, vertex data) are shared by all frames in flight: wait until
-        // earlier frames have read them (write-after-read) ...
-        vk::MemoryBarrier2 war(Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader, {},
-                               Stage::eAllTransfer, {});
+        // The buffers written in transfer (uniform buffers, vertex data, the scene's instances, meshes and indirect
+        // commands) are shared by all frames in flight: wait until earlier frames have read them (write-after-read)
+        // and the culling passes have written them (write-after-write) ...
+        vk::MemoryBarrier2 war(Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader |
+                                   Stage::eComputeShader | Stage::eDrawIndirect,
+                               Access::eShaderStorageWrite, Stage::eAllTransfer, Access::eTransferWrite);
         cmd.pipelineBarrier2(vk::DependencyInfo({}, war, nullptr, nullptr));
         if (s.transferFn && *s.transferFn) (*s.transferFn)(cmd);
-        // ... and make the writes visible to this frame's draws.
-        vk::MemoryBarrier2 raw(
-            Stage::eAllTransfer, Access::eTransferWrite,
-            Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader,
-            Access::eUniformRead | Access::eShaderRead | Access::eVertexAttributeRead | Access::eIndexRead);
+        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera);
+        // ... and make the writes visible to this frame's culling and draws.
+        vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
+                               Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader |
+                                   Stage::eComputeShader | Stage::eDrawIndirect,
+                               Access::eUniformRead | Access::eShaderRead | Access::eVertexAttributeRead |
+                                   Access::eIndexRead | Access::eIndirectCommandRead);
         cmd.pipelineBarrier2(vk::DependencyInfo({}, raw, nullptr, nullptr));
     }
     timings.leaveSection("transfer", cmd);
+
+    // The GPU culling of the scene's instances (written every frame, empty without instances or a camera)
+    timings.enterSection("cull", cmd);
+    s.culling->recordCull(cmd, frame.frameIndex, *s.meshPool, camera);
+    timings.leaveSection("cull", cmd);
 
     // ImGui's vertex data is in host visible memory, one buffer per frame in flight.
     if (drawImgui) imGui->updateBuffers(cmd, frame.frameIndex);
@@ -282,6 +299,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         cmd.beginRendering(info);
         viewport(cmd);
         if (s.renderFn && *s.renderFn) (*s.renderFn)(cmd);
+        // The scene's instances after the game's draws
+        viewport(cmd);
+        s.slotStatistics[frame.frameIndex].drawCommands =
+            s.culling->recordDraw(cmd, frame.frameIndex, *s.meshPool, camera);
         cmd.endRendering();
     }
     timings.leaveSection("scene", cmd);
@@ -396,6 +417,12 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     VulkanParameters vp = vulkanParameters;
     vp.enableImgui      = parameters.imgui;
     renderer            = std::make_unique<SceneFrameRenderer>(*this, window, vp);
+    meshPool            = std::make_unique<MeshPool>();
+    meshPool->init(base(), params.vertexCapacity, params.indexCapacity);
+    instanceBuffer = std::make_unique<InstanceBuffer>();
+    instanceBuffer->init(base(), params.staticInstanceCapacity);
+    culling = std::make_unique<SceneCulling>();
+    culling->init(base(), formats(), params);
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }
@@ -403,6 +430,10 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
 RenderScene::~RenderScene()
 {
     if (renderer) renderer->waitIdle();
+    if (culling) culling->destroy();
+    culling.reset();
+    instanceBuffer.reset();
+    meshPool.reset();
 }
 
 bool RenderScene::renderFrame(const Callback& transferCb, const Callback& renderCb, const std::function<void()>& gui)
@@ -507,7 +538,7 @@ void RenderScene::waitIdle()
 const std::vector<const char*>& RenderScene::gpuSectionNames()
 {
     // The sections of the frame timings (SceneFrameRenderer), in frame order
-    static const std::vector<const char*> names = {"transfer", "scene", "resolve", "post", "imgui"};
+    static const std::vector<const char*> names = {"transfer", "cull", "scene", "resolve", "post", "imgui"};
     return names;
 }
 
@@ -526,6 +557,150 @@ bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
         return true;
     }
     return false;
+}
+
+//==================================================================================================
+// Scene content (S18)
+
+void RenderScene::addMaterial(MaterialId id, const std::string& name, const MaterialData& data)
+{
+    meshPool->addMaterial(id, name, data);
+}
+
+void RenderScene::setMaterial(MaterialId id, const MaterialData& data)
+{
+    meshPool->setMaterial(id, data);
+}
+
+void RenderScene::addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material)
+{
+    meshPool->addMesh(id, name, lods, material);
+}
+
+void RenderScene::setPalette(const std::vector<PaletteEntry>& palette)
+{
+    meshPool->setPalette(palette);
+}
+
+InstanceSetHandle RenderScene::addInstanceSet(const RegionId& region, const std::vector<StaticInstance>& instances,
+                                              uint32_t capacity)
+{
+    return instanceBuffer->addSet(region, instances, capacity, *meshPool);
+}
+
+void RenderScene::updateInstances(InstanceSetHandle set, uint32_t first, const std::vector<StaticInstance>& instances)
+{
+    instanceBuffer->update(set, first, instances, *meshPool);
+}
+
+void RenderScene::removeInstance(InstanceSetHandle set, uint32_t index)
+{
+    instanceBuffer->removeInstance(set, index);
+}
+
+void RenderScene::removeInstanceSet(InstanceSetHandle set)
+{
+    instanceBuffer->removeSet(set);
+}
+
+InstanceHandle RenderScene::addDynamic(MeshId mesh)
+{
+    return instanceBuffer->addDynamic(mesh);
+}
+
+void RenderScene::setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
+                             uint32_t boneOffset)
+{
+    instanceBuffer->setDynamic(h, chunk, prev, curr, boneOffset);
+}
+
+void RenderScene::removeDynamic(InstanceHandle h)
+{
+    instanceBuffer->removeDynamic(h);
+}
+
+void RenderScene::setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy)
+{
+    cameraSet      = true;
+    cameraSpace    = space;
+    cameraPosition = position;
+    cameraRotation = rotation.normalized();
+    cameraFovy     = fovy;
+}
+
+void RenderScene::setInterpolation(float a)
+{
+    alpha = a;
+}
+
+bool RenderScene::multiDrawIndirect() const
+{
+    return culling->multiDrawIndirect();
+}
+
+void RenderScene::beginSceneFrame(uint32_t frameIndex, int width, int height, SceneCamera& c)
+{
+    // The slot's previous frame has completed: its statistics are read before the slot is reused
+    harvestStatistics();
+    SlotStatistics& slot = slotStatistics[frameIndex];
+    slot.pending         = true;
+    slot.frame           = frameCount + 1;
+    slot.timelineValue   = base().currentFrameSignalValue();
+    slot.drawCommands    = 0;
+
+    c             = SceneCamera();
+    c.alpha       = alpha;
+    c.preExposure = framePreExposure;
+    c.linear      = sceneWritesLinear();
+    if (!cameraSet || width <= 0 || height <= 0) return;
+    c.valid          = true;
+    c.space          = cameraSpace;
+    c.position       = cameraPosition;
+    const double asp = double(width) / double(height);
+    const Mat3 R     = cameraRotation.matrix();
+
+    // The view matrix: only the rotation (camera-relative positions)
+    mat4 view = mat4::Identity();
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) view(i, j) = float(R(j, i));
+    frameView       = view;
+    frameProjection = reversedZInfinitePerspective(float(cameraFovy), float(asp), params.nearPlane);
+    c.viewProj      = frameProjection * frameView;
+
+    // The frustum planes in camera-relative world coordinates (inward normals; no far plane)
+    const double tanY               = std::tan(cameraFovy * 0.5);
+    const double tanX               = tanY * asp;
+    const std::array<Vec3, 4> sides = {Vec3(1, 0, -tanX), Vec3(-1, 0, -tanX), Vec3(0, 1, -tanY), Vec3(0, -1, -tanY)};
+    for (int k = 0; k < 4; ++k)
+    {
+        const Vec3 n = R * sides[k].normalized();
+        c.planes[k]  = Vec4(n(0), n(1), n(2), 0);
+    }
+    const Vec3 forward = R * Vec3(0, 0, -1);
+    c.planes[4]        = Vec4(forward(0), forward(1), forward(2), -double(params.nearPlane));
+}
+
+void RenderScene::harvestStatistics()
+{
+    const uint64_t completed = base().completedFrameValue();
+    for (uint32_t i = 0; i < slotStatistics.size(); ++i)
+    {
+        SlotStatistics& slot = slotStatistics[i];
+        if (!slot.pending || slot.timelineValue > completed) continue;
+        slot.pending = false;
+        if (slot.frame <= stats.frame) continue;
+        RenderStatistics r;
+        r.frame = slot.frame;
+        culling->readStatistics(i, r);
+        r.drawCommands = slot.drawCommands;
+        stats          = r;
+    }
+}
+
+const RenderStatistics& RenderScene::statistics()
+{
+    harvestStatistics();
+    return stats;
 }
 
 }  // namespace Vulkan

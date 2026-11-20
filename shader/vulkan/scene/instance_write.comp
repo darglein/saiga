@@ -1,0 +1,52 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The write pass of RenderScene's culling (S18, docs/engine_design.md §10.2): every invocation reads its scratch entry
+// of the count pass (no second visibility decision) and, if visible, writes its compacted entry at the bucket's
+// firstInstance + slot: uvec2(instance index with dynamicBit for dynamics, offset slot | LOD << 24).
+
+#include "instance_common.glsl"
+
+layout(local_size_x = 256) in;
+
+layout(std430, set = 0, binding = 6) readonly buffer Scratch
+{
+    uvec2 scratch[];
+};
+layout(std430, set = 0, binding = 7) readonly buffer Commands
+{
+    uint commands[];
+};
+layout(std430, set = 0, binding = 10) writeonly buffer Compacted
+{
+    uvec2 compacted[];
+};
+
+void main()
+{
+    uint c       = gl_WorkGroupID.x;
+    uint i       = gl_LocalInvocationID.x;
+    WorkChunk ch = chunks[c];
+    if (i >= ch.count) return;
+    uvec2 e = scratch[c * 256u + i];
+    if (e.x == notVisible) return;
+    uint bucket = e.x & 0x3FFFFFFFu;
+    uint lod    = e.x >> 30;
+    uint index, slot;
+    if (ch.slot == dynamicChunk)
+    {
+        index = (ch.first + i) | dynamicBit;
+        slot  = dynamics[ch.first + i].slot;
+    }
+    else
+    {
+        index = ch.first + i;
+        slot  = ch.slot;
+    }
+    compacted[commands[bucket * 5u + 4u] + e.y] = uvec2(index, slot | (lod << 24));
+}

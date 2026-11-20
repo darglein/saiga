@@ -635,6 +635,12 @@ void VulkanMemory::endDefragmentation()
             << " bytes), " << stats.deviceMemoryBlocksFreed << " blocks freed";
 }
 
+size_t VulkanMemory::allocationCount()
+{
+    std::scoped_lock lock(mutex);
+    return buffers.size() + images.size();
+}
+
 void VulkanMemory::update()
 {
     std::scoped_lock lock(mutex);

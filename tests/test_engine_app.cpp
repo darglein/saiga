@@ -1252,6 +1252,7 @@ TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
     for (const auto& sc : report["scopes"].array_items()) scopes.push_back(sc["scope"].string_value());
     const std::vector<std::string> expected = {"gpu",
                                                "gpu/transfer",
+                                               "gpu/cull",
                                                "gpu/scene",
                                                "gpu/resolve",
                                                "gpu/post",
