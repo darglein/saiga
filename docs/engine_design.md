@@ -612,8 +612,13 @@ struct WorldSetup
     void (*renderAssets)(World&) = nullptr;       // [planned: S19] registers meshes and materials by name into the
                                                   // World (world.registerMesh/registerMaterial); reads data files
     void (*collisionAssets)(CollisionAssetList&) = nullptr;     // [planned: S28] named collision meshes and shapes
+    // S13b: constant configuration that is not a data file (a level, a track, a height field), built once per process
+    // before the worlds and shared by every world of the setup (scenario runs too); read in configure() and systems
+    template <class T> void setContext(std::shared_ptr<const T> context);
 };
 explicit World::World(const WorldSetup& setup);   // registers engine then game lists, loads the data files
+template <class T> const T& World::context() const;   // S13b: asserts on a missing context or another type; the
+                                                  // context is not saved and never changes after a world exists
 
 template <class T> void Registry::registerComponent(Replicate mode = Replicate::Never, Saved saved = Saved::Yes);  // S07
                                                   // Saved::No: not saved, rebuilt after loading (RenderPose)
@@ -2211,7 +2216,8 @@ void registerEngineScenarios(ScenarioList& s)
 - The saiga tests test the engine only: engine scenarios use small test-only game objects and systems defined in
   `tests/` (e.g. `Wanderer` of S12) and run in `tests/test_engine_scenarios.cpp` as a value-parameterized gtest over the
   scenario list x variants. Games are samples (`samples/games/<name>/`, §18.1); their scenarios
-  (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (from S13;
+  (`EngineAppSetup::scenarios`) run with the same runner and variants through `game_<name> --scenarios` (from S13,
+  the tech demos' from S13b;
   headless, exit code 0 if at least one scenario ran and all pass, else 1 (a filter that matches nothing prints `no
   scenarios matched`), the failure count is printed) or `run_scenario` (MCP), not in ctest; a stage that changes a game
   runs them locally and reports the result in the pull request.
@@ -2475,26 +2481,39 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level | `samples/games/platformer/`, `game_platformer` |
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
 
-- **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` from a directory with a
-  `config.ini` (like the other samples). `--demo` simulates a few seconds before the first frame, so
-  `SAIGA_SCREENSHOT=<file.png>` (frame 60) shows the action. The controls are listed in each game's window. CI
-  compiles the executables in the Clang job (samples ON) but does not run them (they need a window).
-- **Structure**: each game is one executable (simulation in double, fixed step of 1/60 s in `MainLoop::update`,
-  rendered per frame with interpolation; `main.cpp` maps the keyboard); the window, loop and frame wiring is shared
-  (`samples/games/common/GameSampleHost.h`, header only). `samples/games/common` holds the shared helpers (mesh
-  renderer, procedural meshes, chase camera, input, `GameMath.h`) and is compiled into each game. The games
-  are samples and have no tests in `tests/` (the saiga tests test the engine, R-TEST-1); from S13b they have game
-  scenarios (`--scenarios`). The simulation classes take the ground as a function (`GroundHeight`).
+- **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` (the engine app's command line, §8.3:
+  `--headless`, `--no-render`, `--screenshot`, `--scenarios`, ...; no `config.ini`). `--demo` spawns the demo's
+  pilot (autopilot, demo runner, AI driver) instead of a player and simulates a few seconds before the first frame,
+  so `SAIGA_SCREENSHOT=<file.png>` (frame 60) shows the action. The controls are in `data/<game>/input.json` and
+  listed in each game's window. CI compiles the executables in the Clang job (samples ON) but does not run them.
+- **Structure** (from S13b): each game is one executable on `EngineApp` (`engineMain`). The simulation is a `World`
+  (`<Game>World.h/.cpp`): the state in components (R-STATE-1; the pose in `Transform`), the physics models as systems
+  in phase Gameplay (`flightModelSystem`, `characterControllerSystem`, `vehicleSystem` and `lapTimerSystem`), the
+  decisions as game objects (`Aircraft`/`Autopilot`, `PlatformerHero`/`DemoRunner`, `Car`/`RaceDriver`; respawns,
+  the pilots), the tunables as data files (`data/<game>/*_parameters.json`, `DataRef` in the state component, so
+  `reload_data` tunes them live), the constant level, track or height field as the world context
+  (`WorldSetup::setContext`, built once per process and shared by the game world, the scenario worlds and the
+  renderer). `EngineAppSetup::applyInput` writes the game's control components from the input map (flight: pitch,
+  roll, yaw, the throttle lever; racing: throttle, steer; the platformer uses `PlayerInput` with the jump and walk
+  bits). The render side (`<Game>Render.h/.cpp`, the render hooks) draws the poses interpolated by `World::alpha()`
+  from a step-listener cache (`PoseHistory` in `samples/games/common/GameEngine.h`). The demo objects tick every step
+  (`TickPolicy` without distance intervals). The game scenarios (`--scenarios`) assert the behavior recorded before
+  the port (autopilot positions, the demo runner's goal time, the AI's lap time). The physics models
+  (`FlightModel`, `CharacterController`, `Vehicle`) stay plain classes that the systems run on a copy of the
+  components. `samples/games/common` holds the shared helpers (mesh renderer, procedural meshes, chase camera,
+  `GameEngine.h`, `GameMath.h`) and is compiled into each game. The games are samples and have no tests in `tests/`
+  (the saiga tests test the engine, R-TEST-1).
 - **Transitional parts** (not the engine design; replaced when the stages arrive):
 
   | Today | Replaced by | Stage |
   |---|---|---|
-  | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios | S13b |
+  | game classes without `World` (own state, own fixed-step loop in `MainLoop::update`), `GameSampleHost` | game objects in a `World`, `EngineApp` main loop, game scenarios [done: S13b] | S13b |
   | `MeshRenderer` (flat colored meshes, one draw per object, `shader/vulkan/games/`; all three games) | `RenderScene` instance sets and materials | S19 |
   | `ChaseCamera` (all three games) | the camera rig (third-person and chase cameras) | S35 |
   | procedural box animation of the platformer | skinned meshes, animation state and pose LOD | S34 |
   | platformer `CharacterController`, racing `Vehicle` | `CharacterVirtual`, Jolt's vehicle constraint | S29, S28 |
-  | `GameInput` key helpers | the input action map | S13b |
+  | `GameInput` key helpers | the input action map [done: S13b] | S13b |
+  | the render-side pose cache (`PoseHistory`), the world context for the height field | the render sink with `RenderPose` (S19), `world.terrainHeight` (S20) | S19, S20 |
 
 ## 19. Migration of the prototype
 
@@ -2620,7 +2639,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S11 | Save, data and migration (done) | Save/load blobs with schema tables and migrations, save of `Behaviour` (factory, `configure`, `onLoad`), `Persistent` counter and world-state entities, `dumpJson`, `diff`, data files (§14, §15.1, §15.2) | S10 | save/load round trip incl. a migration, a removed type and an entity with a `GameObject` (`configure` + `onLoad` called, cache rebuilt); data file load incl. the unknown-key death test (CI) |
 | S12 | Scenario framework (done) | `ScenarioWorld`, scenario list and runner, repeat and save/load variants, `tests/test_engine_scenarios.cpp` with the test-only game object `Wanderer` (§17.2, §17.4) | S10, S11 | `wanderer_flees_when_damaged` passes incl. the repeat and save/load variants (CI) |
 | S13 | Engine app (done) | `EngineApp` main loop, `createVulkanDevice`, `RenderScene` frame shell (swap chain / offscreen, MSAA + depth pass, ImGui, screenshots), window and headless mode, MCP polling, input map (keyboard, mouse), transitional render hooks, `--benchmark` on the command line (the runner stays in `vulkan/world/WorldBenchmark`), sample on `EngineApp` (§8.3, §17.7) | S12, S02, S03 | headless `EngineApp` test: `runFrames` advances, also with rendering disabled; input map test (CI); sample runs and `--benchmark flyover` works (local); `--scenarios` runner |
-| S13b | Tech demos on the engine | Flight, platformer and racing ported to `EngineApp` and to game objects, components and systems in a `World`, `WorldSetup::context`, input maps and data files per demo, game scenarios (§18.4) | S13 | each tech demo has scenarios that pass with `--scenarios` and runs on `EngineApp` (local); the games compile in the Clang CI job |
+| S13b | Tech demos on the engine (done) | Flight, platformer and racing ported to `EngineApp` and to game objects, components and systems in a `World`, `WorldSetup::context`, input maps and data files per demo, game scenarios (§18.4) | S13 | each tech demo has scenarios that pass with `--scenarios` and runs on `EngineApp` (local); the games compile in the Clang CI job |
 | S14 | Engine MCP tools | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
 | S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15, S13b | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |

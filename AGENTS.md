@@ -67,8 +67,9 @@ src/
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent; world/: World
-                        (step loop, phases, SystemList, commands, StructuralLog, EventQueues, transformSystem,
-                        SpatialGrid and spatialGridSystem for World::queryRadius, Events.h); gameplay/: GameObject,
+                        (step loop, the setup's context WorldSetup::setContext / World::context, phases, SystemList,
+                        commands, StructuralLog, EventQueues, transformSystem, SpatialGrid and spatialGridSystem for
+                        World::queryRadius, Events.h); gameplay/: GameObject,
                         Behaviour (+ World::spawn), ClassList, TickPolicy, the gameplay systems (Systems.h); api/:
                         WorldApi (the world as JSON by names, for MCP, scenarios, editors; snapshots); tools/:
                         registerWorldTools (MCP world tools), ScenarioWorld/ScenarioList/ScenarioRunner
@@ -92,8 +93,10 @@ data/                   Sample assets (textures, models); test goldens in data/t
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
-                        EngineApp: game_world, --benchmark, MCP of .mcp.json), the tech demos flight/, platformer/, racing/ and their shared common/, compiled
-                        into each game (docs/engine_design.md §18.4). Not tested by tests/ (the tests test the engine)
+                        EngineApp: game_world, --benchmark, MCP of .mcp.json), the tech demos flight/, platformer/, racing/
+                        (on EngineApp: simulation in a World, <Game>World.* and <Game>Render.*; data in data/<game>/) and
+                        their shared common/, compiled into each game (docs/engine_design.md §18.4). Not tested by tests/
+                        (the tests test the engine; the games' scenarios run with --scenarios)
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
@@ -276,12 +279,13 @@ ctest -R test_core_ini --output-on-failure             # one test
 The game engine (`src/saiga/engine/`, from stage S04; the world renderer in `src/saiga/vulkan/world/` and the games built on it) is
 designed in `docs/engine_design.md`. Read its Section 1 (Rules) before changing engine or game code.
 
-Tech demo games (§18.4): `game_flight`, `game_platformer`, `game_racing` in `samples/games/` (with samples ON;
-run from a directory with a `config.ini`). `--demo` plays by itself (autopilot, demo runner, AI driver) and simulates
-a few seconds before the first frame, so `SAIGA_SCREENSHOT=<file.png>` shows the action:
-`SAIGA_SCREENSHOT=/tmp/racing.png ./build/samples/games/game_racing --demo`. They have no tests in `tests/` (the saiga
-tests test the engine). Stages that change the renderer, physics, animation or camera keep the demos
-working and show their feature in them.
+Tech demo games (§18.4): `game_flight`, `game_platformer`, `game_racing` in `samples/games/` (with samples ON), on
+`EngineApp` (the engine app's command line, no `config.ini`). `--demo` plays by itself (autopilot, demo runner, AI
+driver) and simulates a few seconds before the first frame, so `SAIGA_SCREENSHOT=<file.png>` shows the action:
+`SAIGA_SCREENSHOT=/tmp/racing.png ./build/samples/games/game_racing --demo`. Their scenarios run with
+`./build/samples/games/game_<name> --scenarios` (headless, exit code 0 if all pass); they have no tests in `tests/`
+(the saiga tests test the engine). Stages that change the renderer, physics, animation or camera keep the demos
+working, run their scenarios and show their feature in them.
 
 ## Code Conventions
 

@@ -1,6 +1,6 @@
 # S13b: Tech demos on the engine
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -100,3 +100,45 @@ The CI recipe of AGENTS.md with samples ON; locally per demo: `./game_<name> --s
 field), `samples/games/{common,flight,platformer,racing}/`,
 `data/{flight,platformer,racing}/*.json`, `tests/test_engine_world.cpp`, `docs/engine_design.md`, `AGENTS.md`, this
 file.
+
+## Design changes
+
+- Scenario names: flight `autopilot_flies_the_circuit` (the baseline positions), `climbs_with_full_throttle` and
+  `crashes_into_terrain`; the plan's `takes_off_and_climbs` became `climbs_with_full_throttle` (the demo has no runway:
+  the plane starts airborne on the circuit, a take-off on the uneven terrain is not part of the demo).
+- Lap timing is a system (`lapTimerSystem`, after `vehicleSystem`; the gate crossing needs the position before the
+  step, `VehicleState::previousPosition`), not a `LapTimer` game object: it is bookkeeping of the physics step, not a
+  decision. The platformer's goal and run time live in the hero (`RunState`, checked in `HeroBase::update`), there is
+  no separate `Goal` object (the flag is drawn from the level context).
+- The physics models stay plain classes (`FlightModel`, `CharacterController`, `Vehicle`, `DriverModel` (was
+  `RaceDriver`), `LapState` (was `LapTimer`, now the component)); the systems run them on a copy of the components.
+  The models' internal state structs are renamed `AircraftKinematics`, `VehicleKinematics`; the controller's jump
+  buffer moved into `CharacterState`.
+- The demo runner holds the jump bit (full jump height) and presses through `CharacterMotion::jumpRequest`; a player
+  presses through the bit's edge (`jumpWasHeld`). With only the bit the runner could not hold and press at once.
+- The flight throttle lever: `AircraftControls::throttleChange` (the input axis), integrated by the flight model
+  system per step (deterministic; `applyInput` has no step time).
+- `MeshRenderer` keeps `init(VulkanForwardRenderer&)` (from `RenderScene::forwardRenderer()`): its port to
+  `VulkanBase&` + `RenderingFormats` brings nothing before S19 replaces it.
+- The demo objects override `tickPolicy()` with an every-step policy: a demo has no player near the autopilot or the AI
+  driver, and the distance policy of §8.4 would tick them every 0.5 s.
+- Render-side caches: `PoseHistory` (`samples/games/common/GameEngine.h`) records the followed entity's `Transform`
+  after every step (a step listener; a load listener clears it; a teleport snaps the camera); the racing renderer
+  caches the wheels the same way, the platformer's landings come from a step listener.
+- The flight context holds only the height field (the trees are not needed for the flight); the racing context places
+  the trees on the CPU (`ForestRenderer::placeTrees`) to find the same tree-poor site as before.
+
+## Results
+
+- Behavior baseline (recorded from the pre-port code with a throwaway program on the same height field): flight
+  autopilot at step 600 (6506.433, 402.839, 4752.384), at step 1800 (5858.335, 362.351, 5875.344); platformer demo goal
+  7.25 s; racing AI first lap 62.067 s (3724 steps). The ported games reproduce them (the scenarios assert them within
+  1 m, 0.1 s and 0.5 s; the lap takes 3724 steps again).
+- `--scenarios`: flight 9, platformer 6, racing 6 runs (3 scenarios x 3 variants, 2 x 3, 2 x 3) pass.
+- `--demo` with `SAIGA_SCREENSHOT` on the RTX 5080 Laptop GPU: the plane in its turn over the world prototype, the
+  character on the goal platform (the window ran at 20 fps, so frame 60 is past the 7.25 s goal; headless at 60 Hz it
+  shows the jump between the platforms), the car on the track behind the chase camera; `--headless` and `--no-render`
+  run for all three.
+- `World::context` unit tests in `tests/test_engine_world.cpp`; 63 ctest tests (all pass except the known local
+  `test_opengl_window` display check).
+
