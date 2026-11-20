@@ -35,13 +35,11 @@ struct DataRef
     DataRef(DataRef&& o) noexcept : entry(std::move(o.entry)) {}
     DataRef& operator=(const DataRef& o)
     {
-        if (entry != o.entry) reset();
         entry = o.entry;
         return *this;
     }
     DataRef& operator=(DataRef&& o) noexcept
     {
-        if (entry != o.entry) reset();
         entry = std::move(o.entry);
         return *this;
     }
@@ -50,18 +48,13 @@ struct DataRef
     void visit(V& v)
     {
         v("entry", entry);
-        // A changed name (a load, an API write) resolves again
-        reset();
     }
 
-    // Engine-internal cache (World::data)
-    mutable const T* cached             = nullptr;
-    mutable const DataStore* resolvedIn = nullptr;
-    void reset() const
-    {
-        cached     = nullptr;
-        resolvedIn = nullptr;
-    }
+    // Engine-internal cache (World::data): the entry resolved for this name in this store (by its unique ID, so a new
+    // store at the same address does not match). Checked against the name on every use: changing entry resolves again.
+    mutable const T* cached        = nullptr;
+    mutable uint64_t resolvedStore = 0;
+    mutable std::string resolvedName;
 };
 
 }  // namespace Engine

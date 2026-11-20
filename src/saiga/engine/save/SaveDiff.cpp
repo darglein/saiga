@@ -66,8 +66,9 @@ bool decodeAll(const std::vector<uint8_t>& data, const ParsedSave& p, Decoded& o
     {
         const SchemaType& t = p.schema.types[b.schemaIndex];
         out.types[t.name]   = &t;
-        auto& values        = out.components[t.name].byIndex;
-        values.resize(p.slots.size());
+        // Empty blocks take no memory (a save lists every registered type)
+        if (b.count == 0) continue;
+        auto& values = out.components[t.name].byIndex;
         BinaryReader r(data.data() + b.begin, b.end - b.begin);
         for (uint64_t i = 0; i < b.count; ++i)
         {
@@ -82,7 +83,14 @@ bool decodeAll(const std::vector<uint8_t>& data, const ParsedSave& p, Decoded& o
             }
             v.end     = b.begin + r.position();
             v.present = true;
-            if (index >= values.size() || values[index].present)
+            if (index >= p.slots.size())
+            {
+                error = t.name + ": the entity index " + std::to_string(index) + " is not a slot";
+                return false;
+            }
+            // Grown to the largest index present (not to the slot count of every block)
+            if (index >= values.size()) values.resize(size_t(index) + 1);
+            if (values[index].present)
             {
                 error = t.name + ": two values for entity index " + std::to_string(index) + " (or not a slot)";
                 return false;
@@ -173,7 +181,9 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
     auto add = [&](SaveDifference d)
     {
         if (filter.hasEntity && (!d.entity.valid() && d.kind != "generation" && d.kind != "flags")) return;
-        if (filter.hasEntity && d.entity.index != filter.entityIndex) return;
+        if (filter.hasEntity && (d.entity.index != filter.entityIndex ||
+                                 (filter.hasGeneration && d.entity.generation != filter.entityGeneration)))
+            return;
         if (!filter.components.empty() &&
             std::find(filter.components.begin(), filter.components.end(), d.component) == filter.components.end())
             return;

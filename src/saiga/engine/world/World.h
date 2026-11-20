@@ -275,10 +275,11 @@ class SAIGA_ENGINE_API World
     template <class T>
     const T& data(const DataRef<T>& ref) const
     {
-        if (ref.resolvedIn != dataStore.get())
+        if (ref.resolvedStore != dataStore->id() || ref.resolvedName != ref.entry)
         {
-            ref.cached     = &data<T>(ref.entry);
-            ref.resolvedIn = dataStore.get();
+            ref.cached        = &data<T>(ref.entry);
+            ref.resolvedStore = dataStore->id();
+            ref.resolvedName  = ref.entry;
         }
         return *ref.cached;
     }

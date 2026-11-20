@@ -328,6 +328,24 @@ EventQueues.cpp}`, `src/saiga/engine/api/WorldApi.{h,cpp}`, `src/saiga/engine/to
 - §15.1 `dumpJson` uses the exact JSON form of `VisitJson.h` instead of `%.17g`.
 - R-DATA-1: fatal in every build (`SAIGA_EXIT_ERROR`), an unknown entry name at run time is a `DataError`.
 
+- Review round 1 (two reviewers: save/load core; API, tools and data): saved schemas are validated (type strings of at
+  most 256 characters, container nesting of at most 8, array lengths of at most 2^16, balanced names) and elements that
+  take no bytes share a budget of 2^20 per decoder (a crafted nest of zero-byte arrays ran for minutes, a deep one
+  overflowed the stack); duplicate checks of the schema and the value blocks are linear; an even RNG increment is
+  rejected before the commit; a state entity that the load would free must have no children, `PersistentId` or game
+  object, and a game object on a state entity is rejected; `time()` stays `steps * dt` after a load when the step rate
+  and the saved time agree (it drifted in the last bit); R-SAVE-1 is checked for nested structs too; factory exceptions
+  of any type are hook errors; a throwing load listener no longer hides the load from the others
+  (`LoadResult::listenerErrors`); `diffSaves` sizes its tables by the indices present. API: the load's records
+  `[logBegin, logEnd)` are folded, records of other load listeners after them are journaled; `rebind` resets the
+  journal state; `world_generation` is the API's own counter (it only grows, also across `rebind`);
+  `export_snapshot` takes `overwrite` and writes atomically (temporary file, rename), refuses Windows device names;
+  `import_snapshot` checks the size before reading, its hash is `null`; the `diff_snapshot` entity filter compares the
+  generation. Data: `DataRef` caches by store ID and entry name (a changed entry resolves again; `visit` no longer drops
+  the cache); an entry that is not an object names the entry; reload errors name the full path. Not changed: a missing
+  `DataRef` entry fails when it is read (`DataError`), not at load time; `rebuildHierarchyState` is linear in the depth
+  of the chains; a shared data store is reloaded for all worlds that share it (scenario runs do not reload).
+
 Updated: §3, R-DATA-1, §7.2, §7.9, §7.10, §14, §15 (header, §15.1, §15.2), §16.2, §17.4, the S11 row; AGENTS.md.
 
 ## Results

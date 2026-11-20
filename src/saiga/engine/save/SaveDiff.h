@@ -35,8 +35,10 @@ struct SAIGA_ENGINE_API SaveDifference
 
 struct DiffFilter
 {
-    bool hasEntity       = false;
-    uint32_t entityIndex = 0;             // only this entity index (and no world-level differences)
+    bool hasEntity            = false;
+    uint32_t entityIndex      = 0;      // only this entity index (and no world-level differences)
+    bool hasGeneration        = false;  // and only with this generation (a reused slot is another entity)
+    uint32_t entityGeneration = 0;
     std::vector<std::string> components;  // only these components (empty: all)
     size_t limit = 0;                     // at most this many differences in the result (0: all)
     size_t after = 0;                     // skip the first differences (paging)

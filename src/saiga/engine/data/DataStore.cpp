@@ -8,6 +8,7 @@
 
 #include "saiga/engine/data/DataStore.h"
 
+#include <atomic>
 #include <cctype>
 #include <fstream>
 #include <sstream>
@@ -54,7 +55,11 @@ std::string snakeCase(const std::string& name)
     return out;
 }
 
-DataStore::DataStore(DataTypeList t, std::string directory) : types(std::move(t)), dir(std::move(directory)) {}
+DataStore::DataStore(DataTypeList t, std::string directory) : types(std::move(t)), dir(std::move(directory))
+{
+    static std::atomic<uint64_t> nextId{1};
+    storeId = nextId++;
+}
 
 bool DataStore::readAll(std::string& error)
 {

@@ -25,6 +25,7 @@
 #include <chrono>
 #include <clocale>
 #include <cmath>
+#include <fstream>
 #include <limits>
 #include <memory>
 #include <set>
@@ -761,7 +762,7 @@ TEST(WorldTools, EveryToolAnswers)
     track("save_snapshot", obj(R"({"name": "before"})"));
     track("list_snapshots", Json::object{});
     track("diff_snapshot", obj(R"({"name": "before"})"));
-    track("export_snapshot", obj(R"({"name": "before", "file": "saiga_tools_before.sgws"})"));
+    track("export_snapshot", obj(R"({"name": "before", "file": "saiga_tools_before.sgws", "overwrite": true})"));
     track("import_snapshot", obj(R"({"name": "again", "file": "saiga_tools_before.sgws"})"));
     track("load_snapshot", obj(R"({"name": "again"})"));
     track("delete_snapshot", obj(R"({"name": "again"})"));
@@ -1617,9 +1618,24 @@ TEST(WorldApi, SnapshotFiles)
     // Only plain file names
     EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "../a.sgws"})")).ok);
     EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "dir/a.sgws"})")).ok);
-    ASSERT_TRUE(api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_a.sgws"})")).ok);
+    ASSERT_TRUE(api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_a.sgws", "overwrite": true})")).ok);
+    // An existing file is kept unless overwrite is set; nothing partial is left behind
+    EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "saiga_api_a.sgws"})")).ok);
+    EXPECT_FALSE(std::ifstream(::testing::TempDir() + "/saiga_api_a.sgws.partial").good());
+    // Windows device names are refused
+    EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "NUL.bin"})")).ok);
+    EXPECT_FALSE(api.call("export_snapshot", obj(R"({"name": "a", "file": "com1"})")).ok);
     ApiResult i = api.call("import_snapshot", obj(R"({"name": "b", "file": "saiga_api_a.sgws"})"));
     ASSERT_TRUE(i.ok) << i.error;
+    // Its hash is unknown (not a fake 0)
+    const ApiResult listed = api.call("list_snapshots", Json());
+    for (auto& x : listed.value["snapshots"].array_items())
+    {
+        if (x["name"] == "b")
+        {
+            EXPECT_TRUE(x["hash"].is_null());
+        }
+    }
     EXPECT_EQ(api.call("diff_snapshot", obj(R"({"name": "a", "against": "b"})")).value["total"], 0);
     EXPECT_FALSE(api.call("import_snapshot", obj(R"({"name": "c", "file": "missing.sgws"})")).ok);
     // Read-only observers cannot load, import or export
@@ -1647,4 +1663,80 @@ TEST(WorldTools, MeasurementFailsOnALoad)
     Json m = callTool(server, "measure_performance", obj(R"({"steps": 300})"));
     ASSERT_TRUE(m["result"]["isError"].bool_value()) << m.dump();
     EXPECT_NE(m["result"]["content"][0]["text"].string_value().find("loaded"), std::string::npos) << m.dump();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S11 round 1)
+
+// A throwing load listener registered before the API made a committed load look failed and hid it from the journal
+TEST(WorldApi, AThrowingLoadListenerDoesNotHideTheLoad)
+{
+    World w(apiSetup());
+    w.addLoadListener([](const LoadInfo&) { throw std::runtime_error("listener boom"); });
+    WorldApi api(w);
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "s"})")).ok);
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now"})")).value["cursor"];
+    ApiResult l = api.call("load_snapshot", obj(R"({"name": "s"})"));
+    ASSERT_TRUE(l.ok) << l.error;
+    ASSERT_EQ(l.value["listener_errors"].array_items().size(), 1u);
+    EXPECT_EQ(l.value["listener_errors"][0].string_value(), "listener boom");
+    ApiResult c = api.call("changes_since", Json::object{{"cursor", cursor}});
+    ASSERT_EQ(c.value["changes"].array_items().size(), 1u) << c.value.dump();
+    EXPECT_EQ(c.value["changes"][0]["kind"].string_value(), "world_loaded");
+}
+
+// Changes made by another load listener (after the load's own records) were folded into the load and lost
+TEST(WorldApi, ChangesOfOtherLoadListenersAreReported)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity created;
+    w.addLoadListener([&](const LoadInfo&) { created = w.create(); });
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "s"})")).ok);
+    Json cursor = api.call("changes_since", obj(R"({"cursor": "now"})")).value["cursor"];
+    ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "s"})")).ok);
+    ApiResult c         = api.call("changes_since", Json::object{{"cursor", cursor}});
+    const auto& changes = c.value["changes"].array_items();
+    ASSERT_EQ(changes.size(), 2u) << c.value.dump();
+    EXPECT_EQ(changes[0]["kind"].string_value(), "world_loaded");
+    EXPECT_EQ(changes[1]["kind"].string_value(), "created");
+    EXPECT_EQ(entityOf(changes[1]["entity"]), created);
+}
+
+// rebind kept the last destroyed entity of the old world: a removal on the same handle in the new world was dropped;
+// world_generation only grows
+TEST(WorldApi, RebindStartsAFreshJournalState)
+{
+    World a(apiSetup()), b(apiSetup());
+    const Entity x = a.create(), y = b.create();
+    ASSERT_EQ(x, y);
+    b.add<Health>(y);
+    WorldApi api(a);
+    a.destroy(x);
+    const double generation = api.call("world_status", Json()).value["world_generation"].number_value();
+    Json cursor             = api.call("changes_since", obj(R"({"cursor": "now"})")).value["cursor"];
+    api.rebind(b);
+    EXPECT_GT(api.call("world_status", Json()).value["world_generation"].number_value(), generation);
+    b.remove<Health>(y);
+    ApiResult c  = api.call("changes_since", Json::object{{"cursor", cursor}});
+    bool removed = false;
+    for (auto& ch : c.value["changes"].array_items()) removed = removed || ch["kind"] == "removed";
+    EXPECT_TRUE(removed) << c.value.dump();
+}
+
+// The entity filter of diff_snapshot compares the generation too (a reused slot is another entity)
+TEST(WorldApi, DiffEntityFilterUsesTheGeneration)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    const Entity e = w.create();
+    w.add<Health>(e);
+    ASSERT_TRUE(api.call("save_snapshot", obj(R"({"name": "s"})")).ok);
+    w.get<Health>(e).hp = 1;
+    const Entity stale{e.index, e.generation + 1};
+    EXPECT_EQ(
+        api.call("diff_snapshot", Json::object{{"name", "s"}, {"entity", WorldApi::entityJson(e)}}).value["total"], 1);
+    EXPECT_EQ(
+        api.call("diff_snapshot", Json::object{{"name", "s"}, {"entity", WorldApi::entityJson(stale)}}).value["total"],
+        0);
 }

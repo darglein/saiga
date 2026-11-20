@@ -42,6 +42,7 @@ class WorldLoader
     bool dropEntities();
     bool checkHierarchy();
     bool checkPersistent();
+    bool checkFreedStateEntities();
     // The staged value index -> keep; removes the others from a typed stage
     template <class T>
     static void filterStage(StagedOf<T>& s, const std::vector<bool>& keep);
@@ -318,7 +319,10 @@ bool WorldLoader::mapClasses()
     std::vector<bool> keep(s.values.size(), true);
     for (size_t i = 0; i < s.values.size(); ++i)
     {
-        Behaviour& b            = s.values[i];
+        Behaviour& b = s.values[i];
+        if (s.indices[i] < p.slots.size() &&
+            (p.slots[s.indices[i]].flags & (Registry::kWorldState | Registry::kSpaceState)))
+            return fail("entity index " + std::to_string(s.indices[i]) + ": a world-state entity has a game object");
         const std::string* name = p.schema.className(b.classId);
         const std::string where = "entity index " + std::to_string(s.indices[i]);
         if (!name) return fail(where + ": the class ID " + std::to_string(b.classId) + " is not in the saved schema");
@@ -449,6 +453,42 @@ bool WorldLoader::checkPersistent()
     return true;
 }
 
+bool WorldLoader::checkFreedStateEntities()
+{
+    // A state entity whose components are no longer registered as world or space state is freed by the load; it must
+    // not have children, a game object or a PersistentId (they would be left dangling)
+    bool anyGlobal = false, anySpace = false;
+    for (size_t id = 0; id < kMaxComponents; ++id)
+    {
+        anyGlobal = anyGlobal || reg.isGlobal(ComponentId(id));
+        anySpace  = anySpace || reg.isSpaceState(ComponentId(id));
+    }
+    for (uint32_t i = 1; i < uint32_t(p.slots.size()); ++i)
+    {
+        if (generation[i] < 0) continue;
+        const uint8_t f  = p.slots[i].flags;
+        const bool freed = ((f & Registry::kWorldState) && !anyGlobal) || ((f & Registry::kSpaceState) && !anySpace);
+        if (!freed) continue;
+        auto has = [&](ComponentId id)
+        {
+            const auto& s = seen[id];
+            return !s.empty() && s[i];
+        };
+        bool hasChildren = false;
+        if (staged[Parent::id])
+        {
+            const auto& sp = static_cast<StagedOf<Parent>&>(*staged[Parent::id]);
+            for (size_t k = 0; k < sp.values.size() && !hasChildren; ++k)
+                hasChildren = generation[sp.indices[k]] >= 0 && sp.values[k].entity.index == i;
+        }
+        if (hasChildren || has(Persistent::id) || has(Behaviour::id))
+            return fail("the state entity " + std::to_string(i) +
+                        " would be freed (no state components are registered any more), but it has children, a "
+                        "PersistentId or a game object");
+    }
+    return true;
+}
+
 void WorldLoader::commit()
 {
     // The old entities leave (records as for a destroy: Transform first, then the components in ID order); no hooks
@@ -512,8 +552,18 @@ void WorldLoader::commit()
     w.rng.setState(Rng::State{p.rngState, p.rngIncrement});
     w.persistentCounter = p.persistentCounter;
     w.steps             = p.steps;
-    w.stepBase          = p.steps;
-    w.timeBase          = p.time;
+    // The same step rate and a time that is exactly steps * dt: time() stays steps * dt (a loaded world continues with
+    // the same time values bit for bit); otherwise the saved time is the base
+    if (p.stepsPerSecond == w.config.stepsPerSecond && p.time == double(p.steps) * w.stepDt)
+    {
+        w.stepBase = 0;
+        w.timeBase = 0;
+    }
+    else
+    {
+        w.stepBase = p.steps;
+        w.timeBase = p.time;
+    }
 
     // Derived state
     const bool hierarchyOk = w.rebuildHierarchyState();
@@ -607,6 +657,10 @@ void WorldLoader::startObjects(LoadResult& result)
         {
             failure(e, std::string("the factory threw: ") + x.what());
         }
+        catch (...)
+        {
+            failure(e, "the factory threw");
+        }
     }
     // Pass 2: configure; pass 3: onLoad
     for (int phase = 1; phase <= 2; ++phase)
@@ -657,7 +711,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     }
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
-        !checkPersistent())
+        !checkPersistent() || !checkFreedStateEntities())
     {
         result.error = error;
         return result;
@@ -680,7 +734,22 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     info.toStep    = w.steps;
     // A copy: a listener may add or remove listeners
     auto listeners = w.loadListeners;
-    for (auto& l : listeners) l.second(info);
+    for (auto& l : listeners)
+    {
+        // A throwing listener must not hide the committed load from the others (the world API's journal)
+        try
+        {
+            l.second(info);
+        }
+        catch (const std::exception& x)
+        {
+            result.listenerErrors.push_back(x.what());
+        }
+        catch (...)
+        {
+            result.listenerErrors.push_back("a load listener threw");
+        }
+    }
     return result;
 }
 

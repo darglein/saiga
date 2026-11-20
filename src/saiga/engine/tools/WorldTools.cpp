@@ -211,12 +211,14 @@ std::vector<ToolSpec> toolSpecs()
                          {"name"})},
         {"export_snapshot",
          "Writes a snapshot to a file in the app's snapshot directory (a plain file name), so it survives a restart "
-         "or a rebuild (to test migrations of an older save).",
-         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")}, {"file", S::StringProperty("File name")}},
+         "or a rebuild (to test migrations of an older save). An existing file is kept unless overwrite is true.",
+         S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
+                          {"file", S::StringProperty("File name")},
+                          {"overwrite", S::BooleanProperty("Replace an existing file (false)")}},
                          {"name", "file"})},
         {"import_snapshot",
          "Reads a snapshot file from the app's snapshot directory into memory under a name (load_snapshot then "
-         "loads it; an older save is migrated).",
+         "loads it; an older save is migrated). Its hash is unknown (null) until it is loaded.",
          S::ObjectSchema({{"name", S::StringProperty("Snapshot name")},
                           {"file", S::StringProperty("File name")},
                           {"overwrite", S::BooleanProperty("Replace an existing snapshot (false)")}},
@@ -228,8 +230,10 @@ std::vector<ToolSpec> toolSpecs()
                          {"type"})},
         {"reload_data",
          "Re-reads the data files after you edited them (nothing changes if one is invalid or an entry was removed). "
-         "Values read through DataRefs change at once; with reconfigure (default true) every game object runs "
-         "configure() again (a save and load of the world). Returns the types, the entry count and hook errors.",
+         "Values read through DataRefs change at once. With reconfigure (default true) the world is saved and loaded "
+         "so every game object runs configure() again: derived (unsaved) state is rebuilt, changes_since reports a "
+         "world_loaded entry (cursors answer reloaded: true, move tracking restarts) and a running "
+         "measure_performance fails. Returns the types, the entry count and hook errors.",
          S::ObjectSchema({{"reconfigure", S::BooleanProperty("Reconfigure the game objects (true)")}})},
         {"apply",
          "Runs a batch: operations [{op: tool name, ...arguments}] in order, one result each. Stops at the first "

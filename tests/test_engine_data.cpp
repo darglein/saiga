@@ -219,3 +219,35 @@ TEST(DataDeathTest, BadFilesStopTheWorldConstructor)
     EXPECT_DEATH(World w(dataSetup(t.path())), "creature_stats.json");
     EXPECT_DEATH(World w(dataSetup(t.path() + "/nothing")), "creature_stats.json: cannot be read");
 }
+
+// Review regressions (S11 round 1)
+
+// Changing a DataRef's entry returned the old entry's data (the cache ignored the name)
+TEST(Data, ChangingADataRefResolvesAgain)
+{
+    World w(dataSetup());
+    DataRef<CreatureStats> ref("wolf");
+    EXPECT_EQ(w.data(ref).speed, 6.5);
+    ref.entry = "bear";
+    EXPECT_EQ(w.data(ref).speed, 4);
+    // Saving or hashing a component does not drop the cache (visit no longer resets it)
+    Creature c;
+    c.model                     = ref;
+    const CreatureStats* cached = &w.data(c.model);
+    (void)toJson(c);
+    EXPECT_EQ(&w.data(c.model), cached);
+    // Another world's store resolves again
+    World other(dataSetup());
+    EXPECT_EQ(&other.data(c.model), &other.data<CreatureStats>("bear"));
+}
+
+// An entry that is not an object produced "wolf.expected an object"
+TEST(Data, AnEntryThatIsNotAnObject)
+{
+    TempData t("not_object");
+    t.write(R"({"wolf": 5})");
+    std::map<std::string, CreatureStats> out;
+    std::string error;
+    EXPECT_FALSE(readDataFile((t.dir / "creature_stats.json").string(), out, error));
+    EXPECT_NE(error.find("creature_stats.json: wolf: expected an object"), std::string::npos) << error;
+}

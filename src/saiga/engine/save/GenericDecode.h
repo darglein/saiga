@@ -54,6 +54,10 @@ class SAIGA_ENGINE_API SaveDecoder
     const SchemaTable* current;
     const MigrationList* migrations;
     int depth = 0;
+    // Elements that took no bytes (empty structs, zero-length arrays): bounded for the whole decoder, so nested
+    // containers of them cannot multiply into an unbounded amount of work (untrusted input)
+    uint64_t zeroByteBudget = uint64_t(1) << 20;
+    bool spendZeroByte(size_t before, const BinaryReader& r, std::string& error);
 };
 
 }  // namespace Engine

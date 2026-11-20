@@ -12,6 +12,8 @@
 
 #include <set>
 
+#include <unordered_set>
+
 namespace Saiga
 {
 namespace Engine
@@ -32,6 +34,41 @@ bool scalarType(const std::string& t)
 }
 
 constexpr uint32_t kMaxSchemaEntries = 1 << 20;
+constexpr size_t kMaxNameLength      = 256;
+
+// A field type string of a saved schema: bounded length and container nesting (decoding recurses over it), array
+// lengths of at most 2^16
+bool validFieldType(const std::string& type)
+{
+    if (type.empty() || type.size() > kMaxNameLength) return false;
+    std::string t = type;
+    for (int nesting = 0;; ++nesting)
+    {
+        if (nesting > 8) return false;
+        if (t.compare(0, 7, "vector<") == 0 && t.back() == '>')
+            t = t.substr(7, t.size() - 8);
+        else if (t.compare(0, 6, "array<") == 0 && t.back() == '>')
+        {
+            const size_t comma = t.rfind(',');
+            if (comma == std::string::npos || comma < 7) return false;
+            const std::string count = t.substr(comma + 1, t.size() - comma - 2);
+            if (count.empty() || count.size() > 5) return false;
+            for (char c : count)
+                if (c < '0' || c > '9') return false;
+            if (std::stoul(count) > 65536) return false;
+            t = t.substr(6, comma - 6);
+        }
+        else
+        {
+            // A scalar, math or struct name
+            if (t.empty()) return false;
+            for (char c : t)
+                if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_'))
+                    return false;
+            return true;
+        }
+    }
+}
 
 template <class T>
 bool readCount(BinaryReader& r, T& n, uint64_t max, const char* what, std::string& error)
@@ -147,6 +184,8 @@ bool SchemaTable::read(BinaryReader& r, std::string& error)
 {
     types.clear();
     classes.clear();
+    std::unordered_set<std::string> seenTypes;
+    std::unordered_set<uint32_t> seenClasses;
     size_t n = 0;
     if (!readCount(r, n, kMaxSchemaEntries, "types", error)) return false;
     for (size_t i = 0; i < n && r.ok(); ++i)
@@ -161,6 +200,11 @@ bool SchemaTable::read(BinaryReader& r, std::string& error)
         }
         t.kind = SchemaKind(kind);
         r.read(t.name);
+        if (r.ok() && (t.name.empty() || t.name.size() > kMaxNameLength))
+        {
+            error = "schema: a type name is empty or too long";
+            return false;
+        }
         r.read(t.id);
         r.read(t.version);
         size_t fields = 0;
@@ -171,9 +215,14 @@ bool SchemaTable::read(BinaryReader& r, std::string& error)
             r.read(f.name);
             r.read(f.type);
             r.read(f.enumValues);
+            if (r.ok() && (f.name.size() > kMaxNameLength || !validFieldType(f.type)))
+            {
+                error = "schema: " + t.name + " has a malformed field type";
+                return false;
+            }
             t.fields.push_back(std::move(f));
         }
-        if (r.ok() && find(t.kind, t.name))
+        if (r.ok() && !seenTypes.insert(std::to_string(int(t.kind)) + ":" + t.name).second)
         {
             error = "schema: the type " + t.name + " is listed twice";
             return false;
@@ -187,7 +236,7 @@ bool SchemaTable::read(BinaryReader& r, std::string& error)
         std::pair<uint32_t, std::string> c;
         r.read(c.first);
         r.read(c.second);
-        if (r.ok() && className(c.first))
+        if (r.ok() && !seenClasses.insert(c.first).second)
         {
             error = "schema: the class ID " + std::to_string(c.first) + " is listed twice";
             return false;

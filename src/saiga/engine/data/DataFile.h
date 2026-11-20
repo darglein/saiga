@@ -54,8 +54,10 @@ bool readDataEntries(const json11::Json& json, const std::string& path, std::map
         if (!fromJson(kv.second, value, &e, true))
         {
             // fromJson names the key path ("speedd: unknown field ..."; "document: ..." for the entry itself)
-            if (e.compare(0, 10, "document: ") == 0) e = e.substr(10);
-            error = path + ": " + kv.first + "." + e;
+            if (e.compare(0, 10, "document: ") == 0)
+                error = path + ": " + kv.first + ": " + e.substr(10);
+            else
+                error = path + ": " + kv.first + "." + e;
             return false;
         }
         entries.emplace(kv.first, std::move(value));

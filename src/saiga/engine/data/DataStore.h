@@ -41,6 +41,7 @@ class SAIGA_ENGINE_API DataTableBase
     const char* const name;
     const std::type_info* const type;
     std::string file;  // the file name (snake_case(name).json)
+    std::string path;  // the file read last (the directory and the file)
 };
 
 template <class T>
@@ -49,17 +50,18 @@ class DataTable final : public DataTableBase
    public:
     DataTable() : DataTableBase(T::name, typeid(T)) {}
 
-    bool read(const std::string& path, std::string& error) override
+    bool read(const std::string& filePath, std::string& error) override
     {
         pending.clear();
-        return readDataFile(path, pending, error);
+        path = filePath;
+        return readDataFile(filePath, pending, error);
     }
     bool checkPending(std::string& error) const override
     {
         for (const auto& kv : entries)
             if (!pending.count(kv.first))
             {
-                error = file + ": the entry " + kv.first + " was removed (entries can only be added while running)";
+                error = path + ": the entry " + kv.first + " was removed (entries can only be added while running)";
                 return false;
             }
         return true;
@@ -142,11 +144,14 @@ class SAIGA_ENGINE_API DataStore
     const DataTableBase* find(const std::string& name) const;
     const std::vector<std::unique_ptr<DataTableBase>>& tables() const { return types.tables; }
     const std::string& directory() const { return dir; }
+    // Unique per store in the process (DataRef caches compare it, not the address)
+    uint64_t id() const { return storeId; }
 
    private:
     bool readAll(std::string& error);
     DataTypeList types;
     std::string dir;
+    uint64_t storeId;
 };
 
 }  // namespace Engine

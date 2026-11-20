@@ -206,7 +206,8 @@ bool SaveDecoder::decodeValue(const std::string& type, const FieldInfo& field, B
         for (uint64_t k = 0; k < n; ++k)
         {
             Json e;
-            if (!decodeValue(element, field, r, e, error)) return false;
+            const size_t before = r.position();
+            if (!decodeValue(element, field, r, e, error) || !spendZeroByte(before, r, error)) return false;
             a.push_back(e);
         }
         out = a;
@@ -231,7 +232,8 @@ bool SaveDecoder::decodeValue(const std::string& type, const FieldInfo& field, B
         for (uint64_t k = 0; k < n; ++k)
         {
             Json e;
-            if (!decodeValue(element, field, r, e, error)) return false;
+            const size_t before = r.position();
+            if (!decodeValue(element, field, r, e, error) || !spendZeroByte(before, r, error)) return false;
             a.push_back(e);
         }
         out = a;
@@ -242,6 +244,18 @@ bool SaveDecoder::decodeValue(const std::string& type, const FieldInfo& field, B
     if (!nested) return fail(field.name + ": the saved schema has no type " + type);
     const SchemaType* target = current ? current->findStruct(type) : nullptr;
     return decode(*nested, r, target, out, error);
+}
+
+bool SaveDecoder::spendZeroByte(size_t before, const BinaryReader& r, std::string& error)
+{
+    if (r.position() != before) return true;
+    if (zeroByteBudget == 0)
+    {
+        if (error.empty()) error = "too many elements without bytes (a malformed save)";
+        return false;
+    }
+    zeroByteBudget--;
+    return true;
 }
 
 bool SaveDecoder::skipValue(const std::string& type, const FieldInfo& field, BinaryReader& r, std::string& error)
@@ -289,7 +303,10 @@ bool SaveDecoder::skipValue(const std::string& type, const FieldInfo& field, Bin
         if (n > uint64_t(r.remaining()) && n > kMaxEmptyElements)
             return fail(field.name + ": a vector longer than the input");
         for (uint64_t k = 0; k < n; ++k)
-            if (!skipValue(element, field, r, error)) return false;
+        {
+            const size_t before = r.position();
+            if (!skipValue(element, field, r, error) || !spendZeroByte(before, r, error)) return false;
+        }
         return true;
     }
     if (type.compare(0, 6, "array<") == 0)
@@ -325,6 +342,16 @@ bool SaveDecoder::skip(const SchemaType& savedType, BinaryReader& r, std::string
 bool SaveDecoder::decode(const SchemaType& savedType, BinaryReader& r, const SchemaType* target, Json& out,
                          std::string& error)
 {
+    // R-SAVE-1 for nested structs too: at the same version, a field must keep its type
+    if (target && target->version == savedType.version)
+        for (const FieldInfo& f : savedType.fields)
+            for (const FieldInfo& g : target->fields)
+                if (f.name == g.name && f.type != g.type)
+                {
+                    error = savedType.name + "." + f.name + " changed its type from " + f.type + " to " + g.type +
+                            " without a version increment (R-SAVE-1)";
+                    return false;
+                }
     if (depth >= kMaxDepth)
     {
         error = savedType.name + ": nested deeper than " + std::to_string(kMaxDepth) + " structs";

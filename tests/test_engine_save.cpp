@@ -23,6 +23,7 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -1247,4 +1248,193 @@ TEST(SaveFormat, CommittedSaveLoads)
     const Json expected = Json::parse(readFile(dumpPath), error);
     ASSERT_TRUE(error.empty()) << error;
     EXPECT_EQ(Json::parse(w.dumpJson(), error), expected);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Review regressions (S11 round 1)
+
+namespace
+{
+// Replaces the content of a section of a save (to build malformed saves)
+std::vector<uint8_t> replaceSection(const std::vector<uint8_t>& data, uint32_t tag, const std::vector<uint8_t>& content)
+{
+    const size_t at = sectionOffset(data, tag);
+    EXPECT_GT(at, 0u);
+    uint64_t len;
+    std::memcpy(&len, data.data() + at - 8, 8);
+    std::vector<uint8_t> out(data.begin(), data.begin() + std::ptrdiff_t(at - 8));
+    const uint64_t n = content.size();
+    for (int i = 0; i < 8; ++i) out.push_back(uint8_t(n >> (8 * i)));
+    out.insert(out.end(), content.begin(), content.end());
+    out.insert(out.end(), data.begin() + std::ptrdiff_t(at + len), data.end());
+    return out;
+}
+SchemaTable readSchema(const std::vector<uint8_t>& data)
+{
+    const size_t at = sectionOffset(data, kTagSchema);
+    uint64_t len;
+    std::memcpy(&len, data.data() + at - 8, 8);
+    BinaryReader r(data.data() + at, size_t(len));
+    SchemaTable t;
+    std::string error;
+    EXPECT_TRUE(t.read(r, error)) << error;
+    return t;
+}
+std::vector<uint8_t> withSchema(const std::vector<uint8_t>& data, const SchemaTable& t)
+{
+    std::vector<uint8_t> content;
+    BinaryWriter w(content);
+    t.write(w);
+    return replaceSection(data, kTagSchema, content);
+}
+// A save whose Weather type got an extra field of the given type (same version: the slow path decodes it)
+std::vector<uint8_t> weatherWithField(const std::string& type)
+{
+    World a(baseSetup());
+    a.global<Weather>().rain = 1;
+    const auto blob          = a.save();
+    SchemaTable t            = readSchema(blob);
+    for (SchemaType& s : t.types)
+        if (s.name == "Weather") s.fields.push_back(FieldInfo{"x", type, {}});
+    return withSchema(blob, t);
+}
+}  // namespace
+
+// A deeply nested container type in a crafted schema overflowed the stack; a nest of zero-byte arrays ran for minutes
+TEST(SaveRobustness, MaliciousFieldTypesAreRejected)
+{
+    World w(baseSetup());
+    std::string deep;
+    for (int i = 0; i < 20; ++i) deep += "array<";
+    deep += "int8,0>";
+    for (int i = 0; i < 19; ++i) deep += ",1>";
+    LoadResult r = w.tryLoad(weatherWithField(deep));
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("malformed field type"), std::string::npos) << r.error;
+    EXPECT_FALSE(w.tryLoad(weatherWithField(std::string(300, 'x'))).committed);
+    // Unbalanced brackets
+    EXPECT_FALSE(w.tryLoad(weatherWithField("array<int8,0>,1>")).committed);
+    // Zero-byte elements in nested arrays: bounded work, rejected
+    const auto start = std::chrono::steady_clock::now();
+    r                = w.tryLoad(weatherWithField("array<array<array<array<int8,0>,1000>,1000>,1000>"));
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("without bytes"), std::string::npos) << r.error;
+    const auto blob = weatherWithField("array<array<array<array<int8,0>,1000>,1000>,1000>");
+    World ok(baseSetup());
+    EXPECT_FALSE(diffSaves(ok.save(), blob).error.empty());
+    EXPECT_LT(std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(), 10.0);
+}
+
+// A schema with many types was checked for duplicates quadratically
+TEST(SaveRobustness, LargeSchemasAreReadInLinearTime)
+{
+    World a(baseSetup());
+    const auto blob = a.save();
+    SchemaTable t   = readSchema(blob);
+    for (int i = 0; i < 50000; ++i)
+        t.types.push_back(SchemaType{SchemaKind::Struct, "Extra" + std::to_string(i), 0, 1, {}});
+    const auto big   = withSchema(blob, t);
+    const auto start = std::chrono::steady_clock::now();
+    World w(baseSetup());
+    EXPECT_TRUE(w.tryLoad(big).ok());
+    EXPECT_LT(std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(), 2.0);
+}
+
+// An even RNG increment passed every check and asserted in the middle of the commit
+TEST(SaveRobustness, AnEvenRngIncrementIsRejected)
+{
+    World a(baseSetup());
+    fill(a);
+    auto blob       = a.save();
+    const size_t at = sectionOffset(blob, kTagState);
+    blob[at + 8] &= uint8_t(~1u);  // the increment follows the state (u64)
+    World w(baseSetup());
+    const auto before  = w.save();
+    const LoadResult r = w.tryLoad(blob);
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("increment"), std::string::npos) << r.error;
+    EXPECT_EQ(w.save(), before);
+}
+
+// A freed state entity left its children with a dead parent; a game object on the world-state entity could destroy it
+TEST(SaveRobustness, StateEntitiesWithChildrenOrGameObjects)
+{
+    {
+        World a(baseSetup());
+        const Entity child = a.create();
+        a.add<Parent>(child, Parent{a.worldStateEntity()});
+        WorldSetup s;
+        s.migrations = [](MigrationList& m) { m.addRemoved("Weather", RemovedPolicy::DropComponent); };
+        World w(s);
+        const LoadResult r = w.tryLoad(a.save());
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find("would be freed"), std::string::npos) << r.error;
+    }
+    {
+        World a(baseSetup());
+        Behaviour b;
+        b.classId = Walker::id;
+        a.registry().add<Behaviour>(a.worldStateEntity(), std::move(b));
+        World w(baseSetup());
+        const LoadResult r = w.tryLoad(a.save());
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find("world-state entity has a game object"), std::string::npos) << r.error;
+    }
+}
+
+// time() after a load drifted from steps * dt (the saved time as the base rounds differently)
+TEST(Save, TheTimeContinuesBitForBit)
+{
+    World a(baseSetup());
+    a.step(7);
+    World b(baseSetup());
+    ASSERT_TRUE(b.tryLoad(a.save()).ok());
+    for (int i = 0; i < 100; ++i)
+    {
+        a.step();
+        b.step();
+        ASSERT_EQ(a.time(), b.time()) << "step " << i;
+        ASSERT_EQ(a.save(), b.save()) << "step " << i;
+    }
+}
+
+namespace v1b
+{
+// Item at the same version with a field of another type (R-SAVE-1 violated in a nested struct)
+struct Item
+{
+    static constexpr const char* name = "Item";
+    static constexpr uint32_t version = 1;
+    std::string id;
+    double count = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("id", id);
+        v("count", count);
+    }
+};
+struct Stats
+{
+    static constexpr const char* name = "Stats";
+    static constexpr ComponentId id   = ComponentId(kFirstGameComponent + 4);
+    static constexpr uint32_t version = 1;
+    std::vector<Item> bag;
+    template <class V>
+    void visit(V& v)
+    {
+        v("bag", bag);
+    }
+};
+}  // namespace v1b
+
+TEST(SaveMigration, NestedTypeChangesWithoutAVersionAreRejected)
+{
+    World a(setupV1());
+    v1::Stats s;
+    s.bag = {v1::Item{"apple", 3}};
+    a.add<v1::Stats>(a.create(), s);
+    const LoadResult r = loadInto<v1b::Stats>(a.save());
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("Item.count changed its type"), std::string::npos) << r.error;
 }

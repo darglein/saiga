@@ -9,6 +9,7 @@
 #include "saiga/core/util/json11.hpp"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/save/LoadResult.h"
+#include "saiga/engine/world/StructuralLog.h"
 #include "saiga/export.h"
 
 #include <chrono>
@@ -165,6 +166,9 @@ class SAIGA_ENGINE_API WorldApi
     void detach();
     void onLoaded(const LoadInfo& info);
     static json11::Json hookErrorsJson(const LoadResult& r);
+    static json11::Json listenerErrorsJson(const LoadResult& r);
+    void markLoaded(uint64_t step, uint64_t fromStep);
+    void journalRecord(const StructuralLog::Record& r, uint64_t stepIndex);
 
     // The change journal of changes_since: structural changes from an own structural log consumer (drained after every
     // step and before every changes_since; the components of a destroyed entity are folded into "destroyed"),
@@ -189,10 +193,13 @@ class SAIGA_ENGINE_API WorldApi
     int stepListener     = -1;
     int loadListener     = -1;
     uint64_t lastLoadSeq = 0;  // the journal entry of the last load (cursors before it get reloaded: true)
+    // Loads and world swaps this API has seen (world_status and the world_loaded entries report it; it only grows)
+    uint64_t generation = 0;
     struct Snapshot
     {
         std::vector<uint8_t> bytes;
         uint64_t step = 0, hash = 0;
+        bool hasHash = true;  // false for imported snapshots
     };
     std::map<std::string, Snapshot> snapshots;
     std::string snapshotDirectory;

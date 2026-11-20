@@ -21,11 +21,13 @@
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <random>
 #include <sstream>
@@ -64,7 +66,7 @@ const std::vector<Operation>& operationTable()
         {"diff_snapshot", false, {"name", "against", "entity", "components", "limit", "after"}},
         {"get_data", false, {"type", "name"}},
         {"load_snapshot", true, {"name", "paused"}},
-        {"export_snapshot", true, {"name", "file"}},
+        {"export_snapshot", true, {"name", "file", "overwrite"}},
         {"import_snapshot", true, {"name", "file", "overwrite"}},
         {"reload_data", true, {"reconfigure"}},
         {"set_component", true, {"entity", "component", "values"}},
@@ -417,6 +419,37 @@ WorldApi::~WorldApi()
     detach();
 }
 
+void WorldApi::markLoaded(uint64_t step, uint64_t fromStep)
+{
+    // One journal entry for a load or a world swap; moves start again
+    generation++;
+    lastDestroyed = Entity{};
+    journal.push_back(Change{nextSeq++, step, "world_loaded", Entity{}, -1, fromStep, generation});
+    if (journal.size() > kJournalCapacity) journal.pop_front();
+    lastLoadSeq = journal.back().seq;
+    lastMoved.clear();
+    windows.clear();
+    movesSince = step;
+}
+
+void WorldApi::journalRecord(const StructuralLog::Record& r, uint64_t stepIndex)
+{
+    if (r.component == Transform::id)
+    {
+        // Destroy appends Transform first, then the other components: folded
+        lastDestroyed = r.added ? Entity{} : r.entity;
+        journal.push_back(Change{nextSeq++, stepIndex, r.added ? "created" : "destroyed", r.entity, -1});
+    }
+    else if (!r.added && r.entity == lastDestroyed)
+        return;
+    else
+    {
+        lastDestroyed = Entity{};
+        journal.push_back(Change{nextSeq++, stepIndex, r.added ? "added" : "removed", r.entity, int(r.component)});
+    }
+    if (journal.size() > kJournalCapacity) journal.pop_front();
+}
+
 void WorldApi::rebind(World& world)
 {
     const uint64_t fromStep = w ? w->stepIndex() : 0;
@@ -424,50 +457,31 @@ void WorldApi::rebind(World& world)
     detach();
     w = &world;
     attach();
-    // Like a load: one journal entry, moves start again
-    journal.push_back(Change{nextSeq++, w->stepIndex(), "world_loaded", Entity{}, -1, fromStep, w->loadCount()});
-    if (journal.size() > kJournalCapacity) journal.pop_front();
-    lastLoadSeq = journal.back().seq;
-    lastMoved.clear();
-    windows.clear();
-    movesSince = w->stepIndex();
+    markLoaded(w->stepIndex(), fromStep);
 }
 
 void WorldApi::onLoaded(const LoadInfo& info)
 {
-    // The records before the load are journaled as usual, the load's own records are folded into one entry
+    // The records before the load are journaled as usual, the load's own records [logBegin, logEnd) are folded into
+    // one entry, records after it (e.g. made by other load listeners) are journaled again
     StructuralLog& log       = w->structuralLog();
-    const uint64_t before    = info.logBegin > log.cursor(consumer) ? info.logBegin - log.cursor(consumer) : 0;
-    uint64_t seen            = 0;
+    uint64_t index           = log.cursor(consumer);
+    bool marked              = false;
     const uint64_t stepIndex = w->stepIndex();
-    log.consume(
-        consumer,
-        [&](const StructuralLog::Record& r)
-        {
-            const bool beforeLoad = seen++ < before;
-            if (!beforeLoad) return;
-            if (r.component == Transform::id)
-            {
-                lastDestroyed = r.added ? Entity{} : r.entity;
-                journal.push_back(Change{nextSeq++, stepIndex, r.added ? "created" : "destroyed", r.entity, -1});
-            }
-            else if (!r.added && r.entity == lastDestroyed)
-                return;
-            else
-            {
-                lastDestroyed = Entity{};
-                journal.push_back(
-                    Change{nextSeq++, stepIndex, r.added ? "added" : "removed", r.entity, int(r.component)});
-            }
-            if (journal.size() > kJournalCapacity) journal.pop_front();
-        });
-    lastDestroyed = Entity{};
-    journal.push_back(Change{nextSeq++, info.toStep, "world_loaded", Entity{}, -1, info.fromStep, info.loadCount});
-    if (journal.size() > kJournalCapacity) journal.pop_front();
-    lastLoadSeq = journal.back().seq;
-    lastMoved.clear();
-    windows.clear();
-    movesSince = info.toStep;
+    log.consume(consumer,
+                [&](const StructuralLog::Record& r)
+                {
+                    const uint64_t at = index++;
+                    if (at < info.logBegin) return journalRecord(r, stepIndex);
+                    if (at < info.logEnd) return;
+                    if (!marked)
+                    {
+                        markLoaded(info.toStep, info.fromStep);
+                        marked = true;
+                    }
+                    journalRecord(r, stepIndex);
+                });
+    if (!marked) markLoaded(info.toStep, info.fromStep);
 }
 
 std::vector<std::string> WorldApi::operations() const
@@ -691,7 +705,7 @@ ApiResult WorldApi::worldStatus(const Json&)
                                            {"entities", double(reg.aliveCount())},
                                            {"game_objects", double(objects)},
                                            {"hash", hash},
-                                           {"world_generation", double(w->loadCount())}});
+                                           {"world_generation", double(generation)}});
 }
 
 ApiResult WorldApi::listEntities(const Json& a)
@@ -946,28 +960,7 @@ ApiResult WorldApi::logs(const Json& a)
 void WorldApi::drainChanges()
 {
     const uint64_t stepIndex = w->stepIndex();
-    auto push                = [&](const char* kind, Entity e, int component)
-    {
-        journal.push_back(Change{nextSeq++, stepIndex, kind, e, component});
-        if (journal.size() > kJournalCapacity) journal.pop_front();
-    };
-    w->structuralLog().consume(consumer,
-                               [&](const StructuralLog::Record& r)
-                               {
-                                   if (r.component == Transform::id)
-                                   {
-                                       // Destroy appends Transform first, then the other components: folded
-                                       lastDestroyed = r.added ? Entity{} : r.entity;
-                                       push(r.added ? "created" : "destroyed", r.entity, -1);
-                                   }
-                                   else if (!r.added && r.entity == lastDestroyed)
-                                       return;
-                                   else
-                                   {
-                                       lastDestroyed = Entity{};
-                                       push(r.added ? "added" : "removed", r.entity, r.component);
-                                   }
-                               });
+    w->structuralLog().consume(consumer, [&](const StructuralLog::Record& r) { journalRecord(r, stepIndex); });
 }
 
 void WorldApi::trackMoves()
@@ -1462,7 +1455,7 @@ std::string hashHex(uint64_t h)
     return buf;
 }
 
-// A plain file name: letters, digits, '.', '_', '-' (no paths, no "..")
+// A plain file name: letters, digits, '.', '_', '-' (no paths, no ".."), not a Windows device name (CON, NUL.bin)
 bool plainFileName(const std::string& f)
 {
     if (f.empty() || f.size() > 128 || f == "." || f.find("..") != std::string::npos) return false;
@@ -1470,9 +1463,24 @@ bool plainFileName(const std::string& f)
         if (!((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '.' || c == '_' ||
               c == '-'))
             return false;
+    std::string stem = f.substr(0, f.find('.'));
+    for (char& c : stem) c = char(std::toupper((unsigned char)c));
+    static const char* const kDevices[] = {"CON", "PRN", "AUX", "NUL"};
+    for (const char* d : kDevices)
+        if (stem == d) return false;
+    if (stem.size() == 4 && (stem.compare(0, 3, "COM") == 0 || stem.compare(0, 3, "LPT") == 0) && stem[3] >= '0' &&
+        stem[3] <= '9')
+        return false;
     return true;
 }
 }  // namespace
+
+Json WorldApi::listenerErrorsJson(const LoadResult& r)
+{
+    Json::array a;
+    for (const std::string& e : r.listenerErrors) a.push_back(e);
+    return a;
+}
 
 Json WorldApi::hookErrorsJson(const LoadResult& r)
 {
@@ -1527,8 +1535,9 @@ ApiResult WorldApi::loadSnapshot(const Json& a)
                                            {"hash", hashHex(w->hash())},
                                            {"entities", double(w->registry().aliveCount())},
                                            {"paused", w->isPaused()},
-                                           {"world_generation", double(w->loadCount())},
-                                           {"hook_errors", hookErrorsJson(r)}});
+                                           {"world_generation", double(generation)},
+                                           {"hook_errors", hookErrorsJson(r)},
+                                           {"listener_errors", listenerErrorsJson(r)}});
 }
 
 ApiResult WorldApi::listSnapshots(const Json&)
@@ -1538,7 +1547,7 @@ ApiResult WorldApi::listSnapshots(const Json&)
         list.push_back(Json::object{{"name", kv.first},
                                     {"bytes", double(kv.second.bytes.size())},
                                     {"step", double(kv.second.step)},
-                                    {"hash", hashHex(kv.second.hash)}});
+                                    {"hash", kv.second.hasHash ? Json(hashHex(kv.second.hash)) : Json()}});
     return ApiResult::success(Json::object{{"snapshots", list}});
 }
 
@@ -1566,8 +1575,10 @@ ApiResult WorldApi::diffSnapshot(const Json& a)
     {
         Entity e;
         if (!parseEntity(a["entity"], e, error)) return ApiResult::failure(error);
-        filter.hasEntity   = true;
-        filter.entityIndex = e.index;
+        filter.hasEntity        = true;
+        filter.entityIndex      = e.index;
+        filter.hasGeneration    = true;
+        filter.entityGeneration = e.generation;
     }
     if (!a["components"].is_null())
     {
@@ -1604,17 +1615,39 @@ ApiResult WorldApi::diffSnapshot(const Json& a)
 ApiResult WorldApi::exportSnapshot(const Json& a)
 {
     std::string name, error;
-    if (!snapshotName(a, name, error)) return ApiResult::failure(error);
+    bool overwrite = false;
+    if (!snapshotName(a, name, error) || !boolArg(a, "overwrite", false, overwrite, error))
+        return ApiResult::failure(error);
     if (snapshotDirectory.empty()) return ApiResult::failure("export_snapshot: no snapshot directory is set");
     if (!a["file"].is_string() || !plainFileName(a["file"].string_value()))
-        return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-')");
+        return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-'; no device names)");
     auto it = snapshots.find(name);
     if (it == snapshots.end()) return ApiResult::failure("export_snapshot: no snapshot \"" + name + "\"");
-    const std::string path = snapshotDirectory + "/" + a["file"].string_value();
-    std::ofstream f(path, std::ios::binary);
-    f.write(reinterpret_cast<const char*>(it->second.bytes.data()), std::streamsize(it->second.bytes.size()));
-    if (!f) return ApiResult::failure("export_snapshot: cannot write " + path);
-    return ApiResult::success(Json::object{{"file", path}, {"bytes", double(it->second.bytes.size())}});
+    namespace fs           = std::filesystem;
+    const fs::path path    = fs::path(snapshotDirectory) / a["file"].string_value();
+    const fs::path partial = fs::path(path.string() + ".partial");
+    std::error_code ec;
+    if (fs::exists(path, ec) && !overwrite)
+        return ApiResult::failure("export_snapshot: " + path.string() + " exists (overwrite: true replaces it)");
+    {
+        // Written completely, then renamed into place: a failed write never leaves a truncated snapshot file
+        std::ofstream f(partial, std::ios::binary | std::ios::trunc);
+        f.write(reinterpret_cast<const char*>(it->second.bytes.data()), std::streamsize(it->second.bytes.size()));
+        f.flush();
+        if (!f)
+        {
+            f.close();
+            fs::remove(partial, ec);
+            return ApiResult::failure("export_snapshot: cannot write " + path.string());
+        }
+    }
+    fs::rename(partial, path, ec);
+    if (ec)
+    {
+        fs::remove(partial, ec);
+        return ApiResult::failure("export_snapshot: cannot write " + path.string());
+    }
+    return ApiResult::success(Json::object{{"file", path.string()}, {"bytes", double(it->second.bytes.size())}});
 }
 
 ApiResult WorldApi::importSnapshot(const Json& a)
@@ -1625,30 +1658,34 @@ ApiResult WorldApi::importSnapshot(const Json& a)
         return ApiResult::failure(error);
     if (snapshotDirectory.empty()) return ApiResult::failure("import_snapshot: no snapshot directory is set");
     if (!a["file"].is_string() || !plainFileName(a["file"].string_value()))
-        return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-')");
+        return ApiResult::failure("file: a plain file name (letters, digits, '.', '_', '-'; no device names)");
     if (snapshots.count(name) && !overwrite)
         return ApiResult::failure("import_snapshot: \"" + name + "\" exists (overwrite: true replaces it)");
     if (!snapshots.count(name) && snapshots.size() >= kMaxSnapshots)
         return ApiResult::failure("import_snapshot: at most " + std::to_string(kMaxSnapshots) + " snapshots");
-    const std::string path = snapshotDirectory + "/" + a["file"].string_value();
-    std::ifstream f(path, std::ios::binary);
-    if (!f) return ApiResult::failure("import_snapshot: cannot read " + path);
-    std::stringstream ss;
-    ss << f.rdbuf();
-    const std::string data = ss.str();
-    size_t total           = data.size();
+    namespace fs        = std::filesystem;
+    const fs::path path = fs::path(snapshotDirectory) / a["file"].string_value();
+    std::error_code ec;
+    const uintmax_t size = fs::file_size(path, ec);
+    if (ec) return ApiResult::failure("import_snapshot: cannot read " + path.string());
+    // The limit before anything is read
+    size_t total = size_t(std::min<uintmax_t>(size, kMaxSnapshotBytes + 1));
     for (const auto& kv : snapshots)
         if (kv.first != name) total += kv.second.bytes.size();
-    if (total > kMaxSnapshotBytes)
+    if (size > kMaxSnapshotBytes || total > kMaxSnapshotBytes)
         return ApiResult::failure("import_snapshot: the snapshots would use more than 256 MB");
     Snapshot s;
-    s.bytes.assign(data.begin(), data.end());
+    s.bytes.resize(size_t(size));
+    std::ifstream f(path, std::ios::binary);
+    f.read(reinterpret_cast<char*>(s.bytes.data()), std::streamsize(s.bytes.size()));
+    if (!f) return ApiResult::failure("import_snapshot: cannot read " + path.string());
     ParsedSave parsed;
     if (!parseSave(s.bytes, parsed, error)) return ApiResult::failure("import_snapshot: " + error);
     s.step          = parsed.steps;
+    s.hasHash       = false;  // the hash of the world it came from is not known
     snapshots[name] = std::move(s);
     return ApiResult::success(
-        Json::object{{"name", name}, {"bytes", double(data.size())}, {"step", double(parsed.steps)}});
+        Json::object{{"name", name}, {"bytes", double(size)}, {"step", double(parsed.steps)}, {"hash", Json()}});
 }
 
 ApiResult WorldApi::getData(const Json& a)
@@ -1690,7 +1727,7 @@ ApiResult WorldApi::reloadData(const Json& a)
         if (!r.committed)
             return ApiResult::failure("reload_data: the data were reloaded, the reconfigure failed: " + r.error);
         result["hook_errors"]      = hookErrorsJson(r);
-        result["world_generation"] = double(w->loadCount());
+        result["world_generation"] = double(generation);
     }
     return ApiResult::success(result);
 }

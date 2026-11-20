@@ -1972,15 +1972,19 @@ deterministic replicas.
   order, so views iterate in the same order after a load), `EVNT` (pending events), `ACTN` (queued actions), `STAT`
   (RNG, `Persistent` counter); uncompressed (S25 compresses files). `save()` is deterministic. Not saved: `Saved::No`
   components, game objects (recreated), the grid, hierarchy order, child counts, tick evaluation, change flags (rebuilt
-  by the load); paused, time scale and accumulator (app state). A load keeps the time of the save (`time()` = the saved
-  time + steps since the load * dt, also for another step rate).
+  by the load); paused, time scale and accumulator (app state). A load keeps the time of the save (`time()` stays
+  `steps * dt` when the step rate and the saved time agree; otherwise the saved time + steps since the load * dt).
+  Saves are untrusted input: the schema's type strings are bounded (256 characters, nesting 8, arrays of at most 2^16)
+  and decoding work is bounded (elements without bytes share a budget).
 - `tryLoad` checks everything before the world changes (a rejected save leaves the world unchanged: format, schema,
   slot table, free list, every value, `Parent` targets and cycles, unique `PersistentId`s, class IDs), then replaces all
   entities (removes and creates in the structural log; load listeners get the log range), rebuilds the derived state and
   recreates the game objects in three passes (create all, `configure` all, `onLoad` all; `onSpawn` is not called; during
   a load `configure` makes no structural changes and `onLoad` adds or removes only `Saved::No` components of its own
   entity, asserted); a hook that throws removes its entity with its descendants without hooks and is reported in
-  `LoadResult::hookErrors`.
+  `LoadResult::hookErrors` (a throwing load listener in `listenerErrors`; the others still run). A state entity freed by
+  a load (its components are no longer registered as state) must have no children, `PersistentId` or game object, and
+  state entities never have game objects.
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.

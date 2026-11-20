@@ -19,8 +19,6 @@ namespace Engine
 {
 namespace
 {
-constexpr uint64_t kMaxSlots = 0xFFFFFFFFull;
-
 bool readBlocks(BinaryReader& r, size_t base, const SchemaTable& schema, SchemaKind kind,
                 std::vector<ParsedSave::Block>& out, std::string& error)
 {
@@ -31,6 +29,7 @@ bool readBlocks(BinaryReader& r, size_t base, const SchemaTable& schema, SchemaK
         error = "more value blocks than schema types";
         return false;
     }
+    std::vector<bool> seen(schema.types.size(), false);
     for (uint32_t i = 0; i < n && r.ok(); ++i)
     {
         ParsedSave::Block b;
@@ -45,13 +44,13 @@ bool readBlocks(BinaryReader& r, size_t base, const SchemaTable& schema, SchemaK
                     (kind == SchemaKind::Component ? "component" : "event");
             return false;
         }
-        for (const ParsedSave::Block& o : out)
-            if (o.schemaIndex == b.schemaIndex)
-            {
-                error = "two value blocks of " + schema.types[b.schemaIndex].name;
-                return false;
-            }
-        b.begin = base + r.position();
+        if (seen[b.schemaIndex])
+        {
+            error = "two value blocks of " + schema.types[b.schemaIndex].name;
+            return false;
+        }
+        seen[b.schemaIndex] = true;
+        b.begin             = base + r.position();
         if (!r.skip(length)) break;
         b.end = base + r.position();
         // Every value takes at least one byte (components at least their 4-byte index)
@@ -179,6 +178,11 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
             r.read(out.rngState);
             r.read(out.rngIncrement);
             r.read(out.persistentCounter);
+            if (r.ok() && (out.rngIncrement & 1) == 0)
+            {
+                error = "STAT: the RNG increment must be odd";
+                return false;
+            }
         }
         if (!ok || !r.ok())
         {
@@ -198,7 +202,6 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
         error = "unknown section " + tagName(tag) + " after the last one";
         return false;
     }
-    (void)kMaxSlots;
     return true;
 }
 
