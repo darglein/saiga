@@ -1,6 +1,6 @@
 # S18: Instances and culling
 
-Status: planned.
+Status: done.
 
 Sections follow the stage plan template of S05.
 
@@ -281,3 +281,95 @@ bucket_scan.comp,instance_write.comp,instance.vert,flat.frag}`, `tests/test_vulk
 `data/tests/scene/flat_box.gltf`, `data/tests/golden/scene_flat_box.png`, `samples/vulkan/sample_vulkan_scene_benchmark.cpp`,
 `samples/vulkan/CMakeLists.txt`, `tests/test_engine_app.cpp` and `samples/games/world/main.cpp` (the `cull` section), `docs/engine_design.md`, `AGENTS.md`, this
 file.
+
+## Design changes
+
+- **Additional files**: `vulkan/scene/SubAllocatedBuffer.{h,cpp}` (the VMA virtual block, the growth with its pending
+  copy and the residency of each range, shared by the mesh pool's vertex and index buffers and the instance buffer),
+  `UploadBatch.{h,cpp}` (the frame's uploads through the frame slot's staging buffer, one `vkCmdCopyBuffer` per
+  destination), `RenderSceneTypes.cpp` (the encoders), `shader/vulkan/scene/instance_common.glsl` (the GLSL structs,
+  `placePoint`, the rotation decode and the dynamic interpolation shared by the count pass, the write pass and
+  `instance.vert`), `data/tests/scene/flat_box_lines.gltf`, `flat_box_lod_gap.gltf` (the import error cases) and
+  `make_gltf.py` (the generator of the three glTF files).
+- **One descriptor set layout** with all 13 storage-buffer bindings for the three compute pipelines and the four draw
+  pipelines (identically defined layouts are compatible), one set per frame slot, rewritten for every recorded frame.
+- **The CPU set test also uses the end distances**: a set whose AABB is farther from the camera than the largest last
+  end distance of its meshes gets no work chunks (equivalent to the per-instance rule, which the count pass still
+  applies; it keeps the far sets of the culling benchmark out of the dispatch).
+- **Sets keep a CPU copy** of their instances: it is the source of the uploads, queued as ranges per set and merged per
+  frame (one copy command must not write a range twice); `updateInstances` beyond the used size also uploads the
+  tombstones of the gap, which the culling now visits. Bounds are recomputed over the used size at
+  `addInstanceSet` and `updateInstances`; an instance scale must be >= 0 (asserted there).
+- **Statistics**: the scan writes `instancesPerLod` and `nonEmptyBuckets` directly into the frame slot's host-visible
+  statistics buffer (no copy of the counts buffer); a frame without a camera or instances gets zeros from the CPU.
+  `RenderScene::statistics()` (non-const) reads the completed slots and keeps the newest.
+- **API additions**: `PipelineClass` (1..4 explicit classes, 0 derived; asserted), the encoders `packNormalOct` /
+  `unpackNormalOct`, `packColor`, `packSnorm2x16` / `unpackSnorm2x16`, `StaticInstance::setRotation` / `getRotation` /
+  `setPosition` / `getPosition`, `RenderScene::viewMatrix()` / `projectionMatrix()` (with `viewProjection()`),
+  `hasCamera()`, `multiDrawIndirect()`; `setDynamic`'s `boneOffset` defaults to 0; `chunkSize` (256 m) next to
+  `chunkOrigin` / `regionOrigin`; `VulkanMemory::allocationCount()` (the growth test's released buffers) and
+  `WorldBenchmark::buildInfo()` (public, for the culling benchmark).
+- **Frame barriers**: the transfer section's barriers include the compute and indirect stages (the scene's buffers
+  written there are read by the culling; the culling's writes of the previous frame precede this frame's transfer
+  writes); the cull section starts with a barrier from the previous frame's draws and passes.
+- **glTF `VEC3` colors**: a `COLOR_0` whose alphas are all 0 is treated as `VEC3` (alpha 1) also for a `MASK` material;
+  the plan's "alpha forced to 255 unless MASK" alone would make every MASK mesh with a VEC3 color invisible. The import
+  sets placeholder end distances (LOD i: (i + 1) * 1000 m) and limits a LOD to 2^24 vertices.
+- **Fixed light**: sun `normalize(0.4, 1, 0.7)` (0.8) and ambient 0.35; a symmetric direction lit the box's +x and +z
+  faces equally, so the golden would not show three distinct face shades.
+- **Tests**: the rejection of "an instance of an unregistered mesh" is a dynamic of an unregistered mesh (a static set
+  asserts registered meshes at `addInstanceSet`, as the plan requires; the zeroed record is the guard for dynamics).
+  The scene tests are the fixture `VulkanSceneContent` (derived from `VulkanScene`), the import test
+  `VulkanMeshImport.FlatBox` (no device). The CPU reference's tolerance is the plan's: per LOD and in total the GPU
+  count differs by at most the number of instances within 1e-3 relative of a plane or an end distance.
+- **The culling benchmark runs headless** (`HeadlessWindow`, no present): it needs no window and isolates the scene's
+  sections; 120 frames without a camera give the empty scene section, `draw_ms` = `scene_ms` - its median. The trees
+  are `ForestRenderer::placeTrees` on the default height field and `FoliageGenerator`'s meshes made flat (faces
+  duplicated, no textures, a two-sided material: the leaf cards are single quads), one set per chunk.
+
+## Results
+
+Tests (`VK_DRIVER_FILES=.../lvp_icd.json ctest --parallel 8`, RelWithDebInfo, GCC 15): 65 of 66 pass; only
+`test_opengl_window` fails locally (no display, as before). `test_vulkan_*` and `test_engine_app` (14 tests) also pass
+on the RTX 5080 Laptop GPU with the validation layer (no validation message). `test_vulkan_scene` has 18 tests (8 of
+S17, 9 `VulkanSceneContent`, `VulkanMeshImport.FlatBox`). `VulkanSceneContent.CullingCountsMatchReference`: 1345 of
+10^4 instances drawn in the initial frame, 62 within the 1e-3 tolerance band; the GPU counts are within it after every
+change. `VulkanSceneContent.Precision` fails without the lo part of the offsets (1.2-1.8 px off the double projection)
+and passes with it. The demos' `--scenarios` pass (9/9 each); the `--demo` screenshots of the three demos and
+`game_world` (`SAIGA_SCREENSHOT`, RTX 5080) look as before.
+
+Golden (lavapipe, Mesa with LLVM 21.1.8): `scene_flat_box` new (RTX 5080, not gating: mean 0/255, max 0/255); the other
+goldens unchanged.
+
+Benchmarks (release build of AGENTS.md, RTX 5080 Laptop GPU, 1920 x 1080; before = the S17 tip (the plan commit),
+after = this stage; 3 runs each; medians of the run medians, ms):
+
+| | flyover before | flyover after | forest before | forest after |
+|---|---|---|---|---|
+| `cpu_ms` (frame interval) | 3.79 (3.77-3.80) | 3.75 (3.03-3.83) | 2.14 (2.03-2.17) | 2.08 (2.04-2.13) |
+| terrain + water | 0.105 | 0.107 (+2.1 %) | 0.063 | 0.064 (+1.7 %) |
+| trees | 1.449 | 1.451 | 0.470 | 0.472 (+0.6 %) |
+| grass | 0 | 0 | 0.671 | 0.675 (+0.6 %) |
+| sky | 0.011 | 0.011 | 0.008 | 0.008 |
+| upload + cull | 0.025 | 0.025 | 0.023 | 0.023 |
+| `gpu_frame_ms.gpu` (whole frame) | 2.312 | 2.316 | 1.468 (1.45-1.76) | 1.448 |
+| sections | transfer 0.028, scene 2.273, post 0.010 | transfer 0.029, cull 0.0001, scene 2.275, post 0.010 | transfer 0.026, scene 1.426, post 0.010 | transfer 0.028, cull 0.0001, scene 1.400, post 0.010 |
+
+All passes and the frame interval are within 5 % (R-TEST-2). The `transfer` section grew by 1.3-1.7 µs (+4.7 % /
++6.6 %): the stronger barriers of the frame (compute and indirect stages) and the per-frame offset and descriptor
+writes; below the timer noise of passes under 0.1 ms (§17.7). The empty `cull` section costs 0.1 µs. The flyover
+interval is in the slow mode of S17's bimodal flyover (3.8 ms) in the before runs and in two of three after runs.
+`data/tests/benchmarks.json` is not updated (S17's baseline is not accepted yet).
+
+Culling benchmark (`sample_vulkan_scene_benchmark`, same build, 4 runs; 199,466 instances in 928 sets, triangles per LOD
+(148, 90, 18), (516, 140, 28), (460, 132, 28); multi-draw: 1 indirect draw call per frame): `cull_ms` 0.066-0.068
+(p95 0.070-0.072), `draw_ms` 1.27-1.32 (p95 1.36-1.40; `scene_ms` 1.32-1.36, `scene_empty_ms` 0.035-0.047),
+`transfer_ms` 0.002, CPU `recording_ms` 0.11-0.16 (the work chunks of 928 sets and the offset table); 126.6k instances
+drawn per frame (median), all in LOD 2 (the flyover camera is 300 m above the ground). For orientation only, the
+prototype's flyover `trees` pass is 1.45 ms and its `upload + cull` 0.025 ms (alpha-tested foliage with alpha to
+coverage, a different shading); S19 compares the forest on equal terms.
+
+Left open: CI has not run on this branch (lavapipe on the runner: the `scene_flat_box` margin on CI's Mesa; the MSVC job:
+assimp reaching `saiga_vulkan` through `saiga_core` and the new code on MSVC); the culling benchmark has no committed
+baseline (an S19 input); the flyover interval stays bimodal (S17).
+
