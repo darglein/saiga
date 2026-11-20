@@ -25,35 +25,9 @@ namespace Vulkan
 using Stage  = vk::PipelineStageFlagBits2;
 using Access = vk::AccessFlagBits2;
 
-mat4 reversedZInfinitePerspective(float fovy, float aspect, float zNear)
-{
-    float f = 1.0f / std::tan(fovy * 0.5f);
-    mat4 m  = mat4::Zero();
-    m(0, 0) = f / aspect;
-    // Vulkan's y axis points down
-    m(1, 1) = -f;
-    // z_clip = zNear, w_clip = -z_view  =>  depth = zNear / -z_view: 1 at the near plane, 0 at infinity
-    m(2, 3) = zNear;
-    m(3, 2) = -1.0f;
-    return m;
-}
-
-// The largest supported sample count <= requested
-static vk::SampleCountFlagBits selectSampleCount(vk::PhysicalDevice physicalDevice, int requested)
-{
-    auto limits     = physicalDevice.getProperties().limits;
-    auto supported  = uint32_t(limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts);
-    uint32_t result = 1;
-    for (uint32_t c = 1; c <= 64; c *= 2)
-    {
-        if (int(c) <= requested && (supported & c)) result = c;
-    }
-    return vk::SampleCountFlagBits(result);
-}
-
 VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParameters vulkanParameters,
                                              const ForwardRenderingParameters& parameters)
-    : VulkanRenderer(window, vulkanParameters), params(parameters)
+    : VulkanRenderer(window, vulkanParameters, {"TRANSFER", "MAIN", "IMGUI"}), params(parameters)
 {
     samples     = selectSampleCount(base().physicalDevice, params.msaaSamples);
     depthFormat = params.depthFormat;
@@ -67,9 +41,6 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
                   << int(samples) << "x" << std::endl;
     }
 
-    renderCommandPool = base().mainQueue.createCommandPool(vk::CommandPoolCreateFlagBits::eResetCommandBuffer);
-    drawCmdBuffers    = renderCommandPool.allocateCommandBuffers(framesInFlight, vk::CommandBufferLevel::ePrimary);
-
     if (imGui) imGui->initResources(base(), renderingFormats());
 
     if (const char* file = std::getenv("SAIGA_SCREENSHOT"))
@@ -82,7 +53,6 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 VulkanForwardRenderer::~VulkanForwardRenderer()
 {
     waitIdle();
-    renderCommandPool.freeCommandBuffers(drawCmdBuffers);
 }
 
 RenderingFormats VulkanForwardRenderer::renderingFormats() const
@@ -111,15 +81,7 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
     VulkanForwardRenderingInterface* renderingInterface = dynamic_cast<VulkanForwardRenderingInterface*>(rendering);
     SAIGA_ASSERT(renderingInterface);
 
-    // The ImGui frame runs even if the GUI is hidden, so that the input state (WantCaptureMouse, ...) stays current and
-    // the backend's event queue is consumed. should_render_imgui only decides whether it is drawn.
-    if (imGui)
-    {
-        imGui->beginFrame();
-        renderingInterface->renderGUI();
-        imGui->endFrame();
-    }
-    bool draw_imgui = imGui && should_render_imgui;
+    bool draw_imgui = imguiFrame([renderingInterface]() { renderingInterface->renderGUI(); });
 
     renderedFrames++;
     bool close_after_frame = false;
@@ -129,9 +91,7 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
         close_after_frame = true;
     }
 
-    vk::CommandBuffer cmd = drawCmdBuffers[frame.frameIndex];
-    cmd.reset();
-    cmd.begin(vk::CommandBufferBeginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit));
+    vk::CommandBuffer cmd = beginCommands(frame);
 
     timings.resetFrame(cmd);
     timings.enterSection("TRANSFER", cmd);
@@ -251,121 +211,12 @@ void VulkanForwardRenderer::render(const FrameInfo& frame)
 
     cmd.endRendering();
 
-    std::unique_ptr<StagingBuffer> screenshot;
     std::vector<ScreenshotCallback> screenshot_callbacks;
-    if (!screenshotCallbacks.empty())
-    {
-        screenshot_callbacks.swap(screenshotCallbacks);
-        screenshot = recordScreenshot(cmd, colorImage);
-    }
-
-    {
-        // Hand the image to the presentation engine (the present waits for renderComplete), headless: leave it
-        // readable. After a screenshot the image is in TRANSFER_SRC.
-        auto layout = screenshot ? vk::ImageLayout::eTransferSrcOptimal : vk::ImageLayout::eColorAttachmentOptimal;
-        auto stage  = screenshot ? vk::PipelineStageFlags2(Stage::eAllTransfer)
-                                 : vk::PipelineStageFlags2(Stage::eColorAttachmentOutput);
-        auto access = screenshot ? vk::AccessFlags2() : vk::AccessFlags2(Access::eColorAttachmentWrite);
-        vk::ImageMemoryBarrier2 present(stage, access, Stage::eNone, {}, layout, finalColorLayout(),
-                                        VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, colorImage,
-                                        vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
-        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, present));
-    }
-
-    cmd.end();
-
-    // A headless renderer has no swap chain semaphores (FrameInfo).
-    std::vector<vk::SemaphoreSubmitInfo> waitInfos, signalInfos;
-    if (frame.imageAvailable) waitInfos.emplace_back(frame.imageAvailable, 0, Stage::eColorAttachmentOutput);
-    if (frame.renderComplete) signalInfos.emplace_back(frame.renderComplete, 0, Stage::eAllCommands);
-    signalInfos.emplace_back(base().frameTimeline, frame.timelineValue, Stage::eAllCommands);
-    vk::CommandBufferSubmitInfo cmdInfo(cmd);
-
-    vk::SubmitInfo2 submitInfo;
-    submitInfo.waitSemaphoreInfoCount   = (uint32_t)waitInfos.size();
-    submitInfo.pWaitSemaphoreInfos      = waitInfos.data();
-    submitInfo.commandBufferInfoCount   = 1;
-    submitInfo.pCommandBufferInfos      = &cmdInfo;
-    submitInfo.signalSemaphoreInfoCount = (uint32_t)signalInfos.size();
-    submitInfo.pSignalSemaphoreInfos    = signalInfos.data();
-    base().mainQueue.submit2(submitInfo);
-
-    if (!screenshot_callbacks.empty())
-    {
-        // Every callback is answered, with an empty image if the frame could not be read back
-        TemplatedImage<ucvec4> image;
-        if (screenshot)
-        {
-            base().waitFrameValue(frame.timelineValue);
-            image = readScreenshot(*screenshot);
-        }
-        for (auto& callback : screenshot_callbacks) callback(image);
-    }
+    std::unique_ptr<StagingBuffer> screenshot = beginScreenshots(cmd, colorImage, screenshot_callbacks);
+    recordPresentTransition(cmd, colorImage, screenshot != nullptr);
+    submitCommands(cmd, frame);
+    finishScreenshots(frame, screenshot.get(), screenshot_callbacks);
     if (close_after_frame) window.close();
-}
-
-void VulkanForwardRenderer::requestScreenshot(const std::string& file)
-{
-    requestScreenshot(
-        [file](const TemplatedImage<ucvec4>& img)
-        {
-            if (img.width > 0 && img.save(file))
-                std::cout << "Saved screenshot " << file << std::endl;
-            else
-                std::cerr << "Could not save screenshot " << file << std::endl;
-        });
-}
-
-std::unique_ptr<StagingBuffer> VulkanForwardRenderer::recordScreenshot(vk::CommandBuffer cmd, vk::Image colorImage)
-{
-    if (!colorImagesSupportTransferSrc())
-    {
-        std::cerr << "Screenshot not possible: the color images do not support TRANSFER_SRC" << std::endl;
-        return nullptr;
-    }
-    auto format = getColorFormat();
-    if (format != vk::Format::eB8G8R8A8Unorm && format != vk::Format::eB8G8R8A8Srgb &&
-        format != vk::Format::eR8G8B8A8Unorm && format != vk::Format::eR8G8B8A8Srgb)
-    {
-        std::cerr << "Screenshot not possible: unsupported color format " << vk::to_string(format) << std::endl;
-        return nullptr;
-    }
-
-    auto buffer = std::make_unique<StagingBuffer>();
-    buffer->init(base(), size_t(surfaceWidth) * SurfaceHeight * 4);
-
-    vk::ImageMemoryBarrier2 toTransfer(
-        Stage::eColorAttachmentOutput, Access::eColorAttachmentWrite, Stage::eAllTransfer, Access::eTransferRead,
-        vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED,
-        VK_QUEUE_FAMILY_IGNORED, colorImage, vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
-    cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toTransfer));
-
-    vk::BufferImageCopy region = buffer->getBufferImageCopy(0);
-    region.imageSubresource    = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1);
-    region.imageExtent         = vk::Extent3D(surfaceWidth, SurfaceHeight, 1);
-    cmd.copyImageToBuffer(colorImage, vk::ImageLayout::eTransferSrcOptimal, buffer->createInfo().buffer, region);
-
-    // Make the copy visible to the host read after the wait.
-    vk::MemoryBarrier2 toHost(Stage::eAllTransfer, Access::eTransferWrite, Stage::eHost, Access::eHostRead);
-    cmd.pipelineBarrier2(vk::DependencyInfo({}, toHost, nullptr, nullptr));
-    return buffer;
-}
-
-TemplatedImage<ucvec4> VulkanForwardRenderer::readScreenshot(StagingBuffer& buffer)
-{
-    TemplatedImage<ucvec4> img(SurfaceHeight, surfaceWidth);
-    buffer.download(img.data(), size_t(surfaceWidth) * SurfaceHeight * 4);
-    auto format = getColorFormat();
-    if (format == vk::Format::eB8G8R8A8Unorm || format == vk::Format::eB8G8R8A8Srgb)
-    {
-        for (int y = 0; y < img.h; ++y)
-            for (int x = 0; x < img.w; ++x) std::swap(img(y, x)(0), img(y, x)(2));
-    }
-    // The swap chain content is not meant to be blended: store it opaque.
-    for (int y = 0; y < img.h; ++y)
-        for (int x = 0; x < img.w; ++x) img(y, x)(3) = 255;
-
-    return img;
 }
 
 }  // namespace Vulkan

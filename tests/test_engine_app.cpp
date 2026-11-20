@@ -31,6 +31,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <limits>
+#include <map>
 #include <thread>
 
 #include "mcp_test_helper.h"
@@ -179,6 +180,27 @@ TEST(AppCommandLine, OptionsGameFlagsAndErrors)
     EXPECT_TRUE(t.noRender && t.headless);
     // The default data directory: data/<name> of the source tree
     EXPECT_NE(t.world.dataDirectory.find("data/flight"), std::string::npos);
+
+    // S17: the tone map and exposure of RenderScene
+    EngineAppSetup v;
+    AppOptions vo;
+    auto c = argv({"--tonemap", "aces", "--exposure", "2.5"});
+    ASSERT_TRUE(parseCommandLine(int(c.size()), c.data(), {}, v, vo, error)) << error;
+    EXPECT_TRUE(v.render.toneMap == Vulkan::ToneMap::Aces);
+    EXPECT_FLOAT_EQ(v.render.exposure, 2.5f);
+    auto d = argv({"--exposure", "0.5", "--tonemap", "identity"});
+    ASSERT_TRUE(parseCommandLine(int(d.size()), d.data(), {}, v, vo, error)) << error;
+    EXPECT_TRUE(v.render.toneMap == Vulkan::ToneMap::Identity);
+    EXPECT_FLOAT_EQ(v.render.exposure, 0.5f);
+
+    for (auto bad :
+         {argv({"--tonemap"}), argv({"--tonemap", "reinhard"}), argv({"--exposure", "0"}), argv({"--exposure", "-1"}),
+          argv({"--exposure", "x"}), argv({"--exposure", "inf"}), argv({"--exposure", "nan"}), argv({"--exposure"})})
+    {
+        EngineAppSetup u;
+        AppOptions q;
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1];
+    }
 
     for (auto bad : {argv({"--unknown"}), argv({"--width"}), argv({"--width", "0"}), argv({"--benchmark"}),
                      argv({"--benchmark", "flyover", "--headless"}), argv({"--benchmark", "nope"}), argv({"--demo"}),
@@ -1203,6 +1225,53 @@ Json measureDirect(EngineApp& app, int n, std::chrono::seconds budget = std::chr
     return result;
 }
 }  // namespace
+
+// S17: the gpu profile has RenderScene's sections in frame order (transfer, scene, resolve, post, imgui) and the
+// game's passes below gpu/scene (they are drawn in the scene pass); the tone map of the setup reaches RenderScene
+TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
+{
+    EngineAppSetup s        = appSetup(true);
+    s.render.toneMap        = Vulkan::ToneMap::Aces;
+    s.render.exposure       = 2;
+    s.renderHooks.passNames = {"terrain", "sky"};
+    s.renderHooks.passTimes = [](uint64_t, std::vector<std::pair<std::string, double>>& passes)
+    {
+        passes = {{"terrain", 0.25}, {"sky", 0.5}};
+        return true;
+    };
+    EngineApp app(s);
+    ASSERT_NE(app.scene(), nullptr);
+    app.runFrames(12, 1.0 / 60);
+    EXPECT_TRUE(app.scene()->toneMap() == Vulkan::ToneMap::Aces);
+    EXPECT_FLOAT_EQ(app.scene()->exposure(), 2.0f);
+    EXPECT_TRUE(app.scene()->sceneWritesLinear());
+    EXPECT_FLOAT_EQ(app.scene()->preExposure(), 2.0f);
+
+    std::vector<std::string> scopes;
+    const Json report = app.gpuProfile().report();
+    for (const auto& sc : report["scopes"].array_items()) scopes.push_back(sc["scope"].string_value());
+    const std::vector<std::string> expected = {"gpu",
+                                               "gpu/transfer",
+                                               "gpu/scene",
+                                               "gpu/resolve",
+                                               "gpu/post",
+                                               "gpu/imgui",
+                                               "gpu/scene/game",
+                                               "gpu/scene/game/terrain",
+                                               "gpu/scene/game/sky"};
+    EXPECT_EQ(scopes, expected);
+    // A completed frame's sample by name (the benchmark's gpu_frame_ms)
+    std::vector<std::pair<std::string, double>> sample;
+    bool found = false;
+    for (uint64_t f = app.scene()->frames(); f > 0 && !found; --f) found = app.gpuFrameSample(f, sample);
+    ASSERT_TRUE(found);
+    std::map<std::string, double> byName(sample.begin(), sample.end());
+    EXPECT_EQ(byName.size(), expected.size());
+    EXPECT_DOUBLE_EQ(byName["gpu/scene/game"], 0.75);
+    EXPECT_DOUBLE_EQ(byName["gpu/scene/game/sky"], 0.5);
+    EXPECT_GE(byName["gpu"], byName["gpu/scene"]);
+    EXPECT_FALSE(app.gpuFrameSample(app.scene()->frames() + 100, sample));
+}
 
 TEST_F(EngineAppRender, MeasureFramesWhilePaused)
 {

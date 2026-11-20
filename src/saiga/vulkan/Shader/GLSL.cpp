@@ -58,6 +58,15 @@ static EShLanguage FindLanguage(const vk::ShaderStageFlagBits shader_type)
 }
 
 
+// The target of the compiled shaders: Vulkan 1.3, SPIR-V 1.6 (docs/engine_design.md §10.2). With SPIR-V 1.6 glslang
+// compiles discard to OpDemoteToHelperInvocation (shaderDemoteToHelperInvocation, enabled in VulkanBase).
+static void SetTarget(glslang::TShader& shader, EShLanguage stage)
+{
+    shader.setEnvInput(glslang::EShSourceGlsl, stage, glslang::EShClientVulkan, 100);
+    shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+    shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+}
+
 // Links the (single stage) program, which runs glslang's link-time checks, e.g. a missing main, and generates SPIR-V.
 // Returns an empty vector on failure.
 static std::vector<uint32_t> LinkToSpirv(glslang::TShader& shader, EShLanguage stage, EShMessages messages)
@@ -134,6 +143,7 @@ struct MyIncluder : public glslang::TShader::Includer
 std::vector<uint32_t> createFromString(const std::string& shaderString, const vk::ShaderStageFlagBits shader_type)
 {
     glslang::TShader shader(FindLanguage(shader_type));
+    SetTarget(shader, FindLanguage(shader_type));
 
     const char* shaderStrings[1] = {shaderString.c_str()};
     shader.setStrings(shaderStrings, 1);
@@ -173,7 +183,7 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
     }
 
     glslang::TShader shader(FindLanguage(shader_type));
-
+    SetTarget(shader, FindLanguage(shader_type));
 
     MyIncluder includer;
     includer.baseFile = file;

@@ -246,6 +246,8 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKH
     features.get<vk::PhysicalDeviceVulkan12Features>().timelineSemaphore = VK_TRUE;
     features.get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering  = VK_TRUE;
     features.get<vk::PhysicalDeviceVulkan13Features>().synchronization2  = VK_TRUE;
+    // SPIR-V 1.6 (GLSL.cpp) compiles discard to OpDemoteToHelperInvocation
+    features.get<vk::PhysicalDeviceVulkan13Features>().shaderDemoteToHelperInvocation = VK_TRUE;
 
     vk::DeviceCreateInfo deviceCreateInfo    = {};
     deviceCreateInfo.pNext                   = &features.get<vk::PhysicalDeviceFeatures2>();

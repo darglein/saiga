@@ -35,8 +35,8 @@ struct GameRenderHooks
     std::function<void()> gui;
     // The game's GPU passes of the RenderScene frame `frame` (milliseconds by pass name; the frame recorded while
     // RenderScene::frames() is frame - 1), false while they are not known (a completed frame waits up to 8 frames for
-    // them, then it gets no gpu sample). They join the gpu profile as gpu/game/<name> (only the names of passNames,
-    // registered before the first sample)
+    // them, then it gets no gpu sample). They join the gpu profile as gpu/scene/game/<name> (drawn in the scene pass;
+    // only the names of passNames, registered before the first sample)
     std::vector<std::string> passNames;
     std::function<bool(uint64_t frame, std::vector<std::pair<std::string, double>>& passMs)> passTimes;
 };
@@ -49,7 +49,7 @@ struct EngineAppSetup
     bool noRender = false;  // no Vulkan device at all (with headless): the world steps, MCP answers
     int width = 1600, height = 900;
     bool vsync = true, validation = false;
-    Vulkan::RenderSceneParameters render;
+    Vulkan::RenderSceneParameters render;        // --tonemap, --exposure set toneMap and exposure
     void (*scenarios)(ScenarioList&) = nullptr;  // --scenarios, list_scenarios, run_scenario
     // --scenarios also runs the host + client variants (ScenarioOptions::networkVariants, §17.3); on for the tech
     // demos from S16b

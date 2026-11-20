@@ -246,10 +246,11 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     scopeGpuFrame = gpuScope("gpu");
     for (const char* name : Vulkan::RenderScene::gpuSectionNames())
         scopeGpuSections.push_back(gpuScope(std::string("gpu/") + name));
-    // Before the first sample: a scope created later would count the empty history as zero samples
-    if (!appSetup.renderHooks.passNames.empty()) scopeGpuGame = gpuScope("gpu/game");
+    // Before the first sample: a scope created later would count the empty history as zero samples. The game's passes
+    // are drawn in the scene pass (S17)
+    if (!appSetup.renderHooks.passNames.empty()) scopeGpuGame = gpuScope("gpu/scene/game");
     for (const std::string& name : appSetup.renderHooks.passNames)
-        scopeGpuPasses.push_back(gpuScope("gpu/game/" + name));
+        scopeGpuPasses.push_back(gpuScope("gpu/scene/game/" + name));
 
     // set_input expires after its steps also inside one world().step(n) or a multi-step advance: released right after
     // the last step it covers, before the next step can read it
@@ -764,6 +765,16 @@ void EngineApp::statisticsWindow()
     plot("step ms", wp.scopeHistory(wp.scope("step")));
     const Profiler::Stats gs = gpuProfiler.scopeStats(scopeGpuFrame, 120);
     ImGui::Text("GPU %.3f ms (p95 %.3f)", gs.p50, gs.p95);
+    if (renderScene)
+    {
+        // The tone map and exposure of the frame (R-MECH-1; applied from the next frame)
+        int toneMap                = int(renderScene->parameters().toneMap);
+        const char* toneMapNames[] = {"identity (clay)", "ACES"};
+        if (ImGui::Combo("tone map", &toneMap, toneMapNames, 2)) renderScene->setToneMap(Vulkan::ToneMap(toneMap));
+        float exposure = renderScene->parameters().exposure;
+        if (ImGui::SliderFloat("exposure", &exposure, 1.0f / 16, 16, "%.3f", ImGuiSliderFlags_Logarithmic))
+            renderScene->setExposure(exposure);
+    }
     const json11::Json report = wp.report(120);
     if (ImGui::BeginTable("scopes", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 260)))
     {
@@ -815,7 +826,7 @@ void EngineApp::collectGpuTimes()
             entry.values.push_back({scopeGpuSections[i], t.gpuSectionMs[i]});
         if (gamePasses)
         {
-            // gpu/game: the sum of the game's passes (the parent of their scopes)
+            // gpu/scene/game: the sum of the game's passes (the parent of their scopes)
             double sum = 0;
             for (const auto& p : passes)
                 for (size_t k = 0; k < appSetup.renderHooks.passNames.size(); ++k)
@@ -832,6 +843,20 @@ void EngineApp::collectGpuTimes()
         if (gpuLog.size() > kGpuLogSize) gpuLog.pop_front();
         pendingGpu.pop_front();
     }
+}
+
+bool EngineApp::gpuFrameSample(uint64_t frame, std::vector<std::pair<std::string, double>>& values) const
+{
+    values.clear();
+    for (const GpuLogEntry& e : gpuLog)
+    {
+        if (e.frame != frame) continue;
+        for (const auto& v : e.values)
+            if (v.first >= 0 && size_t(v.first) < gpuScopeNames.size())
+                values.push_back({gpuScopeNames[size_t(v.first)], v.second});
+        return true;
+    }
+    return false;
 }
 
 // measure_performance(frames: n): the frame loops S..S+n-1 after the call (S: the next loop, or the current one when

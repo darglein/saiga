@@ -155,16 +155,23 @@ void WorldSettings::clamp()
 
 //==================================================================================================
 
-void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters)
+void WorldRenderer::init(VulkanBase& base, const RenderingFormats& formats, const WorldParameters& parameters)
 {
-    initWith(renderer, parameters, nullptr);
+    initWith(base, formats, parameters, nullptr);
 }
 
-void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+void WorldRenderer::init(VulkanBase& base, const RenderingFormats& formats, const WorldParameters& parameters,
                          std::shared_ptr<const HeightField> heightField)
 {
     if (!heightField) SAIGA_EXIT_ERROR("WorldRenderer::init: no height field");
-    initWith(renderer, parameters, std::move(heightField));
+    initWith(base, formats, parameters, std::move(heightField));
+}
+
+void WorldRenderer::setOutputLinear(bool linear, float preExposure)
+{
+    SAIGA_ASSERT(preExposure > 0, "WorldRenderer::setOutputLinear: the pre-exposure must be positive");
+    outputLinear      = linear;
+    outputPreExposure = preExposure;
 }
 
 const HeightField& WorldRenderer::heightField() const
@@ -173,15 +180,15 @@ const HeightField& WorldRenderer::heightField() const
     return hf ? *hf : empty;
 }
 
-void WorldRenderer::initWith(VulkanForwardRenderer& _renderer, const WorldParameters& parameters,
+void WorldRenderer::initWith(VulkanBase& _base, const RenderingFormats& _formats, const WorldParameters& parameters,
                              std::shared_ptr<const HeightField> external)
 {
     destroy();
-    renderer     = &_renderer;
-    base         = &renderer->base();
+    base         = &_base;
+    formats      = _formats;
     params       = parameters;
     hasCullState = false;
-    SAIGA_ASSERT(renderer->parameters().reversedZ, "WorldRenderer: the renderer must use reversed depth");
+    SAIGA_ASSERT(params.reversedZ, "WorldRenderer: the pass must use reversed depth (WorldParameters::reversedZ)");
 
     auto t0           = std::chrono::steady_clock::now();
     const bool shared = external != nullptr;
@@ -207,7 +214,6 @@ void WorldRenderer::initWith(VulkanForwardRenderer& _renderer, const WorldParame
         foliageTexture.fromImages(*base, images, vk::ImageUsageFlagBits::eSampled, false, true);
     }
 
-    auto formats = renderer->renderingFormats();
     terrainRenderer.init(*base, formats, uniformBuffer, *hf, 64.0f);
     forestRenderer.init(*base, formats, uniformBuffer, foliageTexture, *hf, params.treeCount, params.seed);
     grassRenderer.init(*base, formats, uniformBuffer, foliageTexture, terrainRenderer);
@@ -427,8 +433,6 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
     {
         float az = radians(settings.sunAzimuth), el = radians(settings.sunElevation);
         vec3 sun(std::cos(el) * std::sin(az), std::sin(el), -std::cos(el) * std::cos(az));
-        auto colorFormat = renderer->getColorFormat();
-        bool srgbTarget  = colorFormat == vk::Format::eB8G8R8A8Srgb || colorFormat == vk::Format::eR8G8B8A8Srgb;
 
         // The view without the translation: the camera is at the origin of the relative positions
         mat4 viewRel            = view;
@@ -441,7 +445,9 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
         uniforms.cameraPos      = vec4(cameraPosition(0), cameraPosition(1), cameraPosition(2), float(time));
         uniforms.lodCameraPos   = vec4(cullPosition(0), cullPosition(1), cullPosition(2), 0);
         uniforms.sunDir         = vec4(sun(0), sun(1), sun(2), settings.sunIntensity);
-        uniforms.shading  = vec4(settings.albedo, settings.ambient, settings.flatShading ? 1 : 0, srgbTarget ? 0 : 1);
+        // w: 0 display values (clamped, encoded), > 0 linear values times the pre-exposure (setOutputLinear)
+        uniforms.shading  = vec4(settings.albedo, settings.ambient, settings.flatShading ? 1 : 0,
+                                outputLinear ? outputPreExposure : 0.0f);
         uniforms.fog      = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, hf->waterLevel());
         uniforms.fogColor = vec4(0.42f, 0.42f, 0.42f, 1);
         uniforms.skyColor = vec4(0.2f, 0.2f, 0.2f, 1);
@@ -449,10 +455,10 @@ void WorldRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const vec3
         uniforms.terrain = vec4(float(hf->size()), hf->spacing(), terrainRenderer.range0(), settings.morphStart);
         uniforms.terrain2 =
             vec4(float(terrainRenderer.maxLevel()), float(settings.debugMode), settings.wind, settings.alphaCutoff);
-        uniforms.trees    = vec4(settings.treeLod1, settings.treeLod2, settings.trees ? settings.treeMaxDistance : 0,
-                                 float(forestRenderer.treeCount()));
-        uniforms.grass    = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity,
-                                 float(int(renderer->sampleCount())));
+        uniforms.trees = vec4(settings.treeLod1, settings.treeLod2, settings.trees ? settings.treeMaxDistance : 0,
+                              float(forestRenderer.treeCount()));
+        uniforms.grass =
+            vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(int(formats.samples)));
         uniforms.viewport = vec4(aspect, 1, 1.0f / aspect, 1);
 
         // The culling of the previous frame read the uniforms
@@ -559,7 +565,7 @@ json11::Json WorldRenderer::statsJson() const
         {"tree_triangles", s.treeTriangles},
         {"grass_clumps_submitted", s.grassClumps},
         {"grass_triangles_submitted", s.grassTriangles},
-        {"msaa_samples", int(renderer->sampleCount())},
+        {"msaa_samples", int(formats.samples)},
         {"draw_calls", s.drawCalls},
         {"gpu_pass_ms", gpuPasses},
         {"cpu_ms", json11::Json::object{{"terrain_select", s.cpuTerrainSelectMs},

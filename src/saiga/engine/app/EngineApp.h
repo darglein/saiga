@@ -119,6 +119,9 @@ class SAIGA_ENGINE_API EngineApp
     // The app's profiles (get_profile: frame, gpu): one sample per frame loop / per completed GPU frame
     Profiler& frameProfile() { return frameProfiler; }
     Profiler& gpuProfile() { return gpuProfiler; }
+    // The gpu profile's sample of RenderScene frame `frame` (one of the last 600 completed frames) by scope name (gpu,
+    // gpu/<section>, gpu/scene/game/<pass>, ...); false if it is not logged (not completed yet, or too old)
+    bool gpuFrameSample(uint64_t frame, std::vector<std::pair<std::string, double>>& values) const;
     uint64_t renderedFrames() const { return framesRendered; }
     uint64_t frameCount() const { return framesRun; }
 

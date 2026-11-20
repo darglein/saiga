@@ -14,7 +14,7 @@ layout(set = 0, binding = 0) uniform GameUBO
     vec4 cameraPos;
     // xyz: towards the sun, w: intensity
     vec4 sunDir;
-    // x: ambient, z: unused, w: sRGB encode in the shader
+    // x: ambient, z: unused, w: 0 display values (encoded in the shader), > 0 linear values times w (the pre-exposure)
     vec4 shading;
     // x: density, y: height falloff, z: enabled, w: fog base height (water level)
     vec4 fog;

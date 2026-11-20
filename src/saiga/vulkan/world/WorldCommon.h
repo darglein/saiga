@@ -36,7 +36,8 @@ struct WorldUniforms
     vec4 lodCameraPos;
     // xyz: direction towards the sun, w: sun intensity
     vec4 sunDir;
-    // x: albedo, y: ambient, z: flat shading (0/1), w: encode sRGB in the shader (0/1)
+    // x: albedo, y: ambient, z: flat shading (0/1), w: 0 display values (clamped, sRGB encoded in the shader), > 0
+    // linear values multiplied by w (the pre-exposure, WorldRenderer::setOutputLinear)
     vec4 shading;
     // x: density, y: height falloff, z: enabled (0/1), w: water level
     vec4 fog;

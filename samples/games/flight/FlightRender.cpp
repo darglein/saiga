@@ -26,9 +26,10 @@ void FlightRender::init(EngineApp& _app)
     Vulkan::WorldParameters params;
     params.treeCount = worldTreeCount();
     // The context's height field, shared (the aliasing pointer keeps the context alive)
-    worldRenderer.init(app->scene()->forwardRenderer(), params,
+    params.reversedZ = true;
+    worldRenderer.init(app->scene()->base(), app->scene()->formats(), params,
                        std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
-    meshes.init(app->scene()->forwardRenderer());
+    meshes.init(app->scene()->base(), app->scene()->formats());
     planeMesh = meshes.addMesh(MeshBuilder::airplane());
 
     const FlightContext* ctx = context.get();
@@ -67,6 +68,10 @@ Entity FlightRender::focus()
 
 void FlightRender::transfer(vk::CommandBuffer cmd)
 {
+    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
+    const Vulkan::RenderScene& scene = *app->scene();
+    worldRenderer.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
+    meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
     const ivec2 size     = app->scene()->size();
     const float aspect   = float(size(0)) / float(std::max(1, size(1)));

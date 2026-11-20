@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/HeightField.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
@@ -321,6 +322,16 @@ class VulkanWorldRender : public ::testing::Test
         return result;
     }
 
+    // The world in the forward renderer's pass (reversed depth)
+    void Init(WorldRenderer& world, WorldParameters params, std::shared_ptr<const HeightField> heightField = nullptr)
+    {
+        params.reversedZ = renderer->parameters().reversedZ;
+        if (heightField)
+            world.init(renderer->base(), renderer->renderingFormats(), params, std::move(heightField));
+        else
+            world.init(renderer->base(), renderer->renderingFormats(), params);
+    }
+
     VulkanTestApp app;
     std::unique_ptr<Vulkan::HeadlessWindow> window;
     std::unique_ptr<Vulkan::VulkanForwardRenderer> renderer;
@@ -335,7 +346,7 @@ TEST_F(VulkanWorldRender, RendersTerrainTreesAndSky)
     WorldParameters params;
     params.terrain.size = 513;
     params.treeCount    = 2000;
-    world.init(*renderer, params);
+    Init(world, params);
 
     // Above the center of the world, looking down at the horizon
     auto& hf     = world.heightField();
@@ -385,7 +396,7 @@ TEST_F(VulkanWorldRender, SharesAnExternalHeightField)
     WorldParameters params;
     params.terrain.size = 129;  // ignored with an external height field
     params.treeCount    = 500;
-    world.init(*renderer, params, external);
+    Init(world, params, external);
     EXPECT_EQ(&world.heightField(), external.get());
     EXPECT_EQ(world.heightField().size(), 257);
     EXPECT_EQ(external.use_count(), 2);  // here and in the world renderer
@@ -415,7 +426,7 @@ TEST_F(VulkanWorldRender, FlatShadingIsStableFarFromTheOrigin)
     params.terrain.size    = 2049;
     params.terrain.spacing = 4;  // 8 km world
     params.treeCount       = 10;
-    world.init(*renderer, params);
+    Init(world, params);
     world.settings.grass       = false;
     world.settings.trees       = false;
     world.settings.fog         = false;
@@ -480,26 +491,61 @@ TEST_F(VulkanWorldRender, FlatShadingIsStableFarFromTheOrigin)
 // The drawn instance and terrain node counts gate on lavapipe only as well: the tree placement uses std random
 // distributions and float comparisons, so other standard libraries, compilers (FMA, -march=native) or drivers may
 // place or cull a few trees differently.
-class VulkanWorldGolden : public VulkanWorldRender
+// S17: they are rendered through RenderScene's frame (clay mode: the hardware average resolve, the identity tone map),
+// one render per golden.
+class VulkanWorldGolden : public ::testing::Test
 {
    protected:
-    ivec2 imageSize() const override { return ivec2(512, 512); }
+    static constexpr int size = 512;
+
+    void SetUp() override
+    {
+        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        WindowParameters windowParameters;
+        windowParameters.width  = size;
+        windowParameters.height = size;
+        windowParameters.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
+        Vulkan::VulkanParameters vulkanParameters;
+        vulkanParameters.enableImgui = false;
+        RenderSceneParameters params;
+        params.imgui       = false;
+        params.msaaSamples = 4;
+        window             = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
+        scene              = std::make_unique<RenderScene>(*window, vulkanParameters, params);
+        // The forest's indirect draws need it (asserted in ForestRenderer::init); Vulkan 1.3 does not require it
+        if (!scene->base().enabledFeatures.drawIndirectFirstInstance)
+            GTEST_SKIP() << "drawIndirectFirstInstance is not supported";
+    }
+    void TearDown() override
+    {
+        if (scene) scene->waitIdle();
+        scene.reset();
+        window.reset();
+    }
 
     // .data(): MSVC cannot convert vk::ArrayWrapper1D<char, 256> to std::string directly
     std::string deviceName() const
     {
-        return std::string(renderer->base().physicalDevice.getProperties().deviceName.data());
+        return std::string(scene->base().physicalDevice.getProperties().deviceName.data());
     }
 
     // Renders 5 frames from the camera and returns the last one
     TemplatedImage<ucvec4> Capture(WorldRenderer& world, const vec3& eye, const vec3& target)
     {
-        mat4 view      = lookAt(eye, target, vec3(0, 1, 0));
-        float aspect   = float(imageSize()(0)) / float(imageSize()(1));
-        app.onTransfer = [&world, view, eye, aspect](vk::CommandBuffer cmd) { world.transfer(cmd, view, eye, aspect); };
-        app.onRender   = [&world](vk::CommandBuffer cmd) { world.render(cmd); };
+        mat4 view    = lookAt(eye, target, vec3(0, 1, 0));
+        float aspect = 1.0f;
         TemplatedImage<ucvec4> img;
-        for (int i = 0; i < 5; ++i) img = RenderFrame();
+        auto transfer = [&](vk::CommandBuffer cmd)
+        {
+            world.setOutputLinear(scene->sceneWritesLinear(), scene->preExposure());
+            world.transfer(cmd, view, eye, aspect);
+        };
+        auto render = [&](vk::CommandBuffer cmd) { world.render(cmd); };
+        for (int i = 0; i < 5; ++i)
+        {
+            if (i == 4) scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { img = shot; });
+            scene->renderFrame(transfer, render, nullptr);
+        }
         return img;
     }
 
@@ -509,7 +555,8 @@ class VulkanWorldGolden : public VulkanWorldRender
         params.terrain.size = 513;  // 2 m spacing: 1 km
         params.treeCount    = 5000;
         params.seed         = 1;
-        world.init(*renderer, params);
+        params.reversedZ    = true;
+        world.init(scene->base(), scene->formats(), params);
         world.settings.shading    = WorldShading::Clay;
         world.settings.freezeTime = true;
     }
@@ -528,12 +575,11 @@ class VulkanWorldGolden : public VulkanWorldRender
         EXPECT_EQ(st.terrainNodes, terrainNodes);
     }
 
-    // The callbacks reference the world: wait for the frames in flight and drop them before the world is destroyed
-    void Finish()
-    {
-        renderer->waitIdle();
-        app = VulkanTestApp();
-    }
+    // The frames in flight use the world: wait for them before the world is destroyed
+    void Finish() { scene->waitIdle(); }
+
+    std::unique_ptr<Vulkan::HeadlessWindow> window;
+    std::unique_ptr<RenderScene> scene;
 };
 
 TEST_F(VulkanWorldGolden, WorldOverview)
@@ -582,7 +628,7 @@ TEST_F(VulkanWorldRender, FrameTimes)
     WorldParameters params;
     params.terrain.size = 257;
     params.treeCount    = 500;
-    world.init(*renderer, params);
+    Init(world, params);
     auto& hf       = world.heightField();
     vec3 c         = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
     vec3 eye       = c + vec3(0, hf.height(c(0), c(2)) + 80, 100);
@@ -652,7 +698,7 @@ TEST_F(VulkanWorldRender, GameTools)
     WorldParameters params;
     params.terrain.size = 129;
     params.treeCount    = 100;
-    world.init(*renderer, params);
+    Init(world, params);
     PerspectiveCamera camera;
     camera.setView(lookAt(vec3(10, 50, 10), vec3(20, 40, 20), vec3(0, 1, 0)));
     bool walkMode   = false;

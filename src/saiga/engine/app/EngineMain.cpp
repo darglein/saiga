@@ -15,6 +15,7 @@
 #include "saiga/saiga_buildconfig.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -96,6 +97,35 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             if (a == "--width") setup.width = n;
             if (a == "--height") setup.height = n;
             if (a == "--mcp-port") setup.mcpPort = n;
+        }
+        else if (a == "--tonemap")
+        {
+            const char* v = value("identity or aces");
+            if (!v) return false;
+            const std::string t = v;
+            if (t == "identity")
+                setup.render.toneMap = Vulkan::ToneMap::Identity;
+            else if (t == "aces")
+                setup.render.toneMap = Vulkan::ToneMap::Aces;
+            else
+            {
+                error = "--tonemap: identity or aces";
+                return false;
+            }
+        }
+        else if (a == "--exposure")
+        {
+            const char* v = value("a number");
+            if (!v) return false;
+            char* end     = nullptr;
+            const float x = std::strtof(v, &end);
+            // Positive and finite (RenderScene clamps it to [1/1024, 1024])
+            if (*end != 0 || !(x > 0) || !std::isfinite(x))
+            {
+                error = "--exposure: a positive number";
+                return false;
+            }
+            setup.render.exposure = x;
         }
         else if (a == "--data")
         {
@@ -221,8 +251,8 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
     {
         std::cerr << error << "\nUsage: " << setup.name
                   << " [--headless] [--no-render] [--benchmark <name>] [--screenshot <file>] [--screenshot-frame N] "
-                     "[--width N] [--height N] [--validation] [--no-vsync] [--scenarios [filter]] [--mcp-port N] "
-                     "[--data <dir>] [--coop [delay]]";
+                     "[--width N] [--height N] [--validation] [--no-vsync] [--tonemap identity|aces] [--exposure x] "
+                     "[--scenarios [filter]] [--mcp-port N] [--data <dir>] [--coop [delay]]";
         for (const std::string& f : gameFlags) std::cerr << " [" << f << "]";
         std::cerr << std::endl;
         return 1;

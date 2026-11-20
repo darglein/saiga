@@ -37,6 +37,7 @@
 #include <iostream>
 #include <map>
 #include <memory>
+#include <set>
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -66,6 +67,11 @@ struct WorldGame
     uint64_t stepSamplesSeen = 0;
     bool stepTaken = false, recordingTaken = false;
     json11::Json::object stepStat, recordingStat;
+    // The app's gpu profile (the whole frame and RenderScene's sections) of the measured frames, matched by the
+    // RenderScene frame number: the measured frames whose sample did not arrive yet, the values by section
+    std::set<uint64_t> gpuFramesPending;
+    std::map<std::string, std::vector<double>> gpuFrameMs;
+    int gpuFramesWaited = 0;
 };
 WorldGame* g_game = nullptr;
 
@@ -81,7 +87,8 @@ void initWorld(EngineApp& app)
     // A benchmark always uses the default world (its result is compared with the baseline)
     if (const char* trees = std::getenv("SAIGA_WORLD_TREES"); trees && g.benchmarkName.empty())
         params.treeCount = std::atoi(trees);
-    g.world.init(app.scene()->forwardRenderer(), params);
+    params.reversedZ = true;
+    g.world.init(app.scene()->base(), app.scene()->formats(), params);
     g.world.frameCallbacks.push_back(
         [](const Vulkan::WorldRenderer::FrameTimes& t)
         {
@@ -141,6 +148,8 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         }
     }
     const ivec2 size = app.scene()->size();
+    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
+    g.world.setOutputLinear(app.scene()->sceneWritesLinear(), app.scene()->preExposure());
     g.world.transfer(cmd, camera.view, camera.getPosition(), float(size(0)) / float(std::max(1, size(1))));
     // This frame's number in both renderers (the RenderScene frame being recorded is frames() + 1)
     g.sceneFrameOf[g.world.frameNumber()] = app.scene()->frames() + 1;
@@ -178,6 +187,28 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
             g.stepTaken  = true;
         }
         // Recordings: the frames completed from the transfer of M1 (through W) to the transfer of Mn+1 (through Mn)
+        if (frame > lastWarm && frame <= lastMeas) g.gpuFramesPending.insert(app.scene()->frames() + 1);
+        // The app's GPU samples of the measured frames (they arrive a few frames later)
+        std::vector<std::pair<std::string, double>> sample;
+        for (auto it = g.gpuFramesPending.begin(); it != g.gpuFramesPending.end();)
+        {
+            if (!app.gpuFrameSample(*it, sample))
+            {
+                ++it;
+                continue;
+            }
+            for (const auto& v : sample)
+            {
+                // gpu and gpu/<section> (not the game's passes below a section, they are in gpu_ms)
+                const std::string& n = v.first;
+                if (n == "gpu")
+                    g.gpuFrameMs["gpu"].push_back(v.second);
+                else if (n.rfind("gpu/", 0) == 0 && n.find('/', 4) == std::string::npos)
+                    g.gpuFrameMs[n.substr(4)].push_back(v.second);
+            }
+            it = g.gpuFramesPending.erase(it);
+        }
+        if (frame > lastMeas) g.gpuFramesWaited++;
         if (frame == lastWarm + 1) g.frameSamplesAtStart = int64_t(fp.sampleCount());
         if (frame == lastMeas + 1 && g.frameSamplesAtStart >= 0 && !g.recordingTaken)
         {
@@ -186,7 +217,9 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
             g.recordingTaken = true;
         }
     }
-    if (g.bench && g.bench->finished() && g.recordingTaken && !g.benchmarkDone)
+    // The app's GPU samples of the measured frames, or 16 frames more (a frame without timestamps has none)
+    const bool gpuFramesIn = g.gpuFramesPending.empty() || g.gpuFramesWaited > 16;
+    if (g.bench && g.bench->finished() && g.recordingTaken && gpuFramesIn && !g.benchmarkDone)
     {
         const std::string file = resultFile(g.benchmarkName);
         if (g.bench->width != 1920 || g.bench->height != 1080)
@@ -198,7 +231,15 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         // (frame/render/recording, without the waits for the frame slot and the image)
         result["step"]      = g.stepStat;
         result["recording"] = g.recordingStat;
-        const int stalls    = result["stalled_frames"].int_value();
+        // The whole GPU frame and RenderScene's sections (transfer, scene, resolve, post, imgui) of the measured frames
+        json11::Json::object gpuFrame;
+        for (const auto& [section, values] : g.gpuFrameMs)
+        {
+            const auto s      = Vulkan::WorldBenchmark::summarize(values);
+            gpuFrame[section] = json11::Json::object{{"median", s.median}, {"p95", s.p95}};
+        }
+        result["gpu_frame_ms"] = gpuFrame.empty() ? json11::Json() : json11::Json(gpuFrame);
+        const int stalls       = result["stalled_frames"].int_value();
         if (stalls > 0)
             std::cout << "Benchmark error: " << stalls
                       << " stalled frames (e.g. the window was minimized or the swap chain recreated)" << std::endl;

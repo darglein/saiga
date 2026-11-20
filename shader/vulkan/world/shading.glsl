@@ -64,10 +64,12 @@ vec3 lodTint(float lod)
     return colors[int(max(lod, 0.0)) % 6];
 }
 
+// The output of the world shaders (WorldRenderer::setOutputLinear). shading.w > 0: linear values for RenderScene's
+// tone map, multiplied by the pre-exposure (shading.w), only negatives clamped (the sun glow above 1 reaches the tone
+// map). shading.w == 0: display values (clay mode), clamped to [0, 1] and encoded for a UNORM target.
 vec4 finalColor(vec3 c, float alpha)
 {
+    if (world.shading.w > 0.0) return vec4(max(c, vec3(0.0)) * world.shading.w, alpha);
     c = clamp(c, 0.0, 1.0);
-    // The swap chain is UNORM: encode here
-    if (world.shading.w > 0.5) c = pow(c, vec3(1.0 / 2.2));
-    return vec4(c, alpha);
+    return vec4(pow(c, vec3(1.0 / 2.2)), alpha);
 }

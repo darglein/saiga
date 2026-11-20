@@ -58,7 +58,11 @@ void main()
     float hemi    = game.shading.x * (0.6 + 0.4 * N.y);
     vec3 c        = inColor * (diffuse + hemi);
     c             = applyFog(c, inRelPos);
-    c             = clamp(c, 0.0, 1.0);
-    if (game.shading.w > 0.5) c = pow(c, vec3(1.0 / 2.2));
+    // shading.w > 0: linear values for RenderScene's tone map, times the pre-exposure (MeshRenderer::setOutputLinear);
+    // 0: display values (clay mode), clamped and encoded
+    if (game.shading.w > 0.0)
+        c = max(c, vec3(0.0)) * game.shading.w;
+    else
+        c = pow(clamp(c, 0.0, 1.0), vec3(1.0 / 2.2));
     outColor = vec4(c, 1.0);
 }
