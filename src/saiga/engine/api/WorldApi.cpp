@@ -659,6 +659,8 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     {
         w->profiler().reset();
         for (auto& extra : profiles) extra.second->reset();
+        // Co-op (S16b, local review): the host's step profile too (get_profile and measure_performance report it)
+        if (inCoop()) coopHooks.host->profiler().reset();
         return ApiResult::success(Json::object{{"reset", true}});
     }
     return apply(args);
@@ -1986,6 +1988,9 @@ ApiResult WorldApi::reloadData(const Json& a)
         const LoadResult r = target.tryLoad(target.save());
         if (!r.committed)
             return ApiResult::failure("reload_data: the data were reloaded, the reconfigure failed: " + r.error);
+        // Co-op (local review): the host's load replaces the client's whole state (its Resync): the client's cursors
+        // answer reloaded as after a load of the client
+        if (&target != w) markLoaded(w->stepIndex(), w->stepIndex());
         result["hook_errors"]      = hookErrorsJson(r);
         result["listener_errors"]  = listenerErrorsJson(r);
         result["world_generation"] = double(generation);

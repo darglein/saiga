@@ -500,6 +500,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 std::vector<uint64_t> extras;
                 World* host         = nullptr;  // co-op (S16b): the host's profile over the same time
                 uint64_t hostStart  = 0;
+                uint64_t hostResets = 0, hostLoads = 0;
                 World* world        = nullptr;  // holds the destroy and step listeners
                 int destroyListener = -1;
                 int stepListener    = -1;
@@ -511,6 +512,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             m->extras          = extraStarts(*a);
             m->host            = a->inCoop() ? a->coop().host : nullptr;
             m->hostStart       = m->host ? m->host->profiler().sampleCount() : 0;
+            m->hostResets      = m->host ? m->host->profiler().resetCount() : 0;
+            m->hostLoads       = m->host ? m->host->loadCount() : 0;
             m->world           = &w;
             m->destroyListener = w.addDestroyListener(
                 [respond, m]()
@@ -549,12 +552,16 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                     respond(ToolResult::Error("the world was replaced during the measurement"));
                     return false;
                 }
-                if (world.profiler().resetCount() != m->resets || world.loadCount() != m->loads)
+                // Co-op (local review): a load or profile reset of the host counts too (reload_data loads the host)
+                const bool hostLoaded = m->host && m->host->loadCount() != m->hostLoads;
+                const bool hostReset  = m->host && m->host->profiler().resetCount() != m->hostResets;
+                if (world.profiler().resetCount() != m->resets || world.loadCount() != m->loads || hostLoaded ||
+                    hostReset)
                 {
                     m->answered = true;
                     world.removeDestroyListener(m->destroyListener);
                     world.removeStepListener(m->stepListener);
-                    respond(ToolResult::Error(world.loadCount() != m->loads
+                    respond(ToolResult::Error(world.loadCount() != m->loads || hostLoaded
                                                   ? "the world was loaded during the measurement"
                                                   : "the profile was reset during the measurement"));
                     return false;

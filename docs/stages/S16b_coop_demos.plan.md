@@ -263,4 +263,16 @@ WorldTools}.*`, `src/saiga/engine/api/WorldApi.*`, `src/saiga/engine/world/World
   moved the client's hero and its `queue_action restart` went through the host (`RestartRun` + `ownerTeleport`) back to
   its start slot.
 - Not covered: an interactive session with a window and a keyboard (no display in this environment).
-
+- Local review (fixes, each with a regression test in `tests/test_engine_app.cpp`, which now has 41 tests):
+  - The platformer's restart after the goal of a co-op client's hero is decided on the owner: the demo pilot queues
+    the restart action once (`DemoPilot.waypoint` -1 until `RestartRun` arrives); the host restarted it 3 s after the
+    goal also when the player had taken over (`suspended` is owner-local). Checked in a headless `--coop --demo`
+    session over MCP (the pilot restarts; with held input no restart; after the release the pilot restarts).
+  - `reset_profile` in co-op also resets the host's step profile (`ResetProfileAndReloadReachTheHost`).
+  - `reload_data` in co-op marks the client's API as loaded (a new `world_generation`, older cursors answer
+    `reloaded`), and a running `measure_performance` ends on a host load or host profile reset (same test).
+  - `World::stepsForAdvance` has the guards of `advance` (inside a step, inside a step listener;
+    `EngineAppCoopDeathTest.StepsForAdvanceGuards`).
+  - The app's leave wiring is tested: a broken link (an injected bad fragment) calls `onPeerLeft` once
+    (`EngineAppCoop.OnPeerLeftAfterABrokenLink`); in `--coop` the client lives as long as the host, so a leave happens
+    only then. `removeDriver`'s seat clearing is sample code without a test harness (untested).

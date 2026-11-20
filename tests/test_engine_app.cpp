@@ -15,6 +15,7 @@
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/DestroyOwnedBy.h"
+#include "saiga/engine/net/Fragmenter.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioList.h"
@@ -1603,6 +1604,49 @@ TEST(EngineAppCoop, ToolsActOnBothWorlds)
     EXPECT_EQ(host.loadCount(), 1u);
 }
 
+// Regression (local review, S16b): in co-op reset_profile left the host's step profile (reported by get_profile and
+// measure_performance) untouched; reload_data replaced the client's state through the host's load, but the client's
+// cursors and world_generation did not show a reload; a running measure_performance did not notice the host's load
+TEST(EngineAppCoop, ResetProfileAndReloadReachTheHost)
+{
+    EngineApp app(coopSetup(), coopOptions(2));
+    World& host = *app.hostWorld();
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_FALSE(isError(callApp(app, "pause", Json::object{})));
+
+    // reset_profile: the host's profile is empty afterwards
+    ASSERT_GT(host.profiler().report(0)["samples"].number_value(), 0);
+    EXPECT_FALSE(isError(callApp(app, "reset_profile", Json::object{})));
+    const Json gp = toolJson(callApp(app, "get_profile", Json::object{}));
+    EXPECT_EQ(gp["samples"].number_value(), 0) << gp.dump();
+    EXPECT_EQ(gp["host"]["samples"].number_value(), 0) << gp.dump();
+
+    // reload_data: a new world generation, a cursor from before answers reloaded
+    const Json before = toolJson(callApp(app, "changes_since", obj(R"({"cursor": "now"})")));
+    ASSERT_TRUE(before["cursor"].is_string()) << before.dump();
+    const double generation = toolJson(callApp(app, "world_status", Json::object{}))["world_generation"].number_value();
+    const Json rd           = toolJson(callApp(app, "reload_data", Json::object{}));
+    EXPECT_EQ(rd["world_generation"].number_value(), generation + 1) << rd.dump();
+    const Json after = toolJson(callApp(app, "changes_since", Json::object{{"cursor", before["cursor"]}}));
+    EXPECT_TRUE(after["reloaded"].bool_value()) << after.dump();
+    EXPECT_FALSE(isError(callApp(app, "resume", Json::object{})));
+
+    // A host load during a running measure_performance(steps) ends it with an error
+    int frames = 0;
+    Poller poller(app.mcp(),
+                  [&]()
+                  {
+                      app.runFrames(1, 1.0 / 60);
+                      if (++frames == 5)
+                      {
+                          ASSERT_TRUE(host.tryLoad(host.save()).ok());
+                      }
+                  });
+    const Json m = callTool(app.mcp(), "measure_performance", obj(R"({"steps": 60})"));
+    EXPECT_TRUE(isError(m)) << m.dump();
+    EXPECT_NE(errorText(m).find("loaded"), std::string::npos) << errorText(m);
+}
+
 // World::stepsForAdvance takes the same steps out of the accumulator as advance runs (time scale, the cap, the dropped
 // backlog, pause), without stepping
 TEST(EngineAppCoop, StepsForAdvanceMatchesAdvance)
@@ -1625,6 +1669,38 @@ TEST(EngineAppCoop, StepsForAdvanceMatchesAdvance)
     b.setPaused(true);
     EXPECT_EQ(b.stepsForAdvance(1.0), 0);
 }
+
+// Regression (local review, S16b): stepsForAdvance lacked advance's guards (inside a step, inside a step listener)
+#ifdef SAIGA_ASSERTS
+void stepsForAdvanceInSystem(World& w, double)
+{
+    w.stepsForAdvance(1.0);
+}
+
+TEST(EngineAppCoopDeathTest, StepsForAdvanceGuards)
+{
+    auto inListener = []()
+    {
+        World w{WorldSetup()};
+        w.addStepListener(
+            [&]()
+            {
+                w.stepsForAdvance(1.0);
+                return true;
+            });
+        w.step();
+    };
+    EXPECT_DEATH(inListener(), "stepsForAdvance inside a step listener");
+    auto inStep = []()
+    {
+        WorldSetup s;
+        s.systems = [](SystemList& l) { l.add(Phase::Gameplay, "advances", stepsForAdvanceInSystem); };
+        World w(s);
+        w.step();
+    };
+    EXPECT_DEATH(inStep(), "stepsForAdvance inside a step");
+}
+#endif
 
 // The leave path at world level (demo-independent): destroying the client world and then its transport end makes the
 // peer appear in the host's peersLeft(); destroyOwnedBy removes its entities and keeps the host's
@@ -1670,4 +1746,36 @@ TEST(EngineCoopLeave, PeersLeftAndDestroyOwnedBy)
     EXPECT_FALSE(host.alive(child));
     EXPECT_TRUE(host.alive(vehicle));
     EXPECT_EQ(destroyOwnedBy(host, 1), 0u);
+}
+
+// The app's leave wiring (local review): in --coop the client lives as long as the host, so a leave happens only when
+// the link breaks; a bad fragment from the client (the loopback test hook) disconnects both ends, and the host's step
+// listener calls EngineAppSetup::onPeerLeft once (here the leave policy destroys the peer's entities)
+TEST(EngineAppCoop, OnPeerLeftAfterABrokenLink)
+{
+    EngineAppSetup s = coopSetup();
+    s.onPeerLeft     = [](EngineApp&, World& host, uint8_t peer)
+    {
+        g_coop.left.push_back(peer);
+        destroyOwnedBy(host, peer);
+    };
+    EngineApp app(s, coopOptions(2));
+    World& host = *app.hostWorld();
+    app.runFrames(10, 1.0 / 60);
+    ASSERT_TRUE(app.localPlayer().valid());
+    Entity onHost;
+    host.viewAll<const Player>().each(
+        [&](Entity e, const Player& p)
+        {
+            if (p.peer == 1) onHost = e;
+        });
+    ASSERT_TRUE(onHost.valid());
+    EXPECT_TRUE(g_coop.left.empty());
+    std::vector<uint8_t> bad(kFragmentHeader + 4, 0);
+    bad[4] = 9;  // index 9 of count 0
+    static_cast<LoopbackTransport*>(host.transport())->injectFragment(1, 0, Channel::Control, bad);
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_EQ(g_coop.left, std::vector<uint8_t>{1});
+    EXPECT_FALSE(host.alive(onHost));
+    EXPECT_TRUE(host.connectedPeers().empty());
 }

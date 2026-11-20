@@ -63,7 +63,8 @@ struct VehicleSeat
 
 // A driver flown / driven / run by the demo's pilot on its owner (--coop --demo): the owner-side pilot systems
 // (RunOn::Client) write its controls. suspended: device input is active (the player took over). progress (racing)
-// and waypoint (platformer): the pilot's small state, reset when the vehicle is teleported. Replicate::Never, saved
+// and waypoint (platformer; -1: the restart after the goal was requested): the pilot's small state, reset when the
+// vehicle is teleported. Replicate::Never, saved
 // (it reaches the owner through the spawn's presence list)
 struct DemoPilot
 {

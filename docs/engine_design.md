@@ -2746,6 +2746,8 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   | all | `DemoPilot` (`suspended`, the pilot's progress or waypoint) | `Never`, saved | the owner-side pilot systems (`RunOn::Client`) and `applyInput` (suspended while device input is active) |
 
   The host decides the platformer's kill height and goal from the received owner pose (extrapolated up to 6 steps).
+  The demo's restart after the goal of a client's hero is the owner's pilot's decision (it queues the restart action
+  once, unless the player took over: `suspended` exists only on the owner).
   Rendering on a client: the pose caches (`PoseHistory`, `RenderCaches` in `GameEngine.h`) read `RenderPose` for remote
   entities and `Transform` for owned ones; the render state besides the pose (racing wheels, the platformer's motion)
   comes from snapshots and is read `interpolationDelaySteps` steps late from a per-entity ring (flushed on a snap), so

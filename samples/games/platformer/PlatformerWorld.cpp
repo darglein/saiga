@@ -10,6 +10,7 @@
 #include "games/platformer/PlatformerWorld.h"
 
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/net/MessageList.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioList.h"
@@ -95,7 +96,9 @@ void runnerInput(World& w, Entity e, int32_t& waypoint)
 }
 
 // Phase Behaviour on clients (--coop --demo): the demo runner runs the owned heroes with DemoPilot (before the
-// controller, as DemoRunner::update on the host); the waypoint restarts with RestartRun
+// controller, as DemoRunner::update on the host); the waypoint restarts with RestartRun. The demo's restart after the
+// goal is the pilot's decision on the owner (a player who took over is not sent back): it queues the restart action
+// once (waypoint -1 until RestartRun arrives; the hero stands meanwhile)
 void platformerDemoPilotSystem(World& w, double)
 {
     std::vector<Entity> heroes;
@@ -105,7 +108,24 @@ void platformerDemoPilotSystem(World& w, double)
             {
                 if (!p.suspended) heroes.push_back(e);
             });
-    for (Entity e : heroes) runnerInput(w, e, w.get<DemoPilot>(e).waypoint);
+    for (Entity e : heroes)
+    {
+        DemoPilot& pilot = w.get<DemoPilot>(e);
+        if (pilot.waypoint < 0)
+        {
+            w.get<PlayerInput>(e).move        = Vec3::Zero();
+            w.get<PlayerInput>(e).heldButtons = 0;
+            continue;
+        }
+        const RunState* run = w.has<RunState>(e) ? &w.read<RunState>(e) : nullptr;
+        if (run && w.has<Player>(e) && run->goalTime >= 0 && run->runTime > run->goalTime + 3)
+        {
+            pilot.waypoint = -1;
+            w.queueAction(PlayerAction{e, uint32_t(PlatformerAction::Restart), Vec3::Zero()});
+            continue;
+        }
+        runnerInput(w, e, pilot.waypoint);
+    }
 }
 
 // The owner part of a restart: the controller state (the model stays); a jump key held through the restart does not
@@ -191,8 +211,10 @@ void HeroBase::update(double dt)
         PlatformerDemo probe;
         if (probe.reachedGoal(characterOf(world(), entity()), level)) run.goalTime = run.runTime;
     }
-    // The demo restarts after the goal (also a co-op client's hero run by the demo runner on its owner)
-    if ((restartsAfterTheGoal() || has<DemoPilot>()) && run.goalTime >= 0 && run.runTime > run.goalTime + 3)
+    // The demo restarts after the goal (a co-op client's hero run by the demo runner: its owner's pilot queues the
+    // restart action, platformerDemoPilotSystem; local review: the host restarted it also when the player had taken
+    // over, which only the owner knows)
+    if (restartsAfterTheGoal() && run.goalTime >= 0 && run.runTime > run.goalTime + 3)
     {
         restart();
         return;

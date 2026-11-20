@@ -1127,6 +1127,13 @@ void World::advance(double frameDt)
 
 int World::stepsForAdvance(double frameDt)
 {
+    // The guards of advance (local review: the caller steps right after it)
+    SAIGA_ASSERT(!inStep(), "World::stepsForAdvance inside a step");
+    if (dispatchingStepListeners)
+    {
+        SAIGA_ASSERT(false, "World::stepsForAdvance inside a step listener (not supported)");
+        throw std::logic_error("World::stepsForAdvance inside a step listener (not supported)");
+    }
     if (paused) return 0;
     // As advance: NaN is ignored, +inf is a long frame
     if (std::isnan(frameDt)) frameDt = 0;
