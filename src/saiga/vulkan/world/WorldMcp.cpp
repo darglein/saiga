@@ -246,14 +246,21 @@ void requestScreenshot(const WorldMcpContext& c, std::shared_ptr<ScreenshotBatch
 
 }  // namespace
 
-std::string worldMcpInstructions()
+std::string worldMcpInstructions(bool measurePerformance)
 {
-    return "Controls a running Saiga Vulkan world renderer (procedural terrain, trees and grass in a gray clay look). "
-           "Coordinates are meters, y is up, the world covers x and z in [0, size_m]. Call get_state first. "
-           "Use screenshot to look at the current view (the image is the next rendered frame). set_camera places the "
-           "camera (position / look_at / yaw_deg / pitch_deg / height_above_ground), move_camera moves it relative to "
-           "the view. set_settings changes render settings (get_state lists them). measure_performance renders "
-           "frames and reports frame times; it is only meaningful with vsync off and the validation layer disabled.";
+    const std::string text =
+        "Controls a running Saiga Vulkan world renderer (procedural terrain, trees and grass in a gray clay look). "
+        "Coordinates are meters, y is up, the world covers x and z in [0, size_m]. Call get_state first. "
+        "Use screenshot to look at the current view (the image is the next rendered frame). set_camera places the "
+        "camera (position / look_at / yaw_deg / pitch_deg / height_above_ground), move_camera moves it relative to "
+        "the view. set_settings changes render settings (get_state lists them). ";
+    if (measurePerformance)
+        return text +
+               "measure_performance renders frames and reports frame times; it is only meaningful with vsync off and "
+               "the validation layer disabled.";
+    return text +
+           "The world API tools (describe_world, list_entities, inspect, step, save_snapshot, ...) read and change the "
+           "game world; measure_performance measures steps, frames and the GPU (vsync off for frame times).";
 }
 
 void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
@@ -471,6 +478,7 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             respond(ToolResult::FromJson(result));
         });
 
+    if (!c.measurePerformance) return;
     server.addTool(
         "measure_performance",
         "Renders the given number of frames (default 120) without changing anything and reports the CPU frame time "

@@ -24,7 +24,7 @@ namespace Vulkan
  * measuredFrames frames; the unsmoothed frame intervals, CPU work times and GPU pass times of the measured frames are
  * summarized as median and p95.
  *
- * Usage (sample_vulkan_world --benchmark <name>):
+ * Usage (game_world --benchmark <name>):
  *   WorldBenchmark bench(name, world, gpuName);
  *   per frame, before world.transfer(): pose = bench.currentPose(); set the camera; world.transfer(...);
  *   if (bench.finished()) { json = bench.result(); WorldBenchmark::writeResult("benchmark_" + name + ".json", json);

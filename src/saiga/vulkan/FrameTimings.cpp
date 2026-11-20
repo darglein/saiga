@@ -54,6 +54,8 @@ void FrameTimings<Finder>::update(vk::Semaphore _frameTimeline)
                                                      vk::QueryResultFlagBits::e64 | vk::QueryResultFlagBits::eWait);
             SAIGA_ASSERT(result == vk::Result::eSuccess);
 
+            // The durations from the raw ticks (masked difference, see timestampDifferenceMs)
+            const auto rawSections = timing.sections;
             // Ticks -> nanoseconds
             for (auto& s : timing.sections)
             {
@@ -79,6 +81,17 @@ void FrameTimings<Finder>::update(vk::Semaphore _frameTimeline)
             bestSection = finder.findSuitablePause(recentFramePauses, insertionPoint);
 
             lastFrameSections = timing.sections;
+            {
+                CompletedFrame c;
+                c.timelineValue = timing.timelineValue;
+                for (auto& sec : rawSections)
+                    c.sectionMs.push_back(timestampDifferenceMs(sec.first, sec.second, timestampMask, timestampPeriod));
+                if (!rawSections.empty())
+                    c.frameMs = timestampDifferenceMs(rawSections.front().first, rawSections.back().second,
+                                                      timestampMask, timestampPeriod);
+                completedFrames.push_back(std::move(c));
+                if (completedFrames.size() > 16) completedFrames.pop_front();
+            }
             insertionPoint++;
             if (insertionPoint == recentFramePauses.end())
             {

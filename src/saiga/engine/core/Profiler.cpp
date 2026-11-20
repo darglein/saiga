@@ -89,6 +89,15 @@ void Profiler::reset()
     resets++;
 }
 
+std::vector<double> Profiler::scopeHistory(int scope) const
+{
+    std::vector<double> out;
+    if (scope < 0 || scope >= int(scopes.size())) return out;
+    const Series& s = scopes[size_t(scope)];
+    for (int i = filled; i >= 1; --i) out.push_back(s.ring[size_t((head - i + capacity) % capacity)]);
+    return out;
+}
+
 Profiler::Stats Profiler::stats(const Series& s, int lastSamples) const
 {
     Stats st;

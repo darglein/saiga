@@ -25,6 +25,7 @@ namespace Saiga
 namespace Engine
 {
 class World;
+class Profiler;
 
 // The result of a world API call: ok with a value, or an error message (never an assert: an agent's mistake must not
 // stop the game). A failed batch (apply) also carries the results of the operations that were applied.
@@ -70,7 +71,8 @@ struct ApiResult
  *                     changes [{seq, step, kind, entity, component?}] (kinds: created, destroyed (its components with
  *                     it), added, removed; step: the steps completed when the change was read), moved? [entities],
  *                     moved_more?, moves_tracked_from_step?, cursor, more, truncated, step
- *   get_profile:      steps? (window), scopes? [path prefixes] -> the profiler report      reset_profile
+ *   get_profile:      steps? (window), scopes? [path prefixes], frames? (window of the app's profiles) -> the step
+ *                     profile, plus the app's profiles under their keys (frame, gpu)      reset_profile
  *   logs:             since?, category? -> lines [{seq, category, message}], first, last, truncated
  *   save_snapshot:    name, overwrite? -> name, bytes, step, hash (World::save kept in the API's memory: at most 16
  *                     snapshots and 256 MB; reading, the world does not change)
@@ -126,6 +128,9 @@ class SAIGA_ENGINE_API WorldApi
     // Moves the API to another world (S12's save/load variant, S14's run_scenario): cursors, snapshots and the change
     // journal stay; the journal gets a world_loaded entry
     void rebind(World& world);
+    // A profile of the app reported by get_profile under key (S13: "frame", "gpu"); it must outlive the API
+    void addProfile(const std::string& key, Profiler* profiler) { profiles.push_back({key, profiler}); }
+    const std::vector<std::pair<std::string, Profiler*>>& extraProfiles() const { return profiles; }
     // The directory of export_snapshot / import_snapshot (empty: refused)
     void setSnapshotDirectory(const std::string& directory) { snapshotDirectory = directory; }
 
@@ -208,6 +213,7 @@ class SAIGA_ENGINE_API WorldApi
     uint64_t nextSnapshotRevision = 1;
     std::map<std::string, Snapshot> snapshots;
     std::string snapshotDirectory;
+    std::vector<std::pair<std::string, Profiler*>> profiles;
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
     uint32_t epoch   = 0;

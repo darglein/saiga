@@ -9,6 +9,8 @@
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/window/Window.h"
 
+#include <chrono>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -17,27 +19,13 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     : window(window), vulkanParameters(vulkanParameters)
 {
     window.setRenderer(this);
-
-    auto instanceExtensions = window.getRequiredInstanceExtensions();
-    instance.create(instanceExtensions, vulkanParameters.enableValidationLayer);
-
-    window.createSurface(instance, &surface);
-
-    base().setPhysicalDevice(instance, instance.pickPhysicalDevice(surface, vulkanParameters.preferredDevice));
-
-    vulkanParameters.physicalDeviceFeatures.fillModeNonSolid = VK_TRUE;
-    vulkanParameters.physicalDeviceFeatures.wideLines        = VK_TRUE;
-    vulkanParameters.physicalDeviceFeatures.largePoints      = VK_TRUE;
-    // For Sampler (anisotropic filtering) and IndirectBuffer. Dropped in createLogicalDevice if not available.
-    vulkanParameters.physicalDeviceFeatures.samplerAnisotropy         = VK_TRUE;
-    vulkanParameters.physicalDeviceFeatures.multiDrawIndirect         = VK_TRUE;
-    vulkanParameters.physicalDeviceFeatures.drawIndirectFirstInstance = VK_TRUE;
-    base().createLogicalDevice(vulkanParameters, surface);
+    device = createVulkanDevice(window, vulkanParameters, framesInFlight);
 
     if (!isHeadless())
     {
-        swapChain.connect(instance, base().physicalDevice, base().device);
-        swapChain.initSurface(surface);
+        swapChain.connect(device->instance, base().physicalDevice, base().device);
+        // The device owns the surface (the swap chain does not destroy it)
+        swapChain.initSurface(device->surface);
         SAIGA_ASSERT(swapChain.queueNodeIndex == base().mainQueue.getQueueFamilyIndex(),
                      "The main queue must be able to present");
     }
@@ -45,7 +33,6 @@ VulkanRenderer::VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanPara
     for (auto& f : frames) f.create(base().device);
 
     state = State::INITIALIZED;
-    base().initMemory(framesInFlight);
 
     timings.init(base().device, base().physicalDevice, &base().mainQueue);
     timings.registerFrameSection("TRANSFER", 0);
@@ -203,7 +190,10 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     }
 
     timings.beginFrame(frame.timelineValue);
+    const auto recordStart = std::chrono::steady_clock::now();
     render(frame);
+    recordingMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - recordStart).count();
+    submitted++;
     sync.timelineValue = frame.timelineValue;
 
     if (!isHeadless())

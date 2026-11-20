@@ -25,6 +25,8 @@ class SAIGA_CORE_API WindowBase : public MainLoopInterface
     void close();
 
     void startMainLoop(MainLoopParameters params = MainLoopParameters());
+    // For applications with their own loop (the engine app): the window counts as running until close()
+    void markRunning() { running = true; }
 
     virtual void renderImGui(bool* p_open = nullptr) = 0;
 

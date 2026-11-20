@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/vulkan/FrameTimings.h"
 #include "saiga/vulkan/VulkanAsset.h"
 #include "saiga/vulkan/renderModules/AssetRenderer.h"
 #include "saiga/vulkan/renderModules/TextureDisplay.h"
@@ -16,6 +17,15 @@ using namespace Saiga;
 class VulkanHeadlessRenderer : public VulkanTest
 {
 };
+
+// Regression (CodeRabbit, S13): durations were computed from converted timestamps without the mask of the valid bits,
+// so a section across a wrap of a 36-bit counter became huge (no device needed)
+TEST(FrameTimings, TimestampDifferenceAcrossAWrap)
+{
+    const uint64_t mask = (uint64_t(1) << 36) - 1;
+    EXPECT_DOUBLE_EQ(Vulkan::timestampDifferenceMs(mask - 9, 10, mask, 1.0), 20 * 1e-6);
+    EXPECT_DOUBLE_EQ(Vulkan::timestampDifferenceMs(1000, 3000, mask, 2.0), 4000 * 1e-6);
+}
 
 TEST_F(VulkanHeadlessRenderer, ClearColor)
 {

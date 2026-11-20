@@ -12,6 +12,7 @@
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Parameters.h"
 #include "saiga/vulkan/SwapChain.h"
+#include "saiga/vulkan/VulkanDevice.h"
 #include "saiga/vulkan/svulkan.h"
 #include "saiga/vulkan/texture/Texture.h"
 
@@ -80,7 +81,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     // Number of color images: swap chain images, or the offscreen images of a headless renderer.
     int swapChainSize() { return isHeadless() ? (int)offscreenImages.size() : (int)swapChain.imageCount; }
-    inline VulkanBase& base() { return vulkanBase; }
+    inline VulkanBase& base() { return device->base; }
+    VulkanDevice& vulkanDevice() { return *device; }
 
     vk::Format getColorFormat() const { return isHeadless() ? offscreenFormat : vk::Format(swapChain.colorFormat); }
     // Size of the render surface (the swap chain or offscreen images) in pixels
@@ -90,7 +92,13 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
      * True if the window did not create a surface (HeadlessWindow). The frames are then rendered into offscreen images
      * (one per frame in flight) and nothing is presented. No swap chain or surface extension is used.
      */
-    bool isHeadless() const { return surface == VK_NULL_HANDLE; }
+    bool isHeadless() const { return device->surface == VK_NULL_HANDLE; }
+    // Frames submitted so far (render() skips a frame for a minimized window or an out-of-date swap chain)
+    uint64_t submittedFrames() const { return submitted; }
+    // CPU time of the last frame's command recording and submit (without the wait for the frame slot and the image)
+    double lastRecordingMs() const { return recordingMs; }
+    // The GPU section times of the oldest completed frame not yet taken (FrameTimings::popCompleted)
+    bool takeCompletedFrame(FrameTimings<>::CompletedFrame& out) { return timings.popCompleted(out); }
 
    protected:
     // The color image a frame renders into (FrameInfo::imageIndex).
@@ -120,11 +128,10 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     };
     State state = State::UNINITIALIZED;
 
-    Instance instance;
-    VulkanBase vulkanBase;
+    // First: destroyed last (the swap chain and every resource of the derived renderers use it)
+    std::unique_ptr<VulkanDevice> device;
     FrameTimings<> timings;
     VulkanWindow& window;
-    VkSurfaceKHR surface = VK_NULL_HANDLE;
 
     VulkanSwapChain swapChain;
     VulkanParameters vulkanParameters;
@@ -133,6 +140,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
    private:
     uint32_t frameIndex = 0;
+    uint64_t submitted  = 0;
+    double recordingMs  = 0;
     // The window's framebuffer size when the swap chain was created
     ivec2 swapChainFramebufferSize = ivec2(0, 0);
     std::array<FrameSync, framesInFlight> frames;

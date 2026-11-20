@@ -145,10 +145,11 @@ std::vector<ToolSpec> toolSpecs()
          S::ObjectSchema({{"event", S::StringProperty("Event name")}, {"values", objectProperty("Event fields")}},
                          {"event"})},
         {"queue_action",
-         "Queues a one-shot player action (game-defined code, optional aim [x,y,z]); delivered as ActionEvent in the "
-         "next step, in (peer, sequence) order, exactly once.",
+         "Queues a one-shot player action (its name or game-defined code, optional aim [x,y,z]); delivered as "
+         "ActionEvent in the next step, in (peer, sequence) order, exactly once.",
          S::ObjectSchema({{"player", entityProperty("The player entity")},
-                          {"action", S::IntegerProperty("Action code")},
+                          {"action", Json::object{{"type", Json::array{"integer", "string"}},
+                                                  {"description", "Action name (describe_world lists them) or code"}}},
                           {"aim", S::Vec3Property("Aim point")}},
                          {"player", "action"})},
         {"pause", "Pauses the simulation (frames continue).", S::ObjectSchema({})},
@@ -171,11 +172,17 @@ std::vector<ToolSpec> toolSpecs()
         {"get_profile",
          "Reads the step profile: per scope (step, phases, systems, command flushes) avg/min/p50/p95/max in ms and "
          "the share of the parent, plus counters (entities, game objects, objects updated, commands, structural "
-         "records, grid items), over the last steps (default: the whole history of 600). Changes nothing.",
-         S::ObjectSchema({{"steps", S::IntegerProperty("Window in steps (default all kept)")},
-                          {"scopes", arrayProperty("Only scopes with these path prefixes (e.g. step/phase:behaviour)",
-                                                   Json::object{{"type", "string"}})}})},
-        {"reset_profile", "Drops the profile history.", S::ObjectSchema({})},
+         "records, grid items), over the last steps (default: the whole history of 600). In the app also frame "
+         "(frame and its poll, advance and render scopes; fps, steps per frame, dropped steps) and gpu (the GPU frame "
+         "and its "
+         "sections, from timestamps) over the last frames. Changes nothing.",
+         S::ObjectSchema(
+             {{"steps", S::IntegerProperty("Window in steps (default all kept)")},
+              {"frames", S::IntegerProperty("Window of the frame and GPU profiles in frames (default all)")},
+              {"scopes", arrayProperty("Only scopes with these path prefixes (e.g. step/phase:behaviour)",
+                                       Json::object{{"type", "string"}})}})},
+        {"reset_profile", "Drops the profile history (in the app also the frame and GPU profiles).",
+         S::ObjectSchema({})},
         {"logs",
          "Reads the engine log lines after a sequence number (at most the newest 500), optionally of one "
          "category (\"api\" lists the changes made through these tools). Changes nothing.",
@@ -319,6 +326,22 @@ Json measurementReport(const Profiler& p, uint64_t n)
         {"unit", "ms"}, {"samples", 0}, {"top", Json::array{}}, {"scopes", Json::array{}}, {"counters", Json::array{}}};
 }
 
+// The app's profiles (frame, GPU) over the samples since a measurement started
+std::vector<uint64_t> extraStarts(const WorldApi& api)
+{
+    std::vector<uint64_t> starts;
+    for (const auto& p : api.extraProfiles()) starts.push_back(p.second->sampleCount());
+    return starts;
+}
+Json withExtras(const Json& report, const WorldApi& api, const std::vector<uint64_t>& starts)
+{
+    Json::object o       = report.object_items();
+    const auto& profiles = api.extraProfiles();
+    for (size_t i = 0; i < profiles.size() && i < starts.size(); ++i)
+        o[profiles[i].first] = measurementReport(*profiles[i].second, profiles[i].second->sampleCount() - starts[i]);
+    return o;
+}
+
 std::string exactJson(const Json& j)
 {
     std::string out;
@@ -367,7 +390,8 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
         "those "
         "steps (see get_profile). Paused: runs the steps now (a pure simulation benchmark; edits must be allowed). "
         "Running: waits until the app has run them (refused at time scale 0); it answers early with fewer steps if "
-        "they take too long. Changes nothing but time while paused.",
+        "they take too long; in the app the result also has the frame and gpu profiles of those frames. Changes "
+        "nothing but time while paused.",
         [&]()
         {
             Json::object schema =
@@ -395,13 +419,14 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             {
                 if (!a->editsAllowed())
                     return respond(ToolResult::Error("measure_performance: running steps while paused is an edit"));
-                int ran = 0;
+                int ran                            = 0;
+                const std::vector<uint64_t> starts = extraStarts(*a);
                 while (ran < int(n) && !over())
                 {
                     w.step();
                     ran++;
                 }
-                Json report = measurementReport(w.profiler(), uint64_t(ran));
+                Json report = withExtras(measurementReport(w.profiler(), uint64_t(ran)), *a, starts);
                 if (ran < int(n))
                 {
                     Json::object o     = report.object_items();
@@ -420,6 +445,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 bool answered  = false;
                 bool worldGone = false;
                 uint64_t start, resets, loads;
+                std::vector<uint64_t> extras;
                 World* world        = nullptr;  // holds the destroy and step listeners
                 int destroyListener = -1;
                 int stepListener    = -1;
@@ -428,6 +454,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
             m->start           = w.profiler().sampleCount();
             m->resets          = w.profiler().resetCount();
             m->loads           = w.loadCount();
+            m->extras          = extraStarts(*a);
             m->world           = &w;
             m->destroyListener = w.addDestroyListener(
                 [respond, m]()
@@ -482,7 +509,7 @@ std::shared_ptr<WorldApi> registerWorldTools(McpServer& server, World& world, co
                 world.removeDestroyListener(m->destroyListener);
                 world.removeStepListener(m->stepListener);
                 // No step ran: an empty window (report(0) would be the whole history)
-                Json report = measurementReport(world.profiler(), done);
+                Json report = withExtras(measurementReport(world.profiler(), done), *api, m->extras);
                 if (done < uint64_t(n))
                 {
                     Json::object o     = report.object_items();

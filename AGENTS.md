@@ -55,7 +55,9 @@ src/
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
                         world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, MCP tools,
-                        benchmark runner WorldBenchmark; sample_vulkan_world)
+                        benchmark paths WorldBenchmark; used by game_world)
+                        scene/RenderScene: the engine app's frame shell (wraps VulkanForwardRenderer until S17);
+                        VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
                         chosen at runtime as in opengl/: GLFWWindow or HeadlessWindow (offscreen images, ImGui through
                         ImGuiHeadlessRenderer; core/imgui/imgui_headless_platform.h is shared with OpenGL)
@@ -72,7 +74,9 @@ src/
                         registerWorldTools (MCP world tools), ScenarioWorld/ScenarioList/ScenarioRunner
                         (scenario tests, §17.2); save/: World::save/tryLoad (SaveFormat.h, SchemaTable,
                         MigrationList, SaveDecoder, diffSaves); data/: data files (DataTypeList, DataStore, DataRef,
-                        readDataFile)
+                        readDataFile); app/: EngineApp (the engine's frame loop: window or headless, RenderScene, MCP,
+                        input map, frame/GPU profiles), engineMain and the command line of engine games, InputMap,
+                        the app tools (quit, app_status, set_input)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -87,13 +91,14 @@ data/                   Sample assets (textures, models); test goldens in data/t
                         save format version (it must keep loading otherwise)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
-                        the engine and GLFW): the tech demos flight/, platformer/, racing/ and their shared common/, compiled
+                        the engine and GLFW): the world game world/ (the world prototype on
+                        EngineApp: game_world, --benchmark, MCP of .mcp.json), the tech demos flight/, platformer/, racing/ and their shared common/, compiled
                         into each game (docs/engine_design.md §18.4). Not tested by tests/ (the tests test the engine)
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
                         VulkanMemoryAllocator (header only, included by saiga_vulkan), plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
-.mcp.json               MCP server "saiga-world" (http://127.0.0.1:8765/mcp) of the running sample_vulkan_world
+.mcp.json               MCP server "saiga-world" (http://127.0.0.1:8765/mcp) of the running game_world
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04 with GCC and with Clang, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan on
                         Mesa lavapipe) + ctest; Windows MSVC (shared libraries, Core + Vulkan + Engine, no samples;
@@ -183,7 +188,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-62 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+63 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -252,12 +257,12 @@ ctest -R test_core_ini --output-on-failure             # one test
   cmake -S . -B build-bench -DCMAKE_BUILD_TYPE=Release -DSAIGA_ASSERTS=OFF -DSAIGA_ARCHNATIVE=OFF \
     -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_TESTS=OFF -DSAIGA_BUILD_SAMPLES=ON
   # CMake >= 4: add -DCMAKE_POLICY_VERSION_MINIMUM=3.5; GCC 15: add -DASSIMP_WARNINGS_AS_ERRORS=OFF (see above)
-  cmake --build build-bench --target sample_vulkan_world --parallel
-  cd build-bench/samples/vulkan && ./sample_vulkan_world --benchmark flyover   # and --benchmark forest
+  cmake --build build-bench --target game_world --parallel
+  cd build-bench/samples/games && ./game_world --benchmark flyover   # and --benchmark forest
   ```
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
   ignored) and writes
-  `benchmark_<name>.json` to the working directory (here `build-bench/samples/vulkan/`); the exit code is non-zero if it
+  `benchmark_<name>.json` to the working directory (here `build-bench/samples/games/`); the exit code is non-zero if it
   did not finish, could not write the result, or the rendered size changed or a frame stalled (e.g. a minimized window)
   during the measured frames. The JSON
   records the build (`build: {type, asserts, archnative}`: the CMake configuration, `SAIGA_ASSERTS` and whether
@@ -308,7 +313,7 @@ working and show their feature in them.
 
 - Module sources are **globbed** by the module's `CMakeLists.txt` files (per directory): after adding or removing a
   `.cpp`/`.cu` file, re-run the CMake configure.
-- The `saiga-world` MCP server of `.mcp.json` is only reachable while `sample_vulkan_world` runs (it fails to connect
+- The `saiga-world` MCP server of `.mcp.json` is only reachable while `game_world` runs (it fails to connect
   otherwise; that is expected).
 - A missing optional dependency silently disables a module, a feature or a test rather than failing
   the configure — a change can "build" while its code was never compiled. Check the

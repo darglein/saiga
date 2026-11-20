@@ -60,6 +60,7 @@ World::World(const WorldSetup& setup)
     if (setup.classes) setup.classes(classes);
     classes.validateRegistration();
     if (setup.migrations) setup.migrations(migrationList);
+    if (setup.actions) setup.actions(actionNames);
 
     // Data files: an error stops the program in every build (R-DATA-1: a game must not run on half-read data)
     if (setup.sharedData)

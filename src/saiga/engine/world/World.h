@@ -17,6 +17,7 @@
 #include "saiga/engine/data/DataRef.h"
 #include "saiga/engine/data/DataStore.h"
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/gameplay/ActionList.h"
 #include "saiga/engine/gameplay/ClassList.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/gameplay/TickPolicy.h"
@@ -65,6 +66,7 @@ struct WorldSetup
     void (*events)(EventRegistry&) = nullptr;
     void (*systems)(SystemList&)   = nullptr;
     void (*classes)(ClassList&)    = nullptr;  // game object classes (S10)
+    void (*actions)(ActionList&)   = nullptr;  // player actions and held buttons by name (S13)
     // Migrations of changed and removed saved types (§15.2, S11)
     void (*migrations)(MigrationList&) = nullptr;
     // Data files (§14, S11): one JSON file per registered type in dataDirectory, loaded by the constructor (an error
@@ -350,6 +352,7 @@ class SAIGA_ENGINE_API World
     Registry& registry() { return reg; }
     const Registry& registry() const { return reg; }
     const ClassList& classList() const { return classes; }
+    const ActionList& actionList() const { return actionNames; }
     // Step timings and counters (§17.1, S10); the app adds frame and GPU numbers from S13
     Profiler& profiler() { return prof; }
     int objectsUpdatedCounter() const { return updatedCounter; }
@@ -547,6 +550,7 @@ class SAIGA_ENGINE_API World
 
     Registry reg;
     ClassList classes;
+    ActionList actionNames;
     Profiler prof;
     // Scope IDs: the step, per phase, per system (in SystemList order), per command flush; counter IDs
     int stepScope = -1;
