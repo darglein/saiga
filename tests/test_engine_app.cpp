@@ -20,6 +20,10 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
+#include <cstdlib>
+#include <filesystem>
+
 #include "mcp_test_helper.h"
 
 using namespace Saiga;
@@ -82,6 +86,40 @@ void setEnv(const char* name, const char* value)
         unsetenv(name);
 #endif
 }
+
+// Sets an environment variable for its scope and restores the previous value (or its absence)
+struct ScopedEnv
+{
+    ScopedEnv(const char* name, const char* value) : name(name)
+    {
+        const char* old = std::getenv(name);
+        had             = old != nullptr;
+        if (had) previous = old;
+        setEnv(name, value);
+    }
+    ~ScopedEnv() { setEnv(name.c_str(), had ? previous.c_str() : nullptr); }
+    std::string name, previous;
+    bool had = false;
+};
+
+// A new empty directory under the test temp directory (removed with the object)
+struct TempDirectory
+{
+    TempDirectory()
+    {
+        static int counter = 0;
+        path               = std::filesystem::path(::testing::TempDir()) /
+               ("saiga_engine_app_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) +
+                "_" + std::to_string(counter++));
+        std::filesystem::create_directories(path);
+    }
+    ~TempDirectory()
+    {
+        std::error_code ec;
+        std::filesystem::remove_all(path, ec);
+    }
+    std::filesystem::path path;
+};
 
 std::vector<const char*> argv(std::initializer_list<const char*> args)
 {
@@ -207,6 +245,27 @@ TEST(InputMapTest, KeysMouseHeldAndEdges)
     EXPECT_EQ(m.pressedActions(), std::vector<uint32_t>{2});
 }
 
+// Regression (CodeRabbit, S13): setActions kept a pointer, so a temporary action list dangled
+TEST(InputMapTest, SetActionsKeepsACopy)
+{
+    InputMap m;
+    m.setActions(
+        []()
+        {
+            ActionList a;
+            actions(a);
+            return a;
+        }());
+    m.setDefaults();
+    VirtualInput v;
+    v.held    = {"walk"};
+    v.pressed = {"jump"};
+    m.update(InputState(), false, v);
+    EXPECT_EQ(m.heldBits(), 1u);
+    EXPECT_EQ(m.pressedActions(), std::vector<uint32_t>{1});
+    EXPECT_FALSE(m.describe()["actions"].array_items().empty()) << m.describe().dump();
+}
+
 TEST(InputMapTest, ErrorsNameTheFileAndKey)
 {
     ActionList a;
@@ -226,14 +285,16 @@ TEST(InputMapTest, ErrorsNameTheFileAndKey)
 // SAIGA_SCREENSHOT is ignored with --no-render (an argument is an error, see above)
 TEST(AppCommandLine, ScreenshotVariableWithoutRendering)
 {
-    setEnv("SAIGA_SCREENSHOT", "x.png");
-    EngineAppSetup s;
-    AppOptions o;
+    {
+        ScopedEnv env("SAIGA_SCREENSHOT", "x.png");
+        EngineAppSetup s;
+        AppOptions o;
+        std::string error;
+        auto a = argv({"--no-render"});
+        EXPECT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
+        EXPECT_TRUE(o.screenshot.empty());
+    }
     std::string error;
-    auto a = argv({"--no-render"});
-    EXPECT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
-    EXPECT_TRUE(o.screenshot.empty());
-    setEnv("SAIGA_SCREENSHOT", nullptr);
     // A known benchmark passes
     EngineAppSetup t;
     t.benchmarks = {"flyover"};
@@ -427,6 +488,60 @@ TEST(EngineAppNoRender, ChangingTheLocalPlayerReleasesThePreviousOne)
     EXPECT_EQ(w.read<PlayerInput>(b).heldButtons, 2u);  // no release of a's input on b
 }
 
+// Regression (CodeRabbit, S13): set_input was written to the player only by the next frame, so a step run before it
+// (world().step(), the step tool) read the old input and then expired the request
+TEST(EngineAppNoRender, VirtualInputAppliesBeforeAnExplicitStep)
+{
+    EngineAppSetup s = appSetup(false);
+    int jumps        = 0;
+    s.applyInput     = [&](const InputMap& in, World&, Entity) { jumps += in.pressed("jump") ? 1 : 0; };
+    EngineApp app(s);
+    World& w       = app.world();
+    const Entity p = w.create();
+    w.add<Player>(p);
+    w.add<PlayerInput>(p);
+    app.setLocalPlayer(p);
+    w.setPaused(true);
+    VirtualInput v;
+    v.held    = {"walk"};
+    v.pressed = {"jump"};
+    app.setVirtualInput(v, 1);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);  // before any frame
+    EXPECT_EQ(jumps, 1);
+    w.step();  // reads it; released after the step
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
+    app.runFrames(2, 1.0 / 60);
+    EXPECT_EQ(jumps, 1);  // the pressed action once
+}
+
+// Regression (CodeRabbit, S13): a change of the local player released only PlayerInput on the previous one; the game's
+// own controls (applyInput) of the previous player stayed active
+TEST(EngineAppNoRender, ChangingTheLocalPlayerReleasesTheGameInput)
+{
+    EngineAppSetup s = appSetup(false);
+    std::vector<std::pair<Entity, bool>> calls;  // (player, input neutral)
+    s.applyInput = [&](const InputMap& in, World&, Entity e) { calls.push_back({e, in.neutral()}); };
+    EngineApp app(s);
+    World& w       = app.world();
+    const Entity a = w.create();
+    const Entity b = w.create();
+    for (Entity e : {a, b})
+    {
+        w.add<Player>(e);
+        w.add<PlayerInput>(e);
+    }
+    app.setLocalPlayer(a);
+    VirtualInput v;
+    v.held = {"walk"};
+    app.setVirtualInput(v, 0);
+    ASSERT_FALSE(calls.empty());
+    EXPECT_EQ(calls.back(), std::make_pair(a, false));
+    calls.clear();
+    app.setLocalPlayer(b);
+    ASSERT_EQ(calls.size(), 1u);
+    EXPECT_EQ(calls[0], std::make_pair(a, true));  // a neutral update of a, nothing for b
+}
+
 // The local player's handle is dead after a load: the first player of peer 0 in the loaded world
 TEST(EngineAppNoRender, LocalPlayerFallbackAfterALoad)
 {
@@ -538,21 +653,52 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
 // --screenshot: saved after the given frame, then the app quits
 TEST_F(EngineAppRender, ScreenshotOption)
 {
+    TempDirectory dir;
     AppOptions o;
-    o.screenshot      = ::testing::TempDir() + "/saiga_engine_app_shot.png";
+    o.screenshot      = (dir.path / "shot.png").string();
     o.screenshotFrame = 3;
     EngineApp app(appSetup(true), o);
     EXPECT_EQ(app.run(), 0);
     EXPECT_EQ(app.renderedFrames(), 3u);
     TemplatedImage<ucvec4> img;
     EXPECT_TRUE(img.load(o.screenshot));
-    std::remove(o.screenshot.c_str());
     // Regression: a screenshot that could not be saved exited with 0
     AppOptions bad;
-    bad.screenshot      = ::testing::TempDir() + "/no_such_directory/shot.png";
+    bad.screenshot      = (dir.path / "no_such_directory" / "shot.png").string();
     bad.screenshotFrame = 1;
     EngineApp app2(appSetup(true), bad);
     EXPECT_EQ(app2.run(), 1);
+}
+
+// Regression (CodeRabbit, S13): a callback added during the dispatch ran in the same frame (a chain that adds its
+// successor never ended the frame), and a throwing callback left an empty slot (std::bad_function_call later)
+TEST_F(EngineAppRender, FrameCallbacksAddedDuringDispatchRunNextFrame)
+{
+    EngineApp app(appSetup(true));
+    std::vector<uint64_t> calls;  // the rendered frame of each call
+    std::function<bool()> chain = [&]()
+    {
+        calls.push_back(app.renderedFrames());
+        if (calls.size() < 3) app.onFrameRendered(chain);
+        return true;
+    };
+    app.onFrameRendered(chain);
+    app.runFrames(4, 1.0 / 60);
+    EXPECT_EQ(calls, (std::vector<uint64_t>{1, 2, 3}));
+    // A stateful callback keeps its state
+    int count = 0;
+    app.onFrameRendered(
+        [&count, n = 0]() mutable
+        {
+            count = ++n;
+            return n == 3;
+        });
+    app.runFrames(5, 1.0 / 60);
+    EXPECT_EQ(count, 3);
+    // A throwing callback is removed; the frames go on
+    app.onFrameRendered([]() -> bool { throw std::runtime_error("callback failed"); });
+    EXPECT_THROW(app.runFrames(1, 1.0 / 60), std::runtime_error);
+    EXPECT_NO_THROW(app.runFrames(2, 1.0 / 60));
 }
 
 // A throwing init hook: shutdown runs for the GPU state it created (the constructor never finishes, no destructor runs)

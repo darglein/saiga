@@ -16,6 +16,7 @@
 
 #include <array>
 #include <chrono>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -92,6 +93,10 @@ class SAIGA_ENGINE_API EngineApp
     void frame(double dt);
     void pollInput(double dt);
     void applyPlayerInput();
+    // The input map from a device state and the virtual input (set_input; its expiry and pressed actions)
+    void updateInputMap(const InputState& state, bool captured);
+    // The input map to the local player (PlayerInput, pressed actions, applyInput)
+    void writePlayerInput();
     void renderFrame();
     // Writes the neutral input to the local player now (an expired set_input between steps)
     void releaseInputNow();
@@ -122,7 +127,9 @@ class SAIGA_ENGINE_API EngineApp
     bool firstFrame        = true;
     bool lastFrameRendered = false;
     bool inputWasActive    = false;  // the last frame wrote non-neutral input to the local player
-    double lastFrameDt     = 0;
+    InputState lastDeviceState;      // the devices of the last frame (without its mouse move)
+    bool lastCaptured  = false;
+    double lastFrameDt = 0;
     // Without GLFW (no camera controls); unconditional, so the class layout does not depend on the macro
     [[maybe_unused]] float cameraSpeedValue = 10, cameraSpeedFastValue = 100;
     bool screenshotRequested = false;
@@ -136,6 +143,7 @@ class SAIGA_ENGINE_API EngineApp
     std::vector<int> scopeGpuSections, scopeGpuPasses;
     int scopeGpuGame       = -1;
     uint64_t droppedBefore = 0;
+    std::deque<Vulkan::FrameTimes> pendingGpu;  // completed frames waiting for the game's passes of the same frame
 };
 
 }  // namespace Engine

@@ -13,6 +13,7 @@
 
 #include <array>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -56,7 +57,7 @@ class SAIGA_ENGINE_API InputMap
     // the file and the key if something is wrong.
     bool load(const std::string& file, const std::string& user, const ActionList& actions, std::string& error);
     // The game's actions and held buttons (also without bindings: virtual input uses the names)
-    void setActions(const ActionList& actions) { actionList = &actions; }
+    void setActions(const ActionList& actions) { actionList = actions; }
     // The bindings of a game without input.json: move_x (A, D), move_z (S, W), look_x/look_y (mouse), move =
     // [move_x, move_z]
     void setDefaults();
@@ -95,7 +96,8 @@ class SAIGA_ENGINE_API InputMap
     std::map<std::string, std::vector<int>> bindings;  // name -> key codes (mouse buttons: 1000 + button)
     std::map<std::string, Axis> axes;
     std::string moveX, moveZ;
-    const ActionList* actionList = nullptr;
+    // A copy: the caller's list may be a temporary (setActions(makeActions()))
+    std::optional<ActionList> actionList;
     std::map<std::string, bool> heldNow, heldBefore;
     std::map<std::string, double> axisValues;
 };

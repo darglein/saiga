@@ -128,7 +128,7 @@ bool InputMap::parse(const Json& json, const std::string& file, const ActionList
         error = file + ": expected an object";
         return false;
     }
-    actionList = &actions;
+    actionList = actions;
     std::map<std::string, std::vector<int>> b;
     std::map<std::string, Axis> a;
     std::string mx = moveX, mz = moveZ;

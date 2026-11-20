@@ -296,6 +296,13 @@ void EngineApp::setVirtualInput(const VirtualInput& input, int steps)
     virtualSteps     = steps;
     virtualStartStep = gameWorld->stepIndex();
     hasVirtual       = true;
+    // Written to the local player at once, with the last device state: a step run before the next frame
+    // (world().step(), the step tool) reads it; its pressed actions are queued once here
+    if (!gameWorld->inStep())
+    {
+        updateInputMap(lastDeviceState, lastCaptured);
+        writePlayerInput();
+    }
 }
 
 void EngineApp::setLocalPlayer(Entity player)
@@ -304,12 +311,21 @@ void EngineApp::setLocalPlayer(Entity player)
     // The previous player's active device input is released on it (the release of the next neutral frame would go to
     // the new player)
     World& w = *gameWorld;
-    if (inputWasActive && localPlayerEntity.valid() && w.alive(localPlayerEntity) &&
-        w.has<PlayerInput>(localPlayerEntity))
+    if (inputWasActive && localPlayerEntity.valid() && w.alive(localPlayerEntity))
     {
-        PlayerInput& in = w.get<PlayerInput>(localPlayerEntity);
-        in.move         = Vec3::Zero();
-        in.heldButtons  = 0;
+        if (w.has<PlayerInput>(localPlayerEntity))
+        {
+            PlayerInput& in = w.get<PlayerInput>(localPlayerEntity);
+            in.move         = Vec3::Zero();
+            in.heldButtons  = 0;
+        }
+        // The game's own controls (applyInput) of the previous player get a neutral update too
+        if (appSetup.applyInput)
+        {
+            InputMap neutral = inputMap;
+            neutral.update(InputState(), false);
+            appSetup.applyInput(neutral, w, localPlayerEntity);
+        }
     }
     inputWasActive    = false;
     localPlayerEntity = player;
@@ -417,6 +433,36 @@ void EngineApp::applyPlayerInput()
                 });
         previousKeys = state.keys;
     }
+    // Kept for input updates between frames (set_input, its expiry); a mouse move counts once
+    lastDeviceState            = state;
+    lastDeviceState.mouseDelta = Vec2::Zero();
+    lastCaptured               = captured;
+    updateInputMap(state, captured);
+
+    World& w = *gameWorld;
+    if (localPlayerEntity.valid() && !w.alive(localPlayerEntity)) localPlayerEntity = Entity{};
+    if (!localPlayerEntity.valid())
+    {
+        // The free camera (WASD and mouse) when no player is driven
+#ifdef SAIGA_USE_GLFW
+        if (appWindow && !appSetup.headless)
+        {
+            // The frame's time: the speed does not depend on the frame rate
+            const float dt = float(std::min(lastFrameDt, 0.1));
+            if (mouseCaptured)
+                cameraHolder->camera.resetMouse();
+            else
+                cameraHolder->camera.interpolate(dt, 0);
+            if (!captured) cameraHolder->camera.update(dt);
+        }
+#endif
+        return;
+    }
+    writePlayerInput();
+}
+
+void EngineApp::updateInputMap(const InputState& state, bool captured)
+{
     // set_input lasts a number of world steps, counted from when it was set: steps of advance and steps run between
     // frames (world().step(), the step tool) alike; it is released before the next step could read it again (a load to
     // an earlier step ends it too)
@@ -437,29 +483,16 @@ void EngineApp::applyPlayerInput()
     }
     else
         inputMap.update(state, captured);
+}
 
+void EngineApp::writePlayerInput()
+{
     World& w = *gameWorld;
     if (localPlayerEntity.valid() && !w.alive(localPlayerEntity)) localPlayerEntity = Entity{};
+    if (!localPlayerEntity.valid()) return;
     PerspectiveCamera& cam = cameraHolder->camera;
-    if (!localPlayerEntity.valid())
-    {
-        // The free camera (WASD and mouse) when no player is driven
-#ifdef SAIGA_USE_GLFW
-        if (appWindow && !appSetup.headless)
-        {
-            // The frame's time: the speed does not depend on the frame rate
-            const float dt = float(std::min(lastFrameDt, 0.1));
-            if (mouseCaptured)
-                cameraHolder->camera.resetMouse();
-            else
-                cameraHolder->camera.interpolate(dt, 0);
-            if (!captured) cameraHolder->camera.update(dt);
-        }
-#endif
-        return;
-    }
     // Neutral device input does not overwrite what an agent set (set_component); an active input does, and its release
-    // (the first neutral frame after it) writes the neutral values once
+    // (the first neutral update after it) writes the neutral values once
     const bool active  = !inputMap.neutral();
     const bool release = !active && inputWasActive;
     inputWasActive     = active;
@@ -483,20 +516,10 @@ void EngineApp::applyPlayerInput()
 
 void EngineApp::releaseInputNow()
 {
-    // The input map without device or virtual input (devices still held are written again by the next frame)
-    inputMap.update(InputState(), false);
-    World& w = *gameWorld;
-    if (inputWasActive && localPlayerEntity.valid() && w.alive(localPlayerEntity))
-    {
-        if (w.has<PlayerInput>(localPlayerEntity))
-        {
-            PlayerInput& in = w.get<PlayerInput>(localPlayerEntity);
-            in.move         = Vec3::Zero();
-            in.heldButtons  = 0;
-        }
-        if (appSetup.applyInput) appSetup.applyInput(inputMap, w, localPlayerEntity);
-    }
-    inputWasActive = false;
+    // The input map without the virtual input: the last device state again (no new edges, so a key held across the
+    // expiry is not pressed again), written to the player (neutral if no device input is active)
+    inputMap.update(lastDeviceState, lastCaptured);
+    writePlayerInput();
 }
 
 void EngineApp::renderFrame()
@@ -535,13 +558,29 @@ void EngineApp::renderFrame()
     frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
     lastFrameRendered = true;
     framesRendered++;
-    for (size_t i = 0; i < frameCallbacks.size();)
+    // Only the callbacks registered before this frame's dispatch: one a callback adds runs from the next frame on
+    size_t count = frameCallbacks.size();
+    for (size_t i = 0; i < count;)
     {
         // Called in place, keeping its state; moved out while it runs because it may add callbacks (the vector may
         // reallocate; new ones are appended, so index i stays its slot)
         auto cb = std::move(frameCallbacks[i]);
-        if (cb())
+        bool done;
+        try
+        {
+            done = cb();
+        }
+        catch (...)
+        {
+            // A throwing callback is removed (its slot must not stay empty)
             frameCallbacks.erase(frameCallbacks.begin() + std::ptrdiff_t(i));
+            throw;
+        }
+        if (done)
+        {
+            frameCallbacks.erase(frameCallbacks.begin() + std::ptrdiff_t(i));
+            count--;
+        }
         else
             frameCallbacks[i++] = std::move(cb);
     }
@@ -601,13 +640,24 @@ void EngineApp::statisticsWindow()
 void EngineApp::collectGpuTimes()
 {
     Vulkan::FrameTimes times;
-    while (renderScene->takeGpuFrameTimes(times))
+    while (renderScene->takeGpuFrameTimes(times)) pendingGpu.push_back(times);
+    // Oldest first; a frame waits for the game's passes of the same frame (they arrive in a later frame's transfer)
+    const bool gamePasses = appSetup.renderHooks.passTimes && !appSetup.renderHooks.passNames.empty();
+    while (!pendingGpu.empty())
     {
-        gpuProfiler.add(scopeGpuFrame, times.gpuMs);
-        for (size_t i = 0; i < times.gpuSectionMs.size() && i < scopeGpuSections.size(); ++i)
-            gpuProfiler.add(scopeGpuSections[i], times.gpuSectionMs[i]);
+        const Vulkan::FrameTimes& t = pendingGpu.front();
         std::vector<std::pair<std::string, double>> passes;
-        if (appSetup.renderHooks.passTimes && appSetup.renderHooks.passTimes(passes))
+        if (gamePasses && !appSetup.renderHooks.passTimes(t.frame, passes))
+        {
+            // Not known yet; after 8 more frames never (no sample: zeros would lower the statistics)
+            if (renderScene->frames() < t.frame + 8) break;
+            pendingGpu.pop_front();
+            continue;
+        }
+        gpuProfiler.add(scopeGpuFrame, t.gpuMs);
+        for (size_t i = 0; i < t.gpuSectionMs.size() && i < scopeGpuSections.size(); ++i)
+            gpuProfiler.add(scopeGpuSections[i], t.gpuSectionMs[i]);
+        if (gamePasses)
         {
             // gpu/game: the sum of the game's passes (the parent of their scopes)
             double sum = 0;
@@ -621,6 +671,7 @@ void EngineApp::collectGpuTimes()
             if (scopeGpuGame >= 0) gpuProfiler.add(scopeGpuGame, sum);
         }
         gpuProfiler.endSample();
+        pendingGpu.pop_front();
     }
 }
 

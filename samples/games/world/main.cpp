@@ -31,9 +31,11 @@
 #include "saiga/vulkan/world/WorldMcp.h"
 #include "saiga/vulkan/world/WorldRenderer.h"
 
+#include <array>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
+#include <map>
 #include <memory>
 
 using namespace Saiga;
@@ -52,8 +54,10 @@ struct WorldGame
     float eyeHeight = 1.8f;
     bool fWasDown   = false;
     // GPU pass times of the newest frame of the world renderer (for the engine's gpu profile)
-    Vulkan::WorldRenderer::FrameTimes lastTimes;
-    bool hasTimes = false;
+    // The world renderer's frame -> the RenderScene frame it was recorded in, and the world passes by RenderScene frame
+    // (the app matches them to the frame's completion)
+    std::map<int, uint64_t> sceneFrameOf;
+    std::map<uint64_t, std::array<double, Vulkan::WorldRenderer::PASS_COUNT>> passesOf;
     // The engine's numbers of the measured frames (step, recording), taken at the frame boundaries that close them
     int64_t stepSamplesAtStart = -1, frameSamplesAtStart = -1;
     // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
@@ -81,8 +85,13 @@ void initWorld(EngineApp& app)
     g.world.frameCallbacks.push_back(
         [](const Vulkan::WorldRenderer::FrameTimes& t)
         {
-            g_game->lastTimes = t;
-            g_game->hasTimes  = true;
+            WorldGame& g = *g_game;
+            if (t.gpuMs < 0) return false;
+            auto it = g.sceneFrameOf.find(t.gpuFrame);
+            if (it == g.sceneFrameOf.end()) return false;
+            g.passesOf[it->second] = t.gpuPassMs;
+            g.sceneFrameOf.erase(g.sceneFrameOf.begin(), std::next(it));
+            while (g.passesOf.size() > 32) g.passesOf.erase(g.passesOf.begin());
             return false;
         });
 
@@ -133,6 +142,9 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
     }
     const ivec2 size = app.scene()->size();
     g.world.transfer(cmd, camera.view, camera.getPosition(), float(size(0)) / float(std::max(1, size(1))));
+    // This frame's number in both renderers (the RenderScene frame being recorded is frames() + 1)
+    g.sceneFrameOf[g.world.frameNumber()] = app.scene()->frames() + 1;
+    while (g.sceneFrameOf.size() > 32) g.sceneFrameOf.erase(g.sceneFrameOf.begin());
     if (g.bench)
     {
         // Frame k is the world renderer's frame number after its transfer (W: the last warm-up frame, M1..Mn: the
@@ -248,14 +260,15 @@ int main(int argc, char* argv[])
     setup.renderHooks.transfer  = [&](vk::CommandBuffer cmd) { transfer(*appPtr, cmd); };
     setup.renderHooks.render    = [&](vk::CommandBuffer cmd) { game.world.render(cmd); };
     setup.renderHooks.gui       = [&]() { gui(*appPtr); };
-    setup.renderHooks.passTimes = [&](std::vector<std::pair<std::string, double>>& passes)
+    setup.renderHooks.passTimes = [&](uint64_t frame, std::vector<std::pair<std::string, double>>& passes)
     {
-        if (!game.hasTimes) return false;
-        game.hasTimes = false;
-        // No completed GPU frame or no timestamps: no samples (zeros would lower the statistics)
-        if (game.lastTimes.gpuMs < 0 || game.lastTimes.gpuPassMs.empty()) return false;
+        // Regression (CodeRabbit, S13): one latest-result flag gave the world passes of one frame to another frame's
+        // completion, and a second completion in the same poll got zeros
+        auto it = game.passesOf.find(frame);
+        if (it == game.passesOf.end()) return false;
         for (int i = 0; i < Vulkan::WorldRenderer::PASS_COUNT; ++i)
-            passes.push_back({Vulkan::WorldRenderer::gpuPassName(i), game.lastTimes.gpuPassMs[size_t(i)]});
+            passes.push_back({Vulkan::WorldRenderer::gpuPassName(i), it->second[size_t(i)]});
+        game.passesOf.erase(it);
         return true;
     };
     setup.gameTools = [&](McpServer& server, EngineApp& app)
