@@ -98,7 +98,7 @@ void HeroBase::restart()
     m                  = CharacterMotion();
     m.model            = model;
     // A jump key held through the restart does not jump: only a fresh press does
-    m.jumpWasHeld     = true;
+    m.jumpWasHeld     = has<PlayerInput>() && heldBit(read<PlayerInput>().heldButtons, PlatformerButton::Jump);
     write<RunState>() = RunState();
     // PlayerInput stays: the device (or the demo runner) owns it; a held key must not look like a new press
     transformWrite().teleport(level.start, yawRotation(0));
@@ -216,17 +216,26 @@ void platformerScenarios(ScenarioList& list)
     list.add("held_jump_after_a_restart",
              [](ScenarioWorld& w)
              {
-                 const Entity hero                            = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), 0);
-                 const uint32_t jump                          = 1u << int(PlatformerButton::Jump);
+                 const Entity hero   = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), 0);
+                 const uint32_t jump = 1u << int(PlatformerButton::Jump);
+                 w.step(5);
+                 // Pressed and held: one jump, then standing again with the key still held
                  w.world().get<PlayerInput>(hero).heldButtons = jump;
                  w.step(10);
-                 w.check(w.world().read<Transform>(hero).position().y() < 0.01,
-                         "a held key at the spawn does not jump");
+                 w.check(w.world().read<Transform>(hero).position().y() > 0.5, "a press jumps");
+                 w.check(w.stepUntil(
+                             [&]
+                             {
+                                 return w.world().read<CharacterMotion>(hero).grounded &&
+                                        w.world().read<Transform>(hero).position().y() < 0.01;
+                             },
+                             120),
+                         "lands while the key is held");
+                 // Falling below the level restarts at the start; the key is still held
                  w.world().get<Transform>(hero).teleport(Vec3(0, -20, 2), yawRotation(0));
                  double highest = -1e9;
                  for (int i = 0; i < 40; ++i)
                  {
-                     w.world().get<PlayerInput>(hero).heldButtons = jump;
                      w.step();
                      highest = std::max(highest, w.world().read<Transform>(hero).position().y());
                  }

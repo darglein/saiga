@@ -247,8 +247,9 @@ void RacingRender::gui()
                     lap.bestLapTime);
         ImGui::Text("next checkpoint %d / %d, track %.0f m", lap.nextCheckpoint,
                     int(context->track.checkpoints().size()), context->track.length());
-        if (ImGui::Button("back to the track") && w.has<Player>(e))
-            w.queueAction(PlayerAction{e, uint32_t(RacingAction::Respawn), Vec3::Zero()});
+        // Between steps: the game object's respawn directly (also the AI driver's)
+        if (ImGui::Button("back to the track"))
+            if (auto* car = gameObjectAs<CarBase>(w, e)) car->respawn();
     }
     ImGui::End();
 }

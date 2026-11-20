@@ -160,6 +160,7 @@ void TerrainRenderer::init(VulkanBase& _base, const RenderingFormats& formats, U
 
 void TerrainRenderer::destroy()
 {
+    hf = nullptr;  // owned by the world renderer (shared height field): not used after this
     pipeline.destroy();
     wirePipeline.destroy();
     heightMap.destroy();

@@ -8,6 +8,8 @@
 
 #include "games/racing/LapState.h"
 
+#include <cstdint>
+
 namespace Saiga
 {
 namespace Game
@@ -18,12 +20,20 @@ void LapState::reset(const Track& track)
     nextCheckpoint = track.checkpoints().size() > 1 ? 1 : 0;
 }
 
+int LapState::wrapCheckpoint(int index, const Track& track)
+{
+    const int64_t n = int64_t(track.checkpoints().size());
+    if (n == 0) return 0;
+    return int(((int64_t(index) % n) + n) % n);
+}
+
 void LapState::update(const Track& track, const Vec3& before, const Vec3& after, double dt)
 {
     lapTime += dt;
     const auto& gates = track.checkpoints();
     if (gates.empty()) return;
-    const auto& g = gates[nextCheckpoint];
+    nextCheckpoint = wrapCheckpoint(nextCheckpoint, track);
+    const auto& g  = gates[nextCheckpoint];
     // Crossing the gate's line (forward through it) within the track width
     Vec3 a(before(0) - g.center(0), 0, before(2) - g.center(2));
     Vec3 b(after(0) - g.center(0), 0, after(2) - g.center(2));

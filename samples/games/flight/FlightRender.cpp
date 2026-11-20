@@ -104,8 +104,9 @@ void FlightRender::gui()
                     m.bankAngle() * 180 / kPi);
         if (m.stalled()) ImGui::TextColored(ImVec4(1, 0.5f, 0.2f, 1), "STALL");
         if (s.crashed) ImGui::TextColored(ImVec4(1, 0.2f, 0.2f, 1), "CRASHED - respawn in a moment");
-        if (ImGui::Button("respawn") && app->localPlayer() == e)
-            w.queueAction(PlayerAction{e, uint32_t(FlightAction::Respawn), Vec3::Zero()});
+        // Between steps: the game object's respawn directly (also the autopilot's)
+        if (ImGui::Button("respawn"))
+            if (auto* plane = gameObjectAs<AircraftBase>(w, e)) plane->respawn();
     }
     ImGui::End();
 }

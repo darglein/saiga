@@ -169,7 +169,8 @@ void CarBase::respawn()
 {
     const Track& track = world().context<RacingContext>().track;
     const auto& gates  = track.checkpoints();
-    const int last     = (read<LapState>().nextCheckpoint - 1 + int(gates.size())) % int(gates.size());
+    const int next     = LapState::wrapCheckpoint(read<LapState>().nextCheckpoint, track);
+    const int last     = (next - 1 + int(gates.size())) % int(gates.size());
     placeOnTrack(gates[last].s + 3);
 }
 
@@ -243,6 +244,21 @@ void racingScenarios(ScenarioList& list)
                  // The track of the default world, independent of SAIGA_WORLD_TREES (the renderer's tree count)
                  w.check(std::abs(track.length() - 1479.23) < 0.01,
                          "the default track: " + std::to_string(track.length()) + " m");
+             });
+    // Regression: a nextCheckpoint set from outside (set_component) indexed the gates out of range (an abort, or
+    // undefined behavior for a negative value); it wraps around
+    list.add("checkpoint_out_of_range",
+             [](ScenarioWorld& w)
+             {
+                 const Entity car = w.spawnPlayer<Car>(Vec3::Zero(), 0);
+                 for (int bad : {100000000, -5})
+                 {
+                     w.world().get<LapState>(car).nextCheckpoint = bad;
+                     w.input(car, uint32_t(RacingAction::Respawn));
+                     w.step(3);
+                     const int n = w.world().read<LapState>(car).nextCheckpoint;
+                     w.check(n >= 0 && n < 10, "in range after " + std::to_string(bad) + ": " + std::to_string(n));
+                 }
              });
     // The behavior before the port to the engine (S13b): the AI's first lap takes 62.07 s
     list.add("ai_completes_a_lap",

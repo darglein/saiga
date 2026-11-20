@@ -163,7 +163,7 @@ void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters&
 void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
                          std::shared_ptr<const HeightField> heightField)
 {
-    SAIGA_ASSERT(heightField, "WorldRenderer::init: no height field");
+    if (!heightField) SAIGA_EXIT_ERROR("WorldRenderer::init: no height field");
     initWith(renderer, parameters, std::move(heightField));
 }
 

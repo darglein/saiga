@@ -26,6 +26,8 @@ struct LapState
     void reset(const Track& track);
     // Call every step with the car position before and after the step
     void update(const Track& track, const Vec3& before, const Vec3& after, double dt);
+    // nextCheckpoint in [0, checkpoints) (a value set from outside, e.g. set_component, wraps around)
+    static int wrapCheckpoint(int index, const Track& track);
 
     int laps           = 0;
     int nextCheckpoint = 1;

@@ -400,6 +400,7 @@ TEST_F(VulkanWorldRender, SharesAnExternalHeightField)
     renderer->waitIdle();
     app = VulkanTestApp();
     world.destroy();
+    EXPECT_EQ(external.use_count(), 1);  // released by destroy()
 }
 
 // Regression: positions were passed to the fragment shader in world space as floats. Far from the origin (x = 7 km:

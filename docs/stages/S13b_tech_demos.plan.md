@@ -146,6 +146,16 @@ file.
   (the 4097^2 height field, for racing also the 200k tree placement: about 0.4 and 0.6 s) are still built before the
   command line is parsed: `engineMain` takes the finished `EngineAppSetup`, so a lazy context would need a factory in
   the setup (an engine change for two samples); a command line error is reported after that time.
+- Review round 3: between steps the Transform is authoritative for the pose cache: `PoseHistory::interpolated()`
+  replaces the history when the Transform differs from the last recorded pose (an edit on a paused world or before
+  the next step is drawn at once; a teleport, whose flag is not yet shifted, also snaps the camera). `LapState`'s
+  `nextCheckpoint` wraps around (`wrapCheckpoint`) in the lap update and the respawn (an out-of-range value from
+  `set_component` aborted or was undefined; scenario `checkpoint_out_of_range`). The GUI respawn / restart buttons call
+  the game object's `respawn()` / `restart()` directly between steps (`gameObjectAs<T>`), so they work for the demo
+  objects too. A platformer restart takes the jump key's held state from `PlayerInput` (the scenario
+  `held_jump_after_a_restart` presses after the spawn, lands with the key held, falls and restarts without a jump).
+  `WorldRenderer::init` without a height field stops in every build; `TerrainRenderer::destroy` drops its height
+  field pointer; the shared height field test checks the release.
 
 ## Results
 
@@ -153,7 +163,7 @@ file.
   autopilot at step 600 (6506.433, 402.839, 4752.384), at step 1800 (5858.335, 362.351, 5875.344); platformer demo goal
   7.25 s; racing AI first lap 62.067 s (3724 steps). The ported games reproduce them (the scenarios assert them within
   1 m, 0.1 s and 0.5 s; the lap takes 3724 steps again).
-- `--scenarios`: flight 9, platformer 9, racing 6 runs (3 scenarios x 3 variants, 3 x 3, 2 x 3) pass.
+- `--scenarios`: flight 9, platformer 9, racing 9 runs (3 scenarios x 3 variants each) pass.
 - `--demo` with `SAIGA_SCREENSHOT` on the RTX 5080 Laptop GPU: the plane in its turn over the world prototype, the
   character on the goal platform (the window ran at 20 fps, so frame 60 is past the 7.25 s goal; headless at 60 Hz it
   shows the jump between the platforms), the car on the track behind the chase camera; `--headless` and `--no-render`

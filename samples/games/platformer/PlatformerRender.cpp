@@ -183,8 +183,9 @@ void PlatformerRender::gui()
             ImGui::Text("goal reached in %.1f s", run.goalTime);
         else
             ImGui::Text("time %.1f s", run.runTime);
-        if (ImGui::Button("restart") && w.has<Player>(e))
-            w.queueAction(PlayerAction{e, uint32_t(PlatformerAction::Restart), Vec3::Zero()});
+        // Between steps: the game object's restart directly (also the demo runner's)
+        if (ImGui::Button("restart"))
+            if (auto* hero = gameObjectAs<HeroBase>(w, e)) hero->restart();
     }
     ImGui::End();
 }
