@@ -30,6 +30,7 @@ struct Run
     uint64_t steps     = 0;
     uint64_t finalHash = 0;
     std::vector<uint64_t> hashes;
+    std::vector<uint8_t> finalSave;
 };
 
 Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const ScenarioOptions& options,
@@ -59,10 +60,28 @@ Run runOnce(const WorldSetup& setup, const ScenarioList::Entry& entry, const Sce
         r.failures.push_back("an exception that is not a std::exception");
     }
     for (const std::string& f : w.failures()) r.failures.push_back(f);
-    r.steps     = w.steps();
-    r.finalHash = w.world().inStep() ? 0 : w.world().hash();
-    r.report    = w.report();
+    r.steps = w.steps();
+    if (!w.world().inStep())
+    {
+        r.finalHash = w.world().hash();
+        r.finalSave = w.world().save();
+    }
+    r.report = w.report();
     return r;
+}
+
+// The first differences of two saves, one line each
+std::string describeDiff(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b)
+{
+    DiffFilter f;
+    f.limit          = 20;
+    const SaveDiff d = diffSaves(a, b, f);
+    std::string out;
+    if (!d.error.empty()) return "\n  (no diff: " + d.error + ")";
+    for (const SaveDifference& x : d.differences) out += "\n  " + x.describe();
+    if (d.total > d.differences.size())
+        out += "\n  ... and " + std::to_string(d.total - d.differences.size()) + " more";
+    return out;
 }
 
 std::string hex(uint64_t h)
@@ -116,6 +135,7 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
                 result.failures.push_back("second run: " + f);
         result.steps = a.steps;
         details      = a.report;
+        if (!b.failures.empty()) details += "  second run:\n" + b.report;
         // The first differing step (or the end of the shorter run)
         size_t k = 0;
         while (k < a.hashes.size() && k < b.hashes.size() && a.hashes[k] == b.hashes[k]) k++;
@@ -137,21 +157,19 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
                 };
                 runOnce(setup, entry, options, stopAt(&saveA));
                 runOnce(s2, entry, options, stopAt(&saveB));
-                DiffFilter f;
-                f.limit          = 20;
-                const SaveDiff d = diffSaves(saveA, saveB, f);
                 message = "repeat: the runs differ after step " + std::to_string(k + 1) + " (hash " + hex(a.hashes[k]) +
                           " != " + hex(b.hashes[k]) + ")";
-                for (const SaveDifference& x : d.differences) message += "\n  " + x.describe();
-                if (d.total == 0 && d.error.empty())
+                if (saveA == saveB)
                     message += "\n  (the reruns did not differ at that step: the difference is not reproducible)";
+                else
+                    message += describeDiff(saveA, saveB);
             }
             else if (hashesDiffer)
                 message = "repeat: the runs took " + std::to_string(a.hashes.size()) + " and " +
                           std::to_string(b.hashes.size()) + " steps";
             else
                 message = "repeat: the final states differ (hash " + hex(a.finalHash) + " != " + hex(b.finalHash) +
-                          "): a change after the last step";
+                          "): a change after the last step" + describeDiff(a.finalSave, b.finalSave);
             result.failures.push_back(message);
         }
     }
@@ -177,7 +195,8 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
         if (options.strictContinuation && r.failures.empty() && r.finalHash != plain.finalHash)
             result.failures.push_back("save/load: the final state differs from the plain run (hash " +
                                       hex(r.finalHash) + " != " + hex(plain.finalHash) +
-                                      "): state outside the saved components changed the behavior (R-STATE-1)");
+                                      "): state outside the saved components changed the behavior (R-STATE-1)" +
+                                      describeDiff(plain.finalSave, r.finalSave));
     }
 
     result.passed  = result.failures.empty();
@@ -186,7 +205,7 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
     if (!result.passed)
     {
         for (const std::string& f : result.failures) result.report += "  " + f + "\n";
-        result.report += details;
+        if (!details.empty()) result.report += "  context:\n" + details;
     }
     return result;
 }

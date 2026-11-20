@@ -38,6 +38,8 @@ class SAIGA_ENGINE_API ScenarioList
     const std::vector<Entry>& entries() const { return list; }
     // The entries whose name contains filter (all for an empty filter), in registration order
     std::vector<const Entry*> match(const std::string& filter) const;
+    // The entry with exactly this name, nullptr if none
+    const Entry* find(const std::string& name) const;
 
    private:
     std::vector<Entry> list;

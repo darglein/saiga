@@ -11,6 +11,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/save/SaveDiff.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace Saiga
@@ -31,6 +32,8 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o)
     : setup(scenarioSetup(s)), options(o), w(std::make_unique<World>(setup))
 {
     logStart = engineLog().lastSequence();
+    // A replacement world shares the data (also after reload_data)
+    setup.sharedData = w->sharedDataStore();
     w->setTickEveryStep(true);
     attach();
 }
@@ -40,6 +43,8 @@ ScenarioWorld::~ScenarioWorld()
     // The API detaches from the world before the world goes away
     apiPtr.reset();
     if (w && stepListener >= 0) w->removeStepListener(stepListener);
+    for (int id : ownListeners)
+        if (w) w->removeStepListener(id);
 }
 
 void ScenarioWorld::attach()
@@ -50,6 +55,25 @@ void ScenarioWorld::attach()
             onStep();
             return true;
         });
+    ownListeners.clear();
+    for (auto& fn : listeners)
+        ownListeners.push_back(w->addStepListener(
+            [fn]()
+            {
+                fn();
+                return true;
+            }));
+}
+
+void ScenarioWorld::addStepListener(std::function<void()> fn)
+{
+    listeners.push_back(fn);
+    ownListeners.push_back(w->addStepListener(
+        [fn]()
+        {
+            fn();
+            return true;
+        }));
 }
 
 void ScenarioWorld::onStep()
@@ -78,7 +102,13 @@ void ScenarioWorld::checkAbort() const
 
 WorldApi& ScenarioWorld::api()
 {
-    if (!apiPtr) apiPtr = std::make_unique<WorldApi>(*w);
+    if (!apiPtr)
+    {
+        apiPtr = std::make_unique<WorldApi>(*w);
+        // No wall-clock limit on step and apply (a scenario must not depend on the machine's speed); maxSteps bounds
+        // the run
+        apiPtr->setTimeBudget(1e7);
+    }
     return *apiPtr;
 }
 
@@ -139,8 +169,19 @@ void ScenarioWorld::step(int n)
     for (int i = 0; i < n; ++i)
     {
         checkAbort();
-        if (!control.saveLoadDone && observedSteps >= control.saveLoadAt) saveLoad();
-        w->step();
+        // Not inside a step listener (a listener that steps): the old world must not be replaced while it runs them
+        if (!control.saveLoadDone && observedSteps >= control.saveLoadAt && stepDepth == 0) saveLoad();
+        stepDepth++;
+        try
+        {
+            w->step();
+        }
+        catch (...)
+        {
+            stepDepth--;
+            throw;
+        }
+        stepDepth--;
     }
     checkAbort();
 }
@@ -201,22 +242,30 @@ void ScenarioWorld::saveLoad()
                          "R-STATE-1):" +
                          text);
     }
+    // Step listeners the runner does not know would be lost with the old world: fail instead of losing them silently
+    const size_t known = 1 + ownListeners.size() + (apiPtr ? 1 : 0);
+    if (w->stepListenerCount() > known)
+        failed.push_back("step " + std::to_string(observedSteps) +
+                         ": save/load: the world has step listeners that are lost with it (add them with "
+                         "ScenarioWorld::addStepListener)");
     // What is not world state carries over
     fresh->setPaused(w->isPaused());
     fresh->setTimeScale(w->timeScale());
+    fresh->setAccumulatedTime(w->accumulatedTime());
+    fresh->setWorkerThreads(w->workerThreads());
     fresh->setTickEveryStep(tickEverything);
     w->removeStepListener(stepListener);
+    for (int id : ownListeners) w->removeStepListener(id);
     if (apiPtr) apiPtr->rebind(*fresh);
     std::swap(w, fresh);
     attach();
-    fresh.reset();  // the old world
+    retiredWorlds.push_back(std::move(fresh));  // the old world lives until the scenario ends
 }
 
 std::string ScenarioWorld::report() const
 {
+    // The context of the failures (the failures themselves are listed by the runner)
     std::string out;
-    for (const std::string& f : failed) out += "  failed: " + f + "\n";
-    if (!abortReason.empty()) out += "  aborted: " + abortReason + "\n";
     const std::vector<LogRing::Line> lines = engineLog().since(logStart);
     if (!lines.empty())
     {

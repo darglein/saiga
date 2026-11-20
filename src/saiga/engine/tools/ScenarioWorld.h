@@ -90,6 +90,9 @@ class SAIGA_ENGINE_API ScenarioWorld
     void enableDistanceTicking();
 
     void step(int n = 1);
+    // A step listener that survives the save/load swap (one added to world() directly is lost with the old world: the
+    // swap then fails the scenario)
+    void addStepListener(std::function<void()> fn);
     void stepSeconds(double seconds);  // rounded to whole steps
     // Steps until predicate() is true (checked before each step), at most maxSteps; false if not reached (no failure)
     bool stepUntil(const std::function<bool()>& predicate, int maxSteps);
@@ -98,11 +101,17 @@ class SAIGA_ENGINE_API ScenarioWorld
     bool check(bool condition, const std::string& message);
     // The distance of the Transform positions (a failed check and infinity if one is not alive)
     double distance(Entity a, Entity b);
+    // Entities with T (Transform: every entity except the world-state and space-state entities)
     template <class T>
     size_t count()
     {
         if constexpr (T::id == Transform::id)
-            return w->registry().aliveCount();
+        {
+            size_t n = w->registry().aliveCount();
+            if (w->worldStateEntity().valid()) n--;
+            for (SpaceId s = 0; w->spaceStateEntity(s).valid(); ++s) n--;
+            return n;
+        }
         else
             return w->registry().registered(T::id) ? w->registry().poolById(T::id)->size() : 0;
     }
@@ -138,7 +147,7 @@ class SAIGA_ENGINE_API ScenarioWorld
     Control control;
     // The save/load round trip of the SaveLoad variant (also called by the runner at the end of short scenarios)
     void saveLoad();
-    // The report of a failed run: failures, log lines, dumps of the involved entities, traces
+    // The context of a failed run: log lines, dumps of the involved entities, traces
     std::string report() const;
     // Ends the scenario if it was asked to (maxSteps, stopAt); called by the helpers
     void checkAbort() const;
@@ -152,7 +161,13 @@ class SAIGA_ENGINE_API ScenarioWorld
     ScenarioOptions options;
     std::unique_ptr<World> w;
     std::unique_ptr<WorldApi> apiPtr;
-    int stepListener         = -1;
+    int stepListener = -1;
+    int stepDepth    = 0;           // step helpers running (the swap happens only at depth 0, between listeners)
+    std::vector<int> ownListeners;  // IDs in the current world of the listeners of addStepListener
+    std::vector<std::function<void()>> listeners;
+    // Replaced worlds live until the scenario ends (a World& kept by mistake, or a listener still running on it,
+    // stays valid)
+    std::vector<std::unique_ptr<World>> retiredWorlds;
     uint64_t observedSteps   = 0;
     uint64_t nextCharacterId = 1;
     bool tickEverything      = true;

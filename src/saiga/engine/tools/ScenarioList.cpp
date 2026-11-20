@@ -33,5 +33,12 @@ std::vector<const ScenarioList::Entry*> ScenarioList::match(const std::string& f
     return out;
 }
 
+const ScenarioList::Entry* ScenarioList::find(const std::string& name) const
+{
+    for (const Entry& e : list)
+        if (e.name == name) return &e;
+    return nullptr;
+}
+
 }  // namespace Engine
 }  // namespace Saiga

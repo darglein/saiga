@@ -253,6 +253,10 @@ class SAIGA_ENGINE_API World
     uint64_t droppedSteps() const { return dropped; }
     // Threads of parallelEach including the caller (1: serial); between steps
     void setWorkerThreads(int n);
+    int workerThreads() const { return pool.workerThreads() + 1; }
+    // The time not yet stepped by advance (app state, not saved; a replacement world of a scenario continues with it)
+    double accumulatedTime() const { return accumulator; }
+    void setAccumulatedTime(double t) { accumulator = t; }
 
     // FNV-1a 64 over the saved components of the alive entities (index order), the free list, the RNG state, the
     // pending events and the step index (§17.4). Between steps.
@@ -305,6 +309,8 @@ class SAIGA_ENGINE_API World
     // again). False with the error and nothing changed otherwise.
     bool reloadData(std::string& error) { return dataStore->reload(error); }
     const DataStore& dataTables() const { return *dataStore; }
+    // The store itself (worlds of one setup share it: WorldSetup::sharedData)
+    std::shared_ptr<DataStore> sharedDataStore() const { return dataStore; }
 
     // ---- saves (§15, S11) ------------------------------------------------------------------------------------------
 

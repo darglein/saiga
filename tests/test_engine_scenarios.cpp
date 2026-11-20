@@ -22,6 +22,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
+#include <memory>
 #include <stdexcept>
 #include <thread>
 
@@ -415,13 +417,13 @@ TEST_P(EngineScenario, Passes)
     g_mainThread = std::this_thread::get_id();
     ScenarioList list;
     registerEngineScenarios(list);
-    const auto entries = list.match(GetParam().scenario);
-    ASSERT_FALSE(entries.empty());
+    const ScenarioList::Entry* entry = list.find(GetParam().scenario);
+    ASSERT_TRUE(entry);
     ScenarioOptions options;
     // The engine's own systems must not depend on the thread count, and continue identically after a load
     options.varyThreads        = true;
     options.strictContinuation = true;
-    const ScenarioResult r     = runScenario(scenarioSetup(), *entries[0], GetParam().variant, options);
+    const ScenarioResult r     = runScenario(scenarioSetup(), *entry, GetParam().variant, options);
     EXPECT_TRUE(r.passed) << r.report;
 }
 
@@ -636,3 +638,97 @@ TEST(ScenarioRunnerDeathTest, NamesAreUniqueAndSnakeCase)
     EXPECT_DEATH(list.add("Not Snake", [](ScenarioWorld&) {}), "snake_case");
 }
 #endif
+
+// Review regressions (S12 round 1)
+
+// Listeners added through ScenarioWorld survive the save/load swap; ones added to world() directly fail it loudly
+// (they were lost silently); the advance accumulator carries over
+TEST(ScenarioRunner, ListenersAndTheAccumulatorSurviveTheSwap)
+{
+    auto own = entry("own_listener",
+                     [](ScenarioWorld& w)
+                     {
+                         auto n = std::make_shared<int>(0);
+                         w.addStepListener([n]() { (*n)++; });
+                         w.step(20);
+                         w.check(*n == 20, "the listener saw every step (" + std::to_string(*n) + ")");
+                     });
+    EXPECT_TRUE(runScenario(scenarioSetup(), own, ScenarioVariant::SaveLoad).passed);
+    auto direct            = entry("direct_listener",
+                                   [](ScenarioWorld& w)
+                                   {
+                            w.world().addStepListener([]() { return true; });
+                            w.step(20);
+                        });
+    const ScenarioResult r = runScenario(scenarioSetup(), direct, ScenarioVariant::SaveLoad);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "addStepListener")) << r.report;
+    auto advance = entry("advance",
+                         [](ScenarioWorld& w)
+                         {
+                             w.spawn<Counter>({0, 0, 0});
+                             for (int i = 0; i < 30; ++i)
+                             {
+                                 w.world().advance(1.3 / 60);
+                                 w.step();
+                             }
+                         });
+    ScenarioOptions strict;
+    strict.strictContinuation = true;
+    const ScenarioResult a    = runScenario(scenarioSetup(), advance, ScenarioVariant::SaveLoad, strict);
+    EXPECT_TRUE(a.passed) << a.report;
+}
+
+// A listener that steps (the swap point is reached inside it): the swap waits for the next helper step (it crashed)
+TEST(ScenarioRunner, NoSwapInsideAStepListener)
+{
+    auto e                 = entry("stepping_listener",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.spawn<Counter>({0, 0, 0});
+                       auto inner = std::make_shared<bool>(false);
+                       w.addStepListener(
+                           [&w, inner]()
+                           {
+                               if (*inner) return;
+                               *inner = true;
+                               w.step();  // a nested step helper
+                               *inner = false;
+                           });
+                       w.step(6);
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::SaveLoad);
+    EXPECT_TRUE(r.passed) << r.report;
+}
+
+// count<Transform> counted the world-state entity; stepUntil returns false when not reached; traces are reported
+TEST(ScenarioRunner, CountsStepUntilAndTraces)
+{
+    auto e                 = entry("helpers",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.check(w.count<Transform>() == 0, "an empty world");
+                       auto c = w.spawn<Counter>({0, 0, 0});
+                       w.check(w.count<Transform>() == 1 && w.count<TickCount>() == 1, "one object");
+                       w.check(!w.stepUntil([] { return false; }, 5), "not reached");
+                       w.check(w.steps() == 5, "stepped 5 times");
+                       w.trace<TickCount>(c);
+                       w.step(2);
+                       w.check(false, "show the trace");
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Plain);
+    ASSERT_EQ(r.failures.size(), 1u) << r.report;
+    EXPECT_TRUE(contains(r, "trace TickCount")) << r.report;
+    // Each failure once
+    EXPECT_EQ(r.report.find("show the trace"), r.report.rfind("show the trace")) << r.report;
+}
+
+TEST(ScenarioRunner, FindIsExact)
+{
+    ScenarioList list;
+    list.add("walk_fast", [](ScenarioWorld&) {});
+    list.add("walk", [](ScenarioWorld&) {});
+    ASSERT_TRUE(list.find("walk"));
+    EXPECT_EQ(list.find("walk")->name, "walk");
+    EXPECT_FALSE(list.find("wal"));
+}

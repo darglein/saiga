@@ -212,6 +212,16 @@ this file.
   RNG stream of a scenario is not changed by the helper.
 - `World::setTickEveryStep` (not saved): the scenario runner carries it to the replacement world.
 
+- Review round 1: the swap happens only between step helpers at depth 0 (a step listener that stepped replaced the
+  World while it ran its listeners: a crash) and replaced worlds live until the scenario ends (a kept `World&` stays
+  valid); `ScenarioWorld::addStepListener` re-attaches listeners after the swap and a world with other listeners fails
+  the swap loudly (they were lost silently); the advance accumulator, the worker thread count and the data store
+  (`WorldSetup::sharedData`) carry over; `count<Transform>` excludes the state entities; `ScenarioList::find` (exact
+  lookup); the scenario's world API has no wall-clock budget (machine speed must not change a scenario); the report
+  lists each failure once, then the context (log, dumps, traces; the second run's in Repeat); strict continuation and
+  final-hash mismatches show `diffSaves`. Not changed: per-step hashes in Repeat (fine for engine scenarios; game
+  scenarios may need sampling later), `enableDistanceTicking` takes effect from the next tick evaluation.
+
 Updated: §3, §9.3 (`characterId` in scenarios), §16.2, §17.2, §17.4, §18.3, §20, the S12 row; AGENTS.md.
 
 ## Results
