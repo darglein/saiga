@@ -37,6 +37,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <typeinfo>
 #include <utility>
 #include <vector>
 
@@ -78,6 +79,18 @@ struct WorldSetup
     // Times every step, phase, system and command flush and counts entities, objects and updates (Profiler, S10);
     // false: no clock calls
     bool profiling = true;
+
+    // Constant configuration that is not a data file (a level, a track, a height field; §7.9, S13b): built once per
+    // process before the worlds, shared by every world of this setup (scenario runs too), read in configure() and in
+    // systems through World::context<T>(). Not state: it is not saved and must not change after a world exists.
+    template <class T>
+    void setContext(std::shared_ptr<const T> c)
+    {
+        context     = std::move(c);
+        contextType = context ? &typeid(T) : nullptr;
+    }
+    std::shared_ptr<const void> context;
+    const std::type_info* contextType = nullptr;
 };
 
 /**
@@ -238,6 +251,16 @@ class SAIGA_ENGINE_API World
     // The world's random stream (PCG32 seeded from WorldSetup::seed; part of the hash and saves). Not in parallelEach.
     Rng& random();
     double dt() const { return stepDt; }
+    // The setup's context (WorldSetup::setContext); asserts on a missing context or another type
+    template <class T>
+    const T& context() const
+    {
+        SAIGA_ASSERT(
+            contextPtr && contextType && *contextType == typeid(T),
+            std::string("World::context: no context of type ") + typeid(T).name() + " (WorldSetup::setContext)");
+        return *static_cast<const T*>(contextPtr.get());
+    }
+    bool hasContext() const { return contextPtr != nullptr; }
     // timeBase: a loaded save keeps its time also if it was saved with another step rate (S11)
     double time() const { return timeBase + double(steps - stepBase) * stepDt; }
     uint64_t stepIndex() const { return steps; }
@@ -566,6 +589,8 @@ class SAIGA_ENGINE_API World
     SystemList systems;
     JobPool pool;
     Rng rng;
+    std::shared_ptr<const void> contextPtr;
+    const std::type_info* contextType = nullptr;
     std::vector<std::unique_ptr<Command>> commands;
     std::vector<Entity> pendingReserved;  // reserved by create() since the last flush
     std::vector<uint32_t> children;       // number of Parent components naming each entity index

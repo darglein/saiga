@@ -1015,7 +1015,7 @@ void sysReadThenThrow(World& w, double)
     {
         g_throwOnce = false;
         w.events.emit(HitEvent{Entity{}, 99});  // emitted by the aborted step: dropped with it
-        g_reservedByAbortedStep = w.create();      // reserved by the aborted step: released
+        g_reservedByAbortedStep = w.create();   // reserved by the aborted step: released
         throw std::runtime_error("once");
     }
 }
@@ -1465,3 +1465,40 @@ TEST(WorldDeathTest, DuplicateEventIdStopsInEveryBuild)
     EventRegistry r(w.events);
     EXPECT_DEATH(r.add<SameIdAsDamage>(), "already used by HitEvent");
 }
+
+// The setup's context (S13b): constant configuration shared by every world of a setup, also after a load
+namespace
+{
+struct LevelContext
+{
+    double killHeight = -12;
+};
+}  // namespace
+
+TEST(World, ContextIsSharedByTheWorldsOfASetup)
+{
+    WorldSetup s = testSetup();
+    auto level   = std::make_shared<const LevelContext>(LevelContext{-7});
+    s.setContext(level);
+    World a(s), b(s);
+    EXPECT_TRUE(a.hasContext());
+    EXPECT_EQ(&a.context<LevelContext>(), level.get());
+    EXPECT_EQ(&b.context<LevelContext>(), level.get());
+    EXPECT_EQ(a.context<LevelContext>().killHeight, -7);
+    ASSERT_TRUE(b.tryLoad(a.save()).ok());
+    EXPECT_EQ(&b.context<LevelContext>(), level.get());
+    World none(testSetup());
+    EXPECT_FALSE(none.hasContext());
+}
+
+#ifdef SAIGA_ASSERTS
+TEST(WorldDeathTest, ContextOfAnotherType)
+{
+    WorldSetup s = testSetup();
+    s.setContext(std::make_shared<const LevelContext>());
+    World w(s);
+    EXPECT_DEATH(w.context<int>(), "no context of type");
+    World none(testSetup());
+    EXPECT_DEATH(none.context<LevelContext>(), "no context of type");
+}
+#endif

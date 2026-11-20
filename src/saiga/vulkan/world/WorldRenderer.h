@@ -102,6 +102,9 @@ class SAIGA_VULKAN_API WorldRenderer
     ~WorldRenderer() { destroy(); }
 
     void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters);
+    // With a height field generated elsewhere (e.g. once for the game's simulation and its render state; S13b): it is
+    // copied, parameters.terrain is ignored
+    void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters, const HeightField& heightField);
     void destroy();
 
     // Records the uploads and the GPU culling (outside of the rendering pass).
@@ -207,6 +210,7 @@ class SAIGA_VULKAN_API WorldRenderer
     VulkanForwardRenderer* renderer = nullptr;
     VulkanBase* base                = nullptr;
     WorldParameters params;
+    void initWith(VulkanForwardRenderer& renderer, const WorldParameters& parameters, const HeightField* external);
     HeightField hf;
 
     UniformBuffer uniformBuffer;

@@ -155,7 +155,19 @@ void WorldSettings::clamp()
 
 //==================================================================================================
 
-void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters& parameters)
+void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters)
+{
+    initWith(renderer, parameters, nullptr);
+}
+
+void WorldRenderer::init(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+                         const HeightField& heightField)
+{
+    initWith(renderer, parameters, &heightField);
+}
+
+void WorldRenderer::initWith(VulkanForwardRenderer& _renderer, const WorldParameters& parameters,
+                             const HeightField* external)
 {
     destroy();
     renderer     = &_renderer;
@@ -165,7 +177,13 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
     SAIGA_ASSERT(renderer->parameters().reversedZ, "WorldRenderer: the renderer must use reversed depth");
 
     auto t0 = std::chrono::steady_clock::now();
-    hf.generate(params.terrain);
+    if (external)
+    {
+        hf             = *external;
+        params.terrain = external->parameters();
+    }
+    else
+        hf.generate(params.terrain);
     auto t1 = std::chrono::steady_clock::now();
 
     uniformBuffer.init(*base, nullptr, sizeof(WorldUniforms));
@@ -218,9 +236,10 @@ void WorldRenderer::init(VulkanForwardRenderer& _renderer, const WorldParameters
     gpuHistory.assign(historySize, 0.0f);
     historyIndex = 0;
 
-    std::cout << "World: terrain " << hf.size() << "^2 (" << hf.worldSize() / 1000.0f << " km) generated in "
-              << std::chrono::duration<double>(t1 - t0).count() << " s, " << forestRenderer.treeCount()
-              << " trees, GPU resources in " << std::chrono::duration<double>(t2 - t1).count() << " s" << std::endl;
+    std::cout << "World: terrain " << hf.size() << "^2 (" << hf.worldSize() / 1000.0f << " km) "
+              << (external ? "copied" : "generated") << " in " << std::chrono::duration<double>(t1 - t0).count()
+              << " s, " << forestRenderer.treeCount() << " trees, GPU resources in "
+              << std::chrono::duration<double>(t2 - t1).count() << " s" << std::endl;
     initialized = true;
 }
 
