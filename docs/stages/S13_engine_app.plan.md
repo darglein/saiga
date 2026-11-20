@@ -324,6 +324,9 @@ EngineMain.cpp,InputMap.h,InputMap.cpp,EngineStatistics.cpp,AppBenchmark.h,AppBe
   frames) and is released before the next step could read it; frame callbacks keep their state (called in place);
   changing the local player releases the previous player's active input; the input map example defines `move_z`;
   GPU durations are masked raw-tick differences (`timestampDifferenceMs`, counters with fewer than 64 valid bits).
+  Follow-up: an expired `set_input` is released by a step listener right after its last step (also inside one
+  `world().step(n)` or a multi-step `advance`); the benchmark's `step` statistic collects the step times of the
+  measured frames frame by frame (the profile keeps only the last 600 steps).
 
 Updated: §3, §7.9 (`actions`), §8.3, §16.1, §16.2, §17.1, §17.7, §18.2, §18.4, §19, R-TEST-1, §22 (S13, the new S13b row,
 S14 without `quit`, S16 and S19 depend on S13b); AGENTS.md.

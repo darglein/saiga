@@ -93,6 +93,8 @@ class SAIGA_ENGINE_API EngineApp
     void pollInput(double dt);
     void applyPlayerInput();
     void renderFrame();
+    // Writes the neutral input to the local player now (an expired set_input between steps)
+    void releaseInputNow();
     void collectGpuTimes();
     void statisticsWindow();
 

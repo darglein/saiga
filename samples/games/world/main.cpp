@@ -56,6 +56,10 @@ struct WorldGame
     bool hasTimes = false;
     // The engine's numbers of the measured frames (step, recording), taken at the frame boundaries that close them
     int64_t stepSamplesAtStart = -1, frameSamplesAtStart = -1;
+    // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
+    // the 600 measured frames have about 1200 steps)
+    std::vector<double> stepTimes;
+    uint64_t stepSamplesSeen = 0;
     bool stepTaken = false, recordingTaken = false;
     json11::Json::object stepStat, recordingStat;
 };
@@ -141,12 +145,25 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         Profiler& wp = app.world().profiler();
         Profiler& fp = app.frameProfile();
         // Steps: from after W's steps (transfer of W) to after Mn's steps (transfer of Mn)
-        if (frame == lastWarm) g.stepSamplesAtStart = int64_t(wp.sampleCount());
+        if (frame == lastWarm)
+        {
+            g.stepSamplesAtStart = int64_t(wp.sampleCount());
+            g.stepSamplesSeen    = wp.sampleCount();
+        }
+        if (g.stepSamplesAtStart >= 0 && !g.stepTaken && frame > lastWarm && frame <= lastMeas)
+        {
+            // This frame's steps: the newest samples of the step scope
+            const uint64_t n                  = wp.sampleCount() - g.stepSamplesSeen;
+            g.stepSamplesSeen                 = wp.sampleCount();
+            const std::vector<double> history = wp.scopeHistory(wp.scope("step"));
+            const size_t take                 = size_t(std::min<uint64_t>(n, history.size()));
+            g.stepTimes.insert(g.stepTimes.end(), history.end() - std::ptrdiff_t(take), history.end());
+        }
         if (frame == lastMeas && g.stepSamplesAtStart >= 0 && !g.stepTaken)
         {
-            const int n = int(std::max<int64_t>(1, int64_t(wp.sampleCount()) - g.stepSamplesAtStart));
-            g.stepStat  = stat(wp.scopeStats(wp.scope("step"), n));
-            g.stepTaken = true;
+            const auto s = Vulkan::WorldBenchmark::summarize(g.stepTimes);
+            g.stepStat   = json11::Json::object{{"median", s.median}, {"p95", s.p95}};
+            g.stepTaken  = true;
         }
         // Recordings: the frames completed from the transfer of M1 (through W) to the transfer of Mn+1 (through Mn)
         if (frame == lastWarm + 1) g.frameSamplesAtStart = int64_t(fp.sampleCount());

@@ -302,9 +302,10 @@ TEST(EngineAppNoRender, InputToTheLocalPlayer)
     EXPECT_EQ(w.events.read<ActionEvent>()[0].action, 1u);
     app.runFrames(1, 1.0 / 60);
     EXPECT_TRUE(w.events.read<ActionEvent>().empty());  // pressed once
-    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
-    // Regression: the release (the first neutral frame) reached the player only through the next active input, the held
-    // button stayed down. It is written once; later neutral frames leave an agent's value alone again.
+    // Released right after its second step (before another step could read it)
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
+    // Regression: the release reached the player only through the next active input, the held button stayed down. It is
+    // written once; later neutral frames leave an agent's value alone again.
     app.runFrames(1, 1.0 / 60);
     EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);
     w.get<PlayerInput>(p).heldButtons = 2;
@@ -376,6 +377,28 @@ TEST(EngineAppNoRender, VirtualInputCountsStepsBetweenFrames)
     w.step();  // the one step reads the input
     app.runFrames(2, 1.0 / 60);
     EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 0u);  // released before another step could read it
+    // Within one world().step(n): released right after the step it covers (the second step reads neutral input)
+    std::vector<uint32_t> seen;
+    const int id = w.addStepListener(
+        [&]()
+        {
+            seen.push_back(w.read<PlayerInput>(p).heldButtons);
+            return true;
+        });
+    app.setVirtualInput(v, 1);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
+    w.step(3);
+    EXPECT_EQ(seen, (std::vector<uint32_t>{0, 0, 0}));  // after each step (the release ran after the first)
+    // A multi-step advance: the same
+    seen.clear();
+    w.setPaused(false);
+    app.setVirtualInput(v, 1);
+    app.runFrames(1, 0.0);  // applies the input, no step
+    EXPECT_EQ(w.read<PlayerInput>(p).heldButtons, 1u);
+    w.advance(3.0 / 60 + 1e-6);
+    EXPECT_EQ(seen, (std::vector<uint32_t>{0, 0, 0}));
+    w.removeStepListener(id);
 }
 
 // Regression (CodeRabbit, S13): a pending release went to the new local player, the previous one kept its input

@@ -195,6 +195,20 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     for (const std::string& name : appSetup.renderHooks.passNames)
         scopeGpuPasses.push_back(gpuProfiler.scope("gpu/game/" + name));
 
+    // set_input expires after its steps also inside one world().step(n) or a multi-step advance: released right after
+    // the last step it covers, before the next step can read it
+    gameWorld->addStepListener(
+        [this]()
+        {
+            if (!hasVirtual || virtualSteps <= 0) return true;
+            const uint64_t now = gameWorld->stepIndex();
+            if (now >= virtualStartStep && now - virtualStartStep < uint64_t(virtualSteps)) return true;
+            hasVirtual   = false;
+            virtualInput = VirtualInput();
+            releaseInputNow();
+            return true;
+        });
+
     // The local player survives a load (its handle is kept); otherwise the first player of peer 0, or none
     gameWorld->addLoadListener(
         [this](const LoadInfo&)
@@ -465,6 +479,24 @@ void EngineApp::applyPlayerInput()
     for (uint32_t id : inputMap.pressedActions())
         if (w.has<Player>(localPlayerEntity)) w.queueAction(PlayerAction{localPlayerEntity, id, Vec3::Zero()});
     if (appSetup.applyInput) appSetup.applyInput(inputMap, w, localPlayerEntity);
+}
+
+void EngineApp::releaseInputNow()
+{
+    // The input map without device or virtual input (devices still held are written again by the next frame)
+    inputMap.update(InputState(), false);
+    World& w = *gameWorld;
+    if (inputWasActive && localPlayerEntity.valid() && w.alive(localPlayerEntity))
+    {
+        if (w.has<PlayerInput>(localPlayerEntity))
+        {
+            PlayerInput& in = w.get<PlayerInput>(localPlayerEntity);
+            in.move         = Vec3::Zero();
+            in.heldButtons  = 0;
+        }
+        if (appSetup.applyInput) appSetup.applyInput(inputMap, w, localPlayerEntity);
+    }
+    inputWasActive = false;
 }
 
 void EngineApp::renderFrame()
