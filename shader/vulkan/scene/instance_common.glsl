@@ -112,6 +112,15 @@ const uint notVisible = 0xFFFFFFFFu;
 // The high bit of a compacted entry's instance index: a dynamic instance
 const uint dynamicBit = 0x80000000u;
 
+// Octahedral decoding (Saiga::Vulkan::packNormalOct)
+vec3 decodeOct(uint v)
+{
+    vec2 e = unpackSnorm2x16(v);
+    vec3 n = vec3(e, 1.0 - abs(e.x) - abs(e.y));
+    if (n.z < 0.0) n.xy = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    return normalize(n);
+}
+
 // Rotates v by the unit quaternion q (x, y, z, w)
 vec3 rotateQuat(vec4 q, vec3 v)
 {

@@ -21,7 +21,8 @@ namespace Saiga
 namespace Vulkan
 {
 /**
- * The uniform buffer shared by all world passes (set 0, binding 0). The layout matches WorldUBO in
+ * The uniform buffer shared by the prototype's terrain, water, grass and sky passes (set 0, binding 0; RenderScene's
+ * PrototypeWorld, S19a). The layout matches WorldUBO in
  * shader/vulkan/world/common.glsl (std140: only mat4 and vec4 members).
  */
 struct WorldUniforms
@@ -30,9 +31,9 @@ struct WorldUniforms
     // float precision does not depend on the distance to the origin)
     mat4 viewProjRel;
     mat4 invViewProjRel;
-    // xyz: camera position (world), w: time in seconds
+    // xyz: camera position (world), w: unused
     vec4 cameraPos;
-    // xyz: the camera position used for the level of detail and culling (differs if culling is frozen)
+    // xyz: the camera position used for the level of detail (the camera position)
     vec4 lodCameraPos;
     // xyz: direction towards the sun, w: sun intensity
     vec4 sunDir;
@@ -51,12 +52,14 @@ struct WorldUniforms
     vec4 terrain;
     // x: highest terrain level, y: debug mode (0 none, 1 level of detail tint), z: wind strength, w: alpha cutoff
     vec4 terrain2;
-    // x: tree level 1 distance, y: tree level 2 distance, z: max tree distance, w: tree count
+    // unused (S19a: the trees are RenderScene's instances)
     vec4 trees;
     // x: grass radius, y: grass cell size, z: grass density, w: MSAA sample count
     vec4 grass;
     // w, h, 1/w, 1/h
     vec4 viewport;
+    // x, y: the grass wind phases fmod(time * (1.7, 1.3), 2 pi), computed in double (no absolute time in a shader)
+    vec4 grassPhases;
 };
 
 // Frustum planes of a (reversed, infinite) projection: left, right, bottom, top, near (normalized). The 6th plane is
@@ -123,26 +126,6 @@ inline PipelineInfo worldPipelineInfo()
 {
     PipelineInfo info;
     info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
-    return info;
-}
-
-// Line rasterization (PolygonMode::eLine) needs the fillModeNonSolid feature, which Base disables if the device
-// lacks it. The wireframe pipelines are only created (and the wireframe setting only used) if it is enabled.
-inline bool wireframeSupported(const VulkanBase& base)
-{
-    return base.enabledFeatures.fillModeNonSolid == VK_TRUE;
-}
-
-// The wireframe overlay variant of a pipeline state: lines, drawn on top of the filled surfaces with a depth bias.
-inline PipelineInfo wireframeVariant(PipelineInfo info)
-{
-    info.rasterizationState.polygonMode     = vk::PolygonMode::eLine;
-    info.rasterizationState.depthBiasEnable = VK_TRUE;
-    // Reversed depth: a positive bias moves the lines towards the camera.
-    info.rasterizationState.depthBiasConstantFactor = 2.0f;
-    info.rasterizationState.depthBiasSlopeFactor    = 1.0f;
-    info.depthStencilState.depthWriteEnable         = VK_FALSE;
-    info.multisampleState.alphaToCoverageEnable     = VK_FALSE;
     return info;
 }
 

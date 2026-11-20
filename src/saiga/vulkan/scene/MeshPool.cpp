@@ -191,6 +191,25 @@ void MeshPool::addMesh(MeshId id, const std::string& name, const MeshLods& lods,
     rebuildLayout();
 }
 
+void MeshPool::setLodDistances(MeshId id, const std::vector<float>& endDistances, float boundsPadding)
+{
+    SAIGA_ASSERT(mesh(id), "setMeshLodDistances: the mesh is not registered");
+    Mesh& m = meshes[id];
+    SAIGA_ASSERT(endDistances.size() == m.lods.size(), "setMeshLodDistances: the LOD count must stay the same");
+    SAIGA_ASSERT(boundsPadding >= 0, "setMeshLodDistances: the bounds padding must be >= 0");
+    float previous = 0;
+    for (size_t l = 0; l < endDistances.size(); ++l)
+    {
+        SAIGA_ASSERT(endDistances[l] >= previous,
+                     "setMeshLodDistances: the end distances must be >= 0 and non-decreasing");
+        previous              = endDistances[l];
+        m.lods[l].endDistance = endDistances[l];
+    }
+    m.boundsPadding = boundsPadding;
+    // Only the record (end distances, padding); the commands and the bucket layout stay
+    recordsDirty = true;
+}
+
 void MeshPool::rebuildLayout()
 {
     bucketList.clear();

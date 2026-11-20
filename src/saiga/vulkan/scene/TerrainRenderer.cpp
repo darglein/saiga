@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/vulkan/world/TerrainRenderer.h"
+#include "saiga/vulkan/scene/TerrainRenderer.h"
 
 #include "saiga/core/image/templatedImage.h"
 
@@ -21,7 +21,7 @@ struct TerrainPush
 {
     float gridN;
     float pad0, pad1;
-    int wire;
+    int pad2;
 };
 
 std::vector<vec2> gridVerticesOf(int n)
@@ -150,8 +150,15 @@ void TerrainRenderer::init(VulkanBase& _base, const RenderingFormats& formats, U
 
     std::vector<std::string> shaders = {"vulkan/world/terrain.vert", "vulkan/world/terrain.frag"};
     createWorldPipeline(pipeline, *base, layout, sizeof(TerrainPush), shaders, formats, info);
-    if (wireframeSupported(*base))
-        createWorldPipeline(wirePipeline, *base, layout, sizeof(TerrainPush), shaders, formats, wireframeVariant(info));
+    // The pre-pass: the vertex shader alone into the depth attachment
+    RenderingFormats depthOnly = formats;
+    depthOnly.color.clear();
+    createWorldPipeline(depthPipeline, *base, layout, sizeof(TerrainPush), {"vulkan/world/terrain.vert"}, depthOnly,
+                        info);
+    PipelineInfo equal                       = info;
+    equal.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
+    equal.depthStencilState.depthWriteEnable = VK_FALSE;
+    createWorldPipeline(equalPipeline, *base, layout, sizeof(TerrainPush), shaders, formats, equal);
 
     descriptorSet = pipeline.createDescriptorSet();
     descriptorSet.assign(0, &worldUniforms);
@@ -162,7 +169,8 @@ void TerrainRenderer::destroy()
 {
     hf = nullptr;  // owned by the world renderer (shared height field): not used after this
     pipeline.destroy();
-    wirePipeline.destroy();
+    depthPipeline.destroy();
+    equalPipeline.destroy();
     heightMap.destroy();
     gridVertices.destroy();
     fullIndices.destroy();
@@ -292,9 +300,9 @@ vec2 TerrainRenderer::heightRange(float x0, float z0, float x1, float z1) const
     return r;
 }
 
-void TerrainRenderer::render(vk::CommandBuffer cmd, bool wireframe, bool terrain)
+void TerrainRenderer::render(vk::CommandBuffer cmd, Mode mode, bool terrain)
 {
-    Pipeline& p = wireframe ? wirePipeline : pipeline;
+    Pipeline& p = mode == Mode::Depth ? depthPipeline : (mode == Mode::Equal ? equalPipeline : pipeline);
     if (!p.bind(cmd)) return;
     p.bindDescriptorSet(cmd, descriptorSet);
 
@@ -303,7 +311,7 @@ void TerrainRenderer::render(vk::CommandBuffer cmd, bool wireframe, bool terrain
     cmd.bindVertexBuffers(0, grid, vk::DeviceSize(0));
     cmd.bindVertexBuffers(1, instances, vk::DeviceSize(0));
 
-    TerrainPush push = {float(gridResolution), 0, 0, wireframe ? 1 : 0};
+    TerrainPush push = {float(gridResolution), 0, 0, 0};
     auto stages      = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
     // The instances are stored in the order full nodes, quarter nodes, water nodes
@@ -315,7 +323,7 @@ void TerrainRenderer::render(vk::CommandBuffer cmd, bool wireframe, bool terrain
         cmd.drawIndexed(fullIndices.indexCount, numFull, 0, 0, 0);
     }
 
-    uint32_t numWater   = wireframe ? 0 : uint32_t(waterNodes.size());
+    uint32_t numWater   = uint32_t(waterNodes.size());
     uint32_t first      = terrain ? numFull : numFull + uint32_t(quarterNodes.size());
     uint32_t numQuarter = (terrain ? uint32_t(quarterNodes.size()) : 0) + numWater;
     if (numQuarter > 0)

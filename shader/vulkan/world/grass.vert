@@ -18,7 +18,7 @@ layout(push_constant) uniform PushConstants
 {
     ivec2 tileOrigin;
     int tileCells;
-    int wire;
+    int pad;
 }
 pc;
 
@@ -102,11 +102,11 @@ void main()
     float c = cos(yaw), s = sin(yaw);
     lp = vec3(c * lp.x + s * lp.z, lp.y, -s * lp.x + c * lp.z);
 
-    // Wind bends the tops (normalWind.w is 1 at the top)
-    float time  = world.cameraPos.w;
+    // Wind bends the tops (normalWind.w is 1 at the top); the phases fmod(time * f, 2 pi) come from the CPU (no
+    // absolute time in a shader)
     float phase = p.x * 0.35 + p.y * 0.27;
-    lp.xz += vec2(sin(time * 1.7 + phase), cos(time * 1.3 + phase * 0.7)) * 0.08 * height * inNormalWind.w *
-             world.terrain2.z;
+    lp.xz += vec2(sin(world.grassPhases.x + phase), cos(world.grassPhases.y + phase * 0.7)) * 0.08 * height *
+             inNormalWind.w * world.terrain2.z;
 
     // Relative to the camera: the large cell position and the camera are subtracted first
     vec2 rel    = (vec2(cell) * cellSize - world.cameraPos.xz) + jitter;

@@ -65,9 +65,21 @@ struct RenderSceneParameters
 //==================================================================================================
 // Scene content (S18, docs/engine_design.md §10.1, §10.2, §10.8)
 
-// Explicit IDs (the World's name tables assign them, S19); 0 = none
+// Explicit IDs (the World's name tables assign them, S19b); 0 = none
 using MeshId     = uint16_t;
 using MaterialId = uint16_t;
+
+// The game range of mesh and material IDs, 1 .. kGameReservedIds - 1 (S19a): content the game registers directly on
+// RenderScene (the prototype's tree meshes and their material, names prefixed "prototype/"; S19b: level geometry)
+// takes its IDs through RenderScene::reserveIds; S19b's World name tables assign from kGameReservedIds upward; S30's
+// generated meshes take IDs from the top
+constexpr uint32_t kGameReservedIds = 256;
+// The two ID spaces of RenderScene::reserveIds
+enum class SceneIdKind : uint8_t
+{
+    Mesh,
+    Material
+};
 
 // The vertex of the mesh pool (28 bytes)
 struct MeshVertex
@@ -109,7 +121,9 @@ enum class ShadingModel : uint8_t
 };
 
 // The pipeline classes of the instance draws (MaterialData::pipelineClass): 0 derives the class from alphaMask and
-// twoSided; S19 adds the prototype foliage
+// twoSided. PrototypeFoliage (S19a, transitional until S43): the prototype trees' shading (wind, the foliage texture
+// array with alpha to coverage, LOD tint); its color word is packPrototypeFoliageColor (PrototypeWorld.h) and it needs
+// the foliage texture of RenderScene::setPrototypeTerrain (asserted at addMaterial / setMaterial)
 enum class PipelineClass : uint8_t
 {
     Derived             = 0,
@@ -117,8 +131,9 @@ enum class PipelineClass : uint8_t
     AlphaMasked         = 2,
     TwoSided            = 3,
     AlphaMaskedTwoSided = 4,
+    PrototypeFoliage    = 5,
 };
-constexpr int pipelineClassCount = 4;
+constexpr int pipelineClassCount = 5;
 
 // The material data model (§10.8; textures, normal maps and wind in S43)
 struct MaterialData
@@ -134,7 +149,7 @@ struct MaterialData
     // alphaMask: discarded where vertex alpha * baseColor.a < 0.5; twoSided: no back face culling
     bool alphaMask = false, twoSided = false;
     // PipelineClass (0: derived from alphaMask / twoSided; the class also selects how the vertex color word is
-    // interpreted)
+    // interpreted: PrototypeFoliage packs the texture layer, AO and the wind weight)
     uint8_t pipelineClass = 0;
 };
 
@@ -241,8 +256,9 @@ struct RenderStatistics
     uint64_t frame = 0;  // RenderScene's frame number (0: none yet)
     // Drawn instances per LOD (static and dynamic)
     std::array<uint32_t, 4> instancesPerLod{};
-    uint32_t terrainNodes = 0;  // S20
-    // The indirect draw calls issued (one per pipeline class and view, or one per bucket without multiDrawIndirect)
+    uint32_t terrainNodes = 0;  // the prototype terrain's selected nodes (S19a; S20: tiles)
+    // The indirect draw calls issued in the scene pass (one per pipeline class and view, or one per bucket without
+    // multiDrawIndirect); the depth pre-pass repeats those of the opaque classes (S19a), not counted
     uint32_t drawCommands = 0;
     // Buckets (view, pipeline class, mesh, LOD) with at least one instance
     uint32_t nonEmptyBuckets = 0;

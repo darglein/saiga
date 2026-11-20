@@ -19,7 +19,7 @@ layout(push_constant) uniform PushConstants
     float gridN;
     float pad0;
     float pad1;
-    int wire;
+    int pad2;
 }
 pc;
 
@@ -27,6 +27,9 @@ pc;
 layout(location = 0) out vec3 outPos;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) flat out float outLod;
+
+// The depth pre-pass draws the terrain with this shader alone: the scene pass's EQUAL test needs bit-identical depths
+invariant gl_Position;
 
 void main()
 {

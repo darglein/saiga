@@ -16,7 +16,7 @@
  * the prototype's tools (screenshot, get_state, set_camera, move_camera, set_settings, terrain_query).
  *
  * Benchmarks (§17.7): game_world --benchmark <flyover|forest> flies a fixed camera path at 1920 x 1080 (validation,
- * vsync, GUI and MCP off, frozen time, the default world: SAIGA_WORLD_TREES is ignored), writes
+ * vsync, GUI and MCP off, time 0, the default world: SAIGA_WORLD_TREES is ignored), writes
  * benchmark_<name>.json to the working directory and exits with 0, or with 1 if the benchmark did not finish, the
  * result could not be written, the rendered size changed or a frame stalled (an old result file is deleted at the
  * start). --headless runs without a window (agents, servers).
@@ -32,6 +32,7 @@
 #include "saiga/vulkan/world/WorldRenderer.h"
 
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
@@ -44,7 +45,8 @@ using namespace Saiga::Engine;
 
 namespace
 {
-// The game's state outside the World: the prototype renderer and its camera controls (render state, not world state)
+// The game's state outside the World: the prototype's settings and height field and its camera controls (render state,
+// not world state)
 struct WorldGame
 {
     Vulkan::WorldRenderer world;
@@ -54,11 +56,9 @@ struct WorldGame
     bool walkMode   = false;
     float eyeHeight = 1.8f;
     bool fWasDown   = false;
-    // GPU pass times of the newest frame of the world renderer (for the engine's gpu profile)
-    // The world renderer's frame -> the RenderScene frame it was recorded in, and the world passes by RenderScene frame
-    // (the app matches them to the frame's completion)
-    std::map<int, uint64_t> sceneFrameOf;
-    std::map<uint64_t, std::array<double, Vulkan::WorldRenderer::PASS_COUNT>> passesOf;
+    // The frame interval: from the previous frame's transfer to this one's (renderFrame to renderFrame)
+    std::chrono::steady_clock::time_point lastTransfer;
+    bool hasLastTransfer = false;
     // The engine's numbers of the measured frames (step, recording), taken at the frame boundaries that close them
     int64_t stepSamplesAtStart = -1, frameSamplesAtStart = -1;
     // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
@@ -80,6 +80,21 @@ std::string resultFile(const std::string& name)
     return "benchmark_" + name + ".json";
 }
 
+// The S03 keys of the benchmark's gpu_ms from RenderScene's sections of one frame (gpu/<section> of the app's sample)
+std::map<std::string, double> s03Passes(const std::map<std::string, double>& section)
+{
+    auto get = [&](const char* n)
+    {
+        auto it = section.find(n);
+        return it == section.end() ? 0.0 : it->second;
+    };
+    return {{"upload + cull", get("transfer") + get("cull")},
+            {"terrain + water", get("depth.terrain") + get("scene.terrain")},
+            {"trees", get("scene.instances")},
+            {"grass", get("scene.grass")},
+            {"sky", get("scene.sky")}};
+}
+
 void initWorld(EngineApp& app)
 {
     WorldGame& g = *g_game;
@@ -87,20 +102,8 @@ void initWorld(EngineApp& app)
     // A benchmark always uses the default world (its result is compared with the baseline)
     if (const char* trees = std::getenv("SAIGA_WORLD_TREES"); trees && g.benchmarkName.empty())
         params.treeCount = std::atoi(trees);
-    params.reversedZ = true;
-    g.world.init(app.scene()->base(), app.scene()->formats(), params);
-    g.world.frameCallbacks.push_back(
-        [](const Vulkan::WorldRenderer::FrameTimes& t)
-        {
-            WorldGame& g = *g_game;
-            if (t.gpuMs < 0) return false;
-            auto it = g.sceneFrameOf.find(t.gpuFrame);
-            if (it == g.sceneFrameOf.end()) return false;
-            g.passesOf[it->second] = t.gpuPassMs;
-            g.sceneFrameOf.erase(g.sceneFrameOf.begin(), std::next(it));
-            while (g.passesOf.size() > 32) g.passesOf.erase(g.passesOf.begin());
-            return false;
-        });
+    g.world.init(params);
+    g.world.attach(*app.scene());
 
     // Start on a hill: next to the highest point, looking over the world center
     PerspectiveCamera& camera = app.camera();
@@ -115,9 +118,8 @@ void initWorld(EngineApp& app)
 
     if (!g.benchmarkName.empty())
     {
-        g.world.settings.freezeTime = true;
-        std::string gpu             = app.scene()->base().physicalDevice.getProperties().deviceName.data();
-        g.bench                     = std::make_unique<Vulkan::WorldBenchmark>(g.benchmarkName, g.world, gpu);
+        std::string gpu = app.scene()->base().physicalDevice.getProperties().deviceName.data();
+        g.bench         = std::make_unique<Vulkan::WorldBenchmark>(g.benchmarkName, g.world.heightField(), gpu);
         std::remove(resultFile(g.benchmarkName).c_str());
         std::cout << "Benchmark " << g.benchmarkName << " on " << gpu << std::endl;
     }
@@ -125,8 +127,13 @@ void initWorld(EngineApp& app)
 
 void transfer(EngineApp& app, vk::CommandBuffer cmd)
 {
-    WorldGame& g              = *g_game;
-    PerspectiveCamera& camera = app.camera();
+    (void)cmd;
+    WorldGame& g               = *g_game;
+    PerspectiveCamera& camera  = app.camera();
+    Vulkan::RenderScene& scene = *app.scene();
+    // The frame being recorded
+    const uint64_t frame = scene.frames() + 1;
+    g.world.update();
     if (g.walkMode)
     {
         vec3 p          = camera.getPosition();
@@ -137,31 +144,43 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
     }
     if (g.bench)
     {
-        auto pose = g.bench->currentPose();
+        auto pose = g.bench->currentPose(frame);
         camera.setView(pose.eye, pose.target, vec3(0, 1, 0));
-        if (g.bench->measuring())
+        if (g.bench->measuring(frame))
         {
-            ivec2 size = app.scene()->size();
+            ivec2 size = scene.size();
             if (g.bench->width != 0 && (size(0) != g.bench->width || size(1) != g.bench->height)) g.sizeChanged = true;
             g.bench->width  = size(0);
             g.bench->height = size(1);
         }
     }
-    const ivec2 size = app.scene()->size();
-    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
-    g.world.setOutputLinear(app.scene()->sceneWritesLinear(), app.scene()->preExposure());
-    g.world.transfer(cmd, camera.view, camera.getPosition(), float(size(0)) / float(std::max(1, size(1))));
-    // This frame's number in both renderers (the RenderScene frame being recorded is frames() + 1)
-    g.sceneFrameOf[g.world.frameNumber()] = app.scene()->frames() + 1;
-    while (g.sceneFrameOf.size() > 32) g.sceneFrameOf.erase(g.sceneFrameOf.begin());
+    // The camera of this frame (RenderScene's double camera; the projection from the settings' fovy) and the time of
+    // the wind (benchmarks: 0)
+    const vec3 eye = camera.getPosition();
+    scene.setCamera(0, eye.cast<double>(), Vulkan::viewRotation(camera.view), radians(double(g.world.settings.fovy)));
+    World& w = app.world();
+    scene.setTime(g.bench ? 0.0 : w.time() + w.alpha() * w.dt());
+
+    // The CPU times of the previous frame: its interval (until now) and its recording and submit
+    const auto now = std::chrono::steady_clock::now();
+    if (g.bench && g.hasLastTransfer)
+    {
+        Vulkan::WorldBenchmark::Sample sample;
+        sample.frame      = frame - 1;
+        sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastTransfer).count();
+        sample.workMs     = scene.lastRecordingMs();
+        g.bench->addSample(sample);
+    }
+    g.lastTransfer    = now;
+    g.hasLastTransfer = true;
+
     if (g.bench)
     {
-        // Frame k is the world renderer's frame number after its transfer (W: the last warm-up frame, M1..Mn: the
-        // measured frames). In a frame the steps run before transfer; its recording sample is added after transfer
-        // and counted when the frame ends.
-        const int frame    = g.world.frameNumber();
-        const int lastWarm = Vulkan::WorldBenchmark::warmupFrames;
-        const int lastMeas = lastWarm + Vulkan::WorldBenchmark::measuredFrames;
+        // Frame k is RenderScene's frame being recorded (W: the last warm-up frame, M1..Mn: the measured frames). In a
+        // frame the steps run before transfer; its recording sample is added after transfer and counted when the
+        // frame ends.
+        const uint64_t lastWarm = Vulkan::WorldBenchmark::warmupFrames;
+        const uint64_t lastMeas = lastWarm + Vulkan::WorldBenchmark::measuredFrames;
         auto stat    = [](const Profiler::Stats& s) { return json11::Json::object{{"median", s.p50}, {"p95", s.p95}}; };
         Profiler& wp = app.world().profiler();
         Profiler& fp = app.frameProfile();
@@ -186,8 +205,7 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
             g.stepStat   = json11::Json::object{{"median", s.median}, {"p95", s.p95}};
             g.stepTaken  = true;
         }
-        // Recordings: the frames completed from the transfer of M1 (through W) to the transfer of Mn+1 (through Mn)
-        if (frame > lastWarm && frame <= lastMeas) g.gpuFramesPending.insert(app.scene()->frames() + 1);
+        if (frame > lastWarm && frame <= lastMeas) g.gpuFramesPending.insert(frame);
         // The app's GPU samples of the measured frames (they arrive a few frames later); collected only after the
         // measured frames, outside of the timed recording: the app's log (kGpuLogSize = 600 + 64 frames) still holds
         // every measured frame then, the rest arrive during the drain
@@ -200,15 +218,23 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
                 ++it;
                 continue;
             }
+            std::map<std::string, double> sections;
             for (const auto& v : sample)
             {
-                // gpu and gpu/<section> (not the game's passes below a section, they are in gpu_ms)
+                // gpu and gpu/<section> (the sub-sections are flat names with a dot)
                 const std::string& n = v.first;
                 if (n == "gpu")
                     g.gpuFrameMs["gpu"].push_back(v.second);
                 else if (n.rfind("gpu/", 0) == 0 && n.find('/', 4) == std::string::npos)
+                {
                     g.gpuFrameMs[n.substr(4)].push_back(v.second);
+                    sections[n.substr(4)] = v.second;
+                }
             }
+            Vulkan::WorldBenchmark::Sample gpuSample;
+            gpuSample.frame     = *it;
+            gpuSample.sectionMs = s03Passes(sections);
+            g.bench->addSample(gpuSample);
             it = g.gpuFramesPending.erase(it);
         }
         if (frame > lastMeas) g.gpuFramesWaited++;
@@ -234,8 +260,7 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         // (frame/render/recording, without the waits for the frame slot and the image)
         result["step"]      = g.stepStat;
         result["recording"] = g.recordingStat;
-        // The whole GPU frame and RenderScene's sections (transfer, cull, scene, resolve, post, imgui) of the measured
-        // frames
+        // The whole GPU frame and RenderScene's sections and sub-sections of the measured frames
         json11::Json::object gpuFrame;
         for (const auto& [section, values] : g.gpuFrameMs)
         {
@@ -292,31 +317,17 @@ int main(int argc, char* argv[])
     setup.cameraSpeedFast    = 250;
     setup.benchmarks         = Vulkan::WorldBenchmark::names();
     setup.mcpInstructions    = Vulkan::worldMcpInstructions();
-    for (int i = 0; i < Vulkan::WorldRenderer::PASS_COUNT; ++i)
-        setup.renderHooks.passNames.push_back(Vulkan::WorldRenderer::gpuPassName(i));
-    EngineApp* appPtr      = nullptr;
-    setup.renderHooks.init = [&](EngineApp& app)
+    EngineApp* appPtr        = nullptr;
+    setup.renderHooks.init   = [&](EngineApp& app)
     {
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;
         initWorld(app);
     };
-    setup.renderHooks.shutdown  = [&](EngineApp&) { game.world.destroy(); };
-    setup.renderHooks.transfer  = [&](vk::CommandBuffer cmd) { transfer(*appPtr, cmd); };
-    setup.renderHooks.render    = [&](vk::CommandBuffer cmd) { game.world.render(cmd); };
-    setup.renderHooks.gui       = [&]() { gui(*appPtr); };
-    setup.renderHooks.passTimes = [&](uint64_t frame, std::vector<std::pair<std::string, double>>& passes)
-    {
-        // Regression (CodeRabbit, S13): one latest-result flag gave the world passes of one frame to another frame's
-        // completion, and a second completion in the same poll got zeros
-        auto it = game.passesOf.find(frame);
-        if (it == game.passesOf.end()) return false;
-        for (int i = 0; i < Vulkan::WorldRenderer::PASS_COUNT; ++i)
-            passes.push_back({Vulkan::WorldRenderer::gpuPassName(i), it->second[size_t(i)]});
-        game.passesOf.erase(it);
-        return true;
-    };
-    setup.gameTools = [&](McpServer& server, EngineApp& app)
+    setup.renderHooks.shutdown = [&](EngineApp&) { game.world.destroy(); };
+    setup.renderHooks.transfer = [&](vk::CommandBuffer cmd) { transfer(*appPtr, cmd); };
+    setup.renderHooks.gui      = [&]() { gui(*appPtr); };
+    setup.gameTools            = [&](McpServer& server, EngineApp& app)
     {
         if (!app.scene()) return;
         Vulkan::WorldMcpContext context;

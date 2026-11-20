@@ -5,6 +5,8 @@
  */
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
+#include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/world/WorldRenderer.h"
 
 #include <algorithm>
@@ -82,6 +84,11 @@ void historyPlot(const char* label, const std::vector<float>& values, int offset
                      std::max(maxValue * 1.15f, 1.0f), ImVec2(-1, 45));
 }
 
+uint32_t treesVisible(const PrototypeForest::Stats& s)
+{
+    return s.visible[0] + s.visible[1] + s.visible[2];
+}
+
 }  // namespace
 
 void WorldRenderer::imguiStatistics()
@@ -95,49 +102,57 @@ void WorldRenderer::imguiStatistics()
         ImGui::End();
         return;
     }
-    auto& s  = statistics;
-    auto& ts = terrainRenderer.stats();
-    auto& fs = forestRenderer.stats();
-    auto& gs = grassRenderer.stats();
+    if (!renderScene)
+    {
+        ImGui::TextDisabled("not attached to a RenderScene");
+        ImGui::End();
+        return;
+    }
+    auto& s                         = statistics;
+    const PrototypeWorld* pw        = renderScene->prototypeWorld();
+    const PrototypeWorld::Stats ps  = pw ? pw->stats() : PrototypeWorld::Stats();
+    const PrototypeForest::Stats fs = trees.stats();
 
     // ---------------------------------------------------------------------------------------- Overview
-    ImGui::Text("%.1f fps   frame %.2f ms   GPU (world) %.2f ms   %d draw calls", s.fps, s.cpuFrameMs, s.gpuMs,
-                s.drawCalls);
-    ImGui::TextDisabled("%dx MSAA, reversed depth, %.1f km world, %d trees%s", int(formats.samples),
-                        hf->worldSize() / 1000.0f, forestRenderer.treeCount(),
-                        settings.freezeCulling ? ", CULLING FROZEN" : "");
+    ImGui::Text("%.1f fps   frame %.2f ms   GPU %.2f ms   %d draw calls", s.fps, s.cpuFrameMs, s.gpuMs, s.drawCalls);
+    ImGui::TextDisabled("%dx MSAA, reversed depth, %.1f km world, %d trees%s", int(renderScene->formats().samples),
+                        heightField().worldSize() / 1000.0f, trees.treeCount(),
+                        settings.depthPrePass ? ", depth pre-pass" : "");
     ImGui::PushID("cpu");
     historyPlot("frame (CPU)", cpuHistory, historyIndex);
     ImGui::PopID();
     ImGui::PushID("gpu");
-    historyPlot("world (GPU)", gpuHistory, historyIndex);
+    historyPlot("frame (GPU)", gpuHistory, historyIndex);
     ImGui::PopID();
 
-    // ---------------------------------------------------------------------------------------- GPU passes
-    if (ImGui::CollapsingHeader("GPU passes", ImGuiTreeNodeFlags_DefaultOpen))
+    // ---------------------------------------------------------------------------------------- GPU sections
+    if (ImGui::CollapsingHeader("GPU sections", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (!timestampsSupported)
+        if (s.gpuSectionMs.empty())
         {
-            ImGui::TextDisabled("Timestamps are not supported on this device.");
+            ImGui::TextDisabled("No GPU times (no timestamps, or the app does not take them).");
         }
-        else if (beginTable("gpu passes", 3))
+        else if (beginTable("gpu sections", 3))
         {
-            ImGui::TableSetupColumn("pass", ImGuiTableColumnFlags_WidthStretch, 1.2f);
+            ImGui::TableSetupColumn("section", ImGuiTableColumnFlags_WidthStretch, 1.2f);
             ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthStretch, 0.6f);
             ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthStretch, 1.5f);
             ImGui::TableHeadersRow();
-            double total = std::max(s.gpuMs, 1e-6);
-            for (int p = 0; p < PASS_COUNT; ++p)
+            const auto& names = RenderScene::gpuSectionNames();
+            double total      = std::max(s.gpuMs, 1e-6);
+            for (size_t i = 0; i < s.gpuSectionMs.size() && i < names.size(); ++i)
             {
-                double ms = std::max(s.gpuPassMs[p], 0.0);
-                cell("%s", gpuPassName(p));
+                double ms = std::max(s.gpuSectionMs[i], 0.0);
+                // The sub-sections (dotted names) indented below their pass
+                const bool sub = std::string(names[i]).find('.') != std::string::npos;
+                cell("%s%s", sub ? "  " : "", names[i]);
                 cellRight(milliseconds(ms));
                 ImGui::TableNextColumn();
                 char label[16];
                 std::snprintf(label, sizeof(label), "%.0f%%", 100.0 * ms / total);
                 ImGui::ProgressBar(float(ms / total), ImVec2(-1, 0), label);
             }
-            cell("total");
+            cell("frame");
             cellRight(milliseconds(std::max(s.gpuMs, 0.0)));
             cell(" ");
             ImGui::EndTable();
@@ -161,8 +176,7 @@ void WorldRenderer::imguiStatistics()
             };
             row("terrain node selection", s.cpuTerrainSelectMs);
             row("grass tile culling", s.cpuGrassCullMs);
-            row("transfer() total (uploads, culling)", s.cpuTransferMs);
-            row("render() command recording", s.cpuRenderMs);
+            row("recording and submit (RenderScene)", renderScene->lastRecordingMs());
             row("frame (everything)", s.cpuFrameMs);
             ImGui::EndTable();
         }
@@ -172,38 +186,30 @@ void WorldRenderer::imguiStatistics()
     if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
     {
         int terrainTriangles = 0;
-        for (int l = 0; l <= terrainRenderer.maxLevel(); ++l) terrainTriangles += ts.trianglesPerLevel[l];
-        int waterTriangles = ts.waterNodes * TerrainRenderer::gridResolution * TerrainRenderer::gridResolution / 2;
-        int treesVisible   = fs.visible[0] + fs.visible[1] + fs.visible[2];
+        for (int l = 0; l <= ps.terrainMaxLevel && l < 16; ++l) terrainTriangles += ps.trianglesPerLevel[size_t(l)];
+        uint32_t treesVisible = fs.visible[0] + fs.visible[1] + fs.visible[2];
 
-        if (beginTable("geometry", 4))
+        if (beginTable("geometry", 3))
         {
             ImGui::TableSetupColumn("pass", ImGuiTableColumnFlags_WidthStretch, 1.0f);
-            ImGui::TableSetupColumn("draws", ImGuiTableColumnFlags_WidthStretch, 0.9f);
             ImGui::TableSetupColumn("instances", ImGuiTableColumnFlags_WidthStretch, 0.9f);
             ImGui::TableSetupColumn("triangles", ImGuiTableColumnFlags_WidthStretch, 0.9f);
             ImGui::TableHeadersRow();
 
-            auto row =
-                [&](const char* name, const std::string& draws, const std::string& instances, double tris, bool enabled)
+            auto row = [&](const char* name, const std::string& instances, double tris, bool enabled)
             {
                 cell("%s%s", name, enabled ? "" : " (off)");
-                cellRight(draws);
                 cellRight(instances);
                 cellRight(compact(tris));
             };
-            row("terrain", std::to_string(int(ts.nodes > 0) + int(ts.quarterNodes > 0)),
-                std::to_string(ts.nodes + ts.quarterNodes) + " nodes", terrainTriangles, settings.terrain);
-            row("water", std::to_string(ts.waterNodes), std::to_string(ts.waterNodes), waterTriangles, settings.water);
-            row("trees", "1 MDI / " + std::to_string(forestRenderer.drawCommands()), compact(treesVisible),
-                fs.triangles, settings.trees);
-            row("grass", std::to_string(gs.tiles) + " tiles", compact(gs.clumps), gs.triangles, settings.grass);
-            row("sky", settings.sky ? "1" : "0", "-", settings.sky ? 1 : 0, settings.sky);
-
-            double total = (settings.terrain ? terrainTriangles : 0) + (settings.water ? waterTriangles : 0) +
-                           (settings.trees ? fs.triangles : 0) + (settings.grass ? gs.triangles : 0);
+            row("terrain", std::to_string(ps.terrainNodes + ps.quarterNodes) + " nodes", terrainTriangles,
+                settings.terrain);
+            row("water", std::to_string(ps.waterNodes), ps.waterTriangles, settings.water);
+            row("trees", compact(treesVisible), double(fs.triangles), settings.trees);
+            row("grass", compact(ps.grassClumps), ps.grassTriangles, settings.grass);
+            double total = (settings.terrain ? terrainTriangles : 0) + (settings.water ? ps.waterTriangles : 0) +
+                           (settings.trees ? double(fs.triangles) : 0) + (settings.grass ? ps.grassTriangles : 0);
             cell("total");
-            cellRight(std::to_string(s.drawCalls));
             cellRight("");
             cellRight(compact(total));
             ImGui::EndTable();
@@ -212,106 +218,45 @@ void WorldRenderer::imguiStatistics()
     }
 
     // ---------------------------------------------------------------------------------------- Terrain
-    if (ImGui::CollapsingHeader("Terrain levels of detail"))
+    if (ImGui::CollapsingHeader("Terrain levels of detail") && beginTable("terrain levels", 3))
     {
-        ImGui::Text("level 0 range %.0f m, morph from %.0f%% of each range", terrainRenderer.range0(),
-                    settings.morphStart * 100);
-        if (beginTable("terrain levels", 5))
+        ImGui::TableSetupColumn("level");
+        ImGui::TableSetupColumn("nodes");
+        ImGui::TableSetupColumn("triangles");
+        ImGui::TableHeadersRow();
+        for (int l = 0; l <= ps.terrainMaxLevel && l < 16; ++l)
         {
-            ImGui::TableSetupColumn("level");
-            ImGui::TableSetupColumn("spacing");
-            ImGui::TableSetupColumn("range");
-            ImGui::TableSetupColumn("nodes");
-            ImGui::TableSetupColumn("triangles");
-            ImGui::TableHeadersRow();
-            for (int l = 0; l <= terrainRenderer.maxLevel(); ++l)
-            {
-                float spacing = terrainRenderer.nodeSize(l) / TerrainRenderer::gridResolution;
-                cell("%d", l);
-                cellRight(std::to_string(int(spacing)) + " m");
-                cellRight(l == terrainRenderer.maxLevel() ? "inf"
-                                                          : compact(terrainRenderer.range0() * float(1 << l)) + " m");
-                cellRight(std::to_string(ts.nodesPerLevel[l]));
-                cellRight(compact(ts.trianglesPerLevel[l]));
-            }
-            ImGui::EndTable();
+            cell("%d", l);
+            cellRight(std::to_string(ps.nodesPerLevel[size_t(l)]));
+            cellRight(compact(ps.trianglesPerLevel[size_t(l)]));
         }
+        ImGui::EndTable();
     }
 
     // ---------------------------------------------------------------------------------------- Trees
     if (ImGui::CollapsingHeader("Trees", ImGuiTreeNodeFlags_DefaultOpen))
     {
-        ImGui::Text("lod 0 < %.0f m, lod 1 < %.0f m, lod 2 < %.0f m", settings.treeLod1, settings.treeLod2,
-                    settings.treeMaxDistance);
-        auto& species  = forestRenderer.treeSpecies();
-        auto& meshTris = forestRenderer.bucketTriangleCounts();
-        if (beginTable("trees", 1 + ForestRenderer::lodCount + 1))
+        const auto ends = prototypeTreeLodEnds(settings);
+        ImGui::Text("LOD end distances %.0f / %.0f / %.0f m, %d sets", ends[0], ends[1], ends[2], trees.setCount());
+        auto& species = trees.treeSpecies();
+        if (beginTable("trees", 4))
         {
             ImGui::TableSetupColumn("species");
-            for (int l = 0; l < ForestRenderer::lodCount; ++l)
-            {
-                static const char* names[] = {"lod 0", "lod 1", "lod 2"};
-                ImGui::TableSetupColumn(names[l]);
-            }
-            ImGui::TableSetupColumn("triangles");
+            ImGui::TableSetupColumn("lod 0");
+            ImGui::TableSetupColumn("lod 1");
+            ImGui::TableSetupColumn("lod 2");
             ImGui::TableHeadersRow();
-
-            std::array<double, ForestRenderer::lodCount> lodTris = {};
-            for (size_t sp = 0; sp < species.size(); ++sp)
+            for (size_t sp = 0; sp < species.size() && sp < fs.perSpecies.size(); ++sp)
             {
                 cell("%s", species[sp].name);
-                double tris = 0;
-                for (int l = 0; l < ForestRenderer::lodCount; ++l)
-                {
-                    size_t b    = sp * ForestRenderer::lodCount + l;
-                    int visible = b < fs.bucketVisible.size() ? fs.bucketVisible[b] : 0;
-                    cellRight(compact(visible));
-                    tris += double(visible) * meshTris[b];
-                    lodTris[l] += double(visible) * meshTris[b];
-                }
-                cellRight(compact(tris));
+                for (int l = 0; l < 3; ++l) cellRight(compact(fs.perSpecies[sp][size_t(l)]));
             }
-            cell("visible");
-            for (int l = 0; l < ForestRenderer::lodCount; ++l) cellRight(compact(fs.visible[l]));
-            cellRight(compact(fs.triangles));
-            cell("triangles");
-            for (int l = 0; l < ForestRenderer::lodCount; ++l) cellRight(compact(lodTris[l]));
-            cellRight("");
+            cell("drawn");
+            for (int l = 0; l < 3; ++l) cellRight(compact(fs.visible[size_t(l)]));
             ImGui::EndTable();
         }
-        if (ImGui::TreeNode("triangles per tree mesh"))
-        {
-            if (beginTable("tree meshes", 1 + ForestRenderer::lodCount))
-            {
-                ImGui::TableSetupColumn("species");
-                ImGui::TableSetupColumn("lod 0");
-                ImGui::TableSetupColumn("lod 1");
-                ImGui::TableSetupColumn("lod 2");
-                ImGui::TableHeadersRow();
-                for (size_t sp = 0; sp < species.size(); ++sp)
-                {
-                    cell("%s", species[sp].name);
-                    for (int l = 0; l < ForestRenderer::lodCount; ++l)
-                        cellRight(std::to_string(meshTris[sp * ForestRenderer::lodCount + l]));
-                }
-                ImGui::EndTable();
-            }
-            ImGui::TreePop();
-        }
-        int total = fs.visible[0] + fs.visible[1] + fs.visible[2];
-        ImGui::TextDisabled("%s of %s trees pass the frustum and distance test (%.1f%%)", compact(total).c_str(),
-                            compact(forestRenderer.treeCount()).c_str(),
-                            100.0 * total / std::max(forestRenderer.treeCount(), 1));
-    }
-
-    // ---------------------------------------------------------------------------------------- Grass
-    if (ImGui::CollapsingHeader("Grass"))
-    {
-        int tiles = GrassRenderer::tiles * GrassRenderer::tiles;
-        ImGui::Text("radius %.0f m, cell %.2f m, density %.2f", settings.grassRadius, settings.grassCellSize,
-                    settings.grassDensity);
-        ImGui::Text("%d / %d tiles visible, %d x %d cells per tile", gs.tiles, tiles, gs.tileCells, gs.tileCells);
-        ImGui::Text("%s clumps submitted, %s triangles", compact(gs.clumps).c_str(), compact(gs.triangles).c_str());
+        ImGui::TextDisabled("%s of %s trees drawn (frame %llu)", compact(treesVisible(fs)).c_str(),
+                            compact(trees.treeCount()).c_str(), (unsigned long long)fs.frame);
     }
 
     // ---------------------------------------------------------------------------------------- Memory
@@ -337,7 +282,7 @@ void WorldRenderer::imguiStatistics()
             cellRight(buf);
             ImGui::EndTable();
         }
-        ImGui::TextDisabled("without the render targets of the renderer");
+        ImGui::TextDisabled("without the render targets and RenderScene's shared buffers");
     }
 
     ImGui::End();

@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-#include "saiga/vulkan/world/GrassRenderer.h"
+#include "saiga/vulkan/scene/GrassRenderer.h"
 
 #include "saiga/vulkan/world/FoliageGenerator.h"
 
@@ -23,7 +23,7 @@ struct GrassPush
 {
     ivec2 tileOrigin;
     int tileCells;
-    int wire;
+    int pad;
 };
 }  // namespace
 
@@ -59,8 +59,6 @@ void GrassRenderer::init(VulkanBase& _base, const RenderingFormats& formats, Uni
                            {2, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, uvLayer)}});
     std::vector<std::string> shaders = {"vulkan/world/grass.vert", "vulkan/world/foliage.frag"};
     createWorldPipeline(pipeline, *base, layout, sizeof(GrassPush), shaders, formats, info);
-    if (wireframeSupported(*base))
-        createWorldPipeline(wirePipeline, *base, layout, sizeof(GrassPush), shaders, formats, wireframeVariant(info));
 
     set = pipeline.createDescriptorSet();
     set.assign(0, &worldUniforms);
@@ -71,7 +69,6 @@ void GrassRenderer::init(VulkanBase& _base, const RenderingFormats& formats, Uni
 void GrassRenderer::destroy()
 {
     pipeline.destroy();
-    wirePipeline.destroy();
     vertexBuffer.destroy();
     indexBuffer.destroy();
 }
@@ -120,10 +117,10 @@ void GrassRenderer::update(const vec3& cameraPos, const std::array<vec4, 6>& fru
     statistics.triangles = int(std::min<int64_t>(triangles, std::numeric_limits<int>::max()));
 }
 
-void GrassRenderer::render(vk::CommandBuffer cmd, bool wireframe)
+void GrassRenderer::render(vk::CommandBuffer cmd)
 {
     if (visibleTiles.empty()) return;
-    Pipeline& p = wireframe ? wirePipeline : pipeline;
+    Pipeline& p = pipeline;
     if (!p.bind(cmd)) return;
     p.bindDescriptorSet(cmd, set);
     cmd.bindVertexBuffers(0, vk::Buffer(vertexBuffer.memoryLocation()->data), vk::DeviceSize(0));
@@ -132,7 +129,7 @@ void GrassRenderer::render(vk::CommandBuffer cmd, bool wireframe)
     auto stages = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
     for (auto& t : visibleTiles)
     {
-        GrassPush push = {t.origin, tileCells, wireframe ? 1 : 0};
+        GrassPush push = {t.origin, tileCells, 0};
         p.pushConstant(cmd, stages, sizeof(push), &push);
         cmd.drawIndexed(indexCount, uint32_t(tileCells * tileCells), 0, 0, 0);
     }

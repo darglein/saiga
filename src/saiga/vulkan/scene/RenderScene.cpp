@@ -12,6 +12,7 @@
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/MeshPool.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/SceneCulling.h"
 #include "saiga/vulkan/texture/Sampler.h"
 #include "saiga/vulkan/texture/Texture.h"
@@ -56,6 +57,25 @@ vk::ImageSubresourceRange colorRange()
 {
     return vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
 }
+vk::ImageSubresourceRange depthRange()
+{
+    return vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1);
+}
+
+// The GPU sections in frame order (the dotted names: sub-sections inside the pass before the dot)
+const std::vector<const char*>& sectionNames()
+{
+    static const std::vector<const char*> names = {
+        "transfer",        "cull",        "depth",     "depth.terrain", "scene", "scene.terrain",
+        "scene.instances", "scene.grass", "scene.sky", "resolve",       "post",  "imgui"};
+    return names;
+}
+std::vector<std::string> sectionNameStrings()
+{
+    std::vector<std::string> r;
+    for (const char* n : sectionNames()) r.push_back(n);
+    return r;
+}
 }  // namespace
 
 /**
@@ -67,8 +87,7 @@ class SceneFrameRenderer : public VulkanRenderer
 {
    public:
     SceneFrameRenderer(RenderScene& scene, VulkanWindow& window, const VulkanParameters& vulkanParameters)
-        : VulkanRenderer(window, vulkanParameters, {"transfer", "cull", "scene", "resolve", "post", "imgui"}),
-          scene(scene)
+        : VulkanRenderer(window, vulkanParameters, sectionNameStrings()), scene(scene)
     {
         const int requested = scene.params.msaaSamples;
         samples             = selectSampleCount(base().physicalDevice, requested, hdrFormat);
@@ -112,6 +131,12 @@ class SceneFrameRenderer : public VulkanRenderer
 
     ~SceneFrameRenderer() override { waitIdle(); }
 
+    // The section marks of the frame (FrameTimings)
+    void enter(const char* name, vk::CommandBuffer cmd) { timings.enterSection(name, cmd); }
+    void leave(const char* name, vk::CommandBuffer cmd) { timings.leaveSection(name, cmd); }
+    void subBegin(const char* name, vk::CommandBuffer cmd) { timings.markSectionBegin(name, cmd); }
+    void subEnd(const char* name, vk::CommandBuffer cmd) { timings.markSectionEnd(name, cmd); }
+
     using VulkanRenderer::render;
 
     RenderingFormats sceneFormats() const
@@ -134,10 +159,16 @@ class SceneFrameRenderer : public VulkanRenderer
         (void)numImages;
         // Only called after waitIdle (VulkanRenderer::reset), so the old images and the descriptor sets are not in use
         depthImage.destroy();
+        depthResolved.destroy();
         hdrMsaa.destroy();
         hdrResolved.destroy();
         const bool msaa = samples != vk::SampleCountFlagBits::e1;
-        depthImage.create(base(), w, h, depthFormat, vk::ImageUsageFlagBits::eDepthStencilAttachment, 1, samples);
+        // The sampled depth (S19a): the SAMPLE_ZERO resolve of the multisampled depth, or with 1 sample the depth
+        // image itself
+        const auto depthUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
+        depthImage.create(base(), w, h, depthFormat, msaa ? depthUsage : depthUsage | vk::ImageUsageFlagBits::eSampled,
+                          1, samples);
+        if (msaa) depthResolved.create(base(), w, h, depthFormat, depthUsage | vk::ImageUsageFlagBits::eSampled);
         if (msaa)
             hdrMsaa.create(base(), w, h, hdrFormat,
                            vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, 1, samples);
@@ -165,8 +196,10 @@ class SceneFrameRenderer : public VulkanRenderer
     Pipeline resolvePipeline, postPipeline;
     StaticDescriptorSet resolveSet, postSet;
     // Shared by the frames in flight. hdrMsaa only with MSAA (stored only for the custom resolve); hdrResolved is the
-    // scene target with 1 sample.
-    Texture2D depthImage, hdrMsaa, hdrResolved;
+    // scene target with 1 sample. depthResolved: the SAMPLE_ZERO depth resolve, only with MSAA.
+    Texture2D depthImage, depthResolved, hdrMsaa, hdrResolved;
+    // The depth image that later passes sample (S37's consumers)
+    Texture2D& sampledDepth() { return samples != vk::SampleCountFlagBits::e1 ? depthResolved : depthImage; }
 
     void viewport(vk::CommandBuffer cmd)
     {
@@ -194,9 +227,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     vk::CommandBuffer cmd = beginCommands(frame);
     timings.resetFrame(cmd);
 
-    // The scene's camera of this frame (the aspect of the surface) and the statistics slot
+    // The statistics slot and the scene's camera of this frame (the aspect of the surface)
+    s.beginSceneFrame(frame.frameIndex);
     SceneCamera camera;
-    s.beginSceneFrame(frame.frameIndex, surfaceWidth, SurfaceHeight, camera);
+    s.frameCamera(surfaceWidth, SurfaceHeight, camera);
+    const PrototypeSettings& proto = *s.protoSettings;
+    PrototypeWorld* world          = s.prototype.get();
+    const bool prepass             = proto.depthPrePass;
 
     timings.enterSection("transfer", cmd);
     {
@@ -208,7 +245,14 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                                Access::eShaderStorageWrite, Stage::eAllTransfer, Access::eTransferWrite);
         cmd.pipelineBarrier2(vk::DependencyInfo({}, war, nullptr, nullptr));
         if (s.transferFn && *s.transferFn) (*s.transferFn)(cmd);
-        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera);
+        // The transfer callback may set the camera of this frame (S19a)
+        s.frameCamera(surfaceWidth, SurfaceHeight, camera);
+        if (world) world->transfer(cmd, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
+        s.slotStatistics[frame.frameIndex].terrainNodes =
+            world ? uint32_t(world->stats().terrainNodes + world->stats().quarterNodes) : 0;
+        SceneLighting lighting;
+        s.frameLighting(camera, int(samples), lighting);
+        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
         // ... and make the writes visible to this frame's culling and draws.
         vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
                                Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader |
@@ -229,9 +273,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
 
     {
         // The targets are shared by the frames in flight: the previous frame's attachment writes and sampled reads
-        // (resolve, post) come before this frame's writes; the previous content is discarded.
+        // (resolve, post, the sampled depth's consumers) come before this frame's writes; the previous content is
+        // discarded.
         const auto prevColor  = Stage::eColorAttachmentOutput | Stage::eFragmentShader;
         const auto colorWrite = Access::eColorAttachmentWrite | Access::eColorAttachmentRead;
+        const auto depthTests = Stage::eEarlyFragmentTests | Stage::eLateFragmentTests;
+        const auto depthRW    = Access::eDepthStencilAttachmentWrite | Access::eDepthStencilAttachmentRead;
         std::vector<vk::ImageMemoryBarrier2> barriers;
         auto toAttachment = [&](Texture2D& t)
         {
@@ -241,16 +288,61 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         };
         if (msaa) toAttachment(hdrMsaa);
         toAttachment(hdrResolved);
-        barriers.emplace_back(
-            Stage::eEarlyFragmentTests | Stage::eLateFragmentTests, Access::eDepthStencilAttachmentWrite,
-            Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
-            Access::eDepthStencilAttachmentWrite | Access::eDepthStencilAttachmentRead, vk::ImageLayout::eUndefined,
-            vk::ImageLayout::eDepthStencilAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
-            depthImage.image(), vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1));
+        // The depth: the previous frame's depth tests and (1 sample) its sampled reads
+        barriers.emplace_back(depthTests | Stage::eFragmentShader | Stage::eComputeShader,
+                              Access::eDepthStencilAttachmentWrite, depthTests, depthRW, vk::ImageLayout::eUndefined,
+                              vk::ImageLayout::eDepthStencilAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED,
+                              VK_QUEUE_FAMILY_IGNORED, depthImage.image(), depthRange());
+        // The depth resolve target: written by the resolve (the attachment output stage), read after the frame
+        if (msaa)
+            barriers.emplace_back(Stage::eColorAttachmentOutput | Stage::eLateFragmentTests | Stage::eFragmentShader |
+                                      Stage::eComputeShader,
+                                  Access::eColorAttachmentWrite | Access::eDepthStencilAttachmentWrite,
+                                  Stage::eColorAttachmentOutput | Stage::eLateFragmentTests,
+                                  Access::eColorAttachmentWrite | Access::eDepthStencilAttachmentWrite,
+                                  vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal,
+                                  VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, depthResolved.image(),
+                                  depthRange());
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, barriers));
     }
 
-    // 2. The scene pass
+    // 2. The depth pre-pass of the opaque content (written every frame, empty without the pre-pass)
+    timings.enterSection("depth", cmd);
+    if (prepass)
+    {
+        vk::RenderingAttachmentInfo depth;
+        depth.imageView                     = depthImage.view();
+        depth.imageLayout                   = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        depth.loadOp                        = vk::AttachmentLoadOp::eClear;
+        depth.storeOp                       = vk::AttachmentStoreOp::eStore;
+        depth.clearValue.depthStencil.depth = 0.0f;  // reversed-Z
+        vk::RenderingInfo info;
+        info.renderArea       = area();
+        info.layerCount       = 1;
+        info.pDepthAttachment = &depth;
+        cmd.beginRendering(info);
+        viewport(cmd);
+        subBegin("depth.terrain", cmd);
+        if (world) world->renderDepth(cmd, proto);
+        subEnd("depth.terrain", cmd);
+        viewport(cmd);
+        s.culling->recordPrepass(cmd, frame.frameIndex, camera);
+        cmd.endRendering();
+        // The scene pass tests against (and writes) the pre-pass depth
+        vk::MemoryBarrier2 b(Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
+                             Access::eDepthStencilAttachmentWrite,
+                             Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
+                             Access::eDepthStencilAttachmentRead | Access::eDepthStencilAttachmentWrite);
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, b, nullptr, nullptr));
+    }
+    else
+    {
+        subBegin("depth.terrain", cmd);
+        subEnd("depth.terrain", cmd);
+    }
+    timings.leaveSection("depth", cmd);
+
+    // 3. The scene pass
     timings.enterSection("scene", cmd);
     {
         vec4 c = s.params.clearColor;
@@ -286,9 +378,22 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         vk::RenderingAttachmentInfo depth;
         depth.imageView                     = depthImage.view();
         depth.imageLayout                   = vk::ImageLayout::eDepthStencilAttachmentOptimal;
-        depth.loadOp                        = vk::AttachmentLoadOp::eClear;
-        depth.storeOp                       = vk::AttachmentStoreOp::eDontCare;
+        depth.loadOp                        = prepass ? vk::AttachmentLoadOp::eLoad : vk::AttachmentLoadOp::eClear;
         depth.clearValue.depthStencil.depth = 0.0f;  // reversed-Z
+        if (msaa)
+        {
+            // The single-sampled depth (S19a): SAMPLE_ZERO (lavapipe supports only it; reversed-Z "nearest" would be
+            // MAX, not needed before S37's consumers); the multisampled depth is not kept
+            depth.storeOp            = vk::AttachmentStoreOp::eDontCare;
+            depth.resolveMode        = vk::ResolveModeFlagBits::eSampleZero;
+            depth.resolveImageView   = depthResolved.view();
+            depth.resolveImageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+        }
+        else
+        {
+            // 1 sample: the depth image itself is the sampled depth
+            depth.storeOp = vk::AttachmentStoreOp::eStore;
+        }
 
         vk::RenderingInfo info;
         info.renderArea           = area();
@@ -298,11 +403,34 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         info.pDepthAttachment     = &depth;
         cmd.beginRendering(info);
         viewport(cmd);
+        // terrain -> the game's render callback -> instances -> grass -> sky (the sky's EQUAL at depth 0 last)
+        subBegin("scene.terrain", cmd);
+        if (world) world->renderTerrain(cmd, proto, prepass);
+        subEnd("scene.terrain", cmd);
+        viewport(cmd);
         if (s.renderFn && *s.renderFn) (*s.renderFn)(cmd);
         // The scene's instances after the game's draws
         viewport(cmd);
-        s.slotStatistics[frame.frameIndex].drawCommands = s.culling->recordDraw(cmd, frame.frameIndex, camera);
+        subBegin("scene.instances", cmd);
+        s.slotStatistics[frame.frameIndex].drawCommands = s.culling->recordDraw(cmd, frame.frameIndex, camera, prepass);
+        subEnd("scene.instances", cmd);
+        viewport(cmd);
+        subBegin("scene.grass", cmd);
+        if (world) world->renderGrass(cmd, proto);
+        subEnd("scene.grass", cmd);
+        subBegin("scene.sky", cmd);
+        if (world) world->renderSky(cmd, proto);
+        subEnd("scene.sky", cmd);
         cmd.endRendering();
+
+        // The sampled depth for later passes (S37's consumers): after the resolve (MSAA) or the depth writes
+        vk::ImageMemoryBarrier2 toRead(Stage::eColorAttachmentOutput | Stage::eLateFragmentTests,
+                                       Access::eColorAttachmentWrite | Access::eDepthStencilAttachmentWrite,
+                                       Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
+                                       vk::ImageLayout::eDepthStencilAttachmentOptimal,
+                                       vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                       VK_QUEUE_FAMILY_IGNORED, sampledDepth().image(), depthRange());
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
     }
     timings.leaveSection("scene", cmd);
 
@@ -390,7 +518,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     }
 
     // The layouts after this frame (Texture tracks them)
-    depthImage.setImageLayout(vk::ImageLayout::eDepthStencilAttachmentOptimal);
+    depthImage.setImageLayout(msaa ? vk::ImageLayout::eDepthStencilAttachmentOptimal
+                                   : vk::ImageLayout::eShaderReadOnlyOptimal);
+    if (msaa) depthResolved.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     if (msaa)
         hdrMsaa.setImageLayout(custom ? vk::ImageLayout::eShaderReadOnlyOptimal
                                       : vk::ImageLayout::eColorAttachmentOptimal);
@@ -420,6 +550,7 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     meshPool->init(base(), params.vertexCapacity, params.indexCapacity);
     culling = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params);
+    protoSettings = std::make_unique<PrototypeSettings>();
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
     instanceBuffer = std::make_unique<InstanceBuffer>();
     instanceBuffer->init(base(), params.staticInstanceCapacity, culling->storageLimit());
@@ -432,6 +563,7 @@ RenderScene::~RenderScene()
     if (renderer) renderer->waitIdle();
     if (culling) culling->destroy();
     culling.reset();
+    prototype.reset();
     instanceBuffer.reset();
     meshPool.reset();
 }
@@ -538,8 +670,7 @@ void RenderScene::waitIdle()
 const std::vector<const char*>& RenderScene::gpuSectionNames()
 {
     // The sections of the frame timings (SceneFrameRenderer), in frame order
-    static const std::vector<const char*> names = {"transfer", "cull", "scene", "resolve", "post", "imgui"};
-    return names;
+    return sectionNames();
 }
 
 bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
@@ -554,6 +685,7 @@ bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
         out.gpuMs        = c.frameMs;
         out.gpuSectionMs = c.sectionMs;
         submittedFrames.pop_front();
+        lastTaken = out;
         return true;
     }
     return false;
@@ -564,12 +696,65 @@ bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
 
 void RenderScene::addMaterial(MaterialId id, const std::string& name, const MaterialData& data)
 {
+    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype,
+                 "addMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeTerrain");
     meshPool->addMaterial(id, name, data);
 }
 
 void RenderScene::setMaterial(MaterialId id, const MaterialData& data)
 {
+    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype,
+                 "setMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeTerrain");
     meshPool->setMaterial(id, data);
+}
+
+void RenderScene::setMeshLodDistances(MeshId id, const std::vector<float>& endDistances, float boundsPadding)
+{
+    meshPool->setLodDistances(id, endDistances, boundsPadding);
+    instanceBuffer->refreshBounds(id, *meshPool);
+}
+
+uint16_t RenderScene::reserveIds(SceneIdKind kind, uint32_t count)
+{
+    uint32_t& next = nextReservedId[kind == SceneIdKind::Mesh ? 0 : 1];
+    SAIGA_ASSERT(count > 0 && next + count <= kGameReservedIds,
+                 "reserveIds: the game range 1 .. kGameReservedIds - 1 is exhausted");
+    const uint32_t first = next;
+    next += count;
+    return uint16_t(first);
+}
+
+void RenderScene::setPrototypeTerrain(std::shared_ptr<const HeightField> heights, const PrototypeSettings& settings,
+                                      uint32_t foliageSeed)
+{
+    SAIGA_ASSERT(!transferFn, "setPrototypeTerrain: not inside renderFrame");
+    // The frames in flight may use the previous prototype
+    renderer->waitIdle();
+    culling->setFoliageTexture(nullptr);
+    prototype.reset();
+    auto p = std::make_unique<PrototypeWorld>();
+    p->init(base(), formats(), std::move(heights), foliageSeed);
+    prototype = std::move(p);
+    culling->setFoliageTexture(&prototype->foliageTexture());
+    *protoSettings = settings;
+}
+
+void RenderScene::setPrototypeSettings(const PrototypeSettings& settings)
+{
+    *protoSettings = settings;
+}
+
+const PrototypeSettings& RenderScene::prototypeSettings() const
+{
+    return *protoSettings;
+}
+
+void RenderScene::frameLighting(const SceneCamera& camera, int samples, SceneLighting& out) const
+{
+    out = SceneLighting();
+    if (prototype) prototype->lighting(*protoSettings, sceneTime, out);
+    const vec3 p = camera.position.cast<float>();
+    out.camera   = vec4(p(0), p(1), p(2), float(samples));
 }
 
 void RenderScene::addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material)
@@ -626,6 +811,9 @@ void RenderScene::setCamera(SpaceId space, const Vec3& position, const Quat& rot
     cameraPosition = position;
     cameraRotation = rotation.normalized();
     cameraFovy     = fovy;
+    // The matrices at once (a game's draws in the same frame read them)
+    const ivec2 s = size();
+    if (s(0) > 0 && s(1) > 0) updateMatrices(s(0), s(1));
 }
 
 void RenderScene::setInterpolation(float a)
@@ -638,7 +826,7 @@ bool RenderScene::multiDrawIndirect() const
     return culling->multiDrawIndirect();
 }
 
-void RenderScene::beginSceneFrame(uint32_t frameIndex, int width, int height, SceneCamera& c)
+void RenderScene::beginSceneFrame(uint32_t frameIndex)
 {
     // The slot's previous frame has completed: its statistics are read before the slot is reused
     harvestStatistics();
@@ -647,25 +835,35 @@ void RenderScene::beginSceneFrame(uint32_t frameIndex, int width, int height, Sc
     slot.frame           = frameCount + 1;
     slot.timelineValue   = base().currentFrameSignalValue();
     slot.drawCommands    = 0;
+    slot.terrainNodes    = 0;
+}
 
-    c             = SceneCamera();
-    c.alpha       = alpha;
-    c.preExposure = framePreExposure;
-    c.linear      = sceneWritesLinear();
-    if (!cameraSet || width <= 0 || height <= 0) return;
-    c.valid          = true;
-    c.space          = cameraSpace;
-    c.position       = cameraPosition;
+void RenderScene::updateMatrices(int width, int height)
+{
     const double asp = double(width) / double(height);
     const Mat3 R     = cameraRotation.matrix();
-
     // The view matrix: only the rotation (camera-relative positions)
     mat4 view = mat4::Identity();
     for (int i = 0; i < 3; ++i)
         for (int j = 0; j < 3; ++j) view(i, j) = float(R(j, i));
     frameView       = view;
     frameProjection = reversedZInfinitePerspective(float(cameraFovy), float(asp), params.nearPlane);
-    c.viewProj      = frameProjection * frameView;
+}
+
+void RenderScene::frameCamera(int width, int height, SceneCamera& c)
+{
+    c             = SceneCamera();
+    c.alpha       = alpha;
+    c.preExposure = framePreExposure;
+    c.linear      = sceneWritesLinear();
+    if (!cameraSet || width <= 0 || height <= 0) return;
+    c.valid    = true;
+    c.space    = cameraSpace;
+    c.position = cameraPosition;
+    updateMatrices(width, height);
+    c.viewProj       = frameProjection * frameView;
+    const double asp = double(width) / double(height);
+    const Mat3 R     = cameraRotation.matrix();
 
     // The frustum planes in camera-relative world coordinates (inward normals; no far plane)
     const double tanY               = std::tan(cameraFovy * 0.5);
@@ -696,6 +894,7 @@ void RenderScene::harvestStatistics()
         r.frame = slot.frame;
         culling->readStatistics(i, r);
         r.drawCommands = slot.drawCommands;
+        r.terrainNodes = slot.terrainNodes;
         stats          = r;
         completedStatistics.push_back(r);
         if (completedStatistics.size() > 16) completedStatistics.pop_front();

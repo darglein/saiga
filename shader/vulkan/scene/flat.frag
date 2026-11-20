@@ -8,11 +8,16 @@
 
 // The flat-color shading of RenderScene's instances (S18, docs/engine_design.md §10.8): the vertex color word (sRGB8
 // RGB + linear alpha) or the palette entry it indexes, times the material's base color; SmoothTextured without textures
-// renders its base color (textures in S43). A fixed sun and ambient (lighting in S36) plus the emissive color. The
-// alpha test of an alphaMask material: alpha * baseColor.a < 0.5 is discarded. Output (S17's contract): linear values
-// times the pre-exposure, or in clay mode display values (clamped, sRGB encoded here).
+// renders its base color (textures in S43). The light of the lighting block (S19a: S18's fixed sun and ambient by
+// default, the prototype's sun, hemisphere ambient and height fog with RenderScene::setPrototypeTerrain; S36 replaces
+// it) plus the emissive color; the height fog in the SCENE_FOG variant (SceneCulling selects it per frame). The alpha
+// test of an alphaMask material: alpha * baseColor.a < 0.5 is discarded. Output (S17's contract): linear values times
+// the pre-exposure, or in clay mode display values (clamped, sRGB encoded here).
 
 #include "color.glsl"
+
+#include "../world/prototype_shading.glsl"
+#include "scene_lighting.glsl"
 
 struct Material
 {
@@ -51,13 +56,11 @@ layout(location = 0) flat in uint inMaterial;
 layout(location = 1) flat in uint inColor;
 layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec2 inUv;
+#ifdef SCENE_FOG
+layout(location = 4) in vec3 inRelPos;
+#endif
 
 layout(location = 0) out vec4 outColor;
-
-// The fixed light of S18 (S36 replaces it)
-const vec3 sunDirection = vec3(0.3113996, 0.7784989, 0.5449493);  // normalize(0.4, 1, 0.7), towards the sun
-const vec3 sunColor     = vec3(0.8);
-const vec3 ambientColor = vec3(0.35);
 
 void main()
 {
@@ -74,7 +77,14 @@ void main()
 
     vec3 n = normalize(inNormal);
     if (!gl_FrontFacing) n = -n;
-    vec3 lit = c.rgb * (ambientColor + sunColor * max(dot(n, sunDirection), 0.0)) + m.emissiveRoughness.xyz;
+    // S18's constant ambient, or the prototype's hemisphere ambient (brighter from above)
+    float ambient = lighting.ambient.x;
+    if (lighting.ambient.y > 0.5) ambient *= 0.6 + 0.4 * n.y;
+    vec3 lit = c.rgb * (ambient + lighting.sunDir.w * max(dot(n, lighting.sunDir.xyz), 0.0)) + m.emissiveRoughness.xyz;
+#ifdef SCENE_FOG
+    // The fog variant of the pipelines (the lighting block's fog enabled)
+    lit = protoApplyFog(lit, inRelPos, lighting.camera.y, lighting.fog, lighting.fogColor.rgb);
+#endif
     if (pc.linear != 0u)
         outColor = vec4(max(lit, vec3(0.0)) * pc.preExposure, 1.0);
     else

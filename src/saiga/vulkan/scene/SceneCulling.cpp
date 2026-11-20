@@ -14,6 +14,7 @@
 #include <cmath>
 #include <cstring>
 #include <string>
+#include <tuple>
 
 namespace Saiga
 {
@@ -100,6 +101,18 @@ DescriptorSetLayout sceneLayout()
     return layout;
 }
 
+// Set 1 of the draw pipelines: the lighting block (shader/vulkan/scene/scene_lighting.glsl) and the foliage texture
+DescriptorSetLayout lightingLayout()
+{
+    DescriptorSetLayout layout;
+    layout.addBinding(
+        0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+                                          vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment));
+    layout.addBinding(1, vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1,
+                                                        vk::ShaderStageFlagBits::eFragment));
+    return layout;
+}
+
 void memoryBarrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
                    vk::PipelineStageFlags2 dstStage, vk::AccessFlags2 dstAccess)
 {
@@ -161,29 +174,79 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     initCompute(scanPipeline, "vulkan/scene/bucket_scan.comp", sizeof(ScanPush));
     initCompute(writePipeline, "vulkan/scene/instance_write.comp", sizeof(WritePush));
 
-    for (int c = 0; c < pipelineClassCount; ++c)
+    // The draw pipelines: set 0 the scene's buffers, set 1 the lighting block and the foliage texture. shaders: vertex
+    // and (optional) fragment shader, injected with the defines
+    auto initDraw =
+        [&](Pipeline& p, const std::vector<std::string>& shaders, const std::string& defines, PipelineInfo info)
     {
-        // Opaque, alpha-masked, two-sided, alpha-masked two-sided (MeshPool::pipelineClassIndex)
-        const bool twoSided = c >= 2;
-        PipelineInfo info;
-        info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
-        info.rasterizationState.cullMode      = twoSided ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
         info.addVertexBinding(0, sizeof(MeshVertex), vk::VertexInputRate::eVertex,
                               {{0, 0, vk::Format::eR32G32B32Sfloat, uint32_t(offsetof(MeshVertex, position))},
                                {1, 0, vk::Format::eR32Uint, uint32_t(offsetof(MeshVertex, normal))},
                                {2, 0, vk::Format::eR32Uint, uint32_t(offsetof(MeshVertex, color))},
                                {3, 0, vk::Format::eR32G32Sfloat, uint32_t(offsetof(MeshVertex, uv))}});
-        Pipeline& p = drawPipelines[c];
-        p.init(*base, 1);
-        p.addDescriptorSetLayout(sceneLayout());
+        p.init(*base, 2);
+        p.addDescriptorSetLayout(sceneLayout(), 0);
+        p.addDescriptorSetLayout(lightingLayout(), 1);
         p.addPushConstantRange(
             {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(DrawPush)});
-        p.shaderPipeline.load(base->device, {"vulkan/scene/instance.vert", "vulkan/scene/flat.frag"});
-        p.create(formats, info);
+        std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string>> modules = {
+            {shaders[0], vk::ShaderStageFlagBits::eVertex, defines}};
+        if (shaders.size() > 1) modules.emplace_back(shaders[1], vk::ShaderStageFlagBits::eFragment, defines);
+        p.shaderPipeline.loadGLSL(base->device, modules);
+        return info;
+    };
+    RenderingFormats depthOnly = formats;
+    depthOnly.color.clear();
+    const std::vector<std::string> flatShaders = {"vulkan/scene/instance.vert", "vulkan/scene/flat.frag"};
+    for (int fog = 0; fog < 2; ++fog)
+    {
+        const std::string defines = fog ? "#define SCENE_FOG\n" : "";
+        for (int c = 0; c < pipelineClassCount; ++c)
+        {
+            // Opaque, alpha-masked, two-sided, alpha-masked two-sided, prototype foliage (MeshPool::pipelineClassIndex)
+            const bool foliage  = c == int(PipelineClass::PrototypeFoliage) - 1;
+            const bool twoSided = c >= 2;
+            PipelineInfo info;
+            info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
+            info.rasterizationState.cullMode = twoSided ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
+            // The leaf cards: alpha to coverage (with MSAA); the opaque parts write alpha 1
+            if (foliage) info.multisampleState.alphaToCoverageEnable = VK_TRUE;
+            const std::vector<std::string> shaders =
+                foliage ? std::vector<std::string>{"vulkan/scene/prototype_foliage.vert",
+                                                   "vulkan/scene/prototype_foliage.frag"}
+                        : flatShaders;
+            Pipeline& p = drawPipelines[fog][c];
+            info        = initDraw(p, shaders, foliage ? "" : defines, info);
+            p.create(formats, info);
+        }
+        // The opaque classes after the pre-pass: EQUAL, no depth write
+        for (int k = 0; k < 2; ++k)
+        {
+            PipelineInfo info;
+            info.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
+            info.depthStencilState.depthWriteEnable = VK_FALSE;
+            info.rasterizationState.cullMode = k == 1 ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
+            info                             = initDraw(equalPipelines[fog][k], flatShaders, defines, info);
+            equalPipelines[fog][k].create(formats, info);
+        }
+    }
+    // The opaque classes in the pre-pass: depth only, the vertex shader alone (invariant gl_Position: the same depth
+    // as either variant's)
+    for (int k = 0; k < 2; ++k)
+    {
+        PipelineInfo info;
+        info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
+        info.rasterizationState.cullMode      = k == 1 ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
+        info                                  = initDraw(prepassPipelines[k], {"vulkan/scene/instance.vert"}, "", info);
+        prepassPipelines[k].create(depthOnly, info);
     }
 
     // The sets are compatible with every pipeline's layout (identically defined set layouts)
-    for (Frame& f : frames) f.set = countPipeline.createRawDescriptorSet();
+    for (Frame& f : frames)
+    {
+        f.set         = countPipeline.createRawDescriptorSet();
+        f.lightingSet = drawPipelines[0][0].createRawDescriptorSet(1);
+    }
 }
 
 void SceneCulling::destroy()
@@ -192,9 +255,21 @@ void SceneCulling::destroy()
     countPipeline.destroy();
     scanPipeline.destroy();
     writePipeline.destroy();
-    for (auto& p : drawPipelines) p.destroy();
+    for (auto& v : drawPipelines)
+        for (auto& p : v) p.destroy();
+    for (auto& p : prepassPipelines) p.destroy();
+    for (auto& v : equalPipelines)
+        for (auto& p : v) p.destroy();
     for (Frame& f : frames)
     {
+        f.lighting.destroy();
+        if (f.lightingSet)
+        {
+            auto* pool = &base->descriptorPool;
+            auto set   = f.lightingSet;
+            base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+            f.lightingSet = nullptr;
+        }
         f.offsets.destroy();
         f.chunks.destroy();
         f.dynamics.destroy();
@@ -246,9 +321,30 @@ void SceneCulling::ensureDevice(Buffer& b, size_t bytes, vk::BufferUsageFlags us
 }
 
 void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes,
-                                  InstanceBuffer& instances, const SceneCamera& camera)
+                                  InstanceBuffer& instances, const SceneCamera& camera, const SceneLighting& lighting)
 {
     Frame& f = frames[frameIndex];
+
+    // 0. The lighting block and the foliage texture of the draws (the slot's previous frame has completed)
+    if (!f.lighting)
+        f.lighting.createBuffer(*base, sizeof(SceneLighting), vk::BufferUsageFlagBits::eUniformBuffer,
+                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    std::memcpy(f.lighting.getMappedPointer(), &lighting, sizeof(SceneLighting));
+    f.fog = lighting.fog(2) > 0.5f;
+    {
+        vk::DescriptorBufferInfo info(handle(f.lighting), 0, sizeof(SceneLighting));
+        std::vector<vk::WriteDescriptorSet> writes = {
+            vk::WriteDescriptorSet(f.lightingSet, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &info)};
+        // Binding 1 only with the texture: no pipeline without the foliage class's draws uses it
+        vk::DescriptorImageInfo image;
+        if (foliageTexture)
+        {
+            image = foliageTexture->getDescriptorInfo();
+            writes.push_back(
+                vk::WriteDescriptorSet(f.lightingSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &image));
+        }
+        base->device.updateDescriptorSets(writes, nullptr);
+    }
 
     // 1. Growth copies, made visible to the uploads that follow (an updated range of a moved set)
     bool copied = meshes.recordGrowth(cmd);
@@ -461,48 +557,66 @@ void SceneCulling::recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPo
                   Access::eIndirectCommandRead | Access::eShaderStorageRead | Access::eHostRead);
 }
 
-uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera)
+uint32_t SceneCulling::drawClass(vk::CommandBuffer cmd, Frame& f, int klass, Pipeline& p, const SceneCamera& camera)
 {
-    Frame& f = frames[frameIndex];
-    if (!f.culled) return 0;
-    uint32_t calls = 0;
+    const auto range = f.ranges[klass];
+    if (range.count == 0) return 0;
+    if (!p.bind(cmd)) return 0;
     DrawPush push;
     push.viewProj    = camera.viewProj;
     push.alpha       = camera.alpha;
     push.preExposure = camera.preExposure;
     push.linear      = camera.linear ? 1 : 0;
     push.pad         = 0;
+    p.bindRawDescriptorSet(cmd, f.set, 0);
+    p.bindRawDescriptorSet(cmd, f.lightingSet, 1);
+    p.pushConstant(cmd, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(push), &push);
+    cmd.bindVertexBuffers(0, f.vertices, vk::DeviceSize(0));
+    cmd.bindIndexBuffer(f.indices, 0, vk::IndexType::eUint32);
     // The snapshot of recordTransfer (the layout of the uploaded commands), not the mesh pool's current state
     const vk::Buffer commandBuffer = f.commands;
+    uint32_t calls                 = 0;
+    if (multiDraw)
+    {
+        for (uint32_t first = 0; first < range.count; first += maxDrawIndirectCount)
+        {
+            const uint32_t n = std::min(maxDrawIndirectCount, range.count - first);
+            cmd.drawIndexedIndirect(commandBuffer, vk::DeviceSize(range.first + first) * commandStride, n,
+                                    commandStride);
+            calls++;
+        }
+    }
+    else
+    {
+        for (uint32_t b = 0; b < range.count; ++b)
+        {
+            cmd.drawIndexedIndirect(commandBuffer, vk::DeviceSize(range.first + b) * commandStride, 1, commandStride);
+            calls++;
+        }
+    }
+    return calls;
+}
+
+uint32_t SceneCulling::recordPrepass(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera)
+{
+    Frame& f = frames[frameIndex];
+    if (!f.culled) return 0;
+    // The opaque classes: opaque (index 0) and two-sided (index 2)
+    return drawClass(cmd, f, 0, prepassPipelines[0], camera) + drawClass(cmd, f, 2, prepassPipelines[1], camera);
+}
+
+uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass)
+{
+    Frame& f = frames[frameIndex];
+    if (!f.culled) return 0;
+    uint32_t calls = 0;
+    const int v    = f.fog ? 1 : 0;
     for (int c = 0; c < pipelineClassCount; ++c)
     {
-        const auto range = f.ranges[c];
-        if (range.count == 0) continue;
-        Pipeline& p = drawPipelines[c];
-        if (!p.bind(cmd)) continue;
-        p.bindRawDescriptorSet(cmd, f.set);
-        p.pushConstant(cmd, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(push), &push);
-        cmd.bindVertexBuffers(0, f.vertices, vk::DeviceSize(0));
-        cmd.bindIndexBuffer(f.indices, 0, vk::IndexType::eUint32);
-        if (multiDraw)
-        {
-            for (uint32_t first = 0; first < range.count; first += maxDrawIndirectCount)
-            {
-                const uint32_t n = std::min(maxDrawIndirectCount, range.count - first);
-                cmd.drawIndexedIndirect(commandBuffer, vk::DeviceSize(range.first + first) * commandStride, n,
-                                        commandStride);
-                calls++;
-            }
-        }
-        else
-        {
-            for (uint32_t b = 0; b < range.count; ++b)
-            {
-                cmd.drawIndexedIndirect(commandBuffer, vk::DeviceSize(range.first + b) * commandStride, 1,
-                                        commandStride);
-                calls++;
-            }
-        }
+        Pipeline* p = &drawPipelines[v][c];
+        if (prepass && c == 0) p = &equalPipelines[v][0];
+        if (prepass && c == 2) p = &equalPipelines[v][1];
+        calls += drawClass(cmd, f, c, *p, camera);
     }
     return calls;
 }

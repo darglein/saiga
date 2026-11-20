@@ -8,9 +8,8 @@
 
 #include "saiga/core/util/json11.hpp"
 #include "saiga/vulkan/world/HeightField.h"
-#include "saiga/vulkan/world/WorldRenderer.h"
 
-#include <array>
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -21,17 +20,16 @@ namespace Vulkan
 {
 /**
  * Benchmarks of the world prototype (docs/engine_design.md §17.7): a fixed camera path over warmupFrames +
- * measuredFrames frames; the unsmoothed frame intervals, CPU work times and GPU pass times of the measured frames are
- * summarized as median and p95.
+ * measuredFrames frames; the unsmoothed frame intervals, CPU work times and GPU times of the measured frames are
+ * summarized as median and p95. S19a: fed by the game (samples/games/world/main.cpp) with its own samples (no engine
+ * Profiler in saiga_vulkan): the frames are RenderScene's frame numbers (frames() + 1 is the frame being recorded).
  *
  * Usage (game_world --benchmark <name>):
- *   WorldBenchmark bench(name, world, gpuName);
- *   per frame, before world.transfer(): pose = bench.currentPose(); set the camera; world.transfer(...);
- *   if (bench.finished()) { json = bench.result(); WorldBenchmark::writeResult("benchmark_" + name + ".json", json);
- *   quit; }
- * The sample ignores SAIGA_SCREENSHOT in benchmark mode (the automatic screenshot would close the window at frame 60).
- *
- * Moves to engine/app/ in S13.
+ *   WorldBenchmark bench(name, heightField, gpuName);
+ *   per frame before recording frame f: pose = bench.currentPose(f); set the camera;
+ *   bench.addSample({f - 1, interval, work, {}});   // the CPU times of the previous frame
+ *   bench.addSample({g, -1, -1, gpuMs});            // the GPU times of a completed frame g (S03 keys, gpuKeys())
+ *   if (bench.finished()) { json = bench.result(); WorldBenchmark::writeResult("benchmark_" + name + ".json", json); }
  */
 class SAIGA_VULKAN_API WorldBenchmark
 {
@@ -48,10 +46,25 @@ class SAIGA_VULKAN_API WorldBenchmark
     {
         double median = 0, p95 = 0;
     };
+    // One frame's times (each part optional)
+    struct Sample
+    {
+        uint64_t frame = 0;  // RenderScene's frame number (1, 2, ...)
+        // The frame interval (ms) from this frame's renderFrame to the next one's (the S03 cpu_ms; -1: none)
+        double intervalMs = -1;
+        // The CPU work of the frame (ms): the app's frame/render/recording (-1: none); not comparable with the S03
+        // value (the world renderer's transfer() + render())
+        double workMs = -1;
+        // The GPU times (ms) by the S03 keys of gpuKeys() (empty: no GPU part)
+        std::map<std::string, double> sectionMs;
+    };
 
     // The known benchmarks: "flyover", "forest"
     static const std::vector<std::string>& names();
     static bool known(const std::string& name);
+    // The S03 keys of gpu_ms: "upload + cull", "terrain + water", "trees", "grass", "sky" (from RenderScene's
+    // sections: transfer + cull, depth.terrain + scene.terrain, scene.instances, scene.grass, scene.sky)
+    static const std::vector<std::string>& gpuKeys();
 
     /**
      * The camera of measured frame i (0 <= i < measuredFrames; warm-up frames use i = 0):
@@ -68,31 +81,32 @@ class SAIGA_VULKAN_API WorldBenchmark
     // chain recreation, another program). A run with a stalled frame is not comparable.
     static int countStalls(const std::vector<double>& intervalsMs);
 
-    // Registers a frame callback at the world. The callback only uses the shared sample state (never this object); it
-    // removes itself when the benchmark is finished or the benchmark object was destroyed.
-    WorldBenchmark(const std::string& name, WorldRenderer& world, const std::string& gpuName);
+    // The height field must outlive the benchmark
+    WorldBenchmark(const std::string& name, const HeightField& heightField, const std::string& gpuName);
     WorldBenchmark(const WorldBenchmark&)            = delete;
     WorldBenchmark& operator=(const WorldBenchmark&) = delete;
 
-    // The camera of the frame that the next world.transfer() prepares.
-    Pose currentPose() const;
+    // The camera of RenderScene frame `frame` (warm-up frames 1..warmupFrames, then the measured frames)
+    Pose currentPose(uint64_t frame) const;
+    // The frame is a measured frame (not warm-up)
+    bool measuring(uint64_t frame) const;
 
-    // Adds the times of one frame (called by the frame callback; public for tests). Samples outside of the measured
-    // frames are ignored.
-    void addSample(const WorldRenderer::FrameTimes& times);
+    // Adds the times of one frame. Samples outside of the measured frames are ignored, as are parts of frames older
+    // than the newest one given (each part is delivered once, in frame order).
+    void addSample(const Sample& sample);
 
-    // All measured CPU samples are in, and the GPU samples of the last measured frame (or a few frames more).
+    // All measured CPU samples are in, and the GPU samples of the last measured frame (or the CPU samples of a few
+    // frames more).
     bool finished() const;
 
     /**
      * {gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height, cpu_ms: {median, p95},
-     * cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}. cpu_ms is the frame interval
-     * (FrameTimes::cpuMs), stalled_frames the number of measured frames whose interval is a stall (countStalls),
-     * cpu_work_ms the CPU time of transfer() + render(). gpu_ms is null if no GPU times were measured (no timestamp
-     * support).
+     * cpu_work_ms: {median, p95}, gpu_ms: {<S03 key>: {median, p95}}, stalled_frames}. cpu_ms is the frame interval,
+     * stalled_frames the number of measured frames whose interval is a stall (countStalls), cpu_work_ms the app's
+     * recording and submit (S19a). gpu_ms is null if no GPU times were measured (no timestamp support).
      * game_world adds step and recording (the engine's step and command recording times) and gpu_frame_ms: {gpu,
-     * transfer, cull, scene, resolve, post, imgui: {median, p95}} (the app's gpu profile: the whole GPU frame and
-     * RenderScene's sections of the measured frames, S17; cull from S18).
+     * <section>: {median, p95}} (the app's gpu profile: the whole GPU frame and RenderScene's sections and
+     * sub-sections of the measured frames, S17-S19a).
      */
     json11::Json result() const;
     // Writes a result (computed once by result()) to the file. Returns false if it could not be written.
@@ -100,24 +114,16 @@ class SAIGA_VULKAN_API WorldBenchmark
     // The build of saiga: {type, asserts, archnative} (also used by sample_vulkan_scene_benchmark)
     static json11::Json buildInfo();
 
-    // The frame that the next world.transfer() prepares is a measured frame (not warm-up).
-    bool measuring() const;
-
     // The size of the rendered images (the swap chain extent of the measured frames), set by the caller
     int width = 0, height = 0;
 
    private:
-    struct State
-    {
-        std::vector<double> cpuMs, cpuWorkMs;
-        std::array<std::vector<double>, WorldRenderer::PASS_COUNT> gpuPassMs;
-        int lastCpuFrame = 0, lastGpuFrame = 0;
-        void add(const WorldRenderer::FrameTimes& times);
-        bool finished() const;
-    };
     std::string name, gpuName;
-    WorldRenderer* world;
-    std::shared_ptr<State> state;
+    const HeightField* hf;
+    std::vector<double> cpuMs, cpuWorkMs;
+    std::map<std::string, std::vector<double>> gpuMs;
+    int gpuFrames         = 0;
+    uint64_t lastCpuFrame = 0, lastGpuFrame = 0;
 };
 
 }  // namespace Vulkan
