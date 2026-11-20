@@ -662,6 +662,7 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
 TEST_F(EngineAppRender, ScreenshotOption)
 {
     TempDirectory dir;
+    ASSERT_FALSE(dir.path.empty());  // never write into the working directory
     AppOptions o;
     o.screenshot      = (dir.path / "shot.png").string();
     o.screenshotFrame = 3;
