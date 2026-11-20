@@ -814,12 +814,22 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     info.logEnd    = w.log.appendedTotal();
     info.fromStep  = fromStep;
     info.toStep    = w.steps;
-    // The listeners' sends go out together when they ran
+    // The listeners' sends go out together when they ran (flushed by end() on the normal path, where an exception
+    // propagates; the destructor never flushes, it only leaves the batch while unwinding)
     struct SendBatch
     {
         World& w;
+        bool ended = false;
         explicit SendBatch(World& world) : w(world) { w.beginSendBatch(); }
-        ~SendBatch() { w.endSendBatch(); }
+        void end()
+        {
+            ended = true;
+            w.endSendBatch();
+        }
+        ~SendBatch()
+        {
+            if (!ended) w.sendBatchDepth--;
+        }
     } batch(w);
     // A copy: a listener may add or remove listeners
     auto listeners = w.loadListeners;
@@ -843,6 +853,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
             result.listenerErrors.push_back("a load listener threw");
         }
     }
+    batch.end();
     return result;
 }
 

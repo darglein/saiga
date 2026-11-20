@@ -274,6 +274,30 @@ TEST(Loopback, ReliableProgressForAnyBudget)
     }
 }
 
+// Regression (CodeRabbit, S15): a stream of reliable Control packets that used the whole reliable bucket every round
+// starved a fragmented ChunkData packet forever (the 1200-byte fragment never fit); the channel whose turn it is now
+// keeps it until its unit fits
+TEST(Loopback, ControlTrafficDoesNotStarveAFragmentedChunk)
+{
+    LoopbackOptions o;
+    o.bytesPerRound = 400;
+    auto net        = LoopbackTransport::createNetwork(2, o);
+    net[0]->send(1, Channel::ChunkData, bytes(20000), Reliability::Reliable);
+    bool chunk = false;
+    int rounds = 0, controls = 0;
+    for (; rounds < 2000 && !chunk; ++rounds)
+    {
+        net[0]->send(1, Channel::Control, bytes(400), Reliability::Reliable);
+        for (const auto& e : packets(round(*net[1])))
+        {
+            if (e.channel == Channel::ChunkData) chunk = true;
+            if (e.channel == Channel::Control) controls++;
+        }
+    }
+    EXPECT_TRUE(chunk) << rounds;
+    EXPECT_GT(controls, rounds / 8) << rounds;  // Control keeps its turns
+}
+
 // A peer that goes away before the other end's first poll is still announced first (no Disconnected without Connected)
 TEST(Loopback, ConnectedBeforeDisconnected)
 {

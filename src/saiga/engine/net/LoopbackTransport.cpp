@@ -181,40 +181,48 @@ struct LoopbackTransport::Hub
                 else
                     e.stats.droppedBandwidth++;
             }
-            // Reliable data round-robin between the channels, fragment by fragment, while its bucket covers it
-            bool progress = true;
-            while (progress && l.connected)
+            // Reliable data round-robin between the channels, one unit (packet or fragment) per turn, while its
+            // bucket covers it. The channel whose turn it is keeps it until its unit fits: a stream of small packets on
+            // another channel cannot starve a large fragment (the bucket is capped at >= kMaxPacket, so it fits)
+            while (l.connected)
             {
-                progress = false;
-                for (size_t k = 0; k < kChannelCount && l.connected; ++k)
+                size_t c = kChannelCount;
+                for (size_t k = 0; k < kChannelCount; ++k)
                 {
-                    const size_t c = (l.nextChannel + k) % kChannelCount;
-                    auto& q        = l.reliable[c];
-                    if (q.empty() || q.front().visibleRound > e.round ||
-                        !fits(l.budgetReliable, q.front().bytes.size()))
-                        continue;
-                    Unit u = std::move(q.front());
-                    q.pop_front();
-                    if (!unlimited) l.budgetReliable -= double(u.bytes.size());
-                    progress = true;
-                    if (!u.fragment)
+                    const size_t x = (l.nextChannel + k) % kChannelCount;
+                    if (!l.reliable[x].empty() && l.reliable[x].front().visibleRound <= e.round)
                     {
-                        deliver(r, uint8_t(from), u.channel, std::move(u.bytes));
-                        continue;
-                    }
-                    e.stats.fragmentsIn++;
-                    std::vector<uint8_t> packet;
-                    std::string error;
-                    const auto result = l.reassembler[c].add(u.bytes, packet, error);
-                    if (result == Reassembler::Result::Complete)
-                        deliver(r, uint8_t(from), u.channel, std::move(packet));
-                    else if (result == Reassembler::Result::Error)
-                    {
-                        e.stats.rejectedInput++;
-                        breakLink(from, r);
+                        c = x;
+                        break;
                     }
                 }
-                l.nextChannel = (l.nextChannel + 1) % kChannelCount;
+                if (c == kChannelCount) break;
+                auto& q = l.reliable[c];
+                if (!fits(l.budgetReliable, q.front().bytes.size()))
+                {
+                    l.nextChannel = c;
+                    break;
+                }
+                Unit u = std::move(q.front());
+                q.pop_front();
+                if (!unlimited) l.budgetReliable -= double(u.bytes.size());
+                l.nextChannel = (c + 1) % kChannelCount;
+                if (!u.fragment)
+                {
+                    deliver(r, uint8_t(from), u.channel, std::move(u.bytes));
+                    continue;
+                }
+                e.stats.fragmentsIn++;
+                std::vector<uint8_t> packet;
+                std::string error;
+                const auto result = l.reassembler[c].add(u.bytes, packet, error);
+                if (result == Reassembler::Result::Complete)
+                    deliver(r, uint8_t(from), u.channel, std::move(packet));
+                else if (result == Reassembler::Result::Error)
+                {
+                    e.stats.rejectedInput++;
+                    breakLink(from, r);
+                }
             }
             // A sender that went away: Disconnected after its earlier packets
             bool empty = l.unreliable.empty();
@@ -277,8 +285,20 @@ LoopbackTransport::~LoopbackTransport()
             kv.second.disconnectVisible =
                 hub->ends[size_t(kv.first.second)].round + 1 + uint64_t(std::max(0, hub->options.delayRounds));
         }
-        if (kv.first.second == peer) kv.second.connected = false;
+        if (kv.first.second == peer)
+        {
+            // Its receive side is released (the outgoing queues stay: the others still receive them)
+            Link& in      = kv.second;
+            in.connected  = false;
+            in.unreliable = {};
+            for (auto& q : in.reliable) q = {};
+            for (auto& ra : in.reassembler) ra = Reassembler{};
+        }
     }
+    Endpoint& self = hub->ends[peer];
+    self.ready     = {};
+    self.pendingDisconnects.clear();
+    self.pendingDisconnects.shrink_to_fit();
 }
 
 void LoopbackTransport::send(uint8_t to, Channel channel, const std::vector<uint8_t>& packet, Reliability reliability)
