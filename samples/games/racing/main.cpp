@@ -23,7 +23,7 @@ using namespace Saiga::Game;
 
 int main(int argc, char** argv)
 {
-    auto context = RacingContext::create(worldTreeCount());
+    auto context = RacingContext::create();
     RacingRender renderer(context);
 
     EngineAppSetup setup;

@@ -52,6 +52,7 @@ class PlatformerRender
     double pendingLanding = 0;
     double renderYaw      = 0;
     int levelMesh = -1, flagMesh = -1;
+    int stepListener = -1, loadListener = -1;
     std::array<int, JointCount> partMesh;
 };
 

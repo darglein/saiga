@@ -614,11 +614,12 @@ struct WorldSetup
     void (*collisionAssets)(CollisionAssetList&) = nullptr;     // [planned: S28] named collision meshes and shapes
     // S13b: constant configuration that is not a data file (a level, a track, a height field), built once per process
     // before the worlds and shared by every world of the setup (scenario runs too); read in configure() and systems
-    template <class T> void setContext(std::shared_ptr<const T> context);
+    template <class T> void setContext(std::shared_ptr<const T> context);   // also shared_ptr<T> (stored as const)
 };
 explicit World::World(const WorldSetup& setup);   // registers engine then game lists, loads the data files
-template <class T> const T& World::context() const;   // S13b: asserts on a missing context or another type; the
-                                                  // context is not saved and never changes after a world exists
+template <class T> const T& World::context() const;   // S13b: a missing context or another type stops the program in
+                                                  // every build; the context is not saved and never changes after a
+                                                  // world exists
 
 template <class T> void Registry::registerComponent(Replicate mode = Replicate::Never, Saved saved = Saved::Yes);  // S07
                                                   // Saved::No: not saved, rebuilt after loading (RenderPose)

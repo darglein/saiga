@@ -89,6 +89,12 @@ struct WorldSetup
         context     = std::move(c);
         contextType = context ? &typeid(T) : nullptr;
     }
+    // A non-const pointer (std::make_shared<Level>()): stored as const
+    template <class T>
+    void setContext(std::shared_ptr<T> c)
+    {
+        setContext(std::shared_ptr<const T>(std::move(c)));
+    }
     std::shared_ptr<const void> context;
     const std::type_info* contextType = nullptr;
 };
@@ -251,13 +257,14 @@ class SAIGA_ENGINE_API World
     // The world's random stream (PCG32 seeded from WorldSetup::seed; part of the hash and saves). Not in parallelEach.
     Rng& random();
     double dt() const { return stepDt; }
-    // The setup's context (WorldSetup::setContext); asserts on a missing context or another type
+    // The setup's context (WorldSetup::setContext); a missing context or another type stops the program in every build
+    // (the cast would read another type)
     template <class T>
     const T& context() const
     {
-        SAIGA_ASSERT(
-            contextPtr && contextType && *contextType == typeid(T),
-            std::string("World::context: no context of type ") + typeid(T).name() + " (WorldSetup::setContext)");
+        if (!contextPtr || !contextType || *contextType != typeid(T))
+            SAIGA_EXIT_ERROR(std::string("World::context: no context of type ") + typeid(T).name() +
+                             " (WorldSetup::setContext)");
         return *static_cast<const T*>(contextPtr.get());
     }
     bool hasContext() const { return contextPtr != nullptr; }

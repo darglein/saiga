@@ -1491,8 +1491,19 @@ TEST(World, ContextIsSharedByTheWorldsOfASetup)
     EXPECT_FALSE(none.hasContext());
 }
 
-#ifdef SAIGA_ASSERTS
-TEST(WorldDeathTest, ContextOfAnotherType)
+// A non-const shared_ptr is accepted (stored as const)
+TEST(World, ContextFromANonConstPointer)
+{
+    WorldSetup s = testSetup();
+    auto level   = std::make_shared<LevelContext>();
+    s.setContext(level);
+    World w(s);
+    EXPECT_EQ(&w.context<LevelContext>(), level.get());
+}
+
+// Without the SAIGA_ASSERTS guard: a missing context or another type stops the program in every build (the cast would
+// read another type)
+TEST(WorldDeathTest, ContextOfAnotherTypeStopsInEveryBuild)
 {
     WorldSetup s = testSetup();
     s.setContext(std::make_shared<const LevelContext>());
@@ -1501,4 +1512,3 @@ TEST(WorldDeathTest, ContextOfAnotherType)
     World none(testSetup());
     EXPECT_DEATH(none.context<LevelContext>(), "no context of type");
 }
-#endif

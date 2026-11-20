@@ -35,9 +35,11 @@ namespace Game
 
 struct RacingContext
 {
+    // The trees the track's site search avoids: a constant, so the site (and the scenarios' numbers) does not depend on
+    // the renderer's tree count (SAIGA_WORLD_TREES); the default world's trees, WorldParameters::seed 1
+    static constexpr int kSiteTreeCount = 200000;
     Vulkan::HeightField heightField;
     Track track;
-    int treeCount = 0;  // the trees the track avoids (the renderer must use the same count and seed)
     double terrain(double x, double z) const { return heightField.height(float(x), float(z)); }
     // The car's ground: the lifted asphalt on the track, the terrain elsewhere (hint: as Track::surfaceOffset)
     double carGround(double x, double z, double& hint) const
@@ -45,7 +47,7 @@ struct RacingContext
         return terrain(x, z) + track.surfaceOffset(Vec3(x, 0, z), hint);
     }
     // Generates the height field, places the trees and the track (on gentle land with few trees; the time is printed)
-    static std::shared_ptr<const RacingContext> create(int treeCount);
+    static std::shared_ptr<const RacingContext> create();
 };
 
 // The car's state besides its pose (R-STATE-1)

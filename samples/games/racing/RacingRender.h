@@ -56,6 +56,9 @@ class RacingRender
     // The wheels of the followed car after the last two steps (a step listener) and interpolated
     Wheels previousWheels, currentWheels, renderWheels;
     int bodyMesh = -1, wheelMesh = -1, trackMeshId = -1, coneMesh = -1, bannerMesh = -1;
+    int stepListener = -1, loadListener = -1;
+    // Both wheel sets from the followed car's VehicleState (a new car, a load)
+    void reseedWheels();
 };
 
 }  // namespace Game

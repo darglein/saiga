@@ -62,8 +62,15 @@ void PlatformerRender::init(EngineApp& _app)
     camera.targetHeight = 1.3;
     camera.stiffness    = 6;
     pose.attach(app->world());
+    // A load starts the animation over (no landing or blend from the state before)
+    loadListener = app->world().addLoadListener(
+        [this](const LoadInfo&)
+        {
+            pendingLanding = 0;
+            animator       = CharacterAnimator();
+        });
     // Landings for the animation (the step that landed sets landingSpeed)
-    app->world().addStepListener(
+    stepListener = app->world().addStepListener(
         [this]()
         {
             World& w       = app->world();
@@ -76,6 +83,9 @@ void PlatformerRender::init(EngineApp& _app)
 
 void PlatformerRender::shutdown()
 {
+    pose.detach();
+    app->world().removeStepListener(stepListener);
+    app->world().removeLoadListener(loadListener);
     meshes.destroy();
 }
 
@@ -152,8 +162,10 @@ void PlatformerRender::render(vk::CommandBuffer cmd)
 
 void PlatformerRender::gui()
 {
+    // The GUI runs before transfer() in a frame: follow here too (the first frame's window had no fields)
+    pose.follow(focus());
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Platformer");
+    ImGui::Begin("Platformer", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("WASD move, shift walk, space jump, Q/E camera, R restart, G GUI");
     World& w       = app->world();
     const Entity e = pose.followed();

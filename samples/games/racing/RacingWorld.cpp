@@ -22,17 +22,17 @@ namespace Game
 {
 using namespace Engine;
 
-std::shared_ptr<const RacingContext> RacingContext::create(int treeCount)
+std::shared_ptr<const RacingContext> RacingContext::create()
 {
     auto c        = std::make_shared<RacingContext>();
     const auto t0 = std::chrono::steady_clock::now();
-    c->treeCount  = treeCount;
     c->heightField.generate(Vulkan::HeightField::Parameters());
     const Vulkan::HeightField& hf = c->heightField;
 
     // A site on gentle land with few trees on the track (the prototype's trees cannot be removed): the trees of the
     // world prototype (WorldParameters::seed 1) per 16 m cell
-    const auto trees  = Vulkan::ForestRenderer::placeTrees(hf, treeCount, 1, Vulkan::FoliageGenerator::treeSpecies(1));
+    const auto trees =
+        Vulkan::ForestRenderer::placeTrees(hf, kSiteTreeCount, 1, Vulkan::FoliageGenerator::treeSpecies(1));
     const double cell = 16;
     const int cells   = int(hf.worldSize() / cell) + 1;
     std::vector<int> perCell(size_t(cells) * cells, 0);
@@ -240,6 +240,9 @@ void racingScenarios(ScenarioList& list)
                  w.check(v.forwardSpeed() > 12, "accelerates: " + std::to_string(v.forwardSpeed()) + " m/s");
                  w.check(progress > 15 && progress < 40, "along the track: " + std::to_string(progress) + " m");
                  w.check(v.wheelsOnGround() == 4, "all wheels on the ground");
+                 // The track of the default world, independent of SAIGA_WORLD_TREES (the renderer's tree count)
+                 w.check(std::abs(track.length() - 1479.23) < 0.01,
+                         "the default track: " + std::to_string(track.length()) + " m");
              });
     // The behavior before the port to the engine (S13b): the AI's first lap takes 62.07 s
     list.add("ai_completes_a_lap",

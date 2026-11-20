@@ -24,8 +24,10 @@ void RacingRender::init(EngineApp& _app)
 {
     app = &_app;
     Vulkan::WorldParameters params;
-    params.treeCount = context->treeCount;
-    worldRenderer.init(app->scene()->forwardRenderer(), params, context->heightField);
+    // The renderer's trees may follow SAIGA_WORLD_TREES; the track's site does not (RacingContext::kSiteTreeCount)
+    params.treeCount = worldTreeCount();
+    worldRenderer.init(app->scene()->forwardRenderer(), params,
+                       std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
     // Grass would grow through the track
     worldRenderer.settings.grass = false;
     meshes.init(app->scene()->forwardRenderer());
@@ -57,7 +59,9 @@ void RacingRender::init(EngineApp& _app)
     camera.stiffness         = 6;
     camera.ground            = [ctx](double x, double z) { return ctx->terrain(x, z); };
     pose.attach(app->world());
-    app->world().addStepListener(
+    // A load (load_snapshot, also paused) replaces the wheels: no interpolation from the state before
+    loadListener = app->world().addLoadListener([this](const LoadInfo&) { reseedWheels(); });
+    stepListener = app->world().addStepListener(
         [this]()
         {
             World& w       = app->world();
@@ -70,8 +74,20 @@ void RacingRender::init(EngineApp& _app)
         });
 }
 
+void RacingRender::reseedWheels()
+{
+    World& w       = app->world();
+    const Entity e = pose.followed();
+    if (!w.alive(e) || !w.has<VehicleState>(e)) return;
+    const VehicleState& s = w.read<VehicleState>(e);
+    currentWheels = previousWheels = Wheels{s.compression, s.spin, s.steerAngle};
+}
+
 void RacingRender::shutdown()
 {
+    pose.detach();
+    app->world().removeStepListener(stepListener);
+    app->world().removeLoadListener(loadListener);
     meshes.destroy();
     worldRenderer.destroy();
 }
@@ -133,12 +149,11 @@ void RacingRender::transfer(vk::CommandBuffer cmd)
     const float aspect   = float(size(0)) / float(std::max(1, size(1)));
     World& w             = app->world();
     const Entity e       = focus();
-    if (e != pose.followed() && w.alive(e))
+    if (e != pose.followed())
     {
-        const VehicleState& s = w.read<VehicleState>(e);
-        currentWheels = previousWheels = Wheels{s.compression, s.spin, s.steerAngle};
+        pose.follow(e);
+        reseedWheels();
     }
-    pose.follow(e);
     hasPose = pose.interpolated(w.alpha(), renderPose);
     if (pose.takeTeleport())
     {
@@ -208,8 +223,15 @@ void RacingRender::render(vk::CommandBuffer cmd)
 void RacingRender::gui()
 {
     worldRenderer.imgui();
+    // The GUI runs before transfer() in a frame: follow here too (the first frame's window had no fields)
+    const Entity followed = focus();
+    if (followed != pose.followed())
+    {
+        pose.follow(followed);
+        reseedWheels();
+    }
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 170), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Racing");
+    ImGui::Begin("Racing", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, G GUI");
     World& w       = app->world();
     const Entity e = pose.followed();

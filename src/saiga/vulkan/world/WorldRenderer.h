@@ -17,6 +17,7 @@
 #include <chrono>
 #include <deque>
 #include <functional>
+#include <memory>
 
 namespace Saiga
 {
@@ -103,8 +104,9 @@ class SAIGA_VULKAN_API WorldRenderer
 
     void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters);
     // With a height field generated elsewhere (e.g. once for the game's simulation and its render state; S13b): it is
-    // copied, parameters.terrain is ignored
-    void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters, const HeightField& heightField);
+    // shared, not copied; parameters.terrain is ignored
+    void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+              std::shared_ptr<const HeightField> heightField);
     void destroy();
 
     // Records the uploads and the GPU culling (outside of the rendering pass).
@@ -120,7 +122,9 @@ class SAIGA_VULKAN_API WorldRenderer
 
     WorldSettings settings;
 
-    const HeightField& heightField() const { return hf; }
+    const HeightField& heightField() const;
+    // The height field (shared with the caller of the external init)
+    const std::shared_ptr<const HeightField>& sharedHeightField() const { return hf; }
     const WorldParameters& parameters() const { return params; }
     TerrainRenderer& terrain() { return terrainRenderer; }
     ForestRenderer& forest() { return forestRenderer; }
@@ -210,8 +214,9 @@ class SAIGA_VULKAN_API WorldRenderer
     VulkanForwardRenderer* renderer = nullptr;
     VulkanBase* base                = nullptr;
     WorldParameters params;
-    void initWith(VulkanForwardRenderer& renderer, const WorldParameters& parameters, const HeightField* external);
-    HeightField hf;
+    void initWith(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+                  std::shared_ptr<const HeightField> external);
+    std::shared_ptr<const HeightField> hf;
 
     UniformBuffer uniformBuffer;
     WorldUniforms uniforms;

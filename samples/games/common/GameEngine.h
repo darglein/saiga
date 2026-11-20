@@ -72,14 +72,22 @@ class PoseHistory
 
     void attach(World& world)
     {
-        w = &world;
-        w->addStepListener(
+        w            = &world;
+        stepListener = w->addStepListener(
             [this]()
             {
                 record();
                 return true;
             });
-        w->addLoadListener([this](const auto&) { valid = false; });
+        loadListener = w->addLoadListener([this](const auto&) { valid = false; });
+    }
+    // Removes the listeners (before this object goes away while the world lives on)
+    void detach()
+    {
+        if (!w) return;
+        w->removeStepListener(stepListener);
+        w->removeLoadListener(loadListener);
+        w = nullptr;
     }
     // The entity to follow (a change starts a new history)
     void follow(Entity e)
@@ -128,7 +136,8 @@ class PoseHistory
         valid   = true;
     }
 
-    World* w = nullptr;
+    World* w         = nullptr;
+    int stepListener = -1, loadListener = -1;
     Entity entity;
     Pose previous, current;
     bool valid = false, teleported = false;

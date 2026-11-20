@@ -127,6 +127,16 @@ file.
   caches the wheels the same way, the platformer's landings come from a step listener.
 - The flight context holds only the height field (the trees are not needed for the flight); the racing context places
   the trees on the CPU (`ForestRenderer::placeTrees`) to find the same tree-poor site as before.
+- Review round 1: the racing track's site uses a fixed tree count (`RacingContext::kSiteTreeCount`; only the
+  renderer follows `SAIGA_WORLD_TREES`, which moved the track and failed the scenarios); `accelerates_on_track` checks
+  the default track's length. Flight and platformer have no tree dependence. The GUI windows follow the entity
+  themselves (they run before `transfer()`; the first frame's window had no fields and `imgui.ini` kept its size) and
+  resize to their content. A load reseeds the racing wheel caches and resets the platformer's animation and pending
+  landing. The render-side listeners are removed in `shutdown()` (`PoseHistory::detach`). `World::context` stops the
+  program in every build on a missing context or another type (a death test outside `SAIGA_ASSERTS`), and
+  `setContext` also takes a `shared_ptr<T>`. `WorldRenderer::init` takes a `shared_ptr<const HeightField>` and shares
+  it (it copied 67 MB; the games pass an aliasing pointer into their context), tested on lavapipe
+  (`VulkanWorldRender.SharesAnExternalHeightField`). The games build with Clang.
 
 ## Results
 
@@ -139,6 +149,8 @@ file.
   character on the goal platform (the window ran at 20 fps, so frame 60 is past the 7.25 s goal; headless at 60 Hz it
   shows the jump between the platforms), the car on the track behind the chase camera; `--headless` and `--no-render`
   run for all three.
-- `World::context` unit tests in `tests/test_engine_world.cpp`; 63 ctest tests (all pass except the known local
+- `--scenarios` also pass with `SAIGA_WORLD_TREES=20000` and in the Clang build.
+- `World::context` unit tests in `tests/test_engine_world.cpp`, the shared height field in `tests/test_vulkan_world.cpp`;
+  63 ctest tests (all pass except the known local
   `test_opengl_window` display check).
 

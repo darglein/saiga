@@ -24,7 +24,9 @@ void FlightRender::init(EngineApp& _app)
     app = &_app;
     Vulkan::WorldParameters params;
     params.treeCount = worldTreeCount();
-    worldRenderer.init(app->scene()->forwardRenderer(), params, context->heightField);
+    // The context's height field, shared (the aliasing pointer keeps the context alive)
+    worldRenderer.init(app->scene()->forwardRenderer(), params,
+                       std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
     meshes.init(app->scene()->forwardRenderer());
     planeMesh = meshes.addMesh(MeshBuilder::airplane());
 
@@ -39,6 +41,7 @@ void FlightRender::init(EngineApp& _app)
 
 void FlightRender::shutdown()
 {
+    pose.detach();
     meshes.destroy();
     worldRenderer.destroy();
 }
@@ -83,8 +86,10 @@ void FlightRender::render(vk::CommandBuffer cmd)
 void FlightRender::gui()
 {
     worldRenderer.imgui();
+    // The GUI runs before transfer() in a frame: follow here too (the first frame's window had no fields)
+    pose.follow(focus());
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 160), ImGuiCond_FirstUseEver);
-    ImGui::Begin("Flight");
+    ImGui::Begin("Flight", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("W/S pitch, A/D roll, Q/E yaw, shift/ctrl throttle, R respawn, G GUI");
     World& w       = app->world();
     const Entity e = pose.followed();

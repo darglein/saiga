@@ -104,7 +104,7 @@ void WorldRenderer::imguiStatistics()
     ImGui::Text("%.1f fps   frame %.2f ms   GPU (world) %.2f ms   %d draw calls", s.fps, s.cpuFrameMs, s.gpuMs,
                 s.drawCalls);
     ImGui::TextDisabled("%dx MSAA, reversed depth, %.1f km world, %d trees%s", int(renderer->sampleCount()),
-                        hf.worldSize() / 1000.0f, forestRenderer.treeCount(),
+                        hf->worldSize() / 1000.0f, forestRenderer.treeCount(),
                         settings.freezeCulling ? ", CULLING FROZEN" : "");
     ImGui::PushID("cpu");
     historyPlot("frame (CPU)", cpuHistory, historyIndex);
