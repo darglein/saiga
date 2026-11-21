@@ -67,8 +67,6 @@ struct SpaceGeneration
     uint64_t planHash = 0;
     bool hasTerrain   = false;
     bool openWorld    = true;
-    // S20's height hook of a template without a generator (until the hook field is removed)
-    TerrainHeightHook legacyHook = nullptr;
 };
 
 struct GenerationPlans
@@ -125,7 +123,7 @@ class SAIGA_ENGINE_API GenerationPipeline
     size_t spaceCount() const { return state.spaces.size(); }
     const SpaceGeneration& space(SpaceId space) const;
     std::shared_ptr<const SpaceGeneration> spacePtr(SpaceId space) const;
-    // E6: the space's generator has terrain (S20's hook until step 7)
+    // E6: the space's generator has terrain
     bool spaceHasTerrain(SpaceId space) const { return this->space(space).hasTerrain; }
     // Some template's generator is not legacyTerrain (GENR, GenerationState and the hash part; records come later)
     bool nonLegacy() const { return state.nonLegacy; }
@@ -133,7 +131,7 @@ class SAIGA_ENGINE_API GenerationPipeline
     // The composed height (height units) at integer metres; 0 for a space without terrain. Const, lock-free,
     // allocation-free (parallelEach, pool jobs)
     int32_t height(SpaceId space, int64_t x, int64_t z) const;
-    // S20's height source of the space (the pipeline's composed height, a hook, or empty without terrain)
+    // S20's height source of the space (the composed height; empty without terrain)
     TerrainHeightSource heightSource(SpaceId space) const;
 
     std::shared_ptr<const ChunkBase> chunkBase(ChunkId chunk) const;

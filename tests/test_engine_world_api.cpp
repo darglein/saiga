@@ -12,12 +12,14 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/saiga_buildconfig.h"
@@ -2044,10 +2046,13 @@ WorldSetup spacesApiSetup()
 {
     WorldSetup s = apiSetup();
     SpaceTemplate terrain;
-    terrain.name            = "hills";
-    terrain.sizeChunks      = 16;
-    terrain.seaLevel        = 2048;  // 2 m
-    terrain.prototypeHeight = [](uint64_t, int64_t x, int64_t) { return int32_t(x); };
+    terrain.name       = "hills";
+    terrain.sizeChunks = 16;
+    terrain.seaLevel   = 2048;  // 2 m
+    // The hook y = x as a HookGenerator (S23a)
+    terrain.generator = 1;
+    s.generators      = [](GeneratorList& l)
+    { l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); })); };
     s.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar", 4), terrain};
     return s;
 }

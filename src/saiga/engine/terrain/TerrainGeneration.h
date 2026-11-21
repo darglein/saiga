@@ -5,8 +5,8 @@
  */
 
 // TerrainGeneration (docs/engine_design.md §12.2; S20): the engine's terrain generation, thin wrappers over the pure
-// functions of vulkan/scene/TerrainTiles (D2). TerrainSystem builds each space's height source once with heightSource;
-// S23a replaces only heightSource by its pipeline source.
+// functions of vulkan/scene/TerrainTiles (D2). The height source of a space comes from the generation pipeline (S23a:
+// GenerationPipeline::heightSource).
 
 #pragma once
 
@@ -19,8 +19,6 @@ namespace Saiga
 {
 namespace Engine
 {
-// The space's height source: the prototype hook with the space seed (clamped, fromHook); empty without terrain
-SAIGA_ENGINE_API TerrainHeightSource heightSource(const SpaceTemplate& space, uint64_t seed);
 SAIGA_ENGINE_API Vulkan::TerrainTileData generateTile(const TerrainHeightSource& source,
                                                       const Vulkan::TerrainLayout& layout, const RegionId& region);
 SAIGA_ENGINE_API Vulkan::TerrainPyramidData generatePyramid(const TerrainHeightSource& source,

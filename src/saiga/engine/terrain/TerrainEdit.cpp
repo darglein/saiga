@@ -48,7 +48,7 @@ void gatherSamples(const World& world, SpaceId space, const SampleRect& rect, st
             const int64_t tz               = std::min<int64_t>(k / S, t.sizeChunks - 1);
             const int64_t end              = std::min(rect.i1, tx * S + S);
             const TerrainStore::Tile* tile = nullptr;
-            if (t.hasTerrain())
+            if (terrain.hasTerrain(space))
             {
                 RegionId r;
                 r.space = space;

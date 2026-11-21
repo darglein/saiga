@@ -180,6 +180,7 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
     // The prototype's 32 km space (S20): its seed is the context's (the context evaluates the same surface)
     s.seed                  = context->seed;
     s.config.spaceTemplates = {prototypeSpaceTemplate(context->baseSpacing)};
+    s.generators            = registerPrototypeGenerator;
     s.components            = [](Registry& r)
     {
         r.registerComponent<AircraftControls>(Replicate::OwnerAuthoritative);

@@ -130,6 +130,7 @@ WorldSetup editSetup(int spacing, uint64_t seed = 7)
     s.seed      = seed;
     s.profiling = false;
     s.config.spaceTemplates.push_back(terraformTestTemplate(spacing));
+    s.generators = registerTestHookGenerators;
     return s;
 }
 
@@ -722,6 +723,7 @@ TEST(TerrainEdit, NoOpEditsLeaveNoState)
         WorldSetup s;
         s.profiling = false;
         s.config.spaceTemplates.push_back(testSpaceTemplate(16, 2, maxHook));
+        s.generators = registerTestHookGenerators;
         World w(s);
         expectNothing(w, applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 500, 500, 30, 10)));
         EXPECT_EQ(w.terrainSample(0, 250, 250), kTerrainHeightLimit);
@@ -2129,11 +2131,11 @@ struct GatedGrass
     RecordingRenderSink sink;
     GatedGrass()
     {
-        WorldSetup s                               = editSetup(2);
-        s.config.spaceTemplates[0].prototypeHeight = latchedHook;
-        w                                          = std::make_unique<World>(s);
-        TerrainViewSettings v                      = w->terrain().viewSettings();
-        v.workers                                  = 1;
+        WorldSetup s                         = editSetup(2);
+        s.config.spaceTemplates[0].generator = hookGenerator(latchedHook);
+        w                                    = std::make_unique<World>(s);
+        TerrainViewSettings v                = w->terrain().viewSettings();
+        v.workers                            = 1;
         w->terrain().setViewSettings(v);
         w->setRenderSink(&sink);
         EXPECT_TRUE(w->terrain().completeView(0, kCamera));

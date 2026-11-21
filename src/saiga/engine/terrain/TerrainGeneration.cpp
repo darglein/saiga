@@ -12,12 +12,6 @@ namespace Saiga
 {
 namespace Engine
 {
-TerrainHeightSource heightSource(const SpaceTemplate& space, uint64_t seed)
-{
-    if (!space.hasTerrain()) return TerrainHeightSource();
-    return TerrainHeightSource::fromHook(space.prototypeHeight, seed);
-}
-
 Vulkan::TerrainTileData generateTile(const TerrainHeightSource& source, const Vulkan::TerrainLayout& layout,
                                      const RegionId& region)
 {

@@ -1516,6 +1516,23 @@ Implementation (steps 4-6):
   blocks; the main thread never does).
 - Enclosed templates whose generator has terrain are refused in phase A (`SAIGA_EXIT_ERROR`).
 
+Implementation (step 7, the switch):
+
+- The engine tests name many hooks at run time (`testSpaceTemplate(size, spacing, hook, sea)`), while
+  `WorldSetup::generators` is a plain function pointer. `tests/terrain_test_hooks.h` keeps a process-wide hook table:
+  `hookGenerator(hook)` gives each distinct hook a fixed ID (1, 2, ... in the order of first use) and
+  `registerTestHookGenerators` registers a `HookGenerator("test_hook_<id>", hook, S20's rule, true)` for every entry;
+  the setups of those tests set `generators = registerTestHookGenerators`. The world API test's `hills` space
+  registers its own `HookGenerator`. `heightSource(template, seed)` (TerrainGeneration) is gone: S20's tests that
+  called it use `TerrainHeightSource::fromHook`.
+- The games: `samples/games/common/PrototypeSpace.h` has `kPrototypeGenerator` (1), `prototypeGenerator()` and
+  `registerPrototypeGenerator`; flight and racing set `generators = registerPrototypeGenerator`; `game_world` also
+  registers `HookGenerator("islands", islandsHeight, ...)` as 2 for its second template.
+- S21's enclosed-template death test keeps its message: phase A's refusal of an enclosed template whose generator has
+  terrain names `SpaceTemplate::enclosed(name, sizeChunks)`.
+- Checked: ctest 79/79 on the GPU, the Vulkan and engine tests 38/38 on lavapipe (goldens gate there, unchanged),
+  `--scenarios` of flight (18), racing (18) and platformer (36) pass.
+
 ## Design changes
 
 (Filled when the stage is done.)

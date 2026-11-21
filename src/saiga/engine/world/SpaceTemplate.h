@@ -5,10 +5,10 @@
  */
 
 // SpaceTemplate (docs/engine_design.md §7.9, §12.2, §12.4; S20, S21): the template of a space of the world
-// (WorldConfig::spaceTemplates, SpaceId = index). S20 implements name, kind, baseSpacing, seaLevel, sizeChunks and the
-// prototype height hook; S21 enclosed spaces (SpaceTemplate::enclosed, the site origin) and the background; the other
-// §7.9 fields come with their stages. validateSpaceTemplates checks a list (the World constructor; fatal in every
-// build).
+// (WorldConfig::spaceTemplates; the space instances of the world plan use them, S23a). S20 implements name, kind,
+// baseSpacing, seaLevel and sizeChunks; S21 enclosed spaces (SpaceTemplate::enclosed, the site origin) and the
+// background; S23a the generator and fullRadius; the other §7.9 fields come with their stages. validateSpaceTemplates
+// checks a list (the World constructor; fatal in every build).
 
 #pragma once
 
@@ -39,11 +39,8 @@ struct SpaceTemplate
     std::optional<int32_t> seaLevel = 0;
     // Open world: a multiple of 16 (4096 m root nodes), 16..512
     int32_t sizeChunks = 128;
-    // Null: flat, y = 0, no terrain drawn (D1); an enclosed space has none. Transitional (S20): replaced by the
-    // template's generator (a HookGenerator) in S23a's step 7
-    TerrainHeightHook prototypeHeight = nullptr;
     // The content generator of the space (§12.1; S23a): a GeneratorId of WorldSetup::generators; 0 is the engine's
-    // FlatGenerator (flat, no terrain, no content)
+    // FlatGenerator (flat, y = 0, no terrain drawn, no content; D1). S20's height hook is a HookGenerator
     GeneratorId generator = 0;
     // Prefab sites within this distance of a Player (metres) are stamped (§7.9, §12.3; S23a); scenario worlds lower
     // it to at most 128 m
@@ -64,18 +61,15 @@ struct SpaceTemplate
     // The site origin of an enclosed space (D12, E4): the centre of the middle chunk, on both axes, in metres
     static int64_t enclosedOrigin(int32_t sizeChunks) { return int64_t(sizeChunks / 2) * 256 + 128; }
 
-    // E6: the one test every terrain rule keys on (terrain and sea drawn, tiles requested, readiness, the mover's idle
-    // rule, S21's describe_world.has_terrain and enclosed validation). Today prototypeHeight != nullptr; S23a
-    // reimplements it as Generator::hasTerrain()
-    bool hasTerrain() const { return prototypeHeight != nullptr; }
     // The size of the space in metres (sizeChunks * 256)
     double sizeMeters() const { return double(sizeChunks) * chunkSize; }
 };
 
 // The checks of WorldConfig::spaceTemplates (D1; S21): SAIGA_EXIT_ERROR (every build) with a message naming the
 // template and the field. At most 65535 templates with unique non-empty names (at most 256 bytes); an enclosed
-// template has no terrain and 1..512 chunks (its seaLevel and baseSpacing are ignored); an open-world template has
-// spacing 1 or 2, a multiple of 16 chunks in 16..512 and a seaLevel within kTerrainHeightLimit (a hook is optional)
+// template has 1..512 chunks (its seaLevel and baseSpacing are ignored; a generator with terrain is refused by the
+// generation pipeline); an open-world template has spacing 1 or 2, a multiple of 16 chunks in 16..512 and a seaLevel
+// within kTerrainHeightLimit
 inline void validateSpaceTemplates(const std::vector<SpaceTemplate>& templates)
 {
     if (templates.size() > 65535)
@@ -90,10 +84,6 @@ inline void validateSpaceTemplates(const std::vector<SpaceTemplate>& templates)
         if (!names.insert(t.name).second) SAIGA_EXIT_ERROR(what + "the name is used by another space template");
         if (t.kind == SpaceKind::Enclosed)
         {
-            if (t.hasTerrain())
-                SAIGA_EXIT_ERROR(what +
-                                 "an enclosed space has no terrain (no prototypeHeight; use "
-                                 "SpaceTemplate::enclosed(name, sizeChunks))");
             if (t.sizeChunks < 1 || t.sizeChunks > 512)
                 SAIGA_EXIT_ERROR(what + "sizeChunks of an enclosed space must be in 1..512 (is " +
                                  std::to_string(t.sizeChunks) + ")");

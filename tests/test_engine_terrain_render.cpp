@@ -76,8 +76,9 @@ class TerrainRenderTest : public RenderSceneTest
         s.seed      = seed;
         s.profiling = false;
         s.config.spaceTemplates.push_back(space);
-        world = std::make_unique<World>(s);
-        sink  = std::make_unique<VulkanRenderSink>(*scene);
+        s.generators = registerTestHookGenerators;
+        world        = std::make_unique<World>(s);
+        sink         = std::make_unique<VulkanRenderSink>(*scene);
         world->setRenderSink(sink.get());
     }
     void DestroyWorld()

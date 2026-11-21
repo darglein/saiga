@@ -297,6 +297,7 @@ WorldSetup terrainScenarioSetup()
 {
     WorldSetup s = scenarioSetup();
     s.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::slopeRidgeHook, 0));
+    s.generators = TerrainTestHooks::registerTestHookGenerators;
     return s;
 }
 
@@ -776,6 +777,7 @@ WorldSetup terraformScenarioSetup(int spacing)
 {
     WorldSetup s            = spacesScenarioSetup();
     s.config.spaceTemplates = {TerrainTestHooks::terraformTestTemplate(spacing)};
+    s.generators            = TerrainTestHooks::registerTestHookGenerators;
     s.components            = [](Registry& r)
     {
         r.registerComponent<WandererState>();

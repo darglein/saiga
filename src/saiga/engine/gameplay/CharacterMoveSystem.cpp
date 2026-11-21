@@ -28,7 +28,7 @@ void characterMoveSystem(World& w, double dt)
                 const SpaceId space = t.space();
                 if (intent.desiredVelocity == Vec3::Zero())
                 {
-                    if (!w.spaceTemplate(space).hasTerrain()) return;
+                    if (!w.spaceHasTerrain(space)) return;
                     const Vec3& p  = t.position();
                     const double y = w.terrainHeight(space, p.x(), p.z());
                     if (p.y() != y) t.setPosition(Vec3(p.x(), y, p.z()));

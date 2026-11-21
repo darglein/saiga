@@ -2352,6 +2352,7 @@ EngineAppSetup terrainAppSetup(TerrainHeightHook hook)
 {
     EngineAppSetup s = appSetup(true);
     s.world.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(32, 2, hook, 0));
+    s.world.generators = TerrainTestHooks::registerTestHookGenerators;
     return s;
 }
 
@@ -2531,6 +2532,7 @@ EngineAppSetup fiveSpaceSetup()
     SpaceTemplate flat;
     flat.name                     = "flat";
     s.world.config.spaceTemplates = {a, SpaceTemplate::enclosed("cellar"), c, d, flat};
+    s.world.generators            = TerrainTestHooks::registerTestHookGenerators;
     return s;
 }
 
@@ -2741,6 +2743,7 @@ TEST_F(EngineAppRender, SpaceLoadingCoopClientCamera)
     SpaceTemplate hills           = TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::latchedHook, 0);
     hills.name                    = "hills";
     s.world.config.spaceTemplates = {SpaceTemplate(), hills};
+    s.world.generators            = TerrainTestHooks::registerTestHookGenerators;
     EngineApp app(s, coopOptions(1));
     ASSERT_NE(app.hostWorld(), nullptr);
     app.scene()->setImguiVisible(true);

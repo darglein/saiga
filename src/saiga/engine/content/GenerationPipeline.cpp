@@ -147,14 +147,7 @@ struct Builder
         s->pinned                     = out.pinned[s->generatorName];
         s->current                    = out.current[s->generatorName];
         s->openWorld                  = s->settings.kind == SpaceKind::OpenWorld;
-        // S20's hook of a template without a generator (removed with the hook field)
-        if (s->generatorId == 0 && s->settings.prototypeHeight)
-        {
-            s->legacyHook = s->settings.prototypeHeight;
-            s->hasTerrain = true;
-        }
-        else
-            s->hasTerrain = s->generator->hasTerrain() && s->openWorld;
+        s->hasTerrain                 = s->generator->hasTerrain() && s->openWorld;
 
         const GenerationTemplate view = viewOf(s->settings, instance.templateIndex);
         const Generator& g            = *s->generator;
@@ -284,7 +277,9 @@ struct Builder
             const Generator& g = *out.generators->find(t.generator)->generator;
             if (t.kind == SpaceKind::Enclosed && g.hasTerrain())
                 SAIGA_EXIT_ERROR("space template '" + t.name + "': an enclosed space has no terrain (its generator '" +
-                                 g.name() + "' has terrain)");
+                                 g.name() +
+                                 "' has terrain; use SpaceTemplate::enclosed(name, sizeChunks) with a "
+                                 "generator without terrain)");
             out.nonLegacy = out.nonLegacy || !g.legacyTerrain();
         }
 
@@ -445,7 +440,6 @@ int32_t GenerationPipeline::height(SpaceId id, int64_t x, int64_t z) const
 {
     const SpaceGeneration& s = space(id);
     if (!s.hasTerrain) return 0;
-    if (s.legacyHook) return clampTerrainHeight(s.legacyHook(s.instance.seed, x, z));
     return composedHeight(*s.generator, s.pinned, *s.plan, s.id, s.siteContent, x, z);
 }
 
@@ -453,7 +447,6 @@ TerrainHeightSource GenerationPipeline::heightSource(SpaceId id) const
 {
     std::shared_ptr<const SpaceGeneration> s = spacePtr(id);
     if (!s->hasTerrain) return TerrainHeightSource();
-    if (s->legacyHook) return TerrainHeightSource::fromHook(s->legacyHook, s->instance.seed);
     TerrainHeightSource source;
     source.height = [s](int64_t x, int64_t z)
     { return composedHeight(*s->generator, s->pinned, *s->plan, s->id, s->siteContent, x, z); };

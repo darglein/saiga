@@ -691,8 +691,8 @@ ApiResult WorldApi::describeWorld(const Json&)
                        {"name", t.name},
                        {"kind", t.kind == SpaceKind::Enclosed ? "enclosed" : "open_world"},
                        {"size_chunks", t.sizeChunks},
-                       {"has_terrain", t.hasTerrain()}};
-        if (t.hasTerrain() && t.seaLevel) o["sea_level"] = double(*t.seaLevel) * kHeightUnit;
+                       {"has_terrain", w->spaceHasTerrain(SpaceId(i))}};
+        if (w->spaceHasTerrain(SpaceId(i)) && t.seaLevel) o["sea_level"] = double(*t.seaLevel) * kHeightUnit;
         if (t.kind == SpaceKind::Enclosed)
         {
             const double origin = double(SpaceTemplate::enclosedOrigin(t.sizeChunks));
