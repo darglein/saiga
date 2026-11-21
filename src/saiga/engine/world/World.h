@@ -28,6 +28,7 @@
 #include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/world/Commands.h"
 #include "saiga/engine/world/EventQueues.h"
 #include "saiga/engine/world/EventRegistry.h"
@@ -399,6 +400,24 @@ class SAIGA_ENGINE_API World
     const TerrainEditStore& terrainEdits() const { return *terrainEditStore; }
     // Engine-internal: the mutable state (the edit path, the replication's handlers, loads; store tests)
     TerrainEditStore& terrainEditsForUpdate() { return *terrainEditStore; }
+    // Host: terraforms a space with a brush (§12.2; S22). The space must exist and be an open world (with or without a
+    // height hook: base 0 without one, D1) and the brush must pass validateBrush for it; the role, the space and the
+    // brush are checked at the call (also during a step, before anything is recorded): a violation stops the program
+    // in every build. During a step a command (the brush copied), applied at the phase flush in recording order;
+    // between steps at once. Not inside parallelEach (R-PAR-1)
+    void editTerrain(SpaceId space, const TerrainBrush& brush);
+    // The checks of editTerrain without stopping: false with the error (the world API)
+    bool checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::string* error) const;
+    // The in-step terrain changes whose TerrainEditedEvents are not emitted yet (global sample boxes, application
+    // order): those of the running step plus the kept ones of aborted steps; empty between steps unless a step aborted
+    const std::vector<TerrainChange>& pendingTerrainChanges() const { return terrainChanges; }
+    // Engine-internal: the single function every applied terrain change goes through (a host edit: one call per
+    // edit; a client message: one per message; a Resync clear and loads: per chunk). Records the change for the
+    // TerrainEditedEvent (emitted at once between steps, listed inside a step; load: no event) and feeds the visual
+    // dirty queue (S22 step 8)
+    void onTerrainChanged(SpaceId space, const SampleRect& box, bool load = false);
+    // Engine-internal: capacity for one more in-step change (an edit's or a message's reserve step)
+    void reserveTerrainChange() { terrainChanges.reserve(terrainChanges.size() + 1); }
     // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
     // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
@@ -969,6 +988,11 @@ class SAIGA_ENGINE_API World
     double stepDt;
     // The terrain modification state (S22); TerrainSystem (destroyed first) reads it through a const pointer
     std::unique_ptr<TerrainEditStore> terrainEditStore;
+    // In-step terrain changes not emitted as events yet (kept by an aborted step)
+    std::vector<TerrainChange> terrainChanges;
+    void emitTerrainChanges();
+    void emitTerrainEvent(const TerrainChange& c);
+    std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
     double accumulator    = 0;

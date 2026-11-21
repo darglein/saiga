@@ -133,6 +133,8 @@ void World::setupProfiler()
         for (const SystemList::System& s : systems.systems(Phase(p)))
             systemScopes[size_t(p)].push_back(prof.scope(phasePath + "/system:" + s.name));
         flushScopes[size_t(p)] = prof.scope(phasePath + "/commands");
+        // Terrain edits applied at the flush (S22)
+        terrainEditScopes[size_t(p)] = prof.scope(phasePath + "/commands/terrain_edit");
     }
     // The extract after phase 8's systems, replication and interpolation (S19b)
     extractScope    = prof.scope(std::string("step/phase:") + phaseName(Phase::Extract) + "/extract");
@@ -779,6 +781,83 @@ int32_t World::terrainSample(SpaceId space, int64_t i, int64_t k) const
     return terrainSys->editedSample(space, i, k);
 }
 
+bool World::checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::string* error) const
+{
+    auto fail = [&](const std::string& m)
+    {
+        if (error) *error = m;
+        return false;
+    };
+    if (!isHost()) return fail("editTerrain on a client (terrain edits are host commands, R-NET-1)");
+    if (space >= spaceCount()) return fail("editTerrain: unknown space " + std::to_string(space));
+    const SpaceTemplate& t = spaceTemplate(space);
+    if (t.kind != SpaceKind::OpenWorld)
+        return fail("editTerrain: the space " + std::to_string(space) + " ('" + t.name +
+                    "') is enclosed (only open-world spaces have a height-map terrain)");
+    std::string why;
+    if (!validateBrush(brush, t, &why)) return fail("editTerrain: " + why);
+    return true;
+}
+
+void World::editTerrain(SpaceId space, const TerrainBrush& brush)
+{
+    checkNotParallel("editTerrain");
+    std::string error;
+    // Checked at the call in every build, also during a step (the error points at the caller)
+    if (!checkTerrainEdit(space, brush, &error)) SAIGA_EXIT_ERROR(error);
+    if (!deferring())
+    {
+        // Between steps the caller times it (the benchmark); at a flush (a command's own call) under the flush
+        if (!inStep())
+        {
+            applyTerrainEdit(*this, space, brush);
+            return;
+        }
+        Profiler::Timer timer(prof, terrainEditScopes[size_t(phase)]);
+        applyTerrainEdit(*this, space, brush);
+        return;
+    }
+    record(makeCommand(
+        [space, brush](World& w)
+        {
+            Profiler::Timer timer(w.prof, w.terrainEditScopes[size_t(w.phase)]);
+            applyTerrainEdit(w, space, brush);
+        }));
+}
+
+void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
+{
+    if (box.empty()) return;
+    TerrainChange c;
+    c.space = space;
+    c.box   = box;
+    if (!load)
+    {
+        if (inStep())
+            terrainChanges.push_back(c);
+        else
+            emitTerrainEvent(c);
+    }
+}
+
+void World::emitTerrainEvent(const TerrainChange& c)
+{
+    const double sp = double(terrainEditStore->spacing(c.space));
+    TerrainEditedEvent e;
+    e.space = c.space;
+    e.x0    = double(c.box.i0) * sp;
+    e.z0    = double(c.box.k0) * sp;
+    e.x1    = double(c.box.i1) * sp;
+    e.z1    = double(c.box.k1) * sp;
+    events.emit(e);
+}
+
+void World::emitTerrainChanges()
+{
+    for (const TerrainChange& c : terrainChanges) emitTerrainEvent(c);
+    terrainChanges.clear();
+}
+
 double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
@@ -1242,6 +1321,8 @@ void World::runStep()
     recordsAtStepStart   = log.appendedTotal();
     // Queued player actions become ActionEvents; with the events of the last step they become readable
     deliverActions();
+    // The terrain changes kept by an aborted step become readable in this one (S22)
+    emitTerrainChanges();
     events.beginStep();
     stepEventsBegun = true;
     try
@@ -1301,6 +1382,8 @@ void World::runStep()
     peerListsCommitted = true;
     // The step completed: the staged replication bookkeeping is committed
     repl->commit();
+    // The step's terrain changes become events (readable in the next step, S22)
+    emitTerrainChanges();
     stepChanged.clear();
     reg.shiftTransformFlags(trackStepChanges > 0 ? &stepChanged : nullptr);
     // The extract's staged pairs become current (an aborted step does not shift them; S19b)
@@ -1358,6 +1441,7 @@ void World::stepNetworkOnly()
     phase              = Phase::None;
     peerListsCommitted = true;
     repl->commit();
+    emitTerrainChanges();
 }
 
 void World::step(int n)

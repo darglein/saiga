@@ -20,6 +20,7 @@
 #include "saiga/engine/net/InterpolationSystem.h"
 #include "saiga/engine/net/NetIds.h"
 #include "saiga/engine/net/NetVisitors.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/world/Phase.h"
 #include "saiga/export.h"
 
@@ -126,6 +127,26 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onPong(uint8_t from, const PongMessage& m);
     void onResync(uint8_t from, const ResyncMessage& m);
 
+    // ---- the host state list (S22, §13.2): ordered host state messages, unencoded, sent by extract to every regular
+    // peer after the component changes (also by stepNetworkOnly's extract), cleared when the step commits (also
+    // without peers), kept by an aborted step (the edits of its finished phases stay applied). S23b appends its
+    // tombstones, so the messages that bump one chunk's sequence reach the client in application order
+    struct HostStateEntry
+    {
+        enum class Kind : uint8_t
+        {
+            TerrainModification
+        };
+        Kind kind     = Kind::TerrainModification;
+        SpaceId space = 0;
+        std::vector<TerrainPart> parts;
+    };
+    // Reserve: capacity for one more entry (the edit's reserve step; the append then allocates nothing)
+    void reserveHostState() { hostStates.reserve(hostStates.size() + 1); }
+    // Host: one TerrainModification (applyTerrainEdit; after reserveHostState)
+    void appendTerrainModification(SpaceId space, std::vector<TerrainPart>&& parts);
+    const std::vector<HostStateEntry>& hostStateList() const { return hostStates; }
+
     // The component encodings (engine-internal; also the replica comparison and the benchmarks)
     void encodeComponent(Entity e, ComponentId id, std::vector<uint8_t>& out) const;
     std::vector<NetLeaf> flattenComponent(Entity e, ComponentId id) const;
@@ -176,6 +197,7 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void sendSnapshot(const std::vector<uint8_t>& peers);
     void sendToAll(const std::vector<uint8_t>& peers, MessageId id, const std::vector<uint8_t>& payload);
     std::vector<uint8_t> regularPeers, joinedPeers;
+    std::vector<HostStateEntry> hostStates;
 
     std::vector<HostSlot> host;
     std::unordered_map<NetId, Entity> hostByNetId;

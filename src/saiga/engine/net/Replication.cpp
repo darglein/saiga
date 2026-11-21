@@ -326,8 +326,20 @@ void Replication::setNetIdEntry(NetId id, Entity e)
         hostByNetId.erase(it);
 }
 
+void Replication::appendTerrainModification(SpaceId space, std::vector<TerrainPart>&& parts)
+{
+    SAIGA_ASSERT(w.isHost(), "appendTerrainModification on a client");
+    HostStateEntry e;
+    e.kind  = HostStateEntry::Kind::TerrainModification;
+    e.space = space;
+    e.parts = std::move(parts);
+    hostStates.push_back(std::move(e));
+}
+
 void Replication::commit()
 {
+    // The step (or stepNetworkOnly) completed: its extract sent the host state list (with peers)
+    hostStates.clear();
     slotUndo.clear();
     hashUndo.clear();
     netIdUndo.clear();

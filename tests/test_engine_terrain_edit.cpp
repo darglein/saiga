@@ -10,10 +10,15 @@
 #include "saiga/core/math/TerrainSurface.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/net/Replication.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/BrushKernel.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
+#include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
@@ -105,6 +110,35 @@ WorldSetup editSetup(int spacing, uint64_t seed = 7)
     s.profiling = false;
     s.config.spaceTemplates.push_back(terraformTestTemplate(spacing));
     return s;
+}
+
+// 2^23 everywhere (the clamp test)
+int32_t maxHook(uint64_t, int64_t, int64_t)
+{
+    return kTerrainHeightLimit;
+}
+
+size_t pendingEvents(const World& w)
+{
+    return w.events.find(TerrainEditedEvent::id)->pendingCount();
+}
+
+// Every allocated block of the space holds a non-zero delta (blocks only for changed samples)
+void expectBlocksNonZero(const World& w, SpaceId space)
+{
+    const TerrainEditStore& st = w.terrainEdits();
+    size_t found               = 0;
+    for (int64_t bk = 0; bk <= st.maxSample(space) / 16; ++bk)
+        for (int64_t bi = 0; bi <= st.maxSample(space) / 16; ++bi)
+        {
+            const TerrainEditBlock* b = st.block(space, bi * 16, bk * 16);
+            if (!b) continue;
+            found++;
+            bool any = false;
+            for (int32_t v : b->delta) any = any || v != 0;
+            EXPECT_TRUE(any) << "block " << bi << ", " << bk;
+        }
+    EXPECT_EQ(found, st.blockCount(space));
 }
 
 // Reserve, then write (the order of every path)
@@ -569,4 +603,406 @@ TEST(TerrainEditStore, FlatSpaceHeightWithDeltas)
     EXPECT_EQ(w.terrainSample(0, 50, 50), 2048);
     EXPECT_EQ(w.terrainHeight(0, 100, 100), 2.0);
     EXPECT_EQ(w.terrainHeight(0, 101, 100), 1.0);
+}
+
+// ---- edits (step 3)
+
+TEST(TerrainEdit, CornerEditChangesSharedSamplesOnce)
+{
+    World w(editSetup(1));
+    const int32_t before      = w.terrainSample(0, 256, 256);
+    const TerrainEditResult r = applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 256, 256, 8, 1));
+    ASSERT_EQ(r.chunks.size(), 4u);
+    EXPECT_EQ(r.chunks[0].chunk, chunk(0, 0));
+    EXPECT_EQ(r.chunks[1].chunk, chunk(0, 1));
+    EXPECT_EQ(r.chunks[2].chunk, chunk(1, 0));
+    EXPECT_EQ(r.chunks[3].chunk, chunk(1, 1));
+    for (const auto& c : r.chunks)
+    {
+        EXPECT_EQ(c.sequence, 1u);
+        EXPECT_EQ(w.terrainEdits().sequence(c.chunk), 1u);
+        EXPECT_TRUE(w.terrainEdits().hasDeltas(c.chunk));
+    }
+    // The shared sample changed once (one copy)
+    EXPECT_EQ(w.terrainSample(0, 256, 256), before + 1024);
+    EXPECT_EQ(w.terrainEdits().delta(0, 256, 256), 1024);
+    // The box: 8 m strictly inside at 1 m
+    EXPECT_EQ(r.i0, 249);
+    EXPECT_EQ(r.i1, 263);
+    EXPECT_EQ(r.k0, 249);
+    EXPECT_EQ(r.k1, 263);
+    // The parts are the box clipped per chunk (chunk-local); (0, 0) holds 249..256
+    EXPECT_EQ(r.chunks[0].x0, 249);
+    EXPECT_EQ(r.chunks[0].w, 8);
+    EXPECT_EQ(r.chunks[3].x0, 0);
+    EXPECT_EQ(r.chunks[3].w, 8);
+    // denseDelta of neighbours agrees on the shared border
+    std::vector<int32_t> a, b;
+    w.terrainEdits().denseDelta(chunk(0, 0), a);
+    w.terrainEdits().denseDelta(chunk(1, 0), b);
+    for (int k = 0; k < 257; ++k) EXPECT_EQ(a[size_t(k * 257 + 256)], b[size_t(k * 257)]);
+    // One send-list entry with four parts; one event (between steps: at once, not in the change list)
+    ASSERT_EQ(w.replication().hostStateList().size(), 1u);
+    EXPECT_EQ(w.replication().hostStateList()[0].parts.size(), 4u);
+    EXPECT_EQ(pendingEvents(w), 1u);
+    EXPECT_TRUE(w.pendingTerrainChanges().empty());
+    EXPECT_EQ(w.terrainEdits().stats().edits, 1u);
+    EXPECT_EQ(w.terrainEdits().stats().chunksEdited, 4u);
+    EXPECT_EQ(w.terrainEdits().stats().changedSamples, r.changedSamples);
+    expectBlocksNonZero(w, 0);
+    // The step sends (no peers) and clears the list; the event is readable in it
+    w.step();
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+    ASSERT_EQ(w.events.read<TerrainEditedEvent>().size(), 1u);
+    const TerrainEditedEvent& e = w.events.read<TerrainEditedEvent>()[0];
+    EXPECT_EQ(e.x0, 249.0);
+    EXPECT_EQ(e.x1, 263.0);
+    EXPECT_EQ(e.z0, 249.0);
+    EXPECT_EQ(e.z1, 263.0);
+}
+
+TEST(TerrainEdit, InteriorEditChangesOneChunk)
+{
+    World w(editSetup(2));
+    const TerrainEditResult r = applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 600, 300, 20, 2));
+    ASSERT_EQ(r.chunks.size(), 1u);
+    EXPECT_EQ(r.chunks[0].chunk, chunk(2, 1));
+    EXPECT_EQ(w.terrainEdits().chunkCount(), 1u);
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(2, 1)), 1u);
+    // The parts' box equals the changed box (global sample 300, 150 at the center)
+    EXPECT_EQ(r.chunks[0].x0 + 2 * 128, r.i0);
+    EXPECT_EQ(r.chunks[0].z0 + 128, r.k0);
+}
+
+TEST(TerrainEdit, NoOpEditsLeaveNoState)
+{
+    auto expectNothing = [](World& w, const TerrainEditResult& r)
+    {
+        EXPECT_TRUE(r.chunks.empty());
+        EXPECT_EQ(r.changedSamples, 0u);
+        EXPECT_EQ(w.terrainEdits().chunkCount(), 0u);
+        EXPECT_EQ(w.terrainEdits().blockCount(0), 0u);
+        EXPECT_EQ(pendingEvents(w), 0u);
+        EXPECT_TRUE(w.replication().hostStateList().empty());
+    };
+    // Flatten on a field at the target and Smooth on a constant field (a hook-less open world: base 0)
+    {
+        WorldSetup s;
+        s.profiling = false;
+        World w(s);
+        expectNothing(w, applyTerrainEdit(w, 0, brush(TerrainBrush::Flatten, 500, 500, 30, 1, 0)));
+        expectNothing(w, applyTerrainEdit(w, 0, brush(TerrainBrush::Smooth, 500, 500, 30, 1)));
+        EXPECT_EQ(w.terrainEdits().stats().noopEdits, 2u);
+        EXPECT_EQ(w.terrainEdits().stats().edits, 2u);
+    }
+    // Add on a space at the height limit everywhere
+    {
+        WorldSetup s;
+        s.profiling = false;
+        s.config.spaceTemplates.push_back(testSpaceTemplate(16, 2, maxHook));
+        World w(s);
+        expectNothing(w, applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 500, 500, 30, 10)));
+        EXPECT_EQ(w.terrainSample(0, 250, 250), kTerrainHeightLimit);
+    }
+}
+
+TEST(TerrainEdit, BlocksOnlyForChangedSamplesAndReturnToZero)
+{
+    WorldSetup s;
+    s.profiling = false;
+    World w(s);  // flat, spacing 2
+    // A mound inside block (2, 2), then a Smooth whose read ring reaches into the next blocks
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 72, 72, 5, 1));
+    const size_t blocks = w.terrainEdits().blockCount(0);
+    EXPECT_EQ(blocks, 1u);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Smooth, 72, 72, 7, 1));
+    expectBlocksNonZero(w, 0);
+    // Back to zero: Add then Subtract of the same brush cancel exactly
+    World v(s);
+    applyTerrainEdit(v, 0, brush(TerrainBrush::Add, 1000, 1000, 9, 1.5));
+    applyTerrainEdit(v, 0, brush(TerrainBrush::Subtract, 1000, 1000, 9, 1.5));
+    EXPECT_EQ(v.terrainEdits().sequence(chunk(3, 3)), 2u);
+    EXPECT_FALSE(v.terrainEdits().hasDeltas(chunk(3, 3)));
+    EXPECT_EQ(v.terrainEdits().nonZeroSamples(0), 0u);
+    EXPECT_EQ(v.terrainHeight(0, 1000, 1000), 0.0);
+}
+
+TEST(TerrainEdit, SampleAndHeightAfterEdits)
+{
+    for (int spacing : {1, 2})
+    {
+        World w(editSetup(spacing));
+        std::mt19937 rng(11);
+        std::uniform_real_distribution<double> pos(200, 312), rad(2, 30), str(0, 1);
+        std::vector<int32_t> base;
+        for (int n = 0; n < 12; ++n)
+        {
+            const TerrainBrush::Op op = TerrainBrush::Op(n % 4);
+            const double strength     = op <= TerrainBrush::Subtract ? 4 * str(rng) : str(rng);
+            applyTerrainEdit(w, 0, brush(op, pos(rng), pos(rng), rad(rng), strength, 1.0 + str(rng)));
+        }
+        const int64_t lo = 180 / spacing, hi = 330 / spacing;
+        auto expected = [&](int64_t i, int64_t k)
+        {
+            const int64_t v = int64_t(w.terrain().sample(0, i, k)) + w.terrainEdits().delta(0, i, k);
+            return clampTerrainHeight(int32_t(v));
+        };
+        for (int64_t k = lo; k <= hi; ++k)
+            for (int64_t i = lo; i <= hi; ++i) ASSERT_EQ(w.terrainSample(0, i, k), expected(i, k));
+        std::uniform_real_distribution<double> u(190, 320);
+        for (int n = 0; n < 500; ++n)
+        {
+            const double x = u(rng), z = n % 3 == 0 ? x : u(rng);
+            const double gx = x / spacing, gz = z / spacing;
+            const int64_t ci = int64_t(std::floor(gx)), cj = int64_t(std::floor(gz));
+            const double fx = gx - double(ci), fz = gz - double(cj);
+            EXPECT_EQ(w.terrainHeight(0, x, z),
+                      terrainSurfaceDouble(expected(ci, cj), expected(ci + 1, cj), expected(ci, cj + 1),
+                                           expected(ci + 1, cj + 1), fx, fz) *
+                          kHeightUnit);
+        }
+        expectBlocksNonZero(w, 0);
+    }
+}
+
+TEST(TerrainEdit, GatherFromResidentTilesEqualsTheHook)
+{
+    World a(editSetup(2)), b(editSetup(2));
+    RecordingRenderSink sink;
+    a.setRenderSink(&sink);
+    ASSERT_TRUE(a.terrain().completeView(0, Vec3(256, 30, 256)));
+    // A rectangle across four level-0 tiles
+    SampleRect r;
+    r.i0 = 100;
+    r.k0 = 110;
+    r.i1 = 150;
+    r.k1 = 140;
+    std::vector<int32_t> baseA, heightA, baseB, heightB;
+    const uint64_t ha = a.terrain().baseHookSamples(), hb = b.terrain().baseHookSamples();
+    gatherSamples(a, 0, r, baseA, heightA);
+    gatherSamples(b, 0, r, baseB, heightB);
+    EXPECT_EQ(a.terrain().baseHookSamples() - ha, 0u);
+    EXPECT_EQ(b.terrain().baseHookSamples() - hb, uint64_t(r.width() * r.height()));
+    EXPECT_EQ(baseA, baseB);
+    EXPECT_EQ(heightA, heightB);
+    // An edit on the resident tiles reads no hook
+    const uint64_t h0 = a.terrain().baseHookSamples();
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Smooth, 256, 256, 20, 1));
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Add, 256, 256, 20, 1));
+    EXPECT_EQ(a.terrain().baseHookSamples() - h0, 0u);
+    a.setRenderSink(nullptr);
+}
+
+TEST(TerrainEdit, SpaceWithoutTerrain)
+{
+    // D1: an open world without a hook is flat at 0; an edit changes terrainHeight
+    WorldSetup s;
+    s.profiling = false;
+    World w(s);
+    EXPECT_EQ(w.terrainHeight(0, 300, 300), 0.0);
+    w.editTerrain(0, brush(TerrainBrush::Add, 300, 300, 10, 2));
+    EXPECT_EQ(w.terrainHeight(0, 300, 300), 2.0);
+    EXPECT_GT(w.terrainHeight(0, 305, 300), 0.0);
+    EXPECT_EQ(w.terrainHeight(0, 400, 300), 0.0);
+}
+
+// ---- editTerrain in the step (step 3)
+
+namespace
+{
+struct StepHooks
+{
+    std::function<void(World&)> phase3, phase4a, phase4b, phase5;
+};
+StepHooks g_hooks;
+void phase3System(World& w, double)
+{
+    if (g_hooks.phase3) g_hooks.phase3(w);
+}
+void phase4aSystem(World& w, double)
+{
+    if (g_hooks.phase4a) g_hooks.phase4a(w);
+}
+void phase4bSystem(World& w, double)
+{
+    if (g_hooks.phase4b) g_hooks.phase4b(w);
+}
+void phase5System(World& w, double)
+{
+    if (g_hooks.phase5) g_hooks.phase5(w);
+}
+WorldSetup hookedSetup(int spacing)
+{
+    WorldSetup s = editSetup(spacing);
+    s.systems    = [](SystemList& l)
+    {
+        l.add(Phase::Behaviour, "test_terrain3", phase3System, RunOn::Both);
+        l.add(Phase::Gameplay, "test_terrain4a", phase4aSystem, RunOn::Both);
+        l.add(Phase::Gameplay, "test_terrain4b", phase4bSystem, RunOn::Both);
+        l.add(Phase::Physics, "test_terrain5", phase5System, RunOn::Both);
+    };
+    return s;
+}
+class TerrainEditWorld : public ::testing::Test
+{
+   protected:
+    void SetUp() override { g_hooks = StepHooks(); }
+    void TearDown() override { g_hooks = StepHooks(); }
+};
+}  // namespace
+
+TEST_F(TerrainEditWorld, CommandAppliesAtThePhaseFlush)
+{
+    World w(hookedSetup(2));
+    const double base = w.terrainHeight(0, 500, 500);
+    double seen4b = 0, seen5 = 0;
+    size_t listed5  = 0;
+    g_hooks.phase4a = [](World& world)
+    {
+        if (world.stepIndex() == 0) world.editTerrain(0, brush(TerrainBrush::Add, 500, 500, 10, 3));
+    };
+    g_hooks.phase4b = [&](World& world) { seen4b = world.terrainHeight(0, 500, 500); };
+    g_hooks.phase5  = [&](World& world)
+    {
+        if (world.stepIndex() != 0) return;
+        seen5   = world.terrainHeight(0, 500, 500);
+        listed5 = world.pendingTerrainChanges().size();
+    };
+    w.step();
+    EXPECT_EQ(seen4b, base);
+    EXPECT_EQ(seen5, base + 3);
+    // Listed in the step, emitted at the commit: one event, readable in the next step
+    EXPECT_EQ(listed5, 1u);
+    EXPECT_TRUE(w.pendingTerrainChanges().empty());
+    EXPECT_EQ(pendingEvents(w), 1u);
+    size_t read     = 0;
+    g_hooks.phase4b = [&](World& world) { read = world.events.read<TerrainEditedEvent>().size(); };
+    w.step();
+    EXPECT_EQ(read, 1u);
+    EXPECT_EQ(pendingEvents(w), 0u);
+}
+
+TEST_F(TerrainEditWorld, TwoEditsInRecordingOrderAndBetweenSteps)
+{
+    World w(hookedSetup(2));
+    // Add, then Flatten at strength 1 to a target: the center ends at the target only in this order
+    g_hooks.phase4a = [](World& world)
+    {
+        if (world.stepIndex() != 0) return;
+        world.editTerrain(0, brush(TerrainBrush::Add, 700, 700, 10, 5));
+        world.editTerrain(0, brush(TerrainBrush::Flatten, 700, 700, 10, 1, 1.25));
+    };
+    w.step();
+    EXPECT_EQ(w.terrainSample(0, 350, 350), 1280);
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(2, 2)), 2u);
+    // Between steps: at once
+    w.editTerrain(0, brush(TerrainBrush::Add, 700, 700, 10, 1));
+    EXPECT_EQ(w.terrainSample(0, 350, 350), 1280 + 1024);
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(2, 2)), 3u);
+}
+
+TEST_F(TerrainEditWorld, AbortedStepKeepsTheChange)
+{
+    // Regression: the event of an edit applied in a finished phase of an aborted step was lost (§7.6)
+    World w(hookedSetup(2));
+    int aborts = 0, editsDone = 0;
+    std::vector<size_t> readPerStep;
+    g_hooks.phase3 = [&](World& world)
+    {
+        if (editsDone == 0)
+        {
+            world.editTerrain(0, brush(TerrainBrush::Add, 300, 300, 6, 1));
+            editsDone++;
+        }
+    };
+    g_hooks.phase4a = [&](World& world)
+    {
+        readPerStep.push_back(world.events.read<TerrainEditedEvent>().size());
+        if (aborts < 2)
+        {
+            aborts++;
+            throw std::runtime_error("abort phase 4");
+        }
+    };
+    EXPECT_THROW(w.step(), std::runtime_error);
+    // The edit stays applied; its change is kept
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(1, 1)), 1u);
+    ASSERT_EQ(w.pendingTerrainChanges().size(), 1u);
+    EXPECT_EQ(pendingEvents(w), 0u);
+    // The retried step emits it before beginStep: readable there (and the retry aborts too)
+    EXPECT_THROW(w.step(), std::runtime_error);
+    EXPECT_TRUE(w.pendingTerrainChanges().empty());
+    EXPECT_EQ(pendingEvents(w), 1u);  // turned back into a pending event
+    w.step();
+    w.step();
+    ASSERT_EQ(readPerStep.size(), 4u);
+    EXPECT_EQ(readPerStep[0], 0u);
+    EXPECT_EQ(readPerStep[1], 1u);
+    EXPECT_EQ(readPerStep[2], 1u);
+    EXPECT_EQ(readPerStep[3], 0u);
+    // The edit's send-list entry was kept by the aborted steps and cleared by the completed one
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+}
+
+TEST_F(TerrainEditWorld, ViolationsStopTheProgram)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    // An invalid brush, an unknown space, an enclosed space: at the call, between steps and from a phase-4 system
+    WorldSetup s = hookedSetup(2);
+    s.config.spaceTemplates.push_back(SpaceTemplate::enclosed("cellar"));
+    EXPECT_DEATH(
+        {
+            World w(s);
+            w.editTerrain(0, brush(TerrainBrush::Add, 10, 10, 200, 1));
+        },
+        "radius");
+    EXPECT_DEATH(
+        {
+            World w(s);
+            w.editTerrain(7, brush(TerrainBrush::Add, 10, 10, 2, 1));
+        },
+        "unknown space");
+    EXPECT_DEATH(
+        {
+            World w(s);
+            w.editTerrain(1, brush(TerrainBrush::Add, 10, 10, 2, 1));
+        },
+        "enclosed");
+    EXPECT_DEATH(
+        {
+            World w(s);
+            g_hooks.phase4a = [](World& world) { world.editTerrain(0, brush(TerrainBrush::Smooth, 10, 10, 2, 3)); };
+            w.step();
+        },
+        "strength");
+    EXPECT_DEATH(
+        {
+            World w(s);
+            g_hooks.phase4a = [](World& world) { world.editTerrain(1, brush(TerrainBrush::Add, 10, 10, 2, 1)); };
+            w.step();
+        },
+        "enclosed");
+    // On a client
+    auto net = LoopbackTransport::createNetwork(2);
+    EXPECT_DEATH(
+        {
+            WorldSetup c = hookedSetup(2);
+            c.transport  = net[1].get();
+            c.role       = NetRole::Client;
+            c.localPeer  = 1;
+            World w(c);
+            w.editTerrain(0, brush(TerrainBrush::Add, 10, 10, 2, 1));
+        },
+        "client");
+    EXPECT_DEATH(
+        {
+            WorldSetup c = hookedSetup(2);
+            c.transport  = net[1].get();
+            c.role       = NetRole::Client;
+            c.localPeer  = 1;
+            World w(c);
+            g_hooks.phase4a = [](World& world) { world.editTerrain(0, brush(TerrainBrush::Add, 10, 10, 2, 1)); };
+            w.step();
+        },
+        "client");
 }

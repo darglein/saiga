@@ -29,6 +29,7 @@ enum class EngineEvent : uint16_t
     Contact,
     Action,
     SpaceTransition,  // S21
+    TerrainEdited,    // S22
     Count
 };
 
@@ -124,6 +125,29 @@ struct SpaceTransitionEvent
     }
 };
 
+// The terrain of a space changed (§12.2; S22): one event per applied change (a host edit, a client's received
+// TerrainModification or TerrainChunkState, a client's Resync clear of a chunk with deltas), on the host and on
+// clients, with the inclusive bounds of the changed samples in metres. A change between steps is emitted at once, one
+// inside a step at the step's commit (after an aborted step at the next step's start); readable in the next step. The
+// broadcast for game reactions and later engine consumers (nav, region summaries, colliders). Replicate::Never
+struct TerrainEditedEvent
+{
+    static constexpr const char* name = "TerrainEditedEvent";
+    static constexpr EventId id       = EventId(EngineEvent::TerrainEdited);
+    static constexpr uint32_t version = 1;
+    SpaceId space                     = 0;
+    double x0 = 0, z0 = 0, x1 = 0, z1 = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("space", space);
+        v("x0", x0);
+        v("z0", z0);
+        v("x1", x1);
+        v("z1", z1);
+    }
+};
+
 inline void registerEngineEvents(EventRegistry& events)
 {
     events.add<DamageEvent>();
@@ -131,6 +155,7 @@ inline void registerEngineEvents(EventRegistry& events)
     events.add<ContactEvent>();
     events.add<ActionEvent>();
     events.add<SpaceTransitionEvent>();
+    events.add<TerrainEditedEvent>();
 }
 
 }  // namespace Engine
