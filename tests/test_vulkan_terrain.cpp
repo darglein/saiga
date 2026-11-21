@@ -451,10 +451,14 @@ TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
     const auto& frameU = scene->terrainPass().frameUniforms();
     const double range = scene->terrainPass().usedRange0();
     const double start = 0.7 * range;
+    // The LOD metric: the horizontal distance with the frame's camera height above the surface under it
+    const double hc = scene->terrainPass().usedLodHeight();
+    EXPECT_NEAR(hc, cam.y() - surfaceAt(highFrequencyHook, 1, bs, cam.x(), cam.z()), 6.0);
     const Vec3 crel(frameU.cameraRel(0), frameU.cameraRel(1), frameU.cameraRel(2));
     const int32_t ref = frameU.anchor(2);
     std::vector<TerrainProbe> probes;
     std::vector<Vec3> expected;
+    std::vector<double> ks;
     int morphed = 0;
     for (size_t n = 0; n < nodes.size(); ++n)
     {
@@ -465,8 +469,8 @@ TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
                 const int64_t x = nodes[n].originX + gx, z = nodes[n].originZ + gz;
                 const int64_t xt = nodes[n].originX + (gx & ~1), zt = nodes[n].originZ + (gz & ~1);
                 const int32_t h = highFrequencyHook(1, x, z), ht = highFrequencyHook(1, xt, zt);
-                const Vec3 rel(double(x) - cam.x(), double(h) * kHeightUnit - cam.y(), double(z) - cam.z());
-                const double k = std::min(1.0, std::max(0.0, (rel.norm() - start) / (range - start)));
+                const double dist = Vec3(double(x) - cam.x(), hc, double(z) - cam.z()).norm();
+                const double k    = std::min(1.0, std::max(0.0, (dist - start) / (0.99 * range - start)));
                 if (k <= 0.05 || k >= 0.95) continue;
                 morphed++;
                 probes.push_back(TerrainProbe{int(n), gx, gz});
@@ -474,12 +478,14 @@ TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
                              mz = double(z) + (double(zt) - double(z)) * k;
                 const double my = (double(h - ref) + double(ht - h) * k) * kHeightUnit - crel.y() + cam.y();
                 expected.push_back(Vec3(mx, my, mz));
+                ks.push_back(k);
             }
     }
     ASSERT_GT(morphed, 100);
     const auto out = scene->terrainPass().probeVertices(probes);
     for (size_t i = 0; i < probes.size(); ++i)
     {
+        EXPECT_NEAR(out[i](3), ks[i], 1e-4);
         const Vec3 world = cam + Vec3(out[i](0), out[i](1), out[i](2));
         // k from the float distance: a few 1e-4 m
         EXPECT_NEAR(world.x(), expected[i].x(), 2e-3);
@@ -668,6 +674,112 @@ TEST_F(VulkanTerrain, NoCrackAtLevelBorders)
     scene->setPrototypeSettings(s);
     const auto cracks = Capture(3);
     EXPECT_GT(countColor(cracks, ucvec4(255, 0, 255, 255), 0), 10);
+}
+
+namespace
+{
+// A 900 m cliff facing -z: a ramp of 15 m per m from z = 2048 to 2108, with 8 times highFrequencyHook's noise (48 m)
+// everywhere
+int32_t cliffHook(uint64_t seed, int64_t x, int64_t z)
+{
+    const int64_t t = std::min<int64_t>(std::max<int64_t>(z - 2048, 0), 60);
+    return int32_t(t * 15 * 1024 + 8 * (highFrequencyHook(seed, x, z) - 20 * 1024) + 20 * 1024);
+}
+}  // namespace
+
+// Regression (implementation review of S20): at steep terrain the coarse side of a level border morphed its edge
+// (the LOD distance was 3D: the selection's box, lowered by the skirt, was near while the cliff's edge vertices were
+// far), opening gaps that the skirts filled and flat shading lit as walls (a saw-tooth). With every desired tile
+// resident, at the foot of a cliff: every coarse vertex on a level border has morph factor 0 and every fine one 1 (the
+// old metric: about 90 coarse vertices with factors up to 0.6), and the skirts cover no gap (the same background with
+// and without them)
+TEST_F(VulkanTerrain, NoGapAtLevelBordersOfACliff)
+{
+    RenderSceneParameters p;
+    p.clearColor = vec4(1, 0, 1, 1);
+    Create(320, 200, 4, p);
+    const int bs         = 1;
+    TerrainLayout layout = testLayout(16, bs);
+    layout.tilesPerLevel = 64;
+    const auto source    = TerrainHeightSource::fromHook(cliffHook, 1);
+    scene->setTerrainPyramid(0, generateTerrainPyramid(source, layout, std::nullopt));
+    // 100 m in front of the cliff's foot, 2 m above the ground
+    const Vec3 foot(1800.5, 0, 1948.5);
+    const Vec3 eye = foot + Vec3(0, surfaceAt(cliffHook, 1, bs, foot.x(), foot.z()) + 2, 0);
+    // Every tile within 400 * 2^k m horizontally (the selection never refuses a refinement)
+    for (int k = 0; k < layout.streamedLevels(); ++k)
+    {
+        const double size = double(256 << k), range = 400.0 * double(1 << k);
+        int count = 0;
+        for (int32_t tz = 0; tz < layout.tilesPerSide(k); ++tz)
+            for (int32_t tx = 0; tx < layout.tilesPerSide(k); ++tx)
+            {
+                const double dx = std::max({tx * size - eye.x(), 0.0, eye.x() - (tx + 1) * size});
+                const double dz = std::max({tz * size - eye.z(), 0.0, eye.z() - (tz + 1) * size});
+                if (dx * dx + dz * dz > range * range) continue;
+                scene->setTerrainTile(Region(k, tx, tz), generateTerrainTile(source, layout, Region(k, tx, tz)));
+                count++;
+            }
+        ASSERT_LE(count, layout.tilesPerLevel) << "level " << k;
+    }
+    renderUntilUploaded(*scene, 512);
+    PrototypeSettings s = scene->prototypeSettings();
+    s.terrainSkirts     = false;
+    s.sky               = false;
+    s.water             = false;
+    scene->setPrototypeSettings(s);
+    // Along the cliff (+x) and up at the face where the level-0/1 border crosses it, about 300 m away
+    SetCamera(0, eye, lookRotation(Vec3(283, 400, 100)), 20.0 * M_PI / 180);
+    const auto img = Capture(3);
+    const auto& st = scene->terrainPassStats();
+    EXPECT_GT(st.nodesPerLevel[0], 0);
+    EXPECT_GT(st.nodesPerLevel[1], 0);
+    EXPECT_EQ(st.refusedResidency, 0);
+    // Gaps show the background with the skirts off and are covered with them; the sky above the cliff is background in
+    // both images
+    const int magentaOff = countColor(img, ucvec4(255, 0, 255, 255), 0);
+    s.terrainSkirts = true;
+    scene->setPrototypeSettings(s);
+    const int magentaOn = countColor(Capture(3), ucvec4(255, 0, 255, 255), 0);
+    EXPECT_LT(magentaOn, width * height / 2);
+    EXPECT_EQ(magentaOff, magentaOn);
+
+    // The edge vertices of every node that lie on a node of the next finer (coarser) level
+    const auto& nodes = scene->terrainPass().selectedNodes();
+    auto extent       = [&](const TerrainNodeInfo& n)
+    {
+        const int grid = n.quarter ? 16 : 32;
+        return int32_t(grid * (bs << n.level));
+    };
+    auto inside = [&](const TerrainNodeInfo& n, int64_t x, int64_t z)
+    { return x >= n.originX && x <= n.originX + extent(n) && z >= n.originZ && z <= n.originZ + extent(n); };
+    std::vector<TerrainProbe> probes;
+    std::vector<float> expected;
+    for (size_t a = 0; a < nodes.size(); ++a)
+    {
+        if (nodes[a].water) continue;
+        const int grid = nodes[a].quarter ? 16 : 32, sp = bs << nodes[a].level;
+        for (int gz = 0; gz <= grid; ++gz)
+            for (int gx = 0; gx <= grid; ++gx)
+            {
+                if (gx != 0 && gz != 0 && gx != grid && gz != grid) continue;
+                const int64_t x = nodes[a].originX + gx * sp, z = nodes[a].originZ + gz * sp;
+                for (size_t b = 0; b < nodes.size(); ++b)
+                {
+                    if (b == a || nodes[b].water || std::abs(nodes[b].level - nodes[a].level) != 1) continue;
+                    if (!inside(nodes[b], x, z)) continue;
+                    probes.push_back(TerrainProbe{int(a), gx, gz});
+                    // The coarse side unmorphed, the fine side fully morphed
+                    expected.push_back(nodes[a].level > nodes[b].level ? 0.0f : 1.0f);
+                    break;
+                }
+            }
+    }
+    ASSERT_GT(probes.size(), 50u);
+    const auto out = scene->terrainPass().probeVertices(probes);
+    int wrong      = 0;
+    for (size_t i = 0; i < probes.size(); ++i) wrong += out[i](3) == expected[i] ? 0 : 1;
+    EXPECT_EQ(wrong, 0) << "of " << probes.size() << " border vertices";
 }
 
 // A resident level-0 tile with a 300 m plateau under flat coarse levels: the camera looks up, so the coarse boxes alone

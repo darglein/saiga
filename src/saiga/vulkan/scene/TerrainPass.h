@@ -44,8 +44,10 @@ struct TerrainFrameUniforms
     vec4 fog      = vec4(0, 0, 0, 0);  // w: the camera height above the fog base (m)
     vec4 fogColor = vec4(0, 0, 0, 1);
     vec4 skyColor = vec4(0, 0, 0, 1);
-    vec4 lod      = vec4(0, 0, 0, 0);  // x: the range of level 0 used (m), y: morph start
-    vec4 grass    = vec4(0, 0, 0, 0);
+    // x: the range of level 0 used (m), y: morph start, z: the LOD metric's height (the camera height above the
+    // surface under it, m)
+    vec4 lod   = vec4(0, 0, 0, 0);
+    vec4 grass = vec4(0, 0, 0, 0);
     // x, y: the grass wind phases, z: wind, w: alpha cutoff
     vec4 grassPhases = vec4(0, 0, 0, 0);
     vec4 viewport    = vec4(0, 0, 0, 0);
@@ -74,9 +76,13 @@ struct TerrainProbe
  * - nodes of level k have vertex spacing baseSpacing * 2^k and size 32 * baseSpacing * 2^k (gridN 32; quarter grids of
  *   16 at the parent's spacing); level 0 has one vertex per sample; levels below streamedLevels read their own tile
  *   level, coarser levels the pyramid. The roots are the 4096 m nodes, always considered.
- * - Selection in double: node boxes from the atlas's hierarchical bounds (minus the skirt), relative to the camera,
- *   ranges terrainLodRange * 2^k (the S19a morph minimum); a node is refined only if its children's tile is
- *   GPU-resident; a child out of range is drawn as a quarter at the parent's spacing.
+ * - Selection in double: node boxes from the atlas's hierarchical bounds, relative to the camera, culled with the box
+ *   reaching down by the skirt; the LOD distance is relief independent, sqrt(dxz^2 + hc^2) with the box's horizontal
+ *   distance dxz and one height per frame hc (the camera height above the surface under it, TerrainFrame lod.z), the
+ *   same metric as the vertex morph, so the CDLOD invariant (no morph on the coarse side of a level border, a fully
+ *   morphed fine side) holds for any relief with ranges terrainLodRange * 2^k above the morph minimum; a node is
+ *   refined only if its children's tile is GPU-resident; a child out of range is drawn as a quarter at the parent's
+ *   spacing.
  * - The frame anchor: the camera's xz rounded down to 64 m and refHeight (the camera height rounded down to 64 m in
  *   height units, clamped to the limit); node origins are integers relative to the anchor, cameraRel is rounded once.
  * - Skirts (the outer ring of each grid, max(node range, 2 spacings) deep) close the T-junctions of residency-driven
@@ -143,6 +149,8 @@ class SAIGA_VULKAN_API TerrainPass
     void setFoliageTexture(Texture2DArray* texture) { foliage = texture; }
     // The range of level 0 actually used (the morph minimum)
     double usedRange0() const { return range0; }
+    // The LOD metric's height of the last frame (m): distances are sqrt(dxz^2 + lodHeight^2)
+    double usedLodHeight() const { return lodHeight; }
     // The anchor of the last frame: x, z (m) and refHeight (height units)
     ivec4 anchor() const { return uniforms.anchor; }
 
@@ -187,6 +195,8 @@ class SAIGA_VULKAN_API TerrainPass
     bool frameValid         = false;
     uint32_t lastFrame      = 0;
     double range0           = 300;
+    // The LOD metric's height (TerrainFrame lod.z): the camera height above the surface under it
+    double lodHeight = 0;
     // The frame's nodes: full, quarter, water (their instance ranges)
     std::vector<GpuNode> fullNodes, quarterNodes, waterNodes;
     std::vector<TerrainNodeInfo> fullInfos, quarterInfos, nodeInfos;
@@ -195,7 +205,7 @@ class SAIGA_VULKAN_API TerrainPass
     void select(const TerrainAtlas& atlas, const SceneCamera& camera, int32_t anchorX, int32_t anchorZ);
     bool selectNode(const TerrainAtlas& atlas, const SceneCamera& camera, int level, int32_t nx, int32_t nz,
                     int32_t anchorX, int32_t anchorZ, const std::vector<double>& ranges);
-    void addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, int size, bool quarter, int32_t anchorX,
+    void addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, bool quarter, int32_t anchorX,
                  int32_t anchorZ, double skirt);
     void writeDescriptors(Frame& f, TerrainAtlas& atlas, uint32_t frameIndex);
 };

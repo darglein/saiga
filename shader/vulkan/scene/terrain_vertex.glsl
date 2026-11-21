@@ -13,7 +13,8 @@ struct TerrainVertex
 {
     vec3 position;  // relative to the camera
     vec3 normal;
-    float lod;  // the level, -1 for water
+    float lod;    // the level, -1 for water
+    float morph;  // the morph factor k (0 for water)
 };
 
 // g: the grid sample (0..gridN); skirt: hang the vertex skirtDepth below its edge vertex
@@ -33,6 +34,7 @@ TerrainVertex terrainVertex(uint nodeIndex, ivec2 g, bool skirt)
         v.position      = vec3(xz.x, y, xz.y);
         v.normal        = vec3(0, 1, 0);
         v.lod           = -1.0;
+        v.morph         = 0.0;
         return v;
     }
     int spacing = frame.grid.w << level;
@@ -44,16 +46,18 @@ TerrainVertex terrainVertex(uint nodeIndex, ivec2 g, bool skirt)
     int ht           = nodeHeight(nd, level, gt);
     precise float hr  = float(h - frame.anchor.z);
     precise float hrt = float(ht - frame.anchor.z);
-    // The morph factor from the camera-relative distance of the unmorphed vertex (CDLOD)
+    // The morph factor from the LOD metric of the unmorphed vertex (CDLOD): sqrt(dxz^2 + hc^2) with the frame's camera
+    // height above the surface under it (lod.z), as TerrainPass's selection; relief independent, so a coarse node at a
+    // level border never morphs its edge. The morph is complete at 99 % of the range: the fine side of a border (beyond
+    // the range in double) is fully morphed also with the float rounding of the distance
     precise float k = 0.0;
     if (level < frame.flags.y)
     {
-        precise float yr    = hr * kHeightUnit - cr.y;
-        precise float dist  = length(vec3(xz.x, yr, xz.y));
-        float range = frame.lod.x * exp2(float(level));
-        float prev  = level > 0 ? range * 0.5 : 0.0;
-        float start = prev + (range - prev) * frame.lod.y;
-        k           = clamp((dist - start) / (range - start), 0.0, 1.0);
+        precise float dist = length(vec3(xz.x, frame.lod.z, xz.y));
+        float range        = frame.lod.x * exp2(float(level));
+        float prev         = level > 0 ? range * 0.5 : 0.0;
+        float start        = prev + (range - prev) * frame.lod.y;
+        k                  = clamp((dist - start) / (range * 0.99 - start), 0.0, 1.0);
     }
     precise vec2 p = mix(xz, xzt, k);
     precise float y = mix(hr, hrt, k) * kHeightUnit - cr.y;
@@ -68,5 +72,6 @@ TerrainVertex terrainVertex(uint nodeIndex, ivec2 g, bool skirt)
     float hu  = float(anyHeight(level, s + ivec2(0, 1)) - h);
     v.normal  = normalize(vec3((hl - hrr) * kHeightUnit, 2.0 * float(spacing), (hd - hu) * kHeightUnit));
     v.lod     = float(level);
+    v.morph   = k;
     return v;
 }

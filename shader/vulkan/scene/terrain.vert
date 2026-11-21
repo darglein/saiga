@@ -23,6 +23,8 @@ pc;
 layout(location = 0) out vec3 outPos;
 layout(location = 1) out vec3 outNormal;
 layout(location = 2) flat out float outLod;
+// 1 at the skirt ring, 0 at the grid: > 0 in every fragment of a skirt triangle (the shading of the skirt)
+layout(location = 3) out float outSkirt;
 
 // The depth pre-pass draws the terrain with this shader alone: the scene pass's EQUAL test needs bit-identical depths
 invariant gl_Position;
@@ -37,5 +39,6 @@ void main()
     outPos       = v.position;
     outNormal    = v.normal;
     outLod       = v.lod;
+    outSkirt     = skirt ? 1.0 : 0.0;
     gl_Position  = frame.viewProjRel * vec4(v.position, 1.0);
 }

@@ -104,8 +104,11 @@ void GrassPass::update(const TerrainAtlas& atlas, const TerrainPass& terrain, co
     const Vec3& c            = camera.position;
     const double r           = settings.grassRadius;
     statistics.cellsPerChunk = N;
-    const int32_t cx0 = int32_t(std::floor((c.x() - r) / 256)), cx1 = int32_t(std::floor((c.x() + r) / 256));
-    const int32_t cz0 = int32_t(std::floor((c.z() - r) / 256)), cz1 = int32_t(std::floor((c.z() + r) / 256));
+    // The chunk range, clamped in double before the conversion (any finite camera; TerrainPass skips non-finite ones)
+    auto chunkOf = [&](double v)
+    { return int32_t(std::min(std::max(std::floor(v / 256), -1.0), double(L.sizeChunks))); };
+    const int32_t cx0 = chunkOf(c.x() - r), cx1 = chunkOf(c.x() + r);
+    const int32_t cz0 = chunkOf(c.z() - r), cz1 = chunkOf(c.z() + r);
     const int nodeSize = 32 * L.baseSpacing;
     for (int32_t cz = std::max(0, cz0); cz <= std::min(L.sizeChunks - 1, cz1); ++cz)
     {

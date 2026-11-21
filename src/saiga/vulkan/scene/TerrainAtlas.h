@@ -120,6 +120,10 @@ class SAIGA_VULKAN_API TerrainAtlas
     int maskLayer(int32_t cx, int32_t cz) const;
     // The page-table offset of a streamed level (entries)
     uint32_t pageOffset(int level) const { return pageOffsets[size_t(level)]; }
+    // An estimate of the surface height (m) at (x, z), clamped into the space: bilinear in the finest set tile that
+    // contains it (the heights as set, without later patches), else in the pyramid; none without a set. Continuous
+    // within one level (TerrainPass's LOD metric: the camera height above the surface under it)
+    std::optional<double> surfaceHeightEstimate(double x, double z) const;
 
     // ---- node bounds (height units; lo > hi: invalid)
     struct Bound

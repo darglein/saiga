@@ -86,9 +86,15 @@ bool boxCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, 5>& planes
     return false;
 }
 
-double boxDistance(const Vec3& lo, const Vec3& hi)
+// The LOD metric of the selection and the vertex morph: sqrt(dxz^2 + hc^2) with the horizontal distance dxz of the
+// camera-relative box [lo, hi] (xz only) and the frame's camera height hc above the surface under the camera. hc is one
+// value per frame, so the metric is 1-Lipschitz in xz and independent of the relief: the morph invariant at level
+// borders depends only on the horizontal node diagonal (minR0)
+double lodDistance(const Vec3& lo, const Vec3& hi, double hc)
 {
-    return Vec3::Zero().cwiseMax(lo).cwiseMin(hi).norm();
+    const double dx = std::max(0.0, std::max(lo.x(), -hi.x()));
+    const double dz = std::max(0.0, std::max(lo.z(), -hi.z()));
+    return std::sqrt(dx * dx + dz * dz + hc * hc);
 }
 }  // namespace
 
@@ -233,14 +239,19 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
 {
     skipFrame();
     if (!camera.valid) return false;
+    // A non-finite camera (no conversion to integers below): nothing this frame
+    if (!camera.position.allFinite()) return false;
     // The terrain only for the set's space when it is the camera's; nothing before the whole pyramid is on the GPU
     const bool drawTerrain = atlas.hasSet() && atlas.pyramidResident() && atlas.space() == camera.space;
     const bool hasSea      = drawTerrain && atlas.seaLevel().has_value();
     lastFrame              = frameIndex;
     const Vec3& c          = camera.position;
-    // The frame anchor: xz rounded down to 64 m, refHeight to 64 m (65536 units), clamped to the limit
-    const int32_t anchorX = int32_t(std::floor(c.x() / 64.0)) * 64;
-    const int32_t anchorZ = int32_t(std::floor(c.z() / 64.0)) * 64;
+    // The frame anchor: xz rounded down to 64 m (clamped to +-2^30 m before the conversion), refHeight to 64 m
+    // (65536 units), clamped to the limit
+    auto anchorOf = [](double v)
+    { return int32_t(std::floor(std::min(std::max(v, -1073741824.0), 1073741824.0) / 64.0)) * 64; };
+    const int32_t anchorX = anchorOf(c.x());
+    const int32_t anchorZ = anchorOf(c.z());
     int64_t ref           = int64_t(std::floor(c.y() / kHeightUnit / 65536.0)) * 65536;
     ref                   = std::min<int64_t>(std::max<int64_t>(ref, -kTerrainHeightLimit), kTerrainHeightLimit);
     const Vec3 rel(c.x() - anchorX, c.y() - double(ref) * kHeightUnit, c.z() - anchorZ);
@@ -249,10 +260,18 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     {
         lastAtlas              = &atlas;
         const TerrainLayout& L = atlas.layout();
-        // The S19a morph minimum: a node of level k must fit into the morph area of level k + 1
+        // The morph minimum. The S19a bound (2.5 leaf diagonals, more for a late morph start) and the CDLOD invariant
+        // of the horizontal metric: at a level-k/k+1 border the fine node's box is within range_k, so the shared edge
+        // is within range_k + its diagonal (sqrt(2) * leaf * 2^k) and must stay before the coarse level's morph start
+        // range_k * (1 + morphStart): range0 >= sqrt(2) * leaf / morphStart, with a 50 % margin
         const double leaf  = 32.0 * L.baseSpacing;
-        const double minR0 = 2.5 * leaf * 1.42 * std::max(1.0, 0.3 / std::max(1.0 - double(settings.morphStart), 0.01));
+        const double ms    = std::max(double(settings.morphStart), 0.05);
+        const double minR0 = std::max(2.5 * leaf * 1.42 * std::max(1.0, 0.3 / std::max(1.0 - ms, 0.01)),
+                                      1.5 * std::sqrt(2.0) * leaf / ms);
         range0             = std::max(double(settings.terrainLodRange), minR0);
+        // The LOD metric's height: the camera height above the surface under it (one value per frame)
+        const std::optional<double> ground = atlas.surfaceHeightEstimate(c.x(), c.z());
+        lodHeight                          = ground ? std::abs(c.y() - *ground) : 0.0;
 
         select(atlas, camera, anchorX, anchorZ);
 
@@ -340,7 +359,7 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     u.fog                = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, float(c.y() - fogBase));
     u.fogColor           = vec4(0.42f, 0.42f, 0.42f, 1);
     u.skyColor           = vec4(0.2f, 0.2f, 0.2f, 1);
-    u.lod                = vec4(float(range0), settings.morphStart, 0, 0);
+    u.lod                = vec4(float(range0), settings.morphStart, float(lodHeight), 0);
     u.grass              = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(samples));
     u.grassPhases =
         vec4(prototypeWindPhase(time, 1.7), prototypeWindPhase(time, 1.3), settings.wind, settings.alphaCutoff);
@@ -383,14 +402,15 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
     const double skirt            = std::max(double(own.hi - own.lo) * kHeightUnit, 2 * spacing);
     const Vec3& c                 = camera.position;
     const int32_t ox = nx * size, oz = nz * size;
+    // The box for the frustum test reaches down by the skirt; the LOD distance is horizontal (lodDistance)
     const Vec3 lo(double(ox) - c.x(), double(b.lo) * kHeightUnit - skirt - c.y(), double(oz) - c.z());
     const Vec3 hi(double(ox + size) - c.x(), double(b.hi) * kHeightUnit - c.y(), double(oz + size) - c.z());
-    const double d = boxDistance(lo, hi);
+    const double d = lodDistance(lo, hi, lodHeight);
     if (d > ranges[size_t(level)]) return false;
     if (boxCulled(lo, hi, camera.planes)) return true;
     if (level == 0 || d > ranges[size_t(level - 1)])
     {
-        addNode(atlas, level, ox, oz, size, false, anchorX, anchorZ, skirt);
+        addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt);
         return true;
     }
     // Refined only if the children's tile (one tile holds all four) is GPU-resident
@@ -401,7 +421,7 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
         if (!atlas.tileResident(child, int32_t(int64_t(ox) / tileSize), int32_t(int64_t(oz) / tileSize)))
         {
             statistics.refusedResidency++;
-            addNode(atlas, level, ox, oz, size, false, anchorX, anchorZ, skirt);
+            addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt);
             return true;
         }
     }
@@ -417,16 +437,15 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
             const Vec3 clo(double(qx) - c.x(), double(cb.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
             const Vec3 chi(double(qx + half) - c.x(), double(cb.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
             if (cb.valid() && !boxCulled(clo, chi, camera.planes))
-                addNode(atlas, level, qx, qz, half, true, anchorX, anchorZ, skirt);
+                addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt);
         }
     }
     return true;
 }
 
-void TerrainPass::addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, int size, bool quarter,
-                          int32_t anchorX, int32_t anchorZ, double skirt)
+void TerrainPass::addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, bool quarter, int32_t anchorX,
+                          int32_t anchorZ, double skirt)
 {
-    (void)size;
     const int32_t spacing = atlas.layout().baseSpacing << level;
     GpuNode n;
     n.originX    = ox - anchorX;

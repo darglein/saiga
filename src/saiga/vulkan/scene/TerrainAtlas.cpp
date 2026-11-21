@@ -7,8 +7,10 @@
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/vulkan/Renderer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <string>
@@ -69,8 +71,8 @@ TerrainMemory TerrainAtlas::memoryEstimate(const TerrainLayout& l, const RenderS
     m.pyramid      = bufferBytes(P * P * 4);
     m.pageTable    = bufferBytes(pageEntries(l) * 4);
     m.masks        = bufferBytes(size_t(l.grassMaskLayers) * size_t(l.grassMaskSize()) * size_t(l.grassMaskSize()));
-    m.nodes        = 2 * size_t(maxNodes) * nodeInstanceBytes;
-    m.staging      = 2 * (p.terrainUploadBytesPerFrame + stagingMargin);
+    m.nodes        = size_t(VulkanRenderer::framesInFlight) * size_t(maxNodes) * nodeInstanceBytes;
+    m.staging      = size_t(VulkanRenderer::framesInFlight) * (p.terrainUploadBytesPerFrame + stagingMargin);
     m.bounds       = totalNodes(l) * sizeof(NodeBounds);
     m.uploadData   = p.terrainUploadBytesPerFrame;
     return m;
@@ -84,12 +86,15 @@ void TerrainAtlas::init(VulkanBase& b, const RenderSceneParameters& p, uint64_t 
     storageLimit = limit;
     SAIGA_ASSERT(params.terrainUploadBytesPerFrame >= 2 * (align16(size_t(257) * 257 * 4) + 16),
                  "RenderSceneParameters::terrainUploadBytesPerFrame must hold at least two 1 m tiles");
-    for (int f = 0; f < 2; ++f)
+    static_assert(VulkanRenderer::framesInFlight == std::tuple_size<decltype(staging)>::value &&
+                      VulkanRenderer::framesInFlight == std::tuple_size<decltype(nodeBuffers)>::value,
+                  "TerrainAtlas: one staging and node buffer per frame in flight");
+    for (size_t f = 0; f < staging.size(); ++f)
     {
-        staging[size_t(f)].createBuffer(
-            *base, params.terrainUploadBytesPerFrame + stagingMargin, vk::BufferUsageFlagBits::eTransferSrc,
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        nodeBuffers[size_t(f)].createBuffer(
+        staging[f].createBuffer(*base, params.terrainUploadBytesPerFrame + stagingMargin,
+                                vk::BufferUsageFlagBits::eTransferSrc,
+                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        nodeBuffers[f].createBuffer(
             *base, size_t(maxNodes) * nodeInstanceBytes, vk::BufferUsageFlagBits::eStorageBuffer,
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     }
@@ -260,6 +265,40 @@ TerrainAtlas::TileRecord* TerrainAtlas::findTile(const RegionId& region)
     if (region.x < 0 || region.z < 0 || region.x >= W || region.z >= W) return nullptr;
     const int slot = tileSlots[region.level][size_t(region.z) * size_t(W) + size_t(region.x)];
     return slot < 0 ? nullptr : &tiles[region.level][size_t(slot)];
+}
+
+std::optional<double> TerrainAtlas::surfaceHeightEstimate(double x, double z) const
+{
+    if (!setAllocated || !pyramidHeights) return std::nullopt;
+    const double size = double(setLayout.sizeChunks) * 256.0;
+    if (!std::isfinite(x) || !std::isfinite(z)) return std::nullopt;
+    x = std::min(std::max(x, 0.0), size);
+    z = std::min(std::max(z, 0.0), size);
+    // Bilinear in a row-major n x n grid of spacing sp with its first sample at (x0, z0)
+    auto bilinear = [&](const std::vector<int32_t>& hs, int n, double sp, double x0, double z0)
+    {
+        const double fx = std::min(std::max((x - x0) / sp, 0.0), double(n - 1));
+        const double fz = std::min(std::max((z - z0) / sp, 0.0), double(n - 1));
+        const int i = std::min(int(fx), n - 2), j = std::min(int(fz), n - 2);
+        const double u = fx - i, v = fz - j;
+        auto h          = [&](int a, int b) { return double(hs[size_t(b) * size_t(n) + size_t(a)]); };
+        const double h0 = h(i, j) + (h(i + 1, j) - h(i, j)) * u;
+        const double h1 = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * u;
+        return (h0 + (h1 - h0) * v) * kHeightUnit;
+    };
+    for (int level = 0; level < setLayout.streamedLevels(); ++level)
+    {
+        const double tileSize = 256.0 * double(1 << level);
+        const int32_t W       = setLayout.tilesPerSide(level);
+        const int32_t tx = std::min(int32_t(x / tileSize), W - 1), tz = std::min(int32_t(z / tileSize), W - 1);
+        const int slot = tileSlots[size_t(level)][size_t(tz) * size_t(W) + size_t(tx)];
+        if (slot < 0) continue;
+        const TileRecord& r = tiles[size_t(level)][size_t(slot)];
+        if (!r.data.heights) continue;
+        return bilinear(*r.data.heights, setLayout.samplesPerSide(), double(setLayout.baseSpacing << level),
+                        tx * tileSize, tz * tileSize);
+    }
+    return bilinear(*pyramidHeights, setLayout.pyramidSamplesPerSide(), 32.0, 0.0, 0.0);
 }
 
 bool TerrainAtlas::tileSet(int level, int32_t tx, int32_t tz) const

@@ -89,12 +89,14 @@ class SAIGA_ENGINE_API TerrainSystem
     //  5. evicts tiles that are not desired, LRU first, so that each level holds at most tilesPerLevel (and the masks
     //     that are not desired);
     //  6. sends every removal of 5, then at most uploadsPerFrame tile additions by distance and the mask additions.
-    // Without a render sink nothing is requested or sent
+    // Without a render sink, or for a non-finite camera, nothing is requested or sent
     void updateView(SpaceId space, const Vec3& camera);
     // Blocks until the desired set of this camera is resident and sent (the pyramid, then the tiles, then the masks,
     // repeated until nothing is missing; no maxInFlight or uploadsPerFrame limit; the calling thread runs queued jobs
     // too). Returns false on timeout (what is resident is still sent; no caller job starts after the deadline, a
-    // running one is finished). Without a sink it fills the store only. A space without terrain returns true at once
+    // running one is finished), at once when an iteration brought nothing new and nothing is queued or running (no
+    // later one could: logged with what is missing), or for a non-finite camera. Without a sink it fills the store
+    // only. A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
     // nothing. True for a space without terrain; without a sink only the residency counts
@@ -136,8 +138,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // The lazy StreamingPool exists (a sink alone starts none)
     bool poolCreated() const { return pool != nullptr; }
 
-    // Engine-internal: the World's render sink (World::setRenderSink). A new sink receives the pyramid, the tiles and
-    // the masks the store of the view space holds (through the send point); a removed sink drops the sent state
+    // Engine-internal: the World's render sink (World::setRenderSink). A new sink receives the pyramid and the tiles
+    // and masks of the last view camera's desired set (current budget) that the store of the view space holds (through
+    // the send point); a removed sink drops the sent state
     void setSink(RenderSink* sink);
     // Tests: a space's store
     const TerrainStore& store(SpaceId space) const;
@@ -178,7 +181,9 @@ class SAIGA_ENGINE_API TerrainSystem
     std::set<ChunkId> sentMasks;
     bool viewSpaceValid = false;
     SpaceId viewSpace   = 0;
-    uint64_t frame      = 0;
+    // The camera of the last view update (setSink sends its desired set)
+    Vec3 viewCamera = Vec3::Zero();
+    uint64_t frame  = 0;
     // Incremented when the grass thresholds change: older mask results are dropped
     uint64_t maskGeneration = 0;
     Stats statistics;
@@ -199,6 +204,13 @@ class SAIGA_ENGINE_API TerrainSystem
     // Removals, then at most limit tile additions by distance, then the mask additions
     void sendUpdates(SpaceId space, const Desired& d, int limit);
     bool missing(SpaceId space, const Desired& d) const;
+    // The desired tiles and masks not in the store, or stored and not sent to the sink
+    struct MissingCounts
+    {
+        int tilesNotStored = 0, tilesNotSent = 0, masksNotStored = 0, masksNotSent = 0;
+        int total() const { return tilesNotStored + tilesNotSent + masksNotStored + masksNotSent; }
+    };
+    MissingCounts missingCounts(SpaceId space, const Desired& d) const;
     // Runs queued jobs on this thread until the deadline, then waits for the workers' jobs until it
     void runUntil(double deadlineSeconds);
     void updateStats(SpaceId space, const Desired* d);
