@@ -29,6 +29,7 @@ using Vulkan::MaterialData;
 using Vulkan::MaterialId;
 using Vulkan::MeshId;
 using Vulkan::MeshLods;
+using Vulkan::SpaceRenderSettings;
 using Vulkan::StaticInstance;
 using Vulkan::TerrainLayout;
 using Vulkan::TerrainPyramidData;
@@ -59,6 +60,9 @@ class RenderSink
     virtual void setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
                             uint32_t boneOffset = 0) = 0;
     virtual void removeDynamic(InstanceHandle h)     = 0;
+    // The render settings of a space (S21; §10.1): the World forwards one per SpaceId whenever a sink is set (as the
+    // mesh tables). The camera's space decides what is drawn (an enclosed space: no terrain, grass, water or sky)
+    virtual void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings) = 0;
     // The view (double; fovy in radians) and the interpolation factor of the dynamic instances
     virtual void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) = 0;
     virtual void setInterpolation(float alpha)                                                     = 0;

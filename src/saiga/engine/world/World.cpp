@@ -723,6 +723,13 @@ double World::terrainHeight(SpaceId space, double x, double z) const
     return terrainSys->height(space, x, z);
 }
 
+double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const
+{
+    SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
+    // S21: the terrain's (S20, D6); S23b adds the content sets, S27 far content
+    return terrainSys->readiness(space, camera, radius);
+}
+
 World::~World()
 {
     // Observers (the world API, waiting tools) stop using the world
@@ -1786,6 +1793,15 @@ void World::setRenderSink(RenderSink* sink)
         for (size_t i = 0; i < meshTable.size(); ++i)
             sink->registerMesh(Vulkan::MeshId(Vulkan::kGameReservedIds + i), meshTable[i].name, meshTable[i].lods,
                                meshTable[i].material);
+        // The render settings per space (S21): one call per SpaceId (from S23a several spaces may share a template)
+        for (size_t i = 0; i < spaceCount(); ++i)
+        {
+            const SpaceTemplate& t = spaceTemplate(SpaceId(i));
+            Vulkan::SpaceRenderSettings settings;
+            settings.openWorld  = t.kind == SpaceKind::OpenWorld;
+            settings.background = t.background.cast<float>();
+            sink->setSpaceSettings(SpaceId(i), settings);
+        }
     }
     extractor->setSink(sink);
     // The terrain's send point (S20): a new sink receives what the store holds

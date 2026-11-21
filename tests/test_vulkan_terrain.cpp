@@ -236,6 +236,38 @@ TEST_F(VulkanTerrain, NewSetOnOtherSpaceOrLayout)
     scene->setTerrainPyramid(1, testPyramid(flatHook, testLayout(16, 1)));
     EXPECT_EQ(scene->terrainAtlasStats().rebuilds, rebuilds + 2);
     renderUntilUploaded(*scene);
+
+    // S21, the switches of the camera between spaces with different layouts: space 0 at 1 m, space 2 at 2 m, space 0
+    // again, then an enclosed camera space (clearTerrain); frames in flight on every switch (validation clean)
+    const Vec3 camera(800, 120, 900);
+    const Quat down = Quat(std::cos(-0.35), std::sin(-0.35), 0, 0);  // 40 degrees down
+    auto frames     = [&](SpaceId space, int n)
+    {
+        scene->setCamera(space, camera, down, 1.0);
+        for (int i = 0; i < n; ++i) scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+        scene->waitIdle();
+        return scene->terrainPassStats();
+    };
+    const TerrainLayout fine = testLayout(16, 1), coarse = testLayout(16, 2);
+    fillTestTerrain(*scene, fine, TerrainHeightSource::fromHook(integerTestHook, 1), std::nullopt, camera, false, 0);
+    const TerrainPass::Stats first = frames(0, 3);
+    EXPECT_GT(first.nodes, 0);
+    EXPECT_EQ(scene->terrainAtlasStats().space, 0);
+    fillTestTerrain(*scene, coarse, TerrainHeightSource::fromHook(slopeRidgeHook, 1), std::nullopt, camera, false, 2);
+    const TerrainPass::Stats second = frames(2, 3);
+    EXPECT_GT(second.nodes, 0);
+    EXPECT_EQ(scene->terrainAtlasStats().space, 2);
+    EXPECT_EQ(scene->terrainAtlasStats().layout.baseSpacing, 2);
+    fillTestTerrain(*scene, fine, TerrainHeightSource::fromHook(integerTestHook, 1), std::nullopt, camera, false, 0);
+    const TerrainPass::Stats third = frames(0, 3);
+    EXPECT_EQ(scene->terrainAtlasStats().layout.baseSpacing, 1);
+    // The same layout and camera: the same selection per level as the first time
+    EXPECT_EQ(third.nodesPerLevel, first.nodesPerLevel);
+    EXPECT_EQ(third.quartersPerLevel, first.quartersPerLevel);
+    scene->clearTerrain();
+    const TerrainPass::Stats none = frames(1, 3);
+    EXPECT_EQ(none.nodes, 0);
+    EXPECT_FALSE(scene->terrainAtlasStats().hasSet);
 }
 
 TEST_F(VulkanTerrain, ClearTerrain)

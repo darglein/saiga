@@ -224,6 +224,14 @@ void RecordingRenderSink::removeGrassMask(const ChunkId& chunk)
     if (logging) note("removeGrassMask " + std::to_string(chunk.x) + " " + std::to_string(chunk.z));
 }
 
+void RecordingRenderSink::setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings)
+{
+    spaces[space] = settings;
+    spaceCalls[space]++;
+    count.setSpaceSettings++;
+    if (logging) note("setSpaceSettings " + std::to_string(space) + (settings.openWorld ? " open" : " enclosed"));
+}
+
 void RecordingRenderSink::clearTerrain()
 {
     terrainSet  = false;

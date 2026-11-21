@@ -320,6 +320,16 @@ struct InstanceHandle
 };
 
 // The statistics of a completed frame (RenderScene::statistics)
+// The render settings of a space (S21, docs/engine_design.md §10.1, §12.4; RenderScene::setSpaceSettings, forwarded by
+// the engine's World per SpaceId): an open-world space draws the terrain, grass, water and sky of the camera's space;
+// an enclosed one none of them, clears to background (linear RGB) and lights the instances with kEnclosedLighting. A
+// space without settings is drawn as open world. S36's environment per space replaces it.
+struct SpaceRenderSettings
+{
+    bool openWorld  = true;
+    vec3 background = vec3(0.02f, 0.02f, 0.025f);
+};
+
 struct RenderStatistics
 {
     uint64_t frame = 0;  // RenderScene's frame number (0: none yet)

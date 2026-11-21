@@ -109,6 +109,11 @@ void VulkanRenderSink::removeGrassMask(const ChunkId& chunk)
     renderScene.removeGrassMask(chunk);
 }
 
+void VulkanRenderSink::setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings)
+{
+    renderScene.setSpaceSettings(space, settings);
+}
+
 void VulkanRenderSink::clearTerrain()
 {
     renderScene.clearTerrain();

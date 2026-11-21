@@ -390,6 +390,11 @@ class SAIGA_ENGINE_API World
     // (R-DET-1). 0 for a space without terrain (a hook-less open world, an enclosed space's floor plane until S23 /
     // S28). Const and thread safe (parallelEach)
     double terrainHeight(SpaceId space, double x, double z) const;
+    // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
+    // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
+    // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
+    // for a fixed camera); S23b adds the content sets, S27 far content
+    double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }

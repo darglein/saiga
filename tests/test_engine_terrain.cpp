@@ -903,9 +903,12 @@ TEST(TerrainStreaming, CompleteViewFirstView)
     EXPECT_GT(st.masksDesired, 0);
     EXPECT_EQ(st.masksSent, st.masksDesired);
     EXPECT_EQ(w.terrain().readiness(0, cam, 1e9), 1.0);
-    // The pyramid came first
-    ASSERT_FALSE(sink.log().empty());
-    EXPECT_EQ(sink.log().front(), "setTerrainPyramid 0");
+    // The pyramid came first (of the terrain calls; S21: the space settings come at setRenderSink)
+    std::vector<std::string> terrainCalls;
+    for (const std::string& l : sink.log())
+        if (l.rfind("setSpaceSettings", 0) != 0) terrainCalls.push_back(l);
+    ASSERT_FALSE(terrainCalls.empty());
+    EXPECT_EQ(terrainCalls.front(), "setTerrainPyramid 0");
     const uint64_t generated = st.generated;
     ASSERT_TRUE(w.terrain().completeView(0, cam));
     EXPECT_EQ(w.terrain().stats().generated, generated);
@@ -1346,5 +1349,147 @@ TEST(TerrainStreaming, MemoryBudget32km)
     }
     std::cout << "MemoryBudget32km: worst " << worst / double(1 << 20) << " MB, static bound "
               << staticBound / double(1 << 20) << " MB" << std::endl;
+    w.setRenderSink(nullptr);
+}
+
+// ---- several spaces (S21): S20's space switch, the lazy and cached pyramids, clearTerrain for terrain-less spaces
+
+namespace
+{
+int32_t cavesHook(uint64_t seed, int64_t x, int64_t z)
+{
+    return int32_t(int64_t(seed % 500) * 32 - x * 2 + z * 12 + 512);
+}
+
+// Space 0: open world (integerTestHook, 2 m), 1: the enclosed cellar, 2: open world (cavesHook, 1 m), 3: flat open
+// world (no hook)
+WorldSetup fourSpaces()
+{
+    WorldSetup s;
+    s.seed          = 3;
+    s.profiling     = false;
+    SpaceTemplate a = testSpaceTemplate(16, 2, integerTestHook);
+    a.name          = "overworld";
+    SpaceTemplate c = testSpaceTemplate(16, 1, cavesHook);
+    c.name          = "caves";
+    SpaceTemplate flat;
+    flat.name               = "flat";
+    s.config.spaceTemplates = {a, SpaceTemplate::enclosed("cellar", 4), c, flat};
+    return s;
+}
+
+const Vec3 kCam(1000, 60, 1000);
+
+// updateView until the recording holds the set of the space (at most a few seconds)
+bool viewUntilSet(World& w, RecordingRenderSink& sink, SpaceId space)
+{
+    for (int i = 0; i < 5000; ++i)
+    {
+        w.terrain().updateView(space, kCam);
+        if (sink.hasTerrainSet() && sink.terrainSpace() == space && !sink.terrainTiles().empty()) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return false;
+}
+}  // namespace
+
+TEST(TerrainSpaces, SwitchDropsTheOldSpace)
+{
+    World w(fourSpaces());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    ASSERT_EQ(sink.terrainSpace(), 0);
+    ASSERT_FALSE(sink.terrainTiles().empty());
+    sink.setLogging(true);
+    ASSERT_TRUE(viewUntilSet(w, sink, 2));
+    // The recording holds no tile or mask of space 0 (dropped on space 2's pyramid, E1)
+    for (const auto& [r, t] : sink.terrainTiles()) EXPECT_EQ(r.space, 2) << "a tile of space " << r.space;
+    for (const auto& [c, m] : sink.grassMasks()) EXPECT_EQ(c.space, 2);
+    // The store keeps space 0's pyramid only
+    EXPECT_NE(w.terrain().pyramid(0), nullptr);
+    EXPECT_TRUE(w.terrain().store(0).tiles().empty());
+    EXPECT_TRUE(w.terrain().store(0).masks().empty());
+    // Space 2's pyramid before its tiles
+    const auto& log  = sink.log();
+    size_t pyramidAt = log.size(), firstTile = log.size();
+    for (size_t i = 0; i < log.size(); ++i)
+    {
+        if (log[i] == "setTerrainPyramid 2" && pyramidAt == log.size()) pyramidAt = i;
+        if (log[i].rfind("setTerrainTile", 0) == 0 && firstTile == log.size()) firstTile = i;
+    }
+    EXPECT_LT(pyramidAt, firstTile);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainSpaces, PyramidLazyAndCached)
+{
+    World w(fourSpaces());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    EXPECT_EQ(w.terrain().pyramid(2), nullptr);
+    EXPECT_EQ(w.terrain().stats().pyramidsGenerated, 1u);
+    const auto* pyramid0 = w.terrain().pyramid(0);
+    ASSERT_NE(pyramid0, nullptr);
+    ASSERT_TRUE(w.terrain().completeView(2, kCam));
+    EXPECT_NE(w.terrain().pyramid(2), nullptr);
+    EXPECT_EQ(w.terrain().stats().pyramidsGenerated, 2u);
+    // Back in space 0: the cached pyramid is re-sent (no generation), its tiles are streamed again
+    const uint64_t generated = w.terrain().stats().generated;
+    const uint64_t pyramids  = sink.counters().setTerrainPyramid;
+    w.terrain().updateView(0, kCam);
+    EXPECT_LT(w.spaceReadiness(0, kCam, 256), 1.0);  // the switch frame (the consequence of D5)
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    EXPECT_EQ(w.terrain().pyramid(0), pyramid0);
+    EXPECT_EQ(w.terrain().stats().pyramidsGenerated, 2u);
+    EXPECT_GT(sink.counters().setTerrainPyramid, pyramids);
+    EXPECT_EQ(sink.terrainSpace(), 0);
+    EXPECT_GT(w.terrain().stats().generated, generated);  // tiles and masks only
+    EXPECT_EQ(w.spaceReadiness(0, kCam, 256), 1.0);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainSpaces, SpacesWithoutTerrain)
+{
+    World w(fourSpaces());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    auto terrainLess = [&](SpaceId space, uint64_t clears, const char* what)
+    {
+        w.terrain().updateView(space, kCam);
+        EXPECT_EQ(sink.counters().clearTerrain, clears) << what;
+        EXPECT_FALSE(sink.hasTerrainSet()) << what;
+        EXPECT_TRUE(sink.terrainTiles().empty()) << what;
+        EXPECT_TRUE(sink.grassMasks().empty()) << what;
+        EXPECT_EQ(w.terrain().stats().pending, 0) << what;
+        EXPECT_EQ(w.spaceReadiness(space, kCam, 256), 1.0) << what;
+    };
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    EXPECT_LT(w.spaceReadiness(0, Vec3(3000, 60, 3000), 256), 1.0);
+    terrainLess(1, 1, "0 -> 1 (enclosed)");
+    terrainLess(3, 1, "1 -> 3 (nothing was sent since)");
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    EXPECT_TRUE(sink.hasTerrainSet());
+    terrainLess(3, 2, "0 -> 3 (flat)");
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainSpaces, NewSinkGetsTheStreamedSpaceOnly)
+{
+    World w(fourSpaces());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    ASSERT_TRUE(w.terrain().completeView(2, kCam));
+    RecordingRenderSink later;
+    later.setLogging(true);
+    w.setRenderSink(&later);
+    EXPECT_TRUE(later.hasTerrainSet());
+    EXPECT_EQ(later.terrainSpace(), 2);
+    EXPECT_EQ(later.counters().setTerrainPyramid, 1u);
+    for (const std::string& line : later.log()) EXPECT_NE(line, "setTerrainPyramid 0");
+    EXPECT_EQ(int(later.terrainTiles().size()), int(w.terrain().store(2).tiles().size()));
+    for (const auto& [r, t] : later.terrainTiles()) EXPECT_EQ(r.space, 2);
     w.setRenderSink(nullptr);
 }

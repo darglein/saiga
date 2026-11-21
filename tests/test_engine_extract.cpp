@@ -1592,3 +1592,31 @@ TEST(ExtractSpaces, ClientUsesTheRenderPoseSpace)
     EXPECT_FALSE(blended);
     EXPECT_EQ(d->chunk.space, 1u);
 }
+
+// The World forwards one setSpaceSettings per SpaceId at setRenderSink (also to a sink set later): open world or
+// enclosed with the template's background
+TEST(ExtractSpaces, SpaceSettingsForwarded)
+{
+    WorldSetup setup            = baseSetup();
+    setup.config.spaceTemplates = twoSpaces();
+    setup.config.spaceTemplates.push_back(SpaceTemplate::enclosed("vault", 2));
+    setup.config.spaceTemplates[2].background = Vec3(0.5, 0.25, 0.125);
+    World w(setup);
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    ASSERT_EQ(s.spaceSettingsCalls().size(), 3u);
+    for (const auto& [space, calls] : s.spaceSettingsCalls()) EXPECT_EQ(calls, 1) << space;
+    EXPECT_TRUE(s.spaceSettings().at(0).openWorld);
+    EXPECT_FALSE(s.spaceSettings().at(1).openWorld);
+    EXPECT_FALSE(s.spaceSettings().at(2).openWorld);
+    EXPECT_EQ(s.spaceSettings().at(1).background, SpaceTemplate().background.cast<float>());
+    EXPECT_EQ(s.spaceSettings().at(2).background, vec3(0.5f, 0.25f, 0.125f));
+    w.step();
+    w.setRenderSink(nullptr);
+    // A sink set later gets them too
+    RecordingRenderSink later;
+    w.setRenderSink(&later);
+    EXPECT_EQ(later.counters().setSpaceSettings, 3u);
+    EXPECT_EQ(s.counters().setSpaceSettings, 3u);
+    w.setRenderSink(nullptr);
+}

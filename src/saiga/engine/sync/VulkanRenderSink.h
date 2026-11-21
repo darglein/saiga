@@ -28,6 +28,7 @@ class SAIGA_ENGINE_API VulkanRenderSink : public RenderSink
 
     // An identical (ID, name) registration again is a no-op (a second setRenderSink of this sink); another one asserts
     void registerMaterial(MaterialId id, const std::string& name, const MaterialData& data) override;
+    void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings) override;
     void registerMesh(MeshId id, const std::string& name, std::shared_ptr<const MeshLods> lods,
                       MaterialId material) override;
     InstanceSetHandle addInstanceSet(const RegionId& region, const std::vector<StaticInstance>& instances,
