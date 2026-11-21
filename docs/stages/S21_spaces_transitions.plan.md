@@ -1,6 +1,6 @@
 # S21: Spaces and transitions
 
-Status: planned (revised after review round 3).
+Status: implemented (2026-11-21; steps 1-10 on `stage-s21`, stacked on `stage-s20`).
 
 Sections follow the stage plan template of S05.
 
@@ -893,6 +893,10 @@ build.
 - The three tech demos' `--scenarios` pass with all variants (local), reported in the PR.
 - `docs/engine_design.md` amended (list below) and `AGENTS.md` updated.
 
+Status (2026-11-21): all met locally (numbers in Results); the CI runs (lavapipe, GCC, Clang, MSVC) happen with the
+PR. Locally the GPU and lavapipe ctest runs, a Clang 19 build with warnings as errors and the three demos' scenarios
+pass; MSVC was not built.
+
 ## Verification
 
 ```shell
@@ -1129,10 +1133,111 @@ interactively (the "Space" combo) or over MCP `set_camera {space: 1, position: [
   11. `SpaceKind` origin: S20's `SpaceTemplate.h` (S21 never claimed otherwise); the wording is S23a's to fix.
   Rejected: none.
 
+- **Implementation** (2026-11-21, Claude Opus 5.5; against the implemented S20, whose names the plan already used).
+  Deviations, each the smallest sound fix:
+  1. Step 1: `World::createIn(space)` for the world API's `spawn` without a class (the API had no other way to create
+     a plain entity in a space).
+  2. Step 2: `Replication::ownerTeleport` became `ownerMove` already in step 2 (with the plan's assert for a
+     client-owned root changing space, removed in step 4); writer 5 is the private `World::followParentSpace`; the
+     space primitive notes its writes in the S16 write detector (`noteWritten`; `World` is a friend of `Replication`).
+     `MoveToSpace.SameSpaceIsATeleport` reads the child's flag as `wasTeleportedLastStep` (the flags shift at the end
+     of a step).
+  3. Step 3: the loader keeps the staged defaults as `std::vector<World::StateDefaults>` (index 0 the world-state
+     entity, 1 + s the space-state entity of space s) and adds missing components with `World::addStateComponent`.
+     `diffSaves` reports `section_only_in_a/b` and `space` differences ("space 1: 'cellar' (enclosed) vs 'cave'
+     (enclosed)"). `SaveSections.SpaceTableNamesMayRepeat` checks the parse and `diffSaves` only: `World::dumpJson`
+     dumps a world's entities, and a blob with repeated names cannot load into an S21 setup (unique template names).
+  4. Step 4: an unknown space in a decoded `Transform` is rejected input; a replica under a client-local parent keeps
+     its parent's space (applyTransform, onOwnerCommand); `OwnerCommand`'s `space` is visited after `counter`. The
+     interpolation also snaps when the sampled space differs from the `RenderPose`'s (the first sample after a buffer
+     reset); the paused extract's settle path snaps on a space change too.
+  5. Step 5: the target cases of `SpaceSave.CorruptStates` are the separate `SpaceSave.CorruptTransitionTargets`.
+     The scenario `Case` holds `WorldSetup (*setup)(const std::string&)` (S20's `setupFor(name)` selects the walker's
+     terrain setup); `ScenarioWorld::networkConfig()` gives the variant's delay; the asynchronous variant gets 6 more
+     steps in the latency bounds.
+  6. Step 6: the `space` key of `set_component`'s `Transform` values is checked by S20's field rule ("only position,
+     rotation and scale"), whose text now names `move_to_space`; `add_component` of `Transform` names it too.
+  7. Step 7: an enclosed camera space calls `TerrainPass::skipFrame` instead of its transfer; its background is
+     sRGB-encoded in clay mode (the scene writes display values there); `kEnclosedLighting` is an inline constant in
+     `PrototypeWorld.h`. The S20 test `CompleteViewFirstView` skips the space settings in the call log.
+  8. Step 8: `loadEnds` takes `maxFrames`. The app test is three tests instead of one: the sequence (steps 1, 2, 4, 5,
+     6 with the default frame limit: with `loadingMaxFrames = 30` step 4's load would end by rule 3), the moving
+     camera (steps 2-3 with 30 frames and `showLoadingScreen = false`) and `--coop`; the spaces are switched with
+     `setViewCameraByTool` (what `set_camera` calls), `set_camera(space)` is tested separately
+     (`EngineAppNoRender.SetCameraSpace`). The camera JSON of the app tools has `space`.
+  9. Step 9: the route of a hero is `RunState::route` (see Design changes); the host's demo runner has no `Player`, so
+     at a door it emits the `InteractEvent` itself (`interactWithNearestDoor`, the game's rule) instead of queueing the
+     action, the pilot (a player) queues it; the pilot system runs `RunOn::Both` (the single-world variants of
+     `pilot_visits_the_cellar` pilot a host-owned hero); the goal is checked only in space 0. Doors: the entrance at
+     (-2.5, 0, 4.5) on the start island (away from the wall and the step), the cellar's arrival 3 m behind its site
+     origin, the exit at origin + (-2, 0, -21), back next to the entrance at (-1.5, 0, 3). `cellar_round_trip` checks
+     the arrival back within 0.05 m (in the single-world variants the controller runs in the arrival step after phase
+     1). The interact key is F.
+  10. Step 10: `AGENTS.md` names 72 tests with the CI options (S20's 71 + `test_engine_spaces`).
+
 ## Design changes
 
-(Filled when the stage is done.)
+The design-doc amendments A2, A4-A17 are made in `docs/engine_design.md` (§3 row, §7.4, §7.8, §7.9, §7.10, §8.1, §8.2,
+§10.1, §10.3, §12.2, §12.4, §13.3, §13.4, §15.1, §16.2, §17.2, §18.4, §22). Changes against the plan made during the
+implementation (each the smallest sound fix; details in the review log below):
+
+- `World::createIn(space)` (between steps) for the world API's `spawn` without a class; `World::addStateComponent`
+  next to `makeStateEntity` (the loader adds missing state components with it).
+- `loadEnds(loading, r, pending, maxFrames)` takes the frame limit as a fourth argument.
+- The platformer's route of a hero is `RunState::route` (version 2, a migration); the context holds both routes
+  (`PlatformerContext::routes`) instead of one `demoRoute` chosen by `--cellar`, so the cellar scenarios run without
+  the flag. The interact key is F (E turns the camera).
 
 ## Results
 
-(Filled when the stage is done.)
+Measured on the RTX 5080 Laptop GPU and on lavapipe (Mesa with LLVM 21.1.8), build `build/` (RelWithDebInfo, samples
+ON, warnings as errors).
+
+- **Tests.** ctest 74/74 on the GPU (local build with samples; with the CI options 72 tests: S20's 71 + the new
+  `test_engine_spaces`); every `test_vulkan_*` / `test_engine_*` on lavapipe 34/34. A full Clang 19 build with samples
+  and `SAIGA_WARNINGS_AS_ERRORS=ON` (the CI Clang job's compiler family) builds without a warning. MSVC was not built
+  locally.
+- **Done when.** `uses_a_space_link` passes in all six variants (Plain, Repeat, SaveLoad, HostClient,
+  HostClientDelay, HostClientAsync): the player ends in space 1 at the arrival pose (position within 1e-3 m, rotation
+  within 1e-4 rad) and back in space 0; the move is exactly 2 steps after the interact step in every variant.
+  `objects_change_space` passes in all six variants. Further spaces, `spawnIn`, per-space terrain, space-state entities
+  and saves: `test_engine_spaces` (26 tests), `SaveSections.*`, `SaveFormat.CommittedSaveLoadsWithAppendedSpaces`;
+  `moveToSpace` replicated: `SpaceReplication.*` (10 tests); entrances: `Transition.*`; the loading screen:
+  `LoadingRules.*`, `EngineAppRender.SpaceLoading*` (incl. the default overlay's pixels, on lavapipe in CI);
+  `VulkanSceneSpaces.*` (the enclosed frame: background through the ACES reference within 2/255, the lit pixel equal to
+  the `kEnclosedLighting` reference frame within 1/255).
+- **R-TEST-2.** `test_engine_net_benchmark` (2 runs each; before = after step 3, after = the final branch): snapshots
+  of 10 000 moving entities host step 4.42-4.48 -> 4.17-4.20 ms, client step 2.67-3.02 -> 2.72-2.76 ms, small
+  messages 1.80-1.83 -> 1.67-1.80 ms (unchanged within noise). `test_engine_ecs_benchmark` (after step 3 -> final):
+  `World::step` idle 0.618 -> 0.562 ms, moving 2.650 -> 2.315 ms, extract 0.650 -> 0.656 ms, grid step 2.660 ->
+  2.747 ms, saves of 100 000 entities save 39.7 -> 39.8 ms, load 115.0 -> 113.1 ms (the `Transform` change adds only a
+  private method; unchanged within noise). `game_world --benchmark` (build-bench, 3 runs each, medians; before = after
+  step 6, after = step 7, final = step 9 with the `islands` space configured but never viewed):
+
+  | | before | after step 7 | final |
+  |---|---|---|---|
+  | flyover `cpu_ms` | 3.78 | 3.77 | 3.89 |
+  | flyover GPU / `scene` | 2.47 / 2.40 | 2.50 / 2.43 | 2.53 / 2.45 |
+  | flyover trees / terrain + water / sky | 1.400 / 0.190 / 0.013 | 1.399 / 0.189 / 0.013 | 1.412 / 0.191 / 0.013 |
+  | forest `cpu_ms` | 2.18 | 2.18 | 2.19 |
+  | forest GPU / `scene` | 2.19 / 2.14 | 2.19 / 2.14 | 2.19 / 2.14 |
+  | forest trees / terrain + water / grass | 0.555 / 0.114 / 0.681 | 0.555 / 0.114 / 0.679 | 0.556 / 0.114 / 0.680 |
+
+  All within 3 % (space 0 within the 5 % of the plan); the flyover's interval streams in most frames (S20), its GPU
+  sections are the comparison. `sample_vulkan_scene_benchmark`: cull 0.057-0.058 ms, instance draw 1.26-1.30 ms
+  (S20: 0.058 / 1.27).
+- **Scenarios.** `--scenarios`: flight 18 passed, racing 18 passed, platformer 36 passed (the six S20 runs of each of
+  the three old scenarios plus `cellar_round_trip`, `demo_runner_visits_the_cellar`, `pilot_visits_the_cellar` in all
+  variants). `demo_reaches_goal` keeps 7.25 s. The cellar stays: the host's demo runner enters at step 33 and stays
+  270 steps (goal after the detour at 12.43 s); the pilot enters at step 34 (Plain) / 67 (HostClientDelay) and stays
+  270 steps. The pinned pre-simulation: solo `--demo --cellar` 108 steps (33 + 135 - 60), co-op 142 (67 + 135 - 60).
+- **Screenshots** (`SAIGA_SCREENSHOT`, RTX; reviewed): `game_platformer --demo --cellar` and `--coop --demo --cellar`
+  (both: "screenshot of frame 60 (view space 1)", the hero in the cellar with the exit door, the dark background, no
+  sky), `game_platformer --demo` (unchanged, on the bridge), flight and racing `--demo` and `game_world` (unchanged).
+  `game_world` headless over MCP: `set_camera {space: 1}` (the `islands` space): `app_status.space_loading` from 0
+  (frames 1-22: the pyramid on the pool) through 0.33 and 0.6 to the end (an MCP screenshot is a complete point and
+  ends the load), the terrain block `resident` 0 -> 62; back to space 0 a short load (progress 0.06 -> 0.5 -> done in
+  about 15 frames) without a pyramid generation. The islands screenshot shows the lowered terrain with a lake and no
+  trees (the prototype's forest is space 0's). A screenshot of the default loading screen itself cannot be taken
+  through the app's capture paths (a capture is a complete point, which ends the load); the overlay is pinned by
+  `EngineAppRender.SpaceLoadingCoopClientCamera` through `RenderScene::requestScreenshot`.

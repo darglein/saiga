@@ -647,9 +647,7 @@ void registerSpacesScenarios(ScenarioList& s)
               w.step();
               {
                   const std::vector<Entity> in1 = w.world().queryRadius(1, arrival, 1);
-                  w.check(std::find(in1.begin(), in1.end(), player) != in1.end() ||
-                              (w.world().read<Transform>(player).position() - arrival).norm() > 1,
-                          "found in the cellar");
+                  w.check(std::find(in1.begin(), in1.end(), player) != in1.end(), "found in the cellar");
                   const std::vector<Entity> in0 = w.world().queryRadius(0, Vec3(102, 0, 100), 5);
                   w.check(std::find(in0.begin(), in0.end(), player) == in0.end(), "not found outside");
               }
