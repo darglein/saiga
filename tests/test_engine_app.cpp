@@ -24,6 +24,7 @@
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/Instance.h"
@@ -41,6 +42,7 @@
 #include <thread>
 
 #include "mcp_test_helper.h"
+#include "terrain_test_hooks.h"
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -1146,14 +1148,17 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
         const std::vector<double> frame = fp.scopeHistory(fp.scope("frame"));
         const std::vector<double> work  = fp.scopeHistory(fp.scope("work"));
         const std::vector<double> wait  = fp.scopeHistory(fp.scope("frame/render/wait"));
+        // S20: the terrain stream time of a complete point (the first frame) is not work either
+        const std::vector<double> stream = fp.scopeHistory(fp.scope("frame/render/terrain_stream"));
         ASSERT_EQ(frame.size(), work.size());
         ASSERT_EQ(frame.size(), wait.size());
+        ASSERT_EQ(frame.size(), stream.size());
         ASSERT_FALSE(frame.empty());
         for (size_t i = 0; i < frame.size(); ++i)
         {
             EXPECT_GE(wait[i], 0) << i;
             EXPECT_LE(wait[i], frame[i]) << i;
-            EXPECT_NEAR(work[i] + wait[i], frame[i], 1e-9) << i;
+            EXPECT_NEAR(work[i] + wait[i] + stream[i], frame[i], 1e-9) << i;
         }
         Poller poller(app.mcp());
         Json p     = toolJson(callTool(app.mcp(), "get_profile", Json::object{}));
@@ -2289,4 +2294,165 @@ TEST_F(EngineAppRender, DebugUiPopupsStayInFront)
     ASSERT_NE(popup, nullptr);
     ASSERT_NE(panel, nullptr);
     EXPECT_GT(g.Windows.index_from_ptr(g.Windows.find(popup)), g.Windows.index_from_ptr(g.Windows.find(panel)));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Terrain (S20): the app's streaming, the complete points, the stream time
+
+namespace
+{
+EngineAppSetup terrainAppSetup(TerrainHeightHook hook)
+{
+    EngineAppSetup s = appSetup(true);
+    s.world.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(32, 2, hook, 0));
+    return s;
+}
+
+// A tool call on another thread while this (the app's main) thread runs frames, until it answers
+Json callWhileRunning(EngineApp& app, const std::string& name, const Json& args, double* seconds = nullptr,
+                      int maxFrames = 20000)
+{
+    std::atomic_bool done{false};
+    Json result;
+    const auto t0 = std::chrono::steady_clock::now();
+    std::thread caller(
+        [&]()
+        {
+            result = callTool(app.mcp(), name, args);
+            done   = true;
+        });
+    for (int i = 0; i < maxFrames && !done; ++i)
+    {
+        app.runFrames(1, 1.0 / 60);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    caller.join();
+    if (seconds) *seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    return result;
+}
+}  // namespace
+
+// The terrain block of app_status; the first frame is a complete point
+TEST_F(EngineAppRender, TerrainStatus)
+{
+    EngineApp app(terrainAppSetup(TerrainTestHooks::integerTestHook));
+    app.setViewCamera(0, Vec3(1000, 80, 1000), Quat::Identity(), 1.0);
+    app.runFrames(3, 1.0 / 60);
+    EXPECT_GT(app.lastTerrainStreamMs() + 1, 0.0);
+    EXPECT_EQ(app.world().terrain().readiness(0, Vec3(1000, 80, 1000), 256), 1.0);
+    std::atomic_bool done{false};
+    Json status;
+    std::thread caller(
+        [&]()
+        {
+            status = toolJson(callTool(app.mcp(), "app_status", Json::object{}));
+            done   = true;
+        });
+    while (!done) app.runFrames(1, 1.0 / 60);
+    caller.join();
+    const Json t = status["terrain"];
+    ASSERT_TRUE(t.is_object()) << status.dump();
+    EXPECT_GT(t["resident"].number_value(), 10);
+    EXPECT_GE(t["pending"].number_value(), 0);
+    EXPECT_EQ(t["uploads_pending_bytes"].number_value(), 0);
+    EXPECT_GT(t["cpu_mb"].number_value(), 1);
+    EXPECT_GT(t["gpu_mb"].number_value(), 1);
+    EXPECT_EQ(t["readiness"].number_value(), 1.0);
+}
+
+// An MCP screenshot after a set_camera far away: a frame with every desired tile sent and no pending uploads
+TEST_F(EngineAppRender, ScreenshotCompletesTheView)
+{
+    EngineApp app(terrainAppSetup(TerrainTestHooks::integerTestHook));
+    app.runFrames(2, 1.0 / 60);
+    const Json c =
+        callWhileRunning(app, "set_camera", obj(R"({"position": [6500, 120, 7000], "yaw_deg": 30, "pitch_deg": -30})"));
+    ASSERT_FALSE(isError(c)) << c.dump();
+    const Json r = callWhileRunning(app, "screenshot", Json::object{});
+    ASSERT_FALSE(isError(r)) << r.dump().substr(0, 300);
+    const Vec3 cam = app.viewCamera().position;
+    EXPECT_EQ(app.world().terrain().readiness(0, cam, 1e9), 1.0);
+    EXPECT_EQ(app.world().terrain().terrainUploadsPending(), 0u);
+}
+
+// With the workers held (armed after the first frame: that one is a complete point with a fatal timeout) and a 1 s tool
+// timeout, a screenshot of an unstreamed area answers "terrain not complete before the deadline" within the 0.9 s
+// budget, exactly once, and the app keeps running
+TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
+{
+    EngineAppSetup s        = terrainAppSetup(TerrainTestHooks::latchedHook);
+    s.mcpToolTimeoutSeconds = 1;
+    EngineApp app(s);
+    app.setViewCamera(0, Vec3(500, 80, 500), Quat::Identity(), 1.0);
+    app.runFrames(2, 1.0 / 60);
+    TerrainTestHooks::armLatch();
+    struct Open
+    {
+        ~Open() { TerrainTestHooks::openLatch(); }
+    } open;
+    ASSERT_FALSE(isError(callWhileRunning(app, "set_camera", obj(R"({"position": [7000, 120, 7500]})"))));
+    double seconds = 0;
+    const Json r   = callWhileRunning(app, "screenshot", Json::object{}, &seconds);
+    ASSERT_TRUE(isError(r)) << r.dump().substr(0, 300);
+    EXPECT_NE(errorText(r).find("terrain not complete before the deadline"), std::string::npos) << errorText(r);
+    EXPECT_LT(seconds, 1.0);
+    // Exactly once: no second answer (the deadline listener) and the app keeps running
+    const uint64_t frames = app.renderedFrames();
+    app.runFrames(5, 1.0 / 60);
+    EXPECT_EQ(app.renderedFrames(), frames + 5);
+    TerrainTestHooks::openLatch();
+    const Json ok = callWhileRunning(app, "screenshot", Json::object{});
+    EXPECT_FALSE(isError(ok)) << ok.dump().substr(0, 300);
+}
+
+// setCompleteViewEachFrame: every frame completes; the frame that generated tiles at the origin (100 ms each) has its
+// stream time, which is neither CPU work, nor a long frame, nor a backlog of the simulation clock
+TEST_F(EngineAppRender, StreamTimePausesTheClock)
+{
+    TerrainTestHooks::setSleepAtOrigin(true);
+    struct Reset
+    {
+        ~Reset() { TerrainTestHooks::setSleepAtOrigin(false); }
+    } reset;
+    EngineApp app(terrainAppSetup(TerrainTestHooks::latchedHook));
+    app.setCompleteViewEachFrame(true);
+    // Few tiles: the frames' upload copies stay short also on a software renderer (their GPU time is a real wait)
+    TerrainViewSettings view = app.world().terrain().viewSettings();
+    view.residencyRange0     = 48;
+    view.grassRadius         = 0;
+    app.world().terrain().setViewSettings(view);
+    // The first view far from the origin: the pyramid (it contains the origin) sleeps 100 ms
+    app.setViewCamera(0, Vec3(5000, 80, 5000), Quat::Identity(), 1.0);
+    app.frame();
+    EXPECT_GE(app.lastTerrainStreamMs(), 100.0);
+    // Past the statistics' warm-up
+    const auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
+    while (std::chrono::steady_clock::now() < end)
+    {
+        app.frame();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    EXPECT_LT(app.lastTerrainStreamMs(), 100.0);
+    // To the origin: the tiles containing it sleep
+    app.setViewCamera(0, Vec3(40, 80, 40), Quat::Identity(), 1.0);
+    app.frame();
+    // The samples from here on: the stream frame's interval and the later ones
+    const size_t samplesBefore = app.frameStatistics().frameSamples().size();
+    EXPECT_GE(app.lastTerrainStreamMs(), 100.0);
+    const uint64_t steps = app.world().stepIndex();
+    app.frame();
+    // The next frame's dt is its own interval (a few ms): no catch-up steps for the 100+ ms
+    EXPECT_LE(app.world().stepIndex() - steps, 1u);
+    for (int i = 0; i < 20; ++i)
+    {
+        app.frame();
+        std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    }
+    // No interval from the move on contains the 100+ ms (the first frames of a software renderer are slow for other
+    // reasons; scheduling noise may make single frames "long", the stream must not)
+    const auto& samples = app.frameStatistics().frameSamples();
+    ASSERT_GT(samples.size(), samplesBefore + 10);
+    double longest = 0;
+    for (size_t i = samplesBefore; i < samples.size(); ++i) longest = std::max(longest, samples[i].interval);
+    EXPECT_LT(longest, 50.0);
 }

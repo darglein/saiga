@@ -12,6 +12,7 @@
 #include "saiga/core/image/managedImage.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
 #include "saiga/engine/tools/WorldTools.h"
@@ -164,6 +165,10 @@ struct ScreenshotRequest
     bool gui      = false;
     bool answered = false;
     std::function<void(const TemplatedImage<ucvec4>&)> answer;
+    // The answer deadline of the tool call (answerDeadline, S20): the frame's terrain completion is bounded by the
+    // earliest pending one; an expired request is answered with an error (fail)
+    std::chrono::steady_clock::time_point deadline;
+    std::function<void(const std::string&)> fail;
 };
 
 // The screenshot requests before the next frame share one readback of it if they want the same GUI option (drawn
@@ -242,8 +247,9 @@ void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& bat
     batch->gui      = r->gui;
     batch->current.push_back(r);
     updateBatch(app, *batch);
-    // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers
-    app.scene()->requestScreenshot(
+    // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers. A capture
+    // of the app (S20): the view's terrain is completed and the uploads finish first
+    app.requestCapture(
         [batch](const TemplatedImage<ucvec4>& img)
         {
             batch->image    = img;
@@ -264,7 +270,35 @@ void dropScreenshot(EngineApp& app, ScreenshotBatch& batch, const std::shared_pt
     for (auto* list : {&batch.current, &batch.deferred})
         list->erase(std::remove(list->begin(), list->end(), r), list->end());
     r->answer = nullptr;
+    r->fail   = nullptr;
     updateBatch(app, batch);
+}
+}  // namespace
+
+namespace
+{
+// The terrain block of app_status (S20): the resident tiles, the requests in flight, the upload bytes pending, the CPU
+// and GPU memory (MB) and the readiness at 256 m of the view camera
+Json terrainStatusJson(EngineApp& app)
+{
+    const TerrainSystem& t        = app.world().terrain();
+    const TerrainSystem::Stats& s = t.stats();
+    int resident                  = 0;
+    for (const auto& l : s.levels) resident += l.resident;
+    double gpu = 0, cpu = double(s.cpuBytes);
+    if (app.scene())
+    {
+        const auto& m = app.scene()->terrainAtlasStats().memory;
+        gpu           = double(m.gpuBytes());
+        cpu += double(m.cpuBytes());
+    }
+    const ViewCamera& v = app.viewCamera();
+    return Json::object{{"resident", resident},
+                        {"pending", s.pending},
+                        {"uploads_pending_bytes", double(t.terrainUploadsPending())},
+                        {"cpu_mb", cpu / (1 << 20)},
+                        {"gpu_mb", gpu / (1 << 20)},
+                        {"readiness", t.readiness(v.space, v.position, 256)}};
 }
 }  // namespace
 
@@ -284,8 +318,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "Reads the app: headless, rendering enabled, rendered size, frames, frames rendered, fps of the last frame, "
         "steps, the local player (whose input the devices and set_input drive), and the input bindings (actions, held "
         "buttons, axes), the app camera and whether a tool holds it; with --coop also coop {host_step, client_step, "
-        "client_peer, delay_steps, dropped_steps} (the tools see the client world), and the debug UI's selected tab "
-        "(ui_tab; null when the UI is off). Changes nothing.",
+        "client_peer, delay_steps, dropped_steps} (the tools see the client world), the debug UI's selected tab "
+        "(ui_tab; null when the UI is off) and terrain {resident, pending, uploads_pending_bytes, cpu_mb, gpu_mb, "
+        "readiness (at 256 m of the view camera)}. Changes nothing.",
         schema({}),
         [&app](const Json&, McpServer::Respond respond)
         {
@@ -316,6 +351,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
             o["fps"]          = f.counterStats(const_cast<Profiler&>(f).counter("fps"), 1).avg;
             DebugUi& ui       = app.debugUi();
             o["ui_tab"]       = ui.enabled() ? Json(ui.tabName(ui.selected())) : Json();
+            o["terrain"]      = terrainStatusJson(app);
             respond(ToolResult::Text(Json(o).dump()));
         });
 
@@ -413,6 +449,32 @@ void registerAppTools(McpServer& server, EngineApp& app)
         });
 
     auto batch = std::make_shared<ScreenshotBatch>();
+    // S20: the app bounds a frame's terrain completion by the earliest deadline of the waiting requests, and answers
+    // the expired ones (marked answered and dropped from the batch before the poll runs again: the deadline listener
+    // does not answer them a second time)
+    app.setScreenshotDeadlineHooks(
+        [batch]() -> std::optional<std::chrono::steady_clock::time_point>
+        {
+            std::optional<std::chrono::steady_clock::time_point> earliest;
+            for (const auto* list : {&batch->current, &batch->deferred})
+                for (const auto& r : *list)
+                    if (!r->answered && (!earliest || r->deadline < *earliest)) earliest = r->deadline;
+            return earliest;
+        },
+        [&app, batch](std::chrono::steady_clock::time_point limit)
+        {
+            std::vector<std::shared_ptr<ScreenshotRequest>> expired;
+            for (const auto* list : {&batch->current, &batch->deferred})
+                for (const auto& r : *list)
+                    if (!r->answered && r->deadline <= limit) expired.push_back(r);
+            for (const auto& r : expired)
+            {
+                r->answered = true;
+                auto fail   = std::move(r->fail);
+                dropScreenshot(app, *batch, r);
+                if (fail) fail("screenshot: terrain not complete before the deadline");
+            }
+        });
     server.addTool(
         "screenshot",
         "Renders the next frame and returns it as an image (jpg default, or png), downscaled to max_width when wider "
@@ -420,7 +482,10 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "frame "
         "number. The GUI is hidden unless gui=true (only in that frame: the app's GUI visibility is not changed). An "
         "error without a device "
-        "or when no frame is rendered before the deadline (rendering disabled, a minimized window). Changes nothing.",
+        "or when no frame is rendered before the deadline (rendering disabled, a minimized window). The frame shows "
+        "the "
+        "complete terrain of the view (streamed first; an error if that does not finish before the deadline). Changes "
+        "nothing.",
         schema({{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
                 {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
                 {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")}}),
@@ -443,6 +508,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
             auto r              = std::make_shared<ScreenshotRequest>();
             const auto deadline = answerDeadline(server);
             r->gui              = gui;
+            r->deadline         = deadline;
+            r->fail             = [respond](const std::string& message) { respond(ToolResult::Error(message)); };
             r->answer           = [&app, respond, format, maxWidth](const TemplatedImage<ucvec4>& image)
             {
                 if (image.width == 0) return respond(ToolResult::Error("screenshot: the frame could not be read back"));

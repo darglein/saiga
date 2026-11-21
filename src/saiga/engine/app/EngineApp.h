@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/camera/camera.h"
+#include "saiga/core/image/templatedImage.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/app/DebugUi.h"
@@ -22,6 +23,7 @@
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace Saiga
@@ -164,6 +166,37 @@ class SAIGA_ENGINE_API EngineApp
     uint64_t renderedFrames() const { return framesRendered; }
     uint64_t frameCount() const { return framesRun; }
 
+    // ---- terrain (S20, docs/engine_design.md §8.3, §12.3) ---------------------------------------------------------
+    // Every rendered frame streams the terrain of the view camera (TerrainSystem::updateView after beforeRender). The
+    // complete points call TerrainSystem::completeView instead: the first rendered frame, the frames of a capture
+    // (requestCapture: SAIGA_SCREENSHOT / --screenshot, the MCP screenshot), and every frame while
+    // setCompleteViewEachFrame(true) (the benchmark mode, E9). A timeout is fatal except for MCP screenshots (their
+    // deadline bounds the call; the expired ones are answered with an error)
+    void setCompleteViewEachFrame(bool on) { completeEachFrame = on; }
+    bool completeViewEachFrame() const { return completeEachFrame; }
+    // The terrain stream time of the last rendered frame (its completeView calls; 0 for a frame with updateView): not
+    // CPU work, not part of the frame interval in the statistics, and it pauses the simulation clock (frame()
+    // subtracts it from the next measured interval)
+    double lastTerrainStreamMs() const { return streamMs; }
+    using CaptureCallback = std::function<void(const TemplatedImage<ucvec4>&)>;
+    // A capture of a rendered frame once the terrain of the view is complete: each frame until then completes the
+    // view again (with the then current view camera) and the capture takes the first frame before which no terrain
+    // upload is pending (at most 16 frames later, then with a warning). fatal: a completeView timeout stops the program
+    // (SAIGA_SCREENSHOT); otherwise the deadline of the MCP screenshot requests bounds it
+    void requestCapture(CaptureCallback callback, bool fatal = false);
+    // AppTools (S20): the earliest deadline of the unanswered screenshot requests (none: no limit from them) and the
+    // answer of the requests whose deadline passed (or passes before the given time)
+    void setScreenshotDeadlineHooks(std::function<std::optional<std::chrono::steady_clock::time_point>()> earliest,
+                                    std::function<void(std::chrono::steady_clock::time_point)> expire)
+    {
+        screenshotEarliest = std::move(earliest);
+        screenshotExpire   = std::move(expire);
+    }
+    std::optional<std::chrono::steady_clock::time_point> pendingScreenshotDeadline() const
+    {
+        return screenshotEarliest ? screenshotEarliest() : std::nullopt;
+    }
+
    private:
     void frame(double dt);
     void pollInput(double dt);
@@ -291,7 +324,7 @@ class SAIGA_ENGINE_API EngineApp
     bool mouseKnown = false;
     Profiler frameProfiler, gpuProfiler;
     int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeRecording = -1, scopeGpuFrame = -1;
-    int scopeWait = -1, scopeWork = -1;
+    int scopeWait = -1, scopeWork = -1, scopeStream = -1;
     // The render waits of the current frame (frame/render/wait), subtracted from the frame for work
     double lastFrameWaitMs                   = 0;
     std::array<double, 3> lastFrameWaitParts = {};  // its parts: frame slot, acquire, present
@@ -311,6 +344,22 @@ class SAIGA_ENGINE_API EngineApp
     std::vector<std::shared_ptr<FrameMeasurement>> measurements;
     bool inFrame = false, cameraHeld = false, scenarioLoadInProgress = false, worldFromScenario = false;
     uint64_t scenarioRuns = 0;
+    // Terrain (S20)
+    bool completeEachFrame = false;
+    double streamMs        = 0;  // the last rendered frame's terrain stream time
+    double frameStreamMs   = 0;  // the current frame's (0 without a rendered frame)
+    double pendingStreamMs = 0;  // that time, taken out of the next frame's interval (statistics, simulation clock)
+    struct PendingCapture
+    {
+        CaptureCallback callback;
+        bool fatal = false;
+    };
+    std::vector<PendingCapture> pendingCaptures;
+    int captureWaitFrames = 0;
+    std::function<std::optional<std::chrono::steady_clock::time_point>()> screenshotEarliest;
+    std::function<void(std::chrono::steady_clock::time_point)> screenshotExpire;
+    // The terrain of the frame: updateView, or completeView at a complete point; hands ready captures to the scene
+    void streamTerrain();
 };
 
 }  // namespace Engine

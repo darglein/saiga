@@ -53,11 +53,11 @@ inline int32_t slopeRidgeHook(uint64_t seed, int64_t x, int64_t z)
     return int32_t(h);
 }
 
-// Periodic in 4096 m in x and z (so periodic in 28 672 m): hills from 0 to about 60 m and a valley below the sea level
-// 6 m (the origin-offset test)
+// Periodic in 4096 m in x and z (so periodic in 28 672 m): hills up to about 60 m and a valley below the sea level 6 m
+// along x = 2000 (mod 4096; the origin-offset test's terrain + water view)
 inline int32_t periodic4096Hook(uint64_t, int64_t x, int64_t z)
 {
-    const int64_t a = triangleWave(x, 4096) * 20;         // 0..40960 units (40 m)
+    const int64_t a = triangleWave(x + 2096, 4096) * 20;  // 0..40960 units (40 m), 0 at x = 2000
     const int64_t b = triangleWave(z, 1024) * 30;         // 0..15360 (15 m)
     const int64_t c = triangleWave(x + 2 * z, 256) * 24;  // 0..3072 (3 m)
     const int64_t d = triangleWave(3 * x - z, 64) * 40;   // 0..1280 (1.25 m)
