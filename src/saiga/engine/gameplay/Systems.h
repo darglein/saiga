@@ -29,6 +29,9 @@ SAIGA_ENGINE_API void playerControlSystem(World& world, double dt);
 SAIGA_ENGINE_API void characterMoveSystem(World& world, double dt);
 // Phase 6 (all), after the grid: tick intervals from the grid-cell rings around the players
 SAIGA_ENGINE_API void tickSystem(World& world, double dt);
+// Phase 4 (host, optional: games register it, R-MECH-1): an InteractEvent of the previous step whose target has a
+// SpaceLink, whose actor is an alive root in the target's space, requests the transition (S21)
+SAIGA_ENGINE_API void spaceLinkSystem(World& world, double dt);
 
 // The tick interval of one object from the current player cells; spawned: also the staggered first tick (tickOffset)
 SAIGA_ENGINE_API void assignTickInterval(World& world, Entity e, Behaviour& behaviour, bool spawned);

@@ -10,11 +10,14 @@
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
+#include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/SaveFormat.h"
@@ -24,6 +27,7 @@
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <functional>
@@ -168,6 +172,8 @@ WorldSetup spacesSetup(uint64_t seed = 9, void (*components)(Registry&) = nullpt
               {
                   if (g_phase4) g_phase4(w);
               });
+        // S21: the optional entrance system (games register it)
+        l.add(Phase::Gameplay, "space_link", spaceLinkSystem, RunOn::Host);
         l.add(Phase::Streaming, "test_phase7",
               [](World& w, double)
               {
@@ -797,4 +803,277 @@ TEST(SpaceSave, CorruptStates)
     rejected(withSavedSpace(blob, m.index, 5), "is in space 5, but the save has 3 spaces");
     // A child in another space than its parent
     rejected(withSavedSpace(blob, f.grandchild.index, 2), "its parent " + std::to_string(f.child.index));
+}
+
+// ---- transitions (Scope 6)
+
+namespace
+{
+Quat yaw(double degrees)
+{
+    const double a = degrees * 3.14159265358979323846 / 360.0;  // half the angle
+    return Quat(std::cos(a), 0, std::sin(a), 0);
+}
+Entity makeLink(World& w, SpaceId space, const Vec3& p, SpaceId target, const Vec3& arrival,
+                const Quat& rotation = Quat::Identity())
+{
+    const Entity e = w.createIn(space);
+    w.get<Transform>(e).setPosition(p);
+    SpaceLink l;
+    l.target          = target;
+    l.arrival         = arrival;
+    l.arrivalRotation = rotation;
+    w.add<SpaceLink>(e, l);
+    return e;
+}
+// The log lines of a category since a sequence number, joined
+std::string logSince(uint64_t before)
+{
+    std::string out;
+    for (const auto& l : engineLog().since(before)) out += l.message + "\n";
+    return out;
+}
+}  // namespace
+
+TEST(Transition, CompletesInTheNextStep)
+{
+    HookGuard guard;
+    World w(spacesSetup());
+    const Entity link   = makeLink(w, 0, Vec3(100, 0, 100), 1, Vec3(640, 0, 640), yaw(90));
+    const Entity back   = makeLink(w, 1, Vec3(645, 0, 640), 0, Vec3(103, 0, 102), yaw(180));
+    const Entity player = w.create();
+    w.get<Transform>(player).teleport(Vec3(101, 0, 100), Quat::Identity());
+    w.step();
+    // Between steps: applied at once; the pose is copied (a later edit of the link changes nothing)
+    w.requestTransition(player, link);
+    ASSERT_TRUE(w.has<PendingTransition>(player));
+    EXPECT_EQ(w.read<PendingTransition>(player).target, 1u);
+    w.get<SpaceLink>(link).arrival = Vec3(1, 2, 3);
+    bool checked                   = false;
+    g_phase4                       = [&](World& world)
+    {
+        if (checked) return;
+        // Moved in phase 1 of the next step, the component removed at the phase-1 flush
+        EXPECT_EQ(world.read<Transform>(player).space(), 1u);
+        EXPECT_EQ(world.read<Transform>(player).position(), Vec3(640, 0, 640));
+        EXPECT_FALSE(world.has<PendingTransition>(player));
+        checked = true;
+    };
+    w.step();
+    EXPECT_TRUE(checked);
+    EXPECT_LT((w.read<Transform>(player).rotation().coeffs() - yaw(90).coeffs()).norm(), 1e-12);
+    // The event is readable in the following step
+    std::vector<SpaceTransitionEvent> events;
+    g_phase4 = [&](World& world)
+    {
+        for (const SpaceTransitionEvent& ev : world.events.read<SpaceTransitionEvent>()) events.push_back(ev);
+    };
+    w.step();
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].entity, player);
+    EXPECT_EQ(events[0].link, link);
+    EXPECT_EQ(events[0].from, 0u);
+    EXPECT_EQ(events[0].to, 1u);
+    events.clear();
+
+    // From a phase-4 system; the link destroyed in the same phase: the copied pose still applies
+    bool requested = false;
+    g_phase4       = [&](World& world)
+    {
+        for (const SpaceTransitionEvent& ev : world.events.read<SpaceTransitionEvent>()) events.push_back(ev);
+        if (requested) return;
+        requested = true;
+        world.requestTransition(player, back);
+        world.destroy(back);
+        EXPECT_FALSE(world.has<PendingTransition>(player));  // a command
+    };
+    w.step();
+    EXPECT_TRUE(w.has<PendingTransition>(player));
+    EXPECT_EQ(w.read<Transform>(player).space(), 1u);
+    w.step();
+    EXPECT_EQ(w.read<Transform>(player).space(), 0u);
+    EXPECT_EQ(w.read<Transform>(player).position(), Vec3(103, 0, 102));
+    w.step();
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].link, back);
+    EXPECT_FALSE(w.alive(back));
+    EXPECT_EQ(events[0].from, 1u);
+    EXPECT_EQ(events[0].to, 0u);
+}
+
+TEST(Transition, FirstRequestWins)
+{
+    HookGuard guard;
+    World w(spacesSetup());
+    const Entity a      = makeLink(w, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640));
+    const Entity b      = makeLink(w, 0, Vec3(12, 0, 10), 2, Vec3(50, 0, 50));
+    const Entity player = w.create();
+    bool once           = false;
+    g_phase4            = [&](World& world)
+    {
+        if (once) return;
+        once = true;
+        world.requestTransition(player, a);
+        world.requestTransition(player, b);
+    };
+    const uint64_t before = engineLog().lastSequence();
+    w.step();
+    ASSERT_TRUE(w.has<PendingTransition>(player));
+    EXPECT_EQ(w.read<PendingTransition>(player).link, a);
+    EXPECT_NE(logSince(before).find("dropped at the flush"), std::string::npos) << logSince(before);
+    // Between steps: refused at once
+    const uint64_t later = engineLog().lastSequence();
+    w.requestTransition(player, b);
+    EXPECT_EQ(w.read<PendingTransition>(player).link, a);
+    EXPECT_NE(logSince(later).find("the first request wins"), std::string::npos) << logSince(later);
+    w.step();
+    EXPECT_EQ(w.read<Transform>(player).space(), 1u);
+}
+
+TEST(Transition, TargetOutOfRangeIsRefused)
+{
+    World w(spacesSetup());
+    const Entity link     = makeLink(w, 0, Vec3(10, 0, 10), 7, Vec3(640, 0, 640));
+    const Entity player   = w.create();
+    const uint64_t before = engineLog().lastSequence();
+    w.requestTransition(player, link);
+    EXPECT_FALSE(w.has<PendingTransition>(player));
+    EXPECT_NE(logSince(before).find("unknown space 7"), std::string::npos) << logSince(before);
+}
+
+TEST(Transition, RevalidatedAtCompletion)
+{
+    World w(spacesSetup());
+    const Entity link   = makeLink(w, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640));
+    const Entity player = w.create();
+    const Entity parent = w.create();
+    w.requestTransition(player, link);
+    // A parent since the request: removed with a log line, no move
+    w.add<Parent>(player, Parent{parent});
+    uint64_t before = engineLog().lastSequence();
+    w.step();
+    EXPECT_FALSE(w.has<PendingTransition>(player));
+    EXPECT_EQ(w.read<Transform>(player).space(), 0u);
+    EXPECT_NE(logSince(before).find("is a child now"), std::string::npos) << logSince(before);
+    // A PendingTransition with an unknown target (as a tool's set_component writes it)
+    const Entity other = w.create();
+    PendingTransition p;
+    p.link   = link;
+    p.target = 9;
+    w.add<PendingTransition>(other, p);
+    before = engineLog().lastSequence();
+    w.step();
+    EXPECT_FALSE(w.has<PendingTransition>(other));
+    EXPECT_EQ(w.read<Transform>(other).space(), 0u);
+    EXPECT_NE(logSince(before).find("the target is not a space"), std::string::npos) << logSince(before);
+}
+
+TEST(Transition, SpaceLinkSystem)
+{
+    World w(spacesSetup());
+    const Entity link   = makeLink(w, 0, Vec3(10, 0, 10), 2, Vec3(50, 0, 50));
+    const Entity plain  = w.create();  // no SpaceLink
+    const Entity player = w.create();
+    const Entity far    = w.createIn(1);  // in another space than the link
+    w.step();
+    w.events.emit(InteractEvent{link, player, 0});
+    w.events.emit(InteractEvent{plain, far, 0});
+    w.events.emit(InteractEvent{link, far, 0});
+    const uint64_t before = engineLog().lastSequence();
+    w.step();
+    ASSERT_TRUE(w.has<PendingTransition>(player));
+    EXPECT_FALSE(w.has<PendingTransition>(far));
+    EXPECT_NE(logSince(before).find("in another space"), std::string::npos) << logSince(before);
+    w.step();
+    EXPECT_EQ(w.read<Transform>(player).space(), 2u);
+    EXPECT_EQ(w.read<Transform>(player).position(), Vec3(50, 0, 50));
+    EXPECT_EQ(w.read<Transform>(far).space(), 1u);
+}
+
+#ifdef SAIGA_ASSERTS
+TEST(TransitionDeathTest, Refusals)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    World w(spacesSetup());
+    const Entity link   = makeLink(w, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640));
+    const Entity player = w.create();
+    const Entity child  = w.create();
+    w.add<Parent>(child, Parent{player});
+    EXPECT_DEATH(w.requestTransition(child, link), "is a child");
+    EXPECT_DEATH(w.requestTransition(player, w.create()), "has no SpaceLink");
+    EXPECT_DEATH(
+        {
+            const Entity dead = makeLink(w, 0, Vec3::Zero(), 1, Vec3::Zero());
+            w.destroy(dead);
+            w.requestTransition(player, dead);
+        },
+        "has no SpaceLink");
+    EXPECT_DEATH(
+        {
+            auto t        = LoopbackTransport::createNetwork(2, LoopbackOptions{});
+            WorldSetup hs = spacesSetup();
+            hs.transport  = t[0].get();
+            World host(hs);
+            WorldSetup cs = spacesSetup();
+            cs.transport  = t[1].get();
+            cs.role       = NetRole::Client;
+            cs.localPeer  = 1;
+            World client(cs);
+            client.requestTransition(client.create(), client.create());
+        },
+        "on a client");
+}
+#endif
+
+TEST(SpaceSave, PendingTransitionSurvives)
+{
+    HookGuard guard;
+    World a(spacesSetup());
+    const Entity link   = makeLink(a, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640), yaw(90));
+    const Entity player = a.create();
+    a.step();
+    a.requestTransition(player, link);
+    const auto blob = a.save();
+    World b(spacesSetup());
+    ASSERT_TRUE(b.tryLoad(blob).ok());
+    ASSERT_TRUE(b.has<PendingTransition>(player));
+    b.step();
+    EXPECT_EQ(b.read<Transform>(player).space(), 1u);
+    EXPECT_EQ(b.read<Transform>(player).position(), Vec3(640, 0, 640));
+    std::vector<SpaceTransitionEvent> events;
+    g_phase4 = [&](World& world)
+    {
+        for (const SpaceTransitionEvent& ev : world.events.read<SpaceTransitionEvent>()) events.push_back(ev);
+    };
+    b.step();
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].entity, player);
+    EXPECT_EQ(events[0].to, 1u);
+    // The same as the world that never saved
+    a.step(2);
+    EXPECT_EQ(a.hash(), b.hash());
+}
+
+TEST(SpaceSave, CorruptTransitionTargets)
+{
+    World a(spacesSetup());
+    const Entity link   = makeLink(a, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640));
+    const Entity player = a.create();
+    PendingTransition p;
+    p.link   = link;
+    p.target = 9;
+    a.add<PendingTransition>(player, p);
+    auto rejected = [](const std::vector<uint8_t>& bad, const std::string& message)
+    {
+        World b(spacesSetup());
+        const auto before  = b.save();
+        const LoadResult r = b.tryLoad(bad);
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find(message), std::string::npos) << r.error;
+        EXPECT_EQ(b.save(), before);
+    };
+    rejected(a.save(), "a PendingTransition to the unknown space 9");
+    a.remove<PendingTransition>(player);
+    a.get<SpaceLink>(link).target = 3;
+    rejected(a.save(), "a SpaceLink to the unknown space 3");
 }

@@ -8,8 +8,10 @@
 // every rule checked before the world changes (a rejected save leaves it unchanged); then the commit replaces the
 // entities, restores the world state, rebuilds the derived state and recreates the game objects.
 
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/Replication.h"
@@ -585,6 +587,23 @@ bool WorldLoader::checkSpaces()
             return fail("two space-state entities of space " + std::to_string(space) + " (entity indices " +
                         std::to_string(stateOf[space]) + " and " + std::to_string(i) + ")");
         stateOf[space] = i;
+    }
+    // The targets of the transitions and entrances (S21 step 5): spaces of the setup
+    if (staged[PendingTransition::id])
+    {
+        const auto& st = static_cast<StagedOf<PendingTransition>&>(*staged[PendingTransition::id]);
+        for (size_t k = 0; k < st.values.size(); ++k)
+            if (generation[st.indices[k]] >= 0 && st.values[k].target >= w.spaceCount())
+                return fail("entity index " + std::to_string(st.indices[k]) +
+                            ": a PendingTransition to the unknown space " + std::to_string(st.values[k].target));
+    }
+    if (staged[SpaceLink::id])
+    {
+        const auto& st = static_cast<StagedOf<SpaceLink>&>(*staged[SpaceLink::id]);
+        for (size_t k = 0; k < st.values.size(); ++k)
+            if (generation[st.indices[k]] >= 0 && st.values[k].target >= w.spaceCount())
+                return fail("entity index " + std::to_string(st.indices[k]) + ": a SpaceLink to the unknown space " +
+                            std::to_string(st.values[k].target));
     }
     if (staged[Parent::id])
     {

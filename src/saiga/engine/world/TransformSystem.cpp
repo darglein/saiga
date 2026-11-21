@@ -12,6 +12,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/world/SpaceTransitionSystem.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
@@ -144,6 +145,8 @@ void transformSystem(World& w, double)
 
 void registerEngineSystems(SystemList& systems)
 {
+    // S21: the transitions of the previous step's requests, after the received messages of phase 1
+    systems.add(Phase::Input, "space_transition", spaceTransitionSystem, RunOn::Host);
     systems.add(Phase::Transform, "transform", transformSystem, RunOn::Both);
     systems.add(Phase::Events, "behaviour_events", behaviourEventSystem);
     systems.add(Phase::Behaviour, "behaviour", behaviourSystem);

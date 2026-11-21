@@ -85,6 +85,8 @@ class SAIGA_ENGINE_API ScenarioWorld
     // The host + client variants (§17.3): the client world of a peer (1..clients) and a host entity's handle there
     // (through its NetId; Entity{} if it has not arrived)
     bool networked() const { return network.enabled; }
+    // The network of the variant (delay, asynchronous stepping; S21: the scenarios' latency bounds)
+    const ScenarioNetwork& networkConfig() const { return network; }
     // The peer spawnPlayer uses without an explicit peer (S16b): 1 in the host + client variants (a client's player),
     // else 0. Scenarios that spawn players their own way (the tech demos' spawnDriven) pass it on.
     uint8_t defaultPeer() const { return playerPeer(std::nullopt); }

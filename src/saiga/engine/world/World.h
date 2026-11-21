@@ -319,6 +319,13 @@ class SAIGA_ENGINE_API World
     // dead or reserved entity, a child, a state entity, an unknown space, a call inside parallelEach and, on a client,
     // a replicated entity (R-NET-2).
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);
+    // Host: starts a transition of a root (a player, a vehicle, ...) to the link's SpaceLink target at its arrival pose
+    // (copied now; §12.4, S21): adds PendingTransition, completed by spaceTransitionSystem in phase 1 of the next step
+    // (before S24). Between steps applied at once, during a step a command (the flush drops it with a log line if the
+    // entity died, got a parent or a PendingTransition meanwhile). Asserts on a client, a dead or reserved entity, a
+    // child, a state entity, a dead link or one without SpaceLink; refused with a log line (every build): a target that
+    // is not a space, an entity that already has a PendingTransition (the first request wins).
+    void requestTransition(Entity e, Entity link);
     // Engine messages only (receive, owner poses without extrapolation, phase 6's transform system, replication and
     // owner state, the flush): no game systems, listeners, actions or events; the step index and the transform flags
     // do not change (end-of-scenario sync, §17.3)

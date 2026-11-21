@@ -13,11 +13,13 @@
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/NetLocal.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
+#include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/NetOwner.h"
@@ -44,6 +46,9 @@ void registerEngineComponents(Registry& registry)
     registry.registerComponent<RenderPose>(Replicate::Never, Saved::No);
     // S19b: what an entity renders, by mesh name (rarely changing: reliable, not in the snapshots)
     registry.registerComponent<RenderInstance>(Replicate::HostReliable);
+    // S21: entrances (clients show prompts) and requested transitions (host-only state, saved)
+    registry.registerComponent<SpaceLink>(Replicate::Host);
+    registry.registerComponent<PendingTransition>(Replicate::Never);
 }
 
 }  // namespace Engine

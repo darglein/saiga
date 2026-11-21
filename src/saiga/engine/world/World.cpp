@@ -11,7 +11,9 @@
 #include "saiga/engine/components/EngineComponents.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -479,6 +481,72 @@ void World::moveToSpace(Entity e, SpaceId space, const Vec3& position, const Qua
         repl->ownerMove(e, space, position, rotation);
     else
         teleportTo(e, space, position, rotation);
+}
+
+void World::requestTransition(Entity e, Entity link)
+{
+    checkNotParallel("requestTransition");
+    if (!isHost())
+    {
+        SAIGA_ASSERT(false, "requestTransition on a client (a host command)");
+        return;
+    }
+    if (!reg.alive(e))
+    {
+        SAIGA_ASSERT(false, "requestTransition: the entity is not alive (or reserved)");
+        return;
+    }
+    if (reg.has<Parent>(e))
+    {
+        SAIGA_ASSERT(false, "requestTransition: the entity is a child (its parent decides)");
+        return;
+    }
+    if (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState))
+    {
+        SAIGA_ASSERT(false, "requestTransition: a world-state or space-state entity");
+        return;
+    }
+    if (!reg.alive(link) || !reg.has<SpaceLink>(link))
+    {
+        SAIGA_ASSERT(false, "requestTransition: the link is not alive or has no SpaceLink");
+        return;
+    }
+    const SpaceLink& l = reg.read<SpaceLink>(link);
+    // Data errors (a hand-written or tool-edited link, a second request): refused in every build
+    if (l.target >= spaceCount())
+    {
+        SAIGA_LOG_E("world", e, "requestTransition refused: the link e%u:%u targets the unknown space %d", link.index,
+                    link.generation, int(l.target));
+        return;
+    }
+    if (reg.has<PendingTransition>(e))
+    {
+        SAIGA_LOG_E("world", e, "requestTransition refused: a transition is pending already (the first request wins)");
+        return;
+    }
+    PendingTransition p;
+    p.link     = link;
+    p.target   = l.target;
+    p.position = l.arrival;
+    p.rotation = l.arrivalRotation;
+    if (!deferring())
+    {
+        addNow<PendingTransition>(e, std::move(p));
+        return;
+    }
+    record(makeCommand(
+        [e, p](World& w) mutable
+        {
+            // Re-checked at the flush: the entity may have died or got a parent (or a request) in the same phase
+            if (!w.reg.alive(e) || w.reg.has<Parent>(e) || w.reg.has<PendingTransition>(e))
+            {
+                SAIGA_LOG_E("world", e,
+                            "requestTransition dropped at the flush: not an alive root without a pending "
+                            "transition any more");
+                return;
+            }
+            w.addNow<PendingTransition>(e, std::move(p));
+        }));
 }
 
 void World::setSubtreeSpace(Entity root, SpaceId space)
