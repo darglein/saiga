@@ -26,7 +26,8 @@ namespace Engine
 SAIGA_ENGINE_API Vec3 contentPosition(int64_t x256, int32_t yHeight, int64_t z256);
 // A chunk-relative position (x, z in 1/256 m of the chunk) in space coordinates
 SAIGA_ENGINE_API Vec3 contentPosition(const ChunkId& chunk, int32_t x256, int32_t yHeight, int32_t z256);
-// The rotation by a yaw (65536 = one turn) about +y: (cos(yaw / 2), 0, sin(yaw / 2), 0), normalized in double
+// The rotation by a yaw (65536 = one turn) about +y: (cos(yaw / 2), 0, sin(yaw / 2), 0) from the Q30 table, scaled
+// exactly (its norm is within 2^-28 of 1; no libm, R-CONTENT-1)
 SAIGA_ENGINE_API Quat contentRotation(uint16_t yaw);
 SAIGA_ENGINE_API double contentScale(uint16_t scale);
 

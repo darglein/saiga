@@ -1201,8 +1201,8 @@ TEST(Pipeline, ThreadIndependence)
     EXPECT_EQ(h1, h2);
 }
 
-// The exact conversions: a position 30 km from the origin round-trips to the integer units; a yaw quaternion has norm
-// 1 within 1e-15
+// The exact conversions: a position 30 km from the origin round-trips to the integer units; a yaw quaternion (the Q30
+// table, not normalised) has norm 1 within 2^-28
 TEST(ContentConvert, Exact)
 {
     const int64_t x = 30000 * 256 + 37, z = 29999 * 256 + 255;
@@ -1217,7 +1217,7 @@ TEST(ContentConvert, Exact)
     for (uint32_t yaw = 0; yaw < 65536; yaw += 7)
     {
         const Quat q = contentRotation(uint16_t(yaw));
-        EXPECT_NEAR(q.norm(), 1.0, 1e-15);
+        EXPECT_NEAR(q.norm(), 1.0, std::ldexp(1.0, -28));
     }
     const Quat q = contentRotation(16384);  // 90 degrees: local +x maps to -z
     const Vec3 v = q * Vec3(1, 0, 0);
@@ -2145,6 +2145,27 @@ TEST(GenerationState, MismatchesAreRefused)
                  ContentTest::contentTestSetup(2, nullptr, ContentTest::Variant::PlanChangeV2));
         expectRefused(n, "the host's plans differ from this client's");
     }
+}
+
+// Regression (implementation review of S23a): after a refused GenerationState the client applied the host's terrain
+// edits (deltas against a generation it does not have); now they are rejected like S23b's record messages
+TEST(GenerationState, TerrainEditsAfterARefusalAreRejected)
+{
+    WorldSetup c = ContentTest::contentTestSetup(2);
+    c.seed       = 7;
+    TerrainBrush b;
+    b.center   = Vec3(300, 0, 300);
+    b.radius   = 10;
+    b.strength = 2;
+    // An edit before the join (the chunk snapshot) and one after the refusal (a TerrainModification)
+    GenNet n(ContentTest::contentTestSetup(2), c, [&](World& h) { h.editTerrain(0, b); });
+    expectRefused(n, "host seed 12345, this client's setup seed 7");
+    const uint64_t rejected = n.client->netStats().rejected;
+    b.center                = Vec3(600, 0, 600);
+    n.host->editTerrain(0, b);
+    n.step();
+    EXPECT_GT(n.client->netStats().rejected, rejected);
+    EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
 }
 
 // Flat and hook worlds send no GenerationState; the non-integer warning is logged once

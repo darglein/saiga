@@ -556,6 +556,12 @@ void Replication::onTerrainModification(uint8_t from, const uint8_t* data, size_
         counts.terrainDroppedEpoch++;
         return;
     }
+    // S23a: the deltas are relative to the host's generation, which this client refused
+    if (w.generationMismatch())
+    {
+        w.rejectInput(from, "TerrainModification after a refused GenerationState");
+        return;
+    }
     // Validation against the world, in scratch: nothing is allocated in the store before every part passed
     if (m.space >= w.spaceCount() || w.spaceTemplate(m.space).kind != SpaceKind::OpenWorld)
     {
@@ -664,6 +670,11 @@ void Replication::onTerrainChunkState(uint8_t from, const uint8_t* data, size_t 
     if (m.epoch != currentEpoch)
     {
         counts.terrainDroppedEpoch++;
+        return;
+    }
+    if (w.generationMismatch())
+    {
+        w.rejectInput(from, "TerrainChunkState after a refused GenerationState");
         return;
     }
     const SpaceId space = m.chunk.space;
