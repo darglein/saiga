@@ -112,7 +112,7 @@ server's pending local calls refer to the console.
 ### 1.1 The panel and the look of the tabs (`engine/app/DebugUiStyle.{h,cpp}`)
 
 The panel is one fixed side bar, not a floating window, shared by all tabs except F1. It is an ImGui window with the flags
-`NoTitleBar`, `NoMove`, `NoResize` (the splitter is our own), `NoCollapse`, `NoSavedSettings`, `NoBringToFrontOnFocus`
+`NoTitleBar`, `NoMove`, `NoResize` (the splitter is our own), `NoCollapse`, `NoSavedSettings`
 and `NoDocking`, positioned and sized every frame (`ImGuiCond_Always`) from the display size, so it cannot get lost and
 follows window resizes.
 

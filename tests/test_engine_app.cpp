@@ -8,6 +8,7 @@
 // headless (with and without a Vulkan device), the app tools and the frame and GPU profiles.
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/imgui/imgui_internal.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
@@ -2254,4 +2255,38 @@ TEST_F(EngineAppRender, DebugUiTabsRender)
     io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
     app.runFrames(1, 1.0 / 60);
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Engine));
+}
+
+// Regression: the panel was moved in front of all windows every frame, also in front of the popups opened inside it
+// (combo lists): the Performance tab's window combo showed no list and could not be changed
+TEST_F(EngineAppRender, DebugUiPopupsStayInFront)
+{
+    EngineAppSetup s = appSetup(true);
+    s.render.imgui   = true;
+    s.width          = 800;
+    s.height         = 600;
+    EngineApp app(s);
+    bool open = true;
+    app.debugUi().addSection(
+        DebugTab::Performance, "Popup",
+        [&]()
+        {
+            if (open) ImGui::OpenPopup("test popup");
+            open = false;
+            if (ImGui::BeginPopup("test popup"))
+            {
+                ImGui::TextUnformatted("in front");
+                ImGui::EndPopup();
+            }
+        },
+        true);
+    app.debugUi().select(DebugTab::Performance);
+    app.runFrames(4, 1.0 / 60);
+    ImGuiContext& g = *ImGui::GetCurrentContext();
+    ASSERT_EQ(g.OpenPopupStack.Size, 1);
+    ImGuiWindow* popup = g.OpenPopupStack[0].Window;
+    ImGuiWindow* panel = ImGui::FindWindowByName("##debug panel");
+    ASSERT_NE(popup, nullptr);
+    ASSERT_NE(panel, nullptr);
+    EXPECT_GT(g.Windows.index_from_ptr(g.Windows.find(popup)), g.Windows.index_from_ptr(g.Windows.find(panel)));
 }

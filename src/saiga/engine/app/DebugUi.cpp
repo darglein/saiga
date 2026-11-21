@@ -7,7 +7,6 @@
 #include "saiga/engine/app/DebugUi.h"
 
 #include "saiga/core/imgui/imgui.h"
-#include "saiga/core/imgui/imgui_internal.h"
 #include "saiga/engine/app/DebugUiStyle.h"
 #include "saiga/engine/core/Log.h"
 
@@ -28,9 +27,11 @@ std::string lower(std::string s)
     return s;
 }
 
-constexpr ImGuiWindowFlags kFixedWindow =
-    ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
-    ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking | ImGuiWindowFlags_NoBringToFrontOnFocus;
+// Fixed windows: placed every frame, never moved, resized (the splitter is our own), docked or saved by ImGui. They
+// come to the front like any window when clicked (not forced every frame: that hid the popups opened inside them)
+constexpr ImGuiWindowFlags kFixedWindow = ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoMove |
+                                          ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse |
+                                          ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
 }  // namespace
 
 DebugUi::DebugUi(McpServer* server, std::string stateFile)
@@ -157,8 +158,6 @@ void DebugUi::drawBar(float em)
                                    ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav;
     if (ImGui::Begin("##debug bar", nullptr, flags))
     {
-        // Over the game's windows (the debug UI is drawn after them; without focus changes)
-        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         for (int i = 0; i < tabCount(); ++i)
         {
             if (i > 0) ImGui::SameLine(0, 2);
@@ -198,7 +197,6 @@ void DebugUi::drawPanel(float em)
     Tab& tab = tabs[size_t(selectedTab)];
     if (ImGui::Begin("##debug panel", nullptr, kFixedWindow | ImGuiWindowFlags_NoScrollbar))
     {
-        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         // No title: the bar shows the selected tab
         // Read once: a section may select another tab while it is drawn (BeginChild and EndChild must pair)
         const bool console = selectedTab == int(DebugTab::Console);
@@ -237,7 +235,6 @@ void DebugUi::drawSplitter(float em, ImVec2 pos, ImVec2 extent)
                      kFixedWindow | ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar |
                          ImGuiWindowFlags_NoFocusOnAppearing | ImGuiWindowFlags_NoNav))
     {
-        ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         ImGui::InvisibleButton("##split", s);
         const bool hovered = ImGui::IsItemHovered(), active = ImGui::IsItemActive();
         if (hovered || active) ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
