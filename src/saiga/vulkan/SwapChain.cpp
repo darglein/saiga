@@ -198,8 +198,13 @@ void VulkanSwapChain::create(int* width, int* height, bool vsync)
 
 
 
-    // Determine the number of images
-    uint32_t desiredNumberOfSwapchainImages = std::max(3u, surfCaps.minImageCount);
+    // Determine the number of images. Without vsync (MAILBOX, IMMEDIATE) the presentation engine holds one image on
+    // screen and one queued, so with the renderer's 2 frames in flight a third image left the acquire waiting every
+    // other frame: alternating short and long frames with the GPU idle in between (flyover benchmark on an RTX 5080,
+    // Wayland: the CPU waited 1.5 ms per frame in the acquire, 50% long frames, 1% low 174 fps; with 4 images: the
+    // GPU 99% busy, 5% long frames, 1% low 232 fps). With vsync (FIFO) 3 images: more only add latency.
+    const uint32_t wanted                   = vsync ? 3u : 4u;
+    uint32_t desiredNumberOfSwapchainImages = std::max(wanted, surfCaps.minImageCount);
     if ((surfCaps.maxImageCount > 0) && (desiredNumberOfSwapchainImages > surfCaps.maxImageCount))
     {
         desiredNumberOfSwapchainImages = surfCaps.maxImageCount;
