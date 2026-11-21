@@ -90,6 +90,9 @@ class SAIGA_VULKAN_API WorldBenchmark
      * (FrameTimes::cpuMs), stalled_frames the number of measured frames whose interval is a stall (countStalls),
      * cpu_work_ms the CPU time of transfer() + render(). gpu_ms is null if no GPU times were measured (no timestamp
      * support).
+     * game_world adds step and recording (the engine's step and command recording times) and gpu_frame_ms: {gpu,
+     * transfer, scene, resolve, post, imgui: {median, p95}} (the app's gpu profile: the whole GPU frame and
+     * RenderScene's sections of the measured frames, S17).
      */
     json11::Json result() const;
     // Writes a result (computed once by result()) to the file. Returns false if it could not be written.

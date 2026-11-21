@@ -6,7 +6,8 @@
 
 #pragma once
 
-#include "saiga/vulkan/VulkanForwardRenderer.h"
+#include "saiga/core/math/math.h"
+#include "saiga/vulkan/Base.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/buffer/UniformBuffer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
@@ -20,11 +21,12 @@ namespace Saiga
 namespace Game
 {
 /**
- * Draws flat colored low-poly meshes (MeshData) with the forward renderer (MSAA, reversed depth), lit like the world
+ * Draws flat colored low-poly meshes (MeshData) in RenderScene's scene pass (MSAA, reversed depth), lit like the world
  * prototype (sun + hemisphere ambient, the same height fog). Positions are camera relative: draw() takes the double
  * model matrix, render() subtracts the camera position in double before converting to float.
  *
- *   meshes.init(renderer);  int plane = meshes.addMesh(MeshBuilder::airplane());
+ *   meshes.init(scene.base(), scene.formats());  int plane = meshes.addMesh(MeshBuilder::airplane());
+ *   // transfer(): meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure()) (as WorldRenderer)
  *   // transfer(): meshes.transfer(cmd, view, cameraPosition, projection, lighting);
  *   // render():   meshes.draw(plane, model); ... meshes.render(cmd);
  *
@@ -45,8 +47,17 @@ class MeshRenderer
 
     ~MeshRenderer() { destroy(); }
 
-    void init(Vulkan::VulkanForwardRenderer& renderer);
+    // formats: the pass the meshes are drawn in (reversed depth)
+    void init(Vulkan::VulkanBase& base, const Vulkan::RenderingFormats& formats);
     void destroy();
+
+    // As WorldRenderer::setOutputLinear: false (default) display values, true linear values times preExposure (from
+    // the next transfer() on)
+    void setOutputLinear(bool linear, float preExposure = 1)
+    {
+        outputLinear      = linear;
+        outputPreExposure = preExposure;
+    }
 
     // Uploads a mesh, returns its id (call before the first frame or after waiting for the device)
     int addMesh(const MeshData& mesh);
@@ -84,8 +95,9 @@ class MeshRenderer
         vec4 fogColor;
     };
 
-    Vulkan::VulkanForwardRenderer* renderer = nullptr;
-    Vulkan::VulkanBase* base                = nullptr;
+    Vulkan::VulkanBase* base = nullptr;
+    bool outputLinear        = false;
+    float outputPreExposure  = 1;
     Vulkan::UniformBuffer uniformBuffer;
     Vulkan::Pipeline pipeline;
     Vulkan::StaticDescriptorSet set;

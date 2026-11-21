@@ -26,6 +26,9 @@ struct SAIGA_VULKAN_API VulkanParameters
     // Index of the physical device to use (vkEnumeratePhysicalDevices order). -1: pick the best suitable device.
     int preferredDevice        = -1;
     uint32_t maxDescriptorSets = 4096 * 4;
+    // The color format of the offscreen images of a headless renderer (HeadlessWindow): eR8G8B8A8Unorm or
+    // eR8G8B8A8Srgb (the hardware encodes the written linear values)
+    vk::Format offscreenFormat = vk::Format::eR8G8B8A8Unorm;
     // for {uniformBuffer,texture}
     std::array<uint32_t, 4> descriptorCounts = {4096, 4096, 4096, 4096};
 

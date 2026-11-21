@@ -179,19 +179,20 @@ The engine serves several games of the same genre. It offers capabilities; each 
 
 | Part | Where | Status |
 |---|---|---|
-| Forward renderer with MSAA, reversed-Z, infinite far plane | `src/saiga/vulkan/VulkanForwardRenderer.*` | [exists] |
+| Forward renderer with MSAA, reversed-Z, infinite far plane; since S17 only for the other samples and the fixtures of `tests/vulkan_test_context.h` and `VulkanWorldRender` (`tests/test_vulkan_world.cpp`); the shared frame code (command buffers and submit, ImGui frame, screenshots, `selectSampleCount`, GPU sections by name) is in `VulkanRenderer` | `src/saiga/vulkan/VulkanForwardRenderer.*`, `src/saiga/vulkan/Renderer.*` | [exists] |
+| `RenderScene` HDR frame (S17): fp16 scene pass with MSAA and reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map weighted resolve), pre-exposure, post and ImGui in one pass, `--tonemap` / `--exposure` (§10.1, §10.5) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `tests/test_vulkan_scene.cpp` | [exists] |
 | World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window; the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
-| Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step` and `recording`; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics of the prototype renderer), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
-| Engine app: `EngineApp` (window or headless or no device, `RenderScene` frame shell around the forward renderer, MCP polling, input map, frame and GPU profiles, statistics window), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
+| Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step`, `recording` and (S17) `gpu_frame_ms`; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics of the prototype renderer), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
+| Engine app: `EngineApp` (window or headless or no device, the `RenderScene` frame (S17: its own HDR frame), MCP polling, input map, frame and GPU profiles, statistics window), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
 | Golden images: `compareGolden` (lavapipe gating, `SAIGA_UPDATE_GOLDEN`), goldens `world_overview` and `world_forest`, CI upload of failed images | `tests/golden_image.h`, `data/tests/golden/`, `.github/workflows/tests.yml` | [exists] |
 | Jolt (optional FetchContent, static, `SAIGA_WITH_JOLT` default OFF, not in CI, no saiga library links it) | `cmake/Dependencies_jolt.cmake` | [exists] |
 | `MainLoop`: `update(float)` at `updatesPerSecond` (default 60), `interpolate(float dt, float alpha)` and `render()` once per frame, `framesPerSecond` (default 60, 0 = unlimited) | `src/saiga/core/window/MainLoop.*` | [exists] |
 | `HeadlessWindow` (no surface; `renderFrames` calls `update` and `render`, not `interpolate`; no ImGui) | `src/saiga/vulkan/window/HeadlessWindow.*` | [exists] |
 | Double math `Vec3`, `Mat4`, `Quat`, `AngleAxis` (tiny-eigen and Eigen) with the R-MATH-2 subset of §7.10; float helpers and the S05 double overloads in `EigenGLMInterface.h` | `src/saiga/core/math/`, `submodules/tiny-eigen/` | [exists] |
-| Shader compiler (glslang, targets Vulkan 1.0 / SPIR-V 1.0) | `src/saiga/vulkan/Shader/GLSL.cpp` | [exists] |
+| Shader compiler (glslang, targets Vulkan 1.3 / SPIR-V 1.6 since S17; `discard` is `OpDemoteToHelperInvocation`, the device requires `shaderDemoteToHelperInvocation`) | `src/saiga/vulkan/Shader/GLSL.cpp`, `tests/test_vulkan_shader.cpp` | [exists] |
 | VMA (supports virtual blocks; submodule, private to `saiga_vulkan`) | `submodules/VulkanMemoryAllocator` | [exists] |
 | Engine module `saiga_engine` (CMake module, `SAIGA_ENGINE_API`, `Engine::engineVersion()`, smoke test; CI jobs GCC, Clang, Windows MSVC with shared libraries) | `src/saiga/engine/`, `.github/workflows/tests.yml` | [exists] |
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
@@ -863,9 +864,10 @@ void registerEngineSystems(SystemList& s)
 
 Implementation (S13, `engine/app/`): `EngineApp`, `EngineAppSetup`, `AppOptions`, `parseCommandLine`, `engineMain`,
 `runGameScenarios`, `InputMap`, `registerAppTools` (`quit`, `app_status`, `set_input`). Differences to the sketch below:
-the `RenderScene` frame shell (`saiga/vulkan/scene/`) wraps the forward renderer's frame (`VulkanForwardRenderer`
-driven by `renderFrame`, no `MainLoop`) until S17 replaces the frame with the HDR frame, so the prototype renderers keep
-their `init(VulkanForwardRenderer&)`; `createVulkanDevice(VulkanWindow&, VulkanParameters, framesInFlight) ->
+the `RenderScene` frame (`saiga/vulkan/scene/`; S13 wrapped the forward renderer's frame, since S17 its own HDR frame
+on a `VulkanRenderer` subclass, driven by `renderFrame`, no `MainLoop`; `RenderScene::forwardRenderer()` is removed and
+the prototype renderers take `init(VulkanBase&, const RenderingFormats&, ...)` with `RenderScene::formats()` and
+`setOutputLinear(sceneWritesLinear(), preExposure())` in their transfer); `createVulkanDevice(VulkanWindow&, VulkanParameters, framesInFlight) ->
 std::unique_ptr<VulkanDevice>` (headless is a `HeadlessWindow`, the device owns the surface; `VulkanRenderer` uses it);
 `--headless --no-render` runs without a device; the app's frame and GPU numbers are separate profilers (`frame`: one
 sample per frame loop; `gpu`: one per completed GPU frame, matched by timeline value) that `get_profile` and
@@ -919,7 +921,9 @@ The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it d
 
 `main` fills `EngineAppSetup` from the command line (`--headless`, `--no-render` (headless without a device),
 `--benchmark <name>` (the names of `EngineAppSetup::benchmarks`), `--screenshot <file>` after `--screenshot-frame N`
-frames (default 60; not with `--no-render`), `--width/--height`, `--validation`, `--no-vsync`, `--mcp-port N` (0: off),
+frames (default 60; not with `--no-render`), `--width/--height`, `--validation`, `--no-vsync`, `--tonemap identity|aces`
+and `--exposure x` (S17: `EngineAppSetup::render.toneMap` / `exposure`; also in the "Engine statistics" window),
+`--mcp-port N` (0: off),
 `--data <dir>` (default: the source tree's `data/<name>`, else `data/<name>` in the working directory), the game's own
 flags, `--scenarios [filter]`: run the game's scenarios with
 their variants headless, print the failures and their count, exit with 0 if at least one scenario ran and all pass,
@@ -962,7 +966,7 @@ struct EngineAppSetup
     bool headless = false;                                    // no window, offscreen images, no input
     int width = 1600, height = 900;
     bool vsync = true, validation = false;
-    RenderSceneParameters render;                             // [planned: S13 (MSAA samples), extended in S17] quality, ...
+    RenderSceneParameters render;                             // MSAA samples (S13), tone map, exposure (S17); quality (S37)
     void (*scenarios)(ScenarioList&) = nullptr;               // for run_scenario
     void (*gameTools)(McpServer&, EngineApp&) = nullptr;      // game_* tools
     GameRenderHooks renderHooks;                              // transitional (S13 until S19; groundHeight until S20)
@@ -1234,16 +1238,43 @@ pieces, updated on edits, streamed with the full radius; `nav.findPath(space, fr
 
 ## 10. Rendering
 
-### 10.1 RenderScene [planned: S13 frame shell, S17 HDR frame, S18 instances]
+### 10.1 RenderScene [exists: S13 frame shell, S17 HDR frame; planned: S18 instances]
 
 The interface between the engine and `saiga_vulkan`; knows meshes, materials, regions and instances, not entities. Class
 `RenderScene` in `src/saiga/vulkan/scene/RenderScene.h`, value types (`MeshLods`, `MaterialData`, `StaticInstance`,
 `DynamicPose`, `RenderSceneParameters`, `QualityTier`, `EnvironmentState`, `LightData`, `WaterData`, `EmitterData`,
 `FogVolumeData`, `TerrainTileData`, `TerrainPyramidData`, `GrassMaskData`, `MeshId`, `MaterialId` and the handle types)
 in `src/saiga/vulkan/scene/RenderSceneTypes.h`; `ChunkId`/`RegionId` from `saiga_core`. Constructed with
-`RenderScene(VulkanBase&, VulkanWindow* window, const RenderSceneParameters&)` (window null: headless, offscreen
-images); it owns the swap chain or offscreen images, frame synchronization, the HDR targets, all passes and ImGui
-(§10.5); it replaces `VulkanForwardRenderer` for engine apps.
+`RenderScene(VulkanWindow&, const VulkanParameters&, const RenderSceneParameters&)` (S17 keeps the S13 constructor
+instead of `(VulkanBase&, VulkanWindow*, ...)`: its `VulkanRenderer` creates the device; a `HeadlessWindow` gives
+offscreen images); it owns the swap chain or offscreen images, frame synchronization, the HDR targets, all passes and
+ImGui (§10.5); it replaces `VulkanForwardRenderer` for engine apps.
+
+The frame API [exists: S17] (the frame is an internal `VulkanRenderer` subclass in `RenderScene.cpp`, which shares the
+command buffers, submit, ImGui frame, screenshots and `selectSampleCount` with the forward renderer):
+
+```cpp
+enum class ToneMap : uint8_t { Identity, Aces };          // Identity: clay mode (display values, no exposure)
+struct RenderSceneParameters { int msaaSamples = 4; vec4 clearColor; bool imgui = true;
+                               ToneMap toneMap = ToneMap::Identity; float exposure = 1; };
+bool renderFrame(const Callback& transfer, const Callback& render, const std::function<void()>& gui);
+RenderingFormats formats() const;      // the scene pass: R16G16B16A16 float, D32 (reversed-Z), the sample count
+vk::Format colorFormat() const;        // the output (swap chain / offscreen image)
+void setToneMap(ToneMap); void setExposure(float);       // from the next frame (latched at renderFrame's start)
+ToneMap toneMap() const; float exposure() const;         // the latched values (exposure 1 with Identity)
+bool sceneWritesLinear() const;        // toneMap() != Identity
+float preExposure() const;             // the previous frame's effective exposure (1 after Identity; this frame's after
+                                       // a change by more than a factor of 16)
+void requestScreenshot(VulkanRenderer::ScreenshotCallback); void setImguiVisible(bool);
+bool takeGpuFrameTimes(FrameTimes&); static const std::vector<const char*>& gpuSectionNames();
+```
+
+**Pre-exposure contract** (S17): while `sceneWritesLinear()` every scene shader writes linear radiance multiplied by
+`preExposure()` and clamps only negatives (the sky's sun glow above 1 reaches the tone map); the clear value is
+`linear(clearColor) * preExposure()`; post scales by `exposure / preExposure`, so an exposure change shows in the next
+frame without a flash. Otherwise (Identity) the scene shaders write display values clamped to [0, 1] (their own sRGB
+encoding, as the clay prototype). The prototype (`finalColor` in `shading.glsl`, `WorldUniforms::shading.w`) and the
+demos (`mesh.frag`) take it through `WorldRenderer::setOutputLinear(bool, float)` / `MeshRenderer::setOutputLinear`.
 
 ```cpp
 MaterialId addMaterial(const std::string& name, const MaterialData& data);              // §10.8
@@ -1337,8 +1368,9 @@ class RenderSink   // engine/sync/RenderSink.h [planned: S19]; types from saiga/
 
 ### 10.2 Culling [planned: S18]
 
-Prerequisite (implemented in S17): `GLSL.cpp` targets Vulkan 1.3 / SPIR-V 1.6 (`setEnvClient`, `setEnvTarget`), with a
-test.
+Prerequisite [done: S17]: `GLSL.cpp` targets Vulkan 1.3 / SPIR-V 1.6 (`setEnvClient`, `setEnvTarget`), with a
+test (`VulkanShader.SpirvVersion16`, `.EveryStageFileCompiles`, `.DiscardPipeline`); the device enables
+`shaderDemoteToHelperInvocation` (glslang compiles `discard` to `OpDemoteToHelperInvocation` for SPIR-V 1.6).
 
 1. CPU: instance set bounds against the views -> visible instance ranges.
 2. GPU count pass over the visible ranges (indirect dispatch): frustum test, LOD (S18: by distance with the prototype's
@@ -1385,14 +1417,21 @@ The buffers do not preclude Hi-Z occlusion culling against the previous frame's 
 - Every mesh has an impostor as its last LOD. **Impostors are relightable** (albedo + normal atlases, no baked
   lighting), because the time of day changes (§10.7). Octahedral vs billboard is decided in S27.
 
-### 10.5 Frame structure and post-processing [planned: S17 (HDR target), S19 (passes), S37 (post chain)]
+### 10.5 Frame structure and post-processing [exists: S17 (HDR frame); planned: S19 (passes), S37 (post chain)]
 
-- **Frame** (S17): `RenderScene` renders the scene into an HDR target (R16G16B16A16 float, MSAA per quality tier),
-  composites the tone-mapped result into the swap chain image (or offscreen image), then ImGui and the game UI draw on
-  top (single-sampled). Frame synchronization (frames in flight, timeline semaphore, deferred deletion) reuses
-  `VulkanBase`; the rest of the frame logic is new code in `RenderScene`.
-- **Pre-exposure**: shaders write radiance multiplied by the previous frame's exposure (half floats end at 65504; the
-  sun disc is clamped); exposure is applied before tone mapping.
+- **Frame** [exists: S17]: `RenderScene` renders the scene into an HDR target (R16G16B16A16 float, MSAA with
+  `RenderSceneParameters::msaaSamples` clamped to the device's counts (by quality tier: S37), reversed-Z D32), resolves
+  it, composites the tone-mapped result into the swap chain image (or offscreen image), then ImGui and the game UI draw
+  on top (single-sampled, in the same pass as post). Frame synchronization (frames in flight, timeline semaphore,
+  deferred deletion) reuses `VulkanBase`; the HDR targets are shared by the frames in flight (sync2 barriers at the
+  frame start and after the scene pass). GPU sections `transfer`, `scene` (with the hardware resolve), `resolve` (the
+  custom resolve), `post`, `imgui` (with the store of the output image), written every frame. Post sanitizes (NaN -> 0,
+  clamp to [0, 65504]), applies `exposure / preExposure`, the tone map (ACES: the Narkowicz fit) and the output transfer
+  (the piecewise sRGB curve for UNORM targets; linear for sRGB targets, which encode in hardware); in clay mode it
+  copies the display values clamped (decoded first on an sRGB target).
+- **Pre-exposure** [exists: S17, §10.1]: shaders write radiance multiplied by the previous frame's exposure, or by this
+  frame's when the exposure changed by more than a factor of 16 (half floats end at 65504, small values lose precision;
+  the sun disc is clamped); exposure is applied before tone mapping.
 - **Pass order** (stage in brackets; the pass exists from then on, the list is the target order):
   1. shadow maps (cascades, far terrain horizon map, local light atlas; cached, §10.7) [S36]
   2. depth pre-pass (opaque and alpha-tested) [S19]
@@ -1401,7 +1440,10 @@ The buffers do not preclude Hi-Z occlusion culling against the previous frame's 
   5. opaque passes (terrain, instances, skinned characters, grass); they sample the AO texture (white before S37) and
      apply it to the ambient term and, as specular occlusion, to the environment specular [S19]
   6. sky [S19: prototype sky; S36: atmosphere]
-  7. MSAA resolve, tone-map weighted (custom resolve, not `resolveMode`, so bright edges do not alias) [S17]
+  7. MSAA resolve, tone-map weighted (custom resolve, not `resolveMode`, so bright edges do not alias: every sample
+     sanitized and weighted with `1 / (1 + luma(c * exposure / preExposure))`) [exists: S17]; in clay mode (Identity)
+     the hardware average (`resolveMode` average in the scene pass): the weighted resolve of display values would
+     darken anti-aliased edges far outside the golden tolerance
   8. transparents on the far side of the water surface [S39]
   9. water (§10.9) [S19: prototype plane; S39: full water]; the refraction source is a copy of the HDR color taken
      after pass 8 [S39; before S39 directly after pass 7]; writes its depth into the resolved depth (a copy is kept for
@@ -1414,8 +1456,9 @@ The buffers do not preclude Hi-Z occlusion culling against the previous frame's 
   13. transparents and particles on the camera side (sorted back to front per object; they apply fog in their own
       shaders) [S39: transparents; S41: particles]
   14. post chain: depth of field, bloom, exposure, tone mapping, color grading, upscaling of a reduced render
-      resolution (spatial: bilinear plus sharpening) [S17: simple tone map; S37: full chain]
-  15. UI (ImGui, game UI) on the swap chain [S13]
+      resolution (spatial: bilinear plus sharpening) [exists: S17 exposure and the ACES / identity tone map; S37: full
+      chain]
+  15. UI (ImGui, game UI) on the swap chain [exists: S13; S17: in the post pass]
 - **Anti-aliasing**: MSAA with alpha to coverage for foliage on every tier (sample count per tier). The Low tier
   (Steam Deck) lowers the render scale and upscales spatially in the post chain. No temporal anti-aliasing, temporal
   upscaling or motion vectors (§20). Each effect is switchable per game and tier (R-MECH-1).
@@ -2337,8 +2380,9 @@ tools `get_profile` and `measure_performance`). Wall-clock time (steady clock) o
 simulation (R-DET-1); `WorldSetup::profiling = false` makes no clock calls; an aborted step's sample is discarded. From
 S13 the app keeps two more profilers that `get_profile` and `measure_performance` report under `frame` (one sample per
 frame loop: `frame`, `frame/poll`, `frame/advance`, `frame/render`; counters `fps`, `steps_per_frame`,
-`dropped_steps`) and `gpu` (one sample per completed GPU frame: `gpu`, its sections, the game's passes); S19 adds
-`extract`. Its ImGui window "Engine statistics" (F1: frame and step plots, the step profile per phase and system, the
+`dropped_steps`) and `gpu` (one sample per completed GPU frame: `gpu`, its sections `gpu/transfer`, `gpu/scene`,
+`gpu/resolve`, `gpu/post`, `gpu/imgui` (S17; S13: `transfer`, `main`, `imgui`), the game's passes under
+`gpu/scene/game/<pass>` (drawn in the scene pass; S13/S14: `gpu/game/<pass>`)); S19 adds `extract`. Its ImGui window "Engine statistics" (F1: frame and step plots, the step profile per phase and system, the
 GPU, the counters) reads them.
 
 ### 17.2 Scenario tests [exists: S12; terrain, streaming, render sink and clients with their stages]
@@ -2491,6 +2535,13 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   sky); the tests also `EXPECT_EQ` the drawn tree instances per LOD and the terrain node count against committed numbers
   (used by S19). The counts gate only on lavapipe like the images (the placement uses std random distributions and float
   comparisons: other standard libraries, compilers or drivers may differ by a few trees).
+- Since S17 the S02 goldens are rendered through `RenderScene` (clay mode: identity tone map, hardware average resolve;
+  `imgui = false`, 4 samples, one capture per golden, on the fifth frame); they pass unchanged (max 1/255 on lavapipe:
+  rounding after instead of before the average).
+- `hdr_tonemap` (S17, `VulkanScene.AcesGolden` in `tests/test_vulkan_scene.cpp`, 256 x 128): ACES, 4 samples, an
+  exponential HDR gradient (16 / 4096 .. 16, 12 stops) in the top half and a bright (16) triangle with slanted MSAA
+  edges on a dark clear color in the bottom half; it pins the tone map, the sRGB output curve and the weighted resolve.
+  Written like the S02 goldens with `--gtest_filter='VulkanScene.AcesGolden'` on `test_vulkan_scene`.
 - Pass: mean absolute difference < 1/255 and at most 0.5% of the pixels differ by more than 16/255. It gates only when
   the device name contains `llvmpipe` (else it prints the metrics). Gray (clay) goldens are stored as 8-bit grayscale
   PNGs.
@@ -2523,7 +2574,8 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   and defragmentation off; pass keys are `WorldRenderer::gpuPassName` (from S19 `RenderScene::gpuPassName`); `quality`
   is `"default"` until S37.
   Writes `benchmark_<name>.json` `{gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height,
-  cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}` to the working
+  cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}` (plus the
+  engine's values below) to the working
   directory and exits; the exit code is non-zero if the benchmark did not finish, the result could not be written, or
   the rendered size changed or a frame stalled during the measured frames (`stalled_frames`: interval above 4 x the
   median and above 50 ms, e.g. a minimized window or a swap chain recreation; an old result file is deleted at the
@@ -2541,8 +2593,11 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   - `SAIGA_SCREENSHOT` is ignored in benchmark mode (its automatic screenshot would close the window at frame 60).
   - No GUI and no MCP during a benchmark, and the default world (`SAIGA_WORLD_TREES` is ignored). From S13 the result
     also has `step` (the steps of the measured frames) and `recording` (the command recording and submit of the
-    measured frames, `frame/render/recording`, without the waits for a frame slot and the image), from S19 `extract`
-    (each `{median, p95}`).
+    measured frames, `frame/render/recording`, without the waits for a frame slot and the image), from S17
+    `gpu_frame_ms: {gpu, transfer, scene, resolve, post, imgui}` (the app's `gpu` profile of the measured frames, matched
+    by RenderScene frame number: the whole GPU frame and RenderScene's sections; S13's sections were `transfer`, `main`,
+    `imgui`, and its whole frame ended inside the pass, before the MSAA resolve), from S19 `extract` (each
+    `{median, p95}`).
 - Per-frame values come from `struct WorldRenderer::FrameTimes { double cpuMs; double cpuWorkMs; int cpuFrame; double
   gpuMs; std::array<double, PASS_COUNT> gpuPassMs; int gpuFrame; }; const FrameTimes& WorldRenderer::lastFrameTimes()
   const;` (unsmoothed; also passed to `WorldRenderer::frameCallbacks`) [exists]. The CPU values of frame N are known
@@ -2577,6 +2632,8 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
 | Input devices, window behavior, Steam Deck controls | manual |
 
 ### 17.9 Quality tiers [planned: S37, parameters from S17]
+
+The first quality parameters exist since S17 (`RenderSceneParameters::msaaSamples`, `toneMap`, `exposure`).
 
 `QualityTier {Low, Medium, High}` selects MSAA samples, render scale (spatial upscaling below 1), shadow cascades and
 resolution, shadowed local lights and re-rendered faces per frame, light budget, instance and grass densities,
@@ -2896,7 +2953,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S15 | Transport and messages (done) | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
 | S16 | Replication skeleton (done) | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3) | S12, S15, S13b | all engine scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI) |
 | S16b | Tech demo co-op (done) | The tech demos on the replication (the demo part of S16's row): driver entities, the demos' replication modes, co-op variants (a second plane, character, car of a client), `--coop` with `hostWorld`, `startWorld`, `stepAll`, the join policy hooks and MCP on both worlds, `EngineAppSetup::networkVariants` on for the games (§8.3, §16.2, §18.4) | S16 | the tech demo co-op variants run host + client over loopback (local); the demo scenarios pass the host + client variants or are local-only with a reason (local) |
-| S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
+| S17 | HDR frame (done) | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
 | S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S16b, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |

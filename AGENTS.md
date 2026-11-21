@@ -44,8 +44,12 @@ src/
                         (instance/device API version 1.3 also on 1.4 drivers; extensions: only surface/swapchain and
                         debug_utils for validation) and uses its core
                         features: dynamic rendering (pipelines take RenderingFormats, no VkRenderPass),
-                        synchronization2 (pipelineBarrier2/submit2) and timeline semaphores
-                        (VulkanBase::frameTimeline; VulkanBase::deferDelete for objects in use by frames in flight).
+                        synchronization2 (pipelineBarrier2/submit2), timeline semaphores
+                        (VulkanBase::frameTimeline; VulkanBase::deferDelete for objects in use by frames in flight) and
+                        shaderDemoteToHelperInvocation (shaders are compiled for SPIR-V 1.6: discard is a demote).
+                        Renderer (VulkanRenderer): the base of VulkanForwardRenderer and RenderScene's frame (swap chain
+                        or offscreen images in VulkanParameters::offscreenFormat, command buffers and submit, ImGui
+                        frame, screenshots, selectSampleCount, the GPU sections).
                         Resources: buffer/ (vertex, index, uniform, staging, indirect), texture/ (Texture2D, 2DArray,
                         Cube, 3D with mipmaps and download; Sampler; RenderTarget for offscreen passes incl. MSAA and
                         multiple color attachments)
@@ -56,7 +60,9 @@ src/
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
                         world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, the game_* MCP tools,
                         benchmark paths WorldBenchmark; used by game_world)
-                        scene/RenderScene: the engine app's frame shell (wraps VulkanForwardRenderer until S17);
+                        scene/RenderScene: the engine app's HDR frame (S17; shader/vulkan/scene/): fp16 MSAA scene pass
+                        with reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map
+                        weighted resolve), pre-exposure (sceneWritesLinear/preExposure), post + ImGui in one pass;
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
                         chosen at runtime as in opengl/: GLFWWindow or HeadlessWindow (offscreen images, ImGui through
@@ -237,7 +243,8 @@ ctest -R test_core_ini --output-on-failure             # one test
 - **Vulkan tests** (`test_vulkan_*`) need no window system either: the `VulkanTest` fixture creates a
   `Vulkan::HeadlessWindow` with the forward renderer (no surface or swap chain, the frames are rendered into offscreen
   images; `RenderFrame()` returns one) and **skips** every test without a Vulkan 1.3 driver. Derive the suite from
-  `VulkanTest` and use `TEST_F`. The validation layer is used if installed (`vulkan-validationlayers`); a validation
+  `VulkanTest` and use `TEST_F`. `test_vulkan_scene` (RenderScene's HDR frame) and the world goldens create a
+  `HeadlessWindow` with a `RenderScene` per test instead. The validation layer is used if installed (`vulkan-validationlayers`); a validation
   error fails an assertion and aborts the test. The best device is used (e.g. the NVIDIA GPU); to run them on Mesa's
   software driver lavapipe as CI does: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json ctest -R test_vulkan`.
 - **Golden images** (`tests/golden_image.h`, `compareGolden`; PNGs in `data/tests/golden/`): a render test compares its
@@ -251,6 +258,8 @@ ctest -R test_core_ini --output-on-failure             # one test
   `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world
   --gtest_filter='VulkanWorldGolden.*'` (the counts are not checked in this run; the goldens are written to the source tree, gray images as 8-bit grayscale
   PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_vulkan_world.cpp`.
+  The tone-map golden `hdr_tonemap` (S17) the same way with `./build/tests/test_vulkan_scene
+  --gtest_filter='VulkanScene.AcesGolden'`.
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
   `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then

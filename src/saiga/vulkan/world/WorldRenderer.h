@@ -7,7 +7,9 @@
 #pragma once
 
 #include "saiga/core/util/json11.hpp"
-#include "saiga/vulkan/VulkanForwardRenderer.h"
+#include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/Renderer.h"
+#include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/GrassRenderer.h"
 #include "saiga/vulkan/world/HeightField.h"
@@ -28,6 +30,9 @@ struct SAIGA_VULKAN_API WorldParameters
     HeightField::Parameters terrain;
     int treeCount = 200000;
     uint32_t seed = 1;
+    // The pass the world draws in uses reversed depth (cleared with 0, eGreaterOrEqual): required (asserted), the
+    // caller sets it (RenderScene and VulkanForwardRenderer with ForwardRenderingParameters::reversedZ are)
+    bool reversedZ = false;
 };
 
 // The shading mode of the world. Clay: uniform gray with simple lighting, to judge the geometry (also the debug mode of
@@ -86,14 +91,16 @@ struct SAIGA_VULKAN_API WorldSettings
 };
 
 /**
- * A large procedural world for the forward renderer (requires reversed depth, ForwardRenderingParameters::reversedZ):
- * CDLOD terrain with a water plane, GPU culled instanced trees with alpha tested leaves, grass around the camera, a
- * sky gradient and height fog. Everything is a uniform gray ("clay") with simple lighting, to judge the geometry.
+ * A large procedural world (requires reversed depth, WorldParameters::reversedZ): CDLOD terrain with a water plane,
+ * GPU culled instanced trees with alpha tested leaves, grass around the camera, a sky gradient and height fog.
+ * Everything is a uniform gray ("clay") with simple lighting, to judge the geometry. Drawn in a pass with the given
+ * formats (RenderScene::formats(), VulkanForwardRenderer::renderingFormats()).
  *
- *   world.init(renderer, parameters);
- *   // VulkanForwardRenderingInterface::transfer:
+ *   world.init(base, formats, parameters);
+ *   // transfer (outside of the pass); with RenderScene: world.setOutputLinear(scene.sceneWritesLinear(),
+ *   // scene.preExposure()) first
  *   world.transfer(cmd, camera.view, camera.getPosition(), aspect);
- *   // VulkanForwardRenderingInterface::render:
+ *   // inside the pass:
  *   world.render(cmd);
  */
 class SAIGA_VULKAN_API WorldRenderer
@@ -102,12 +109,20 @@ class SAIGA_VULKAN_API WorldRenderer
     WorldRenderer() = default;
     ~WorldRenderer() { destroy(); }
 
-    void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters);
+    void init(VulkanBase& base, const RenderingFormats& formats, const WorldParameters& parameters);
     // With a height field generated elsewhere (e.g. once for the game's simulation and its render state; S13b): it is
     // shared, not copied; parameters.terrain is ignored
-    void init(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+    void init(VulkanBase& base, const RenderingFormats& formats, const WorldParameters& parameters,
               std::shared_ptr<const HeightField> heightField);
     void destroy();
+
+    /**
+     * The output of the shaders (from the next transfer() on): false (default) display values, clamped to [0, 1] and
+     * encoded with pow(1 / 2.2) for a UNORM target (clay mode); true linear values multiplied by preExposure, only
+     * negatives clamped (RenderScene with a tone map: sceneWritesLinear(), preExposure()). A direct sRGB target (e.g.
+     * the forward renderer's) encodes in hardware: setOutputLinear(true, 1) there.
+     */
+    void setOutputLinear(bool linear, float preExposure = 1);
 
     // Records the uploads and the GPU culling (outside of the rendering pass).
     void transfer(vk::CommandBuffer cmd, const mat4& view, const vec3& cameraPosition, float aspect);
@@ -211,10 +226,12 @@ class SAIGA_VULKAN_API WorldRenderer
     double time = 0;
 
    private:
-    VulkanForwardRenderer* renderer = nullptr;
-    VulkanBase* base                = nullptr;
+    VulkanBase* base = nullptr;
+    RenderingFormats formats;
     WorldParameters params;
-    void initWith(VulkanForwardRenderer& renderer, const WorldParameters& parameters,
+    bool outputLinear       = false;
+    float outputPreExposure = 1;
+    void initWith(VulkanBase& base, const RenderingFormats& formats, const WorldParameters& parameters,
                   std::shared_ptr<const HeightField> external);
     std::shared_ptr<const HeightField> hf;
 

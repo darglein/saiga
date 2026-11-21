@@ -4,7 +4,7 @@
  * See LICENSE file for more information.
  */
 
-// Transitional renderer of flat colored meshes for the tech demo games (camera relative, forward renderer).
+// Transitional renderer of flat colored meshes for the tech demo games (camera relative, RenderScene's scene pass).
 
 #include "games/common/MeshRenderer.h"
 
@@ -26,11 +26,10 @@ struct MeshPush
 static_assert(sizeof(MeshPush) == 128, "push constants");
 }  // namespace
 
-void MeshRenderer::init(Vulkan::VulkanForwardRenderer& _renderer)
+void MeshRenderer::init(Vulkan::VulkanBase& _base, const Vulkan::RenderingFormats& formats)
 {
     destroy();
-    renderer = &_renderer;
-    base     = &renderer->base();
+    base = &_base;
 
     uniformBuffer.init(*base, nullptr, sizeof(Uniforms));
 
@@ -44,8 +43,7 @@ void MeshRenderer::init(Vulkan::VulkanForwardRenderer& _renderer)
                            {1, 0, vk::Format::eR32G32B32Sfloat, uint32_t(offsetof(MeshVertex, normal))},
                            {2, 0, vk::Format::eR32G32B32Sfloat, uint32_t(offsetof(MeshVertex, color))}});
     Vulkan::createWorldPipeline(pipeline, *base, layout, sizeof(MeshPush),
-                                {"vulkan/games/mesh.vert", "vulkan/games/mesh.frag"}, renderer->renderingFormats(),
-                                info);
+                                {"vulkan/games/mesh.vert", "vulkan/games/mesh.frag"}, formats, info);
     set = pipeline.createDescriptorSet();
     set.assign(0, &uniformBuffer);
     initialized = true;
@@ -98,17 +96,16 @@ void MeshRenderer::transfer(vk::CommandBuffer cmd, const mat4& view, const Vec3&
     viewRel(1, 3) = 0;
     viewRel(2, 3) = 0;
 
-    auto colorFormat = renderer->getColorFormat();
-    bool srgbTarget  = colorFormat == vk::Format::eB8G8R8A8Srgb || colorFormat == vk::Format::eR8G8B8A8Srgb;
-    Vec3 sun         = l.sunDirection.normalized();
+    Vec3 sun = l.sunDirection.normalized();
 
     Uniforms u;
     u.viewProjRel = proj * viewRel;
     u.cameraPos   = vec4(float(cameraPosition(0)), float(cameraPosition(1)), float(cameraPosition(2)), 0);
     u.sunDir      = vec4(float(sun(0)), float(sun(1)), float(sun(2)), float(l.sunIntensity));
-    u.shading     = vec4(float(l.ambient), 0, 0, srgbTarget ? 0 : 1);
-    u.fog         = vec4(float(l.fogDensity), float(l.fogFalloff), l.fog ? 1 : 0, float(l.fogBaseHeight));
-    u.fogColor    = vec4(float(l.fogColor(0)), float(l.fogColor(1)), float(l.fogColor(2)), 1);
+    // w: 0 display values (clamped, encoded in the shader), > 0 linear values times the pre-exposure
+    u.shading  = vec4(float(l.ambient), 0, 0, outputLinear ? outputPreExposure : 0.0f);
+    u.fog      = vec4(float(l.fogDensity), float(l.fogFalloff), l.fog ? 1 : 0, float(l.fogBaseHeight));
+    u.fogColor = vec4(float(l.fogColor(0)), float(l.fogColor(1)), float(l.fogColor(2)), 1);
 
     using Stage  = vk::PipelineStageFlagBits2;
     using Access = vk::AccessFlagBits2;

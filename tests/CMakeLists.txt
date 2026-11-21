@@ -144,6 +144,7 @@ if (MODULE_VULKAN)
     saiga_test(test_vulkan_draw.cpp "saiga_vulkan")
     saiga_test(test_vulkan_memory.cpp "saiga_vulkan")
     saiga_test(test_vulkan_world.cpp "saiga_vulkan")
+    saiga_test(test_vulkan_scene.cpp "saiga_vulkan")
     saiga_test(test_vulkan_standalone_window.cpp "saiga_vulkan")
 endif ()
 

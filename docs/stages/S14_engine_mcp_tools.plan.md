@@ -136,7 +136,7 @@ ApiResult WorldApi::putSnapshot(const std::string& name, std::vector<uint8_t> sa
 | `terrain_query` | `game_terrain_query` (unchanged contract) |
 | `set_camera` with `height_above_ground`, `walk_mode` | `game_set_camera(position?, height_above_ground?, walk_mode?)`: `position` [x, y, z] or [x, z]; `height_above_ground` sets y to the terrain height + the value; `walk_mode` on or off. Returns the camera, `ground_height` and `height_above_ground`. No hold (the app camera is this game's render camera). |
 | `move_camera` | removed (app tool) |
-| `measure_performance` (frames + `gpu_world_ms`) | removed (the app's `measure_performance(frames)` reports `gpu/game/<pass>`) |
+| `measure_performance` (frames + `gpu_world_ms`) | removed (the app's `measure_performance(frames)` reports `gpu/game/<pass>`; since S17 `gpu/scene/game/<pass>`) |
 
 The screenshot batching moves to the app tool. Each description states what it reads and changes (R-MCP-1).
 

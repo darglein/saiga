@@ -22,7 +22,7 @@ using namespace Engine;
 void PlatformerRender::init(EngineApp& _app)
 {
     app = &_app;
-    meshes.init(app->scene()->forwardRenderer());
+    meshes.init(app->scene()->base(), app->scene()->formats());
     const Level& level = context->level;
 
     // The level as one mesh
@@ -108,6 +108,9 @@ PlatformerRender::Character& PlatformerRender::character(Entity e)
 
 void PlatformerRender::transfer(vk::CommandBuffer cmd)
 {
+    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
+    const Vulkan::RenderScene& scene = *app->scene();
+    meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
     const ivec2 size     = app->scene()->size();
     const float aspect   = float(size(0)) / float(std::max(1, size(1)));

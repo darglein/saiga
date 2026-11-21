@@ -27,11 +27,12 @@ void RacingRender::init(EngineApp& _app)
     Vulkan::WorldParameters params;
     // The renderer's trees may follow SAIGA_WORLD_TREES; the track's site does not (RacingContext::kSiteTreeCount)
     params.treeCount = worldTreeCount();
-    worldRenderer.init(app->scene()->forwardRenderer(), params,
+    params.reversedZ = true;
+    worldRenderer.init(app->scene()->base(), app->scene()->formats(), params,
                        std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
     // Grass would grow through the track
     worldRenderer.settings.grass = false;
-    meshes.init(app->scene()->forwardRenderer());
+    meshes.init(app->scene()->base(), app->scene()->formats());
 
     const VehicleParameters vehicle;
     bodyMesh    = meshes.addMesh(MeshBuilder::carBody(Vec3(0.85, 0.15, 0.12)));
@@ -130,6 +131,10 @@ Entity RacingRender::focus()
 
 void RacingRender::transfer(vk::CommandBuffer cmd)
 {
+    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
+    const Vulkan::RenderScene& scene = *app->scene();
+    worldRenderer.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
+    meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
     const ivec2 size     = app->scene()->size();
     const float aspect   = float(size(0)) / float(std::max(1, size(1)));

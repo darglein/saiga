@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include "saiga/core/image/templatedImage.h"
 #include "saiga/core/window/Interfaces.h"
 #include "saiga/vulkan/Base.h"
+#include "saiga/vulkan/CommandPool.h"
 #include "saiga/vulkan/FrameSync.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/Parameters.h"
@@ -19,6 +21,10 @@
 #include "FrameTimings.h"
 
 #include <array>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
 
 namespace Saiga
 {
@@ -26,6 +32,16 @@ namespace Vulkan
 {
 class VulkanWindow;
 class ImGuiVulkanRenderer;
+class StagingBuffer;
+
+/**
+ * Projection matrix for Vulkan's clip space (y down, depth in [0, 1]) with reversed depth and an infinite far plane:
+ * depth = zNear / (distance along the view direction). View space as in OpenGL (the camera looks along -z, y is up).
+ * fovy is the vertical field of view in radians. Used with VulkanForwardRenderer
+ * (ForwardRenderingParameters::reversedZ) and RenderScene.
+ */
+SAIGA_VULKAN_API mat4 reversedZInfinitePerspective(float fovy, float aspect, float zNear);
+
 
 /**
  * Base class for all Vulkan renderers.
@@ -35,6 +51,8 @@ class ImGuiVulkanRenderer;
  * - Instance and Device
  * - Frame synchronization: framesInFlight frames are recorded/executed concurrently. The completion of a frame is
  *   tracked with VulkanBase::frameTimeline.
+ * - For the derived renderers (VulkanForwardRenderer, RenderScene's frame): the per-frame command buffers and their
+ *   submit, the ImGui frame, screenshots, the GPU sections (FrameTimings) and the MSAA sample count selection.
  */
 class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 {
@@ -47,8 +65,11 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
      * - Create Device
      * - Create Surface
      * - Create ImGui (if enabled)
+     * gpuSections: the names of the GPU sections (FrameTimings) in the order of the frame; the derived renderer writes
+     * each of them in every frame (enterSection / leaveSection).
      */
-    VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters);
+    VulkanRenderer(VulkanWindow& window, VulkanParameters vulkanParameters,
+                   const std::vector<std::string>& gpuSections);
     virtual ~VulkanRenderer() override;
 
     /**
@@ -84,7 +105,12 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     inline VulkanBase& base() { return device->base; }
     VulkanDevice& vulkanDevice() { return *device; }
 
-    vk::Format getColorFormat() const { return isHeadless() ? offscreenFormat : vk::Format(swapChain.colorFormat); }
+    vk::Format getColorFormat() const
+    {
+        return isHeadless() ? vulkanParameters.offscreenFormat : vk::Format(swapChain.colorFormat);
+    }
+    // True for an sRGB color format: the hardware encodes the linear values written into it
+    static bool isSrgbFormat(vk::Format format);
     // Size of the render surface (the swap chain or offscreen images) in pixels
     ivec2 surfaceSize() const { return ivec2(surfaceWidth, SurfaceHeight); }
 
@@ -100,6 +126,29 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     // The GPU section times of the oldest completed frame not yet taken (FrameTimings::popCompleted)
     bool takeCompletedFrame(FrameTimings<>::CompletedFrame& out) { return timings.popCompleted(out); }
 
+    /**
+     * Saves the next rendered frame (including the GUI) to the image file (e.g. png). The file is written at the end
+     * of that frame's render call (which then waits for the GPU).
+     */
+    void requestScreenshot(const std::string& file);
+
+    /**
+     * Passes the next rendered frame (including the GUI) to the callback: RGBA with alpha = 255, row 0 is the top
+     * row. The callback is called at the end of that frame's render call (which then waits for the GPU). Every
+     * requested callback is called exactly once; all requests made before a frame get the same image. If the color
+     * images can not be read back (see the error output), the callbacks get an empty image (width 0).
+     */
+    using ScreenshotCallback = std::function<void(const TemplatedImage<ucvec4>&)>;
+    void requestScreenshot(ScreenshotCallback callback) { screenshotCallbacks.push_back(std::move(callback)); }
+
+    /**
+     * The largest sample count <= requested that the device supports for framebuffer color and depth attachments
+     * (at least 1). With a color format (not eUndefined): also for sampled images and for that format as a sampled
+     * color attachment (getImageFormatProperties), e.g. an MSAA image read by a custom resolve.
+     */
+    static vk::SampleCountFlagBits selectSampleCount(vk::PhysicalDevice physicalDevice, int requested,
+                                                     vk::Format sampledColorFormat = vk::Format::eUndefined);
+
    protected:
     // The color image a frame renders into (FrameInfo::imageIndex).
     vk::Image colorImage(uint32_t imageIndex) const;
@@ -108,6 +157,33 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     vk::ImageLayout finalColorLayout() const;
     // If the color images can be the source of a copy (screenshots).
     bool colorImagesSupportTransferSrc() const;
+
+    // The command buffer of the frame slot, reset and begun (one time submit)
+    vk::CommandBuffer beginCommands(const FrameInfo& frame);
+    // Ends and submits the frame's command buffer: waits for imageAvailable, signals renderComplete and the frame
+    // timeline (see render(const FrameInfo&))
+    void submitCommands(vk::CommandBuffer cmd, const FrameInfo& frame);
+    // The ImGui frame (begin, gui, end). It runs even if the GUI is hidden, so that the input state (WantCaptureMouse,
+    // ...) stays current and the backend's event queue is consumed. Returns true if ImGui is drawn
+    // (should_render_imgui).
+    bool imguiFrame(const std::function<void()>& gui);
+
+    /**
+     * Screenshots of a frame: begin takes the requested callbacks (empty: none requested) and records the copy of the
+     * color image (in eColorAttachmentOptimal, after the last pass) into a host visible buffer, leaving it in
+     * eTransferSrcOptimal (returns the buffer; null if not possible). recordPresentTransition hands the color image to
+     * the presentation engine (or leaves it readable if headless); finishScreenshots (after the submit) waits for the
+     * frame and calls the callbacks (an empty image if the frame could not be read back).
+     */
+    std::unique_ptr<StagingBuffer> beginScreenshots(vk::CommandBuffer cmd, vk::Image colorImage,
+                                                    std::vector<ScreenshotCallback>& callbacks);
+    void recordPresentTransition(vk::CommandBuffer cmd, vk::Image colorImage, bool afterScreenshot);
+    void finishScreenshots(const FrameInfo& frame, StagingBuffer* screenshot,
+                           std::vector<ScreenshotCallback>& callbacks);
+    // Records the copy of the color image into a host visible buffer. Returns the buffer.
+    std::unique_ptr<StagingBuffer> recordScreenshot(vk::CommandBuffer cmd, vk::Image colorImage);
+    TemplatedImage<ucvec4> readScreenshot(StagingBuffer& buffer);
+    std::vector<ScreenshotCallback> screenshotCallbacks;
 
     /**
      * Size of the render surface (the swap chain images) in pixels.
@@ -138,6 +214,10 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
 
     std::unique_ptr<ImGuiVulkanRenderer> imGui;
 
+    // One per frame in flight (FrameInfo::frameIndex)
+    CommandPool renderCommandPool;
+    std::vector<vk::CommandBuffer> drawCmdBuffers;
+
    private:
     uint32_t frameIndex = 0;
     uint64_t submitted  = 0;
@@ -150,9 +230,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     // consumed it, which is guaranteed once the same image is acquired again.
     std::vector<vk::Semaphore> renderComplete;
 
-    // Headless: the color images, indexed by the frame index. A frame index is only reused after its previous frame
-    // has completed.
-    static constexpr vk::Format offscreenFormat = vk::Format::eR8G8B8A8Unorm;
+    // Headless: the color images (VulkanParameters::offscreenFormat), indexed by the frame index. A frame index is only
+    // reused after its previous frame has completed.
     std::vector<Texture2D> offscreenImages;
 
     void destroySwapChainObjects();

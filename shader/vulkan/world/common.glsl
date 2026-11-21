@@ -18,7 +18,8 @@ layout(set = 0, binding = 0) uniform WorldUBO
     vec4 lodCameraPos;
     // xyz: towards the sun, w: intensity
     vec4 sunDir;
-    // x: albedo, y: ambient, z: flat shading, w: sRGB encode in the shader
+    // x: albedo, y: ambient, z: flat shading, w: 0 display values (encoded in the shader), > 0 linear values times w
+    // (the pre-exposure), see finalColor in shading.glsl
     vec4 shading;
     // x: density, y: height falloff, z: enabled, w: water level
     vec4 fog;
