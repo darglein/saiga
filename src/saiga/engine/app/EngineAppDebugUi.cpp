@@ -41,26 +41,6 @@ std::string msText(double ms)
     return text;
 }
 
-// Text with a dark shadow (readable on any bar color)
-void shadowText(ImDrawList* dl, ImVec2 at, const char* text)
-{
-    dl->AddText(ImVec2(at.x + 1, at.y + 1), IM_COL32(0, 0, 0, 200), text);
-    dl->AddText(at, kWhite, text);
-}
-
-// A bar of a share with its label at a fixed place (ImGui's ProgressBar moves the label with the fill)
-void shareBar(float share, const char* label, ImU32 color, float width)
-{
-    const ImVec2 p0 = ImGui::GetCursorScreenPos();
-    const float h   = ImGui::GetFrameHeight();
-    ImGui::Dummy(ImVec2(width, h));
-    ImDrawList* dl = ImGui::GetWindowDrawList();
-    dl->AddRectFilled(p0, ImVec2(p0.x + width, p0.y + h), ImGui::GetColorU32(ImGuiCol_FrameBg));
-    dl->AddRectFilled(p0, ImVec2(p0.x + width * std::clamp(share, 0.0f, 1.0f), p0.y + h),
-                      (color & 0x00FFFFFF) | 0xA0000000);
-    shadowText(dl, ImVec2(p0.x + 6, p0.y + (h - ImGui::GetTextLineHeight()) / 2), label);
-}
-
 struct GraphLine
 {
     float value;
@@ -265,7 +245,7 @@ EngineApp::Verdict EngineApp::statisticsVerdict() const
     const char* limit                   = sum.gpu.median >= sum.work.median ? "GPU" : "CPU";
     Verdict v;
     v.period = period;
-    char text[160];
+    char text[400];
     // The largest of the CPU's waits (frame slot, image acquire, present): what a frame waits for when neither the
     // CPU nor the GPU fills it
     const char* waitNames[] = {"the frame slot (an earlier GPU frame)", "the swap chain image acquire", "the present"};
@@ -446,7 +426,7 @@ void EngineApp::perfTable()
 {
     const FrameStatistics::Summary& sum = shownStatistics.summary;
     const bool vsync                    = renderScene && renderScene->vsync();
-    char text[240];
+    char text[400];
     // ------------------------------------------------------------------------------------ The table
     if (ImGui::BeginTable("frame times", 5, ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingStretchProp))
     {
@@ -578,7 +558,6 @@ void EngineApp::ensureShownStatistics()
 void EngineApp::perfGpu()
 {
     // The GPU sections of the frame (RenderScene's timestamps): median and p95 over the last 2 s of GPU frames
-    char text[64];
     if (!renderScene)
     {
         ImGui::TextDisabled("no device");
@@ -770,7 +749,6 @@ void EngineApp::togglePause()
 
 void EngineApp::engineTab()
 {
-    char text[160];
     World& w = *gameWorld;
     if (ui->section("engine/Simulation", "Simulation"))
     {

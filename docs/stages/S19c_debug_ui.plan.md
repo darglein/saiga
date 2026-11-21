@@ -1,6 +1,6 @@
 # S19c: Debug UI
 
-Status: planned.
+Status: implemented (PR pending).
 
 Sections follow the stage plan template of S05.
 
@@ -401,8 +401,40 @@ the game runs.
 
 ## Design changes
 
-(Filled in when the stage is done.)
+Decided with the user during the implementation, or found in the three UI rating rounds (below):
+
+- **The panel**: one panel at the right edge for F2-F4, not movable (no edge choice); its width can be dragged at its
+  left edge (default 28 x font size). F1 Game shows no panel; the game's own GUI is drawn in every tab.
+- **The tabs**: F1 Game, F2 Performance, F3 Engine (simulation, rendering, camera and input; the world prototype's
+  settings), F4 Console. The panel has no title (the bar shows the tab).
+- **The Performance tab**: what matters at a glance first, without expanding anything: a short tag of what limits the
+  frame rate (VSYNC-BOUND, GPU-BOUND, CPU-BOUND, WAIT-BOUND, STUTTER; the sentence in its tooltip), fps / 1% low / max /
+  missed, the CPU and GPU busy bars, the frame graph taking the free height (scales and legend in the gutter). The window
+  selector, reset and copy JSON in one line under the graph. Collapsed at first: frame timings, the world step (the
+  systems sorted by their mean time; moved here from the Engine tab), the engine's GPU sections (only when no game
+  section breaks the GPU down) and the game's sections (`addSection` is collapsed by default).
+- **The bar**: fps, CPU, GPU, step (with units, fixed widths so they do not move), warnings (stutter above
+  `kStutterWarnPerSecond`, dropped steps, a long MCP call) and a PAUSED button. Its numbers refresh with the statistics.
+- **The Pause key** pauses and resumes the world (`DebugUi::setPauseKey`).
+- **The state file** is `debug_ui.json` (JSON instead of Ini: the command history holds arbitrary text).
+- **The code**: the statistics and tab drawing moved from `EngineApp.cpp` into `EngineAppDebugUi.cpp` (members of
+  `EngineApp`), not into a `StatisticsPanel` class (they need the app's statistics state).
+- **The MCP lines**: `tool -> ok|error <ms> ms: <answer>  args <arguments>` (result first); the tool name in the MCP
+  color, failed calls red; console lines cut with "..." (the whole line in a tooltip), the time right-aligned.
+- **The world prototype**: its sub-sections are tree nodes without indent (`subSection`), not nested headers; the
+  overview sentence and the duplicate MSAA are gone.
+- **No step field** in the log lines (only the time), as planned after the review.
 
 ## Results
 
-(Filled in when the stage is done.)
+- New tests: `test_engine_debug_ui` (9: parser, completion, tools through the poll, built-ins and filters, an answer
+  after the console is gone, tab keys, state, the call log's lines/throttling/running lines, no echo),
+  `McpServer.CallLocal`, `McpServer.CallObserver`, `Log.LinesCarryTheTime`, `WorldApi.LogsLeaveOutTheMcpCallLog`,
+  `EngineAppNoRender.SetUiTab`, `SetUiTabWithTheUiOff`, `ActionsRunBetweenSteps`, `McpCallsInTheLog`,
+  `EngineAppRender.DebugUiTabsRender` (each tab rendered headless, a click on a tab button; also on lavapipe).
+- `ctest` passes locally except `test_opengl_window` (`ReturnsNullWithoutADisplay` fails on a machine with a display; it
+  fails the same way without this change). The engine and Vulkan tests also pass on lavapipe.
+- UI ratings (10 metrics: glanceability, progressive disclosure, hierarchy and density, consistency, readability,
+  navigation, game view intrusion, task efficiency, console, layout robustness; 1-10 each), each round by a new reviewer
+  from screenshots of every tab taken through `set_ui_tab` + `screenshot` and the code: round 1 6.3, round 2 7.2, round
+  3 6.8 (a stricter reviewer), after the round 3 changes 8.0. Screenshots were checked on an RTX 5080 (racing --demo).
