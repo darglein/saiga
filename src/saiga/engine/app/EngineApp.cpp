@@ -1133,7 +1133,9 @@ void EngineApp::refreshShownStatistics()
     // The time the graph covers: the window, or the time since the statistics started until it is full
     s.graphSpan = std::max(std::min(window, frameStats.now() - frameStats.firstTime()), 1.0);
     // The steps the window's frames ran (none while the world is paused: no table of older steps)
-    s.stepReport = s.summary.steps > 0 ? gameWorld->profiler().report(s.summary.steps) : json11::Json();
+    // The steps of the window's frames: the current loop's steps (pendingSteps) belong to a frame whose interval is not
+    // in the window yet
+    s.stepReport = s.summary.steps > 0 ? gameWorld->profiler().report(s.summary.steps, pendingSteps) : json11::Json();
 }
 
 EngineApp::Verdict EngineApp::statisticsVerdict() const

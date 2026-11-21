@@ -700,6 +700,9 @@ TEST(Profiler, StatisticsRingTreeAndCounters)
     EXPECT_EQ(f.max, 50);
     EXPECT_EQ(f.worst1PercentAvg, 45);  // the 2 largest
     EXPECT_EQ(q.report()["scopes"][0]["worst_1pct_avg"].number_value(), 45);
+    // The newest samples left out: the 2 long frames are the newest 2
+    EXPECT_EQ(q.report(10, 2)["scopes"][0]["max"].number_value(), 6);
+    EXPECT_EQ(q.report(10, 1)["scopes"][0]["max"].number_value(), 40);
 }
 
 // Regression (S19a review): RenderScene's GPU sub-sections (gpu/scene.instances) were siblings of their pass

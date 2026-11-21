@@ -70,7 +70,8 @@ class SAIGA_ENGINE_API Profiler
     bool lastSample(int scope, double& value) const;
     // The tree of scopes with their statistics and the share of their parent, and the counters, as JSON. A dotted last
     // part "a.b" is reported below the scope "a" if it exists (the GPU sub-sections inside their pass)
-    json11::Json report(int lastSamples = 0) const;
+    // skipNewest: leave out the newest samples (e.g. the steps of a frame that is not in a window yet)
+    json11::Json report(int lastSamples = 0, int skipNewest = 0) const;
 
 
     // Times a scope (no clock calls when the profiler is disabled)
@@ -105,7 +106,7 @@ class SAIGA_ENGINE_API Profiler
         double current = 0;
         std::vector<double> ring;
     };
-    Stats stats(const Series& s, int lastSamples) const;
+    Stats stats(const Series& s, int lastSamples, int skipNewest = 0) const;
     void push(Series& s);
 
     int capacity;
