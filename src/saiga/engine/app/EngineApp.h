@@ -332,7 +332,7 @@ class SAIGA_ENGINE_API EngineApp
     bool mouseKnown = false;
     Profiler frameProfiler, gpuProfiler;
     int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeRecording = -1, scopeGpuFrame = -1;
-    int scopeWait = -1, scopeWork = -1, scopeStream = -1;
+    int scopeWait = -1, scopeWork = -1, scopeStream = -1, scopeTerrainVisual = -1;
     // The render waits of the current frame (frame/render/wait), subtracted from the frame for work
     double lastFrameWaitMs                   = 0;
     std::array<double, 3> lastFrameWaitParts = {};  // its parts: frame slot, acquire, present

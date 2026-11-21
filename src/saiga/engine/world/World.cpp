@@ -838,6 +838,8 @@ void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
         else
             emitTerrainEvent(c);
     }
+    // The visual dirty queue (only while a render sink is attached)
+    terrainSys->terrainChanged(space, box);
 }
 
 void World::emitTerrainEvent(const TerrainChange& c)

@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "saiga/engine/terrain/SampleRect.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/export.h"
 
@@ -53,16 +54,6 @@ struct QuantizedBrush
     int64_t cx = 0, cz = 0, cy = 0, r = 1;
     // Add/Subtract: height units at the center; Flatten/Smooth: the blend factor in 1/65536
     int64_t s = 0, f = 0;
-};
-
-// An inclusive rectangle of space samples (empty when i1 < i0 or k1 < k0)
-struct SampleRect
-{
-    int64_t i0 = 0, k0 = 0, i1 = -1, k1 = -1;
-    bool empty() const { return i1 < i0 || k1 < k0; }
-    int64_t width() const { return empty() ? 0 : i1 - i0 + 1; }
-    int64_t height() const { return empty() ? 0 : k1 - k0 + 1; }
-    bool contains(int64_t i, int64_t k) const { return i >= i0 && i <= i1 && k >= k0 && k <= k1; }
 };
 
 namespace BrushKernel

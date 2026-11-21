@@ -12,6 +12,7 @@
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
 #include "saiga/engine/terrain/TerrainStore.h"
+#include "saiga/engine/terrain/TerrainVisualPatch.h"
 
 #include <algorithm>
 #include <chrono>
@@ -534,12 +535,36 @@ TerrainSystem::MissingCounts TerrainSystem::missingCounts(SpaceId space, const D
     return m;
 }
 
+namespace
+{
+struct VisualTimer
+{
+    double& ms;
+    std::chrono::steady_clock::time_point start = std::chrono::steady_clock::now();
+    explicit VisualTimer(double& ms) : ms(ms) {}
+    ~VisualTimer()
+    {
+        ms += std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    }
+};
+}  // namespace
+
 void TerrainSystem::sendPyramid(SpaceId space, const Vulkan::TerrainPyramidData& pyramid)
 {
-    // The data with the current layout (the heights are shared)
+    // The data with the current layout (the heights are shared); S22: merged with the space's edits
     Vulkan::TerrainPyramidData p = pyramid;
-    p.layout                     = layout(space);
-    p.seaLevel                   = spaces[space].settings.seaLevel;
+    if (edits)
+    {
+        VisualTimer t(visualMs);
+        Vulkan::TerrainPyramidData merged;
+        if (TerrainVisualPatch::mergePyramid(*edits, space, pyramid, merged))
+        {
+            p = merged;
+            statistics.mergedSends++;
+        }
+    }
+    p.layout   = layout(space);
+    p.seaLevel = spaces[space].settings.seaLevel;
     sink->setTerrainPyramid(space, p);
     setActive = true;
     setSpace  = space;
@@ -550,8 +575,141 @@ void TerrainSystem::sendPyramid(SpaceId space, const Vulkan::TerrainPyramidData&
 
 void TerrainSystem::sendTile(const RegionId& region, const Vulkan::TerrainTileData& tile)
 {
+    // S22: a merged copy if a chunk it covers has deltas (a result requested before an edit never undoes it)
+    if (edits)
+    {
+        VisualTimer t(visualMs);
+        Vulkan::TerrainTileData merged;
+        if (TerrainVisualPatch::mergeTile(*edits, region, layout(region.space), tile, merged))
+        {
+            sink->setTerrainTile(region, merged);
+            sentTiles.insert(region);
+            statistics.mergedSends++;
+            return;
+        }
+    }
     sink->setTerrainTile(region, tile);
     sentTiles.insert(region);
+}
+
+// ---- terrain edits (S22)
+
+void TerrainSystem::terrainChanged(SpaceId space, const SampleRect& box)
+{
+    if (!sink || box.empty()) return;
+    if (viewSpaceValid && space == viewSpace) dirty.addTileBox(box);
+    dirty.addPyramidBox(space, box);
+}
+
+int64_t TerrainSystem::patchTileBox(SpaceId space, const SampleRect& box, bool patch)
+{
+    const Space& sp = spaces[space];
+    const int64_t S = 256 / sp.settings.baseSpacing;
+    const int N     = int(S) + 1;
+    int64_t n       = 0;
+    for (const RegionId& r : sentTiles)
+    {
+        if (r.space != space) continue;
+        const int64_t span = int64_t(1) << r.level;
+        const int64_t ti0 = int64_t(r.x) * span * S, tk0 = int64_t(r.z) * span * S;
+        const int64_t ti1 = ti0 + span * S, tk1 = tk0 + span * S;
+        const int64_t lo_i = std::max(box.i0, ti0), hi_i = std::min(box.i1, ti1);
+        const int64_t lo_k = std::max(box.k0, tk0), hi_k = std::min(box.k1, tk1);
+        if (lo_i > hi_i || lo_k > hi_k) continue;
+        // The coincident samples: indices divisible by 2^L
+        const int64_t a0 = (lo_i - ti0 + span - 1) / span, a1 = (hi_i - ti0) / span;
+        const int64_t b0 = (lo_k - tk0 + span - 1) / span, b1 = (hi_k - tk0) / span;
+        if (a0 > a1 || b0 > b1) continue;
+        const int w = int(a1 - a0 + 1), h = int(b1 - b0 + 1);
+        n += int64_t(w) * h;
+        if (!patch) continue;
+        // The base from the store's own tile (a sent tile is resident: removed from the sink before its eviction)
+        const TerrainStore::Tile* tile = sp.store->tile(r);
+        SAIGA_ASSERT(tile, "TerrainSystem: a sent tile is not in the store");
+        patchScratch.resize(size_t(w) * size_t(h));
+        TerrainVisualPatch::mergedHeights(*edits, space, ti0 + a0 * span, tk0 + b0 * span, span, w, h,
+                                          tile->data.heights->data() + size_t(b0 * N + a0), size_t(N),
+                                          patchScratch.data());
+        sink->patchTerrainTile(r, int(a0), int(b0), w, h, patchScratch.data());
+        statistics.patchCalls++;
+    }
+    return n;
+}
+
+int64_t TerrainSystem::patchPyramidBox(SpaceId space, const SampleRect& box, bool patch)
+{
+    const Space& sp                     = spaces[space];
+    const Vulkan::TerrainPyramidData* p = sp.store->pyramid();
+    if (!p) return 0;
+    const int64_t step = Vulkan::TerrainLayout::pyramidSpacing / sp.settings.baseSpacing;
+    const int P        = p->layout.pyramidSamplesPerSide();
+    const int64_t a0 = (std::max<int64_t>(box.i0, 0) + step - 1) / step, a1 = std::min<int64_t>(box.i1 / step, P - 1);
+    const int64_t b0 = (std::max<int64_t>(box.k0, 0) + step - 1) / step, b1 = std::min<int64_t>(box.k1 / step, P - 1);
+    if (a0 > a1 || b0 > b1) return 0;
+    const int w = int(a1 - a0 + 1), h = int(b1 - b0 + 1);
+    if (patch)
+    {
+        patchScratch.resize(size_t(w) * size_t(h));
+        TerrainVisualPatch::mergedHeights(*edits, space, a0 * step, b0 * step, step, w, h,
+                                          p->heights->data() + size_t(b0 * P + a0), size_t(P), patchScratch.data());
+        sink->patchTerrainPyramid(space, int(a0), int(b0), w, h, patchScratch.data());
+        statistics.patchCalls++;
+    }
+    return int64_t(w) * h;
+}
+
+int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
+{
+    if (!sink || !setActive || setSpace != space || !edits) return 0;
+    VisualTimer timer(visualMs);
+    int64_t used = 0;
+    // Drains one list in insertion order; a box over the remaining budget is split by rows (the first rows now, the
+    // rest stays at the front); at least one row per frame
+    auto drain = [&](std::vector<SampleRect>& list, bool tiles)
+    {
+        auto cost = [&](const SampleRect& b)
+        { return tiles ? patchTileBox(space, b, false) : patchPyramidBox(space, b, false); };
+        while (!list.empty())
+        {
+            const SampleRect box    = list.front();
+            const int64_t remaining = budget < 0 ? std::numeric_limits<int64_t>::max() : budget - used;
+            if (remaining <= 0) return false;
+            const int64_t c = cost(box);
+            if (c <= remaining)
+            {
+                used += tiles ? patchTileBox(space, box, true) : patchPyramidBox(space, box, true);
+                list.erase(list.begin());
+                continue;
+            }
+            // The most rows that fit (cost is monotone in the rows)
+            int64_t lo = 0, hi = box.height() - 1;
+            while (lo < hi)
+            {
+                const int64_t mid = (lo + hi + 1) / 2;
+                SampleRect head   = box;
+                head.k1           = box.k0 + mid - 1;
+                if (cost(head) <= remaining)
+                    lo = mid;
+                else
+                    hi = mid - 1;
+            }
+            if (lo == 0)
+            {
+                if (used > 0) return false;
+                lo = 1;
+            }
+            SampleRect head = box;
+            head.k1         = box.k0 + lo - 1;
+            used += tiles ? patchTileBox(space, head, true) : patchPyramidBox(space, head, true);
+            list.front().k0 = box.k0 + lo;
+            return false;
+        }
+        return true;
+    };
+    if (drain(dirty.tileBoxes(), true)) drain(dirty.pyramidBoxes(space), false);
+    statistics.patchedSamples += uint64_t(used);
+    statistics.patchedSamplesLastUpdate += uint64_t(used);
+    return used;
 }
 
 void TerrainSystem::sendGrassMask(const ChunkId& chunk, const Vulkan::GrassMaskData& mask)
@@ -566,6 +724,8 @@ void TerrainSystem::beginView(SpaceId space)
     const bool terrain = spaces[space].settings.hasTerrain();
     if (viewSpaceValid && viewSpace != space)
     {
+        // S22: the tile boxes belong to the old view space
+        dirty.clearTileBoxes();
         // The old space's streamed CPU tiles and masks go (its pyramid stays cached) and its requests are cancelled
         spaces[viewSpace].store->dropStreamed();
         if (pool)
@@ -593,8 +753,10 @@ void TerrainSystem::beginView(SpaceId space)
     }
     const bool sameSet = setActive && setSpace == space && setLayout == layout(space);
     if (sameSet) return;
-    // A new set: the sink drops the old one itself when it receives the pyramid. Without a cached pyramid the old set
-    // is cleared now (else it stayed in the sink, e.g. through a later switch to a flat space)
+    // A new set: the sink drops the old one itself when it receives the pyramid; the tile boxes of the old set go (the
+    // new set's tiles are sent merged, S22). Without a cached pyramid the old set is cleared now (else it stayed in the
+    // sink, e.g. through a later switch to a flat space)
+    dirty.clearTileBoxes();
     const bool hadSet = setActive;
     setActive         = false;
     sentTiles.clear();
@@ -608,6 +770,8 @@ void TerrainSystem::beginView(SpaceId space)
 void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
 {
     frame++;
+    visualMs                            = 0;
+    statistics.patchedSamplesLastUpdate = 0;
     // Also for the early returns (sendUpdates sets it when it runs)
     statistics.uploadsLastUpdate = 0;
     drainPool();
@@ -638,6 +802,8 @@ void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
     issueRequests(space, d, size_t(std::max(1, view.maxInFlight)));
     evict(space, d);
     sendUpdates(space, d, std::max(0, view.uploadsPerFrame));
+    // S22: the changed boxes of terrain edits, within the per-frame budget
+    patchEditedTiles(space, std::max<int64_t>(0, view.editSamplesPerFrame));
     updateStats(space, &d);
 }
 
@@ -657,6 +823,8 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     const double start    = nowSeconds();
     const double deadline = start + timeoutSeconds;
     frame++;
+    visualMs                            = 0;
+    statistics.patchedSamplesLastUpdate = 0;
     drainPool();
     auto finish = [&](bool ok, const Desired* d)
     {
@@ -700,9 +868,10 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
         issueRequests(space, d, std::numeric_limits<size_t>::max());
         runUntil(deadline);
         drainPool();
-        // (d) eviction and every send
+        // (d) eviction and every send, then every changed box of terrain edits (S22: no budget)
         evict(space, d);
         sendUpdates(space, d, -1);
+        patchEditedTiles(space, -1);
         const MissingCounts m = missingCounts(space, d);
         if (m.total() == 0) return finish(true, &d);
         if (nowSeconds() >= deadline) return finish(false, &d);
@@ -791,6 +960,8 @@ void TerrainSystem::setSink(RenderSink* s)
     }
     sink      = s;
     setActive = false;
+    // S22: a new sink receives merged data; without a sink nothing is queued
+    dirty.clear();
     sentTiles.clear();
     sentMasks.clear();
     if (!sink || !viewSpaceValid || !spaces[viewSpace].settings.hasTerrain()) return;
@@ -832,6 +1003,8 @@ void TerrainSystem::updateStats(SpaceId space, const Desired* d)
     s.masksSent     = int(sentMasks.size());
     s.pending       = int(requests.size());
     s.viewSpace     = space;
+    s.queuedBoxes   = dirty.size();
+    s.lastVisualMs  = visualMs;
     size_t bytes    = 0;
     for (const Space& sp : spaces) bytes += sp.store->cpuBytes();
     // The results in flight (at most one per request; their size by kind)

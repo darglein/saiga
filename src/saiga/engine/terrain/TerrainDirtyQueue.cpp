@@ -1,0 +1,69 @@
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+#include "saiga/engine/terrain/TerrainDirtyQueue.h"
+
+#include <algorithm>
+
+namespace Saiga
+{
+namespace Engine
+{
+namespace
+{
+// Overlapping or touching (adjacent samples)
+bool touches(const SampleRect& a, const SampleRect& b)
+{
+    return a.i0 <= b.i1 + 1 && b.i0 <= a.i1 + 1 && a.k0 <= b.k1 + 1 && b.k0 <= a.k1 + 1;
+}
+}  // namespace
+
+void TerrainDirtyQueue::merge(std::vector<SampleRect>& list, SampleRect box)
+{
+    if (box.empty()) return;
+    // The first box it touches grows; the grown box may touch further ones (merged into it, in place)
+    for (size_t i = 0; i < list.size(); ++i)
+    {
+        if (!touches(list[i], box)) continue;
+        SampleRect& m = list[i];
+        m.i0          = std::min(m.i0, box.i0);
+        m.k0          = std::min(m.k0, box.k0);
+        m.i1          = std::max(m.i1, box.i1);
+        m.k1          = std::max(m.k1, box.k1);
+        for (size_t j = i + 1; j < list.size();)
+        {
+            if (touches(m, list[j]))
+            {
+                m.i0 = std::min(m.i0, list[j].i0);
+                m.k0 = std::min(m.k0, list[j].k0);
+                m.i1 = std::max(m.i1, list[j].i1);
+                m.k1 = std::max(m.k1, list[j].k1);
+                list.erase(list.begin() + std::ptrdiff_t(j));
+                j = i + 1;
+            }
+            else
+                ++j;
+        }
+        return;
+    }
+    list.push_back(box);
+}
+
+size_t TerrainDirtyQueue::size() const
+{
+    size_t n = tiles.size();
+    for (const auto& kv : pyramids) n += kv.second.size();
+    return n;
+}
+
+bool TerrainDirtyQueue::empty(SpaceId viewSpace) const
+{
+    auto it = pyramids.find(viewSpace);
+    return tiles.empty() && (it == pyramids.end() || it->second.empty());
+}
+
+}  // namespace Engine
+}  // namespace Saiga

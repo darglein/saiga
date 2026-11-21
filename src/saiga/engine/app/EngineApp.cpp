@@ -282,6 +282,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     scopeWait = frameProfiler.scope("frame/render/wait");
     // The terrain stream time of a complete point (S20): not work either
     scopeStream = frameProfiler.scope("frame/render/terrain_stream");
+    // S22: the visual part of terrain edits (merge at the send point, patch step, mask completions); inside a complete
+    // point part of terrain_stream, otherwise of the frame's work
+    scopeTerrainVisual = frameProfiler.scope("frame/render/terrain_visual");
     // The CPU work of the frame: frame without wait (what the CPU really spends; frame is the frame's wall time)
     scopeWork      = frameProfiler.scope("work");
     counterFps     = frameProfiler.counter("fps");
@@ -887,6 +890,7 @@ void EngineApp::renderFrame()
     // The terrain of the view camera (S20): after beforeRender (the frame's camera), before the sink's camera
     streamTerrain();
     frameProfiler.add(scopeStream, streamMs);
+    frameProfiler.add(scopeTerrainVisual, w.terrain().stats().lastVisualMs);
     // The view space's load (S21): after the stream (the readiness of this frame's camera)
     updateSpaceLoading();
     sink->setInterpolation(float(w.alpha()));

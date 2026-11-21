@@ -23,6 +23,7 @@
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/Events.h"
@@ -30,14 +31,18 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <functional>
 #include <limits>
+#include <map>
 #include <random>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
 #include <zstd.h>
 
@@ -1465,4 +1470,230 @@ TEST_F(TerrainEditWorld, ToolsOnAClientAnswerWithAnError)
     EXPECT_FALSE(r.ok);
     EXPECT_NE(r.error.find("client"), std::string::npos) << r.error;
     EXPECT_TRUE(api.call("terrain_height", Json::object{{"x", 1}, {"z", 1}}).ok);
+}
+
+// ---- the visual path (step 8)
+
+namespace
+{
+// The merged heights a tile of the sink must hold: terrainSample at its coincident samples
+std::vector<int32_t> expectedTile(const World& w, const RegionId& r)
+{
+    const int64_t S = 256 / w.spaceTemplate(r.space).baseSpacing, N = S + 1, span = int64_t(1) << r.level;
+    std::vector<int32_t> out(size_t(N * N));
+    for (int64_t b = 0; b < N; ++b)
+        for (int64_t a = 0; a < N; ++a)
+            out[size_t(b * N + a)] = w.terrainSample(r.space, r.x * span * S + a * span, r.z * span * S + b * span);
+    return out;
+}
+std::vector<int32_t> expectedPyramid(const World& w, SpaceId space)
+{
+    const int64_t P    = 8 * int64_t(w.spaceTemplate(space).sizeChunks) + 1,
+                  step = 32 / w.spaceTemplate(space).baseSpacing;
+    std::vector<int32_t> out(size_t(P * P));
+    for (int64_t b = 0; b < P; ++b)
+        for (int64_t a = 0; a < P; ++a) out[size_t(b * P + a)] = w.terrainSample(space, a * step, b * step);
+    return out;
+}
+// Every tile and the pyramid of the sink equal the merged heights; min / max cover the heights
+void expectSinkMerged(const World& w, const RecordingRenderSink& sink)
+{
+    ASSERT_TRUE(sink.hasTerrainSet());
+    for (const auto& [r, t] : sink.terrainTiles())
+    {
+        EXPECT_EQ(*t.heights, expectedTile(w, r)) << "L" << int(r.level) << " " << r.x << " " << r.z;
+        EXPECT_LE(t.minHeight, *std::min_element(t.heights->begin(), t.heights->end()));
+        EXPECT_GE(t.maxHeight, *std::max_element(t.heights->begin(), t.heights->end()));
+    }
+    EXPECT_EQ(*sink.terrainPyramid()->heights, expectedPyramid(w, sink.terrainSpace()));
+}
+std::map<RegionId, std::vector<int32_t>> storeTiles(const World& w, SpaceId space = 0)
+{
+    std::map<RegionId, std::vector<int32_t>> out;
+    for (const auto& [r, t] : w.terrain().store(space).tiles()) out[r] = *t.data.heights;
+    return out;
+}
+const Vec3 kCamera(300, 60, 300);
+}  // namespace
+
+TEST(TerrainEditVisual, EditPatchesTheSentTilesAndThePyramid)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    const auto before                      = storeTiles(w);
+    const std::vector<int32_t> pyramidBase = *w.terrain().pyramid(0)->heights;
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 40, 3));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 256, 260, 20, 2));  // across chunk borders
+    EXPECT_GT(w.terrain().dirtyQueue().size(), 0u);
+    const auto counts = sink.counters();
+    const uint64_t h0 = w.terrain().baseHookSamples();
+    w.terrain().updateView(0, kCamera);
+    // No hook on the main thread: the bases come from the store's own tiles and pyramid
+    EXPECT_EQ(w.terrain().baseHookSamples(), h0);
+    EXPECT_GT(sink.counters().patchTerrainTile, counts.patchTerrainTile);
+    EXPECT_GT(sink.counters().patchTerrainPyramid, counts.patchTerrainPyramid);
+    EXPECT_EQ(sink.counters().setTerrainTile, counts.setTerrainTile);
+    EXPECT_EQ(w.terrain().dirtyQueue().size(), 0u);
+    EXPECT_GT(w.terrain().stats().patchedSamples, 0u);
+    expectSinkMerged(w, sink);
+    // The store keeps the base (bitwise)
+    EXPECT_EQ(storeTiles(w), before);
+    EXPECT_EQ(*w.terrain().pyramid(0)->heights, pyramidBase);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainEditVisual, SetThenPatchInOneFrame)
+{
+    // A tile resident but not sent when the edit happens (uploadsPerFrame 0): the frame that sends it merged also
+    // patches the queued box over it, after the send
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    TerrainViewSettings v = w.terrain().viewSettings();
+    v.uploadsPerFrame     = 0;
+    w.terrain().setViewSettings(v);
+    const Vec3 far(1300, 60, 1300);
+    RegionId t;
+    t.level = 0;
+    t.x     = 5;
+    t.z     = 5;
+    ASSERT_FALSE(sink.terrainTiles().count(t));
+    for (int i = 0; i < 5000 && !w.terrain().store(0).tile(t); ++i)
+    {
+        w.terrain().updateView(0, far);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_TRUE(w.terrain().store(0).tile(t));
+    ASSERT_FALSE(sink.terrainTiles().count(t));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 5 * 256 + 100, 5 * 256 + 100, 30, 4));
+    v.uploadsPerFrame = 64;
+    w.terrain().setViewSettings(v);
+    sink.setLogging(true);
+    const uint64_t merged = w.terrain().stats().mergedSends;
+    w.terrain().updateView(0, far);
+    ASSERT_TRUE(sink.terrainTiles().count(t));
+    const std::vector<std::string>& log = sink.log();
+    const auto set                      = std::find(log.begin(), log.end(), "setTerrainTile L0 5 5");
+    const auto patch                    = std::find(log.begin(), log.end(), "patchTerrainTile L0 5 5");
+    ASSERT_NE(set, log.end());
+    ASSERT_NE(patch, log.end());
+    EXPECT_LT(set - log.begin(), patch - log.begin());
+    EXPECT_GT(w.terrain().stats().mergedSends, merged);
+    // Requested before the edit, sent after it: merged, exact min / max
+    const TerrainTileData& got = sink.terrainTiles().at(t);
+    EXPECT_EQ(*got.heights, expectedTile(w, t));
+    EXPECT_EQ(got.minHeight, *std::min_element(got.heights->begin(), got.heights->end()));
+    EXPECT_EQ(got.maxHeight, *std::max_element(got.heights->begin(), got.heights->end()));
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainEditVisual, NewSinkReceivesMergedData)
+{
+    World w(editSetup(2));
+    RecordingRenderSink a;
+    w.setRenderSink(&a);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 40, 3));
+    w.setRenderSink(nullptr);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Smooth, 310, 290, 30, 1));  // without a sink: nothing queued
+    EXPECT_EQ(w.terrain().dirtyQueue().size(), 0u);
+    RecordingRenderSink b;
+    w.setRenderSink(&b);
+    EXPECT_EQ(b.counters().patchTerrainTile, 0u);
+    expectSinkMerged(w, b);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainEditVisual, BudgetSpreadsALargeEditByRows)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    TerrainViewSettings v = w.terrain().viewSettings();
+    v.editSamplesPerFrame = 1000;
+    w.terrain().setViewSettings(v);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 100, 5));
+    const uint64_t before = w.terrain().stats().patchedSamples;
+    int frames            = 0;
+    while (w.terrain().dirtyQueue().size() > 0 && frames < 1000)
+    {
+        w.terrain().updateView(0, kCamera);
+        EXPECT_LE(w.terrain().stats().patchedSamplesLastUpdate, 1000u);
+        frames++;
+    }
+    EXPECT_GT(frames, 5);
+    expectSinkMerged(w, sink);
+    // Every sample once: the coincident samples of the box in the sent tiles and the pyramid
+    const int64_t i0 = 100, i1 = 200;  // the box at 2 m: (300 +- 100) / 2, strictly inside
+    int64_t total = 0;
+    for (const auto& [r, t] : sink.terrainTiles())
+    {
+        const int64_t span = int64_t(1) << r.level, ti0 = r.x * span * 128, tk0 = r.z * span * 128;
+        auto count = [&](int64_t lo, int64_t hi, int64_t t0)
+        {
+            const int64_t a = std::max(lo, t0), b = std::min(hi, t0 + span * 128);
+            return a > b ? int64_t(0) : (b - t0) / span - (a - t0 + span - 1) / span + 1;
+        };
+        total += std::max<int64_t>(0, count(i0 + 1, i1 - 1, ti0)) * std::max<int64_t>(0, count(i0 + 1, i1 - 1, tk0));
+    }
+    const int64_t py = (199 / 16) - (101 + 15) / 16 + 1;
+    total += py * py;
+    EXPECT_EQ(int64_t(w.terrain().stats().patchedSamples - before), total);
+    // completeView drains the whole queue at once
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 320, 280, 100, 5));
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    EXPECT_EQ(w.terrain().dirtyQueue().size(), 0u);
+    expectSinkMerged(w, sink);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainEditVisual, EditInAnotherSpaceQueuesOnlyPyramidBoxes)
+{
+    WorldSetup s         = editSetup(2);
+    SpaceTemplate second = terraformTestTemplate(2);
+    second.name          = "second";
+    s.config.spaceTemplates.push_back(second);
+    World w(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    applyTerrainEdit(w, 1, brush(TerrainBrush::Add, 300, 300, 40, 3));
+    EXPECT_TRUE(w.terrain().dirtyQueue().tileBoxes().empty());
+    EXPECT_EQ(w.terrain().dirtyQueue().pyramidBoxCount(1), 1u);
+    w.terrain().updateView(0, kCamera);
+    EXPECT_EQ(w.terrain().dirtyQueue().pyramidBoxCount(1), 1u);  // kept for its space
+    // The switch sends space 1's set merged
+    ASSERT_TRUE(w.terrain().completeView(1, kCamera));
+    EXPECT_EQ(sink.terrainSpace(), 1);
+    expectSinkMerged(w, sink);
+    // An edit in the view space after the switch: tile boxes
+    applyTerrainEdit(w, 1, brush(TerrainBrush::Add, 330, 300, 10, 1));
+    EXPECT_FALSE(w.terrain().dirtyQueue().tileBoxes().empty());
+    w.terrain().updateView(1, kCamera);
+    expectSinkMerged(w, sink);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainEditVisual, HostLoadRepatchesTheEditedChunks)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 30, 3));
+    const std::vector<uint8_t> blob = w.save();
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 600, 200, 30, 3));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Smooth, 300, 300, 30, 1));
+    w.terrain().updateView(0, kCamera);
+    const uint64_t evicted = w.terrain().stats().evicted;
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    EXPECT_GT(w.terrain().dirtyQueue().size(), 0u);
+    w.terrain().updateView(0, kCamera);
+    EXPECT_EQ(w.terrain().stats().evicted, evicted);
+    expectSinkMerged(w, sink);
+    w.setRenderSink(nullptr);
 }
