@@ -53,6 +53,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <map>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -794,9 +795,17 @@ struct TempPrefabs
     std::filesystem::path dir;
     TempPrefabs()
     {
-        dir = std::filesystem::temp_directory_path() /
-              ("saiga_content_test_" +
-               std::to_string(uint64_t(std::chrono::steady_clock::now().time_since_epoch().count())));
+        // Deterministic per test, run directory and construction: a death test's child (which re-runs the test up to
+        // the death statement and never runs destructors) writes the same directories, which the parent removes
+        static std::map<std::string, int> counters;
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        const std::string test =
+            info ? std::string(info->test_suite_name()) + "_" + info->name() : std::string("no_test");
+        const uint64_t run = fnv1a64(std::filesystem::current_path().string());
+        dir = std::filesystem::temp_directory_path() / ("saiga_content_test_" + std::to_string(run % 1000000) + "_" +
+                                                        test + "_" + std::to_string(counters[test]++));
+        std::error_code ec;
+        std::filesystem::remove_all(dir, ec);  // a stale one of an aborted run
         std::filesystem::create_directories(dir / "prefabs");
     }
     ~TempPrefabs()
@@ -1310,7 +1319,8 @@ struct PrefabCopy : TempPrefabs
     PrefabCopy()
     {
         for (const auto& e : std::filesystem::directory_iterator(kTestData + "/prefabs"))
-            std::filesystem::copy_file(e.path(), dir / "prefabs" / e.path().filename());
+            std::filesystem::copy_file(e.path(), dir / "prefabs" / e.path().filename(),
+                                       std::filesystem::copy_options::overwrite_existing);
     }
 };
 }  // namespace
@@ -1481,9 +1491,10 @@ TEST(Pipeline, ContentTestSetupWorld)
 TEST(PrefabDeathTest, EntitiesCheckedAfterRenderAssets)
 {
     GTEST_FLAG_SET(death_test_style, "threadsafe");
-    auto withShrine = [](const std::string& entity)
+    // The copy outside the death statements: the parent removes it (a dying child runs no destructors)
+    const PrefabCopy copy;
+    auto withShrine = [&copy](const std::string& entity)
     {
-        PrefabCopy copy;
         copy.write("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8], "entities": [)" + entity + "]}");
         WorldSetup s    = ContentTest::contentTestSetup(2);
         s.dataDirectory = copy.dir.string();
@@ -1508,9 +1519,9 @@ TEST(PrefabDeathTest, EntitiesCheckedAfterRenderAssets)
 TEST(PrefabDeathTest, PlanErrorsAreFatal)
 {
     GTEST_FLAG_SET(death_test_style, "threadsafe");
-    auto with = [](const std::string& name, const std::string& json)
+    const PrefabCopy copy;
+    auto with = [&copy](const std::string& name, const std::string& json)
     {
-        PrefabCopy copy;
         copy.write(name, json);
         WorldSetup s    = ContentTest::contentTestSetup(2);
         s.dataDirectory = copy.dir.string();
