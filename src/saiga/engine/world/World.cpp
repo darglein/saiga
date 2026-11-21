@@ -24,6 +24,7 @@
 #include "saiga/engine/net/Varint.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
@@ -60,7 +61,9 @@ World::World(const WorldSetup& setup)
         if (templates.empty()) templates.push_back(SpaceTemplate());
         std::vector<uint64_t> seeds;
         for (size_t i = 0; i < templates.size(); ++i) seeds.push_back(i == 0 ? setup.seed : hashCombine(setup.seed, i));
-        terrainSys = std::make_unique<TerrainSystem>(templates, seeds);
+        terrainSys       = std::make_unique<TerrainSystem>(templates, seeds);
+        terrainEditStore = std::make_unique<TerrainEditStore>(templates);
+        terrainSys->setEdits(terrainEditStore.get());
     }
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
@@ -768,6 +771,12 @@ uint64_t World::spaceSeed(SpaceId space) const
 double World::terrainHeight(SpaceId space, double x, double z) const
 {
     return terrainSys->height(space, x, z);
+}
+
+int32_t World::terrainSample(SpaceId space, int64_t i, int64_t k) const
+{
+    SAIGA_ASSERT(space < terrainSys->spaceCount(), "World::terrainSample: unknown space");
+    return terrainSys->editedSample(space, i, k);
 }
 
 double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const

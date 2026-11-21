@@ -12,6 +12,9 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/terrain/BrushKernel.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
+#include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
 
@@ -84,6 +87,31 @@ int32_t noise(int64_t i, int64_t k)
 SpaceTemplate space16(int spacing = 1)
 {
     return testSpaceTemplate(16, spacing, integerTestHook);
+}
+
+ChunkId chunk(int32_t x, int32_t z, SpaceId space = 0)
+{
+    ChunkId c;
+    c.space = space;
+    c.x     = x;
+    c.z     = z;
+    return c;
+}
+
+WorldSetup editSetup(int spacing, uint64_t seed = 7)
+{
+    WorldSetup s;
+    s.seed      = seed;
+    s.profiling = false;
+    s.config.spaceTemplates.push_back(terraformTestTemplate(spacing));
+    return s;
+}
+
+// Reserve, then write (the order of every path)
+void put(TerrainEditStore& st, SpaceId space, int64_t i, int64_t k, int32_t v)
+{
+    st.reserveFor(space, i, k, v);
+    st.writeDelta(space, i, k, v);
 }
 }  // namespace
 
@@ -371,4 +399,174 @@ TEST(BrushKernel, CommittedHash)
             for (int32_t v : r.out) h.addI32(v);
         }
     EXPECT_EQ(h.value(), 5726413041445852036ull);
+}
+
+// ---- the modification state (step 2)
+
+TEST(TerrainEditStore, BlocksOnlyForNonZeroChangedDeltas)
+{
+    TerrainEditStore st({terraformTestTemplate(1)});
+    EXPECT_EQ(st.chunkSamples(0), 256);
+    EXPECT_EQ(st.maxSample(0), 4096);
+    // A zero (or the current value) allocates nothing
+    st.reserveFor(0, 100, 100, 0);
+    EXPECT_FALSE(st.writeDelta(0, 100, 100, 0));
+    EXPECT_EQ(st.blockCount(0), 0u);
+    put(st, 0, 100, 100, 5);
+    EXPECT_EQ(st.blockCount(0), 1u);
+    EXPECT_EQ(st.delta(0, 100, 100), 5);
+    EXPECT_EQ(st.delta(0, 101, 100), 0);
+    put(st, 0, 111, 111, -3);  // the same block (96..111)
+    EXPECT_EQ(st.blockCount(0), 1u);
+    st.reserveFor(0, 100, 100, 5);  // equal value: nothing
+    put(st, 0, 112, 100, 0);        // zero in a missing block
+    EXPECT_EQ(st.blockCount(0), 1u);
+    // Back to zero: the block stays allocated and reads 0
+    put(st, 0, 100, 100, 0);
+    put(st, 0, 111, 111, 0);
+    EXPECT_EQ(st.blockCount(0), 1u);
+    EXPECT_EQ(st.nonZeroSamples(0), 0u);
+    EXPECT_GT(st.memoryBytes(), sizeof(TerrainEditBlock));
+}
+
+TEST(TerrainEditStore, NonZeroCountsAndRevision)
+{
+    TerrainEditStore st({terraformTestTemplate(2)});  // S = 128
+    // A border sample of chunks (0,0), (1,0), (0,1), (1,1) written before any entry exists
+    put(st, 0, 128, 128, 7);
+    put(st, 0, 128, 50, 9);  // border of (0,0) and (1,0)
+    // An entry created over them counts them (dense scan)
+    st.bumpSequence(chunk(0, 0));
+    EXPECT_EQ(st.sequence(chunk(0, 0)), 1u);
+    EXPECT_EQ(st.entry(chunk(0, 0))->nonZeroSamples, 2u);
+    EXPECT_TRUE(st.hasDeltas(chunk(0, 0)));
+    st.setSequence(chunk(1, 1), 4);
+    EXPECT_EQ(st.entry(chunk(1, 1))->nonZeroSamples, 1u);
+    st.bumpSequence(chunk(1, 0));
+    EXPECT_EQ(st.entry(chunk(1, 0))->nonZeroSamples, 2u);
+    // Writes update every entry whose closed range contains the sample
+    const uint64_t r00 = st.revision(chunk(0, 0)), r11 = st.revision(chunk(1, 1)), r10 = st.revision(chunk(1, 0));
+    put(st, 0, 128, 128, 0);
+    EXPECT_EQ(st.entry(chunk(0, 0))->nonZeroSamples, 1u);
+    EXPECT_EQ(st.entry(chunk(1, 1))->nonZeroSamples, 0u);
+    EXPECT_FALSE(st.hasDeltas(chunk(1, 1)));
+    EXPECT_EQ(st.sequence(chunk(1, 1)), 4u);  // keeps its state
+    EXPECT_GT(st.revision(chunk(0, 0)), r00);
+    EXPECT_GT(st.revision(chunk(1, 1)), r11);
+    EXPECT_GT(st.revision(chunk(1, 0)), r10);
+    // An interior sample of (1, 0) only
+    const uint64_t a = st.revision(chunk(0, 0)), b = st.revision(chunk(1, 0));
+    put(st, 0, 200, 20, -2);
+    EXPECT_EQ(st.revision(chunk(0, 0)), a);
+    EXPECT_GT(st.revision(chunk(1, 0)), b);
+    EXPECT_EQ(st.entry(chunk(1, 0))->nonZeroSamples, 2u);
+    // bumpSequence does not change the revision; writing the current value changes nothing
+    const uint64_t c = st.revision(chunk(1, 0));
+    st.bumpSequence(chunk(1, 0));
+    EXPECT_EQ(st.revision(chunk(1, 0)), c);
+    EXPECT_FALSE(st.writeDelta(0, 200, 20, -2));
+    EXPECT_EQ(st.revision(chunk(1, 0)), c);
+    // bumpSequence alone creates an entry without deltas
+    st.bumpSequence(chunk(5, 5));
+    EXPECT_EQ(st.sequence(chunk(5, 5)), 1u);
+    EXPECT_FALSE(st.hasDeltas(chunk(5, 5)));
+    EXPECT_EQ(st.revision(chunk(5, 5)), 0u);
+    EXPECT_EQ(st.chunkCount(), 4u);
+    // A reserved entry node is inserted without allocation and counts the existing deltas
+    TerrainEditStore::EntryNode node = st.makeEntry(chunk(0, 1));
+    EXPECT_EQ(st.entry(chunk(0, 1)), nullptr);
+    st.insertEntry(std::move(node));
+    EXPECT_EQ(st.sequence(chunk(0, 1)), 0u);
+    EXPECT_EQ(st.entry(chunk(0, 1))->nonZeroSamples, 0u);
+}
+
+TEST(TerrainEditStore, DenseDeltaAndContentHash)
+{
+    TerrainEditStore st({terraformTestTemplate(2)});
+    const int64_t N = 129;
+    for (int64_t k = 120; k <= 136; ++k)
+        for (int64_t i = 0; i <= 10; ++i) put(st, 0, 128 + i - 5, k, int32_t(i * 100 + k));
+    st.bumpSequence(chunk(0, 0));
+    st.bumpSequence(chunk(1, 0));
+    st.bumpSequence(chunk(0, 1));
+    std::vector<int32_t> a, b, c;
+    st.denseDelta(chunk(0, 0), a);
+    st.denseDelta(chunk(1, 0), b);
+    st.denseDelta(chunk(0, 1), c);
+    ASSERT_EQ(a.size(), size_t(N * N));
+    // The shared border column i = 128 agrees
+    for (int64_t k = 0; k < N; ++k) EXPECT_EQ(a[size_t(k * N + 128)], b[size_t(k * N + 0)]);
+    // ... and the shared row k = 128
+    for (int64_t i = 0; i < N; ++i) EXPECT_EQ(a[size_t(128 * N + i)], c[size_t(0 * N + i)]);
+    EXPECT_EQ(a[size_t(125 * N + 123)], 125);
+    EXPECT_EQ(b[size_t(136 * 0 + 120 * N + 5)], 1000 + 120);
+    uint32_t nz = 0;
+    for (int32_t v : a) nz += v != 0 ? 1 : 0;
+    EXPECT_EQ(st.entry(chunk(0, 0))->nonZeroSamples, nz);
+    // The content hash is FNV-1a over the dense delta, cached until a delta changes
+    Hasher h;
+    for (int32_t v : a) h.addI32(v);
+    EXPECT_EQ(st.contentHash(chunk(0, 0)), h.value());
+    EXPECT_FALSE(st.entry(chunk(0, 0))->hashDirty);
+    const uint64_t neighbour = st.contentHash(chunk(1, 0));
+    put(st, 0, 0, 0, 1);  // inside (0, 0) only
+    EXPECT_TRUE(st.entry(chunk(0, 0))->hashDirty);
+    EXPECT_FALSE(st.entry(chunk(1, 0))->hashDirty);
+    EXPECT_NE(st.contentHash(chunk(0, 0)), h.value());
+    EXPECT_EQ(st.contentHash(chunk(1, 0)), neighbour);
+}
+
+TEST(TerrainEditStore, TerrainSampleAndHeightOverDeltas)
+{
+    for (int spacing : {1, 2})
+    {
+        World w(editSetup(spacing));
+        TerrainEditStore& st = w.terrainEditsForUpdate();
+        const int64_t S      = 256 / spacing;
+        // Deltas over a patch around the chunk corner (S, S), incl. one that clamps
+        std::mt19937 rng(3);
+        std::uniform_int_distribution<int32_t> d(-5000, 5000);
+        for (int64_t k = S - 6; k <= S + 6; ++k)
+            for (int64_t i = S - 6; i <= S + 6; ++i) put(st, 0, i, k, d(rng));
+        put(st, 0, S + 2, S + 2, (1 << 24));
+        auto expected = [&](int64_t i, int64_t k)
+        {
+            const int64_t v = int64_t(w.terrain().sample(0, i, k)) + st.delta(0, i, k);
+            return clampTerrainHeight(int32_t(std::min<int64_t>(v, int64_t(1) << 30)));
+        };
+        for (int64_t k = S - 7; k <= S + 7; ++k)
+            for (int64_t i = S - 7; i <= S + 7; ++i) EXPECT_EQ(w.terrainSample(0, i, k), expected(i, k));
+        EXPECT_EQ(w.terrainSample(0, S + 2, S + 2), kTerrainHeightLimit);
+        // terrainHeight: the §12.2 triangle rule over the edited samples, at samples and random points incl. diagonals
+        std::uniform_real_distribution<double> u(-6.0 * spacing, 6.0 * spacing);
+        for (int n = 0; n < 400; ++n)
+        {
+            double x = 256 + u(rng), z = 256 + u(rng);
+            if (n % 4 == 0) z = x;  // on a cell diagonal (exact for dyadic values)
+            if (n % 4 == 1)
+            {
+                x = std::floor(x / spacing) * spacing;
+                z = std::floor(z / spacing) * spacing;
+            }
+            const double gx = x / spacing, gz = z / spacing;
+            const int64_t ci = int64_t(std::floor(gx)), cj = int64_t(std::floor(gz));
+            const double fx = gx - double(ci), fz = gz - double(cj);
+            const int32_t h00 = expected(ci, cj), h10 = expected(ci + 1, cj), h01 = expected(ci, cj + 1),
+                          h11 = expected(ci + 1, cj + 1);
+            EXPECT_EQ(w.terrainHeight(0, x, z), terrainSurfaceDouble(h00, h10, h01, h11, fx, fz) * kHeightUnit);
+        }
+    }
+}
+
+TEST(TerrainEditStore, FlatSpaceHeightWithDeltas)
+{
+    // D1: a space without terrain reads 0 until it has a delta
+    WorldSetup s;
+    s.profiling = false;
+    World w(s);
+    EXPECT_EQ(w.terrainHeight(0, 100, 100), 0.0);
+    put(w.terrainEditsForUpdate(), 0, 50, 50, 2048);  // spacing 2: sample (50, 50) at (100, 100) m
+    EXPECT_EQ(w.terrainSample(0, 50, 50), 2048);
+    EXPECT_EQ(w.terrainHeight(0, 100, 100), 2.0);
+    EXPECT_EQ(w.terrainHeight(0, 101, 100), 1.0);
 }

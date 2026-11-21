@@ -9,6 +9,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/core/StreamingPool.h"
 #include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
 #include "saiga/engine/terrain/TerrainStore.h"
 
@@ -136,14 +137,24 @@ int32_t TerrainSystem::sample(SpaceId space, int64_t sx, int64_t sz) const
         }
     }
     const int64_t spacing = s.settings.baseSpacing;
+    hookSamples.fetch_add(1, std::memory_order_relaxed);
     return s.source(sx * spacing, sz * spacing);
+}
+
+int32_t TerrainSystem::editedSample(SpaceId space, int64_t sx, int64_t sz) const
+{
+    const int32_t base = sample(space, sx, sz);
+    if (!edits) return base;
+    const int64_t v = int64_t(base) + edits->delta(space, sx, sz);
+    return int32_t(std::min<int64_t>(std::max<int64_t>(v, -kTerrainHeightLimit), kTerrainHeightLimit));
 }
 
 double TerrainSystem::height(SpaceId space, double x, double z) const
 {
     SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
     const Space& s = spaces[space];
-    if (!s.settings.hasTerrain()) return 0;
+    // D1: a space without terrain is flat at 0 while it has no edits
+    if (!s.settings.hasTerrain() && (!edits || edits->nonZeroSamples(space) == 0)) return 0;
     // A NaN coordinate has no point (it would survive the clamps below): 0; infinities clamp to the edges
     if (std::isnan(x) || std::isnan(z)) return 0;
     const double size = s.settings.sizeMeters();
@@ -157,13 +168,13 @@ double TerrainSystem::height(SpaceId space, double x, double z) const
     const int64_t cj  = std::min(int64_t(std::floor(gz)), n - 1);
     const double fx   = gx - double(ci);
     const double fz   = gz - double(cj);
-    const int32_t h00 = sample(space, ci, cj), h11 = sample(space, ci + 1, cj + 1);
+    const int32_t h00 = editedSample(space, ci, cj), h11 = editedSample(space, ci + 1, cj + 1);
     // Only the samples of the containing triangle (A: fx >= fz uses h10, B: h01)
     int32_t h10 = 0, h01 = 0;
     if (fx >= fz)
-        h10 = sample(space, ci + 1, cj);
+        h10 = editedSample(space, ci + 1, cj);
     else
-        h01 = sample(space, ci, cj + 1);
+        h01 = editedSample(space, ci, cj + 1);
     return terrainSurfaceDouble(h00, h10, h01, h11, fx, fz) * kHeightUnit;
 }
 

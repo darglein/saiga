@@ -18,6 +18,7 @@
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 
 #include <array>
+#include <atomic>
 #include <map>
 #include <memory>
 #include <optional>
@@ -33,6 +34,7 @@ namespace Engine
 class RenderSink;
 class StreamingPool;
 class TerrainStore;
+class TerrainEditStore;
 
 // The visual streaming policy (R-MECH-1): EngineAppSetup / game code may change it (TerrainSystem::setViewSettings)
 struct TerrainViewSettings
@@ -63,13 +65,22 @@ class SAIGA_ENGINE_API TerrainSystem
     TerrainSystem& operator=(const TerrainSystem&) = delete;
 
     // World::terrainHeight (§7.10, §12.2): x and z clamped to the space [0, sizeChunks * 256]; the cell of the base
-    // grid (the last cell at the far edge), the three samples of its triangle (sample) and terrainSurfaceDouble, in
-    // metres. 0 for a space without terrain. Const and thread safe (parallelEach)
+    // grid (the last cell at the far edge), the three samples of its triangle (editedSample: base + terrain edit,
+    // S22) and terrainSurfaceDouble, in metres. 0 for a space without terrain while it has no edits (D1). Const and
+    // thread safe (parallelEach)
     double height(SpaceId space, double x, double z) const;
     // A base-grid sample of the BASE data: the resident level-0 tile or the space's height source; 0 for a space
-    // without terrain. A cheap point query, const and thread safe (parallelEach). S22's World::terrainSample = this +
-    // the edit delta; S23a replaces only the source
+    // without terrain. A cheap point query, const and thread safe (parallelEach). S23a replaces only the source
     int32_t sample(SpaceId space, int64_t sx, int64_t sz) const;
+    // World::terrainSample (S22): clampTerrainHeight(sample + the edit delta); the delta 0 without edits. Never
+    // allocates; const and thread safe while the edit store is not mutated
+    int32_t editedSample(SpaceId space, int64_t sx, int64_t sz) const;
+    // The base samples read from the height source instead of a resident level-0 tile, by every caller of sample
+    // (a relaxed counter; S20's pool generation does not go through sample and is not counted). Tests and the
+    // terraform benchmark read differences of it to prove that a path calls no hook
+    uint64_t baseHookSamples() const { return hookSamples.load(std::memory_order_relaxed); }
+    // Engine-internal: the World's terrain edits (read by height and the visual merge; S22)
+    void setEdits(const TerrainEditStore* store) { edits = store; }
 
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
     const TerrainHeightSource& heightSource(SpaceId space) const;
@@ -172,6 +183,8 @@ class SAIGA_ENGINE_API TerrainSystem
     };
 
     std::vector<Space> spaces;
+    const TerrainEditStore* edits = nullptr;
+    mutable std::atomic<uint64_t> hookSamples{0};
     TerrainViewSettings view;
     RenderSink* sink = nullptr;
     std::unique_ptr<StreamingPool> pool;

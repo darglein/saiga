@@ -143,6 +143,7 @@ class Replication;
 class RenderSink;
 class ExtractSystem;
 class TerrainSystem;
+class TerrainEditStore;
 struct StagedValues;
 
 class SAIGA_ENGINE_API World
@@ -390,6 +391,14 @@ class SAIGA_ENGINE_API World
     // (R-DET-1). 0 for a space without terrain (a hook-less open world, an enclosed space's floor plane until S23 /
     // S28). Const and thread safe (parallelEach)
     double terrainHeight(SpaceId space, double x, double z) const;
+    // A sample of the space's base grid with the terrain edits (§12.2; S22): clampTerrainHeight(base + delta), the base
+    // from TerrainSystem::sample (a resident level-0 tile or the height source), the delta 0 where nothing was edited.
+    // Never allocates; const and thread safe (parallelEach)
+    int32_t terrainSample(SpaceId space, int64_t i, int64_t k) const;
+    // The terrain modification state (tests, tools, the visual path; read-only)
+    const TerrainEditStore& terrainEdits() const { return *terrainEditStore; }
+    // Engine-internal: the mutable state (the edit path, the replication's handlers, loads; store tests)
+    TerrainEditStore& terrainEditsForUpdate() { return *terrainEditStore; }
     // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
     // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
@@ -958,6 +967,8 @@ class SAIGA_ENGINE_API World
 
     WorldConfig config;
     double stepDt;
+    // The terrain modification state (S22); TerrainSystem (destroyed first) reads it through a const pointer
+    std::unique_ptr<TerrainEditStore> terrainEditStore;
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
     double accumulator    = 0;
