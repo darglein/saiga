@@ -61,7 +61,7 @@ int main(int argc, char** argv)
     return engineMain(argc, argv, setup, {"--demo"},
                       [&wasActive](EngineApp& app, const AppOptions& options)
                       {
-                          app.showStatistics(false);
+                          app.showStatistics(true);  // the frame times (the World Statistics window points here)
                           World& w = app.world();
                           // Regression (CodeRabbit, S13b): a save taken with a pedal or the steering held restored
                           // them, and neutral input never cleared them. The local player's pedals and steering are

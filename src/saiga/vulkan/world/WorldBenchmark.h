@@ -9,6 +9,7 @@
 #include "saiga/core/util/json11.hpp"
 #include "saiga/vulkan/world/HeightField.h"
 
+#include <array>
 #include <map>
 #include <memory>
 #include <string>
@@ -45,6 +46,9 @@ class SAIGA_VULKAN_API WorldBenchmark
     struct Stat
     {
         double median = 0, p95 = 0;
+        // mean, p99 (nearest rank), max and the mean of the largest 1% (ceil(n / 100) values: 1000 / it is the "1% low"
+        // frame rate of frame intervals)
+        double mean = 0, p99 = 0, max = 0, worst1Percent = 0;
     };
     // One frame's times (each part optional)
     struct Sample
@@ -57,6 +61,12 @@ class SAIGA_VULKAN_API WorldBenchmark
         double workMs = -1;
         // The GPU times (ms) by the S03 keys of gpuKeys() (empty: no GPU part)
         std::map<std::string, double> sectionMs;
+        // (After sectionMs: aggregate initializers like {g, -1, -1, gpuMs} keep their meaning)
+        // The app's CPU work of the frame (ms): the frame without the render's waits for the frame slot, the swap chain
+        // image and the present, of every attempt of the frame (-1: none); the "CPU busy" of the engine statistics
+        double frameWorkMs = -1;
+        // The CPU's waits of the frame (ms): the frame slot, the image acquire, the present ({-1, ...}: none)
+        std::array<double, 3> waitPartsMs = {-1, -1, -1};
     };
 
     // The known benchmarks: "flyover", "forest"
@@ -113,6 +123,13 @@ class SAIGA_VULKAN_API WorldBenchmark
      * sub-sections of the measured frames, S17-S19a).
      */
     json11::Json result() const;
+    /**
+     * A readable summary of a result (the benchmark's console output; the file keeps the JSON): the run, the frame
+     * rate with its 1% low and the long frames, a table of the frame interval, CPU work and GPU (mean, median, p99,
+     * max) with what limits the frame rate, the largest GPU passes and, with a baseline (the GPU's entry of the
+     * benchmark in data/tests/benchmarks.json), the change of the frame interval and the GPU passes.
+     */
+    static std::string summaryText(const json11::Json& result, const json11::Json& baseline = json11::Json());
     // Writes a result (computed once by result()) to the file. Returns false if it could not be written.
     static bool writeResult(const std::string& file, const json11::Json& json);
     // The build of saiga: {type, asserts, archnative} (also used by sample_vulkan_scene_benchmark)
@@ -124,7 +141,8 @@ class SAIGA_VULKAN_API WorldBenchmark
    private:
     std::string name, gpuName;
     const HeightField* hf;
-    std::vector<double> cpuMs, cpuWorkMs;
+    std::vector<double> cpuMs, cpuWorkMs, frameWorkMs;
+    std::vector<std::array<double, 3>> waitParts;
     std::map<std::string, std::vector<double>> gpuMs;
     int gpuFrames         = 0;
     uint64_t lastCpuFrame = 0, lastGpuFrame = 0;

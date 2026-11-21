@@ -98,14 +98,16 @@ std::vector<double> Profiler::scopeHistory(int scope) const
     return out;
 }
 
-Profiler::Stats Profiler::stats(const Series& s, int lastSamples) const
+Profiler::Stats Profiler::stats(const Series& s, int lastSamples, int skipNewest) const
 {
     Stats st;
-    const int n = lastSamples <= 0 ? filled : std::min(lastSamples, filled);
-    if (n == 0) return st;
+    const int skip  = std::clamp(skipNewest, 0, filled);
+    const int avail = filled - skip;
+    const int n     = lastSamples <= 0 ? avail : std::min(lastSamples, avail);
+    if (n <= 0) return st;
     std::vector<double> v;
     v.reserve(size_t(n));
-    for (int i = 1; i <= n; ++i) v.push_back(s.ring[size_t((head - i + capacity) % capacity)]);
+    for (int i = 1 + skip; i <= n + skip; ++i) v.push_back(s.ring[size_t((head - i + capacity) % capacity)]);
     double sum = 0;
     for (double x : v) sum += x;
     std::sort(v.begin(), v.end());
@@ -117,7 +119,20 @@ Profiler::Stats Profiler::stats(const Series& s, int lastSamples) const
     st.max     = v.back();
     st.p50     = rank(0.5);
     st.p95     = rank(0.95);
+    st.p99     = rank(0.99);
+    // ceil(n / 100), as FrameStatistics and the benchmark
+    const int worst = (n + 99) / 100;
+    double worstSum = 0;
+    for (int i = n - worst; i < n; ++i) worstSum += v[size_t(i)];
+    st.worst1PercentAvg = worstSum / worst;
     return st;
+}
+
+bool Profiler::lastSample(int scope, double& value) const
+{
+    if (scope < 0 || scope >= int(scopes.size()) || filled == 0) return false;
+    value = scopes[size_t(scope)].ring[size_t((head - 1 + capacity) % capacity)];
+    return true;
 }
 
 Profiler::Stats Profiler::scopeStats(int scope, int lastSamples) const
@@ -130,15 +145,17 @@ Profiler::Stats Profiler::counterStats(int counter, int lastSamples) const
     return stats(counters[size_t(counter)], lastSamples);
 }
 
-json11::Json Profiler::report(int lastSamples) const
+json11::Json Profiler::report(int lastSamples, int skipNewest) const
 {
     using Json = json11::Json;
     // Times rounded to 1 ns (1e-6 ms): more digits are noise
     auto round6    = [](double v) { return std::round(v * 1e6) / 1e6; };
     auto statsJson = [&](const Stats& s)
     {
-        return Json::object{{"samples", s.samples}, {"avg", round6(s.avg)}, {"min", round6(s.min)},
-                            {"p50", round6(s.p50)}, {"p95", round6(s.p95)}, {"max", round6(s.max)}};
+        return Json::object{{"samples", s.samples}, {"avg", round6(s.avg)},
+                            {"min", round6(s.min)}, {"p50", round6(s.p50)},
+                            {"p95", round6(s.p95)}, {"p99", round6(s.p99)},
+                            {"max", round6(s.max)}, {"worst_1pct_avg", round6(s.worst1PercentAvg)}};
     };
     // The parent in the report: a dotted last part "a.b" is a sub-section of the existing scope "a" (RenderScene's GPU
     // sub-sections, e.g. gpu/scene.instances inside gpu/scene; S19a), else the path without the last part
@@ -158,18 +175,18 @@ json11::Json Profiler::report(int lastSamples) const
     Json::array scopeList;
     for (size_t i = 0; i < scopes.size(); ++i)
     {
-        const Stats s          = stats(scopes[i], lastSamples);
+        const Stats s          = stats(scopes[i], lastSamples, skipNewest);
         Json::object o         = statsJson(s);
         o["scope"]             = scopes[i].name;
         const int parent       = parents[i];
-        const double parentAvg = parent >= 0 ? stats(scopes[size_t(parent)], lastSamples).avg : 0;
+        const double parentAvg = parent >= 0 ? stats(scopes[size_t(parent)], lastSamples, skipNewest).avg : 0;
         o["share_of_parent"]   = std::round((parent >= 0 && parentAvg > 0 ? s.avg / parentAvg : 1.0) * 1e4) / 1e4;
         scopeList.push_back(o);
     }
     Json::array counterList;
     for (const Series& c : counters)
     {
-        Json::object o = statsJson(stats(c, lastSamples));
+        Json::object o = statsJson(stats(c, lastSamples, skipNewest));
         o["counter"]   = c.name;
         counterList.push_back(o);
     }
@@ -179,13 +196,15 @@ json11::Json Profiler::report(int lastSamples) const
     {
         bool leaf = true;
         for (int p : parents) leaf = leaf && p != int(i);
-        if (leaf) leaves.push_back({stats(scopes[i], lastSamples).avg, scopes[i].name});
+        if (leaf) leaves.push_back({stats(scopes[i], lastSamples, skipNewest).avg, scopes[i].name});
     }
     std::sort(leaves.begin(), leaves.end(), [](const auto& a, const auto& b) { return a.first > b.first; });
     Json::array top;
     for (size_t i = 0; i < leaves.size() && i < 10; ++i)
         top.push_back(Json::object{{"scope", leaves[i].second}, {"avg", round6(leaves[i].first)}});
-    const int n = lastSamples <= 0 ? filled : std::min(lastSamples, filled);
+    // The samples the statistics use: after the skipped newest ones
+    const int avail = filled - std::clamp(skipNewest, 0, filled);
+    const int n     = lastSamples <= 0 ? avail : std::min(lastSamples, avail);
     return Json::object{{"unit", "ms"}, {"samples", n}, {"top", top}, {"scopes", scopeList}, {"counters", counterList}};
 }
 

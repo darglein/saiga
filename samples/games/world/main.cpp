@@ -26,6 +26,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/saiga_buildconfig.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 #include "saiga/vulkan/world/WorldMcp.h"
@@ -35,10 +36,12 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
 #include <set>
+#include <sstream>
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -58,7 +61,9 @@ struct WorldGame
     bool fWasDown   = false;
     // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastBeforeRender;
-    bool hasLastBeforeRender = false;
+    bool hasLastBeforeRender         = false;
+    double frameWork                 = 0;   // the app's CPU work of the attempts of the frame of lastBeforeRenderFrame
+    std::array<double, 3> frameWaits = {};  // the waits (frame slot, acquire, present) of those attempts
     // The RenderScene frame of lastBeforeRender: a frame that was not submitted is attempted again with the same number
     // (its interval runs from the first attempt, so a stall stays in the result)
     uint64_t lastBeforeRenderFrame = 0;
@@ -171,16 +176,30 @@ void beforeRender(EngineApp& app)
 
     // The CPU times of the previous frame: its interval (until now) and its recording and submit
     const auto now = std::chrono::steady_clock::now();
+    // The app's CPU work of the last loop belongs to the frame it attempted: summed over every attempt of a frame (a
+    // frame that was not submitted is attempted again with the same number)
+    {
+        Profiler& fp = app.frameProfile();
+        double work  = 0;
+        if (g.hasLastBeforeRender && fp.enabled && fp.lastSample(fp.scope("work"), work)) g.frameWork += work;
+        // Its waits too (the renderer measures them per attempt)
+        if (g.hasLastBeforeRender)
+            for (size_t k = 0; k < 3; ++k) g.frameWaits[k] += scene.lastWaitParts()[k];
+    }
     if (!g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame)
     {
         if (g.bench && g.hasLastBeforeRender)
         {
             Vulkan::WorldBenchmark::Sample sample;
-            sample.frame      = frame - 1;
-            sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
-            sample.workMs     = scene.lastRecordingMs();
+            sample.frame       = frame - 1;
+            sample.intervalMs  = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
+            sample.workMs      = scene.lastRecordingMs();
+            sample.frameWorkMs = g.frameWork;
+            sample.waitPartsMs = g.frameWaits;
             g.bench->addSample(sample);
         }
+        g.frameWork             = 0;
+        g.frameWaits            = {};
         g.lastBeforeRender      = now;
         g.lastBeforeRenderFrame = frame;
         g.hasLastBeforeRender   = true;
@@ -278,6 +297,10 @@ void beforeRender(EngineApp& app)
         {
             const auto s      = Vulkan::WorldBenchmark::summarize(values);
             gpuFrame[section] = json11::Json::object{{"median", s.median}, {"p95", s.p95}};
+            // The whole GPU frame also with mean, p99 and max (the summary's GPU row)
+            if (section == "gpu")
+                gpuFrame[section] = json11::Json::object{
+                    {"mean", s.mean}, {"median", s.median}, {"p95", s.p95}, {"p99", s.p99}, {"max", s.max}};
         }
         result["gpu_frame_ms"] = gpuFrame.empty() ? json11::Json() : json11::Json(gpuFrame);
         const int stalls       = result["stalled_frames"].int_value();
@@ -287,9 +310,20 @@ void beforeRender(EngineApp& app)
         if (result["gpu_ms"].is_null())
             std::cout << "Benchmark warning: no GPU times (timestamps not supported)" << std::endl;
         const bool written = Vulkan::WorldBenchmark::writeResult(file, result);
-        std::cout << (written ? "Benchmark result: " + file + "\n" + json11::Json(result).dump()
-                              : "Benchmark error: could not write " + file)
-                  << std::endl;
+        // A readable summary; the JSON (the baseline format) is in the file
+        // The committed baseline of this GPU, if the source tree is known
+        json11::Json baseline;
+        if (std::string(SAIGA_PROJECT_SOURCE_DIR).size() > 0)
+        {
+            std::ifstream in(std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/benchmarks.json");
+            std::stringstream text;
+            text << in.rdbuf();
+            std::string parseError;
+            const json11::Json all = json11::Json::parse(text.str(), parseError);
+            baseline               = all[result["gpu"].string_value()][g.benchmarkName];
+        }
+        std::cout << "Benchmark " << g.benchmarkName << ": " << Vulkan::WorldBenchmark::summaryText(result, baseline)
+                  << (written ? "Benchmark result: " + file : "Benchmark error: could not write " + file) << std::endl;
         g.benchmarkOk   = written && complete && !g.sizeChanged && stalls == 0;
         g.benchmarkDone = true;
         app.quit(g.benchmarkOk ? 0 : 1);
@@ -363,7 +397,7 @@ int main(int argc, char* argv[])
     const int code = engineMain(argc, argv, setup, {},
                                 [&](EngineApp& app, const AppOptions& options)
                                 {
-                                    if (options.benchmark.empty()) app.showStatistics(false);
+                                    if (options.benchmark.empty()) app.showStatistics(true);  // the frame times
                                 });
     // A window closed before the end of the path
     if (code == 0 && !game.benchmarkName.empty() && !game.benchmarkDone)

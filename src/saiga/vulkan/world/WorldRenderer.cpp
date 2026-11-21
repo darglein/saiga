@@ -48,9 +48,11 @@ void WorldRenderer::attach(RenderScene& scene)
     // The GPU times of the frames recorded from now on (a scene that rendered before, or another one after a destroy:
     // neither its earlier frames nor the previous scene's frame numbers count); the plots start empty
     lastGpuFrame = scene.frames();
-    std::fill(cpuHistory.begin(), cpuHistory.end(), 0.0f);
-    std::fill(gpuHistory.begin(), gpuHistory.end(), 0.0f);
-    historyIndex = 0;
+    buckets.clear();
+    current        = Bucket();
+    sectionCount   = 0;
+    shown          = Shown();
+    bucketGpuFrame = scene.frames();
     settings.clamp();
     scene.setPrototypeTerrain(hf, settings.prototype(), params.seed);
     trees.init(scene, *hf, params.treeCount, params.seed, settings);
@@ -93,14 +95,19 @@ void WorldRenderer::update()
     trees.apply(settings);
 
     // Frame timing (between two updates)
-    auto now     = std::chrono::steady_clock::now();
-    double cpuMs = 0;
+    auto now      = std::chrono::steady_clock::now();
+    double cpuMs  = 0;
+    double waitMs = 0;
     if (hasLastFrame)
     {
         cpuMs                 = std::chrono::duration<double, std::milli>(now - lastFrame).count();
         float a               = statistics.frames < 10 ? 0.5f : 0.05f;
         statistics.cpuFrameMs = statistics.cpuFrameMs * (1 - a) + cpuMs * a;
         statistics.fps        = statistics.cpuFrameMs > 0 ? 1000.0 / statistics.cpuFrameMs : 0;
+        // The last render (inside this interval) blocked for this long: not work
+        waitMs               = std::min(renderScene->lastWaitMs(), cpuMs);
+        statistics.cpuWaitMs = statistics.cpuWaitMs * (1 - a) + waitMs * a;
+        statistics.cpuWorkMs = statistics.cpuWorkMs * (1 - a) + (cpuMs - waitMs) * a;
     }
     lastFrame    = now;
     hasLastFrame = true;
@@ -116,12 +123,30 @@ void WorldRenderer::update()
         for (size_t i = 0; i < gpu.gpuSectionMs.size(); ++i)
             smooth(statistics.gpuSectionMs[i], gpu.gpuSectionMs[i], statistics.frames);
     }
-    if (cpuMs > 0)
+    // The shown means: the raw values of this bucket (each GPU frame once)
+    if (gpu.frame > bucketGpuFrame)
     {
-        cpuHistory[size_t(historyIndex)] = float(cpuMs);
-        gpuHistory[size_t(historyIndex)] = float(std::max(statistics.gpuMs, 0.0));
-        historyIndex                     = (historyIndex + 1) % historySize;
+        bucketGpuFrame = gpu.frame;
+        // The sections by position (RenderScene::gpuSectionNames, a fixed list); a different layout starts anew
+        if (gpu.gpuSectionMs.size() != sectionCount)
+        {
+            sectionCount = gpu.gpuSectionMs.size();
+            current      = Bucket();
+            buckets.clear();
+        }
+        current.gpuSectionSum.resize(sectionCount, 0.0);
+        current.gpuSum += gpu.gpuMs;
+        for (size_t i = 0; i < gpu.gpuSectionMs.size(); ++i) current.gpuSectionSum[i] += gpu.gpuSectionMs[i];
+        current.gpuFrames++;
     }
+    if (const PrototypeWorld* w = renderScene->prototypeWorld())
+    {
+        current.terrainSelectSum += w->stats().cpuTerrainSelectMs;
+        current.grassCullSum += w->stats().cpuGrassCullMs;
+    }
+    current.recordingSum += renderScene->lastRecordingMs();
+    current.cpuFrames++;
+    rotateBuckets();
 
     // The prototype's CPU statistics of the last recorded frame, the trees from the newest completed frame
     if (const PrototypeWorld* w = renderScene->prototypeWorld())
@@ -147,6 +172,51 @@ std::vector<WorldRenderer::MemoryEntry> WorldRenderer::memoryUsage() const
             {"trees (instances, meshes)", trees.memoryBytes()}};
 }
 
+void WorldRenderer::rotateBuckets()
+{
+    // Every frame (also while the window is hidden, so the window never covers more than kShownSeconds)
+    const auto now = std::chrono::steady_clock::now();
+    if (!bucketStarted)
+    {
+        bucketStarted = true;
+        bucketStart   = now;
+    }
+    // A full bucket enters the window (the buckets of the last kShownSeconds)
+    if (now - bucketStart < std::chrono::duration<double>(kRefreshSeconds)) return;
+    current.end = now;
+    if (current.cpuFrames > 0 || current.gpuFrames > 0) buckets.push_back(current);
+    current     = Bucket();
+    bucketStart = now;
+    // Expired by time (after a pause of the updates the old buckets are older than kShownSeconds)
+    while (!buckets.empty() && now - buckets.front().end >= std::chrono::duration<double>(kShownSeconds))
+        buckets.pop_front();
+    Bucket sum;
+    for (const Bucket& b : buckets)
+    {
+        sum.gpuSum += b.gpuSum;
+        sum.gpuSectionSum.resize(std::max(sum.gpuSectionSum.size(), b.gpuSectionSum.size()), 0.0);
+        for (size_t i = 0; i < b.gpuSectionSum.size(); ++i) sum.gpuSectionSum[i] += b.gpuSectionSum[i];
+        sum.gpuFrames += b.gpuFrames;
+        sum.terrainSelectSum += b.terrainSelectSum;
+        sum.grassCullSum += b.grassCullSum;
+        sum.recordingSum += b.recordingSum;
+        sum.cpuFrames += b.cpuFrames;
+    }
+    shown.valid = true;
+    shown.gpuSectionMs.clear();
+    if (sum.gpuFrames > 0)
+    {
+        shown.gpuMs = sum.gpuSum / sum.gpuFrames;
+        for (double v : sum.gpuSectionSum) shown.gpuSectionMs.push_back(v / sum.gpuFrames);
+    }
+    if (sum.cpuFrames > 0)
+    {
+        shown.terrainSelectMs = sum.terrainSelectSum / sum.cpuFrames;
+        shown.grassCullMs     = sum.grassCullSum / sum.cpuFrames;
+        shown.recordingMs     = sum.recordingSum / sum.cpuFrames;
+    }
+}
+
 json11::Json WorldRenderer::statsJson() const
 {
     auto& s = statistics;
@@ -159,6 +229,9 @@ json11::Json WorldRenderer::statsJson() const
     return json11::Json::object{
         {"fps", s.fps},
         {"cpu_frame_ms", s.cpuFrameMs},
+        {"cpu_wait_ms", s.cpuWaitMs},
+        {"cpu_work_ms", s.cpuWorkMs},
+        {"vsync", renderScene && renderScene->vsync()},
         {"gpu_frame_ms", s.gpuMs},
         {"terrain_nodes", s.terrainNodes},
         {"terrain_triangles", s.terrainTriangles},
@@ -184,12 +257,8 @@ void WorldRenderer::imgui()
         ImGui::End();
         return;
     }
-    auto& s = statistics;
-    ImGui::Text("%.1f fps  cpu %.2f ms  gpu %.2f ms", s.fps, s.cpuFrameMs, s.gpuMs);
-    ImGui::Text("terrain: %d nodes, %.2f M tris", s.terrainNodes, s.terrainTriangles / 1e6);
-    ImGui::Text("trees: %u / %u / %u of %d, %.2f M tris", s.treesVisible[0], s.treesVisible[1], s.treesVisible[2],
-                trees.treeCount(), double(s.treeTriangles) / 1e6);
-    ImGui::Text("grass: %d clumps, %.2f M tris (submitted)", s.grassClumps, s.grassTriangles / 1e6);
+    // The frame times are in the app's "Engine statistics" (F1), not here: one place for them
+    ImGui::TextDisabled("frame times: Engine statistics (F1)");
 
     ImGui::Checkbox("statistics window", &showStatistics);
 

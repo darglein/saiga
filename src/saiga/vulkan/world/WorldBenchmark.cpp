@@ -10,6 +10,7 @@
 #include "saiga/saiga_buildconfig.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <fstream>
 
@@ -112,6 +113,15 @@ WorldBenchmark::Stat WorldBenchmark::summarize(std::vector<double> values)
     // Nearest rank: the smallest value with at least 95% of the values <= it
     size_t rank = size_t(std::ceil(0.95 * double(n)));
     s.p95       = values[std::max<size_t>(rank, 1) - 1];
+    double sum  = 0;
+    for (double v : values) sum += v;
+    s.mean           = sum / double(n);
+    s.p99            = values[std::max<size_t>(size_t(std::ceil(0.99 * double(n))), 1) - 1];
+    s.max            = values.back();
+    const size_t one = (n + 99) / 100;
+    double worst     = 0;
+    for (size_t i = n - one; i < n; ++i) worst += values[i];
+    s.worst1Percent = worst / double(one);
     return s;
 }
 
@@ -141,6 +151,8 @@ void WorldBenchmark::addSample(const Sample& t)
         {
             cpuMs.push_back(t.intervalMs);
             if (t.workMs >= 0) cpuWorkMs.push_back(t.workMs);
+            if (t.frameWorkMs >= 0) frameWorkMs.push_back(t.frameWorkMs);
+            if (t.waitPartsMs[0] >= 0) waitParts.push_back(t.waitPartsMs);
         }
         lastCpuFrame = t.frame;
     }
@@ -177,6 +189,38 @@ json11::Json WorldBenchmark::result() const
         Stat s = summarize(v);
         return json11::Json::object{{"median", s.median}, {"p95", s.p95}};
     };
+    auto detail = [](const std::vector<double>& v)
+    {
+        Stat s = summarize(v);
+        return json11::Json::object{
+            {"mean", s.mean}, {"median", s.median}, {"p95", s.p95}, {"p99", s.p99}, {"max", s.max}};
+    };
+    const Stat interval = summarize(cpuMs);
+    // Long: > max(1.5 x the median, the median + 1 ms) (the 1 ms keeps sub-millisecond jitter at high frame rates out)
+    int longFrames = 0;
+    for (double ms : cpuMs) longFrames += ms > std::max(1.5 * interval.median, interval.median + 1.0) ? 1 : 0;
+    // Frame pacing: the p99 change of the interval between neighbouring frames
+    std::vector<double> change;
+    for (size_t i = 1; i < cpuMs.size(); ++i) change.push_back(std::abs(cpuMs[i] - cpuMs[i - 1]));
+    const double pacing = summarize(change).p99;
+    // Alternating intervals (most changes above 0.1 ms flip their sign): uneven pacing rather than single long frames
+    int flips = 0, changes = 0;
+    for (size_t i = 2; i < cpuMs.size(); ++i)
+    {
+        const double a = cpuMs[i - 1] - cpuMs[i - 2], b = cpuMs[i] - cpuMs[i - 1];
+        if (std::abs(a) < 0.1 || std::abs(b) < 0.1) continue;
+        changes++;
+        flips += (a > 0) != (b > 0) ? 1 : 0;
+    }
+    // Sustained alternation: most neighbouring changes are above 0.1 ms (isolated spikes leave flat changes), nearly
+    // all of them flip their sign (random jitter flips about 2 of 3), and the typical (median) change is a quarter of
+    // the frame (the p99 is set by single spikes)
+    const bool alternating = changes >= 20 && changes * 2 >= int(cpuMs.size()) && flips > 0.85 * changes &&
+                             summarize(change).median > 0.25 * interval.mean;
+    // The CPU's waits per frame (means): the frame slot, the image acquire, the present
+    std::array<double, 3> wait = {};
+    for (const auto& w : waitParts)
+        for (size_t k = 0; k < 3; ++k) wait[k] += w[k] / double(waitParts.size());
     // Without GPU samples (no timestamp support) gpu_ms is null, not zeros that look like a fast result
     json11::Json gpu;
     if (gpuFrames > 0)
@@ -197,7 +241,152 @@ json11::Json WorldBenchmark::result() const
         {"cpu_work_ms", stat(cpuWorkMs)},
         {"gpu_ms", gpu},
         {"stalled_frames", countStalls(cpuMs)},
+        // The tail of the frame interval (stutter): mean, p99, max, the 1% low frame rate and the frames longer than
+        // 1.5 x the median; the CPU work of the whole frame (cpu_work_ms is the recording only)
+        {"frame_interval_ms", detail(cpuMs)},
+        {"fps", json11::Json::object{{"mean", interval.mean > 0 ? 1000 / interval.mean : 0.0},
+                                     {"low_1pct", interval.worst1Percent > 0 ? 1000 / interval.worst1Percent : 0.0}}},
+        {"long_frames", longFrames},
+        {"pacing_p99_ms", pacing},
+        {"alternating", alternating},
+        {"wait_ms", json11::Json::object{{"frame_slot", wait[0]}, {"acquire", wait[1]}, {"present", wait[2]}}},
+        {"frame_work_ms", detail(frameWorkMs)},
     };
+}
+
+std::string WorldBenchmark::summaryText(const json11::Json& r, const json11::Json& baseline)
+{
+    std::string out;
+    char line[300];
+    const auto& b = r["build"];
+    std::snprintf(line, sizeof(line), "%s, %d x %d, %d frames, %s%s\n", r["gpu"].string_value().c_str(),
+                  r["width"].int_value(), r["height"].int_value(), r["frames"].int_value(),
+                  b["type"].string_value().c_str(), b["asserts"].bool_value() ? " with asserts" : "");
+    out += line;
+    const auto& fps  = r["fps"];
+    const int frames = std::max(r["frames"].int_value(), 1);
+    const int longs  = r["long_frames"].int_value();
+    std::snprintf(line, sizeof(line),
+                  "%.0f fps, 1%% low %.0f fps, max frame %.2f ms, long frames (> 1.5 x median) %d (%.0f%%), stalled "
+                  "%d\n",
+                  fps["mean"].number_value(), fps["low_1pct"].number_value(),
+                  r["frame_interval_ms"]["max"].number_value(), longs, 100.0 * longs / frames,
+                  r["stalled_frames"].int_value());
+    out += line;
+    if (r["alternating"].bool_value())
+    {
+        std::snprintf(line, sizeof(line),
+                      "uneven frame pacing: the intervals alternate between short and long (p99 change between frames "
+                      "%.2f ms); the long frames are this, not single stutters\n",
+                      r["pacing_p99_ms"].number_value());
+        out += line;
+    }
+    else if (longs * 10 > frames)
+    {
+        std::snprintf(line, sizeof(line), "frequent long frames (p99 change between frames %.2f ms)\n",
+                      r["pacing_p99_ms"].number_value());
+        out += line;
+    }
+    const auto& wait = r["wait_ms"];
+    if (wait.is_object())
+    {
+        std::snprintf(
+            line, sizeof(line), "CPU wait per frame (means): frame slot %.2f ms, acquire %.2f ms, present %.2f ms\n",
+            wait["frame_slot"].number_value(), wait["acquire"].number_value(), wait["present"].number_value());
+        out += line;
+    }
+    std::snprintf(line, sizeof(line), "%-16s %8s %8s %8s %8s\n", "per frame (ms)", "mean", "median", "p99", "max");
+    out += line;
+    auto row = [&](const char* name, const json11::Json& v)
+    {
+        if (!v.is_object()) return;
+        std::snprintf(line, sizeof(line), "%-16s %8.2f %8.2f %8.2f %8.2f\n", name, v["mean"].number_value(),
+                      v["median"].number_value(), v["p99"].number_value(), v["max"].number_value());
+        out += line;
+    };
+    row("frame interval", r["frame_interval_ms"]);
+    row("CPU busy", r["frame_work_ms"]);
+    row("GPU busy", r["gpu_frame_ms"]["gpu"]);
+    // What limits the frame rate (no vsync in a benchmark): the busy times against the mean interval (the frames' time)
+    const double frameMs = r["frame_interval_ms"]["mean"].number_value();
+    // No GPU times (no timestamps): no GPU utilization and no verdict
+    const bool hasGpu   = r["gpu_frame_ms"]["gpu"]["mean"].is_number();
+    const double gpuMs  = r["gpu_frame_ms"]["gpu"]["mean"].number_value();
+    const double workMs = r["frame_work_ms"]["mean"].number_value();
+    if (frameMs > 0 && !hasGpu)
+    {
+        std::snprintf(line, sizeof(line),
+                      "no GPU times (timestamps not supported): CPU busy %.0f%% of the frame time\n",
+                      100 * workMs / frameMs);
+        out += line;
+    }
+    else if (frameMs > 0)
+    {
+        const double gpu = gpuMs / frameMs, cpu = workMs / frameMs;
+        // Neither fills the frame: the largest wait (the frame slot, the image acquire, the present)
+        const auto& w           = r["wait_ms"];
+        const double waits[]    = {w["frame_slot"].number_value(), w["acquire"].number_value(),
+                                   w["present"].number_value()};
+        const char* waitNames[] = {"the frame slot (an earlier GPU frame)", "the swap chain image acquire",
+                                   "the present"};
+        const size_t waitMax    = size_t(std::max_element(waits, waits + 3) - waits);
+        std::string waitText    = w.is_object() ? std::string(waitNames[waitMax]) + " (" +
+                                                   std::to_string(int(std::lround(100 * waits[waitMax] / frameMs))) +
+                                                   "% of the frame time)"
+                                                : std::string("between frames");
+        const char* busier      = gpu >= cpu ? "GPU" : "CPU";
+        std::string verdict     = std::max(gpu, cpu) >= 0.9 ? std::string("limited by the ") + busier
+                                  : std::max(gpu, cpu) >= 0.6
+                                      ? std::string("mostly ") + busier + "-bound; the CPU waits mostly for " + waitText
+                                  : w.is_object() && waits[waitMax] >= 0.05
+                                      ? std::string("limited by waits for ") + waitText
+                                      : std::string("limit undetermined");
+        std::snprintf(line, sizeof(line), "%s: GPU busy %.0f%%, CPU busy %.0f%% of the frame time (means)\n",
+                      verdict.c_str(), 100 * gpu, 100 * cpu);
+        out += line;
+    }
+    // The largest GPU passes (not the sub-sections)
+    std::vector<std::pair<double, std::string>> sections;
+    for (const auto& [name, v] : r["gpu_frame_ms"].object_items())
+        if (name != "gpu" && name.find('.') == std::string::npos)
+            sections.push_back({v["median"].number_value(), name});
+    std::sort(sections.rbegin(), sections.rend());
+    if (!sections.empty())
+    {
+        out += "GPU passes (median ms):";
+        for (size_t i = 0; i < sections.size() && i < 4; ++i)
+        {
+            std::snprintf(line, sizeof(line), " %s %.2f", sections[i].second.c_str(), sections[i].first);
+            out += line;
+        }
+        out += "\n";
+    }
+    // The committed baseline of this GPU (data/tests/benchmarks.json): the change of the S03 numbers
+    if (baseline.is_object())
+    {
+        // The warning first: a baseline of another build is no comparison
+        const auto& bb = baseline["build"];
+        if (bb.is_object() &&
+            (bb["type"] != b["type"] || bb["asserts"] != b["asserts"] || bb["archnative"] != b["archnative"]))
+        {
+            std::snprintf(line, sizeof(line), "baseline not comparable (it is a %s build %s asserts):\n  ",
+                          bb["type"].string_value().c_str(), bb["asserts"].bool_value() ? "with" : "without");
+            out += line;
+        }
+        auto change = [](double now, double base) { return base > 0 ? 100.0 * (now - base) / base : 0.0; };
+        std::snprintf(line, sizeof(line), "vs baseline: frame interval median %+.1f%%, S03 passes",
+                      change(r["cpu_ms"]["median"].number_value(), baseline["cpu_ms"]["median"].number_value()));
+        out += line;
+        for (const auto& [key, v] : r["gpu_ms"].object_items())
+        {
+            const double base = baseline["gpu_ms"][key]["median"].number_value();
+            if (base < 0.05) continue;  // below 50 us the change is noise
+            std::snprintf(line, sizeof(line), " %s %+.1f%%", key.c_str(), change(v["median"].number_value(), base));
+            out += line;
+        }
+        out += "\n";
+    }
+    return out;
 }
 
 bool WorldBenchmark::writeResult(const std::string& file, const json11::Json& json)

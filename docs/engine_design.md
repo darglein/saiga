@@ -2691,8 +2691,25 @@ frame loop: `frame`, `frame/poll`, `frame/advance`, `frame/render`; counters `fp
 `dropped_steps`) and `gpu` (one sample per completed GPU frame: `gpu`, its sections `gpu/transfer`, `gpu/scene`,
 `gpu/resolve`, `gpu/post`, `gpu/imgui` (S17; S13: `transfer`, `main`, `imgui`), the game's passes under
 `gpu/scene/game/<pass>` (drawn in the scene pass; S13/S14: `gpu/game/<pass>`; removed in S19b)); S19b adds the step
-scope `step/phase:extract/extract` (the extract after the interpolation, §10.3). Its ImGui window "Engine statistics" (F1: frame and step plots, the step profile per phase and system, the
-GPU, the counters) reads them.
+scope `step/phase:extract/extract` (the extract after the interpolation, §10.3). The frame profile separates work from
+waiting: `frame/render/wait` is the time the render blocked for the frame slot, the swap chain image and the present
+(`VulkanRenderer::lastWaitMs`, its parts `lastSlotWaitMs`, `lastAcquireWaitMs`, `lastPresentWaitMs`), `work` is `frame`
+without it (the CPU's busy time). The ImGui window "Engine statistics" (F1; racing and world open it, `--stats` in the
+other games; a one-line overlay at the top left while it is closed) shows statistics over a selectable window (3, 10 or
+30 s, refreshed every 0.5 s; the first second after the start and frames that were not presented are left out;
+`FrameStatistics` in `engine/app/`): what limits the frame rate (the display with vsync, the GPU, the CPU, or the
+largest wait), CPU and GPU busy against the refresh (vsync) or the frame, fps, 1% low (the mean of the slowest 1%, from
+100 frames on), the longest frame and the missed refreshes (vsync) or long frames (> 1.5 x the median and the median +
+1 ms) per second, a table (shown frame, frame interval, CPU busy, CPU wait, GPU busy: mean, median, p99, max) and a
+graph of the window's frames (per pixel column the longest interval; below it the busy times on their own scale). With
+vsync the refresh period is measured (the median of the frames that made a refresh; the window system may report
+another monitor's rate) and the shown frames are the intervals on the refresh grid (a late frame and the catch-up frame
+after it, absorbed by the swap chain queue, miss no refresh); uneven pacing (alternating intervals) is named as such.
+The world prototype's "World Statistics" (`WorldStatistics`) shows the world's GPU passes and CPU parts as means of 2 s;
+the frame times are only in "Engine statistics". The benchmark (`WorldBenchmark::summaryText`) prints a readable summary
+(fps, 1% low, max frame, long frames, pacing, the CPU wait's parts, a table, what limits the frame rate, the GPU passes
+and the change against the GPU's baseline); the JSON adds `frame_interval_ms` and `frame_work_ms` (mean, median, p95,
+p99, max), `fps` (mean, low_1pct), `long_frames`, `pacing_p99_ms`, `alternating` and `wait_ms`.
 
 ### 17.2 Scenario tests [exists: S12; terrain, streaming, render sink and clients with their stages]
 

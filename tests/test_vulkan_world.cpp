@@ -276,6 +276,77 @@ TEST(WorldBenchmark, Summarize)
     s = WorldBenchmark::summarize(v);
     EXPECT_EQ(s.median, 50.5);
     EXPECT_EQ(s.p95, 95);
+    // The tail: mean, p99, max and the mean of the largest 1% (ceil(n / 100) values)
+    EXPECT_EQ(s.mean, 50.5);
+    EXPECT_EQ(s.p99, 99);
+    EXPECT_EQ(s.max, 100);
+    EXPECT_EQ(s.worst1Percent, 100);
+    v.push_back(200);  // 101 values: the largest 2
+    EXPECT_EQ(WorldBenchmark::summarize(v).worst1Percent, 150);
+}
+
+// The benchmark's console summary: the stutter lines, the verdict and the baseline comparison
+TEST(WorldBenchmark, SummaryText)
+{
+    using json11::Json;
+    auto stat = [](double mean, double median, double p99, double max)
+    { return Json::object{{"mean", mean}, {"median", median}, {"p95", p99}, {"p99", p99}, {"max", max}}; };
+    Json::object r{
+        {"gpu", "GPU"},
+        {"build", Json::object{{"type", "Release"}, {"asserts", false}, {"archnative", false}}},
+        {"frames", 600},
+        {"width", 1920},
+        {"height", 1080},
+        {"fps", Json::object{{"mean", 400.0}, {"low_1pct", 180.0}}},
+        {"long_frames", 300},
+        {"stalled_frames", 0},
+        {"pacing_p99_ms", 4.8},
+        {"alternating", true},
+        {"wait_ms", Json::object{{"frame_slot", 0.1}, {"acquire", 1.5}, {"present", 0.05}}},
+        {"frame_interval_ms", stat(2.5, 2.4, 5.3, 5.7)},
+        {"frame_work_ms", stat(0.2, 0.2, 0.3, 0.4)},
+        {"gpu_frame_ms", Json::object{{"gpu", stat(2.0, 2.0, 2.5, 2.7)}, {"scene", stat(1.9, 1.9, 2.4, 2.6)}}},
+        {"cpu_ms", Json::object{{"median", 2.4}, {"p95", 5.0}}},
+        {"gpu_ms", Json::object{{"trees", Json::object{{"median", 1.5}, {"p95", 2.0}}}}},
+    };
+    std::string text = WorldBenchmark::summaryText(r);
+    EXPECT_NE(text.find("max frame 5.70 ms"), std::string::npos) << text;
+    // Alternating intervals: uneven pacing, not single stutters
+    EXPECT_NE(text.find("uneven frame pacing"), std::string::npos) << text;
+    // GPU busy 80% of the frame time: mostly GPU-bound, the largest wait is named
+    EXPECT_NE(text.find("mostly GPU-bound; the CPU waits mostly for the swap chain image acquire"), std::string::npos)
+        << text;
+    EXPECT_EQ(text.find("vs baseline"), std::string::npos) << text;
+    // Many long frames without alternation
+    r["alternating"] = false;
+    text             = WorldBenchmark::summaryText(r);
+    EXPECT_NE(text.find("frequent long frames"), std::string::npos) << text;
+    // A baseline of the same build: the changes; of another build: the warning first
+    Json::object base{{"build", r["build"]},
+                      {"cpu_ms", Json::object{{"median", 2.0}}},
+                      {"gpu_ms", Json::object{{"trees", Json::object{{"median", 1.0}}}}}};
+    text = WorldBenchmark::summaryText(r, base);
+    EXPECT_NE(text.find("frame interval median +20.0%"), std::string::npos) << text;
+    EXPECT_NE(text.find("trees +50.0%"), std::string::npos) << text;
+    EXPECT_EQ(text.find("not comparable"), std::string::npos) << text;
+    base["build"] = Json::object{{"type", "Release"}, {"asserts", true}, {"archnative", false}};
+    text          = WorldBenchmark::summaryText(r, base);
+    EXPECT_LT(text.find("baseline not comparable"), text.find("vs baseline")) << text;
+    // Regression (CodeRabbit): no measured wait names no wait as the limit
+    {
+        Json::object idle    = r;
+        idle["gpu_frame_ms"] = Json::object{{"gpu", stat(0.5, 0.5, 0.6, 0.7)}};
+        idle["wait_ms"]      = Json::object{{"frame_slot", 0.0}, {"acquire", 0.0}, {"present", 0.0}};
+        const std::string t  = WorldBenchmark::summaryText(idle);
+        EXPECT_NE(t.find("limit undetermined"), std::string::npos) << t;
+    }
+    // Without GPU times (no timestamps)
+    r["gpu_frame_ms"] = Json();
+    r["gpu_ms"]       = Json();
+    // Regression (CodeRabbit): missing GPU times were a "GPU busy 0%" verdict
+    text = WorldBenchmark::summaryText(r);
+    EXPECT_NE(text.find("no GPU times"), std::string::npos) << text;
+    EXPECT_EQ(text.find("GPU busy 0%"), std::string::npos) << text;
 }
 
 TEST(WorldBenchmark, Paths)

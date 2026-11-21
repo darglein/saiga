@@ -10,6 +10,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/app/FrameStatistics.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
@@ -343,6 +344,121 @@ TEST(AppCommandLine, ScreenshotVariableWithoutRendering)
     AppOptions q;
     auto b = argv({"--benchmark", "flyover"});
     EXPECT_TRUE(parseCommandLine(int(b.size()), b.data(), {}, t, q, error)) << error;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The statistics window's frame statistics: the vsync wait is idle time, not work, and single long frames show
+
+TEST(FrameStatistics, WindowTailAndStutter)
+{
+    FrameStatistics fs;
+    // 200 frames at a 6 ms refresh with 0.5 ms work, then two frames that missed one refresh each
+    for (int i = 0; i < 200; ++i) fs.addFrame(6, 0.5);
+    fs.addFrame(12, 0.5);
+    fs.addFrame(12, 0.5);
+    for (int i = 0; i < 3; ++i) fs.addGpu(1, fs.now());
+    FrameStatistics::Summary s = fs.summarize(10);
+    EXPECT_EQ(s.interval.samples, 202);
+    EXPECT_NEAR(s.seconds, 1.224, 1e-9);
+    EXPECT_EQ(s.interval.median, 6);
+    EXPECT_EQ(s.interval.max, 12);
+    EXPECT_EQ(s.work.median, 0.5);
+    EXPECT_EQ(s.idle.median, 5.5);  // the vsync wait: idle, not work
+    EXPECT_EQ(s.gpu.samples, 3);
+    // The slowest 1%: ceil(202 / 100) = 3 frames (12, 12, 6)
+    EXPECT_EQ(s.interval.worstCount, 3);
+    EXPECT_NEAR(s.interval.worst1Percent, 10, 1e-12);
+    EXPECT_TRUE(s.interval.lowValid);
+    // A missed refresh is an interval of exactly 2 refreshes: counted (a "> 2 x median" test missed it)
+    EXPECT_EQ(s.missedRefreshes, 2);
+    EXPECT_EQ(s.longFrames, 2);
+    // The window: the last 30 ms are the two long frames and one before them
+    s = fs.summarize(0.030);
+    EXPECT_EQ(s.interval.samples, 3);
+    EXPECT_FALSE(s.interval.lowValid);  // fewer than 100 frames
+    EXPECT_EQ(s.gpu.samples, 3);        // the GPU frames came at the end
+    // With the display's refresh period: a median at 2 refreshes (every frame misses one) still counts them all
+    FrameStatistics slow;
+    for (int i = 0; i < 100; ++i) slow.addFrame(12, 7);
+    EXPECT_EQ(slow.summarize(10).missedRefreshes, 0);  // the median looks like the refresh
+    EXPECT_EQ(slow.summarize(10, 6).missedRefreshes, 100);
+    // The refresh period: measured (p10), the reported one only if it fits (a whole multiple)
+    EXPECT_EQ(s.onTimeMedian, 6);
+    EXPECT_EQ(FrameStatistics::refreshPeriod(s, 0), 6);
+    EXPECT_EQ(FrameStatistics::refreshPeriod(s, 240), 6);  // another monitor's rate: 6 / 4.17 is no whole multiple
+    EXPECT_NEAR(FrameStatistics::refreshPeriod(slow.summarize(10), 165), 1000.0 / 165, 1e-9);  // 12 ms = 2 refreshes
+    // Regression (review): a relative tolerance accepted 240 Hz for frames of 2 refreshes at 165 Hz (12.1 ms is
+    // close to 3 x 4.17 ms)
+    EXPECT_EQ(FrameStatistics::refreshPeriod(slow.summarize(10), 240), 12);
+    // The shown frames with vsync: CPU-side jitter around the refresh is no stutter, a missed refresh is
+    FrameStatistics jitter;
+    for (int i = 0; i < 200; ++i) jitter.addFrame(i % 2 == 0 ? 5.2 : 6.8, 0.5);
+    FrameStatistics::Summary j = jitter.summarize(10, 6);
+    EXPECT_EQ(j.shown.max, 6);
+    EXPECT_EQ(j.missedRefreshes, 0);
+    EXPECT_TRUE(j.alternating);  // the CPU-side intervals alternate
+    // Regression (review): each frame rounded on its own made a late frame and its catch-up frame (9.1 + 3.0 ms
+    // = 2 refreshes of 6.06 ms) one missed refresh; the queue absorbed it
+    EXPECT_EQ(FrameStatistics::shownRefreshes({9.1, 3.0}, 6.06), (std::vector<int>{1, 1}));
+    EXPECT_EQ(FrameStatistics::shownRefreshes({12.1, 6.06}, 6.06), (std::vector<int>{2, 1}));  // a real miss
+    EXPECT_EQ(FrameStatistics::shownRefreshes({5.2, 6.8, 5.2, 6.8}, 6.0), (std::vector<int>{1, 1, 1, 1}));
+    // Regression (CodeRabbit): after an absorbed late frame the grid position kept the extra refresh, so a real miss
+    // right after it was lost
+    EXPECT_EQ(FrameStatistics::shownRefreshes({9.1, 3.0, 12.12}, 6.06), (std::vector<int>{1, 1, 2}));
+    FrameStatistics hitch;
+    for (int i = 0; i < 50; ++i) hitch.addFrame(6.06, 0.5);
+    hitch.addFrame(9.1, 0.5);
+    hitch.addFrame(3.0, 0.5);
+    EXPECT_EQ(hitch.summarize(10, 6.06).missedRefreshes, 0);
+    EXPECT_NEAR(hitch.summarize(10, 6.06).shown.max, 6.06, 1e-9);
+    // The session's period: a window where every frame misses keeps the session's period; a display change to a
+    // matching reported rate (144 -> 72 Hz) is taken
+    double session = 0;
+    EXPECT_NEAR(FrameStatistics::sessionRefreshPeriod(6.06, 240, session), 6.06, 1e-9);
+    EXPECT_NEAR(FrameStatistics::sessionRefreshPeriod(12.12, 240, session), 6.06, 1e-9);
+    session = 1000.0 / 144;
+    EXPECT_NEAR(FrameStatistics::sessionRefreshPeriod(1000.0 / 72, 72, session), 1000.0 / 72, 1e-9);
+    EXPECT_NEAR(session, 1000.0 / 72, 1e-9);
+    // The work is clamped to the interval
+    fs.addFrame(1, 5);
+    EXPECT_EQ(fs.summarize(0.0005).work.max, 1);
+}
+
+TEST(FrameStatistics, PacingAndTrim)
+{
+    // Alternating 4 and 8 ms: mean and median look fine, the frame pacing does not
+    FrameStatistics fs(1.0);
+    for (int i = 0; i < 400; ++i) fs.addFrame(i % 2 == 0 ? 4 : 8, 1);
+    FrameStatistics::Summary s = fs.summarize(10);
+    EXPECT_EQ(s.pacingP99, 4);
+    EXPECT_TRUE(s.alternating);
+    // Regression (CodeRabbit): isolated spikes (8 ms every 20 frames of 2 ms) flip the sign of every change above
+    // 0.1 ms, but they are single stutters, not alternation
+    FrameStatistics spikes;
+    for (int i = 0; i < 600; ++i) spikes.addFrame(i % 20 == 0 ? 8 : 2, 1);
+    EXPECT_FALSE(spikes.summarize(100).alternating);
+    // Random jitter (about 2 of 3 changes flip their sign) is no alternation
+    FrameStatistics noise;
+    uint32_t x = 12345;
+    for (int i = 0; i < 400; ++i)
+    {
+        x = x * 1664525u + 1013904223u;
+        noise.addFrame(4.0 + 2.0 * double(x >> 8) / double(1u << 24), 1);
+    }
+    EXPECT_FALSE(noise.summarize(10).alternating);
+    EXPECT_EQ(s.shortMs, 4);
+    EXPECT_EQ(s.longMs, 8);
+    // Only the last second is kept
+    EXPECT_NEAR(s.seconds, 1.0, 0.01);
+    EXPECT_LE(fs.frames(), 168u);
+    EXPECT_EQ(fs.recentIntervals(4), (std::vector<float>{4, 8, 4, 8}));
+    // Suspended rendering: the clock advances, the old frames age out, no long frame is added
+    fs.advance(2000);
+    EXPECT_EQ(fs.summarize(1).interval.samples, 0);
+    fs.addFrame(4, 1, {}, 2);
+    EXPECT_EQ(fs.summarize(1).steps, 2);
+    fs.clear();
+    EXPECT_EQ(fs.summarize(10).interval.samples, 0);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1021,6 +1137,28 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
         EXPECT_TRUE(st["rendering"].bool_value());
         EXPECT_EQ(st["size"][0].number_value(), 64);
     }
+    // The frame's wall time splits into the CPU work and the render's waits (frame slot, image, present), so the
+    // statistics do not show waiting for vsync as CPU time; the scopes are in get_profile
+    {
+        Profiler& fp                    = app.frameProfile();
+        const std::vector<double> frame = fp.scopeHistory(fp.scope("frame"));
+        const std::vector<double> work  = fp.scopeHistory(fp.scope("work"));
+        const std::vector<double> wait  = fp.scopeHistory(fp.scope("frame/render/wait"));
+        ASSERT_EQ(frame.size(), work.size());
+        ASSERT_EQ(frame.size(), wait.size());
+        ASSERT_FALSE(frame.empty());
+        for (size_t i = 0; i < frame.size(); ++i)
+        {
+            EXPECT_GE(wait[i], 0) << i;
+            EXPECT_LE(wait[i], frame[i]) << i;
+            EXPECT_NEAR(work[i] + wait[i], frame[i], 1e-9) << i;
+        }
+        Poller poller(app.mcp());
+        Json p     = toolJson(callTool(app.mcp(), "get_profile", Json::object{}));
+        bool found = false;
+        for (const auto& sc : p["frame"]["scopes"].array_items()) found |= sc["scope"].string_value() == "work";
+        EXPECT_TRUE(found) << p.dump();
+    }
     // quit from a frame callback ends run()
     app.onFrameRendered(
         [&]()
@@ -1029,6 +1167,29 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
             return true;
         });
     EXPECT_EQ(app.run(), 3);
+}
+
+// Regression (review): frames that were never presented (rendering off, a minimized window: paced to the step rate)
+// entered the frame statistics, so after a restore the window showed missed refreshes and a low 1% low for a while
+TEST_F(EngineAppRender, FrameStatisticsOnlyPresentedFrames)
+{
+    EngineApp app(appSetup(true));
+    // The first second is left out
+    app.runFrames(50, 1.0 / 60);
+    EXPECT_EQ(app.frameStatistics().frames(), 0u);
+    app.runFrames(30, 1.0 / 60);
+    const size_t presented = app.frameStatistics().frames();
+    EXPECT_GT(presented, 0u);
+    app.setRenderingEnabled(false);
+    app.runFrames(30, 1.0 / 60);
+    // The last presented frame ends with the first frame without rendering
+    EXPECT_LE(app.frameStatistics().frames(), presented + 1);
+    const size_t before = app.frameStatistics().frames();
+    app.setRenderingEnabled(true);
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_EQ(app.frameStatistics().frames(), before + 9);
+    // Their GPU times at their frames (a few frames late)
+    EXPECT_GT(app.frameStatistics().gpuSamples().size(), 0u);
 }
 
 // --screenshot: saved after the given frame, then the app quits

@@ -10,6 +10,7 @@
 #include "saiga/vulkan/world/WorldRenderer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdarg>
 #include <cstdio>
 
@@ -64,24 +65,19 @@ bool beginTable(const char* id, int columns)
                                  ImGuiTableFlags_SizingStretchProp);
 }
 
-// Plot of a ring buffer with avg / max in the overlay
-void historyPlot(const char* label, const std::vector<float>& values, int offset)
+// A bar of a share with its label at a fixed place (ImGui's ProgressBar moves the label with the fill)
+void shareBar(float share, const char* label, ImU32 color)
 {
-    float maxValue = 0, sum = 0;
-    int count = 0;
-    for (float v : values)
-    {
-        if (v <= 0) continue;
-        maxValue = std::max(maxValue, v);
-        sum += v;
-        count++;
-    }
-    float avg = count > 0 ? sum / count : 0;
-    ImGui::Text("%s", label);
-    ImGui::SameLine();
-    ImGui::TextDisabled("avg %.2f ms, max %.2f ms (last %d frames)", avg, maxValue, int(values.size()));
-    ImGui::PlotLines("##history", values.data(), int(values.size()), offset, nullptr, 0.0f,
-                     std::max(maxValue * 1.15f, 1.0f), ImVec2(-1, 45));
+    const ImVec2 p0   = ImGui::GetCursorScreenPos();
+    const float width = ImGui::GetContentRegionAvail().x;
+    const float h     = ImGui::GetFrameHeight();
+    ImGui::Dummy(ImVec2(width, h));
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    dl->AddRectFilled(p0, ImVec2(p0.x + width, p0.y + h), ImGui::GetColorU32(ImGuiCol_FrameBg));
+    dl->AddRectFilled(p0, ImVec2(p0.x + width * std::clamp(share, 0.0f, 1.0f), p0.y + h), color);
+    const ImVec2 at(p0.x + 6, p0.y + (h - ImGui::GetTextLineHeight()) / 2);
+    dl->AddText(ImVec2(at.x + 1, at.y + 1), IM_COL32(0, 0, 0, 200), label);
+    dl->AddText(at, IM_COL32(255, 255, 255, 255), label);
 }
 
 uint32_t treesVisible(const PrototypeForest::Stats& s)
@@ -108,27 +104,29 @@ void WorldRenderer::imguiStatistics()
         ImGui::End();
         return;
     }
-    auto& s                         = statistics;
+    const Shown& shown              = shownStatistics();
+    const Stats& s                  = statistics;
     const PrototypeWorld* pw        = renderScene->prototypeWorld();
     const PrototypeWorld::Stats ps  = pw ? pw->stats() : PrototypeWorld::Stats();
     const PrototypeForest::Stats fs = trees.stats();
 
     // ---------------------------------------------------------------------------------------- Overview
-    ImGui::Text("%.1f fps   frame %.2f ms   GPU %.2f ms   %d draw calls", s.fps, s.cpuFrameMs, s.gpuMs, s.drawCalls);
-    ImGui::TextDisabled("%dx MSAA, reversed depth, %.1f km world, %d trees%s", int(renderScene->formats().samples),
-                        heightField().worldSize() / 1000.0f, trees.treeCount(),
-                        settings.depthPrePass ? ", depth pre-pass" : "");
-    ImGui::PushID("cpu");
-    historyPlot("frame (CPU)", cpuHistory, historyIndex);
-    ImGui::PopID();
-    ImGui::PushID("gpu");
-    historyPlot("frame (GPU)", gpuHistory, historyIndex);
-    ImGui::PopID();
+    // The frame times, CPU and GPU busy are in the app's "Engine statistics" (one place for them); this window breaks
+    // the world's part down. The times are means over the last kShownSeconds, refreshed every kRefreshSeconds (numbers
+    // that change every frame cannot be read)
+    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
+    ImGui::TextWrapped("World renderer: GPU passes and CPU work. Whole-frame timing: Engine statistics (F1).");
+    ImGui::PopStyleColor();
+    ImGui::TextDisabled("%dx MSAA, reversed depth, %.1f km world, %d trees%s, %d draw calls",
+                        int(renderScene->formats().samples), heightField().worldSize() / 1000.0f, trees.treeCount(),
+                        settings.depthPrePass ? ", depth pre-pass" : "", s.drawCalls);
 
     // ---------------------------------------------------------------------------------------- GPU sections
-    if (ImGui::CollapsingHeader("GPU sections", ImGuiTreeNodeFlags_DefaultOpen))
+    char header[64];
+    std::snprintf(header, sizeof(header), "GPU sections (mean of %.0f s)###gpu sections", kShownSeconds);
+    if (ImGui::CollapsingHeader(header, ImGuiTreeNodeFlags_DefaultOpen))
     {
-        if (s.gpuSectionMs.empty())
+        if (shown.gpuSectionMs.empty())
         {
             ImGui::TextDisabled("No GPU times (no timestamps, or the app does not take them).");
         }
@@ -138,29 +136,53 @@ void WorldRenderer::imguiStatistics()
             ImGui::TableSetupColumn("ms", ImGuiTableColumnFlags_WidthStretch, 0.6f);
             ImGui::TableSetupColumn("share", ImGuiTableColumnFlags_WidthStretch, 1.5f);
             ImGui::TableHeadersRow();
-            const auto& names = RenderScene::gpuSectionNames();
-            double total      = std::max(s.gpuMs, 1e-6);
-            for (size_t i = 0; i < s.gpuSectionMs.size() && i < names.size(); ++i)
+            const auto& names  = RenderScene::gpuSectionNames();
+            const double total = std::max(shown.gpuMs, 1e-6);
+            // A pass's share of the frame; a sub-section's (dotted name) share of its pass, indented and dimmer. A
+            // pass below 5 us (off, e.g. the depth pre-pass) has no meaningful shares
+            constexpr double kOff = 0.005;
+            std::string offNames;
+            double passMs = total;
+            for (size_t i = 0; i < shown.gpuSectionMs.size() && i < names.size(); ++i)
             {
-                double ms = std::max(s.gpuSectionMs[i], 0.0);
-                // The sub-sections (dotted names) indented below their pass
-                const bool sub = std::string(names[i]).find('.') != std::string::npos;
-                cell("%s%s", sub ? "  " : "", names[i]);
+                const double ms = std::max(shown.gpuSectionMs[i], 0.0);
+                const bool sub  = std::string(names[i]).find('.') != std::string::npos;
+                if (!sub) passMs = ms;
+                const bool off     = (sub ? std::min(passMs, ms) : ms) < kOff;
+                const double share = sub ? ms / std::max(passMs, 1e-6) : ms / total;
+                // A pass that is off (or a sub-section below 5 us) is listed below the table, not as a row of zeros
+                if (off)
+                {
+                    if (!offNames.empty()) offNames += ", ";
+                    offNames += names[i];
+                    continue;
+                }
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                if (sub) ImGui::Indent(12);
+                ImGui::TextUnformatted(names[i]);
+                if (sub) ImGui::Unindent(12);
                 cellRight(milliseconds(ms));
                 ImGui::TableNextColumn();
-                char label[16];
-                std::snprintf(label, sizeof(label), "%.0f%%", 100.0 * ms / total);
-                ImGui::ProgressBar(float(ms / total), ImVec2(-1, 0), label);
+                char label[32];
+                // A sub-section's bar indented and dimmer: its share of the pass, not of the frame
+                std::snprintf(label, sizeof(label), sub ? "%.0f%% of the pass" : "%.0f%% of the GPU time",
+                              100.0 * share);
+                if (sub) ImGui::Indent(16);
+                shareBar(float(share), label, sub ? IM_COL32(130, 95, 45, 255) : IM_COL32(220, 140, 40, 255));
+                if (sub) ImGui::Unindent(16);
             }
             cell("frame");
-            cellRight(milliseconds(std::max(s.gpuMs, 0.0)));
+            cellRight(milliseconds(std::max(shown.gpuMs, 0.0)));
             cell(" ");
             ImGui::EndTable();
+            if (!offNames.empty()) ImGui::TextDisabled("off or below 5 us: %s", offNames.c_str());
         }
     }
 
     // ---------------------------------------------------------------------------------------- CPU
-    if (ImGui::CollapsingHeader("CPU per frame", ImGuiTreeNodeFlags_DefaultOpen))
+    std::snprintf(header, sizeof(header), "CPU per frame (mean of %.0f s)###cpu", kShownSeconds);
+    if (ImGui::CollapsingHeader(header, ImGuiTreeNodeFlags_DefaultOpen))
     {
         if (beginTable("cpu", 2))
         {
@@ -170,14 +192,11 @@ void WorldRenderer::imguiStatistics()
             auto row = [&](const char* name, double ms)
             {
                 cell("%s", name);
-                char buf[32];
-                std::snprintf(buf, sizeof(buf), "%.3f", ms);
-                cellRight(buf);
+                cellRight(milliseconds(ms));
             };
-            row("terrain node selection", s.cpuTerrainSelectMs);
-            row("grass tile culling", s.cpuGrassCullMs);
-            row("recording and submit (RenderScene)", renderScene->lastRecordingMs());
-            row("frame (everything)", s.cpuFrameMs);
+            row("terrain node selection", shown.terrainSelectMs);
+            row("grass tile culling", shown.grassCullMs);
+            row("recording and submit (RenderScene)", shown.recordingMs);
             ImGui::EndTable();
         }
     }
@@ -214,7 +233,9 @@ void WorldRenderer::imguiStatistics()
             cellRight(compact(total));
             ImGui::EndTable();
         }
-        ImGui::TextDisabled("grass: clumps of the visible tiles, before the per clump rejection in the shader");
+        ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetColorU32(ImGuiCol_TextDisabled));
+        ImGui::TextWrapped("grass: clumps of the visible tiles, before the per clump rejection in the shader");
+        ImGui::PopStyleColor();
     }
 
     // ---------------------------------------------------------------------------------------- Terrain

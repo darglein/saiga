@@ -12,6 +12,7 @@
 #include "saiga/vulkan/world/WorldSettings.h"
 
 #include <chrono>
+#include <deque>
 #include <memory>
 #include <vector>
 
@@ -93,8 +94,11 @@ class SAIGA_VULKAN_API WorldRenderer
 
     struct Stats
     {
-        // Averages over the last frames
+        // Averages over the last frames: the frame interval (wall time), of it the render's waits for the frame slot,
+        // the swap chain image and the present (vsync or the GPU; idle time), and the rest, the CPU's work
         double cpuFrameMs = 0;
+        double cpuWaitMs  = 0;
+        double cpuWorkMs  = 0;
         double fps        = 0;
         // RenderScene's GPU frame and sections (averaged, the app takes them), -1 if not available
         double gpuMs = -1;
@@ -130,13 +134,43 @@ class SAIGA_VULKAN_API WorldRenderer
     uint64_t lastGpuFrame = 0;
     Stats statistics;
 
-    // Frame times of the last frames (ring buffers for the plots)
-    static constexpr int historySize = 300;
-    std::vector<float> cpuHistory    = std::vector<float>(historySize, 0.0f),
-                       gpuHistory    = std::vector<float>(historySize, 0.0f);
-    int historyIndex                 = 0;
-
     static void smooth(double& average, double value, int frames);
+
+   public:
+    // The numbers the statistics window shows: means over the last kShownSeconds (buckets of kRefreshSeconds),
+    // recomputed every kRefreshSeconds (numbers that change every frame cannot be read). The frame times themselves are
+    // in the app's "Engine statistics".
+    static constexpr double kShownSeconds   = 2.0;
+    static constexpr double kRefreshSeconds = 0.5;
+    struct Shown
+    {
+        double gpuMs = 0;
+        std::vector<double> gpuSectionMs;  // RenderScene::gpuSectionNames(); empty without GPU times
+        double terrainSelectMs = 0, grassCullMs = 0, recordingMs = 0;
+        bool valid = false;
+    };
+    // The shown statistics (refreshed every kRefreshSeconds by update())
+    const Shown& shownStatistics() const { return shown; }
+
+   private:
+    // The sums of one bucket of frames (each GPU frame once)
+    struct Bucket
+    {
+        double gpuSum = 0;
+        std::vector<double> gpuSectionSum;
+        int gpuFrames           = 0;
+        double terrainSelectSum = 0, grassCullSum = 0, recordingSum = 0;
+        int cpuFrames = 0;
+        std::chrono::steady_clock::time_point end;  // when the bucket was completed
+    };
+    std::deque<Bucket> buckets;
+    size_t sectionCount = 0;  // the GPU section layout of the buckets
+    Bucket current;
+    uint64_t bucketGpuFrame = 0;
+    std::chrono::steady_clock::time_point bucketStart;
+    bool bucketStarted = false;
+    Shown shown;
+    void rotateBuckets();
 };
 
 }  // namespace Vulkan

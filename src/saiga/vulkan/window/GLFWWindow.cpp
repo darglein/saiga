@@ -136,6 +136,31 @@ void GLFWWindow::create()
     std::cout << "GLFW window created." << std::endl;
 }
 
+double GLFWWindow::refreshRateHz()
+{
+    // The monitor that contains the window's center (a full screen window has its own), else the primary one
+    GLFWmonitor* monitor = window ? glfwGetWindowMonitor(window) : nullptr;
+    if (!monitor && window)
+    {
+        int x = 0, y = 0, w = 0, h = 0;
+        glfwGetWindowPos(window, &x, &y);
+        glfwGetWindowSize(window, &w, &h);
+        const int cx = x + w / 2, cy = y + h / 2;
+        int count              = 0;
+        GLFWmonitor** monitors = glfwGetMonitors(&count);
+        for (int i = 0; i < count && !monitor; ++i)
+        {
+            int mx = 0, my = 0;
+            glfwGetMonitorPos(monitors[i], &mx, &my);
+            const GLFWvidmode* mode = glfwGetVideoMode(monitors[i]);
+            if (mode && cx >= mx && cx < mx + mode->width && cy >= my && cy < my + mode->height) monitor = monitors[i];
+        }
+    }
+    if (!monitor) monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
+    return mode ? double(mode->refreshRate) : 0.0;
+}
+
 void GLFWWindow::createSurface(VkInstance instance, VkSurfaceKHR* surface)
 {
     VkResult err = glfwCreateWindowSurface(instance, window, NULL, surface);

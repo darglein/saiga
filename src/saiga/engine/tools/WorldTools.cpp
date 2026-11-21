@@ -173,7 +173,8 @@ std::vector<ToolSpec> toolSpecs()
               {"include_moved", S::BooleanProperty("Also report moved entities")},
               {"limit", S::IntegerProperty("Maximum changes and moved entities per call (1..1000, 200)")}})},
         {"get_profile",
-         "Reads the step profile: per scope (step, phases, systems, command flushes) avg/min/p50/p95/max in ms and "
+         "Reads the step profile: per scope (step, phases, systems, command flushes) avg/min/p50/p95/p99/max and the "
+         "mean of the largest 1% (worst_1pct_avg) in ms and "
          "the share of the parent, plus counters (entities, game objects, objects updated, commands, structural "
          "records, grid items), over the last steps (default: the whole history of 600). In the app also frame "
          "(frame and its poll, advance and render scopes; fps, steps per frame, dropped steps) and gpu (the GPU frame "
