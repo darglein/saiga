@@ -63,8 +63,8 @@ void main() {
         float w = weight[i];
         vec2 off2 = blur_direction * off;
 
-        out_color += texture2D(inputTex, uv + (off2 / image_size)).rgb * w;
-        out_color += texture2D(inputTex, uv - (off2 / image_size)).rgb * w;
+        out_color += texture(inputTex, uv + (off2 / image_size)).rgb * w;
+        out_color += texture(inputTex, uv - (off2 / image_size)).rgb * w;
     }
 
     imageStore(destTex, texel_position, vec4(out_color, 1));
