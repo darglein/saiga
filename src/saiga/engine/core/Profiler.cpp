@@ -202,7 +202,9 @@ json11::Json Profiler::report(int lastSamples, int skipNewest) const
     Json::array top;
     for (size_t i = 0; i < leaves.size() && i < 10; ++i)
         top.push_back(Json::object{{"scope", leaves[i].second}, {"avg", round6(leaves[i].first)}});
-    const int n = lastSamples <= 0 ? filled : std::min(lastSamples, filled);
+    // The samples the statistics use: after the skipped newest ones
+    const int avail = filled - std::clamp(skipNewest, 0, filled);
+    const int n     = lastSamples <= 0 ? avail : std::min(lastSamples, avail);
     return Json::object{{"unit", "ms"}, {"samples", n}, {"top", top}, {"scopes", scopeList}, {"counters", counterList}};
 }
 

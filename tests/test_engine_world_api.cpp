@@ -703,6 +703,9 @@ TEST(Profiler, StatisticsRingTreeAndCounters)
     // The newest samples left out: the 2 long frames are the newest 2
     EXPECT_EQ(q.report(10, 2)["scopes"][0]["max"].number_value(), 6);
     EXPECT_EQ(q.report(10, 1)["scopes"][0]["max"].number_value(), 40);
+    // Regression (CodeRabbit): the reported sample count is the one after the skip (a truncation stays visible)
+    EXPECT_EQ(q.report(10, 2)["samples"].number_value(), 10);
+    EXPECT_EQ(q.report(250, 2)["samples"].number_value(), 198);
 }
 
 // Regression (S19a review): RenderScene's GPU sub-sections (gpu/scene.instances) were siblings of their pass

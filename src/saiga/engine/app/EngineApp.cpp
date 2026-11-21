@@ -1132,9 +1132,9 @@ void EngineApp::refreshShownStatistics()
         s.periodMs = s.summary.interval.median;
     // The time the graph covers: the window, or the time since the statistics started until it is full
     s.graphSpan = std::max(std::min(window, frameStats.now() - frameStats.firstTime()), 1.0);
-    // The steps the window's frames ran (none while the world is paused: no table of older steps)
-    // The steps of the window's frames: the current loop's steps (pendingSteps) belong to a frame whose interval is not
-    // in the window yet
+    // The newest steps, as many as the window's frames ran: about the window's time (the steps of a frame that was not
+    // presented are among them; none while the world is paused), without the current loop's steps (pendingSteps: their
+    // frame is not in the window yet)
     s.stepReport = s.summary.steps > 0 ? gameWorld->profiler().report(s.summary.steps, pendingSteps) : json11::Json();
 }
 
@@ -1416,8 +1416,8 @@ void EngineApp::statisticsWindow()
         {
             // The step profile keeps the last historySize steps: a longer window shows only those
             const int shownSteps = report["samples"].int_value();
-            ImGui::TextDisabled("%d steps (%.1f s)%s", shownSteps, shownSteps * gameWorld->dt(),
-                                shownSteps < sum.steps ? ", the newest the step profile keeps" : "");
+            ImGui::TextDisabled("the newest %d steps (%.1f s)%s", shownSteps, shownSteps * gameWorld->dt(),
+                                shownSteps < sum.steps ? ", all the step profile keeps" : "");
         }
         if (ImGui::BeginTable("scopes", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 220)))
         {
