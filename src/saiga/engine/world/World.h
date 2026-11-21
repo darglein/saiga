@@ -471,6 +471,17 @@ class SAIGA_ENGINE_API World
     // keys added or removed): host tombstones and tombstone-on-edit, stamping, the client's record messages and Resync,
     // a host load's commit. Forwards to the content render sets and the grass masks
     void onRecordChanged(const ChunkId& chunk);
+    // Host: tombstones one generated tier-1 instance (§12.5; S23b). Checked at the call in every build, also during a
+    // step (SAIGA_EXIT_ERROR, as editTerrain): the role, the space, the chunk range, the slot, the counter and that the
+    // key names an accepted, not excluded instance at the chunk's effective placement version (generated
+    // synchronously through the cache). Between steps at once; during a step a command applied at the phase flush;
+    // not inside parallelEach. Idempotent: a tombstoned key changes nothing (no sequence, message or notification)
+    void tombstone(ChunkId chunk, InstanceKey key);
+    // The checks of tombstone without stopping: false with the error (the world API)
+    bool checkTombstone(ChunkId chunk, InstanceKey key, std::string* error) const;
+    bool isTombstoned(ChunkId chunk, InstanceKey key) const;
+    // The chunk's record (null: none; the effective record is {current version, no tombstones})
+    const ChunkRecord* chunkRecord(ChunkId chunk) const;
     // Engine-internal: the listeners of onRecordChanged (the content render system, the terrain's grass path)
     int addRecordListener(std::function<void(const ChunkId&)> fn)
     {

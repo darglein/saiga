@@ -19,6 +19,7 @@
 #include "saiga/engine/content/Prefab.h"
 #include "saiga/engine/content/PrefabStore.h"
 #include "saiga/engine/content/Systems.h"
+#include "saiga/engine/content/Tombstones.h"
 #include "saiga/engine/content/gen/AuthoredSpaceGenerator.h"
 #include "saiga/engine/content/gen/FixedMath.h"
 #include "saiga/engine/content/gen/FlatGenerator.h"
@@ -2688,4 +2689,228 @@ TEST(ChunkRecords, LoadErrors)
         d.contentRecordsForUpdate().injectForTests(chunkAt(0, 0, 2), 1, {key(0, 1)});
         expectError(d.save(), "tombstones in a space whose generator has no slots");
     }
+}
+
+// ---- tombstones (S23b step 3) --------------------------------------------------------------------------------------
+
+namespace
+{
+// The accepted (in the placement), rejected (no candidate) and excluded (a candidate inside an exclusion) keys of a
+// slot in a chunk at the effective placement version
+struct SlotKeys
+{
+    std::vector<InstanceKey> accepted, rejected, excluded;
+};
+SlotKeys slotKeys(const World& w, const ChunkId& c, uint32_t slot)
+{
+    SlotKeys out;
+    const SpaceGeneration& g = w.generation().space(c.space);
+    const uint16_t v         = w.effectivePlacementVersion(c);
+    const auto p             = w.generation().chunkPlacement(c, v);
+    for (uint32_t n = 0; n < g.generator->candidatesPerChunk(slot); ++n)
+    {
+        Candidate cand;
+        const InstanceKey k = key(slot, n);
+        if (!g.generator->candidate(v, *g.plan, c, slot, n, cand))
+            out.rejected.push_back(k);
+        else if (findInstance(*p, k))
+            out.accepted.push_back(k);
+        else
+            out.excluded.push_back(k);
+    }
+    return out;
+}
+
+// A system that tombstones g_stepKey in phase 4 (the death and flush tests)
+ChunkId g_stepChunk;
+InstanceKey g_stepKey;
+bool g_stepTombstone = false;
+void stepTombstoneSystem(World& w, double)
+{
+    if (!g_stepTombstone) return;
+    g_stepTombstone = false;
+    w.tombstone(g_stepChunk, g_stepKey);
+    // Applied at the flush, not yet
+    EXPECT_FALSE(w.isTombstoned(g_stepChunk, g_stepKey));
+}
+void stepTombstoneSystems(SystemList& l)
+{
+    l.add(Phase::Gameplay, "test_tombstone", stepTombstoneSystem);
+}
+WorldSetup stepTombstoneSetup()
+{
+    WorldSetup s = ContentTest::contentTestSetup(2);
+    s.systems    = stepTombstoneSystems;
+    return s;
+}
+}  // namespace
+
+// A valid key: the record is created at the current version, S22's sequence advances (an entry without deltas, saved
+// by TERR); idempotent; inside a step it applies at the phase flush
+TEST(Tombstone, ApplyIdempotentAndInStep)
+{
+    World w(stepTombstoneSetup());
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(w, c, 0);
+    ASSERT_GE(k.accepted.size(), 2u);
+    ASSERT_FALSE(k.rejected.empty());
+    ASSERT_FALSE(k.excluded.empty()) << "site 0's exclusion lies in chunk (4, 5)";
+    int notified = 0;
+    w.addRecordListener([&](const ChunkId&) { notified++; });
+    std::string error;
+    EXPECT_TRUE(w.checkTombstone(c, k.accepted[0], &error)) << error;
+    w.tombstone(c, k.accepted[0]);
+    ASSERT_TRUE(w.chunkRecord(c));
+    EXPECT_EQ(w.chunkRecord(c)->placementVersion, 2);
+    EXPECT_TRUE(w.isTombstoned(c, k.accepted[0]));
+    EXPECT_FALSE(w.isTombstoned(c, k.accepted[1]));
+    EXPECT_EQ(w.terrainEdits().sequence(c), 1u);
+    EXPECT_FALSE(w.terrainEdits().hasDeltas(c));
+    EXPECT_EQ(notified, 1);
+    // Idempotent
+    w.tombstone(c, k.accepted[0]);
+    EXPECT_EQ(w.terrainEdits().sequence(c), 1u);
+    EXPECT_EQ(notified, 1);
+    // Inside a step: a command applied at the flush of phase 4
+    g_stepChunk     = c;
+    g_stepKey       = k.accepted[1];
+    g_stepTombstone = true;
+    w.step(1);
+    EXPECT_TRUE(w.isTombstoned(c, k.accepted[1]));
+    EXPECT_EQ(w.terrainEdits().sequence(c), 2u);
+    EXPECT_EQ(w.chunkRecord(c)->tombstones, (std::vector<InstanceKey>{k.accepted[0], k.accepted[1]}));
+    // TERR saves the tombstone-only entry; the load restores record and sequence
+    World b(stepTombstoneSetup());
+    ASSERT_TRUE(b.tryLoad(w.save()).ok());
+    EXPECT_EQ(b.terrainEdits().sequence(c), 2u);
+    EXPECT_EQ(b.effectiveRecord(c), w.effectiveRecord(c));
+    EXPECT_EQ(b.hash(), w.hash());
+}
+
+// Invalid keys: the check reports them (the world API) and the call stops on the host, also inside a step; a client
+// call stops
+TEST(TombstoneDeathTest, InvalidKeysStop)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    World w(stepTombstoneSetup());
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(w, c, 0);
+    std::string error;
+    EXPECT_FALSE(w.checkTombstone(c, k.rejected[0], &error));
+    EXPECT_NE(error.find("rejected or excluded"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(c, k.excluded[0], &error));
+    EXPECT_NE(error.find("rejected or excluded"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(c, key(0, 16384), &error));
+    EXPECT_NE(error.find("out of range"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(c, key(2, 0), &error));
+    EXPECT_NE(error.find("has no slot 2"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(chunkAt(128, 0), k.accepted[0], &error));
+    EXPECT_NE(error.find("outside the space"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(chunkAt(0, 0, 2), key(0, 0), &error));
+    EXPECT_NE(error.find("has no slot 0"), std::string::npos) << error;
+
+    EXPECT_DEATH(w.tombstone(c, k.rejected[0]), "rejected or excluded");
+    EXPECT_DEATH(w.tombstone(c, k.excluded[0]), "rejected or excluded");
+    EXPECT_DEATH(w.tombstone(c, key(0, 16384)), "out of range");
+    EXPECT_DEATH(w.tombstone(chunkAt(-1, 3), k.accepted[0]), "outside the space");
+    auto inStep = [&](InstanceKey bad)
+    {
+        g_stepChunk     = c;
+        g_stepKey       = bad;
+        g_stepTombstone = true;
+        w.step(1);
+    };
+    EXPECT_DEATH(inStep(k.excluded[0]), "rejected or excluded");
+    EXPECT_DEATH(inStep(key(0, 99999)), "out of range");
+    EXPECT_FALSE(w.isTombstoned(c, k.excluded[0]));
+
+    // A client call stops (R-NET-2)
+    auto t       = LoopbackTransport::createNetwork(2, LoopbackOptions());
+    WorldSetup h = ContentTest::contentTestSetup(2);
+    h.transport  = t[0].get();
+    World host(h);
+    WorldSetup cs = ContentTest::contentTestSetup(2);
+    cs.transport  = t[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
+    World client(cs);
+    EXPECT_FALSE(client.checkTombstone(c, k.accepted[0], &error));
+    EXPECT_DEATH(client.tombstone(c, k.accepted[0]), "tombstone on a client");
+}
+
+// A terrain edit creates no chunk record (S22's sequence only), on a FlatGenerator-like hook space and on a test
+// generator space; a tombstone after an edit continues S22's sequence
+TEST(ChunkRecords, EditsCreateNoRecordAndSequencesContinue)
+{
+    World w(ContentTest::contentTestSetup(2));
+    const ChunkId c = chunkAt(4, 5);
+    TerrainBrush b;
+    b.center   = Vec3(1150, 0, 1400);
+    b.radius   = 6;
+    b.strength = 1;
+    w.editTerrain(0, b);
+    ASSERT_EQ(w.terrainEdits().sequence(c), 1u);
+    EXPECT_TRUE(w.contentRecords().records().empty());
+    const SlotKeys k = slotKeys(w, c, 1);
+    ASSERT_FALSE(k.accepted.empty());
+    w.tombstone(c, k.accepted[0]);
+    EXPECT_EQ(w.terrainEdits().sequence(c), 2u);
+
+    // A world whose only generator is a hook (no slots): an edit, no record, no generation state
+    WorldSetup hook;
+    SpaceTemplate t;
+    t.generator                = 1;
+    t.sizeChunks               = 16;
+    hook.config.spaceTemplates = {t};
+    hook.generators            = [](GeneratorList& l)
+    { l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); })); };
+    World hw(hook);
+    hw.editTerrain(0, b);
+    EXPECT_TRUE(hw.contentRecords().empty());
+    EXPECT_FALSE(hw.writesGenerationState());
+}
+
+// The committed save of S23b: records (stamped, tombstoned, tombstone-only), an edited chunk; it loads and saves again
+// with the same state
+TEST(ChunkRecords, CommittedSaveLoads)
+{
+    const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23b.bin";
+    const ChunkId c45 = chunkAt(4, 5), c20 = chunkAt(20, 30);
+    const char* update = std::getenv("SAIGA_UPDATE_GOLDEN");
+    if (update && std::string(update) == "1")
+    {
+        World w(ContentTest::contentTestSetup(2));
+        stampSiteZero(w);
+        TerrainBrush b;
+        b.center   = Vec3(1110, 0, 1290);
+        b.radius   = 8;
+        b.strength = 2;
+        w.editTerrain(0, b);
+        w.tombstone(c45, slotKeys(w, c45, 0).accepted[0]);
+        w.tombstone(c20, slotKeys(w, c20, 1).accepted[0]);
+        w.step(3);
+        const auto blob = w.save();
+        std::ofstream(path, std::ios::binary)
+            .write(reinterpret_cast<const char*>(blob.data()), std::streamsize(blob.size()));
+        GTEST_SKIP() << "wrote " << path;
+    }
+    std::ifstream f(path, std::ios::binary);
+    const std::vector<uint8_t> blob((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    ASSERT_FALSE(blob.empty()) << path;
+    World w(ContentTest::contentTestSetup(2));
+    const LoadResult r = w.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_TRUE(w.contentRecords().isStamped(c45));
+    ASSERT_TRUE(w.chunkRecord(c45));
+    EXPECT_EQ(w.chunkRecord(c45)->tombstones.size(), 1u);
+    ASSERT_TRUE(w.chunkRecord(c20));
+    EXPECT_EQ(w.chunkRecord(c20)->tombstones.size(), 1u);
+    EXPECT_FALSE(w.contentRecords().isStamped(c20));
+    EXPECT_EQ(w.terrainEdits().sequence(c20), 1u);
+    EXPECT_FALSE(w.terrainEdits().hasDeltas(c20));
+    EXPECT_TRUE(w.terrainEdits().hasDeltas(c45));
+    EXPECT_EQ(w.terrainEdits().sequence(c45), 2u);
+    World again(ContentTest::contentTestSetup(2));
+    ASSERT_TRUE(again.tryLoad(w.save()).ok());
+    EXPECT_EQ(again.hash(), w.hash());
 }

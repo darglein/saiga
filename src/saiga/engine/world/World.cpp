@@ -19,6 +19,7 @@
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Systems.h"
+#include "saiga/engine/content/Tombstones.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -887,6 +888,32 @@ ChunkRecord World::effectiveRecord(const ChunkId& chunk) const
     ChunkRecord r;
     r.placementVersion = pipeline->space(chunk.space).current;
     return r;
+}
+
+bool World::checkTombstone(ChunkId chunk, InstanceKey key, std::string* error) const
+{
+    return Engine::checkTombstone(*this, chunk, key, error);
+}
+
+void World::tombstone(ChunkId chunk, InstanceKey key)
+{
+    checkNotParallel("tombstone");
+    std::string error;
+    // Checked at the call in every build, also during a step (the error points at the caller); the placement version
+    // cannot change before the flush (only tombstones and loads change records)
+    if (!checkTombstone(chunk, key, &error)) SAIGA_EXIT_ERROR(error);
+    recordOrRun([chunk, key](World& w) { applyTombstone(w, chunk, key); });
+}
+
+bool World::isTombstoned(ChunkId chunk, InstanceKey key) const
+{
+    const ChunkRecord* r = chunkRecords->find(chunk);
+    return r && r->tombstoned(key);
+}
+
+const ChunkRecord* World::chunkRecord(ChunkId chunk) const
+{
+    return chunkRecords->find(chunk);
 }
 
 void World::onRecordChanged(const ChunkId& chunk)
