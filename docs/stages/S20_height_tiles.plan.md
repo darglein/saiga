@@ -1297,7 +1297,8 @@ Measured on the RTX 5080 Laptop GPU (driver with validation for the tests) and o
   `TerrainHeightEqualsTheIntegerRule`, `OneVertexPerSampleAtLevelZero` (both spacings), `RenderedDepthMatchesSurface`,
   `NoCrackAtLevelBorders` pass on both devices. The S02 goldens were regenerated on lavapipe in step 7c (counts:
   `world_overview` 0 / 2 / 3937 trees per LOD, 72 terrain nodes; `world_forest` 27 / 338 / 506, 131 nodes); on the RTX
-  (not gating) `world_forest` differs by mean 1.02/255.
+  (not gating) `world_forest` differs by mean 1.02/255. After the implementation review's relief-independent LOD metric
+  `world_overview` (a high camera: coarser) has 65 terrain nodes and was regenerated (it had differed by mean 0.17/255).
 - **Scenarios.** `--scenarios` of flight, racing and platformer: 18 runs passed each (scenarios x variants incl. host + client), no value
   re-recorded (the flight autopilot positions and the racing lap keep their committed tolerances on the new surface).
   Racing startup: the site search over `prototypeSurfaceHeight` takes 1.33 s.

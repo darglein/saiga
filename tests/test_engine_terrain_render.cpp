@@ -229,7 +229,7 @@ TEST_F(VulkanWorldGolden, WorldOverview)
     auto img = Shot(eye, eye + dir);
     EXPECT_EQ(img.w, 512);
     compareGolden(img, "world_overview", deviceName());
-    ExpectCounts("world_overview", 0, 2, 3937, 72);
+    ExpectCounts("world_overview", 0, 2, 3937, 65);
 }
 
 TEST_F(VulkanWorldGolden, WorldForest)
