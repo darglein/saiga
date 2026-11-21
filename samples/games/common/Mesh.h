@@ -37,7 +37,6 @@ struct MeshData
     void addQuad(const Vec3& a, const Vec3& b, const Vec3& c, const Vec3& d, const Vec3& color);
     // Appends other transformed by m (positions and normals)
     void append(const MeshData& other, const Mat4& m = Mat4::Identity());
-
 };
 
 // Procedural low-poly meshes. Forward is -z, up is +y.
@@ -48,6 +47,9 @@ MeshData box(const Vec3& halfExtents, const Vec3& color, const Vec3& center = Ve
 MeshData cylinder(double radius, double halfLength, int segments, const Vec3& color);
 // Base at y = 0, apex at y = height
 MeshData cone(double radius, double height, int segments, const Vec3& color);
+// A low-poly rock: an icosahedron of radius r (its centre at the origin) with a fixed jitter of its vertices (the same
+// mesh every run), flat faces of the color
+MeshData rock(double radius, const Vec3& color);
 // A small propeller airplane, nose along -z, about 9 m wingspan
 MeshData airplane();
 // A car body without wheels: 1.8 m wide, 4.2 m long, the origin at the center of mass

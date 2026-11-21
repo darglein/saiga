@@ -87,6 +87,7 @@ enum class FlightClass : uint16_t
 {
     Aircraft = Engine::kFirstGameClass,
     Autopilot,
+    FlightChest,
 };
 
 // The player actions of the flight demo
@@ -134,8 +135,23 @@ class Autopilot final : public AircraftBase
     FlightAutopilot pilot;  // constant configuration (configure)
 };
 
+// The chest of the ruin prefab (data/flight/prefabs/ruin.json, S23c): stamped around players; its Health comes from
+// the prefab
+class FlightChest final : public Engine::GameObject
+{
+   public:
+    static constexpr Engine::ClassId id = Engine::ClassId(FlightClass::FlightChest);
+    static constexpr const char* name   = "FlightChest";
+    void onSpawn() override;
+};
+
 // The airplane's mesh (WorldSetup::renderAssets; RenderInstance of every plane)
 constexpr const char* kAirplaneMesh = "flight/airplane";
+// The chest's mesh (its base at the origin)
+constexpr const char* kChestMesh = "flight/chest";
+// The foliage seed of the tree meshes (renderAssets: FoliageGenerator::treeSpecies) and of the foliage texture
+// (FlightRender's PrototypeScene: setPrototypeEnvironment), so the meshes' leaf layers match the texture
+constexpr uint32_t kFlightFoliageSeed = 1;
 
 // The world setup of the flight demo (components, systems, classes, actions, data, the context)
 Engine::WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory);

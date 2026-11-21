@@ -8,16 +8,23 @@
 
 #include "games/flight/FlightWorld.h"
 
+#include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
+#include "saiga/vulkan/world/FoliageGenerator.h"
+#include "saiga/vulkan/world/PrototypeForest.h"
+#include "saiga/vulkan/world/WorldSettings.h"
 
 #include "games/common/PrototypeSpace.h"
 #include "games/common/RenderAssets.h"
 
+#include <array>
 #include <chrono>
 #include <iostream>
+#include <map>
+#include <mutex>
 
 namespace Saiga
 {
@@ -168,6 +175,56 @@ void Autopilot::update(double dt)
     write<AircraftState>().throttle = pilot.throttle(m);
 }
 
+void FlightChest::onSpawn()
+{
+    if (!has<Health>()) add<Health>();
+    if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance(kChestMesh));
+}
+
+namespace
+{
+// The tree meshes of the generator's spruce and broadleaf slots (species 0 and 1 of treeSpecies(seed)) for the
+// PrototypeFoliage class: built once per process and seed and shared by every world (renderAssets runs per world, the
+// scenarios build several worlds)
+std::array<std::shared_ptr<const Vulkan::MeshLods>, 2> treeMeshes(uint32_t seed)
+{
+    static std::mutex mutex;
+    static std::map<uint32_t, std::array<std::shared_ptr<const Vulkan::MeshLods>, 2>> cache;
+    std::lock_guard<std::mutex> lock(mutex);
+    auto& entry = cache[seed];
+    if (!entry[0])
+    {
+        const std::vector<Vulkan::TreeSpecies> species = Vulkan::FoliageGenerator::treeSpecies(seed);
+        const Vulkan::WorldSettings settings;
+        for (size_t i = 0; i < entry.size(); ++i)
+            entry[i] = std::make_shared<const Vulkan::MeshLods>(Vulkan::prototypeTreeMesh(
+                species[i], Vulkan::prototypeTreeLodEnds(settings), Vulkan::prototypeTreePadding(settings)));
+    }
+    return entry;
+}
+
+// The meshes of the flight demo (WorldSetup::renderAssets): the airplane, the generator's slot meshes and the ruin's
+void flightRenderAssets(World& w)
+{
+    const Vulkan::MaterialId flat = w.registerMaterial("flight/flat", demoMaterial());
+    registerDemoMesh(w, kAirplaneMesh, []() { return MeshBuilder::airplane(); }, flat);
+    // S23c: the slot meshes (OverworldGenerator::slots) and the ruin prefab's (data/flight/prefabs/ruin.json)
+    Vulkan::MaterialData foliage;
+    foliage.pipelineClass              = uint8_t(Vulkan::PipelineClass::PrototypeFoliage);
+    foliage.twoSided                   = true;
+    const Vulkan::MaterialId foliageId = w.registerMaterial("flight/foliage", foliage);
+    const auto trees                   = treeMeshes(kFlightFoliageSeed);
+    w.registerMesh("flight/spruce", trees[0], foliageId);
+    w.registerMesh("flight/broadleaf", trees[1], foliageId);
+    const Vec3 rock(0.38, 0.36, 0.33), stone(0.55, 0.5, 0.42), wood(0.4, 0.25, 0.12);
+    registerDemoMesh(w, "flight/rock", [rock]() { return MeshBuilder::rock(1, rock); }, flat, 1200);
+    registerDemoMesh(w, "flight/ruin_pillar", [stone]() { return MeshBuilder::cylinder(1.5, 6, 12, stone); }, flat);
+    registerDemoMesh(w, "flight/ruin_wall", [stone]() { return MeshBuilder::box(Vec3(8, 3, 1), stone); }, flat);
+    registerDemoMesh(
+        w, kChestMesh, [wood]() { return MeshBuilder::box(Vec3(0.6, 0.4, 0.4), wood, Vec3(0, 0.4, 0)); }, flat);
+}
+}  // namespace
+
 void flightPeerJoined(World& host, uint8_t peer, bool demo)
 {
     const Driven d = spawnDriven<Aircraft>(host, peer, peer);
@@ -197,15 +254,12 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
     {
         c.add<Aircraft>();
         c.add<Autopilot>();
+        c.add<FlightChest>();
     };
     s.actions       = [](ActionList& a) { a.add(uint32_t(FlightAction::Respawn), "respawn"); };
     s.dataTypes     = [](DataTypeList& d) { d.add<AircraftParameters>(); };
     s.dataDirectory = dataDirectory;
-    s.renderAssets  = [](World& w)
-    {
-        const Vulkan::MaterialId flat = w.registerMaterial("flight/flat", demoMaterial());
-        registerDemoMesh(w, kAirplaneMesh, []() { return MeshBuilder::airplane(); }, flat);
-    };
+    s.renderAssets  = flightRenderAssets;
     s.setContext(std::move(context));
     return s;
 }
