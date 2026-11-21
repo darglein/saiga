@@ -28,6 +28,8 @@ namespace Vulkan
 {
 static void glfwErrorCallback(int error, const char* description)
 {
+    // GLFW_FEATURE_UNAVAILABLE: e.g. the window position on Wayland (as the OpenGL window does)
+    if (error == GLFW_FEATURE_UNAVAILABLE) return;
     std::cout << "GLFW Error " << error << ": " << description << std::endl;
 }
 
@@ -140,7 +142,9 @@ double GLFWWindow::refreshRateHz()
 {
     // The monitor that contains the window's center (a full screen window has its own), else the primary one
     GLFWmonitor* monitor = window ? glfwGetWindowMonitor(window) : nullptr;
-    if (!monitor && window)
+    // Wayland has no window position: the primary monitor (regression: the statistics asked every 0.5 s and GLFW
+    // printed an error each time)
+    if (!monitor && window && glfwGetPlatform() != GLFW_PLATFORM_WAYLAND)
     {
         int x = 0, y = 0, w = 0, h = 0;
         glfwGetWindowPos(window, &x, &y);
