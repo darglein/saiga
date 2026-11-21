@@ -201,6 +201,9 @@ class SAIGA_CORE_API McpServer
     // Local calls that were started and not answered yet (polling thread): their deadline is checked by poll()
     std::vector<std::shared_ptr<PendingCall>> localInFlight;
     std::mutex inFlightMutex;  // localInFlight: poll() and stop() may run on different threads
+    // poll() dispatches the calls under it and stop() drains under it: a handler that started finishes before stop()
+    // returns, and none starts after (recursive: a handler may call stop())
+    std::recursive_mutex dispatchMutex;
     std::function<void(const CallRecord&)> callObserver;
     std::atomic<uint64_t> nextCallId{1};
 

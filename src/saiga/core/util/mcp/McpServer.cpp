@@ -747,8 +747,10 @@ void McpServer::deliverCallState(bool records)
 
 void McpServer::answerLocalCallsOnStop()
 {
-    // No call starts after this (poll() checks it before each handler; callLocal refuses)
+    // No call starts after this (poll() checks it before each handler; callLocal refuses); a poll() dispatching on
+    // another thread finishes first
     stopping = true;
+    std::lock_guard<std::recursive_mutex> dispatch(dispatchMutex);
     std::deque<std::shared_ptr<PendingCall>> calls;
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
@@ -842,6 +844,8 @@ void McpServer::stop()
         return;
     }
     stopping = true;
+    // A poll() dispatching on another thread finishes its calls first (they see stopping afterwards)
+    std::lock_guard<std::recursive_mutex> dispatch(dispatchMutex);
     if (acceptThread.joinable()) acceptThread.join();
     closeSocket((socket_t)listenSocket);
     listenSocket = -1;
@@ -861,6 +865,7 @@ void McpServer::stop()
 
 void McpServer::poll()
 {
+    std::unique_lock<std::recursive_mutex> dispatch(dispatchMutex);
     std::deque<std::shared_ptr<PendingCall>> calls;
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
@@ -923,6 +928,7 @@ void McpServer::poll()
                             localInFlight.end());
     }
     deliverCallState(true);
+    dispatch.unlock();
     // Listeners may add listeners (kept) and remove themselves (return false). A throwing listener is removed; the
     // others still run, then the first exception is rethrown.
     std::vector<std::function<bool()>> current;

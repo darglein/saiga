@@ -614,3 +614,40 @@ TEST(McpServer, NoHandlerRunsAfterStop)
     EXPECT_TRUE(answers[0].isError);
     EXPECT_EQ(executed, 0);
 }
+
+// Regression (CodeRabbit): stop() on another thread could drain the queues while poll() had taken a call but not
+// started it yet; the handler then ran after stop() returned. Now a handler that started finishes before stop()
+// returns, its answer is delivered, and no handler starts afterwards.
+TEST(McpServer, StopWaitsForADispatchingPoll)
+{
+    McpServer server("test");
+    std::atomic_bool started{false}, finished{false}, stop{false};
+    std::atomic_int executed{0}, answered{0};
+    server.addTool("slow", "Sleeps", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r)
+                   {
+                       executed++;
+                       started = true;
+                       std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                       finished = true;
+                       r(McpServer::ToolResult::Text("ok"));
+                   });
+    server.callLocal("slow", Json::object{}, [&](McpServer::ToolResult) { answered++; });
+    std::thread poller(
+        [&]()
+        {
+            while (!stop)
+            {
+                server.poll();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        });
+    while (!started) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    server.callLocal("slow", Json::object{}, [&](McpServer::ToolResult) { answered++; });
+    server.stop();
+    EXPECT_TRUE(finished);
+    EXPECT_EQ(answered, 2);  // the first answered by its handler, the second by stop()
+    stop = true;
+    poller.join();
+    EXPECT_EQ(executed, 1);
+}
