@@ -100,10 +100,13 @@ InstanceHandle RecordingRenderSink::addDynamic(MeshId mesh)
     SAIGA_ASSERT(meshNames.count(mesh),
                  "RecordingRenderSink: addDynamic of the unregistered mesh " + std::to_string(mesh));
     InstanceHandle h;
-    h.id       = nextHandle++;
-    live[h.id] = Dynamic{mesh, false, ChunkId(), DynamicPose(), DynamicPose(), 0};
+    h.id = nextHandle;
+    std::string line;
+    if (logging) line = prepareNote("addDynamic " + std::to_string(mesh) + " -> " + std::to_string(h.id));
+    live.emplace(h.id, Dynamic{mesh, false, ChunkId(), DynamicPose(), DynamicPose(), 0});
+    nextHandle++;
     count.addDynamic++;
-    if (logging) note("addDynamic " + std::to_string(mesh) + " -> " + std::to_string(h.id));
+    if (logging) calls.push_back(std::move(line));
     return h;
 }
 
@@ -112,22 +115,26 @@ void RecordingRenderSink::setDynamic(InstanceHandle h, const ChunkId& chunk, con
 {
     auto it = live.find(h.id);
     SAIGA_ASSERT(it != live.end(), "RecordingRenderSink: setDynamic of a removed handle");
+    std::string line;
+    if (logging) line = prepareNote("setDynamic " + std::to_string(h.id));
     it->second.set   = true;
     it->second.chunk = chunk;
     it->second.prev  = prev;
     it->second.curr  = curr;
     it->second.updates++;
     count.setDynamic++;
-    if (logging) note("setDynamic " + std::to_string(h.id));
+    if (logging) calls.push_back(std::move(line));
 }
 
 void RecordingRenderSink::removeDynamic(InstanceHandle h)
 {
+    std::string line;
+    if (logging) line = prepareNote("removeDynamic " + std::to_string(h.id));
     // Erased in every build (SAIGA_ASSERT does not evaluate its condition without SAIGA_ASSERTS)
     const size_t erased = live.erase(h.id);
     SAIGA_ASSERT(erased == 1, "RecordingRenderSink: removeDynamic of an unknown handle");
     count.removeDynamic++;
-    if (logging) note("removeDynamic " + std::to_string(h.id));
+    if (logging) calls.push_back(std::move(line));
 }
 
 const RecordingRenderSink::Dynamic* RecordingRenderSink::dynamic(InstanceHandle h) const

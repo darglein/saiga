@@ -14,6 +14,7 @@
 #include "saiga/engine/sync/RenderSink.h"
 #include "saiga/export.h"
 
+#include <algorithm>
 #include <map>
 #include <string>
 #include <vector>
@@ -77,6 +78,13 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
    private:
     // Callers check logging first (no message is formatted while the log is off)
     void note(const std::string& line) { calls.push_back(line); }
+    // The dynamic calls build their log line and reserve its storage before the change, so nothing can throw after it
+    // (RenderSink's failure contract)
+    std::string prepareNote(std::string line)
+    {
+        if (calls.size() == calls.capacity()) calls.reserve(std::max<size_t>(16, 2 * calls.capacity()));
+        return line;
+    }
     std::map<uint32_t, Dynamic> live;
     std::map<MeshId, std::string> meshNames;
     std::map<MeshId, MaterialId> meshMaterials;
