@@ -4,78 +4,69 @@
     {
       "chunks": {
         "0:0:0": {
-          "grass": "0x0",
-          "heights": "0x0",
-          "stamps": "0x0",
-          "statics": "0x0",
-          "tier1": "0x0",
-          "total": "0x0"
+          "grass": "0xaab8c5e0b471426d",
+          "heights": "0x284f152347bdc2c2",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0xee8260e41fd3efa0"
         },
         "0:100:60": {
-          "grass": "0x0",
-          "heights": "0x0",
-          "stamps": "0x0",
-          "statics": "0x0",
-          "tier1": "0x0",
-          "total": "0x0"
+          "grass": "0xaab8c5e0b471426d",
+          "heights": "0xf9a2a66bac0ea580",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0x26e3ec82d80f2d7e"
         },
         "0:127:127": {
-          "grass": "0x0",
-          "heights": "0x0",
-          "stamps": "0x0",
-          "statics": "0x0",
-          "tier1": "0x0",
-          "total": "0x0"
+          "grass": "0xaab8c5e0b471426d",
+          "heights": "0xf9a2a66bac0ea580",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0x6b93813e007e6c76"
         },
         "0:16:16": {
-          "grass": "0x0",
-          "heights": "0x0",
-          "stamps": "0x0",
-          "statics": "0x0",
-          "tier1": "0x0",
-          "total": "0x0"
+          "grass": "0x276918ac9b9d53c0",
+          "heights": "0x2f3a3ee713b3a05d",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xd36898e6b745d647",
+          "total": "0x81666adc0292a37d"
         },
         "0:24:22": {
-          "grass": "0x0",
-          "heights": "0x0",
-          "stamps": "0x0",
-          "statics": "0x0",
-          "tier1": "0x0",
-          "total": "0x0"
+          "grass": "0x61aee89d10f20f1f",
+          "heights": "0xb83c25d12164ca28",
+          "stamps": "0x5901e23318a26757",
+          "statics": "0x38441abb0b84cbcd",
+          "tier1": "0xa3a3268f2d11aa1b",
+          "total": "0x3c329d6b7f64c95c"
         },
         "0:25:16": {
-          "grass": "0x0",
-          "heights": "0x0",
-          "stamps": "0x0",
-          "statics": "0x0",
-          "tier1": "0x0",
-          "total": "0x0"
+          "grass": "0x8b3f9cfbfb60b17b",
+          "heights": "0xaf08ea1c6e95d946",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x5f66a9e740ad2ddb",
+          "total": "0x8a96d14535aa1f89"
         }
       },
-      "combined_plan_hash": "0x0",
-      "digest": "0x0",
-      "digest_block": [
-        12,
-        12,
-        28,
-        28
-      ],
+      "combined_plan_hash": "0xd0b5678c42db13ef",
+      "digest": "0x01ac77c879cbf44c",
+      "digest_block": [12, 12, 28, 28],
       "generators": {
         "flight_overworld": {
           "placement_version": 1,
           "plan_version": 1,
-          "slots": [
-            "spruce",
-            "broadleaf",
-            "rock"
-          ]
+          "slots": ["spruce", "broadleaf", "rock"]
         }
       },
       "name": "flight",
       "plans": {
         "0": {
           "generator": "flight_overworld",
-          "hash": "0x0"
+          "hash": "0x78cb86f6cfd6d718"
         }
       },
       "seed": "1"
