@@ -58,6 +58,7 @@ namespace Engine
 {
 class GeneratorList;
 class ContentCache;
+class GenerationPipeline;
 
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
@@ -441,8 +442,19 @@ class SAIGA_ENGINE_API World
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
     // for a fixed camera); S23b adds the content sets, S27 far content
     double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
-    // The content generators by GeneratorId (§12.1; S23a)
-    const GeneratorList& generators() const { return *generatorList; }
+    // ---- content generation (§12.1, §15.3; S23a) ------------------------------------------------------------------
+
+    // The content generators by GeneratorId
+    const GeneratorList& generators() const;
+    // The generation pipeline: the pinned versions, the plans of every space, heights, chunk content, stamp lists
+    const GenerationPipeline& generation() const { return *pipeline; }
+    // WorldSetup::seed (D11: the seed is part of the setup)
+    uint64_t generationSeed() const { return setupSeed; }
+    // E6: the space's generator has terrain (terrain and sea drawn and streamed, terrainHeight from it)
+    bool spaceHasTerrain(SpaceId space) const;
+    // The total content hash of a chunk at the current placement version (generated synchronously through the
+    // cache; the stamp and static lists come from the plan)
+    uint64_t contentHash(ChunkId chunk) const;
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }
@@ -1019,8 +1031,9 @@ class SAIGA_ENGINE_API World
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
-    // The content generators (S23a)
-    std::unique_ptr<GeneratorList> generatorList;
+    // The content generation (S23a)
+    std::unique_ptr<GenerationPipeline> pipeline;
+    uint64_t setupSeed    = 0;
     double accumulator    = 0;
     double scale          = 1;
     bool paused           = false;

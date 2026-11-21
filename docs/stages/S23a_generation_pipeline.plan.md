@@ -1486,6 +1486,36 @@ Implementation (step 3, the toolkit):
 - `SAIGA_CONTENT_UBSAN`: the flags are set and checked (`check_cxx_compiler_flag`) in `cmake/Saiga_compiler_flags.cmake`
   (`SAIGA_CONTENT_UBSAN_FLAGS`), applied to `src/saiga/engine/content/**.cpp` and `test_engine_content`.
 
+Implementation (steps 4-6):
+
+- `GeneratorList` keeps each generator's slot table (`slots()` is called once at registration);
+  `makeGeneratorList(games, templates)` registers `FlatGenerator` (name `flat`) as 0 and runs the checks.
+  `GenerationTemplate` lives in `WorldPlan.h` (the plan holds it); `SpaceInstance::origin` is an enum (`Overworld`,
+  `Listed`, `FromSite`, `Unreferenced`) with the plan's values.
+- A site's `footprint` is the generator's reservation: the prefab's footprint must lie inside it ("fits"), and the
+  rotated site footprint is what the inside, overlap and `sitesByChunk` rules use. `AuthoredSpaceGenerator` reserves
+  the whole enclosed space (`[-origin, size - origin)`), so its site is listed in every chunk of the space.
+- S22's `BrushKernel.h` had its own `floorDiv` / `ceilDiv`; it now uses the toolkit's (`gen/FixedMath.h`).
+- The shared component path: `ComponentJson` holds `specialComponent`, `parentFromJson`, `checkRenderMeshValues`,
+  `checkComponentValues` (on a `const World&`), `addComponentValues` and `mergeComponentValues` (the former body of
+  `WorldApi::spawn`'s merge loop); the world API's behaviour is unchanged.
+- Prefab parsing (`readPrefab`, `parsePrefab`, `prefabContentHash`, `prefabYaw`) is in `Prefab.{h,cpp}`; the
+  content hash also covers the prefab's `spaces` (template names). Patch heights are limited to +-2 *
+  `kTerrainHeightLimit` relative; the composed check (base + patch within the limit) is a plan error. `yaw_deg` is
+  limited to +-3600.
+- `ChunkBase` holds the heights and their hash; it has no `exclusion` member: candidates and grass cells test the
+  sites' local exclusion rectangles directly (the point-in-local-rectangle rule of Scope 3), so no rotated rectangle is
+  stored. `ChunkPlacement` carries all five section hashes and the total; `StampRecord` / `StaticPart` also carry the
+  site index and (stamps) the prefab name, version and class name (the `stamps` section hashes them).
+- `TerrainSystem` takes one `TerrainSpace {settings, seed, source, hasTerrain}` per space instance (built from the
+  pipeline); `TerrainSystem::hasTerrain(space)` replaces its uses of `SpaceTemplate::hasTerrain()`, and
+  `World::spaceHasTerrain` exists from step 6. Interim (until step 7): a template with generator 0 and a hook keeps
+  the hook (`SpaceGeneration::legacyHook`, seeded with the instance seed as S20/S21).
+- `World::generation()` gives the pipeline (`GenerationPipeline`), `World::generators()` its list. The pool form
+  attaches to a running generation of the same key by waiting on its `shared_future` inside the pool job (a worker
+  blocks; the main thread never does).
+- Enclosed templates whose generator has terrain are refused in phase A (`SAIGA_EXIT_ERROR`).
+
 ## Design changes
 
 (Filled when the stage is done.)

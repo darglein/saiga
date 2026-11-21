@@ -15,6 +15,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
@@ -55,17 +56,30 @@ World::World(const WorldSetup& setup)
                      setup.config.maxStepsPerAdvance >= 1,
                  "invalid WorldConfig");
     reg.setJobPool(&pool);
-    // The spaces (S20): checked first (a template error is a setup error, fatal in every build, D1)
+    // The spaces (S20) and their content generation (S23a, phase A of the pipeline): the templates are checked first (a
+    // template error is a setup error, fatal in every build, D1), then the generators, the space list and every plan
     {
         validateSpaceTemplates(setup.config.spaceTemplates);
-        // The content generators (S23a): FlatGenerator as 0, then the game's; the registration checks
-        generatorList =
-            std::make_unique<GeneratorList>(makeGeneratorList(setup.generators, setup.config.spaceTemplates));
-        std::vector<SpaceTemplate> templates = setup.config.spaceTemplates;
-        if (templates.empty()) templates.push_back(SpaceTemplate());
-        std::vector<uint64_t> seeds;
-        for (size_t i = 0; i < templates.size(); ++i) seeds.push_back(i == 0 ? setup.seed : hashCombine(setup.seed, i));
-        terrainSys       = std::make_unique<TerrainSystem>(templates, seeds);
+        setupSeed = setup.seed;
+        std::shared_ptr<ContentCache> cache =
+            setup.sharedContent ? setup.sharedContent : std::make_shared<ContentCache>();
+        GenerationPlans plans = GenerationPipeline::build(setup, GenerationPins(), *cache);
+        if (!plans.ok()) SAIGA_EXIT_ERROR("content generation: " + plans.error);
+        pipeline = std::make_unique<GenerationPipeline>(std::move(plans), std::move(cache));
+        std::vector<TerrainSpace> spaces;
+        std::vector<SpaceTemplate> templates;
+        for (size_t i = 0; i < pipeline->spaceCount(); ++i)
+        {
+            const SpaceGeneration& g = pipeline->space(SpaceId(i));
+            TerrainSpace t;
+            t.settings   = g.settings;
+            t.seed       = g.instance.seed;
+            t.source     = pipeline->heightSource(SpaceId(i));
+            t.hasTerrain = g.hasTerrain;
+            templates.push_back(g.settings);
+            spaces.push_back(std::move(t));
+        }
+        terrainSys       = std::make_unique<TerrainSystem>(std::move(spaces));
         terrainEditStore = std::make_unique<TerrainEditStore>(templates);
         terrainSys->setEdits(terrainEditStore.get());
     }
@@ -125,6 +139,9 @@ World::World(const WorldSetup& setup)
     createStateEntities();
     // The game's meshes and materials by name (S19b); a sink set later receives them
     if (setup.renderAssets) setup.renderAssets(*this);
+    // Phase B of the content generation (S23a): the prefab entities against the classes, components and meshes
+    const std::string contentError = GenerationPipeline::validateEntities(*this, pipeline->plans());
+    if (!contentError.empty()) SAIGA_EXIT_ERROR("content generation: " + contentError);
 }
 
 void World::setupProfiler()
@@ -787,6 +804,24 @@ uint64_t World::spaceSeed(SpaceId space) const
 {
     SAIGA_ASSERT(space < terrainSys->spaceCount(), "World::spaceSeed: unknown space");
     return terrainSys->spaceSeed(space);
+}
+
+const GeneratorList& World::generators() const
+{
+    return pipeline->generators();
+}
+
+bool World::spaceHasTerrain(SpaceId space) const
+{
+    SAIGA_ASSERT(space < spaceCount(), "World::spaceHasTerrain: unknown space");
+    return pipeline->spaceHasTerrain(space);
+}
+
+uint64_t World::contentHash(ChunkId chunk) const
+{
+    SAIGA_ASSERT(chunk.space < spaceCount(), "World::contentHash: unknown space");
+    const SpaceGeneration& g = pipeline->space(chunk.space);
+    return pipeline->chunkPlacement(chunk, g.current)->hashes.total;
 }
 
 double World::terrainHeight(SpaceId space, double x, double z) const

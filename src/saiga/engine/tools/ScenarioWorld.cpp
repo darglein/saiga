@@ -8,6 +8,7 @@
 
 #include "saiga/engine/tools/ScenarioWorld.h"
 
+#include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/net/Replication.h"
@@ -32,6 +33,9 @@ WorldSetup scenarioSetup(WorldSetup s)
     // Content within 128 m of a player is stamped (§17.2; S23a): a scenario that needs content farther away moves its
     // Player there
     for (SpaceTemplate& t : s.config.spaceTemplates) t.fullRadius = std::min(t.fullRadius, 128.0);
+    // The worlds of a scenario (host, clients, the save/load replacement) share one content cache (§17.2; one per
+    // setup: the runner passes its own to every run)
+    if (!s.sharedContent) s.sharedContent = std::make_shared<ContentCache>();
     return s;
 }
 }  // namespace

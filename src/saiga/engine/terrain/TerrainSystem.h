@@ -61,11 +61,20 @@ struct TerrainViewSettings
     int editMasksPerFrame       = 2;
 };
 
+// One space of the world (SpaceId = index; S23a: the generation pipeline's instances): its template, its seed, its
+// height source (the pipeline's composed height) and whether it has terrain (World::spaceHasTerrain)
+struct TerrainSpace
+{
+    SpaceTemplate settings;
+    uint64_t seed = 0;
+    TerrainHeightSource source;
+    bool hasTerrain = false;
+};
+
 class SAIGA_ENGINE_API TerrainSystem
 {
    public:
-    // One entry per space (SpaceId = index): the template and the space seed
-    TerrainSystem(const std::vector<SpaceTemplate>& templates, const std::vector<uint64_t>& seeds);
+    explicit TerrainSystem(std::vector<TerrainSpace> spaces);
     // Destroys the pool first: no job outlives the data its completion would touch
     ~TerrainSystem();
     TerrainSystem(const TerrainSystem&)            = delete;
@@ -97,6 +106,8 @@ class SAIGA_ENGINE_API TerrainSystem
     const TerrainVisualPatch& visualPatch() const { return *visual; }
 
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
+    // E6: the space has terrain (its generator's hasTerrain; S23a)
+    bool hasTerrain(SpaceId space) const;
     const TerrainHeightSource& heightSource(SpaceId space) const;
     uint64_t spaceSeed(SpaceId space) const;
     size_t spaceCount() const { return spaces.size(); }
@@ -193,6 +204,7 @@ class SAIGA_ENGINE_API TerrainSystem
         SpaceTemplate settings;
         uint64_t seed = 0;
         TerrainHeightSource source;
+        bool hasTerrain = false;
         std::unique_ptr<TerrainStore> store;
     };
     // A request: kind (0 pyramid, 1 tile, 2 mask), space, level, x, z

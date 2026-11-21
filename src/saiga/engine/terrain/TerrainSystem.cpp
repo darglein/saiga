@@ -59,16 +59,16 @@ ChunkId chunkOf(SpaceId space, int32_t x, int32_t z)
 constexpr int kindPyramid = 0, kindTile = 1, kindMask = 2;
 }  // namespace
 
-TerrainSystem::TerrainSystem(const std::vector<SpaceTemplate>& templates, const std::vector<uint64_t>& seeds)
+TerrainSystem::TerrainSystem(std::vector<TerrainSpace> list)
 {
-    SAIGA_ASSERT(templates.size() == seeds.size());
-    for (size_t i = 0; i < templates.size(); ++i)
+    for (TerrainSpace& t : list)
     {
         Space s;
-        s.settings = templates[i];
-        s.seed     = seeds[i];
-        s.source   = Engine::heightSource(s.settings, s.seed);
-        s.store    = std::make_unique<TerrainStore>();
+        s.settings   = std::move(t.settings);
+        s.seed       = t.seed;
+        s.source     = std::move(t.source);
+        s.hasTerrain = t.hasTerrain && bool(s.source);
+        s.store      = std::make_unique<TerrainStore>();
         spaces.push_back(std::move(s));
     }
     visual = std::make_unique<TerrainVisualPatch>();
@@ -90,6 +90,12 @@ const TerrainHeightSource& TerrainSystem::heightSource(SpaceId space) const
 {
     SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
     return spaces[space].source;
+}
+
+bool TerrainSystem::hasTerrain(SpaceId space) const
+{
+    SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
+    return spaces[space].hasTerrain;
 }
 
 uint64_t TerrainSystem::spaceSeed(SpaceId space) const
@@ -125,7 +131,7 @@ const Vulkan::TerrainPyramidData* TerrainSystem::pyramid(SpaceId space) const
 int32_t TerrainSystem::sample(SpaceId space, int64_t sx, int64_t sz) const
 {
     const Space& s = spaces[space];
-    if (!s.settings.hasTerrain()) return 0;
+    if (!s.hasTerrain) return 0;
     // A resident level-0 tile (its samples are the source's: bit-equal, R-DET-1)
     const int64_t n1 = 256 / s.settings.baseSpacing;
     const int64_t tx = sx >= 0 ? sx / n1 : -1, tz = sz >= 0 ? sz / n1 : -1;
@@ -156,7 +162,7 @@ double TerrainSystem::height(SpaceId space, double x, double z) const
     SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
     const Space& s = spaces[space];
     // D1: a space without terrain is flat at 0 while it has no edits
-    if (!s.settings.hasTerrain() && (!edits || edits->nonZeroSamples(space) == 0)) return 0;
+    if (!s.hasTerrain && (!edits || edits->nonZeroSamples(space) == 0)) return 0;
     // A NaN coordinate has no point (it would survive the clamps below): 0; infinities clamp to the edges
     if (std::isnan(x) || std::isnan(z)) return 0;
     const double size = s.settings.sizeMeters();
@@ -876,7 +882,7 @@ void TerrainSystem::sendGrassMask(const ChunkId& chunk, const Vulkan::GrassMaskD
 void TerrainSystem::beginView(SpaceId space)
 {
     SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown view space");
-    const bool terrain = spaces[space].settings.hasTerrain();
+    const bool terrain = spaces[space].hasTerrain;
     if (viewSpaceValid && viewSpace != space)
     {
         // S22: the tile boxes belong to the old view space, the edited masks to its GPU set
@@ -942,7 +948,7 @@ void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
     }
     viewCamera = camera;
     beginView(space);
-    if (!spaces[space].settings.hasTerrain())
+    if (!spaces[space].hasTerrain)
     {
         updateStats(space, nullptr);
         return;
@@ -995,7 +1001,7 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     };
     // A non-finite camera of a terrain space changes nothing (the view, the sink's set, the saved camera and the
     // statistics of the view space stay)
-    if (spaces[space].settings.hasTerrain() && !camera.allFinite())
+    if (spaces[space].hasTerrain && !camera.allFinite())
     {
         SAIGA_LOG("terrain", "completeView: the camera of space %u is not finite", unsigned(space));
         statistics.lastCompleteMs = (nowSeconds() - start) * 1000.0;
@@ -1003,7 +1009,7 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     }
     if (camera.allFinite()) viewCamera = camera;
     beginView(space);
-    if (!spaces[space].settings.hasTerrain()) return finish(true, nullptr);
+    if (!spaces[space].hasTerrain) return finish(true, nullptr);
     Space& sp = spaces[space];
     // (a) the pyramid
     if (!sp.store->pyramid())
@@ -1058,7 +1064,7 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
 
 bool TerrainSystem::viewComplete(SpaceId space, const Vec3& camera) const
 {
-    if (!spaceTemplate(space).hasTerrain()) return true;
+    if (!hasTerrain(space)) return true;
     if (!spaces[space].store->pyramid() || !camera.allFinite()) return false;
     if (sink && (!setActive || setSpace != space || setLayout != layout(space))) return false;
     return !missing(space, computeDesired(space, camera));
@@ -1066,7 +1072,7 @@ bool TerrainSystem::viewComplete(SpaceId space, const Vec3& camera) const
 
 double TerrainSystem::readiness(SpaceId space, const Vec3& camera, double radius) const
 {
-    if (!spaceTemplate(space).hasTerrain()) return 1;
+    if (!hasTerrain(space)) return 1;
     // Also 0 for a stale layout (the new set is sent at the next update)
     if (!sink || !setActive || setSpace != space || setLayout != layout(space) || !camera.allFinite()) return 0;
     const Desired d = computeDesired(space, camera);
@@ -1137,7 +1143,7 @@ void TerrainSystem::setSink(RenderSink* s)
     setGeneration++;
     sentTiles.clear();
     sentMasks.clear();
-    if (!sink || !viewSpaceValid || !spaces[viewSpace].settings.hasTerrain()) return;
+    if (!sink || !viewSpaceValid || !spaces[viewSpace].hasTerrain) return;
     const TerrainStore& st = *spaces[viewSpace].store;
     if (!st.pyramid()) return;
     // What the store holds of the last view camera's desired set (truncated to the current budget: the store can hold
