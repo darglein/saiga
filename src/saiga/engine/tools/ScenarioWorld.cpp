@@ -13,9 +13,11 @@
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 namespace Saiga
 {
@@ -416,6 +418,94 @@ bool ScenarioWorld::check(bool condition, const std::string& message)
     return condition;
 }
 
+void ScenarioWorld::editTerrain(const TerrainBrush& brush, SpaceId space)
+{
+    checkAbort();
+    SAIGA_LOG("scenario", "step %llu: editTerrain space %d, op %s, center (%g, %g, %g), radius %g, strength %g",
+              (unsigned long long)observedSteps, int(space), TerrainBrush::opNames[brush.op % TerrainBrush::Count],
+              brush.center.x(), brush.center.y(), brush.center.z(), brush.radius, brush.strength);
+    w->editTerrain(space, brush);
+}
+
+double ScenarioWorld::terrainHeight(double x, double z, std::optional<int> peer, SpaceId space)
+{
+    World& world = peer && network.enabled ? client(*peer) : *w;
+    return world.terrainHeight(space, x, z);
+}
+
+int32_t ScenarioWorld::terrainSample(int64_t i, int64_t k, std::optional<int> peer, SpaceId space)
+{
+    World& world = peer && network.enabled ? client(*peer) : *w;
+    return world.terrainSample(space, i, k);
+}
+
+bool ScenarioWorld::terrainSynced()
+{
+    const TerrainEditStore& h = w->terrainEdits();
+    for (auto& c : clientWorlds)
+    {
+        const TerrainEditStore& s = c->terrainEdits();
+        for (size_t i = 0; i < h.spaceCount(); ++i)
+        {
+            const auto& a = h.chunks(SpaceId(i));
+            const auto& b = s.chunks(SpaceId(i));
+            if (a.size() != b.size()) return false;
+            for (auto ia = a.begin(), ib = b.begin(); ia != a.end(); ++ia, ++ib)
+                if (ia->first != ib->first || ia->second.sequence != ib->second.sequence) return false;
+        }
+    }
+    return true;
+}
+
+void ScenarioWorld::compareTerrain()
+{
+    const TerrainEditStore& h = w->terrainEdits();
+    int reported              = 0;
+    auto fail                 = [&](const std::string& m)
+    {
+        if (reported++ < 10) check(false, "terrain replicas differ: " + m);
+    };
+    std::vector<int32_t> da, db;
+    for (size_t p = 0; p < clientWorlds.size(); ++p)
+    {
+        const World& cw        = *clientWorlds[p];
+        const std::string peer = "peer " + std::to_string(p + 1);
+        check(cw.netStats().modificationGaps == 0,
+              peer + ": " + std::to_string(cw.netStats().modificationGaps) + " terrain modification gaps");
+        const TerrainEditStore& s = cw.terrainEdits();
+        for (size_t i = 0; i < h.spaceCount(); ++i)
+        {
+            // The union of the chunks with state on either side
+            std::set<ChunkId> chunks;
+            for (const auto& kv : h.chunks(SpaceId(i))) chunks.insert(kv.first);
+            for (const auto& kv : s.chunks(SpaceId(i))) chunks.insert(kv.first);
+            for (const ChunkId& c : chunks)
+            {
+                const std::string what = peer + ", space " + std::to_string(c.space) + " chunk (" +
+                                         std::to_string(c.x) + ", " + std::to_string(c.z) + ")";
+                const uint32_t sa = h.sequence(c), sb = s.sequence(c);
+                if (sa != sb)
+                {
+                    fail(what + ": sequence " + std::to_string(sb) + ", the host's " + std::to_string(sa));
+                    continue;
+                }
+                if (!h.hasDeltas(c) && !s.hasDeltas(c)) continue;
+                h.denseDelta(c, da);
+                s.denseDelta(c, db);
+                for (size_t k = 0; k < da.size(); ++k)
+                    if (da[k] != db[k])
+                    {
+                        const size_t N = size_t(h.chunkSamples(c.space) + 1);
+                        fail(what + " (sequence " + std::to_string(sa) + "): the sample (" + std::to_string(k % N) +
+                             ", " + std::to_string(k / N) + ") has the delta " + std::to_string(db[k]) +
+                             ", the host's " + std::to_string(da[k]));
+                        break;
+                    }
+            }
+        }
+    }
+}
+
 double ScenarioWorld::distance(Entity a, Entity b)
 {
     if (!check(w->alive(a) && w->alive(b), "distance: an entity is not alive"))
@@ -595,6 +685,8 @@ void ScenarioWorld::finishNetwork()
         {
             synced = true;
             for (auto& c : clientWorlds) synced = synced && c->replication().snapshotSequence() >= needed;
+            // S22: and every client has the host's terrain chunk sequences
+            synced = synced && terrainSynced();
         }
     }
     if (!check(synced, "the final network sync did not finish in 600 steps")) return;
@@ -605,6 +697,7 @@ void ScenarioWorld::finishNetwork()
 
 void ScenarioWorld::compareReplicas()
 {
+    compareTerrain();
     // For every replicated component the authority's value (the host, or the owner for owner-authoritative components
     // of client-owned entities) equals every other peer's copy: within 2 Quantize steps, exact otherwise; Entity
     // fields through NetIds; the derived Transform of a child is not compared (its Parent and LocalTransform are)

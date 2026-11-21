@@ -20,6 +20,9 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
 #include "saiga/engine/world/World.h"
 
@@ -57,6 +60,7 @@ enum class TestComponent : uint8_t
     Ref,
     WorkerFlag,
     TransitionLog,
+    TerraformerState,
     Count
 };
 enum class TestClass : uint16_t
@@ -66,6 +70,7 @@ enum class TestClass : uint16_t
     Recorder,
     Lazy,
     Diver,
+    Terraformer,
     Count
 };
 
@@ -732,6 +737,177 @@ void registerSpacesScenarios(ScenarioList& s)
           });
 }
 
+// ---- the terraforming scenarios (S22; terraformScenarioSetup)
+// ------------------------------------------------------------------------------------------
+
+// The brush a Terraformer applies and how many more times (R-STATE-1: the state is a component)
+struct TerraformerState
+{
+    static constexpr const char* name = "TerraformerState";
+    static constexpr ComponentId id   = ComponentId(TestComponent::TerraformerState);
+    static constexpr uint32_t version = 1;
+    TerrainBrush brush;
+    uint32_t remaining = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("brush", brush);
+        v("remaining", remaining);
+    }
+};
+
+// Edits the terrain in its update (phase 3: a command, applied at the phase-3 flush) until remaining is 0
+class Terraformer final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(TestClass::Terraformer);
+    static constexpr const char* name = "Terraformer";
+    void update(double) override
+    {
+        if (!has<TerraformerState>() || read<TerraformerState>().remaining == 0) return;
+        TerraformerState& s = write<TerraformerState>();
+        world().editTerrain(0, s.brush);
+        s.remaining--;
+    }
+};
+
+// spacesScenarioSetup's components and classes plus the Terraformer, on terraformTestTemplate(spacing)
+WorldSetup terraformScenarioSetup(int spacing)
+{
+    WorldSetup s            = spacesScenarioSetup();
+    s.config.spaceTemplates = {TerrainTestHooks::terraformTestTemplate(spacing)};
+    s.components            = [](Registry& r)
+    {
+        r.registerComponent<WandererState>();
+        r.registerGlobal<ActionLog>();
+        r.registerComponent<TickCount>();
+        r.registerComponent<Marker>();
+        r.registerGlobal<DestroyLog>();
+        r.registerComponent<Ref>();
+        r.registerComponent<WorkerFlag>();
+        r.registerGlobal<TransitionLog>();
+        r.registerComponent<TerraformerState>();
+    };
+    s.classes = [](ClassList& c)
+    {
+        c.add<Wanderer>();
+        c.add<Counter>();
+        c.add<Recorder>();
+        c.add<Lazy>();
+        c.add<Diver>();
+        c.add<Terraformer>();
+    };
+    s.systems = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "actionLog", actionLogSystem);
+        l.add(Phase::Gameplay, "workerFlag", workerFlagSystem);
+    };
+    return s;
+}
+
+TerrainBrush terrainBrush(TerrainBrush::Op op, double x, double z, double radius, double strength, double y = 0)
+{
+    TerrainBrush b;
+    b.op       = op;
+    b.center   = Vec3(x, y, z);
+    b.radius   = radius;
+    b.strength = strength;
+    return b;
+}
+
+ChunkId chunkAt(int32_t x, int32_t z)
+{
+    ChunkId c;
+    c.x = x;
+    c.z = z;
+    return c;
+}
+
+// The base surface (without edits) at (x, z): the §12.2 rule over TerrainSystem::sample
+double baseHeight(const World& w, double x, double z)
+{
+    const double sp = w.spaceTemplate(0).baseSpacing;
+    const double gx = x / sp, gz = z / sp;
+    const int64_t ci = int64_t(std::floor(gx)), cj = int64_t(std::floor(gz));
+    const double fx = gx - double(ci), fz = gz - double(cj);
+    const TerrainSystem& t = w.terrain();
+    return terrainSurfaceDouble(t.sample(0, ci, cj), t.sample(0, ci + 1, cj), t.sample(0, ci, cj + 1),
+                                t.sample(0, ci + 1, cj + 1), fx, fz) *
+           kHeightUnit;
+}
+
+void registerTerraformScenarios(ScenarioList& s)
+{
+    s.add("terraform_dig_and_fill",
+          [](ScenarioWorld& w)
+          {
+              w.step(10);
+              // A mound of 5 x 1 m at the sample (1000, 1000) in steps 10-14 (the command path, phase 3)
+              TerraformerState state;
+              state.brush     = terrainBrush(TerrainBrush::Add, 1000, 1000, 6, 1);
+              state.remaining = 5;
+              w.spawn<Terraformer>(Vec3(1000, 0, 1000), state);
+              w.step(10);
+              // Step 20: a 2 m pit with radius 12 m on the chunk corner (256, 256) (immediate)
+              w.editTerrain(terrainBrush(TerrainBrush::Subtract, 256, 256, 12, 2));
+              w.step(10);
+              // Step 30: flatten (2000, 600) to its base + 3 m; checked right after the immediate edit
+              const int32_t base = w.world().terrain().sample(0, 2000, 600);
+              w.editTerrain(terrainBrush(TerrainBrush::Flatten, 2000, 600, 8, 1, double(base + 3072) * kHeightUnit));
+              w.check(w.terrainSample(2000, 600) == base + 3072, "the flatten reached its target exactly");
+              w.step(1);
+              // Step 31: smooth the same spot (changes the bump the flatten left)
+              w.editTerrain(terrainBrush(TerrainBrush::Smooth, 2000, 600, 8, 1));
+              w.step(5);
+              // The final state only (wherever the save/load swap fell)
+              const World& h             = w.world();
+              const TerrainEditStore& st = h.terrainEdits();
+              w.check(h.terrainSample(0, 1000, 1000) == h.terrain().sample(0, 1000, 1000) + 5 * 1024,
+                      "the mound's center is base + 5 m");
+              w.check(st.sequence(chunkAt(3, 3)) == 5,
+                      "the mound's chunk has sequence 5, is " + std::to_string(st.sequence(chunkAt(3, 3))));
+              w.check(h.terrainSample(0, 256, 256) == h.terrain().sample(0, 256, 256) - 2048,
+                      "the pit's center is base - 2 m");
+              w.check(h.terrainSample(0, 268, 256) == h.terrain().sample(0, 268, 256) &&
+                          h.terrainSample(0, 256, 244) == h.terrain().sample(0, 256, 244),
+                      "the samples 12 m from the pit's center are unchanged");
+              for (const ChunkId& c : {chunkAt(0, 0), chunkAt(1, 0), chunkAt(0, 1), chunkAt(1, 1)})
+                  w.check(st.sequence(c) == 1, "a corner chunk has sequence 1");
+              w.check(st.sequence(chunkAt(7, 2)) == 2,
+                      "the flatten spot's chunk has sequence 2, is " + std::to_string(st.sequence(chunkAt(7, 2))));
+              w.check(st.chunkCount() == 6, "six chunks have state, " + std::to_string(st.chunkCount()));
+          });
+    s.add("terraform_player_walks_into_crater",
+          [](ScenarioWorld& w)
+          {
+              auto player = w.spawnPlayer({500, 0, 500});
+              w.step(5);
+              w.editTerrain(terrainBrush(TerrainBrush::Subtract, 520, 500, 10, 3));
+              w.move(player, Vec3(1, 0, 0));
+              auto owner = [&]() -> std::pair<World*, Entity>
+              {
+                  if (!w.networked()) return {&w.world(), player};
+                  return {&w.client(w.defaultPeer()), w.onClient(w.defaultPeer(), player)};
+              };
+              double y = 0, ground = 0;
+              w.check(w.stepUntil(
+                          [&]
+                          {
+                              auto [world, e] = owner();
+                              if (!e.valid() || !world->alive(e)) return false;
+                              const Vec3 p = world->read<Transform>(e).position();
+                              y            = p.y();
+                              ground       = baseHeight(w.world(), p.x(), p.z());
+                              return std::abs(p.y() - w.world().terrainHeight(0, p.x(), p.z())) <= 1e-4 &&
+                                     p.y() <= ground - 2;
+                          },
+                          600),
+                      "the player walked into the crater (y " + std::to_string(y) + ", base ground " +
+                          std::to_string(ground) + ")");
+              w.move(player, Vec3::Zero());
+          });
+}
+
 // A scenario with the setup it runs on and the registration it comes from
 struct Case
 {
@@ -743,6 +919,10 @@ struct Case
 WorldSetup spacesSetupFor(const std::string&)
 {
     return spacesScenarioSetup();
+}
+WorldSetup terraformSetupFor(const std::string& scenario)
+{
+    return terraformScenarioSetup(scenario == "terraform_dig_and_fill" ? 1 : 2);
 }
 std::vector<Case> allCases()
 {
@@ -759,6 +939,7 @@ std::vector<Case> allCases()
     };
     collect(registerEngineScenarios, setupFor);
     collect(registerSpacesScenarios, spacesSetupFor);
+    collect(registerTerraformScenarios, terraformSetupFor);
     return cases;
 }
 }  // namespace
