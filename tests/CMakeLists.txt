@@ -188,6 +188,7 @@ if (MODULE_ENGINE)
     if (SAIGA_CONTENT_UBSAN)
         target_compile_options(test_engine_content PRIVATE ${SAIGA_CONTENT_UBSAN_FLAGS})
     endif ()
+    saiga_test(test_engine_content_benchmark.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.
