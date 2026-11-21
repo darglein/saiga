@@ -96,6 +96,12 @@ struct InstanceKey
 // The size of a chunk in meters
 constexpr double chunkSize = 256;
 
+// Terrain heights are integers in height units of 1/1024 m (§12.2; no offset, height 0 is y = 0)
+constexpr double kHeightUnit = 1.0 / 1024.0;
+// Every terrain height lies in [-kTerrainHeightLimit, kTerrainHeightLimit] height units (+-8192 m, S20): every
+// difference of two heights fits 2^24 and converts to float exactly
+constexpr int32_t kTerrainHeightLimit = 1 << 23;
+
 // The origin of the chunk in its space (double, R-MATH-1): (x, 0, z) * 256 m
 inline Vec3 chunkOrigin(const ChunkId& chunk)
 {
