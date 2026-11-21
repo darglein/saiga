@@ -6,7 +6,8 @@
 
 /**
  * Flight simulator tech demo (samples/games/flight, docs/engine_design.md §18.4) on the engine app: fly a small
- * airplane over the 8 km world prototype. --demo: the autopilot flies a circuit. --scenarios: the game's scenarios.
+ * airplane over a 32 km generated overworld (S23c: the integer OverworldGenerator with forests, rocks, grass and ruin
+ * sites). --demo: the autopilot flies a circuit past the fixed ruin. --scenarios: the game's scenarios.
  * --coop [delay]: co-op over loopback in one process (S16b): the client's plane next to the host's autopilot (with
  * --demo the client's plane is flown by the autopilot on the client too).
  *

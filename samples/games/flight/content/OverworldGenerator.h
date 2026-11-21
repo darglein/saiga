@@ -41,8 +41,8 @@ constexpr int32_t kFlightLowestHeight   = -100 * 1024;
 // The demo's circuit (S20: centre (4096, 4096), radius 0.3 * 8192 m), integer metres
 constexpr int64_t kFlightCircuitCentre = 4096;
 constexpr int64_t kFlightCircuitRadius = 2458;
-// The fixed ruin (site key 1): the centre of chunk (24, 22), ahead of the plane at the --demo screenshot
-constexpr int64_t kFlightFixedRuinX = 6304, kFlightFixedRuinZ = 5760;
+// The fixed ruin (site key 1): in chunk (24, 22), about 830 m ahead of the plane at the --demo screenshot
+constexpr int64_t kFlightFixedRuinX = 6256, kFlightFixedRuinZ = 5856;
 constexpr uint32_t kFlightFixedRuinKey = 1, kFlightGridRuinKey = 100;
 // The prefab of the ruin sites and its half size (footprint [-40, -40, 40, 40])
 constexpr const char* kFlightRuinPrefab = "ruin";

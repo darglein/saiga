@@ -11,14 +11,16 @@
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 #include "saiga/vulkan/world/WorldSettings.h"
 
-#include "games/common/PrototypeSpace.h"
 #include "games/common/RenderAssets.h"
+#include "games/flight/content/OverworldGenerator.h"
 
 #include <array>
 #include <chrono>
@@ -32,25 +34,34 @@ namespace Game
 {
 using namespace Engine;
 
+// The generator's constants mirror S20's prototype values (the water plane of PrototypeScene, the circuit)
+static_assert(kFlightSeaLevel == Vulkan::kPrototypeSeaLevel, "the flight sea level is the prototype's water level");
+static_assert(double(kFlightMountainHeight) == Vulkan::kPrototypeMountainHeight * 1024, "the mountain height");
+static_assert(double(kFlightCircuitCentre) == Vulkan::kPrototypeArea / 2, "the circuit centre of the land disc");
+
 std::shared_ptr<const FlightContext> FlightContext::create(uint64_t seed)
 {
     auto c            = std::make_shared<FlightContext>();
     c->seed           = seed;
-    c->baseSpacing    = prototypeSpaceTemplate().baseSpacing;
     const double size = Vulkan::kPrototypeArea;
     c->circuitCenter  = Vec3(size / 2, 0, size / 2);
     c->circuitRadius  = size * 0.3;
     return c;
 }
 
+double flightGround(const World& world, double x, double z)
+{
+    return std::max(world.terrainHeight(0, x, z), double(kFlightSeaLevel) * kHeightUnit);
+}
+
 FlightModel flightModelOf(const World& w, Entity e)
 {
-    const FlightContext* ctx = &w.context<FlightContext>();
-    const AircraftState& s   = w.read<AircraftState>(e);
-    const Transform& t       = w.read<Transform>(e);
+    const AircraftState& s = w.read<AircraftState>(e);
+    const Transform& t     = w.read<Transform>(e);
     FlightModel m;
     m.params            = w.data(s.model);
-    m.ground            = [ctx](double x, double z) { return ctx->ground(x, z); };
+    const World* world  = &w;
+    m.ground            = [world](double x, double z) { return flightGround(*world, x, z); };
     m.state.position    = t.position();
     m.state.orientation = t.rotation();
     m.state.velocity    = s.velocity;
@@ -146,7 +157,7 @@ void AircraftBase::respawn()
     // The slot's place: 60 m behind and 20 m inside per slot (heading +z on the circuit's +x side)
     const int slot = has<VehicleSeat>() ? std::max(0, read<VehicleSeat>().slot) : 0;
     Vec3 p         = ctx.circuitCenter + Vec3(ctx.circuitRadius - 20.0 * slot, 0, -60.0 * slot);
-    p(1)           = ctx.ground(p(0), p(2)) + 300;
+    p(1)           = flightGround(world(), p(0), p(2)) + 300;
     FlightModel m;
     m.reset(p, headingOf(Vec3(0, 0, 1)), 65);
     AircraftState& s = write<AircraftState>();
@@ -231,13 +242,34 @@ void flightPeerJoined(World& host, uint8_t peer, bool demo)
     if (demo) host.add<DemoPilot>(d.driver);
 }
 
+SpaceTemplate flightSpaceTemplate()
+{
+    SpaceTemplate t;
+    t.name        = "flight_overworld";
+    t.kind        = SpaceKind::OpenWorld;
+    t.baseSpacing = 1;
+    t.seaLevel    = kFlightSeaLevel;
+    t.sizeChunks  = 128;
+    t.generator   = kFlightOverworldGenerator;
+    t.fullRadius  = 1000;
+    return t;
+}
+
+namespace
+{
+void registerFlightGenerators(GeneratorList& list)
+{
+    list.add(kFlightOverworldGenerator, std::make_shared<OverworldGenerator>());
+}
+}  // namespace
+
 WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory)
 {
     WorldSetup s;
-    // The prototype's 32 km space (S20): its seed is the context's (the context evaluates the same surface)
+    // S23c: the 32 km overworld of the OverworldGenerator (the prototype's hook is no longer used by flight)
     s.seed                  = context->seed;
-    s.config.spaceTemplates = {prototypeSpaceTemplate(context->baseSpacing)};
-    s.generators            = registerPrototypeGenerator;
+    s.config.spaceTemplates = {flightSpaceTemplate()};
+    s.generators            = registerFlightGenerators;
     s.components            = [](Registry& r)
     {
         r.registerComponent<AircraftControls>(Replicate::OwnerAuthoritative);
@@ -268,7 +300,8 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
 
 void flightScenarios(ScenarioList& list)
 {
-    // The behavior before the port to the engine (S13b): the autopilot's positions after 600 and 1800 steps
+    // The autopilot's positions after 600 and 1800 steps (S13b; re-recorded in S23c over the OverworldGenerator's
+    // terrain: before (6506.433, 402.839, 4752.384) and (5858.335, 362.351, 5875.344) over the prototype's)
     list.add("autopilot_flies_the_circuit",
              [](ScenarioWorld& w)
              {
@@ -281,9 +314,9 @@ void flightScenarios(ScenarioList& list)
                                                               std::to_string(p(1)) + " " + std::to_string(p(2)));
                  };
                  w.step(600);
-                 near(Vec3(6506.433, 402.839, 4752.384), "step 600");
+                 near(Vec3(6505.742, 325.853, 4741.635), "step 600");
                  w.step(1200);
-                 near(Vec3(5858.335, 362.351, 5875.344), "step 1800");
+                 near(Vec3(5879.619, 330.511, 5857.057), "step 1800");
                  const double altitude = flightModelOf(w.world(), plane).altitudeAboveGround();
                  w.check(std::abs(altitude - 300) < 30, "holds 300 m above the ground: " + std::to_string(altitude));
                  w.check(!w.world().read<AircraftState>(plane).crashed, "did not crash");
@@ -325,7 +358,7 @@ void flightScenarios(ScenarioList& list)
             w.edit(d.driver, [](World& owner, Entity e) { owner.get<AircraftControls>(e) = AircraftControls(); });
             const FlightContext& ctx = w.world().context<FlightContext>();
             Vec3 spawnPoint          = ctx.circuitCenter + Vec3(ctx.circuitRadius, 0, 0);
-            spawnPoint(1)            = ctx.ground(spawnPoint(0), spawnPoint(2)) + 300;
+            spawnPoint(1)            = flightGround(w.world(), spawnPoint(0), spawnPoint(2)) + 300;
             w.check(w.stepUntil([&] { return (w.world().read<Transform>(plane).position() - spawnPoint).norm() > 100; },
                                 60 * 5),
                     "flies away from the respawn point");

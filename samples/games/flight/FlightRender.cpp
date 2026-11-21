@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-// The render side of the flight demo: world prototype, chase camera, GUI (the airplanes are drawn by the engine).
+// The render side of the flight demo: the prototype environment, chase camera, GUI (the airplanes, the terrain and the
+// generated content are drawn by the engine).
 
 #include "games/flight/FlightRender.h"
 
@@ -22,23 +23,18 @@ using namespace Engine;
 void FlightRender::init(EngineApp& _app)
 {
     app = &_app;
-    // The terrain is the engine's (the World's space through the render sink, S20); the trees of the prototype's 8 km
-    // area and the environment on the scene
-    Vulkan::PrototypeArea area;
-    area.seed        = context->seed;
-    area.baseSpacing = context->baseSpacing;
-    prototype.attach(
-        *app->scene(),
-        Vulkan::ForestRenderer::placeTrees(area, worldTreeCount(), 1, Vulkan::FoliageGenerator::treeSpecies(1)), 1);
+    // The terrain, its grass and the trees, rocks and ruins are the engine's (the World's generated space through the
+    // render sink: S20's terrain, S23b's content sets of the OverworldGenerator); PrototypeScene adds the environment
+    // (sky, water, the foliage texture of the tree meshes' seed) and no forest of its own (S23c)
+    prototype.attach(*app->scene(), {}, kFlightFoliageSeed);
     // The world prototype's settings and tree counts as a section of the debug UI (S19c)
     app->debugUi().addSection(DebugTab::Engine, "World", [this]() { prototype.imgui(); });
 
-    const FlightContext* ctx = context.get();
-    camera.distance          = 24;
-    camera.height            = 5;
-    camera.targetHeight      = 1;
-    camera.stiffness         = 4;
-    camera.ground            = [ctx](double x, double z) { return ctx->ground(x, z); };
+    camera.distance     = 24;
+    camera.height       = 5;
+    camera.targetHeight = 1;
+    camera.stiffness    = 4;
+    camera.ground       = [this](double x, double z) { return flightGround(app->world(), x, z); };
 }
 
 void FlightRender::shutdown()

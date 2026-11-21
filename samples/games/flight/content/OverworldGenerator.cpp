@@ -40,7 +40,8 @@ enum SeedTag : uint64_t
     TagSites,
     TagTrees,
     TagRocks,
-    TagGrass
+    TagGrass,
+    TagClumps
 };
 uint64_t seedOf(uint64_t planSeed, SeedTag tag)
 {
@@ -372,11 +373,13 @@ bool OverworldGenerator::candidate(uint16_t version, const WorldPlan& plan, Chun
         // The biome dithered by +-64 m (no straight borders along the grid cells)
         const int64_t jx = int64_t((h >> 48) & 127) - 64, jz = int64_t((h >> 56) & 127) - 64;
         const Biome biome = biomeOf(biomeValue(plan, mx + jx, mz + jz));
-        // Q16 probabilities of spruce and broadleaf per biome
-        static constexpr int64_t pSpruce[3]    = {600, 22000, 18000};
-        static constexpr int64_t pBroadleaf[3] = {2200, 26000, 0};
-        const int64_t r                        = int64_t(h & 0xFFFF);
-        const int64_t ps = pSpruce[biome], pb = pBroadleaf[biome];
+        // Q16 probabilities of spruce and broadleaf per biome, scaled by a 128 m clump noise (glades and groves: 0 to
+        // twice the mean)
+        static constexpr int64_t pSpruce[3]    = {900, 12000, 12000};
+        static constexpr int64_t pBroadleaf[3] = {2600, 16000, 0};
+        const int64_t clump = 65536 + int64_t(gradientNoise(seedOf(plan.seed, TagClumps), mx, mz, 7));
+        const int64_t r     = int64_t(h & 0xFFFF);
+        const int64_t ps = mulShift(pSpruce[biome], clump, 16), pb = mulShift(pBroadleaf[biome], clump, 16);
         if (slot == Spruce ? r >= ps : (r < ps || r >= ps + pb)) return false;
         // At least 1 m above the sea, below the tree line on mountains, not too steep (2 m steps)
         const int64_t g = height(version, plan, mx, mz);
