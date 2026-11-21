@@ -51,6 +51,7 @@ OptionsHelper(SAIGA_LIBSTDCPP "Use the GCC std lib for the clang compiler" OFF)
 OptionsHelper(SAIGA_DEBUG_ASAN "Enable the address sanitizer. Does not work in combination with TSAN." OFF)
 OptionsHelper(SAIGA_DEBUG_MSAN "Enable the memory sanitizer. Does not work in combination with TSAN." OFF)
 OptionsHelper(SAIGA_DEBUG_TSAN "Enable the thread sanitizer. Does not work in combination with ASAN." OFF)
+OptionsHelper(SAIGA_WARNINGS_AS_ERRORS "Treat compiler and linker warnings in the saiga code (libraries, tests, samples; not the submodules) as errors (CI)" OFF)
 OptionsHelper(SAIGA_HEADER_DIR "Writes the directory of the project dir to headers so that for example the Saiga shaders are always found correctly" ON)
 
 set(SAIGA_CUDA_ARCH "" CACHE STRING "Compile for a specific CUDA Arch. If empty the systems Arch is used. Archs are dotless numbers matching the nvcc flags, e.g. 75, 86, 90a or 89+PTX. Example: \"75;80;86;89;89+PTX\"")

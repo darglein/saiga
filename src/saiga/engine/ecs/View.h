@@ -213,7 +213,7 @@ class View
     // The table object never moves (owners stays valid); only its content is brought up to date
     void refreshOwners() const
     {
-        if (filtered) ownerTable->table();
+        if (ownerTable) ownerTable->table();
     }
 
     bool ownedOk(uint32_t index) const

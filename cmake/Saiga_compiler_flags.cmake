@@ -44,6 +44,26 @@ if (SAIGA_CXX_FLAGS_GNU)
     list(APPEND SAIGA_PRIVATE_CXX_FLAGS "-fvisibility=hidden")
 endif ()
 
+# SAIGA_WARNINGS_AS_ERRORS: added by saiga_core to its build interface (the libraries and everything in this build that
+# links them: tests, samples); the submodules are not affected.
+set(SAIGA_WERROR_CXX_FLAGS)
+set(SAIGA_WERROR_LD_FLAGS)
+if (SAIGA_WARNINGS_AS_ERRORS)
+    if (SAIGA_CXX_FLAGS_GNU)
+        list(APPEND SAIGA_WERROR_CXX_FLAGS "-Werror")
+    endif ()
+    if (SAIGA_CXX_FLAGS_MSVC)
+        list(APPEND SAIGA_WERROR_CXX_FLAGS "/WX")
+    endif ()
+    # The linker flag follows the linker, not the compiler frontend: Clang with the GNU frontend targeting the MSVC ABI
+    # links with lld-link (MSVC options)
+    if (MSVC OR "${CMAKE_CXX_SIMULATE_ID}" STREQUAL "MSVC")
+        list(APPEND SAIGA_WERROR_LD_FLAGS "LINKER:/WX")
+    elseif (NOT APPLE)
+        list(APPEND SAIGA_WERROR_LD_FLAGS "LINKER:--fatal-warnings")
+    endif ()
+endif ()
+
 #if (SAIGA_CXX_WCLANG)
 # Fixes: cannot use 'throw' with exceptions disabled
 #list(APPEND SAIGA_CXX_FLAGS "-Xclang -fcxx-exceptions")

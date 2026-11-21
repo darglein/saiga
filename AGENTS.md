@@ -212,6 +212,7 @@ cmake --build build --parallel -- -k 0
 | `SAIGA_BUILD_SHARED` | ON | Shared libraries (the export macros in `export.h` matter) |
 | `SAIGA_ARCHNATIVE` | ON | `-march=native` (CI turns it OFF) |
 | `SAIGA_ASSERTS` | ON | Enable `SAIGA_ASSERT` |
+| `SAIGA_WARNINGS_AS_ERRORS` | OFF | Compiler and linker warnings in the saiga code (libraries, tests, samples; not the submodules) are errors (`-Werror` / `/WX`); all three CI jobs turn it ON, so a change must build without warnings on GCC, Clang and MSVC |
 | `SAIGA_DEBUG_ASAN` / `_MSAN` / `_TSAN` | OFF | Sanitizers (TSAN excludes ASAN/MSAN) |
 | `SAIGA_CUDA_ARCH` | "" | CUDA archs; empty = autodetect |
 | `SAIGA_WITH_<LIB>` | mostly ON | Use an optional library if found (ASSIMP, LIBZIP, FFMPEG, FREETYPE, LIBTIFF, YAMLCPP, OPENAL, OPENMESH, G2O, CHOLMOD, ...) |
@@ -353,8 +354,9 @@ renderer, physics, animation or camera keep the demos working, run their scenari
   the norm across the library (glog `CHECK*` is used only in a few places). The message is only evaluated on failure
   and printed to stderr, so death tests can match it (`EXPECT_DEATH(stmt, "already has Health")`, inside
   `#ifdef SAIGA_ASSERTS`).
-- Keep the code portable: it must build with GCC, Clang and MSVC (Linux and Windows). The MSVC CI job covers Core,
-  Vulkan and Engine only (OpenGL, Vision and the samples are not built there).
+- Keep the code portable and free of warnings: it must build with GCC, Clang and MSVC (Linux and Windows); CI builds
+  with `SAIGA_WARNINGS_AS_ERRORS=ON`. The MSVC CI job covers Core, Vulkan and Engine only (OpenGL, Vision and the
+  samples are not built there).
 
 ## Gotchas
 

@@ -240,7 +240,10 @@ TEST(Fast, MoreKeypointsThanMax)
             int n = fast.Download(keypoints, stream);
             EXPECT_GT(n, 0);
             EXPECT_LE(n, fast.MaxKeypoints());
-            if (last_n >= 0) EXPECT_EQ(n, last_n);
+            if (last_n >= 0)
+            {
+                EXPECT_EQ(n, last_n);
+            }
             last_n = n;
 
             for (int k = 0; k < n; ++k)

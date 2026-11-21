@@ -39,7 +39,10 @@ else ()
     PackageHelper(OpenMP ${OPENMP_FOUND} "${OPENMP_INCLUDE_DIRS}" "${OpenMP_CXX_LIB_NAMES}")
      if(OPENMP_FOUND)
        list(APPEND SAIGA_CXX_FLAGS ${OpenMP_CXX_FLAGS})
-       list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
+       # MSVC's linker does not know /openmp (LNK4044); the compile flag alone links the OpenMP runtime there
+       if (SAIGA_CXX_FLAGS_GNU)
+           list(APPEND SAIGA_LD_FLAGS ${OpenMP_CXX_FLAGS})
+       endif ()
      endif()
 
 endif ()

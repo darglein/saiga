@@ -834,7 +834,6 @@ class BadConfig final : public GameObject
     void configure() override { throw std::runtime_error("bad data"); }
 };
 
-Entity g_next;
 // Destroys the next link of a chain in its onDestroy
 class Link final : public GameObject
 {

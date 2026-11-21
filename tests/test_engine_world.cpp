@@ -474,9 +474,9 @@ namespace
 {
 struct UnregisteredEvent
 {
-    static constexpr const char* name = "UnregisteredEvent";
-    static constexpr EventId id       = 70;
-    static constexpr uint32_t version = 1;
+    static constexpr const char* name                  = "UnregisteredEvent";
+    static constexpr EventId id                        = 70;
+    [[maybe_unused]] static constexpr uint32_t version = 1;
     template <class V>
     void visit(V&)
     {
@@ -1410,9 +1410,9 @@ namespace
 // Same ID, name and size as HitEvent, but another C++ type (never registered)
 struct DamageEventLookalike
 {
-    static constexpr const char* name = "HitEvent";
-    static constexpr EventId id       = EventId(TestEvent::Damage);
-    static constexpr uint32_t version = 1;
+    static constexpr const char* name                  = "HitEvent";
+    static constexpr EventId id                        = EventId(TestEvent::Damage);
+    [[maybe_unused]] static constexpr uint32_t version = 1;
     Entity target;
     double amount = 0;
     template <class V>

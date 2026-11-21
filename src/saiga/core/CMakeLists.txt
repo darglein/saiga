@@ -45,6 +45,9 @@ saiga_add_version_resource(${MODULE_NAME} "Saiga Core")
 target_compile_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_CXX_FLAGS}>")
 target_compile_options(${MODULE_NAME} PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_PRIVATE_CXX_FLAGS}>")
 target_link_options(${MODULE_NAME} PUBLIC "$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_LD_FLAGS}>")
+# Warnings as errors (SAIGA_WARNINGS_AS_ERRORS) only inside this build, not for projects using an installed saiga
+target_compile_options(${MODULE_NAME} PUBLIC "$<BUILD_INTERFACE:$<$<COMPILE_LANGUAGE:CXX>:${SAIGA_WERROR_CXX_FLAGS}>>")
+target_link_options(${MODULE_NAME} PUBLIC "$<BUILD_INTERFACE:${SAIGA_WERROR_LD_FLAGS}>")
 
 # as a compile feature this flag propagates to all libraries that use saiga
 target_compile_features(${MODULE_NAME} PUBLIC cxx_std_17)

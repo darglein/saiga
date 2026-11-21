@@ -57,7 +57,9 @@ void Queue::submitAndWait(vk::CommandBuffer cmd)
     submitInfo.pCommandBufferInfos    = &cmdInfo;
     vk::Fence fence                   = device.createFence(vk::FenceCreateInfo{});
     submit2(submitInfo, fence);
-    device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    vk::Result result = device.waitForFences(fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    SAIGA_ASSERT(result == vk::Result::eSuccess, "waiting for the submit fence failed");
+    (void)result;
     device.destroyFence(fence);
 }
 

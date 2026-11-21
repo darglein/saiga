@@ -1924,12 +1924,18 @@ TEST(WorldApi, ImportedSnapshotLearnsOnlyItsOwnHash)
     w.removeLoadListener(id);
     const ApiResult first = api.call("list_snapshots", Json());
     for (auto& x : first.value["snapshots"].array_items())
-        if (x["name"] == "b") EXPECT_TRUE(x["hash"].is_null()) << x.dump();
+        if (x["name"] == "b")
+        {
+            EXPECT_TRUE(x["hash"].is_null()) << x.dump();
+        }
     // Loaded without a replacement, it learns its hash
     ASSERT_TRUE(api.call("load_snapshot", obj(R"({"name": "b"})")).ok);
     const ApiResult second = api.call("list_snapshots", Json());
     for (auto& x : second.value["snapshots"].array_items())
-        if (x["name"] == "b") EXPECT_FALSE(x["hash"].is_null()) << x.dump();
+        if (x["name"] == "b")
+        {
+            EXPECT_FALSE(x["hash"].is_null()) << x.dump();
+        }
 }
 
 // Regression (CodeRabbit, S11): save_snapshot (and diff_snapshot against the live world) from inside a game hook
@@ -1998,5 +2004,8 @@ TEST(WorldApi, ImportedSnapshotLearnsTheHashBeforeTheListeners)
     w.removeLoadListener(id);
     const ApiResult listed = api.call("list_snapshots", Json());
     for (auto& x : listed.value["snapshots"].array_items())
-        if (x["name"] == "b") EXPECT_EQ(x["hash"].string_value(), hashOne) << x.dump();
+        if (x["name"] == "b")
+        {
+            EXPECT_EQ(x["hash"].string_value(), hashOne) << x.dump();
+        }
 }

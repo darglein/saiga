@@ -172,6 +172,8 @@ class SAIGA_ENGINE_API EventQueues
 {
    public:
     explicit EventQueues(const Registry& registry) : registry(registry) {}
+    // For an owner that passes a member constructed later (World): only the address is taken
+    explicit EventQueues(const Registry* registry) : registry(*registry) {}
     EventQueues(const EventQueues&)            = delete;
     EventQueues& operator=(const EventQueues&) = delete;
 
