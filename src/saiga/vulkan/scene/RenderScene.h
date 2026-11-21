@@ -11,6 +11,7 @@
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
+#include "saiga/vulkan/scene/TerrainPass.h"
 
 #include <array>
 #include <deque>
@@ -236,6 +237,13 @@ class SAIGA_VULKAN_API RenderScene
     const TerrainAtlas::Stats& terrainAtlasStats() const;
     // The GPU set itself (tests: readLayerForTests, node bounds)
     TerrainAtlas& terrainAtlas() { return *atlas; }
+    // The last recorded frame's terrain selection: nodes per level, refusals for residency, the water node
+    const TerrainPass::Stats& terrainPassStats() const;
+    // The terrain pass (tests: selectedNodes, probeVertices)
+    TerrainPass& terrainPass() { return *terrain; }
+    // Tests: the last frame's single-sampled depth (the SAMPLE_ZERO resolve target; waits for the device), row 0 at the
+    // top; reversed-Z (1 at the near plane, 0 at infinity)
+    std::vector<float> readDepthForTests(int& width, int& height);
 
     //==================================================================================================
     // Prototype content (S19a, transitional until S20, docs/engine_design.md §10.1)
@@ -277,6 +285,7 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<PrototypeWorld> prototype;
     std::unique_ptr<PrototypeSettings> protoSettings;
     std::unique_ptr<TerrainAtlas> atlas;
+    std::unique_ptr<TerrainPass> terrain;
     // The new terrain path was used (setTerrainPyramid): exclusive with setPrototypeTerrain until S20's step 7d
     bool terrainPathUsed = false;
     double sceneTime     = 0;

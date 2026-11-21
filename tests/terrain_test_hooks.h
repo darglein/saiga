@@ -190,6 +190,79 @@ inline int renderUntilUploaded(Vulkan::RenderScene& scene, int maxFrames = 64)
     return frames;
 }
 
+// The streamed tiles of the default rule (§4.3) for a camera: per level the tiles whose box (heights from the pyramid
+// +- 64 m) lies within 400 * 2^L m of the camera, the nearest tilesPerLevel
+inline std::vector<RegionId> desiredTestTiles(const Vulkan::TerrainLayout& layout,
+                                              const Vulkan::TerrainPyramidData& pyramid, const Vec3& camera,
+                                              SpaceId space = 0, int firstLevel = 0)
+{
+    std::vector<RegionId> out;
+    const int P = layout.pyramidSamplesPerSide();
+    for (int k = firstLevel; k < layout.streamedLevels(); ++k)
+    {
+        const double range = 400.0 * double(1 << k);
+        const int64_t size = int64_t(256) << k;
+        const int32_t W    = layout.tilesPerSide(k);
+        std::vector<std::pair<double, RegionId>> level;
+        for (int32_t tz = 0; tz < W; ++tz)
+            for (int32_t tx = 0; tx < W; ++tx)
+            {
+                int32_t lo = kTerrainHeightLimit, hi = -kTerrainHeightLimit;
+                const int s = int(size / 32);
+                for (int j = 0; j <= s; ++j)
+                    for (int i = 0; i <= s; ++i)
+                    {
+                        const int32_t v = (*pyramid.heights)[size_t(tz * s + j) * size_t(P) + size_t(tx * s + i)];
+                        lo              = std::min(lo, v);
+                        hi              = std::max(hi, v);
+                    }
+                const Vec3 bmin(double(tx * size), double(lo) * kHeightUnit - 64, double(tz * size));
+                const Vec3 bmax(double((tx + 1) * size), double(hi) * kHeightUnit + 64, double((tz + 1) * size));
+                const double d = (camera.cwiseMax(bmin).cwiseMin(bmax) - camera).norm();
+                if (d > range) continue;
+                RegionId r;
+                r.space = space;
+                r.level = uint8_t(k);
+                r.x     = tx;
+                r.z     = tz;
+                level.push_back({d, r});
+            }
+        std::stable_sort(level.begin(), level.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        if (int(level.size()) > layout.tilesPerLevel) level.resize(size_t(layout.tilesPerLevel));
+        for (auto& e : level) out.push_back(e.second);
+    }
+    return out;
+}
+
+// Fills a RenderScene without an engine: the pyramid, the desired tiles of the camera (desiredTestTiles), with
+// withMasks the prototypeGrassMasks (default thresholds 0.82, 0.4 m) of the level-0 chunks within 80 m, then waits for
+// the uploads
+inline void fillTestTerrain(Vulkan::RenderScene& scene, const Vulkan::TerrainLayout& layout,
+                            const TerrainHeightSource& source, std::optional<int32_t> seaLevel, const Vec3& camera,
+                            bool withMasks, SpaceId space = 0)
+{
+    const Vulkan::TerrainPyramidData pyramid = Vulkan::generateTerrainPyramid(source, layout, seaLevel);
+    scene.setTerrainPyramid(space, pyramid);
+    for (const RegionId& r : desiredTestTiles(layout, pyramid, camera, space))
+    {
+        const Vulkan::TerrainTileData tile = Vulkan::generateTerrainTile(source, layout, r);
+        scene.setTerrainTile(r, tile);
+        if (withMasks && r.level == 0)
+        {
+            const Vec3 bmin(double(r.x) * 256, -1e9, double(r.z) * 256),
+                bmax(double(r.x + 1) * 256, 1e9, double(r.z + 1) * 256);
+            const Vec3 p = camera.cwiseMax(bmin).cwiseMin(bmax);
+            if (Vec2(p.x() - camera.x(), p.z() - camera.z()).norm() > 80) continue;
+            ChunkId c;
+            c.space = space;
+            c.x     = r.x;
+            c.z     = r.z;
+            scene.setGrassMask(c, Vulkan::prototypeGrassMask(tile, layout, seaLevel, 0.82, 0.4));
+        }
+    }
+    renderUntilUploaded(scene, 256);
+}
+
 #ifdef SAIGA_TEST_ENGINE
 // A space template for the tests: open world, the hook and sea level given
 inline Engine::SpaceTemplate testSpaceTemplate(int32_t sizeChunks, int baseSpacing, TerrainHeightHook hook,

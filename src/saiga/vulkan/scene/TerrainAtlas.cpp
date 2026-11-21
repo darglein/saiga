@@ -82,7 +82,7 @@ void TerrainAtlas::init(VulkanBase& b, const RenderSceneParameters& p, uint64_t 
     base         = &b;
     params       = p;
     storageLimit = limit;
-    SAIGA_ASSERT(params.terrainUploadBytesPerFrame >= 2 * (size_t(257) * 257 * 4 + 32),
+    SAIGA_ASSERT(params.terrainUploadBytesPerFrame >= 2 * (align16(size_t(257) * 257 * 4) + 16),
                  "RenderSceneParameters::terrainUploadBytesPerFrame must hold at least two 1 m tiles");
     for (int f = 0; f < 2; ++f)
     {

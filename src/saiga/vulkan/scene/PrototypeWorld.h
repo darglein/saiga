@@ -59,6 +59,8 @@ struct PrototypeSettings
     // 0: off, 1: tint by LOD (terrain levels, the trees' LOD bits)
     int debugMode    = 0;
     bool flatShading = true;
+    // The skirts of the S20 terrain nodes (TerrainPass); off only for debugging and the crack test
+    bool terrainSkirts = true;
 };
 
 // The color word of a PrototypeFoliage vertex (S19a): the foliage texture layer in bits 0-7 (a negative layer: opaque
