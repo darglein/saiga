@@ -453,6 +453,10 @@ class SAIGA_ENGINE_API World
     uint64_t generationSeed() const { return setupSeed; }
     // E6: the space's generator has terrain (terrain and sea drawn and streamed, terrainHeight from it)
     bool spaceHasTerrain(SpaceId space) const;
+    // Client (S23a): the host's GenerationState differed from this client's generation (refused, nothing applied; the
+    // host + client variants fail on it) / it was checked and equal
+    bool generationMismatch() const { return generationMismatchFlag; }
+    bool generationChecked() const { return generationCheckedFlag; }
     // GENR, GenerationState and the generation part of hash(): a non-legacy generator or chunk records (§15.1, S23a)
     bool writesGenerationState() const;
     // The chunk records (state: the placement version per recorded chunk, the host's stamped chunks)
@@ -1050,6 +1054,7 @@ class SAIGA_ENGINE_API World
     std::unique_ptr<GenerationPipeline> pipeline;
     WorldSetup generationSetup;
     std::unique_ptr<ChunkRecords> chunkRecords;
+    bool generationMismatchFlag = false, generationCheckedFlag = false, nonIntegerWarned = false;
     uint64_t setupSeed    = 0;
     double accumulator    = 0;
     double scale          = 1;

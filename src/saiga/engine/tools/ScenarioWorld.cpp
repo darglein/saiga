@@ -271,7 +271,18 @@ void ScenarioWorld::onStep()
     // After the scenario's listeners (the counter already counted this step). Throws ScenarioAbort past maxSteps (the
     // observer registers itself again, see attachObserver)
     // The clients step with the host, before the hash and the traces (§17.3)
-    if (network.enabled) stepClients();
+    if (network.enabled)
+    {
+        stepClients();
+        // S23a: a client that refused the host's generation state fails the variant (once)
+        for (size_t i = 0; i < clientWorlds.size(); ++i)
+            if (clientWorlds[i]->generationMismatch() && !generationMismatchReported)
+            {
+                generationMismatchReported = true;
+                failed.push_back("step " + std::to_string(observedSteps) + ": client " + std::to_string(i + 1) +
+                                 " refused the host's generation state (see the log)");
+            }
+    }
     if (control.hashes) control.hashes->push_back(w->hash());
     for (Trace& t : traces)
     {

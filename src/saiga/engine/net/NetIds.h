@@ -33,6 +33,7 @@ enum class EngineMessage : MessageId
     Resync,               // host -> clients, State, reliable
     TerrainModification,  // raw, host -> clients, State, reliable (S22)
     TerrainChunkState,    // raw, host -> clients, State, reliable (S22)
+    GenerationState,      // raw, host -> clients, State, reliable (S23a)
     Count,
     FirstGame = 64,
 };

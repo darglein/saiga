@@ -16,10 +16,12 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/EngineMessages.h"
+#include "saiga/engine/net/GenerationStateMessage.h"
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainMessages.h"
@@ -441,7 +443,8 @@ void Replication::onHostLoad()
         for (uint8_t p : w.connectedPeers())
         {
             w.send(p, ResyncMessage{currentEpoch});
-            // S22: the loaded terrain modification state right after the Resync (S23a sends GenerationState before it)
+            // S23a: the loaded generation state, then S22's terrain modification state
+            sendGenerationState(p);
             sendChunkSnapshot(p);
         }
 }
@@ -460,6 +463,46 @@ void Replication::sendHostStates()
         counts.terrainMessagesSent += regularPeers.size();
         counts.terrainBytesSent += record.size() * regularPeers.size();
     }
+}
+
+void Replication::sendGenerationState(uint8_t peer)
+{
+    if (!w.writesGenerationState()) return;
+    encodeGenerationState(generationStateOf(w, currentEpoch), record);
+    w.sendRaw(peer, MessageId(EngineMessage::GenerationState), record.data(), record.size());
+    counts.generationStatesSent++;
+}
+
+void Replication::onGenerationState(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "GenerationState: only the host sends it to clients");
+        return;
+    }
+    GenerationStateMessage m;
+    std::string error;
+    if (!decodeGenerationState(data, size, m, error))
+    {
+        w.rejectInput(from, error);
+        return;
+    }
+    if (m.epoch != currentEpoch)
+    {
+        counts.generationStatesDroppedEpoch++;
+        return;
+    }
+    const std::string difference = generationStateDifference(w, m);
+    if (!difference.empty())
+    {
+        // Refused (until S26's handshake adopts the host's versions): nothing is applied
+        w.generationMismatchFlag = true;
+        w.rejectInput(from, "GenerationState: " + difference);
+        SAIGA_LOG("content", "the host's generation state differs: %s", difference.c_str());
+        return;
+    }
+    // The client generates the host's content already: nothing changes
+    w.generationCheckedFlag = true;
 }
 
 void Replication::sendChunkSnapshot(uint8_t peer)
@@ -1096,6 +1139,22 @@ void Replication::hostReplicate(bool networkOnly)
     {
         if (currentEpoch != 0)
             for (uint8_t p : joinedPeers) w.send(p, ResyncMessage{currentEpoch});
+        // S23a: the generation state before the spawn set (a client checks it first); the non-integer warning once
+        for (uint8_t p : joinedPeers) sendGenerationState(p);
+        if (!w.nonIntegerWarned)
+        {
+            w.nonIntegerWarned = true;
+            for (size_t i = 0; i < w.spaceCount(); ++i)
+            {
+                const SpaceGeneration& g = w.generation().space(SpaceId(i));
+                if (g.generator->integerOnly()) continue;
+                SAIGA_LOG("content",
+                          "generator '%s' is not integer-only: clients on other machines or compilers may see other "
+                          "terrain",
+                          g.generatorName.c_str());
+                break;
+            }
+        }
         std::vector<std::pair<int, Entity>> all;
         for (uint32_t i = 1; i < host.size(); ++i)
         {
@@ -2150,6 +2209,9 @@ void Replication::onResync(uint8_t from, const ResyncMessage& m)
     }
     Immediate scope(w.flushing);
     currentEpoch = m.epoch;
+    // S23a: the host's GenerationState of the new epoch follows
+    w.generationCheckedFlag  = false;
+    w.generationMismatchFlag = false;
     // Every replicated entity goes without callbacks; the bound state entities stay (the spawns overwrite them)
     std::vector<Entity> all;
     for (const auto& kv : clientByNetId)

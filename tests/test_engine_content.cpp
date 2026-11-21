@@ -26,8 +26,11 @@
 #include "saiga/engine/content/gen/TrigTable.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/core/LogRing.h"
 #include "saiga/engine/core/StreamingPool.h"
+#include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
@@ -2001,4 +2004,181 @@ TEST(ContentSave, CommittedSaveLoads)
     World again(ContentTest::contentTestSetup(2));
     ASSERT_TRUE(again.tryLoad(w.save()).ok());
     EXPECT_EQ(again.hash(), w.hash());
+}
+
+// ---- GenerationState (S23a step 11) ---------------------------------------------------------------------------------
+
+namespace
+{
+// Records whether the client had checked the host's generation state when it received this object
+std::atomic<int> g_probeChecked{-1};
+class TestProbe final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ContentTest::ContentTestClass::Count);
+    static constexpr const char* name = "TestProbe";
+    void onReplicatedSpawn() override { g_probeChecked = world().generationChecked() ? 1 : 0; }
+};
+void probeClasses(ClassList& c)
+{
+    ContentTest::registerContentTestClasses(c);
+    c.add<TestProbe>();
+}
+
+// A host and one client over loopback, each with its own setup (and cache); the client joins at construction
+struct GenNet
+{
+    std::vector<std::unique_ptr<LoopbackTransport>> t;
+    std::unique_ptr<World> host, client;
+    GenNet(WorldSetup hostSetup, WorldSetup clientSetup, std::function<void(World&)> beforeJoin = nullptr)
+    {
+        t                   = LoopbackTransport::createNetwork(2, LoopbackOptions());
+        hostSetup.transport = t[0].get();
+        host                = std::make_unique<World>(hostSetup);
+        if (beforeJoin) beforeJoin(*host);
+        clientSetup.transport = t[1].get();
+        clientSetup.role      = NetRole::Client;
+        clientSetup.localPeer = 1;
+        client                = std::make_unique<World>(clientSetup);
+    }
+    void step(int n = 3)
+    {
+        for (int k = 0; k < n; ++k)
+        {
+            host->step();
+            client->step();
+        }
+    }
+};
+
+std::string logSince(uint64_t sequence)
+{
+    std::string out;
+    for (const auto& l : engineLog().since(sequence)) out += "[" + l.category + "] " + l.message + "\n";
+    return out;
+}
+
+// The client refuses: counted, nothing applied, generationMismatch set, the log names the difference
+void expectRefused(GenNet& n, const std::string& difference)
+{
+    const uint64_t log = engineLog().lastSequence();
+    n.step();
+    EXPECT_TRUE(n.client->generationMismatch());
+    EXPECT_FALSE(n.client->generationChecked());
+    EXPECT_GE(n.client->netStats().rejected, 1u);
+    EXPECT_NE(logSince(log).find(difference), std::string::npos) << logSince(log);
+}
+}  // namespace
+
+// Equal setups pass; on a join the state precedes the spawn set (an object of the instance space arrives after the
+// check), after a host load it follows the Resync
+TEST(GenerationState, EqualSetupsPass)
+{
+    WorldSetup s   = ContentTest::contentTestSetup(2);
+    s.classes      = probeClasses;
+    g_probeChecked = -1;
+    GenNet n(s, s, [](World& h) { h.spawnIn<TestProbe>(2, Vec3(2176, 0, 2176)); });
+    n.step();
+    EXPECT_TRUE(n.client->generationChecked());
+    EXPECT_FALSE(n.client->generationMismatch());
+    EXPECT_EQ(n.host->replication().stats().generationStatesSent, 1u);
+    EXPECT_EQ(g_probeChecked, 1);
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+    // A host load: Resync, then the state again
+    g_probeChecked  = -1;
+    const auto blob = n.host->save();
+    ASSERT_TRUE(n.host->tryLoad(blob).ok());
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().generationStatesSent, 2u);
+    EXPECT_TRUE(n.client->generationChecked());
+    EXPECT_EQ(g_probeChecked, 1);
+}
+
+TEST(GenerationState, MismatchesAreRefused)
+{
+    {
+        WorldSetup c = ContentTest::contentTestSetup(2);
+        c.seed       = 7;
+        GenNet n(ContentTest::contentTestSetup(2), c);
+        expectRefused(n, "host seed 12345, this client's setup seed 7");
+    }
+    {
+        // The host loaded a v1 save (pins v1); a fresh v2 client pins v2
+        World v1(ContentTest::contentTestSetup(1));
+        const auto blob = v1.save();
+        GenNet n(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(2),
+                 [&](World& h) { ASSERT_TRUE(h.tryLoad(blob).ok()); });
+        expectRefused(n, "host uses generator test_terrain pinned v1, this client pins v2");
+    }
+    {
+        // A client binary whose newest version is below the host's current one (the pins agree: v1)
+        World v1(ContentTest::contentTestSetup(1));
+        const auto blob = v1.save();
+        GenNet n(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(1),
+                 [&](World& h) { ASSERT_TRUE(h.tryLoad(blob).ok()); });
+        expectRefused(n, "host places generator test_terrain at v2, this client's newest version is v1");
+    }
+    {
+        WorldSetup c = ContentTest::contentTestSetup(2);
+        c.generators = [](GeneratorList& l)
+        {
+            l.add(ContentTest::kTestTerrainGenerator, std::make_shared<ChangedGenerator>("test_terrain", true));
+            l.add(ContentTest::kTestDungeonGenerator,
+                  std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
+        };
+        GenNet n(ContentTest::contentTestSetup(2), c);
+        expectRefused(n, "generator test_terrain: the host's slot table differs");
+    }
+    {
+        GenNet n(ContentTest::contentTestSetup(2),
+                 ContentTest::contentTestSetup(2, nullptr, ContentTest::Variant::PlanChangeV2));
+        expectRefused(n, "the host's plans differ from this client's");
+    }
+}
+
+// Flat and hook worlds send no GenerationState; the non-integer warning is logged once
+TEST(GenerationState, LegacyWorldsSendNothing)
+{
+    {
+        GenNet n(WorldSetup{}, WorldSetup{});
+        n.step();
+        EXPECT_EQ(n.host->replication().stats().generationStatesSent, 0u);
+        EXPECT_FALSE(n.client->generationChecked());
+        EXPECT_FALSE(n.client->generationMismatch());
+    }
+    WorldSetup hook;
+    SpaceTemplate t;
+    t.generator                = 1;
+    hook.config.spaceTemplates = {t};
+    hook.generators            = [](GeneratorList& l)
+    {
+        l.add(1, std::make_shared<HookGenerator>(
+                     "float_hook", [](uint64_t, int64_t x, int64_t) { return int32_t(x); }, std::nullopt, false));
+    };
+    const uint64_t log = engineLog().lastSequence();
+    LoopbackOptions o;
+    auto t3       = LoopbackTransport::createNetwork(3, o);
+    WorldSetup hs = hook;
+    hs.transport  = t3[0].get();
+    World host(hs);
+    std::vector<std::unique_ptr<World>> clients;
+    for (uint8_t i = 1; i <= 2; ++i)
+    {
+        WorldSetup cs = hook;
+        cs.transport  = t3[i].get();
+        cs.role       = NetRole::Client;
+        cs.localPeer  = i;
+        clients.push_back(std::make_unique<World>(cs));
+        for (int k = 0; k < 3; ++k)
+        {
+            host.step();
+            for (auto& c : clients) c->step();
+        }
+    }
+    EXPECT_EQ(host.replication().stats().generationStatesSent, 0u);
+    const std::string lines   = logSince(log);
+    const std::string warning = "generator 'float_hook' is not integer-only";
+    const size_t first        = lines.find(warning);
+    EXPECT_NE(first, std::string::npos) << lines;
+    EXPECT_EQ(lines.find(warning, first + 1), std::string::npos) << "logged once";
 }
