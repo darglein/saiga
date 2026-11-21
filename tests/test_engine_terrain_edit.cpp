@@ -365,22 +365,22 @@ TEST(BrushKernel, SmoothRoundsOnceToTheNearest)
 
 TEST(BrushKernel, ClampDecidedAfterTheClamp)
 {
-    const int32_t L = kTerrainHeightLimit;
+    constexpr int32_t L = kTerrainHeightLimit;
     // Add at +2^23 and Subtract at -2^23 change nothing
     const KernelRun a =
-        runKernel(brush(TerrainBrush::Add, 100, 100, 6, 2), 1, 4096, [L](int64_t, int64_t) { return L; });
+        runKernel(brush(TerrainBrush::Add, 100, 100, 6, 2), 1, 4096, [](int64_t, int64_t) { return L; });
     EXPECT_EQ(a.changed, 0u);
     const KernelRun s =
-        runKernel(brush(TerrainBrush::Subtract, 100, 100, 6, 2), 1, 4096, [L](int64_t, int64_t) { return -L; });
+        runKernel(brush(TerrainBrush::Subtract, 100, 100, 6, 2), 1, 4096, [](int64_t, int64_t) { return -L; });
     EXPECT_EQ(s.changed, 0u);
     // Add 1 m (s = 1024) at 2^23 - 100 gives exactly 2^23 at the center and counts as changed
     const KernelRun c =
-        runKernel(brush(TerrainBrush::Add, 100, 100, 6, 1), 1, 4096, [L](int64_t, int64_t) { return L - 100; });
+        runKernel(brush(TerrainBrush::Add, 100, 100, 6, 1), 1, 4096, [](int64_t, int64_t) { return L - 100; });
     EXPECT_EQ(c.after(100, 100), L);
     EXPECT_GT(c.changed, 0u);
     // A sample beyond the limit at zero weight stays unchanged (pure kernel: the engine clamps every base)
     const KernelRun z =
-        runKernel(brush(TerrainBrush::Add, 0, 0, 8.004, 64), 1, 4096, [L](int64_t, int64_t) { return L + 5; });
+        runKernel(brush(TerrainBrush::Add, 0, 0, 8.004, 64), 1, 4096, [](int64_t, int64_t) { return L + 5; });
     EXPECT_EQ(z.after(8, 0), L + 5);
     EXPECT_EQ(z.after(0, 0), L);  // changed: clamped from L + 5 + 65536
 }

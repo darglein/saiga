@@ -294,12 +294,17 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
                     break;
                 case kTagTerrain:
                     // A raw range, decoded by the loader's own pass (parseTerrainSection) before the commit
-                    out.terrain.emplace();
-                    out.terrain->version = version;
-                    out.terrain->begin   = base + r.position();
-                    out.terrain->end     = base + size_t(length);
-                    ok                   = r.ok() && r.skip(r.remaining());
-                    break;
+                    {
+                        // (Assigned, not emplaced: Clang treats the nested aggregate with member initializers as not
+                        // default-constructible inside std::optional)
+                        ParsedSave::Range range;
+                        range.version = version;
+                        range.begin   = base + r.position();
+                        range.end     = base + size_t(length);
+                        out.terrain   = range;
+                        ok            = r.ok() && r.skip(r.remaining());
+                        break;
+                    }
                 default:
                     SAIGA_ASSERT(false, "parseSave: an optional section without a case");
                     break;
