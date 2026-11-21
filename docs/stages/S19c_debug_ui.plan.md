@@ -254,7 +254,7 @@ An agent can switch the tabs, e.g. to take a `screenshot gui=true` of the Perfor
 
 | Tool | Contract |
 |---|---|
-| `set_ui_tab(tab?)` | Selects a tab by name (`game`, `performance`, `engine`, `console`, or a game tab's name, case-insensitive), the same as pressing its key. Without `tab` it only reads. Returns the selected tab, the list of tabs with their keys, and whether the UI is visible (G) and enabled. An unknown name is an error that lists the names; with `debugUi = false` (or no ImGui) it is an error. Changes only the UI (not the world), and the change is persisted like a key press. It does not toggle G: a hidden UI stays hidden (the answer says so). |
+| `set_ui_tab(tab?)` | Selects a tab by name (`game`, `performance`, `engine`, `console`, or a game tab's name, case-insensitive), the same as pressing its key. Without `tab` it only reads. Returns the selected tab, the list of tabs with their keys, and whether the UI is visible (G) and enabled. An unknown name is an error that lists the names; with `debugUi = false` it is an error. Without ImGui (`noRender`, `--benchmark`) the selection is still stored and answered (`visible: false`). Changes only the UI (not the world), and the change is persisted like a key press. It does not toggle G: a hidden UI stays hidden (the answer says so). |
 
 `app_status` adds `ui_tab` (the selected tab, or null when the UI is off). The tool has a `handleMessage` test
 (R-MCP-1): select by name, read only, unknown name, game tab, UI off.
