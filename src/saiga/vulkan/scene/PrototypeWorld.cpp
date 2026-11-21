@@ -195,13 +195,19 @@ void PrototypeWorld::renderSky(vk::CommandBuffer cmd, const PrototypeSettings& s
 
 void PrototypeWorld::lighting(const PrototypeSettings& s, double time, SceneLighting& out) const
 {
+    prototypeLighting(s, time, hf->waterLevel(), out);
+}
+
+void prototypeLighting(const PrototypeSettings& s, double time, float fogBase, SceneLighting& out)
+{
     const vec3 sun = sunDirection(s);
     out.sunDir     = vec4(sun(0), sun(1), sun(2), s.sunIntensity);
     out.ambient    = vec4(s.ambient, 1, s.albedo, s.alphaCutoff);
-    out.fog        = vec4(s.fogDensity, s.fogFalloff, s.fog ? 1 : 0, hf->waterLevel());
+    out.fog        = vec4(s.fogDensity, s.fogFalloff, s.fog ? 1 : 0, fogBase);
     out.fogColor   = vec4(0.42f, 0.42f, 0.42f, 1);
     // The tree.vert frequencies of the sway (x, z) and the flutter
-    out.wind  = vec4(windPhase(time, 1.1), windPhase(time, 0.9), windPhase(time, 4.0), s.wind);
+    out.wind  = vec4(PrototypeWorld::windPhase(time, 1.1), PrototypeWorld::windPhase(time, 0.9),
+                     PrototypeWorld::windPhase(time, 4.0), s.wind);
     out.debug = vec4(float(s.debugMode), 0, 0, 0);
 }
 

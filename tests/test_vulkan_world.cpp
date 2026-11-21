@@ -1223,9 +1223,9 @@ TEST_F(VulkanWorldScene, FoliageClassNeedsTexture)
     GTEST_FLAG_SET(death_test_style, "threadsafe");
     MaterialData foliage;
     foliage.pipelineClass = uint8_t(PipelineClass::PrototypeFoliage);
-    EXPECT_DEATH(scene->addMaterial(1, "foliage", foliage), "needs the foliage texture of setPrototypeTerrain");
+    EXPECT_DEATH(scene->addMaterial(1, "foliage", foliage), "needs the foliage texture of setPrototypeEnvironment");
     scene->addMaterial(1, "flat", MaterialData());
-    EXPECT_DEATH(scene->setMaterial(1, foliage), "needs the foliage texture of setPrototypeTerrain");
+    EXPECT_DEATH(scene->setMaterial(1, foliage), "needs the foliage texture of setPrototypeEnvironment");
 #endif
 }
 

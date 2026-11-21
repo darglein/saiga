@@ -32,6 +32,8 @@ class InstanceBuffer;
 class SceneCulling;
 class PrototypeWorld;
 class HeightField;
+class GrassPass;
+struct Texture2DArray;
 struct SceneCamera;
 struct SceneLighting;
 struct PrototypeSettings;
@@ -147,7 +149,7 @@ class SAIGA_VULKAN_API RenderScene
     // Scene content (S18)
 
     // Explicit IDs (asserted free, names unique; ID 0 is none). PipelineClass::PrototypeFoliage needs the foliage
-    // texture of setPrototypeTerrain (asserted)
+    // texture of setPrototypeEnvironment (or setPrototypeTerrain; asserted)
     void addMaterial(MaterialId id, const std::string& name, const MaterialData& data);
     // A change of alphaMask, twoSided or pipelineClass rebuilds the bucket layout
     void setMaterial(MaterialId id, const MaterialData& data);
@@ -241,6 +243,15 @@ class SAIGA_VULKAN_API RenderScene
     const TerrainPass::Stats& terrainPassStats() const;
     // The terrain pass (tests: selectedNodes, probeVertices)
     TerrainPass& terrainPass() { return *terrain; }
+    // The last recorded frame's grass blocks (GrassPass, S20)
+    const GrassPass& grassPass() const { return *grass; }
+
+    // The prototype environment of the new terrain path (S20, until S36): the sun, fog, clay shading and wind of the
+    // settings for the terrain, water, grass and instances, and the foliage texture of the grass and of the
+    // PrototypeFoliage class (foliageSeed). Outside of renderFrame (it waits for the device and uploads); a second
+    // call replaces the texture. Exclusive with setPrototypeTerrain
+    void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliageSeed);
+    bool hasPrototypeEnvironment() const { return foliage != nullptr; }
     // Tests: the last frame's single-sampled depth (the SAMPLE_ZERO resolve target; waits for the device), row 0 at the
     // top; reversed-Z (1 at the near plane, 0 at infinity)
     std::vector<float> readDepthForTests(int& width, int& height);
@@ -286,6 +297,9 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<PrototypeSettings> protoSettings;
     std::unique_ptr<TerrainAtlas> atlas;
     std::unique_ptr<TerrainPass> terrain;
+    std::unique_ptr<GrassPass> grass;
+    // The foliage texture of setPrototypeEnvironment
+    std::unique_ptr<Texture2DArray> foliage;
     // The new terrain path was used (setTerrainPyramid): exclusive with setPrototypeTerrain until S20's step 7d
     bool terrainPathUsed = false;
     double sceneTime     = 0;

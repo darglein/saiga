@@ -10,6 +10,7 @@
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
@@ -17,6 +18,7 @@
 #include "saiga/vulkan/texture/Sampler.h"
 #include "saiga/vulkan/texture/Texture.h"
 #include "saiga/vulkan/window/Window.h"
+#include "saiga/vulkan/world/FoliageGenerator.h"
 
 #include <algorithm>
 #include <cmath>
@@ -296,6 +298,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (world) world->transfer(cmd, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
         // The S20 terrain: the selection over the GPU set (nothing without a resident pyramid of the camera's space)
         s.terrain->transfer(cmd, frame.frameIndex, *s.atlas, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
+        s.grass->update(*s.atlas, *s.terrain, camera, proto);
         s.slotStatistics[frame.frameIndex].terrainNodes =
             world ? uint32_t(world->stats().terrainNodes + world->stats().quarterNodes)
                   : uint32_t(s.terrain->stats().nodes);
@@ -468,6 +471,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         viewport(cmd);
         subBegin("scene.grass", cmd);
         if (world) world->renderGrass(cmd, proto);
+        if (s.foliage) s.grass->render(cmd, frame.frameIndex, *s.terrain);
         subEnd("scene.grass", cmd);
         subBegin("scene.sky", cmd);
         if (world) world->renderSky(cmd, proto);
@@ -609,6 +613,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     atlas->init(base(), params, culling->storageLimit());
     terrain = std::make_unique<TerrainPass>();
     terrain->init(base(), formats());
+    grass = std::make_unique<GrassPass>();
+    grass->init(base(), formats());
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }
@@ -619,8 +625,10 @@ RenderScene::~RenderScene()
     if (culling) culling->destroy();
     culling.reset();
     prototype.reset();
+    grass.reset();
     terrain.reset();
     atlas.reset();
+    foliage.reset();
     instanceBuffer.reset();
     meshPool.reset();
 }
@@ -773,15 +781,15 @@ bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
 
 void RenderScene::addMaterial(MaterialId id, const std::string& name, const MaterialData& data)
 {
-    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype,
-                 "addMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeTerrain");
+    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype || foliage,
+                 "addMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeEnvironment");
     meshPool->addMaterial(id, name, data);
 }
 
 void RenderScene::setMaterial(MaterialId id, const MaterialData& data)
 {
-    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype,
-                 "setMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeTerrain");
+    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype || foliage,
+                 "setMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeEnvironment");
     meshPool->setMaterial(id, data);
 }
 
@@ -883,6 +891,27 @@ std::vector<float> RenderScene::readDepthForTests(int& w, int& h)
     return renderer->readDepth(w, h);
 }
 
+void RenderScene::setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliageSeed)
+{
+    SAIGA_ASSERT(!transferFn, "setPrototypeEnvironment: not inside renderFrame");
+    SAIGA_ASSERT(!prototype, "setPrototypeEnvironment: the scene uses setPrototypeTerrain");
+    terrainPathUsed = true;
+    // The frames in flight may use the previous texture
+    renderer->waitIdle();
+    culling->setFoliageTexture(nullptr);
+    terrain->setFoliageTexture(nullptr);
+    foliage = std::make_unique<Texture2DArray>();
+    {
+        auto layers = FoliageGenerator::foliageTextures(512, foliageSeed);
+        std::vector<const Image*> images;
+        for (auto& l : layers) images.push_back(&l);
+        foliage->fromImages(base(), images, vk::ImageUsageFlagBits::eSampled, false, true);
+    }
+    culling->setFoliageTexture(foliage.get());
+    terrain->setFoliageTexture(foliage.get());
+    *protoSettings = settings;
+}
+
 void RenderScene::setPrototypeSettings(const PrototypeSettings& settings)
 {
     *protoSettings = settings;
@@ -898,6 +927,10 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
 {
     out = SceneLighting();
     if (prototype) prototype->lighting(proto, sceneTime, out);
+    // The new path's environment (S20): the fog's base is the terrain set's sea level
+    if (foliage)
+        prototypeLighting(proto, sceneTime, atlas->seaLevel() ? float(double(*atlas->seaLevel()) * kHeightUnit) : 0.0f,
+                          out);
     const vec3 p = camera.position.cast<float>();
     out.camera   = vec4(p(0), p(1), p(2), float(samples));
 }

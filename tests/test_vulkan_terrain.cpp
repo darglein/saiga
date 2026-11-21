@@ -8,6 +8,7 @@
 // integer hooks of terrain_test_hooks.h: the GPU terrain set (TerrainAtlas: uploads, the byte cap, patches, rebuilds,
 // limits, memory, node bounds).
 
+#include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
@@ -849,4 +850,86 @@ TEST_F(VulkanTerrain, NoWaterWithoutSeaLevel)
     scene->setPrototypeSettings(s);
     Capture(2);
     EXPECT_TRUE(scene->terrainPassStats().water);  // selected, not drawn
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Step 5: the grass (GrassPass)
+
+namespace
+{
+GrassMaskData constantMask(const TerrainLayout& layout, uint8_t value)
+{
+    GrassMaskData m;
+    m.size    = layout.grassMaskSize();
+    m.density = std::make_shared<std::vector<uint8_t>>(size_t(m.size) * size_t(m.size), value);
+    return m;
+}
+ChunkId Chunk(int32_t x, int32_t z)
+{
+    ChunkId c;
+    c.x = x;
+    c.z = z;
+    return c;
+}
+}  // namespace
+
+// No clumps without a mask or with a zero mask
+TEST_F(VulkanTerrain, GrassNeedsMask)
+{
+    const TerrainLayout layout = testLayout(16, 2);
+    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    const Vec3 cam(300.5, 2, 300.5);
+    fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(flatHook, 1), std::nullopt, cam, false);
+    SetCamera(0, cam, lookRotation(direction(30, -30)), 1.0);
+    const auto bare = Capture(3);
+    EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+    // Zero masks: blocks are drawn, every clump is discarded
+    for (int32_t z = 0; z < 3; ++z)
+        for (int32_t x = 0; x < 3; ++x) scene->setGrassMask(Chunk(x, z), constantMask(layout, 0));
+    renderUntilUploaded(*scene);
+    const auto zero = Capture(3);
+    EXPECT_GT(scene->grassPass().stats().blocks, 0);
+    int differing = 0;
+    for (int y = 0; y < bare.h; ++y)
+        for (int x = 0; x < bare.w; ++x) differing += bare(y, x) != zero(y, x) ? 1 : 0;
+    EXPECT_EQ(differing, 0);
+    // Full masks: grass
+    for (int32_t z = 0; z < 3; ++z)
+        for (int32_t x = 0; x < 3; ++x) scene->setGrassMask(Chunk(x, z), constantMask(layout, 255));
+    renderUntilUploaded(*scene);
+    const auto full = Capture(3);
+    differing       = 0;
+    for (int y = 0; y < bare.h; ++y)
+        for (int x = 0; x < bare.w; ++x) differing += bare(y, x) != full(y, x) ? 1 : 0;
+    EXPECT_GT(differing, width * height / 20);
+    // A removed mask: no blocks of that chunk
+    for (int32_t z = 0; z < 3; ++z)
+        for (int32_t x = 0; x < 3; ++x) scene->removeGrassMask(Chunk(x, z));
+    Capture(2);
+    EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+}
+
+// The grass is chunk-relative: the image is invariant under a 256 m camera and content offset
+TEST_F(VulkanTerrain, GrassChunkRelative)
+{
+    const TerrainLayout layout = testLayout(16, 1);
+    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    auto periodic = [](uint64_t, int64_t x, int64_t z)
+    { return int32_t(triangleWave(x, 256) * 12 + triangleWave(z + 2 * x, 128) * 8 + 2048); };
+    const auto source = TerrainHeightSource::fromHook(periodic, 1);
+    std::vector<TemplatedImage<ucvec4>> images;
+    for (int k = 0; k < 2; ++k)
+    {
+        const Vec3 eye(1700.3 + 256 * k, 0, 1500.6);
+        const Vec3 cam = eye + Vec3(0, surfaceAt(periodic, 1, 1, eye.x(), eye.z()) + 2, 0);
+        fillTestTerrain(*scene, layout, source, std::nullopt, cam, true);
+        SetCamera(0, cam, lookRotation(direction(20, -45)), 40.0 * M_PI / 180);
+        images.push_back(Capture(3));
+        EXPECT_GT(scene->grassPass().stats().blocks, 0);
+    }
+    int differing = 0;
+    for (int y = 0; y < images[0].h; ++y)
+        for (int x = 0; x < images[0].w; ++x) differing += images[0](y, x) != images[1](y, x) ? 1 : 0;
+    EXPECT_EQ(differing, 0);
+    EXPECT_LT(countColor(images[0], kClear, 0), width * height / 10);
 }

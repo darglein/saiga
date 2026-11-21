@@ -63,6 +63,11 @@ struct PrototypeSettings
     bool terrainSkirts = true;
 };
 
+// The lighting block of the instance draws from the prototype settings (sun, hemisphere ambient, fog with its base
+// height, wind phases of the time, cutoff, tint): PrototypeWorld (S19a) and RenderScene's environment (S20)
+SAIGA_VULKAN_API void prototypeLighting(const PrototypeSettings& settings, double time, float fogBase,
+                                        SceneLighting& out);
+
 // The color word of a PrototypeFoliage vertex (S19a): the foliage texture layer in bits 0-7 (a negative layer: opaque
 // parts, 0xFF), the AO in bits 8-15 and the wind weight in bits 16-23 (unorm8; both asserted in [0, 1])
 SAIGA_VULKAN_API uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);
