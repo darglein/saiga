@@ -16,6 +16,8 @@
 #include "saiga/core/math/TerrainSurface.h"
 #include "saiga/core/math/Types.h"
 #include "saiga/core/util/assert.h"
+#include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/world/SpaceKind.h"
 
 #include <cstdint>
 #include <optional>
@@ -27,14 +29,6 @@ namespace Saiga
 {
 namespace Engine
 {
-// OpenWorld: a height-map space (terrain with a hook, flat without one); Enclosed: no terrain, its content is authored
-// (S23) around the site origin (S21)
-enum class SpaceKind : uint8_t
-{
-    OpenWorld,
-    Enclosed
-};
-
 struct SpaceTemplate
 {
     std::string name = "overworld";
@@ -45,8 +39,15 @@ struct SpaceTemplate
     std::optional<int32_t> seaLevel = 0;
     // Open world: a multiple of 16 (4096 m root nodes), 16..512
     int32_t sizeChunks = 128;
-    // Null: flat, y = 0, no terrain drawn (D1); an enclosed space has none
+    // Null: flat, y = 0, no terrain drawn (D1); an enclosed space has none. Transitional (S20): replaced by the
+    // template's generator (a HookGenerator) in S23a's step 7
     TerrainHeightHook prototypeHeight = nullptr;
+    // The content generator of the space (§12.1; S23a): a GeneratorId of WorldSetup::generators; 0 is the engine's
+    // FlatGenerator (flat, no terrain, no content)
+    GeneratorId generator = 0;
+    // Prefab sites within this distance of a Player (metres) are stamped (§7.9, §12.3; S23a); scenario worlds lower
+    // it to at most 128 m
+    double fullRadius = 1000;
     // The clear color of an enclosed space (linear RGB; open-world spaces draw the sky). S36's ambient / fog replace it
     Vec3 background = Vec3(0.02, 0.02, 0.025);
 

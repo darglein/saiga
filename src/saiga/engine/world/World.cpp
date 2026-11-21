@@ -15,6 +15,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -57,6 +58,9 @@ World::World(const WorldSetup& setup)
     // The spaces (S20): checked first (a template error is a setup error, fatal in every build, D1)
     {
         validateSpaceTemplates(setup.config.spaceTemplates);
+        // The content generators (S23a): FlatGenerator as 0, then the game's; the registration checks
+        generatorList =
+            std::make_unique<GeneratorList>(makeGeneratorList(setup.generators, setup.config.spaceTemplates));
         std::vector<SpaceTemplate> templates = setup.config.spaceTemplates;
         if (templates.empty()) templates.push_back(SpaceTemplate());
         std::vector<uint64_t> seeds;

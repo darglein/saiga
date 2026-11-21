@@ -7,10 +7,17 @@
 // The content generation (docs/engine_design.md §12.1, §15.3, R-CONTENT-1; S23a): the fixed-point toolkit and the
 // integer lint (this unit is compiled with trapping UBSan on the Clang CI job, SAIGA_CONTENT_UBSAN).
 
+#include "saiga/engine/content/GeneratorList.h"
+#include "saiga/engine/content/gen/AuthoredSpaceGenerator.h"
 #include "saiga/engine/content/gen/FixedMath.h"
+#include "saiga/engine/content/gen/FlatGenerator.h"
 #include "saiga/engine/content/gen/IntNoise.h"
 #include "saiga/engine/content/gen/TrigTable.h"
 #include "saiga/engine/core/Hash.h"
+#include "saiga/engine/terrain/HookGenerator.h"
+#include "saiga/engine/terrain/TerrainGeneration.h"
+#include "saiga/engine/world/SpaceTemplate.h"
+#include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
 
@@ -359,4 +366,181 @@ TEST(ContentLint, Fixture)
     std::sort(sorted.begin(), sorted.end());
     const auto found = ContentLint::scan(text, {});
     EXPECT_EQ(found, sorted) << "found:\n" << describe(found) << "expected:\n" << describe(sorted);
+}
+
+// ---- Generator registration and the engine generators -------------------------------------------------------------
+
+namespace
+{
+// A generator whose slot table and counts are set by the test (registration checks)
+class SlotTestGenerator final : public Generator
+{
+   public:
+    std::string generatorName = "slot_test";
+    std::vector<GeneratorSlot> table;
+    uint32_t perChunk = 16, keptAt0 = 16;
+    bool increasingKept = false, legacy = false;
+    const char* name() const override { return generatorName.c_str(); }
+    uint16_t version() const override { return 1; }
+    std::vector<GeneratorSlot> slots() const override { return table; }
+    bool legacyTerrain() const override { return legacy; }
+    void plan(uint16_t, WorldPlan&) const override {}
+    int32_t height(uint16_t, const WorldPlan&, int64_t, int64_t) const override { return 0; }
+    bool candidate(uint16_t, const WorldPlan&, ChunkId, uint32_t, uint32_t, Candidate&) const override { return false; }
+    uint32_t candidatesPerChunk(uint32_t) const override { return perChunk; }
+    uint32_t keptCount(uint32_t, int level) const override
+    {
+        if (level == 0) return keptAt0;
+        return increasingKept ? perChunk + uint32_t(level) : perChunk >> level;
+    }
+    void grassMask(uint16_t, const WorldPlan& plan, ChunkId, GrassMask& out) const override
+    {
+        zeroGrassMask(plan, out);
+    }
+};
+
+std::shared_ptr<SlotTestGenerator> slotGenerator(int slots)
+{
+    auto g = std::make_shared<SlotTestGenerator>();
+    for (int i = 0; i < slots; ++i) g->table.push_back({"slot" + std::to_string(i), ReSnapOnEdit, {}});
+    return g;
+}
+
+void registerOne(std::shared_ptr<const Generator> g)
+{
+    GeneratorList list;
+    list.add(0, std::make_shared<FlatGenerator>());
+    list.add(1, std::move(g));
+    SpaceTemplate t;
+    t.generator = 1;
+    list.validate({t});
+}
+}  // namespace
+
+TEST(Generator, RegistrationPasses)
+{
+    registerOne(slotGenerator(200));
+    SpaceTemplate t;
+    const GeneratorList list = makeGeneratorList(nullptr, {t});
+    ASSERT_NE(list.find(0), nullptr);
+    EXPECT_STREQ(list.find(0)->generator->name(), "flat");
+    EXPECT_EQ(list.entries().size(), 1u);
+}
+
+TEST(GeneratorDeathTest, RegistrationChecks)
+{
+    EXPECT_DEATH(registerOne(slotGenerator(201)), "at most 200");
+    {
+        auto g           = slotGenerator(2);
+        g->table[1].name = "slot0";
+        EXPECT_DEATH(registerOne(g), "slot name is used twice");
+    }
+    {
+        auto g            = slotGenerator(1);
+        g->table[0].flags = ReSnapOnEdit | TombstoneOnEdit;
+        EXPECT_DEATH(registerOne(g), "exactly one of ReSnapOnEdit and TombstoneOnEdit");
+        g->table[0].flags = Cosmetic;
+        EXPECT_DEATH(registerOne(g), "exactly one of ReSnapOnEdit and TombstoneOnEdit");
+    }
+    {
+        auto g     = slotGenerator(1);
+        g->keptAt0 = 15;
+        EXPECT_DEATH(registerOne(g), "keptCount\\(slot, 0\\)");
+    }
+    {
+        auto g            = slotGenerator(1);
+        g->increasingKept = true;
+        EXPECT_DEATH(registerOne(g), "keptCount increases");
+    }
+    {
+        auto g      = slotGenerator(1);
+        g->perChunk = g->keptAt0 = (uint32_t(1) << 24) + 1;
+        EXPECT_DEATH(registerOne(g), "above 2\\^24");
+    }
+    {
+        auto g    = slotGenerator(1);
+        g->legacy = true;
+        EXPECT_DEATH(registerOne(g), "legacyTerrain generator has no slots");
+    }
+    {
+        // An unregistered template generator
+        SpaceTemplate t;
+        t.name      = "lost";
+        t.generator = 7;
+        EXPECT_DEATH(makeGeneratorList(nullptr, {t}), "'lost': the generator 7 is not registered");
+    }
+    {
+        // A duplicate name and a duplicate ID (0 is FlatGenerator's)
+        GeneratorList list;
+        list.add(1, slotGenerator(0));
+        EXPECT_DEATH(list.add(2, slotGenerator(0)), "registered twice");
+        EXPECT_DEATH(list.add(1, std::make_shared<FlatGenerator>()), "is used by");
+    }
+}
+
+TEST(Generator, FlatAndAuthored)
+{
+    WorldPlan plan;
+    plan.space.sizeChunks  = 16;
+    plan.space.baseSpacing = 2;
+    plan.space.kind        = SpaceKind::Enclosed;
+    FlatGenerator flat;
+    EXPECT_FALSE(flat.hasTerrain());
+    EXPECT_TRUE(flat.legacyTerrain());
+    GrassMask mask;
+    flat.grassMask(1, plan, ChunkId{}, mask);
+    EXPECT_EQ(mask.size, 128);
+    EXPECT_EQ(mask.density, std::vector<uint8_t>(128 * 128, 0));
+
+    AuthoredSpaceGenerator dungeon("test_dungeon", "test_dungeon_rooms", 1);
+    EXPECT_FALSE(dungeon.hasTerrain());
+    EXPECT_FALSE(dungeon.legacyTerrain());
+    dungeon.plan(1, plan);
+    ASSERT_EQ(plan.sites.size(), 1u);
+    const Site& s = plan.sites[0];
+    // E4: the centre of the middle chunk, 2176 m for 16 chunks
+    EXPECT_EQ(s.x, 2176);
+    EXPECT_EQ(s.z, 2176);
+    EXPECT_EQ(s.x, SpaceTemplate::enclosedOrigin(16));
+    EXPECT_EQ(s.prefab, "test_dungeon_rooms");
+    EXPECT_EQ(s.footprint[0], -2176);
+    EXPECT_EQ(s.footprint[2], 4096 - 2176);
+}
+
+TEST(Generator, HookGeneratorClampsAndKeepsTheGrassRule)
+{
+    WorldPlan plan;
+    plan.seed              = 5;
+    plan.space.baseSpacing = 2;
+    plan.space.sizeChunks  = 16;
+    plan.space.seaLevel    = 0;
+    HookGenerator big("big", [](uint64_t, int64_t, int64_t) { return std::numeric_limits<int32_t>::max(); });
+    EXPECT_EQ(big.height(1, plan, 3, 4), kTerrainHeightLimit);
+    EXPECT_TRUE(big.hasTerrain());
+    EXPECT_TRUE(big.legacyTerrain());
+    EXPECT_TRUE(big.integerOnly());
+
+    auto hook = [](uint64_t seed, int64_t x, int64_t z) { return int32_t((x * 37 + z * 11 + int64_t(seed)) % 4000); };
+    HookGenerator withRule("hook", hook, HookGrassRule{0.82, 0.4}, false);
+    EXPECT_FALSE(withRule.integerOnly());
+    EXPECT_EQ(withRule.height(1, plan, 100, 200), hook(5, 100, 200));
+    ChunkId c;
+    c.x = 3;
+    c.z = 2;
+    GrassMask mask;
+    withRule.grassMask(1, plan, c, mask);
+    // S20's rule on the hook's level-0 tile
+    Vulkan::TerrainLayout layout;
+    layout.baseSpacing = 2;
+    layout.sizeChunks  = 16;
+    RegionId r;
+    r.x                             = 3;
+    r.z                             = 2;
+    const Vulkan::TerrainTileData t = generateTile(TerrainHeightSource::fromHook(hook, 5), layout, r);
+    const Vulkan::GrassMaskData ref = generateGrassMask(t, layout, 0, 0.82, 0.4);
+    EXPECT_EQ(mask.size, ref.size);
+    EXPECT_EQ(mask.density, *ref.density);
+    HookGenerator noRule("plain", hook);
+    noRule.grassMask(1, plan, c, mask);
+    EXPECT_EQ(mask.density, std::vector<uint8_t>(128 * 128, 0));
 }

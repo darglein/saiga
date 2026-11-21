@@ -56,6 +56,9 @@ namespace Saiga
 {
 namespace Engine
 {
+class GeneratorList;
+class ContentCache;
+
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
 {
@@ -97,6 +100,12 @@ struct WorldSetup
     void (*dataTypes)(DataTypeList&) = nullptr;
     std::string dataDirectory;
     std::shared_ptr<DataStore> sharedData;
+    // The content generators (§12.1; S23a): the engine registers FlatGenerator as 0 first; a space template names its
+    // generator by ID (SpaceTemplate::generator)
+    void (*generators)(GeneratorList&) = nullptr;
+    // The cache of generated content (plans, prefabs, chunks; §12.1, S23a): shared by the worlds of a setup like
+    // sharedData (null: the world creates its own)
+    std::shared_ptr<ContentCache> sharedContent;
     // The shared store must not be reloaded by this world (reloadData and the reload_data operation fail): the worlds
     // run_scenario creates share the live world's store (S14)
     bool sharedDataReadOnly = false;
@@ -432,6 +441,8 @@ class SAIGA_ENGINE_API World
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
     // for a fixed camera); S23b adds the content sets, S27 far content
     double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
+    // The content generators by GeneratorId (§12.1; S23a)
+    const GeneratorList& generators() const { return *generatorList; }
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }
@@ -1004,6 +1015,8 @@ class SAIGA_ENGINE_API World
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
+    // The content generators (S23a)
+    std::unique_ptr<GeneratorList> generatorList;
     double accumulator    = 0;
     double scale          = 1;
     bool paused           = false;

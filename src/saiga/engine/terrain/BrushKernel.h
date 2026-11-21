@@ -18,6 +18,7 @@
 
 #pragma once
 
+#include "saiga/engine/content/gen/FixedMath.h"
 #include "saiga/engine/terrain/SampleRect.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/export.h"
@@ -28,18 +29,7 @@ namespace Saiga
 {
 namespace Engine
 {
-// floor(a / b) for b > 0 (no right shift of negative numbers)
-inline int64_t floorDiv(int64_t a, int64_t b)
-{
-    const int64_t q = a / b;
-    return (a % b != 0 && a < 0) ? q - 1 : q;
-}
-// ceil(a / b) for b > 0
-inline int64_t ceilDiv(int64_t a, int64_t b)
-{
-    const int64_t q = a / b;
-    return (a % b != 0 && a > 0) ? q + 1 : q;
-}
+// floorDiv / ceilDiv (b > 0): the content toolkit's (S23a, gen/FixedMath.h)
 // v / 65536 rounded to the nearest integer, ties toward positive infinity
 inline int64_t roundShift16(int64_t v)
 {
