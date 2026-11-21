@@ -1608,10 +1608,13 @@ tracks nothing and costs nothing):
   creation always sends the current pose as a snap (a spawn in phase 7 or 8 is not in `changedTransforms()`). An empty
   name, or a pose that is not valid yet, is tracked without a sink instance. A load appends removes and adds and marks
   all transforms changed, so it recreates the instances with snaps. A redelivered record (a sink that threw) is
-  tolerated (`track` of a tracked entity only syncs its instance); a sink that throws loses nothing: an instance
+  tolerated (`track` of a tracked entity only syncs its instance). `RenderSink`'s failure contract: a call that throws
+  has no effect (`addDynamic` creates no instance, `removeDynamic` leaves the handle live, `setDynamic` keeps the
+  previous pose; `VulkanRenderSink` throws only on allocation failure, before any change). Under it a throwing sink
+  loses nothing: an instance
   creation stays pending until `addDynamic` and its creation snap succeeded, a refused `removeDynamic` keeps its
   handle, and both are retried by the next extract or catch-up (in any frame); a catch-up commits a pair only after
-  the sink accepted it.
+  the sink accepted it, and a catch-up that threw runs again at the next call (it stays marked dirty).
 - **Source**: "has `RenderPose` → `RenderPose`, else `Transform`" on every peer (the host uses `RenderPose` for
   client-owned roots; §13.3/§13.4); a child without `RenderPose` under an ancestor with one composes that `RenderPose`
   with its local chain (`LocalTransform`s, as `interpolationSystem` composes a remote child), so it stays with the

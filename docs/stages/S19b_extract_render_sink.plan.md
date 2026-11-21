@@ -412,6 +412,14 @@ fix):
   a radius changed by `reload_data` on first use and the chase camera follows the body also without wheels;
   `game_world --benchmark` keeps the interval of a frame that was not submitted from its first attempt (a stall stays in
   the result).
+- Follow-ups (CodeRabbit's second pass): `RenderSink` states its failure contract (a call that throws has no effect;
+  `InstanceBuffer::removeDynamic` makes room in its free lists before it changes anything); the remote list's membership
+  is kept by entity, so an untrack and track of the same entity (a name record) keeps one entry
+  (`RetrackedRemoteKeepsOneEntry`); a catch-up that threw stays marked dirty, so a running world's next catch-up retries
+  it (`FailedDirtyCatchUpRunsAgain`); a class spawn checks the class's scale before it adds a requested `RenderInstance`
+  (skipped and reported when non-uniform; `ClassScaleIsCheckedBeforeARequestedRenderInstance`); `registerMeshAlias`
+  asserts outside a step like `registerMesh` (`ExtractReviewDeathTest.RegisterMeshAliasInsideAStep`); `setRenderMesh`
+  in a load hook with the unchanged name is no change and allowed (`SetRenderMeshInOnLoadWithTheSameName`).
 - Not changed: backfilling `RenderInstance` for saves written before S19b (the tech demos keep no save files: every
   save they load, snapshots, `reload_data`'s reconfigure, the scenario variants, comes from the same process).
 

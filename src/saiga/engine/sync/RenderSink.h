@@ -30,6 +30,9 @@ using Vulkan::MeshId;
 using Vulkan::MeshLods;
 using Vulkan::StaticInstance;
 
+// Failure contract: a call that throws has no effect (addDynamic creates no instance, removeDynamic leaves the handle
+// live, setDynamic keeps the previous pose); the extract retries such calls (§10.3). VulkanRenderSink throws only on
+// allocation failure, before it changes anything; RecordingRenderSink asserts on misuse instead of throwing.
 class RenderSink
 {
    public:

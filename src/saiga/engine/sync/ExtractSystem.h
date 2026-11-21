@@ -122,12 +122,10 @@ class SAIGA_ENGINE_API ExtractSystem
         // The source pose of the last extract or catch-up (the bitwise baseline of catchUp)
         WorldPose seen;
         uint64_t processedRun    = 0;             // the extract or catch-up run that handled it
-        uint64_t remoteRun       = 0;             // the commit that kept it in the remote list
         uint64_t snapStep        = ~uint64_t(0);  // the step whose Transform teleport the extract handled
         uint64_t snaps           = 0;             // the sequence number of the last snap (snapSequence)
         bool posePending         = false;         // the instance's creation snap was not sent (setDynamic threw)
         bool syncPending         = false;         // on the retry list until the instance exists with its creation snap
-        bool inRemote            = false;         // in the remote list (queued once)
         uint8_t handledTeleports = 0;             // Transform::teleportCount of the teleport the catch-up handled
     };
     struct Staged
@@ -179,7 +177,12 @@ class SAIGA_ENGINE_API ExtractSystem
     // A RenderPose, Parent or NetOwner record was consumed and the sources are not evaluated again yet
     bool sourcesDirty = false;
     void retryPending();
+    // The body of catchUp (after its trigger)
+    void catchUpRun();
     void queueRemote(Tracked& t);
+    // The entities in remote (index and generation; one entry each)
+    std::unordered_set<uint64_t> inRemote;
+    static uint64_t entityKey(Entity e) { return (uint64_t(e.index) << 32) | e.generation; }
     bool dirty                      = false;
     uint64_t runId                  = 0;  // counts extract and catch-up runs
     uint64_t snapSeq                = 0;  // the last snap sequence number

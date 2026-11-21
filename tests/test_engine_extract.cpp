@@ -97,6 +97,8 @@ enum class TestClass : uint16_t
 {
     Crate = kFirstGameClass,
     Relabel,
+    Stretched,
+    Keep,
 };
 // Adds its own RenderInstance in onSpawn (an agent's spawn may name another mesh as an initial component)
 class Crate final : public GameObject
@@ -122,6 +124,32 @@ class Relabel final : public GameObject
     }
     void onLoad() override { world().setRenderMesh(entity(), "test/ball"); }
 };
+
+// Sets a non-uniform scale in onSpawn (no RenderInstance of its own)
+class Stretched final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(TestClass::Stretched);
+    static constexpr const char* name = "Stretched";
+    void onSpawn() override { transformWrite().setScale(Vec3(1, 2, 1)); }
+};
+// Sets its saved mesh to the same name in onLoad (no change: allowed)
+class Keep final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(TestClass::Keep);
+    static constexpr const char* name = "Keep";
+    void onSpawn() override
+    {
+        if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance("test/box"));
+    }
+    void onLoad() override { world().setRenderMesh(entity(), "test/box"); }
+};
+
+void aliasInStepSystem(World& w, double)
+{
+    w.registerMeshAlias("old/in_step", "test/box");
+}
 
 std::shared_ptr<const MeshLods> triangle(float size)
 {
@@ -194,6 +222,8 @@ WorldSetup baseSetup(void (*assets)(World&) = assetsBoxBall)
     {
         c.add<Crate>();
         c.add<Relabel>();
+        c.add<Stretched>();
+        c.add<Keep>();
     };
     s.renderAssets = assets;
     return s;
@@ -1165,7 +1195,9 @@ TEST(ExtractReview, SourceReevaluationSurvivesAThrowingSink)
     w.add<RenderPose>(root, rp);
     const Entity child = rendered(w, "test/box");
     w.step();
-    EXPECT_NEAR(worldOf(dynamicOf(w, s, child)->chunk, dynamicOf(w, s, child)->curr).position.x(), 0, 1e-12);
+    const RecordingRenderSink::Dynamic* before = dynamicOf(w, s, child);
+    ASSERT_NE(before, nullptr);
+    EXPECT_NEAR(worldOf(before->chunk, before->curr).position.x(), 0, 1e-12);
     // The Parent record first, then an add whose addDynamic throws
     w.add<Parent>(child, Parent{root});
     rendered(w, "test/ball", Vec3(9, 0, 0));
@@ -1210,8 +1242,9 @@ TEST(ExtractReview, RemoteListHasOneEntryPerEntity)
 // (no retry: hasPose was set, the creation was not pending)
 TEST(ExtractReview, FirstRemotePoseWithAThrowingAdd)
 {
-    Net n;
+    // Before n: Net's teardown detaches the host's sink also when an assertion returns early
     ThrowingSink s;
+    Net n;
     n.host->setRenderSink(&s);
     const Entity p = n.host->create();
     Player pl;
@@ -1261,6 +1294,7 @@ TEST(ExtractReview, SecondTeleportBeforeTheStepSnaps)
     w.get<Transform>(e).teleport(Vec3(100, 0, 0), Quat::Identity());
     w.step();
     const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    ASSERT_NE(d, nullptr);
     EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 100, 1e-12);
     EXPECT_NEAR(worldOf(d->chunk, d->prev).position.x(), 100, 1e-12);
     // One teleport the catch-up sent: still no second snap in the step (it moves from there)
@@ -1292,6 +1326,7 @@ TEST(ExtractReview, PausedEditWithAThrowingSetIsRetried)
     EXPECT_THROW(w.extract().catchUp(), std::runtime_error);
     w.extract().catchUp();
     const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    ASSERT_NE(d, nullptr);
     EXPECT_NEAR(worldOf(d->chunk, d->curr).position.y(), 7, 1e-12);
     w.setRenderSink(nullptr);
 }
@@ -1378,3 +1413,108 @@ TEST(ExtractReview, NonUniformScaleOnEveryRenderedPath)
     ASSERT_TRUE(WorldApi::parseEntity(r.value["entity"], c, error)) << error;
     EXPECT_EQ(w.read<Transform>(c).scale(), Vec3(2, 2, 2));
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CodeRabbit follow-ups (S19b, PR #65)
+
+// Regression: a name record (untrack and track of the same entity) between two commits appended the RenderPose entity
+// to the remote list again on every paused catch-up
+TEST(ExtractReview, RetrackedRemoteKeepsOneEntry)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.add<RenderPose>(e);
+    w.step();
+    EXPECT_EQ(w.extract().remoteQueued(), 1u);
+    w.setPaused(true);
+    w.extract().catchUp();
+    for (int i = 0; i < 10; ++i)
+    {
+        w.setRenderMesh(e, i % 2 ? "test/box" : "test/ball");
+        w.extract().catchUp();
+    }
+    EXPECT_EQ(w.extract().remoteQueued(), 1u);
+    EXPECT_EQ(s.liveDynamics(), 1u);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: a catch-up of a running world (only marked dirty by an edit) whose setDynamic threw had cleared the mark,
+// so the next catch-up did not run and the sink kept the old pose until the next step
+TEST(ExtractReview, FailedDirtyCatchUpRunsAgain)
+{
+    World w(baseSetup());
+    ThrowingSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.step();
+    w.extract().catchUp();
+    WorldApi api(w);
+    ASSERT_TRUE(
+        api.call("set_transform", Json::object{{"entity", WorldApi::entityJson(e)}, {"position", Json::array{0, 4, 0}}})
+            .ok);
+    s.throwOnSet = 1;
+    EXPECT_THROW(w.extract().catchUp(), std::runtime_error);
+    EXPECT_TRUE(w.extract().catchUp());
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    ASSERT_NE(d, nullptr);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.y(), 4, 1e-12);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: a class spawn whose onSpawn set a non-uniform scale got a requested RenderInstance (the request had no
+// scale, so the preflight saw [1, 1, 1])
+TEST(ExtractReview, ClassScaleIsCheckedBeforeARequestedRenderInstance)
+{
+    World w(baseSetup());
+    WorldApi api(w);
+    ApiResult r = api.call(
+        "spawn", Json::object{{"class", "Stretched"},
+                              {"position", Json::array{0, 0, 0}},
+                              {"components", Json::object{{"RenderInstance", Json::object{{"mesh", "test/box"}}}}}});
+    ASSERT_TRUE(r.ok) << r.error;
+    Entity e;
+    std::string error;
+    ASSERT_TRUE(WorldApi::parseEntity(r.value["entity"], e, error)) << error;
+    EXPECT_FALSE(w.has<RenderInstance>(e));
+    ASSERT_TRUE(r.value["skipped"].is_array()) << r.value.dump();
+    EXPECT_EQ(r.value["skipped"][0]["component"].string_value(), "RenderInstance");
+    // A uniform requested scale replaces the class's: rendered
+    r = api.call("spawn",
+                 Json::object{{"class", "Stretched"},
+                              {"position", Json::array{0, 0, 0}},
+                              {"scale", Json::array{3, 3, 3}},
+                              {"components", Json::object{{"RenderInstance", Json::object{{"mesh", "test/box"}}}}}});
+    ASSERT_TRUE(r.ok) << r.error;
+    ASSERT_TRUE(WorldApi::parseEntity(r.value["entity"], e, error)) << error;
+    EXPECT_TRUE(w.has<RenderInstance>(e));
+    EXPECT_TRUE(r.value["skipped"].is_null()) << r.value.dump();
+}
+
+// setRenderMesh with the unchanged name in onLoad is no change (allowed; a different name is refused,
+// SetRenderMeshInOnLoadIsRefused)
+TEST(ExtractReview, SetRenderMeshInOnLoadWithTheSameName)
+{
+    World a(baseSetup());
+    WorldApi api(a);
+    ASSERT_TRUE(api.call("spawn", Json::object{{"class", "Keep"}, {"position", Json::array{0, 0, 0}}}).ok);
+    a.step();
+    World b(baseSetup());
+    const LoadResult r = b.tryLoad(a.save());
+    ASSERT_TRUE(r.committed) << r.error;
+    EXPECT_TRUE(r.hookErrors.empty());
+    EXPECT_EQ(b.hash(), a.hash());
+}
+
+#ifdef SAIGA_ASSERTS
+// Regression: registerMeshAlias was accepted inside a step (registerMesh and registerMaterial assert), where it could
+// not create the instances of entities that name the old name
+TEST(ExtractReviewDeathTest, RegisterMeshAliasInsideAStep)
+{
+    WorldSetup st = baseSetup();
+    st.systems    = [](SystemList& l) { l.add(Phase::Gameplay, "test_alias", aliasInStepSystem, RunOn::Host); };
+    World w(st);
+    EXPECT_DEATH(w.step(), "registerMeshAlias inside a step");
+}
+#endif

@@ -1531,6 +1531,12 @@ ApiResult WorldApi::spawn(const Json& a)
                 if (c.first == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
             }
         }
+        else if (c.first == RenderInstance::id && !uniformScale(w->read<Transform>(e).scale()))
+        {
+            // The class set a non-uniform scale (and the request kept it): not rendered
+            ok    = false;
+            error = "an entity with RenderInstance has a uniform scale (x = y = z); the class set a non-uniform one";
+        }
         else
             ok = addComponentValues(*w, e, c.first, c.second, error);
         if (!ok)

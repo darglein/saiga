@@ -119,6 +119,7 @@ void ExtractSystem::setSink(RenderSink* sink)
         staged.clear();
         settle.clear();
         unposed.clear();
+        inRemote.clear();
         sourcesDirty = false;
         detachConsumer();
     }
@@ -408,9 +409,9 @@ void ExtractSystem::untrack(Entity e)
 
 void ExtractSystem::queueRemote(Tracked& t)
 {
-    if (t.inRemote) return;
-    t.inRemote = true;
-    remote.push_back(t.entity);
+    // Membership by entity (not on the Tracked entry): an entity untracked and tracked again (a name record) between
+    // two commits keeps its one entry
+    if (inRemote.insert(entityKey(t.entity)).second) remote.push_back(t.entity);
 }
 
 void ExtractSystem::consumeLog()
@@ -576,14 +577,12 @@ void ExtractSystem::commit()
     for (size_t i = 0; i < remote.size(); ++i)
     {
         Tracked* t = find(remote[i]);
-        if (!t || t->remoteRun == runId) continue;
         Entity owner;
-        if (t->source == Source::Transform && sourceOf(t->entity, owner) == Source::Transform)
+        if (!t || (t->source == Source::Transform && sourceOf(t->entity, owner) == Source::Transform))
         {
-            t->inRemote = false;
+            inRemote.erase(entityKey(remote[i]));
             continue;
         }
-        t->remoteRun   = runId;
         remote[kept++] = remote[i];
     }
     remote.resize(kept);
@@ -611,6 +610,22 @@ bool ExtractSystem::catchUp()
         return false;
     dirty = false;
     runId++;
+    try
+    {
+        catchUpRun();
+    }
+    catch (...)
+    {
+        // A sink that threw: the edits are still unsent (pairs and baselines commit after the send); the next catch-up
+        // runs again also in a running world without a new edit
+        dirty = true;
+        throw;
+    }
+    return true;
+}
+
+void ExtractSystem::catchUpRun()
+{
     consumeLog();
     const Registry& reg = w.registry();
     for (Tracked& t : tracked)
@@ -683,7 +698,6 @@ bool ExtractSystem::catchUp()
             }
         }
     }
-    return true;
 }
 
 uint64_t ExtractSystem::snapSequence(Entity e) const

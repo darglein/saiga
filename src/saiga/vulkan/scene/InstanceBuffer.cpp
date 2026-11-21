@@ -265,6 +265,13 @@ void InstanceBuffer::removeDynamic(InstanceHandle h)
 {
     SAIGA_ASSERT(h.id > 0 && h.id <= dynamicList.size() && dynamicList[h.id - 1].alive,
                  "removeDynamic: unknown dynamic instance");
+    // Everything that can allocate first: a removal that throws changes nothing (RenderSink's failure contract)
+    auto room = [](std::vector<uint32_t>& v)
+    {
+        if (v.size() == v.capacity()) v.reserve(std::max<size_t>(16, 2 * v.capacity()));
+    };
+    room(freeDynamics);
+    room(freeSlots);
     Dynamic& d = dynamicList[h.id - 1];
     if (d.set) releaseChunk(d.chunk);
     d = Dynamic();
