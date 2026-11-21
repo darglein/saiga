@@ -28,6 +28,7 @@
 #include <set>
 
 #include "golden_image.h"
+#include "terrain_test_hooks.h"
 #include "vulkan_test_context.h"
 
 using namespace Saiga;
@@ -2199,18 +2200,17 @@ TEST_F(VulkanSceneContent, DepthPrePassMatches)
         RenderSceneParameters p;
         p.msaaSamples = samples;
         CreateScene(p);
-        auto heights = std::make_shared<HeightField>();
-        HeightField::Parameters hp;
-        hp.size    = 129;
-        hp.spacing = 2.0f;  // 256 m
-        heights->generate(hp);
+        // S20: test tiles of an integer hook on the GPU terrain set (with the environment's light)
         PrototypeSettings ps;
         ps.grass = false;
-        scene->setPrototypeTerrain(heights, ps, 1);
+        scene->setPrototypeEnvironment(ps, 1);
+        const TerrainLayout layout = TerrainTestHooks::testLayout(16, 2);
+        const auto source          = TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1);
         scene->addMaterial(1, "flat", flatMaterial());
         scene->addMesh(1, "box", boxMesh(vec3(3, 3, 3), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
         // A box half in the ground (the terrain and the box test against each other) and a moving one
-        const float x = 128, z = 120, h = heights->height(x, z);
+        const float x = 128, z = 120;
+        const float h = float(TerrainTestHooks::slopeRidgeHook(1, 128, 120) * kHeightUnit);
         scene->addInstanceSet(RegionId{0, 0, 0, 0},
                               {makeInstance(vec3(x, h, z), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
         DynamicPose a, b;
@@ -2222,6 +2222,7 @@ TEST_F(VulkanSceneContent, DepthPrePassMatches)
         camera.position = Vec3(x - 30, h + 12, z + 30);
         camera.rotation = lookRotation(Vec3(30, -10, -30));
         camera.apply(*scene);
+        TerrainTestHooks::fillTestTerrain(*scene, layout, source, 0, camera.position, false);
 
         ps.depthPrePass = true;
         scene->setPrototypeSettings(ps);

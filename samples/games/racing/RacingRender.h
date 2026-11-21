@@ -7,7 +7,7 @@
 #pragma once
 
 #include "saiga/engine/app/EngineApp.h"
-#include "saiga/vulkan/world/WorldRenderer.h"
+#include "saiga/vulkan/world/PrototypeScene.h"
 
 #include "games/common/ChaseCamera.h"
 #include "games/common/CosmeticDynamics.h"
@@ -50,7 +50,7 @@ class RacingRender
 
     std::shared_ptr<const RacingContext> context;
     Engine::EngineApp* app = nullptr;
-    Vulkan::WorldRenderer worldRenderer;
+    Vulkan::PrototypeScene prototype;
     LevelGeometry level;
     CosmeticDynamics wheels;
     ChaseCamera camera;

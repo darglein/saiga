@@ -13,7 +13,7 @@
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/vulkan/scene/RenderScene.h"
-#include "saiga/vulkan/world/WorldRenderer.h"
+#include "saiga/vulkan/world/WorldCommon.h"
 
 #include <algorithm>
 

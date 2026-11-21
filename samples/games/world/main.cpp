@@ -5,9 +5,9 @@
  */
 
 /**
- * The world game (docs/engine_design.md §19): the large procedural world prototype (8 x 8 km terrain, 200k trees,
- * grass around the camera) on the engine app (EngineApp), rendered in a uniform gray. S44 builds the first gameplay
- * on it.
+ * The world game (docs/engine_design.md §19): the large procedural world prototype (S20: a 32 km space of height tiles
+ * at 1 m streamed by the engine, 200k trees in the 8 km area [0, 8192]^2, grass around the camera) on the engine app
+ * (EngineApp), rendered in a uniform gray. S44 builds the first gameplay on it.
  *
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
  * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits.
@@ -19,18 +19,23 @@
  * vsync, GUI and MCP off, time 0, the default world: SAIGA_WORLD_TREES is ignored), writes
  * benchmark_<name>.json to the working directory and exits with 0, or with 1 if the benchmark did not finish, the
  * result could not be written, the rendered size changed or a frame stalled (an old result file is deleted at the
- * start). --headless runs without a window (agents, servers).
+ * start). Terrain residency is completed in every benchmark frame (EngineApp::setCompleteViewEachFrame); its time is
+ * reported separately (terrain_stream_ms). --base-spacing 2 (benchmark comparisons) runs the same space at 2 m.
+ * --headless runs without a window (agents, servers).
  */
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/saiga_buildconfig.h"
 #include "saiga/vulkan/scene/RenderScene.h"
+#include "saiga/vulkan/world/PrototypeScene.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 #include "saiga/vulkan/world/WorldMcp.h"
-#include "saiga/vulkan/world/WorldRenderer.h"
+
+#include "games/common/PrototypeSpace.h"
 
 #include <array>
 #include <chrono>
@@ -42,6 +47,7 @@
 #include <memory>
 #include <set>
 #include <sstream>
+#include <vector>
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -52,7 +58,15 @@ namespace
 // not world state)
 struct WorldGame
 {
-    Vulkan::WorldRenderer world;
+    // The trees and settings on the scene; the terrain is the engine's (World::terrain through the render sink)
+    Vulkan::PrototypeScene prototype;
+    // The prototype's 8 km area: its statistics on a 32 m grid (the start camera, game_get_state)
+    Vulkan::PrototypeAreaStats area;
+    uint32_t treeSeed  = 1;
+    float lastLodRange = -1;
+    // The terrain uploads of the measured frames (the benchmark's terrain block)
+    int terrainUploads        = 0;
+    double terrainUploadBytes = 0;
     std::unique_ptr<Vulkan::WorldBenchmark> bench;
     std::string benchmarkName;
     bool benchmarkDone = false, benchmarkOk = false, sizeChanged = false;
@@ -109,30 +123,43 @@ std::map<std::string, double> s03Passes(const std::map<std::string, double>& sec
 void initWorld(EngineApp& app)
 {
     WorldGame& g = *g_game;
-    Vulkan::WorldParameters params;
+    World& w     = app.world();
     // A benchmark always uses the default world (its result is compared with the baseline)
+    int treeCount = 200000;
     if (const char* trees = std::getenv("SAIGA_WORLD_TREES"); trees && g.benchmarkName.empty())
-        params.treeCount = std::atoi(trees);
-    g.world.init(params);
-    g.world.attach(*app.scene());
+        treeCount = std::atoi(trees);
+    const auto t0 = std::chrono::steady_clock::now();
+    Vulkan::PrototypeArea area;
+    area.seed          = w.spaceSeed(0);
+    area.baseSpacing   = w.spaceTemplate(0).baseSpacing;
+    const auto species = Vulkan::FoliageGenerator::treeSpecies(g.treeSeed);
+    const auto trees   = Vulkan::ForestRenderer::placeTrees(area, treeCount, g.treeSeed, species);
+    std::cout << "World: " << trees.size() << " trees placed in "
+              << std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() << " s" << std::endl;
+    g.prototype.attach(*app.scene(), trees, g.treeSeed);
 
-    // Start on a hill: next to the highest point, looking over the world center
-    auto& hf    = g.world.heightField();
-    vec3 peak   = hf.highestPoint();
-    vec3 center = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
-    vec3 toPeak = vec3(peak(0) - center(0), 0, peak(2) - center(2));
-    vec3 eye    = peak + (toPeak.norm() > 1 ? toPeak.normalized() * 150.0f : vec3(150, 0, 0));
-    eye(1)      = std::max(hf.height(eye(0), eye(2)), peak(1) - 40) + 60;
-    center(1)   = hf.height(center(0), center(2));
-    app.setViewCamera(0, eye.cast<double>(), cameraLookRotation((center - eye).cast<double>()),
-                      radians(double(g.world.settings.fovy)));
+    // Start on a hill: next to the highest point of the 8 km area, looking over its centre
+    const Vec3 peak = g.area.highest;
+    Vec3 center(Vulkan::kPrototypeArea * 0.5, 0, Vulkan::kPrototypeArea * 0.5);
+    const Vec3 toPeak(peak(0) - center(0), 0, peak(2) - center(2));
+    Vec3 eye  = peak + (toPeak.norm() > 1 ? toPeak.normalized() * 150.0 : Vec3(150, 0, 0));
+    eye(1)    = std::max(w.terrainHeight(0, eye(0), eye(2)), peak(1) - 40) + 60;
+    center(1) = w.terrainHeight(0, center(0), center(2));
+    app.setViewCamera(0, eye, cameraLookRotation(center - eye), radians(double(g.prototype.settings.fovy)));
 
     if (!g.benchmarkName.empty())
     {
         std::string gpu = app.scene()->base().physicalDevice.getProperties().deviceName.data();
-        g.bench         = std::make_unique<Vulkan::WorldBenchmark>(g.benchmarkName, g.world.heightField(), gpu);
+        // The ground of the paths: terrain or water, whichever is higher
+        World* world = &w;
+        auto ground  = [world](double x, double z)
+        { return std::max(world->terrainHeight(0, x, z), double(Vulkan::kPrototypeSeaLevel) * kHeightUnit); };
+        g.bench = std::make_unique<Vulkan::WorldBenchmark>(g.benchmarkName, ground, gpu);
+        // Terrain residency is deterministic: every frame completes its view (E9)
+        app.setCompleteViewEachFrame(true);
         std::remove(resultFile(g.benchmarkName).c_str());
-        std::cout << "Benchmark " << g.benchmarkName << " on " << gpu << std::endl;
+        std::cout << "Benchmark " << g.benchmarkName << " on " << gpu << " (base spacing "
+                  << w.spaceTemplate(0).baseSpacing << " m)" << std::endl;
     }
 }
 
@@ -142,17 +169,24 @@ void beforeRender(EngineApp& app)
     Vulkan::RenderScene& scene = *app.scene();
     // The frame being recorded
     const uint64_t frame = scene.frames() + 1;
-    g.world.update();
+    g.prototype.update();
+    // The terrain's residency range follows the LOD range (a larger render range would only show coarser terrain)
+    if (g.prototype.settings.terrainLodRange != g.lastLodRange)
+    {
+        g.lastLodRange                = g.prototype.settings.terrainLodRange;
+        Engine::TerrainViewSettings v = app.world().terrain().viewSettings();
+        v.residencyRange0             = std::max(400.0, 1.3 * double(g.lastLodRange));
+        app.world().terrain().setViewSettings(v);
+    }
     // The app's free camera is this game's camera: the walk mode and the field of view of the settings adjust it as
     // tool writes (also while a tool holds it, S14)
     ViewCamera cam    = app.viewCamera();
-    const double fovy = radians(double(g.world.settings.fovy));
+    const double fovy = radians(double(g.prototype.settings.fovy));
     bool changed      = cam.fovy != fovy;
     cam.fovy          = fovy;
     if (g.walkMode)
     {
-        const double y =
-            double(g.world.heightField().height(float(cam.position(0)), float(cam.position(2)))) + double(g.eyeHeight);
+        const double y  = app.world().terrainHeight(cam.space, cam.position(0), cam.position(2)) + double(g.eyeHeight);
         changed         = changed || y != cam.position(1);
         cam.position(1) = y;
     }
@@ -196,7 +230,14 @@ void beforeRender(EngineApp& app)
             sample.workMs      = scene.lastRecordingMs();
             sample.frameWorkMs = g.frameWork;
             sample.waitPartsMs = g.frameWaits;
+            // The previous frame's terrain stream time (its completeView ran after its beforeRender)
+            sample.terrainStreamMs = app.lastTerrainStreamMs();
             g.bench->addSample(sample);
+            if (g.bench->measuring(frame - 1))
+            {
+                g.terrainUploads += app.world().terrain().stats().uploadsLastUpdate;
+                g.terrainUploadBytes += double(scene.terrainAtlasStats().bytesRecorded);
+            }
         }
         g.frameWork             = 0;
         g.frameWaits            = {};
@@ -303,7 +344,20 @@ void beforeRender(EngineApp& app)
                     {"mean", s.mean}, {"median", s.median}, {"p95", s.p95}, {"p99", s.p99}, {"max", s.max}};
         }
         result["gpu_frame_ms"] = gpuFrame.empty() ? json11::Json() : json11::Json(gpuFrame);
-        const int stalls       = result["stalled_frames"].int_value();
+        // The terrain (S20): the uploads of the measured frames, the resident tiles and the memory
+        {
+            const auto& ts = app.world().terrain().stats();
+            int resident   = 0;
+            for (const auto& l : ts.levels) resident += l.resident;
+            const auto& mem   = scene.terrainAtlasStats().memory;
+            result["terrain"] = json11::Json::object{{"uploads", g.terrainUploads},
+                                                     {"upload_mb", g.terrainUploadBytes / (1 << 20)},
+                                                     {"resident_tiles", resident},
+                                                     {"cpu_mb", double(ts.cpuBytes + mem.cpuBytes()) / (1 << 20)},
+                                                     {"gpu_mb", double(mem.gpuBytes()) / (1 << 20)},
+                                                     {"base_spacing", app.world().spaceTemplate(0).baseSpacing}};
+        }
+        const int stalls = result["stalled_frames"].int_value();
         if (stalls > 0)
             std::cout << "Benchmark error: " << stalls
                       << " stalled frames (e.g. the window was minimized or the swap chain recreated)" << std::endl;
@@ -346,7 +400,7 @@ void gui(EngineApp& app)
     ImGui::SliderFloat("speed fast", &app.cameraSpeedFast(), 10, 2000);
     const Vec3 p = app.viewCamera().position;
     ImGui::Text("camera %.1f %.1f %.1f (%.1f m above ground)", p(0), p(1), p(2),
-                p(1) - double(g.world.heightField().height(float(p(0)), float(p(2)))));
+                p(1) - app.world().terrainHeight(app.viewCamera().space, p(0), p(2)));
     if (app.mcp().running()) ImGui::Text("MCP: http://127.0.0.1:%d/mcp", app.mcp().port());
     ImGui::End();
 }
@@ -357,31 +411,75 @@ int main(int argc, char* argv[])
     WorldGame game;
     g_game = &game;
 
+    // --base-spacing 1|2 (a benchmark comparison flag, S20): taken out before the engine's command line
+    int baseSpacing = 1;
+    std::vector<char*> args;
+    for (int i = 0; i < argc; ++i)
+    {
+        if (std::string(argv[i]) == "--base-spacing" && i + 1 < argc)
+        {
+            baseSpacing = std::atoi(argv[++i]);
+            if (baseSpacing != 1 && baseSpacing != 2)
+            {
+                std::cerr << "--base-spacing: 1 or 2" << std::endl;
+                return 1;
+            }
+            continue;
+        }
+        args.push_back(argv[i]);
+    }
+
     EngineAppSetup setup;
-    setup.name               = "world";
-    setup.render.msaaSamples = 4;
-    setup.cameraSpeed        = 25;
-    setup.cameraSpeedFast    = 250;
-    setup.benchmarks         = Vulkan::WorldBenchmark::names();
-    setup.mcpInstructions    = Vulkan::worldMcpInstructions();
-    EngineApp* appPtr        = nullptr;
-    setup.renderHooks.init   = [&](EngineApp& app)
+    setup.name = "world";
+    // The prototype's 32 km space (S20); the statistics of its 8 km area (space 0's seed is the world seed)
+    setup.world.config.spaceTemplates = {Game::prototypeSpaceTemplate(baseSpacing)};
+    game.area                         = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
+    setup.render.msaaSamples          = 4;
+    setup.cameraSpeed                 = 25;
+    setup.cameraSpeedFast             = 250;
+    setup.benchmarks                  = Vulkan::WorldBenchmark::names();
+    setup.mcpInstructions             = Vulkan::worldMcpInstructions();
+    EngineApp* appPtr                 = nullptr;
+    setup.renderHooks.init            = [&](EngineApp& app)
     {
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;
         initWorld(app);
-        // The world prototype's settings and statistics as sections of the debug UI (S19c)
-        app.debugUi().addSection(DebugTab::Engine, "World", [&]() { game.world.imgui(); });
-        app.debugUi().addSection(DebugTab::Performance, "World passes", [&]() { game.world.imguiStatistics(); });
+        // The world prototype's settings and tree counts as a section of the debug UI (S19c)
+        app.debugUi().addSection(DebugTab::Engine, "World", [&]() { game.prototype.imgui(); });
     };
-    setup.renderHooks.shutdown     = [&](EngineApp&) { game.world.destroy(); };
+    setup.renderHooks.shutdown     = [&](EngineApp&) { game.prototype.detach(); };
     setup.renderHooks.beforeRender = [&](EngineApp& app, double) { beforeRender(app); };
     setup.renderHooks.gui          = [&]() { gui(*appPtr); };
     setup.gameTools                = [&](McpServer& server, EngineApp& app)
     {
         if (!app.scene()) return;
         Vulkan::WorldMcpContext context;
-        context.world     = &game.world;
+        World* world     = &app.world();
+        context.settings = &game.prototype.settings;
+        context.stats    = [&game, &app]()
+        {
+            json11::Json::object o = game.prototype.statsJson().object_items();
+            const auto& t          = app.world().terrain().stats();
+            int resident           = 0;
+            for (const auto& l : t.levels) resident += l.resident;
+            o["terrain"] = json11::Json::object{{"resident_tiles", resident},
+                                                {"pending", t.pending},
+                                                {"cpu_mb", double(t.cpuBytes) / (1 << 20)},
+                                                {"last_complete_ms", t.lastCompleteMs}};
+            return json11::Json(o);
+        };
+        context.ground       = [world](double x, double z) { return world->terrainHeight(0, x, z); };
+        context.worldSize    = world->spaceTemplate(0).sizeMeters();
+        context.seaLevel     = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
+        context.highestPoint = game.area.highest;
+        // The whole space's from the pyramid once it exists, else the 8 km area's
+        context.heightRange = [world, &game]()
+        {
+            if (const auto* p = world->terrain().pyramid(0))
+                return std::make_pair(double(p->minHeight) * kHeightUnit, double(p->maxHeight) * kHeightUnit);
+            return std::make_pair(game.area.minHeight, game.area.maxHeight);
+        };
         context.getCamera = [&app]()
         {
             Vulkan::WorldMcpCamera c;
@@ -398,7 +496,7 @@ int main(int argc, char* argv[])
         Vulkan::registerWorldMcpTools(server, context);
     };
 
-    const int code = engineMain(argc, argv, setup, {}, [](EngineApp&, const AppOptions&) {});
+    const int code = engineMain(int(args.size()), args.data(), setup, {}, [](EngineApp&, const AppOptions&) {});
     // A window closed before the end of the path
     if (code == 0 && !game.benchmarkName.empty() && !game.benchmarkDone)
     {

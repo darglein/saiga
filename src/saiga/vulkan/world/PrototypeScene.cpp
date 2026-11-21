@@ -45,15 +45,53 @@ void PrototypeScene::update()
     trees.apply(settings);
 }
 
+json11::Json PrototypeScene::statsJson() const
+{
+    if (!renderScene) return json11::Json::object{};
+    RenderScene& scene = *renderScene;
+    json11::Json::object gpuSections;
+    const FrameTimes& gpu = scene.lastGpuFrameTimes();
+    const auto& names     = RenderScene::gpuSectionNames();
+    for (size_t i = 0; i < gpu.gpuSectionMs.size() && i < names.size(); ++i)
+        gpuSections[names[i]] = gpu.gpuSectionMs[i];
+    const auto ts      = trees.stats();
+    const auto& tp     = scene.terrainPassStats();
+    const auto& gs     = scene.grassPass().stats();
+    const double atlas = double(scene.terrainAtlasStats().memory.gpuBytes());
+    return json11::Json::object{
+        {"vsync", scene.vsync()},
+        {"gpu_frame_ms", gpu.gpuMs},
+        {"gpu_section_ms", gpuSections},
+        {"terrain_nodes", tp.nodes},
+        {"terrain_triangles", tp.triangles},
+        {"trees_total", trees.treeCount()},
+        {"trees_visible_lod0", int(ts.visible[0])},
+        {"trees_visible_lod1", int(ts.visible[1])},
+        {"trees_visible_lod2", int(ts.visible[2])},
+        {"tree_triangles", double(ts.triangles)},
+        {"grass_blocks", gs.blocks},
+        {"grass_clumps_submitted", double(gs.clumps)},
+        {"grass_triangles_submitted", double(gs.triangles)},
+        {"msaa_samples", int(scene.formats().samples)},
+        {"draw_calls", int(scene.statistics().drawCommands) + gs.drawCalls},
+        {"gpu_memory_mb", (atlas + double(trees.memoryBytes())) / (1024.0 * 1024.0)},
+    };
+}
+
+namespace
+{
+// A sub-section of the settings: a tree node without indent (the debug UI's section header is the parent)
+bool subSection(const char* label, bool defaultOpen)
+{
+    return ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                        (defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None));
+}
+}  // namespace
+
 void PrototypeScene::imgui()
 {
-    if (!ImGui::Begin("World"))
-    {
-        ImGui::End();
-        return;
-    }
-    // The frame and terrain statistics are in the app's "Engine statistics" (F1)
-    ImGui::TextDisabled("frame times, terrain: Engine statistics (F1)");
+    // Widgets only (no window): the engine's debug UI shows them as a section of its Engine tab (S19c). The frame
+    // times and the terrain are in its Performance and Engine tabs
     const auto ts = trees.stats();
     ImGui::Text("trees: %d in %d sets, drawn per LOD %u / %u / %u", trees.treeCount(), trees.setCount(), ts.visible[0],
                 ts.visible[1], ts.visible[2]);
@@ -62,9 +100,8 @@ void PrototypeScene::imgui()
         const auto& gs = renderScene->grassPass().stats();
         ImGui::Text("grass: %d blocks, %lld clumps", gs.blocks, (long long)gs.clumps);
     }
-
     auto& st = settings;
-    if (ImGui::CollapsingHeader("Passes", ImGuiTreeNodeFlags_DefaultOpen))
+    if (subSection("Passes", true))
     {
         ImGui::Checkbox("terrain", &st.terrain);
         ImGui::SameLine();
@@ -81,7 +118,7 @@ void PrototypeScene::imgui()
         ImGui::Checkbox("depth pre-pass", &st.depthPrePass);
         ImGui::Combo("debug", &st.debugMode, "none\0lod tint\0\0");
     }
-    if (ImGui::CollapsingHeader("Level of detail"))
+    if (subSection("Level of detail", false))
     {
         ImGui::SliderFloat("terrain lod range", &st.terrainLodRange, 100, 2000, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("morph start", &st.morphStart, 0.3f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -93,7 +130,7 @@ void PrototypeScene::imgui()
         ImGui::SliderFloat("grass density", &st.grassDensity, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("alpha cutoff", &st.alphaCutoff, 0.05f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
     }
-    if (ImGui::CollapsingHeader("Lighting"))
+    if (subSection("Lighting", false))
     {
         ImGui::SliderFloat("fovy", &st.fovy, 20, 110, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("sun azimuth", &st.sunAzimuth, -180, 180, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -105,7 +142,6 @@ void PrototypeScene::imgui()
         ImGui::SliderFloat("fog density", &st.fogDensity, 0, 0.002f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("fog falloff", &st.fogFalloff, 0.0001f, 0.01f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
     }
-    ImGui::End();
 }
 
 }  // namespace Vulkan

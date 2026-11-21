@@ -6,9 +6,9 @@
 
 /**
  * The culling benchmark of RenderScene (S18, docs/engine_design.md §17.7, R-TEST-2): the prototype forest's 200k trees
- * (ForestRenderer::placeTrees on the default height field, one instance set per chunk) as flat meshes with the
- * prototype trees' triangle counts, LOD distances (70, 300, 30000 m) and bounds, drawn by RenderScene over the flyover
- * path of WorldBenchmark (1920 x 1080, 4x MSAA, clay mode, headless: no window, no present).
+ * (ForestRenderer::placeTrees over the prototype's 8 km area of its height hook, one instance set per chunk) as flat
+ * meshes with the prototype trees' triangle counts, LOD distances (70, 300, 30000 m) and bounds, drawn by RenderScene
+ * over the flyover path of WorldBenchmark (1920 x 1080, 4x MSAA, clay mode, headless: no window, no present).
  *
  * Writes benchmark_scene_cull.json to the working directory: the GPU times of RenderScene's cull section (count, scan,
  * write) and scene section (the instance draws and the clear / MSAA store), the scene section of frames without a
@@ -23,7 +23,7 @@
 #include "saiga/vulkan/window/HeadlessWindow.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
-#include "saiga/vulkan/world/HeightField.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 
 #include <cmath>
@@ -95,12 +95,18 @@ int main(int argc, char** argv)
     for (int i = 1; i + 1 < argc; ++i)
         if (std::string(argv[i]) == "--instances") instanceCount = std::stoi(argv[i + 1]);
 
-    // The prototype's content: the default height field, the trees of seed 1, the LOD distances of WorldSettings
-    HeightField hf;
-    hf.generate(HeightField::Parameters());
+    // The prototype's content: the trees of seed 1 on its hook, the LOD distances of WorldSettings
+    // The prototype's 8 km area (S20: the hook of the 32 km space at 1 m, game_world's)
+    PrototypeArea area;
+    // The flyover's ground: terrain or water, whichever is higher
+    const WorldBenchmark::Ground ground = [&area](double x, double z)
+    {
+        return std::max(prototypeSurfaceHeight(area.seed, area.baseSpacing, x, z),
+                        double(kPrototypeSeaLevel) * kHeightUnit);
+    };
     const uint32_t seed = 1;
     const auto species  = FoliageGenerator::treeSpecies(seed);
-    const auto trees    = ForestRenderer::placeTrees(hf, instanceCount, seed, species);
+    const auto trees    = ForestRenderer::placeTrees(area, instanceCount, seed, species);
     const float ends[3] = {70, 300, 30000};
 
     WindowParameters wp;
@@ -199,7 +205,7 @@ int main(int argc, char** argv)
     for (int i = 0; i < warmup + measured; ++i)
     {
         const int m                  = std::max(0, i - warmup);
-        const WorldBenchmark::Pose p = WorldBenchmark::pose("flyover", hf, m);
+        const WorldBenchmark::Pose p = WorldBenchmark::pose("flyover", ground, m);
         const Vec3 eye               = p.eye.cast<double>();
         scene.setCamera(0, eye, lookRotation(p.target.cast<double>() - eye), 60.0 * 3.14159265358979323846 / 180.0);
         scene.renderFrame(noop, noop, nullptr);

@@ -14,6 +14,7 @@
 #include "saiga/vulkan/world/FoliageGenerator.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
 
+#include "games/common/PrototypeSpace.h"
 #include "games/common/RenderAssets.h"
 
 #include <chrono>
@@ -26,19 +27,22 @@ namespace Game
 {
 using namespace Engine;
 
-std::shared_ptr<const RacingContext> RacingContext::create()
+std::shared_ptr<const RacingContext> RacingContext::create(uint64_t seed)
 {
-    auto c        = std::make_shared<RacingContext>();
-    const auto t0 = std::chrono::steady_clock::now();
-    c->heightField.generate(Vulkan::HeightField::Parameters());
-    const Vulkan::HeightField& hf = c->heightField;
+    auto c         = std::make_shared<RacingContext>();
+    const auto t0  = std::chrono::steady_clock::now();
+    c->seed        = seed;
+    c->baseSpacing = prototypeSpaceTemplate().baseSpacing;
 
     // A site on gentle land with few trees on the track (the prototype's trees cannot be removed): the trees of the
-    // world prototype (WorldParameters::seed 1) per 16 m cell
+    // world prototype (tree seed 1) per 16 m cell
+    Vulkan::PrototypeArea area;
+    area.seed        = c->seed;
+    area.baseSpacing = c->baseSpacing;
     const auto trees =
-        Vulkan::ForestRenderer::placeTrees(hf, kSiteTreeCount, 1, Vulkan::FoliageGenerator::treeSpecies(1));
+        Vulkan::ForestRenderer::placeTrees(area, kSiteTreeCount, 1, Vulkan::FoliageGenerator::treeSpecies(1));
     const double cell = 16;
-    const int cells   = int(hf.worldSize() / cell) + 1;
+    const int cells   = int(Vulkan::kPrototypeArea / cell) + 1;
     std::vector<int> perCell(size_t(cells) * cells, 0);
     for (auto& t : trees)
     {
@@ -53,11 +57,12 @@ std::shared_ptr<const RacingContext> RacingContext::create()
     const RacingContext* ctx = c.get();
     GroundHeight ground      = [ctx](double x, double z) { return ctx->terrain(x, z); };
     const double radius      = 220;
-    const uint32_t seed      = 7;
-    const Vec3 site = Track::findSite(ground, hf.worldSize(), radius, hf.waterLevel() + 3, 12, seed, treePenalty);
+    const uint32_t trackSeed = 7;
+    const double sea         = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
+    const Vec3 site = Track::findSite(ground, Vulkan::kPrototypeArea, radius, sea + 3, 12, trackSeed, treePenalty);
     c->track.width  = 12;
-    c->track.build(Track::loop(site, radius, 12, seed), 10);
-    std::cout << "Racing: height field, " << trees.size() << " trees and the track (" << c->track.length() << " m) in "
+    c->track.build(Track::loop(site, radius, 12, trackSeed), 10);
+    std::cout << "Racing: " << trees.size() << " trees and the track (" << c->track.length() << " m) in "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() << " s" << std::endl;
     return c;
 }
@@ -246,7 +251,10 @@ void racingPeerJoined(World& host, uint8_t peer, bool demo)
 WorldSetup racingWorldSetup(std::shared_ptr<const RacingContext> context)
 {
     WorldSetup s;
-    s.components = [](Registry& r)
+    // The prototype's 32 km space (S20): its seed is the context's (the context evaluates the same surface)
+    s.seed                  = context->seed;
+    s.config.spaceTemplates = {prototypeSpaceTemplate(context->baseSpacing)};
+    s.components            = [](Registry& r)
     {
         r.registerComponent<VehicleControls>(Replicate::OwnerAuthoritative);
         r.registerComponent<VehicleState>(Replicate::Host);

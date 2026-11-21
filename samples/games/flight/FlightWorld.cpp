@@ -13,6 +13,7 @@
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 
+#include "games/common/PrototypeSpace.h"
 #include "games/common/RenderAssets.h"
 
 #include <chrono>
@@ -24,16 +25,14 @@ namespace Game
 {
 using namespace Engine;
 
-std::shared_ptr<const FlightContext> FlightContext::create()
+std::shared_ptr<const FlightContext> FlightContext::create(uint64_t seed)
 {
-    auto c        = std::make_shared<FlightContext>();
-    const auto t0 = std::chrono::steady_clock::now();
-    c->heightField.generate(Vulkan::HeightField::Parameters());
-    const double size = c->heightField.worldSize();
+    auto c            = std::make_shared<FlightContext>();
+    c->seed           = seed;
+    c->baseSpacing    = prototypeSpaceTemplate().baseSpacing;
+    const double size = Vulkan::kPrototypeArea;
     c->circuitCenter  = Vec3(size / 2, 0, size / 2);
     c->circuitRadius  = size * 0.3;
-    std::cout << "Flight: height field " << c->heightField.size() << "^2 generated in "
-              << std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() << " s" << std::endl;
     return c;
 }
 
@@ -178,7 +177,10 @@ void flightPeerJoined(World& host, uint8_t peer, bool demo)
 WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory)
 {
     WorldSetup s;
-    s.components = [](Registry& r)
+    // The prototype's 32 km space (S20): its seed is the context's (the context evaluates the same surface)
+    s.seed                  = context->seed;
+    s.config.spaceTemplates = {prototypeSpaceTemplate(context->baseSpacing)};
+    s.components            = [](Registry& r)
     {
         r.registerComponent<AircraftControls>(Replicate::OwnerAuthoritative);
         r.registerComponent<AircraftState>(Replicate::Host);

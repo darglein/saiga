@@ -8,7 +8,7 @@
 
 #include "saiga/engine/data/DataRef.h"
 #include "saiga/engine/gameplay/GameObject.h"
-#include "saiga/vulkan/world/HeightField.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "games/common/Driving.h"
 #include "games/common/GameEngine.h"
@@ -42,16 +42,20 @@ struct RacingContext
     // The trees the track's site search avoids: a constant, so the site (and the scenarios' numbers) does not depend on
     // the renderer's tree count (SAIGA_WORLD_TREES); the default world's trees, WorldParameters::seed 1
     static constexpr int kSiteTreeCount = 200000;
-    Vulkan::HeightField heightField;
+    // The prototype's space (S20, games/common/PrototypeSpace.h): its seed (WorldSetup::seed) and base spacing; the
+    // context is World-independent (shared by the co-op worlds and the renderer), so it evaluates the pure
+    // prototypeSurfaceHeight, equal to World::terrainHeight bit for bit
+    uint64_t seed   = 1;
+    int baseSpacing = 1;
     Track track;
-    double terrain(double x, double z) const { return heightField.height(float(x), float(z)); }
+    double terrain(double x, double z) const { return Vulkan::prototypeSurfaceHeight(seed, baseSpacing, x, z); }
     // The car's ground: the lifted asphalt on the track, the terrain elsewhere (hint: as Track::surfaceOffset)
     double carGround(double x, double z, double& hint) const
     {
         return terrain(x, z) + track.surfaceOffset(Vec3(x, 0, z), hint);
     }
-    // Generates the height field, places the trees and the track (on gentle land with few trees; the time is printed)
-    static std::shared_ptr<const RacingContext> create();
+    // Places the trees and the track (on gentle land with few trees in the prototype's 8 km area; the time is printed)
+    static std::shared_ptr<const RacingContext> create(uint64_t seed = 1);
 };
 
 // The car's state besides its pose (R-STATE-1)

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/util/json11.hpp"
 #include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
 #include "saiga/vulkan/world/WorldSettings.h"
@@ -23,7 +24,7 @@ class RenderScene;
  * the settings (WorldSettings: GUI, game_* MCP tools) with their mapping to RenderScene's PrototypeSettings, and the
  * trees (PrototypeForest). The terrain, grass and water come from the engine (the World's terrain through the render
  * sink); the environment (sky, sun, fog, the foliage texture) from setPrototypeEnvironment. The frame and terrain
- * statistics are in the app's "Engine statistics" (F1); the window shows the tree counts.
+ * statistics are in the engine's debug UI; imgui() shows the settings and the tree counts.
  *
  *   PrototypeScene prototype;
  *   prototype.attach(scene, trees, seed);   // renderHooks.init: setPrototypeEnvironment and the trees' instance sets
@@ -47,8 +48,11 @@ class SAIGA_VULKAN_API PrototypeScene
     void detach();
     // Per frame, before the scene records the frame: the settings (setPrototypeSettings, the trees)
     void update();
-    // The settings window with the tree counts
+    // The settings with the tree counts: widgets only (no window; a section of the engine's debug UI, S19c)
     void imgui();
+    // The render statistics of the newest frames (game_get_state): GPU frame and sections, terrain nodes and triangles,
+    // trees per LOD, grass, draw calls, MSAA, vsync, GPU memory of the terrain set and the trees
+    json11::Json statsJson() const;
 
     WorldSettings settings;
     PrototypeForest& forest() { return trees; }
@@ -57,7 +61,7 @@ class SAIGA_VULKAN_API PrototypeScene
 
    private:
     RenderScene* renderScene = nullptr;
-    PrototypeForest trees;
+    mutable PrototypeForest trees;
 };
 
 }  // namespace Vulkan
