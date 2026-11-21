@@ -186,10 +186,11 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | `RenderScene` terrain (S20): the GPU terrain set `TerrainAtlas` (int32 storage buffers: atlas, pyramid, page table, grass masks; the upload queue with a per-frame byte cap; rebuild per space or layout; patches; hierarchical node bounds; `memoryEstimate`), the CDLOD `TerrainPass` (selection in double, 64 m frame anchor, integer node origins, skirts, the water plane, `TerrainFrame`, the probe hooks), the chunk-relative `GrassPass` from grass masks, the pure generation `TerrainTiles` (§10.1, §12.2) | `src/saiga/vulkan/scene/Terrain*`, `GrassPass.*`, `shader/vulkan/scene/terrain*`, `grass.*`, `sky.*`, `tests/test_vulkan_terrain.cpp` | [exists: S20] |
 | Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
 | Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition`, `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
+| Terraforming (S22): `TerrainBrush`, `validateBrush`, the integer `BrushKernel`, `World::editTerrain` / `checkTerrainEdit` / `terrainSample` / `terrainEdits` / `pendingTerrainChanges`, `applyTerrainEdit`, the modification state `TerrainEditStore` (delta blocks, per-chunk sequence, revision, content hash), `TerrainEditedEvent`, the delta codec, the `TERR` save section, `hash()` and `diffSaves` of the state, the messages `TerrainModification` / `TerrainChunkState`, the host state list and `sendChunkSnapshot`, the visual path (merge at the send point, `TerrainDirtyQueue`, the patch step, edited grass masks in `TerrainVisualPatch`), `EngineApp::setFixedFrameTime`, the tools `edit_terrain` / `terrain_height` / `terrain_edits`, `game_world --benchmark terraform` and the terraform mode (§12.1, §12.2, §13.2, §15.1, §16.2, §17.7) | `src/saiga/engine/terrain/`, `src/saiga/engine/save/`, `src/saiga/engine/net/Replication.*`, `samples/games/world/TerraformBenchmark.*`, `tests/test_engine_terrain_edit.cpp`, `tests/test_engine_terrain_net.cpp`, `tests/test_engine_terrain_benchmark.cpp` | [exists: S22] |
 | World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
-| Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step`, `recording` and (S17) `gpu_frame_ms`; S19a: its own samples fed by the game, the S03 `gpu_ms` keys from `RenderScene`'s sections; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
+| Benchmark runner (`game_world --benchmark flyover\|forest\|terraform` (S22: the game's edit schedule `TerraformBenchmark`, a static pose): paths, median/p95, result JSON with the engine's `step`, `recording` and (S17) `gpu_frame_ms`; S19a: its own samples fed by the game, the S03 `gpu_ms` keys from `RenderScene`'s sections; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
 | Engine app: `EngineApp` (window or headless or no device, the `RenderScene` frame (S17: its own HDR frame), MCP polling, input map, frame and GPU profiles, statistics window (S19c: the debug UI, `DebugUi`); S19b: the World's `VulkanRenderSink`, the view camera, `beforeRender`), `createVulkanDevice`, command line and `engineMain`, `runGameScenarios`, app tools `quit`/`app_status`/`set_input`; `game_world` (the world prototype on it), `.mcp.json` (`saiga-world`, port 8765) (§8.3) | `src/saiga/engine/app/`, `src/saiga/vulkan/scene/`, `src/saiga/vulkan/VulkanDevice.*`, `samples/games/world/`, `tests/test_engine_app.cpp` | [exists] |
 | Tests | `tests/test_vulkan_world.cpp`, `tests/test_core_mcp_server.cpp` (contains `Poller`) | [exists] |
 | Golden images: `compareGolden` (lavapipe gating, `SAIGA_UPDATE_GOLDEN`), goldens `world_overview` and `world_forest`, CI upload of failed images | `tests/golden_image.h`, `data/tests/golden/`, `.github/workflows/tests.yml` | [exists] |
@@ -572,6 +573,12 @@ completed step) together with the staged NetIds, spawned flags and hashes. Clien
   `EventRegistry::add<E>(Replicate)` checks unique IDs and names, `validateRegistration` the contiguous ranges
   (`EngineEvent` 0..63, game events from 64). **Events emitted in step k are readable by all phases of step k+1, then
   cleared.** Pending events are part of the save and the hash.
+- `TerrainEditedEvent {SpaceId space; double x0, z0, x1, z1;}` [S22] (`EngineEvent::TerrainEdited`, `Replicate::Never`,
+  host and clients): one event per applied terrain change (a host edit, a client's received modification or chunk
+  state, a client's Resync clear of a chunk with deltas) with the inclusive metre bounds of the changed samples. A change
+  between steps is emitted at once; a change inside a step goes to `World::pendingTerrainChanges()` and is emitted when
+  the step (or `stepNetworkOnly`) commits; an aborted step keeps the list and the next `runStep` emits it before
+  `events.beginStep()` (so it is readable in the retried step); a host load clears the list and emits nothing.
 
 ### 7.8 World state
 
@@ -884,7 +891,10 @@ generic change detection (only the `Transform` flags), access declarations per s
 
 Commands are applied after every phase; events of this step become readable in the next step. Terrain and piece
 edits and promotions apply at the flush of the phase that requested them (between steps: immediately) (§12.2, §11);
-clients apply received live modifications in phase 1.
+clients apply received live modifications in phase 1. S22: phase 8 (host) sends the ordered host state list
+(`Replication::hostStateList`: the terrain modifications of the step and of the edits between steps; S23b's tombstones)
+after the component changes, also at the `stepNetworkOnly` commit point; the list is cleared when the step commits
+(also without peers) and kept by an aborted step.
 
 ### 8.2 Registration [exists: S08]
 
@@ -996,7 +1006,10 @@ is no `config.ini`.
   2. `mcp.poll()` (tool handlers run between steps);
   3. frame time: `steady_clock`, or the fixed `dt` given to `runFrames` (headless tests are deterministic); the
      terrain stream time of the previous frame (S20: its `completeView` at a complete point or in the benchmark mode,
-     §12.2) is subtracted, so a complete point pauses the simulation clock and causes no catch-up steps;
+     §12.2) is subtracted, so a complete point pauses the simulation clock and causes no catch-up steps; S22:
+     `EngineApp::setFixedFrameTime(dt)` (> 0) makes the worlds advance by exactly dt per frame also inside `run()` (the
+     terraform benchmark: one step per frame), while the frame statistics, the fps counter and the input keep the wall
+     clock;
   4. apply look input to the camera immediately (no step latency; the prototype camera before S35, the rig of §10.6
      after);
   5. `world.advance(frameDt)`;
@@ -1058,6 +1071,7 @@ class EngineApp   // engine/app/EngineApp.h
     ~EngineApp();                                             // waits for the device, then destroys in order
     int run();                                                // until quit; returns the exit code
     void runFrames(int count, double dt);                     // fixed frame time (tests, benchmarks)
+    void setFixedFrameTime(double dt);                        // S22: worlds advance by dt per frame (0: measured)
     void quit();
     World& world(); McpServer& mcp(); PerspectiveCamera& camera(); VulkanBase& device();
     RenderScene& scene();                                     // frame shell from S13
@@ -2132,8 +2146,20 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   host; applying one updates the state. Every chunk has a modification sequence number (uint32, saved),
   incremented by every applied modification. The modification state (plus the stored base of retired versions, §15.3)
   is what the save stores and what a client receives; entity groups stay on the host.
+- **Terrain modification state** [exists: S22] (`engine/terrain/TerrainEditStore`, owned by the World): the deltas
+  (edited height minus the generated base) in 16 x 16 blocks keyed by space sample (`TerrainEditBlock`; one copy per
+  sample, chunk borders shared; an unallocated block reads 0; a block is allocated only for a non-zero delta that
+  differs from the current one, on every path; no stored base: the base is the pure base function
+  `TerrainSystem::sample`); per chunk with state a `TerrainChunkEdits` entry in `ChunkId` order (sequence,
+  nonZeroSamples, a local terrain revision, the cached content hash). A chunk has state iff its sequence is > 0; the
+  sequence increments for every chunk whose closed N x N range contains a changed sample (a changed border sample
+  increments every chunk that contains it) and for S23b's tombstones (`bumpSequence`); it stays in `TerrainEditStore`
+  for all spaces (E10). A chunk "has deltas" (a terrain record) iff nonZeroSamples > 0. The revision (F1) is the store's
+  monotone delta-change counter at the last change of a delta of the chunk's closed range (not saved, hashed or sent;
+  `bumpSequence` alone does not change it); the edited grass masks key their staleness on it. The dense per-chunk form
+  (N x N, row = z) exists only in saves, messages, hashes and replica comparisons. Never evicted before S25.
 
-### 12.2 Height-map terrain [exists: S20 (height tiles); planned: S22 (terraforming)]
+### 12.2 Height-map terrain [exists: S20 (height tiles), S22 (terraforming)]
 
 S21 (A2): `terrainHeight` of an enclosed space (and of a hook-less open-world space) is 0, the floor plane; the
 kinematic mover walks on it until S23's authored geometry and S28's colliders.
@@ -2168,12 +2194,13 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   continuing beyond the prototype's 8 km with its 819.2 m border falloff at the edges of the 32 km space; the template
   that uses it is built in `samples/games/common/PrototypeSpace.h`; tile, pyramid and grass-mask generation are pure
   functions in `vulkan/scene/TerrainTiles`, wrapped by the engine's `TerrainGeneration`; integer format; R-CONTENT-1
-  applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; the
-  chunk record of §12.1 is introduced with only the edited height tile; `World::save()` blobs contain the edited tiles.
-  Simulation height queries (`terrainHeight`, mover, edits) evaluate the prototype height hook exactly if the base tile
-  is not resident (the asynchronous path is visual only). Before S26 (S22) the host sends every live modification to
-  every client, and clients keep all edited tiles in memory (never evicted); modification snapshots and the reload rules
-  of §13.2 come with S26. Simulation radii and the chunk store follow in S24 and S25.
+  applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; S22 introduces the
+  modification state of §12.1 (the deltas and the per-chunk sequence; saved in `TERR`, §15.1). Simulation height
+  queries (`terrainHeight`, mover, edits) evaluate the prototype height hook exactly if the base tile is not resident
+  (the asynchronous path is visual only). Before S26 (S22) the host sends every live modification to every client, and
+  clients keep every edited sample in memory (never evicted); S22's minimal snapshot (`sendChunkSnapshot`, §13.2) serves
+  late joiners and host loads; per-loaded-chunk snapshots and the reload rules of §13.2 come with S26. Simulation radii
+  and the chunk store follow in S24 and S25.
 - The base spacing is a `SpaceTemplate` parameter (1 m with 257 x 257 tiles, or 2 m with 129 x 129 tiles; shared
   borders); `samples/games/world` uses 1 m (the engine default stays 2 m); coarser levels double the spacing (level L
   covers 2^L chunks) and are streamed by distance; a coarse whole-space pyramid (e.g. 32 m) is always resident on CPU
@@ -2193,23 +2220,56 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   (D5, D6): `readiness(space, camera, radius)` is the fraction of the pyramid plus the desired tiles within the radius
   sent to the sink; the sink holds one GPU terrain set (the camera's space), rebuilt on a space or layout change
   (`clearTerrain` for a view space without terrain); other spaces keep only their CPU pyramid.
-- **Terraforming** (engine mechanism; whether and how a game allows it is policy): `struct TerrainBrush { enum Op {Add,
-  Subtract, Flatten, Smooth} op; Vec3 center; double radius, strength; };` `void World::editTerrain(SpaceId space, const
-  TerrainBrush& brush);` [S22]. Edits are chunk modifications with an integer result. `editTerrain` computes the integer
-  result and patches the collider (from S28; before S28 the resident height tile used by the kinematic mover)
-  synchronously in the requesting step (between steps immediately; during a step as a command at the phase flush) and
-  replicates the edit as a live modification (§13.2). The region modification summary [from S27] (tombstoned keys,
-  coarse height patches, piece far-mesh input) is updated synchronously with the edit (§10.4); nav patch [S45], far
-  meshes [S30] and impostor rebuilds [S27], coarser levels, pyramid GPU copy and GPU uploads follow asynchronously
-  (visual and budgeted per frame). The edit reports the affected tier-1 instances and pieces: tier-1 instances are
-  re-snapped or tombstoned according to a flag of their generator slot (by the later of S22 and S23, §22), pieces are
-  handed to the game (policy).
-- `world.terrainHeight(space, x, z)` (double; A16: x and z clamped to the space) is exact everywhere: it uses the
-  resident base-level tile (edits are
-  visible from the requesting step on); otherwise it evaluates the three samples of the containing triangle exactly
-  (`Generator::height` plus the chunk's modification state, loaded synchronously as for edits of non-resident chunks,
-  §12.3; before S23 the prototype height hook). The pyramid is used only for rendering and far content (its CPU copy is
-  updated synchronously with the edit, its GPU copy budgeted).
+- **Terraforming** [exists: S22] (engine mechanism; whether, where and how strongly a game terraforms is policy, R-MECH-1;
+  limits and protected areas: S44): `void World::editTerrain(SpaceId space, const TerrainBrush& brush)` with
+  `TerrainBrush {enum Op : uint8_t {Add, Subtract, Flatten, Smooth, Count} op; Vec3 center; double radius, strength;}`
+  (`engine/terrain/TerrainBrush.h`, a nested visit struct). center x, z is the brush centre, y the Flatten target (finite
+  for every op, used only by Flatten); radius in (0, `kMaxBrushRadius` = 128 m] (a brush touches at most 2 x 2
+  chunks); strength in metres at the centre for Add / Subtract ([0, `kMaxBrushStep` = 64 m]) and the blend factor at
+  the centre for Flatten / Smooth ([0, 1]). Host only; the space must exist and be an open world (with or without a
+  height hook: a hook-less space has base 0 and is not drawn, D1); `validateBrush` checks every field on the doubles
+  before anything is quantized (finite values, the op, the ranges, x and z within the space +- `kMaxBrushRadius`, a
+  Flatten target within +-8192 m). Role, space and brush are checked at the call (also during a step): a violation
+  stops the program in every build (`World::checkTerrainEdit` is the non-fatal check of the world API). During a step
+  the edit is a command applied at the phase flush in recording order, between steps at once; not in `parallelEach`.
+  - **Integer kernel** (`BrushKernel`, R-DET-1; committed result hash in the tests): quantization by exact operations
+    (centre and radius in 1/256 m with `floor`, `r >= 1`; the Flatten target in height units; the Add / Subtract step
+    in height units; the Flatten / Smooth factor in 1/65536); a sample is affected iff it lies strictly inside
+    (`d2 < r2`); the quartic falloff `(1 - t^2)^2` as `t2 = floorDiv(d2 << 16, r2)`, `u = 65536 - t2`,
+    `w = (u * u) >> 16`; Add / Subtract `h +- ((s * w) >> 16)`; Flatten `h + roundShift16((cy - h) * g)` with
+    `g = (f * w) >> 16` (never overshoots; strength 1 sets the centre exactly); Smooth `h + floorDiv(2 (sum - 9 h) g +
+    9 * 65536, 18 * 65536)` over the 3 x 3 pre-edit samples (indices clamped to the space; one rounding to the
+    nearest, ties toward +infinity); all reads from the pre-edit copy (order independent), int64 throughout; then
+    `h' = (v == h) ? h : clamp(v, +-kTerrainHeightLimit)` and a sample is changed iff `h' != h` (decided after the
+    clamp: an Add at the limit changes nothing).
+  - **Application** (`applyTerrainEdit`, engine-internal, serial on the main thread): quantize; gather the base (row
+    copies of resident level-0 tiles, else `TerrainSystem::sample`, counted in `baseHookSamples`) and the pre-edit
+    heights; kernel; reserve (the delta blocks of changed samples, the entries of new chunks, the host state list
+    entry; S23b's tombstones are computed and reserved here); commit without allocation (the deltas, `bumpSequence`
+    of every chunk whose closed range contains a changed sample, one `TerrainModification` entry with one part per
+    such chunk); one `World::onTerrainChanged` with the changed box. An edit that changes nothing changes no state.
+  - **Edits never change base tile data** (D3): the `TerrainStore` keeps the generated base; the deltas are merged into
+    every tile and pyramid when it passes `TerrainSystem`'s send point and patched afterwards through `patchTerrainTile`
+    / `patchTerrainPyramid` (the dirty queue: tile boxes of the view space, pyramid boxes per space; the patch step of
+    `updateView` within `TerrainViewSettings::editSamplesPerFrame` samples, split by rows; `completeView` drains all);
+    grass masks of chunks with deltas are recomputed from merged level-0 heights on the streaming pool (at most
+    `editMasksPerFrame` submissions per update; a result is kept only while the chunk's terrain revision is unchanged
+    and its mask is still desired; never the base mask of an edited chunk). The visual work is the frame profile's
+    `frame/render/terrain_visual`.
+  - **Events**: `TerrainEditedEvent` (§7.7) is the broadcast of every applied change; `onTerrainChanged` is the single
+    engine path (events, the visual dirty queue, S23b's re-snap queue), `World::pendingTerrainChanges()` lists the
+    in-step changes whose events are not emitted yet. The "affected tier-1 instances and pieces" of an edit: S22 reports
+    the changed box; S23b adds its tombstones (computed in the edit's reserve step, written in its commit) and re-snaps
+    from `onTerrainChanged`; S30 adds pieces. Collider patches [S28], the region modification summary [S27], nav patches
+    [S45], far meshes [S30] and impostor rebuilds [S27] follow with their stages.
+  - **Reads**: `int32_t World::terrainSample(space, i, k)` = `clampTerrainHeight(base + delta)` (never allocates; the
+    clamp bounds received or loaded sums, which are not checked against the base); `World::terrainEdits()` (the
+    `TerrainEditStore`, read-only).
+- `world.terrainHeight(space, x, z)` (double; A16: x and z clamped to the space) is exact everywhere: the three samples
+  of the containing triangle come from `terrainSample` (S22: base + delta; the base from the resident level-0 tile,
+  otherwise exactly from `Generator::height` / before S23 the prototype height hook), so edits are visible from the
+  requesting step on. The pyramid is used only for rendering and far content: nothing in the simulation reads it before
+  S27 (S22: it is merged and patched on the visual path; no synchronous CPU pyramid write).
 - Terrain, grass, water, sky/fog and culling shaders work region/camera relative.
 
 ### 12.3 Streaming [planned: S24]
@@ -2391,7 +2451,7 @@ LoopbackTransport::createPair(double dropRate = 0, int delaySteps = 0, uint64_t 
 void LoopbackTransport::disconnect(uint8_t peer);   // [S33] both ends receive Disconnected (tests)
 ```
 
-### 13.2 The world over the network [planned: S26; live terrain edits: S22]
+### 13.2 The world over the network [planned: S26; live terrain edits: exists, S22]
 
 The world is generated from the seed on every machine (§12.1). The handshake sends the seed and the pinned generator
 versions and compares the protocol version and a hash of the schema table (§15.2); a mismatch rejects the join with a
@@ -2405,6 +2465,24 @@ modification sequence number; every live modification carries the number it prod
 until the host's modification snapshot (not only its local base) is applied, drops those with a number <= the
 snapshot's, and treats a gap as an error that re-requests the snapshot. Live terrain modifications carry the integer
 result as a difference rectangle (new heights minus base), never the brush; clients do not evaluate brushes.
+
+**S22 (before S26)**: two raw engine messages host -> clients on `Channel::State`, reliable, with the epoch (ordered
+with `Resync` and the spawn set; S26 moves snapshots to `ChunkData` with its re-request protocol):
+`TerrainModification` (one per applied edit: flags (zstd), epoch, space, parts; per part the chunk, its sequence after
+the change, the chunk-local box and the new deltas of the box) and `TerrainChunkState` (flags (zstd, deltas present),
+epoch, chunk, sequence > 0, N, optionally the dense N x N delta). Values are absolute deltas; every rectangle is
+encoded by `TerrainDeltaCodec` (row-major zigzag varint differences, the predictor reset to 0 per part and per chunk,
+optionally zstd; the decoder bounds the size, the value count and |delta| <= 2^24 and leaves no bytes over). The
+minimal snapshot `Replication::sendChunkSnapshot(peer)` sends one `TerrainChunkState` per chunk with state, in
+`SpaceId`, `ChunkId` order: on a join after the spawn set (`Resync` first if the epoch is not 0; S23a's
+`GenerationState` before the snapshot), on a host load from `onHostLoad` right after `Resync`. A client validates each
+message on its own into scratch (flags, epoch, an open-world space, chunks in range, boxes inside the tile, the codec's
+bounds, sequence > 0, equal values for samples shared by parts of one message; no check against its present
+neighbours: the host is authoritative) and applies nothing on a failure (`NetStats::rejected`); per part a sequence
+<= the current one is a duplicate (dropped), `current + 1` applies, a larger one is a gap: before S26 logged, counted
+in `NetStats::modificationGaps` and applied. A chunk state replaces the chunk's deltas and sequence if its sequence is
+not older. A client `Resync` clears the whole modification state (each cleared chunk with deltas goes through
+`onTerrainChanged`).
 
 ### 13.3 Ownership [planned: S16; moving platforms: S40]
 
@@ -2578,6 +2656,8 @@ S15 implementation (`engine/net/`; `docs/stages/S15_transport_messages.plan.md`)
   outbox before its listeners; sends from `configure` / `onLoad` of a load are dropped. Profiler counters
   `net/sent_bytes`, `net/received_bytes`, `net/messages_in`, `net/messages_out`, `net/rejected`; `world_status.net`,
   `describe_world.messages`.
+- S22: `NetStats::modificationGaps` counts received terrain parts whose sequence skipped one (§13.2; the host + client
+  variant fails on any).
 
 Internet sessions need NAT traversal: candidates in S33 are Steam Networking Sockets (relay, NAT traversal) and ENet
 (LAN, tests), both behind the `Transport` interface (§13.1). `using MessageId = uint16_t;` with an `EngineMessage` enum
@@ -2700,6 +2780,18 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   load also checks the staged spaces (every entity below the save's space count, at most one space-state entity per
   space, a child in its parent's space, `PendingTransition` / `SpaceLink` targets below the setup's space count) and
   maps the space-state entities by their `Transform::space` (§7.8).
+- **`TERR`** [S22] (format 1, written only when a chunk has terrain state, sequence > 0): the count of spaces with such
+  chunks; per space in `SpaceId` order the `SpaceId`, the base spacing, N and the chunk count; per chunk in `ChunkId`
+  order x, z, the sequence (> 0), flags (bit 0: deltas present) and with deltas the encoded length and the dense N x N
+  delta in `TerrainDeltaCodec` form, zstd compressed (an exception to "uncompressed"; equal bytes within one build).
+  `parseTerrainSection` checks the structure and the codec's bounds; the loader checks the rest before the commit
+  (an open-world space of the setup with the same spacing and N: a changed spacing would need a migration that is not
+  offered; chunks inside the space, ascending and unique; deltas present only with a non-zero value; the border rule: a
+  sample shared by two chunks has one value, and a non-zero border sample is present in every chunk of the space that
+  contains it). The staged state replaces the store in the commit (no hook call, blocks only for non-zero deltas); every
+  chunk with deltas before or after goes through `onTerrainChanged` without an event; the host state list and the
+  change list are cleared. `diffSaves` reports one-sided chunks, sequence differences and per differing chunk the
+  number of differing samples and the first one (kind `terrain`).
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.
@@ -2807,6 +2899,8 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `inspect(entity, components?)` | class, flags, parent, children, every component as JSON | [exists: S10] |
 | `set_component`, `add_component`, `remove_component`, `set_transform` | applied at once (between steps); merges the given fields (missing keys keep values; unknown keys and wrong types change nothing; the error lists the fields); Transform through its setters (a teleport by default; refused for children: their `LocalTransform` decides); Parent with the cycle check (no world-state parent or child); Behaviour: the tick flags (the interval is derived again; writing `tickInterval` or `classId` is an error); not `Behaviour` (spawn) or `Persistent` (makePersistent); writes must be finite (nan and inf are errors; quaternions are normalized); `set_component` and `set_global` return the new `values` and the `previous` writable ones (an undo payload `set_component` accepts) | [exists: S10] |
 | `move_to_space(entity, space, position, rotation?)` | S21 (A14): `World::moveToSpace` of a root (rotation default: the current one); errors for a child, a state entity, an unknown space and a client's replicated entity (a client-owned root on the host is allowed: the `OwnerCommand` path); returns the entity and `previous {space, position, rotation}` (sent back it restores the entity). The `space` key of `set_transform` and of `set_component`'s `Transform` values is refused with a text naming `move_to_space` | [exists: S21] |
+| `edit_terrain(space?, op, center, radius, strength)` | S22: `World::editTerrain` between steps on the host (op `add`, `subtract`, `flatten`, `smooth`; center [x, y, z] or [x, z], y the flatten target); refused inside a step, on clients (with `--coop` the tools see the client world), for an unknown or enclosed space and for an invalid brush (the error names the field and the bound); returns `changed_samples`, per changed chunk `{chunk: [x, z], sequence, box: [x0, z0, w, h]}` (chunk-local samples) and the changed `box: [x0, z0, x1, z1]` in metres; logged under `api`; not registered read-only | [exists: S22] |
+| `terrain_height(space?, x, z)`, `terrain_edits(space?, limit?, after?)` | S22: the exact surface height (§12.2, incl. edits) with the three integer samples of the triangle and `edited`; the chunks with terrain state in `ChunkId` order (sequence, `has_deltas`, `non_zero_samples`, the delta min / max in metres), paged (`next`) | [exists: S22] |
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
@@ -2964,7 +3058,10 @@ void registerEngineScenarios(ScenarioList& s)
   that spawn players their own way, e.g. the tech demos' `spawnDriven`, pass it on),
   `damage(target, amount, source)` (a `DamageEvent`), `check(cond, msg)` (collects failures with the step; works under
   gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`, `api()` and `call(op, args)` (the
-  world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`).
+  world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`),
+  S22: `editTerrain(brush, space = 0)` (the host's `World::editTerrain` between steps, logged for the failure report),
+  `terrainHeight(x, z, client = {}, space = 0)` and `terrainSample(i, k, client, space)` (the host's, or a client's in
+  the host + client variants).
   `world()` returns the current `World`: the save/load variant replaces it, so scenario code calls `world()` each time
   and never keeps the reference across a step helper (entity handles stay valid; replaced worlds live until the
   scenario ends). Steps are observed by step listeners (a counter first, so listeners see `steps()` with the current
@@ -3035,12 +3132,20 @@ what they last wrote per (entity, component) and every other legitimate writer (
 `Hierarchy`, `OwnerCommand`, `ownerTeleport`) refreshes it; a mismatch before the next write fails the scenario
 (R-NET-2), naming the peer, the entity and the component. The save/load variant stays host-only.
 
+S22: the end condition also waits until every client's chunk sequences equal the host's (within the same bound), and
+the comparison includes the terrain modification state of every scenario: per space over the union of the chunks with
+a sequence > 0 on either side the sequence and, for chunks with deltas, the dense delta (exact; a difference names the
+peer, the chunk, the sequence and the first differing sample); any `NetStats::modificationGaps` on a client fails.
+
 ### 17.4 Repeat and save/load tests [exists: S08 (hash), S12 (variants)]
 
 - `world.hash()` (FNV-1a 64 over the `visit` bytes) covers all saved components (`Saved::Yes`) of the alive entities in
   index order (with index and generation, `Transform` first, then the components in ID order), the free list (it decides
-  future entity indices), the RNG state, the pending events, the step index and (from S25) the chunk states. It is a
-  debugging aid and the check of the repeat variant.
+  future entity indices), the RNG state, the pending events, the step index and (from S22) the terrain modification
+  state: when a chunk has a sequence > 0, per such chunk in `ChunkId` order the `ChunkId`, the sequence, the
+  deltas-present flag and with deltas the chunk's content hash (FNV-1a 64 of the dense delta, cached; nothing is
+  appended without such chunks, but registering `TerrainEditedEvent` changed every hash value against pre-S22 builds);
+  S25 adds the other chunk states. It is a debugging aid and the check of the repeat variant.
 - Variants of every scenario [exists: S12]: (0) **plain**: once; (a) **repeat**: the scenario runs twice and the
   per-step hashes, the step count and the final hash must be equal (catches wall-clock time, unordered containers and
   uninitialized memory); on a mismatch the runner runs both again up to the first differing step and prints
@@ -3203,8 +3308,25 @@ goldens).
   pieces in those chunks; the stage that is done later re-measures); S29 runs
   it without clients, S32 adds 7 loopback clients and reports the upload per client; reports step ms (median, p95)
   against §17.10 and `streamingStalls`.
-- Terraforming benchmark [S22, extended in S28]: 8 brushes at 10 edits/s; S22 measures the integer result and the CPU
-  tile/pyramid update, S28 re-runs it with collider patches; the step time stays within §17.10.
+- Terraforming benchmark [exists: S22, extended in S28] `game_world --benchmark terraform` (window, 1920 x 1080; the
+  edit schedule in the game's `TerraformBenchmark`, `WorldBenchmark` only knows the name and the static pose: eye
+  (3968, g + 300, 3940) looking at (3968, g, 3968), g the ground there): it opts out of the per-frame `completeView`
+  (the camera is fixed: the measured frames run `updateView` with the patch step under its budget, like a game frame;
+  the first warm-up frame is a complete point), advances exactly one step per frame (`EngineApp::setFixedFrameTime`)
+  and raises the floor of the game's `residencyRange0` rule to 600 m. 8 brushes, two on each of the 4 chunk corners
+  (3840 + 256 (c % 2), 3840 + 256 (c / 2)): Add r 4 / Flatten r 12, Subtract r 8 / Smooth r 16, Add r 16 / Flatten r
+  8, Subtract r 12 / Smooth r 4 (0.25 m or 0.5), orbiting the corner on a circle of half their radius, 1 m of arc per
+  edit; one edit per measured frame after the frame's step (600 edits, 60 edits/s), timed per `World::editTerrain`
+  call; the host state list's new entry is encoded with the phase-8 encoder (timed separately, nothing sent).
+  Asserted: every Add / Subtract edit changes exactly 4 chunks, `chunks_edited >= 1200`, the brush areas' level-0 tiles
+  resident, no pending request, tile send or hook read in the measured frames. JSON: the common keys plus `edits`,
+  `noop_edits {add, subtract, flatten, smooth}`, `chunks_edited`, `chunks_per_edit {flatten, smooth}`,
+  `samples_changed`, `terrain_edit_ms`, `base_hook_samples`, `terrain_encode_ms`, `edit_bytes_per_second`,
+  `terrain_visual_ms` (the frame's `terrain/visual` part), `patched_samples`, `upload_bytes`, `mask_recomputes`,
+  `edit_store_bytes`, `step`, `terraform_errors`. `tests/test_engine_terrain_benchmark.cpp` (non-gating, headless: every
+  gather and every read of an edited sample uses the hook) runs the same schedule with a cheap integer hook and the
+  prototype hook, the encode / decode, `hash()`, save / load and a late join of 50 full-chunk edited chunks, a grass
+  mask from merged heights and the patch step on a recording sink. S28 re-runs it with collider patches.
 - ECS benchmark: `tests/test_engine_ecs_benchmark.cpp` (non-gating) prints the total ms of create, views over one
   component, `Transform` plus one and three components, random reads, remove + re-add and destroy at 10^5 entities
   [exists: S07]; S19b: `ExtractTenThousandEntities` (10^4 moving entities with `RenderInstance` into a recording sink:
@@ -3253,6 +3375,10 @@ volumetric fog <= 0.7 ms, volumetric clouds <= 0.8 ms (sky: S37; water and trans
 particles: S41; volumetric clouds: S42; the rest: S37); transparents <= 0.4 ms, particles <= 0.6 ms; post chain <= 1.5
 ms; rest (UI, culling, uploads) <= 1 ms (sum 14.5 ms, headroom for jitter). Steam Deck: the same split scaled to 22 ms
 at Low. Pass budgets apply to the median; the frame time p95 must stay within the frame time of the table.
+
+Terraforming (S22, release, desktop reference): `terrain_edit_ms` p95 <= 1 ms per edit and `terrain_visual_ms` p95 <=
+1 ms per frame (the step budget excludes edits between steps); the edit bandwidth (`edit_bytes_per_second`) is reported
+against the upload budget below.
 
 Network (defaults): steady-state host upload <= 256 kbit/s per client (8 players, 4 islands); join data <= 20 MB for 50
 edited chunks (incl. a placed-piece base once S30 is done). Upload is measured by `host_step` (S32), join data by the
@@ -3346,6 +3472,13 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | Flight simulator | the large world and efficient rendering: a small airplane over the 8 km world prototype (CDLOD terrain, 200k GPU culled trees); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit | `samples/games/flight/`, `game_flight` |
 | Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level; S21: an enclosed cellar (space 1) behind a door (`SpaceLink`, the interact action F, the engine's `spaceLinkSystem`), `--demo --cellar` runs the demo through it | `samples/games/platformer/`, `game_platformer` |
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
+
+`game_world` (the world prototype on `EngineApp`, §19) has a terraform mode since S22 (game policy, D14): T toggles it,
+the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain under the screen
+centre at 10 edits/s while held, radius and strength in its World window; the edits go to `app.startWorld()` (the host
+world, also with `--coop`, where the rendered world is a client and receives them through replication). The MCP tool
+`edit_terrain` makes it scriptable (with `--coop` the tools see the client world and answer with the client error). The
+flight, platformer and racing demos are unchanged by S22.
 
 - **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` (the engine app's command line, §8.3:
   `--headless`, `--no-render`, `--screenshot`, `--scenarios`, ...; no `config.ini`). `--demo` spawns the demo's
@@ -3580,7 +3713,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S19d | Debug UI tools | Entity inspector and editor in the Engine tab (`list_entities` with filters and paging, `inspect` as a tree, edits as `set_component`), camera tools ("copy camera"), profile freeze and freeze on spike, console argument completion from the input schema | S19c | inspector tests (CI) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, int32 GPU tiles in storage buffers (A10 of the S20 plan; planned: R32F), pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance (tested at 28 672 m, a multiple of the 4096 m root node); a 1 mm camera move moves no vertex > 0.5 px (the GPU displacement differs from the double-precision one by at most 0.5 px); `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions (done) | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20, S19b, S16b (A16) | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
-| S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
+| S22 | Terraforming (done) | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, encoding, visual patching) within budget (local) |
 | S23 | Generation pipeline | `Generator` interface, world plan with sites and space instances, chunk generation, prefab stamping (terrain patches, entities, static geometry; pieces in S30), tombstones, content hashes, pinned versions, the hash test on all CI compilers (§12.1, §15.3) | S20, S21, S22 | committed chunk hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present); a tombstoned instance is hidden on the client in the host + client variant (CI) |
 | S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |

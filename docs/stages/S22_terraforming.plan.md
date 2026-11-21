@@ -1,6 +1,6 @@
 # S22: Terraforming
 
-Status: planned (revised after plan review round 3, final).
+Status: implemented (2026-11-21; steps 1-12 on the branch `stage-s22`, stacked on S20 and S21).
 
 Sections follow the stage plan template of S05. The S20, S21 and S23a/b/c plans were revised in parallel with this one
 under the shared cross-plan decisions of review rounds 1 to 3 (D1-D14, E1-E14 and F1-F4; later letters override earlier
@@ -890,12 +890,18 @@ Benchmarks (R-TEST-2): `tests/test_engine_terrain_benchmark.cpp` (non-gating), `
   delay 0 and 2 (and async) (CI); the terraforming benchmark (integer result, encoding, visual patching) within the
   budget of §17.10 as amended, with its assertions (4 chunks per Add/Subtract edit, `chunks_edited >= 1200`, no hook
   reads, no tile sends in the measured frames) holding (local, reported in the PR with the baseline).
+  **Done** locally: all six variants of both scenarios pass; the benchmark's p95 values are 0.039 ms per edit and
+  0.015 ms per frame, every assertion held, the baseline is committed (Results). CI to confirm.
 - The committed kernel hash passes on all CI compilers; `TerrainEditRender.PatchBelowNodeMinimum` and the golden
-  `terrain_edit_crater` pass on lavapipe (CI).
-- `flyover`/`forest` within 5 % of the baseline or explained.
-- `game_world` terraform mode screenshots reviewed (local); the tech demos' `--scenarios` still pass (local).
+  `terrain_edit_crater` pass on lavapipe (CI). **Done** locally with GCC 15 and Clang 19 and on the local lavapipe
+  (MSVC and CI's lavapipe: CI).
+- `flyover`/`forest` within 5 % of the baseline or explained. **Done**: within 1 % of a reference build of the plan
+  commit (Results).
+- `game_world` terraform mode screenshots reviewed (local); the tech demos' `--scenarios` still pass (local). **Done**
+  (the crater through `edit_terrain`; the T mode by hand not exercised without an interactive session); flight,
+  platformer and racing scenarios pass.
 - `docs/engine_design.md` updated (amendments below), `AGENTS.md` (new tests, test count), this file's Status, Design
-  changes and Results.
+  changes and Results. **Done.**
 
 ## Verification
 
@@ -1040,15 +1046,99 @@ Contradictions found while planning (resolved by the amendments above):
 
 ## Design changes
 
-(Filled in when the stage is done.)
+The design-doc amendments listed above are made in `docs/engine_design.md` (§3 rows, §7.7, §8.1, §8.3, §12.1, §12.2,
+§13.2, §13.6, §15.1, §16.2, §17.2, §17.3, §17.4, §17.7, §17.10, §18.4, §22). Changes against the plan made during the
+implementation (each the smallest sound fix; details in the review log):
+
+- Names of the merged S20/S21 code: the grass rule is `generateGrassMask` (the plan's `prototypeGrassMask`, which is
+  `saiga_vulkan`'s; the engine wraps it), `SpaceTemplate::sizeMeters()`, `TerrainSystem::store(space)`.
+- `SampleRect` (the inclusive sample rectangle of the kernel, the changed boxes and the dirty queue) is its own header
+  `engine/terrain/SampleRect.h`; `TerrainChange {space, box}`, `TerrainPart` and `TerrainEditResult` are in
+  `TerrainEdit.h` (small value types).
+- `World::checkTerrainEdit(space, brush, error)` (the non-fatal form of `editTerrain`'s checks, used by the world API and
+  the terraform mode), `World::terrainEditsForUpdate()` (engine-internal: the edit path, the handlers, loads, tests),
+  `World::reserveTerrainChange(n)` (the change-list capacity of the reserve steps), `Replication::clearHostStates()`
+  (a host load).
+- `TerrainEditStore` keeps reserve and commit apart with `reserveFor` / `reserveBlock` (allocation) and `makeEntry` /
+  `insertEntry` (a `std::map` node allocated in the reserve step and inserted without allocation); a load builds a
+  staged store and swaps it in (`replaceState`, the counter stays monotone).
+- `TerrainModification` parts carry a varint length before their encoded deltas (the plan's table had none; needed to
+  delimit a zstd frame per part); zstd is chosen for messages with at least 256 values.
+- The gap of a received part is logged with `SAIGA_LOG("net", ...)` (`SAIGA_LOG_E` needs an entity).
+- The flush scope is `step/phase:<p>/commands/terrain_edit` (the plan's `terrain/edit` would need a parent scope).
+- `RecordingRenderSink` logs `patchTerrainTile` / `patchTerrainPyramid` in its opt-in call log (the "set then patch in
+  one frame" test reads the order); nothing else in the sinks changed.
+- The visual time is `TerrainSystem::Stats::lastVisualMs`, added by `EngineApp` to the frame profile as
+  `frame/render/terrain_visual`; further stats `patchedSamplesLastUpdate`, `maskJobsLastUpdate`, `maskQueue`,
+  `maskJobsInFlight`, and `TerrainSystem::dirtyQueue()` / `visualPatch()` for tests.
+- The headless benchmark test runs the schedule on a 32-chunk template (the corners at 3840..4096 m lie inside;
+  `terraformTestTemplate` has 16 chunks, whose last corner is the space corner).
+- The scenario `terraform_dig_and_fill` used the `editTerrain` helper for the pit in step 6 and switched to
+  `call("edit_terrain", ...)` in step 7 (the tool comes with step 7).
 
 ## Results
 
-(Filled in when the stage is done.)
+Measured on the RTX 5080 Laptop GPU (driver with validation for the tests) and on lavapipe (Mesa with LLVM 21.1.8).
+
+- **Tests.** ctest 77/77 on the GPU (local build with samples; with the CI options 75 tests: 72 + `test_engine_terrain_edit`
+  (45 cases), `test_engine_terrain_net` (9), `test_engine_terrain_benchmark` (3)); every `test_engine_*` /
+  `test_vulkan_*` on lavapipe passes (37/37). The committed kernel hash passes with GCC 15 and Clang 19 (a Clang
+  `-Werror` build of the engine, the touched tests and `game_world`; MSVC is left to CI). The terraform scenarios
+  pass in all six variants (Plain, Repeat with `varyThreads`, SaveLoad with `strictContinuation`, HostClient,
+  HostClientDelay, HostClientAsync); the end comparison now covers the terrain state of every scenario.
+- **Golden** `terrain_edit_crater` (lavapipe; a crater merged at the first complete point, a ring of 8 mounds patched
+  afterwards, the edited grass masks): created in its own commit, identical over repeated lavapipe runs; the RTX differs
+  by mean 1.35/255 (not gating). `TerrainEditRender.PatchBelowNodeMinimum` passes on both devices.
+- **Scenarios of the tech demos**: flight 18, platformer 36, racing 18 runs passed (`--scenarios`, incl. the host +
+  client variants and their new terrain comparison); `game_world` has no scenarios.
+- **Screenshots** (local, reviewed): `game_world` headless over MCP: a crater (subtract 18 m, r 45 m), a ring of ten
+  mounds, a smooth and a flatten through `edit_terrain` (`s22_world_crater.png`; the prototype trees keep their heights
+  over the crater: the S23b risk); `game_world` (the World window with the terraform toggle), flight, racing and
+  platformer `--demo` as before; with `--coop` `edit_terrain` answers "editTerrain on a client" as planned (the T mode
+  by hand was not exercised: no interactive session).
+- **Terraform benchmark** (build-bench, Release without asserts and `-march=native`, two runs; baseline committed in
+  `data/tests/benchmarks.json`): 600 edits, 2396 chunks (every Add / Subtract edit 4 chunks; Flatten 4.0, Smooth 3.97 per
+  edit), 179 436 samples changed, no no-op edits; `terrain_edit_ms` median / p95 0.020 / 0.039 (budget p95 <= 1 ms);
+  `terrain_encode_ms` 0.020 / 0.027; `terrain_visual_ms` 0.011 / 0.015 (budget p95 <= 1 ms); patched samples per frame
+  511 / 1369, upload bytes 2504 / 6032; `base_hook_samples` 0, no tile sends or pending requests in the measured
+  frames, `terrain_stream_ms` 0; step median / p95 0.0023 / 0.0028 ms; `edit_bytes_per_second` 48 481 (above the 32 000
+  B/s = 256 kbit/s report value at 60 edits/s, reported, not gated); edit store 55 KB; frame interval 1.00 ms (983 fps),
+  CPU busy 0.20 ms, GPU busy 0.28 ms.
+- **Headless benchmark test** (`test_engine_terrain_benchmark`, RelWithDebInfo, no resident tiles): the schedule with the
+  integer hook: `applyTerrainEdit` 0.024 / 0.049 ms, the kernel 0.004 / 0.013 ms, encode 0.016 ms, client decode +
+  apply 0.016 ms; with the prototype hook (the worst case: 502 hook samples per edit) 0.21 / 0.43 ms per edit and
+  0.35 us per edited `terrainSample`. 50 full-chunk edited chunks at 1 m: `hash()` 13.7 ms (cached afterwards 0.003
+  ms), save 5.7 ms (40 KB), load 65 ms and a late join's client apply 65 ms, both without a hook call. A grass mask from
+  merged heights: 0.84 ms (1 m), 0.21 ms (2 m). The patch step on a recording sink with resident tiles: terrain/visual
+  0.080 / 0.158 ms per frame.
+- **flyover / forest** (R-TEST-2; build-bench; before = a reference build of the S22 plan commit `115548d2`, run
+  interleaved with S22, two runs each; medians of the runs):
+
+  | | before | after |
+  |---|---|---|
+  | flyover `cpu_ms` (interval) | 3.88 / 3.87 | 3.89 / 3.92 |
+  | flyover GPU busy / trees / terrain + water | 2.53 / 1.40 / 0.19 | 2.51 / 1.39 / 0.19 |
+  | flyover `frame_work_ms` / `cpu_work_ms` | 0.220 / 0.184 | 0.221 / 0.184 |
+  | forest `cpu_ms` | 2.180 / 2.181 | 2.187 / 2.188 |
+  | forest GPU busy / trees / grass | 2.19 / 0.55 / 0.68 | 2.19 / 0.55 / 0.68 |
+  | forest `frame_work_ms` / `cpu_work_ms` | 0.170 / 0.136 | 0.168 / 0.137 |
+
+  All within 1 %. An earlier pair of S22 runs right after other benchmarks showed forest `frame_work_ms` 0.22 against
+  0.17 of an older build; the interleaved runs of the same machine state show no difference (it was run-order noise).
 
 ## Review log
 
 Plan review rounds and implementation reviews, each with the findings and how they were resolved.
+
+- **Implementation** (2026-11-21, Claude Opus 5.5): the plan was checked against the merged S20 and S21 code before
+  step 1. Deviations (see Design changes): the merged names (`generateGrassMask`, `sizeMeters`, `TerrainSystem::store`);
+  S21's optional-section recipe existed and `TERR` was added by it (`kTagTerrain`, the table entry after `SPCE`, a raw
+  `ParsedSave::Range`, the loader pass, the `diffSaves` case; S21's order test named `TERR` as an "unknown" tag and was
+  changed to `ZZZZ`); the varint length per message part; `SAIGA_LOG` for gaps; the flush scope name; the recording
+  sink's patch log lines; the step 6 / 7 order of the scenario's `call("edit_terrain")`; the 32-chunk template of the
+  headless benchmark test; Clang fixes found by a local Clang build (an `optional::emplace` of the nested `Range`
+  aggregate, a lambda capture). The "before" numbers of flyover / forest come from a separate release build of the plan
+  commit (`git archive` of `115548d2` with the submodules linked), run interleaved with the S22 build.
 
 - **Review round 1** (2026-11-21, local Opus + Fable, 20 merged findings; cross-plan decisions D1-D14):
   1. Edited data leaked into S20's shared base tiles/pyramid -> fixed (D3): `TerrainStore` never mutated; deltas merged
