@@ -709,6 +709,23 @@ that file):
   (Scope 4, Tests).
 - Rejected: none.
 
+Implementation (step 1, reconcile with the merged S20-S23a code; the smallest sound fix where the plan differs):
+
+- Real names: `World::contentRecords()` / `contentRecordsForUpdate()` (the plan's "records"), `ChunkRecords::markStamped`,
+  `TerrainEditStore::bumpSequence` / `setSequence` / `revision` (S22's terrain-only revision, F1), the extension point
+  comments in `applyTerrainEdit` between its reserve step 4 and commit step 5, `Replication::HostStateEntry` (the
+  host state list gains the kind `TombstoneModification`), `Replication::sendChunkSnapshot`, `onResync`'s S22 clear,
+  `World::onTerrainChanged(space, box, load)`, `ScenarioWorld::terrainSynced` / `compareTerrain` (the end condition and
+  the comparison), `GenerationPipeline::chunkPlacement` / `contentSource` / `staticList`, `generateChunkPlacement`'s
+  y rule (`terrainSurfaceUnits` over the base cell), S20's mask path (`TerrainSystem::requestMask`,
+  `requestEditedMask`, `sendGrassMask`, `generateGrassMask`).
+- S20's engine-linked render target is the fixture `TerrainRenderTest` of `tests/test_engine_terrain_render.cpp`; the
+  golden test is `TerrainRenderTest.GeneratedSite` (the plan's `EngineTerrainRenderGolden.GeneratedSite`).
+- Grass thresholds: the integer `GrassEditRule` (`minNormalYQ16`, `minAboveSeaUnits`) cannot hold the prototype's
+  0.82 / 0.4 exactly; a legacy space takes the exact double thresholds of its `HookGenerator` (`HookGenerator::grassRule()`),
+  every other generator its `grassEditRule()` converted (exact: Q16 and height units are powers of two), so the
+  prototype's masks stay byte-equal. `TerrainViewSettings::grassMinNormalY` / `grassMinAboveSea` are removed (Scope 5).
+
 ## Design changes
 
 (Filled when the stage is done.)
