@@ -181,7 +181,11 @@ FrameStatistics::Summary FrameStatistics::summarize(double windowSeconds, double
         changes++;
         flips += (a > 0) != (b > 0) ? 1 : 0;
     }
-    out.alternating = changes >= 20 && flips > 0.7 * changes && out.pacingP99 > 0.25 * median;
+    // Sustained alternation: most neighbouring changes are above 0.1 ms (isolated spikes leave flat changes), nearly
+    // all of them flip their sign (random jitter flips about 2 of 3), and the typical (median) change is a quarter of
+    // the frame (the p99 is set by single spikes)
+    out.alternating = changes >= 20 && changes * 2 >= int(interval.size()) && flips > 0.85 * changes &&
+                      stats(change).median > 0.25 * out.interval.mean;
     double below = 0, above = 0;
     int nBelow = 0, nAbove = 0;
     for (double ms : interval)

@@ -212,7 +212,11 @@ json11::Json WorldBenchmark::result() const
         changes++;
         flips += (a > 0) != (b > 0) ? 1 : 0;
     }
-    const bool alternating = changes >= 20 && flips > 0.7 * changes && pacing > 0.25 * interval.median;
+    // Sustained alternation: most neighbouring changes are above 0.1 ms (isolated spikes leave flat changes), nearly
+    // all of them flip their sign (random jitter flips about 2 of 3), and the typical (median) change is a quarter of
+    // the frame (the p99 is set by single spikes)
+    const bool alternating = changes >= 20 && changes * 2 >= int(cpuMs.size()) && flips > 0.85 * changes &&
+                             summarize(change).median > 0.25 * interval.mean;
     // The CPU's waits per frame (means): the frame slot, the image acquire, the present
     std::array<double, 3> wait = {};
     for (const auto& w : waitParts)
@@ -334,7 +338,9 @@ std::string WorldBenchmark::summaryText(const json11::Json& r, const json11::Jso
         std::string verdict     = std::max(gpu, cpu) >= 0.9 ? std::string("limited by the ") + busier
                                   : std::max(gpu, cpu) >= 0.6
                                       ? std::string("mostly ") + busier + "-bound; the CPU waits mostly for " + waitText
-                                      : std::string("limited by waits for ") + waitText;
+                                  : w.is_object() && waits[waitMax] >= 0.05
+                                      ? std::string("limited by waits for ") + waitText
+                                      : std::string("limit undetermined");
         std::snprintf(line, sizeof(line), "%s: GPU busy %.0f%%, CPU busy %.0f%% of the frame time (means)\n",
                       verdict.c_str(), 100 * gpu, 100 * cpu);
         out += line;

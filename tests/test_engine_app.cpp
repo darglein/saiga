@@ -432,6 +432,20 @@ TEST(FrameStatistics, PacingAndTrim)
     FrameStatistics::Summary s = fs.summarize(10);
     EXPECT_EQ(s.pacingP99, 4);
     EXPECT_TRUE(s.alternating);
+    // Regression (CodeRabbit): isolated spikes (8 ms every 20 frames of 2 ms) flip the sign of every change above
+    // 0.1 ms, but they are single stutters, not alternation
+    FrameStatistics spikes;
+    for (int i = 0; i < 600; ++i) spikes.addFrame(i % 20 == 0 ? 8 : 2, 1);
+    EXPECT_FALSE(spikes.summarize(100).alternating);
+    // Random jitter (about 2 of 3 changes flip their sign) is no alternation
+    FrameStatistics noise;
+    uint32_t x = 12345;
+    for (int i = 0; i < 400; ++i)
+    {
+        x = x * 1664525u + 1013904223u;
+        noise.addFrame(4.0 + 2.0 * double(x >> 8) / double(1u << 24), 1);
+    }
+    EXPECT_FALSE(noise.summarize(10).alternating);
     EXPECT_EQ(s.shortMs, 4);
     EXPECT_EQ(s.longMs, 8);
     // Only the last second is kept

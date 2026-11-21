@@ -332,6 +332,14 @@ TEST(WorldBenchmark, SummaryText)
     base["build"] = Json::object{{"type", "Release"}, {"asserts", true}, {"archnative", false}};
     text          = WorldBenchmark::summaryText(r, base);
     EXPECT_LT(text.find("baseline not comparable"), text.find("vs baseline")) << text;
+    // Regression (CodeRabbit): no measured wait names no wait as the limit
+    {
+        Json::object idle    = r;
+        idle["gpu_frame_ms"] = Json::object{{"gpu", stat(0.5, 0.5, 0.6, 0.7)}};
+        idle["wait_ms"]      = Json::object{{"frame_slot", 0.0}, {"acquire", 0.0}, {"present", 0.0}};
+        const std::string t  = WorldBenchmark::summaryText(idle);
+        EXPECT_NE(t.find("limit undetermined"), std::string::npos) << t;
+    }
     // Without GPU times (no timestamps)
     r["gpu_frame_ms"] = Json();
     r["gpu_ms"]       = Json();
