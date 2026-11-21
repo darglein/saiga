@@ -1181,7 +1181,10 @@ void registerTombstoneScenarios(ScenarioList& s)
                       break;
                   }
               if (!w.check(found, "a test_tree in chunk (4, 5)")) return;
-              w.world().tombstone(chunk, key);
+              const ApiResult r = w.call("tombstone", json11::Json::object{{"chunk", json11::Json::array{4, 5}},
+                                                                           {"slot", "test_tree"},
+                                                                           {"counter", double(key.counter)}});
+              w.check(r.ok && r.value["changed"].bool_value(), "the host tombstones the tree: " + r.error);
               auto recordsEqual = [&]()
               {
                   for (int p = 1; p <= w.clientCount(); ++p)
@@ -1190,7 +1193,9 @@ void registerTombstoneScenarios(ScenarioList& s)
               };
               const int bound = 2 * w.networkConfig().delaySteps + 10 + (w.networkConfig().async ? 6 : 0);
               w.check(w.stepUntil(recordsEqual, bound), "every client has the host's record");
-              w.check(w.stepUntil(allHaveSets, 120), "the sets exist after the tombstone");
+              // One step: in the save/load variant (swapped after the call) the fresh world's first pass builds its set
+              // (render sets are not state); the step count stays that of the plain run
+              w.step(1);
               for (int p = 0; p <= w.clientCount(); ++p)
               {
                   World& world          = p == 0 ? w.world() : w.client(p);
@@ -1209,12 +1214,6 @@ void registerTombstoneScenarios(ScenarioList& s)
                       others = i == index || set->instances[i].scale == built[i].scale;
                   w.check(others, who + ": the other instances keep their scale");
               }
-              // The save/load variant replaces the host world (its first pass builds the set on the fresh sink)
-              w.step(1);
-              const auto* hostSet = siteSet(w, 0);
-              w.check(hostSet && siteIndex(w.world(), key) < hostSet->instances.size() &&
-                          hostSet->instances[siteIndex(w.world(), key)].scale == 0,
-                      "the host's sink keeps the instance hidden");
           });
 }
 

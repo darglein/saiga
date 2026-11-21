@@ -68,6 +68,16 @@ struct ToolSpec
     Json schema;
 };
 
+// A chunk [x, z] (two integers)
+json11::Json chunkProperty(const std::string& description)
+{
+    return json11::Json::object{{"type", "array"},
+                                {"items", json11::Json::object{{"type", "integer"}}},
+                                {"minItems", 2},
+                                {"maxItems", 2},
+                                {"description", description}};
+}
+
 std::vector<ToolSpec> toolSpecs()
 {
     using S         = McpServer;
@@ -76,12 +86,14 @@ std::vector<ToolSpec> toolSpecs()
         {"describe_world",
          "Reads the registrations: every component (fields with types, replication, global/space state), game object "
          "class and event, and the spaces (id, name, kind, size_chunks, has_terrain, sea_level with terrain, "
-         "site_origin of an enclosed space). Start here to learn the names and fields the other tools take. Changes "
-         "nothing.",
+         "site_origin of an enclosed space), and the content generators (name, version, the pinned plan and current "
+         "placement versions, the slots with their flags, integer_only). Start here to learn the names and fields "
+         "the other tools take. Changes nothing.",
          S::ObjectSchema({})},
         {"world_status",
          "Reads step index, simulation time, paused, time scale, entity and game object counts and the "
-         "world hash, and per space (spaces) the entity count and the players in it; in an app with --coop (the "
+         "world hash, the content generation {seed (a string), mismatch, checked: a client's check of the host's "
+         "generation state}, and per space (spaces) the entity count and the players in it; in an app with --coop (the "
          "tools see the client world) also host: the hidden host world's step, time, paused, time scale, counts, "
          "dropped steps and hash. Changes nothing.",
          S::ObjectSchema({})},
@@ -148,8 +160,10 @@ std::vector<ToolSpec> toolSpecs()
          "replicated to the clients and saved): op \"add\" / \"subtract\" (strength: metres at the center, 0..64) "
          "or \"flatten\" / \"smooth\" (strength: blend at the center, 0..1); center [x, y, z] in metres (y: the "
          "flatten target, 0 when omitted; [x, z] is accepted), radius 0..128 m, quartic falloff. Changes the terrain "
-         "heights. Returns changed_samples, per changed chunk {chunk: [x, z], sequence, box: [x0, z0, w, h] in "
-         "chunk-local samples} and the changed box [x0, z0, x1, z1] in metres. Refused on clients, inside a step, "
+         "heights and tombstones the generated instances of tombstone_on_edit slots whose surface it changes. "
+         "Returns changed_samples, per changed chunk {chunk: [x, z], sequence, box: [x0, z0, w, h] in chunk-local "
+         "samples}, the changed box [x0, z0, x1, z1] in metres and tombstoned [{chunk: [x, z], slot, counter}]. "
+         "Refused on clients, inside a step, "
          "for an unknown or enclosed space and for a brush out of its bounds (the error names the field).",
          S::ObjectSchema(
              {{"space", S::IntegerProperty("Space (default 0; describe_world lists them)")},
@@ -174,6 +188,40 @@ std::vector<ToolSpec> toolSpecs()
                           {"limit", S::IntegerProperty("Chunks per page (1..1000, default 100)")},
                           {"after", S::IntegerProperty("The next value of the previous page")}},
                          {})},
+        {"chunk_info",
+         "Reads one chunk's generated content state: placement_version (its record's, else the current one), "
+         "recorded, stamped (host), sequence (the modification sequence of terrain edits and tombstones), tombstones "
+         "[{slot, counter}] (at most 200, truncated), tombstone_count, instances per slot (the accepted tier-1 "
+         "instances of the placement), the site keys of the chunk and the content_hash (generated on demand). The "
+         "chunk by chunk [x, z] or by position [x, z] in metres. Changes nothing.",
+         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0)")},
+                          {"chunk", chunkProperty("Chunk [x, z]")},
+                          {"position", S::Vec3Property("A position [x, z] or [x, y, z] in metres (instead of chunk)")}},
+                         {})},
+        {"list_sites",
+         "Reads the sites (authored places) of a space's world plan in plan order: key, prefab, version, position "
+         "[x, base height, z] in metres, quarter_turns, base_height, footprint [x0, z0, x1, z1] in local metres, the "
+         "linked space IDs (the spaces the site created) and its chunks with their stamped state (host). Filter near "
+         "{position, radius}; paged (limit, default 100, at most 1000; after: the next value of the previous page). "
+         "Changes nothing.",
+         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0)")},
+                          {"near", Json::object{{"type", "object"},
+                                                {"description", "{position: [x, z] or [x, y, z], radius} in metres"}}},
+                          {"limit", S::IntegerProperty("Sites per page (1..1000, default 100)")},
+                          {"after", S::IntegerProperty("The next value of the previous page")}},
+                         {})},
+        {"tombstone",
+         "Removes one generated tier-1 instance (host only, between steps; the tombstone is replicated to the "
+         "clients and saved; the instance disappears on every peer): chunk [x, z], slot by name (describe_world lists "
+         "the generators' slots), counter (the candidate index). Changes the chunk's record and its sequence. Refused "
+         "on clients, for an unknown slot, a counter out of range, a rejected or excluded candidate and a chunk "
+         "outside "
+         "the space. Idempotent: changed false for a tombstoned instance. Returns changed, chunk and the sequence.",
+         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0)")},
+                          {"chunk", chunkProperty("Chunk [x, z]")},
+                          {"slot", S::StringProperty("Slot name of the space's generator")},
+                          {"counter", S::IntegerProperty("Candidate index in the slot")}},
+                         {"chunk", "slot", "counter"})},
         {"spawn",
          "Creates an entity at position with rotation [w,x,y,z] and scale: with class a game object (configure and "
          "onSpawn run), else a plain entity. components {name: fields} are checked before anything is created and "
