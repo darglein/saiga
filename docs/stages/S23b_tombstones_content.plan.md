@@ -763,6 +763,15 @@ Implementation (steps 2-10; each the smallest sound fix where the plan and the c
   checked in every variant.
 - The golden is `TerrainRenderTest.GeneratedSite`; "90 m south" is -z.
 - Benchmarks: `game_world --benchmark` needs a window (`--headless` is refused), run as AGENTS.md's recipe.
+- **Implementation review** (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack): round 1 (11, minor):
+  `ContentRenderSystem::install` ignored the delivered placement and `buildInstances` fetched it again synchronously
+  -> fixed (`S23b review`): the set is built from the delivered `ChunkPlacement`. Round 1 (12, minor): the
+  process-wide non-atomic request counter -> a member per system. With them: no content view for a non-finite camera
+  (chunk indices clamped before the conversion). Round 2 (13, nit): `list_sites`' `near` accepted non-finite numbers
+  (and did not check a 3-element position's y) -> every element and the radius must be finite numbers, as in
+  `chunk_info` (`WorldTools.ContentTools`). `TerrainRenderTest.GeneratedSite` used `M_PI` (not standard C++, round 2's
+  MSVC blocker) -> `kPi` of `terrain_test_hooks.h`. The S20 fixes below this branch were rebased in (one test-file
+  conflict: the S20 regression tests next to step 6's changed `GrassMasks` comment).
 
 ## Design changes
 

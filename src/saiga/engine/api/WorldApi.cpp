@@ -1734,9 +1734,11 @@ ApiResult WorldApi::listSites(const Json& a)
         const Json& n  = a["near"];
         const auto& p  = n["position"].array_items();
         const size_t k = p.size();
-        if (!n.is_object() || (k != 2 && k != 3) || !p[0].is_number() || !p[k - 1].is_number() ||
-            !n["radius"].is_number() || !(n["radius"].number_value() >= 0))
-            return ApiResult::failure("near: {position: [x, z] or [x, y, z], radius} in metres");
+        // Finite numbers only (as chunk_info's position; a JSON number may overflow to infinity)
+        auto finite = [](const Json& v) { return v.is_number() && std::isfinite(v.number_value()); };
+        bool valid  = n.is_object() && (k == 2 || k == 3) && finite(n["radius"]) && n["radius"].number_value() >= 0;
+        for (size_t i = 0; valid && i < k; ++i) valid = finite(p[i]);
+        if (!valid) return ApiResult::failure("near: {position: [x, z] or [x, y, z], radius} in metres (finite)");
         near   = true;
         nx     = p[0].number_value();
         nz     = p[k - 1].number_value();

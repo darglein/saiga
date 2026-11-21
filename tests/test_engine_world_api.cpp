@@ -2290,6 +2290,13 @@ TEST(WorldTools, ContentTools)
     const Json near = call("list_sites", obj(R"({"near": {"position": [1100, 1300], "radius": 10}})"));
     ASSERT_EQ(near["sites"].array_items().size(), 1u);
     EXPECT_EQ(near["sites"][0]["key"].number_value(), 0);
+    // A non-finite position or radius is an argument error (1e999 overflows to infinity)
+    EXPECT_NE(error("list_sites", obj(R"({"near": {"position": [1e999, 1300], "radius": 10}})")).find("near"),
+              std::string::npos);
+    EXPECT_NE(error("list_sites", obj(R"({"near": {"position": [1100, 1300], "radius": 1e999}})")).find("near"),
+              std::string::npos);
+    EXPECT_NE(error("list_sites", obj(R"({"near": {"position": [1100, "a", 1300], "radius": 10}})")).find("near"),
+              std::string::npos);
 
     // tombstone: the first accepted test_tree of the chunk
     ChunkId c;

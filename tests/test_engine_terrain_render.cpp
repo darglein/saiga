@@ -405,7 +405,7 @@ TEST_F(TerrainRenderTest, GeneratedSite)
     const Vec3 origin(double(site.x), base, double(site.z));
     const Vec3 eye    = origin + Vec3(0, 70, -90);
     const Quat rot    = lookRotation(origin - eye);
-    const double fovy = 60.0 * M_PI / 180;
+    const double fovy = 60.0 * kPi / 180;
     ChunkId chunk;
     chunk.x = 4;
     chunk.z = 5;
