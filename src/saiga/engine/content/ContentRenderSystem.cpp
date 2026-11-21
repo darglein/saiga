@@ -36,13 +36,6 @@ double chunkDistance(const ChunkId& c, const Vec3& p)
     const double dz = std::max({z0 - p.z(), 0.0, p.z() - (z0 + chunkSize)});
     return std::sqrt(dx * dx + dz * dz);
 }
-
-uint64_t g_requestCounter = 0;
-uint64_t nextCounter()
-{
-    // Main thread only (the World's content system); unique across the systems of a process
-    return ++g_requestCounter;
-}
 }  // namespace
 
 ContentRenderSystem::ContentRenderSystem(World& world) : w(world) {}
@@ -87,12 +80,14 @@ double ContentRenderSystem::fullRadius(SpaceId space) const
 
 void ContentRenderSystem::chunksAround(SpaceId space, const Vec3& centre, double r, std::set<ChunkId>& out) const
 {
-    if (!spaceHasContent(space)) return;
+    if (!spaceHasContent(space) || !centre.allFinite()) return;
     const int32_t size = w.spaceTemplate(space).sizeChunks;
-    const int64_t x0   = std::max<int64_t>(0, int64_t(std::floor((centre.x() - r) / chunkSize)));
-    const int64_t x1   = std::min<int64_t>(size - 1, int64_t(std::floor((centre.x() + r) / chunkSize)));
-    const int64_t z0   = std::max<int64_t>(0, int64_t(std::floor((centre.z() - r) / chunkSize)));
-    const int64_t z1   = std::min<int64_t>(size - 1, int64_t(std::floor((centre.z() + r) / chunkSize)));
+    // The chunk index clamped in double before the conversion (any finite centre)
+    auto index = [&](double v) { return int64_t(std::min(std::max(std::floor(v / chunkSize), -1.0), double(size))); };
+    const int64_t x0 = std::max<int64_t>(0, index(centre.x() - r));
+    const int64_t x1 = std::min<int64_t>(size - 1, index(centre.x() + r));
+    const int64_t z0 = std::max<int64_t>(0, index(centre.z() - r));
+    const int64_t z1 = std::min<int64_t>(size - 1, index(centre.z() + r));
     for (int64_t z = z0; z <= z1; ++z)
         for (int64_t x = x0; x <= x1; ++x)
         {
@@ -120,11 +115,19 @@ std::vector<Vulkan::StaticInstance> ContentRenderSystem::buildInstances(const Ch
                                                                         std::vector<InstanceKey>* keys)
 {
     const SpaceGeneration& g = w.generation().space(chunk.space);
+    std::shared_ptr<const ChunkPlacement> placement;
+    if (!w.generators().find(g.generatorId)->slots.empty()) placement = w.generation().chunkPlacement(chunk, version);
+    return buildFromPlacement(chunk, placement.get(), keys);
+}
+
+std::vector<Vulkan::StaticInstance> ContentRenderSystem::buildFromPlacement(const ChunkId& chunk,
+                                                                            const ChunkPlacement* placement,
+                                                                            std::vector<InstanceKey>* keys)
+{
+    const SpaceGeneration& g = w.generation().space(chunk.space);
     const auto& slots        = w.generators().find(g.generatorId)->slots;
     std::vector<Vulkan::StaticInstance> out;
     if (keys) keys->clear();
-    std::shared_ptr<const ChunkPlacement> placement;
-    if (!slots.empty()) placement = w.generation().chunkPlacement(chunk, version);
     const std::vector<StaticPart>& statics = w.generation().staticList(chunk);
     out.reserve((placement ? placement->instances.size() : 0) + statics.size());
     auto add = [&](float x, float y, float z, uint16_t yaw, float scale, Vulkan::MeshId mesh, InstanceKey key)
@@ -165,8 +168,8 @@ std::vector<Vulkan::StaticInstance> ContentRenderSystem::buildInstances(const Ch
 
 void ContentRenderSystem::install(const ChunkId& chunk, ChunkSet& s, const ChunkPlacement& placement)
 {
-    (void)placement;
-    std::vector<Vulkan::StaticInstance> instances = buildInstances(chunk, s.version, &s.keys);
+    // The delivered placement (no second, synchronous fetch)
+    std::vector<Vulkan::StaticInstance> instances = buildFromPlacement(chunk, &placement, &s.keys);
     s.requested                                   = false;
     if (instances.empty())
     {

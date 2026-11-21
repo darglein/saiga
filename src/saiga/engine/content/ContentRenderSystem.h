@@ -133,6 +133,9 @@ class SAIGA_ENGINE_API ContentRenderSystem
     bool haveViewSpace = false;
     SpaceId viewSpace  = 0;
     Stats statistics;
+    // The last request counter of this system (ChunkSet::counter; main thread)
+    uint64_t requestCounter = 0;
+    uint64_t nextCounter() { return ++requestCounter; }
 
     // The desired chunks around one centre (squares intersecting the disc of radius r)
     void chunksAround(SpaceId space, const Vec3& centre, double r, std::set<ChunkId>& out) const;
@@ -141,6 +144,9 @@ class SAIGA_ENGINE_API ContentRenderSystem
     void removeFar(const std::vector<std::pair<SpaceId, Vec3>>& centres);
     void removeSet(const ChunkId& chunk, ChunkSet& s);
     void removeAll();
+    // buildInstances over a given placement (null: no tier-1 instances)
+    std::vector<Vulkan::StaticInstance> buildFromPlacement(const ChunkId& chunk, const ChunkPlacement* placement,
+                                                           std::vector<InstanceKey>* keys);
     // Builds a set from a placement: tombstones and re-snaps of the current state applied, then addInstanceSet
     void install(const ChunkId& chunk, ChunkSet& s, const ChunkPlacement& placement);
     void buildNow(const ChunkId& chunk, ChunkSet& s);
