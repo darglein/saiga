@@ -8,7 +8,12 @@
 // with a test space template streams into the scene (TerrainSystem::completeView, a VulkanRenderSink); the origin
 // offset acceptance of §22.
 
+#include "saiga/engine/content/ContentConvert.h"
+#include "saiga/engine/content/ContentRenderSystem.h"
+#include "saiga/engine/content/GenerationPipeline.h"
+#include "saiga/engine/content/Tombstones.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
@@ -25,9 +30,12 @@
 
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <iostream>
+#include <map>
 #include <memory>
 
+#include "content_test_setup.h"
 #include "forest_reference.h"
 #include "golden_image.h"
 #include "render_scene_test_context.h"
@@ -98,6 +106,15 @@ class TerrainRenderTest : public RenderSceneTest
         SetCamera(0, eye, rotation, fovy);
         renderUntilUploaded(*scene, 256);
         return Capture(frames);
+    }
+
+    // S23b: a world of another setup (the content tests' generator) with the scene's sink
+    void MakeWorld(const WorldSetup& setup)
+    {
+        DestroyWorld();
+        world = std::make_unique<World>(setup);
+        sink  = std::make_unique<VulkanRenderSink>(*scene);
+        world->setRenderSink(sink.get());
     }
 
     std::unique_ptr<World> world;
@@ -358,4 +375,124 @@ TEST_F(VulkanWorldGolden, WorldForest)
     EXPECT_EQ(img.w, 512);
     compareGolden(img, "world_forest", deviceName());
     ExpectCounts("world_forest", 27, 338, 506, 131);
+}
+
+// S23b (§17.6, E12): the golden of generated content through the real render path: the content test generator's chunk
+// (4, 5) with site 0 (its terrain patch and static pillars), the tier-1 test meshes and one tombstoned tree. World A
+// renders through a VulkanRenderSink, world B (same setup and camera) records the exact set arrays. Count check: the
+// drawn instances of the tombstoned tree's mesh drop by exactly 1, every other mesh's count is unchanged (the
+// statistics of the rendered frame itself). Set check: B's set of (4, 5) equals the conversion of the chunk's placement
+// and its static parts with the tombstoned index at scale 0
+TEST_F(TerrainRenderTest, GeneratedSite)
+{
+    Create(512, 512, 4);
+    scene->setPrototypeEnvironment(Vulkan::PrototypeSettings(), 1);
+    WorldSetup setup = ContentTest::contentTestSetup(2);
+    for (SpaceTemplate& t : setup.config.spaceTemplates) t.fullRadius = 300;
+    MakeWorld(setup);
+    World recording(setup);
+    RecordingRenderSink recordingSink;
+    recording.setRenderSink(&recordingSink);
+    ContentRenderSettings view;
+    view.centres = ContentCentres::View;
+    world->setContentRenderSettings(view);
+    recording.setContentRenderSettings(view);
+
+    // The camera: site 0's base height + 70 m, 90 m south of its origin, looking at the origin at the base height
+    const SpaceGeneration& g = world->generation().space(0);
+    const Site site          = g.plan->sites[0];
+    const double base        = double(site.baseHeight) * kHeightUnit;
+    const Vec3 origin(double(site.x), base, double(site.z));
+    const Vec3 eye    = origin + Vec3(0, 70, -90);
+    const Quat rot    = lookRotation(origin - eye);
+    const double fovy = 60.0 * M_PI / 180;
+    ChunkId chunk;
+    chunk.x = 4;
+    chunk.z = 5;
+    // The tree of (4, 5) nearest to the site origin (outside its exclusion: every placed instance is)
+    const auto placement = world->generation().chunkPlacement(chunk, 2);
+    InstanceKey tree;
+    double best = 1e30;
+    for (const TierOneInstance& t : placement->instances)
+    {
+        if (t.key.generatorSlot != 0) continue;
+        const Vec3 p    = contentPosition(chunk, t.x, t.y, t.z);
+        const double d2 = (p - origin).squaredNorm();
+        if (d2 < best)
+        {
+            best = d2;
+            tree = t.key;
+        }
+    }
+    ASSERT_LT(best, 1e30);
+    const TierOneInstance* treeInstance = findInstance(*placement, tree);
+    const std::string treeMesh          = g.generator->slots()[0].meshes[treeInstance->meshSlot];
+
+    const std::vector<std::string> names = {"test/tree_a", "test/tree_b", "test/rock", "test/pillar", "test/chest"};
+    std::vector<MeshId> meshes;
+    for (const std::string& n : names) meshes.push_back(world->findMesh(n));
+    scene->trackMeshStatistics(meshes);
+    // The drawn instances per tracked mesh (summed over the LODs) of the frame rendered now
+    auto renderCounts = [&]()
+    {
+        SetCamera(0, eye, rot, fovy);
+        renderUntilUploaded(*scene, 256);
+        RenderFrame();
+        const uint64_t frame = scene->frames();
+        Vulkan::RenderStatistics out;
+        for (int i = 0; i < 32; ++i)
+        {
+            scene->waitIdle();
+            bool found = false;
+            while (scene->takeStatistics(out))
+                if (out.frame == frame)
+                {
+                    found = true;
+                    break;
+                }
+            if (found) break;
+            RenderFrame();
+        }
+        EXPECT_EQ(out.frame, frame) << "the statistics of the rendered frame";
+        std::map<std::string, uint32_t> counts;
+        for (size_t m = 0; m < out.trackedMeshes.size() && m < names.size(); ++m)
+        {
+            uint32_t n = 0;
+            for (uint32_t c : out.trackedMeshes[m].instancesPerLod) n += c;
+            counts[names[m]] = n;
+        }
+        return counts;
+    };
+    ASSERT_TRUE(world->terrain().completeView(0, eye));
+    ASSERT_TRUE(recording.terrain().completeView(0, eye));
+    const auto before = renderCounts();
+    EXPECT_GT(before.at(treeMesh), 0u);
+    EXPECT_GT(before.at("test/pillar"), 0u);
+    world->tombstone(chunk, tree);
+    recording.tombstone(chunk, tree);
+    ASSERT_TRUE(world->terrain().completeView(0, eye));
+    ASSERT_TRUE(recording.terrain().completeView(0, eye));
+    const auto after = renderCounts();
+    for (const std::string& n : names) EXPECT_EQ(after.at(n) + (n == treeMesh ? 1u : 0u), before.at(n)) << n;
+
+    // The exact set of (4, 5): the placement and the static parts, the tombstoned index at scale 0
+    RegionId region;
+    region.space    = 0;
+    region.level    = 0;
+    region.x        = 4;
+    region.z        = 5;
+    const auto* set = recordingSink.instanceSetAt(region);
+    ASSERT_TRUE(set);
+    std::vector<InstanceKey> keys;
+    std::vector<StaticInstance> expected = recording.contentRenderForUpdate().buildInstances(chunk, 2, &keys);
+    ASSERT_EQ(expected.size(), placement->instances.size() + world->generation().staticList(chunk).size());
+    const size_t index    = size_t(std::lower_bound(keys.begin(), keys.end(), tree) - keys.begin());
+    expected[index].scale = 0;
+    ASSERT_EQ(set->instances.size(), expected.size());
+    EXPECT_EQ(std::memcmp(set->instances.data(), expected.data(), expected.size() * sizeof(StaticInstance)), 0);
+
+    SetCamera(0, eye, rot, fovy);
+    const auto img = Capture(3);
+    compareGolden(img, "generated_site", deviceName());
+    recording.setRenderSink(nullptr);
 }
