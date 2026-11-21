@@ -305,7 +305,8 @@ file.
   `addInstanceSet` and `updateInstances`; an instance scale must be >= 0 (asserted there).
 - **Statistics**: the scan writes `instancesPerLod` and `nonEmptyBuckets` directly into the frame slot's host-visible
   statistics buffer (no copy of the counts buffer); a frame without a camera or instances gets zeros from the CPU.
-  `RenderScene::statistics()` (non-const) reads the completed slots and keeps the newest.
+  `RenderScene::statistics()` (non-const) reads the completed slots (in frame order) and keeps the newest;
+  `takeStatistics` returns every completed frame's statistics in frame order (the benchmark's distributions).
 - **API additions**: `PipelineClass` (1..4 explicit classes, 0 derived; asserted), the encoders `packNormalOct` /
   `unpackNormalOct`, `packColor`, `packSnorm2x16` / `unpackSnorm2x16`, `StaticInstance::setRotation` / `getRotation` /
   `setPosition` / `getPosition`, `RenderScene::viewMatrix()` / `projectionMatrix()` (with `viewProjection()`),

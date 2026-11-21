@@ -105,7 +105,8 @@ uint64_t SubAllocatedBuffer::allocate(uint64_t key, uint64_t count)
         uint64_t live = count;
         for (auto& [k, x] : ranges) live += x.count;
         grow(live);
-        SAIGA_ASSERT(tryAllocate(r), "SubAllocatedBuffer: allocation failed after growing");
+        // Not inside SAIGA_ASSERT: without SAIGA_ASSERTS the retry would not run (the range kept offset 0)
+        if (!tryAllocate(r)) SAIGA_EXIT_ERROR("SubAllocatedBuffer: allocation failed after growing");
     }
     ranges[key] = r;
     return r.offset;
@@ -189,6 +190,10 @@ bool SubAllocatedBuffer::recordGrowth(vk::CommandBuffer cmd)
     }
     if (!regions.empty())
     {
+        // The uploads of earlier frames to the source become visible to the copy's reads
+        vk::MemoryBarrier2 b(vk::PipelineStageFlagBits2::eAllTransfer, vk::AccessFlagBits2::eTransferWrite,
+                             vk::PipelineStageFlagBits2::eAllTransfer, vk::AccessFlagBits2::eTransferRead);
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, b, nullptr, nullptr));
         Memory::SafeAccessor acc(*pendingSource.memoryLocation(), *current.memoryLocation());
         cmd.copyBuffer(pendingSource.memoryLocation()->data, current.memoryLocation()->data, regions);
     }

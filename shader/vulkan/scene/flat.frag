@@ -62,18 +62,14 @@ const vec3 ambientColor = vec3(0.35);
 void main()
 {
     Material m = materials[inMaterial];
+    uint word = inColor;
+    if ((m.flags & materialUsePalette) != 0u) word = palette[min(inColor, uint(palette.length()) - 1u)].x;
+    vec4 v = unpackUnorm4x8(word);
     vec4 c;
     if (m.model == 1u)
-    {
-        c = m.baseColor;
-    }
+        c = vec4(m.baseColor.rgb, v.a * m.baseColor.a);  // the vertex alpha for the alpha test
     else
-    {
-        uint word = inColor;
-        if ((m.flags & materialUsePalette) != 0u) word = palette[min(inColor, uint(palette.length()) - 1u)].x;
-        vec4 v = unpackUnorm4x8(word);
-        c      = vec4(srgbToLinear(v.rgb), v.a) * m.baseColor;
-    }
+        c = vec4(srgbToLinear(v.rgb), v.a) * m.baseColor;
     if ((m.flags & materialAlphaMask) != 0u && c.a < 0.5) discard;
 
     vec3 n = normalize(inNormal);

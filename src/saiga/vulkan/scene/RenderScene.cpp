@@ -683,7 +683,10 @@ void RenderScene::beginSceneFrame(uint32_t frameIndex, int width, int height, Sc
 void RenderScene::harvestStatistics()
 {
     const uint64_t completed = base().completedFrameValue();
-    for (uint32_t i = 0; i < slotStatistics.size(); ++i)
+    // In frame order: both slots may have completed since the last call
+    std::array<uint32_t, 2> order = {0, 1};
+    if (slotStatistics[1].frame < slotStatistics[0].frame) std::swap(order[0], order[1]);
+    for (uint32_t i : order)
     {
         SlotStatistics& slot = slotStatistics[i];
         if (!slot.pending || slot.timelineValue > completed) continue;
@@ -694,7 +697,18 @@ void RenderScene::harvestStatistics()
         culling->readStatistics(i, r);
         r.drawCommands = slot.drawCommands;
         stats          = r;
+        completedStatistics.push_back(r);
+        if (completedStatistics.size() > 16) completedStatistics.pop_front();
     }
+}
+
+bool RenderScene::takeStatistics(RenderStatistics& out)
+{
+    harvestStatistics();
+    if (completedStatistics.empty()) return false;
+    out = std::move(completedStatistics.front());
+    completedStatistics.pop_front();
+    return true;
 }
 
 void RenderScene::trackMeshStatistics(const std::vector<MeshId>& meshes)

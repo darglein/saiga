@@ -154,6 +154,9 @@ class SAIGA_VULKAN_API RenderScene
 
     // The statistics of the newest completed frame (tagged with its frame number)
     const RenderStatistics& statistics();
+    // The statistics of the oldest completed frame not yet taken, in frame order (at most 16 are kept); false if none.
+    // Every frame's statistics, also when several frames complete between two calls (statistics() only the newest).
+    bool takeStatistics(RenderStatistics& out);
     // The meshes whose drawn instances per LOD the statistics carry (RenderStatistics::trackedMeshes), at most
     // maxTrackedMeshes (more is a fatal error); from the next recorded frame (each frame's statistics carry its list)
     void trackMeshStatistics(const std::vector<MeshId>& meshes);
@@ -198,6 +201,7 @@ class SAIGA_VULKAN_API RenderScene
     };
     std::array<SlotStatistics, 2> slotStatistics;
     RenderStatistics stats;
+    std::deque<RenderStatistics> completedStatistics;
     void harvestStatistics();
     // The camera of the frame being recorded (SceneFrameRenderer::render)
     void beginSceneFrame(uint32_t frameIndex, int width, int height, SceneCamera& camera);

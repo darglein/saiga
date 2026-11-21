@@ -168,9 +168,7 @@ int main(int argc, char** argv)
     const uint64_t firstMeasured = lastEmpty + warmup + 1, lastMeasured = firstMeasured + measured - 1;
     std::vector<double> cullMs, sceneMs, emptyMs, transferMs, recordingMs, drawCalls;
     std::array<std::vector<double>, 4> perLod;
-    // statistics() returns the newest completed frame, which may not have changed since the last call
-    uint64_t lastStatisticsFrame = 0;
-    auto collect                 = [&]()
+    auto collect = [&]()
     {
         FrameTimes t;
         while (scene.takeGpuFrameTimes(t))
@@ -183,10 +181,11 @@ int main(int argc, char** argv)
                 transferMs.push_back(t.gpuSectionMs[sTransfer]);
             }
         }
-        const RenderStatistics& st = scene.statistics();
-        if (st.frame != lastStatisticsFrame && st.frame >= firstMeasured && st.frame <= lastMeasured)
+        // Every completed frame's statistics (several frames may complete between two calls)
+        RenderStatistics st;
+        while (scene.takeStatistics(st))
         {
-            lastStatisticsFrame = st.frame;
+            if (st.frame < firstMeasured || st.frame > lastMeasured) continue;
             for (int l = 0; l < 4; ++l) perLod[l].push_back(st.instancesPerLod[l]);
             drawCalls.push_back(st.drawCommands);
         }
@@ -242,9 +241,11 @@ int main(int argc, char** argv)
                                                {"recording_ms", stat(recordingMs)},
                                                {"instances_per_lod", perLodJson},
                                                {"draw_calls", stat(drawCalls)}};
-    const bool complete = int(cullMs.size()) == measured && int(emptyMs.size()) == emptyFrames;
+    const bool complete =
+        int(cullMs.size()) == measured && int(emptyMs.size()) == emptyFrames && int(drawCalls.size()) == measured;
     if (!complete)
-        std::cout << "Benchmark error: GPU times of " << cullMs.size() << " of " << measured << " frames" << std::endl;
+        std::cout << "Benchmark error: GPU times of " << cullMs.size() << " and statistics of " << drawCalls.size()
+                  << " of " << measured << " frames" << std::endl;
     const bool written = WorldBenchmark::writeResult("benchmark_scene_cull.json", result);
     std::cout << result.dump() << std::endl;
     return complete && written ? 0 : 1;

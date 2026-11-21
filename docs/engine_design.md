@@ -1328,6 +1328,7 @@ const mat4& viewMatrix() const; const mat4& projectionMatrix() const; mat4 viewP
                             // the frame's camera-relative matrices for the game's render callback (one camera for the
                             // shared depth buffer); the view matrix holds only the camera rotation
 const RenderStatistics& statistics();    // the newest completed frame, tagged with its frame number
+bool takeStatistics(RenderStatistics&);  // every completed frame in frame order (the oldest not taken; at most 16 kept)
 void trackMeshStatistics(const std::vector<MeshId>& meshes);  // at most maxTrackedMeshes (16): their per-LOD counts in
                             // RenderStatistics::trackedMeshes, from the next recorded frame (each frame its list)
 bool multiDrawIndirect() const;

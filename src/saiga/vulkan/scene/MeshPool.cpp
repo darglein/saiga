@@ -258,8 +258,9 @@ void MeshPool::queueUploads(UploadBatch& batch)
                   m.pendingIndices.size() * sizeof(uint32_t));
         vertices.setResident(id);
         indices.setResident(id);
-        m.pendingVertices = {};
-        m.pendingIndices  = {};
+        // Released (`= {}` would pick the initializer_list assignment, which keeps the capacity)
+        std::vector<MeshVertex>().swap(m.pendingVertices);
+        std::vector<uint32_t>().swap(m.pendingIndices);
     }
     if (recordsDirty || !meshRecords)
     {

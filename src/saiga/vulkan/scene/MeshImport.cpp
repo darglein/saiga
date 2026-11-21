@@ -178,7 +178,8 @@ bool importMeshLods(const std::string& file, MeshLods& out, MaterialData* materi
 
         const aiMatrix4x4& T = it.transform;
         const bool flip      = T.Determinant() < 0;
-        // A COLOR_0 without alpha (VEC3): assimp delivers alpha 0 for all of them
+        // A COLOR_0 without alpha (VEC3): assimp delivers alpha 0 for all of them. assimp does not expose the
+        // accessor's type, so a VEC4 whose alpha is 0 at every vertex of the primitive is read as opaque too.
         bool vec3Color = mesh->HasVertexColors(0);
         for (unsigned v = 0; vec3Color && v < mesh->mNumVertices; ++v) vec3Color = mesh->mColors[0][v].a == 0;
 

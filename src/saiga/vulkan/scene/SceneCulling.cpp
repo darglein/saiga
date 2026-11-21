@@ -133,9 +133,15 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     base = &b;
     SAIGA_ASSERT(base->enabledFeatures.drawIndirectFirstInstance,
                  "RenderScene: the drawIndirectFirstInstance feature is required");
-    multiDraw            = params.allowMultiDrawIndirect && base->enabledFeatures.multiDrawIndirect;
-    dynamicCapacity      = params.dynamicCapacity;
-    const auto limits    = base->physicalDevice.getProperties().limits;
+    multiDraw         = params.allowMultiDrawIndirect && base->enabledFeatures.multiDrawIndirect;
+    dynamicCapacity   = params.dynamicCapacity;
+    const auto limits = base->physicalDevice.getProperties().limits;
+    // The scene layout's storage buffers are visible to every scene stage (Vulkan's minimum per stage is only 4)
+    if (limits.maxPerStageDescriptorStorageBuffers < bindingCount ||
+        limits.maxDescriptorSetStorageBuffers < bindingCount)
+        SAIGA_EXIT_ERROR("RenderScene: " + std::to_string(bindingCount) +
+                         " storage buffers per stage are required (maxPerStageDescriptorStorageBuffers: " +
+                         std::to_string(limits.maxPerStageDescriptorStorageBuffers) + ")");
     maxDrawIndirectCount = std::max(1u, limits.maxDrawIndirectCount);
     maxWorkGroups        = limits.maxComputeWorkGroupCount[0];
     maxWorkGroupsY       = limits.maxComputeWorkGroupCount[1];

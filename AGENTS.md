@@ -281,8 +281,8 @@ ctest -R test_core_ini --output-on-failure             # one test
     -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_TESTS=OFF -DSAIGA_BUILD_SAMPLES=ON
   # CMake >= 4: add -DCMAKE_POLICY_VERSION_MINIMUM=3.5; GCC 15: add -DASSIMP_WARNINGS_AS_ERRORS=OFF (see above)
   cmake --build build-bench --target game_world sample_vulkan_scene_benchmark --parallel
-  cd build-bench/samples/games && ./game_world --benchmark flyover   # and --benchmark forest
-  cd build-bench/samples/vulkan && ./sample_vulkan_scene_benchmark     # culling benchmark (S18), headless
+  (cd build-bench/samples/games && ./game_world --benchmark flyover)   # and --benchmark forest
+  (cd build-bench/samples/vulkan && ./sample_vulkan_scene_benchmark)     # culling benchmark (S18), headless
   ```
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
   ignored) and writes

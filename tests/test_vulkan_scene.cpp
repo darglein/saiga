@@ -838,8 +838,14 @@ Vec2 centroid(const TemplatedImage<ucvec4>& img, int threshold = 8)
     return Vec2(sx / sum, sy / sum);
 }
 
+// 256 (and a test failure) for an empty image or images of different sizes
 int maxPixelDiff(const TemplatedImage<ucvec4>& a, const TemplatedImage<ucvec4>& b)
 {
+    if (a.w == 0 || a.h == 0 || a.w != b.w || a.h != b.h)
+    {
+        ADD_FAILURE() << "maxPixelDiff: images of " << a.w << "x" << a.h << " and " << b.w << "x" << b.h;
+        return 256;
+    }
     int d = 0;
     for (int y = 0; y < a.h; ++y)
         for (int x = 0; x < a.w; ++x)
@@ -1097,6 +1103,45 @@ TEST_F(VulkanSceneContent, StatisticsAcrossLayoutChanges)
     EXPECT_EQ(st.instancesPerLod[2], 4u);       // b: 12.5 .. 24.5
     EXPECT_EQ(st.nonEmptyBuckets, 5u);
     (void)img;
+}
+
+// takeStatistics returns every frame's statistics in frame order (a bug: when both frame slots completed between two
+// reads, the slot of the newer frame was read first and the older frame's statistics were dropped)
+TEST_F(VulkanSceneContent, TakeStatisticsInFrameOrder)
+{
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "a", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {1000}, {ucvec4(255, 0, 0, 255)}), 1);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    // Enough visible instances that a frame is still running when the next one is recorded (both slots pending)
+    std::vector<StaticInstance> v;
+    for (int i = 0; i < 40000; ++i)
+        v.push_back(makeInstance(vec3(-4 + (i % 200) * 0.04f, -2 + (i / 200) * 0.02f, 0), quat::Identity(), 1, 1));
+    scene->addInstanceSet(RegionId(), v);
+    RenderStatistics st;
+    auto noop = [](vk::CommandBuffer) {};
+    // An even and an odd number of frames: the newest frame in either slot
+    for (int count : {6, 7})
+    {
+        scene->waitIdle();
+        while (scene->takeStatistics(st))
+        {
+        }
+        const uint64_t first = scene->frames() + 1;
+        for (int i = 0; i < count; ++i) EXPECT_TRUE(scene->renderFrame(noop, noop, nullptr));
+        scene->waitIdle();
+        std::vector<uint64_t> frames;
+        while (scene->takeStatistics(st))
+        {
+            frames.push_back(st.frame);
+            EXPECT_EQ(st.instancesPerLod[0], 40000u) << st.frame;
+        }
+        std::vector<uint64_t> expected;
+        for (uint64_t f = first; f <= scene->frames(); ++f) expected.push_back(f);
+        EXPECT_EQ(frames, expected) << count;
+        EXPECT_EQ(scene->statistics().frame, scene->frames());
+    }
 }
 
 // Rejected: a dynamic in another space, a removed dynamic, an unset dynamic and a dynamic of an unregistered mesh
@@ -1675,7 +1720,8 @@ TEST_F(VulkanSceneContent, PaletteColors)
 }
 
 // alphaMask: vertex alpha * baseColor.a < 0.5 is discarded (counted by the culling, not drawn); without alphaMask the
-// alpha is ignored
+// alpha is ignored. SmoothTextured too (a bug: its alpha test used only baseColor.a, so a vertex alpha of 100/255
+// was drawn)
 TEST_F(VulkanSceneContent, AlphaMaskDiscard)
 {
     CreateScene();
@@ -1683,27 +1729,32 @@ TEST_F(VulkanSceneContent, AlphaMaskDiscard)
     masked.alphaMask    = true;
     MaterialData faded  = masked;
     faded.baseColor     = vec4(1, 1, 1, 0.4f);
+    MaterialData smooth = masked;
+    smooth.model        = ShadingModel::SmoothTextured;
     scene->addMaterial(1, "masked", masked);
     scene->addMaterial(2, "opaque", flatMaterial());
     scene->addMaterial(3, "faded", faded);
-    const vec3 half(0.5f, 0.5f, 0.5f);
+    scene->addMaterial(4, "smooth", smooth);
+    const vec3 half(0.4f, 0.4f, 0.4f);
     scene->addMesh(1, "low", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 1);
     scene->addMesh(2, "high", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 200)}), 1);
     scene->addMesh(3, "low_opaque", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 2);
     scene->addMesh(4, "faded", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 3);
+    scene->addMesh(5, "smooth_low", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 4);
+    scene->addMesh(6, "smooth_high", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 200)}), 4);
     camera.position = Vec3(0, 0, 10);
     camera.apply(*scene);
-    const float xs[4] = {-3, -1, 1, 3};
+    const float xs[6] = {-5, -3, -1, 1, 3, 5};
     std::vector<StaticInstance> v;
-    for (int i = 0; i < 4; ++i) v.push_back(makeInstance(vec3(xs[i], 0, 0), quat::Identity(), 1, MeshId(i + 1)));
+    for (int i = 0; i < 6; ++i) v.push_back(makeInstance(vec3(xs[i], 0, 0), quat::Identity(), 1, MeshId(i + 1)));
     scene->addInstanceSet(RegionId(), v);
     RenderStatistics st;
     const auto img = SceneFrame(&st);
-    EXPECT_EQ(st.instancesPerLod[0], 4u);
-    const bool drawn[4] = {false, true, true, false};
-    for (int i = 0; i < 4; ++i)
+    EXPECT_EQ(st.instancesPerLod[0], 6u);
+    const bool drawn[6] = {false, true, true, false, false, true};
+    for (int i = 0; i < 6; ++i)
     {
-        const Vec2 p = camera.project(Vec3(xs[i], 0, 0.5));
+        const Vec2 p = camera.project(Vec3(xs[i], 0, 0.4));
         EXPECT_EQ(img(int(p(1)), int(p(0))) != ucvec4(0, 0, 0, 255), drawn[i]) << i;
     }
 }
