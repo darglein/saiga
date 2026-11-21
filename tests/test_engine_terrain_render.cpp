@@ -14,6 +14,8 @@
 #include "saiga/engine/world/World.h"
 #include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
+#include "saiga/vulkan/world/PrototypeScene.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "gtest/gtest.h"
 
@@ -21,6 +23,7 @@
 #include <iostream>
 #include <memory>
 
+#include "forest_reference.h"
 #include "golden_image.h"
 #include "render_scene_test_context.h"
 #include "terrain_test_hooks.h"
@@ -140,4 +143,105 @@ TEST_F(TerrainRenderTest, OriginOffsetWithinGoldenTolerance)
             EXPECT_GT(blocks[0], 0);
         }
     }
+}
+
+// Golden images of the prototype world (docs/engine_design.md §17.6; S20: moved from test_vulkan_world): 512 x 512,
+// clay shading, time 0, captured after 5 frames. The engine's terrain: the prototype hook at base spacing 2 (CI cost),
+// a 128-chunk space with the sea level 6 m, completeView and the upload wait before the capture; 5000 trees placed in
+// the 1 km square [1024, 2048]^2 (seed 1) on PrototypeScene. They gate on lavapipe only; other devices print the
+// metrics. The drawn instance and terrain node counts gate on lavapipe only as well (the tree placement uses std random
+// distributions and float comparisons); the counts are also compared with the CPU reference of the culling rule (§17.5
+// band). Regenerate on lavapipe: SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_terrain_render
+// --gtest_filter='VulkanWorldGolden.*'
+class VulkanWorldGolden : public TerrainRenderTest
+{
+   protected:
+    static constexpr int size = 512;
+
+    void SetUp() override
+    {
+        TerrainRenderTest::SetUp();
+        if (IsSkipped()) return;
+        Create(size, size, 4);
+        MakeWorld(
+            testSpaceTemplate(Vulkan::kPrototypeSpaceChunks, 2, Vulkan::prototypeHeight, Vulkan::kPrototypeSeaLevel));
+        Vulkan::PrototypeArea area;
+        area.x0                    = 1024;
+        area.z0                    = 1024;
+        area.size                  = 1024;
+        area.seed                  = world->spaceSeed(0);
+        area.baseSpacing           = 2;
+        species                    = Vulkan::FoliageGenerator::treeSpecies(1);
+        trees                      = Vulkan::ForestRenderer::placeTrees(area, 5000, 1, species);
+        prototype.settings.shading = Vulkan::WorldShading::Clay;
+        prototype.attach(*scene, trees, 1);
+        scene->setTime(0);
+    }
+    void Destroy() override
+    {
+        prototype.detach();
+        TerrainRenderTest::Destroy();
+    }
+    double Ground(double x, double z) const { return world->terrainHeight(0, x, z); }
+    TemplatedImage<ucvec4> Shot(const Vec3& eye, const Vec3& target)
+    {
+        const Quat rotation = Vulkan::viewRotation(lookAt(eye.cast<float>(), target.cast<float>(), vec3(0, 1, 0)));
+        EXPECT_TRUE(world->terrain().completeView(0, eye));
+        SetCamera(0, eye, rotation, double(radians(prototype.settings.fovy)));
+        prototype.update();
+        renderUntilUploaded(*scene, 256);
+        return Capture(5);
+    }
+
+    // The committed counts (docs/engine_design.md §17.6)
+    void ExpectCounts(const char* name, int lod0, int lod1, int lod2, int terrainNodes)
+    {
+        const auto fs  = prototype.forest().stats();
+        const auto& st = scene->statistics();
+        const auto ref = ForestReferenceTests::forestReference(trees, species, prototype.settings, cameraEye,
+                                                               cameraRotation, double(width) / height);
+        std::cout << name << " trees per lod: " << fs.visible[0] << " " << fs.visible[1] << " " << fs.visible[2]
+                  << ", terrain nodes " << st.terrainNodes << " (reference " << ref.perLod[0] << " " << ref.perLod[1]
+                  << " " << ref.perLod[2] << ", " << ref.ambiguous << " ambiguous)" << std::endl;
+        EXPECT_EQ(fs.frame, scene->frames());
+        ForestReferenceTests::expectForest(fs, ref, name);
+        // Not checked while the goldens are regenerated: the printed counts replace the committed ones
+        if (!goldenGating(deviceName()) || goldenUpdateMode()) return;
+        EXPECT_EQ(int(fs.visible[0]), lod0);
+        EXPECT_EQ(int(fs.visible[1]), lod1);
+        EXPECT_EQ(int(fs.visible[2]), lod2);
+        EXPECT_EQ(int(st.terrainNodes), terrainNodes);
+    }
+
+    Vulkan::PrototypeScene prototype;
+    std::vector<Vulkan::TreeSpecies> species;
+    std::vector<Vulkan::ForestRenderer::TreeInstance> trees;
+};
+
+TEST_F(VulkanWorldGolden, WorldOverview)
+{
+    // 300 m above the ground 100 m inside the square's west edge at its centre z, looking 45 degrees down along +x
+    Vec3 c(1124, 0, 1536);
+    c(1)           = Ground(c(0), c(2));
+    const Vec3 eye = c + Vec3(0, 300, 0);
+    const Vec3 dir(std::cos(M_PI / 4), -std::sin(M_PI / 4), 0);
+    auto img = Shot(eye, eye + dir);
+    EXPECT_EQ(img.w, 512);
+    compareGolden(img, "world_overview", deviceName());
+    ExpectCounts("world_overview", 0, 2, 3937, 72);
+}
+
+TEST_F(VulkanWorldGolden, WorldForest)
+{
+    // 2 m above max(ground, water) at a clearing near the square's centre: (1524, 1564), found by a search on a 4 m
+    // grid of [1400, 1700]^2 for the point nearest to the centre whose nearest tree is >= 15 m away (16.2 m), looking
+    // along +x and slightly down: a close tree with alpha-to-coverage foliage, grass, trunks, the forest at mid
+    // distance
+    const Vec3 best(1524, 0, 1564);
+    Vec3 eye = best;
+    eye(1)   = std::max(Ground(eye(0), eye(2)), 6.0) + 2.0;
+    auto img = Shot(eye, eye + Vec3(1, -0.2, 0));
+    EXPECT_EQ(img.w, 512);
+    compareGolden(img, "world_forest", deviceName());
+    ExpectCounts("world_forest", 27, 338, 506, 131);
 }
