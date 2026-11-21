@@ -56,6 +56,9 @@ class SAIGA_ENGINE_API TerrainStore
 
     // Drops the streamed data (tiles and masks), keeps the pyramid
     void dropStreamed();
+    // Drops everything incl. the pyramid (a host load with other generator pins, S23a: a new pyramid gets a new
+    // pointer)
+    void dropAll();
     void dropMasks();
     // The bytes of the tiles, the pyramid and the masks
     size_t cpuBytes() const;

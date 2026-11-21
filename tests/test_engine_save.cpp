@@ -1367,14 +1367,14 @@ TEST(SaveSections, OrderErrors)
     // Twice
     const auto twice = insertSection(blob, kTagEntities, kTagSpaces, content);
     EXPECT_FALSE(parseSave(twice, p, error));
-    EXPECT_EQ(error, "unexpected section SPCE (expected TERR or ENTS)");
+    EXPECT_EQ(error, "unexpected section SPCE (expected GENR or TERR or CREC or ENTS)");
     // An unknown tag where an optional section may stand (S22's TERR is known)
     const auto unknown = insertSection(blob, kTagSpaces, saveTag("ZZZZ"), {1, 0, 0, 0});
     EXPECT_FALSE(parseSave(unknown, p, error));
-    EXPECT_EQ(error, "unexpected section ZZZZ (expected SPCE or TERR or ENTS)");
+    EXPECT_EQ(error, "unexpected section ZZZZ (expected SPCE or GENR or TERR or CREC or ENTS)");
     // A missing required section
     EXPECT_FALSE(parseSave(removeSection(blob, kTagEntities), p, error));
-    EXPECT_EQ(error, "unexpected section COMP (expected TERR or ENTS)");
+    EXPECT_EQ(error, "unexpected section COMP (expected GENR or TERR or CREC or ENTS)");
     // Every case leaves the world unchanged
     World w(spacesSaveSetup(cellarSpaces()));
     const auto before = w.save();

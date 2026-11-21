@@ -453,6 +453,8 @@ class SAIGA_ENGINE_API World
     uint64_t generationSeed() const { return setupSeed; }
     // E6: the space's generator has terrain (terrain and sea drawn and streamed, terrainHeight from it)
     bool spaceHasTerrain(SpaceId space) const;
+    // GENR, GenerationState and the generation part of hash(): a non-legacy generator or chunk records (§15.1, S23a)
+    bool writesGenerationState() const;
     // The chunk records (state: the placement version per recorded chunk, the host's stamped chunks)
     const ChunkRecords& contentRecords() const { return *chunkRecords; }
     ChunkRecords& contentRecordsForUpdate() { return *chunkRecords; }
@@ -1043,8 +1045,10 @@ class SAIGA_ENGINE_API World
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
-    // The content generation (S23a)
+    // The content generation (S23a); generationSetup: the setup fields phase A reads (a load builds the plans of the
+    // saved pins with them)
     std::unique_ptr<GenerationPipeline> pipeline;
+    WorldSetup generationSetup;
     std::unique_ptr<ChunkRecords> chunkRecords;
     uint64_t setupSeed    = 0;
     double accumulator    = 0;

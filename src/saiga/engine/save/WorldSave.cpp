@@ -6,6 +6,8 @@
 
 // World::save, dumpJson and diff (docs/engine_design.md §15.1, S11). The format is described in SaveFormat.h.
 
+#include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/EngineVersion.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/save/SaveDiff.h"
@@ -15,6 +17,7 @@
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/world/World.h"
 
+#include <map>
 #include <stdexcept>
 
 namespace Saiga
@@ -67,6 +70,35 @@ std::vector<uint8_t> World::save() const
         s.end();
     }
 
+    // GENR (S23a): only when the world writes generation state (a non-legacy generator or chunk records)
+    if (writesGenerationState())
+    {
+        const GenerationPlans& plans = pipeline->plans();
+        s.beginOptional(kTagGeneration, kGenerationSectionVersion);
+        w.write(plans.seed);
+        w.write(uint32_t(plans.templates.size()));
+        for (const SpaceTemplate& t : plans.templates)
+            w.write(std::string(plans.generators->find(t.generator)->generator->name()));
+        const std::vector<const GeneratorList::Entry*> gens = plans.generators->byName();
+        w.write(uint32_t(gens.size()));
+        for (const GeneratorList::Entry* g : gens)
+        {
+            const std::string name = g->generator->name();
+            w.write(name);
+            w.write(plans.pinned.at(name));
+            w.write(plans.current.at(name));
+            w.write(uint16_t(g->slots.size()));
+            for (const GeneratorSlot& slot : g->slots)
+            {
+                w.write(slot.name);
+                w.write(slot.flags);
+            }
+        }
+        w.write(uint32_t(plans.spaces.size()));
+        w.write(plans.combinedHash);
+        s.end();
+    }
+
     // TERR (S22): only with a chunk with terrain state
     if (terrainEditStore->chunkCount() > 0)
     {
@@ -102,6 +134,29 @@ std::vector<uint8_t> World::save() const
         }
         s.end();
     }
+    // CREC (S23a): only with chunk records
+    if (!chunkRecords->records().empty())
+    {
+        const ChunkRecords& rec = *chunkRecords;
+        s.beginOptional(kTagChunkRecords, kChunkRecordSectionVersion);
+        std::map<SpaceId, std::vector<std::pair<ChunkId, ChunkRecord>>> bySpace;
+        for (const auto& [c, r] : rec.records()) bySpace[c.space].push_back({c, r});
+        w.write(uint32_t(bySpace.size()));
+        for (const auto& [space, list] : bySpace)
+        {
+            w.write(space);
+            w.write(uint32_t(list.size()));
+            for (const auto& [c, r] : list)
+            {
+                w.write(c.x);
+                w.write(c.z);
+                w.write(r.placementVersion);
+                w.write(uint8_t(rec.isStamped(c) ? 1 : 0));
+            }
+        }
+        s.end();
+    }
+
     s.begin(kTagEntities);
     const uint32_t slots = reg.slotCount();
     w.write(slots);

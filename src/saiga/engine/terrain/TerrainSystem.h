@@ -187,6 +187,10 @@ class SAIGA_ENGINE_API TerrainSystem
     // The lazy StreamingPool exists (a sink alone starts none)
     bool poolCreated() const { return pool != nullptr; }
 
+    // Engine-internal (a host load with other generator pins, S23a): new height sources per space; everything derived
+    // from the old ones is dropped (the pool's jobs, the stores incl. the pyramids, the edited masks, the dirty queue)
+    // and the sink's terrain is cleared (clearTerrain): the view's pyramid and tiles are requested again
+    void replaceSources(std::vector<TerrainHeightSource> sources);
     // Engine-internal: the World's render sink (World::setRenderSink). A new sink receives the pyramid and the tiles
     // and masks of the last view camera's desired set (current budget) that the store of the view space holds (through
     // the send point); a removed sink drops the sent state. A sink attached again first gets clearTerrain if it kept a

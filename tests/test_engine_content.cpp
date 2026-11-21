@@ -7,9 +7,9 @@
 // The content generation (docs/engine_design.md §12.1, §15.3, R-CONTENT-1; S23a): the fixed-point toolkit and the
 // integer lint (this unit is compiled with trapping UBSan on the Clang CI job, SAIGA_CONTENT_UBSAN).
 
+#include "saiga/engine/api/ComponentJson.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/SpaceLink.h"
-#include "saiga/engine/api/ComponentJson.h"
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/content/ContentConvert.h"
@@ -28,7 +28,12 @@
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/LogRing.h"
 #include "saiga/engine/core/StreamingPool.h"
+#include "saiga/engine/save/SaveDiff.h"
+#include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/HookGenerator.h"
+#include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/SpaceTemplate.h"
@@ -1662,4 +1667,338 @@ TEST(Stamp, BetweenStepsAndDestroyedInOnSpawn)
     v.step(1);
     EXPECT_GE(v.contentRecords().stats().failedComponents, 1u);
     EXPECT_TRUE(entitiesOf<TestVanish>(v).empty());
+}
+
+// ---- Records and saves (S23a step 10) -------------------------------------------------------------------------------
+
+namespace
+{
+// A generator that delegates to TestTerrainGenerator under another name or with another slot table (load errors)
+class ChangedGenerator final : public Generator
+{
+   public:
+    ChangedGenerator(std::string name, bool renameSlot) : nameText(std::move(name)), renameSlot(renameSlot) {}
+    const char* name() const override { return nameText.c_str(); }
+    uint16_t version() const override { return base.version(); }
+    std::vector<GeneratorSlot> slots() const override
+    {
+        auto s = base.slots();
+        if (renameSlot) s[1].name = "test_stone";
+        return s;
+    }
+    void plan(uint16_t v, WorldPlan& p) const override { base.plan(v, p); }
+    int32_t height(uint16_t v, const WorldPlan& p, int64_t x, int64_t z) const override
+    {
+        return base.height(v, p, x, z);
+    }
+    bool candidate(uint16_t v, const WorldPlan& p, ChunkId c, uint32_t s, uint32_t n, Candidate& o) const override
+    {
+        return base.candidate(v, p, c, s, n, o);
+    }
+    uint32_t candidatesPerChunk(uint32_t s) const override { return base.candidatesPerChunk(s); }
+    uint32_t keptCount(uint32_t s, int l) const override { return base.keptCount(s, l); }
+    void grassMask(uint16_t v, const WorldPlan& p, ChunkId c, GrassMask& o) const override
+    {
+        base.grassMask(v, p, c, o);
+    }
+
+   private:
+    ContentTest::TestTerrainGenerator base{2};
+    std::string nameText;
+    bool renameSlot = false;
+};
+
+// Stamps site 0 (chunk (4, 5)) of a content world between steps
+void stampSiteZero(World& w)
+{
+    const Entity p = addPlayer(w, Vec3(1100, 0, 1200));
+    w.step(1);
+    w.destroy(p);
+}
+
+ChunkId chunkAt(int32_t x, int32_t z, SpaceId space = 0)
+{
+    ChunkId c;
+    c.space = space;
+    c.x     = x;
+    c.z     = z;
+    return c;
+}
+
+std::string committedSection(int entry, const std::string& chunk, const std::string& section)
+{
+    json11::Json j;
+    std::string error;
+    EXPECT_TRUE(readJsonFile(contentHashFile(), j, error)) << error;
+    return j["setups"][size_t(entry)]["chunks"][chunk][section].string_value();
+}
+
+LoadResult loadInto(World& w, const std::vector<uint8_t>& blob)
+{
+    const auto before = w.save();
+    LoadResult r      = w.tryLoad(blob);
+    if (!r.committed)
+    {
+        EXPECT_EQ(w.save(), before) << "a rejected load changed the world";
+    }
+    return r;
+}
+}  // namespace
+
+// GENR / CREC round trip; records only for stamped chunks (a visited chunk without sites and an edited chunk get none);
+// a flat world writes neither; world.hash changes with a record and is equal after save / load; diffSaves names records
+TEST(ContentSave, RoundTripAndRecords)
+{
+    World a(ContentTest::contentTestSetup(2));
+    const uint64_t h0 = a.hash();
+    // A visited chunk without sites and an edited chunk: no record
+    const Entity visitor = addPlayer(a, Vec3(20000, 0, 20000));
+    a.step(1);
+    a.destroy(visitor);
+    TerrainBrush b;
+    b.center   = Vec3(300, 0, 300);
+    b.radius   = 10;
+    b.strength = 2;
+    a.editTerrain(0, b);
+    EXPECT_TRUE(a.contentRecords().records().empty());
+    stampSiteZero(a);
+    EXPECT_NE(a.hash(), h0);
+    ASSERT_TRUE(a.contentRecords().isStamped(chunkAt(4, 5)));
+    for (const auto& [c, r] : a.contentRecords().records())
+    {
+        EXPECT_TRUE(a.contentRecords().isStamped(c));
+        EXPECT_EQ(r.placementVersion, 2);
+    }
+    const auto blob = a.save();
+    ParsedSave parsed;
+    std::string error;
+    ASSERT_TRUE(parseSave(blob, parsed, error)) << error;
+    ASSERT_TRUE(parsed.generation);
+    ASSERT_TRUE(parsed.chunkRecords);
+    EXPECT_EQ(parsed.generation->seed, 12345u);
+    EXPECT_EQ(parsed.generation->spaceCount, 3u);
+
+    World b2(ContentTest::contentTestSetup(2));
+    const LoadResult r = b2.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b2.contentRecords().records().size(), a.contentRecords().records().size());
+    EXPECT_EQ(b2.contentRecords().stamped(), a.contentRecords().stamped());
+    EXPECT_EQ(b2.hash(), a.hash());
+    EXPECT_EQ(World::diff(a, b2), "");
+    // No second stamp after the load
+    stampSiteZero(b2);
+    EXPECT_EQ(entitiesOf<ContentTest::TestChest>(b2).size(), 1u);
+    // A record difference is named
+    World c(ContentTest::contentTestSetup(2));
+    EXPECT_NE(World::diff(a, c).find("record space 0 chunk (4, 5)"), std::string::npos) << World::diff(a, c);
+
+    // A flat world writes neither section
+    World flat{WorldSetup{}};
+    ParsedSave pf;
+    ASSERT_TRUE(parseSave(flat.save(), pf, error)) << error;
+    EXPECT_FALSE(pf.generation);
+    EXPECT_FALSE(pf.chunkRecords);
+    EXPECT_FALSE(flat.writesGenerationState());
+}
+
+// Load errors leave the world unchanged: another seed, a newer version, a changed slot table, another generator name,
+// a changed released plan, another space list
+TEST(ContentSave, LoadErrors)
+{
+    World a(ContentTest::contentTestSetup(2));
+    stampSiteZero(a);
+    const auto blob = a.save();
+    {
+        WorldSetup s = ContentTest::contentTestSetup(2);
+        s.seed       = 7;
+        World w(s);
+        const LoadResult r = loadInto(w, blob);
+        EXPECT_FALSE(r.committed);
+        EXPECT_EQ(r.error, "save seed 12345, setup seed 7: the seed is part of the setup");
+    }
+    {
+        // Pinned 3 > the build's 2
+        WorldSetup s3 = ContentTest::contentTestSetup(1);
+        s3.generators = [](GeneratorList& l)
+        {
+            l.add(ContentTest::kTestTerrainGenerator, std::make_shared<ContentTest::TestTerrainGenerator>(3));
+            l.add(ContentTest::kTestDungeonGenerator,
+                  std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
+        };
+        World v3(s3);
+        World w(ContentTest::contentTestSetup(2));
+        const LoadResult r = loadInto(w, v3.save());
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find("save from a newer generator test_terrain v3"), std::string::npos) << r.error;
+    }
+    auto changed = [&](const std::string& name, bool renameSlot)
+    {
+        static std::string gName;
+        static bool gRename = false;
+        gName               = name;
+        gRename             = renameSlot;
+        WorldSetup s        = ContentTest::contentTestSetup(2);
+        s.generators        = [](GeneratorList& l)
+        {
+            l.add(ContentTest::kTestTerrainGenerator, std::make_shared<ChangedGenerator>(gName, gRename));
+            l.add(ContentTest::kTestDungeonGenerator,
+                  std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
+        };
+        World w(s);
+        return loadInto(w, blob);
+    };
+    {
+        const LoadResult r = changed("test_terrain", true);
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find("slot 1 is 'test_rock' in the save and 'test_stone'"), std::string::npos) << r.error;
+    }
+    {
+        const LoadResult r = changed("renamed", false);
+        EXPECT_FALSE(r.committed);
+        EXPECT_EQ(r.error, "space template 'overworld' used generator 'test_terrain', now 'renamed'");
+    }
+    {
+        // A released v1 that changed: same pins, another plan
+        World v1(ContentTest::contentTestSetup(1));
+        World w(ContentTest::contentTestSetup(1, nullptr, ContentTest::Variant::ReleasedChangeV1));
+        const LoadResult r = loadInto(w, v1.save());
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find("produce another plan than the saved one"), std::string::npos) << r.error;
+    }
+    {
+        // TableChangeV2: a v1 save into the v2 binary, whose own list has another space
+        World v1(ContentTest::contentTestSetup(1, nullptr, ContentTest::Variant::TableChangeV2));
+        World w(ContentTest::contentTestSetup(2, nullptr, ContentTest::Variant::TableChangeV2));
+        ASSERT_EQ(w.spaceCount(), 4u);
+        const LoadResult r = loadInto(w, v1.save());
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find("space"), std::string::npos) << r.error;
+        std::cout << "TableChangeV2: " << r.error << std::endl;
+    }
+}
+
+// A world of v1 (own cache) with site 0 stamped, loaded into the v2 binary (own cache): plan v1 kept, the stamped chunk
+// at placement v1 (its tier1 hash is the committed v1 entry's), an unrecorded chunk at v2 (the committed v2 entry's)
+TEST(ContentSave, OlderVersionKeepsRecordedPlacement)
+{
+    World v1(ContentTest::contentTestSetup(1));
+    stampSiteZero(v1);
+    World w(ContentTest::contentTestSetup(2));
+    const LoadResult r = w.tryLoad(v1.save());
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(w.generation().plans().pinned.at("test_terrain"), 1);
+    EXPECT_EQ(w.generation().plans().current.at("test_terrain"), 2);
+    ASSERT_NE(w.contentRecords().find(chunkAt(4, 5)), nullptr);
+    EXPECT_EQ(w.contentRecords().find(chunkAt(4, 5))->placementVersion, 1);
+    EXPECT_EQ(hexU64(w.generation().chunkPlacement(chunkAt(4, 5), 1)->hashes.tier1),
+              committedSection(0, "0:4:5", "tier1"));
+    EXPECT_EQ(hexU64(w.generation().chunkPlacement(chunkAt(0, 0), 2)->hashes.tier1),
+              committedSection(1, "0:0:0", "tier1"));
+    // A save with fewer templates loads into a setup with an appended template (the prefix rule)
+    WorldSetup more = ContentTest::contentTestSetup(2);
+    SpaceTemplate extra;
+    extra.name = "extra";
+    more.config.spaceTemplates.push_back(extra);
+    World m(more);
+    ASSERT_EQ(m.spaceCount(), 4u);
+    EXPECT_EQ(m.spaceTemplate(3).name, "extra");
+    const LoadResult rm = m.tryLoad(v1.save());
+    EXPECT_TRUE(rm.ok()) << rm.error;
+}
+
+// PlanChangeV2: a v1 save loads into the v2 binary (same space table, other heights): the plans are replaced, the
+// sink's terrain cleared and the pyramid sent again; terrainHeight at the moved site and an edited sample there equal
+// v1's
+TEST(ContentSave, RepinDropsDerivedTerrain)
+{
+    World a(ContentTest::contentTestSetup(1, nullptr, ContentTest::Variant::PlanChangeV2));
+    TerrainBrush brush;
+    brush.center   = Vec3(1536, 0, 1540);
+    brush.radius   = 6;
+    brush.strength = 3;
+    a.editTerrain(0, brush);
+    const double siteHeight = a.terrainHeight(0, 1536, 1536);
+    const int32_t edited    = a.terrainSample(0, 768, 770);
+    ASSERT_NE(edited, a.terrain().sample(0, 768, 770));
+    World b(ContentTest::contentTestSetup(2, nullptr, ContentTest::Variant::PlanChangeV2));
+    ASSERT_NE(b.terrainHeight(0, 1536, 1536), siteHeight);
+    RecordingRenderSink sink;
+    b.setRenderSink(&sink);
+    const Vec3 camera(1536, 200, 1536);
+    ASSERT_TRUE(b.terrain().completeView(0, camera));
+    const uint64_t pyramids = sink.counters().setTerrainPyramid;
+    const LoadResult r      = b.tryLoad(a.save());
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(sink.counters().clearTerrain, 1u);
+    EXPECT_EQ(b.terrainHeight(0, 1536, 1536), siteHeight);
+    EXPECT_EQ(b.terrainSample(0, 768, 770), edited);
+    ASSERT_TRUE(b.terrain().completeView(0, camera));
+    EXPECT_GT(sink.counters().setTerrainPyramid, pyramids);
+    b.setRenderSink(nullptr);
+}
+
+// A pre-S23 save with TERR into a setup whose template moved to a non-legacy generator: a load error
+TEST(ContentSave, PreS23SaveNeedsLegacyGenerators)
+{
+    WorldSetup hook;
+    hook.seed = 12345;
+    SpaceTemplate t;
+    t.name                     = "overworld";
+    t.generator                = 1;
+    t.seaLevel                 = 0;
+    hook.config.spaceTemplates = {t};
+    hook.generators            = [](GeneratorList& l)
+    { l.add(1, std::make_shared<HookGenerator>("old", [](uint64_t, int64_t x, int64_t) { return int32_t(x); })); };
+    World old(hook);
+    TerrainBrush b;
+    b.center   = Vec3(300, 0, 300);
+    b.radius   = 5;
+    b.strength = 1;
+    old.editTerrain(0, b);
+    ParsedSave p;
+    std::string error;
+    const auto blob = old.save();
+    ASSERT_TRUE(parseSave(blob, p, error));
+    EXPECT_FALSE(p.generation);
+    EXPECT_TRUE(p.terrain);
+    // The same template 0 (and two appended ones) on the test generator
+    World w(ContentTest::contentTestSetup(2));
+    const LoadResult r = loadInto(w, blob);
+    EXPECT_FALSE(r.committed);
+    EXPECT_EQ(r.error, "save from before S23: template 'overworld' now uses generator 'test_terrain'");
+}
+
+// The committed save of S23a (GENR, CREC with stamped chunks, an edited chunk) keeps loading
+TEST(ContentSave, CommittedSaveLoads)
+{
+    const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23a.bin";
+    const char* update     = std::getenv("SAIGA_UPDATE_GOLDEN");
+    if (update && std::string(update) == "1")
+    {
+        World w(ContentTest::contentTestSetup(2));
+        stampSiteZero(w);
+        TerrainBrush b;
+        b.center   = Vec3(1110, 0, 1290);
+        b.radius   = 8;
+        b.strength = 2;
+        w.editTerrain(0, b);
+        w.step(3);
+        const auto blob = w.save();
+        std::ofstream(path, std::ios::binary)
+            .write(reinterpret_cast<const char*>(blob.data()), std::streamsize(blob.size()));
+        GTEST_SKIP() << "wrote " << path;
+    }
+    std::ifstream f(path, std::ios::binary);
+    const std::vector<uint8_t> blob((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    ASSERT_FALSE(blob.empty()) << path;
+    World w(ContentTest::contentTestSetup(2));
+    const LoadResult r = w.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_TRUE(w.contentRecords().isStamped(chunkAt(4, 5)));
+    EXPECT_EQ(entitiesOf<ContentTest::TestChest>(w).size(), 1u);
+    EXPECT_GT(w.terrainEdits().chunkCount(), 0u);
+    // It saves again with the same state
+    World again(ContentTest::contentTestSetup(2));
+    ASSERT_TRUE(again.tryLoad(w.save()).ok());
+    EXPECT_EQ(again.hash(), w.hash());
 }

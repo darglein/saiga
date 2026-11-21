@@ -1119,6 +1119,31 @@ void TerrainSystem::setViewSettings(const TerrainViewSettings& settings)
     }
 }
 
+void TerrainSystem::replaceSources(std::vector<TerrainHeightSource> sources)
+{
+    SAIGA_ASSERT(sources.size() == spaces.size(), "TerrainSystem::replaceSources: one source per space");
+    // The old jobs: queued ones are cancelled, running ones joined, their completions discarded (a new pool on demand)
+    pool.reset();
+    requests.clear();
+    for (size_t i = 0; i < spaces.size(); ++i)
+    {
+        spaces[i].source = std::move(sources[i]);
+        spaces[i].store->dropAll();
+    }
+    dirty.clear();
+    visual->masks.clear();
+    maskQueue.clear();
+    editedJobs.clear();
+    baseResend.clear();
+    desiredMasks.clear();
+    maskGeneration++;
+    setGeneration++;
+    if (sink && setActive) sink->clearTerrain();
+    setActive = false;
+    sentTiles.clear();
+    sentMasks.clear();
+}
+
 void TerrainSystem::setSink(RenderSink* s)
 {
     // Regression (CodeRabbit, S20): a sink attached again kept the tiles of its old set (the store may hold others

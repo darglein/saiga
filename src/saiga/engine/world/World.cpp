@@ -62,7 +62,11 @@ World::World(const WorldSetup& setup)
     // template error is a setup error, fatal in every build, D1), then the generators, the space list and every plan
     {
         validateSpaceTemplates(setup.config.spaceTemplates);
-        setupSeed = setup.seed;
+        setupSeed                             = setup.seed;
+        generationSetup.seed                  = setup.seed;
+        generationSetup.config.spaceTemplates = setup.config.spaceTemplates;
+        generationSetup.generators            = setup.generators;
+        generationSetup.dataDirectory         = setup.dataDirectory;
         std::shared_ptr<ContentCache> cache =
             setup.sharedContent ? setup.sharedContent : std::make_shared<ContentCache>();
         GenerationPlans plans = GenerationPipeline::build(setup, GenerationPins(), *cache);
@@ -860,6 +864,11 @@ bool World::spaceHasTerrain(SpaceId space) const
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceHasTerrain: unknown space");
     return pipeline->spaceHasTerrain(space);
+}
+
+bool World::writesGenerationState() const
+{
+    return pipeline->nonLegacy() || !chunkRecords->empty();
 }
 
 uint64_t World::contentHash(ChunkId chunk) const
@@ -1688,6 +1697,23 @@ uint64_t World::hash() const
             h.addU8(deltas ? 1 : 0);
             if (deltas) h.addU64(st.contentHash(c));
         }
+    // The generation state (S23a): only when the world writes it (flat and hook worlds hash as before)
+    if (writesGenerationState())
+    {
+        const GenerationPlans& plans = pipeline->plans();
+        h.addU64(plans.seed);
+        const std::vector<const GeneratorList::Entry*> gens = plans.generators->byName();
+        h.addU32(uint32_t(gens.size()));
+        for (const GeneratorList::Entry* g : gens)
+        {
+            const std::string name = g->generator->name();
+            h.addString(name).addU32(plans.pinned.at(name)).addU32(plans.current.at(name));
+        }
+        const ChunkRecords& rec = *chunkRecords;
+        h.addU32(uint32_t(rec.records().size()));
+        for (const auto& [c, r] : rec.records())
+            h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(r.placementVersion).addU8(rec.isStamped(c) ? 1 : 0);
+    }
     return h.value();
 }
 

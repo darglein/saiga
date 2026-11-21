@@ -153,6 +153,137 @@ bool parseTerrainSection(const uint8_t* data, size_t size, uint32_t version, Ter
     return true;
 }
 
+bool parseGenerationSection(BinaryReader& r, uint32_t version, GenerationSection& out, std::string& error)
+{
+    out = GenerationSection();
+    if (version != kGenerationSectionVersion)
+    {
+        error = "unknown version " + std::to_string(version);
+        return false;
+    }
+    auto count = [&](uint32_t n, uint64_t minBytes, const char* what)
+    {
+        if (n > 65535 || uint64_t(n) * minBytes > r.remaining())
+        {
+            error = std::string("the ") + what + " count " + std::to_string(n) + " is above 65535 or does not fit";
+            return false;
+        }
+        return true;
+    };
+    r.read(out.seed);
+    uint32_t templates = 0;
+    r.read(templates);
+    if (!r.ok() || !count(templates, 8, "template")) return false;
+    out.templateGenerators.resize(templates);
+    for (uint32_t i = 0; i < templates && r.ok(); ++i) r.read(out.templateGenerators[i]);
+    uint32_t generators = 0;
+    r.read(generators);
+    if (!r.ok() || !count(generators, 14, "generator")) return false;
+    out.generators.resize(generators);
+    for (uint32_t i = 0; i < generators && r.ok(); ++i)
+    {
+        GenerationSection::Generator& g = out.generators[i];
+        r.read(g.name);
+        r.read(g.pinned);
+        r.read(g.current);
+        uint16_t slots = 0;
+        r.read(slots);
+        if (!r.ok() || !count(slots, 12, "slot")) return false;
+        g.slots.resize(slots);
+        for (uint16_t k = 0; k < slots && r.ok(); ++k)
+        {
+            r.read(g.slots[k].name);
+            r.read(g.slots[k].flags);
+        }
+        if (r.ok() && i > 0 && !(out.generators[i - 1].name < g.name))
+        {
+            error = "the generators are not in name order";
+            return false;
+        }
+    }
+    r.read(out.spaceCount);
+    r.read(out.combinedHash);
+    if (!r.ok()) return false;
+    if (out.spaceCount == 0 || out.spaceCount > 65535)
+    {
+        error = "the space count " + std::to_string(out.spaceCount) + " is not in 1..65535";
+        return false;
+    }
+    if (r.remaining() != 0)
+    {
+        error = std::to_string(r.remaining()) + " bytes left over";
+        return false;
+    }
+    return true;
+}
+
+bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSection& out, std::string& error)
+{
+    out = ChunkRecordSection();
+    if (version != kChunkRecordSectionVersion)
+    {
+        error = "unknown version " + std::to_string(version);
+        return false;
+    }
+    uint32_t spaces = 0;
+    r.read(spaces);
+    if (!r.ok()) return false;
+    if (spaces == 0 || spaces > 65535 || uint64_t(spaces) * 6 > r.remaining())
+    {
+        error = "the space count " + std::to_string(spaces) + " is not in 1..65535 or does not fit";
+        return false;
+    }
+    out.spaces.resize(spaces);
+    for (uint32_t si = 0; si < spaces && r.ok(); ++si)
+    {
+        ChunkRecordSection::Space& sp = out.spaces[si];
+        r.read(sp.space);
+        uint32_t n = 0;
+        r.read(n);
+        if (!r.ok()) break;
+        if (si > 0 && sp.space <= out.spaces[si - 1].space)
+        {
+            error = "the spaces are not ascending";
+            return false;
+        }
+        if (n == 0 || uint64_t(n) * 11 > r.remaining())
+        {
+            error = "space " + std::to_string(sp.space) + ": the record count " + std::to_string(n) +
+                    " is 0 or does not fit";
+            return false;
+        }
+        sp.records.resize(n);
+        for (uint32_t k = 0; k < n && r.ok(); ++k)
+        {
+            ChunkRecordSection::Record& rec = sp.records[k];
+            uint8_t stamped                 = 0;
+            r.read(rec.x);
+            r.read(rec.z);
+            r.read(rec.placementVersion);
+            r.read(stamped);
+            if (!r.ok()) break;
+            if (stamped > 1)
+            {
+                error = "space " + std::to_string(sp.space) + ": a stamped flag of " + std::to_string(stamped);
+                return false;
+            }
+            rec.stamped = stamped == 1;
+            if (k > 0 && !(std::tie(sp.records[k - 1].x, sp.records[k - 1].z) < std::tie(rec.x, rec.z)))
+            {
+                error = "space " + std::to_string(sp.space) + ": the chunks are not in ChunkId order";
+                return false;
+            }
+        }
+    }
+    if (!r.ok()) return false;
+    if (r.remaining() != 0)
+    {
+        error = std::to_string(r.remaining()) + " bytes left over";
+        return false;
+    }
+    return true;
+}
+
 bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTable& out, std::string& error)
 {
     out = SpaceTable();
@@ -291,6 +422,14 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
                 case kTagSpaces:
                     out.spaces.emplace();
                     ok = r.ok() && parseSpaceTable(r, version, *out.spaces, sectionError);
+                    break;
+                case kTagGeneration:
+                    out.generation.emplace();
+                    ok = r.ok() && parseGenerationSection(r, version, *out.generation, sectionError);
+                    break;
+                case kTagChunkRecords:
+                    out.chunkRecords.emplace();
+                    ok = r.ok() && parseChunkRecordSection(r, version, *out.chunkRecords, sectionError);
                     break;
                 case kTagTerrain:
                     // A raw range, decoded by the loader's own pass (parseTerrainSection) before the commit
