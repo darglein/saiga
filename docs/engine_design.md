@@ -2779,15 +2779,15 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   Writes `benchmark_<name>.json` `{gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height,
   cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}` (plus the
   engine's values below) to the working
-  directory and exits; the exit code is non-zero if the benchmark did not finish, the result could not be written, or
-  the rendered size changed or a frame stalled during the measured frames (`stalled_frames`: interval above 4 x the
+  directory and exits; the exit code is non-zero if the benchmark did not finish, a measured frame's CPU sample is
+  missing (S19a), the result could not be written, or the rendered size changed or a frame stalled during the measured frames (`stalled_frames`: interval above 4 x the
   median and above 50 ms, e.g. a minimized window or a swap chain recreation; an old result file is deleted at the
   start, a bare `--benchmark` and unknown arguments are errors).
   - `cpu_ms` is the frame interval (one `transfer()` to the next; S19a: one `renderFrame` to the next, measured at the
     game's transfer hook): it includes waiting for the GPU and presenting, so it is at least the GPU frame time.
     `cpu_work_ms` is the CPU work of the frame: until S18 the world renderer's `transfer()` and `render()`, from S19a
-    the app's `frame/render/recording` (not comparable with the S03 value; the baseline note of the next accepted
-    baseline says so).
+    `RenderScene::lastRecordingMs()` of each submitted measured frame (the app's `frame/render/recording`; not
+    comparable with the S03 value; the baseline note of the next accepted baseline says so).
   - `gpu_frames`: frames with GPU times; `gpu_ms` is null without GPU times (no timestamp support).
   - `width`/`height`: the rendered size, the swap chain extent of the measured frames (`VulkanRenderer::surfaceSize()`;
     a warning is printed if it is not 1920 x 1080; a resize during the warm-up does not count).
@@ -2798,7 +2798,8 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   - `SAIGA_SCREENSHOT` is ignored in benchmark mode (its automatic screenshot would close the window at frame 60).
   - No GUI and no MCP during a benchmark, and the default world (`SAIGA_WORLD_TREES` is ignored). From S13 the result
     also has `step` (the steps of the measured frames) and `recording` (the command recording and submit of the
-    measured frames, `frame/render/recording`, without the waits for a frame slot and the image), from S17
+    measured frames, `frame/render/recording`, without the waits for a frame slot and the image; from S19a equal to
+    `cpu_work_ms`: the profile has a 0 for an app loop without a frame), from S17
     `gpu_frame_ms: {gpu, transfer, cull (S18), depth, depth.terrain, scene, scene.terrain, scene.instances, scene.grass,
     scene.sky (S19a), resolve, post, imgui}` (the app's `gpu` profile of the measured frames, matched
     by RenderScene frame number: the whole GPU frame and RenderScene's sections; S13's sections were `transfer`, `main`,

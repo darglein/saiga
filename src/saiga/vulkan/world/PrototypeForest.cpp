@@ -111,10 +111,11 @@ void PrototypeForest::init(RenderScene& _scene, const HeightField& hf, int treeC
     SAIGA_ASSERT(!scene, "PrototypeForest::init: once per object");
     SAIGA_ASSERT(_scene.hasPrototypeTerrain(),
                  "PrototypeForest: the scene needs setPrototypeTerrain (foliage texture)");
-    scene   = &_scene;
-    species = FoliageGenerator::treeSpecies(seed);
-    ends    = prototypeTreeLodEnds(settings);
-    padding = prototypeTreePadding(settings);
+    scene      = &_scene;
+    firstFrame = scene->frames() + 1;
+    species    = FoliageGenerator::treeSpecies(seed);
+    ends       = prototypeTreeLodEnds(settings);
+    padding    = prototypeTreePadding(settings);
 
     // A scene keeps the meshes and the material after the forest is gone (RenderScene removes neither): a forest
     // attached to the same scene again reuses them by name (no reserved IDs leak, no name assert). The species meshes
@@ -188,9 +189,11 @@ PrototypeForest::Stats PrototypeForest::stats()
 {
     Stats r;
     if (!scene) return r;
-    const RenderStatistics& st = scene->statistics();
-    r.frame                    = st.frame;
     r.perSpecies.assign(species.size(), {0, 0, 0});
+    const RenderStatistics& st = scene->statistics();
+    // A forest attached again (the same mesh IDs) took the previous forest's counts (S19a review)
+    if (st.frame < firstFrame) return r;
+    r.frame = st.frame;
     for (const auto& t : st.trackedMeshes)
     {
         auto it = std::find(meshIds.begin(), meshIds.end(), t.mesh);

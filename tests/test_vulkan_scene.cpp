@@ -13,6 +13,7 @@
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/MeshImport.h"
+#include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/HeadlessWindow.h"
@@ -1767,6 +1768,55 @@ TEST_F(VulkanSceneContent, AlphaMaskDiscard)
     }
 }
 
+// Regression (S19a review): an alpha-masked material with an explicit opaque class (PipelineClass::Opaque or TwoSided)
+// was drawn in the opaque bucket, so the depth pre-pass wrote depth where flat.frag discards: the box behind it was
+// hidden with the pre-pass only. The masked material goes to the masked class of the same culling
+TEST_F(VulkanSceneContent, AlphaMaskedOverrideNotInPrePass)
+{
+    CreateScene();
+    for (auto [c, masked] : {std::pair(PipelineClass::Opaque, PipelineClass::AlphaMasked),
+                             std::pair(PipelineClass::TwoSided, PipelineClass::AlphaMaskedTwoSided)})
+    {
+        MaterialData m  = flatMaterial();
+        m.alphaMask     = true;
+        m.pipelineClass = uint8_t(c);
+        EXPECT_EQ(MeshPool::pipelineClassIndex(m), uint8_t(masked) - 1) << int(c);
+    }
+    MaterialData opaqueMasked    = flatMaterial();
+    opaqueMasked.alphaMask       = true;
+    opaqueMasked.pipelineClass   = uint8_t(PipelineClass::Opaque);
+    MaterialData twoSidedMasked  = opaqueMasked;
+    twoSidedMasked.pipelineClass = uint8_t(PipelineClass::TwoSided);
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMaterial(2, "opaque_masked", opaqueMasked);
+    scene->addMaterial(3, "two_sided_masked", twoSidedMasked);
+    // A wall behind two discarded boxes (vertex alpha 100 < 0.5)
+    scene->addMesh(1, "wall", boxMesh(vec3(6, 3, 0.2f), vec3(0, 0, 0), {100}, {ucvec4(200, 120, 60, 255)}), 1);
+    scene->addMesh(2, "box_opaque", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 2);
+    scene->addMesh(3, "box_two_sided", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 3);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -2), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(-2, 0, 2), quat::Identity(), 1, 2),
+                                       makeInstance(vec3(2, 0, 2), quat::Identity(), 1, 3)});
+    PrototypeSettings ps;
+    ps.depthPrePass = false;
+    scene->setPrototypeSettings(ps);
+    SceneFrame();
+    auto without    = SceneFrame();
+    ps.depthPrePass = true;
+    scene->setPrototypeSettings(ps);
+    SceneFrame();
+    auto with = SceneFrame();
+    EXPECT_EQ(maxPixelDiff(with, without), 0);
+    // The wall is visible through both boxes
+    for (float x : {-2.0f, 2.0f})
+    {
+        const Vec2 p = camera.project(Vec3(x, 0, 1));
+        EXPECT_NE(with(int(p(1)), int(p(0))), ucvec4(0, 0, 0, 255)) << x;
+    }
+}
+
 // The storage buffers bound whole stop growing at the limit (maxStorageBufferRange, here a lower test limit of 48 KiB =
 // 1536 static instances; 2x growth from 1000 would need 64 KiB) and a set beyond it is a fatal error. The device's
 // limit itself is not tested: on lavapipe (128 MiB) it needs 4.2M instances (a 134 MB CPU copy, uploads and buffers).
@@ -1798,6 +1848,22 @@ TEST_F(VulkanSceneContent, StorageBufferLimit)
     EXPECT_EQ(st.instancesPerLod[0], 1536u);
     EXPECT_DEATH(scene->addInstanceSet(RegionId(), grid(1, 2)),
                  "more than the buffer's limit \\(maxStorageBufferRange");
+}
+
+// Regression (S19a review): reserveIds checked next + count, which wrapped around for a huge count (the assert passed
+// and the next reservation returned ID 0)
+TEST_F(VulkanSceneContent, ReserveIdsRange)
+{
+    CreateScene();
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Mesh, 1), 1);
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Material, 3), 1);
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Mesh, 2), 2);
+#ifdef SAIGA_ASSERTS
+    EXPECT_DEATH(scene->reserveIds(SceneIdKind::Mesh, std::numeric_limits<uint32_t>::max()), "is exhausted");
+    EXPECT_DEATH(scene->reserveIds(SceneIdKind::Mesh, kGameReservedIds - 3), "is exhausted");
+#endif
+    // The rest of the range: IDs 4 .. kGameReservedIds - 1
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Mesh, kGameReservedIds - 4), 4);
 }
 
 // The count and write passes as a 2D dispatch (work groups limited to 3 per row, 11 chunks: a partial last row) give

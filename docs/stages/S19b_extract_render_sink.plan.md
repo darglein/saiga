@@ -89,14 +89,14 @@ S34, S16b's driver entities) without a sink instance.
   needs nothing extra: it appends removes and adds to the structural log and marks all transforms changed, so consuming
   the log recreates the instances and snaps all poses.
 - At the end of each step's extract, entities whose source changed in phases 7-8 (flagged, not in the phase-6 list)
-  get their stored curr refreshed (a snap in the next step's pair is not needed: the pair carries them), so catch-up
-  never mistakes them for edits.
+  get their catch-up baseline (the last observed source pose, kept apart from curr) refreshed, so catch-up never
+  mistakes them for edits; curr stays, and the next step's pair (old curr, new pose) carries the move (no snap).
 - Between steps (`ExtractSystem::catchUp()`, called by `EngineApp` before rendering, and by tools that render): when
   the frame ran no step and (the world is paused, or `timeScale() == 0`, or an MCP tool or a load ran, or the
   structural log has unread records for the extract's consumer); it consumes the structural log and
-  compares each tracked entity's source pose bitwise with the stored curr (as `PoseHistory::interpolated` does; the
-  change flags cannot be used: a setter's flag stays set until the next step ends, and `RenderPose` flags stay set after
-  each step) and handles a pending `wasTeleported()` once; a difference is sent as a snap. Cost: O(tracked entities)
+  compares each tracked entity's source pose bitwise with the catch-up baseline (as `PoseHistory::interpolated` does;
+  the change flags cannot be used: a setter's flag stays set until the next step ends, and `RenderPose` flags stay set
+  after each step) and handles a pending `wasTeleported()` once; a difference is sent as a snap. Cost: O(tracked entities)
   per frame while paused; no work in frames between running steps.
 - `bool ExtractSystem::interpolatedPose(Entity, double alpha, WorldPose& out, bool* teleported)` with `WorldPose {SpaceId
   space; Vec3 position; Quat rotation; double scale;}` in world space (for cameras): false for an untracked entity (dead,
@@ -177,7 +177,7 @@ transparents (S39, S41), far content (S27).
   main-thread budget.
 
 Locally: the three demos' `--scenarios` and `--demo` screenshots compared with S19a's; `--coop --demo` screenshots;
-`game_world --benchmark` unchanged within 5 %.
+`game_world --benchmark flyover` and `game_world --benchmark forest` unchanged within 5 %.
 
 ## Done when
 

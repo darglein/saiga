@@ -231,9 +231,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     s.beginSceneFrame(frame.frameIndex);
     SceneCamera camera;
     s.frameCamera(surfaceWidth, SurfaceHeight, camera);
-    const PrototypeSettings& proto = *s.protoSettings;
-    PrototypeWorld* world          = s.prototype.get();
-    const bool prepass             = proto.depthPrePass;
+    PrototypeWorld* world = s.prototype.get();
+    // The prototype settings of this frame: one snapshot after the transfer callback (which may set them) for the
+    // lighting, the pre-pass and every prototype draw; a later change (e.g. in the render callback) is the next frame's
+    PrototypeSettings proto;
+    bool prepass = false;
 
     timings.enterSection("transfer", cmd);
     {
@@ -247,11 +249,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (s.transferFn && *s.transferFn) (*s.transferFn)(cmd);
         // The transfer callback may set the camera of this frame (S19a)
         s.frameCamera(surfaceWidth, SurfaceHeight, camera);
+        proto   = *s.protoSettings;
+        prepass = proto.depthPrePass;
         if (world) world->transfer(cmd, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
         s.slotStatistics[frame.frameIndex].terrainNodes =
             world ? uint32_t(world->stats().terrainNodes + world->stats().quarterNodes) : 0;
         SceneLighting lighting;
-        s.frameLighting(camera, int(samples), lighting);
+        s.frameLighting(camera, proto, int(samples), lighting);
         s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
         // ... and make the writes visible to this frame's culling and draws.
         vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
@@ -717,7 +721,8 @@ void RenderScene::setMeshLodDistances(MeshId id, const std::vector<float>& endDi
 uint16_t RenderScene::reserveIds(SceneIdKind kind, uint32_t count)
 {
     uint32_t& next = nextReservedId[kind == SceneIdKind::Mesh ? 0 : 1];
-    SAIGA_ASSERT(count > 0 && next + count <= kGameReservedIds,
+    // count <= kGameReservedIds - next: next + count could wrap around (S19a review)
+    SAIGA_ASSERT(count > 0 && count <= kGameReservedIds - next,
                  "reserveIds: the game range 1 .. kGameReservedIds - 1 is exhausted");
     const uint32_t first = next;
     next += count;
@@ -749,10 +754,11 @@ const PrototypeSettings& RenderScene::prototypeSettings() const
     return *protoSettings;
 }
 
-void RenderScene::frameLighting(const SceneCamera& camera, int samples, SceneLighting& out) const
+void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, int samples,
+                                SceneLighting& out) const
 {
     out = SceneLighting();
-    if (prototype) prototype->lighting(*protoSettings, sceneTime, out);
+    if (prototype) prototype->lighting(proto, sceneTime, out);
     const vec3 p = camera.position.cast<float>();
     out.camera   = vec4(p(0), p(1), p(2), float(samples));
 }

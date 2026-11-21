@@ -80,7 +80,8 @@ class SAIGA_VULKAN_API PrototypeForest
         uint64_t triangles              = 0;              // drawn tree triangles
         std::vector<std::array<uint32_t, 3>> perSpecies;  // drawn trees per species and LOD
     };
-    // From RenderScene::statistics(): the sums over the species meshes of the tracked per-LOD counts
+    // From RenderScene::statistics(): the sums over the species meshes of the tracked per-LOD counts; none (frame 0)
+    // before the first frame recorded after init (a forest attached again reuses the mesh IDs of the previous one)
     Stats stats();
 
     int treeCount() const { return trees; }
@@ -102,6 +103,8 @@ class SAIGA_VULKAN_API PrototypeForest
     bool shown                = false;
     std::array<float, 3> ends = {0, 0, 0};
     float padding             = 0;
+    // The first RenderScene frame recorded after init (the counts of earlier frames are not this forest's)
+    uint64_t firstFrame = 0;
 };
 
 }  // namespace Vulkan

@@ -45,6 +45,12 @@ void WorldRenderer::attach(RenderScene& scene)
     SAIGA_ASSERT(!renderScene, "WorldRenderer::attach: once");
     auto t0     = std::chrono::steady_clock::now();
     renderScene = &scene;
+    // The GPU times of the frames recorded from now on (a scene that rendered before, or another one after a destroy:
+    // neither its earlier frames nor the previous scene's frame numbers count); the plots start empty
+    lastGpuFrame = scene.frames();
+    std::fill(cpuHistory.begin(), cpuHistory.end(), 0.0f);
+    std::fill(gpuHistory.begin(), gpuHistory.end(), 0.0f);
+    historyIndex = 0;
     settings.clamp();
     scene.setPrototypeTerrain(hf, settings.prototype(), params.seed);
     trees.init(scene, *hf, params.treeCount, params.seed, settings);

@@ -63,7 +63,8 @@ class SAIGA_VULKAN_API WorldBenchmark
     static const std::vector<std::string>& names();
     static bool known(const std::string& name);
     // The S03 keys of gpu_ms: "upload + cull", "terrain + water", "trees", "grass", "sky" (from RenderScene's
-    // sections: transfer + cull, depth.terrain + scene.terrain, scene.instances, scene.grass, scene.sky)
+    // sections: transfer + cull, depth.terrain + scene.terrain, scene.instances, scene.grass, scene.sky; a sum of
+    // sections can count their overlap twice: a section begins at TOP_OF_PIPE and ends at BOTTOM_OF_PIPE)
     static const std::vector<std::string>& gpuKeys();
 
     /**
@@ -98,6 +99,9 @@ class SAIGA_VULKAN_API WorldBenchmark
     // All measured CPU samples are in, and the GPU samples of the last measured frame (or the CPU samples of a few
     // frames more).
     bool finished() const;
+    // Finished with the CPU samples of every measured frame: a run that missed one (finished() only proves that the
+    // samples reached the last frame) is incomplete, a failure rather than a result
+    bool complete() const { return finished() && cpuMs.size() == size_t(measuredFrames); }
 
     /**
      * {gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height, cpu_ms: {median, p95},

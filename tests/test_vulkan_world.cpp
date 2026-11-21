@@ -18,6 +18,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <thread>
 
 #include "golden_image.h"
@@ -105,14 +106,16 @@ TEST(VulkanWorld, TreePlacement)
 
 TEST(VulkanWorld, SettingsJson)
 {
+    // The pre-pass is off by default; a value other than the destination's default round-trips
+    EXPECT_FALSE(WorldSettings().depthPrePass);
     WorldSettings s;
     s.treeLod1     = 123;
-    s.depthPrePass = false;
+    s.depthPrePass = true;
     WorldSettings r;
     auto unknown = r.fromJson(s.toJson());
     EXPECT_TRUE(unknown.empty());
     EXPECT_EQ(r.treeLod1, 123);
-    EXPECT_FALSE(r.depthPrePass);
+    EXPECT_TRUE(r.depthPrePass);
     // S19a: wireframe, freeze_time and freeze_culling are dropped (setTime covers goldens and benchmarks)
     EXPECT_EQ(
         r.fromJson(json11::Json::object{{"wireframe", true}, {"freeze_time", true}, {"freeze_culling", true}}).size(),
@@ -408,6 +411,28 @@ TEST(WorldBenchmark, ResultJson)
     EXPECT_EQ(noGpu.result()["gpu_frames"].int_value(), 0);
 }
 
+// Regression (S19a review): finished() only proves that the CPU samples reached the last measured frame; a run that
+// missed one is not complete (game_world reports it as a failure)
+TEST(WorldBenchmark, IncompleteRun)
+{
+    HeightField hf = SmallHeightField();
+    WorldBenchmark bench("forest", hf, "test gpu");
+    const int warmup = WorldBenchmark::warmupFrames, n = WorldBenchmark::measuredFrames;
+    for (int frame = 1; frame <= warmup + n; ++frame)
+    {
+        if (frame == warmup + 40) continue;
+        WorldBenchmark::Sample t;
+        t.frame      = uint64_t(frame);
+        t.intervalMs = 1;
+        t.workMs     = 0.5;
+        t.sectionMs  = {{"trees", 1.0}};
+        bench.addSample(t);
+    }
+    EXPECT_TRUE(bench.finished());
+    EXPECT_FALSE(bench.complete());
+    EXPECT_EQ(bench.result()["frames"].int_value(), n - 1);
+}
+
 namespace
 {
 // The CPU reference of the trees' culling (the prototype's rule as the instance path implements it, §17.5): per LOD
@@ -580,8 +605,15 @@ class VulkanWorldScene : public ::testing::Test
     std::unique_ptr<RenderScene> scene;
 };
 
+// The number of pixels that differ by more than threshold in a channel; INT_MAX (and a test failure) for an empty image
+// or images of different sizes (a failed capture must not compare as equal)
 static int differingPixels(const TemplatedImage<ucvec4>& a, const TemplatedImage<ucvec4>& b, int threshold = 0)
 {
+    if (a.w == 0 || a.h == 0 || a.w != b.w || a.h != b.h)
+    {
+        ADD_FAILURE() << "differingPixels: images of " << a.w << "x" << a.h << " and " << b.w << "x" << b.h;
+        return std::numeric_limits<int>::max();
+    }
     int d = 0;
     for (int y = 0; y < a.h; ++y)
         for (int x = 0; x < a.w; ++x)
@@ -890,9 +922,14 @@ TEST_F(VulkanWorldScene, Sections)
         }
     }
     scene->waitIdle();
-    // Regression (S03): the readback only took the newest completed frame and lost about half of the frames
-    ASSERT_GE(frames.size(), 8u);
-    for (size_t i = 1; i < frames.size(); ++i) EXPECT_EQ(frames[i], frames[i - 1] + 1) << i;
+    // The last frames' timestamps are read back when the next frame starts: a flush frame
+    RenderFrame(world);
+    FrameTimes t;
+    while (scene->takeGpuFrameTimes(t)) frames.push_back(t.frame);
+    // Regression (S03): the readback only took the newest completed frame and lost about half of the frames. Every
+    // one of the 12 frames arrives, in order
+    ASSERT_GE(frames.size(), 12u);
+    for (size_t i = 0; i < frames.size(); ++i) EXPECT_EQ(frames[i], uint64_t(i + 1)) << i;
     EXPECT_EQ(scene->lastGpuFrameTimes().frame, frames.back());
 }
 
@@ -999,15 +1036,112 @@ TEST_F(VulkanWorldScene, TreesToggleInFlight)
     auto a         = Capture(world, eye, c, 3);
     const auto sa  = world.forest().stats();
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
+    // Submitted without a screenshot (its readback waits for the frame): the frames overlap on the GPU
     for (int i = 0; i < 6; ++i)
     {
         world.settings.trees = i % 2 == 1;
-        RenderFrame(world);
+        world.update();
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
     }
     world.settings.trees = true;
     auto b               = Capture(world, eye, c, 3);
     EXPECT_EQ(world.forest().stats().visible, sa.visible);
     EXPECT_EQ(differingPixels(a, b), 0);
+}
+
+// Regression (S19a review): the frame read the prototype settings by reference and took the pre-pass flag before the
+// transfer callback: a change in the render callback (here the sky off) reached the frame's later draws. A frame uses
+// one snapshot taken after the transfer callback; the change is the next frame's
+TEST_F(VulkanWorldScene, PrototypeSettingsSnapshotPerFrame)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 257;
+    params.treeCount    = 0;
+    Attach(world, params);
+    auto& hf          = world.heightField();
+    vec3 eye          = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    eye(1)            = std::max(hf.height(eye(0), eye(2)), hf.waterLevel()) + 30;
+    const vec3 target = eye + vec3(1, 0.1f, 0);
+    auto a            = Capture(world, eye, target, 2);
+    auto frame        = [&](const RenderScene::Callback& transfer, const RenderScene::Callback& render)
+    {
+        TemplatedImage<ucvec4> img;
+        scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { img = shot; });
+        scene->renderFrame(transfer, render, nullptr);
+        scene->waitIdle();
+        return img;
+    };
+    auto noop             = [](vk::CommandBuffer) {};
+    PrototypeSettings off = scene->prototypeSettings();
+    off.sky               = false;
+    // Off in the render callback: this frame still has the sky, the next one not
+    auto b = frame(noop, [&](vk::CommandBuffer) { scene->setPrototypeSettings(off); });
+    EXPECT_EQ(differingPixels(a, b), 0);
+    auto c = frame(noop, noop);
+    EXPECT_GT(differingPixels(a, c), 100) << "the sky is not switched off";
+    // On in the transfer callback: this frame has it
+    PrototypeSettings on = off;
+    on.sky               = true;
+    auto d               = frame([&](vk::CommandBuffer) { scene->setPrototypeSettings(on); }, noop);
+    EXPECT_EQ(differingPixels(a, d), 0);
+}
+
+// Regression (S19a review): a WorldRenderer attached again kept the previous attachment's statistics cursors: its
+// forest (the same mesh IDs) reported the old frame's tree counts before its first frame, and the GPU times of a new
+// scene (frame numbers from 1 again) were rejected until it passed the old scene's frame number
+TEST_F(VulkanWorldScene, ReattachStartsFreshStatistics)
+{
+    WorldRenderer world;
+    WorldParameters params;
+    params.terrain.size = 257;
+    params.treeCount    = 2000;
+    Attach(world, params);
+    auto& hf       = world.heightField();
+    vec3 c         = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
+    c(1)           = hf.height(c(0), c(2));
+    const vec3 eye = c + vec3(0, 40, 120);
+    SetCamera(world, eye, c);
+    auto frames = [&](int n)
+    {
+        for (int i = 0; i < n; ++i)
+        {
+            RenderFrame(world);
+            FrameTimes t;
+            while (scene->takeGpuFrameTimes(t))
+            {
+            }
+        }
+        scene->waitIdle();
+        world.update();
+    };
+    frames(10);
+    const auto sa = world.forest().stats();
+    ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
+    EXPECT_GE(world.stats().gpuMs, 0);
+
+    // The same scene and seed without trees: no counts before its first frame, none after it
+    world.destroy();
+    params.treeCount = 0;
+    Attach(world, params);
+    auto s0 = world.forest().stats();
+    EXPECT_EQ(s0.frame, 0u);
+    EXPECT_EQ(s0.visible, (std::array<uint32_t, 3>{0, 0, 0}));
+    SetCamera(world, eye, c);
+    frames(2);
+    s0 = world.forest().stats();
+    EXPECT_GT(s0.frame, 0u);
+    EXPECT_EQ(s0.visible, (std::array<uint32_t, 3>{0, 0, 0}));
+
+    // A new scene: its GPU times count from its first frames
+    world.destroy();
+    Create(96, 64, 4);
+    params.treeCount = 2000;
+    Attach(world, params);
+    SetCamera(world, eye, c);
+    frames(4);
+    EXPECT_GE(world.stats().gpuMs, 0);
+    EXPECT_EQ(world.forest().stats().visible, sa.visible);
 }
 
 // S19a: the PrototypeFoliage class needs the foliage texture of setPrototypeTerrain (asserted at addMaterial and

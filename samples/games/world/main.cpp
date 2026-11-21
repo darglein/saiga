@@ -59,14 +59,14 @@ struct WorldGame
     // The frame interval: from the previous frame's transfer to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastTransfer;
     bool hasLastTransfer = false;
-    // The engine's numbers of the measured frames (step, recording), taken at the frame boundaries that close them
-    int64_t stepSamplesAtStart = -1, frameSamplesAtStart = -1;
+    // The engine's steps of the measured frames, taken at the frame boundaries that close them
+    int64_t stepSamplesAtStart = -1;
     // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
     // the 600 measured frames have about 1200 steps)
     std::vector<double> stepTimes;
     uint64_t stepSamplesSeen = 0;
-    bool stepTaken = false, recordingTaken = false;
-    json11::Json::object stepStat, recordingStat;
+    bool stepTaken           = false;
+    json11::Json::object stepStat;
     // The app's gpu profile (the whole frame and RenderScene's sections) of the measured frames, matched by the
     // RenderScene frame number: the measured frames whose sample did not arrive yet, the values by section
     std::set<uint64_t> gpuFramesPending;
@@ -80,7 +80,10 @@ std::string resultFile(const std::string& name)
     return "benchmark_" + name + ".json";
 }
 
-// The S03 keys of the benchmark's gpu_ms from RenderScene's sections of one frame (gpu/<section> of the app's sample)
+// The S03 keys of the benchmark's gpu_ms from RenderScene's sections of one frame (gpu/<section> of the app's sample).
+// "upload + cull" is the sum of two sections that can overlap (a section begins at TOP_OF_PIPE and ends at
+// BOTTOM_OF_PIPE, so cull's begin may precede transfer's end): it can exceed their combined elapsed time by at most the
+// shorter section (transfer, about 0.005 ms in both benchmarks)
 std::map<std::string, double> s03Passes(const std::map<std::string, double>& section)
 {
     auto get = [&](const char* n)
@@ -177,13 +180,10 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
     if (g.bench)
     {
         // Frame k is RenderScene's frame being recorded (W: the last warm-up frame, M1..Mn: the measured frames). In a
-        // frame the steps run before transfer; its recording sample is added after transfer and counted when the
-        // frame ends.
+        // frame the steps run before transfer.
         const uint64_t lastWarm = Vulkan::WorldBenchmark::warmupFrames;
         const uint64_t lastMeas = lastWarm + Vulkan::WorldBenchmark::measuredFrames;
-        auto stat    = [](const Profiler::Stats& s) { return json11::Json::object{{"median", s.p50}, {"p95", s.p95}}; };
-        Profiler& wp = app.world().profiler();
-        Profiler& fp = app.frameProfile();
+        Profiler& wp            = app.world().profiler();
         // Steps: from after W's steps (transfer of W) to after Mn's steps (transfer of Mn)
         if (frame == lastWarm)
         {
@@ -238,28 +238,24 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
             it = g.gpuFramesPending.erase(it);
         }
         if (frame > lastMeas) g.gpuFramesWaited++;
-        if (frame == lastWarm + 1) g.frameSamplesAtStart = int64_t(fp.sampleCount());
-        if (frame == lastMeas + 1 && g.frameSamplesAtStart >= 0 && !g.recordingTaken)
-        {
-            const int n      = int(std::max<int64_t>(1, int64_t(fp.sampleCount()) - g.frameSamplesAtStart));
-            g.recordingStat  = stat(fp.scopeStats(fp.scope("frame/render/recording"), n));
-            g.recordingTaken = true;
-        }
     }
     // The app's GPU samples of the measured frames, or 16 frames more (a frame without timestamps has none)
     const bool gpuFramesIn = g.gpuFramesPending.empty() || g.gpuFramesWaited > 16;
-    if (g.bench && g.bench->finished() && g.recordingTaken && gpuFramesIn && !g.benchmarkDone)
+    if (g.bench && g.bench->finished() && gpuFramesIn && !g.benchmarkDone)
     {
         const std::string file = resultFile(g.benchmarkName);
         if (g.bench->width != 1920 || g.bench->height != 1080)
             std::cout << "Benchmark warning: rendered at " << g.bench->width << " x " << g.bench->height
                       << " instead of 1920 x 1080 (not comparable with the baseline)" << std::endl;
         if (g.sizeChanged) std::cout << "Benchmark error: the rendered size changed during the run" << std::endl;
+        const bool complete = g.bench->complete();
+        if (!complete) std::cout << "Benchmark error: CPU samples of measured frames are missing" << std::endl;
         json11::Json::object result = g.bench->result().object_items();
         // The engine's numbers of exactly the measured frames (S13): the steps and the command recording and submit
-        // (frame/render/recording, without the waits for the frame slot and the image)
+        // (without the waits for the frame slot and the image): cpu_work_ms, RenderScene's lastRecordingMs of the
+        // submitted measured frames (the app profile's frame/render/recording has a 0 for an app loop without a frame)
         result["step"]      = g.stepStat;
-        result["recording"] = g.recordingStat;
+        result["recording"] = result["cpu_work_ms"];
         // The whole GPU frame and RenderScene's sections and sub-sections of the measured frames
         json11::Json::object gpuFrame;
         for (const auto& [section, values] : g.gpuFrameMs)
@@ -278,7 +274,7 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         std::cout << (written ? "Benchmark result: " + file + "\n" + json11::Json(result).dump()
                               : "Benchmark error: could not write " + file)
                   << std::endl;
-        g.benchmarkOk   = written && !g.sizeChanged && stalls == 0;
+        g.benchmarkOk   = written && complete && !g.sizeChanged && stalls == 0;
         g.benchmarkDone = true;
         app.quit(g.benchmarkOk ? 0 : 1);
     }

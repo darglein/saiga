@@ -54,6 +54,9 @@ class SAIGA_VULKAN_API WorldRenderer
 {
    public:
     WorldRenderer() = default;
+    // It owns the trees' instance set handles (a copy would remove them twice)
+    WorldRenderer(const WorldRenderer&)            = delete;
+    WorldRenderer& operator=(const WorldRenderer&) = delete;
     ~WorldRenderer() { destroy(); }
 
     // Generates the height field

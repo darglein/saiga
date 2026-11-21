@@ -109,7 +109,11 @@ uint8_t MeshPool::pipelineClassIndex(const MaterialData& m)
     if (m.pipelineClass != 0)
     {
         SAIGA_ASSERT(m.pipelineClass <= pipelineClassCount, "MaterialData::pipelineClass: unknown class");
-        return uint8_t(m.pipelineClass - 1);
+        uint8_t c = uint8_t(m.pipelineClass - 1);
+        // An alpha-masked material in an opaque class: its masked class (the same draw; the depth pre-pass of the
+        // opaque classes would write depth where flat.frag discards)
+        if (m.alphaMask && (c == 0 || c == 2)) c++;
+        return c;
     }
     return uint8_t((m.alphaMask ? 1 : 0) + (m.twoSided ? 2 : 0));
 }

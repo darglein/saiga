@@ -208,7 +208,9 @@ class SAIGA_VULKAN_API RenderScene
     void setPrototypeTerrain(std::shared_ptr<const HeightField> heights, const PrototypeSettings& settings,
                              uint32_t foliageSeed);
     bool hasPrototypeTerrain() const { return prototype != nullptr; }
-    // From the next frame (game_set_settings); depthPrePass also applies without the prototype terrain
+    // From the next frame (game_set_settings), or from this frame in its transfer callback: a frame takes one snapshot
+    // after that callback (a change in the render callback is the next frame's); depthPrePass also applies without the
+    // prototype terrain
     void setPrototypeSettings(const PrototypeSettings& settings);
     const PrototypeSettings& prototypeSettings() const;
     // The prototype's content (nullptr without setPrototypeTerrain): its statistics of the last recorded frame
@@ -271,7 +273,8 @@ class SAIGA_VULKAN_API RenderScene
     // The matrices of the camera for the size
     void updateMatrices(int width, int height);
     // The lighting block of the frame's instance draws
-    void frameLighting(const SceneCamera& camera, int samples, SceneLighting& out) const;
+    void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, int samples,
+                       SceneLighting& out) const;
     const Callback* transferFn         = nullptr;
     const Callback* renderFn           = nullptr;
     const std::function<void()>* guiFn = nullptr;

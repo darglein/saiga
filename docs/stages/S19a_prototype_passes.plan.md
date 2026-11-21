@@ -288,7 +288,9 @@ run medians, ms):
   draws are 0.6-0.8 % faster, the difference is the generic culling (S18's count, scan and write passes over 928 sets,
   0.070 ms in the flyover, the culling benchmark's 0.068 ms) against the prototype's single `tree_cull.comp` pass
   (inside 0.024 ms with the uploads). The whole frame is within the bound: the GPU frame -0.5 % / -1.6 %, the frame
-  interval +2.9 % in the flyover (the forest's before runs are in the slow mode of the bimodal interval).
+  interval +2.9 % in the flyover (the forest's before runs are in the slow mode of the bimodal interval). The sum
+  `transfer` + `cull` can count their overlap twice (a section begins at TOP_OF_PIPE and ends at BOTTOM_OF_PIPE), at
+  most the shorter `transfer` section (0.005 ms): the excess is at least 0.035 ms (flyover) and 0.007 ms (forest).
 - `recording` (the app's recording and submit, `cpu_work_ms` from now on) grows by 0.04-0.06 ms: the instance path's
   per-frame CPU work (the work chunks and the offset table of 928 sets, the descriptor writes), as in S18's culling
   benchmark. `terrain + water` is 11-23 % lower (passes below 0.1 ms, timed now by marks inside the scene pass instead
@@ -324,3 +326,22 @@ Local review (Opus, after the implementation):
   MCP in `game_world --headless --validation` (no message).
 - Goldens unchanged; full ctest on lavapipe passes except `test_opengl_window` (no display); `test_vulkan_*` and
   `test_engine_app` pass on the RTX 5080 with validation.
+
+CodeRabbit review (PR #64):
+
+- A frame read the prototype settings by reference and the pre-pass flag before the transfer callback: one snapshot
+  after the transfer callback for the lighting, the pre-pass and every prototype draw (a change in the render callback
+  is the next frame's). Test `VulkanWorldScene.PrototypeSettingsSnapshotPerFrame`.
+- `reserveIds` checked `next + count`, which wraps for a huge count. Test `VulkanSceneContent.ReserveIdsRange`.
+- An alpha-masked material with an explicit `Opaque` / `TwoSided` class was in the depth pre-pass (depth where
+  `flat.frag` discards): it is drawn in the masked class. Test `VulkanSceneContent.AlphaMaskedOverrideNotInPrePass`.
+- A `WorldRenderer` attached again reported the previous forest's tree counts (the same mesh IDs) before its first
+  frame and rejected a new scene's GPU times (the old frame cursor): `PrototypeForest` ignores frames before its init,
+  `attach` starts the GPU cursor at the scene's frame count and clears the plots. Test
+  `VulkanWorldScene.ReattachStartsFreshStatistics`.
+- Benchmark: `WorldBenchmark::complete()` (every measured CPU sample; `game_world` fails an incomplete run, test
+  `WorldBenchmark.IncompleteRun`); `recording` is `cpu_work_ms` (the app profile's `frame/render/recording` has a 0 for
+  a loop without a frame); the overlap of the summed `transfer` + `cull` is documented (Results).
+- Tests: `SettingsJson` round-trips a non-default `depth_pre_pass`, `differingPixels` fails on empty or mismatched
+  images, `Sections` requires frames 1-12 (a flush frame), `TreesToggleInFlight` submits without screenshot waits.
+  `test_vulkan_world` has 30 tests, `test_vulkan_scene` 33. `WorldRenderer` is not copyable (it owns the set handles).

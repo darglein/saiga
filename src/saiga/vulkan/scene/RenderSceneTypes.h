@@ -121,9 +121,10 @@ enum class ShadingModel : uint8_t
 };
 
 // The pipeline classes of the instance draws (MaterialData::pipelineClass): 0 derives the class from alphaMask and
-// twoSided. PrototypeFoliage (S19a, transitional until S43): the prototype trees' shading (wind, the foliage texture
-// array with alpha to coverage, LOD tint); its color word is packPrototypeFoliageColor (PrototypeWorld.h) and it needs
-// the foliage texture of RenderScene::setPrototypeTerrain (asserted at addMaterial / setMaterial)
+// twoSided; an alphaMask material with Opaque or TwoSided is drawn in AlphaMasked or AlphaMaskedTwoSided (not in the
+// depth pre-pass). PrototypeFoliage (S19a, transitional until S43): the prototype trees' shading (wind, the foliage
+// texture array with alpha to coverage, LOD tint); its color word is packPrototypeFoliageColor (PrototypeWorld.h) and
+// it needs the foliage texture of RenderScene::setPrototypeTerrain (asserted at addMaterial / setMaterial)
 enum class PipelineClass : uint8_t
 {
     Derived             = 0,
