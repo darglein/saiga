@@ -1,6 +1,6 @@
 # S23c: Overworld generator (tech demo)
 
-Status: planned.
+Status: done (implemented on `stage-s23c`; deviations in the review log's implementation entry and in Design changes).
 
 Sections follow the stage plan template of S05; "Implementation steps", "Tech demo", "Risks and open questions",
 "Design-doc amendments" and "Review log" are added for this stage. Third of the three S23 stages (D13 of review
@@ -319,6 +319,10 @@ The S23c row of §22 (S23a amendment 1):
 Also: `flight_ruin_is_stamped`, `flight_slot_meshes_resolve` and the existing flight scenarios pass (local, re-recorded
 values in the PR); `game_world` and racing screenshots unchanged (local); docs updated.
 
+Met (see Results): `flight_content_hashes` reproduces with GCC 15 (RelWithDebInfo with asserts, Release without) and
+Clang 19; the `--demo` screenshot shows the generated terrain, forests and the fixed ruin ahead of the plane; all flight
+scenarios pass in their variants; the `game_world` and racing screenshots show their prototype worlds as before.
+
 ## Verification
 
 - The CI recipe of AGENTS.md with samples ON.
@@ -439,10 +443,96 @@ that file):
   cached per process and seed (`renderAssets` runs per world).
 - Rejected: none.
 
+Implementation (against the merged S20-S23b code; each the smallest sound fix):
+
+- I1 The real APIs: `PrototypeScene::attach(scene, trees, seed)` (the seed is the foliage seed; flight passes
+  `kFlightFoliageSeed` = 1, as before); `checkContentHashes(setup, file, update)` and `ScenarioWorld::setup()` as
+  planned; the hash file format has no `toolkit` block for the game; `World::generators().find(id)->slots` for the
+  slot meshes; `readPrefab` for `flight_slot_meshes_resolve`; `RecordingRenderSink::instanceSetAt`.
+- I2 Fixed ruin: the planned point (6272, 5760) fails the plan's own ground check (footprint slope 8.2 m > 8 m on the
+  fixed terrain). Measured at the screenshot (step 3, a temporary print): frame 60 is about step 890 (not 780: the
+  first frames step at real time while the start content is built), the plane at (6417, 5043) heading (-0.34, 0.94).
+  The ruin moved to (6256, 5856): slope 4.2 m, still in chunk (24, 22) (the hash file's chunk and the scenario's region
+  are unchanged), about 830 m ahead of the plane near the image centre below the horizon.
+- I3 River carving applies wherever the `rivers` weight is non-zero, not only for `d < R - 500 m`: the condition would
+  leave a vertical wall at `R - 500 m` (the coastal falloff starts there from the land height); `min(h, sea - 2 m)` is a
+  no-op in the sea, which lies below. The channel cells are 0 / 1; the weight is their bilinear interpolation between
+  the 64 m cell centres, doubled and smoothed (`smoothQ16`), so banks are continuous. The rivers start at the two highest
+  biome cells within 3.5 km of the circuit centre (at least 2.5 km apart) and walk outward in 32 m steps, turned by up to
+  +-40 degrees by a gradient noise (trig table), until 64 m past the coast or the space edge (the land disc is clipped by
+  the space edge at x = 0 and z = 0, because S20's circuit lies in the corner; one river ends there).
+- I4 The `biomes` grid stores the fbm value (Q16) per 256 m cell; heights and slots use its bilinear interpolation
+  between the cell centres (a per-cell weight would make heights discontinuous at cell borders). Mountain weight:
+  `smoothQ16` over the biome values [12000, 40000]; the ridged value is squared before the 0..400 m mapping (peaks).
+  Biomes: meadow below -9000, mountain from 22000, forest between; the slots dither the biome lookup by +-64 m.
+- I5 Tree density: spruce / broadleaf probabilities per biome (meadow 900 / 2600, forest 12000 / 16000, mountain
+  12000 / 0 in Q16, the tree line at 380 m) scaled by a 128 m clump noise (glades and groves); the first try (73 % of
+  the forest cells) covered the ruin in the screenshot. About 343 instances per land chunk, about 22 000 in the 63 sets
+  within 1 km at the start (the plan estimated 30 000).
+- I6 Grass masks from the natural heights on a 4 m lattice (65 x 65 heights per chunk, bilinear per cell): one height
+  per cell corner would double the chunk time (S23a's note on the test generator). Rules: at least 0.5 m above the sea,
+  below 400 m, at most 2.5 m rise over a 4 m lattice edge; density by biome (230 / 150 / 80) +-50 % by a value noise.
+- I7 `OverworldGenerator::planGrids(plan)` is public (`plan()` calls it, then places the sites): the layout can be
+  inspected without the fixed-ruin check (used while tuning).
+- I8 F4: SceneCulling's offset table has no per-class instance counts on the CPU. The frame check
+  (`RenderScene::checkFoliageInstances`, only when the foliage texture is missing and a mesh of the class is registered)
+  scans the instance sets' distinct mesh lists and the live dynamic instances; zero cost once the texture exists.
+- I9 `PrototypeScene::attach(scene, {}, seed)`: S20's attach builds a `PrototypeForest` that registers the prototype's
+  tree meshes and material but creates no instance sets for an empty list; `PrototypeScene.cpp` is unchanged.
+- I10 The game sources are outside `SAIGA_CONTENT_UBSAN`'s scope (engine content and `test_engine_content`): the
+  generator was built and its hashes reproduced with Clang 19 without UBSan; the lint covers it on every CI job.
+- I11 Constants mirrored by `static_assert` in `FlightWorld.cpp`: the sea level, the mountain height and the circuit
+  centre (the generator cannot include `vulkan/world`).
+
 ## Design changes
 
-(Filled when the stage is done.)
+The design-doc amendments 1-3 are made in `docs/engine_design.md` (§3 rows and the known deviations, §10.1 (the F4
+check), §12.1 (exists: S23c; the first game generator; the game hash file and its update), §18.4 (the flight row and
+the S23c paragraph), §19 (`placeTrees` row), §22 (S23c done)) and in `AGENTS.md` (the game hash recipe, the layout).
+Changes against the plan (details in the implementation entry of the review log): the fixed ruin at (6256, 5856) (I2),
+river carving without the `d < R - 500 m` limit and with smooth banks (I3), bilinear biome values (I4), clumped tree
+densities (I5), grass from a 4 m lattice (I6), the public `planGrids` (I7), the F4 check over the sets' mesh lists
+(I8).
 
 ## Results
 
-(Filled when the stage is done.)
+Measured on the RTX 5080 Laptop GPU, lavapipe (Mesa with LLVM 21.1.8), GCC 15.2 and Clang 19.
+
+- **Done when.** `flight_content_hashes` passes (1 entry: plan hash of space 0 and the combined plan hash, the 6
+  listed chunks, the digest over the 16 x 16 block [12, 12, 28, 28] and the site chunks outside it: 277 chunks, 2.6 s on
+  the `JobPool(3)` in RelWithDebInfo, 2.4 s in Release, 2.5 s with Clang 19). The file was committed as a skeleton and
+  filled by the update run in its own commit. The `--demo` screenshot (frame 60, about step 890) shows the generated
+  land, clumped forests and meadows, the bare terrain beyond the 1 km content radius, mountains, and the fixed ruin
+  (plateau, pillars, walls) about 830 m ahead of the plane near the image centre.
+- **Plan.** 12 sites: the fixed ruin (6256, 5856) (base 27 m, slope 4.2 m) and 11 grid ruins (14 of the 25 cells
+  skipped: water, slope, space edge or the circuit rule); two rivers. The land: 61 % of [0, 11 km]^2, of it 28 %
+  meadow, 63 % forest, 9 % mountain; heights -100 m .. 369 m; the ground under the flown circle 4-126 m.
+- **Scenarios** (GCC and Clang builds): flight 30 (the 18 existing with the re-recorded `autopilot_flies_the_circuit`
+  values, `flight_ruin_is_stamped` in all six variants (plain, repeat, save/load, `HostClient`, `HostClientDelay`,
+  `HostClientAsync`; done after 1, 1, 1, 2, 8, 5 steps), `flight_slot_meshes_resolve` and `flight_content_hashes`
+  (localOnly: plain, repeat, save/load)); racing 18, platformer 36. `autopilot_flies_the_circuit`: step 600 (6506.433,
+  402.839, 4752.384) -> (6505.742, 325.853, 4741.635), step 1800 (5858.335, 362.351, 5875.344) -> (5879.619,
+  330.511, 5857.057); the 300 +- 30 m altitude check and `crashes_into_terrain` (respawn over land) pass unchanged.
+- **Tests.** ctest 80/80 on the GPU (the local build with samples); the Vulkan and engine tests 39/39 on lavapipe
+  (goldens unchanged); the changed `VulkanPrototypeScene.FoliageClassNeedsTexture` passes on both (registration passes,
+  the frame with a foliage instance dies with the new message, the frame after `setPrototypeEnvironment` draws the
+  tree). `ContentLint.Sources` scans 22 files (the two generator files added), 0 findings. The Clang 19 build of the
+  games (`build-clang`, samples ON, warnings as errors) has no warnings.
+- **Benchmarks** (`build-bench`: Release, no asserts, no `-march=native`; before = step 1, after = the F4 change; two
+  runs each):
+
+  | | before | after |
+  |---|---|---|
+  | flyover `cpu_ms` | 3.735, 3.850 | 3.700, 3.863 |
+  | flyover trees / terrain + water / sky / upload + cull (GPU ms) | 1.401, 1.399 / 0.189 / 0.012, 0.013 / 0.099, 0.103 | 1.392, 1.400 / 0.189, 0.191 / 0.012, 0.013 / 0.100, 0.108 |
+  | forest `cpu_ms` | 2.181, 2.192 | 2.179, 2.209 |
+  | forest trees / terrain + water / grass / upload + cull | 0.555 / 0.114 / 0.679, 0.678 / 0.036, 0.037 | 0.552 / 0.114, 0.115 / 0.679, 0.694 / 0.037, 0.036 |
+
+  Within the run-to-run variation (R-TEST-2; the check runs only without the foliage texture, which `game_world` has).
+- **Generation** (Release, single-threaded, `OverworldGenerator` at base spacing 1; information): plan 4.2 ms; a land
+  chunk 35.0 ms (heights 31.1, tier 1 0.64, grass 3.3; 343 instances), a sea chunk 3.7 ms (heights), within the 50 ms
+  report target; the pyramid's 1025^2 heights at 32 m 104 ms. Demo start (`--demo`, Release): the terrain's first
+  `completeView` 750 ms, the first frame after 3.1 s with 63 content sets built; then 2.3 content sets per second at
+  65 m/s (one pool job each, about 35 ms), none left pending at the 2 s samples, 0 unknown meshes. The 2 km content
+  radius (measured, not adopted): 222 sets at the start (3.5x), the first frame after 8.9 s, 4.2 sets per second.
+- Not done locally: the MSVC build (CI); `SAIGA_CONTENT_UBSAN` does not cover game sources (I10).

@@ -168,7 +168,9 @@ samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
                         EngineApp: game_world, --benchmark, MCP of .mcp.json), the tech demos flight/, platformer/, racing/
-                        (on EngineApp: simulation in a World, <Game>World.* and <Game>Render.*; data in data/<game>/) and
+                        (on EngineApp: simulation in a World, <Game>World.* and <Game>Render.*; data in data/<game>/;
+                        S23c: flight's integer OverworldGenerator in flight/content/ (linted), its prefab
+                        data/flight/prefabs/ruin.json and hash file data/flight/content_hashes.json) and
                         their shared common/, compiled into each game (docs/engine_design.md §18.4). Not tested by tests/
                         (the tests test the engine; the games' scenarios run with --scenarios)
 tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
@@ -352,6 +354,12 @@ ctest -R test_core_ini --output-on-failure             # one test
   files under `src/saiga/engine/content/gen/`, the interface headers, `tests/content_test_generator.h`, games'
   `content/` directories) is integer only: `ContentLint.*` refuses floating point, libm, `long`, `size_t`, unordered
   containers, sequential RNGs and the template header there.
+  The games keep their own hash file (S23c): flight's `data/flight/content_hashes.json` (its `OverworldGenerator` of
+  `samples/games/flight/content/`) is checked by the local game scenario `flight_content_hashes`
+  (`./build/samples/games/game_flight --scenarios flight_content_hashes`; not run by CI). The same rule applies; the
+  update (with `SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON`, it writes only the source tree's file) is
+  `SAIGA_UPDATE_CONTENT_HASHES=1 ./build/samples/games/game_flight --scenarios flight_content_hashes`, again in a
+  dedicated commit with the reason.
 - **Benchmarks** (local, GPU and display; `docs/engine_design.md` §17.7). Baselines are measured in a separate release
   build without asserts (§17.10) and without `-march=native` (§17.7):
   ```shell

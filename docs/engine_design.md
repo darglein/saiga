@@ -212,7 +212,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World API (JSON by names, `WorldApi`), MCP world tools (`registerWorldTools`), JSON visitors, profiler (§16.2, §17.1) | `src/saiga/engine/api/`, `src/saiga/engine/tools/`, `src/saiga/engine/ecs/VisitJson.h`, `src/saiga/engine/core/Profiler.*`, `tests/test_engine_world_api.cpp` | [exists] |
 | Saves: `World::save`/`tryLoad`/`load` (schema tables, migrations, removed types, validate-then-commit, game objects recreated with `configure` + `onLoad`), `diffSaves`/`World::diff`, `dumpJson`; data files (`DataTypeList`, `World::data`, `DataRef`, `reloadData`); world API snapshot and data tools (§14, §15.1, §15.2, §16.2) | `src/saiga/engine/save/`, `src/saiga/engine/data/`, `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `data/tests/engine/` | [exists] |
 | Spatial grid: 32 m cells per space updated in phase 6 (`spatialGridSystem`), `World::queryRadius` sorted by entity index (§9.5) | `src/saiga/engine/world/SpatialGrid.*`, `SpatialGridSystem.*`, `tests/test_engine_spatial_grid.cpp` | [exists] |
-| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` and `--coop` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (procedural meshes and their `MeshLods` (`RenderAssets`), level geometry as instance sets, cosmetic dynamic instances, chase camera, input helpers, render caches, the driver-entity pattern); S19b: the vehicles render through the extract | `samples/games/` | [exists], transitional |
+| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` and `--coop` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (procedural meshes and their `MeshLods` (`RenderAssets`), level geometry as instance sets, cosmetic dynamic instances, chase camera, input helpers, render caches, the driver-entity pattern); S19b: the vehicles render through the extract; S23c: flight on the integer `OverworldGenerator` (`samples/games/flight/content/`, the prefab `data/flight/prefabs/ruin.json`, the hash file `data/flight/content_hashes.json`) | `samples/games/` | [exists], transitional |
 | Render sink and extract (S19b): `RenderSink`, `VulkanRenderSink` (over `RenderScene`), `RecordingRenderSink` (tests, every scenario world); the `World`'s mesh and material name tables (`registerMesh`, `registerMaterial`, `registerMeshAlias`, `WorldSetup::renderAssets`, `setRenderSink`); `RenderInstance {mesh name}`; `ExtractSystem` (instances from the structural log, pose pairs from `Transform` or `RenderPose`, the catch-up between steps, `interpolatedPose`); `EngineApp::setViewCamera` (the one double camera) and `GameRenderHooks::beforeRender` (§7.10, §8.3, §10.1, §10.3) | `src/saiga/engine/sync/`, `src/saiga/engine/components/RenderInstance.h`, `src/saiga/engine/world/World.*`, `src/saiga/engine/app/`, `tests/test_engine_extract.cpp` | [exists: S19b] |
 | Co-op in one process: `--coop [delay]` (a hidden host world and the rendered client world over a loopback pair, interleaved stepping, the join policy hooks, MCP on both worlds) (§8.3, §16.2) | `src/saiga/engine/app/`, `src/saiga/engine/api/WorldApi.*`, `src/saiga/engine/gameplay/DestroyOwnedBy.*`, `tests/test_engine_app.cpp` | [exists: S16b] |
 
@@ -225,8 +225,8 @@ rule, stage that removes it):
 - Float noise in the prototype height hook (`prototypeHeight`; the surface rule and the tile and pyramid formats are
   integer already): R-CONTENT-1, narrowed in S23a to the prototype fixture: the `HookGenerator` "prototype"
   (`integerOnly()` false, the host warns a networked session) registered by `samples/games/common/`, used by
-  `game_world`, racing, the goldens and the benchmarks until S27; the flight demo moves to an integer generator in
-  S23c. Every other generator is integer only (the content toolkit, the lint, the committed hashes; §12.1).
+  `game_world`, racing, the goldens and the benchmarks until S27; the flight demo is on the integer
+  `OverworldGenerator` since S23c. Every other generator is integer only (the content toolkit, the lint, the committed hashes; §12.1).
 
 ## 4. Terms
 
@@ -1575,7 +1575,10 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   `RenderSink::addInstanceSet`; the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`: `tree.vert`'s
   wind and `foliage.frag`'s alpha to coverage on `MeshVertex`, the LOD tint from the compacted entry's LOD bits, the
   shading include `prototype_shading.glsl` shared with the grass) needs the foliage texture of
-  `setPrototypeEnvironment` (S20; asserted at `addMaterial` / `setMaterial`; S23c moves the check into the frame). Transitional exception to the camera-relative
+  `setPrototypeEnvironment` (S20; S23c, F4: materials of the class can be added and set at any time, the frame asserts
+  "PrototypeFoliage instances need the foliage texture of setPrototypeEnvironment" when an instance set or a dynamic
+  instance draws a mesh of the class and the texture does not exist; a game registers its foliage material with its
+  world, whose sink replays it before the render hooks set the environment). Transitional exception to the camera-relative
   rule: the foliage rebuilds its float world xz (`position + (hi + lo) + camera.xz`) for the per-tree wind phase
   (valid within the prototype's 8 km). The instance draws read a **lighting block** (set 1, `SceneLighting`): S18's
   fixed sun (`normalize(0.4, 1, 0.7)`, 0.8) and ambient 0.35 with fog off, or with `setPrototypeEnvironment` (S20,
@@ -2110,7 +2113,7 @@ class PhysicsWorld
 
 ## 12. Spaces, chunks, terrain and streaming
 
-### 12.1 Generation pipeline and chunk content [exists: S23a (pipeline, plans, hashes, saves, stamping), S23b (tombstones, content rendering); planned: S23c (the flight demo's generator)]
+### 12.1 Generation pipeline and chunk content [exists: S23a (pipeline, plans, hashes, saves, stamping), S23b (tombstones, content rendering), S23c (the flight demo's generator)]
 
 - Per space instance: **world plan** (global, low resolution: biomes, river channels carved below sea level (filled by
   the sea, §10.9), roads, sites of authored places; computed once from the seed) -> **chunk generation** (terrain
@@ -2195,7 +2198,11 @@ class PhysicsWorld
   engine function games call from a scenario, S23c) compares or, with `SAIGA_UPDATE_CONTENT_HASHES=1`, rewrites it and
   fails. It runs on the GCC, Clang (with `SAIGA_CONTENT_UBSAN=ON`: trapping UBSan on `engine/content/` and
   `test_engine_content`) and MSVC CI jobs. Committed hashes are never regenerated for a shipped version (a hash change
-  for an existing version is a bug); a new version adds an entry. Games keep their own file and scenario (S23c).
+  for an existing version is a bug); a new version adds an entry. Games keep their own file and scenario (S23c: flight's
+  `data/flight/content_hashes.json`, checked by the `localOnly` game scenario `flight_content_hashes`; updated with
+  `SAIGA_UPDATE_CONTENT_HASHES=1 ./build/samples/games/game_flight --scenarios flight_content_hashes`, which writes only
+  the source tree's file and fails; the games are not run by CI, so the game file is checked locally, its toolkit and
+  pipeline by the engine file on all CI compilers).
 - **Integer only, enforced three ways** (R-CONTENT-1): the `ContentLint` test (a tokenizer and token rules over the
   generator files: `engine/content/gen/`, the interface headers `Generator.h`, `WorldPlan.h`, `ChunkContent.h`,
   `engine/world/SpaceKind.h`, the test generator and games' `content/` directories) refuses floating literals and
@@ -2268,7 +2275,14 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
 - `HookGenerator` (`engine/terrain/`, not content, not linted) adapts an S20 height hook (`TerrainHeightHook`, called
   with `plan.seed`) to the interface: clamped heights, no slots or sites, `legacyTerrain`, with terrain, S20's grass
   rule for its masks (S23b: its exact thresholds, `grassRule()`, are the terrain's mask rule of a legacy space, §10.1). The games' prototype fixture is the `HookGenerator` "prototype" (float noise, `integerOnly()`
-  false; `samples/games/common/PrototypeSpace.h`), used by `game_world` and racing until S27 and by flight until S23c.
+  false; `samples/games/common/PrototypeSpace.h`), used by `game_world` and racing until S27 (flight until S23c).
+- **The first game generator** (S23c): flight's `OverworldGenerator` "flight_overworld" v1
+  (`samples/games/flight/content/`, linted): a land disc around the demo's circuit centre (coast radius 4.5-6.5 km)
+  in the 32 km space at base spacing 1, the `biomes` (256 m) and `rivers` (64 m) plan grids filled first in `plan()`,
+  heights in a fixed order (land base, clamp, coastal falloff, river carving, range check), the slots spruce and
+  broadleaf (`TombstoneOnEdit`, one 8 m grid shared by species) and rock (`ReSnapOnEdit`, 32 m), grass from the
+  natural heights on a 4 m lattice, the fixed ruin (key 1, its ground checked in every build) and grid ruins on a
+  2 km grid (prefab `data/flight/prefabs/ruin.json`). About 35 ms per land chunk (single-threaded, Release).
 - **Chunk content** (`ChunkContent.h`): `ChunkBase` (keyed by generator, pinned version, plan hash and chunk: the
   level-0 heights at the base spacing, S20's layout), `ChunkPlacement` (keyed by the chunk's placement version: the
   tier-1 instances sorted by (slot, counter), the grass mask with excluded cells cleared, every section hash and the
@@ -3779,7 +3793,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 
 | Game | Shows | Directory, executable |
 |---|---|---|
-| Flight simulator | the large world and efficient rendering: a small airplane over the 8 km world prototype (CDLOD terrain, 200k GPU culled trees); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit [planned: S23c] on an integer generator with ruin sites | `samples/games/flight/`, `game_flight` |
+| Flight simulator | the large world and efficient rendering: a small airplane over a 32 km generated overworld (S23c: the integer `OverworldGenerator`: land around the circuit, ruin sites, forests and rocks as tier-1 sets within 1 km until S27's far content, CDLOD terrain); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit past the fixed ruin | `samples/games/flight/`, `game_flight` |
 | Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level; S21: an enclosed cellar (space 1) behind a door (`SpaceLink`, the interact action F, the engine's `spaceLinkSystem`), `--demo --cellar` runs the demo through it | `samples/games/platformer/`, `game_platformer` |
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
 
@@ -3790,7 +3804,17 @@ window; the edits go to `app.startWorld()` (the host world, also with `--coop`, 
 receives them through replication). The MCP tool `edit_terrain` makes it scriptable (with `--coop` the tools see the
 client world and answer with the client error). The flight, platformer and racing demos are unchanged by S22. S23a: the prototype hook of `game_world`, flight and racing is the `HookGenerator` "prototype"
 (`samples/games/common/PrototypeSpace.h`: `registerPrototypeGenerator`, `kPrototypeGenerator`; `game_world`'s second
-template `islands` registers its own `HookGenerator`); heights, scenarios and screenshots are unchanged.
+template `islands` registers its own `HookGenerator`); heights, scenarios and screenshots are unchanged. S23c: flight
+is the first game on an integer generator (`flight_overworld`, §12.1): its space template `flightSpaceTemplate()`
+(128 chunks at 1 m, `fullRadius` 1000 m until S27: trees and rocks up to 1 km, bare terrain beyond; 2 km measured at
+about 3.5x the sets at start and 2x the sets per second, not adopted), the ground `flightGround(world, x, z)` from
+`World::terrainHeight` (the context keeps the circuit only), `FlightRender` keeps `PrototypeScene` for the sky, water
+and the foliage texture (`kFlightFoliageSeed`, also the seed of the tree meshes `flight/spruce` / `flight/broadleaf`
+of `renderAssets`) without a forest; the content sets, grass masks and stamping are the engine's. The ruin's chest
+(`FlightChest`) is stamped around `Player` entities only (flying yourself; `--demo` has no player and shows the patch,
+the static parts, tier 1 and grass). Its scenarios `flight_ruin_is_stamped`, `flight_slot_meshes_resolve` and
+`flight_content_hashes` (the game's hash file and its update recipe, §12.1). `game_world` and racing stay on the
+prototype fixture until S27.
 
 - **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` (the engine app's command line, §8.3:
   `--headless`, `--no-render`, `--screenshot`, `--scenarios`, ...; no `config.ini`). `--demo` spawns the demo's
@@ -3904,7 +3928,7 @@ template `islands` registers its own `HookGenerator`); heights, scenarios and sc
 | `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid (`TerrainSystem`, `TerrainAtlas`, `TerrainPass`, `scene/terrain*`), double camera through a 64 m frame anchor (A2: the (0,0)-(1,1) diagonal) [exists]; edits | S20 (done), extended in S22 |
 | `GrassRenderer`, `grass.vert` | chunk-relative cells (`GrassPass`, `scene/grass.*`), masks from the transitional prototype rule [exists]; generated masks [exists: S23b; legacy spaces keep the prototype rule with the generator's thresholds]; edited masks (S31) | S20 (done) |
 | `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | `scene/sky.*`, `scene/terrain_shading.glsl` on `TerrainFrame`, the water plane at the `SpaceTemplate`'s sea level snapped to 4096 m [exists: S20]; sky and lighting replaced in S36, water in S39 | S20 (done) |
-| `FoliageGenerator`, `HeightField::generate`, `placeTrees` | S20: the hook `prototypeHeight` (the noise per point), `placeTrees` over a `PrototypeArea` [exists]; S23a: the hook is the `HookGenerator` "prototype" of the games (`samples/games/common/PrototypeSpace.h`); generation pipeline with integer math (R-CONTENT-1): the flight demo in S23c, `game_world` and racing in S27 | S23c (flight), S27 (`game_world`, racing) |
+| `FoliageGenerator`, `HeightField::generate`, `placeTrees` | S20: the hook `prototypeHeight` (the noise per point), `placeTrees` over a `PrototypeArea` [exists]; S23a: the hook is the `HookGenerator` "prototype" of the games (`samples/games/common/PrototypeSpace.h`); generation pipeline with integer math (R-CONTENT-1): the flight demo in S23c [exists], `game_world` and racing in S27 | S23c (flight), S27 (`game_world`, racing) |
 | `tests/test_vulkan_world.cpp` | render tests on `RenderScene` (S19a: the forward-renderer fixture dropped) [exists] + engine tests (S19b: `tests/test_engine_extract.cpp`, the app's view camera in `tests/test_engine_app.cpp`) [exists] | S19a (done), S19b (done) |
 
 The sample keeps running and all tests stay green after every stage.
@@ -4028,7 +4052,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S22 | Terraforming (done) | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, encoding, visual patching) within budget (local) |
 | S23a | Generation pipeline (done) | Fixed-point toolkit and integer lint, `Generator` interface (integer template view), world plans with sites and space instances (eager), chunk generation, prefabs, stamping from the plan (entities, SpaceLinks), content cache, pinned versions, GENR/CREC, GenerationState, content hashes on all CI compilers with UBSan on Clang (§12.1, §15.3) | S20, S21, S22 | committed content hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present) in every variant (CI) |
 | S23b | Tombstones and content rendering (done) | Tombstones in chunk records with replication (TombstoneModification, ChunkRecordState; the sequence stays S22's), content render sets (tier 1, static parts), generated grass masks, re-snap and tombstone-on-edit from applied changed boxes, MCP tools, the generated_site golden (§12.1, §12.2, §12.5, §13.1, §16.2) | S23a | a tombstoned instance is hidden on the client in the host + client variants; generated_site golden with its count check (CI) |
-| S23c | Overworld generator (tech demo) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
+| S23c | Overworld generator (tech demo) (done) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
 | S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
 | S26 | World over the network | Handshake with schema hash, chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
