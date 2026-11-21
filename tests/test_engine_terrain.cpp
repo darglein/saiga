@@ -11,8 +11,13 @@
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/core/StreamingPool.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
+#include "saiga/engine/terrain/TerrainGeneration.h"
+#include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/World.h"
+#include "saiga/vulkan/scene/TerrainAtlas.h"
+#include "saiga/vulkan/scene/TerrainTiles.h"
 
 #include "gtest/gtest.h"
 
@@ -23,6 +28,7 @@
 #include <limits>
 #include <mutex>
 #include <random>
+#include <set>
 #include <stdexcept>
 #include <thread>
 
@@ -475,4 +481,564 @@ TEST(StreamingPool, LatchedHook)
     openLatch();
     pool.waitIdle();
     EXPECT_EQ(value.load(), integerTestHook(1, 2, 3));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Tiles, pyramid, grass masks (the pure generation through TerrainGeneration)
+
+TEST(Terrain, TilesShareBordersAndSubsample)
+{
+    for (int bs : {1, 2})
+    {
+        const auto layout = testLayout(16, bs);
+        const auto src    = heightSource(testSpaceTemplate(16, bs, highFrequencyHook), 3);
+        const int n       = layout.samplesPerSide();
+        auto tile         = [&](int level, int x, int z)
+        {
+            RegionId r;
+            r.level = uint8_t(level);
+            r.x     = x;
+            r.z     = z;
+            return *generateTile(src, layout, r).heights;
+        };
+        for (int level = 0; level + 1 < layout.streamedLevels(); ++level)
+        {
+            const auto a = tile(level, 2, 3), right = tile(level, 3, 3), below = tile(level, 2, 4);
+            for (int j = 0; j < n; ++j) EXPECT_EQ(a[size_t(j * n + n - 1)], right[size_t(j * n)]);
+            for (int i = 0; i < n; ++i) EXPECT_EQ(a[size_t((n - 1) * n + i)], below[size_t(i)]);
+            // A level-(L+1) sample equals the level-L sample at the same point (point subsamples)
+            const auto coarse = tile(level + 1, 1, 1);
+            const auto fine   = tile(level, 2, 3);  // the lower-left quarter's upper part of coarse (1, 1)
+            for (int j = 0; j < n; j += 2)
+                for (int i = 0; i < n; i += 2)
+                    EXPECT_EQ(fine[size_t(j * n + i)], coarse[size_t((j / 2 + (n - 1) / 2) * n + i / 2)])
+                        << "level " << level;
+        }
+    }
+}
+
+TEST(Terrain, Pyramid)
+{
+    const auto layout = testLayout(16, 1);
+    const auto p      = generatePyramid(heightSource(testSpaceTemplate(16, 1, slopeRidgeHook), 4), layout, 1234);
+    const int P       = layout.pyramidSamplesPerSide();
+    ASSERT_EQ(P, 129);
+    EXPECT_EQ(p.seaLevel, std::optional<int32_t>(1234));
+    for (int j = 0; j < P; j += 7)
+        for (int i = 0; i < P; i += 5) EXPECT_EQ((*p.heights)[size_t(j * P + i)], slopeRidgeHook(4, i * 32, j * 32));
+    int32_t lo = 0, hi = 0;
+    Vulkan::terrainHeightRange(*p.heights, lo, hi);
+    EXPECT_EQ(p.minHeight, lo);
+    EXPECT_EQ(p.maxHeight, hi);
+}
+
+TEST(Terrain, GrassMaskRule)
+{
+    const auto layout = testLayout(16, 2);
+    // A slope of h(x) = x * s (height units per metre): normal.y = 1 / sqrt(1 + (s / 1024)^2)
+    auto slope = [](uint64_t s, int64_t x, int64_t) { return int32_t(int64_t(s) * x); };
+    RegionId r;
+    r.x = 1;
+    r.z = 1;
+    // normal.y 0.82 <=> slope 0.698: 714 units per metre
+    for (auto [s, expected] : std::vector<std::pair<uint64_t, int>>{{700, 255}, {730, 0}})
+    {
+        const auto tile = generateTile(TerrainHeightSource::fromHook(slope, s), layout, r);
+        const auto mask = generateGrassMask(tile, layout, std::nullopt, 0.82, 0.4);
+        ASSERT_EQ(mask.size, 128);
+        for (uint8_t v : *mask.density) ASSERT_EQ(int(v), expected) << "slope " << s;
+    }
+    // The sea: cells whose lowest sample is below sea + 0.4 m have no grass
+    auto flat5      = [](uint64_t, int64_t x, int64_t) { return int32_t(x < 300 ? 5 * 1024 : 7 * 1024); };
+    const auto tile = generateTile(TerrainHeightSource::fromHook(flat5, 1), layout, r);
+    const auto mask = generateGrassMask(tile, layout, 6 * 1024, 0.82, 0.4);
+    // Cells from x = 256: at x < 300 the lowest sample is 5 m (wet), from x = 300 7 m (dry); the cell at 298 has a 300
+    // sample but its lowest is 5 m (and a steep step)
+    EXPECT_EQ(int((*mask.density)[0]), 0);
+    EXPECT_EQ(int((*mask.density)[size_t(127)]), 255);
+    const auto noSea = generateGrassMask(tile, layout, std::nullopt, 0.82, 0.4);
+    EXPECT_EQ(int((*noSea.density)[0]), 255);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Streaming (TerrainSystem with a RecordingRenderSink)
+
+namespace
+{
+const TerrainViewSettings kDefaults;
+
+RegionId tileRegion(int level, int32_t x, int32_t z)
+{
+    RegionId r;
+    r.level = uint8_t(level);
+    r.x     = x;
+    r.z     = z;
+    return r;
+}
+
+// The desired tiles of the default rule (the CPU reference of §4.3, terrain_test_hooks' desiredTestTiles) by level
+std::map<int, std::set<RegionId>> referenceDesired(const World& w, const Vec3& camera, const TerrainViewSettings& s)
+{
+    std::map<int, std::set<RegionId>> out;
+    const auto layout = w.terrain().layout(0);
+    for (const RegionId& r : desiredTestTiles(layout, *w.terrain().pyramid(0), camera, 0)) out[r.level].insert(r);
+    (void)s;
+    return out;
+}
+}  // namespace
+
+TEST(TerrainStreaming, ResidentTileEqualsHook)
+{
+    World w(terrainSetup(16, 1, ruleHook));
+    RecordingRenderSink sink;
+    std::mt19937_64 rng(7);
+    std::vector<std::pair<double, double>> points;
+    for (int k = 0; k < 2000; ++k)
+        points.push_back({double(rng() % (4096 * 64)) / 64 + 200, double(rng() % (600 * 64)) / 64 + 100});
+    std::vector<double> before;
+    for (auto [x, z] : points) before.push_back(w.terrainHeight(0, x, z));
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(400, 50, 400)));
+    ASSERT_GT(w.terrain().store(0).tilesAtLevel(0), 0);
+    for (size_t i = 0; i < points.size(); ++i)
+        ASSERT_EQ(w.terrainHeight(0, points[i].first, points[i].second), before[i]) << i;
+    // Bitwise at the samples too
+    for (const auto& [r, t] : w.terrain().store(0).tiles())
+    {
+        if (r.level != 0) continue;
+        for (int j = 0; j < 257; j += 13)
+            for (int i = 0; i < 257; i += 11)
+                ASSERT_EQ(w.terrain().sample(0, r.x * 256 + i, r.z * 256 + j),
+                          clampTerrainHeight(ruleHook(w.spaceSeed(0), r.x * 256 + i, r.z * 256 + j)));
+    }
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainStreaming, FlatSpaceRequestsNothing)
+{
+    WorldSetup s;
+    s.profiling = false;
+    World w(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    w.terrain().updateView(0, Vec3(10, 10, 10));
+    EXPECT_TRUE(w.terrain().completeView(0, Vec3(10, 10, 10)));
+    EXPECT_FALSE(w.terrain().poolCreated());
+    EXPECT_EQ(w.terrain().readiness(0, Vec3(10, 10, 10), 256), 1.0);
+    EXPECT_FALSE(sink.hasTerrainSet());
+    EXPECT_EQ(sink.counters().setTerrainPyramid, 0u);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainStreamingDeathTest, GenerationExceptionIsFatal)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    EXPECT_DEATH(
+        {
+            World w(terrainSetup(
+                16, 2, [](uint64_t, int64_t, int64_t) -> int32_t { throw std::runtime_error("the hook failed"); }));
+            RecordingRenderSink sink;
+            w.setRenderSink(&sink);
+            w.terrain().completeView(0, Vec3(100, 10, 100), 5);
+        },
+        "terrain pyramid space 0: the hook failed");
+}
+
+TEST(TerrainStreaming, DesiredSetMatchesTheRule)
+{
+    World w(terrainSetup(32, 1, slopeRidgeHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    for (const Vec3& cam : {Vec3(1000, 100, 2000), Vec3(4000, 600, 7000), Vec3(10, 30, 8000)})
+    {
+        ASSERT_TRUE(w.terrain().completeView(0, cam));
+        const auto ref = referenceDesired(w, cam, kDefaults);
+        for (int k = 0; k < 5; ++k)
+        {
+            std::set<RegionId> got;
+            for (const auto& [r, t] : sink.terrainTiles())
+                if (r.level == k && t.heights) got.insert(r);
+            // The sink holds the desired tiles (and older resident ones within the budget)
+            for (const RegionId& r : ref.count(k) ? ref.at(k) : std::set<RegionId>())
+                EXPECT_TRUE(got.count(r)) << "level " << k << " (" << r.x << ", " << r.z << ")";
+            EXPECT_EQ(w.terrain().stats().levels[size_t(k)].desired, int(ref.count(k) ? ref.at(k).size() : 0));
+        }
+    }
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainStreaming, DesiredSetTruncatedToBudget)
+{
+    World w(terrainSetup(64, 1, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    TerrainViewSettings s = kDefaults;
+    s.residencyRange0     = 2000;
+    s.grassRadius         = 600;
+    w.terrain().setViewSettings(s);
+    const Vec3 cam(8000, 50, 8000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    const auto& st = w.terrain().stats();
+    for (int k = 0; k < 5; ++k)
+    {
+        EXPECT_LE(st.levels[size_t(k)].desired, s.tilesPerLevel);
+        EXPECT_LE(st.levels[size_t(k)].resident, s.tilesPerLevel);
+        EXPECT_LE(sink.terrainTilesAtLevel(k), s.tilesPerLevel);
+    }
+    EXPECT_GT(st.levels[0].truncated, 0);
+    // The nearest ones: the camera's chunk is resident
+    EXPECT_TRUE(sink.terrainTiles().count(tileRegion(0, 31, 31)));
+    EXPECT_LE(st.masksDesired, s.grassMaskLayers);
+    EXPECT_GT(st.masksTruncated, 0);
+    EXPECT_LE(int(sink.grassMasks().size()), s.grassMaskLayers);
+    w.setRenderSink(nullptr);
+}
+
+// LRU eviction never removes a desired tile and keeps tilesPerLevel; removals are sent in the same update (the
+// recording's tiles stay a subset of the store's); at most uploadsPerFrame additions per update
+TEST(TerrainStreaming, EvictionAndUploadsPerFrame)
+{
+    World w(terrainSetup(64, 2, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    TerrainViewSettings s = kDefaults;
+    s.tilesPerLevel       = 12;
+    s.uploadsPerFrame     = 3;
+    w.terrain().setViewSettings(s);
+    Vec3 cam(2000, 80, 2000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    for (int step = 0; step < 300; ++step)
+    {
+        cam.x() += 40;
+        const uint64_t before = sink.counters().setTerrainTile;
+        w.terrain().updateView(0, cam);
+        EXPECT_LE(sink.counters().setTerrainTile - before, 3u);
+        const auto& store = w.terrain().store(0);
+        for (int k = 0; k < 4; ++k) ASSERT_LE(store.tilesAtLevel(k), s.tilesPerLevel);
+        for (const auto& [r, t] : sink.terrainTiles()) ASSERT_TRUE(store.tile(r)) << "the sink holds a dropped tile";
+        // Every desired tile in the store stays (the desired set of this camera)
+        std::this_thread::sleep_for(std::chrono::microseconds(200));
+    }
+    EXPECT_GT(w.terrain().stats().evicted, 0u);
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainStreaming, UpdateViewRequestsThePyramidFirst)
+{
+    armLatch();
+    World w(terrainSetup(16, 2, latchedHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    w.terrain().updateView(0, Vec3(500, 30, 500));
+    EXPECT_TRUE(w.terrain().poolCreated());
+    EXPECT_EQ(w.terrain().stats().pending, 1);
+    for (int k = 0; k < 8; ++k) EXPECT_EQ(w.terrain().stats().levels[size_t(k)].desired, 0);
+    EXPECT_EQ(w.terrain().readiness(0, Vec3(500, 30, 500), 256), 0.0);
+    w.terrain().updateView(0, Vec3(500, 30, 500));
+    EXPECT_EQ(w.terrain().stats().pending, 1);
+    EXPECT_EQ(sink.counters().setTerrainPyramid, 0u);
+    openLatch();
+    // The pyramid arrives, then the tiles
+    for (int i = 0; i < 2000 && sink.counters().setTerrainTile == 0; ++i)
+    {
+        w.terrain().updateView(0, Vec3(500, 30, 500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(sink.counters().setTerrainPyramid, 1u);
+    EXPECT_GT(sink.counters().setTerrainTile, 0u);
+    w.setRenderSink(nullptr);
+}
+
+// One completeView on a fresh world: the pyramid, every desired tile and mask sent; readiness 1; a second call
+// generates nothing
+TEST(TerrainStreaming, CompleteViewFirstView)
+{
+    World w(terrainSetup(32, 1, slopeRidgeHook, 0));
+    RecordingRenderSink sink;
+    sink.setLogging(true);
+    w.setRenderSink(&sink);
+    const Vec3 cam(3000, 100, 3000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    const auto& st = w.terrain().stats();
+    EXPECT_EQ(st.pyramidsGenerated, 1u);
+    EXPECT_EQ(st.pending, 0);
+    for (int k = 0; k < 5; ++k)
+    {
+        EXPECT_EQ(st.levels[size_t(k)].sent, st.levels[size_t(k)].desired) << k;
+        EXPECT_GT(st.levels[size_t(k)].desired, 0) << k;
+    }
+    EXPECT_GT(st.masksDesired, 0);
+    EXPECT_EQ(st.masksSent, st.masksDesired);
+    EXPECT_EQ(w.terrain().readiness(0, cam, 1e9), 1.0);
+    // The pyramid came first
+    ASSERT_FALSE(sink.log().empty());
+    EXPECT_EQ(sink.log().front(), "setTerrainPyramid 0");
+    const uint64_t generated = st.generated;
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_EQ(w.terrain().stats().generated, generated);
+    w.setRenderSink(nullptr);
+}
+
+// With the workers held and a 0.1 s timeout: false within 0.1 s plus one caller job; no fatal error
+TEST(TerrainStreaming, CompleteViewTimeout)
+{
+    World w(terrainSetup(32, 1, latchedHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    // The first view with the latch open (the pyramid)
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(1500, 100, 1500), 60));
+    // A new area with held workers: the caller runs the queued jobs until the deadline
+    armLatch();
+    const Vec3 far(7000, 100, 7000);
+    const auto t0  = std::chrono::steady_clock::now();
+    const bool ok  = w.terrain().completeView(0, far, 0.1);
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    EXPECT_FALSE(ok);
+    // 0.1 s plus one caller job (a 1 m tile of the latched hook takes a few ms); no caller job after the deadline
+    EXPECT_LT(s, 0.3);
+    EXPECT_GT(latchState().callsOnArmingThread.load(), 0);
+    EXPECT_GT(latchState().callsBlocked.load(), 0);
+    openLatch();
+    // Completes afterwards
+    EXPECT_TRUE(w.terrain().completeView(0, far, 60));
+    w.setRenderSink(nullptr);
+}
+
+// Masks for chunks within the grass radius, removed when they leave it, regenerated after a threshold change
+TEST(TerrainStreaming, GrassMasks)
+{
+    World w(terrainSetup(32, 2, slopeRidgeHook, 0));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    Vec3 cam(1000, 40, 1000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    const auto masks = sink.grassMasks();
+    ASSERT_FALSE(masks.empty());
+    for (const auto& [c, m] : masks)
+    {
+        const double dx = std::max({c.x * 256.0 - cam.x(), 0.0, cam.x() - (c.x + 1) * 256.0});
+        const double dz = std::max({c.z * 256.0 - cam.z(), 0.0, cam.z() - (c.z + 1) * 256.0});
+        EXPECT_LE(std::hypot(dx, dz), 80.0 + 1e-9);
+    }
+    // Away: the masks leave
+    cam = Vec3(5000, 40, 5000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    for (const auto& [c, m] : masks) EXPECT_FALSE(sink.grassMasks().count(c));
+    EXPECT_GT(sink.counters().removeGrassMask, 0u);
+    // A threshold change: every mask is dropped and regenerated
+    const uint64_t sent   = sink.counters().setGrassMask;
+    TerrainViewSettings s = kDefaults;
+    s.grassMinNormalY     = 0.95;
+    w.terrain().setViewSettings(s);
+    EXPECT_TRUE(sink.grassMasks().empty());
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_GT(sink.counters().setGrassMask, sent);
+    EXPECT_FALSE(sink.grassMasks().empty());
+    w.setRenderSink(nullptr);
+}
+
+// Changing tilesPerLevel sends a pyramid with the new layout; the recording holds only tiles sent after it, within the
+// new budget
+TEST(TerrainStreaming, LayoutChangeStartsNewSet)
+{
+    World w(terrainSetup(32, 1, integerTestHook));
+    RecordingRenderSink sink;
+    sink.setLogging(true);
+    w.setRenderSink(&sink);
+    const Vec3 cam(2000, 100, 2000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_GT(sink.terrainTilesAtLevel(0), 10);
+    TerrainViewSettings s = kDefaults;
+    s.tilesPerLevel       = 6;
+    w.terrain().setViewSettings(s);
+    sink.clearLog();
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_FALSE(sink.log().empty());
+    EXPECT_EQ(sink.log().front(), "setTerrainPyramid 0");
+    EXPECT_EQ(sink.terrainLayout().tilesPerLevel, 6);
+    for (int k = 0; k < 5; ++k) EXPECT_LE(sink.terrainTilesAtLevel(k), 6);
+    // Masks re-sent too
+    EXPECT_FALSE(sink.grassMasks().empty());
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainStreaming, Readiness)
+{
+    World w(terrainSetup(32, 1, integerTestHook));
+    RecordingRenderSink sink;
+    EXPECT_EQ(w.terrain().terrainUploadsPending(), 0u);
+    w.setRenderSink(&sink);
+    sink.uploadsPendingForTests = 4096;
+    EXPECT_EQ(w.terrain().terrainUploadsPending(), 4096u);
+    sink.uploadsPendingForTests = 0;
+    const Vec3 cam(2500, 80, 2500);
+    EXPECT_EQ(w.terrain().readiness(0, cam, 256), 0.0);
+    double last = 0;
+    for (int i = 0; i < 4000; ++i)
+    {
+        w.terrain().updateView(0, cam);
+        const double r = w.terrain().readiness(0, cam, 256);
+        EXPECT_GE(r, last);
+        last = r;
+        if (r == 1.0) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_EQ(last, 1.0);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_EQ(w.terrain().readiness(0, cam, 1e9), 1.0);
+    w.setRenderSink(nullptr);
+    // No terrain: 1
+    WorldSetup flat;
+    flat.profiling = false;
+    World f(flat);
+    EXPECT_EQ(f.terrain().readiness(0, cam, 256), 1.0);
+}
+
+// clearTerrain drops the recording's set; a later pyramid starts a new one
+TEST(TerrainStreaming, ClearTerrainOnRecording)
+{
+    World w(terrainSetup(16, 2, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(500, 40, 500)));
+    ASSERT_TRUE(sink.hasTerrainSet());
+    EXPECT_FALSE(sink.terrainTiles().empty());
+    EXPECT_FALSE(sink.grassMasks().empty());
+    sink.clearTerrain();
+    EXPECT_FALSE(sink.hasTerrainSet());
+    EXPECT_TRUE(sink.terrainTiles().empty());
+    EXPECT_TRUE(sink.grassMasks().empty());
+    EXPECT_EQ(sink.terrainPyramid(), nullptr);
+    sink.setTerrainPyramid(0, *w.terrain().pyramid(0));
+    EXPECT_TRUE(sink.hasTerrainSet());
+    EXPECT_EQ(sink.counters().clearTerrain, 1u);
+    w.setRenderSink(nullptr);
+}
+
+// A world with a recording sink (as every scenario world) and no updateView / completeView streams nothing; without a
+// sink updateView sends nothing; a sink set after a completeView receives the pyramid, tiles and masks
+TEST(TerrainStreaming, SinkAloneStreamsNothing)
+{
+    WorldSetup setup = terrainSetup(16, 2, slopeRidgeHook, 0);
+    World w(setup);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    Entity e = character(w, Vec3(100, 0, 100), Vec3(2, 0, 1));
+    w.step(100);
+    EXPECT_FALSE(w.terrain().poolCreated());
+    EXPECT_EQ(w.terrain().stats().pending, 0);
+    EXPECT_FALSE(sink.hasTerrainSet());
+    EXPECT_EQ(sink.counters().setTerrainTile, 0u);
+    EXPECT_GT(w.read<Transform>(e).position().x(), 100);
+    w.setRenderSink(nullptr);
+    // No sink: updateView sends (and requests) nothing
+    w.terrain().updateView(0, Vec3(100, 10, 100));
+    EXPECT_FALSE(w.terrain().poolCreated());
+    // completeView without a sink fills the store; a sink set afterwards receives it through the send point
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(100, 10, 100)));
+    RecordingRenderSink later;
+    w.setRenderSink(&later);
+    EXPECT_TRUE(later.hasTerrainSet());
+    EXPECT_EQ(int(later.terrainTiles().size()), int(w.terrain().store(0).tiles().size()));
+    EXPECT_EQ(later.grassMasks().size(), w.terrain().store(0).masks().size());
+    EXPECT_FALSE(later.grassMasks().empty());
+    w.setRenderSink(nullptr);
+}
+
+// Streaming changes neither the world's hash nor terrainHeight
+TEST(TerrainStreaming, StreamingKeepsHashAndHeights)
+{
+    auto run = [](bool stream)
+    {
+        World w(terrainSetup(32, 1, ruleHook, 0));
+        RecordingRenderSink sink;
+        w.setRenderSink(&sink);
+        Entity e = character(w, Vec3(1000, 0, 1000), Vec3(3, 0, 2));
+        std::vector<double> ys;
+        for (int i = 0; i < 120; ++i)
+        {
+            if (stream) w.terrain().completeView(0, w.read<Transform>(e).position() + Vec3(0, 20, 0));
+            w.step();
+            ys.push_back(w.read<Transform>(e).position().y());
+        }
+        const uint64_t h = w.hash();
+        w.setRenderSink(nullptr);
+        return std::make_pair(h, ys);
+    };
+    const auto a = run(false), b = run(true);
+    EXPECT_EQ(a.first, b.first);
+    EXPECT_EQ(a.second, b.second);
+}
+
+// patchTerrainTile / patchTerrainPyramid through the sink change the recorded copies; an unsent region or another space
+// is ignored and counted
+TEST(TerrainStreaming, PatchesReachTheRecording)
+{
+    World w(terrainSetup(16, 2, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(300, 40, 300)));
+    const RegionId r = tileRegion(0, 1, 1);
+    ASSERT_TRUE(sink.terrainTiles().count(r));
+    const auto storeHeights         = w.terrain().store(0).tile(r)->data.heights;
+    const std::vector<int32_t> data = {1, 2, 3, 4, 5, 6};
+    RenderSink& s                   = sink;
+    s.patchTerrainTile(r, 10, 20, 3, 2, data.data());
+    const auto& t = *sink.terrainTiles().at(r).heights;
+    EXPECT_EQ(t[size_t(20 * 129 + 10)], 1);
+    EXPECT_EQ(t[size_t(21 * 129 + 12)], 6);
+    // The store keeps the base data
+    EXPECT_EQ((*storeHeights)[size_t(20 * 129 + 10)],
+              integerTestHook(w.spaceSeed(0), 2 * (256 / 2 + 10), 2 * (128 + 20)));
+    s.patchTerrainPyramid(0, 5, 6, 2, 3, data.data());
+    EXPECT_EQ((*sink.terrainPyramid()->heights)[size_t(8 * 129 + 6)], 6);
+    EXPECT_NE(w.terrain().pyramid(0)->heights, sink.terrainPyramid()->heights);
+    s.patchTerrainTile(tileRegion(0, 15, 15), 0, 0, 1, 1, data.data());
+    s.patchTerrainPyramid(3, 0, 0, 1, 1, data.data());
+    EXPECT_EQ(sink.terrainPatchesIgnored(), 2u);
+    w.setRenderSink(nullptr);
+}
+
+// §22 acceptance (S20): the terrain memory (CPU + GPU) of the game_world layout (128 chunks, 1 m, default budgets)
+// stays <= 768 MB along the flyover circle, a 30 km line at 300 m and at 2 m, and a 90 degree turn
+TEST(TerrainStreaming, MemoryBudget32km)
+{
+    World w(terrainSetup(128, 1, integerTestHook, 6144));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const size_t budget           = size_t(768) << 20;
+    const Vulkan::TerrainLayout L = w.terrain().layout(0);
+    const auto est                = Vulkan::TerrainAtlas::memoryEstimate(L);
+    // The static bound: the budgets times the layout, the pyramid, the masks, the results in flight
+    const size_t n = size_t(L.samplesPerSide()), P = size_t(L.pyramidSamplesPerSide());
+    const size_t staticBound = size_t(L.streamedLevels()) * size_t(L.tilesPerLevel) * n * n * 4 + P * P * 4 +
+                               size_t(L.grassMaskLayers) * 256 * 256 + size_t(kDefaults.maxInFlight) * n * n * 4 +
+                               est.gpuBytes() + est.cpuBytes();
+    EXPECT_LE(staticBound, budget);
+    size_t worst = 0;
+    auto at      = [&](const Vec3& cam)
+    {
+        ASSERT_TRUE(w.terrain().completeView(0, cam));
+        const size_t total = w.terrain().stats().cpuBytes + sink.terrainGpuBytes() + sink.terrainSceneCpuBytes();
+        worst              = std::max(worst, total);
+        ASSERT_LE(total, budget) << cam.transpose();
+    };
+    // The flyover circle (every 20th of 600 poses: centre 4096, radius 2458 m, 300 m up)
+    for (int i = 0; i < 600; i += 20)
+    {
+        const double a = 2 * M_PI * i / 600.0;
+        at(Vec3(4096 + 2458 * std::cos(a), 300, 4096 + 2458 * std::sin(a)));
+    }
+    // A 30 km straight line at 300 m and at 2 m
+    for (double h : {300.0, 2.0})
+        for (double x = 1000; x <= 31000; x += 1500) at(Vec3(x, h + 6, 16000));
+    // A 90 degree turn
+    for (int i = 0; i <= 10; ++i)
+    {
+        const double a = M_PI / 2 * i / 10.0;
+        at(Vec3(16000 + 500 * std::cos(a), 150, 16000 + 500 * std::sin(a)));
+    }
+    std::cout << "MemoryBudget32km: worst " << worst / double(1 << 20) << " MB, static bound "
+              << staticBound / double(1 << 20) << " MB" << std::endl;
+    w.setRenderSink(nullptr);
 }

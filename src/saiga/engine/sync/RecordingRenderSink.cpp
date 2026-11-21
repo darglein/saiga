@@ -9,6 +9,9 @@
 #include "saiga/engine/sync/RecordingRenderSink.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/vulkan/scene/TerrainAtlas.h"
+
+#include <algorithm>
 
 namespace Saiga
 {
@@ -152,6 +155,147 @@ void RecordingRenderSink::setInterpolation(float a)
 {
     alpha = a;
     count.setInterpolation++;
+}
+
+// ---- terrain (S20)
+
+void RecordingRenderSink::setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid)
+{
+    const int P = pyramid.layout.pyramidSamplesPerSide();
+    SAIGA_ASSERT(pyramid.heights && pyramid.heights->size() == size_t(P) * size_t(P),
+                 "RecordingRenderSink: wrong pyramid sample count");
+    if (!terrainSet || space != terrainSetSpace || pyramid.layout != terrainSetLayout)
+    {
+        // A new set: the old tiles and masks are dropped (as RenderScene does)
+        tiles.clear();
+        masks.clear();
+    }
+    terrainSet       = true;
+    terrainSetSpace  = space;
+    terrainSetLayout = pyramid.layout;
+    pyramidData      = pyramid;
+    count.setTerrainPyramid++;
+    if (logging) note("setTerrainPyramid " + std::to_string(space));
+}
+
+void RecordingRenderSink::setTerrainTile(const RegionId& region, const TerrainTileData& tile)
+{
+    SAIGA_ASSERT(terrainSet && region.space == terrainSetSpace,
+                 "RecordingRenderSink: a terrain tile before its space's pyramid");
+    SAIGA_ASSERT(region.level < terrainSetLayout.streamedLevels(), "RecordingRenderSink: not a streamed level");
+    const size_t n = size_t(terrainSetLayout.samplesPerSide());
+    SAIGA_ASSERT(tile.heights && tile.heights->size() == n * n, "RecordingRenderSink: wrong tile sample count");
+    const bool replace = tiles.count(region) > 0;
+    tiles[region]      = tile;
+    SAIGA_ASSERT(replace || terrainTilesAtLevel(region.level) <= terrainSetLayout.tilesPerLevel,
+                 "RecordingRenderSink: more tiles than tilesPerLevel on a level");
+    count.setTerrainTile++;
+    if (logging)
+        note("setTerrainTile L" + std::to_string(region.level) + " " + std::to_string(region.x) + " " +
+             std::to_string(region.z));
+}
+
+void RecordingRenderSink::removeTerrainTile(const RegionId& region)
+{
+    tiles.erase(region);
+    count.removeTerrainTile++;
+    if (logging)
+        note("removeTerrainTile L" + std::to_string(region.level) + " " + std::to_string(region.x) + " " +
+             std::to_string(region.z));
+}
+
+void RecordingRenderSink::setGrassMask(const ChunkId& chunk, const GrassMaskData& mask)
+{
+    SAIGA_ASSERT(terrainSet && chunk.space == terrainSetSpace,
+                 "RecordingRenderSink: a grass mask before its space's pyramid");
+    SAIGA_ASSERT(mask.density && mask.size == terrainSetLayout.grassMaskSize(), "RecordingRenderSink: wrong mask size");
+    const bool replace = masks.count(chunk) > 0;
+    masks[chunk]       = mask;
+    SAIGA_ASSERT(replace || int(masks.size()) <= terrainSetLayout.grassMaskLayers,
+                 "RecordingRenderSink: more masks than grassMaskLayers");
+    count.setGrassMask++;
+    if (logging) note("setGrassMask " + std::to_string(chunk.x) + " " + std::to_string(chunk.z));
+}
+
+void RecordingRenderSink::removeGrassMask(const ChunkId& chunk)
+{
+    masks.erase(chunk);
+    count.removeGrassMask++;
+    if (logging) note("removeGrassMask " + std::to_string(chunk.x) + " " + std::to_string(chunk.z));
+}
+
+void RecordingRenderSink::clearTerrain()
+{
+    terrainSet  = false;
+    pyramidData = TerrainPyramidData();
+    tiles.clear();
+    masks.clear();
+    count.clearTerrain++;
+    if (logging) note("clearTerrain");
+}
+
+namespace
+{
+// A copy of the heights with the sub-rectangle written (copy on write: the store's vectors stay base data)
+std::shared_ptr<const std::vector<int32_t>> patched(const std::vector<int32_t>& base, int n, int x0, int z0, int w,
+                                                    int h, const int32_t* heights)
+{
+    auto copy = std::make_shared<std::vector<int32_t>>(base);
+    for (int j = 0; j < h; ++j)
+        for (int i = 0; i < w; ++i) (*copy)[size_t(z0 + j) * size_t(n) + size_t(x0 + i)] = heights[j * w + i];
+    return copy;
+}
+}  // namespace
+
+void RecordingRenderSink::patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    count.patchTerrainTile++;
+    auto it = tiles.find(region);
+    if (!terrainSet || region.space != terrainSetSpace || it == tiles.end())
+    {
+        patchesIgnored++;
+        return;
+    }
+    const int n = terrainSetLayout.samplesPerSide();
+    SAIGA_ASSERT(w > 0 && h > 0 && x0 >= 0 && z0 >= 0 && x0 + w <= n && z0 + h <= n,
+                 "RecordingRenderSink: the patch must lie inside the tile");
+    it->second.heights = patched(*it->second.heights, n, x0, z0, w, h, heights);
+    for (int k = 0; k < w * h; ++k)
+    {
+        it->second.minHeight = std::min(it->second.minHeight, heights[k]);
+        it->second.maxHeight = std::max(it->second.maxHeight, heights[k]);
+    }
+}
+
+void RecordingRenderSink::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    count.patchTerrainPyramid++;
+    if (!terrainSet || space != terrainSetSpace)
+    {
+        patchesIgnored++;
+        return;
+    }
+    const int P = terrainSetLayout.pyramidSamplesPerSide();
+    SAIGA_ASSERT(w > 0 && h > 0 && x0 >= 0 && z0 >= 0 && x0 + w <= P && z0 + h <= P,
+                 "RecordingRenderSink: the patch must lie inside the pyramid");
+    pyramidData.heights = patched(*pyramidData.heights, P, x0, z0, w, h, heights);
+}
+
+int RecordingRenderSink::terrainTilesAtLevel(int level) const
+{
+    int n = 0;
+    for (const auto& t : tiles) n += t.first.level == level ? 1 : 0;
+    return n;
+}
+
+size_t RecordingRenderSink::terrainGpuBytes() const
+{
+    return terrainSet ? Vulkan::TerrainAtlas::memoryEstimate(terrainSetLayout).gpuBytes() : 0;
+}
+
+size_t RecordingRenderSink::terrainSceneCpuBytes() const
+{
+    return terrainSet ? Vulkan::TerrainAtlas::memoryEstimate(terrainSetLayout).cpuBytes() : 0;
 }
 
 }  // namespace Engine

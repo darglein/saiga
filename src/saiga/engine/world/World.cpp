@@ -1615,6 +1615,8 @@ void World::setRenderSink(RenderSink* sink)
                                meshTable[i].material);
     }
     extractor->setSink(sink);
+    // The terrain's send point (S20): a new sink receives what the store holds
+    terrainSys->setSink(sink);
 }
 
 RenderSink* World::renderSink() const
