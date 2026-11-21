@@ -54,7 +54,11 @@ void DebugUi::select(int tab)
         pendingTabIndex = -1;
     }
     else if (tab >= tabCount())
-        pendingTabIndex = tab;  // a game tab that is added later (SAIGA_DEBUG_TAB before renderHooks.init)
+    {
+        // A game tab that is added later (SAIGA_DEBUG_TAB before renderHooks.init); it replaces a saved tab name
+        pendingTabIndex = tab;
+        pendingTab.clear();
+    }
 }
 
 int DebugUi::findTab(const std::string& name) const
@@ -323,7 +327,9 @@ void DebugUi::save()
     std::ofstream out(file);
     if (!out) return;
     out << s << "\n";
-    savedState = s;
+    out.flush();
+    // Only a complete write counts (a failed one is tried again at the next change check)
+    if (out) savedState = s;
 }
 
 void DebugUi::saveIfChanged()

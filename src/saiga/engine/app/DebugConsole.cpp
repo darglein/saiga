@@ -393,11 +393,11 @@ void DebugConsole::draw(bool focusInput)
             {
                 Entry& e = view[size_t(shown[size_t(r)])];
                 {
-                    int lines   = 1;
+                    // Every kind may have several lines (a log message too); only answers are folded
+                    int lines   = 1 + int(std::count(e.text.begin(), e.text.end(), '\n'));
                     bool folded = false;
                     if (e.kind == Entry::Kind::Output || e.kind == Entry::Kind::Error)
                     {
-                        lines = 1 + int(std::count(e.text.begin(), e.text.end(), '\n'));
                         if (!e.expanded && lines > kFoldLines)
                         {
                             lines  = kFoldLines;

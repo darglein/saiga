@@ -542,8 +542,13 @@ struct McpServer::CallState
 
     void addRecord(CallRecord r)
     {
-        if (!recording) return;
         std::lock_guard<std::mutex> lock(mutex);
+        addRecordLocked(std::move(r));
+    }
+    // With mutex held
+    void addRecordLocked(CallRecord r)
+    {
+        if (!recording) return;
         if (records.size() >= maxRecords) records.pop_front();
         records.push_back(std::move(r));
     }
@@ -588,7 +593,8 @@ std::string answerSummary(const McpServer::ToolResult& result)
 
 struct McpServer::PendingCall
 {
-    Handler* handler = nullptr;
+    // A copy (registering more tools may reallocate the tool list while a local call is queued before start())
+    Handler handler;
     Json arguments;
     std::promise<ToolResult> promise;
     std::atomic_bool answered{false};
@@ -618,23 +624,25 @@ struct McpServer::PendingCall
 
     void answer(ToolResult result)
     {
-        if (answered.exchange(true)) return;
-        if (state)
+        if (!state)
         {
-            CallRecord r  = record(CallRecord::Phase::Answered);
-            r.isError     = result.isError;
-            r.answer      = answerSummary(result);
-            const auto t0 = running ? started : queued;
-            r.durationMs  = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
-            state->addRecord(std::move(r));
-            if (local)
-            {
-                std::lock_guard<std::mutex> lock(state->mutex);
-                state->localAnswers.emplace_back(std::move(respond), std::move(result));
-                return;
-            }
+            if (!answered.exchange(true)) promise.set_value(std::move(result));
+            return;
         }
-        promise.set_value(std::move(result));
+        CallRecord r  = record(CallRecord::Phase::Answered);
+        r.isError     = result.isError;
+        r.answer      = answerSummary(result);
+        const auto t0 = running ? started : queued;
+        r.durationMs  = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        // The answered flag, the record and a local call's answer under one lock: stop() (which drains the answers
+        // under the same lock) never sees an answered call whose answer is not queued yet
+        std::lock_guard<std::mutex> lock(state->mutex);
+        if (answered.exchange(true)) return;
+        state->addRecordLocked(std::move(r));
+        if (local)
+            state->localAnswers.emplace_back(std::move(respond), std::move(result));
+        else
+            promise.set_value(std::move(result));
     }
 };
 
@@ -685,7 +693,7 @@ bool McpServer::toolInfo(const std::string& toolName, std::string& description, 
 std::shared_ptr<McpServer::PendingCall> McpServer::makeCall(Tool& tool, const Json& arguments, bool local)
 {
     auto call       = std::make_shared<PendingCall>();
-    call->handler   = &tool.handler;
+    call->handler   = tool.handler;
     call->arguments = arguments.is_object() ? arguments : Json(Json::object{});
     call->state     = callState;
     call->id        = nextCallId++;
@@ -858,6 +866,13 @@ void McpServer::poll()
         // Claimed by a timeout: the client was told that the call failed, so it must not run anymore. Answered already
         // (the caller gave up while stopping): it must not run either
         if (c->claimed.exchange(true) || c->answered) continue;
+        // A local call that waited past its deadline (poll() was not called) times out without running: its effects
+        // must not happen after its caller was told it failed
+        if (c->local && std::chrono::steady_clock::now() > c->deadline)
+        {
+            c->answer(ToolResult::Error("Timeout: the tool call was not run (poll() was not called in time)"));
+            continue;
+        }
         // Handlers can read how long the caller still waits (callDeadline)
         currentDeadline = c->deadline;
         c->started      = std::chrono::steady_clock::now();
@@ -866,7 +881,7 @@ void McpServer::poll()
         if (c->local) localInFlight.push_back(c);
         try
         {
-            (*c->handler)(c->arguments, [c](ToolResult result) { c->answer(std::move(result)); });
+            c->handler(c->arguments, [c](ToolResult result) { c->answer(std::move(result)); });
         }
         catch (const std::exception& e)
         {

@@ -547,3 +547,34 @@ TEST(McpServer, CallObserver)
     EXPECT_TRUE(records[0].isError);
     EXPECT_EQ(threads[0], std::this_thread::get_id());
 }
+
+// Regressions (CodeRabbit, S19c): a local call queued before more tools were registered kept a pointer into the tool
+// list (reallocated by addTool); a local call that waited past its deadline still ran its handler
+TEST(McpServer, CallLocalQueuedBeforeMoreToolsAndExpired)
+{
+    McpServer server("test");
+    int executed = 0;
+    server.addTool("count", "Counts", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r)
+                   {
+                       executed++;
+                       r(McpServer::ToolResult::Text("ok"));
+                   });
+    std::vector<McpServer::ToolResult> answers;
+    server.callLocal("count", Json::object{}, [&](McpServer::ToolResult r) { answers.push_back(r); });
+    for (int i = 0; i < 64; ++i)
+        server.addTool("tool" + std::to_string(i), "More", McpServer::ObjectSchema({}),
+                       [](const Json&, McpServer::Respond r) { r(McpServer::ToolResult::Text("x")); });
+    server.poll();
+    ASSERT_EQ(answers.size(), 1u);
+    EXPECT_FALSE(answers[0].isError);
+    EXPECT_EQ(executed, 1);
+
+    server.toolTimeoutSeconds = 0.02;
+    server.callLocal("count", Json::object{}, [&](McpServer::ToolResult r) { answers.push_back(r); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    server.poll();
+    ASSERT_EQ(answers.size(), 2u);
+    EXPECT_TRUE(answers[1].isError);
+    EXPECT_EQ(executed, 1);
+}

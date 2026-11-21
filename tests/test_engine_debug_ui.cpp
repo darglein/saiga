@@ -428,3 +428,15 @@ TEST(DebugUi, GameTabSelectedWhenItIsAdded)
     byKey.addTab("AI", {});
     EXPECT_EQ(byKey.selected(), 4);
 }
+
+// Regression (CodeRabbit): a saved tab name and SAIGA_DEBUG_TAB naming a later game tab: the explicit index wins
+TEST(DebugUi, RequestedTabIndexReplacesTheSavedName)
+{
+    DebugUi ui;
+    ui.setState(Json::object{{"tab", "First"}});
+    ui.select(5);  // SAIGA_DEBUG_TAB=6
+    ui.addTab("First", {});
+    EXPECT_TRUE(ui.isSelected(DebugTab::Game));
+    EXPECT_EQ(ui.addTab("Second", {}), 5);
+    EXPECT_EQ(ui.selected(), 5);
+}
