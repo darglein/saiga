@@ -255,6 +255,9 @@ class SAIGA_ENGINE_API World
         uint64_t handlerExceptions        = 0;
         uint64_t droppedOnLoad            = 0;  // outbox entries a load discarded
         uint64_t droppedDuringObjectStart = 0;  // sends from configure / onLoad of a load
+        // S22: received terrain parts whose sequence skipped one (before S26 a protocol error: logged, counted,
+        // applied)
+        uint64_t modificationGaps = 0;
     };
     // A registered message to a peer: encoded at once into the outbox (flushed after phase 8, or at once between steps
     // outside a batching scope). An unregistered type, no transport or the own peer stop the program in every build.
@@ -416,8 +419,8 @@ class SAIGA_ENGINE_API World
     // TerrainEditedEvent (emitted at once between steps, listed inside a step; load: no event) and feeds the visual
     // dirty queue (S22 step 8)
     void onTerrainChanged(SpaceId space, const SampleRect& box, bool load = false);
-    // Engine-internal: capacity for one more in-step change (an edit's or a message's reserve step)
-    void reserveTerrainChange() { terrainChanges.reserve(terrainChanges.size() + 1); }
+    // Engine-internal: capacity for n more in-step changes (an edit's or a message's reserve step)
+    void reserveTerrainChange(size_t n = 1) { terrainChanges.reserve(terrainChanges.size() + n); }
     // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
     // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only

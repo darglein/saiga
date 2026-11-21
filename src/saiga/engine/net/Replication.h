@@ -59,6 +59,9 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         uint64_t snapshotsApplied = 0, snapshotsDroppedEpoch = 0;
         uint64_t ownerStatesDropped = 0;  // an older command counter or a sender that does not own the entity
         uint64_t actionsDropped     = 0;  // PlayerActions for players the sender does not own
+        // S22: terrain messages sent (host) / applied, duplicate parts dropped and messages of another epoch (client)
+        uint64_t terrainMessagesSent = 0, terrainBytesSent = 0, terrainMessagesApplied = 0;
+        uint64_t terrainPartsDuplicate = 0, terrainDroppedEpoch = 0;
     };
 
     explicit Replication(World& world);
@@ -126,6 +129,14 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onPing(uint8_t from, const PingMessage& m);
     void onPong(uint8_t from, const PongMessage& m);
     void onResync(uint8_t from, const ResyncMessage& m);
+    // S22: a client applies a host's terrain modification / chunk state (validated on its own: no check against the
+    // present neighbours, the host is authoritative); no hook is called
+    void onTerrainModification(uint8_t from, const uint8_t* data, size_t size);
+    void onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size);
+    // Host (S22, E5): one TerrainChunkState per chunk with terrain state (sequence > 0) of every space, in SpaceId and
+    // ChunkId order (the dense delta only for chunks with deltas): after the spawn set of a join, after Resync on a
+    // host load. S26 replaces it with per-loaded-chunk snapshots
+    void sendChunkSnapshot(uint8_t peer);
 
     // ---- the host state list (S22, §13.2): ordered host state messages, unencoded, sent by extract to every regular
     // peer after the component changes (also by stepNetworkOnly's extract), cleared when the step commits (also
@@ -200,6 +211,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void sendToAll(const std::vector<uint8_t>& peers, MessageId id, const std::vector<uint8_t>& payload);
     std::vector<uint8_t> regularPeers, joinedPeers;
     std::vector<HostStateEntry> hostStates;
+    // Phase 8 (both extract paths): the host state list to the regular peers
+    void sendHostStates();
 
     std::vector<HostSlot> host;
     std::unordered_map<NetId, Entity> hostByNetId;

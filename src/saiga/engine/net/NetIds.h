@@ -20,17 +20,19 @@ using MessageId = uint16_t;
 // The engine's messages (S16, §13.4); game messages start at FirstGame
 enum class EngineMessage : MessageId
 {
-    Spawn = 0,        // raw, host -> clients, State, reliable
-    Destroy,          // host -> clients, State, reliable
-    Hierarchy,        // host -> clients, State, reliable
-    ComponentChange,  // raw, host -> clients, State, reliable
-    Snapshot,         // raw, host -> clients, State, unreliable
-    OwnerState,       // raw, owner -> host, State, unreliable
-    OwnerCommand,     // host -> owner, Control, reliable
-    PlayerAction,     // owner -> host, Control, reliable
-    Ping,             // client -> host, Control, unreliable
-    Pong,             // host -> client, Control, unreliable
-    Resync,           // host -> clients, State, reliable
+    Spawn = 0,            // raw, host -> clients, State, reliable
+    Destroy,              // host -> clients, State, reliable
+    Hierarchy,            // host -> clients, State, reliable
+    ComponentChange,      // raw, host -> clients, State, reliable
+    Snapshot,             // raw, host -> clients, State, unreliable
+    OwnerState,           // raw, owner -> host, State, unreliable
+    OwnerCommand,         // host -> owner, Control, reliable
+    PlayerAction,         // owner -> host, Control, reliable
+    Ping,                 // client -> host, Control, unreliable
+    Pong,                 // host -> client, Control, unreliable
+    Resync,               // host -> clients, State, reliable
+    TerrainModification,  // raw, host -> clients, State, reliable (S22)
+    TerrainChunkState,    // raw, host -> clients, State, reliable (S22)
     Count,
     FirstGame = 64,
 };

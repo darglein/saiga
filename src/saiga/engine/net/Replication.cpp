@@ -21,11 +21,14 @@
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/EngineMessages.h"
 #include "saiga/engine/net/NetOwner.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainMessages.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <map>
 #include <zstd.h>
 
 namespace Saiga
@@ -430,7 +433,219 @@ void Replication::onHostLoad()
     hashUndo.clear();
     netIdUndo.clear();
     if (w.net)
-        for (uint8_t p : w.connectedPeers()) w.send(p, ResyncMessage{currentEpoch});
+        for (uint8_t p : w.connectedPeers())
+        {
+            w.send(p, ResyncMessage{currentEpoch});
+            // S22: the loaded terrain modification state right after the Resync (S23a sends GenerationState before it)
+            sendChunkSnapshot(p);
+        }
+}
+
+// ---- terrain (S22) ------------------------------------------------------------------------------------------------
+
+void Replication::sendHostStates()
+{
+    if (regularPeers.empty() || hostStates.empty()) return;
+    for (const HostStateEntry& e : hostStates)
+    {
+        record.clear();
+        encodeTerrainModification(currentEpoch, e.space, e.parts, record);
+        sendToAll(regularPeers, MessageId(EngineMessage::TerrainModification), record);
+        counts.terrainMessagesSent += regularPeers.size();
+        counts.terrainBytesSent += record.size() * regularPeers.size();
+    }
+}
+
+void Replication::sendChunkSnapshot(uint8_t peer)
+{
+    const TerrainEditStore& st = w.terrainEdits();
+    std::vector<int32_t> dense;
+    for (size_t i = 0; i < st.spaceCount(); ++i)
+        for (const auto& [c, e] : st.chunks(SpaceId(i)))
+        {
+            const bool deltas = e.nonZeroSamples > 0;
+            if (deltas) st.denseDelta(c, dense);
+            record.clear();
+            encodeTerrainChunkState(currentEpoch, c, e.sequence, uint16_t(st.chunkSamples(c.space) + 1),
+                                    deltas ? &dense : nullptr, record);
+            w.sendRaw(peer, MessageId(EngineMessage::TerrainChunkState), record.data(), record.size());
+            counts.terrainMessagesSent++;
+            counts.terrainBytesSent += record.size();
+        }
+}
+
+namespace
+{
+SampleRect chunkBox(const TerrainEditStore& st, const ChunkId& c)
+{
+    const int64_t S = st.chunkSamples(c.space);
+    SampleRect r;
+    r.i0 = int64_t(c.x) * S;
+    r.k0 = int64_t(c.z) * S;
+    r.i1 = r.i0 + S;
+    r.k1 = r.k0 + S;
+    return r;
+}
+}  // namespace
+
+void Replication::onTerrainModification(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "TerrainModification: only the host sends it to clients");
+        return;
+    }
+    TerrainModificationMessage m;
+    std::string error;
+    if (!decodeTerrainModification(data, size, m, error))
+    {
+        w.rejectInput(from, error);
+        return;
+    }
+    if (m.epoch != currentEpoch)
+    {
+        counts.terrainDroppedEpoch++;
+        return;
+    }
+    // Validation against the world, in scratch: nothing is allocated in the store before every part passed
+    if (m.space >= w.spaceCount() || w.spaceTemplate(m.space).kind != SpaceKind::OpenWorld)
+    {
+        w.rejectInput(from, "TerrainModification: unknown or enclosed space " + std::to_string(m.space));
+        return;
+    }
+    TerrainEditStore& st = w.terrainEditsForUpdate();
+    const int64_t S = st.chunkSamples(m.space), N = S + 1;
+    std::map<std::pair<int64_t, int64_t>, int32_t> shared;
+    for (const TerrainPart& p : m.parts)
+    {
+        if (p.chunk.x < 0 || p.chunk.z < 0 || p.chunk.x >= st.sizeChunks(m.space) ||
+            p.chunk.z >= st.sizeChunks(m.space) || p.x0 + p.w > N || p.z0 + p.h > N || p.sequence == 0)
+        {
+            w.rejectInput(from, "TerrainModification: a part outside the space or its tile, or sequence 0");
+            return;
+        }
+        // Parts of one message that share samples (chunk borders) carry equal values there
+        for (int z = 0; z < p.h; ++z)
+            for (int x = 0; x < p.w; ++x)
+            {
+                const int64_t li = p.x0 + x, lk = p.z0 + z;
+                if (li != 0 && li != S && lk != 0 && lk != S) continue;
+                const auto key      = std::make_pair(int64_t(p.chunk.x) * S + li, int64_t(p.chunk.z) * S + lk);
+                const int32_t v     = p.deltas[size_t(z * p.w + x)];
+                auto [it, inserted] = shared.emplace(key, v);
+                if (!inserted && it->second != v)
+                {
+                    w.rejectInput(from, "TerrainModification: parts disagree on a shared sample");
+                    return;
+                }
+            }
+    }
+    // Per part against the chunk's sequence: a duplicate is dropped, a gap logged, counted and applied
+    std::vector<const TerrainPart*> apply;
+    for (const TerrainPart& p : m.parts)
+    {
+        const uint32_t current = st.sequence(p.chunk);
+        if (p.sequence <= current)
+        {
+            counts.terrainPartsDuplicate++;
+            continue;
+        }
+        if (p.sequence > current + 1)
+        {
+            SAIGA_LOG("net", "TerrainModification: a gap in chunk (%d, %d) of space %d: sequence %u after %u",
+                      int(p.chunk.x), int(p.chunk.z), int(m.space), p.sequence, current);
+            w.netCounts.modificationGaps++;
+        }
+        apply.push_back(&p);
+    }
+    if (apply.empty()) return;
+    // Reserve: the blocks of non-zero changed deltas, the entries, the change-list slot
+    std::vector<TerrainEditStore::EntryNode> entries;
+    for (const TerrainPart* p : apply)
+    {
+        for (int z = 0; z < p->h; ++z)
+            for (int x = 0; x < p->w; ++x)
+                st.reserveFor(m.space, int64_t(p->chunk.x) * S + p->x0 + x, int64_t(p->chunk.z) * S + p->z0 + z,
+                              p->deltas[size_t(z * p->w + x)]);
+        if (!st.entry(p->chunk)) entries.push_back(st.makeEntry(p->chunk));
+    }
+    w.reserveTerrainChange();
+    // Commit: no allocation
+    for (TerrainEditStore::EntryNode& e : entries) st.insertEntry(std::move(e));
+    SampleRect box;
+    box.i0 = box.k0 = std::numeric_limits<int64_t>::max();
+    box.i1 = box.k1 = std::numeric_limits<int64_t>::min();
+    for (const TerrainPart* p : apply)
+    {
+        const int64_t gi = int64_t(p->chunk.x) * S + p->x0, gk = int64_t(p->chunk.z) * S + p->z0;
+        for (int z = 0; z < p->h; ++z)
+            for (int x = 0; x < p->w; ++x) st.writeDelta(m.space, gi + x, gk + z, p->deltas[size_t(z * p->w + x)]);
+        st.setSequence(p->chunk, p->sequence);
+        box.i0 = std::min(box.i0, gi);
+        box.k0 = std::min(box.k0, gk);
+        box.i1 = std::max(box.i1, gi + p->w - 1);
+        box.k1 = std::max(box.k1, gk + p->h - 1);
+    }
+    w.onTerrainChanged(m.space, box);
+    counts.terrainMessagesApplied++;
+}
+
+void Replication::onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "TerrainChunkState: only the host sends it to clients");
+        return;
+    }
+    TerrainChunkStateMessage m;
+    std::string error;
+    if (!decodeTerrainChunkState(data, size, m, error))
+    {
+        w.rejectInput(from, error);
+        return;
+    }
+    if (m.epoch != currentEpoch)
+    {
+        counts.terrainDroppedEpoch++;
+        return;
+    }
+    const SpaceId space = m.chunk.space;
+    if (space >= w.spaceCount() || w.spaceTemplate(space).kind != SpaceKind::OpenWorld)
+    {
+        w.rejectInput(from, "TerrainChunkState: unknown or enclosed space " + std::to_string(space));
+        return;
+    }
+    TerrainEditStore& st = w.terrainEditsForUpdate();
+    const int64_t S = st.chunkSamples(space), N = S + 1;
+    if (m.chunk.x < 0 || m.chunk.z < 0 || m.chunk.x >= st.sizeChunks(space) || m.chunk.z >= st.sizeChunks(space) ||
+        m.N != N || m.sequence == 0)
+    {
+        w.rejectInput(from, "TerrainChunkState: a chunk outside the space, another N or sequence 0");
+        return;
+    }
+    // Replaces the chunk's deltas and sequence if its sequence is not older
+    if (m.sequence < st.sequence(m.chunk))
+    {
+        counts.terrainPartsDuplicate++;
+        return;
+    }
+    const bool had   = st.hasDeltas(m.chunk);
+    const int64_t i0 = int64_t(m.chunk.x) * S, k0 = int64_t(m.chunk.z) * S;
+    auto value = [&](int64_t i, int64_t k) { return m.hasDeltas ? m.deltas[size_t(k * N + i)] : 0; };
+    // Reserve
+    for (int64_t k = 0; k < N; ++k)
+        for (int64_t i = 0; i < N; ++i) st.reserveFor(space, i0 + i, k0 + k, value(i, k));
+    TerrainEditStore::EntryNode node;
+    if (!st.entry(m.chunk)) node = st.makeEntry(m.chunk);
+    w.reserveTerrainChange();
+    // Commit: the entry first (its count follows the writes), then the deltas (the neighbours' counts per written
+    // border sample), then the sequence
+    if (!node.empty()) st.insertEntry(std::move(node));
+    for (int64_t k = 0; k < N; ++k)
+        for (int64_t i = 0; i < N; ++i) st.writeDelta(space, i0 + i, k0 + k, value(i, k));
+    st.setSequence(m.chunk, m.sequence);
+    if (had || st.hasDeltas(m.chunk)) w.onTerrainChanged(space, chunkBox(st, m.chunk));
+    counts.terrainMessagesApplied++;
 }
 
 // ---- encoding -----------------------------------------------------------------------------------------------------
@@ -841,6 +1056,9 @@ void Replication::hostReplicate(bool networkOnly)
         }
     }
 
+    // 5b. The host state list (terrain modifications, S22): after the component changes, before the snapshot
+    sendHostStates();
+
     if (!anyPeer) return;
 
     // 6. Snap counters: a teleport of a spawned root in this step (counted once, also over stepNetworkOnly)
@@ -877,6 +1095,8 @@ void Replication::hostReplicate(bool networkOnly)
             encodeSpawn(x.second, record);
             sendToAll(joinedPeers, MessageId(EngineMessage::Spawn), record);
         }
+        // The terrain modification state after the spawn set (it includes this pass's host state list, S22)
+        for (uint8_t p : joinedPeers) sendChunkSnapshot(p);
     }
 
     // 8. One snapshot of all replicated entities to every connected peer
@@ -1930,6 +2150,15 @@ void Replication::onResync(uint8_t from, const ResyncMessage& m)
     pendingSnapshots.clear();
     buffers.clear();
     written.clear();
+    // S22: the terrain modification state goes too (the chunk states of the host follow); visuals return to the base
+    TerrainEditStore& st = w.terrainEditsForUpdate();
+    std::vector<ChunkId> cleared;
+    for (size_t i = 0; i < st.spaceCount(); ++i)
+        for (const auto& [c, e] : st.chunks(SpaceId(i)))
+            if (e.nonZeroSamples > 0) cleared.push_back(c);
+    w.reserveTerrainChange(cleared.size());
+    st.clear();
+    for (const ChunkId& c : cleared) w.onTerrainChanged(c.space, chunkBox(st, c));
 }
 
 // ---- the write detector -------------------------------------------------------------------------------------------
