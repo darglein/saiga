@@ -16,6 +16,7 @@
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Systems.h"
@@ -927,6 +928,24 @@ void World::tombstone(ChunkId chunk, InstanceKey key)
     recordOrRun([chunk, key](World& w) { applyTombstone(w, chunk, key); });
 }
 
+std::optional<Vec3> World::tierOnePosition(ChunkId chunk, InstanceKey key) const
+{
+    if (chunk.space >= spaceCount()) return std::nullopt;
+    const SpaceGeneration& g = pipeline->space(chunk.space);
+    if (chunk.x < 0 || chunk.z < 0 || chunk.x >= g.settings.sizeChunks || chunk.z >= g.settings.sizeChunks)
+        return std::nullopt;
+    const auto& slots = generators().find(g.generatorId)->slots;
+    if (key.generatorSlot >= slots.size()) return std::nullopt;
+    const auto p             = pipeline->chunkPlacement(chunk, effectivePlacementVersion(chunk));
+    const TierOneInstance* t = findInstance(*p, key);
+    if (!t) return std::nullopt;
+    // ReSnapOnEdit instances stand on the current surface, TombstoneOnEdit ones at their generated y
+    const int32_t y = (slots[key.generatorSlot].flags & ReSnapOnEdit) && g.hasTerrain
+                          ? tierOneSurface(*this, chunk, t->x, t->z)
+                          : t->y;
+    return contentPosition(chunk, t->x, y, t->z);
+}
+
 bool World::isTombstoned(ChunkId chunk, InstanceKey key) const
 {
     const ChunkRecord* r = chunkRecords->find(chunk);
@@ -1043,6 +1062,8 @@ void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
     }
     // The visual dirty queue (only while a render sink is attached)
     terrainSys->terrainChanged(space, box);
+    // S23b: the re-snap queue of the content sets (only while sets exist)
+    contentRenderSys->terrainChanged(space, box);
 }
 
 void World::emitTerrainEvent(const TerrainChange& c)

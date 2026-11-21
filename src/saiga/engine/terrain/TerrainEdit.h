@@ -17,6 +17,7 @@
 #include "saiga/export.h"
 
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace Saiga
@@ -58,6 +59,8 @@ struct TerrainEditResult
     uint64_t changedSamples = 0;
     // The global changed box (inclusive; empty when nothing changed)
     int64_t i0 = 0, k0 = 0, i1 = -1, k1 = -1;
+    // S23b: the TombstoneOnEdit instances the edit tombstoned (ChunkId then key order)
+    std::vector<std::pair<ChunkId, InstanceKey>> tombstoned;
 };
 
 // The base and the pre-edit heights of a rectangle of space samples (row-major): the base per level-0 tile as row

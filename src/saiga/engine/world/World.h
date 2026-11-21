@@ -487,6 +487,11 @@ class SAIGA_ENGINE_API World
     // The checks of tombstone without stopping: false with the error (the world API)
     bool checkTombstone(ChunkId chunk, InstanceKey key, std::string* error) const;
     bool isTombstoned(ChunkId chunk, InstanceKey key) const;
+    // The exact position of a tier-1 instance (§12.2; S23b; generates the chunk's placement synchronously):
+    // ReSnapOnEdit instances at the current surface, TombstoneOnEdit ones at their generated y; empty for a key that is
+    // not an accepted, not excluded candidate or out of range; a tombstoned key still has its position (callers check
+    // isTombstoned). For game code and tests (nothing in the simulation collides with tier 1 before S28)
+    std::optional<Vec3> tierOnePosition(ChunkId chunk, InstanceKey key) const;
     // The chunk's record (null: none; the effective record is {current version, no tombstones})
     const ChunkRecord* chunkRecord(ChunkId chunk) const;
     // Engine-internal: the listeners of onRecordChanged (the content render system, the terrain's grass path)

@@ -1084,6 +1084,72 @@ size_t siteIndex(World& world, const InstanceKey& key)
 
 void registerTombstoneScenarios(ScenarioList& s)
 {
+    // S23b: an Add brush over a rock (ReSnapOnEdit) and a tree (TombstoneOnEdit) of chunk (4, 5): on host and clients
+    // the rock's rendered y equals the edited surface (derived) and the tree is tombstoned (state)
+    s.add("terrain_edit_resnaps_and_tombstones",
+          [](ScenarioWorld& w)
+          {
+              ChunkId chunk;
+              chunk.space = 0;
+              chunk.x     = 4;
+              chunk.z     = 5;
+              w.spawnPlayer(Vec3(1150, 0, 1400));
+              auto allHaveSets = [&]()
+              {
+                  for (int p = 0; p <= w.clientCount(); ++p)
+                      if (!siteSet(w, p)) return false;
+                  return true;
+              };
+              w.check(w.stepUntil(allHaveSets, 120), "every peer builds the set of chunk (4, 5)");
+              // A rock with a tree within 5 m
+              const auto placement =
+                  w.world().generation().chunkPlacement(chunk, w.world().effectivePlacementVersion(chunk));
+              InstanceKey rock, tree;
+              Vec3 at    = Vec3::Zero();
+              bool found = false;
+              for (const TierOneInstance& r : placement->instances)
+                  for (const TierOneInstance& t : placement->instances)
+                  {
+                      if (found || r.key.generatorSlot != 1 || t.key.generatorSlot != 0) continue;
+                      const double dx = (t.x - r.x) / 256.0, dz = (t.z - r.z) / 256.0;
+                      if (dx * dx + dz * dz > 25) continue;
+                      rock  = r.key;
+                      tree  = t.key;
+                      at    = contentPosition(chunk, r.x, r.y, r.z);
+                      found = true;
+                  }
+              if (!w.check(found, "a rock with a tree nearby")) return;
+              TerrainBrush b;
+              b.op       = TerrainBrush::Add;
+              b.center   = Vec3(at.x(), 0, at.z());
+              b.radius   = 10;
+              b.strength = 2;
+              w.editTerrain(b);
+              auto synced = [&]()
+              {
+                  for (int p = 1; p <= w.clientCount(); ++p)
+                      if (w.client(p).terrainEdits().sequence(chunk) != w.world().terrainEdits().sequence(chunk) ||
+                          w.client(p).effectiveRecord(chunk) != w.world().effectiveRecord(chunk))
+                          return false;
+                  return true;
+              };
+              const int bound = 2 * w.networkConfig().delaySteps + 10 + (w.networkConfig().async ? 6 : 0);
+              w.check(w.stepUntil(synced, bound), "every client has the edit and its tombstones");
+              w.step(1);
+              const std::optional<Vec3> edited = w.world().tierOnePosition(chunk, rock);
+              if (!w.check(edited.has_value() && edited->y() > at.y(), "the rock stands higher")) return;
+              for (int p = 0; p <= w.clientCount(); ++p)
+              {
+                  World& world          = p == 0 ? w.world() : w.client(p);
+                  const std::string who = p == 0 ? "the host" : "client " + std::to_string(p);
+                  const auto* set       = siteSet(w, p);
+                  if (!w.check(set != nullptr, who + " has the set")) continue;
+                  w.check(set->instances[siteIndex(world, rock)].position[1] == float(edited->y()),
+                          who + ": the rock's rendered y is the edited surface");
+                  w.check(world.isTombstoned(chunk, tree), who + ": the tree is tombstoned");
+                  w.check(set->instances[siteIndex(world, tree)].scale == 0, who + ": the tree is hidden");
+              }
+          });
     // §22 acceptance (S23b): a tombstoned tier-1 instance is hidden on every peer: the host tombstones the first
     // accepted test_tree of chunk (4, 5); every peer's recording sink has it at scale 0 in the chunk's set, the other
     // instances keep their scale

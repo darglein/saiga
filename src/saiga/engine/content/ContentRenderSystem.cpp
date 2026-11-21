@@ -189,17 +189,18 @@ void ContentRenderSystem::install(const ChunkId& chunk, ChunkSet& s, const Chunk
         ++i;
     }
     s.original = instances;
-    applyResnaps(chunk, s, instances, nullptr);
-    // The chunk's current tombstones
+    // The chunk's current tombstones and (an edited chunk) the re-snapped y
     s.applied.clear();
     if (const ChunkRecord* r = w.contentRecords().find(chunk))
         for (const InstanceKey& k : r->tombstones)
-        {
-            auto it = std::lower_bound(s.keys.begin(), s.keys.end(), k);
-            if (it == s.keys.end() || *it != k) continue;
-            instances[size_t(it - s.keys.begin())].scale = 0;
-            s.applied.push_back(k);
-        }
+            if (std::binary_search(s.keys.begin(), s.keys.end(), k)) s.applied.push_back(k);
+    const bool edited = w.terrainEdits().hasDeltas(chunk);
+    for (size_t k = 0; k < instances.size(); ++k)
+    {
+        const bool dead = std::binary_search(s.applied.begin(), s.applied.end(), s.keys[k]);
+        if (dead || (edited && s.resnap[k])) instances[k] = instanceNow(chunk, s, k, dead);
+    }
+    s.current = instances;
     RegionId region;
     region.space = chunk.space;
     region.level = 0;
@@ -387,16 +388,18 @@ void ContentRenderSystem::recordChanged(const ChunkId& chunk)
     for (const InstanceKey& k : now)
         if (!std::binary_search(s.applied.begin(), s.applied.end(), k))
         {
-            sink->removeInstance(s.handle, indexOf(k));
+            const uint32_t i = indexOf(k);
+            sink->removeInstance(s.handle, i);
+            s.current[i].scale = 0;
             statistics.tombstonesHidden++;
         }
     for (const InstanceKey& k : s.applied)
         if (!std::binary_search(now.begin(), now.end(), k))
         {
+            // The original instance (re-snapped if the chunk has deltas) reappears
             const uint32_t i = indexOf(k);
-            std::vector<Vulkan::StaticInstance> one{s.original[i]};
-            applyResnaps(chunk, s, one, nullptr);
-            sink->updateInstances(s.handle, i, one);
+            s.current[i]     = instanceNow(chunk, s, i, false);
+            sink->updateInstances(s.handle, i, {s.current[i]});
             statistics.instancesRestored++;
         }
     s.applied = std::move(now);
@@ -404,20 +407,75 @@ void ContentRenderSystem::recordChanged(const ChunkId& chunk)
 
 void ContentRenderSystem::terrainChanged(SpaceId space, const SampleRect& box)
 {
-    (void)space;
-    (void)box;
+    if (sets.empty() || box.empty()) return;
+    // Split per chunk with a set (live or requested): one merged box per chunk, drained by the next update or pass
+    const int64_t S = 256 / w.spaceTemplate(space).baseSpacing;
+    for (auto& [c, s] : sets)
+    {
+        if (c.space != space || s.empty) continue;
+        const int64_t i0 = int64_t(c.x) * S, k0 = int64_t(c.z) * S;
+        if (box.i1 < i0 || box.i0 > i0 + S || box.k1 < k0 || box.k0 > k0 + S) continue;
+        if (s.dirty.empty())
+            s.dirty.push_back(box);
+        else
+        {
+            SampleRect& d = s.dirty.front();
+            d.i0          = std::min(d.i0, box.i0);
+            d.k0          = std::min(d.k0, box.k0);
+            d.i1          = std::max(d.i1, box.i1);
+            d.k1          = std::max(d.k1, box.k1);
+        }
+    }
 }
 
-void ContentRenderSystem::applyResnaps(const ChunkId& chunk, ChunkSet& s,
-                                       std::vector<Vulkan::StaticInstance>& instances, const SampleRect* box)
+Vulkan::StaticInstance ContentRenderSystem::instanceNow(const ChunkId& chunk, const ChunkSet& s, size_t i,
+                                                        bool tombstoned) const
 {
-    (void)chunk;
-    (void)s;
-    (void)instances;
-    (void)box;
+    Vulkan::StaticInstance v = s.original[i];
+    // R-CONTENT-1: the integer surface rule over the edited samples, exact in float
+    if (i < s.resnap.size() && s.resnap[i] && w.spaceHasTerrain(chunk.space))
+        v.position[1] = float(tierOneSurface(w, chunk, s.localX[i], s.localZ[i])) / 1024.0f;
+    if (tombstoned) v.scale = 0;
+    return v;
 }
 
-void ContentRenderSystem::drainResnaps() {}
+void ContentRenderSystem::drainResnaps()
+{
+    for (auto& [c, s] : sets)
+    {
+        if (s.dirty.empty()) continue;
+        if (!s.live)
+        {
+            // A set built later re-snaps at creation
+            s.dirty.clear();
+            continue;
+        }
+        const SampleRect box = s.dirty.front();
+        s.dirty.clear();
+        const int64_t cell = int64_t(w.spaceTemplate(c.space).baseSpacing) * 256;
+        // The box grown by one sample, in 1/256 m of the space
+        const int64_t x0 = (box.i0 - 1) * cell, x1 = (box.i1 + 1) * cell;
+        const int64_t z0 = (box.k0 - 1) * cell, z1 = (box.k1 + 1) * cell;
+        size_t first = s.current.size(), last = 0;
+        for (size_t i = 0; i < s.resnap.size(); ++i)
+        {
+            if (!s.resnap[i]) continue;
+            const int64_t gx = int64_t(c.x) * 65536 + s.localX[i], gz = int64_t(c.z) * 65536 + s.localZ[i];
+            if (gx < x0 || gx > x1 || gz < z0 || gz > z1) continue;
+            const bool dead                = std::binary_search(s.applied.begin(), s.applied.end(), s.keys[i]);
+            const Vulkan::StaticInstance v = instanceNow(c, s, i, dead);
+            if (v.position[1] == s.current[i].position[1]) continue;
+            s.current[i] = v;
+            first        = std::min(first, i);
+            last         = std::max(last, i);
+        }
+        if (first > last) continue;
+        sink->updateInstances(s.handle, uint32_t(first),
+                              std::vector<Vulkan::StaticInstance>(s.current.begin() + std::ptrdiff_t(first),
+                                                                  s.current.begin() + std::ptrdiff_t(last + 1)));
+        statistics.resnapped += last - first + 1;
+    }
+}
 
 double ContentRenderSystem::readiness(SpaceId space, const Vec3& camera, double radius) const
 {

@@ -62,6 +62,12 @@ class SAIGA_ENGINE_API ChunkRecords
     // ---- reserve-then-commit writers (S23b): reserve allocates (a record node, key capacity), commit does not
     // Reserve: the record of the chunk (created with the version if missing) with capacity for `more` keys
     ChunkRecord& reserve(const ChunkId& chunk, uint16_t version, size_t more = 1);
+    // Reserve without a change (an edit's reserve step, S23b): a record node for a chunk without one (inserted by
+    // insertRecord) or capacity for `more` keys of an existing record
+    Map::node_type makeRecord(const ChunkId& chunk, uint16_t version, size_t capacity) const;
+    void reserveKeys(const ChunkId& chunk, size_t more);
+    // Commit: a node of makeRecord (the chunk must have no record; no allocation)
+    void insertRecord(Map::node_type&& node);
     // Commit: inserts the key in order (after reserve: no allocation); false if it was tombstoned already
     bool insert(const ChunkId& chunk, const InstanceKey& key);
     // A load (the staged state, committed with the world)

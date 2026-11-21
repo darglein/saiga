@@ -117,11 +117,12 @@ class SAIGA_ENGINE_API ContentRenderSystem
         uint64_t counter = 0;  // incremented when the set is requested or removed
         uint16_t version = 0;  // of the live set or of the request
         std::vector<Vulkan::StaticInstance> original;
-        std::vector<InstanceKey> keys;        // per index (sorted)
-        std::vector<InstanceKey> applied;     // the tombstones applied to the live set (sorted)
-        std::vector<int32_t> localX, localZ;  // per tier-1 index, 1/256 m (re-snap)
-        std::vector<uint8_t> resnap;          // per index: a ReSnapOnEdit instance
-        std::vector<SampleRect> dirty;        // queued re-snap boxes (global samples)
+        std::vector<Vulkan::StaticInstance> current;  // what the sink holds
+        std::vector<InstanceKey> keys;                // per index (sorted)
+        std::vector<InstanceKey> applied;             // the tombstones applied to the live set (sorted)
+        std::vector<int32_t> localX, localZ;          // per tier-1 index, 1/256 m (re-snap)
+        std::vector<uint8_t> resnap;                  // per index: a ReSnapOnEdit instance
+        std::vector<SampleRect> dirty;                // queued re-snap boxes (global samples)
     };
 
     World& w;
@@ -144,8 +145,8 @@ class SAIGA_ENGINE_API ContentRenderSystem
     void install(const ChunkId& chunk, ChunkSet& s, const ChunkPlacement& placement);
     void buildNow(const ChunkId& chunk, ChunkSet& s);
     void request(const ChunkId& chunk, ChunkSet& s, StreamingPool& pool);
-    void applyResnaps(const ChunkId& chunk, ChunkSet& s, std::vector<Vulkan::StaticInstance>& instances,
-                      const SampleRect* box);
+    // The original instance i with the current surface (ReSnapOnEdit) and the tombstone (scale 0)
+    Vulkan::StaticInstance instanceNow(const ChunkId& chunk, const ChunkSet& s, size_t i, bool tombstoned) const;
     void drainResnaps();
     Vulkan::MeshId meshOf(const std::string& generator, uint32_t slot, const std::string& mesh);
 };

@@ -38,6 +38,7 @@
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
 #include "saiga/engine/terrain/TerrainStore.h"
@@ -1943,6 +1944,32 @@ ChunkId chunkAt(int32_t x, int32_t z, SpaceId space = 0)
     return c;
 }
 
+// A brush centre in the chunk whose brush (radius r) changes the surface of no TombstoneOnEdit instance (no tree within
+// r + 3 base cells): an edit there creates no chunk record (S23b's tombstone-on-edit)
+Vec3 clearSpot(const World& w, const ChunkId& c, double r)
+{
+    const auto p        = w.generation().chunkPlacement(c, w.effectivePlacementVersion(c));
+    const double margin = r + 3 * w.spaceTemplate(c.space).baseSpacing + 1;
+    for (int z = 16; z < 240; z += 2)
+        for (int x = 16; x < 240; x += 2)
+        {
+            bool clear = true;
+            for (const TierOneInstance& t : p->instances)
+            {
+                if (t.key.generatorSlot != 0) continue;
+                const double dx = t.x / 256.0 - x, dz = t.z / 256.0 - z;
+                if (dx * dx + dz * dz < margin * margin)
+                {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear) return Vec3(c.x * 256.0 + x, 0, c.z * 256.0 + z);
+        }
+    ADD_FAILURE() << "no clear spot in the chunk";
+    return Vec3(c.x * 256.0 + 128, 0, c.z * 256.0 + 128);
+}
+
 std::string committedSection(int entry, const std::string& chunk, const std::string& section)
 {
     json11::Json j;
@@ -1973,9 +2000,10 @@ TEST(ContentSave, RoundTripAndRecords)
     const Entity visitor = addPlayer(a, Vec3(20000, 0, 20000));
     a.step(1);
     a.destroy(visitor);
+    // (S23b: away from the trees: an edit over a TombstoneOnEdit tree tombstones it)
     TerrainBrush b;
-    b.center   = Vec3(300, 0, 300);
-    b.radius   = 10;
+    b.center   = clearSpot(a, chunkAt(1, 1), 4);
+    b.radius   = 4;
     b.strength = 2;
     a.editTerrain(0, b);
     EXPECT_TRUE(a.contentRecords().records().empty());
@@ -2791,6 +2819,21 @@ TEST(Tombstone, ApplyIdempotentAndInStep)
     EXPECT_EQ(b.hash(), w.hash());
 }
 
+// Regression (PR review of S22): a chunk whose sequence is UINT32_MAX (a save accepts it) wrapped to 0 on the next
+// bump; a tombstone of it is refused and changes nothing (as a terrain edit of it)
+TEST(Tombstone, ExhaustedSequenceRefusesTheTombstone)
+{
+    World w(stepTombstoneSetup());
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(w, c, 0);
+    ASSERT_FALSE(k.accepted.empty());
+    w.terrainEditsForUpdate().setSequence(c, std::numeric_limits<uint32_t>::max());
+    w.tombstone(c, k.accepted[0]);
+    EXPECT_FALSE(w.isTombstoned(c, k.accepted[0]));
+    EXPECT_EQ(w.terrainEdits().sequence(c), std::numeric_limits<uint32_t>::max());
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+}
+
 // Invalid keys: the check reports them (the world API) and the call stops on the host, also inside a step; a client
 // call stops
 TEST(TombstoneDeathTest, InvalidKeysStop)
@@ -2849,8 +2892,8 @@ TEST(ChunkRecords, EditsCreateNoRecordAndSequencesContinue)
     World w(ContentTest::contentTestSetup(2));
     const ChunkId c = chunkAt(4, 5);
     TerrainBrush b;
-    b.center   = Vec3(1150, 0, 1400);
-    b.radius   = 6;
+    b.center   = clearSpot(w, c, 3);
+    b.radius   = 3;
     b.strength = 1;
     w.editTerrain(0, b);
     ASSERT_EQ(w.terrainEdits().sequence(c), 1u);
@@ -2906,14 +2949,15 @@ TEST(ChunkRecords, CommittedSaveLoads)
     ASSERT_TRUE(r.ok()) << r.error;
     EXPECT_TRUE(w.contentRecords().isStamped(c45));
     ASSERT_TRUE(w.chunkRecord(c45));
-    EXPECT_EQ(w.chunkRecord(c45)->tombstones.size(), 1u);
+    // The edit tombstoned the trees under it (tombstone-on-edit), then one more
+    EXPECT_GE(w.chunkRecord(c45)->tombstones.size(), 2u);
     ASSERT_TRUE(w.chunkRecord(c20));
     EXPECT_EQ(w.chunkRecord(c20)->tombstones.size(), 1u);
     EXPECT_FALSE(w.contentRecords().isStamped(c20));
     EXPECT_EQ(w.terrainEdits().sequence(c20), 1u);
     EXPECT_FALSE(w.terrainEdits().hasDeltas(c20));
     EXPECT_TRUE(w.terrainEdits().hasDeltas(c45));
-    EXPECT_EQ(w.terrainEdits().sequence(c45), 2u);
+    EXPECT_EQ(w.terrainEdits().sequence(c45), 1 + w.chunkRecord(c45)->tombstones.size());
     World again(ContentTest::contentTestSetup(2));
     ASSERT_TRUE(again.tryLoad(w.save()).ok());
     EXPECT_EQ(again.hash(), w.hash());
@@ -3060,8 +3104,8 @@ TEST(TombstoneNet, LiveAndFlatJoiner)
     const ChunkId c  = chunkAt(4, 5);
     const SlotKeys k = slotKeys(*n.host, c, 1);
     TerrainBrush b;
-    b.center   = Vec3(1150, 0, 1400);
-    b.radius   = 6;
+    b.center   = clearSpot(*n.host, c, 3);
+    b.radius   = 3;
     b.strength = 1;
     n.host->editTerrain(0, b);
     n.host->tombstone(c, k.accepted[0]);
@@ -3763,4 +3807,211 @@ TEST(GrassFromGenerator, EditedChunksAndTombstones)
     EXPECT_GT(w.terrain().stats().maskResultsDropped, dropped);
     w.terrain().maskJobHookForTests = nullptr;
     w.setRenderSink(nullptr);
+}
+
+// ---- terrain edits: tombstone-on-edit and re-snap (S23b step 7) ----------------------------------------------------
+
+namespace
+{
+// A test_rock of chunk (4, 5) with a test_tree within 5 m (the brush at the rock covers both)
+struct RockAndTree
+{
+    InstanceKey rock, tree;
+    Vec3 rockPosition = Vec3::Zero();
+};
+RockAndTree rockAndTree(const World& w)
+{
+    RockAndTree out;
+    const auto p = w.generation().chunkPlacement(kSiteChunk, w.effectivePlacementVersion(kSiteChunk));
+    for (const TierOneInstance& r : p->instances)
+    {
+        if (r.key.generatorSlot != 1) continue;
+        for (const TierOneInstance& t : p->instances)
+        {
+            if (t.key.generatorSlot != 0) continue;
+            const double dx = (t.x - r.x) / 256.0, dz = (t.z - r.z) / 256.0;
+            if (dx * dx + dz * dz > 25) continue;
+            out.rock         = r.key;
+            out.tree         = t.key;
+            out.rockPosition = contentPosition(kSiteChunk, r.x, r.y, r.z);
+            return out;
+        }
+    }
+    ADD_FAILURE() << "no rock with a tree within 5 m in chunk (4, 5)";
+    return out;
+}
+
+TerrainBrush moundAt(const Vec3& p)
+{
+    TerrainBrush b;
+    b.op       = TerrainBrush::Add;
+    b.center   = Vec3(p.x(), 0, p.z());
+    b.radius   = 10;
+    b.strength = 2;
+    return b;
+}
+
+// The y (m) of a key in a sink's set of chunk (4, 5)
+float setY(World& w, RecordingRenderSink& sink, const InstanceKey& k)
+{
+    const auto* set = sink.instanceSetAt(regionOf(kSiteChunk));
+    if (!set) return std::numeric_limits<float>::quiet_NaN();
+    return set->instances[indexOfKey(w, kSiteChunk, w.effectivePlacementVersion(kSiteChunk), k)].position[1];
+}
+
+// Delegates to TestTerrainGenerator and throws from candidate() while g_throwCandidates is set
+std::atomic<bool> g_throwCandidates{false};
+class ThrowingGenerator final : public Generator
+{
+   public:
+    const char* name() const override { return "test_throwing"; }
+    uint16_t version() const override { return base.version(); }
+    std::vector<GeneratorSlot> slots() const override { return base.slots(); }
+    void plan(uint16_t v, WorldPlan& p) const override { base.plan(v, p); }
+    int32_t height(uint16_t v, const WorldPlan& p, int64_t x, int64_t z) const override
+    {
+        return base.height(v, p, x, z);
+    }
+    bool candidate(uint16_t v, const WorldPlan& p, ChunkId c, uint32_t s, uint32_t n, Candidate& o) const override
+    {
+        if (g_throwCandidates) throw std::runtime_error("test: chunk generation fails");
+        return base.candidate(v, p, c, s, n, o);
+    }
+    uint32_t candidatesPerChunk(uint32_t s) const override { return base.candidatesPerChunk(s); }
+    uint32_t keptCount(uint32_t s, int l) const override { return base.keptCount(s, l); }
+    void grassMask(uint16_t v, const WorldPlan& p, ChunkId c, GrassMask& o) const override
+    {
+        base.grassMask(v, p, c, o);
+    }
+
+   private:
+    ContentTest::TestTerrainGenerator base{2};
+};
+}  // namespace
+
+// An Add brush over a rock and a tree: the rock's y in the live set and tierOnePosition equal the edited surface; the
+// tree is tombstoned after the terrain part's sequence and listed in the result; a set built after the edit has the
+// re-snapped y; a rejected candidate has no position
+TEST(ContentEdit, ResnapAndTombstoneOnEdit)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    addPlayer(w, kSitePlayer);
+    w.step(1);
+    const RockAndTree rt = rockAndTree(w);
+    const float before   = setY(w, sink, rt.rock);
+    EXPECT_EQ(before, float(rt.rockPosition.y()));
+    const TerrainEditResult r = applyTerrainEdit(w, 0, moundAt(rt.rockPosition));
+    w.step(1);
+    // The rock: re-snapped to the edited surface (derived)
+    const std::optional<Vec3> rock = w.tierOnePosition(kSiteChunk, rt.rock);
+    ASSERT_TRUE(rock);
+    EXPECT_GT(rock->y(), rt.rockPosition.y());
+    EXPECT_EQ(setY(w, sink, rt.rock), float(rock->y()));
+    EXPECT_EQ(rock->y(), double(tierOneSurface(w, kSiteChunk, int32_t(std::lround((rock->x() - 1024) * 256)),
+                                               int32_t(std::lround((rock->z() - 1280) * 256)))) /
+                             1024.0);
+    EXPECT_FALSE(w.isTombstoned(kSiteChunk, rt.rock));
+    // The tree: tombstoned (state), after the terrain part
+    EXPECT_TRUE(w.isTombstoned(kSiteChunk, rt.tree));
+    EXPECT_NE(std::find(r.tombstoned.begin(), r.tombstoned.end(), std::make_pair(kSiteChunk, rt.tree)),
+              r.tombstoned.end());
+    ASSERT_FALSE(r.chunks.empty());
+    uint32_t terrainSequence = 0;
+    for (const auto& c : r.chunks)
+        if (c.chunk == kSiteChunk) terrainSequence = c.sequence;
+    EXPECT_EQ(w.terrainEdits().sequence(kSiteChunk),
+              terrainSequence + uint32_t(std::count_if(r.tombstoned.begin(), r.tombstoned.end(),
+                                                       [](const auto& x) { return x.first == kSiteChunk; })));
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[indexOfKey(w, kSiteChunk, 2, rt.tree)].scale, 0.0f);
+    // The tree keeps its generated y
+    EXPECT_EQ(w.tierOnePosition(kSiteChunk, rt.tree)->y(),
+              double(w.generation().chunkPlacement(kSiteChunk, 2)->instances[indexOfKey(w, kSiteChunk, 2, rt.tree)].y) /
+                  1024.0);
+    // A set built after the edit: the re-snapped y at creation, equal to the live set that was re-snapped
+    const std::vector<StaticInstance> liveArray = sink.instanceSetAt(regionOf(kSiteChunk))->instances;
+    RecordingRenderSink late;
+    w.setRenderSink(&late);
+    setCentres(w, ContentCentres::Players);
+    w.step(1);
+    EXPECT_EQ(setY(w, late, rt.rock), float(rock->y()));
+    EXPECT_TRUE(sameInstances(late.instanceSetAt(regionOf(kSiteChunk))->instances, liveArray));
+    // A rejected candidate and a key out of range have no position; a tombstoned one keeps it
+    EXPECT_FALSE(w.tierOnePosition(kSiteChunk, slotKeys(w, kSiteChunk, 0).rejected[0]));
+    EXPECT_FALSE(w.tierOnePosition(kSiteChunk, key(0, 20000)));
+    EXPECT_FALSE(w.tierOnePosition(chunkAt(-1, 0), rt.tree));
+    EXPECT_TRUE(w.tierOnePosition(kSiteChunk, rt.tree));
+    w.setRenderSink(nullptr);
+}
+
+// The chunk generation throws inside the edit: the terrain is unchanged (no deltas, no sequence, no message); an edit
+// in a space without slots does no content work
+TEST(ContentEdit, AtomicAndOnlyWithSlots)
+{
+    WorldSetup s = contentRenderSetup();
+    s.generators = [](GeneratorList& l)
+    {
+        l.add(ContentTest::kTestTerrainGenerator, std::make_shared<ThrowingGenerator>());
+        l.add(ContentTest::kTestDungeonGenerator,
+              std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
+    };
+    World w(s);
+    const uint64_t hash  = w.hash();
+    g_throwCandidates    = true;
+    const TerrainBrush b = moundAt(Vec3(1150, 0, 1400));
+    EXPECT_THROW(w.editTerrain(0, b), std::runtime_error);
+    g_throwCandidates = false;
+    EXPECT_EQ(w.hash(), hash);
+    EXPECT_EQ(w.terrainEdits().chunkCount(), 0u);
+    EXPECT_EQ(w.terrainEdits().nonZeroSamples(0), 0u);
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+    EXPECT_TRUE(w.pendingTerrainChanges().empty());
+    // Afterwards the edit applies
+    w.editTerrain(0, b);
+    EXPECT_GT(w.terrainEdits().chunkCount(), 0u);
+
+    // A hook space (no slots): no placement is generated
+    WorldSetup hook;
+    SpaceTemplate t;
+    t.generator                = 1;
+    t.sizeChunks               = 16;
+    hook.config.spaceTemplates = {t};
+    hook.generators            = [](GeneratorList& l)
+    { l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); })); };
+    World hw(hook);
+    hw.editTerrain(0, b);
+    EXPECT_GT(hw.terrainEdits().chunkCount(), 0u);
+    EXPECT_EQ(hw.generation().cache().stats().placementGenerations, 0u);
+}
+
+// A client re-snaps from an applied TerrainModification and gets the edit's tombstones
+TEST(ContentEdit, ClientResnaps)
+{
+    const WorldSetup s = contentRenderSetup();
+    GenNet n(s, s);
+    RecordingRenderSink hostSink, clientSink;
+    n.host->setRenderSink(&hostSink);
+    n.client->setRenderSink(&clientSink);
+    setCentres(*n.host, ContentCentres::Players);
+    setCentres(*n.client, ContentCentres::Players);
+    addPlayer(*n.host, kSitePlayer);
+    n.step(4);
+    const RockAndTree rt = rockAndTree(*n.host);
+    ASSERT_TRUE(clientSink.instanceSetAt(regionOf(kSiteChunk)));
+    n.host->editTerrain(0, moundAt(rt.rockPosition));
+    n.step(2);
+    const std::optional<Vec3> rock = n.host->tierOnePosition(kSiteChunk, rt.rock);
+    ASSERT_TRUE(rock);
+    EXPECT_EQ(setY(*n.client, clientSink, rt.rock), float(rock->y()));
+    EXPECT_EQ(n.client->tierOnePosition(kSiteChunk, rt.rock)->y(), rock->y());
+    EXPECT_TRUE(n.client->isTombstoned(kSiteChunk, rt.tree));
+    EXPECT_EQ(
+        clientSink.instanceSetAt(regionOf(kSiteChunk))->instances[indexOfKey(*n.client, kSiteChunk, 2, rt.tree)].scale,
+        0.0f);
+    EXPECT_EQ(n.client->terrainEdits().sequence(kSiteChunk), n.host->terrainEdits().sequence(kSiteChunk));
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+    n.client->setRenderSink(nullptr);
+    n.host->setRenderSink(nullptr);
 }

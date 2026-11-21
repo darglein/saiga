@@ -54,6 +54,29 @@ ChunkRecord& ChunkRecords::reserve(const ChunkId& chunk, uint16_t version, size_
     return it->second;
 }
 
+ChunkRecords::Map::node_type ChunkRecords::makeRecord(const ChunkId& chunk, uint16_t version, size_t capacity) const
+{
+    Map scratch;
+    ChunkRecord r;
+    r.placementVersion = version;
+    r.tombstones.reserve(capacity);
+    scratch.emplace(chunk, std::move(r));
+    return scratch.extract(scratch.begin());
+}
+
+void ChunkRecords::reserveKeys(const ChunkId& chunk, size_t more)
+{
+    auto it = byChunk.find(chunk);
+    SAIGA_ASSERT(it != byChunk.end(), "ChunkRecords::reserveKeys: no record");
+    it->second.tombstones.reserve(it->second.tombstones.size() + more);
+}
+
+void ChunkRecords::insertRecord(Map::node_type&& node)
+{
+    const auto r = byChunk.insert(std::move(node));
+    SAIGA_ASSERT(r.inserted, "ChunkRecords::insertRecord: the chunk has a record");
+}
+
 bool ChunkRecords::insert(const ChunkId& chunk, const InstanceKey& key)
 {
     auto it = byChunk.find(chunk);
