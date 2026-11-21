@@ -290,7 +290,9 @@ run medians, ms):
   (inside 0.024 ms with the uploads). The whole frame is within the bound: the GPU frame -0.5 % / -1.6 %, the frame
   interval +2.9 % in the flyover (the forest's before runs are in the slow mode of the bimodal interval). The sum
   `transfer` + `cull` can count their overlap twice (a section begins at TOP_OF_PIPE and ends at BOTTOM_OF_PIPE), at
-  most the shorter `transfer` section (0.005 ms): the excess is at least 0.035 ms (flyover) and 0.007 ms (forest).
+  most the shorter `transfer` section per frame. With the medians (transfer about 0.005 ms) the excess is about 0.035 ms
+  (flyover) and 0.007 ms (forest); this is an estimate from medians of run medians, not a bound (the per-frame overlap
+  and the maximum transfer time were not measured, and the S03 windows are the S03 run's medians).
 - `recording` (the app's recording and submit, `cpu_work_ms` from now on) grows by 0.04-0.06 ms: the instance path's
   per-frame CPU work (the work chunks and the offset table of 928 sets, the descriptor writes), as in S18's culling
   benchmark. `terrain + water` is 11-23 % lower (passes below 0.1 ms, timed now by marks inside the scene pass instead

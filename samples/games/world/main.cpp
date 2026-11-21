@@ -83,7 +83,7 @@ std::string resultFile(const std::string& name)
 // The S03 keys of the benchmark's gpu_ms from RenderScene's sections of one frame (gpu/<section> of the app's sample).
 // "upload + cull" is the sum of two sections that can overlap (a section begins at TOP_OF_PIPE and ends at
 // BOTTOM_OF_PIPE, so cull's begin may precede transfer's end): it can exceed their combined elapsed time by at most the
-// shorter section (transfer, about 0.005 ms in both benchmarks)
+// shorter section per frame (transfer, a median of about 0.005 ms in both benchmarks; not measured per frame)
 std::map<std::string, double> s03Passes(const std::map<std::string, double>& section)
 {
     auto get = [&](const char* n)
