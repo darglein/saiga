@@ -100,8 +100,12 @@ src/
                         chunkPlacement, ContentSource for pool jobs, stampList / staticList), GeneratorList, Generator.h
                         / WorldPlan.h / ChunkContent.h (the interface), Prefab / PrefabStore (versioned prefab files),
                         ContentCache (WorldSetup::sharedContent), ContentHash (plan hashes), ContentHashFile
-                        (checkContentHashes), ContentConvert (exact conversions), ChunkRecords (CREC state),
-                        chunkStampSystem (phase 7, host); content/gen/ (integer only, linted): FixedMath.h, TrigTable,
+                        (checkContentHashes), ContentConvert (exact conversions), ChunkRecords (CREC state: placement
+                        versions and, S23b, tombstones), chunkStampSystem (phase 7, host); S23b: Tombstones
+                        (World::tombstone's checks and apply, tombstone-on-edit inside applyTerrainEdit,
+                        tierOneSurface), ContentMessages (TombstoneModification, ChunkRecordState),
+                        ContentRenderSystem (the content render sets: one instance set per chunk, centres None / View
+                        (EngineApp) / Players (ScenarioWorld), the re-snap queue); content/gen/ (integer only, linted): FixedMath.h, TrigTable,
                         IntNoise, SitePatch, ChunkGeneration, SectionHash, FlatGenerator (GeneratorId 0),
                         AuthoredSpaceGenerator; api/ComponentJson (the component-JSON path of spawn and stamping);
                         net/GenerationStateMessage; tests/test_engine_content.cpp (+ content_lint.h, the fixture in
@@ -157,7 +161,9 @@ data/                   Sample assets (textures, models); test goldens in data/t
                         save format version (it must keep loading otherwise); S23a: the test prefabs in prefabs/, the
                         committed content hashes content_hashes.json (see Tests) and the golden save save_s23a.bin
                         (GENR, CREC; rewritten with SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_content
-                        --gtest_filter='ContentSave.CommittedSaveLoads' only for a new GENR / CREC format version)
+                        --gtest_filter='ContentSave.CommittedSaveLoads' only for a new GENR / CREC format version);
+                        S23b: save_s23b.bin (CREC format 2 with tombstones; the same way with
+                        --gtest_filter='ChunkRecords.CommittedSaveLoads')
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
@@ -325,7 +331,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   The tone-map golden `hdr_tonemap` (S17) the same way with `./build/tests/test_vulkan_scene
   --gtest_filter='VulkanScene.AcesGolden'`, the imported-mesh golden `scene_flat_box` (S18) with
   `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'`, the terraformed crater `terrain_edit_crater` (S22) with
-  `./build/tests/test_engine_terrain_render --gtest_filter='TerrainRenderTest.EditCraterGolden'`.
+  `./build/tests/test_engine_terrain_render --gtest_filter='TerrainRenderTest.EditCraterGolden'`, the generated content
+  `generated_site` (S23b: the content test generator's site with tier-1 instances, static parts and a tombstone; its
+  count delta and set check run on every device) with `--gtest_filter='TerrainRenderTest.GeneratedSite'`.
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
   `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then

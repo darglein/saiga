@@ -1,6 +1,6 @@
 # S23b: Tombstones and content rendering
 
-Status: planned.
+Status: done (implemented on `stage-s23b`; results below).
 
 Sections follow the stage plan template of S05; "Implementation steps", "Risks and open questions", "Design-doc
 amendments" and "Review log" are added for this stage. Second of the three S23 stages (D13 of review round 1; the §22
@@ -528,7 +528,7 @@ flyover` and `forest` unchanged within 5 % (no slots: no content work; grass fro
 
 ## Done when
 
-The S23b row of §22 (S23a amendment 1):
+Done (see Results). The S23b row of §22 (S23a amendment 1):
 
 - **A tombstoned instance is hidden on the client in the host + client variants**: `tombstone_hides_instance` passes
   in `HostClient`, `HostClientDelay` and `HostClientAsync`, checking every client's recording sink (CI).
@@ -726,10 +726,94 @@ Implementation (step 1, reconcile with the merged S20-S23a code; the smallest so
   every other generator its `grassEditRule()` converted (exact: Q16 and height units are powers of two), so the
   prototype's masks stay byte-equal. `TerrainViewSettings::grassMinNormalY` / `grassMinAboveSea` are removed (Scope 5).
 
+Implementation (steps 2-10; each the smallest sound fix where the plan and the code differ):
+
+- Records: `ChunkRecords` writes reserve-then-commit (`reserve` / `insert` for a tombstone call; `makeRecord` /
+  `insertRecord` / `reserveKeys` node handles for tombstone-on-edit, so an edit's reserve step changes no state);
+  `World::effectiveRecord` / `effectivePlacementVersion`; `World::onRecordChanged` forwards to the content render
+  system and the terrain's grass masks directly, plus `addRecordListener` (tests).
+- Messages: a rejected record message is logged with `SAIGA_LOG` in the categories `net` (`rejectInput`) and `content`
+  (there is no entity for `SAIGA_LOG_E`). The host send list reserves tombstone entry buffers
+  (`Replication::reserveTombstones(space, n, behindNewEntry)`; `appendTombstone` takes them), so a tombstone and an
+  edit's tombstones append without allocation after their reserve step.
+- Content render sets: the budget is `ContentRenderSettings::setsPerFrame` (default 4; the plan's
+  `TerrainViewSettings::contentSetsPerFrame`: the content settings own it). The `View` part is a hook of
+  `TerrainSystem::updateView` / `completeView` (`TerrainSystem::setContentView`; the streaming pool through
+  `TerrainSystem::streamingPool()`, created only when a set is requested, so S20's "a sink alone starts no pool" holds).
+  The request counter is process-wide monotone (a set removed and requested again never matches a stale job).
+  `spaceReadiness` is the minimum of the terrain's and the content sets' readiness. `setRenderSink(nullptr)` sets the
+  centres to `None`; a host load with other generator pins drops every set (`ContentRenderSystem::dropAll`).
+  `RecordingRenderSink::addInstanceSet` accepts mesh 0 at scale 0 (an unknown mesh name; `RenderScene` skips mesh 0).
+- Grass: a generator mask is requested like S20's mask (after the chunk's level-0 tile is resident: the desired masks
+  are defined by the tiles); an edited generator chunk's result is also dropped when the chunk's placement version
+  changed meanwhile (never by a tombstone, F1). Legacy thresholds: `grassRuleOf(generator)` takes the
+  `HookGenerator`'s exact doubles (`HookGenerator::grassRule()`; its `grassEditRule()` gives the rounded integers),
+  other generators their `grassEditRule()`; the test generator's rule is 53740 / 65536 and 410 units (not hashed).
+  S20's threshold-change part of `TerrainStreaming.GrassMasks` is removed (replaced by
+  `GrassFromGenerator.PrototypeMasksFromTheTile`).
+- Edits: tombstone-on-edit lives in `content/Tombstones` (`reserveEditTombstones` / `commitEditTombstones`,
+  `tierOneSurface`), called from S22's extension points. Because an edit over a `TombstoneOnEdit` tree now tombstones it,
+  S23a's `ContentSave.RoundTripAndRecords` and this stage's "an edit creates no chunk record" tests edit a spot clear of
+  trees (`clearSpot`); `save_s23b.bin` was regenerated after step 7 (its edit tombstoned the trees under the brush).
+- Tools: `tombstone` takes `chunk` only; `chunk_info` adds `tombstone_count`; `list_sites` lists each site's chunks
+  with their stamped state (host).
+- Scenario `tombstone_hides_instance`: the host tombstones through `call("tombstone")`; the final checks follow one
+  plain step (not a `stepUntil` on the sets) so the save/load variant, which swaps after that call, keeps the plain
+  run's step count (render sets are not state: the fresh world builds its set in that step's pass). The host's sink is
+  checked in every variant.
+- The golden is `TerrainRenderTest.GeneratedSite`; "90 m south" is -z.
+- Benchmarks: `game_world --benchmark` needs a window (`--headless` is refused), run as AGENTS.md's recipe.
+
 ## Design changes
 
-(Filled when the stage is done.)
+The design-doc amendments 1-9 are made in `docs/engine_design.md` (§3 row, §7.10, §8.1, §10.1 (content render sets,
+grass masks from the generator), §12.1 (chunk records, tombstones), §12.2 (tombstone-on-edit, re-snap), §12.4
+(readiness), §12.5, §13.1, §13.2, §15.1 (`CREC` format 2), §15.3, §16.2, §17.2, §17.3, §17.4, §17.6, §18.1, §19, §22
+row). Changes against the plan (details in the review log above):
+
+- `ContentRenderSettings::setsPerFrame` instead of `TerrainViewSettings::contentSetsPerFrame`;
+  `World::setContentRenderSettings`, `World::contentRender()`.
+- The legacy grass thresholds come from the `HookGenerator`'s doubles (`grassRuleOf`), not from `grassEditRule()`.
+- `spaceReadiness` = min(terrain, content sets).
+- `ChunkRecords` node handles for the edit's reserve step; `Replication::reserveTombstones` / `appendTombstone`.
+- `TerrainViewSettings::grassMinNormalY` / `grassMinAboveSea` removed (thresholds are content).
 
 ## Results
 
-(Filled when the stage is done.)
+Measured on the RTX 5080 Laptop GPU, lavapipe (Mesa with LLVM 21.1.8), GCC 15.2 and Clang 19.
+
+- **Done when.** `tombstone_hides_instance` passes in all six variants (plain, repeat, save/load, `HostClient`,
+  `HostClientDelay`, `HostClientAsync`), checking every client's recording sink; `terrain_edit_resnaps_and_tombstones`
+  passes in all six. `TerrainRenderTest.GeneratedSite` passes on lavapipe (the golden `generated_site`, committed in
+  its own commit, reproduces bit-exact: mean 0/255) with its count delta (the tree mesh -1, the four others unchanged)
+  and the set check; on the GPU (not gating) mean 0.27/255, 0.19% of the pixels > 16/255 and the same checks pass.
+- **Tests.** ctest 80/80 on the GPU (the local build with samples; no new target); the Vulkan, engine and OpenGL tests
+  46/46 on lavapipe / llvmpipe with every golden bit-exact (`world_overview`, `world_forest`, `terrain_edit_crater`,
+  `hdr_tonemap`, `scene_flat_box`, `generated_site`: S20's and S22's goldens and the prototype's grass unchanged); the
+  Clang 19 build with `SAIGA_CONTENT_UBSAN=ON` 80/80 on lavapipe / llvmpipe. `test_engine_content` has 78 tests (S23b:
+  `ChunkRecords.*` 6, `Tombstone*` 2, `TombstoneNet.*` 6, `ContentRender*` 9, `GrassFromGenerator.*` 3, `ContentEdit.*`
+  3); `test_engine_world_api`: `WorldTools.ContentTools`, `ContentToolsOnAClient`.
+- **Scenarios.** `--scenarios` of flight (18), racing (18) and platformer (36) pass after steps 5, 7 and at the end.
+  Headless screenshots (`--headless --screenshot`) of `game_world`, flight `--demo` and racing `--demo` show the terrain,
+  grass, trees, plane and car as before (no slots in these games: no content sets; their trees are `PrototypeForest`,
+  so there are no tier-1 trees to re-snap after a crater edit in `game_world`).
+- **Benchmarks** (`build-bench`: Release, no asserts, no `-march=native`; before = the S23a binaries, after = this
+  branch; two runs each, medians):
+
+  | | before | after |
+  |---|---|---|
+  | flyover `cpu_ms` / `terrain_stream_ms` | 3.883, 3.840 / 22.06 | 3.760, 3.847 / 22.06 |
+  | flyover trees / terrain + water / sky / upload + cull (GPU ms) | 1.401 / 0.190 / 0.0130 / 0.107 | 1.397 / 0.190 / 0.0125 / 0.104 |
+  | forest `cpu_ms` | 2.183, 2.180 | 2.183, 2.193 |
+  | forest trees / terrain + water / grass / upload + cull | 0.555 / 0.114 / 0.679 / 0.036 | 0.555 / 0.114 / 0.679 / 0.036 |
+  | terraform `cpu_ms` / terrain + water | 0.970 / 0.138 | 0.957 / 0.138 |
+  | scene benchmark cull / instance draw (ms) | 0.059 / 1.277 | 0.057 / 1.243 |
+
+  Every difference is within the run-to-run variation (R-TEST-2; `game_world` has no slots: no content work, its grass
+  from the prototype `HookGenerator` through S20's tile path). Content costs (`ContentBenchmark.TombstonesAndContentSets`,
+  Release, single-threaded): `World::tombstone` 15.2 ms on a cold cache (the chunk's placement is generated inside the
+  call, Risks 1) and 0.25 µs warm; an edit of radius 12 m over chunk (4, 5) with tombstone-on-edit (4 trees) 15.3 ms
+  cold and 0.083 ms warm (the same edit in the prototype hook space, no content work, 0.23 ms); one content set of a
+  2 m chunk 15.2 ms (generation and conversion) and 0.078 ms (conversion alone).
+- Not done locally: the MSVC build (CI); the locale test `Prefab.IndependentOfCLocale` skipped (no de_DE locale
+  installed here; CI runs it).
