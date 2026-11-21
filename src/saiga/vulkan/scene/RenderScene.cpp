@@ -247,6 +247,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                                Access::eShaderStorageWrite, Stage::eAllTransfer, Access::eTransferWrite);
         cmd.pipelineBarrier2(vk::DependencyInfo({}, war, nullptr, nullptr));
         if (s.transferFn && *s.transferFn) (*s.transferFn)(cmd);
+        // The terrain uploads (S20): at most the cap per frame, in queue order
+        s.atlas->recordUploads(cmd, frame.frameIndex);
         // The transfer callback may set the camera of this frame (S19a)
         s.frameCamera(surfaceWidth, SurfaceHeight, camera);
         proto   = *s.protoSettings;
@@ -558,6 +560,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
     instanceBuffer = std::make_unique<InstanceBuffer>();
     instanceBuffer->init(base(), params.staticInstanceCapacity, culling->storageLimit());
+    atlas = std::make_unique<TerrainAtlas>();
+    atlas->init(base(), params, culling->storageLimit());
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }
@@ -568,6 +572,7 @@ RenderScene::~RenderScene()
     if (culling) culling->destroy();
     culling.reset();
     prototype.reset();
+    atlas.reset();
     instanceBuffer.reset();
     meshPool.reset();
 }
@@ -753,6 +758,7 @@ void RenderScene::setPrototypeTerrain(std::shared_ptr<const HeightField> heights
                                       uint32_t foliageSeed)
 {
     SAIGA_ASSERT(!transferFn, "setPrototypeTerrain: not inside renderFrame");
+    SAIGA_ASSERT(!terrainPathUsed, "setPrototypeTerrain: the scene uses the terrain set (setTerrainPyramid)");
     // The frames in flight may use the previous prototype
     renderer->waitIdle();
     culling->setFoliageTexture(nullptr);
@@ -762,6 +768,61 @@ void RenderScene::setPrototypeTerrain(std::shared_ptr<const HeightField> heights
     prototype = std::move(p);
     culling->setFoliageTexture(&prototype->foliageTexture());
     *protoSettings = settings;
+}
+
+//==================================================================================================
+// Terrain (S20)
+
+void RenderScene::setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid)
+{
+    SAIGA_ASSERT(!prototype, "setTerrainPyramid: the scene uses setPrototypeTerrain");
+    terrainPathUsed = true;
+    atlas->setPyramid(space, pyramid);
+}
+
+void RenderScene::setTerrainTile(const RegionId& region, const TerrainTileData& tile)
+{
+    atlas->setTile(region, tile);
+}
+
+void RenderScene::removeTerrainTile(const RegionId& region)
+{
+    atlas->removeTile(region);
+}
+
+void RenderScene::setGrassMask(const ChunkId& chunk, const GrassMaskData& mask)
+{
+    atlas->setGrassMask(chunk, mask);
+}
+
+void RenderScene::removeGrassMask(const ChunkId& chunk)
+{
+    atlas->removeGrassMask(chunk);
+}
+
+void RenderScene::clearTerrain()
+{
+    atlas->clear();
+}
+
+void RenderScene::patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    atlas->patchTile(region, x0, z0, w, h, heights);
+}
+
+void RenderScene::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    atlas->patchPyramid(space, x0, z0, w, h, heights);
+}
+
+size_t RenderScene::terrainUploadsPending() const
+{
+    return atlas->uploadsPending();
+}
+
+const TerrainAtlas::Stats& RenderScene::terrainAtlasStats() const
+{
+    return atlas->stats();
 }
 
 void RenderScene::setPrototypeSettings(const PrototypeSettings& settings)

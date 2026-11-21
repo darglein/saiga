@@ -10,6 +10,8 @@
 #pragma once
 
 #include "saiga/core/math/TerrainSurface.h"
+#include "saiga/vulkan/scene/RenderScene.h"
+#include "saiga/vulkan/scene/TerrainTiles.h"
 
 #include <algorithm>
 #include <atomic>
@@ -154,6 +156,38 @@ inline int32_t latchedHook(uint64_t seed, int64_t x, int64_t z)
         }
     }
     return integerTestHook(seed, x, z);
+}
+
+// ---- the renderer side (no engine): layouts, test tiles and pyramids, the upload wait
+
+// A layout with the default budgets (48 tiles per level, 16 grass layers)
+inline Vulkan::TerrainLayout testLayout(int32_t sizeChunks, int baseSpacing)
+{
+    Vulkan::TerrainLayout l;
+    l.sizeChunks  = sizeChunks;
+    l.baseSpacing = baseSpacing;
+    return l;
+}
+inline Vulkan::TerrainTileData testTile(TerrainHeightHook hook, const Vulkan::TerrainLayout& layout,
+                                        const RegionId& region, uint64_t seed = 1)
+{
+    return Vulkan::generateTerrainTile(TerrainHeightSource::fromHook(hook, seed), layout, region);
+}
+inline Vulkan::TerrainPyramidData testPyramid(TerrainHeightHook hook, const Vulkan::TerrainLayout& layout,
+                                              std::optional<int32_t> seaLevel = std::nullopt, uint64_t seed = 1)
+{
+    return Vulkan::generateTerrainPyramid(TerrainHeightSource::fromHook(hook, seed), layout, seaLevel);
+}
+// Renders frames until no terrain upload is pending (at most maxFrames); returns the frames rendered
+inline int renderUntilUploaded(Vulkan::RenderScene& scene, int maxFrames = 64)
+{
+    int frames = 0;
+    while (frames < maxFrames && scene.terrainUploadsPending() > 0)
+    {
+        scene.renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+        frames++;
+    }
+    return frames;
 }
 
 #ifdef SAIGA_TEST_ENGINE
