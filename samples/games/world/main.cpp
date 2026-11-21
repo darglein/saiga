@@ -10,7 +10,10 @@
  * (EngineApp), rendered in a uniform gray. S44 builds the first gameplay on it.
  *
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
- * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits.
+ * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits. T toggles the terraform mode
+ * (S22, game policy): the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain
+ * under the screen centre, 10 edits per second while held, on the host world (also with --coop); radius and strength
+ * in the World window. The MCP tool edit_terrain does the same scriptably.
  *
  * MCP (http://127.0.0.1:8765/mcp, --mcp-port or SAIGA_MCP_PORT, 0 disables it): the engine's world and app tools and
  * the prototype's tools (screenshot, get_state, set_camera, move_camera, set_settings, terrain_query).
@@ -30,6 +33,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/saiga_buildconfig.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -84,6 +88,14 @@ struct WorldGame
     bool walkMode   = false;
     float eyeHeight = 1.8f;
     bool fWasDown   = false;
+    // The terraform mode (S22; game policy, R-MECH-1): the brush op of the left button (1..4; the right button applies
+    // the opposite of add / subtract), its radius and strength, the buttons held (read in the GUI, applied in
+    // beforeRender between steps), the time of the last edit
+    bool terraformMode = false, tWasDown = false;
+    int terraformOp       = 0;
+    float terraformRadius = 8, terraformStrength = 0.5f;
+    bool leftHeld = false, rightHeld = false;
+    std::chrono::steady_clock::time_point lastEdit;
     // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastBeforeRender;
     bool hasLastBeforeRender         = false;
@@ -188,12 +200,66 @@ void initWorld(EngineApp& app)
     }
 }
 
+// The terrain point under the screen centre of the view camera: a march along the view direction over terrainHeight of
+// the rendered world (1 m steps, at most 4 km); false if the ray does not hit
+bool terrainUnderCenter(EngineApp& app, Vec3& hit)
+{
+    const ViewCamera& cam = app.viewCamera();
+    const Vec3 dir        = cam.rotation * Vec3(0, 0, -1);
+    const World& w        = app.world();
+    Vec3 p                = cam.position;
+    for (int i = 0; i < 4000; ++i)
+    {
+        const Vec3 q = p + dir;
+        if (q.y() <= w.terrainHeight(cam.space, q.x(), q.z()))
+        {
+            hit = Vec3(q.x(), w.terrainHeight(cam.space, q.x(), q.z()), q.z());
+            return true;
+        }
+        p = q;
+    }
+    return false;
+}
+
+// The terraform mode's edit of this frame (between steps): on the host world (startWorld; with --coop the rendered
+// world is a client and the edit reaches it through replication)
+void terraformEdit(EngineApp& app)
+{
+    WorldGame& g = *g_game;
+    if (!g.terraformMode || (!g.leftHeld && !g.rightHeld)) return;
+    const auto now = std::chrono::steady_clock::now();
+    if (std::chrono::duration<double>(now - g.lastEdit).count() < 0.1) return;
+    Vec3 hit;
+    if (!terrainUnderCenter(app, hit)) return;
+    g.lastEdit = now;
+    TerrainBrush b;
+    b.op = TerrainBrush::Op(g.terraformOp);
+    // The right button lowers: subtract for add, add for subtract (flatten and smooth are the same on both)
+    if (g.rightHeld && b.op == TerrainBrush::Add)
+        b.op = TerrainBrush::Subtract;
+    else if (g.rightHeld && b.op == TerrainBrush::Subtract)
+        b.op = TerrainBrush::Add;
+    b.center            = hit;
+    b.radius            = double(g.terraformRadius);
+    b.strength          = (b.op == TerrainBrush::Add || b.op == TerrainBrush::Subtract)
+                              ? double(g.terraformStrength)
+                              : std::min(1.0, double(g.terraformStrength));
+    World& host         = app.startWorld();
+    const SpaceId space = app.viewCamera().space;
+    std::string error;
+    if (host.checkTerrainEdit(space, b, &error))
+        host.editTerrain(space, b);
+    else
+        std::cout << "terraform: " << error << std::endl;
+}
+
 void beforeRender(EngineApp& app)
 {
     WorldGame& g               = *g_game;
     Vulkan::RenderScene& scene = *app.scene();
     // The frame being recorded
     const uint64_t frame = scene.frames() + 1;
+    terraformEdit(app);
     // S22: the measured frames of the terraform benchmark edit after the frame's step, before its updateView
     if (g.terraform && g.bench && g.bench->measuring(frame) && !g.benchmarkDone)
     {
@@ -438,10 +504,33 @@ void gui(EngineApp& app)
     const bool fDown = !ImGui::GetIO().WantCaptureKeyboard && ImGui::IsKeyDown(ImGuiKey_F);
     if (fDown && !g.fWasDown) g.walkMode = !g.walkMode;
     g.fWasDown = fDown;
+    // T toggles the terraform mode; 1..4 select the op; the mouse buttons outside ImGui windows edit (S22)
+    const bool keys  = !ImGui::GetIO().WantCaptureKeyboard;
+    const bool tDown = keys && ImGui::IsKeyDown(ImGuiKey_T);
+    if (tDown && !g.tWasDown) g.terraformMode = !g.terraformMode;
+    g.tWasDown = tDown;
+    if (g.terraformMode && keys)
+    {
+        const ImGuiKey digits[4] = {ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4};
+        for (int i = 0; i < 4; ++i)
+            if (ImGui::IsKeyDown(digits[i])) g.terraformOp = i;
+    }
+    const bool mouse = g.terraformMode && !ImGui::GetIO().WantCaptureMouse;
+    g.leftHeld       = mouse && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    g.rightHeld      = mouse && ImGui::IsMouseDown(ImGuiMouseButton_Right);
     // Below the debug UI's bar, at the left (the debug panel is docked at the right)
     ImGui::SetNextWindowPos(ImVec2(10, app.debugUi().barHeight() + 10), ImGuiCond_FirstUseEver);
     ImGui::Begin("World", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Checkbox("walk mode (F)", &g.walkMode);
+    ImGui::Checkbox("terraform mode (T)", &g.terraformMode);
+    if (g.terraformMode)
+    {
+        const char* ops = "add\0subtract\0flatten\0smooth\0";
+        ImGui::Combo("brush (1-4)", &g.terraformOp, ops);
+        ImGui::SliderFloat("brush radius", &g.terraformRadius, 1, float(kMaxBrushRadius));
+        ImGui::SliderFloat("brush strength", &g.terraformStrength, 0.05f, 8.0f);
+        ImGui::TextUnformatted("left: raise / apply, right: lower (10 edits/s)");
+    }
     ImGui::SliderFloat("eye height", &g.eyeHeight, 0.5f, 50.0f);
     ImGui::SliderFloat("speed", &app.cameraSpeed(), 1, 200);
     ImGui::SliderFloat("speed fast", &app.cameraSpeedFast(), 10, 2000);
