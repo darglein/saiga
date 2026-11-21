@@ -15,11 +15,17 @@ namespace Engine
 {
 FrameStatistics::FrameStatistics(double keepSeconds, size_t maxFrames) : keep(keepSeconds), maxFrames(maxFrames) {}
 
-void FrameStatistics::addFrame(double intervalMs, double workMs, const std::array<double, 3>& waitParts)
+void FrameStatistics::advance(double ms)
+{
+    time += std::max(ms, 0.0) / 1000;
+    trim();
+}
+
+void FrameStatistics::addFrame(double intervalMs, double workMs, const std::array<double, 3>& waitParts, int steps)
 {
     time += std::max(intervalMs, 0.0) / 1000;
     frameLog.push_back(
-        {time, std::max(intervalMs, 0.0), std::clamp(workMs, 0.0, std::max(intervalMs, 0.0)), waitParts});
+        {time, std::max(intervalMs, 0.0), std::clamp(workMs, 0.0, std::max(intervalMs, 0.0)), waitParts, steps});
     trim();
 }
 
@@ -79,6 +85,7 @@ std::vector<int> FrameStatistics::shownRefreshes(const std::vector<double>& inte
         t += intervals[i];
         const long long k = std::llround(t / periodMs);
         int shown         = int(k - last);
+        bool absorbed     = false;
         if (shown < 1)
         {
             // A catch-up frame (it came before the next refresh): the swap chain queue absorbed an earlier late frame
@@ -88,13 +95,15 @@ std::vector<int> FrameStatistics::shownRefreshes(const std::vector<double>& inte
                 if (out[j] > 1)
                 {
                     out[j]--;
+                    absorbed = true;
                     break;
                 }
             }
             shown = 1;
         }
         out[i] = shown;
-        last   = std::max(k, last + 1);
+        // The grid position: the refreshes shown so far (an absorbed late frame gave its extra refresh back)
+        last = absorbed ? last : std::max(k, last + 1);
     }
     return out;
 }
@@ -141,6 +150,7 @@ FrameStatistics::Summary FrameStatistics::summarize(double windowSeconds, double
         idle.push_back(it->interval - it->work);
         out.seconds += it->interval / 1000;
         for (size_t k = 0; k < 3; ++k) out.waitParts[k] += it->waitParts[k];
+        out.steps += it->steps;
     }
     if (!interval.empty())
         for (double& w : out.waitParts) w /= double(interval.size());

@@ -229,6 +229,10 @@ class SAIGA_ENGINE_API EngineApp
         bool valid = false;
     } shownStatistics;
     void refreshShownStatistics();
+    // The last frame counts in the frame statistics (presented, after the warm-up) and the steps it ran
+    bool pendingCounted  = false;
+    int pendingSteps     = 0;
+    double lastRefreshHz = 0;  // the display's refresh rate of the last statistics refresh
     void checkStatisticsReset();
     void clearFrameStatistics();
     double sessionPeriodMs = 0;  // the shortest refresh period measured in this session (vsync)

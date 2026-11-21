@@ -44,6 +44,7 @@ class SAIGA_ENGINE_API FrameStatistics
     {
         double seconds = 0;  // the time the window's frames cover
         Series interval, work, idle, gpu;
+        int steps = 0;  // the world steps of the window's frames
         // Frames longer than max(1.5 x the median, the median + 1 ms) (a missed refresh with vsync is 2 x; the 1 ms
         // keeps sub-millisecond jitter at high frame rates out)
         int longFrames = 0;
@@ -69,7 +70,10 @@ class SAIGA_ENGINE_API FrameStatistics
     explicit FrameStatistics(double keepSeconds = 30, size_t maxFrames = 30000);
 
     // A frame: its interval, its CPU work (the work is clamped to the interval) and the parts of its wait (ms)
-    void addFrame(double intervalMs, double workMs, const std::array<double, 3>& waitParts = {});
+    void addFrame(double intervalMs, double workMs, const std::array<double, 3>& waitParts = {}, int steps = 0);
+    // Time without a shown frame (rendering suspended, a minimized window): the clock advances, old frames age out of
+    // the window, no interval is added (the suspension is no long frame)
+    void advance(double ms);
     // A completed GPU frame (ms) of the frame that ended at the given time (now() when it was rendered; the GPU times
     // arrive a few frames later)
     void addGpu(double gpuMs, double atTime);
@@ -86,6 +90,7 @@ class SAIGA_ENGINE_API FrameStatistics
     {
         double time, interval, work;
         std::array<double, 3> waitParts;
+        int steps;  // the world steps the frame ran
     };
     struct Gpu
     {

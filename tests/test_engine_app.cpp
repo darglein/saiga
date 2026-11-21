@@ -402,6 +402,9 @@ TEST(FrameStatistics, WindowTailAndStutter)
     EXPECT_EQ(FrameStatistics::shownRefreshes({9.1, 3.0}, 6.06), (std::vector<int>{1, 1}));
     EXPECT_EQ(FrameStatistics::shownRefreshes({12.1, 6.06}, 6.06), (std::vector<int>{2, 1}));  // a real miss
     EXPECT_EQ(FrameStatistics::shownRefreshes({5.2, 6.8, 5.2, 6.8}, 6.0), (std::vector<int>{1, 1, 1, 1}));
+    // Regression (CodeRabbit): after an absorbed late frame the grid position kept the extra refresh, so a real miss
+    // right after it was lost
+    EXPECT_EQ(FrameStatistics::shownRefreshes({9.1, 3.0, 12.12}, 6.06), (std::vector<int>{1, 1, 2}));
     FrameStatistics hitch;
     for (int i = 0; i < 50; ++i) hitch.addFrame(6.06, 0.5);
     hitch.addFrame(9.1, 0.5);
@@ -435,6 +438,11 @@ TEST(FrameStatistics, PacingAndTrim)
     EXPECT_NEAR(s.seconds, 1.0, 0.01);
     EXPECT_LE(fs.frames(), 168u);
     EXPECT_EQ(fs.recentIntervals(4), (std::vector<float>{4, 8, 4, 8}));
+    // Suspended rendering: the clock advances, the old frames age out, no long frame is added
+    fs.advance(2000);
+    EXPECT_EQ(fs.summarize(1).interval.samples, 0);
+    fs.addFrame(4, 1, {}, 2);
+    EXPECT_EQ(fs.summarize(1).steps, 2);
     fs.clear();
     EXPECT_EQ(fs.summarize(10).interval.samples, 0);
 }

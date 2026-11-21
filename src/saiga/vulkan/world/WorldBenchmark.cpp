@@ -305,9 +305,18 @@ std::string WorldBenchmark::summaryText(const json11::Json& r, const json11::Jso
     row("GPU busy", r["gpu_frame_ms"]["gpu"]);
     // What limits the frame rate (no vsync in a benchmark): the busy times against the mean interval (the frames' time)
     const double frameMs = r["frame_interval_ms"]["mean"].number_value();
-    const double gpuMs   = r["gpu_frame_ms"]["gpu"]["mean"].number_value();
-    const double workMs  = r["frame_work_ms"]["mean"].number_value();
-    if (frameMs > 0)
+    // No GPU times (no timestamps): no GPU utilization and no verdict
+    const bool hasGpu   = r["gpu_frame_ms"]["gpu"]["mean"].is_number();
+    const double gpuMs  = r["gpu_frame_ms"]["gpu"]["mean"].number_value();
+    const double workMs = r["frame_work_ms"]["mean"].number_value();
+    if (frameMs > 0 && !hasGpu)
+    {
+        std::snprintf(line, sizeof(line),
+                      "no GPU times (timestamps not supported): CPU busy %.0f%% of the frame time\n",
+                      100 * workMs / frameMs);
+        out += line;
+    }
+    else if (frameMs > 0)
     {
         const double gpu = gpuMs / frameMs, cpu = workMs / frameMs;
         // Neither fills the frame: the largest wait (the frame slot, the image acquire, the present)

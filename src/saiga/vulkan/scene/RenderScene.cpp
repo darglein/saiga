@@ -640,6 +640,11 @@ std::array<double, 3> RenderScene::lastWaitParts() const
     return {renderer->lastSlotWaitMs(), renderer->lastAcquireWaitMs(), renderer->lastPresentWaitMs()};
 }
 
+bool RenderScene::lastPresented() const
+{
+    return renderer->lastPresented();
+}
+
 bool RenderScene::vsync() const
 {
     return renderer->vsync();

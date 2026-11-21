@@ -50,6 +50,7 @@ void WorldRenderer::attach(RenderScene& scene)
     lastGpuFrame = scene.frames();
     buckets.clear();
     current        = Bucket();
+    sectionCount   = 0;
     shown          = Shown();
     bucketGpuFrame = scene.frames();
     settings.clamp();
@@ -126,14 +127,15 @@ void WorldRenderer::update()
     if (gpu.frame > bucketGpuFrame)
     {
         bucketGpuFrame = gpu.frame;
-        current.gpuSum += gpu.gpuMs;
-        // The sections by position (RenderScene::gpuSectionNames, a fixed list); a different count starts anew
-        if (current.gpuSectionSum.size() != gpu.gpuSectionMs.size())
+        // The sections by position (RenderScene::gpuSectionNames, a fixed list); a different layout starts anew
+        if (gpu.gpuSectionMs.size() != sectionCount)
         {
-            current = Bucket();
-            current.gpuSectionSum.assign(gpu.gpuSectionMs.size(), 0.0);
+            sectionCount = gpu.gpuSectionMs.size();
+            current      = Bucket();
             buckets.clear();
         }
+        current.gpuSectionSum.resize(sectionCount, 0.0);
+        current.gpuSum += gpu.gpuMs;
         for (size_t i = 0; i < gpu.gpuSectionMs.size(); ++i) current.gpuSectionSum[i] += gpu.gpuSectionMs[i];
         current.gpuFrames++;
     }
@@ -179,12 +181,15 @@ void WorldRenderer::rotateBuckets()
         bucketStarted = true;
         bucketStart   = now;
     }
-    // A full bucket enters the window (the last kShownSeconds / kRefreshSeconds buckets)
+    // A full bucket enters the window (the buckets of the last kShownSeconds)
     if (now - bucketStart < std::chrono::duration<double>(kRefreshSeconds)) return;
+    current.end = now;
     if (current.cpuFrames > 0 || current.gpuFrames > 0) buckets.push_back(current);
     current     = Bucket();
     bucketStart = now;
-    while (buckets.size() > size_t(std::lround(kShownSeconds / kRefreshSeconds))) buckets.pop_front();
+    // Expired by time (after a pause of the updates the old buckets are older than kShownSeconds)
+    while (!buckets.empty() && now - buckets.front().end >= std::chrono::duration<double>(kShownSeconds))
+        buckets.pop_front();
     Bucket sum;
     for (const Bucket& b : buckets)
     {

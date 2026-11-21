@@ -97,6 +97,8 @@ class SAIGA_VULKAN_API RenderScene
     double lastWaitMs() const;
     // Its parts (VulkanRenderer::lastSlotWaitMs, lastAcquireWaitMs, lastPresentWaitMs): {slot, acquire, present}
     std::array<double, 3> lastWaitParts() const;
+    // The last frame was presented (headless: rendered); renderFrame's result only says it was submitted
+    bool lastPresented() const;
     // True if presented with vsync (the frame rate follows the display)
     bool vsync() const;
     bool headless() const;

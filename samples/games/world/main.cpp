@@ -62,6 +62,7 @@ struct WorldGame
     // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastBeforeRender;
     bool hasLastBeforeRender = false;
+    double frameWork         = 0;  // the app's CPU work of the attempts of the frame of lastBeforeRenderFrame
     // The RenderScene frame of lastBeforeRender: a frame that was not submitted is attempted again with the same number
     // (its interval runs from the first attempt, so a stall stays in the result)
     uint64_t lastBeforeRenderFrame = 0;
@@ -174,21 +175,26 @@ void beforeRender(EngineApp& app)
 
     // The CPU times of the previous frame: its interval (until now) and its recording and submit
     const auto now = std::chrono::steady_clock::now();
+    // The app's CPU work of the last loop belongs to the frame it attempted: summed over every attempt of a frame (a
+    // frame that was not submitted is attempted again with the same number)
+    {
+        Profiler& fp = app.frameProfile();
+        double work  = 0;
+        if (g.hasLastBeforeRender && fp.enabled && fp.lastSample(fp.scope("work"), work)) g.frameWork += work;
+    }
     if (!g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame)
     {
         if (g.bench && g.hasLastBeforeRender)
         {
             Vulkan::WorldBenchmark::Sample sample;
-            sample.frame      = frame - 1;
-            sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
-            sample.workMs     = scene.lastRecordingMs();
-            // The app's CPU work of that frame (the frame without the waits): the newest sample of the work scope
-            Profiler& fp = app.frameProfile();
-            double work  = 0;
-            if (fp.enabled && fp.lastSample(fp.scope("work"), work)) sample.frameWorkMs = work;
+            sample.frame       = frame - 1;
+            sample.intervalMs  = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
+            sample.workMs      = scene.lastRecordingMs();
+            sample.frameWorkMs = g.frameWork;
             sample.waitPartsMs = scene.lastWaitParts();
             g.bench->addSample(sample);
         }
+        g.frameWork             = 0;
         g.lastBeforeRender      = now;
         g.lastBeforeRenderFrame = frame;
         g.hasLastBeforeRender   = true;

@@ -133,6 +133,9 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     double lastSlotWaitMs() const { return slotWaitMs; }
     double lastAcquireWaitMs() const { return acquireWaitMs; }
     double lastPresentWaitMs() const { return presentWaitMs; }
+    // The last render call presented its frame (headless: rendered it); false for a frame that was not submitted or
+    // that the presentation engine rejected (an out-of-date swap chain)
+    bool lastPresented() const { return presented; }
     // True if the frames are presented with vsync (FIFO): the frame rate follows the display; false when headless
     bool vsync() const { return !isHeadless() && vulkanParameters.vsync; }
     // The GPU section times of the oldest completed frame not yet taken (FrameTimings::popCompleted)
@@ -236,6 +239,7 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     double recordingMs  = 0;
     double waitMs       = 0;
     double slotWaitMs = 0, acquireWaitMs = 0, presentWaitMs = 0;
+    bool presented = false;
     // The window's framebuffer size when the swap chain was created
     ivec2 swapChainFramebufferSize = ivec2(0, 0);
     std::array<FrameSync, framesInFlight> frames;

@@ -626,14 +626,23 @@ void EngineApp::frame(double dt)
     lastFrameWaitMs       = 0;
     const auto waitParts  = lastFrameWaitParts;
     lastFrameWaitParts    = {};
-    // The last frame's interval ends now: it enters the statistics with its work (not in the first kWarmupSeconds:
-    // loading, pipeline creation and the first swap chain images are no stutter of the game)
+    // A profile reset (reset_profile in the last loop's poll) applies before new samples
+    checkStatisticsReset();
+    // The last frame's interval ends now. It enters the statistics with its work and steps if it counts (decided when
+    // it was rendered: presented, after the warm-up), its GPU time (arriving later) at the same time. Without a counted
+    // frame (rendering suspended, a minimized window, a rejected present) the clock advances: old frames age out and
+    // the gap is no long frame
     runSeconds += dt;
-    // Only a presented frame (a frame without rendering, e.g. a minimized window, is paced to the step rate and was
-    // never shown)
-    if (pendingWorkMs >= 0 && dt > 0 && runSeconds > kStatisticsWarmupSeconds && lastFrameRendered)
-        frameStats.addFrame(dt * 1000, pendingWorkMs, waitParts);
-    pendingWorkMs = -1;
+    if (dt > 0 && pendingCounted)
+    {
+        frameStats.addFrame(dt * 1000, pendingWorkMs, waitParts, pendingSteps);
+        if (!renderedFrameTimes.empty() && renderedFrameTimes.back().second < 0)
+            renderedFrameTimes.back().second = frameStats.now();
+    }
+    else if (dt > 0 && runSeconds > kStatisticsWarmupSeconds)
+        frameStats.advance(dt * 1000);
+    pendingCounted = false;
+    pendingSteps   = 0;
     {
         {
             Profiler::Timer t(frameProfiler, scopePoll);
@@ -645,7 +654,8 @@ void EngineApp::frame(double dt)
             Profiler::Timer t(frameProfiler, scopeAdvance);
             const uint64_t before = gameWorld->stepIndex();
             advanceWorlds(dt);
-            frameProfiler.setCounter(counterSteps, double(gameWorld->stepIndex() - before));
+            pendingSteps = int(gameWorld->stepIndex() - before);
+            frameProfiler.setCounter(counterSteps, double(pendingSteps));
             frameProfiler.setCounter(counterDropped, double(droppedTotal() - droppedBefore));
             droppedBefore = droppedTotal();
         }
@@ -656,12 +666,13 @@ void EngineApp::frame(double dt)
             renderFrame();
         }
     }
+    // The work also without the profiler (the frame statistics do not depend on it)
+    const double frameMs =
+        std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
+    pendingWorkMs = std::max(frameMs - lastFrameWaitMs, 0.0);
     if (timed)
     {
-        const double frameMs =
-            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
         frameProfiler.add(scopeFrame, frameMs);
-        pendingWorkMs = std::max(frameMs - lastFrameWaitMs, 0.0);
         frameProfiler.add(scopeWork, pendingWorkMs);
     }
     frameProfiler.setCounter(counterFps, dt > 0 ? 1.0 / dt : 0.0);
@@ -868,9 +879,10 @@ void EngineApp::renderFrame()
     frameProfiler.add(scopeWait, lastFrameWaitMs);
     if (!rendered) return;
     frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
-    // The time of this frame in the frame statistics, for its GPU time that arrives later
-    // (not in the warm-up: its GPU times are left out as its frames are)
-    if (runSeconds > kStatisticsWarmupSeconds) renderedFrameTimes.push_back({renderScene->frames(), frameStats.now()});
+    // Whether the frame counts in the frame statistics, decided once for its CPU interval and its GPU time: presented
+    // (not rejected by the presentation engine) and after the warm-up. Its time is set when its interval is added
+    pendingCounted = renderScene->lastPresented() && runSeconds > kStatisticsWarmupSeconds;
+    if (pendingCounted) renderedFrameTimes.push_back({renderScene->frames(), -1.0});
     if (renderedFrameTimes.size() > 64) renderedFrameTimes.pop_front();
     lastFrameRendered = true;
     framesRendered++;
@@ -1096,7 +1108,13 @@ void EngineApp::refreshShownStatistics()
     s.at               = std::chrono::steady_clock::now();
     s.valid            = true;
     // The display's refresh rate as reported (the window may have moved to another monitor)
-    s.refreshHz         = appWindow ? appWindow->refreshRateHz() : 0.0;
+    s.refreshHz = appWindow ? appWindow->refreshRateHz() : 0.0;
+    // A display with another refresh rate (the window moved): its period does not apply to the old frames
+    if (s.refreshHz != lastRefreshHz)
+    {
+        if (lastRefreshHz > 0 && s.refreshHz > 0) clearFrameStatistics();
+        lastRefreshHz = s.refreshHz;
+    }
     const double window = kStatisticsWindows[size_t(statisticsWindowIndex)];
     const bool vsync    = renderScene && renderScene->vsync();
     s.summary           = frameStats.summarize(window);
@@ -1114,10 +1132,8 @@ void EngineApp::refreshShownStatistics()
         s.periodMs = s.summary.interval.median;
     // The time the graph covers: the window, or the time since the statistics started until it is full
     s.graphSpan = std::max(std::min(window, frameStats.now() - frameStats.firstTime()), 1.0);
-    // The steps of the same time (one sample per step)
-    const World& w = *gameWorld;
-    s.stepReport =
-        gameWorld->profiler().report(std::max(1, int(std::lround(std::max(s.summary.seconds, w.dt()) / w.dt()))));
+    // The steps the window's frames ran (none while the world is paused: no table of older steps)
+    s.stepReport = s.summary.steps > 0 ? gameWorld->profiler().report(s.summary.steps) : json11::Json();
 }
 
 EngineApp::Verdict EngineApp::statisticsVerdict() const
@@ -1157,9 +1173,11 @@ EngineApp::Verdict EngineApp::statisticsVerdict() const
     }
     else if (busy >= 0.85 * period)
         std::snprintf(text, sizeof(text), "Limited by the %s (no vsync)", limit);
-    else
+    else if (sum.waitParts[waitMax] >= 0.05)
         std::snprintf(text, sizeof(text), "Limited by waits for %s (%.2f ms per frame; no vsync)", waitNames[waitMax],
                       sum.waitParts[waitMax]);
+    else
+        std::snprintf(text, sizeof(text), "Limit undetermined: neither the CPU, the GPU nor a wait fills the frame");
     v.text = text;
     return v;
 }
@@ -1390,6 +1408,7 @@ void EngineApp::statisticsWindow()
     if (ImGui::CollapsingHeader("Simulation (world steps)"))
     {
         ImGui::TextDisabled("per step at %.0f steps/s: a frame runs as many steps as are due", 1.0 / gameWorld->dt());
+        if (report.is_null()) ImGui::TextDisabled("no world steps in the window (paused)");
         if (ImGui::BeginTable("scopes", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 220)))
         {
             ImGui::TableSetupColumn("scope", ImGuiTableColumnFlags_WidthStretch, 3.0f);
@@ -1445,7 +1464,7 @@ void EngineApp::collectGpuTimes()
         for (const auto& v : entry.values) gpuProfiler.add(v.first, v.second);
         // At the time of its frame; frames of the warm-up (no time) are left out
         for (const auto& [frame, time] : renderedFrameTimes)
-            if (frame == t.frame) frameStats.addGpu(t.gpuMs, time);
+            if (frame == t.frame && time >= 0) frameStats.addGpu(t.gpuMs, time);
         gpuProfiler.endSample();
         gpuLog.push_back(std::move(entry));
         if (gpuLog.size() > kGpuLogSize) gpuLog.pop_front();

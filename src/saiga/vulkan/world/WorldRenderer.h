@@ -161,8 +161,10 @@ class SAIGA_VULKAN_API WorldRenderer
         int gpuFrames           = 0;
         double terrainSelectSum = 0, grassCullSum = 0, recordingSum = 0;
         int cpuFrames = 0;
+        std::chrono::steady_clock::time_point end;  // when the bucket was completed
     };
     std::deque<Bucket> buckets;
+    size_t sectionCount = 0;  // the GPU section layout of the buckets
     Bucket current;
     uint64_t bucketGpuFrame = 0;
     std::chrono::steady_clock::time_point bucketStart;

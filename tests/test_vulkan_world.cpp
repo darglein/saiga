@@ -335,7 +335,10 @@ TEST(WorldBenchmark, SummaryText)
     // Without GPU times (no timestamps)
     r["gpu_frame_ms"] = Json();
     r["gpu_ms"]       = Json();
-    EXPECT_FALSE(WorldBenchmark::summaryText(r).empty());
+    // Regression (CodeRabbit): missing GPU times were a "GPU busy 0%" verdict
+    text = WorldBenchmark::summaryText(r);
+    EXPECT_NE(text.find("no GPU times"), std::string::npos) << text;
+    EXPECT_EQ(text.find("GPU busy 0%"), std::string::npos) << text;
 }
 
 TEST(WorldBenchmark, Paths)

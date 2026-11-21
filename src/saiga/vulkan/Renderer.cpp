@@ -156,6 +156,7 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
 {
     // A frame that is not rendered waited for nothing
     waitMs = slotWaitMs = acquireWaitMs = presentWaitMs = 0;
+    presented                                           = false;
     using Clock                                         = std::chrono::steady_clock;
     auto waited                                         = [this](Clock::time_point since, double& part)
     {
@@ -163,12 +164,19 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
         part += ms;
         waitMs += ms;
     };
+    // A swap chain recovery waits for the device (idle time, not work: counted as the frame slot's wait)
+    auto resetWaited = [&]()
+    {
+        const auto start = Clock::now();
+        reset();
+        waited(start, slotWaitMs);
+    };
 
     // A minimized window has a 0x0 framebuffer, for which no swap chain can be created.
     ivec2 framebuffer_size = window.getFramebufferSize();
     if (framebuffer_size.x() <= 0 || framebuffer_size.y() <= 0)
     {
-        if (state == State::RENDERABLE) reset();
+        if (state == State::RENDERABLE) resetWaited();
         return;
     }
 
@@ -177,7 +185,7 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     // can differ from it by clamping).
     if (state == State::RENDERABLE && framebuffer_size != swapChainFramebufferSize)
     {
-        reset();
+        resetWaited();
     }
 
     if (state == State::RESET)
@@ -217,7 +225,7 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
         waited(acquireStart, acquireWaitMs);
         if (err == VK_ERROR_OUT_OF_DATE_KHR)
         {
-            reset();
+            resetWaited();
             return;
         }
         // VK_SUBOPTIMAL_KHR is a success code: the image was acquired, so render and present it and recreate the swap
@@ -235,6 +243,8 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     render(frame);
     recordingMs = std::chrono::duration<double, std::milli>(Clock::now() - recordStart).count();
     submitted++;
+    // Headless: the offscreen image is the frame (nothing to present)
+    if (isHeadless()) presented = true;
     sync.timelineValue = frame.timelineValue;
 
     if (!isHeadless())
@@ -243,6 +253,7 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
         const auto presentStart = Clock::now();
         err                     = swapChain.queuePresent(base().mainQueue, frame.imageIndex, frame.renderComplete);
         waited(presentStart, presentWaitMs);
+        presented = err == VK_SUCCESS || err == VK_SUBOPTIMAL_KHR;
     }
 
     base().finish_frame();
@@ -250,7 +261,7 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
 
     if (err == VK_ERROR_OUT_OF_DATE_KHR || err == VK_SUBOPTIMAL_KHR || suboptimal)
     {
-        reset();
+        resetWaited();
         return;
     }
     VK_CHECK_RESULT(err);

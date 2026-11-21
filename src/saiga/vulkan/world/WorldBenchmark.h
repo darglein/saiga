@@ -59,13 +59,14 @@ class SAIGA_VULKAN_API WorldBenchmark
         // The CPU work of the frame (ms): the app's frame/render/recording (-1: none); not comparable with the S03
         // value (the world renderer's transfer() + render())
         double workMs = -1;
+        // The GPU times (ms) by the S03 keys of gpuKeys() (empty: no GPU part)
+        std::map<std::string, double> sectionMs;
+        // (After sectionMs: aggregate initializers like {g, -1, -1, gpuMs} keep their meaning)
         // The app's CPU work of the frame (ms): the frame without the render's waits for the frame slot, the swap chain
-        // image and the present (-1: none); the "CPU work" of the engine statistics
+        // image and the present, of every attempt of the frame (-1: none); the "CPU busy" of the engine statistics
         double frameWorkMs = -1;
         // The CPU's waits of the frame (ms): the frame slot, the image acquire, the present ({-1, ...}: none)
         std::array<double, 3> waitPartsMs = {-1, -1, -1};
-        // The GPU times (ms) by the S03 keys of gpuKeys() (empty: no GPU part)
-        std::map<std::string, double> sectionMs;
     };
 
     // The known benchmarks: "flyover", "forest"
