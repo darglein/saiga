@@ -1576,6 +1576,13 @@ Implementation (steps 8-11):
 - Added beyond the Files list: `tests/content_lint.h` (the scanner), `tests/test_engine_content_benchmark.cpp` (the
   non-gating benchmarks of the Tests section), `.gitattributes` (the lint fixture keeps its mixed line ends on every
   checkout).
+- **Implementation review** (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack): round 1 (10, minor):
+  `contentRotation` normalised with `std::sqrt` (R-CONTENT-1 forbids libm) -> fixed (`S23a review`): the Q30 values
+  scaled exactly, not normalised (`cos^2 + sin^2` of the table is within 2^-28 of 1). Round 1 (9, moved here from S22,
+  where `generationMismatch` did not exist yet): `onTerrainModification` / `onTerrainChunkState` applied after a refused
+  `GenerationState` -> fixed in the same commit with the S23b handlers' guard. Round 2: no S23a finding; the S20 fixes
+  below this branch were rebased in (`TerrainSystem::height` keeps the space's `hasTerrain` flag before the NaN check;
+  `replaceSources` no longer clears the removed per-tile pyramid heights).
 
 ## Design changes
 
