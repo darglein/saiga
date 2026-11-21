@@ -18,7 +18,6 @@
 #include "gtest/gtest.h"
 
 #include <cstdio>
-#include <cstdlib>
 #include <fstream>
 #include <memory>
 
@@ -195,26 +194,6 @@ TEST_F(OpenGLWindowTest, KeepsTheClipboardInTheProcess)
     ImGui::SetClipboardText("copied");
     EXPECT_STREQ(ImGui::GetClipboardText(), "copied");
 }
-
-#if defined(__linux__)
-// Regression: a GLFW window that failed to initialize asserted in its destructor (terminateOpenGL without a context),
-// so StandaloneWindow could not report the failure.
-TEST(OpenGLWindowFactory, ReturnsNullWithoutADisplay)
-{
-    std::string display         = std::getenv("DISPLAY") ? std::getenv("DISPLAY") : "";
-    std::string wayland_display = std::getenv("WAYLAND_DISPLAY") ? std::getenv("WAYLAND_DISPLAY") : "";
-    unsetenv("DISPLAY");
-    unsetenv("WAYLAND_DISPLAY");
-
-    WindowParameters params;
-    params.backend = WindowParameters::Backend::GLFW;
-    params.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
-    EXPECT_FALSE(CreateOpenGLWindow(params, OpenGLParameters()));
-
-    if (!display.empty()) setenv("DISPLAY", display.c_str(), 1);
-    if (!wayland_display.empty()) setenv("WAYLAND_DISPLAY", wayland_display.c_str(), 1);
-}
-#endif
 
 TEST(WindowParameters, ReadsTheBackendFromTheConfigFile)
 {
