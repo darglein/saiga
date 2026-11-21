@@ -7,6 +7,10 @@
 // The content generation (docs/engine_design.md §12.1, §15.3, R-CONTENT-1; S23a): the fixed-point toolkit and the
 // integer lint (this unit is compiled with trapping UBSan on the Clang CI job, SAIGA_CONTENT_UBSAN).
 
+#include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/api/ComponentJson.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/ContentHashFile.h"
@@ -14,6 +18,7 @@
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Prefab.h"
 #include "saiga/engine/content/PrefabStore.h"
+#include "saiga/engine/content/Systems.h"
 #include "saiga/engine/content/gen/AuthoredSpaceGenerator.h"
 #include "saiga/engine/content/gen/FixedMath.h"
 #include "saiga/engine/content/gen/FlatGenerator.h"
@@ -21,6 +26,7 @@
 #include "saiga/engine/content/gen/TrigTable.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
+#include "saiga/engine/core/LogRing.h"
 #include "saiga/engine/core/StreamingPool.h"
 #include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
@@ -1515,4 +1521,145 @@ TEST(PrefabDeathTest, PlanErrorsAreFatal)
     EXPECT_DEATH(with("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8], "entities": [{"class": "TestMarker",
         "position": [0.1, 0, 0]}]})"),
                  "test_shrine.json: entities\\[0\\].position\\[0\\]: not an exact");
+}
+
+// ---- Stamping (S23a step 9) -----------------------------------------------------------------------------------------
+
+namespace
+{
+// Destroys itself in onSpawn (a prefab component cannot be applied any more: logged and counted)
+class TestVanish final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(ContentTest::ContentTestClass::Count);
+    static constexpr const char* name = "TestVanish";
+    void onSpawn() override { destroy(); }
+};
+
+void vanishClasses(ClassList& c)
+{
+    ContentTest::registerContentTestClasses(c);
+    c.add<TestVanish>();
+}
+
+Entity addPlayer(World& w, const Vec3& p, SpaceId space = 0)
+{
+    const Entity e = w.createIn(space);
+    w.get<Transform>(e).setPosition(p);
+    w.add<Player>(e);
+    return e;
+}
+
+template <class T>
+std::vector<Entity> entitiesOf(World& w)
+{
+    std::vector<Entity> out;
+    w.viewAll<const Behaviour>().each(
+        [&](Entity e, const Behaviour& b)
+        {
+            if (b.classId == T::id) out.push_back(e);
+        });
+    return out;
+}
+}  // namespace
+
+// The stamp system is registered only when some plan has sites (and gets its profiler scope)
+TEST(Stamp, RegisteredOnlyWithSites)
+{
+    World content(ContentTest::contentTestSetup(2));
+    bool found = false;
+    for (const auto& s : content.systemList().systems(Phase::Streaming)) found = found || s.name == "chunk_stamp";
+    EXPECT_TRUE(found);
+    EXPECT_EQ(content.systemList().systems(Phase::Streaming).front().name, "chunk_stamp");
+    WorldSetup flat;
+    World plain(flat);
+    EXPECT_TRUE(plain.systemList().systems(Phase::Streaming).empty());
+    EXPECT_TRUE(plain.contentRecords().empty());
+}
+
+// During a step: a class that adds Health in onSpawn gets the prefab's value (no "already has" assert); a class that
+// adds nothing gets the prefab's component at the phase-7 flush through addDefaultById; positions and yaws exact; the
+// entrance's SpaceLink targets the site's instance; the record and the stamped entry; a second visit stamps nothing
+TEST(Stamp, DuringAStep)
+{
+    World w(ContentTest::contentTestSetup(2));
+    const SpaceGeneration& o = w.generation().space(0);
+    const Site& ruin         = o.plan->sites[0];
+    // 2 km away: nothing
+    const Entity player = addPlayer(w, Vec3(3100, 0, 1300));
+    w.step(2);
+    EXPECT_TRUE(entitiesOf<ContentTest::TestChest>(w).empty());
+    // Next to the site (scenario worlds lower fullRadius to 128 m; this World keeps 1000 m)
+    w.get<Transform>(player).setPosition(Vec3(1100, 0, 1200));
+    w.step(1);
+    const auto chests = entitiesOf<ContentTest::TestChest>(w);
+    ASSERT_EQ(chests.size(), 1u);
+    const Transform& t = w.read<Transform>(chests[0]);
+    // Local (2.5, 0, -1.25) rotated by one quarter turn: (-1.25, -2.5)
+    EXPECT_EQ(t.position(), Vec3(double(ruin.x) - 1.25, double(ruin.baseHeight) / 1024.0, double(ruin.z) - 2.5));
+    EXPECT_EQ(t.rotation().coeffs(), contentRotation(32768).coeffs());
+    EXPECT_EQ(w.read<Health>(chests[0]).hp, 50);
+    const auto markers = entitiesOf<ContentTest::TestMarker>(w);
+    ASSERT_GE(markers.size(), 1u);
+    // The ruin's marker (hp 7) and the shrines' (hp 3) within 1000 m
+    bool ruinMarker = false;
+    for (Entity m : markers)
+    {
+        ASSERT_TRUE(w.has<Health>(m));
+        ruinMarker = ruinMarker || w.read<Health>(m).hp == 7;
+    }
+    EXPECT_TRUE(ruinMarker);
+    const auto entrances = entitiesOf<ContentTest::TestEntrance>(w);
+    ASSERT_EQ(entrances.size(), 1u);
+    const SpaceLink& link = w.read<SpaceLink>(entrances[0]);
+    EXPECT_EQ(link.target, 2);
+    EXPECT_EQ(link.arrival, Vec3(2176.5, 0, 2180));
+    ChunkId c;
+    c.x = 4;
+    c.z = 5;
+    EXPECT_TRUE(w.contentRecords().isStamped(c));
+    ASSERT_NE(w.contentRecords().find(c), nullptr);
+    EXPECT_EQ(w.contentRecords().find(c)->placementVersion, 2);
+    const uint64_t entities = w.contentRecords().stats().entities;
+    w.get<Transform>(player).setPosition(Vec3(5000, 0, 5000));
+    w.step(2);
+    w.get<Transform>(player).setPosition(Vec3(1100, 0, 1200));
+    w.step(2);
+    EXPECT_EQ(entitiesOf<ContentTest::TestChest>(w).size(), 1u);
+    EXPECT_EQ(w.contentRecords().stats().entities, entities);
+    EXPECT_EQ(w.contentRecords().stats().failedComponents, 0u);
+}
+
+// Between steps the spawn applies at once; a stamp whose onSpawn destroys the entity is logged and counted
+TEST(Stamp, BetweenStepsAndDestroyedInOnSpawn)
+{
+    World w(ContentTest::contentTestSetup(2));
+    const ClassList::ClassInfo* info = w.classList().find("TestMarker");
+    ASSERT_NE(info, nullptr);
+    bool after     = false;
+    const Entity e = w.spawnByClassDeferred(
+        *info, 0, Vec3(1, 2, 3), contentRotation(16384),
+        [&](World& world, Entity x)
+        {
+            std::string error;
+            EXPECT_TRUE(mergeComponentValues(world, x, Health::id, json11::Json::object{{"hp", 9}}, error)) << error;
+            after = true;
+        });
+    EXPECT_TRUE(after);
+    ASSERT_TRUE(w.alive(e));
+    EXPECT_EQ(w.read<Health>(e).hp, 9);
+    EXPECT_EQ(w.read<Transform>(e).position(), Vec3(1, 2, 3));
+
+    PrefabCopy copy;
+    copy.write("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8],
+        "entities": [{"class": "TestVanish", "components": {"Health": {"hp": 4}}}]})");
+    WorldSetup s    = ContentTest::contentTestSetup(2);
+    s.dataDirectory = copy.dir.string();
+    s.classes       = vanishClasses;
+    World v(s);
+    const Site& shrine = v.generation().space(0).plan->sites[1];
+    addPlayer(v, Vec3(double(shrine.x), 0, double(shrine.z)));
+    v.step(1);
+    EXPECT_GE(v.contentRecords().stats().failedComponents, 1u);
+    EXPECT_TRUE(entitiesOf<TestVanish>(v).empty());
 }

@@ -15,8 +15,10 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
+#include "saiga/engine/content/Systems.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -65,7 +67,8 @@ World::World(const WorldSetup& setup)
             setup.sharedContent ? setup.sharedContent : std::make_shared<ContentCache>();
         GenerationPlans plans = GenerationPipeline::build(setup, GenerationPins(), *cache);
         if (!plans.ok()) SAIGA_EXIT_ERROR("content generation: " + plans.error);
-        pipeline = std::make_unique<GenerationPipeline>(std::move(plans), std::move(cache));
+        pipeline     = std::make_unique<GenerationPipeline>(std::move(plans), std::move(cache));
+        chunkRecords = std::make_unique<ChunkRecords>();
         std::vector<TerrainSpace> spaces;
         std::vector<SpaceTemplate> templates;
         for (size_t i = 0; i < pipeline->spaceCount(); ++i)
@@ -98,6 +101,9 @@ World::World(const WorldSetup& setup)
     events.validateRegistration();
 
     registerEngineSystems(systems);
+    // S23a: prefab stamping, the first system of phase 7, only when some plan has sites (before setupProfiler: it gets
+    // its profiler scope; worlds without sites have neither)
+    if (pipeline->plans().anySites) systems.add(Phase::Streaming, "chunk_stamp", chunkStampSystem, RunOn::Host);
     if (setup.systems) setup.systems(systems);
 
     if (setup.classes) setup.classes(classes);
@@ -307,6 +313,45 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
     }
     startObject(e);
     return e;
+}
+
+Entity World::spawnByClassDeferred(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
+                                   const Quat& rotation, std::function<void(World&, Entity)> afterStart)
+{
+    const Entity e = beginSpawn(space);
+    if (!e.valid()) return e;
+    const ClassList::ClassInfo* type = &info;
+    auto apply                       = [e, type, space, position, rotation, after = std::move(afterStart)](World& w)
+    {
+        // A command on an entity destroyed earlier in the same flush is dropped
+        if (!w.alive(e)) return;
+        try
+        {
+            w.finishSpawn(e, *type, space, position);
+            w.reg.get<Transform>(e).setRotation(rotation);
+        }
+        catch (...)
+        {
+            w.abandonSpawn(e);
+            throw;
+        }
+        w.startObject(e);
+        if (after) after(w, e);
+    };
+    if (deferring())
+        record(makeCommand(std::move(apply)));
+    else
+        apply(*this);
+    return e;
+}
+
+void World::recordOrRun(std::function<void(World&)> fn)
+{
+    checkNotParallel("recordOrRun");
+    if (deferring())
+        record(makeCommand(std::move(fn)));
+    else
+        fn(*this);
 }
 
 void World::runStepListeners()

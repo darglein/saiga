@@ -59,6 +59,7 @@ namespace Engine
 class GeneratorList;
 class ContentCache;
 class GenerationPipeline;
+class ChunkRecords;
 
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
@@ -452,6 +453,9 @@ class SAIGA_ENGINE_API World
     uint64_t generationSeed() const { return setupSeed; }
     // E6: the space's generator has terrain (terrain and sea drawn and streamed, terrainHeight from it)
     bool spaceHasTerrain(SpaceId space) const;
+    // The chunk records (state: the placement version per recorded chunk, the host's stamped chunks)
+    const ChunkRecords& contentRecords() const { return *chunkRecords; }
+    ChunkRecords& contentRecordsForUpdate() { return *chunkRecords; }
     // The total content hash of a chunk at the current placement version (generated synchronously through the
     // cache; the stamp and static lists come from the plan)
     uint64_t contentHash(ChunkId chunk) const;
@@ -714,6 +718,14 @@ class SAIGA_ENGINE_API World
     // tick interval, configure() and onSpawn()
     Entity spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
                         const std::function<void(Entity)>& initial);
+    // The type-erased spawn of a class during a step (S23a, prefab stamping) or between steps: the entity is reserved
+    // now; one command (at once between steps) runs the spawn (Transform at the pose, Behaviour), configure() and
+    // onSpawn(), then afterStart(world, e) (e.g. component values merged after onSpawn)
+    Entity spawnByClassDeferred(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
+                                const Quat& rotation, std::function<void(World&, Entity)> afterStart);
+    // Engine-internal: fn as a command during a step (applied at the phase's flush in recording order), at once
+    // between steps and while commands are applied
+    void recordOrRun(std::function<void(World&)> fn);
     // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
     int addStepListener(std::function<bool()> fn)
     {
@@ -1033,6 +1045,7 @@ class SAIGA_ENGINE_API World
     std::unique_ptr<TerrainSystem> terrainSys;
     // The content generation (S23a)
     std::unique_ptr<GenerationPipeline> pipeline;
+    std::unique_ptr<ChunkRecords> chunkRecords;
     uint64_t setupSeed    = 0;
     double accumulator    = 0;
     double scale          = 1;
