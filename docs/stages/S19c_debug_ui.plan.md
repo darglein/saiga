@@ -10,9 +10,11 @@ Every engine game gets one developer UI instead of loose ImGui windows:
 
 - **The top bar**: a thin bar at the top of the screen, with tabs on the left (`F1 Game`, `F2 Performance`, `F3 Engine`,
   `F4 Console`) and a compact performance summary on the right (fps, frame, CPU, GPU, step).
-- **Opening a tab**: an F-key opens its tab, and the same key closes it again.
-- **Engine tabs are docked**: F2–F4 are fixed bars at a screen edge (bottom, side), never floating windows, and they
-  share one visual language. The Game tab belongs to the game.
+- **Real tabs**: exactly one tab is selected, and an F-key selects its tab (never a toggle). **F1 Game** is the game
+  alone: no debug panel, only the top bar and the game's own GUI over the view. **F2–F4** share one docked side panel
+  below the bar.
+- **No floating windows** in the engine tabs: the panel is a fixed side bar (left by default; right or bottom
+  selectable), and F2–F4 share one visual language.
 - **The console** merges the engine log with a command line. The commands are the MCP tools, run locally.
 - **The MCP call log**: every MCP tool call is logged in the console, whether it came from an agent or from the console,
   so a developer sees what an agent is doing to the game while it happens.
@@ -41,42 +43,64 @@ The entity inspector and editor, the camera tools and the profile "freeze" follo
 ### 1. The top bar, the panels and the keys (`engine/app/DebugUi.{h,cpp}`, `EngineApp`)
 
 `DebugUi` is owned by `EngineApp` (`EngineApp::debugUi()`). `renderFrame`'s gui callback calls `DebugUi::draw()` in
-place of `statisticsWindow()`/`statisticsOverlay()`. `DebugUi` is destroyed after the MCP server (`EngineApp`'s
-destructor resets `server` first), because the server's pending local calls refer to the console.
+place of `statisticsWindow()`/`statisticsOverlay()`. `DebugUi` is a member declared before `server`, so it is
+destroyed after it (the destructor body stops the server, and members are destroyed after the body), because the
+server's pending local calls refer to the console.
 
-- **Top bar**: a window across the top, one line high (font size + 2 × 4 px padding), background alpha 0.6. On the
-  left are the tab buttons with their key (`F1 Game` …), and the open tab is highlighted. The performance summary of §2
-  is on the right. Clicking a tab button does the same as pressing its key.
-- **Panels**: one tab is open at a time. Its panel is docked to a screen edge below the top bar (§1.1).
-- **Keys** (`DebugUi::handleKeys(const InputState& now, const InputState& previous, bool captured)`, a pure function,
-  testable without a window):
-  - F1–F4 toggle their tab on the press edge, and F5–F10 toggle the game's own tabs. They also work while ImGui has the
-    keyboard (they never type text), so a focused console input does not trap the user.
-  - Grave (`` ` ``) opens the console and focuses its input, only while ImGui does not capture the keyboard. The opening
+- **Always there**: `DebugUi` exists in every mode (also with `debugUi = false`, `render.imgui = false`, `--benchmark`
+  and `noRender`), so games can call `app.debugUi().addTab(...)` in `renderHooks.init` unconditionally and the queued
+  actions work in `EngineAppNoRender` tests. When off it draws nothing and lets the keys through.
+- **Engine content stays in `EngineApp`**: the Performance tab and the bar's summary need `EngineApp`'s statistics
+  state (`shownStatistics`, `refreshShownStatistics()`, the verdict, the graph helpers). `EngineApp` registers them as
+  the Performance tab's draw callback and as the bar's summary callback (`DebugUi::setSummary(fn)`); the Engine tab is
+  registered by `EngineApp` the same way. `DebugUi` itself only knows tabs, keys, the panel, the persistence and the
+  console. The PR #66 drawing code moves from `EngineApp.cpp` into `engine/app/StatisticsPanel.{h,cpp}` (functions
+  taking the statistics state), so `EngineApp.cpp` does not grow.
+
+- **Top bar**: a window across the top, one line high (font size + 2 × 4 px padding), background alpha 0.6. From the
+  left: the tab buttons with their key (`F1 Game` …; the selected tab highlighted), and on the right the performance
+  summary of §2.
+  Clicking a tab button does the same as pressing its key.
+- **Real tabs**: there is always exactly one selected tab (F1 at the first start). F1 Game shows no panel: the view is
+  the game's, with its own GUI (§5). F2–F4 and the game's extra tabs (F5–F10) show their content in the one panel
+  (§1.1); switching between them never moves the panel.
+- **Keys** (`InputState DebugUi::handleKeys(const InputState& now, const InputState& previous, bool captured)`, a pure
+  function, testable without a window): `previous` is the raw, unfiltered state of the last frame (`previousKeys`), so
+  a held F-key is one press; the return value is `now` with F1–F10 cleared, which the app passes on:
+  - F1–F4 select their tab on the press edge, and F5–F10 the game's own tabs. Pressing the key of the selected tab
+    changes nothing (tabs, not toggles); F1 is the way back to the plain game view. The F-keys also work while ImGui has the keyboard (they never type text), so a focused
+    console input does not trap the user.
+  - Grave (`` ` ``) selects the console and focuses its input, only while ImGui does not capture the keyboard. The opening
     press is not typed into the field: the focus request takes effect in the next frame.
-  - `EngineApp::applyPlayerInput` calls `handleKeys` and clears F1–F10 from the state before `updateInputMap` and
-    `lastDeviceState`, so the input map never sees them while the debug UI is on.
+  - `EngineApp::applyPlayerInput` calls `handleKeys` with the raw states and gives the returned (filtered) state to
+    `updateInputMap` and `lastDeviceState`; `previousKeys` keeps the raw keys. The input map never sees F1–F10 while
+    the debug UI is on.
   - ESC first leaves a focused input (ImGui's own handling). It quits only when nothing is captured, as today.
   - G still hides all ImGui, including the bar. While it is hidden the F-keys still switch the tab, and the UI shows
     again only with G.
   - F12 stays the screenshot.
   - `EngineAppSetup::debugUi = false` turns the UI off (keys go to the input map, PR #66's window and overlay are not
     drawn either).
-- **State**: `debug_ui.ini` in the working directory, like ImGui's `imgui.ini`. It is not in the data directory,
+- **State**: `debug_ui.ini` in the working directory, like ImGui's `imgui.ini` (the path is a `DebugUi` constructor
+  argument, so tests use a temporary directory). It is not in the data directory,
   because the data directory is the source tree's `data/<name>`. It stores:
-  - the open tab and each tab's panel size,
+  - the selected tab, the panel's edge and its size,
   - the collapsed sections,
   - the console filters and the command history (the last 100 commands).
 
   It is read at start and written at quit, and at most once per second when something changed. Persistence is off
-  (nothing read or written) when headless, with `SAIGA_SCREENSHOT`, with `--benchmark` and when
+  (nothing read or written) when headless, with a screenshot option (`AppOptions::screenshot`: `SAIGA_SCREENSHOT` or
+  `--screenshot`), with `--benchmark` and when
   `EngineAppSetup::debugUiPersistence` is false (tests). This keeps screenshots and tests independent of the last
   session.
-- **Start tab**: `--stats` opens the Performance tab. `SAIGA_DEBUG_TAB=<n>` opens tab n (screenshots and checks). Both
+- **Start tab**: F1 Game without an ini (and always when persistence is off, unless overridden): screenshots and tests
+  show the game. `--stats` opens the Performance tab. `SAIGA_DEBUG_TAB=<n>` opens tab n (screenshots and checks). Both
   override the ini. `EngineApp::showStatistics(bool)` is removed, and so are its calls in the games (platformer, flight,
-  racing, world): the constructor already applies `--stats`.
+  racing, world): the constructor already applies `--stats`. This intentionally changes a default: racing and world no
+  longer open the statistics at start (the top bar shows the summary; §17.1 is updated).
 - **Registration**:
-  - `DebugUi::addTab(name, draw, edge)` adds a game tab on the next free key (F5…F10).
+  - `DebugUi::addTab(name, draw)` adds a game tab on the next free key (F5…F10), shown in the same panel (for game
+    debug content that wants the docked layout, e.g. AI or physics state).
   - `DebugUi::addSection(tab, title, draw)` appends a collapsible section to an engine tab. Sections are drawn in
     registration order after the engine's own content.
   - The engine tabs are `DebugTab::Game`, `Performance`, `Engine` and `Console`.
@@ -85,23 +109,21 @@ destructor resets `server` first), because the server's pending local calls refe
 - **Text**: ASCII only (`->`, `<-`, `v`), because ImGui's default font has only Basic Latin and Latin-1, and MSVC
   builds without `/utf-8`.
 
-### 1.1 Layout and look of the engine tabs (`engine/app/DebugUiStyle.{h,cpp}`)
+### 1.1 The panel and the look of the tabs (`engine/app/DebugUiStyle.{h,cpp}`)
 
-The engine tabs are fixed bars at the screen edges, not floating windows. Each panel is an ImGui window with the flags
+The panel is one fixed side bar, not a floating window, shared by all tabs except F1. It is an ImGui window with the flags
 `NoTitleBar`, `NoMove`, `NoResize` (the splitter is our own), `NoCollapse`, `NoSavedSettings`, `NoBringToFrontOnFocus`
-and `NoDocking`. It is positioned and sized every frame (`ImGuiCond_Always`) from the display size, so it cannot get
-lost and follows window resizes. Each tab has the edge that suits its content:
+and `NoDocking`, positioned and sized every frame (`ImGuiCond_Always`) from the display size, so it cannot get lost and
+follows window resizes.
 
-| Tab | Edge | Default size | Why |
-|---|---|---|---|
-| F1 Game (default container) | left side bar | 26 × font size | short game state and settings; the view stays free |
-| F2 Performance | bottom bar | 38% of the height | graphs need width: three columns (summary · frame graph · tables) |
-| F3 Engine | right side bar | 30 × font size | a property list: simulation, render settings, camera, input |
-| F4 Console | bottom bar | 40% of the height | log lines are wide, like an IDE terminal |
-
-- **Sizing**: the inner edge of a panel is a splitter: a 4 px drag handle, highlighted on hover, with the resize cursor.
-  The size is clamped to 15–70% of the screen dimension and stored per tab. Double-clicking the splitter resets the
-  default. No panel covers the top bar.
+- **Edge**: left side bar by default, from below the top bar to the screen bottom. A small button in the panel's
+  toolbar switches it between left, right and bottom (stored in `debug_ui.ini`); all tabs use the chosen edge. The
+  default width is 32 × font size (about 520 px at the default font), the bottom height 35% of the screen.
+- **Sizing**: the inner edge is a splitter: a 4 px drag handle, highlighted on hover, with the resize cursor. One size
+  for all tabs (switching tabs never changes the layout), clamped to 15–70% of the screen dimension. Double-clicking the
+  splitter resets the default. The panel never covers the top bar.
+- **Content fits the panel's shape**: tabs lay out for a narrow, tall panel (sections stacked vertically). On the bottom
+  edge, tabs with wide content use columns (the Performance tab: summary, graph and tables side by side, §3).
 - **Over the game**: the 3D view keeps its size. The panels lie over it with background alpha 0.92 and a 1 px line on
   the inner edge, so the game stays visible next to them.
 - **One visual language** (`DebugUiStyle`, used by every engine tab and offered to games):
@@ -141,9 +163,9 @@ Performance tab. When the bar is too narrow, items are dropped from the right (s
 
 | Tab | Content |
 |---|---|
-| **F1 Game** | The game's `GameRenderHooks::gui`, drawn inside the left side bar (§5). |
-| **F2 Performance** | Bottom bar in three columns.<br>• Left: PR #66's verdict, busy shares, fps / 1% low / max / missed, and the 3/10/30 s window selector.<br>• Middle: the frame graph at the column's full width and height.<br>• Right: PR #66's frame table, the step profile scopes (avg/p95/share) and the GPU sections.<br>Toolbar: "copy JSON" (the `get_profile` answer to the clipboard). The world prototype adds "World passes" as a section (§5). |
-| **F3 Engine** | Right side bar, four sections:<br>• **Simulation**: pause/resume, step 1, step 10, time scale (0.1–4), step index, dropped steps, entities, game objects, with `--coop` "client world".<br>• **Systems**: per phase the systems with avg/p95 ms from the step profile.<br>• **Rendering**: tone map and exposure (moved from the statistics window); vsync and MSAA shown read-only; the game's render settings as sections (the world prototype's "World", §5).<br>• **Camera and input**: view camera position, yaw/pitch, fovy, held by a tool; the input map's actions and held buttons; the local player. |
+| **F1 Game** | No panel: the game view with the game's own GUI, `GameRenderHooks::gui`, drawn as the game wants (§5). |
+| **F2 Performance** | Stacked sections in the side bar (three columns on the bottom edge):<br>• Summary: PR #66's verdict, busy shares, fps / 1% low / max / missed, and the 3/10/30 s window selector.<br>• Frame graph at the panel's full width.<br>• Tables: PR #66's frame table, the step profile scopes (avg/p95/share) and the GPU sections.<br>Toolbar: "copy JSON" (the `get_profile` answer to the clipboard). The world prototype adds "World passes" as a section (§5). |
+| **F3 Engine** | Four sections:<br>• **Simulation**: pause/resume, step 1, step 10, time scale (0.1–4), step index, dropped steps, entities, game objects, with `--coop` "client world".<br>• **Systems**: per phase the systems with avg/p95 ms from the step profile.<br>• **Rendering**: tone map and exposure (moved from the statistics window); vsync and MSAA shown read-only; the game's render settings as sections (the world prototype's "World", §5).<br>• **Camera and input**: view camera position, yaw/pitch, fovy, held by a tool; the input map's actions and held buttons; the local player. |
 | **F4 Console** | §4. |
 
 **UI actions run between steps, not in the gui callback.** The gui callback runs inside `RenderScene::renderFrame`
@@ -169,7 +191,7 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
   - The view reads `LogRing::since(last)` once per frame into its own buffer (at most 4096 lines). Command results go
     into that buffer too (see Execution).
 - **LogRing**: `Line` gains `double time`, steady-clock seconds since the process' first log line, filled in by
-  `logPrintf`. The `logs` tool returns it as an added key. There is no step field, because worker threads and `--coop`
+  `LogRing::add` (so every ring's lines carry it). The `logs` tool returns it as an added key. There is no step field, because worker threads and `--coop`
   host/client steps make it ambiguous.
 - **Command line**: at the bottom, with a history (Up/Down) and Tab completion of tool names (unique prefix: complete;
   ambiguous: list the candidates). The syntax:
@@ -195,26 +217,32 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
   - A local call has no waiting thread, so `poll()` enforces its deadline: past `toolTimeoutSeconds` it claims the
     call and answers "Timeout" once (the same once-flag as a late deferred answer). An unknown tool is answered with an
     error.
-  - `respond` always runs on the polling thread. A deferred answer from another thread is stored, and `poll()`
-    delivers it.
-  - `stop()` and the destructor answer pending local calls with an error even when the server never listened
-    (`mcpPort = 0`).
+  - `respond` runs on the polling thread. A deferred answer from another thread is stored, and `poll()` delivers it.
+    The only exception is `stop()` (and the destructor): it answers pending local calls with an error on the calling
+    thread, even when the server never listened (`mcpPort = 0`); in the app that is the main thread.
   - It does not block, unlike `handleMessage`.
 - **The call observer**: `McpServer::setCallObserver(std::function<void(const CallRecord&)>)`, one observer (the
   app's).
   - `CallRecord` has: `id` (a counter assigned by the server; the JSON-RPC id never reaches the tool call), `tool`,
     `arguments`, `source` (`Remote` or `Local`), `phase` (`Started` or `Answered`), `isError`, the duration in ms and
     the first text part of the answer, cut at 200 characters.
-  - Records come from several threads: a timeout is detected on the HTTP connection thread, `stop()` runs on any
-    thread, and deferred answers can come from anywhere. So the server queues them under `pendingMutex`, and `poll()`
-    delivers them to the observer on the polling thread. The observer is never called from another thread.
-- **Log lines** (`EngineApp`'s observer, category `mcp`): one line per call when it is answered:
+  - `Started` is recorded when `poll()` starts the handler (not at queue time). `Answered` records come from several
+    threads: a timeout is detected on the HTTP connection thread, and deferred answers can come from anywhere. So they
+    go into a record queue, and `poll()` delivers the queue to the observer on the polling thread; the observer is
+    never called from another thread (`stop()` drops undelivered records).
+  - The queue and its mutex live in a `shared_ptr` state that the answer callbacks capture (as they capture the
+    `shared_ptr<PendingCall>` today), never `this`: a stored callback called after the server is destroyed stays
+    harmless.
+  - `McpServer::toolNames()` and `toolInfo(name)` (description, input schema) for the console's `tools`, `help` and
+    completion.
+- **Log lines** (`engine/app/McpCallLog.{h,cpp}`: the observer that `EngineApp` installs; category `mcp`): one line per call when it is answered:
   `<tool> <arguments, compact JSON, cut at 200 chars> -> ok|error <ms> ms: <answer, cut at 200 chars>`, with
   `(console)` for local calls. A call that has not been answered after 0.5 s also gets a `<tool> ... running` line, so
   long calls are visible while they run.
 - **Flooding**: agents poll the read-only tools `logs`, `app_status`, `world_status` and `get_profile` in loops. Calls
   of those tools are logged at most once per 2 s per tool: in between they are counted, and the next line says
-  `(+N calls)`. The clock is injectable for the test.
+  `(+N calls)`; a pending count is flushed as its own line once 2 s have passed (checked in each `poll`), so the
+  last calls of a polling loop are not lost. The clock is injectable for the test.
 - **No echo**: `mcp` lines are not echoed to stdout by default (headless agent runs would print every call).
   `setLogEcho` keeps its meaning for the other categories, and `SAIGA_MCP_ECHO=1` echoes them too.
 - **The `logs` tool** leaves out the category `mcp` unless `category: "mcp"` is asked for. Otherwise an agent reading
@@ -222,10 +250,14 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
 
 ### 5. Games and the world prototype
 
-- `GameRenderHooks::gui` keeps its signature and is drawn inside the Game tab's side bar. The games (racing, flight,
-  platformer, world) remove their `ImGui::Begin/End`, and their key help moves to the top of the tab. A game may still
-  draw its own windows (the Game tab is the game's), and it may add tabs or sections in `renderHooks.init` through
-  `app.debugUi()`.
+- `GameRenderHooks::gui` keeps its signature and runs every frame in every tab (the world game toggles its walk mode
+  inside it, and game windows must not vanish while F2–F4 are open). The games keep their own small windows; they are
+  moved below the top bar (`ImGuiCond_FirstUseEver` positions under the bar's height, `DebugUi::barHeight()`), and the
+  key help names the new keys. On F2–F4 a game window on the panel's side is covered by the panel (accepted; F1 shows
+  the game alone). A game may add tabs or sections in `renderHooks.init` through `app.debugUi()`.
+- **Between-steps queue for games**: `EngineApp::queueBetweenSteps(std::function<void()>)` runs a function after the
+  next `poll()` (the same queue as the UI's actions, §3). The games' buttons that change the world (platformer
+  restart, racing and flight respawn) use it.
 - The world prototype (`game_world`, racing) draws only widgets, no windows of its own:
   - `WorldRenderer::imgui()` becomes the Engine tab section "World" (under Rendering).
   - `imguiStatistics()` (the "World Statistics" window, `WorldStatistics.cpp`) becomes the Performance tab section
@@ -255,14 +287,18 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
   command for free, `help` shows the same descriptions the agent reads, and the call log shows both sources in one
   stream. The cost is a JSON-like syntax, which the `key=value` form keeps short (`spawn class=car position=[0,1,0]`).
 - **Everything that changes the world runs between steps**: tool calls in `poll()` (local ones too) and the UI's
-  actions right after it. Nothing changes the world in the gui callback, which runs during the frame. The ordering
+  actions right after it. Nothing in the engine UI changes the world in the gui callback, which runs during the frame;
+  games get the same queue (`queueBetweenSteps`, §5). The ordering
   against agent calls is their arrival order.
 - **The observer only fires on the polling thread.** The bar, the console and the log need no locks of their own, and
   `McpServer` keeps its threading in one place.
-- **Engine tabs are docked bars, not windows.** They are positioned every frame and never saved by ImGui, so they cannot
-  get lost off-screen after a resize (an annoyance of today's loose windows). Each edge fits its content: wide graphs
-  and logs at the bottom, property lists at the side. `DebugUiStyle` gives every tab the same sections, property tables,
-  number formats and colors.
+- **Tabs in one docked panel, not windows.** One panel at one edge, shared by all tabs, uses the screen best: the game
+  view always has the same free area, and switching tabs never moves anything. The panel is positioned every frame and
+  never saved by ImGui, so it cannot get lost off-screen after a resize (an annoyance of today's loose windows).
+  `DebugUiStyle` gives every tab the same sections, property tables, number formats and colors.
+- **Tabs, not toggles.** An F-key always selects, so the key you press always shows that tab, whatever was open before.
+  The Game tab is the "no debug panel" state, so there is no separate collapse button; G still hides all ImGui (also
+  the bar and the game's GUI) for clean captures.
 - **The F-keys bypass ImGui's keyboard capture** only on the press edge and only for F1–F10. They never produce text,
   so text input is not affected.
 
@@ -274,32 +310,35 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
   - `DebugConsole.CompletesToolNames`: unique prefix, ambiguous prefix (the candidates), no match.
   - `DebugConsole.RunsToolsThroughThePoll`: a command queues a call that runs only in `poll()`; the answer is in the
     view buffer and not in the ring; an error is marked; a deferred tool answers in a later poll.
-  - `DebugUi.KeysToggleTabs`: F-key edges open, close and switch tabs; keys work while captured; grave works only when
+  - `DebugUi.KeysSelectTabs`: F-key edges select tabs (the selected tab's key changes nothing; F1 has no panel); keys work while captured; grave works only when
     not captured; F1–F10 are cleared from the state; `debugUi = false` passes them through.
-  - `DebugUi.StatePersists`: tab, sizes, sections, filters and history are written and read back (temporary
+  - `DebugUi.KeysFilterAndEdges`: a held F-key is one press; the returned state has F1–F10 cleared.
+  - `DebugUi.StatePersists`: tab, edge, size, sections, filters and history are written and read back (temporary
     directory); with persistence off nothing is read or written.
   - `DebugUi.ActionsRunAfterThePoll`: a queued step or pause from the UI is applied by `EngineApp::frame` after
     `poll()`, not during the gui callback (`EngineAppNoRender`, the step index before and after).
-  - `McpCallLog.LinesAndThrottling`: an answered call gives one `mcp` line with tool, arguments, result and duration; a
+  - `McpCallLog.LinesAndThrottling` (the class alone, a test server): an answered call gives one `mcp` line with tool, arguments, result and duration; a
     `(console)` mark for local calls; polling tools are throttled to one line per 2 s with `(+N calls)` (injected
-    clock); `mcp` lines are not echoed.
+    clock); a pending count is flushed after 2 s; `mcp` lines are not echoed.
 - `test_core_mcp_server.cpp` (extended):
   - `McpServer.CallLocal`: runs in `poll()`; unknown tool; a timeout enforced by `poll()`; a deferred answer from
     another thread is delivered by `poll()`; `stop()` answers pending local calls without `start()`.
   - `McpServer.CallObserver`: started/answered records for remote and local calls, with an error and a duration ≥ 0. A
     remote call that times out without `poll()` (the HTTP thread gives up) delivers its record at the next `poll()`,
     on the polling thread (thread id checked). Ids are unique.
-- `test_engine_core.cpp` (extended): `LogRing` lines carry a non-decreasing `time`.
+- `test_engine_core.cpp` (extended): lines added directly to a `LogRing` carry a non-decreasing `time` > 0.
 - `test_engine_world_api.cpp` (extended): `logs` leaves out `mcp` lines by default and returns them with
   `category: "mcp"`; the `time` key.
 - `test_engine_app.cpp` (extended, Vulkan, skips without a driver): `EngineAppRender.DebugUiTabsRender`. A headless app
-  renders 3 frames with each tab open (no validation error). It clicks a tab button through ImGui's input queue, as
-  `test_vulkan_standalone_window` does. An MCP call made with `handleMessage` shows up as an `mcp` line.
+  renders 3 frames with each tab selected (no validation error). It clicks a tab button through ImGui's input queue, as
+  `test_vulkan_standalone_window` does. An MCP call made with `handleMessage` on a `std::thread`, while the main thread
+  runs `app.frame()` until it is answered (not `Poller`: the handler and the observer must run on the frame thread),
+  shows up as an `mcp` line.
 
 ## Done when
 
-- The four tabs and the top bar work in racing, flight, platformer and world. The engine tabs are docked bars, and no
-  engine window floats.
+- The four tabs and the top bar work in racing, flight, platformer and world. F2–F4 share the one docked panel, F1 shows the
+  game without it, and no engine window floats.
 - MCP calls from an agent (through the `saiga-world` server) and from the console appear in the console. Polling tools
   are throttled.
 - `logs` leaves out `mcp` lines by default.
@@ -328,14 +367,15 @@ the game runs.
 ## Files
 
 - **New**:
-  - `src/saiga/engine/app/DebugUi.{h,cpp}`, `DebugUiStyle.{h,cpp}`, `DebugConsole.{h,cpp}`
+  - `src/saiga/engine/app/DebugUi.{h,cpp}`, `DebugUiStyle.{h,cpp}`, `DebugConsole.{h,cpp}`, `McpCallLog.{h,cpp}`,
+    `StatisticsPanel.{h,cpp}`
   - `tests/test_engine_debug_ui.cpp`, registered in `tests/CMakeLists.txt` under `MODULE_ENGINE`
 - **Changed**:
   - `src/saiga/engine/app/EngineApp.{h,cpp}`: owns `DebugUi`, the call observer, the key handling and the queued UI
     actions. The statistics window and overlay become the Performance tab and the top bar.
   - `src/saiga/engine/app/EngineAppSetup.h`: `debugUi`, `debugUiPersistence`.
   - `src/saiga/engine/app/EngineMain.cpp`: `--stats`, `SAIGA_DEBUG_TAB`.
-  - `src/saiga/core/util/mcp/McpServer.{h,cpp}`: `callLocal`, the observer, the record queue.
+  - `src/saiga/core/util/mcp/McpServer.{h,cpp}`: `callLocal`, the observer, the record queue, `toolNames`/`toolInfo`.
   - `src/saiga/engine/core/{LogRing,Log}.{h,cpp}`: the time, the `mcp` echo.
   - `src/saiga/engine/api/WorldApi.cpp`, `src/saiga/engine/tools/WorldTools.cpp`: `logs`.
   - `src/saiga/vulkan/world/WorldRenderer.{h,cpp}`, `WorldStatistics.cpp`: no windows.
