@@ -148,29 +148,49 @@ void World::setupProfiler()
 
 void World::createStateEntities()
 {
-    // The world-state entity and the space-state entity of space 0 exist when components are registered for them
-    // (§7.8); before S21 there is only space 0
+    // The world-state entity and one space-state entity per space (SpaceId order, S21) exist when components are
+    // registered for them (§7.8)
     bool anyGlobal = false, anySpace = false;
     for (size_t id = 0; id < kMaxComponents; ++id)
     {
         anyGlobal = anyGlobal || reg.isGlobal(ComponentId(id));
         anySpace  = anySpace || reg.isSpaceState(ComponentId(id));
     }
-    auto make = [&](uint8_t flag, bool (Registry::*is)(ComponentId) const)
+    if (anyGlobal) worldState = makeStateEntity(Registry::kWorldState, 0, nullptr);
+    if (anySpace)
+        for (size_t space = 0; space < spaceCount(); ++space)
+            spaceStates.push_back(makeStateEntity(Registry::kSpaceState, SpaceId(space), nullptr));
+}
+
+Entity World::makeStateEntity(uint8_t flag, SpaceId space, StateDefaults* defaults)
+{
+    // Not World::create: the loader creates state entities outside a step's rules
+    Entity e;
     {
-        Entity e = create();
-        reg.setFlags(e, uint8_t(reg.flags(e) | flag));
-        for (size_t id = 0; id < kMaxComponents; ++id)
-        {
-            if (!(reg.*is)(ComponentId(id))) continue;
-            auto record = log.prepare(1);
-            reg.addDefault(e, ComponentId(id));
-            record.append(e, ComponentId(id), true);
-        }
-        return e;
-    };
-    if (anyGlobal) worldState = make(Registry::kWorldState, &Registry::isGlobal);
-    if (anySpace) spaceStates.push_back(make(Registry::kSpaceState, &Registry::isSpaceState));
+        auto record = log.prepare(1);
+        e           = reg.create();
+        record.append(e, Transform::id, true);
+    }
+    reg.setFlags(e, uint8_t(reg.flags(e) | flag));
+    // A space-state entity's identity is its Transform::space (writer 6); the world-state entity stays in space 0
+    if (flag & Registry::kSpaceState) reg.get<Transform>(e).setSpaceInternal(space);
+    for (size_t id = 0; id < kMaxComponents; ++id)
+    {
+        const bool state =
+            (flag & Registry::kWorldState) ? reg.isGlobal(ComponentId(id)) : reg.isSpaceState(ComponentId(id));
+        if (state) addStateComponent(e, ComponentId(id), defaults);
+    }
+    return e;
+}
+
+void World::addStateComponent(Entity e, ComponentId id, StateDefaults* defaults)
+{
+    auto record = log.prepare(1);
+    if (defaults && (*defaults)[id])
+        reg.addStaged(e, id, *(*defaults)[id]);
+    else
+        reg.addDefault(e, id);
+    record.append(e, id, true);
 }
 
 // ---- game objects and gameplay

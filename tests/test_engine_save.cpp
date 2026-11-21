@@ -1250,6 +1250,196 @@ TEST(SaveFormat, CommittedSaveLoads)
     EXPECT_EQ(Json::parse(w.dumpJson(), error), expected);
 }
 
+// S21: the golden save (no SPCE) loads into the golden setup with two appended templates (the prefix rule; no
+// space-state components in the golden setup, so no new entities)
+TEST(SaveFormat, CommittedSaveLoadsWithAppendedSpaces)
+{
+    const std::string blobPath = kGoldenDir + "save_v1.bin", dumpPath = kGoldenDir + "save_v1.json";
+    const std::string data = readFile(blobPath);
+    ASSERT_FALSE(data.empty()) << blobPath;
+    WorldSetup s;
+    s.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar"), SpaceTemplate::enclosed("cave")};
+    World w(s);
+    const LoadResult r = w.tryLoad(std::vector<uint8_t>(data.begin(), data.end()));
+    ASSERT_TRUE(r.ok()) << r.error;
+    std::string error;
+    const Json expected = Json::parse(readFile(dumpPath), error);
+    ASSERT_TRUE(error.empty()) << error;
+    EXPECT_EQ(Json::parse(w.dumpJson(), error), expected);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Optional sections (S21, D7)
+
+namespace
+{
+std::vector<uint8_t> replaceSection(const std::vector<uint8_t>& data, uint32_t tag,
+                                    const std::vector<uint8_t>& content);  // below
+WorldSetup spacesSaveSetup(std::vector<SpaceTemplate> templates)
+{
+    WorldSetup s            = baseSetup();
+    s.config.spaceTemplates = std::move(templates);
+    return s;
+}
+std::vector<SpaceTemplate> cellarSpaces()
+{
+    return {SpaceTemplate(), SpaceTemplate::enclosed("cellar")};
+}
+// A SPCE content: the version, then the rows
+std::vector<uint8_t> spaceSection(uint32_t version, const std::vector<std::pair<std::string, uint8_t>>& rows)
+{
+    std::vector<uint8_t> out;
+    BinaryWriter w(out);
+    w.write(version);
+    w.write(uint32_t(rows.size()));
+    for (const auto& r : rows)
+    {
+        w.write(uint32_t(r.first.size()));
+        for (char c : r.first) w.write(uint8_t(c));
+        w.write(r.second);
+    }
+    return out;
+}
+// Inserts a section (tag, content) before the section `before`
+std::vector<uint8_t> insertSection(const std::vector<uint8_t>& data, uint32_t before, uint32_t tag,
+                                   const std::vector<uint8_t>& content)
+{
+    const size_t at = sectionOffset(data, before);
+    EXPECT_GT(at, 0u);
+    std::vector<uint8_t> out(data.begin(), data.begin() + std::ptrdiff_t(at - 12));
+    BinaryWriter w(out);
+    w.write(tag);
+    w.write(uint64_t(content.size()));
+    out.insert(out.end(), content.begin(), content.end());
+    out.insert(out.end(), data.begin() + std::ptrdiff_t(at - 12), data.end());
+    return out;
+}
+// Removes a section
+std::vector<uint8_t> removeSection(const std::vector<uint8_t>& data, uint32_t tag)
+{
+    const size_t at = sectionOffset(data, tag);
+    EXPECT_GT(at, 0u);
+    uint64_t len;
+    std::memcpy(&len, data.data() + at - 8, 8);
+    std::vector<uint8_t> out(data.begin(), data.begin() + std::ptrdiff_t(at - 12));
+    out.insert(out.end(), data.begin() + std::ptrdiff_t(at + len), data.end());
+    return out;
+}
+}  // namespace
+
+TEST(SaveSections, OptionalAbsentAndPresent)
+{
+    World one(baseSetup());
+    ParsedSave p;
+    std::string error;
+    ASSERT_TRUE(parseSave(one.save(), p, error)) << error;
+    EXPECT_FALSE(p.spaces.has_value());
+    World two(spacesSaveSetup(cellarSpaces()));
+    const auto blob = two.save();
+    EXPECT_GT(sectionOffset(blob, kTagSpaces), 0u);
+    ASSERT_TRUE(parseSave(blob, p, error)) << error;
+    ASSERT_TRUE(p.spaces.has_value());
+    ASSERT_EQ(p.spaces->rows.size(), 2u);
+    EXPECT_EQ(p.spaces->rows[0].name, "overworld");
+    EXPECT_EQ(p.spaces->rows[0].kind, SpaceKind::OpenWorld);
+    EXPECT_EQ(p.spaces->rows[1].name, "cellar");
+    EXPECT_EQ(p.spaces->rows[1].kind, SpaceKind::Enclosed);
+    // A hand-inserted SPCE in a single-space save parses too
+    const auto withTable = insertSection(one.save(), kTagEntities, kTagSpaces, spaceSection(1, {{"overworld", 0}}));
+    ASSERT_TRUE(parseSave(withTable, p, error)) << error;
+    ASSERT_TRUE(p.spaces.has_value());
+    EXPECT_EQ(p.spaces->rows.size(), 1u);
+    World load(baseSetup());
+    EXPECT_TRUE(load.tryLoad(withTable).ok());
+}
+
+TEST(SaveSections, OrderErrors)
+{
+    World two(spacesSaveSetup(cellarSpaces()));
+    const auto blob    = two.save();
+    const auto content = spaceSection(1, {{"overworld", 0}, {"cellar", 1}});
+    ParsedSave p;
+    std::string error;
+    // After ENTS
+    const auto late = insertSection(removeSection(blob, kTagSpaces), kTagComponents, kTagSpaces, content);
+    EXPECT_FALSE(parseSave(late, p, error));
+    EXPECT_EQ(error, "unexpected section SPCE (expected COMP)");
+    // Twice
+    const auto twice = insertSection(blob, kTagEntities, kTagSpaces, content);
+    EXPECT_FALSE(parseSave(twice, p, error));
+    EXPECT_EQ(error, "unexpected section SPCE (expected ENTS)");
+    // An unknown tag where an optional section may stand
+    const auto unknown = insertSection(blob, kTagSpaces, saveTag("TERR"), {1, 0, 0, 0});
+    EXPECT_FALSE(parseSave(unknown, p, error));
+    EXPECT_EQ(error, "unexpected section TERR (expected SPCE or ENTS)");
+    // A missing required section
+    EXPECT_FALSE(parseSave(removeSection(blob, kTagEntities), p, error));
+    EXPECT_EQ(error, "unexpected section COMP (expected ENTS)");
+    // Every case leaves the world unchanged
+    World w(spacesSaveSetup(cellarSpaces()));
+    const auto before = w.save();
+    for (const auto& b : {late, twice, unknown}) EXPECT_FALSE(w.tryLoad(b).committed);
+    EXPECT_EQ(w.save(), before);
+}
+
+TEST(SaveSections, UnknownSectionVersion)
+{
+    World two(spacesSaveSetup(cellarSpaces()));
+    const auto blob = replaceSection(two.save(), kTagSpaces, spaceSection(2, {{"overworld", 0}, {"cellar", 1}}));
+    ParsedSave p;
+    std::string error;
+    EXPECT_FALSE(parseSave(blob, p, error));
+    EXPECT_EQ(error, "SPCE: section format version 2 (this build reads 1)");
+    // Malformed rows: an unknown kind, a long name, bytes left over
+    EXPECT_FALSE(
+        parseSave(replaceSection(two.save(), kTagSpaces, spaceSection(1, {{"overworld", 0}, {"x", 7}})), p, error));
+    EXPECT_NE(error.find("unknown kind 7"), std::string::npos) << error;
+    EXPECT_FALSE(parseSave(
+        replaceSection(two.save(), kTagSpaces, spaceSection(1, {{"overworld", 0}, {std::string(257, 'a'), 1}})), p,
+        error));
+    EXPECT_NE(error.find("257 bytes"), std::string::npos) << error;
+    auto extra = spaceSection(1, {{"overworld", 0}, {"cellar", 1}});
+    extra.push_back(0);
+    EXPECT_FALSE(parseSave(replaceSection(two.save(), kTagSpaces, extra), p, error));
+    EXPECT_EQ(error, "SPCE: bytes left over");
+}
+
+TEST(SaveSections, DiffReportsSpaces)
+{
+    World a(spacesSaveSetup(cellarSpaces()));
+    World b(spacesSaveSetup({SpaceTemplate(), SpaceTemplate::enclosed("cave")}));
+    SaveDiff d = diffSaves(a.save(), b.save());
+    ASSERT_TRUE(d.error.empty()) << d.error;
+    ASSERT_EQ(d.differences.size(), 1u);
+    EXPECT_EQ(d.differences[0].describe(), "space 1: 'cellar' (enclosed) vs 'cave' (enclosed)");
+    World c(baseSetup());
+    d = diffSaves(a.save(), c.save());
+    ASSERT_TRUE(d.error.empty()) << d.error;
+    bool section = false;
+    for (const SaveDifference& x : d.differences) section = section || x.describe() == "section SPCE only in a";
+    EXPECT_TRUE(section);
+}
+
+// Before S23a a setup cannot produce repeated names (unique templates, SpaceId = template index); the reader accepts
+// them (several space instances of one template)
+TEST(SaveSections, SpaceTableNamesMayRepeat)
+{
+    World two(spacesSaveSetup(cellarSpaces()));
+    const auto blob = two.save();
+    const auto rep  = replaceSection(blob, kTagSpaces, spaceSection(1, {{"overworld", 0}, {"overworld", 0}}));
+    ParsedSave p;
+    std::string error;
+    ASSERT_TRUE(parseSave(rep, p, error)) << error;
+    ASSERT_EQ(p.spaces->rows.size(), 2u);
+    EXPECT_EQ(p.spaces->rows[0].name, "overworld");
+    EXPECT_EQ(p.spaces->rows[1].name, "overworld");
+    // diffSaves shows both rows (row 1 differs from the real save's)
+    const SaveDiff d = diffSaves(blob, rep);
+    ASSERT_TRUE(d.error.empty()) << d.error;
+    ASSERT_EQ(d.differences.size(), 1u);
+    EXPECT_EQ(d.differences[0].describe(), "space 1: 'cellar' (enclosed) vs 'overworld' (open world)");
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Review regressions (S11 round 1)
 
@@ -1918,4 +2108,27 @@ TEST(SaveRobustness, StateDefaultsAreBuiltBeforeTheCommit)
     flakyConstructionsLeft = 1000;
     EXPECT_EQ(b.save(), before);
     flakyConstructionsLeft = 1000;
+
+    // S21: a space-state component with two spaces missing their entity: one staged default per space, the second
+    // throws: rejected before the world changes
+    WorldSetup t = baseSetup();
+    t.components = [](Registry& r)
+    {
+        baseComponents(r);
+        r.registerSpaceState<Flaky>();
+    };
+    t.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar"), SpaceTemplate::enclosed("cave")};
+    flakyConstructionsLeft  = 1000;
+    World c(t);
+    left = flakyConstructionsLeft;
+    r    = c.tryLoad(blob);
+    ASSERT_TRUE(r.committed) << r.error;
+    EXPECT_EQ(left - flakyConstructionsLeft, schema + 3);  // three spaces without their entity
+    const auto beforeC     = c.save();
+    flakyConstructionsLeft = schema + 1;
+    r                      = c.tryLoad(blob);
+    EXPECT_FALSE(r.committed);
+    EXPECT_NE(r.error.find("no more Flaky"), std::string::npos) << r.error;
+    flakyConstructionsLeft = 1000;
+    EXPECT_EQ(c.save(), beforeC);
 }

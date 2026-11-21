@@ -143,6 +143,7 @@ class Replication;
 class RenderSink;
 class ExtractSystem;
 class TerrainSystem;
+struct StagedValues;
 
 class SAIGA_ENGINE_API World
 {
@@ -326,7 +327,7 @@ class SAIGA_ENGINE_API World
     Replication& replication() { return *repl; }
     const Replication& replication() const { return *repl; }
     // World-state components (registerGlobal) on the world-state entity, space-state components (registerSpaceState)
-    // on the space-state entity of the space (space 0 before S21). A component that is not registered as global or
+    // on the space-state entity of the space (one per space, S21). A component that is not registered as global or
     // space state asserts.
     template <class T>
     T& global()
@@ -818,6 +819,13 @@ class SAIGA_ENGINE_API World
         return spaceStates[space];
     }
     void createStateEntities();
+    // The staged defaults of the state components of one state entity, by component ID (the loader; null: the
+    // constructor)
+    using StateDefaults = std::vector<std::unique_ptr<StagedValues>>;
+    // A state entity (flag kWorldState or kSpaceState; a space-state entity gets its space, writer 6 of S21) with
+    // every registered state component of its kind, each from defaults or default-constructed, with its log records
+    Entity makeStateEntity(uint8_t flag, SpaceId space, StateDefaults* defaults);
+    void addStateComponent(Entity e, ComponentId id, StateDefaults* defaults);
     void deliverActions();
     // add<Parent>: false if the child was destroyed because its parent is gone (during a flush); asserts between steps
     // for a dead parent and always for a cycle

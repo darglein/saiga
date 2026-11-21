@@ -17,12 +17,15 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/SaveFormat.h"
+#include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
 
 #include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <string>
@@ -66,6 +69,30 @@ struct Zone
         v("danger", danger);
     }
 };
+
+// A second space-state component (registered since a save)
+struct Lamp
+{
+    static constexpr const char* name = "Lamp";
+    static constexpr ComponentId id   = ComponentId(kFirstGameComponent + 1);
+    static constexpr uint32_t version = 1;
+    bool on                           = true;
+    template <class V>
+    void visit(V& v)
+    {
+        v("on", on);
+    }
+};
+
+void zoneComponents(Registry& r)
+{
+    r.registerSpaceState<Zone>(Replicate::Host);
+}
+void zoneAndLampComponents(Registry& r)
+{
+    r.registerSpaceState<Zone>(Replicate::Host);
+    r.registerSpaceState<Lamp>(Replicate::Host);
+}
 
 // The three spaces of the S21 tests: 0 open world (integerTestHook, 2 m), 1 the enclosed "cellar" (4 chunks), 2 open
 // world (otherTestHook, 1 m)
@@ -121,11 +148,12 @@ class Diver final : public GameObject
     }
 };
 
-WorldSetup spacesSetup(uint64_t seed = 9)
+WorldSetup spacesSetup(uint64_t seed = 9, void (*components)(Registry&) = nullptr)
 {
     WorldSetup s;
     s.seed                  = seed;
     s.profiling             = false;
+    s.components            = components;
     s.config.spaceTemplates = threeSpaces();
     s.classes               = [](ClassList& c)
     {
@@ -543,3 +571,230 @@ TEST(MoveToSpaceDeathTest, Refusals)
         "a client cannot move a replicated entity");
 }
 #endif
+
+// ---- space-state entities per space (Scope 3)
+
+TEST(SpaceState, OneEntityPerSpace)
+{
+    World w(spacesSetup(9, zoneComponents));
+    std::vector<Entity> states;
+    for (SpaceId space = 0; space < 3; ++space)
+    {
+        const Entity e = w.spaceStateEntity(space);
+        ASSERT_TRUE(w.alive(e));
+        EXPECT_EQ(w.read<Transform>(e).space(), space);
+        EXPECT_EQ(std::find(states.begin(), states.end(), e), states.end());
+        states.push_back(e);
+        w.spaceState<Zone>(space).danger = double(space) + 0.5;
+    }
+    EXPECT_NE(states[0], states[1]);
+    EXPECT_NE(states[1], states[2]);
+    for (SpaceId space = 0; space < 3; ++space) EXPECT_EQ(w.readSpaceState<Zone>(space).danger, double(space) + 0.5);
+    // In SpaceId order after the world-state entity (none here): slots 1, 2, 3
+    EXPECT_EQ(states[0].index, 1u);
+    EXPECT_EQ(states[2].index, 3u);
+    // A world without space-state components has none
+    World plain(spacesSetup());
+    EXPECT_FALSE(plain.spaceStateEntity(0).valid());
+    EXPECT_EQ(plain.registry().aliveCount(), 0u);
+}
+
+// ---- saves with spaces (Scope 5)
+
+namespace
+{
+// Sets the saved Transform::space of an entity index in a save blob (corrupt saves)
+std::vector<uint8_t> withSavedSpace(std::vector<uint8_t> blob, uint32_t index, SpaceId space)
+{
+    ParsedSave p;
+    std::string error;
+    EXPECT_TRUE(parseSave(blob, p, error)) << error;
+    for (const ParsedSave::Block& b : p.components)
+    {
+        if (p.schema.types[b.schemaIndex].name != "Transform") continue;
+        // Each value: the entity index (u32), then the Transform (space first)
+        const size_t valueSize = size_t(b.end - b.begin) / size_t(b.count);
+        for (size_t at = b.begin; at < b.end; at += valueSize)
+        {
+            uint32_t i;
+            std::memcpy(&i, blob.data() + at, 4);
+            if (i == index)
+            {
+                std::memcpy(blob.data() + at + 4, &space, sizeof(SpaceId));
+                return blob;
+            }
+        }
+    }
+    ADD_FAILURE() << "no Transform of entity index " << index;
+    return blob;
+}
+}  // namespace
+
+TEST(SpaceSave, RoundTrip)
+{
+    World a(spacesSetup(9, zoneComponents));
+    const Entity m0              = a.spawnIn<Marker>(0, Vec3(10, 0, 10));
+    const Entity m1              = a.spawnIn<Marker>(1, Vec3(640, 0, 641));
+    const Entity m2              = a.spawnIn<Marker>(2, Vec3(70, 0, 71));
+    const Family f               = makeFamily(a, Vec3(20, 0, 20));
+    a.spaceState<Zone>(2).danger = 7;
+    a.step();
+    a.moveToSpace(f.root, 2, Vec3(80, 0, 80), Quat::Identity());
+    a.step(2);
+    const auto blob = a.save();
+    World b(spacesSetup(9, zoneComponents));
+    const LoadResult r = b.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b.save(), blob);
+    EXPECT_EQ(b.read<Transform>(m0).space(), 0u);
+    EXPECT_EQ(b.read<Transform>(m1).space(), 1u);
+    EXPECT_EQ(b.read<Transform>(m2).space(), 2u);
+    for (Entity e : {f.root, f.child, f.grandchild}) EXPECT_EQ(b.read<Transform>(e).space(), 2u);
+    EXPECT_EQ(b.readSpaceState<Zone>(2).danger, 7);
+    for (SpaceId space = 0; space < 3; ++space) EXPECT_EQ(b.read<Transform>(b.spaceStateEntity(space)).space(), space);
+    EXPECT_EQ(b.queryRadius(1, Vec3(640, 0, 641), 0.01), std::vector<Entity>{m1});
+    EXPECT_TRUE(b.queryRadius(0, Vec3(640, 0, 641), 0.01).empty());
+    EXPECT_EQ(b.queryRadius(2, Vec3(80, 0, 80), 0.01), std::vector<Entity>{f.root});
+    b.step();
+    a.step();
+    EXPECT_EQ(a.hash(), b.hash());
+}
+
+TEST(SpaceSave, SingleSpaceHasNoSpaceTable)
+{
+    WorldSetup s;
+    s.profiling = false;
+    World w(s);
+    w.create();
+    ParsedSave p;
+    std::string error;
+    ASSERT_TRUE(parseSave(w.save(), p, error)) << error;
+    EXPECT_FALSE(p.spaces.has_value());
+    World three(spacesSetup());
+    ASSERT_TRUE(parseSave(three.save(), p, error)) << error;
+    ASSERT_TRUE(p.spaces.has_value());
+    EXPECT_EQ(p.spaces->rows.size(), 3u);
+}
+
+TEST(SpaceSave, SpaceTable)
+{
+    World a(spacesSetup(9, zoneComponents));
+    a.spawnIn<Marker>(2, Vec3(5, 0, 5));
+    const auto blob = a.save();
+    // Four spaces (one appended): loads, the new space gets its space-state entity
+    {
+        WorldSetup s = spacesSetup(9, zoneComponents);
+        s.config.spaceTemplates.push_back(SpaceTemplate::enclosed("attic", 2));
+        World b(s);
+        const LoadResult r = b.tryLoad(blob);
+        ASSERT_TRUE(r.ok()) << r.error;
+        ASSERT_TRUE(b.alive(b.spaceStateEntity(3)));
+        EXPECT_EQ(b.read<Transform>(b.spaceStateEntity(3)).space(), 3u);
+    }
+    auto rejected = [&](std::vector<SpaceTemplate> templates, const std::string& message)
+    {
+        WorldSetup s            = spacesSetup(9, zoneComponents);
+        s.config.spaceTemplates = std::move(templates);
+        World b(s);
+        const auto before  = b.save();
+        const LoadResult r = b.tryLoad(blob);
+        EXPECT_FALSE(r.committed);
+        EXPECT_EQ(r.error, message);
+        EXPECT_EQ(b.save(), before);
+    };
+    std::vector<SpaceTemplate> t = threeSpaces();
+    rejected({t[0], t[1]}, "the save has 3 spaces and the setup 2 (space templates are append-only)");
+    std::vector<SpaceTemplate> renamed = t;
+    renamed[1].name                    = "cave";
+    rejected(renamed, "space 1 is 'cellar' in the save and 'cave' in the setup");
+    std::vector<SpaceTemplate> kind = t;
+    kind[2]                         = SpaceTemplate::enclosed("caves");
+    rejected(kind, "space 2 ('caves') is open world in the save and enclosed in the setup");
+}
+
+TEST(SpaceSave, StateEntitiesPerSpace)
+{
+    // Two spaces added since the save, at free slots: the destroy order decides the slots, the mapping is by space
+    bool outOfOrder = false;
+    for (int order = 0; order < 2; ++order)
+    {
+        WorldSetup one = spacesSetup(9, zoneComponents);
+        one.config.spaceTemplates.resize(1);
+        World a(one);
+        const Entity x = a.create(), y = a.create();
+        a.create();
+        a.destroy(order == 0 ? x : y);
+        a.destroy(order == 0 ? y : x);
+        a.spaceState<Zone>(0).danger = 3;
+        const auto blob              = a.save();
+
+        World b(spacesSetup(9, zoneComponents));
+        const int counter  = g_zoneCounter;
+        const LoadResult r = b.tryLoad(blob);
+        ASSERT_TRUE(r.ok()) << r.error;
+        // Two staged defaults (one per new entity): distinct serials
+        EXPECT_GE(g_zoneCounter - counter, 2);
+        EXPECT_NE(b.readSpaceState<Zone>(1).serial, b.readSpaceState<Zone>(2).serial);
+        EXPECT_EQ(b.readSpaceState<Zone>(0).danger, 3);
+        for (SpaceId space = 0; space < 3; ++space)
+            EXPECT_EQ(b.read<Transform>(b.spaceStateEntity(space)).space(), space);
+        outOfOrder = outOfOrder || b.spaceStateEntity(1).index > b.spaceStateEntity(2).index;
+        // The mapping survives another round trip (slots not in space order)
+        b.spaceState<Zone>(2).danger = 9;
+        const auto blob2             = b.save();
+        World c(spacesSetup(9, zoneComponents));
+        ASSERT_TRUE(c.tryLoad(blob2).ok());
+        EXPECT_EQ(c.readSpaceState<Zone>(2).danger, 9);
+        EXPECT_EQ(c.spaceStateEntity(1), b.spaceStateEntity(1));
+        EXPECT_EQ(c.spaceStateEntity(2), b.spaceStateEntity(2));
+    }
+    EXPECT_TRUE(outOfOrder);
+
+    World a(spacesSetup(9, zoneComponents));
+    const auto blob = a.save();
+    // A space-state component registered since the save: added to every space-state entity
+    {
+        World b(spacesSetup(9, zoneAndLampComponents));
+        ASSERT_TRUE(b.tryLoad(blob).ok());
+        for (SpaceId space = 0; space < 3; ++space)
+        {
+            EXPECT_EQ(b.spaceStateEntity(space), a.spaceStateEntity(space));
+            EXPECT_TRUE(b.has<Lamp>(b.spaceStateEntity(space)));
+        }
+    }
+    // No space-state component any more: all of them are freed
+    {
+        WorldSetup none = spacesSetup();
+        none.migrations = [](MigrationList& m) { m.addRemoved("Zone", RemovedPolicy::DropComponent); };
+        World b(none);
+        const LoadResult r = b.tryLoad(blob);
+        ASSERT_TRUE(r.ok()) << r.error;
+        EXPECT_FALSE(b.spaceStateEntity(0).valid());
+        EXPECT_EQ(b.registry().aliveCount(), 0u);
+    }
+}
+
+TEST(SpaceSave, CorruptStates)
+{
+    World a(spacesSetup(9, zoneComponents));
+    const Entity m  = a.spawnIn<Marker>(1, Vec3(640, 0, 640));
+    const Family f  = makeFamily(a, Vec3(1, 0, 1));
+    const auto blob = a.save();
+    auto rejected   = [&](const std::vector<uint8_t>& bad, const std::string& message)
+    {
+        World b(spacesSetup(9, zoneComponents));
+        b.spawnIn<Marker>(2, Vec3(1, 0, 1));
+        const auto before  = b.save();
+        const LoadResult r = b.tryLoad(bad);
+        EXPECT_FALSE(r.committed);
+        EXPECT_NE(r.error.find(message), std::string::npos) << r.error;
+        EXPECT_EQ(b.save(), before);
+    };
+    ASSERT_TRUE(World(spacesSetup(9, zoneComponents)).tryLoad(blob).ok());
+    // Two space-state entities of space 0 (the one of space 1 claims space 0)
+    rejected(withSavedSpace(blob, a.spaceStateEntity(1).index, 0), "two space-state entities of space 0");
+    // An entity in an unknown space
+    rejected(withSavedSpace(blob, m.index, 5), "is in space 5, but the save has 3 spaces");
+    // A child in another space than its parent
+    rejected(withSavedSpace(blob, f.grandchild.index, 2), "its parent " + std::to_string(f.child.index));
+}

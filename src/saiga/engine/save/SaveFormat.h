@@ -8,17 +8,23 @@
 
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/VisitBinary.h"
+#include "saiga/engine/world/SpaceTemplate.h"
 
 #include <cstdint>
 #include <string>
 #include <vector>
 
 // The save blob of World::save (docs/engine_design.md §15.1, S11): the magic "SGWS", the format version, then sections
-// (a 4-character tag and a byte length). Little-endian, the binary visit form for values. An unknown section is a
-// load error.
+// (a 4-character tag and a byte length) in the fixed order of kSaveSections. Little-endian, the binary visit form for
+// values. An unknown section, one out of order or twice, and a missing required section are load errors. Optional
+// sections (S21, D7) may be absent; each starts with its own format version (u32), and a version above the entry's
+// maxVersion is a load error naming the section (kSaveFormatVersion stays 1: older builds reject a blob with an
+// optional section as an unexpected section).
 //
 //   HEAD  engine version (string), steps per second, step index, time
 //   SCHM  the schema table (SchemaTable::write)
+//   SPCE? (S21, version 1; only with more than one space) the space count (u32), then per SpaceId the template name
+//         (u32 length + bytes, at most 256) and the kind (u8, SpaceKind); names may repeat (S23a)
 //   ENTS  slot count; per slot from 1: generation (u32), state (u8: 0 free, 2 alive), flags (u8); the free list
 //   COMP  per saved component type: schema index (u32), count (u64), byte length (u64), then per component the entity
 //         index (u32) and the binary form, in the pool's dense order (Transform: index order)
@@ -40,11 +46,38 @@ constexpr uint32_t saveTag(const char (&t)[5])
 }
 constexpr uint32_t kTagHeader     = saveTag("HEAD");
 constexpr uint32_t kTagSchema     = saveTag("SCHM");
+constexpr uint32_t kTagSpaces     = saveTag("SPCE");
 constexpr uint32_t kTagEntities   = saveTag("ENTS");
 constexpr uint32_t kTagComponents = saveTag("COMP");
 constexpr uint32_t kTagEvents     = saveTag("EVNT");
 constexpr uint32_t kTagActions    = saveTag("ACTN");
 constexpr uint32_t kTagState      = saveTag("STAT");
+
+// The section order (D7): HEAD, SCHM, SPCE?, GENR?, TERR?, CREC?, ENTS, COMP, EVNT, ACTN, STAT (? optional). S22
+// inserts TERR, S23a GENR and CREC at their positions (the recipe of the S21 plan, Scope 5). maxVersion: the highest
+// format version of an optional section this build reads (0 for the required ones)
+struct SaveSectionEntry
+{
+    uint32_t tag;
+    bool optional;
+    uint32_t maxVersion;
+};
+constexpr SaveSectionEntry kSaveSections[] = {
+    {kTagHeader, false, 0},     {kTagSchema, false, 0}, {kTagSpaces, true, 1},   {kTagEntities, false, 0},
+    {kTagComponents, false, 0}, {kTagEvents, false, 0}, {kTagActions, false, 0}, {kTagState, false, 0},
+};
+
+// SPCE: the template name and kind per SpaceId
+struct SpaceTable
+{
+    struct Row
+    {
+        std::string name;
+        SpaceKind kind = SpaceKind::OpenWorld;
+    };
+    std::vector<Row> rows;
+};
+constexpr uint32_t kSpaceTableVersion = 1;
 
 inline std::string tagName(uint32_t tag)
 {
@@ -74,6 +107,12 @@ class SectionWriter
         w.write(tag);
         lengthAt = out.size();
         w.write(uint64_t(0));
+    }
+    // An optional section: the tag, the length placeholder and the section's own format version
+    void beginOptional(uint32_t tag, uint32_t version)
+    {
+        begin(tag);
+        w.write(version);
     }
     void end() { patchU64(out, lengthAt, uint64_t(out.size() - lengthAt - 8)); }
 

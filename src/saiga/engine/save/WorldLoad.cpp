@@ -48,6 +48,13 @@ class WorldLoader
     bool checkHierarchy();
     bool checkPersistent();
     bool checkFreedStateEntities();
+    // S21: the SPCE rows against the setup (the prefix rule), before anything is staged
+    bool checkSpaceTable();
+    // S21: on the staged Transforms: every alive entity's space below the save's space count, at most one
+    // space-state entity per space, a child in its parent's space
+    bool checkSpaces();
+    // The defaults of the state components the commit will add, per (state entity, component), before the commit
+    bool buildStateDefaults(std::string& error);
     // S19b: resolves the staged RenderInstance names (aliases) and sets the cached IDs; an unregistered name is kept
     // (cached 0: tracked, drawn once the mesh is registered) and counted for one log line after the commit
     bool checkRenderMeshes();
@@ -68,9 +75,12 @@ class WorldLoader
     StagedOf<Transform> transforms;
     std::vector<std::vector<bool>> seen = std::vector<std::vector<bool>>(kMaxComponents);
     std::vector<std::unique_ptr<StagedValues>> stagedEvents;
-    // The defaults of the state components the commit may add, built before it (restoreStateEntities moves them in)
-    std::vector<std::unique_ptr<StagedValues>> stateDefaults =
-        std::vector<std::unique_ptr<StagedValues>>(kMaxComponents);
+    // The defaults of the state components the commit will add, built before it (restoreStateEntities moves them in):
+    // index 0 the world-state entity, 1 + s the space-state entity of space s; each by component ID
+    std::vector<World::StateDefaults> stateDefaults;
+    // The save's space count (1 without SPCE) and the staged space of each alive entity index (-1: none)
+    size_t saveSpaces = 1;
+    std::vector<int64_t> stagedSpace;
     std::vector<std::string> droppedEvents;
     // RenderInstance names that are not registered (kept; logged once after the commit) and their entity count
     std::set<std::string> unknownMeshes;
@@ -106,8 +116,8 @@ bool WorldLoader::checkSlots()
         spaceStates += (s.flags & Registry::kSpaceState) ? 1 : 0;
     }
     if (worldStates > 1) return fail("more than one world-state entity");
-    // One space before S21
-    if (spaceStates > 1) return fail("more than one space-state entity");
+    // At most one space-state entity per space: checkSpaces (on the staged spaces)
+    (void)spaceStates;
     std::vector<bool> listed(slots.size(), false);
     for (uint32_t index : p.freeList)
     {
@@ -530,6 +540,112 @@ bool WorldLoader::checkFreedStateEntities()
     return true;
 }
 
+bool WorldLoader::checkSpaceTable()
+{
+    saveSpaces = 1;
+    if (!p.spaces) return true;
+    const std::vector<SpaceTable::Row>& rows = p.spaces->rows;
+    if (rows.size() > w.spaceCount())
+        return fail("the save has " + std::to_string(rows.size()) + " spaces and the setup " +
+                    std::to_string(w.spaceCount()) + " (space templates are append-only)");
+    auto kindName = [](SpaceKind k) { return std::string(k == SpaceKind::Enclosed ? "enclosed" : "open world"); };
+    for (size_t i = 0; i < rows.size(); ++i)
+    {
+        const SpaceTemplate& t = w.spaceTemplate(SpaceId(i));
+        if (rows[i].name != t.name)
+            return fail("space " + std::to_string(i) + " is '" + rows[i].name + "' in the save and '" + t.name +
+                        "' in the setup");
+        if (rows[i].kind != t.kind)
+            return fail("space " + std::to_string(i) + " ('" + t.name + "') is " + kindName(rows[i].kind) +
+                        " in the save and " + kindName(t.kind) + " in the setup");
+    }
+    saveSpaces = rows.size();
+    return true;
+}
+
+bool WorldLoader::checkSpaces()
+{
+    stagedSpace.assign(p.slots.size(), -1);
+    for (size_t k = 0; k < transforms.indices.size(); ++k)
+    {
+        const uint32_t i = transforms.indices[k];
+        if (generation[i] < 0) continue;
+        const SpaceId space = transforms.values[k].space();
+        if (space >= saveSpaces)
+            return fail("entity index " + std::to_string(i) + " is in space " + std::to_string(space) +
+                        ", but the save has " + std::to_string(saveSpaces) + " space" + (saveSpaces == 1 ? "" : "s"));
+        stagedSpace[i] = space;
+    }
+    std::vector<int64_t> stateOf(saveSpaces, -1);
+    for (uint32_t i = 1; i < uint32_t(p.slots.size()); ++i)
+    {
+        if (generation[i] < 0 || !(p.slots[i].flags & Registry::kSpaceState)) continue;
+        const size_t space = size_t(stagedSpace[i]);
+        if (stateOf[space] >= 0)
+            return fail("two space-state entities of space " + std::to_string(space) + " (entity indices " +
+                        std::to_string(stateOf[space]) + " and " + std::to_string(i) + ")");
+        stateOf[space] = i;
+    }
+    if (staged[Parent::id])
+    {
+        const auto& sp = static_cast<StagedOf<Parent>&>(*staged[Parent::id]);
+        for (size_t k = 0; k < sp.values.size(); ++k)
+        {
+            const uint32_t child = sp.indices[k], parent = sp.values[k].entity.index;
+            if (generation[child] < 0) continue;
+            if (stagedSpace[child] != stagedSpace[parent])
+                return fail("entity index " + std::to_string(child) + " is in space " +
+                            std::to_string(stagedSpace[child]) + ", its parent " + std::to_string(parent) +
+                            " in space " + std::to_string(stagedSpace[parent]));
+        }
+    }
+    return true;
+}
+
+bool WorldLoader::buildStateDefaults(std::string& message)
+{
+    bool anyGlobal = false, anySpace = false;
+    for (size_t id = 0; id < kMaxComponents; ++id)
+    {
+        anyGlobal = anyGlobal || reg.isGlobal(ComponentId(id));
+        anySpace  = anySpace || reg.isSpaceState(ComponentId(id));
+    }
+    // The saved state entity of each target (-1: none; the commit creates it with every component)
+    std::vector<int64_t> target(1 + w.spaceCount(), -1);
+    for (uint32_t i = 1; i < uint32_t(p.slots.size()); ++i)
+    {
+        if (generation[i] < 0) continue;
+        if (p.slots[i].flags & Registry::kWorldState) target[0] = i;
+        if (p.slots[i].flags & Registry::kSpaceState) target[1 + size_t(stagedSpace[i])] = i;
+    }
+    stateDefaults.clear();
+    stateDefaults.resize(target.size());
+    for (size_t t = 0; t < target.size(); ++t)
+    {
+        stateDefaults[t].resize(kMaxComponents);
+        if ((t == 0 && !anyGlobal) || (t > 0 && !anySpace)) continue;
+        for (size_t id = 1; id < kMaxComponents; ++id)
+        {
+            const bool state = t == 0 ? reg.isGlobal(ComponentId(id)) : reg.isSpaceState(ComponentId(id));
+            if (!state) continue;
+            // An existing state entity needs only the components it lacks
+            const auto& s = seen[id];
+            if (target[t] >= 0 && !s.empty() && s[size_t(target[t])]) continue;
+            try
+            {
+                stateDefaults[t][id] = reg.poolById(ComponentId(id))->stageDefault();
+            }
+            catch (const std::exception& x)
+            {
+                message =
+                    std::string("the default of ") + reg.componentInfo(ComponentId(id)).name + " threw: " + x.what();
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 void WorldLoader::commit()
 {
     // The old entities leave (records as for a destroy: Transform first, then the components in ID order); no hooks
@@ -621,16 +737,21 @@ void WorldLoader::commit()
 
 void WorldLoader::restoreStateEntities()
 {
+    // The loaded state entities; a space-state entity by its Transform::space (not by slot order: spaces added to a
+    // setup get their entities at free slots)
+    std::vector<Entity> bySpace(w.spaceCount());
     for (uint32_t i = 1; i < reg.slotCount(); ++i)
     {
         const Entity e = reg.aliveAt(i);
         if (!e.valid()) continue;
         if (reg.flags(e) & Registry::kWorldState) w.worldState = e;
-        if (reg.flags(e) & Registry::kSpaceState) w.spaceStates.push_back(e);
+        if (reg.flags(e) & Registry::kSpaceState) bySpace[reg.read<Transform>(e).space()] = e;
     }
-    // Components registered as world or space state since the save get their state entity (the first free slot) and
-    // their defaults; a state entity without any registered state component is freed
-    auto restore = [&](Entity& e, uint8_t flag, bool (Registry::*is)(ComponentId) const)
+    // Components registered as world or space state since the save get their state entity (the first free slot, in
+    // SpaceId order) and their defaults (staged before the commit); a state entity without any registered state
+    // component is freed
+    auto restore = [&](Entity& e, uint8_t flag, SpaceId space, bool (Registry::*is)(ComponentId) const,
+                       World::StateDefaults& defaults)
     {
         bool any = false;
         for (size_t id = 0; id < kMaxComponents; ++id) any = any || (reg.*is)(ComponentId(id));
@@ -649,27 +770,21 @@ void WorldLoader::restoreStateEntities()
         }
         if (!e.valid())
         {
-            auto record = w.log.prepare(1);
-            e           = reg.create();
-            record.append(e, Transform::id, true);
-            reg.setFlags(e, uint8_t(reg.flags(e) | flag));
+            e = w.makeStateEntity(flag, space, &defaults);
+            return;
         }
         for (size_t id = 0; id < kMaxComponents; ++id)
         {
             if (!(reg.*is)(ComponentId(id)) || reg.entityMask(e).test(ComponentId(id))) continue;
-            auto record = w.log.prepare(1);
-            if (stateDefaults[id])
-                reg.addStaged(e, ComponentId(id), *stateDefaults[id]);
-            else
-                reg.addDefault(e, ComponentId(id));
-            record.append(e, ComponentId(id), true);
+            w.addStateComponent(e, ComponentId(id), &defaults);
         }
     };
-    restore(w.worldState, Registry::kWorldState, &Registry::isGlobal);
-    Entity space = w.spaceStates.empty() ? Entity{} : w.spaceStates[0];
-    restore(space, Registry::kSpaceState, &Registry::isSpaceState);
+    restore(w.worldState, Registry::kWorldState, 0, &Registry::isGlobal, stateDefaults[0]);
+    for (size_t space = 0; space < bySpace.size(); ++space)
+        restore(bySpace[space], Registry::kSpaceState, SpaceId(space), &Registry::isSpaceState,
+                stateDefaults[1 + space]);
     w.spaceStates.clear();
-    if (space.valid()) w.spaceStates.push_back(space);
+    if (bySpace[0].valid()) w.spaceStates = bySpace;
 }
 
 void WorldLoader::startObjects(LoadResult& result)
@@ -784,34 +899,21 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
         bool& flag;
         ~LoadGuard() { flag = false; }
     } guard{w.loadInProgress = true};
-    if (!parseSave(data, p, error) || !checkSlots())
+    if (!parseSave(data, p, error) || !checkSpaceTable() || !checkSlots())
     {
         result.error = error;
         return result;
     }
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
-        !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes())
+        !checkSpaces() || !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes())
     {
         result.error = error;
         return result;
     }
-    // The defaults of the state components the commit may add are built before the world changes and moved in by the
+    // The defaults of the state components the commit will add are built before the world changes and moved in by the
     // commit (a throwing constructor rejects the load instead of leaving half a world)
-    for (size_t id = 1; id < kMaxComponents; ++id)
-    {
-        if (!reg.isGlobal(ComponentId(id)) && !reg.isSpaceState(ComponentId(id))) continue;
-        try
-        {
-            stateDefaults[id] = reg.poolById(ComponentId(id))->stageDefault();
-        }
-        catch (const std::exception& x)
-        {
-            result.error =
-                std::string("the default of ") + reg.componentInfo(ComponentId(id)).name + " threw: " + x.what();
-            return result;
-        }
-    }
+    if (!buildStateDefaults(result.error)) return result;
 
     const uint64_t logBegin = w.log.appendedTotal();
     const uint64_t fromStep = w.steps;
