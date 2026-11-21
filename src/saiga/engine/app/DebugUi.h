@@ -92,7 +92,10 @@ class SAIGA_ENGINE_API DebugUi
     // and the Pause key pauses or resumes the world (both only while not captured). Returns now with F1..F10 cleared
     // (for the input map); disabled: now unchanged
     InputState handleKeys(const InputState& now, const InputState& previous, bool captured);
-    static constexpr int kKeyF1 = 290, kKeyGrave = 96, kKeyPause = 284;
+    // One declaration each (MSVC: C2487 for the later names of a combined static member declaration in a DLL class)
+    static constexpr int kKeyF1    = 290;
+    static constexpr int kKeyGrave = 96;
+    static constexpr int kKeyPause = 284;
     // Called on a press of the Pause key (not while captured; the app pauses or resumes the world)
     void setPauseKey(std::function<void()> fn) { pauseKey = std::move(fn); }
 
