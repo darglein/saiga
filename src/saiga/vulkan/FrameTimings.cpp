@@ -203,6 +203,20 @@ void FrameTimings<Finder>::leaveSection(const std::string& name, vk::CommandBuff
 }
 
 template <typename Finder>
+void FrameTimings<Finder>::markSectionBegin(const std::string& name, vk::CommandBuffer cmd)
+{
+    auto index = nameToSectionMap[name];
+    cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eAllCommands, queryPool, getBegin(index));
+}
+
+template <typename Finder>
+void FrameTimings<Finder>::markSectionEnd(const std::string& name, vk::CommandBuffer cmd)
+{
+    auto index = nameToSectionMap[name];
+    cmd.writeTimestamp2(vk::PipelineStageFlagBits2::eAllCommands, queryPool, getEnd(index));
+}
+
+template <typename Finder>
 void FrameTimings<Finder>::resetFrame(vk::CommandBuffer cmd)
 {
     cmd.resetQueryPool(queryPool, getFirst(current), getCount());

@@ -12,9 +12,9 @@ layout(set = 0, binding = 0) uniform WorldUBO
     // distance to the origin.
     mat4 viewProjRel;
     mat4 invViewProjRel;
-    // xyz: camera position (world), w: time (s)
+    // xyz: camera position (world), w: unused
     vec4 cameraPos;
-    // xyz: position used for the level of detail and culling
+    // xyz: position used for the level of detail and culling (the camera position)
     vec4 lodCameraPos;
     // xyz: towards the sun, w: intensity
     vec4 sunDir;
@@ -31,10 +31,12 @@ layout(set = 0, binding = 0) uniform WorldUBO
     vec4 terrain;
     // x: highest terrain level, y: debug mode, z: wind, w: alpha cutoff
     vec4 terrain2;
-    // x: tree lod 1 distance, y: tree lod 2 distance, z: max tree distance, w: tree count
+    // unused (S19a: the trees are RenderScene's instances)
     vec4 trees;
     // x: grass radius, y: grass cell size, z: grass density, w: MSAA samples
     vec4 grass;
     vec4 viewport;
+    // x, y: the grass wind phases fmod(time * (1.7, 1.3), 2 pi) (computed in double on the CPU)
+    vec4 grassPhases;
 }
 world;

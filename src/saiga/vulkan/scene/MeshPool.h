@@ -75,16 +75,32 @@ class SAIGA_VULKAN_API MeshPool
     void setMaterial(MaterialId id, const MaterialData& data);
     bool hasMaterial(MaterialId id) const { return id != 0 && id < materials.size() && materials[id].registered; }
     void addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material);
+    // Rewrites the mesh record's end distances (same LOD count, non-decreasing, >= 0) and bounds padding: no geometry
+    // upload, no bucket layout change (RenderScene::setMeshLodDistances)
+    void setLodDistances(MeshId id, const std::vector<float>& endDistances, float boundsPadding);
     void setPalette(const std::vector<PaletteEntry>& palette);
 
     // nullptr if not registered
     const Mesh* mesh(MeshId id) const;
+    // The ID of a registered name (0: none)
+    MeshId findMesh(const std::string& name) const
+    {
+        auto it = meshNames.find(name);
+        return it == meshNames.end() ? MeshId(0) : it->second;
+    }
+    MaterialId findMaterial(const std::string& name) const
+    {
+        auto it = materialNames.find(name);
+        return it == materialNames.end() ? MaterialId(0) : it->second;
+    }
     // Highest registered MeshId + 1
     uint32_t meshTableSize() const { return uint32_t(meshes.size()); }
     uint32_t meshCount() const { return registeredMeshes; }
 
-    // The pipeline class index (0..3) of a material
+    // The pipeline class index (0..pipelineClassCount-1) of a material
     static uint8_t pipelineClassIndex(const MaterialData& m);
+    // The pipeline class index of a registered mesh's material
+    uint8_t meshClass(MeshId id) const { return pipelineClassIndex(materials[meshes[id].material].data); }
 
     uint64_t layoutVersion() const { return version; }
     // Per view (S18: one view)

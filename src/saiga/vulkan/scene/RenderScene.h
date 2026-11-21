@@ -28,20 +28,30 @@ class SceneFrameRenderer;
 class MeshPool;
 class InstanceBuffer;
 class SceneCulling;
+class PrototypeWorld;
+class HeightField;
 struct SceneCamera;
+struct SceneLighting;
+struct PrototypeSettings;
 
 /**
  * The frame of the engine app (docs/engine_design.md §8.3, §10.1, §10.5; S13: the frame shell, S17: the HDR frame):
  * the swap chain of the window (or offscreen images for a HeadlessWindow), two frames in flight on the frame timeline,
  * GPU timestamps, screenshots. Per frame:
- *   1. transfer (uploads), outside of any pass: the game's callback, then the scene content's uploads (S18);
+ *   1. transfer (uploads), outside of any pass: the game's callback, then the prototype's uniforms and terrain nodes
+ *      (S19a) and the scene content's uploads (S18);
  *   2. cull (S18): the GPU culling of the scene's instances (count, scan, write; docs/engine_design.md §10.2);
- *   3. the scene pass: HDR color (R16G16B16A16 float, msaaSamples) + reversed-Z depth (D32, infinite far plane),
- *      cleared to the clear color and depth 0; the render callback draws here (pipelines: formats()), then the
- *      scene's instances (indexed indirect draws per pipeline class);
- *   4. the MSAA resolve: Identity (clay mode) with the hardware average of the scene pass, the other tone maps with a
+ *   3. depth (S19a, §10.5 passes 2-3): the depth pre-pass of the opaque content (the prototype terrain and water, the
+ *      opaque instance classes) into the scene pass's depth (PrototypeSettings::depthPrePass; empty without it);
+ *   4. the scene pass: HDR color (R16G16B16A16 float, msaaSamples) + reversed-Z depth (D32, infinite far plane), the
+ *      color cleared to the clear color, the depth cleared to 0 or loaded from the pre-pass; in order: the prototype
+ *      terrain and water (EQUAL after the pre-pass), the render callback (pipelines: formats()), the scene's instances
+ *      (indexed indirect draws per pipeline class; the opaque classes EQUAL after the pre-pass), the prototype grass
+ * and sky; the depth is resolved with SAMPLE_ZERO into a single-sampled depth image (with 1 sample the depth image
+ *      itself), left in eShaderReadOnlyOptimal for later consumers (S37);
+ *   5. the MSAA resolve: Identity (clay mode) with the hardware average of the scene pass, the other tone maps with a
  *      tone-map weighted custom resolve (bright edges do not alias); none with 1 sample;
- *   5. post (exposure, tone map, output transfer) and ImGui on top, single-sampled, into the swap chain image.
+ *   6. post (exposure, tone map, output transfer) and ImGui on top, single-sampled, into the swap chain image.
  *
  * Pre-exposure contract: while sceneWritesLinear() every scene shader writes linear radiance multiplied by
  * preExposure() (negatives clamped, no clamp to 1); otherwise display values clamped to [0, 1] (clay mode).
@@ -53,6 +63,12 @@ struct SceneCamera;
  * only the camera rotation). Nothing is culled or drawn before the first setCamera. Main thread only; the calls take
  * effect in the next renderFrame (also from the render callback: the frame draws its transfer's snapshot). The storage
  * buffers grow at most to maxStorageBufferRange (RenderSceneParameters' capacities; more is a fatal error).
+ *
+ * Prototype content (S19a, transitional until S20): setPrototypeTerrain hands the prototype's terrain, water plane,
+ * grass and sky to the scene (PrototypeWorld) and provides the foliage texture of the PrototypeFoliage pipeline class
+ * (the trees are instance sets the game creates, PrototypeForest); its settings set the instances' lighting block (sun,
+ * hemisphere ambient, height fog, wind; without it S18's fixed light, fog off). The time of the wind phases comes from
+ * setTime (no wall clock).
  */
 class SAIGA_VULKAN_API RenderScene
 {
@@ -108,18 +124,34 @@ class SAIGA_VULKAN_API RenderScene
 
     // The GPU times of the oldest completed frame not yet taken (2-3 frames after it was rendered); false if none
     bool takeGpuFrameTimes(FrameTimes& out);
-    // The sections of FrameTimes::gpuSectionMs in frame order: transfer, cull, scene, resolve, post, imgui
+    // The newest frame takeGpuFrameTimes returned (frame 0: none yet)
+    const FrameTimes& lastGpuFrameTimes() const { return lastTaken; }
+    // The sections of FrameTimes::gpuSectionMs in frame order: transfer, cull, depth, depth.terrain, scene,
+    // scene.terrain, scene.instances, scene.grass, scene.sky, resolve, post, imgui. The dotted names are sub-sections
+    // of the pass before the dot (consecutive ALL_COMMANDS timestamps inside the pass; S19a); every section is written
+    // in every frame, also when its content is off
     static const std::vector<const char*>& gpuSectionNames();
 
     //==================================================================================================
     // Scene content (S18)
 
-    // Explicit IDs (asserted free, names unique; ID 0 is none)
+    // Explicit IDs (asserted free, names unique; ID 0 is none). PipelineClass::PrototypeFoliage needs the foliage
+    // texture of setPrototypeTerrain (asserted)
     void addMaterial(MaterialId id, const std::string& name, const MaterialData& data);
     // A change of alphaMask, twoSided or pipelineClass rebuilds the bucket layout
     void setMaterial(MaterialId id, const MaterialData& data);
-    // The material must be registered; 1..4 LODs with ascending end distances
+    // The material must be registered; 1..4 LODs with non-decreasing end distances
     void addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material);
+    // Rewrites only the mesh record (S19a): the end distances (the same LOD count, non-decreasing, >= 0) and the bounds
+    // padding; no geometry upload, no bucket rebuild. The sets with the mesh get their bounds from their unpadded
+    // bounds and largest scale. From the next frame
+    void setMeshLodDistances(MeshId id, const std::vector<float>& endDistances, float boundsPadding);
+    // Reserves count consecutive IDs of the game range [1, kGameReservedIds) for content the game registers directly
+    // on the scene (S19a: the prototype's tree meshes and material); returns the first (the range is asserted)
+    uint16_t reserveIds(SceneIdKind kind, uint32_t count);
+    // The ID of a registered mesh or material name (0: none); e.g. a game re-attaching its content to the scene
+    MeshId findMesh(const std::string& name) const;
+    MaterialId findMaterial(const std::string& name) const;
     // The game's palette (at most 4096 entries), read by the materials with usePalette
     void setPalette(const std::vector<PaletteEntry>& palette);
 
@@ -141,7 +173,8 @@ class SAIGA_VULKAN_API RenderScene
     void removeDynamic(InstanceHandle h);
 
     // The camera (double; fovy: vertical field of view in radians); the aspect from size(), the near plane from the
-    // parameters (reversed-Z, infinite far plane). The camera looks along -z of its rotation, y is up.
+    // parameters (reversed-Z, infinite far plane). The camera looks along -z of its rotation, y is up. Also from the
+    // transfer callback: the frame being recorded uses it (viewMatrix() / projectionMatrix() follow at once)
     void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy);
     bool hasCamera() const { return cameraSet; }
     // The interpolation of the dynamic instances between prev (0) and curr (1)
@@ -166,6 +199,29 @@ class SAIGA_VULKAN_API RenderScene
     // Waits until the GPU has finished every frame (before resources used by frames are destroyed)
     void waitIdle();
 
+    //==================================================================================================
+    // Prototype content (S19a, transitional until S20, docs/engine_design.md §10.1)
+
+    // The prototype's terrain (CDLOD with the water plane), grass and sky on the shared height field, drawn in the
+    // §10.5 pass order, and the foliage texture of the PrototypeFoliage class (foliageSeed: WorldParameters::seed).
+    // Outside of renderFrame (it waits for the device and uploads); a second call replaces the first
+    void setPrototypeTerrain(std::shared_ptr<const HeightField> heights, const PrototypeSettings& settings,
+                             uint32_t foliageSeed);
+    bool hasPrototypeTerrain() const { return prototype != nullptr; }
+    // From the next frame (game_set_settings), or from this frame in its transfer callback: a frame takes one snapshot
+    // after that callback (a change in the render callback is the next frame's); depthPrePass also applies without the
+    // prototype terrain
+    void setPrototypeSettings(const PrototypeSettings& settings);
+    const PrototypeSettings& prototypeSettings() const;
+    // The prototype's content (nullptr without setPrototypeTerrain): its statistics of the last recorded frame
+    const PrototypeWorld* prototypeWorld() const { return prototype.get(); }
+    // The time of the wind phases (seconds, default 0): the shaders get fmod(time * f, 2 pi) per wind frequency,
+    // computed in double (§10.1: no absolute time in a shader). Games pass world.time() + alpha * dt; goldens and
+    // benchmarks keep 0. Transitional exception to the camera-relative rule with it: the foliage rebuilds its float
+    // world xz for the per-tree wind phase (valid within the prototype's 8 km; S20/S23 replace the prototype)
+    void setTime(double seconds) { sceneTime = seconds; }
+    double time() const { return sceneTime; }
+
    private:
     friend class SceneFrameRenderer;
     void latchFrame();
@@ -180,6 +236,12 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<MeshPool> meshPool;
     std::unique_ptr<InstanceBuffer> instanceBuffer;
     std::unique_ptr<SceneCulling> culling;
+    std::unique_ptr<PrototypeWorld> prototype;
+    std::unique_ptr<PrototypeSettings> protoSettings;
+    double sceneTime = 0;
+    // The next IDs of reserveIds (mesh, material)
+    std::array<uint32_t, 2> nextReservedId = {1, 1};
+    FrameTimes lastTaken;
 
     // The camera (setCamera)
     bool cameraSet       = false;
@@ -198,13 +260,21 @@ class SAIGA_VULKAN_API RenderScene
         uint64_t frame         = 0;
         uint64_t timelineValue = 0;
         uint32_t drawCommands  = 0;
+        uint32_t terrainNodes  = 0;
     };
     std::array<SlotStatistics, 2> slotStatistics;
     RenderStatistics stats;
     std::deque<RenderStatistics> completedStatistics;
     void harvestStatistics();
-    // The camera of the frame being recorded (SceneFrameRenderer::render)
-    void beginSceneFrame(uint32_t frameIndex, int width, int height, SceneCamera& camera);
+    // The statistics slot of the frame being recorded (SceneFrameRenderer::render)
+    void beginSceneFrame(uint32_t frameIndex);
+    // The camera of the frame being recorded (again after the transfer callback, which may set it)
+    void frameCamera(int width, int height, SceneCamera& camera);
+    // The matrices of the camera for the size
+    void updateMatrices(int width, int height);
+    // The lighting block of the frame's instance draws
+    void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, int samples,
+                       SceneLighting& out) const;
     const Callback* transferFn         = nullptr;
     const Callback* renderFn           = nullptr;
     const std::function<void()>* guiFn = nullptr;

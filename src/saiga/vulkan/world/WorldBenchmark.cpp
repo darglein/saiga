@@ -19,13 +19,13 @@ namespace Vulkan
 {
 namespace
 {
-// The first and the last measured frame number (frame numbers count from 1, WorldRenderer::frameNumber())
-constexpr int firstMeasured = WorldBenchmark::warmupFrames + 1;
-constexpr int lastMeasured  = WorldBenchmark::warmupFrames + WorldBenchmark::measuredFrames;
-// GPU times arrive a few frames late; if the last measured frame is skipped by the readback, stop this much later
-constexpr int gpuGraceFrames = 10;
+// The first and the last measured frame number (RenderScene's frame numbers count from 1)
+constexpr uint64_t firstMeasured = WorldBenchmark::warmupFrames + 1;
+constexpr uint64_t lastMeasured  = WorldBenchmark::warmupFrames + WorldBenchmark::measuredFrames;
+// GPU times arrive a few frames late; if the last measured frame has no GPU sample, stop this much later
+constexpr uint64_t gpuGraceFrames = 10;
 
-bool measured(int frame)
+bool measured(uint64_t frame)
 {
     return frame >= firstMeasured && frame <= lastMeasured;
 }
@@ -63,6 +63,12 @@ const std::vector<std::string>& WorldBenchmark::names()
 {
     static const std::vector<std::string> n = {"flyover", "forest"};
     return n;
+}
+
+const std::vector<std::string>& WorldBenchmark::gpuKeys()
+{
+    static const std::vector<std::string> k = {"upload + cull", "terrain + water", "trees", "grass", "sky"};
+    return k;
 }
 
 bool WorldBenchmark::known(const std::string& name)
@@ -109,62 +115,50 @@ WorldBenchmark::Stat WorldBenchmark::summarize(std::vector<double> values)
     return s;
 }
 
-WorldBenchmark::WorldBenchmark(const std::string& name, WorldRenderer& world, const std::string& gpuName)
-    : name(name), gpuName(gpuName), world(&world), state(std::make_shared<State>())
+WorldBenchmark::WorldBenchmark(const std::string& name, const HeightField& heightField, const std::string& gpuName)
+    : name(name), gpuName(gpuName), hf(&heightField)
 {
     SAIGA_ASSERT(known(name), "unknown benchmark");
-    // The callback owns a reference to the state and never touches this object; it is removed when the benchmark is
-    // finished or the benchmark object was destroyed (then the callback holds the last reference)
-    auto s = state;
-    world.frameCallbacks.push_back(
-        [s](const WorldRenderer::FrameTimes& t)
-        {
-            if (s.use_count() == 1) return true;
-            s->add(t);
-            return s->finished();
-        });
 }
 
-WorldBenchmark::Pose WorldBenchmark::currentPose() const
+WorldBenchmark::Pose WorldBenchmark::currentPose(uint64_t frame) const
 {
-    int frame = world->frameNumber() + 1;
-    int i     = std::min(std::max(frame - firstMeasured, 0), measuredFrames - 1);
-    return pose(name, world->heightField(), i);
+    const int64_t i =
+        std::min<int64_t>(std::max<int64_t>(int64_t(frame) - int64_t(firstMeasured), 0), measuredFrames - 1);
+    return pose(name, *hf, int(i));
 }
 
-void WorldBenchmark::State::add(const WorldRenderer::FrameTimes& times)
+bool WorldBenchmark::measuring(uint64_t frame) const
 {
-    if (times.cpuMs >= 0 && times.cpuFrame > lastCpuFrame)
+    return measured(frame);
+}
+
+void WorldBenchmark::addSample(const Sample& t)
+{
+    if (t.intervalMs >= 0 && t.frame > lastCpuFrame)
     {
-        if (measured(times.cpuFrame))
+        if (measured(t.frame))
         {
-            cpuMs.push_back(times.cpuMs);
-            if (times.cpuWorkMs >= 0) cpuWorkMs.push_back(times.cpuWorkMs);
+            cpuMs.push_back(t.intervalMs);
+            if (t.workMs >= 0) cpuWorkMs.push_back(t.workMs);
         }
-        lastCpuFrame = times.cpuFrame;
+        lastCpuFrame = t.frame;
     }
-    if (times.gpuMs >= 0 && times.gpuFrame > lastGpuFrame)
+    if (!t.sectionMs.empty() && t.frame > lastGpuFrame)
     {
-        if (measured(times.gpuFrame))
-            for (int p = 0; p < WorldRenderer::PASS_COUNT; ++p) gpuPassMs[p].push_back(times.gpuPassMs[p]);
-        lastGpuFrame = times.gpuFrame;
+        if (measured(t.frame))
+        {
+            for (const auto& [key, ms] : t.sectionMs) gpuMs[key].push_back(ms);
+            gpuFrames++;
+        }
+        lastGpuFrame = t.frame;
     }
-}
-
-bool WorldBenchmark::State::finished() const
-{
-    if (lastCpuFrame < lastMeasured) return false;
-    return lastGpuFrame >= lastMeasured || lastCpuFrame >= lastMeasured + gpuGraceFrames;
-}
-
-void WorldBenchmark::addSample(const WorldRenderer::FrameTimes& times)
-{
-    state->add(times);
 }
 
 bool WorldBenchmark::finished() const
 {
-    return state->finished();
+    if (lastCpuFrame < lastMeasured) return false;
+    return lastGpuFrame >= lastMeasured || lastCpuFrame >= lastMeasured + gpuGraceFrames;
 }
 
 int WorldBenchmark::countStalls(const std::vector<double>& intervalsMs)
@@ -185,25 +179,24 @@ json11::Json WorldBenchmark::result() const
     };
     // Without GPU samples (no timestamp support) gpu_ms is null, not zeros that look like a fast result
     json11::Json gpu;
-    if (!state->gpuPassMs[0].empty())
+    if (gpuFrames > 0)
     {
         json11::Json::object passes;
-        for (int p = 0; p < WorldRenderer::PASS_COUNT; ++p)
-            passes[WorldRenderer::gpuPassName(p)] = stat(state->gpuPassMs[p]);
+        for (const auto& [key, values] : gpuMs) passes[key] = stat(values);
         gpu = passes;
     }
     return json11::Json::object{
         {"gpu", gpuName},
         {"quality", "default"},
         {"build", buildInfo()},
-        {"frames", int(state->cpuMs.size())},
-        {"gpu_frames", int(state->gpuPassMs[0].size())},
+        {"frames", int(cpuMs.size())},
+        {"gpu_frames", gpuFrames},
         {"width", width},
         {"height", height},
-        {"cpu_ms", stat(state->cpuMs)},
-        {"cpu_work_ms", stat(state->cpuWorkMs)},
+        {"cpu_ms", stat(cpuMs)},
+        {"cpu_work_ms", stat(cpuWorkMs)},
         {"gpu_ms", gpu},
-        {"stalled_frames", countStalls(state->cpuMs)},
+        {"stalled_frames", countStalls(cpuMs)},
     };
 }
 
@@ -215,11 +208,6 @@ bool WorldBenchmark::writeResult(const std::string& file, const json11::Json& js
     // Regression: a failure of the final flush was reported as success (the stream was closed after the return)
     out.close();
     return bool(out);
-}
-
-bool WorldBenchmark::measuring() const
-{
-    return measured(world->frameNumber() + 1);
 }
 
 }  // namespace Vulkan

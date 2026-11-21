@@ -74,10 +74,11 @@ void InstanceBuffer::freeSlot(uint32_t slot)
 
 void InstanceBuffer::computeBounds(Set& s, const MeshPool& meshes)
 {
-    s.hasBounds      = false;
-    s.maxEndDistance = 0;
-    Vec3 lo          = Vec3::Zero();
-    Vec3 hi          = Vec3::Zero();
+    s.hasBounds = false;
+    s.maxScale  = 0;
+    s.meshes.clear();
+    Vec3 lo = Vec3::Zero();
+    Vec3 hi = Vec3::Zero();
     for (uint32_t i = 0; i < s.used; ++i)
     {
         const StaticInstance& inst = s.instances[i];
@@ -88,7 +89,7 @@ void InstanceBuffer::computeBounds(Set& s, const MeshPool& meshes)
         const quat q        = inst.getRotation();
         const double scale  = double(inst.scale);
         const Vec3 center   = inst.getPosition().cast<double>() + rotate(q, m->sphereCenter.cast<double>() * scale);
-        const double radius = (double(m->sphereRadius) + double(m->boundsPadding)) * scale;
+        const double radius = double(m->sphereRadius) * scale;
         const Vec3 r(radius, radius, radius);
         if (!s.hasBounds)
         {
@@ -100,11 +101,36 @@ void InstanceBuffer::computeBounds(Set& s, const MeshPool& meshes)
             lo = lo.cwiseMin(center - r);
             hi = hi.cwiseMax(center + r);
         }
-        s.hasBounds      = true;
-        s.maxEndDistance = std::max(s.maxEndDistance, double(m->lastEndDistance()));
+        s.hasBounds = true;
+        s.maxScale  = std::max(s.maxScale, scale);
+        if (s.meshes.empty() || s.meshes.back() != inst.mesh) s.meshes.push_back(inst.mesh);
     }
-    s.boundsMin = lo;
-    s.boundsMax = hi;
+    std::sort(s.meshes.begin(), s.meshes.end());
+    s.meshes.erase(std::unique(s.meshes.begin(), s.meshes.end()), s.meshes.end());
+    s.spheresMin = lo;
+    s.spheresMax = hi;
+    padBounds(s, meshes);
+}
+
+void InstanceBuffer::padBounds(Set& s, const MeshPool& meshes)
+{
+    double padding   = 0;
+    s.maxEndDistance = 0;
+    for (MeshId id : s.meshes)
+    {
+        const MeshPool::Mesh* m = meshes.mesh(id);
+        padding                 = std::max(padding, double(m->boundsPadding));
+        s.maxEndDistance        = std::max(s.maxEndDistance, double(m->lastEndDistance()));
+    }
+    const double p = padding * s.maxScale;
+    s.boundsMin    = s.spheresMin - Vec3(p, p, p);
+    s.boundsMax    = s.spheresMax + Vec3(p, p, p);
+}
+
+void InstanceBuffer::refreshBounds(MeshId mesh, const MeshPool& meshes)
+{
+    for (auto& [id, s] : setMap)
+        if (std::binary_search(s.meshes.begin(), s.meshes.end(), mesh)) padBounds(s, meshes);
 }
 
 InstanceSetHandle InstanceBuffer::addSet(const RegionId& region, const std::vector<StaticInstance>& instances,

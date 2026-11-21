@@ -40,7 +40,14 @@ class SAIGA_VULKAN_API InstanceBuffer
         // The highest written index + 1: the culling visits [0, used)
         uint32_t used = 0;
         std::vector<StaticInstance> instances;
-        // Region-relative AABB of the bounding spheres (empty: hasBounds false)
+        // Region-relative AABB of the bounding spheres without the meshes' bounds padding, the largest instance scale
+        // and the meshes of the instances (sorted, distinct): the padded bounds follow a padding change
+        // (RenderScene::setMeshLodDistances) without visiting the instances
+        Vec3 spheresMin = Vec3::Zero(), spheresMax = Vec3::Zero();
+        double maxScale = 0;
+        std::vector<MeshId> meshes;
+        // Region-relative AABB of the padded bounding spheres: the unpadded AABB grown by the largest padding of its
+        // meshes times maxScale (empty: hasBounds false)
         Vec3 boundsMin = Vec3::Zero(), boundsMax = Vec3::Zero();
         bool hasBounds = false;
         // The largest last end distance of its instances' meshes
@@ -91,6 +98,8 @@ class SAIGA_VULKAN_API InstanceBuffer
                 const MeshPool& meshes);
     void removeInstance(InstanceSetHandle set, uint32_t index);
     void removeSet(InstanceSetHandle set);
+    // The padded bounds and end distances of the sets with instances of the mesh (after setMeshLodDistances)
+    void refreshBounds(MeshId mesh, const MeshPool& meshes);
 
     InstanceHandle addDynamic(MeshId mesh);
     void setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
@@ -126,6 +135,7 @@ class SAIGA_VULKAN_API InstanceBuffer
     uint32_t acquireChunk(const ChunkId& chunk);
     void releaseChunk(const ChunkId& chunk);
     void computeBounds(Set& s, const MeshPool& meshes);
+    void padBounds(Set& s, const MeshPool& meshes);
 };
 
 }  // namespace Vulkan

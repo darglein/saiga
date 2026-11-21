@@ -14,21 +14,10 @@ layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) flat in float inLod;
 
-layout(push_constant) uniform PushConstants
-{
-    layout(offset = 12) int wire;
-}
-pc;
-
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    if (pc.wire != 0)
-    {
-        outColor = finalColor(vec3(0.08), 1.0);
-        return;
-    }
     bool water = inLod < 0.0;
     vec3 N;
     if (world.shading.z > 0.5 && !water)

@@ -153,8 +153,12 @@ class SAIGA_VULKAN_API FrameTimings
     void create(uint32_t numberOfFrames, uint32_t _frameWindow = 20);
     void reset();
 
+    // A section begins at TOP_OF_PIPE and ends at BOTTOM_OF_PIPE (sections can overlap)
     void enterSection(const std::string& name, vk::CommandBuffer cmd);
     void leaveSection(const std::string& name, vk::CommandBuffer cmd);
+    // A sub-section inside a pass: begin and end are ALL_COMMANDS marks (consecutive marks do not overlap)
+    void markSectionBegin(const std::string& name, vk::CommandBuffer cmd);
+    void markSectionEnd(const std::string& name, vk::CommandBuffer cmd);
 
     void resetFrame(vk::CommandBuffer cmd);
 };

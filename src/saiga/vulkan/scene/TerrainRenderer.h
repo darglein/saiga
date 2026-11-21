@@ -34,6 +34,9 @@ namespace Vulkan
  *   no cracks or pops.
  *
  * The water plane is drawn with the same pipeline (an instance with level -1).
+ *
+ * S19a: drawn by RenderScene (PrototypeWorld) until S20 replaces it; the depth pre-pass draws it with terrain.vert
+ * alone (Mode::Depth, invariant gl_Position) and the scene pass then with EQUAL and no depth write (Mode::Equal).
  */
 class SAIGA_VULKAN_API TerrainRenderer
 {
@@ -42,8 +45,17 @@ class SAIGA_VULKAN_API TerrainRenderer
     // Max number of selected nodes per frame (the instances are uploaded with vkCmdUpdateBuffer: <= 64 KB)
     static constexpr int maxInstances = 4000;
 
+    // The pipeline of a draw: the scene pass (depth test and write), the depth pre-pass (depth only), the scene pass
+    // after the pre-pass (EQUAL, no depth write)
+    enum class Mode
+    {
+        Scene,
+        Depth,
+        Equal
+    };
+
     // leafSize: size of the finest nodes in meters. gridResolution cells of a leaf should match the height map
-    // spacing.
+    // spacing. formats: the scene pass (its depth format and sample count also make the pre-pass pipeline)
     void init(VulkanBase& base, const RenderingFormats& formats, UniformBuffer& worldUniforms,
               const HeightField& heightField, float leafSize = 64.0f);
     void destroy();
@@ -57,7 +69,7 @@ class SAIGA_VULKAN_API TerrainRenderer
                 float morphStart, bool water);
 
     // terrain = false draws only the water nodes (the water plane without the terrain)
-    void render(vk::CommandBuffer cmd, bool wireframe, bool terrain = true);
+    void render(vk::CommandBuffer cmd, Mode mode, bool terrain = true);
 
     // The range of level 0 actually used (see update)
     float range0() const { return usedRange0; }
@@ -65,7 +77,7 @@ class SAIGA_VULKAN_API TerrainRenderer
     // Size of the nodes of a level in meters (the vertex spacing is nodeSize / gridResolution)
     float nodeSize(int level) const { return leafSize * float(1 << level); }
 
-    // Draw calls of render(cmd, false, terrain)
+    // Draw calls of render(cmd, mode, terrain)
     int drawCalls(bool terrain = true) const
     {
         if (!terrain) return int(!waterNodes.empty());
@@ -115,7 +127,7 @@ class SAIGA_VULKAN_API TerrainRenderer
     uint32_t quarterVertexOffset = 0;
     Buffer instanceBuffer;
 
-    Pipeline pipeline, wirePipeline;
+    Pipeline pipeline, depthPipeline, equalPipeline;
     StaticDescriptorSet descriptorSet;
 
     std::vector<NodeInstance> fullNodes, quarterNodes, waterNodes;

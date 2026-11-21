@@ -10,8 +10,8 @@
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/buffer/UniformBuffer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/TerrainRenderer.h"
 #include "saiga/vulkan/texture/Texture.h"
-#include "saiga/vulkan/world/TerrainRenderer.h"
 #include "saiga/vulkan/world/WorldCommon.h"
 
 #include <array>
@@ -25,7 +25,7 @@ namespace Vulkan
  * of a clump from its cell in a world aligned grid (cell size from the world uniforms) and the height from the
  * height map. The grid around the camera is drawn in tiles x tiles tiles (one instanced draw each), which are culled
  * on the CPU. Clumps on steep slopes, under water or outside the radius get size 0, the density fades out towards
- * the radius.
+ * the radius. S19a: drawn by RenderScene (PrototypeWorld) until S20 replaces it.
  */
 class SAIGA_VULKAN_API GrassRenderer
 {
@@ -40,7 +40,7 @@ class SAIGA_VULKAN_API GrassRenderer
 
     // Selects the visible tiles (CPU).
     void update(const vec3& cameraPos, const std::array<vec4, 6>& frustum, float radius, float cellSize);
-    void render(vk::CommandBuffer cmd, bool wireframe);
+    void render(vk::CommandBuffer cmd);
 
     struct Stats
     {
@@ -71,7 +71,7 @@ class SAIGA_VULKAN_API GrassRenderer
     std::vector<Tile> visibleTiles;
     Stats statistics;
 
-    Pipeline pipeline, wirePipeline;
+    Pipeline pipeline;
     StaticDescriptorSet set;
 };
 

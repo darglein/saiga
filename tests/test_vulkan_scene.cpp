@@ -13,6 +13,8 @@
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/MeshImport.h"
+#include "saiga/vulkan/scene/MeshPool.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/HeadlessWindow.h"
 
@@ -510,14 +512,21 @@ TEST_F(VulkanScene, SampleCount)
 // The GPU sections are written in every frame and in frame order, also with Identity, 1 sample and hidden ImGui
 TEST_F(VulkanScene, GpuSections)
 {
+    // S19a: the depth pre-pass and the sub-sections of the passes (dotted names), written in every frame
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 6u);
+    ASSERT_EQ(names.size(), 12u);
     EXPECT_STREQ(names[0], "transfer");
     EXPECT_STREQ(names[1], "cull");
-    EXPECT_STREQ(names[2], "scene");
-    EXPECT_STREQ(names[3], "resolve");
-    EXPECT_STREQ(names[4], "post");
-    EXPECT_STREQ(names[5], "imgui");
+    EXPECT_STREQ(names[2], "depth");
+    EXPECT_STREQ(names[3], "depth.terrain");
+    EXPECT_STREQ(names[4], "scene");
+    EXPECT_STREQ(names[5], "scene.terrain");
+    EXPECT_STREQ(names[6], "scene.instances");
+    EXPECT_STREQ(names[7], "scene.grass");
+    EXPECT_STREQ(names[8], "scene.sky");
+    EXPECT_STREQ(names[9], "resolve");
+    EXPECT_STREQ(names[10], "post");
+    EXPECT_STREQ(names[11], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -542,7 +551,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 6u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 12u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);
@@ -1759,6 +1768,55 @@ TEST_F(VulkanSceneContent, AlphaMaskDiscard)
     }
 }
 
+// Regression (S19a review): an alpha-masked material with an explicit opaque class (PipelineClass::Opaque or TwoSided)
+// was drawn in the opaque bucket, so the depth pre-pass wrote depth where flat.frag discards: the box behind it was
+// hidden with the pre-pass only. The masked material goes to the masked class of the same culling
+TEST_F(VulkanSceneContent, AlphaMaskedOverrideNotInPrePass)
+{
+    CreateScene();
+    for (auto [c, masked] : {std::pair(PipelineClass::Opaque, PipelineClass::AlphaMasked),
+                             std::pair(PipelineClass::TwoSided, PipelineClass::AlphaMaskedTwoSided)})
+    {
+        MaterialData m  = flatMaterial();
+        m.alphaMask     = true;
+        m.pipelineClass = uint8_t(c);
+        EXPECT_EQ(MeshPool::pipelineClassIndex(m), uint8_t(masked) - 1) << int(c);
+    }
+    MaterialData opaqueMasked    = flatMaterial();
+    opaqueMasked.alphaMask       = true;
+    opaqueMasked.pipelineClass   = uint8_t(PipelineClass::Opaque);
+    MaterialData twoSidedMasked  = opaqueMasked;
+    twoSidedMasked.pipelineClass = uint8_t(PipelineClass::TwoSided);
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMaterial(2, "opaque_masked", opaqueMasked);
+    scene->addMaterial(3, "two_sided_masked", twoSidedMasked);
+    // A wall behind two discarded boxes (vertex alpha 100 < 0.5)
+    scene->addMesh(1, "wall", boxMesh(vec3(6, 3, 0.2f), vec3(0, 0, 0), {100}, {ucvec4(200, 120, 60, 255)}), 1);
+    scene->addMesh(2, "box_opaque", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 2);
+    scene->addMesh(3, "box_two_sided", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 3);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -2), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(-2, 0, 2), quat::Identity(), 1, 2),
+                                       makeInstance(vec3(2, 0, 2), quat::Identity(), 1, 3)});
+    PrototypeSettings ps;
+    ps.depthPrePass = false;
+    scene->setPrototypeSettings(ps);
+    SceneFrame();
+    auto without    = SceneFrame();
+    ps.depthPrePass = true;
+    scene->setPrototypeSettings(ps);
+    SceneFrame();
+    auto with = SceneFrame();
+    EXPECT_EQ(maxPixelDiff(with, without), 0);
+    // The wall is visible through both boxes
+    for (float x : {-2.0f, 2.0f})
+    {
+        const Vec2 p = camera.project(Vec3(x, 0, 1));
+        EXPECT_NE(with(int(p(1)), int(p(0))), ucvec4(0, 0, 0, 255)) << x;
+    }
+}
+
 // The storage buffers bound whole stop growing at the limit (maxStorageBufferRange, here a lower test limit of 48 KiB =
 // 1536 static instances; 2x growth from 1000 would need 64 KiB) and a set beyond it is a fatal error. The device's
 // limit itself is not tested: on lavapipe (128 MiB) it needs 4.2M instances (a 134 MB CPU copy, uploads and buffers).
@@ -1790,6 +1848,22 @@ TEST_F(VulkanSceneContent, StorageBufferLimit)
     EXPECT_EQ(st.instancesPerLod[0], 1536u);
     EXPECT_DEATH(scene->addInstanceSet(RegionId(), grid(1, 2)),
                  "more than the buffer's limit \\(maxStorageBufferRange");
+}
+
+// Regression (S19a review): reserveIds checked next + count, which wrapped around for a huge count (the assert passed
+// and the next reservation returned ID 0)
+TEST_F(VulkanSceneContent, ReserveIdsRange)
+{
+    CreateScene();
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Mesh, 1), 1);
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Material, 3), 1);
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Mesh, 2), 2);
+#ifdef SAIGA_ASSERTS
+    EXPECT_DEATH(scene->reserveIds(SceneIdKind::Mesh, std::numeric_limits<uint32_t>::max()), "is exhausted");
+    EXPECT_DEATH(scene->reserveIds(SceneIdKind::Mesh, kGameReservedIds - 3), "is exhausted");
+#endif
+    // The rest of the range: IDs 4 .. kGameReservedIds - 1
+    EXPECT_EQ(scene->reserveIds(SceneIdKind::Mesh, kGameReservedIds - 4), 4);
 }
 
 // The count and write passes as a 2D dispatch (work groups limited to 3 per row, 11 chunks: a partial last row) give
@@ -2113,4 +2187,58 @@ TEST_F(VulkanSceneContent, TrackedMeshStatistics)
     EXPECT_EQ(st.trackedMeshes[0].instancesPerLod, (Counts{0, 0, 0, 0}));
 
     EXPECT_DEATH(scene->trackMeshStatistics(std::vector<MeshId>(maxTrackedMeshes + 1, 1)), "at most maxTrackedMeshes");
+}
+
+// S19a: the depth pre-pass of the opaque content (the prototype terrain and water, an opaque instance: static and
+// dynamic at alpha 0.5) gives the same image as the scene pass alone (depth test and write): the vertex shaders write
+// invariant positions, the scene pass draws them with EQUAL. MSAA with the SAMPLE_ZERO depth resolve and 1 sample
+TEST_F(VulkanSceneContent, DepthPrePassMatches)
+{
+    for (int samples : {4, 1})
+    {
+        RenderSceneParameters p;
+        p.msaaSamples = samples;
+        CreateScene(p);
+        auto heights = std::make_shared<HeightField>();
+        HeightField::Parameters hp;
+        hp.size    = 129;
+        hp.spacing = 2.0f;  // 256 m
+        heights->generate(hp);
+        PrototypeSettings ps;
+        ps.grass = false;
+        scene->setPrototypeTerrain(heights, ps, 1);
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box", boxMesh(vec3(3, 3, 3), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+        // A box half in the ground (the terrain and the box test against each other) and a moving one
+        const float x = 128, z = 120, h = heights->height(x, z);
+        scene->addInstanceSet(RegionId{0, 0, 0, 0},
+                              {makeInstance(vec3(x, h, z), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
+        DynamicPose a, b;
+        a.position = Vec3(x + 8, h + 1, z - 4);
+        b.position = Vec3(x + 14, h - 1, z + 2);
+        b.rotation = Quat(AngleAxis(0.9, Vec3(0, 1, 0)));
+        scene->setDynamic(scene->addDynamic(1), ChunkId{0, 0, 0}, a, b);
+        scene->setInterpolation(0.5f);
+        camera.position = Vec3(x - 30, h + 12, z + 30);
+        camera.rotation = lookRotation(Vec3(30, -10, -30));
+        camera.apply(*scene);
+
+        ps.depthPrePass = true;
+        scene->setPrototypeSettings(ps);
+        SceneFrame();
+        RenderStatistics st;
+        auto with = SceneFrame(&st);
+        EXPECT_EQ(st.instancesPerLod[0], 2u) << samples;
+        EXPECT_GT(st.terrainNodes, 0u);
+        ps.depthPrePass = false;
+        scene->setPrototypeSettings(ps);
+        SceneFrame();
+        auto without = SceneFrame();
+        EXPECT_EQ(maxPixelDiff(with, without), 0) << samples << " samples";
+        // The boxes are drawn (their color, not the gray clay terrain)
+        int colored = 0;
+        for (int y = 0; y < with.h; ++y)
+            for (int xx = 0; xx < with.w; ++xx) colored += with(y, xx)(0) > with(y, xx)(2) + 20;
+        EXPECT_GT(colored, 50) << samples;
+    }
 }

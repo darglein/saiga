@@ -9,7 +9,8 @@
 // The instance draws of RenderScene (S18, docs/engine_design.md §10.1): compacted[gl_InstanceIndex] -> the static or
 // dynamic instance -> its pose, offset slot and mesh record -> the material. The vertex is placed camera-relative with
 // placePoint (the count pass places the bounding sphere with the same function); the view matrix holds only the
-// camera rotation.
+// camera rotation. S19a: also the depth pre-pass of the opaque classes (this shader alone): invariant gl_Position, so
+// the scene pass's EQUAL test sees bit-identical depths.
 
 #include "instance_common.glsl"
 
@@ -37,15 +38,12 @@ layout(location = 0) flat out uint outMaterial;
 layout(location = 1) flat out uint outColor;
 layout(location = 2) out vec3 outNormal;
 layout(location = 3) out vec2 outUv;
+#ifdef SCENE_FOG
+// The position relative to the camera (the fog variant of the pipelines: the varying costs ~7 % of the flat draws)
+layout(location = 4) out vec3 outRelPos;
+#endif
 
-// Octahedral decoding (Saiga::Vulkan::packNormalOct)
-vec3 decodeOct(uint v)
-{
-    vec2 e = unpackSnorm2x16(v);
-    vec3 n = vec3(e, 1.0 - abs(e.x) - abs(e.y));
-    if (n.z < 0.0) n.xy = (1.0 - abs(n.yx)) * vec2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
-    return normalize(n);
-}
+invariant gl_Position;
 
 void main()
 {
@@ -71,5 +69,8 @@ void main()
     outColor    = inColor;
     outNormal   = rotateQuat(pose.rotation, decodeOct(inNormal));
     outUv       = inUv;
+#ifdef SCENE_FOG
+    outRelPos = p;
+#endif
     gl_Position = pc.viewProj * vec4(p, 1.0);
 }

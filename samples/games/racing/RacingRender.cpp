@@ -27,11 +27,11 @@ void RacingRender::init(EngineApp& _app)
     Vulkan::WorldParameters params;
     // The renderer's trees may follow SAIGA_WORLD_TREES; the track's site does not (RacingContext::kSiteTreeCount)
     params.treeCount = worldTreeCount();
-    params.reversedZ = true;
-    worldRenderer.init(app->scene()->base(), app->scene()->formats(), params,
-                       std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
+    worldRenderer.init(params, std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
     // Grass would grow through the track
     worldRenderer.settings.grass = false;
+    // RenderScene draws the prototype world and the trees (S19a)
+    worldRenderer.attach(*app->scene());
     meshes.init(app->scene()->base(), app->scene()->formats());
 
     const VehicleParameters vehicle;
@@ -132,12 +132,10 @@ Entity RacingRender::focus()
 void RacingRender::transfer(vk::CommandBuffer cmd)
 {
     // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
-    const Vulkan::RenderScene& scene = *app->scene();
-    worldRenderer.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
+    Vulkan::RenderScene& scene = *app->scene();
+    worldRenderer.update();
     meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
-    const ivec2 size     = app->scene()->size();
-    const float aspect   = float(size(0)) / float(std::max(1, size(1)));
     World& w             = app->world();
     const double alpha   = w.alpha();
     const Entity e       = focus();
@@ -188,14 +186,15 @@ void RacingRender::transfer(vk::CommandBuffer cmd)
     const mat4 view = toolCamera ? app->camera().view : camera.view();
     const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
     if (!toolCamera) app->camera().setView(view);
-    worldRenderer.transfer(cmd, view, eye.cast<float>(), aspect);
-    meshes.transfer(cmd, view, eye, worldRenderer.projection(aspect), worldLighting(worldRenderer));
+    // RenderScene's camera of this frame and the time of the wind (the world's time between the steps)
+    scene.setCamera(0, eye, Vulkan::viewRotation(view), radians(double(worldRenderer.settings.fovy)));
+    scene.setTime(w.time() + w.alpha() * w.dt());
+    meshes.transfer(cmd, scene.viewMatrix(), eye, scene.projectionMatrix(), worldLighting(worldRenderer));
 }
 
 void RacingRender::render(vk::CommandBuffer cmd)
 {
     const Track& track = context->track;
-    worldRenderer.render(cmd);
     meshes.draw(trackMeshId, Mat4::Identity());
     // Cones at the gates, the banner at the start
     for (auto& g : track.checkpoints())

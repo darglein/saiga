@@ -140,13 +140,28 @@ json11::Json Profiler::report(int lastSamples) const
         return Json::object{{"samples", s.samples}, {"avg", round6(s.avg)}, {"min", round6(s.min)},
                             {"p50", round6(s.p50)}, {"p95", round6(s.p95)}, {"max", round6(s.max)}};
     };
+    // The parent in the report: a dotted last part "a.b" is a sub-section of the existing scope "a" (RenderScene's GPU
+    // sub-sections, e.g. gpu/scene.instances inside gpu/scene; S19a), else the path without the last part
+    std::vector<int> parents(scopes.size());
+    for (size_t i = 0; i < scopes.size(); ++i)
+    {
+        parents[i]            = scopes[i].parent;
+        const std::string& n  = scopes[i].name;
+        const size_t dot      = n.rfind('.');
+        const size_t slash    = n.rfind('/');
+        const bool lastPartOk = dot != std::string::npos && (slash == std::string::npos || dot > slash + 1);
+        if (!lastPartOk) continue;
+        const std::string pass = n.substr(0, dot);
+        for (size_t k = 0; k < scopes.size(); ++k)
+            if (k != i && scopes[k].name == pass) parents[i] = int(k);
+    }
     Json::array scopeList;
     for (size_t i = 0; i < scopes.size(); ++i)
     {
         const Stats s          = stats(scopes[i], lastSamples);
         Json::object o         = statsJson(s);
         o["scope"]             = scopes[i].name;
-        const int parent       = scopes[i].parent;
+        const int parent       = parents[i];
         const double parentAvg = parent >= 0 ? stats(scopes[size_t(parent)], lastSamples).avg : 0;
         o["share_of_parent"]   = std::round((parent >= 0 && parentAvg > 0 ? s.avg / parentAvg : 1.0) * 1e4) / 1e4;
         scopeList.push_back(o);
@@ -163,7 +178,7 @@ json11::Json Profiler::report(int lastSamples) const
     for (size_t i = 0; i < scopes.size(); ++i)
     {
         bool leaf = true;
-        for (const Series& other : scopes) leaf = leaf && other.parent != int(i);
+        for (int p : parents) leaf = leaf && p != int(i);
         if (leaf) leaves.push_back({stats(scopes[i], lastSamples).avg, scopes[i].name});
     }
     std::sort(leaves.begin(), leaves.end(), [](const auto& a, const auto& b) { return a.first > b.first; });

@@ -9,7 +9,8 @@
 #include "common.glsl"
 #include "shading.glsl"
 
-// Trees and grass: opaque parts (layer < 0) and alpha tested cards (alpha to coverage with MSAA).
+// The grass: alpha tested cards (alpha to coverage with MSAA). The trees are RenderScene's PrototypeFoliage class
+// (vulkan/scene/prototype_foliage.frag, the same shading from prototype_shading.glsl).
 
 // Position relative to the camera
 layout(location = 0) in vec3 inPos;
@@ -20,12 +21,6 @@ layout(location = 4) flat in float inLod;
 
 layout(set = 0, binding = 3) uniform sampler2DArray foliage;
 
-layout(push_constant) uniform PushConstants
-{
-    layout(offset = 12) int wire;
-}
-pc;
-
 layout(location = 0) out vec4 outColor;
 
 void main()
@@ -33,17 +28,8 @@ void main()
     float alpha = 1.0;
     if (inUvLayer.z >= 0.0)
     {
-        alpha = texture(foliage, inUvLayer).r;
-        // Keep the coverage in the smaller mip levels
-        alpha *= 1.0 + max(textureQueryLod(foliage, inUvLayer.xy).x, 0.0) * 0.25;
-        // Sharpen the edge to about one pixel (alpha to coverage)
-        alpha = (alpha - world.terrain2.w) / max(fwidth(alpha), 1e-4) + 0.5;
+        alpha = foliageCoverage(foliage, inUvLayer, world.terrain2.w);
         if (alpha <= 0.0 || (world.grass.w < 1.5 && alpha < 0.5)) discard;
-    }
-    if (pc.wire != 0)
-    {
-        outColor = finalColor(vec3(0.08), 1.0);
-        return;
     }
 
     vec3 N = normalize(inNormal);

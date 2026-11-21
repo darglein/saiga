@@ -58,15 +58,21 @@ src/
                         VMA's defragmentation compacts (full_defrag(), or incremental passes in update() per frame);
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
-                        world/: prototype of the game engine's world renderer (terrain, trees, grass, sky, the game_* MCP tools,
-                        benchmark paths WorldBenchmark; used by game_world)
+                        world/: the game side of the world prototype (S19a; used by game_world, flight, racing): the
+                        height field and generators, WorldSettings (GUI, game_* MCP tools), PrototypeForest (the trees
+                        as RenderScene instance sets), WorldRenderer (attach to the scene, settings, statistics; no GPU
+                        resources), benchmark paths and samples WorldBenchmark
                         scene/RenderScene: the engine app's HDR frame (S17; shader/vulkan/scene/): fp16 MSAA scene pass
                         with reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map
                         weighted resolve), pre-exposure (sceneWritesLinear/preExposure), post + ImGui in one pass;
                         scene content (S18): MeshPool (meshes, materials, palette; vertex/index buffers sub-allocated
                         with VMA virtual blocks, SubAllocatedBuffer), InstanceBuffer (static instance sets per region,
                         dynamic instances), SceneCulling (offset table, GPU culling count/scan/write passes, indexed
-                        indirect draws per pipeline class, flat shading), MeshImport (glTF via assimp, flat colors)
+                        indirect draws per pipeline class, flat shading), MeshImport (glTF via assimp, flat colors);
+                        prototype passes (S19a): PrototypeWorld (setPrototypeTerrain: CDLOD terrain with the water
+                        plane, grass, sky; TerrainRenderer, GrassRenderer), the PrototypeFoliage pipeline class of the
+                        trees, the lighting block, setTime, the depth pre-pass (off for the prototype) and the
+                        SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain, scene.instances, ...)
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
                         chosen at runtime as in opengl/: GLFWWindow or HeadlessWindow (offscreen images, ImGui through
@@ -293,13 +299,16 @@ ctest -R test_core_ini --output-on-failure             # one test
   `-march=native` was really used) and the rendered size. Compare with the baseline of the GPU in
   `data/tests/benchmarks.json` (run each benchmark twice: the frame interval `cpu_ms` median varies below 1% between
   runs, the GPU pass medians about 1%, passes below 0.1 ms up to 5%); a regression of more than 5% must be explained
-  (R-TEST-2), and a new baseline is committed when a change is accepted. The culling benchmark (S18) renders the
+  (R-TEST-2), and a new baseline is committed when a change is accepted. Since S19a the `gpu_ms` keys (S03's names) come
+  from RenderScene's sections: `trees` = `scene.instances`, `upload + cull` = `transfer` + `cull`, `terrain + water` =
+  `depth.terrain` + `scene.terrain`, `grass`, `sky`; `cpu_work_ms` is the app's recording and submit (not comparable
+  with the S03 value). The culling benchmark (S18) renders the
   prototype's 200k trees as flat instances through RenderScene over the flyover path (headless, 1920 x 1080) and writes
   `benchmark_scene_cull.json` (the `cull` section and the instance draw time; not in `benchmarks.json`).
 
 ## Game Engine
 
-The game engine (`src/saiga/engine/`, from stage S04; the world renderer in `src/saiga/vulkan/world/` and the games built on it) is
+The game engine (`src/saiga/engine/`, from stage S04; the world renderer in `src/saiga/vulkan/scene/` and `src/saiga/vulkan/world/` and the games built on it) is
 designed in `docs/engine_design.md`. Read its Section 1 (Rules) before changing engine or game code.
 
 Tech demo games (§18.4): `game_flight`, `game_platformer`, `game_racing` in `samples/games/` (with samples ON), on
