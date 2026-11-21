@@ -33,6 +33,9 @@ void RacingRender::init(EngineApp& _app)
     worldRenderer.settings.grass = false;
     // RenderScene draws the prototype world and the trees (S19a)
     worldRenderer.attach(*app->scene());
+    // The world prototype's settings and statistics as sections of the debug UI (S19c)
+    app->debugUi().addSection(DebugTab::Engine, "World", [this]() { worldRenderer.imgui(); });
+    app->debugUi().addSection(DebugTab::Performance, "World passes", [this]() { worldRenderer.imguiStatistics(); });
     // The track, its cones and the banner: one instance set at the track's start (S19b)
     level.create(*app->scene(), "racing/level", levelMesh(), context->track.position(0));
     wheels.init(app->vulkanSink());
@@ -206,11 +209,10 @@ void RacingRender::beforeRender(double alpha)
 
 void RacingRender::gui()
 {
-    worldRenderer.imgui();
     // The GUI runs inside the frame (after beforeRender): the car it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 170), ImGuiCond_FirstUseEver);
     ImGui::Begin("Racing", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, G GUI");
+    ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, F1-F4 debug tabs, G GUI");
     World& w       = app->world();
     const Entity e = focus();
     if (w.alive(e) && w.has<VehicleState>(e))
@@ -240,7 +242,14 @@ void RacingRender::gui()
         }
         else if (w.isHost() && !player.valid() && ImGui::Button("back to the track"))
         {
-            if (auto* c = gameObjectAs<CarBase>(w, e)) c->respawn();
+            // Between steps, not while the frame is recorded (S19c)
+            app->queueBetweenSteps(
+                [this, e]()
+                {
+                    World& world = app->world();
+                    if (!world.alive(e)) return;
+                    if (auto* c = gameObjectAs<CarBase>(world, e)) c->respawn();
+                });
         }
     }
     ImGui::End();

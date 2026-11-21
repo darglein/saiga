@@ -190,7 +190,9 @@ std::vector<ToolSpec> toolSpecs()
          S::ObjectSchema({})},
         {"logs",
          "Reads the engine log lines after a sequence number (at most the newest 500), optionally of one "
-         "category (\"api\" lists the changes made through these tools). Changes nothing.",
+         "category (\"api\" lists the changes made through these tools; \"mcp\", the log of the tool calls, is only "
+         "returned when asked for). Each line has seq, time (s since the start), category and message. Changes "
+         "nothing.",
          S::ObjectSchema({{"since", S::IntegerProperty("Sequence number (0: all kept)")},
                           {"category", S::StringProperty("Category filter")}})},
         {"save_snapshot",

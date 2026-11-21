@@ -531,9 +531,70 @@ std::string McpServer::Base64Encode(const unsigned char* data, size_t size)
 //==================================================================================================
 // Server
 
+struct McpServer::CallState
+{
+    std::mutex mutex;
+    std::deque<CallRecord> records;
+    std::deque<std::pair<Respond, ToolResult>> localAnswers;
+    // Records are only kept while an observer is set (bounded, in case poll() is not called)
+    std::atomic_bool recording{false};
+    static constexpr size_t maxRecords = 1024;
+
+    void addRecord(CallRecord r)
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        addRecordLocked(std::move(r));
+    }
+    // With mutex held
+    void addRecordLocked(CallRecord r)
+    {
+        if (!recording) return;
+        if (records.size() >= maxRecords) records.pop_front();
+        records.push_back(std::move(r));
+    }
+};
+
+namespace
+{
+// The first text part of a result, whitespace collapsed, at most 200 characters
+std::string answerSummary(const McpServer::ToolResult& result)
+{
+    std::string text;
+    for (const auto& c : result.content)
+    {
+        if (c["type"].string_value() == "text")
+        {
+            text = c["text"].string_value();
+            break;
+        }
+        if (c["type"].string_value() == "image" && text.empty()) text = "[image]";
+    }
+    std::string out;
+    bool space = false;
+    for (char ch : text)
+    {
+        if (std::isspace((unsigned char)ch))
+        {
+            space = !out.empty();
+            continue;
+        }
+        if (space) out += ' ';
+        space = false;
+        out += ch;
+        if (out.size() >= 200)
+        {
+            out += "...";
+            break;
+        }
+    }
+    return out;
+}
+}  // namespace
+
 struct McpServer::PendingCall
 {
-    Handler* handler = nullptr;
+    // The tool's handler, shared (registering more tools may reallocate the tool list while a call is queued)
+    std::shared_ptr<Handler> handler;
     Json arguments;
     std::promise<ToolResult> promise;
     std::atomic_bool answered{false};
@@ -541,21 +602,177 @@ struct McpServer::PendingCall
     std::atomic_bool claimed{false};
     // When the caller stops waiting (the call's timeout, from when it was queued)
     std::chrono::steady_clock::time_point deadline;
+    // For the call records and local calls (never the server itself: an answer may come after it is gone)
+    std::shared_ptr<CallState> state;
+    uint64_t id = 0;
+    std::string tool;
+    bool local = false;
+    Respond respond;  // local calls
+    std::chrono::steady_clock::time_point queued, started;
+    std::atomic_bool running{false};
+
+    CallRecord record(CallRecord::Phase phase) const
+    {
+        CallRecord r;
+        r.id        = id;
+        r.tool      = tool;
+        r.arguments = arguments;
+        r.source    = local ? CallRecord::Source::Local : CallRecord::Source::Remote;
+        r.phase     = phase;
+        return r;
+    }
 
     void answer(ToolResult result)
     {
-        if (!answered.exchange(true)) promise.set_value(std::move(result));
+        if (!state)
+        {
+            if (!answered.exchange(true)) promise.set_value(std::move(result));
+            return;
+        }
+        CallRecord r  = record(CallRecord::Phase::Answered);
+        r.isError     = result.isError;
+        r.answer      = answerSummary(result);
+        const auto t0 = running ? started : queued;
+        r.durationMs  = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        // The answered flag, the record and a local call's answer under one lock: stop() (which drains the answers
+        // under the same lock) never sees an answered call whose answer is not queued yet
+        std::lock_guard<std::mutex> lock(state->mutex);
+        if (answered.exchange(true)) return;
+        state->addRecordLocked(std::move(r));
+        if (local)
+            state->localAnswers.emplace_back(std::move(respond), std::move(result));
+        else
+            promise.set_value(std::move(result));
     }
 };
 
 McpServer::McpServer(std::string name, std::string version, std::string instructions)
-    : name(std::move(name)), version(std::move(version)), instructions(std::move(instructions))
+    : name(std::move(name)),
+      version(std::move(version)),
+      instructions(std::move(instructions)),
+      callState(std::make_shared<CallState>())
 {
 }
 
 McpServer::~McpServer()
 {
     stop();
+    answerLocalCallsOnStop();
+}
+
+void McpServer::setCallObserver(std::function<void(const CallRecord&)> observer)
+{
+    callObserver         = std::move(observer);
+    callState->recording = bool(callObserver);
+    if (!callObserver)
+    {
+        std::lock_guard<std::mutex> lock(callState->mutex);
+        callState->records.clear();
+    }
+}
+
+std::vector<std::string> McpServer::toolNames() const
+{
+    std::vector<std::string> names;
+    for (const Tool& t : tools) names.push_back(t.name);
+    return names;
+}
+
+bool McpServer::toolInfo(const std::string& toolName, std::string& description, Json& inputSchema) const
+{
+    for (const Tool& t : tools)
+    {
+        if (t.name != toolName) continue;
+        description = t.description;
+        inputSchema = t.inputSchema;
+        return true;
+    }
+    return false;
+}
+
+std::shared_ptr<McpServer::PendingCall> McpServer::makeCall(Tool& tool, const Json& arguments, bool local)
+{
+    auto call       = std::make_shared<PendingCall>();
+    call->handler   = tool.handler;
+    call->arguments = arguments.is_object() ? arguments : Json(Json::object{});
+    call->state     = callState;
+    call->id        = nextCallId++;
+    call->tool      = tool.name;
+    call->local     = local;
+    call->queued    = std::chrono::steady_clock::now();
+    call->deadline  = call->queued + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                        std::chrono::duration<double>(toolTimeoutSeconds));
+    return call;
+}
+
+void McpServer::callLocal(const std::string& toolName, const Json& arguments, Respond respond)
+{
+    auto it     = std::find_if(tools.begin(), tools.end(), [&](const Tool& t) { return t.name == toolName; });
+    auto refuse = [&](const std::string& message)
+    {
+        std::lock_guard<std::mutex> lock(callState->mutex);
+        callState->localAnswers.emplace_back(std::move(respond), ToolResult::Error(message));
+    };
+    if (it == tools.end()) return refuse("Unknown tool: " + toolName);
+    auto call     = makeCall(*it, arguments, true);
+    call->respond = std::move(respond);
+    std::lock_guard<std::mutex> lock(pendingMutex);
+    if (stopping)
+    {
+        call->answer(ToolResult::Error("The application is shutting down"));
+        return;
+    }
+    if (pendingCalls.size() >= maxPendingCalls)
+    {
+        call->answer(ToolResult::Error("Too many pending tool calls"));
+        return;
+    }
+    pendingCalls.push_back(call);
+}
+
+void McpServer::deliverCallState(bool records)
+{
+    std::deque<std::pair<Respond, ToolResult>> answers;
+    std::deque<CallRecord> recs;
+    {
+        std::lock_guard<std::mutex> lock(callState->mutex);
+        answers.swap(callState->localAnswers);
+        if (records) recs.swap(callState->records);
+    }
+    for (auto& r : recs)
+        if (callObserver) callObserver(r);
+    for (auto& a : answers)
+        if (a.first) a.first(std::move(a.second));
+}
+
+void McpServer::answerLocalCallsOnStop()
+{
+    // No call starts after this (poll() checks it before each handler; callLocal refuses); a poll() dispatching on
+    // another thread finishes first
+    stopping = true;
+    std::lock_guard<std::recursive_mutex> dispatch(dispatchMutex);
+    std::deque<std::shared_ptr<PendingCall>> calls;
+    {
+        std::lock_guard<std::mutex> lock(pendingMutex);
+        for (auto& c : pendingCalls)
+            if (c->local) calls.push_back(c);
+        pendingCalls.erase(std::remove_if(pendingCalls.begin(), pendingCalls.end(),
+                                          [](const std::shared_ptr<PendingCall>& c) { return c->local; }),
+                           pendingCalls.end());
+    }
+    for (auto& c : calls) c->answer(ToolResult::Error("The application is shutting down"));
+    std::vector<std::shared_ptr<PendingCall>> inFlight;
+    {
+        std::lock_guard<std::mutex> lock(inFlightMutex);
+        inFlight.swap(localInFlight);
+    }
+    for (auto& c : inFlight) c->answer(ToolResult::Error("The application is shutting down"));
+    // The answers on this thread; the records are dropped
+    {
+        std::lock_guard<std::mutex> lock(callState->mutex);
+        callState->records.clear();
+    }
+    deliverCallState(false);
 }
 
 void McpServer::addTool(const std::string& toolName, const std::string& description, const Json& inputSchema,
@@ -565,7 +782,7 @@ void McpServer::addTool(const std::string& toolName, const std::string& descript
     // A second registration of a name would list the tool twice (every build)
     for (const Tool& t : tools)
         if (t.name == toolName) SAIGA_EXIT_ERROR("McpServer: the tool \"" + toolName + "\" is already registered");
-    tools.push_back({toolName, description, inputSchema, std::move(handler)});
+    tools.push_back({toolName, description, inputSchema, std::make_shared<Handler>(std::move(handler))});
 }
 
 bool McpServer::start(int port, const std::string& address)
@@ -621,23 +838,34 @@ bool McpServer::start(int port, const std::string& address)
 
 void McpServer::stop()
 {
-    if (!listening) return;
+    if (!listening)
+    {
+        answerLocalCallsOnStop();
+        return;
+    }
     stopping = true;
+    // A poll() dispatching on another thread finishes its calls first (they see stopping afterwards)
+    std::lock_guard<std::recursive_mutex> dispatch(dispatchMutex);
     if (acceptThread.joinable()) acceptThread.join();
     closeSocket((socket_t)listenSocket);
     listenSocket = -1;
 
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
-        for (auto& c : pendingCalls) c->answer(ToolResult::Error("The application is shutting down"));
-        pendingCalls.clear();
+        for (auto& c : pendingCalls)
+            if (!c->local) c->answer(ToolResult::Error("The application is shutting down"));
+        pendingCalls.erase(std::remove_if(pendingCalls.begin(), pendingCalls.end(),
+                                          [](const std::shared_ptr<PendingCall>& c) { return !c->local; }),
+                           pendingCalls.end());
     }
     joinFinishedConnections(true);
     listening = false;
+    answerLocalCallsOnStop();
 }
 
 void McpServer::poll()
 {
+    std::unique_lock<std::recursive_mutex> dispatch(dispatchMutex);
     std::deque<std::shared_ptr<PendingCall>> calls;
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
@@ -646,10 +874,33 @@ void McpServer::poll()
     for (auto& call : calls)
     {
         auto c = call;
-        // Claimed by a timeout: the client was told that the call failed, so it must not run anymore
-        if (c->claimed.exchange(true)) continue;
+        // Claimed by a timeout: the client was told that the call failed, so it must not run anymore. Answered already
+        // (the caller gave up while stopping): it must not run either
+        if (c->claimed.exchange(true) || c->answered) continue;
+        // stop() ran while the calls were taken from the queue: none runs after it (a local call gets its answer
+        // with this poll)
+        if (stopping)
+        {
+            c->answer(ToolResult::Error("The application is shutting down"));
+            continue;
+        }
+        // A local call that waited past its deadline (poll() was not called) times out without running: its effects
+        // must not happen after its caller was told it failed
+        if (c->local && std::chrono::steady_clock::now() > c->deadline)
+        {
+            c->answer(ToolResult::Error("Timeout: the tool call was not run (poll() was not called in time)"));
+            continue;
+        }
         // Handlers can read how long the caller still waits (callDeadline)
         currentDeadline = c->deadline;
+        c->started      = std::chrono::steady_clock::now();
+        c->running      = true;
+        callState->addRecord(c->record(CallRecord::Phase::Started));
+        if (c->local)
+        {
+            std::lock_guard<std::mutex> lock(inFlightMutex);
+            localInFlight.push_back(c);
+        }
         try
         {
             (*c->handler)(c->arguments, [c](ToolResult result) { c->answer(std::move(result)); });
@@ -659,6 +910,25 @@ void McpServer::poll()
             c->answer(ToolResult::Error(std::string("Exception: ") + e.what()));
         }
     }
+    // Local calls have no waiting thread: their timeout is checked here (a copy of the list: stop() may clear it on
+    // another thread; the answers are given outside the lock)
+    const auto now = std::chrono::steady_clock::now();
+    std::vector<std::shared_ptr<PendingCall>> inFlight;
+    {
+        std::lock_guard<std::mutex> lock(inFlightMutex);
+        inFlight = localInFlight;
+    }
+    for (auto& c : inFlight)
+        if (!c->answered && now > c->deadline)
+            c->answer(ToolResult::Error("Timeout: the tool started but did not answer in time"));
+    {
+        std::lock_guard<std::mutex> lock(inFlightMutex);
+        localInFlight.erase(std::remove_if(localInFlight.begin(), localInFlight.end(),
+                                           [](const std::shared_ptr<PendingCall>& c) { return bool(c->answered); }),
+                            localInFlight.end());
+    }
+    deliverCallState(true);
+    dispatch.unlock();
     // Listeners may add listeners (kept) and remove themselves (return false). A throwing listener is removed; the
     // others still run, then the first exception is rethrown.
     std::vector<std::function<bool()>> current;
@@ -683,12 +953,8 @@ McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Jso
     auto it = std::find_if(tools.begin(), tools.end(), [&](const Tool& t) { return t.name == toolName; });
     SAIGA_ASSERT(it != tools.end());
 
-    auto call       = std::make_shared<PendingCall>();
-    call->handler   = &it->handler;
-    call->arguments = arguments.is_object() ? arguments : Json(Json::object{});
-    auto future     = call->promise.get_future();
-    call->deadline = std::chrono::steady_clock::now() + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                                                            std::chrono::duration<double>(toolTimeoutSeconds));
+    auto call   = makeCall(*it, arguments, false);
+    auto future = call->promise.get_future();
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
         if (stopping) return ToolResult::Error("The application is shutting down");

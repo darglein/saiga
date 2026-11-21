@@ -392,3 +392,262 @@ TEST(McpServer, StopWithSlowReader)
     ::close(c);
 #endif
 }
+
+// callLocal (the debug UI's console, S19c): queued like a remote call, run by poll(), answered on the polling thread
+TEST(McpServer, CallLocal)
+{
+    McpServer server("test");
+    McpServer::Respond later;
+    std::atomic_int executed{0};
+    server.addTool("count", "Counts", McpServer::ObjectSchema({}),
+                   [&](const Json& a, McpServer::Respond r)
+                   {
+                       executed++;
+                       r(McpServer::ToolResult::Text(a.dump()));
+                   });
+    server.addTool("later", "Answers later", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r) { later = std::move(r); });
+    EXPECT_EQ(server.toolNames(), (std::vector<std::string>{"count", "later"}));
+    std::string description;
+    Json schema;
+    EXPECT_TRUE(server.toolInfo("later", description, schema));
+    EXPECT_EQ(description, "Answers later");
+    EXPECT_FALSE(server.toolInfo("nope", description, schema));
+
+    std::vector<McpServer::ToolResult> answers;
+    std::vector<std::thread::id> threads;
+    auto respond = [&](McpServer::ToolResult r)
+    {
+        answers.push_back(r);
+        threads.push_back(std::this_thread::get_id());
+    };
+    server.callLocal("count", Json::object{{"x", 1}}, respond);
+    EXPECT_EQ(executed, 0);
+    EXPECT_TRUE(answers.empty());
+    server.poll();
+    EXPECT_EQ(executed, 1);
+    ASSERT_EQ(answers.size(), 1u);
+    EXPECT_FALSE(answers[0].isError);
+    EXPECT_EQ(answers[0].content[0]["text"].string_value(), R"({"x": 1})");
+
+    // Unknown tool: an error through respond, in the next poll
+    server.callLocal("nope", Json::object{}, respond);
+    EXPECT_EQ(answers.size(), 1u);
+    server.poll();
+    ASSERT_EQ(answers.size(), 2u);
+    EXPECT_TRUE(answers[1].isError);
+
+    // A deferred answer from another thread is delivered by poll() on the polling thread
+    server.callLocal("later", Json::object{}, respond);
+    server.poll();
+    ASSERT_TRUE(later);
+    std::thread([&]() { later(McpServer::ToolResult::Text("late")); }).join();
+    EXPECT_EQ(answers.size(), 2u);
+    server.poll();
+    ASSERT_EQ(answers.size(), 3u);
+    EXPECT_EQ(threads[2], std::this_thread::get_id());
+
+    // The timeout is enforced by poll() (no thread waits for a local call)
+    server.toolTimeoutSeconds = 0.05;
+    later                     = {};
+    server.callLocal("later", Json::object{}, respond);
+    server.poll();
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    server.poll();
+    ASSERT_EQ(answers.size(), 4u);
+    EXPECT_TRUE(answers[3].isError);
+    EXPECT_NE(answers[3].content[0]["text"].string_value().find("Timeout"), std::string::npos);
+    // The late answer is dropped
+    later(McpServer::ToolResult::Text("too late"));
+    server.poll();
+    EXPECT_EQ(answers.size(), 4u);
+
+    // stop() answers pending local calls although the server never listened
+    server.callLocal("count", Json::object{}, respond);
+    server.stop();
+    ASSERT_EQ(answers.size(), 5u);
+    EXPECT_TRUE(answers[4].isError);
+    EXPECT_EQ(executed, 1);
+}
+
+// The call observer (the debug UI's MCP call log, S19c): records for remote and local calls, delivered by poll()
+TEST(McpServer, CallObserver)
+{
+    McpServer server("test");
+    server.addTool("ok", "Answers", McpServer::ObjectSchema({}),
+                   [](const Json&, McpServer::Respond r) { r(McpServer::ToolResult::Text("fine\n  answer")); });
+    server.addTool("fail", "Fails", McpServer::ObjectSchema({}),
+                   [](const Json&, McpServer::Respond r) { r(McpServer::ToolResult::Error("bad")); });
+    std::vector<McpServer::CallRecord> records;
+    std::vector<std::thread::id> threads;
+    std::atomic_int recordCount{0};  // read by the main thread while the poller appends
+    server.setCallObserver(
+        [&](const McpServer::CallRecord& r)
+        {
+            records.push_back(r);
+            threads.push_back(std::this_thread::get_id());
+            recordCount++;
+        });
+    using R = McpServer::CallRecord;
+
+    // A remote call (handleMessage blocks: a poller answers it)
+    {
+        std::atomic_bool stop{false};
+        std::thread poller(
+            [&]()
+            {
+                while (!stop)
+                {
+                    server.poll();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                }
+            });
+        server.handleMessage(
+            Request("tools/call", Json::object{{"name", "ok"}, {"arguments", Json::object{{"a", 1}}}}));
+        // The Answered record is delivered by the poll after the answer
+        for (int i = 0; i < 1000 && recordCount < 2; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        stop = true;
+        poller.join();
+    }
+    ASSERT_EQ(records.size(), 2u);
+    EXPECT_EQ(records[0].phase, R::Phase::Started);
+    EXPECT_EQ(records[1].phase, R::Phase::Answered);
+    EXPECT_EQ(records[0].id, records[1].id);
+    EXPECT_EQ(records[1].tool, "ok");
+    EXPECT_EQ(records[1].source, R::Source::Remote);
+    EXPECT_EQ(records[1].arguments["a"], Json(1));
+    EXPECT_FALSE(records[1].isError);
+    EXPECT_GE(records[1].durationMs, 0);
+    EXPECT_EQ(records[1].answer, "fine answer");
+    EXPECT_EQ(threads[0], threads[1]);
+
+    // A local call with an error
+    records.clear();
+    threads.clear();
+    server.callLocal("fail", Json::object{}, [](McpServer::ToolResult) {});
+    server.poll();
+    ASSERT_EQ(records.size(), 2u);
+    EXPECT_EQ(records[1].source, R::Source::Local);
+    EXPECT_TRUE(records[1].isError);
+    EXPECT_EQ(records[1].answer, "bad");
+    EXPECT_EQ(threads[1], std::this_thread::get_id());
+    EXPECT_NE(records[1].id, 0u);
+
+    // A remote call that times out without poll(): the HTTP thread gives up, the record arrives with the next poll()
+    // on the polling thread
+    records.clear();
+    threads.clear();
+    server.toolTimeoutSeconds = 0.05;
+    std::thread caller([&]() { server.handleMessage(Request("tools/call", Json::object{{"name", "ok"}})); });
+    caller.join();
+    EXPECT_TRUE(records.empty());
+    server.poll();
+    ASSERT_EQ(records.size(), 1u);
+    EXPECT_EQ(records[0].phase, R::Phase::Answered);
+    EXPECT_TRUE(records[0].isError);
+    EXPECT_EQ(threads[0], std::this_thread::get_id());
+}
+
+// Regressions (CodeRabbit, S19c): a local call queued before more tools were registered kept a pointer into the tool
+// list (reallocated by addTool); a local call that waited past its deadline still ran its handler
+TEST(McpServer, CallLocalQueuedBeforeMoreToolsAndExpired)
+{
+    McpServer server("test");
+    int executed = 0;
+    server.addTool("count", "Counts", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r)
+                   {
+                       executed++;
+                       r(McpServer::ToolResult::Text("ok"));
+                   });
+    std::vector<McpServer::ToolResult> answers;
+    server.callLocal("count", Json::object{}, [&](McpServer::ToolResult r) { answers.push_back(r); });
+    for (int i = 0; i < 64; ++i)
+        server.addTool("tool" + std::to_string(i), "More", McpServer::ObjectSchema({}),
+                       [](const Json&, McpServer::Respond r) { r(McpServer::ToolResult::Text("x")); });
+    server.poll();
+    ASSERT_EQ(answers.size(), 1u);
+    EXPECT_FALSE(answers[0].isError);
+    EXPECT_EQ(executed, 1);
+
+    server.toolTimeoutSeconds = 0.02;
+    server.callLocal("count", Json::object{}, [&](McpServer::ToolResult r) { answers.push_back(r); });
+    std::this_thread::sleep_for(std::chrono::milliseconds(60));
+    server.poll();
+    ASSERT_EQ(answers.size(), 2u);
+    EXPECT_TRUE(answers[1].isError);
+    EXPECT_EQ(executed, 1);
+}
+
+// Regression (CodeRabbit): queued calls copied the handler, so a handler with state (a counter) started anew per call
+TEST(McpServer, StatefulHandlerKeepsItsState)
+{
+    McpServer server("test");
+    server.addTool("next", "Counts up", McpServer::ObjectSchema({}), [n = 0](const Json&, McpServer::Respond r) mutable
+                   { r(McpServer::ToolResult::Text(std::to_string(++n))); });
+    std::vector<std::string> answers;
+    auto respond = [&](McpServer::ToolResult r) { answers.push_back(r.content[0]["text"].string_value()); };
+    server.callLocal("next", Json::object{}, respond);
+    server.poll();
+    server.callLocal("next", Json::object{}, respond);
+    server.poll();
+    EXPECT_EQ(answers, (std::vector<std::string>{"1", "2"}));
+}
+
+// Regression (CodeRabbit): a call taken from the queue by poll() could still run after stop() drained the queue; no
+// handler runs after stop(), and later local calls are refused
+TEST(McpServer, NoHandlerRunsAfterStop)
+{
+    McpServer server("test");
+    int executed = 0;
+    server.addTool("count", "Counts", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r)
+                   {
+                       executed++;
+                       r(McpServer::ToolResult::Text("ok"));
+                   });
+    server.stop();
+    std::vector<McpServer::ToolResult> answers;
+    server.callLocal("count", Json::object{}, [&](McpServer::ToolResult r) { answers.push_back(r); });
+    server.poll();
+    ASSERT_EQ(answers.size(), 1u);
+    EXPECT_TRUE(answers[0].isError);
+    EXPECT_EQ(executed, 0);
+}
+
+// Regression (CodeRabbit): stop() on another thread could drain the queues while poll() had taken a call but not
+// started it yet; the handler then ran after stop() returned. Now a handler that started finishes before stop()
+// returns, its answer is delivered, and no handler starts afterwards.
+TEST(McpServer, StopWaitsForADispatchingPoll)
+{
+    McpServer server("test");
+    std::atomic_bool started{false}, finished{false}, stop{false};
+    std::atomic_int executed{0}, answered{0};
+    server.addTool("slow", "Sleeps", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r)
+                   {
+                       executed++;
+                       started = true;
+                       std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                       finished = true;
+                       r(McpServer::ToolResult::Text("ok"));
+                   });
+    server.callLocal("slow", Json::object{}, [&](McpServer::ToolResult) { answered++; });
+    std::thread poller(
+        [&]()
+        {
+            while (!stop)
+            {
+                server.poll();
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            }
+        });
+    while (!started) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    server.callLocal("slow", Json::object{}, [&](McpServer::ToolResult) { answered++; });
+    server.stop();
+    EXPECT_TRUE(finished);
+    EXPECT_EQ(answered, 2);  // the first answered by its handler, the second by stop()
+    stop = true;
+    poller.join();
+    EXPECT_EQ(executed, 1);
+}

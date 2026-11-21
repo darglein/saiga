@@ -553,6 +553,20 @@ TEST(Log, RingSequenceNumbersAndSince)
     EXPECT_EQ(ring.add("test", "after clear"), 7u);
 }
 
+// S19c: each line carries the time since the start (the debug UI's console shows it)
+TEST(Log, LinesCarryTheTime)
+{
+    LogRing ring;
+    ring.add("test", "a");
+    std::this_thread::sleep_for(std::chrono::milliseconds(2));
+    ring.add("test", "b");
+    const auto lines = ring.since(0);
+    ASSERT_EQ(lines.size(), 2u);
+    EXPECT_GE(lines[0].time, 0.0);
+    EXPECT_GT(lines[1].time, lines[0].time);
+    EXPECT_LE(lines[1].time, LogRing::clockSeconds());
+}
+
 TEST(Log, SaigaLogFormatsIntoTheRing)
 {
     setLogEcho(false);

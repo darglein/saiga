@@ -103,7 +103,9 @@ src/
                         interpolatedPose; tests/test_engine_extract.cpp); app/: EngineApp (the engine's frame loop:
                         window or headless, RenderScene and the World's VulkanRenderSink, the view camera
                         setViewCamera, the render hooks init/shutdown/beforeRender/gui, MCP,
-                        input map, frame/GPU profiles), engineMain and the command line of engine games, InputMap,
+                        input map, frame/GPU profiles; S19c: the debug UI DebugUi with its tabs F1-F4, DebugConsole whose
+                        commands are the MCP tools, McpCallLog of every tool call, set_ui_tab), engineMain and the
+                        command line of engine games, InputMap,
                         the app tools (quit, app_status, set_input; screenshot, set_camera/move_camera with the camera
                         hold, list_scenarios/run_scenario)
     export.h            SAIGA_<MODULE>_API dll export/import macros

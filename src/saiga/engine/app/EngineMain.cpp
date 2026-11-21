@@ -47,6 +47,7 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             return false;
         }
     if (const char* shot = std::getenv("SAIGA_SCREENSHOT"); shot && *shot) options.screenshot = shot;
+    if (const char* tab = std::getenv("SAIGA_DEBUG_TAB"); tab && *tab) options.debugTab = std::max(std::atoi(tab), 0);
     bool dataGiven = false, screenshotFromArgument = false;
     for (int i = 1; i < argc; ++i)
     {

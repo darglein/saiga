@@ -250,20 +250,22 @@ json11::Json WorldRenderer::statsJson() const
     };
 }
 
+namespace
+{
+// A sub-section of the settings: a tree node without indent (the debug UI's section header is the parent)
+bool subSection(const char* label, bool defaultOpen)
+{
+    return ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                        (defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None));
+}
+}  // namespace
+
 void WorldRenderer::imgui()
 {
-    if (!ImGui::Begin("World"))
-    {
-        ImGui::End();
-        return;
-    }
-    // The frame times are in the app's "Engine statistics" (F1), not here: one place for them
-    ImGui::TextDisabled("frame times: Engine statistics (F1)");
-
-    ImGui::Checkbox("statistics window", &showStatistics);
-
+    // Widgets only (no window): the engine's debug UI shows them as a section of its Engine tab (S19c). The frame
+    // times are in its Performance tab, not here: one place for them
     auto& st = settings;
-    if (ImGui::CollapsingHeader("Passes", ImGuiTreeNodeFlags_DefaultOpen))
+    if (subSection("Passes", true))
     {
         ImGui::Checkbox("terrain", &st.terrain);
         ImGui::SameLine();
@@ -280,7 +282,7 @@ void WorldRenderer::imgui()
         ImGui::Checkbox("depth pre-pass", &st.depthPrePass);
         ImGui::Combo("debug", &st.debugMode, "none\0lod tint\0\0");
     }
-    if (ImGui::CollapsingHeader("Level of detail"))
+    if (subSection("Level of detail", false))
     {
         ImGui::SliderFloat("terrain lod range", &st.terrainLodRange, 100, 2000, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("morph start", &st.morphStart, 0.3f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -292,7 +294,7 @@ void WorldRenderer::imgui()
         ImGui::SliderFloat("grass density", &st.grassDensity, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("alpha cutoff", &st.alphaCutoff, 0.05f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
     }
-    if (ImGui::CollapsingHeader("Lighting"))
+    if (subSection("Lighting", false))
     {
         ImGui::SliderFloat("fovy", &st.fovy, 20, 110, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("sun azimuth", &st.sunAzimuth, -180, 180, "%.3f", ImGuiSliderFlags_AlwaysClamp);
@@ -304,9 +306,6 @@ void WorldRenderer::imgui()
         ImGui::SliderFloat("fog density", &st.fogDensity, 0, 0.002f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("fog falloff", &st.fogFalloff, 0.0001f, 0.01f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
     }
-    ImGui::End();
-
-    if (showStatistics) imguiStatistics();
 }
 
 }  // namespace Vulkan

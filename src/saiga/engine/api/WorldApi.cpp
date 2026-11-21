@@ -1084,8 +1084,10 @@ ApiResult WorldApi::logs(const Json& a)
     const auto lines           = engineLog().since(uint64_t(since));
     Json::array out;
     for (const LogRing::Line& l : lines)
-        if (category.empty() || l.category == category)
-            out.push_back(Json::object{{"seq", double(l.sequence)}, {"category", l.category}, {"message", l.message}});
+        // The MCP call log ("mcp") only when asked for: an agent reading its logs would read its own calls
+        if (category.empty() ? l.category != "mcp" : l.category == category)
+            out.push_back(Json::object{
+                {"seq", double(l.sequence)}, {"time", l.time}, {"category", l.category}, {"message", l.message}});
     // At most the newest 500; truncated: older matching lines exist (call again with since = first - 1 is not
     // possible: the ring keeps only the newest lines; narrow the category instead)
     const bool truncated =
