@@ -964,14 +964,22 @@ void Replication::sendSnapshot(const std::vector<uint8_t>& peers)
 
 // ---- owner commands, owner state, owner poses ---------------------------------------------------------------------
 
-void Replication::ownerTeleport(Entity root, const Vec3& position, const Quat& rotation)
+void Replication::ownerMove(Entity root, SpaceId space, const Vec3& position, const Quat& rotation)
 {
-    Transform& t        = w.reg.get<Transform>(root);
     const HostSlot* s   = hostSlot(root);
     const uint8_t owner = w.ownerOf(root);
-    t.teleport(position, rotation);
     // Before the spawn or host-owned: a plain teleport (the snapshots convey it)
-    if (!s || !s->spawned || owner == 0 || !w.net) return;
+    if (!s || !s->spawned || owner == 0 || !w.net)
+    {
+        w.teleportTo(root, space, position, rotation);
+        return;
+    }
+    if (space != w.reg.read<Transform>(root).space())
+    {
+        SAIGA_ASSERT(false, "moveToSpace: a client-owned root changes space only with OwnerCommand v2 (S21 step 4)");
+        return;
+    }
+    w.teleportTo(root, space, position, rotation);
     HostSlot& ws = writeSlot(root.index);
     ws.command++;
     OwnerCommandMessage m;

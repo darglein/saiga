@@ -219,6 +219,7 @@ bool World::reparentNow(Entity child, Entity parent)
     // As a remove and an add (the replication sends one Hierarchy message)
     record.append(child, Parent::id, false);
     record.append(child, Parent::id, true);
+    followParentSpace(child);
     return true;
 }
 
@@ -421,7 +422,75 @@ void World::ownerTeleport(Entity root, const Vec3& position, const Quat& rotatio
         SAIGA_ASSERT(false, "ownerTeleport: the entity is not an alive root");
         return;
     }
-    repl->ownerTeleport(root, position, rotation);
+    moveToSpace(root, reg.read<Transform>(root).space(), position, rotation);
+}
+
+void World::moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation)
+{
+    checkNotParallel("moveToSpace");
+    // Code errors (the world API checks them and returns errors instead); refused without asserts too
+    if (!reg.alive(e))
+    {
+        SAIGA_ASSERT(false, "moveToSpace: the entity is not alive (or reserved)");
+        return;
+    }
+    if (reg.has<Parent>(e))
+    {
+        SAIGA_ASSERT(false, "moveToSpace: the entity is a child (its parent decides)");
+        return;
+    }
+    if (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState))
+    {
+        SAIGA_ASSERT(false, "moveToSpace: a world-state or space-state entity");
+        return;
+    }
+    if (space >= spaceCount())
+    {
+        SAIGA_ASSERT(false, "moveToSpace: unknown space " + std::to_string(space));
+        return;
+    }
+    if (!isHost() && repl->netIdOf(e) != 0)
+    {
+        // R-NET-2: clients never move replicated entities (the owner applies the host's OwnerCommand)
+        SAIGA_ASSERT(false, "moveToSpace: a client cannot move a replicated entity");
+        return;
+    }
+    if (isHost())
+        repl->ownerMove(e, space, position, rotation);
+    else
+        teleportTo(e, space, position, rotation);
+}
+
+void World::setSubtreeSpace(Entity root, SpaceId space)
+{
+    for (Entity x : collectSubtree(root))
+    {
+        Transform& t = reg.get<Transform>(x);
+        if (t.space() == space) continue;
+        t.setSpaceInternal(space);
+        repl->noteWritten(x, Transform::id);
+    }
+}
+
+void World::teleportTo(Entity root, SpaceId space, const Vec3& position, const Quat& rotation)
+{
+    Transform& t = reg.get<Transform>(root);
+    if (space != t.space()) setSubtreeSpace(root, space);
+    reg.get<Transform>(root).teleport(position, rotation);
+    repl->noteWritten(root, Transform::id);
+}
+
+void World::followParentSpace(Entity child)
+{
+    const SpaceId space = reg.read<Transform>(reg.read<Parent>(child).entity).space();
+    Transform& t        = reg.get<Transform>(child);
+    if (t.space() == space) return;
+    setSubtreeSpace(child, space);
+    // At its current pose: phase 6 writes the parent-relative one; the flag keeps the extract and the interpolation
+    // from blending across spaces
+    Transform& c = reg.get<Transform>(child);
+    c.teleport(c.position(), c.rotation());
+    repl->noteWritten(child, Transform::id);
 }
 
 void World::rebuildOwnerCacheChecked() const
@@ -681,6 +750,11 @@ void World::activateNow(Entity e)
 }
 
 std::vector<Entity> World::collectDoomed(Entity e) const
+{
+    return collectSubtree(e);
+}
+
+std::vector<Entity> World::collectSubtree(Entity e) const
 {
     // The entity and its descendants (§7.4), parents before children. One pass over the Parent pool builds the
     // (parent index, child) list, sorted for a deterministic order; the visited set stops at cycles (add<Parent>

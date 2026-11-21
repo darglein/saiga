@@ -81,6 +81,8 @@ bool updateChildren(World& w, bool teleportsOnly)
         const Entity parentEntity = w.read<Parent>(child).entity;
         const Transform& parent   = w.read<Transform>(parentEntity);
         Transform& t              = w.get<Transform>(child);
+        // Every space writer keeps the hierarchy invariant (S21): nothing to repair here
+        SAIGA_ASSERT(t.space() == parent.space(), "transform system: a child in another space than its parent");
         // A teleport of the parent in this step, or after the child's last update in the previous step (phase 8)
         const bool teleport = parent.wasTeleported() ||
                               std::binary_search(w.pendingChildTeleports.begin(), w.pendingChildTeleports.end(), child);

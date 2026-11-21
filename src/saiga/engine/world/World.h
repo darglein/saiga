@@ -307,8 +307,17 @@ class SAIGA_ENGINE_API World
     void setOwner(Entity root, uint8_t peer);
     // Host: a teleport of a root. Before its spawn or for a host-owned entity a plain Transform::teleport; for a
     // spawned client-owned entity the pose is applied here too and sent to the owner as an OwnerCommand with the
-    // incremented command counter (owner states with an older counter are dropped, §13.3)
+    // incremented command counter (owner states with an older counter are dropped, §13.3). moveToSpace with the
+    // root's current space.
     void ownerTeleport(Entity root, const Vec3& position, const Quat& rotation);
+    // Moves a root and its descendants to `space` at the pose (§7.4; S21): a teleport (no interpolation; the spatial
+    // grid, ticking, the extract and the replication follow). Applied at once, between steps and during a step (a
+    // space change is a pose write, not a structural change). The descendants take the space at once and their poses
+    // in phase 6. On the host, for a spawned client-owned root, the pose is applied here and sent to the owner as an
+    // OwnerCommand with the space and the incremented command counter. The same space is a plain teleport. Asserts a
+    // dead or reserved entity, a child, a state entity, an unknown space, a call inside parallelEach and, on a client,
+    // a replicated entity (R-NET-2).
+    void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);
     // Engine messages only (receive, owner poses without extrapolation, phase 6's transform system, replication and
     // owner state, the flush): no game systems, listeners, actions or events; the step index and the transform flags
     // do not change (end-of-scenario sync, §17.3)
@@ -823,6 +832,18 @@ class SAIGA_ENGINE_API World
     void destroyNow(Entity e);
     void destroyOne(Entity e);
     std::vector<Entity> collectDoomed(Entity e) const;
+    // The entity and its descendants, parents before children (one pass over the Parent pool, cycle-safe; not
+    // hierarchyOrder, which can be dirty in the middle of a step)
+    std::vector<Entity> collectSubtree(Entity e) const;
+    // ---- the space primitive (S21): the only code that writes Transform::space (with makeStateEntity and the spawn)
+    // The space of a root and every descendant (no pose, no teleport flag); a child is always in its parent's space
+    void setSubtreeSpace(Entity root, SpaceId space);
+    // setSubtreeSpace if the space differs, then a teleport of the root (teleports grows by exactly 1; the
+    // descendants follow in phase 6)
+    void teleportTo(Entity root, SpaceId space, const Vec3& position, const Quat& rotation);
+    // Attaching a child (writer 5): a child in another space than its new parent takes the parent's space with its
+    // subtree and is teleported at its current pose (phase 6 writes the parent-relative pose)
+    void followParentSpace(Entity child);
     int destroyDepth = 0;              // destroyOne is running (nested destroys are queued)
     std::vector<Entity> destroyQueue;  // destroys requested by hooks during a destroy
     // Game objects of destroyed entities and removed Behaviours, released when no hook runs (a hook may destroy its
@@ -1022,6 +1043,7 @@ void World::addNow(Entity e, T&& value)
         changeChildCount(parent, +1);
         hierarchyDirty  = true;
         ownerCacheDirty = true;
+        followParentSpace(e);
     }
     else if constexpr (T::id == ComponentId(EngineComponent::Persistent))
     {
