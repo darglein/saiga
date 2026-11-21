@@ -181,7 +181,8 @@ class SAIGA_CORE_API McpServer
     {
         std::string name, description;
         Json inputSchema;
-        Handler handler;
+        // Shared with the queued calls: stable when more tools are registered, and a stateful handler keeps its state
+        std::shared_ptr<Handler> handler;
     };
 
     struct PendingCall;
@@ -199,6 +200,7 @@ class SAIGA_CORE_API McpServer
     std::shared_ptr<CallState> callState;
     // Local calls that were started and not answered yet (polling thread): their deadline is checked by poll()
     std::vector<std::shared_ptr<PendingCall>> localInFlight;
+    std::mutex inFlightMutex;  // localInFlight: poll() and stop() may run on different threads
     std::function<void(const CallRecord&)> callObserver;
     std::atomic<uint64_t> nextCallId{1};
 

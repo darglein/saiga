@@ -593,8 +593,8 @@ std::string answerSummary(const McpServer::ToolResult& result)
 
 struct McpServer::PendingCall
 {
-    // A copy (registering more tools may reallocate the tool list while a local call is queued before start())
-    Handler handler;
+    // The tool's handler, shared (registering more tools may reallocate the tool list while a call is queued)
+    std::shared_ptr<Handler> handler;
     Json arguments;
     std::promise<ToolResult> promise;
     std::atomic_bool answered{false};
@@ -757,8 +757,12 @@ void McpServer::answerLocalCallsOnStop()
                            pendingCalls.end());
     }
     for (auto& c : calls) c->answer(ToolResult::Error("The application is shutting down"));
-    for (auto& c : localInFlight) c->answer(ToolResult::Error("The application is shutting down"));
-    localInFlight.clear();
+    std::vector<std::shared_ptr<PendingCall>> inFlight;
+    {
+        std::lock_guard<std::mutex> lock(inFlightMutex);
+        inFlight.swap(localInFlight);
+    }
+    for (auto& c : inFlight) c->answer(ToolResult::Error("The application is shutting down"));
     // The answers on this thread; the records are dropped
     {
         std::lock_guard<std::mutex> lock(callState->mutex);
@@ -774,7 +778,7 @@ void McpServer::addTool(const std::string& toolName, const std::string& descript
     // A second registration of a name would list the tool twice (every build)
     for (const Tool& t : tools)
         if (t.name == toolName) SAIGA_EXIT_ERROR("McpServer: the tool \"" + toolName + "\" is already registered");
-    tools.push_back({toolName, description, inputSchema, std::move(handler)});
+    tools.push_back({toolName, description, inputSchema, std::make_shared<Handler>(std::move(handler))});
 }
 
 bool McpServer::start(int port, const std::string& address)
@@ -878,24 +882,37 @@ void McpServer::poll()
         c->started      = std::chrono::steady_clock::now();
         c->running      = true;
         callState->addRecord(c->record(CallRecord::Phase::Started));
-        if (c->local) localInFlight.push_back(c);
+        if (c->local)
+        {
+            std::lock_guard<std::mutex> lock(inFlightMutex);
+            localInFlight.push_back(c);
+        }
         try
         {
-            c->handler(c->arguments, [c](ToolResult result) { c->answer(std::move(result)); });
+            (*c->handler)(c->arguments, [c](ToolResult result) { c->answer(std::move(result)); });
         }
         catch (const std::exception& e)
         {
             c->answer(ToolResult::Error(std::string("Exception: ") + e.what()));
         }
     }
-    // Local calls have no waiting thread: their timeout is checked here
+    // Local calls have no waiting thread: their timeout is checked here (a copy of the list: stop() may clear it on
+    // another thread; the answers are given outside the lock)
     const auto now = std::chrono::steady_clock::now();
-    for (auto& c : localInFlight)
+    std::vector<std::shared_ptr<PendingCall>> inFlight;
+    {
+        std::lock_guard<std::mutex> lock(inFlightMutex);
+        inFlight = localInFlight;
+    }
+    for (auto& c : inFlight)
         if (!c->answered && now > c->deadline)
             c->answer(ToolResult::Error("Timeout: the tool started but did not answer in time"));
-    localInFlight.erase(std::remove_if(localInFlight.begin(), localInFlight.end(),
-                                       [](const std::shared_ptr<PendingCall>& c) { return bool(c->answered); }),
-                        localInFlight.end());
+    {
+        std::lock_guard<std::mutex> lock(inFlightMutex);
+        localInFlight.erase(std::remove_if(localInFlight.begin(), localInFlight.end(),
+                                           [](const std::shared_ptr<PendingCall>& c) { return bool(c->answered); }),
+                            localInFlight.end());
+    }
     deliverCallState(true);
     // Listeners may add listeners (kept) and remove themselves (return false). A throwing listener is removed; the
     // others still run, then the first exception is rethrown.

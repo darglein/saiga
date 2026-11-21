@@ -142,8 +142,8 @@ double GLFWWindow::refreshRateHz()
 {
     // The monitor that contains the window's center (a full screen window has its own), else the primary one
     GLFWmonitor* monitor = window ? glfwGetWindowMonitor(window) : nullptr;
-    // Wayland has no window position: the primary monitor (regression: the statistics asked every 0.5 s and GLFW
-    // printed an error each time)
+    // Wayland has no window position (regression: the statistics asked every 0.5 s and GLFW printed an error each
+    // time)
     if (!monitor && window && glfwGetPlatform() != GLFW_PLATFORM_WAYLAND)
     {
         int x = 0, y = 0, w = 0, h = 0;
@@ -160,6 +160,9 @@ double GLFWWindow::refreshRateHz()
             if (mode && cx >= mx && cx < mx + mode->width && cy >= my && cy < my + mode->height) monitor = monitors[i];
         }
     }
+    // A window on Wayland: its monitor is unknown, so is its rate (another monitor's rate would be wrong; the
+    // statistics then measure the period from the frames)
+    if (!monitor && window && glfwGetPlatform() == GLFW_PLATFORM_WAYLAND) return 0.0;
     if (!monitor) monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* mode = monitor ? glfwGetVideoMode(monitor) : nullptr;
     return mode ? double(mode->refreshRate) : 0.0;

@@ -578,3 +578,18 @@ TEST(McpServer, CallLocalQueuedBeforeMoreToolsAndExpired)
     EXPECT_TRUE(answers[1].isError);
     EXPECT_EQ(executed, 1);
 }
+
+// Regression (CodeRabbit): queued calls copied the handler, so a handler with state (a counter) started anew per call
+TEST(McpServer, StatefulHandlerKeepsItsState)
+{
+    McpServer server("test");
+    server.addTool("next", "Counts up", McpServer::ObjectSchema({}), [n = 0](const Json&, McpServer::Respond r) mutable
+                   { r(McpServer::ToolResult::Text(std::to_string(++n))); });
+    std::vector<std::string> answers;
+    auto respond = [&](McpServer::ToolResult r) { answers.push_back(r.content[0]["text"].string_value()); };
+    server.callLocal("next", Json::object{}, respond);
+    server.poll();
+    server.callLocal("next", Json::object{}, respond);
+    server.poll();
+    EXPECT_EQ(answers, (std::vector<std::string>{"1", "2"}));
+}

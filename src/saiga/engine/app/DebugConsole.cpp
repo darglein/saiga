@@ -483,7 +483,9 @@ void DebugConsole::draw(bool focusInput)
                     }
                 }
                 const std::string& shown = e.clipped;
-                const bool clipped       = shown.size() != text.size() || shown != text;
+                // Cut, or a multi-line text with a line wider than the view (its tail only in the tooltip)
+                const bool clipped = shown.size() != text.size() || shown != text ||
+                                     (!oneLine && ImGui::CalcTextSize(text.c_str()).x > avail);
                 // An MCP line: the tool name in the MCP color, the rest in the text color (a failed call all red)
                 const size_t arrow = e.kind == Entry::Kind::Log && e.category == "mcp" && color == DebugUiStyle::kMcp
                                          ? shown.find(" -> ")

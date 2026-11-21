@@ -6,3 +6,6 @@ cmake/SAIGAConfig.cmake
 create.sh
 cmake-build-*/
 .idea/
+# Runtime state of the apps (ImGui windows, the engine debug UI)
+imgui.ini
+debug_ui.json
