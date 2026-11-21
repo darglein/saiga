@@ -55,7 +55,7 @@ Quat lookRotation(const Vec3& forward)
 // Along yaw (degrees from +x towards +z) and pitch (degrees, negative: down)
 Vec3 direction(double yawDeg, double pitchDeg)
 {
-    const double y = yawDeg * M_PI / 180, p = pitchDeg * M_PI / 180;
+    const double y = yawDeg * kPi / 180, p = pitchDeg * kPi / 180;
     return Vec3(std::cos(p) * std::cos(y), std::sin(p), std::cos(p) * std::sin(y));
 }
 }  // namespace
@@ -107,7 +107,7 @@ TEST_F(TerrainRenderTest, OriginOffsetWithinGoldenTolerance)
     Create(512, 512, 4);
     scene->setPrototypeEnvironment(Vulkan::PrototypeSettings(), 1);
     MakeWorld(testSpaceTemplate(128, 1, periodic4096Hook, 6 * 1024));
-    const double fovy   = 40.0 * M_PI / 180;
+    const double fovy   = 40.0 * kPi / 180;
     const double offset = 28672;
     struct Composition
     {
@@ -225,7 +225,7 @@ TEST_F(VulkanWorldGolden, WorldOverview)
     Vec3 c(1124, 0, 1536);
     c(1)           = Ground(c(0), c(2));
     const Vec3 eye = c + Vec3(0, 300, 0);
-    const Vec3 dir(std::cos(M_PI / 4), -std::sin(M_PI / 4), 0);
+    const Vec3 dir(std::cos(kPi / 4), -std::sin(kPi / 4), 0);
     auto img = Shot(eye, eye + dir);
     EXPECT_EQ(img.w, 512);
     compareGolden(img, "world_overview", deviceName());

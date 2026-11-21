@@ -35,12 +35,6 @@ int clampedIndex(double v, int lo, int hi)
     return int(std::min(std::max(std::floor(v), double(lo)), double(hi)));
 }
 
-// The distance from p to the box
-double boxDistance(const Vec3& p, const Vec3& lo, const Vec3& hi)
-{
-    return (p.cwiseMax(lo).cwiseMin(hi) - p).norm();
-}
-
 RegionId regionOf(SpaceId space, int level, int32_t x, int32_t z)
 {
     RegionId r;
@@ -150,6 +144,8 @@ double TerrainSystem::height(SpaceId space, double x, double z) const
     SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
     const Space& s = spaces[space];
     if (!s.settings.hasTerrain()) return 0;
+    // A NaN coordinate has no point (it would survive the clamps below): 0; infinities clamp to the edges
+    if (std::isnan(x) || std::isnan(z)) return 0;
     const double size = s.settings.sizeMeters();
     // Sample coordinates: exact for spacing 1 or 2
     const double spacing = s.settings.baseSpacing;
@@ -245,7 +241,6 @@ void TerrainSystem::requestPyramid(SpaceId space)
             if (cancelled) return;
             Space& s = spaces[space];
             s.store->setPyramid(std::move(*result));
-            computeTileHeights(s);
             statistics.generated++;
             statistics.pyramidsGenerated++;
         });
@@ -305,41 +300,15 @@ void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
 
 // ---- the view
 
-void TerrainSystem::computeTileHeights(Space& sp)
-{
-    const Vulkan::TerrainPyramidData* p = sp.store->pyramid();
-    if (!p) return;
-    const int P = p->layout.pyramidSamplesPerSide();
-    const int S = p->layout.streamedLevels();
-    sp.tileHeights.assign(size_t(S), {});
-    for (int k = 0; k < S; ++k)
-    {
-        const int W = p->layout.tilesPerSide(k);
-        const int s = 8 << k;  // pyramid cells per tile side
-        auto& level = sp.tileHeights[size_t(k)];
-        level.resize(size_t(W) * size_t(W));
-        for (int tz = 0; tz < W; ++tz)
-            for (int tx = 0; tx < W; ++tx)
-            {
-                int32_t lo = kTerrainHeightLimit, hi = -kTerrainHeightLimit;
-                for (int j = 0; j <= s; ++j)
-                    for (int i = 0; i <= s; ++i)
-                    {
-                        const int32_t v = (*p->heights)[size_t(tz * s + j) * size_t(P) + size_t(tx * s + i)];
-                        lo              = std::min(lo, v);
-                        hi              = std::max(hi, v);
-                    }
-                level[size_t(tz) * size_t(W) + size_t(tx)] = {lo, hi};
-            }
-    }
-}
-
 TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& camera) const
 {
     Desired d;
     const Space& sp = spaces[space];
-    if (!sp.store->pyramid() || sp.tileHeights.empty() || !camera.allFinite()) return d;
+    if (!sp.store->pyramid() || !camera.allFinite()) return d;
     const Vulkan::TerrainLayout L = layout(space);
+    // TerrainPass's LOD distance (§12.2): the horizontal distance to the tile and the camera height above the surface
+    // under it (one value per call), so the tiles the pass refines into are the desired ones at any relief
+    const double hc = std::abs(camera.y() - height(space, camera.x(), camera.z()));
     for (int k = 0; k < L.streamedLevels(); ++k)
     {
         const double range = view.residencyRange0 * std::ldexp(1.0, k);
@@ -353,10 +322,9 @@ TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& 
         for (int tz = z0; tz <= z1; ++tz)
             for (int tx = x0; tx <= x1; ++tx)
             {
-                const auto& h = sp.tileHeights[size_t(k)][size_t(tz) * size_t(W) + size_t(tx)];
-                const Vec3 lo(tx * size, double(h.first) * kHeightUnit - 64, tz * size);
-                const Vec3 hi((tx + 1) * size, double(h.second) * kHeightUnit + 64, (tz + 1) * size);
-                const double dist = boxDistance(camera, lo, hi);
+                const double dx   = std::max({0.0, tx * size - camera.x(), camera.x() - (tx + 1) * size});
+                const double dz   = std::max({0.0, tz * size - camera.z(), camera.z() - (tz + 1) * size});
+                const double dist = std::sqrt(dx * dx + dz * dz + hc * hc);
                 if (dist <= range) level.push_back({dist, regionOf(space, k, tx, tz)});
             }
         std::stable_sort(level.begin(), level.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
@@ -406,6 +374,7 @@ void TerrainSystem::cancelUndesired(SpaceId space, const Desired& d)
 
 void TerrainSystem::issueRequests(SpaceId space, const Desired& d, size_t limit)
 {
+    if (requestsHeld) return;
     const TerrainStore& st = *spaces[space].store;
     // Missing desired tiles by distance / range ratio, coarse levels first at equal ratio
     std::vector<std::tuple<double, int, RegionId>> missingTiles;

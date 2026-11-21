@@ -2097,8 +2097,12 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   fixed at 32 m for both spacings, the CDLOD root nodes are 4096 m, node origins are integers relative to a per-frame
   64 m anchor, and the node bounds are hierarchical (a parent's box contains what its resident descendants draw). A1
   (S20): the node grids have skirts (the prototype CDLOD had none), because refinement depends on residency; their
-  depth is the node's height range, at least two spacings. The terrain is a pure height field: no holes, caves or
-  overhangs (those are separate spaces, §12.4, or meshes placed on the terrain).
+  depth is the node's height range, at least two spacings. The LOD distance (S20 implementation review) is relief
+  independent: `sqrt(dxz^2 + hc^2)` with `dxz` the horizontal distance to the node (the CPU selection) or vertex (the
+  morph in the shader) and `hc` the camera height above the surface under it, one value per frame
+  (`TerrainAtlas::surfaceHeightEstimate`); with the horizontal range minimum this keeps the coarse side of every level
+  border unmorphed at any relief. Skirt fragments shade with their edge vertex's normal. The terrain is a pure height
+  field: no holes, caves or overhangs (those are separate spaces, §12.4, or meshes placed on the terrain).
 - **Terrain surface**: every consumer (render mesh, Jolt collision, `terrainHeight`, candidate y, re-snapping) uses the
   same triangulation: two triangles per cell with the fixed diagonal from (x, z) to (x+1, z+1) in sample coordinates,
   CPU consumers interpolate with integer barycentric weights, rounded toward negative infinity (double queries
@@ -2125,8 +2129,9 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
 - CDLOD refines a node only if its tiles are resident. The view distance does not depend on the load radius.
 - **Visual streaming (S20)**: `TerrainSystem` (owned by the World, `World::terrain()`) streams the tiles of the view
   camera's space (A13: requested by `EngineApp` between steps through `updateView`, not from phase 7; S24 adds the
-  players' residency) with the desired set per level within `residencyRange0 * 2^k` (truncated nearest-first to
-  `tilesPerLevel`), the pyramid first, coarse levels first at equal distance ratio, LRU eviction, at most
+  players' residency) with the desired set per level within `residencyRange0 * 2^k` of the same LOD distance as the
+  pass (horizontal distance to the tile, camera height above `height(camera.xz)`; so every node the pass refines into
+  is desired) (truncated nearest-first to `tilesPerLevel`), the pyramid first, coarse levels first at equal distance ratio, LRU eviction, at most
   `uploadsPerFrame` tile sends per update, grass masks within `grassRadius` (`TerrainViewSettings`, R-MECH-1).
   `completeView` blocks until the desired set is resident and sent (the app's complete points: the first frame,
   captures, the benchmark frames). A24: only `updateView` / `completeView` request terrain, and only the app calls them

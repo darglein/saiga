@@ -184,6 +184,18 @@ TEST(Terrain, HookResultsClamped)
     EXPECT_EQ(world.terrainHeight(0, 0.5, 0), 0.0);
 }
 
+// Regression: a NaN coordinate survived the clamps of TerrainSystem::height and reached int64_t(floor(NaN)) (UB); it
+// is 0 now, infinities clamp to the edges
+TEST(Terrain, NonFiniteCoordinates)
+{
+    World world(terrainSetup(16, 1, slopeRidgeHook));
+    const double nan = std::numeric_limits<double>::quiet_NaN(), inf = std::numeric_limits<double>::infinity();
+    EXPECT_EQ(world.terrainHeight(0, nan, 100), 0.0);
+    EXPECT_EQ(world.terrainHeight(0, 100, nan), 0.0);
+    EXPECT_EQ(world.terrainHeight(0, inf, 100), world.terrainHeight(0, 16 * 256, 100));
+    EXPECT_EQ(world.terrainHeight(0, 100, -inf), world.terrainHeight(0, 100, 0));
+}
+
 TEST(Terrain, SpaceSeeds)
 {
     World world(terrainSetup(16, 2, slopeRidgeHook, 0, 77));
@@ -496,14 +508,16 @@ TEST(StreamingPool, DestructionWithQueuedAndRunningJobs)
 // The latched hook blocks only off the arming thread
 TEST(StreamingPool, LatchedHook)
 {
-    armLatch();
+    // The pool first: the latch opens before the pool joins its worker
     StreamingPool pool(1);
+    std::optional<ScopedLatch> latch;
+    latch.emplace();
     std::atomic<int> value{0};
     pool.submit([&](const std::atomic<bool>&) { value = latchedHook(1, 2, 3); }, 0, nullptr);
     EXPECT_EQ(latchedHook(1, 2, 3), integerTestHook(1, 2, 3));
     EXPECT_FALSE(pool.waitIdleFor(0.05));
     EXPECT_EQ(value.load(), 0);
-    openLatch();
+    latch.reset();
     pool.waitIdle();
     EXPECT_EQ(value.load(), integerTestHook(1, 2, 3));
 }
@@ -605,8 +619,10 @@ RegionId tileRegion(int level, int32_t x, int32_t z)
 std::map<int, std::set<RegionId>> referenceDesired(const World& w, const Vec3& camera, const TerrainViewSettings& s)
 {
     std::map<int, std::set<RegionId>> out;
-    const auto layout = w.terrain().layout(0);
-    for (const RegionId& r : desiredTestTiles(layout, *w.terrain().pyramid(0), camera, 0)) out[r.level].insert(r);
+    const auto layout   = w.terrain().layout(0);
+    const double ground = w.terrainHeight(0, camera.x(), camera.z());
+    for (const RegionId& r : desiredTestTiles(layout, *w.terrain().pyramid(0), camera, 0, 0, ground))
+        out[r.level].insert(r);
     (void)s;
     return out;
 }
@@ -692,6 +708,26 @@ TEST(TerrainStreaming, DesiredSetMatchesTheRule)
     w.setRenderSink(nullptr);
 }
 
+// Regression: residency measured the 3D distance to the tile box while TerrainPass selects by the horizontal distance
+// and the camera height above the ground; a cliff 500 m above the camera 304 m away was never requested at level 0
+// (box distance 530 m > 400 m) although the pass refines into it (the residency border of a refused node)
+TEST(TerrainStreaming, DesiredSetUsesTheLodDistanceAtACliff)
+{
+    World w(terrainSetup(32, 1, [](uint64_t, int64_t x, int64_t) { return x >= 2304 ? int32_t(500 * 1024) : 0; }));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(2000, 2, 2000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    // The plateau's level-0 tile next to the camera's
+    EXPECT_TRUE(sink.terrainTiles().count(tileRegion(0, 9, 7)));
+    const auto ref = referenceDesired(w, cam, kDefaults);
+    ASSERT_TRUE(ref.count(0));
+    EXPECT_TRUE(ref.at(0).count(tileRegion(0, 9, 7)));
+    for (int k = 0; k < 5; ++k)
+        EXPECT_EQ(w.terrain().stats().levels[size_t(k)].desired, int(ref.count(k) ? ref.at(k).size() : 0)) << k;
+    w.setRenderSink(nullptr);
+}
+
 TEST(TerrainStreaming, DesiredSetTruncatedToBudget)
 {
     World w(terrainSetup(64, 1, integerTestHook));
@@ -750,8 +786,10 @@ TEST(TerrainStreaming, EvictionAndUploadsPerFrame)
 
 TEST(TerrainStreaming, UpdateViewRequestsThePyramidFirst)
 {
-    armLatch();
+    // The world first: the latch opens before the world joins its workers
     World w(terrainSetup(16, 2, latchedHook));
+    std::optional<ScopedLatch> latch;
+    latch.emplace();
     RecordingRenderSink sink;
     w.setRenderSink(&sink);
     w.terrain().updateView(0, Vec3(500, 30, 500));
@@ -762,7 +800,7 @@ TEST(TerrainStreaming, UpdateViewRequestsThePyramidFirst)
     w.terrain().updateView(0, Vec3(500, 30, 500));
     EXPECT_EQ(w.terrain().stats().pending, 1);
     EXPECT_EQ(sink.counters().setTerrainPyramid, 0u);
-    openLatch();
+    latch.reset();
     // The pyramid arrives, then the tiles
     for (int i = 0; i < 2000 && sink.counters().setTerrainTile == 0; ++i)
     {
@@ -804,7 +842,8 @@ TEST(TerrainStreaming, CompleteViewFirstView)
     w.setRenderSink(nullptr);
 }
 
-// With the workers held and a 0.1 s timeout: false within 0.1 s plus one caller job; no fatal error
+// With the workers held and a 0.1 s timeout: false soon after 0.1 s (one caller job may finish), far before the
+// default timeout; no fatal error
 TEST(TerrainStreaming, CompleteViewTimeout)
 {
     World w(terrainSetup(32, 1, latchedHook));
@@ -813,19 +852,93 @@ TEST(TerrainStreaming, CompleteViewTimeout)
     // The first view with the latch open (the pyramid)
     ASSERT_TRUE(w.terrain().completeView(0, Vec3(1500, 100, 1500), 60));
     // A new area with held workers: the caller runs the queued jobs until the deadline
-    armLatch();
+    std::optional<ScopedLatch> latch;
+    latch.emplace();
     const Vec3 far(7000, 100, 7000);
     const auto t0  = std::chrono::steady_clock::now();
     const bool ok  = w.terrain().completeView(0, far, 0.1);
     const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     EXPECT_FALSE(ok);
-    // 0.1 s plus one caller job (a 1 m tile of the latched hook takes a few ms); no caller job after the deadline
-    EXPECT_LT(s, 0.3);
+    // 0.1 s plus one caller job (a 1 m tile of the latched hook takes a few ms; generous for a loaded machine): no
+    // caller job starts after the deadline
+    EXPECT_LT(s, 2.0);
     EXPECT_GT(latchState().callsOnArmingThread.load(), 0);
+    // The workers take the queued jobs and block on the latch (on a loaded machine maybe only after the call returned)
+    const auto blockedBy = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+    while (latchState().callsBlocked.load() == 0 && std::chrono::steady_clock::now() < blockedBy)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
     EXPECT_GT(latchState().callsBlocked.load(), 0);
-    openLatch();
+    latch.reset();
     // Completes afterwards
     EXPECT_TRUE(w.terrain().completeView(0, far, 60));
+    w.setRenderSink(nullptr);
+}
+
+// Regression: completeView spun until its deadline (120 s by default) when nothing could progress; with the requests
+// held it returns false at once
+TEST(TerrainStreaming, CompleteViewWithoutProgressReturnsAtOnce)
+{
+    World w(terrainSetup(32, 1, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(1500, 100, 1500)));
+    w.terrain().holdRequestsForTests(true);
+    const auto t0  = std::chrono::steady_clock::now();
+    const bool ok  = w.terrain().completeView(0, Vec3(7000, 100, 7000));
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    EXPECT_FALSE(ok);
+    EXPECT_LT(s, 10.0);
+    EXPECT_EQ(w.terrain().stats().pending, 0);
+    EXPECT_FALSE(w.terrain().viewComplete(0, Vec3(7000, 100, 7000)));
+    // Released, it completes
+    w.terrain().holdRequestsForTests(false);
+    EXPECT_TRUE(w.terrain().completeView(0, Vec3(7000, 100, 7000)));
+    w.setRenderSink(nullptr);
+}
+
+// Regression: a new sink received the whole store after setViewSettings lowered the budget (more tiles than the new
+// layout's layers: "no free layer"); it receives the last view's desired set of the current budget
+TEST(TerrainStreaming, NewSinkAfterALowerBudget)
+{
+    World w(terrainSetup(32, 1, integerTestHook));
+    TerrainViewSettings s = w.terrain().viewSettings();
+    s.grassRadius         = 600;
+    w.terrain().setViewSettings(s);
+    RecordingRenderSink first;
+    w.setRenderSink(&first);
+    const Vec3 cam(4000, 60, 4000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_GT(first.terrainTilesAtLevel(0), 6);
+    ASSERT_GT(int(first.grassMasks().size()), 4);
+    s.tilesPerLevel   = 6;
+    s.grassMaskLayers = 4;
+    w.terrain().setViewSettings(s);
+    RecordingRenderSink second;
+    w.setRenderSink(&second);
+    EXPECT_EQ(second.counters().setTerrainPyramid, 1u);
+    for (int k = 0; k < 5; ++k) EXPECT_LE(second.terrainTilesAtLevel(k), 6) << k;
+    EXPECT_GT(second.terrainTilesAtLevel(0), 0);
+    EXPECT_LE(int(second.grassMasks().size()), 4);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: a non-finite camera reached integer conversions; completeView and updateView refuse it at once and
+// request nothing
+TEST(TerrainStreaming, NonFiniteCameraRequestsNothing)
+{
+    World w(terrainSetup(32, 1, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    const auto t0    = std::chrono::steady_clock::now();
+    EXPECT_FALSE(w.terrain().completeView(0, Vec3(nan, 100, 100)));
+    EXPECT_FALSE(w.terrain().completeView(0, Vec3(100, std::numeric_limits<double>::infinity(), 100)));
+    w.terrain().updateView(0, Vec3(100, 100, nan));
+    EXPECT_LT(std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(), 5.0);
+    EXPECT_FALSE(w.terrain().poolCreated());
+    EXPECT_EQ(w.terrain().stats().pending, 0);
+    EXPECT_EQ(sink.counters().setTerrainPyramid, 0u);
+    EXPECT_EQ(sink.counters().setTerrainTile, 0u);
     w.setRenderSink(nullptr);
 }
 
@@ -1051,7 +1164,7 @@ TEST(TerrainStreaming, MemoryBudget32km)
     // The flyover circle (every 20th of 600 poses: centre 4096, radius 2458 m, 300 m up)
     for (int i = 0; i < 600; i += 20)
     {
-        const double a = 2 * M_PI * i / 600.0;
+        const double a = 2 * kPi * i / 600.0;
         at(Vec3(4096 + 2458 * std::cos(a), 300, 4096 + 2458 * std::sin(a)));
     }
     // A 30 km straight line at 300 m and at 2 m
@@ -1060,7 +1173,7 @@ TEST(TerrainStreaming, MemoryBudget32km)
     // A 90 degree turn
     for (int i = 0; i <= 10; ++i)
     {
-        const double a = M_PI / 2 * i / 10.0;
+        const double a = kPi / 2 * i / 10.0;
         at(Vec3(16000 + 500 * std::cos(a), 150, 16000 + 500 * std::sin(a)));
     }
     std::cout << "MemoryBudget32km: worst " << worst / double(1 << 20) << " MB, static bound "

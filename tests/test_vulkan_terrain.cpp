@@ -19,6 +19,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 #include "render_scene_test_context.h"
@@ -361,7 +362,7 @@ Quat lookRotation(const Vec3& forward)
 // Along yaw (degrees from +x towards +z) and pitch (degrees, negative: down)
 Vec3 direction(double yawDeg, double pitchDeg)
 {
-    const double y = yawDeg * M_PI / 180, p = pitchDeg * M_PI / 180;
+    const double y = yawDeg * kPi / 180, p = pitchDeg * kPi / 180;
     return Vec3(std::cos(p) * std::cos(y), std::sin(p), std::cos(p) * std::sin(y));
 }
 
@@ -526,7 +527,7 @@ TEST_F(VulkanTerrain, RenderedDepthMatchesSurface)
     const Vec3 eye(2000.25, 0, 1800.75);
     const Vec3 cam = eye + Vec3(0, surfaceAt(slopeRidgeHook, 1, bs, eye.x(), eye.z()) + 20, 0);
     fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(slopeRidgeHook, 1), std::nullopt, cam, false);
-    SetCamera(0, cam, lookRotation(direction(10, -40)), 60.0 * M_PI / 180);
+    SetCamera(0, cam, lookRotation(direction(10, -40)), 60.0 * kPi / 180);
     Capture(2);
     int w = 0, h = 0;
     const std::vector<float> depth = scene->readDepthForTests(w, h);
@@ -662,7 +663,7 @@ TEST_F(VulkanTerrain, NoCrackAtLevelBorders)
     renderUntilUploaded(*scene, 256);
     const Vec3 eye = cam + Vec3(0, surfaceAt(highFrequencyHook, 1, bs, cam.x(), cam.z()) + 40, 0);
     // Across the border 35 degrees down, the border off-centre (yawed)
-    SetCamera(0, eye, lookRotation(direction(12, -35)), 40.0 * M_PI / 180);
+    SetCamera(0, eye, lookRotation(direction(12, -35)), 40.0 * kPi / 180);
     PrototypeSettings s = scene->prototypeSettings();
     s.terrainSkirts     = true;
     scene->setPrototypeSettings(s);
@@ -729,7 +730,7 @@ TEST_F(VulkanTerrain, NoGapAtLevelBordersOfACliff)
     s.water             = false;
     scene->setPrototypeSettings(s);
     // Along the cliff (+x) and up at the face where the level-0/1 border crosses it, about 300 m away
-    SetCamera(0, eye, lookRotation(Vec3(283, 400, 100)), 20.0 * M_PI / 180);
+    SetCamera(0, eye, lookRotation(Vec3(283, 400, 100)), 20.0 * kPi / 180);
     const auto img = Capture(3);
     const auto& st = scene->terrainPassStats();
     EXPECT_GT(st.nodesPerLevel[0], 0);
@@ -738,7 +739,7 @@ TEST_F(VulkanTerrain, NoGapAtLevelBordersOfACliff)
     // Gaps show the background with the skirts off and are covered with them; the sky above the cliff is background in
     // both images
     const int magentaOff = countColor(img, ucvec4(255, 0, 255, 255), 0);
-    s.terrainSkirts = true;
+    s.terrainSkirts      = true;
     scene->setPrototypeSettings(s);
     const int magentaOn = countColor(Capture(3), ucvec4(255, 0, 255, 255), 0);
     EXPECT_LT(magentaOn, width * height / 2);
@@ -795,7 +796,7 @@ TEST_F(VulkanTerrain, BoundsIncludeFinerTiles)
     const Vec3 cam(150, 10, 315);
     for (int k = 1; k < layout.streamedLevels(); ++k)
         scene->setTerrainTile(Region(k, 0, 0), testTile(flatHook, layout, Region(k, 0, 0)));
-    SetCamera(0, cam, lookRotation(direction(0, 40)), 40.0 * M_PI / 180);
+    SetCamera(0, cam, lookRotation(direction(0, 40)), 40.0 * kPi / 180);
     renderUntilUploaded(*scene);
     // Without the level-0 tile nothing is in view
     EXPECT_EQ(countColor(Capture(2), kClear, 0), width * height);
@@ -853,6 +854,26 @@ TEST_F(VulkanTerrain, PyramidOnly)
     // The ground fills the lower part of the view
     EXPECT_LT(countColor(img, kClear, 0), width * height / 2);
     EXPECT_EQ(scene->statistics().terrainNodes, uint32_t(s.nodes));
+}
+
+// Regression: a non-finite camera reached integer conversions (UB); RenderScene draws no terrain for it. A huge finite
+// height is clamped in double before its conversion (the frame anchor) and draws without a level-0 node
+TEST_F(VulkanTerrain, NonFiniteAndHugeCameras)
+{
+    const TerrainLayout layout = testLayout(32, 2);
+    scene->setTerrainPyramid(0, testPyramid(slopeRidgeHook, layout));
+    renderUntilUploaded(*scene);
+    SetCamera(0, Vec3(4000, 600, 4000), lookRotation(direction(30, -35)), 1.0);
+    Capture(2);
+    ASSERT_GT(scene->terrainPassStats().nodes, 0);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    SetCamera(0, Vec3(nan, 600, 4000), lookRotation(direction(30, -35)), 1.0);
+    Capture(2);
+    EXPECT_EQ(scene->terrainPassStats().nodes, 0);
+    EXPECT_EQ(scene->statistics().terrainNodes, 0u);
+    SetCamera(0, Vec3(4000, 1e300, 4000), lookRotation(direction(30, -35)), 1.0);
+    Capture(2);
+    EXPECT_EQ(scene->terrainPassStats().nodesPerLevel[0], 0);
 }
 
 // Remove and set tiles in consecutive frames (a layer reused one frame after its removal): validation clean
@@ -1035,7 +1056,7 @@ TEST_F(VulkanTerrain, GrassChunkRelative)
         const Vec3 eye(1700.3 + 256 * k, 0, 1500.6);
         const Vec3 cam = eye + Vec3(0, surfaceAt(periodic, 1, 1, eye.x(), eye.z()) + 2, 0);
         fillTestTerrain(*scene, layout, source, std::nullopt, cam, true);
-        SetCamera(0, cam, lookRotation(direction(20, -45)), 40.0 * M_PI / 180);
+        SetCamera(0, cam, lookRotation(direction(20, -45)), 40.0 * kPi / 180);
         images.push_back(Capture(3));
         EXPECT_GT(scene->grassPass().stats().blocks, 0);
     }

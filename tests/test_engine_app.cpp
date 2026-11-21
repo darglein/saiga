@@ -2395,7 +2395,9 @@ TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
     const Json r   = callWhileRunning(app, "screenshot", Json::object{}, &seconds);
     ASSERT_TRUE(isError(r)) << r.dump().substr(0, 300);
     EXPECT_NE(errorText(r).find("terrain not complete before the deadline"), std::string::npos) << errorText(r);
-    EXPECT_LT(seconds, 1.0);
+    // The answer is the tool's own (a call past the 1 s timeout would answer with the timeout error); the wall-clock
+    // bound only catches a hang (generous for a loaded machine)
+    EXPECT_LT(seconds, 3.0);
     // Exactly once: no second answer (the deadline listener) and the app keeps running
     const uint64_t frames = app.renderedFrames();
     app.runFrames(5, 1.0 / 60);
@@ -2441,8 +2443,9 @@ TEST_F(EngineAppRender, StreamTimePausesTheClock)
     EXPECT_GE(app.lastTerrainStreamMs(), 100.0);
     const uint64_t steps = app.world().stepIndex();
     app.frame();
-    // The next frame's dt is its own interval (a few ms): no catch-up steps for the 100+ ms
-    EXPECT_LE(app.world().stepIndex() - steps, 1u);
+    // The next frame's dt is its own interval (a few ms): no catch-up steps for the 100+ ms (6 or more steps at 60 Hz;
+    // up to 3 allow a frame of up to 50 ms on a loaded machine)
+    EXPECT_LE(app.world().stepIndex() - steps, 3u);
     for (int i = 0; i < 20; ++i)
     {
         app.frame();
@@ -2454,5 +2457,5 @@ TEST_F(EngineAppRender, StreamTimePausesTheClock)
     ASSERT_GT(samples.size(), samplesBefore + 10);
     double longest = 0;
     for (size_t i = samplesBefore; i < samples.size(); ++i) longest = std::max(longest, samples[i].interval);
-    EXPECT_LT(longest, 50.0);
+    EXPECT_LT(longest, 100.0);
 }

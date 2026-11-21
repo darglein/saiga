@@ -252,9 +252,17 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     { return int32_t(std::floor(std::min(std::max(v, -1073741824.0), 1073741824.0) / 64.0)) * 64; };
     const int32_t anchorX = anchorOf(c.x());
     const int32_t anchorZ = anchorOf(c.z());
-    int64_t ref           = int64_t(std::floor(c.y() / kHeightUnit / 65536.0)) * 65536;
-    ref                   = std::min<int64_t>(std::max<int64_t>(ref, -kTerrainHeightLimit), kTerrainHeightLimit);
+    // The height clamped in double before the conversion (any finite y)
+    const double refUnits =
+        std::min(std::max(std::floor(c.y() / kHeightUnit / 65536.0) * 65536.0, -double(kTerrainHeightLimit)),
+                 double(kTerrainHeightLimit));
+    const int64_t ref = int64_t(refUnits);
     const Vec3 rel(c.x() - anchorX, c.y() - double(ref) * kHeightUnit, c.z() - anchorZ);
+    // The morph start in [0.05, 0.95] (NaN: 0.05), for the range minimum and the shader alike: >= 1 would invert the
+    // morph, a smaller one void minR0's guarantee
+    float morphStart = settings.morphStart;
+    if (!(morphStart >= 0.05f)) morphStart = 0.05f;
+    morphStart = std::min(morphStart, 0.95f);
 
     if (drawTerrain)
     {
@@ -265,7 +273,7 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
         // is within range_k + its diagonal (sqrt(2) * leaf * 2^k) and must stay before the coarse level's morph start
         // range_k * (1 + morphStart): range0 >= sqrt(2) * leaf / morphStart, with a 50 % margin
         const double leaf  = 32.0 * L.baseSpacing;
-        const double ms    = std::max(double(settings.morphStart), 0.05);
+        const double ms    = double(morphStart);
         const double minR0 = std::max(2.5 * leaf * 1.42 * std::max(1.0, 0.3 / std::max(1.0 - ms, 0.01)),
                                       1.5 * std::sqrt(2.0) * leaf / ms);
         range0             = std::max(double(settings.terrainLodRange), minR0);
@@ -359,7 +367,7 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     u.fog                = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, float(c.y() - fogBase));
     u.fogColor           = vec4(0.42f, 0.42f, 0.42f, 1);
     u.skyColor           = vec4(0.2f, 0.2f, 0.2f, 1);
-    u.lod                = vec4(float(range0), settings.morphStart, float(lodHeight), 0);
+    u.lod                = vec4(float(range0), morphStart, float(lodHeight), 0);
     u.grass              = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(samples));
     u.grassPhases =
         vec4(prototypeWindPhase(time, 1.7), prototypeWindPhase(time, 1.3), settings.wind, settings.alphaCutoff);

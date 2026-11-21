@@ -289,8 +289,9 @@ New `vulkan/scene/TerrainTiles.{h,cpp}` (pure functions of their arguments, thre
 ```cpp
 struct TerrainViewSettings                 // game policy (R-MECH-1); EngineAppSetup / game code may change it
 {
-    double residencyRange0 = 400;          // level k tiles are desired within residencyRange0 * 2^k (3D distance from
-                                           // the camera to the tile box; heights from the pyramid + 64 m margin)
+    double residencyRange0 = 400;          // level k tiles are desired within residencyRange0 * 2^k of TerrainPass's
+                                           // LOD distance sqrt(dxz^2 + hc^2): dxz horizontal to the tile, hc the
+                                           // camera height above height(camera.xz) (implementation review)
     int tilesPerLevel = 48;                // budget per streamed level = GPU atlas layers (part of the layout)
     int grassMaskLayers = 16;              // budget of grass masks = GPU mask layers (part of the layout)
     int uploadsPerFrame = 8;               // tile sink calls per updateView (completeView sends everything)
@@ -313,9 +314,9 @@ class SAIGA_ENGINE_API TerrainSystem
     //  2. a space other than the current view space (or a changed layout) starts a new GPU terrain set (below); a
     //     view space without terrain sends clearTerrain() once (if anything was sent) and stops here: nothing is
     //     requested or sent for it;
-    //  3. the desired set (it needs the pyramid's heights for the tile boxes): while the space's pyramid is not in the
-    //     store, only the pyramid is requested and steps 3-6 are skipped (the desired set is empty, readiness 0).
-    //     Otherwise per streamed level the tiles within the range, sorted by distance and truncated to tilesPerLevel
+    //  3. the desired set (with TerrainPass's LOD distance, so every node the pass refines into is desired): while
+    //     the space's pyramid is not in the store, only the pyramid is requested and steps 3-6 are skipped (the
+    //     desired set is empty, readiness 0). Otherwise per streamed level the tiles within the range, sorted by distance and truncated to tilesPerLevel
     //     (nearest first; the truncated count goes to Stats); grass masks for chunks within grassRadius, truncated to
     //     grassMaskLayers;
     //  4. requests: missing desired tiles by distance / range ratio (coarse levels first at equal ratio), then the
@@ -547,7 +548,10 @@ void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliage
     coarser levels read the pyramid at stride `2^(k - streamedLevels)`. The roots are the 4096 m nodes
     (`(sizeChunks / 16)^2` of them, always considered: the view reaches the space edge whatever the load radius is).
   - Selection is in double: node boxes from `bound`, relative to the camera, camera-relative frustum planes from
-    `SceneCamera`, ranges `terrainLodRange * 2^k`, the S19a morph minimum with leaf size `32 * baseSpacing`. A node is
+    `SceneCamera`, ranges `terrainLodRange * 2^k`, the S19a morph minimum with leaf size `32 * baseSpacing`. The LOD
+    distance (implementation review) is `sqrt(dxz^2 + hc^2)`: `dxz` the horizontal distance to the node box (to the
+    vertex in the shader's morph), `hc` the camera height above the surface under it, one value per frame; the
+    residency (§4.3) uses the same distance to the tiles. A node is
     refined only if each child's tile is GPU-resident. A child that is out of range or not resident is drawn as a
     quarter at the parent's spacing (S19a's quarter mechanism). `terrainLodRange` does not scale with `baseSpacing`
     (1 m gives finer geometry at every level; the triangle count is reported, §6).

@@ -37,8 +37,8 @@ class TerrainStore;
 // The visual streaming policy (R-MECH-1): EngineAppSetup / game code may change it (TerrainSystem::setViewSettings)
 struct TerrainViewSettings
 {
-    // Level k tiles are desired within residencyRange0 * 2^k (3D distance from the camera to the tile box; heights from
-    // the pyramid + 64 m margin)
+    // Level k tiles are desired within residencyRange0 * 2^k of TerrainPass's LOD distance: sqrt(dxz^2 + hc^2), dxz the
+    // horizontal distance from the camera to the tile, hc the camera height above the surface under it
     double residencyRange0 = 400;
     // The budget per streamed level = GPU atlas layers (part of the layout)
     int tilesPerLevel = 48;
@@ -144,6 +144,9 @@ class SAIGA_ENGINE_API TerrainSystem
     void setSink(RenderSink* sink);
     // Tests: a space's store
     const TerrainStore& store(SpaceId space) const;
+    // Tests: while held, no tile or mask request is issued (a desired set that cannot progress: completeView's
+    // no-progress return)
+    void holdRequestsForTests(bool hold) { requestsHeld = hold; }
 
    private:
     struct Space
@@ -152,8 +155,6 @@ class SAIGA_ENGINE_API TerrainSystem
         uint64_t seed = 0;
         TerrainHeightSource source;
         std::unique_ptr<TerrainStore> store;
-        // Per streamed level: the min / max height of each tile from the pyramid (row-major tiles), for the tile boxes
-        std::vector<std::vector<std::pair<int32_t, int32_t>>> tileHeights;
     };
     // A request: kind (0 pyramid, 1 tile, 2 mask), space, level, x, z
     using Key = std::tuple<int, SpaceId, int, int32_t, int32_t>;
@@ -175,6 +176,7 @@ class SAIGA_ENGINE_API TerrainSystem
     std::map<Key, uint64_t> requests;
     // The jobs submitted so far (completeView's progress check)
     uint64_t jobsSubmitted = 0;
+    bool requestsHeld      = false;
     // The sink's set: active once a pyramid was sent
     bool setActive   = false;
     SpaceId setSpace = 0;
@@ -220,7 +222,6 @@ class SAIGA_ENGINE_API TerrainSystem
     void sendPyramid(SpaceId space, const Vulkan::TerrainPyramidData& pyramid);
     void sendTile(const RegionId& region, const Vulkan::TerrainTileData& tile);
     void sendGrassMask(const ChunkId& chunk, const Vulkan::GrassMaskData& mask);
-    void computeTileHeights(Space& sp);
     std::string describe(const Key& key) const;
 };
 

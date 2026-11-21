@@ -851,12 +851,14 @@ void TerrainAtlas::updateMemoryStats()
         s.masksResident += m.used && m.gpu ? 1 : 0;
     }
     TerrainMemory m;
-    m.atlas          = size_t(atlas.size());
-    m.pyramid        = size_t(pyramid.size());
-    m.pageTable      = size_t(pages.size());
-    m.masks          = size_t(masks.size());
-    m.nodes          = size_t(nodeBuffers[0].size() + nodeBuffers[1].size());
-    m.staging        = size_t(staging[0].size() + staging[1].size());
+    m.atlas     = size_t(atlas.size());
+    m.pyramid   = size_t(pyramid.size());
+    m.pageTable = size_t(pages.size());
+    m.masks     = size_t(masks.size());
+    m.nodes     = 0;
+    m.staging   = 0;
+    for (const auto& b : nodeBuffers) m.nodes += size_t(b.size());
+    for (const auto& b : staging) m.staging += size_t(b.size());
     size_t nodeCount = 0;
     for (const auto& level : nodes) nodeCount += level.size();
     m.bounds     = nodeCount * sizeof(NodeBounds);
