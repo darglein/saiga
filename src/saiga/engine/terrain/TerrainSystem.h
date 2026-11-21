@@ -94,9 +94,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // Blocks until the desired set of this camera is resident and sent (the pyramid, then the tiles, then the masks,
     // repeated until nothing is missing; no maxInFlight or uploadsPerFrame limit; the calling thread runs queued jobs
     // too). Returns false on timeout (what is resident is still sent; no caller job starts after the deadline, a
-    // running one is finished), at once when an iteration brought nothing new and nothing is queued or running (no
-    // later one could: logged with what is missing), or for a non-finite camera. Without a sink it fills the store
-    // only. A space without terrain returns true at once
+    // running one is finished), at once when an iteration brought nothing new, submitted no job and nothing is queued
+    // or running (no later one could: logged with what is missing), or for a non-finite camera. Without a sink it fills
+    // the store only. A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
     // nothing. True for a space without terrain; without a sink only the residency counts
@@ -173,6 +173,8 @@ class SAIGA_ENGINE_API TerrainSystem
     RenderSink* sink = nullptr;
     std::unique_ptr<StreamingPool> pool;
     std::map<Key, uint64_t> requests;
+    // The jobs submitted so far (completeView's progress check)
+    uint64_t jobsSubmitted = 0;
     // The sink's set: active once a pyramid was sent
     bool setActive   = false;
     SpaceId setSpace = 0;

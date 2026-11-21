@@ -250,6 +250,7 @@ void TerrainSystem::requestPyramid(SpaceId space)
             statistics.pyramidsGenerated++;
         });
     requests[key] = id;
+    jobsSubmitted++;
 }
 
 void TerrainSystem::requestTile(const RegionId& region, int priority)
@@ -272,6 +273,7 @@ void TerrainSystem::requestTile(const RegionId& region, int priority)
             statistics.generated++;
         });
     requests[key] = id;
+    jobsSubmitted++;
 }
 
 void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
@@ -298,6 +300,7 @@ void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
                                          statistics.generated++;
                                      });
     requests[key]             = id;
+    jobsSubmitted++;
 }
 
 // ---- the view
@@ -673,6 +676,7 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     int before = missingCounts(space, d).total();
     for (;;)
     {
+        const uint64_t submitted = jobsSubmitted;
         // (b) every missing desired tile
         issueRequests(space, d, std::numeric_limits<size_t>::max());
         runUntil(deadline);
@@ -687,8 +691,9 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
         const MissingCounts m = missingCounts(space, d);
         if (m.total() == 0) return finish(true, &d);
         if (nowSeconds() >= deadline) return finish(false, &d);
-        // Nothing arrived and nothing is queued or running: no later iteration can progress either
-        if (m.total() >= before && requests.empty())
+        // Nothing arrived, no job was submitted (a dropped result is requested again) and nothing is queued or running:
+        // no later iteration can progress either
+        if (m.total() >= before && requests.empty() && jobsSubmitted == submitted)
         {
             SAIGA_LOG("terrain",
                       "completeView: space %u cannot complete (tiles not stored %d, not sent %d; masks not stored %d, "
