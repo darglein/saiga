@@ -216,6 +216,21 @@ void World::addDefaultNow(Entity e, ComponentId id)
     addDefaultInternal(e, id);
 }
 
+void World::addDefaultById(Entity e, ComponentId id)
+{
+    SAIGA_ASSERT(!deferring(), "addDefaultById: between steps or while commands are applied (not inside a system)");
+    SAIGA_ASSERT(id != Transform::id && id != Behaviour::id && id != Persistent::id && id != Parent::id,
+                 "addDefaultById: this component has its own path");
+    // A command on an entity destroyed earlier in the same flush is dropped
+    if (flushing && !reg.alive(e)) return;
+    if (reg.entityMask(e).test(id))
+    {
+        SAIGA_ASSERT(false, "addDefaultById: the entity already has " + std::string(reg.componentInfo(id).name));
+        return;
+    }
+    addDefaultInternal(e, id);
+}
+
 void World::removeByIdNow(Entity e, ComponentId id)
 {
     SAIGA_ASSERT(!inStep(), "removeByIdNow: between steps");

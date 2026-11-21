@@ -688,6 +688,10 @@ class SAIGA_ENGINE_API World
     // ---- type-erased access for the world API (between steps; S10) ----
     // Adds a default component by ID with its log record (not Transform, Behaviour, Persistent or Parent)
     void addDefaultNow(Entity e, ComponentId id);
+    // The flush-safe form (S23a, the shared component-JSON path of the world API and prefab stamping): the typed
+    // addNow's rules: allowed between steps and while the world applies commands, refused while systems run
+    // (asserts), a no-op on an entity destroyed earlier in the same flush; the special components as addDefaultNow
+    void addDefaultById(Entity e, ComponentId id);
     // Removes a component by ID with its log record (Parent, Persistent and NetOwner keep their bookkeeping and
     // checks; not Transform)
     void removeByIdNow(Entity e, ComponentId id);

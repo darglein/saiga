@@ -8,6 +8,8 @@
 // integer lint (this unit is compiled with trapping UBSan on the Clang CI job, SAIGA_CONTENT_UBSAN).
 
 #include "saiga/engine/content/GeneratorList.h"
+#include "saiga/engine/content/Prefab.h"
+#include "saiga/engine/content/PrefabStore.h"
 #include "saiga/engine/content/gen/AuthoredSpaceGenerator.h"
 #include "saiga/engine/content/gen/FixedMath.h"
 #include "saiga/engine/content/gen/FlatGenerator.h"
@@ -21,6 +23,7 @@
 
 #include "gtest/gtest.h"
 
+#include <clocale>
 #include <cmath>
 #include <iostream>
 #include <limits>
@@ -543,4 +546,149 @@ TEST(Generator, HookGeneratorClampsAndKeepsTheGrassRule)
     HookGenerator noRule("plain", hook);
     noRule.grassMask(1, plan, c, mask);
     EXPECT_EQ(mask.density, std::vector<uint8_t>(128 * 128, 0));
+}
+
+// ---- Prefabs -------------------------------------------------------------------------------------------------------
+
+namespace
+{
+const std::string kTestData = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine";
+
+// Parses a prefab from text; the error (empty on success)
+std::string prefabError(const std::string& text, Prefab* out = nullptr)
+{
+    std::string error;
+    const json11::Json j = json11::Json::parse(text, error);
+    EXPECT_TRUE(error.empty()) << error;
+    Prefab p;
+    p.name = "t";
+    if (parsePrefab(j, "t.json", p, error))
+    {
+        if (out) *out = p;
+        return "";
+    }
+    return error;
+}
+
+const char* kMinimal = R"({"format": 1, "footprint": [-4, -4, 4, 4],
+    "terrain_patch": {"origin": [-1, -1], "size": [2, 2], "heights": [1, 2, 3, 4], "weights": [256, 128, 0, 64]},
+    "exclusion": [[-2, -2, 2, 2]],
+    "entities": [{"class": "A", "position": [0.5, 0.25, -1.75], "yaw_deg": 90, "components": {"Health": {"hp": 3}}}],
+    "static_geometry": [{"mesh": "m", "position": [1, 0, 1], "yaw_deg": -90}]})";
+
+std::string replaced(std::string s, const std::string& from, const std::string& to)
+{
+    const size_t at = s.find(from);
+    EXPECT_NE(at, std::string::npos) << from;
+    if (at != std::string::npos) s.replace(at, from.size(), to);
+    return s;
+}
+}  // namespace
+
+TEST(Prefab, VersionsSelectFiles)
+{
+    std::string error;
+    Prefab v1, v2;
+    ASSERT_TRUE(readPrefab(kTestData, "test_ruin", 1, v1, error)) << error;
+    ASSERT_TRUE(readPrefab(kTestData, "test_ruin", 2, v2, error)) << error;
+    EXPECT_EQ(v1.file, kTestData + "/prefabs/test_ruin.json");
+    EXPECT_EQ(v2.file, kTestData + "/prefabs/test_ruin.v2.json");
+    EXPECT_EQ(v1.statics.size(), 2u);
+    EXPECT_EQ(v2.statics.size(), 3u);
+    EXPECT_NE(v1.contentHash, v2.contentHash);
+    // The values, exact
+    ASSERT_EQ(v1.entities.size(), 3u);
+    EXPECT_EQ(v1.entities[0].className, "TestChest");
+    EXPECT_EQ(v1.entities[0].x, 640);
+    EXPECT_EQ(v1.entities[0].z, -320);
+    EXPECT_EQ(v1.entities[0].yaw, 16384);
+    EXPECT_EQ(v1.entities[1].y, 512);
+    ASSERT_TRUE(v1.entities[2].spaceLink);
+    EXPECT_FALSE(v1.entities[2].spaceLink->toParent);
+    EXPECT_EQ(v1.entities[2].spaceLink->x, 2176 * 256 + 128);
+    EXPECT_EQ(v1.spaces, std::vector<std::string>{"test_dungeon"});
+    ASSERT_TRUE(v1.patch);
+    EXPECT_EQ(v1.patch->sizeX, 25);
+
+    // A missing version names the file
+    EXPECT_FALSE(readPrefab(kTestData, "test_ruin", 3, v1, error));
+    EXPECT_NE(error.find("test_ruin.v3.json"), std::string::npos) << error;
+    PrefabStore store;
+    EXPECT_EQ(store.get(kTestData, "test_shrine", 1, error), store.get(kTestData, "test_shrine", 1, error));
+    EXPECT_EQ(store.size(), 1u);
+    EXPECT_EQ(store.get(kTestData, "nope", 1, error), nullptr);
+    EXPECT_NE(error.find("prefabs/nope.json"), std::string::npos) << error;
+}
+
+TEST(Prefab, ErrorsNameFileAndKey)
+{
+    Prefab p;
+    ASSERT_EQ(prefabError(kMinimal, &p), "");
+    EXPECT_EQ(p.entities[0].x, 128);
+    EXPECT_EQ(p.entities[0].y, 256);
+    EXPECT_EQ(p.entities[0].z, -448);
+    EXPECT_EQ(p.statics[0].yaw, 65536 - 16384);
+    EXPECT_EQ(prefabYaw(1), 182);     // floorDiv(65536 + 180, 360)
+    EXPECT_EQ(prefabYaw(-1), 65354);  // floorDiv(-65536 + 180, 360) = -182, wrapped
+
+    auto expectError = [](const std::string& text, const std::string& part)
+    {
+        const std::string e = prefabError(text);
+        EXPECT_NE(e.find("t.json: "), std::string::npos) << e;
+        EXPECT_NE(e.find(part), std::string::npos) << "expected '" << part << "' in: " << e;
+    };
+    expectError(replaced(kMinimal, "\"format\": 1,", "\"format\": 1, \"colour\": 3,"), "colour: unknown key");
+    expectError(replaced(kMinimal, "\"class\": \"A\",", "\"class\": \"A\", \"scale\": 2,"),
+                "entities[0].scale: unknown key");
+    expectError(replaced(kMinimal, "[0.5, 0.25, -1.75]", "[0.1, 0, 0]"), "entities[0].position[0]: not an exact");
+    expectError(replaced(kMinimal, "[0.5, 0.25, -1.75]", "[0, 0.0001, 0]"), "entities[0].position[1]: not an exact");
+    expectError(replaced(kMinimal, "[256, 128, 0, 64]", "[256, 128, 0, 257]"), "terrain_patch.weights[3]");
+    expectError(replaced(kMinimal, "[1, 2, 3, 4]", "[1, 2, 3]"), "terrain_patch.heights: expected 4 values");
+    expectError(replaced(kMinimal, "[0.5, 0.25, -1.75]", "[4, 0, 0]"), "entities[0].position: outside the footprint");
+    expectError(replaced(kMinimal, "[[-2, -2, 2, 2]]", "[[-2, -2, 5, 2]]"), "exclusion[0]: outside the footprint");
+    expectError(replaced(kMinimal, "\"origin\": [-1, -1]", "\"origin\": [3, 3]"),
+                "terrain_patch: the patch lies outside the footprint");
+    expectError(replaced(kMinimal, "\"format\": 1,", "\"format\": 1, \"pieces\": [],"),
+                "pieces: placed pieces in prefabs come with S30");
+    expectError(replaced(kMinimal, "\"format\": 1,", "\"format\": 2,"), "format: out of range");
+    expectError(replaced(kMinimal, "\"yaw_deg\": 90", "\"yaw_deg\": 22.5"), "entities[0].yaw_deg: expected an integer");
+    expectError(
+        R"({"format": 1, "footprint": [0, 0, 4, 4], "entities": [{"class": "A", "space_link": {"to": "link"}}]})",
+        "entities[0].space_link.link: the prefab lists 0 spaces");
+}
+
+// The content hash covers the integer content, not whitespace or component values
+TEST(Prefab, ContentHash)
+{
+    Prefab a, b, c, d;
+    ASSERT_EQ(prefabError(kMinimal, &a), "");
+    std::string spaced = kMinimal;
+    for (size_t i = 0; i < spaced.size(); ++i)
+        if (spaced[i] == ',') spaced.insert(++i, "\n   ");
+    ASSERT_EQ(prefabError(spaced, &b), "");
+    EXPECT_EQ(a.contentHash, b.contentHash);
+    ASSERT_EQ(prefabError(replaced(kMinimal, "{\"hp\": 3}", "{\"hp\": 4}"), &c), "");
+    EXPECT_EQ(a.contentHash, c.contentHash);
+    ASSERT_EQ(prefabError(replaced(kMinimal, "[1, 2, 3, 4]", "[1, 2, 3, 5]"), &d), "");
+    EXPECT_NE(a.contentHash, d.contentHash);
+}
+
+// Regression (S23a): a decimal-comma C locale must not change the parsed values (json11 used strtod)
+TEST(Prefab, IndependentOfCLocale)
+{
+    std::string error;
+    Prefab before, after;
+    ASSERT_TRUE(readPrefab(kTestData, "test_ruin", 1, before, error)) << error;
+    const char* locales[]      = {"de_DE.UTF-8", "de_DE.utf8", "de_DE", "German_Germany.1252"};
+    const std::string previous = std::setlocale(LC_NUMERIC, nullptr);
+    bool set                   = false;
+    for (auto l : locales)
+        if (!set && std::setlocale(LC_NUMERIC, l)) set = true;
+    if (!set) GTEST_SKIP() << "No locale with a decimal comma installed";
+    const bool ok = readPrefab(kTestData, "test_ruin", 1, after, error);
+    std::setlocale(LC_NUMERIC, previous.c_str());
+    ASSERT_TRUE(ok) << error;
+    EXPECT_EQ(after.contentHash, before.contentHash);
+    EXPECT_EQ(after.entities[0].x, before.entities[0].x);
+    EXPECT_EQ(after.entities[0].z, -320);
 }
