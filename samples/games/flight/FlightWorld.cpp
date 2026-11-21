@@ -11,9 +11,15 @@
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/content/ContentHashFile.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
+#include "saiga/engine/content/Prefab.h"
+#include "saiga/engine/content/gen/FixedMath.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
+#include "saiga/saiga_buildconfig.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
 #include "saiga/vulkan/world/PrototypeTerrain.h"
@@ -24,9 +30,12 @@
 
 #include <array>
 #include <chrono>
+#include <cstdlib>
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <optional>
+#include <vector>
 
 namespace Saiga
 {
@@ -298,6 +307,70 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
 
 // ---- scenarios (--scenarios; docs/engine_design.md §17.2) ----------------------------------------------------------
 
+namespace
+{
+// The entities that render a mesh
+std::vector<Entity> withMesh(World& world, const std::string& mesh)
+{
+    std::vector<Entity> out;
+    world.viewAll<const RenderInstance>().each(
+        [&](Entity e, const RenderInstance& r)
+        {
+            if (r.mesh == mesh) out.push_back(e);
+        });
+    return out;
+}
+
+// S23c: the fixed ruin of the plan (site key 1)
+const Site* fixedRuin(const World& world)
+{
+    for (const Site& s : world.generation().space(0).plan->sites)
+        if (s.key == kFlightFixedRuinKey) return &s;
+    return nullptr;
+}
+
+// S23c: the checks of flight_ruin_is_stamped; the first that does not hold yet (empty: all hold)
+std::string ruinStampedOpen(ScenarioWorld& w, const Site& ruin)
+{
+    const Vec3 expected(double(ruin.x), double(ruin.baseHeight) / 1024.0, double(ruin.z));
+    const std::vector<Entity> chests = withMesh(w.world(), kChestMesh);
+    if (chests.size() != 1) return "the host has one chest (" + std::to_string(chests.size()) + ")";
+    if (w.world().read<Transform>(chests[0]).position() != expected) return "the chest at the prefab position (exact)";
+    if (!w.world().has<Health>(chests[0]) || w.world().read<Health>(chests[0]).hp != 40)
+        return "the chest with the prefab's Health value";
+    for (int p = 1; p <= w.clientCount(); ++p)
+        if (withMesh(w.client(p), kChestMesh).size() != 1) return "client " + std::to_string(p) + " has one chest";
+    const RegionId region{0, 0, int32_t(floorDiv(ruin.x, 256)), int32_t(floorDiv(ruin.z, 256))};
+    for (int p = 0; p <= w.clientCount(); ++p)
+    {
+        const std::string who = p == 0 ? std::string("the host") : "client " + std::to_string(p);
+        if (w.terrainHeight(expected.x(), expected.z(), p == 0 ? std::optional<int>() : std::optional<int>(p)) !=
+            expected.y())
+            return who + ": terrainHeight at the patch centre is the base height";
+        const RecordingRenderSink::InstanceSet* set = w.renderSink(p).instanceSetAt(region);
+        if (!set) return who + ": the set of the ruin's chunk";
+        // The tier-1 instances, then the 12 static parts (slot 255) in staticList order
+        const size_t n = set->instances.size();
+        if (n < 12) return who + ": the set has the 12 static parts";
+        World& world = p == 0 ? w.world() : w.client(p);
+        for (size_t i = 0; i < n; ++i)
+        {
+            const uint32_t slot = set->instances[i].key >> 24, counter = set->instances[i].key & 0xFFFFFFu;
+            if (i < n - 12 && slot == 255) return who + ": a static part before the tier-1 instances";
+            if (i >= n - 12)
+            {
+                const uint32_t part = uint32_t(i - (n - 12));
+                if (slot != 255 || counter != part) return who + ": static part " + std::to_string(part) + " in order";
+                const char* mesh = part < 8 ? "flight/ruin_pillar" : "flight/ruin_wall";
+                if (set->instances[i].mesh != world.findMesh(mesh))
+                    return who + ": static part " + std::to_string(part) + " draws " + mesh;
+            }
+        }
+    }
+    return std::string();
+}
+}  // namespace
+
 void flightScenarios(ScenarioList& list)
 {
     // The autopilot's positions after 600 and 1800 steps (S13b; re-recorded in S23c over the OverworldGenerator's
@@ -367,6 +440,83 @@ void flightScenarios(ScenarioList& list)
                 w.stepUntil([&] { return (w.world().read<Transform>(plane).position() - spawnPoint).norm() < 5; }, 60),
                 "the driver's respawn action respawns its plane");
         });
+    // S23c: a driven plane (its driver is the Player) held 200 m above the fixed ruin: the host stamps the ruin's
+    // chest once (exact position, the prefab's Health), clients get it replicated, every peer has the patch's height
+    // at the centre and the ruin chunk's set with the tier-1 instances and the 12 static parts. The plane is
+    // teleported before every step (level, no velocity), so neither the circuit respawn nor the cruise moves the driver
+    // off the ruin's chunk (the scenario worlds stamp within 128 m)
+    list.add("flight_ruin_is_stamped",
+             [](ScenarioWorld& w)
+             {
+                 const Site* site = fixedRuin(w.world());
+                 if (!w.check(site != nullptr, "the plan has the fixed ruin")) return;
+                 const Site ruin    = *site;
+                 const Driven d     = spawnDriven<Aircraft>(w.world(), w.defaultPeer(), 0);
+                 const Entity plane = d.vehicle;
+                 const Vec3 hold(double(ruin.x), double(ruin.baseHeight) / 1024.0 + 200, double(ruin.z));
+                 std::string open = "not checked";
+                 for (int i = 0; i <= 300; ++i)
+                 {
+                     World& host = w.world();
+                     host.get<Transform>(plane).teleport(hold, Quat::Identity());
+                     AircraftState& s = host.get<AircraftState>(plane);
+                     s.velocity       = Vec3::Zero();
+                     s.bodyRates      = Vec3::Zero();
+                     open             = ruinStampedOpen(w, ruin);
+                     if (open.empty() || i == 300) break;
+                     w.step(1);
+                 }
+                 w.check(open.empty(), "after 300 steps: " + open);
+             });
+    // S23c: every slot mesh of the generator and every mesh of the ruin prefab (static parts, RenderInstance
+    // components, the chest class's mesh) is registered
+    list.add(
+        "flight_slot_meshes_resolve",
+        [](ScenarioWorld& w)
+        {
+            const World& world = w.world();
+            auto resolves      = [&](const std::string& mesh, const std::string& what)
+            { w.check(world.findMesh(mesh) != 0, what + ": the mesh \"" + mesh + "\" is registered"); };
+            const GeneratorList::Entry* g = world.generators().find(kFlightOverworldGenerator);
+            if (!w.check(g != nullptr, "the overworld generator is registered")) return;
+            for (const GeneratorSlot& slot : g->slots)
+                for (const std::string& mesh : slot.meshes) resolves(mesh, "slot " + slot.name);
+            Prefab ruin;
+            std::string error;
+            if (!w.check(readPrefab(w.setup().dataDirectory, kFlightRuinPrefab, 1, ruin, error), error)) return;
+            w.check(!ruin.statics.empty() && !ruin.entities.empty(), "the ruin has static parts and entities");
+            for (const PrefabStatic& part : ruin.statics) resolves(part.mesh, "ruin static part");
+            for (const PrefabEntity& e : ruin.entities)
+            {
+                const json11::Json& r = e.components["RenderInstance"];
+                if (r.is_object()) resolves(r["mesh"].string_value(), "ruin entity " + e.className);
+                if (e.className == FlightChest::name) resolves(kChestMesh, "the FlightChest class");
+            }
+        },
+        true);
+    // S23c: the game's committed content hashes (data/flight/content_hashes.json; phase A of the pipeline on a
+    // JobPool(3)). SAIGA_UPDATE_CONTENT_HASHES=1 rewrites the file in the source tree (it needs
+    // SAIGA_WRITE_PROJECT_DIR_TO_HEADER) and fails the run
+    list.add(
+        "flight_content_hashes",
+        [](ScenarioWorld& w)
+        {
+            const bool update      = std::getenv("SAIGA_UPDATE_CONTENT_HASHES") != nullptr;
+            std::string file       = w.setup().dataDirectory + "/content_hashes.json";
+            const std::string root = SAIGA_PROJECT_SOURCE_DIR;
+            if (update)
+            {
+                if (!w.check(!root.empty(),
+                             "SAIGA_UPDATE_CONTENT_HASHES needs SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON "
+                             "(the file is rewritten in the source tree only)"))
+                    return;
+                file = root + "/data/flight/content_hashes.json";
+            }
+            const ContentHashReport report = checkContentHashes(w.setup(), file, update);
+            std::cout << "flight_content_hashes: " << report.summary() << std::endl;
+            w.check(report.ok, report.summary());
+        },
+        true);
 }
 
 }  // namespace Game
