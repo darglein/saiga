@@ -122,6 +122,9 @@ class SAIGA_VULKAN_API TerrainPass
     bool drawsThisFrame() const { return frameValid; }
     // Inside a pass: the terrain (settings.terrain) and the water (settings.water)
     void render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& settings);
+    // The sky (settings.sky) of the environment, last in the scene pass (EQUAL at depth 0); TerrainFrame is written
+    // for every frame with a camera, also without a terrain set
+    void renderSky(vk::CommandBuffer cmd, uint32_t frameIndex, const PrototypeSettings& settings);
 
     const Stats& stats() const { return statistics; }
     // The last frame's nodes in instance order (tests)
@@ -160,7 +163,10 @@ class SAIGA_VULKAN_API TerrainPass
         vk::DescriptorSet set;
     };
     VulkanBase* base = nullptr;
-    Pipeline scenePipeline, depthPipeline, equalPipeline;
+    Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline;
+    // The sky's sets (binding 0: the frame's uniform buffer), written once
+    std::array<vk::DescriptorSet, 2> skySets;
+    bool skyValid = false;
     ComputePipeline probePipeline;
     vk::DescriptorSet probeSet;
     TerrainAtlas* lastAtlas = nullptr;

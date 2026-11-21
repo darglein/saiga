@@ -62,6 +62,15 @@ struct WorldUniforms
     vec4 grassPhases;
 };
 
+// The camera rotation (RenderScene::setCamera: looks along -z, y up) of a view matrix (rotation and translation)
+inline Quat viewRotation(const mat4& view)
+{
+    Mat3 r;
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) r(i, j) = double(view(j, i));
+    return Quat(r).normalized();
+}
+
 // Frustum planes of a (reversed, infinite) projection: left, right, bottom, top, near (normalized). The 6th plane is
 // a dummy that is always passed (0,0,0,1).
 inline std::array<vec4, 6> frustumPlanes(const mat4& viewProj)

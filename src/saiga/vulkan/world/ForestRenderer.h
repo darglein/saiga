@@ -8,6 +8,7 @@
 
 #include "saiga/vulkan/world/FoliageGenerator.h"
 #include "saiga/vulkan/world/HeightField.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include <vector>
 
@@ -34,6 +35,11 @@ class SAIGA_VULKAN_API ForestRenderer
 
     // Places count trees on the terrain (deterministic for the seed).
     static std::vector<TreeInstance> placeTrees(const HeightField& heightField, int count, uint32_t seed,
+                                                const std::vector<TreeSpecies>& species);
+    // S20: places count trees in the area on the prototype hook (deterministic for the seeds): the probabilities from
+    // a 4 m grid of hook samples over the area (OpenMP, the accepted §3 deviation until S23); a tree stands at
+    // float(prototypeSurfaceHeight(area.seed, area.baseSpacing, x, z)) - 0.25 (sunk a little into slopes)
+    static std::vector<TreeInstance> placeTrees(const PrototypeArea& area, int count, uint32_t seed,
                                                 const std::vector<TreeSpecies>& species);
 };
 

@@ -103,6 +103,31 @@ WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const HeightF
     return p;
 }
 
+WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground& ground, int measuredFrame)
+{
+    SAIGA_ASSERT(known(name), "unknown benchmark");
+    // The centre of the prototype's 8 km area (until S27, §17.7)
+    const double c = 4096;
+    Pose p;
+    if (name == "flyover")
+    {
+        const double pi    = 3.14159265358979323846;
+        const double angle = 2.0 * pi * double(measuredFrame) / measuredFrames;
+        const double x     = c + 3000.0 * std::cos(angle);
+        const double z     = c + 3000.0 * std::sin(angle);
+        p.eye              = vec3(float(x), float(ground(x, z) + 300.0), float(z));
+        p.target           = vec3(float(c), float(ground(c, c)), float(c));
+    }
+    else
+    {
+        const double t = double(measuredFrame) / double(measuredFrames - 1);
+        const double x = c - 300.0 + 600.0 * t;
+        p.eye          = vec3(float(x), float(ground(x, c) + 2.0), float(c));
+        p.target       = p.eye + vec3(1, 0, 0);
+    }
+    return p;
+}
+
 WorldBenchmark::Stat WorldBenchmark::summarize(std::vector<double> values)
 {
     Stat s;
@@ -131,11 +156,18 @@ WorldBenchmark::WorldBenchmark(const std::string& name, const HeightField& heigh
     SAIGA_ASSERT(known(name), "unknown benchmark");
 }
 
+WorldBenchmark::WorldBenchmark(const std::string& name, Ground ground, const std::string& gpuName)
+    : name(name), gpuName(gpuName), groundFn(std::move(ground))
+{
+    SAIGA_ASSERT(known(name), "unknown benchmark");
+    SAIGA_ASSERT(groundFn, "WorldBenchmark: no ground");
+}
+
 WorldBenchmark::Pose WorldBenchmark::currentPose(uint64_t frame) const
 {
     const int64_t i =
         std::min<int64_t>(std::max<int64_t>(int64_t(frame) - int64_t(firstMeasured), 0), measuredFrames - 1);
-    return pose(name, *hf, int(i));
+    return groundFn ? pose(name, groundFn, int(i)) : pose(name, *hf, int(i));
 }
 
 bool WorldBenchmark::measuring(uint64_t frame) const
@@ -149,7 +181,9 @@ void WorldBenchmark::addSample(const Sample& t)
     {
         if (measured(t.frame))
         {
-            cpuMs.push_back(t.intervalMs);
+            // The terrain stream time is not part of the frame interval (S20)
+            cpuMs.push_back(std::max(t.intervalMs - t.terrainStreamMs, 0.0));
+            streamMs.push_back(t.terrainStreamMs);
             if (t.workMs >= 0) cpuWorkMs.push_back(t.workMs);
             if (t.frameWorkMs >= 0) frameWorkMs.push_back(t.frameWorkMs);
             if (t.waitPartsMs[0] >= 0) waitParts.push_back(t.waitPartsMs);
@@ -229,6 +263,8 @@ json11::Json WorldBenchmark::result() const
         for (const auto& [key, values] : gpuMs) passes[key] = stat(values);
         gpu = passes;
     }
+    double streamMean = 0;
+    for (double v : streamMs) streamMean += v / double(streamMs.size());
     return json11::Json::object{
         {"gpu", gpuName},
         {"quality", "default"},
@@ -249,8 +285,13 @@ json11::Json WorldBenchmark::result() const
         {"long_frames", longFrames},
         {"pacing_p99_ms", pacing},
         {"alternating", alternating},
-        {"wait_ms", json11::Json::object{{"frame_slot", wait[0]}, {"acquire", wait[1]}, {"present", wait[2]}}},
+        {"wait_ms",
+         json11::Json::object{
+             {"frame_slot", wait[0]}, {"acquire", wait[1]}, {"present", wait[2]}, {"terrain_stream", streamMean}}},
         {"frame_work_ms", detail(frameWorkMs)},
+        // S20: the terrain stream time of the measured frames (excluded from the interval) and the terrain block
+        {"terrain_stream_ms", detail(streamMs)},
+        {"terrain", terrainInfo},
     };
 }
 
@@ -306,6 +347,7 @@ std::string WorldBenchmark::summaryText(const json11::Json& r, const json11::Jso
     };
     row("frame interval", r["frame_interval_ms"]);
     row("CPU busy", r["frame_work_ms"]);
+    row("terrain stream", r["terrain_stream_ms"]);
     row("GPU busy", r["gpu_frame_ms"]["gpu"]);
     // What limits the frame rate (no vsync in a benchmark): the busy times against the mean interval (the frames' time)
     const double frameMs = r["frame_interval_ms"]["mean"].number_value();

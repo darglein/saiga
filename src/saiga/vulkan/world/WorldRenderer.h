@@ -9,6 +9,7 @@
 #include "saiga/core/util/json11.hpp"
 #include "saiga/vulkan/world/HeightField.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
+#include "saiga/vulkan/world/WorldCommon.h"
 #include "saiga/vulkan/world/WorldSettings.h"
 
 #include <chrono>
@@ -22,14 +23,6 @@ namespace Vulkan
 {
 class RenderScene;
 
-// The camera rotation (RenderScene::setCamera: looks along -z, y up) of a view matrix (rotation and translation)
-inline Quat viewRotation(const mat4& view)
-{
-    Mat3 r;
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j) r(i, j) = double(view(j, i));
-    return Quat(r).normalized();
-}
 
 struct SAIGA_VULKAN_API WorldParameters
 {

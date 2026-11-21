@@ -54,7 +54,7 @@ bool optionalNumber(const Json& args, const char* name, double limit, float& out
 Json groundJson(const WorldMcpContext& c)
 {
     const Vec3 pos      = c.getCamera().position;
-    const double ground = c.world->heightField().height(float(pos(0)), float(pos(2)));
+    const double ground = c.ground(pos(0), pos(2));
     Json::object o{{"ground_height", std::round(ground * 100) / 100},
                    {"height_above_ground", std::round((pos(1) - ground) * 100) / 100}};
     if (c.walkMode) o["walk_mode"] = *c.walkMode;
@@ -63,16 +63,23 @@ Json groundJson(const WorldMcpContext& c)
 
 Json worldJson(const WorldMcpContext& c)
 {
-    auto& hf = c.world->heightField();
-    return Json::object{
-        {"size_m", hf.worldSize()},
-        {"extent", "x and z in [0, size_m], y is up"},
-        {"min_height", hf.minHeight()},
-        {"max_height", hf.maxHeight()},
-        {"water_level", hf.waterLevel()},
-        {"highest_point", toJson(hf.highestPoint())},
-        {"center", toJson(vec3(hf.worldSize() * 0.5f, hf.height(hf.worldSize() * 0.5f, hf.worldSize() * 0.5f),
-                               hf.worldSize() * 0.5f))}};
+    const auto range = c.heightRange();
+    const double mid = c.worldSize * 0.5;
+    return Json::object{{"size_m", c.worldSize},
+                        {"extent", "x and z in [0, size_m], y is up"},
+                        {"min_height", range.first},
+                        {"max_height", range.second},
+                        {"water_level", c.seaLevel},
+                        {"highest_point", toJson(c.highestPoint.cast<float>())},
+                        {"center", toJson(vec3(float(mid), float(c.ground(mid, mid)), float(mid)))}};
+}
+
+// The normal of the ground by central differences at step metres
+vec3 groundNormal(const WorldMcpContext& c, double x, double z, double step)
+{
+    const double hl = c.ground(x - step, z), hr = c.ground(x + step, z);
+    const double hd = c.ground(x, z - step), hu = c.ground(x, z + step);
+    return Vec3(hl - hr, 2.0 * step, hd - hu).normalized().cast<float>();
 }
 
 Json settingsSchema(const WorldSettings& settings)
@@ -109,8 +116,23 @@ std::string worldMcpInstructions()
 
 void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
 {
-    SAIGA_ASSERT(context.world && context.getCamera && context.setCamera);
+    SAIGA_ASSERT(context.getCamera && context.setCamera);
     WorldMcpContext c = context;
+    if (c.world)
+    {
+        // The S19a path: the fields from the WorldRenderer and its height field
+        WorldRenderer* w = c.world;
+        c.settings       = &w->settings;
+        c.stats          = [w]() { return w->statsJson(); };
+        c.ground         = [w](double x, double z) { return double(w->heightField().height(float(x), float(z))); };
+        c.worldSize      = w->heightField().worldSize();
+        c.seaLevel       = w->heightField().waterLevel();
+        c.highestPoint   = w->heightField().highestPoint().cast<double>();
+        c.heightRange    = [w]()
+        { return std::make_pair(double(w->heightField().minHeight()), double(w->heightField().maxHeight())); };
+    }
+    SAIGA_ASSERT(c.settings && c.stats && c.ground && c.heightRange && c.worldSize > 0,
+                 "registerWorldMcpTools: the context's settings, stats, ground, heightRange and worldSize");
 
     server.addTool("game_get_state",
                    "Reads the world extent, render statistics (fps, visible trees, triangles), all render settings and "
@@ -121,8 +143,8 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
                    {
                        respond(ToolResult::FromJson(Json::object{{"camera", groundJson(c)},
                                                                  {"world", worldJson(c)},
-                                                                 {"stats", c.world->statsJson()},
-                                                                 {"settings", c.world->settings.toJson()}}));
+                                                                 {"stats", c.stats()},
+                                                                 {"settings", c.settings->toJson()}}));
                    });
 
     server.addTool(
@@ -142,7 +164,7 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             for (auto& kv : args.object_items())
                 if (kv.first != "position" && kv.first != "height_above_ground" && kv.first != "walk_mode")
                     return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
-            const double limit = maxWorldSizes * c.world->heightField().worldSize();
+            const double limit = maxWorldSizes * c.worldSize;
             WorldMcpCamera cam = c.getCamera();
             Vec3 pos           = cam.position;
             if (!args["position"].is_null())
@@ -160,13 +182,11 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             if (!optionalNumber(args, "height_above_ground", limit, heightAboveGround, respond)) return;
             if (!args["walk_mode"].is_null() && !args["walk_mode"].is_bool())
                 return respond(ToolResult::Error("walk_mode: a bool"));
-            const auto& hf = c.world->heightField();
-            if (args["height_above_ground"].is_number())
-                pos(1) = double(hf.height(float(pos(0)), float(pos(2)))) + heightAboveGround;
+            if (args["height_above_ground"].is_number()) pos(1) = c.ground(pos(0), pos(2)) + heightAboveGround;
             if (args["walk_mode"].is_bool() && c.walkMode)
             {
                 *c.walkMode = args["walk_mode"].bool_value();
-                if (*c.walkMode && c.eyeHeight) pos(1) = double(hf.height(float(pos(0)), float(pos(2)))) + *c.eyeHeight;
+                if (*c.walkMode && c.eyeHeight) pos(1) = c.ground(pos(0), pos(2)) + *c.eyeHeight;
             }
             // The view direction stays
             cam.position = pos;
@@ -180,25 +200,26 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
                    "Changes render settings of the prototype (only the given ones; values are clamped to the GUI "
                    "ranges). Returns all settings and invalid_keys (unknown keys or values of the wrong type, not "
                    "applied). debug_mode: 0 off, 1 tint by level of detail. Changes the render settings.",
-                   settingsSchema(c.world->settings),
+                   settingsSchema(*c.settings),
                    [c](const Json& args, McpServer::Respond respond)
                    {
-                       auto unknown = c.world->settings.fromJson(args);
+                       auto unknown = c.settings->fromJson(args);
                        // The field of view is the app camera's (S19b)
                        if (args["fovy"].is_number())
                        {
                            WorldMcpCamera cam = c.getCamera();
-                           cam.fovy           = radians(double(c.world->settings.fovy));
+                           cam.fovy           = radians(double(c.settings->fovy));
                            c.setCamera(cam);
                        }
-                       Json::object o{{"settings", c.world->settings.toJson()}};
+                       Json::object o{{"settings", c.settings->toJson()}};
                        if (!unknown.empty()) o["invalid_keys"] = Json::array(unknown.begin(), unknown.end());
                        respond(ToolResult::FromJson(o));
                    });
 
     server.addTool(
         "game_terrain_query",
-        "Terrain height, normal and slope of the prototype height field at world positions. points: [[x, z], ...] (at "
+        "Terrain height, normal (central differences at 2 m) and slope of the terrain at world positions. points: [[x, "
+        "z], ...] (at "
         "most 1000 points). Reads; changes nothing.",
         McpServer::ObjectSchema(
             {{"points",
@@ -208,8 +229,7 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
             {"points"}),
         [c](const Json& args, McpServer::Respond respond)
         {
-            auto& hf           = c.world->heightField();
-            const double limit = maxWorldSizes * hf.worldSize();
+            const double limit = maxWorldSizes * c.worldSize;
             const auto& points = args["points"];
             if (!points.is_array() || points.array_items().size() > 1000)
             {
@@ -226,14 +246,15 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
                     respond(ToolResult::Error("every point must be [x, z] with finite numbers"));
                     return;
                 }
-                vec3 n = hf.normal(x, z, 2.0f);
+                const vec3 n   = groundNormal(c, x, z, 2.0);
+                const double h = c.ground(x, z);
                 result.push_back(
                     Json::object{{"x", x},
                                  {"z", z},
-                                 {"height", std::round(hf.height(x, z) * 100) / 100},
+                                 {"height", std::round(h * 100) / 100},
                                  {"normal", toJson(n)},
                                  {"slope_deg", std::round(std::acos(std::min(n(1), 1.0f)) * 180.0f / pi * 10) / 10},
-                                 {"under_water", hf.height(x, z) < hf.waterLevel()}});
+                                 {"under_water", h < c.seaLevel}});
             }
             respond(ToolResult::FromJson(result));
         });

@@ -10,6 +10,7 @@
 #include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/HeightField.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 #include "saiga/vulkan/world/WorldCommon.h"
 #include "saiga/vulkan/world/WorldMcp.h"
@@ -480,6 +481,105 @@ TEST(WorldBenchmark, ResultJson)
     }
     EXPECT_TRUE(noGpu.result()["gpu_ms"].is_null());
     EXPECT_EQ(noGpu.result()["gpu_frames"].int_value(), 0);
+}
+
+// S20: the terrain stream time of a frame is not part of its interval (cpu_ms, frame_interval_ms, stalled_frames: a
+// 60 ms stream on a 3 ms frame is no stall); it is reported as terrain_stream_ms and wait_ms.terrain_stream; the old
+// aggregate initializers of Sample keep their meaning; the ground-callback paths
+TEST(WorldBenchmark, TerrainStreamTime)
+{
+    auto ground = [](double x, double z) { return 0.01 * x + 0.02 * z; };
+    WorldBenchmark bench("flyover", ground, "test gpu");
+    const int warmup = WorldBenchmark::warmupFrames, n = WorldBenchmark::measuredFrames;
+    for (int frame = 1; frame <= warmup + n + 2; ++frame)
+    {
+        WorldBenchmark::Sample cpu{uint64_t(frame - 1), 3.0 + (frame % 7 == 0 ? 60.0 : 0.0), 1.0, {}};
+        cpu.terrainStreamMs = frame % 7 == 0 ? 60.0 : 0.0;
+        if (frame > 1) bench.addSample(cpu);
+        if (frame > 2) bench.addSample(WorldBenchmark::Sample{uint64_t(frame - 2), -1, -1, {{"trees", 1.0}}});
+    }
+    ASSERT_TRUE(bench.finished());
+    const auto r = bench.result();
+    EXPECT_DOUBLE_EQ(r["cpu_ms"]["median"].number_value(), 3.0);
+    EXPECT_DOUBLE_EQ(r["frame_interval_ms"]["max"].number_value(), 3.0);
+    EXPECT_EQ(r["stalled_frames"].int_value(), 0);
+    EXPECT_EQ(r["long_frames"].int_value(), 0);
+    EXPECT_DOUBLE_EQ(r["terrain_stream_ms"]["max"].number_value(), 60.0);
+    EXPECT_NEAR(r["wait_ms"]["terrain_stream"].number_value(), 60.0 / 7, 0.5);
+    EXPECT_TRUE(r["terrain"].is_null());
+    bench.setTerrainInfo(json11::Json::object{{"resident_tiles", 12}});
+    EXPECT_EQ(bench.result()["terrain"]["resident_tiles"].int_value(), 12);
+    EXPECT_NE(WorldBenchmark::summaryText(bench.result()).find("terrain stream"), std::string::npos);
+    // The paths over the ground: the flyover 300 m above it, around (4096, 4096)
+    const auto p = WorldBenchmark::pose("flyover", ground, 0);
+    EXPECT_NEAR(p.eye(0), 4096 + 3000, 1e-3);
+    EXPECT_NEAR(p.eye(1), ground(7096, 4096) + 300, 1e-3);
+    EXPECT_NEAR(p.target(1), ground(4096, 4096), 1e-3);
+    const auto f = WorldBenchmark::pose("forest", ground, 0);
+    EXPECT_NEAR(f.eye(1), ground(4096 - 300, 4096) + 2, 1e-3);
+}
+
+// The prototype's hook and its surface (S20)
+TEST(PrototypeTerrain, SurfaceHeightMatchesRule)
+{
+    for (int bs : {1, 2})
+        for (int k = 0; k < 200; ++k)
+        {
+            const double x = 1000 + k * 37.37, z = 2000 + k * 13.13;
+            const double gx = x / bs, gz = z / bs;
+            const int64_t i = int64_t(std::floor(gx)), j = int64_t(std::floor(gz));
+            auto h                = [&](int64_t a, int64_t b) { return prototypeHeight(7, a * bs, b * bs); };
+            const double expected = terrainSurfaceDouble(h(i, j), h(i + 1, j), h(i, j + 1), h(i + 1, j + 1),
+                                                         gx - double(i), gz - double(j)) *
+                                    kHeightUnit;
+            EXPECT_EQ(prototypeSurfaceHeight(7, bs, x, z), expected);
+        }
+    // Integer metres: the sample itself; clamped to the space at its edges
+    EXPECT_EQ(prototypeSurfaceHeight(3, 1, 500, 700), prototypeHeight(3, 500, 700) * kHeightUnit);
+    EXPECT_EQ(prototypeSurfaceHeight(3, 2, -50, 700), prototypeSurfaceHeight(3, 2, 0, 700));
+    // The space ends in the water: below the sea level at the edges of the 32 km space
+    EXPECT_LT(prototypeHeight(1, 0, 16000), kPrototypeSeaLevel);
+    EXPECT_LT(prototypeHeight(1, 32768, 16000), kPrototypeSeaLevel);
+    // The hook is clamped and deterministic
+    EXPECT_EQ(prototypeHeight(5, 4096, 4096), prototypeHeight(5, 4096, 4096));
+}
+
+// The trees of a PrototypeArea stand on the surface (exactly: the float of prototypeSurfaceHeight - 0.25), above the
+// sea, inside the area, deterministic
+TEST(PrototypeTerrain, TreePlacement)
+{
+    PrototypeArea area;
+    area.x0            = 1024;
+    area.z0            = 1024;
+    area.size          = 1024;
+    area.seed          = 1;
+    area.baseSpacing   = 2;
+    const auto species = FoliageGenerator::treeSpecies(1);
+    const auto trees   = ForestRenderer::placeTrees(area, 3000, 1, species);
+    ASSERT_GT(trees.size(), 1000u);
+    EXPECT_LE(trees.size(), 3000u);
+    for (const auto& t : trees)
+    {
+        const float x = t.posYaw(0), z = t.posYaw(2);
+        ASSERT_GE(x, 1024.f);
+        ASSERT_LE(x, 2048.f);
+        ASSERT_EQ(t.posYaw(1), float(prototypeSurfaceHeight(1, 2, double(x), double(z))) - 0.25f);
+        ASSERT_GT(double(t.posYaw(1)) + 0.25, double(kPrototypeSeaLevel) * kHeightUnit);
+    }
+    const auto again = ForestRenderer::placeTrees(area, 3000, 1, species);
+    ASSERT_EQ(again.size(), trees.size());
+    EXPECT_EQ(again.back().posYaw, trees.back().posYaw);
+}
+
+TEST(PrototypeTerrain, HighestPoint)
+{
+    const PrototypeAreaStats s = prototypeAreaStats(1, 0, 0, 8192, 64);
+    EXPECT_GT(s.maxHeight, 100);
+    EXPECT_LT(s.minHeight, 6);
+    EXPECT_EQ(s.highest(1), s.maxHeight);
+    EXPECT_EQ(prototypeHeight(1, int64_t(s.highest(0)), int64_t(s.highest(2))) * kHeightUnit, s.maxHeight);
+    // A finer grid finds at least as high a point
+    EXPECT_GE(prototypeAreaStats(1, 0, 0, 8192, 32).maxHeight, s.maxHeight);
 }
 
 // Regression (S19a review): finished() only proves that the CPU samples reached the last measured frame; a run that

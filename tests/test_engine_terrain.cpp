@@ -18,6 +18,7 @@
 #include "saiga/engine/world/World.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 #include "saiga/vulkan/scene/TerrainTiles.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "gtest/gtest.h"
 
@@ -128,6 +129,30 @@ TEST(Terrain, TerrainHeightEqualsTheIntegerRule)
         // Outside the space: clamped to it
         EXPECT_EQ(world.terrainHeight(0, -100, -5), world.terrainHeight(0, 0, 0));
         EXPECT_EQ(world.terrainHeight(0, 1e9, 17.5), world.terrainHeight(0, chunks * 256.0, 17.5));
+    }
+}
+
+// prototypeSurfaceHeight equals World::terrainHeight bit for bit for the prototype's template (built inline from the
+// PrototypeTerrain constants): the flight and racing contexts rely on it
+TEST(Terrain, PrototypeSurfaceEqualsTerrainHeight)
+{
+    for (int bs : {1, 2})
+    {
+        WorldSetup s;
+        s.seed      = 3;
+        s.profiling = false;
+        s.config.spaceTemplates.push_back(
+            testSpaceTemplate(Vulkan::kPrototypeSpaceChunks, bs, Vulkan::prototypeHeight, Vulkan::kPrototypeSeaLevel));
+        World w(s);
+        std::mt19937_64 rng{uint64_t(bs)};
+        for (int k = 0; k < 1000; ++k)
+        {
+            double x = double(rng() % (32768 * 64)) / 64, z = double(rng() % (32768 * 64)) / 64;
+            if (k % 50 == 0) x = 32768;
+            if (k % 50 == 1) z = 0;
+            if (k % 50 == 2) x = -3;
+            ASSERT_EQ(Vulkan::prototypeSurfaceHeight(3, bs, x, z), w.terrainHeight(0, x, z)) << x << ", " << z;
+        }
     }
 }
 

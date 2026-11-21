@@ -9,8 +9,10 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/vulkan/world/WorldRenderer.h"
+#include "saiga/vulkan/world/WorldSettings.h"
 
 #include <functional>
+#include <utility>
 
 namespace Saiga
 {
@@ -29,7 +31,19 @@ struct WorldMcpCamera
 
 struct WorldMcpContext
 {
+    // The S19a path (removed in S20 step 7d): fills the fields below from the WorldRenderer when set
     WorldRenderer* world = nullptr;
+    // S20: the prototype's settings (PrototypeScene::settings) and render statistics (trees, terrain)
+    WorldSettings* settings = nullptr;
+    std::function<json11::Json()> stats;
+    // The terrain height (m) under (x, z) (World::terrainHeight of the view space); the world's size (m), sea level
+    // (m), its highest point (computed once by the game) and min / max height (the pyramid's, or the game's area stats
+    // before the first view)
+    std::function<double(double x, double z)> ground;
+    double worldSize  = 0;
+    double seaLevel   = 0;
+    Vec3 highestPoint = Vec3::Zero();
+    std::function<std::pair<double, double>()> heightRange;
     // The app's view camera (S19b: EngineApp::viewCamera / setViewCameraByTool without a hold, set by game_world;
     // saiga_vulkan has no engine header): game_set_camera moves it, game_set_settings' fovy sets its field of view
     std::function<WorldMcpCamera()> getCamera;

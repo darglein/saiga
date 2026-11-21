@@ -8,6 +8,7 @@
 
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
+#include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/HeightField.h"
 #include "saiga/vulkan/world/WorldSettings.h"
 
@@ -35,6 +36,10 @@ struct PrototypeTreeSet
  */
 SAIGA_VULKAN_API std::vector<PrototypeTreeSet> prototypeTreeSets(const HeightField& heightField, int treeCount,
                                                                  uint32_t seed, const std::vector<TreeSpecies>& species,
+                                                                 const std::vector<MeshId>& meshIds);
+// S20: the placed trees (ForestRenderer::placeTrees of a PrototypeArea) in the chunks of the prototype's space
+SAIGA_VULKAN_API std::vector<PrototypeTreeSet> prototypeTreeSets(const std::vector<ForestRenderer::TreeInstance>& trees,
+                                                                 const std::vector<TreeSpecies>& species,
                                                                  const std::vector<MeshId>& meshIds);
 
 // The mesh of a tree species for the PrototypeFoliage class: its LODs on MeshVertex (the color word
@@ -68,6 +73,9 @@ class SAIGA_VULKAN_API PrototypeForest
     // a new PrototypeForest on the same scene reuses the registered meshes and material
     void init(RenderScene& scene, const HeightField& heightField, int treeCount, uint32_t seed,
               const WorldSettings& settings);
+    // S20: the placed trees (the species and mesh names of the seed; the scene needs setPrototypeEnvironment)
+    void init(RenderScene& scene, const std::vector<ForestRenderer::TreeInstance>& trees, uint32_t seed,
+              const WorldSettings& settings);
     // The trees toggle, the LOD distances and the wind's bounds padding
     void apply(const WorldSettings& settings);
     // Removes the instance sets (the meshes stay registered); before the scene is destroyed nothing is needed
@@ -93,6 +101,8 @@ class SAIGA_VULKAN_API PrototypeForest
     size_t memoryBytes() const;
 
    private:
+    void initMeshes(RenderScene& scene, uint32_t seed, const WorldSettings& settings);
+    void initSets(const WorldSettings& settings);
     RenderScene* scene = nullptr;
     std::vector<TreeSpecies> species;
     std::vector<MeshId> meshIds;

@@ -475,6 +475,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         subEnd("scene.grass", cmd);
         subBegin("scene.sky", cmd);
         if (world) world->renderSky(cmd, proto);
+        // The environment's sky (S20): from setPrototypeEnvironment on, with or without terrain
+        if (s.foliage) s.terrain->renderSky(cmd, frame.frameIndex, proto);
         subEnd("scene.sky", cmd);
         cmd.endRendering();
 
