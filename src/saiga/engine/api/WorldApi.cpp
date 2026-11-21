@@ -1454,7 +1454,8 @@ ApiResult WorldApi::spawn(const Json& a)
         if (!r.ok()) return ApiResult::failure(r.errorMessage());
     }
     int64_t space = 0;
-    if (!intArg(a, "space", 0, 0, 0, space, error)) return ApiResult::failure("space: only space 0 exists (S21)");
+    if (!intArg(a, "space", 0, int64_t(w->spaceCount()) - 1, 0, space, error))
+        return ApiResult::failure(error + " (" + std::to_string(w->spaceCount()) + " spaces)");
     const ClassList::ClassInfo* info = nullptr;
     if (!a["class"].is_null())
     {
@@ -1485,7 +1486,7 @@ ApiResult WorldApi::spawn(const Json& a)
         e = w->spawnByClass(*info, SpaceId(space), position, {});
     else
     {
-        e = w->create();
+        e = w->createIn(SpaceId(space));
         w->get<Transform>(e).setPosition(position);
     }
     if (!w->alive(e)) return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"alive", false}});

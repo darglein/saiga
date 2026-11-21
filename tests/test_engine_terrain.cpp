@@ -220,10 +220,6 @@ TEST(TerrainDeathTest, TemplateValidation)
         World w(s);
     };
     SpaceTemplate ok;
-    EXPECT_DEATH(with({ok, ok}), "more than one space template");
-    SpaceTemplate enclosed = ok;
-    enclosed.kind          = SpaceKind::Enclosed;
-    EXPECT_DEATH(with({enclosed}), "Enclosed");
     for (int32_t chunks : {8, 520, 100})
     {
         SpaceTemplate t = ok;

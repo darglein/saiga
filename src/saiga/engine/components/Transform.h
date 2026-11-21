@@ -105,6 +105,8 @@ class Transform
 
    private:
     friend class Registry;
+    // The World's space primitive (setSubtreeSpace, spawns, state entities; S21) is the only writer of the space
+    friend class World;
     // MSVC instantiates ComponentPool<Transform> (its swap-and-pop assignment) although Transform has no pool
     template <class T>
     friend class ComponentPool;
@@ -112,6 +114,14 @@ class Transform
     // reused slot. Copy and move construction stay public (storage, tests).
     Transform& operator=(const Transform&)     = default;
     Transform& operator=(Transform&&) noexcept = default;
+
+    // A space change of the World (S21): the space and the change flag, no teleport flag (the root's teleport sets it)
+    void setSpaceInternal(SpaceId space)
+    {
+        if (sp == space) return;
+        sp              = space;
+        changedThisStep = 1;
+    }
 
     // Bitwise per double: -0.0 vs 0.0 and NaN payloads count as changes, equal bits never do (no padding compared)
     static bool differs(double a, double b) { return std::memcmp(&a, &b, sizeof(double)) != 0; }

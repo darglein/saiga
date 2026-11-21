@@ -74,14 +74,14 @@ Entity World::spawnIn(SpaceId space, const Vec3& position, C&&... initial)
     const Entity e                   = beginSpawn(space);
     if (!e.valid()) return e;  // refused (a client)
     // The initial components are moved into the command (applied at the flush during a step, at once between steps)
-    auto apply = [e, &info, position,
+    auto apply = [e, &info, space, position,
                   components = std::make_tuple(std::decay_t<C>(std::forward<C>(initial))...)](World& w) mutable
     {
         // A command on an entity destroyed earlier in the same flush is dropped
         if (!w.alive(e)) return;
         try
         {
-            w.finishSpawn(e, info, position);
+            w.finishSpawn(e, info, space, position);
             std::apply([&](auto&... c) { (w.add<std::decay_t<decltype(c)>>(e, std::move(c)), ...); }, components);
         }
         catch (...)

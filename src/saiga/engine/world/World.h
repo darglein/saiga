@@ -155,9 +155,11 @@ class SAIGA_ENGINE_API World
     // ---- entities and components (§7.10) -------------------------------------------------------------------------
 
     Entity create();
-    // A game object of class T at position (space 0; spawnIn: S21 adds more spaces): Transform, Behaviour and the
-    // initial components, then configure() and onSpawn() (§9.2). During a step the entity is reserved and returned at
-    // once, the rest happens at the flush; between steps at once. Defined in gameplay/Behaviour.h.
+    // create() in a space (between steps; the world API's spawn without a class)
+    Entity createIn(SpaceId space);
+    // A game object of class T at position (spawn: space 0; spawnIn: any space < spaceCount()): Transform, Behaviour
+    // and the initial components, then configure() and onSpawn() (§9.2). During a step the entity is reserved and
+    // returned at once, the rest happens at the flush; between steps at once. Defined in gameplay/Behaviour.h.
     template <class T, class... C>
     Entity spawn(const Vec3& position, C&&... initial);
     template <class T, class... C>
@@ -362,12 +364,14 @@ class SAIGA_ENGINE_API World
 
     // The template of a space (WorldConfig::spaceTemplates, or the flat default); asserts an unknown space
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
+    // The number of spaces: one per template (SpaceId = template index; S21)
     size_t spaceCount() const;
     // The seed of a space: WorldSetup::seed for space 0, hashCombine(seed, index) for index >= 1 (§12.1, §12.4)
     uint64_t spaceSeed(SpaceId space) const;
     // The exact terrain surface height at (x, z) in metres (§12.2): x and z clamped to the space, the integer heights
     // of the base grid interpolated along the (0,0)-(1,1) diagonal; the same value whether or not a tile is resident
-    // (R-DET-1). 0 for a space without terrain. Const and thread safe (parallelEach)
+    // (R-DET-1). 0 for a space without terrain (a hook-less open world, an enclosed space's floor plane until S23 /
+    // S28). Const and thread safe (parallelEach)
     double terrainHeight(SpaceId space, double x, double z) const;
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
@@ -785,7 +789,7 @@ class SAIGA_ENGINE_API World
     // spawn: the entity (reserved during a step), then at the flush Transform and Behaviour, the initial components,
     // and the start (tick interval, configure, onSpawn)
     Entity beginSpawn(SpaceId space);
-    void finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position);
+    void finishSpawn(Entity e, const ClassList::ClassInfo& info, SpaceId space, const Vec3& position);
     void startObject(Entity e);
     // A spawn that failed halfway (an exception in configure, onSpawn or an initial add): the entity is destroyed
     // without its onDestroy, so no half-started object ticks

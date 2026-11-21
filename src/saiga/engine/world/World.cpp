@@ -230,7 +230,7 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
     if (!e.valid()) return e;
     try
     {
-        finishSpawn(e, info, position);
+        finishSpawn(e, info, space, position);
         if (initial) initial(e);
     }
     catch (...)
@@ -275,7 +275,7 @@ void World::runStepListeners()
 Entity World::beginSpawn(SpaceId space)
 {
     checkNotParallel("spawn");
-    SAIGA_ASSERT(space == 0, "spawnIn: only space 0 exists before S21");
+    SAIGA_ASSERT(space < spaceCount(), "spawnIn: unknown space " + std::to_string(space));
     // A replicated game object only arrives on a client (§13.5); refused in every build (no entity, no hooks)
     if (!isHost())
     {
@@ -285,9 +285,11 @@ Entity World::beginSpawn(SpaceId space)
     return create();
 }
 
-void World::finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position)
+void World::finishSpawn(Entity e, const ClassList::ClassInfo& info, SpaceId space, const Vec3& position)
 {
-    reg.get<Transform>(e).setPosition(position);
+    Transform& t = reg.get<Transform>(e);
+    t.setSpaceInternal(space);
+    t.setPosition(position);
     Behaviour b;
     b.object        = info.factory();
     b.object->owner = this;
@@ -615,6 +617,15 @@ Entity World::create()
     auto record = log.prepare(1);  // the record cannot be lost after the change (append does not allocate)
     Entity e    = reg.create();
     record.append(e, Transform::id, true);
+    return e;
+}
+
+Entity World::createIn(SpaceId space)
+{
+    SAIGA_ASSERT(!inStep(), "createIn: between steps");
+    SAIGA_ASSERT(space < spaceCount(), "createIn: unknown space " + std::to_string(space));
+    const Entity e = create();
+    reg.get<Transform>(e).setSpaceInternal(space);
     return e;
 }
 
