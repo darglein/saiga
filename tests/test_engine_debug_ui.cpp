@@ -408,3 +408,23 @@ TEST(McpCallLog, NotEchoedByDefault)
     EXPECT_EQ(lines[0].category, "mcp");
     EXPECT_EQ(lines[0].message, "quit -> ok 0.0 ms");
 }
+
+// Regression (review): the saved tab or SAIGA_DEBUG_TAB naming a game tab was ignored, because the state is read before
+// the game adds its tabs (and the file was then saved with "Game")
+TEST(DebugUi, GameTabSelectedWhenItIsAdded)
+{
+    DebugUi ui;
+    ui.setState(Json::object{{"tab", "AI"}});
+    EXPECT_TRUE(ui.isSelected(DebugTab::Game));
+    EXPECT_EQ(ui.state()["tab"], Json("AI"));
+    ui.addTab("Physics", {});
+    EXPECT_TRUE(ui.isSelected(DebugTab::Game));
+    EXPECT_EQ(ui.addTab("AI", {}), 5);
+    EXPECT_EQ(ui.selected(), 5);
+    EXPECT_EQ(ui.state()["tab"], Json("AI"));
+
+    DebugUi byKey;
+    byKey.select(4);  // SAIGA_DEBUG_TAB=5
+    byKey.addTab("AI", {});
+    EXPECT_EQ(byKey.selected(), 4);
+}

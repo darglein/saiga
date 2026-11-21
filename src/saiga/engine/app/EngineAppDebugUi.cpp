@@ -743,8 +743,8 @@ void EngineApp::barSummary(float width)
 
 void EngineApp::togglePause()
 {
-    const bool paused = gameWorld->isPaused();
-    queueBetweenSteps([this, paused]() { worldApi->call(paused ? "resume" : "pause", json11::Json::object{}); });
+    // The state when it runs (two toggles in one frame cancel out)
+    queueBetweenSteps([this]() { worldApi->call(gameWorld->isPaused() ? "resume" : "pause", json11::Json::object{}); });
 }
 
 void EngineApp::engineTab()

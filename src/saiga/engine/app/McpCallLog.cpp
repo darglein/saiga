@@ -45,10 +45,14 @@ void McpCallLog::record(const McpServer::CallRecord& r)
     const double t = now();
     if (r.phase == Phase::Started)
     {
-        running[r.id] = Running{r.tool, t, false};
+        // A call answered before its start was recorded (a timeout racing the start) is not running
+        if (std::find(recentlyAnswered.begin(), recentlyAnswered.end(), r.id) == recentlyAnswered.end())
+            running[r.id] = Running{r.tool, t, false};
         return;
     }
     running.erase(r.id);
+    recentlyAnswered.push_back(r.id);
+    if (recentlyAnswered.size() > 64) recentlyAnswered.pop_front();
     const bool local = r.source == McpServer::CallRecord::Source::Local;
     int counted      = 0;
     if (!local && isPollingTool(r.tool))

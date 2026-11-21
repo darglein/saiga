@@ -855,8 +855,9 @@ void McpServer::poll()
     for (auto& call : calls)
     {
         auto c = call;
-        // Claimed by a timeout: the client was told that the call failed, so it must not run anymore
-        if (c->claimed.exchange(true)) continue;
+        // Claimed by a timeout: the client was told that the call failed, so it must not run anymore. Answered already
+        // (the caller gave up while stopping): it must not run either
+        if (c->claimed.exchange(true) || c->answered) continue;
         // Handlers can read how long the caller still waits (callDeadline)
         currentDeadline = c->deadline;
         c->started      = std::chrono::steady_clock::now();

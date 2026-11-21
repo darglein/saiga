@@ -480,11 +480,13 @@ TEST(McpServer, CallObserver)
                    [](const Json&, McpServer::Respond r) { r(McpServer::ToolResult::Error("bad")); });
     std::vector<McpServer::CallRecord> records;
     std::vector<std::thread::id> threads;
+    std::atomic_int recordCount{0};  // read by the main thread while the poller appends
     server.setCallObserver(
         [&](const McpServer::CallRecord& r)
         {
             records.push_back(r);
             threads.push_back(std::this_thread::get_id());
+            recordCount++;
         });
     using R = McpServer::CallRecord;
 
@@ -503,7 +505,7 @@ TEST(McpServer, CallObserver)
         server.handleMessage(
             Request("tools/call", Json::object{{"name", "ok"}, {"arguments", Json::object{{"a", 1}}}}));
         // The Answered record is delivered by the poll after the answer
-        for (int i = 0; i < 1000 && records.size() < 2; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        for (int i = 0; i < 1000 && recordCount < 2; ++i) std::this_thread::sleep_for(std::chrono::milliseconds(1));
         stop = true;
         poller.join();
     }

@@ -9,6 +9,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/export.h"
 
+#include <deque>
 #include <functional>
 #include <map>
 #include <string>
@@ -67,6 +68,7 @@ class SAIGA_ENGINE_API McpCallLog
     Sink sink;
     std::map<uint64_t, Running> running;
     std::map<std::string, Throttle> throttles;
+    std::deque<uint64_t> recentlyAnswered;  // the ids of the last answered calls
 };
 
 }  // namespace Engine

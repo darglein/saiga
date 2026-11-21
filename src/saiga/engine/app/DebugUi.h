@@ -141,7 +141,11 @@ class SAIGA_ENGINE_API DebugUi
     bool enabledFlag      = true;
     int selectedTab       = 0;
     float panelWidth      = 0;  // pixels; 0: the default
-    int focusConsoleDelay = 0;  // frames until the console's command line gets the focus
+    int focusConsoleDelay = 0;
+    // A selected game tab that does not exist yet (the state and SAIGA_DEBUG_TAB are applied before the game adds its
+    // tabs): selected when it is added
+    std::string pendingTab;
+    int pendingTabIndex = -1;  // frames until the console's command line gets the focus
     std::string savedState;
     double lastSaveCheck = 0;
 };

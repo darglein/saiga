@@ -385,13 +385,32 @@ void DebugConsole::draw(bool focusInput)
             DebugUiStyle::emptyState(view.empty() ? "No log lines yet. Type help below; MCP tool calls appear here."
                                                   : "No line matches the filters");
         char prefix[64];
-        ImGuiListClipper clipper;
-        clipper.Begin(int(shown.size()));
-        while (clipper.Step())
+        // The entries have different heights (answers of several lines): the ones outside the view are skipped with
+        // a placeholder of their height (ImGuiListClipper needs equal heights)
+        const float lineH = ImGui::GetTextLineHeight();
         {
-            for (int r = clipper.DisplayStart; r < clipper.DisplayEnd; ++r)
+            for (int r = 0; r < int(shown.size()); ++r)
             {
                 Entry& e = view[size_t(shown[size_t(r)])];
+                {
+                    int lines   = 1;
+                    bool folded = false;
+                    if (e.kind == Entry::Kind::Output || e.kind == Entry::Kind::Error)
+                    {
+                        lines = 1 + int(std::count(e.text.begin(), e.text.end(), '\n'));
+                        if (!e.expanded && lines > kFoldLines)
+                        {
+                            lines  = kFoldLines;
+                            folded = true;
+                        }
+                    }
+                    const float h = float(lines) * lineH + (folded ? ImGui::GetFrameHeightWithSpacing() : 0.0f);
+                    if (!ImGui::IsRectVisible(ImVec2(1, h)))
+                    {
+                        ImGui::Dummy(ImVec2(1, h));
+                        continue;
+                    }
+                }
                 ImGui::PushID(shown[size_t(r)]);
                 // The time right-aligned in a fixed column (the font is proportional)
                 std::snprintf(prefix, sizeof(prefix), "%.2f", e.time);

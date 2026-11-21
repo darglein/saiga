@@ -46,7 +46,14 @@ DebugUi::~DebugUi()
 
 void DebugUi::select(int tab)
 {
-    if (tab >= 0 && tab < tabCount()) selectedTab = tab;
+    if (tab >= 0 && tab < tabCount())
+    {
+        selectedTab = tab;
+        pendingTab.clear();
+        pendingTabIndex = -1;
+    }
+    else if (tab >= tabCount())
+        pendingTabIndex = tab;  // a game tab that is added later (SAIGA_DEBUG_TAB before renderHooks.init)
 }
 
 int DebugUi::findTab(const std::string& name) const
@@ -59,7 +66,10 @@ int DebugUi::findTab(const std::string& name) const
 int DebugUi::addTab(const std::string& name, std::function<void()> draw)
 {
     tabs.push_back(Tab{name, std::move(draw), {}});
-    return tabCount() - 1;
+    const int index = tabCount() - 1;
+    // The saved or requested tab of a game tab (the state is read before the game adds its tabs)
+    if (index == pendingTabIndex || (!pendingTab.empty() && lower(pendingTab) == lower(name))) select(index);
+    return index;
 }
 
 void DebugUi::setTabContent(DebugTab tab, std::function<void()> draw)
@@ -190,7 +200,9 @@ void DebugUi::drawPanel(float em)
     {
         ImGui::BringWindowToDisplayFront(ImGui::GetCurrentWindow());
         // No title: the bar shows the selected tab
-        if (selectedTab == int(DebugTab::Console))
+        // Read once: a section may select another tab while it is drawn (BeginChild and EndChild must pair)
+        const bool console = selectedTab == int(DebugTab::Console);
+        if (console)
         {
             bool focus = false;
             if (focusConsoleDelay > 0 && --focusConsoleDelay == 0) focus = true;
@@ -201,11 +213,11 @@ void DebugUi::drawPanel(float em)
             ImGui::PushID(selectedTab);
             if (tab.draw) tab.draw();
             for (auto& sec : tab.sections)
-                if (section(lower(tab.name) + "/" + sec.title, sec.title.c_str(), sec.defaultOpen)) sec.draw();
+                if (section(lower(tab.name) + "/section/" + sec.title, sec.title.c_str(), sec.defaultOpen)) sec.draw();
             if (!tab.draw && tab.sections.empty()) DebugUiStyle::emptyState("nothing to show");
             ImGui::PopID();
         }
-        if (selectedTab != int(DebugTab::Console)) ImGui::EndChild();
+        if (!console) ImGui::EndChild();
     }
     ImGui::End();
     drawSplitter(em, pos, extent);
@@ -251,7 +263,7 @@ json11::Json DebugUi::state() const
     for (const auto& h : consolePtr->history) history.push_back(h);
     for (const auto& c : consolePtr->hiddenCategories) hidden.push_back(c);
     return json11::Json::object{
-        {"tab", tabs[size_t(selectedTab)].name},
+        {"tab", pendingTab.empty() ? tabs[size_t(selectedTab)].name : pendingTab},
         {"panel_width", double(panelWidth)},
         {"sections", sec},
         {"console", json11::Json::object{{"history", history},
@@ -265,7 +277,10 @@ void DebugUi::setState(const json11::Json& j)
 {
     if (!j.is_object()) return;
     const int t = findTab(j["tab"].string_value());
-    if (t >= 0) selectedTab = t;
+    if (t >= 0)
+        selectedTab = t;
+    else
+        pendingTab = j["tab"].string_value();  // a game tab, added later
     panelWidth = float(std::max(j["panel_width"].number_value(), 0.0));
     for (const auto& [k, v] : j["sections"].object_items())
         if (v.is_bool()) sections[k] = v.bool_value();
@@ -295,6 +310,8 @@ void DebugUi::load()
     {
         SAIGA_LOG("app", "warning: %s is not valid JSON (%s); the debug UI starts with its defaults", file.c_str(),
                   err.c_str());
+        // Written again only after a change (a hand-edited file is not replaced by the defaults at exit)
+        savedState = state().dump();
         return;
     }
     setState(j);
