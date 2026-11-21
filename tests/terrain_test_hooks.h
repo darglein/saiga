@@ -96,6 +96,66 @@ inline int32_t integerTestHook(uint64_t seed, int64_t x, int64_t z)
     return int32_t(int64_t(seed % 1000) * 64 + x * 8 + z * 4 + 2048);
 }
 
+// ---- the gated hook (file-static state): latchedHook blocks on a latch only when called off the thread that armed it
+// (the pool's workers), so the main thread's synchronous paths and its share of completeView never block. openLatch()
+// before the world is destroyed. sleepAtOrigin mode: no latch, but 100 ms of sleep when called at sample (0, 0) (once
+// per pyramid and per tile containing the origin). The heights are integerTestHook's.
+struct LatchState
+{
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool armed = false, open = true, sleepAtOrigin = false;
+    std::thread::id armingThread;
+    // Calls on the arming thread, calls that blocked (or would have) on another thread
+    std::atomic<int> callsOnArmingThread{0}, callsBlocked{0};
+};
+inline LatchState& latchState()
+{
+    static LatchState state;
+    return state;
+}
+// Closes the latch for every other thread (the pool's workers)
+inline void armLatch()
+{
+    LatchState& s = latchState();
+    std::lock_guard<std::mutex> lock(s.mutex);
+    s.armed               = true;
+    s.open                = false;
+    s.armingThread        = std::this_thread::get_id();
+    s.callsOnArmingThread = 0;
+    s.callsBlocked        = 0;
+}
+inline void openLatch()
+{
+    LatchState& s = latchState();
+    {
+        std::lock_guard<std::mutex> lock(s.mutex);
+        s.open  = true;
+        s.armed = false;
+    }
+    s.cv.notify_all();
+}
+inline void setSleepAtOrigin(bool on)
+{
+    latchState().sleepAtOrigin = on;
+}
+inline int32_t latchedHook(uint64_t seed, int64_t x, int64_t z)
+{
+    LatchState& s = latchState();
+    if (s.sleepAtOrigin && x == 0 && z == 0) std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    {
+        std::unique_lock<std::mutex> lock(s.mutex);
+        if (s.armed && std::this_thread::get_id() == s.armingThread)
+            s.callsOnArmingThread++;
+        else if (s.armed && !s.open)
+        {
+            s.callsBlocked++;
+            s.cv.wait(lock, [&s]() { return s.open; });
+        }
+    }
+    return integerTestHook(seed, x, z);
+}
+
 #ifdef SAIGA_TEST_ENGINE
 // A space template for the tests: open world, the hook and sea level given
 inline Engine::SpaceTemplate testSpaceTemplate(int32_t sizeChunks, int baseSpacing, TerrainHeightHook hook,

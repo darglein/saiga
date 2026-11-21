@@ -10,17 +10,24 @@
 #include "saiga/core/math/TerrainSurface.h"
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/core/StreamingPool.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
 
+#include <atomic>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <mutex>
 #include <random>
+#include <stdexcept>
+#include <thread>
 
 #include "terrain_test_hooks.h"
+#include <condition_variable>
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -249,4 +256,223 @@ TEST(CharacterMove, IdleUnchangedWithoutTerrain)
     w.get<CharacterIntent>(e).desiredVelocity = Vec3(1, 0, 0);
     w.step();
     EXPECT_EQ(w.read<Transform>(e).position().y(), 0.0);
+}
+
+// ---- StreamingPool (§8.5, D8)
+
+namespace
+{
+// A gate that held jobs wait on
+struct Gate
+{
+    std::mutex m;
+    std::condition_variable cv;
+    bool open = false;
+    std::atomic<int> waiting{0};
+    void wait()
+    {
+        std::unique_lock<std::mutex> lock(m);
+        waiting++;
+        cv.wait(lock, [this]() { return open; });
+        waiting--;
+    }
+    void release()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m);
+            open = true;
+        }
+        cv.notify_all();
+    }
+    // Until n jobs wait (or 5 s)
+    bool awaitWaiting(int n)
+    {
+        const auto end = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (waiting.load() < n && std::chrono::steady_clock::now() < end)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        return waiting.load() >= n;
+    }
+};
+}  // namespace
+
+TEST(StreamingPool, PriorityOrderAndFifo)
+{
+    StreamingPool pool(1);
+    Gate gate;
+    std::vector<int> order;
+    std::mutex orderMutex;
+    // The only worker is held, so the rest queue up
+    pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr);
+    ASSERT_TRUE(gate.awaitWaiting(1));
+    const std::vector<std::pair<int, int>> jobs = {{5, 0}, {1, 1}, {5, 2}, {0, 3}, {1, 4}};
+    for (auto [priority, tag] : jobs)
+        pool.submit(
+            [&, tag = tag](const std::atomic<bool>&)
+            {
+                std::lock_guard<std::mutex> lock(orderMutex);
+                order.push_back(tag);
+            },
+            priority, nullptr);
+    EXPECT_EQ(pool.queued(), 5);
+    gate.release();
+    pool.waitIdle();
+    EXPECT_EQ(order, (std::vector<int>{3, 1, 4, 0, 2}));
+    // The completions run in finishing order at drain
+    std::vector<int> completions;
+    pool.submit([](const std::atomic<bool>&) {}, 0, [&](bool c) { completions.push_back(c ? -1 : 1); });
+    pool.waitIdle();
+    EXPECT_TRUE(completions.empty());
+    pool.drain();
+    EXPECT_EQ(completions, std::vector<int>{1});
+}
+
+TEST(StreamingPool, CancelQueuedAndRunning)
+{
+    StreamingPool pool(1);
+    Gate gate;
+    std::atomic<bool> sawCancel{false};
+    int runningDone = 0, queuedDone = 0;
+    const uint64_t running = pool.submit(
+        [&](const std::atomic<bool>& cancelled)
+        {
+            gate.wait();
+            sawCancel = cancelled.load();
+        },
+        0,
+        [&](bool cancelled)
+        {
+            EXPECT_TRUE(cancelled);
+            runningDone++;
+        });
+    ASSERT_TRUE(gate.awaitWaiting(1));
+    const uint64_t queued =
+        pool.submit([](const std::atomic<bool>&) { FAIL() << "a cancelled job ran"; }, 0, [&](bool) { queuedDone++; });
+    EXPECT_TRUE(pool.cancel(queued));
+    EXPECT_EQ(pool.queued(), 0);
+    EXPECT_FALSE(pool.cancel(running));
+    EXPECT_FALSE(pool.cancel(12345));
+    gate.release();
+    pool.waitIdle();
+    pool.drain();
+    EXPECT_TRUE(sawCancel.load());
+    EXPECT_EQ(runningDone, 1);
+    EXPECT_EQ(queuedDone, 0);
+}
+
+TEST(StreamingPool, CountsWithHeldJobs)
+{
+    StreamingPool pool(2);
+    Gate gate;
+    std::vector<uint64_t> ids;
+    for (int i = 0; i < 5; ++i) ids.push_back(pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr));
+    ASSERT_TRUE(gate.awaitWaiting(2));
+    EXPECT_EQ(pool.running(), 2);
+    EXPECT_EQ(pool.queued(), 3);
+    EXPECT_EQ(pool.finished(), 0);
+    // A queued cancel drops the count at once
+    EXPECT_TRUE(pool.cancel(ids[4]));
+    EXPECT_EQ(pool.queued(), 2);
+    // waitIdleFor returns false while a held job runs
+    EXPECT_FALSE(pool.waitIdleFor(0.05));
+    gate.release();
+    EXPECT_TRUE(pool.waitIdleFor(5));
+    EXPECT_EQ(pool.running(), 0);
+    EXPECT_EQ(pool.queued(), 0);
+    EXPECT_EQ(pool.finished(), 4);
+    pool.drain();
+    EXPECT_EQ(pool.finished(), 0);
+}
+
+TEST(StreamingPool, RunOneOnCaller)
+{
+    StreamingPool pool(1);
+    Gate gate;
+    pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr);
+    ASSERT_TRUE(gate.awaitWaiting(1));
+    std::thread::id ranOn;
+    int done = 0;
+    pool.submit([](const std::atomic<bool>&) {}, 9, nullptr);
+    pool.submit([&](const std::atomic<bool>&) { ranOn = std::this_thread::get_id(); }, 2, [&](bool) { done++; });
+    // The first queued job in priority order runs on this thread; its completion is queued for drain
+    EXPECT_TRUE(pool.runOneOnCaller());
+    EXPECT_EQ(ranOn, std::this_thread::get_id());
+    EXPECT_EQ(done, 0);
+    EXPECT_EQ(pool.finished(), 1);
+    pool.drain();
+    EXPECT_EQ(done, 1);
+    EXPECT_TRUE(pool.runOneOnCaller());
+    EXPECT_FALSE(pool.runOneOnCaller());
+    gate.release();
+    pool.waitIdle();
+}
+
+TEST(StreamingPool, ExceptionsAtDrain)
+{
+    StreamingPool pool(1);
+    Gate gate;
+    pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr);
+    ASSERT_TRUE(gate.awaitWaiting(1));
+    std::vector<int> completions;
+    pool.submit([](const std::atomic<bool>&) {}, 0, [&](bool) { completions.push_back(1); });
+    pool.submit([](const std::atomic<bool>&) { throw std::runtime_error("generation failed"); }, 0,
+                [&](bool) { completions.push_back(99); });
+    pool.submit([](const std::atomic<bool>&) {}, 0, [&](bool) { completions.push_back(3); });
+    gate.release();
+    // waitIdle never throws
+    EXPECT_NO_THROW(pool.waitIdle());
+    EXPECT_EQ(pool.running(), 0);
+    EXPECT_EQ(pool.queued(), 0);
+    try
+    {
+        pool.drain();
+        FAIL() << "drain did not rethrow";
+    }
+    catch (const std::runtime_error& e)
+    {
+        EXPECT_STREQ(e.what(), "generation failed");
+    }
+    // The completion before the failed job ran, the one behind it stays queued for the next drain
+    EXPECT_EQ(completions, std::vector<int>{1});
+    EXPECT_EQ(pool.finished(), 1);
+    pool.drain();
+    EXPECT_EQ(completions, (std::vector<int>{1, 3}));
+}
+
+TEST(StreamingPool, DestructionWithQueuedAndRunningJobs)
+{
+    std::atomic<int> stopped{0};
+    int completions = 0;
+    {
+        StreamingPool pool(2);
+        for (int i = 0; i < 6; ++i)
+            pool.submit(
+                [&](const std::atomic<bool>& cancelled)
+                {
+                    while (!cancelled.load()) std::this_thread::sleep_for(std::chrono::milliseconds(1));
+                    stopped++;
+                },
+                0, [&](bool) { completions++; });
+        const auto end = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (pool.running() < 2 && std::chrono::steady_clock::now() < end)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        EXPECT_EQ(pool.running(), 2);
+    }
+    // The running jobs saw the cancel; the queued ones never ran; no completion is called
+    EXPECT_EQ(stopped.load(), 2);
+    EXPECT_EQ(completions, 0);
+}
+
+// The latched hook blocks only off the arming thread
+TEST(StreamingPool, LatchedHook)
+{
+    armLatch();
+    StreamingPool pool(1);
+    std::atomic<int> value{0};
+    pool.submit([&](const std::atomic<bool>&) { value = latchedHook(1, 2, 3); }, 0, nullptr);
+    EXPECT_EQ(latchedHook(1, 2, 3), integerTestHook(1, 2, 3));
+    EXPECT_FALSE(pool.waitIdleFor(0.05));
+    EXPECT_EQ(value.load(), 0);
+    openLatch();
+    pool.waitIdle();
+    EXPECT_EQ(value.load(), integerTestHook(1, 2, 3));
 }
