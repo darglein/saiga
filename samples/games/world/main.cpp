@@ -234,7 +234,8 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         // (frame/render/recording, without the waits for the frame slot and the image)
         result["step"]      = g.stepStat;
         result["recording"] = g.recordingStat;
-        // The whole GPU frame and RenderScene's sections (transfer, scene, resolve, post, imgui) of the measured frames
+        // The whole GPU frame and RenderScene's sections (transfer, cull, scene, resolve, post, imgui) of the measured
+        // frames
         json11::Json::object gpuFrame;
         for (const auto& [section, values] : g.gpuFrameMs)
         {

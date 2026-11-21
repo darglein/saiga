@@ -12,14 +12,18 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/MeshImport.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/HeadlessWindow.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstring>
 #include <functional>
 #include <limits>
+#include <random>
+#include <set>
 
 #include "golden_image.h"
 #include "vulkan_test_context.h"
@@ -507,12 +511,13 @@ TEST_F(VulkanScene, SampleCount)
 TEST_F(VulkanScene, GpuSections)
 {
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 5u);
+    ASSERT_EQ(names.size(), 6u);
     EXPECT_STREQ(names[0], "transfer");
-    EXPECT_STREQ(names[1], "scene");
-    EXPECT_STREQ(names[2], "resolve");
-    EXPECT_STREQ(names[3], "post");
-    EXPECT_STREQ(names[4], "imgui");
+    EXPECT_STREQ(names[1], "cull");
+    EXPECT_STREQ(names[2], "scene");
+    EXPECT_STREQ(names[3], "resolve");
+    EXPECT_STREQ(names[4], "post");
+    EXPECT_STREQ(names[5], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -537,7 +542,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 5u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 6u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);
@@ -630,4 +635,1482 @@ TEST_F(VulkanScene, ClayMatchesForwardRenderer)
                 maxDiff = std::max(maxDiff, std::abs(int(viaScene(y, x)(c)) - int(viaForward(y, x)(c))));
     // Rounding after instead of before the average: at most 1/255 on edge pixels
     EXPECT_LE(maxDiff, 1);
+}
+
+//==================================================================================================
+// Scene content (S18, docs/engine_design.md §10.1, §10.2, §10.8): meshes, materials, static instance sets, dynamic
+// instances, the offset table, the GPU culling (count, scan, write) and the indirect draws, against a CPU reference of
+// the culling rule (§17.5: equal except for instances within 1e-3 relative of a plane or an end distance).
+
+namespace
+{
+constexpr double kPi = 3.14159265358979323846;
+
+// The six faces of a box (CCW seen from outside): the corner signs per face
+struct BoxFace
+{
+    vec3 normal;
+    std::array<vec3, 4> corners;
+};
+const std::array<BoxFace, 6>& boxFaces()
+{
+    static const std::array<BoxFace, 6> faces = {
+        BoxFace{vec3(0, 1, 0), {vec3(-1, 1, 1), vec3(1, 1, 1), vec3(1, 1, -1), vec3(-1, 1, -1)}},
+        BoxFace{vec3(0, -1, 0), {vec3(-1, -1, -1), vec3(1, -1, -1), vec3(1, -1, 1), vec3(-1, -1, 1)}},
+        BoxFace{vec3(1, 0, 0), {vec3(1, -1, 1), vec3(1, -1, -1), vec3(1, 1, -1), vec3(1, 1, 1)}},
+        BoxFace{vec3(-1, 0, 0), {vec3(-1, -1, -1), vec3(-1, -1, 1), vec3(-1, 1, 1), vec3(-1, 1, -1)}},
+        BoxFace{vec3(0, 0, 1), {vec3(-1, -1, 1), vec3(1, -1, 1), vec3(1, 1, 1), vec3(-1, 1, 1)}},
+        BoxFace{vec3(0, 0, -1), {vec3(1, -1, -1), vec3(-1, -1, -1), vec3(-1, 1, -1), vec3(1, 1, -1)}}};
+    return faces;
+}
+
+// A box with flat faces (vertices per face) of the half size around center
+MeshLod boxLod(const vec3& half, const vec3& center, const ucvec4& color, float endDistance)
+{
+    MeshLod lod;
+    lod.endDistance = endDistance;
+    for (const BoxFace& f : boxFaces())
+    {
+        const uint32_t base = uint32_t(lod.vertices.size());
+        for (const vec3& c : f.corners)
+        {
+            MeshVertex v;
+            v.position = center + c.cwiseProduct(half);
+            v.normal   = packNormalOct(f.normal);
+            v.color    = packColor(color);
+            lod.vertices.push_back(v);
+        }
+        for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u}) lod.indices.push_back(base + i);
+    }
+    return lod;
+}
+
+// A mesh of boxes per LOD (one color per LOD), the sphere around them
+MeshLods boxMesh(const vec3& half, const vec3& center, const std::vector<float>& endDistances,
+                 const std::vector<ucvec4>& colors, float padding = 0)
+{
+    MeshLods m;
+    for (size_t i = 0; i < endDistances.size(); ++i)
+        m.lods.push_back(boxLod(half, center, colors[std::min(i, colors.size() - 1)], endDistances[i]));
+    m.sphereCenter  = center;
+    m.sphereRadius  = half.norm();
+    m.boundsPadding = padding;
+    return m;
+}
+
+// The float quaternion of the rotation by angle about the (unit) axis
+quat axisAngle(const vec3& axis, float angle)
+{
+    const vec3 a = axis.normalized() * std::sin(angle / 2);
+    return quat(std::cos(angle / 2), a(0), a(1), a(2));
+}
+
+StaticInstance makeInstance(const vec3& position, const quat& rotation, float scale, MeshId mesh)
+{
+    StaticInstance s;
+    s.setPosition(position);
+    s.setRotation(rotation);
+    s.scale = scale;
+    s.mesh  = mesh;
+    return s;
+}
+
+// The camera rotation looking along forward (y up)
+Quat lookRotation(const Vec3& forward)
+{
+    const Vec3 back  = -forward.normalized();
+    const Vec3 right = Vec3(0, 1, 0).cross(back).normalized();
+    const Vec3 up    = back.cross(right);
+    Mat3 R;
+    for (int i = 0; i < 3; ++i)
+    {
+        R(i, 0) = right(i);
+        R(i, 1) = up(i);
+        R(i, 2) = back(i);
+    }
+    return make_quat(R).normalized();
+}
+
+// The test camera (double) with its projection into the image (pixel coordinates, row 0 at the top)
+struct TestCamera
+{
+    SpaceId space    = 0;
+    Vec3 position    = Vec3::Zero();
+    Quat rotation    = Quat::Identity();
+    double fovy      = 60.0 * kPi / 180.0;
+    double nearPlane = 0.1;
+    int w = W, h = H;
+
+    void apply(RenderScene& s) const { s.setCamera(space, position, rotation, fovy); }
+
+    // Inward planes (camera-relative): left, right, bottom, top, near
+    std::array<Vec4, 5> planes() const
+    {
+        const Mat3 R      = rotation.matrix();
+        const double tanY = std::tan(fovy / 2), tanX = tanY * double(w) / h;
+        std::array<Vec4, 5> p;
+        const Vec3 n[4] = {Vec3(1, 0, -tanX), Vec3(-1, 0, -tanX), Vec3(0, 1, -tanY), Vec3(0, -1, -tanY)};
+        for (int k = 0; k < 4; ++k)
+        {
+            const Vec3 m = R * n[k].normalized();
+            p[k]         = Vec4(m(0), m(1), m(2), 0);
+        }
+        const Vec3 f = R * Vec3(0, 0, -1);
+        p[4]         = Vec4(f(0), f(1), f(2), -nearPlane);
+        return p;
+    }
+
+    // The pixel position of a world point
+    Vec2 project(const Vec3& world) const
+    {
+        const Vec3 v      = rotation.matrix().transpose() * (world - position);
+        const double f    = 1.0 / std::tan(fovy / 2);
+        const double ndcX = f / (double(w) / h) * v(0) / -v(2);
+        const double ndcY = -f * v(1) / -v(2);
+        return Vec2((ndcX + 1) / 2 * w, (ndcY + 1) / 2 * h);
+    }
+};
+
+// Rotates v by the quaternion in double
+Vec3 rotateD(const quat& q, const Vec3& v)
+{
+    const Vec3 u(q.x(), q.y(), q.z());
+    const Vec3 t = 2.0 * u.cross(v);
+    return v + double(q.w()) * t + u.cross(t);
+}
+
+// The CPU reference of the culling rule: per LOD the counted instances and the ambiguous ones (within 1e-3 relative of
+// a plane or an end distance)
+struct Reference
+{
+    std::array<int, 4> perLod{};
+    int ambiguous = 0;
+    int total() const { return perLod[0] + perLod[1] + perLod[2] + perLod[3]; }
+
+    // An instance at the camera-relative centre with the radius, of a mesh with the end distances
+    void add(const Vec3& center, double radius, const std::vector<float>& ends, const std::array<Vec4, 5>& planes)
+    {
+        const double d = center.norm();
+        bool amb       = false;
+        for (float e : ends) amb = amb || std::abs(d - e) <= 1e-3 * e;
+        bool inside = d <= ends.back();
+        for (const Vec4& p : planes)
+        {
+            const double s = p(0) * center(0) + p(1) * center(1) + p(2) * center(2) + p(3) + radius;
+            amb            = amb || std::abs(s) <= 1e-3 * std::max(d, 1.0);
+            inside         = inside && s >= 0;
+        }
+        if (amb) ambiguous++;
+        if (!inside) return;
+        int lod = 0;
+        while (lod + 1 < int(ends.size()) && d > ends[lod]) lod++;
+        perLod[lod]++;
+    }
+};
+
+void expectCounts(const RenderStatistics& s, const Reference& r, const std::string& what)
+{
+    int total = 0;
+    for (int l = 0; l < 4; ++l)
+    {
+        EXPECT_LE(std::abs(int(s.instancesPerLod[l]) - r.perLod[l]), r.ambiguous)
+            << what << ": LOD " << l << " gpu " << s.instancesPerLod[l] << " reference " << r.perLod[l];
+        total += int(s.instancesPerLod[l]);
+    }
+    EXPECT_LE(std::abs(total - r.total()), r.ambiguous) << what;
+    EXPECT_GT(r.total(), 0) << what;
+}
+
+// The intensity-weighted centroid of the pixels brighter than the threshold (pixel centres at +0.5), -1 if none
+Vec2 centroid(const TemplatedImage<ucvec4>& img, int threshold = 8)
+{
+    double sum = 0, sx = 0, sy = 0;
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x)
+        {
+            const int v = img(y, x)(0);
+            if (v < threshold) continue;
+            sum += v;
+            sx += v * (x + 0.5);
+            sy += v * (y + 0.5);
+        }
+    if (sum == 0) return Vec2(-1, -1);
+    return Vec2(sx / sum, sy / sum);
+}
+
+// 256 (and a test failure) for an empty image or images of different sizes
+int maxPixelDiff(const TemplatedImage<ucvec4>& a, const TemplatedImage<ucvec4>& b)
+{
+    if (a.w == 0 || a.h == 0 || a.w != b.w || a.h != b.h)
+    {
+        ADD_FAILURE() << "maxPixelDiff: images of " << a.w << "x" << a.h << " and " << b.w << "x" << b.h;
+        return 256;
+    }
+    int d = 0;
+    for (int y = 0; y < a.h; ++y)
+        for (int x = 0; x < a.w; ++x)
+            for (int c = 0; c < 3; ++c) d = std::max(d, std::abs(int(a(y, x)(c)) - int(b(y, x)(c))));
+    return d;
+}
+
+MaterialData flatMaterial(bool twoSided = false)
+{
+    MaterialData m;
+    m.twoSided = twoSided;
+    return m;
+}
+// Emissive white: the pixel is 255 wherever covered (clay mode), independent of the light
+MaterialData markerMaterial()
+{
+    MaterialData m;
+    m.baseColor = vec4(0, 0, 0, 1);
+    m.emissive  = vec3(1, 1, 1);
+    return m;
+}
+}  // namespace
+
+class VulkanSceneContent : public VulkanScene
+{
+   protected:
+    void CreateScene(RenderSceneParameters p = RenderSceneParameters())
+    {
+        p.imgui      = false;
+        p.clearColor = vec4(0, 0, 0, 1);
+        p.nearPlane  = float(camera.nearPlane);
+        Create(p);
+    }
+
+    // Renders a frame (the scene's draws only), waits and returns the image; stats: that frame's statistics
+    TemplatedImage<ucvec4> SceneFrame(RenderStatistics* stats = nullptr)
+    {
+        auto img = Frame([](vk::CommandBuffer, bool, float) {});
+        scene->waitIdle();
+        if (stats)
+        {
+            *stats = scene->statistics();
+            EXPECT_EQ(stats->frame, scene->frames()) << "the statistics of the last frame";
+        }
+        return img;
+    }
+
+    TestCamera camera;
+};
+
+// The scene's GPU culling against the CPU reference: 10^4 seeded instances of 3 meshes x 3 LODs in several regions
+// (levels 0 and 2), after updateInstances, removeInstance (a tombstone inside the frustum) and removeInstanceSet; sets
+// of another space are not drawn; the statistics carry the frame they come from
+TEST_F(VulkanSceneContent, CullingCountsMatchReference)
+{
+    CreateScene();
+    const std::vector<std::vector<float>> ends = {{40, 120, 300}, {60, 150, 250}, {30, 90, 400}};
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMaterial(2, "two_sided", flatMaterial(true));
+    for (int m = 0; m < 3; ++m)
+        scene->addMesh(
+            MeshId(m + 1), "mesh" + std::to_string(m),
+            boxMesh(vec3(0.5f + m, 1 + m, 0.5f), vec3(0, 1 + m, 0), ends[m],
+                    {ucvec4(200, 50, 50, 255), ucvec4(50, 200, 50, 255), ucvec4(50, 50, 200, 255)}, 0.25f * m),
+            MaterialId(m == 2 ? 2 : 1));
+
+    camera.position = Vec3(130.5, 20, 70.25);
+    camera.rotation = lookRotation(Vec3(1, -0.15, -0.6));
+    camera.apply(*scene);
+
+    struct TestSet
+    {
+        RegionId region;
+        std::vector<StaticInstance> instances;
+        InstanceSetHandle handle;
+    };
+    std::vector<TestSet> sets;
+    std::mt19937 rng(18);
+    std::uniform_real_distribution<float> u(0, 1);
+    auto randomInstances = [&](const RegionId& r, int n)
+    {
+        const Vec3 origin = regionOrigin(r);
+        std::vector<StaticInstance> v;
+        for (int i = 0; i < n; ++i)
+        {
+            // Around the camera (within ±420 m), relative to the region
+            const Vec3 world = camera.position + Vec3((u(rng) - 0.5) * 840, -20 + u(rng) * 30, (u(rng) - 0.5) * 840);
+            const Vec3 local = world - origin;
+            const quat q     = axisAngle(vec3(u(rng) - 0.5f, 1, u(rng) - 0.5f), u(rng) * 6.28f);
+            v.push_back(makeInstance(local.cast<float>(), q, 0.5f + 1.5f * u(rng), MeshId(1 + rng() % 3)));
+        }
+        return v;
+    };
+    const std::vector<RegionId> regions = {RegionId{0, 0, 0, 0}, RegionId{0, 0, 1, 0}, RegionId{0, 0, -1, 1},
+                                           RegionId{0, 2, 0, -1}, RegionId{0, 2, -1, 0}};
+    for (const RegionId& r : regions)
+    {
+        TestSet s;
+        s.region    = r;
+        s.instances = randomInstances(r, 2000);
+        s.handle    = scene->addInstanceSet(r, s.instances);
+        sets.push_back(s);
+    }
+    // Another space: never drawn
+    const RegionId other{1, 0, 0, 0};
+    auto otherInstances = randomInstances(other, 500);
+    scene->addInstanceSet(other, otherInstances);
+
+    auto reference = [&]()
+    {
+        Reference r;
+        const auto planes = camera.planes();
+        for (const TestSet& s : sets)
+        {
+            const Vec3 rel = regionOrigin(s.region) - camera.position;
+            for (const StaticInstance& i : s.instances)
+            {
+                if (i.scale == 0) continue;
+                const int m        = i.mesh - 1;
+                const vec3 center  = vec3(0, 1 + m, 0);
+                const double scale = i.scale;
+                const Vec3 c =
+                    rel + i.getPosition().cast<double>() + rotateD(i.getRotation(), center.cast<double>() * scale);
+                const double rad = (vec3(0.5f + m, 1 + m, 0.5f).norm() + 0.25 * m) * scale;
+                r.add(c, rad, ends[m], planes);
+            }
+        }
+        return r;
+    };
+
+    RenderStatistics st;
+    SceneFrame(&st);
+    Reference ref = reference();
+    expectCounts(st, ref, "initial");
+    EXPECT_LT(ref.ambiguous, ref.total() / 10);
+    std::cout << "culling: drawn " << ref.total() << " of " << 5 * 2000 << " (ambiguous " << ref.ambiguous << ")"
+              << std::endl;
+
+    // updateInstances: move the first 500 instances of a set
+    {
+        auto moved = randomInstances(sets[1].region, 500);
+        scene->updateInstances(sets[1].handle, 0, moved);
+        std::copy(moved.begin(), moved.end(), sets[1].instances.begin());
+        SceneFrame(&st);
+        expectCounts(st, reference(), "after updateInstances");
+    }
+    // removeInstance: a tombstone inside the frustum is not counted
+    {
+        const auto planes = camera.planes();
+        int removed       = -1;
+        for (int i = 0; i < 2000 && removed < 0; ++i)
+        {
+            Reference one;
+            const StaticInstance& inst = sets[0].instances[i];
+            const int m                = inst.mesh - 1;
+            const Vec3 c = regionOrigin(sets[0].region) - camera.position + inst.getPosition().cast<double>() +
+                           rotateD(inst.getRotation(), Vec3(0, 1 + m, 0) * double(inst.scale));
+            one.add(c, (vec3(0.5f + m, 1 + m, 0.5f).norm() + 0.25 * m) * inst.scale, ends[m], planes);
+            if (one.total() == 1 && one.ambiguous == 0) removed = i;
+        }
+        ASSERT_GE(removed, 0);
+        const Reference before = reference();
+        scene->removeInstance(sets[0].handle, uint32_t(removed));
+        sets[0].instances[removed].scale = 0;
+        SceneFrame(&st);
+        const Reference after = reference();
+        EXPECT_EQ(after.total(), before.total() - 1);
+        expectCounts(st, after, "after removeInstance");
+    }
+    // removeInstanceSet
+    {
+        scene->removeInstanceSet(sets[2].handle);
+        sets.erase(sets.begin() + 2);
+        SceneFrame(&st);
+        expectCounts(st, reference(), "after removeInstanceSet");
+    }
+    // The other space alone: nothing
+    scene->setCamera(1, camera.position, camera.rotation, camera.fovy);
+    SceneFrame(&st);
+    const int otherCount = int(st.instancesPerLod[0] + st.instancesPerLod[1] + st.instancesPerLod[2]);
+    EXPECT_GT(otherCount, 0) << "the other space's set is drawn with a camera in that space";
+    camera.apply(*scene);
+    SceneFrame(&st);
+    expectCounts(st, reference(), "back in space 0");
+}
+
+// A chunk index that covered 300 instances in one frame and 10 in the next: no stale scratch entries (counts and pixels
+// as a fresh scene)
+TEST_F(VulkanSceneContent, PartialChunks)
+{
+    auto setup = [&]()
+    {
+        CreateScene();
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box", boxMesh(vec3(0.4f, 0.4f, 0.4f), vec3(0, 0, 0), {100}, {ucvec4(220, 180, 40, 255)}), 1);
+        camera.position = Vec3(0, 0, 20);
+        camera.rotation = Quat::Identity();
+        camera.apply(*scene);
+    };
+    auto grid = [](int n)
+    {
+        std::vector<StaticInstance> v;
+        for (int i = 0; i < n; ++i)
+            v.push_back(makeInstance(vec3(-8 + (i % 20) * 0.85f, -4 + (i / 20) * 0.6f, 0), quat::Identity(), 0.5f, 1));
+        return v;
+    };
+    setup();
+    auto big = scene->addInstanceSet(RegionId(), grid(300));
+    RenderStatistics st;
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 300u);
+    scene->removeInstanceSet(big);
+    scene->addInstanceSet(RegionId(), grid(10));
+    auto after = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 10u);
+
+    setup();
+    scene->addInstanceSet(RegionId(), grid(10));
+    auto fresh = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 10u);
+    ASSERT_EQ(after.w, W);
+    EXPECT_EQ(maxPixelDiff(after, fresh), 0);
+}
+
+// The statistics of a frame stay correct across a layout change after it (addMesh shifts the buckets)
+TEST_F(VulkanSceneContent, StatisticsAcrossLayoutChanges)
+{
+    CreateScene();
+    scene->addMaterial(1, "two_sided", flatMaterial(true));
+    scene->addMaterial(2, "opaque", flatMaterial(false));
+    scene->addMesh(5, "a", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {10, 30}, {ucvec4(255, 0, 0, 255)}), 1);
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    std::vector<StaticInstance> v;
+    for (int i = 0; i < 6; ++i) v.push_back(makeInstance(vec3(0, 0, -5.0f - 4 * i), quat::Identity(), 1, 5));
+    scene->addInstanceSet(RegionId(), v);
+    auto img             = Frame([](vk::CommandBuffer, bool, float) {});
+    const uint64_t frame = scene->frames();
+    // A mesh of a class drawn before (opaque) changes every bucket index before the statistics are read
+    scene->addMesh(2, "b", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {5, 10, 50}, {ucvec4(0, 255, 0, 255)}), 2);
+    scene->waitIdle();
+    RenderStatistics st = scene->statistics();
+    EXPECT_EQ(st.frame, frame);
+    EXPECT_EQ(st.instancesPerLod[0], 2u);  // 5, 9
+    EXPECT_EQ(st.instancesPerLod[1], 4u);  // 13, 17, 21, 25 (up to 30)
+    EXPECT_EQ(st.instancesPerLod[2], 0u);
+    EXPECT_EQ(st.nonEmptyBuckets, 2u);
+    // The next frame with the new layout and instances of both meshes
+    v.clear();
+    for (int i = 0; i < 6; ++i) v.push_back(makeInstance(vec3(1, 0, -4.5f - 4 * i), quat::Identity(), 1, 2));
+    scene->addInstanceSet(RegionId(), v);
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 2u + 1u);  // a: 5, 9; b: 4.6
+    EXPECT_EQ(st.instancesPerLod[1], 4u + 1u);  // a: 13 .. 25; b: 8.6
+    EXPECT_EQ(st.instancesPerLod[2], 4u);       // b: 12.5 .. 24.5
+    EXPECT_EQ(st.nonEmptyBuckets, 5u);
+    (void)img;
+}
+
+// takeStatistics returns every frame's statistics in frame order (a bug: when both frame slots completed between two
+// reads, the slot of the newer frame was read first and the older frame's statistics were dropped)
+TEST_F(VulkanSceneContent, TakeStatisticsInFrameOrder)
+{
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "a", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {1000}, {ucvec4(255, 0, 0, 255)}), 1);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    // Enough visible instances that a frame is still running when the next one is recorded (both slots pending)
+    std::vector<StaticInstance> v;
+    for (int i = 0; i < 40000; ++i)
+        v.push_back(makeInstance(vec3(-4 + (i % 200) * 0.04f, -2 + (i / 200) * 0.02f, 0), quat::Identity(), 1, 1));
+    scene->addInstanceSet(RegionId(), v);
+    RenderStatistics st;
+    auto noop = [](vk::CommandBuffer) {};
+    // An even and an odd number of frames: the newest frame in either slot
+    for (int count : {6, 7})
+    {
+        scene->waitIdle();
+        while (scene->takeStatistics(st))
+        {
+        }
+        const uint64_t first = scene->frames() + 1;
+        for (int i = 0; i < count; ++i) EXPECT_TRUE(scene->renderFrame(noop, noop, nullptr));
+        scene->waitIdle();
+        std::vector<uint64_t> frames;
+        while (scene->takeStatistics(st))
+        {
+            frames.push_back(st.frame);
+            EXPECT_EQ(st.instancesPerLod[0], 40000u) << st.frame;
+        }
+        std::vector<uint64_t> expected;
+        for (uint64_t f = first; f <= scene->frames(); ++f) expected.push_back(f);
+        EXPECT_EQ(frames, expected) << count;
+        EXPECT_EQ(scene->statistics().frame, scene->frames());
+    }
+}
+
+// Rejected: a dynamic in another space, a removed dynamic, an unset dynamic and a dynamic of an unregistered mesh
+TEST_F(VulkanSceneContent, Rejections)
+{
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    camera.position = Vec3(10, 1, 10);
+    camera.apply(*scene);
+    DynamicPose pose;
+    pose.position = Vec3(10, 1, 5);
+    auto visible  = scene->addDynamic(1);
+    scene->setDynamic(visible, ChunkId{0, 0, 0}, pose, pose);
+    auto otherSpace = scene->addDynamic(1);
+    scene->setDynamic(otherSpace, ChunkId{1, 0, 0}, pose, pose);
+    auto removed = scene->addDynamic(1);
+    scene->setDynamic(removed, ChunkId{0, 0, 0}, pose, pose);
+    scene->removeDynamic(removed);
+    auto unset = scene->addDynamic(1);
+    (void)unset;
+    auto unregistered = scene->addDynamic(7);
+    scene->setDynamic(unregistered, ChunkId{0, 0, 0}, pose, pose);
+    RenderStatistics st;
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 1u);
+    EXPECT_EQ(st.instancesPerLod[1] + st.instancesPerLod[2] + st.instancesPerLod[3], 0u);
+    // Nothing is drawn before the first camera: a new scene
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, 0), quat::Identity(), 1, 1)});
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 0u);
+    EXPECT_EQ(st.drawCommands, 0u);
+}
+
+// Growth of the mesh pool and the instance buffer with live sets and meshes (also with uploads pending in the same
+// frame): counts and pixels as with large capacities, validation clean, the old buffers released after their frames
+TEST_F(VulkanSceneContent, Growth)
+{
+    auto build = [&](bool small, bool growInFrames)
+    {
+        RenderSceneParameters p;
+        if (small)
+        {
+            p.vertexCapacity         = 30;
+            p.indexCapacity          = 40;
+            p.staticInstanceCapacity = 16;
+        }
+        CreateScene(p);
+        scene->addMaterial(1, "flat", flatMaterial());
+        camera.position = Vec3(0, 3, 12);
+        camera.rotation = lookRotation(Vec3(0, -0.2, -1));
+        camera.apply(*scene);
+        std::vector<InstanceSetHandle> handles;
+        auto addMeshAndSet = [&](int k)
+        {
+            scene->addMesh(MeshId(k + 1), "m" + std::to_string(k),
+                           boxMesh(vec3(0.2f + 0.05f * k, 0.3f, 0.2f), vec3(0, 0.3f, 0), {50},
+                                   {ucvec4(40 * k + 30, 255 - 30 * k, 120, 255)}),
+                           1);
+            std::vector<StaticInstance> v;
+            for (int i = 0; i < 12; ++i)
+                v.push_back(makeInstance(vec3(-6 + i, 0, -2.0f * k), quat::Identity(), 1, MeshId(k + 1)));
+            handles.push_back(scene->addInstanceSet(RegionId(), v, 14));
+        };
+        RenderStatistics st;
+        for (int k = 0; k < 5; ++k)
+        {
+            addMeshAndSet(k);
+            // Uploads pending: an update of an earlier set before the growth of the next one in the same frame
+            if (k > 0)
+                scene->updateInstances(handles[k - 1], 12,
+                                       {makeInstance(vec3(7, 0, -2.0f * (k - 1)), quat::Identity(), 1, MeshId(k))});
+            if (growInFrames) SceneFrame(&st);
+        }
+        return SceneFrame(&st);
+    };
+    auto reference            = build(false, true);
+    RenderStatistics refStats = scene->statistics();
+    for (bool inFrames : {true, false})
+    {
+        auto img            = build(true, inFrames);
+        RenderStatistics st = scene->statistics();
+        EXPECT_EQ(st.instancesPerLod, refStats.instancesPerLod) << inFrames;
+        EXPECT_EQ(maxPixelDiff(img, reference), 0) << inFrames;
+    }
+    EXPECT_EQ(refStats.instancesPerLod[0], 5u * 12u + 4u);
+
+    // The old buffers are released after their frames: another growth, then the allocations before and after
+    // the frames completed
+    auto& memory = scene->base().memory;
+    std::vector<StaticInstance> many(100, makeInstance(vec3(0, 0, 0), quat::Identity(), 1, 1));
+    scene->addInstanceSet(RegionId(), many);
+    // Without a screenshot: the frame is in flight when renderFrame returns (its deferred deletions are pending)
+    EXPECT_TRUE(scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr));
+    const size_t before = memory.allocationCount();
+    scene->waitIdle();
+    scene->base().processDeferredDeletes();
+    const size_t after = memory.allocationCount();
+    EXPECT_LT(after, before);
+}
+
+// Dynamic instances: prev/curr interpolated with alpha (position, rotation on the shorter arc, q vs -q); culling and
+// LOD from the same pose; chunk-relative poses in two chunks
+TEST_F(VulkanSceneContent, DynamicInterpolation)
+{
+    RenderSceneParameters p;
+    p.msaaSamples = 4;
+    CreateScene(p);
+    scene->addMaterial(1, "marker", markerMaterial());
+    // A 0.2 m marker, LOD 0 up to 12 m, LOD 1 up to 30 m
+    scene->addMesh(1, "marker", boxMesh(vec3(0.1f, 0.1f, 0.1f), vec3(0, 0, 0), {12, 30}, {ucvec4(255, 255, 255, 255)}),
+                   1);
+    // A marker 1 m off the mesh origin along x (rotations)
+    scene->addMesh(2, "arm", boxMesh(vec3(0.1f, 0.1f, 0.1f), vec3(1, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    // A 3 m marker (seen from 150 m)
+    scene->addMesh(3, "big", boxMesh(vec3(1.5f, 1.5f, 1.5f), vec3(1, 0, 0), {300}, {ucvec4(255, 255, 255, 255)}), 1);
+    camera.position = Vec3(256 + 3, 1, 10);
+    camera.rotation = Quat::Identity();
+    camera.apply(*scene);
+
+    // Position: from 6 m to 16 m in front of the camera, chunk (1, 0)
+    const ChunkId chunk{0, 1, 0};
+    DynamicPose a, b;
+    a.position = Vec3(1.5, 1.2, 4);
+    b.position = Vec3(4.5, 0.4, -6);
+    auto h     = scene->addDynamic(1);
+    scene->setDynamic(h, chunk, a, b);
+    for (float alpha : {0.0f, 0.5f, 1.0f})
+    {
+        scene->setInterpolation(alpha);
+        RenderStatistics st;
+        auto img            = SceneFrame(&st);
+        const Vec3 local    = interpolatePose(a, b, double(alpha)).position;
+        const Vec3 world    = chunkOrigin(chunk) + local;
+        const Vec2 expected = camera.project(world);
+        const Vec2 got      = centroid(img);
+        EXPECT_LT((got - expected).norm(), 1.0)
+            << "alpha " << alpha << " got " << got.transpose() << " expected " << expected.transpose();
+        const double d = (world - camera.position).norm();
+        EXPECT_EQ(st.instancesPerLod[0], d <= 12 ? 1u : 0u) << alpha;
+        EXPECT_EQ(st.instancesPerLod[1], d > 12 ? 1u : 0u) << alpha;
+    }
+    scene->removeDynamic(h);
+
+    // Two chunks: the same local pose in chunk (0, 0) and (1, 0) is 256 m apart (the arm's marker 1 m along x)
+    {
+        camera.position = Vec3(169, 30, 150);
+        camera.rotation = lookRotation(Vec3(0, -0.2, -1));
+        camera.apply(*scene);
+        scene->setInterpolation(1);
+        DynamicPose q;
+        q.position = Vec3(40, 2, 0);
+        auto h0    = scene->addDynamic(3);
+        scene->setDynamic(h0, ChunkId{0, 0, 0}, q, q);
+        const Vec2 c0 = centroid(SceneFrame());
+        EXPECT_LT((c0 - camera.project(Vec3(41, 2, 0))).norm(), 1.0) << c0.transpose();
+        scene->setDynamic(h0, ChunkId{0, 1, 0}, q, q);
+        const Vec2 c1 = centroid(SceneFrame());
+        EXPECT_LT((c1 - camera.project(Vec3(256 + 41, 2, 0))).norm(), 1.0) << c1.transpose();
+        scene->removeDynamic(h0);
+    }
+
+    // Rotation: 0° -> 270° about y passes through -45° at alpha 0.5 (the shorter arc); q and -q do not move
+    {
+        camera.position = Vec3(0, 6, 3);
+        camera.rotation = lookRotation(Vec3(0, -1, -0.5));
+        camera.apply(*scene);
+        DynamicPose r0, r1;
+        r1.rotation = Quat(AngleAxis(1.5 * kPi, Vec3(0, 1, 0)));
+        auto hr     = scene->addDynamic(2);
+        scene->setDynamic(hr, ChunkId{0, 0, 0}, r0, r1);
+        scene->setInterpolation(0.5f);
+        auto img        = SceneFrame();
+        const double s2 = std::sqrt(0.5);
+        // -45° about y: (1, 0, 0) -> (cos 45°, 0, sin 45°)
+        EXPECT_LT((centroid(img) - camera.project(Vec3(s2, 0, s2))).norm(), 1.0)
+            << centroid(img).transpose() << " the long arc would be at "
+            << camera.project(Vec3(-s2, 0, -s2)).transpose();
+
+        DynamicPose q0, q1;
+        q0.rotation = Quat(AngleAxis(0.7, Vec3(0, 1, 0)));
+        q1.rotation = Quat(-q0.rotation.w(), -q0.rotation.x(), -q0.rotation.y(), -q0.rotation.z());
+        scene->setDynamic(hr, ChunkId{0, 0, 0}, q0, q1);
+        const Vec2 expected = camera.project(Vec3(std::cos(0.7), 0, -std::sin(0.7)));
+        for (float alpha : {0.0f, 0.5f, 1.0f})
+        {
+            scene->setInterpolation(alpha);
+            EXPECT_LT((centroid(SceneFrame()) - expected).norm(), 0.5) << alpha;
+        }
+    }
+}
+
+// Precision: a camera at 30 km (dyadic coordinates) renders a level-0 chunk as at the origin; a level-6 region whose
+// origin is more than 8 km from its instances near the camera: a marker at 0.1 m with a pixel footprint of at most
+// 0.25 mm is within 1 px of the double projection and moves with every 0.25 mm camera step (offset hi + lo)
+TEST_F(VulkanSceneContent, Precision)
+{
+    RenderSceneParameters p;
+    p.msaaSamples    = 4;
+    camera.nearPlane = 0.01;
+    CreateScene(p);
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMaterial(2, "marker", markerMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(0.5f, 0.5f, 0.5f), vec3(0, 0.5f, 0), {300}, {ucvec4(200, 120, 60, 255)}), 1);
+    scene->addMesh(2, "marker", boxMesh(vec3(1e-3f, 1e-3f, 1e-3f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}),
+                   2);
+    std::vector<StaticInstance> v;
+    for (int i = 0; i < 20; ++i)
+        v.push_back(makeInstance(vec3(20 + 10 * (i % 5), 0, 20 + 12 * (i / 5)), axisAngle(vec3(0, 1, 0), 0.3f * i),
+                                 1 + 0.1f * i, 1));
+    camera.rotation = lookRotation(Vec3(1, -0.3, 1));
+    camera.position = Vec3(10.5, 6.25, 8.125);
+    camera.apply(*scene);
+    auto origin   = scene->addInstanceSet(RegionId{0, 0, 0, 0}, v);
+    auto atOrigin = SceneFrame();
+    scene->removeInstanceSet(origin);
+    // 30720 m = 120 chunks (dyadic)
+    scene->addInstanceSet(RegionId{0, 0, 120, -120}, v);
+    camera.position += Vec3(30720, 0, -30720);
+    camera.apply(*scene);
+    auto far = SceneFrame();
+    EXPECT_EQ(maxPixelDiff(atOrigin, far), 0) << "the image at 30 km equals the image at the origin";
+
+    // Level 6: origin (16384, 0, 0); the marker 9000.125 m from it, the camera 0.1 m in front of it
+    CreateScene(p);
+    scene->addMaterial(2, "marker", markerMaterial());
+    scene->addMesh(2, "marker", boxMesh(vec3(1e-3f, 1e-3f, 1e-3f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}),
+                   2);
+    const RegionId region{0, 6, 1, 0};
+    const vec3 local(9000.125f, 3.5f, 9000.25f);
+    scene->addInstanceSet(region, {makeInstance(local, quat::Identity(), 1, 2)});
+    const Vec3 marker = regionOrigin(region) + local.cast<double>();
+    // fovy: the footprint 2 * 0.1 * tan(fovy / 2) / H <= 0.25 mm
+    camera.fovy     = 2 * std::atan(0.25e-3 * H / (2 * 0.1));
+    camera.rotation = Quat::Identity();
+    std::vector<double> xs;
+    for (int step = -6; step <= 6; ++step)
+    {
+        camera.position = marker + Vec3(0.0003 + step * 0.25e-3, 0.0001, 0.1);
+        camera.apply(*scene);
+        auto img       = SceneFrame();
+        const Vec2 got = centroid(img);
+        const Vec2 exp = camera.project(marker);
+        EXPECT_LT((got - exp).norm(), 1.0)
+            << "step " << step << " got " << got.transpose() << " expected " << exp.transpose();
+        xs.push_back(got(0));
+    }
+    // The camera moves right: the marker moves left by about one pixel per step
+    for (size_t i = 1; i < xs.size(); ++i) EXPECT_LT(xs[i], xs[i - 1] - 0.5) << i;
+}
+
+#if defined(SAIGA_USE_ASSIMP)
+namespace
+{
+std::string sceneData(const std::string& file)
+{
+    return std::string(SAIGA_PROJECT_SOURCE_DIR "/data/tests/scene/") + file;
+}
+// The importer's color: linear * linear, the sRGB curve, rounded
+ucvec4 importedColor(double r, double g, double b)
+{
+    auto c = [](double v) { return (unsigned char)std::lround(255 * linearToSrgb(std::clamp(v, 0.0, 1.0))); };
+    return ucvec4(c(r), c(g), c(b), 255);
+}
+}  // namespace
+
+// The flat-color import of a glTF with two LODs (Box_LOD0 with two primitives of two materials, Box_LOD1), a VEC3
+// COLOR_0: merged primitives, duplicated faces, face normals, opaque alpha, baked base color factors; palette indices;
+// errors (a palette miss, LINES, a LOD gap)
+TEST(VulkanMeshImport, FlatBox)
+{
+    MeshLods lods;
+    MaterialData material;
+    std::string error;
+    ASSERT_TRUE(importMeshLods(sceneData("flat_box.gltf"), lods, &material, error)) << error;
+    ASSERT_EQ(lods.lods.size(), 2u);
+    EXPECT_EQ(lods.lods[0].vertices.size(), 36u);  // 12 triangles
+    EXPECT_EQ(lods.lods[1].vertices.size(), 12u);  // 4 triangles
+    EXPECT_LT(lods.lods[0].endDistance, lods.lods[1].endDistance);
+    const ucvec4 top   = importedColor(0.8, 0.2, 0.1);
+    const ucvec4 side  = importedColor(0.05, 0.3, 0.15);  // COLOR_0 (0.1, 0.6, 0.3) * baseColorFactor 0.5
+    const ucvec4 tetra = importedColor(0.2, 0.2, 0.9);
+    int topFaces = 0, sideFaces = 0;
+    for (size_t l = 0; l < 2; ++l)
+    {
+        const MeshLod& lod = lods.lods[l];
+        ASSERT_EQ(lod.indices.size(), lod.vertices.size());
+        for (size_t t = 0; t < lod.vertices.size(); t += 3)
+        {
+            const vec3 a = lod.vertices[t].position, b = lod.vertices[t + 1].position, c = lod.vertices[t + 2].position;
+            const vec3 n = (b - a).cross(c - a).normalized();
+            for (int k = 0; k < 3; ++k)
+            {
+                EXPECT_EQ(lod.indices[t + k], uint32_t(t + k));
+                EXPECT_EQ(lod.vertices[t + k].normal, lod.vertices[t].normal);
+                EXPECT_GT(unpackNormalOct(lod.vertices[t + k].normal).dot(n), 0.999f);
+                EXPECT_EQ(lod.vertices[t + k].color >> 24, 255u) << "opaque";
+            }
+            // Outward: the face normal points away from the centre (0, 0.5, 0)
+            EXPECT_GT(n.dot((a + b + c) / 3 - vec3(0, 0.5f, 0)), 0) << l << " " << t;
+            const uint32_t col = lod.vertices[t].color;
+            if (l == 1)
+            {
+                EXPECT_EQ(col, packColor(tetra));
+            }
+            else if (std::abs(n(1)) > 0.9f)
+            {
+                EXPECT_EQ(col, packColor(top));
+                topFaces++;
+            }
+            else
+            {
+                EXPECT_EQ(col, packColor(side));
+                sideFaces++;
+            }
+        }
+    }
+    EXPECT_EQ(topFaces, 4);
+    EXPECT_EQ(sideFaces, 8);
+    // The node translation (0, 0.5, 0) is baked
+    EXPECT_NEAR(lods.sphereCenter(1), 0.5f, 1e-6f);
+    EXPECT_NEAR(lods.sphereRadius, std::sqrt(0.75f), 1e-5f);
+    EXPECT_FALSE(material.usePalette);
+    EXPECT_FALSE(material.alphaMask);
+    EXPECT_FALSE(material.twoSided);
+    EXPECT_FLOAT_EQ(material.roughness, 0.7f);
+    EXPECT_FLOAT_EQ(material.metalness, 0.0f);
+    EXPECT_EQ(material.baseColor, vec4(1, 1, 1, 1));
+
+    // A palette: the indices of the exact RGB entries
+    std::vector<ucvec4> palette = {ucvec4(1, 2, 3, 255), side, tetra, top};
+    MeshImportOptions options;
+    options.palette = &palette;
+    ASSERT_TRUE(importMeshLods(sceneData("flat_box.gltf"), lods, &material, error, options)) << error;
+    EXPECT_TRUE(material.usePalette);
+    for (const MeshVertex& v : lods.lods[1].vertices) EXPECT_EQ(v.color, 2u);
+    std::set<uint32_t> used;
+    for (const MeshVertex& v : lods.lods[0].vertices) used.insert(v.color);
+    EXPECT_EQ(used, (std::set<uint32_t>{1u, 3u}));
+
+    // Errors: a palette miss names the color, LINES, a LOD gap, a missing file
+    palette.pop_back();
+    EXPECT_FALSE(importMeshLods(sceneData("flat_box.gltf"), lods, &material, error, options));
+    EXPECT_NE(error.find("not in the palette"), std::string::npos) << error;
+    EXPECT_NE(error.find(std::to_string(int(top(0)))), std::string::npos) << error;
+    EXPECT_FALSE(importMeshLods(sceneData("flat_box_lines.gltf"), lods, &material, error));
+    EXPECT_NE(error.find("only triangles"), std::string::npos) << error;
+    EXPECT_FALSE(importMeshLods(sceneData("flat_box_lod_gap.gltf"), lods, &material, error));
+    EXPECT_NE(error.find("not contiguous"), std::string::npos) << error;
+    EXPECT_FALSE(importMeshLods(sceneData("missing.gltf"), lods, &material, error));
+    EXPECT_FALSE(error.empty());
+}
+
+// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden
+TEST_F(VulkanSceneContent, ImportedMeshGolden)
+{
+    MeshLods lods;
+    MaterialData material;
+    std::string error;
+    ASSERT_TRUE(importMeshLods(sceneData("flat_box.gltf"), lods, &material, error)) << error;
+    lods.lods[0].endDistance = 50;
+    lods.lods[1].endDistance = 100;
+    RenderSceneParameters p;
+    p.msaaSamples = 4;
+    CreateScene(p);
+    scene->addMaterial(1, "box", material);
+    scene->addMesh(1, "box", lods, 1);
+    camera.position = Vec3(1.6, 2.1, 2.4);
+    camera.rotation = lookRotation(Vec3(-1.6, -1.6, -2.4));
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, 0), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(-3, 0, -3), axisAngle(vec3(0, 1, 0), 0.5f), 1.5f, 1)});
+    RenderStatistics st;
+    auto img = SceneFrame(&st);
+    ASSERT_EQ(img.w, W);
+    EXPECT_EQ(st.instancesPerLod[0], 2u);
+    // The three visible faces of the near box have three different flat shades (one per face normal)
+    const Vec2 c = camera.project(Vec3(0, 0.5, 0));
+    const int cx = int(c(0)), cy = int(c(1));
+    const auto top   = img(cy - 12, cx);
+    const auto left  = img(cy + 8, cx - 10);
+    const auto right = img(cy + 8, cx + 10);
+    EXPECT_NE(top, left);
+    EXPECT_NE(left, right);
+    compareGolden(img, "scene_flat_box", deviceName());
+}
+#endif
+
+// The draw paths with and without multiDrawIndirect give equal counts and images; drawCommands (one per pipeline class
+// or one per bucket) and nonEmptyBuckets
+TEST_F(VulkanSceneContent, DrawPaths)
+{
+    TemplatedImage<ucvec4> images[2];
+    RenderStatistics stats[2];
+    bool multi[2] = {false, false};
+    for (int path = 0; path < 2; ++path)
+    {
+        RenderSceneParameters p;
+        p.allowMultiDrawIndirect = path == 1;
+        CreateScene(p);
+        multi[path] = scene->multiDrawIndirect();
+        scene->addMaterial(1, "opaque", flatMaterial());
+        scene->addMaterial(2, "two_sided", flatMaterial(true));
+        // Two classes: meshes 1, 2 opaque (3 + 2 LODs), mesh 3 two-sided (2 LODs): 7 buckets
+        scene->addMesh(1, "a",
+                       boxMesh(vec3(0.4f, 0.4f, 0.4f), vec3(0, 0.4f, 0), {8, 16, 40}, {ucvec4(250, 60, 60, 255)}), 1);
+        scene->addMesh(2, "b", boxMesh(vec3(0.3f, 0.6f, 0.3f), vec3(0, 0.6f, 0), {12, 40}, {ucvec4(60, 250, 60, 255)}),
+                       1);
+        scene->addMesh(3, "c", boxMesh(vec3(0.5f, 0.2f, 0.5f), vec3(0, 0.2f, 0), {10, 40}, {ucvec4(60, 60, 250, 255)}),
+                       2);
+        camera.position = Vec3(0, 2, 6);
+        camera.rotation = lookRotation(Vec3(0, -0.15, -1));
+        camera.apply(*scene);
+        std::vector<StaticInstance> v;
+        for (int i = 0; i < 12; ++i)
+            v.push_back(
+                makeInstance(vec3(-3 + (i % 4) * 2.0f, 0, 2 - 4.0f * (i / 4)), quat::Identity(), 1, MeshId(1 + i % 2)));
+        // Mesh 3 only far (LOD 1)
+        v.push_back(makeInstance(vec3(0, 0, -12), quat::Identity(), 1, 3));
+        scene->addInstanceSet(RegionId(), v);
+        images[path] = SceneFrame(&stats[path]);
+    }
+    EXPECT_FALSE(multi[0]);
+    EXPECT_EQ(stats[0].instancesPerLod, stats[1].instancesPerLod);
+    EXPECT_EQ(stats[0].nonEmptyBuckets, stats[1].nonEmptyBuckets);
+    EXPECT_EQ(maxPixelDiff(images[0], images[1]), 0);
+    // One by one: every bucket, empty ones too
+    EXPECT_EQ(stats[0].drawCommands, 7u);
+    EXPECT_EQ(stats[1].drawCommands, multi[1] ? 2u : 7u);
+    // Distances 4.5 .. 12.5: a in LOD 0, 1; b in LOD 0, 1; c in LOD 1
+    EXPECT_GE(stats[0].nonEmptyBuckets, 4u);
+    EXPECT_EQ(stats[0].instancesPerLod[0] + stats[0].instancesPerLod[1] + stats[0].instancesPerLod[2], 13u);
+}
+
+namespace
+{
+// The pixels that are not the (black) clear color
+int coveredPixels(const TemplatedImage<ucvec4>& img)
+{
+    int n = 0;
+    for (int y = 0; y < img.h; ++y)
+        for (int x = 0; x < img.w; ++x)
+            if (img(y, x)(0) > 0 || img(y, x)(1) > 0 || img(y, x)(2) > 0) n++;
+    return n;
+}
+}  // namespace
+
+// Regression: recordDraw read the mesh pool's current bucket layout and vertex/index buffers, so addMesh and a
+// pipeline-class change of setMaterial in the render callback (after the frame's transfer) drew more buckets than the
+// commands buffer held (VUID-vkCmdDrawIndexedIndirect-drawCount-00540) and bound the grown vertex buffer before its
+// copy. Now the frame draws its transfer's snapshot and the changes take effect in the next frame.
+TEST_F(VulkanSceneContent, ContentChangesInRenderCallback)
+{
+    RenderSceneParameters p;
+    // Exactly mesh 1 (4 LODs of 24 vertices and 36 indices): the next mesh grows both buffers
+    p.vertexCapacity = 96;
+    p.indexCapacity  = 144;
+    CreateScene(p);
+    scene->addMaterial(1, "opaque", flatMaterial());
+    scene->addMaterial(2, "two_sided", flatMaterial(true));
+    // Vertex alpha 100: drawn while opaque, discarded once the material is alpha-masked
+    const std::vector<float> ends = {10, 20, 30, 100};
+    scene->addMesh(1, "box", boxMesh(vec3(0.5f, 0.5f, 0.5f), vec3(0, 0, 0), ends, {ucvec4(220, 180, 40, 100)}), 1);
+    camera.position = Vec3(0, 0, 15);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(-1, 0, 0), quat::Identity(), 1, 1)});
+    RenderStatistics st;
+    const auto before = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[1], 1u);
+    EXPECT_GT(coveredPixels(before), 30);
+
+    // 4 buckets -> 16 (more than the commands buffer's 12), a growth, a class change of mesh 1's material
+    MaterialData masked = flatMaterial();
+    masked.alphaMask    = true;
+    bool changed        = false;
+    auto render         = [&](vk::CommandBuffer)
+    {
+        if (changed) return;
+        changed = true;
+        for (int k = 0; k < 3; ++k)
+            scene->addMesh(MeshId(10 + k), "late" + std::to_string(k),
+                           boxMesh(vec3(0.5f, 0.5f, 0.5f), vec3(0, 0, 0), ends, {ucvec4(40, 200, 220, 255)}), 2);
+        scene->setMaterial(1, masked);
+    };
+    TemplatedImage<ucvec4> during;
+    scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { during = shot; });
+    EXPECT_TRUE(scene->renderFrame([](vk::CommandBuffer) {}, render, nullptr));
+    scene->waitIdle();
+    st = scene->statistics();
+    EXPECT_EQ(st.frame, scene->frames());
+    EXPECT_EQ(st.instancesPerLod[1], 1u);
+    // The frame of the change is drawn as before
+    ASSERT_EQ(during.w, W);
+    EXPECT_EQ(maxPixelDiff(during, before), 0);
+
+    // The next frame: mesh 1 alpha-masked (discarded, still counted), a new mesh's instance drawn
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(1, 0, 0), quat::Identity(), 1, 11)});
+    const auto after = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[1], 2u);
+    EXPECT_EQ(st.nonEmptyBuckets, 2u);
+    const Vec2 left = camera.project(Vec3(-1, 0, 0)), right = camera.project(Vec3(1, 0, 0));
+    EXPECT_EQ(after(int(left(1)), int(left(0))), ucvec4(0, 0, 0, 255));
+    EXPECT_NE(after(int(right(1)), int(right(0))), ucvec4(0, 0, 0, 255));
+}
+
+// A pipeline-class change of setMaterial between frames reorders the buckets (mesh 1 moves behind mesh 2): the same
+// counts and pixels, then back
+TEST_F(VulkanSceneContent, MaterialClassChange)
+{
+    CreateScene();
+    scene->addMaterial(1, "a", flatMaterial());
+    scene->addMaterial(2, "b", flatMaterial());
+    scene->addMesh(1, "m1", boxMesh(vec3(0.4f, 0.4f, 0.4f), vec3(0, 0, 0), {100}, {ucvec4(255, 0, 0, 255)}), 1);
+    scene->addMesh(2, "m2", boxMesh(vec3(0.4f, 0.4f, 0.4f), vec3(0, 0, 0), {15, 100}, {ucvec4(0, 255, 0, 255)}), 2);
+    camera.position = Vec3(0, 0, 20);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(-2, 0, 0), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(2, 0, 0), quat::Identity(), 1, 2)});
+    RenderStatistics st[3];
+    const auto a = SceneFrame(&st[0]);
+    scene->setMaterial(1, flatMaterial(true));
+    const auto b = SceneFrame(&st[1]);
+    scene->setMaterial(2, flatMaterial(true));
+    scene->setMaterial(1, flatMaterial(false));
+    const auto c = SceneFrame(&st[2]);
+    for (int i = 0; i < 3; ++i)
+    {
+        EXPECT_EQ(st[i].instancesPerLod[0], 1u) << i;
+        EXPECT_EQ(st[i].instancesPerLod[1], 1u) << i;
+        EXPECT_EQ(st[i].nonEmptyBuckets, 2u) << i;
+    }
+    EXPECT_GT(coveredPixels(a), 60);
+    EXPECT_EQ(maxPixelDiff(a, b), 0);
+    EXPECT_EQ(maxPixelDiff(a, c), 0);
+}
+
+// usePalette: the vertex color word indexes the palette (an index beyond it is clamped to the last entry); setPalette
+// between frames recolors
+TEST_F(VulkanSceneContent, PaletteColors)
+{
+    CreateScene();
+    MaterialData pal = flatMaterial();
+    pal.usePalette   = true;
+    scene->addMaterial(1, "palette", pal);
+    scene->setPalette({PaletteEntry{ucvec4(255, 0, 0, 255)}, PaletteEntry{ucvec4(0, 0, 255, 255)}});
+    MeshLods first = boxMesh(vec3(0.8f, 0.8f, 0.8f), vec3(0, 0, 0), {100}, {ucvec4(0, 0, 0, 255)});
+    MeshLods last  = first;
+    for (auto& v : first.lods[0].vertices) v.color = 0;
+    for (auto& v : last.lods[0].vertices) v.color = 77;  // beyond the palette: the last entry
+    scene->addMesh(1, "first", first, 1);
+    scene->addMesh(2, "last", last, 1);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(-2, 0, 0), quat::Identity(), 1, 1),
+                                       makeInstance(vec3(2, 0, 0), quat::Identity(), 1, 2)});
+    const Vec2 l = camera.project(Vec3(-2, 0, 0.8)), r = camera.project(Vec3(2, 0, 0.8));
+    auto img = SceneFrame();
+    auto pl = img(int(l(1)), int(l(0))), pr = img(int(r(1)), int(r(0)));
+    EXPECT_GT(pl(0), 50);
+    EXPECT_EQ(pl(1), 0);
+    EXPECT_EQ(pl(2), 0);
+    EXPECT_EQ(pr(0), 0);
+    EXPECT_EQ(pr(1), 0);
+    EXPECT_GT(pr(2), 50);
+    scene->setPalette({PaletteEntry{ucvec4(0, 255, 0, 255)}});
+    img = SceneFrame();
+    pl  = img(int(l(1)), int(l(0)));
+    pr  = img(int(r(1)), int(r(0)));
+    EXPECT_EQ(pl, pr);
+    EXPECT_EQ(pl(0), 0);
+    EXPECT_GT(pl(1), 50);
+    EXPECT_EQ(pl(2), 0);
+}
+
+// alphaMask: vertex alpha * baseColor.a < 0.5 is discarded (counted by the culling, not drawn); without alphaMask the
+// alpha is ignored. SmoothTextured too (a bug: its alpha test used only baseColor.a, so a vertex alpha of 100/255
+// was drawn)
+TEST_F(VulkanSceneContent, AlphaMaskDiscard)
+{
+    CreateScene();
+    MaterialData masked = flatMaterial();
+    masked.alphaMask    = true;
+    MaterialData faded  = masked;
+    faded.baseColor     = vec4(1, 1, 1, 0.4f);
+    MaterialData smooth = masked;
+    smooth.model        = ShadingModel::SmoothTextured;
+    scene->addMaterial(1, "masked", masked);
+    scene->addMaterial(2, "opaque", flatMaterial());
+    scene->addMaterial(3, "faded", faded);
+    scene->addMaterial(4, "smooth", smooth);
+    const vec3 half(0.4f, 0.4f, 0.4f);
+    scene->addMesh(1, "low", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 1);
+    scene->addMesh(2, "high", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 200)}), 1);
+    scene->addMesh(3, "low_opaque", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 2);
+    scene->addMesh(4, "faded", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 3);
+    scene->addMesh(5, "smooth_low", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 100)}), 4);
+    scene->addMesh(6, "smooth_high", boxMesh(half, vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 200)}), 4);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    const float xs[6] = {-5, -3, -1, 1, 3, 5};
+    std::vector<StaticInstance> v;
+    for (int i = 0; i < 6; ++i) v.push_back(makeInstance(vec3(xs[i], 0, 0), quat::Identity(), 1, MeshId(i + 1)));
+    scene->addInstanceSet(RegionId(), v);
+    RenderStatistics st;
+    const auto img = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 6u);
+    const bool drawn[6] = {false, true, true, false, false, true};
+    for (int i = 0; i < 6; ++i)
+    {
+        const Vec2 p = camera.project(Vec3(xs[i], 0, 0.4));
+        EXPECT_EQ(img(int(p(1)), int(p(0))) != ucvec4(0, 0, 0, 255), drawn[i]) << i;
+    }
+}
+
+// The storage buffers bound whole stop growing at the limit (maxStorageBufferRange, here a lower test limit of 48 KiB =
+// 1536 static instances; 2x growth from 1000 would need 64 KiB) and a set beyond it is a fatal error. The device's
+// limit itself is not tested: on lavapipe (128 MiB) it needs 4.2M instances (a 134 MB CPU copy, uploads and buffers).
+TEST_F(VulkanSceneContent, StorageBufferLimit)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    RenderSceneParameters p;
+    p.staticInstanceCapacity = 16;
+    p.dynamicCapacity        = 16;
+    p.storageBufferLimit     = 48 * 1024;
+    CreateScene(p);
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(0.02f, 0.02f, 0.02f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    camera.position = Vec3(0, 0, 10);
+    camera.apply(*scene);
+    auto grid = [](int n, float y)
+    {
+        std::vector<StaticInstance> v;
+        for (int i = 0; i < n; ++i)
+            v.push_back(makeInstance(vec3(-3 + (i % 50) * 0.12f, y + (i / 50) * 0.12f, 0), quat::Identity(), 1, 1));
+        return v;
+    };
+    scene->addInstanceSet(RegionId(), grid(1000, -2));
+    RenderStatistics st;
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 1000u);
+    scene->addInstanceSet(RegionId(), grid(536, 0.5f));
+    SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 1536u);
+    EXPECT_DEATH(scene->addInstanceSet(RegionId(), grid(1, 2)),
+                 "more than the buffer's limit \\(maxStorageBufferRange");
+}
+
+// The count and write passes as a 2D dispatch (work groups limited to 3 per row, 11 chunks: a partial last row) give
+// the counts and pixels of the 1D dispatch
+TEST_F(VulkanSceneContent, WorkGroupRows)
+{
+    TemplatedImage<ucvec4> images[2];
+    RenderStatistics stats[2];
+    for (int run = 0; run < 2; ++run)
+    {
+        RenderSceneParameters p;
+        p.workGroupLimit = run == 0 ? 0 : 3;
+        CreateScene(p);
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box",
+                       boxMesh(vec3(0.05f, 0.05f, 0.05f), vec3(0, 0, 0), {12, 100}, {ucvec4(220, 180, 40, 255)}), 1);
+        camera.position = Vec3(0, 0, 10);
+        camera.apply(*scene);
+        // 2600 instances in two sets: 6 + 5 chunks (the last of each partial)
+        std::vector<StaticInstance> a, b;
+        for (int i = 0; i < 1500; ++i)
+            a.push_back(makeInstance(vec3(-4 + (i % 50) * 0.16f, -3 + (i / 50) * 0.2f, -(i % 7) * 1.0f),
+                                     quat::Identity(), 1, 1));
+        for (int i = 0; i < 1100; ++i)
+            b.push_back(makeInstance(vec3(-4 + (i % 50) * 0.16f, -3 + (i / 50) * 0.2f, -8), quat::Identity(), 1, 1));
+        scene->addInstanceSet(RegionId(), a);
+        scene->addInstanceSet(RegionId(), b);
+        images[run] = SceneFrame(&stats[run]);
+    }
+    EXPECT_GT(stats[0].instancesPerLod[0], 100u);
+    EXPECT_GT(stats[0].instancesPerLod[1], 100u);
+    EXPECT_EQ(stats[0].instancesPerLod, stats[1].instancesPerLod);
+    EXPECT_EQ(maxPixelDiff(images[0], images[1]), 0);
+}
+
+namespace
+{
+// The camera-relative centre of a dynamic instance's bounding sphere at alpha, as the count pass computes it (in float:
+// interpolatePose<float>, the CPU reference of the shader's dynamicPose)
+Vec3 dynamicCenter(const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr, float alpha,
+                   const vec3& sphereCenter, const Vec3& cameraPosition, float* scale)
+{
+    auto toFloat = [](const DynamicPose& p)
+    {
+        InstancePose<float> f;
+        f.position = p.position.cast<float>();
+        f.rotation = quat(float(p.rotation.w()), float(p.rotation.x()), float(p.rotation.y()), float(p.rotation.z()));
+        f.scale    = float(p.scale);
+        return f;
+    };
+    const InstancePose<float> pose = interpolatePose(toFloat(prev), toFloat(curr), alpha);
+    *scale                         = pose.scale;
+    return chunkOrigin(chunk) - cameraPosition + pose.position.cast<double>() +
+           rotateD(pose.rotation, sphereCenter.cast<double>() * double(pose.scale));
+}
+
+DynamicPose randomPose(std::mt19937& rng, double range)
+{
+    std::uniform_real_distribution<double> u(-1, 1);
+    DynamicPose p;
+    p.position = Vec3(u(rng), u(rng), u(rng)) * range;
+    p.rotation = Quat(u(rng), u(rng), u(rng), u(rng)).normalized();
+    p.scale    = 1.25 + 0.75 * u(rng);
+    return p;
+}
+}  // namespace
+
+// interpolatePose (RenderSceneTypes.h) is the CPU reference of the shaders' dynamic pose: float and double agree, the
+// endpoints are the poses, q and -q give the same rotation; a marker 1 m off the mesh origin is drawn where the double
+// pose places it (slerp with dot < 0, the nlerp branch near dot = 1, scale and position mixed), and the culling of 400
+// random dynamics matches the CPU reference with interpolatePose<float>
+TEST_F(VulkanSceneContent, InterpolatePoseMatchesShader)
+{
+    {
+        std::mt19937 rng(7);
+        for (int i = 0; i < 50; ++i)
+        {
+            const DynamicPose a = randomPose(rng, 10), b = randomPose(rng, 10);
+            for (double alpha : {0.0, 0.3, 1.0})
+            {
+                const DynamicPose d = interpolatePose(a, b, alpha);
+                InstancePose<float> fa, fb;
+                fa.position = a.position.cast<float>();
+                fb.position = b.position.cast<float>();
+                fa.rotation =
+                    quat(float(a.rotation.w()), float(a.rotation.x()), float(a.rotation.y()), float(a.rotation.z()));
+                fb.rotation =
+                    quat(float(b.rotation.w()), float(b.rotation.x()), float(b.rotation.y()), float(b.rotation.z()));
+                fa.scale                    = float(a.scale);
+                fb.scale                    = float(b.scale);
+                const InstancePose<float> f = interpolatePose(fa, fb, float(alpha));
+                EXPECT_LT((f.position.cast<double>() - d.position).norm(), 1e-4);
+                EXPECT_LT(
+                    std::abs(
+                        std::abs(double(f.rotation.w()) * d.rotation.w() + double(f.rotation.x()) * d.rotation.x() +
+                                 double(f.rotation.y()) * d.rotation.y() + double(f.rotation.z()) * d.rotation.z()) -
+                        1),
+                    1e-5);
+            }
+            const DynamicPose e0 = interpolatePose(a, b, 0.0), e1 = interpolatePose(a, b, 1.0);
+            EXPECT_LT((e0.position - a.position).norm(), 1e-12);
+            EXPECT_LT((e1.rotation.matrix() - b.rotation.matrix()).norm(), 1e-9);
+            DynamicPose nb = b;
+            nb.rotation    = Quat(-b.rotation.w(), -b.rotation.x(), -b.rotation.y(), -b.rotation.z());
+            EXPECT_LT(
+                (interpolatePose(a, nb, 0.4).rotation.matrix() - interpolatePose(a, b, 0.4).rotation.matrix()).norm(),
+                1e-9);
+        }
+    }
+
+    RenderSceneParameters p;
+    p.msaaSamples = 4;
+    CreateScene(p);
+    scene->addMaterial(1, "marker", markerMaterial());
+    // A marker 1 m off the mesh origin along x
+    scene->addMesh(1, "arm", boxMesh(vec3(0.05f, 0.05f, 0.05f), vec3(1, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);
+    camera.position = Vec3(0, 7, 4);
+    camera.rotation = lookRotation(Vec3(0, -1, -0.6));
+    camera.apply(*scene);
+    struct Case
+    {
+        Quat q0, q1;
+        double s0, s1;
+        Vec3 p0, p1;
+        float alpha;
+    };
+    const Vec3 y(0, 1, 0);
+    const std::vector<Case> cases = {
+        // dot < 0: 0° -> 270° about y (the shorter arc through -45°)
+        {Quat::Identity(), Quat(AngleAxis(1.5 * kPi, y)), 1, 1, Vec3(0, 0, 0), Vec3(0, 0, 0), 0.3f},
+        // dot > 0.9995: the nlerp branch
+        {Quat(AngleAxis(0.5, y)), Quat(AngleAxis(0.52, y)), 1, 1, Vec3(0, 0, 0), Vec3(0, 0, 0), 0.5f},
+        // a general rotation with scale and position
+        {Quat(AngleAxis(0.4, Vec3(1, 1, 0).normalized())), Quat(AngleAxis(2.0, Vec3(0, 1, 1).normalized())), 1, 2,
+         Vec3(-0.5, 0, 0.3), Vec3(0.4, 0.2, -0.6), 0.7f},
+    };
+    const ChunkId chunk{0, 0, 0};
+    auto h = scene->addDynamic(1);
+    for (size_t i = 0; i < cases.size(); ++i)
+    {
+        const Case& c = cases[i];
+        DynamicPose a, b;
+        a.rotation = c.q0;
+        b.rotation = c.q1;
+        a.scale    = c.s0;
+        b.scale    = c.s1;
+        a.position = c.p0;
+        b.position = c.p1;
+        scene->setDynamic(h, chunk, a, b);
+        scene->setInterpolation(c.alpha);
+        const DynamicPose pose = interpolatePose(a, b, double(c.alpha));
+        const Vec3 marker      = pose.position + pose.rotation.matrix() * Vec3(pose.scale, 0, 0);
+        const Vec2 got         = centroid(SceneFrame());
+        EXPECT_LT((got - camera.project(marker)).norm(), 0.5)
+            << "case " << i << " got " << got.transpose() << " expected " << camera.project(marker).transpose();
+    }
+    scene->removeDynamic(h);
+
+    // The culling of random dynamics (two chunks) against the CPU reference
+    scene->addMesh(2, "box", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(1, 0, 0), {10, 20, 35}, {ucvec4(255, 255, 255, 255)}),
+                   1);
+    camera.position = Vec3(250, 3, 5);
+    camera.rotation = lookRotation(Vec3(0.3, -0.1, -1));
+    camera.apply(*scene);
+    scene->setInterpolation(0.37f);
+    std::mt19937 rng(19);
+    struct Dyn
+    {
+        ChunkId chunk;
+        DynamicPose a, b;
+    };
+    std::vector<Dyn> dyns;
+    for (int i = 0; i < 400; ++i)
+    {
+        Dyn d;
+        d.chunk = ChunkId{0, i % 2, 0};
+        d.a     = randomPose(rng, 25);
+        d.b     = randomPose(rng, 25);
+        // Around the camera's x (250): chunk 0 near its end, chunk 1 near its start
+        const Vec3 shift = Vec3(d.chunk.x == 0 ? 250 : -6, 0, -15);
+        d.a.position += shift;
+        d.b.position += shift;
+        scene->setDynamic(scene->addDynamic(2), d.chunk, d.a, d.b);
+        dyns.push_back(d);
+    }
+    RenderStatistics st;
+    SceneFrame(&st);
+    Reference ref;
+    const auto planes = camera.planes();
+    for (const Dyn& d : dyns)
+    {
+        float scale    = 1;
+        const Vec3 c   = dynamicCenter(d.chunk, d.a, d.b, 0.37f, vec3(1, 0, 0), camera.position, &scale);
+        const double r = vec3(0.3f, 0.3f, 0.3f).norm() * scale;
+        ref.add(c, r, {10, 20, 35}, planes);
+    }
+    expectCounts(st, ref, "dynamics");
+    EXPECT_LT(ref.ambiguous, 10);
+}
+
+// Non-decreasing LOD end distances: an end distance equal to the previous one is an empty LOD (never selected, counts
+// 0); per mesh and LOD the GPU matches the CPU reference (the tracked statistics). Regression: addMesh asserted
+// strictly ascending distances, which the prototype's independently clamped tree LOD settings can violate (S19a).
+TEST_F(VulkanSceneContent, EqualDistanceLods)
+{
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    const std::vector<std::vector<float>> ends = {{10, 10, 30}, {10, 25, 25}, {15, 15, 15, 40}, {0, 20}};
+    for (size_t m = 0; m < ends.size(); ++m)
+        scene->addMesh(MeshId(m + 1), "mesh" + std::to_string(m),
+                       boxMesh(vec3(0.2f, 0.2f, 0.2f), vec3(0, 0, 0), ends[m], {ucvec4(255, 255, 255, 255)}), 1);
+    scene->trackMeshStatistics({1, 2, 3, 4});
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    std::vector<StaticInstance> v;
+    std::vector<std::array<int, 4>> expected(ends.size(), std::array<int, 4>{});
+    Reference total;
+    const auto planes = camera.planes();
+    for (size_t m = 0; m < ends.size(); ++m)
+        for (int i = 0; i < 30; ++i)
+        {
+            // Distances 2.7 .. 46.2 straight ahead (never within 1e-3 of an end distance)
+            const float d = 2.7f + 1.5f * i;
+            const vec3 pos(0.3f * float(m) - 0.45f, 0, -d);
+            v.push_back(makeInstance(pos, quat::Identity(), 1, MeshId(m + 1)));
+            Reference one;
+            one.add(pos.cast<double>(), vec3(0.2f, 0.2f, 0.2f).norm(), ends[m], planes);
+            total.add(pos.cast<double>(), vec3(0.2f, 0.2f, 0.2f).norm(), ends[m], planes);
+            EXPECT_EQ(one.ambiguous, 0);
+            for (int l = 0; l < 4; ++l) expected[m][l] += one.perLod[l];
+        }
+    scene->addInstanceSet(RegionId(), v);
+    RenderStatistics st;
+    SceneFrame(&st);
+    expectCounts(st, total, "equal distances");
+    ASSERT_EQ(st.trackedMeshes.size(), ends.size());
+    for (size_t m = 0; m < ends.size(); ++m)
+    {
+        EXPECT_EQ(st.trackedMeshes[m].mesh, MeshId(m + 1));
+        for (int l = 0; l < 4; ++l)
+            EXPECT_EQ(int(st.trackedMeshes[m].instancesPerLod[l]), expected[m][l]) << "mesh " << m + 1 << " LOD " << l;
+    }
+    // The empty LODs
+    EXPECT_EQ(expected[0][1], 0);
+    EXPECT_EQ(expected[1][2], 0);
+    EXPECT_EQ(expected[2][1] + expected[2][2], 0);
+    EXPECT_EQ(expected[3][0], 0);
+    EXPECT_GT(expected[0][2], 0);
+    EXPECT_GT(expected[2][3], 0);
+}
+
+// trackMeshStatistics: the per-LOD counts of the listed meshes (statics and dynamics), 0 for a registered mesh without
+// instances and an unregistered ID, a duplicate twice; each frame's statistics carry the list it was recorded with (a
+// change after renderFrame applies to the next frame); a frame without a camera gives zeros; more than maxTrackedMeshes
+// is a fatal error
+TEST_F(VulkanSceneContent, TrackedMeshStatistics)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMaterial(2, "two_sided", flatMaterial(true));
+    const std::vector<float> ends = {8, 20};
+    for (int m = 1; m <= 3; ++m)
+        scene->addMesh(MeshId(m), "m" + std::to_string(m),
+                       boxMesh(vec3(0.2f, 0.2f, 0.2f), vec3(0, 0, 0), ends, {ucvec4(255, 255, 255, 255)}),
+                       MaterialId(m == 2 ? 2 : 1));
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    // Mesh 1: 3 near + 2 far, mesh 2: 1 near + 4 far, mesh 3: none; a dynamic of mesh 1 (near)
+    std::vector<StaticInstance> v;
+    auto add = [&](MeshId m, float x, float d) { v.push_back(makeInstance(vec3(x, 0, -d), quat::Identity(), 1, m)); };
+    for (float d : {3.f, 5.f, 7.f, 12.f, 15.f}) add(1, -0.5f, d);
+    for (float d : {4.f, 10.f, 13.f, 16.f, 18.f}) add(2, 0.5f, d);
+    scene->addInstanceSet(RegionId(), v);
+    DynamicPose pose;
+    pose.position = Vec3(0, 0.5, -6);
+    scene->setDynamic(scene->addDynamic(1), ChunkId{0, 0, 0}, pose, pose);
+
+    using Counts                    = std::array<uint32_t, 4>;
+    const std::vector<MeshId> listA = {2, 3, 9, 1, 2};
+    scene->trackMeshStatistics(listA);
+    RenderStatistics st;
+    SceneFrame(&st);
+    const std::vector<Counts> expectedA = {{1, 4, 0, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}, {4, 2, 0, 0}, {1, 4, 0, 0}};
+    ASSERT_EQ(st.trackedMeshes.size(), listA.size());
+    for (size_t i = 0; i < listA.size(); ++i)
+    {
+        EXPECT_EQ(st.trackedMeshes[i].mesh, listA[i]);
+        EXPECT_EQ(st.trackedMeshes[i].instancesPerLod, expectedA[i]) << i;
+    }
+    EXPECT_EQ(st.instancesPerLod[0], 5u);
+    EXPECT_EQ(st.instancesPerLod[1], 6u);
+
+    // A list change after renderFrame: that frame still carries list A, the next one the new list
+    EXPECT_TRUE(scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr));
+    const uint64_t frameA = scene->frames();
+    scene->trackMeshStatistics({1});
+    scene->waitIdle();
+    st = scene->statistics();
+    EXPECT_EQ(st.frame, frameA);
+    ASSERT_EQ(st.trackedMeshes.size(), listA.size());
+    EXPECT_EQ(st.trackedMeshes[0].mesh, MeshId(2));
+    SceneFrame(&st);
+    ASSERT_EQ(st.trackedMeshes.size(), 1u);
+    EXPECT_EQ(st.trackedMeshes[0].mesh, MeshId(1));
+    EXPECT_EQ(st.trackedMeshes[0].instancesPerLod, (Counts{4, 2, 0, 0}));
+
+    // An empty list
+    scene->trackMeshStatistics({});
+    SceneFrame(&st);
+    EXPECT_TRUE(st.trackedMeshes.empty());
+
+    // Without a camera (a new scene): the list with zeros
+    CreateScene();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "m", boxMesh(vec3(0.2f, 0.2f, 0.2f), vec3(0, 0, 0), ends, {ucvec4(255, 255, 255, 255)}), 1);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -3), quat::Identity(), 1, 1)});
+    scene->trackMeshStatistics({1});
+    SceneFrame(&st);
+    ASSERT_EQ(st.trackedMeshes.size(), 1u);
+    EXPECT_EQ(st.trackedMeshes[0].instancesPerLod, (Counts{0, 0, 0, 0}));
+
+    EXPECT_DEATH(scene->trackMeshStatistics(std::vector<MeshId>(maxTrackedMeshes + 1, 1)), "at most maxTrackedMeshes");
 }

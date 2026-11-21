@@ -181,6 +181,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 |---|---|---|
 | Forward renderer with MSAA, reversed-Z, infinite far plane; since S17 only for the other samples and the fixtures of `tests/vulkan_test_context.h` and `VulkanWorldRender` (`tests/test_vulkan_world.cpp`); the shared frame code (command buffers and submit, ImGui frame, screenshots, `selectSampleCount`, GPU sections by name) is in `VulkanRenderer` | `src/saiga/vulkan/VulkanForwardRenderer.*`, `src/saiga/vulkan/Renderer.*` | [exists] |
 | `RenderScene` HDR frame (S17): fp16 scene pass with MSAA and reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map weighted resolve), pre-exposure, post and ImGui in one pass, `--tonemap` / `--exposure` (§10.1, §10.5) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `tests/test_vulkan_scene.cpp` | [exists] |
+| `RenderScene` scene content (S18): materials, meshes and the palette by explicit IDs (`MeshPool`: vertex and index buffers sub-allocated in element units with VMA virtual blocks (`SubAllocatedBuffer`, growth with a GPU copy), the mesh record table, the material buffer), static instance sets per region and dynamic instances with GPU interpolation (`InstanceBuffer`), the offset table (double camera, float hi + lo), GPU culling (count, scan and write passes, buckets per pipeline class, mesh and LOD) with indexed indirect draws and the flat-color shading (`SceneCulling`), statistics, the `cull` GPU section, glTF mesh import (`MeshImport`), `chunkOrigin`/`regionOrigin` (§10.1, §10.2, §10.8, §14); the culling benchmark | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `src/saiga/core/math/ChunkId.h`, `tests/test_vulkan_scene.cpp`, `data/tests/scene/`, `samples/vulkan/sample_vulkan_scene_benchmark.cpp` | [exists] |
 | World prototype: CDLOD terrain (one R32 height map, `TerrainRenderer::init(..., const HeightField&, ...)`), GPU-culled trees (`ForestRenderer`, own placement, OpenMP), procedural grass, sky, fog, gray look, GPU timestamps and statistics window; the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
@@ -227,8 +228,8 @@ rule, stage that removes it):
 | tick | a call of `GameObject::update`, at most once per step (§8.4) |
 | tier | kind of world content: 1 bulk, 1b procedural detail, 1p placed pieces, 2 entities, 3 services (§6) |
 | space | an independent world with its own chunk grid, terrain, physics system and spatial grid (overworld, a dungeon); `SpaceId` (`uint16_t`, also used in `ChunkId`/`RegionId`), 0 = overworld; instances defined by the world plan (§12.1); every entity is in exactly one space (`Transform::space`) |
-| chunk | 256 m x 256 m square of a space, `ChunkId {uint16 space; int32 x, z}`, origin `(x * 256, 0, z * 256)` in its space; defined in `src/saiga/core/math/ChunkId.h` (namespace `Saiga`, usable by `saiga_vulkan`) |
-| region | a square of 2^L x 2^L chunks for far content and terrain levels, `RegionId {uint16 space; uint8 level; int32 x, z}` (also in `ChunkId.h`, created in S07 with visitor support; `SpaceId` and `InstanceKey` are defined there too) |
+| chunk | 256 m x 256 m square of a space, `ChunkId {uint16 space; int32 x, z}`, origin `(x * 256, 0, z * 256)` in its space (`chunkOrigin`, double, S18); defined in `src/saiga/core/math/ChunkId.h` (namespace `Saiga`, usable by `saiga_vulkan`) |
+| region | a square of 2^L x 2^L chunks for far content and terrain levels, `RegionId {uint16 space; uint8 level; int32 x, z}`, x and z in region units of 2^L chunks: origin `(x, 0, z) * 256 m * 2^L` (`regionOrigin`, double, S18) (also in `ChunkId.h`, created in S07 with visitor support; `SpaceId` and `InstanceKey` are defined there too) |
 | host / client / peer | the process that simulates the world / the other players' processes / either (§13) |
 | local-only | a feature without network effect (debug views, UI) |
 
@@ -1062,6 +1063,12 @@ regenerate chunks after patches.
   computes rotations and velocities in float internally, we store them as double).
 - Render data of tier 1/1p and terrain is float relative to its chunk or region origin; rendering is camera relative
   (§10.1).
+- Precision [exists: S18]: the offset of a region or chunk (`origin - cameraPosition`) is computed in double and stored
+  as two floats, hi = float(offset) and lo = float(offset - hi); a vertex is placed at `((local + hi) + lo) + rotated
+  mesh vertex` without reassociation (`precise`). local and hi nearly cancel (their difference is exact), so the error is
+  half an ulp of the local position (about 0.5 mm at 8-16 km from the region origin). A single float offset would add
+  half an ulp of the offset, which moves with the camera: near content of a large region would step in about 1-2 mm
+  increments (`VulkanSceneContent.Precision` fails without lo).
 
 ### 9.2 GameObject [exists: S10]
 
@@ -1238,7 +1245,7 @@ pieces, updated on edits, streamed with the full radius; `nav.findPath(space, fr
 
 ## 10. Rendering
 
-### 10.1 RenderScene [exists: S13 frame shell, S17 HDR frame; planned: S18 instances]
+### 10.1 RenderScene [exists: S13 frame shell, S17 HDR frame, S18 instances]
 
 The interface between the engine and `saiga_vulkan`; knows meshes, materials, regions and instances, not entities. Class
 `RenderScene` in `src/saiga/vulkan/scene/RenderScene.h`, value types (`MeshLods`, `MaterialData`, `StaticInstance`,
@@ -1256,7 +1263,14 @@ command buffers, submit, ImGui frame, screenshots and `selectSampleCount` with t
 ```cpp
 enum class ToneMap : uint8_t { Identity, Aces };          // Identity: clay mode (display values, no exposure)
 struct RenderSceneParameters { int msaaSamples = 4; vec4 clearColor; bool imgui = true;
-                               ToneMap toneMap = ToneMap::Identity; float exposure = 1; };
+                               ToneMap toneMap = ToneMap::Identity; float exposure = 1;
+                               float nearPlane = 0.1f;                       // S18: the camera's near plane
+                               uint32_t vertexCapacity, indexCapacity, staticInstanceCapacity, dynamicCapacity;
+                                                           // S18: initial capacities in elements (grown when needed,
+                                                           // storage buffers up to maxStorageBufferRange)
+                               uint64_t storageBufferLimit = 0; uint32_t workGroupLimit = 0;
+                                                           // S18: lower limits for tests (0: the device's)
+                               bool allowMultiDrawIndirect = true; };        // S18: false draws bucket by bucket
 bool renderFrame(const Callback& transfer, const Callback& render, const std::function<void()>& gui);
 RenderingFormats formats() const;      // the scene pass: R16G16B16A16 float, D32 (reversed-Z), the sample count
 vk::Format colorFormat() const;        // the output (swap chain / offscreen image)
@@ -1267,6 +1281,7 @@ float preExposure() const;             // the previous frame's effective exposur
                                        // a change by more than a factor of 16)
 void requestScreenshot(VulkanRenderer::ScreenshotCallback); void setImguiVisible(bool);
 bool takeGpuFrameTimes(FrameTimes&); static const std::vector<const char*>& gpuSectionNames();
+                                       // transfer, cull (S18), scene, resolve, post, imgui
 ```
 
 **Pre-exposure contract** (S17): while `sceneWritesLinear()` every scene shader writes linear radiance multiplied by
@@ -1276,23 +1291,51 @@ frame without a flash. Otherwise (Identity) the scene shaders write display valu
 encoding, as the clay prototype). The prototype (`finalColor` in `shading.glsl`, `WorldUniforms::shading.w`) and the
 demos (`mesh.frag`) take it through `WorldRenderer::setOutputLinear(bool, float)` / `MeshRenderer::setOutputLinear`.
 
+The scene content [exists: S18] (types in `RenderSceneTypes.h`; explicit IDs, asserted free and with unique names: the
+`World`'s name tables assign them in S19's `RenderSink`, S30's generated meshes take IDs from the top of the range;
+ID 0 is none; main thread; the calls take effect in the next `renderFrame`):
+
 ```cpp
-MaterialId addMaterial(const std::string& name, const MaterialData& data);              // §10.8
-MeshId addMesh(const std::string& name, const MeshLods& lods, MaterialId material);     // LODs incl. impostor, skin
-InstanceSetHandle addInstanceSet(RegionId region, const std::vector<StaticInstance>& instances,
-                                 uint32_t capacity = 0);            // tier 1, 1p, far; capacity >= size (0: size)
+void addMaterial(MaterialId id, const std::string& name, const MaterialData& data);              // §10.8
+void setMaterial(MaterialId id, const MaterialData& data);  // a class change (alphaMask, twoSided, pipelineClass)
+                                                            // rebuilds the bucket layout
+void addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material);
+                            // 1..4 LODs, non-decreasing endDistance (asserted; equal: an empty LOD, never
+                            // selected); one material; impostor, skin: S27, S34
+void setPalette(const std::vector<PaletteEntry>& palette); // at most 4096 entries (one palette per game)
+InstanceSetHandle addInstanceSet(const RegionId& region, const std::vector<StaticInstance>& instances,
+                                 uint32_t capacity = 0);   // tier 1, 1p, far; capacity >= size (0: size); the
+                                                           // meshes must be registered (asserted)
 void updateInstances(InstanceSetHandle set, uint32_t first, const std::vector<StaticInstance>& instances);
-                                                                    // first + size <= capacity (appends up to it)
+                                                           // first + size <= capacity (appends up to it)
 void removeInstance(InstanceSetHandle set, uint32_t index);         // tombstone (scale 0)
-void removeInstanceSet(InstanceSetHandle set);                      // chunk or region unloaded [S18]
+void removeInstanceSet(InstanceSetHandle set);                      // chunk or region unloaded
 // A set grows by being re-created with a larger capacity (piece placement, S30).
 MeshId addGeneratedMesh(RegionId region, const MeshLods& lods, MaterialId material);   // [S30] merged far meshes
 void removeGeneratedMesh(MeshId mesh);                                                 // [S30]; drawn like others
-InstanceHandle addDynamic(MeshId mesh);
-void setDynamic(InstanceHandle h, ChunkId chunk, const DynamicPose& prev, const DynamicPose& curr, uint32_t boneOffset);
+InstanceHandle addDynamic(MeshId mesh);                    // drawn after its first setDynamic
+void setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
+                uint32_t boneOffset = 0);                  // poses relative to the chunk; boneOffset from S34
 void removeDynamic(InstanceHandle h);
-void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy);   // double
+void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy);   // double; fovy in radians;
+                            // looks along -z; aspect from size(), nearPlane from the parameters (reversed-Z, infinite
+                            // far); nothing is culled or drawn before the first setCamera
 void setInterpolation(float alpha);
+template <typename T> InstancePose<T> interpolatePose(const InstancePose<T>& prev, const InstancePose<T>& curr, T alpha);
+                            // RenderSceneTypes.h: the shaders' dynamic pose on the CPU (lerp, slerp with curr negated
+                            // if dot < 0, nlerp if dot > 0.9995); DynamicPose = InstancePose<double>
+const mat4& viewMatrix() const; const mat4& projectionMatrix() const; mat4 viewProjection() const;
+                            // the frame's camera-relative matrices for the game's render callback (one camera for the
+                            // shared depth buffer); the view matrix holds only the camera rotation
+const RenderStatistics& statistics();    // the newest completed frame, tagged with its frame number
+bool takeStatistics(RenderStatistics&);  // every completed frame in frame order (the oldest not taken; at most 16 kept)
+void trackMeshStatistics(const std::vector<MeshId>& meshes);  // at most maxTrackedMeshes (16): their per-LOD counts in
+                            // RenderStatistics::trackedMeshes, from the next recorded frame (each frame its list)
+bool multiDrawIndirect() const;
+```
+
+```cpp
+// planned
 // [planned: S20] as in RenderSink: setTerrainTile, removeTerrainTile, setTerrainPyramid, setGrassMask
 // [planned: S36 environment and lights, S38 fog volumes, S39 water, S41 emitters, S42 clouds]
 void setEnvironment(const EnvironmentState& env);   // sun/moon direction and intensity, sky, weather, fog, clouds
@@ -1306,22 +1349,71 @@ EmitterHandle addEmitter(InstanceHandle attachTo, ChunkId chunk, const EmitterDa
 void removeEmitter(EmitterHandle);                                  // fixed position from EmitterData
 ```
 
-- **Storage**: one GPU instance buffer, sub-allocated with a VMA virtual block (`VmaVirtualBlock` forward declared, no
-  VMA include in headers; main thread). Capacity from `RenderSceneParameters`; on failure the buffer grows 2x with a
-  GPU copy, the old one through `deferDelete`. `StaticInstance` (32 bytes): region-relative position (3 x float),
-  rotation (4 x snorm16), uniform scale (float), mesh (uint16), flags (uint16), `InstanceKey` low bits (uint32).
-  Dynamic instance: prev and curr pose, chunk, mesh, `boneOffset`.
-- **Offset table**: each frame `origin - cameraPosition` is computed in double for every region and chunk referenced by
-  an instance set or dynamic instance of the camera's space and uploaded as float. Shaders compute
-  `p = offset[ref] + local`; the view matrix contains only the camera rotation.
-- **Interpolation on the GPU** for dynamic instances with `alpha`; the camera is interpolated on the CPU in double.
+- **Mesh pool** [exists: S18] (`MeshPool`): one vertex buffer (`MeshVertex`, 28 bytes: position, octahedral normal as
+  snorm16x2, the color word, uv) and one index buffer, each sub-allocated per mesh with its own VMA virtual block in
+  element units (`SubAllocatedBuffer`; VMA alignments are powers of two, a 28-byte vertex is not; `VmaVirtualBlock`
+  forward declared, no VMA include in headers); a GPU table `MeshId -> record` (112 bytes: material, LOD count,
+  `bucketBase`, the pipeline class, the sphere and padding, per LOD first index, index count, vertex offset, end
+  distance) sized to the highest registered ID: a zeroed record (`lodCount` 0: mesh 0, unregistered IDs) is rejected
+  by the count pass. The material buffer (std430 by `MaterialId`) and the palette (§10.8).
+- **Storage** [exists: S18] (`InstanceBuffer`): one device buffer of `StaticInstance`s (32 bytes, `static_assert`ed:
+  region-relative position (3 x float), rotation (x, y, z, w as two snorm16 pairs, decoded with `unpackSnorm2x16` +
+  normalize), uniform scale (float), mesh (uint16), flags (uint16, reserved), `InstanceKey` (uint32: generator slot in the
+  upper 8 bits, counter in the lower 24)), sub-allocated like the mesh pool; a set is a contiguous range of `capacity`
+  instances with its region, a CPU copy (the source of its uploads), the used size (the highest written index + 1; the
+  culling never visits the tail), its bounds (an AABB around its instances' bounding spheres, radius `(sphereRadius +
+  boundsPadding) * scale`, from the decoded quaternions, computed on the CPU at `addInstanceSet` and `updateInstances`;
+  tombstones keep the bounds) with the largest end distance of its meshes, and a stable offset-table slot. Dynamic
+  instances: a CPU array (the source of truth) rewritten every frame into the frame slot's dynamics buffer (80 bytes
+  each: prev and curr position and scale, prev and curr rotation as float quaternions, mesh, chunk slot, `boneOffset`;
+  free or unset entries carry mesh 0); their chunks' slots come from a reference-counted `ChunkId -> slot` map.
+- **Growth** [exists: S18]: an allocation that does not fit creates a new buffer of `max(2x, required)` elements and a
+  new block, re-allocates every live range (new offsets), and records in the next frame's transfer one
+  `vkCmdCopyBuffer` of the ranges already on the GPU (several growths before a frame copy from the buffer that holds
+  the data); the CPU records, the mesh records and the commands' static fields are rewritten; the old buffer goes
+  through `deferDelete`. Pending uploads are queued by set (merged ranges) or mesh, not by buffer offset, and recorded
+  after the growth copy against the new offsets. Shared tables (mesh records, materials, palette) get a new buffer when
+  too small; they, `bucketBase` and the commands' static fields are written only by in-order transfer commands (staging
+  copies), never through a host mapping, since frames in flight read them. Per-frame host-visible buffers (offset table,
+  work chunks, dynamics, statistics, staging) recreate that frame slot's buffer when too small; the scratch, compacted,
+  count, command and bucket-LOD buffers are recreated at frame start when too small (`deferDelete`, no copy). One
+  descriptor set per frame slot with every binding (13 storage buffers), rewritten for the frame being recorded. The
+  storage buffers are bound whole, so each grows at most to `maxStorageBufferRange` (128 MiB on lavapipe and many
+  mobile GPUs: about 4.19M static instances; 4 GiB on desktop GPUs); content that needs more is a fatal error
+  (`SAIGA_EXIT_ERROR`, every build: at `addInstanceSet` / `updateInstances` for the static instances, at the next
+  frame for the per-frame buffers). The draws use the bucket layout and vertex and index buffers of the frame's
+  transfer (a snapshot): content changes in the render callback take effect in the next frame.
+  Uploads are recorded in the transfer section after a barrier from the previous frames' reads (vertex, compute,
+  indirect) and writes (compute) to the transfer writes, so a range freed and reused between two frames is safe.
+- **Offset table** [exists: S18]: rewritten every frame (per frame slot): per slot two `vec4`s, `hi.xyz` = float(origin -
+  cameraPosition) (double) with w = 1 valid, `lo.xyz` = the remainder (§9.1); slots of other spaces and free slots are
+  written with w = 0, which the count pass rejects. A vertex is placed at `((position + hi) + lo) + rotate(q, vertex *
+  scale)` (`placePoint` in `shader/vulkan/scene/instance_common.glsl`, `precise`); the count pass places the sphere
+  centre with the same function; dynamics use their chunk's slot the same way. The view matrix contains only the
+  camera rotation.
+- **Interpolation on the GPU** [exists: S18] for dynamic instances with `alpha`: position and scale linear, the rotation
+  on the shorter arc (curr negated when `dot < 0`; slerp, nlerp near `dot = 1`), one GLSL function for the count pass
+  and the vertex shader; the camera is interpolated on the CPU in double.
+- **Drawing** [exists: S18]: after the game's render callback in the scene pass; one pipeline per class (opaque,
+  alpha-masked, two-sided, alpha-masked two-sided) with `formats()`; `instance.vert` reads `compacted[gl_InstanceIndex]`
+  -> the instance -> the mesh record -> the material and passes the material and the color word (`flat uint`) to
+  `flat.frag`: the flat-color model with a fixed sun and ambient (S36 adds lighting) and the material's emissive;
+  `SmoothTextured` without textures renders its base color (textures in S43); S17's output contract (clay mode: display
+  values, clamped, own sRGB encoding; otherwise linear times `preExposure()`).
 - The host renders only the space and regions around its own camera; chunks resident only for remote players get no
   GPU uploads.
-- Statistics (S18): `struct RenderStatistics { std::array<uint32_t, 4> instancesPerLod; uint32_t terrainNodes,
-  drawCalls; }; const RenderStatistics& statistics() const; static const char* gpuPassName(int pass);
-  const FrameTimes& lastFrameTimes() const;` (used by §17.5 and §17.7).
-- Required device feature (asserted): `drawIndirectFirstInstance`; without `multiDrawIndirect` draws are issued one by
-  one.
+- Statistics [exists: S18]: `struct RenderStatistics { uint64_t frame; std::array<uint32_t, 4> instancesPerLod; uint32_t
+  terrainNodes, drawCommands, nonEmptyBuckets; std::vector<TrackedMesh> trackedMeshes; };` from the newest completed
+  frame (`frame` is RenderScene's frame number): the scan writes `instancesPerLod`, `nonEmptyBuckets` and the per-LOD
+  counts of the tracked meshes (`trackMeshStatistics`, at most 16; the frame's list of IDs is written by the host into
+  the same buffer, so each frame's statistics carry its list; the scan reads each tracked mesh's `bucketBase` and LOD
+  count from the frame's mesh records) into the frame slot's readback buffer (the CPU never decodes buckets with a
+  layout that `addMesh` may have changed since); `drawCommands` are the indirect draw calls
+  issued (comparable to `ForestRenderer::drawCalls()`); `terrainNodes` from S20. The GPU sections are
+  `gpuSectionNames()` with `takeGpuFrameTimes` (no separate pass-name API; S19 adds the passes) (used by §17.5 and
+  §17.7).
+- Required device feature (asserted): `drawIndirectFirstInstance`; without `multiDrawIndirect` (or with
+  `RenderSceneParameters::allowMultiDrawIndirect = false`) draws are issued one by one.
 - **S19 (transitional, replaced in S20)**: `void setPrototypeTerrain(const HeightField& heights, const
   PrototypeSettings& settings);` hands the prototype terrain, grass, sky and water plane (renderers moved from
   `vulkan/world/`) to `RenderScene`, which draws them in the §10.5 pass order until S20 replaces them;
@@ -1366,21 +1458,46 @@ class RenderSink   // engine/sync/RenderSink.h [planned: S19]; types from saiga/
 };
 ```
 
-### 10.2 Culling [planned: S18]
+### 10.2 Culling [exists: S18 (one view); planned: S36 (shadow views)]
 
 Prerequisite [done: S17]: `GLSL.cpp` targets Vulkan 1.3 / SPIR-V 1.6 (`setEnvClient`, `setEnvTarget`), with a
 test (`VulkanShader.SpirvVersion16`, `.EveryStageFileCompiles`, `.DiscardPipeline`); the device enables
 `shaderDemoteToHelperInvocation` (glslang compiles `discard` to `OpDemoteToHelperInvocation` for SPIR-V 1.6).
 
-1. CPU: instance set bounds against the views -> visible instance ranges.
-2. GPU count pass over the visible ranges (indirect dispatch): frustum test, LOD (S18: by distance with the prototype's
-   thresholds; from S27 also by projected size), count per (view, mesh LOD) bucket with `atomicAdd`.
-3. Prefix sum -> bucket offsets; write pass -> compacted 32-bit instance indices; instance counts into the indirect
-   commands.
-4. Draw: `vkCmdDrawIndexedIndirect` per pipeline and view.
+As implemented in S18 (`SceneCulling`, `shader/vulkan/scene/`), the prototype's `tree_cull.comp` rule generalized:
 
-Buffers and shaders have a view dimension from the start; S18 implements one view, the shadow views (S36) add more.
-The buffers do not preclude Hi-Z occlusion culling against the previous frame's depth (open option, §21).
+1. CPU: each instance set of the camera's space: its bounds (camera-relative in double) against the 5 frustum planes and
+   its meshes' largest end distance -> visible sets; their used ranges are split into **work chunks** of at most 256
+   instances `{first, count, slot}`; the dynamics are chunked with `slot = 0xFFFFFFFF` (each carries its chunk's slot).
+   A direct dispatch, one workgroup per chunk, 2D beyond `maxComputeWorkGroupCount[0]` (chunk = y * x-count + x; the
+   shaders skip the rest of the last row; beyond the y limit a fatal error).
+2. **Count pass** (`instance_count.comp`; invocation i of chunk c handles `chunk.first + i` if `i < chunk.count`; its
+   scratch entry is `c * 256 + i`, written "not visible" when rejected and for `i >= chunk.count`, since the scratch
+   buffer is reused across frames): rejects tombstones (`scale == 0`), unset or removed dynamics (mesh 0), zeroed mesh
+   records, invalid offset entries (w = 0) and instances beyond the mesh's last end distance; distance = |camera -
+   the placed sphere centre| (the end distances are not scaled by the instance scale); frustum test of the bounding
+   sphere (mesh sphere rotated and scaled, radius `(sphereRadius + boundsPadding) * scale`) against 5 planes (reversed-Z
+   with an infinite far plane: no far plane); LOD i = the first with distance <= `endDistance[i]`; dynamics use the
+   interpolated pose with the frame's alpha (the vertex shader's function); `atomicAdd` into the count of the bucket
+   (view, pipeline class, mesh, LOD) and the returned slot and the bucket are stored in the scratch entry.
+3. **Scan** (`bucket_scan.comp`, one workgroup looping over the dense bucket array): bucket offsets, written into
+   `instanceCount` and `firstInstance` of each bucket's `VkDrawIndexedIndirectCommand`; the drawn instances per LOD and
+   the non-empty buckets into the frame's statistics.
+4. **Write pass** (`instance_write.comp`): every invocation reads its scratch entry (no second visibility decision, no
+   bucket overflow) and, if visible, writes `uvec2(instance index | 0x80000000 for dynamics, offset slot | LOD << 24)`
+   at `firstInstance + slot` (the LOD for S19's foliage tint).
+5. **Draw**: buckets are dense, one per (view, existing LOD of a registered mesh), ordered (view, pipeline class, mesh
+   registration order, LOD), so each class's buckets are contiguous; one `vkCmdDrawIndexedIndirect` per pipeline class
+   and view with `drawCount` = its buckets (split at `maxDrawIndirectCount`), or one per bucket (empty ones too)
+   without `multiDrawIndirect`. The counts are a separate buffer, cleared with `vkCmdFillBuffer` each frame; the
+   commands keep their static fields (`indexCount`, `firstIndex`, `vertexOffset`), rewritten on a layout change.
+   Barriers (sync2): fill -> count -> scan -> write -> draw (`DRAW_INDIRECT` / `INDIRECT_COMMAND_READ`, vertex and
+   storage reads; host read of the statistics).
+
+GPU section `cull` (fill, count, scan, write) between `transfer` and `scene`, written every frame (empty without a
+camera or instances). Buffers and shaders have a view dimension from the start (`view * bucketsPerView + bucketBase +
+lod`); S18 implements one view, the shadow views (S36) add more. The buffers do not preclude Hi-Z occlusion culling
+against the previous frame's depth (open option, §21).
 
 ### 10.3 Extract and interpolation [planned: S19]
 
@@ -1424,11 +1541,12 @@ The buffers do not preclude Hi-Z occlusion culling against the previous frame's 
   it, composites the tone-mapped result into the swap chain image (or offscreen image), then ImGui and the game UI draw
   on top (single-sampled, in the same pass as post). Frame synchronization (frames in flight, timeline semaphore,
   deferred deletion) reuses `VulkanBase`; the HDR targets are shared by the frames in flight (sync2 barriers at the
-  frame start and after the scene pass). GPU sections `transfer`, `scene` (with the hardware resolve), `resolve` (the
-  custom resolve), `post`, `imgui` (with the store of the output image), written every frame. Post sanitizes (NaN -> 0,
-  clamp to [0, 65504]), applies `exposure / preExposure`, the tone map (ACES: the Narkowicz fit) and the output transfer
-  (the piecewise sRGB curve for UNORM targets; linear for sRGB targets, which encode in hardware); in clay mode it
-  copies the display values clamped (decoded first on an sRGB target).
+  frame start and after the scene pass). GPU sections `transfer`, `cull` (S18: the culling passes, §10.2), `scene` (with
+  the hardware resolve; the game's draws, then the scene's instances), `resolve` (the custom resolve), `post`, `imgui`
+  (with the store of the output image), written every frame. Post sanitizes (NaN -> 0, clamp to [0, 65504]), applies
+  `exposure / preExposure`, the tone map (ACES: the Narkowicz fit) and the output transfer (the piecewise sRGB curve for
+  UNORM targets; linear for sRGB targets, which encode in hardware); in clay mode it copies the display values clamped
+  (decoded first on an sRGB target).
 - **Pre-exposure** [exists: S17, §10.1]: shaders write radiance multiplied by the previous frame's exposure, or by this
   frame's when the exposure changed by more than a factor of 16 (half floats end at 65504, small values lose precision;
   the sun disc is clamped); exposure is applied before tone mapping.
@@ -1529,7 +1647,7 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 - Not provided: global illumination with bounce light, contact shadows, foliage translucency (can be added as options
   later).
 
-### 10.8 Materials [planned: S18 (data model), S43 (full set)]
+### 10.8 Materials [exists: S18 (data model); planned: S43 (full set)]
 
 The engine supports two shading models; a game uses either or both (per material, R-MECH-1):
 
@@ -1546,6 +1664,16 @@ The engine supports two shading models; a game uses either or both (per material
   per-material descriptor sets).
 - Impostor baking (§10.4) bakes albedo, normal and material parameters for both models, so far content relights
   correctly.
+- **Data model** [exists: S18]: `struct MaterialData { ShadingModel model; bool usePalette; vec4 baseColor; float
+  roughness, metalness; vec3 emissive; bool alphaMask, twoSided; uint8_t pipelineClass; }` (`pipelineClass` 0 derives
+  the class from `alphaMask` / `twoSided`: opaque, alpha-masked, two-sided, alpha-masked two-sided; S19 adds the
+  prototype foliage class); the material buffer is std430 by `MaterialId` (48 bytes: base color, emissive and
+  roughness, model, flags, metalness), the mesh record holds its material (one per mesh). The **color word** of a
+  vertex: sRGB8 RGB plus linear alpha (an import bakes `COLOR_0 * baseColorFactor`, so `baseColor` is 1), or with
+  `usePalette` an index into the palette: `struct PaletteEntry { ucvec4 color; /* sRGB8 + alpha */ uint8_t roughness,
+  metalness; }`, at most 4096, a storage buffer read by index (clamped). The alpha test of an `alphaMask` material:
+  alpha * `baseColor.a` < 0.5. Palette and materials may change after the first frame (rewritten by transfer
+  commands, reached through the per-frame descriptor sets).
 
 ### 10.9 Water [planned: S39]
 
@@ -2171,9 +2299,22 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   components (`visit` JSON), loaded and stamped by the generation pipeline (§12.1; one file per prefab version, §15.3,
   not the data file mechanism above). Authored in an external tool or by hand; no
   editor is planned.
-- Meshes: procedural or model files (glTF via assimp) [planned: S18 (static glTF import, flat-color face duplication,
-  palette indices; `saiga/vulkan/scene/MeshImport.h`); skinned meshes: S34]; impostor and LOD baking as an offline tool
-  (S27).
+- Meshes: procedural or model files (glTF via assimp) [exists: S18 static import; planned: skinned meshes S34];
+  impostor and LOD baking as an offline tool (S27). `bool importMeshLods(const std::string& file, MeshLods& out,
+  MaterialData* material, std::string& error, const MeshImportOptions& = {})` (`saiga/vulkan/scene/MeshImport.h`,
+  `MeshImportOptions { const std::vector<ucvec4>* palette; }`): glTF 2.0 through assimp's glTF2 importer without
+  post-processing; LODs are the nodes whose names end in `LOD0`, `LOD1`, ... (contiguous, at most 4; once a LOD node
+  exists, mesh nodes outside them are an error) or the whole scene as one LOD; all primitives under a LOD node are
+  merged with the node transforms baked (a negative determinant flips the winding); triangles only (strips and fans
+  converted by assimp; points and lines are errors); flat colors: vertices duplicated per face with the face normal of
+  the baked positions, zero-area faces dropped; the color word `COLOR_0 * baseColorFactor` (linear) as sRGB8 (rounded)
+  with alpha 255 unless `alphaMode` is `MASK` (a `COLOR_0` whose alphas are all 0 is a `VEC3` color: assimp 5.2.5
+  delivers alpha 0 for them), or the index of the exact RGB palette entry (a miss is an error naming the color);
+  `TEXCOORD_0` into `uv`; one material (`usePalette` with a palette, `baseColor` 1, `alphaMask`, `twoSided`, emissive,
+  roughness and metalness from the glTF material; merged primitives whose materials differ in these are an error naming
+  both); the sphere over all LODs; the end distances are placeholders (LOD i: (i + 1) * 1000) that the game sets
+  (R-MECH-1). Errors are messages (false + `error`), not asserts; without assimp it returns an error (the import tests
+  are compiled out with `#ifdef SAIGA_USE_ASSIMP`). assimp reaches `saiga_vulkan` through `saiga_core`'s public link.
 
 ## 15. Persistence [exists: S11 (save blobs, schema, migration); later stages add their state as stated in their sections]
 
@@ -2510,9 +2651,11 @@ what they last wrote per (entity, component) and every other legitimate writer (
   reload with connected clients is a session restart (§13.7). A loaded world is not required to continue
   bit-identically (§8.6).
 
-### 17.5 Rendering tests [planned: S18, extended in S19]
+### 17.5 Rendering tests [exists: S18; extended in S19]
 
-Headless Vulkan tests (lavapipe in CI) assert numeric render statistics (instances drawn per LOD, terrain nodes).
+Headless Vulkan tests (lavapipe in CI) assert numeric render statistics (instances drawn per LOD, terrain nodes;
+`RenderScene::statistics()`; S18: `VulkanSceneContent.*` in `tests/test_vulkan_scene.cpp`, a CPU reference of the
+culling rule).
 Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) are equal except for instances within
 1e-3 relative of a frustum plane or LOD threshold, as determined by the CPU reference.
 
@@ -2542,6 +2685,10 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   exponential HDR gradient (16 / 4096 .. 16, 12 stops) in the top half and a bright (16) triangle with slanted MSAA
   edges on a dark clear color in the bottom half; it pins the tone map, the sRGB output curve and the weighted resolve.
   Written like the S02 goldens with `--gtest_filter='VulkanScene.AcesGolden'` on `test_vulkan_scene`.
+- `scene_flat_box` (S18, `VulkanSceneContent.ImportedMeshGolden` in `tests/test_vulkan_scene.cpp`, 256 x 128): the
+  imported `data/tests/scene/flat_box.gltf` (two instances, LOD 0: two merged primitives with baked base color factors)
+  through `RenderScene`'s instance path (clay mode, 4 samples): face-duplicated flat normals under the fixed sun.
+  Written with `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'` on `test_vulkan_scene`.
 - Pass: mean absolute difference < 1/255 and at most 0.5% of the pixels differ by more than 16/255. It gates only when
   the device name contains `llvmpipe` (else it prints the metrics). Gray (clay) goldens are stored as 8-bit grayscale
   PNGs.
@@ -2594,7 +2741,7 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   - No GUI and no MCP during a benchmark, and the default world (`SAIGA_WORLD_TREES` is ignored). From S13 the result
     also has `step` (the steps of the measured frames) and `recording` (the command recording and submit of the
     measured frames, `frame/render/recording`, without the waits for a frame slot and the image), from S17
-    `gpu_frame_ms: {gpu, transfer, scene, resolve, post, imgui}` (the app's `gpu` profile of the measured frames, matched
+    `gpu_frame_ms: {gpu, transfer, cull (S18), scene, resolve, post, imgui}` (the app's `gpu` profile of the measured frames, matched
     by RenderScene frame number: the whole GPU frame and RenderScene's sections; S13's sections were `transfer`, `main`,
     `imgui`, and its whole frame ended inside the pass, before the MSAA resolve), from S19 `extract` (each
     `{median, p95}`).
@@ -2604,6 +2751,15 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   when frame N + 1 is prepared, its GPU times when it has completed (a few frames later): samples are matched by frame
   number. Every completed frame delivers its GPU times (one per `transfer()`, oldest first).
 - From S27 the benchmarks run on the 32 km world, from S37 at each tier's resolution of §17.10.
+- Culling benchmark [exists: S18] `samples/vulkan/sample_vulkan_scene_benchmark` (built by the bench recipe of AGENTS.md
+  with `--target sample_vulkan_scene_benchmark`; headless, no window): the prototype forest's 200k trees
+  (`ForestRenderer::placeTrees` on the default height field, one instance set per chunk) as flat meshes with the
+  prototype trees' triangle counts, LOD distances (70, 300, 30000 m) and bounds, drawn by `RenderScene` over the
+  flyover path at 1920 x 1080 (4x MSAA, clay mode). Writes `benchmark_scene_cull.json` `{gpu, build, instances, sets,
+  triangles_per_lod, frames, width, height, msaa, multi_draw_indirect, cull_ms, scene_ms, scene_empty_ms, draw_ms,
+  transfer_ms, recording_ms, instances_per_lod, draw_calls}` (`{median, p95}` of the 600 measured frames after 60
+  warm-up frames; `scene_empty_ms`: the scene section of 120 frames without a camera, `draw_ms` = `scene_ms` minus its
+  median); an input of S19's forest comparison, not in `data/tests/benchmarks.json`.
 - `--benchmark host_step` [S29, extended in S32]: headless, 8 scripted players in 4 islands with physics, one island
   containing 50 terrain-edited chunks with 30 container entities and 20 NPCs (from S30 additionally a base of placed
   pieces in those chunks; the stage that is done later re-measures); S29 runs
@@ -2688,6 +2844,8 @@ the missing target is reported as open).
 | shaders | `shader/vulkan/<area>/` | `snake_case.vert/.frag/.comp`, `*.glsl` includes | |
 | game data, prefabs | `data/<game>/`, `data/<game>/prefabs/` | `snake_case.json` | |
 | golden images | `data/tests/golden/<test>.png` | | |
+| render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
+| render test data | `data/tests/scene/` (glTF files of the import tests and their generator `make_gltf.py`) | | |
 
 ### 18.2 Registration lists
 
@@ -2835,7 +2993,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | `WorldMcp` | screenshot and camera tools in `engine/app/AppTools`, the rest as `game_*` tools of `game_world` | S14 (done) |
 | `WorldBenchmark` | `--benchmark` of `EngineApp` [exists] (S13); the paths and statistics move with the prototype renderer's passes | S13 (done), S19 |
 | `WorldCommon.h`, `common.glsl` (world uniforms) | uniforms per pass in `saiga_vulkan`, helpers stay | S19 |
-| `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | `RenderScene` instance sets, generic culling and instance shaders | S18, S19 |
+| `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | S18: the generic path in `RenderScene` (instance sets, culling with `tree_cull.comp`'s rule generalized, flat instance shaders) [exists]; S19: the trees as instance sets, `tree.vert` / `foliage.frag` ported onto the instance layout as a transitional pipeline class, `ForestRenderer` and `tree_cull.comp` removed | S18 (done), S19 |
 | `WorldRenderer`, `WorldStatistics.cpp` | passes and statistics in `RenderScene`; settings in the game | S19 |
 | `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid, edits, double camera and region-relative tile data (the shaders are camera relative already) | S20, extended in S22 |
 | `GrassRenderer`, `grass.vert` | region-relative cells, mask from the prototype generator (S20); generated masks (S23); edited masks (S31) | S20 |
@@ -2954,8 +3112,8 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S16 | Replication skeleton (done) | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3) | S12, S15, S13b | all engine scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI) |
 | S16b | Tech demo co-op (done) | The tech demos on the replication (the demo part of S16's row): driver entities, the demos' replication modes, co-op variants (a second plane, character, car of a client), `--coop` with `hostWorld`, `startWorld`, `stepAll`, the join policy hooks and MCP on both worlds, `EngineAppSetup::networkVariants` on for the games (§8.3, §16.2, §18.4) | S16 | the tech demo co-op variants run host + client over loopback (local); the demo scenarios pass the host + client variants or are local-only with a reason (local) |
 | S17 | HDR frame (done) | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
-| S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
-| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S16b, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
+| S18 | Instances and culling (done) | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
+| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (the tree shading `tree.vert` / `foliage.frag` ported onto S18's instance layout as a transitional pipeline class) (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S16b, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |

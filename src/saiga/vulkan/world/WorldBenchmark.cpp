@@ -30,9 +30,11 @@ bool measured(int frame)
     return frame >= firstMeasured && frame <= lastMeasured;
 }
 
+}  // namespace
+
 // The build configuration of saiga: the CMake configuration (SAIGA_BUILD_CONFIG, src/saiga/vulkan/CMakeLists.txt),
 // SAIGA_ASSERTS and whether -march=native is really used (saiga_buildconfig.h, decided by Saiga_compiler_flags.cmake).
-json11::Json buildInfo()
+json11::Json WorldBenchmark::buildInfo()
 {
     std::string type = SAIGA_BUILD_CONFIG;
     if (type.empty())
@@ -56,7 +58,6 @@ json11::Json buildInfo()
 #endif
     return json11::Json::object{{"type", type}, {"asserts", asserts}, {"archnative", archnative}};
 }
-}  // namespace
 
 const std::vector<std::string>& WorldBenchmark::names()
 {

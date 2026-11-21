@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include "saiga/core/math/math.h"
+
+#include <cmath>
 #include <cstdint>
 #include <tuple>
 
@@ -89,5 +92,21 @@ struct InstanceKey
         return std::tie(generatorSlot, counter) < std::tie(o.generatorSlot, o.counter);
     }
 };
+
+// The size of a chunk in meters
+constexpr double chunkSize = 256;
+
+// The origin of the chunk in its space (double, R-MATH-1): (x, 0, z) * 256 m
+inline Vec3 chunkOrigin(const ChunkId& chunk)
+{
+    return Vec3(chunk.x * chunkSize, 0, chunk.z * chunkSize);
+}
+
+// The origin of the region in its space: (x, 0, z) * 256 m * 2^level (x, z in region units of 2^level chunks, §12)
+inline Vec3 regionOrigin(const RegionId& region)
+{
+    const double size = std::ldexp(chunkSize, region.level);
+    return Vec3(region.x * size, 0, region.z * size);
+}
 
 }  // namespace Saiga

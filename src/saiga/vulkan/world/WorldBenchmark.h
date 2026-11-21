@@ -91,12 +91,14 @@ class SAIGA_VULKAN_API WorldBenchmark
      * cpu_work_ms the CPU time of transfer() + render(). gpu_ms is null if no GPU times were measured (no timestamp
      * support).
      * game_world adds step and recording (the engine's step and command recording times) and gpu_frame_ms: {gpu,
-     * transfer, scene, resolve, post, imgui: {median, p95}} (the app's gpu profile: the whole GPU frame and
-     * RenderScene's sections of the measured frames, S17).
+     * transfer, cull, scene, resolve, post, imgui: {median, p95}} (the app's gpu profile: the whole GPU frame and
+     * RenderScene's sections of the measured frames, S17; cull from S18).
      */
     json11::Json result() const;
     // Writes a result (computed once by result()) to the file. Returns false if it could not be written.
     static bool writeResult(const std::string& file, const json11::Json& json);
+    // The build of saiga: {type, asserts, archnative} (also used by sample_vulkan_scene_benchmark)
+    static json11::Json buildInfo();
 
     // The frame that the next world.transfer() prepares is a measured frame (not warm-up).
     bool measuring() const;
