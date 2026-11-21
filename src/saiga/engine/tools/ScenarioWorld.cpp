@@ -524,6 +524,37 @@ void ScenarioWorld::compareTerrain()
     }
 }
 
+bool ScenarioWorld::recordsSynced(std::string* difference)
+{
+    const ChunkRecords& h = w->contentRecords();
+    for (size_t p = 0; p < clientWorlds.size(); ++p)
+    {
+        const World& cw = *clientWorlds[p];
+        std::set<ChunkId> chunks;
+        for (const auto& kv : h.records()) chunks.insert(kv.first);
+        for (const auto& kv : cw.contentRecords().records()) chunks.insert(kv.first);
+        for (const ChunkId& c : chunks)
+        {
+            const ChunkRecord a = w->effectiveRecord(c), b = cw.effectiveRecord(c);
+            if (a == b) continue;
+            if (difference)
+                *difference = "peer " + std::to_string(p + 1) + ", space " + std::to_string(c.space) + " chunk (" +
+                              std::to_string(c.x) + ", " + std::to_string(c.z) + "): placement version " +
+                              std::to_string(b.placementVersion) + " with " + std::to_string(b.tombstones.size()) +
+                              " tombstones, the host's " + std::to_string(a.placementVersion) + " with " +
+                              std::to_string(a.tombstones.size());
+            return false;
+        }
+    }
+    return true;
+}
+
+void ScenarioWorld::compareRecords()
+{
+    std::string difference;
+    if (!recordsSynced(&difference)) check(false, "chunk record replicas differ: " + difference);
+}
+
 double ScenarioWorld::distance(Entity a, Entity b)
 {
     if (!check(w->alive(a) && w->alive(b), "distance: an entity is not alive"))
@@ -705,6 +736,8 @@ void ScenarioWorld::finishNetwork()
             for (auto& c : clientWorlds) synced = synced && c->replication().snapshotSequence() >= needed;
             // S22: and every client has the host's terrain chunk sequences
             synced = synced && terrainSynced();
+            // S23b: and the host's effective chunk records
+            synced = synced && recordsSynced();
         }
     }
     // S23a: a refusal received during the drain fails the variant too (once; PR review: only onStep reported it)
@@ -724,6 +757,7 @@ void ScenarioWorld::finishNetwork()
 void ScenarioWorld::compareReplicas()
 {
     compareTerrain();
+    compareRecords();
     // For every replicated component the authority's value (the host, or the owner for owner-authoritative components
     // of client-owned entities) equals every other peer's copy: within 2 Quantize steps, exact otherwise; Entity
     // fields through NetIds; the derived Transform of a child is not compared (its Parent and LocalTransform are)

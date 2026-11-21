@@ -11,6 +11,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Profiler.h"
@@ -59,7 +60,6 @@ namespace Engine
 class GeneratorList;
 class ContentCache;
 class GenerationPipeline;
-class ChunkRecords;
 
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
@@ -460,9 +460,28 @@ class SAIGA_ENGINE_API World
     bool generationChecked() const { return generationCheckedFlag; }
     // GENR, GenerationState and the generation part of hash(): a non-legacy generator or chunk records (§15.1, S23a)
     bool writesGenerationState() const;
-    // The chunk records (state: the placement version per recorded chunk, the host's stamped chunks)
+    // The chunk records (state: the placement version and the tombstones per recorded chunk, the host's stamped chunks)
     const ChunkRecords& contentRecords() const { return *chunkRecords; }
     ChunkRecords& contentRecordsForUpdate() { return *chunkRecords; }
+    // S23b: the effective record of a chunk (§12.1): its record, else {the space's current placement version, no
+    // tombstones} (equal on host and clients: GenerationState refuses other versions)
+    uint16_t effectivePlacementVersion(const ChunkId& chunk) const;
+    ChunkRecord effectiveRecord(const ChunkId& chunk) const;
+    // S23b: the one notification of every record writer after it changed a record (created, removed, version changed,
+    // keys added or removed): host tombstones and tombstone-on-edit, stamping, the client's record messages and Resync,
+    // a host load's commit. Forwards to the content render sets and the grass masks
+    void onRecordChanged(const ChunkId& chunk);
+    // Engine-internal: the listeners of onRecordChanged (the content render system, the terrain's grass path)
+    int addRecordListener(std::function<void(const ChunkId&)> fn)
+    {
+        recordListeners.push_back({nextListenerId, std::move(fn)});
+        return nextListenerId++;
+    }
+    void removeRecordListener(int id)
+    {
+        for (size_t i = 0; i < recordListeners.size(); ++i)
+            if (recordListeners[i].first == id) recordListeners.erase(recordListeners.begin() + std::ptrdiff_t(i));
+    }
     // The total content hash of a chunk at the current placement version (generated synchronously through the
     // cache; the stamp and static lists come from the plan)
     uint64_t contentHash(ChunkId chunk) const;
@@ -1058,6 +1077,7 @@ class SAIGA_ENGINE_API World
     std::unique_ptr<GenerationPipeline> pipeline;
     WorldSetup generationSetup;
     std::unique_ptr<ChunkRecords> chunkRecords;
+    std::vector<std::pair<int, std::function<void(const ChunkId&)>>> recordListeners;
     bool generationMismatchFlag = false, generationCheckedFlag = false, nonIntegerWarned = false;
     uint64_t setupSeed    = 0;
     double accumulator    = 0;

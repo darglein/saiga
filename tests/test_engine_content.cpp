@@ -2555,3 +2555,137 @@ TEST(GenerationState, LegacyWorldsSendNothing)
     EXPECT_NE(first, std::string::npos) << lines;
     EXPECT_EQ(lines.find(warning, first + 1), std::string::npos) << "logged once";
 }
+
+// ---- chunk records with tombstones (S23b step 2) -------------------------------------------------------------------
+
+namespace
+{
+InstanceKey key(uint32_t slot, uint32_t counter)
+{
+    InstanceKey k;
+    k.generatorSlot = slot;
+    k.counter       = counter;
+    return k;
+}
+
+// The first occurrence of a byte pattern in a blob (npos: none)
+size_t findBytes(const std::vector<uint8_t>& blob, const std::vector<uint8_t>& pattern)
+{
+    auto it = std::search(blob.begin(), blob.end(), pattern.begin(), pattern.end());
+    return it == blob.end() ? std::string::npos : size_t(it - blob.begin());
+}
+
+std::vector<uint8_t> keyBytes(uint8_t slot, uint32_t counter)
+{
+    return {slot, uint8_t(counter), uint8_t(counter >> 8), uint8_t(counter >> 16), uint8_t(counter >> 24)};
+}
+}  // namespace
+
+// CREC format 2 round trip: placement versions and tombstones; world.hash changes with a tombstone and is equal after
+// save / load; diffSaves names the tombstones; the effective record of a chunk without one
+TEST(ChunkRecords, Format2RoundTripHashAndDiff)
+{
+    World a(ContentTest::contentTestSetup(2));
+    EXPECT_EQ(a.effectivePlacementVersion(chunkAt(9, 9)), 2);
+    EXPECT_TRUE(a.effectiveRecord(chunkAt(9, 9)).tombstones.empty());
+    const uint64_t h0 = a.hash();
+    std::vector<ChunkId> notified;
+    a.addRecordListener([&](const ChunkId& c) { notified.push_back(c); });
+    a.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 17), key(1, 3)});
+    a.contentRecordsForUpdate().injectForTests(chunkAt(7, 2), 2, {});
+    a.onRecordChanged(chunkAt(4, 5));
+    EXPECT_EQ(notified.size(), 1u);
+    EXPECT_NE(a.hash(), h0);
+    const uint64_t h1 = a.hash();
+    a.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 18)});
+    EXPECT_NE(a.hash(), h1);
+    EXPECT_EQ(a.effectiveRecord(chunkAt(7, 2)).placementVersion, 2);
+    EXPECT_TRUE(a.effectiveRecord(chunkAt(4, 5)).tombstoned(key(0, 18)));
+
+    const auto blob = a.save();
+    ParsedSave parsed;
+    std::string error;
+    ASSERT_TRUE(parseSave(blob, parsed, error)) << error;
+    ASSERT_TRUE(parsed.chunkRecords);
+    World b(ContentTest::contentTestSetup(2));
+    std::vector<ChunkId> loadNotified;
+    b.addRecordListener([&](const ChunkId& c) { loadNotified.push_back(c); });
+    const LoadResult r = b.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b.contentRecords().records().size(), 2u);
+    EXPECT_EQ(b.effectiveRecord(chunkAt(4, 5)), a.effectiveRecord(chunkAt(4, 5)));
+    EXPECT_EQ(b.effectiveRecord(chunkAt(7, 2)), a.effectiveRecord(chunkAt(7, 2)));
+    EXPECT_EQ(b.hash(), a.hash());
+    EXPECT_EQ(World::diff(a, b), "");
+    // The load notified both recorded chunks
+    EXPECT_EQ(loadNotified, (std::vector<ChunkId>{chunkAt(4, 5), chunkAt(7, 2)}));
+    // A tombstone difference is named
+    World c(ContentTest::contentTestSetup(2));
+    c.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 17)});
+    const std::string d = World::diff(a, c);
+    EXPECT_NE(d.find("record space 0 chunk (4, 5)"), std::string::npos) << d;
+    EXPECT_NE(d.find("tombstones"), std::string::npos) << d;
+}
+
+// Format 1 (S23a's committed save) reads as records without tombstones
+TEST(ChunkRecords, Format1LoadsWithoutTombstones)
+{
+    const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23a.bin";
+    std::ifstream f(path, std::ios::binary);
+    const std::vector<uint8_t> blob((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    ASSERT_FALSE(blob.empty()) << path;
+    World w(ContentTest::contentTestSetup(2));
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    ASSERT_FALSE(w.contentRecords().records().empty());
+    for (const auto& kv : w.contentRecords().records()) EXPECT_TRUE(kv.second.tombstones.empty());
+    // It saves as format 2
+    ParsedSave parsed;
+    std::string error;
+    ASSERT_TRUE(parseSave(w.save(), parsed, error)) << error;
+    EXPECT_TRUE(parsed.chunkRecords);
+}
+
+// Load errors (the world unchanged): unsorted keys, a slot out of range, a counter out of range, tombstones in a space
+// whose generator has no slots
+TEST(ChunkRecords, LoadErrors)
+{
+    World a(ContentTest::contentTestSetup(2));
+    a.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 12345), key(0, 12346)});
+    const auto blob                   = a.save();
+    std::vector<uint8_t> pair         = keyBytes(0, 12345);
+    const std::vector<uint8_t> second = keyBytes(0, 12346);
+    pair.insert(pair.end(), second.begin(), second.end());
+    const size_t at = findBytes(blob, pair);
+    ASSERT_NE(at, std::string::npos);
+    auto expectError = [&](std::vector<uint8_t> bad, const std::string& what)
+    {
+        World w(ContentTest::contentTestSetup(2));
+        const LoadResult r = loadInto(w, bad);
+        EXPECT_FALSE(r.committed) << what;
+        EXPECT_NE(r.error.find(what), std::string::npos) << r.error;
+    };
+    {
+        std::vector<uint8_t> bad = blob;
+        std::copy(second.begin(), second.end(), bad.begin() + std::ptrdiff_t(at));
+        const std::vector<uint8_t> first = keyBytes(0, 12345);
+        std::copy(first.begin(), first.end(), bad.begin() + std::ptrdiff_t(at + 5));
+        expectError(bad, "not sorted and unique");
+    }
+    {
+        std::vector<uint8_t> bad = blob;
+        bad[at + 5]              = 7;
+        expectError(bad, "a tombstone of slot 7");
+    }
+    {
+        std::vector<uint8_t> bad     = blob;
+        const std::vector<uint8_t> k = keyBytes(0, 20000);
+        std::copy(k.begin(), k.end(), bad.begin() + std::ptrdiff_t(at + 5));
+        expectError(bad, "out of range");
+    }
+    {
+        // The dungeon's AuthoredSpaceGenerator has no slots
+        World d(ContentTest::contentTestSetup(2));
+        d.contentRecordsForUpdate().injectForTests(chunkAt(0, 0, 2), 1, {key(0, 1)});
+        expectError(d.save(), "tombstones in a space whose generator has no slots");
+    }
+}

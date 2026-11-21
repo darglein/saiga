@@ -220,12 +220,14 @@ bool parseGenerationSection(BinaryReader& r, uint32_t version, GenerationSection
 bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSection& out, std::string& error)
 {
     out = ChunkRecordSection();
-    if (version != kChunkRecordSectionVersion)
+    if (version != 1 && version != kChunkRecordSectionVersion)
     {
         error = "unknown version " + std::to_string(version);
         return false;
     }
-    uint32_t spaces = 0;
+    // The smallest record: x, z, version, stamped (and the tombstone count from format 2)
+    const uint64_t recordBytes = version >= 2 ? 15 : 11;
+    uint32_t spaces            = 0;
     r.read(spaces);
     if (!r.ok()) return false;
     if (spaces == 0 || spaces > 65535 || uint64_t(spaces) * 6 > r.remaining())
@@ -246,7 +248,7 @@ bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSecti
             error = "the spaces are not ascending";
             return false;
         }
-        if (n == 0 || uint64_t(n) * 11 > r.remaining())
+        if (n == 0 || uint64_t(n) * recordBytes > r.remaining())
         {
             error = "space " + std::to_string(sp.space) + ": the record count " + std::to_string(n) +
                     " is 0 or does not fit";
@@ -268,6 +270,27 @@ bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSecti
                 return false;
             }
             rec.stamped = stamped == 1;
+            if (version >= 2)
+            {
+                uint32_t keys = 0;
+                r.read(keys);
+                if (!r.ok()) break;
+                if (uint64_t(keys) * 5 > r.remaining())
+                {
+                    error = "space " + std::to_string(sp.space) + ": a tombstone count of " + std::to_string(keys) +
+                            " does not fit";
+                    return false;
+                }
+                rec.tombstones.resize(keys);
+                for (InstanceKey& key : rec.tombstones)
+                {
+                    uint8_t slot = 0;
+                    r.read(slot);
+                    r.read(key.counter);
+                    key.generatorSlot = slot;
+                }
+                if (!r.ok()) break;
+            }
             if (k > 0 && !(std::tie(sp.records[k - 1].x, sp.records[k - 1].z) < std::tie(rec.x, rec.z)))
             {
                 error = "space " + std::to_string(sp.space) + ": the chunks are not in ChunkId order";

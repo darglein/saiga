@@ -875,6 +875,25 @@ bool World::writesGenerationState() const
     return pipeline->nonLegacy() || !chunkRecords->empty();
 }
 
+uint16_t World::effectivePlacementVersion(const ChunkId& chunk) const
+{
+    if (const ChunkRecord* r = chunkRecords->find(chunk)) return r->placementVersion;
+    return pipeline->space(chunk.space).current;
+}
+
+ChunkRecord World::effectiveRecord(const ChunkId& chunk) const
+{
+    if (const ChunkRecord* r = chunkRecords->find(chunk)) return *r;
+    ChunkRecord r;
+    r.placementVersion = pipeline->space(chunk.space).current;
+    return r;
+}
+
+void World::onRecordChanged(const ChunkId& chunk)
+{
+    for (const auto& l : recordListeners) l.second(chunk);
+}
+
 uint64_t World::contentHash(ChunkId chunk) const
 {
     SAIGA_ASSERT(chunk.space < spaceCount(), "World::contentHash: unknown space");
@@ -1716,7 +1735,12 @@ uint64_t World::hash() const
         const ChunkRecords& rec = *chunkRecords;
         h.addU32(uint32_t(rec.records().size()));
         for (const auto& [c, r] : rec.records())
+        {
             h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(r.placementVersion).addU8(rec.isStamped(c) ? 1 : 0);
+            // S23b: the tombstones (only inside a record: worlds without records hash as before)
+            h.addU32(uint32_t(r.tombstones.size()));
+            for (const InstanceKey& k : r.tombstones) h.addU32(k.generatorSlot).addU32(k.counter);
+        }
     }
     return h.value();
 }
