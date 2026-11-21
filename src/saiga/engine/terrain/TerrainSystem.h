@@ -37,6 +37,7 @@ class RenderSink;
 class StreamingPool;
 class TerrainStore;
 class TerrainEditStore;
+class TerrainVisualPatch;
 
 // The visual streaming policy (R-MECH-1): EngineAppSetup / game code may change it (TerrainSystem::setViewSettings)
 struct TerrainViewSettings
@@ -92,6 +93,8 @@ class SAIGA_ENGINE_API TerrainSystem
     void terrainChanged(SpaceId space, const SampleRect& box);
     // The visual dirty queue (tests)
     const TerrainDirtyQueue& dirtyQueue() const { return dirty; }
+    // The edited grass masks (tests)
+    const TerrainVisualPatch& visualPatch() const { return *visual; }
 
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
     const TerrainHeightSource& heightSource(SpaceId space) const;
@@ -162,8 +165,10 @@ class SAIGA_ENGINE_API TerrainSystem
         // merge at the send point, the patch step, the mask completions: the frame profile's terrain/visual)
         uint64_t patchedSamples = 0, patchCalls = 0, mergedSends = 0, maskRecomputes = 0, maskResultsDropped = 0;
         uint64_t patchedSamplesLastUpdate = 0;
-        size_t queuedBoxes                = 0;
-        double lastVisualMs               = 0;
+        // Edited masks submitted to the pool by the last update, queued recomputes, in flight
+        int maskJobsLastUpdate = 0, maskQueue = 0, maskJobsInFlight = 0;
+        size_t queuedBoxes  = 0;
+        double lastVisualMs = 0;
     };
     const Stats& stats() const { return statistics; }
     // The lazy StreamingPool exists (a sink alone starts none)
@@ -206,6 +211,22 @@ class SAIGA_ENGINE_API TerrainSystem
     TerrainDirtyQueue dirty;
     // The visual time of the running update (S22)
     double visualMs = 0;
+    // S22: the edited grass masks: the cache, the queued recomputes (insertion order, unique), the jobs in flight, the
+    // GPU set the jobs were submitted for (incremented with every new set) and the current desired mask set
+    std::unique_ptr<TerrainVisualPatch> visual;
+    std::vector<ChunkId> maskQueue;
+    std::set<ChunkId> editedJobs;
+    uint64_t setGeneration = 0;
+    std::set<ChunkId> desiredMasks;
+    // Sent masks of chunks whose deltas returned to zero: the store's base mask replaces the edited one once resident
+    std::set<ChunkId> baseResend;
+    // A chunk's mask is current: the cached edited one (a chunk with deltas) or the store's base one
+    const Vulkan::GrassMaskData* readyMask(const ChunkId& chunk) const;
+    bool editedChunk(const ChunkId& chunk) const;
+    void queueMask(const ChunkId& chunk);
+    // Submits at most limit queued recomputes (< 0: all); returns the submissions
+    int processMaskQueue(int limit);
+    void requestEditedMask(const ChunkId& chunk);
     // S22: the patch step of the view space (budget in samples; < 0: everything); returns the patched samples
     int64_t patchEditedTiles(SpaceId space, int64_t budget);
     // The samples a box patches in the sent tiles / the pyramid (patch: send them)

@@ -71,6 +71,7 @@ TerrainSystem::TerrainSystem(const std::vector<SpaceTemplate>& templates, const 
         s.store    = std::make_unique<TerrainStore>();
         spaces.push_back(std::move(s));
     }
+    visual = std::make_unique<TerrainVisualPatch>();
 }
 
 TerrainSystem::~TerrainSystem()
@@ -433,6 +434,12 @@ void TerrainSystem::issueRequests(SpaceId space, const Desired& d, size_t limit)
     }
     for (const auto& m : d.masks)
     {
+        // S22: a chunk with deltas gets its mask from merged heights (queued, capped per update)
+        if (editedChunk(m.second))
+        {
+            if (!readyMask(m.second)) queueMask(m.second);
+            continue;
+        }
         if (requests.size() >= limit) return;
         if (st.mask(m.second)) continue;
         requestMask(m.second, 100000 + int(m.first));
@@ -459,11 +466,16 @@ void TerrainSystem::evict(SpaceId space, const Desired& d)
             statistics.evicted++;
         }
     }
-    // The masks that left the grass radius
+    // The masks that left the grass radius (S22: the edited ones too)
     std::vector<ChunkId> gone;
     for (const auto& m : st.masks())
         if (!d.maskSet.count(m.first)) gone.push_back(m.first);
     for (const ChunkId& c : gone) st.removeMask(c);
+    for (auto it = visual->masks.begin(); it != visual->masks.end();)
+        if (!d.maskSet.count(it->first))
+            it = visual->masks.erase(it);
+        else
+            ++it;
 }
 
 void TerrainSystem::sendUpdates(SpaceId space, const Desired& d, int limit)
@@ -483,9 +495,10 @@ void TerrainSystem::sendUpdates(SpaceId space, const Desired& d, int limit)
     }
     for (auto it = sentMasks.begin(); it != sentMasks.end();)
     {
-        if (!st.mask(*it))
+        if (!st.mask(*it) && !visual->masks.count(*it))
         {
             sink->removeGrassMask(*it);
+            baseResend.erase(*it);
             it = sentMasks.erase(it);
         }
         else
@@ -506,7 +519,14 @@ void TerrainSystem::sendUpdates(SpaceId space, const Desired& d, int limit)
     }
     statistics.uploadsLastUpdate = sent;
     for (const auto& m : d.masks)
-        if (st.mask(m.second) && !sentMasks.count(m.second)) sendGrassMask(m.second, *st.mask(m.second));
+    {
+        if (sentMasks.count(m.second) && !baseResend.count(m.second)) continue;
+        if (const Vulkan::GrassMaskData* g = readyMask(m.second))
+        {
+            baseResend.erase(m.second);
+            sendGrassMask(m.second, *g);
+        }
+    }
 }
 
 bool TerrainSystem::missing(SpaceId space, const Desired& d) const
@@ -527,9 +547,9 @@ TerrainSystem::MissingCounts TerrainSystem::missingCounts(SpaceId space, const D
     }
     for (const ChunkId& c : d.maskSet)
     {
-        if (!st.mask(c))
+        if (!readyMask(c))
             m.masksNotStored++;
-        else if (sink && !sentMasks.count(c))
+        else if (sink && (!sentMasks.count(c) || baseResend.count(c)))
             m.masksNotSent++;
     }
     return m;
@@ -593,6 +613,106 @@ void TerrainSystem::sendTile(const RegionId& region, const Vulkan::TerrainTileDa
 }
 
 // ---- terrain edits (S22)
+
+bool TerrainSystem::editedChunk(const ChunkId& chunk) const
+{
+    return edits && edits->hasDeltas(chunk);
+}
+
+const Vulkan::GrassMaskData* TerrainSystem::readyMask(const ChunkId& chunk) const
+{
+    if (editedChunk(chunk)) return visual->currentMask(chunk, edits->revision(chunk));
+    return spaces[chunk.space].store->mask(chunk);
+}
+
+void TerrainSystem::queueMask(const ChunkId& chunk)
+{
+    if (std::find(maskQueue.begin(), maskQueue.end(), chunk) == maskQueue.end()) maskQueue.push_back(chunk);
+}
+
+int TerrainSystem::processMaskQueue(int limit)
+{
+    int submitted = 0;
+    size_t i      = 0;
+    for (; i < maskQueue.size(); ++i)
+    {
+        if (limit >= 0 && submitted >= limit) break;
+        const ChunkId c = maskQueue[i];
+        // Not wanted any more: dropped (a new job when it becomes desired again)
+        if (!sink || !setActive || c.space != setSpace || !desiredMasks.count(c)) continue;
+        if (editedChunk(c))
+        {
+            // In flight: its completion re-queues if the revision changed meanwhile
+            if (editedJobs.count(c) || visual->currentMask(c, edits->revision(c))) continue;
+            requestEditedMask(c);
+            if (editedJobs.count(c)) submitted++;
+            continue;
+        }
+        // The deltas returned to zero: the store's base mask replaces the edited one (requested if not resident)
+        visual->masks.erase(c);
+        if (sentMasks.count(c))
+        {
+            if (const Vulkan::GrassMaskData* b = spaces[c.space].store->mask(c))
+                sendGrassMask(c, *b);
+            else
+            {
+                baseResend.insert(c);
+                requestMask(c, 100000);
+            }
+        }
+    }
+    maskQueue.erase(maskQueue.begin(), maskQueue.begin() + std::ptrdiff_t(i));
+    return submitted;
+}
+
+void TerrainSystem::requestEditedMask(const ChunkId& chunk)
+{
+    Space& sp                      = spaces[chunk.space];
+    const RegionId region          = regionOf(chunk.space, 0, chunk.x, chunk.z);
+    const TerrainStore::Tile* tile = sp.store->tile(region);
+    // Not resident: issueRequests queues it again when it is
+    if (!tile) return;
+    ensurePool();
+    // A copy of the merged level-0 heights (main thread: one add per sample)
+    Vulkan::TerrainTileData merged = tile->data;
+    {
+        VisualTimer t(visualMs);
+        TerrainVisualPatch::mergeTile(*edits, region, layout(chunk.space), tile->data, merged);
+    }
+    auto result                      = std::make_shared<Vulkan::GrassMaskData>();
+    const Vulkan::TerrainLayout lay  = layout(chunk.space);
+    const std::optional<int32_t> sea = sp.settings.seaLevel;
+    const double minNormalY = view.grassMinNormalY, minAboveSea = view.grassMinAboveSea;
+    const uint64_t revision = edits->revision(chunk), generation = setGeneration, thresholds = maskGeneration;
+    editedJobs.insert(chunk);
+    jobsSubmitted++;
+    pool->submit(
+        namedJob("edited grass mask space " + std::to_string(chunk.space) + " chunk (" + std::to_string(chunk.x) +
+                     ", " + std::to_string(chunk.z) + ")",
+                 [result, merged, lay, sea, minNormalY, minAboveSea]()
+                 { *result = generateGrassMask(merged, lay, sea, minNormalY, minAboveSea); }),
+        100000,
+        [this, chunk, result, revision, generation, thresholds](bool cancelled)
+        {
+            editedJobs.erase(chunk);
+            // Another GPU set, other thresholds, or the chunk left the desired set: discarded, no re-queue
+            if (cancelled || generation != setGeneration || thresholds != maskGeneration || !desiredMasks.count(chunk))
+                return;
+            VisualTimer t(visualMs);
+            if (!edits || edits->revision(chunk) != revision)
+            {
+                // The terrain changed meanwhile: dropped and recomputed
+                statistics.maskResultsDropped++;
+                queueMask(chunk);
+                return;
+            }
+            visual->masks[chunk] = TerrainVisualPatch::EditedMask{std::move(*result), revision};
+            statistics.maskRecomputes++;
+            // A sent mask is replaced at once; a new one is sent by sendUpdates (after its removals)
+            if (sink && setActive && setSpace == chunk.space && sentMasks.count(chunk))
+                sendGrassMask(chunk, visual->masks[chunk].mask);
+        });
+}
 
 void TerrainSystem::terrainChanged(SpaceId space, const SampleRect& box)
 {
@@ -665,6 +785,15 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
     int64_t used = 0;
     // Drains one list in insertion order; a box over the remaining budget is split by rows (the first rows now, the
     // rest stays at the front); at least one row per frame
+    // The sent masks of the level-0 chunks a patched box touches are recomputed
+    auto queueMasks = [&](const SampleRect& b)
+    {
+        const int64_t S = 256 / spaces[space].settings.baseSpacing;
+        for (const ChunkId& c : sentMasks)
+            if (c.space == space && int64_t(c.x) * S <= b.i1 && int64_t(c.x) * S + S >= b.i0 &&
+                int64_t(c.z) * S <= b.k1 && int64_t(c.z) * S + S >= b.k0)
+                queueMask(c);
+    };
     auto drain = [&](std::vector<SampleRect>& list, bool tiles)
     {
         auto cost = [&](const SampleRect& b)
@@ -678,6 +807,7 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
             if (c <= remaining)
             {
                 used += tiles ? patchTileBox(space, box, true) : patchPyramidBox(space, box, true);
+                if (tiles) queueMasks(box);
                 list.erase(list.begin());
                 continue;
             }
@@ -701,6 +831,7 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
             SampleRect head = box;
             head.k1         = box.k0 + lo - 1;
             used += tiles ? patchTileBox(space, head, true) : patchPyramidBox(space, head, true);
+            if (tiles) queueMasks(head);
             list.front().k0 = box.k0 + lo;
             return false;
         }
@@ -714,6 +845,20 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
 
 void TerrainSystem::sendGrassMask(const ChunkId& chunk, const Vulkan::GrassMaskData& mask)
 {
+    // S22: a chunk with deltas gets its cached edited mask while its revision is current; else nothing yet (never the
+    // base grass on a crater wall) and a recompute
+    if (editedChunk(chunk))
+    {
+        const Vulkan::GrassMaskData* edited = visual->currentMask(chunk, edits->revision(chunk));
+        if (!edited)
+        {
+            queueMask(chunk);
+            return;
+        }
+        sink->setGrassMask(chunk, *edited);
+        sentMasks.insert(chunk);
+        return;
+    }
     sink->setGrassMask(chunk, mask);
     sentMasks.insert(chunk);
 }
@@ -724,8 +869,11 @@ void TerrainSystem::beginView(SpaceId space)
     const bool terrain = spaces[space].settings.hasTerrain();
     if (viewSpaceValid && viewSpace != space)
     {
-        // S22: the tile boxes belong to the old view space
+        // S22: the tile boxes belong to the old view space, the edited masks to its GPU set
         dirty.clearTileBoxes();
+        visual->masks.clear();
+        maskQueue.clear();
+        baseResend.clear();
         // The old space's streamed CPU tiles and masks go (its pyramid stays cached) and its requests are cancelled
         spaces[viewSpace].store->dropStreamed();
         if (pool)
@@ -757,6 +905,7 @@ void TerrainSystem::beginView(SpaceId space)
     // new set's tiles are sent merged, S22). Without a cached pyramid the old set is cleared now (else it stayed in the
     // sink, e.g. through a later switch to a flat space)
     dirty.clearTileBoxes();
+    setGeneration++;
     const bool hadSet = setActive;
     setActive         = false;
     sentTiles.clear();
@@ -797,13 +946,15 @@ void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
     }
     if (!setActive) sendPyramid(space, *sp.store->pyramid());
     const Desired d = computeDesired(space, camera);
+    desiredMasks    = d.maskSet;
     markDesired(space, d);
     cancelUndesired(space, d);
     issueRequests(space, d, size_t(std::max(1, view.maxInFlight)));
     evict(space, d);
     sendUpdates(space, d, std::max(0, view.uploadsPerFrame));
-    // S22: the changed boxes of terrain edits, within the per-frame budget
+    // S22: the changed boxes of terrain edits, within the per-frame budget; then the edited masks, capped
     patchEditedTiles(space, std::max<int64_t>(0, view.editSamplesPerFrame));
+    statistics.maskJobsLastUpdate = processMaskQueue(std::max(0, view.editMasksPerFrame));
     updateStats(space, &d);
 }
 
@@ -854,30 +1005,36 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     }
     if (sink && !setActive) sendPyramid(space, *sp.store->pyramid());
     const Desired d = computeDesired(space, camera);
+    desiredMasks    = d.maskSet;
     markDesired(space, d);
     cancelUndesired(space, d);
-    int before = missingCounts(space, d).total();
+    statistics.maskJobsLastUpdate = 0;
+    int before                    = missingCounts(space, d).total();
     for (;;)
     {
         const uint64_t submitted = jobsSubmitted;
         // (b) every missing desired tile
         issueRequests(space, d, std::numeric_limits<size_t>::max());
+        statistics.maskJobsLastUpdate += processMaskQueue(-1);
         runUntil(deadline);
         drainPool();
-        // (c) the masks whose level-0 tile is now stored
+        // (c) the masks whose level-0 tile is now stored (S22: and the edited masks, waited for)
         issueRequests(space, d, std::numeric_limits<size_t>::max());
+        statistics.maskJobsLastUpdate += processMaskQueue(-1);
         runUntil(deadline);
         drainPool();
-        // (d) eviction and every send, then every changed box of terrain edits (S22: no budget)
+        // (d) eviction and every send, then every changed box of terrain edits (S22: no budget) and their masks
         evict(space, d);
         sendUpdates(space, d, -1);
         patchEditedTiles(space, -1);
+        statistics.maskJobsLastUpdate += processMaskQueue(-1);
         const MissingCounts m = missingCounts(space, d);
         if (m.total() == 0) return finish(true, &d);
         if (nowSeconds() >= deadline) return finish(false, &d);
         // Nothing arrived, no job was submitted (a dropped result is requested again) and nothing is queued or running:
         // no later iteration can progress either
-        if (m.total() >= before && requests.empty() && jobsSubmitted == submitted)
+        if (m.total() >= before && requests.empty() && editedJobs.empty() && maskQueue.empty() &&
+            jobsSubmitted == submitted)
         {
             SAIGA_LOG("terrain",
                       "completeView: space %u cannot complete (tiles not stored %d, not sent %d; masks not stored %d, "
@@ -929,6 +1086,9 @@ void TerrainSystem::setViewSettings(const TerrainViewSettings& settings)
         // Every mask is dropped and regenerated (older results are dropped by their generation)
         maskGeneration++;
         for (Space& s : spaces) s.store->dropMasks();
+        visual->masks.clear();
+        maskQueue.clear();
+        baseResend.clear();
         if (sink)
             for (const ChunkId& c : sentMasks) sink->removeGrassMask(c);
         sentMasks.clear();
@@ -962,6 +1122,9 @@ void TerrainSystem::setSink(RenderSink* s)
     setActive = false;
     // S22: a new sink receives merged data; without a sink nothing is queued
     dirty.clear();
+    maskQueue.clear();
+    baseResend.clear();
+    setGeneration++;
     sentTiles.clear();
     sentMasks.clear();
     if (!sink || !viewSpaceValid || !spaces[viewSpace].settings.hasTerrain()) return;
@@ -975,7 +1138,13 @@ void TerrainSystem::setSink(RenderSink* s)
         for (const auto& t : d.tiles[size_t(k)])
             if (const TerrainStore::Tile* tile = st.tile(t.second)) sendTile(t.second, tile->data);
     for (const auto& m : d.masks)
-        if (const Vulkan::GrassMaskData* mask = st.mask(m.second)) sendGrassMask(m.second, *mask);
+    {
+        if (const Vulkan::GrassMaskData* mask = st.mask(m.second))
+            sendGrassMask(m.second, *mask);
+        else if (auto it = visual->masks.find(m.second); it != visual->masks.end())
+            // The edited mask of a chunk without a base mask (S22)
+            sendGrassMask(m.second, it->second.mask);
+    }
 }
 
 void TerrainSystem::updateStats(SpaceId space, const Desired* d)
@@ -999,13 +1168,15 @@ void TerrainSystem::updateStats(SpaceId space, const Desired* d)
         s.masksDesired   = int(d->masks.size());
         s.masksTruncated = d->masksTruncated;
     }
-    s.masksResident = int(st.masks().size());
-    s.masksSent     = int(sentMasks.size());
-    s.pending       = int(requests.size());
-    s.viewSpace     = space;
-    s.queuedBoxes   = dirty.size();
-    s.lastVisualMs  = visualMs;
-    size_t bytes    = 0;
+    s.masksResident    = int(st.masks().size());
+    s.masksSent        = int(sentMasks.size());
+    s.pending          = int(requests.size());
+    s.viewSpace        = space;
+    s.queuedBoxes      = dirty.size();
+    s.lastVisualMs     = visualMs;
+    s.maskQueue        = int(maskQueue.size());
+    s.maskJobsInFlight = int(editedJobs.size());
+    size_t bytes       = 0;
     for (const Space& sp : spaces) bytes += sp.store->cpuBytes();
     // The results in flight (at most one per request; their size by kind)
     for (const auto& [key, id] : requests)

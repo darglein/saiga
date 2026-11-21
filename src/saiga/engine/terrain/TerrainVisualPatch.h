@@ -19,6 +19,7 @@
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 
 #include <cstdint>
+#include <map>
 #include <vector>
 
 namespace Saiga
@@ -43,6 +44,21 @@ class SAIGA_ENGINE_API TerrainVisualPatch
     // with the row stride baseStride; out = clampTerrainHeight(base + delta)
     static void mergedHeights(const TerrainEditStore& edits, SpaceId space, int64_t i0, int64_t k0, int64_t step, int w,
                               int h, const int32_t* base, size_t baseStride, int32_t* out);
+
+    // ---- the edited grass masks (E3, F1): computed from merged level-0 heights on the streaming pool, valid while
+    // the chunk's terrain revision is the one they were computed for (TerrainSystem keeps them current)
+    struct EditedMask
+    {
+        Vulkan::GrassMaskData mask;
+        uint64_t revision = 0;
+    };
+    // The cached mask of a chunk whose revision is current, null otherwise
+    const Vulkan::GrassMaskData* currentMask(const ChunkId& chunk, uint64_t revision) const
+    {
+        auto it = masks.find(chunk);
+        return it != masks.end() && it->second.revision == revision ? &it->second.mask : nullptr;
+    }
+    std::map<ChunkId, EditedMask> masks;
 };
 
 }  // namespace Engine

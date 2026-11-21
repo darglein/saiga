@@ -165,6 +165,49 @@ TEST_F(TerrainRenderTest, PatchBelowNodeMinimum)
     EXPECT_NEAR(v.y(), double(bottom) * kHeightUnit, 1e-6 * d + 1e-4);
 }
 
+// S22: the golden of a terraformed crater: a crater applied before the first completeView (the merge path) and a ring
+// of mounds applied after it (the patch path, the edited grass masks); 512 x 512 on lavapipe
+TEST_F(TerrainRenderTest, EditCraterGolden)
+{
+    Create(512, 512, 4);
+    scene->setPrototypeEnvironment(Vulkan::PrototypeSettings(), 1);
+    MakeWorld(terraformTestTemplate(2));
+    auto edit = [&](TerrainBrush::Op op, double x, double z, double radius, double strength)
+    {
+        TerrainBrush b;
+        b.op       = op;
+        b.center   = Vec3(x, 0, z);
+        b.radius   = radius;
+        b.strength = strength;
+        applyTerrainEdit(*world, 0, b);
+    };
+    const Vec3 c(300, 0, 300);
+    edit(TerrainBrush::Subtract, c.x(), c.z(), 20, 6);
+    const double ground = world->terrainHeight(0, c.x() - 60, c.z() - 60);
+    const Vec3 eye(c.x() - 45, ground + 22, c.z() - 45);
+    const Quat rot    = lookRotation(Vec3(c.x(), ground - 4, c.z()) - eye);
+    const double fovy = 60.0 * M_PI / 180;
+    CaptureView(eye, rot, fovy);
+    // The ring: 8 mounds of 2 m on a 24 m circle (integer offsets)
+    const int ring[8][2] = {{24, 0}, {17, 17}, {0, 24}, {-17, 17}, {-24, 0}, {-17, -17}, {0, -24}, {17, -17}};
+    for (const auto& r : ring) edit(TerrainBrush::Add, c.x() + r[0], c.z() + r[1], 6, 2);
+    for (int i = 0; i < 200; ++i)
+    {
+        world->terrain().updateView(0, eye);
+        Capture(1);
+        const TerrainSystem::Stats& s = world->terrain().stats();
+        if (world->terrain().dirtyQueue().size() == 0 && s.maskQueue == 0 && s.maskJobsInFlight == 0 &&
+            world->terrain().terrainUploadsPending() == 0)
+            break;
+    }
+    EXPECT_EQ(world->terrain().dirtyQueue().size(), 0u);
+    EXPECT_EQ(world->terrain().stats().maskJobsInFlight, 0);
+    EXPECT_GT(world->terrain().stats().maskRecomputes, 0u);
+    SetCamera(0, eye, rot, fovy);
+    const auto img = Capture(3);
+    compareGolden(img, "terrain_edit_crater", deviceName());
+}
+
 // §22 acceptance (S20, A11): the 32 km space with a hook periodic in 4096 m (so in 28 672 m) and grass masks; two
 // compositions (terrain + water looking 35 degrees down from 150 m; grass 30 degrees down from 2 m), each at pose A and
 // at A + (28 672, 0, 28 672): the image pairs pass the golden metrics against each other

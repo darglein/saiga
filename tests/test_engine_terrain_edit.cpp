@@ -23,8 +23,10 @@
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainGeneration.h"
 #include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
+#include "saiga/engine/terrain/TerrainVisualPatch.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/World.h"
@@ -1696,4 +1698,208 @@ TEST(TerrainEditVisual, HostLoadRepatchesTheEditedChunks)
     EXPECT_EQ(w.terrain().stats().evicted, evicted);
     expectSinkMerged(w, sink);
     w.setRenderSink(nullptr);
+}
+
+// ---- the edited grass masks (step 9)
+
+namespace
+{
+RegionId level0(int32_t x, int32_t z)
+{
+    RegionId r;
+    r.level = 0;
+    r.x     = x;
+    r.z     = z;
+    return r;
+}
+// The mask of the merged level-0 heights (the default thresholds, no sea level)
+std::vector<uint8_t> expectedMask(const World& w, const ChunkId& c)
+{
+    TerrainTileData t;
+    auto h                       = std::make_shared<std::vector<int32_t>>(expectedTile(w, level0(c.x, c.z)));
+    t.heights                    = h;
+    t.minHeight                  = *std::min_element(h->begin(), h->end());
+    t.maxHeight                  = *std::max_element(h->begin(), h->end());
+    const TerrainViewSettings& v = w.terrain().viewSettings();
+    return *generateGrassMask(t, w.terrain().layout(c.space), w.spaceTemplate(c.space).seaLevel, v.grassMinNormalY,
+                              v.grassMinAboveSea)
+                .density;
+}
+// updateView until the edits' visual work is done (patches, mask jobs, requests)
+void settle(World& w, const Vec3& camera)
+{
+    for (int i = 0; i < 5000; ++i)
+    {
+        w.terrain().updateView(0, camera);
+        const TerrainSystem::Stats& s = w.terrain().stats();
+        if (s.maskJobsInFlight == 0 && s.maskQueue == 0 && s.pending == 0 && w.terrain().dirtyQueue().size() == 0)
+            return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ADD_FAILURE() << "the terrain did not settle";
+}
+}  // namespace
+
+TEST(TerrainEditGrass, EditedMasksFromMergedHeights)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    const ChunkId c = chunk(1, 1);
+    ASSERT_TRUE(sink.grassMasks().count(c));
+    const std::vector<uint8_t> base = *sink.grassMasks().at(c).density;
+    // A steep crater on the chunk corner: four edited chunks, at most editMasksPerFrame submissions per frame
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 256, 256, 10, 8));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 300, 300, 8, 6));
+    int maxJobs = 0;
+    for (int i = 0; i < 5000; ++i)
+    {
+        w.terrain().updateView(0, kCamera);
+        maxJobs                       = std::max(maxJobs, w.terrain().stats().maskJobsLastUpdate);
+        const TerrainSystem::Stats& s = w.terrain().stats();
+        if (s.maskJobsInFlight == 0 && s.maskQueue == 0 && w.terrain().dirtyQueue().size() == 0) break;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    EXPECT_GE(maxJobs, 1);
+    EXPECT_LE(maxJobs, 2);
+    EXPECT_GE(w.terrain().stats().maskRecomputes, 4u);
+    for (const ChunkId& e : {chunk(0, 0), chunk(1, 0), chunk(0, 1), chunk(1, 1)})
+    {
+        ASSERT_TRUE(sink.grassMasks().count(e));
+        EXPECT_EQ(*sink.grassMasks().at(e).density, expectedMask(w, e)) << e.x << ", " << e.z;
+        EXPECT_TRUE(w.terrain().visualPatch().masks.count(e));
+    }
+    // The crater wall lost grass
+    const std::vector<uint8_t>& now = *sink.grassMasks().at(c).density;
+    int lost                        = 0;
+    for (size_t i = 0; i < now.size(); ++i) lost += (base[i] > 0 && now[i] == 0) ? 1 : 0;
+    EXPECT_GT(lost, 10);
+    // The store keeps base masks only
+    EXPECT_EQ(*w.terrain().store(0).mask(c)->density, base);
+    // A new sink receives the cached edited masks
+    w.setRenderSink(nullptr);
+    RecordingRenderSink b;
+    w.setRenderSink(&b);
+    ASSERT_TRUE(b.grassMasks().count(c));
+    EXPECT_EQ(*b.grassMasks().at(c).density, now);
+    // ... and after another edit (stale cache) nothing for that chunk until its job completed: never the base mask
+    w.setRenderSink(nullptr);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 330, 330, 5, 3));
+    RecordingRenderSink d;
+    w.setRenderSink(&d);
+    EXPECT_FALSE(d.grassMasks().count(c));
+    // completeView waits for the mask jobs
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    ASSERT_TRUE(d.grassMasks().count(c));
+    EXPECT_EQ(*d.grassMasks().at(c).density, expectedMask(w, c));
+    w.setRenderSink(nullptr);
+}
+
+TEST(TerrainEditGrass, ReturnToZeroSendsTheBaseMask)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    const ChunkId c                 = chunk(1, 1);
+    const std::vector<uint8_t> base = *sink.grassMasks().at(c).density;
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 300, 300, 8, 6));
+    settle(w, kCamera);
+    EXPECT_NE(*sink.grassMasks().at(c).density, base);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 8, 6));
+    EXPECT_FALSE(w.terrainEdits().hasDeltas(c));
+    settle(w, kCamera);
+    EXPECT_FALSE(w.terrain().visualPatch().masks.count(c));
+    EXPECT_EQ(*sink.grassMasks().at(c).density, base);
+    w.setRenderSink(nullptr);
+}
+
+namespace
+{
+// A world on the gated hook with one pool worker: armed, the worker blocks in the first hook call of a tile job, so
+// a mask job submitted after it waits in the queue
+struct GatedGrass
+{
+    std::unique_ptr<World> w;
+    RecordingRenderSink sink;
+    GatedGrass()
+    {
+        WorldSetup s                               = editSetup(2);
+        s.config.spaceTemplates[0].prototypeHeight = latchedHook;
+        w                                          = std::make_unique<World>(s);
+        TerrainViewSettings v                      = w->terrain().viewSettings();
+        v.workers                                  = 1;
+        w->terrain().setViewSettings(v);
+        w->setRenderSink(&sink);
+        EXPECT_TRUE(w->terrain().completeView(0, kCamera));
+        // Block the worker: more tiles wanted
+        armLatch();
+        v.residencyRange0 = 1000;
+        w->terrain().setViewSettings(v);
+        w->terrain().updateView(0, kCamera);
+        for (int i = 0; i < 2000 && latchState().callsBlocked == 0; ++i)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        EXPECT_GT(latchState().callsBlocked.load(), 0);
+    }
+    ~GatedGrass()
+    {
+        openLatch();
+        w->setRenderSink(nullptr);
+        w.reset();
+    }
+    // An edit of chunk (1, 1) and the update that submits its mask job (waiting behind the blocked tile job)
+    void submit()
+    {
+        applyTerrainEdit(*w, 0, brush(TerrainBrush::Subtract, 300, 300, 8, 6));
+        for (int i = 0; i < 4 && !jobFor(chunk(1, 1)); ++i) w->terrain().updateView(0, kCamera);
+        EXPECT_TRUE(jobFor(chunk(1, 1)));
+    }
+    bool jobFor(const ChunkId&) const { return w->terrain().stats().maskJobsInFlight > 0; }
+};
+}  // namespace
+
+TEST(TerrainEditGrass, ASecondEditDropsTheFirstResult)
+{
+    GatedGrass g;
+    g.submit();
+    const uint64_t dropped = g.w->terrain().stats().maskResultsDropped;
+    applyTerrainEdit(*g.w, 0, brush(TerrainBrush::Add, 304, 300, 4, 2));
+    openLatch();
+    settle(*g.w, kCamera);
+    EXPECT_GT(g.w->terrain().stats().maskResultsDropped, dropped);
+    EXPECT_EQ(*g.sink.grassMasks().at(chunk(1, 1)).density, expectedMask(*g.w, chunk(1, 1)));
+}
+
+TEST(TerrainEditGrass, ABumpedSequenceKeepsTheResult)
+{
+    // F1: the masks key on the terrain revision, not on the sequence (S23b's tombstones bump it)
+    GatedGrass g;
+    g.submit();
+    const uint64_t dropped = g.w->terrain().stats().maskResultsDropped;
+    const uint64_t done    = g.w->terrain().stats().maskRecomputes;
+    g.w->terrainEditsForUpdate().bumpSequence(chunk(1, 1));
+    openLatch();
+    settle(*g.w, kCamera);
+    EXPECT_EQ(g.w->terrain().stats().maskResultsDropped, dropped);
+    EXPECT_GT(g.w->terrain().stats().maskRecomputes, done);
+    EXPECT_EQ(*g.sink.grassMasks().at(chunk(1, 1)).density, expectedMask(*g.w, chunk(1, 1)));
+}
+
+TEST(TerrainEditGrass, AResultForAChunkThatLeftIsDiscarded)
+{
+    GatedGrass g;
+    g.submit();
+    const uint64_t dropped = g.w->terrain().stats().maskResultsDropped;
+    const uint64_t done    = g.w->terrain().stats().maskRecomputes;
+    // The camera moves away: chunk (1, 1) leaves the grass radius
+    const Vec3 far(2000, 60, 2000);
+    g.w->terrain().updateView(0, far);
+    openLatch();
+    settle(*g.w, far);
+    EXPECT_EQ(g.w->terrain().stats().maskResultsDropped, dropped);
+    EXPECT_EQ(g.w->terrain().stats().maskRecomputes, done);
+    EXPECT_FALSE(g.w->terrain().visualPatch().masks.count(chunk(1, 1)));
+    EXPECT_FALSE(g.sink.grassMasks().count(chunk(1, 1)));
+    EXPECT_EQ(g.w->terrain().stats().maskQueue, 0);
 }
