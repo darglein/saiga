@@ -1491,3 +1491,44 @@ Deviations from the plan, each the smallest sound fix:
 - `FramesStepsScreenshotsAndProfiles`: the profile has the scope `frame/render/terrain_stream`; the identity is work
   + wait + stream == frame.
 - `TerrainAtlas`'s minimum-capacity assertion uses the 16-byte aligned formula of `memoryEstimate`.
+
+### Implementation review (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack)
+
+Round 1 (6 findings on S20, all fixed in `S20 review fixes` and the two commits after it):
+
+- Saw-tooth skirts at steep terrain (1, major): the CDLOD invariant broke at relief (3D distance in the shader and the
+  selection, the skirt-lowered box in the distance, flat-shaded skirts lit as walls). Fixed: the relief-independent
+  LOD distance `sqrt(dxz^2 + hc^2)` (hc the per-frame camera height above the surface, `TerrainFrame` lod.z) in the
+  selection and the shader, the skirt-lowered box only for the frustum test, minR0 also bounds
+  `1.5 * sqrt(2) * leaf / morphStart`, skirt fragments shade with the edge vertex's normal;
+  `NoGapAtLevelBordersOfACliff`; `world_overview` regenerated (65 nodes).
+- `completeView` spun until its deadline without progress (2): returns false at once (logged) when an iteration
+  brought nothing, submitted no job and nothing is in flight.
+- `setSink` sent the whole store ignoring a lowered budget (3): sends the last view camera's desired set.
+- Non-finite cameras reached integer conversions (4): refused; xz clamped before conversions (TerrainPass, GrassPass,
+  TerrainSystem).
+- `TerrainAtlas` hard-coded two frames in flight (5): `static_assert` on `VulkanRenderer::framesInFlight`.
+- `addNode`'s unused `size` (6): removed.
+
+Round 2 (S20 part, fixed in `S20 implementation review round 2`):
+
+- `M_PI` in the terrain tests (1, blocker for MSVC; the two other files compiled only through `imgui_orient.h`'s
+  inexact float `M_PI`): `kPi` in `terrain_test_hooks.h`. A scan of the whole stack for other non-standard constructs
+  (`M_*` constants, `__builtin_*`, VLAs, `long` as 64 bits, designated initializers, missing standard includes) found
+  nothing else.
+- Residency and drawing used different distances (2): `computeDesired` uses the pass's LOD distance with
+  hc = |camera.y - height(camera.xz)|; the per-tile pyramid heights are gone; `desiredTestTiles` follows;
+  `DesiredSetUsesTheLodDistanceAtACliff` (a plateau 500 m above the camera 304 m away: box distance 530 m, now
+  desired). Benchmarks unchanged (flyover terrain + water 0.189 / 0.191 ms, `cpu_ms` 3.63 / 3.81; forest 0.114 ms,
+  2.20 / 2.19).
+- A huge finite camera height overflowed the int64 conversion (3): clamped in double first.
+- `terrainHeight` with a NaN coordinate (4): returns 0 (`NonFiniteCoordinates`).
+- `morphStart` clamped only for minR0 (5): clamped to [0.05, 0.95] once, for minR0 and the shader.
+- Regression tests for round 1 (6): `CompleteViewWithoutProgressReturnsAtOnce` (with `holdRequestsForTests`),
+  `NewSinkAfterALowerBudget`, `NonFiniteCameraRequestsNothing`, `VulkanTerrain.NonFiniteAndHugeCameras`.
+- Test races (7): `sleepAtOrigin` atomic; `ScopedLatch` opens the latch when an assertion returns early.
+- `TerrainAtlas` stats summed over the per-frame arrays (8).
+- Docs (9): §12.2 and this plan describe the LOD distance and that residency uses it.
+- Flaky wall-clock bounds (F): `CompleteViewTimeout` (< 2 s, the blocked worker awaited with a deadline),
+  `ScreenshotTerrainDeadline` (< 3 s: the tool's own answer is the check), `StreamTimePausesTheClock` (at most 3 steps,
+  longest interval < 100 ms).
