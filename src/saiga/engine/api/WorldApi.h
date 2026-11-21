@@ -172,6 +172,10 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult removeComponent(const json11::Json& a);
     ApiResult setTransform(const json11::Json& a);
     ApiResult moveToSpace(const json11::Json& a);
+    // S22: edit_terrain (between steps, host only), terrain_height, terrain_edits
+    ApiResult editTerrain(const json11::Json& a);
+    ApiResult terrainHeight(const json11::Json& a);
+    ApiResult terrainEdits(const json11::Json& a);
     ApiResult spawn(const json11::Json& a);
     ApiResult destroy(const json11::Json& a);
     ApiResult getGlobal(const json11::Json& a);

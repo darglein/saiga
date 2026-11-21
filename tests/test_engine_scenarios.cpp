@@ -848,8 +848,12 @@ void registerTerraformScenarios(ScenarioList& s)
               state.remaining = 5;
               w.spawn<Terraformer>(Vec3(1000, 0, 1000), state);
               w.step(10);
-              // Step 20: a 2 m pit with radius 12 m on the chunk corner (256, 256) (immediate)
-              w.editTerrain(terrainBrush(TerrainBrush::Subtract, 256, 256, 12, 2));
+              // Step 20: a 2 m pit with radius 12 m on the chunk corner (256, 256) through the world API (immediate)
+              const ApiResult pit = w.call(
+                  "edit_terrain",
+                  Json::object{
+                      {"op", "subtract"}, {"center", Json::array{256, 0, 256}}, {"radius", 12}, {"strength", 2}});
+              w.check(pit.ok && pit.value["chunks"].array_items().size() == 4, "edit_terrain: " + pit.error);
               w.step(10);
               // Step 30: flatten (2000, 600) to its base + 3 m; checked right after the immediate edit
               const int32_t base = w.world().terrain().sample(0, 2000, 600);

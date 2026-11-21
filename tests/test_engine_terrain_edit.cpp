@@ -8,8 +8,10 @@
 // the modification state, World::editTerrain, its events, saves and the visual path on the recording sink.
 
 #include "saiga/core/math/TerrainSurface.h"
+#include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/core/LogRing.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/net/Varint.h"
@@ -22,6 +24,7 @@
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
+#include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/World.h"
 
@@ -33,10 +36,12 @@
 #include <functional>
 #include <limits>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 #include <zstd.h>
 
+#include "mcp_test_helper.h"
 #include "terrain_test_hooks.h"
 
 using namespace Saiga;
@@ -1330,4 +1335,134 @@ TEST_F(TerrainEditWorld, HostLoadClearsTheListsAndEmitsNothing)
     EXPECT_EQ(pendingEvents(b), 1u);  // the saved one, nothing added by the load
     EXPECT_EQ(b.hash(), a.hash());
     EXPECT_EQ(b.terrainEdits().sequence(chunk(0, 0)), 0u);
+}
+
+// ---- world API and MCP tools (step 7)
+
+namespace
+{
+using Json = json11::Json;
+Json callTool(McpServer& server, const std::string& name, const Json& args)
+{
+    return server.handleMessage(McpRequest("tools/call", Json::object{{"name", name}, {"arguments", args}}));
+}
+Json toolJson(const Json& response)
+{
+    std::string err;
+    return Json::parse(response["result"]["content"][0]["text"].string_value(), err);
+}
+std::string toolError(const Json& response)
+{
+    return response["result"]["content"][0]["text"].string_value();
+}
+}  // namespace
+
+TEST_F(TerrainEditWorld, ToolsThroughHandleMessage)
+{
+    WorldSetup s = hookedSetup(1);
+    s.config.spaceTemplates.push_back(SpaceTemplate::enclosed("cellar"));
+    World w(s);
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    // edit_terrain on a chunk corner: four parts with chunk-local boxes, the box in metres
+    Json r =
+        callTool(server, "edit_terrain",
+                 Json::object{{"op", "add"}, {"center", Json::array{256, 0, 256}}, {"radius", 8}, {"strength", 1}});
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    Json e = toolJson(r);
+    EXPECT_GT(e["changed_samples"].number_value(), 100);
+    ASSERT_EQ(e["chunks"].array_items().size(), 4u);
+    EXPECT_EQ(e["chunks"][0]["chunk"], Json(Json::array{0, 0}));
+    EXPECT_EQ(e["chunks"][0]["sequence"].number_value(), 1);
+    EXPECT_EQ(e["chunks"][0]["box"], Json(Json::array{249, 249, 8, 8}));
+    EXPECT_EQ(e["chunks"][3]["box"], Json(Json::array{0, 0, 8, 8}));
+    EXPECT_EQ(e["box"], Json(Json::array{249, 249, 263, 263}));
+    // Logged under api
+    bool logged = false;
+    for (const LogRing::Line& l : engineLog().since(0))
+        logged = logged || (l.category == "api" && l.message.find("edit_terrain") != std::string::npos);
+    EXPECT_TRUE(logged);
+    // Nothing changed: empty chunks
+    r = callTool(server, "edit_terrain",
+                 Json::object{{"op", "smooth"}, {"center", Json::array{3000, 3000}}, {"radius", 4}, {"strength", 1}});
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    EXPECT_EQ(toolJson(r)["changed_samples"].number_value(), 0);
+    EXPECT_TRUE(toolJson(r)["chunks"].array_items().empty());
+    // terrain_height: the exact value and the edited flag
+    Json h = toolJson(callTool(server, "terrain_height", Json::object{{"x", 256}, {"z", 256}}));
+    EXPECT_EQ(h["height"].number_value(), w.terrainHeight(0, 256, 256));
+    EXPECT_TRUE(h["edited"].bool_value());
+    EXPECT_EQ(h["samples"][0], Json(Json::array{256, 256, double(w.terrainSample(0, 256, 256))}));
+    Json f = toolJson(callTool(server, "terrain_height", Json::object{{"x", 1000.5}, {"z", 1000.25}}));
+    EXPECT_FALSE(f["edited"].bool_value());
+    EXPECT_EQ(f["height"].number_value(), w.terrainHeight(0, 1000.5, 1000.25));
+    // terrain_edits: paged, has_deltas
+    w.terrainEditsForUpdate().bumpSequence(chunk(9, 9));
+    Json l = toolJson(callTool(server, "terrain_edits", Json::object{{"limit", 3}}));
+    ASSERT_EQ(l["chunks"].array_items().size(), 3u);
+    EXPECT_EQ(l["total"].number_value(), 5);
+    EXPECT_EQ(l["next"].number_value(), 3);
+    EXPECT_TRUE(l["chunks"][0]["has_deltas"].bool_value());
+    Json l2 = toolJson(callTool(server, "terrain_edits", Json::object{{"limit", 3}, {"after", 3}}));
+    ASSERT_EQ(l2["chunks"].array_items().size(), 2u);
+    EXPECT_TRUE(l2["next"].is_null());
+    EXPECT_EQ(l2["chunks"][1]["chunk"], Json(Json::array{9, 9}));
+    EXPECT_FALSE(l2["chunks"][1]["has_deltas"].bool_value());
+    EXPECT_EQ(l2["chunks"][1]["sequence"].number_value(), 1);
+    // Errors: an invalid brush (field and bound), a center out of the space, an enclosed space, an unknown op
+    auto expectError = [&](const Json& args, const std::string& part)
+    {
+        const Json x = callTool(server, "edit_terrain", args);
+        EXPECT_TRUE(x["result"]["isError"].bool_value()) << args.dump();
+        EXPECT_NE(toolError(x).find(part), std::string::npos) << toolError(x);
+    };
+    expectError(Json::object{{"op", "add"}, {"center", Json::array{1, 0, 1}}, {"radius", 200}, {"strength", 1}},
+                "radius");
+    expectError(Json::object{{"op", "flatten"}, {"center", Json::array{1, 0, 1}}, {"radius", 2}, {"strength", 2}},
+                "strength");
+    expectError(Json::object{{"op", "add"}, {"center", Json::array{9000, 0, 1}}, {"radius", 2}, {"strength", 1}},
+                "center.x");
+    expectError(
+        Json::object{{"space", 1}, {"op", "add"}, {"center", Json::array{1, 0, 1}}, {"radius", 2}, {"strength", 1}},
+        "enclosed");
+    expectError(Json::object{{"op", "raise"}, {"center", Json::array{1, 0, 1}}, {"radius", 2}, {"strength", 1}}, "op");
+    // Inside a step: refused (the API is called from a system)
+    std::string inStep;
+    g_hooks.phase4a = [&](World& world)
+    {
+        inStep =
+            api->call("edit_terrain",
+                      Json::object{{"op", "add"}, {"center", Json::array{1, 0, 1}}, {"radius", 2}, {"strength", 1}})
+                .error;
+    };
+    w.step();
+    g_hooks.phase4a = nullptr;
+    EXPECT_NE(inStep.find("between steps"), std::string::npos) << inStep;
+    // Read-only registration has no edit_terrain
+    McpServer observer("observer");
+    auto readOnly = registerWorldTools(observer, w, WorldToolsOptions{false});
+    Json list     = observer.handleMessage(McpRequest("tools/list", Json::object{}));
+    std::set<std::string> names;
+    for (auto& t : list["result"]["tools"].array_items()) names.insert(t["name"].string_value());
+    EXPECT_FALSE(names.count("edit_terrain"));
+    EXPECT_TRUE(names.count("terrain_height"));
+    EXPECT_TRUE(names.count("terrain_edits"));
+}
+
+TEST_F(TerrainEditWorld, ToolsOnAClientAnswerWithAnError)
+{
+    auto net     = LoopbackTransport::createNetwork(2);
+    WorldSetup c = hookedSetup(2);
+    c.transport  = net[1].get();
+    c.role       = NetRole::Client;
+    c.localPeer  = 1;
+    World w(c);
+    WorldApi api(w);
+    const ApiResult r =
+        api.call("edit_terrain",
+                 Json::object{{"op", "add"}, {"center", Json::array{10, 0, 10}}, {"radius", 2}, {"strength", 1}});
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("client"), std::string::npos) << r.error;
+    EXPECT_TRUE(api.call("terrain_height", Json::object{{"x", 1}, {"z", 1}}).ok);
 }

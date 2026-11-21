@@ -21,6 +21,8 @@
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
@@ -69,6 +71,8 @@ const std::vector<Operation>& operationTable()
         {"delete_snapshot", false, {"name"}},
         {"diff_snapshot", false, {"name", "against", "entity", "components", "limit", "after"}},
         {"get_data", false, {"type", "name"}},
+        {"terrain_height", false, {"space", "x", "z"}},
+        {"terrain_edits", false, {"space", "limit", "after"}},
         {"load_snapshot", true, {"name", "paused"}},
         {"export_snapshot", true, {"name", "file", "overwrite"}},
         {"import_snapshot", true, {"name", "file", "overwrite"}},
@@ -78,6 +82,7 @@ const std::vector<Operation>& operationTable()
         {"remove_component", true, {"entity", "component"}},
         {"set_transform", true, {"entity", "position", "rotation", "scale", "teleport"}},
         {"move_to_space", true, {"entity", "space", "position", "rotation"}},
+        {"edit_terrain", true, {"space", "op", "center", "radius", "strength"}},
         {"spawn", true, {"class", "position", "rotation", "scale", "space", "components"}},
         {"destroy", true, {"entity"}},
         {"set_global", true, {"component", "values", "space"}},
@@ -660,6 +665,9 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "remove_component") return removeComponent(args);
     if (operation == "set_transform") return setTransform(args);
     if (operation == "move_to_space") return moveToSpace(args);
+    if (operation == "edit_terrain") return editTerrain(args);
+    if (operation == "terrain_height") return terrainHeight(args);
+    if (operation == "terrain_edits") return terrainEdits(args);
     if (operation == "spawn") return spawn(args);
     if (operation == "destroy") return destroy(args);
     if (operation == "set_global") return setGlobal(args);
@@ -1530,6 +1538,135 @@ ApiResult WorldApi::moveToSpace(const Json& a)
         Json::object{{"space", int(t.space())}, {"position", toJson(t.position())}, {"rotation", toJson(t.rotation())}};
     w->moveToSpace(e, SpaceId(space), position, rotation);
     return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"previous", previous}});
+}
+
+// ---- terrain (S22) ------------------------------------------------------------------------------------------------
+
+namespace
+{
+bool spaceArg(const World& w, const Json& a, SpaceId& space, std::string& error)
+{
+    int64_t s = 0;
+    if (!intArg(a, "space", 0, int64_t(w.spaceCount()) - 1, 0, s, error))
+    {
+        error += " (" + std::to_string(w.spaceCount()) + " spaces)";
+        return false;
+    }
+    space = SpaceId(s);
+    return true;
+}
+}  // namespace
+
+ApiResult WorldApi::editTerrain(const Json& a)
+{
+    std::string error;
+    SpaceId space = 0;
+    if (!spaceArg(*w, a, space, error)) return ApiResult::failure(error);
+    TerrainBrush b;
+    const std::string op = a["op"].string_value();
+    if (!a["op"].is_string()) return ApiResult::failure("op: one of \"add\", \"subtract\", \"flatten\", \"smooth\"");
+    bool known = false;
+    for (int i = 0; i < int(TerrainBrush::Count); ++i)
+        if (op == TerrainBrush::opNames[i])
+        {
+            b.op  = TerrainBrush::Op(i);
+            known = true;
+        }
+    if (!known) return ApiResult::failure("op: \"" + op + "\" is not one of add, subtract, flatten, smooth");
+    if (a["center"].is_null()) return ApiResult::failure("center: missing");
+    // y is used only by flatten (0 when omitted: [x, z] is accepted too)
+    if (a["center"].is_array() && a["center"].array_items().size() == 2)
+    {
+        const auto& c = a["center"].array_items();
+        if (!c[0].is_number() || !c[1].is_number()) return ApiResult::failure("center: [x, y, z] or [x, z] in metres");
+        b.center = Vec3(c[0].number_value(), 0, c[1].number_value());
+    }
+    else if (!readVec3(a["center"], b.center, error, "center"))
+        return ApiResult::failure(error);
+    if (!a["radius"].is_number()) return ApiResult::failure("radius: a number in metres");
+    if (!a["strength"].is_number()) return ApiResult::failure("strength: a number");
+    b.radius   = a["radius"].number_value();
+    b.strength = a["strength"].number_value();
+    // The role, the space and the brush with the field and the bound (World::editTerrain would stop the program)
+    if (!w->checkTerrainEdit(space, b, &error)) return ApiResult::failure(error);
+    const TerrainEditResult r = applyTerrainEdit(*w, space, b);
+    const double sp           = double(w->spaceTemplate(space).baseSpacing);
+    Json::array chunks;
+    for (const TerrainEditResult::Chunk& c : r.chunks)
+        chunks.push_back(Json::object{{"chunk", Json::array{c.chunk.x, c.chunk.z}},
+                                      {"sequence", double(c.sequence)},
+                                      {"box", Json::array{c.x0, c.z0, c.w, c.h}}});
+    Json::object out{{"changed_samples", double(r.changedSamples)}, {"chunks", chunks}};
+    if (r.changedSamples > 0)
+        out["box"] = Json::array{double(r.i0) * sp, double(r.k0) * sp, double(r.i1) * sp, double(r.k1) * sp};
+    return ApiResult::success(out);
+}
+
+ApiResult WorldApi::terrainHeight(const Json& a)
+{
+    std::string error;
+    SpaceId space = 0;
+    if (!spaceArg(*w, a, space, error)) return ApiResult::failure(error);
+    if (!a["x"].is_number() || !a["z"].is_number() || !std::isfinite(a["x"].number_value()) ||
+        !std::isfinite(a["z"].number_value()))
+        return ApiResult::failure("x, z: finite numbers in metres");
+    const double x = a["x"].number_value(), z = a["z"].number_value();
+    const SpaceTemplate& t = w->spaceTemplate(space);
+    // The three samples of the containing triangle (§12.2; TerrainSystem::height)
+    const double size = t.sizeMeters(), spacing = t.baseSpacing;
+    const double gx = std::min(std::max(x, 0.0), size) / spacing, gz = std::min(std::max(z, 0.0), size) / spacing;
+    const int64_t n  = int64_t(t.sizeChunks) * 256 / t.baseSpacing;
+    const int64_t ci = std::min(int64_t(std::floor(gx)), n - 1), cj = std::min(int64_t(std::floor(gz)), n - 1);
+    const bool a1           = gx - double(ci) >= gz - double(cj);
+    const int64_t idx[3][2] = {{ci, cj}, {a1 ? ci + 1 : ci, a1 ? cj : cj + 1}, {ci + 1, cj + 1}};
+    Json::array samples;
+    bool edited = false;
+    for (const auto& s : idx)
+    {
+        samples.push_back(Json::array{double(s[0]), double(s[1]), double(w->terrainSample(space, s[0], s[1]))});
+        edited = edited || w->terrainEdits().delta(space, s[0], s[1]) != 0;
+    }
+    return ApiResult::success(Json::object{
+        {"space", int(space)}, {"height", w->terrainHeight(space, x, z)}, {"samples", samples}, {"edited", edited}});
+}
+
+ApiResult WorldApi::terrainEdits(const Json& a)
+{
+    std::string error;
+    SpaceId space = 0;
+    int64_t limit = 0, after = 0;
+    if (!spaceArg(*w, a, space, error) || !intArg(a, "limit", 1, 1000, 100, limit, error) ||
+        !intArg(a, "after", 0, 0xFFFFFFFFll, 0, after, error))
+        return ApiResult::failure(error);
+    const TerrainEditStore& st = w->terrainEdits();
+    Json::array chunks;
+    int64_t index = 0;
+    std::vector<int32_t> dense;
+    bool more = false;
+    for (const auto& [c, e] : st.chunks(space))
+    {
+        if (index++ < after) continue;
+        if (int64_t(chunks.size()) == limit)
+        {
+            more = true;
+            break;
+        }
+        Json::object o{{"chunk", Json::array{c.x, c.z}},
+                       {"sequence", double(e.sequence)},
+                       {"has_deltas", e.nonZeroSamples > 0},
+                       {"non_zero_samples", double(e.nonZeroSamples)}};
+        if (e.nonZeroSamples > 0)
+        {
+            st.denseDelta(c, dense);
+            const auto mm  = std::minmax_element(dense.begin(), dense.end());
+            o["delta_min"] = double(*mm.first) * kHeightUnit;
+            o["delta_max"] = double(*mm.second) * kHeightUnit;
+        }
+        chunks.push_back(o);
+    }
+    Json::object out{{"space", int(space)}, {"chunks", chunks}, {"total", double(st.chunks(space).size())}};
+    if (more) out["next"] = double(after + limit);
+    return ApiResult::success(out);
 }
 
 ApiResult WorldApi::spawn(const Json& a)
