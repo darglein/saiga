@@ -1528,6 +1528,9 @@ void World::registerMeshAlias(const std::string& oldName, const std::string& nam
     for (const auto& a : meshAliases)
         if (a.first == oldName) SAIGA_EXIT_ERROR("World::registerMeshAlias: \"" + oldName + "\" has an alias already");
     meshAliases.push_back({oldName, name});
+    // Entities that name oldName (kept unresolved by a load or the add path) are drawn now (between steps, as
+    // registerMesh)
+    if (extractor->sink() && !inStep()) extractor->meshRegistered();
 }
 
 Vulkan::MeshId World::findMesh(const std::string& name) const
@@ -1656,6 +1659,8 @@ void World::setRenderMesh(Entity e, const std::string& name)
         addNow<RenderInstance>(e, RenderInstance(resolved));
         return;
     }
+    // A load hook must not change saved state (the add branch is checked by addNow)
+    if (loadHookPhase && !checkLoadHook("setRenderMesh", e, RenderInstance::id)) return;
     const std::string previous      = reg.read<RenderInstance>(e).mesh;
     reg.get<RenderInstance>(e).mesh = resolved;
     renderMeshWritten(e, false, &previous);

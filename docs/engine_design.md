@@ -1608,8 +1608,10 @@ tracks nothing and costs nothing):
   creation always sends the current pose as a snap (a spawn in phase 7 or 8 is not in `changedTransforms()`). An empty
   name, or a pose that is not valid yet, is tracked without a sink instance. A load appends removes and adds and marks
   all transforms changed, so it recreates the instances with snaps. A redelivered record (a sink that threw) is
-  tolerated (`track` of a tracked entity only syncs its instance); a creation snap whose `setDynamic` threw is sent
-  again (by the re-delivered record, the next extract or the next catch-up).
+  tolerated (`track` of a tracked entity only syncs its instance); a sink that throws loses nothing: an instance
+  creation stays pending until `addDynamic` and its creation snap succeeded, a refused `removeDynamic` keeps its
+  handle, and both are retried by the next extract or catch-up (in any frame); a catch-up commits a pair only after
+  the sink accepted it.
 - **Source**: "has `RenderPose` → `RenderPose`, else `Transform`" on every peer (the host uses `RenderPose` for
   client-owned roots; §13.3/§13.4); a child without `RenderPose` under an ancestor with one composes that `RenderPose`
   with its local chain (`LocalTransform`s, as `interpolationSystem` composes a remote child), so it stays with the
@@ -1638,7 +1640,8 @@ tracks nothing and costs nothing):
   completed since the last call and (the world is paused, or `timeScale() == 0`, or the structural log has unread
   records for its consumer); it consumes the log and compares each tracked entity's source pose bitwise with its
   baseline (the last extracted or caught-up pose; the change flags cannot be used: a setter's flag stays set until the
-  next step ends, `RenderPose` flags stay set after each step) and handles a pending `wasTeleported()` once; a
+  next step ends, `RenderPose` flags stay set after each step) and handles a pending `wasTeleported()` once (a later
+  teleport before the step snaps again: `Transform::teleportCount()`); a
   difference is sent as a snap. In a paused world (or at time scale 0) it also sends the last step's late movers the
   pair that step's successor would send (from the committed curr; a late teleport snaps). Cost: O(tracked entities) per frame while paused, nothing in frames between running
   steps (10^4 entities: §17.7).

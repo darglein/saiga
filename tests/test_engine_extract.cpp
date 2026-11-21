@@ -28,6 +28,7 @@
 
 #include "gtest/gtest.h"
 
+#include <limits>
 #include <memory>
 #include <stdexcept>
 
@@ -95,6 +96,7 @@ void lateMoverSystem(World& w, double)
 enum class TestClass : uint16_t
 {
     Crate = kFirstGameClass,
+    Relabel,
 };
 // Adds its own RenderInstance in onSpawn (an agent's spawn may name another mesh as an initial component)
 class Crate final : public GameObject
@@ -106,6 +108,19 @@ class Crate final : public GameObject
     {
         if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance("test/box"));
     }
+};
+
+// Changes its saved mesh in onLoad (refused: a load hook must not change saved state)
+class Relabel final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(TestClass::Relabel);
+    static constexpr const char* name = "Relabel";
+    void onSpawn() override
+    {
+        if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance("test/box"));
+    }
+    void onLoad() override { world().setRenderMesh(entity(), "test/ball"); }
 };
 
 std::shared_ptr<const MeshLods> triangle(float size)
@@ -175,7 +190,11 @@ WorldSetup baseSetup(void (*assets)(World&) = assetsBoxBall)
         l.add(Phase::Gameplay, "test_mover", moverSystem, RunOn::Host);
         l.add(Phase::Streaming, "test_late_mover", lateMoverSystem, RunOn::Host);
     };
-    s.classes      = [](ClassList& c) { c.add<Crate>(); };
+    s.classes = [](ClassList& c)
+    {
+        c.add<Crate>();
+        c.add<Relabel>();
+    };
     s.renderAssets = assets;
     return s;
 }
@@ -207,8 +226,14 @@ const RecordingRenderSink::Dynamic* dynamicOf(const World& w, const RecordingRen
 // A sink that throws on demand (an aborted extract)
 struct ThrowingSink : RecordingRenderSink
 {
-    int throwOnAdd = 0;  // the n-th next addDynamic throws (0: never)
-    int throwOnSet = 0;  // the n-th next setDynamic throws
+    int throwOnAdd    = 0;  // the n-th next addDynamic throws (0: never)
+    int throwOnSet    = 0;  // the n-th next setDynamic throws
+    int throwOnRemove = 0;  // the n-th next removeDynamic throws (before removing)
+    void removeDynamic(InstanceHandle h) override
+    {
+        if (throwOnRemove > 0 && --throwOnRemove == 0) throw std::runtime_error("sink: removeDynamic");
+        RecordingRenderSink::removeDynamic(h);
+    }
     InstanceHandle addDynamic(MeshId mesh) override
     {
         if (throwOnAdd > 0 && --throwOnAdd == 0) throw std::runtime_error("sink: addDynamic");
@@ -1074,4 +1099,282 @@ TEST(ExtractSave, NonUniformScaleOfARenderedEntityIsAnApiError)
     EXPECT_EQ(lines, 1);
     EXPECT_EQ(dynamicOf(w, s, e)->curr.scale, 3);
     w.setRenderSink(nullptr);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// CodeRabbit review (S19b, PR #65)
+
+// Regression: a chunk coordinate beyond the int32 range was converted with undefined behavior
+TEST(ExtractReview, ChunkCoordinatesAreClamped)
+{
+    WorldPose p;
+    p.position        = Vec3(1e12, 0, -1e12);
+    const ChunkPose c = toChunkPose(p);
+    EXPECT_EQ(c.chunk.x, std::numeric_limits<int32_t>::max());
+    EXPECT_EQ(c.chunk.z, std::numeric_limits<int32_t>::min());
+    p.position = Vec3(-300, 0, 600);
+    EXPECT_EQ(toChunkPose(p).chunk.x, -2);
+    EXPECT_EQ(toChunkPose(p).chunk.z, 2);
+}
+
+// Regression: a sink that threw for the first existing entity while it was attached left the others untracked (the
+// consumer starts after their records)
+TEST(ExtractReview, SinkAttachedDespiteAThrowingAdd)
+{
+    World w(baseSetup());
+    for (int i = 0; i < 3; ++i) rendered(w, "test/box", Vec3(i, 0, 0));
+    w.step();
+    ThrowingSink s;
+    s.throwOnAdd = 1;
+    EXPECT_THROW(w.setRenderSink(&s), std::runtime_error);
+    EXPECT_EQ(w.extract().trackedCount(), 3u);
+    w.extract().catchUp();
+    EXPECT_EQ(s.liveDynamics(), 3u);
+    for (const auto& d : s.dynamics()) EXPECT_TRUE(d.second.set);
+    w.setRenderSink(nullptr);
+    EXPECT_EQ(s.liveDynamics(), 0u);
+}
+
+// Regression: a removeDynamic that threw after the entity was untracked lost the handle (the instance stayed drawn)
+TEST(ExtractReview, FailedRemovalIsRetried)
+{
+    World w(baseSetup());
+    ThrowingSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.step();
+    ASSERT_EQ(s.liveDynamics(), 1u);
+    w.destroy(e);
+    s.throwOnRemove = 1;
+    EXPECT_THROW(w.step(), std::runtime_error);
+    w.step();
+    EXPECT_EQ(s.liveDynamics(), 0u);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: a Parent record consumed before an addDynamic that threw lost its source re-evaluation, so the child of
+// a RenderPose root stayed on its own Transform
+TEST(ExtractReview, SourceReevaluationSurvivesAThrowingSink)
+{
+    World w(baseSetup());
+    ThrowingSink s;
+    w.setRenderSink(&s);
+    const Entity root = w.create();
+    RenderPose rp;
+    rp.position = Vec3(5, 0, 0);
+    w.add<RenderPose>(root, rp);
+    const Entity child = rendered(w, "test/box");
+    w.step();
+    EXPECT_NEAR(worldOf(dynamicOf(w, s, child)->chunk, dynamicOf(w, s, child)->curr).position.x(), 0, 1e-12);
+    // The Parent record first, then an add whose addDynamic throws
+    w.add<Parent>(child, Parent{root});
+    rendered(w, "test/ball", Vec3(9, 0, 0));
+    s.throwOnAdd = 1;
+    EXPECT_THROW(w.step(), std::runtime_error);
+    w.step(2);
+    // Composed from the root's RenderPose (x = 5), not the child's Transform (x = 0)
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, child);
+    ASSERT_NE(d, nullptr);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 5, 1e-12);
+    EXPECT_EQ(s.liveDynamics(), 2u);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: every paused catch-up that consumed a RenderPose, Parent or NetOwner record appended every tracked
+// remote again (only a step deduplicated the list)
+TEST(ExtractReview, RemoteListHasOneEntryPerEntity)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    for (int i = 0; i < 10; ++i)
+    {
+        const Entity e = rendered(w, "test/box", Vec3(i, 0, 0));
+        w.add<RenderPose>(e);
+    }
+    w.step();
+    EXPECT_EQ(w.extract().remoteQueued(), 10u);
+    w.setPaused(true);
+    w.extract().catchUp();
+    for (int i = 0; i < 20; ++i)
+    {
+        const Entity a = w.create(), b = w.create();
+        w.add<Parent>(b, Parent{a});
+        w.extract().catchUp();
+    }
+    EXPECT_EQ(w.extract().remoteQueued(), 10u);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: an addDynamic that threw when a pending remote root got its first RenderPose left it without an instance
+// (no retry: hasPose was set, the creation was not pending)
+TEST(ExtractReview, FirstRemotePoseWithAThrowingAdd)
+{
+    Net n;
+    ThrowingSink s;
+    n.host->setRenderSink(&s);
+    const Entity p = n.host->create();
+    Player pl;
+    pl.peer = 1;
+    n.host->add<Player>(p, pl);
+    n.host->add<PlayerInput>(p);
+    n.host->add<CharacterIntent>(p);
+    n.host->add<RenderInstance>(p, RenderInstance("test/box"));
+    n.host->setOwner(p, 1);
+    // The first addDynamic (at the root's first RenderPose, owner states without input: idle) throws
+    s.throwOnAdd = 1;
+    bool threw   = false;
+    for (int i = 0; i < 40 && !threw; ++i)
+    {
+        try
+        {
+            n.step();
+        }
+        catch (const std::runtime_error&)
+        {
+            threw = true;
+        }
+    }
+    ASSERT_TRUE(threw);
+    EXPECT_TRUE(n.host->has<RenderPose>(p));
+    EXPECT_EQ(s.liveDynamics(), 0u);
+    n.step(5);
+    EXPECT_EQ(s.liveDynamics(), 1u);
+    const RecordingRenderSink::Dynamic* d = dynamicOf(*n.host, s, p);
+    ASSERT_NE(d, nullptr);
+    EXPECT_TRUE(d->set);
+    n.host->setRenderSink(&n.hostSink);
+}
+
+// Regression: a second teleport after the catch-up had sent the first one (before the next step) was suppressed: the
+// step interpolated from the first teleport's pose to the second's
+TEST(ExtractReview, SecondTeleportBeforeTheStepSnaps)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.step();
+    w.get<Transform>(e).teleport(Vec3(10, 0, 0), Quat::Identity());
+    w.extract().markDirty();
+    ASSERT_TRUE(w.extract().catchUp());
+    w.get<Transform>(e).teleport(Vec3(100, 0, 0), Quat::Identity());
+    w.step();
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 100, 1e-12);
+    EXPECT_NEAR(worldOf(d->chunk, d->prev).position.x(), 100, 1e-12);
+    // One teleport the catch-up sent: still no second snap in the step (it moves from there)
+    w.get<Transform>(e).teleport(Vec3(200, 0, 0), Quat::Identity());
+    w.extract().markDirty();
+    ASSERT_TRUE(w.extract().catchUp());
+    const uint64_t seq = w.extract().snapSequence(e);
+    w.add<Mover>(e, Mover{Vec3(60, 0, 0), 0});
+    w.step();
+    EXPECT_EQ(w.extract().snapSequence(e), seq);
+    EXPECT_NEAR(worldOf(d->chunk, d->prev).position.x(), 200, 1e-12);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 201, 1e-12);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: a paused edit whose setDynamic threw already had its pair and baseline committed, so the next catch-up
+// skipped it and the sink kept the old pose
+TEST(ExtractReview, PausedEditWithAThrowingSetIsRetried)
+{
+    World w(baseSetup());
+    ThrowingSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "test/box");
+    w.step();
+    w.setPaused(true);
+    w.extract().catchUp();
+    w.get<Transform>(e).setPosition(Vec3(0, 7, 0));
+    s.throwOnSet = 1;
+    EXPECT_THROW(w.extract().catchUp(), std::runtime_error);
+    w.extract().catchUp();
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, e);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.y(), 7, 1e-12);
+    w.setRenderSink(nullptr);
+}
+
+// Regression: an alias registered after an entity named the old name (kept by a load or the add path) did not draw it
+TEST(ExtractReview, AliasRegisteredLaterDrawsTheEntity)
+{
+    World w(baseSetup());
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity e = rendered(w, "old/box", Vec3(2, 0, 0));
+    w.step();
+    EXPECT_EQ(s.liveDynamics(), 0u);
+    w.registerMeshAlias("old/box", "test/box");
+    ASSERT_EQ(s.liveDynamics(), 1u);
+    EXPECT_EQ(dynamicOf(w, s, e)->mesh, w.findMesh("test/box"));
+    w.setRenderSink(nullptr);
+}
+
+// Regression: onLoad could change an existing saved RenderInstance through setRenderMesh (the add branch was refused)
+TEST(ExtractReview, SetRenderMeshInOnLoadIsRefused)
+{
+    World a(baseSetup());
+    WorldApi api(a);
+    ASSERT_TRUE(api.call("spawn", Json::object{{"class", "Relabel"}, {"position", Json::array{0, 0, 0}}}).ok);
+    a.step();
+    const std::vector<uint8_t> blob = a.save();
+    World b(baseSetup());
+    const LoadResult r = b.tryLoad(blob);
+    ASSERT_TRUE(r.committed) << r.error;
+    ASSERT_EQ(r.hookErrors.size(), 1u);
+    EXPECT_NE(r.hookErrors[0].message.find("setRenderMesh"), std::string::npos) << r.hookErrors[0].message;
+}
+
+// Regression: the load marked the extract dirty only after its listeners ran, so a listener's catch-up (after a step)
+// did not see the loaded entities
+TEST(ExtractReview, LoadListenerCatchUpSeesTheLoad)
+{
+    World a(baseSetup());
+    rendered(a, "test/box");
+    rendered(a, "test/ball");
+    a.step();
+    const std::vector<uint8_t> blob = a.save();
+    World b(baseSetup());
+    RecordingRenderSink s;
+    b.setRenderSink(&s);
+    b.step();
+    bool ran = false;
+    b.addLoadListener([&](const LoadInfo&) { ran = b.extract().catchUp(); });
+    ASSERT_TRUE(b.tryLoad(blob).ok());
+    EXPECT_TRUE(ran);
+    EXPECT_EQ(s.liveDynamics(), 2u);
+    b.setRenderSink(nullptr);
+}
+
+// The world API refuses a non-uniform scale on every path that makes an entity rendered. Regression: add_component of
+// RenderInstance on an entity with a non-uniform scale, and a class spawn whose onSpawn adds RenderInstance, accepted
+// it
+TEST(ExtractReview, NonUniformScaleOnEveryRenderedPath)
+{
+    World w(baseSetup());
+    WorldApi api(w);
+    const Entity e = w.create();
+    w.get<Transform>(e).setScale(Vec3(1, 2, 1));
+    ApiResult r = api.call("add_component", Json::object{{"entity", WorldApi::entityJson(e)},
+                                                         {"component", "RenderInstance"},
+                                                         {"values", Json::object{{"mesh", "test/box"}}}});
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("uniform"), std::string::npos) << r.error;
+    EXPECT_FALSE(w.has<RenderInstance>(e));
+    r = api.call("spawn",
+                 Json::object{{"class", "Crate"}, {"position", Json::array{0, 0, 0}}, {"scale", Json::array{1, 3, 1}}});
+    ASSERT_TRUE(r.ok) << r.error;
+    Entity c;
+    std::string error;
+    ASSERT_TRUE(WorldApi::parseEntity(r.value["entity"], c, error)) << error;
+    EXPECT_EQ(w.read<Transform>(c).scale(), Vec3::Ones());
+    ASSERT_TRUE(r.value["skipped"].is_array()) << r.value.dump();
+    EXPECT_EQ(r.value["skipped"][0]["component"].string_value(), "Transform");
+    // Uniform scales stay valid
+    r = api.call("spawn",
+                 Json::object{{"class", "Crate"}, {"position", Json::array{0, 0, 0}}, {"scale", Json::array{2, 2, 2}}});
+    ASSERT_TRUE(r.ok) << r.error;
+    ASSERT_TRUE(WorldApi::parseEntity(r.value["entity"], c, error)) << error;
+    EXPECT_EQ(w.read<Transform>(c).scale(), Vec3(2, 2, 2));
 }

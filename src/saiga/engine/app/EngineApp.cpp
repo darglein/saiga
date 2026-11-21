@@ -710,8 +710,9 @@ void EngineApp::applyPlayerInput()
         {
             // The frame's time: the speed does not depend on the frame rate. Regression (S19b review): the keys stopped
             // while the mouse was over an ImGui window; only the mouse look pauses then
-            if (mouseCaptured) cameraHolder->camera.resetMouse();
-            freeCamera(std::min(lastFrameDt, 0.1), !mouseCaptured, !captured);
+            // A camera held by a tool moves only through the tools (as with a local player)
+            if (mouseCaptured || cameraHeld) cameraHolder->camera.resetMouse();
+            if (!cameraHeld) freeCamera(std::min(lastFrameDt, 0.1), !mouseCaptured, !captured);
         }
 #endif
         return;

@@ -28,7 +28,7 @@ void RecordingRenderSink::registerMaterial(MaterialId id, const std::string& nam
         SAIGA_ASSERT(m.second != name, "RecordingRenderSink: material \"" + name + "\" registered with two IDs");
     materialNames[id] = name;
     count.registerMaterial++;
-    note("registerMaterial " + std::to_string(id) + " " + name);
+    if (logging) note("registerMaterial " + std::to_string(id) + " " + name);
 }
 
 void RecordingRenderSink::registerMesh(MeshId id, const std::string& name, std::shared_ptr<const MeshLods> lods,
@@ -48,7 +48,7 @@ void RecordingRenderSink::registerMesh(MeshId id, const std::string& name, std::
     meshNames[id]     = name;
     meshMaterials[id] = material;
     count.registerMesh++;
-    note("registerMesh " + std::to_string(id) + " " + name);
+    if (logging) note("registerMesh " + std::to_string(id) + " " + name);
 }
 
 MaterialId RecordingRenderSink::meshMaterial(MeshId id) const
@@ -66,7 +66,7 @@ InstanceSetHandle RecordingRenderSink::addInstanceSet(const RegionId&, const std
     h.id       = nextSet++;
     sets[h.id] = capacity ? capacity : uint32_t(instances.size());
     count.addInstanceSet++;
-    note("addInstanceSet -> " + std::to_string(h.id));
+    if (logging) note("addInstanceSet -> " + std::to_string(h.id));
     return h;
 }
 
@@ -75,7 +75,7 @@ void RecordingRenderSink::updateInstances(InstanceSetHandle set, uint32_t first,
     auto it = sets.find(set.id);
     SAIGA_ASSERT(it != sets.end() && first + v.size() <= it->second, "RecordingRenderSink: updateInstances");
     count.updateInstances++;
-    note("updateInstances " + std::to_string(set.id));
+    if (logging) note("updateInstances " + std::to_string(set.id));
 }
 
 void RecordingRenderSink::removeInstance(InstanceSetHandle set, uint32_t index)
@@ -83,14 +83,16 @@ void RecordingRenderSink::removeInstance(InstanceSetHandle set, uint32_t index)
     auto it = sets.find(set.id);
     SAIGA_ASSERT(it != sets.end() && index < it->second, "RecordingRenderSink: removeInstance");
     count.removeInstance++;
-    note("removeInstance " + std::to_string(set.id));
+    if (logging) note("removeInstance " + std::to_string(set.id));
 }
 
 void RecordingRenderSink::removeInstanceSet(InstanceSetHandle set)
 {
-    SAIGA_ASSERT(sets.erase(set.id) == 1, "RecordingRenderSink: removeInstanceSet of an unknown set");
+    // Erased in every build (SAIGA_ASSERT does not evaluate its condition without SAIGA_ASSERTS)
+    const size_t erased = sets.erase(set.id);
+    SAIGA_ASSERT(erased == 1, "RecordingRenderSink: removeInstanceSet of an unknown set");
     count.removeInstanceSet++;
-    note("removeInstanceSet " + std::to_string(set.id));
+    if (logging) note("removeInstanceSet " + std::to_string(set.id));
 }
 
 InstanceHandle RecordingRenderSink::addDynamic(MeshId mesh)
@@ -101,7 +103,7 @@ InstanceHandle RecordingRenderSink::addDynamic(MeshId mesh)
     h.id       = nextHandle++;
     live[h.id] = Dynamic{mesh, false, ChunkId(), DynamicPose(), DynamicPose(), 0};
     count.addDynamic++;
-    note("addDynamic " + std::to_string(mesh) + " -> " + std::to_string(h.id));
+    if (logging) note("addDynamic " + std::to_string(mesh) + " -> " + std::to_string(h.id));
     return h;
 }
 
@@ -116,14 +118,16 @@ void RecordingRenderSink::setDynamic(InstanceHandle h, const ChunkId& chunk, con
     it->second.curr  = curr;
     it->second.updates++;
     count.setDynamic++;
-    note("setDynamic " + std::to_string(h.id));
+    if (logging) note("setDynamic " + std::to_string(h.id));
 }
 
 void RecordingRenderSink::removeDynamic(InstanceHandle h)
 {
-    SAIGA_ASSERT(live.erase(h.id) == 1, "RecordingRenderSink: removeDynamic of an unknown handle");
+    // Erased in every build (SAIGA_ASSERT does not evaluate its condition without SAIGA_ASSERTS)
+    const size_t erased = live.erase(h.id);
+    SAIGA_ASSERT(erased == 1, "RecordingRenderSink: removeDynamic of an unknown handle");
     count.removeDynamic++;
-    note("removeDynamic " + std::to_string(h.id));
+    if (logging) note("removeDynamic " + std::to_string(h.id));
 }
 
 const RecordingRenderSink::Dynamic* RecordingRenderSink::dynamic(InstanceHandle h) const

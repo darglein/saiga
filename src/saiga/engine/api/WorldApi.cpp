@@ -309,6 +309,11 @@ std::string netEditRefusal(World& w, Entity e, ComponentId id, bool structural)
     return {};
 }
 
+bool uniformScale(const Vec3& s)
+{
+    return s(1) == s(0) && s(2) == s(0);
+}
+
 // RenderInstance values: the mesh must be registered (aliases resolved); nothing is changed (S19b)
 bool checkRenderMeshValues(World& w, const RenderInstance& current, const Json& values, std::string& error)
 {
@@ -1363,6 +1368,9 @@ ApiResult WorldApi::addComponent(const Json& a)
     const Json& values = a["values"];
     if (!values.is_null() && !values.is_object()) return ApiResult::failure("values: expected an object of fields");
     if (!checkComponentValues(*w, e, id, values, error)) return ApiResult::failure(error);
+    // A rendered entity has a uniform scale (as set_transform and spawn check)
+    if (id == RenderInstance::id && !uniformScale(w->read<Transform>(e).scale()))
+        return ApiResult::failure("scale: an entity with RenderInstance has a uniform scale (x = y = z)");
     if (!addComponentValues(*w, e, id, values, error)) return ApiResult::failure(error);
     return ApiResult::success(componentJson(*w, e, id));
 }
@@ -1482,10 +1490,20 @@ ApiResult WorldApi::spawn(const Json& a)
     // Only the given ones: a class may have set its own rotation or scale in configure or onSpawn
     Transform& t = w->get<Transform>(e);
     if (!a["rotation"].is_null()) t.setRotation(rotation);
-    if (!a["scale"].is_null()) t.setScale(scale);
+    // A class that added RenderInstance in onSpawn keeps a uniform scale: a non-uniform requested scale is skipped and
+    // reported (the entity exists already)
+    Json::array skipped;
+    const bool rendered = w->has<RenderInstance>(e) ||
+                          std::any_of(initial.begin(), initial.end(), [](const std::pair<ComponentId, Json>& c)
+                                      { return c.first == RenderInstance::id; });
+    if (!a["scale"].is_null() && rendered && !uniformScale(scale))
+        skipped.push_back(Json::object{
+            {"component", "Transform"},
+            {"error", "scale: an entity with RenderInstance has a uniform scale (x = y = z); not applied"}});
+    else if (!a["scale"].is_null())
+        t.setScale(scale);
     // After the class's configure and onSpawn: a component the object added itself is merged with the given values.
     // A component that cannot be applied any more (e.g. onSpawn destroyed the Parent's entity) is skipped and reported.
-    Json::array skipped;
     for (auto& c : initial)
     {
         if (!w->alive(e)) break;

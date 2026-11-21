@@ -59,6 +59,9 @@ struct WorldGame
     // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastBeforeRender;
     bool hasLastBeforeRender = false;
+    // The RenderScene frame of lastBeforeRender: a frame that was not submitted is attempted again with the same number
+    // (its interval runs from the first attempt, so a stall stays in the result)
+    uint64_t lastBeforeRenderFrame = 0;
     // The engine's steps of the measured frames, taken at the frame boundaries that close them
     int64_t stepSamplesAtStart = -1;
     // The step times of the measured range, collected per frame (the profile keeps only the last 600 steps: at 30 fps
@@ -168,16 +171,20 @@ void beforeRender(EngineApp& app)
 
     // The CPU times of the previous frame: its interval (until now) and its recording and submit
     const auto now = std::chrono::steady_clock::now();
-    if (g.bench && g.hasLastBeforeRender)
+    if (!g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame)
     {
-        Vulkan::WorldBenchmark::Sample sample;
-        sample.frame      = frame - 1;
-        sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
-        sample.workMs     = scene.lastRecordingMs();
-        g.bench->addSample(sample);
+        if (g.bench && g.hasLastBeforeRender)
+        {
+            Vulkan::WorldBenchmark::Sample sample;
+            sample.frame      = frame - 1;
+            sample.intervalMs = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
+            sample.workMs     = scene.lastRecordingMs();
+            g.bench->addSample(sample);
+        }
+        g.lastBeforeRender      = now;
+        g.lastBeforeRenderFrame = frame;
+        g.hasLastBeforeRender   = true;
     }
-    g.lastBeforeRender    = now;
-    g.hasLastBeforeRender = true;
 
     if (g.bench)
     {

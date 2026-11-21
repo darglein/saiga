@@ -274,11 +274,7 @@ WorldSetup racingWorldSetup(std::shared_ptr<const RacingContext> context)
         registerDemoMesh(w, kCarBodyMesh, []() { return MeshBuilder::carBody(Vec3(0.85, 0.15, 0.12)); }, flat);
         // One wheel mesh per radius of the vehicle models (no non-uniform scale on instances)
         for (const std::string& model : w.dataNames<VehicleParameters>())
-        {
-            const double r = w.data<VehicleParameters>(model).wheelRadius;
-            if (w.findMesh(wheelMeshName(r))) continue;
-            registerDemoMesh(w, wheelMeshName(r), [r]() { return MeshBuilder::wheel(r, 0.28); }, flat);
-        }
+            wheelMesh(w, w.data<VehicleParameters>(model).wheelRadius);
     };
     s.setContext(std::move(context));
     return s;
@@ -289,6 +285,14 @@ std::string wheelMeshName(double radius)
     char name[64];
     std::snprintf(name, sizeof(name), "racing/wheel/r%.4f", radius);
     return name;
+}
+
+Vulkan::MeshId wheelMesh(World& w, double radius)
+{
+    const std::string name = wheelMeshName(radius);
+    if (const Vulkan::MeshId id = w.findMesh(name)) return id;
+    return registerDemoMesh(
+        w, name, [radius]() { return MeshBuilder::wheel(radius, 0.28); }, w.findMaterial("racing/flat"));
 }
 
 // ---- scenarios -----------------------------------------------------------------------------------------------------

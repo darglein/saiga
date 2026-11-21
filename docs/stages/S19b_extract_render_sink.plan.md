@@ -162,10 +162,11 @@ transparents (S39, S41), far content (S27).
   not shifted twice); phase 7-8 movers are not sent as snaps by a catch-up after a tool call; the trigger at time scale
   0; a remote root drawn only after its first sampled `RenderPose`, a child of a `RenderPose` root drawn with it; the
   `RenderPose` switch with a snap and no drawing before the first sample (S16 over loopback);
-  `RenderInstance` save by name, `checkRenderMeshes` rejecting an unknown name, the hash independent of registration
+  `RenderInstance` save by name, `checkRenderMeshes` keeping an unknown name (cached 0, drawn once registered), the hash independent of registration
   order, the schema golden regenerated; the recording sink does not change the hash; `interpolatedPose` matches S18's
   `interpolatePose` within 1e-6 m / 1e-6 rad; a non-uniform `set_transform` on a rendered entity is an API error; an
-  empty name is tracked, not drawn; an unknown name through `add` is stored empty and logged; `registerMeshAlias`;
+  empty name is tracked, not drawn; an unknown name through `add` is kept with the cached ID 0 and logged;
+  `registerMeshAlias`;
   `interpolatedPose` false for untracked entities; a second `setRenderSink` of the same sink; reserved ID ranges are
   skipped; host and client tables equal.
 - `tests/test_engine_app.cpp`: `setViewCamera` and S14's camera tools on it, the hold returning false to the game and
@@ -384,6 +385,35 @@ After the fixes: `ctest --parallel 8` on lavapipe 67 of 68 (only `test_opengl_wi
 unchanged; `--scenarios` 18 passed, 0 failed for each demo; `--headless --demo --validation` screenshots of the
 platformer (the hero on a platform, the flag) and racing (the car with its wheels on the track) as before, no
 validation message.
+
+CodeRabbit review (PR #65; tests in `tests/test_engine_extract.cpp`, suite `ExtractReview`, each failing without its
+fix):
+
+- Sink failures are retried, nothing is lost: instance creation is pending from before `addDynamic` until its creation
+  snap was sent (`Tracked::syncPending`, the retry list also covers a pending remote's first pose:
+  `FirstRemotePoseWithAThrowingAdd`); `setRenderSink` tracks every existing entity although the sink throws for one
+  (`SinkAttachedDespiteAThrowingAdd`); a handle whose `removeDynamic` threw is kept and removed again
+  (`FailedRemovalIsRetried`); a consumed `RenderPose` / `Parent` / `NetOwner` record keeps the source re-evaluation
+  pending (a member flag) across a throwing sink (`SourceReevaluationSurvivesAThrowingSink`); a catch-up sends before
+  it commits the pair and baseline (`PausedEditWithAThrowingSetIsRetried`).
+- The remote list holds one entry per entity (`Tracked::inRemote`; `RemoteListHasOneEntryPerEntity`).
+- A teleport after the one a catch-up handled snaps again: `Transform::teleportCount()` (a wrapping counter, not saved
+  or hashed) tells them apart (`SecondTeleportBeforeTheStepSnaps`).
+- `toChunkPose` clamps the chunk coordinates to the int32 range (`ChunkCoordinatesAreClamped`).
+- `registerMeshAlias` creates the instances of entities that name the old name (`AliasRegisteredLaterDrawsTheEntity`);
+  `setRenderMesh` in a load hook is refused also for an existing `RenderInstance` (`SetRenderMeshInOnLoadIsRefused`);
+  a load marks the extract dirty before its listeners run (`LoadListenerCatchUpSeesTheLoad`).
+- The world API refuses a non-uniform scale also in `add_component` of `RenderInstance`, and a class spawn whose
+  `onSpawn` adds one skips a non-uniform requested scale and reports it in `skipped`
+  (`NonUniformScaleOnEveryRenderedPath`).
+- `RecordingRenderSink` erases removed instances and sets in every build (the erase was inside `SAIGA_ASSERT`; no test:
+  the test build has asserts) and formats its call log only while logging.
+- App and demos (no engine test): the free camera does not move a camera a tool holds; racing registers a wheel mesh of
+  a radius changed by `reload_data` on first use and the chase camera follows the body also without wheels;
+  `game_world --benchmark` keeps the interval of a frame that was not submitted from its first attempt (a stall stays in
+  the result).
+- Not changed: backfilling `RenderInstance` for saves written before S19b (the tech demos keep no save files: every
+  save they load, snapshots, `reload_data`'s reconfigure, the scenario variants, comes from the same process).
 
 Left open: CI has not run on this branch (the MSVC job builds the new `sync/` code and `test_engine_extract` there for
 the first time); an interactive window session (the free camera's double motion, the chase cameras' release under a

@@ -76,6 +76,7 @@ class Transform
         r               = rotation;
         changedThisStep = 1;
         teleported      = 1;
+        teleports++;
     }
 
     // Change flags (engine-internal readers: hierarchy, grid, extract; S08)
@@ -85,6 +86,9 @@ class Transform
     // Teleported in the previous step: readers that run before a late teleport (extract in phase 8 of the last step)
     // still see it, and phase 6 passes it on to children that did not follow yet
     bool wasTeleportedLastStep() const { return teleportedLastStep != 0; }
+    // Counts teleports (wrapping; not saved or hashed): a reader that handled one teleport tells it from a later one in
+    // the same step (the extract's catch-up, S19b)
+    uint8_t teleportCount() const { return teleports; }
 
     // For detached copies only (saves, hashes, network decoding into a temporary): reading through visit writes the
     // fields without the change flags. Applying a decoded pose to a live entity goes through the setters or teleport
@@ -125,6 +129,7 @@ class Transform
     Quat r                  = Quat::Identity();
     Vec3 s                  = Vec3::Ones();
     uint8_t changedThisStep = 0, changedLastStep = 0, teleported = 0, teleportedLastStep = 0;
+    uint8_t teleports = 0;
 };
 
 }  // namespace Engine

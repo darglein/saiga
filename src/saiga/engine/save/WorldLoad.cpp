@@ -818,6 +818,9 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     commit();
     result.committed = true;
     w.loads++;
+    // The extract's catch-up between steps sends the loaded poses (the structural log recreates the instances); marked
+    // before the hooks and listeners, so a listener that renders (catchUp) sees the load
+    w.extractor->markDirty();
     for (const std::string& e : droppedEvents)
         SAIGA_LOG("save", "load: dropped the pending events of the unregistered type %s", e.c_str());
     if (!unknownMeshes.empty())
@@ -907,10 +910,8 @@ bool WorldLoader::checkRenderMeshes()
 LoadResult World::tryLoad(const std::vector<uint8_t>& data)
 {
     WorldLoader loader(*this);
-    LoadResult r = loader.run(data);
-    // The extract's catch-up between steps sends the loaded poses (the structural log recreates the instances)
-    if (r.committed) extractor->markDirty();
-    return r;
+    // The extract is marked dirty at the commit, before the load listeners (WorldLoader::run)
+    return loader.run(data);
 }
 
 void World::load(const std::vector<uint8_t>& data)

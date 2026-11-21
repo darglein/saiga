@@ -143,6 +143,9 @@ class Car final : public CarBase
 // The car body's mesh (RenderInstance of every car) and the wheel mesh of a radius (WorldSetup::renderAssets)
 constexpr const char* kCarBodyMesh = "racing/car_body";
 std::string wheelMeshName(double radius);
+// The wheel mesh of a radius, registered on first use (between steps: a radius changed by reload_data after
+// renderAssets ran)
+Vulkan::MeshId wheelMesh(World& w, double radius);
 
 // The demo's car: the AI driver races (writes VehicleControls)
 class RaceDriver final : public CarBase

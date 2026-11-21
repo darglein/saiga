@@ -172,10 +172,13 @@ void RacingRender::beforeRender(double alpha)
                 if (!readsRenderPose(w, car)) caches.reseed(car);
                 if (car == followed) camera.reset();
             }
+            // The camera follows the body also without wheels
+            if (car == followed) camera.update(body.position, forwardOf(body.rotation), frameDt);
             const Wheels& a            = c->previous();
             const Wheels& b            = c->current();
             const VehicleParameters& p = w.data(state.model);
-            const Engine::MeshId mesh  = w.findMesh(wheelMeshName(p.wheelRadius));
+            // Registered on first use: reload_data may change the radius after renderAssets ran
+            const Engine::MeshId mesh = wheelMesh(w, p.wheelRadius);
             if (!mesh) return;
             std::vector<Engine::MeshId> meshes(4, mesh);
             std::vector<Engine::WorldPose> poses(4, body);
@@ -192,7 +195,6 @@ void RacingRender::beforeRender(double alpha)
                 poses[i].rotation = (body.rotation * local).normalized();
             }
             wheels.set(car, meshes, poses);
-            if (car == followed) camera.update(body.position, forwardOf(body.rotation), frameDt);
         });
     wheels.end();
     // While a tool holds the camera the app ignores it (S14)

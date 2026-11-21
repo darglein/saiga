@@ -80,6 +80,8 @@ class SAIGA_ENGINE_API ExtractSystem
     // Tracked entities (with RenderInstance) and those with a sink instance
     size_t trackedCount() const { return tracked.size(); }
     size_t instanceCount() const;
+    // Entries of the list of non-Transform sources evaluated every step (tests: one per entity)
+    size_t remoteQueued() const { return remote.size(); }
     // The sink instance of an entity (invalid: none)
     InstanceHandle instanceOf(Entity e) const;
     RenderSink* sink() const { return renderSink; }
@@ -119,11 +121,14 @@ class SAIGA_ENGINE_API ExtractSystem
         WorldPose prev, curr;
         // The source pose of the last extract or catch-up (the bitwise baseline of catchUp)
         WorldPose seen;
-        uint64_t processedRun = 0;             // the extract or catch-up run that handled it
-        uint64_t remoteRun    = 0;             // the commit that kept it in the remote list
-        uint64_t snapStep     = ~uint64_t(0);  // the step whose Transform teleport the extract handled
-        uint64_t snaps        = 0;             // the sequence number of the last snap (snapSequence)
-        bool posePending      = false;         // the instance's creation snap was not sent (setDynamic threw)
+        uint64_t processedRun    = 0;             // the extract or catch-up run that handled it
+        uint64_t remoteRun       = 0;             // the commit that kept it in the remote list
+        uint64_t snapStep        = ~uint64_t(0);  // the step whose Transform teleport the extract handled
+        uint64_t snaps           = 0;             // the sequence number of the last snap (snapSequence)
+        bool posePending         = false;         // the instance's creation snap was not sent (setDynamic threw)
+        bool syncPending         = false;         // on the retry list until the instance exists with its creation snap
+        bool inRemote            = false;         // in the remote list (queued once)
+        uint8_t handledTeleports = 0;             // Transform::teleportCount of the teleport the catch-up handled
     };
     struct Staged
     {
@@ -166,10 +171,15 @@ class SAIGA_ENGINE_API ExtractSystem
     // committed pair is not yet (curr, curr) and the phase 7-8 movers the step's extract did not see. Without it a late
     // mover's pair (old, new) stays: it is in phase 6's list of the next step only
     std::vector<Entity> settle;
-    // Instances whose creation snap did not reach the sink (setDynamic threw after addDynamic): sent again by the next
-    // extract or catch-up (an idle entity would otherwise never get a pose)
+    // Instances whose creation did not complete (addDynamic or the creation snap's setDynamic threw): created and sent
+    // again by the next extract or catch-up (an idle entity would otherwise never get an instance or a pose)
     std::vector<Entity> unposed;
-    void retryUnposed();
+    // Handles of untracked entities whose removeDynamic threw: removed again by the next extract or catch-up
+    std::vector<InstanceHandle> removals;
+    // A RenderPose, Parent or NetOwner record was consumed and the sources are not evaluated again yet
+    bool sourcesDirty = false;
+    void retryPending();
+    void queueRemote(Tracked& t);
     bool dirty                      = false;
     uint64_t runId                  = 0;  // counts extract and catch-up runs
     uint64_t snapSeq                = 0;  // the last snap sequence number

@@ -21,6 +21,8 @@
 
 #include <cmath>
 #include <cstring>
+#include <exception>
+#include <limits>
 
 namespace Saiga
 {
@@ -54,9 +56,18 @@ ChunkPose toChunkPose(const WorldPose& p)
 {
     ChunkPose c;
     c.chunk.space = p.space;
-    c.chunk.x     = int32_t(std::floor(p.position(0) / chunkSize));
-    c.chunk.z     = int32_t(std::floor(p.position(2) / chunkSize));
-    c.pose        = dynamicPose(p, chunkOrigin(c.chunk));
+    // Clamped to the int32 chunk range (beyond +-5.5e11 m the conversion would be undefined; the pose is then relative
+    // to the last chunk)
+    auto chunkOf = [](double x)
+    {
+        const double c = std::floor(x / chunkSize);
+        if (!(c >= double(std::numeric_limits<int32_t>::min()))) return std::numeric_limits<int32_t>::min();
+        if (c > double(std::numeric_limits<int32_t>::max())) return std::numeric_limits<int32_t>::max();
+        return int32_t(c);
+    };
+    c.chunk.x = chunkOf(p.position(0));
+    c.chunk.z = chunkOf(p.position(2));
+    c.pose    = dynamicPose(p, chunkOrigin(c.chunk));
     return c;
 }
 
@@ -90,14 +101,25 @@ void ExtractSystem::setSink(RenderSink* sink)
     if (renderSink)
     {
         // The old sink's instances go with it
+        // (each handle is dropped once removed: a throwing sink leaves only the rest for a retried setSink)
         for (Tracked& t : tracked)
-            if (t.handle) renderSink->removeDynamic(t.handle);
+            if (t.handle)
+            {
+                renderSink->removeDynamic(t.handle);
+                t.handle = InstanceHandle();
+            }
+        while (!removals.empty())
+        {
+            renderSink->removeDynamic(removals.back());
+            removals.pop_back();
+        }
         tracked.clear();
         slotOf.clear();
         remote.clear();
         staged.clear();
         settle.clear();
         unposed.clear();
+        sourcesDirty = false;
         detachConsumer();
     }
     renderSink = sink;
@@ -106,7 +128,21 @@ void ExtractSystem::setSink(RenderSink* sink)
     // The existing entities (the records before the consumer existed are not read): snaps
     std::vector<Entity> existing;
     w.registry().view<const RenderInstance>().each([&](Entity e, const RenderInstance&) { existing.push_back(e); });
-    for (Entity e : existing) track(e);
+    // Every one is tracked also when the sink throws for one (its instance is retried by the next extract or catch-up;
+    // the consumer starts after their records, so nothing else would track the rest)
+    std::exception_ptr failure;
+    for (Entity e : existing)
+    {
+        try
+        {
+            track(e);
+        }
+        catch (...)
+        {
+            if (!failure) failure = std::current_exception();
+        }
+    }
+    if (failure) std::rethrow_exception(failure);
 }
 
 void ExtractSystem::meshRegistered()
@@ -253,43 +289,57 @@ void ExtractSystem::syncInstance(Tracked& t)
     }
     if (drawn && !t.handle)
     {
+        // On the retry list until the instance exists and has its creation snap (addDynamic or setDynamic may throw)
+        if (!t.syncPending)
+        {
+            t.syncPending = true;
+            unposed.push_back(t.entity);
+        }
         t.handle = renderSink->addDynamic(mesh);
         t.mesh   = mesh;
         // A creation always sends the current pose as a snap
         t.prev        = t.curr;
         t.snap        = true;
         t.posePending = true;
-        unposed.push_back(t.entity);
     }
     // The creation snap (again after a setDynamic that threw: a re-delivered record or the retry list)
     if (t.handle && t.posePending)
     {
         send(t);
         t.posePending = false;
-        // Sent: off the retry list (pushed last by the creation above; a re-delivered one is skipped by the retry)
+    }
+    if (t.syncPending)
+    {
+        t.syncPending = false;
+        // Done: off the retry list (pushed last by the creation above; an older entry is skipped by the retry)
         if (!unposed.empty() && unposed.back() == t.entity) unposed.pop_back();
     }
 }
 
-void ExtractSystem::retryUnposed()
+void ExtractSystem::retryPending()
 {
+    // Removals the sink refused first (their entities are gone)
+    while (!removals.empty())
+    {
+        renderSink->removeDynamic(removals.back());
+        removals.pop_back();
+    }
     std::vector<Entity> list;
     list.swap(unposed);
     for (size_t i = 0; i < list.size(); ++i)
     {
         Tracked* t = find(list[i]);
-        if (!t || !t->handle || !t->posePending) continue;
+        if (!t || !t->syncPending || !w.registry().alive(t->entity)) continue;
         try
         {
-            send(*t);
+            syncInstance(*t);
         }
         catch (...)
         {
-            // The rest stays for the next run
+            // The rest stays for the next run (the failed one is still pending)
             unposed.insert(unposed.end(), list.begin() + std::ptrdiff_t(i), list.end());
             throw;
         }
-        t->posePending = false;
     }
 }
 
@@ -322,11 +372,14 @@ void ExtractSystem::track(Entity e)
         if (w.inStep())
             t.snapStep = w.stepIndex();
         else
-            t.teleportHandled = true;
+        {
+            t.teleportHandled  = true;
+            t.handledTeleports = w.registry().read<Transform>(e).teleportCount();
+        }
     }
     tracked.push_back(t);
     slotOf[e.index] = int32_t(tracked.size() - 1);
-    if (s != Source::Transform) remote.push_back(e);
+    if (s != Source::Transform) queueRemote(tracked.back());
     syncInstance(tracked.back());
 }
 
@@ -344,14 +397,26 @@ void ExtractSystem::untrack(Entity e)
         slotOf[tracked[i].entity.index] = int32_t(i);
     }
     tracked.pop_back();
-    if (h) renderSink->removeDynamic(h);
+    if (h)
+    {
+        // Kept until the sink removed it (a throwing sink: retried by the next extract or catch-up)
+        removals.push_back(h);
+        renderSink->removeDynamic(h);
+        removals.pop_back();
+    }
+}
+
+void ExtractSystem::queueRemote(Tracked& t)
+{
+    if (t.inRemote) return;
+    t.inRemote = true;
+    remote.push_back(t.entity);
 }
 
 void ExtractSystem::consumeLog()
 {
     if (consumer < 0) return;
     const Registry& reg = w.registry();
-    bool sourcesDirty   = false;
     w.structuralLog().consume(
         consumer,
         [&](const StructuralLog::Record& r)
@@ -368,13 +433,15 @@ void ExtractSystem::consumeLog()
                 sourcesDirty = true;
         });
     if (!sourcesDirty) return;
-    // A RenderPose, Parent or owner changed: the sources are evaluated again (switches snap when processed)
-    for (const Tracked& t : tracked)
+    // A RenderPose, Parent or owner changed: the sources are evaluated again (switches snap when processed). The flag
+    // is a member: a sink that throws for a later record keeps it set for the re-delivery
+    for (Tracked& t : tracked)
     {
         Entity owner;
         const Source s = sourceOf(t.entity, owner);
-        if (s != Source::Transform || t.source != Source::Transform) remote.push_back(t.entity);
+        if (s != Source::Transform || t.source != Source::Transform) queueRemote(t);
     }
+    sourcesDirty = false;
 }
 
 void ExtractSystem::processStep(Tracked& t, uint64_t step)
@@ -412,8 +479,9 @@ void ExtractSystem::processStep(Tracked& t, uint64_t step)
         const Transform& tr = reg.read<Transform>(t.entity);
         if (tr.wasTeleported())
         {
-            // A teleport of this step (or between the steps; one the catch-up already sent stays a snap only there)
-            snap     = snap || !t.teleportHandled;
+            // A teleport of this step (or between the steps; one the catch-up already sent stays a snap only there,
+            // a later one snaps again: the teleport count differs)
+            snap     = snap || !t.teleportHandled || tr.teleportCount() != t.handledTeleports;
             snapStep = step;
         }
         // A late teleport (phases 7-8 of the last step, after its extract)
@@ -445,7 +513,7 @@ void ExtractSystem::run()
     if (!renderSink) return;
     runId++;
     staged.clear();
-    retryUnposed();
+    retryPending();
     // Instances are created and freed from the structural log first (creations snap at the current pose)
     consumeLog();
     const uint64_t step = w.stepIndex();
@@ -510,7 +578,11 @@ void ExtractSystem::commit()
         Tracked* t = find(remote[i]);
         if (!t || t->remoteRun == runId) continue;
         Entity owner;
-        if (t->source == Source::Transform && sourceOf(t->entity, owner) == Source::Transform) continue;
+        if (t->source == Source::Transform && sourceOf(t->entity, owner) == Source::Transform)
+        {
+            t->inRemote = false;
+            continue;
+        }
         t->remoteRun   = runId;
         remote[kept++] = remote[i];
     }
@@ -533,8 +605,8 @@ bool ExtractSystem::catchUp()
     // after the last step, e.g. a tool call after the step tool, keeps dirty set)
     const bool stepped     = committedSteps != committedAtLastCatchUp;
     committedAtLastCatchUp = committedSteps;
-    // A creation snap that did not reach the sink is sent again in any frame (it is not an edit)
-    if (!unposed.empty()) retryUnposed();
+    // An instance creation (or its snap) or a removal that the sink refused is retried in any frame (not an edit)
+    if (!unposed.empty() || !removals.empty()) retryPending();
     if (!dirty && (stepped || !(w.isPaused() || w.timeScale() == 0 || w.structuralLog().unread(consumer) > 0)))
         return false;
     dirty = false;
@@ -566,16 +638,23 @@ bool ExtractSystem::catchUp()
             syncInstance(t);
             continue;
         }
-        // A pending teleport is handled once (a teleport to the same pose still ends the pair in flight)
-        const bool teleport =
-            s == Source::Transform && reg.read<Transform>(t.entity).wasTeleported() && !t.teleportHandled;
+        // A pending teleport is handled once (a teleport to the same pose still ends the pair in flight; a later
+        // teleport counts again)
+        const Transform& tr = reg.read<Transform>(t.entity);
+        const bool teleport = s == Source::Transform && tr.wasTeleported() &&
+                              (!t.teleportHandled || tr.teleportCount() != t.handledTeleports);
         if (s == t.source && !teleport && samePose(pose, t.seen)) continue;
-        if (teleport) t.teleportHandled = true;
+        // Sent first: a sink that throws leaves the pair and the baseline as they were (the next catch-up retries)
+        if (t.handle) sendPair(t.handle, pose, pose);
+        if (teleport)
+        {
+            t.teleportHandled  = true;
+            t.handledTeleports = tr.teleportCount();
+        }
         t.source = s;
         t.prev = t.curr = t.seen = pose;
         t.snap                   = true;
         t.snaps                  = ++snapSeq;
-        send(t);
     }
     // No step follows (paused, time scale 0): the last step's phase 7-8 movers get the pair that step would send (from
     // the committed curr, interpolated at the frozen alpha like every other mover); the next step settles it
@@ -591,7 +670,10 @@ bool ExtractSystem::catchUp()
             // A late teleport snaps here (and is handled for the next step's late-teleport check)
             const uint64_t lastStep = w.stepIndex() - 1;
             const bool snap         = reg.read<Transform>(e).wasTeleportedLastStep() && t->snapStep != lastStep;
-            t->prev                 = snap ? pose : t->curr;
+            const WorldPose prev    = snap ? pose : t->curr;
+            // Sent first (a throwing sink changes nothing)
+            if (t->handle) sendPair(t->handle, prev, pose);
+            t->prev = prev;
             t->curr = t->seen = pose;
             t->snap           = snap;
             if (snap)
@@ -599,7 +681,6 @@ bool ExtractSystem::catchUp()
                 t->snapStep = lastStep;
                 t->snaps    = ++snapSeq;
             }
-            send(*t);
         }
     }
     return true;

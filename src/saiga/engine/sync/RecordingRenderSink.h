@@ -75,10 +75,8 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     void clearLog() { calls.clear(); }
 
    private:
-    void note(const std::string& line)
-    {
-        if (logging) calls.push_back(line);
-    }
+    // Callers check logging first (no message is formatted while the log is off)
+    void note(const std::string& line) { calls.push_back(line); }
     std::map<uint32_t, Dynamic> live;
     std::map<MeshId, std::string> meshNames;
     std::map<MeshId, MaterialId> meshMaterials;
