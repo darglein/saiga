@@ -613,6 +613,9 @@ uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, co
     const int v    = f.fog ? 1 : 0;
     for (int c = 0; c < pipelineClassCount; ++c)
     {
+        // The prototype foliage reads the foliage texture (binding 1, written only with it): not drawn without it (a
+        // frame with such instances asserts in RenderScene with SAIGA_ASSERTS)
+        if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
         Pipeline* p = &drawPipelines[v][c];
         if (prepass && c == 0) p = &equalPipelines[v][0];
         if (prepass && c == 2) p = &equalPipelines[v][1];

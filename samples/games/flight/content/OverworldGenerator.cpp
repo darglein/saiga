@@ -251,8 +251,8 @@ void OverworldGenerator::planRivers(WorldPlan& plan) const
             int64_t ox = 65536, oz = 0;
             if (d > 0)
             {
-                ox = (px - kFlightCircuitCentre * kPos) * 65536 / d;
-                oz = (pz - kFlightCircuitCentre * kPos) * 65536 / d;
+                ox = floorDiv((px - kFlightCircuitCentre * kPos) * 65536, d);
+                oz = floorDiv((pz - kFlightCircuitCentre * kPos) * 65536, d);
             }
             // +-40 degrees: 40 / 360 * 2^17 = 14564 trig steps at |noise| = 65536
             const int64_t n      = gradientNoise(contentHash64(seed, uint64_t(s), 0, 0, 0), mx, mz, 9);

@@ -301,8 +301,9 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<GrassPass> grass;
     // The foliage texture of setPrototypeEnvironment
     std::unique_ptr<Texture2DArray> foliage;
-    // The frame's check without the foliage texture (S23c, F4): asserts that no instance set or dynamic instance
-    // draws a mesh of the PrototypeFoliage class
+    // The frame's check without the foliage texture (S23c, F4; only with SAIGA_ASSERTS, SceneCulling never draws the
+    // class without the texture): asserts that no instance set or dynamic instance draws a mesh of the PrototypeFoliage
+    // class
     void checkFoliageInstances() const;
     double sceneTime = 0;
     // The next IDs of reserveIds (mesh, material)
