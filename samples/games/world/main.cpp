@@ -229,6 +229,9 @@ void terraformEdit(EngineApp& app)
     if (!g.terraformMode || (!g.leftHeld && !g.rightHeld)) return;
     const auto now = std::chrono::steady_clock::now();
     if (std::chrono::duration<double>(now - g.lastEdit).count() < 0.1) return;
+    // Only open-world spaces have a height-map terrain: in an enclosed one nothing is edited (and nothing reported each
+    // 0.1 s)
+    if (app.world().spaceTemplate(app.viewCamera().space).kind != SpaceKind::OpenWorld) return;
     Vec3 hit;
     if (!terrainUnderCenter(app, hit)) return;
     g.lastEdit = now;

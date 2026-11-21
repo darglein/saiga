@@ -1267,3 +1267,12 @@ Plan review rounds and implementation reviews, each with the findings and how th
   hook); the schema regeneration uses only `--gtest_filter='SaveFormat.EngineSchemaIsCommitted'`; `TERR` cites S21's
   recipe names (`kTagTerrain`, `{tag, optional, maxVersion}`, `ParsedSave::Range`, `SectionWriter::beginOptional`).
   Rejected: none.
+- **Implementation review** (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack): round 1 (8, minor):
+  without a sink `completeView` could never complete an edited chunk (its mask queue drops entries without a sink while
+  `missing()` wanted a ready mask) -> fixed (`S22 review`): without a sink the store's base masks of edited chunks are
+  accepted (edited masks are made for a sink only). Round 1 (9): the replication's terrain handlers after a refused
+  `GenerationState` -> fixed in S23a, where `generationMismatch` exists. Round 2 (11, minor test): the
+  `terrain_edit_crater` golden waited at most 200 frames for the background mask jobs -> a 30 s deadline loop (and its
+  `M_PI` -> `kPi`, as S20's tests). Round 2 (12, nit): the `T` mode in an enclosed space reported the edit error ten
+  times per second -> spaces that are not open-world are skipped before the ray march. The S20 fixes below this branch
+  were rebased in (one conflict: `TerrainSystem::height` keeps D1's edit rule before the NaN check).

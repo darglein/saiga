@@ -23,6 +23,7 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <memory>
@@ -186,12 +187,14 @@ TEST_F(TerrainRenderTest, EditCraterGolden)
     const double ground = world->terrainHeight(0, c.x() - 60, c.z() - 60);
     const Vec3 eye(c.x() - 45, ground + 22, c.z() - 45);
     const Quat rot    = lookRotation(Vec3(c.x(), ground - 4, c.z()) - eye);
-    const double fovy = 60.0 * M_PI / 180;
+    const double fovy = 60.0 * kPi / 180;
     CaptureView(eye, rot, fovy);
     // The ring: 8 mounds of 2 m on a 24 m circle (integer offsets)
     const int ring[8][2] = {{24, 0}, {17, 17}, {0, 24}, {-17, 17}, {-24, 0}, {-17, -17}, {0, -24}, {17, -17}};
     for (const auto& r : ring) edit(TerrainBrush::Add, c.x() + r[0], c.z() + r[1], 6, 2);
-    for (int i = 0; i < 200; ++i)
+    // Until the background mask jobs are done (a deadline, not a frame count: a loaded machine may need many frames)
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (std::chrono::steady_clock::now() < deadline)
     {
         world->terrain().updateView(0, eye);
         Capture(1);
