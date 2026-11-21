@@ -8,6 +8,7 @@
 
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/world/World.h"
 
@@ -72,11 +73,14 @@ bool applyTombstone(World& world, const ChunkId& chunk, const InstanceKey& key)
     TerrainEditStore& st = world.terrainEditsForUpdate();
     TerrainEditStore::EntryNode entry;
     if (!st.entry(chunk)) entry = st.makeEntry(chunk);
+    Replication& repl = world.replication();
+    repl.reserveTombstones(chunk.space, 1);
     records.reserve(chunk, world.effectivePlacementVersion(chunk), 1);
     // Commit
     if (!entry.empty()) st.insertEntry(std::move(entry));
     records.insert(chunk, key);
     st.bumpSequence(chunk);
+    repl.appendTombstone(chunk, records.find(chunk)->placementVersion, st.sequence(chunk), key);
     world.onRecordChanged(chunk);
     return true;
 }

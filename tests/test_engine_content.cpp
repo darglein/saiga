@@ -14,6 +14,7 @@
 #include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/ContentHashFile.h"
+#include "saiga/engine/content/ContentMessages.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Prefab.h"
@@ -2913,4 +2914,289 @@ TEST(ChunkRecords, CommittedSaveLoads)
     World again(ContentTest::contentTestSetup(2));
     ASSERT_TRUE(again.tryLoad(w.save()).ok());
     EXPECT_EQ(again.hash(), w.hash());
+}
+
+// ---- tombstone and record messages (S23b step 4) -------------------------------------------------------------------
+
+namespace
+{
+std::vector<uint8_t> tombstoneMessage(uint32_t epoch, SpaceId space, const std::vector<TombstoneEntry>& entries)
+{
+    std::vector<uint8_t> out;
+    encodeTombstoneModification(epoch, space, entries, out);
+    return out;
+}
+std::vector<uint8_t> recordMessage(uint32_t epoch, SpaceId space, const std::vector<ChunkRecordPart>& parts)
+{
+    std::vector<uint8_t> out;
+    encodeChunkRecordState(epoch, space, parts, out);
+    return out;
+}
+TombstoneEntry entry(int32_t x, int32_t z, uint16_t version, uint32_t sequence, InstanceKey k)
+{
+    TombstoneEntry e;
+    e.x                = x;
+    e.z                = z;
+    e.placementVersion = version;
+    e.sequence         = sequence;
+    e.key              = k;
+    return e;
+}
+ChunkRecordPart part(int32_t x, int32_t z, uint16_t version, std::vector<InstanceKey> keys)
+{
+    ChunkRecordPart p;
+    p.x                = x;
+    p.z                = z;
+    p.placementVersion = version;
+    p.keys             = std::move(keys);
+    return p;
+}
+void deliverTombstones(World& c, const std::vector<uint8_t>& m)
+{
+    c.replication().onTombstoneModification(0, m.data(), m.size());
+}
+void deliverRecords(World& c, const std::vector<uint8_t>& m)
+{
+    c.replication().onChunkRecordState(0, m.data(), m.size());
+}
+}  // namespace
+
+// Sequences: an old one is dropped, a gap logged and counted (and applied), another epoch dropped; two entries of one
+// chunk in one message apply with consecutive sequences, a skip in the second is a gap only for that entry
+TEST(TombstoneNet, SequencesGapsAndEpochs)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    World& c          = *n.client;
+    const ChunkId k45 = chunkAt(4, 5);
+    // Two entries of one chunk: sequences 1 and 2
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(0, 10)), entry(4, 5, 2, 2, key(0, 11))}));
+    EXPECT_EQ(c.terrainEdits().sequence(k45), 2u);
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 10)));
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 11)));
+    EXPECT_EQ(c.netStats().modificationGaps, 0u);
+    // An old sequence is dropped
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 2, key(0, 12))}));
+    EXPECT_FALSE(c.isTombstoned(k45, key(0, 12)));
+    EXPECT_EQ(c.replication().stats().tombstonesDuplicate, 1u);
+    // The second entry skips: a gap only for it (3 applies, 5 is a gap)
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 3, key(0, 12)), entry(4, 5, 2, 5, key(0, 13))}));
+    EXPECT_EQ(c.netStats().modificationGaps, 1u);
+    EXPECT_EQ(c.terrainEdits().sequence(k45), 5u);
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 13)));
+    // Another epoch: dropped, not counted as rejected
+    const uint64_t rejected = c.netStats().rejected;
+    deliverTombstones(c, tombstoneMessage(7, 0, {entry(4, 5, 2, 6, key(0, 14))}));
+    EXPECT_FALSE(c.isTombstoned(k45, key(0, 14)));
+    EXPECT_EQ(c.netStats().rejected, rejected);
+    EXPECT_EQ(c.replication().stats().recordsDroppedEpoch, 1u);
+}
+
+// Rejected, counted, nothing applied
+TEST(TombstoneNet, RejectionsApplyNothing)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    World& c            = *n.client;
+    auto expectRejected = [&](const std::vector<uint8_t>& m, bool records, const std::string& what)
+    {
+        const uint64_t before = c.netStats().rejected;
+        const uint64_t hash   = c.hash();
+        if (records)
+            deliverRecords(c, m);
+        else
+            deliverTombstones(c, m);
+        EXPECT_EQ(c.netStats().rejected, before + 1) << what;
+        EXPECT_EQ(c.hash(), hash) << what;
+        EXPECT_TRUE(c.contentRecords().records().empty()) << what;
+    };
+    expectRejected(tombstoneMessage(0, 0, {entry(128, 5, 2, 1, key(0, 1))}), false, "a chunk outside the space");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 3, 1, key(0, 1))}), false, "a version above the current one");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(2, 1))}), false, "a slot beyond the table");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(1, 1024))}), false, "a counter out of range");
+    expectRejected(tombstoneMessage(0, 2, {entry(0, 0, 1, 1, key(0, 1))}), false, "keys in a space without slots");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(0, 1)), entry(4, 6, 2, 1, key(9, 1))}), false,
+                   "one invalid entry among valid ones");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 2, {key(0, 5), key(0, 4)})}), true, "unsorted keys");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 3, {key(0, 5)})}), true, "a version above the current one");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 1, {key(0, 5)})}), true, "a version below the pin");
+    expectRejected(recordMessage(0, 2, {part(0, 0, 1, {key(0, 5)})}), true, "keys in a space without slots");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 2, {key(0, 5)}), part(4, 5, 1, {key(0, 6)})}), true,
+                   "parts of one chunk with different versions");
+    // A part without keys needs no slots (the dungeon at its current version)
+    deliverRecords(c, recordMessage(0, 2, {part(0, 0, 1, {})}));
+    EXPECT_TRUE(c.chunkRecord(chunkAt(0, 0, 2)));
+    // A version differing from the chunk's effective one (its record's)
+    {
+        const uint64_t before = c.netStats().rejected;
+        deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}));
+        deliverRecords(c, recordMessage(0, 2, {part(0, 0, 2, {})}));
+        EXPECT_EQ(c.netStats().rejected, before + 2);
+        EXPECT_EQ(c.chunkRecord(chunkAt(0, 0, 2))->placementVersion, 1);
+    }
+    // A record message after a refused GenerationState
+    GenNet refused(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(1));
+    refused.step();
+    ASSERT_TRUE(refused.client->generationMismatch());
+    const uint64_t before = refused.client->netStats().rejected;
+    deliverTombstones(*refused.client, tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}));
+    deliverRecords(*refused.client, recordMessage(0, 0, {part(4, 5, 1, {key(0, 1)})}));
+    EXPECT_EQ(refused.client->netStats().rejected, before + 2);
+    EXPECT_TRUE(refused.client->contentRecords().records().empty());
+}
+
+// The live path: host tombstones reach the client in application order with the terrain edits (sequences equal); a
+// late joiner after a terrain edit on a flat space has no rejections and equal sequences (E10)
+TEST(TombstoneNet, LiveAndFlatJoiner)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(*n.host, c, 1);
+    TerrainBrush b;
+    b.center   = Vec3(1150, 0, 1400);
+    b.radius   = 6;
+    b.strength = 1;
+    n.host->editTerrain(0, b);
+    n.host->tombstone(c, k.accepted[0]);
+    n.host->editTerrain(0, b);
+    n.host->tombstone(c, k.accepted[1]);
+    n.step();
+    EXPECT_EQ(n.client->terrainEdits().sequence(c), 4u);
+    EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+    // Idempotent: nothing is sent again
+    const uint64_t sent = n.host->replication().stats().tombstoneMessagesSent;
+    n.host->tombstone(c, k.accepted[1]);
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().tombstoneMessagesSent, sent);
+
+    // A flat world: an edit before the join, no rejections, equal sequences
+    GenNet flat(WorldSetup{}, WorldSetup{}, [&](World& h) { h.editTerrain(0, b); });
+    flat.step();
+    EXPECT_EQ(flat.client->netStats().rejected, 0u);
+    EXPECT_EQ(flat.client->terrainEdits().chunkCount(), flat.host->terrainEdits().chunkCount());
+    EXPECT_GT(flat.client->terrainEdits().chunkCount(), 0u);
+}
+
+// A late joiner gets the records of chunks tombstoned before it joined, the ChunkRecordState before the
+// TerrainChunkState (E5); the tombstones pending in the joining step arrive in the snapshot, not again live
+TEST(TombstoneNet, LateJoinerSnapshotOrder)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    const ChunkId c    = chunkAt(4, 5);
+    InstanceKey pending;
+    GenNet n(s, s,
+             [&](World& h)
+             {
+                 TerrainBrush b;
+                 b.center   = Vec3(1150, 0, 1400);
+                 b.radius   = 6;
+                 b.strength = 1;
+                 // Everything pending in the host state list of the joining step (the loopback peer connects at
+                 // once: the host's first step is the join)
+                 h.editTerrain(0, b);
+                 const SlotKeys k = slotKeys(h, c, 1);
+                 h.tombstone(c, k.accepted[0]);
+                 h.editTerrain(0, b);
+                 pending = k.accepted[1];
+                 h.tombstone(c, pending);
+             });
+    // The record arrives before the chunk's terrain state
+    int recordBeforeTerrain = -1;
+    n.client->addRecordListener(
+        [&](const ChunkId& changed)
+        {
+            if (changed == c && recordBeforeTerrain < 0)
+                recordBeforeTerrain = n.client->terrainEdits().sequence(c) == 0 ? 1 : 0;
+        });
+    n.step();
+    EXPECT_EQ(recordBeforeTerrain, 1);
+    EXPECT_TRUE(n.client->isTombstoned(c, pending));
+    EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
+    EXPECT_EQ(n.client->terrainEdits().sequence(c), n.host->terrainEdits().sequence(c));
+    EXPECT_EQ(n.client->replication().stats().tombstonesApplied, 0u) << "the pending tombstone came in the snapshot";
+    EXPECT_EQ(n.client->replication().stats().tombstonesDuplicate, 0u);
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+}
+
+// A host load (Resync): the client clears records and S22's store together; a tombstone made after the save is gone,
+// one in the save comes back with the ChunkRecordState; equal sequences afterwards
+TEST(TombstoneNet, HostLoadResyncs)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(*n.host, c, 0);
+    n.host->tombstone(c, k.accepted[0]);
+    n.step();
+    const auto blob = n.host->save();
+    n.host->tombstone(c, k.accepted[1]);
+    n.step();
+    ASSERT_TRUE(n.client->isTombstoned(c, k.accepted[1]));
+    std::vector<ChunkId> changes;
+    n.client->addRecordListener([&](const ChunkId& x) { changes.push_back(x); });
+    ASSERT_TRUE(n.host->tryLoad(blob).ok());
+    n.step();
+    EXPECT_GE(changes.size(), 2u) << "cleared, then the snapshot";
+    EXPECT_TRUE(n.client->isTombstoned(c, k.accepted[0]));
+    EXPECT_FALSE(n.client->isTombstoned(c, k.accepted[1]));
+    EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
+    EXPECT_EQ(n.client->terrainEdits().sequence(c), n.host->terrainEdits().sequence(c));
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+}
+
+// Bounds: 4096 tombstones in one step arrive in one message, 4097 in two; 3000 injected records in three
+// ChunkRecordStates; one record of 10000 keys in two, united on the client
+TEST(TombstoneNet, MessageBounds)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    // Accepted test_tree keys of the chunks around (10, 10), in ChunkId then key order
+    std::vector<std::pair<ChunkId, InstanceKey>> keys;
+    for (int32_t x = 10; keys.size() < 4096 + 4097; ++x)
+        for (int32_t z = 10; z < 14; ++z)
+            for (const InstanceKey& k : slotKeys(*n.host, chunkAt(x, z), 0).accepted)
+                keys.push_back({chunkAt(x, z), k});
+    for (size_t i = 0; i < 4096; ++i) n.host->tombstone(keys[i].first, keys[i].second);
+    uint64_t sent = n.host->replication().stats().tombstoneMessagesSent;
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().tombstoneMessagesSent - sent, 1u);
+    EXPECT_EQ(n.client->replication().stats().tombstonesApplied, 4096u);
+    for (size_t i = 4096; i < 4096 + 4097; ++i) n.host->tombstone(keys[i].first, keys[i].second);
+    sent = n.host->replication().stats().tombstoneMessagesSent;
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().tombstoneMessagesSent - sent, 2u);
+    EXPECT_EQ(n.client->replication().stats().tombstonesApplied, 4096u + 4097u);
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+
+    GenNet many(s, s,
+                [](World& h)
+                {
+                    for (int i = 0; i < 3000; ++i)
+                        h.contentRecordsForUpdate().injectForTests(chunkAt(i % 128, i / 128), 2, {key(0, 1)});
+                });
+    many.step();
+    EXPECT_EQ(many.host->replication().stats().recordStatesSent, 3u);
+    EXPECT_EQ(many.client->contentRecords().records().size(), 3000u);
+    EXPECT_EQ(many.client->netStats().rejected, 0u);
+
+    GenNet big(s, s,
+               [](World& h)
+               {
+                   std::vector<InstanceKey> k;
+                   for (uint32_t i = 0; i < 10000; ++i) k.push_back(key(0, i));
+                   h.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, k);
+               });
+    big.step();
+    EXPECT_EQ(big.host->replication().stats().recordStatesSent, 2u);
+    ASSERT_TRUE(big.client->chunkRecord(chunkAt(4, 5)));
+    EXPECT_EQ(big.client->chunkRecord(chunkAt(4, 5))->tombstones.size(), 10000u);
 }

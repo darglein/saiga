@@ -16,6 +16,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
@@ -342,12 +343,67 @@ void Replication::appendTerrainModification(SpaceId space, std::vector<TerrainPa
     hostStates.push_back(std::move(e));
 }
 
+void Replication::reserveTombstones(SpaceId space, size_t n, bool behindNewEntry)
+{
+    SAIGA_ASSERT(w.isHost(), "reserveTombstones on a client");
+    if (n == 0) return;
+    size_t free = 0;
+    // An entry the extract already sent takes no more (hostStatesSent; the same rule as appendTombstone)
+    if (!behindNewEntry && hostStates.size() > hostStatesSent &&
+        hostStates.back().kind == HostStateEntry::Kind::TombstoneModification && hostStates.back().space == space)
+    {
+        std::vector<TombstoneEntry>& last = hostStates.back().tombstones;
+        free                              = kMaxTombstoneEntries - last.size();
+        last.reserve(last.size() + std::min(n, free));
+    }
+    size_t rest          = n > free ? n - free : 0;
+    const size_t entries = (rest + kMaxTombstoneEntries - 1) / kMaxTombstoneEntries;
+    hostStates.reserve(hostStates.size() + entries + (behindNewEntry ? 1 : 0));
+    spareTombstones.reserve(spareTombstones.size() + entries);
+    while (rest > 0)
+    {
+        std::vector<TombstoneEntry> buffer;
+        buffer.reserve(std::min(rest, kMaxTombstoneEntries));
+        rest -= std::min(rest, kMaxTombstoneEntries);
+        spareTombstones.push_back(std::move(buffer));
+    }
+}
+
+void Replication::appendTombstone(const ChunkId& chunk, uint16_t placementVersion, uint32_t sequence,
+                                  const InstanceKey& key)
+{
+    SAIGA_ASSERT(w.isHost(), "appendTombstone on a client");
+    TombstoneEntry e;
+    e.x                = chunk.x;
+    e.z                = chunk.z;
+    e.placementVersion = placementVersion;
+    e.sequence         = sequence;
+    e.key              = key;
+    if (hostStates.size() > hostStatesSent && hostStates.back().kind == HostStateEntry::Kind::TombstoneModification &&
+        hostStates.back().space == chunk.space && hostStates.back().tombstones.size() < kMaxTombstoneEntries)
+    {
+        hostStates.back().tombstones.push_back(e);
+        return;
+    }
+    HostStateEntry n;
+    n.kind  = HostStateEntry::Kind::TombstoneModification;
+    n.space = chunk.space;
+    if (!spareTombstones.empty())
+    {
+        n.tombstones = std::move(spareTombstones.back());
+        spareTombstones.pop_back();
+    }
+    n.tombstones.push_back(e);
+    hostStates.push_back(std::move(n));
+}
+
 void Replication::commit()
 {
     // The step (or stepNetworkOnly) completed: its extract sent the host state list (with peers); entries appended
     // after the send stay for the next extract
     hostStates.erase(hostStates.begin(), hostStates.begin() + std::ptrdiff_t(hostStatesSent));
     hostStatesSent = 0;
+    spareTombstones.clear();
     slotUndo.clear();
     hashUndo.clear();
     netIdUndo.clear();
@@ -458,6 +514,14 @@ void Replication::sendHostStates()
     for (const HostStateEntry& e : hostStates)
     {
         record.clear();
+        if (e.kind == HostStateEntry::Kind::TombstoneModification)
+        {
+            if (e.tombstones.empty()) continue;
+            encodeTombstoneModification(currentEpoch, e.space, e.tombstones, record);
+            sendToAll(regularPeers, MessageId(EngineMessage::TombstoneModification), record);
+            counts.tombstoneMessagesSent += regularPeers.size();
+            continue;
+        }
         encodeTerrainModification(currentEpoch, e.space, e.parts, record);
         sendToAll(regularPeers, MessageId(EngineMessage::TerrainModification), record);
         counts.terrainMessagesSent += regularPeers.size();
@@ -522,8 +586,51 @@ bool Replication::terrainRefused(uint8_t from, const char* what)
     return false;
 }
 
+void Replication::sendRecordStates(uint8_t peer)
+{
+    // Only the records that differ from the effective record of a chunk without one: tombstones or another version
+    const ChunkRecords& records = w.contentRecords();
+    std::vector<ChunkRecordPart> parts;
+    size_t keys       = 0;
+    SpaceId partSpace = 0;
+    auto flush        = [&]()
+    {
+        if (parts.empty()) return;
+        record.clear();
+        encodeChunkRecordState(currentEpoch, partSpace, parts, record);
+        w.sendRaw(peer, MessageId(EngineMessage::ChunkRecordState), record.data(), record.size());
+        counts.recordStatesSent++;
+        parts.clear();
+        keys = 0;
+    };
+    for (const auto& [c, r] : records.records())
+    {
+        if (r.tombstones.empty() && r.placementVersion == w.generation().space(c.space).current) continue;
+        if (c.space != partSpace) flush();
+        partSpace     = c.space;
+        size_t offset = 0;
+        do
+        {
+            if (keys == kMaxRecordKeys || parts.size() == kMaxRecordParts) flush();
+            const size_t take = std::min(r.tombstones.size() - offset, kMaxRecordKeys - keys);
+            ChunkRecordPart p;
+            p.x                = c.x;
+            p.z                = c.z;
+            p.placementVersion = r.placementVersion;
+            p.keys.assign(r.tombstones.begin() + std::ptrdiff_t(offset),
+                          r.tombstones.begin() + std::ptrdiff_t(offset + take));
+            parts.push_back(std::move(p));
+            keys += take;
+            offset += take;
+        } while (offset < r.tombstones.size());
+    }
+    flush();
+}
+
 void Replication::sendChunkSnapshot(uint8_t peer)
 {
+    // S23b: the chunk records before the terrain states (E5)
+    sendRecordStates(peer);
     const TerrainEditStore& st = w.terrainEdits();
     std::vector<int32_t> dense;
     for (size_t i = 0; i < st.spaceCount(); ++i)
@@ -2266,15 +2373,266 @@ void Replication::onResync(uint8_t from, const ResyncMessage& m)
     pendingSnapshots.clear();
     buffers.clear();
     written.clear();
-    // S22: the terrain modification state goes too (the chunk states of the host follow); visuals return to the base
-    TerrainEditStore& st = w.terrainEditsForUpdate();
-    std::vector<ChunkId> cleared;
+    // S22, S23b: the terrain modification state and the chunk records go (the host's record and chunk states follow)
+    clearReplicatedChunkState();
+}
+
+void Replication::clearReplicatedChunkState()
+{
+    // Visuals return to the base; the instances of cleared records reappear until the snapshot hides them again
+    TerrainEditStore& st  = w.terrainEditsForUpdate();
+    ChunkRecords& records = w.contentRecordsForUpdate();
+    std::vector<ChunkId> cleared, clearedRecords;
     for (size_t i = 0; i < st.spaceCount(); ++i)
         for (const auto& [c, e] : st.chunks(SpaceId(i)))
             if (e.nonZeroSamples > 0) cleared.push_back(c);
+    for (const auto& kv : records.records()) clearedRecords.push_back(kv.first);
     w.reserveTerrainChange(cleared.size());
     st.clear();
+    records.clear();
     for (const ChunkId& c : cleared) w.onTerrainChanged(c.space, chunkBox(st, c));
+    for (const ChunkId& c : clearedRecords) w.onRecordChanged(c);
+}
+
+// ---- chunk records (S23b) -----------------------------------------------------------------------------------------
+
+void Replication::rejectContent(uint8_t from, const std::string& why)
+{
+    w.rejectInput(from, why);
+    SAIGA_LOG("content", "rejected a record message from peer %d: %s", int(from), why.c_str());
+}
+
+namespace
+{
+// The checks of one chunk and its keys against the client's generation (everything but sequences)
+bool checkRecordKeys(const World& w, const SpaceGeneration& g, const std::vector<InstanceKey>& keys, std::string& error)
+{
+    if (keys.empty()) return true;
+    const size_t slots = w.generators().find(g.generatorId)->slots.size();
+    if (slots == 0)
+    {
+        error = "keys in space " + std::to_string(g.id) + " whose generator has no slots";
+        return false;
+    }
+    for (const InstanceKey& k : keys)
+    {
+        if (k.generatorSlot >= slots)
+        {
+            error =
+                "slot " + std::to_string(k.generatorSlot) + " beyond the slot table (" + std::to_string(slots) + ")";
+            return false;
+        }
+        if (k.counter >= g.generator->candidatesPerChunk(k.generatorSlot))
+        {
+            error = "counter " + std::to_string(k.counter) + " of slot " + std::to_string(k.generatorSlot) +
+                    " out of range";
+            return false;
+        }
+    }
+    return true;
+}
+}  // namespace
+
+void Replication::onTombstoneModification(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "TombstoneModification: only the host sends it to clients");
+        return;
+    }
+    TombstoneModificationMessage m;
+    std::string error;
+    if (!decodeTombstoneModification(data, size, m, error))
+    {
+        rejectContent(from, error);
+        return;
+    }
+    if (m.epoch != currentEpoch)
+    {
+        counts.recordsDroppedEpoch++;
+        return;
+    }
+    if (w.generationMismatch())
+    {
+        rejectContent(from, "TombstoneModification after a refused GenerationState");
+        return;
+    }
+    if (m.space >= w.spaceCount())
+    {
+        rejectContent(from, "TombstoneModification: unknown space " + std::to_string(m.space));
+        return;
+    }
+    // Validation of every entry before anything applies
+    const SpaceGeneration& g    = w.generation().space(m.space);
+    const ChunkRecords& records = w.contentRecords();
+    for (const TombstoneEntry& e : m.entries)
+    {
+        const std::string where = "TombstoneModification: chunk (" + std::to_string(e.x) + ", " + std::to_string(e.z) +
+                                  ") of space " + std::to_string(m.space);
+        if (e.x < 0 || e.z < 0 || e.x >= g.settings.sizeChunks || e.z >= g.settings.sizeChunks || e.sequence == 0)
+        {
+            rejectContent(from, where + ": outside the space or sequence 0");
+            return;
+        }
+        ChunkId c;
+        c.space                = m.space;
+        c.x                    = e.x;
+        c.z                    = e.z;
+        const ChunkRecord* r   = records.find(c);
+        const uint16_t version = r ? r->placementVersion : g.current;
+        if (e.placementVersion != version)
+        {
+            rejectContent(from, where + ": placement version " + std::to_string(e.placementVersion) +
+                                    ", the chunk's effective version " + std::to_string(version));
+            return;
+        }
+        if (!checkRecordKeys(w, g, {e.key}, error))
+        {
+            rejectContent(from, where + ": " + error);
+            return;
+        }
+    }
+    // Sequences per chunk, cumulative within the message: a duplicate is dropped, a gap logged, counted and applied
+    TerrainEditStore& st = w.terrainEditsForUpdate();
+    std::map<ChunkId, uint32_t> running;
+    std::map<ChunkId, size_t> perChunk;
+    std::vector<const TombstoneEntry*> apply;
+    for (const TombstoneEntry& e : m.entries)
+    {
+        ChunkId c;
+        c.space = m.space;
+        c.x     = e.x;
+        c.z     = e.z;
+        auto it = running.find(c);
+        if (it == running.end()) it = running.emplace(c, st.sequence(c)).first;
+        if (e.sequence <= it->second)
+        {
+            counts.tombstonesDuplicate++;
+            continue;
+        }
+        if (e.sequence > it->second + 1)
+        {
+            SAIGA_LOG("net", "TombstoneModification: a gap in chunk (%d, %d) of space %d: sequence %u after %u",
+                      int(e.x), int(e.z), int(m.space), e.sequence, it->second);
+            w.netCounts.modificationGaps++;
+        }
+        it->second = e.sequence;
+        perChunk[c]++;
+        apply.push_back(&e);
+    }
+    if (apply.empty()) return;
+    // Reserve: S22's entries, the records and their key capacity
+    ChunkRecords& rec = w.contentRecordsForUpdate();
+    std::vector<TerrainEditStore::EntryNode> entries;
+    for (const auto& [c, n] : perChunk)
+    {
+        if (!st.entry(c)) entries.push_back(st.makeEntry(c));
+        rec.reserve(c, records.find(c) ? records.find(c)->placementVersion : g.current, n);
+    }
+    // Commit
+    for (TerrainEditStore::EntryNode& e : entries) st.insertEntry(std::move(e));
+    for (const TombstoneEntry* e : apply)
+    {
+        ChunkId c;
+        c.space = m.space;
+        c.x     = e->x;
+        c.z     = e->z;
+        rec.insert(c, e->key);
+        st.setSequence(c, e->sequence);
+        counts.tombstonesApplied++;
+    }
+    for (const auto& kv : perChunk) w.onRecordChanged(kv.first);
+    counts.recordMessagesApplied++;
+}
+
+void Replication::onChunkRecordState(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "ChunkRecordState: only the host sends it to clients");
+        return;
+    }
+    ChunkRecordStateMessage m;
+    std::string error;
+    if (!decodeChunkRecordState(data, size, m, error))
+    {
+        rejectContent(from, error);
+        return;
+    }
+    if (m.epoch != currentEpoch)
+    {
+        counts.recordsDroppedEpoch++;
+        return;
+    }
+    if (w.generationMismatch())
+    {
+        rejectContent(from, "ChunkRecordState after a refused GenerationState");
+        return;
+    }
+    if (m.space >= w.spaceCount())
+    {
+        rejectContent(from, "ChunkRecordState: unknown space " + std::to_string(m.space));
+        return;
+    }
+    const SpaceGeneration& g    = w.generation().space(m.space);
+    const ChunkRecords& records = w.contentRecords();
+    // Validation of every part before anything applies; the version a chunk will have (its record's, else the first
+    // part's)
+    std::map<ChunkId, std::pair<uint16_t, size_t>> chunks;
+    for (const ChunkRecordPart& p : m.parts)
+    {
+        const std::string where = "ChunkRecordState: chunk (" + std::to_string(p.x) + ", " + std::to_string(p.z) +
+                                  ") of space " + std::to_string(m.space);
+        if (p.x < 0 || p.z < 0 || p.x >= g.settings.sizeChunks || p.z >= g.settings.sizeChunks)
+        {
+            rejectContent(from, where + ": outside the space");
+            return;
+        }
+        if (p.placementVersion < g.pinned || p.placementVersion > g.current)
+        {
+            rejectContent(from, where + ": placement version " + std::to_string(p.placementVersion) + " not in v" +
+                                    std::to_string(g.pinned) + "..v" + std::to_string(g.current));
+            return;
+        }
+        ChunkId c;
+        c.space              = m.space;
+        c.x                  = p.x;
+        c.z                  = p.z;
+        const ChunkRecord* r = records.find(c);
+        auto it              = chunks.find(c);
+        if (it == chunks.end())
+            it = chunks.emplace(c, std::make_pair(r ? r->placementVersion : p.placementVersion, size_t(0))).first;
+        if (p.placementVersion != it->second.first)
+        {
+            rejectContent(from, where + ": placement version " + std::to_string(p.placementVersion) +
+                                    ", the chunk's record has " + std::to_string(it->second.first));
+            return;
+        }
+        if (!sortedUniqueKeys(p.keys))
+        {
+            rejectContent(from, where + ": the keys are not sorted and unique");
+            return;
+        }
+        if (!checkRecordKeys(w, g, p.keys, error))
+        {
+            rejectContent(from, where + ": " + error);
+            return;
+        }
+        it->second.second += p.keys.size();
+    }
+    // Reserve, then commit (the union of the parts)
+    ChunkRecords& rec = w.contentRecordsForUpdate();
+    for (const auto& [c, vk] : chunks) rec.reserve(c, vk.first, vk.second);
+    for (const ChunkRecordPart& p : m.parts)
+    {
+        ChunkId c;
+        c.space = m.space;
+        c.x     = p.x;
+        c.z     = p.z;
+        for (const InstanceKey& k : p.keys) rec.insert(c, k);
+    }
+    for (const auto& kv : chunks) w.onRecordChanged(kv.first);
+    counts.recordMessagesApplied++;
 }
 
 // ---- the write detector -------------------------------------------------------------------------------------------
