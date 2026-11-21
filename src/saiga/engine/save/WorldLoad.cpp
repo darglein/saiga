@@ -9,15 +9,18 @@
 // entities, restores the world state, rebuilds the derived state and recreates the game objects.
 
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveReader.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
+#include <set>
 
 #include <unordered_set>
 
@@ -45,6 +48,9 @@ class WorldLoader
     bool checkHierarchy();
     bool checkPersistent();
     bool checkFreedStateEntities();
+    // S19b: resolves the staged RenderInstance names (aliases) and sets the cached IDs; an unregistered name is kept
+    // (cached 0: tracked, drawn once the mesh is registered) and counted for one log line after the commit
+    bool checkRenderMeshes();
     // The staged value index -> keep; removes the others from a typed stage
     template <class T>
     static void filterStage(StagedOf<T>& s, const std::vector<bool>& keep);
@@ -66,6 +72,9 @@ class WorldLoader
     std::vector<std::unique_ptr<StagedValues>> stateDefaults =
         std::vector<std::unique_ptr<StagedValues>>(kMaxComponents);
     std::vector<std::string> droppedEvents;
+    // RenderInstance names that are not registered (kept; logged once after the commit) and their entity count
+    std::set<std::string> unknownMeshes;
+    size_t unknownMeshEntities = 0;
     std::vector<bool> drop;           // by entity index: dropped by a removed type (DropEntity)
     std::vector<int64_t> generation;  // by entity index after the load: the generation, -1 if not alive
 };
@@ -782,7 +791,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     }
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
-        !checkPersistent() || !checkFreedStateEntities())
+        !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes())
     {
         result.error = error;
         return result;
@@ -809,8 +818,20 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     commit();
     result.committed = true;
     w.loads++;
+    // The extract's catch-up between steps sends the loaded poses (the structural log recreates the instances); marked
+    // before the hooks and listeners, so a listener that renders (catchUp) sees the load
+    w.extractor->markDirty();
     for (const std::string& e : droppedEvents)
         SAIGA_LOG("save", "load: dropped the pending events of the unregistered type %s", e.c_str());
+    if (!unknownMeshes.empty())
+    {
+        std::string names;
+        for (const std::string& n : unknownMeshes) names += (names.empty() ? "\"" : ", \"") + n + "\"";
+        SAIGA_LOG("render",
+                  "load: %zu entities name meshes that are not registered (%s): tracked, drawn once registered "
+                  "(World::registerMesh, registerMeshAlias)",
+                  unknownMeshEntities, names.c_str());
+    }
     startObjects(result);
     // Messages encoded from the replaced state are not sent (S15); the listeners' sends go out (a Resync, S16)
     w.discardOutboxAfterLoad();
@@ -867,9 +888,29 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     return result;
 }
 
+bool WorldLoader::checkRenderMeshes()
+{
+    if (!staged[RenderInstance::id]) return true;
+    auto& s = static_cast<StagedOf<RenderInstance>&>(*staged[RenderInstance::id]);
+    for (size_t i = 0; i < s.values.size(); ++i)
+    {
+        if (generation[s.indices[i]] < 0) continue;
+        RenderInstance& r = s.values[i];
+        if (!w.resolveRenderMesh(r.mesh, r.cachedMesh))
+        {
+            // Kept, as the add path and replication do: the save stays loadable
+            r.cachedMesh = 0;
+            unknownMeshes.insert(r.mesh);
+            unknownMeshEntities++;
+        }
+    }
+    return true;
+}
+
 LoadResult World::tryLoad(const std::vector<uint8_t>& data)
 {
     WorldLoader loader(*this);
+    // The extract is marked dirty at the commit, before the load listeners (WorldLoader::run)
     return loader.run(data);
 }
 

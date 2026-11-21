@@ -26,19 +26,20 @@ class InputMap;
 class ScenarioList;
 struct AppOptions;
 
-// Until S19 the game draws with the prototype renderers: the app calls these (docs/engine_design.md §8.3)
+// The game's render hooks (docs/engine_design.md §8.3; S19b): the entities render through the World's render sink
+// (RenderInstance, the extract); the game keeps device-bound state of its own (the prototype's tree sets, level
+// geometry as instance sets, cosmetic dynamic instances) and sets the view camera
 struct GameRenderHooks
 {
-    std::function<void(EngineApp&)> init;      // after the device exists (create the game's GPU state)
-    std::function<void(EngineApp&)> shutdown;  // after the device is idle (destroy it)
-    std::function<void(vk::CommandBuffer)> transfer, render;
+    // After the device and the render sink exist (EngineApp::vulkanSink(): the scene for the game's own content)
+    std::function<void(EngineApp&)> init;
+    // After the device is idle (destroy the game's device-bound state)
+    std::function<void(EngineApp&)> shutdown;
+    // Every rendered frame after the extract's catch-up and before recording (not with --no-render): the camera
+    // (EngineApp::setViewCamera, from ExtractSystem::interpolatedPose), cosmetic instances, the prototype's settings
+    // and time; alpha: the world's interpolation factor of the frame
+    std::function<void(EngineApp&, double alpha)> beforeRender;
     std::function<void()> gui;
-    // The game's GPU passes of the RenderScene frame `frame` (milliseconds by pass name; the frame recorded while
-    // RenderScene::frames() is frame - 1), false while they are not known (a completed frame waits up to 8 frames for
-    // them, then it gets no gpu sample). They join the gpu profile as gpu/scene/game/<name> (drawn in the scene pass;
-    // only the names of passNames, registered before the first sample)
-    std::vector<std::string> passNames;
-    std::function<bool(uint64_t frame, std::vector<std::pair<std::string, double>>& passMs)> passTimes;
 };
 
 struct EngineAppSetup
@@ -64,6 +65,9 @@ struct EngineAppSetup
     // Writes the game's own control components from the input map (e.g. flight sticks); with a local player
     std::function<void(const InputMap&, World&, Entity localPlayer)> applyInput;
     GameRenderHooks renderHooks;
+    // The camera hold of a tool ended (EngineApp::releaseCamera): the game resets its own camera (e.g. a chase camera's
+    // reset(), so it does not glide back)
+    std::function<void(EngineApp&)> onCameraReleased;
     int mcpPort                  = 8765;  // 0: the server is not started (the tools exist for handleMessage)
     double mcpToolTimeoutSeconds = 120;
     std::string inputFile;          // default: <data directory>/input.json if it exists

@@ -32,6 +32,24 @@ class RenderScene;
 namespace Engine
 {
 class LoopbackTransport;
+class RenderSink;
+class VulkanRenderSink;
+
+// The camera of the next rendered frame (EngineApp::setViewCamera; S19b): double, fovy in radians, looking along -z
+// of rotation (y up)
+struct ViewCamera
+{
+    SpaceId space = 0;
+    Vec3 position = Vec3(0, 2, 6);
+    Quat rotation = Quat::Identity();
+    double fovy   = 60.0 * 3.14159265358979323846 / 180.0;
+    // The writer asked for no smoothing (a teleport; read by later consumers such as the camera rig of S35)
+    bool snap = false;
+};
+
+// The rotation of a camera at the origin looking along dir (y up; dir near +-y keeps a heading from fallback, then
+// -z); double (the app camera, the camera tools)
+SAIGA_ENGINE_API Quat cameraLookRotation(const Vec3& dir, const Vec3& fallbackForward = Vec3(0, 0, -1));
 
 /**
  * The engine's app (docs/engine_design.md §8.3; S13): the window (GLFW, or none when headless), the RenderScene frame,
@@ -74,7 +92,17 @@ class SAIGA_ENGINE_API EngineApp
     void stepAll(int n);
     McpServer& mcp() { return *server; }
     WorldApi& api() { return *worldApi; }
-    PerspectiveCamera& camera();
+    // The view camera as a float PerspectiveCamera (derived from viewCamera(): the input map's heading, old GUI code)
+    const PerspectiveCamera& camera() const;
+    // The single camera (S19b): the camera of the next rendered frame, used as is (no interpolation by the app; games
+    // set it every frame from ExtractSystem::interpolatedPose in beforeRender). While a tool holds the camera the call
+    // is ignored and returns false (games need no branch)
+    bool setViewCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy, bool snap = false);
+    // A tool's write (set_camera / move_camera hold the camera; game_set_camera and the walk mode do not): not blocked
+    void setViewCameraByTool(SpaceId space, const Vec3& position, const Quat& rotation, double fovy, bool hold);
+    const ViewCamera& viewCamera() const { return view; }
+    // The World's render sink over the scene (nullptr with noRender)
+    VulkanRenderSink* vulkanSink() { return sink.get(); }
     // The free camera's speeds (initially EngineAppSetup::cameraSpeed/cameraSpeedFast)
     float& cameraSpeed();
     float& cameraSpeedFast();
@@ -105,7 +133,8 @@ class SAIGA_ENGINE_API EngineApp
     // skips its update while held, renders from camera() and resets its own camera on the release edge
     bool cameraHeldByTool() const { return cameraHeld; }
     void holdCamera() { cameraHeld = true; }
-    void releaseCamera() { cameraHeld = false; }
+    // The release edge calls EngineAppSetup::onCameraReleased (the game resets its camera)
+    void releaseCamera();
     // After a tool call that blocked the loop (run_scenario): the next frame's dt does not contain the blocked time
     void restartFrameClock();
     // run_scenario's load: the live world then descends from a scenario (before_scenario is kept) until another load
@@ -120,7 +149,7 @@ class SAIGA_ENGINE_API EngineApp
     Profiler& frameProfile() { return frameProfiler; }
     Profiler& gpuProfile() { return gpuProfiler; }
     // The gpu profile's sample of RenderScene frame `frame` (one of the last 600 completed frames) by scope name (gpu,
-    // gpu/<section>, gpu/scene/game/<pass>, ...); false if it is not logged (not completed yet, or too old)
+    // gpu/<section>, ...); false if it is not logged (not completed yet, or too old)
     bool gpuFrameSample(uint64_t frame, std::vector<std::pair<std::string, double>>& values) const;
     uint64_t renderedFrames() const { return framesRendered; }
     uint64_t frameCount() const { return framesRun; }
@@ -150,6 +179,13 @@ class SAIGA_ENGINE_API EngineApp
     AppOptions appOptions;
     std::unique_ptr<Vulkan::VulkanWindow> appWindow;
     std::unique_ptr<Vulkan::RenderScene> renderScene;
+    std::unique_ptr<VulkanRenderSink> sink;
+    ViewCamera view;
+    // The float camera of camera() (and the GLFW mouse look) from the view camera
+    void syncCamera();
+    // The free camera (no local player): mouse look (not while ImGui has the mouse) and the keys (not while it has the
+    // keyboard), the motion integrated in double
+    void freeCamera(double dt, bool mouseLook, bool keys);
     // --coop: the loopback pair (peer 0 the host, peer 1 the client) outlives both worlds; the client world (gameWorld)
     // is destroyed before the host
     std::vector<std::unique_ptr<LoopbackTransport>> coopTransports;
@@ -187,10 +223,8 @@ class SAIGA_ENGINE_API EngineApp
     Profiler frameProfiler, gpuProfiler;
     int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeRecording = -1, scopeGpuFrame = -1;
     int counterFps = -1, counterSteps = -1, counterDropped = -1;
-    std::vector<int> scopeGpuSections, scopeGpuPasses;
-    int scopeGpuGame       = -1;
+    std::vector<int> scopeGpuSections;
     uint64_t droppedBefore = 0;
-    std::deque<Vulkan::FrameTimes> pendingGpu;  // completed frames waiting for the game's passes of the same frame
     // The last GPU samples with their RenderScene frame (measure_performance(frames)): the 600 frames of the longest
     // measurement and those logged while it waits for the samples of its last frames (at most 8 + frames in flight)
     static constexpr size_t kGpuLogSize = 600 + 64;

@@ -60,41 +60,11 @@ bool optionalNumber(const Json& args, const char* name, double limit, float& out
     return false;
 }
 
-vec3 cameraForward(const Camera& camera)
-{
-    return -make_vec3(camera.model.col(2)).normalized();
-}
-
-void lookFrom(Camera& camera, const vec3& eye, vec3 dir)
-{
-    if (!dir.allFinite() || dir.norm() < 1e-6f) dir = vec3(0, 0, -1);
-    dir.normalize();
-    // Keep away from straight up/down, the view matrix needs a non parallel up vector. The horizontal part is rebuilt
-    // from its direction (adding a small offset could cancel a small existing component, e.g. x = -0.001), with the
-    // horizontal direction of the current view as the fallback when it is (almost) zero.
-    if (std::abs(dir(1)) > 0.999f)
-    {
-        vec2 h(dir(0), dir(2));
-        if (h.norm() < 1e-4f)
-        {
-            vec3 f = cameraForward(camera);
-            h      = vec2(f(0), f(2));
-            if (!h.allFinite() || h.norm() < 1e-4f) h = vec2(0, 1);
-        }
-        h          = h.normalized() * std::sqrt(1.0f - 0.999f * 0.999f);
-        float sign = dir(1) < 0 ? -1.0f : 1.0f;
-        dir        = vec3(h(0), 0.999f * sign, h(1));
-    }
-    // From the direction, not from eye + dir: far from the origin (and for steep directions) eye + dir loses the small
-    // components of dir in float
-    camera.setView(lookAt(vec3(0, 0, 0), dir, vec3(0, 1, 0)) * translate(-eye));
-}
-
 // The camera's ground and walk-mode state (the rest of the camera is in the app's app_status)
 Json groundJson(const WorldMcpContext& c)
 {
-    const vec3 pos     = c.camera->getPosition();
-    const float ground = c.world->heightField().height(pos(0), pos(2));
+    const Vec3 pos      = c.getCamera().position;
+    const double ground = c.world->heightField().height(float(pos(0)), float(pos(2)));
     Json::object o{{"ground_height", std::round(ground * 100) / 100},
                    {"height_above_ground", std::round((pos(1) - ground) * 100) / 100}};
     if (c.walkMode) o["walk_mode"] = *c.walkMode;
@@ -149,7 +119,7 @@ std::string worldMcpInstructions()
 
 void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
 {
-    SAIGA_ASSERT(context.world && context.camera);
+    SAIGA_ASSERT(context.world && context.getCamera && context.setCamera);
     WorldMcpContext c = context;
 
     server.addTool("game_get_state",
@@ -183,33 +153,36 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
                 if (kv.first != "position" && kv.first != "height_above_ground" && kv.first != "walk_mode")
                     return respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
             const double limit = maxWorldSizes * c.world->heightField().worldSize();
-            vec3 pos           = c.camera->getPosition();
-            const vec3 dir     = cameraForward(*c.camera);
+            WorldMcpCamera cam = c.getCamera();
+            Vec3 pos           = cam.position;
             if (!args["position"].is_null())
             {
                 const Json& p  = args["position"];
                 const size_t n = p.is_array() ? p.array_items().size() : 0;
-                float x = 0, y = pos(1), z = 0;
+                float x = 0, y = float(pos(1)), z = 0;
                 const bool ok = (n == 3 && finiteClamped(p[0], limit, x) && finiteClamped(p[1], limit, y) &&
                                  finiteClamped(p[2], limit, z)) ||
                                 (n == 2 && finiteClamped(p[0], limit, x) && finiteClamped(p[1], limit, z));
                 if (!ok) return respond(ToolResult::Error("position: [x, y, z] or [x, z] with finite numbers"));
-                pos = vec3(x, y, z);
+                pos = Vec3(x, y, z);
             }
             float heightAboveGround = 0;
             if (!optionalNumber(args, "height_above_ground", limit, heightAboveGround, respond)) return;
             if (!args["walk_mode"].is_null() && !args["walk_mode"].is_bool())
                 return respond(ToolResult::Error("walk_mode: a bool"));
+            const auto& hf = c.world->heightField();
             if (args["height_above_ground"].is_number())
-                pos(1) = c.world->heightField().height(pos(0), pos(2)) + heightAboveGround;
+                pos(1) = double(hf.height(float(pos(0)), float(pos(2)))) + heightAboveGround;
             if (args["walk_mode"].is_bool() && c.walkMode)
             {
                 *c.walkMode = args["walk_mode"].bool_value();
-                if (*c.walkMode && c.eyeHeight) pos(1) = c.world->heightField().height(pos(0), pos(2)) + *c.eyeHeight;
+                if (*c.walkMode && c.eyeHeight) pos(1) = double(hf.height(float(pos(0)), float(pos(2)))) + *c.eyeHeight;
             }
-            lookFrom(*c.camera, pos, dir);
+            // The view direction stays
+            cam.position = pos;
+            c.setCamera(cam);
             Json::object o = groundJson(c).object_items();
-            o["position"]  = toJson(c.camera->getPosition());
+            o["position"]  = toJson(vec3(c.getCamera().position.cast<float>()));
             respond(ToolResult::FromJson(o));
         });
 
@@ -221,6 +194,13 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
                    [c](const Json& args, McpServer::Respond respond)
                    {
                        auto unknown = c.world->settings.fromJson(args);
+                       // The field of view is the app camera's (S19b)
+                       if (args["fovy"].is_number())
+                       {
+                           WorldMcpCamera cam = c.getCamera();
+                           cam.fovy           = radians(double(c.world->settings.fovy));
+                           c.setCamera(cam);
+                       }
                        Json::object o{{"settings", c.world->settings.toJson()}};
                        if (!unknown.empty()) o["invalid_keys"] = Json::array(unknown.begin(), unknown.end());
                        respond(ToolResult::FromJson(o));

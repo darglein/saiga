@@ -16,6 +16,7 @@
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/gameplay/Behaviour.h"
@@ -41,6 +42,8 @@ void registerEngineComponents(Registry& registry)
     registry.registerComponent<NetOwner>(Replicate::Host);
     registry.registerComponent<NetLocal>(Replicate::Never);
     registry.registerComponent<RenderPose>(Replicate::Never, Saved::No);
+    // S19b: what an entity renders, by mesh name (rarely changing: reliable, not in the snapshots)
+    registry.registerComponent<RenderInstance>(Replicate::HostReliable);
 }
 
 }  // namespace Engine

@@ -1268,14 +1268,22 @@ TEST_F(VulkanWorldScene, GameTools)
     params.terrain.size = 129;
     params.treeCount    = 100;
     Attach(world, params);
-    PerspectiveCamera camera;
-    camera.setView(lookAt(vec3(10, 50, 10), vec3(20, 40, 20), vec3(0, 1, 0)));
-    bool walkMode   = false;
-    float eyeHeight = 1.7f;
+    // S19b: the tools reach the app's view camera through callbacks (a tool write, no hold)
+    Vulkan::WorldMcpCamera camera;
+    camera.position  = Vec3(10, 50, 10);
+    camera.rotation  = Quat(AngleAxis(0.3, Vec3(0, 1, 0))) * Quat(AngleAxis(-0.5, Vec3(1, 0, 0)));
+    int cameraWrites = 0;
+    bool walkMode    = false;
+    float eyeHeight  = 1.7f;
     McpServer server("test");
     Vulkan::WorldMcpContext context;
     context.world     = &world;
-    context.camera    = &camera;
+    context.getCamera = [&]() { return camera; };
+    context.setCamera = [&](const Vulkan::WorldMcpCamera& c)
+    {
+        camera = c;
+        cameraWrites++;
+    };
     context.walkMode  = &walkMode;
     context.eyeHeight = &eyeHeight;
     Vulkan::registerWorldMcpTools(server, context);
@@ -1316,6 +1324,9 @@ TEST_F(VulkanWorldScene, GameTools)
     s = toolResultJson(callWorldTool(server, "game_set_settings", Json::object{{"fovy", 1000.0}, {"nope", 1}}));
     EXPECT_LT(s["settings"]["fovy"].number_value(), 1000) << s.dump();  // clamped to the GUI range
     EXPECT_EQ(s["invalid_keys"][0].string_value(), "nope") << s.dump();
+    // The field of view is the app camera's (S19b)
+    EXPECT_EQ(cameraWrites, 1);
+    EXPECT_NEAR(camera.fovy, s["settings"]["fovy"].number_value() * pi<double>() / 180.0, 1e-6);
     // A setting reaches RenderScene with the next update (game_world calls it every frame)
     callWorldTool(server, "game_set_settings", Json::object{{"grass", false}});
     world.update();
@@ -1334,13 +1345,13 @@ TEST_F(VulkanWorldScene, GameTools)
                     .bool_value());
 
     // game_set_camera: [x, z] with a height above ground keeps the view direction; walk mode on and off
-    const vec3 dir = -make_vec3(camera.model.col(2)).normalized();
-    Json c         = toolResultJson(callWorldTool(
+    const Quat rotation = camera.rotation;
+    Json c              = toolResultJson(callWorldTool(
         server, "game_set_camera", Json::object{{"position", Json::array{x, z}}, {"height_above_ground", 30.0}}));
     EXPECT_NEAR(c["height_above_ground"].number_value(), 30, 0.02) << c.dump();
     EXPECT_NEAR(c["ground_height"].number_value(), hf.height(x, z), 0.02) << c.dump();
-    EXPECT_NEAR(camera.getPosition()(0), x, 1e-2);
-    EXPECT_LT((-make_vec3(camera.model.col(2)).normalized() - dir).norm(), 1e-3);
+    EXPECT_NEAR(camera.position(0), x, 1e-2);
+    EXPECT_TRUE(camera.rotation.isApprox(rotation));
     c = toolResultJson(callWorldTool(server, "game_set_camera", Json::object{{"walk_mode", true}}));
     EXPECT_TRUE(walkMode);
     EXPECT_NEAR(c["height_above_ground"].number_value(), eyeHeight, 0.02) << c.dump();

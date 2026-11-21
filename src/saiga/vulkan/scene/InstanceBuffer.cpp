@@ -202,12 +202,21 @@ uint32_t InstanceBuffer::acquireChunk(const ChunkId& chunk)
         it->second.second++;
         return it->second.first;
     }
+    // The map entry first, undone if the slot allocation throws (RenderSink's failure contract)
+    it = chunkSlots.emplace(chunk, std::pair<uint32_t, uint32_t>(0, 1)).first;
     Slot s;
-    s.kind            = Slot::Kind::Chunk;
-    s.chunk           = chunk;
-    const uint32_t id = allocateSlot(s);
-    chunkSlots[chunk] = {id, 1};
-    return id;
+    s.kind  = Slot::Kind::Chunk;
+    s.chunk = chunk;
+    try
+    {
+        it->second.first = allocateSlot(s);
+    }
+    catch (...)
+    {
+        chunkSlots.erase(it);
+        throw;
+    }
+    return it->second.first;
 }
 
 void InstanceBuffer::releaseChunk(const ChunkId& chunk)
@@ -250,6 +259,9 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
     Dynamic& d = dynamicList[h.id - 1];
     if (!d.set || d.chunk != chunk)
     {
+        // Room for the old chunk's slot first: after acquireChunk nothing may throw (RenderSink's failure contract)
+        if (d.set && freeSlots.size() == freeSlots.capacity())
+            freeSlots.reserve(std::max<size_t>(16, 2 * freeSlots.capacity()));
         const uint32_t slot = acquireChunk(chunk);
         if (d.set) releaseChunk(d.chunk);
         d.slot  = slot;
@@ -265,6 +277,13 @@ void InstanceBuffer::removeDynamic(InstanceHandle h)
 {
     SAIGA_ASSERT(h.id > 0 && h.id <= dynamicList.size() && dynamicList[h.id - 1].alive,
                  "removeDynamic: unknown dynamic instance");
+    // Everything that can allocate first: a removal that throws changes nothing (RenderSink's failure contract)
+    auto room = [](std::vector<uint32_t>& v)
+    {
+        if (v.size() == v.capacity()) v.reserve(std::max<size_t>(16, 2 * v.capacity()));
+    };
+    room(freeDynamics);
+    room(freeSlots);
     Dynamic& d = dynamicList[h.id - 1];
     if (d.set) releaseChunk(d.chunk);
     d = Dynamic();

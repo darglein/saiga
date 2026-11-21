@@ -8,12 +8,16 @@
 
 #include "games/racing/RacingWorld.h"
 
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
 
+#include "games/common/RenderAssets.h"
+
 #include <chrono>
+#include <cstdio>
 #include <iostream>
 
 namespace Saiga
@@ -162,6 +166,8 @@ Vehicle vehicleOf(const World& w, Entity e)
 void CarBase::onSpawn()
 {
     if (!has<VehicleState>()) add<VehicleState>();
+    // The body is drawn by the engine (S19b; the wheels are the renderer's cosmetic instances)
+    if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance(kCarBodyMesh));
     if (!has<VehicleSeat>())
     {
         // Its own driver: an AI car, or a car spawned as the player
@@ -260,10 +266,33 @@ WorldSetup racingWorldSetup(std::shared_ptr<const RacingContext> context)
         c.add<Car>();
         c.add<RaceDriver>();
     };
-    s.actions   = [](ActionList& a) { a.add(uint32_t(RacingAction::Respawn), "respawn"); };
-    s.dataTypes = [](DataTypeList& d) { d.add<VehicleParameters>(); };
+    s.actions      = [](ActionList& a) { a.add(uint32_t(RacingAction::Respawn), "respawn"); };
+    s.dataTypes    = [](DataTypeList& d) { d.add<VehicleParameters>(); };
+    s.renderAssets = [](World& w)
+    {
+        const Vulkan::MaterialId flat = w.registerMaterial("racing/flat", demoMaterial());
+        registerDemoMesh(w, kCarBodyMesh, []() { return MeshBuilder::carBody(Vec3(0.85, 0.15, 0.12)); }, flat);
+        // One wheel mesh per radius of the vehicle models (no non-uniform scale on instances)
+        for (const std::string& model : w.dataNames<VehicleParameters>())
+            wheelMesh(w, w.data<VehicleParameters>(model).wheelRadius);
+    };
     s.setContext(std::move(context));
     return s;
+}
+
+std::string wheelMeshName(double radius)
+{
+    char name[64];
+    std::snprintf(name, sizeof(name), "racing/wheel/r%.4f", radius);
+    return name;
+}
+
+Vulkan::MeshId wheelMesh(World& w, double radius)
+{
+    const std::string name = wheelMeshName(radius);
+    if (const Vulkan::MeshId id = w.findMesh(name)) return id;
+    return registerDemoMesh(
+        w, name, [radius]() { return MeshBuilder::wheel(radius, 0.28); }, w.findMaterial("racing/flat"));
 }
 
 // ---- scenarios -----------------------------------------------------------------------------------------------------

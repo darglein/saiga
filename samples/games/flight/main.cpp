@@ -56,11 +56,11 @@ int main(int argc, char** argv)
         c.yaw               = in.axis("yaw");
         c.throttleChange    = in.axis("throttle");
     };
-    setup.renderHooks.init     = [&](EngineApp& app) { renderer.init(app); };
-    setup.renderHooks.shutdown = [&](EngineApp&) { renderer.shutdown(); };
-    setup.renderHooks.transfer = [&](vk::CommandBuffer cmd) { renderer.transfer(cmd); };
-    setup.renderHooks.render   = [&](vk::CommandBuffer cmd) { renderer.render(cmd); };
-    setup.renderHooks.gui      = [&]() { renderer.gui(); };
+    setup.renderHooks.init         = [&](EngineApp& app) { renderer.init(app); };
+    setup.renderHooks.shutdown     = [&](EngineApp&) { renderer.shutdown(); };
+    setup.renderHooks.beforeRender = [&](EngineApp&, double alpha) { renderer.beforeRender(alpha); };
+    setup.renderHooks.gui          = [&]() { renderer.gui(); };
+    setup.onCameraReleased         = [&](EngineApp&) { renderer.cameraReleased(); };
 
     return engineMain(argc, argv, setup, {"--demo"},
                       [&wasActive](EngineApp& app, const AppOptions& options)

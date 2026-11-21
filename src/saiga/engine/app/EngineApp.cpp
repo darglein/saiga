@@ -17,6 +17,8 @@
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/saiga_buildconfig.h"
 #include "saiga/saiga_modules.h"
@@ -28,6 +30,7 @@
 #    include "saiga/core/glfw/glfw_camera.h"
 #endif
 
+#include <cmath>
 #include <fstream>
 #include <stdexcept>
 #include <thread>
@@ -65,6 +68,37 @@ bool fileExists(const std::string& path)
     return !path.empty() && std::ifstream(path).good();
 }
 }  // namespace
+
+Quat cameraLookRotation(const Vec3& direction, const Vec3& fallbackForward)
+{
+    Vec3 f = direction;
+    if (!(f.norm() > 1e-12) || !std::isfinite(f.norm())) f = fallbackForward;
+    f.normalize();
+    // Only (almost) straight up / down (S14, CodeRabbit: a clamp at |y| > 0.999 changed valid pitches, 88 degrees came
+    // back as 87.4): the view needs an up vector that is not parallel, and the heading is kept with a tiny horizontal
+    // part, from the fallback (or -z) when there is none
+    constexpr double kMinHorizontal = 1e-3;  // about 89.94 degrees
+    Vec3 h(f(0), 0, f(2));
+    if (h.norm() < kMinHorizontal)
+    {
+        if (h.norm() < 1e-6) h = Vec3(fallbackForward(0), 0, fallbackForward(2));
+        if (!(h.norm() >= 1e-6)) h = Vec3(0, 0, -1);
+        h = h.normalized() * kMinHorizontal;
+        f = Vec3(h(0), (f(1) < 0 ? -1.0 : 1.0) * std::sqrt(1.0 - kMinHorizontal * kMinHorizontal), h(2));
+    }
+    // The camera looks along -z: z = -f, x = up x z, y = z x x
+    const Vec3 z = -f;
+    const Vec3 x = Vec3(0, 1, 0).cross(z).normalized();
+    const Vec3 y = z.cross(x);
+    Mat3 m;
+    for (int i = 0; i < 3; ++i)
+    {
+        m(i, 0) = x(i);
+        m(i, 1) = y(i);
+        m(i, 2) = z(i);
+    }
+    return quat_cast(m);
+}
 
 EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     : appSetup(setup),
@@ -151,11 +185,17 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         vp.enableImgui           = appSetup.render.imgui;
         vp.enableDefragmentation = false;
         renderScene              = std::make_unique<Vulkan::RenderScene>(*appWindow, vp, appSetup.render);
+        // The rendered world's sink (S19b): the World forwards its meshes and materials, the extract its entities. With
+        // --coop only the client world renders (the host has no sink)
+        sink = std::make_unique<VulkanRenderSink>(*renderScene);
+        gameWorld->setRenderSink(sink.get());
     }
 
+    // The view camera: from (0, 2, 6) towards the origin
+    view.position = Vec3(0, 2, 6);
+    view.rotation = cameraLookRotation(Vec3(0, -2, -6));
+    syncCamera();
     PerspectiveCamera& cam = cameraHolder->camera;
-    cam.setProj(60.0f, float(appSetup.width) / float(appSetup.height), 0.1f, 50.0f, true);
-    cam.setView(vec3(0, 2, 6), vec3(0, 0, 0), vec3(0, 1, 0));
     if (appWindow) appWindow->setCamera(&cam);
 #ifdef SAIGA_USE_GLFW
     auto& controls             = cameraHolder->camera;
@@ -243,14 +283,10 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         gpuScopeNames[size_t(id)] = name;
         return id;
     };
+    // Before the first sample: a scope created later would count the empty history as zero samples
     scopeGpuFrame = gpuScope("gpu");
     for (const char* name : Vulkan::RenderScene::gpuSectionNames())
         scopeGpuSections.push_back(gpuScope(std::string("gpu/") + name));
-    // Before the first sample: a scope created later would count the empty history as zero samples. The game's passes
-    // are drawn in the scene pass (S17)
-    if (!appSetup.renderHooks.passNames.empty()) scopeGpuGame = gpuScope("gpu/scene/game");
-    for (const std::string& name : appSetup.renderHooks.passNames)
-        scopeGpuPasses.push_back(gpuScope("gpu/scene/game/" + name));
 
     // set_input expires after its steps also inside one world().step(n) or a multi-step advance: released right after
     // the last step it covers, before the next step can read it
@@ -328,6 +364,9 @@ EngineApp::~EngineApp()
     if (server) server->stop();
     if (renderScene) renderScene->waitIdle();
     if (hooksInitialized && appSetup.renderHooks.shutdown) appSetup.renderHooks.shutdown(*this);
+    // The world's instances leave the scene with the sink (before the scene)
+    if (gameWorld && sink) gameWorld->setRenderSink(nullptr);
+    sink.reset();
     renderScene.reset();
     worldApi.reset();
     server.reset();
@@ -338,9 +377,88 @@ EngineApp::~EngineApp()
     appWindow.reset();
 }
 
-PerspectiveCamera& EngineApp::camera()
+const PerspectiveCamera& EngineApp::camera() const
 {
     return cameraHolder->camera;
+}
+
+void EngineApp::syncCamera()
+{
+    PerspectiveCamera& cam = cameraHolder->camera;
+    float aspect           = float(appSetup.width) / float(appSetup.height);
+    if (renderScene && renderScene->size()(0) > 0 && renderScene->size()(1) > 0)
+        aspect = float(renderScene->size()(0)) / float(renderScene->size()(1));
+    cam.setProj(float(view.fovy * 180.0 / 3.14159265358979323846), aspect, 0.1f, 50.0f, true);
+    // The view matrix: the inverse of the camera's pose (float; the scene gets the double camera)
+    const Mat3 r = view.rotation.matrix();
+    Mat4 v       = Mat4::Identity();
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j) v(i, j) = r(j, i);
+    const Vec3 t = -(r.transpose() * view.position);
+    for (int i = 0; i < 3; ++i) v(i, 3) = t(i);
+    cam.setView(v.cast<float>());
+}
+
+bool EngineApp::setViewCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy, bool snap)
+{
+    if (cameraHeld) return false;
+    view.space    = space;
+    view.position = position;
+    view.rotation = rotation.normalized();
+    view.fovy     = fovy;
+    view.snap     = snap;
+    syncCamera();
+    return true;
+}
+
+void EngineApp::setViewCameraByTool(SpaceId space, const Vec3& position, const Quat& rotation, double fovy, bool hold)
+{
+    if (hold) cameraHeld = true;
+    view.space    = space;
+    view.position = position;
+    view.rotation = rotation.normalized();
+    view.fovy     = fovy;
+    view.snap     = true;
+    syncCamera();
+}
+
+void EngineApp::releaseCamera()
+{
+    const bool wasHeld = cameraHeld;
+    cameraHeld         = false;
+    if (wasHeld && appSetup.onCameraReleased) appSetup.onCameraReleased(*this);
+}
+
+void EngineApp::freeCamera(double dt, bool mouseLook, bool keys)
+{
+#ifdef SAIGA_USE_GLFW
+    auto& c = cameraHolder->camera;
+    // The mouse look of the GLFW camera from the view camera's pose
+    syncCamera();
+    if (mouseLook)
+    {
+        const quat before = c.rot;
+        c.interpolate(float(dt), 0);
+        const quat r = c.rot;
+        // Only a turn replaces the double rotation (a tool's exact orientation stays while the mouse rests)
+        if (r.w() != before.w() || r.x() != before.x() || r.y() != before.y() || r.z() != before.z())
+            view.rotation = Quat(double(r.w()), double(r.x()), double(r.y()), double(r.z())).normalized();
+    }
+    if (keys)
+    {
+        // WASD, space up, shift fast; integrated in double (far from the origin a float camera would step)
+        auto down          = [](int k) { return keyboard().getKeyState(k) != 0; };
+        const double speed = down(340) ? c.movementSpeedFast : c.movementSpeed;
+        const double fwd = (down('W') ? 1 : 0) - (down('S') ? 1 : 0), right = (down('D') ? 1 : 0) - (down('A') ? 1 : 0);
+        view.position += view.rotation * Vec3(right, 0, -fwd) * (dt * speed);
+        if (down(' ')) view.position(1) += dt * speed;
+    }
+    syncCamera();
+#else
+    (void)dt;
+    (void)mouseLook;
+    (void)keys;
+#endif
 }
 
 float& EngineApp::cameraSpeed()
@@ -590,13 +708,11 @@ void EngineApp::applyPlayerInput()
 #ifdef SAIGA_USE_GLFW
         if (appWindow && !appSetup.headless)
         {
-            // The frame's time: the speed does not depend on the frame rate
-            const float dt = float(std::min(lastFrameDt, 0.1));
-            if (mouseCaptured)
-                cameraHolder->camera.resetMouse();
-            else
-                cameraHolder->camera.interpolate(dt, 0);
-            if (!captured) cameraHolder->camera.update(dt);
+            // The frame's time: the speed does not depend on the frame rate. Regression (S19b review): the keys stopped
+            // while the mouse was over an ImGui window; only the mouse look pauses then
+            // A camera held by a tool moves only through the tools (as with a local player)
+            if (mouseCaptured || cameraHeld) cameraHolder->camera.resetMouse();
+            if (!cameraHeld) freeCamera(std::min(lastFrameDt, 0.1), !mouseCaptured, !captured);
         }
 #endif
         return;
@@ -610,7 +726,7 @@ void EngineApp::applyPlayerInput()
         if (mouseCaptured || cameraHeld)
             cameraHolder->camera.resetMouse();
         else
-            cameraHolder->camera.interpolate(float(std::min(lastFrameDt, 0.1)), 0);
+            freeCamera(std::min(lastFrameDt, 0.1), true, false);
     }
 #endif
     writePlayerInput();
@@ -645,7 +761,7 @@ void EngineApp::writePlayerInput()
     World& w = *gameWorld;
     if (localPlayerEntity.valid() && !w.alive(localPlayerEntity)) localPlayerEntity = Entity{};
     if (!localPlayerEntity.valid()) return;
-    PerspectiveCamera& cam = cameraHolder->camera;
+    const PerspectiveCamera& cam = cameraHolder->camera;
     // Neutral device input does not overwrite what an agent set (set_component); an active input does, and its release
     // (the first neutral update after it) writes the neutral values once
     const bool active  = !inputMap.neutral();
@@ -680,15 +796,16 @@ void EngineApp::releaseInputNow()
 void EngineApp::renderFrame()
 {
     const GameRenderHooks& h = appSetup.renderHooks;
-    auto transfer            = [&](vk::CommandBuffer cmd)
-    {
-        if (h.transfer) h.transfer(cmd);
-    };
-    auto render = [&](vk::CommandBuffer cmd)
-    {
-        if (h.render) h.render(cmd);
-    };
-    auto gui = [&]()
+    World& w                 = *gameWorld;
+    // Edits between steps (a paused world, tools, loads) reach the sink as snaps; then the game's frame state (the
+    // camera from interpolatedPose, cosmetic instances), then the frame's interpolation and camera (S19b)
+    w.extract().catchUp();
+    if (h.beforeRender) h.beforeRender(*this, w.alpha());
+    sink->setInterpolation(float(w.alpha()));
+    sink->setCamera(view.space, view.position, view.rotation, view.fovy);
+    view.snap     = false;
+    auto noRecord = [](vk::CommandBuffer) {};
+    auto gui      = [&]()
     {
         if (h.gui) h.gui();
         if (statisticsVisible) statisticsWindow();
@@ -709,7 +826,7 @@ void EngineApp::renderFrame()
                 quit(saved ? 0 : 1);
             });
     }
-    if (!renderScene->renderFrame(transfer, render, gui)) return;
+    if (!renderScene->renderFrame(noRecord, noRecord, gui)) return;
     frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
     lastFrameRendered = true;
     framesRendered++;
@@ -807,44 +924,18 @@ void EngineApp::statisticsWindow()
 
 void EngineApp::collectGpuTimes()
 {
-    Vulkan::FrameTimes times;
-    while (renderScene->takeGpuFrameTimes(times)) pendingGpu.push_back(times);
-    // Oldest first; a frame waits for the game's passes of the same frame (they arrive in a later frame's transfer)
-    const bool gamePasses = appSetup.renderHooks.passTimes && !appSetup.renderHooks.passNames.empty();
-    while (!pendingGpu.empty())
+    Vulkan::FrameTimes t;
+    while (renderScene->takeGpuFrameTimes(t))
     {
-        const Vulkan::FrameTimes& t = pendingGpu.front();
-        std::vector<std::pair<std::string, double>> passes;
-        if (gamePasses && !appSetup.renderHooks.passTimes(t.frame, passes))
-        {
-            // Not known yet; after 8 more frames never (no sample: zeros would lower the statistics)
-            if (renderScene->frames() < t.frame + 8) break;
-            pendingGpu.pop_front();
-            continue;
-        }
         GpuLogEntry entry;
         entry.frame = t.frame;
         entry.values.push_back({scopeGpuFrame, t.gpuMs});
         for (size_t i = 0; i < t.gpuSectionMs.size() && i < scopeGpuSections.size(); ++i)
             entry.values.push_back({scopeGpuSections[i], t.gpuSectionMs[i]});
-        if (gamePasses)
-        {
-            // gpu/scene/game: the sum of the game's passes (the parent of their scopes)
-            double sum = 0;
-            for (const auto& p : passes)
-                for (size_t k = 0; k < appSetup.renderHooks.passNames.size(); ++k)
-                    if (appSetup.renderHooks.passNames[k] == p.first)
-                    {
-                        entry.values.push_back({scopeGpuPasses[k], p.second});
-                        sum += p.second;
-                    }
-            if (scopeGpuGame >= 0) entry.values.push_back({scopeGpuGame, sum});
-        }
         for (const auto& v : entry.values) gpuProfiler.add(v.first, v.second);
         gpuProfiler.endSample();
         gpuLog.push_back(std::move(entry));
         if (gpuLog.size() > kGpuLogSize) gpuLog.pop_front();
-        pendingGpu.pop_front();
     }
 }
 

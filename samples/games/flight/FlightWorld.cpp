@@ -9,8 +9,11 @@
 #include "games/flight/FlightWorld.h"
 
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
+
+#include "games/common/RenderAssets.h"
 
 #include <chrono>
 #include <iostream>
@@ -110,6 +113,8 @@ void flightDemoPilotSystem(World& w, double)
 void AircraftBase::onSpawn()
 {
     if (!has<AircraftState>()) add<AircraftState>();
+    // Drawn by the engine (S19b)
+    if (!has<RenderInstance>()) add<RenderInstance>(RenderInstance(kAirplaneMesh));
     if (!has<VehicleSeat>())
     {
         // Its own driver: the autopilot, or a plane spawned as the player
@@ -193,6 +198,11 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
     s.actions       = [](ActionList& a) { a.add(uint32_t(FlightAction::Respawn), "respawn"); };
     s.dataTypes     = [](DataTypeList& d) { d.add<AircraftParameters>(); };
     s.dataDirectory = dataDirectory;
+    s.renderAssets  = [](World& w)
+    {
+        const Vulkan::MaterialId flat = w.registerMaterial("flight/flat", demoMaterial());
+        registerDemoMesh(w, kAirplaneMesh, []() { return MeshBuilder::airplane(); }, flat);
+    };
     s.setContext(std::move(context));
     return s;
 }

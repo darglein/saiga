@@ -4,14 +4,18 @@
  * See LICENSE file for more information.
  */
 
-// The render side of the platformer: level, animated character, third-person camera, GUI.
+// The render side of the platformer: level, animated characters (cosmetic instances), third-person camera, GUI.
 
 #include "games/platformer/PlatformerRender.h"
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
+#include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/vulkan/scene/RenderScene.h"
+#include "saiga/vulkan/world/WorldRenderer.h"
+
+#include <algorithm>
 
 namespace Saiga
 {
@@ -21,48 +25,21 @@ using namespace Engine;
 
 void PlatformerRender::init(EngineApp& _app)
 {
-    app = &_app;
-    meshes.init(app->scene()->base(), app->scene()->formats());
+    app                = &_app;
     const Level& level = context->level;
-
-    // The level as one mesh
+    // The level and the flag as one instance set (S19b)
     MeshData lm;
     for (auto& b : level.boxes) lm.append(MeshBuilder::box((b.max - b.min) * 0.5, b.color, (b.max + b.min) * 0.5));
-    levelMesh = meshes.addMesh(lm);
-    flagMesh  = meshes.addMesh(MeshBuilder::flag(Vec3(0.9, 0.25, 0.2)));
-
-    // Body parts: boxes hanging from their joints
-    Vec3 skin(0.95, 0.75, 0.6), shirt(0.25, 0.45, 0.8), pants(0.3, 0.3, 0.35), shoes(0.2, 0.15, 0.12);
-    auto part = [&](int joint, const Vec3& half, const Vec3& center, const Vec3& color)
-    { partMesh[joint] = meshes.addMesh(MeshBuilder::box(half, color, center)); };
-    part(JointPelvis, Vec3(0.18, 0.1, 0.11), Vec3(0, 0, 0), pants);
-    part(JointSpine, Vec3(0.22, 0.25, 0.13), Vec3(0, 0.27, 0), shirt);
-    part(JointUpperArmL, Vec3(0.065, 0.15, 0.065), Vec3(0, -0.14, 0), shirt);
-    part(JointUpperArmR, Vec3(0.065, 0.15, 0.065), Vec3(0, -0.14, 0), shirt);
-    part(JointLowerArmL, Vec3(0.055, 0.15, 0.055), Vec3(0, -0.15, 0), skin);
-    part(JointLowerArmR, Vec3(0.055, 0.15, 0.055), Vec3(0, -0.15, 0), skin);
-    part(JointThighL, Vec3(0.085, 0.22, 0.085), Vec3(0, -0.22, 0), pants);
-    part(JointThighR, Vec3(0.085, 0.22, 0.085), Vec3(0, -0.22, 0), pants);
-    {
-        // Shins with feet
-        MeshData shin = MeshBuilder::box(Vec3(0.075, 0.2, 0.075), pants, Vec3(0, -0.2, 0));
-        shin.append(MeshBuilder::box(Vec3(0.08, 0.05, 0.13), shoes, Vec3(0, -0.4, -0.05)));
-        partMesh[JointShinL] = meshes.addMesh(shin);
-        partMesh[JointShinR] = meshes.addMesh(shin);
-    }
-    {
-        // The head with eyes, so the facing is visible
-        MeshData head = MeshBuilder::box(Vec3(0.14, 0.15, 0.14), skin, Vec3(0, 0.15, 0));
-        head.append(MeshBuilder::box(Vec3(0.025, 0.03, 0.01), Vec3(0.1, 0.1, 0.12), Vec3(-0.06, 0.18, -0.14)));
-        head.append(MeshBuilder::box(Vec3(0.025, 0.03, 0.01), Vec3(0.1, 0.1, 0.12), Vec3(0.06, 0.18, -0.14)));
-        partMesh[JointHead] = meshes.addMesh(head);
-    }
+    lm.append(MeshBuilder::flag(Vec3(0.9, 0.25, 0.2)), transformMatrix(level.goal, Quat::Identity()));
+    this->level.create(*app->scene(), "platformer/level", lm, Vec3::Zero());
+    parts.init(app->vulkanSink());
+    for (int j = 0; j < JointCount; ++j) partMeshes.push_back(app->world().findMesh(heroPartMeshName(j)));
 
     camera.distance     = 7;
     camera.height       = 2.8;
     camera.targetHeight = 1.3;
     camera.stiffness    = 6;
-    // Every character's pose and motion; landings (the step that landed sets landingSpeed) as the pulse
+    // Every character's motion; landings (the step that landed sets landingSpeed) as the pulse
     caches.attach(
         app->world(), [](World& w, const std::function<void(Entity)>& fn)
         { w.view<const CharacterMotion>().each([&](Entity e, const CharacterMotion&) { fn(e); }); },
@@ -80,7 +57,8 @@ void PlatformerRender::shutdown()
 {
     caches.detach();
     app->world().removeLoadListener(loadListener);
-    meshes.destroy();
+    parts.clear();
+    level.release();
 }
 
 Entity PlatformerRender::focus()
@@ -106,14 +84,9 @@ PlatformerRender::Character& PlatformerRender::character(Entity e)
     return characters.back();
 }
 
-void PlatformerRender::transfer(vk::CommandBuffer cmd)
+void PlatformerRender::beforeRender(double alpha)
 {
-    // The scene pass of this frame: linear and pre-exposed with a tone map, display values in clay mode (S17)
-    const Vulkan::RenderScene& scene = *app->scene();
-    meshes.setOutputLinear(scene.sceneWritesLinear(), scene.preExposure());
     const double frameDt = clock.tick();
-    const ivec2 size     = app->scene()->size();
-    const float aspect   = float(size(0)) / float(std::max(1, size(1)));
     World& w             = app->world();
     const Entity e       = focus();
     bool snap            = false;
@@ -129,20 +102,21 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
         else
             characters[i++].drawn = false;
 
-    // Every character: the interpolated pose, the animation per frame from it and its (delayed) motion
+    // Every character: the interpolated pose (the extract's), the animation per frame from it and its (delayed) motion,
+    // the body parts as cosmetic instances
     const bool toolCamera = app->cameraHeldByTool();
-    PoseHistory::Pose focusPose;
-    bool hasFocus = false;
+    Vec3 focusPosition    = Vec3::Zero();
+    bool hasFocus         = false;
+    parts.begin();
     w.view<const CharacterMotion>().each(
         [&](Entity ent, const CharacterMotion&)
         {
             auto* c = caches.entry(ent);
-            PoseHistory::Pose p;
-            if (!c || !c->pose.interpolated(w, ent, w.alpha(), p)) return;
-            const bool teleported = c->pose.takeTeleport();
-            const Motion& m       = c->current();
-            Character& ch         = character(ent);
-            ch.position           = p.position;
+            Engine::WorldPose p;
+            if (!c || !w.extract().interpolatedPose(ent, alpha, p)) return;
+            const Motion& m = c->current();
+            Character& ch   = character(ent);
+            ch.position     = p.position;
             // The facing of the interpolated pose (with the position; also an edit of the rotation while paused)
             ch.yaw   = headingOf(forwardOf(p.rotation));
             ch.drawn = true;
@@ -156,57 +130,52 @@ void PlatformerRender::transfer(vk::CommandBuffer cmd)
             if (c->pending > 0) ch.animator.land(c->pending);
             c->pending = 0;
             ch.animator.update(s, Vec3(m.velocity(0), 0, m.velocity(2)).norm(), frameDt);
+            const auto joints = jointTransforms(Skeleton::humanoid(), ch.animator.pose(), ch.position, ch.yaw);
+            std::vector<Engine::WorldPose> poses(JointCount);
+            for (int j = 0; j < JointCount; ++j)
+            {
+                poses[j].space    = p.space;
+                poses[j].position = Vec3(joints[j](0, 3), joints[j](1, 3), joints[j](2, 3));
+                Mat3 r;
+                for (int a = 0; a < 3; ++a)
+                    for (int b = 0; b < 3; ++b) r(a, b) = joints[j](a, b);
+                poses[j].rotation = quat_cast(r);
+            }
+            if (std::find(partMeshes.begin(), partMeshes.end(), Engine::MeshId(0)) == partMeshes.end())
+                parts.set(ent, partMeshes, poses);
             if (ent == followed)
             {
-                focusPose = p;
-                hasFocus  = true;
-                renderYaw = ch.yaw;
-                if (teleported) snap = true;
+                focusPosition = p.position;
+                hasFocus      = true;
+                renderYaw     = ch.yaw;
+                // A teleport (restart) snaps the camera once. Regression (S19b review): the level of the snap pair
+                // reset the camera every frame while the hero stood still after its spawn, so Q/E did not turn it
+                const uint64_t snaps = w.extract().snapSequence(ent);
+                if (snaps != followedSnaps)
+                {
+                    followedSnaps = snaps;
+                    snap          = true;
+                }
                 // The camera: Q/E for the player, behind the character in the demo (not while a tool holds it)
                 if (!toolCamera && !snap)
                     cameraYaw += app->localPlayer() == ent ? app->input().axis("camera_turn") * 2.0 * frameDt
                                                            : wrapAngle(m.yaw - cameraYaw) * smoothFactor(1.5, frameDt);
             }
         });
-    const bool released = held.released(toolCamera);
+    parts.end();
     if (snap)
     {
         camera.reset();
         cameraYaw = 0;
     }
-    else if (released)
-    {
-        // Back behind the character (not a fixed world direction)
-        camera.reset();
-        cameraYaw = renderYaw;
-    }
-    if (hasFocus && !toolCamera) camera.update(focusPose.position, forwardOf(yawRotation(cameraYaw)), frameDt);
-    // A tool holds the camera (S14): the app camera, else the chase camera
-    const mat4 view = toolCamera ? app->camera().view : camera.view();
-    const Vec3 eye  = toolCamera ? Vec3(app->camera().getPosition().cast<double>()) : camera.eye();
-    if (!toolCamera) app->camera().setView(view);
-    MeshRenderer::Lighting light;
-    light.sunDirection = Vec3(0.4, 0.8, 0.35);
-    light.ambient      = 0.35;
-    meshes.transfer(cmd, view, eye, Vulkan::reversedZInfinitePerspective(radians(60.0f), aspect, 0.1f), light);
-}
-
-void PlatformerRender::render(vk::CommandBuffer cmd)
-{
-    meshes.draw(levelMesh, Mat4::Identity());
-    meshes.draw(flagMesh, transformMatrix(context->level.goal, Quat::Identity()));
-    for (const Character& c : characters)
-    {
-        if (!c.drawn) continue;
-        auto joints = jointTransforms(Skeleton::humanoid(), c.animator.pose(), c.position, c.yaw);
-        for (int j = 0; j < JointCount; ++j) meshes.draw(partMesh[j], joints[j]);
-    }
-    meshes.render(cmd);
+    if (hasFocus) camera.update(focusPosition, forwardOf(yawRotation(cameraYaw)), frameDt);
+    // While a tool holds the camera the app ignores it (S14)
+    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()), radians(60.0));
 }
 
 void PlatformerRender::gui()
 {
-    // The GUI runs before transfer() in a frame: the character it shows is focus()'s
+    // The GUI runs inside the frame (after beforeRender): the character it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
     ImGui::Begin("Platformer", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Text("WASD move, shift walk, space jump, Q/E camera, R restart, G GUI");

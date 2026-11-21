@@ -30,6 +30,8 @@ namespace Saiga
 {
 namespace Engine
 {
+class RecordingRenderSink;
+
 struct ScenarioOptions
 {
     uint64_t maxSteps       = 60 * 600;  // 10 min at 60 Hz: more steps fail the scenario
@@ -89,6 +91,8 @@ class SAIGA_ENGINE_API ScenarioWorld
     World& client(int peer);
     Entity onClient(int peer, Entity hostEntity);
     int clientCount() const { return int(clientWorlds.size()); }
+    // The recording render sink of the host world (0; the current world after the save/load swap) or a client (S19b)
+    RecordingRenderSink& renderSink(int peer = 0);
     // The world API (created on first use; it follows the swap of the save/load variant)
     WorldApi& api();
     // An API call that also ends the scenario when it ran past maxSteps (prefer it to api().call in scenarios)
@@ -220,8 +224,12 @@ class SAIGA_ENGINE_API ScenarioWorld
     WorldSetup setup;
     ScenarioOptions options;
     ScenarioNetwork network;
-    // Before the worlds: the transports outlive them
+    // Before the worlds: the transports and the sinks outlive them
     std::vector<std::unique_ptr<LoopbackTransport>> transports;
+    std::vector<std::unique_ptr<RecordingRenderSink>> sinks;
+    RecordingRenderSink* hostSink = nullptr;
+    std::vector<RecordingRenderSink*> clientSinks;
+    RecordingRenderSink* giveSink(World& world);
     std::vector<std::unique_ptr<World>> clientWorlds;
     std::vector<uint64_t> clientSteps;
     uint64_t hostSteps = 0;

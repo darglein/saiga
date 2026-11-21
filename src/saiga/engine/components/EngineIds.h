@@ -26,9 +26,10 @@ enum class EngineComponent : uint8_t
     Health,
     PlayerInput,
     CharacterIntent,
-    NetOwner,    // S16
-    NetLocal,    // S16
-    RenderPose,  // S16
+    NetOwner,        // S16
+    NetLocal,        // S16
+    RenderPose,      // S16
+    RenderInstance,  // S19b
     Count
 };
 

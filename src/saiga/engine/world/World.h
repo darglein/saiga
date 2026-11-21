@@ -10,6 +10,7 @@
 #include "saiga/engine/components/EngineIds.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Profiler.h"
@@ -35,6 +36,7 @@
 #include "saiga/engine/world/StructuralLog.h"
 #include "saiga/engine/world/SystemList.h"
 #include "saiga/export.h"
+#include "saiga/vulkan/scene/RenderSceneTypes.h"
 
 #include <algorithm>
 #include <array>
@@ -97,6 +99,11 @@ struct WorldSetup
     // false: no clock calls
     bool profiling = true;
 
+    // Registers the meshes and materials by name (World::registerMesh / registerMaterial, §7.9; S19b), called once at
+    // the end of the World's construction; build each MeshLods once per process (a static cache of shared_ptr<const
+    // MeshLods>), so the many scenario worlds share them
+    void (*renderAssets)(World&) = nullptr;
+
     // Constant configuration that is not a data file (a level, a track, a height field; §7.9, S13b): built once per
     // process before the worlds, shared by every world of this setup (scenario runs too), read in configure() and in
     // systems through World::context<T>(). Not state: it is not saved and must not change after a world exists.
@@ -129,6 +136,8 @@ struct WorldSetup
  * Every applied change is appended to the structural log. Destroying a parent destroys its descendants (§7.4).
  */
 class Replication;
+class RenderSink;
+class ExtractSystem;
 
 class SAIGA_ENGINE_API World
 {
@@ -165,6 +174,8 @@ class SAIGA_ENGINE_API World
         static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
         static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is read-only (makePersistent)");
         static_assert(T::id != ComponentId(EngineComponent::NetOwner), "NetOwner is read-only (setOwner)");
+        static_assert(T::id != ComponentId(EngineComponent::RenderInstance),
+                      "RenderInstance is read-only (setRenderMesh)");
         return reg.get<T>(e);
     }
     template <class T>
@@ -173,6 +184,8 @@ class SAIGA_ENGINE_API World
         static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
         static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is read-only (makePersistent)");
         static_assert(T::id != ComponentId(EngineComponent::NetOwner), "NetOwner is read-only (setOwner)");
+        static_assert(T::id != ComponentId(EngineComponent::RenderInstance),
+                      "RenderInstance is read-only (setRenderMesh)");
         return reg.tryGet<T>(e);
     }
     template <class T>
@@ -195,16 +208,16 @@ class SAIGA_ENGINE_API World
     View<C...> view()
     {
         static_assert(parentReadOnly<C...>(),
-                      "Parent, Persistent and NetOwner in a view must be const (Parent: remove and add; Persistent: "
-                      "makePersistent; NetOwner: setOwner)");
+                      "Parent, Persistent, NetOwner and RenderInstance in a view must be const (Parent: remove and "
+                      "add; Persistent: makePersistent; NetOwner: setOwner; RenderInstance: setRenderMesh)");
         return reg.view<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0);
     }
     template <class... C>
     View<C...> viewAll()
     {
         static_assert(parentReadOnly<C...>(),
-                      "Parent, Persistent and NetOwner in a view must be const (Parent: remove and add; Persistent: "
-                      "makePersistent; NetOwner: setOwner)");
+                      "Parent, Persistent, NetOwner and RenderInstance in a view must be const (Parent: remove and "
+                      "add; Persistent: makePersistent; NetOwner: setOwner; RenderInstance: setRenderMesh)");
         return reg.view<C...>(0);
     }
     template <class... C>
@@ -272,8 +285,8 @@ class SAIGA_ENGINE_API World
     View<C...> ownedBy(uint8_t peer)
     {
         static_assert(parentReadOnly<C...>(),
-                      "Parent, Persistent and NetOwner in a view must be const (remove and add, makePersistent, "
-                      "setOwner)");
+                      "Parent, Persistent, NetOwner and RenderInstance in a view must be const (remove and add, "
+                      "makePersistent, setOwner, setRenderMesh)");
         return reg.ownedView<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0, ownerTable, peer);
     }
     // The owner of the entity's root (0: the host)
@@ -446,6 +459,44 @@ class SAIGA_ENGINE_API World
     // The store itself (worlds of one setup share it: WorldSetup::sharedData)
     std::shared_ptr<DataStore> sharedDataStore() const { return dataStore; }
 
+    // ---- render assets and the render sink (§7.10, §10.1, §10.3; S19b) ---------------------------------------------
+
+    // The name tables: the World assigns the IDs (meshes and materials from Vulkan::kGameReservedIds upward, in
+    // registration order) and keeps the data; every registration is forwarded to the sink whenever one is set (also
+    // when it is set later). A name is registered once (a second registration stops the program in every build). Not
+    // inside a step.
+    Vulkan::MeshId registerMesh(const std::string& name, std::shared_ptr<const Vulkan::MeshLods> lods,
+                                Vulkan::MaterialId material);
+    Vulkan::MaterialId registerMaterial(const std::string& name, const Vulkan::MaterialData& data);
+    // A renamed mesh: saves and RenderInstance writes that name oldName get name (which must be registered)
+    void registerMeshAlias(const std::string& oldName, const std::string& name);
+    // The ID of a registered mesh name (aliases resolved; 0: none)
+    Vulkan::MeshId findMesh(const std::string& name) const;
+    Vulkan::MaterialId findMaterial(const std::string& name) const;
+    // The registered name of an ID (empty: none)
+    std::string meshName(Vulkan::MeshId id) const;
+    size_t meshCount() const { return meshTable.size(); }
+    size_t materialCount() const { return materialTable.size(); }
+    // FNV-1a over the names and IDs of the meshes, materials and aliases (S26's handshake compares it)
+    uint64_t renderTableHash() const;
+    // The render sink (not owned; null allowed; any time between steps): the registrations are forwarded, the old
+    // sink's instances removed and the render instances of the existing entities created
+    void setRenderSink(RenderSink* sink);
+    RenderSink* renderSink() const;
+    // The extract (catch-up, interpolatedPose; §10.3)
+    ExtractSystem& extract() { return *extractor; }
+    const ExtractSystem& extract() const { return *extractor; }
+    // The mesh an entity renders (adds RenderInstance if missing; empty: tracked, not drawn). An unknown name is
+    // refused in every build (asserts). During a step a command (applied at the phase's flush)
+    void setRenderMesh(Entity e, const std::string& name);
+    // Engine-internal: the single path of every RenderInstance name write (the world API, the add path, replication,
+    // loads): resolves aliases, logs an unknown name (kept, cached as 0: tracked, not drawn until the mesh is
+    // registered), caches the MeshId and, for a change of an existing component (added false) whose name differs from
+    // previous, appends a remove + add record of RenderInstance (the extract recreates the instance)
+    void renderMeshWritten(Entity e, bool added, const std::string* previous = nullptr);
+    // Engine-internal: resolves aliases and validates a name; false for an unknown name (name unchanged)
+    bool resolveRenderMesh(std::string& name, Vulkan::MeshId& id) const;
+
     // ---- saves (§15, S11) ------------------------------------------------------------------------------------------
 
     // The saved state as a byte blob (docs/engine_design.md §15.1): the schema table, the slot table, the saved
@@ -601,6 +652,26 @@ class SAIGA_ENGINE_API World
 
    private:
     friend class WorldLoader;
+    // ---- render assets (S19b)
+    struct MeshEntry
+    {
+        std::string name;
+        std::shared_ptr<const Vulkan::MeshLods> lods;
+        Vulkan::MaterialId material;
+    };
+    struct MaterialEntry
+    {
+        std::string name;
+        Vulkan::MaterialData data;
+    };
+    std::vector<MeshEntry> meshTable;  // by ID - kGameReservedIds
+    std::vector<MaterialEntry> materialTable;
+    std::unordered_map<std::string, Vulkan::MeshId> meshByName;
+    std::unordered_map<std::string, Vulkan::MaterialId> materialByName;
+    std::vector<std::pair<std::string, std::string>> meshAliases;  // (old, new) in registration order
+    std::unique_ptr<ExtractSystem> extractor;
+    int extractScope = -1;
+
     friend class Replication;
     NetRole role     = NetRole::Host;
     uint8_t selfPeer = 0;
@@ -737,16 +808,18 @@ class SAIGA_ENGINE_API World
     void releaseRetired();
     template <class T>
     void addNow(Entity e, T&& value);
+    void validateRenderInstance(Entity e, RenderInstance& value) const;
     template <class T>
     void removeNow(Entity e);
 
     template <class... C>
     static constexpr bool parentReadOnly()
     {
-        return (((!std::is_same_v<std::remove_cv_t<C>, Parent> && !std::is_same_v<std::remove_cv_t<C>, Persistent> &&
-                  !std::is_same_v<std::remove_cv_t<C>, NetOwner>) ||
-                 std::is_const_v<C>) &&
-                ...);
+        return (
+            ((!std::is_same_v<std::remove_cv_t<C>, Parent> && !std::is_same_v<std::remove_cv_t<C>, Persistent> &&
+              !std::is_same_v<std::remove_cv_t<C>, NetOwner> && !std::is_same_v<std::remove_cv_t<C>, RenderInstance>) ||
+             std::is_const_v<C>) &&
+            ...);
     }
 
     template <class T, class... A>
@@ -906,6 +979,8 @@ void World::addNow(Entity e, T&& value)
         }
         if (netChangeRefused(e, T::id, true, Entity{})) return;
     }
+    // RenderInstance: the add path of renderMeshWritten (an unknown name is logged and kept, not drawn)
+    if constexpr (T::id == ComponentId(EngineComponent::RenderInstance)) validateRenderInstance(e, value);
     // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
     auto record = log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Persistent))

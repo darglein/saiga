@@ -8,29 +8,12 @@
 
 #include "saiga/vulkan/world/WorldRenderer.h"
 
-#include "games/common/MeshRenderer.h"
+#include "games/common/GameMath.h"
 
 namespace Saiga
 {
 namespace Game
 {
-// The lighting of the world prototype (sun from the settings, the same height fog), so the game meshes match it
-inline MeshRenderer::Lighting worldLighting(const Vulkan::WorldRenderer& world)
-{
-    const auto& s = world.settings;
-    double az = s.sunAzimuth * kPi / 180.0, el = s.sunElevation * kPi / 180.0;
-    MeshRenderer::Lighting l;
-    l.sunDirection  = Vec3(std::cos(el) * std::sin(az), std::sin(el), -std::cos(el) * std::cos(az));
-    l.sunIntensity  = s.sunIntensity;
-    l.ambient       = s.ambient;
-    l.fog           = s.fog;
-    l.fogDensity    = s.fogDensity;
-    l.fogFalloff    = s.fogFalloff;
-    l.fogBaseHeight = world.heightField().waterLevel();
-    l.fogColor      = Vec3(0.42, 0.42, 0.42);
-    return l;
-}
-
 // The ground of the world prototype for the game physics: terrain or the water surface, whichever is higher
 inline GroundHeight worldGround(const Vulkan::WorldRenderer& world, bool includeWater)
 {

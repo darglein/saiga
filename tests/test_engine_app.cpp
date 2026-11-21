@@ -13,11 +13,14 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/DestroyOwnedBy.h"
 #include "saiga/engine/net/Fragmenter.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/Instance.h"
@@ -950,9 +953,13 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
     EngineAppSetup s     = appSetup(true);
     s.render.msaaSamples = 4;
     s.render.clearColor  = vec4(1, 0, 0, 1);
-    int transfers = 0, renders = 0;
-    s.renderHooks.transfer = [&](vk::CommandBuffer) { transfers++; };
-    s.renderHooks.render   = [&](vk::CommandBuffer) { renders++; };
+    // S19b: beforeRender once per rendered frame with the world's alpha (transfer and render are gone)
+    int beforeRender           = 0;
+    s.renderHooks.beforeRender = [&](EngineApp& a, double alpha)
+    {
+        EXPECT_EQ(alpha, a.world().alpha());
+        beforeRender++;
+    };
     EngineApp app(s);
     ASSERT_NE(app.scene(), nullptr);
     int rendered = 0;
@@ -987,8 +994,7 @@ TEST_F(EngineAppRender, FramesStepsScreenshotsAndProfiles)
     EXPECT_EQ(added, 1);
     EXPECT_EQ(app.world().stepIndex(), 60u);
     EXPECT_EQ(app.renderedFrames(), 60u);
-    EXPECT_EQ(transfers, 60);
-    EXPECT_EQ(renders, 60);
+    EXPECT_EQ(beforeRender, 60);
     EXPECT_EQ(rendered, 10);
     // Rendering disabled: the world keeps stepping
     app.setRenderingEnabled(false);
@@ -1227,19 +1233,13 @@ Json measureDirect(EngineApp& app, int n, std::chrono::seconds budget = std::chr
 }  // namespace
 
 // S17: the gpu profile has RenderScene's sections in frame order (S19a: transfer, cull, depth and its sub-section,
-// scene and its sub-sections, resolve, post, imgui) and the game's passes below gpu/scene (they are drawn in the scene
-// pass); the tone map of the setup reaches RenderScene
-TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
+// scene and its sub-sections, resolve, post, imgui); the tone map of the setup reaches RenderScene. S19b: the game's
+// own passes (passNames / passTimes) are gone
+TEST_F(EngineAppRender, GpuSections)
 {
-    EngineAppSetup s        = appSetup(true);
-    s.render.toneMap        = Vulkan::ToneMap::Aces;
-    s.render.exposure       = 2;
-    s.renderHooks.passNames = {"terrain", "sky"};
-    s.renderHooks.passTimes = [](uint64_t, std::vector<std::pair<std::string, double>>& passes)
-    {
-        passes = {{"terrain", 0.25}, {"sky", 0.5}};
-        return true;
-    };
+    EngineAppSetup s  = appSetup(true);
+    s.render.toneMap  = Vulkan::ToneMap::Aces;
+    s.render.exposure = 2;
     EngineApp app(s);
     ASSERT_NE(app.scene(), nullptr);
     app.runFrames(12, 1.0 / 60);
@@ -1263,10 +1263,7 @@ TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
                                                "gpu/scene.sky",
                                                "gpu/resolve",
                                                "gpu/post",
-                                               "gpu/imgui",
-                                               "gpu/scene/game",
-                                               "gpu/scene/game/terrain",
-                                               "gpu/scene/game/sky"};
+                                               "gpu/imgui"};
     EXPECT_EQ(scopes, expected);
     // A completed frame's sample by name (the benchmark's gpu_frame_ms)
     std::vector<std::pair<std::string, double>> sample;
@@ -1275,8 +1272,6 @@ TEST_F(EngineAppRender, GpuSectionsAndGamePasses)
     ASSERT_TRUE(found);
     std::map<std::string, double> byName(sample.begin(), sample.end());
     EXPECT_EQ(byName.size(), expected.size());
-    EXPECT_DOUBLE_EQ(byName["gpu/scene/game"], 0.75);
-    EXPECT_DOUBLE_EQ(byName["gpu/scene/game/sky"], 0.5);
     EXPECT_GE(byName["gpu"], byName["gpu/scene"]);
     EXPECT_FALSE(app.gpuFrameSample(app.scene()->frames() + 100, sample));
 }
@@ -1855,4 +1850,122 @@ TEST(EngineAppCoop, OnPeerLeftAfterABrokenLink)
     EXPECT_EQ(g_coop.left, std::vector<uint8_t>{1});
     EXPECT_FALSE(host.alive(onHost));
     EXPECT_TRUE(host.connectedPeers().empty());
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// S19b: the view camera, beforeRender and the render sink
+
+namespace
+{
+std::shared_ptr<const Vulkan::MeshLods> testTriangle()
+{
+    static std::shared_ptr<const Vulkan::MeshLods> lods = []()
+    {
+        auto l = std::make_shared<Vulkan::MeshLods>();
+        Vulkan::MeshLod lod;
+        lod.vertices.resize(3);
+        lod.vertices[1].position = vec3(1, 0, 0);
+        lod.vertices[2].position = vec3(0, 1, 0);
+        lod.indices              = {0, 1, 2};
+        l->lods.push_back(lod);
+        l->sphereRadius = 1;
+        return std::shared_ptr<const Vulkan::MeshLods>(l);
+    }();
+    return lods;
+}
+void triangleAssets(World& w)
+{
+    w.registerMesh("test/triangle", testTriangle(), w.registerMaterial("test/flat", Vulkan::MaterialData()));
+}
+}  // namespace
+
+// The single camera: the game's setViewCamera (double), the tools' hold (the game's call returns false), the release
+// callback; camera() is derived from it
+TEST(EngineAppNoRender, ViewCameraHoldAndRelease)
+{
+    EngineAppSetup s   = appSetup(false);
+    int released       = 0;
+    s.onCameraReleased = [&](EngineApp&) { released++; };
+    EngineApp app(s);
+    const Quat r = cameraLookRotation(Vec3(1, 0, 0));
+    EXPECT_TRUE(app.setViewCamera(0, Vec3(1e5 + 0.25, 3, -7), r, 1.0, true));
+    EXPECT_EQ(app.viewCamera().position, Vec3(1e5 + 0.25, 3, -7));
+    EXPECT_EQ(app.viewCamera().fovy, 1.0);
+    EXPECT_TRUE(app.viewCamera().snap);
+    EXPECT_NEAR(app.camera().getPosition()(0), 1e5, 1);
+    // The derived camera looks along +x
+    const vec3 forward = -make_vec3(app.camera().model.col(2)).normalized();
+    EXPECT_NEAR(forward(0), 1, 1e-5);
+    Json c = toolJson(callApp(app, "app_status", Json::object{}))["camera"];
+    EXPECT_NEAR(c["yaw_deg"].number_value(), 90, 1e-3) << c.dump();
+    // set_camera holds the camera: the game's calls are ignored (no branch in the game)
+    callApp(app, "set_camera", obj(R"({"position": [999999.37, 5, 20], "yaw_deg": 0})"));
+    EXPECT_TRUE(app.cameraHeldByTool());
+    EXPECT_FALSE(app.setViewCamera(0, Vec3::Zero(), Quat::Identity(), 1.5));
+    // Double: the tool's position is kept exactly also near the 1e6 m limit (the float camera had 6 cm steps there)
+    EXPECT_EQ(app.viewCamera().position, Vec3(999999.37, 5, 20));
+    EXPECT_EQ(app.viewCamera().fovy, 1.0);  // the tools keep the field of view
+    // A tool write without a hold (game_set_camera, the walk mode) is not blocked and does not hold
+    app.setViewCameraByTool(0, Vec3(1, 2, 3), Quat::Identity(), 0.5, false);
+    EXPECT_EQ(app.viewCamera().position, Vec3(1, 2, 3));
+    EXPECT_TRUE(app.cameraHeldByTool());
+    // The release edge calls the game's camera reset once
+    callApp(app, "set_camera", obj(R"({"release": true})"));
+    callApp(app, "set_camera", obj(R"({"release": true})"));
+    EXPECT_EQ(released, 1);
+    EXPECT_TRUE(app.setViewCamera(0, Vec3(4, 5, 6), Quat::Identity(), 1.2));
+    EXPECT_EQ(app.viewCamera().position, Vec3(4, 5, 6));
+    // move_camera on the double camera
+    c = toolJson(callApp(app, "move_camera", obj(R"({"forward": 4})")));
+    EXPECT_NEAR(c["position"][2].number_value(), 2, 1e-9) << c.dump();  // identity looks along -z
+    callApp(app, "set_camera", obj(R"({"release": true})"));
+    EXPECT_EQ(released, 2);
+}
+
+// beforeRender runs once per rendered frame after the extract's catch-up: an entity spawned while paused is tracked
+// there; the world's sink is the app's VulkanRenderSink, the World's meshes reach the scene
+TEST_F(EngineAppRender, BeforeRenderAfterCatchUp)
+{
+    EngineAppSetup s     = appSetup(true);
+    s.world.renderAssets = triangleAssets;
+    Entity spawned;
+    int calls = 0, tracked = 0;
+    s.renderHooks.beforeRender = [&](EngineApp& a, double)
+    {
+        calls++;
+        WorldPose p;
+        if (spawned.valid() && a.world().extract().interpolatedPose(spawned, 0, p)) tracked++;
+    };
+    EngineApp app(s);
+    ASSERT_NE(app.vulkanSink(), nullptr);
+    EXPECT_EQ(app.world().renderSink(), app.vulkanSink());
+    EXPECT_EQ(app.scene()->findMesh("test/triangle"), app.world().findMesh("test/triangle"));
+    app.runFrames(2, 1.0 / 60);
+    app.world().setPaused(true);
+    spawned = app.world().create();
+    app.world().add<RenderInstance>(spawned, RenderInstance("test/triangle"));
+    app.runFrames(3, 1.0 / 60);
+    EXPECT_EQ(calls, 5);
+    EXPECT_EQ(tracked, 3);
+    EXPECT_EQ(app.world().extract().instanceCount(), 1u);
+}
+
+// --coop: only the client world (the rendered one) has a sink; the host's entities reach it through replication
+TEST_F(EngineAppRender, CoopClientHasTheSink)
+{
+    EngineAppSetup s       = coopSetup();
+    const EngineAppSetup r = appSetup(true);
+    s.noRender             = false;
+    s.validation           = r.validation;
+    s.render               = r.render;
+    s.world.renderAssets   = triangleAssets;
+    EngineApp app(s, coopOptions(1));
+    ASSERT_NE(app.hostWorld(), nullptr);
+    EXPECT_EQ(app.hostWorld()->renderSink(), nullptr);
+    EXPECT_EQ(app.world().renderSink(), app.vulkanSink());
+    const Entity e = app.hostWorld()->create();
+    app.hostWorld()->add<RenderInstance>(e, RenderInstance("test/triangle"));
+    app.runFrames(12, 1.0 / 60);
+    EXPECT_EQ(app.world().extract().instanceCount(), 1u);
+    EXPECT_EQ(app.hostWorld()->extract().trackedCount(), 0u);
 }
