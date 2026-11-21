@@ -1608,7 +1608,8 @@ tracks nothing and costs nothing):
   creation always sends the current pose as a snap (a spawn in phase 7 or 8 is not in `changedTransforms()`). An empty
   name, or a pose that is not valid yet, is tracked without a sink instance. A load appends removes and adds and marks
   all transforms changed, so it recreates the instances with snaps. A redelivered record (a sink that threw) is
-  tolerated (`track` of a tracked entity only syncs its instance). `RenderSink`'s failure contract: a call that throws
+  tolerated (`track` of a tracked entity only syncs its instance). `RenderSink`'s failure contract (only for the dynamic-instance
+  calls, the ones the extract retries; registration and instance sets give no such guarantee): a call that throws
   has no effect (`addDynamic` creates no instance, `removeDynamic` leaves the handle live, `setDynamic` keeps the
   previous pose; `VulkanRenderSink` throws only on allocation failure, before any change). Under it a throwing sink
   loses nothing: an instance
