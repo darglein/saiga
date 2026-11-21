@@ -21,9 +21,9 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
-#include <optional>
 #include <cstdio>
 #include <memory>
+#include <optional>
 
 namespace Saiga
 {

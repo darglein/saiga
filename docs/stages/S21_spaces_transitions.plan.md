@@ -1174,6 +1174,10 @@ interactively (the "Space" combo) or over MCP `set_camera {space: 1, position: [
      the arrival back within 0.05 m (in the single-world variants the controller runs in the arrival step after phase
      1). The interact key is F.
   10. Step 10: `AGENTS.md` names 72 tests with the CI options (S20's 71 + `test_engine_spaces`).
+- **Implementation review** (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack): round 1 (7, minor):
+  `checkSlots` counted the space-state entities and discarded the count; removed (`S21 review`). Round 2 (10, nit):
+  `<optional>` out of order in `AppTools.cpp`'s include block; clang-formatted. The S20 fixes below this branch
+  (relief-independent residency, the test helpers' `kPi`, `ScopedLatch`) were rebased in without conflicts.
 
 ## Design changes
 
