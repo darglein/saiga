@@ -104,7 +104,7 @@ bool WorldLoader::checkSlots()
     const auto& slots = p.slots;
     if (slots.empty()) return fail("the slot table is empty");
     const uint8_t knownFlags = Registry::kSimulated | Registry::kWorldState | Registry::kSpaceState;
-    int worldStates = 0, spaceStates = 0;
+    int worldStates          = 0;
     for (size_t i = 1; i < slots.size(); ++i)
     {
         const auto& s = slots[i];
@@ -115,11 +115,9 @@ bool WorldLoader::checkSlots()
         if ((s.flags & Registry::kWorldState) && (s.flags & Registry::kSpaceState))
             return fail("slot " + std::to_string(i) + " is world state and space state");
         worldStates += (s.flags & Registry::kWorldState) ? 1 : 0;
-        spaceStates += (s.flags & Registry::kSpaceState) ? 1 : 0;
     }
     if (worldStates > 1) return fail("more than one world-state entity");
     // At most one space-state entity per space: checkSpaces (on the staged spaces)
-    (void)spaceStates;
     std::vector<bool> listed(slots.size(), false);
     for (uint32_t index : p.freeList)
     {
