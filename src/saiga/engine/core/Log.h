@@ -26,6 +26,10 @@ SAIGA_ENGINE_API LogRing& engineLog();
 // Echo every line to stdout as "[category] message" (default on)
 SAIGA_ENGINE_API void setLogEcho(bool echo);
 SAIGA_ENGINE_API bool logEcho();
+// The category "mcp" (the MCP call log, DebugUi) is not echoed unless this is on (default: the environment variable
+// SAIGA_MCP_ECHO=1); agents' polling loops would fill stdout
+SAIGA_ENGINE_API void setMcpLogEcho(bool echo);
+SAIGA_ENGINE_API bool mcpLogEcho();
 
 // Formats the message (printf style, any length) and adds it to engineLog()
 SAIGA_ENGINE_API void logPrintf(const char* category, const char* format, ...) SAIGA_ENGINE_PRINTF_FORMAT(2, 3);

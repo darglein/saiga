@@ -87,21 +87,22 @@ uint32_t treesVisible(const PrototypeForest::Stats& s)
 
 }  // namespace
 
+namespace
+{
+// A sub-section of the world statistics: a tree node without indent (the debug UI's section header is the parent)
+bool subSection(const char* label, bool defaultOpen)
+{
+    return ImGui::TreeNodeEx(label, ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen |
+                                        (defaultOpen ? ImGuiTreeNodeFlags_DefaultOpen : ImGuiTreeNodeFlags_None));
+}
+}  // namespace
+
 void WorldRenderer::imguiStatistics()
 {
-    // Right edge of the screen, next to the settings window
-    ImVec2 display = ImGui::GetIO().DisplaySize;
-    ImGui::SetNextWindowPos(ImVec2(std::max(display.x - 490, 0.0f), 10), ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize(ImVec2(480, std::max(display.y - 20, 300.0f)), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin("World Statistics", &showStatistics))
-    {
-        ImGui::End();
-        return;
-    }
+    // Widgets only (no window): a section of the debug UI's Performance tab (S19c)
     if (!renderScene)
     {
         ImGui::TextDisabled("not attached to a RenderScene");
-        ImGui::End();
         return;
     }
     const Shown& shown              = shownStatistics();
@@ -111,20 +112,16 @@ void WorldRenderer::imguiStatistics()
     const PrototypeForest::Stats fs = trees.stats();
 
     // ---------------------------------------------------------------------------------------- Overview
-    // The frame times, CPU and GPU busy are in the app's "Engine statistics" (one place for them); this window breaks
+    // The frame times, CPU and GPU busy are in the debug UI's Performance tab (one place for them); this section breaks
     // the world's part down. The times are means over the last kShownSeconds, refreshed every kRefreshSeconds (numbers
     // that change every frame cannot be read)
-    ImGui::PushStyleColor(ImGuiCol_Text, IM_COL32(255, 255, 255, 255));
-    ImGui::TextWrapped("World renderer: GPU passes and CPU work. Whole-frame timing: Engine statistics (F1).");
-    ImGui::PopStyleColor();
-    ImGui::TextDisabled("%dx MSAA, reversed depth, %.1f km world, %d trees%s, %d draw calls",
-                        int(renderScene->formats().samples), heightField().worldSize() / 1000.0f, trees.treeCount(),
-                        settings.depthPrePass ? ", depth pre-pass" : "", s.drawCalls);
+    ImGui::TextDisabled("%.1f km world, %d trees%s, %d draw calls", heightField().worldSize() / 1000.0f,
+                        trees.treeCount(), settings.depthPrePass ? ", depth pre-pass" : "", s.drawCalls);
 
     // ---------------------------------------------------------------------------------------- GPU sections
     char header[64];
     std::snprintf(header, sizeof(header), "GPU sections (mean of %.0f s)###gpu sections", kShownSeconds);
-    if (ImGui::CollapsingHeader(header, ImGuiTreeNodeFlags_DefaultOpen))
+    if (subSection(header, true))
     {
         if (shown.gpuSectionMs.empty())
         {
@@ -182,7 +179,7 @@ void WorldRenderer::imguiStatistics()
 
     // ---------------------------------------------------------------------------------------- CPU
     std::snprintf(header, sizeof(header), "CPU per frame (mean of %.0f s)###cpu", kShownSeconds);
-    if (ImGui::CollapsingHeader(header, ImGuiTreeNodeFlags_DefaultOpen))
+    if (subSection(header, false))
     {
         if (beginTable("cpu", 2))
         {
@@ -202,7 +199,7 @@ void WorldRenderer::imguiStatistics()
     }
 
     // ---------------------------------------------------------------------------------------- Geometry
-    if (ImGui::CollapsingHeader("Geometry", ImGuiTreeNodeFlags_DefaultOpen))
+    if (subSection("Geometry", false))
     {
         int terrainTriangles = 0;
         for (int l = 0; l <= ps.terrainMaxLevel && l < 16; ++l) terrainTriangles += ps.trianglesPerLevel[size_t(l)];
@@ -239,7 +236,7 @@ void WorldRenderer::imguiStatistics()
     }
 
     // ---------------------------------------------------------------------------------------- Terrain
-    if (ImGui::CollapsingHeader("Terrain levels of detail") && beginTable("terrain levels", 3))
+    if (subSection("Terrain levels of detail", false) && beginTable("terrain levels", 3))
     {
         ImGui::TableSetupColumn("level");
         ImGui::TableSetupColumn("nodes");
@@ -255,7 +252,7 @@ void WorldRenderer::imguiStatistics()
     }
 
     // ---------------------------------------------------------------------------------------- Trees
-    if (ImGui::CollapsingHeader("Trees", ImGuiTreeNodeFlags_DefaultOpen))
+    if (subSection("Trees", true))
     {
         const auto ends = prototypeTreeLodEnds(settings);
         ImGui::Text("LOD end distances %.0f / %.0f / %.0f m, %d sets", ends[0], ends[1], ends[2], trees.setCount());
@@ -281,7 +278,7 @@ void WorldRenderer::imguiStatistics()
     }
 
     // ---------------------------------------------------------------------------------------- Memory
-    if (ImGui::CollapsingHeader("GPU memory"))
+    if (subSection("GPU memory", false))
     {
         if (beginTable("memory", 2))
         {
@@ -305,8 +302,6 @@ void WorldRenderer::imguiStatistics()
         }
         ImGui::TextDisabled("without the render targets and RenderScene's shared buffers");
     }
-
-    ImGui::End();
 }
 
 }  // namespace Vulkan

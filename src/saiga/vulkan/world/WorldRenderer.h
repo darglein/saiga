@@ -74,11 +74,11 @@ class SAIGA_VULKAN_API WorldRenderer
     // Per frame, before the scene records the frame: the settings (setPrototypeSettings, the trees) and the statistics
     void update();
 
-    // The settings window
+    // The settings (ImGui widgets only, no window: the games show them in a section of the debug UI's Engine tab)
     void imgui();
-    // The detailed statistics window (RenderScene's GPU sections, CPU times, geometry, levels of detail, memory)
+    // The detailed statistics (RenderScene's GPU sections, CPU times, geometry, levels of detail, memory; widgets only,
+    // a section of the debug UI's Performance tab)
     void imguiStatistics();
-    bool showStatistics = true;
 
     WorldSettings settings;
 

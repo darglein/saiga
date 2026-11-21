@@ -284,7 +284,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "Reads the app: headless, rendering enabled, rendered size, frames, frames rendered, fps of the last frame, "
         "steps, the local player (whose input the devices and set_input drive), and the input bindings (actions, held "
         "buttons, axes), the app camera and whether a tool holds it; with --coop also coop {host_step, client_step, "
-        "client_peer, delay_steps, dropped_steps} (the tools see the client world). Changes nothing.",
+        "client_peer, delay_steps, dropped_steps} (the tools see the client world), and the debug UI's selected tab "
+        "(ui_tab; null when the UI is off). Changes nothing.",
         schema({}),
         [&app](const Json&, McpServer::Respond respond)
         {
@@ -313,7 +314,45 @@ void registerAppTools(McpServer& server, EngineApp& app)
                                          {"dropped_steps", double(host->droppedSteps())}};
             const Profiler& f = app.frameProfile();
             o["fps"]          = f.counterStats(const_cast<Profiler&>(f).counter("fps"), 1).avg;
+            DebugUi& ui       = app.debugUi();
+            o["ui_tab"]       = ui.enabled() ? Json(ui.tabName(ui.selected())) : Json();
             respond(ToolResult::Text(Json(o).dump()));
+        });
+
+    server.addTool(
+        "set_ui_tab",
+        "Selects a tab of the developer UI, as its F-key does: game (F1, the game without a panel), performance (F2), "
+        "engine (F3), console (F4, the log with the MCP call log) or a game tab by name (case-insensitive). Without "
+        "tab it only reads. Returns the selected tab, the tabs with their keys and whether the UI is visible (G hides "
+        "all ImGui; this tool does not show it again). Use it before screenshot(gui: true) to capture a tab. Changes "
+        "only the UI, not the world.",
+        schema({{"tab", McpServer::StringProperty("The tab's name")}}),
+        [&app](const Json& a, McpServer::Respond respond)
+        {
+            if (unknownArgument(a, {"tab"}, respond)) return;
+            DebugUi& ui = app.debugUi();
+            if (!ui.enabled()) return respond(ToolResult::Error("The debug UI is off (EngineAppSetup::debugUi)"));
+            Json::array tabs;
+            std::string names;
+            for (int i = 0; i < ui.tabCount(); ++i)
+            {
+                Json::object t{{"name", ui.tabName(i)}};
+                if (ui.tabKey(i) > 0) t["key"] = "F" + std::to_string(ui.tabKey(i));
+                tabs.push_back(t);
+                names += (names.empty() ? "" : ", ") + ui.tabName(i);
+            }
+            if (!a["tab"].is_null())
+            {
+                if (!a["tab"].is_string()) return respond(ToolResult::Error("tab: a string"));
+                const int t = ui.findTab(a["tab"].string_value());
+                if (t < 0)
+                    return respond(
+                        ToolResult::Error("Unknown tab \"" + a["tab"].string_value() + "\" (tabs: " + names + ")"));
+                ui.select(t);
+            }
+            const bool visible = app.scene() && app.scene()->imguiVisible() && app.setup().render.imgui;
+            respond(ToolResult::Text(
+                Json(Json::object{{"tab", ui.tabName(ui.selected())}, {"tabs", tabs}, {"visible", visible}}).dump()));
         });
 
     server.addTool(

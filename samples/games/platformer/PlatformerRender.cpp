@@ -176,9 +176,10 @@ void PlatformerRender::beforeRender(double alpha)
 void PlatformerRender::gui()
 {
     // The GUI runs inside the frame (after beforeRender): the character it shows is focus()'s
-    ImGui::SetNextWindowPos(ImVec2(10, 10), ImGuiCond_FirstUseEver);
+    // Below the debug UI's bar
+    ImGui::SetNextWindowPos(ImVec2(10, app->debugUi().barHeight() + 10), ImGuiCond_FirstUseEver);
     ImGui::Begin("Platformer", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("WASD move, shift walk, space jump, Q/E camera, R restart, G GUI");
+    ImGui::Text("WASD move, shift walk, space jump, Q/E camera, R restart, F1-F4 debug tabs, G GUI");
     World& w       = app->world();
     const Entity e = focus();
     if (w.alive(e) && w.has<CharacterMotion>(e))
@@ -214,12 +215,19 @@ void PlatformerRender::gui()
         }
         else if (w.isHost() && !player.valid() && ImGui::Button("restart"))
         {
-            if (auto* hero = gameObjectAs<HeroBase>(w, e))
-            {
-                hero->restart();
-                // Between steps (paused) the cache would keep the motion from before the restart
-                caches.reseed(e);
-            }
+            // Between steps, not while the frame is recorded (S19c)
+            app->queueBetweenSteps(
+                [this, e]()
+                {
+                    World& world = app->world();
+                    if (!world.alive(e)) return;
+                    if (auto* hero = gameObjectAs<HeroBase>(world, e))
+                    {
+                        hero->restart();
+                        // Between steps (paused) the cache would keep the motion from before the restart
+                        caches.reseed(e);
+                    }
+                });
         }
     }
     ImGui::End();

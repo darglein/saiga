@@ -444,6 +444,25 @@ TEST(WorldApi, ChangesSinceProfileLogsAndApply)
     EXPECT_FALSE(l.value["lines"].array_items().empty());
 }
 
+// S19c: the MCP call log (category "mcp") is only returned when asked for; lines carry their time
+TEST(WorldApi, LogsLeaveOutTheMcpCallLog)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    const double since = double(engineLog().lastSequence());
+    SAIGA_LOG("mcp", "world_status -> ok 0.1 ms");
+    SAIGA_LOG("test", "a line");
+    ApiResult all = api.call("logs", Json(Json::object{{"since", since}}));
+    ASSERT_TRUE(all.ok) << all.error;
+    ASSERT_EQ(all.value["lines"].array_items().size(), 1u) << all.value.dump();
+    EXPECT_EQ(all.value["lines"][0]["category"], Json("test"));
+    EXPECT_GE(all.value["lines"][0]["time"].number_value(), 0.0);
+    ApiResult mcp = api.call("logs", Json(Json::object{{"since", since}, {"category", "mcp"}}));
+    ASSERT_TRUE(mcp.ok) << mcp.error;
+    ASSERT_EQ(mcp.value["lines"].array_items().size(), 1u);
+    EXPECT_EQ(mcp.value["lines"][0]["message"], Json("world_status -> ok 0.1 ms"));
+}
+
 TEST(WorldApi, ReadOnlyAndNotInsideAStep)
 {
     World w(apiSetup());

@@ -9,9 +9,11 @@
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/api/WorldApi.h"
+#include "saiga/engine/app/DebugUi.h"
 #include "saiga/engine/app/EngineAppSetup.h"
 #include "saiga/engine/app/FrameStatistics.h"
 #include "saiga/engine/app/InputMap.h"
+#include "saiga/engine/app/McpCallLog.h"
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/export.h"
 
@@ -128,7 +130,12 @@ class SAIGA_ENGINE_API EngineApp
     Entity localPlayer() const { return localPlayerEntity; }
     // The virtual device for the next steps (0: until replaced); a paused world keeps it until steps run
     void setVirtualInput(const VirtualInput& input, int steps);
-    void showStatistics(bool show) { statisticsVisible = show; }
+    // The developer UI (S19c): the bar with the tabs, the panel, the console. Exists in every mode (also without ImGui
+    // or a device), so games register tabs and sections unconditionally (e.g. in renderHooks.init)
+    DebugUi& debugUi() { return *ui; }
+    // Runs fn between steps: right after the next McpServer::poll of the frame loop, before the input and the steps.
+    // For GUI buttons that change the world (the GUI runs while a frame is recorded, where the world must not step)
+    void queueBetweenSteps(std::function<void()> fn) { betweenSteps.push_back(std::move(fn)); }
 
     // Camera hold (S14): set_camera / move_camera take the camera from the game; a game that drives the camera itself
     // skips its update while held, renders from camera() and resets its own camera on the release edge
@@ -176,7 +183,19 @@ class SAIGA_ENGINE_API EngineApp
     // Checks the running frame measurements (from a poll listener and when one starts)
     void checkMeasurements();
     void answerMeasurement(FrameMeasurement& m, bool stoppedEarly);
-    void statisticsWindow();
+    // The debug UI's content (EngineAppDebugUi.cpp)
+    void setupDebugUi();
+    void ensureShownStatistics();
+    void performanceTab();
+    void perfSummary();
+    void perfTable();
+    void perfGraph(float height);
+    void perfSimulation();
+    void perfGpu();
+    void engineTab();
+    void barSummary(float width);
+    // Pauses or resumes the world between steps (the Pause key, the buttons)
+    void togglePause();
 
     EngineAppSetup appSetup;
     AppOptions appOptions;
@@ -205,7 +224,10 @@ class SAIGA_ENGINE_API EngineApp
     bool hasVirtual           = false;
     Entity localPlayerEntity;
     std::vector<std::function<bool()>> frameCallbacks;
-    bool renderingEnabled = true, statisticsVisible = false;
+    bool renderingEnabled = true;
+    std::unique_ptr<McpCallLog> callLog;
+    std::unique_ptr<DebugUi> ui;
+    std::vector<std::function<void()>> betweenSteps;
     // The statistics window's numbers: over one of kStatisticsWindows (seconds; the combo), recomputed every
     // kStatisticsRefreshSeconds (numbers that change every frame cannot be read)
     static constexpr double kStatisticsWindows[3]     = {3.0, 10.0, 30.0};
@@ -216,7 +238,6 @@ class SAIGA_ENGINE_API EngineApp
     uint64_t statisticsResets = 0;   // frameProfiler.resetCount() the frame statistics belong to
     static constexpr double kStatisticsWarmupSeconds = 1.0;
     double runSeconds                                = 0;        // the sum of the frame intervals since the start
-    bool statisticsOverlayEnabled                    = true;     // the overlay line while the window is closed
     std::deque<std::pair<uint64_t, double>> renderedFrameTimes;  // RenderScene frame -> frameStats time
     struct ShownStatistics
     {
@@ -224,7 +245,9 @@ class SAIGA_ENGINE_API EngineApp
         double periodMs  = 0;  // the refresh period (vsync, FrameStatistics::refreshPeriod) or the median interval
         double graphSpan = 1;  // the time the graph covers (s)
         FrameStatistics::Summary summary;
-        json11::Json stepReport;  // the step profile over the steps of that time
+        json11::Json stepReport;    // the step profile over the steps of that time
+        double stepMs     = 0;      // the median step time (the bar)
+        bool droppedSteps = false;  // steps were dropped in the last 120 frames (the bar)
         std::chrono::steady_clock::time_point at;
         bool valid = false;
     } shownStatistics;
@@ -241,10 +264,14 @@ class SAIGA_ENGINE_API EngineApp
         std::string text;
         double period       = 0;  // the refresh period (vsync) or the median interval (ms)
         bool displayLimited = false, warn = false;
+        std::string tag;  // short: VSYNC-BOUND, GPU-BOUND, CPU-BOUND, WAIT-BOUND, MEASURING, ...
     };
     // What limits the frame rate (the statistics window's headline)
     Verdict statisticsVerdict() const;
-    void statisticsOverlay();
+    Verdict shownVerdict;  // of the shown statistics (refreshShownStatistics)
+    // A stutter rate (missed refreshes or long frames per second) above this is drawn as a warning
+    static constexpr double kStutterWarnPerSecond = 0.2;
+    bool showEngineGpuSections() const;
     bool quitRequested    = false;
     int exitStatus        = 0;
     bool hooksInitialized = false;

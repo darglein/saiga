@@ -28,6 +28,9 @@ void FlightRender::init(EngineApp& _app)
     // prototype world and the trees (S19a)
     worldRenderer.init(params, std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
     worldRenderer.attach(*app->scene());
+    // The world prototype's settings and statistics as sections of the debug UI (S19c)
+    app->debugUi().addSection(DebugTab::Engine, "World", [this]() { worldRenderer.imgui(); });
+    app->debugUi().addSection(DebugTab::Performance, "World passes", [this]() { worldRenderer.imguiStatistics(); });
 
     const FlightContext* ctx = context.get();
     camera.distance          = 24;
@@ -91,11 +94,10 @@ void FlightRender::beforeRender(double alpha)
 
 void FlightRender::gui()
 {
-    worldRenderer.imgui();
     // The GUI runs inside the frame (after beforeRender): the plane it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 160), ImGuiCond_FirstUseEver);
     ImGui::Begin("Flight", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("W/S pitch, A/D roll, Q/E yaw, shift/ctrl throttle, R respawn, G GUI");
+    ImGui::Text("W/S pitch, A/D roll, Q/E yaw, shift/ctrl throttle, R respawn, F1-F4 debug tabs, G GUI");
     World& w       = app->world();
     const Entity e = focus();
     if (w.alive(e) && w.has<AircraftState>(e))
@@ -125,7 +127,14 @@ void FlightRender::gui()
         }
         else if (w.isHost() && !player.valid() && ImGui::Button("respawn"))
         {
-            if (auto* plane = gameObjectAs<AircraftBase>(w, e)) plane->respawn();
+            // Between steps, not while the frame is recorded (S19c)
+            app->queueBetweenSteps(
+                [this, e]()
+                {
+                    World& world = app->world();
+                    if (!world.alive(e)) return;
+                    if (auto* plane = gameObjectAs<AircraftBase>(world, e)) plane->respawn();
+                });
         }
     }
     ImGui::End();

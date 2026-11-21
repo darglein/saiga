@@ -10,7 +10,7 @@
  * on it.
  *
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
- * F1 the engine statistics, F12 a screenshot, ESC quits.
+ * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits.
  *
  * MCP (http://127.0.0.1:8765/mcp, --mcp-port or SAIGA_MCP_PORT, 0 disables it): the engine's world and app tools and
  * the prototype's tools (screenshot, get_state, set_camera, move_camera, set_settings, terrain_query).
@@ -337,8 +337,9 @@ void gui(EngineApp& app)
     const bool fDown = !ImGui::GetIO().WantCaptureKeyboard && ImGui::IsKeyDown(ImGuiKey_F);
     if (fDown && !g.fWasDown) g.walkMode = !g.walkMode;
     g.fWasDown = fDown;
-    g.world.imgui();
-    ImGui::Begin("World");
+    // Below the debug UI's bar, at the left (the debug panel is docked at the right)
+    ImGui::SetNextWindowPos(ImVec2(10, app.debugUi().barHeight() + 10), ImGuiCond_FirstUseEver);
+    ImGui::Begin("World", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Checkbox("walk mode (F)", &g.walkMode);
     ImGui::SliderFloat("eye height", &g.eyeHeight, 0.5f, 50.0f);
     ImGui::SliderFloat("speed", &app.cameraSpeed(), 1, 200);
@@ -369,6 +370,9 @@ int main(int argc, char* argv[])
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;
         initWorld(app);
+        // The world prototype's settings and statistics as sections of the debug UI (S19c)
+        app.debugUi().addSection(DebugTab::Engine, "World", [&]() { game.world.imgui(); });
+        app.debugUi().addSection(DebugTab::Performance, "World passes", [&]() { game.world.imguiStatistics(); });
     };
     setup.renderHooks.shutdown     = [&](EngineApp&) { game.world.destroy(); };
     setup.renderHooks.beforeRender = [&](EngineApp& app, double) { beforeRender(app); };
@@ -394,11 +398,7 @@ int main(int argc, char* argv[])
         Vulkan::registerWorldMcpTools(server, context);
     };
 
-    const int code = engineMain(argc, argv, setup, {},
-                                [&](EngineApp& app, const AppOptions& options)
-                                {
-                                    if (options.benchmark.empty()) app.showStatistics(true);  // the frame times
-                                });
+    const int code = engineMain(argc, argv, setup, {}, [](EngineApp&, const AppOptions&) {});
     // A window closed before the end of the path
     if (code == 0 && !game.benchmarkName.empty() && !game.benchmarkDone)
     {

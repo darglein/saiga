@@ -7,6 +7,7 @@
 // The engine app (docs/engine_design.md §8.3; stage S13): command line, scenario runner, input map, the frame loop
 // headless (with and without a Vulkan device), the app tools and the frame and GPU profiles.
 
+#include "saiga/core/imgui/imgui.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
@@ -2129,4 +2130,128 @@ TEST_F(EngineAppRender, CoopClientHasTheSink)
     app.runFrames(12, 1.0 / 60);
     EXPECT_EQ(app.world().extract().instanceCount(), 1u);
     EXPECT_EQ(app.hostWorld()->extract().trackedCount(), 0u);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The debug UI (S19c)
+
+// set_ui_tab selects tabs by name (also without a device: the selection is kept); app_status names the tab
+TEST(EngineAppNoRender, SetUiTab)
+{
+    EngineApp app(appSetup(false));
+    Poller poller(app.mcp());
+    Json r = toolJson(callTool(app.mcp(), "set_ui_tab", Json::object{}));
+    EXPECT_EQ(r["tab"], Json("Game"));
+    ASSERT_EQ(r["tabs"].array_items().size(), 4u);
+    EXPECT_EQ(r["tabs"][1]["key"], Json("F2"));
+    EXPECT_FALSE(r["visible"].bool_value());
+    r = toolJson(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "console"})")));
+    EXPECT_EQ(r["tab"], Json("Console"));
+    EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Console));
+    EXPECT_EQ(toolJson(callTool(app.mcp(), "app_status", Json::object{}))["ui_tab"], Json("Console"));
+    Json bad = callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "nope"})"));
+    EXPECT_TRUE(bad["result"]["isError"].bool_value());
+    EXPECT_NE(bad["result"]["content"][0]["text"].string_value().find("Game, Performance, Engine, Console"),
+              std::string::npos);
+    EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": 3})"))["result"]["isError"].bool_value());
+    EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", obj(R"({"page": "game"})"))["result"]["isError"].bool_value());
+    // A game tab
+    app.debugUi().addTab("AI", {});
+    EXPECT_EQ(toolJson(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "ai"})")))["tab"], Json("AI"));
+}
+
+TEST(EngineAppNoRender, SetUiTabWithTheUiOff)
+{
+    EngineAppSetup s = appSetup(false);
+    s.debugUi        = false;
+    EngineApp app(s);
+    Poller poller(app.mcp());
+    EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", Json::object{})["result"]["isError"].bool_value());
+    EXPECT_TRUE(toolJson(callTool(app.mcp(), "app_status", Json::object{}))["ui_tab"].is_null());
+}
+
+// queueBetweenSteps runs after the poll and before the frame's steps (GUI actions never run inside a frame)
+TEST(EngineAppNoRender, ActionsRunBetweenSteps)
+{
+    EngineApp app(appSetup(false));
+    app.runFrames(3, 1.0 / 60);
+    const uint64_t before = app.world().stepIndex();
+    uint64_t seen         = 0;
+    app.queueBetweenSteps(
+        [&]()
+        {
+            seen = app.world().stepIndex();
+            app.world().setPaused(true);
+        });
+    // Not yet: only in the next frame
+    EXPECT_FALSE(app.world().isPaused());
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_EQ(seen, before);
+    // Paused before the frame's advance: the frame ran no step
+    EXPECT_EQ(app.world().stepIndex(), before);
+}
+
+// Every MCP tool call is logged as an "mcp" line (agents and the console); the logs tool leaves them out
+TEST(EngineAppNoRender, McpCallsInTheLog)
+{
+    EngineApp app(appSetup(false));
+    const uint64_t before = engineLog().lastSequence();
+    {
+        Poller poller(app.mcp(), [&]() {});
+        callTool(app.mcp(), "quit", Json::object{});
+        // The record of the answer is delivered by the next poll
+        for (int i = 0; i < 1000; ++i)
+        {
+            bool found = false;
+            for (const auto& l : engineLog().since(before)) found = found || l.category == "mcp";
+            if (found) break;
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    std::vector<std::string> lines;
+    for (const auto& l : engineLog().since(before))
+        if (l.category == "mcp") lines.push_back(l.message);
+    ASSERT_EQ(lines.size(), 1u);
+    EXPECT_EQ(lines[0].rfind("quit -> ok", 0), 0u) << lines[0];
+    // The console's calls are marked
+    app.debugUi().console().submit("world_status");
+    app.mcp().poll();
+    bool console = false;
+    for (const auto& l : engineLog().since(before))
+        console = console || (l.category == "mcp" && l.message.rfind("(console) world_status -> ok", 0) == 0);
+    EXPECT_TRUE(console);
+    EXPECT_EQ(app.debugUi().console().entries().back().kind, DebugConsole::Entry::Kind::Output);
+}
+
+// Each tab draws in a headless frame with ImGui (no validation error); a click on a tab button selects it
+TEST_F(EngineAppRender, DebugUiTabsRender)
+{
+    EngineAppSetup s = appSetup(true);
+    s.render.imgui   = true;
+    s.width          = 800;
+    s.height         = 600;
+    EngineApp app(s);
+    app.debugUi().addSection(DebugTab::Engine, "Game section", []() { ImGui::TextUnformatted("game"); });
+    for (int tab = 0; tab < app.debugUi().tabCount(); ++tab)
+    {
+        app.debugUi().select(tab);
+        app.runFrames(3, 1.0 / 60);
+    }
+    ASSERT_TRUE(ImGui::GetCurrentContext());
+    // The tab buttons are on the bar (y in [0, barHeight)); "F3 Engine" is the third. One input event per frame
+    app.debugUi().select(DebugTab::Game);
+    app.runFrames(2, 1.0 / 60);
+    const float y = app.debugUi().barHeight() / 2;
+    float x       = 6;
+    for (int i = 0; i < 2; ++i)
+        x += ImGui::CalcTextSize(("F" + std::to_string(i + 1) + " " + app.debugUi().tabName(i)).c_str()).x + 2 * 6 + 2;
+    x += 10;
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMousePosEvent(x, y);
+    app.runFrames(1, 1.0 / 60);
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    app.runFrames(1, 1.0 / 60);
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Engine));
 }

@@ -132,6 +132,50 @@ class SAIGA_CORE_API McpServer
     // notification. Blocks until the tool call is answered. Used by the HTTP connections (and the tests).
     Json handleMessage(const Json& message);
 
+    /**
+     * A tool call from inside the application (e.g. a console): queued like an HTTP tools/call and run by the next
+     * poll(), in arrival order with the remote calls. Does not block. respond gets the answer on the polling thread
+     * (also a deferred answer from another thread, delivered by a later poll()), an error for an unknown tool or a full
+     * queue, and a timeout error once toolTimeoutSeconds have passed (checked by poll()). stop() and the destructor
+     * answer the pending local calls with an error on their calling thread.
+     */
+    void callLocal(const std::string& toolName, const Json& arguments, Respond respond);
+
+    // One tool call event for the call observer
+    struct CallRecord
+    {
+        enum class Phase
+        {
+            Started,  // poll() started the handler
+            Answered  // answered (also errors, timeouts and shutdown)
+        };
+        enum class Source
+        {
+            Remote,  // HTTP (an agent)
+            Local    // callLocal
+        };
+        uint64_t id = 0;  // assigned by the server (1, 2, ...)
+        std::string tool;
+        Json arguments;
+        Source source = Source::Remote;
+        Phase phase   = Phase::Started;
+        bool isError  = false;
+        // Answered: from the start of the handler (or from queueing, if it never ran) to the answer
+        double durationMs = 0;
+        // Answered: the first text part of the answer, whitespace collapsed, at most 200 characters
+        std::string answer;
+    };
+    /**
+     * Called on the polling thread at the end of each poll() with the records since the last poll (in order). Answers
+     * that happen on other threads (timeouts on the HTTP threads, deferred answers) are queued and delivered by the
+     * next poll(); records not delivered when the server stops are dropped. One observer; empty: none.
+     */
+    void setCallObserver(std::function<void(const CallRecord&)> observer);
+
+    // The registered tools (registration order) and one tool's description and input schema (false if unknown)
+    std::vector<std::string> toolNames() const;
+    bool toolInfo(const std::string& toolName, std::string& description, Json& inputSchema) const;
+
    private:
     struct Tool
     {
@@ -141,6 +185,9 @@ class SAIGA_CORE_API McpServer
     };
 
     struct PendingCall;
+    // The records and local answers made on any thread, delivered by poll(); shared with the answer callbacks, which
+    // may outlive the server
+    struct CallState;
 
     std::string name, version, instructions;
     std::vector<Tool> tools;
@@ -149,6 +196,11 @@ class SAIGA_CORE_API McpServer
 
     std::mutex pendingMutex;
     std::deque<std::shared_ptr<PendingCall>> pendingCalls;
+    std::shared_ptr<CallState> callState;
+    // Local calls that were started and not answered yet (polling thread): their deadline is checked by poll()
+    std::vector<std::shared_ptr<PendingCall>> localInFlight;
+    std::function<void(const CallRecord&)> callObserver;
+    std::atomic<uint64_t> nextCallId{1};
 
     std::atomic_bool stopping  = false;
     std::atomic_bool listening = false;
@@ -178,6 +230,10 @@ class SAIGA_CORE_API McpServer
     void joinFinishedConnections(bool all);
 
     ToolResult callTool(const std::string& toolName, const Json& arguments);
+    std::shared_ptr<PendingCall> makeCall(Tool& tool, const Json& arguments, bool local);
+    // Delivers the queued local answers and records (polling thread, or the thread of stop())
+    void deliverCallState(bool records);
+    void answerLocalCallsOnStop();
     // HTTP request -> HTTP response (status line, headers and body)
     std::string handleHttp(const std::string& method, const std::map<std::string, std::string>& headers,
                            const std::string& body, bool& keepAlive);

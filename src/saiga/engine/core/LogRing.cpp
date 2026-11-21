@@ -8,6 +8,7 @@
 
 #include "saiga/engine/core/LogRing.h"
 
+#include <chrono>
 #include <cstddef>
 #include <stdexcept>
 #include <utility>
@@ -16,6 +17,17 @@ namespace Saiga
 {
 namespace Engine
 {
+namespace
+{
+// Initialized when the library is loaded: the time of a log line counts from (about) the process start
+const std::chrono::steady_clock::time_point processStart = std::chrono::steady_clock::now();
+}  // namespace
+
+double LogRing::clockSeconds()
+{
+    return std::chrono::duration<double>(std::chrono::steady_clock::now() - processStart).count();
+}
+
 LogRing::LogRing(size_t capacity) : cap(capacity)
 {
     // In every build: a ring of capacity 0 would pop from an empty deque
@@ -27,6 +39,7 @@ uint64_t LogRing::add(std::string category, std::string message)
     std::lock_guard<std::mutex> lock(mutex);
     Line line;
     line.sequence = last + 1;
+    line.time     = clockSeconds();
     line.category = std::move(category);
     line.message  = std::move(message);
     // Append first, then commit the sequence number and evict: a failed append (bad_alloc) changes nothing, so the

@@ -29,9 +29,14 @@ class SAIGA_ENGINE_API LogRing
     struct Line
     {
         uint64_t sequence = 0;
+        // Steady-clock seconds since the process started (for display; wall-clock time, never simulation)
+        double time = 0;
         std::string category;
         std::string message;
     };
+
+    // The clock of Line::time: steady-clock seconds since (about) the process start
+    static double clockSeconds();
 
     // capacity > 0 (std::invalid_argument otherwise)
     explicit LogRing(size_t capacity = 4096);

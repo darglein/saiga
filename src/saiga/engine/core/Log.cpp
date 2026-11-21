@@ -11,6 +11,8 @@
 #include <atomic>
 #include <cstdarg>
 #include <cstdio>
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <mutex>
 
@@ -21,6 +23,11 @@ namespace Engine
 namespace
 {
 std::atomic<bool> echo{true};
+std::atomic<bool> mcpEcho{[]
+                          {
+                              const char* e = std::getenv("SAIGA_MCP_ECHO");
+                              return e && std::strcmp(e, "1") == 0;
+                          }()};
 
 // Ring insertion and stdout echo under one lock: stdout shows the lines in sequence order, without interleaving.
 // Never destroyed (like the ring): static objects may log from their destructors at exit.
@@ -46,6 +53,16 @@ void setLogEcho(bool e)
 bool logEcho()
 {
     return echo;
+}
+
+void setMcpLogEcho(bool e)
+{
+    mcpEcho = e;
+}
+
+bool mcpLogEcho()
+{
+    return mcpEcho;
 }
 
 namespace
@@ -92,7 +109,7 @@ void logPrintf(const char* category, const char* format, ...)
 
     std::lock_guard<std::mutex> lock(logMutex());
     // Into the ring before anything else can throw (building or writing the echo): the line is kept either way
-    if (!echo)
+    if (!echo || (!mcpEcho && std::strcmp(category, "mcp") == 0))
     {
         engineLog().add(category, std::move(message));
         return;

@@ -77,6 +77,9 @@ struct EngineAppSetup
     float cameraSpeed = 10, cameraSpeedFast = 100;
     // The names --benchmark accepts (checked before the window opens; empty: the game has no benchmarks)
     std::vector<std::string> benchmarks;
+    // The debug UI (S19c, DebugUi): off frees F1..F10 for the game and draws nothing; persistence: its state in
+    // debug_ui.json of the working directory (never when headless, with a screenshot option or a benchmark)
+    bool debugUi = true, debugUiPersistence = true;
 };
 
 // What the command line selects besides the setup
@@ -85,7 +88,8 @@ struct AppOptions
     std::string benchmark, screenshot, scenarioFilter;
     int screenshotFrame = 60;
     bool runScenarios   = false;
-    bool showStatistics = false;  // --stats: the "Engine statistics" window open from the start (F1 toggles it)
+    bool showStatistics = false;  // --stats: the debug UI starts on its Performance tab (F2)
+    int debugTab        = 0;      // SAIGA_DEBUG_TAB=<n>: the debug UI starts on tab n (1: F1, ...; 0: the saved tab)
     // --coop [delay] (S16b): a hidden host world and the rendered client world in one process over a loopback pair
     // with this delay in steps (0..30, default 2)
     bool coop     = false;
