@@ -64,11 +64,14 @@ TerrainSystem::TerrainSystem(std::vector<TerrainSpace> list)
     for (TerrainSpace& t : list)
     {
         Space s;
-        s.settings   = std::move(t.settings);
-        s.seed       = t.seed;
-        s.source     = std::move(t.source);
-        s.hasTerrain = t.hasTerrain && bool(s.source);
-        s.store      = std::make_unique<TerrainStore>();
+        s.settings       = std::move(t.settings);
+        s.seed           = t.seed;
+        s.source         = std::move(t.source);
+        s.hasTerrain     = t.hasTerrain && bool(s.source);
+        s.generatorMasks = t.generatorMasks && t.content.valid();
+        s.content        = std::move(t.content);
+        s.grassRule      = t.grassRule;
+        s.store          = std::make_unique<TerrainStore>();
         spaces.push_back(std::move(s));
     }
     visual = std::make_unique<TerrainVisualPatch>();
@@ -291,6 +294,44 @@ void TerrainSystem::requestTile(const RegionId& region, int priority)
     jobsSubmitted++;
 }
 
+namespace
+{
+// An all-zero mask of the layout (a legacy space without a grass rule)
+Vulkan::GrassMaskData zeroMask(const Vulkan::TerrainLayout& layout)
+{
+    Vulkan::GrassMaskData m;
+    m.size    = 256 / layout.baseSpacing;
+    m.density = std::make_shared<const std::vector<uint8_t>>(size_t(m.size) * size_t(m.size), uint8_t(0));
+    return m;
+}
+
+Vulkan::GrassMaskData fromGenerator(const GrassMask& g)
+{
+    Vulkan::GrassMaskData m;
+    m.size    = g.size;
+    m.density = std::make_shared<const std::vector<uint8_t>>(g.density);
+    return m;
+}
+
+// The generator mask where S20's rule (over the merged heights) allows grass (E3)
+Vulkan::GrassMaskData andRule(const GrassMask& g, const Vulkan::GrassMaskData& rule)
+{
+    std::vector<uint8_t> d = g.density;
+    for (size_t i = 0; i < d.size(); ++i)
+        if (!rule.density || i >= rule.density->size() || (*rule.density)[i] == 0) d[i] = 0;
+    Vulkan::GrassMaskData m;
+    m.size    = g.size;
+    m.density = std::make_shared<const std::vector<uint8_t>>(std::move(d));
+    return m;
+}
+}  // namespace
+
+uint16_t TerrainSystem::placementVersion(const ChunkId& chunk) const
+{
+    if (placementVersionOf) return placementVersionOf(chunk);
+    return spaces[chunk.space].content.valid() ? spaces[chunk.space].content.space().current : uint16_t(1);
+}
+
 void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
 {
     const Key key(kindMask, chunk.space, 0, chunk.x, chunk.z);
@@ -298,26 +339,65 @@ void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
     const TerrainStore::Tile* tile = spaces[chunk.space].store->tile(regionOf(chunk.space, 0, chunk.x, chunk.z));
     if (!tile) return;
     ensurePool();
-    auto result                      = std::make_shared<Vulkan::GrassMaskData>();
-    const Vulkan::TerrainTileData t0 = tile->data;
-    const Vulkan::TerrainLayout lay  = layout(chunk.space);
-    const std::optional<int32_t> sea = spaces[chunk.space].settings.seaLevel;
-    const double minNormalY = view.grassMinNormalY, minAboveSea = view.grassMinAboveSea;
-    const uint64_t generation = maskGeneration;
+    const Space& sp                       = spaces[chunk.space];
+    auto result                           = std::make_shared<Vulkan::GrassMaskData>();
+    const Vulkan::TerrainTileData t0      = tile->data;
+    const Vulkan::TerrainLayout lay       = layout(chunk.space);
+    const std::optional<int32_t> sea      = sp.settings.seaLevel;
+    const std::optional<HookGrassRule> rl = sp.grassRule;
+    const bool generator                  = sp.generatorMasks;
+    const ContentSource content           = sp.content;
+    const uint16_t version                = generator ? placementVersion(chunk) : uint16_t(0);
+    const uint64_t generation             = maskGeneration;
+    const std::function<void()> hook      = maskJobHookForTests;
     const uint64_t id =
-        pool->submit(namedJob(describe(key), [result, t0, lay, sea, minNormalY, minAboveSea]()
-                              { *result = generateGrassMask(t0, lay, sea, minNormalY, minAboveSea); }),
+        pool->submit(namedJob(describe(key),
+                              [result, t0, lay, sea, rl, generator, content, chunk, version, hook]()
+                              {
+                                  if (hook) hook();
+                                  // S23b (E3): a generator space's mask from its ChunkPlacement; a legacy space S20's
+                                  // rule
+                                  if (generator)
+                                      *result = fromGenerator(content.placementInJob(chunk, version)->grass);
+                                  else if (rl)
+                                      *result = generateGrassMask(t0, lay, sea, rl->minNormalY, rl->minAboveSea);
+                                  else
+                                      *result = zeroMask(lay);
+                              }),
                      priority,
-                     [this, key, result, chunk, generation](bool cancelled)
+                     [this, key, result, chunk, generation, generator, version](bool cancelled)
                      {
                          requests.erase(key);
                          if (cancelled || generation != maskGeneration || !viewSpaceValid || chunk.space != viewSpace)
                              return;
+                         // A placement-version change meanwhile: dropped (requested again while desired)
+                         if (generator && version != placementVersion(chunk)) return;
                          spaces[chunk.space].store->addMask(chunk, std::move(*result));
+                         if (generator) maskVersions[chunk] = version;
                          statistics.generated++;
                      });
     requests[key] = id;
     jobsSubmitted++;
+}
+
+void TerrainSystem::recordChanged(const ChunkId& chunk)
+{
+    if (chunk.space >= spaces.size() || !spaces[chunk.space].generatorMasks) return;
+    const uint16_t version = placementVersion(chunk);
+    // The stored mask of another version goes (requested again while desired; the sink's is removed and re-sent)
+    auto it = maskVersions.find(chunk);
+    if (it != maskVersions.end() && it->second != version)
+    {
+        spaces[chunk.space].store->removeMask(chunk);
+        maskVersions.erase(it);
+    }
+    // An edited chunk's mask includes the generator mask: recomputed
+    auto e = visual->masks.find(chunk);
+    if (e != visual->masks.end() && e->second.version != version)
+    {
+        visual->masks.erase(e);
+        queueMask(chunk);
+    }
 }
 
 // ---- the view
@@ -482,7 +562,11 @@ void TerrainSystem::evict(SpaceId space, const Desired& d)
     std::vector<ChunkId> gone;
     for (const auto& m : st.masks())
         if (!d.maskSet.count(m.first)) gone.push_back(m.first);
-    for (const ChunkId& c : gone) st.removeMask(c);
+    for (const ChunkId& c : gone)
+    {
+        st.removeMask(c);
+        maskVersions.erase(c);
+    }
     for (auto it = visual->masks.begin(); it != visual->masks.end();)
         if (!d.maskSet.count(it->first))
             it = visual->masks.erase(it);
@@ -692,34 +776,53 @@ void TerrainSystem::requestEditedMask(const ChunkId& chunk)
         VisualTimer t(visualMs);
         TerrainVisualPatch::mergeTile(*edits, region, layout(chunk.space), tile->data, merged);
     }
-    auto result                      = std::make_shared<Vulkan::GrassMaskData>();
-    const Vulkan::TerrainLayout lay  = layout(chunk.space);
-    const std::optional<int32_t> sea = sp.settings.seaLevel;
-    const double minNormalY = view.grassMinNormalY, minAboveSea = view.grassMinAboveSea;
+    auto result                           = std::make_shared<Vulkan::GrassMaskData>();
+    const Vulkan::TerrainLayout lay       = layout(chunk.space);
+    const std::optional<int32_t> sea      = sp.settings.seaLevel;
+    const std::optional<HookGrassRule> rl = sp.grassRule;
+    const bool generator                  = sp.generatorMasks;
+    const ContentSource content           = sp.content;
+    const uint16_t version                = generator ? placementVersion(chunk) : uint16_t(0);
+    const std::function<void()> hook      = maskJobHookForTests;
+    // F1: only the terrain-only revision drops a result (a tombstone bumps the sequence, never the revision)
     const uint64_t revision = edits->revision(chunk), generation = setGeneration, thresholds = maskGeneration;
     editedJobs.insert(chunk);
     jobsSubmitted++;
     pool->submit(
         namedJob("edited grass mask space " + std::to_string(chunk.space) + " chunk (" + std::to_string(chunk.x) +
                      ", " + std::to_string(chunk.z) + ")",
-                 [result, merged, lay, sea, minNormalY, minAboveSea]()
-                 { *result = generateGrassMask(merged, lay, sea, minNormalY, minAboveSea); }),
+                 [result, merged, lay, sea, rl, generator, content, chunk, version, hook]()
+                 {
+                     if (hook) hook();
+                     // S23b (E3): a generator space ANDs its generator mask with S20's rule over the merged heights
+                     // (its grassEditRule; none: the generator mask); a legacy space S22's rule alone
+                     if (generator)
+                     {
+                         const GrassMask& g = content.placementInJob(chunk, version)->grass;
+                         *result = rl ? andRule(g, generateGrassMask(merged, lay, sea, rl->minNormalY, rl->minAboveSea))
+                                      : fromGenerator(g);
+                     }
+                     else if (rl)
+                         *result = generateGrassMask(merged, lay, sea, rl->minNormalY, rl->minAboveSea);
+                     else
+                         *result = zeroMask(lay);
+                 }),
         100000,
-        [this, chunk, result, revision, generation, thresholds](bool cancelled)
+        [this, chunk, result, revision, generation, thresholds, generator, version](bool cancelled)
         {
             editedJobs.erase(chunk);
-            // Another GPU set, other thresholds, or the chunk left the desired set: discarded, no re-queue
+            // Another GPU set, other sources, or the chunk left the desired set: discarded, no re-queue
             if (cancelled || generation != setGeneration || thresholds != maskGeneration || !desiredMasks.count(chunk))
                 return;
             VisualTimer t(visualMs);
-            if (!edits || edits->revision(chunk) != revision)
+            if (!edits || edits->revision(chunk) != revision || (generator && version != placementVersion(chunk)))
             {
-                // The terrain changed meanwhile: dropped and recomputed
+                // The terrain (or the chunk's placement version) changed meanwhile: dropped and recomputed
                 statistics.maskResultsDropped++;
                 queueMask(chunk);
                 return;
             }
-            visual->masks[chunk] = TerrainVisualPatch::EditedMask{std::move(*result), revision};
+            visual->masks[chunk] = TerrainVisualPatch::EditedMask{std::move(*result), revision, version};
             statistics.maskRecomputes++;
             // A sent mask is replaced at once; a new one is sent by sendUpdates (after its removals)
             if (sink && setActive && setSpace == chunk.space && sentMasks.count(chunk))
@@ -1109,34 +1212,15 @@ size_t TerrainSystem::terrainUploadsPending() const
 
 void TerrainSystem::setViewSettings(const TerrainViewSettings& settings)
 {
-    const bool thresholds =
-        settings.grassMinNormalY != view.grassMinNormalY || settings.grassMinAboveSea != view.grassMinAboveSea;
     view = settings;
-    if (thresholds)
-    {
-        // Every mask is dropped and regenerated (older results are dropped by their generation)
-        maskGeneration++;
-        for (Space& s : spaces) s.store->dropMasks();
-        visual->masks.clear();
-        maskQueue.clear();
-        baseResend.clear();
-        if (sink)
-            for (const ChunkId& c : sentMasks) sink->removeGrassMask(c);
-        sentMasks.clear();
-        if (pool)
-            for (auto it = requests.begin(); it != requests.end();)
-            {
-                if (std::get<0>(it->first) == kindMask && pool->cancel(it->second))
-                    it = requests.erase(it);
-                else
-                    ++it;
-            }
-    }
 }
 
-void TerrainSystem::replaceSources(std::vector<TerrainHeightSource> sources)
+void TerrainSystem::replaceSources(std::vector<TerrainHeightSource> sources, std::vector<ContentSource> content)
 {
     SAIGA_ASSERT(sources.size() == spaces.size(), "TerrainSystem::replaceSources: one source per space");
+    SAIGA_ASSERT(content.empty() || content.size() == spaces.size(), "TerrainSystem::replaceSources: content sources");
+    for (size_t i = 0; i < content.size(); ++i) spaces[i].content = std::move(content[i]);
+    maskVersions.clear();
     // The old jobs: queued ones are cancelled, running ones joined, their completions discarded (a new pool on demand)
     pool.reset();
     requests.clear();

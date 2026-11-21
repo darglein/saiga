@@ -10,6 +10,7 @@
 #include "saiga/engine/content/gen/FlatGenerator.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
 
+#include <cmath>
 #include <utility>
 
 namespace Saiga
@@ -26,6 +27,16 @@ HookGenerator::HookGenerator(std::string name, TerrainHeightHook hook, std::opti
 int32_t HookGenerator::height(uint16_t, const WorldPlan& plan, int64_t x, int64_t z) const
 {
     return clampTerrainHeight(hook(plan.seed, x, z));
+}
+
+GrassEditRule HookGenerator::grassEditRule() const
+{
+    GrassEditRule r;
+    if (!grass) return r;
+    r.enabled          = true;
+    r.minNormalYQ16    = int32_t(std::lround(grass->minNormalY * 65536.0));
+    r.minAboveSeaUnits = int32_t(std::lround(grass->minAboveSea * 1024.0));
+    return r;
 }
 
 void HookGenerator::grassMask(uint16_t, const WorldPlan& plan, ChunkId chunk, GrassMask& out) const

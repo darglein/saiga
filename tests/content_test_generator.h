@@ -182,6 +182,15 @@ class TestTerrainGenerator final : public Generator
     }
 
     uint32_t candidatesPerChunk(uint32_t slot) const override { return slot == 0 ? 16384 : 1024; }
+    // S23b: edited chunks keep grass only where S20's rule allows it (normal y >= 53740 / 65536, 410 units above sea)
+    GrassEditRule grassEditRule() const override
+    {
+        GrassEditRule r;
+        r.enabled          = true;
+        r.minNormalYQ16    = 53740;
+        r.minAboveSeaUnits = 410;
+        return r;
+    }
     uint32_t keptCount(uint32_t slot, int level) const override
     {
         return level >= 15 ? 0 : candidatesPerChunk(slot) >> level;

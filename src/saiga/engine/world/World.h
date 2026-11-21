@@ -46,6 +46,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <typeinfo>
 #include <utility>
@@ -154,6 +155,11 @@ struct WorldSetup
  */
 class Replication;
 class RenderSink;
+class Generator;
+struct HookGrassRule;
+// S23b: the grass thresholds of a generator's space (TerrainSpace::grassRule): a HookGenerator's exact ones, else the
+// generator's grassEditRule converted (none: disabled)
+SAIGA_ENGINE_API std::optional<HookGrassRule> grassRuleOf(const Generator& generator);
 class ExtractSystem;
 class TerrainSystem;
 class TerrainEditStore;

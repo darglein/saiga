@@ -1026,8 +1026,15 @@ void WorldLoader::commitGeneration()
         w.pipeline->replacePlans(std::move(*stagedPlans));
         stagedPlans.reset();
         std::vector<TerrainHeightSource> sources;
-        for (size_t i = 0; i < w.pipeline->spaceCount(); ++i) sources.push_back(w.pipeline->heightSource(SpaceId(i)));
-        w.terrainSys->replaceSources(std::move(sources));
+        std::vector<ContentSource> content;
+        for (size_t i = 0; i < w.pipeline->spaceCount(); ++i)
+        {
+            sources.push_back(w.pipeline->heightSource(SpaceId(i)));
+            content.push_back(w.pipeline->space(SpaceId(i)).generator->legacyTerrain()
+                                  ? ContentSource()
+                                  : w.pipeline->contentSource(SpaceId(i)));
+        }
+        w.terrainSys->replaceSources(std::move(sources), std::move(content));
         // S23b: the content sets of the old plans
         w.contentRenderSys->dropAll();
     }

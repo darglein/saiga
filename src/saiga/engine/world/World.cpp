@@ -29,6 +29,7 @@
 #include "saiga/engine/net/Varint.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/Events.h"
@@ -44,6 +45,18 @@ namespace Saiga
 {
 namespace Engine
 {
+
+std::optional<HookGrassRule> grassRuleOf(const Generator& g)
+{
+    // A hook generator's exact thresholds (its masks stay byte-equal to S20's); another generator's integer rule
+    if (const HookGenerator* h = dynamic_cast<const HookGenerator*>(&g)) return h->grassRule();
+    const GrassEditRule r = g.grassEditRule();
+    if (!r.enabled) return std::nullopt;
+    HookGrassRule out;
+    out.minNormalY  = double(r.minNormalYQ16) / 65536.0;
+    out.minAboveSea = double(r.minAboveSeaUnits) / 1024.0;
+    return out;
+}
 
 World::World(const WorldSetup& setup)
     : events(&reg),
@@ -84,12 +97,17 @@ World::World(const WorldSetup& setup)
             t.seed       = g.instance.seed;
             t.source     = pipeline->heightSource(SpaceId(i));
             t.hasTerrain = g.hasTerrain;
+            // S23b (E3): the grass masks from the generator, or S20's rule with a hook generator's thresholds
+            t.generatorMasks = !g.generator->legacyTerrain();
+            if (t.generatorMasks) t.content = pipeline->contentSource(SpaceId(i));
+            t.grassRule = grassRuleOf(*g.generator);
             templates.push_back(g.settings);
             spaces.push_back(std::move(t));
         }
         terrainSys       = std::make_unique<TerrainSystem>(std::move(spaces));
         terrainEditStore = std::make_unique<TerrainEditStore>(templates);
         terrainSys->setEdits(terrainEditStore.get());
+        terrainSys->setPlacementVersions([this](const ChunkId& c) { return effectivePlacementVersion(c); });
         // S23b: the content render sets and their part of the view updates
         contentRenderSys = std::make_unique<ContentRenderSystem>(*this);
         terrainSys->setContentView([this](SpaceId space, const Vec3& camera, bool complete)
@@ -929,6 +947,8 @@ void World::setContentRenderSettings(const ContentRenderSettings& settings)
 void World::onRecordChanged(const ChunkId& chunk)
 {
     contentRenderSys->recordChanged(chunk);
+    // The chunk's generator grass mask (a placement-version change)
+    terrainSys->recordChanged(chunk);
     for (const auto& l : recordListeners) l.second(chunk);
 }
 

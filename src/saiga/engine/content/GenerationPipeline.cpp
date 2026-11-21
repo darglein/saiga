@@ -588,6 +588,11 @@ ContentSource::ContentSource(std::shared_ptr<const SpaceGeneration> space, std::
 {
 }
 
+std::shared_ptr<const ChunkPlacement> ContentSource::placementInJob(ChunkId chunk, uint16_t placementVersion) const
+{
+    return generatePlacement(*cache, *sp, chunk, placementVersion, true);
+}
+
 uint64_t ContentSource::requestPlacement(StreamingPool& pool, ChunkId chunk, uint16_t placementVersion, int priority,
                                          std::function<void(std::shared_ptr<const ChunkPlacement>)> onMainThread) const
 {

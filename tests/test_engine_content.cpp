@@ -40,9 +40,11 @@
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
+#include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/SpaceTemplate.h"
 #include "saiga/engine/world/World.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "gtest/gtest.h"
 
@@ -3573,4 +3575,192 @@ TEST(ContentRender, ClientRecordChanges)
     EXPECT_EQ(n.client->terrainEdits().sequence(kSiteChunk), n.host->terrainEdits().sequence(kSiteChunk));
     n.client->setRenderSink(nullptr);
     n.host->setRenderSink(nullptr);
+}
+
+// ---- grass masks from the generator (S23b step 6) ------------------------------------------------------------------
+
+namespace
+{
+WorldSetup prototypeGrassSetup(double minNormalY = 0.82)
+{
+    WorldSetup s;
+    s.seed      = 1;
+    s.profiling = false;
+    SpaceTemplate t;
+    t.name                  = "prototype";
+    t.baseSpacing           = 1;
+    t.sizeChunks            = Vulkan::kPrototypeSpaceChunks;
+    t.seaLevel              = Vulkan::kPrototypeSeaLevel;
+    t.generator             = 1;
+    s.config.spaceTemplates = {t};
+    static double threshold;
+    threshold    = minNormalY;
+    s.generators = [](GeneratorList& l)
+    {
+        l.add(1, std::make_shared<HookGenerator>("prototype", Vulkan::prototypeHeight, HookGrassRule{threshold, 0.4},
+                                                 false));
+    };
+    return s;
+}
+
+std::vector<uint8_t> density(const GrassMaskData& m)
+{
+    return m.density ? *m.density : std::vector<uint8_t>(size_t(m.size) * size_t(m.size), 0);
+}
+
+// updateView until the edited masks are done (no queue, no job in flight)
+void settleMasks(World& w, SpaceId space, const Vec3& camera)
+{
+    for (int i = 0; i < 4000; ++i)
+    {
+        w.terrain().updateView(space, camera);
+        const TerrainSystem::Stats& s = w.terrain().stats();
+        if (w.terrain().dirtyQueue().size() == 0 && s.maskQueue == 0 && s.maskJobsInFlight == 0 && i > 2) return;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+}
+}  // namespace
+
+// A generator space: each chunk's mask is its ChunkPlacement's grass at the effective placement version
+TEST(GrassFromGenerator, TestGeneratorMasks)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(1150, 60, 1400);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_TRUE(sink.grassMasks().count(kSiteChunk));
+    const auto p = w.generation().chunkPlacement(kSiteChunk, 2);
+    EXPECT_EQ(density(sink.grassMasks().at(kSiteChunk)), p->grass.density);
+    EXPECT_EQ(sink.grassMasks().at(kSiteChunk).size, p->grass.size);
+    w.setRenderSink(nullptr);
+}
+
+// The prototype (a legacy hook generator): S20's rule over the level-0 tile, without a ChunkPlacement, byte-equal to
+// HookGenerator::grassMask; other thresholds give other masks
+TEST(GrassFromGenerator, PrototypeMasksFromTheTile)
+{
+    World w(prototypeGrassSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(2000, 80, 2000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_FALSE(sink.grassMasks().empty());
+    EXPECT_EQ(w.generation().cache().stats().placementGenerations, 0u);
+    const SpaceGeneration& g = w.generation().space(0);
+    bool someGrass           = false;
+    for (const auto& [c, m] : sink.grassMasks())
+    {
+        RegionId r                     = regionOf(c);
+        const TerrainStore::Tile* tile = w.terrain().store(0).tile(r);
+        ASSERT_TRUE(tile);
+        const GrassMaskData rule =
+            generateGrassMask(tile->data, w.terrain().layout(0), Vulkan::kPrototypeSeaLevel, 0.82, 0.4);
+        EXPECT_EQ(density(m), density(rule));
+        GrassMask hook;
+        g.generator->grassMask(1, *g.plan, c, hook);
+        EXPECT_EQ(density(m), hook.density);
+        for (uint8_t v : density(m)) someGrass = someGrass || v != 0;
+    }
+    EXPECT_TRUE(someGrass);
+    // Another threshold: other masks
+    World steep(prototypeGrassSetup(0.97));
+    RecordingRenderSink steepSink;
+    steep.setRenderSink(&steepSink);
+    ASSERT_TRUE(steep.terrain().completeView(0, cam));
+    bool differs = false;
+    for (const auto& [c, m] : sink.grassMasks())
+        if (steepSink.grassMasks().count(c)) differs = differs || density(m) != density(steepSink.grassMasks().at(c));
+    EXPECT_TRUE(differs);
+    w.setRenderSink(nullptr);
+    steep.setRenderSink(nullptr);
+}
+
+// An edited chunk of the test generator: its generator mask AND S20's rule over the merged heights (grassEditRule);
+// F1: a tombstone in the chunk while its mask job is held does not drop the result, a second edit does
+TEST(GrassFromGenerator, EditedChunksAndTombstones)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(1150, 60, 1400);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    TerrainBrush b;
+    b.op       = TerrainBrush::Add;
+    b.center   = Vec3(1150, 0, 1400);
+    b.radius   = 12;
+    b.strength = 6;
+    w.editTerrain(0, b);
+    settleMasks(w, 0, cam);
+    ASSERT_TRUE(w.terrainEdits().hasDeltas(kSiteChunk));
+    // The expected mask: the merged level-0 heights of the chunk through S20's rule, ANDed with the generator mask
+    const auto p    = w.generation().chunkPlacement(kSiteChunk, 2);
+    const int64_t S = 128, N = 129;
+    auto heights = std::make_shared<std::vector<int32_t>>(size_t(N * N));
+    for (int64_t k = 0; k < N; ++k)
+        for (int64_t i = 0; i < N; ++i) (*heights)[size_t(k * N + i)] = w.terrainSample(0, 4 * S + i, 5 * S + k);
+    TerrainTileData tile;
+    tile.heights   = heights;
+    tile.minHeight = *std::min_element(heights->begin(), heights->end());
+    tile.maxHeight = *std::max_element(heights->begin(), heights->end());
+    const std::vector<uint8_t> rule =
+        density(generateGrassMask(tile, w.terrain().layout(0), 0, 53740.0 / 65536.0, 410.0 / 1024.0));
+    std::vector<uint8_t> expected = p->grass.density;
+    for (size_t i = 0; i < expected.size(); ++i)
+        if (rule[i] == 0) expected[i] = 0;
+    ASSERT_TRUE(sink.grassMasks().count(kSiteChunk));
+    EXPECT_EQ(density(sink.grassMasks().at(kSiteChunk)), expected);
+    EXPECT_NE(expected, p->grass.density) << "the mound's slope removes grass";
+
+    // F1: a held edited-mask job; a tombstone meanwhile does not drop its result
+    std::mutex m;
+    std::condition_variable cv;
+    bool release = false;
+    std::atomic<int> held{0};
+    w.terrain().maskJobHookForTests = [&]()
+    {
+        held++;
+        std::unique_lock<std::mutex> lock(m);
+        cv.wait(lock, [&] { return release; });
+    };
+    auto open = [&]()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m);
+            release = true;
+        }
+        cv.notify_all();
+    };
+    b.center = Vec3(1160, 0, 1410);
+    w.editTerrain(0, b);
+    for (int i = 0; i < 200 && held == 0; ++i)
+    {
+        w.terrain().updateView(0, cam);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_GT(held.load(), 0);
+    const uint64_t dropped = w.terrain().stats().maskResultsDropped, recomputes = w.terrain().stats().maskRecomputes;
+    w.tombstone(kSiteChunk, slotKeys(w, kSiteChunk, 1).accepted[0]);
+    open();
+    settleMasks(w, 0, cam);
+    EXPECT_EQ(w.terrain().stats().maskResultsDropped, dropped);
+    EXPECT_GT(w.terrain().stats().maskRecomputes, recomputes);
+    // A second edit while the job is held drops it
+    release  = false;
+    held     = 0;
+    b.center = Vec3(1170, 0, 1420);
+    w.editTerrain(0, b);
+    for (int i = 0; i < 200 && held == 0; ++i)
+    {
+        w.terrain().updateView(0, cam);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_GT(held.load(), 0);
+    b.center = Vec3(1180, 0, 1430);
+    w.editTerrain(0, b);
+    open();
+    settleMasks(w, 0, cam);
+    EXPECT_GT(w.terrain().stats().maskResultsDropped, dropped);
+    w.terrain().maskJobHookForTests = nullptr;
+    w.setRenderSink(nullptr);
 }
