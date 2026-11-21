@@ -593,3 +593,24 @@ TEST(McpServer, StatefulHandlerKeepsItsState)
     server.poll();
     EXPECT_EQ(answers, (std::vector<std::string>{"1", "2"}));
 }
+
+// Regression (CodeRabbit): a call taken from the queue by poll() could still run after stop() drained the queue; no
+// handler runs after stop(), and later local calls are refused
+TEST(McpServer, NoHandlerRunsAfterStop)
+{
+    McpServer server("test");
+    int executed = 0;
+    server.addTool("count", "Counts", McpServer::ObjectSchema({}),
+                   [&](const Json&, McpServer::Respond r)
+                   {
+                       executed++;
+                       r(McpServer::ToolResult::Text("ok"));
+                   });
+    server.stop();
+    std::vector<McpServer::ToolResult> answers;
+    server.callLocal("count", Json::object{}, [&](McpServer::ToolResult r) { answers.push_back(r); });
+    server.poll();
+    ASSERT_EQ(answers.size(), 1u);
+    EXPECT_TRUE(answers[0].isError);
+    EXPECT_EQ(executed, 0);
+}

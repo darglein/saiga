@@ -216,8 +216,18 @@ void EngineApp::refreshShownStatistics()
         // The refresh period from the frames that made a refresh (FrameStatistics::refreshPeriod). The display rarely
         // changes: the shortest period of the session is kept, and used while the window has no frame that made a
         // refresh (every frame misses one: the window's estimate is a multiple of it)
-        const double period = FrameStatistics::sessionRefreshPeriod(
-            FrameStatistics::refreshPeriod(s.summary, s.refreshHz), s.refreshHz, sessionPeriodMs);
+        double period = 0;
+        if (s.refreshHz > 0)
+            period = FrameStatistics::sessionRefreshPeriod(FrameStatistics::refreshPeriod(s.summary, s.refreshHz),
+                                                           s.refreshHz, sessionPeriodMs);
+        else
+        {
+            // An unknown rate (a window on Wayland): only this window's frames, no period kept from earlier (it may
+            // be of another display: regression, a 120 Hz period made every 60 Hz frame a missed refresh)
+            sessionPeriodMs = 0;
+            period          = FrameStatistics::refreshPeriod(s.summary, 0);
+            if (period <= 0) period = s.summary.interval.median;
+        }
         s.periodMs = period;
         s.summary  = frameStats.summarize(window, period);
     }

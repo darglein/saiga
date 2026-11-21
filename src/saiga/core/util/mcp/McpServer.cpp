@@ -747,6 +747,8 @@ void McpServer::deliverCallState(bool records)
 
 void McpServer::answerLocalCallsOnStop()
 {
+    // No call starts after this (poll() checks it before each handler; callLocal refuses)
+    stopping = true;
     std::deque<std::shared_ptr<PendingCall>> calls;
     {
         std::lock_guard<std::mutex> lock(pendingMutex);
@@ -870,6 +872,13 @@ void McpServer::poll()
         // Claimed by a timeout: the client was told that the call failed, so it must not run anymore. Answered already
         // (the caller gave up while stopping): it must not run either
         if (c->claimed.exchange(true) || c->answered) continue;
+        // stop() ran while the calls were taken from the queue: none runs after it (a local call gets its answer
+        // with this poll)
+        if (stopping)
+        {
+            c->answer(ToolResult::Error("The application is shutting down"));
+            continue;
+        }
         // A local call that waited past its deadline (poll() was not called) times out without running: its effects
         // must not happen after its caller was told it failed
         if (c->local && std::chrono::steady_clock::now() > c->deadline)
