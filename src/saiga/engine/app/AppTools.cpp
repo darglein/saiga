@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <optional>
 #include <cstdio>
 #include <memory>
 
@@ -109,10 +110,10 @@ void yawPitchFromDirection(const Vec3& d, double& yawDeg, double& pitchDeg)
 }
 
 // A tool's camera write (held): the view camera at eye looking along dir (a heading kept near straight up / down)
-void lookFrom(EngineApp& app, const Vec3& eye, const Vec3& dir)
+void lookFrom(EngineApp& app, const Vec3& eye, const Vec3& dir, std::optional<SpaceId> space = std::nullopt)
 {
     const ViewCamera& c = app.viewCamera();
-    app.setViewCameraByTool(c.space, eye, cameraLookRotation(dir, cameraForward(c)), c.fovy, true);
+    app.setViewCameraByTool(space.value_or(c.space), eye, cameraLookRotation(dir, cameraForward(c)), c.fovy, true);
 }
 
 double round3(double x)
@@ -127,7 +128,8 @@ Json cameraJson(EngineApp& app)
     const Vec3 f        = cameraForward(c);
     double yaw, pitch;
     yawPitchFromDirection(f, yaw, pitch);
-    return Json::object{{"position", Json::array{round3(p(0)), round3(p(1)), round3(p(2))}},
+    return Json::object{{"space", int(c.space)},
+                        {"position", Json::array{round3(p(0)), round3(p(1)), round3(p(2))}},
                         {"forward", Json::array{round3(f(0)), round3(f(1)), round3(f(2))}},
                         {"yaw_deg", std::round(yaw * 10) / 10},
                         {"pitch_deg", std::round(pitch * 10) / 10},
@@ -319,8 +321,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "steps, the local player (whose input the devices and set_input drive), and the input bindings (actions, held "
         "buttons, axes), the app camera and whether a tool holds it; with --coop also coop {host_step, client_step, "
         "client_peer, delay_steps, dropped_steps} (the tools see the client world), the debug UI's selected tab "
-        "(ui_tab; null when the UI is off) and terrain {resident, pending, uploads_pending_bytes, cpu_mb, gpu_mb, "
-        "readiness (at 256 m of the view camera)}. Changes nothing.",
+        "(ui_tab; null when the UI is off), terrain {resident, pending, uploads_pending_bytes, cpu_mb, gpu_mb, "
+        "readiness (at 256 m of the view camera)} and space_loading (null, or {space, name, progress, frames} while a "
+        "loading screen of the view camera's space runs). Changes nothing.",
         schema({}),
         [&app](const Json&, McpServer::Respond respond)
         {
@@ -352,6 +355,14 @@ void registerAppTools(McpServer& server, EngineApp& app)
             DebugUi& ui       = app.debugUi();
             o["ui_tab"]       = ui.enabled() ? Json(ui.tabName(ui.selected())) : Json();
             o["terrain"]      = terrainStatusJson(app);
+            // S21: the view space's load (null: none)
+            if (const SpaceLoading* l = app.spaceLoading())
+                o["space_loading"] = Json::object{{"space", int(l->space)},
+                                                  {"name", app.world().spaceTemplate(l->space).name},
+                                                  {"progress", l->progress},
+                                                  {"frames", double(l->frames)}};
+            else
+                o["space_loading"] = Json();
             respond(ToolResult::Text(Json(o).dump()));
         });
 
@@ -547,15 +558,18 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "stay. Takes the camera from the game (camera "
         "hold: games that drive the camera stop doing so) until release: true (alone). While held, relative moves of "
         "the input (keys, set_input) use this camera's heading. The field of view is a game setting. Returns the "
-        "camera. Changes the camera.",
-        schema({{"position", McpServer::Vec3Property("Camera position [x, y, z] in meters")},
+        "camera. space: the space the camera views (default: the current one; describe_world lists them). Changes the "
+        "camera.",
+        schema({{"space", McpServer::IntegerProperty("The space of the camera (default: the current one)")},
+                {"position", McpServer::Vec3Property("Camera position [x, y, z] in meters")},
                 {"look_at", McpServer::Vec3Property("Point to look at [x, y, z]")},
                 {"yaw_deg", McpServer::NumberProperty("Heading in degrees, 0 = -z, 90 = +x")},
                 {"pitch_deg", McpServer::NumberProperty("Pitch in degrees, positive looks up")},
                 {"release", McpServer::BooleanProperty("Give the camera back to the game (no other argument)")}}),
         [&app](const Json& args, McpServer::Respond respond)
         {
-            if (unknownArgument(args, {"position", "look_at", "yaw_deg", "pitch_deg", "release"}, respond)) return;
+            if (unknownArgument(args, {"space", "position", "look_at", "yaw_deg", "pitch_deg", "release"}, respond))
+                return;
             if (!args["release"].is_null())
             {
                 if (!args["release"].is_bool() || !args["release"].bool_value() || args.object_items().size() != 1)
@@ -575,6 +589,17 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 return;
             if (hasTarget && (target - pos).norm() < 1e-4)
                 return respond(ToolResult::Error("look_at must differ from the position"));
+            // S21: the space of the app's view world (the client world with --coop)
+            SpaceId space = app.viewCamera().space;
+            if (!args["space"].is_null())
+            {
+                const double s     = args["space"].number_value();
+                const size_t count = app.world().spaceCount();
+                if (!args["space"].is_number() || s != std::floor(s) || s < 0 || s >= double(count))
+                    return respond(ToolResult::Error("space: an integer in 0.." + std::to_string(count - 1) + " (" +
+                                                     std::to_string(count) + " spaces)"));
+                space = SpaceId(s);
+            }
             if (hasTarget)
                 dir = target - pos;
             else if (hasYaw || hasPitch)
@@ -583,7 +608,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 yawPitchFromDirection(dir, y0, p0);
                 dir = directionFromYawPitch(hasYaw ? yaw : y0, hasPitch ? pitch : p0);
             }
-            lookFrom(app, pos, dir);
+            lookFrom(app, pos, dir, space);
             respond(ToolResult::Text(cameraJson(app).dump()));
         });
 

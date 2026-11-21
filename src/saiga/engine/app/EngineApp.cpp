@@ -876,7 +876,8 @@ void EngineApp::renderFrame()
             {
                 const bool saved = img.width > 0 && img.save(file);
                 if (saved)
-                    SAIGA_LOG("app", "saved screenshot %s", file.c_str());
+                    SAIGA_LOG("app", "screenshot of frame %d (view space %d) written to %s", appOptions.screenshotFrame,
+                              int(view.space), file.c_str());
                 else
                     SAIGA_LOG("app", "could not save the screenshot %s", file.c_str());
                 quit(saved ? 0 : 1);
@@ -886,6 +887,8 @@ void EngineApp::renderFrame()
     // The terrain of the view camera (S20): after beforeRender (the frame's camera), before the sink's camera
     streamTerrain();
     frameProfiler.add(scopeStream, streamMs);
+    // The view space's load (S21): after the stream (the readiness of this frame's camera)
+    updateSpaceLoading();
     sink->setInterpolation(float(w.alpha()));
     sink->setCamera(view.space, view.position, view.rotation, view.fovy);
     view.snap     = false;
@@ -895,6 +898,7 @@ void EngineApp::renderFrame()
         // The game's own GUI in every tab, then the debug UI (bar and panel) over it
         if (h.gui) h.gui();
         ui->draw();
+        drawSpaceLoading();
     };
     const bool rendered = renderScene->renderFrame(noRecord, noRecord, gui);
     // Also for a frame that was not submitted (e.g. an out-of-date swap chain after the frame slot wait): the wait
@@ -978,6 +982,7 @@ void EngineApp::streamTerrain()
     const auto mcpDeadline = pendingScreenshotDeadline();
     mcpCapture             = mcpCapture && mcpDeadline.has_value();
     const bool fatal       = framesRendered == 0 || completeEachFrame || fatalCapture;
+    frameCompletePoint     = fatal || mcpCapture;
     // An MCP capture whose view did not complete this frame (the requests that wait longer must not get this frame)
     bool mcpIncomplete = false;
     if (fatal || mcpCapture)
@@ -1019,6 +1024,55 @@ void EngineApp::streamTerrain()
         else
             captureWaitFrames++;
     }
+}
+
+void EngineApp::updateSpaceLoading()
+{
+    World& w = *gameWorld;
+    if (view.space >= w.spaceCount())
+    {
+        loading.reset();
+        return;
+    }
+    const double r = w.spaceReadiness(view.space, view.position, appSetup.loadingRadius);
+    if (!haveLastViewSpace || view.space != lastViewSpace)
+    {
+        // A switch (also during a load: the rule starts again for the new space); a load only if not ready (D6: an
+        // enclosed, flat or still resident space shows nothing, no one-frame flash). A complete point is ready
+        const bool switched = haveLastViewSpace;
+        haveLastViewSpace   = true;
+        lastViewSpace       = view.space;
+        loading.reset();
+        if (switched && r < 1 && !frameCompletePoint) loading = SpaceLoading{view.space, r, 1};
+        return;
+    }
+    if (!loading) return;
+    loading->frames++;
+    loading->progress = std::max(loading->progress, r);
+    // End rule 2: completeView made the desired set resident and sent for this camera (the capture itself waits for
+    // the uploads)
+    if (frameCompletePoint)
+    {
+        loading.reset();
+        return;
+    }
+    if (loadEnds(*loading, r, w.terrain().terrainUploadsPending(), appSetup.loadingMaxFrames))
+    {
+        if (loading->frames >= appSetup.loadingMaxFrames && !(r >= 1 && w.terrain().terrainUploadsPending() == 0))
+            SAIGA_LOG("app", "loading of space '%s' ended after %llu frames at %.2f",
+                      w.spaceTemplate(loading->space).name.c_str(), (unsigned long long)loading->frames,
+                      loading->progress);
+        loading.reset();
+    }
+}
+
+void EngineApp::drawSpaceLoading()
+{
+    if (!loading || !appSetup.showLoadingScreen) return;
+    if (appSetup.loadingScreen)
+        appSetup.loadingScreen(*this, *loading);
+    else
+        drawLoadingScreen(*this, *loading);
 }
 
 void EngineApp::collectGpuTimes()

@@ -839,6 +839,16 @@ void EngineApp::engineTab()
             ImGui::Text("%.2f ms (last completeView %.2f ms)", streamMs, t.lastCompleteMs);
             DebugUiStyle::property("readiness at 256 m");
             ImGui::Text("%.3f", terrain.readiness(view.space, view.position, 256));
+            // S21: the camera's space and a running load
+            DebugUiStyle::property("camera space");
+            ImGui::Text("%d '%s'", int(view.space),
+                        view.space < w.spaceCount() ? w.spaceTemplate(view.space).name.c_str() : "?");
+            DebugUiStyle::property("loading");
+            if (loading)
+                ImGui::Text("space %d, %.0f %%, %llu frames", int(loading->space), loading->progress * 100,
+                            (unsigned long long)loading->frames);
+            else
+                ImGui::Text("no");
             DebugUiStyle::property("grass masks");
             ImGui::Text("%d desired, %d sent", t.masksDesired, t.masksSent);
             if (renderScene)
