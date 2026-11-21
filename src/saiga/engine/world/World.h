@@ -12,6 +12,7 @@
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/ContentRenderSystem.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Profiler.h"
@@ -496,6 +497,11 @@ class SAIGA_ENGINE_API World
     // The total content hash of a chunk at the current placement version (generated synchronously through the
     // cache; the stamp and static lists come from the plan)
     uint64_t contentHash(ChunkId chunk) const;
+    // S23b: the content render sets (§10.1, §12.1): ContentRenderSettings::centres None (default) / View (EngineApp) /
+    // Players (ScenarioWorld); a mode other than None needs a render sink (asserted)
+    void setContentRenderSettings(const ContentRenderSettings& settings);
+    const ContentRenderSystem& contentRender() const { return *contentRenderSys; }
+    ContentRenderSystem& contentRenderForUpdate() { return *contentRenderSys; }
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }
@@ -1081,6 +1087,8 @@ class SAIGA_ENGINE_API World
     void emitTerrainChanges();
     void emitTerrainEvent(const TerrainChange& c);
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
+    // S23b: the content render sets; declared before terrainSys, so the streaming pool (and its completions) goes first
+    std::unique_ptr<ContentRenderSystem> contentRenderSys;
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
     // The content generation (S23a); generationSetup: the setup fields phase A reads (a load builds the plans of the

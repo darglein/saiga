@@ -85,6 +85,19 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     size_t terrainGpuBytes() const;
     size_t terrainSceneCpuBytes() const;
 
+    // ---- static instance sets (S23b): the live sets with their region and full instance array (updateInstances and
+    // removeInstance applied)
+    struct InstanceSet
+    {
+        RegionId region;
+        uint32_t capacity = 0;
+        std::vector<StaticInstance> instances;
+    };
+    const InstanceSet* instanceSet(InstanceSetHandle h) const;
+    // The live set of a region (null: none); asserts at most one live set per region
+    const InstanceSet* instanceSetAt(const RegionId& region) const;
+    const std::map<uint32_t, InstanceSet>& instanceSets() const { return sets; }
+
     // ---- the space settings (S21): the last per space and the calls per space
     const std::map<SpaceId, SpaceRenderSettings>& spaceSettings() const { return spaces; }
     const std::map<SpaceId, int>& spaceSettingsCalls() const { return spaceCalls; }
@@ -122,7 +135,7 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     std::map<MeshId, std::string> meshNames;
     std::map<MeshId, MaterialId> meshMaterials;
     std::map<MaterialId, std::string> materialNames;
-    std::map<uint32_t, uint32_t> sets;  // set ID -> capacity
+    std::map<uint32_t, InstanceSet> sets;  // by set ID
     bool terrainSet         = false;
     SpaceId terrainSetSpace = 0;
     TerrainLayout terrainSetLayout;

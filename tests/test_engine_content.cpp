@@ -51,6 +51,7 @@
 #include <clocale>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -3199,4 +3200,377 @@ TEST(TombstoneNet, MessageBounds)
     EXPECT_EQ(big.host->replication().stats().recordStatesSent, 2u);
     ASSERT_TRUE(big.client->chunkRecord(chunkAt(4, 5)));
     EXPECT_EQ(big.client->chunkRecord(chunkAt(4, 5))->tombstones.size(), 10000u);
+}
+
+// ---- content render sets (S23b step 5) -----------------------------------------------------------------------------
+
+namespace
+{
+// The content setup with the scenario's fullRadius (128 m: a few chunks per centre)
+WorldSetup contentRenderSetup(uint16_t version = 2, double radius = 128)
+{
+    WorldSetup s = ContentTest::contentTestSetup(version);
+    for (SpaceTemplate& t : s.config.spaceTemplates) t.fullRadius = radius;
+    return s;
+}
+
+RegionId regionOf(const ChunkId& c)
+{
+    RegionId r;
+    r.space = c.space;
+    r.level = 0;
+    r.x     = c.x;
+    r.z     = c.z;
+    return r;
+}
+
+void setCentres(World& w, ContentCentres centres)
+{
+    ContentRenderSettings s;
+    s.centres = centres;
+    w.setContentRenderSettings(s);
+}
+
+// The expected array of a chunk's set: the conversion of its placement at version and its static parts, the record's
+// tombstones at scale 0
+std::vector<StaticInstance> expectedSet(World& w, const ChunkId& c, uint16_t version)
+{
+    std::vector<InstanceKey> keys;
+    std::vector<StaticInstance> v = w.contentRenderForUpdate().buildInstances(c, version, &keys);
+    if (const ChunkRecord* r = w.chunkRecord(c))
+        for (size_t i = 0; i < keys.size(); ++i)
+            if (r->tombstoned(keys[i])) v[i].scale = 0;
+    return v;
+}
+
+bool sameInstances(const std::vector<StaticInstance>& a, const std::vector<StaticInstance>& b)
+{
+    return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(StaticInstance)) == 0;
+}
+
+// The index of a key in a chunk's set
+size_t indexOfKey(World& w, const ChunkId& c, uint16_t version, const InstanceKey& k)
+{
+    std::vector<InstanceKey> keys;
+    w.contentRenderForUpdate().buildInstances(c, version, &keys);
+    return size_t(std::lower_bound(keys.begin(), keys.end(), k) - keys.begin());
+}
+
+const ChunkId kSiteChunk = {0, 4, 5};
+const Vec3 kSitePlayer(1150, 0, 1400);
+}  // namespace
+
+// One set per chunk around the players: tier-1 instances, then the static parts; a later tombstone hides its instance
+// at once (removeInstance); chunks without instances or static parts get no set; sets beyond the hysteresis go
+TEST(ContentRender, SetsAroundPlayers)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    const Entity p = addPlayer(w, kSitePlayer);
+    w.step(1);
+    const auto* set = sink.instanceSetAt(regionOf(kSiteChunk));
+    ASSERT_TRUE(set);
+    const auto expected = expectedSet(w, kSiteChunk, 2);
+    EXPECT_TRUE(sameInstances(set->instances, expected));
+    // The static parts of site 0 (two pillars) after the tier-1 instances, under slot 255
+    const auto& statics = w.generation().staticList(kSiteChunk);
+    ASSERT_EQ(statics.size(), 2u);
+    EXPECT_EQ(set->instances[set->instances.size() - 2].key, 255u << 24 | 0u);
+    EXPECT_EQ(set->instances.back().key, 255u << 24 | 1u);
+    EXPECT_EQ(set->instances.back().mesh, w.findMesh("test/pillar"));
+    EXPECT_EQ(sink.liveInstanceSets(), w.contentRender().liveSets());
+    EXPECT_EQ(w.contentRender().liveSets(), 3u) << "(4, 5), (4, 4), (3, 5)";
+    // A tombstone: removeInstance at once
+    const SlotKeys k       = slotKeys(w, kSiteChunk, 0);
+    const uint64_t removes = sink.counters().removeInstance;
+    w.tombstone(kSiteChunk, k.accepted[0]);
+    EXPECT_EQ(sink.counters().removeInstance, removes + 1);
+    const size_t idx = indexOfKey(w, kSiteChunk, 2, k.accepted[0]);
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[idx].scale, 0.0f);
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(kSiteChunk))->instances, expectedSet(w, kSiteChunk, 2)));
+    // Away: beyond fullRadius + 256 m the sets go
+    w.get<Transform>(p).setPosition(Vec3(1150 + 300, 0, 1400));
+    w.step(1);
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk))) << "within the hysteresis";
+    w.get<Transform>(p).setPosition(Vec3(1150 + 700, 0, 1400));
+    w.step(1);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(kSiteChunk)));
+
+    // The dungeon: only the chunk of the static rooms gets a set (no slots)
+    w.moveToSpace(p, 2, Vec3(2176, 0, 2176), Quat::Identity());
+    w.step(2);
+    const ChunkId rooms = chunkAt(8, 8, 2);
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(rooms)));
+    EXPECT_EQ(sink.instanceSetAt(regionOf(rooms))->instances.size(), 2u);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(chunkAt(8, 7, 2))));
+    EXPECT_GT(w.contentRender().stats().emptyChunks, 0u);
+}
+
+// No sets and no pool job without centres (a sink alone builds nothing), in a setup without slots and static parts,
+// and on the sink-less host of a loopback pair
+TEST(ContentRender, OnlyWhenNeeded)
+{
+    {
+        World w(contentRenderSetup());
+        RecordingRenderSink sink;
+        w.setRenderSink(&sink);
+        addPlayer(w, kSitePlayer);
+        w.step(2);
+        w.terrain().updateView(0, Vec3(1150, 50, 1400));
+        EXPECT_EQ(w.contentRender().stats().passes, 0u);
+        EXPECT_EQ(w.contentRender().stats().poolJobs, 0u);
+        EXPECT_EQ(sink.liveInstanceSets(), 0u);
+    }
+    {
+        WorldSetup hook;
+        SpaceTemplate t;
+        t.generator                = 1;
+        t.sizeChunks               = 16;
+        hook.config.spaceTemplates = {t};
+        hook.generators            = [](GeneratorList& l)
+        {
+            l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); }));
+        };
+        World w(hook);
+        RecordingRenderSink sink;
+        w.setRenderSink(&sink);
+        setCentres(w, ContentCentres::Players);
+        addPlayer(w, Vec3(500, 0, 500));
+        w.step(2);
+        EXPECT_EQ(sink.liveInstanceSets(), 0u);
+        EXPECT_EQ(w.generation().cache().stats().placementGenerations, 0u);
+    }
+    {
+        const WorldSetup s = contentRenderSetup();
+        GenNet n(s, s);
+        addPlayer(*n.host, kSitePlayer);
+        n.step();
+        EXPECT_EQ(n.host->contentRender().stats().passes, 0u);
+        EXPECT_EQ(n.host->contentRender().liveSets(), 0u);
+    }
+}
+
+TEST(ContentRenderDeathTest, CentresNeedASink)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    World w(contentRenderSetup());
+    EXPECT_DEATH(setCentres(w, ContentCentres::Players), "need a render sink");
+    // The recording sink: a second live set for one region asserts
+    RecordingRenderSink sink;
+    sink.addInstanceSet(regionOf(kSiteChunk), {});
+    sink.addInstanceSet(regionOf(kSiteChunk), {});
+    EXPECT_DEATH(sink.instanceSetAt(regionOf(kSiteChunk)), "2 live sets for one region");
+}
+
+// The recording sink's arrays follow updateInstances and removeInstance
+TEST(ContentRender, RecordingSinkArrays)
+{
+    RecordingRenderSink sink;
+    const MeshId mesh = MeshId(Vulkan::kGameReservedIds);
+    sink.registerMaterial(MaterialId(Vulkan::kGameReservedIds), "m", MaterialData());
+    sink.registerMesh(mesh, "box", ContentTest::contentTestBox(1, 1, 1, 0xFFFFFFFFu),
+                      MaterialId(Vulkan::kGameReservedIds));
+    StaticInstance a, b;
+    a.scale                   = 1;
+    b.scale                   = 2;
+    a.mesh                    = mesh;
+    b.mesh                    = mesh;
+    const InstanceSetHandle h = sink.addInstanceSet(regionOf(kSiteChunk), {a, a, a}, 4);
+    sink.removeInstance(h, 1);
+    EXPECT_EQ(sink.instanceSet(h)->instances[1].scale, 0.0f);
+    sink.updateInstances(h, 1, {b, b});
+    EXPECT_EQ(sink.instanceSet(h)->instances[1].scale, 2.0f);
+    EXPECT_EQ(sink.instanceSet(h)->instances[2].scale, 2.0f);
+    EXPECT_EQ(sink.instanceSet(h)->capacity, 4u);
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk)), sink.instanceSet(h));
+    sink.removeInstanceSet(h);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(kSiteChunk)));
+}
+
+// View with the camera in the dungeon (no terrain: S20 requests nothing): the static-geometry set is built by
+// completeView and the readiness reaches 1; in the overworld the readiness is below 1 until the sets exist
+TEST(ContentRender, ViewBuildsSetsAndReadiness)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::View);
+    const Vec3 room(2176, 2, 2176);
+    EXPECT_LT(w.spaceReadiness(2, room, 100), 1.0);
+    ASSERT_TRUE(w.terrain().completeView(2, room));
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(chunkAt(8, 8, 2))));
+    EXPECT_EQ(w.spaceReadiness(2, room, 100), 1.0);
+    // The overworld: below 1 before the sets of the radius exist; completeView waits for them
+    const Vec3 cam(1150, 60, 1400);
+    EXPECT_LT(w.spaceReadiness(0, cam, 128), 1.0);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(chunkAt(8, 8, 2)))) << "the dungeon's set left with the switch (D5)";
+    EXPECT_EQ(w.spaceReadiness(0, cam, 128), 1.0);
+}
+
+// A pool result whose request was replaced before the drain is dropped and requested again; a tombstone during a
+// held job does not drop the result, which arrives with the instance at scale 0
+TEST(ContentRender, HeldPoolResults)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::View);
+    std::mutex m;
+    std::condition_variable cv;
+    bool release                               = false;
+    w.contentRenderForUpdate().jobHookForTests = [&]()
+    {
+        std::unique_lock<std::mutex> lock(m);
+        cv.wait(lock, [&] { return release; });
+    };
+    const Vec3 cam(1150, 60, 1400);
+    w.terrain().updateView(0, cam);
+    const uint64_t jobs = w.contentRender().stats().poolJobs;
+    ASSERT_GE(jobs, 1u);
+    // Away (the sets and their requests go) and back (requested again): the first results are stale
+    w.terrain().updateView(0, Vec3(9000, 60, 9000));
+    w.terrain().updateView(0, cam);
+    EXPECT_GT(w.contentRender().stats().poolJobs, jobs);
+    // A tombstone while the jobs are held
+    const SlotKeys k = slotKeys(w, kSiteChunk, 0);
+    w.tombstone(kSiteChunk, k.accepted[0]);
+    {
+        std::lock_guard<std::mutex> lock(m);
+        release = true;
+    }
+    cv.notify_all();
+    for (int i = 0; i < 2000 && !sink.instanceSetAt(regionOf(kSiteChunk)); ++i)
+    {
+        w.terrain().updateView(0, cam);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    EXPECT_GE(w.contentRender().stats().resultsDropped, jobs);
+    const size_t idx = indexOfKey(w, kSiteChunk, 2, k.accepted[0]);
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[idx].scale, 0.0f);
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(kSiteChunk))->instances, expectedSet(w, kSiteChunk, 2)));
+    w.contentRenderForUpdate().jobHookForTests = nullptr;
+}
+
+// An unknown mesh name is logged once and its instances get scale 0
+TEST(ContentRender, UnknownMeshLoggedOnce)
+{
+    WorldSetup s   = contentRenderSetup();
+    s.renderAssets = [](World& w)
+    {
+        static const auto box      = ContentTest::contentTestBox(0.5f, 0.5f, 0.5f, 0xFFFFFFFFu);
+        const Vulkan::MaterialId m = w.registerMaterial("test/content_flat", Vulkan::MaterialData());
+        for (const char* n : {"test/tree_a", "test/tree_b", "test/pillar", "test/chest"}) w.registerMesh(n, box, m);
+    };
+    World w(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    const uint64_t log = engineLog().lastSequence();
+    addPlayer(w, kSitePlayer);
+    w.step(1);
+    EXPECT_GE(w.contentRender().liveSets(), 2u);
+    EXPECT_EQ(w.contentRender().stats().unknownMeshes, 1u);
+    const std::string lines = logSince(log);
+    const size_t first      = lines.find("\"test/rock\" is not registered");
+    EXPECT_NE(first, std::string::npos) << lines;
+    EXPECT_EQ(lines.find("\"test/rock\" is not registered", first + 1), std::string::npos);
+    for (const StaticInstance& i : sink.instanceSetAt(regionOf(kSiteChunk))->instances)
+    {
+        if ((i.key >> 24) == 1)
+        {
+            EXPECT_EQ(i.scale, 0.0f);
+        }
+    }
+}
+
+// Older placement versions on a host world: a v1 save (chunk (4, 5) recorded at v1 with a tombstone) loaded into the
+// v2 setup builds (4, 5) at v1 and an unrecorded chunk at v2; a v1 record injected for that chunk rebuilds it at v1
+TEST(ContentRender, OlderPlacementVersions)
+{
+    World old(contentRenderSetup(1));
+    addPlayer(old, kSitePlayer);
+    old.step(1);
+    const SlotKeys k = slotKeys(old, kSiteChunk, 0);
+    old.tombstone(kSiteChunk, k.accepted[0]);
+    ASSERT_EQ(old.chunkRecord(kSiteChunk)->placementVersion, 1);
+    const auto blob = old.save();
+
+    World w(contentRenderSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    w.step(1);
+    const ChunkId other = chunkAt(4, 4);
+    ASSERT_FALSE(w.chunkRecord(other));
+    EXPECT_EQ(w.effectivePlacementVersion(other), 2);
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(other)));
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(kSiteChunk))->instances, expectedSet(w, kSiteChunk, 1)));
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[indexOfKey(w, kSiteChunk, 1, k.accepted[0])].scale,
+              0.0f);
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(other))->instances, expectedSet(w, other, 2)));
+    EXPECT_FALSE(sameInstances(expectedSet(w, other, 1), expectedSet(w, other, 2)));
+    const uint64_t removed = sink.counters().removeInstanceSet;
+    w.contentRecordsForUpdate().injectForTests(other, 1, {});
+    w.onRecordChanged(other);
+    EXPECT_EQ(sink.counters().removeInstanceSet, removed + 1);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(other)));
+    w.step(1);
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(other)));
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(other))->instances, expectedSet(w, other, 1)));
+}
+
+// A client: a record change applied in stepNetworkOnly reaches its sink at once; after a host load the Resync clear
+// restores the instances (updateInstances with the original), and the following ChunkRecordState hides the saved one
+TEST(ContentRender, ClientRecordChanges)
+{
+    const WorldSetup s = contentRenderSetup();
+    GenNet n(s, s);
+    RecordingRenderSink hostSink, clientSink;
+    n.host->setRenderSink(&hostSink);
+    n.client->setRenderSink(&clientSink);
+    setCentres(*n.host, ContentCentres::Players);
+    setCentres(*n.client, ContentCentres::Players);
+    addPlayer(*n.host, kSitePlayer);
+    n.step(4);
+    ASSERT_TRUE(clientSink.instanceSetAt(regionOf(kSiteChunk)));
+    const SlotKeys k = slotKeys(*n.host, kSiteChunk, 0);
+    const size_t a   = indexOfKey(*n.host, kSiteChunk, 2, k.accepted[0]),
+                 b   = indexOfKey(*n.host, kSiteChunk, 2, k.accepted[1]);
+    auto scale       = [&](size_t i) { return clientSink.instanceSetAt(regionOf(kSiteChunk))->instances[i].scale; };
+    n.host->tombstone(kSiteChunk, k.accepted[0]);
+    n.host->step();
+    n.client->stepNetworkOnly();
+    EXPECT_EQ(scale(a), 0.0f) << "applied in stepNetworkOnly, at once";
+    const auto blob = n.host->save();
+    n.host->tombstone(kSiteChunk, k.accepted[1]);
+    n.step();
+    EXPECT_EQ(scale(b), 0.0f);
+    // The host load: the clear restores both, the snapshot hides a again
+    bool checkedClear = false;
+    n.client->addRecordListener(
+        [&](const ChunkId& c)
+        {
+            if (c != kSiteChunk || checkedClear || n.client->chunkRecord(c)) return;
+            checkedClear = true;
+            EXPECT_GT(scale(a), 0.0f);
+            EXPECT_GT(scale(b), 0.0f);
+        });
+    const uint64_t restores = clientSink.counters().updateInstances;
+    ASSERT_TRUE(n.host->tryLoad(blob).ok());
+    n.step();
+    EXPECT_TRUE(checkedClear);
+    EXPECT_GE(clientSink.counters().updateInstances, restores + 2);
+    ASSERT_TRUE(clientSink.instanceSetAt(regionOf(kSiteChunk)));
+    EXPECT_EQ(scale(a), 0.0f);
+    EXPECT_GT(scale(b), 0.0f);
+    EXPECT_EQ(n.client->terrainEdits().sequence(kSiteChunk), n.host->terrainEdits().sequence(kSiteChunk));
+    n.client->setRenderSink(nullptr);
+    n.host->setRenderSink(nullptr);
 }

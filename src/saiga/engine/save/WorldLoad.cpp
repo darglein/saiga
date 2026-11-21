@@ -1028,6 +1028,8 @@ void WorldLoader::commitGeneration()
         std::vector<TerrainHeightSource> sources;
         for (size_t i = 0; i < w.pipeline->spaceCount(); ++i) sources.push_back(w.pipeline->heightSource(SpaceId(i)));
         w.terrainSys->replaceSources(std::move(sources));
+        // S23b: the content sets of the old plans
+        w.contentRenderSys->dropAll();
     }
     // S23b: every chunk with a record before or after the load goes through onRecordChanged (the render sets follow)
     std::set<ChunkId> changed;

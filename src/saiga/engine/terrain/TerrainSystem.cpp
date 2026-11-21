@@ -934,6 +934,21 @@ void TerrainSystem::beginView(SpaceId space)
 
 void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
 {
+    updateTerrainView(space, camera);
+    // S23b: the content sets (also in a space without terrain), after the drain of this update
+    if (contentView && sink) contentView(space, camera, false);
+}
+
+bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeoutSeconds)
+{
+    const bool complete = completeTerrainView(space, camera, timeoutSeconds);
+    // S23b: the content sets are built synchronously (screenshots and goldens see them)
+    if (contentView && sink) contentView(space, camera, true);
+    return complete;
+}
+
+void TerrainSystem::updateTerrainView(SpaceId space, const Vec3& camera)
+{
     frame++;
     visualMs                            = 0;
     statistics.patchedSamplesLastUpdate = 0;
@@ -985,7 +1000,7 @@ void TerrainSystem::runUntil(double deadline)
     if (remaining > 0) pool->waitIdleFor(remaining);
 }
 
-bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeoutSeconds)
+bool TerrainSystem::completeTerrainView(SpaceId space, const Vec3& camera, double timeoutSeconds)
 {
     const double start    = nowSeconds();
     const double deadline = start + timeoutSeconds;

@@ -90,6 +90,10 @@ World::World(const WorldSetup& setup)
         terrainSys       = std::make_unique<TerrainSystem>(std::move(spaces));
         terrainEditStore = std::make_unique<TerrainEditStore>(templates);
         terrainSys->setEdits(terrainEditStore.get());
+        // S23b: the content render sets and their part of the view updates
+        contentRenderSys = std::make_unique<ContentRenderSystem>(*this);
+        terrainSys->setContentView([this](SpaceId space, const Vec3& camera, bool complete)
+                                   { contentRenderSys->viewUpdate(space, camera, complete); });
     }
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
@@ -916,8 +920,15 @@ const ChunkRecord* World::chunkRecord(ChunkId chunk) const
     return chunkRecords->find(chunk);
 }
 
+void World::setContentRenderSettings(const ContentRenderSettings& settings)
+{
+    SAIGA_ASSERT(!inStep(), "World::setContentRenderSettings inside a step");
+    contentRenderSys->setSettings(settings);
+}
+
 void World::onRecordChanged(const ChunkId& chunk)
 {
+    contentRenderSys->recordChanged(chunk);
     for (const auto& l : recordListeners) l.second(chunk);
 }
 
@@ -1035,8 +1046,8 @@ void World::emitTerrainChanges()
 double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
-    // S21: the terrain's (S20, D6); S23b adds the content sets, S27 far content
-    return terrainSys->readiness(space, camera, radius);
+    // S21: the terrain's (S20, D6); S23b: and the content sets; S27 far content
+    return std::min(terrainSys->readiness(space, camera, radius), contentRenderSys->readiness(space, camera, radius));
 }
 
 World::~World()
@@ -1536,6 +1547,8 @@ void World::runStep()
                 // The render extract (S19b): after the interpolation, its own scope
                 Profiler::Timer extractTimer(prof, extractScope);
                 extractor->run();
+                // S23b: the content render sets around the players (ScenarioWorld's Players centres)
+                contentRenderSys->playersPass();
             }
         }
         // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
@@ -2155,6 +2168,8 @@ void World::setRenderSink(RenderSink* sink)
     extractor->setSink(sink);
     // The terrain's send point (S20): a new sink receives what the store holds
     terrainSys->setSink(sink);
+    // S23b: the content sets are built again on the new sink
+    contentRenderSys->setSink(sink);
 }
 
 RenderSink* World::renderSink() const

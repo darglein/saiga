@@ -23,6 +23,7 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -1058,6 +1059,99 @@ void registerContentScenarios(ScenarioList& s)
           });
 }
 
+// The set of chunk (4, 5) in a peer's recording sink (null: none)
+const RecordingRenderSink::InstanceSet* siteSet(ScenarioWorld& w, int peer)
+{
+    RegionId r;
+    r.space = 0;
+    r.level = 0;
+    r.x     = 4;
+    r.z     = 5;
+    return w.renderSink(peer).instanceSetAt(r);
+}
+
+// The index of a key in the set of chunk (4, 5) at the current placement version
+size_t siteIndex(World& world, const InstanceKey& key)
+{
+    ChunkId c;
+    c.space = 0;
+    c.x     = 4;
+    c.z     = 5;
+    std::vector<InstanceKey> keys;
+    world.contentRenderForUpdate().buildInstances(c, world.effectivePlacementVersion(c), &keys);
+    return size_t(std::lower_bound(keys.begin(), keys.end(), key) - keys.begin());
+}
+
+void registerTombstoneScenarios(ScenarioList& s)
+{
+    // §22 acceptance (S23b): a tombstoned tier-1 instance is hidden on every peer: the host tombstones the first
+    // accepted test_tree of chunk (4, 5); every peer's recording sink has it at scale 0 in the chunk's set, the other
+    // instances keep their scale
+    s.add("tombstone_hides_instance",
+          [](ScenarioWorld& w)
+          {
+              ChunkId chunk;
+              chunk.space = 0;
+              chunk.x     = 4;
+              chunk.z     = 5;
+              w.spawnPlayer(Vec3(1150, 0, 1400));
+              auto allHaveSets = [&]()
+              {
+                  for (int p = 0; p <= w.clientCount(); ++p)
+                      if (!siteSet(w, p)) return false;
+                  return true;
+              };
+              w.check(w.stepUntil(allHaveSets, 120), "every peer builds the set of chunk (4, 5)");
+              // The first accepted test_tree key of the chunk
+              const auto placement =
+                  w.world().generation().chunkPlacement(chunk, w.world().effectivePlacementVersion(chunk));
+              InstanceKey key;
+              bool found = false;
+              for (const TierOneInstance& t : placement->instances)
+                  if (t.key.generatorSlot == 0)
+                  {
+                      key   = t.key;
+                      found = true;
+                      break;
+                  }
+              if (!w.check(found, "a test_tree in chunk (4, 5)")) return;
+              w.world().tombstone(chunk, key);
+              auto recordsEqual = [&]()
+              {
+                  for (int p = 1; p <= w.clientCount(); ++p)
+                      if (w.client(p).effectiveRecord(chunk) != w.world().effectiveRecord(chunk)) return false;
+                  return true;
+              };
+              const int bound = 2 * w.networkConfig().delaySteps + 10 + (w.networkConfig().async ? 6 : 0);
+              w.check(w.stepUntil(recordsEqual, bound), "every client has the host's record");
+              w.check(w.stepUntil(allHaveSets, 120), "the sets exist after the tombstone");
+              for (int p = 0; p <= w.clientCount(); ++p)
+              {
+                  World& world          = p == 0 ? w.world() : w.client(p);
+                  const std::string who = p == 0 ? "the host" : "client " + std::to_string(p);
+                  const auto* set       = siteSet(w, p);
+                  w.check(world.isTombstoned(chunk, key), who + " reports the tombstone");
+                  if (!w.check(set != nullptr, who + " has the set")) continue;
+                  const size_t index = siteIndex(world, key);
+                  w.check(index < set->instances.size() && set->instances[index].scale == 0,
+                          who + ": the instance is hidden");
+                  // The other instances keep the scale of the conversion
+                  const std::vector<StaticInstance> built =
+                      world.contentRenderForUpdate().buildInstances(chunk, world.effectivePlacementVersion(chunk));
+                  bool others = built.size() == set->instances.size();
+                  for (size_t i = 0; others && i < built.size(); ++i)
+                      others = i == index || set->instances[i].scale == built[i].scale;
+                  w.check(others, who + ": the other instances keep their scale");
+              }
+              // The save/load variant replaces the host world (its first pass builds the set on the fresh sink)
+              w.step(1);
+              const auto* hostSet = siteSet(w, 0);
+              w.check(hostSet && siteIndex(w.world(), key) < hostSet->instances.size() &&
+                          hostSet->instances[siteIndex(w.world(), key)].scale == 0,
+                      "the host's sink keeps the instance hidden");
+          });
+}
+
 WorldSetup contentSetupFor(const std::string&)
 {
     return ContentTest::contentTestSetup(2);
@@ -1096,6 +1190,7 @@ std::vector<Case> allCases()
     collect(registerSpacesScenarios, spacesSetupFor);
     collect(registerTerraformScenarios, terraformSetupFor);
     collect(registerContentScenarios, contentSetupFor);
+    collect(registerTombstoneScenarios, contentSetupFor);
     return cases;
 }
 }  // namespace

@@ -60,14 +60,19 @@ MaterialId RecordingRenderSink::meshMaterial(MeshId id) const
     return it == meshMaterials.end() ? MaterialId(0) : it->second;
 }
 
-InstanceSetHandle RecordingRenderSink::addInstanceSet(const RegionId&, const std::vector<StaticInstance>& instances,
-                                                      uint32_t capacity)
+InstanceSetHandle RecordingRenderSink::addInstanceSet(const RegionId& region,
+                                                      const std::vector<StaticInstance>& instances, uint32_t capacity)
 {
+    // An instance of an unknown mesh (0) must not be drawn (scale 0, S23b)
     for (const StaticInstance& i : instances)
-        SAIGA_ASSERT(meshNames.count(i.mesh), "RecordingRenderSink: an instance of an unregistered mesh");
+        SAIGA_ASSERT(meshNames.count(i.mesh) || (i.mesh == 0 && i.scale == 0),
+                     "RecordingRenderSink: an instance of an unregistered mesh");
     InstanceSetHandle h;
-    h.id       = nextSet++;
-    sets[h.id] = capacity ? capacity : uint32_t(instances.size());
+    h.id             = nextSet++;
+    InstanceSet& set = sets[h.id];
+    set.region       = region;
+    set.capacity     = capacity ? capacity : uint32_t(instances.size());
+    set.instances    = instances;
     count.addInstanceSet++;
     if (logging) note("addInstanceSet -> " + std::to_string(h.id));
     return h;
@@ -76,7 +81,13 @@ InstanceSetHandle RecordingRenderSink::addInstanceSet(const RegionId&, const std
 void RecordingRenderSink::updateInstances(InstanceSetHandle set, uint32_t first, const std::vector<StaticInstance>& v)
 {
     auto it = sets.find(set.id);
-    SAIGA_ASSERT(it != sets.end() && first + v.size() <= it->second, "RecordingRenderSink: updateInstances");
+    SAIGA_ASSERT(it != sets.end() && first + v.size() <= it->second.capacity, "RecordingRenderSink: updateInstances");
+    if (it != sets.end())
+    {
+        std::vector<StaticInstance>& a = it->second.instances;
+        if (a.size() < first + v.size()) a.resize(first + v.size());
+        std::copy(v.begin(), v.end(), a.begin() + std::ptrdiff_t(first));
+    }
     count.updateInstances++;
     if (logging) note("updateInstances " + std::to_string(set.id));
 }
@@ -84,7 +95,8 @@ void RecordingRenderSink::updateInstances(InstanceSetHandle set, uint32_t first,
 void RecordingRenderSink::removeInstance(InstanceSetHandle set, uint32_t index)
 {
     auto it = sets.find(set.id);
-    SAIGA_ASSERT(it != sets.end() && index < it->second, "RecordingRenderSink: removeInstance");
+    SAIGA_ASSERT(it != sets.end() && index < it->second.capacity, "RecordingRenderSink: removeInstance");
+    if (it != sets.end() && index < it->second.instances.size()) it->second.instances[index].scale = 0;
     count.removeInstance++;
     if (logging) note("removeInstance " + std::to_string(set.id));
 }
@@ -96,6 +108,27 @@ void RecordingRenderSink::removeInstanceSet(InstanceSetHandle set)
     SAIGA_ASSERT(erased == 1, "RecordingRenderSink: removeInstanceSet of an unknown set");
     count.removeInstanceSet++;
     if (logging) note("removeInstanceSet " + std::to_string(set.id));
+}
+
+const RecordingRenderSink::InstanceSet* RecordingRenderSink::instanceSet(InstanceSetHandle h) const
+{
+    auto it = sets.find(h.id);
+    return it == sets.end() ? nullptr : &it->second;
+}
+
+const RecordingRenderSink::InstanceSet* RecordingRenderSink::instanceSetAt(const RegionId& region) const
+{
+    const InstanceSet* found = nullptr;
+    int live                 = 0;
+    for (const auto& kv : sets)
+        if (kv.second.region == region)
+        {
+            found = &kv.second;
+            live++;
+        }
+    SAIGA_ASSERT(live <= 1,
+                 "RecordingRenderSink::instanceSetAt: " + std::to_string(live) + " live sets for one region");
+    return found;
 }
 
 InstanceHandle RecordingRenderSink::addDynamic(MeshId mesh)

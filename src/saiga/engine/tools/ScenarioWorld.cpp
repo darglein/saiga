@@ -176,6 +176,10 @@ RecordingRenderSink* ScenarioWorld::giveSink(World& world)
 {
     sinks.push_back(std::make_unique<RecordingRenderSink>());
     world.setRenderSink(sinks.back().get());
+    // S23b: content render sets around the players on every peer (§17.2)
+    ContentRenderSettings content;
+    content.centres = ContentCentres::Players;
+    world.setContentRenderSettings(content);
     return sinks.back().get();
 }
 

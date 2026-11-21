@@ -21,6 +21,7 @@
 
 #include <array>
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -192,6 +193,16 @@ class SAIGA_ENGINE_API TerrainSystem
     // from the old ones is dropped (the pool's jobs, the stores incl. the pyramids, the edited masks, the dirty queue)
     // and the sink's terrain is cleared (clearTerrain): the view's pyramid and tiles are requested again
     void replaceSources(std::vector<TerrainHeightSource> sources);
+    // Engine-internal (S23b): the content part of updateView / completeView (the World's ContentRenderSystem; it runs
+    // whether or not the view space has terrain): called with the view space, the camera and whether the view is
+    // completed
+    void setContentView(std::function<void(SpaceId, const Vec3&, bool)> fn) { contentView = std::move(fn); }
+    // Engine-internal (S23b): the streaming pool (created on demand) for the content sets' jobs
+    StreamingPool& streamingPool()
+    {
+        ensurePool();
+        return *pool;
+    }
     // Engine-internal: the World's render sink (World::setRenderSink). A new sink receives the pyramid and the tiles
     // and masks of the last view camera's desired set (current budget) that the store of the view space holds (through
     // the send point); a removed sink drops the sent state. A sink attached again first gets clearTerrain if it kept a
@@ -227,6 +238,10 @@ class SAIGA_ENGINE_API TerrainSystem
 
     std::vector<Space> spaces;
     const TerrainEditStore* edits = nullptr;
+    std::function<void(SpaceId, const Vec3&, bool)> contentView;
+    // The terrain part of updateView / completeView
+    void updateTerrainView(SpaceId space, const Vec3& camera);
+    bool completeTerrainView(SpaceId space, const Vec3& camera, double timeoutSeconds);
     TerrainDirtyQueue dirty;
     // The visual time of the running update (S22)
     double visualMs = 0;
