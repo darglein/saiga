@@ -632,9 +632,16 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "set_global") return setGlobal(args);
     if (operation == "emit_event") return emitEvent(args);
     if (operation == "queue_action") return queueAction(args);
+    if (inCoop() && (operation == "save_snapshot" || operation == "load_snapshot" || operation == "list_snapshots" ||
+                     operation == "delete_snapshot" || operation == "diff_snapshot" || operation == "export_snapshot" ||
+                     operation == "import_snapshot"))
+        return ApiResult::failure(operation +
+                                  ": refused in --coop (the tools see the client world, and a client cannot save)");
     if (operation == "pause" || operation == "resume")
     {
         w->setPaused(operation == "pause");
+        // Co-op (S16b): both worlds
+        if (inCoop()) coopHooks.host->setPaused(operation == "pause");
         return ApiResult::success(Json::object{{"paused", w->isPaused()}, {"step", double(w->stepIndex())}});
     }
     if (operation == "step") return step(args);
@@ -652,6 +659,8 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     {
         w->profiler().reset();
         for (auto& extra : profiles) extra.second->reset();
+        // Co-op (S16b, local review): the host's step profile too (get_profile and measure_performance report it)
+        if (inCoop()) coopHooks.host->profiler().reset();
         return ApiResult::success(Json::object{{"reset", true}});
     }
     return apply(args);
@@ -749,6 +758,22 @@ ApiResult WorldApi::describeWorld(const Json&)
                                            {"edits_allowed", allowEdits}});
 }
 
+Json WorldApi::hostStatus(const World& host)
+{
+    const Registry& reg  = host.registry();
+    const size_t objects = reg.registered(Behaviour::id) ? reg.poolById(Behaviour::id)->size() : 0;
+    char hash[32];
+    std::snprintf(hash, sizeof(hash), "%016llx", (unsigned long long)host.hash());
+    return Json::object{{"step", double(host.stepIndex())},
+                        {"time", host.time()},
+                        {"paused", host.isPaused()},
+                        {"time_scale", host.timeScale()},
+                        {"entities", double(reg.aliveCount())},
+                        {"game_objects", double(objects)},
+                        {"dropped_steps", double(host.droppedSteps())},
+                        {"hash", hash}};
+}
+
 ApiResult WorldApi::worldStatus(const Json&)
 {
     const Registry& reg  = w->registry();
@@ -764,6 +789,8 @@ ApiResult WorldApi::worldStatus(const Json&)
                    {"game_objects", double(objects)},
                    {"hash", hash},
                    {"world_generation", double(generation)}};
+    // Co-op (S16b): the hidden host world runs the simulation (the client runs no vehicle, lap or behaviour systems)
+    if (inCoop()) o["host"] = hostStatus(*coopHooks.host);
     if (const Transport* t = w->transport())
     {
         // Cumulative: the world's message counts and the transport's packet counts (S15)
@@ -1013,6 +1040,8 @@ ApiResult WorldApi::getProfile(const Json& a)
     // The step profile at the top level (S10's shape), the app's frame and GPU profiles under their keys (S13)
     Json::object o = filter(w->profiler().report(int(steps))).object_items();
     for (const auto& extra : profiles) o[extra.first] = filter(extra.second->report(int(frames)));
+    // Co-op (S16b): the host's step profile (the simulation's cost) over the same window
+    if (inCoop()) o["host"] = filter(coopHooks.host->profiler().report(int(steps)));
     return ApiResult::success(o);
 }
 
@@ -1542,7 +1571,11 @@ ApiResult WorldApi::step(const Json& a)
     for (; ran < n; ++ran)
     {
         if (std::chrono::steady_clock::now() > deadline) break;
-        w->step();
+        // Co-op (S16b): host one step, then the client one step
+        if (inCoop() && coopHooks.stepAll)
+            coopHooks.stepAll(1);
+        else
+            w->step();
     }
     return ApiResult::success(Json::object{{"step", double(w->stepIndex())},
                                            {"time", w->time()},
@@ -1556,6 +1589,7 @@ ApiResult WorldApi::timeScale(const Json& a)
     const double scale = a["scale"].number_value();
     if (!a["scale"].is_number() || !(scale >= 0 && scale <= 1000)) return ApiResult::failure("scale: 0..1000");
     w->setTimeScale(a["scale"].number_value());
+    if (inCoop()) coopHooks.host->setTimeScale(a["scale"].number_value());
     return ApiResult::success(Json::object{{"time_scale", w->timeScale()}});
 }
 
@@ -1944,14 +1978,19 @@ ApiResult WorldApi::reloadData(const Json& a)
     Json::object result{{"types", types}, {"entries", entries}};
     if (reconfigure)
     {
-        // Every game object runs configure() with the new values (a save and load of the world)
-        if (!w->canSave())
+        // Every game object runs configure() with the new values (a save and load of the world); in co-op (S16b) of
+        // the host world, whose load resyncs the client (its objects configure again when they arrive)
+        World& target = inCoop() ? *coopHooks.host : *w;
+        if (!target.canSave())
             return ApiResult::failure(
                 "reload_data: the data were reloaded, the reconfigure needs a save between steps, "
                 "not inside a game hook");
-        const LoadResult r = w->tryLoad(w->save());
+        const LoadResult r = target.tryLoad(target.save());
         if (!r.committed)
             return ApiResult::failure("reload_data: the data were reloaded, the reconfigure failed: " + r.error);
+        // Co-op (local review): the host's load replaces the client's whole state (its Resync): the client's cursors
+        // answer reloaded as after a load of the client
+        if (&target != w) markLoaded(w->stepIndex(), w->stepIndex());
         result["hook_errors"]      = hookErrorsJson(r);
         result["listener_errors"]  = listenerErrorsJson(r);
         result["world_generation"] = double(generation);

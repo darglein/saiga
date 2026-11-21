@@ -85,13 +85,13 @@ double FlightModel::trimThrottle(double speed) const
     return clampd(d / p.maxThrust, 0, 1);
 }
 
-void FlightModel::step(const AircraftControls& c, double dt)
+void FlightModel::step(const AircraftControls& c, double throttleLever, double dt)
 {
     auto& s       = state;
     const auto& p = params;
     if (s.crashed) return;
 
-    double throttle = clampd(c.throttle, 0, 1);
+    double throttle = clampd(throttleLever, 0, 1);
     Vec3 fwd = forward(), rgt = right();
     double speed = s.velocity.norm();
 

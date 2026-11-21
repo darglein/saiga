@@ -91,14 +91,17 @@ void store(const VehicleKinematics& k, Transform& t, VehicleState& s, bool telep
     s.steerAngle      = k.steerAngle;
 }
 
-// Phase Gameplay: the vehicle model of every car (after the drivers wrote the controls in phase Behaviour)
+// Phase Gameplay (host): the vehicle model of every car (after the AI wrote its controls in phase Behaviour), with the
+// controls of its seat's driver (a client's driver: the latest received; no live driver: neutral)
 void vehicleSystem(World& w, double dt)
 {
     const RacingContext* ctx = &w.context<RacingContext>();
-    w.view<Transform, VehicleState, const VehicleControls>().each(
-        [&](Entity, Transform& t, VehicleState& s, const VehicleControls& c)
+    w.view<Transform, VehicleState>().each(
+        [&](Entity e, Transform& t, VehicleState& s)
         {
-            double hint = s.surfaceHint;
+            const VehicleControls* driven = seatControls<VehicleControls>(w, e);
+            const VehicleControls c       = driven ? *driven : VehicleControls();
+            double hint                   = s.surfaceHint;
             Vehicle car;
             car.params         = w.data(s.model);
             car.state          = kinematicsOf(t, s);
@@ -120,6 +123,25 @@ void lapTimerSystem(World& w, double dt)
         [&](Entity, const Transform& t, const VehicleState& s, LapState& lap)
         { lap.update(track, s.previousPosition, t.position(), dt); });
 }
+
+// Phase Gameplay on clients (--coop --demo): the demo's AI drives the owned drivers with DemoPilot from the replicated
+// car (VehicleState and the newest snapshot pose); its progress restarts when the car was teleported (a respawn)
+void racingDemoPilotSystem(World& w, double)
+{
+    const Track& track = w.context<RacingContext>().track;
+    w.ownedBy<VehicleControls, DemoPilot, const Driver>(w.localPeer())
+        .each(
+            [&](Entity, VehicleControls& c, DemoPilot& pilot, const Driver& d)
+            {
+                if (pilot.suspended || !d.vehicle.valid() || !w.alive(d.vehicle) || !w.has<VehicleState>(d.vehicle))
+                    return;
+                if (w.read<Transform>(d.vehicle).wasTeleported()) pilot.progress = -1;
+                DriverModel driver;
+                driver.progress = pilot.progress;
+                c               = driver.controls(vehicleOf(w, d.vehicle), track);
+                pilot.progress  = driver.progress;
+            });
+}
 }  // namespace
 
 Vehicle vehicleOf(const World& w, Entity e)
@@ -140,7 +162,13 @@ Vehicle vehicleOf(const World& w, Entity e)
 void CarBase::onSpawn()
 {
     if (!has<VehicleState>()) add<VehicleState>();
-    if (!has<VehicleControls>()) add<VehicleControls>();
+    if (!has<VehicleSeat>())
+    {
+        // Its own driver: an AI car, or a car spawned as the player
+        add<VehicleSeat>(VehicleSeat{entity(), 0});
+        add<Driver>(Driver{entity()});
+        if (!has<VehicleControls>()) add<VehicleControls>();
+    }
     if (!has<LapState>()) add<LapState>();
     write<LapState>().reset(world().context<RacingContext>().track);
     placeOnTrack(0);
@@ -153,10 +181,15 @@ void CarBase::placeOnTrack(double s)
     // car spawned 0.15 m too low (it hopped)
     double hint = -1;
     Vehicle car;
-    car.params   = world().data(read<VehicleState>().model);
-    car.ground   = [ctx, &hint](double x, double z) { return ctx->carGround(x, z, hint); };
-    const Vec3 p = ctx->track.position(s);
-    car.resetOnGround(p(0), p(2), headingOf(ctx->track.tangent(s)));
+    car.params = world().data(read<VehicleState>().model);
+    car.ground = [ctx, &hint](double x, double z) { return ctx->carGround(x, z, hint); };
+    // The slot's place in the grid: 8 m behind per row, 3 m left or right of the center line
+    const int slot = has<VehicleSeat>() ? std::max(0, read<VehicleSeat>().slot) : 0;
+    if (slot > 0) s -= 8.0 * ((slot + 1) / 2);
+    const Vec3 tangent = ctx->track.tangent(s);
+    const Vec3 right(-tangent(2), 0, tangent(0));
+    const Vec3 p = ctx->track.position(s) + right * (slot == 0 ? 0.0 : (slot % 2 ? 3.0 : -3.0));
+    car.resetOnGround(p(0), p(2), headingOf(tangent));
     VehicleState& state = write<VehicleState>();
     store(car.state, transformWrite(), state, true);
     state.surfaceHint      = hint;
@@ -176,9 +209,10 @@ void CarBase::respawn()
 
 void CarBase::update(double)
 {
+    // The action's player is the driver (the AI car and a car spawned as the player drive themselves)
     bool requested = false;
     for (const ActionEvent& a : world().events.read<ActionEvent>())
-        if (a.player == entity() && a.action == uint32_t(RacingAction::Respawn)) requested = true;
+        if (drives(world(), a.player, entity()) && a.action == uint32_t(RacingAction::Respawn)) requested = true;
     if (requested || read<VehicleState>().upsideDown > 2.0) respawn();
 }
 
@@ -197,20 +231,29 @@ void RaceDriver::update(double dt)
     write<DriverState>().progress = driver.progress;
 }
 
+void racingPeerJoined(World& host, uint8_t peer, bool demo)
+{
+    const Driven d = spawnDriven<Car>(host, peer, peer);
+    if (demo) host.add<DemoPilot>(d.driver);
+}
+
 WorldSetup racingWorldSetup(std::shared_ptr<const RacingContext> context)
 {
     WorldSetup s;
     s.components = [](Registry& r)
     {
-        r.registerComponent<VehicleControls>();
-        r.registerComponent<VehicleState>();
-        r.registerComponent<LapState>();
-        r.registerComponent<DriverState>();
+        r.registerComponent<VehicleControls>(Replicate::OwnerAuthoritative);
+        r.registerComponent<VehicleState>(Replicate::Host);
+        r.registerComponent<LapState>(Replicate::Host);
+        r.registerComponent<DriverState>(Replicate::Never);
+        registerDrivingComponents(r);
     };
     s.systems = [](SystemList& l)
     {
+        l.add(Phase::Gameplay, "racingDemoPilot", racingDemoPilotSystem, RunOn::Client);
         l.add(Phase::Gameplay, "vehicle", vehicleSystem);
         l.add(Phase::Gameplay, "lapTimer", lapTimerSystem);
+        l.add(Phase::Gameplay, "driverPose", driverPoseSystem, RunOn::Both);
     };
     s.classes = [](ClassList& c)
     {
@@ -227,26 +270,32 @@ WorldSetup racingWorldSetup(std::shared_ptr<const RacingContext> context)
 
 void racingScenarios(ScenarioList& list)
 {
-    list.add("accelerates_on_track",
-             [](ScenarioWorld& w)
-             {
-                 const Entity car                    = w.spawnPlayer<Car>(Vec3::Zero(), 0);
-                 w.world().get<VehicleControls>(car) = VehicleControls{1.0, 0.0};
-                 w.trace<VehicleState>(car);
-                 w.stepSeconds(3);
-                 const Vehicle v    = vehicleOf(w.world(), car);
-                 const Track& track = w.world().context<RacingContext>().track;
-                 // Straight ahead from the start line (the track curves away after a few seconds)
-                 const double progress = track.closest(v.state.position);
-                 w.check(v.forwardSpeed() > 12, "accelerates: " + std::to_string(v.forwardSpeed()) + " m/s");
-                 w.check(progress > 15 && progress < 40, "along the track: " + std::to_string(progress) + " m");
-                 w.check(v.wheelsOnGround() == 4, "all wheels on the ground");
-                 // The track of the default world, independent of SAIGA_WORLD_TREES (the renderer's tree count)
-                 w.check(std::abs(track.length() - 1479.23) < 0.01,
-                         "the default track: " + std::to_string(track.length()) + " m");
-             });
+    // S16b: a driver of the default peer (a client's in the host + client variants), the controls written on its owner;
+    // a progress window instead of a fixed 3 s (the controls arrive up to 8 steps late)
+    list.add(
+        "accelerates_on_track",
+        [](ScenarioWorld& w)
+        {
+            const Driven d   = spawnDriven<Car>(w.world(), w.defaultPeer(), 0);
+            const Entity car = d.vehicle;
+            w.edit(d.driver, [](World& owner, Entity e) { owner.get<VehicleControls>(e) = VehicleControls{1.0, 0.0}; });
+            w.trace<VehicleState>(car);
+            const Track& track = w.world().context<RacingContext>().track;
+            w.check(w.stepUntil([&] { return track.closest(w.world().read<Transform>(car).position()) > 25; }, 60 * 6),
+                    "reaches 25 m along the track");
+            const Vehicle v = vehicleOf(w.world(), car);
+            // Straight ahead from the start line (the track curves away after a few seconds)
+            const double progress = track.closest(v.state.position);
+            w.check(v.forwardSpeed() > 12, "accelerates: " + std::to_string(v.forwardSpeed()) + " m/s");
+            w.check(progress > 15 && progress < 40, "along the track: " + std::to_string(progress) + " m");
+            w.check(v.wheelsOnGround() == 4, "all wheels on the ground");
+            // The track of the default world, independent of SAIGA_WORLD_TREES (the renderer's tree count)
+            w.check(std::abs(track.length() - 1479.23) < 0.01,
+                    "the default track: " + std::to_string(track.length()) + " m");
+        });
     // Regression: a nextCheckpoint set from outside (set_component) indexed the gates out of range (an abort, or
-    // undefined behavior for a negative value); it wraps around
+    // undefined behavior for a negative value); it wraps around. S16b: the car spawned as the host's player is its own
+    // driver (onSpawn adds the links); the LapState edit is on the host (Host component)
     list.add("checkpoint_out_of_range",
              [](ScenarioWorld& w)
              {

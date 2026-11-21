@@ -204,7 +204,8 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | World API (JSON by names, `WorldApi`), MCP world tools (`registerWorldTools`), JSON visitors, profiler (§16.2, §17.1) | `src/saiga/engine/api/`, `src/saiga/engine/tools/`, `src/saiga/engine/ecs/VisitJson.h`, `src/saiga/engine/core/Profiler.*`, `tests/test_engine_world_api.cpp` | [exists] |
 | Saves: `World::save`/`tryLoad`/`load` (schema tables, migrations, removed types, validate-then-commit, game objects recreated with `configure` + `onLoad`), `diffSaves`/`World::diff`, `dumpJson`; data files (`DataTypeList`, `World::data`, `DataRef`, `reloadData`); world API snapshot and data tools (§14, §15.1, §15.2, §16.2) | `src/saiga/engine/save/`, `src/saiga/engine/data/`, `tests/test_engine_save.cpp`, `tests/test_engine_data.cpp`, `data/tests/engine/` | [exists] |
 | Spatial grid: 32 m cells per space updated in phase 6 (`spatialGridSystem`), `World::queryRadius` sorted by entity index (§9.5) | `src/saiga/engine/world/SpatialGrid.*`, `SpatialGridSystem.*`, `tests/test_engine_spatial_grid.cpp` | [exists] |
-| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
+| Tech demo games: flight simulator, platformer, racing (§18.4), sample executables `game_<name>` with `--demo` and `--coop` (not tested by the saiga tests); shared transitional code in `samples/games/common/` (mesh renderer, procedural meshes, chase camera, input helpers, render caches, the driver-entity pattern) | `samples/games/`, `shader/vulkan/games/` | [exists], transitional |
+| Co-op in one process: `--coop [delay]` (a hidden host world and the rendered client world over a loopback pair, interleaved stepping, the join policy hooks, MCP on both worlds) (§8.3, §16.2) | `src/saiga/engine/app/`, `src/saiga/engine/api/WorldApi.*`, `src/saiga/engine/gameplay/DestroyOwnedBy.*`, `tests/test_engine_app.cpp` | [exists: S16b] |
 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
 rule, stage that removes it):
@@ -881,6 +882,25 @@ release edge (`HeldCamera` in `samples/games/common/GameEngine.h`); relative inp
 app's load listener neutralizes the local player's `PlayerInput` (`move`, `heldButtons`) after every load (device
 input is transient). `run_scenario` does not replace the live world (the sketch below): it runs the scenario in its own
 worlds and brings the end state back as a snapshot (§16.2).
+
+S16b (`docs/stages/S16b_coop_demos.plan.md`): **co-op in one process**, `--coop [delay]` (`AppOptions::coop`,
+`coopDelay` 0..30, default 2; a following argument that is not an integer is not consumed; not with `--scenarios` or
+`--benchmark`; `EngineAppSetup::checkOptions` lets a game adjust the parsed options, the tech demos clamp the delay to 8
+with `--demo`). The app creates a hidden host world (peer 0) and a client world (peer 1, the host's data store) over a
+`LoopbackTransport` pair with that delay and owns the transports (the client world is destroyed first, then the host,
+then the transports); `app.world()` is the client world (rendered, input, MCP), `EngineApp::hostWorld()` the host
+(nullptr without `--coop`), `startWorld()` the world a game spawns its start state in (the host with `--coop`, else
+`world()`), `coop()`. Stepping: one accumulator, the host's; each frame `World::stepsForAdvance(frameDt)` (the time
+scale, the cap and the dropped-step rule of `advance` without stepping) gives the step count and `stepAll(n)` runs host
+one step, client one step, n times (also the `--demo` prewarm and the step tool), so the client never gets several host
+steps in one round and one-step pulses survive; the client's accumulator follows the host's (`alpha`). The join policy
+is the game's (R-MECH-1): `EngineAppSetup::onPeerJoined(app, host, peer)` / `onPeerLeft`, called from a host step
+listener for the peers of that step's `peersJoined()` / `peersLeft()` (scenario worlds do not run it);
+`destroyOwnedBy(host, peer)` (`engine/gameplay/DestroyOwnedBy.h`) destroys a leaving peer's roots. The client's local
+player: while there is none the app takes the entity with `Player.peer == localPeer()` (it arrives 1 + delay steps
+after the join step) and drops a dead one (a `Resync` destroys the replicas and spawns them again); `setLocalPlayer`
+asserts a player of another peer with `--coop`; the load listener's fallback uses `localPeer()`. `app_status` has a
+`coop` block (both step counts, the client peer, the delay, the host's dropped steps).
 
 The engine has its own main loop in `EngineApp` (`engine/app/EngineApp.h`); it does not use saiga's `MainLoop`,
 `StandaloneWindow` or `VulkanForwardRenderer` (they stay for the other samples, §0). `EngineApp` owns:
@@ -1949,6 +1969,12 @@ sends `OwnerCommand` and forgets the stored owner state; owner states with an ol
 components, extrapolating the pose from the last two states to the current host step (at most 6 steps; not when the
 stamps do not increase); `stepNetworkOnly` writes them without extrapolation.
 
+S16b (the tech demos, §18.4): a driving client's input is the game's control component on its **driver entity** next
+to `PlayerInput` (the racing `VehicleControls`, the flight `AircraftControls`; `OwnerAuthoritative`, written by the
+driver's owner), and the vehicle names its driver (`VehicleSeat`, host); the host's vehicle system reads the controls
+of the seat's driver (neutral without a live driver). Ownership stays as above: vehicles are host-owned, only the driver
+belongs to the peer. Actions name the driver; the vehicle's game object maps them through `Driver.vehicle`.
+
 ### 13.4 Replication [planned: S16 full state; S32 interest, rate, cosmetic events]
 
 - Components are registered `Replicate::Never | Host | HostReliable | OwnerAuthoritative`; events
@@ -2234,6 +2260,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Ready | `tools/list` answers | [exists] |
 | Stop | MCP tool `quit`, ESC in the window, or SIGTERM by the full executable path (the main thread is renamed `Saiga::main`, `pkill -x` by name does not match) | [exists: S13] |
 | Benchmark | `--benchmark <name>` (§17.7) | [exists] (S03; S13: `game_world` on `EngineApp`) |
+| Co-op in one process | `--coop [delay]` (§8.3): a hidden host and the rendered client world over loopback; the tools see the client | [exists: S16b] |
 
 ### 16.2 MCP tools
 
@@ -2256,7 +2283,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `apply(operations)` | a batch `[{op, ...arguments}]` in order; stops at the first failing operation (the earlier ones stay applied); available read-only when every operation reads | [exists: S10] |
 | `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file, overwrite?)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
-| `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
+| `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad, and from S16b HostClient, HostClientDelay, HostClientAsync; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
 | `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings; drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run) | [exists: S13] |
 
 S16: on a client the world API is read-only for replicated entities except the owner-authoritative components of the
@@ -2264,6 +2291,17 @@ entities the client owns (and its peer-local `Never` components): edits, adds, r
 errors, as are spawning a class, `save_snapshot`, `load_snapshot` and `queue_action` for a player it does not own; on
 the host, edits of a spawned client-owned entity's owner-authoritative components are errors naming the owner;
 `NetOwner` is read-only (set by `setOwner`).
+
+S16b, the app with `--coop` (§8.3): the world tools are bound to the client world (read-only for replicated entities, as
+above); the operations on both worlds go through `WorldApi::setCoop` (`CoopHooks {host, stepAll}`, set by the app):
+`pause`, `resume`, `time_scale` act on both worlds, `step` and `measure_performance(steps)` while paused step through
+`stepAll`, `reload_data` reloads the shared store and reconfigures through a host save and load (the client resyncs);
+the snapshot tools (`save_snapshot`, `load_snapshot`, `list_snapshots`, `delete_snapshot`, `diff_snapshot`,
+`export_snapshot`, `import_snapshot`) are refused; `world_status`, `get_profile` and `measure_performance` add a `host`
+block (the host's status or step profile: the client runs no vehicle, lap or behaviour systems); `set_input` drives the
+client's player and counts client steps. `run_scenario` runs in its own worlds with the host's data store and the
+host's "not inside a step or a hook" check, accepts the variants `HostClient`, `HostClientDelay`, `HostClientAsync`
+(also without `--coop`; refused for local-only scenarios) and refuses `keep` and `load` in co-op.
 
 S10 implementation: the operations are `WorldApi` calls (`engine/api/WorldApi.h`: JSON arguments and results by
 names, errors instead of asserts, only between steps, edits logged under `api`; S12's scenarios (`ScenarioWorld::api`) and an editor
@@ -2333,6 +2371,8 @@ void registerEngineScenarios(ScenarioList& s)
   with the owner's handle: how a scenario writes owner-authoritative state); `spawnPlayer` does not step: `move`,
   `input` and `edit` for a client entity that has not arrived are queued and applied on arrival (S16); `client(i)` gives
   a client's world and `onClient(i, entity)` translates a host handle through its `NetId`; `networked()`,
+  `defaultPeer()` (S16b: the peer `spawnPlayer` uses without one, 1 in the host + client variants, else 0; scenarios
+  that spawn players their own way, e.g. the tech demos' `spawnDriven`, pass it on),
   `damage(target, amount, source)` (a `DamageEvent`), `check(cond, msg)` (collects failures with the step; works under
   gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`, `api()` and `call(op, args)` (the
   world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`).
@@ -2388,7 +2428,7 @@ extrapolation), for the scenario's entities, within the quantization tolerances.
 
 S16 implementation (`engine/tools/ScenarioWorld.*`, `ScenarioRunner.*`): the variants `HostClient` (delay 0),
 `HostClientDelay` (delay 2) and `HostClientAsync` run when `ScenarioOptions::networkVariants` is set (the engine
-scenarios; `EngineMain` fills it from `EngineAppSetup::networkVariants`, off for the tech demos until S16b) and the
+scenarios; `EngineMain` fills it from `EngineAppSetup::networkVariants`, on for the tech demos from S16b) and the
 scenario is not local-only; `ScenarioOptions::clients` (default 1). The clients are stepped from the host's step
 observer before the hash and the traces, so `world().step(n)`, `advance` and the API's `step` drive them; `steps()`
 and `maxSteps` count host steps; asynchronous: each client starts 3 steps late and runs a seeded 0, 1 or 2 steps per
@@ -2674,6 +2714,47 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   components. `samples/games/common` holds the shared helpers (mesh renderer, procedural meshes, chase camera,
   `GameEngine.h`, `GameMath.h`) and is compiled into each game. The games are samples and have no tests in `tests/`
   (the saiga tests test the engine, R-TEST-1).
+- **Co-op** (S16b): `--coop [delay]` (§8.3) runs each demo as host + client in one process: the host keeps its demo
+  AI vehicle (autopilot, AI driver, demo runner) with and without `--demo`, the join policy gives the client its plane,
+  car or character next to it (`slot` = peer: a grid offset of the start and respawn positions), and with `--demo` the
+  client's own is driven by the demo's pilot on the client (`DemoPilot`, below). `EngineAppSetup::networkVariants` is on:
+  `--scenarios` runs every scenario in the host + client variants too (§17.3).
+- **Driver entities** (S16b, `samples/games/common/Driving.h`, §13.3): vehicles stay host-owned; a player is a driver
+  entity (`Player`, `PlayerInput`, the game's control component, `Driver {Entity vehicle}`) owned by its peer, the
+  vehicle has `VehicleSeat {Entity driver; int slot}`. `spawnDriven<T>(world, peer, slot)` creates the driver, then the
+  vehicle with the initial `VehicleSeat`, then `Driver.vehicle` and `setOwner(driver, peer)`; `CarBase` /
+  `AircraftBase::onSpawn` make a vehicle without a `VehicleSeat` its own driver (AI vehicles, a vehicle spawned as the
+  player). The single-player game, `--coop` and the scenarios use the same layout. `driverPoseSystem` (RunOn::Both, over
+  `ownedBy(localPeer)`) copies the vehicle's pose into the driver (the host from `Transform`, a client from
+  `RenderPose`). `removeDriver(host, peer)` (the leave policy) destroys the peer's entities (`destroyOwnedBy`) and clears
+  the seats. The common components take the IDs 64-66 in every demo (the demos' enums start at `kFirstDemoComponent`).
+  The platformer has no vehicle: the hero is owned by its peer; a restart of a client's hero is the host part
+  (`RunState`, `ownerTeleport`) and the owner part (`RestartRun`, reliable on `Control`, sent before the teleport's
+  `OwnerCommand`: the motion reset, the jump bit's hold from the local `PlayerInput`, the pilot's waypoint).
+- **Replication of the demos** (S16b):
+
+  | Demo | Component | Mode | Writer |
+  |---|---|---|---|
+  | flight | `AircraftControls` (sticks, `throttleChange`; on the driver) | `OwnerAuthoritative` | the driver's owner (`applyInput`, the owner-side demo pilot) |
+  | flight | `AircraftState` (with the throttle lever `throttle`) | `Host` | `flightModelSystem` (the lever from the driver's `throttleChange`); the `Autopilot` sets the lever directly |
+  | racing | `VehicleControls` (on the driver) | `OwnerAuthoritative` | the driver's owner |
+  | racing | `VehicleState`, `LapState` | `Host` | `vehicleSystem`, `lapTimerSystem` |
+  | racing | `DriverState` (AI progress) | `Never` | the AI on the host |
+  | platformer | `CharacterMotion`, `Transform` of the hero | `OwnerAuthoritative` | `characterControllerSystem` (`RunOn::Both` over `ownedBy(localPeer)`) |
+  | platformer | `RunState` | `Host` | the hero's game object |
+  | all | `Driver`, `VehicleSeat` | `Host` | the host |
+  | all | `DemoPilot` (`suspended`, the pilot's progress or waypoint) | `Never`, saved | the owner-side pilot systems (`RunOn::Client`) and `applyInput` (suspended while device input is active) |
+
+  The host decides the platformer's kill height and goal from the received owner pose (extrapolated up to 6 steps).
+  The demo's restart after the goal of a client's hero is the owner's pilot's decision (it queues the restart action
+  once, unless the player took over: `suspended` exists only on the owner).
+  Rendering on a client: the pose caches (`PoseHistory`, `RenderCaches` in `GameEngine.h`) read `RenderPose` for remote
+  entities and `Transform` for owned ones; the render state besides the pose (racing wheels, the platformer's motion)
+  comes from snapshots and is read `interpolationDelaySteps` steps late from a per-entity ring (flushed on a snap), so
+  it matches the drawn body approximately. The renderers draw every vehicle or character and follow the local player's.
+  A key reaches the rendered vehicle about 1 + 2 · delay + `interpolationDelaySteps` steps later. The GUI buttons queue
+  the action on the local player (they act when steps run); without a local player on the host (`--demo`) they call
+  the game object as before.
 - **Transitional parts** (not the engine design; replaced when the stages arrive):
 
   | Today | Replaced by | Stage |
@@ -2814,10 +2895,10 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S14 | Engine MCP tools (done) | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages (done) | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
 | S16 | Replication skeleton (done) | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3) | S12, S15, S13b | all engine scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI) |
-| S16b | Tech demo co-op | The tech demos on the replication: co-op variants (a second plane, character, car of a client), `--coop`, `EngineAppSetup::networkVariants` on for the games | S16 | the tech demo co-op variants run host + client over loopback; `game_* --scenarios` passes the host + client variants (local) |
+| S16b | Tech demo co-op (done) | The tech demos on the replication (the demo part of S16's row): driver entities, the demos' replication modes, co-op variants (a second plane, character, car of a client), `--coop` with `hostWorld`, `startWorld`, `stepAll`, the join policy hooks and MCP on both worlds, `EngineAppSetup::networkVariants` on for the games (§8.3, §16.2, §18.4) | S16 | the tech demo co-op variants run host + client over loopback (local); the demo scenarios pass the host + client variants or are local-only with a reason (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
-| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
+| S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S16b, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
@@ -2827,12 +2908,12 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S26 | World over the network | Handshake with schema hash, chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
 | S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4); tech demo: the flight demo shows far content to the horizon over 32 km | S26 | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
 | S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11); tech demo: the racing car on Jolt (vehicle constraint) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default); the racing demo drives on Jolt (local) |
-| S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16 | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |
+| S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16, S16b | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
 | S31 | Promotion and grass edits | `promote`/`demote`, tombstones from interaction, `editGrass` (§6, §12.5) | S30 | chop-a-tree scenario incl. save/load and host + client (CI) |
 | S32 | Network production | Interest radius, snapshot rate (20 Hz), cosmetic events, loss and reordering handling, snapshot packets (§13.4) | S29, S26 | all scenarios pass in the host + client variant with seeded loss and reordering (CI); `--benchmark host_step` with 7 clients within the step budget, upload per client reported against §17.10 (local) |
 | S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; leave and rejoin before the next commit: no item lost; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
-| S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6); tech demo: the platformer character skinned, with the animation state machine (replaces the procedural box animation) | S19, S16 | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local); platformer demo screenshots reviewed (local) |
+| S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6); tech demo: the platformer character skinned, with the animation state machine (replaces the procedural box animation) | S19, S16, S16b | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local); platformer demo screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6); tech demos: all three on the camera rig (third-person for the platformer, chase cameras for the car and the airplane; `ChaseCamera` removed) | S29, S34 | camera collision tests (CI); reviewed in a session (local); tech demo cameras reviewed (local) |
 | S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11); tech demos: lighting and shadows shown in the flight demo (day and night) | S19, S20 | golden images per time of day (CI); flight demo screenshots reviewed (local) |
 | S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10); tech demos: post chain and tiers in all three demos | S36, S27 | per-pass budgets met on the desktop reference (or reported as open per §17.10 if no such card is available) and, when available, the Steam Deck (local); benchmark baselines in `data/tests/benchmarks.json` for the desktop reference class (RTX 3060 / RX 6600, §17.10; or reported as open per §17.10 if no such card is available) (local); golden images per tier (CI); tech demo screenshots per tier reviewed (local) |

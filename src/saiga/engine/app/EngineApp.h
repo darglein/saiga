@@ -31,6 +31,8 @@ class RenderScene;
 
 namespace Engine
 {
+class LoopbackTransport;
+
 /**
  * The engine's app (docs/engine_design.md §8.3; S13): the window (GLFW, or none when headless), the RenderScene frame,
  * the World, the MCP server and the input map, and the frame loop: poll events and input, mcp.poll(), the frame time,
@@ -38,7 +40,9 @@ namespace Engine
  * with noRender, not at all) and paces the frames to the step rate. When no frame can be presented (a minimized window)
  * the loop keeps polling MCP and advancing the world. S14: the camera hold of the camera tools, the frame clock restart
  * after blocking tool calls, the frame measurement of measure_performance(frames), the input reset on loads and the
- * scenario-load mark of run_scenario.
+ * scenario-load mark of run_scenario. S16b: --coop runs a hidden host world and the rendered client world over a
+ * loopback pair, stepped interleaved from one accumulator; the join policy of EngineAppSetup::onPeerJoined spawns the
+ * client's player, which becomes the local player when it arrives.
  */
 class SAIGA_ENGINE_API EngineApp
 {
@@ -58,7 +62,16 @@ class SAIGA_ENGINE_API EngineApp
     bool quitting() const { return quitRequested; }
     int exitCode() const { return exitStatus; }
 
+    // The rendered world (input, MCP); with --coop the client world
     World& world() { return *gameWorld; }
+    // --coop (S16b, AppOptions::coop): the hidden host world (nullptr without --coop) and the world the game spawns
+    // its start state in (the host with --coop, else world())
+    World* hostWorld() { return hostWorldPtr.get(); }
+    World& startWorld() { return hostWorldPtr ? *hostWorldPtr : *gameWorld; }
+    bool coop() const { return hostWorldPtr != nullptr; }
+    // n steps of every world: with --coop the host one step, then the client one step, n times (so the client never
+    // gets several host steps in one round); else world().step(n). The --demo prewarm, the step tool while paused
+    void stepAll(int n);
     McpServer& mcp() { return *server; }
     WorldApi& api() { return *worldApi; }
     PerspectiveCamera& camera();
@@ -79,7 +92,9 @@ class SAIGA_ENGINE_API EngineApp
     void setRenderingEnabled(bool enabled) { renderingEnabled = enabled; }
     bool isRenderingEnabled() const { return renderingEnabled; }
     // The entity the input writes (PlayerInput, queued actions, applyInput); none: the input moves the free camera
-    // A pending release of the device input goes to the previous player (not the new one)
+    // A pending release of the device input goes to the previous player (not the new one). With --coop it must be a
+    // player of the client's peer (asserted); while there is none the app takes the entity with Player.peer ==
+    // localPeer() when it arrives (also again after a Resync)
     void setLocalPlayer(Entity player);
     Entity localPlayer() const { return localPlayerEntity; }
     // The virtual device for the next steps (0: until replaced); a paused world keeps it until steps run
@@ -118,6 +133,9 @@ class SAIGA_ENGINE_API EngineApp
     void renderFrame();
     // Writes the neutral input to the local player now (an expired set_input between steps)
     void releaseInputNow();
+    // The frame's steps: World::advance, or with --coop the host's stepsForAdvance run by stepAll
+    void advanceWorlds(double dt);
+    uint64_t droppedTotal() const;
     void collectGpuTimes();
     struct FrameMeasurement;
     // Checks the running frame measurements (from a poll listener and when one starts)
@@ -129,6 +147,10 @@ class SAIGA_ENGINE_API EngineApp
     AppOptions appOptions;
     std::unique_ptr<Vulkan::VulkanWindow> appWindow;
     std::unique_ptr<Vulkan::RenderScene> renderScene;
+    // --coop: the loopback pair (peer 0 the host, peer 1 the client) outlives both worlds; the client world (gameWorld)
+    // is destroyed before the host
+    std::vector<std::unique_ptr<LoopbackTransport>> coopTransports;
+    std::unique_ptr<World> hostWorldPtr;
     std::unique_ptr<World> gameWorld;
     std::unique_ptr<McpServer> server;
     std::shared_ptr<WorldApi> worldApi;

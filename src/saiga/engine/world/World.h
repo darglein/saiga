@@ -365,6 +365,11 @@ class SAIGA_ENGINE_API World
     // accumulator += frameDt * timeScale; runs whole steps, at most maxStepsPerAdvance; the remaining backlog is
     // dropped (counted in droppedSteps). No steps while paused.
     void advance(double frameDt);
+    // The steps advance(frameDt) would run, without running them (S16b, the app's co-op stepping of a host and a
+    // client world from one accumulator): adds frameDt * timeScale to the accumulator, takes the whole steps (at most
+    // maxStepsPerAdvance) out of it and drops the remaining backlog as advance does (droppedSteps). 0 while paused. The
+    // caller runs the returned steps (alpha() already reflects them).
+    int stepsForAdvance(double frameDt);
     // Runs exactly n steps (also while paused)
     void step(int n = 1);
     void setPaused(bool p) { paused = p; }

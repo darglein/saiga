@@ -53,20 +53,24 @@ FlightModel flightModelOf(const World& w, Entity e)
 
 namespace
 {
-// Phase Gameplay: the flight model of every airplane (after the pilots wrote the controls in phase Behaviour)
+// Phase Gameplay (host): the flight model of every airplane (after the autopilot wrote its controls in phase
+// Behaviour), with the controls of its seat's driver (a client's driver: the latest received; no live driver: neutral);
+// the driver's throttleChange moves the lever
 void flightModelSystem(World& w, double dt)
 {
-    w.view<Transform, AircraftState, AircraftControls>().each(
-        [&](Entity e, Transform& t, AircraftState& s, AircraftControls& c)
+    w.view<Transform, AircraftState>().each(
+        [&](Entity e, Transform& t, AircraftState& s)
         {
             if (s.crashed)
             {
                 s.crashTimer += dt;
                 return;
             }
-            c.throttle    = clampd(c.throttle + c.throttleChange * 0.5 * dt, 0, 1);
-            FlightModel m = flightModelOf(w, e);
-            m.step(c, dt);
+            const AircraftControls* driven = seatControls<AircraftControls>(w, e);
+            const AircraftControls c       = driven ? *driven : AircraftControls();
+            s.throttle                     = clampd(s.throttle + c.throttleChange * 0.5 * dt, 0, 1);
+            FlightModel m                  = flightModelOf(w, e);
+            m.step(c, s.throttle, dt);
             t.setPosition(m.state.position);
             t.setRotation(m.state.orientation);
             s.velocity  = m.state.velocity;
@@ -75,28 +79,63 @@ void flightModelSystem(World& w, double dt)
             s.crashed   = m.state.crashed;
         });
 }
+
+// Phase Gameplay on clients (--coop --demo): the autopilot flies the owned drivers with DemoPilot from the replicated
+// plane (AircraftState with the lever, the newest snapshot pose); the lever follows through throttleChange
+void flightDemoPilotSystem(World& w, double)
+{
+    const FlightContext& ctx = w.context<FlightContext>();
+    FlightAutopilot pilot;
+    pilot.center = ctx.circuitCenter;
+    pilot.radius = ctx.circuitRadius;
+    w.ownedBy<AircraftControls, const DemoPilot, const Driver>(w.localPeer())
+        .each(
+            [&](Entity, AircraftControls& c, const DemoPilot& demo, const Driver& d)
+            {
+                if (demo.suspended || !d.vehicle.valid() || !w.alive(d.vehicle) || !w.has<AircraftState>(d.vehicle))
+                    return;
+                const AircraftState& s = w.read<AircraftState>(d.vehicle);
+                if (s.crashed)
+                {
+                    c = AircraftControls();
+                    return;
+                }
+                const FlightModel m = flightModelOf(w, d.vehicle);
+                c                   = pilot.controls(m);
+                c.throttleChange    = clampd((pilot.throttle(m) - s.throttle) * 4.0, -1, 1);
+            });
+}
 }  // namespace
 
 void AircraftBase::onSpawn()
 {
     if (!has<AircraftState>()) add<AircraftState>();
-    if (!has<AircraftControls>()) add<AircraftControls>(AircraftControls{0.6, 0, 0, 0, 0});
+    if (!has<VehicleSeat>())
+    {
+        // Its own driver: the autopilot, or a plane spawned as the player
+        add<VehicleSeat>(VehicleSeat{entity(), 0});
+        add<Driver>(Driver{entity()});
+        if (!has<AircraftControls>()) add<AircraftControls>();
+    }
     respawn();
 }
 
 void AircraftBase::update(double)
 {
+    // The action's player is the driver (the autopilot and a plane spawned as the player drive themselves)
     bool requested = false;
     for (const ActionEvent& a : world().events.read<ActionEvent>())
-        if (a.player == entity() && a.action == uint32_t(FlightAction::Respawn)) requested = true;
+        if (drives(world(), a.player, entity()) && a.action == uint32_t(FlightAction::Respawn)) requested = true;
     if (requested || (read<AircraftState>().crashed && read<AircraftState>().crashTimer > 2.0)) respawn();
 }
 
 void AircraftBase::respawn()
 {
     const FlightContext& ctx = world().context<FlightContext>();
-    Vec3 p                   = ctx.circuitCenter + Vec3(ctx.circuitRadius, 0, 0);
-    p(1)                     = ctx.ground(p(0), p(2)) + 300;
+    // The slot's place: 60 m behind and 20 m inside per slot (heading +z on the circuit's +x side)
+    const int slot = has<VehicleSeat>() ? std::max(0, read<VehicleSeat>().slot) : 0;
+    Vec3 p         = ctx.circuitCenter + Vec3(ctx.circuitRadius - 20.0 * slot, 0, -60.0 * slot);
+    p(1)           = ctx.ground(p(0), p(2)) + 300;
     FlightModel m;
     m.reset(p, headingOf(Vec3(0, 0, 1)), 65);
     AircraftState& s = write<AircraftState>();
@@ -119,7 +158,16 @@ void Autopilot::update(double dt)
 {
     AircraftBase::update(dt);
     if (read<AircraftState>().crashed) return;
-    write<AircraftControls>() = pilot.controls(flightModelOf(world(), entity()));
+    // Its own driver: the sticks on itself, the lever directly
+    const FlightModel m             = flightModelOf(world(), entity());
+    write<AircraftControls>()       = pilot.controls(m);
+    write<AircraftState>().throttle = pilot.throttle(m);
+}
+
+void flightPeerJoined(World& host, uint8_t peer, bool demo)
+{
+    const Driven d = spawnDriven<Aircraft>(host, peer, peer);
+    if (demo) host.add<DemoPilot>(d.driver);
 }
 
 WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory)
@@ -127,10 +175,16 @@ WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const 
     WorldSetup s;
     s.components = [](Registry& r)
     {
-        r.registerComponent<AircraftControls>();
-        r.registerComponent<AircraftState>();
+        r.registerComponent<AircraftControls>(Replicate::OwnerAuthoritative);
+        r.registerComponent<AircraftState>(Replicate::Host);
+        registerDrivingComponents(r);
     };
-    s.systems = [](SystemList& l) { l.add(Phase::Gameplay, "flightModel", flightModelSystem); };
+    s.systems = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "flightDemoPilot", flightDemoPilotSystem, RunOn::Client);
+        l.add(Phase::Gameplay, "flightModel", flightModelSystem);
+        l.add(Phase::Gameplay, "driverPose", driverPoseSystem, RunOn::Both);
+    };
     s.classes = [](ClassList& c)
     {
         c.add<Aircraft>();
@@ -167,32 +221,52 @@ void flightScenarios(ScenarioList& list)
                  w.check(std::abs(altitude - 300) < 30, "holds 300 m above the ground: " + std::to_string(altitude));
                  w.check(!w.world().read<AircraftState>(plane).crashed, "did not crash");
              });
+    // S16b: a driver of the default peer (a client's in the host + client variants): the lever on the host-owned plane,
+    // the sticks written on the driver's owner; stepUntil (the sticks arrive up to 8 steps late)
     list.add("climbs_with_full_throttle",
              [](ScenarioWorld& w)
              {
-                 const Entity plane                     = w.spawnPlayer<Aircraft>(Vec3::Zero(), 0);
-                 const double y0                        = w.world().read<Transform>(plane).position().y();
-                 w.world().get<AircraftControls>(plane) = AircraftControls{1.0, 0.25, 0, 0, 0};
+                 const Driven d                               = spawnDriven<Aircraft>(w.world(), w.defaultPeer(), 0);
+                 const Entity plane                           = d.vehicle;
+                 const double y0                              = w.world().read<Transform>(plane).position().y();
+                 w.world().get<AircraftState>(plane).throttle = 1.0;
+                 w.edit(d.driver, [](World& owner, Entity e) { owner.get<AircraftControls>(e).pitch = 0.25; });
                  w.trace<AircraftState>(plane);
-                 w.stepSeconds(8);
-                 const double y = w.world().read<Transform>(plane).position().y();
-                 w.check(y > y0 + 60, "climbed " + std::to_string(y - y0) + " m");
+                 w.check(
+                     w.stepUntil([&] { return w.world().read<Transform>(plane).position().y() > y0 + 60; }, 60 * 10),
+                     "climbed " + std::to_string(w.world().read<Transform>(plane).position().y() - y0) + " m");
                  w.check(!w.world().read<AircraftState>(plane).crashed, "did not crash");
              });
-    list.add("crashes_into_terrain",
-             [](ScenarioWorld& w)
-             {
-                 const Entity plane                     = w.spawnPlayer<Aircraft>(Vec3::Zero(), 0);
-                 w.world().get<AircraftControls>(plane) = AircraftControls{1.0, -1.0, 0, 0, 0};
-                 w.trace<AircraftState>(plane);
-                 w.check(w.stepUntil([&] { return w.world().read<AircraftState>(plane).crashed; }, 60 * 30),
-                         "crashes when diving");
-                 // The crash lasts 2 s, then the plane is back on the circuit
-                 w.stepSeconds(2.5);
-                 w.check(!w.world().read<AircraftState>(plane).crashed, "respawned");
-                 const double altitude = flightModelOf(w.world(), plane).altitudeAboveGround();
-                 w.check(altitude > 250, "300 m above the ground after the respawn: " + std::to_string(altitude));
-             });
+    list.add(
+        "crashes_into_terrain",
+        [](ScenarioWorld& w)
+        {
+            const Driven d                               = spawnDriven<Aircraft>(w.world(), w.defaultPeer(), 0);
+            const Entity plane                           = d.vehicle;
+            w.world().get<AircraftState>(plane).throttle = 1.0;
+            w.edit(d.driver, [](World& owner, Entity e) { owner.get<AircraftControls>(e).pitch = -1.0; });
+            w.trace<AircraftState>(plane);
+            w.check(w.stepUntil([&] { return w.world().read<AircraftState>(plane).crashed; }, 60 * 30),
+                    "crashes when diving");
+            // The crash lasts 2 s, then the plane is back on the circuit (host-side)
+            w.stepSeconds(2.5);
+            w.check(!w.world().read<AircraftState>(plane).crashed, "respawned");
+            const double altitude = flightModelOf(w.world(), plane).altitudeAboveGround();
+            w.check(altitude > 250, "300 m above the ground after the respawn: " + std::to_string(altitude));
+            // The respawn action of the driver reaches its plane (driver -> Driver.vehicle): level sticks, fly
+            // away from the respawn point, then the action brings it back
+            w.edit(d.driver, [](World& owner, Entity e) { owner.get<AircraftControls>(e) = AircraftControls(); });
+            const FlightContext& ctx = w.world().context<FlightContext>();
+            Vec3 spawnPoint          = ctx.circuitCenter + Vec3(ctx.circuitRadius, 0, 0);
+            spawnPoint(1)            = ctx.ground(spawnPoint(0), spawnPoint(2)) + 300;
+            w.check(w.stepUntil([&] { return (w.world().read<Transform>(plane).position() - spawnPoint).norm() > 100; },
+                                60 * 5),
+                    "flies away from the respawn point");
+            w.input(d.driver, uint32_t(FlightAction::Respawn));
+            w.check(
+                w.stepUntil([&] { return (w.world().read<Transform>(plane).position() - spawnPoint).norm() < 5; }, 60),
+                "the driver's respawn action respawns its plane");
+        });
 }
 
 }  // namespace Game

@@ -20,8 +20,9 @@ namespace Game
 {
 /**
  * The render side of the flight demo (GameRenderHooks; transitional until the RenderScene instances of S19): the
- * world prototype on the context's height field, the airplane mesh at the pose interpolated between the last two
- * steps, the chase camera, the GUI. Follows the local player, or the first airplane (--demo).
+ * world prototype on the context's height field, every airplane at its pose interpolated between the last two steps
+ * (S16b: remote planes on a co-op client from RenderPose), the chase camera, the GUI. Follows the local player's plane
+ * (its driver's Driver.vehicle), or the first airplane (--demo).
  */
 class FlightRender
 {
@@ -35,6 +36,9 @@ class FlightRender
     void gui();
 
    private:
+    struct NoState
+    {
+    };
     Entity focus();
 
     std::shared_ptr<const FlightContext> context;
@@ -42,11 +46,11 @@ class FlightRender
     Vulkan::WorldRenderer worldRenderer;
     MeshRenderer meshes;
     ChaseCamera camera;
-    PoseHistory pose;
+    RenderCaches<NoState> caches;
     HeldCamera held;
     FrameClock clock;
-    PoseHistory::Pose renderPose;
-    bool hasPose  = false;
+    Entity followed;
+    std::vector<PoseHistory::Pose> drawn;
     int planeMesh = -1;
 };
 

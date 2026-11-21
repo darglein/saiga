@@ -37,11 +37,15 @@ AircraftControls FlightAutopilot::controls(const FlightModel& m) const
     double vsTarget = clampd((targetY - s.position(1)) * 0.15, -8, 12);
     c.pitch         = clampd((vsTarget - s.velocity(1)) * 0.06 + std::abs(m.bankAngle()) * 0.25, -1, 1);
 
-    c.throttle = clampd(m.trimThrottle(speed) + (speed - m.airspeed()) * 0.08, 0, 1);
     // Same sign as the model's yaw stability (FlightModel::step: target -= yawRate * yaw + yawStability * beta), so
     // the rudder helps to remove the sideslip
     c.yaw = clampd(m.sideSlip() * 3.0, -1, 1);
     return c;
+}
+
+double FlightAutopilot::throttle(const FlightModel& m) const
+{
+    return clampd(m.trimThrottle(speed) + (speed - m.airspeed()) * 0.08, 0, 1);
 }
 
 }  // namespace Game

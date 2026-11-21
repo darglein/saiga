@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cstdint>
 #include <deque>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -131,6 +132,21 @@ class SAIGA_ENGINE_API WorldApi
     // A profile of the app reported by get_profile under key (S13: "frame", "gpu"); it must outlive the API
     void addProfile(const std::string& key, Profiler* profiler) { profiles.push_back({key, profiler}); }
     const std::vector<std::pair<std::string, Profiler*>>& extraProfiles() const { return profiles; }
+    // The engine app's co-op mode (--coop, S16b): the API is bound to the client world; pause, resume, time_scale and
+    // step act on both worlds (step through stepAll: host one step, then the client one step), reload_data reloads
+    // the shared data and reconfigures through a host save and load (the client resyncs), the snapshot operations are
+    // refused (a client cannot save) and world_status and get_profile add the host's numbers under "host". The host
+    // world must outlive the API's use of it.
+    struct CoopHooks
+    {
+        World* host = nullptr;
+        std::function<void(int steps)> stepAll;
+    };
+    void setCoop(CoopHooks hooks) { coopHooks = std::move(hooks); }
+    const CoopHooks& coop() const { return coopHooks; }
+    bool inCoop() const { return coopHooks.host != nullptr; }
+    // The host block of world_status in co-op (step, time, paused, time scale, counts, dropped steps, hash)
+    static json11::Json hostStatus(const World& host);
     // The directory of export_snapshot / import_snapshot (empty: refused)
     void setSnapshotDirectory(const std::string& directory) { snapshotDirectory = directory; }
     // Stores given save bytes as the snapshot name (run_scenario, S14), with save_snapshot's limits (count, bytes) and
@@ -221,6 +237,7 @@ class SAIGA_ENGINE_API WorldApi
     std::map<std::string, Snapshot> snapshots;
     std::string snapshotDirectory;
     std::vector<std::pair<std::string, Profiler*>> profiles;
+    CoopHooks coopHooks;
     std::deque<Change> journal;
     uint64_t nextSeq = 1;
     uint32_t epoch   = 0;

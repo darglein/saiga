@@ -10,9 +10,14 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/gameplay/DestroyOwnedBy.h"
+#include "saiga/engine/net/Fragmenter.h"
+#include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/Instance.h"
@@ -25,6 +30,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
+#include <limits>
 #include <thread>
 
 #include "mcp_test_helper.h"
@@ -1324,4 +1330,452 @@ TEST_F(EngineAppRender, MeasureFramesEndsWithItsLastLoop)
     const Json normal = measureDirect(app, 3);
     EXPECT_EQ(normal["frame"]["samples"].number_value(), 3) << normal.dump();
     EXPECT_FALSE(normal["stopped_early"].is_bool()) << normal.dump();
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// S16b: --coop (a hidden host world and the rendered client world over a loopback pair)
+
+TEST(AppCommandLine, Coop)
+{
+    std::string error;
+    auto parse = [&](std::initializer_list<const char*> args, AppOptions& o, EngineAppSetup& s)
+    {
+        auto a = argv(args);
+        return parseCommandLine(int(a.size()), a.data(), {"--demo"}, s, o, error);
+    };
+    {
+        EngineAppSetup s;
+        AppOptions o;
+        ASSERT_TRUE(parse({"--coop"}, o, s)) << error;
+        EXPECT_TRUE(o.coop);
+        EXPECT_EQ(o.coopDelay, 2);
+    }
+    {
+        EngineAppSetup s;
+        AppOptions o;
+        ASSERT_TRUE(parse({"--coop", "0", "--headless"}, o, s)) << error;
+        EXPECT_EQ(o.coopDelay, 0);
+        EXPECT_TRUE(s.headless);
+    }
+    {
+        // An argument that is not an integer is not consumed
+        EngineAppSetup s;
+        AppOptions o;
+        ASSERT_TRUE(parse({"--coop", "--demo"}, o, s)) << error;
+        EXPECT_EQ(o.coopDelay, 2);
+        EXPECT_TRUE(o.has("--demo"));
+        ASSERT_TRUE(parse({"--coop", "30"}, o, s)) << error;
+        EXPECT_EQ(o.coopDelay, 30);
+    }
+    {
+        // checkOptions sees the parsed options (a game clamps the delay for its --demo) and may reject them
+        EngineAppSetup s;
+        s.checkOptions = [](AppOptions& o, std::string& e)
+        {
+            if (o.coopDelay > 8 && o.has("--demo")) o.coopDelay = 8;
+            if (o.coopDelay == 7) e = "seven";
+            return o.coopDelay != 7;
+        };
+        AppOptions o;
+        ASSERT_TRUE(parse({"--coop", "20", "--demo"}, o, s)) << error;
+        EXPECT_EQ(o.coopDelay, 8);
+        AppOptions p;
+        EXPECT_FALSE(parse({"--coop", "7"}, p, s));
+        EXPECT_EQ(error, "seven");
+    }
+    for (auto bad : {argv({"--coop", "31"}), argv({"--coop", "-1"}), argv({"--coop", "--scenarios"}),
+                     argv({"--scenarios", "x", "--coop"}), argv({"--coop", "--benchmark", "flyover"})})
+    {
+        EngineAppSetup u;
+        u.benchmarks = {"flyover"};
+        AppOptions q;
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1] << " " << bad[2];
+    }
+}
+
+namespace
+{
+struct CoopLog
+{
+    std::vector<uint8_t> joined, left;
+    std::string order;  // "H" / "C" per host / client step
+};
+CoopLog g_coop;
+
+// The test game's join policy: a player entity owned by the joined peer
+void joinPolicy(EngineApp&, World& host, uint8_t peer)
+{
+    g_coop.joined.push_back(peer);
+    const Entity p = host.create();
+    Player pl;
+    pl.peer        = peer;
+    pl.characterId = 100 + peer;
+    host.add<Player>(p, pl);
+    host.add<PlayerInput>(p);
+    host.setOwner(p, peer);
+}
+
+EngineAppSetup coopSetup()
+{
+    g_coop           = CoopLog();
+    EngineAppSetup s = scenarioSetup();
+    s.onPeerJoined   = joinPolicy;
+    s.onPeerLeft     = [](EngineApp&, World&, uint8_t peer) { g_coop.left.push_back(peer); };
+    return s;
+}
+AppOptions coopOptions(int delay)
+{
+    AppOptions o;
+    o.coop      = true;
+    o.coopDelay = delay;
+    return o;
+}
+}  // namespace
+
+TEST(EngineAppCoop, InterleavedStepsAndTheClientsPlayer)
+{
+    EngineApp app(coopSetup(), coopOptions(2));
+    ASSERT_NE(app.hostWorld(), nullptr);
+    World& host   = *app.hostWorld();
+    World& client = app.world();
+    EXPECT_TRUE(app.coop());
+    EXPECT_EQ(&app.startWorld(), &host);
+    EXPECT_TRUE(host.isHost());
+    EXPECT_FALSE(client.isHost());
+    EXPECT_EQ(client.localPeer(), 1);
+    host.addStepListener(
+        [&]()
+        {
+            g_coop.order += 'H';
+            return true;
+        });
+    std::vector<uint64_t> applied;  // the client's applied snapshot sequence after each of its steps
+    client.addStepListener(
+        [&]()
+        {
+            g_coop.order += 'C';
+            applied.push_back(client.replication().snapshotSequence());
+            return true;
+        });
+
+    // The join is seen in the first host step; the player arrives 1 + delay steps later and becomes the local player
+    app.runFrames(1, 1.0 / 60);
+    ASSERT_EQ(g_coop.joined, std::vector<uint8_t>{1});
+    EXPECT_FALSE(app.localPlayer().valid());
+    app.runFrames(6, 1.0 / 60);
+    const Entity mine = app.localPlayer();
+    ASSERT_TRUE(mine.valid());
+    EXPECT_EQ(client.read<Player>(mine).peer, 1);
+    EXPECT_EQ(client.read<Player>(mine).characterId, 101u);
+    EXPECT_EQ(host.stepIndex(), 7u);
+    EXPECT_EQ(client.stepIndex(), 7u);
+
+    // A low frame rate: several steps per frame, interleaved host / client (the client never gets two host steps in
+    // one round); one accumulator, so both worlds have the same step count and the client's alpha follows the host
+    g_coop.order.clear();
+    applied.clear();
+    app.runFrames(5, 3.5 / 60);
+    EXPECT_EQ(host.stepIndex(), client.stepIndex());
+    ASSERT_GE(g_coop.order.size(), 30u);
+    for (size_t i = 0; i < g_coop.order.size(); ++i) EXPECT_EQ(g_coop.order[i], i % 2 ? 'C' : 'H') << i;
+    // The client applies every host step's snapshot (none skipped by frame batching)
+    ASSERT_GE(applied.size(), 15u);
+    for (size_t i = 1; i < applied.size(); ++i) EXPECT_EQ(applied[i], applied[i - 1] + 1) << i;
+    EXPECT_DOUBLE_EQ(client.alpha(), host.alpha());
+    // The input reaches the client's player (owner-authoritative) and the host through its owner state
+    app.setVirtualInput(VirtualInput{{{"move_x", 1.0}}, {}, {}}, 0);
+    app.runFrames(8, 1.0 / 60);
+    EXPECT_GT(client.read<PlayerInput>(mine).move.norm(), 0.5);
+    Entity onHost;
+    host.viewAll<const Player>().each(
+        [&](Entity e, const Player& p)
+        {
+            if (p.peer == 1) onHost = e;
+        });
+    ASSERT_TRUE(onHost.valid());
+    EXPECT_GT(host.read<PlayerInput>(onHost).move.norm(), 0.5);
+    app.setVirtualInput(VirtualInput(), 1);
+
+    // app_status reports both worlds
+    {
+        const Json st = toolJson(callApp(app, "app_status", Json::object{}));
+        EXPECT_EQ(st["coop"]["host_step"].number_value(), double(host.stepIndex())) << st.dump();
+        EXPECT_EQ(st["coop"]["client_step"].number_value(), double(client.stepIndex()));
+        EXPECT_EQ(st["coop"]["delay_steps"].number_value(), 2);
+        EXPECT_EQ(st["local_player"]["index"].number_value(), double(mine.index));
+    }
+
+    // A Resync (a host load): the replicas are destroyed and arrive again; the local player follows the new replica
+    ASSERT_TRUE(host.tryLoad(host.save()).ok());
+    app.runFrames(8, 1.0 / 60);
+    const Entity again = app.localPlayer();
+    ASSERT_TRUE(again.valid());
+    EXPECT_NE(again, mine);
+    EXPECT_FALSE(client.alive(mine));
+    EXPECT_EQ(client.read<Player>(again).peer, 1);
+    // The join policy ran once
+    EXPECT_EQ(g_coop.joined.size(), 1u);
+    EXPECT_TRUE(g_coop.left.empty());
+}
+
+#ifdef SAIGA_ASSERTS
+TEST(EngineAppCoopDeathTest, SetLocalPlayerOfAnotherPeer)
+{
+    auto other = []()
+    {
+        EngineApp app(coopSetup(), coopOptions(0));
+        World& client  = app.world();
+        const Entity e = client.create();
+        Player p;
+        p.peer = 0;
+        client.add<Player>(e, p);
+        app.setLocalPlayer(e);
+    };
+    EXPECT_DEATH(other(), "the client's own player");
+}
+#endif
+
+TEST(EngineAppCoop, ToolsActOnBothWorlds)
+{
+    EngineApp app(coopSetup(), coopOptions(2));
+    World& host   = *app.hostWorld();
+    World& client = app.world();
+    app.runFrames(10, 1.0 / 60);
+
+    // pause, step and time_scale on both worlds
+    EXPECT_FALSE(isError(callApp(app, "pause", Json::object{})));
+    EXPECT_TRUE(host.isPaused());
+    EXPECT_TRUE(client.isPaused());
+    app.runFrames(5, 1.0 / 60);
+    EXPECT_EQ(host.stepIndex(), 10u);
+    const Json st = toolJson(callApp(app, "step", obj(R"({"n": 3})")));
+    EXPECT_EQ(st["step"].number_value(), 13) << st.dump();
+    EXPECT_EQ(host.stepIndex(), 13u);
+    EXPECT_EQ(client.stepIndex(), 13u);
+    // measure_performance(steps) while paused: both step, the host's profile under host
+    const Json m = toolJson(callApp(app, "measure_performance", obj(R"({"steps": 4})")));
+    EXPECT_EQ(m["samples"].number_value(), 4) << m.dump();
+    EXPECT_EQ(m["host"]["samples"].number_value(), 4) << m.dump();
+    EXPECT_EQ(host.stepIndex(), 17u);
+    EXPECT_EQ(client.stepIndex(), 17u);
+    EXPECT_FALSE(isError(callApp(app, "time_scale", obj(R"({"scale": 0.5})"))));
+    EXPECT_EQ(host.timeScale(), 0.5);
+    EXPECT_EQ(client.timeScale(), 0.5);
+    EXPECT_FALSE(isError(callApp(app, "resume", Json::object{})));
+    EXPECT_FALSE(host.isPaused());
+    EXPECT_FALSE(client.isPaused());
+    // The time scale applies to the shared accumulator: 10 frames of one step at 0.5 are 5 steps
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_EQ(host.stepIndex(), 22u);
+    EXPECT_EQ(client.stepIndex(), 22u);
+    callApp(app, "time_scale", obj(R"({"scale": 1})"));
+
+    // world_status and get_profile have the host's numbers
+    const Json ws = toolJson(callApp(app, "world_status", Json::object{}));
+    EXPECT_EQ(ws["host"]["step"].number_value(), double(host.stepIndex())) << ws.dump();
+    EXPECT_TRUE(ws["host"]["hash"].is_string());
+    const Json gp = toolJson(callApp(app, "get_profile", obj(R"({"steps": 5})")));
+    EXPECT_EQ(gp["host"]["samples"].number_value(), 5) << gp.dump();
+
+    // The snapshot tools are refused
+    for (const char* tool : {"save_snapshot", "load_snapshot", "export_snapshot", "import_snapshot"})
+    {
+        Json args    = std::string(tool) == "export_snapshot" || std::string(tool) == "import_snapshot"
+                           ? obj(R"({"name": "a", "file": "f"})")
+                           : obj(R"({"name": "a"})");
+        const Json r = callApp(app, tool, args);
+        EXPECT_TRUE(isError(r)) << tool;
+        EXPECT_NE(errorText(r).find("--coop"), std::string::npos) << tool << ": " << errorText(r);
+    }
+    EXPECT_TRUE(isError(callApp(app, "list_snapshots", Json::object{})));
+
+    // run_scenario runs in its own worlds (the host's data), also the host + client variants; keep and load refused
+    Json r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "walks", "variants": ["Plain", "HostClient"]})")));
+    ASSERT_EQ(r["results"].array_items().size(), 2u) << r.dump();
+    EXPECT_TRUE(r["results"][0]["passed"].bool_value()) << r.dump();
+    EXPECT_TRUE(r["results"][1]["passed"].bool_value()) << r.dump();
+    EXPECT_EQ(r["results"][1]["variant"].string_value(), "HostClient");
+    const Json kept = callApp(app, "run_scenario", obj(R"({"name": "walks", "keep": true})"));
+    EXPECT_TRUE(isError(kept));
+    EXPECT_NE(errorText(kept).find("--coop"), std::string::npos) << errorText(kept);
+    // reload_data reloads the shared data and reconfigures through the host (the client resyncs)
+    const Json rd = callApp(app, "reload_data", Json::object{});
+    EXPECT_FALSE(isError(rd)) << errorText(rd);
+    EXPECT_EQ(host.loadCount(), 1u);
+}
+
+// Regression (local review, S16b): in co-op reset_profile left the host's step profile (reported by get_profile and
+// measure_performance) untouched; reload_data replaced the client's state through the host's load, but the client's
+// cursors and world_generation did not show a reload; a running measure_performance did not notice the host's load
+TEST(EngineAppCoop, ResetProfileAndReloadReachTheHost)
+{
+    EngineApp app(coopSetup(), coopOptions(2));
+    World& host = *app.hostWorld();
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_FALSE(isError(callApp(app, "pause", Json::object{})));
+
+    // reset_profile: the host's profile is empty afterwards
+    ASSERT_GT(host.profiler().report(0)["samples"].number_value(), 0);
+    EXPECT_FALSE(isError(callApp(app, "reset_profile", Json::object{})));
+    const Json gp = toolJson(callApp(app, "get_profile", Json::object{}));
+    EXPECT_EQ(gp["samples"].number_value(), 0) << gp.dump();
+    EXPECT_EQ(gp["host"]["samples"].number_value(), 0) << gp.dump();
+
+    // reload_data: a new world generation, a cursor from before answers reloaded
+    const Json before = toolJson(callApp(app, "changes_since", obj(R"({"cursor": "now"})")));
+    ASSERT_TRUE(before["cursor"].is_string()) << before.dump();
+    const double generation = toolJson(callApp(app, "world_status", Json::object{}))["world_generation"].number_value();
+    const Json rd           = toolJson(callApp(app, "reload_data", Json::object{}));
+    EXPECT_EQ(rd["world_generation"].number_value(), generation + 1) << rd.dump();
+    const Json after = toolJson(callApp(app, "changes_since", Json::object{{"cursor", before["cursor"]}}));
+    EXPECT_TRUE(after["reloaded"].bool_value()) << after.dump();
+    EXPECT_FALSE(isError(callApp(app, "resume", Json::object{})));
+
+    // A host load during a running measure_performance(steps) ends it with an error
+    int frames = 0;
+    Poller poller(app.mcp(),
+                  [&]()
+                  {
+                      app.runFrames(1, 1.0 / 60);
+                      if (++frames == 5)
+                      {
+                          ASSERT_TRUE(host.tryLoad(host.save()).ok());
+                      }
+                  });
+    const Json m = callTool(app.mcp(), "measure_performance", obj(R"({"steps": 60})"));
+    EXPECT_TRUE(isError(m)) << m.dump();
+    EXPECT_NE(errorText(m).find("loaded"), std::string::npos) << errorText(m);
+}
+
+// World::stepsForAdvance takes the same steps out of the accumulator as advance runs (time scale, the cap, the dropped
+// backlog, pause), without stepping
+TEST(EngineAppCoop, StepsForAdvanceMatchesAdvance)
+{
+    World a{WorldSetup()}, b{WorldSetup()};
+    a.setTimeScale(0.75);
+    b.setTimeScale(0.75);
+    uint64_t taken = 0;
+    for (double dt : {1.0 / 60, 1.0 / 30, 0.5, 0.0, 1.0 / 144, 0.2, std::numeric_limits<double>::infinity(), 1.0 / 60})
+    {
+        a.advance(dt);
+        const int n = b.stepsForAdvance(dt);
+        EXPECT_EQ(b.stepIndex(), taken) << "no step runs";
+        b.step(n);
+        taken += uint64_t(n);
+        EXPECT_EQ(a.stepIndex(), b.stepIndex()) << dt;
+        EXPECT_EQ(a.droppedSteps(), b.droppedSteps()) << dt;
+        EXPECT_DOUBLE_EQ(a.alpha(), b.alpha()) << dt;
+    }
+    b.setPaused(true);
+    EXPECT_EQ(b.stepsForAdvance(1.0), 0);
+}
+
+// Regression (local review, S16b): stepsForAdvance lacked advance's guards (inside a step, inside a step listener)
+#ifdef SAIGA_ASSERTS
+void stepsForAdvanceInSystem(World& w, double)
+{
+    w.stepsForAdvance(1.0);
+}
+
+TEST(EngineAppCoopDeathTest, StepsForAdvanceGuards)
+{
+    auto inListener = []()
+    {
+        World w{WorldSetup()};
+        w.addStepListener(
+            [&]()
+            {
+                w.stepsForAdvance(1.0);
+                return true;
+            });
+        w.step();
+    };
+    EXPECT_DEATH(inListener(), "stepsForAdvance inside a step listener");
+    auto inStep = []()
+    {
+        WorldSetup s;
+        s.systems = [](SystemList& l) { l.add(Phase::Gameplay, "advances", stepsForAdvanceInSystem); };
+        World w(s);
+        w.step();
+    };
+    EXPECT_DEATH(inStep(), "stepsForAdvance inside a step");
+}
+#endif
+
+// The leave path at world level (demo-independent): destroying the client world and then its transport end makes the
+// peer appear in the host's peersLeft(); destroyOwnedBy removes its entities and keeps the host's
+TEST(EngineCoopLeave, PeersLeftAndDestroyOwnedBy)
+{
+    auto transports = LoopbackTransport::createNetwork(2, LoopbackOptions());
+    WorldSetup hs;
+    hs.transport = transports[0].get();
+    World host(hs);
+    WorldSetup cs;
+    cs.transport = transports[1].get();
+    cs.role      = NetRole::Client;
+    cs.localPeer = 1;
+    auto client  = std::make_unique<World>(cs);
+    host.step();
+    client->step();
+    ASSERT_EQ(host.peersJoined(), std::vector<uint8_t>{1});
+    // The peer's player with a child, and a host-owned vehicle
+    const Entity player = host.create();
+    Player pl;
+    pl.peer = 1;
+    host.add<Player>(player, pl);
+    host.setOwner(player, 1);
+    const Entity child = host.create();
+    host.add<Parent>(child, Parent{player});
+    const Entity vehicle = host.create();
+    for (int i = 0; i < 4; ++i)
+    {
+        host.step();
+        client->step();
+    }
+    client.reset();
+    transports[1].reset();
+    bool left = false;
+    for (int i = 0; i < 4 && !left; ++i)
+    {
+        host.step();
+        left = host.peersLeft() == std::vector<uint8_t>{1};
+    }
+    EXPECT_TRUE(left);
+    EXPECT_EQ(destroyOwnedBy(host, 1), 1u);
+    EXPECT_FALSE(host.alive(player));
+    EXPECT_FALSE(host.alive(child));
+    EXPECT_TRUE(host.alive(vehicle));
+    EXPECT_EQ(destroyOwnedBy(host, 1), 0u);
+}
+
+// The app's leave wiring (local review): in --coop the client lives as long as the host, so a leave happens only when
+// the link breaks; a bad fragment from the client (the loopback test hook) disconnects both ends, and the host's step
+// listener calls EngineAppSetup::onPeerLeft once (here the leave policy destroys the peer's entities)
+TEST(EngineAppCoop, OnPeerLeftAfterABrokenLink)
+{
+    EngineAppSetup s = coopSetup();
+    s.onPeerLeft     = [](EngineApp&, World& host, uint8_t peer)
+    {
+        g_coop.left.push_back(peer);
+        destroyOwnedBy(host, peer);
+    };
+    EngineApp app(s, coopOptions(2));
+    World& host = *app.hostWorld();
+    app.runFrames(10, 1.0 / 60);
+    ASSERT_TRUE(app.localPlayer().valid());
+    Entity onHost;
+    host.viewAll<const Player>().each(
+        [&](Entity e, const Player& p)
+        {
+            if (p.peer == 1) onHost = e;
+        });
+    ASSERT_TRUE(onHost.valid());
+    EXPECT_TRUE(g_coop.left.empty());
+    std::vector<uint8_t> bad(kFragmentHeader + 4, 0);
+    bad[4] = 9;  // index 9 of count 0
+    static_cast<LoopbackTransport*>(host.transport())->injectFragment(1, 0, Channel::Control, bad);
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_EQ(g_coop.left, std::vector<uint8_t>{1});
+    EXPECT_FALSE(host.alive(onHost));
+    EXPECT_TRUE(host.connectedPeers().empty());
 }

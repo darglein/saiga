@@ -1125,6 +1125,36 @@ void World::advance(double frameDt)
     }
 }
 
+int World::stepsForAdvance(double frameDt)
+{
+    // The guards of advance (local review: the caller steps right after it)
+    SAIGA_ASSERT(!inStep(), "World::stepsForAdvance inside a step");
+    if (dispatchingStepListeners)
+    {
+        SAIGA_ASSERT(false, "World::stepsForAdvance inside a step listener (not supported)");
+        throw std::logic_error("World::stepsForAdvance inside a step listener (not supported)");
+    }
+    if (paused) return 0;
+    // As advance: NaN is ignored, +inf is a long frame
+    if (std::isnan(frameDt)) frameDt = 0;
+    if (std::isinf(frameDt)) frameDt = frameDt > 0 ? stepDt * (config.maxStepsPerAdvance + 1) : 0;
+    accumulator += std::max(frameDt, 0.0) * scale;
+    int n = 0;
+    while (accumulator >= stepDt && n < config.maxStepsPerAdvance)
+    {
+        accumulator -= stepDt;
+        n++;
+    }
+    if (accumulator >= stepDt)
+    {
+        const double kept      = 0.999 * stepDt;
+        const double discarded = std::floor((accumulator - kept) / stepDt);
+        dropped += discarded >= 1e18 ? uint64_t(1e18) : uint64_t(discarded);
+        accumulator = kept;
+    }
+    return n;
+}
+
 void World::setTimeScale(double s)
 {
     SAIGA_ASSERT(std::isfinite(s) && s >= 0, "World::setTimeScale: the scale must be finite and not negative");
