@@ -248,6 +248,17 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
 - **The `logs` tool** leaves out the category `mcp` unless `category: "mcp"` is asked for. Otherwise an agent reading
   its logs reads its own calls. This is an added default, written into the tool's description.
 
+### 4.2 The `set_ui_tab` app tool (`engine/app/AppTools.cpp`)
+
+An agent can switch the tabs, e.g. to take a `screenshot gui=true` of the Performance tab or to show the user something:
+
+| Tool | Contract |
+|---|---|
+| `set_ui_tab(tab?)` | Selects a tab by name (`game`, `performance`, `engine`, `console`, or a game tab's name, case-insensitive), the same as pressing its key. Without `tab` it only reads. Returns the selected tab, the list of tabs with their keys, and whether the UI is visible (G) and enabled. An unknown name is an error that lists the names; with `debugUi = false` (or no ImGui) it is an error. Changes only the UI (not the world), and the change is persisted like a key press. It does not toggle G: a hidden UI stays hidden (the answer says so). |
+
+`app_status` adds `ui_tab` (the selected tab, or null when the UI is off). The tool has a `handleMessage` test
+(R-MCP-1): select by name, read only, unknown name, game tab, UI off.
+
 ### 5. Games and the world prototype
 
 - `GameRenderHooks::gui` keeps its signature and runs every frame in every tab (the world game toggles its walk mode
@@ -320,6 +331,8 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
   - `McpCallLog.LinesAndThrottling` (the class alone, a test server): an answered call gives one `mcp` line with tool, arguments, result and duration; a
     `(console)` mark for local calls; polling tools are throttled to one line per 2 s with `(+N calls)` (injected
     clock); a pending count is flushed after 2 s; `mcp` lines are not echoed.
+- `test_engine_app.cpp` (extended, no device): `EngineAppNoRender.SetUiTab` (§4.2; the UI exists without a device, so
+  the selection works and is read back; with `debugUi = false` an error).
 - `test_core_mcp_server.cpp` (extended):
   - `McpServer.CallLocal`: runs in `poll()`; unknown tool; a timeout enforced by `poll()`; a deferred answer from
     another thread is delivered by `poll()`; `stop()` answers pending local calls without `start()`.
@@ -339,7 +352,8 @@ and keeps the view buffer, all without ImGui. `DebugConsole::draw()` is the ImGu
 
 - The four tabs and the top bar work in racing, flight, platformer and world. F2–F4 share the one docked panel, F1 shows the
   game without it, and no engine window floats.
-- MCP calls from an agent (through the `saiga-world` server) and from the console appear in the console. Polling tools
+- MCP calls from an agent (through the `saiga-world` server) and from the console appear in the console, and
+  `set_ui_tab` switches the tabs. Polling tools
   are throttled.
 - `logs` leaves out `mcp` lines by default.
 - `docs/engine_design.md` §17.1 and §16.2 describe the debug UI, the console and the call log, and its stage table has
@@ -378,6 +392,7 @@ the game runs.
   - `src/saiga/core/util/mcp/McpServer.{h,cpp}`: `callLocal`, the observer, the record queue, `toolNames`/`toolInfo`.
   - `src/saiga/engine/core/{LogRing,Log}.{h,cpp}`: the time, the `mcp` echo.
   - `src/saiga/engine/api/WorldApi.cpp`, `src/saiga/engine/tools/WorldTools.cpp`: `logs`.
+  - `src/saiga/engine/app/AppTools.{h,cpp}`: `set_ui_tab`, `app_status.ui_tab`.
   - `src/saiga/vulkan/world/WorldRenderer.{h,cpp}`, `WorldStatistics.cpp`: no windows.
   - `samples/games/{racing,flight,platformer,world}/*`: the GUI without windows; `showStatistics` removed.
   - The tests above.
