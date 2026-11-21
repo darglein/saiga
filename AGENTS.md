@@ -312,6 +312,17 @@ ctest -R test_core_ini --output-on-failure             # one test
   the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
   `tests/test_engine_terrain_render.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
   (the goldens now come from CI's lavapipe). See `docs/engine_design.md` §17.6.
+- **Content hashes** (S23a, `docs/engine_design.md` §12.1): `ContentHash.CommittedHashesReproduce`
+  (`test_engine_content`) regenerates the engine test generator's content (`tests/content_test_generator.h`, the setup
+  of `tests/content_test_setup.h`) and compares it with `data/tests/engine/content_hashes.json` (plan hashes, chunk
+  sections, a digest, the toolkit); every CI compiler must reproduce it (the Clang job with `SAIGA_CONTENT_UBSAN=ON`).
+  A difference is a determinism bug, not a reason to update. Only for a new generator version (a new entry) or a
+  deliberate format change: `SAIGA_UPDATE_CONTENT_HASHES=1 ./build/tests/test_engine_content
+  --gtest_filter='ContentHash.*'` rewrites the file in the source tree and fails the run; commit it in a dedicated
+  commit whose message gives the reason. An entry of a released version is never regenerated. Generator code (the
+  files under `src/saiga/engine/content/gen/`, the interface headers, `tests/content_test_generator.h`, games'
+  `content/` directories) is integer only: `ContentLint.*` refuses floating point, libm, `long`, `size_t`, unordered
+  containers, sequential RNGs and the template header there.
 - **Benchmarks** (local, GPU and display; `docs/engine_design.md` §17.7). Baselines are measured in a separate release
   build without asserts (§17.10) and without `-march=native` (§17.7):
   ```shell

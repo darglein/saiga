@@ -1,0 +1,224 @@
+{
+  "format": 1,
+  "setups": [
+    {
+      "chunks": {
+        "0:0:0": {
+          "grass": "0x4f5937440dd3e620",
+          "heights": "0xf36450c4044170a3",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xd8cb6e4e6fc3dcac",
+          "total": "0xb4790e53e63c4a8e"
+        },
+        "0:117:3": {
+          "grass": "0xa71a63373739fc7a",
+          "heights": "0x16ade3074a8a45d9",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x6c9032991d9cebbd",
+          "total": "0x750cf24e18f23751"
+        },
+        "0:127:127": {
+          "grass": "0xeafc8f4e1d286eb1",
+          "heights": "0xa9ce2abedfb4f4d3",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x4e9fc0d095e35e18",
+          "total": "0x038d34332a225cd6"
+        },
+        "0:4:5": {
+          "grass": "0x116977f3e70c5214",
+          "heights": "0x5261fc111f43690a",
+          "stamps": "0xad4f01d5d957599c",
+          "statics": "0xc15d7313e58e3145",
+          "tier1": "0x7b7ebb8c94a3a9e6",
+          "total": "0x7fc497cba011921f"
+        },
+        "0:5:5": {
+          "grass": "0x9a70dcc9969864be",
+          "heights": "0x615b494a9cba5e94",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x1c57b6125c974d10",
+          "total": "0x9f8b29864084870a"
+        },
+        "0:6:6": {
+          "grass": "0x1f831d225b7a8d1f",
+          "heights": "0xe7bbbec147e73821",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0xc90aeea3490a8e6f",
+          "tier1": "0xc66c229c53e534b6",
+          "total": "0xca715bbea16ff16e"
+        },
+        "1:0:0": {
+          "grass": "0x68e7cce6f7bf0f63",
+          "heights": "0x694778210ecdd9c6",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xf79cfacf22618a1c",
+          "total": "0x82386a76ac601dcd"
+        },
+        "1:15:15": {
+          "grass": "0x321aff043744bbf6",
+          "heights": "0xe7063a545e317304",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xda74ff37d15965da",
+          "total": "0xbd033aabf4e62b61"
+        },
+        "2:8:8": {
+          "grass": "0x5985eff0d1b8fb42",
+          "heights": "0x99fd4c60759ede1c",
+          "stamps": "0x127a3702a84234a5",
+          "statics": "0xec1133e95e39eb10",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0x7213313474092946"
+        }
+      },
+      "combined_plan_hash": "0xa5f98ccd56cf5043",
+      "digest": "0x2420ea62238f9304",
+      "digest_block": [0, 0, 8, 8],
+      "generators": {
+        "test_dungeon": {
+          "placement_version": 1,
+          "plan_version": 1,
+          "slots": []
+        },
+        "test_terrain": {
+          "placement_version": 1,
+          "plan_version": 1,
+          "slots": ["test_tree", "test_rock"]
+        }
+      },
+      "name": "test",
+      "plans": {
+        "0": {
+          "generator": "test_terrain",
+          "hash": "0x6a48ff903d1a1663"
+        },
+        "1": {
+          "generator": "test_terrain",
+          "hash": "0x20e25c205b20da14"
+        },
+        "2": {
+          "generator": "test_dungeon",
+          "hash": "0x0b61a11673919e3b"
+        }
+      },
+      "seed": "12345"
+    },
+    {
+      "chunks": {
+        "0:0:0": {
+          "grass": "0x4f5937440dd3e620",
+          "heights": "0xf36450c4044170a3",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x8a6559f15f916b38",
+          "total": "0xf4bb011cae29f5fc"
+        },
+        "0:117:3": {
+          "grass": "0x4938470d09c462fa",
+          "heights": "0x16ade3074a8a45d9",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xeaad5ad96200c35d",
+          "total": "0x8e78a3ff2323b80f"
+        },
+        "0:127:127": {
+          "grass": "0xeafc8f4e1d286eb1",
+          "heights": "0xa9ce2abedfb4f4d3",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xac865408e57be445",
+          "total": "0x92f0904e1f976425"
+        },
+        "0:4:5": {
+          "grass": "0x10ce2ddce3492280",
+          "heights": "0x5261fc111f43690a",
+          "stamps": "0xad4f01d5d957599c",
+          "statics": "0xc15d7313e58e3145",
+          "tier1": "0xd788ee6fba61b028",
+          "total": "0x87d6a4e171ed5d33"
+        },
+        "0:5:5": {
+          "grass": "0xbff518857c00209c",
+          "heights": "0x615b494a9cba5e94",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x1e2c6c457bc85e99",
+          "total": "0xd1af9cf758dad095"
+        },
+        "0:6:6": {
+          "grass": "0x732abf6d4cf50167",
+          "heights": "0xe7bbbec147e73821",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0xc90aeea3490a8e6f",
+          "tier1": "0xf24b700822bb866b",
+          "total": "0x468dd7b5b604d53c"
+        },
+        "1:0:0": {
+          "grass": "0x68e7cce6f7bf0f63",
+          "heights": "0x694778210ecdd9c6",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x8836afad85fea254",
+          "total": "0x7af6425195af0ee2"
+        },
+        "1:15:15": {
+          "grass": "0x052050df8ae946e5",
+          "heights": "0xe7063a545e317304",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xdf2b814c0e740b2f",
+          "total": "0x5958f802e80bf02f"
+        },
+        "2:8:8": {
+          "grass": "0x5985eff0d1b8fb42",
+          "heights": "0x99fd4c60759ede1c",
+          "stamps": "0x127a3702a84234a5",
+          "statics": "0xec1133e95e39eb10",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0x7213313474092946"
+        }
+      },
+      "combined_plan_hash": "0xa5f98ccd56cf5043",
+      "digest": "0x858e6f12061f0923",
+      "digest_block": [0, 0, 8, 8],
+      "generators": {
+        "test_dungeon": {
+          "placement_version": 1,
+          "plan_version": 1,
+          "slots": []
+        },
+        "test_terrain": {
+          "placement_version": 2,
+          "plan_version": 1,
+          "slots": ["test_tree", "test_rock"]
+        }
+      },
+      "name": "test",
+      "plans": {
+        "0": {
+          "generator": "test_terrain",
+          "hash": "0x6a48ff903d1a1663"
+        },
+        "1": {
+          "generator": "test_terrain",
+          "hash": "0x20e25c205b20da14"
+        },
+        "2": {
+          "generator": "test_dungeon",
+          "hash": "0x0b61a11673919e3b"
+        }
+      },
+      "seed": "12345"
+    }
+  ],
+  "toolkit": {
+    "noise_grid": "0xb21ef68afed08ced",
+    "smooth_q16": "0xa53f5e5aa2312aaa",
+    "trig_table": "0xdac2e83eb117d3d8"
+  }
+}

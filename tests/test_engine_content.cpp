@@ -9,6 +9,7 @@
 
 #include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/content/ContentConvert.h"
+#include "saiga/engine/content/ContentHashFile.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Prefab.h"
@@ -23,6 +24,7 @@
 #include "saiga/engine/core/StreamingPool.h"
 #include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/SpaceTemplate.h"
 #include "saiga/engine/world/World.h"
 
@@ -32,6 +34,7 @@
 #include <chrono>
 #include <clocale>
 #include <cmath>
+#include <cstdlib>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -41,6 +44,7 @@
 #include <thread>
 
 #include "content_lint.h"
+#include "content_test_setup.h"
 #include <condition_variable>
 
 using namespace Saiga;
@@ -1275,4 +1279,240 @@ TEST(ContentCacheDeathTest, SecondIdentityStops)
     cache.registerIdentity({"g", 1, 7});
     cache.registerIdentity({"g", 1, 7});
     EXPECT_DEATH(cache.registerIdentity({"g", 2, 7}), "another slot table or version");
+}
+
+// ---- The committed content hashes and the content test setup (S23a step 8) ----------------------------------------
+
+namespace
+{
+std::string contentHashFile()
+{
+    return std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/content_hashes.json";
+}
+
+// A copy of the test prefabs in a temporary directory (a test overwrites one of them)
+struct PrefabCopy : TempPrefabs
+{
+    PrefabCopy()
+    {
+        for (const auto& e : std::filesystem::directory_iterator(kTestData + "/prefabs"))
+            std::filesystem::copy_file(e.path(), dir / "prefabs" / e.path().filename());
+    }
+};
+}  // namespace
+
+// The S23a acceptance test: the committed hashes of the engine test generator reproduce (GCC, Clang with UBSan, MSVC
+// in CI). SAIGA_UPDATE_CONTENT_HASHES=1 rewrites the file in the source tree and fails the run
+TEST(ContentHash, CommittedHashesReproduce)
+{
+    const std::string root = SAIGA_PROJECT_SOURCE_DIR;
+    ASSERT_FALSE(root.empty()) << "the committed hashes need SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON";
+    const bool update              = std::getenv("SAIGA_UPDATE_CONTENT_HASHES") != nullptr;
+    const ContentHashReport report = checkContentHashes(ContentTest::contentTestSetup(2), contentHashFile(), update);
+    std::cout << report.summary() << std::endl;
+    EXPECT_TRUE(report.ok) << report.summary();
+    EXPECT_EQ(report.entries, 2);
+}
+
+// Plan v1 with placement v1 and v2: heights, stamps and statics equal; tier1 and grass differ; both entries are
+// committed
+TEST(ContentHash, PlacementVersionsCoexist)
+{
+    GenerationPins pins;
+    pins.pinned["test_terrain"] = 1;
+    ContentCache cache;
+    const GenerationPlans plans = GenerationPipeline::build(ContentTest::contentTestSetup(2), pins, cache);
+    ASSERT_TRUE(plans.ok()) << plans.error;
+    GenerationPipeline pipe(plans, std::make_shared<ContentCache>());
+    int grassDiffers = 0;
+    for (const auto& [x, z] : {std::pair<int, int>{4, 5}, {0, 0}, {6, 6}})
+    {
+        ChunkId c;
+        c.x           = x;
+        c.z           = z;
+        const auto p1 = pipe.chunkPlacement(c, 1), p2 = pipe.chunkPlacement(c, 2);
+        EXPECT_EQ(p1->hashes.heights, p2->hashes.heights);
+        EXPECT_EQ(p1->hashes.stamps, p2->hashes.stamps);
+        EXPECT_EQ(p1->hashes.statics, p2->hashes.statics);
+        EXPECT_NE(p1->hashes.tier1, p2->hashes.tier1);
+        EXPECT_NE(p1->hashes.total, p2->hashes.total);
+        // The grass threshold differs (chunks without steep cells may have equal masks)
+        grassDiffers += p1->hashes.grass != p2->hashes.grass ? 1 : 0;
+    }
+    EXPECT_GE(grassDiffers, 1);
+    json11::Json file;
+    std::string error;
+    ASSERT_TRUE(readJsonFile(contentHashFile(), file, error)) << error;
+    std::set<double> placements;
+    for (const auto& e : file["setups"].array_items())
+        placements.insert(e["generators"]["test_terrain"]["placement_version"].number_value());
+    EXPECT_EQ(placements, (std::set<double>{1, 2}));
+}
+
+TEST(ContentHashFile, ParseU64)
+{
+    uint64_t v = 0;
+    EXPECT_TRUE(parseU64("12345", false, v));
+    EXPECT_EQ(v, 12345u);
+    EXPECT_TRUE(parseU64("18446744073709551615", false, v));  // above 2^63
+    EXPECT_EQ(v, std::numeric_limits<uint64_t>::max());
+    EXPECT_TRUE(parseU64("0xFFfe0000000000a1", true, v));
+    EXPECT_EQ(v, 0xFFFE0000000000A1ull);
+    EXPECT_FALSE(parseU64("12345x", false, v));
+    EXPECT_FALSE(parseU64("0x12g", true, v));
+    EXPECT_FALSE(parseU64("123", true, v));  // no 0x prefix
+    EXPECT_FALSE(parseU64("0x", true, v));
+    EXPECT_FALSE(parseU64("", false, v));
+    EXPECT_FALSE(parseU64("-1", false, v));
+    EXPECT_FALSE(parseU64("18446744073709551616", false, v));
+    EXPECT_EQ(hexU64(0xA1), "0x00000000000000a1");
+}
+
+// The check without a World (phase A only): a missing file is an error naming the path (also with update); a skeleton
+// copy is filled by an update run (which fails) and then passes; a changed value is reported with entry, chunk and
+// section
+TEST(ContentHashFile, UpdateAndMismatch)
+{
+    const WorldSetup setup = ContentTest::contentTestSetup(2);
+    TempPrefabs tmp;
+    const std::string missing = (tmp.dir / "nope.json").string();
+    for (bool update : {false, true})
+    {
+        const ContentHashReport r = checkContentHashes(setup, missing, update);
+        EXPECT_FALSE(r.ok);
+        ASSERT_FALSE(r.problems.empty());
+        EXPECT_NE(r.problems[0].find(missing), std::string::npos);
+        EXPECT_FALSE(std::filesystem::exists(missing));
+    }
+    // A skeleton of one entry with two chunks and a small digest block
+    const std::string file = (tmp.dir / "hashes.json").string();
+    std::ofstream(file) << R"({"format": 1, "setups": [{"name": "small", "seed": "12345",
+        "generators": {"test_terrain": {"plan_version": 1, "placement_version": 2, "slots": ["test_tree", "test_rock"]},
+                       "test_dungeon": {"plan_version": 1, "placement_version": 1, "slots": []}},
+        "plans": {"0": {"generator": "test_terrain", "hash": "0x0"}, "1": {"generator": "test_terrain", "hash": "0x0"},
+                  "2": {"generator": "test_dungeon", "hash": "0x0"}},
+        "combined_plan_hash": "0x0", "digest_block": [0, 0, 1, 1],
+        "chunks": {"0:4:5": {"total": "0x0", "heights": "0x0", "tier1": "0x0", "grass": "0x0", "stamps": "0x0",
+                             "statics": "0x0"},
+                   "2:8:8": {"total": "0x0", "heights": "0x0", "tier1": "0x0", "grass": "0x0", "stamps": "0x0",
+                             "statics": "0x0"}},
+        "digest": "0x0"}]})";
+    const ContentHashReport first = checkContentHashes(setup, file, false);
+    EXPECT_FALSE(first.ok);
+    const ContentHashReport updated = checkContentHashes(setup, file, true);
+    EXPECT_FALSE(updated.ok);
+    EXPECT_TRUE(updated.updated);
+    const ContentHashReport second = checkContentHashes(setup, file, false);
+    EXPECT_TRUE(second.ok) << second.summary();
+    std::cout << "small hash file: " << second.chunks << " chunks in " << second.seconds << " s" << std::endl;
+
+    // A changed tier1 value of chunk 0:4:5
+    json11::Json j;
+    std::string error;
+    ASSERT_TRUE(readJsonFile(file, j, error)) << error;
+    std::string text        = j.dump();
+    const std::string tier1 = j["setups"][0]["chunks"]["0:4:5"]["tier1"].string_value();
+    text.replace(text.find(tier1), tier1.size(), "0x0000000000000001");
+    std::ofstream(file, std::ios::trunc) << text;
+    const ContentHashReport changed = checkContentHashes(setup, file, false);
+    EXPECT_FALSE(changed.ok);
+    ASSERT_EQ(changed.problems.size(), 1u) << changed.summary();
+    EXPECT_NE(
+        changed.problems[0].find("setups[0] (small).chunks.0:4:5 tier1: expected 0x0000000000000001, actual " + tier1),
+        std::string::npos)
+        << changed.problems[0];
+}
+
+// The test setup in a World: the space list (0 overworld, 1 test_valley listed, 2 test_dungeon of site 0), terrain per
+// space, generation state, site 0's baseHeight is the natural height at its origin and its patch composes
+TEST(Pipeline, ContentTestSetupWorld)
+{
+    World w(ContentTest::contentTestSetup(2));
+    ASSERT_EQ(w.spaceCount(), 3u);
+    EXPECT_EQ(w.spaceTemplate(0).name, "overworld");
+    EXPECT_EQ(w.spaceTemplate(1).name, "test_valley");
+    EXPECT_EQ(w.spaceTemplate(2).name, "test_dungeon");
+    EXPECT_TRUE(w.spaceHasTerrain(0));
+    EXPECT_TRUE(w.spaceHasTerrain(1));
+    EXPECT_FALSE(w.spaceHasTerrain(2));
+    EXPECT_TRUE(w.generation().nonLegacy());
+    EXPECT_EQ(w.generationSeed(), 12345u);
+    const SpaceGeneration& o = w.generation().space(0);
+    EXPECT_EQ(w.generation().space(2).instance.siteKey, 0u);
+    EXPECT_EQ(w.spaceSeed(2), hashCombine(hashCombine(12345, fnv1a64("site")), 0));
+    const Site& ruin = o.plan->sites[0];
+    EXPECT_EQ(ruin.prefab, "test_ruin");
+    EXPECT_EQ(ruin.baseHeight, o.generator->height(o.pinned, *o.plan, ruin.x, ruin.z));
+    // The patch centre (full weight, 2048 above the base): terrainHeight is exact
+    EXPECT_EQ(w.terrainHeight(0, double(ruin.x), double(ruin.z)), double(ruin.baseHeight + 2048) / 1024.0);
+    // Natural terrain outside the footprint
+    const int64_t fx = ruin.x + 40, fz = ruin.z;
+    EXPECT_EQ(w.terrain().sample(0, fx / 2, fz / 2), o.generator->height(o.pinned, *o.plan, fx, fz));
+    std::cout << "test setup: " << o.plan->sites.size() << " overworld sites, "
+              << w.generation().space(1).plan->sites.size() << " valley sites" << std::endl;
+    EXPECT_GE(o.plan->sites.size(), 2u);
+    EXPECT_LE(o.plan->sites.size(), 66u);
+    // The dungeon's site: stamps from the plan (no chunk generation)
+    ChunkId d;
+    d.space = 2;
+    d.x     = 8;
+    d.z     = 8;
+    EXPECT_EQ(w.generation().stampList(d).size(), 2u);
+    EXPECT_EQ(w.generation().cache().generations(), 0u);
+    EXPECT_NE(w.contentHash(d), 0u);
+}
+
+// Phase B: the prefab entities against the World's classes, components and meshes (fatal in every build, naming
+// prefab, entity and field)
+TEST(PrefabDeathTest, EntitiesCheckedAfterRenderAssets)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    auto withShrine = [](const std::string& entity)
+    {
+        PrefabCopy copy;
+        copy.write("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8], "entities": [)" + entity + "]}");
+        WorldSetup s    = ContentTest::contentTestSetup(2);
+        s.dataDirectory = copy.dir.string();
+        World w(s);
+    };
+    // Valid: a registered mesh (renderAssets runs before phase B)
+    withShrine(R"({"class": "TestMarker", "components": {"RenderInstance": {"mesh": "test/pillar"}}})");
+    EXPECT_DEATH(withShrine(R"({"class": "Nope"})"), "prefab 'test_shrine' v1 .*entity 0 \\('Nope'\\): unknown class");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"Nope": {}}})"), "unknown component \"Nope\"");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"Health": {"hq": 1}}})"), "Health: .*hq");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"Transform": {}}})"), "Transform");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"Parent": {}}})"),
+                 "Parent cannot be set by a prefab");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"NetOwner": {}}})"),
+                 "NetOwner cannot be set by a prefab");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"SpaceLink": {}}})"),
+                 "SpaceLink cannot be set by a prefab");
+    EXPECT_DEATH(withShrine(R"({"class": "TestMarker", "components": {"RenderInstance": {"mesh": "test/none"}}})"),
+                 "the mesh \"test/none\" is not registered");
+}
+
+TEST(PrefabDeathTest, PlanErrorsAreFatal)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    auto with = [](const std::string& name, const std::string& json)
+    {
+        PrefabCopy copy;
+        copy.write(name, json);
+        WorldSetup s    = ContentTest::contentTestSetup(2);
+        s.dataDirectory = copy.dir.string();
+        World w(s);
+    };
+    // A terrain_patch in a prefab of an enclosed-space site
+    EXPECT_DEATH(with("test_dungeon_rooms", R"({"format": 1, "footprint": [-8, -8, 8, 8],
+        "terrain_patch": {"origin": [0, 0], "size": [1, 1], "heights": [1], "weights": [256]}})"),
+                 "a terrain_patch in a space without terrain");
+    // Nested spaces: an instance-space prefab with spaces
+    EXPECT_DEATH(with("test_dungeon_rooms", R"({"format": 1, "footprint": [-8, -8, 8, 8],
+        "spaces": [{"template": "test_dungeon"}]})"),
+                 "no nested instances");
+    EXPECT_DEATH(with("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8], "pieces": []})"),
+                 "pieces: placed pieces in prefabs come with S30");
+    EXPECT_DEATH(with("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8], "entities": [{"class": "TestMarker",
+        "position": [0.1, 0, 0]}]})"),
+                 "test_shrine.json: entities\\[0\\].position\\[0\\]: not an exact");
 }
