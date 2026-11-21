@@ -8,6 +8,7 @@
 
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/vulkan/world/PrototypeScene.h"
+#include "saiga/vulkan/world/WorldCommon.h"
 
 #include "games/common/ChaseCamera.h"
 #include "games/common/CosmeticDynamics.h"

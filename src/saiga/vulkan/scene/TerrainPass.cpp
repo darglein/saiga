@@ -342,8 +342,8 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     u.skyColor           = vec4(0.2f, 0.2f, 0.2f, 1);
     u.lod                = vec4(float(range0), settings.morphStart, 0, 0);
     u.grass              = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(samples));
-    u.grassPhases      = vec4(PrototypeWorld::windPhase(time, 1.7), PrototypeWorld::windPhase(time, 1.3), settings.wind,
-                              settings.alphaCutoff);
+    u.grassPhases =
+        vec4(prototypeWindPhase(time, 1.7), prototypeWindPhase(time, 1.3), settings.wind, settings.alphaCutoff);
     const float aspect = float(width) / float(std::max(height, 1));
     u.viewport         = vec4(aspect, 1, 1.0f / aspect, 1);
     std::memcpy(frames[frameIndex].uniforms.getMappedPointer(), &u, sizeof(u));

@@ -93,7 +93,7 @@ struct MeshBuilder
         std::vector<vec3> pts;
         for (int k = 0; k < sides; ++k)
         {
-            float a = phase + 2 * pi * k / sides + rnd(-0.15f, 0.15f);
+            float a  = phase + 2 * pi * k / sides + rnd(-0.15f, 0.15f);
             float dy = rnd(-0.015f, 0.015f);  // one rnd() per statement (see above)
             float dr = rnd(0.88f, 1.08f);
             pts.push_back(base + ring(a) * (r * dr) + Y() * dy);

@@ -39,7 +39,7 @@ struct SceneCamera
 
 // The lighting block of the instance draws (std140, shader/vulkan/scene/scene_lighting.glsl; S19a, a RenderScene block
 // until S36's lighting): the defaults are S18's fixed light (sun normalize(0.4, 1, 0.7) with 0.8, ambient 0.35, no
-// hemisphere term, fog off); RenderScene::setPrototypeTerrain takes the prototype's sun, ambient, fog and wind
+// hemisphere term, fog off); RenderScene::setPrototypeEnvironment takes the prototype's sun, ambient, fog and wind
 struct SceneLighting
 {
     // xyz: towards the sun (normalized), w: intensity
@@ -103,8 +103,8 @@ class SAIGA_VULKAN_API SceneCulling
     // prepass: the opaque classes were drawn in the pre-pass (EQUAL, no depth write); returns the number of indirect
     // draw calls
     uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass);
-    // The foliage texture of the PrototypeFoliage class (RenderScene::setPrototypeTerrain; nullptr: none), written into
-    // the frame slots' sets from the next recordTransfer
+    // The foliage texture of the PrototypeFoliage class (RenderScene::setPrototypeEnvironment; nullptr: none), written
+    // into the frame slots' sets from the next recordTransfer
     void setFoliageTexture(Texture2DArray* texture) { foliageTexture = texture; }
 
     // The statistics the scan wrote into the frame slot's readback (instancesPerLod, nonEmptyBuckets, the tracked

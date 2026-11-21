@@ -16,6 +16,7 @@
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/world/PrototypeScene.h"
 #include "saiga/vulkan/world/PrototypeTerrain.h"
+#include "saiga/vulkan/world/WorldCommon.h"
 
 #include "gtest/gtest.h"
 

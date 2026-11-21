@@ -6,7 +6,7 @@
 
 // The lighting block of RenderScene's instance draws (S19a, Saiga::Vulkan::SceneLighting in SceneCulling.h; replaced
 // by S36's lighting): S18's fixed light by default, the prototype's sun, ambient, fog and wind with
-// RenderScene::setPrototypeTerrain. Set 1 of the draw pipelines (binding 1: the foliage texture of the PrototypeFoliage
+// RenderScene::setPrototypeEnvironment. Set 1 of the draw pipelines (binding 1: the foliage texture of the PrototypeFoliage
 // class).
 layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
 {

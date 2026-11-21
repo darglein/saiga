@@ -6,8 +6,9 @@
 
 #pragma once
 
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/json11.hpp"
-#include "saiga/vulkan/world/HeightField.h"
+#include "saiga/export.h"
 
 #include <array>
 #include <functional>
@@ -89,7 +90,6 @@ class SAIGA_VULKAN_API WorldBenchmark
      *   above the ground below the camera, looking at the center (on the ground);
      * - forest: 2 m above max(terrain, water level), from center - 300 m to center + 300 m along x, looking along +x.
      */
-    static Pose pose(const std::string& name, const HeightField& hf, int measuredFrame);
     // S20: the same paths over a ground callback (terrain or water, whichever is higher; the centre (4096, 4096) of the
     // prototype's 8 km area until S27)
     static Pose pose(const std::string& name, const Ground& ground, int measuredFrame);
@@ -101,8 +101,6 @@ class SAIGA_VULKAN_API WorldBenchmark
     // chain recreation, another program). A run with a stalled frame is not comparable.
     static int countStalls(const std::vector<double>& intervalsMs);
 
-    // The height field must outlive the benchmark
-    WorldBenchmark(const std::string& name, const HeightField& heightField, const std::string& gpuName);
     // S20: over a ground callback
     WorldBenchmark(const std::string& name, Ground ground, const std::string& gpuName);
     WorldBenchmark(const WorldBenchmark&)            = delete;
@@ -153,7 +151,6 @@ class SAIGA_VULKAN_API WorldBenchmark
 
    private:
     std::string name, gpuName;
-    const HeightField* hf = nullptr;
     Ground groundFn;
     json11::Json terrainInfo;
     std::vector<double> streamMs;

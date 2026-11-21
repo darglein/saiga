@@ -118,19 +118,6 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
 {
     SAIGA_ASSERT(context.getCamera && context.setCamera);
     WorldMcpContext c = context;
-    if (c.world)
-    {
-        // The S19a path: the fields from the WorldRenderer and its height field
-        WorldRenderer* w = c.world;
-        c.settings       = &w->settings;
-        c.stats          = [w]() { return w->statsJson(); };
-        c.ground         = [w](double x, double z) { return double(w->heightField().height(float(x), float(z))); };
-        c.worldSize      = w->heightField().worldSize();
-        c.seaLevel       = w->heightField().waterLevel();
-        c.highestPoint   = w->heightField().highestPoint().cast<double>();
-        c.heightRange    = [w]()
-        { return std::make_pair(double(w->heightField().minHeight()), double(w->heightField().maxHeight())); };
-    }
     SAIGA_ASSERT(c.settings && c.stats && c.ground && c.heightRange && c.worldSize > 0,
                  "registerWorldMcpTools: the context's settings, stats, ground, heightRange and worldSize");
 

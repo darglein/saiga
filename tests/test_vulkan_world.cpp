@@ -9,14 +9,13 @@
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/HeadlessWindow.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
-#include "saiga/vulkan/world/HeightField.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
 #include "saiga/vulkan/world/PrototypeScene.h"
 #include "saiga/vulkan/world/PrototypeTerrain.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 #include "saiga/vulkan/world/WorldCommon.h"
 #include "saiga/vulkan/world/WorldMcp.h"
-#include "saiga/vulkan/world/WorldRenderer.h"
+#include "saiga/vulkan/world/WorldSettings.h"
 
 #include <chrono>
 #include <cmath>
@@ -34,30 +33,6 @@
 using namespace Saiga;
 using namespace Saiga::Vulkan;
 
-static HeightField SmallHeightField()
-{
-    HeightField hf;
-    HeightField::Parameters p;
-    p.size    = 257;
-    p.spacing = 2.0f;
-    hf.generate(p);
-    return hf;
-}
-
-TEST(VulkanWorld, HeightFieldInterpolation)
-{
-    HeightField hf = SmallHeightField();
-    EXPECT_FLOAT_EQ(hf.worldSize(), 512.0f);
-    // At the samples the height is exact
-    EXPECT_FLOAT_EQ(hf.height(10 * 2.0f, 20 * 2.0f), hf.sample(10, 20));
-    // Within a cell: the triangle (i,j) (i+1,j) (i,j+1), as the terrain mesh
-    float x = 10.25f * 2, z = 20.5f * 2;
-    float ha = hf.sample(10, 20), hb = hf.sample(11, 20), hc = hf.sample(10, 21);
-    EXPECT_NEAR(hf.height(x, z), ha + 0.25f * (hb - ha) + 0.5f * (hc - ha), 1e-4f);
-    // Normals point up
-    EXPECT_GT(hf.normal(100, 100)(1), 0.0f);
-    EXPECT_LE(hf.minHeight(), hf.maxHeight());
-}
 
 TEST(VulkanWorld, FrustumPlanes)
 {
@@ -79,36 +54,6 @@ TEST(VulkanWorld, FrustumPlanes)
     EXPECT_NEAR(f(2) / f(3), 0.0f, 1e-6f);
 }
 
-TEST(VulkanWorld, TreePlacement)
-{
-    HeightField hf = SmallHeightField();
-    auto species   = FoliageGenerator::treeSpecies(1);
-    auto trees     = ForestRenderer::placeTrees(hf, 500, 3, species);
-    EXPECT_GT(trees.size(), 0u);
-    EXPECT_LE(trees.size(), 500u);
-    for (auto& t : trees)
-    {
-        float x = t.posYaw(0), z = t.posYaw(2);
-        ASSERT_GE(x, 0);
-        ASSERT_LE(x, hf.worldSize());
-        // On the ground (sunk in a little), above the water
-        EXPECT_NEAR(t.posYaw(1), hf.height(x, z) - 0.25f, 1e-3f);
-        EXPECT_GT(hf.height(x, z), hf.waterLevel());
-        int s = int(t.scaleSpecies(1));
-        ASSERT_GE(s, 0);
-        ASSERT_LT(s, (int)species.size());
-        EXPECT_GE(t.scaleSpecies(0), species[s].heightRange(0));
-        EXPECT_LE(t.scaleSpecies(0), species[s].heightRange(1));
-    }
-    // Deterministic: every tree equal (the normalisation sum is serial, so the scheduling cannot change the placement)
-    auto again = ForestRenderer::placeTrees(hf, 500, 3, species);
-    ASSERT_EQ(again.size(), trees.size());
-    for (size_t i = 0; i < trees.size(); ++i)
-    {
-        EXPECT_EQ(again[i].posYaw, trees[i].posYaw);
-        EXPECT_EQ(again[i].scaleSpecies, trees[i].scaleSpecies);
-    }
-}
 
 TEST(VulkanWorld, SettingsJson)
 {
@@ -163,18 +108,16 @@ TEST(VulkanWorld, SettingsJson)
 }
 
 // S19a: the trees as instance sets, one per 256 m chunk (region level 0), region-relative, in placeTrees order with
-// deterministic keys; a tree at the world's far edge belongs to the last chunk
+// deterministic keys. S20: the placed trees of a PrototypeArea (1 km: 4 x 4 chunks)
 TEST(VulkanWorld, PrototypeTreeSets)
 {
-    HeightField hf;
-    HeightField::Parameters p;
-    p.size    = 513;
-    p.spacing = 2.0f;  // 1024 m: 4 x 4 chunks
-    hf.generate(p);
+    PrototypeArea area;
+    area.size                   = 1024;
+    area.baseSpacing            = 2;
     auto species                = FoliageGenerator::treeSpecies(1);
     const std::vector<MeshId> m = {11, 12, 13};
-    auto trees                  = ForestRenderer::placeTrees(hf, 3000, 1, species);
-    auto sets                   = prototypeTreeSets(hf, 3000, 1, species, m);
+    auto trees                  = ForestRenderer::placeTrees(area, 3000, 1, species);
+    auto sets                   = prototypeTreeSets(trees, species, m);
     size_t total                = 0;
     std::vector<bool> seen(trees.size(), false);
     for (size_t k = 0; k < sets.size(); ++k)
@@ -357,40 +300,33 @@ TEST(WorldBenchmark, SummaryText)
 
 TEST(WorldBenchmark, Paths)
 {
-    // An 8 km world like the default one, at a coarse resolution
-    HeightField hf;
-    HeightField::Parameters p;
-    p.size    = 513;
-    p.spacing = 16.0f;
-    hf.generate(p);
-    float c = hf.worldSize() * 0.5f;
-    ASSERT_FLOAT_EQ(c, 4096.0f);
-    const int n = WorldBenchmark::measuredFrames;
-
+    // S20: the paths over a ground callback around the centre (4096, 4096) of the prototype's 8 km area
+    auto ground    = [](double x, double z) { return 20 + 0.01 * x - 0.02 * z + 5 * std::sin(x / 300); };
+    const double c = 4096;
+    const int n    = WorldBenchmark::measuredFrames;
     for (int i : {0, 150, 300, 599})
     {
-        auto pose = WorldBenchmark::pose("flyover", hf, i);
+        auto pose = WorldBenchmark::pose("flyover", ground, i);
         // On the 3 km circle around the center, 300 m above the ground below, looking at the center on the ground
         EXPECT_NEAR(std::hypot(pose.eye(0) - c, pose.eye(2) - c), 3000.0f, 0.01f);
-        EXPECT_NEAR(pose.eye(1), hf.height(pose.eye(0), pose.eye(2)) + 300.0f, 1e-3f);
+        EXPECT_NEAR(pose.eye(1), ground(pose.eye(0), pose.eye(2)) + 300.0, 1e-3);
         EXPECT_NEAR(pose.target(0), c, 1e-3f);
         EXPECT_NEAR(pose.target(2), c, 1e-3f);
-        EXPECT_NEAR(pose.target(1), hf.height(c, c), 1e-3f);
+        EXPECT_NEAR(pose.target(1), ground(c, c), 1e-3);
     }
     // One revolution in measuredFrames frames
-    auto first = WorldBenchmark::pose("flyover", hf, 0), full = WorldBenchmark::pose("flyover", hf, n);
+    auto first = WorldBenchmark::pose("flyover", ground, 0), full = WorldBenchmark::pose("flyover", ground, n);
     EXPECT_NEAR((first.eye - full.eye).norm(), 0.0f, 0.05f);
-    EXPECT_GT((first.eye - WorldBenchmark::pose("flyover", hf, n / 2).eye).norm(), 5999.0f);
+    EXPECT_GT((first.eye - WorldBenchmark::pose("flyover", ground, n / 2).eye).norm(), 5999.0f);
 
-    auto start = WorldBenchmark::pose("forest", hf, 0), end = WorldBenchmark::pose("forest", hf, n - 1);
-    EXPECT_NEAR(start.eye(0), c - 300.0f, 1e-3f);
-    EXPECT_NEAR(end.eye(0), c + 300.0f, 1e-3f);
+    auto start = WorldBenchmark::pose("forest", ground, 0), end = WorldBenchmark::pose("forest", ground, n - 1);
+    EXPECT_NEAR(start.eye(0), c - 300.0, 1e-3);
+    EXPECT_NEAR(end.eye(0), c + 300.0, 1e-3);
     for (int i : {0, 200, n - 1})
     {
-        auto pose = WorldBenchmark::pose("forest", hf, i);
+        auto pose = WorldBenchmark::pose("forest", ground, i);
         EXPECT_NEAR(pose.eye(2), c, 1e-3f);
-        float ground = std::max(hf.height(pose.eye(0), c), hf.waterLevel());
-        EXPECT_NEAR(pose.eye(1), ground + 2.0f, 1e-3f);
+        EXPECT_NEAR(pose.eye(1), ground(pose.eye(0), c) + 2.0, 1e-3);
         // Looking along +x
         vec3 dir = (pose.target - pose.eye).normalized();
         EXPECT_NEAR(dir(0), 1.0f, 1e-6f);
@@ -420,8 +356,8 @@ TEST(WorldBenchmark, CountStalls)
 // keys arrive separately; only the measured frames count
 TEST(WorldBenchmark, ResultJson)
 {
-    HeightField hf = SmallHeightField();
-    WorldBenchmark bench("forest", hf, "test gpu");
+    auto ground = [](double, double) { return 10.0; };
+    WorldBenchmark bench("forest", ground, "test gpu");
     const int warmup = WorldBenchmark::warmupFrames, n = WorldBenchmark::measuredFrames;
     EXPECT_FALSE(bench.measuring(uint64_t(warmup)));
     EXPECT_TRUE(bench.measuring(uint64_t(warmup + 1)));
@@ -476,7 +412,7 @@ TEST(WorldBenchmark, ResultJson)
     }
 
     // Without GPU samples (no timestamps) gpu_ms is null instead of zeros that look like a fast result
-    WorldBenchmark noGpu("forest", hf, "test gpu");
+    WorldBenchmark noGpu("forest", ground, "test gpu");
     for (int frame = 1; frame <= warmup + n; ++frame)
     {
         WorldBenchmark::Sample t;
@@ -591,8 +527,8 @@ TEST(PrototypeTerrain, HighestPoint)
 // missed one is not complete (game_world reports it as a failure)
 TEST(WorldBenchmark, IncompleteRun)
 {
-    HeightField hf = SmallHeightField();
-    WorldBenchmark bench("forest", hf, "test gpu");
+    auto ground = [](double, double) { return 10.0; };
+    WorldBenchmark bench("forest", ground, "test gpu");
     const int warmup = WorldBenchmark::warmupFrames, n = WorldBenchmark::measuredFrames;
     for (int frame = 1; frame <= warmup + n; ++frame)
     {
@@ -609,147 +545,7 @@ TEST(WorldBenchmark, IncompleteRun)
     EXPECT_EQ(bench.result()["frames"].int_value(), n - 1);
 }
 
-namespace
-{
 using namespace ForestReferenceTests;
-
-// The old path's reference (the goldens until S20's step 7c): the trees of the WorldRenderer's height field
-ForestReference forestReference(const WorldRenderer& world, const Vec3& eye, const Quat& rotation, double aspect)
-{
-    auto species = FoliageGenerator::treeSpecies(world.parameters().seed);
-    auto trees =
-        ForestRenderer::placeTrees(world.heightField(), world.parameters().treeCount, world.parameters().seed, species);
-    return ForestReferenceTests::forestReference(trees, species, world.settings, eye, rotation, aspect);
-}
-}  // namespace
-
-// The world prototype drawn by RenderScene (S19a: setPrototypeTerrain, the trees as instance sets through
-// WorldRenderer::attach) in a headless window: MSAA (default 4x), clay mode, time 0, ImGui off
-class VulkanWorldScene : public ::testing::Test
-{
-   protected:
-    void SetUp() override
-    {
-        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
-        Create(96, 64, 4);
-        // The instance draws need it (asserted by RenderScene); Vulkan 1.3 does not require it
-        if (!scene->base().enabledFeatures.drawIndirectFirstInstance)
-            GTEST_SKIP() << "drawIndirectFirstInstance is not supported";
-    }
-    void TearDown() override { Destroy(); }
-
-    void Create(int w, int h, int samples)
-    {
-        Destroy();
-        width  = w;
-        height = h;
-        WindowParameters windowParameters;
-        windowParameters.width  = w;
-        windowParameters.height = h;
-        windowParameters.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
-        Vulkan::VulkanParameters vulkanParameters;
-        vulkanParameters.enableImgui = false;
-        RenderSceneParameters params;
-        params.imgui       = false;
-        params.msaaSamples = samples;
-        params.nearPlane   = 0.1f;
-        window             = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
-        scene              = std::make_unique<RenderScene>(*window, vulkanParameters, params);
-    }
-    void Destroy()
-    {
-        if (scene) scene->waitIdle();
-        scene.reset();
-        window.reset();
-    }
-
-    std::string deviceName() const
-    {
-        return std::string(scene->base().physicalDevice.getProperties().deviceName.data());
-    }
-
-    void Attach(WorldRenderer& world, const WorldParameters& params,
-                std::shared_ptr<const HeightField> heightField = nullptr)
-    {
-        if (heightField)
-            world.init(params, std::move(heightField));
-        else
-            world.init(params);
-        world.attach(*scene);
-    }
-
-    // The camera (the settings' fovy, 60 by default) at eye looking at target
-    void SetCamera(const WorldRenderer& world, const vec3& eye, const vec3& target)
-    {
-        cameraRotation = viewRotation(lookAt(eye, target, vec3(0, 1, 0)));
-        cameraEye      = eye.cast<double>();
-        scene->setCamera(0, cameraEye, cameraRotation, double(radians(world.settings.fovy)));
-    }
-
-    // Renders a frame (the settings applied first) and returns it
-    TemplatedImage<ucvec4> RenderFrame(WorldRenderer& world)
-    {
-        world.update();
-        TemplatedImage<ucvec4> img;
-        scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { img = shot; });
-        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
-        return img;
-    }
-
-    // Renders n frames and returns the last; waits for it (its statistics are the newest)
-    TemplatedImage<ucvec4> Capture(WorldRenderer& world, const vec3& eye, const vec3& target, int n = 5)
-    {
-        SetCamera(world, eye, target);
-        TemplatedImage<ucvec4> img;
-        for (int i = 0; i < n; ++i) img = RenderFrame(world);
-        scene->waitIdle();
-        return img;
-    }
-
-    ForestReference Reference(const WorldRenderer& world) const
-    {
-        return forestReference(world, cameraEye, cameraRotation, double(width) / height);
-    }
-
-    int width = 0, height = 0;
-    Vec3 cameraEye      = Vec3::Zero();
-    Quat cameraRotation = Quat::Identity();
-    std::unique_ptr<Vulkan::HeadlessWindow> window;
-    std::unique_ptr<RenderScene> scene;
-};
-
-
-
-// An external height field (S13b: generated once for a game's simulation and its renderer) is shared, not copied, and
-// renders like a generated one
-TEST_F(VulkanWorldScene, SharesAnExternalHeightField)
-{
-    HeightField::Parameters terrain;
-    terrain.size  = 257;
-    auto external = std::make_shared<HeightField>();
-    external->generate(terrain);
-
-    WorldRenderer world;
-    WorldParameters params;
-    params.terrain.size = 129;  // ignored with an external height field
-    params.treeCount    = 500;
-    Attach(world, params, external);
-    EXPECT_EQ(&world.heightField(), external.get());
-    EXPECT_EQ(&scene->prototypeWorld()->heightField(), external.get());
-    EXPECT_EQ(world.heightField().size(), 257);
-    EXPECT_EQ(external.use_count(), 3);  // here, in the world renderer and in RenderScene's prototype
-    auto& hf = world.heightField();
-    vec3 c   = vec3(hf.worldSize() * 0.5f, 0, hf.worldSize() * 0.5f);
-    c(1)     = hf.height(c(0), c(2));
-    Capture(world, c + vec3(0, 60, 200), c + vec3(0, 20, 0), 3);
-    EXPECT_GT(scene->statistics().terrainNodes, 0u);
-    world.destroy();
-    EXPECT_EQ(external.use_count(), 2);  // released by destroy(); RenderScene keeps its prototype
-    Destroy();
-    EXPECT_EQ(external.use_count(), 1);
-}
-
-
 
 // ---------------------------------------------------------------------------------------------------------------------
 // S14: the game tools of the world prototype (game_world) through handleMessage

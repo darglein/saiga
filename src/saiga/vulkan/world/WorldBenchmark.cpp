@@ -78,31 +78,6 @@ bool WorldBenchmark::known(const std::string& name)
     return std::find(n.begin(), n.end(), name) != n.end();
 }
 
-WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const HeightField& hf, int measuredFrame)
-{
-    SAIGA_ASSERT(known(name), "unknown benchmark");
-    // The world center: (4096, 4096) for the default 8 km world
-    float c = hf.worldSize() * 0.5f;
-    Pose p;
-    if (name == "flyover")
-    {
-        const double pi = 3.14159265358979323846;
-        double angle    = 2.0 * pi * double(measuredFrame) / measuredFrames;
-        float x         = c + 3000.0f * float(std::cos(angle));
-        float z         = c + 3000.0f * float(std::sin(angle));
-        p.eye           = vec3(x, hf.height(x, z) + 300.0f, z);
-        p.target        = vec3(c, hf.height(c, c), c);
-    }
-    else
-    {
-        float t  = float(measuredFrame) / float(measuredFrames - 1);
-        float x  = c - 300.0f + 600.0f * t;
-        p.eye    = vec3(x, std::max(hf.height(x, c), hf.waterLevel()) + 2.0f, c);
-        p.target = p.eye + vec3(1, 0, 0);
-    }
-    return p;
-}
-
 WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground& ground, int measuredFrame)
 {
     SAIGA_ASSERT(known(name), "unknown benchmark");
@@ -150,12 +125,6 @@ WorldBenchmark::Stat WorldBenchmark::summarize(std::vector<double> values)
     return s;
 }
 
-WorldBenchmark::WorldBenchmark(const std::string& name, const HeightField& heightField, const std::string& gpuName)
-    : name(name), gpuName(gpuName), hf(&heightField)
-{
-    SAIGA_ASSERT(known(name), "unknown benchmark");
-}
-
 WorldBenchmark::WorldBenchmark(const std::string& name, Ground ground, const std::string& gpuName)
     : name(name), gpuName(gpuName), groundFn(std::move(ground))
 {
@@ -167,7 +136,7 @@ WorldBenchmark::Pose WorldBenchmark::currentPose(uint64_t frame) const
 {
     const int64_t i =
         std::min<int64_t>(std::max<int64_t>(int64_t(frame) - int64_t(firstMeasured), 0), measuredFrames - 1);
-    return groundFn ? pose(name, groundFn, int(i)) : pose(name, *hf, int(i));
+    return pose(name, groundFn, int(i));
 }
 
 bool WorldBenchmark::measuring(uint64_t frame) const

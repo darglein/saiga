@@ -8,7 +8,6 @@
 
 #include "saiga/core/camera/camera.h"
 #include "saiga/core/util/mcp/McpServer.h"
-#include "saiga/vulkan/world/WorldRenderer.h"
 #include "saiga/vulkan/world/WorldSettings.h"
 
 #include <functional>
@@ -31,9 +30,7 @@ struct WorldMcpCamera
 
 struct WorldMcpContext
 {
-    // The S19a path (removed in S20 step 7d): fills the fields below from the WorldRenderer when set
-    WorldRenderer* world = nullptr;
-    // S20: the prototype's settings (PrototypeScene::settings) and render statistics (trees, terrain)
+    // The prototype's settings (PrototypeScene::settings) and render statistics (trees, terrain)
     WorldSettings* settings = nullptr;
     std::function<json11::Json()> stats;
     // The terrain height (m) under (x, z) (World::terrainHeight of the view space); the world's size (m), sea level
