@@ -641,8 +641,9 @@ void EngineApp::frame(double dt)
     // The last frame's terrain stream time: the time base covers it, the interval does not contain it (a complete
     // point is no long frame)
     if (pendingStreamMs > 0 && runSeconds > kStatisticsWarmupSeconds) frameStats.advance(pendingStreamMs);
-    pendingStreamMs = 0;
-    frameStreamMs   = 0;
+    pendingStreamMs  = 0;
+    frameStreamMs    = 0;
+    streamIdleWaitMs = 0;
     if (dt > 0 && pendingCounted)
     {
         frameStats.addFrame(dt * 1000, pendingWorkMs, waitParts, pendingSteps);
@@ -684,8 +685,9 @@ void EngineApp::frame(double dt)
     const double frameMs =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
     // Neither the render's waits nor the terrain stream time of a complete point are CPU work
-    pendingWorkMs   = std::max(frameMs - lastFrameWaitMs - frameStreamMs, 0.0);
-    pendingStreamMs = frameStreamMs;
+    pendingWorkMs = std::max(frameMs - lastFrameWaitMs - frameStreamMs, 0.0);
+    // The benchmark mode's GPU wait before the stream belongs to the pause as well (it exists only because of it)
+    pendingStreamMs = frameStreamMs + streamIdleWaitMs;
     if (timed)
     {
         frameProfiler.add(scopeFrame, frameMs);
@@ -897,7 +899,7 @@ void EngineApp::renderFrame()
     const bool rendered = renderScene->renderFrame(noRecord, noRecord, gui);
     // Also for a frame that was not submitted (e.g. an out-of-date swap chain after the frame slot wait): the wait
     // is not work
-    lastFrameWaitMs    = renderScene->lastWaitMs();
+    lastFrameWaitMs    = renderScene->lastWaitMs() + streamIdleWaitMs;
     lastFrameWaitParts = renderScene->lastWaitParts();
     frameProfiler.add(scopeWait, lastFrameWaitMs);
     if (!rendered) return;
@@ -946,7 +948,18 @@ void EngineApp::streamTerrain()
 {
     World& w               = *gameWorld;
     TerrainSystem& terrain = w.terrain();
-    const auto start       = std::chrono::steady_clock::now();
+    streamIdleWaitMs       = 0;
+    // Benchmark mode: a frame that has to stream first lets the GPU finish the frames in flight (a wait, not work).
+    // Otherwise the GPU would run ahead during the stream time, and the benchmark's frame interval without the stream
+    // time would hide the GPU's time (S20). The wait pauses the simulation clock and the statistics' interval like the
+    // stream time, but is not part of lastTerrainStreamMs (the benchmark keeps it in its interval)
+    if (completeEachFrame && renderScene && !terrain.viewComplete(view.space, view.position))
+    {
+        const auto idle = std::chrono::steady_clock::now();
+        renderScene->waitIdle();
+        streamIdleWaitMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - idle).count();
+    }
+    const auto start  = std::chrono::steady_clock::now();
     bool fatalCapture = false, mcpCapture = false;
     for (const PendingCapture& c : pendingCaptures) (c.fatal ? fatalCapture : mcpCapture) = true;
     // An MCP capture completes the view only while one of its requests waits (else its readback is abandoned)

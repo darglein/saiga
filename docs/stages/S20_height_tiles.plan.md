@@ -1,6 +1,6 @@
 # S20: Height tiles
 
-Status: planned (revised after review round 3).
+Status: implemented (local branch `stage-s20`, rebased onto `master` b23e79ed with S19c; PR pending).
 
 Sections follow the stage plan template of S05; a review log and the design-doc amendments are added at the end. The
 cross-plan decisions D1 to D14 of review round 1 and E1 to E14 of review round 2 (shared by S20 to S23; E overrides
@@ -1285,6 +1285,59 @@ To be applied to `docs/engine_design.md` in step 8, together with the usual stat
   calls them for its view world; a render sink alone (every scenario world has a `RecordingRenderSink`) requests nothing
   and starts no pool.
 
+## Results
+
+Measured on the RTX 5080 Laptop GPU (driver with validation for the tests) and on lavapipe (Mesa with LLVM 21.1.8).
+
+- **Tests.** ctest 73/73 on the GPU (local build with samples; with the CI options 71 tests: 67 + the four new
+  `test_core_terrain_surface`, `test_engine_terrain`, `test_vulkan_terrain`, `test_engine_terrain_render`); every
+  `test_vulkan_*` / `test_engine_*` on lavapipe 33/33.
+- **Done when.** `MemoryBudget32km` (the `game_world` layout at 1 m): worst CPU + GPU 198.1 MB, static bound 202.9 MB
+  (<= 768 MB). `OriginOffsetWithinGoldenTolerance` at 28 672 m: identical images (mean 0). `CameraMoveAt30km`,
+  `TerrainHeightEqualsTheIntegerRule`, `OneVertexPerSampleAtLevelZero` (both spacings), `RenderedDepthMatchesSurface`,
+  `NoCrackAtLevelBorders` pass on both devices. The S02 goldens were regenerated on lavapipe in step 7c (counts:
+  `world_overview` 0 / 2 / 3937 trees per LOD, 72 terrain nodes; `world_forest` 27 / 338 / 506, 131 nodes); on the RTX
+  (not gating) `world_forest` differs by mean 1.02/255.
+- **Scenarios.** `--scenarios` of flight, racing and platformer: 18 runs passed each (scenarios x variants incl. host + client), no value
+  re-recorded (the flight autopilot positions and the racing lap keep their committed tolerances on the new surface).
+  Racing startup: the site search over `prototypeSurfaceHeight` takes 1.33 s.
+- **Screenshots** (`SAIGA_SCREENSHOT`, RTX): `game_world` (the default camera 167 m above the 8 km area), flight,
+  racing and platformer `--demo`, reviewed: terrain, trees, grass near the ground, sky and water as before; no holes
+  or background between levels. At steep near silhouettes the skirts of finer nodes show as short saw teeth
+  (the risk "Skirt artifacts" below; accepted for the prototype).
+- **Benchmarks** (build-bench, Release without asserts and `-march=native`; 5 interleaved runs, medians of the run
+  medians; before = the S19b tip `c990775` with the plan, after = this branch at 1 m and with `--base-spacing 2`):
+
+  | | before | after 1 m | after 2 m |
+  |---|---|---|---|
+  | flyover `cpu_ms` (interval without stream time) | 2.47 | 3.83 | 3.37 |
+  | flyover GPU busy / `scene` | 2.45 / 2.36 | 2.51 / 2.43 | 1.87 / 1.76 |
+  | flyover trees / terrain + water / sky | 1.440 / 0.094 / 0.011 | 1.406 / 0.191 / 0.013 | 1.401 / 0.123 / 0.011 |
+  | flyover upload + cull | 0.075 | 0.106 | 0.091 |
+  | flyover `terrain_stream_ms` median / mean | - | 22.0 / 13.1 | 6.4 / 3.9 |
+  | forest `cpu_ms` | 2.08 | 2.19 | 2.14 |
+  | forest GPU busy / `scene` | 2.06 / 2.01 | 2.19 / 2.14 | 2.14 / 2.09 |
+  | forest trees / terrain + water / grass | 0.469 / 0.049 / 0.688 | 0.555 / 0.114 / 0.681 | 0.555 / 0.063 / 0.681 |
+  | terrain CPU / GPU MB (flyover) | - | 88.7 / 98.1 | 36.3 / 49.0 |
+
+  `sample_vulkan_scene_benchmark` (2 runs): cull 0.068 -> 0.058 ms, instance draw 1.28 -> 1.27 ms; 126 572 -> 122 517
+  LOD-2 instances (the trees are placed on the new surface).
+  Explanations (R-TEST-2): terrain + water at 1 m is about 2x (4x the triangles per level, as expected); the 2 m run
+  shows the code's own part (+31 % flyover, +29 % forest, 0.03 ms / 0.014 ms: skirts, storage-buffer reads, the
+  quarter grids). The forest's trees +18 % (equal at 1 m and 2 m, while the flyover's trees are -2.6 %, the same
+  pipeline and shaders) is content: `placeTrees` now samples the hook on the integer surface instead of the bilinear
+  2 m height field (199 769 trees in 976 sets instead of 199 466 in 928, and the scene benchmark's visible count
+  changes too), so the forest path near the ground sees a different tree distribution. The flyover's frame interval
+  is not comparable: at 1 m the path streams in most frames (median 22 ms), and before such a frame the benchmark lets
+  the GPU drain (see deviations), which stays in the interval; its GPU sections are the comparison. No new baseline is
+  committed (on acceptance, Done when).
+- TSAN: `test_engine_terrain` built with `-fsanitize=thread` (Core + Vulkan + Engine) passes 36/36 without a
+  ThreadSanitizer warning. `SAIGA_DEBUG_TSAN=ON` itself does not compile (also on `master`):
+  `cmake/Saiga_compiler_flags.cmake` appends `"-fsanitize=thread -static-libasan ..."` as one list element, so the
+  flags were passed through `CMAKE_CXX_FLAGS` / the linker flags instead (a separate fix).
+- Not done locally: the MCP flight to the four coasts of the 32 km space (the instructions allowed only the
+  `SAIGA_SCREENSHOT` demo runs; the memory bound is covered by `MemoryBudget32km`).
+
 ## Review log
 
 Plan review rounds (local Opus) and later the PR reviews are recorded here: date, reviewer, findings, resolution.
@@ -1409,3 +1462,27 @@ Plan review rounds (local Opus) and later the PR reviews are recorded here: date
   - Pyramid reuse (15): `Stats::pyramidsGenerated`; `pyramid(space)` keeps its pointer.
   - Also: `RecordingRenderSink::uploadsPendingForTests` (S21's load end rule pins the forwarding with it).
   - Rejected: none.
+
+### Implementation (2026-11-21, Claude Opus 5.5)
+
+Deviations from the plan, each the smallest sound fix:
+
+- `setPrototypeEnvironment` and the `FoliageClassNeedsTexture` message came in step 5 instead of 7a (the grass needs
+  the foliage texture); the sky followed in 7a.
+- `WorldNoise` moved out of `HeightField` into its own file in 7a (the hook needs it after 7d removes `HeightField`);
+  `PrototypeForest::init` and `PrototypeScene::attach` take the species seed.
+- Rebase onto `master` with S19c: the Terrain statistics are a section of the debug UI's Engine tab
+  (`EngineAppDebugUi.cpp`, "Terrain") instead of the statistics window; `PrototypeScene::imgui` draws widgets only and
+  the games add it as the Engine tab's "World" section; `app_status` has both `ui_tab` and the terrain block.
+- Benchmark mode: before a frame that has to stream (`TerrainSystem::viewComplete` is false), `EngineApp` waits for
+  the GPU to finish the frames in flight. Without it the GPU ran ahead during the stream and the interval minus the
+  stream time came out at about 0.7 ms (1414 fps). The wait is frame wait (not work), pauses the simulation clock and
+  the statistics' interval like the stream time, but stays in the benchmark's interval (`lastTerrainStreamMs` does not
+  contain it). The flyover at 1 m streams in most frames, so its interval is an upper bound; §17.7 says so.
+- `CameraMoveAt30km`: the probes are filtered to a cone in front of the camera, the focal length comes from the
+  nearest probe, the camera sits at half-ulp offsets of 30 km, yaw 45 degrees and pitch -20 degrees.
+- `StreamTimePausesTheClock` (lavapipe): `residencyRange0 = 48`, no grass, only the samples after the move frame are
+  checked, the longest interval < 50 ms.
+- `FramesStepsScreenshotsAndProfiles`: the profile has the scope `frame/render/terrain_stream`; the identity is work
+  + wait + stream == frame.
+- `TerrainAtlas`'s minimum-capacity assertion uses the 16-byte aligned formula of `memoryEstimate`.

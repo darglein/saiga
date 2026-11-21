@@ -59,8 +59,9 @@ src/
                         moved handles reach descriptors through DynamicDescriptorSet, images keep the layout tracked in
                         ImageData::layout (Texture::transitionImageLayout / setImageLayout)
                         world/: the game side of the world prototype (S19a; used by game_world, flight, racing): the
-                        height field and generators, WorldSettings (GUI, game_* MCP tools), PrototypeForest (the trees
-                        as RenderScene instance sets), WorldRenderer (attach to the scene, settings, statistics; no GPU
+                        prototype height hook PrototypeTerrain (prototypeHeight, prototypeSurfaceHeight; S20) and the
+                        generators, WorldSettings (GUI, game_* MCP tools), PrototypeForest (the trees as RenderScene
+                        instance sets), PrototypeScene (attach to the scene, settings widgets, statistics; no GPU
                         resources), benchmark paths and samples WorldBenchmark
                         scene/RenderScene: the engine app's HDR frame (S17; shader/vulkan/scene/): fp16 MSAA scene pass
                         with reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map
@@ -69,22 +70,30 @@ src/
                         with VMA virtual blocks, SubAllocatedBuffer), InstanceBuffer (static instance sets per region,
                         dynamic instances), SceneCulling (offset table, GPU culling count/scan/write passes, indexed
                         indirect draws per pipeline class, flat shading), MeshImport (glTF via assimp, flat colors);
-                        prototype passes (S19a): PrototypeWorld (setPrototypeTerrain: CDLOD terrain with the water
-                        plane, grass, sky; TerrainRenderer, GrassRenderer), the PrototypeFoliage pipeline class of the
-                        trees, the lighting block, setTime, the depth pre-pass (off for the prototype) and the
-                        SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain, scene.instances, ...)
+                        terrain (S20): TerrainAtlas (the GPU terrain set: int32 storage buffers of tiles, pyramid, page
+                        table and grass masks, the upload queue with a per-frame byte cap), TerrainPass (CDLOD in
+                        double with a 64 m frame anchor, skirts, the water plane, the sky, TerrainFrame), GrassPass
+                        (chunk-relative grass from masks), TerrainTiles (pure tile / pyramid / mask generation);
+                        prototype passes (S19a): setPrototypeEnvironment (sky, foliage texture), the PrototypeFoliage
+                        pipeline class of the trees, the lighting block, setTime, the depth pre-pass (off for the
+                        prototype) and the SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain,
+                        scene.instances, ...)
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
                         chosen at runtime as in opengl/: GLFWWindow or HeadlessWindow (offscreen images, ImGui through
                         ImGuiHeadlessRenderer; core/imgui/imgui_headless_platform.h is shared with OpenGL)
     engine/             saiga_engine (namespace Saiga::Engine, needs the vulkan module): the game engine of
                         docs/engine_design.md; core/: EngineVersion, JobPool (parallelFor, the caller
-                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h), Profiler; ecs/: Registry,
+                        participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h), Profiler, StreamingPool (S20:
+                        background generation jobs, drained on the main thread); terrain/ (S20): TerrainSystem (the
+                        World's terrain: terrainHeight, visual streaming of the view camera's space, completeView,
+                        readiness, the single send point to the sink), TerrainStore, TerrainGeneration; ecs/: Registry,
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
                         (S19b: the mesh name an entity renders); world/: World (also the mesh and material name
-                        tables, WorldSetup::renderAssets, setRenderSink)
+                        tables, WorldSetup::renderAssets, setRenderSink; S20: SpaceTemplate and
+                        WorldConfig::spaceTemplates, terrainHeight, spaceSeed)
                         (step loop, the setup's context WorldSetup::setContext / World::context, phases, SystemList,
                         commands, StructuralLog, EventQueues, transformSystem, SpatialGrid and spatialGridSystem for
                         World::queryRadius, Events.h); gameplay/: GameObject,
@@ -223,7 +232,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-67 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+71 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -278,9 +287,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   lavapipe (Mesa with LLVM 21.1.8); CI's lavapipe (Mesa 25.2.8, LLVM 20.1.2) differs slightly and passes within the
   tolerance (run 43754502053: `world_forest` mean 0.14/255, 0.19% of the pixels > 16/255; a Mesa update on the CI
   runner may need the recipe below). Create or update goldens only on lavapipe, in a dedicated commit:
-  `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world
+  `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_terrain_render
   --gtest_filter='VulkanWorldGolden.*'` (the counts are not checked in this run; the goldens are written to the source tree, gray images as 8-bit grayscale
-  PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_vulkan_world.cpp`.
+  PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_engine_terrain_render.cpp`.
   The tone-map golden `hdr_tonemap` (S17) the same way with `./build/tests/test_vulkan_scene
   --gtest_filter='VulkanScene.AcesGolden'`, the imported-mesh golden `scene_flat_box` (S18) with
   `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'`.
@@ -289,7 +298,7 @@ ctest -R test_core_ini --output-on-failure             # one test
   `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then
   `for f in /tmp/golden/*_actual.png; do cp "$f" data/tests/golden/$(basename "$f" _actual.png).png; done`, and copy
   the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
-  `tests/test_vulkan_world.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
+  `tests/test_engine_terrain_render.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
   (the goldens now come from CI's lavapipe). See `docs/engine_design.md` §17.6.
 - **Benchmarks** (local, GPU and display; `docs/engine_design.md` §17.7). Baselines are measured in a separate release
   build without asserts (§17.10) and without `-march=native` (§17.7):
@@ -313,7 +322,10 @@ ctest -R test_core_ini --output-on-failure             # one test
   (R-TEST-2), and a new baseline is committed when a change is accepted. Since S19a the `gpu_ms` keys (S03's names) come
   from RenderScene's sections: `trees` = `scene.instances`, `upload + cull` = `transfer` + `cull`, `terrain + water` =
   `depth.terrain` + `scene.terrain`, `grass`, `sky`; `cpu_work_ms` is the app's recording and submit (not comparable
-  with the S03 value). The culling benchmark (S18) renders the
+  with the S03 value). Since S20 the benchmark world is `game_world`'s 32 km space at 1 m (the trees in `[0, 8192]^2`);
+  the terrain is completed in every frame (`completeView`), its time is excluded from the frame interval and reported
+  as `terrain_stream_ms` with a `terrain` block; `--base-spacing 2` runs the same benchmark on a 2 m template (to
+  separate code changes from the 1 m content). The culling benchmark (S18) renders the
   prototype's 200k trees as flat instances through RenderScene over the flyover path (headless, 1920 x 1080) and writes
   `benchmark_scene_cull.json` (the `cull` section and the instance draw time; not in `benchmarks.json`).
 

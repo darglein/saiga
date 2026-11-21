@@ -657,6 +657,14 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     }
 }
 
+bool TerrainSystem::viewComplete(SpaceId space, const Vec3& camera) const
+{
+    if (!spaceTemplate(space).hasTerrain()) return true;
+    if (!spaces[space].store->pyramid()) return false;
+    if (sink && (!setActive || setSpace != space || setLayout != layout(space))) return false;
+    return !missing(space, computeDesired(space, camera));
+}
+
 double TerrainSystem::readiness(SpaceId space, const Vec3& camera, double radius) const
 {
     if (!spaceTemplate(space).hasTerrain()) return 1;

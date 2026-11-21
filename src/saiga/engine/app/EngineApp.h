@@ -348,7 +348,9 @@ class SAIGA_ENGINE_API EngineApp
     bool completeEachFrame = false;
     double streamMs        = 0;  // the last rendered frame's terrain stream time
     double frameStreamMs   = 0;  // the current frame's (0 without a rendered frame)
-    double pendingStreamMs = 0;  // that time, taken out of the next frame's interval (statistics, simulation clock)
+    // Benchmark mode: the wait for the GPU before the current frame's stream (a wait, not work; pauses the clock)
+    double streamIdleWaitMs = 0;
+    double pendingStreamMs  = 0;  // that time, taken out of the next frame's interval (statistics, simulation clock)
     struct PendingCapture
     {
         CaptureCallback callback;

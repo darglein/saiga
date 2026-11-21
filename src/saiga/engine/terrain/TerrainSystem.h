@@ -96,6 +96,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // too). Returns false on timeout (what is resident is still sent; no caller job starts after the deadline, a
     // running one is finished). Without a sink it fills the store only. A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
+    // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
+    // nothing. True for a space without terrain; without a sink only the residency counts
+    bool viewComplete(SpaceId space, const Vec3& camera) const;
     // D6: the fraction of (the pyramid + the desired tiles of this camera whose box is within radius) that have been
     // sent to the sink; 0 while the pyramid is not sent (or without a sink); 1 for a space without terrain
     double readiness(SpaceId space, const Vec3& camera, double radius) const;

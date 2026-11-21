@@ -182,8 +182,10 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Forward renderer with MSAA, reversed-Z, infinite far plane; since S17 only for the other samples and the fixtures of `tests/vulkan_test_context.h` (S19a: the world tests moved to `RenderScene`); the shared frame code (command buffers and submit, ImGui frame, screenshots, `selectSampleCount`, GPU sections by name) is in `VulkanRenderer` | `src/saiga/vulkan/VulkanForwardRenderer.*`, `src/saiga/vulkan/Renderer.*` | [exists] |
 | `RenderScene` HDR frame (S17): fp16 scene pass with MSAA and reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map weighted resolve), pre-exposure, post and ImGui in one pass, `--tonemap` / `--exposure` (§10.1, §10.5) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `tests/test_vulkan_scene.cpp` | [exists] |
 | `RenderScene` scene content (S18): materials, meshes and the palette by explicit IDs (`MeshPool`: vertex and index buffers sub-allocated in element units with VMA virtual blocks (`SubAllocatedBuffer`, growth with a GPU copy), the mesh record table, the material buffer), static instance sets per region and dynamic instances with GPU interpolation (`InstanceBuffer`), the offset table (double camera, float hi + lo), GPU culling (count, scan and write passes, buckets per pipeline class, mesh and LOD) with indexed indirect draws and the flat-color shading (`SceneCulling`), statistics, the `cull` GPU section, glTF mesh import (`MeshImport`), `chunkOrigin`/`regionOrigin` (§10.1, §10.2, §10.8, §14); the culling benchmark | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `src/saiga/core/math/ChunkId.h`, `tests/test_vulkan_scene.cpp`, `data/tests/scene/`, `samples/vulkan/sample_vulkan_scene_benchmark.cpp` | [exists] |
-| `RenderScene` prototype passes (S19a): `setPrototypeTerrain` (`PrototypeWorld`: the CDLOD terrain with the water plane, grass, sky, in-shader fog; `TerrainRenderer` and `GrassRenderer` moved from `vulkan/world/`), the trees as S18 instance sets of the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`, the shading include `prototype_shading.glsl` shared with the grass), the lighting block of the instance draws, `setTime` (wind phases, no wall clock), `setMeshLodDistances`, `reserveIds` / `kGameReservedIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections of the GPU sections (§10.1, §10.5) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `shader/vulkan/world/` | [exists], prototype content transitional until S20 |
-| World prototype, game side (S19a): the height field and the generators (`HeightField`, `FoliageGenerator`, `ForestRenderer::placeTrees`, own placement, OpenMP), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `WorldRenderer` (`attach`, `update`, the settings and statistics widgets (S19c: sections of the debug UI); no GPU resources); the world shaders are camera relative (float camera position: positions = (large part - camera) + small local part, `WorldUniforms::viewProjRel` without the translation) | `src/saiga/vulkan/world/`, `shader/vulkan/world/` | [exists], prototype |
+| `RenderScene` prototype passes (S19a): the trees as S18 instance sets of the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`, the shading include `prototype_shading.glsl` shared with the grass), the lighting block of the instance draws, `setTime` (wind phases, no wall clock), `setMeshLodDistances`, `reserveIds` / `kGameReservedIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections of the GPU sections (§10.1, §10.5); S20: `setPrototypeEnvironment` (the sky on `TerrainFrame`, the foliage texture; replaces `setPrototypeTerrain`, `PrototypeWorld`, `TerrainRenderer` and `GrassRenderer`) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/` | [exists], the environment transitional until S36 |
+| `RenderScene` terrain (S20): the GPU terrain set `TerrainAtlas` (int32 storage buffers: atlas, pyramid, page table, grass masks; the upload queue with a per-frame byte cap; rebuild per space or layout; patches; hierarchical node bounds; `memoryEstimate`), the CDLOD `TerrainPass` (selection in double, 64 m frame anchor, integer node origins, skirts, the water plane, `TerrainFrame`, the probe hooks), the chunk-relative `GrassPass` from grass masks, the pure generation `TerrainTiles` (§10.1, §12.2) | `src/saiga/vulkan/scene/Terrain*`, `GrassPass.*`, `shader/vulkan/scene/terrain*`, `grass.*`, `sky.*`, `tests/test_vulkan_terrain.cpp` | [exists: S20] |
+| Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
+| World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
 | Benchmark runner (`game_world --benchmark flyover\|forest`: paths, median/p95, result JSON with the engine's `step`, `recording` and (S17) `gpu_frame_ms`; S19a: its own samples fed by the game, the S03 `gpu_ms` keys from `RenderScene`'s sections; baselines in `data/tests/benchmarks.json`) | `src/saiga/vulkan/world/WorldBenchmark.*` (the paths and statistics), `samples/games/world/` | [exists], prototype (S03, on `EngineApp` since S13) |
@@ -214,9 +216,10 @@ The engine serves several games of the same genre. It offers capabilities; each 
 The rows above describe what exists today; none of it is fixed (§0). **Known deviations in the prototype** (deviation,
 rule, stage that removes it):
 
-- `#pragma omp` per-cell loops in `HeightField.cpp` and `ForestRenderer.cpp` (deterministic; the `placeTrees` sum is
+- `#pragma omp` per-cell loops in `ForestRenderer.cpp` (the hook samples of `placeTrees`; deterministic, the sum is
   serial): R-PAR-1, accepted inside `vulkan/world/` until S23.
-- Float noise in the generators: R-CONTENT-1, S23.
+- Float noise in the generators and the prototype height hook (`prototypeHeight`; the surface rule and the tile and
+  pyramid formats are integer already): R-CONTENT-1, S23.
 
 ## 4. Terms
 
@@ -596,6 +599,13 @@ struct WorldConfig                               // game policies (R-MECH-1)
     int interpolationDelaySteps = 6;              // S16: RenderPose samples the buffer this far behind (§13.4)
 };
 
+// [exists: S20] (engine/world/SpaceTemplate.h; A7): name, kind (OpenWorld only; Enclosed is rejected until S21),
+// baseSpacing, seaLevel, sizeChunks (open world: a multiple of 16 in 16..512) and prototypeHeight; validated by
+// validateSpaceTemplates in the World constructor (SAIGA_EXIT_ERROR, every build, D1). An empty spaceTemplates means one
+// flat default template; a space without a hook is flat and draws no terrain (hasTerrain(), A22, E6: the single "has
+// terrain" test; S23a: Generator::hasTerrain()). ambient and fog are [S36]: until then the game's PrototypeSettings
+// carry them as run-time settings. A3 (D11): space 0's seed is WorldSetup::seed, index >= 1 hashCombine(seed, index)
+// (World::spaceSeed)
 struct SpaceTemplate                              // S20
 {
     std::string name;
@@ -951,7 +961,9 @@ is no `config.ini`.
 - **One frame** (`EngineApp::frame()`):
   1. poll window events and input (GLFW; nothing when headless);
   2. `mcp.poll()` (tool handlers run between steps);
-  3. frame time: `steady_clock`, or the fixed `dt` given to `runFrames` (headless tests are deterministic);
+  3. frame time: `steady_clock`, or the fixed `dt` given to `runFrames` (headless tests are deterministic); the
+     terrain stream time of the previous frame (S20: its `completeView` at a complete point or in the benchmark mode,
+     §12.2) is subtracted, so a complete point pauses the simulation clock and causes no catch-up steps;
   4. apply look input to the camera immediately (no step latency; the prototype camera before S35, the rig of §10.6
      after);
   5. `world.advance(frameDt)`;
@@ -984,7 +996,7 @@ PerspectiveCamera&` derived from it (the input map's heading, old GUI code). The
 struct GameRenderHooks                                        // [exists: S19b]
 {
     std::function<void(EngineApp&)> init;                     // after the device and the sink exist (game GPU state:
-                                                              // setPrototypeTerrain, the tree sets, level geometry)
+                                                              // setPrototypeEnvironment, the tree sets, level geometry)
     std::function<void(EngineApp&)> shutdown;                 // after the device is idle (destroy it)
     std::function<void(EngineApp&, double alpha)> beforeRender;   // after the catch-up, before recording; not with
                                                               // --no-render (S19b; transfer, render, passNames and
@@ -1061,9 +1073,16 @@ class EngineApp   // engine/app/EngineApp.h
 |---|---|
 | main | steps (systems serially), extract, render recording, MCP |
 | frame `JobPool` (`setWorkerThreads`, the caller participates) | `parallelEach`; per-frame `JobPool::parallelFor` jobs (pose evaluation, extract); Jolt jobs through a job system adapter (S28 adds a non-blocking submit/barrier API to `JobPool` for it, or uses Jolt's `JobSystemThreadPool` with the same worker count; `parallelFor` alone cannot serve Jolt) |
-| streaming pool (2-3 low-priority workers) | chunk and region generation, terrain meshing, file IO, compression |
+| streaming pool (2-3 low-priority workers; S20: per `World`, owned by `TerrainSystem`) | chunk and region generation, terrain tiles / pyramids / grass masks (S20), terrain meshing, file IO, compression |
 | network thread | socket IO only, queues to and from the main thread |
 | audio (S47) | device callback / mixing; reads a lock-free command queue filled by the main thread, writes no components |
+
+`StreamingPool` (`engine/core/StreamingPool.h`) [exists: S20] (A14, D8): created on the first request (a world whose app
+never streams starts no threads), best-effort low priority; `submit(job, priority, completion)` (lower first, FIFO among
+equal priorities), `cancel(id)` (a queued job is dropped, a running one sees its `cancelled` flag and reports
+`done(true)`), `drain()` on the main thread (the completions in finishing order; a job's exception is rethrown there),
+`runOneOnCaller()` (the caller helps, `completeView`), `waitIdle` / `waitIdleFor`. Jobs capture copies (the height
+source, the layout), never the World or a store.
 
 `JobPool` (`engine/core/JobPool.h`) [exists]: `JobPool(int workerThreads)`, `setWorkerThreads`, `parallelFor(int64_t
 begin, int64_t end, int64_t chunk, fn(chunkBegin, chunkEnd))`. The chunk boundaries are fixed (they never depend on the
@@ -1198,8 +1217,10 @@ S10 implementation: the components in `engine/components/` (`Player.h`, `Health.
 `engine/gameplay/PlayerAction.h`. `world.queueAction(action)` (the player must be alive with a `Player`) queues with
 the player's peer and a sequence number; at the start of the next step the queue becomes pending `ActionEvent`s in
 (peer, sequence) order, readable in that step (an aborted step keeps them like other events); the queue is part of
-the hash. `characterMoveSystem` (phase 4) moves entities with a non-zero `desiredVelocity` (`y = 0`) and does not
-write idle ones.
+the hash. `characterMoveSystem` (phase 4) moves entities with a non-zero `desiredVelocity` and does not write idle ones; y is
+the entity's space's `terrainHeight` (S20; 0 in a space without terrain). In a space with terrain an idle entity is
+written only when its y differs from `terrainHeight` (S20, e.g. after a spawn or an edit; without terrain the idle rule
+is unchanged).
 
 ### 9.4 Classes decide, systems execute
 
@@ -1278,7 +1299,7 @@ pieces, updated on edits, streamed with the full radius; `nav.findPath(space, fr
 
 ## 10. Rendering
 
-### 10.1 RenderScene [exists: S13 frame shell, S17 HDR frame, S18 instances, S19a prototype passes]
+### 10.1 RenderScene [exists: S13 frame shell, S17 HDR frame, S18 instances, S19a prototype passes, S20 terrain]
 
 The interface between the engine and `saiga_vulkan`; knows meshes, materials, regions and instances, not entities. Class
 `RenderScene` in `src/saiga/vulkan/scene/RenderScene.h`, value types (`MeshLods`, `MaterialData`, `StaticInstance`,
@@ -1382,7 +1403,10 @@ bool multiDrawIndirect() const;
 
 ```cpp
 // planned
-// [planned: S20] as in RenderSink: setTerrainTile, removeTerrainTile, setTerrainPyramid, setGrassMask
+// [exists: S20] as in RenderSink: setTerrainPyramid, setTerrainTile, removeTerrainTile, setGrassMask,
+// removeGrassMask, clearTerrain, patchTerrainTile, patchTerrainPyramid, terrainUploadsPending; plus
+// setPrototypeEnvironment(settings, foliageSeed) (the sky and the foliage texture, replacing S19a's setPrototypeTerrain,
+// until S36), terrainAtlasStats, terrainPassStats (TerrainAtlas, TerrainPass, GrassPass in vulkan/scene/)
 // [planned: S36 environment and lights, S38 fog volumes, S39 water, S41 emitters, S42 clouds]
 void setEnvironment(const EnvironmentState& env);   // sun/moon direction and intensity, sky, weather, fog, clouds
 // No absolute time reaches a shader: EnvironmentState carries per-effect phases (wind, foliage, flicker, particles)
@@ -1460,7 +1484,8 @@ void removeEmitter(EmitterHandle);                                  // fixed pos
   §17.7).
 - Required device feature (asserted): `drawIndirectFirstInstance`; without `multiDrawIndirect` (or with
   `RenderSceneParameters::allowMultiDrawIndirect = false`) draws are issued one by one.
-- **Prototype content** [exists: S19a; transitional, replaced in S20] (`vulkan/scene/PrototypeWorld.h`):
+- **Prototype content** [exists: S19a; transitional; S20 replaced `setPrototypeTerrain` and the `HeightField` by the
+  engine terrain and `setPrototypeEnvironment`, below] (`vulkan/scene/PrototypeWorld.h`, S19a's interface):
 
 ```cpp
 struct PrototypeSettings { bool terrain, grass, sky, water, depthPrePass /* false */, fog; float fogDensity, fogFalloff,
@@ -1484,11 +1509,12 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   `RenderSink::addInstanceSet`; the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`: `tree.vert`'s
   wind and `foliage.frag`'s alpha to coverage on `MeshVertex`, the LOD tint from the compacted entry's LOD bits, the
   shading include `prototype_shading.glsl` shared with the grass) needs the foliage texture of
-  `setPrototypeTerrain` (asserted at `addMaterial` / `setMaterial`). Transitional exception to the camera-relative
+  `setPrototypeEnvironment` (S20; asserted at `addMaterial` / `setMaterial`; S23c moves the check into the frame). Transitional exception to the camera-relative
   rule: the foliage rebuilds its float world xz (`position + (hi + lo) + camera.xz`) for the per-tree wind phase
   (valid within the prototype's 8 km). The instance draws read a **lighting block** (set 1, `SceneLighting`): S18's
-  fixed sun (`normalize(0.4, 1, 0.7)`, 0.8) and ambient 0.35 with fog off, or with `setPrototypeTerrain` the
-  prototype's sun, hemisphere ambient, height fog and wind (until S36); the flat classes have a fog variant
+  fixed sun (`normalize(0.4, 1, 0.7)`, 0.8) and ambient 0.35 with fog off, or with `setPrototypeEnvironment` (S20,
+  replacing S19a's `setPrototypeTerrain`) the prototype's sun, hemisphere ambient, height fog (base: the terrain set's
+  sea level) and wind (until S36); the flat classes have a fog variant
   (`SCENE_FOG`), chosen per frame (the camera-relative position as a varying costs ~7 % of the flat draws).
   `freezeTime` and `freezeCulling` are removed (`setTime` covers goldens and benchmarks).
 - **Engine side** [exists: S19b]: `RenderInstance {std::string mesh;}` (`engine/components/RenderInstance.h`; a cached
@@ -1543,11 +1569,21 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
     virtual void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) = 0;
     virtual void setInterpolation(float alpha) = 0;
     // [planned: S30] addGeneratedMesh(RegionId, const MeshLods&, MaterialId) -> MeshId, removeGeneratedMesh(MeshId)
-    // [planned: S20]
-    virtual void setTerrainTile(RegionId region, const TerrainTileData& tile) = 0;   // integer heights, level
-    virtual void removeTerrainTile(RegionId region) = 0;
+    // [exists: S20] (A8, A9, A21): sent only through TerrainSystem's send point. A pyramid of another space or layout
+    // starts a new GPU terrain set (D5; the sink drops the old set's tiles and masks itself, no removal calls) and
+    // carries the sea level until S39's setWater; a set tile or mask is replaced in place; masks leave with the grass
+    // radius. Tiles and patches are absolute int32 heights (no per-tile reference, E2): a patch is a sub-rectangle of
+    // the tile's (pyramid's) sample grid, copied at the call, queued behind a pending full copy, ignored and counted
+    // without a layer or for another space. S22 is the first caller of the patches
     virtual void setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid) = 0;
-    virtual void setGrassMask(ChunkId chunk, const GrassMaskData& mask) = 0;
+    virtual void setTerrainTile(const RegionId& region, const TerrainTileData& tile) = 0;   // integer heights, level
+    virtual void removeTerrainTile(const RegionId& region) = 0;
+    virtual void setGrassMask(const ChunkId& chunk, const GrassMaskData& mask) = 0;
+    virtual void removeGrassMask(const ChunkId& chunk) = 0;
+    virtual void clearTerrain() = 0;                      // E1: the camera's space has no terrain
+    virtual void patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights) = 0;
+    virtual void patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights) = 0;
+    virtual size_t terrainUploadsPending() const { return 0; }   // E8: bytes sent but not yet recorded
     // [planned: S36 environment and lights, S38 fog volumes, S39 water, S41 emitters, S42 clouds]: setEnvironment,
     // add/set/removeLight, add/removeFogVolume, setWater, add/removeEmitter (as in RenderScene)
 };
@@ -2048,21 +2084,35 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   incremented by every applied modification. The modification state (plus the stored base of retired versions, §15.3)
   is what the save stores and what a client receives; entity groups stay on the host.
 
-### 12.2 Height-map terrain [planned: S20; terraforming: S22]
+### 12.2 Height-map terrain [exists: S20 (height tiles); planned: S22 (terraforming)]
 
 - **Integer heights**: int32 with the fixed unit `kHeightUnit` (1/1024 m, `constexpr double` in
-  `saiga/core/math/ChunkId.h`, no offset). Tiles, pyramid, CPU queries, physics, saves, content hashes, network
-  rectangles and the generators use the same integer values. GPU tiles are R32F, relative to the tile's minimum height
-  (exact for every tile whose height range is below 16 km); tile meshes have skirts (as the prototype CDLOD). The
-  terrain is a pure height field: no holes, caves or overhangs (those are separate spaces, §12.4, or meshes placed on
-  the terrain).
+  `saiga/core/math/ChunkId.h`, no offset), bounded by `kTerrainHeightLimit` = 2^23 units (+-8192 m, S20, A18: every hook
+  result is clamped to it with `clampTerrainHeight`; S22 clamps edits, S23 generators to the same limit). Tiles,
+  pyramid, CPU queries, physics, saves, content hashes, network rectangles and the generators use the same integer
+  values. A10 (S20, replaces "R32F tiles"): the GPU terrain set is int32 storage buffers (`TerrainAtlas`: an atlas with
+  `streamedLevels * tilesPerLevel` layers, the page entry is the layer only, the pyramid, the page table, the grass
+  masks) filled by buffer copies through the scene's terrain upload queue with a per-frame byte cap; the shader subtracts
+  one frame-global reference height and scales by `kHeightUnit` (exact: every difference is below 2^24). The pyramid is
+  fixed at 32 m for both spacings, the CDLOD root nodes are 4096 m, node origins are integers relative to a per-frame
+  64 m anchor, and the node bounds are hierarchical (a parent's box contains what its resident descendants draw). A1
+  (S20): the node grids have skirts (the prototype CDLOD had none), because refinement depends on residency; their
+  depth is the node's height range, at least two spacings. The terrain is a pure height field: no holes, caves or
+  overhangs (those are separate spaces, §12.4, or meshes placed on the terrain).
 - **Terrain surface**: every consumer (render mesh, Jolt collision, `terrainHeight`, candidate y, re-snapping) uses the
   same triangulation: two triangles per cell with the fixed diagonal from (x, z) to (x+1, z+1) in sample coordinates,
   CPU consumers interpolate with integer barycentric weights, rounded toward negative infinity (double queries
   interpolate the same triangles exactly); Jolt and the GPU agree within their quantization and float error (§11).
+  Implemented in `saiga/core/math/TerrainSurface.h` (S20): `terrainSurfaceUnits`, `terrainSurfaceDouble`,
+  `terrainGridTriangles`, the hook type and `TerrainHeightSource` (A22, E7: a callable over integer metres with the seed
+  bound; `fromHook` clamps). A2: S20 moved every consumer from the prototype's (1,0)-(0,1) split to this diagonal (the
+  goldens were regenerated).
 - **Scope before S23** (S20, S22): tiles of all levels are generated on demand from `SpaceTemplate::prototypeHeight`
-  (the prototype noise evaluated per point by `samples/games/world`, continuing beyond the prototype's 8 km; integer
-  format; R-CONTENT-1 applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; the
+  (A5, A6: the prototype hook `prototypeHeight` in `vulkan/world/PrototypeTerrain`, the S01 noise evaluated per point,
+  continuing beyond the prototype's 8 km with its 819.2 m border falloff at the edges of the 32 km space; the template
+  that uses it is built in `samples/games/common/PrototypeSpace.h`; tile, pyramid and grass-mask generation are pure
+  functions in `vulkan/scene/TerrainTiles`, wrapped by the engine's `TerrainGeneration`; integer format; R-CONTENT-1
+  applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; the
   chunk record of §12.1 is introduced with only the edited height tile; `World::save()` blobs contain the edited tiles.
   Simulation height queries (`terrainHeight`, mover, edits) evaluate the prototype height hook exactly if the base tile
   is not resident (the asynchronous path is visual only). Before S26 (S22) the host sends every live modification to
@@ -2073,6 +2123,18 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   covers 2^L chunks) and are streamed by distance; a coarse whole-space pyramid (e.g. 32 m) is always resident on CPU
   and GPU. GPU: texture-array atlas with a page table.
 - CDLOD refines a node only if its tiles are resident. The view distance does not depend on the load radius.
+- **Visual streaming (S20)**: `TerrainSystem` (owned by the World, `World::terrain()`) streams the tiles of the view
+  camera's space (A13: requested by `EngineApp` between steps through `updateView`, not from phase 7; S24 adds the
+  players' residency) with the desired set per level within `residencyRange0 * 2^k` (truncated nearest-first to
+  `tilesPerLevel`), the pyramid first, coarse levels first at equal distance ratio, LRU eviction, at most
+  `uploadsPerFrame` tile sends per update, grass masks within `grassRadius` (`TerrainViewSettings`, R-MECH-1).
+  `completeView` blocks until the desired set is resident and sent (the app's complete points: the first frame,
+  captures, the benchmark frames). A24: only `updateView` / `completeView` request terrain, and only the app calls them
+  for its view world; a render sink alone (every scenario world has a `RecordingRenderSink`) requests nothing and starts
+  no pool. Every tile, pyramid and mask reaches the sink through the single send point (S22 merges its edits there). A19
+  (D5, D6): `readiness(space, camera, radius)` is the fraction of the pyramid plus the desired tiles within the radius
+  sent to the sink; the sink holds one GPU terrain set (the camera's space), rebuilt on a space or layout change
+  (`clearTerrain` for a view space without terrain); other spaces keep only their CPU pyramid.
 - **Terraforming** (engine mechanism; whether and how a game allows it is policy): `struct TerrainBrush { enum Op {Add,
   Subtract, Flatten, Smooth} op; Vec3 center; double radius, strength; };` `void World::editTerrain(SpaceId space, const
   TerrainBrush& brush);` [S22]. Edits are chunk modifications with an integer result. `editTerrain` computes the integer
@@ -2084,7 +2146,8 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   (visual and budgeted per frame). The edit reports the affected tier-1 instances and pieces: tier-1 instances are
   re-snapped or tombstoned according to a flag of their generator slot (by the later of S22 and S23, §22), pieces are
   handed to the game (policy).
-- `world.terrainHeight(space, x, z)` (double) is exact everywhere: it uses the resident base-level tile (edits are
+- `world.terrainHeight(space, x, z)` (double; A16: x and z clamped to the space) is exact everywhere: it uses the
+  resident base-level tile (edits are
   visible from the requesting step on); otherwise it evaluates the three samples of the containing triangle exactly
   (`Generator::height` plus the chunk's modification state, loaded synchronously as for edits of non-resident chunks,
   §12.3; before S23 the prototype height hook). The pyramid is used only for rendering and far content (its CPU copy is
@@ -2165,8 +2228,8 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   store; entities are unloaded, not destroyed, §9.6).
 - Each peer renders only the space of its own camera; switching the space swaps the resident render data, no
   rendering of two spaces at once.
-- **Before S23** (S21): there is one space instance per `spaceTemplates` entry (`SpaceId` = template index, seed =
-  hashCombine(world seed, index)); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
+- **Before S23** (S21): there is one space instance per `spaceTemplates` entry (`SpaceId` = template index; seed: the world seed for space
+  0, hashCombine(world seed, index) for index >= 1, S20 D11, so space 0 keeps the world seed of §12.1); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
   affect the simulation.
@@ -2722,7 +2785,10 @@ the frame timings (shown frame, frame interval, CPU busy, CPU wait, GPU busy: me
 the game's sections. With vsync the refresh period is measured (the median of the frames that made a refresh; the
 window system may report another monitor's rate) and the shown frames are the intervals on the refresh grid (a late
 frame and the catch-up frame after it, absorbed by the swap chain queue, miss no refresh); uneven pacing (alternating
-intervals) is named as such. The Engine tab: pause, step, time scale, the tone map and exposure, the camera and input;
+intervals) is named as such. S20: a frame's terrain stream time (`completeView` at a complete point or in the
+benchmark mode, §12.2) is neither CPU work nor part of the frame interval in these statistics (the time base still
+advances) and pauses the simulation clock (§8.1); the Engine tab's Terrain section shows it with the streaming state
+(levels, masks, requests, CPU and GPU memory). The Engine tab: pause, step, time scale, the tone map and exposure, the camera and input;
 the world prototype's settings ("World"). The Console tab shows the engine log (time, category, filters, search) and a
 command line whose commands are the MCP tools, run through `McpServer::callLocal` (`tool`, `tool {json}`,
 `tool key=value ...`; `help`, `tools`, `clear`; Tab completes tool names). Every MCP tool call, an agent's or the
@@ -2795,6 +2861,9 @@ void registerEngineScenarios(ScenarioList& s)
   interestRadius = clientPhysicsRadius = 128`, `prefetchMargin = 0`), which a scenario can raise; it requests no visual
   tiles or far content, and all worlds of one test process share a cache of generated base chunks (content is
   deterministic, R-CONTENT-1).
+  [exists: S20] `ScenarioWorld` uses the setup's `spaceTemplates` (flat without a hook): `terrainHeight` and the mover
+  follow the terrain as in the game; its `RecordingRenderSink` requests no tiles (only the app's view camera streams,
+  §12.2), so a scenario world starts no streaming pool (the radii come with S24).
 - A failing scenario prints the failed checks with their steps, the log lines since it started (at most 200),
   `dumpJson` of the involved entities (spawned through the helpers, at most 10) and the traces.
 - Runner (`engine/tools/ScenarioRunner.h`, S12): `runScenario(setup, entry, variant, options)` and
@@ -2864,7 +2933,7 @@ what they last wrote per (entity, component) and every other legitimate writer (
   reload with connected clients is a session restart (§13.7). A loaded world is not required to continue
   bit-identically (§8.6).
 
-### 17.5 Rendering tests [exists: S18; extended in S19]
+### 17.5 Rendering tests [exists: S18; extended in S19, S20]
 
 Headless Vulkan tests (lavapipe in CI) assert numeric render statistics (instances drawn per LOD, terrain nodes;
 `RenderScene::statistics()`; S18: `VulkanSceneContent.*` in `tests/test_vulkan_scene.cpp`, a CPU reference of the
@@ -2872,6 +2941,11 @@ culling rule).
 Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) are equal except for instances within
 1e-3 relative of a frustum plane or LOD threshold, as determined by the CPU reference. S19a: the prototype's trees
 against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestFollowsSettings`, the goldens' counts).
+S20: the terrain against the integer rule (`tests/test_vulkan_terrain.cpp` on `RenderScene` with test tiles: one vertex
+per sample at level 0, rendered depth vs the surface, no background pixel at level borders, the camera move at 30 km
+through GPU vertex probes, the atlas's uploads, patches and limits; `tests/test_engine_terrain_render.cpp` through the
+engine's `TerrainSystem` and `VulkanRenderSink`: the origin offset at 28 672 m, the memory of the 32 km layout, the
+goldens).
 
 ### 17.6 Golden images [exists]
 
@@ -2883,8 +2957,8 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   - Golden mode uses a fixed exposure and forces a full (non-incremental) update of every incremental effect (volumetric
     fog and cloud history, horizon and cloud shadow maps, shadow atlas) in the captured frame [planned: by the stage of
     each effect].
-- S02 goldens (`VulkanWorldGolden.WorldOverview` / `.WorldForest` in `tests/test_vulkan_world.cpp`, `WorldParameters`
-  with `terrain.size = 513` (1 km), 5000 trees, seed 1): `world_overview` (camera 300 m above the ground 100 m from the
+- S02 goldens (`VulkanWorldGolden.WorldOverview` / `.WorldForest`; until S19: `tests/test_vulkan_world.cpp`,
+  `WorldParameters` with `terrain.size = 513` (1 km), 5000 trees, seed 1; since S20 the setup below): `world_overview` (camera 300 m above the ground 100 m from the
   west edge at the center z, looking 45 degrees down along +x, so terrain and trees fill the image) and `world_forest`
   (camera 2 m above max(ground, water) at the edge of a clearing 28 m west and 80 m north of the center, looking along
   +x and slightly down: a close tree with alpha-to-coverage foliage, grass, trunks, the forest at mid distance and the
@@ -2897,6 +2971,14 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   sets of the `PrototypeFoliage` class, `nearPlane` 0.1, fovy 60, `setTime(0)`): they pass unchanged with equal drawn
   counts per LOD and terrain nodes (lavapipe: `world_overview` mean 0.13/255, 0.007% of the pixels > 16/255;
   `world_forest` mean 0.11/255, 0.034%); the counts are also checked against the CPU reference of §17.5.
+- Since S20 the S02 goldens are rendered from the engine's terrain (`tests/test_engine_terrain_render.cpp`, regenerated
+  in a dedicated commit, A2: the (0,0)-(1,1) diagonal, the integer tiles, skirts): a `World` with the prototype hook at
+  base spacing 2 (CI cost) in a 128-chunk space (sea level 6 m), `completeView` and the upload wait before the capture,
+  5000 trees placed in the 1 km square `[1024, 2048]^2` (seed 1) through `PrototypeScene`; `world_overview` 300 m above
+  the ground 100 m inside the square's west edge at its centre z, looking 45 degrees down along +x; `world_forest` 2 m
+  above max(ground, water) at the clearing (1524, 1564) near the square's centre (the point nearest the centre on a
+  4 m grid whose nearest tree is >= 15 m away), looking along +x and slightly down. The counts are committed as before
+  (and checked against the CPU reference).
 - `hdr_tonemap` (S17, `VulkanScene.AcesGolden` in `tests/test_vulkan_scene.cpp`, 256 x 128): ACES, 4 samples, an
   exponential HDR gradient (16 / 4096 .. 16, 12 stops) in the top half and a bright (16) triangle with slanted MSAA
   edges on a dark clear color in the bottom half; it pins the tone map, the sRGB output curve and the weighted resolve.
@@ -2917,7 +2999,7 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   43754502053: `world_overview` mean 0.005/255, 0.011% of the pixels > 16/255; `world_forest` mean 0.14/255, 0.19%); a
   Mesa update on the CI runner may need the regeneration from the CI artifact below.
   Goldens are only written on lavapipe, in a dedicated commit: `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json
-  SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_vulkan_world --gtest_filter='VulkanWorldGolden.*'` (it writes the PNGs
+  SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_terrain_render --gtest_filter='VulkanWorldGolden.*'` (since S20; it writes the PNGs
   instead of comparing and does not check the counts), then the printed `trees per lod` counts are copied into the `ExpectCounts` calls. If CI fails after a Mesa update, the goldens and the committed counts are taken from the failed
   run: the `_actual.png` images of the artifact (it exists only for a run whose comparison failed) and the
   `trees per lod` lines of the step "Golden image metrics", and the Mesa/LLVM versions named here and in AGENTS.md are
@@ -2933,8 +3015,16 @@ against a CPU reference of the rule over `placeTrees` (`VulkanWorldScene.ForestF
   Benchmarks `flyover` (one revolution in 600 frames on a circle of radius 3 km around the world center (the prototype's
   center (4096, 4096) until S27; from S27 `(sizeChunks * 128 m, sizeChunks * 128 m)` on the 32 km world), at the ground
   height below the camera + 300 m, looking at the center) and `forest` (2 m above max(terrain, water level) from center
-  minus 300 m to center plus 300 m along x in 600 frames, looking along +x); default `WorldParameters` (8 km, 200k
-  trees); 1920 x 1080, MSAA 4; 60 warm-up frames excluded; time 0 (`setTime`); `--benchmark` turns validation, vsync,
+  minus 300 m to center plus 300 m along x in 600 frames, looking along +x); A4 (S20): `game_world`'s 32 km space at
+  1 m (`samples/games/common/PrototypeSpace.h`) with the 200k trees in the 8 km prototype area `[0, 8192]^2`, the paths
+  over a ground callback (`WorldBenchmark(name, ground, gpu)`: max(terrain, sea level)) around (4096, 4096) until S27;
+  terrain residency is completed in every frame (`EngineApp::setCompleteViewEachFrame`, E9; a frame that has to stream
+  first waits for the GPU, so the GPU cannot run ahead during the stream; that wait stays in the interval as frame
+  wait, so a path that streams in most frames, the flyover at 1 m, has a frame interval that is not comparable with a
+  run without streaming: compare its GPU sections), its time is excluded from the frame
+  interval, CPU busy and the stall count and reported as `terrain_stream_ms` / `wait_ms.terrain_stream` with a
+  `terrain` block `{uploads, upload_mb, resident_tiles, cpu_mb, gpu_mb, base_spacing}`; `--base-spacing 2` runs the
+  same space at 2 m for comparisons; 1920 x 1080, MSAA 4; 60 warm-up frames excluded; time 0 (`setTime`); `--benchmark` turns validation, vsync,
   ImGui and defragmentation off; the `gpu_ms` keys stay S03's (`WorldBenchmark::gpuKeys`), from S19a computed from
   `RenderScene`'s sections: `trees` = `scene.instances`, `upload + cull` = `transfer` + `cull`, `terrain + water` =
   `depth.terrain` + `scene.terrain`, `grass` = `scene.grass`, `sky` = `scene.sky` (`wireframe` dropped); `quality` is
@@ -3068,8 +3158,8 @@ the missing target is reported as open).
 | shaders | `shader/vulkan/<area>/` | `snake_case.vert/.frag/.comp`, `*.glsl` includes | |
 | game data, prefabs | `data/<game>/`, `data/<game>/prefabs/` | `snake_case.json` | |
 | golden images | `data/tests/golden/<test>.png` | | |
-| render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`; S19a: `PrototypeWorld`, `TerrainRenderer`, `GrassRenderer`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`; S19a: `scene_lighting.glsl`, `prototype_foliage.vert/.frag`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
-| world prototype, game side (S19a; replaced from S20) | `src/saiga/vulkan/world/` (`HeightField`, `FoliageGenerator`, `ForestRenderer` (placement), `PrototypeForest`, `WorldSettings`, `WorldRenderer`, `WorldStatistics.cpp`, `WorldBenchmark`, `WorldMcp`, `WorldCommon.h`), `shader/vulkan/world/` (terrain, grass, sky; `prototype_shading.glsl`, `shading.glsl`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
+| render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`; S19a: `PrototypeWorld.h` (the settings); S20: `TerrainTiles`, `TerrainAtlas`, `TerrainPass`, `GrassPass`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`; S19a: `scene_lighting.glsl`, `prototype_foliage.vert/.frag`; S20: `terrain*`, `grass.*`, `sky.*`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
+| world prototype, game side (S19a; replaced from S20) | `src/saiga/vulkan/world/` (S20: `PrototypeTerrain`, `WorldNoise`, `FoliageGenerator`, `ForestRenderer` (placement), `PrototypeForest`, `PrototypeScene`, `WorldSettings`, `WorldBenchmark`, `WorldMcp`, `WorldCommon.h`), `shader/vulkan/world/` (`prototype_shading.glsl`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
 | render test data | `data/tests/scene/` (glTF files of the import tests and their generator `make_gltf.py`) | | |
 
 ### 18.2 Registration lists
@@ -3227,13 +3317,13 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | `WorldMcp` | screenshot and camera tools in `engine/app/AppTools`, the rest as `game_*` tools of `game_world` | S14 (done) |
 | the app's float camera (`Glfw_Camera<PerspectiveCamera>`), the games' camera writes in the transfer hook | S19b: one double view camera (`EngineApp::setViewCamera`, the camera tools and `game_set_camera` on it; the free camera integrates in double, `camera()` derived), set in `beforeRender` [exists]; the camera rig in S35 | S19b (done), S35 |
 | `WorldBenchmark` | `--benchmark` of `EngineApp` [exists] (S13); S19a: its own samples fed by `game_world`, the S03 keys from `RenderScene`'s sections [exists] | S13 (done), S19a (done) |
-| `WorldCommon.h`, `common.glsl` (world uniforms) | S19a: the uniforms of `PrototypeWorld`'s terrain, grass and sky passes (time replaced by the grass wind phases), the frustum helpers stay; the instance draws read `RenderScene`'s lighting block [exists]; replaced with the passes (S20, S36) | S19a (done), S20 |
+| `WorldCommon.h`, `common.glsl` (world uniforms) | S19a: the uniforms of `PrototypeWorld`'s passes; S20: `TerrainFrame` (`terrain_common.glsl`, owned by `TerrainPass`) replaces them, `WorldCommon.h` keeps the frustum helpers and `viewRotation` [exists]; S36 replaces the environment | S19a (done), S20 (done) |
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | S18: the generic path in `RenderScene` (instance sets, culling with `tree_cull.comp`'s rule generalized, flat instance shaders) [exists]; S19a: the trees as instance sets (`PrototypeForest`), `tree.vert` / `foliage.frag` ported onto the instance layout as the transitional `PrototypeFoliage` class (`prototype_foliage.vert/.frag`; `foliage.frag` stays for the grass, the shading in `prototype_shading.glsl`), `ForestRenderer` reduced to `placeTrees`, `tree.vert` and `tree_cull.comp` removed [exists] | S18 (done), S19a (done) |
-| `WorldRenderer`, `WorldStatistics.cpp` | S19a: the passes in `RenderScene` (`PrototypeWorld`), the statistics from `RenderScene`; `WorldRenderer` keeps the height field, the settings, `PrototypeForest`, the GUI and the statistics (S19c: debug UI sections; no GPU resources) [exists]; replaced in S20 | S19a (done), S20 |
-| `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid, edits, double camera and region-relative tile data (the shaders are camera relative already) | S20, extended in S22 |
-| `GrassRenderer`, `grass.vert` | region-relative cells, mask from the prototype generator (S20); generated masks (S23); edited masks (S31) | S20 |
-| `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | double camera position, sea level from `SpaceTemplate` (S20; the shaders are camera relative already); sky and lighting replaced in S36, water in S39 | S20 |
-| `FoliageGenerator`, `HeightField::generate`, `placeTrees` | generation pipeline with integer math (R-CONTENT-1) | S23 |
+| `WorldRenderer`, `WorldStatistics.cpp` | A15 (S20): `PrototypeScene` (settings, GUI, forest) plus the engine debug UI's terrain section; `setPrototypeTerrain` became `setPrototypeEnvironment` [exists] | S19a (done), S20 (done) |
+| `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid (`TerrainSystem`, `TerrainAtlas`, `TerrainPass`, `scene/terrain*`), double camera through a 64 m frame anchor (A2: the (0,0)-(1,1) diagonal) [exists]; edits | S20 (done), extended in S22 |
+| `GrassRenderer`, `grass.vert` | chunk-relative cells (`GrassPass`, `scene/grass.*`), masks from the transitional prototype rule [exists]; generated masks (S23); edited masks (S31) | S20 (done) |
+| `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | `scene/sky.*`, `scene/terrain_shading.glsl` on `TerrainFrame`, the water plane at the `SpaceTemplate`'s sea level snapped to 4096 m [exists: S20]; sky and lighting replaced in S36, water in S39 | S20 (done) |
+| `FoliageGenerator`, `HeightField::generate`, `placeTrees` | S20: the hook `prototypeHeight` (the noise per point), `placeTrees` over a `PrototypeArea` [exists]; generation pipeline with integer math (R-CONTENT-1) | S23 |
 | `tests/test_vulkan_world.cpp` | render tests on `RenderScene` (S19a: the forward-renderer fixture dropped) [exists] + engine tests (S19b: `tests/test_engine_extract.cpp`, the app's view camera in `tests/test_engine_app.cpp`) [exists] | S19a (done), S19b (done) |
 
 The sample keeps running and all tests stay green after every stage.
@@ -3266,8 +3356,8 @@ The sample keeps running and all tests stay green after every stage.
 - **Reproducible only in `ScenarioWorld`** (§8.6): no thread-count independence and no bit-identical continuation after
   load required of games (the engine's own scenarios check both, §17.4), no Jolt snapshot or engine-allocated body IDs, streaming results apply when ready. Add later if lockstep or
   replays of live sessions are needed.
-- **R32F GPU height tiles** (§12.2): no 16-bit tiles with per-tile scales and border rounding rules. Add later if
-  terrain GPU memory becomes the limit.
+- **32-bit GPU height tiles** (§12.2; S20: int32 storage buffers, A10, instead of the planned R32F): no 16-bit tiles
+  with per-tile scales and border rounding rules. Add later if terrain GPU memory becomes the limit.
 - **Portable character files only** (§15.4): no characters stored in the world save. Add later as a policy option.
 - **`alwaysSimulate` only while the chunk is resident** (§9.6): no streaming around important entities. Add later if a
   game needs traveling NPCs that interact with the world far from players.
@@ -3352,7 +3442,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S19b | Extract and render sink (done) | `RenderSink`, `VulkanRenderSink`, `RecordingRenderSink`, the extract with interpolation (`RenderPose`, composed children, pending remote roots), the catch-up between steps, `interpolatedPose`, `RenderInstance`, the `World`'s name tables and `renderAssets`, the app's view camera and `beforeRender` (§7.10, §8.3, §10.1, §10.3); tech demos: all three (flight, platformer, racing) render their entities through `RenderScene` (`MeshRenderer` and `PoseHistory` removed; level geometry as instance sets, cosmetic dynamics) | S19a, S16, S16b, S14, S13b | client extract from `RenderPose` flags (CI); tech demo screenshots reviewed (local) |
 | S19c | Debug UI | `DebugUi` (bar with tabs and a performance summary, one docked panel, keys, state), `DebugUiStyle`, the Performance and Engine tabs, the console (`DebugConsole`, MCP tools as commands, `McpServer::callLocal`), the MCP call log (`McpCallLog`, the call observer), `set_ui_tab`, `queueBetweenSteps`; the games and the world prototype's GUI in the tabs (§17.1) | S13, S14 | console, keys, state and call log tests (CI); every tab renders headless and a tab button click selects it (CI, lavapipe); screenshots of each tab reviewed (local) |
 | S19d | Debug UI tools | Entity inspector and editor in the Engine tab (`list_entities` with filters and paging, `inspect` as a tree, edits as `set_component`), camera tools ("copy camera"), profile freeze and freeze on spike, console argument completion from the input schema | S19c | inspector tests (CI) |
-| S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, R32F GPU tiles, pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance; a 1 mm camera move moves no vertex > 0.5 px; `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
+| S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, int32 GPU tiles in storage buffers (A10 of the S20 plan; planned: R32F), pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance (tested at 28 672 m, a multiple of the 4096 m root node); a 1 mm camera move moves no vertex > 0.5 px (the GPU displacement differs from the double-precision one by at most 0.5 px); `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
 | S23 | Generation pipeline | `Generator` interface, world plan with sites and space instances, chunk generation, prefab stamping (terrain patches, entities, static geometry; pieces in S30), tombstones, content hashes, pinned versions, the hash test on all CI compilers (§12.1, §15.3) | S20, S21, S22 | committed chunk hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present); a tombstoned instance is hidden on the client in the host + client variant (CI) |
