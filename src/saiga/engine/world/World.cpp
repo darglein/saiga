@@ -1561,6 +1561,16 @@ uint64_t World::hash() const
     }
     h.addU64(persistentCounter);
     h.addU64(steps);
+    // The terrain modification state (S22, §17.4): per chunk with state in ChunkId order; nothing without one
+    const TerrainEditStore& st = *terrainEditStore;
+    for (size_t i = 0; i < st.spaceCount(); ++i)
+        for (const auto& [c, e] : st.chunks(SpaceId(i)))
+        {
+            h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(e.sequence);
+            const bool deltas = e.nonZeroSamples > 0;
+            h.addU8(deltas ? 1 : 0);
+            if (deltas) h.addU64(st.contentHash(c));
+        }
     return h.value();
 }
 

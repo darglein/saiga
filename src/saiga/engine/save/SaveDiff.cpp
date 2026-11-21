@@ -15,6 +15,8 @@
 
 #include <algorithm>
 #include <map>
+#include <set>
+#include <tuple>
 
 #include <unordered_map>
 
@@ -158,6 +160,68 @@ void diffSpaceTables(const SpaceTable& a, const SpaceTable& b, Add& add)
     }
 }
 
+// TERR (S22): per chunk with terrain state, one-sided chunks, sequence differences and per chunk the number of
+// differing delta samples with the first one ("terrain space 0 chunk (1, 2): ...")
+template <class Add>
+void diffTerrain(const TerrainSection& a, const TerrainSection& b, Add& add)
+{
+    using Key = std::tuple<SpaceId, int32_t, int32_t>;
+    std::map<Key, std::pair<const TerrainSection::Chunk*, uint16_t>> ca, cb;
+    for (const auto& sp : a.spaces)
+        for (const auto& c : sp.chunks) ca[Key(sp.space, c.x, c.z)] = {&c, sp.N};
+    for (const auto& sp : b.spaces)
+        for (const auto& c : sp.chunks) cb[Key(sp.space, c.x, c.z)] = {&c, sp.N};
+    std::set<Key> keys;
+    for (const auto& kv : ca) keys.insert(kv.first);
+    for (const auto& kv : cb) keys.insert(kv.first);
+    auto state = [](const TerrainSection::Chunk* c)
+    {
+        if (!c) return Json();
+        return Json(Json::object{{"sequence", double(c->sequence)}, {"deltas", c->hasDeltas}});
+    };
+    for (const Key& k : keys)
+    {
+        auto ia = ca.find(k), ib = cb.find(k);
+        const TerrainSection::Chunk* x = ia == ca.end() ? nullptr : ia->second.first;
+        const TerrainSection::Chunk* y = ib == cb.end() ? nullptr : ib->second.first;
+        SaveDifference d;
+        d.kind      = "terrain";
+        d.component = "space " + std::to_string(std::get<0>(k)) + " chunk (" + std::to_string(std::get<1>(k)) + ", " +
+                      std::to_string(std::get<2>(k)) + ")";
+        if (!x || !y || x->sequence != y->sequence || x->hasDeltas != y->hasDeltas)
+        {
+            SaveDifference s = d;
+            s.a              = state(x);
+            s.b              = state(y);
+            add(std::move(s));
+            // A one-sided chunk is one difference; otherwise the deltas are compared too
+            if (!x || !y) continue;
+        }
+        if (!x->hasDeltas || !y->hasDeltas || x->deltas == y->deltas) continue;
+        // The same N (equal spacing) unless the saves come from different setups
+        const size_t N = ia->second.second;
+        if (ib->second.second != ia->second.second)
+        {
+            d.a = Json("N " + std::to_string(ia->second.second));
+            d.b = Json("N " + std::to_string(ib->second.second));
+            add(std::move(d));
+            continue;
+        }
+        size_t count = 0, first = 0;
+        for (size_t i = 0; i < x->deltas.size(); ++i)
+            if (x->deltas[i] != y->deltas[i])
+            {
+                if (count == 0) first = i;
+                count++;
+            }
+        d.field = std::to_string(count) + " samples differ, first (" + std::to_string(first % N) + ", " +
+                  std::to_string(first / N) + ")";
+        d.a = Json(double(x->deltas[first]));
+        d.b = Json(double(y->deltas[first]));
+        add(std::move(d));
+    }
+}
+
 Json actionsJson(const ParsedSave& p)
 {
     Json::array a;
@@ -194,6 +258,8 @@ std::string SaveDifference::describe() const
         return e + " only in " + kind.substr(8) + (className.empty() ? "" : " (" + className + ")");
     if (kind == "component_only_in_a" || kind == "component_only_in_b")
         return e + " " + component + " only in " + kind.substr(18);
+    if (kind == "terrain")
+        return "terrain " + component + (field.empty() ? "" : " " + field) + ": " + short_(a) + " != " + short_(b);
     if (kind == "space")
         return "space " + field + ": " + (a.is_string() ? a.string_value() : "none") + " vs " +
                (b.is_string() ? b.string_value() : "none");
@@ -288,6 +354,24 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
     };
     section(kTagSpaces, pa.spaces.has_value(), pb.spaces.has_value());
     if (pa.spaces && pb.spaces) diffSpaceTables(*pa.spaces, *pb.spaces, add);
+    section(kTagTerrain, pa.terrain.has_value(), pb.terrain.has_value());
+    {
+        TerrainSection ta, tb;
+        std::string e;
+        if (pa.terrain && !parseTerrainSection(a.data() + pa.terrain->begin, pa.terrain->end - pa.terrain->begin,
+                                               pa.terrain->version, ta, e))
+        {
+            result.error = "a: TERR: " + e;
+            return result;
+        }
+        if (pb.terrain && !parseTerrainSection(b.data() + pb.terrain->begin, pb.terrain->end - pb.terrain->begin,
+                                               pb.terrain->version, tb, e))
+        {
+            result.error = "b: TERR: " + e;
+            return result;
+        }
+        diffTerrain(ta, tb, add);
+    }
     {
         std::map<std::string, bool> names;
         for (auto& kv : da.events) names[kv.first] = true;

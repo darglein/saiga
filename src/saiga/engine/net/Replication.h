@@ -146,6 +146,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     // Host: one TerrainModification (applyTerrainEdit; after reserveHostState)
     void appendTerrainModification(SpaceId space, std::vector<TerrainPart>&& parts);
     const std::vector<HostStateEntry>& hostStateList() const { return hostStates; }
+    // A committed host load: the entries describe the replaced state (the load's snapshot follows from onHostLoad)
+    void clearHostStates() { hostStates.clear(); }
 
     // The component encodings (engine-internal; also the replica comparison and the benchmarks)
     void encodeComponent(Entity e, ComponentId id, std::vector<uint8_t>& out) const;

@@ -11,6 +11,8 @@
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SchemaTable.h"
+#include "saiga/engine/terrain/TerrainDeltaCodec.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/world/World.h"
 
 #include <stdexcept>
@@ -65,6 +67,41 @@ std::vector<uint8_t> World::save() const
         s.end();
     }
 
+    // TERR (S22): only with a chunk with terrain state
+    if (terrainEditStore->chunkCount() > 0)
+    {
+        const TerrainEditStore& st = *terrainEditStore;
+        s.beginOptional(kTagTerrain, kTerrainSectionVersion);
+        uint32_t spacesWithState = 0;
+        for (size_t i = 0; i < st.spaceCount(); ++i) spacesWithState += st.chunks(SpaceId(i)).empty() ? 0 : 1;
+        w.write(spacesWithState);
+        std::vector<int32_t> dense;
+        std::vector<uint8_t> encoded;
+        for (size_t i = 0; i < st.spaceCount(); ++i)
+        {
+            const SpaceId space = SpaceId(i);
+            if (st.chunks(space).empty()) continue;
+            w.write(space);
+            w.write(uint8_t(st.spacing(space)));
+            w.write(uint16_t(st.chunkSamples(space) + 1));
+            w.write(uint32_t(st.chunks(space).size()));
+            for (const auto& [c, e] : st.chunks(space))
+            {
+                w.write(c.x);
+                w.write(c.z);
+                w.write(e.sequence);
+                const bool deltas = e.nonZeroSamples > 0;
+                w.write(uint8_t(deltas ? 1 : 0));
+                if (!deltas) continue;
+                st.denseDelta(c, dense);
+                encoded.clear();
+                TerrainDeltaCodec::encode(dense.data(), dense.size(), true, encoded);
+                w.write(uint64_t(encoded.size()));
+                out.insert(out.end(), encoded.begin(), encoded.end());
+            }
+        }
+        s.end();
+    }
     s.begin(kTagEntities);
     const uint32_t slots = reg.slotCount();
     w.write(slots);

@@ -29,7 +29,8 @@ int chunkRange(int64_t v, int64_t S, int32_t size, int32_t out[2])
 }
 }  // namespace
 
-TerrainEditStore::TerrainEditStore(const std::vector<SpaceTemplate>& templates)
+TerrainEditStore::TerrainEditStore(const std::vector<SpaceTemplate>& templates, uint64_t counterStart)
+    : counter(counterStart)
 {
     spaces.resize(templates.size());
     for (size_t i = 0; i < templates.size(); ++i)
@@ -250,6 +251,15 @@ void TerrainEditStore::clearSpace(SpaceId space)
     s.blocks.clear();
     s.chunks.clear();
     s.nonZero = 0;
+}
+
+void TerrainEditStore::replaceState(TerrainEditStore&& staged)
+{
+    SAIGA_ASSERT(staged.spaces.size() == spaces.size() && staged.counter >= counter,
+                 "TerrainEditStore::replaceState: another layout or an older counter");
+    spaces.swap(staged.spaces);
+    // Monotone: a change of the state is a change for every reader of revisions
+    counter = staged.counter + 1;
 }
 
 size_t TerrainEditStore::memoryBytes() const

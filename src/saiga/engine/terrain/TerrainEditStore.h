@@ -47,7 +47,8 @@ class SAIGA_ENGINE_API TerrainEditStore
     };
 
     // One entry per space (SpaceId = index); the open-world spaces' sample grid (enclosed spaces hold nothing)
-    explicit TerrainEditStore(const std::vector<SpaceTemplate>& templates);
+    // counterStart: the first value of the delta-change counter (a load's staged store continues the world's counter)
+    explicit TerrainEditStore(const std::vector<SpaceTemplate>& templates, uint64_t counterStart = 0);
     TerrainEditStore(const TerrainEditStore&)            = delete;
     TerrainEditStore& operator=(const TerrainEditStore&) = delete;
 
@@ -124,6 +125,9 @@ class SAIGA_ENGINE_API TerrainEditStore
     void clear();
     // Drops the entries and blocks of one space
     void clearSpace(SpaceId space);
+    // A load's commit: the blocks and entries of a staged store (built for the same templates, its counter started at
+    // this one's) replace this one's; no allocation. The statistics stay
+    void replaceState(TerrainEditStore&& staged);
 
     Stats& statsForUpdate() { return statistics; }
     const Stats& stats() const { return statistics; }

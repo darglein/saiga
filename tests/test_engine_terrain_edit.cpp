@@ -12,9 +12,13 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/net/Varint.h"
+#include "saiga/engine/save/SaveDiff.h"
+#include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/BrushKernel.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainDeltaCodec.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -25,11 +29,13 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <functional>
 #include <limits>
 #include <random>
 #include <string>
 #include <vector>
+#include <zstd.h>
 
 #include "terrain_test_hooks.h"
 
@@ -1005,4 +1011,323 @@ TEST_F(TerrainEditWorld, ViolationsStopTheProgram)
             w.step();
         },
         "client");
+}
+
+// ---- codec, saves and loads (step 4)
+
+TEST(TerrainDeltaCodec, RoundTripsAndBounds)
+{
+    std::mt19937 rng(5);
+    std::uniform_int_distribution<int32_t> d(-kMaxTerrainDelta, kMaxTerrainDelta), small(-3000, 3000);
+    for (size_t count : {size_t(1), size_t(17 * 9), size_t(257 * 257)})
+        for (bool zstd : {false, true})
+        {
+            std::vector<int32_t> v(count);
+            for (size_t i = 0; i < count; ++i) v[i] = i % 7 == 0 ? d(rng) : small(rng);
+            v[0] = count > 1 ? kMaxTerrainDelta : -kMaxTerrainDelta;
+            std::vector<uint8_t> bytes;
+            TerrainDeltaCodec::encode(v.data(), v.size(), zstd, bytes);
+            std::vector<int32_t> back(count);
+            std::string e;
+            ASSERT_TRUE(TerrainDeltaCodec::decode(bytes.data(), bytes.size(), zstd, count, back.data(), &e)) << e;
+            EXPECT_EQ(back, v);
+            // Bytes left over, a short count, a long count
+            std::vector<uint8_t> more = bytes;
+            more.push_back(0);
+            EXPECT_FALSE(TerrainDeltaCodec::decode(more.data(), more.size(), zstd, count, back.data(), &e));
+            if (count > 1)
+            {
+                EXPECT_FALSE(TerrainDeltaCodec::decode(bytes.data(), bytes.size(), zstd, count - 1, back.data(), &e));
+            }
+            std::vector<int32_t> big(count + 1);
+            EXPECT_FALSE(TerrainDeltaCodec::decode(bytes.data(), bytes.size(), zstd, count + 1, big.data(), &e));
+        }
+    // Every rectangle decodes on its own: the predictor starts at 0
+    const int32_t a[] = {1000, 1001}, b[] = {1000, 999};
+    std::vector<uint8_t> ea, eb;
+    TerrainDeltaCodec::encode(a, 2, false, ea);
+    TerrainDeltaCodec::encode(b, 2, false, eb);
+    EXPECT_EQ(ea[0], eb[0]);
+    EXPECT_EQ(ea.size(), eb.size());
+    // A delta beyond 2^24 (raw: zigzag of 2^24 + 1)
+    std::vector<uint8_t> over;
+    writeVarint(over, zigzag(int64_t(kMaxTerrainDelta) + 1));
+    int32_t one = 0;
+    std::string e;
+    EXPECT_FALSE(TerrainDeltaCodec::decode(over.data(), over.size(), false, 1, &one, &e));
+    EXPECT_NE(e.find("2^24"), std::string::npos) << e;
+    // The zstd bound: a frame larger than count * 4 bytes
+    std::vector<int32_t> many(400, 5000000);
+    std::vector<uint8_t> z;
+    TerrainDeltaCodec::encode(many.data(), many.size(), true, z);
+    std::vector<int32_t> out(100);
+    EXPECT_FALSE(TerrainDeltaCodec::decode(z.data(), z.size(), true, 100, out.data(), &e));
+    // A truncated zstd stream
+    std::vector<int32_t> fine(400);
+    EXPECT_TRUE(TerrainDeltaCodec::decode(z.data(), z.size(), true, 400, fine.data(), &e));
+    EXPECT_FALSE(TerrainDeltaCodec::decode(z.data(), z.size() - 3, true, 400, fine.data(), &e));
+}
+
+namespace
+{
+// The sections of a save blob: (tag, payload)
+std::vector<std::pair<uint32_t, std::vector<uint8_t>>> sections(const std::vector<uint8_t>& blob)
+{
+    std::vector<std::pair<uint32_t, std::vector<uint8_t>>> out;
+    size_t pos = 8;
+    while (pos + 12 <= blob.size())
+    {
+        uint32_t tag = 0;
+        uint64_t len = 0;
+        std::memcpy(&tag, blob.data() + pos, 4);
+        std::memcpy(&len, blob.data() + pos + 4, 8);
+        out.push_back({tag, std::vector<uint8_t>(blob.begin() + std::ptrdiff_t(pos + 12),
+                                                 blob.begin() + std::ptrdiff_t(pos + 12 + len))});
+        pos += 12 + size_t(len);
+    }
+    return out;
+}
+// The blob with its TERR payload replaced (inserted before ENTS if absent)
+std::vector<uint8_t> withTerr(const std::vector<uint8_t>& blob, const std::vector<uint8_t>& payload)
+{
+    std::vector<uint8_t> out(blob.begin(), blob.begin() + 8);
+    bool done = false;
+    for (auto& [tag, bytes] : sections(blob))
+    {
+        if (tag == kTagTerrain || (tag == kTagEntities && !done))
+        {
+            const uint32_t t = kTagTerrain;
+            const uint64_t n = payload.size();
+            out.insert(out.end(), reinterpret_cast<const uint8_t*>(&t), reinterpret_cast<const uint8_t*>(&t) + 4);
+            out.insert(out.end(), reinterpret_cast<const uint8_t*>(&n), reinterpret_cast<const uint8_t*>(&n) + 8);
+            out.insert(out.end(), payload.begin(), payload.end());
+            done = true;
+            if (tag == kTagTerrain) continue;
+        }
+        const uint64_t n = bytes.size();
+        out.insert(out.end(), reinterpret_cast<const uint8_t*>(&tag), reinterpret_cast<const uint8_t*>(&tag) + 4);
+        out.insert(out.end(), reinterpret_cast<const uint8_t*>(&n), reinterpret_cast<const uint8_t*>(&n) + 8);
+        out.insert(out.end(), bytes.begin(), bytes.end());
+    }
+    return out;
+}
+struct TerrChunk
+{
+    int32_t x = 0, z = 0;
+    uint32_t sequence = 1;
+    uint8_t flags     = 1;
+    std::vector<int32_t> deltas;   // N * N with flags & 1
+    std::vector<uint8_t> encoded;  // overrides the encoding when not empty
+};
+template <class T>
+void put(std::vector<uint8_t>& out, T v)
+{
+    for (size_t i = 0; i < sizeof(T); ++i) out.push_back(uint8_t(uint64_t(v) >> (8 * i)));
+}
+std::vector<uint8_t> terrPayload(uint8_t spacing, uint16_t N, const std::vector<TerrChunk>& chunks, SpaceId space = 0)
+{
+    std::vector<uint8_t> out;
+    put<uint32_t>(out, 1);  // the section's version
+    put<uint32_t>(out, 1);
+    put<uint16_t>(out, space);
+    put<uint8_t>(out, spacing);
+    put<uint16_t>(out, N);
+    put<uint32_t>(out, uint32_t(chunks.size()));
+    for (const TerrChunk& c : chunks)
+    {
+        put<int32_t>(out, c.x);
+        put<int32_t>(out, c.z);
+        put<uint32_t>(out, c.sequence);
+        put<uint8_t>(out, c.flags);
+        if (!(c.flags & 1)) continue;
+        std::vector<uint8_t> e = c.encoded;
+        if (e.empty()) TerrainDeltaCodec::encode(c.deltas.data(), c.deltas.size(), true, e);
+        put<uint64_t>(out, uint64_t(e.size()));
+        out.insert(out.end(), e.begin(), e.end());
+    }
+    return out;
+}
+}  // namespace
+
+TEST(TerrainEditSave, RoundTripAndHash)
+{
+    World a(editSetup(1));
+    const std::vector<uint8_t> empty = a.save();
+    const uint64_t emptyHash         = a.hash();
+    // No TERR without chunks with state; a no-op edit leaves the bytes and the hash
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Flatten, 100, 100, 5, 0));
+    EXPECT_EQ(a.save(), empty);
+    EXPECT_EQ(a.hash(), emptyHash);
+    for (auto& [tag, bytes] : sections(empty)) EXPECT_NE(tag, kTagTerrain);
+    // Edits in two chunks (one across their border), a returned-to-zero chunk and a bumpSequence-only chunk
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Add, 256, 100, 12, 2));
+    EXPECT_NE(a.hash(), emptyHash);
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Smooth, 250, 110, 12, 1));
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Add, 2000, 2000, 6, 1));
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Subtract, 2000, 2000, 6, 1));
+    a.terrainEditsForUpdate().bumpSequence(chunk(9, 3));
+    EXPECT_FALSE(a.terrainEdits().hasDeltas(chunk(7, 7)));
+    const std::vector<uint8_t> blob = a.save();
+    // The section at its D7 position: after SCHM, before ENTS
+    std::vector<uint32_t> tags;
+    for (auto& [tag, bytes] : sections(blob)) tags.push_back(tag);
+    ASSERT_GE(tags.size(), 4u);
+    EXPECT_EQ(tags[1], kTagSchema);
+    EXPECT_EQ(tags[2], kTagTerrain);
+    EXPECT_EQ(tags[3], kTagEntities);
+    // Load into a fresh world: equal bytes and hash, no hook, blocks only with non-zero deltas
+    World b(editSetup(1));
+    const uint64_t hooks = b.terrain().baseHookSamples();
+    const LoadResult r   = b.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b.terrain().baseHookSamples(), hooks);
+    EXPECT_EQ(b.save(), blob);
+    EXPECT_EQ(b.hash(), a.hash());
+    EXPECT_EQ(b.terrainEdits().sequence(chunk(7, 7)), 2u);
+    EXPECT_FALSE(b.terrainEdits().hasDeltas(chunk(7, 7)));
+    EXPECT_EQ(b.terrainEdits().sequence(chunk(9, 3)), 1u);
+    EXPECT_EQ(b.terrainEdits().sequence(chunk(0, 0)), 2u);
+    EXPECT_EQ(b.terrainEdits().sequence(chunk(1, 0)), 2u);
+    for (int64_t k = 80; k <= 130; ++k)
+        for (int64_t i = 230; i <= 280; ++i) ASSERT_EQ(b.terrainSample(0, i, k), a.terrainSample(0, i, k));
+    expectBlocksNonZero(b, 0);
+    EXPECT_LT(b.terrainEdits().blockCount(0), a.terrainEdits().blockCount(0));  // a keeps the zeroed blocks
+    // Loading the empty save clears the state
+    ASSERT_TRUE(b.tryLoad(empty).ok());
+    EXPECT_EQ(b.terrainEdits().chunkCount(), 0u);
+    EXPECT_EQ(b.hash(), emptyHash);
+    // diffSaves names a differing chunk with its first differing sample
+    World c(editSetup(1));
+    ASSERT_TRUE(c.tryLoad(blob).ok());
+    applyTerrainEdit(c, 0, brush(TerrainBrush::Add, 2010, 2000, 3, 1));
+    const SaveDiff d = diffSaves(blob, c.save());
+    ASSERT_TRUE(d.error.empty()) << d.error;
+    bool found = false;
+    for (const SaveDifference& x : d.differences)
+        if (x.kind == "terrain")
+        {
+            found = true;
+            EXPECT_NE(x.describe().find("chunk (7, 7)"), std::string::npos) << x.describe();
+        }
+    EXPECT_TRUE(found);
+    const SaveDiff d2 = diffSaves(blob, a.save());
+    EXPECT_EQ(d2.total, 0u);
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Add, 260, 100, 3, 1));
+    const SaveDiff d3 = diffSaves(blob, a.save());
+    bool samples      = false;
+    for (const SaveDifference& x : d3.differences)
+        samples = samples || (x.kind == "terrain" && x.field.find("samples differ, first") != std::string::npos);
+    EXPECT_TRUE(samples);
+}
+
+TEST(TerrainEditSave, SpaceWithoutTerrainRoundTrip)
+{
+    WorldSetup s;
+    s.profiling = false;
+    World a(s);
+    a.editTerrain(0, brush(TerrainBrush::Subtract, 300, 300, 10, 2));
+    World b(s);
+    ASSERT_TRUE(b.tryLoad(a.save()).ok());
+    EXPECT_EQ(b.terrainHeight(0, 300, 300), -2.0);
+    EXPECT_EQ(b.hash(), a.hash());
+}
+
+TEST(TerrainEditSave, TamperedSectionsAreRefused)
+{
+    World a(editSetup(2));
+    applyTerrainEdit(a, 0, brush(TerrainBrush::Add, 600, 600, 10, 1));
+    const std::vector<uint8_t> blob = a.save();
+    const int N                     = 129;
+    std::vector<int32_t> good(size_t(N) * N, 0);
+    good[size_t(50 * N + 50)]    = 77;
+    std::vector<int32_t> border  = good;
+    border[size_t(50 * N + 128)] = 5;  // a sample shared with chunk (x + 1, z)
+    std::vector<int32_t> zero(size_t(N) * N, 0);
+    std::vector<int32_t> tooBig = good;
+    tooBig[3]                   = kMaxTerrainDelta + 1;
+    std::vector<uint8_t> tooBigEncoded;
+    {
+        // The codec asserts on encode: write the varints by hand, then zstd
+        std::vector<uint8_t> raw;
+        int64_t prev = 0;
+        for (int32_t v : tooBig)
+        {
+            writeVarint(raw, zigzag(int64_t(v) - prev));
+            prev = v;
+        }
+        tooBigEncoded.resize(ZSTD_compressBound(raw.size()));
+        tooBigEncoded.resize(ZSTD_compress(tooBigEncoded.data(), tooBigEncoded.size(), raw.data(), raw.size(), 3));
+    }
+    std::vector<uint8_t> badZstd = {1, 2, 3, 4, 5};
+    struct Case
+    {
+        const char* name;
+        std::vector<uint8_t> payload;
+    };
+    const std::vector<Case> cases = {
+        {"wrong N", terrPayload(2, 257, {{1, 1, 1, 1, good, {}}})},
+        {"wrong spacing", terrPayload(1, 257, {{1, 1, 1, 1, std::vector<int32_t>(257 * 257, 1), {}}})},
+        {"out of range", terrPayload(2, 129, {{16, 1, 1, 1, good, {}}})},
+        {"negative chunk", terrPayload(2, 129, {{-1, 1, 1, 1, good, {}}})},
+        {"unsorted", terrPayload(2, 129, {{2, 1, 1, 1, good, {}}, {1, 1, 1, 1, good, {}}})},
+        {"duplicate", terrPayload(2, 129, {{1, 1, 1, 1, good, {}}, {1, 1, 1, 1, good, {}}})},
+        {"sequence 0", terrPayload(2, 129, {{1, 1, 0, 1, good, {}}})},
+        {"unknown flags", terrPayload(2, 129, {{1, 1, 1, 3, good, {}}})},
+        {"all zero", terrPayload(2, 129, {{1, 1, 1, 1, zero, {}}})},
+        {"bad zstd", terrPayload(2, 129, {{1, 1, 1, 1, good, badZstd}})},
+        {"delta beyond 2^24", terrPayload(2, 129, {{1, 1, 1, 1, good, tooBigEncoded}})},
+        {"border without neighbour", terrPayload(2, 129, {{1, 1, 1, 1, border, {}}})},
+        {"border without the neighbour's deltas",
+         terrPayload(2, 129, {{1, 1, 1, 1, border, {}}, {2, 1, 1, 0, {}, {}}})},
+        {"unequal border", terrPayload(2, 129, {{1, 1, 1, 1, border, {}}, {2, 1, 1, 1, good, {}}})},
+        {"unknown space", terrPayload(2, 129, {{1, 1, 1, 1, good, {}}}, 3)},
+    };
+    World b(editSetup(2));
+    applyTerrainEdit(b, 0, brush(TerrainBrush::Smooth, 1000, 1000, 10, 1));
+    applyTerrainEdit(b, 0, brush(TerrainBrush::Add, 1000, 1000, 10, 1));
+    const uint64_t before                 = b.hash();
+    const std::vector<uint8_t> beforeSave = b.save();
+    for (const Case& c : cases)
+    {
+        const LoadResult r = b.tryLoad(withTerr(blob, c.payload));
+        EXPECT_FALSE(r.committed) << c.name;
+        EXPECT_NE(r.error.find("TERR"), std::string::npos) << c.name << ": " << r.error;
+        EXPECT_EQ(b.hash(), before) << c.name;
+    }
+    EXPECT_EQ(b.save(), beforeSave);
+    // The control: an equal border loads
+    std::vector<int32_t> right = good;
+    right[size_t(50 * N + 0)]  = 5;
+    const LoadResult ok =
+        b.tryLoad(withTerr(blob, terrPayload(2, 129, {{1, 1, 1, 1, border, {}}, {2, 1, 2, 1, right, {}}})));
+    EXPECT_TRUE(ok.ok()) << ok.error;
+    EXPECT_EQ(b.terrainEdits().delta(0, 256, 128 + 50), 5);
+    EXPECT_EQ(b.terrainEdits().sequence(chunk(2, 1)), 2u);
+}
+
+TEST_F(TerrainEditWorld, HostLoadClearsTheListsAndEmitsNothing)
+{
+    World a(hookedSetup(2));
+    a.editTerrain(0, brush(TerrainBrush::Add, 400, 400, 8, 1));  // one pending event, saved with the world
+    const std::vector<uint8_t> blob = a.save();
+    World b(hookedSetup(2));
+    bool thrown     = false;
+    g_hooks.phase3  = [](World& w) { w.editTerrain(0, brush(TerrainBrush::Add, 100, 100, 8, 1)); };
+    g_hooks.phase4a = [&](World&)
+    {
+        if (!thrown)
+        {
+            thrown = true;
+            throw std::runtime_error("abort");
+        }
+    };
+    EXPECT_THROW(b.step(), std::runtime_error);
+    EXPECT_EQ(b.pendingTerrainChanges().size(), 1u);
+    EXPECT_EQ(b.replication().hostStateList().size(), 1u);
+    ASSERT_TRUE(b.tryLoad(blob).ok());
+    EXPECT_TRUE(b.pendingTerrainChanges().empty());
+    EXPECT_TRUE(b.replication().hostStateList().empty());
+    EXPECT_EQ(pendingEvents(b), 1u);  // the saved one, nothing added by the load
+    EXPECT_EQ(b.hash(), a.hash());
+    EXPECT_EQ(b.terrainEdits().sequence(chunk(0, 0)), 0u);
 }

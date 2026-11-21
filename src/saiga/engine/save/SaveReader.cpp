@@ -10,9 +10,11 @@
 
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/save/SaveFormat.h"
+#include "saiga/engine/terrain/TerrainDeltaCodec.h"
 
 #include <cmath>
 #include <cstring>
+#include <tuple>
 
 namespace Saiga
 {
@@ -75,6 +77,81 @@ bool readBlocks(BinaryReader& r, size_t base, const SchemaTable& schema, SchemaK
     return true;
 }
 }  // namespace
+
+bool parseTerrainSection(const uint8_t* data, size_t size, uint32_t version, TerrainSection& out, std::string& error)
+{
+    out = TerrainSection();
+    if (version != kTerrainSectionVersion)
+    {
+        error = "unknown version " + std::to_string(version);
+        return false;
+    }
+    BinaryReader r(data, size);
+    auto fail = [&](const std::string& m)
+    {
+        error = m;
+        return false;
+    };
+    uint32_t spaceCount = 0;
+    r.read(spaceCount);
+    // Each space takes at least 9 bytes
+    if (!r.ok() || spaceCount == 0 || spaceCount > 65536 || uint64_t(spaceCount) * 9 > r.remaining())
+        return fail("the space count " + std::to_string(spaceCount) + " does not fit into the section");
+    out.spaces.resize(spaceCount);
+    std::vector<int32_t> scratch;
+    for (uint32_t si = 0; si < spaceCount; ++si)
+    {
+        TerrainSection::Space& sp = out.spaces[si];
+        r.read(sp.space);
+        r.read(sp.spacing);
+        r.read(sp.N);
+        uint32_t chunks = 0;
+        r.read(chunks);
+        if (!r.ok()) return fail(r.error());
+        const std::string where = "space " + std::to_string(sp.space);
+        if (si > 0 && sp.space <= out.spaces[si - 1].space) return fail(where + ": the spaces are not ascending");
+        if (sp.spacing != 1 && sp.spacing != 2)
+            return fail(where + ": the base spacing " + std::to_string(sp.spacing) + " is not 1 or 2");
+        if (sp.N != 256 / sp.spacing + 1)
+            return fail(where + ": N " + std::to_string(sp.N) + " does not match the base spacing");
+        // Each chunk takes at least 13 bytes
+        if (chunks == 0 || uint64_t(chunks) * 13 > r.remaining())
+            return fail(where + ": the chunk count " + std::to_string(chunks) + " does not fit into the section");
+        sp.chunks.resize(chunks);
+        const size_t count = size_t(sp.N) * sp.N;
+        for (uint32_t ci = 0; ci < chunks; ++ci)
+        {
+            TerrainSection::Chunk& c = sp.chunks[ci];
+            uint8_t flags            = 0;
+            r.read(c.x);
+            r.read(c.z);
+            r.read(c.sequence);
+            r.read(flags);
+            if (!r.ok()) return fail(r.error());
+            const std::string at = where + " chunk (" + std::to_string(c.x) + ", " + std::to_string(c.z) + ")";
+            if (ci > 0 && std::tie(c.x, c.z) <= std::tie(sp.chunks[ci - 1].x, sp.chunks[ci - 1].z))
+                return fail(at + ": the chunks are not in ascending ChunkId order");
+            if (c.sequence == 0) return fail(at + ": sequence 0");
+            if (flags & ~uint8_t(1)) return fail(at + ": unknown flags " + std::to_string(flags));
+            c.hasDeltas = (flags & 1) != 0;
+            if (!c.hasDeltas) continue;
+            uint64_t length = 0;
+            r.read(length);
+            if (!r.ok()) return fail(r.error());
+            if (length > r.remaining()) return fail(at + ": the encoded deltas are longer than the section");
+            c.deltas.resize(count);
+            std::string e;
+            if (!TerrainDeltaCodec::decode(data + r.position(), size_t(length), true, count, c.deltas.data(), &e))
+                return fail(at + ": " + e);
+            r.skip(length);
+            bool any = false;
+            for (int32_t v : c.deltas) any = any || v != 0;
+            if (!any) return fail(at + ": deltas present but all zero");
+        }
+    }
+    if (!r.atEnd()) return fail("bytes left over");
+    return true;
+}
 
 bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTable& out, std::string& error)
 {
@@ -214,6 +291,14 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
                 case kTagSpaces:
                     out.spaces.emplace();
                     ok = r.ok() && parseSpaceTable(r, version, *out.spaces, sectionError);
+                    break;
+                case kTagTerrain:
+                    // A raw range, decoded by the loader's own pass (parseTerrainSection) before the commit
+                    out.terrain.emplace();
+                    out.terrain->version = version;
+                    out.terrain->begin   = base + r.position();
+                    out.terrain->end     = base + size_t(length);
+                    ok                   = r.ok() && r.skip(r.remaining());
                     break;
                 default:
                     SAIGA_ASSERT(false, "parseSave: an optional section without a case");
