@@ -1437,6 +1437,40 @@ that file):
   finding 7: `test_tree` is pinned at 16384 candidates per chunk and `test_rock` at 1024 (Scope 11).
 - Rejected: none.
 
+Implementation (step 1, reconciliation with the merged S20-S22 code; the names below are used from step 2 on):
+
+- The templates are `WorldConfig::spaceTemplates` (`WorldSetup::config`), not a `WorldSetup` field; an empty list is
+  one default template. Today `TerrainSystem` owns the templates and the per-space seeds (`TerrainSystem(templates,
+  seeds)`), and `World::spaceTemplate` / `spaceCount` (returns `size_t`) / `spaceSeed` delegate to it; the constructor
+  builds them first (before `extractor` and the registries). `TerrainEditStore(templates)` is built from the same list.
+- S20's names match the plan: `SpaceTemplate::prototypeHeight` (`TerrainHeightHook`), `SpaceTemplate::hasTerrain()`,
+  `TerrainHeightSource` (`core/math/TerrainSurface.h`, with `fromHook`, which clamps), `clampTerrainHeight`,
+  `kTerrainHeightLimit` and `kHeightUnit` (`core/math/ChunkId.h`), `SpaceTemplate::enclosed(name, sizeChunks)` and
+  `SpaceTemplate::enclosedOrigin(sizeChunks)` (E4). The engine wrapper of the grass rule is `generateGrassMask`
+  (`engine/terrain/TerrainGeneration.h`, over `Vulkan::prototypeGrassMask`); the grass thresholds are
+  `TerrainViewSettings::grassMinNormalY` / `grassMinAboveSea` (view settings, not the template).
+  `TerrainGeneration::heightSource(template, seed)` builds a space's source once in `TerrainSystem`'s constructor.
+- `TerrainSystem::sample(space, sx, sz)` (base), `editedSample` (base + delta, `World::terrainSample`),
+  `readiness`, `completeView`, `setSink`; `clearTerrain` on the sink. `StreamingPool::submit(job, priority, done)`,
+  `cancel`, `drain`, `runOneOnCaller` as D8.
+- S22: `TerrainEditStore::sequence(ChunkId)`, `bumpSequence`, `chunks(space)`, `contentHash(chunk)`; the S22 part of
+  `World::hash()` is the per-chunk loop at its end (S23a appends after it). `Replication::sendChunkSnapshot(peer)`;
+  the join order in `hostReplicate` (pass 7) is `Resync` (epoch != 0), the spawn set, `sendChunkSnapshot`;
+  `onHostLoad` sends `Resync`, then `sendChunkSnapshot`. Engine messages end with `TerrainChunkState` in
+  `EngineMessage` (`net/NetIds.h`), so `GenerationState` is appended there.
+- Saves: `kSaveSections` in `SaveFormat.h` (D7 order with `maxVersion`), `SectionWriter::beginOptional`; `SPCE` is
+  written only with more than one space; `WorldLoader` (`WorldLoad.cpp`) runs `parseSave`, `checkSpaceTable`, the
+  staging checks, `stageTerrain`, then `commit`, `commitTerrain` and `Replication::onHostLoad`.
+- The world API's `checkComponentValues` / `addComponentValues` are free functions in `WorldApi.cpp`;
+  `World::spawnByClass(info, space, position, initial)` asserts `!inStep()`; `beginSpawn`, `finishSpawn`,
+  `startObject`, `abandonSpawn` exist.
+- `ScenarioWorld` holds `WorldSetup setup` (renamed `worldSetup` in step 4, F3) and stores the data store into it
+  after creating the host world (`setup.sharedData`); the content cache is stored the same way.
+- The hook users of step 7: `samples/games/common/PrototypeSpace.h` (`prototypeSpaceTemplate`), `game_world`'s
+  `islands` template (`islandsHeight`), `tests/terrain_test_hooks.h` (`testSpaceTemplate(size, spacing, hook, sea)`,
+  `terraformTestTemplate`) and a few tests that set `prototypeHeight` inline (`test_engine_spaces`,
+  `test_engine_terrain_edit`, `test_engine_world_api`).
+
 ## Design changes
 
 (Filled when the stage is done.)
