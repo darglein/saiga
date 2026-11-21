@@ -484,6 +484,18 @@ Implementation (against the merged S20-S23b code; each the smallest sound fix):
 - I11 Constants mirrored by `static_assert` in `FlightWorld.cpp`: the sea level, the mountain height and the circuit
   centre (the generator cannot include `vulkan/world`).
 
+Implementation review (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack):
+
+- Round 1 (13, minor): `checkFoliageInstances` walked every instance set each frame in every build but only
+  `SAIGA_ASSERT` used it, and a release build drew the foliage class with an unwritten descriptor -> fixed (`S23c
+  review`): the walk only with `SAIGA_ASSERTS`; in every build `SceneCulling::recordDraw` skips the PrototypeFoliage
+  class while there is no foliage texture.
+- Round 1 (14, minor): `OverworldGenerator`'s outward vector divided signed values with a truncating `/` -> `floorDiv`;
+  the content hashes and the recorded autopilot values were unchanged.
+- Round 2 (14, nit): the skip's comment now says that only the draw is skipped: the GPU culling still processes those
+  instances and its statistics (`instancesPerLod`, the tracked meshes) count them.
+- The S20 fixes below this branch were rebased in without conflicts.
+
 ## Design changes
 
 The design-doc amendments 1-3 are made in `docs/engine_design.md` (§3 rows and the known deviations, §10.1 (the F4
