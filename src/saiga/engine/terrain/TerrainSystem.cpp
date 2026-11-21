@@ -434,8 +434,9 @@ void TerrainSystem::issueRequests(SpaceId space, const Desired& d, size_t limit)
     }
     for (const auto& m : d.masks)
     {
-        // S22: a chunk with deltas gets its mask from merged heights (queued, capped per update)
-        if (editedChunk(m.second))
+        // S22: a chunk with deltas gets its mask from merged heights (queued, capped per update); without a sink (the
+        // store only, nothing is drawn) its base mask like any chunk's
+        if (sink && editedChunk(m.second))
         {
             if (!readyMask(m.second)) queueMask(m.second);
             continue;
@@ -547,7 +548,8 @@ TerrainSystem::MissingCounts TerrainSystem::missingCounts(SpaceId space, const D
     }
     for (const ChunkId& c : d.maskSet)
     {
-        if (!readyMask(c))
+        // Without a sink the store's base mask (edited masks are made for a sink only)
+        if (!(sink ? readyMask(c) : st.mask(c)))
             m.masksNotStored++;
         else if (sink && (!sentMasks.count(c) || baseResend.count(c)))
             m.masksNotSent++;

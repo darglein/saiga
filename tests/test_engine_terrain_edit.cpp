@@ -1609,6 +1609,24 @@ TEST(TerrainEditVisual, NewSinkReceivesMergedData)
     w.setRenderSink(nullptr);
 }
 
+// Regression (implementation review of S22): without a sink the masks of edited chunks were never made (the mask queue
+// drops its entries without a sink) and completeView waited for its whole timeout; without a sink the store's base
+// masks count
+TEST(TerrainEditVisual, CompleteViewWithoutSinkAcceptsTheBaseMasksOfEditedChunks)
+{
+    World w(editSetup(2));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 40, 3));
+    const auto start = std::chrono::steady_clock::now();
+    EXPECT_TRUE(w.terrain().completeView(0, kCamera, 60));
+    EXPECT_LT(std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(), 30.0);
+    EXPECT_GT(w.terrain().stats().masksDesired, 0);
+    EXPECT_TRUE(w.terrain().viewComplete(0, kCamera));
+    ChunkId edited;
+    edited.x = 1;
+    edited.z = 1;
+    EXPECT_NE(w.terrain().store(0).mask(edited), nullptr);
+}
+
 TEST(TerrainEditVisual, BudgetSpreadsALargeEditByRows)
 {
     World w(editSetup(2));
