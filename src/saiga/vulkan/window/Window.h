@@ -32,6 +32,8 @@ class SAIGA_VULKAN_API VulkanWindow : public WindowBase
 
     // Size of the drawable area in pixels. Can differ from the window size with display scaling.
     virtual ivec2 getFramebufferSize() { return ivec2(getWidth(), getHeight()); }
+    // The refresh rate of the display the window is on (Hz; 0: unknown, e.g. headless)
+    virtual double refreshRateHz() { return 0; }
 
     // Resizes the drawable area to the given size in pixels. The renderer adapts its images in the next frame.
     virtual void setSize(int width, int height) = 0;

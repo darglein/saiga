@@ -117,7 +117,20 @@ Profiler::Stats Profiler::stats(const Series& s, int lastSamples) const
     st.max     = v.back();
     st.p50     = rank(0.5);
     st.p95     = rank(0.95);
+    st.p99     = rank(0.99);
+    // ceil(n / 100), as FrameStatistics and the benchmark
+    const int worst = (n + 99) / 100;
+    double worstSum = 0;
+    for (int i = n - worst; i < n; ++i) worstSum += v[size_t(i)];
+    st.worst1PercentAvg = worstSum / worst;
     return st;
+}
+
+bool Profiler::lastSample(int scope, double& value) const
+{
+    if (scope < 0 || scope >= int(scopes.size()) || filled == 0) return false;
+    value = scopes[size_t(scope)].ring[size_t((head - 1 + capacity) % capacity)];
+    return true;
 }
 
 Profiler::Stats Profiler::scopeStats(int scope, int lastSamples) const
@@ -137,8 +150,10 @@ json11::Json Profiler::report(int lastSamples) const
     auto round6    = [](double v) { return std::round(v * 1e6) / 1e6; };
     auto statsJson = [&](const Stats& s)
     {
-        return Json::object{{"samples", s.samples}, {"avg", round6(s.avg)}, {"min", round6(s.min)},
-                            {"p50", round6(s.p50)}, {"p95", round6(s.p95)}, {"max", round6(s.max)}};
+        return Json::object{{"samples", s.samples}, {"avg", round6(s.avg)},
+                            {"min", round6(s.min)}, {"p50", round6(s.p50)},
+                            {"p95", round6(s.p95)}, {"p99", round6(s.p99)},
+                            {"max", round6(s.max)}, {"worst_1pct_avg", round6(s.worst1PercentAvg)}};
     };
     // The parent in the report: a dotted last part "a.b" is a sub-section of the existing scope "a" (RenderScene's GPU
     // sub-sections, e.g. gpu/scene.instances inside gpu/scene; S19a), else the path without the last part

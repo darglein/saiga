@@ -10,6 +10,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/app/EngineAppSetup.h"
+#include "saiga/engine/app/FrameStatistics.h"
 #include "saiga/engine/app/InputMap.h"
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/export.h"
@@ -147,6 +148,8 @@ class SAIGA_ENGINE_API EngineApp
 
     // The app's profiles (get_profile: frame, gpu): one sample per frame loop / per completed GPU frame
     Profiler& frameProfile() { return frameProfiler; }
+    // The statistics window's frame statistics (presented frames after the warm-up)
+    const FrameStatistics& frameStatistics() const { return frameStats; }
     Profiler& gpuProfile() { return gpuProfiler; }
     // The gpu profile's sample of RenderScene frame `frame` (one of the last 600 completed frames) by scope name (gpu,
     // gpu/<section>, ...); false if it is not logged (not completed yet, or too old)
@@ -203,6 +206,41 @@ class SAIGA_ENGINE_API EngineApp
     Entity localPlayerEntity;
     std::vector<std::function<bool()>> frameCallbacks;
     bool renderingEnabled = true, statisticsVisible = false;
+    // The statistics window's numbers: over one of kStatisticsWindows (seconds; the combo), recomputed every
+    // kStatisticsRefreshSeconds (numbers that change every frame cannot be read)
+    static constexpr double kStatisticsWindows[3]     = {3.0, 10.0, 30.0};
+    static constexpr double kStatisticsRefreshSeconds = 0.5;
+    int statisticsWindowIndex                         = 1;
+    FrameStatistics frameStats;
+    double pendingWorkMs      = -1;  // the CPU work of the last frame, added with its interval at the next frame
+    uint64_t statisticsResets = 0;   // frameProfiler.resetCount() the frame statistics belong to
+    static constexpr double kStatisticsWarmupSeconds = 1.0;
+    double runSeconds                                = 0;        // the sum of the frame intervals since the start
+    bool statisticsOverlayEnabled                    = true;     // the overlay line while the window is closed
+    std::deque<std::pair<uint64_t, double>> renderedFrameTimes;  // RenderScene frame -> frameStats time
+    struct ShownStatistics
+    {
+        double refreshHz = 0;  // the display's (0: unknown)
+        double periodMs  = 0;  // the refresh period (vsync, FrameStatistics::refreshPeriod) or the median interval
+        double graphSpan = 1;  // the time the graph covers (s)
+        FrameStatistics::Summary summary;
+        json11::Json stepReport;  // the step profile over the steps of that time
+        std::chrono::steady_clock::time_point at;
+        bool valid = false;
+    } shownStatistics;
+    void refreshShownStatistics();
+    void checkStatisticsReset();
+    void clearFrameStatistics();
+    double sessionPeriodMs = 0;  // the shortest refresh period measured in this session (vsync)
+    struct Verdict
+    {
+        std::string text;
+        double period       = 0;  // the refresh period (vsync) or the median interval (ms)
+        bool displayLimited = false, warn = false;
+    };
+    // What limits the frame rate (the statistics window's headline)
+    Verdict statisticsVerdict() const;
+    void statisticsOverlay();
     bool quitRequested    = false;
     int exitStatus        = 0;
     bool hooksInitialized = false;
@@ -222,6 +260,10 @@ class SAIGA_ENGINE_API EngineApp
     bool mouseKnown = false;
     Profiler frameProfiler, gpuProfiler;
     int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeRecording = -1, scopeGpuFrame = -1;
+    int scopeWait = -1, scopeWork = -1;
+    // The render waits of the current frame (frame/render/wait), subtracted from the frame for work
+    double lastFrameWaitMs                   = 0;
+    std::array<double, 3> lastFrameWaitParts = {};  // its parts: frame slot, acquire, present
     int counterFps = -1, counterSteps = -1, counterDropped = -1;
     std::vector<int> scopeGpuSections;
     uint64_t droppedBefore = 0;

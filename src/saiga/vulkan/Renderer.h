@@ -123,6 +123,18 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     uint64_t submittedFrames() const { return submitted; }
     // CPU time of the last frame's command recording and submit (without the wait for the frame slot and the image)
     double lastRecordingMs() const { return recordingMs; }
+    /**
+     * CPU time the last render call blocked without working: the wait for the frame slot (the GPU still runs the frame
+     * that last used it), the swap chain image acquire and the present. With vsync this is mostly waiting for the
+     * display; without it, waiting for the GPU. 0 for a frame that was not rendered.
+     */
+    double lastWaitMs() const { return waitMs; }
+    // Its parts: the frame slot (the GPU still runs the frame that last used it), the image acquire, the present
+    double lastSlotWaitMs() const { return slotWaitMs; }
+    double lastAcquireWaitMs() const { return acquireWaitMs; }
+    double lastPresentWaitMs() const { return presentWaitMs; }
+    // True if the frames are presented with vsync (FIFO): the frame rate follows the display; false when headless
+    bool vsync() const { return !isHeadless() && vulkanParameters.vsync; }
     // The GPU section times of the oldest completed frame not yet taken (FrameTimings::popCompleted)
     bool takeCompletedFrame(FrameTimings<>::CompletedFrame& out) { return timings.popCompleted(out); }
 
@@ -222,6 +234,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     uint32_t frameIndex = 0;
     uint64_t submitted  = 0;
     double recordingMs  = 0;
+    double waitMs       = 0;
+    double slotWaitMs = 0, acquireWaitMs = 0, presentWaitMs = 0;
     // The window's framebuffer size when the swap chain was created
     ivec2 swapChainFramebufferSize = ivec2(0, 0);
     std::array<FrameSync, framesInFlight> frames;

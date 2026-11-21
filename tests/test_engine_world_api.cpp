@@ -672,6 +672,8 @@ TEST(Profiler, StatisticsRingTreeAndCounters)
     EXPECT_EQ(s.max, 60);
     EXPECT_EQ(s.avg, 45);
     EXPECT_EQ(s.p50, 40);  // nearest rank
+    EXPECT_EQ(s.p99, 60);
+    EXPECT_EQ(s.worst1PercentAvg, 60);  // fewer than 100 samples: the largest one
     EXPECT_EQ(p.scopeStats(step, 2).avg, 55);
     EXPECT_EQ(p.counterStats(c).max, 6);
     Json r = p.report();
@@ -684,6 +686,20 @@ TEST(Profiler, StatisticsRingTreeAndCounters)
     EXPECT_EQ(p.scopeStats(step, 1).max, 0);
     p.reset();
     EXPECT_EQ(p.scopeStats(step).samples, 0);
+    // The 1% statistics of 200 samples: 198 short frames and 2 long ones (a stutter the median and average hide)
+    Profiler q(200);
+    const int frame = q.scope("frame");
+    for (int i = 0; i < 200; ++i)
+    {
+        q.add(frame, i < 198 ? 6.0 : (i == 198 ? 40.0 : 50.0));
+        q.endSample();
+    }
+    Profiler::Stats f = q.scopeStats(frame);
+    EXPECT_EQ(f.p50, 6);
+    EXPECT_EQ(f.p99, 6);  // nearest rank 198 of 200: p99 still hides the 2 long frames
+    EXPECT_EQ(f.max, 50);
+    EXPECT_EQ(f.worst1PercentAvg, 45);  // the 2 largest
+    EXPECT_EQ(q.report()["scopes"][0]["worst_1pct_avg"].number_value(), 45);
 }
 
 // Regression (S19a review): RenderScene's GPU sub-sections (gpu/scene.instances) were siblings of their pass

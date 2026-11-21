@@ -32,7 +32,10 @@ class SAIGA_ENGINE_API Profiler
     struct Stats
     {
         int samples = 0;
-        double avg = 0, min = 0, p50 = 0, p95 = 0, max = 0;
+        double avg = 0, min = 0, p50 = 0, p95 = 0, p99 = 0, max = 0;
+        // The mean of the largest 1% of the samples (at least one): for frame times the "1% low" frame rate is
+        // 1000 / worst1PercentAvg, the measure of single long frames (stutter) that a median and an average hide
+        double worst1PercentAvg = 0;
     };
 
     explicit Profiler(int historySize = 600);
@@ -63,6 +66,8 @@ class SAIGA_ENGINE_API Profiler
     Stats counterStats(int counter, int lastSamples = 0) const;
     // The kept samples of a scope, oldest first (plots)
     std::vector<double> scopeHistory(int scope) const;
+    // The scope's value in the newest ended sample (false: no sample yet)
+    bool lastSample(int scope, double& value) const;
     // The tree of scopes with their statistics and the share of their parent, and the counters, as JSON. A dotted last
     // part "a.b" is reported below the scope "a" if it exists (the GPU sub-sections inside their pass)
     json11::Json report(int lastSamples = 0) const;

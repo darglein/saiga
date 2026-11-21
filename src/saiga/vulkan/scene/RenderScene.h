@@ -92,6 +92,13 @@ class SAIGA_VULKAN_API RenderScene
     VulkanBase& base();
     // CPU time of the last frame's command recording and submit (milliseconds)
     double lastRecordingMs() const;
+    // CPU time the last frame blocked for the frame slot, the swap chain image and the present (VulkanRenderer::
+    // lastWaitMs): idle time, not work
+    double lastWaitMs() const;
+    // Its parts (VulkanRenderer::lastSlotWaitMs, lastAcquireWaitMs, lastPresentWaitMs): {slot, acquire, present}
+    std::array<double, 3> lastWaitParts() const;
+    // True if presented with vsync (the frame rate follows the display)
+    bool vsync() const;
     bool headless() const;
     // The size of the rendered images (0 before the first frame)
     ivec2 size() const;

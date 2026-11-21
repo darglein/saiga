@@ -69,6 +69,8 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
             setup.validation = true;
         else if (a == "--no-vsync")
             setup.vsync = false;
+        else if (a == "--stats")
+            options.showStatistics = true;
         else if (a == "--benchmark")
         {
             const char* v = value("a name");
@@ -251,7 +253,8 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
     {
         std::cerr << error << "\nUsage: " << setup.name
                   << " [--headless] [--no-render] [--benchmark <name>] [--screenshot <file>] [--screenshot-frame N] "
-                     "[--width N] [--height N] [--validation] [--no-vsync] [--tonemap identity|aces] [--exposure x] "
+                     "[--width N] [--height N] [--validation] [--no-vsync] [--stats] [--tonemap identity|aces] "
+                     "[--exposure x] "
                      "[--scenarios [filter]] [--mcp-port N] [--data <dir>] [--coop [delay]]";
         for (const std::string& f : gameFlags) std::cerr << " [" << f << "]";
         std::cerr << std::endl;

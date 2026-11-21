@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     return engineMain(argc, argv, setup, {"--demo"},
                       [](EngineApp& app, const AppOptions& options)
                       {
-                          app.showStatistics(false);
+                          app.showStatistics(options.showStatistics);
                           // The start state on the host (the hidden host world with --coop; the client's hero comes
                           // from the join policy)
                           World& start = app.startWorld();

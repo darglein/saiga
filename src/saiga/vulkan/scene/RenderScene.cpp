@@ -630,6 +630,21 @@ double RenderScene::lastRecordingMs() const
     return renderer->lastRecordingMs();
 }
 
+double RenderScene::lastWaitMs() const
+{
+    return renderer->lastWaitMs();
+}
+
+std::array<double, 3> RenderScene::lastWaitParts() const
+{
+    return {renderer->lastSlotWaitMs(), renderer->lastAcquireWaitMs(), renderer->lastPresentWaitMs()};
+}
+
+bool RenderScene::vsync() const
+{
+    return renderer->vsync();
+}
+
 bool RenderScene::headless() const
 {
     return renderer->isHeadless();

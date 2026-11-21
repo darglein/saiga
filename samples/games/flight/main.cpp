@@ -65,7 +65,7 @@ int main(int argc, char** argv)
     return engineMain(argc, argv, setup, {"--demo"},
                       [&wasActive](EngineApp& app, const AppOptions& options)
                       {
-                          app.showStatistics(false);
+                          app.showStatistics(options.showStatistics);
                           World& w = app.world();
                           // Regression (CodeRabbit, S13b): a save taken with the stick held restored the stick values,
                           // and neutral input never cleared them (the gate writes only active input and its release).

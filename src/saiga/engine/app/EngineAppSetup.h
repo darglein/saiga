@@ -85,6 +85,7 @@ struct AppOptions
     std::string benchmark, screenshot, scenarioFilter;
     int screenshotFrame = 60;
     bool runScenarios   = false;
+    bool showStatistics = false;  // --stats: the "Engine statistics" window open from the start (F1 toggles it)
     // --coop [delay] (S16b): a hidden host world and the rendered client world in one process over a loopback pair
     // with this delay in steps (0..30, default 2)
     bool coop     = false;

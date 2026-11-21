@@ -154,6 +154,16 @@ void VulkanRenderer::init()
 
 void VulkanRenderer::render(const RenderInfo& renderInfo)
 {
+    // A frame that is not rendered waited for nothing
+    waitMs = slotWaitMs = acquireWaitMs = presentWaitMs = 0;
+    using Clock                                         = std::chrono::steady_clock;
+    auto waited                                         = [this](Clock::time_point since, double& part)
+    {
+        const double ms = std::chrono::duration<double, std::milli>(Clock::now() - since).count();
+        part += ms;
+        waitMs += ms;
+    };
+
     // A minimized window has a 0x0 framebuffer, for which no swap chain can be created.
     ivec2 framebuffer_size = window.getFramebufferSize();
     if (framebuffer_size.x() <= 0 || framebuffer_size.y() <= 0)
@@ -183,7 +193,9 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     FrameSync& sync = frames[frameIndex];
 
     // The frame that last used this slot (its command buffer, imageAvailable semaphore, ...) must be complete.
+    const auto slotWait = Clock::now();
     base().waitFrameValue(sync.timelineValue);
+    waited(slotWait, slotWaitMs);
     timings.update(base().frameTimeline);
 
     FrameInfo frame;
@@ -199,8 +211,10 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     }
     else
     {
-        uint32_t imageIndex = 0;
-        err                 = swapChain.acquireNextImage(sync.imageAvailable, &imageIndex);
+        uint32_t imageIndex     = 0;
+        const auto acquireStart = Clock::now();
+        err                     = swapChain.acquireNextImage(sync.imageAvailable, &imageIndex);
+        waited(acquireStart, acquireWaitMs);
         if (err == VK_ERROR_OUT_OF_DATE_KHR)
         {
             reset();
@@ -217,15 +231,18 @@ void VulkanRenderer::render(const RenderInfo& renderInfo)
     }
 
     timings.beginFrame(frame.timelineValue);
-    const auto recordStart = std::chrono::steady_clock::now();
+    const auto recordStart = Clock::now();
     render(frame);
-    recordingMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - recordStart).count();
+    recordingMs = std::chrono::duration<double, std::milli>(Clock::now() - recordStart).count();
     submitted++;
     sync.timelineValue = frame.timelineValue;
 
     if (!isHeadless())
     {
-        err = swapChain.queuePresent(base().mainQueue, frame.imageIndex, frame.renderComplete);
+        // With FIFO (vsync) some drivers block in the present instead of the acquire
+        const auto presentStart = Clock::now();
+        err                     = swapChain.queuePresent(base().mainQueue, frame.imageIndex, frame.renderComplete);
+        waited(presentStart, presentWaitMs);
     }
 
     base().finish_frame();
