@@ -50,6 +50,7 @@ class RacingRender
     MeshRenderer meshes;
     ChaseCamera camera;
     PoseHistory pose;
+    HeldCamera held;
     FrameClock clock;
     PoseHistory::Pose renderPose;
     bool hasPose = false;

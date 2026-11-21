@@ -41,7 +41,12 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     const uint64_t before   = renderer->submittedFrames();
     const uint64_t timeline = renderer->base().currentFrameSignalValue();
     RenderInfo info;
+    // The override applies to this frame only; the user's choice stays in should_render_imgui
+    const bool userImgui  = renderer->should_render_imgui;
+    const bool overridden = imguiOverride.has_value();
+    if (overridden) renderer->should_render_imgui = *imguiOverride;
     static_cast<VulkanRenderer&>(*renderer).render(info);
+    if (overridden) renderer->should_render_imgui = userImgui;
     transferFn = nullptr;
     renderFn   = nullptr;
     guiFn      = nullptr;

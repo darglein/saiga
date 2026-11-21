@@ -562,6 +562,9 @@ void McpServer::addTool(const std::string& toolName, const std::string& descript
                         Handler handler)
 {
     SAIGA_ASSERT(!listening, "McpServer: add the tools before start()");
+    // A second registration of a name would list the tool twice (every build)
+    for (const Tool& t : tools)
+        if (t.name == toolName) SAIGA_EXIT_ERROR("McpServer: the tool \"" + toolName + "\" is already registered");
     tools.push_back({toolName, description, inputSchema, std::move(handler)});
 }
 

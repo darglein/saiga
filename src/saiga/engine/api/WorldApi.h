@@ -125,14 +125,21 @@ class SAIGA_ENGINE_API WorldApi
     World* world() { return w; }
     // The API's step listener in its world (it fills the journal)
     int stepListenerId() const { return stepListener; }
-    // Moves the API to another world (S12's save/load variant, S14's run_scenario): cursors, snapshots and the change
-    // journal stay; the journal gets a world_loaded entry
+    // Moves the API to another world (S12's save/load variant): cursors, snapshots and the change journal stay; the
+    // journal gets a world_loaded entry
     void rebind(World& world);
     // A profile of the app reported by get_profile under key (S13: "frame", "gpu"); it must outlive the API
     void addProfile(const std::string& key, Profiler* profiler) { profiles.push_back({key, profiler}); }
     const std::vector<std::pair<std::string, Profiler*>>& extraProfiles() const { return profiles; }
     // The directory of export_snapshot / import_snapshot (empty: refused)
     void setSnapshotDirectory(const std::string& directory) { snapshotDirectory = directory; }
+    // Stores given save bytes as the snapshot name (run_scenario, S14), with save_snapshot's limits (count, bytes) and
+    // a new revision; result as save_snapshot's
+    ApiResult putSnapshot(const std::string& name, std::vector<uint8_t> save, uint64_t step, uint64_t hash,
+                          bool overwrite);
+    bool hasSnapshot(const std::string& name) const { return snapshots.count(name) != 0; }
+    size_t snapshotCount() const { return snapshots.size(); }
+    static constexpr size_t kMaxSnapshotCount = 16;
 
     // Parses an entity argument ({"index", "generation"} or "i:g")
     static bool parseEntity(const json11::Json& j, Entity& e, std::string& error);

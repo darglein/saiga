@@ -45,6 +45,7 @@ class PlatformerRender
     ChaseCamera camera;
     CharacterAnimator animator;
     PoseHistory pose;
+    HeldCamera held;
     FrameClock clock;
     PoseHistory::Pose renderPose;
     bool hasPose          = false;

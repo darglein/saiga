@@ -35,6 +35,10 @@ struct ScenarioResult
     std::string report;                 // failures, log lines, dumps, traces, diffs
     uint64_t steps = 0;
     double seconds = 0;
+    // Plain: the final state (run_scenario's snapshot), its step index and hash; empty / 0 for the other variants and
+    // for runs that ended with a ScenarioAbort (maxSteps, a deadline) or an exception; kept for failed checks
+    std::vector<uint8_t> finalSave;
+    uint64_t finalStep = 0, finalHash = 0;
 };
 
 // Runs one scenario in one variant (headless, with the setup's seed and worker threads)

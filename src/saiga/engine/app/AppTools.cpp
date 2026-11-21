@@ -4,15 +4,24 @@
  * See LICENSE file for more information.
  */
 
-// The app's MCP tools: quit, app_status, set_input (S13).
+// The app's MCP tools: quit, app_status, set_input (S13); screenshot, set_camera, move_camera, list_scenarios,
+// run_scenario (S14).
 
 #include "saiga/engine/app/AppTools.h"
 
+#include "saiga/core/image/managedImage.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/tools/ScenarioList.h"
+#include "saiga/engine/tools/ScenarioRunner.h"
+#include "saiga/engine/tools/WorldTools.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <cstdio>
+#include <memory>
 
 namespace Saiga
 {
@@ -26,6 +35,251 @@ using ToolResult = McpServer::ToolResult;
 Json schema(const Json::object& properties)
 {
     return Json::object{{"type", "object"}, {"properties", properties}, {"additionalProperties", false}};
+}
+
+constexpr double kPi = 3.14159265358979323846;
+// Camera coordinates: finite and within this range (the app camera is float: cm resolution there)
+constexpr double kCameraLimit = 1e6;
+
+bool unknownArgument(const Json& args, std::initializer_list<const char*> known, const McpServer::Respond& respond)
+{
+    for (auto& kv : args.object_items())
+    {
+        bool ok = false;
+        for (const char* k : known) ok = ok || kv.first == k;
+        if (!ok)
+        {
+            respond(ToolResult::Error("unknown argument \"" + kv.first + "\""));
+            return true;
+        }
+    }
+    return false;
+}
+
+// A finite number within limit (absent: keeps out); false and an error answer otherwise
+bool numberArgument(const Json& args, const char* name, double limit, double& out, bool& given,
+                    const McpServer::Respond& respond)
+{
+    const Json& j = args[name];
+    given         = !j.is_null();
+    if (!given) return true;
+    if (!j.is_number() || !std::isfinite(j.number_value()) || std::abs(j.number_value()) > limit)
+    {
+        respond(ToolResult::Error(std::string(name) + ": a finite number within " + std::to_string(int64_t(limit))));
+        return false;
+    }
+    out = j.number_value();
+    return true;
+}
+
+bool vec3Argument(const Json& args, const char* name, vec3& out, bool& given, const McpServer::Respond& respond)
+{
+    const Json& j = args[name];
+    given         = !j.is_null();
+    if (!given) return true;
+    bool ok = j.is_array() && j.array_items().size() == 3;
+    for (int i = 0; ok && i < 3; ++i)
+    {
+        ok = j[size_t(i)].is_number() && std::isfinite(j[size_t(i)].number_value()) &&
+             std::abs(j[size_t(i)].number_value()) <= kCameraLimit;
+        if (ok) out(i) = float(j[size_t(i)].number_value());
+    }
+    if (!ok) respond(ToolResult::Error(std::string(name) + ": [x, y, z] with finite numbers within 1e6"));
+    return ok;
+}
+
+vec3 cameraForward(const Camera& camera)
+{
+    return -make_vec3(camera.model.col(2)).normalized();
+}
+
+// yaw: 0 looks along -z, 90 along +x; pitch: positive looks up
+vec3 directionFromYawPitch(double yawDeg, double pitchDeg)
+{
+    const double y = yawDeg * kPi / 180.0, p = pitchDeg * kPi / 180.0;
+    return vec3(float(std::sin(y) * std::cos(p)), float(std::sin(p)), float(-std::cos(y) * std::cos(p)));
+}
+
+void yawPitchFromDirection(const vec3& d, double& yawDeg, double& pitchDeg)
+{
+    yawDeg   = std::atan2(double(d(0)), double(-d(2))) * 180.0 / kPi;
+    pitchDeg = std::asin(std::min(std::max(double(d(1)), -1.0), 1.0)) * 180.0 / kPi;
+}
+
+void lookFrom(Camera& camera, const vec3& eye, vec3 dir)
+{
+    if (!dir.allFinite() || dir.norm() < 1e-6f) dir = vec3(0, 0, -1);
+    dir.normalize();
+    // Only (almost) straight up/down: the view matrix needs an up vector that is not parallel, and the heading (for
+    // relative moves) is kept with a tiny horizontal part, the camera's previous heading when there is none
+    constexpr float kMinHorizontal = 1e-3f;  // about 89.94 degrees
+    vec2 h(dir(0), dir(2));
+    if (h.norm() < kMinHorizontal)
+    {
+        if (h.norm() < 1e-6f)
+        {
+            const vec3 f = cameraForward(camera);
+            h            = vec2(f(0), f(2));
+            if (!h.allFinite() || h.norm() < 1e-6f) h = vec2(0, -1);
+        }
+        h          = h.normalized() * kMinHorizontal;
+        float sign = dir(1) < 0 ? -1.0f : 1.0f;
+        dir        = vec3(h(0), sign * std::sqrt(1.0f - kMinHorizontal * kMinHorizontal), h(1));
+    }
+    camera.setView(lookAt(vec3(0, 0, 0), dir, vec3(0, 1, 0)) * translate(-eye));
+}
+
+double round3(double x)
+{
+    return std::round(x * 1000) / 1000;
+}
+
+Json cameraJson(EngineApp& app)
+{
+    const Camera& c = app.camera();
+    const vec3 p    = c.getPosition();
+    const vec3 f    = cameraForward(c);
+    double yaw, pitch;
+    yawPitchFromDirection(f, yaw, pitch);
+    return Json::object{{"position", Json::array{round3(p(0)), round3(p(1)), round3(p(2))}},
+                        {"forward", Json::array{round3(f(0)), round3(f(1)), round3(f(2))}},
+                        {"yaw_deg", std::round(yaw * 10) / 10},
+                        {"pitch_deg", std::round(pitch * 10) / 10},
+                        {"held", app.cameraHeldByTool()}};
+}
+
+// Box filter to exactly maxWidth when wider (the height keeps the aspect ratio; never upscaled)
+TemplatedImage<ucvec3> downscale(const TemplatedImage<ucvec4>& img, int maxWidth)
+{
+    const int w = std::min(img.w, maxWidth);
+    const int h = std::max(1, int(std::lround(double(img.h) * w / std::max(1, img.w))));
+    TemplatedImage<ucvec3> out(h, w);
+    const double sx = double(img.w) / w, sy = double(img.h) / h;
+    for (int y = 0; y < h; ++y)
+    {
+        const int y0 = int(y * sy), y1 = std::max(y0 + 1, std::min(img.h, int(std::ceil((y + 1) * sy))));
+        for (int x = 0; x < w; ++x)
+        {
+            const int x0 = int(x * sx), x1 = std::max(x0 + 1, std::min(img.w, int(std::ceil((x + 1) * sx))));
+            int sum[3] = {0, 0, 0};
+            for (int yy = y0; yy < y1; ++yy)
+                for (int xx = x0; xx < x1; ++xx)
+                    for (int k = 0; k < 3; ++k) sum[k] += img(yy, xx)(k);
+            const int n = (y1 - y0) * (x1 - x0);
+            for (int k = 0; k < 3; ++k) out(y, x)(k) = (unsigned char)(sum[k] / n);
+        }
+    }
+    return out;
+}
+
+// One screenshot request: answered exactly once (the frame or the deadline), then its answer (with the responder) is
+// released
+struct ScreenshotRequest
+{
+    bool gui      = false;
+    bool answered = false;
+    std::function<void(const TemplatedImage<ucvec4>&)> answer;
+};
+
+// The screenshot requests before the next frame share one readback of it if they want the same GUI option (drawn
+// through RenderScene's ImGui override, so the user's GUI visibility is untouched); a request with the other option
+// waits for the next readback. At most one readback and one frame callback are registered (a readback cannot be
+// cancelled: with nothing rendered it stays registered, but holds no request after the deadline answered them).
+struct ScreenshotBatch
+{
+    bool inFlight = false;  // a readback and its frame callback are registered
+    bool gui      = false;  // the option of current
+    std::vector<std::shared_ptr<ScreenshotRequest>> current, deferred;
+    bool hasImage = false;
+    TemplatedImage<ucvec4> image;
+};
+
+void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& batch,
+                     const std::shared_ptr<ScreenshotRequest>& r);
+
+// After requests left the batch: the GUI option of the waiting ones (the deferred become current when none is left)
+void updateBatch(EngineApp& app, ScreenshotBatch& batch)
+{
+    if (batch.current.empty() && !batch.deferred.empty())
+    {
+        batch.current.swap(batch.deferred);
+        batch.gui = batch.current.front()->gui;
+    }
+    if (!app.scene()) return;
+    if (batch.inFlight && !batch.current.empty())
+        app.scene()->setImguiOverride(batch.gui);
+    else
+        app.scene()->setImguiOverride(std::nullopt);
+}
+
+// The frame of the readback was rendered: answers the current requests, then starts the deferred ones
+void finishScreenshots(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& batch)
+{
+    auto requests = std::move(batch->current);
+    auto deferred = std::move(batch->deferred);
+    batch->current.clear();
+    batch->deferred.clear();
+    TemplatedImage<ucvec4> image = std::move(batch->image);
+    batch->image                 = TemplatedImage<ucvec4>();
+    batch->hasImage              = false;
+    batch->inFlight              = false;
+    if (app.scene()) app.scene()->setImguiOverride(std::nullopt);
+    for (auto& r : requests)
+    {
+        if (r->answered) continue;
+        r->answered = true;
+        auto answer = std::move(r->answer);
+        r->answer   = nullptr;
+        answer(image);
+    }
+    for (auto& r : deferred)
+        if (!r->answered) startScreenshot(app, batch, r);
+}
+
+void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& batch,
+                     const std::shared_ptr<ScreenshotRequest>& r)
+{
+    if (r->answered) return;
+    if (batch->inFlight)
+    {
+        // Joins the waiting readback (or adopts it when the deadline answered all its requests)
+        if (batch->current.empty() || batch->gui == r->gui)
+        {
+            batch->gui = r->gui;
+            batch->current.push_back(r);
+        }
+        else
+            batch->deferred.push_back(r);
+        updateBatch(app, *batch);
+        return;
+    }
+    batch->inFlight = true;
+    batch->gui      = r->gui;
+    batch->current.push_back(r);
+    updateBatch(app, *batch);
+    // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers
+    app.scene()->requestScreenshot(
+        [batch](const TemplatedImage<ucvec4>& img)
+        {
+            batch->image    = img;
+            batch->hasImage = true;
+        });
+    app.onFrameRendered(
+        [&app, batch]()
+        {
+            if (!batch->hasImage) return false;
+            finishScreenshots(app, batch);
+            return true;
+        });
+}
+
+// The deadline answered r: it leaves the batch (its answer and responder are released)
+void dropScreenshot(EngineApp& app, ScreenshotBatch& batch, const std::shared_ptr<ScreenshotRequest>& r)
+{
+    for (auto* list : {&batch.current, &batch.deferred})
+        list->erase(std::remove(list->begin(), list->end(), r), list->end());
+    r->answer = nullptr;
+    updateBatch(app, batch);
 }
 }  // namespace
 
@@ -44,7 +298,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "app_status",
         "Reads the app: headless, rendering enabled, rendered size, frames, frames rendered, fps of the last frame, "
         "steps, the local player (whose input the devices and set_input drive), and the input bindings (actions, held "
-        "buttons, axes). Changes nothing.",
+        "buttons, axes), the app camera and whether a tool holds it. Changes nothing.",
         schema({}),
         [&app](const Json&, McpServer::Respond respond)
         {
@@ -54,7 +308,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
                            {"frames_rendered", double(app.renderedFrames())},
                            {"step", double(app.world().stepIndex())},
                            {"input", app.input().describe()},
-                           {"benchmark", app.options().benchmark}};
+                           {"benchmark", app.options().benchmark},
+                           {"camera", cameraJson(app)},
+                           {"camera_held", app.cameraHeldByTool()}};
             if (app.scene())
             {
                 const ivec2 size = app.scene()->size();
@@ -122,6 +378,337 @@ void registerAppTools(McpServer& server, EngineApp& app)
             }
             app.setVirtualInput(v, steps);
             respond(ToolResult::Text(Json(Json::object{{"steps", steps}}).dump()));
+        });
+
+    auto batch = std::make_shared<ScreenshotBatch>();
+    server.addTool(
+        "screenshot",
+        "Renders the next frame and returns it as an image (jpg default, or png), downscaled to max_width when wider "
+        "(box filter; default 1280, 64..8192; never upscaled), followed by the camera of that frame, the step and the "
+        "frame "
+        "number. The GUI is hidden unless gui=true (only in that frame: the app's GUI visibility is not changed). An "
+        "error without a device "
+        "or when no frame is rendered before the deadline (rendering disabled, a minimized window). Changes nothing.",
+        schema({{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
+                {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
+                {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")}}),
+        [&app, &server, batch](const Json& args, McpServer::Respond respond)
+        {
+            if (unknownArgument(args, {"gui", "format", "max_width"}, respond)) return;
+            if (!app.scene()) return respond(ToolResult::Error("screenshot: this app renders no frames (no device)"));
+            if (!args["gui"].is_null() && !args["gui"].is_bool()) return respond(ToolResult::Error("gui: a bool"));
+            const bool gui           = args["gui"].bool_value();
+            const std::string format = args["format"].is_null() ? "jpg" : args["format"].string_value();
+            if (format != "jpg" && format != "png") return respond(ToolResult::Error("format: jpg or png"));
+            int maxWidth = 1280;
+            if (!args["max_width"].is_null())
+            {
+                const double w = args["max_width"].number_value();
+                if (!args["max_width"].is_number() || w != std::floor(w) || w < 64 || w > 8192)
+                    return respond(ToolResult::Error("max_width: an integer 64..8192"));
+                maxWidth = int(w);
+            }
+            auto r              = std::make_shared<ScreenshotRequest>();
+            const auto deadline = answerDeadline(server);
+            r->gui              = gui;
+            r->answer           = [&app, respond, format, maxWidth](const TemplatedImage<ucvec4>& image)
+            {
+                if (image.width == 0) return respond(ToolResult::Error("screenshot: the frame could not be read back"));
+                auto small = downscale(image, maxWidth);
+                small.set_compression_quality(85);
+                const auto data = small.saveToMemory(format);
+                if (data.empty()) return respond(ToolResult::Error("screenshot: could not encode as " + format));
+                ToolResult result = ToolResult::Image(data, format == "png" ? "image/png" : "image/jpeg");
+                result.addText(Json(Json::object{{"camera", cameraJson(app)},
+                                                 {"step", double(app.world().stepIndex())},
+                                                 {"frame", double(app.renderedFrames())}})
+                                   .dump());
+                respond(result);
+            };
+            // The deadline answers once if no frame came (the request leaves the batch, the GUI override is cleared)
+            server.addPollListener(
+                [&app, batch, r, respond, deadline]()
+                {
+                    if (r->answered) return false;
+                    if (std::chrono::steady_clock::now() < deadline) return true;
+                    r->answered = true;
+                    dropScreenshot(app, *batch, r);
+                    respond(
+                        ToolResult::Error("screenshot: no frame was rendered before the deadline (rendering "
+                                          "disabled or the window minimized)"));
+                    return false;
+                });
+            startScreenshot(app, batch, r);
+        });
+
+    server.addTool(
+        "set_camera",
+        "Places the app camera: position [x, y, z], the view from look_at [x, y, z] (not the position) or from yaw_deg "
+        "(0 looks along -z, 90 along +x; within +-3600) and pitch_deg (-90..90, positive looks up); missing values "
+        "stay. Takes the camera from the game (camera "
+        "hold: games that drive the camera stop doing so) until release: true (alone). While held, relative moves of "
+        "the input (keys, set_input) use this camera's heading. The field of view is a game setting. Returns the "
+        "camera. Changes the camera.",
+        schema({{"position", McpServer::Vec3Property("Camera position [x, y, z] in meters")},
+                {"look_at", McpServer::Vec3Property("Point to look at [x, y, z]")},
+                {"yaw_deg", McpServer::NumberProperty("Heading in degrees, 0 = -z, 90 = +x")},
+                {"pitch_deg", McpServer::NumberProperty("Pitch in degrees, positive looks up")},
+                {"release", McpServer::BooleanProperty("Give the camera back to the game (no other argument)")}}),
+        [&app](const Json& args, McpServer::Respond respond)
+        {
+            if (unknownArgument(args, {"position", "look_at", "yaw_deg", "pitch_deg", "release"}, respond)) return;
+            if (!args["release"].is_null())
+            {
+                if (!args["release"].is_bool() || !args["release"].bool_value() || args.object_items().size() != 1)
+                    return respond(ToolResult::Error("release: true, without other arguments"));
+                app.releaseCamera();
+                return respond(ToolResult::Text(cameraJson(app).dump()));
+            }
+            PerspectiveCamera& camera = app.camera();
+            vec3 pos                  = camera.getPosition();
+            vec3 dir                  = cameraForward(camera);
+            vec3 target               = vec3::Zero();
+            bool hasPos, hasTarget, hasYaw, hasPitch;
+            double yaw = 0, pitch = 0;
+            if (!vec3Argument(args, "position", pos, hasPos, respond) ||
+                !vec3Argument(args, "look_at", target, hasTarget, respond) ||
+                !numberArgument(args, "yaw_deg", 3600, yaw, hasYaw, respond) ||
+                !numberArgument(args, "pitch_deg", 90, pitch, hasPitch, respond))
+                return;
+            if (hasTarget && (target - pos).norm() < 1e-4f)
+                return respond(ToolResult::Error("look_at must differ from the position"));
+            if (hasTarget)
+                dir = target - pos;
+            else if (hasYaw || hasPitch)
+            {
+                double y0, p0;
+                yawPitchFromDirection(dir, y0, p0);
+                dir = directionFromYawPitch(hasYaw ? yaw : y0, hasPitch ? pitch : p0);
+            }
+            app.holdCamera();
+            lookFrom(camera, pos, dir);
+            respond(ToolResult::Text(cameraJson(app).dump()));
+        });
+
+    server.addTool(
+        "move_camera",
+        "Moves the app camera relative to the view: forward and right in meters along the ground plane, up in meters, "
+        "then turns by yaw_deg (positive: right) and pitch_deg (positive: up; the result is clamped to +-89). Takes "
+        "the "
+        "camera from the game like set_camera. Returns the camera. Changes the camera.",
+        schema({{"forward", McpServer::NumberProperty("Meters forward (horizontal)")},
+                {"right", McpServer::NumberProperty("Meters to the right")},
+                {"up", McpServer::NumberProperty("Meters up")},
+                {"yaw_deg", McpServer::NumberProperty("Turn right by this angle")},
+                {"pitch_deg", McpServer::NumberProperty("Turn up by this angle")}}),
+        [&app](const Json& args, McpServer::Respond respond)
+        {
+            if (unknownArgument(args, {"forward", "right", "up", "yaw_deg", "pitch_deg"}, respond)) return;
+            double forward = 0, right = 0, up = 0, dyaw = 0, dpitch = 0;
+            bool g;
+            if (!numberArgument(args, "forward", kCameraLimit, forward, g, respond) ||
+                !numberArgument(args, "right", kCameraLimit, right, g, respond) ||
+                !numberArgument(args, "up", kCameraLimit, up, g, respond) ||
+                !numberArgument(args, "yaw_deg", 3600, dyaw, g, respond) ||
+                !numberArgument(args, "pitch_deg", 3600, dpitch, g, respond))
+                return;
+            PerspectiveCamera& camera = app.camera();
+            vec3 pos                  = camera.getPosition();
+            double yaw, pitch;
+            yawPitchFromDirection(cameraForward(camera), yaw, pitch);
+            const vec3 flatForward = directionFromYawPitch(yaw, 0);
+            const vec3 rightDir    = directionFromYawPitch(yaw + 90, 0);
+            pos += flatForward * float(forward) + rightDir * float(right) + vec3(0, 1, 0) * float(up);
+            for (int i = 0; i < 3; ++i) pos(i) = float(std::min(std::max(double(pos(i)), -kCameraLimit), kCameraLimit));
+            yaw += dyaw;
+            pitch = std::min(std::max(pitch + dpitch, -89.0), 89.0);
+            app.holdCamera();
+            lookFrom(camera, pos, directionFromYawPitch(yaw, pitch));
+            respond(ToolResult::Text(cameraJson(app).dump()));
+        });
+
+    server.addTool(
+        "list_scenarios",
+        "The game's scenarios (registration order) with local_only, optionally those whose name contains filter. "
+        "Changes nothing.",
+        schema({{"filter", McpServer::StringProperty("Part of the name")}}),
+        [&app](const Json& args, McpServer::Respond respond)
+        {
+            if (unknownArgument(args, {"filter"}, respond)) return;
+            if (!args["filter"].is_null() && !args["filter"].is_string())
+                return respond(ToolResult::Error("filter: a string"));
+            ScenarioList list;
+            if (app.setup().scenarios) app.setup().scenarios(list);
+            Json::array out;
+            for (const ScenarioList::Entry* e : list.match(args["filter"].string_value()))
+                out.push_back(Json::object{{"name", e->name}, {"local_only", e->localOnly}});
+            respond(ToolResult::Text(Json(Json::object{{"scenarios", out}}).dump()));
+        });
+
+    server.addTool(
+        "run_scenario",
+        "Runs one of the game's scenarios headless in this call (frames stop meanwhile; scenario log lines go to logs) "
+        "in the given variants (default [\"Plain\"]; Repeat, SaveLoad) and returns per variant passed, failures, "
+        "steps, seconds and, for a failed one, its report. The scenario uses the live world's data (run reload_data "
+        "first after editing data files). keep: true stores the Plain run's end state as the snapshot "
+        "scenario_<name>; load: true also loads it into the live world, paused, after saving the live world as "
+        "before_scenario (kept while the live world comes from run_scenario loads; a manual load_snapshot counts as "
+        "another load); load_snapshot before_scenario goes back. At the deadline the running variant stops (failure "
+        "\"aborted: stopped: tool time budget\"; checked after each step: a scenario that does not step blocks until "
+        "it "
+        "returns, and its end state is then not stored). An assertion in scenario code ends the app. Changes the "
+        "snapshots "
+        "and, with load, the live world.",
+        schema({{"name", McpServer::StringProperty("The scenario (list_scenarios)")},
+                {"variants", Json::object{{"type", "array"},
+                                          {"items", McpServer::StringProperty("", {"Plain", "Repeat", "SaveLoad"})}}},
+                {"keep", McpServer::BooleanProperty("Store the end state as the snapshot scenario_<name>")},
+                {"load", McpServer::BooleanProperty("Store and load the end state into the live world")}}),
+        [&app, &server](const Json& args, McpServer::Respond respond)
+        {
+            if (unknownArgument(args, {"name", "variants", "keep", "load"}, respond)) return;
+            if (!app.setup().scenarios) return respond(ToolResult::Error("run_scenario: the game has no scenarios"));
+            if (!args["name"].is_string()) return respond(ToolResult::Error("name: a scenario name"));
+            for (const char* key : {"keep", "load"})
+                if (!args[key].is_null() && !args[key].is_bool())
+                    return respond(ToolResult::Error(std::string(key) + ": a bool"));
+            const bool keep = args["keep"].bool_value(), load = args["load"].bool_value();
+            ScenarioList list;
+            app.setup().scenarios(list);
+            const ScenarioList::Entry* entry = list.find(args["name"].string_value());
+            if (!entry)
+                return respond(ToolResult::Error("run_scenario: no scenario \"" + args["name"].string_value() +
+                                                 "\" (list_scenarios)"));
+            std::vector<ScenarioVariant> variants;
+            if (args["variants"].is_null())
+                variants.push_back(ScenarioVariant::Plain);
+            else
+            {
+                if (!args["variants"].is_array() || args["variants"].array_items().empty())
+                    return respond(ToolResult::Error("variants: a non-empty list of Plain, Repeat, SaveLoad"));
+                for (const Json& v : args["variants"].array_items())
+                {
+                    bool found = false;
+                    for (ScenarioVariant x :
+                         {ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
+                        if (v.is_string() && v.string_value() == variantName(x))
+                        {
+                            if (std::find(variants.begin(), variants.end(), x) == variants.end()) variants.push_back(x);
+                            found = true;
+                        }
+                    if (!found)
+                        return respond(
+                            ToolResult::Error("variants: unknown variant " + v.dump() + " (Plain, Repeat, SaveLoad)"));
+                }
+            }
+            const bool plain = std::find(variants.begin(), variants.end(), ScenarioVariant::Plain) != variants.end();
+            if ((keep || load) && !plain)
+                return respond(ToolResult::Error("run_scenario: keep and load need the Plain variant"));
+            World& live = app.world();
+            if (!live.canSave())
+                return respond(ToolResult::Error("run_scenario: only between steps, not inside a game hook"));
+            WorldApi& api              = app.api();
+            const std::string snapName = "scenario_" + entry->name;
+            if ((keep || load) && snapName.size() > 128)
+                return respond(ToolResult::Error("run_scenario: the scenario name is too long for a snapshot name"));
+            const bool saveBefore = load && !(app.liveWorldFromScenario() && api.hasSnapshot("before_scenario"));
+            // The snapshot slots before the run (the bytes of the scenario's state are known only after it)
+            size_t newNames = 0;
+            if ((keep || load) && !api.hasSnapshot(snapName)) newNames++;
+            if (saveBefore && !api.hasSnapshot("before_scenario")) newNames++;
+            if (api.snapshotCount() + newNames > WorldApi::kMaxSnapshotCount)
+                return respond(ToolResult::Error("run_scenario: the snapshots are full (delete_snapshot frees one)"));
+            if (saveBefore)
+            {
+                // Before the run: the live world cannot change during this call, and its bytes are checked now
+                const ApiResult saved =
+                    api.call("save_snapshot", Json::object{{"name", "before_scenario"}, {"overwrite", true}});
+                if (!saved.ok) return respond(ToolResult::Error("run_scenario: " + saved.error));
+            }
+
+            app.countScenarioRun();
+            ScenarioOptions options;
+            options.deadline         = answerDeadline(server);
+            WorldSetup setup         = app.setup().world;
+            setup.sharedData         = live.sharedDataStore();
+            setup.sharedDataReadOnly = true;
+            Json::array results;
+            std::vector<uint8_t> finalSave;
+            uint64_t finalStep = 0, finalHash = 0;
+            bool plainLate = false;  // the Plain run finished after the deadline (the client may have given up)
+            for (ScenarioVariant v : variants)
+            {
+                if (std::chrono::steady_clock::now() >= *options.deadline)
+                {
+                    results.push_back(Json::object{{"variant", variantName(v)}, {"skipped", true}});
+                    continue;
+                }
+                ScenarioResult r = runScenario(setup, *entry, v, options);
+                Json::array failures;
+                for (const std::string& f : r.failures) failures.push_back(f);
+                Json::object o{{"variant", variantName(v)},
+                               {"passed", r.passed},
+                               {"failures", failures},
+                               {"steps", double(r.steps)},
+                               {"seconds", r.seconds}};
+                if (!r.passed)
+                {
+                    // Cut at a UTF-8 character boundary (no continuation byte first)
+                    size_t cut = std::min<size_t>(r.report.size(), 16384);
+                    while (cut > 0 && cut < r.report.size() && (uint8_t(r.report[cut]) & 0xC0) == 0x80) cut--;
+                    o["report"] = cut < r.report.size() ? r.report.substr(0, cut) + "..." : r.report;
+                }
+                results.push_back(o);
+                // A run that finished after the deadline (no step after it saw the clock, e.g. a long final check):
+                // its end state is neither stored nor loaded (the client may already have its timeout)
+                if (v == ScenarioVariant::Plain && !r.finalSave.empty() &&
+                    std::chrono::steady_clock::now() >= *options.deadline)
+                    plainLate = true;
+                else if (v == ScenarioVariant::Plain)
+                {
+                    finalSave = std::move(r.finalSave);
+                    finalStep = r.finalStep;
+                    finalHash = r.finalHash;
+                }
+            }
+            Json::object out{{"scenario", entry->name}, {"results", results}};
+            if ((keep || load) && !finalSave.empty())
+            {
+                const ApiResult stored = api.putSnapshot(snapName, std::move(finalSave), finalStep, finalHash, true);
+                if (!stored.ok)
+                    out["snapshot_error"] = stored.error;
+                else
+                {
+                    out["snapshot"] = snapName;
+                    char hex[32];
+                    std::snprintf(hex, sizeof(hex), "%016llx", (unsigned long long)finalHash);
+                    out["snapshot_hash"] = std::string(hex);
+                    if (load)
+                    {
+                        app.setScenarioLoadInProgress(true);
+                        const ApiResult loaded =
+                            api.call("load_snapshot", Json::object{{"name", snapName}, {"paused", true}});
+                        app.setScenarioLoadInProgress(false);
+                        if (!loaded.ok)
+                            out["load_error"] = loaded.error;
+                        else
+                        {
+                            Json::object l = loaded.value.object_items();
+                            char hex[32];
+                            std::snprintf(hex, sizeof(hex), "%016llx", (unsigned long long)app.world().hash());
+                            l["hash"]     = std::string(hex);
+                            out["loaded"] = l;
+                        }
+                    }
+                }
+            }
+            else if ((keep || load) && plain)
+                out["snapshot_error"] = plainLate
+                                            ? "the Plain run finished after the tool's deadline (its end state is "
+                                              "not stored)"
+                                            : "the Plain run did not finish (no end state)";
+            app.restartFrameClock();
+            respond(ToolResult::Text(exactToolJson(Json(out))));
         });
 }
 

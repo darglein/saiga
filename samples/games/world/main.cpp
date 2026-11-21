@@ -246,7 +246,7 @@ int main(int argc, char* argv[])
     setup.cameraSpeed        = 25;
     setup.cameraSpeedFast    = 250;
     setup.benchmarks         = Vulkan::WorldBenchmark::names();
-    setup.mcpInstructions    = Vulkan::worldMcpInstructions(false);
+    setup.mcpInstructions    = Vulkan::worldMcpInstructions();
     for (int i = 0; i < Vulkan::WorldRenderer::PASS_COUNT; ++i)
         setup.renderHooks.passNames.push_back(Vulkan::WorldRenderer::gpuPassName(i));
     EngineApp* appPtr      = nullptr;
@@ -275,12 +275,10 @@ int main(int argc, char* argv[])
     {
         if (!app.scene()) return;
         Vulkan::WorldMcpContext context;
-        context.renderer           = &app.scene()->forwardRenderer();
-        context.world              = &game.world;
-        context.camera             = &app.camera();
-        context.walkMode           = &game.walkMode;
-        context.eyeHeight          = &game.eyeHeight;
-        context.measurePerformance = false;
+        context.world     = &game.world;
+        context.camera    = &app.camera();
+        context.walkMode  = &game.walkMode;
+        context.eyeHeight = &game.eyeHeight;
         Vulkan::registerWorldMcpTools(server, context);
     };
 

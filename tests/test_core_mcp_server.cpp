@@ -92,6 +92,19 @@ TEST(McpServer, ToolCallRunsInPoll)
     EXPECT_EQ(handlerThread, pollThread);
 }
 
+// Regression (S14): a second registration of a name listed the tool twice; it stops the program in every build
+TEST(McpServerDeathTest, DuplicateToolName)
+{
+    auto twice = []()
+    {
+        McpServer server("test");
+        auto handler = [](const Json&, McpServer::Respond respond) { respond(McpServer::ToolResult::Text("")); };
+        server.addTool("a", "first", McpServer::ObjectSchema({}), handler);
+        server.addTool("a", "second", McpServer::ObjectSchema({}), handler);
+    };
+    EXPECT_DEATH(twice(), "already registered");
+}
+
 TEST(McpServer, DeferredResponseAndTimeout)
 {
     McpServer server("test");

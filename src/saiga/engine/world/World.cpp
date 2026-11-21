@@ -65,6 +65,7 @@ World::World(const WorldSetup& setup)
     if (setup.actions) setup.actions(actionNames);
 
     // Data files: an error stops the program in every build (R-DATA-1: a game must not run on half-read data)
+    dataReadOnly = setup.sharedDataReadOnly;
     if (setup.sharedData)
         dataStore = setup.sharedData;
     else
