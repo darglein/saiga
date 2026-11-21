@@ -1408,7 +1408,15 @@ void EngineApp::statisticsWindow()
     if (ImGui::CollapsingHeader("Simulation (world steps)"))
     {
         ImGui::TextDisabled("per step at %.0f steps/s: a frame runs as many steps as are due", 1.0 / gameWorld->dt());
-        if (report.is_null()) ImGui::TextDisabled("no world steps in the window (paused)");
+        if (report.is_null())
+            ImGui::TextDisabled("no world steps in the window (paused)");
+        else
+        {
+            // The step profile keeps the last historySize steps: a longer window shows only those
+            const int shownSteps = report["samples"].int_value();
+            ImGui::TextDisabled("%d steps (%.1f s)%s", shownSteps, shownSteps * gameWorld->dt(),
+                                shownSteps < sum.steps ? ", the newest the step profile keeps" : "");
+        }
         if (ImGui::BeginTable("scopes", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY, ImVec2(0, 220)))
         {
             ImGui::TableSetupColumn("scope", ImGuiTableColumnFlags_WidthStretch, 3.0f);

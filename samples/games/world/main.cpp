@@ -61,8 +61,9 @@ struct WorldGame
     bool fWasDown   = false;
     // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastBeforeRender;
-    bool hasLastBeforeRender = false;
-    double frameWork         = 0;  // the app's CPU work of the attempts of the frame of lastBeforeRenderFrame
+    bool hasLastBeforeRender         = false;
+    double frameWork                 = 0;   // the app's CPU work of the attempts of the frame of lastBeforeRenderFrame
+    std::array<double, 3> frameWaits = {};  // the waits (frame slot, acquire, present) of those attempts
     // The RenderScene frame of lastBeforeRender: a frame that was not submitted is attempted again with the same number
     // (its interval runs from the first attempt, so a stall stays in the result)
     uint64_t lastBeforeRenderFrame = 0;
@@ -181,6 +182,9 @@ void beforeRender(EngineApp& app)
         Profiler& fp = app.frameProfile();
         double work  = 0;
         if (g.hasLastBeforeRender && fp.enabled && fp.lastSample(fp.scope("work"), work)) g.frameWork += work;
+        // Its waits too (the renderer measures them per attempt)
+        if (g.hasLastBeforeRender)
+            for (size_t k = 0; k < 3; ++k) g.frameWaits[k] += scene.lastWaitParts()[k];
     }
     if (!g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame)
     {
@@ -191,10 +195,11 @@ void beforeRender(EngineApp& app)
             sample.intervalMs  = std::chrono::duration<double, std::milli>(now - g.lastBeforeRender).count();
             sample.workMs      = scene.lastRecordingMs();
             sample.frameWorkMs = g.frameWork;
-            sample.waitPartsMs = scene.lastWaitParts();
+            sample.waitPartsMs = g.frameWaits;
             g.bench->addSample(sample);
         }
         g.frameWork             = 0;
+        g.frameWaits            = {};
         g.lastBeforeRender      = now;
         g.lastBeforeRenderFrame = frame;
         g.hasLastBeforeRender   = true;
