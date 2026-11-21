@@ -58,7 +58,7 @@ const std::vector<Operation>& operationTable()
     static const std::vector<Operation> table = {
         {"describe_world", false, {}},
         {"world_status", false, {}},
-        {"list_entities", false, {"class", "components", "near", "include", "limit", "after"}},
+        {"list_entities", false, {"class", "components", "near", "space", "include", "limit", "after"}},
         {"inspect", false, {"entity", "components"}},
         {"get_global", false, {"component", "space"}},
         {"changes_since", false, {"cursor", "include_moved", "limit"}},
@@ -77,6 +77,7 @@ const std::vector<Operation>& operationTable()
         {"add_component", true, {"entity", "component", "values"}},
         {"remove_component", true, {"entity", "component"}},
         {"set_transform", true, {"entity", "position", "rotation", "scale", "teleport"}},
+        {"move_to_space", true, {"entity", "space", "position", "rotation"}},
         {"spawn", true, {"class", "position", "rotation", "scale", "space", "components"}},
         {"destroy", true, {"entity"}},
         {"set_global", true, {"component", "values", "space"}},
@@ -277,7 +278,7 @@ bool parentFromJson(World& w, Entity child, const Json& values, Parent& out, std
 // Components that the generic add/remove/spawn paths do not handle
 std::string specialComponent(ComponentId id, bool adding)
 {
-    if (id == Transform::id) return "Transform: every entity has one (use set_transform)";
+    if (id == Transform::id) return "Transform: every entity has one (use set_transform; its space: move_to_space)";
     if (id == Behaviour::id && adding) return "Behaviour: added by spawn with a class";
     if (id == Persistent::id && adding) return "Persistent: assigned by makePersistent";
     if (id == NetOwner::id) return "NetOwner: set by setOwner on the host before the spawn (read-only)";
@@ -598,8 +599,10 @@ ApiResult WorldApi::call(const std::string& operation, const Json& a)
         {
             std::string expected;
             for (const char* n : op->arguments) expected += std::string(expected.empty() ? "" : ", ") + n;
+            // S21: the space of an entity changes only through move_to_space
+            const std::string hint = kv.first == "space" ? "; a space change: move_to_space" : "";
             return ApiResult::failure(operation + ": unknown argument \"" + kv.first +
-                                      "\" (expected: " + (expected.empty() ? "none" : expected) + ")");
+                                      "\" (expected: " + (expected.empty() ? "none" : expected) + hint + ")");
         }
     // apply checks the permission per operation
     if (op->edit && !allowEdits && operation != "apply")
@@ -656,6 +659,7 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "add_component") return addComponent(args);
     if (operation == "remove_component") return removeComponent(args);
     if (operation == "set_transform") return setTransform(args);
+    if (operation == "move_to_space") return moveToSpace(args);
     if (operation == "spawn") return spawn(args);
     if (operation == "destroy") return destroy(args);
     if (operation == "set_global") return setGlobal(args);
@@ -734,7 +738,7 @@ ApiResult WorldApi::describeWorld(const Json&)
         if (id == Transform::id)
             o["note"] =
                 "every entity has one; change it with set_transform (children follow their parent: change "
-                "their LocalTransform)";
+                "their LocalTransform), its space with move_to_space";
         if (id == Behaviour::id)
             o["note"] =
                 "added by spawn with a class; classId is fixed; tickInterval is derived from the rings around "
@@ -774,7 +778,26 @@ ApiResult WorldApi::describeWorld(const Json&)
                          {"reliability", m.reliability == Reliability::Reliable ? "reliable" : "unreliable"},
                          {"channel", channelNames[size_t(m.channel)]},
                          {"raw", m.raw}});
+    // The spaces (S21): one per space template, SpaceId = index
+    Json::array spaces;
+    for (size_t i = 0; i < w->spaceCount(); ++i)
+    {
+        const SpaceTemplate& t = w->spaceTemplate(SpaceId(i));
+        Json::object o{{"id", int(i)},
+                       {"name", t.name},
+                       {"kind", t.kind == SpaceKind::Enclosed ? "enclosed" : "open_world"},
+                       {"size_chunks", t.sizeChunks},
+                       {"has_terrain", t.hasTerrain()}};
+        if (t.hasTerrain() && t.seaLevel) o["sea_level"] = double(*t.seaLevel) * kHeightUnit;
+        if (t.kind == SpaceKind::Enclosed)
+        {
+            const double origin = double(SpaceTemplate::enclosedOrigin(t.sizeChunks));
+            o["site_origin"]    = Json::array{origin, 0.0, origin};
+        }
+        spaces.push_back(o);
+    }
     return ApiResult::success(Json::object{{"components", components},
+                                           {"spaces", spaces},
                                            {"messages", messages},
                                            {"classes", classes},
                                            {"events", events},
@@ -818,6 +841,27 @@ ApiResult WorldApi::worldStatus(const Json&)
                    {"game_objects", double(objects)},
                    {"hash", hash},
                    {"world_generation", double(generation)}};
+    // Per space (S21): the entities (without the state entities) and the players in it
+    {
+        std::vector<double> entities(w->spaceCount(), 0);
+        std::vector<Json::array> players(w->spaceCount());
+        for (uint32_t i = 1; i < reg.slotCount(); ++i)
+        {
+            const Entity e = reg.aliveAt(i);
+            if (!e.valid() || (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState))) continue;
+            const SpaceId space = w->read<Transform>(e).space();
+            if (space >= entities.size()) continue;
+            entities[space] += 1;
+            if (reg.has<Player>(e)) players[space].push_back(entityJson(e));
+        }
+        Json::array spaces;
+        for (size_t s = 0; s < entities.size(); ++s)
+            spaces.push_back(Json::object{{"id", int(s)},
+                                          {"name", w->spaceTemplate(SpaceId(s)).name},
+                                          {"entities", entities[s]},
+                                          {"players", players[s]}});
+        o["spaces"] = spaces;
+    }
     // Co-op (S16b): the hidden host world runs the simulation (the client runs no vehicle, lap or behaviour systems)
     if (inCoop()) o["host"] = hostStatus(*coopHooks.host);
     if (const Transport* t = w->transport())
@@ -890,6 +934,14 @@ ApiResult WorldApi::listEntities(const Json& a)
     if (!intArg(a, "limit", 1, 1000, 100, limit, error) || !intArg(a, "after", 0, 0xFFFFFFFFll, 0, after, error))
         return ApiResult::failure(error);
 
+    // space (S21): only the entities of a space (without near, which has its own space)
+    int64_t spaceFilter = -1;
+    if (!a["space"].is_null())
+    {
+        if (!a["near"].is_null()) return ApiResult::failure("space: with near, use near.space");
+        if (!intArg(a, "space", 0, int64_t(w->spaceCount()) - 1, 0, spaceFilter, error))
+            return ApiResult::failure(error + " (" + std::to_string(w->spaceCount()) + " spaces)");
+    }
     // Candidates in index order: the grid for near (positions of the last step), else every slot
     std::vector<Entity> candidates;
     std::vector<std::pair<Entity, Vec3>> gridHits;  // near: in index order, like candidates
@@ -932,6 +984,7 @@ ApiResult WorldApi::listEntities(const Json& a)
     {
         if (e.index <= uint32_t(after)) continue;
         if (!reg.entityMask(e).containsAll(mask)) continue;
+        if (spaceFilter >= 0 && w->read<Transform>(e).space() != SpaceId(spaceFilter)) continue;
         const Behaviour* b = w->tryRead<Behaviour>(e);
         if (classFilter >= 0 && (!b || b->classId != classFilter)) continue;
         if (out.size() == size_t(limit))
@@ -1299,7 +1352,8 @@ ApiResult WorldApi::setComponent(const Json& a)
         for (auto& kv : values.object_items())
         {
             if (kv.first != "position" && kv.first != "rotation" && kv.first != "scale")
-                return ApiResult::failure("Transform." + kv.first + ": only position, rotation and scale");
+                return ApiResult::failure("Transform." + kv.first + ": only position, rotation and scale" +
+                                          (kv.first == "space" ? " (its space: move_to_space)" : ""));
             args[kv.first] = kv.second;
         }
         const Json previous = undoJson(id, componentJson(*w, e, id));
@@ -1437,6 +1491,45 @@ ApiResult WorldApi::setTransform(const Json& a)
     }
     t.setScale(scale);
     return ApiResult::success(toJson(t));
+}
+
+ApiResult WorldApi::moveToSpace(const Json& a)
+{
+    std::string error;
+    Entity e;
+    if (!aliveEntity(*w, a["entity"], e, error)) return ApiResult::failure(error);
+    // R-NET-2: a client moves no replicated entity (the host's move reaches it; a client-owned root on the host is the
+    // engine's OwnerCommand path and allowed)
+    if (!w->isHost() && w->replication().netIdOf(e) != 0)
+        return ApiResult::failure("the entity is replicated: a client cannot move it to another space (the host does)");
+    if (w->has<Parent>(e))
+        return ApiResult::failure("the entity is a child: it is in its parent's space (move its root)");
+    if (w->registry().flags(e) & (Registry::kWorldState | Registry::kSpaceState))
+        return ApiResult::failure("a world-state or space-state entity has no space to change");
+    if (a["space"].is_null()) return ApiResult::failure("space: missing");
+    int64_t space = 0;
+    if (!intArg(a, "space", 0, int64_t(w->spaceCount()) - 1, 0, space, error))
+        return ApiResult::failure(error + " (" + std::to_string(w->spaceCount()) + " spaces)");
+    const Transform& t = w->read<Transform>(e);
+    if (a["position"].is_null()) return ApiResult::failure("position: missing");
+    Vec3 position = t.position();
+    if (!readVec3(a["position"], position, error, "position")) return ApiResult::failure(error);
+    Quat rotation = t.rotation();
+    if (!a["rotation"].is_null())
+    {
+        JsonReader r(emptyObject(), true);
+        Quat q = rotation;
+        r.read(a["rotation"], q, "rotation");
+        if (!r.ok()) return ApiResult::failure(r.errorMessage());
+        const double n = std::sqrt(q.w() * q.w() + q.x() * q.x() + q.y() * q.y() + q.z() * q.z());
+        if (!(n > 1e-12) || !std::isfinite(n)) return ApiResult::failure("rotation: not a valid quaternion");
+        rotation = Quat(q.w() / n, q.x() / n, q.y() / n, q.z() / n);
+    }
+    // The undo payload: a move_to_space with it restores the entity
+    const Json previous =
+        Json::object{{"space", int(t.space())}, {"position", toJson(t.position())}, {"rotation", toJson(t.rotation())}};
+    w->moveToSpace(e, SpaceId(space), position, rotation);
+    return ApiResult::success(Json::object{{"entity", entityJson(e)}, {"previous", previous}});
 }
 
 ApiResult WorldApi::spawn(const Json& a)

@@ -16,6 +16,8 @@
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
+#include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/saiga_buildconfig.h"
@@ -826,6 +828,7 @@ TEST(WorldTools, EveryToolAnswers)
     track("add_component", Json::object{{"entity", de}, {"component", "PlayerInput"}});
     track("remove_component", Json::object{{"entity", de}, {"component", "PlayerInput"}});
     track("set_transform", Json::object{{"entity", de}, {"position", Json::array{1, 2, 3}}});
+    track("move_to_space", Json::object{{"entity", de}, {"space", 0}, {"position", Json::array{1, 2, 3}}});
     track("get_global", obj(R"({"component": "Weather"})"));
     track("set_global", obj(R"({"component": "Weather", "values": {"rain": 1}})"));
     track("emit_event",
@@ -2027,4 +2030,180 @@ TEST(WorldApi, ImportedSnapshotLearnsTheHashBeforeTheListeners)
         {
             EXPECT_EQ(x["hash"].string_value(), hashOne) << x.dump();
         }
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Spaces (S21, through handleMessage: R-MCP-1)
+
+namespace
+{
+WorldSetup spacesApiSetup()
+{
+    WorldSetup s = apiSetup();
+    SpaceTemplate terrain;
+    terrain.name            = "hills";
+    terrain.sizeChunks      = 16;
+    terrain.seaLevel        = 2048;  // 2 m
+    terrain.prototypeHeight = [](uint64_t, int64_t x, int64_t) { return int32_t(x); };
+    s.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar", 4), terrain};
+    return s;
+}
+}  // namespace
+
+TEST(WorldApiSpaces, MoveToSpace)
+{
+    World w(spacesApiSetup());
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    const Entity root  = w.create();
+    const Entity child = w.create();
+    w.add<Parent>(child, Parent{root});
+    w.get<Transform>(root).teleport(Vec3(1, 2, 3), Quat::Identity());
+    const Json re = WorldApi::entityJson(root);
+    // Without a rotation: the current one
+    uint64_t before = engineLog().lastSequence();
+    Json r          = callTool(server, "move_to_space",
+                               Json::object{{"entity", re}, {"space", 1}, {"position", Json::array{640, 0, 640}}});
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    Json j = toolJson(r);
+    EXPECT_EQ(entityOf(j["entity"]), root);
+    EXPECT_EQ(j["previous"]["space"].int_value(), 0);
+    EXPECT_EQ(j["previous"]["position"], Json(Json::array{1, 2, 3}));
+    EXPECT_EQ(w.read<Transform>(root).space(), 1u);
+    EXPECT_EQ(w.read<Transform>(child).space(), 1u);
+    EXPECT_EQ(w.read<Transform>(root).position(), Vec3(640, 0, 640));
+    bool logged = false;
+    for (const auto& l : engineLog().since(before))
+        logged = logged || (l.category == "api" && l.message.find("move_to_space") != std::string::npos);
+    EXPECT_TRUE(logged);
+    // With a rotation; previous restores the entity when sent back
+    r = callTool(
+        server, "move_to_space",
+        Json::object{
+            {"entity", re}, {"space", 2}, {"position", Json::array{5, 6, 7}}, {"rotation", Json::array{0, 0, 1, 0}}});
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    EXPECT_EQ(w.read<Transform>(root).space(), 2u);
+    EXPECT_NEAR(w.read<Transform>(root).rotation().y(), 1, 1e-12);
+    Json undo        = toolJson(r)["previous"].object_items();
+    Json::object arg = undo.object_items();
+    arg["entity"]    = re;
+    r                = callTool(server, "move_to_space", arg);
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    EXPECT_EQ(w.read<Transform>(root).space(), 1u);
+    EXPECT_EQ(w.read<Transform>(root).position(), Vec3(640, 0, 640));
+    EXPECT_EQ(w.read<Transform>(root).rotation().w(), 1);
+    // Errors: a child, a state entity, an unknown space
+    auto error = [&](const Json& args)
+    {
+        Json e = callTool(server, "move_to_space", args);
+        EXPECT_TRUE(e["result"]["isError"].bool_value()) << e.dump();
+        return e["result"]["content"][0]["text"].string_value();
+    };
+    EXPECT_NE(
+        error(Json::object{{"entity", WorldApi::entityJson(child)}, {"space", 0}, {"position", Json::array{0, 0, 0}}})
+            .find("is a child"),
+        std::string::npos);
+    EXPECT_NE(error(Json::object{{"entity", WorldApi::entityJson(w.worldStateEntity())},
+                                 {"space", 0},
+                                 {"position", Json::array{0, 0, 0}}})
+                  .find("state entity"),
+              std::string::npos);
+    EXPECT_NE(error(Json::object{{"entity", re}, {"space", 3}, {"position", Json::array{0, 0, 0}}}).find("3 spaces"),
+              std::string::npos);
+    // The space key of set_transform and set_component names move_to_space
+    EXPECT_NE(
+        callTool(server, "set_transform", Json::object{{"entity", re}, {"space", 1}})["result"]["content"][0]["text"]
+            .string_value()
+            .find("a space change: move_to_space"),
+        std::string::npos);
+    EXPECT_NE(callTool(server, "set_component",
+                       Json::object{{"entity", re},
+                                    {"component", "Transform"},
+                                    {"values", Json::object{{"space", 1}}}})["result"]["content"][0]["text"]
+                  .string_value()
+                  .find("its space: move_to_space"),
+              std::string::npos);
+}
+
+TEST(WorldApiSpaces, ClientEditIsAnError)
+{
+    auto t        = LoopbackTransport::createNetwork(2, LoopbackOptions{});
+    WorldSetup hs = spacesApiSetup();
+    hs.transport  = t[0].get();
+    World host(hs);
+    WorldSetup cs = spacesApiSetup();
+    cs.transport  = t[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
+    World client(cs);
+    const Entity e = host.create();
+    for (int k = 0; k < 3; ++k)
+    {
+        host.step();
+        client.step();
+    }
+    const Entity c = client.replication().entityOfNetId(host.replication().netIdOf(e));
+    ASSERT_TRUE(c.valid());
+    WorldApi api(client);
+    const ApiResult r =
+        api.call("move_to_space",
+                 Json::object{{"entity", WorldApi::entityJson(c)}, {"space", 1}, {"position", Json::array{0, 0, 0}}});
+    EXPECT_FALSE(r.ok);
+    EXPECT_NE(r.error.find("a client cannot move it"), std::string::npos) << r.error;
+    // A client-local entity may move
+    const Entity local = client.create();
+    EXPECT_TRUE(api.call("move_to_space",
+                         Json::object{
+                             {"entity", WorldApi::entityJson(local)}, {"space", 1}, {"position", Json::array{0, 0, 0}}})
+                    .ok);
+    EXPECT_EQ(client.read<Transform>(local).space(), 1u);
+}
+
+TEST(WorldApiSpaces, SpawnDescribeStatusAndList)
+{
+    World w(spacesApiSetup());
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    Json r = callTool(server, "spawn", obj(R"({"position": [640, 0, 641], "space": 1, "components": {"Player": {}}})"));
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    const Entity p = entityOf(toolJson(r)["entity"]);
+    EXPECT_EQ(w.read<Transform>(p).space(), 1u);
+    r = callTool(server, "spawn", obj(R"({"class": "Dummy", "position": [1, 0, 1], "space": 2})"));
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    EXPECT_EQ(w.read<Transform>(entityOf(toolJson(r)["entity"])).space(), 2u);
+    r = callTool(server, "spawn", obj(R"({"position": [0, 0, 0], "space": 3})"));
+    EXPECT_TRUE(r["result"]["isError"].bool_value());
+    EXPECT_NE(r["result"]["content"][0]["text"].string_value().find("3 spaces"), std::string::npos) << r.dump();
+
+    const Json d = toolJson(callTool(server, "describe_world", Json::object{}));
+    ASSERT_EQ(d["spaces"].array_items().size(), 3u);
+    EXPECT_EQ(d["spaces"][0]["name"].string_value(), "overworld");
+    EXPECT_EQ(d["spaces"][0]["kind"].string_value(), "open_world");
+    EXPECT_FALSE(d["spaces"][0]["has_terrain"].bool_value());
+    EXPECT_TRUE(d["spaces"][0]["sea_level"].is_null());
+    EXPECT_EQ(d["spaces"][1]["kind"].string_value(), "enclosed");
+    EXPECT_EQ(d["spaces"][1]["size_chunks"].int_value(), 4);
+    EXPECT_EQ(d["spaces"][1]["site_origin"], Json(Json::array{640, 0, 640}));
+    EXPECT_TRUE(d["spaces"][2]["has_terrain"].bool_value());
+    EXPECT_EQ(d["spaces"][2]["sea_level"].number_value(), 2.0);
+    EXPECT_TRUE(d["spaces"][2]["site_origin"].is_null());
+
+    const Json s = toolJson(callTool(server, "world_status", Json::object{}));
+    ASSERT_EQ(s["spaces"].array_items().size(), 3u);
+    EXPECT_EQ(s["spaces"][0]["entities"].int_value(), 0);  // the world-state entity is not counted
+    EXPECT_EQ(s["spaces"][1]["entities"].int_value(), 1);
+    ASSERT_EQ(s["spaces"][1]["players"].array_items().size(), 1u);
+    EXPECT_EQ(entityOf(s["spaces"][1]["players"][0]), p);
+    EXPECT_EQ(s["spaces"][2]["entities"].int_value(), 1);
+
+    Json l = toolJson(callTool(server, "list_entities", obj(R"({"space": 1})")));
+    ASSERT_EQ(l["entities"].array_items().size(), 1u);
+    EXPECT_EQ(entityOf(l["entities"][0]["entity"]), p);
+    EXPECT_EQ(toolJson(callTool(server, "list_entities", obj(R"({"space": 0})")))["count"].int_value(),
+              1);  // world state
+    EXPECT_TRUE(callTool(server, "list_entities",
+                         obj(R"({"space": 1, "near": {"position": [0, 0, 0], "radius": 1}})"))["result"]["isError"]
+                    .bool_value());
 }

@@ -171,6 +171,7 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult addComponent(const json11::Json& a);
     ApiResult removeComponent(const json11::Json& a);
     ApiResult setTransform(const json11::Json& a);
+    ApiResult moveToSpace(const json11::Json& a);
     ApiResult spawn(const json11::Json& a);
     ApiResult destroy(const json11::Json& a);
     ApiResult getGlobal(const json11::Json& a);
