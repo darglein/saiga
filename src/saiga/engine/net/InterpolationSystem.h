@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include "saiga/core/math/ChunkId.h"
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/math/Types.h"
 #include "saiga/export.h"
@@ -25,14 +26,15 @@ namespace Engine
 class World;
 
 // Received poses by host step (every snapshot or owner state, not only the newest), sampled linearly in position and
-// with slerp in rotation; a change of the teleport counter between two samples snaps; past the newest sample the last
-// pose is held (dry).
+// with slerp in rotation; a change of the teleport counter or of the space (S21) between two samples snaps; past the
+// newest sample the last pose is held (dry).
 class SAIGA_ENGINE_API InterpolationBuffer
 {
    public:
     struct Sample
     {
         double step;
+        SpaceId space;
         Vec3 position;
         Quat rotation;
         uint8_t counter;
@@ -40,9 +42,9 @@ class SAIGA_ENGINE_API InterpolationBuffer
     static constexpr size_t kMaxSamples = 64;
 
     // Kept in step order; a sample at an existing step replaces it
-    void push(double step, const Vec3& position, const Quat& rotation, uint8_t counter);
-    // false: empty. snapped: a teleport counter change at or before t since the last sample() call
-    bool sample(double t, Vec3& position, Quat& rotation, bool& snapped);
+    void push(double step, SpaceId space, const Vec3& position, const Quat& rotation, uint8_t counter);
+    // false: empty. snapped: a teleport counter or space change at or before t since the last sample() call
+    bool sample(double t, SpaceId& space, Vec3& position, Quat& rotation, bool& snapped);
     bool empty() const { return samples.empty(); }
     size_t size() const { return samples.size(); }
     void clear() { samples.clear(); }
@@ -51,6 +53,7 @@ class SAIGA_ENGINE_API InterpolationBuffer
     std::deque<Sample> samples;
     bool haveSampled       = false;
     uint8_t sampledCounter = 0;
+    SpaceId sampledSpace   = 0;
 };
 
 SAIGA_ENGINE_API void interpolationSystem(World& world, double dt);

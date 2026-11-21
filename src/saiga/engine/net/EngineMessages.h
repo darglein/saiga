@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "saiga/core/math/ChunkId.h"
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/math/Types.h"
 #include "saiga/engine/components/LocalTransform.h"
@@ -56,19 +57,20 @@ struct HierarchyMessage
     }
 };
 
-// Host -> owner: an effect on an owned root, applied in phase 1 (kind 0: teleport to the pose); counter: the root's new
-// command counter, which the owner stamps its owner states with
+// Host -> owner: an effect on an owned root, applied in phase 1 (kind 0: teleport to the pose in the space; version 2,
+// S21: the space); counter: the root's new command counter, which the owner stamps its owner states with
 struct OwnerCommandMessage
 {
     static constexpr MessageId id      = MessageId(EngineMessage::OwnerCommand);
     static constexpr const char* name  = "OwnerCommand";
-    static constexpr uint32_t version  = 1;
+    static constexpr uint32_t version  = 2;
     static constexpr uint8_t kTeleport = 0;
     NetId netId                        = 0;
     uint8_t kind                       = kTeleport;
     Vec3 position                      = Vec3::Zero();
     Quat rotation                      = Quat::Identity();
     uint8_t counter                    = 0;
+    SpaceId space                      = 0;
     template <class V>
     void visit(V& v)
     {
@@ -77,6 +79,7 @@ struct OwnerCommandMessage
         v("position", position);
         v("rotation", rotation);
         v("counter", counter);
+        v("space", space);
     }
 };
 

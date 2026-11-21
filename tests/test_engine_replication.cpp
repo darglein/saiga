@@ -33,6 +33,7 @@
 
 #include <atomic>
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <map>
 #include <memory>
@@ -179,12 +180,13 @@ void bothSystem(World& w, double)
     if (g_inSystem) g_inSystem(w);
 }
 
-// Test hooks: an ownerTeleport during phase 4, an exception in phase 4 or 6
-Entity g_teleportInStep;
+// Test hooks: an ownerTeleport (or a moveToSpace to space 1, S21) during phase 4, an exception in phase 4 or 6
+Entity g_teleportInStep, g_moveInStep;
 Phase g_throwIn = Phase::None;
 void teleportSystem(World& w, double)
 {
     if (w.alive(g_teleportInStep)) w.ownerTeleport(g_teleportInStep, Vec3(7, 0, 0), Quat::Identity());
+    if (w.alive(g_moveInStep)) w.moveToSpace(g_moveInStep, 1, Vec3(640, 0, 640), Quat::Identity());
 }
 void throwSystem(World& w, double)
 {
@@ -225,12 +227,14 @@ struct Net
     std::vector<std::unique_ptr<LoopbackTransport>> t;
     std::unique_ptr<World> host;
     std::vector<std::unique_ptr<World>> clients;
-    explicit Net(int n = 1, int delay = 0, bool createClients = true)
+    WorldSetup (*setup)() = baseSetup;
+    explicit Net(int n = 1, int delay = 0, bool createClients = true, WorldSetup (*setupFn)() = baseSetup)
+        : setup(setupFn)
     {
         LoopbackOptions o;
         o.delayRounds = delay;
         t             = LoopbackTransport::createNetwork(1 + n, o);
-        WorldSetup s  = baseSetup();
+        WorldSetup s  = setup();
         s.transport   = t[0].get();
         host          = std::make_unique<World>(s);
         if (createClients)
@@ -238,7 +242,7 @@ struct Net
     }
     void addClient(int i)
     {
-        WorldSetup s = baseSetup();
+        WorldSetup s = setup();
         s.transport  = t[size_t(i)].get();
         s.role       = NetRole::Client;
         s.localPeer  = uint8_t(i);
@@ -982,21 +986,22 @@ TEST(InterpolationBufferTest, SamplingDryHoldAndSnap)
     Vec3 p;
     Quat q;
     bool snapped;
-    EXPECT_FALSE(b.sample(0, p, q, snapped));
-    b.push(10, Vec3(0, 0, 0), Quat::Identity(), 0);
-    b.push(12, Vec3(2, 0, 0), Quat::Identity(), 0);
-    ASSERT_TRUE(b.sample(11, p, q, snapped));
+    SpaceId space = 0;
+    EXPECT_FALSE(b.sample(0, space, p, q, snapped));
+    b.push(10, 0, Vec3(0, 0, 0), Quat::Identity(), 0);
+    b.push(12, 0, Vec3(2, 0, 0), Quat::Identity(), 0);
+    ASSERT_TRUE(b.sample(11, space, p, q, snapped));
     EXPECT_NEAR(p.x(), 1, 1e-12);
     EXPECT_FALSE(snapped);
     // Dry: the last pose is held
-    b.sample(30, p, q, snapped);
+    b.sample(30, space, p, q, snapped);
     EXPECT_NEAR(p.x(), 2, 1e-12);
     // A teleport counter change: no interpolation over it, a snap when reached
-    b.push(14, Vec3(100, 0, 0), Quat::Identity(), 1);
-    b.sample(13, p, q, snapped);
+    b.push(14, 0, Vec3(100, 0, 0), Quat::Identity(), 1);
+    b.sample(13, space, p, q, snapped);
     EXPECT_NEAR(p.x(), 2, 1e-12);
     EXPECT_FALSE(snapped);
-    b.sample(14, p, q, snapped);
+    b.sample(14, space, p, q, snapped);
     EXPECT_NEAR(p.x(), 100, 1e-12);
     EXPECT_TRUE(snapped);
 }
@@ -1185,8 +1190,9 @@ TEST(Replication, AnAbortedOwnerTeleportLeavesNoSample)
     ASSERT_NE(b, nullptr);
     Vec3 position;
     Quat rotation;
-    bool snapped = false;
-    ASSERT_TRUE(b->sample(1e9, position, rotation, snapped));
+    bool snapped  = false;
+    SpaceId space = 0;
+    ASSERT_TRUE(b->sample(1e9, space, position, rotation, snapped));
     EXPECT_LT(position.norm(), 1.0);
     EXPECT_FALSE(snapped);
 }
@@ -1518,4 +1524,292 @@ TEST(ReviewDeathTest, OwnerRules)
     };
     EXPECT_DEATH(queuedCascade(), "cannot destroy a replicated entity \\(a descendant\\)");
 #endif
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Spaces (S21): the root's space in spawns and snapshots, OwnerCommand v2, owner states, interpolation per space
+
+namespace
+{
+WorldSetup spaceSetup()
+{
+    WorldSetup s            = baseSetup();
+    s.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar"), SpaceTemplate::enclosed("cave")};
+    return s;
+}
+Entity childOf(World& w, Entity parent, const Vec3& local)
+{
+    const Entity c = w.create();
+    w.add<LocalTransform>(c, LocalTransform{local, Quat::Identity(), Vec3::Ones()});
+    w.add<Parent>(c, Parent{parent});
+    return c;
+}
+// Overwrites the space of a live Transform through its visit (a forged owner state of a broken client)
+void forgeSpace(World& w, Entity e, SpaceId space)
+{
+    Transform copy = w.read<Transform>(e);
+    std::vector<uint8_t> bytes;
+    BinaryWriter bw(bytes);
+    copy.visit(bw);
+    std::memcpy(bytes.data(), &space, sizeof(SpaceId));
+    BinaryReader br(bytes.data(), bytes.size());
+    w.registry().get<Transform>(e).visit(br);
+}
+}  // namespace
+
+TEST(SpaceReplication, SpawnInAnotherSpace)
+{
+    Net n(1, 0, true, spaceSetup);
+    const Entity e = n.host->createIn(1);
+    n.host->get<Transform>(e).setPosition(Vec3(640, 0, 640));
+    n.step(3);
+    const Entity c = n.onClient(e);
+    ASSERT_TRUE(c.valid());
+    // The S16 apply dropped the space
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 1u);
+    EXPECT_EQ(n.client().read<RenderPose>(c).space, 1u);
+    EXPECT_EQ(n.client().netStats().rejected, 0u);
+}
+
+TEST(SpaceReplication, HostOwnedMoveSnaps)
+{
+    Net n(1, 1, true, spaceSetup);
+    const Entity e     = n.host->create();
+    const Entity child = childOf(*n.host, e, Vec3(1, 0, 0));
+    for (int i = 0; i < 10; ++i)
+    {
+        n.host->get<Transform>(e).setPosition(Vec3(0.1 * i, 0, 0));
+        n.step();
+    }
+    const Entity c = n.onClient(e), cc = n.onClient(child);
+    ASSERT_TRUE(c.valid() && cc.valid());
+    const uint8_t snap = n.host->replication().snapCounter(e);
+    n.host->moveToSpace(e, 2, Vec3(500, 0, 500), Quat::Identity());
+    bool interpolatedAcross = false, snapped = false;
+    for (int i = 0; i < 20; ++i)
+    {
+        n.step();
+        // The child follows at once (writer 4 moves the subtree)
+        EXPECT_EQ(n.client().read<Transform>(cc).space(), n.client().read<Transform>(c).space());
+        const RenderPose& p = n.client().read<RenderPose>(c);
+        // Never an old-space pose in the new space or a blend of both
+        if (p.space == 2) interpolatedAcross = interpolatedAcross || p.position.x() < 499;
+        if (p.space == 0) interpolatedAcross = interpolatedAcross || p.position.x() > 2;
+        snapped = snapped || (p.space == 2 && (p.flags & RenderPose::kTeleported));
+    }
+    EXPECT_FALSE(interpolatedAcross);
+    EXPECT_TRUE(snapped);
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 2u);
+    EXPECT_EQ(n.client().read<Transform>(cc).space(), 2u);
+    EXPECT_NEAR(n.client().read<Transform>(cc).position().x(), 501, 1e-3);  // phase 6 composed the child
+    EXPECT_EQ(n.client().read<RenderPose>(c).space, 2u);
+    EXPECT_EQ(n.client().read<RenderPose>(cc).space, 2u);
+    EXPECT_EQ(n.host->replication().snapCounter(e), uint8_t(snap + 1));
+    EXPECT_EQ(n.client().netStats().rejected, 0u);
+}
+
+TEST(SpaceReplication, ClientOwnedMoveToSpace)
+{
+    Net n(1, 2, true, spaceSetup);
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(8);
+    const Entity c = n.onClient(p);
+    ASSERT_TRUE(c.valid());
+    n.client().get<PlayerInput>(c).move = Vec3(0, 0, 1);
+    n.step(10);
+    const uint64_t dropped = n.host->replication().stats().ownerStatesDropped;
+    n.host->moveToSpace(p, 1, Vec3(640, 0, 640), Quat::Identity());
+    EXPECT_EQ(n.host->replication().commandCounter(p), 1);
+    EXPECT_EQ(n.host->read<Transform>(p).space(), 1u);
+    bool hostBlend = false, hostSnap = false;
+    for (int i = 0; i < 20; ++i)
+    {
+        n.step();
+        // The owner's states before the command carry the old counter: the host keeps its space
+        EXPECT_EQ(n.host->read<Transform>(p).space(), 1u);
+        const RenderPose& rp = n.host->read<RenderPose>(p);
+        if (rp.space == 1) hostBlend = hostBlend || std::abs(rp.position.x() - 640) > 5;
+        hostSnap = hostSnap || (rp.space == 1 && (rp.flags & RenderPose::kTeleported));
+    }
+    EXPECT_GT(n.host->replication().stats().ownerStatesDropped, dropped);
+    // Applied in phase 1 on the owner
+    EXPECT_EQ(n.client().replication().commandCounter(c), 1);
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 1u);
+    EXPECT_GT(n.client().read<Transform>(c).position().z(), 640);  // walking in space 1
+    EXPECT_NEAR(n.host->read<Transform>(p).position().z(), n.client().read<Transform>(c).position().z(), 1);
+    // The host's interpolation buffer breaks at the move
+    EXPECT_FALSE(hostBlend);
+    EXPECT_TRUE(hostSnap);
+    EXPECT_EQ(n.host->read<RenderPose>(p).space, 1u);
+    EXPECT_EQ(n.host->netStats().rejected, 0u);
+    EXPECT_EQ(n.client().netStats().rejected, 0u);
+}
+
+TEST(SpaceReplication, OwnerStateSpaceIgnored)
+{
+    Net n(1, 0, true, spaceSetup);
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(8);
+    const Entity c = n.onClient(p);
+    ASSERT_TRUE(c.valid());
+    n.client().get<PlayerInput>(c).move = Vec3(1, 0, 0);
+    n.step(5);
+    // A forged state with the current counter in another space: rejected, no owner record update, no sample
+    forgeSpace(n.client(), c, 2);
+    const uint64_t rejected = n.host->netStats().rejected;
+    InterpolationBuffer* b  = n.host->replication().buffer(p);
+    ASSERT_NE(b, nullptr);
+    const size_t samples = b->size();
+    const double x       = n.host->read<Transform>(p).position().x();
+    n.step(3);
+    EXPECT_GT(n.host->netStats().rejected, rejected);
+    EXPECT_EQ(n.host->read<Transform>(p).space(), 0u);
+    EXPECT_LE(b->size(), samples);  // nothing pushed (sampling may pop old ones)
+    // The owner record was not updated: the host's pose stays where the last correct state left it (+ extrapolation)
+    EXPECT_LT(n.host->read<Transform>(p).position().x(), x + 0.6);
+    // A correct state after it is applied
+    forgeSpace(n.client(), c, 0);
+    n.step(5);
+    EXPECT_GT(n.host->read<Transform>(p).position().x(), x + 0.6);
+    EXPECT_EQ(n.host->read<RenderPose>(p).space, 0u);
+}
+
+TEST(SpaceReplication, OwnerCommandWithUnknownSpace)
+{
+    Net n(1, 0, true, spaceSetup);
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(8);
+    const Entity c = n.onClient(p);
+    ASSERT_TRUE(c.valid());
+    n.client().get<PlayerInput>(c).move = Vec3(1, 0, 0);
+    n.step(3);
+    OwnerCommandMessage m;
+    m.netId    = n.host->replication().netIdOf(p);
+    m.position = Vec3(1000, 0, 0);
+    m.counter  = 0;  // the host's counter stays 0: the owner takes it, its states are not stale
+    m.space    = SpaceId(n.client().spaceCount());
+    n.host->send(1, m);
+    const uint64_t dropped = n.host->replication().stats().ownerStatesDropped;
+    n.step(5);
+    EXPECT_EQ(n.client().netStats().rejected, 1u);
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 0u);
+    EXPECT_LT(n.client().read<Transform>(c).position().x(), 100);  // the pose is not applied
+    EXPECT_EQ(n.client().replication().commandCounter(c), 0);
+    EXPECT_EQ(n.host->replication().stats().ownerStatesDropped, dropped);
+    // With the next counter (a broken host): taken, so the owner's states carry it
+    m.counter = 1;
+    n.host->send(1, m);
+    n.step(2);
+    EXPECT_EQ(n.client().replication().commandCounter(c), 1);
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 0u);
+}
+
+TEST(SpaceReplication, InterpolationNeverCrossesSpaces)
+{
+    InterpolationBuffer b;
+    Vec3 p;
+    Quat q;
+    bool snapped  = false;
+    SpaceId space = 9;
+    b.push(10, 0, Vec3(0, 0, 0), Quat::Identity(), 0);
+    b.push(12, 0, Vec3(2, 0, 0), Quat::Identity(), 0);
+    b.push(14, 1, Vec3(640, 0, 640), Quat::Identity(), 0);  // the same counter: the space alone breaks
+    ASSERT_TRUE(b.sample(11, space, p, q, snapped));
+    EXPECT_EQ(space, 0u);
+    EXPECT_NEAR(p.x(), 1, 1e-12);
+    // Between the old space's last sample and the new one: the old pose is held
+    b.sample(13, space, p, q, snapped);
+    EXPECT_EQ(space, 0u);
+    EXPECT_NEAR(p.x(), 2, 1e-12);
+    EXPECT_FALSE(snapped);
+    // From the new sample's step on: the new space, snapped
+    b.sample(14, space, p, q, snapped);
+    EXPECT_EQ(space, 1u);
+    EXPECT_NEAR(p.x(), 640, 1e-12);
+    EXPECT_TRUE(snapped);
+}
+
+TEST(SpaceReplication, AbortedStepUndoesTheCommand)
+{
+    Net n(1, 0, true, spaceSetup);
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(5);
+    g_moveInStep = p;
+    g_throwIn    = Phase::Gameplay;  // after test_teleport in the same phase
+    EXPECT_THROW(n.host->step(), std::runtime_error);
+    g_moveInStep = Entity{};
+    g_throwIn    = Phase::None;
+    EXPECT_EQ(n.host->replication().commandCounter(p), 0);
+    InterpolationBuffer* b = n.host->replication().buffer(p);
+    ASSERT_NE(b, nullptr);
+    Vec3 position;
+    Quat rotation;
+    bool snapped  = false;
+    SpaceId space = 9;
+    ASSERT_TRUE(b->sample(1e9, space, position, rotation, snapped));
+    EXPECT_EQ(space, 0u);
+    EXPECT_LT(position.norm(), 1.0);
+    EXPECT_FALSE(snapped);
+    // Nothing was sent: the owner stays in space 0
+    n.step(5);
+    const Entity c = n.onClient(p);
+    EXPECT_EQ(n.client().replication().commandCounter(c), 0);
+}
+
+TEST(SpaceReplication, LateJoinerSeesTheSubtree)
+{
+    Net n(2, 0, false, spaceSetup);
+    n.addClient(1);
+    const Entity parent = n.host->createIn(1);
+    n.host->get<Transform>(parent).setPosition(Vec3(640, 0, 640));
+    const Entity a = childOf(*n.host, parent, Vec3(1, 0, 0));
+    const Entity b = childOf(*n.host, parent, Vec3(0, 0, 1));
+    EXPECT_EQ(n.host->read<Transform>(a).space(), 1u);
+    n.step(10);
+    n.addClient(2);
+    n.step(10);
+    for (int client : {1, 2})
+        for (Entity e : {parent, a, b})
+        {
+            const Entity r = n.onClient(e, client);
+            ASSERT_TRUE(r.valid());
+            EXPECT_EQ(n.client(client).read<Transform>(r).space(), 1u);
+            EXPECT_EQ(n.client(client).read<RenderPose>(r).space, 1u);
+        }
+}
+
+TEST(SpaceReplication, ChildBeforeParent)
+{
+    Net n(1, 0, true, spaceSetup);
+    // A parent with a higher index than its child (its spawn comes later in index order)
+    const Entity child  = n.host->create();
+    const Entity parent = n.host->createIn(1);
+    n.host->get<Transform>(parent).setPosition(Vec3(640, 0, 640));
+    n.host->add<LocalTransform>(child, LocalTransform{Vec3(1, 0, 0), Quat::Identity(), Vec3::Ones()});
+    n.host->add<Parent>(child, Parent{parent});
+    n.step(5);
+    const Entity c = n.onClient(child);
+    ASSERT_TRUE(c.valid());
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 1u);
+    EXPECT_NEAR(n.client().read<Transform>(c).position().x(), 641, 1e-3);
+    EXPECT_EQ(n.client().replication().pendingCount(), 0u);
+}
+
+TEST(SpaceReplication, ResyncWhileOwnerInSpace1)
+{
+    Net n(1, 0, true, spaceSetup);
+    const Entity p = makePlayer(*n.host, 1);
+    n.step(5);
+    n.host->moveToSpace(p, 1, Vec3(640, 0, 640), Quat::Identity());
+    n.step(5);
+    const Entity c = n.onClient(p);
+    ASSERT_EQ(n.client().read<Transform>(c).space(), 1u);
+    const auto saved = n.host->save();
+    n.host->load(saved);
+    n.step(6);
+    const Entity c2 = n.onClient(p);
+    ASSERT_TRUE(c2.valid());
+    // The owner's root space from the respawn (the owner never takes its root's Transform from snapshots)
+    EXPECT_EQ(n.client().read<Transform>(c2).space(), 1u);
+    EXPECT_NEAR(n.client().read<Transform>(c2).position().x(), 640, 1e-3);
 }

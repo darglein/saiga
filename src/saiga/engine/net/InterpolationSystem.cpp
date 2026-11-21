@@ -21,18 +21,18 @@ namespace Saiga
 {
 namespace Engine
 {
-void InterpolationBuffer::push(double step, const Vec3& position, const Quat& rotation, uint8_t counter)
+void InterpolationBuffer::push(double step, SpaceId space, const Vec3& position, const Quat& rotation, uint8_t counter)
 {
     auto it =
         std::lower_bound(samples.begin(), samples.end(), step, [](const Sample& s, double t) { return s.step < t; });
     if (it != samples.end() && it->step == step)
-        *it = Sample{step, position, rotation, counter};
+        *it = Sample{step, space, position, rotation, counter};
     else
-        samples.insert(it, Sample{step, position, rotation, counter});
+        samples.insert(it, Sample{step, space, position, rotation, counter});
     while (samples.size() > kMaxSamples) samples.pop_front();
 }
 
-bool InterpolationBuffer::sample(double t, Vec3& position, Quat& rotation, bool& snapped)
+bool InterpolationBuffer::sample(double t, SpaceId& space, Vec3& position, Quat& rotation, bool& snapped)
 {
     snapped = false;
     if (samples.empty()) return false;
@@ -41,9 +41,11 @@ bool InterpolationBuffer::sample(double t, Vec3& position, Quat& rotation, bool&
         std::upper_bound(samples.begin(), samples.end(), t, [](double x, const Sample& s) { return x < s.step; });
     const Sample& a = next == samples.begin() ? *next : *(next - 1);
     uint8_t counter = a.counter;
-    if (next == samples.end() || next == samples.begin() || next->counter != a.counter)
+    space           = a.space;
+    if (next == samples.end() || next == samples.begin() || next->counter != a.counter || next->space != a.space)
     {
-        // Dry (hold the newest), before the oldest, or across a teleport (no interpolation over the jump)
+        // Dry (hold the newest), before the oldest, or across a teleport or a space change (no interpolation over the
+        // jump: the newer sample is used from its step on)
         position = a.position;
         rotation = a.rotation;
     }
@@ -54,9 +56,10 @@ bool InterpolationBuffer::sample(double t, Vec3& position, Quat& rotation, bool&
         position        = a.position + (b.position - a.position) * f;
         rotation        = a.rotation.slerp(f, b.rotation);
     }
-    snapped        = haveSampled && counter != sampledCounter;
+    snapped        = haveSampled && (counter != sampledCounter || space != sampledSpace);
     haveSampled    = true;
     sampledCounter = counter;
+    sampledSpace   = space;
     // Older samples than the one in use are not needed any more (one is kept before t)
     while (samples.size() > 2 && samples[1].step <= t) samples.pop_front();
     return true;
@@ -93,13 +96,17 @@ void interpolationSystem(World& w, double)
         RenderPose* pose = reg.tryGet<RenderPose>(e);
         Vec3 p;
         Quat q;
-        bool snapped = false;
-        if (pose && it->second.second.sample(t, p, q, snapped))
+        SpaceId space = 0;
+        bool snapped  = false;
+        if (pose && it->second.second.sample(t, space, p, q, snapped))
         {
+            // A space change without a sampled one (the first sample after a reset) snaps too
+            snapped = snapped || space != pose->space;
             if (p != pose->position || differs(q, pose->rotation) || snapped) pose->flags |= RenderPose::kChanged;
             if (snapped) pose->flags |= RenderPose::kTeleported;
             pose->position = p;
             pose->rotation = q;
+            pose->space    = space;
         }
         ++it;
     }
@@ -118,10 +125,13 @@ void interpolationSystem(World& w, double)
         const Vec3 scale = reg.read<Transform>(parent->entity).scale();
         const Vec3 p     = pp->position + pp->rotation * scale.cwiseProduct(local->position);
         const Quat q     = pp->rotation * local->rotation;
-        if (p != pose->position || differs(q, pose->rotation)) pose->flags |= RenderPose::kChanged;
+        if (p != pose->position || differs(q, pose->rotation) || pose->space != pp->space)
+            pose->flags |= RenderPose::kChanged;
         pose->flags |= pp->flags & RenderPose::kTeleported;
+        if (pose->space != pp->space) pose->flags |= RenderPose::kTeleported;
         pose->position = p;
         pose->rotation = q;
+        pose->space    = pp->space;
     }
 }
 
