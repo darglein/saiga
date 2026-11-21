@@ -62,6 +62,14 @@ size_t StructuralLog::unread(int consumer) const
     return size_t(firstRecord + records.size() - cursors[consumer]);
 }
 
+void StructuralLog::rewind(int consumer, uint64_t cursor)
+{
+    SAIGA_ASSERT(consumer >= 0 && size_t(consumer) < cursors.size() && active[consumer],
+                 "StructuralLog::rewind: unknown consumer");
+    SAIGA_ASSERT(cursor >= firstRecord && cursor <= cursors[consumer], "StructuralLog::rewind: the records are gone");
+    cursors[consumer] = std::max(firstRecord, std::min(cursor, cursors[consumer]));
+}
+
 void StructuralLog::truncate()
 {
     uint64_t end = firstRecord + records.size();

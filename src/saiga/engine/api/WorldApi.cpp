@@ -15,6 +15,7 @@
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
@@ -277,6 +278,32 @@ std::string specialComponent(ComponentId id, bool adding)
     if (id == Transform::id) return "Transform: every entity has one (use set_transform)";
     if (id == Behaviour::id && adding) return "Behaviour: added by spawn with a class";
     if (id == Persistent::id && adding) return "Persistent: assigned by makePersistent";
+    if (id == NetOwner::id) return "NetOwner: set by setOwner on the host before the spawn (read-only)";
+    return {};
+}
+
+// The network rules of an edit (R-NET-2, §16.2; S16): empty if allowed. A client edits replicated entities only in
+// their owned owner-authoritative components (and its peer-local Never components); the host does not edit the
+// owner-authoritative values of a spawned client-owned entity (adds, removes and destroys stay with the host).
+// structural: an add, remove or destroy.
+std::string netEditRefusal(World& w, Entity e, ComponentId id, bool structural)
+{
+    const Registry& reg    = w.registry();
+    const Replicate mode   = reg.componentInfo(id).replicate;
+    const std::string name = reg.componentInfo(id).name;
+    if (!w.isHost())
+    {
+        if (w.replication().netIdOf(e) == 0) return {};
+        if (structural) return "the entity is replicated: a client cannot add, remove or destroy (the host does)";
+        if (mode == Replicate::Never) return {};
+        if (mode == Replicate::OwnerAuthoritative && w.ownerOf(e) == w.localPeer()) return {};
+        return name +
+               ": the entity is replicated (a client writes only the owner-authoritative components of the "
+               "entities it owns)";
+    }
+    if (!structural && mode == Replicate::OwnerAuthoritative && w.ownerOf(e) != 0 && w.replication().spawned(e))
+        return name + " of a client-owned entity is written by its owner, peer " + std::to_string(w.ownerOf(e)) +
+               " (R-NET-2)";
     return {};
 }
 
@@ -1204,6 +1231,8 @@ ApiResult WorldApi::setComponent(const Json& a)
         return ApiResult::failure(error);
     const Json& values = a["values"];
     if (!values.is_object()) return ApiResult::failure("values: expected an object of fields");
+    if (const std::string refused = netEditRefusal(*w, e, id, false); !refused.empty())
+        return ApiResult::failure(refused);
     if (id == Transform::id)
     {
         Json::object args{{"entity", entityJson(e)}};
@@ -1221,14 +1250,20 @@ ApiResult WorldApi::setComponent(const Json& a)
     if (!w->registry().entityMask(e).test(id))
         return ApiResult::failure("the entity has no " + std::string(w->registry().componentInfo(id).name));
     if (id == Persistent::id) return ApiResult::failure("Persistent: assigned by makePersistent (read-only)");
+    if (id == NetOwner::id) return ApiResult::failure(specialComponent(id, false));
     // The previous values, writable fields only (set_component accepts them as an undo)
     const Json previous = undoJson(id, componentJson(*w, e, id));
     if (id == Parent::id)
     {
         Parent p = w->read<Parent>(e);
         if (!parentFromJson(*w, e, values, p, error)) return ApiResult::failure(error);
-        w->remove<Parent>(e);
-        w->add<Parent>(e, p);
+        // A spawned entity keeps its owner (§13.3): the new root's owner is checked before anything changes, and the
+        // link is replaced in one change (a remove and an add would pass through the host as the owner)
+        if (w->isHost() && w->replication().spawned(e) && w->ownerOf(p.entity) != w->ownerOf(e))
+            return ApiResult::failure("Parent: the new parent belongs to peer " + std::to_string(w->ownerOf(p.entity)) +
+                                      ", the entity to peer " + std::to_string(w->ownerOf(e)) +
+                                      " (no ownership transfer after the spawn, §13.3)");
+        if (!w->reparentNow(e, p.entity)) return ApiResult::failure("Parent: the link was refused");
         return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
     }
     PoolBase* pool = w->registry().poolById(id);
@@ -1261,6 +1296,8 @@ ApiResult WorldApi::addComponent(const Json& a)
     if (w->registry().entityMask(e).test(id))
         return ApiResult::failure("the entity already has " + std::string(w->registry().componentInfo(id).name) +
                                   " (use set_component)");
+    if (const std::string refused = netEditRefusal(*w, e, id, true); !refused.empty())
+        return ApiResult::failure(refused);
     const Json& values = a["values"];
     if (!values.is_null() && !values.is_object()) return ApiResult::failure("values: expected an object of fields");
     if (!checkComponentValues(*w, e, id, values, error)) return ApiResult::failure(error);
@@ -1277,6 +1314,8 @@ ApiResult WorldApi::removeComponent(const Json& a)
         return ApiResult::failure(error);
     const std::string special = specialComponent(id, false);
     if (!special.empty()) return ApiResult::failure(special);
+    if (const std::string refused = netEditRefusal(*w, e, id, true); !refused.empty())
+        return ApiResult::failure(refused);
     if (!w->registry().entityMask(e).test(id))
         return ApiResult::failure("the entity has no " + std::string(w->registry().componentInfo(id).name));
     if (stateEntity(w->registry(), e) && (w->registry().isGlobal(id) || w->registry().isSpaceState(id)))
@@ -1290,6 +1329,8 @@ ApiResult WorldApi::setTransform(const Json& a)
     std::string error;
     Entity e;
     if (!aliveEntity(*w, a["entity"], e, error)) return ApiResult::failure(error);
+    if (const std::string refused = netEditRefusal(*w, e, Transform::id, false); !refused.empty())
+        return ApiResult::failure(refused);
     if (w->has<Parent>(e))
         return ApiResult::failure(
             "the entity is a child: its Transform follows its parent (change its LocalTransform "
@@ -1345,6 +1386,7 @@ ApiResult WorldApi::spawn(const Json& a)
         if (!a["class"].is_string()) return ApiResult::failure("class: expected a class name");
         info = w->classList().find(a["class"].string_value());
         if (!info) return ApiResult::failure("unknown class \"" + a["class"].string_value() + "\"");
+        if (!w->isHost()) return ApiResult::failure("spawn: game objects arrive on a client through replication");
     }
     // Every initial component is checked before anything is created
     std::vector<std::pair<ComponentId, Json>> initial;
@@ -1413,10 +1455,13 @@ ApiResult WorldApi::destroy(const Json& a)
     Entity e;
     if (!aliveEntity(*w, a["entity"], e, error)) return ApiResult::failure(error);
     if (stateEntity(w->registry(), e)) return ApiResult::failure("world-state entities cannot be destroyed");
-    // The entity and its descendants (reported as destroyed if gone afterwards)
+    // The entity and its descendants (reported as destroyed if gone afterwards); a client destroys only local ones
     std::vector<Entity> group{e};
     for (size_t i = 0; i < group.size(); ++i)
         for (Entity c : childrenOf(*w, group[i])) group.push_back(c);
+    for (Entity x : group)
+        if (const std::string refused = netEditRefusal(*w, x, Transform::id, true); !refused.empty())
+            return ApiResult::failure(x == e ? refused : "a descendant: " + refused);
     w->destroy(e);
     Json::array destroyed;
     for (Entity x : group)
@@ -1436,6 +1481,8 @@ ApiResult WorldApi::setGlobal(const Json& a)
     ComponentId id;
     parseEntity(holder.value["entity"], e, error);
     componentId(w->registry(), a["component"], id, error);
+    if (const std::string refused = netEditRefusal(*w, e, id, false); !refused.empty())
+        return ApiResult::failure(refused);
     const Json previous = componentJson(*w, e, id);
     if (!w->registry().poolById(id)->mergeJson(e.index, a["values"], error)) return ApiResult::failure(error);
     return ApiResult::success(Json::object{{"values", componentJson(*w, e, id)}, {"previous", previous}});
@@ -1459,6 +1506,8 @@ ApiResult WorldApi::queueAction(const Json& a)
     Entity p;
     if (!aliveEntity(*w, a["player"], p, error)) return ApiResult::failure("player: " + error);
     if (!w->has<Player>(p)) return ApiResult::failure("player: the entity has no Player component");
+    if (!w->isHost() && w->ownerOf(p) != w->localPeer())
+        return ApiResult::failure("player: a client queues actions only for the players it owns");
     PlayerAction action;
     action.player = p;
     int64_t code  = 0;
@@ -1475,6 +1524,8 @@ ApiResult WorldApi::queueAction(const Json& a)
     action.action = uint32_t(code);
     if (!a["aim"].is_null() && !readVec3(a["aim"], action.aim, error, "aim")) return ApiResult::failure(error);
     w->queueAction(action);
+    // A client sends the action to the host, which delivers it in a host step (not this world's)
+    if (!w->isHost()) return ApiResult::success(Json::object{{"forwarded", true}, {"to_peer", 0}});
     return ApiResult::success(Json::object{{"queued", true}, {"readable_in_step", double(w->stepIndex() + 1)}});
 }
 
@@ -1585,6 +1636,7 @@ ApiResult WorldApi::saveSnapshot(const Json& a)
     auto existing = snapshots.find(name);
     if (existing != snapshots.end() && !overwrite)
         return ApiResult::failure("save_snapshot: \"" + name + "\" exists (overwrite: true replaces it)");
+    if (!w->isHost()) return ApiResult::failure("save_snapshot: a client cannot save (its state comes from the host)");
     if (!w->canSave()) return ApiResult::failure("save_snapshot: a save only between steps, not inside a game hook");
     Snapshot s;
     s.bytes      = w->save();
@@ -1640,6 +1692,7 @@ ApiResult WorldApi::loadSnapshot(const Json& a)
     std::string name, error;
     if (!snapshotName(a, name, error)) return ApiResult::failure(error);
     if (!a["paused"].is_null() && !a["paused"].is_bool()) return ApiResult::failure("paused: expected a bool");
+    if (!w->isHost()) return ApiResult::failure("load_snapshot: a client cannot load (its state comes from the host)");
     auto it = snapshots.find(name);
     if (it == snapshots.end()) return ApiResult::failure("load_snapshot: no snapshot \"" + name + "\"");
     // A copy: a load listener may change the snapshots (not the API's own, but be safe)

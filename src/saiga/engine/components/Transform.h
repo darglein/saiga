@@ -11,6 +11,7 @@
 #include "saiga/core/math/Types.h"
 #include "saiga/engine/components/EngineIds.h"
 #include "saiga/engine/ecs/Ids.h"
+#include "saiga/engine/ecs/Visit.h"
 
 #include <cstring>
 
@@ -92,8 +93,9 @@ class Transform
     void visit(V& v)
     {
         v("space", sp);
-        v("position", p);
-        v("rotation", r);
+        // Replication sends the pose quantized (§13.4); saves and the hash keep the exact values
+        v("position", p, Quantize{1e-4});
+        v("rotation", r, Quantize{1e-5});
         v("scale", s);
     }
 

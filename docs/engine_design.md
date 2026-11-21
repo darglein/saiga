@@ -111,7 +111,10 @@ automatically.
   `Replicate::OwnerAuthoritative` components of entities owned by this peer. On the host, systems do not write
   `OwnerAuthoritative` components of client-owned entities (except the engine's pose receiver in phase 5, §13.3).
   Systems that write such components iterate `world.ownedBy<...>(world.localPeer())`. Entities without `NetOwner` count
-  as owned by the host (peer 0) (§13.3).
+  as owned by the host (peer 0) (§13.3). The two engine exceptions on the host (S16): `World::ownerTeleport` (it applies
+  the pose with `teleport()` and sends the `OwnerCommand`) and `ownerPoseSystem` (phase 5, the owners' received
+  states); the host + client variant's write detector reports every other write to a component of a remote authority
+  (§17.3).
 
 **Verification**
 
@@ -194,6 +197,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine core utilities: `JobPool` (parallel loops, the caller participates), `Rng` (PCG32), FNV-1a 64 `Hash`/`Hasher`, log ring with `SAIGA_LOG` (§8.5, §7.10, §17.1) | `src/saiga/engine/core/`, `tests/test_engine_core.cpp` | [exists] |
 | ECS core: `Registry` (entities with generations, FIFO slot reuse, pools with sparse pages, built-in `Transform`), deterministic views, `visit` with compile-time field checks, binary visitors, field lists, `ChunkId`/`RegionId`/`InstanceKey` (§7.1-§7.5) | `src/saiga/engine/ecs/`, `src/saiga/engine/components/`, `src/saiga/core/math/ChunkId.h`, `tests/test_engine_ecs.cpp`, `tests/test_engine_ecs_benchmark.cpp` | [exists] |
 | Transport and network messages: `Transport`, `LoopbackTransport` (star, rounds, delay, seeded loss, per-link budget, fragmentation), `MessageList`, `World::send` / `sendRaw` with coalesced packets and phase-1 delivery (§13.1, §13.6) | `src/saiga/engine/net/`, `tests/test_engine_net.cpp`, `tests/test_engine_net_benchmark.cpp` | [exists] |
+| Replication skeleton: roles and `RunOn` filtering, `NetOwner`/`setOwner`/`ownedBy` (cached owner table), `NetLocal`, `NetId`s and epochs, network visitors (`Entity` as `NetId`, `Quantize` as zigzag varints), spawns, destroys, hierarchy and component changes, full-state zstd snapshots every step, owner state and `OwnerCommand` with the teleport counter, `PlayerAction` as a message, `HostClock`, interpolation buffer and `RenderPose`, `stepNetworkOnly`, `Resync` after a host load; the host + client scenario variants with the write detector and the replica comparison (§13.3-§13.5, §17.3) | `src/saiga/engine/net/` (`Replication`, `NetVisitors.h`, `EngineMessages`, `HostClock`, `InterpolationSystem`, `NetOwner.h`), `src/saiga/engine/tools/Scenario*`, `tests/test_engine_replication.cpp` | [exists: S16] |
 | World and step loop: `World(WorldSetup)`, phases and `SystemList`, commands with reserved entities, structural log, events, `Parent`/`LocalTransform` hierarchy (`transformSystem`), `advance`/`step`, `random()`, `parallelEach`, `Simulated` filter, `hash()` (§7.6-§7.10, §8.1-§8.3, §8.6) | `src/saiga/engine/world/`, `tests/test_engine_world.cpp` | [exists] |
 | Scenarios: `ScenarioWorld` (helpers, step observation, save/load swap), `ScenarioList`, runner with the plain, repeat and save/load variants; engine scenarios with test-only game objects (`Wanderer`) (§17.2, §17.4) | `src/saiga/engine/tools/Scenario*`, `tests/test_engine_scenarios.cpp` | [exists] |
 | Game objects (`GameObject`, `Behaviour`, `ClassList`, `spawn`, hooks), ticking by grid-cell rings (`tickSystem`), gameplay basics (`Player`, `Health`, `PlayerInput`, `CharacterIntent`, engine events, `queueAction`, player control, kinematic mover), world-state entities, `Persistent` (§7.8, §8.4, §9.2, §9.3, §9.6) | `src/saiga/engine/gameplay/`, `src/saiga/engine/components/`, `tests/test_engine_gameobject.cpp` | [exists] |
@@ -382,7 +386,10 @@ struct Health
   `std::vector` of supported types (e.g. an inventory as `std::vector<ItemStack>` of a `visit`-able struct). Enums are
   visited with their names: `v("state", state, EnumNames{WandererStateNames})`; the enum ends with `Count` and the
   visitor checks `std::size(names) == size_t(E::Count)` at compile time; enums inside containers are not supported (wrap
-  them in a nested struct). Network option: `Quantize{0.01}` (on double, `Vec`, `Mat` and `Quat` fields). Other types
+  them in a nested struct). Network option: `Quantize{0.01}` (on double, `Vec`, `Mat` and `Quat` fields; S16: the
+  replication sends `round(v / step)` as a zigzag varint (`engine/net/NetVisitors.h`), quaternions are normalized after
+  reading, `FieldInfo::quantize` keeps the step, the binary visitors (saves, the hash) ignore it; `Transform` quantizes
+  its position to 1e-4 m and its rotation to 1e-5). Other types
   are compile errors (`registerComponent` instantiates `visit` with a checking visitor; `std::vector<bool>` is rejected
   too; compile-fail tests in `tests/compile_fail/`). The binary form (`VisitBinary.h`): little-endian integers, bit
   patterns of doubles, `bool` as one byte, enums as `int64`, strings and vectors with a u64 length, matrices
@@ -395,6 +402,10 @@ struct Health
   that hold a component, event or class ID are not remapped by a load (store names instead; `Behaviour::classId` is the
   one field the engine remaps, §15.2).
 - At 200 registered types registration logs a warning (prefer fields on an existing component or a tag).
+- Engine components of S16: `NetOwner {uint8_t peer}` (`Replicate::Host`, saved; read-only through the World, set by
+  `setOwner`), `NetLocal` (a tag, `Replicate::Never`, saved: a host entity and its descendants that are never
+  replicated, for host-side helpers, cameras, editor objects; adding or removing it after the entity's spawn was sent
+  asserts) and `RenderPose` (`Replicate::Never`, `Saved::No`, §10.3).
 
 ### 7.3 Storage
 
@@ -452,6 +463,12 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
   ones made between the steps before it) with `wasTeleportedLastStep()`, `wasTeleported()` is false there (S13b; the
   tech demos' render-side pose cache snaps the camera with it). Physics bodies
   only on roots; children with colliders are kinematic (§11).
+- Replication (S16): a client applies the newest snapshot's poses through the setters (the flags change as for any
+  write), with `teleport()` when the root's snap counter changed; the owner applies an `OwnerCommand` teleport with
+  `teleport()` and stamps its owner states with the command counter. The host bumps a root's snap counter in phase-8
+  replication when its `teleported` flag of this step is set and not yet counted (remembered per step, so
+  `stepNetworkOnly`, which does not shift the flags, counts it once). The derived `Transform` of a child is not
+  replicated (phase 6 derives it from `Parent` and `LocalTransform` on every peer).
 
 ### 7.5 Views
 
@@ -516,6 +533,11 @@ first and cleans up without allocating (the registry's free list always has room
 the events are restored by a swap: the readable events become pending again, the aborted step's own events are
 dropped).
 
+S16: the host's replication is a structural log consumer (created with the `World`, before its state entities): in
+phase 8 it reads the creations (spawn candidates), destroys and the component and `Parent` changes of spawned entities.
+An aborted step rewinds it (`StructuralLog::rewind(consumer, cursor)`, safe because the log is truncated only after a
+completed step) together with the staged NetIds, spawned flags and hashes. Clients register no consumer.
+
 ### 7.7 Events [exists: S08]
 
 - An event is a struct with `name`, `id` (enum, §7.2) and `visit`; registered in `registerEngineEvents` /
@@ -561,6 +583,7 @@ struct WorldConfig                               // game policies (R-MECH-1)
     bool hardIslandLimit = false;                 // S24: true: requestArrival returns false beyond the limit
     bool clientPush = true;                       // S29: clients push host bodies with PushImpulse (§11)
     bool navigation = false;                      // in S45 (§9.7)
+    int interpolationDelaySteps = 6;              // S16: RenderPose samples the buffer this far behind (§13.4)
 };
 
 struct SpaceTemplate                              // S20
@@ -593,8 +616,8 @@ struct WorldSetup
     uint64_t seed = 1;
     int workerThreads = 1;                        // threads of parallelEach incl. the caller (S08)
     WorldConfig config;
-    NetRole role = NetRole::Host;                 // [planned: S16] Host or Client
-    uint8_t localPeer = 0;                        // [planned: S16]
+    NetRole role = NetRole::Host;                 // [exists: S16] Host or Client (engine/net/NetIds.h)
+    uint8_t localPeer = 0;                        // [exists: S16] == transport->localPeer(); the host is peer 0
     Transport* transport = nullptr;               // S15: null: single player (not owned)
     // The game's registration lists; the engine's lists are always registered first.
     void (*components)(Registry&) = nullptr;      // S07
@@ -680,7 +703,9 @@ class World
     void step(int n = 1);
     void setPaused(bool); void setTimeScale(double); void setWorkerThreads(int n);
     uint64_t hash() const;            // debug and scenario repeat checks (§17.4)
-    void stepNetworkOnly();           // phases 1 and 8 only (end-of-scenario sync, §17.3) [planned: S16]
+    void stepNetworkOnly();           // engine messages only: receive, owner poses (no extrapolation), phase 6's
+                                      // transformSystem, replication / owner state, flush; no game systems, listeners,
+                                      // actions or events; stepIndex and the transform flags unchanged (§17.3) [S16]
     std::vector<uint8_t> save() const;                    // §15 [exists: S11]
     LoadResult tryLoad(const std::vector<uint8_t>& data); // rejected: unchanged; hook errors per entity [S11]
     void load(const std::vector<uint8_t>& data);          // tryLoad, fatal unless ok() [S11]
@@ -695,7 +720,8 @@ class World
     template <class T> const T& readGlobal() const;
     template <class T> const T& readSpaceState(SpaceId space) const;
     PersistentId makePersistent(Entity e);   // §9.6 [exists: S10]
-    void queueAction(const PlayerAction& a); // §9.3 [exists: S10; S16: a message]
+    void queueAction(const PlayerAction& a); // §9.3 [exists: S10]; on a client a PlayerAction message for an
+                                             // owned player (S16)
     void setRenderSink(RenderSink* sink);    // §10.3; forwards the registered meshes and materials and creates the
                                              // render instances; null allowed; any time [planned: S19]
     MeshId registerMesh(const std::string& name, const MeshLods& lods, MaterialId material);   // [planned: S19]
@@ -710,18 +736,21 @@ class World
     template <class M> void send(uint8_t peer, const M& message);   // §13.6 [exists: S15]; also sendRaw, flushOutbox,
                                              // connectedPeers / peersJoined / peersLeft, netStats
     void setOwner(Entity root, uint8_t peer);   // host; before the entity is replicated (player characters at join);
-                                                // no runtime ownership transfer (§13.3) [planned: S16]
-    void ownerTeleport(Entity e, const Vec3& p, const Quat& r);    // host; direct or OwnerCommand [S16]
+                                                // no runtime ownership transfer (§13.3) [exists: S16]
+    void ownerTeleport(Entity e, const Vec3& p, const Quat& r);    // host; a plain teleport before the spawn or for a
+                                                // host-owned root, else teleport + OwnerCommand with the counter [S16]
     void ownerImpulse(Entity e, const Vec3& impulse);               // host; direct or OwnerCommand [S28]
     static std::string diff(const World& a, const World& b, int maxLines = 20);  // diffSaves of both saves [S11]
-    uint8_t localPeer() const; bool isHost() const;   // [exists: S10; before S16: 0 and true]
+    uint8_t localPeer() const; bool isHost() const;   // [exists: S16] WorldSetup::role / localPeer
+    uint8_t ownerOf(Entity e) const;                  // the root's owner (0: host) [S16]
     template <class T> const T& data(const std::string& name) const;   // §14 [exists: S11]; DataError if missing
     template <class T> const T& data(const DataRef<T>& ref) const;     // resolved once per store [S11]
     bool reloadData(std::string& error);                               // entries updated in place [S11]
     double terrainHeight(SpaceId space, double x, double z) const;     // §12.2 [planned: S20]
     double waterHeight(SpaceId space, double x, double z) const;       // §10.9 [planned: S39]
     Entity resolve(PersistentId id) const;                             // §9.6 [exists: S10]
-    template <class... C> View<C...> ownedBy(uint8_t peer);   // §13.3 [exists: S10: all entities; S16: filtered]
+    template <class... C> View<C...> ownedBy(uint8_t peer);   // §13.3 [exists: S16: one lookup per entity in the
+                                                              // cached owner table]
     Profiler& profiler();                    // §17.1 [exists: S10]
 };
 
@@ -787,14 +816,14 @@ generic change detection (only the `Transform` flags), access declarations per s
 
 | Phase | Work | Runs on |
 |---|---|---|
-| 1 Input | local input and received messages (client actions, owner commands, §13.3) in (peer, sequence) order within a receive round (across rounds only per channel and reliability) -> components; each handler's commands are applied before the next handler | all peers (each for what it owns) |
+| 1 Input | local input and received messages (client actions, owner commands, §13.3) in (peer, sequence) order within a receive round (across rounds only per channel and reliability) -> components; each handler's commands are applied before the next handler; S16: spawns, destroys, hierarchy and component changes apply as one unit each, every snapshot goes to the interpolation buffers, then a client applies the newest complete snapshot and slews its host clock | all peers (each for what it owns) |
 | 2 Events | `behaviourEventSystem` delivers the previous step's `DamageEvent`, `InteractEvent`, `ContactEvent` to `GameObject` handlers | host |
 | 3 Behaviour | `behaviourSystem`: `GameObject::update` for objects whose tick is due (§8.4) | host |
 | 4 Gameplay | engine and game systems in registration order (player control; the kinematic mover until S29) | per system (`RunOn`) |
-| 5 Physics | owner poses in, Jolt step, active bodies -> `Transform`, sorted contacts -> events, character movers from S29 (§11) | host; clients for what they own |
+| 5 Physics | owner poses in (S16: `ownerPoseSystem`, host), Jolt step, active bodies -> `Transform`, sorted contacts -> events, character movers from S29 (§11) | host; clients for what they own |
 | 6 Transform | hierarchy, spatial grid, chunk membership | all |
 | 7 Streaming | apply chunk results that are ready, request new ones (§12.3) | all |
-| 8 Extract | changed transforms and animation -> `RenderSink` (§10.3); host: replication (§13.4); owners: owner-authoritative state (§13.3); structural log consumed | all |
+| 8 Extract | changed transforms and animation -> `RenderSink` (§10.3); host: replication (§13.4); owners: owner-authoritative state (§13.3); structural log consumed. S16: after the phase's systems and their flush the World calls the replication (host) or the owner state and the `Ping` (clients), then the interpolation system (`RenderPose`); the game's phase-8 systems run before them (they are registered after the engine's), and only these calls can abort after the bookkeeping was staged | all |
 
 Commands are applied after every phase; events of this step become readable in the next step. Terrain and piece
 edits and promotions apply at the flush of the phase that requested them (between steps: immediately) (§12.2, §11);
@@ -815,11 +844,16 @@ void registerEngineSystems(SystemList& s)
         // owner (ownedBy); phase 4 only produces CharacterIntent.
     s.add(Phase::Transform, "spatial_grid", spatialGridSystem, RunOn::Both);   // S09: §9.5
     s.add(Phase::Transform, "tick", tickSystem, RunOn::Both);                  // S10: §8.4, after the grid
+    s.add(Phase::Physics, "owner_pose", ownerPoseSystem, RunOn::Host);         // S16: §13.3, owners' states in
     // ...
 }
 ```
 
-- `RunOn::Host` (default), `RunOn::Client`, `RunOn::Both`. Systems that run `GameObject` code are serial.
+- `RunOn::Host` (default), `RunOn::Client`, `RunOn::Both`. Systems that run `GameObject` code are serial. S16:
+  `World::runStep` filters by the role (the host runs `Host` and `Both`, a client `Client` and `Both`); the engine's
+  `behaviour_events`, `behaviour` and `owner_pose` are `Host`, `player_control` and `character_move` `Both` over
+  `ownedBy(localPeer)`, `transform`, `spatial_grid` and `tick` `Both` (ticking only computes the due flags; the
+  `update` calls are in the `Host` behaviour system).
 - Systems that write `OwnerAuthoritative` components iterate `world.ownedBy<...>(localPeer)` (R-NET-2). Player control
   (input -> `CharacterIntent`) and the movers are such `RunOn::Both` systems, never `GameObject::update`, so they run
   on the owning peer.
@@ -1081,7 +1115,7 @@ class GameObject
 | `Player` | `uint8_t peer; uint64_t characterId; double moveSpeed = 5` (player characters; used by ticking, streaming, interest, ownership). `peer` is a session slot; `characterId` != 0 is random, created with the character file and stored in it (before S33 set by the game; in `ScenarioWorld::spawnPlayer` numbered 1, 2, ...; from S33 created by the client with its character file and sent on join); everything that names a player across sessions (piece owner, game references) stores `characterId`, never a peer index | Host |
 | `Health` | `double hp, maxHp` | Host |
 | `PlayerInput` | `Vec3 move; Quat look; uint32_t heldButtons` (latest wins) | OwnerAuthoritative |
-| `PlayerAction` (message) | `Entity player; uint32_t action; Vec3 aim`: one-shot actions, reliable, delivered in phase 1 in (peer, sequence) order as `ActionEvent` on the host, exactly once; before S15 it is queued locally and delivered the same way | – |
+| `PlayerAction` (message) | `Entity player; uint32_t action; Vec3 aim`: one-shot actions, reliable, delivered in phase 1 in (peer, sequence) order as `ActionEvent` on the host, exactly once; on the host queued locally; from S16 a client's `queueAction` sends `PlayerActionMessage {NetId player; action; aim}` (only for players it owns), the host's handler drops and counts actions for players the sender does not own and queues the others with (sender, sequence): an `ActionEvent` in the next step | – |
 | `ActionEvent` | `Entity player; uint32_t action; Vec3 aim` | Never |
 | `CharacterIntent` | `Vec3 desiredVelocity; Entity target` (computed on each peer) | Never |
 | `Transform` | §7.4 | OwnerAuthoritative |
@@ -1305,6 +1339,12 @@ The buffers do not preclude Hi-Z occlusion culling against the previous frame's 
   the host for client-owned entities; written by the interpolation buffer, §13.3/§13.4) instead of `Transform`; then the
   selection uses the `RenderPose` changed flags set by the interpolation buffer (same this/previous-step rule), not the
   `Transform` flags (tested in S19). The GPU upload of all changes happens once per frame.
+- S16 (`engine/net/InterpolationSystem.*`): `RenderPose {Vec3 position; Quat rotation; uint8_t flags}` (`kChanged`,
+  `kChangedLastStep`, `kTeleported`, shifted every step) is written in phase 8 after the replication: on clients for
+  remote entities (added by the spawn; children from their parent's `RenderPose` and `LocalTransform`), on the host for
+  client-owned roots (added with their first owner state). The buffer keeps every received pose by host step and is
+  sampled at the estimated host step - `interpolationDelaySteps` (linear / slerp, the last pose held when dry, a
+  teleport counter change snaps and sets `kTeleported`).
 - `RenderSink` (engine interface in `engine/sync/`): the Vulkan implementation over `RenderScene` and a
   `RecordingRenderSink` for tests. `World` may run without a sink.
 
@@ -1816,7 +1856,8 @@ void World::editGrass(SpaceId space, const Vec3& center, double radius, double d
   presentation and the systems registered `RunOn::Client` / `RunOn::Both`.
 - Clients are trusted (§2). Single player is a host without clients (same code path).
 - **Skeleton (S15, S16)**: `Transport` interface and `LoopbackTransport`, `NetOwner`, `Replicate` modes, `RunOn`
-  filtering, `ownedBy`, `NetId` mapping, reliable spawn/destroy, `Despawn`, `OwnerCommand` with the teleport counter,
+  filtering, `ownedBy`, `NetId` mapping, reliable spawn/destroy (`Despawn`: S32 with interest), `OwnerCommand` with
+  the teleport counter,
   `RenderPose` and the interpolation buffer, full-state snapshots of all entities (§13.4), host + client scenario
   variant.
 - **With the features that need them** (over `LoopbackTransport`): the world handshake and chunk snapshots (S26), live
@@ -1895,6 +1936,19 @@ result as a difference rectangle (new heights minus base), never the brush; clie
   - Leaving: ground contact on a non-platform body clears `RideFrame`. Entering and leaving the frame converts pose
     and velocity.
 
+S16 implementation (`engine/net/NetOwner.h`, `Replication.*`): `World::setOwner(root, peer)` (host, before the spawn
+was sent; asserts a child, a `Player` whose `Player.peer` differs and a later call); `add<Parent>` on an entity with
+`NetOwner` and `NetOwner` on a child assert; the World keeps a cached owner per entity slot (rebuilt after a
+`Parent`, `NetOwner` or destroy change and after a load), so `ownedBy` and `ownerOf` are one lookup; reparenting a
+spawned entity under another owner asserts. Two counters outside components (not saved, not in snapshots): the
+command counter per client-owned root (host table and the owner's map; `uint8_t`, wrapping, serial-number compare)
+and the snap counter per replicated root (host table, sent in snapshots and spawns; a client snaps when it changes;
+the owner ignores it). `ownerTeleport` on a spawned client-owned root applies the pose, increments the command counter,
+sends `OwnerCommand` and forgets the stored owner state; owner states with an older counter are dropped. The host's
+`ownerPoseSystem` (phase 5) writes the latest state of each client-owned root and its descendants' owner-authoritative
+components, extrapolating the pose from the last two states to the current host step (at most 6 steps; not when the
+stamps do not increase); `stepNetworkOnly` writes them without extrapolation.
+
 ### 13.4 Replication [planned: S16 full state; S32 interest, rate, cosmetic events]
 
 - Components are registered `Replicate::Never | Host | HostReliable | OwnerAuthoritative`; events
@@ -1934,11 +1988,36 @@ result as a difference rectangle (new heights minus base), never the brush; clie
 - Cosmetic events are sent unreliably to clients whose interest set contains their position and delivered to
   `RunOn::Client` systems.
 
+S16 implementation (`engine/net/Replication.*`, `NetVisitors.h`, `EngineMessages.*`, `HostClock.*`,
+`InterpolationSystem.*`): a host entity is replicated unless it or an ancestor has `NetLocal`; it is spawned in the
+first phase-8 replication after its creation (also without peers: its `NetId` is assigned, monotonic per host process
+from 2^17; 1 is the world-state entity and 2 + space the space-state entities, bound to the client's own state
+entities). The host replication (serial, after phase 8's flush): the structural log, then the spawns of new entities
+(roots first, then by depth), destroys, `Hierarchy` changes, `ComponentChange` (additions and removals of replicated
+components, the presence of peer-local saved `Never` components, `HostReliable` components whose bytes hash changed),
+the full spawn set for peers in `peersJoined()`, the snap counters, and one snapshot per peer: each entity serialized
+once (`[NetId][snap counter][components]`; the owner's variant without its owner-authoritative components), split at
+entity boundaries into messages of at most `kMaxMessagePayload` with the header `[flags][epoch][host step][sequence]
+[part][parts]`, each zstd-compressed alone or raw. An entity's snapshot state above 1100 bytes stops the program
+naming the entity and its largest component. Without peers nothing is serialized. The bookkeeping is journaled per
+phase and committed when the step (or `stepNetworkOnly`) completes; an abort undoes the aborted phase's part and
+rewinds the log consumer. A host load starts a new epoch, sends `Resync` and spawns everything again with new NetIds.
+Clients: a `Spawn` creates the entity, its components (`Entity` fields through NetIds; an unresolved one is decoded
+again when its target arrives), the presence list, the parent (waiting for an unresolved parent), `RenderPose`, then
+`configure` and `onReplicatedSpawn`; snapshots are applied from the newest complete one (snapshots of another epoch are
+dropped); owners send `OwnerState` (`[estimated host step][sequence]` + records) every step and a `Ping` every 30
+steps; the `HostClock` slews by at most 1/8 step per step and jumps beyond an error of 30 steps (`world.time()` on a
+client is the estimated host time).
+
 ### 13.5 Game objects on clients [planned: S16]
 
 A client never calls `onSpawn`, `onLoad`, `onCatchUp`, `onDestroy`, `update` or the event handlers. It calls
 `configure()` and `onReplicatedSpawn()` when an entity arrives and `onReplicatedDestroy()` when it is destroyed (not on
-`Despawn`).
+`Despawn`). S16: a throwing `onReplicatedSpawn` removes the object but keeps the entity and its NetId (the message is
+consumed and the client's step aborts, as for any handler, S15); `spawn<T>` on a client asserts; client restrictions
+(asserts with `SAIGA_ASSERTS`, errors in the world API): no `destroy` of replicated entities, no `setOwner`, no
+`save`/`load` (`canSave()` is false), no `makePersistent`, no `queueAction` for players it does not own. Entities a
+client creates are local.
 
 ### 13.6 Transport [exists: S15 loopback, messages; planned: S33 network]
 
@@ -1979,9 +2058,13 @@ S15 implementation (`engine/net/`; `docs/stages/S15_transport_messages.plan.md`)
 Internet sessions need NAT traversal: candidates in S33 are Steam Networking Sockets (relay, NAT traversal) and ENet
 (LAN, tests), both behind the `Transport` interface (§13.1). `using MessageId = uint16_t;` with an `EngineMessage` enum
 (game messages from 64); messages are sent with `world.send(peer, message)` on `Channel::Control` and handled by the
-handler registered in `MessageList::add`. `ScenarioWorld` creates both worlds, connects them with
-`LoopbackTransport::createPair`, steps the host world, then the client world, every step; `spawnPlayer` creates the
-player entity on the host and calls `setOwner(player, clientPeer)`; S16 sends a snapshot every step.
+handler registered in `MessageList::add`. S16: the engine's messages (IDs 0..10: `Spawn`, `Destroy`, `Hierarchy`,
+`ComponentChange`, `Snapshot`, `OwnerState`, `OwnerCommand`, `PlayerAction`, `Ping`, `Pong`, `Resync`; the raw ones
+serialized once with the network visitors) are registered by `registerEngineMessages` (`engine/net/EngineMessages.*`);
+a handler that receives a message of the wrong direction rejects it as malformed input. `ScenarioWorld` creates the
+host and the clients over `LoopbackTransport::createNetwork` and steps the clients from the host's step observer
+(§17.3); `spawnPlayer` creates the player entity on the host and calls `setOwner(player, peer)`; the host sends a
+snapshot every step.
 
 ### 13.7 Sessions [planned: S33]
 
@@ -2000,7 +2083,9 @@ migration is not supported; the host's world save is the world.
 ### 13.8 Determinism and multiplayer [planned: S16]
 
 Reproducibility (§8.6) is a property of `ScenarioWorld` runs, used for tests, not for lockstep. Clients are not
-deterministic replicas.
+deterministic replicas. S16: the host + client variants are reproducible (the loopback has no loss and is seeded, the
+asynchronous client stepping comes from a seeded `Rng`); two runs give equal host hashes and equal client states
+(tested).
 
 ## 14. Content and data [exists: S11 (data files); planned: S23 (prefabs)]
 
@@ -2174,6 +2259,12 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
 | `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings; drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run) | [exists: S13] |
 
+S16: on a client the world API is read-only for replicated entities except the owner-authoritative components of the
+entities the client owns (and its peer-local `Never` components): edits, adds, removes and destroys of them are
+errors, as are spawning a class, `save_snapshot`, `load_snapshot` and `queue_action` for a player it does not own; on
+the host, edits of a spawned client-owned entity's owner-authoritative components are errors naming the owner;
+`NetOwner` is read-only (set by `setOwner`).
+
 S10 implementation: the operations are `WorldApi` calls (`engine/api/WorldApi.h`: JSON arguments and results by
 names, errors instead of asserts, only between steps, edits logged under `api`; S12's scenarios (`ScenarioWorld::api`) and an editor
 can use the same API); `registerWorldTools(server, world, {allowEdits})` (`engine/tools/WorldTools.h`) registers one tool
@@ -2233,11 +2324,15 @@ void registerEngineScenarios(ScenarioList& s)
   setup's seed and worker thread count, profiling off, synchronous chunk loading from S24), flat terrain (seeded
   terrain from S20), `RecordingRenderSink` (from S19); every object ticks every step (`World::setTickEveryStep`) unless
   `w.enableDistanceTicking()`; helpers `step(n)`, `stepSeconds`, `stepUntil(pred, maxSteps)`, `spawn<T>`,
-  `spawnPlayer(position, peer = 0)` (entity with `Transform`, `Player{peer, characterId 1, 2, ...}`, `PlayerInput`,
-  `CharacterIntent`; in the host + client variant owned by the client) and `spawnPlayer<T>(position, peer, initial...)`
-  (a game object player without `CharacterIntent`), `move(player, direction)` (sets `PlayerInput.move`, length <= 1),
-  `input(player, action, aim)` (queues a `PlayerAction`; a message from S16; both from the owning peer; `spawnPlayer`
-  steps both worlds until the client has the entity, helpers translate host `Entity` to the client's through `NetId`),
+  `spawnPlayer(position, std::optional<uint8_t> peer)` (entity with `Transform`, `Player{peer, characterId 1, 2, ...}`,
+  `PlayerInput`, `CharacterIntent`; `Player.peer` is `peer.value_or(0)` in the single-world variants and
+  `peer.value_or(1)` in the host + client variants, which also call `setOwner(player, peer)`; peer 0 is the host's own
+  player) and `spawnPlayer<T>(position, peer, initial...)` (a game object player without `CharacterIntent`),
+  `move(player, direction)` (sets `PlayerInput.move`, length <= 1, on the owner), `input(player, action, aim)` (queues
+  a `PlayerAction` on the owner: a message from a client), `edit(entity, fn(World&, Entity))` (fn on the owner's world
+  with the owner's handle: how a scenario writes owner-authoritative state); `spawnPlayer` does not step: `move`,
+  `input` and `edit` for a client entity that has not arrived are queued and applied on arrival (S16); `client(i)` gives
+  a client's world and `onClient(i, entity)` translates a host handle through its `NetId`; `networked()`,
   `damage(target, amount, source)` (a `DamageEvent`), `check(cond, msg)` (collects failures with the step; works under
   gtest and MCP), `dumpJson(entity)`, `trace<T>(entity)`, `distance`, `count<T>()`, `api()` and `call(op, args)` (the
   world API, so a scenario can act exactly like an agent; it follows the save/load swap through `WorldApi::rebind`).
@@ -2290,6 +2385,23 @@ scenario ended and the host has received the owners' final state (bounded by 600
 client 1:1), then compares the host-authoritative components on the client with the host, and the `OwnerAuthoritative`
 components on the host with the last state received from the owner (`stepNetworkOnly` writes received poses without
 extrapolation), for the scenario's entities, within the quantization tolerances.
+
+S16 implementation (`engine/tools/ScenarioWorld.*`, `ScenarioRunner.*`): the variants `HostClient` (delay 0),
+`HostClientDelay` (delay 2) and `HostClientAsync` run when `ScenarioOptions::networkVariants` is set (the engine
+scenarios; `EngineMain` fills it from `EngineAppSetup::networkVariants`, off for the tech demos until S16b) and the
+scenario is not local-only; `ScenarioOptions::clients` (default 1). The clients are stepped from the host's step
+observer before the hash and the traces, so `world().step(n)`, `advance` and the API's `step` drive them; `steps()`
+and `maxSteps` count host steps; asynchronous: each client starts 3 steps late and runs a seeded 0, 1 or 2 steps per
+host step, the choice restricted so that `clientSteps - (hostSteps - 3)` stays in [-2, 2]. The end runs
+`stepNetworkOnly` on all worlds 1:1 until the host received each owner's next owner state and every client applied a
+snapshot sent after that (more than `2 * delaySteps + 3` steps is a failure; bounded by 600), then compares: for every
+replicated entity and component (not the derived `Transform` of a child; `Parent` through NetIds) the authority's value
+(the owner for owner-authoritative components of client-owned entities, else the host) equals every other peer's copy
+within 2 `Quantize` steps, exact otherwise, `Entity` fields through NetIds; a difference names peer, NetId, component
+and field. The write detector: the receivers (a client's snapshot apply, the host's `ownerPoseSystem`) keep a hash of
+what they last wrote per (entity, component) and every other legitimate writer (spawn, `ComponentChange`,
+`Hierarchy`, `OwnerCommand`, `ownerTeleport`) refreshes it; a mismatch before the next write fails the scenario
+(R-NET-2), naming the peer, the entity and the component. The save/load variant stays host-only.
 
 ### 17.4 Repeat and save/load tests [exists: S08 (hash), S12 (variants)]
 
@@ -2490,7 +2602,7 @@ the missing target is reported as open).
 | game object classes | – | `WorldSetup::classes` |
 | scenarios | in `tests/test_engine_scenarios.cpp` with test-only game objects (§17.2) | `EngineAppSetup::scenarios` (`--scenarios`, `run_scenario`) |
 | data file types | – | `WorldSetup::dataTypes` |
-| network messages | `registerEngineMessages(MessageList&)` | `WorldSetup::messages` |
+| network messages | `registerEngineMessages(MessageList&)` (S16: the replication messages, `engine/net/EngineMessages.cpp`) | `WorldSetup::messages` |
 | generators, prefabs | – | `WorldSetup::generators` |
 | piece types | – | `WorldSetup::pieceTypes` |
 | meshes, materials | – | `WorldSetup::renderAssets` (into the `World` by name; forwarded to the sink) |
@@ -2701,7 +2813,8 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S13b | Tech demos on the engine (done) | Flight, platformer and racing ported to `EngineApp` and to game objects, components and systems in a `World`, `WorldSetup::context`, input maps and data files per demo, game scenarios (§18.4) | S13 | each tech demo has scenarios that pass with `--scenarios` and runs on `EngineApp` (local); the games compile in the Clang CI job |
 | S14 | Engine MCP tools (done) | App tools (`screenshot`, camera, the frame part of `measure_performance`, `run_scenario`; `quit` exists from S13), prototype tools renamed to `game_*`; the world tools exist from S10 (§16.2) | S13 | every tool has a `handleMessage` test; a headless `screenshot` through `handleMessage` (CI) |
 | S15 | Transport and messages (done) | `Transport`, `LoopbackTransport`, channels, message registration and `world.send` (§13.1, §13.6) | S08 | loopback tests: channels, ordering, delay and loss, fragmentation (CI) |
-| S16 | Replication skeleton | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3); tech demos: co-op variants (a second plane, character, car of a client) | S12, S15, S13b | all scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI); the tech demo co-op variants run host + client over loopback (local) |
+| S16 | Replication skeleton (done) | Ownership (fixed at creation, teleport counter), replication modes, `ownedBy`, `NetId`, full-state snapshots every step, `RenderPose`, host time estimate on clients, host + client scenario variant (§13.3-§13.5, §13.8, §17.3) | S12, S15, S13b | all engine scenarios pass in the host + client variant without loss, delay 0 and 2, and with asynchronous stepping (CI) |
+| S16b | Tech demo co-op | The tech demos on the replication: co-op variants (a second plane, character, car of a client), `--coop`, `EngineAppSetup::networkVariants` on for the games | S16 | the tech demo co-op variants run host + client over loopback; `game_* --scenarios` passes the host + client variants (local) |
 | S17 | HDR frame | Shader target Vulkan 1.3 / SPIR-V 1.6, HDR target, pre-exposure, custom resolve, tone map in the `RenderScene` frame (§10.1, §10.5) | S13 | headless frame test and a tone-map golden (CI) |
 | S18 | Instances and culling | Mesh and material registry, instance buffer, offset table, dynamic instances with GPU interpolation, `setCamera`/`setInterpolation`, GPU culling with compaction and indirect draws, material data model, static mesh import (glTF via assimp into `MeshLods`, flat-color face duplication, palette indices; `saiga/vulkan/scene/MeshImport.h`) (§10.1, §10.2, §10.8, §14) | S17 | culling counts per LOD equal a CPU reference (§17.5 tolerance); dynamic instance interpolation test; an imported glTF mesh renders with face-duplicated flat normals (CI) |
 | S19 | Extract and render sink | `RenderSink`, `RecordingRenderSink`, extract with interpolation (`RenderPose`), depth pre-pass, prototype passes inside `RenderScene`, trees as instance sets (§10.3, §10.5); tech demos: all three (flight, platformer, racing) render through `RenderScene` (`MeshRenderer` removed) | S18, S16, S14, S13b | S02 goldens within tolerance with equal drawn counts per LOD (§17.5 tolerance); client extract from `RenderPose` flags (CI); culling + instance passes <= the S03 `trees` + `upload + cull` time, total <= the S03 baseline + 5 % (local); tech demo screenshots reviewed (local) |

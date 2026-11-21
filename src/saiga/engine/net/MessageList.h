@@ -94,7 +94,7 @@ class SAIGA_ENGINE_API MessageList
     bool gameMessages = false;
 };
 
-// The engine's messages (none in S15; S16 adds its replication messages)
+// The engine's messages (S16: replication, EngineMessages.cpp)
 SAIGA_ENGINE_API void registerEngineMessages(MessageList& list);
 
 }  // namespace Engine

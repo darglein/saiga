@@ -204,6 +204,66 @@ TEST(EcsBenchmark, WorldStepHundredThousandEntities)
     EXPECT_EQ(moving.changedTransforms().size(), size_t(n));
 }
 
+namespace
+{
+void emptySystem(World&, double) {}
+void ownedMoveSystem(World& w, double dt)
+{
+    w.ownedBy<Transform, const Velocity>(w.localPeer())
+        .each([dt](Entity, Transform& t, const Velocity& v) { t.setPosition(t.position() + v.v * dt); });
+}
+}  // namespace
+
+// S16 (R-TEST-2): ownedBy (one owner lookup per candidate) against view over 10^5 entities, half of them owned by a
+// client; and the RunOn filter of the step loop (100 systems, half of them client-only)
+TEST(EcsBenchmark, OwnedByAndRunOn)
+{
+    const int n = 100000;
+    WorldSetup setup;
+    setup.components = benchComponents;
+    World w(setup);
+    for (int i = 0; i < n; ++i)
+    {
+        const Entity e = w.create();
+        w.add<Velocity>(e, Vec3(1, 0, 0));
+        if (i % 2) w.setOwner(e, 1);
+    }
+    w.ownerOf(Entity{});  // the owner table is built once (after the structural changes)
+    Timer t;
+    size_t viewed = 0, owned = 0;
+    for (int k = 0; k < 10; ++k) w.view<const Velocity>().each([&](Entity, const Velocity&) { viewed++; });
+    const double viewMs = t.ms() / 10;
+    t                   = Timer();
+    for (int k = 0; k < 10; ++k) w.ownedBy<const Velocity>(0).each([&](Entity, const Velocity&) { owned++; });
+    const double ownedMs = t.ms() / 10;
+    t                    = Timer();
+    for (int k = 0; k < 10; ++k) w.ownedBy<const Transform>(1).each([&](Entity, const Transform&) { owned++; });
+    const double ownedTransformMs = t.ms() / 10;
+    EXPECT_EQ(viewed, size_t(10 * n));
+    EXPECT_EQ(owned, size_t(10 * n));
+
+    WorldSetup systems = setup;
+    systems.systems    = [](SystemList& l)
+    {
+        static const char* names[100];
+        static std::vector<std::string> storage;
+        for (int i = 0; i < 100; ++i) storage.push_back("empty" + std::to_string(i));
+        for (int i = 0; i < 100; ++i) names[i] = storage[size_t(i)].c_str();
+        for (int i = 0; i < 100; ++i)
+            l.add(Phase::Gameplay, names[i], emptySystem, i % 2 ? RunOn::Client : RunOn::Host);
+        l.add(Phase::Gameplay, "owned_move", ownedMoveSystem, RunOn::Both);
+    };
+    World filtered(systems);
+    filtered.step();
+    t = Timer();
+    filtered.step(1000);
+    const double stepUs = t.ms();  // per 1000 steps in ms = per step in us
+    std::printf(
+        "ECS benchmark, ownedBy over %d entities (ms): view<1> %.3f, ownedBy<1>(0) %.3f, ownedBy<Transform>(1) %.3f; "
+        "an empty world with 100 systems (50 skipped by RunOn): %.2f us per step\n",
+        n, viewMs, ownedMs, ownedTransformMs, stepUs);
+}
+
 // The spatial grid (S09, R-TEST-2): World::step with 10^5 entities spread over 2 km x 2 km moving at 20 m/s (the grid
 // updates every changed transform, some change cells), and 10^4 queryRadius calls of 50 m (about 200 hits each)
 TEST(EcsBenchmark, SpatialGridHundredThousandEntities)

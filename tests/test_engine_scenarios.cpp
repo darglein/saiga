@@ -15,6 +15,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
 #include "saiga/engine/world/World.h"
 
@@ -301,11 +302,28 @@ void registerEngineScenarios(ScenarioList& s)
               w.stepSeconds(2.0);
               const double speed = w.world().read<Player>(player).moveSpeed;
               const double x     = w.world().read<Transform>(player).position().x();
-              w.check(std::abs(x - 2 * speed) < 0.2, "walked 2 s at moveSpeed: x = " + std::to_string(x));
+              // Host + client (S16): the client's player arrives, walks on the client and its pose reaches the host a
+              // few steps later (at most 2 * delay + async offset + 3 steps behind; extrapolated up to 6 steps)
+              const double lag = w.networked() ? 12 * speed / 60 : 0;
+              w.check(x > 2 * speed - 0.2 - lag && x < 2 * speed + 0.2,
+                      "walked 2 s at moveSpeed: x = " + std::to_string(x));
               w.move(player, Vec3::Zero());
-              w.step(10);
-              // At most the step that was already under way
-              w.check(std::abs(w.world().read<Transform>(player).position().x() - x) <= speed / 60 + 1e-9, "stops");
+              auto position = [&] { return w.world().read<Transform>(player).position().x(); };
+              // Stops: the position stays the same over a few steps (the stop reaches the host with the latency)
+              double last = position();
+              int still   = 0;
+              w.check(w.stepUntil(
+                          [&]
+                          {
+                              const double now = position();
+                              still            = now == last ? still + 1 : 0;
+                              last             = now;
+                              return still >= 5;
+                          },
+                          60),
+                      "stops");
+              // At most the step that was already under way (plus the latency on the host)
+              w.check(std::abs(position() - x) <= speed / 60 + 1e-9 + 2 * lag, "stops where it was");
           });
     s.add("action_reaches_listener",
           [](ScenarioWorld& w)
@@ -313,9 +331,13 @@ void registerEngineScenarios(ScenarioList& s)
               auto player = w.spawnPlayer({0, 0, 0});
               w.input(player, 7);
               w.input(player, 8);
-              w.step();
-              const auto& log = w.world().readGlobal<ActionLog>().actions;
-              w.check(log == std::vector<uint32_t>{7, 8}, "delivered in the next step in queue order");
+              // Single world: delivered in the next step; host + client (S16): the PlayerAction message arrives
+              // 1 + delay steps later on the host, then the next step delivers it
+              const auto& log = [&]() -> const std::vector<uint32_t>&
+              { return w.world().readGlobal<ActionLog>().actions; };
+              w.check(w.stepUntil([&] { return !log().empty(); }, 20), "delivered");
+              w.check(log() == std::vector<uint32_t>{7, 8}, "delivered together in queue order");
+              if (!w.networked()) w.check(w.steps() == 1, "in the next step");
               w.step(3);
               w.check(w.world().readGlobal<ActionLog>().actions.size() == 2, "exactly once");
           });
@@ -400,9 +422,10 @@ std::vector<Case> allCases()
     ScenarioList list;
     registerEngineScenarios(list);
     std::vector<Case> cases;
+    ScenarioOptions options;
+    options.networkVariants = true;
     for (const auto& e : list.entries())
-        for (ScenarioVariant v : {ScenarioVariant::Plain, ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
-            cases.push_back(Case{e.name, v});
+        for (ScenarioVariant v : variantsFor(e, options)) cases.push_back(Case{e.name, v});
     return cases;
 }
 }  // namespace
@@ -422,6 +445,7 @@ TEST_P(EngineScenario, Passes)
     // The engine's own systems must not depend on the thread count, and continue identically after a load
     options.varyThreads        = true;
     options.strictContinuation = true;
+    options.networkVariants    = true;
     const ScenarioResult r     = runScenario(scenarioSetup(), *entry, GetParam().variant, options);
     EXPECT_TRUE(r.passed) << r.report;
 }
@@ -692,8 +716,12 @@ TEST(ScenarioRunner, ListAndRunAll)
     EXPECT_EQ(list.match("wanderer").size(), 1u);
     EXPECT_EQ(list.match("").size(), list.entries().size());
     EXPECT_TRUE(list.match("nothing_matches").empty());
-    const auto results = runScenarios(scenarioSetup(), list, "persistent");
-    ASSERT_EQ(results.size(), 3u);
+    EXPECT_EQ(runScenarios(scenarioSetup(), list, "persistent").size(), 3u);
+    // With the host + client variants (S16): six per scenario that is not local-only
+    ScenarioOptions options;
+    options.networkVariants = true;
+    const auto results      = runScenarios(scenarioSetup(), list, "persistent", options);
+    ASSERT_EQ(results.size(), 6u);
     for (const ScenarioResult& r : results) EXPECT_TRUE(r.passed) << r.report;
 }
 
@@ -1104,4 +1132,141 @@ TEST(ScenarioRunner, ReadOnlyApplyInsideAStepListener)
                    });
     const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::Plain);
     EXPECT_TRUE(r.passed) << r.report;
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The host + client variants (S16, §17.3)
+
+namespace
+{
+// Writes the PlayerInput of every player on the host each step: fine in one world, a write to a client's
+// owner-authoritative component in the host + client variant (R-NET-2)
+void hostInputWriterSystem(World& w, double)
+{
+    w.view<PlayerInput>().each([](Entity, PlayerInput& in) { in.heldButtons++; });
+}
+}  // namespace
+
+TEST(ScenarioRunner, HostClientRunsTheClients)
+{
+    auto e = entry("networked",
+                   [](ScenarioWorld& w)
+                   {
+                       auto player   = w.spawnPlayer({0, 0, 0});
+                       auto wanderer = w.spawn<Wanderer>({3, 0, 0});
+                       w.check(w.networked(), "networked");
+                       w.check(w.world().ownerOf(player) == 1, "the player belongs to the client");
+                       w.check(w.stepUntil([&] { return w.onClient(1, player).valid(); }, 10), "the player arrives");
+                       w.check(w.onClient(1, wanderer).valid(), "the wanderer arrives");
+                       w.check(w.client(1).has<CharacterIntent>(w.onClient(1, player)), "the presence list");
+                       // An owner-authoritative edit on the owner reaches the host
+                       w.edit(player, [](World& world, Entity p) { world.get<PlayerInput>(p).heldButtons = 9; });
+                       w.check(w.stepUntil([&] { return w.world().read<PlayerInput>(player).heldButtons == 9; }, 10),
+                               "the owner's input reaches the host");
+                   });
+    for (ScenarioVariant v :
+         {ScenarioVariant::HostClient, ScenarioVariant::HostClientDelay, ScenarioVariant::HostClientAsync})
+    {
+        const ScenarioResult r = runScenario(scenarioSetup(), e, v);
+        EXPECT_TRUE(r.passed) << r.report;
+    }
+}
+
+// The write detector: a write to a component that belongs to a remote authority fails the variant
+TEST(ScenarioRunner, TheWriteDetectorFindsHostWritesToOwnedComponents)
+{
+    // The scenario writes a client-owned player's input on the host after the spawn (it should use edit)
+    auto direct = entry("host_writes_input",
+                        [](ScenarioWorld& w)
+                        {
+                            auto player = w.spawnPlayer({0, 0, 0});
+                            w.step(10);
+                            w.world().get<PlayerInput>(player).heldButtons = 5;
+                            w.step(10);
+                        });
+    EXPECT_TRUE(runScenario(scenarioSetup(), direct, ScenarioVariant::Plain).passed);
+    ScenarioResult r = runScenario(scenarioSetup(), direct, ScenarioVariant::HostClient);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "PlayerInput")) << r.report;
+    EXPECT_TRUE(contains(r, "R-NET-2")) << r.report;
+    // A host system that writes it every step
+    WorldSetup s = scenarioSetup();
+    s.systems    = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "actionLog", actionLogSystem);
+        l.add(Phase::Gameplay, "inputWriter", hostInputWriterSystem);
+    };
+    auto walk = entry("system_writes_input",
+                      [](ScenarioWorld& w)
+                      {
+                          w.spawnPlayer({0, 0, 0});
+                          w.step(20);
+                      });
+    EXPECT_TRUE(runScenario(s, walk, ScenarioVariant::Plain).passed);
+    r = runScenario(s, walk, ScenarioVariant::HostClientDelay);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "R-NET-2")) << r.report;
+}
+
+// The asynchronous variant is reproducible: two runs give equal host hashes and equal client states
+TEST(ScenarioRunner, TheAsyncVariantIsReproducible)
+{
+    auto run = []()
+    {
+        ScenarioNetwork net;
+        net.enabled = true;
+        net.async   = true;
+        ScenarioOptions o;
+        o.clients = 2;
+        ScenarioWorld w(scenarioSetup(), o, net);
+        std::vector<uint64_t> hashes;
+        w.control.hashes = &hashes;
+        auto a           = w.spawnPlayer({0, 0, 0}, 1);
+        auto b           = w.spawnPlayer({5, 0, 0}, 2);
+        w.spawn<Wanderer>({2, 0, 2});
+        w.move(a, Vec3(1, 0, 0));
+        w.move(b, Vec3(0, 0, -1));
+        w.step(60);
+        w.finishNetwork();
+        EXPECT_TRUE(w.failures().empty()) << (w.failures().empty() ? "" : w.failures()[0]);
+        hashes.push_back(w.client(1).hash());
+        hashes.push_back(w.client(2).hash());
+        return hashes;
+    };
+    const auto first = run();
+    EXPECT_EQ(first, run());
+    EXPECT_GT(first.size(), 60u);
+}
+
+// Regression (CodeRabbit, S16): a client-owned player spawned after the last step was not in the final sync's list of
+// owners, so the replicas were compared before the host received its owner state
+TEST(ScenarioRunner, TheFinalSyncWaitsForTheOwnerStateOfALateSpawn)
+{
+    for (int delay : {0, 2})
+    {
+        ScenarioNetwork net;
+        net.enabled    = true;
+        net.delaySteps = delay;
+        ScenarioWorld w(scenarioSetup(), ScenarioOptions{}, net);
+        w.step(5);
+        const Entity player = w.spawnPlayer({1, 0, 0});
+        w.finishNetwork();
+        EXPECT_TRUE(w.failures().empty()) << (w.failures().empty() ? "" : w.failures()[0]);
+        EXPECT_EQ(w.world().ownerOf(player), 1);
+        EXPECT_GE(w.world().replication().ownerStateSequence(1), 1u) << "delay " << delay;
+    }
+}
+
+// Regression (CodeRabbit, S16): saveLoad in a host + client variant replaced the host world under connected clients
+TEST(ScenarioRunner, SaveLoadInAHostClientVariantFails)
+{
+    auto e                 = entry("save_load_networked",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.step(2);
+                       w.saveLoad();
+                   });
+    const ScenarioResult r = runScenario(scenarioSetup(), e, ScenarioVariant::HostClient);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "saveLoad is not supported in the host + client variants")) << r.report;
 }

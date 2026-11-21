@@ -23,7 +23,17 @@ enum class ScenarioVariant
     Plain,     // once
     Repeat,    // twice: equal per-step hashes (nondeterminism)
     SaveLoad,  // saved and loaded into a fresh World halfway (state outside components, R-STATE-1)
+    // Host + clients over loopback without loss (§17.3, S16; ScenarioOptions::networkVariants, not local-only)
+    HostClient,       // delay 0
+    HostClientDelay,  // delay 2
+    HostClientAsync,  // asynchronous client stepping (seeded 0, 1 or 2 steps per host step, 3 steps late)
 };
+// The network of a host + client variant (disabled for the single-world variants)
+SAIGA_ENGINE_API ScenarioNetwork networkOf(ScenarioVariant v);
+// The variants the runner runs for an entry: Plain, Repeat, SaveLoad, and the host + client ones when
+// options.networkVariants is set and the entry is not local-only
+SAIGA_ENGINE_API std::vector<ScenarioVariant> variantsFor(const ScenarioList::Entry& entry,
+                                                          const ScenarioOptions& options);
 SAIGA_ENGINE_API const char* variantName(ScenarioVariant v);
 
 struct ScenarioResult
@@ -44,7 +54,7 @@ struct ScenarioResult
 // Runs one scenario in one variant (headless, with the setup's seed and worker threads)
 SAIGA_ENGINE_API ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& entry,
                                             ScenarioVariant variant, const ScenarioOptions& options = {});
-// Every scenario whose name contains filter, in all three variants
+// Every scenario whose name contains filter, in all its variants (variantsFor)
 SAIGA_ENGINE_API std::vector<ScenarioResult> runScenarios(const WorldSetup& setup, const ScenarioList& list,
                                                           const std::string& filter,
                                                           const ScenarioOptions& options = {});

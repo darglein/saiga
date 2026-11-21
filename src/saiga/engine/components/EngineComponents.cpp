@@ -11,12 +11,15 @@
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/LocalTransform.h"
+#include "saiga/engine/components/NetLocal.h"
+#include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
-#include "saiga/engine/gameplay/Behaviour.h"
-#include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/net/NetOwner.h"
 
 namespace Saiga
 {
@@ -32,7 +35,12 @@ void registerEngineComponents(Registry& registry)
     registry.registerComponent<Player>(Replicate::Host);
     registry.registerComponent<Health>(Replicate::Host);
     registry.registerComponent<PlayerInput>(Replicate::OwnerAuthoritative);
+    // Computed on each peer; a client default-constructs it from the spawn's presence list (§13.4)
     registry.registerComponent<CharacterIntent>(Replicate::Never);
+    // S16: ownership, host-local entities, the interpolated render pose
+    registry.registerComponent<NetOwner>(Replicate::Host);
+    registry.registerComponent<NetLocal>(Replicate::Never);
+    registry.registerComponent<RenderPose>(Replicate::Never, Saved::No);
 }
 
 }  // namespace Engine

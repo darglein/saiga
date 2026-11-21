@@ -420,7 +420,7 @@ namespace
 struct Ping
 {
     static constexpr MessageId id     = 64;
-    static constexpr const char* name = "Ping";
+    static constexpr const char* name = "TestPing";
     static constexpr uint32_t version = 1;
     uint32_t value                    = 0;
     template <class V>
@@ -520,11 +520,17 @@ void testMessages(MessageList& l)
     l.add<Echo>(Reliability::Reliable, onEcho);
 }
 
+// A world on peer 0 is the host, the others are clients (S16 roles)
 WorldSetup netSetup(Transport* t)
 {
     WorldSetup s;
     s.transport = t;
     s.messages  = testMessages;
+    if (t && t->localPeer() != 0)
+    {
+        s.role      = NetRole::Client;
+        s.localPeer = t->localPeer();
+    }
     return s;
 }
 
@@ -904,6 +910,8 @@ TEST(Messages, DeterministicWithLoss)
         };
         World host(s);
         s.transport = net[1].get();
+        s.role      = NetRole::Client;
+        s.localPeer = 1;
         World client(s);
         for (uint32_t i = 0; i < 50; ++i)
         {

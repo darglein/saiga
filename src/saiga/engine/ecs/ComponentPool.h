@@ -14,6 +14,7 @@
 #include "saiga/engine/ecs/TypeSchema.h"
 #include "saiga/engine/ecs/VisitBinary.h"
 #include "saiga/engine/ecs/VisitJson.h"
+#include "saiga/engine/net/NetVisitors.h"
 
 #include <array>
 #include <cstdint>
@@ -104,6 +105,12 @@ class PoolBase
     // emplaceStaged (no second construction after the world was cleared)
     virtual std::unique_ptr<StagedValues> stageDefault() const = 0;
     virtual void emplaceStaged(Entity e, StagedValues& stage)  = 0;
+
+    // Replication (S16): the network form (NetVisitors.h) of the entity's component; decoding into the entity's
+    // existing component (false and unchanged on malformed input); the leaves for comparing replicas
+    virtual void netAppend(uint32_t entityIndex, NetWriter& w) const                                       = 0;
+    virtual bool netReadInto(uint32_t entityIndex, NetReader& r)                                           = 0;
+    virtual void netFlatten(uint32_t entityIndex, std::vector<NetLeaf>& out, const NetIdResolver* r) const = 0;
 
     const ComponentId id;
     const char* const name;
@@ -255,6 +262,20 @@ class ComponentPool final : public PoolBase
         SAIGA_ASSERT(!s.values.empty(), std::string("emplaceStaged: no staged value of ") + name);
         emplace(e, std::move(s.values.back()));
         s.values.pop_back();
+    }
+    void netAppend(uint32_t entityIndex, NetWriter& w) const override { w.write(at(entityIndex)); }
+    bool netReadInto(uint32_t entityIndex, NetReader& r) override
+    {
+        T value{};
+        r.read(value);
+        if (!r.ok()) return false;
+        at(entityIndex) = std::move(value);
+        return true;
+    }
+    void netFlatten(uint32_t entityIndex, std::vector<NetLeaf>& out, const NetIdResolver* r) const override
+    {
+        NetFlattener f(out, r);
+        const_cast<T&>(at(entityIndex)).visit(f);
     }
     void clearAll() override
     {

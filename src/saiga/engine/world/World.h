@@ -22,6 +22,8 @@
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/gameplay/TickPolicy.h"
 #include "saiga/engine/net/MessageList.h"
+#include "saiga/engine/net/NetIds.h"
+#include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
@@ -56,6 +58,8 @@ struct WorldConfig
     double stepsPerSecond  = 60;
     int maxStepsPerAdvance = 4;
     TickPolicy ticking;  // §8.4 (S10)
+    // RenderPose samples the interpolation buffer this many steps behind the (estimated) host step (§13.4, S16)
+    int interpolationDelaySteps = 6;
 };
 
 struct WorldSetup
@@ -74,6 +78,10 @@ struct WorldSetup
     void (*messages)(MessageList&) = nullptr;
     // The transport to the other peers (not owned; it outlives the world's use of it); null: single player
     Transport* transport = nullptr;
+    // Host (default; single player is a host without peers) or Client (S16, §13.1); localPeer must equal
+    // transport->localPeer() when a transport is set (the host is peer 0)
+    NetRole role      = NetRole::Host;
+    uint8_t localPeer = 0;
     // Migrations of changed and removed saved types (§15.2, S11)
     void (*migrations)(MigrationList&) = nullptr;
     // Data files (§14, S11): one JSON file per registered type in dataDirectory, loaded by the constructor (an error
@@ -120,6 +128,8 @@ struct WorldSetup
  *   allowed (also a command). Commands on an entity that was destroyed earlier in the same flush are dropped.
  * Every applied change is appended to the structural log. Destroying a parent destroys its descendants (§7.4).
  */
+class Replication;
+
 class SAIGA_ENGINE_API World
 {
    public:
@@ -154,6 +164,7 @@ class SAIGA_ENGINE_API World
     {
         static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
         static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is read-only (makePersistent)");
+        static_assert(T::id != ComponentId(EngineComponent::NetOwner), "NetOwner is read-only (setOwner)");
         return reg.get<T>(e);
     }
     template <class T>
@@ -161,6 +172,7 @@ class SAIGA_ENGINE_API World
     {
         static_assert(T::id != ComponentId(EngineComponent::Parent), "Parent: use remove<Parent> and add<Parent>");
         static_assert(T::id != ComponentId(EngineComponent::Persistent), "Persistent is read-only (makePersistent)");
+        static_assert(T::id != ComponentId(EngineComponent::NetOwner), "NetOwner is read-only (setOwner)");
         return reg.tryGet<T>(e);
     }
     template <class T>
@@ -182,17 +194,17 @@ class SAIGA_ENGINE_API World
     template <class... C>
     View<C...> view()
     {
-        static_assert(
-            parentReadOnly<C...>(),
-            "Parent and Persistent in a view must be const (Parent: remove and add; Persistent: makePersistent)");
+        static_assert(parentReadOnly<C...>(),
+                      "Parent, Persistent and NetOwner in a view must be const (Parent: remove and add; Persistent: "
+                      "makePersistent; NetOwner: setOwner)");
         return reg.view<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0);
     }
     template <class... C>
     View<C...> viewAll()
     {
-        static_assert(
-            parentReadOnly<C...>(),
-            "Parent and Persistent in a view must be const (Parent: remove and add; Persistent: makePersistent)");
+        static_assert(parentReadOnly<C...>(),
+                      "Parent, Persistent and NetOwner in a view must be const (Parent: remove and add; Persistent: "
+                      "makePersistent; NetOwner: setOwner)");
         return reg.view<C...>(0);
     }
     template <class... C>
@@ -205,8 +217,9 @@ class SAIGA_ENGINE_API World
 
     // ---- gameplay (§7.8, §9.3, §9.6) ------------------------------------------------------------------------------
 
-    // A one-shot player action (a local queue; a message from S16): delivered as ActionEvent, readable in the next
-    // step, in (peer, sequence) order, exactly once. The player must be alive and have a Player component.
+    // A one-shot player action: delivered on the host as ActionEvent, readable in the next step, in (peer, sequence)
+    // order, exactly once. The player must be alive and have a Player component. On a client the player must be owned
+    // by this peer: the action is sent to the host as a PlayerAction message (S16).
     void queueAction(const PlayerAction& action);
 
     // ---- network messages (§13.6; S15) ---------------------------------------------------------------------------
@@ -248,15 +261,41 @@ class SAIGA_ENGINE_API World
     const std::vector<uint8_t>& peersJoined() const { return joined; }
     const std::vector<uint8_t>& peersLeft() const { return left; }
     const NetStats& netStats() const { return netCounts; }
-    // Before S16 the world is the host and the only peer
-    uint8_t localPeer() const { return 0; }
-    bool isHost() const { return true; }
-    // The entities a peer owns (R-NET-2); before S16 all entities
+    // The role of this world (WorldSetup::role, localPeer; S16)
+    uint8_t localPeer() const { return selfPeer; }
+    bool isHost() const { return role == NetRole::Host; }
+    NetRole netRole() const { return role; }
+    // The entities whose root is owned by peer (R-NET-2, §13.3): NetOwner of the root, peer 0 (the host) without one.
+    // One lookup per entity in a cached owner table (rebuilt after a Parent or NetOwner change and after a load). As
+    // view() otherwise (Simulated in phases 2-5).
     template <class... C>
-    View<C...> ownedBy(uint8_t /*peer*/)
+    View<C...> ownedBy(uint8_t peer)
     {
-        return view<C...>();
+        static_assert(parentReadOnly<C...>(),
+                      "Parent, Persistent and NetOwner in a view must be const (remove and add, makePersistent, "
+                      "setOwner)");
+        return reg.ownedView<C...>(simulatedOnly(phase) ? Registry::kSimulated : 0, ownerTable, peer);
     }
+    // The owner of the entity's root (0: the host)
+    uint8_t ownerOf(Entity e) const
+    {
+        if (ownerCacheDirty) rebuildOwnerCacheChecked();
+        return e.index < ownerCache.size() ? ownerCache[e.index] : uint8_t(0);
+    }
+    // Host: the owner of a replicated root (and its subtree), before the entity's spawn was sent (asserted); no
+    // transfer later (§13.3). A Player's Player.peer must equal peer. Peer 0 is the host.
+    void setOwner(Entity root, uint8_t peer);
+    // Host: a teleport of a root. Before its spawn or for a host-owned entity a plain Transform::teleport; for a
+    // spawned client-owned entity the pose is applied here too and sent to the owner as an OwnerCommand with the
+    // incremented command counter (owner states with an older counter are dropped, §13.3)
+    void ownerTeleport(Entity root, const Vec3& position, const Quat& rotation);
+    // Engine messages only (receive, owner poses without extrapolation, phase 6's transform system, replication and
+    // owner state, the flush): no game systems, listeners, actions or events; the step index and the transform flags
+    // do not change (end-of-scenario sync, §17.3)
+    void stepNetworkOnly();
+    // Replication state (engine-internal; S16)
+    Replication& replication() { return *repl; }
+    const Replication& replication() const { return *repl; }
     // World-state components (registerGlobal) on the world-state entity, space-state components (registerSpaceState)
     // on the space-state entity of the space (space 0 before S21). A component that is not registered as global or
     // space state asserts.
@@ -318,7 +357,8 @@ class SAIGA_ENGINE_API World
     }
     bool hasContext() const { return contextPtr != nullptr; }
     // timeBase: a loaded save keeps its time also if it was saved with another step rate (S11)
-    double time() const { return timeBase + double(steps - stepBase) * stepDt; }
+    // On a client the estimated host time (§13.4, S16)
+    double time() const { return timeBase + (double(steps - stepBase) + hostStepOffset) * stepDt; }
     uint64_t stepIndex() const { return steps; }
     // Interpolation factor between the last two steps, in [0, 1) (set by advance)
     double alpha() const { return accumulator / stepDt; }
@@ -439,6 +479,7 @@ class SAIGA_ENGINE_API World
     Registry& registry() { return reg; }
     const Registry& registry() const { return reg; }
     const ClassList& classList() const { return classes; }
+    const SystemList& systemList() const { return systems; }
     const ActionList& actionList() const { return actionNames; }
     // Step timings and counters (§17.1, S10); the app adds frame and GPU numbers from S13
     Profiler& profiler() { return prof; }
@@ -478,8 +519,8 @@ class SAIGA_ENGINE_API World
     int spatialGridConsumer() const { return gridConsumer; }
     Phase currentPhase() const { return phase; }
     bool inStep() const { return phase != Phase::None; }
-    // save() is allowed: between steps and not inside a game hook (save() asserts otherwise)
-    bool canSave() const { return !inStep() && hookDepth == 0 && loadHookPhase == 0; }
+    // save() is allowed: between steps and not inside a game hook (save() asserts otherwise); never on a client (S16)
+    bool canSave() const { return isHost() && !inStep() && hookDepth == 0 && loadHookPhase == 0; }
     // Entities whose Transform changed in this or the previous step, sorted by index (built in phase 6)
     const std::vector<uint32_t>& changedTransforms() const { return changed; }
     std::vector<uint32_t>& changedTransformsForUpdate() { return changed; }
@@ -493,8 +534,12 @@ class SAIGA_ENGINE_API World
     // ---- type-erased access for the world API (between steps; S10) ----
     // Adds a default component by ID with its log record (not Transform, Behaviour, Persistent or Parent)
     void addDefaultNow(Entity e, ComponentId id);
-    // Removes a component by ID with its log record (Parent and Persistent keep their bookkeeping; not Transform)
+    // Removes a component by ID with its log record (Parent, Persistent and NetOwner keep their bookkeeping and
+    // checks; not Transform)
     void removeByIdNow(Entity e, ComponentId id);
+    // Replaces the Parent of a child in one change (no intermediate root: the owner rule of a spawned entity is checked
+    // for the new parent only, §13.3); false if refused (a dead parent, a cycle, another owner)
+    bool reparentNow(Entity child, Entity parent);
     // Spawns a class by its registration: Transform, Behaviour, then initial(e) adds the initial components, then the
     // tick interval, configure() and onSpawn()
     Entity spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
@@ -545,8 +590,40 @@ class SAIGA_ENGINE_API World
     // that is not alive or the Parents form a cycle
     bool rebuildHierarchyState();
 
+    // Tests only: runs in phase 8 right after the replication (an exception aborts the step after the bookkeeping was
+    // staged, S16)
+    std::function<void()> debugAfterReplication;
+
    private:
     friend class WorldLoader;
+    friend class Replication;
+    NetRole role     = NetRole::Host;
+    uint8_t selfPeer = 0;
+    std::unique_ptr<Replication> repl;
+    // The owner of each entity's root by index (ownedBy); rebuilt when dirty
+    mutable std::vector<uint8_t> ownerCache;
+    mutable bool ownerCacheDirty = true;
+    void rebuildOwnerCache() const;
+    // The lazy rebuild of ownerOf/ownedBy: never inside parallelEach (the step loop rebuilds before every system, and
+    // owner changes inside a system rebuild at once, R-PAR-1)
+    void rebuildOwnerCacheChecked() const;
+    // The owner table of ownedBy views: rebuilt when a view starts iterating with a stale cache
+    struct OwnerTableOfWorld final : OwnerTable
+    {
+        const World* world;
+        explicit OwnerTableOfWorld(const World* w) : world(w) {}
+        const std::vector<uint8_t>& table() const override;
+    };
+    OwnerTableOfWorld ownerTable{this};
+    // Client: the entity or one of its descendants is replicated (a destroy would remove a replica, §13.5)
+    bool clientSubtreeReplicated(Entity e) const;
+    // Host: an add/remove of Parent or NetOwner that would change the owner of a spawned entity (no transfer after
+    // the spawn, §13.3); refused in every build (asserts)
+    bool netChangeRefused(Entity e, ComponentId c, bool add, Entity parent);
+    void markOwnersDirty() { ownerCacheDirty = true; }
+    // Client hook calls (§13.5): a replicated destroy and the addition of a component by ID inside a step
+    void addDefaultInternal(Entity e, ComponentId id);
+    void removeInternal(Entity e, ComponentId id);
     std::shared_ptr<DataStore> dataStore;
     bool dataReadOnly = false;  // WorldSetup::sharedDataReadOnly
     MigrationList migrationList;
@@ -585,7 +662,8 @@ class SAIGA_ENGINE_API World
     };
     void enqueueMessage(uint8_t peer, const MessageList::Entry& entry, std::vector<uint8_t> payload);
     // Phase 1: polls the transport and runs the handlers in (peer, sequence) order
-    void receiveMessages();
+    // engineOnly (stepNetworkOnly): game messages stay queued for the next step
+    void receiveMessages(bool engineOnly = false);
     bool decodePacket(uint8_t peer, const std::vector<uint8_t>& packet, std::vector<ReceivedMessage>& out);
     void rejectInput(uint8_t peer, const std::string& why);
     // A load: discards the outbox (encoded from the replaced state)
@@ -660,7 +738,8 @@ class SAIGA_ENGINE_API World
     template <class... C>
     static constexpr bool parentReadOnly()
     {
-        return (((!std::is_same_v<std::remove_cv_t<C>, Parent> && !std::is_same_v<std::remove_cv_t<C>, Persistent>) ||
+        return (((!std::is_same_v<std::remove_cv_t<C>, Parent> && !std::is_same_v<std::remove_cv_t<C>, Persistent> &&
+                  !std::is_same_v<std::remove_cv_t<C>, NetOwner>) ||
                  std::is_const_v<C>) &&
                 ...);
     }
@@ -724,13 +803,14 @@ class SAIGA_ENGINE_API World
 
     WorldConfig config;
     double stepDt;
-    double accumulator = 0;
-    double scale       = 1;
-    bool paused        = false;
-    bool flushing      = false;
-    uint64_t steps     = 0;
-    uint64_t dropped   = 0;
-    Phase phase        = Phase::None;
+    double accumulator    = 0;
+    double scale          = 1;
+    bool paused           = false;
+    bool flushing         = false;
+    uint64_t steps        = 0;
+    uint64_t dropped      = 0;
+    double hostStepOffset = 0;  // a client's estimated host step - its step index (HostClock)
+    Phase phase           = Phase::None;
 };
 
 // ---- template definitions ------------------------------------------------------------------------------------------
@@ -796,8 +876,30 @@ void World::addNow(Entity e, T&& value)
     }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
+        // Ownership is defined on roots (§13.3): an owned root cannot become a child; refused in every build
+        if (reg.alive(e) && reg.has<NetOwner>(e))
+        {
+            SAIGA_ASSERT(false, "add<Parent>: the entity has a NetOwner (ownership is defined on roots, §13.3)");
+            return;
+        }
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
         if (!acceptParent(e, value.entity)) return;
+        if (netChangeRefused(e, T::id, true, value.entity)) return;
+    }
+    if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
+    {
+        if (!isHost())
+        {
+            // Refused in every build: ownership comes from the host (the replication adds it through its own path)
+            SAIGA_ASSERT(false, "add<NetOwner> on a client (ownership is set by the host, §13.3)");
+            return;
+        }
+        if (reg.alive(e) && reg.has<Parent>(e))
+        {
+            SAIGA_ASSERT(false, "NetOwner on a child (ownership is defined on roots, §13.3)");
+            return;
+        }
+        if (netChangeRefused(e, T::id, true, Entity{})) return;
     }
     // Everything that can allocate first (the log record, the parent's count slot); after the add nothing can fail
     auto record = log.prepare(1);
@@ -812,7 +914,8 @@ void World::addNow(Entity e, T&& value)
         reserveChildSlot(parent);
         reg.add<T>(e, std::move(value));
         changeChildCount(parent, +1);
-        hierarchyDirty = true;
+        hierarchyDirty  = true;
+        ownerCacheDirty = true;
     }
     else if constexpr (T::id == ComponentId(EngineComponent::Persistent))
     {
@@ -831,6 +934,7 @@ void World::addNow(Entity e, T&& value)
     }
     else
         reg.add<T>(e, std::move(value));
+    if constexpr (T::id == ComponentId(EngineComponent::NetOwner)) ownerCacheDirty = true;
     record.append(e, T::id, true);
 }
 
@@ -852,6 +956,15 @@ void World::removeNow(Entity e)
         SAIGA_ASSERT(false, std::string("remove<") + T::name + ">: world-state components cannot be removed");
         return;
     }
+    if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
+        if (!isHost())
+        {
+            // Refused in every build: ownership comes from the host (the replication removes it through its own path)
+            SAIGA_ASSERT(false, "remove<NetOwner> on a client (ownership is set by the host, §13.3)");
+            return;
+        }
+    if constexpr (T::id == ComponentId(EngineComponent::Parent) || T::id == ComponentId(EngineComponent::NetOwner))
+        if (netChangeRefused(e, T::id, false, Entity{})) return;
     auto record = log.prepare(1);
     if constexpr (T::id == ComponentId(EngineComponent::Behaviour))
     {
@@ -864,6 +977,8 @@ void World::removeNow(Entity e)
         changeChildCount(reg.read<Parent>(e).entity, -1);
         hierarchyDirty = true;
     }
+    if constexpr (T::id == ComponentId(EngineComponent::Parent) || T::id == ComponentId(EngineComponent::NetOwner))
+        ownerCacheDirty = true;
     if constexpr (T::id == ComponentId(EngineComponent::Persistent))
         persistentIndex.erase(reg.read<T>(e).persistentId.value);
     reg.remove<T>(e);

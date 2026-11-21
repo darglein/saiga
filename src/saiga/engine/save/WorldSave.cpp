@@ -21,6 +21,7 @@ namespace Engine
 {
 std::vector<uint8_t> World::save() const
 {
+    SAIGA_ASSERT(isHost(), "World::save on a client (its state comes from the host)");
     SAIGA_ASSERT(!inStep() && commands.empty(), "World::save inside a step");
     SAIGA_ASSERT(hookDepth == 0 && loadHookPhase == 0, "World::save inside a game hook");
     const SchemaTable schema = SchemaTable::fromWorld(*this);

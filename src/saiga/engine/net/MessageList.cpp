@@ -58,7 +58,5 @@ const MessageList::Entry* MessageList::find(MessageId id) const
     return nullptr;
 }
 
-void registerEngineMessages(MessageList&) {}
-
 }  // namespace Engine
 }  // namespace Saiga

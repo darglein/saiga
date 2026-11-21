@@ -165,7 +165,9 @@ int runGameScenarios(const EngineAppSetup& setup, const std::string& filter)
         std::cout << "no scenarios matched" << (filter.empty() ? "" : " '" + filter + "'") << std::endl;
         return 1;
     }
-    const std::vector<ScenarioResult> results = runScenarios(setup.world, list, filter);
+    ScenarioOptions scenarioOptions;
+    scenarioOptions.networkVariants           = setup.networkVariants;
+    const std::vector<ScenarioResult> results = runScenarios(setup.world, list, filter, scenarioOptions);
     int failed                                = 0;
     for (const ScenarioResult& r : results)
     {

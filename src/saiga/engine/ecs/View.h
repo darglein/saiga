@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <tuple>
 #include <utility>
+#include <vector>
 
 #include <type_traits>
 
@@ -32,11 +33,24 @@ class View
 
    public:
     explicit View(Registry& registry, uint8_t requiredFlags = 0) : reg(&registry), flags(requiredFlags) {}
+    // Only the entities whose owner (table()[index], 0 beyond its size) is peer (World::ownedBy, §13.3): one lookup
+    // per candidate. The World's owner table is brought up to date when an iteration starts (a view kept across an
+    // owner change never reads a stale or reallocated table); owners must not change while the view iterates.
+    View(Registry& registry, uint8_t requiredFlags, const OwnerTable& ownerTable, uint8_t peer)
+        : reg(&registry),
+          flags(requiredFlags),
+          ownerTable(&ownerTable),
+          owners(&ownerTable.table()),
+          peer(peer),
+          filtered(true)
+    {
+    }
 
     // fn(Entity, C&...)
     template <class F>
     void each(F&& fn)
     {
+        refreshOwners();
         IterationGuard guard(*reg);
         auto access              = std::make_tuple(Accessor<C>(*reg)...);
         const ComponentMask mask = Registry::mask<C...>();
@@ -57,6 +71,7 @@ class View
     template <class F>
     void parallelEach(F&& fn, int64_t chunk = 256)
     {
+        refreshOwners();  // before the parallel guard (a rebuild inside parallelEach asserts)
         IterationGuard guard(*reg);
         ParallelGuard parallel(*reg);
         const ComponentMask mask = Registry::mask<C...>();
@@ -162,7 +177,7 @@ class View
             (void)tr;
             if (k == 0) return false;
             const Registry::Slot& s = reg->slots[k];
-            if (s.state != SlotState::Alive || (s.flags & flags) != flags) return false;
+            if (s.state != SlotState::Alive || (s.flags & flags) != flags || !ownedOk(uint32_t(k))) return false;
             e = Entity{uint32_t(k), s.generation};
             return true;
         }
@@ -170,7 +185,8 @@ class View
         {
             e                       = tr.pool->denseEntities()[k];
             const Registry::Slot& s = reg->slots[e.index];
-            return s.state == SlotState::Alive && s.mask.containsAll(mask) && (s.flags & flags) == flags;
+            return s.state == SlotState::Alive && s.mask.containsAll(mask) && (s.flags & flags) == flags &&
+                   ownedOk(e.index);
         }
     }
 
@@ -194,8 +210,24 @@ class View
             return &reg->pool<T>();
     }
 
+    // The table object never moves (owners stays valid); only its content is brought up to date
+    void refreshOwners() const
+    {
+        if (filtered) ownerTable->table();
+    }
+
+    bool ownedOk(uint32_t index) const
+    {
+        if (!filtered) return true;
+        return (index < owners->size() ? (*owners)[index] : uint8_t(0)) == peer;
+    }
+
     Registry* reg;
     uint8_t flags;
+    const OwnerTable* ownerTable       = nullptr;
+    const std::vector<uint8_t>* owners = nullptr;
+    uint8_t peer                       = 0;
+    bool filtered                      = false;
 };
 
 }  // namespace Engine

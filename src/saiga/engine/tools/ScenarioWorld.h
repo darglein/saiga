@@ -12,6 +12,7 @@
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
+#include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/export.h"
 
@@ -38,6 +39,20 @@ struct ScenarioOptions
     // step without touching the world, its RNG or its profile); it never changes the result of a run that finishes.
     // The runner starts no further run of a variant (Repeat's second run and reruns, SaveLoad's run) after it
     std::optional<std::chrono::steady_clock::time_point> deadline;
+    // The runner adds the host + client variants (HostClient, HostClientDelay, HostClientAsync; §17.3, S16) for the
+    // scenarios that are not local-only. Off for the tech demo games until S16b.
+    bool networkVariants = false;
+    // Clients of the host + client variants (peers 1..clients)
+    int clients = 1;
+};
+
+// The network of a host + client run (§17.3): the host and ScenarioOptions::clients client worlds over a
+// LoopbackTransport without loss
+struct ScenarioNetwork
+{
+    bool enabled   = false;
+    int delaySteps = 0;
+    bool async     = false;  // each client starts 3 steps late and runs a seeded 0, 1 or 2 steps per host step
 };
 
 // Thrown by the step helpers and the step observation to end a scenario (maxSteps, the runner stopping a rerun);
@@ -57,12 +72,20 @@ struct ScenarioAbort
 class SAIGA_ENGINE_API ScenarioWorld
 {
    public:
-    explicit ScenarioWorld(const WorldSetup& setup, const ScenarioOptions& options = {});
+    explicit ScenarioWorld(const WorldSetup& setup, const ScenarioOptions& options = {},
+                           const ScenarioNetwork& network = {});
     ~ScenarioWorld();
     ScenarioWorld(const ScenarioWorld&)            = delete;
     ScenarioWorld& operator=(const ScenarioWorld&) = delete;
 
+    // The host world (checks run there)
     World& world() { return *w; }
+    // The host + client variants (§17.3): the client world of a peer (1..clients) and a host entity's handle there
+    // (through its NetId; Entity{} if it has not arrived)
+    bool networked() const { return network.enabled; }
+    World& client(int peer);
+    Entity onClient(int peer, Entity hostEntity);
+    int clientCount() const { return int(clientWorlds.size()); }
     // The world API (created on first use; it follows the swap of the save/load variant)
     WorldApi& api();
     // An API call that also ends the scenario when it ran past maxSteps (prefer it to api().call in scenarios)
@@ -76,21 +99,29 @@ class SAIGA_ENGINE_API ScenarioWorld
         involve(e);
         return e;
     }
-    // A plain player entity: Transform, Player{peer, characterId 1, 2, ...}, PlayerInput, CharacterIntent (§17.2)
-    Entity spawnPlayer(const Vec3& position, uint8_t peer = 0);
+    // A plain player entity on the host: Transform, Player{peer, characterId 1, 2, ...}, PlayerInput, CharacterIntent
+    // (§17.2). Player.peer is peer.value_or(0) in the single-world variants (an explicit peer only sets Player.peer)
+    // and peer.value_or(1) in the host + client variants, which also setOwner(player, peer) (peer 0: the host's own
+    // player). Does not step: move, input and edit for a client's entity that has not arrived are applied on arrival.
+    Entity spawnPlayer(const Vec3& position, std::optional<uint8_t> peer = std::nullopt);
     // A game object player: Player and PlayerInput, no CharacterIntent (the game's controller moves it)
     template <class T, class... C>
-    Entity spawnPlayer(const Vec3& position, uint8_t peer, C&&... initial)
+    Entity spawnPlayer(const Vec3& position, std::optional<uint8_t> peer, C&&... initial)
     {
         Player p;
-        p.peer        = peer;
-        p.characterId = nextCharacterId++;
-        return spawn<T>(position, p, PlayerInput{}, std::forward<C>(initial)...);
+        p.peer         = playerPeer(peer);
+        p.characterId  = nextCharacterId++;
+        const Entity e = spawn<T>(position, p, PlayerInput{}, std::forward<C>(initial)...);
+        ownPlayer(e, p.peer);
+        return e;
     }
-    // PlayerInput.move (shortened to length 1)
+    // PlayerInput.move (shortened to length 1), written on the owner
     void move(Entity player, const Vec3& direction);
-    // A one-shot action (world.queueAction)
+    // A one-shot action (world.queueAction on the owner: a PlayerAction message from a client)
     void input(Entity player, uint32_t action, const Vec3& aim = Vec3::Zero());
+    // fn(world, entity) on the owner's world with the owner's handle (the way a scenario writes owner-authoritative
+    // state); queued until the entity arrived on a client owner
+    void edit(Entity entity, std::function<void(World&, Entity)> fn);
     // A DamageEvent (the real path: the target's onDamage in the next step)
     void damage(Entity target, double amount, Entity source = Entity{});
     // The world's ticking policy instead of every object every step
@@ -159,8 +190,20 @@ class SAIGA_ENGINE_API ScenarioWorld
     std::string report() const;
     // Ends the scenario if it was asked to (maxSteps, stopAt); called by the helpers
     void checkAbort() const;
+    // The end of a host + client run (§17.3): network-only steps until every client applied a snapshot sent after the
+    // scenario ended and the host received the owners' final state, then the comparison of the replicas; failures
+    // are recorded. Nothing in the single-world variants. Called by the runner.
+    void finishNetwork();
 
    private:
+    uint8_t playerPeer(std::optional<uint8_t> peer) const
+    {
+        return network.enabled ? peer.value_or(1) : peer.value_or(0);
+    }
+    void ownPlayer(Entity e, uint8_t peer);
+    void stepClients();
+    void applyPending();
+    void compareReplicas();
     void attach();
     // The step observation is two listeners: the counter first (listeners see steps() including the current step) and
     // the observer last (hash, traces, stop-save and limits see the world after every scenario listener ran)
@@ -173,6 +216,20 @@ class SAIGA_ENGINE_API ScenarioWorld
 
     WorldSetup setup;
     ScenarioOptions options;
+    ScenarioNetwork network;
+    // Before the worlds: the transports outlive them
+    std::vector<std::unique_ptr<LoopbackTransport>> transports;
+    std::vector<std::unique_ptr<World>> clientWorlds;
+    std::vector<uint64_t> clientSteps;
+    uint64_t hostSteps = 0;
+    Rng asyncRng;
+    struct PendingEdit
+    {
+        Entity entity;  // the host's handle
+        uint8_t peer;
+        std::function<void(World&, Entity)> fn;
+    };
+    std::vector<PendingEdit> pendingEdits;
     std::unique_ptr<World> w;
     std::unique_ptr<WorldApi> apiPtr;
     int stepListener  = -1;         // the observer (last)
