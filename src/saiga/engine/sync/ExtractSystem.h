@@ -123,6 +123,7 @@ class SAIGA_ENGINE_API ExtractSystem
         uint64_t remoteRun    = 0;             // the commit that kept it in the remote list
         uint64_t snapStep     = ~uint64_t(0);  // the step whose Transform teleport the extract handled
         uint64_t snaps        = 0;             // the sequence number of the last snap (snapSequence)
+        bool posePending      = false;         // the instance's creation snap was not sent (setDynamic threw)
     };
     struct Staged
     {
@@ -165,6 +166,10 @@ class SAIGA_ENGINE_API ExtractSystem
     // committed pair is not yet (curr, curr) and the phase 7-8 movers the step's extract did not see. Without it a late
     // mover's pair (old, new) stays: it is in phase 6's list of the next step only
     std::vector<Entity> settle;
+    // Instances whose creation snap did not reach the sink (setDynamic threw after addDynamic): sent again by the next
+    // extract or catch-up (an idle entity would otherwise never get a pose)
+    std::vector<Entity> unposed;
+    void retryUnposed();
     bool dirty                      = false;
     uint64_t runId                  = 0;  // counts extract and catch-up runs
     uint64_t snapSeq                = 0;  // the last snap sequence number

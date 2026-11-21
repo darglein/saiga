@@ -689,6 +689,39 @@ TEST(ExtractPairs, SnapSequenceChangesOncePerTeleport)
     w.setRenderSink(nullptr);
 }
 
+// Regression (S19b review): a setDynamic that threw on an instance's creation snap (after addDynamic succeeded) left
+// the handle; the re-delivered record found it and sent nothing, so an idle entity's instance never got a pose
+TEST(ExtractPairs, FailedFirstSetDynamicIsRetried)
+{
+    World w(baseSetup());
+    ThrowingSink s;
+    w.setRenderSink(&s);
+    w.step();
+    // In a step's extract
+    const Entity a = rendered(w, "test/box", Vec3(4, 0, 0));
+    s.throwOnSet   = 1;
+    EXPECT_THROW(w.step(), std::runtime_error);
+    w.step();
+    const RecordingRenderSink::Dynamic* da = dynamicOf(w, s, a);
+    ASSERT_NE(da, nullptr);
+    EXPECT_TRUE(da->set);
+    EXPECT_NEAR(worldOf(da->chunk, da->curr).position.x(), 4, 1e-12);
+    EXPECT_EQ(s.liveDynamics(), 1u);
+    // In a catch-up (paused; the first call after the step does not run)
+    w.setPaused(true);
+    w.extract().catchUp();
+    const Entity b = rendered(w, "test/box", Vec3(6, 0, 0));
+    s.throwOnSet   = 1;
+    EXPECT_THROW(w.extract().catchUp(), std::runtime_error);
+    w.extract().catchUp();
+    const RecordingRenderSink::Dynamic* db = dynamicOf(w, s, b);
+    ASSERT_NE(db, nullptr);
+    EXPECT_TRUE(db->set);
+    EXPECT_NEAR(worldOf(db->chunk, db->curr).position.x(), 6, 1e-12);
+    EXPECT_EQ(s.liveDynamics(), 2u);
+    w.setRenderSink(nullptr);
+}
+
 TEST(ExtractPairs, AbortedStep)
 {
     World w(baseSetup());

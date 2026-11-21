@@ -1608,7 +1608,8 @@ tracks nothing and costs nothing):
   creation always sends the current pose as a snap (a spawn in phase 7 or 8 is not in `changedTransforms()`). An empty
   name, or a pose that is not valid yet, is tracked without a sink instance. A load appends removes and adds and marks
   all transforms changed, so it recreates the instances with snaps. A redelivered record (a sink that threw) is
-  tolerated (`track` of a tracked entity only syncs its instance).
+  tolerated (`track` of a tracked entity only syncs its instance); a creation snap whose `setDynamic` threw is sent
+  again (by the re-delivered record, the next extract or the next catch-up).
 - **Source**: "has `RenderPose` → `RenderPose`, else `Transform`" on every peer (the host uses `RenderPose` for
   client-owned roots; §13.3/§13.4); a child without `RenderPose` under an ancestor with one composes that `RenderPose`
   with its local chain (`LocalTransform`s, as `interpolationSystem` composes a remote child), so it stays with the

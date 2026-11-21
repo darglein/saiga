@@ -96,6 +96,8 @@ void ExtractSystem::setSink(RenderSink* sink)
         slotOf.clear();
         remote.clear();
         staged.clear();
+        settle.clear();
+        unposed.clear();
         detachConsumer();
     }
     renderSink = sink;
@@ -254,9 +256,40 @@ void ExtractSystem::syncInstance(Tracked& t)
         t.handle = renderSink->addDynamic(mesh);
         t.mesh   = mesh;
         // A creation always sends the current pose as a snap
-        t.prev = t.curr;
-        t.snap = true;
+        t.prev        = t.curr;
+        t.snap        = true;
+        t.posePending = true;
+        unposed.push_back(t.entity);
+    }
+    // The creation snap (again after a setDynamic that threw: a re-delivered record or the retry list)
+    if (t.handle && t.posePending)
+    {
         send(t);
+        t.posePending = false;
+        // Sent: off the retry list (pushed last by the creation above; a re-delivered one is skipped by the retry)
+        if (!unposed.empty() && unposed.back() == t.entity) unposed.pop_back();
+    }
+}
+
+void ExtractSystem::retryUnposed()
+{
+    std::vector<Entity> list;
+    list.swap(unposed);
+    for (size_t i = 0; i < list.size(); ++i)
+    {
+        Tracked* t = find(list[i]);
+        if (!t || !t->handle || !t->posePending) continue;
+        try
+        {
+            send(*t);
+        }
+        catch (...)
+        {
+            // The rest stays for the next run
+            unposed.insert(unposed.end(), list.begin() + std::ptrdiff_t(i), list.end());
+            throw;
+        }
+        t->posePending = false;
     }
 }
 
@@ -412,6 +445,7 @@ void ExtractSystem::run()
     if (!renderSink) return;
     runId++;
     staged.clear();
+    retryUnposed();
     // Instances are created and freed from the structural log first (creations snap at the current pose)
     consumeLog();
     const uint64_t step = w.stepIndex();
@@ -499,6 +533,8 @@ bool ExtractSystem::catchUp()
     // after the last step, e.g. a tool call after the step tool, keeps dirty set)
     const bool stepped     = committedSteps != committedAtLastCatchUp;
     committedAtLastCatchUp = committedSteps;
+    // A creation snap that did not reach the sink is sent again in any frame (it is not an edit)
+    if (!unposed.empty()) retryUnposed();
     if (!dirty && (stepped || !(w.isPaused() || w.timeScale() == 0 || w.structuralLog().unread(consumer) > 0)))
         return false;
     dirty = false;

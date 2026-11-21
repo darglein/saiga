@@ -251,7 +251,8 @@ the client only), `src/saiga/vulkan/scene/RenderScene.*` (`reserveIds`),
 - **`GameRenderHooks::groundHeight`** (§8.3's sketch) never existed in the code: not added (the benchmark reads the
   height field itself); the sketch is updated.
 - **Benchmark JSON**: `game_world --benchmark` also reports `extract` (`{median, p95}` of the measured steps' extract
-  scope, §17.7, §17.10); `cpu_ms` is measured at `beforeRender` (right before `renderFrame`; S19a: the transfer hook).
+  scope, §17.7, §17.10); `cpu_ms` is measured at `beforeRender` (right before `renderFrame`; S19a: the transfer hook);
+  `recording` stays S19a's `cpu_work_ms` and an incomplete run still fails (`WorldBenchmark::complete()`).
 - **Demos**:
   - Meshes: `samples/games/common/RenderAssets.{h,cpp}`: `meshLods(MeshData)` (one LOD; the linear vertex colors as sRGB8
     color words: the colors stay vertex colors, not one material per color), `demoMaterial()` (flat color, two-sided:
@@ -337,7 +338,7 @@ medians, ms, ranges in parentheses):
 - `data/tests/benchmarks.json` is not updated (no baseline after S18 is accepted yet).
 
 Local review (after the stage's commits; each fix with a regression test that fails without it, in
-`tests/test_engine_extract.cpp`, now 25 tests):
+`tests/test_engine_extract.cpp`, now 26 tests):
 
 1. **Late movers settle**: an entity moved in phase 7-8 got the pair (old, new) in the next step and kept it forever
    (it was in phase 6's list of that step only). The commit keeps a settle list (the entities whose committed pair is
@@ -371,6 +372,12 @@ Local review (after the stage's commits; each fix with a regression test that fa
    `UnknownNameThroughAddIsStoredEmptyAndLogged`), `ExtractSave.UnknownNameLoadsAndIsDrawnWhenRegistered` (a save with
    an unregistered name loads into a world without the mesh, one log line, a later `registerMesh` draws both entities;
    `ByNameIndependentOfRegistrationOrder` no longer expects the load error).
+7. **A failed first `setDynamic` is retried** (found by S19a's reviewer): when `setDynamic` threw on an instance's
+   creation snap after `addDynamic` succeeded, the handle stayed and the re-delivered record sent nothing, so an idle
+   entity's instance never got a pose. The creation marks the pose pending (`Tracked::posePending`, cleared once the
+   snap is sent) and keeps the entity on a retry list until then; a re-delivered record, the next step's extract or the
+   next catch-up (in any frame: not an edit) sends it. Test `ExtractPairs.FailedFirstSetDynamicIsRetried` (in a step's
+   extract and in a paused catch-up).
 
 After the fixes: `ctest --parallel 8` on lavapipe 67 of 68 (only `test_opengl_window`, no display); `test_engine_*` and
 `test_vulkan_*` on the RTX 5080 Laptop GPU with the validation layer 29 of 29 (no validation message); the goldens are
