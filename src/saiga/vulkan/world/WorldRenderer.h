@@ -119,7 +119,8 @@ class SAIGA_VULKAN_API WorldRenderer
     /**
      * The output of the shaders (from the next transfer() on): false (default) display values, clamped to [0, 1] and
      * encoded with pow(1 / 2.2) for a UNORM target (clay mode); true linear values multiplied by preExposure, only
-     * negatives clamped (RenderScene with a tone map: sceneWritesLinear(), preExposure()).
+     * negatives clamped (RenderScene with a tone map: sceneWritesLinear(), preExposure()). A direct sRGB target (e.g.
+     * the forward renderer's) encodes in hardware: setOutputLinear(true, 1) there.
      */
     void setOutputLinear(bool linear, float preExposure = 1);
 

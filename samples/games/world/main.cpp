@@ -188,10 +188,11 @@ void transfer(EngineApp& app, vk::CommandBuffer cmd)
         }
         // Recordings: the frames completed from the transfer of M1 (through W) to the transfer of Mn+1 (through Mn)
         if (frame > lastWarm && frame <= lastMeas) g.gpuFramesPending.insert(app.scene()->frames() + 1);
-        // The app's GPU samples of the measured frames (they arrive a few frames later); collected after the measured
-        // frames (not inside the timed recording), or earlier when many are pending (the app keeps 600)
+        // The app's GPU samples of the measured frames (they arrive a few frames later); collected only after the
+        // measured frames, outside of the timed recording: the app's log (kGpuLogSize = 600 + 64 frames) still holds
+        // every measured frame then, the rest arrive during the drain
         std::vector<std::pair<std::string, double>> sample;
-        const bool collect = frame > lastMeas || g.gpuFramesPending.size() > 400;
+        const bool collect = frame > lastMeas;
         for (auto it = g.gpuFramesPending.begin(); collect && it != g.gpuFramesPending.end();)
         {
             if (!app.gpuFrameSample(*it, sample))

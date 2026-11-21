@@ -153,6 +153,15 @@ void main()
     Pipeline pipeline;
 };
 
+// A headless window that can be "minimized" (a 0 x 0 framebuffer: the renderer submits no frame)
+class MinimizableWindow : public HeadlessWindow
+{
+   public:
+    using HeadlessWindow::HeadlessWindow;
+    ivec2 getFramebufferSize() override { return minimized ? ivec2(0, 0) : HeadlessWindow::getFramebufferSize(); }
+    bool minimized = false;
+};
+
 // The edge triangle of the bottom half (slanted edges with partially covered pixels)
 const vec2 edgeA(20, 124), edgeB(236, 124), edgeC(128, 70);
 // A background pixel (the clear value), a gradient pixel (value gradient(midX) = 0.253)
@@ -179,7 +188,7 @@ class VulkanScene : public ::testing::Test
         VulkanParameters vp;
         vp.enableImgui     = params.imgui;
         vp.offscreenFormat = offscreen;
-        window             = std::make_unique<HeadlessWindow>(wp);
+        window             = std::make_unique<MinimizableWindow>(wp);
         scene              = std::make_unique<RenderScene>(*window, vp, params);
         pattern.init(scene->base(), scene->formats());
     }
@@ -222,7 +231,7 @@ class VulkanScene : public ::testing::Test
         pattern.triangle(cmd, edgeA, edgeB, edgeC, pattern.push(1, bright, linear, pre));
     }
 
-    std::unique_ptr<HeadlessWindow> window;
+    std::unique_ptr<MinimizableWindow> window;
     std::unique_ptr<RenderScene> scene;
     TestPattern pattern;
     std::vector<float> preExposures;
@@ -357,6 +366,70 @@ TEST_F(VulkanScene, ExposureWithoutFlash)
             ASSERT_EQ(a(y, x), b(y, x)) << x << " " << y;
             ASSERT_EQ(a(y, x), c(y, x)) << x << " " << y;
         }
+}
+
+// Regression (CodeRabbit on S17): an exposure jump of 17 stops (1024 -> 1/128) pre-exposed with the previous exposure
+// wrote radiance 128 as 131072, beyond fp16's 65504: the first frame at the new exposure was darker than the next
+// (ACES of 0.5 instead of 1). A change by more than kMaxPreExposureChange pre-exposes with the new exposure.
+TEST_F(VulkanScene, LargeExposureChangeWithoutFlash)
+{
+    RenderSceneParameters p;
+    p.imgui       = false;
+    p.msaaSamples = 1;
+    p.toneMap     = ToneMap::Aces;
+    p.exposure    = 1024;
+    Create(p);
+    auto draw = [&](vk::CommandBuffer cmd, bool linear, float pre)
+    { pattern.rect(cmd, 0, 0, W, H, pattern.push(1, 128, linear, pre)); };
+    auto bright = Frame(draw);
+    ASSERT_EQ(bright.w, W);
+    EXPECT_EQ(int(bright(bgY, bgX)(0)), 255);
+
+    scene->setExposure(1.0f / 128);
+    preExposures.clear();
+    auto first  = Frame(draw);
+    auto second = Frame(draw);
+    ASSERT_EQ(first.w, W);
+    ASSERT_EQ(second.w, W);
+    ASSERT_EQ(preExposures.size(), 2u);
+    EXPECT_FLOAT_EQ(preExposures[0], 1.0f / 128);
+    EXPECT_FLOAT_EQ(preExposures[1], 1.0f / 128);
+    EXPECT_NEAR(int(second(bgY, bgX)(0)), acesPixel(1.0), 1);
+    EXPECT_EQ(first(bgY, bgX), second(bgY, bgX));
+    EXPECT_EQ(first(midY, midX), second(midY, midX));
+}
+
+// Regression (CodeRabbit on S17): renderFrame latched the tone map and exposure even when it submitted no frame (a
+// minimized window), so the getters described a frame that was never recorded. They are latched when a frame's
+// recording starts: the last frame's values stay while minimized, the request applies to the first frame after it.
+TEST_F(VulkanScene, LatchesOnlyRecordedFrames)
+{
+    RenderSceneParameters p;
+    p.imgui       = false;
+    p.msaaSamples = 1;
+    Create(p);
+    auto draw = [&](vk::CommandBuffer cmd, bool linear, float pre) { DrawPattern(cmd, linear, pre); };
+    ASSERT_EQ(Frame(draw).w, W);
+
+    scene->setToneMap(ToneMap::Aces);
+    scene->setExposure(2);
+    window->minimized = true;
+    bool called       = false;
+    auto transfer     = [&](vk::CommandBuffer) { called = true; };
+    EXPECT_FALSE(scene->renderFrame(transfer, [](vk::CommandBuffer) {}, nullptr));
+    EXPECT_FALSE(called);
+    EXPECT_EQ(scene->toneMap(), ToneMap::Identity);
+    EXPECT_FALSE(scene->sceneWritesLinear());
+    EXPECT_FLOAT_EQ(scene->exposure(), 1.0f);
+    EXPECT_FLOAT_EQ(scene->preExposure(), 1.0f);
+
+    window->minimized = false;
+    auto img          = Frame(draw);
+    ASSERT_EQ(img.w, W);
+    EXPECT_EQ(scene->toneMap(), ToneMap::Aces);
+    EXPECT_TRUE(scene->sceneWritesLinear());
+    EXPECT_FLOAT_EQ(scene->exposure(), 2.0f);
+    EXPECT_NEAR(int(img(midY, midX)(0)), acesPixel(2 * gradient(midX)), 1);
 }
 
 // NaN, +inf and negative samples give black, white and black pixels (sanitized in the resolve and in post) and do not

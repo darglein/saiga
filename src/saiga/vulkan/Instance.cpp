@@ -111,7 +111,8 @@ int Instance::deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface)
                                         vk::PhysicalDeviceVulkan13Features>();
     auto& f12     = features.get<vk::PhysicalDeviceVulkan12Features>();
     auto& f13     = features.get<vk::PhysicalDeviceVulkan13Features>();
-    if (!f12.timelineSemaphore || !f13.dynamicRendering || !f13.synchronization2 || !f13.shaderDemoteToHelperInvocation)
+    if (!f12.timelineSemaphore || !f13.dynamicRendering || !f13.synchronization2 ||
+        !f13.shaderDemoteToHelperInvocation || !f13.maintenance4)
         return -1;
 
     // The main queue (see VulkanBase::createLogicalDevice) needs graphics + compute and must be able to present.
@@ -202,10 +203,10 @@ vk::PhysicalDevice Instance::pickPhysicalDevice(vk::SurfaceKHR surface, int pref
 
     if (selected < 0)
     {
-        SAIGA_EXIT_ERROR(
-            "Could not find a suitable Vulkan device. Saiga requires Vulkan " +
-            versionString(SAIGA_VULKAN_API_VERSION) +
-            " with dynamic rendering, synchronization2, timeline semaphores and shaderDemoteToHelperInvocation.");
+        SAIGA_EXIT_ERROR("Could not find a suitable Vulkan device. Saiga requires Vulkan " +
+                         versionString(SAIGA_VULKAN_API_VERSION) +
+                         " with dynamic rendering, synchronization2, timeline semaphores, "
+                         "shaderDemoteToHelperInvocation and maintenance4.");
     }
 
     std::cout << "Selected Vulkan Device [" << selected

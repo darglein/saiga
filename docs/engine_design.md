@@ -1263,7 +1263,8 @@ vk::Format colorFormat() const;        // the output (swap chain / offscreen ima
 void setToneMap(ToneMap); void setExposure(float);       // from the next frame (latched at renderFrame's start)
 ToneMap toneMap() const; float exposure() const;         // the latched values (exposure 1 with Identity)
 bool sceneWritesLinear() const;        // toneMap() != Identity
-float preExposure() const;             // the previous frame's effective exposure (1 after Identity)
+float preExposure() const;             // the previous frame's effective exposure (1 after Identity; this frame's after
+                                       // a change by more than a factor of 16)
 void requestScreenshot(VulkanRenderer::ScreenshotCallback); void setImguiVisible(bool);
 bool takeGpuFrameTimes(FrameTimes&); static const std::vector<const char*>& gpuSectionNames();
 ```
@@ -1418,17 +1419,19 @@ The buffers do not preclude Hi-Z occlusion culling against the previous frame's 
 
 ### 10.5 Frame structure and post-processing [exists: S17 (HDR frame); planned: S19 (passes), S37 (post chain)]
 
-- **Frame** [exists: S17]: `RenderScene` renders the scene into an HDR target (R16G16B16A16 float, MSAA per quality
-  tier, reversed-Z D32), resolves it, composites the tone-mapped result into the swap chain image (or offscreen image),
-  then ImGui and the game UI draw on top (single-sampled, in the same pass as post). Frame synchronization (frames in
-  flight, timeline semaphore, deferred deletion) reuses `VulkanBase`; the HDR targets are shared by the frames in flight
-  (sync2 barriers at the frame start and after the scene pass). GPU sections `transfer`, `scene` (with the hardware
-  resolve), `resolve` (the custom resolve), `post`, `imgui`, written every frame. Post sanitizes (NaN -> 0, clamp to
-  [0, 65504]), applies `exposure / preExposure`, the tone map (ACES: the Narkowicz fit) and the output transfer (the
-  piecewise sRGB curve for UNORM targets; linear for sRGB targets, which encode in hardware); in clay mode it copies the
-  display values clamped (decoded first on an sRGB target).
-- **Pre-exposure** [exists: S17, §10.1]: shaders write radiance multiplied by the previous frame's exposure (half floats
-  end at 65504; the sun disc is clamped); exposure is applied before tone mapping.
+- **Frame** [exists: S17]: `RenderScene` renders the scene into an HDR target (R16G16B16A16 float, MSAA with
+  `RenderSceneParameters::msaaSamples` clamped to the device's counts (by quality tier: S37), reversed-Z D32), resolves
+  it, composites the tone-mapped result into the swap chain image (or offscreen image), then ImGui and the game UI draw
+  on top (single-sampled, in the same pass as post). Frame synchronization (frames in flight, timeline semaphore,
+  deferred deletion) reuses `VulkanBase`; the HDR targets are shared by the frames in flight (sync2 barriers at the
+  frame start and after the scene pass). GPU sections `transfer`, `scene` (with the hardware resolve), `resolve` (the
+  custom resolve), `post`, `imgui` (with the store of the output image), written every frame. Post sanitizes (NaN -> 0,
+  clamp to [0, 65504]), applies `exposure / preExposure`, the tone map (ACES: the Narkowicz fit) and the output transfer
+  (the piecewise sRGB curve for UNORM targets; linear for sRGB targets, which encode in hardware); in clay mode it
+  copies the display values clamped (decoded first on an sRGB target).
+- **Pre-exposure** [exists: S17, §10.1]: shaders write radiance multiplied by the previous frame's exposure, or by this
+  frame's when the exposure changed by more than a factor of 16 (half floats end at 65504, small values lose precision;
+  the sun disc is clamped); exposure is applied before tone mapping.
 - **Pass order** (stage in brackets; the pass exists from then on, the list is the target order):
   1. shadow maps (cascades, far terrain horizon map, local light atlas; cached, §10.7) [S36]
   2. depth pre-pass (opaque and alpha-tested) [S19]
@@ -2533,8 +2536,8 @@ Counts compared across implementations (GPU vs CPU reference, S19 vs prototype) 
   (used by S19). The counts gate only on lavapipe like the images (the placement uses std random distributions and float
   comparisons: other standard libraries, compilers or drivers may differ by a few trees).
 - Since S17 the S02 goldens are rendered through `RenderScene` (clay mode: identity tone map, hardware average resolve;
-  `imgui = false`, 4 samples, one render per golden); they pass unchanged (max 1/255 on lavapipe: rounding after instead
-  of before the average).
+  `imgui = false`, 4 samples, one capture per golden, on the fifth frame); they pass unchanged (max 1/255 on lavapipe:
+  rounding after instead of before the average).
 - `hdr_tonemap` (S17, `VulkanScene.AcesGolden` in `tests/test_vulkan_scene.cpp`, 256 x 128): ACES, 4 samples, an
   exponential HDR gradient (16 / 4096 .. 16, 12 stops) in the top half and a bright (16) triangle with slanted MSAA
   edges on a dark clear color in the bottom half; it pins the tone map, the sRGB output curve and the weighted resolve.

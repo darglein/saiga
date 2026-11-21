@@ -174,7 +174,9 @@ class SceneFrameRenderer : public VulkanRenderer
 
 void SceneFrameRenderer::render(const FrameInfo& frame)
 {
-    RenderScene& s       = scene;
+    RenderScene& s = scene;
+    // An acquired frame: latched before any callback (a renderFrame call without a frame keeps the last frame's values)
+    s.latchFrame();
     const bool msaa      = samples != vk::SampleCountFlagBits::e1;
     const bool linear    = s.sceneWritesLinear();
     const bool custom    = msaa && linear;  // the tone-map weighted resolve (Identity: the hardware average)
@@ -362,8 +364,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
 
         timings.enterSection("imgui", cmd);
         if (drawImgui) imGui->render(cmd, frame.frameIndex);
-        timings.leaveSection("imgui", cmd);
         cmd.endRendering();
+        // After the end of the pass: the frame's last section also covers the store of the output image
+        timings.leaveSection("imgui", cmd);
     }
 
     // The layouts after this frame (Texture tracks them)
@@ -394,8 +397,7 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     vp.enableImgui      = parameters.imgui;
     renderer            = std::make_unique<SceneFrameRenderer>(*this, window, vp);
     // The values the first frame latches (the game's init may read them)
-    frameToneMap  = params.toneMap;
-    frameExposure = params.toneMap == ToneMap::Identity ? 1.0f : params.exposure;
+    latchFrame();
 }
 
 RenderScene::~RenderScene()
@@ -405,12 +407,6 @@ RenderScene::~RenderScene()
 
 bool RenderScene::renderFrame(const Callback& transferCb, const Callback& renderCb, const std::function<void()>& gui)
 {
-    // Latched once, before any callback (setters apply from the next frame)
-    frameToneMap  = params.toneMap;
-    frameExposure = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
-    // Clay mode ignores exposure: its pre-exposure is 1 (not the last ACES frame's)
-    framePreExposure = frameToneMap == ToneMap::Identity ? 1.0f : lastExposure;
-
     transferFn              = &transferCb;
     renderFn                = &renderCb;
     guiFn                   = &gui;
@@ -433,6 +429,18 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     submittedFrames.push_back({timeline, frameCount});
     if (submittedFrames.size() > 32) submittedFrames.pop_front();
     return true;
+}
+
+void RenderScene::latchFrame()
+{
+    // Once per recorded frame, before any callback (setters apply from the next frame)
+    frameToneMap  = params.toneMap;
+    frameExposure = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
+    // The previous frame's exposure; this frame's after a change by more than kMaxPreExposureChange (fp16: the scaled
+    // values would clip at 65504 or lose precision, a one-frame flash). Clay mode ignores exposure: 1.
+    float pre = lastExposure;
+    if (frameExposure > pre * kMaxPreExposureChange || frameExposure * kMaxPreExposureChange < pre) pre = frameExposure;
+    framePreExposure = frameToneMap == ToneMap::Identity ? 1.0f : pre;
 }
 
 RenderingFormats RenderScene::formats() const

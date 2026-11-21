@@ -50,7 +50,7 @@ class SAIGA_VULKAN_API RenderScene
     using Callback = std::function<void(vk::CommandBuffer)>;
     // Records and submits one frame: transfer (uploads), render (inside the scene pass), gui (ImGui calls). False if no
     // frame was submitted (a minimized window, an out-of-date swap chain that is recreated). The tone map, exposure and
-    // pre-exposure are latched at the start, before any callback.
+    // pre-exposure are latched when the frame's recording starts, before any callback (not without a frame).
     bool renderFrame(const Callback& transfer, const Callback& render, const std::function<void()>& gui);
 
     // The scene pass (the HDR color format, D32 depth, the sample count): the game's pipelines use it
@@ -85,8 +85,10 @@ class SAIGA_VULKAN_API RenderScene
     float exposure() const { return frameExposure; }
     // toneMap() != Identity: the scene shaders write linear values multiplied by preExposure()
     bool sceneWritesLinear() const { return frameToneMap != ToneMap::Identity; }
-    // The exposure the scene pass of this frame writes with: the previous frame's effective exposure (1 after Identity)
+    // The exposure the scene pass of this frame writes with: the previous frame's effective exposure (1 after
+    // Identity), or this frame's if it changed by more than a factor of kMaxPreExposureChange (fp16 range)
     float preExposure() const { return framePreExposure; }
+    static constexpr float kMaxPreExposureChange = 16;
 
     // The GPU times of the oldest completed frame not yet taken (2-3 frames after it was rendered); false if none
     bool takeGpuFrameTimes(FrameTimes& out);
@@ -98,6 +100,7 @@ class SAIGA_VULKAN_API RenderScene
 
    private:
     friend class SceneFrameRenderer;
+    void latchFrame();
     RenderSceneParameters params;
     ToneMap frameToneMap   = ToneMap::Identity;
     float frameExposure    = 1;

@@ -6,6 +6,8 @@
 
 #include "saiga/vulkan/Shader/GLSL.h"
 #include "saiga/vulkan/Shader/ShaderPipeline.h"
+#include "saiga/vulkan/buffer/Buffer.h"
+#include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 
 #include <filesystem>
@@ -221,4 +223,68 @@ void main()
     renderer->waitIdle();
     app = VulkanTestApp();
     pipeline.destroy();
+}
+
+// Regression (CodeRabbit on S17): with SPIR-V 1.6 glslang compiles local_size_x_id (a specialized workgroup size) to
+// the execution mode LocalSizeId, which needs the maintenance4 feature; the device did not enable it (a validation
+// error at pipeline creation, the layer aborts). The pipeline is created and dispatched with the default size 4.
+TEST_F(VulkanShader, LocalSizeIdPipeline)
+{
+    static const std::string comp = R"(#version 450
+layout(local_size_x = 4, local_size_x_id = 0) in;
+layout(set = 0, binding = 0) buffer Numbers { uint numbers[]; };
+void main()
+{
+    numbers[gl_GlobalInvocationID.x] = gl_GlobalInvocationID.x + 1;
+}
+)";
+    auto spirv                    = Vulkan::GLSLANG::createFromString(comp, vk::ShaderStageFlagBits::eCompute);
+    ASSERT_GE(spirv.size(), 2u);
+    // OpExecutionModeId (opcode 331) with LocalSizeId (38)
+    bool localSizeId = false;
+    for (size_t i = 5; i < spirv.size();)
+    {
+        const uint32_t op = spirv[i] & 0xffff, words = spirv[i] >> 16;
+        localSizeId |= op == 331 && words >= 3 && spirv[i + 2] == 38;
+        i += words > 0 ? words : 1;
+    }
+    EXPECT_TRUE(localSizeId);
+
+    std::vector<uint32_t> data(8, 0);
+    const size_t size = data.size() * sizeof(uint32_t);
+    Vulkan::Buffer storageBuffer;
+    storageBuffer.createBuffer(base(), size, vk::BufferUsageFlagBits::eStorageBuffer,
+                               vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    storageBuffer.upload(data.data(), size);
+
+    Vulkan::ComputePipeline pipeline;
+    pipeline.init(base(), 1);
+    pipeline.addDescriptorSetLayout(
+        {{0, {0, vk::DescriptorType::eStorageBuffer, 1, vk::ShaderStageFlagBits::eCompute}}});
+    ASSERT_TRUE(pipeline.shaderPipeline.loadGLSLStrings(base().device, {{vk::ShaderStageFlagBits::eCompute, comp}}));
+    pipeline.create();
+    auto set        = pipeline.createDescriptorSet();
+    auto bufferInfo = storageBuffer.createInfo();
+    base().device.updateDescriptorSets(
+        {vk::WriteDescriptorSet(set, 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &bufferInfo, nullptr)},
+        nullptr);
+
+    bool bound = false;
+    Submit(
+        [&](vk::CommandBuffer cmd)
+        {
+            bound = pipeline.bind(cmd);
+            if (!bound) return;
+            pipeline.bindDescriptorSet(cmd, set);
+            cmd.dispatch(2, 1, 1);
+            vk::MemoryBarrier2 toHost(vk::PipelineStageFlagBits2::eComputeShader,
+                                      vk::AccessFlagBits2::eShaderStorageWrite, vk::PipelineStageFlagBits2::eHost,
+                                      vk::AccessFlagBits2::eHostRead);
+            cmd.pipelineBarrier2(vk::DependencyInfo({}, toHost, nullptr, nullptr));
+        });
+    ASSERT_TRUE(bound);
+    storageBuffer.download(data.data(), size);
+    for (uint32_t i = 0; i < data.size(); ++i) EXPECT_EQ(data[i], i + 1) << i;
+    pipeline.destroy();
+    storageBuffer.destroy();
 }

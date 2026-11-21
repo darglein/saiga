@@ -258,6 +258,12 @@ updated), `docs/engine_design.md`, `AGENTS.md`, this file.
   `.EveryStageFileCompiles`, `.DiscardPipeline`, which also checks that the SPIR-V has `OpDemoteToHelperInvocation`
   and no `OpKill`); the frame tests in `tests/test_vulkan_scene.cpp` (`VulkanScene.*`); `VulkanWorldGolden` is its own
   fixture inside `tests/test_vulkan_world.cpp`.
+- **Review (CodeRabbit)**: the tone map, exposure and pre-exposure are latched when a frame's recording starts (a
+  `renderFrame` without a frame, e.g. minimized, keeps the last frame's values); an exposure change by more than a
+  factor of 16 (`RenderScene::kMaxPreExposureChange`) pre-exposes with the new exposure (fp16 would clip or lose
+  precision for one frame); the `imgui` section ends after the pass, so the whole frame covers the output store; the
+  device enables `maintenance4` (SPIR-V 1.6 compiles `local_size_x_id` to `LocalSizeId`); the benchmark collects the GPU
+  samples only after the measured frames.
 - **Tried and rejected**: submitting the scene and resolve without waiting for the swap chain image (a second submit for
   post + ImGui that waits for `imageAvailable`) made both benchmarks slower and noisier (forest frame interval 2.15-2.89
   ms), so the frame stays one submit as in the forward renderer.
