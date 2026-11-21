@@ -2,6 +2,8 @@
 
 #ifdef SAIGA_USE_LIBTIFF
 
+#    include "saiga/core/util/long_path.h"
+
 #    include "tiffio.h"
 #    include "tiffio.hxx"
 
@@ -183,7 +185,7 @@ bool loadImageLibTiff(const std::filesystem::path& path, Image& img)
     TIFFSetWarningHandlerExt(nullptr);
 
 #    ifdef _WIN32
-    ScopedTiff tif(TIFFOpenW(path.c_str(), "r"));
+    ScopedTiff tif(TIFFOpenW(os_path(path).c_str(), "r"));
 #    else
     ScopedTiff tif(TIFFOpen(path.c_str(), "r"));
 #    endif
@@ -203,7 +205,7 @@ bool saveImageLibTiff(const std::filesystem::path& path, const Image& img)
     TIFFSetWarningHandlerExt(nullptr);
 
 #    ifdef _WIN32
-    ScopedTiff scoped_tif(TIFFOpenW(path.c_str(), "w"));
+    ScopedTiff scoped_tif(TIFFOpenW(os_path(path).c_str(), "w"));
 #    else
     ScopedTiff scoped_tif(TIFFOpen(path.c_str(), "w"));
 #    endif

@@ -2,6 +2,8 @@
 
 #if defined(SAIGA_USE_LIBZIP)
 
+#    include "saiga/core/util/long_path.h"
+
 #    include <algorithm>
 #    include <iostream>
 #    include <utility>
@@ -28,7 +30,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     if (mode == ZipMode::Write)
     {
         std::error_code ec;
-        std::filesystem::remove(path, ec);
+        std::filesystem::remove(os_path(path), ec);
         // ZIP_CREATE: Create if it doesn't exist
         // ZIP_TRUNCATE: Wipe existing contents
         flag = ZIP_CREATE | ZIP_TRUNCATE;
@@ -45,7 +47,7 @@ ZipArchive::ZipArchive(const std::filesystem::path& path, ZipMode mode)
     }
 
     int error = 0;
-    archive   = zip_open(path.u8string().c_str(), flag, &error);
+    archive   = zip_open(os_path(path).u8string().c_str(), flag, &error);
     if (!archive)
     {
         last_error_message = print_error("ZIP: Failed to open or create archive.", error);
@@ -395,7 +397,7 @@ bool ZipArchive::add_file(const std::filesystem::path& filename, const std::file
         return false;
     }
 
-    zip_source_t* source = zip_source_file(archive, file_to_add.u8string().c_str(), 0, 0);
+    zip_source_t* source = zip_source_file(archive, os_path(file_to_add).u8string().c_str(), 0, 0);
     if (!source)
     {
         last_error_message = zip_strerror(archive);
@@ -418,7 +420,9 @@ bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::
                             ZipCompressionMethod method)
 {
     std::error_code ec;
-    std::filesystem::recursive_directory_iterator it(folder_to_add, ec);
+    // The entries below a short folder can be too long for MAX_PATH.
+    const auto root = os_path(folder_to_add, LongPathPrefix::Always);
+    std::filesystem::recursive_directory_iterator it(root, ec);
     if (ec)
     {
         last_error_message = "Failed to iterate " + folder_to_add.u8string() + ": " + ec.message();
@@ -430,7 +434,7 @@ bool ZipArchive::add_folder(const std::filesystem::path& foldername, const std::
         if (!entry.is_regular_file(ec)) continue;
 
         // relative() would resolve symlinks and could produce '../' paths that escape the folder inside the archive.
-        auto relative_path = entry.path().lexically_relative(folder_to_add);
+        auto relative_path = entry.path().lexically_relative(root);
 
         if (!add_file(foldername / relative_path, entry.path(), method))
         {

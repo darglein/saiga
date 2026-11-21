@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "saiga/core/image/stb_image.h"
+#include "saiga/core/util/long_path.h"
 #include "saiga/core/util/string_to_path.h"
 #include <fstream>
 
@@ -12,7 +13,7 @@ bool loadImageSTB(const std::filesystem::path& path, Image& img)
 {
     // Handle unicode paths
 #ifdef _WIN32
-    FILE* file = _wfopen(path.c_str(), L"rb");
+    FILE* file = _wfopen(os_path(path).c_str(), L"rb");
 #else
     FILE* file = fopen(path.c_str(), "rb");
 #endif

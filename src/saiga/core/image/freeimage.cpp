@@ -7,6 +7,7 @@
 #include "freeimage.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/long_path.h"
 #include "saiga/core/util/string_to_path.h"
 
 #ifdef SAIGA_USE_FREEIMAGE
@@ -192,9 +193,16 @@ std::vector<unsigned char> saveToMemory(const Image& img, std::string file_exten
 #    endif
 std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::filesystem::path& file, ImageLoadFlags flags)
 {
+#    ifdef _WIN32
+    // The wide functions take paths with the \\?\ prefix and file names outside the ANSI code page.
+    const std::filesystem::path path = os_path(file);
+    FREE_IMAGE_FORMAT format         = FreeImage_GetFIFFromFilenameU(path.c_str());
+    FIBITMAP* bm                     = FreeImage_LoadU(format, path.c_str(), JPEG_EXIFROTATE | JPEG_ACCURATE);
+#    else
     std::string path         = path_to_string(file);
     FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
     FIBITMAP* bm             = FreeImage_Load(format, path.c_str(), JPEG_EXIFROTATE | JPEG_ACCURATE);
+#    endif
     if (bm == nullptr)
     {
         return {};
@@ -300,8 +308,12 @@ std::optional<Image> ImageIOLibFreeimage::LoadFromFile(const std::filesystem::pa
 
 bool ImageIOLibFreeimage::Save2File(const std::filesystem::path& file, const Image& img, ImageSaveFlags flags)
 {
+#    ifdef _WIN32
+    const std::filesystem::path path = os_path(file);
+#    else
     std::string path = path_to_string(file);
-    Image src        = img;
+#    endif
+    Image src = img;
 #    if FREEIMAGE_COLORORDER == FREEIMAGE_COLORORDER_BGR
     if (src.type == UC3)
     {
@@ -316,7 +328,11 @@ bool ImageIOLibFreeimage::Save2File(const std::filesystem::path& file, const Ima
 #    endif
 
     // fipImage is not const to ensure compatibility with version 3.18.0 of freeimage
+#    ifdef _WIN32
+    FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilenameU(path.c_str());
+#    else
     FREE_IMAGE_FORMAT format = FreeImage_GetFIFFromFilename(path.c_str());
+#    endif
     int bpp                  = bitsPerPixel(src.type);
     FREE_IMAGE_TYPE type     = FIType(src.type);
     if (format == FIF_UNKNOWN)
@@ -339,7 +355,11 @@ bool ImageIOLibFreeimage::Save2File(const std::filesystem::path& file, const Ima
     }
 
 
+#    ifdef _WIN32
+    bool ret = FreeImage_SaveU(format, bm, path.c_str());
+#    else
     bool ret = FreeImage_Save(format, bm, path.c_str());
+#    endif
     FreeImage_Unload(bm);
     return ret;
 }

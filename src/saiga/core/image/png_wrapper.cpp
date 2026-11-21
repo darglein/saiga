@@ -7,6 +7,7 @@
 #include "png_wrapper.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/long_path.h"
 
 #include <cmath>
 #include <cstring>
@@ -98,7 +99,7 @@ struct ScopedFile
 #    ifdef WIN32
         // Minor fix: _wfopen expects a wide string mode too
         std::wstring wmode(mode, mode + strlen(mode));
-        fp = _wfopen(path.c_str(), wmode.c_str());
+        fp = _wfopen(os_path(path).c_str(), wmode.c_str());
 #    else
         fp = fopen(path.c_str(), mode);
 #    endif

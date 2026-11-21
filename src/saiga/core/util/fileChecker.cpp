@@ -9,6 +9,7 @@
 
 #include "saiga/core/util/FileSystem.h"
 #include "saiga/core/util/directory.h"
+#include "saiga/core/util/long_path.h"
 #include "saiga/core/util/string_to_path.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -73,10 +74,10 @@ void FileChecker::getFiles(std::vector<std::string>& out, const std::string& pre
     {
         std::filesystem::path dir = path / string_to_path(predir);
         std::error_code ec;
-        if (!isAllowed(dir) || !std::filesystem::is_directory(dir, ec)) continue;
+        if (!isAllowed(dir) || !std::filesystem::is_directory(os_path(dir), ec)) continue;
 
         // The default search pathes "" and "." both point to the working directory.
-        auto canonical = std::filesystem::weakly_canonical(dir, ec);
+        auto canonical = std::filesystem::weakly_canonical(os_path(dir), ec);
         if (ec) continue;
         if (std::find(visited.begin(), visited.end(), canonical) != visited.end()) continue;
         visited.push_back(canonical);
@@ -118,7 +119,7 @@ bool FileChecker::existsFile(const std::filesystem::path& file)
 {
     try
     {
-        return std::filesystem::exists(file);
+        return std::filesystem::exists(os_path(file));
     }
     catch (std::filesystem::filesystem_error& e)
     {

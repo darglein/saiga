@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/color.h"
 #include "saiga/core/util/fileChecker.h"
+#include "saiga/core/util/long_path.h"
 
 #include "internal/noGraphicsAPI.h"
 
@@ -20,7 +21,7 @@ namespace Saiga
 PLYLoader::PLYLoader(const std::string& _file)
 {
     auto file = SearchPathes::model(_file);
-    std::ifstream stream(file, std::ios::binary);
+    std::ifstream stream(os_path(file), std::ios::binary);
 
     if (!stream.is_open())
     {

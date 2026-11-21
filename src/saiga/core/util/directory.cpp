@@ -7,6 +7,7 @@
 #include "saiga/core/util/directory.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/core/util/long_path.h"
 #include "saiga/core/util/tostring.h"
 
 #include "internal/noGraphicsAPI.h"
@@ -31,7 +32,7 @@ std::vector<std::filesystem::path> Directory::getFiles()
 {
     std::vector<std::filesystem::path> out;
 
-    for (auto& it : std::filesystem::directory_iterator(dirname))
+    for (auto& it : std::filesystem::directory_iterator(os_path(dirname)))
     {
         // relative() would resolve symlinks and return the path of the link target instead of the entry name.
         std::error_code ec;
@@ -65,7 +66,7 @@ std::vector<std::filesystem::path> Directory::getDirectories()
 {
     std::vector<std::filesystem::path> out;
 
-    for (auto& it : std::filesystem::directory_iterator(dirname))
+    for (auto& it : std::filesystem::directory_iterator(os_path(dirname)))
     {
         std::error_code ec;
         if (it.is_directory(ec))

@@ -9,6 +9,7 @@
 #include "saiga/core/util/BinaryFile.h"
 #include "saiga/core/util/assert.h"
 #include "saiga/core/util/file.h"
+#include "saiga/core/util/long_path.h"
 #include "saiga/core/util/zlib.h"
 
 // for the load and save function
@@ -447,7 +448,7 @@ bool Image::saveRaw(const std::filesystem::path& path, bool do_compress) const
         stream.write((char*)rowPtr(i), width * es);
     }
 
-    std::ofstream is(path, std::ios::binary | std::ios::out);
+    std::ofstream is(os_path(path), std::ios::binary | std::ios::out);
 #ifdef SAIGA_USE_ZLIB
     if (do_compress)
     {
