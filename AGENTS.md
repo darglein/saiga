@@ -135,10 +135,10 @@ submodules/             Vendored git submodules: eigen, glog, googletest, glfw, 
 .mcp.json               MCP server "saiga-world" (http://127.0.0.1:8765/mcp) of the running game_world
 scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects from the main checkout)
 .github/workflows/tests.yml The CI: Ubuntu 24.04 with GCC and with Clang, CPU-only build (OpenGL on Mesa llvmpipe, Vulkan on
-                        Mesa lavapipe) + ctest; Windows MSVC (shared libraries, Core + Vulkan + Engine, no samples;
+                        Mesa lavapipe) + ctest; Windows MSVC (Ninja + ccache, shared libraries, Core + Vulkan + Engine, no samples;
                         OpenGL and Vision are not built there; the Vulkan tests skip without a driver) + ctest. The
                         Ubuntu jobs fail on any skipped gtest case; the Clang job also builds the samples (incl. the
-                        tech demo games, not run)
+                        tech demo games, not run). Changes of only docs/ and Markdown files skip it
 travis/, .travis.yml    Legacy Travis CI — unused
 ```
 
