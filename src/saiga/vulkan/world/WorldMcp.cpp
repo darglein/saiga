@@ -39,16 +39,6 @@ bool finiteClamped(const Json& j, double limit, float& out)
     return true;
 }
 
-bool fromJson(const Json& j, vec3& v, double limit)
-{
-    if (!j.is_array() || j.array_items().size() != 3) return false;
-    for (int i = 0; i < 3; ++i)
-    {
-        if (!finiteClamped(j[i], limit, v(i))) return false;
-    }
-    return true;
-}
-
 // Reads the optional number argument name into out. Returns false (and responds with an error) if it is present but
 // not a finite number.
 bool optionalNumber(const Json& args, const char* name, double limit, float& out, const McpServer::Respond& respond)

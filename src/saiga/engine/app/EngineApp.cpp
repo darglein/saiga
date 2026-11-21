@@ -1257,7 +1257,7 @@ void EngineApp::statisticsWindow()
     const bool vsync                    = renderScene && renderScene->vsync();
     const Verdict verdict               = statisticsVerdict();
     const double period                 = verdict.period;
-    char text[240];
+    char text[512];
 
     // ------------------------------------------------------------------------------------ What limits the frame rate
     coloredText(verdict.warn ? kWarnColor : kWhite, verdict.text.c_str());

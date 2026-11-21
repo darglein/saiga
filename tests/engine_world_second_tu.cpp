@@ -16,9 +16,9 @@ namespace
 {
 struct HitEvent
 {
-    static constexpr const char* name = "HitEvent";
-    static constexpr EventId id       = EventId(64);
-    static constexpr uint32_t version = 1;
+    static constexpr const char* name                  = "HitEvent";
+    static constexpr EventId id                        = EventId(64);
+    [[maybe_unused]] static constexpr uint32_t version = 1;
     Entity target;
     double amount = 0;
     template <class V>

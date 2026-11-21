@@ -76,9 +76,10 @@ TEST(Varint, RoundTripAndRejects)
     uint64_t r = 0;
     const std::vector<uint8_t> overlong(11, 0x80);
     EXPECT_FALSE(readVarint(overlong.data(), overlong.size(), pos, r));
-    std::vector<uint8_t> overflow(9, 0xFF);
-    overflow.push_back(0x02);  // more than 64 bits
-    pos = 0;
+    // Nine 0xFF bytes and 0x02: more than 64 bits (written without push_back, which GCC 15 flags with -Warray-bounds)
+    std::vector<uint8_t> overflow(10, 0xFF);
+    overflow.back() = 0x02;
+    pos             = 0;
     EXPECT_FALSE(readVarint(overflow.data(), overflow.size(), pos, r));
     const std::vector<uint8_t> nonMinimal{0x80, 0x00};
     pos = 0;
@@ -746,8 +747,7 @@ TEST(Messages, AbortedStepKeepsTheUnhandledRest)
 
 namespace
 {
-int g_throwInPhase         = 0;
-Transport* g_sendTransport = nullptr;
+int g_throwInPhase = 0;
 void sendInBehaviour(World& w, double)
 {
     if (g_throwInPhase == 2) throw std::runtime_error("behaviour failed");

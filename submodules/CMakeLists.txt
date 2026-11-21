@@ -79,6 +79,8 @@ set(ZSTD_BUILD_SHARED OFF CACHE INTERNAL "")
 set(ZSTD_BUILD_STATIC ON CACHE INTERNAL "")
 set(ZSTD_BUILD_PROGRAMS OFF CACHE INTERNAL "")
 set(ZSTD_BUILD_TESTS OFF CACHE INTERNAL "")
+# No decoder for the frame formats before zstd 0.8 (2016); saiga never wrote them (and lib/legacy/ warns with GCC)
+set(ZSTD_LEGACY_SUPPORT OFF CACHE INTERNAL "")
 set(BUILD_SHARED_LIBS OFF)
 add_subdirectory(zstd/build/cmake/)
 

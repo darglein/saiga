@@ -112,7 +112,10 @@ class OpenGLWindowTest : public ::testing::Test
     void TearDown() override
     {
         // As the OpenGLTest fixture: a test must not leave a GL error behind.
-        if (app) EXPECT_EQ(glGetError(), GL_NO_ERROR);
+        if (app)
+        {
+            EXPECT_EQ(glGetError(), GL_NO_ERROR);
+        }
         app.reset();
     }
 

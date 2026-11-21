@@ -167,10 +167,10 @@ struct RenderThing
 // Kept Health's ID by mistake (never registered)
 struct CopiedHealthId
 {
-    static constexpr const char* name = "Mana";
-    static constexpr ComponentId id   = ComponentId(TestComponent::Health);
-    static constexpr uint32_t version = 1;
-    double mana                       = 0;
+    static constexpr const char* name                  = "Mana";
+    static constexpr ComponentId id                    = ComponentId(TestComponent::Health);
+    [[maybe_unused]] static constexpr uint32_t version = 1;
+    double mana                                        = 0;
     template <class V>
     void visit(V& v)
     {
@@ -181,9 +181,9 @@ struct CopiedHealthId
 // Health's name, ID and size, but another C++ type (never registered)
 struct HealthLookalike
 {
-    static constexpr const char* name = "Health";
-    static constexpr ComponentId id   = ComponentId(TestComponent::Health);
-    static constexpr uint32_t version = 1;
+    static constexpr const char* name                  = "Health";
+    static constexpr ComponentId id                    = ComponentId(TestComponent::Health);
+    [[maybe_unused]] static constexpr uint32_t version = 1;
     double a = 0, b = 0;
     template <class V>
     void visit(V& v)

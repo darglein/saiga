@@ -45,6 +45,8 @@ jobs:
       # The OpenGL tests run headless on an EGL context from Mesa's software renderer (llvmpipe), the Vulkan tests
       # on Mesa's software driver (lavapipe) with the validation layer.
       # SAIGA_WRITE_PROJECT_DIR_TO_HEADER lets the tests find shader/ and data/ from the build dir.
+      # SAIGA_WARNINGS_AS_ERRORS: a compiler or linker warning in the saiga code (not the submodules) fails the build, in
+      # all three jobs.
       - name: Configure
         run: |
           cmake -S . -B build -G Ninja \
@@ -56,7 +58,8 @@ jobs:
             -DSAIGA_MODULE_VULKAN=ON \
             -DSAIGA_BUILD_SAMPLES=OFF \
             -DSAIGA_ARCHNATIVE=OFF \
-            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON \
+            -DSAIGA_WARNINGS_AS_ERRORS=ON
 
       # A missing dependency silently disables a module, so check that Vulkan is really built.
       - name: Check enabled modules
@@ -151,7 +154,8 @@ jobs:
             -DSAIGA_MODULE_VULKAN=ON \
             -DSAIGA_BUILD_SAMPLES=ON \
             -DSAIGA_ARCHNATIVE=OFF \
-            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+            -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON \
+            -DSAIGA_WARNINGS_AS_ERRORS=ON
 
       - name: Check enabled modules
         run: |
@@ -235,6 +239,7 @@ jobs:
           -DSAIGA_BUILD_SAMPLES=OFF
           -DSAIGA_ARCHNATIVE=OFF
           -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON
+          -DSAIGA_WARNINGS_AS_ERRORS=ON
           -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="${{ github.workspace }}/build/bin"
 
       - name: Check enabled modules

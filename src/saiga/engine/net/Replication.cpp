@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <zstd.h>
 
 namespace Saiga
@@ -1131,9 +1132,9 @@ void Replication::onOwnerState(uint8_t from, const uint8_t* data, size_t size)
         }
         for (const ComponentBytes& c : rec.components)
         {
-            if (c.id >= kMaxComponents || !reg.registered(c.id) ||
-                reg.componentInfo(c.id).replicate != Replicate::OwnerAuthoritative)
-                continue;
+            // Every ComponentId is below kMaxComponents (the id type has no larger values)
+            static_assert(size_t(std::numeric_limits<ComponentId>::max()) < kMaxComponents);
+            if (!reg.registered(c.id) || reg.componentInfo(c.id).replicate != Replicate::OwnerAuthoritative) continue;
             if (c.id == Transform::id)
             {
                 if (root != e) continue;

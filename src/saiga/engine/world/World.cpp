@@ -36,7 +36,7 @@ namespace Engine
 {
 
 World::World(const WorldSetup& setup)
-    : events(reg),
+    : events(&reg),
       pool(std::max(0, setup.workerThreads - 1)),
       rng(setup.seed),
       contextPtr(setup.context),
