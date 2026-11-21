@@ -176,7 +176,11 @@ void RacingRender::beforeRender(double alpha)
                 if (car == followed) camera.reset();
             }
             // The camera follows the body also without wheels
-            if (car == followed) camera.update(body.position, forwardOf(body.rotation), frameDt);
+            if (car == followed)
+            {
+                camera.update(body.position, forwardOf(body.rotation), frameDt);
+                cameraSpace = body.space;
+            }
             const Wheels& a            = c->previous();
             const Wheels& b            = c->current();
             const VehicleParameters& p = w.data(state.model);
@@ -201,7 +205,8 @@ void RacingRender::beforeRender(double alpha)
         });
     wheels.end();
     // While a tool holds the camera the app ignores it (S14)
-    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()), radians(double(prototype.settings.fovy)));
+    app->setViewCamera(cameraSpace, camera.eye(), Vulkan::viewRotation(camera.view()),
+                       radians(double(prototype.settings.fovy)));
     // The time of the wind (the world's time between the steps)
     scene.setTime(w.time() + alpha * w.dt());
 }

@@ -58,6 +58,7 @@ class RacingRender
     RenderCaches<Wheels> caches;
     FrameClock clock;
     Entity followed;
+    SpaceId cameraSpace = 0;  // the followed car's space (S21: the view camera's)
 };
 
 }  // namespace Game

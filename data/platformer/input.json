@@ -1,5 +1,5 @@
 {
-    "bindings": {"jump": ["Space"], "walk": ["LeftShift"], "restart": ["R"]},
+    "bindings": {"jump": ["Space"], "walk": ["LeftShift"], "restart": ["R"], "interact": ["F"]},
     "axes": {
         "move_x": {"negative": ["A"], "positive": ["D"]},
         "move_z": {"negative": ["S"], "positive": ["W"]},

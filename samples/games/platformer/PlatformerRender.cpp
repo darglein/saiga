@@ -25,13 +25,19 @@ using namespace Engine;
 
 void PlatformerRender::init(EngineApp& _app)
 {
-    app                = &_app;
-    const Level& level = context->level;
-    // The level and the flag as one instance set (S19b)
-    MeshData lm;
-    for (auto& b : level.boxes) lm.append(MeshBuilder::box((b.max - b.min) * 0.5, b.color, (b.max + b.min) * 0.5));
-    lm.append(MeshBuilder::flag(Vec3(0.9, 0.25, 0.2)), transformMatrix(level.goal, Quat::Identity()));
-    this->level.create(*app->scene(), "platformer/level", lm, Vec3::Zero());
+    app = &_app;
+    // The level of each space as one instance set in its space (S19b; S21: the cellar in space 1); the flag outdoors
+    levels.resize(context->levels.size());
+    for (size_t space = 0; space < context->levels.size(); ++space)
+    {
+        const Level& level = context->levels[space];
+        MeshData lm;
+        for (auto& b : level.boxes) lm.append(MeshBuilder::box((b.max - b.min) * 0.5, b.color, (b.max + b.min) * 0.5));
+        if (space == 0)
+            lm.append(MeshBuilder::flag(Vec3(0.9, 0.25, 0.2)), transformMatrix(level.goal, Quat::Identity()));
+        const std::string name = space == 0 ? "platformer/level" : "platformer/level" + std::to_string(space);
+        levels[space].create(*app->scene(), name, lm, space == 0 ? Vec3::Zero() : level.start, SpaceId(space));
+    }
     parts.init(app->vulkanSink());
     for (int j = 0; j < JointCount; ++j) partMeshes.push_back(app->world().findMesh(heroPartMeshName(j)));
 
@@ -58,7 +64,7 @@ void PlatformerRender::shutdown()
     caches.detach();
     app->world().removeLoadListener(loadListener);
     parts.clear();
-    level.release();
+    for (LevelGeometry& l : levels) l.release();
 }
 
 Entity PlatformerRender::focus()
@@ -146,8 +152,10 @@ void PlatformerRender::beforeRender(double alpha)
             if (ent == followed)
             {
                 focusPosition = p.position;
-                hasFocus      = true;
-                renderYaw     = ch.yaw;
+                // S21: the camera views the followed character's space (a change is a snap of its pose too)
+                cameraSpace = p.space;
+                hasFocus    = true;
+                renderYaw   = ch.yaw;
                 // A teleport (restart) snaps the camera once. Regression (S19b review): the level of the snap pair
                 // reset the camera every frame while the hero stood still after its spawn, so Q/E did not turn it
                 const uint64_t snaps = w.extract().snapSequence(ent);
@@ -170,7 +178,7 @@ void PlatformerRender::beforeRender(double alpha)
     }
     if (hasFocus) camera.update(focusPosition, forwardOf(yawRotation(cameraYaw)), frameDt);
     // While a tool holds the camera the app ignores it (S14)
-    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()), radians(60.0));
+    app->setViewCamera(cameraSpace, camera.eye(), Vulkan::viewRotation(camera.view()), radians(60.0));
 }
 
 void PlatformerRender::gui()
@@ -179,7 +187,7 @@ void PlatformerRender::gui()
     // Below the debug UI's bar
     ImGui::SetNextWindowPos(ImVec2(10, app->debugUi().barHeight() + 10), ImGuiCond_FirstUseEver);
     ImGui::Begin("Platformer", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("WASD move, shift walk, space jump, Q/E camera, R restart, F1-F4 debug tabs, G GUI");
+    ImGui::Text("WASD move, shift walk, space jump, F door, Q/E camera, R restart, F1-F4 debug tabs, G GUI");
     World& w       = app->world();
     const Entity e = focus();
     if (w.alive(e) && w.has<CharacterMotion>(e))
@@ -195,6 +203,9 @@ void PlatformerRender::gui()
                         int(w.registry().poolById(CharacterMotion::id)->size()));
         else
             ImGui::Text("%s", mine ? "player" : "demo");
+        // S21: the space (F at a door: interact)
+        const SpaceId space = w.read<Transform>(e).space();
+        ImGui::Text("space %d '%s'", int(space), w.spaceTemplate(space).name.c_str());
         const CharacterAnimator& animator = character(e).animator;
         const auto& wt                    = animator.weights();
         ImGui::Text("blend weights: idle %.2f, move %.2f, air %.2f (run blend %.2f)", wt.idle, wt.move, wt.air,

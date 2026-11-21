@@ -54,6 +54,12 @@ using namespace Saiga::Engine;
 
 namespace
 {
+// The height hook of the "islands" space (S21): the prototype noise 40 m lower (integer height units of 1/1024 m)
+int32_t islandsHeight(uint64_t seed, int64_t x, int64_t z)
+{
+    return Vulkan::prototypeHeight(seed, x, z) - 40 * 1024;
+}
+
 // The game's state outside the World: the prototype's settings and height field and its camera controls (render state,
 // not world state)
 struct WorldGame
@@ -409,6 +415,18 @@ void gui(EngineApp& app)
     const Vec3 p = app.viewCamera().position;
     ImGui::Text("camera %.1f %.1f %.1f (%.1f m above ground)", p(0), p(1), p(2),
                 p(1) - app.world().terrainHeight(app.viewCamera().space, p(0), p(2)));
+    // S21: the space of the view camera (the same pose in another space; a space not ready shows the loading screen)
+    {
+        World& w             = app.world();
+        const ViewCamera cam = app.viewCamera();
+        int space            = int(cam.space);
+        std::string names;
+        for (size_t i = 0; i < w.spaceCount(); ++i) names += w.spaceTemplate(SpaceId(i)).name + '\0';
+        if (ImGui::Combo("space", &space, names.c_str()) && SpaceId(space) != cam.space)
+            app.setViewCameraByTool(SpaceId(space), cam.position, cam.rotation, cam.fovy, false);
+        if (const SpaceLoading* l = app.spaceLoading())
+            ImGui::Text("loading '%s': %.0f %%", w.spaceTemplate(l->space).name.c_str(), l->progress * 100);
+    }
     if (app.mcp().running()) ImGui::Text("MCP: http://127.0.0.1:%d/mcp", app.mcp().port());
     ImGui::End();
 }
@@ -440,7 +458,12 @@ int main(int argc, char* argv[])
     EngineAppSetup setup;
     setup.name = "world";
     // The prototype's 32 km space (S20); the statistics of its 8 km area (space 0's seed is the world seed)
-    setup.world.config.spaceTemplates = {Game::prototypeSpaceTemplate(baseSpacing)};
+    // S21: a second open-world space "islands": the prototype noise lowered by 40 m (the sea makes islands); its
+    // pyramid is generated only when it is viewed (the start camera and the benchmark stay in space 0)
+    Engine::SpaceTemplate islands     = Game::prototypeSpaceTemplate(baseSpacing);
+    islands.name                      = "islands";
+    islands.prototypeHeight           = islandsHeight;
+    setup.world.config.spaceTemplates = {Game::prototypeSpaceTemplate(baseSpacing), islands};
     game.area                         = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
     setup.render.msaaSamples          = 4;
     setup.cameraSpeed                 = 25;

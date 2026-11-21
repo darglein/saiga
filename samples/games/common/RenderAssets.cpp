@@ -83,11 +83,13 @@ Vulkan::MeshId registerDemoMesh(Engine::World& world, const std::string& name, c
     return world.registerMesh(name, std::move(lods), material);
 }
 
-void LevelGeometry::create(Vulkan::RenderScene& s, const std::string& name, const MeshData& mesh, const Vec3& origin)
+void LevelGeometry::create(Vulkan::RenderScene& s, const std::string& name, const MeshData& mesh, const Vec3& origin,
+                           SpaceId space)
 {
     release();
     scene = &s;
     RegionId region;
+    region.space          = space;
     region.level          = 0;
     region.x              = int32_t(std::floor(origin(0) / chunkSize));
     region.z              = int32_t(std::floor(origin(2) / chunkSize));

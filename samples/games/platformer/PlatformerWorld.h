@@ -15,7 +15,9 @@
 #include "games/platformer/CharacterController.h"
 #include "games/platformer/PlatformerDemo.h"
 
+#include <algorithm>
 #include <memory>
+#include <vector>
 
 namespace Saiga
 {
@@ -33,12 +35,36 @@ namespace Game
  * DemoRunner: the demo's input). The level is the context. S16b: a peer's hero is owned by the peer (no vehicle):
  * CharacterMotion and Transform are OwnerAuthoritative (characterControllerSystem runs on the owner), RunState is Host
  * (the hero's game object on the host decides the kill height and the goal from the received pose); a restart of a
- * client-owned hero is RestartRun + ownerTeleport.
+ * client-owned hero is RestartRun + moveToSpace (S21: back to space 0 from the cellar).
+ *
+ * S21: two spaces, the outdoor level (space 0, the flat default template) and the enclosed cellar (space 1), connected
+ * by two doors (SpaceLink entities, spawnDoors); the interact action turns into an InteractEvent with the nearest door
+ * (platformerInteractSystem), the engine's spaceLinkSystem into the transition. The controller and the kill height use
+ * the level of the hero's space.
  */
 
 struct PlatformerContext
 {
-    Level level;
+    // The levels by SpaceId: 0 outdoors, 1 the cellar (S21)
+    std::vector<Level> levels;
+    // The demo routes by RunState::route: 0 the outdoor level, 1 through the cellar (S21; setup data shared by the host
+    // and the clients, R-STATE-1 holds: the hero's route index is in RunState)
+    std::vector<std::vector<DemoWaypoint>> routes;
+    const Level& levelOf(SpaceId space) const { return levels[std::min<size_t>(space, levels.size() - 1)]; }
+    const Level& outdoor() const { return levels[0]; }
+    const std::vector<DemoWaypoint>& route(int32_t index) const
+    {
+        return routes[size_t(std::clamp<int32_t>(index, 0, int32_t(routes.size()) - 1))];
+    }
+    // The demo's levels and routes
+    static PlatformerContext demo();
+};
+
+// The demo routes (RunState::route)
+enum class PlatformerRoute : int32_t
+{
+    Outdoor = 0,
+    Cellar  = 1,
 };
 
 enum class PlatformerComponent : uint8_t
@@ -81,16 +107,18 @@ struct CharacterMotion
 };
 
 // The run: time since the (re)start, the time the goal was reached (-1: not yet), the demo runner's next waypoint, the
-// hero's slot (S16b: an offset of the start that restarts keep)
+// hero's slot (S16b: an offset of the start that restarts keep), the demo route of the runner and the pilot (S21,
+// version 2: PlatformerRoute; restarts keep it)
 struct RunState
 {
     static constexpr const char* name       = "RunState";
     static constexpr Engine::ComponentId id = Engine::ComponentId(PlatformerComponent::RunState);
-    static constexpr uint32_t version       = 1;
+    static constexpr uint32_t version       = 2;
     double runTime                          = 0;
     double goalTime                         = -1;
     int32_t waypoint                        = 0;
     int32_t slot                            = 0;
+    int32_t route                           = 0;
 
     template <class V>
     void visit(V& v)
@@ -99,6 +127,7 @@ struct RunState
         v("goalTime", goalTime);
         v("waypoint", waypoint);
         v("slot", slot);
+        v("route", route);
     }
 };
 
@@ -133,7 +162,8 @@ enum class PlatformerButton : int
 };
 enum class PlatformerAction : uint32_t
 {
-    Restart = 1,
+    Restart  = 1,
+    Interact = 2,  // S21: use the nearest door (platformerInteractSystem)
 };
 
 // The controller of an entity's components (feet position and facing from Transform and CharacterMotion)
@@ -145,8 +175,9 @@ class HeroBase : public Engine::GameObject
     void onSpawn() override;
     void update(double dt) override;
     const Engine::TickPolicy* tickPolicy() const override { return everyStepTickPolicy(); }
-    // Back at the level's start (offset by RunState::slot). Host: RunState, then the owner part (CharacterMotion) here
-    // for a host-owned or not yet spawned hero, else RestartRun to its owner, then World::ownerTeleport
+    // Back at the outdoor level's start (offset by RunState::slot; S21: from any space). Host: RunState, then the owner
+    // part (CharacterMotion) here for a host-owned or not yet spawned hero, else RestartRun to its owner, then
+    // World::moveToSpace (space 0)
     void restart();
     // The demo restarts a few seconds after reaching the goal
     virtual bool restartsAfterTheGoal() const { return false; }
@@ -177,11 +208,17 @@ class DemoRunner final : public HeroBase
 
 Engine::WorldSetup platformerWorldSetup(std::shared_ptr<const PlatformerContext> context);
 void platformerScenarios(Engine::ScenarioList& list);
-// The player's hero of a peer (Player{peer}, PlayerInput, RunState{slot}; setOwner for a peer above 0). Host, between
-// steps
-Entity spawnHero(World& host, uint8_t peer, int slot);
+// The player's hero of a peer (Player{peer}, PlayerInput, RunState{slot, route}; setOwner for a peer above 0). Host,
+// between steps
+Entity spawnHero(World& host, uint8_t peer, int slot, PlatformerRoute route = PlatformerRoute::Outdoor);
+// The demo runner (host-owned) on a route
+Entity spawnDemoRunner(World& host, PlatformerRoute route);
 // --coop's join policy: a hero for the joined peer (slot = peer), run by the demo runner on the owner with demo
-void platformerPeerJoined(World& host, uint8_t peer, bool demo);
+void platformerPeerJoined(World& host, uint8_t peer, bool demo, PlatformerRoute route = PlatformerRoute::Outdoor);
+// S21: the two doors (SpaceLink + RenderInstance "platformer/door"): the entrance on the start island to the cellar,
+// the exit in the cellar back next to the entrance. Host, between steps (the start state of every world)
+void spawnDoors(World& host);
+std::string doorMeshName();
 
 }  // namespace Game
 }  // namespace Saiga

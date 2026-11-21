@@ -12,20 +12,21 @@ namespace Saiga
 {
 namespace Game
 {
-CharacterInput PlatformerDemo::input(const CharacterController& c, const Level& level)
+CharacterInput PlatformerDemo::input(const CharacterController& c, const Level& level,
+                                     const std::vector<Vec3>& waypoints)
 {
     CharacterInput in;
     const auto& s = c.state;
-    if (next >= level.waypoints.size()) return in;
+    if (next >= waypoints.size()) return in;
 
-    Vec3 target = level.waypoints[next];
+    Vec3 target = waypoints[next];
     Vec3 d(target(0) - s.position(0), 0, target(2) - s.position(2));
     double dist = d.norm();
     if (dist < 0.6 && s.grounded && std::abs(s.position(1) - target(1)) < 0.05)
     {
         next++;
-        if (next >= level.waypoints.size()) return in;
-        target = level.waypoints[next];
+        if (next >= waypoints.size()) return in;
+        target = waypoints[next];
         d      = Vec3(target(0) - s.position(0), 0, target(2) - s.position(2));
         dist   = d.norm();
     }

@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include "saiga/core/math/ChunkId.h"
+
 #include "games/common/GameMath.h"
 
 #include <vector>
@@ -21,8 +23,9 @@ struct LevelBox
 };
 
 /**
- * The platformer level: axis aligned boxes (ground, platforms, walls), a start and a goal. demoLevel() is the one
- * level of the tech demo; waypoints are the top centers of the platforms in order (used by the demo runner).
+ * The platformer level of one space: axis aligned boxes (ground, platforms, walls), a start and a goal. demoLevel() is
+ * the outdoor level of the tech demo (space 0); waypoints are the top centers of the platforms in order (used by the
+ * demo runner). cellarLevel() (S21) is the enclosed cellar (space 1) around its site origin.
  */
 struct Level
 {
@@ -39,7 +42,33 @@ struct Level
     double supportHeight(double x, double z, double maxY) const;
 
     static Level demoLevel();
+    // The cellar (S21): a floor, low walls and two platforms around the site origin of the enclosed space
+    // (SpaceTemplate::enclosedOrigin(4) = (640, 0, 640))
+    static Level cellarLevel();
 };
+
+// A waypoint of the demo route (S21): a position in a space; a door is used (the interact action) when reached
+struct DemoWaypoint
+{
+    SpaceId space = 0;
+    Vec3 position = Vec3::Zero();
+    bool door     = false;
+};
+
+// The doors of the demo (S21): the entrance on the start island (space 0) and the exit in the cellar (space 1)
+struct CellarDoors
+{
+    static constexpr int32_t kCellarChunks = 4;
+    static Vec3 origin();           // the cellar's site origin (640, 0, 640)
+    static Vec3 entrance();         // on the start island
+    static Vec3 entranceArrival();  // next to the entrance (back from the cellar)
+    static Vec3 cellarArrival();    // in the cellar
+    static Vec3 exit();             // in the cellar
+};
+
+// The routes of the demo runner: 0 the outdoor level's waypoints (space 0), 1 through the cellar and to the goal
+std::vector<DemoWaypoint> outdoorRoute(const Level& outdoor);
+std::vector<DemoWaypoint> cellarRoute(const Level& outdoor);
 
 }  // namespace Game
 }  // namespace Saiga
