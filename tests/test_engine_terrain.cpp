@@ -728,6 +728,23 @@ TEST(TerrainStreaming, DesiredSetUsesTheLodDistanceAtACliff)
     w.setRenderSink(nullptr);
 }
 
+// The grass masks keep the 3D distance to the chunk's box (the grass fades by its 3D distance): 60 m above flat ground
+// the chunk (0, 0) 62 m away horizontally is within the 80 m radius (its box reaches 64 m up), although the residency's
+// distance with the camera height (82 m) is not
+TEST(TerrainStreaming, GrassMasksUseTheBoxDistance)
+{
+    World w(terrainSetup(16, 2, flatHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(300, 60, 300)));
+    ChunkId c;
+    c.space = 0;
+    c.x     = 0;
+    c.z     = 0;
+    EXPECT_TRUE(sink.grassMasks().count(c));
+    w.setRenderSink(nullptr);
+}
+
 TEST(TerrainStreaming, DesiredSetTruncatedToBudget)
 {
     World w(terrainSetup(64, 1, integerTestHook));

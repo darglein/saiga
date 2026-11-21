@@ -316,9 +316,9 @@ class SAIGA_ENGINE_API TerrainSystem
     //     requested or sent for it;
     //  3. the desired set (with TerrainPass's LOD distance, so every node the pass refines into is desired): while
     //     the space's pyramid is not in the store, only the pyramid is requested and steps 3-6 are skipped (the
-    //     desired set is empty, readiness 0). Otherwise per streamed level the tiles within the range, sorted by distance and truncated to tilesPerLevel
-    //     (nearest first; the truncated count goes to Stats); grass masks for chunks within grassRadius, truncated to
-    //     grassMaskLayers;
+    //     desired set is empty, readiness 0). Otherwise per streamed level the tiles within the range, sorted by
+    //     distance and truncated to tilesPerLevel (nearest first; the truncated count goes to Stats); grass masks for
+    //     chunks whose box is within grassRadius (3D), truncated to grassMaskLayers;
     //  4. requests: missing desired tiles by distance / range ratio (coarse levels first at equal ratio), then the
     //     masks of desired chunks whose level-0 tile is in the store (a mask job needs it), at most maxInFlight
     //     requests in flight; requests no longer desired are cancelled;
@@ -334,8 +334,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // (§4.3 EngineApp). The main thread (and with it the MCP poll) is blocked meanwhile. Ends a running load of S21's
     // loading screen (D6). A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
-    // D6: the fraction of (the pyramid + the desired tiles of this camera whose box is within radius) that have been
-    // sent to the sink; 0 while the pyramid is not sent; 1 for a space without terrain. Monotone for a fixed camera.
+    // D6: the fraction of (the pyramid + the desired tiles of this camera within radius, the residency's distance) that
+    // have been sent to the sink; 0 while the pyramid is not sent; 1 for a space without terrain. Monotone for a fixed
+    // camera.
     // "Sent" is not "recorded": a load ends only when terrainUploadsPending() is 0 too (E8, S21)
     double readiness(SpaceId space, const Vec3& camera, double radius) const;
     size_t terrainUploadsPending() const;      // the sink's bytes not yet recorded (RenderSink::terrainUploadsPending);
@@ -1519,8 +1520,10 @@ Round 2 (S20 part, fixed in `S20 implementation review round 2`):
 - Residency and drawing used different distances (2): `computeDesired` uses the pass's LOD distance with
   hc = |camera.y - height(camera.xz)|; the per-tile pyramid heights are gone; `desiredTestTiles` follows;
   `DesiredSetUsesTheLodDistanceAtACliff` (a plateau 500 m above the camera 304 m away: box distance 530 m, now
-  desired). Benchmarks unchanged (flyover terrain + water 0.189 / 0.191 ms, `cpu_ms` 3.63 / 3.81; forest 0.114 ms,
-  2.20 / 2.19).
+  desired). The grass masks keep the 3D distance to the chunk's box (pyramid heights +- 64 m): the grass fades by its
+  3D distance, and the camera height above the ground under the camera would drop masks of chunks on a slope up to
+  the camera (S22's `EditedMasksFromMergedHeights` caught the first version). Benchmarks unchanged (flyover terrain +
+  water 0.189 / 0.191 ms, `cpu_ms` 3.63 / 3.81; forest 0.114 ms, 2.20 / 2.19).
 - A huge finite camera height overflowed the int64 conversion (3): clamped in double first.
 - `terrainHeight` with a NaN coordinate (4): returns 0 (`NonFiniteCoordinates`).
 - `morphStart` clamped only for minR0 (5): clamped to [0.05, 0.95] once, for minR0 and the shader.

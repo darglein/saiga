@@ -82,7 +82,8 @@ class SAIGA_ENGINE_API TerrainSystem
     //     without terrain sends clearTerrain() once (if anything was sent) and stops here;
     //  3. the desired set: while the space's pyramid is not in the store only the pyramid is requested (readiness 0);
     //     otherwise per streamed level the tiles within the range, nearest first, truncated to tilesPerLevel; grass
-    //     masks for the chunks within grassRadius (of a desired level-0 tile), truncated to grassMaskLayers;
+    //     masks for the chunks (of a desired level-0 tile) whose box (pyramid heights +- 64 m) is within grassRadius
+    //     (3D: the grass fades by its 3D distance), truncated to grassMaskLayers;
     //  4. requests: missing desired tiles by distance / range ratio (coarse levels first at equal ratio), then the
     //     masks whose level-0 tile is in the store, at most maxInFlight in flight; requests no longer desired are
     //     cancelled;
@@ -101,8 +102,8 @@ class SAIGA_ENGINE_API TerrainSystem
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
     // nothing. True for a space without terrain; without a sink only the residency counts
     bool viewComplete(SpaceId space, const Vec3& camera) const;
-    // D6: the fraction of (the pyramid + the desired tiles of this camera whose box is within radius) that have been
-    // sent to the sink; 0 while the pyramid is not sent (or without a sink); 1 for a space without terrain
+    // D6: the fraction of (the pyramid + the desired tiles of this camera within radius, the residency's distance) that
+    // have been sent to the sink; 0 while the pyramid is not sent (or without a sink); 1 for a space without terrain
     double readiness(SpaceId space, const Vec3& camera, double radius) const;
     // The sink's bytes not yet recorded (RenderSink::terrainUploadsPending); 0 without a sink
     size_t terrainUploadsPending() const;

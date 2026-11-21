@@ -335,11 +335,30 @@ TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& 
         }
         for (const auto& t : level) d.tileSet.insert(t.second);
     }
-    // Grass masks: the chunks (with a desired level-0 tile) within the grass radius
+    // Grass masks: the chunks (with a desired level-0 tile) whose box is within the grass radius: the 3D distance (the
+    // grass fades out by its 3D distance, GrassPass), the box from the pyramid's heights of the chunk +- 64 m
     if (view.grassRadius > 0 && L.grassMaskLayers > 0)
     {
+        const Vulkan::TerrainPyramidData& p = *sp.store->pyramid();
+        const int P                         = L.pyramidSamplesPerSide();
         for (const auto& t : d.tiles[0])
-            if (t.first <= view.grassRadius) d.masks.push_back({t.first, chunkOf(space, t.second.x, t.second.z)});
+        {
+            if (t.first - hc > view.grassRadius) continue;  // horizontally out of the radius (dxz >= t.first - hc)
+            int32_t lo = kTerrainHeightLimit, hi = -kTerrainHeightLimit;
+            for (int j = 0; j <= 8; ++j)
+                for (int i = 0; i <= 8; ++i)
+                {
+                    const int32_t v = (*p.heights)[size_t(t.second.z * 8 + j) * size_t(P) + size_t(t.second.x * 8 + i)];
+                    lo              = std::min(lo, v);
+                    hi              = std::max(hi, v);
+                }
+            const Vec3 bmin(t.second.x * 256.0, double(lo) * kHeightUnit - 64, t.second.z * 256.0);
+            const Vec3 bmax((t.second.x + 1) * 256.0, double(hi) * kHeightUnit + 64, (t.second.z + 1) * 256.0);
+            const double dist = (camera.cwiseMax(bmin).cwiseMin(bmax) - camera).norm();
+            if (dist <= view.grassRadius) d.masks.push_back({dist, chunkOf(space, t.second.x, t.second.z)});
+        }
+        std::stable_sort(d.masks.begin(), d.masks.end(),
+                         [](const auto& a, const auto& b) { return a.first < b.first; });
         if (int(d.masks.size()) > L.grassMaskLayers)
         {
             d.masksTruncated = int(d.masks.size()) - L.grassMaskLayers;

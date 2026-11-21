@@ -2131,8 +2131,9 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   camera's space (A13: requested by `EngineApp` between steps through `updateView`, not from phase 7; S24 adds the
   players' residency) with the desired set per level within `residencyRange0 * 2^k` of the same LOD distance as the
   pass (horizontal distance to the tile, camera height above `height(camera.xz)`; so every node the pass refines into
-  is desired) (truncated nearest-first to `tilesPerLevel`), the pyramid first, coarse levels first at equal distance ratio, LRU eviction, at most
-  `uploadsPerFrame` tile sends per update, grass masks within `grassRadius` (`TerrainViewSettings`, R-MECH-1).
+  is desired) (truncated nearest-first to `tilesPerLevel`), the pyramid first, coarse levels first at equal distance
+  ratio, LRU eviction, at most `uploadsPerFrame` tile sends per update, grass masks within `grassRadius` (3D distance
+  to the chunk's box: the grass fades by its 3D distance) (`TerrainViewSettings`, R-MECH-1).
   `completeView` blocks until the desired set is resident and sent (the app's complete points: the first frame,
   captures, the benchmark frames). A24: only `updateView` / `completeView` request terrain, and only the app calls them
   for its view world; a render sink alone (every scenario world has a `RecordingRenderSink`) requests nothing and starts
