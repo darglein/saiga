@@ -74,8 +74,9 @@ endif ()
 
 if (SAIGA_CXX_FLAGS_MSVC)
 
-    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
-        #multiprocessor compilation for visual studio
+    # Multiprocessor compilation for the Visual Studio generators (MSBuild hands cl several files at once). Ninja
+    # compiles one file per cl call, where /MP does nothing and keeps compiler caches (ccache in CI) from caching.
+    if ("${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC" AND CMAKE_GENERATOR MATCHES "Visual Studio")
         list(APPEND SAIGA_CXX_FLAGS "/MP")
     endif ()
 

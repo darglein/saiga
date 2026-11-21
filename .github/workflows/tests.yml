@@ -1,9 +1,12 @@
 name: Tests
 
+# Changes of only documentation (docs/, Markdown) build nothing.
 on:
   push:
     branches: [master]
+    paths-ignore: ['docs/**', '**/*.md']
   pull_request:
+    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
 
 permissions:
@@ -209,6 +212,9 @@ jobs:
 
   # Windows with MSVC and shared libraries (the DLL export macros matter). Core, Vulkan and the engine with their tests;
   # without a Vulkan driver the Vulkan tests skip themselves.
+  # Built with Ninja and ccache (like the Ubuntu jobs): ccache caches MSVC only with the debug information embedded in
+  # the objects (/Z7, CMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded; /Zi writes a shared PDB), and only without /MP
+  # (cmake/Saiga_compiler_flags.cmake adds it for the Visual Studio generators only).
   windows-msvc:
     name: Windows MSVC (shared libraries)
     runs-on: windows-2025
@@ -227,10 +233,30 @@ jobs:
           cache: true
           stripdown: true
 
+      # The MSVC environment (cl, link, the SDK paths) for Ninja
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+        with:
+          arch: x64
+
+      - name: Setup ccache
+        uses: hendrikmuhs/ccache-action@f09c25b45002a07be2955cbe52e8cee55643f89d # v1.2.24
+        with:
+          key: windows-2025-msvc
+          max-size: 2G
+
       # One output directory, so the tests find the saiga DLLs next to them.
+      # CMP0141 (CMake 3.25) enables CMAKE_MSVC_DEBUG_INFORMATION_FORMAT; the project's minimum version leaves it unset.
       - name: Configure
         run: >
-          cmake -S . -B build -A x64
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DCMAKE_C_COMPILER=cl
+          -DCMAKE_CXX_COMPILER=cl
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          -DCMAKE_POLICY_DEFAULT_CMP0141=NEW
+          -DCMAKE_MSVC_DEBUG_INFORMATION_FORMAT=Embedded
           -DSAIGA_BUILD_SHARED=ON
           -DSAIGA_MODULE_CUDA=OFF
           -DSAIGA_MODULE_OPENGL=OFF
@@ -249,8 +275,8 @@ jobs:
           grep -q "define SAIGA_USE_ENGINE" build/include/saiga/saiga_modules.h
 
       - name: Build
-        run: cmake --build build --config RelWithDebInfo --parallel
+        run: cmake --build build --parallel -- -k 0
 
       - name: Test
         working-directory: build
-        run: ctest -C RelWithDebInfo --output-on-failure --parallel 4
+        run: ctest --output-on-failure --parallel 4
