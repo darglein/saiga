@@ -182,6 +182,12 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_terrain_benchmark.cpp "saiga_engine")
     saiga_test(test_engine_terrain_render.cpp "saiga_engine")
     saiga_test(test_engine_spaces.cpp "saiga_engine")
+    # The content generation (S23a): the toolkit, the integer lint, the pipeline and the committed content hashes; with
+    # SAIGA_CONTENT_UBSAN its own unit (the toolkit's inline functions, the test generator) with trapping UBSan
+    saiga_test(test_engine_content.cpp "saiga_engine")
+    if (SAIGA_CONTENT_UBSAN)
+        target_compile_options(test_engine_content PRIVATE ${SAIGA_CONTENT_UBSAN_FLAGS})
+    endif ()
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

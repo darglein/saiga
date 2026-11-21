@@ -64,6 +64,26 @@ if (SAIGA_WARNINGS_AS_ERRORS)
     endif ()
 endif ()
 
+# SAIGA_CONTENT_UBSAN (S23a, docs/engine_design.md §12.1): trapping UBSan for the content generation code only (the
+# sources under src/saiga/engine/content/ and test_engine_content). Trapping needs no sanitizer runtime, so the shared
+# library and every other target link as before; undefined behaviour aborts the test (SIGILL).
+set(SAIGA_CONTENT_UBSAN_FLAGS)
+if (SAIGA_CONTENT_UBSAN)
+    if (MSVC)
+        message(FATAL_ERROR "SAIGA_CONTENT_UBSAN needs Clang or GCC")
+    endif ()
+    set(SAIGA_CONTENT_UBSAN_FLAGS
+        "-fsanitize=signed-integer-overflow,shift,integer-divide-by-zero,bounds,null,alignment,bool,enum,return,unreachable"
+        "-fsanitize-trap=all")
+    include(CheckCXXCompilerFlag)
+    string(REPLACE ";" " " SAIGA_CONTENT_UBSAN_FLAGS_STRING "${SAIGA_CONTENT_UBSAN_FLAGS}")
+    check_cxx_compiler_flag("${SAIGA_CONTENT_UBSAN_FLAGS_STRING}" SAIGA_CONTENT_UBSAN_SUPPORTED)
+    if (NOT SAIGA_CONTENT_UBSAN_SUPPORTED)
+        message(FATAL_ERROR "SAIGA_CONTENT_UBSAN: the compiler does not accept ${SAIGA_CONTENT_UBSAN_FLAGS}")
+    endif ()
+    message(STATUS "SAIGA_CONTENT_UBSAN: ${SAIGA_CONTENT_UBSAN_FLAGS}")
+endif ()
+
 #if (SAIGA_CXX_WCLANG)
 # Fixes: cannot use 'throw' with exceptions disabled
 #list(APPEND SAIGA_CXX_FLAGS "-Xclang -fcxx-exceptions")

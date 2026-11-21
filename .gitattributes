@@ -1,0 +1,2 @@
+# The ContentLint fixture keeps its mixed LF / CRLF line ends on every checkout (S23a)
+tests/content_lint_fixture/** -text

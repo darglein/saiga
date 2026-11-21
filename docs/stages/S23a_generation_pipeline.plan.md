@@ -1471,6 +1471,21 @@ Implementation (step 1, reconciliation with the merged S20-S22 code; the names b
   `terraformTestTemplate`) and a few tests that set `prototypeHeight` inline (`test_engine_spaces`,
   `test_engine_terrain_edit`, `test_engine_world_api`).
 
+Implementation (step 3, the toolkit):
+
+- `smoothQ16`: the plan's Q16 Horner scheme does not have the properties the plan states for it (computed over all
+  65537 inputs: 1601 decreases, the first at t = 48776, five of them by 2 LSB from t = 58555, and errors up to 3.6 LSB
+  against the polynomial). Before anything was committed to the hashes it was replaced by the same Horner scheme with
+  Q32 intermediates (`r = (6t - 15 * 2^16) * t + 10 * 2^32`, then `r * t >> 16` twice and `r * t >> 32`; every
+  product below 2^53): exact endpoints, monotone (0 decreases) and within 1 LSB; `FixedMath.SmoothQ16` checks range,
+  monotonicity and 2 LSB.
+- The trig table rounds x to nearest (`(i * pi/2 * 2^45 + 2^29) >> 30`) before the series; the observed maximum error
+  against libm is 2 LSB (bound 4, test 8). The `gradientNoise` extremes at the 2^16 cell centres are -64291 and 65534.
+- The lint scanner lives in `tests/content_lint.h` (included by `test_engine_content.cpp`); include rules: a game's
+  `content/` file may include its own headers by a bare name or `content/...`.
+- `SAIGA_CONTENT_UBSAN`: the flags are set and checked (`check_cxx_compiler_flag`) in `cmake/Saiga_compiler_flags.cmake`
+  (`SAIGA_CONTENT_UBSAN_FLAGS`), applied to `src/saiga/engine/content/**.cpp` and `test_engine_content`.
+
 ## Design changes
 
 (Filled when the stage is done.)

@@ -158,7 +158,8 @@ jobs:
             -DSAIGA_BUILD_SAMPLES=ON \
             -DSAIGA_ARCHNATIVE=OFF \
             -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON \
-            -DSAIGA_WARNINGS_AS_ERRORS=ON
+            -DSAIGA_WARNINGS_AS_ERRORS=ON \
+            -DSAIGA_CONTENT_UBSAN=ON
 
       - name: Check enabled modules
         run: |
