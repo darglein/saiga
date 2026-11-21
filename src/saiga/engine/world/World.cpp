@@ -21,6 +21,7 @@
 #include "saiga/engine/net/Varint.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
 
@@ -49,6 +50,15 @@ World::World(const WorldSetup& setup)
                      setup.config.maxStepsPerAdvance >= 1,
                  "invalid WorldConfig");
     reg.setJobPool(&pool);
+    // The spaces (S20): checked first (a template error is a setup error, fatal in every build, D1)
+    {
+        validateSpaceTemplates(setup.config.spaceTemplates);
+        std::vector<SpaceTemplate> templates = setup.config.spaceTemplates;
+        if (templates.empty()) templates.push_back(SpaceTemplate());
+        std::vector<uint64_t> seeds;
+        for (size_t i = 0; i < templates.size(); ++i) seeds.push_back(i == 0 ? setup.seed : hashCombine(setup.seed, i));
+        terrainSys = std::make_unique<TerrainSystem>(templates, seeds);
+    }
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
     gridConsumer = log.addConsumer();
@@ -529,6 +539,29 @@ Entity World::resolve(PersistentId id) const
     auto it = persistentIndex.find(id.value);
     if (it == persistentIndex.end() || !reg.alive(it->second)) return Entity{};
     return it->second;
+}
+
+// ---- spaces and terrain (S20)
+
+const SpaceTemplate& World::spaceTemplate(SpaceId space) const
+{
+    return terrainSys->spaceTemplate(space);
+}
+
+size_t World::spaceCount() const
+{
+    return terrainSys->spaceCount();
+}
+
+uint64_t World::spaceSeed(SpaceId space) const
+{
+    SAIGA_ASSERT(space < terrainSys->spaceCount(), "World::spaceSeed: unknown space");
+    return terrainSys->spaceSeed(space);
+}
+
+double World::terrainHeight(SpaceId space, double x, double z) const
+{
+    return terrainSys->height(space, x, z);
 }
 
 World::~World()

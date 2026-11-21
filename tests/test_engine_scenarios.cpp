@@ -28,6 +28,8 @@
 #include <stdexcept>
 #include <thread>
 
+#include "terrain_test_hooks.h"
+
 using namespace Saiga;
 using namespace Saiga::Engine;
 using Json = json11::Json;
@@ -277,6 +279,20 @@ WorldSetup scenarioSetup()
     return s;
 }
 
+// The setup of the terrain scenarios (S20): scenarioSetup with a 16-chunk space of slopeRidgeHook at 2 m
+WorldSetup terrainScenarioSetup()
+{
+    WorldSetup s = scenarioSetup();
+    s.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::slopeRidgeHook, 0));
+    return s;
+}
+
+// The scenarios that need their own setup
+WorldSetup setupFor(const std::string& scenario)
+{
+    return scenario == "walker_follows_terrain" ? terrainScenarioSetup() : scenarioSetup();
+}
+
 // ---- the engine scenarios (one per engine gameplay mechanism, R-TEST-1)
 // ----------------------------------------------
 
@@ -389,6 +405,41 @@ void registerEngineScenarios(ScenarioList& s)
               w.step(30);  // the save/load variant replaces the world halfway
               w.check(w.world().resolve(w.world().read<Ref>(holder).target) == target, "resolves after a load");
           });
+    // S20: the kinematic mover follows the terrain (terrainScenarioSetup). The y is checked on the owner's world (the
+    // client's in the host + client variants: the host extrapolates received poses)
+    s.add("walker_follows_terrain",
+          [](ScenarioWorld& w)
+          {
+              auto player = w.spawnPlayer({200, 0, 300});
+              w.move(player, Vec3(1, 0, 1));
+              auto owner = [&]() -> std::pair<World*, Entity>
+              {
+                  if (!w.networked()) return {&w.world(), player};
+                  return {&w.client(w.defaultPeer()), w.onClient(w.defaultPeer(), player)};
+              };
+              const Vec3 start = Vec3(200, 0, 300);
+              double walked    = 0;
+              int mismatches   = 0;
+              w.check(w.stepUntil(
+                          [&]
+                          {
+                              auto [world, e] = owner();
+                              if (!e.valid() || !world->alive(e)) return false;
+                              const Vec3 p = world->read<Transform>(e).position();
+                              if (walked > 0 && p.y() != world->terrainHeight(0, p.x(), p.z())) mismatches++;
+                              walked = std::hypot(p.x() - start.x(), p.z() - start.z());
+                              return walked >= 500;
+                          },
+                          9000),
+                      "walked 500 m");
+              w.check(mismatches == 0, "y equals terrainHeight every step (" + std::to_string(mismatches) + " off)");
+              w.move(player, Vec3::Zero());
+              w.step(20);
+              auto [world, e] = owner();
+              const Vec3 p    = world->read<Transform>(e).position();
+              w.check(p.y() == world->terrainHeight(0, p.x(), p.z()), "rests on the terrain");
+              w.check(p.y() > 1, "the slope rose along x: y = " + std::to_string(p.y()));
+          });
     s.add(
         "api_edits_reach_gameplay",
         [](ScenarioWorld& w)
@@ -446,7 +497,7 @@ TEST_P(EngineScenario, Passes)
     options.varyThreads        = true;
     options.strictContinuation = true;
     options.networkVariants    = true;
-    const ScenarioResult r     = runScenario(scenarioSetup(), *entry, GetParam().variant, options);
+    const ScenarioResult r     = runScenario(setupFor(entry->name), *entry, GetParam().variant, options);
     EXPECT_TRUE(r.passed) << r.report;
 }
 
