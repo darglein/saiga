@@ -93,6 +93,199 @@
       "height": 1080,
       "quality": "default",
       "width": 1920
+    },
+    "terraform": {
+      "alternating": false,
+      "base_hook_samples": 0,
+      "build": {
+        "archnative": false,
+        "asserts": false,
+        "type": "Release"
+      },
+      "chunks_edited": 2396,
+      "chunks_per_edit": {
+        "flatten": 4,
+        "smooth": 3.973333333333333
+      },
+      "cpu_ms": {
+        "median": 1.001926,
+        "p95": 1.53071
+      },
+      "cpu_work_ms": {
+        "median": 0.086966,
+        "p95": 0.147551
+      },
+      "edit_bytes_per_second": 48481.4,
+      "edit_store_bytes": 55056,
+      "edits": 600,
+      "extract": {
+        "median": 0.000129,
+        "p95": 0.000167
+      },
+      "fps": {
+        "low_1pct": 485.94489433492726,
+        "mean": 983.265111313551
+      },
+      "frame_interval_ms": {
+        "max": 2.66542,
+        "mean": 1.0170197116666662,
+        "median": 1.001926,
+        "p95": 1.53071,
+        "p99": 1.616225
+      },
+      "frame_work_ms": {
+        "max": 0.40859199999999984,
+        "mean": 0.20046812833333327,
+        "median": 0.19988749999999994,
+        "p95": 0.26459900000000003,
+        "p99": 0.28088599999999975
+      },
+      "frames": 600,
+      "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
+      "gpu_frame_ms": {
+        "cull": {
+          "median": 0.016544,
+          "p95": 0.017311999999999998
+        },
+        "depth": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "depth.terrain": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "gpu": {
+          "max": 0.346976,
+          "mean": 0.2780166933333331,
+          "median": 0.27545600000000003,
+          "p95": 0.307264,
+          "p99": 0.31596799999999997
+        },
+        "imgui": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "post": {
+          "median": 0.010112,
+          "p95": 0.010272
+        },
+        "resolve": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "scene": {
+          "median": 0.19744,
+          "p95": 0.19904
+        },
+        "scene.grass": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "scene.instances": {
+          "median": 0.003552,
+          "p95": 0.003904
+        },
+        "scene.sky": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "scene.terrain": {
+          "median": 0.137568,
+          "p95": 0.13904
+        },
+        "transfer": {
+          "median": 0.048928,
+          "p95": 0.080512
+        }
+      },
+      "gpu_frames": 600,
+      "gpu_ms": {
+        "grass": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "sky": {
+          "median": 0,
+          "p95": 3.2e-05
+        },
+        "terrain + water": {
+          "median": 0.137568,
+          "p95": 0.13904
+        },
+        "trees": {
+          "median": 0.003552,
+          "p95": 0.003904
+        },
+        "upload + cull": {
+          "median": 0.06537599999999999,
+          "p95": 0.097088
+        }
+      },
+      "height": 1080,
+      "long_frames": 3,
+      "mask_recomputes": 0,
+      "noop_edits": {
+        "add": 0,
+        "flatten": 0,
+        "smooth": 0,
+        "subtract": 0
+      },
+      "pacing_p99_ms": 1.047066,
+      "patched_samples": {
+        "median": 511,
+        "p95": 1369
+      },
+      "quality": "default",
+      "recording": {
+        "median": 0.086966,
+        "p95": 0.147551
+      },
+      "samples_changed": 179436,
+      "stalled_frames": 0,
+      "step": {
+        "median": 0.002309,
+        "p95": 0.002836
+      },
+      "terraform_errors": [],
+      "terrain": {
+        "base_spacing": 1,
+        "cpu_mb": 71.57565689086914,
+        "gpu_mb": 98.06122207641602,
+        "resident_tiles": 120,
+        "upload_mb": 1.610260009765625,
+        "uploads": 0
+      },
+      "terrain_edit_ms": {
+        "median": 0.0199235,
+        "p95": 0.038543
+      },
+      "terrain_encode_ms": {
+        "median": 0.020138999999999997,
+        "p95": 0.027482
+      },
+      "terrain_stream_ms": {
+        "max": 0,
+        "mean": 0,
+        "median": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "terrain_visual_ms": {
+        "median": 0.011116000000000001,
+        "p95": 0.014881
+      },
+      "upload_bytes": {
+        "median": 2504,
+        "p95": 6032
+      },
+      "wait_ms": {
+        "acquire": 0.5657133866666665,
+        "frame_slot": 0.214352555,
+        "present": 0.03617517666666672,
+        "terrain_stream": 0
+      },
+      "width": 1920
     }
   }
 }

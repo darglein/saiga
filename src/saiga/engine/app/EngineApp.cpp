@@ -596,6 +596,12 @@ void EngineApp::advanceWorlds(double dt)
     gameWorld->setAccumulatedTime(hostWorldPtr->accumulatedTime());
 }
 
+void EngineApp::setFixedFrameTime(double dt)
+{
+    SAIGA_ASSERT(std::isfinite(dt) && dt >= 0, "EngineApp::setFixedFrameTime: dt must be finite and not negative");
+    fixedDt = dt;
+}
+
 void EngineApp::runFrames(int count, double dt)
 {
     for (int i = 0; i < count && !quitRequested; ++i) frame(dt);
@@ -671,7 +677,8 @@ void EngineApp::frame(double dt)
         {
             Profiler::Timer t(frameProfiler, scopeAdvance);
             const uint64_t before = gameWorld->stepIndex();
-            advanceWorlds(dt);
+            // S22: a fixed frame time advances the worlds by exactly that (the statistics keep the wall clock)
+            advanceWorlds(fixedDt > 0 ? fixedDt : dt);
             pendingSteps = int(gameWorld->stepIndex() - before);
             frameProfiler.setCounter(counterSteps, double(pendingSteps));
             frameProfiler.setCounter(counterDropped, double(droppedTotal() - droppedBefore));

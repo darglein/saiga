@@ -178,6 +178,7 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_terrain.cpp "saiga_engine")
     saiga_test(test_engine_terrain_edit.cpp "saiga_engine")
     saiga_test(test_engine_terrain_net.cpp "saiga_engine")
+    saiga_test(test_engine_terrain_benchmark.cpp "saiga_engine")
     saiga_test(test_engine_terrain_render.cpp "saiga_engine")
     saiga_test(test_engine_spaces.cpp "saiga_engine")
 

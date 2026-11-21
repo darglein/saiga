@@ -62,7 +62,7 @@ json11::Json WorldBenchmark::buildInfo()
 
 const std::vector<std::string>& WorldBenchmark::names()
 {
-    static const std::vector<std::string> n = {"flyover", "forest"};
+    static const std::vector<std::string> n = {"flyover", "forest", "terraform"};
     return n;
 }
 
@@ -92,6 +92,14 @@ WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground&
         const double z     = c + 3000.0 * std::sin(angle);
         p.eye              = vec3(float(x), float(ground(x, z) + 300.0), float(z));
         p.target           = vec3(float(c), float(ground(c, c)), float(c));
+    }
+    else if (name == "terraform")
+    {
+        // S22: a static pose about 85 degrees down over the four chunk corners of the edit schedule (the brush areas
+        // x, z in [3814, 4122]; the game's TerraformBenchmark); g = the ground at (3968, 3968), never edited
+        const double g = ground(3968, 3968);
+        p.eye          = vec3(3968.f, float(g + 300.0), 3940.f);
+        p.target       = vec3(3968.f, float(g), 3968.f);
     }
     else
     {

@@ -15,12 +15,14 @@
  * MCP (http://127.0.0.1:8765/mcp, --mcp-port or SAIGA_MCP_PORT, 0 disables it): the engine's world and app tools and
  * the prototype's tools (screenshot, get_state, set_camera, move_camera, set_settings, terrain_query).
  *
- * Benchmarks (§17.7): game_world --benchmark <flyover|forest> flies a fixed camera path at 1920 x 1080 (validation,
- * vsync, GUI and MCP off, time 0, the default world: SAIGA_WORLD_TREES is ignored), writes
+ * Benchmarks (§17.7): game_world --benchmark <flyover|forest|terraform> flies a fixed camera path at 1920 x 1080
+ * (validation, vsync, GUI and MCP off, time 0, the default world: SAIGA_WORLD_TREES is ignored), writes
  * benchmark_<name>.json to the working directory and exits with 0, or with 1 if the benchmark did not finish, the
  * result could not be written, the rendered size changed or a frame stalled (an old result file is deleted at the
  * start). Terrain residency is completed in every benchmark frame (EngineApp::setCompleteViewEachFrame); its time is
- * reported separately (terrain_stream_ms). --base-spacing 2 (benchmark comparisons) runs the same space at 2 m.
+ * reported separately (terrain_stream_ms). terraform (S22) edits the terrain once per frame from a static camera
+ * (TerraformBenchmark: one step per frame, no per-frame completeView). --base-spacing 2 (benchmark comparisons) runs
+ * the same space at 2 m.
  * --headless runs without a window (agents, servers).
  */
 
@@ -36,6 +38,7 @@
 #include "saiga/vulkan/world/WorldMcp.h"
 
 #include "games/common/PrototypeSpace.h"
+#include "games/world/TerraformBenchmark.h"
 
 #include <array>
 #include <chrono>
@@ -74,6 +77,8 @@ struct WorldGame
     int terrainUploads        = 0;
     double terrainUploadBytes = 0;
     std::unique_ptr<Vulkan::WorldBenchmark> bench;
+    // S22: the edit schedule of --benchmark terraform
+    std::unique_ptr<Game::TerraformBenchmark> terraform;
     std::string benchmarkName;
     bool benchmarkDone = false, benchmarkOk = false, sizeChanged = false;
     bool walkMode   = false;
@@ -163,8 +168,20 @@ void initWorld(EngineApp& app)
         auto ground  = [world](double x, double z)
         { return std::max(world->terrainHeight(0, x, z), double(Vulkan::kPrototypeSeaLevel) * kHeightUnit); };
         g.bench = std::make_unique<Vulkan::WorldBenchmark>(g.benchmarkName, ground, gpu);
-        // Terrain residency is deterministic: every frame completes its view (E9)
-        app.setCompleteViewEachFrame(true);
+        if (g.benchmarkName == "terraform")
+        {
+            // S22: the camera is fixed, so the measured frames run updateView with the patch step under its budget (a
+            // game frame); exactly one step per frame (the edits run between steps); the first frame is a complete
+            // point
+            app.setCompleteViewEachFrame(false);
+            app.setFixedFrameTime(w.dt());
+            g.terraform = std::make_unique<Game::TerraformBenchmark>(w);
+        }
+        else
+        {
+            // Terrain residency is deterministic: every frame completes its view (E9)
+            app.setCompleteViewEachFrame(true);
+        }
         std::remove(resultFile(g.benchmarkName).c_str());
         std::cout << "Benchmark " << g.benchmarkName << " on " << gpu << " (base spacing "
                   << w.spaceTemplate(0).baseSpacing << " m)" << std::endl;
@@ -177,13 +194,21 @@ void beforeRender(EngineApp& app)
     Vulkan::RenderScene& scene = *app.scene();
     // The frame being recorded
     const uint64_t frame = scene.frames() + 1;
+    // S22: the measured frames of the terraform benchmark edit after the frame's step, before its updateView
+    if (g.terraform && g.bench && g.bench->measuring(frame) && !g.benchmarkDone)
+    {
+        if (frame == uint64_t(Vulkan::WorldBenchmark::warmupFrames) + 1) g.terraform->begin(app.world());
+        g.terraform->edit(app.world());
+    }
     g.prototype.update();
     // The terrain's residency range follows the LOD range (a larger render range would only show coarser terrain)
     if (g.prototype.settings.terrainLodRange != g.lastLodRange)
     {
         g.lastLodRange                = g.prototype.settings.terrainLodRange;
         Engine::TerrainViewSettings v = app.world().terrain().viewSettings();
-        v.residencyRange0             = std::max(400.0, 1.3 * double(g.lastLodRange));
+        // The terraform benchmark raises the floor (S22: its brush areas stay resident)
+        const double floor = g.terraform ? Game::TerraformBenchmark::kResidencyRange0 : 400.0;
+        v.residencyRange0  = std::max(floor, 1.3 * double(g.lastLodRange));
         app.world().terrain().setViewSettings(v);
     }
     // The app's free camera is this game's camera: the walk mode and the field of view of the settings adjust it as
@@ -249,6 +274,7 @@ void beforeRender(EngineApp& app)
             {
                 g.terrainUploads += g.frameUploads;
                 g.terrainUploadBytes += double(scene.terrainAtlasStats().bytesRecorded);
+                if (g.terraform) g.terraform->frameDone(app.world(), double(scene.terrainAtlasStats().bytesRecorded));
             }
         }
         g.frameWork             = 0;
@@ -358,6 +384,12 @@ void beforeRender(EngineApp& app)
                     {"mean", s.mean}, {"median", s.median}, {"p95", s.p95}, {"p99", s.p99}, {"max", s.max}};
         }
         result["gpu_frame_ms"] = gpuFrame.empty() ? json11::Json() : json11::Json(gpuFrame);
+        // S22: the terraform keys
+        if (g.terraform)
+        {
+            g.terraform->end(app.world());
+            g.terraform->addResult(result);
+        }
         // The terrain (S20): the uploads of the measured frames, the resident tiles and the memory
         {
             const auto& ts = app.world().terrain().stats();
@@ -391,8 +423,9 @@ void beforeRender(EngineApp& app)
             baseline               = all[result["gpu"].string_value()][g.benchmarkName];
         }
         std::cout << "Benchmark " << g.benchmarkName << ": " << Vulkan::WorldBenchmark::summaryText(result, baseline)
+                  << (g.terraform ? g.terraform->summary() : std::string())
                   << (written ? "Benchmark result: " + file : "Benchmark error: could not write " + file) << std::endl;
-        g.benchmarkOk   = written && complete && !g.sizeChanged && stalls == 0;
+        g.benchmarkOk   = written && complete && !g.sizeChanged && stalls == 0 && (!g.terraform || g.terraform->ok());
         g.benchmarkDone = true;
         app.quit(g.benchmarkOk ? 0 : 1);
     }

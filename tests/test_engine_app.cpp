@@ -500,6 +500,30 @@ TEST(EngineAppNoRender, AdvancesAndAnswersTools)
     EXPECT_EQ(app.frameCount(), 60u);
 }
 
+// S22: with a fixed frame time of the world's dt every frame() runs exactly one step, also when the frames take
+// longer or shorter than dt (the terraform benchmark's stepping inside run())
+TEST(EngineAppNoRender, FixedFrameTimeStepsOncePerFrame)
+{
+    EngineApp app(appSetup(false));
+    app.setFixedFrameTime(app.world().dt());
+    for (int i = 0; i < 12; ++i)
+    {
+        // A slow frame (3 dt), a fast one (no sleep)
+        if (i % 2 == 0) std::this_thread::sleep_for(std::chrono::duration<double>(3 * app.world().dt()));
+        const uint64_t before = app.world().stepIndex();
+        app.frame();
+        EXPECT_EQ(app.world().stepIndex(), before + 1) << "frame " << i;
+    }
+    // runFrames with another dt: still one step per frame
+    app.runFrames(5, 0.1);
+    EXPECT_EQ(app.world().stepIndex(), 17u);
+    // Back to the measured time
+    app.setFixedFrameTime(0);
+    EXPECT_EQ(app.fixedFrameTime(), 0.0);
+    app.runFrames(3, 0);
+    EXPECT_EQ(app.world().stepIndex(), 17u);
+}
+
 // The local player gets the input; neutral input does not overwrite what an agent set
 TEST(EngineAppNoRender, InputToTheLocalPlayer)
 {
