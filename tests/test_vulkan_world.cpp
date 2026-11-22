@@ -591,11 +591,13 @@ class VulkanPrototypeScene : public RenderSceneTest
         p.settings.terrainLodRange = 40;
         p.attach(*scene, trees, seed);
     }
-    // The terrain around the camera (the default residency rule), with grass masks
+    // The terrain around the camera, with grass masks: the tiles of level k within 100 m * 2^k (the default residency
+    // rule has 400 m * 2^k; test speed: a quarter of the tiles to upload, and coarser nodes beyond them, i.e. fewer
+    // triangles for lavapipe's vertex stage; no test here looks at the distant terrain's detail)
     void Terrain(const Vec3& camera, bool withMasks = false)
     {
         TerrainTestHooks::fillTestTerrain(*scene, Layout(), prototypeHeight, attachedSeed, kPrototypeSeaLevel, camera,
-                                          withMasks);
+                                          withMasks, 0, 100);
     }
     double Ground(double x, double z) const { return prototypeSurfaceHeight(attachedSeed, kSpacing, x, z); }
     double Sea() const { return double(kPrototypeSeaLevel) * kHeightUnit; }
@@ -814,6 +816,8 @@ TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
     // 1000 trees (a few dozen in view) and the grass show the wind (test speed: 5000 cost 120 ms per frame)
     Attach(p, 1000);
     p.settings.wind = 4;
+    // The grass within 20 m (in view, a few metres away; test speed: 60 m were 350k triangles per frame)
+    p.settings.grassRadius = 20;
     Vec3 eye(1536 - 28, 0, 1536 - 80);
     eye(1)            = std::max(Ground(eye(0), eye(2)), Sea()) + 2.0;
     const Vec3 target = eye + Vec3(1, -0.2, 0);
@@ -979,7 +983,10 @@ TEST_F(VulkanPrototypeScene, ResizeWithPrototype)
 TEST_F(VulkanPrototypeScene, TreesToggleInFlight)
 {
     PrototypeScene p;
-    // 2000 trees still fill every 256 m chunk's set of the area (the sets are what is toggled in flight)
+    // 2000 trees still fill every 256 m chunk's set of the area (the sets are what is toggled in flight); no terrain
+    // draws (test speed: lavapipe's vertex stage)
+    p.settings.terrain = false;
+    p.settings.water   = false;
     Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
     c(1)           = Ground(c(0), c(2));
@@ -1036,14 +1043,16 @@ TEST_F(VulkanPrototypeScene, PrototypeSettingsSnapshotPerFrame)
 // first frame; the GPU times of a new scene count from its first frames (RenderScene::takeGpuFrameTimes)
 TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
 {
+    // The forest's counts and the GPU times: no terrain (test speed: lavapipe's vertex stage)
     PrototypeScene p;
+    p.settings.terrain = false;
+    p.settings.water   = false;
     Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
     c(1)           = Ground(c(0), c(2));
     const Vec3 eye = c + Vec3(0, 40, 120);
     Look(p, eye, c);
     p.update();
-    Terrain(eye);
     auto frames = [&](int n)
     {
         bool gpu = false;
@@ -1074,7 +1083,6 @@ TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
     Attach(p, 2000);
     Look(p, eye, c);
     p.update();
-    Terrain(eye);
     EXPECT_TRUE(frames(4) || !scene->base().physicalDevice.getProperties().limits.timestampComputeAndGraphics);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
 }
