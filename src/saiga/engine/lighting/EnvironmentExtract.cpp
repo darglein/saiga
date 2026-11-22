@@ -79,6 +79,7 @@ EnvironmentSample sampleEnvironment(const World& world, SpaceId space, double al
     s.sunIlluminance            = float(c.sunIlluminance);
     s.moonDir                   = toFloat(c.moonDir);
     s.moonIlluminance           = float(c.moonIlluminance);
+    s.moonFullIlluminance       = float(setup.celestial.moonIlluminance);
     s.moonPhase                 = float(c.moonPhase);
     s.starIntensity             = float(setup.celestial.starIntensity * double(settings.starIntensity));
     const Mat3 stars            = starRotation(setup.celestial, c.hourAngle);
@@ -110,6 +111,7 @@ EnvironmentSample sampleEnvironment(const World& world, SpaceId space, double al
         s.enclosedAmbient        = toFloat(tpl.ambient);
         s.sunIlluminance         = 0;
         s.moonIlluminance        = 0;
+        s.moonFullIlluminance    = 0;
         s.starIntensity          = 0;
         s.ev100                  = float(tpl.ev100) - e.compensation;
         s.exposureSource         = Vulkan::ExposureSource::Enclosed;

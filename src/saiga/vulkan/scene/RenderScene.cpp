@@ -1371,7 +1371,12 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
             out.fogParams       = vec4(density, e.clouds.fogFalloff, on ? 1 : 0, cameraAboveBase);
             out.fogColorLin     = vec4(0, 0, 0, 1);
         }
-        out.starRotation[0](3) = e.starIntensity;
+        // The stars fade out with the sun's elevation from -10 to -4 degrees (the twilight sky outshines them; no star
+        // loop per sky pixel in daylight; review minor 3); the full moon's illuminance for the disc (minor 4)
+        const float sunElevationDeg = float(std::asin(std::clamp(double(e.sunDir(1)), -1.0, 1.0)) * 57.29577951308232);
+        const float t               = std::clamp((-4.0f - sunElevationDeg) / 6.0f, 0.0f, 1.0f);
+        out.starRotation[0](3)      = e.starIntensity * t * t * (3 - 2 * t);
+        out.starRotation[1](3)      = e.moonFullIlluminance;
     }
     // The prototype albedo colours (D21)
     const PrototypeAlbedo& a = proto.colors;

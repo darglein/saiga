@@ -86,8 +86,9 @@ vec3 starRadiance(vec3 d, float pixel, float intensity)
 }
 
 // The moon disc's radiance (cd/m^2) in the view direction d: moonDir towards the moon, sunDir towards the sun; the
-// radiance of the fully lit disc gives 0.27 lux over its solid angle
-vec3 moonDiscRadiance(vec3 d, vec3 moonDir, vec3 sunDir, float pixel)
+// radiance of the fully lit disc gives fullMoonLux (the full moon's illuminance, the block's starRotation[1].w) over
+// its solid angle; the phase comes from the geometry
+vec3 moonDiscRadiance(vec3 d, vec3 moonDir, vec3 sunDir, float pixel, float fullMoonLux)
 {
     const float radius = 0.0045;  // rad
     float c            = dot(d, moonDir);
@@ -102,7 +103,7 @@ vec3 moonDiscRadiance(vec3 d, vec3 moonDir, vec3 sunDir, float pixel)
     float lit    = max(dot(n, sunDir), 0.0);
     // Full moon: lit = sqrt(1 - s^2) on average 2/3 over the disc
     float omega = kAtmPi * radius * radius;
-    return vec3(0.98, 0.96, 0.92) * (0.27 / omega * 1.5 * lit * disc);
+    return vec3(0.98, 0.96, 0.92) * (fullMoonLux / omega * 1.5 * lit * disc);
 }
 
 #endif

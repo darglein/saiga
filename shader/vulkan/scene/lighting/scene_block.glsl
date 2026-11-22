@@ -44,6 +44,8 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // xy: the coverage texture's position of the camera (camera xz + cloud offset, wrapped to the tile; m), z: the mean
     // coverage at the cloudiness, w: 1 the cloud layer and its shadows are on
     vec4 cloudMotion;
+    // xyz: the rows of the star rotation; [0].w the stars' intensity (0 in daylight), [1].w the full moon's illuminance
+    // (lux; the moon disc)
     vec4 starRotation[3];
     // rgb; albedoGround.w: the rock slope (n.y)
     vec4 albedoGround;

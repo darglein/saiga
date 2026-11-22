@@ -339,13 +339,14 @@ struct SpaceRenderSettings
 // RenderScene::setEnvironment. Render data: float, directions unit vectors (y up, north = -z)
 struct EnvironmentState
 {
-    vec3 sunDir           = vec3(0, 0.70710678f, 0.70710678f);  // towards the sun (noon at 45 degrees latitude)
-    float sunIlluminance  = 120000;                             // lux at the top of the atmosphere (the LUT attenuates)
-    vec3 moonDir          = vec3(0, -0.70710678f, -0.70710678f);
-    float moonIlluminance = 0.27f;  // lux, scaled by the lit fraction of the phase
-    float moonPhase       = 0.5f;
-    float starIntensity   = 1;
-    mat3 starRotation     = mat3::Identity();  // the hour angle about the celestial pole
+    vec3 sunDir               = vec3(0, 0.70710678f, 0.70710678f);  // towards the sun (noon at 45 degrees latitude)
+    float sunIlluminance      = 120000;  // lux at the top of the atmosphere (the LUT attenuates)
+    vec3 moonDir              = vec3(0, -0.70710678f, -0.70710678f);
+    float moonIlluminance     = 0.27f;  // lux, scaled by the lit fraction of the phase
+    float moonFullIlluminance = 0.27f;  // lux of the full moon (the disc's radiance; its phase is the geometry)
+    float moonPhase           = 0.5f;
+    float starIntensity       = 1;
+    mat3 starRotation         = mat3::Identity();  // the hour angle about the celestial pole
     // Weather (§10.7)
     float cloudiness = 0.3f, rain = 0, fogDensity = 0.00015f, snowCover = 0;
     vec2 wind        = vec2(3, 1);

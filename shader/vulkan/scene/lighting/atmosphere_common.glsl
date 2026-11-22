@@ -178,7 +178,8 @@ vec3 skyRadiance(sampler2D skyView, vec3 dir, float horizon)
 // radius. Shared by the layer's pass (cloud_layer.frag), the environment capture, the cloud shadow (shadows.glsl) and
 // the previews.
 const float kCloudTile          = 16384.0;
-const float kEarthRadiusM       = 6371000.0;
+// The planet's radius of the cloud layer's curvature: the atmosphere's ground (one constant; review minor 8)
+const float kEarthRadiusM       = kGroundRadiusKm * 1000.0;
 const float kCloudShadowOpacity = 0.85;
 
 // The layer's opacity at the coverage texture's uv for the cloudiness (the noise's top (1 - cloudiness))

@@ -1179,6 +1179,21 @@ TEST_F(AtmosphereTest, MoonSkippedInDaylight)
     EXPECT_EQ(scene->lastLightingBlock().shadowLight(3), 2.0f);
 }
 
+// The stars fade out with the sun's elevation between -10 and -4 degrees (the block's intensity: no star loop in a day
+// sky; review minor 3)
+TEST_F(AtmosphereTest, StarsFadeWithTheSun)
+{
+    const float intensity = 2;
+    for (auto [elevation, expected] : {std::pair<float, float>{10, 0}, {-4, 0}, {-7, 1}, {-10, 2}, {-40, 2}})
+    {
+        EnvironmentState e = sunAt(elevation);
+        e.starIntensity    = intensity;
+        Physical(e, Vec3(0, 0.3, 1), 1.2, false);
+        RenderFrame();
+        EXPECT_NEAR(scene->lastLightingBlock().starRotation[0](3), expected, 1e-3f) << elevation;
+    }
+}
+
 // The night sky: the full moon disc is bright, the dark sky beside it; a moonless sky shows stars (isolated bright
 // pixels over a dark background)
 TEST_F(AtmosphereTest, NightSkyHasStarsAndMoon)
@@ -1191,6 +1206,12 @@ TEST_F(AtmosphereTest, NightSkyHasStarsAndMoon)
     const TemplatedImage<ucvec4> moon = Capture(2);
     EXPECT_GT(luminance(moon(height / 2, width / 2)), 200.0f);
     EXPECT_LT(luminance(moon(4, 4)), 60.0f);
+    // The disc follows the full moon's illuminance (review minor 4: it was a fixed 0.27 lux): 0 leaves the dark sky
+    night.moonFullIlluminance = 0;
+    scene->setEnvironment(night);
+    const TemplatedImage<ucvec4> none = Capture(1);
+    EXPECT_LT(luminance(none(height / 2, width / 2)), 0.5f * luminance(moon(height / 2, width / 2)));
+    night.moonFullIlluminance = 0.27f;
     // A moonless night: the moon below the horizon, a wide view up
     night.moonDir         = vec3(0, -0.5f, 0.8660254f);
     night.moonIlluminance = 0;
