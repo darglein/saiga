@@ -877,7 +877,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         subEnd("scene.instances", cmd);
         viewport(cmd);
         subBegin("scene.grass", cmd);
-        if (s.foliage && !enclosed) s.grass->render(cmd, frame.frameIndex, *s.terrain);
+        if (s.foliage && !enclosed) s.grass->render(cmd, frame.frameIndex, *s.terrain, lighting.lightCounts(0) > 0);
         subEnd("scene.grass", cmd);
         subBegin("scene.sky", cmd);
         // The environment's sky (S20): with the foliage texture (the prototype), with or without terrain, and (S36a1c)
@@ -1812,9 +1812,16 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     block.clusterDepth    = vec4(float(g.nearPlane), float(g.clusterNear), float(g.clusterFar),
                                  float(double(g.z - 1) / std::log(g.clusterFar / g.clusterNear)));
     block.atlasParams(3)  = clusterHeatScale;
-    const Vec3 forward    = cameraRotation * Vec3(0, 0, -1);
-    block.viewForward     = vec4(float(forward(0)), float(forward(1)), float(forward(2)), 0);
-    block.viewport        = vec4(float(sz(0)), float(sz(1)), 0, 0);
+    // The lights' cluster ranges (light_cluster.comp's pre-test)
+    if (frameClusters)
+    {
+        for (LocalLights::GpuLight& r : lightTable->frameRecordsMutable())
+            r.clusterRange = LightClusters::clusterRange(g, frameView, frameProjection, r);
+        lightTable->writeRecords(frameIndex);
+    }
+    const Vec3 forward = cameraRotation * Vec3(0, 0, -1);
+    block.viewForward  = vec4(float(forward(0)), float(forward(1)), float(forward(2)), 0);
+    block.viewport     = vec4(float(sz(0)), float(sz(1)), 0, 0);
 }
 
 void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex)
@@ -1854,11 +1861,12 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
         li.importance = f.importance;
         in.push_back(li);
     }
-    // Dynamic instances in a light's sphere: its dynamic layer is rendered every frame
+    // Moving dynamic instances in a light's sphere: its dynamic layer is rendered every frame (resting ones are in the
+    // static layer)
     if (!in.empty())
         for (const InstanceBuffer::Dynamic& d : instanceBuffer->dynamics())
         {
-            if (!d.alive || !d.set || d.chunk.space != camera.space) continue;
+            if (!d.alive || !d.set || d.chunk.space != camera.space || !InstanceBuffer::moving(d)) continue;
             const MeshPool::Mesh* m = meshPool->mesh(d.mesh);
             if (!m) continue;
             const double scale = d.curr.scale;
@@ -1892,12 +1900,15 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
         af.face = f;
         if (!f.clearOnly)
         {
+            // The static layer: static sets, the terrain and the resting dynamic instances (cached); the dynamic layer:
+            // the moving dynamic instances
             ShadowView v;
-            v.perspective = true;
-            v.facePlanes  = f.planes;
-            v.castStatic  = f.layer == 0;
-            v.castDynamic = f.layer == 1;
-            v.viewProj    = f.viewProj;
+            v.perspective   = true;
+            v.facePlanes    = f.planes;
+            v.castStatic    = f.layer == 0;
+            v.castDynamic   = true;
+            v.dynamicFilter = f.layer == 0 ? 1 : 2;
+            v.viewProj      = f.viewProj;
             shadowViews.push_back(v);
             af.view = uint32_t(shadowViews.size());
         }
@@ -2363,7 +2374,11 @@ void RenderScene::finishProbe()
                     const vec3 x = rel.cast<float>();
                     for (size_t i = 0; i < run->lights.size(); ++i)
                     {
-                        if (!LightClusters::lightTouches(run->lights[i], run->view, lo, hi)) continue;
+                        const int cl = p.cluster, gx = run->grid.x, gy = run->grid.y;
+                        if (!LightClusters::inRange(run->lights[i].clusterRange, cl % gx, (cl / gx) % gy,
+                                                    cl / (gx * gy)) ||
+                            !LightClusters::lightTouches(run->lights[i], run->view, lo, hi))
+                            continue;
                         p.clusterTotal++;
                         if (p.lights.size() >= size_t(run->grid.maxLightsPerCluster)) continue;
                         LightingProbe::LightContribution c;
@@ -2474,14 +2489,44 @@ InstanceHandle RenderScene::addDynamic(MeshId mesh)
     return instanceBuffer->addDynamic(mesh);
 }
 
+void RenderScene::markDynamicDirty(MeshId mesh, const ChunkId& chunk, const DynamicPose& pose)
+{
+    // S36b: a resting dynamic instance is in the atlas's static layer: its bounds are dirty when it leaves or takes a
+    // resting pose
+    const MeshPool::Mesh* m = meshPool->mesh(mesh);
+    if (!m) return;
+    const double scale  = pose.scale;
+    const Vec3 centre   = chunkOrigin(chunk) + pose.position + pose.rotation * (m->sphereCenter.cast<double>() * scale);
+    const double radius = double(m->sphereRadius + m->boundsPadding) * scale;
+    atlasShadows->markDirty(centre - Vec3(radius, radius, radius), centre + Vec3(radius, radius, radius));
+}
+
 void RenderScene::setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
                              uint32_t boneOffset)
 {
+    const auto& list = instanceBuffer->dynamics();
+    if (h.id >= 1 && h.id <= list.size())
+    {
+        const InstanceBuffer::Dynamic old = list[h.id - 1];
+        const bool wasResting             = old.alive && old.set && !InstanceBuffer::moving(old);
+        instanceBuffer->setDynamic(h, chunk, prev, curr, boneOffset);
+        const InstanceBuffer::Dynamic& now = list[h.id - 1];
+        const bool resting                 = !InstanceBuffer::moving(now);
+        const bool samePlace = old.set && old.chunk == now.chunk && old.curr.position == now.curr.position &&
+                               old.curr.rotation.coeffs() == now.curr.rotation.coeffs() &&
+                               old.curr.scale == now.curr.scale;
+        if (wasResting && !(resting && samePlace)) markDynamicDirty(old.mesh, old.chunk, old.curr);
+        if (resting && !(wasResting && samePlace)) markDynamicDirty(now.mesh, now.chunk, now.curr);
+        return;
+    }
     instanceBuffer->setDynamic(h, chunk, prev, curr, boneOffset);
 }
 
 void RenderScene::removeDynamic(InstanceHandle h)
 {
+    const auto& list = instanceBuffer->dynamics();
+    if (h.id >= 1 && h.id <= list.size() && list[h.id - 1].alive && !InstanceBuffer::moving(list[h.id - 1]))
+        markDynamicDirty(list[h.id - 1].mesh, list[h.id - 1].chunk, list[h.id - 1].curr);
     instanceBuffer->removeDynamic(h);
 }
 

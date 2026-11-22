@@ -225,10 +225,13 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
                 direct += pbrDirect(s.n, v, lighting.moon.xyz, s.albedo, rough, s.metalness, moonE, lut, wrap);
             }
         }
-        // S36b: the local lights (also in enclosed spaces)
+        // S36b: the local lights (also in enclosed spaces); LIGHTING_NO_LOCAL_LIGHTS: a pipeline variant without their
+        // code for the frames without local lights (the grass's overdraw: no register cost when unused)
+#ifndef LIGHTING_NO_LOCAL_LIGHTS
         if (lighting.lightCounts.x > 0u)
             local = localLightsDirect(s.n, v, s.relPos, s.albedo, rough, s.metalness, lut, wrap, atlasMin,
                                       atlasLights);
+#endif
         vec3 irradiance = ambientDiffuse(s.n, s.relPos);
         vec3 specular   = (s.flags & (surfaceFoliage | surfaceShSpecular)) != 0u
                               ? irradiance / kPi
@@ -250,6 +253,7 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
         if (lighting.debugParams.z > 0.5) return vec3(atlasMin, float(atlasLights), 0.0);
         return atlasLights == 0 ? vec3(0.15, 0.18, 0.3) : vec3(0.05 + 0.95 * atlasMin);
     }
+#ifndef LIGHTING_NO_LOCAL_LIGHTS
     if (view == viewClusterLights)
     {
         // The lights of the fragment's cluster as a heat map (turbo over 0 .. atlasParams.w lights); an overflowed
@@ -261,6 +265,7 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
         if (ct.y > ct.x) return vec3(1.0, 0.0, 1.0);
         return ct.x == 0u ? vec3(0.05) : turbo(float(ct.x) / max(lighting.atlasParams.w, 1.0));
     }
+#endif
     // The fog: the physical path's from the light terms, clay's studio fog per fragment
     c = physicalLighting() ? c * fog.a + fog.rgb : lightingFog(c, s.relPos);
     if (view == viewLightingOnly) return debugDisplay(c);

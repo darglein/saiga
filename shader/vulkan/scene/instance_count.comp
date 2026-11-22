@@ -11,9 +11,10 @@
 // (mesh 0), zeroed mesh records, invalid offset entries (w = 0) and instances beyond the mesh's last end distance from
 // the main camera; then, for each view of the chunk's mask (S36a2), the view's six planes (the main camera's frustum,
 // or a shadow cascade's light-space volume), and for shadow views the de-duplication (the bounding sphere's xy
-// footprint inside the de-duplication rectangle and its light depth inside the de-duplication interval) and the small-caster rule; the LOD by the distance of the
-// bounding sphere's centre from the main camera (the first LOD with distance <= endDistance) plus the view's bias,
-// clamped. The instance is counted in its bucket (view, pipeline class, mesh, LOD) with atomicAdd; the bucket and the
+// footprint inside the de-duplication rectangle and its light depth inside the de-duplication interval) and the
+// small-caster rule (S36b: an atlas face's dynamic filter: the static layer draws the resting dynamic instances, the
+// dynamic layer the moving ones); the LOD by the distance of the bounding sphere's centre from the main camera (the
+// first LOD with distance <= endDistance) plus the view's bias, clamped. The instance is counted in its bucket (view, pipeline class, mesh, LOD) with atomicAdd; the bucket and the
 // returned slot are stored in its scratch entry of the view (scratchBase[chunk] + k * 256 + invocation, k-th view of
 // the mask), which the write pass uses.
 
@@ -60,6 +61,8 @@ void main()
     bool valid = i < ch.count;
     Pose pose;
     uint mesh = 0u, slot = 0u;
+    // S36b: a dynamic instance that moves (DynamicInstance::pad bit 0; the atlas's views filter by it)
+    bool isDynamic = false, moving = false;
     if (valid)
     {
         if (ch.slot == dynamicChunk)
@@ -68,6 +71,8 @@ void main()
             mesh              = d.mesh;
             slot              = d.slot;
             valid             = mesh != 0u;
+            isDynamic         = true;
+            moving            = (d.pad & 1u) != 0u;
             if (valid) pose = dynamicPose(d, pc.alpha);
         }
         else
@@ -117,6 +122,9 @@ void main()
         if (inside && view.params.w > 0.5)
         {
             if (radius < view.params.y) inside = false;
+            // S36b: an atlas face's dynamic filter (dedup.x without de-duplication: 1 resting, 2 moving instances)
+            if (view.params.x < 0.5 && isDynamic && view.dedup.x > 0.5 && (view.dedup.x < 1.5) == moving)
+                inside = false;
             if (inside && view.params.x > 0.5)
             {
                 vec2 f  = vec2(dot(view.axisX.xyz, center), dot(view.axisY.xyz, center));

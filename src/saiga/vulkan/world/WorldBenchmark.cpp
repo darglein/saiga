@@ -62,7 +62,8 @@ json11::Json WorldBenchmark::buildInfo()
 
 const std::vector<std::string>& WorldBenchmark::names()
 {
-    static const std::vector<std::string> n = {"flyover", "forest", "terraform"};
+    // S36b: night is the flyover path at 22:00 with game_world's lamps (reported, not in benchmarks.json)
+    static const std::vector<std::string> n = {"flyover", "forest", "terraform", "night"};
     return n;
 }
 
@@ -84,7 +85,7 @@ WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground&
     // The centre of the prototype's 8 km area (until S27, §17.7)
     const double c = 4096;
     Pose p;
-    if (name == "flyover")
+    if (name == "flyover" || name == "night")
     {
         const double pi    = 3.14159265358979323846;
         const double angle = 2.0 * pi * double(measuredFrame) / measuredFrames;

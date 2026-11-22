@@ -59,7 +59,8 @@ class SAIGA_VULKAN_API GrassPass
     void update(const TerrainAtlas& atlas, const TerrainPass& terrain, const SceneCamera& camera,
                 const PrototypeSettings& settings);
     // Inside the scene pass (needs the foliage texture in the lighting set)
-    void render(vk::CommandBuffer cmd, uint32_t frameIndex, const TerrainPass& terrain);
+    // localLights: the frame has local lights (S36b: the variant with their code, created on first use)
+    void render(vk::CommandBuffer cmd, uint32_t frameIndex, const TerrainPass& terrain, bool localLights = false);
 
     const Stats& stats() const { return statistics; }
     // The cells per chunk side for a cell size
@@ -81,6 +82,11 @@ class SAIGA_VULKAN_API GrassPass
     RenderingFormats sceneFormats;
     uint64_t creations = 0;
     Pipeline pipeline;
+    // S36b: the variant with the local lights' code (on first use) and the pipeline state of both
+    Pipeline lightsPipeline;
+    bool lightsCreated = false;
+    PipelineInfo pipelineInfo;
+    void createLightsPipeline();
     Buffer vertices, indices;
     uint32_t indexCount = 0;
     bool initialized    = false;

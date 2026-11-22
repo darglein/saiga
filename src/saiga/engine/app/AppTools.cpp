@@ -400,12 +400,14 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "exposure) "
         "or a game tab by name (case-insensitive). Without "
         "tab it only reads. Returns the selected tab, the tabs with their keys and whether the UI is visible (G hides "
-        "all ImGui; this tool does not show it again). Use it before screenshot(gui: true) to capture a tab. Changes "
-        "only the UI, not the world.",
-        schema({{"tab", McpServer::StringProperty("The tab's name")}}),
+        "all ImGui; this tool does not show it again). sections (S36b): {key: open} opens or closes collapsible "
+        "sections by their key (e.g. \"lighting/Local lights\"; the keys are in the answer's sections). Use it before "
+        "screenshot(gui: true) to capture a tab. Changes only the UI, not the world.",
+        schema({{"tab", McpServer::StringProperty("The tab's name")},
+                {"sections", Json::object{{"type", "object"}, {"description", "{section key: open (bool)}"}}}}),
         [&app](const Json& a, McpServer::Respond respond)
         {
-            if (unknownArgument(a, {"tab"}, respond)) return;
+            if (unknownArgument(a, {"tab", "sections"}, respond)) return;
             DebugUi& ui = app.debugUi();
             if (!ui.enabled()) return respond(ToolResult::Error("The debug UI is off (EngineAppSetup::debugUi)"));
             Json::array tabs;
@@ -426,9 +428,27 @@ void registerAppTools(McpServer& server, EngineApp& app)
                         ToolResult::Error("Unknown tab \"" + a["tab"].string_value() + "\" (tabs: " + names + ")"));
                 ui.select(t);
             }
+            // S36b: the open state of sections (merged into the UI's state)
+            if (!a["sections"].is_null())
+            {
+                if (!a["sections"].is_object()) return respond(ToolResult::Error("sections: {key: true or false}"));
+                Json::object state    = ui.state().object_items();
+                Json::object sections = state["sections"].object_items();
+                for (const auto& kv : a["sections"].object_items())
+                {
+                    if (!kv.second.is_bool())
+                        return respond(ToolResult::Error("sections: \"" + kv.first + "\": true or false"));
+                    sections[kv.first] = kv.second;
+                }
+                state["sections"] = sections;
+                ui.setState(state);
+            }
             const bool visible = app.scene() && app.scene()->imguiVisible() && app.setup().render.imgui;
-            respond(ToolResult::Text(
-                Json(Json::object{{"tab", ui.tabName(ui.selected())}, {"tabs", tabs}, {"visible", visible}}).dump()));
+            respond(ToolResult::Text(Json(Json::object{{"tab", ui.tabName(ui.selected())},
+                                                       {"tabs", tabs},
+                                                       {"visible", visible},
+                                                       {"sections", ui.state()["sections"]}})
+                                         .dump()));
         });
 
     server.addTool(

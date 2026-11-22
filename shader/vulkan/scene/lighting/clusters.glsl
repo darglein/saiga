@@ -12,15 +12,17 @@
 #ifndef CLUSTERS_GLSL
 #define CLUSTERS_GLSL
 
-// LocalLights::GpuLight (std430, 64 bytes): posRange (xyz camera-relative, w range), dirKind (xyz the spot's axis, w 0
+// LocalLights::GpuLight (std430, 80 bytes): posRange (xyz camera-relative, w range), dirKind (xyz the spot's axis, w 0
 // point, 1 spot), intensity (rgb colour * candela * flicker, w the first atlas tile-table entry, -1: unshadowed),
-// cone (x cosOuter, y 1 / (cosInner - cosOuter), z 1 the atlas tiles are rendered, w unused)
+// cone (x cosOuter, y 1 / (cosInner - cosOuter), z 1 the atlas tiles are rendered, w unused), clusterRange (the
+// clusters it can touch, light_cluster.comp's pre-test: x x0 + 256 x1, y y0 + 256 y1, z z0 + 256 z1)
 struct LocalLight
 {
     vec4 posRange;
     vec4 dirKind;
     vec4 intensity;
     vec4 cone;
+    vec4 clusterRange;
 };
 
 layout(std430, set = 1, binding = 10) readonly buffer LocalLightBuffer

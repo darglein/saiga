@@ -169,6 +169,8 @@ void LocalLights::prepareFrame(uint32_t frameIndex, const FrameInput& in)
             const float co = std::min(d.cosOuter, d.cosInner);
             const float ci = std::max(d.cosInner, co + 1e-4f);
             g.cone         = vec4(co, 1.0f / (ci - co), 0, 0);
+            // Every cluster until RenderScene narrows it (LightClusters::clusterRange)
+            g.clusterRange = vec4(256 * 255, 256 * 255, 256 * 255, 0);
             FrameLightInfo info;
             info.handle     = l.handle.id;
             info.index      = uint32_t(records.size());

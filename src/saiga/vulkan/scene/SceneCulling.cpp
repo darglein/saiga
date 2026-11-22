@@ -463,6 +463,8 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             g.dedup[2]  = float(sv.dedupMax(0));
             g.dedup[3]  = float(sv.dedupMax(1));
             g.params[0] = sv.dedup ? 1.0f : 0.0f;
+            // S36b: an atlas face (no de-duplication): dedup.x is its dynamic filter (1 resting, 2 moving instances)
+            if (!sv.dedup) g.dedup[0] = float(sv.dynamicFilter);
             g.params[1] = float(sv.smallRadius);
             g.params[2] = float(sv.lodBias);
             g.params[3] = 1;

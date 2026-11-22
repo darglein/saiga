@@ -40,8 +40,11 @@ class SAIGA_VULKAN_API LocalLights
         vec4 dirKind;    // xyz the spot's axis, w 0 point, 1 spot
         vec4 intensity;  // rgb colour * candela * flicker, w the first atlas tile-table entry (-1: unshadowed)
         vec4 cone;       // x cosOuter, y 1 / (cosInner - cosOuter), z 1 the atlas tiles are rendered, w unused
+        // The clusters the light can touch (LightClusters::clusterRange): x x0 + 256 x1, y y0 + 256 y1, z z0 + 256 z1
+        // (a conservative pre-test of light_cluster.comp), w unused
+        vec4 clusterRange;
     };
-    static_assert(sizeof(GpuLight) == 64, "LocalLight of clusters.glsl");
+    static_assert(sizeof(GpuLight) == 80, "LocalLight of clusters.glsl");
     // The buffer's header (uvec4: x the count) before the lights
     static constexpr size_t kHeaderBytes = 16;
 
@@ -83,6 +86,7 @@ class SAIGA_VULKAN_API LocalLights
         records[index].cone(2)      = ready ? 1.0f : 0.0f;
     }
     void writeRecords(uint32_t frameIndex);
+    std::vector<GpuLight>& frameRecordsMutable() { return records; }
     // The intensity (candela) of a light, the flicker factor at a phase (the frame's: CPU, double)
     static float candela(const LightData& d);
     static float flickerFactor(const LightFlicker& f, float phase);

@@ -428,6 +428,50 @@ void LightClusters::clusterBounds(const ClusterGrid& grid, const mat4& projectio
     }
 }
 
+bool LightClusters::inRange(const vec4& range, int x, int y, int z)
+{
+    const int r[3] = {int(range(0)), int(range(1)), int(range(2))};
+    const int t[3] = {x, y, z};
+    for (int k = 0; k < 3; ++k)
+        if (t[k] < (r[k] & 255) || t[k] > (r[k] >> 8)) return false;
+    return true;
+}
+
+vec4 LightClusters::clusterRange(const ClusterGrid& grid, const mat4& view, const mat4& projection,
+                                 const LocalLights::GpuLight& L)
+{
+    const vec4 cv  = view * vec4(L.posRange(0), L.posRange(1), L.posRange(2), 1);
+    const double r = double(L.posRange(3)) * 1.001;
+    const double d = -double(cv(2));
+    // The slices of [d - r, d + r] (beyond clusterFar: the last slice; the light selection drops lights beyond it)
+    const int z0 = std::max(grid.sliceOf(std::max(d - r, grid.nearPlane)), 0);
+    int z1       = grid.sliceOf(d + r);
+    if (z1 < 0) z1 = grid.z - 1;
+    int x0 = 0, x1 = grid.x - 1, y0 = 0, y1 = grid.y - 1;
+    if (d - r > grid.nearPlane)
+    {
+        // The AABB's corners in NDC (all in front of the near plane)
+        double nx0 = 1e30, nx1 = -1e30, ny0 = 1e30, ny1 = -1e30;
+        for (int k = 0; k < 8; ++k)
+        {
+            const vec4 p(cv(0) + float((k & 1) ? r : -r), cv(1) + float((k & 2) ? r : -r),
+                         cv(2) + float((k & 4) ? r : -r), 1);
+            const vec4 c   = projection * p;
+            const double x = double(c(0)) / double(c(3)), y = double(c(1)) / double(c(3));
+            nx0 = std::min(nx0, x);
+            nx1 = std::max(nx1, x);
+            ny0 = std::min(ny0, y);
+            ny1 = std::max(ny1, y);
+        }
+        auto tile = [](double ndc, int n) { return std::clamp(int(std::floor((ndc * 0.5 + 0.5) * n)), 0, n - 1); };
+        x0        = tile(nx0, grid.x);
+        x1        = tile(nx1, grid.x);
+        y0        = tile(ny0, grid.y);
+        y1        = tile(ny1, grid.y);
+    }
+    return vec4(float(x0 + 256 * x1), float(y0 + 256 * y1), float(z0 + 256 * z1), 0);
+}
+
 bool LightClusters::lightTouches(const LocalLights::GpuLight& L, const mat4& view, const vec3& lo, const vec3& hi)
 {
     const vec4 pv = view * vec4(L.posRange(0), L.posRange(1), L.posRange(2), 0);
@@ -459,8 +503,10 @@ std::vector<std::vector<uint32_t>> LightClusters::computeCpu(const ClusterGrid& 
     {
         vec3 lo, hi;
         clusterBounds(grid, projection, c, lo, hi);
+        const int tx = c % grid.x, ty = (c / grid.x) % grid.y, tz = c / (grid.x * grid.y);
         for (uint32_t i = 0; i < uint32_t(lights.size()); ++i)
-            if (lightTouches(lights[i], view, lo, hi) && out[size_t(c)].size() < size_t(grid.maxLightsPerCluster))
+            if (inRange(lights[i].clusterRange, tx, ty, tz) && lightTouches(lights[i], view, lo, hi) &&
+                out[size_t(c)].size() < size_t(grid.maxLightsPerCluster))
                 out[size_t(c)].push_back(i);
     }
     return out;

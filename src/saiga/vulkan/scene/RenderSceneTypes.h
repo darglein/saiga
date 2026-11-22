@@ -486,6 +486,8 @@ struct ShadowView
     bool perspective               = false;
     std::array<Vec4, 6> facePlanes = {};
     bool castStatic = true, castDynamic = true;
+    // The dynamic instances it draws: 0 all, 1 the resting ones (the static layer caches them), 2 the moving ones
+    int dynamicFilter = 0;
 
     // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
     // (zMin) and the near cap (zMax + the instances' or the terrain's cap)

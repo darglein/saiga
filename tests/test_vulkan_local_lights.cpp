@@ -465,8 +465,14 @@ TEST_F(LightsTest, ClusterListsMatchCpuReference)
         b.posRange(3) *= 0.999f;
         a.cone(0) -= 1e-3f;
         b.cone(0) += 1e-3f;
-        return LightClusters::lightTouches(a, scene->viewMatrix(), lo, hi) !=
-               LightClusters::lightTouches(b, scene->viewMatrix(), lo, hi);
+        // The range's tile borders: the light's projected sphere ends near the cluster's edge
+        a.clusterRange = LightClusters::clusterRange(grid, scene->viewMatrix(), scene->projectionMatrix(), a);
+        b.clusterRange = LightClusters::clusterRange(grid, scene->viewMatrix(), scene->projectionMatrix(), b);
+        const int tx = c % grid.x, ty = (c / grid.x) % grid.y, tz = c / (grid.x * grid.y);
+        return (LightClusters::inRange(a.clusterRange, tx, ty, tz) &&
+                LightClusters::lightTouches(a, scene->viewMatrix(), lo, hi)) !=
+               (LightClusters::inRange(b.clusterRange, tx, ty, tz) &&
+                LightClusters::lightTouches(b, scene->viewMatrix(), lo, hi));
     };
     int nonEmpty = 0, differences = 0, overflowed = 0;
     for (int c = 0; c < grid.count(); ++c)
@@ -491,7 +497,9 @@ TEST_F(LightsTest, ClusterListsMatchCpuReference)
             if (!a.count(i))
             {
                 differences++;
-                EXPECT_TRUE(borderline(i, c)) << "light " << i << " only on the CPU in cluster " << c;
+                EXPECT_TRUE(borderline(i, c)) << "light " << i << " only on the CPU in cluster " << c << " range "
+                                              << records[i].clusterRange.transpose() << " tile " << c % grid.x << " "
+                                              << (c / grid.x) % grid.y << " " << c / (grid.x * grid.y);
             }
     }
     EXPECT_GT(nonEmpty, 100);
@@ -680,8 +688,9 @@ TEST_F(AtlasTest, CameraMoveKeepsStaticTiles)
     EXPECT_EQ(Stats().hits, 6u);
 }
 
-// The dynamic layer is rendered only for the lights with a dynamic instance in range, and cleared once when the last
-// one leaves
+// The dynamic layer is rendered only for the lights with a moving dynamic instance in range, and cleared once when the
+// last one leaves (comes to rest elsewhere); a resting dynamic instance is a static caster (its rest pose is a dirty
+// bound)
 TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
 {
     FloorAndBox(748);
@@ -689,10 +698,13 @@ TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
     LightData spot   = spotLight(vec3(20, 4, 0), vec3(0, -1, 0), 3000, 6, 20, 35);
     spot.castShadows = true;
     AddLight(spot);
+    // A moving instance (its pair differs) near the point light: the point light's dynamic faces only; a resting one is
+    // in the static layer
     const InstanceHandle d = scene->addDynamic(boxMeshId);
-    DynamicPose pose;
+    DynamicPose prev, pose;
+    prev.position = Vec3(0.9, 1.5, 0);
     pose.position = Vec3(1, 1.5, 0);
-    scene->setDynamic(d, ChunkId(), pose, pose);
+    scene->setDynamic(d, ChunkId(), prev, pose);
     Capture(2);
     EXPECT_EQ(Stats().dynamicRenders, 6u) << "the point light's faces only";
     int dynamicTiles = 0;
@@ -706,6 +718,14 @@ TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
     EXPECT_EQ(Stats().dynamicClears, 6u);
     RenderFrame();
     EXPECT_EQ(Stats().dynamicClears, 0u);
+    // At rest inside the point light: no dynamic face, the static faces re-rendered once (its rest pose is dirty)
+    pose.position = Vec3(1, 1.5, 0);
+    scene->setDynamic(d, ChunkId(), pose, pose);
+    RenderFrame();
+    EXPECT_EQ(Stats().dynamicRenders, 0u);
+    EXPECT_EQ(Stats().staticRenders, 6u);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 0u);
     scene->removeDynamic(d);
 }
 

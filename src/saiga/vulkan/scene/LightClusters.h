@@ -100,6 +100,12 @@ class SAIGA_VULKAN_API LightClusters
     static std::vector<std::vector<uint32_t>> computeCpu(const ClusterGrid& grid, const mat4& view,
                                                          const mat4& projection,
                                                          const std::vector<LocalLights::GpuLight>& lights);
+    // The clusters a light can touch (conservative: the screen rectangle of its sphere's view-space AABB, the slices of
+    // its depth range; every tile when it crosses the near plane), packed for LocalLights::GpuLight::clusterRange
+    static vec4 clusterRange(const ClusterGrid& grid, const mat4& view, const mat4& projection,
+                             const LocalLights::GpuLight& light);
+    // A cluster (x, y, z) is inside a packed range
+    static bool inRange(const vec4& range, int x, int y, int z);
     // The view-space AABB of a cluster (the CPU reference of light_cluster_bounds.comp)
     static void clusterBounds(const ClusterGrid& grid, const mat4& projection, int cluster, vec3& lo, vec3& hi);
     // The reference test of one light against a view-space AABB (sphere, plus the cone for spots)

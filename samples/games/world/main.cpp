@@ -45,6 +45,7 @@
 
 #include "games/common/Environment.h"
 #include "games/common/PrototypeSpace.h"
+#include "games/world/Lamps.h"
 #include "games/world/TerraformBenchmark.h"
 
 #include <array>
@@ -89,9 +90,15 @@ struct WorldGame
     std::unique_ptr<Game::TerraformBenchmark> terraform;
     std::string benchmarkName;
     bool benchmarkDone = false, benchmarkOk = false, sizeChanged = false;
-    bool walkMode   = false;
-    float eyeHeight = 1.8f;
-    bool fWasDown   = false;
+    // S36b: --lamps N (-1: the default, 400; 0 in the day benchmarks, which keep their baseline world), the lamps
+    // spawned, the local lights of the measured frames (sums)
+    int lamps = -1, lampsSpawned = 0;
+    uint64_t lightFrames = 0, lightsVisible = 0, lightsShadowed = 0, lightsWithoutTiles = 0, atlasStatic = 0,
+             atlasDynamic = 0, atlasHits = 0;
+    uint32_t clusterMax = 0;
+    bool walkMode       = false;
+    float eyeHeight     = 1.8f;
+    bool fWasDown       = false;
     // The terraform mode (S22; game policy, R-MECH-1): the brush op of the left button (1..4; the right button applies
     // the opposite of add / subtract), its radius and strength, the buttons held (read in the GUI, applied in
     // beforeRender between steps), the time of the last edit
@@ -178,6 +185,29 @@ void initWorld(EngineApp& app)
     eye(1)    = std::max(w.terrainHeight(0, eye(0), eye(2)), peak(1) - 40) + 60;
     center(1) = w.terrainHeight(0, center(0), center(2));
     app.setViewCamera(0, eye, cameraLookRotation(center - eye), radians(double(g.prototype.settings.fovy)));
+
+    // S36b: the lamps (on the host world: they replicate to a --coop client): a grid 250 m in front of the start
+    // camera, or for --benchmark night a ring of 2500 m around the area's centre (the flyover path looks across it)
+    {
+        const bool dayBenchmark = !g.benchmarkName.empty() && g.benchmarkName != "night";
+        const int count         = g.lamps >= 0 ? g.lamps : dayBenchmark ? 0 : 400;
+        World& host             = app.startWorld();
+        auto groundAt           = [&host](double x, double z) { return host.terrainHeight(0, x, z); };
+        const double sea        = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
+        int spawned             = 0;
+        if (g.benchmarkName == "night")
+            spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeArea * 0.5, Vulkan::kPrototypeArea * 0.5, 0, 2500,
+                                       groundAt, sea);
+        else
+        {
+            Vec3 dir = center - eye;
+            dir(1)   = 0;
+            dir      = dir.norm() > 1 ? Vec3(dir.normalized()) : Vec3(1, 0, 0);
+            spawned = Game::spawnLamps(host, count, eye(0) + dir(0) * 250, eye(2) + dir(2) * 250, 25, 0, groundAt, sea);
+        }
+        if (count > 0) std::cout << "World: " << spawned << " lamps" << std::endl;
+        g.lampsSpawned = spawned;
+    }
 
     if (!g.benchmarkName.empty())
     {
@@ -330,7 +360,17 @@ void beforeRender(EngineApp& app)
                           fovy);
         if (g.bench->measuring(frame))
         {
-            ivec2 size = scene.size();
+            // S36b: the local lights and the shadow atlas of the previous recorded frame (the night benchmark's block)
+            const Vulkan::LightingStatistics& ls = scene.lightingStatistics();
+            g.lightFrames++;
+            g.lightsVisible += ls.lights.visible;
+            g.lightsShadowed += ls.lights.shadowed;
+            g.lightsWithoutTiles += ls.lights.withoutTiles;
+            g.atlasStatic += ls.atlas.staticRenders;
+            g.atlasDynamic += ls.atlas.dynamicRenders;
+            g.atlasHits += ls.atlas.hits;
+            g.clusterMax = std::max(g.clusterMax, ls.lights.clusterMax);
+            ivec2 size   = scene.size();
             if (g.bench->width != 0 && (size(0) != g.bench->width || size(1) != g.bench->height)) g.sizeChanged = true;
             g.bench->width  = size(0);
             g.bench->height = size(1);
@@ -516,7 +556,22 @@ void beforeRender(EngineApp& app)
                                                                     {"horizon_shadows", lp.horizonShadows},
                                                                     {"cascade_count", lp.cascadeCount},
                                                                     {"cascade_resolution", lp.cascadeResolution},
-                                                                    {"shadow_distance", double(lp.shadowDistance)}}}};
+                                                                    {"shadow_distance", double(lp.shadowDistance)},
+                                                                    {"local_lights", lp.localLights},
+                                                                    {"clustered_lights", lp.clusteredLights}}}};
+            // S36b: the lamps and, per measured frame, the visible and shadowed lights, the atlas's renders and its
+            // cache hit rate (hits / (hits + static renders))
+            const double n     = double(std::max<uint64_t>(g.lightFrames, 1));
+            const double faces = double(g.atlasHits + g.atlasStatic);
+            result["local_lights"] =
+                json11::Json::object{{"lamps", g.lampsSpawned},
+                                     {"visible_mean", double(g.lightsVisible) / n},
+                                     {"shadowed_mean", double(g.lightsShadowed) / n},
+                                     {"without_tiles_mean", double(g.lightsWithoutTiles) / n},
+                                     {"cluster_max", double(g.clusterMax)},
+                                     {"atlas_static_renders_mean", double(g.atlasStatic) / n},
+                                     {"atlas_dynamic_renders_mean", double(g.atlasDynamic) / n},
+                                     {"atlas_hit_rate", faces > 0 ? double(g.atlasHits) / faces : 1.0}};
         }
         const int stalls = result["stalled_frames"].int_value();
         if (stalls > 0)
@@ -608,11 +663,22 @@ int main(int argc, char* argv[])
     WorldGame game;
     g_game = &game;
 
-    // --base-spacing 1|2 (a benchmark comparison flag, S20): taken out before the engine's command line
+    // --base-spacing 1|2 (a benchmark comparison flag, S20) and --lamps N (S36b): taken out before the engine's command
+    // line
     int baseSpacing = 1;
     std::vector<char*> args;
     for (int i = 0; i < argc; ++i)
     {
+        if (std::string(argv[i]) == "--lamps" && i + 1 < argc)
+        {
+            game.lamps = std::atoi(argv[++i]);
+            if (game.lamps < 0 || game.lamps > 100000)
+            {
+                std::cerr << "--lamps: 0..100000" << std::endl;
+                return 1;
+            }
+            continue;
+        }
         if (std::string(argv[i]) == "--base-spacing" && i + 1 < argc)
         {
             baseSpacing = std::atoi(argv[++i]);
@@ -642,16 +708,22 @@ int main(int argc, char* argv[])
         list.add(2, std::make_shared<Engine::HookGenerator>("islands", islandsHeight, Engine::HookGrassRule{0.82, 0.4},
                                                             false));
     };
+    // S36b: the lamps' meshes and their policy (on while the sun is low), before enableEnvironment adds its systems
+    setup.world.renderAssets = Game::lampRenderAssets;
+    setup.world.systems      = [](SystemList& l)
+    { l.add(Phase::Gameplay, "lampPolicy", Game::lampPolicySystem, RunOn::Host); };
     // S36: the environment (data/world/environment.json), ACES; the time is 10:00, frozen (the benchmark keeps it)
     Game::enableEnvironment(setup, "world");
-    game.area                = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
-    setup.render.msaaSamples = 4;
-    setup.cameraSpeed        = 25;
-    setup.cameraSpeedFast    = 250;
-    setup.benchmarks         = Vulkan::WorldBenchmark::names();
-    setup.mcpInstructions    = Vulkan::worldMcpInstructions();
-    EngineApp* appPtr        = nullptr;
-    setup.renderHooks.init   = [&](EngineApp& app)
+    // S36b: the local lights (the lamps) on
+    setup.render.lighting.localLights = true;
+    game.area                         = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
+    setup.render.msaaSamples          = 4;
+    setup.cameraSpeed                 = 25;
+    setup.cameraSpeedFast             = 250;
+    setup.benchmarks                  = Vulkan::WorldBenchmark::names();
+    setup.mcpInstructions             = Vulkan::worldMcpInstructions();
+    EngineApp* appPtr                 = nullptr;
+    setup.renderHooks.init            = [&](EngineApp& app)
     {
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;
@@ -713,21 +785,22 @@ int main(int argc, char* argv[])
         Vulkan::registerWorldMcpTools(server, context);
     };
 
-    // The benchmark's 10:00 (its JSON's lighting.time): a failed write fails the benchmark
+    // The benchmark's time (its JSON's lighting.time): a failed write fails the benchmark
     bool timeSet   = true;
     const int code = engineMain(int(args.size()), args.data(), setup, {},
-                                [&timeSet](EngineApp& app, const AppOptions&)
+                                [&timeSet](EngineApp& app, const AppOptions& options)
                                 {
                                     WorldTimeChange morning;
-                                    morning.hours = 10.0;
+                                    // S36b: --benchmark night at 22:00
+                                    morning.hours = options.benchmark == "night" ? 22.0 : 10.0;
                                     morning.rate  = 0.0;
                                     std::string error;
                                     timeSet = setWorldTime(app.startWorld(), morning, error);
-                                    if (!timeSet) std::cout << "The time of 10:00 was not set: " << error << std::endl;
+                                    if (!timeSet) std::cout << "The time of day was not set: " << error << std::endl;
                                 });
     if (code == 0 && !game.benchmarkName.empty() && !timeSet)
     {
-        std::cout << "Benchmark error: not at 10:00" << std::endl;
+        std::cout << "Benchmark error: the time of day was not set" << std::endl;
         return 1;
     }
     // A window closed before the end of the path

@@ -275,7 +275,8 @@ inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames
     static const std::vector<std::pair<const char*, uint32_t>> names = {
         {"sun_direction", OverlaySunDirection},   {"cascade_colors", OverlayCascadeColors},
         {"cascade_bounds", OverlayCascadeBounds}, {"camera_frustum_splits", OverlayCameraFrustumSplits},
-        {"horizon_anchor", OverlayHorizonAnchor}, {"light_volumes", OverlayLightVolumes}};
+        {"horizon_anchor", OverlayHorizonAnchor}, {"light_volumes", OverlayLightVolumes},
+        {"cluster_grid", OverlayClusterGrid},     {"atlas_owners", OverlayAtlasOwners}};
     return names;
 }
 // The display colours of the cascades (the ShadowCascades view, the overlays)

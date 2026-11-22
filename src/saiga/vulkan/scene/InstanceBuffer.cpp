@@ -290,6 +290,12 @@ void InstanceBuffer::removeDynamic(InstanceHandle h)
     freeDynamics.push_back(h.id - 1);
 }
 
+bool InstanceBuffer::moving(const Dynamic& d)
+{
+    return d.prev.position != d.curr.position || d.prev.scale != d.curr.scale ||
+           d.prev.rotation.coeffs() != d.curr.rotation.coeffs();
+}
+
 void InstanceBuffer::writeDynamics(GpuDynamic* out) const
 {
     for (size_t i = 0; i < dynamicList.size(); ++i)
@@ -313,6 +319,8 @@ void InstanceBuffer::writeDynamics(GpuDynamic* out) const
             g.mesh       = d.mesh;
             g.slot       = d.slot;
             g.boneOffset = d.boneOffset;
+            // S36b: bit 0 the instance moves (its pair differs): the atlas's dynamic layer, not its cached static one
+            g.pad = moving(d) ? 1u : 0u;
         }
         out[i] = g;
     }

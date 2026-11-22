@@ -117,6 +117,8 @@ class SAIGA_VULKAN_API InstanceBuffer
     bool recordGrowth(vk::CommandBuffer cmd) { return buffer.recordGrowth(cmd); }
     void queueUploads(UploadBatch& batch);
     Buffer& instanceBuffer() { return buffer.buffer(); }
+    // S36b: the instance moves (its prev and curr pose differ; the shadow atlas's dynamic layer)
+    static bool moving(const Dynamic& d);
     // Writes dynamics().size() entries (free or unset entries with mesh 0)
     void writeDynamics(GpuDynamic* out) const;
 

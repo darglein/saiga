@@ -14,6 +14,9 @@
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
+#include "games/common/Mesh.h"
+#include "games/common/RenderAssets.h"
+
 #include <algorithm>
 #include <thread>
 
@@ -50,7 +53,114 @@ void FlightRender::init(EngineApp& _app)
 
 void FlightRender::shutdown()
 {
+    removeLights();
     prototype.detach();
+}
+
+void FlightRender::removeLights()
+{
+    for (auto& p : planeLights)
+    {
+        for (Vulkan::LightHandle h : p.second.lights)
+            if (h) app->scene()->removeLight(h);
+        for (Vulkan::InstanceHandle h : p.second.bulbs)
+            if (h) app->scene()->removeDynamic(h);
+    }
+    planeLights.clear();
+}
+
+void FlightRender::updateLights(double alpha)
+{
+    Vulkan::RenderScene& scene = *app->scene();
+    World& w                   = app->world();
+    // Game policy: the lights are on while the sun is below 5 degrees
+    if (!(app->sampleViewEnvironment().celestial.sunElevationDeg < 5.0))
+    {
+        removeLights();
+        return;
+    }
+    // The light of index k of a plane: offset (body frame: forward -z, right +x), colour, lumen, range, spot axis
+    struct Spec
+    {
+        Vec3 offset;
+        Vec3 color;
+        float lumen, range;
+        bool spot;
+    };
+    static const std::array<Spec, 4> specs = {Spec{Vec3(-4.85, 0.1, -0.7), Vec3(1.0, 0.08, 0.05), 120, 7, false},
+                                              Spec{Vec3(4.85, 0.1, -0.7), Vec3(0.1, 1.0, 0.25), 120, 7, false},
+                                              Spec{Vec3(0, 1.75, 4.7), Vec3(1, 1, 1), 80, 6, false},
+                                              Spec{Vec3(0, -0.35, -3.6), Vec3(1.0, 0.95, 0.85), 20000, 120, true}};
+    // The bulbs' meshes once (emissive: they glow at night)
+    if (!bulbMesh)
+    {
+        const Vulkan::MaterialId m0 = Vulkan::MaterialId(scene.reserveIds(Vulkan::SceneIdKind::Material, 3));
+        bulbMesh                    = Vulkan::MeshId(scene.reserveIds(Vulkan::SceneIdKind::Mesh, 3));
+        for (int k = 0; k < 3; ++k)
+        {
+            Vulkan::MaterialData m = demoMaterial();
+            m.emissive             = specs[size_t(k)].color.cast<float>();
+            const std::string name = "flight/nav_bulb" + std::to_string(k);
+            scene.addMaterial(Vulkan::MaterialId(m0 + k), name, m);
+            scene.addMesh(Vulkan::MeshId(bulbMesh + k), name,
+                          *meshLods(MeshBuilder::box(Vec3(0.09, 0.09, 0.09), specs[size_t(k)].color), 3000),
+                          Vulkan::MaterialId(m0 + k));
+        }
+    }
+    std::map<uint64_t, PlaneLights> seen;
+    w.view<const AircraftState>().each(
+        [&](Entity e, const AircraftState&)
+        {
+            Engine::WorldPose p;
+            if (!w.extract().interpolatedPose(e, alpha, p)) return;
+            const uint64_t key = (uint64_t(e.index) << 32) | e.generation;
+            auto it            = planeLights.find(key);
+            PlaneLights pl;
+            if (it != planeLights.end())
+            {
+                pl = it->second;
+                planeLights.erase(it);
+            }
+            std::array<Vulkan::LightHandle, 4>& handles = pl.lights;
+            for (size_t k = 0; k < specs.size(); ++k)
+            {
+                const Spec& s = specs[k];
+                Engine::WorldPose at;
+                at.space          = p.space;
+                at.position       = p.position + p.rotation * s.offset;
+                const ChunkPose c = toChunkPose(at);
+                Vulkan::LightData d;
+                d.kind     = s.spot ? Vulkan::LightKind::Spot : Vulkan::LightKind::Point;
+                d.position = c.pose.position.cast<float>();
+                // The landing light: forward and 18 degrees down (the ground ahead below about 100 m)
+                d.direction   = (p.rotation * Vec3(0, -0.325, -1).normalized()).cast<float>();
+                d.color       = s.color.cast<float>();
+                d.lumen       = s.lumen;
+                d.range       = s.range;
+                d.cosInner    = float(std::cos(14.0 * kPi / 180));
+                d.cosOuter    = float(std::cos(24.0 * kPi / 180));
+                d.castShadows = s.spot;
+                d.priority    = s.spot ? 4.0f : 1.0f;
+                if (handles[k])
+                    scene.setLight(handles[k], c.chunk, d);
+                else
+                    handles[k] = scene.addLight(c.chunk, d);
+                if (k < 3)
+                {
+                    // The bulb at the light (snapped: the pose is already interpolated)
+                    Vulkan::InstanceHandle& b = pl.bulbs[k];
+                    if (!b) b = scene.addDynamic(Vulkan::MeshId(bulbMesh + k));
+                    Vulkan::DynamicPose pose = c.pose;
+                    pose.rotation            = p.rotation;
+                    pose.scale               = 1;
+                    scene.setDynamic(b, c.chunk, pose, pose);
+                }
+            }
+            seen[key] = pl;
+        });
+    // The planes that are gone
+    removeLights();
+    planeLights = std::move(seen);
 }
 
 Entity FlightRender::focus()
@@ -93,6 +203,7 @@ void FlightRender::beforeRender(double alpha)
         camera.update(p.position, forwardOf(p.rotation), frameDt);
         cameraSpace = p.space;
     }
+    updateLights(alpha);
     // While a tool holds the camera the app ignores it (S14)
     app->setViewCamera(cameraSpace, camera.eye(), Vulkan::viewRotation(camera.view()),
                        radians(double(prototype.settings.fovy)));
