@@ -80,6 +80,10 @@ class SAIGA_VULKAN_API LocalLights
     // The intensity (candela) of a light, the flicker factor at a phase (the frame's: CPU, double)
     static float candela(const LightData& d);
     static float flickerFactor(const LightFlicker& f, float phase);
+    // The CPU version of clusters.glsl's localLightRadiance (without the shadow and the energy compensation): the
+    // radiance a record reflects at relPos towards v (probe_lighting)
+    static vec3 reflectedRadiance(const GpuLight& light, const vec3& relPos, const vec3& n, const vec3& v,
+                                  const vec3& albedo, float roughness, float metalness);
     // The importance of a light at a distance (B2)
     static double importance(const LightData& d, double distance);
 

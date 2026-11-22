@@ -9,12 +9,14 @@
 // and the brute-force loop; the cached shadow atlas. One scene per test suite (RenderSceneSuiteTest), skipped without a
 // Vulkan 1.3 device.
 
+#include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include <algorithm>
 #include <cmath>
+#include <random>
 #include <set>
 
 #include "render_scene_test_context.h"
@@ -376,4 +378,179 @@ TEST_F(LightsTest, DebugViewAndVolumes)
     for (int y = 0; y < img.h; ++y)
         for (int x = 0; x < img.w; ++x) sum += img(y, x)(1);
     EXPECT_GT(sum, 0);
+}
+
+namespace
+{
+// 300 random point and spot lights over the floor (deterministic)
+void randomLights(std::vector<LightData>& out, int n, uint32_t seed)
+{
+    std::mt19937 rng(seed);
+    std::uniform_real_distribution<float> u(0, 1);
+    for (int i = 0; i < n; ++i)
+    {
+        const vec3 p(-30 + 60 * u(rng), 0.3f + 3 * u(rng), -30 + 60 * u(rng));
+        LightData d = u(rng) < 0.7f ? pointLight(p, 50 + 600 * u(rng), 1 + 6 * u(rng))
+                                    : spotLight(p, vec3(u(rng) - 0.5f, -1, u(rng) - 0.5f), 200 + 1500 * u(rng),
+                                                2 + 8 * u(rng), 10 + 15 * u(rng), 30 + 20 * u(rng));
+        d.color     = vec3(0.3f + 0.7f * u(rng), 0.3f + 0.7f * u(rng), 0.3f + 0.7f * u(rng));
+        out.push_back(d);
+    }
+}
+}  // namespace
+
+// The LocalLightsOnly image with clusters equals the brute-force loop within 1/255 (300 random lights; enough slots:
+// no overflow)
+TEST_F(LightsTest, ClusteredEqualsBruteForce)
+{
+    Floor(720, Vec3(0, 18, 26));
+    SetCamera(0, Vec3(0, 18, 26), lookRotation(Vec3(0, -0.8, -1)), 1.2);
+    std::vector<LightData> list;
+    randomLights(list, 300, 7);
+    for (const LightData& d : list) AddLight(d);
+    LightingParameters p  = scene->lightingParameters();
+    p.maxLightsPerCluster = 512;
+    p.clusteredLights     = false;
+    scene->setLightingParameters(p);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::LocalLightsOnly, 0});
+    const TemplatedImage<ucvec4> brute = Capture(3);
+    p.clusteredLights                  = true;
+    scene->setLightingParameters(p);
+    const TemplatedImage<ucvec4> clustered = Capture(3);
+    EXPECT_EQ(scene->lightingStatistics().lights.overflowedClusters, 0u);
+    EXPECT_TRUE(scene->lightingStatistics().lights.clustered);
+    int maxDiff = 0;
+    double lit  = 0;
+    for (int y = 0; y < brute.h; ++y)
+        for (int x = 0; x < brute.w; ++x)
+            for (int c = 0; c < 3; ++c)
+            {
+                maxDiff = std::max(maxDiff, std::abs(int(brute(y, x)(c)) - int(clustered(y, x)(c))));
+                lit += brute(y, x)(c);
+            }
+    EXPECT_LE(maxDiff, 1);
+    EXPECT_GT(lit / (brute.w * brute.h * 3), 5.0) << "the lights light the floor";
+}
+
+// Per cluster the GPU's light lists equal a CPU assignment (in importance order); a light that differs lies on the
+// cluster's boundary (within 1e-3 of its range)
+TEST_F(LightsTest, ClusterListsMatchCpuReference)
+{
+    Floor(722, Vec3(0, 18, 26));
+    SetCamera(0, Vec3(0, 18, 26), lookRotation(Vec3(0, -0.8, -1)), 1.2);
+    std::vector<LightData> list;
+    randomLights(list, 300, 11);
+    for (const LightData& d : list) AddLight(d);
+    LightingParameters p  = scene->lightingParameters();
+    p.clusteredLights     = true;
+    p.maxLightsPerCluster = 64;
+    scene->setLightingParameters(p);
+    Capture(2);
+    LightClusters& lc                                 = scene->lightClusters();
+    const uint32_t slot                               = lc.lastRecordedSlot();
+    const std::vector<uint32_t> table                 = lc.readTableForTests(slot);
+    const std::vector<uint32_t> indices               = lc.readIndicesForTests(slot);
+    const ClusterGrid& grid                           = scene->frameClusterGrid();
+    const std::vector<LocalLights::GpuLight>& records = scene->localLights().frameRecords();
+    ASSERT_GT(records.size(), 200u);
+    const std::vector<std::vector<uint32_t>> cpu =
+        LightClusters::computeCpu(grid, scene->viewMatrix(), scene->projectionMatrix(), records);
+    auto borderline = [&](uint32_t i, int c)
+    {
+        vec3 lo, hi;
+        LightClusters::clusterBounds(grid, scene->projectionMatrix(), c, lo, hi);
+        LocalLights::GpuLight a = records[i], b = records[i];
+        a.posRange(3) *= 1.001f;
+        b.posRange(3) *= 0.999f;
+        a.cone(0) -= 1e-3f;
+        b.cone(0) += 1e-3f;
+        return LightClusters::lightTouches(a, scene->viewMatrix(), lo, hi) !=
+               LightClusters::lightTouches(b, scene->viewMatrix(), lo, hi);
+    };
+    int nonEmpty = 0, differences = 0, overflowed = 0;
+    for (int c = 0; c < grid.count(); ++c)
+    {
+        const uint32_t count = table[2 * size_t(c)];
+        const uint32_t total = table[2 * size_t(c) + 1];
+        nonEmpty += count > 0 ? 1 : 0;
+        overflowed += total > count ? 1 : 0;
+        std::vector<uint32_t> gpu(indices.begin() + ptrdiff_t(size_t(c) * 64),
+                                  indices.begin() + ptrdiff_t(size_t(c) * 64 + count));
+        // In importance order: increasing buffer indices
+        EXPECT_TRUE(std::is_sorted(gpu.begin(), gpu.end())) << "cluster " << c;
+        if (total > count) continue;  // the cap's cut can differ by a borderline light: checked below
+        std::set<uint32_t> a(gpu.begin(), gpu.end()), b(cpu[size_t(c)].begin(), cpu[size_t(c)].end());
+        for (uint32_t i : a)
+            if (!b.count(i))
+            {
+                differences++;
+                EXPECT_TRUE(borderline(i, c)) << "light " << i << " only on the GPU in cluster " << c;
+            }
+        for (uint32_t i : b)
+            if (!a.count(i))
+            {
+                differences++;
+                EXPECT_TRUE(borderline(i, c)) << "light " << i << " only on the CPU in cluster " << c;
+            }
+    }
+    EXPECT_GT(nonEmpty, 100);
+    EXPECT_LT(differences, 20);
+    EXPECT_EQ(overflowed, 0);
+}
+
+// A cluster with more lights than slots keeps the most important ones and counts the overflow (statistics of the
+// completed frame)
+TEST_F(LightsTest, OverflowCounted)
+{
+    Floor(724);
+    for (int i = 0; i < 12; ++i) AddLight(pointLight(vec3(0.1f * float(i), 1, 0), 100.0f + 10.0f * float(i), 6));
+    LightingParameters p  = scene->lightingParameters();
+    p.clusteredLights     = true;
+    p.maxLightsPerCluster = 4;
+    scene->setLightingParameters(p);
+    Capture(4);
+    const LocalLightStatistics& st = scene->lightingStatistics().lights;
+    EXPECT_GT(st.overflowedClusters, 0u);
+    EXPECT_GT(st.droppedLights, 0u);
+    EXPECT_EQ(st.clusterMax, 4u);
+    // The slots hold the four most important ones: buffer indices 0..3
+    LightClusters& lc                   = scene->lightClusters();
+    const uint32_t slot                 = lc.lastRecordedSlot();
+    const std::vector<uint32_t> table   = lc.readTableForTests(slot);
+    const std::vector<uint32_t> indices = lc.readIndicesForTests(slot);
+    for (int c = 0; c < scene->frameClusterGrid().count(); ++c)
+        if (table[2 * size_t(c)] == 4 && table[2 * size_t(c) + 1] == 12)
+        {
+            for (uint32_t k = 0; k < 4; ++k) EXPECT_EQ(indices[size_t(c) * 4 + k], k);
+            return;
+        }
+    ADD_FAILURE() << "no cluster with all 12 lights";
+}
+
+// The ClusterLights view, the ClusterGrid overlay and the Clusters preview render (the preview's maximum equals the
+// statistics' maximum)
+TEST_F(LightsTest, ClusterDebug)
+{
+    Floor(726);
+    for (int i = 0; i < 6; ++i) AddLight(pointLight(vec3(float(i) - 3, 1, 0), 400, 4));
+    LightingParameters p = scene->lightingParameters();
+    p.clusteredLights    = true;
+    scene->setLightingParameters(p);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::ClusterLights, OverlayClusterGrid});
+    Capture(3);
+    PreviewMapping m;
+    PreviewStatistics st;
+    bool got = false;
+    scene->setClusterPreviewSlice(-1);
+    scene->lightingDebugImages().request(LightingImage::Clusters, m,
+                                         [&](const LightingDebug::Capture& c)
+                                         {
+                                             st  = c.statistics;
+                                             got = true;
+                                             EXPECT_EQ(c.size(0), 16 * LightClusters::kCellPixels);
+                                         });
+    Capture(2);
+    ASSERT_TRUE(got);
+    EXPECT_GT(st.max, 1.0f);
+    EXPECT_LE(st.max, 6.0f);
 }

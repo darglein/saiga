@@ -30,6 +30,30 @@ layout(std430, set = 1, binding = 10) readonly buffer LocalLightBuffer
     LocalLight localLights[];
 };
 
+// The cluster lists (LightClusters): per cluster (count, total) and the fixed slots of clusterGrid.w indices
+layout(std430, set = 1, binding = 11) readonly buffer ClusterTable
+{
+    uvec2 clusterTable[];
+};
+layout(std430, set = 1, binding = 12) readonly buffer ClusterIndices
+{
+    uint clusterIndices[];
+};
+
+// The cluster of the fragment from gl_FragCoord.xy and the view depth (-1: beyond clusterFar)
+int fragmentCluster(vec3 relPos)
+{
+    float z = dot(relPos, lighting.viewForward.xyz);
+    if (z > lighting.clusterDepth.z) return -1;
+    uvec3 g = lighting.clusterGrid.xyz;
+    uint k  = 0u;
+    if (z >= lighting.clusterDepth.y)
+        k = min(1u + uint(max(log(z / lighting.clusterDepth.y) * lighting.clusterDepth.w, 0.0)), g.z - 1u);
+    vec2 px = gl_FragCoord.xy / lighting.viewport.xy;
+    uvec2 t = min(uvec2(max(px, vec2(0.0)) * vec2(g.xy)), g.xy - 1u);
+    return int((k * g.y + t.y) * g.x + t.x);
+}
+
 // The illuminance (lux) of a light at relPos and the direction towards it (l)
 vec3 localLightIlluminance(LocalLight L, vec3 relPos, out vec3 l, out float dist)
 {
@@ -72,8 +96,19 @@ vec3 localLightRadiance(uint i, vec3 n, vec3 v, vec3 relPos, vec3 albedo, float 
 vec3 localLightsDirect(vec3 n, vec3 v, vec3 relPos, vec3 albedo, float rough, float metalness, vec2 lut, float wrap)
 {
     vec3 sum = vec3(0.0);
-    uint count = lighting.lightCounts.x;
-    for (uint i = 0u; i < count; ++i) sum += localLightRadiance(i, n, v, relPos, albedo, rough, metalness, lut, wrap);
+    if (lighting.lightCounts.y == 0u)
+    {
+        uint count = lighting.lightCounts.x;
+        for (uint i = 0u; i < count; ++i)
+            sum += localLightRadiance(i, n, v, relPos, albedo, rough, metalness, lut, wrap);
+        return sum;
+    }
+    int c = fragmentCluster(relPos);
+    if (c < 0) return sum;
+    uint count = clusterTable[c].x;
+    uint base  = uint(c) * lighting.clusterGrid.w;
+    for (uint k = 0u; k < count; ++k)
+        sum += localLightRadiance(clusterIndices[base + k], n, v, relPos, albedo, rough, metalness, lut, wrap);
     return sum;
 }
 

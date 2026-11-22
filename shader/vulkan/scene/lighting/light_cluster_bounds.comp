@@ -1,0 +1,69 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The view-space AABBs of the light clusters (S36b, B3; LightClusters::clusterBounds is the CPU reference): one
+// invocation per cluster (x fastest, then y, then the slice). The cluster's screen tile (pixel row 0 at the top, NDC y
+// -1) unprojected with the inverse projection into four rays, cut at the slice's two view depths (slice 0: the near
+// plane to clusterNear, then exponential from clusterNear to clusterFar). Recomputed when the grid, the size or the
+// projection changes.
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) writeonly buffer Bounds
+{
+    // Per cluster: min (xyz), max (xyz)
+    vec4 bounds[];
+};
+
+layout(push_constant) uniform Push
+{
+    mat4 invProj;
+    uvec4 grid;  // x, y, z
+    vec4 depth;  // near plane, clusterNear, clusterFar
+}
+pc;
+
+vec3 rayAt(float x, float y)
+{
+    vec4 h = pc.invProj * vec4(x, y, 0.5, 1.0);
+    vec3 d = h.xyz / h.w;
+    return d / -d.z;
+}
+
+void main()
+{
+    uint c     = gl_GlobalInvocationID.x;
+    uint total = pc.grid.x * pc.grid.y * pc.grid.z;
+    if (c >= total) return;
+    uint tx = c % pc.grid.x;
+    uint ty = (c / pc.grid.x) % pc.grid.y;
+    uint tz = c / (pc.grid.x * pc.grid.y);
+    float d0, d1;
+    if (tz == 0u)
+    {
+        d0 = pc.depth.x;
+        d1 = pc.depth.y;
+    }
+    else
+    {
+        float r = pc.depth.z / pc.depth.y;
+        d0      = pc.depth.y * pow(r, float(tz - 1u) / float(pc.grid.z - 1u));
+        d1      = pc.depth.y * pow(r, float(tz) / float(pc.grid.z - 1u));
+    }
+    vec3 lo = vec3(1e30), hi = vec3(-1e30);
+    for (uint k = 0u; k < 4u; ++k)
+    {
+        float x = -1.0 + 2.0 * float(tx + (k & 1u)) / float(pc.grid.x);
+        float y = -1.0 + 2.0 * float(ty + (k >> 1u)) / float(pc.grid.y);
+        vec3 r  = rayAt(x, y);
+        lo      = min(lo, min(r * d0, r * d1));
+        hi      = max(hi, max(r * d0, r * d1));
+    }
+    bounds[2u * c]      = vec4(lo, 0.0);
+    bounds[2u * c + 1u] = vec4(hi, 0.0);
+}

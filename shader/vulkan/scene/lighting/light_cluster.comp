@@ -1,0 +1,127 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The clustered light culling of S36b (B3; LightClusters, section lights): one invocation per cluster loops the
+// frame's lights in importance order (the light buffer is sorted) and tests each against the cluster's view-space AABB
+// (a sphere of the range; spots also a cone test against the AABB's bounding sphere, Wronski). Up to
+// maxLightsPerCluster indices go into the cluster's fixed slot (no atomics for the lists: deterministic; uint indices,
+// no 16-bit storage feature), the table holds (count, total): the excess is overflow, dropped (the least important).
+// The per-light cluster counts (statistics) are atomic adds. CLUSTER_DEBUG_IMAGE: the heat map of the table for the
+// Clusters preview (one slice, or slice < 0 the maximum over the slices; cellPixels per cluster).
+
+#ifdef CLUSTER_DEBUG_IMAGE
+
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(std430, set = 0, binding = 0) readonly buffer Table
+{
+    uvec2 table[];
+};
+layout(set = 0, binding = 1, r32f) uniform writeonly image2D heat;
+layout(push_constant) uniform Push
+{
+    uvec4 grid;  // x, y, z, cell pixels
+    int slice;
+}
+pc;
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= int(pc.grid.x * pc.grid.w) || p.y >= int(pc.grid.y * pc.grid.w)) return;
+    uint tx = uint(p.x) / pc.grid.w, ty = uint(p.y) / pc.grid.w;
+    uint v  = 0u;
+    if (pc.slice >= 0)
+        v = table[(uint(pc.slice) * pc.grid.y + ty) * pc.grid.x + tx].x;
+    else
+        for (uint z = 0u; z < pc.grid.z; ++z) v = max(v, table[(z * pc.grid.y + ty) * pc.grid.x + tx].x);
+    imageStore(heat, p, vec4(float(v), 0.0, 0.0, 0.0));
+}
+
+#else
+
+// clusters.glsl's LocalLight (keep in sync; LocalLights::GpuLight)
+struct LocalLight
+{
+    vec4 posRange;
+    vec4 dirKind;
+    vec4 intensity;
+    vec4 cone;
+};
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer Bounds
+{
+    vec4 bounds[];
+};
+layout(std430, set = 0, binding = 1) readonly buffer Lights
+{
+    uvec4 lightHeader;
+    LocalLight lights[];
+};
+layout(std430, set = 0, binding = 2) writeonly buffer Table
+{
+    uvec2 table[];
+};
+layout(std430, set = 0, binding = 3) writeonly buffer Indices
+{
+    uint indices[];
+};
+layout(std430, set = 0, binding = 4) buffer LightClusterCounts
+{
+    uint lightClusters[];
+};
+
+layout(push_constant) uniform Push
+{
+    mat4 view;   // camera-relative world -> view (the camera rotation)
+    uvec4 grid;  // x, y, z, maxLightsPerCluster
+    uint lightCount;
+}
+pc;
+
+void main()
+{
+    uint c     = gl_GlobalInvocationID.x;
+    uint total = pc.grid.x * pc.grid.y * pc.grid.z;
+    if (c >= total) return;
+    vec3 lo       = bounds[2u * c].xyz;
+    vec3 hi       = bounds[2u * c + 1u].xyz;
+    vec3 centre   = (lo + hi) * 0.5;
+    float rad     = length(hi - lo) * 0.5;
+    uint count    = 0u, all = 0u;
+    uint base     = c * pc.grid.w;
+    for (uint i = 0u; i < pc.lightCount; ++i)
+    {
+        LocalLight L = lights[i];
+        vec3 p       = (pc.view * vec4(L.posRange.xyz, 0.0)).xyz;
+        float r      = L.posRange.w;
+        vec3 d       = max(max(lo - p, vec3(0.0)), p - hi);
+        if (dot(d, d) > r * r) continue;
+        if (L.dirKind.w > 0.5)
+        {
+            vec3 dir   = (pc.view * vec4(L.dirKind.xyz, 0.0)).xyz;
+            vec3 v     = centre - p;
+            float v1   = dot(v, dir);
+            float cosA = L.cone.x;
+            float sinA = sqrt(max(0.0, 1.0 - cosA * cosA));
+            float dist = cosA * sqrt(max(0.0, dot(v, v) - v1 * v1)) - v1 * sinA;
+            if (dist > rad || v1 > rad + r || v1 < -rad) continue;
+        }
+        all++;
+        if (count < pc.grid.w)
+        {
+            indices[base + count] = i;
+            count++;
+            atomicAdd(lightClusters[i], 1u);
+        }
+    }
+    table[c] = uvec2(count, all);
+}
+
+#endif

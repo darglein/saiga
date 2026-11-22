@@ -849,12 +849,82 @@ void LightingTab::localLightsSection()
         ImGui::Text("%.1f KiB", double(c.memoryBytes) / 1024);
         DebugUiStyle::endProperties();
     }
+    // The clusters (B3): the grid, the occupancy, the heat map
+    if (DebugUiStyle::beginProperties("##lighting clusters"))
+    {
+        DebugUiStyle::property("grid (x, y, z)");
+        int grid[3] = {p.clusterX, p.clusterY, p.clusterZ};
+        if (ImGui::InputInt3("##cluster grid", grid))
+        {
+            p.clusterX = std::clamp(grid[0], 1, 64);
+            p.clusterY = std::clamp(grid[1], 1, 64);
+            p.clusterZ = std::clamp(grid[2], 2, 128);
+            changed    = true;
+        }
+        DebugUiStyle::property("near / far");
+        float depth[2] = {p.clusterNear, p.clusterFar};
+        if (ImGui::InputFloat2("##cluster depth", depth, "%.1f m"))
+        {
+            p.clusterFar  = std::max(depth[1], 1.0f);
+            p.clusterNear = std::clamp(depth[0], 0.01f, p.clusterFar * 0.99f);
+            changed       = true;
+        }
+        DebugUiStyle::property("slots per cluster");
+        changed =
+            ImGui::SliderInt("##cluster slots", &p.maxLightsPerCluster, 1, 1024, "%d", ImGuiSliderFlags_Logarithmic) ||
+            changed;
+        DebugUiStyle::property("occupancy");
+        ImGui::Text("max %u, mean %.2f, %u overflowed (%llu lights dropped)", c.clusterMax, c.clusterMean,
+                    c.overflowedClusters, (unsigned long long)c.droppedLights);
+        DebugUiStyle::endProperties();
+    }
     if (changed) scene->setLightingParameters(p);
+    if (c.overflowedClusters > 0)
+        DebugUiStyle::coloredText(DebugUiStyle::kWarn,
+                                  "clusters overflow: the least important lights of a cluster are dropped");
     if (!p.localLights)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (LightingParameters::localLights)");
     else if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: the local lights are not shaded (studio light)");
 
+    // The cluster heat map: the ClusterLights view and the preview (a slice or the maximum over the slices)
+    {
+        bool heat = d.view == Vulkan::LightingDebugView::ClusterLights;
+        if (ImGui::Checkbox("cluster heat map", &heat))
+        {
+            d.view = heat ? Vulkan::LightingDebugView::ClusterLights : Vulkan::LightingDebugView::None;
+            scene->setLightingDebug(d);
+        }
+        ImGui::SameLine();
+        bool grid = (d.overlays & Vulkan::OverlayClusterGrid) != 0;
+        if (ImGui::Checkbox("cluster grid", &grid))
+        {
+            d.overlays = grid ? (d.overlays | Vulkan::OverlayClusterGrid) : (d.overlays & ~Vulkan::OverlayClusterGrid);
+            scene->setLightingDebug(d);
+        }
+        ImGui::SameLine();
+        float scale = scene->clusterHeatScaleValue();
+        ImGui::SetNextItemWidth(110);
+        if (ImGui::SliderFloat("heat scale", &scale, 1, 256, "%.0f lights", ImGuiSliderFlags_Logarithmic))
+            scene->setClusterHeatScale(scale);
+        if (c.visible > 0)
+        {
+            const int slices = scene->frameClusterGrid().z;
+            ImGui::SetNextItemWidth(160);
+            ImGui::SliderInt("preview slice (-1: max)", &clusterSlice, -1, slices - 1);
+            scene->setClusterPreviewSlice(std::clamp(clusterSlice, -1, slices - 1));
+            Vulkan::PreviewMapping m           = app.lightingPreviewMapping();
+            m.autoRange                        = false;
+            m.min                              = 0;
+            m.max                              = scale;
+            m.colorMap                         = Vulkan::ColorMap::Turbo;
+            const Vulkan::PreviewMapping saved = app.lightingPreviewMapping();
+            app.lightingPreviewMapping()       = m;
+            ImGui::Text("lights per cluster (turbo, 0 .. %.0f)", double(scale));
+            previewImage(Vulkan::LightingImage::Clusters, false, 384.0f);
+            app.lightingPreviewMapping() = saved;
+        }
+    }
     // The light table: every light of the scene (the frame's ones with their buffer index); a row selects the light
     // (highlighted in the light volumes overlay)
     const Vulkan::LocalLights& table = scene->localLights();
@@ -1110,8 +1180,8 @@ void LightingTab::gpuAndMemory()
         // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
         Profiler& p     = app.gpuProfile();
         double lighting = 0, debug = 0;
-        for (const char* n : {"environment", "shadow.cascades", "shadow.horizon", "scene.sky", "scene.clouds",
-                              "scene.debug", "lighting.preview"})
+        for (const char* n : {"environment", "lights", "shadow.cascades", "shadow.horizon", "shadow.atlas", "scene.sky",
+                              "scene.clouds", "scene.debug", "lighting.preview"})
         {
             const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
             const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";

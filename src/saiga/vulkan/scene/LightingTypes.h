@@ -176,6 +176,14 @@ struct LightingParameters
     bool localLights     = false;  // the point and spot lights of the scene
     bool clusteredLights = true;   // false: every fragment loops over every light (the correctness reference)
     int maxLights        = 1024;   // the lights of a frame (1..4096), the most important ones (the rest: over budget)
+    // S36b: the cluster grid (B3): screen tiles x, y and depth slices z (slice 0 to clusterNear, then exponential to
+    // clusterFar, beyond it no local light), the fixed slots per cluster
+    int clusterX            = 16;    // 1..64
+    int clusterY            = 9;     // 1..64
+    int clusterZ            = 24;    // 2..128
+    float clusterNear       = 2;     // m
+    float clusterFar        = 1000;  // m
+    int maxLightsPerCluster = 128;   // 1..1024
 };
 
 // ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
@@ -207,15 +215,17 @@ enum class LightingDebugView : uint8_t
     HorizonShadow,
     // S36b: the local lights' direct light alone (display colours)
     LocalLightsOnly,
+    // S36b: the lights of the fragment's cluster as a heat map (turbo; an overflowed cluster magenta)
+    ClusterLights,
     Count
 };
 // snake_case names (set_lighting_debug, screenshot lighting_view)
 inline const char* lightingDebugViewName(LightingDebugView v)
 {
-    static const char* names[] = {"none",         "lighting_only",   "albedo",         "normals",
-                                  "roughness",    "metalness",       "material",       "direct_only",
-                                  "ambient_only", "specular_only",   "cloud_shadow",   "shadow_factor",
-                                  "exposure",     "shadow_cascades", "horizon_shadow", "local_lights_only"};
+    static const char* names[] = {
+        "none",     "lighting_only",   "albedo",         "normals",           "roughness",     "metalness",
+        "material", "direct_only",     "ambient_only",   "specular_only",     "cloud_shadow",  "shadow_factor",
+        "exposure", "shadow_cascades", "horizon_shadow", "local_lights_only", "cluster_lights"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingDebugView::Count), "lightingDebugViewName");
     return v < LightingDebugView::Count ? names[size_t(v)] : "none";
 }
@@ -242,8 +252,10 @@ enum LightingOverlay : uint32_t
     // S36b: the volumes of the frame's lights (spheres of point lights, cones of spot lights, in the light's colour;
     // shadowed ones thick; the highlighted light white)
     OverlayLightVolumes = 1u << 5,
+    // S36b: the cluster grid's depth slices and tiles (of the frozen camera with freeze cascades)
+    OverlayClusterGrid = 1u << 6,
     OverlayAll = OverlaySunDirection | OverlayCascadeColors | OverlayCascadeBounds | OverlayCameraFrustumSplits |
-                 OverlayHorizonAnchor | OverlayLightVolumes
+                 OverlayHorizonAnchor | OverlayLightVolumes | OverlayClusterGrid
 };
 inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames()
 {
@@ -298,13 +310,16 @@ enum class LightingImage : uint8_t
     Cascade,
     CascadeStrip,
     Horizon,
+    // S36b: the lights per cluster (16 pixels per cluster; one slice or the maximum over the slices)
+    Clusters,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
     static const char* names[] = {
-        "luminance",      "brdf_lut",     "transmittance_lut",    "sky_view_lut", "environment",   "irradiance",
-        "cloud_coverage", "cloud_shadow", "multi_scattering_lut", "cascade",      "cascade_strip", "horizon"};
+        "luminance",     "brdf_lut",       "transmittance_lut", "sky_view_lut",         "environment",
+        "irradiance",    "cloud_coverage", "cloud_shadow",      "multi_scattering_lut", "cascade",
+        "cascade_strip", "horizon",        "clusters"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -415,6 +430,13 @@ struct LocalLightStatistics
     bool clustered     = false;
     uint32_t submitted = 0, candidates = 0, visible = 0, overBudget = 0, shadowed = 0, withoutTiles = 0;
     uint64_t memoryBytes = 0;
+    // The clusters (B3) of the newest completed frame: the most lights in a cluster, the mean over the clusters, the
+    // clusters with more lights than slots and the lights they dropped, the frame they come from
+    uint32_t clusterCount = 0, clusterMax = 0, overflowedClusters = 0;
+    double clusterMean     = 0;
+    uint64_t droppedLights = 0;
+    uint64_t clusterFrame  = 0;
+    uint64_t clusterMemory = 0;
 };
 
 // One light of the frame (RenderScene::frameLights; the Lighting tab, list_lights): its handle, the buffer index,
@@ -508,6 +530,19 @@ struct LightingProbe
     // The horizon map (the HorizonShadow frame): its factor and the shadow heights R and G above the receiver (m;
     // negative: below it, lit)
     float horizonShadow = 1, horizonR = 0, horizonG = 0;
+    // S36b: the cluster of the pixel (-1: none: no lights, beyond clusterFar or no surface), its lights in
+    // importance order (the CPU reference of the assignment: total before the cap) with each light's reflected
+    // radiance at the pixel (cd/m^2, the BRDF with the probed material and normal; S36b step 4: times its atlas shadow)
+    int cluster           = -1;
+    uint32_t clusterTotal = 0;
+    struct LightContribution
+    {
+        uint32_t handle = 0;
+        double distance = 0;
+        vec3 radiance   = vec3(0, 0, 0);
+        float shadow    = 1;
+    };
+    std::vector<LightContribution> lights;
 };
 
 // The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so

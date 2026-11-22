@@ -122,7 +122,7 @@ VertexLight surfaceVertexLight(vec3 relPos)
 const uint viewNone = 0u, viewLightingOnly = 1u, viewAlbedo = 2u, viewNormals = 3u, viewRoughness = 4u,
            viewMetalness = 5u, viewMaterial = 6u, viewDirectOnly = 7u, viewAmbientOnly = 8u, viewSpecularOnly = 9u,
            viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u, viewHorizonShadow = 14u,
-           viewLocalLightsOnly = 15u;
+           viewLocalLightsOnly = 15u, viewClusterLights = 16u;
 // The overlay flags drawn in the shaders (LightingOverlay)
 const uint overlayCascadeColors = 2u;
 
@@ -238,6 +238,17 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
     if (view == viewAmbientOnly) return debugDisplay(ambientDiff * s.tint);
     if (view == viewSpecularOnly) return debugDisplay(ambientSpec * s.tint);
     if (view == viewLocalLightsOnly) return debugDisplay(local * s.tint);
+    if (view == viewClusterLights)
+    {
+        // The lights of the fragment's cluster as a heat map (turbo over 0 .. atlasParams.w lights); an overflowed
+        // cluster magenta, beyond clusterFar black; raw in the probe frames: (count, total, cluster + 1)
+        int cl = lighting.lightCounts.x > 0u ? fragmentCluster(s.relPos) : -1;
+        uvec2 ct = cl >= 0 ? clusterTable[cl] : uvec2(0u);
+        if (lighting.debugParams.z > 0.5) return vec3(float(ct.x), float(ct.y), float(cl + 1));
+        if (cl < 0) return vec3(0.0);
+        if (ct.y > ct.x) return vec3(1.0, 0.0, 1.0);
+        return ct.x == 0u ? vec3(0.05) : turbo(float(ct.x) / max(lighting.atlasParams.w, 1.0));
+    }
     // The fog: the physical path's from the light terms, clay's studio fog per fragment
     c = physicalLighting() ? c * fog.a + fog.rgb : lightingFog(c, s.relPos);
     if (view == viewLightingOnly) return debugDisplay(c);

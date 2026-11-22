@@ -59,6 +59,46 @@ float LocalLights::flickerFactor(const LightFlicker& f, float phase)
     return float(std::max(0.0, fl));
 }
 
+vec3 LocalLights::reflectedRadiance(const GpuLight& L, const vec3& relPos, const vec3& n, const vec3& v,
+                                    const vec3& albedo, float roughness, float metalness)
+{
+    const vec3 p(L.posRange(0), L.posRange(1), L.posRange(2));
+    vec3 d           = p - relPos;
+    const float d2   = std::max(d.dot(d), 1e-4f);
+    const float dist = std::sqrt(d2);
+    const vec3 l     = d / dist;
+    const float r    = dist / L.posRange(3);
+    const float w    = std::clamp(1.0f - r * r * r * r, 0.0f, 1.0f);
+    float a          = w * w / d2;
+    if (L.dirKind(3) > 0.5f)
+    {
+        const vec3 axis(L.dirKind(0), L.dirKind(1), L.dirKind(2));
+        const float t = std::clamp(((-l).dot(axis) - L.cone(0)) * L.cone(1), 0.0f, 1.0f);
+        a *= t * t * (3 - 2 * t);
+    }
+    const vec3 E    = vec3(L.intensity(0), L.intensity(1), L.intensity(2)) * a;
+    const float NoL = std::clamp(n.dot(l), 0.0f, 1.0f);
+    if (NoL <= 0) return vec3(0, 0, 0);
+    const vec3 h      = (v + l).normalized();
+    const float NoV   = std::max(n.dot(v), 1e-4f);
+    const float NoH   = std::clamp(n.dot(h), 0.0f, 1.0f);
+    const float VoH   = std::clamp(v.dot(h), 0.0f, 1.0f);
+    const float rough = std::clamp(roughness, 0.045f, 1.0f);
+    const float al    = rough * rough;
+    const float a2    = al * al;
+    const float f     = (NoH * a2 - NoH) * NoH + 1;
+    const float D     = a2 / (float(kPi) * f * f);
+    const float gv    = NoL * std::sqrt(NoV * NoV * (1 - a2) + a2);
+    const float gl    = NoV * std::sqrt(NoL * NoL * (1 - a2) + a2);
+    const float V     = 0.5f / std::max(gv + gl, 1e-7f);
+    const vec3 f0     = vec3(0.04f, 0.04f, 0.04f) * (1 - metalness) + albedo * metalness;
+    const float fw    = std::pow(1 - VoH, 5.0f);
+    const vec3 F      = f0 + (vec3(1, 1, 1) - f0) * fw;
+    const vec3 spec   = F * (D * V);
+    const vec3 diff   = (vec3(1, 1, 1) - F).cwiseProduct(albedo) * ((1 - metalness) / float(kPi));
+    return (diff + spec).cwiseProduct(E) * NoL;
+}
+
 double LocalLights::importance(const LightData& d, double distance)
 {
     const double r = std::max(distance, double(d.range));

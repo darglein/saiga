@@ -874,10 +874,10 @@ TEST_F(VulkanPrototypeScene, Sections)
 {
     const auto& names                       = RenderScene::gpuSectionNames();
     const std::vector<std::string> expected = {
-        "transfer",  "environment",   "cull",        "shadow",        "shadow.cascades",  "shadow.horizon",
-        "depth",     "depth.terrain", "scene",       "scene.terrain", "scene.instances",  "scene.grass",
-        "scene.sky", "scene.clouds",  "scene.debug", "resolve",       "lighting.preview", "post",
-        "imgui"};
+        "transfer",         "environment",  "cull",      "lights",        "shadow",      "shadow.cascades",
+        "shadow.horizon",   "shadow.atlas", "depth",     "depth.terrain", "scene",       "scene.terrain",
+        "scene.instances",  "scene.grass",  "scene.sky", "scene.clouds",  "scene.debug", "resolve",
+        "lighting.preview", "post",         "imgui"};
     ASSERT_EQ(names.size(), expected.size());
     for (size_t i = 0; i < names.size(); ++i) EXPECT_EQ(names[i], expected[i]);
     PrototypeScene p;
@@ -915,7 +915,7 @@ TEST_F(VulkanPrototypeScene, Sections)
                     if (std::string(names[j]).rfind(pass + ".", 0) == 0) sub += t.gpuSectionMs[j];
                 EXPECT_LE(sub, t.gpuSectionMs[i] + 0.01) << pass;
             }
-            EXPECT_GE(t.gpuMs, t.gpuSectionMs[8]);
+            EXPECT_GE(t.gpuMs, t.gpuSectionMs[10]);
         }
     }
     scene->waitIdle();

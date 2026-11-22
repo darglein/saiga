@@ -123,8 +123,9 @@ void showLightingTab(EngineApp& app)
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
 // suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
-// and the clouds' previews; S36a2 Cascades the cascades' strip; a debug view (Exposure: with its legend) and the
-// overlays render in the tab's frames (S36a2: the cascades' view and overlays, frozen)
+// and the clouds' previews; S36a2 Cascades the cascades' strip; S36b Local lights the clusters' heat map; a debug view
+// (Exposure: with its legend) and the overlays render in the tab's frames (S36a2: the cascades' view and overlays,
+// frozen)
 void renderLightingTab(EngineApp& app)
 {
     // S36b: a lamp (an entity light, highlighted: the table's selected row with its LightSource widgets) and the local
@@ -146,12 +147,16 @@ void renderLightingTab(EngineApp& app)
     }
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
-    const Vulkan::LightingImage images[] = {
-        Vulkan::LightingImage::Luminance,          Vulkan::LightingImage::Environment,
-        Vulkan::LightingImage::TransmittanceLut,   Vulkan::LightingImage::SkyViewLut,
-        Vulkan::LightingImage::CloudCoverage,      Vulkan::LightingImage::CloudShadow,
-        Vulkan::LightingImage::MultiScatteringLut, Vulkan::LightingImage::CascadeStrip};
-    uint32_t expected = 0;
+    const Vulkan::LightingImage images[] = {Vulkan::LightingImage::Luminance,
+                                            Vulkan::LightingImage::Environment,
+                                            Vulkan::LightingImage::TransmittanceLut,
+                                            Vulkan::LightingImage::SkyViewLut,
+                                            Vulkan::LightingImage::CloudCoverage,
+                                            Vulkan::LightingImage::CloudShadow,
+                                            Vulkan::LightingImage::MultiScatteringLut,
+                                            Vulkan::LightingImage::CascadeStrip,
+                                            Vulkan::LightingImage::Clusters};
+    uint32_t expected                    = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
     for (int f = 0; f < 3; ++f)
@@ -1170,6 +1175,29 @@ TEST_F(LightingDebugTools, LocalLightTools)
     EXPECT_EQ(dbg["highlight_light"].number_value(), h);
     ASSERT_FALSE(isError(call(*app, "set_lighting_debug", obj(R"({"highlight_light": null})"))));
     EXPECT_EQ(s.lightingDebug().highlightLight, 0u);
+    // S36b step 3: the clusters (get_lighting.clusters, capture_lighting clusters, probe_lighting's cluster keys)
+    app->runFrames(3, 1.0 / 60);
+    const Json cl = result(call(*app, "get_lighting", obj(R"({"sections": ["clusters"]})")))["clusters"];
+    EXPECT_EQ(cl["grid"], Json(Json::array{16, 9, 24})) << cl.dump();
+    EXPECT_GT(cl["max"].number_value(), 0) << cl.dump();
+    EXPECT_EQ(cl["clustered"], Json(true));
+    const Json heat = callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "max_width": 64})"));
+    ASSERT_FALSE(isError(heat)) << text(heat);
+    EXPECT_EQ(imageBlock(heat)["size"], Json(Json::array{256, 144}));
+    EXPECT_EQ(imageBlock(heat)["clusters"]["slice"], Json("max"));
+    EXPECT_GT(imageBlock(heat)["stats"]["max"].number_value(), 0);
+    const Json slice =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "slice": 3, "stats_only": true})"));
+    ASSERT_FALSE(isError(slice)) << text(slice);
+    EXPECT_EQ(result(slice)["clusters"]["depth"].array_items().size(), 2u);
+    for (const char* args : {R"({"image": "clusters", "slice": 24})", R"({"image": "luminance", "slice": 1})"})
+        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+    const Json probe = callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})"));
+    ASSERT_FALSE(isError(probe)) << text(probe);
+    const Json pr = result(probe);
+    EXPECT_TRUE(pr["cluster"].is_number()) << pr.dump();
+    EXPECT_GE(pr["cluster_lights"].array_items().size(), 3u) << pr.dump();
+    EXPECT_GT(pr["cluster_lights"][0]["radiance"][1].number_value(), 0) << pr.dump();
     for (Entity e : lamps) w.destroy(e);
     s.removeLights(list);
     app->runFrames(2, 1.0 / 60);

@@ -74,6 +74,7 @@ class SAIGA_ENGINE_API LightingTab
     // S36b: the light table's sort column and direction
     int lightSortColumn     = 3;
     bool lightSortAscending = true;
+    int clusterSlice        = -1;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
     bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0,
                              int layer = 0);

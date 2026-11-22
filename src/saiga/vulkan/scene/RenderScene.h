@@ -9,6 +9,7 @@
 #include "saiga/core/image/managedImage.h"
 #include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
+#include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 #include "saiga/vulkan/scene/SceneLighting.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
@@ -46,6 +47,7 @@ class CascadedShadows;
 class ShadowPipelineTable;
 class HorizonShadows;
 class LocalLights;
+class LightClusters;
 class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
@@ -415,6 +417,15 @@ class SAIGA_VULKAN_API RenderScene
     // between frames; in buffer order)
     const LocalLights& localLights() const { return *lightTable; }
     const std::vector<FrameLightInfo>& frameLights() const;
+    // The clustered light culling (B3): the cluster grid of the frame being recorded, the clusters' statistics and the
+    // CPU reference; the slice of the Clusters preview (-1: the maximum over the slices) and the heat map's scale
+    // (lights per cluster at the top of the colour map; the ClusterLights view and the preview's default)
+    LightClusters& lightClusters() { return *clusterCull; }
+    const ClusterGrid& frameClusterGrid() const;
+    void setClusterPreviewSlice(int slice) { clusterPreviewSlice = slice; }
+    int clusterPreviewSliceValue() const { return clusterPreviewSlice; }
+    void setClusterHeatScale(float scale) { clusterHeatScale = std::max(scale, 1.0f); }
+    float clusterHeatScaleValue() const { return clusterHeatScale; }
 
    private:
     friend class SceneFrameRenderer;
@@ -442,8 +453,14 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<CascadedShadows> cascades;
     std::unique_ptr<ShadowPipelineTable> shadowTable;
     std::unique_ptr<HorizonShadows> horizon;
-    // S36b: the local lights
+    // S36b: the local lights and their clusters (the frame's grid; clustered this frame)
     std::unique_ptr<LocalLights> lightTable;
+    std::unique_ptr<LightClusters> clusterCull;
+    std::unique_ptr<ClusterGrid> clusterGrid;
+    bool frameClusters      = false;
+    int clusterPreviewSlice = -1;
+    float clusterHeatScale  = 16;
+    void clusterOverlays();
     bool freezeCascades = false;
     // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon
     int shadowLightChoice = 0;

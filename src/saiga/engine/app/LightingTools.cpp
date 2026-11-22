@@ -16,6 +16,7 @@
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/vulkan/scene/EnvironmentMap.h"
+#include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -455,6 +456,12 @@ const std::vector<LightingKey>& lightingKeys()
         k.push_back(boolKey("local_lights", true, pb(&P::localLights)));
         k.push_back(boolKey("clustered_lights", true, pb(&P::clusteredLights)));
         k.push_back(intKey("max_lights", true, 1, 4096, pi(&P::maxLights)));
+        k.push_back(intKey("cluster_x", true, 1, 64, pi(&P::clusterX)));
+        k.push_back(intKey("cluster_y", true, 1, 64, pi(&P::clusterY)));
+        k.push_back(intKey("cluster_z", true, 2, 128, pi(&P::clusterZ)));
+        k.push_back(floatKey("cluster_near", true, 0.01, 1000, pf(&P::clusterNear)));
+        k.push_back(floatKey("cluster_far", true, 1, 100000, pf(&P::clusterFar)));
+        k.push_back(intKey("max_lights_per_cluster", true, 1, 1024, pi(&P::maxLightsPerCluster)));
         return k;
     }();
     return keys;
@@ -489,9 +496,10 @@ Json keysJson(const LightingState& s, bool parameters)
 
 const std::vector<std::string>& sectionNames()
 {
-    static const std::vector<std::string> names = {
-        "time",   "weather",  "sun",        "moon",  "shadow_light", "tone_map", "exposure", "ambient", "environment",
-        "clouds", "settings", "parameters", "debug", "gpu",          "memory",   "cascades", "horizon", "lights"};
+    static const std::vector<std::string> names = {"time",     "weather",    "sun",     "moon",        "shadow_light",
+                                                   "tone_map", "exposure",   "ambient", "environment", "clouds",
+                                                   "settings", "parameters", "debug",   "gpu",         "memory",
+                                                   "cascades", "horizon",    "lights",  "clusters"};
     return names;
 }
 }  // namespace
@@ -530,8 +538,8 @@ namespace
 // The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
 const std::vector<std::string>& lightingGpuSections()
 {
-    static const std::vector<std::string> names = {"environment",    "shadow",          "shadow.cascades",
-                                                   "shadow.horizon", "scene.sky",       "scene.clouds",
+    static const std::vector<std::string> names = {"environment",    "lights",          "shadow",    "shadow.cascades",
+                                                   "shadow.horizon", "shadow.atlas",    "scene.sky", "scene.clouds",
                                                    "scene.debug",    "lighting.preview"};
     return names;
 }
@@ -880,6 +888,23 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                                              {"max_lights", state.parameters.maxLights},
                                                              {"memory_bytes", double(l.memoryBytes)}};
     }
+    // S36b: the clusters of the newest completed frame
+    {
+        const Vulkan::LocalLightStatistics& l = ls.lights;
+        const Vulkan::LightingParameters& p   = state.parameters;
+        o["clusters"]                         = Json::object{{"grid", Json::array{p.clusterX, p.clusterY, p.clusterZ}},
+                                                             {"cluster_near", double(p.clusterNear)},
+                                                             {"cluster_far", double(p.clusterFar)},
+                                                             {"max_lights_per_cluster", p.maxLightsPerCluster},
+                                                             {"clustered", l.clustered},
+                                                             {"clusters", double(l.clusterCount)},
+                                                             {"max", double(l.clusterMax)},
+                                                             {"mean", l.clusterMean},
+                                                             {"overflowed", double(l.overflowedClusters)},
+                                                             {"dropped_lights", double(l.droppedLights)},
+                                                             {"frame", double(l.clusterFrame)},
+                                                             {"memory_bytes", double(l.clusterMemory)}};
+    }
     if (!sections.empty())
     {
         Json::object filtered;
@@ -1065,7 +1090,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         else if (n == "sun_override")
             p = Json::object{{"description", "{azimuth_deg, elevation_deg} or null"}};
         else if (n == "clouds" || n == "force_full_updates" || n == "sun_shadows" || n == "terrain_casts_in_cascades" ||
-                 n == "horizon_shadows")
+                 n == "horizon_shadows" || n == "local_lights" || n == "clustered_lights")
             p = McpServer::BooleanProperty(n);
         else if (n == "horizon_resolution")
             p = McpServer::IntegerProperty("A power of two in [128, 4096]");
@@ -1077,7 +1102,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = McpServer::IntegerProperty(k.description);
         else if (n == "cascade_resolution")
             p = McpServer::IntegerProperty("A power of two in [256, 4096]");
-        else if (n == "cascade_count" || n == "shadow_lod_bias")
+        else if (n == "cascade_count" || n == "shadow_lod_bias" || n == "max_lights" || n == "cluster_x" ||
+                 n == "cluster_y" || n == "cluster_z" || n == "max_lights_per_cluster")
             p = McpServer::IntegerProperty(n);
         else if (n == "cascade_interval")
             p = arrayProperty("[4] frames between the cascades' updates (the first 1)",
@@ -1099,7 +1125,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "shadow_distance (m), split_lambda, cascade_interval ([4], the first 1), depth_bias_texels, slope_bias, "
         "normal_offset_texels, cascade_blend, shadow_lod_bias, small_caster_texels, max_caster_height (m), "
         "min_shadow_elevation_deg, cascade_caster_distance (m), terrain_casts_in_cascades and (the far terrain horizon "
-        "map) horizon_shadows, horizon_resolution (128..4096), horizon_extent (m), horizon_rows_per_frame. Returns "
+        "map) horizon_shadows, horizon_resolution (128..4096), horizon_extent (m), horizon_rows_per_frame and (S36b, "
+        "the local lights) local_lights, clustered_lights (false: the brute-force reference), max_lights (1..4096), "
+        "cluster_x, cluster_y (screen tiles, 1..64), cluster_z (depth slices, 2..128), cluster_near, cluster_far (m; "
+        "cluster_near < cluster_far), max_lights_per_cluster (1..1024). Returns "
         "values, previous "
         "(an undo payload of this tool) and memory_bytes (the cascades after the change; more than 1 GiB of lighting "
         "memory is refused). An error names every invalid key and changes nothing.",
@@ -1127,6 +1156,11 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 }
                 previous[k.name] = k.get(before);
             }
+            // The cross-key rules (finding 23): cluster_near < cluster_far
+            if (after.parameters.clusterNear >= after.parameters.clusterFar)
+                errors += std::string(errors.empty() ? "" : "; ") + "cluster_near (" +
+                          std::to_string(after.parameters.clusterNear) + ") must be below cluster_far (" +
+                          std::to_string(after.parameters.clusterFar) + ")";
             // The memory check of the whole call (finding 23): the cascades after the change next to the rest
             const Vulkan::LightingStatistics& ls = app.scene()->lightingStatistics();
             const uint64_t cascadeBytes          = after.parameters.sunShadows
@@ -1282,19 +1316,23 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "cloudiness over its 16 km tile), cloud_shadow (the cloud shadow factor on the plane of the camera height "
         "around the camera, +- the shadow fade), cascade (S36a2: the cascades' light-space depth, 0 at the near end, "
         "1 at the far end, the minimum over the texels a preview texel covers; cascade: its index, without it every "
-        "cascade side by side; the block names each cascade's world box and texel size) or horizon (the front horizon "
+        "cascade side by side; the block names each cascade's world box and texel size), horizon (the front horizon "
         "map's shadow height, m relative to its reference; channel r: occluders from 64 m, g: beyond the cascades' "
-        "terrain; the block names its anchor, extent and direction). range (\"auto\" or [min, max]), log, color_map "
-        "(gray, turbo) set the mapping; mip: the environment's mip (0..4, default 0; a request of its own, the "
-        "Lighting tab's mip is not changed); stats_only: true returns the block without an image (the one path to the "
-        "statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, 64..8192); "
-        "full: true updates incremental effects fully first (the environment map). Deferred: answered from the frame "
-        "that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
+        "terrain; the block names its anchor, extent and direction) or clusters (S36b: the lights per cluster, 16 "
+        "pixels per cluster; slice: a depth slice, without it the maximum over the slices; turbo from 0 by default). "
+        "range (\"auto\" or [min, max]), log, color_map (gray, turbo) set the mapping; mip: the environment's mip "
+        "(0..4, default 0; a request of its own, the Lighting tab's mip is not changed); stats_only: true returns the "
+        "block without an image (the one path to the statistics of a GPU image); format png (default) or jpg, "
+        "downscaled to max_width (default 1280, 64..8192); full: true updates incremental effects fully first (the "
+        "environment map). Deferred: answered from the frame that computes the preview; an error when no frame is "
+        "rendered before the deadline. Changes nothing.",
         schema(
-            {{"image",
-              McpServer::StringProperty(
-                  "The image", {"luminance", "brdf_lut", "transmittance_lut", "multi_scattering_lut", "sky_view_lut",
-                                "environment", "irradiance", "cloud_coverage", "cloud_shadow", "cascade", "horizon"})},
+            {{"image", McpServer::StringProperty(
+                           "The image", {"luminance", "brdf_lut", "transmittance_lut", "multi_scattering_lut",
+                                         "sky_view_lut", "environment", "irradiance", "cloud_coverage", "cloud_shadow",
+                                         "cascade", "horizon", "clusters"})},
+             {"slice", McpServer::IntegerProperty("clusters: the depth slice (0..cluster_z - 1; default the maximum "
+                                                  "over the slices)")},
              {"channel", McpServer::StringProperty("horizon: the channel (default r)", {"r", "g"})},
              {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
              {"cascade", McpServer::IntegerProperty("cascade: the cascade (0..count - 1; default all side by side)")},
@@ -1310,7 +1348,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             std::string error;
             if (unknownArgument(a,
                                 {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only",
-                                 "mip", "cascade", "channel"},
+                                 "mip", "cascade", "channel", "slice"},
                                 error))
                 return respond(ToolResult::Error(error));
             Vulkan::RenderScene* scene = app.scene();
@@ -1321,7 +1359,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (!parsed)
                 return respond(ToolResult::Error(
                     "image: luminance, brdf_lut, transmittance_lut, multi_scattering_lut, sky_view_lut, environment, "
-                    "irradiance, cloud_coverage, cloud_shadow, cascade or horizon"));
+                    "irradiance, cloud_coverage, cloud_shadow, cascade, horizon or clusters"));
             Vulkan::LightingImage image = *parsed;
             // S36a2: the cascades (one, or all side by side)
             int cascade = -1;
@@ -1344,6 +1382,25 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             }
             else if (!a["cascade"].is_null())
                 return respond(ToolResult::Error("cascade: only for image cascade"));
+            // S36b: the clusters (a slice or the maximum over the slices)
+            int slice = -1;
+            if (image == Vulkan::LightingImage::Clusters)
+            {
+                if (scene->lightingStatistics().lights.visible == 0)
+                    return respond(ToolResult::Error(
+                        "clusters: the frame has no local lights (set_lighting local_lights: true, lights in view)"));
+                if (!a["slice"].is_null())
+                {
+                    const double z = a["slice"].number_value();
+                    const int n    = scene->frameClusterGrid().z;
+                    if (!a["slice"].is_number() || z != std::floor(z) || z < 0 || z >= n)
+                        return respond(ToolResult::Error("slice: an integer 0.." + std::to_string(n - 1)));
+                    slice = int(z);
+                }
+                scene->setClusterPreviewSlice(slice);
+            }
+            else if (!a["slice"].is_null())
+                return respond(ToolResult::Error("slice: only for image clusters"));
             // S36a2: the horizon map's channel
             if (image == Vulkan::LightingImage::Horizon)
             {
@@ -1391,13 +1448,21 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     return respond(ToolResult::Error("max_width: an integer 64..8192"));
                 maxWidth = int(w);
             }
+            if (image == Vulkan::LightingImage::Clusters && a["range"].is_null())
+            {
+                // Lights per cluster: from 0 (turbo by default)
+                mapping.autoRange = false;
+                mapping.min       = 0;
+                mapping.max       = std::max(float(scene->lightingStatistics().lights.clusterMax), 1.0f);
+                if (a["color_map"].is_null()) mapping.colorMap = Vulkan::ColorMap::Turbo;
+            }
             auto answered          = std::make_shared<bool>(false);
             const auto deadline    = answerDeadline(server);
             const std::string name = Vulkan::lightingImageName(image);
             scene->lightingDebugImages().request(
                 image, mapping,
-                [&app, respond, answered, statsOnly, format, maxWidth, mapping, name,
-                 cascade](const Vulkan::LightingDebug::Capture& c)
+                [&app, respond, answered, statsOnly, format, maxWidth, mapping, name, cascade,
+                 slice](const Vulkan::LightingDebug::Capture& c)
                 {
                     if (*answered) return;
                     *answered = true;
@@ -1435,6 +1500,28 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     if (name == "transmittance_lut") block["unit"] = "transmittance (luminance of rgb)";
                     if (name == "cloud_coverage") block["unit"] = "coverage (opacity 0..1)";
                     if (name == "cloud_shadow") block["unit"] = "the shadow light's factor (0..1)";
+                    if (name == "clusters")
+                    {
+                        // S36b: the grid, the slice and its depth range
+                        block["unit"] = "lights per cluster (after the cap)";
+                        if (Vulkan::RenderScene* sc = app.scene())
+                        {
+                            const Vulkan::ClusterGrid& g = sc->frameClusterGrid();
+                            Json::object cl{{"grid", Json::array{g.x, g.y, g.z}},
+                                            {"cell_pixels", Vulkan::LightClusters::kCellPixels},
+                                            {"slice", slice >= 0 ? Json(slice) : Json("max")},
+                                            {"max_lights_per_cluster", g.maxLightsPerCluster}};
+                            if (slice >= 0)
+                            {
+                                double d0, d1;
+                                g.sliceDepth(slice, d0, d1);
+                                cl["depth"] = Json::array{d0, d1};
+                            }
+                            const Vulkan::LocalLightStatistics& l = sc->lightingStatistics().lights;
+                            cl["overflowed"]                      = double(l.overflowedClusters);
+                            block["clusters"]                     = cl;
+                        }
+                    }
                     if (name == "cascade" || name == "cascade_strip")
                     {
                         // The cascades' boxes (world) and texel sizes of the frame
@@ -1615,6 +1702,16 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 o["radiance"]  = Json::object{{"direct", vec3Json(p.direct)},
                                               {"ambient", vec3Json(p.ambient)},
                                               {"specular", vec3Json(p.specular)}};
+                // S36b: the cluster and its lights with their contributions
+                Json::array lights;
+                for (const auto& l : p.lights)
+                    lights.push_back(Json::object{{"handle", double(l.handle)},
+                                                  {"distance", l.distance},
+                                                  {"radiance", vec3Json(l.radiance)},
+                                                  {"shadow", double(l.shadow)}});
+                o["cluster"]        = p.cluster >= 0 ? Json(p.cluster) : Json();
+                o["cluster_lights"] = lights;
+                o["cluster_total"]  = double(p.clusterTotal);
                 respond(ToolResult::Text(Json(o).dump()));
             };
             if (world)

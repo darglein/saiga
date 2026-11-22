@@ -19,6 +19,7 @@
 #include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/HorizonShadows.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
+#include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/MeshPool.h"
@@ -87,10 +88,10 @@ vk::ImageSubresourceRange depthRange()
 const std::vector<const char*>& sectionNames()
 {
     static const std::vector<const char*> names = {
-        "transfer",  "environment",   "cull",        "shadow",        "shadow.cascades",  "shadow.horizon",
-        "depth",     "depth.terrain", "scene",       "scene.terrain", "scene.instances",  "scene.grass",
-        "scene.sky", "scene.clouds",  "scene.debug", "resolve",       "lighting.preview", "post",
-        "imgui"};
+        "transfer",         "environment",  "cull",      "lights",        "shadow",      "shadow.cascades",
+        "shadow.horizon",   "shadow.atlas", "depth",     "depth.terrain", "scene",       "scene.terrain",
+        "scene.instances",  "scene.grass",  "scene.sky", "scene.clouds",  "scene.debug", "resolve",
+        "lighting.preview", "post",         "imgui"};
     return names;
 }
 std::vector<std::string> sectionNameStrings()
@@ -119,6 +120,14 @@ struct RenderScene::ProbeRun
     // Frame 1's post pass (the later frames show frame 1's image: the window does not flash the debug frames)
     float postScale = 1;
     bool postLinear = false;
+    // S36b: frame 1's lights and cluster grid (the probe's cluster keys)
+    ClusterGrid grid;
+    bool clusters = false;
+    mat4 view     = mat4::Identity();
+    mat4 proj     = mat4::Identity();
+    Vec3 forward  = Vec3(0, 0, -1);
+    std::vector<LocalLights::GpuLight> lights;
+    std::vector<uint32_t> handles;
 };
 
 namespace
@@ -353,6 +362,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // The previews' statistics of this slot's previous frame (completed)
     s.debugImages->harvest(frame.frameIndex);
     s.debugImages->setFrame(s.frameCount + 1);
+    // S36b: the clusters' statistics of this slot's previous frame (completed)
+    s.clusterCull->harvest(frame.frameIndex);
     // probe_lighting's frames 2-7 (debug views): no preview conversion (they would reduce the debug values; the
     // requests wait for the frame after the sequence), the post pass shows frame 1's image
     RenderScene::ProbeRun* probe = s.probeRun.get();
@@ -420,6 +431,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // S36b: the local lights of the frame
         s.frameLocalLights(camera, lighting, frame.frameIndex);
         s.lightOverlays();
+        s.clusterOverlays();
         if (probe && probe->step == 0)
         {
             // The probe's frame 1: its camera and exposure (the later frames hold them); a world point's pixel with
@@ -431,6 +443,14 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             probe->physical    = s.framePhysical && linear;
             probe->postScale   = scale;
             probe->postLinear  = linear;
+            probe->grid        = *s.clusterGrid;
+            probe->clusters    = s.frameClusters;
+            probe->view        = s.frameView;
+            probe->proj        = s.frameProjection;
+            probe->forward     = s.cameraRotation * Vec3(0, 0, -1);
+            probe->lights      = s.lightTable->frameRecords();
+            probe->handles.clear();
+            for (const FrameLightInfo& f : s.lightTable->frameLights()) probe->handles.push_back(f.handle);
             probe->cameraTaken = true;
             for (RenderScene::ProbeRequest& r : probe->requests)
             {
@@ -539,6 +559,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     s.culling->recordCull(cmd, frame.frameIndex, *s.meshPool, camera);
     timings.leaveSection("cull", cmd);
 
+    // S36b: the clustered light culling (B3; written every frame, empty without lights)
+    timings.enterSection("lights", cmd);
+    if (s.frameClusters)
+        s.clusterCull->record(cmd, frame.frameIndex, *s.clusterGrid, s.frameView, s.frameProjection, *s.lightTable);
+    timings.leaveSection("lights", cmd);
+
     // S36a2: the cascades' depth passes (§10.5 pass 1; written every frame, empty without cascades): the casters of the
     // updated cascades (instances by class with the shadow pipeline table, the terrain nodes of selectForShadow)
     timings.enterSection("shadow", cmd);
@@ -620,6 +646,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             s.horizon->update(cmd, in);
     }
     subEnd("shadow.horizon", cmd);
+    // S36b: the shadow atlas (step 4)
+    subBegin("shadow.atlas", cmd);
+    subEnd("shadow.atlas", cmd);
     timings.leaveSection("shadow", cmd);
 
     // ImGui's vertex data is in host visible memory, one buffer per frame in flight.
@@ -950,6 +979,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             if (s.debugImages->requested(LightingImage::CloudShadow))
                 src.set(LightingImage::CloudShadow, s.clouds->recordDebug(cmd, frame.frameIndex, 2, in), 1);
         }
+        // S36b: the lights per cluster (from this frame's table)
+        if (s.debugImages->requested(LightingImage::Clusters) && s.frameClusters)
+            src.set(LightingImage::Clusters, s.clusterCull->recordDebug(cmd, frame.frameIndex, s.clusterPreviewSlice),
+                    1);
         s.lightStats.previewDispatches = previews ? s.debugImages->recordPreviews(cmd, frame.frameIndex, src) : 0;
     }
     timings.leaveSection("lighting.preview", cmd);
@@ -1049,7 +1082,10 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     horizon->init(base());
     lightTable = std::make_unique<LocalLights>();
     lightTable->init(base());
-    culling = std::make_unique<SceneCulling>();
+    clusterCull = std::make_unique<LightClusters>();
+    clusterCull->init(base());
+    clusterGrid = std::make_unique<ClusterGrid>();
+    culling     = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params, *lightingSet);
     protoSettings = std::make_unique<PrototypeSettings>();
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
@@ -1079,6 +1115,7 @@ RenderScene::~RenderScene()
     shadowTable.reset();
     cascades.reset();
     horizon.reset();
+    clusterCull.reset();
     lightTable.reset();
     brdf.reset();
     ambient.reset();
@@ -1649,16 +1686,88 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     for (size_t k = 0; k < in.planes.size(); ++k) in.planes[k] = camera.planes[k];
     in.on           = p.localLights;
     in.maxLights    = p.maxLights;
-    in.clusterFar   = 1000;
+    in.clusterFar   = std::max(double(p.clusterFar), 1.0);
     in.flickerPhase = envSet ? env.phases[6] : 0.0f;
     in.highlight    = frameDebug.highlightLight;
     lightTable->prepareFrame(frameIndex, in);
     const uint32_t count = uint32_t(lightTable->frameRecords().size());
-    block.lightCounts    = uvec4(count, 0, uint32_t(lightTable->highlightIndex() + 1), 0);
-    const Vec3 forward   = cameraRotation * Vec3(0, 0, -1);
-    block.viewForward    = vec4(float(forward(0)), float(forward(1)), float(forward(2)), 0);
-    const ivec2 sz       = size();
-    block.viewport       = vec4(float(sz(0)), float(sz(1)), 0, 0);
+    // The clusters touched by each light (the newest completed frame's)
+    for (FrameLightInfo& f : lightTable->frameLightsMutable()) f.clusters = clusterCull->clustersOf(f.handle);
+    // The cluster grid of the frame (B3): computed whenever the frame has lights (also with the brute-force loop: the
+    // ClusterLights view and the statistics)
+    ClusterGrid& g        = *clusterGrid;
+    g.x                   = std::clamp(p.clusterX, 1, 64);
+    g.y                   = std::clamp(p.clusterY, 1, 64);
+    g.z                   = std::clamp(p.clusterZ, 2, 128);
+    g.maxLightsPerCluster = std::clamp(p.maxLightsPerCluster, 1, 1024);
+    g.nearPlane           = double(params.nearPlane);
+    g.clusterFar          = std::max(double(p.clusterFar), 2.0 * double(params.nearPlane));
+    g.clusterNear         = std::clamp(double(p.clusterNear), double(params.nearPlane) * 1.001, g.clusterFar * 0.999);
+    const ivec2 sz        = size();
+    g.width               = std::max(sz(0), 1);
+    g.height              = std::max(sz(1), 1);
+    g.fovy                = cameraFovy;
+    g.aspect              = double(g.width) / double(g.height);
+    frameClusters         = camera.valid && count > 0;
+    const bool clustered  = frameClusters && p.clusteredLights;
+    block.lightCounts     = uvec4(count, clustered ? 1u : 0u, uint32_t(lightTable->highlightIndex() + 1), 0);
+    block.clusterGrid     = uvec4(uint32_t(g.x), uint32_t(g.y), uint32_t(g.z), uint32_t(g.maxLightsPerCluster));
+    block.clusterDepth    = vec4(float(g.nearPlane), float(g.clusterNear), float(g.clusterFar),
+                                 float(double(g.z - 1) / std::log(g.clusterFar / g.clusterNear)));
+    block.atlasParams(3)  = clusterHeatScale;
+    const Vec3 forward    = cameraRotation * Vec3(0, 0, -1);
+    block.viewForward     = vec4(float(forward(0)), float(forward(1)), float(forward(2)), 0);
+    block.viewport        = vec4(float(sz(0)), float(sz(1)), 0, 0);
+}
+
+const ClusterGrid& RenderScene::frameClusterGrid() const
+{
+    return *clusterGrid;
+}
+
+void RenderScene::clusterOverlays()
+{
+    if (!(frameDebug.overlays & OverlayClusterGrid) || !cameraSet) return;
+    const ClusterGrid& g = *clusterGrid;
+    // The camera of the grid: the frozen camera of the cascades while they are frozen, else this frame's
+    Vec3 eye    = cameraPosition;
+    Mat3 R      = cameraRotation.matrix();
+    double fovy = cameraFovy;
+    if (freezeCascades && cascades->fittedCamera().fovy > 0)
+    {
+        eye  = cascades->fittedCamera().camera;
+        R    = cascades->fittedCamera().cameraRotation;
+        fovy = cascades->fittedCamera().fovy;
+    }
+    const double tanY = std::tan(fovy * 0.5), tanX = tanY * g.aspect;
+    // Pixel row 0 at the top: +y in view space
+    auto point = [&](double sx, double sy, double d) { return eye + R * Vec3(sx * tanX * d, -sy * tanY * d, -d); };
+    for (int k = 0; k <= g.z; ++k)
+    {
+        double d0, d1;
+        g.sliceDepth(std::min(k, g.z - 1), d0, d1);
+        const double d = k == g.z ? d1 : d0;
+        // Near slices cyan, far ones orange
+        const float t  = float(k) / float(g.z);
+        const vec3 col = k == 0 ? vec3(1, 1, 1) : vec3(0.2f + 0.8f * t, 0.9f - 0.4f * t, 1.0f - 0.8f * t);
+        // The slice plane's tile lines
+        for (int i = 0; i <= g.x; ++i)
+        {
+            const double sx = -1 + 2.0 * i / g.x;
+            lines->addLine(point(sx, -1, d), point(sx, 1, d), col, false);
+        }
+        for (int j = 0; j <= g.y; ++j)
+        {
+            const double sy = -1 + 2.0 * j / g.y;
+            lines->addLine(point(-1, sy, d), point(1, sy, d), col, false);
+        }
+    }
+    // The frustum's edges to clusterFar
+    for (int c = 0; c < 4; ++c)
+    {
+        const double sx = (c & 1) ? 1 : -1, sy = (c & 2) ? 1 : -1;
+        lines->addLine(point(sx, sy, g.nearPlane), point(sx, sy, g.clusterFar), vec3(1, 1, 1), false);
+    }
 }
 
 void RenderScene::lightOverlays()
@@ -1847,7 +1956,9 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
     // S36b: the frame's lights
-    b.lights = lightTable->bufferInfo(frameIndex);
+    b.lights         = lightTable->bufferInfo(frameIndex);
+    b.clusterCounts  = clusterCull->tableInfo(frameIndex);
+    b.clusterIndices = clusterCull->indexInfo(frameIndex);
     lightingSet->write(frameIndex, block, b);
     lastBlock = block;
 
@@ -1876,10 +1987,22 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.memoryBytes = VulkanRenderer::framesInFlight * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
                      uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes() +
                      atmosphere->memoryBytes() + envMap->memoryBytes() + clouds->memoryBytes() +
-                     cascades->memoryBytes() + horizon->memoryBytes() + lightTable->statistics().memoryBytes;
-    st.horizon        = horizon->statistics();
+                     cascades->memoryBytes() + horizon->memoryBytes() + lightTable->statistics().memoryBytes +
+                     clusterCull->statistics().memoryBytes;
+    st.horizon = horizon->statistics();
     st.horizonPreview = st.horizon;
-    st.lights         = lightTable->statistics();
+    st.lights  = lightTable->statistics();
+    {
+        const LightClusters::Statistics& cs = clusterCull->statistics();
+        st.lights.clusterCount              = cs.clusters;
+        st.lights.clusterMax                = cs.maxLights;
+        st.lights.clusterMean               = cs.meanLights;
+        st.lights.overflowedClusters        = cs.overflowed;
+        st.lights.droppedLights             = cs.droppedLights;
+        st.lights.clusterFrame              = cs.frame;
+        st.lights.clusterMemory             = cs.memoryBytes;
+        st.lights.clustered                 = params.lighting.clusteredLights && frameClusters;
+    }
     // S36a2: the cascades
     st.shadows            = frameCascades;
     st.frozen             = freezeCascades;
@@ -2013,6 +2136,34 @@ void RenderScene::finishProbe()
             p.horizonR      = value(9).color(1);
             p.horizonG      = value(9).color(2);
             p.shadowFactor  = p.cloudShadow * p.cascadeShadow * p.horizonShadow;
+            // S36b: the cluster and its lights (the CPU reference with frame 1's records), each light's radiance
+            if (p.hit && run->clusters && run->physical)
+            {
+                const Vec3 rel = p.position - run->camera;
+                p.cluster =
+                    run->grid.clusterAt(double(p.pixel(0)) + 0.5, double(p.pixel(1)) + 0.5, rel.dot(run->forward));
+                if (p.cluster >= 0)
+                {
+                    vec3 lo, hi;
+                    LightClusters::clusterBounds(run->grid, run->proj, p.cluster, lo, hi);
+                    const vec3 v = (-rel).normalized().cast<float>();
+                    const vec3 x = rel.cast<float>();
+                    for (size_t i = 0; i < run->lights.size(); ++i)
+                    {
+                        if (!LightClusters::lightTouches(run->lights[i], run->view, lo, hi)) continue;
+                        p.clusterTotal++;
+                        if (p.lights.size() >= size_t(run->grid.maxLightsPerCluster)) continue;
+                        LightingProbe::LightContribution c;
+                        c.handle                       = i < run->handles.size() ? run->handles[i] : 0;
+                        const LocalLights::GpuLight& L = run->lights[i];
+                        const vec3 lp(L.posRange(0), L.posRange(1), L.posRange(2));
+                        c.distance = double((lp - x).norm());
+                        c.radiance =
+                            LocalLights::reflectedRadiance(L, x, p.normal, v, p.albedo, p.roughness, p.metalness);
+                        p.lights.push_back(c);
+                    }
+                }
+            }
         }
         run->requests[k].callback(p);
     }
