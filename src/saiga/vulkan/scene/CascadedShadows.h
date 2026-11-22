@@ -40,9 +40,18 @@ struct CascadeInput
  *   it is refit early when the camera leaves that margin, e.g. a teleport). The rectangle
  *   is the sphere's square enlarged by the blend band (the slice stays inside the band-free part), its centre snapped
  *   to the texel grid in light space and kept in double (world); the camera-relative matrix is rebuilt every frame.
- * - One light-space depth range (D23): the cascades rendered in a frame share it, the union of their spheres' depth
- *   extents; casters nearer to the light are pancaked in the shadow vertex shaders. A cascade is its xy rectangle, so
- *   the receivers' selection and the casters' de-duplication by the rectangle are exact.
+ * - One light-space depth range (D23): the cascades rendered in a frame get the union of the depth extents of every
+ *   valid cascade's sphere (also the staggered ones not rendered this frame: the range depends on the cascade layout,
+ *   not on which cascades are due), so it holds every receiver; casters nearer to the light are pancaked in the shadow
+ *   vertex shaders. A cascade is its xy rectangle, so the receivers' selection by the rectangle is exact.
+ * - De-duplication: a cascade c skips the casters inside its stored de-duplication volume (xy footprint in a rectangle,
+ *   light depth in an interval), set when it is rendered: cascade c - 1's rectangle shrunk by the blend band times c's
+ *   caster depth range (its depth range up to the instance cap), for a staggered cascade both shrunk by a guard of 1/16
+ *   of c - 1's half extent, and only if c - 1's caster volume contains it (in the other light basis with the
+ *   rotation's slack).
+ *   In every later frame in which c is not rendered the containment is checked against c - 1's current volume (the map
+ *   sampled in that frame); if it fails c is rendered again. So a skipped caster is always in the map of c - 1 that is
+ *   sampled with c's, and for a static view the caster sets are the same every frame.
  * - Depth: D32, orthographic, not reversed (clear 1, LESS_OR_EQUAL); one Texture2DArray layer per cascade.
  * Golden mode (LightingParameters::forceFullUpdates) updates every cascade every frame (interval 1: no camera speed
  * margin, deterministic images). Freezing keeps every cascade's world data (and the camera they were fitted to); the
@@ -70,6 +79,14 @@ class SAIGA_VULKAN_API CascadedShadows
         // refit when the camera leaves it, e.g. a teleport)
         Vec3 fitCamera = Vec3::Zero();
         double margin  = 0;
+        // The fitted sphere's centre (world) and the caster volume's end towards the light (absolute light z: zNear
+        // plus the instance cap of the frame it was rendered in)
+        Vec3 centre      = Vec3::Zero();
+        double casterTop = 0;
+        // The de-duplication volume (absolute light space of this cascade's basis: the rectangle's centre and half
+        // extent, the light depth interval; dedup false: none)
+        bool dedup     = false;
+        double dedupCx = 0, dedupCy = 0, dedupHalf = 0, dedupZ0 = 0, dedupZ1 = 0;
     };
 
     // ---- pure helpers (tests)
@@ -85,6 +102,11 @@ class SAIGA_VULKAN_API CascadedShadows
     // The bounding sphere of a slice [n, f] of a frustum with the half-diagonal tangent k: the centre's distance along
     // the view axis and the radius
     static void sliceSphere(double n, double f, double k, double& centreDistance, double& radius);
+    // The instances' caster cap towards the light beyond a cascade's receivers (maxCasterHeight / sin of the elevation,
+    // at least minShadowElevationDeg)
+    static double instanceCap(const LightingParameters& p, double elevationRad);
+    // The guard of a staggered cascade's de-duplication rectangle (a fraction of the previous cascade's half extent)
+    static constexpr double kDedupGuard = 1.0 / 16.0;
 
     // ---- CPU: the cascades of a frame
     // Fits the due cascades (none while frozen; every cascade on a parameter or count change) for the light; the
@@ -123,6 +145,13 @@ class SAIGA_VULKAN_API CascadedShadows
     LightingParameters fittedFor;
     bool anyFit = false;
     CascadeInput lastInput;
+
+    // fit's steps: one cascade's sphere and rectangle; cascade c's de-duplication against c - 1 (rendered cascades) and
+    // whether the stored one still holds (cascades not rendered this frame)
+    void fitCascade(int c, const CascadeInput& in, const LightingParameters& p, const Vec3& x, const Vec3& y,
+                    const Vec3& z, const std::vector<double>& splits, double k, const Vec3& forward);
+    void setDedup(int c, const LightingParameters& p);
+    bool dedupHolds(int c, const LightingParameters& p) const;
 
     VulkanBase* base = nullptr;
     std::unique_ptr<Texture2DArray> depthArray;

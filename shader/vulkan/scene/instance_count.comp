@@ -11,7 +11,7 @@
 // (mesh 0), zeroed mesh records, invalid offset entries (w = 0) and instances beyond the mesh's last end distance from
 // the main camera; then, for each view of the chunk's mask (S36a2), the view's six planes (the main camera's frustum,
 // or a shadow cascade's light-space volume), and for shadow views the de-duplication (the bounding sphere's xy
-// footprint inside the previous cascade's shrunk rectangle) and the small-caster rule; the LOD by the distance of the
+// footprint inside the de-duplication rectangle and its light depth inside the de-duplication interval) and the small-caster rule; the LOD by the distance of the
 // bounding sphere's centre from the main camera (the first LOD with distance <= endDistance) plus the view's bias,
 // clamped. The instance is counted in its bucket (view, pipeline class, mesh, LOD) with atomicAdd; the bucket and the
 // returned slot are stored in its scratch entry of the view (scratchBase[chunk] + k * 256 + invocation, k-th view of
@@ -119,8 +119,10 @@ void main()
             if (radius < view.params.y) inside = false;
             if (inside && view.params.x > 0.5)
             {
-                vec2 f = vec2(dot(view.axisX.xyz, center), dot(view.axisY.xyz, center));
-                if (all(greaterThanEqual(f - radius, view.dedup.xy)) && all(lessThanEqual(f + radius, view.dedup.zw)))
+                vec2 f  = vec2(dot(view.axisX.xyz, center), dot(view.axisY.xyz, center));
+                float z = dot(view.planes[4].xyz, center);
+                if (all(greaterThanEqual(f - radius, view.dedup.xy)) && all(lessThanEqual(f + radius, view.dedup.zw)) &&
+                    z - radius >= view.axisX.w && z + radius <= view.axisY.w)
                     inside = false;
             }
         }

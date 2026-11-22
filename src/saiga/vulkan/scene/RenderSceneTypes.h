@@ -412,10 +412,12 @@ struct ShadowView
     // The caps towards the light beyond zMax: instances (maxCasterHeight / sin(max(elevation, minimum))), terrain
     // (cascadeCasterDistance horizontally)
     double instanceCap = 0, terrainCap = 0;
-    // De-duplication: a caster whose bounding sphere's xy footprint lies inside this rectangle (the previous cascade's
-    // shrunk by the blend band) is not drawn into this view (its whole shadow falls into the previous cascade)
+    // De-duplication: a caster whose bounding sphere's xy footprint lies inside this rectangle and whose light depth
+    // lies inside [dedupZMin, dedupZMax] (a part of the previous cascade's caster volume) is not drawn into this view
+    // (its whole shadow falls into the previous cascade, which contains it)
     bool dedup    = false;
     Vec2 dedupMin = Vec2::Zero(), dedupMax = Vec2::Zero();
+    double dedupZMin = 0, dedupZMax = 0;
     // Casters with a (scaled) bounding radius below this are skipped (LightingParameters::smallCasterTexels texels)
     double smallRadius = 0;
     // LOD levels added to the main view's LOD (clamped at the mesh's last LOD; D10: 0 for cascades 0-1)

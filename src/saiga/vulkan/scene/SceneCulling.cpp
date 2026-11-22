@@ -160,20 +160,24 @@ bool aabbCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, N>& plane
     }
     return false;
 }
-// The light-space xy footprint of the AABB [lo, hi] (camera-relative) lies inside the rectangle [rmin, rmax]
+// The light-space footprint of the AABB [lo, hi] (camera-relative) lies inside the de-duplication rectangle and its
+// light depth inside the de-duplication interval
 bool footprintInside(const Vec3& lo, const Vec3& hi, const ShadowView& v)
 {
-    double x0 = 1e300, x1 = -1e300, y0 = 1e300, y1 = -1e300;
+    double x0 = 1e300, x1 = -1e300, y0 = 1e300, y1 = -1e300, z0 = 1e300, z1 = -1e300;
     for (int c = 0; c < 8; ++c)
     {
         const Vec3 p((c & 1) ? hi(0) : lo(0), (c & 2) ? hi(1) : lo(1), (c & 4) ? hi(2) : lo(2));
-        const double x = v.axisX.dot(p), y = v.axisY.dot(p);
+        const double x = v.axisX.dot(p), y = v.axisY.dot(p), z = v.axisZ.dot(p);
         x0 = std::min(x0, x);
         x1 = std::max(x1, x);
         y0 = std::min(y0, y);
         y1 = std::max(y1, y);
+        z0 = std::min(z0, z);
+        z1 = std::max(z1, z);
     }
-    return x0 >= v.dedupMin(0) && x1 <= v.dedupMax(0) && y0 >= v.dedupMin(1) && y1 <= v.dedupMax(1);
+    return x0 >= v.dedupMin(0) && x1 <= v.dedupMax(0) && y0 >= v.dedupMin(1) && y1 <= v.dedupMax(1) &&
+           z0 >= v.dedupZMin && z1 <= v.dedupZMax;
 }
 
 uint32_t popcount(uint32_t v)
@@ -467,8 +471,8 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             const ShadowView& sv = shadowViews[v];
             GpuCullView& g       = gv[v + 1];
             fill(g, sv.planes(false));
-            storeVec(g.axisX, sv.axisX, 0);
-            storeVec(g.axisY, sv.axisY, 0);
+            storeVec(g.axisX, sv.axisX, sv.dedupZMin);
+            storeVec(g.axisY, sv.axisY, sv.dedupZMax);
             g.dedup[0]  = float(sv.dedupMin(0));
             g.dedup[1]  = float(sv.dedupMin(1));
             g.dedup[2]  = float(sv.dedupMax(0));

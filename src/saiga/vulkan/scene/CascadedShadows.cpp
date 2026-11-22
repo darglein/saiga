@@ -92,6 +92,125 @@ void CascadedShadows::invalidate()
     anyFit      = false;
 }
 
+double CascadedShadows::instanceCap(const LightingParameters& p, double elevationRad)
+{
+    const double minEl = std::max(elevationRad, double(std::clamp(p.minShadowElevationDeg, 0.5f, 90.0f)) * kPi / 180.0);
+    return double(p.maxCasterHeight) / std::sin(minEl);
+}
+
+void CascadedShadows::fitCascade(int c, const CascadeInput& in, const LightingParameters& p, const Vec3& x,
+                                 const Vec3& y, const Vec3& z, const std::vector<double>& splits, double k,
+                                 const Vec3& forward)
+{
+    Cascade& s         = state[size_t(c)];
+    const int interval = c == 0 || p.forceFullUpdates ? 1 : std::max(p.cascadeInterval[size_t(c)], 1);
+    const double blend = std::clamp(double(p.cascadeBlend), 0.0, 0.5);
+    const int res      = std::max(p.cascadeResolution, 16);
+    const double n = splits[size_t(c)], f = splits[size_t(c) + 1];
+    Vec3 centre;
+    double r;
+    if (interval == 1)
+    {
+        double zc;
+        sliceSphere(n, f, k, zc, r);
+        centre   = in.camera + forward * zc;
+        s.margin = 0;
+    }
+    else
+    {
+        // Around the camera: the slice's far corners plus the move until the next update; quantized up (a stable
+        // texel size)
+        centre              = in.camera;
+        const double corner = f * std::sqrt(1 + k * k);
+        r                   = corner + double(interval) * std::max(in.maxSpeed, 50.0) * std::max(in.dt, 0.0);
+        const double q      = std::max(f / 16.0, 1.0);
+        r                   = std::ceil(r / q) * q;
+        s.margin            = r - corner;
+    }
+    s.fitCamera        = in.camera;
+    const double h     = r / (1 - blend);
+    const double texel = 2 * h / double(res);
+    s.valid            = true;
+    s.updated          = true;
+    s.lastUpdate       = in.frame;
+    s.interval         = interval;
+    s.axisX            = x;
+    s.axisY            = y;
+    s.axisZ            = z;
+    s.cx               = std::round(x.dot(centre) / texel) * texel;
+    s.cy               = std::round(y.dot(centre) / texel) * texel;
+    s.halfExtent       = h;
+    s.splitNear        = n;
+    s.splitFar         = f;
+    s.texelSize        = texel;
+    s.resolution       = res;
+    s.centre           = centre;
+    s.dedup            = false;
+}
+
+namespace
+{
+// The rectangle [cx +- half] x [cy +- half] x [z0, z1] in the light basis (x, y, z) lies inside cascade prev's caster
+// volume (its rectangle shrunk to prevHalf, its depth range up to casterTop), also when prev's basis is another (the
+// light moved): a point's coordinate in prev's basis differs from the one in the box's by at most |axis difference| *
+// its distance from the box's centre
+bool insideVolume(const CascadedShadows::Cascade& prev, double prevHalf, const Vec3& x, const Vec3& y, const Vec3& z,
+                  double cx, double cy, double half, double z0, double z1)
+{
+    constexpr double eps = 1e-6;
+    const double hz      = 0.5 * (z1 - z0);
+    const Vec3 o         = x * cx + y * cy + z * (z0 + hz);
+    const double rho     = std::sqrt(2 * half * half + hz * hz);
+    const double dx = (prev.axisX - x).norm() * rho, dy = (prev.axisY - y).norm() * rho,
+                 dz = (prev.axisZ - z).norm() * rho;
+    const double oz = prev.axisZ.dot(o);
+    return std::abs(prev.axisX.dot(o) - prev.cx) + half + dx <= prevHalf + eps &&
+           std::abs(prev.axisY.dot(o) - prev.cy) + half + dy <= prevHalf + eps && oz - hz - dz >= prev.zFar - eps &&
+           oz + hz + dz <= prev.casterTop + eps;
+}
+}  // namespace
+
+void CascadedShadows::setDedup(int c, const LightingParameters& p)
+{
+    Cascade& s = state[size_t(c)];
+    s.dedup    = false;
+    if (c == 0) return;
+    const Cascade& prev = state[size_t(c) - 1];
+    if (!prev.valid) return;
+    const double band  = std::clamp(double(p.cascadeBlend), 0.0, 0.5) * prev.halfExtent;
+    const double guard = s.interval > 1 ? kDedupGuard * prev.halfExtent : 0.0;
+    // prev's shrunk rectangle in this cascade's basis, less the rotation's slack when the bases differ, times this
+    // cascade's caster depth range (shrunk by the guard)
+    const Vec3 o    = prev.axisX * prev.cx + prev.axisY * prev.cy + prev.axisZ * (0.5 * (prev.zNear + prev.zFar));
+    double half     = prev.halfExtent - band - guard;
+    const double z0 = s.zFar + guard, z1 = s.casterTop - guard;
+    if (z1 <= z0) return;
+    const double hz     = 0.5 * (z1 - z0);
+    const double rho    = std::sqrt(2 * half * half + hz * hz);
+    const double rotate = std::max((prev.axisX - s.axisX).norm(), (prev.axisY - s.axisY).norm()) * rho;
+    half -= rotate;
+    if (half <= 0) return;
+    const double cx = s.axisX.dot(o), cy = s.axisY.dot(o);
+    if (!insideVolume(prev, prev.halfExtent - band, s.axisX, s.axisY, s.axisZ, cx, cy, half, z0, z1)) return;
+    s.dedup     = true;
+    s.dedupCx   = cx;
+    s.dedupCy   = cy;
+    s.dedupHalf = half;
+    s.dedupZ0   = z0;
+    s.dedupZ1   = z1;
+}
+
+bool CascadedShadows::dedupHolds(int c, const LightingParameters& p) const
+{
+    const Cascade& s = state[size_t(c)];
+    if (!s.dedup) return true;
+    const Cascade& prev = state[size_t(c) - 1];
+    if (!prev.valid) return false;
+    const double band = std::clamp(double(p.cascadeBlend), 0.0, 0.5) * prev.halfExtent;
+    return insideVolume(prev, prev.halfExtent - band, s.axisX, s.axisY, s.axisZ, s.dedupCx, s.dedupCy, s.dedupHalf,
+                        s.dedupZ0, s.dedupZ1);
+}
+
 void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, bool frozen)
 {
     const int count = std::clamp(p.cascadeCount, 1, kMaxCascades);
@@ -109,6 +228,7 @@ void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, b
     fittedFor   = p;
     anyFit      = true;
     lastInput   = in;
+    for (int c = count; c < kMaxCascades; ++c) state[size_t(c)] = Cascade();
 
     Vec3 x, y, z;
     lightBasis(in.towardsLight, x, y, z);
@@ -117,73 +237,55 @@ void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, b
     const double tanX                = tanY * in.aspect;
     const double k                   = std::sqrt(tanX * tanX + tanY * tanY);
     const Vec3 forward               = in.cameraRotation * Vec3(0, 0, -1);
-    const double blend               = std::clamp(double(p.cascadeBlend), 0.0, 0.5);
     const int res                    = std::max(p.cascadeResolution, 16);
+    const double elevation           = std::asin(std::clamp(z(1), -1.0, 1.0));
+    const double cap                 = instanceCap(p, elevation);
 
-    // The spheres of the due cascades, then their shared depth range
-    double zNear = -1e300, zFar = 1e300;
-    bool any = false;
+    // The due cascades
     for (int c = 0; c < count; ++c)
     {
-        Cascade& s = state[size_t(c)];
+        const Cascade& s = state[size_t(c)];
         // Golden mode (forceFullUpdates): every cascade every frame, fitted to its slice (deterministic)
         const int interval = c == 0 || p.forceFullUpdates ? 1 : std::max(p.cascadeInterval[size_t(c)], 1);
         const bool due     = !s.valid || interval == 1 || in.frame < s.lastUpdate ||
                          in.frame - s.lastUpdate >= uint64_t(interval) || s.resolution != res ||
                          (in.camera - s.fitCamera).norm() > s.margin;
-        if (!due) continue;
-        const double n = splits[size_t(c)], f = splits[size_t(c) + 1];
-        Vec3 centre;
-        double r;
-        if (interval == 1)
-        {
-            double zc;
-            sliceSphere(n, f, k, zc, r);
-            centre   = in.camera + forward * zc;
-            s.margin = 0;
-        }
-        else
-        {
-            // Around the camera: the slice's far corners plus the move until the next update; quantized up (a stable
-            // texel size)
-            centre              = in.camera;
-            const double corner = f * std::sqrt(1 + k * k);
-            r                   = corner + double(interval) * std::max(in.maxSpeed, 50.0) * std::max(in.dt, 0.0);
-            const double q      = std::max(f / 16.0, 1.0);
-            r                   = std::ceil(r / q) * q;
-            s.margin            = r - corner;
-        }
-        s.fitCamera        = in.camera;
-        const double h     = r / (1 - blend);
-        const double texel = 2 * h / double(res);
-        s.valid            = true;
-        s.updated          = true;
-        s.lastUpdate       = in.frame;
-        s.interval         = interval;
-        s.axisX            = x;
-        s.axisY            = y;
-        s.axisZ            = z;
-        s.cx               = std::round(x.dot(centre) / texel) * texel;
-        s.cy               = std::round(y.dot(centre) / texel) * texel;
-        s.halfExtent       = h;
-        s.splitNear        = n;
-        s.splitFar         = f;
-        s.texelSize        = texel;
-        s.resolution       = res;
-        const double lz    = z.dot(centre);
-        zNear              = std::max(zNear, lz + h);
-        zFar               = std::min(zFar, lz - h);
-        any                = true;
+        if (due) fitCascade(c, in, p, x, y, z, splits, k, forward);
     }
-    if (!any) return;
-    for (int c = 0; c < count; ++c)
+    // The shared depth range of every valid cascade's sphere (rendered or not: the range depends on the layout, not on
+    // the due cascades), the rendered cascades' de-duplication; a cascade not rendered this frame whose stored
+    // de-duplication is no longer covered by c - 1's current volume is rendered too (then the range is recomputed:
+    // at most count rounds)
+    for (int round = 0; round <= count; ++round)
     {
-        Cascade& s = state[size_t(c)];
-        if (!s.updated) continue;
-        s.zNear = zNear;
-        s.zFar  = zFar;
+        double zNear = -1e300, zFar = 1e300;
+        for (int c = 0; c < count; ++c)
+        {
+            const Cascade& s = state[size_t(c)];
+            if (!s.valid) continue;
+            const double lz = z.dot(s.centre);
+            zNear           = std::max(zNear, lz + s.halfExtent);
+            zFar            = std::min(zFar, lz - s.halfExtent);
+        }
+        for (int c = 0; c < count; ++c)
+        {
+            Cascade& s = state[size_t(c)];
+            if (!s.updated) continue;
+            s.zNear     = zNear;
+            s.zFar      = zFar;
+            s.casterTop = zNear + cap;
+        }
+        for (int c = 0; c < count; ++c)
+            if (state[size_t(c)].updated) setDedup(c, p);
+        bool refit = false;
+        for (int c = 1; c < count; ++c)
+        {
+            if (state[size_t(c)].updated || !state[size_t(c)].valid || dedupHolds(c, p)) continue;
+            fitCascade(c, in, p, x, y, z, splits, k, forward);
+            refit = true;
+        }
+        if (!refit) break;
     }
-    for (int c = count; c < kMaxCascades; ++c) state[size_t(c)] = Cascade();
 }
 
 mat4 CascadedShadows::matrix(int c, const Vec3& camera) const
@@ -214,31 +316,26 @@ ShadowView CascadedShadows::view(int c, const Vec3& camera, const LightingParame
 {
     const Cascade& s = state[size_t(c)];
     ShadowView v;
-    v.axisX            = s.axisX;
-    v.axisY            = s.axisY;
-    v.axisZ            = s.axisZ;
-    const Vec2 rel     = Vec2(s.cx - s.axisX.dot(camera), s.cy - s.axisY.dot(camera));
-    v.rectMin          = rel - Vec2(s.halfExtent, s.halfExtent);
-    v.rectMax          = rel + Vec2(s.halfExtent, s.halfExtent);
-    const double cz    = s.axisZ.dot(camera);
-    v.zMin             = s.zFar - cz;
-    v.zMax             = s.zNear - cz;
-    const double minEl = std::max(elevationRad, double(std::clamp(p.minShadowElevationDeg, 0.5f, 90.0f)) * kPi / 180.0);
-    v.instanceCap      = double(p.maxCasterHeight) / std::sin(minEl);
-    v.terrainCap       = double(p.cascadeCasterDistance) / std::max(std::cos(std::max(elevationRad, 0.0)), 0.25);
-    // De-duplication against the previous cascade's rectangle shrunk by its band (the same light basis only)
-    if (c > 0)
+    v.axisX         = s.axisX;
+    v.axisY         = s.axisY;
+    v.axisZ         = s.axisZ;
+    const Vec2 rel  = Vec2(s.cx - s.axisX.dot(camera), s.cy - s.axisY.dot(camera));
+    v.rectMin       = rel - Vec2(s.halfExtent, s.halfExtent);
+    v.rectMax       = rel + Vec2(s.halfExtent, s.halfExtent);
+    const double cz = s.axisZ.dot(camera);
+    v.zMin          = s.zFar - cz;
+    v.zMax          = s.zNear - cz;
+    v.instanceCap   = instanceCap(p, elevationRad);
+    v.terrainCap    = double(p.cascadeCasterDistance) / std::max(std::cos(std::max(elevationRad, 0.0)), 0.25);
+    // De-duplication: the stored volume (CascadedShadows::fit)
+    if (s.dedup)
     {
-        const Cascade& prev = state[size_t(c) - 1];
-        if (prev.valid && (prev.axisZ - s.axisZ).norm() < 1e-9)
-        {
-            const double band = std::clamp(double(p.cascadeBlend), 0.0, 0.5) * prev.halfExtent;
-            const Vec2 pr     = Vec2(prev.cx - s.axisX.dot(camera), prev.cy - s.axisY.dot(camera));
-            const double in   = prev.halfExtent - band;
-            v.dedup           = true;
-            v.dedupMin        = pr - Vec2(in, in);
-            v.dedupMax        = pr + Vec2(in, in);
-        }
+        const Vec2 pr = Vec2(s.dedupCx - s.axisX.dot(camera), s.dedupCy - s.axisY.dot(camera));
+        v.dedup       = true;
+        v.dedupMin    = pr - Vec2(s.dedupHalf, s.dedupHalf);
+        v.dedupMax    = pr + Vec2(s.dedupHalf, s.dedupHalf);
+        v.dedupZMin   = s.dedupZ0 - s.axisZ.dot(camera);
+        v.dedupZMax   = s.dedupZ1 - s.axisZ.dot(camera);
     }
     v.smallRadius = double(p.smallCasterTexels) * s.texelSize;
     v.lodBias     = c >= 2 ? std::max(p.shadowLodBias, 0) : 0;

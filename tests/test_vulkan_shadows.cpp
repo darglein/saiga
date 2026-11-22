@@ -103,12 +103,15 @@ ShadowView squareView(const Vec3& towardsLight, const Vec3& c, double h, double 
     return v;
 }
 
-// The previous view's rectangle shrunk by the band as the de-duplication rectangle of v
+// The previous view's rectangle shrunk by the band as the de-duplication rectangle of v, its depth range up to the cap
+// as the de-duplication interval
 void dedupAgainst(ShadowView& v, const ShadowView& previous, double band)
 {
-    v.dedup    = true;
-    v.dedupMin = previous.rectMin + Vec2(band, band);
-    v.dedupMax = previous.rectMax - Vec2(band, band);
+    v.dedup     = true;
+    v.dedupMin  = previous.rectMin + Vec2(band, band);
+    v.dedupMax  = previous.rectMax - Vec2(band, band);
+    v.dedupZMin = previous.zMin;
+    v.dedupZMax = previous.zMax + previous.instanceCap;
 }
 
 // The CPU reference of a shadow view's count rule (instance_count.comp): the main camera's last end distance, the
@@ -133,10 +136,10 @@ struct ViewReference
         inside = inside && r >= v.smallRadius;
         if (v.dedup)
         {
-            const double x = v.axisX.dot(c), y = v.axisY.dot(c);
-            const double m =
-                std::min({x - r - v.dedupMin(0), v.dedupMax(0) - x - r, y - r - v.dedupMin(1), v.dedupMax(1) - y - r});
-            amb = amb || std::abs(m) <= 1e-3 * std::max(d, 1.0);
+            const double x = v.axisX.dot(c), y = v.axisY.dot(c), z = v.axisZ.dot(c);
+            const double m = std::min({x - r - v.dedupMin(0), v.dedupMax(0) - x - r, y - r - v.dedupMin(1),
+                                       v.dedupMax(1) - y - r, z - r - v.dedupZMin, v.dedupZMax - z - r});
+            amb            = amb || std::abs(m) <= 1e-3 * std::max(d, 1.0);
             if (m >= 0) inside = false;
         }
         if (amb) ambiguous++;
@@ -467,7 +470,9 @@ TEST_F(Cascades, IntervalKeepsMatrixCorrect)
 }
 
 // A stale cascade (interval 2) still covers every receiver of its slice after a turn of 30 degrees and a move of 20 m
-// between its updates (its sphere around the camera has the margin interval * maxSpeed * dt)
+// between its updates (its sphere around the camera has the margin interval * maxSpeed * dt). The cascade of frame 1
+// is checked with frame 2's camera directly: in a fit of frame 2 it is rendered again, as cascade 2 turned away from
+// the casters cascade 3 skipped (CascadesFit.SkippedCastersStayInPreviousCascade)
 TEST_F(Cascades, StaleCascadeStillCoversFrustum)
 {
     LightingParameters p;
@@ -480,8 +485,7 @@ TEST_F(Cascades, StaleCascadeStillCoversFrustum)
     next.frame          = 2;
     next.camera         = in.camera + Vec3(12, 0, -16);  // 20 m
     next.cameraRotation = lookRotation(Vec3(std::sin(kPi / 6), -0.1, -std::cos(kPi / 6))).matrix();
-    cs.fit(next, p, false);
-    ASSERT_FALSE(cs.cascades()[3].updated);
+    ASSERT_LE((next.camera - cs.cascades()[3].fitCamera).norm(), cs.cascades()[3].margin);
     const auto& k = cs.cascades()[3];
     std::mt19937 rng(9);
     std::uniform_real_distribution<double> u(0, 1);
@@ -492,6 +496,101 @@ TEST_F(Cascades, StaleCascadeStillCoversFrustum)
         if (!insideCascade(cs, 3, next.camera, frustumPoint(next, u(rng) * 2 - 1, u(rng) * 2 - 1, d))) outside++;
     }
     EXPECT_EQ(outside, 0);
+}
+
+// Regression (the flight demo of S36a2): the shared depth range was the union of the cascades rendered in the frame, so
+// with a static camera the caster volumes of cascades 0-2 shrank in every frame in which cascade 3 (interval 2) was not
+// due, while cascade 3 kept skipping the casters inside cascade 2 (their sets alternated, shadows flickered). The range
+// and the de-duplication depend only on the cascade layout: a static view gives the same cascades every frame
+TEST(CascadesFit, StaticViewKeepsLayout)
+{
+    LightingParameters p;
+    p.sunShadows = true;  // intervals {1, 1, 1, 2}
+    CascadedShadows cs;
+    std::array<CascadedShadows::Cascade, 4> first;
+    int stale = 0;
+    for (uint64_t f = 1; f <= 6; ++f)
+    {
+        cs.fit(cameraInput(Vec3(10, 40, -20), Vec3(0.2, -0.3, -1), Vec3(0.3, 0.5, 0.6), f), p, false);
+        stale += cs.cascades()[3].updated ? 0 : 1;
+        for (size_t c = 0; c < 4; ++c)
+        {
+            const CascadedShadows::Cascade& k = cs.cascades()[c];
+            if (f == 1)
+            {
+                first[c] = k;
+                continue;
+            }
+            EXPECT_EQ(k.zNear, first[c].zNear) << "cascade " << c << " frame " << f;
+            EXPECT_EQ(k.zFar, first[c].zFar) << "cascade " << c << " frame " << f;
+            EXPECT_EQ(k.casterTop, first[c].casterTop) << "cascade " << c << " frame " << f;
+            EXPECT_EQ(k.cx, first[c].cx);
+            EXPECT_EQ(k.cy, first[c].cy);
+            EXPECT_EQ(k.dedup, first[c].dedup) << "cascade " << c << " frame " << f;
+            EXPECT_EQ(k.dedupCx, first[c].dedupCx);
+            EXPECT_EQ(k.dedupCy, first[c].dedupCy);
+            EXPECT_EQ(k.dedupHalf, first[c].dedupHalf);
+            EXPECT_EQ(k.dedupZ0, first[c].dedupZ0);
+            EXPECT_EQ(k.dedupZ1, first[c].dedupZ1);
+        }
+    }
+    EXPECT_EQ(stale, 3) << "cascade 3 keeps its interval";
+    for (size_t c = 1; c < 4; ++c) EXPECT_TRUE(first[c].dedup) << c;
+    // The shared range holds cascade 3's sphere also in the frames it is not rendered in
+    EXPECT_GE(first[0].zNear, first[3].zNear);
+    EXPECT_LE(first[0].zFar, first[3].zFar);
+}
+
+// A caster skipped by cascade c lies in cascade c - 1's caster volume in every frame in which c's map is sampled: with
+// a moving and turning camera and a moving light, each cascade's stored de-duplication volume (rectangle times light
+// depth interval) is inside cascade c - 1's current rectangle (shrunk by the blend band) times its depth range up to
+// the instance cap (sampled points); a staggered cascade whose skipped casters would leave c - 1 is rendered again,
+// otherwise it keeps its interval
+TEST(CascadesFit, SkippedCastersStayInPreviousCascade)
+{
+    LightingParameters p;
+    p.sunShadows = true;
+    CascadedShadows cs;
+    std::mt19937 rng(3);
+    std::uniform_real_distribution<double> u(-1, 1);
+    int stale = 0, checked = 0, violations = 0;
+    for (uint64_t f = 1; f <= 60; ++f)
+    {
+        // Frames 1-20 straight ahead, 21-40 turning by 2 degrees per frame, 41-60 straight again; the sun moves
+        const double t       = double(f);
+        const double heading = f <= 20 ? 0.0 : (f <= 40 ? (t - 20) * 2 * kPi / 180 : 40 * kPi / 180);
+        const Vec3 forward(std::sin(heading), -0.2, -std::cos(heading));
+        const Vec3 eye   = Vec3(1.5 * t, 50, -1.5 * t);
+        const Vec3 light = Vec3(0.3 + 0.0005 * t, 0.5, 0.6);
+        CascadeInput in  = cameraInput(eye, forward, light, f);
+        in.maxSpeed      = 130;
+        cs.fit(in, p, false);
+        stale += cs.cascades()[3].updated ? 0 : 1;
+        const double blend = p.cascadeBlend;
+        for (size_t c = 1; c < 4; ++c)
+        {
+            const CascadedShadows::Cascade &k = cs.cascades()[c], &prev = cs.cascades()[c - 1];
+            if (!k.dedup) continue;
+            const double prevHalf = prev.halfExtent * (1 - blend);
+            for (int i = 0; i < 64; ++i)
+            {
+                const double a = i < 8 ? ((i & 1) ? 1 : -1) : u(rng), b = i < 8 ? ((i & 2) ? 1 : -1) : u(rng);
+                const double w = i < 8 ? ((i & 4) ? k.dedupZ1 : k.dedupZ0)
+                                       : k.dedupZ0 + (k.dedupZ1 - k.dedupZ0) * (0.5 + 0.5 * u(rng));
+                const Vec3 q =
+                    k.axisX * (k.dedupCx + a * k.dedupHalf) + k.axisY * (k.dedupCy + b * k.dedupHalf) + k.axisZ * w;
+                const double tol  = 1e-5;
+                const bool inside = std::abs(prev.axisX.dot(q) - prev.cx) <= prevHalf + tol &&
+                                    std::abs(prev.axisY.dot(q) - prev.cy) <= prevHalf + tol &&
+                                    prev.axisZ.dot(q) >= prev.zFar - tol && prev.axisZ.dot(q) <= prev.casterTop + tol;
+                violations += inside ? 0 : 1;
+                checked++;
+            }
+        }
+    }
+    EXPECT_EQ(violations, 0);
+    EXPECT_GT(checked, 60 * 64);
+    EXPECT_GT(stale, 10) << "the staggered cascade keeps its interval while the camera flies straight";
 }
 
 // The light basis near the zenith: orthonormal, and a light tilted by 0.01 rad changes the basis by about as much (no
@@ -724,6 +823,51 @@ TEST_F(Shadows, LongShadowLeavesNearCascade)
     EXPECT_LT(scene->lightingStatistics().cascades[0].splitFar, 100.0);
     for (double x = -40; x >= -200; x -= 20) EXPECT_LT(FactorAt(img, Vec3(x, 0, 0)), 0.2f) << "x " << x;
     EXPECT_GT(FactorAt(img, Vec3(-120, 0, -12)), 0.9f) << "lit beside the shadow";
+}
+
+// Regression (the flight demo of S36a2): with a static camera and the default intervals (cascade 3 every second frame)
+// the caster sets of cascades 0-2 alternated with cascade 3's updates and the shadows flickered. Now every frame draws
+// the same instances into cascades 0-2 (cascade 3 the same in each of its frames) and the shadow image is the same
+TEST_F(Shadows, StaticViewSameCastersEveryFrame)
+{
+    Box(311, vec3(300, 0.5f, 300));
+    Box(312, vec3(1, 6, 1));
+    std::vector<StaticInstance> set = {instanceAt(vec3(0, -0.5f, 0), 311)};
+    for (int i = 0; i < 12; ++i)
+        for (int j = -3; j <= 3; ++j) set.push_back(instanceAt(vec3(float(j) * 9, 6, -6.0f - 16.0f * float(i)), 312));
+    AddSet(set);
+    Sun(Vec3(0.4, 0.5, -0.6));
+    Camera(Vec3(0.01, 14, 6), Vec3(0, -0.35, -1));
+    Capture(3);
+    TemplatedImage<ucvec4> reference;
+    std::array<uint32_t, 4> counts{}, rendered{};
+    int frames3 = 0;
+    for (int f = 0; f < 4; ++f)
+    {
+        const TemplatedImage<ucvec4> img = Capture(1);
+        const RenderStatistics st        = scene->statistics();
+        if (f == 0)
+        {
+            reference = img;
+            for (size_t c = 0; c < 3; ++c) counts[c] = st.cascadeInstances[c];
+        }
+        else
+        {
+            for (size_t c = 0; c < 3; ++c)
+                EXPECT_EQ(st.cascadeInstances[c], counts[c]) << "cascade " << c << " frame " << f;
+            bool same = img.h == reference.h && img.w == reference.w;
+            for (int y = 0; same && y < img.h; ++y)
+                for (int x = 0; same && x < img.w; ++x) same = img(y, x) == reference(y, x);
+            EXPECT_TRUE(same) << "frame " << f;
+        }
+        if (st.cascadeInstances[3] > 0)
+        {
+            if (frames3++ == 0) rendered[3] = st.cascadeInstances[3];
+            EXPECT_EQ(st.cascadeInstances[3], rendered[3]) << "frame " << f;
+        }
+    }
+    for (size_t c = 0; c < 3; ++c) EXPECT_GT(counts[c], 0u) << c;
+    EXPECT_EQ(frames3, 2) << "cascade 3 every second frame";
 }
 
 namespace

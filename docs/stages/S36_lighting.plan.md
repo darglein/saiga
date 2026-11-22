@@ -1988,6 +1988,26 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   `src/saiga/engine/lighting/EnvironmentFile.cpp` (the a2 keys of the file's `lighting`), `tests/{test_engine_app.cpp,
   test_vulkan_world.cpp}` (sections, the tab, the deadline test); of the list, `DebugLines.cpp` (the overlays add lines
   from `RenderScene`), `TerrainAtlas` only for the pyramid counter, and `debug_probe.comp` are unchanged / not created.
+- **Stable cascade caster sets (fix after the live test of the flight demo)**: with a static camera the caster sets of
+  cascades 0-2 alternated with cascade 3's updates (instances (2020, 7032, 27428) in a frame with cascade 3, (1859,
+  4296, 13760) without) and the shadows flickered. Cause: the shared depth range (D23) was the union of the spheres of
+  the cascades rendered **in the frame**, so without cascade 3 the range of cascades 0-2 shrank to their own spheres (a
+  smaller caster volume, and receivers outside it), while cascade 3 kept skipping the casters inside cascade 2's
+  rectangle. Now (`CascadedShadows::fit`): the shared range is the union over **every valid** cascade's sphere (also
+  the staggered ones not rendered this frame), so it depends on the layout only; each cascade stores its
+  de-duplication volume when it is rendered (cascade c - 1's rectangle shrunk by the band times c's caster depth range
+  up to the instance cap; for a staggered cascade both shrunk by a guard of 1/16 of c - 1's half extent), set only if
+  c - 1's caster volume contains it (also across a light basis change, with the rotation's slack); in each frame in
+  which c is not rendered the containment is checked against c - 1's current volume (the map sampled in that frame) and
+  c is rendered again if it fails. The culling's de-duplication tests the caster's light depth against the volume's
+  interval too (`ShadowView::dedupZMin/Max`, `CullView.axisX.w / axisY.w` in `instance_count.comp`). A static view
+  renders the same sets every frame (flight demo, held camera: (2281, 7698, 30105, 101160) in every frame, cascade 3
+  every second frame); `shadow.cascades` in `game_world --benchmark` (RTX, release, two runs each): flyover 0.966 /
+  0.970 -> 0.981 / 0.980 ms, forest 1.447 / 1.457 -> 1.451 / 1.467 ms. Tests: `CascadesFit.StaticViewKeepsLayout`,
+  `CascadesFit.SkippedCastersStayInPreviousCascade` (moving, turning camera and moving light: every skipped volume
+  inside c - 1's, the staggered cascade keeps its interval while flying straight), `Shadows.StaticViewSameCastersEveryFrame`
+  (the same per-cascade instances and the same shadow image every frame); `Cascades.StaleCascadeStillCoversFrustum`
+  checks frame 1's cascade with frame 2's camera directly (after its 30 degree turn a fit renders cascade 3 again).
 
 ## Results
 
