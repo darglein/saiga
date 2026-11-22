@@ -863,6 +863,12 @@ void McpServer::stop()
     answerLocalCallsOnStop();
 }
 
+size_t McpServer::pendingCallCount()
+{
+    std::lock_guard<std::mutex> lock(pendingMutex);
+    return pendingCalls.size();
+}
+
 void McpServer::poll()
 {
     std::unique_lock<std::recursive_mutex> dispatch(dispatchMutex);

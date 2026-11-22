@@ -77,13 +77,18 @@ VulkanDevice::~VulkanDevice()
     // The device first (its memory, queues and pools), then the surface (the swap chain that used it is gone), then
     // the instance (with the core, after this body)
     if (base.device) base.device.waitIdle();
-    if (!reuseKey.empty() && surface == VK_NULL_HANDLE && base.device && headlessDeviceReuse())
+    if (!reuseKey.empty() && surface == VK_NULL_HANDLE && base.device)
     {
-        base.destroyDeviceObjects();
+        // The flag is tested under the lock of the insert: a concurrent setHeadlessDeviceReuse(false) clears the pool,
+        // so a core inserted after it would stay alive until the static destruction
         auto& pool = devicePool();
         std::lock_guard<std::mutex> lock(pool.mutex);
-        pool.devices.emplace(reuseKey, std::move(core));
-        return;
+        if (pool.enabled)
+        {
+            base.destroyDeviceObjects();
+            pool.devices.emplace(reuseKey, std::move(core));
+            return;
+        }
     }
     base.destroy();
     if (surface != VK_NULL_HANDLE) vkDestroySurfaceKHR(instance, surface, nullptr);

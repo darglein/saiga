@@ -103,6 +103,8 @@ class SAIGA_CORE_API McpServer
 
     // Executes the pending tool calls on the calling thread, then the poll listeners.
     void poll();
+    // The tool calls queued for the next poll() (thread safe; e.g. tests that wait until a call is queued)
+    size_t pendingCallCount();
     // Runs fn at the end of every poll() (on the polling thread), e.g. a deferred tool that checks a deadline while
     // nothing else happens; fn returns false to be removed
     void addPollListener(std::function<bool()> fn) { pollListeners.push_back(std::move(fn)); }
