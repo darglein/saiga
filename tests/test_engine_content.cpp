@@ -3636,7 +3636,8 @@ TEST(ContentRender, HeldPoolResults)
 {
     JobLatch latch;
     std::atomic<uint64_t> started{0};
-    World w(contentRenderSetup());
+    // The shared cache: every request is a pool job (a cached placement is found inside the job, after the hook)
+    World w(contentRenderSetup(2, 128, true));
     JobLatch::Opener opener{latch};
     RecordingRenderSink sink;
     w.setRenderSink(&sink);
