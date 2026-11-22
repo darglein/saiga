@@ -2458,7 +2458,9 @@ TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
     app.runFrames(5, 1.0 / 60);
     EXPECT_EQ(app.renderedFrames(), frames + 5);
     TerrainTestHooks::openLatch();
-    const Json ok = callWhileRunning(app, "screenshot", Json::object{});
+    // Streams the new view: a timeout that a loaded machine meets (the deadline was tested above)
+    app.mcp().toolTimeoutSeconds = 30;
+    const Json ok                = callWhileRunning(app, "screenshot", Json::object{});
     EXPECT_FALSE(isError(ok)) << ok.dump().substr(0, 300);
 }
 

@@ -1125,10 +1125,11 @@ TEST_F(VulkanSceneContent, TakeStatisticsInFrameOrder)
     scene->addMesh(1, "a", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {1000}, {ucvec4(255, 0, 0, 255)}), 1);
     camera.position = Vec3(0, 0, 10);
     camera.apply(*scene);
-    // Enough visible instances that a frame is still running when the next one is recorded (both slots pending)
+    // Enough visible instances that a frame is still running when the next one is recorded (both slots pending; on
+    // lavapipe a frame of these takes ~60 ms, the recording of the next a few ms)
     std::vector<StaticInstance> v;
-    for (int i = 0; i < 40000; ++i)
-        v.push_back(makeInstance(vec3(-4 + (i % 200) * 0.04f, -2 + (i / 200) * 0.02f, 0), quat::Identity(), 1, 1));
+    for (int i = 0; i < 10000; ++i)
+        v.push_back(makeInstance(vec3(-4 + (i % 200) * 0.04f, -2 + (i / 200) * 0.08f, 0), quat::Identity(), 1, 1));
     scene->addInstanceSet(RegionId(), v);
     RenderStatistics st;
     auto noop = [](vk::CommandBuffer) {};
@@ -1146,7 +1147,7 @@ TEST_F(VulkanSceneContent, TakeStatisticsInFrameOrder)
         while (scene->takeStatistics(st))
         {
             frames.push_back(st.frame);
-            EXPECT_EQ(st.instancesPerLod[0], 40000u) << st.frame;
+            EXPECT_EQ(st.instancesPerLod[0], 10000u) << st.frame;
         }
         std::vector<uint64_t> expected;
         for (uint64_t f = first; f <= scene->frames(); ++f) expected.push_back(f);
