@@ -32,6 +32,7 @@
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 
 #include <functional>
+#include <limits>
 #include <map>
 #include <memory>
 #include <set>
@@ -80,8 +81,10 @@ class SAIGA_ENGINE_API ContentRenderSystem
 
     // Players: the phase-8 pass (World::step after the render extract; not in stepNetworkOnly)
     void playersPass();
-    // View (TerrainSystem::updateView / completeView): complete builds every desired set synchronously
-    void viewUpdate(SpaceId space, const Vec3& camera, bool complete);
+    // View (TerrainSystem::updateView / completeView): complete builds every desired set synchronously, none after the
+    // deadline (steady_clock seconds, completeView's); false if a desired set of a completed view is not built
+    bool viewUpdate(SpaceId space, const Vec3& camera, bool complete,
+                    double deadline = std::numeric_limits<double>::infinity());
     // World::onRecordChanged: immediate in both modes (also inside stepNetworkOnly)
     void recordChanged(const ChunkId& chunk);
     // World::onTerrainChanged (step 7): the re-snap queue, only while sets exist
@@ -116,6 +119,7 @@ class SAIGA_ENGINE_API ContentRenderSystem
         bool live = false, empty = false, requested = false;
         uint64_t counter = 0;  // incremented when the set is requested or removed
         uint16_t version = 0;  // of the live set or of the request
+        uint64_t job     = 0;  // the pool job of the request (0: none)
         std::vector<Vulkan::StaticInstance> original;
         std::vector<Vulkan::StaticInstance> current;  // what the sink holds
         std::vector<InstanceKey> keys;                // per index (sorted)

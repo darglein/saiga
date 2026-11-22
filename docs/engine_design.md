@@ -1668,8 +1668,9 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
   them is `ContentRenderSettings::centres` (`World::setContentRenderSettings`): `None` (the default: a sink alone builds
   nothing), `View` (`EngineApp`'s rendered world: `TerrainSystem::updateView` / `completeView` run the content part
   also in a space without terrain; the chunks of the camera's space within `fullRadius`, generated on the streaming
-  pool through `ContentSource` (`ContentRenderSettings::setsPerFrame` requests per update, default 4), synchronously in
-  `completeView`) or `Players` (`ScenarioWorld`: a pass in phase 8 after the render extract, the chunks within
+  pool (`ContentRenderSettings::setsPerFrame` requests per update, default 4; a request still queued when its set goes is
+  cancelled), synchronously in `completeView` within its deadline (no build starts after it; the view is then
+  incomplete)) or `Players` (`ScenarioWorld`: a pass in phase 8 after the render extract, the chunks within
   `fullRadius` of every `Player` of the world, synchronous; not in `stepNetworkOnly`); a set goes when its chunk is
   more than `fullRadius + 256 m` from every centre (S24 replaces this). Record changes reach the sink at once
   (`World::onRecordChanged`, also inside `stepNetworkOnly`): another placement version removes the set and requests it
@@ -1682,8 +1683,9 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
   space (`HookGenerator`, the prototype fixture) keeps S20's rule over the level-0 tile with the `HookGenerator`'s exact
   thresholds (none: no grass). Edited chunks: generator spaces AND their generator mask with S20's rule over the merged
   heights (`Generator::grassEditRule`, integer `minNormalYQ16` / `minAboveSeaUnits`; disabled: the generator mask),
-  legacy spaces S22's rule alone; a result is dropped only on S22's terrain-only revision (F1: a tombstone never drops or
-  re-queues a mask). The thresholds are content, no view settings any more (`TerrainViewSettings::grassMinNormalY` /
+  legacy spaces S22's rule alone; a result is dropped if S22's terrain-only revision or (generator spaces) the chunk's
+  placement version changed while its job ran (F1: a tombstone of the same version changes neither, so it never drops
+  or re-queues a mask). The thresholds are content, no view settings any more (`TerrainViewSettings::grassMinNormalY` /
   `grassMinAboveSea` removed).
 
 ### 10.2 Culling [exists: S18 (one view); planned: S36 (shadow views)]
@@ -2595,7 +2597,8 @@ void World::editGrass(SpaceId space, const Vec3& center, double radius, double d
 - A piece with behavior (a crafting station with a timer) is promoted to an entity while it is active (game decides).
 - `World::tombstone` [exists: S23b]: host only (a client call stops in every build, R-NET-2); validated at the call in
   every build, also during a step (`SAIGA_EXIT_ERROR`; `checkTombstone` reports without stopping): the space, the chunk
-  range (D12), the slot, `counter < candidatesPerChunk(slot)`, and an accepted, not excluded instance at the chunk's
+  range (D12), the slot, `counter < candidatesPerChunk(slot)`, an open-world space (S22's sequences; an enclosed space
+  refuses) and an accepted, not excluded instance at the chunk's
   effective placement version (generated synchronously through the cache); between steps at once, during a step a
   command at the requesting phase's flush (not inside `parallelEach`); idempotent (a tombstoned key changes nothing: no
   sequence, message or notification); applying creates the record if needed (current version), inserts the key, bumps
@@ -3047,7 +3050,9 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   pins); the commit replaces the plans if the pins change them, then the records, before `TERR`'s commit. `diffSaves`
   reports `generation` differences (seed, template generators, per generator versions and slots, space count, combined
   hash) and `record` differences per chunk. `data/tests/engine/save_s23a.bin` (the content test setup with a stamped
-  site and an edited chunk) guards both formats; `save_v1.bin` (flat, no `GENR`) keeps loading.
+  site and an edited chunk) is the format-1 input (`ChunkRecords.Format1LoadsWithoutTombstones`: read without
+  tombstones, saved as format 2); `save_s23b.bin` guards format 2 with persisted tombstones
+  (`ChunkRecords.CommittedSaveLoads`); `save_v1.bin` (flat, no `GENR`) keeps loading.
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.
@@ -3177,7 +3182,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `edit_terrain(space?, op, center, radius, strength)` | S22: `World::editTerrain` between steps on the host (op `add`, `subtract`, `flatten`, `smooth`; center [x, y, z] or [x, z], y the flatten target); refused inside a step, on clients (with `--coop` the tools see the client world), for an unknown or enclosed space and for an invalid brush (the error names the field and the bound); returns `changed_samples`, per changed chunk `{chunk: [x, z], sequence, box: [x0, z0, w, h]}` (chunk-local samples) and the changed `box: [x0, z0, x1, z1]` in metres; logged under `api`; not registered read-only | [exists: S22] |
 | `terrain_height(space?, x, z)`, `terrain_edits(space?, limit?, after?)` | S22: the exact surface height (§12.2, incl. edits) with the three integer samples of the triangle and `edited`; the chunks with terrain state in `ChunkId` order (sequence, `has_deltas`, `non_zero_samples`, the delta min / max in metres), paged (`next`) | [exists: S22] |
 | `chunk_info(space?, chunk?: [x, z], position?: [x, z])`, `list_sites(space?, near?: {position, radius}, limit? (100, <= 1000), after?)` | S23b, reads: the chunk, `placement_version` (effective), `recorded`, `stamped` (host), `sequence`, `tombstones` (slot name, counter; at most 200, `truncated`), `tombstone_count`, instances per slot, the site keys, `content_hash` (generated on demand), errors for a chunk outside the space; per site key, prefab, version, position, quarter turns, base height (m), footprint, linked space IDs and its chunks with their stamped state, paged (`next`) | [exists: S23b] |
-| `tombstone(space?, chunk: [x, z], slot, counter)` | S23b, changes: tombstones one tier-1 instance (host only; on a client an error), slot by name; errors for an unknown slot, a counter out of range, a rejected or excluded candidate and a chunk outside the space; idempotent (`changed: false`); returns the sequence. `edit_terrain` reports `tombstoned: [{chunk, slot, counter}]`; `describe_world` adds `generators: [{name, version, pinned, current, slots: [{name, flags}], integer_only}]`, `world_status` `generation: {seed (string), mismatch, checked}` | [exists: S23b] |
+| `tombstone(space?, chunk: [x, z], slot, counter)` | S23b, changes: tombstones one tier-1 instance (host only; on a client an error), slot by name; errors for an unknown slot, a counter out of range, a rejected or excluded candidate and a chunk outside the space; idempotent (`changed: false`); returns the sequence (an exhausted sequence, `UINT32_MAX`, is an error). `edit_terrain` reports `tombstoned: [{chunk, slot, counter}]`; `describe_world` adds `generators: [{name, version, pinned, current, slots: [{name, flags}], integer_only}]`, `world_status` `generation: {seed (string), mismatch, checked}` | [exists: S23b] |
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |

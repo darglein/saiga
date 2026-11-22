@@ -144,7 +144,8 @@ class SAIGA_ENGINE_API TerrainSystem
     // too). Returns false on timeout (what is resident is still sent; no caller job starts after the deadline, a
     // running one is finished), at once when an iteration brought nothing new, submitted no job and nothing is queued
     // or running (no later one could: logged with what is missing), or for a non-finite camera. Without a sink it fills
-    // the store only. A space without terrain returns true at once
+    // the store only. A space without terrain returns true at once (S23b: then the content part, below, within the same
+    // deadline: false if a content set is still missing at it)
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
     // nothing of the desired set. True for a space without terrain; without a sink only the residency counts. Queued
@@ -211,9 +212,10 @@ class SAIGA_ENGINE_API TerrainSystem
     // Tests: runs in every grass mask job (base and edited) before it computes (e.g. waits on a latch)
     std::function<void()> maskJobHookForTests;
     // Engine-internal (S23b): the content part of updateView / completeView (the World's ContentRenderSystem; it runs
-    // whether or not the view space has terrain): called with the view space, the camera and whether the view is
-    // completed
-    void setContentView(std::function<void(SpaceId, const Vec3&, bool)> fn) { contentView = std::move(fn); }
+    // whether or not the view space has terrain): called with the view space, the camera, whether the view is
+    // completed and completeView's deadline (steady_clock seconds; no build starts after it); returns false if a
+    // completed view's content is still missing
+    void setContentView(std::function<bool(SpaceId, const Vec3&, bool, double)> fn) { contentView = std::move(fn); }
     // Engine-internal (S23b): the streaming pool (created on demand) for the content sets' jobs
     StreamingPool& streamingPool()
     {
@@ -258,7 +260,7 @@ class SAIGA_ENGINE_API TerrainSystem
 
     std::vector<Space> spaces;
     const TerrainEditStore* edits = nullptr;
-    std::function<void(SpaceId, const Vec3&, bool)> contentView;
+    std::function<bool(SpaceId, const Vec3&, bool, double)> contentView;
     std::function<uint16_t(const ChunkId&)> placementVersionOf;
     // The placement version of each stored generator mask (S23b)
     std::map<ChunkId, uint16_t> maskVersions;
@@ -276,7 +278,8 @@ class SAIGA_ENGINE_API TerrainSystem
     std::set<ChunkId> editedJobs;
     uint64_t setGeneration = 0;
     std::set<ChunkId> desiredMasks;
-    // Sent masks of chunks whose deltas returned to zero: the store's base mask replaces the edited one once resident
+    // Sent masks of chunks whose deltas returned to zero (S23b: or whose placement version changed): the store's base
+    // mask replaces the sent one once resident
     std::set<ChunkId> baseResend;
     // A chunk's mask is current: the cached edited one (a chunk with deltas) or the store's base one
     const Vulkan::GrassMaskData* readyMask(const ChunkId& chunk) const;

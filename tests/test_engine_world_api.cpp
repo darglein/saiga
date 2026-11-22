@@ -21,6 +21,7 @@
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/terrain/HookGenerator.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/saiga_buildconfig.h"
@@ -521,6 +522,13 @@ TEST(WorldTools, EveryToolThroughHandleMessage)
     for (const std::string& op : api->operations()) EXPECT_TRUE(names.count(op)) << op;
     EXPECT_TRUE(names.count("measure_performance"));
     EXPECT_EQ(names.size(), api->operations().size() + 1);
+    // chunk_info's position takes [x, z] too (its schema had the 3 items of a Vec3)
+    for (auto& t : list["result"]["tools"].array_items())
+        if (t["name"].string_value() == "chunk_info")
+        {
+            EXPECT_EQ(t["inputSchema"]["properties"]["position"]["minItems"].number_value(), 2);
+            EXPECT_EQ(t["inputSchema"]["properties"]["position"]["maxItems"].number_value(), 3);
+        }
 
     Poller poller(server);
     // Reading
@@ -2275,6 +2283,8 @@ TEST(WorldTools, ContentTools)
     EXPECT_EQ(info["content_hash"].string_value().size(), 16u);
     EXPECT_EQ(call("chunk_info", obj(R"({"position": [1150, 1400]})"))["chunk"], info["chunk"]);
     EXPECT_NE(error("chunk_info", obj(R"({"chunk": [128, 0]})")).find("outside"), std::string::npos);
+    // A position beyond int32_t chunks (1e12 m / 256 m) was converted to int32_t before the range check (undefined)
+    EXPECT_NE(error("chunk_info", obj(R"({"position": [1000000000000, 0]})")).find("outside"), std::string::npos);
 
     // list_sites: paging and near
     const Json all  = call("list_sites", Json::object{});
@@ -2337,6 +2347,21 @@ TEST(WorldTools, ContentTools)
                     Json::object{{"chunk", Json::array{4, 5}}, {"slot", "test_tree"}, {"counter", double(rejected)}})
                   .find("rejected or excluded"),
               std::string::npos);
+    // An exhausted sequence: an error (the tombstone was refused, but the tool returned changed: true)
+    uint32_t second = 0;
+    for (const auto& t : w.generation().chunkPlacement(c, 2)->instances)
+        if (t.key.generatorSlot == 0 && t.key.counter != counter)
+        {
+            second = t.key.counter;
+            break;
+        }
+    w.terrainEditsForUpdate().setSequence(c, std::numeric_limits<uint32_t>::max());
+    EXPECT_NE(error("tombstone",
+                    Json::object{{"chunk", Json::array{4, 5}}, {"slot", "test_tree"}, {"counter", double(second)}})
+                  .find("exhausted"),
+              std::string::npos);
+    EXPECT_FALSE(w.isTombstoned(c, InstanceKey{0, second}));
+    w.terrainEditsForUpdate().setSequence(c, 1);
 
     // edit_terrain reports the trees it tombstoned (a mound over chunk (4, 5))
     const Json e = call("edit_terrain", obj(R"({"op": "add", "center": [1150, 1400], "radius": 12, "strength": 4})"));

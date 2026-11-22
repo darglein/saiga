@@ -39,6 +39,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -1618,6 +1619,7 @@ namespace
 bool chunkArg(const World& w, const Json& a, SpaceId space, ChunkId& out, std::string& error)
 {
     out.space = space;
+    int64_t x = 0, z = 0;
     if (!a["chunk"].is_null())
     {
         const auto& c = a["chunk"].array_items();
@@ -1629,8 +1631,8 @@ bool chunkArg(const World& w, const Json& a, SpaceId space, ChunkId& out, std::s
             error = "chunk: [x, z] integers";
             return false;
         }
-        out.x = int32_t(c[0].number_value());
-        out.z = int32_t(c[1].number_value());
+        x = int64_t(c[0].number_value());
+        z = int64_t(c[1].number_value());
     }
     else if (!a["position"].is_null())
     {
@@ -1643,21 +1645,24 @@ bool chunkArg(const World& w, const Json& a, SpaceId space, ChunkId& out, std::s
             error = "position: [x, z] or [x, y, z] in metres";
             return false;
         }
-        out.x = int32_t(std::floor(p[0].number_value() / chunkSize));
-        out.z = int32_t(std::floor(p[n - 1].number_value() / chunkSize));
+        // |position| <= 1e12 m fits in int64_t chunks (not in int32_t): converted after the range check below
+        x = int64_t(std::floor(p[0].number_value() / chunkSize));
+        z = int64_t(std::floor(p[n - 1].number_value() / chunkSize));
     }
     else
     {
         error = "chunk: [x, z] or position: [x, z] is missing";
         return false;
     }
-    const int32_t size = w.spaceTemplate(space).sizeChunks;
-    if (out.x < 0 || out.z < 0 || out.x >= size || out.z >= size)
+    const int64_t size = w.spaceTemplate(space).sizeChunks;
+    if (x < 0 || z < 0 || x >= size || z >= size)
     {
-        error = "the chunk (" + std::to_string(out.x) + ", " + std::to_string(out.z) + ") is outside space " +
+        error = "the chunk (" + std::to_string(x) + ", " + std::to_string(z) + ") is outside space " +
                 std::to_string(space) + " (" + std::to_string(size) + " x " + std::to_string(size) + " chunks)";
         return false;
     }
+    out.x = int32_t(x);
+    out.z = int32_t(z);
     return true;
 }
 
@@ -1822,6 +1827,10 @@ ApiResult WorldApi::tombstone(const Json& a)
     key.counter = uint32_t(counter);
     if (!w->checkTombstone(c, key, &error)) return ApiResult::failure(error);
     const bool changed = !w->isTombstoned(c, key);
+    // An exhausted sequence refuses the tombstone (applyTombstone changes nothing): an error, not changed: true
+    if (changed && w->terrainEdits().sequence(c) == std::numeric_limits<uint32_t>::max())
+        return ApiResult::failure("tombstone: the sequence of chunk (" + std::to_string(c.x) + ", " +
+                                  std::to_string(c.z) + ") is exhausted (refused)");
     w->tombstone(c, key);
     return ApiResult::success(Json::object{
         {"changed", changed}, {"chunk", Json::array{c.x, c.z}}, {"sequence", double(w->terrainEdits().sequence(c))}});

@@ -390,6 +390,9 @@ void TerrainSystem::recordChanged(const ChunkId& chunk)
     {
         spaces[chunk.space].store->removeMask(chunk);
         maskVersions.erase(it);
+        // The sink's copy is replaced even if the new mask is stored before the next send pass sees the gap
+        // (completeView drains before it sends): the chunk does not count as sent
+        if (sentMasks.count(chunk)) baseResend.insert(chunk);
     }
     // An edited chunk's mask includes the generator mask: recomputed
     auto e = visual->masks.find(chunk);
@@ -798,7 +801,9 @@ void TerrainSystem::requestEditedMask(const ChunkId& chunk)
                      // (its grassEditRule; none: the generator mask); a legacy space S22's rule alone
                      if (generator)
                      {
-                         const GrassMask& g = content.placementInJob(chunk, version)->grass;
+                         // The owner lives until the mask is copied (the cache may evict the placement meanwhile)
+                         const std::shared_ptr<const ChunkPlacement> placement = content.placementInJob(chunk, version);
+                         const GrassMask& g                                    = placement->grass;
                          *result = rl ? andRule(g, generateGrassMask(merged, lay, sea, rl->minNormalY, rl->minAboveSea))
                                       : fromGenerator(g);
                      }
@@ -995,6 +1000,9 @@ void TerrainSystem::beginView(SpaceId space)
         baseResend.clear();
         // The old space's streamed CPU tiles and masks go (its pyramid stays cached) and its requests are cancelled
         spaces[viewSpace].store->dropStreamed();
+        // With them their placement versions (eviction only visits the masks of the view space)
+        for (auto it = maskVersions.begin(); it != maskVersions.end();)
+            it = it->first.space == viewSpace ? maskVersions.erase(it) : std::next(it);
         if (pool)
             for (auto it = requests.begin(); it != requests.end();)
             {
@@ -1039,14 +1047,16 @@ void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
 {
     updateTerrainView(space, camera);
     // S23b: the content sets (also in a space without terrain), after the drain of this update
-    if (contentView && sink && camera.allFinite()) contentView(space, camera, false);
+    if (contentView && sink && camera.allFinite()) contentView(space, camera, false, 0);
 }
 
 bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeoutSeconds)
 {
-    const bool complete = completeTerrainView(space, camera, timeoutSeconds);
+    // One deadline for both parts: no content build starts after it (the view is then incomplete)
+    const double deadline = nowSeconds() + timeoutSeconds;
+    bool complete         = completeTerrainView(space, camera, timeoutSeconds);
     // S23b: the content sets are built synchronously (screenshots and goldens see them)
-    if (contentView && sink && camera.allFinite()) contentView(space, camera, true);
+    if (contentView && sink && camera.allFinite()) complete = contentView(space, camera, true, deadline) && complete;
     return complete;
 }
 

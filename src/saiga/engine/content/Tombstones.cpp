@@ -7,6 +7,7 @@
 #include "saiga/engine/content/Tombstones.h"
 
 #include "saiga/core/math/TerrainSurface.h"
+#include "saiga/core/util/assert.h"
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
@@ -139,6 +140,11 @@ bool checkTombstone(const World& world, const ChunkId& chunk, const InstanceKey&
         return fail("tombstone: counter " + std::to_string(key.counter) + " of slot " +
                     std::to_string(key.generatorSlot) + " is out of range (" + std::to_string(count) +
                     " candidates per chunk)");
+    // A tombstone advances S22's chunk sequence, which only open-world spaces have (TERR and TerrainChunkState
+    // refuse the entry of an enclosed space)
+    if (!g.openWorld)
+        return fail("tombstone: space " + std::to_string(chunk.space) + " ('" + g.settings.name +
+                    "') is enclosed (tombstones need an open-world space)");
     const uint16_t version                        = world.effectivePlacementVersion(chunk);
     const std::shared_ptr<const ChunkPlacement> p = world.generation().chunkPlacement(chunk, version);
     if (!findInstance(*p, key))
@@ -150,6 +156,7 @@ bool checkTombstone(const World& world, const ChunkId& chunk, const InstanceKey&
 
 bool applyTombstone(World& world, const ChunkId& chunk, const InstanceKey& key)
 {
+    SAIGA_ASSERT(world.generation().space(chunk.space).openWorld, "applyTombstone: an enclosed space (checkTombstone)");
     ChunkRecords& records = world.contentRecordsForUpdate();
     if (const ChunkRecord* r = records.find(chunk))
         if (r->tombstoned(key)) return false;

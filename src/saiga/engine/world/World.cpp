@@ -111,8 +111,8 @@ World::World(const WorldSetup& setup)
         terrainSys->setPlacementVersions([this](const ChunkId& c) { return effectivePlacementVersion(c); });
         // S23b: the content render sets and their part of the view updates
         contentRenderSys = std::make_unique<ContentRenderSystem>(*this);
-        terrainSys->setContentView([this](SpaceId space, const Vec3& camera, bool complete)
-                                   { contentRenderSys->viewUpdate(space, camera, complete); });
+        terrainSys->setContentView([this](SpaceId space, const Vec3& camera, bool complete, double deadline)
+                                   { return contentRenderSys->viewUpdate(space, camera, complete, deadline); });
     }
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log

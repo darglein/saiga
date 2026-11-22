@@ -354,7 +354,7 @@ dropped). Applied in phase 1 (and by `stepNetworkOnly`).
 - Image: the frame after the tombstone is compared with the new golden `data/tests/golden/generated_site.png`
   (lavapipe gating, §17.6; other devices print the metrics). It shows the terrain with the site's patch, the tier-1
   test meshes, the pillar and the gap of the tombstoned tree. Created on lavapipe in a dedicated commit (AGENTS.md
-  procedure, filter `EngineTerrainRenderGolden.GeneratedSite`).
+  procedure, filter `TerrainRenderTest.GeneratedSite`).
 
 ## Out of scope
 
@@ -519,7 +519,7 @@ registers the test meshes on every peer):
   rock's rendered y equals the edited surface and the tree is tombstoned.
 
 `tests/test_engine_terrain_render.cpp` (S20's engine-linked render target, Vulkan guard):
-`EngineTerrainRenderGolden.GeneratedSite` (Scope 8; lavapipe gating, the count delta and the set check on every
+`TerrainRenderTest.GeneratedSite` (Scope 8; lavapipe gating, the count delta and the set check on every
 device).
 
 Benchmarks (R-TEST-2; local, reported): the host cost of `tombstone` and of the tombstone-on-edit step on a cold and a
@@ -720,7 +720,8 @@ Implementation (step 1, reconcile with the merged S20-S23a code; the smallest so
   y rule (`terrainSurfaceUnits` over the base cell), S20's mask path (`TerrainSystem::requestMask`,
   `requestEditedMask`, `sendGrassMask`, `generateGrassMask`).
 - S20's engine-linked render target is the fixture `TerrainRenderTest` of `tests/test_engine_terrain_render.cpp`; the
-  golden test is `TerrainRenderTest.GeneratedSite` (the plan's `EngineTerrainRenderGolden.GeneratedSite`).
+  golden test is `TerrainRenderTest.GeneratedSite` (the plan first named it `EngineTerrainRenderGolden.GeneratedSite`;
+  its recipe now names the implemented filter).
 - Grass thresholds: the integer `GrassEditRule` (`minNormalYQ16`, `minAboveSeaUnits`) cannot hold the prototype's
   0.82 / 0.4 exactly; a legacy space takes the exact double thresholds of its `HookGenerator` (`HookGenerator::grassRule()`),
   every other generator its `grassEditRule()` converted (exact: Q16 and height units are powers of two), so the

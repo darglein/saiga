@@ -78,6 +78,16 @@ json11::Json chunkProperty(const std::string& description)
                                 {"description", description}};
 }
 
+// A position [x, z] or [x, y, z] (numbers)
+json11::Json positionXzProperty(const std::string& description)
+{
+    return json11::Json::object{{"type", "array"},
+                                {"items", json11::Json::object{{"type", "number"}}},
+                                {"minItems", 2},
+                                {"maxItems", 3},
+                                {"description", description}};
+}
+
 std::vector<ToolSpec> toolSpecs()
 {
     using S         = McpServer;
@@ -194,10 +204,11 @@ std::vector<ToolSpec> toolSpecs()
          "[{slot, counter}] (at most 200, truncated), tombstone_count, instances per slot (the accepted tier-1 "
          "instances of the placement), the site keys of the chunk and the content_hash (generated on demand). The "
          "chunk by chunk [x, z] or by position [x, z] in metres. Changes nothing.",
-         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0)")},
-                          {"chunk", chunkProperty("Chunk [x, z]")},
-                          {"position", S::Vec3Property("A position [x, z] or [x, y, z] in metres (instead of chunk)")}},
-                         {})},
+         S::ObjectSchema(
+             {{"space", S::IntegerProperty("Space (default 0)")},
+              {"chunk", chunkProperty("Chunk [x, z]")},
+              {"position", positionXzProperty("A position [x, z] or [x, y, z] in metres (instead of chunk)")}},
+             {})},
         {"list_sites",
          "Reads the sites (authored places) of a space's world plan in plan order: key, prefab, version, position "
          "[x, base height, z] in metres, quarter_turns, base_height, footprint [x0, z0, x1, z1] in local metres, the "

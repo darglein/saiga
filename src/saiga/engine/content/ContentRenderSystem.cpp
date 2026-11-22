@@ -20,6 +20,7 @@
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 
 namespace Saiga
@@ -82,12 +83,15 @@ void ContentRenderSystem::chunksAround(SpaceId space, const Vec3& centre, double
 {
     if (!spaceHasContent(space) || !centre.allFinite()) return;
     const int32_t size = w.spaceTemplate(space).sizeChunks;
-    // The chunk index clamped in double before the conversion (any finite centre)
-    auto index = [&](double v) { return int64_t(std::min(std::max(std::floor(v / chunkSize), -1.0), double(size))); };
-    const int64_t x0 = std::max<int64_t>(0, index(centre.x() - r));
-    const int64_t x1 = std::min<int64_t>(size - 1, index(centre.x() + r));
-    const int64_t z0 = std::max<int64_t>(0, index(centre.z() - r));
-    const int64_t z1 = std::min<int64_t>(size - 1, index(centre.z() + r));
+    // The chunk index clamped in double before the conversion (any finite centre); the lower bound with ceil - 1, so a
+    // disc edge on a chunk boundary includes the chunk below that touches it (distance exactly r)
+    auto clamped     = [&](double i) { return int64_t(std::min(std::max(i, -1.0), double(size))); };
+    auto lower       = [&](double v) { return clamped(std::ceil(v / chunkSize) - 1); };
+    auto upper       = [&](double v) { return clamped(std::floor(v / chunkSize)); };
+    const int64_t x0 = std::max<int64_t>(0, lower(centre.x() - r));
+    const int64_t x1 = std::min<int64_t>(size - 1, upper(centre.x() + r));
+    const int64_t z0 = std::max<int64_t>(0, lower(centre.z() - r));
+    const int64_t z1 = std::min<int64_t>(size - 1, upper(centre.z() + r));
     for (int64_t z = z0; z <= z1; ++z)
         for (int64_t x = x0; x <= x1; ++x)
         {
@@ -222,7 +226,9 @@ void ContentRenderSystem::buildNow(const ChunkId& chunk, ChunkSet& s)
     const SpaceGeneration& g = w.generation().space(chunk.space);
     std::shared_ptr<const ChunkPlacement> p;
     if (!w.generators().find(g.generatorId)->slots.empty()) p = w.generation().chunkPlacement(chunk, s.version);
-    install(chunk, s, p ? *p : ChunkPlacement());
+    // Both operands lvalues of one type: *p is not copied (a prvalue operand made the result a copy)
+    const ChunkPlacement none{};
+    install(chunk, s, p ? *p : none);
 }
 
 void ContentRenderSystem::request(const ChunkId& chunk, ChunkSet& s, StreamingPool& pool)
@@ -230,51 +236,50 @@ void ContentRenderSystem::request(const ChunkId& chunk, ChunkSet& s, StreamingPo
     s.counter                = nextCounter();
     s.version                = w.effectivePlacementVersion(chunk);
     s.requested              = true;
+    s.job                    = 0;
     const SpaceGeneration& g = w.generation().space(chunk.space);
     const uint64_t counter   = s.counter;
     const uint16_t version   = s.version;
-    auto done                = [this, chunk, counter, version](std::shared_ptr<const ChunkPlacement> p)
+    auto done                = [this, chunk, counter, version](std::shared_ptr<const ChunkPlacement> p, bool cancelled)
     {
         auto it = sets.find(chunk);
-        if (it == sets.end() || it->second.counter != counter || it->second.version != version || it->second.live ||
-            !sink || config.centres != ContentCentres::View)
+        if (cancelled || it == sets.end() || it->second.counter != counter || it->second.version != version ||
+            it->second.live || !sink || config.centres != ContentCentres::View)
         {
             statistics.resultsDropped++;
-            if (it != sets.end() && it->second.counter == counter) it->second.requested = false;
+            if (it != sets.end() && it->second.counter == counter)
+            {
+                it->second.requested = false;
+                it->second.job       = 0;
+            }
             return;
         }
+        it->second.job = 0;
         // As the state is now: the current tombstones and re-snaps are applied before the upload
-        install(chunk, it->second, p ? *p : ChunkPlacement());
+        const ChunkPlacement none{};
+        install(chunk, it->second, p ? *p : none);
     };
     statistics.poolJobs++;
     if (w.generators().find(g.generatorId)->slots.empty())
     {
         // Static parts only: nothing to generate
-        done(nullptr);
+        done(nullptr, false);
         return;
     }
-    if (jobHookForTests)
-    {
-        // A held job (tests): the hook runs on the worker before the generation
-        auto hook                                    = jobHookForTests;
-        ContentSource source                         = w.generation().contentSource(chunk.space);
-        auto result                                  = std::make_shared<std::shared_ptr<const ChunkPlacement>>();
-        std::shared_ptr<ContentCache> cache          = w.generation().sharedCache();
-        std::shared_ptr<const SpaceGeneration> space = w.generation().spacePtr(chunk.space);
-        pool.submit(
-            [hook, cache, space, chunk, version, result](const std::atomic<bool>&)
-            {
-                hook();
-                *result = generatePlacement(*cache, *space, chunk, version, true);
-            },
-            0,
-            [result, done](bool cancelled)
-            {
-                if (!cancelled) done(*result);
-            });
-        return;
-    }
-    w.generation().contentSource(chunk.space).requestPlacement(pool, chunk, version, 0, done);
+    // The job ID: removeSet cancels a request that is still queued (a running one is dropped at its completion), so
+    // the requests of sets removed while the camera moves do not pile up in the pool. A held job (tests): the hook
+    // runs on the worker before the generation
+    auto hook                                    = jobHookForTests;
+    auto result                                  = std::make_shared<std::shared_ptr<const ChunkPlacement>>();
+    std::shared_ptr<ContentCache> cache          = w.generation().sharedCache();
+    std::shared_ptr<const SpaceGeneration> space = w.generation().spacePtr(chunk.space);
+    s.job                                        = pool.submit(
+        [hook, cache, space, chunk, version, result](const std::atomic<bool>&)
+        {
+            if (hook) hook();
+            *result = generatePlacement(*cache, *space, chunk, version, true);
+        },
+        0, [result, done](bool cancelled) { done(*result, cancelled); });
 }
 
 void ContentRenderSystem::removeSet(const ChunkId& chunk, ChunkSet& s)
@@ -282,9 +287,13 @@ void ContentRenderSystem::removeSet(const ChunkId& chunk, ChunkSet& s)
     (void)chunk;
     if (s.live && sink) sink->removeInstanceSet(s.handle);
     if (s.live) statistics.setsRemoved++;
-    s.live    = false;
-    s.handle  = Vulkan::InstanceSetHandle();
-    s.counter = nextCounter();
+    // A queued request is dropped (its completion never runs); a running one is dropped at its completion
+    if (s.requested && s.job != 0 && w.terrain().streamingPool().cancel(s.job)) statistics.resultsDropped++;
+    s.requested = false;
+    s.job       = 0;
+    s.live      = false;
+    s.handle    = Vulkan::InstanceSetHandle();
+    s.counter   = nextCounter();
 }
 
 void ContentRenderSystem::removeAll()
@@ -335,9 +344,9 @@ void ContentRenderSystem::playersPass()
     }
 }
 
-void ContentRenderSystem::viewUpdate(SpaceId space, const Vec3& camera, bool complete)
+bool ContentRenderSystem::viewUpdate(SpaceId space, const Vec3& camera, bool complete, double deadline)
 {
-    if (config.centres != ContentCentres::View) return;
+    if (config.centres != ContentCentres::View) return true;
     SAIGA_ASSERT(sink, "ContentRenderSystem: the View centres need a render sink");
     statistics.passes++;
     haveViewSpace = true;
@@ -351,18 +360,27 @@ void ContentRenderSystem::viewUpdate(SpaceId space, const Vec3& camera, bool com
     for (const ChunkId& c : desired) order.push_back({chunkDistance(c, camera), c});
     std::sort(order.begin(), order.end());
     int budget = std::max(0, config.setsPerFrame);
+    bool built = true;
+    auto now   = []()
+    { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); };
     for (const auto& [d, c] : order)
     {
         ChunkSet& s = sets[c];
         if (s.live || s.empty) continue;
         if (complete)
-            buildNow(c, s);
+        {
+            if (now() < deadline)
+                buildNow(c, s);
+            else
+                built = false;
+        }
         else if (!s.requested && budget > 0)
         {
             request(c, s, w.terrain().streamingPool());
             budget--;
         }
     }
+    return built;
 }
 
 void ContentRenderSystem::recordChanged(const ChunkId& chunk)

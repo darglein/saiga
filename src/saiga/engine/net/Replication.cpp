@@ -356,16 +356,21 @@ void Replication::reserveTombstones(SpaceId space, size_t n, bool behindNewEntry
         free                              = kMaxTombstoneEntries - last.size();
         last.reserve(last.size() + std::min(n, free));
     }
-    size_t rest          = n > free ? n - free : 0;
+    const size_t rest    = n > free ? n - free : 0;
     const size_t entries = (rest + kMaxTombstoneEntries - 1) / kMaxTombstoneEntries;
     hostStates.reserve(hostStates.size() + entries + (behindNewEntry ? 1 : 0));
     spareTombstones.reserve(spareTombstones.size() + entries);
-    while (rest > 0)
+    // appendTombstone pops the buffers from the back and fills each to kMaxTombstoneEntries before the next: the
+    // remainder buffer goes first (popped last), so no append after the reservation allocates
+    if (rest % kMaxTombstoneEntries != 0)
     {
-        std::vector<TombstoneEntry> buffer;
-        buffer.reserve(std::min(rest, kMaxTombstoneEntries));
-        rest -= std::min(rest, kMaxTombstoneEntries);
-        spareTombstones.push_back(std::move(buffer));
+        spareTombstones.emplace_back();
+        spareTombstones.back().reserve(rest % kMaxTombstoneEntries);
+    }
+    for (size_t i = 0; i < rest / kMaxTombstoneEntries; ++i)
+    {
+        spareTombstones.emplace_back();
+        spareTombstones.back().reserve(kMaxTombstoneEntries);
     }
 }
 

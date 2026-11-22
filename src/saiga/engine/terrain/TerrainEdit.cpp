@@ -141,6 +141,16 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
                 }
         }
     std::sort(chunks.begin(), chunks.end());
+    // A chunk with an exhausted sequence (UINT32_MAX) is refused before the tombstone-on-edit placements are generated
+    // (as in S22: no generation, nothing that can throw); the combined check below covers the tombstones' bumps
+    for (const ChunkId& c : chunks)
+        if (st.sequence(c) == std::numeric_limits<uint32_t>::max())
+        {
+            SAIGA_LOG("terrain", "editTerrain: the sequence of chunk (%d, %d) of space %u is exhausted (refused)", c.x,
+                      c.z, unsigned(space));
+            ss.noopEdits++;
+            return result;
+        }
     // 4. reserve the entries of new chunks, the parts of the send-list entry, the result and the change-list slot
     std::vector<TerrainEditStore::EntryNode> entries;
     entries.reserve(chunks.size());

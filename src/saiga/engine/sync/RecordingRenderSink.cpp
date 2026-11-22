@@ -85,7 +85,10 @@ void RecordingRenderSink::updateInstances(InstanceSetHandle set, uint32_t first,
     if (it != sets.end())
     {
         std::vector<StaticInstance>& a = it->second.instances;
-        if (a.size() < first + v.size()) a.resize(first + v.size());
+        // A gap before first is unused capacity: scale 0, as the GPU set holds it (not a default instance of scale 1)
+        StaticInstance gap;
+        gap.scale = 0;
+        if (a.size() < first + v.size()) a.resize(first + v.size(), gap);
         std::copy(v.begin(), v.end(), a.begin() + std::ptrdiff_t(first));
     }
     count.updateInstances++;
