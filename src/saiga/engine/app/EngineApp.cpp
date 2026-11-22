@@ -966,6 +966,8 @@ void EngineApp::streamTerrain()
     const auto mcpDeadline = pendingScreenshotDeadline();
     mcpCapture             = mcpCapture && mcpDeadline.has_value();
     const bool fatal       = framesRendered == 0 || completeEachFrame || fatalCapture;
+    // An MCP capture whose view did not complete this frame (the requests that wait longer must not get this frame)
+    bool mcpIncomplete = false;
     if (fatal || mcpCapture)
     {
         double timeout = 120;
@@ -976,7 +978,9 @@ void EngineApp::streamTerrain()
             if (fatal)
                 SAIGA_EXIT_ERROR("EngineApp: the terrain of the view was not complete within " +
                                  std::to_string(timeout) + " s (TerrainSystem::completeView)");
-            // The screenshot requests whose deadline passed (or passes before the next frame) answer with an error
+            // The screenshot requests whose deadline passed (or passes before the next frame) answer with an error; the
+            // others keep waiting: the capture is not dispatched in this frame
+            mcpIncomplete = true;
             if (screenshotExpire) screenshotExpire(std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
         }
         streamMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
@@ -988,7 +992,7 @@ void EngineApp::streamTerrain()
     }
     frameStreamMs = streamMs;
     // The captures take the first frame before which no terrain upload is pending (at most 16 frames later)
-    if (!pendingCaptures.empty())
+    if (!pendingCaptures.empty() && !mcpIncomplete)
     {
         const bool ready = terrain.terrainUploadsPending() == 0;
         if (ready || captureWaitFrames >= 16 || !(fatal || mcpCapture))

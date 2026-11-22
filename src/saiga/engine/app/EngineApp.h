@@ -182,7 +182,9 @@ class SAIGA_ENGINE_API EngineApp
     // A capture of a rendered frame once the terrain of the view is complete: each frame until then completes the
     // view again (with the then current view camera) and the capture takes the first frame before which no terrain
     // upload is pending (at most 16 frames later, then with a warning). fatal: a completeView timeout stops the program
-    // (SAIGA_SCREENSHOT); otherwise the deadline of the MCP screenshot requests bounds it
+    // (SAIGA_SCREENSHOT); otherwise it is the MCP screenshot's capture: the deadline of the waiting screenshot requests
+    // bounds it, a frame whose view did not complete is not captured, and without a waiting request (all answered by
+    // their deadline) the abandoned capture is dispatched at once
     void requestCapture(CaptureCallback callback, bool fatal = false);
     // AppTools (S20): the earliest deadline of the unanswered screenshot requests (none: no limit from them) and the
     // answer of the requests whose deadline passed (or passes before the given time)

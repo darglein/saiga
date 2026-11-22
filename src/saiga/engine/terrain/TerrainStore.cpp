@@ -42,6 +42,7 @@ void TerrainStore::removeTile(const RegionId& region)
 
 void TerrainStore::markDesired(const RegionId& region, uint64_t frame)
 {
+    checkThread();
     auto it = tileMap.find(region);
     if (it != tileMap.end()) it->second.lastDesired = frame;
 }

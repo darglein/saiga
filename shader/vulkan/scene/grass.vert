@@ -151,9 +151,11 @@ void main()
     lpos = vec3(c * lpos.x + s * lpos.z, lpos.y, -s * lpos.x + c * lpos.z);
 
     // Wind bends the tops (normalWind.w is 1 at the top): the CPU phases fmod(time * f, 2 pi) plus the chunk-local
-    // phase 2 pi (22 lx + 17 lz) / 256 (integer wave numbers: continuous across chunk borders)
-    float phase = 6.2831853 * (22.0 * lp.x + 17.0 * lp.y) / 256.0;
-    lpos.xz += vec2(sin(frame.grassPhases.x + phase), cos(frame.grassPhases.y + phase * 0.7)) * 0.08 * height *
+    // phases 2 pi (22 lx + 17 lz) / 256 and 2 pi (15 lx + 12 lz) / 256 (integer wave numbers for both components:
+    // continuous across chunk borders)
+    float phase  = 6.2831853 * (22.0 * lp.x + 17.0 * lp.y) / 256.0;
+    float phase2 = 6.2831853 * (15.0 * lp.x + 12.0 * lp.y) / 256.0;
+    lpos.xz += vec2(sin(frame.grassPhases.x + phase), cos(frame.grassPhases.y + phase2)) * 0.08 * height *
                inNormalWind.w * frame.grassPhases.z;
 
     vec3 pos    = vec3(rel.x, h - 0.04 - frame.cameraRel.y, rel.y) + lpos;

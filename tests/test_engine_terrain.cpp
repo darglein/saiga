@@ -153,6 +153,11 @@ TEST(Terrain, PrototypeSurfaceEqualsTerrainHeight)
             if (k % 50 == 2) x = -3;
             ASSERT_EQ(Vulkan::prototypeSurfaceHeight(3, bs, x, z), w.terrainHeight(0, x, z)) << x << ", " << z;
         }
+        // Regression (CodeRabbit, S20): a NaN coordinate survived the clamps and reached int64_t(floor(NaN)) (UB); 0
+        // as terrainHeight
+        const double nan = std::numeric_limits<double>::quiet_NaN();
+        EXPECT_EQ(Vulkan::prototypeSurfaceHeight(3, bs, nan, 100), w.terrainHeight(0, nan, 100));
+        EXPECT_EQ(Vulkan::prototypeSurfaceHeight(3, bs, 100, nan), 0.0);
     }
 }
 
@@ -746,6 +751,40 @@ TEST(TerrainStreaming, DesiredSetUsesTheLodDistanceAtACliff)
     w.setRenderSink(nullptr);
 }
 
+// Regression (CodeRabbit, S20): the search started at floor((camera - range) / size), so the tile that ends exactly at
+// camera.x - range (distance = range on flat ground at the camera height) was never visited, although it is desired
+TEST(TerrainStreaming, DesiredSetIncludesTheTileAtTheRangeBorder)
+{
+    World w(terrainSetup(16, 2, flatHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    // 912 - 400 = 512: the tile (1, 1) ends at x = 512, z = 300 lies in its span; on the ground (height 0)
+    const Vec3 cam(912, 0, 300);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_TRUE(sink.terrainTiles().count(tileRegion(0, 1, 1)));
+    const auto ref = referenceDesired(w, cam, kDefaults);
+    ASSERT_TRUE(ref.count(0) && ref.at(0).count(tileRegion(0, 1, 1)));
+    for (int k = 0; k < 5; ++k)
+        EXPECT_EQ(w.terrain().stats().levels[size_t(k)].desired, int(ref.count(k) ? ref.at(k).size() : 0)) << k;
+    w.setRenderSink(nullptr);
+}
+
+// Regression (CodeRabbit, S20): with residencyRange0 = 0 the request priority of the tile under the camera was
+// int(0 / 0) (UB); only the tiles at distance 0 are desired and stream
+TEST(TerrainStreaming, ZeroResidencyRange)
+{
+    World w(terrainSetup(16, 2, flatHook));
+    TerrainViewSettings s = kDefaults;
+    s.residencyRange0     = 0;
+    w.terrain().setViewSettings(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(300, 0, 300)));
+    EXPECT_EQ(w.terrain().stats().levels[0].desired, 1);
+    EXPECT_TRUE(sink.terrainTiles().count(tileRegion(0, 1, 1)));
+    w.setRenderSink(nullptr);
+}
+
 // The grass masks keep the 3D distance to the chunk's box (the grass fades by its 3D distance): 60 m above flat ground
 // the chunk (0, 0) 62 m away horizontally is within the 80 m radius (its box reaches 64 m up), although the residency's
 // distance with the camera height (82 m) is not
@@ -890,14 +929,18 @@ TEST(TerrainStreaming, CompleteViewTimeout)
     std::optional<ScopedLatch> latch;
     latch.emplace();
     const Vec3 far(7000, 100, 7000);
-    const auto t0  = std::chrono::steady_clock::now();
-    const bool ok  = w.terrain().completeView(0, far, 0.1);
-    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    // The hook calls of one height query at far (no tile there yet): computeDesired makes the same once
+    w.terrain().height(0, far.x(), far.z());
+    const int heightCalls = latchState().callsOnArmingThread.exchange(0);
+    const auto t0         = std::chrono::steady_clock::now();
+    const bool ok         = w.terrain().completeView(0, far, 0.1);
+    const double s        = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     EXPECT_FALSE(ok);
     // 0.1 s plus one caller job (a 1 m tile of the latched hook takes a few ms; generous for a loaded machine): no
     // caller job starts after the deadline
     EXPECT_LT(s, 2.0);
-    EXPECT_GT(latchState().callsOnArmingThread.load(), 0);
+    // Regression (CodeRabbit, S20): the camera height query alone passed a "> 0" check; the caller ran tile jobs
+    EXPECT_GT(latchState().callsOnArmingThread.load(), heightCalls);
     // The workers take the queued jobs and block on the latch (on a loaded machine maybe only after the call returned)
     const auto blockedBy = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (latchState().callsBlocked.load() == 0 && std::chrono::steady_clock::now() < blockedBy)
@@ -1024,6 +1067,9 @@ TEST(TerrainStreaming, LayoutChangeStartsNewSet)
     TerrainViewSettings s = kDefaults;
     s.tilesPerLevel       = 6;
     w.terrain().setViewSettings(s);
+    // Regression (CodeRabbit, S20): readiness counted the smaller set as sent although the sink held the old layout
+    EXPECT_FALSE(w.terrain().viewComplete(0, cam));
+    EXPECT_EQ(w.terrain().readiness(0, cam, 1e9), 0.0);
     sink.clearLog();
     ASSERT_TRUE(w.terrain().completeView(0, cam));
     ASSERT_FALSE(sink.log().empty());
@@ -1032,6 +1078,27 @@ TEST(TerrainStreaming, LayoutChangeStartsNewSet)
     for (int k = 0; k < 5; ++k) EXPECT_LE(sink.terrainTilesAtLevel(k), 6);
     // Masks re-sent too
     EXPECT_FALSE(sink.grassMasks().empty());
+    EXPECT_EQ(w.terrain().readiness(0, cam, 1e9), 1.0);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (CodeRabbit, S20): the upload count of the last update stayed after an update that returned early (here
+// a non-finite camera) and sent nothing
+TEST(TerrainStreaming, UploadCountResetByEveryUpdate)
+{
+    World w(terrainSetup(16, 2, integerTestHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(500, 40, 500)));
+    // Uploads of an update (the tiles of a far camera, at most uploadsPerFrame per update)
+    for (int i = 0; i < 2000 && w.terrain().stats().uploadsLastUpdate == 0; ++i)
+    {
+        w.terrain().updateView(0, Vec3(3500, 40, 3500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_GT(w.terrain().stats().uploadsLastUpdate, 0);
+    w.terrain().updateView(0, Vec3(std::numeric_limits<double>::quiet_NaN(), 40, 500));
+    EXPECT_EQ(w.terrain().stats().uploadsLastUpdate, 0);
     w.setRenderSink(nullptr);
 }
 
@@ -1130,7 +1197,10 @@ TEST(TerrainStreaming, StreamingKeepsHashAndHeights)
         std::vector<double> ys;
         for (int i = 0; i < 120; ++i)
         {
-            if (stream) w.terrain().completeView(0, w.read<Transform>(e).position() + Vec3(0, 20, 0));
+            if (stream)
+            {
+                EXPECT_TRUE(w.terrain().completeView(0, w.read<Transform>(e).position() + Vec3(0, 20, 0))) << i;
+            }
             w.step();
             ys.push_back(w.read<Transform>(e).position().y());
         }
@@ -1160,6 +1230,12 @@ TEST(TerrainStreaming, PatchesReachTheRecording)
     const auto& t = *sink.terrainTiles().at(r).heights;
     EXPECT_EQ(t[size_t(20 * 129 + 10)], 1);
     EXPECT_EQ(t[size_t(21 * 129 + 12)], 6);
+    // Regression (CodeRabbit, S20): a patch whose input is the recorded (sole-owner) heights read them after the
+    // assignment released them
+    const int32_t* own = sink.terrainTiles().at(r).heights->data() + (20 * 129 + 10);
+    s.patchTerrainTile(r, 0, 0, 1, 1, own);
+    EXPECT_EQ((*sink.terrainTiles().at(r).heights)[0], 1);
+    EXPECT_LE(sink.terrainTiles().at(r).minHeight, 1);
     // The store keeps the base data
     EXPECT_EQ((*storeHeights)[size_t(20 * 129 + 10)],
               integerTestHook(w.spaceSeed(0), 2 * (256 / 2 + 10), 2 * (128 + 20)));
@@ -1202,9 +1278,9 @@ TEST(TerrainStreaming, MemoryBudget32km)
         const double a = 2 * kPi * i / 600.0;
         at(Vec3(4096 + 2458 * std::cos(a), 300, 4096 + 2458 * std::sin(a)));
     }
-    // A 30 km straight line at 300 m and at 2 m
+    // A 30 km straight line 300 m and 2 m above the ground
     for (double h : {300.0, 2.0})
-        for (double x = 1000; x <= 31000; x += 1500) at(Vec3(x, h + 6, 16000));
+        for (double x = 1000; x <= 31000; x += 1500) at(Vec3(x, w.terrainHeight(0, x, 16000) + h, 16000));
     // A 90 degree turn
     for (int i = 0; i <= 10; ++i)
     {

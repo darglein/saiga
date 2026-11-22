@@ -259,12 +259,13 @@ void RecordingRenderSink::patchTerrainTile(const RegionId& region, int x0, int z
     const int n = terrainSetLayout.samplesPerSide();
     SAIGA_ASSERT(w > 0 && h > 0 && x0 >= 0 && z0 >= 0 && x0 + w <= n && z0 + h <= n,
                  "RecordingRenderSink: the patch must lie inside the tile");
-    it->second.heights = patched(*it->second.heights, n, x0, z0, w, h, heights);
+    // The extrema before the assignment: the input may alias the recorded heights, which it releases
     for (int k = 0; k < w * h; ++k)
     {
         it->second.minHeight = std::min(it->second.minHeight, heights[k]);
         it->second.maxHeight = std::max(it->second.maxHeight, heights[k]);
     }
+    it->second.heights = patched(*it->second.heights, n, x0, z0, w, h, heights);
 }
 
 void RecordingRenderSink::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)

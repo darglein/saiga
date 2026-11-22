@@ -289,8 +289,10 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
         waterNodes.clear();
         if (hasSea)
         {
-            const int64_t cx = int64_t(std::floor(c.x() / 4096.0)) * 4096,
-                          cz = int64_t(std::floor(c.z() / 4096.0)) * 4096;
+            // The centre clamped like the anchor (+-2^30 m) before the conversion: the origins stay in int32_t
+            auto centreOf = [](double v)
+            { return int64_t(std::floor(std::min(std::max(v, -1073741824.0), 1073741824.0) / 4096.0)) * 4096; };
+            const int64_t cx = centreOf(c.x()), cz = centreOf(c.z());
             const int32_t ox = int32_t(cx - 200000), oz = int32_t(cz - 200000);
             const double y = double(*atlas.seaLevel()) * kHeightUnit - c.y();
             const Vec3 lo(double(ox) - c.x(), y, double(oz) - c.z());

@@ -97,7 +97,7 @@ void GrassPass::update(const TerrainAtlas& atlas, const TerrainPass& terrain, co
 {
     draws.clear();
     statistics = Stats();
-    if (!terrain.drawsThisFrame() || !settings.grass || settings.grassRadius <= 0) return;
+    if (!terrain.drawsThisFrame() || !settings.grass || !(settings.grassRadius > 0)) return;  // also NaN
     const TerrainLayout& L   = atlas.layout();
     const int N              = cellsPerChunk(settings.grassCellSize);
     const ivec4 anchor       = terrain.anchor();

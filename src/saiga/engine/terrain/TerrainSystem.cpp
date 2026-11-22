@@ -263,7 +263,8 @@ void TerrainSystem::requestTile(const RegionId& region, int priority)
         [this, key, result, region](bool cancelled)
         {
             requests.erase(key);
-            if (cancelled) return;
+            // A job that finished before beginView left its space (its cancel came too late): not stored there
+            if (cancelled || !viewSpaceValid || region.space != viewSpace) return;
             spaces[region.space].store->addTile(region, std::move(*result), frame);
             statistics.generated++;
         });
@@ -284,17 +285,19 @@ void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
     const std::optional<int32_t> sea = spaces[chunk.space].settings.seaLevel;
     const double minNormalY = view.grassMinNormalY, minAboveSea = view.grassMinAboveSea;
     const uint64_t generation = maskGeneration;
-    const uint64_t id         = pool->submit(namedJob(describe(key), [result, t0, lay, sea, minNormalY, minAboveSea]()
-                                                      { *result = generateGrassMask(t0, lay, sea, minNormalY, minAboveSea); }),
-                                             priority,
-                                             [this, key, result, chunk, generation](bool cancelled)
-                                             {
-                                         requests.erase(key);
-                                         if (cancelled || generation != maskGeneration) return;
-                                         spaces[chunk.space].store->addMask(chunk, std::move(*result));
-                                         statistics.generated++;
-                                     });
-    requests[key]             = id;
+    const uint64_t id =
+        pool->submit(namedJob(describe(key), [result, t0, lay, sea, minNormalY, minAboveSea]()
+                              { *result = generateGrassMask(t0, lay, sea, minNormalY, minAboveSea); }),
+                     priority,
+                     [this, key, result, chunk, generation](bool cancelled)
+                     {
+                         requests.erase(key);
+                         if (cancelled || generation != maskGeneration || !viewSpaceValid || chunk.space != viewSpace)
+                             return;
+                         spaces[chunk.space].store->addMask(chunk, std::move(*result));
+                         statistics.generated++;
+                     });
+    requests[key] = id;
     jobsSubmitted++;
 }
 
@@ -314,11 +317,13 @@ TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& 
         const double range = view.residencyRange0 * std::ldexp(1.0, k);
         const double size  = std::ldexp(256.0, k);
         const int W        = L.tilesPerSide(k);
-        const int x0       = clampedIndex((camera.x() - range) / size, 0, W);
-        const int x1       = clampedIndex((camera.x() + range) / size, -1, W - 1);
-        const int z0       = clampedIndex((camera.z() - range) / size, 0, W);
-        const int z1       = clampedIndex((camera.z() + range) / size, -1, W - 1);
-        auto& level        = d.tiles[size_t(k)];
+        // The lower bounds: ceil - 1 also visits the tile that ends exactly at camera - range (its distance can be
+        // range)
+        const int x0 = clampedIndex(std::ceil((camera.x() - range) / size) - 1, 0, W);
+        const int x1 = clampedIndex((camera.x() + range) / size, -1, W - 1);
+        const int z0 = clampedIndex(std::ceil((camera.z() - range) / size) - 1, 0, W);
+        const int z1 = clampedIndex((camera.z() + range) / size, -1, W - 1);
+        auto& level  = d.tiles[size_t(k)];
         for (int tz = z0; tz <= z1; ++tz)
             for (int tx = x0; tx <= x1; ++tx)
             {
@@ -401,7 +406,9 @@ void TerrainSystem::issueRequests(SpaceId space, const Desired& d, size_t limit)
         for (const auto& t : d.tiles[size_t(k)])
         {
             if (st.tile(t.second) || requests.count(Key(kindTile, space, k, t.second.x, t.second.z))) continue;
-            const double ratio = t.first / (view.residencyRange0 * std::ldexp(1.0, k));
+            // A zero range desires only tiles at distance 0 (ratio 0, not 0 / 0)
+            const double range = view.residencyRange0 * std::ldexp(1.0, k);
+            const double ratio = range > 0 ? t.first / range : 0.0;
             missingTiles.push_back({ratio, -k, t.second});
         }
     std::sort(missingTiles.begin(), missingTiles.end(), [](const auto& a, const auto& b)
@@ -575,16 +582,23 @@ void TerrainSystem::beginView(SpaceId space)
     }
     const bool sameSet = setActive && setSpace == space && setLayout == layout(space);
     if (sameSet) return;
-    // A new set: the sink drops the old one itself when it receives the pyramid
-    setActive = false;
+    // A new set: the sink drops the old one itself when it receives the pyramid. Without a cached pyramid the old set
+    // is cleared now (else it stayed in the sink, e.g. through a later switch to a flat space)
+    const bool hadSet = setActive;
+    setActive         = false;
     sentTiles.clear();
     sentMasks.clear();
-    if (const Vulkan::TerrainPyramidData* p = spaces[space].store->pyramid()) sendPyramid(space, *p);
+    if (const Vulkan::TerrainPyramidData* p = spaces[space].store->pyramid())
+        sendPyramid(space, *p);
+    else if (hadSet)
+        sink->clearTerrain();
 }
 
 void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
 {
     frame++;
+    // Also for the early returns (sendUpdates sets it when it runs)
+    statistics.uploadsLastUpdate = 0;
     drainPool();
     // Without a sink, or with a non-finite camera (nothing is desired, cancelled or evicted for it)
     if (!sink || !camera.allFinite())
@@ -603,7 +617,6 @@ void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
     if (!sp.store->pyramid())
     {
         requestPyramid(space);
-        statistics.uploadsLastUpdate = 0;
         updateStats(space, nullptr);
         return;
     }
@@ -634,20 +647,21 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
     const double deadline = start + timeoutSeconds;
     frame++;
     drainPool();
-    if (camera.allFinite()) viewCamera = camera;
-    beginView(space);
     auto finish = [&](bool ok, const Desired* d)
     {
         statistics.lastCompleteMs = (nowSeconds() - start) * 1000.0;
         updateStats(space, d);
         return ok;
     };
-    if (!spaces[space].settings.hasTerrain()) return finish(true, nullptr);
-    if (!camera.allFinite())
+    // A non-finite camera of a terrain space changes nothing (the view, the sink's set and the saved camera stay)
+    if (spaces[space].settings.hasTerrain() && !camera.allFinite())
     {
         SAIGA_LOG("terrain", "completeView: the camera of space %u is not finite", unsigned(space));
         return finish(false, nullptr);
     }
+    if (camera.allFinite()) viewCamera = camera;
+    beginView(space);
+    if (!spaces[space].settings.hasTerrain()) return finish(true, nullptr);
     Space& sp = spaces[space];
     // (a) the pyramid
     if (!sp.store->pyramid())
@@ -704,7 +718,8 @@ bool TerrainSystem::viewComplete(SpaceId space, const Vec3& camera) const
 double TerrainSystem::readiness(SpaceId space, const Vec3& camera, double radius) const
 {
     if (!spaceTemplate(space).hasTerrain()) return 1;
-    if (!sink || !setActive || setSpace != space || !camera.allFinite()) return 0;
+    // Also 0 for a stale layout (the new set is sent at the next update)
+    if (!sink || !setActive || setSpace != space || setLayout != layout(space) || !camera.allFinite()) return 0;
     const Desired d = computeDesired(space, camera);
     int total = 1, sent = 1;
     for (int k = 0; k < 8; ++k)

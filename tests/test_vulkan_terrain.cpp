@@ -1090,6 +1090,14 @@ TEST_F(VulkanTerrain, WaterAtSeaLevel)
     EXPECT_NEAR(double(v[0](1)) + cam.y(), 2.0, 1e-4);
     // The view is filled by water (and terrain)
     EXPECT_EQ(countColor(img, kClear, 0), 0);
+    // Regression (CodeRabbit, S20): a huge finite x reached int64_t(floor(x / 4096)) for the water centre (UB); it is
+    // clamped like the frame anchor (the plane is then far from the camera and culled)
+    for (double x : {1e30, -1e30})
+    {
+        SetCamera(0, Vec3(x, 25, 2000.5), lookRotation(direction(0, -40)), 1.0);
+        Capture(2);
+        EXPECT_FALSE(scene->terrainPassStats().water) << x;
+    }
 }
 
 TEST_F(VulkanTerrain, NoWaterWithoutSeaLevel)
@@ -1149,6 +1157,17 @@ TEST_F(VulkanTerrain, GrassNeedsMask)
     renderUntilUploaded(*scene);
     const auto zero = Capture(3);
     EXPECT_GT(scene->grassPass().stats().blocks, 0);
+    // Regression (CodeRabbit, S20): a NaN grass radius passed the "<= 0" guard and reached int32_t conversions (UB):
+    // no grass
+    {
+        PrototypeSettings nanRadius  = scene->prototypeSettings();
+        const PrototypeSettings keep = nanRadius;
+        nanRadius.grassRadius        = std::numeric_limits<decltype(nanRadius.grassRadius)>::quiet_NaN();
+        scene->setPrototypeSettings(nanRadius);
+        Capture(2);
+        EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+        scene->setPrototypeSettings(keep);
+    }
     int differing = 0;
     for (int y = 0; y < bare.h; ++y)
         for (int x = 0; x < bare.w; ++x) differing += bare(y, x) != zero(y, x) ? 1 : 0;

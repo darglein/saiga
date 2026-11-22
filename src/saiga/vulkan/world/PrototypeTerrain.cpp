@@ -61,7 +61,9 @@ int32_t prototypeHeight(uint64_t seed, int64_t ix, int64_t iz)
 
 double prototypeSurfaceHeight(uint64_t seed, int baseSpacing, double x, double z)
 {
-    // As TerrainSystem::height for a space of kPrototypeSpaceChunks with the prototype hook
+    // As TerrainSystem::height for a space of kPrototypeSpaceChunks with the prototype hook (NaN: 0, as there; the
+    // clamps below would keep it for the integer conversion)
+    if (std::isnan(x) || std::isnan(z)) return 0;
     const double size    = double(kPrototypeSpaceChunks) * 256.0;
     const double spacing = baseSpacing;
     const double gx      = std::min(std::max(x, 0.0), size) / spacing;
