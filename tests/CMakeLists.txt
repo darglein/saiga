@@ -12,7 +12,7 @@ endif ()
 # Process settings of every test executable (tests/test_process_setup.cpp: no core dumps of death test children; with
 # saiga_vulkan also the reuse of headless Vulkan devices)
 add_library(saiga_test_setup OBJECT test_process_setup.cpp)
-target_link_libraries(saiga_test_setup PRIVATE ${GTEST_TARGETS})
+target_link_libraries(saiga_test_setup PRIVATE saiga_core ${GTEST_TARGETS})
 target_compile_definitions(saiga_test_setup PRIVATE GTEST_LINKED_AS_SHARED_LIBRARY=1)
 set_target_properties(saiga_test_setup PROPERTIES FOLDER tests)
 if (MODULE_VULKAN)
