@@ -2261,6 +2261,49 @@ SpaceRenderSettings enclosedSettings()
 }
 }  // namespace
 
+// Pipeline reuse (VulkanBase::reusePipelines, on for the tests' reused headless devices): a destroyed scene returns its
+// pipelines to the device's pool, a scene with the same parameters takes every one of them and renders the same image
+// (the pooled pipelines bound with the new scene's own, identically defined layouts; validation clean); a scene with
+// another sample count takes other pipelines (the formats and samples are part of the key)
+TEST_F(VulkanSceneContent, PipelinesReusedAcrossScenes)
+{
+    auto build = [&](int samples, VulkanBase::PipelineReuseStats& before, VulkanBase::PipelineReuseStats& after)
+    {
+        RenderSceneParameters p;
+        p.msaaSamples = samples;
+        // The stats of the pooled device before this scene's pipelines: from the previous scene (none at first)
+        if (scene) before = scene->base().pipelineReuseStats();
+        CreateScene(p);
+        after = scene->base().pipelineReuseStats();
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+        scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -5), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
+        camera.position = Vec3(0, 0, 0);
+        camera.apply(*scene);
+        return SceneFrame();
+    };
+    VulkanBase::PipelineReuseStats b0, a0, b1, a1, b2, a2;
+    const auto first = build(4, b0, a0);
+    if (!scene->base().reusePipelines) GTEST_SKIP() << "pipeline reuse is off (SAIGA_TEST_NEW_DEVICES=1)";
+    const auto second = build(4, b1, a1);
+    // Every pipeline of the second scene came from the pool (the same device: the pool holds one device per key)
+    EXPECT_GT(a1.hits - b1.hits, 10u);
+    EXPECT_EQ(a1.misses, b1.misses);
+    EXPECT_EQ(maxPixelDiff(first, second), 0);
+    int colored = 0;
+    for (int y = 0; y < second.h; ++y)
+        for (int x = 0; x < second.w; ++x) colored += second(y, x)(0) > second(y, x)(2) + 20;
+    EXPECT_GT(colored, 50);
+    // One sample: other keys for the multisampled pipelines (a pipeline of the 4x pass in the 1x pass would be a
+    // validation error, which fails the test); the box is drawn
+    const auto single = build(1, b2, a2);
+    EXPECT_GT(a2.hits + a2.misses, b2.hits + b2.misses);
+    colored = 0;
+    for (int y = 0; y < single.h; ++y)
+        for (int x = 0; x < single.w; ++x) colored += single(y, x)(0) > single(y, x)(2) + 20;
+    EXPECT_GT(colored, 50);
+}
+
 class VulkanSceneSpaces : public VulkanSceneContent
 {
 };

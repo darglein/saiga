@@ -50,6 +50,8 @@ class SAIGA_VULKAN_API ShaderModule
      */
     vk::ShaderStageFlagBits stage = vk::ShaderStageFlagBits::eVertex;
     vk::ShaderModule module       = nullptr;
+    // The SPIR-V of the module: its size in bytes and two 64-bit hashes (the content key of pipeline reuse)
+    uint64_t spirvSize = 0, spirvHashA = 0, spirvHashB = 0;
 
 
     /**

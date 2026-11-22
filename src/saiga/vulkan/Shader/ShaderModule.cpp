@@ -37,6 +37,9 @@ ShaderModule& ShaderModule::operator=(ShaderModule&& other) noexcept
         destroy();
         stage        = other.stage;
         module       = std::exchange(other.module, nullptr);
+        spirvSize    = other.spirvSize;
+        spirvHashA   = other.spirvHashA;
+        spirvHashB   = other.spirvHashB;
         device       = other.device;
         file         = std::move(other.file);
         injection    = std::move(other.injection);
@@ -63,6 +66,18 @@ void ShaderModule::createModule(vk::Device _device, vk::ShaderStageFlagBits _sta
     moduleCreateInfo.codeSize = size;
     moduleCreateInfo.pCode    = (const uint32_t*)data;
     CHECK_VK(device.createShaderModule(&moduleCreateInfo, nullptr, &module));
+    // FNV-1a 64 and a multiply-xorshift hash over the words
+    const uint32_t* words = static_cast<const uint32_t*>(data);
+    uint64_t a = 14695981039346656037ull, b = 0x9E3779B97F4A7C15ull ^ uint64_t(size);
+    for (size_t i = 0; i < size / 4; ++i)
+    {
+        for (int k = 0; k < 4; ++k) a = (a ^ ((words[i] >> (8 * k)) & 0xFFu)) * 1099511628211ull;
+        b = (b ^ words[i]) * 0xBF58476D1CE4E5B9ull;
+        b ^= b >> 31;
+    }
+    spirvSize  = size;
+    spirvHashA = a;
+    spirvHashB = b;
 }
 
 void ShaderModule::createSPIRV(vk::Device device, vk::ShaderStageFlagBits _stage, const void* data, size_t size)
@@ -156,6 +171,7 @@ void ShaderModule::destroy()
         device.destroyShaderModule(module);
         module = nullptr;
     }
+    spirvSize = spirvHashA = spirvHashB = 0;
 }
 
 bool ShaderModule::reload()

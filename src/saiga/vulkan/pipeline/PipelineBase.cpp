@@ -30,14 +30,13 @@ void PipelineBase::destroy()
     // Command buffers in flight may still use the pipeline and its layouts. The lambda gets copies of the layouts
     // (they share the handle, only the copies are destroyed): the descriptor sets created from them point to the
     // elements of descriptorSetLayouts, which stay valid as long as this object.
+    replacePipeline(nullptr);
     auto dev     = device;
-    auto p       = pipeline;
     auto layout  = pipelineLayout;
     auto layouts = descriptorSetLayouts;
     base->deferDelete(
-        [dev, p, layout, layouts]() mutable
+        [dev, layout, layouts]() mutable
         {
-            if (p) dev.destroyPipeline(p);
             if (layout) dev.destroyPipelineLayout(layout);
             for (auto& l : layouts) l.destroy();
         });
@@ -52,11 +51,72 @@ void PipelineBase::replacePipeline(vk::Pipeline newPipeline)
 {
     if (pipeline)
     {
-        auto dev = device;
-        auto old = pipeline;
-        base->deferDelete([dev, old]() { dev.destroyPipeline(old); });
+        auto dev         = device;
+        auto old         = pipeline;
+        auto oldLayout   = pooledLayout;
+        auto key         = pooledKey;
+        VulkanBase* pool = base;
+        base->deferDelete(
+            [dev, old, oldLayout, key, pool]()
+            {
+                if (oldLayout)
+                    pool->returnPooledPipeline(key, old, oldLayout);
+                else
+                    dev.destroyPipeline(old);
+            });
     }
-    pipeline = newPipeline;
+    pipeline     = newPipeline;
+    pooledLayout = nullptr;
+    pooledKey.clear();
+}
+
+void PipelineBase::setPipeline(const std::string& key, const std::function<vk::Pipeline(vk::PipelineLayout)>& make)
+{
+    if (key.empty())
+    {
+        replacePipeline(make(pipelineLayout));
+        return;
+    }
+    vk::Pipeline p;
+    vk::PipelineLayout l;
+    if (!base->takePooledPipeline(key, p, l))
+    {
+        l = newPipelineLayout();
+        p = make(l);
+    }
+    replacePipeline(p);
+    pooledLayout = l;
+    pooledKey    = key;
+}
+
+void PipelineBase::writeLayoutKey(std::string& key) const
+{
+    auto raw = [&](uint64_t v) { key.append(reinterpret_cast<const char*>(&v), sizeof(v)); };
+    raw(descriptorSetLayouts.size());
+    for (const DescriptorSetLayout& l : descriptorSetLayouts)
+    {
+        raw(l.getBindings().size());
+        for (const auto& [index, b] : l.getBindings())
+        {
+            raw(index);
+            raw(b.binding);
+            raw(uint64_t(b.descriptorType));
+            raw(b.descriptorCount);
+            raw(uint64_t(VkShaderStageFlags(b.stageFlags)));
+            // Immutable samplers by handle (another scene's samplers: no reuse)
+            raw(b.pImmutableSamplers ? 1 : 0);
+            if (b.pImmutableSamplers)
+                for (uint32_t i = 0; i < b.descriptorCount; ++i)
+                    raw(uint64_t(reinterpret_cast<uintptr_t>(static_cast<VkSampler>(b.pImmutableSamplers[i]))));
+        }
+    }
+    raw(pushConstantRanges.size());
+    for (const auto& r : pushConstantRanges)
+    {
+        raw(uint64_t(VkShaderStageFlags(r.stageFlags)));
+        raw(r.offset);
+        raw(r.size);
+    }
 }
 
 vk::DescriptorSet PipelineBase::createRawDescriptorSet(uint32_t id)
@@ -121,10 +181,8 @@ void PipelineBase::addPushConstantRange(vk::PushConstantRange pcr)
 
 
 
-void PipelineBase::createPipelineLayout()
+vk::PipelineLayout PipelineBase::newPipelineLayout() const
 {
-    SAIGA_ASSERT(isInitialized());
-
     std::vector<vk::DescriptorSetLayout> layouts(descriptorSetLayouts.size());
 
     std::transform(descriptorSetLayouts.begin(), descriptorSetLayouts.end(), layouts.begin(),
@@ -132,6 +190,14 @@ void PipelineBase::createPipelineLayout()
     vk::PipelineLayoutCreateInfo pPipelineLayoutCreateInfo(vk::PipelineLayoutCreateFlags(), layouts.size(),
                                                            layouts.data(), pushConstantRanges.size(),
                                                            pushConstantRanges.data());
+    vk::PipelineLayout l = device.createPipelineLayout(pPipelineLayoutCreateInfo);
+    SAIGA_ASSERT(l);
+    return l;
+}
+
+void PipelineBase::createPipelineLayout()
+{
+    SAIGA_ASSERT(isInitialized());
     if (pipelineLayout)
     {
         // create() called again
@@ -139,8 +205,7 @@ void PipelineBase::createPipelineLayout()
         auto old = pipelineLayout;
         base->deferDelete([dev, old]() { dev.destroyPipelineLayout(old); });
     }
-    pipelineLayout = device.createPipelineLayout(pPipelineLayoutCreateInfo);
-    SAIGA_ASSERT(pipelineLayout);
+    pipelineLayout = newPipelineLayout();
 }
 
 

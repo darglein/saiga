@@ -84,6 +84,7 @@ void VulkanBase::destroy()
     VLOG(3) << "Destroying VulkanBase with device: " << device;
 
     destroyDeviceObjects();
+    destroyPooledPipelines();
 
     if (pipelineCache)
     {
@@ -99,6 +100,54 @@ void VulkanBase::destroy()
     device = nullptr;
 
     VLOG(3) << "Vulkan device destroyed.";
+}
+
+bool VulkanBase::takePooledPipeline(const std::string& key, vk::Pipeline& pipeline, vk::PipelineLayout& layout)
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    auto it = pipelinePool.find(key);
+    if (it == pipelinePool.end())
+    {
+        pipelinePoolMisses++;
+        return false;
+    }
+    pipelinePoolHits++;
+    pipeline = it->second.first;
+    layout   = it->second.second;
+    pipelinePool.erase(it);
+    return true;
+}
+
+void VulkanBase::returnPooledPipeline(const std::string& key, vk::Pipeline pipeline, vk::PipelineLayout layout)
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    pipelinePool.emplace(key, std::make_pair(pipeline, layout));
+}
+
+size_t VulkanBase::pooledPipelines()
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    return pipelinePool.size();
+}
+
+VulkanBase::PipelineReuseStats VulkanBase::pipelineReuseStats()
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    PipelineReuseStats s;
+    s.hits   = pipelinePoolHits;
+    s.misses = pipelinePoolMisses;
+    return s;
+}
+
+void VulkanBase::destroyPooledPipelines()
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    for (auto& [key, entry] : pipelinePool)
+    {
+        device.destroyPipeline(entry.first);
+        device.destroyPipelineLayout(entry.second);
+    }
+    pipelinePool.clear();
 }
 
 void VulkanBase::destroyDeviceObjects()

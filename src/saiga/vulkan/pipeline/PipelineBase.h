@@ -11,6 +11,9 @@
 
 #include "DescriptorSet.h"
 #include "DescriptorSetLayout.h"
+
+#include <functional>
+#include <string>
 namespace Saiga
 {
 namespace Vulkan
@@ -74,9 +77,22 @@ class SAIGA_VULKAN_API PipelineBase
 
     bool isInitialized() { return base; }
     void createPipelineLayout();
+    // A new layout of descriptorSetLayouts and pushConstantRanges
+    vk::PipelineLayout newPipelineLayout() const;
 
-    // Sets the pipeline. The old one is destroyed once the frames in flight, which may still use it, are complete.
+    // Sets the pipeline (the object's own: created with pipelineLayout). The old one is destroyed once the frames in
+    // flight, which may still use it, are complete (or returned to the pool if it came from there).
     void replacePipeline(vk::Pipeline newPipeline);
+
+    // Pipeline reuse (VulkanBase::reusePipelines): with a non-empty content key the pipeline of create() comes from the
+    // device's pool or is created by make with a layout of its own for the pool (identically defined to pipelineLayout,
+    // so binding sets and push constants with pipelineLayout is compatible); an empty key creates it with
+    // pipelineLayout. pooledKey / pooledLayout: the current pipeline's key and creation layout (empty: its own)
+    void setPipeline(const std::string& key, const std::function<vk::Pipeline(vk::PipelineLayout)>& make);
+    // The key part of the layout: the bindings of every set and the push constant ranges
+    void writeLayoutKey(std::string& key) const;
+    std::string pooledKey;
+    vk::PipelineLayout pooledLayout;
 
     virtual bool checkShader() = 0;
 };

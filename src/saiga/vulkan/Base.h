@@ -27,7 +27,9 @@
 #include <deque>
 #include <exception>
 #include <functional>
+#include <map>
 #include <mutex>
+#include <string>
 
 namespace Saiga
 {
@@ -51,6 +53,12 @@ struct SAIGA_VULKAN_API VulkanBase
     // Deferred deletions, see deferDelete().
     std::mutex deletionMutex;
     std::deque<std::pair<uint64_t, std::function<void()>>> deletionQueue;
+
+    // The pipeline pool of reusePipelines: (pipeline, the layout it was created with) by key
+    std::mutex pipelinePoolMutex;
+    std::multimap<std::string, std::pair<vk::Pipeline, vk::PipelineLayout>> pipelinePool;
+    uint64_t pipelinePoolHits = 0, pipelinePoolMisses = 0;
+    void destroyPooledPipelines();
 
    public:
     /**
@@ -85,6 +93,24 @@ struct SAIGA_VULKAN_API VulkanBase
 
     // Waits for the device and runs all deferred deletions.
     void flushDeferredDeletes();
+
+    /**
+     * Pipeline reuse (on for the reused headless devices of setHeadlessDeviceReuse, i.e. the tests): a destroyed
+     * PipelineBase returns its pipeline and the layout it was created with (its own copy, identically defined) to a
+     * pool on the device, keyed by the content of its create info (the shaders by their SPIR-V); a new pipeline with
+     * the same key takes it instead of compiling (lavapipe: ~2 ms per pipeline, ~50 ms per RenderScene). The pool
+     * keeps them until the device is destroyed (they outlive destroyDeviceObjects).
+     */
+    bool reusePipelines = false;
+    bool takePooledPipeline(const std::string& key, vk::Pipeline& pipeline, vk::PipelineLayout& layout);
+    void returnPooledPipeline(const std::string& key, vk::Pipeline pipeline, vk::PipelineLayout layout);
+    size_t pooledPipelines();
+    // Cumulative over the device's life: takes that found a pipeline (hits) and that did not (misses)
+    struct PipelineReuseStats
+    {
+        uint64_t hits = 0, misses = 0;
+    };
+    PipelineReuseStats pipelineReuseStats();
     ~VulkanBase();
 
     vk::PhysicalDevice physicalDevice;

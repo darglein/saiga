@@ -41,6 +41,7 @@ class SAIGA_VULKAN_API DescriptorSetLayout
     void create(VulkanBase* base);
 
     inline bool is_created() const { return static_cast<bool>(layout); }
+    const BindingMapType& getBindings() const { return bindings; }
 
     vk::DescriptorSet createRawDescriptorSet();
     StaticDescriptorSet createDescriptorSet();

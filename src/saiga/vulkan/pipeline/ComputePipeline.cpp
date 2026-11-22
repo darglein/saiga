@@ -9,6 +9,8 @@
 #include "saiga/vulkan/Vertex.h"
 #include "saiga/vulkan/VulkanInitializers.hpp"
 
+#include "PipelineKey.h"
+
 namespace Saiga
 {
 namespace Vulkan
@@ -20,13 +22,28 @@ void ComputePipeline::create()
 {
     createPipelineLayout();
     SAIGA_ASSERT(shaderPipeline.valid(), "Shader compilation failed");
-    replacePipeline(createPipeline());
+    setPipeline(base->reusePipelines ? reuseKey() : std::string(),
+                [this](vk::PipelineLayout layout) { return createPipeline(layout); });
 }
 
-vk::Pipeline ComputePipeline::createPipeline()
+std::string ComputePipeline::reuseKey()
+{
+    vk::ComputePipelineCreateInfo ci(vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(), pipelineLayout,
+                                     vk::Pipeline(), 0);
+    shaderPipeline.addToPipeline(ci);
+    PipelineKeyWriter k;
+    k.bytes = "C";
+    k.none(ci.pNext);
+    k.f(ci.flags);
+    k.stage(ci.stage, shaderPipeline);
+    writeLayoutKey(k.bytes);
+    return k.valid ? k.bytes : std::string();
+}
+
+vk::Pipeline ComputePipeline::createPipeline(vk::PipelineLayout layout)
 {
     vk::ComputePipelineCreateInfo pipelineCreateInfo(vk::PipelineCreateFlags(), vk::PipelineShaderStageCreateInfo(),
-                                                     pipelineLayout, vk::Pipeline(), 0);
+                                                     layout, vk::Pipeline(), 0);
     shaderPipeline.addToPipeline(pipelineCreateInfo);
     auto result = device.createComputePipeline(base->pipelineCache, pipelineCreateInfo);
     SAIGA_ASSERT(result.result == vk::Result::eSuccess && result.value);
@@ -37,14 +54,14 @@ void ComputePipeline::reload()
 {
     shaderPipeline.reload();
     if (!shaderPipeline.valid()) return;
-    replacePipeline(createPipeline());
+    replacePipeline(createPipeline(pipelineLayout));
 }
 
 bool ComputePipeline::checkShader()
 {
     if (autoReload && shaderPipeline.autoReload() && shaderPipeline.valid())
     {
-        replacePipeline(createPipeline());
+        replacePipeline(createPipeline(pipelineLayout));
     }
     return pipeline;
 }

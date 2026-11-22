@@ -111,7 +111,8 @@ std::unique_ptr<VulkanDevice> createVulkanDevice(VulkanWindow& window, VulkanPar
             SAIGA_ASSERT(d->surface == VK_NULL_HANDLE);
             d->base.recreateDeviceObjects(parameters);
             d->base.initMemory(framesInFlight);
-            d->reuseKey = key;
+            d->reuseKey            = key;
+            d->base.reusePipelines = true;
             return d;
         }
     }
@@ -122,7 +123,11 @@ std::unique_ptr<VulkanDevice> createVulkanDevice(VulkanWindow& window, VulkanPar
     d->base.setPhysicalDevice(d->instance, d->instance.pickPhysicalDevice(d->surface, parameters.preferredDevice));
     d->base.createLogicalDevice(parameters, d->surface);
     d->base.initMemory(framesInFlight);
-    if (reusable && d->surface == VK_NULL_HANDLE) d->reuseKey = key;
+    if (reusable && d->surface == VK_NULL_HANDLE)
+    {
+        d->reuseKey            = key;
+        d->base.reusePipelines = true;
+    }
     return d;
 }
 
