@@ -35,18 +35,19 @@ ShaderModule& ShaderModule::operator=(ShaderModule&& other) noexcept
     if (this != &other)
     {
         destroy();
-        stage        = other.stage;
-        module       = std::exchange(other.module, nullptr);
-        spirvSize    = other.spirvSize;
-        spirvHashA   = other.spirvHashA;
-        spirvHashB   = other.spirvHashB;
-        device       = other.device;
-        file         = std::move(other.file);
-        injection    = std::move(other.injection);
-        isSpirv      = other.isSpirv;
-        dependencies = std::move(other.dependencies);
-        lastWrites   = std::move(other.lastWrites);
-        lastCheck    = other.lastCheck;
+        stage              = other.stage;
+        module             = std::exchange(other.module, nullptr);
+        spirvSize          = other.spirvSize;
+        spirvHashA         = other.spirvHashA;
+        spirvHashB         = other.spirvHashB;
+        device             = other.device;
+        file               = std::move(other.file);
+        injection          = std::move(other.injection);
+        isSpirv            = other.isSpirv;
+        dependencies       = std::move(other.dependencies);
+        lastWrites         = std::move(other.lastWrites);
+        lastCheck          = other.lastCheck;
+        autoReloadInterval = other.autoReloadInterval;
     }
     return *this;
 }
@@ -236,9 +237,9 @@ bool ShaderModule::autoReload()
 {
     if (file.empty() || isSpirv || dependencies.empty()) return false;
 
-    // Called on every bind: only look at the file system every 0.5 s.
+    // Called on every bind: only look at the file system every autoReloadInterval (0.5 s).
     auto now = std::chrono::steady_clock::now();
-    if (now - lastCheck < std::chrono::milliseconds(500)) return false;
+    if (now - lastCheck < autoReloadInterval) return false;
     lastCheck = now;
 
     auto times = getWriteTimes();

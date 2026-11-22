@@ -98,10 +98,12 @@ class SAIGA_VULKAN_API ShaderModule
 
     /**
      * Checks if the file (or one of its includes) was changed and reloads it.
-     * The file times are checked at most every 0.5 s, so this is cheap enough to call on every bind.
-     * Returns true if it was reloaded successfully.
+     * The file times are checked at most every autoReloadInterval (0.5 s), so this is cheap enough to call on every
+     * bind. Returns true if it was reloaded successfully.
      */
     bool autoReload();
+    // Tests set 0 (every call looks at the files) instead of waiting
+    std::chrono::milliseconds autoReloadInterval{500};
 
    private:
     // These variables are only required for the reloading.
