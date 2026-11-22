@@ -9,6 +9,7 @@
 
 #include "games/platformer/PlatformerWorld.h"
 
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/SpaceLink.h"
@@ -63,7 +64,10 @@ void characterControllerSystem(World& w, double dt)
                 CharacterController c;
                 c.params = w.data(m.model);
                 c.level  = &context.levelOf(t.space());  // S21: the level of the hero's space
-                c.state  = stateOf(t, m);
+                // A teleport of this step (a door's arrival, a restart) sets the facing; the controller steers from
+                // m.yaw. Regression (CodeRabbit, S21): an idle hero kept its old yaw over the arrival rotation
+                if (t.wasTeleported()) m.yaw = headingOf(forwardOf(t.rotation()));
+                c.state = stateOf(t, m);
                 CharacterInput ci;
                 ci.move        = in.move;
                 ci.walk        = heldBit(in.heldButtons, PlatformerButton::Walk);
@@ -282,6 +286,9 @@ void HeroBase::restart()
         w.send(owner, RestartRun{w.replication().netIdOf(entity())});
     else
         resetMotion(w, entity());
+    // A door transition requested before the restart is cancelled. Regression (CodeRabbit, S21): it moved the hero
+    // back into the cellar in the next step
+    if (w.has<PendingTransition>(entity())) w.remove<PendingTransition>(entity());
     // S21: back to the outdoor level also from the cellar (for a client's hero an OwnerCommand with space 0)
     w.moveToSpace(entity(), 0, startOf(level, slot), yawRotation(0));
 }
@@ -636,10 +643,20 @@ void platformerScenarios(ScenarioList& list)
                      return Vec3(p.x() - CellarDoors::exit().x(), 0, p.z() - CellarDoors::exit().z()).norm() < 1.0;
                  };
                  w.check(w.stepUntil(steer, 60 * 10), "walked to the exit");
-                 w.edit(hero, [](World& owner, Entity e) { owner.get<PlayerInput>(e).move = Vec3::Zero(); });
+                 // Facing away from the arrival rotation (yaw 0): idle, the hero keeps this yaw until the move
+                 w.edit(hero,
+                        [](World& owner, Entity e)
+                        {
+                            owner.get<PlayerInput>(e).move    = Vec3::Zero();
+                            owner.get<CharacterMotion>(e).yaw = 2.0;
+                        });
                  w.step(5);
                  w.input(hero, uint32_t(PlatformerAction::Interact));
                  w.check(w.stepUntil([&] { return space() == 0; }, 40), "back outside");
+                 // Regression (CodeRabbit, S21): the idle controller kept its yaw over the arrival rotation
+                 auto yaw = [&]() { return headingOf(forwardOf(w.world().read<Transform>(hero).rotation())); };
+                 w.check(w.stepUntil([&] { return std::abs(yaw()) < 1e-6; }, 20),
+                         "faces the arrival rotation: yaw " + std::to_string(yaw()));
                  // The controller of the arrival step ran after the move (phase 4 after phase 1): within its settling
                  const Vec3 back = w.world().read<Transform>(hero).position();
                  w.check((back - CellarDoors::entranceArrival()).norm() < 0.05,
@@ -689,6 +706,25 @@ void platformerScenarios(ScenarioList& list)
                  w.check(stay.steps >= 240, "stays at least 240 steps in the cellar: " + std::to_string(stay.steps));
                  SAIGA_LOG("platformer", "pilot_visits_the_cellar: entry step %lld, stay %d steps",
                            (long long)stay.entry, stay.steps);
+             });
+    // Regression (CodeRabbit, S21): a restart between steps kept a door transition requested before it, which moved the
+    // hero back into the cellar in the next step
+    list.add("restart_cancels_a_door_transition",
+             [](ScenarioWorld& w)
+             {
+                 spawnDoors(w.world());
+                 const Entity hero = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), w.defaultPeer());
+                 w.world().moveToSpace(hero, 0, CellarDoors::entrance() + Vec3(0.6, 0, 0), yawRotation(0));
+                 w.step(10);
+                 w.input(hero, uint32_t(PlatformerAction::Interact));
+                 w.check(w.stepUntil([&] { return w.world().has<PendingTransition>(hero); }, 40), "door requested");
+                 HeroBase* object = gameObjectAs<HeroBase>(w.world(), hero);
+                 w.check(object != nullptr, "the hero's object");
+                 if (!object) return;
+                 object->restart();
+                 w.check(!w.world().has<PendingTransition>(hero), "the request cancelled");
+                 w.step(10);
+                 w.check(w.world().read<Transform>(hero).space() == 0, "stays outside");
              });
     // The demo pilot's restart after the goal (the restart action) and the next run (host-owned in the single-world
     // variants, the client's in the network ones). Regression (PR review, S21): a host-owned pilot stood at the start

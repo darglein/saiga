@@ -743,6 +743,10 @@ class SAIGA_ENGINE_API World
     OwnerTableOfWorld ownerTable{this};
     // Client: the entity or one of its descendants is replicated (a destroy would remove a replica, §13.5)
     bool clientSubtreeReplicated(Entity e) const;
+    // Client (R-NET-2, S21): a local attach (the parent is not replicated) that would move a replicated entity of the
+    // child's subtree into the parent's other space; refused in every build (asserts). The replication's own links
+    // (a replicated parent) follow the host
+    bool clientAttachRefused(Entity child, Entity parent) const;
     // Host: an add/remove of Parent or NetOwner that would change the owner of a spawned entity (no transfer after
     // the spawn, §13.3); refused in every build (asserts)
     bool netChangeRefused(Entity e, ComponentId c, bool add, Entity parent);
@@ -1038,6 +1042,7 @@ void World::addNow(Entity e, T&& value)
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
         if (!acceptParent(e, value.entity)) return;
         if (netChangeRefused(e, T::id, true, value.entity)) return;
+        if (clientAttachRefused(e, value.entity)) return;
     }
     if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
     {

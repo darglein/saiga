@@ -230,6 +230,7 @@ bool World::reparentNow(Entity child, Entity parent)
     if (!acceptParent(child, parent)) return false;
     // The owner before (the old root) against the owner after (the new root): no intermediate owner change
     if (netChangeRefused(child, Parent::id, true, parent)) return false;
+    if (clientAttachRefused(child, parent)) return false;
     auto record                       = log.prepare(2);
     const std::vector<Entity> subtree = subtreeToFollow(child, parent);
     reserveChildSlot(parent);
@@ -632,6 +633,19 @@ bool World::clientSubtreeReplicated(Entity e) const
     for (Entity x : collectDoomed(e))
         if (repl->netIdOf(x) != 0) return true;
     return false;
+}
+
+bool World::clientAttachRefused(Entity child, Entity parent) const
+{
+    if (isHost() || !reg.alive(child) || !reg.alive(parent) || repl->netIdOf(parent) != 0) return false;
+    if (reg.read<Transform>(child).space() == reg.read<Transform>(parent).space()) return false;
+    if (!clientSubtreeReplicated(child)) return false;
+    // Regression (CodeRabbit, S21): the replica took the local parent's space, and the host's snapshots, which leave a
+    // replica with a local parent in its parent's space, never corrected it
+    SAIGA_ASSERT(false,
+                 "add<Parent>: a client cannot move a replicated entity (or a subtree with one) into the local "
+                 "parent's space");
+    return true;
 }
 
 void World::rebuildOwnerCache() const

@@ -2741,10 +2741,16 @@ TEST_F(EngineAppRender, SpaceLoadingCoopClientCamera)
         EXPECT_NEAR(int(c(2)), 16, 3);
     }
     TerrainTestHooks::openLatch();
-    int frames = 0;
-    for (; frames < 600 && app.spaceLoading(); ++frames) app.runFrames(1, 1.0 / 60);
+    // The load's own frame count (it ran frames before this loop), before the frame that ended it. Regression
+    // (CodeRabbit, S21): the loop counted only its own frames, so an end at the frame limit passed the check
+    uint64_t frames = 0;
+    for (int i = 0; i < 600 && app.spaceLoading(); ++i)
+    {
+        frames = app.spaceLoading()->frames;
+        app.runFrames(1, 1.0 / 60);
+    }
     EXPECT_EQ(app.spaceLoading(), nullptr);
-    EXPECT_LT(frames, 600);  // end rule 1, not the frame limit
+    EXPECT_LT(frames + 1, s.loadingMaxFrames);  // end rule 1, not the frame limit
     // The client world streamed it, the hidden host world nothing
     EXPECT_NE(app.world().terrain().pyramid(1), nullptr);
     EXPECT_EQ(app.hostWorld()->terrain().pyramid(1), nullptr);

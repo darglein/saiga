@@ -676,10 +676,15 @@ void registerSpacesScenarios(ScenarioList& s)
               w.check(l.entities.size() == 2, "two transitions logged");
               w.check(l.entities.size() == 2 && l.entities[0] == player && l.entities[1] == player,
                       "both transitions of the player");
-              if (l.entities.size() == 2 && l.interactSteps.size() >= 2)
+              // Regression (CodeRabbit, S21): a missing interaction record skipped the link, space and timing checks
+              w.check(l.interactSteps.size() >= 2, "both interactions logged");
+              if (l.entities.size() == 2)
               {
                   w.check(l.links[0] == link && l.from[0] == 0 && l.to[0] == 1, "the first through the link");
                   w.check(l.links[1] == exit && l.from[1] == 1 && l.to[1] == 0, "the second through the exit");
+              }
+              if (l.entities.size() == 2 && l.interactSteps.size() >= 2)
+              {
                   w.check(l.steps[0] - l.interactSteps[0] == 2, "moved 2 steps after the interaction (" +
                                                                     std::to_string(l.steps[0]) + " - " +
                                                                     std::to_string(l.interactSteps[0]) + ")");

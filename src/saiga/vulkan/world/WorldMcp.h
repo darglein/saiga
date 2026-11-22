@@ -34,8 +34,8 @@ struct WorldMcpContext
     WorldSettings* settings = nullptr;
     std::function<json11::Json()> stats;
     // The terrain height (m) under (x, z) (World::terrainHeight of the view space); the world's size (m), sea level
-    // (m), its highest point (computed once by the game) and min / max height (the pyramid's, or the game's area stats
-    // before the first view)
+    // (m), its highest point (computed once by the game) and min / max height (of the view space, like ground: the
+    // pyramid's, or the game's area stats before the first view)
     std::function<double(double x, double z)> ground;
     double worldSize  = 0;
     double seaLevel   = 0;

@@ -506,12 +506,16 @@ int main(int argc, char* argv[])
         context.worldSize    = world->spaceTemplate(0).sizeMeters();
         context.seaLevel     = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
         context.highestPoint = game.area.highest;
-        // The whole space's from the pyramid once it exists, else the 8 km area's
-        context.heightRange = [world, &game]()
+        // The view camera's space like ground (CodeRabbit, S21: space 0's also in the islands): the whole space's from
+        // the pyramid once it exists, else the 8 km area's (space 0) or the ground under the camera (other spaces)
+        context.heightRange = [world, &game, &app]()
         {
-            if (const auto* p = world->terrain().pyramid(0))
+            const ViewCamera& cam = app.viewCamera();
+            if (const auto* p = world->terrain().pyramid(cam.space))
                 return std::make_pair(double(p->minHeight) * kHeightUnit, double(p->maxHeight) * kHeightUnit);
-            return std::make_pair(game.area.minHeight, game.area.maxHeight);
+            if (cam.space == 0) return std::make_pair(game.area.minHeight, game.area.maxHeight);
+            const double h = world->terrainHeight(cam.space, cam.position(0), cam.position(2));
+            return std::make_pair(h, h);
         };
         context.getCamera = [&app]()
         {

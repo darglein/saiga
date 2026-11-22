@@ -469,7 +469,8 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
   of writers is: `moveToSpace` (on the host for a spawned client-owned root with an `OwnerCommand`, §13.3),
   `ownerTeleport` (`moveToSpace` in the root's space), the owner's `OwnerCommand` apply, the client's spawn and snapshot
   apply of a root (§13.4), attaching a child (`add<Parent>`, `reparentNow`: the child and its subtree take the parent's
-  space, flagged as teleported) and the creation of a space-state entity (§7.8). **A child is always in its parent's
+  space, flagged as teleported; on a client refused, with an assert, when a local parent would move a replicated
+  entity of the subtree into another space, R-NET-2) and the creation of a space-state entity (§7.8). **A child is always in its parent's
   space**, from the moment of the write; phase 6 asserts it and repairs nothing.
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
   its descendants changed. Destroying a parent destroys its children. `add<Parent>` rejects cycles and a dead parent
@@ -2297,9 +2298,11 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   target and arrival pose (a target out of range and a second request are logged refusals; during a step a command
   that re-checks at the flush); the request is the saved component `PendingTransition {Entity link; SpaceId target;
   Vec3 position; Quat rotation}` (`Replicate::Never`), completed by `spaceTransitionSystem` in phase 1 of the next step
-  (`moveToSpace`, `SpaceTransitionEvent {entity, link, from, to}` readable one step later; a request made during a step,
-  also by a message handler in phase 1 before the system, is listed in `World::transitionsRequestedInStep` and waits
-  for the next completed step); `SpaceLink` is
+  (`moveToSpace`: `Transform::space()` of the root and its descendants changes at once, the spatial grid follows in
+  phase 6 as for every move, §9.5, so `queryRadius` in phases 1-5 of that step still finds the root in its old
+  space and not in the target; `SpaceTransitionEvent {entity, link, from, to}` readable one step later; a request
+  made during a step, also by a message handler in phase 1 before the system, is listed in
+  `World::transitionsRequestedInStep` and waits for the next completed step); `SpaceLink` is
   `Replicate::Host` (clients show prompts). The optional `spaceLinkSystem` (phase 4, host, registered by the game)
   requests the transition for an `InteractEvent` with a `SpaceLink` target whose actor is an alive root in the link's
   space (other spaces: ignored with a log line). The interact chain from a queued action: step k the `ActionEvent`
@@ -2423,7 +2426,9 @@ result as a difference rectangle (new heights minus base), never the brush; clie
   another space than the host's is rejected input (`net/rejected`) before the owner record or the interpolation buffer
   is touched; the samples and the first `RenderPose` use the host's space. An aborted phase that dropped an
   `ownerMove`'s command also restores the host's `Transform` of the root (pose and space) with the counter, so host and
-  owner agree.
+  owner agree; the move of a host-owned (or not yet spawned) root in an aborted phase is restored the same way, so the
+  rerun of a phase-1 `spaceTransitionSystem` moves it once (its `PendingTransition` removal was dropped with the
+  phase's commands).
 - **No runtime ownership transfer**: ownership is set when an entity is created (player characters at join,
   `setOwner`) and never changes. Vehicles, platforms and carried objects stay host-owned; a driving client sends its
   input (`PlayerInput`, `PlayerAction`) and the game's vehicle control system on the host moves the vehicle, so steering

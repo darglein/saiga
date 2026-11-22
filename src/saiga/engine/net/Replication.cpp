@@ -971,15 +971,33 @@ void Replication::sendSnapshot(const std::vector<uint8_t>& peers)
 
 void Replication::ownerMove(Entity root, SpaceId space, const Vec3& position, const Quat& rotation)
 {
-    const HostSlot* s   = hostSlot(root);
-    const uint8_t owner = w.ownerOf(root);
+    const HostSlot* s      = hostSlot(root);
+    const uint8_t owner    = w.ownerOf(root);
+    const Transform before = w.reg.read<Transform>(root);
     // Before the spawn or host-owned: a plain teleport (the snapshots convey it)
     if (!s || !s->spawned || owner == 0 || !w.net)
     {
+        if (w.inStep())
+        {
+            // Undone like an owner's move if its phase aborts (the owner records and buffers stay as they are).
+            // Regression (CodeRabbit, S21): a phase-1 abort kept the move but dropped the removal of its
+            // PendingTransition; the rerun moved the root again and reported the target as the source space
+            TeleportUndo u{w.phase, root.index, false, {}, false, {}};
+            auto r      = ownerRecords.find(root.index);
+            auto b      = buffers.find(root.index);
+            u.hadRecord = r != ownerRecords.end();
+            u.hadBuffer = b != buffers.end();
+            if (u.hadRecord) u.record = r->second;
+            if (u.hadBuffer) u.buffer = b->second;
+            u.generation = root.generation;
+            u.space      = before.space();
+            u.position   = before.position();
+            u.rotation   = before.rotation();
+            teleportUndo.push_back(std::move(u));
+        }
         w.teleportTo(root, space, position, rotation);
         return;
     }
-    const Transform before = w.reg.read<Transform>(root);
     w.teleportTo(root, space, position, rotation);
     HostSlot& ws = writeSlot(root.index);
     ws.command++;

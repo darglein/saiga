@@ -33,6 +33,7 @@
 #include <cstring>
 #include <functional>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -138,8 +139,9 @@ class Breeder final : public GameObject
     void update(double) override { g_bred.push_back(spawn<Marker>(transform().position() + Vec3(1, 0, 0))); }
 };
 
-// Test systems: phase 4 and phase 7 (after the transform phase) run these when set
-std::function<void(World&)> g_phase4, g_phase7;
+// Test systems: phase 1 (after the engine's space_transition), phase 4 and phase 7 (after the transform phase) run
+// these when set
+std::function<void(World&)> g_phase1, g_phase4, g_phase7;
 
 // Moves itself to space 1 in its first update (during a step)
 class Diver final : public GameObject
@@ -168,6 +170,11 @@ WorldSetup spacesSetup(uint64_t seed = 9, void (*components)(Registry&) = nullpt
     };
     s.systems = [](SystemList& l)
     {
+        l.add(Phase::Input, "test_phase1",
+              [](World& w, double)
+              {
+                  if (g_phase1) g_phase1(w);
+              });
         l.add(Phase::Gameplay, "test_phase4",
               [](World& w, double)
               {
@@ -189,6 +196,7 @@ struct HookGuard
 {
     ~HookGuard()
     {
+        g_phase1 = nullptr;
         g_phase4 = nullptr;
         g_phase7 = nullptr;
     }
@@ -624,6 +632,31 @@ TEST(MoveToSpaceDeathTest, Refusals)
             if (client.has<Parent>(c)) client.moveToSpace(local, 1, Vec3::Zero(), Quat::Identity());
         },
         "a client cannot move a replicated entity");
+    // On a client, a local attach of a replica under a local parent in another space (R-NET-2). Regression
+    // (CodeRabbit, S21): the replica took the parent's space, and the host's snapshots never corrected it
+    EXPECT_DEATH(
+        {
+            auto t        = LoopbackTransport::createNetwork(2, LoopbackOptions{});
+            WorldSetup hs = spacesSetup();
+            hs.transport  = t[0].get();
+            World host(hs);
+            WorldSetup cs = spacesSetup();
+            cs.transport  = t[1].get();
+            cs.role       = NetRole::Client;
+            cs.localPeer  = 1;
+            World client(cs);
+            const Entity e = host.create();
+            for (int k = 0; k < 3; ++k)
+            {
+                host.step();
+                client.step();
+            }
+            const Entity c = client.replication().entityOfNetId(host.replication().netIdOf(e));
+            if (!c.valid()) return;
+            const Entity local = client.createIn(1);
+            client.add<Parent>(c, Parent{local});
+        },
+        "into the local parent's space");
 }
 #endif
 
@@ -1002,6 +1035,40 @@ TEST(Transition, MessageHandlerRequestCompletesInTheNextStep)
     host.step();
     EXPECT_FALSE(host.has<PendingTransition>(g_msgPlayer));
     EXPECT_EQ(host.read<Transform>(g_msgPlayer).space(), 1u);
+}
+
+// Regression (CodeRabbit, S21): a phase-1 abort after the move kept it but dropped the removal of PendingTransition;
+// the rerun moved the root again and reported from = to = 1. The move of the aborted phase is undone now
+TEST(Transition, AbortedPhaseOneMovesOnce)
+{
+    HookGuard guard;
+    World w(spacesSetup());
+    const Entity link   = makeLink(w, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640), yaw(90));
+    const Entity player = w.create();
+    w.get<Transform>(player).teleport(Vec3(11, 0, 10), Quat::Identity());
+    w.step();
+    w.requestTransition(player, link);
+    int throws = 1;
+    g_phase1   = [&](World&)
+    {
+        if (throws-- > 0) throw std::runtime_error("phase 1 aborts");
+    };
+    EXPECT_THROW(w.step(), std::runtime_error);
+    EXPECT_EQ(w.read<Transform>(player).space(), 0u);
+    EXPECT_EQ(w.read<Transform>(player).position(), Vec3(11, 0, 10));
+    EXPECT_TRUE(w.has<PendingTransition>(player));
+    w.step();
+    EXPECT_EQ(w.read<Transform>(player).space(), 1u);
+    EXPECT_FALSE(w.has<PendingTransition>(player));
+    std::vector<SpaceTransitionEvent> events;
+    g_phase4 = [&](World& world)
+    {
+        for (const SpaceTransitionEvent& ev : world.events.read<SpaceTransitionEvent>()) events.push_back(ev);
+    };
+    w.step();
+    ASSERT_EQ(events.size(), 1u);
+    EXPECT_EQ(events[0].from, 0u);
+    EXPECT_EQ(events[0].to, 1u);
 }
 
 TEST(Transition, FirstRequestWins)
