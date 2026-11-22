@@ -10,6 +10,7 @@
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/SceneLightingSet.h"
+#include "saiga/vulkan/scene/ShadowPipelineTable.h"
 
 #include <algorithm>
 #include <cmath>
@@ -736,6 +737,22 @@ uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, co
         if (prepass && c == 0) p = &equalPipelines[0];
         if (prepass && c == 2) p = &equalPipelines[1];
         calls += drawClass(cmd, frameIndex, c, *p, camera);
+    }
+    return calls;
+}
+
+uint32_t SceneCulling::recordShadow(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj,
+                                    float alpha, ShadowPipelineTable& table, float slopeBias)
+{
+    Frame& f = frames[frameIndex];
+    if (!f.culled || view >= f.viewCount) return 0;
+    uint32_t calls = 0;
+    for (int c = 0; c < pipelineClassCount; ++c)
+    {
+        if (f.ranges[c].count == 0) continue;
+        if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
+        if (!table.bind(cmd, c, f.set, lightingSet->shadowSet(frameIndex), viewProj, alpha, slopeBias)) continue;
+        calls += drawRange(cmd, frameIndex, c, view);
     }
     return calls;
 }

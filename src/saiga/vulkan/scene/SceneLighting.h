@@ -19,7 +19,7 @@ namespace Vulkan
  * The foliage's alpha cutoff, the camera, the trees' wind and the debug mode, then S36's light (shadeSurface of
  * lighting.glsl): the sun and moon in lux, the shadow light, the exposure, the studio environment of clay mode, the
  * active fog, the ambient floor, the enclosed space, the cloud layer, the stars, the prototype albedo colours (D21),
- * the debug view and the atmosphere's camera height. Camera-relative or float render data only.
+ * the debug view and the atmosphere's camera height; S36a2 the cascades. Camera-relative or float render data only.
  */
 struct SceneLighting
 {
@@ -82,8 +82,16 @@ struct SceneLighting
     // is valid (else the specular environment is the SH), z: its last mip, w: the sky-view LUT's horizon elevation
     // (rad, of the radius the LUT was computed at; Atmosphere::skyViewHorizonElevation)
     vec4 atmosphere = vec4(0, 0, 0, 0);
+    // S36a2: the cascades (A5). Per cascade the camera-relative light view-projection (xy: NDC over its rectangle, z:
+    // depth 0 at the shared range's near end, 1 at its far end), params (x: texel size in m, y: the blend band in NDC,
+    // z: 1 valid, w: unused)
+    mat4 cascadeMatrix[4] = {mat4::Identity(), mat4::Identity(), mat4::Identity(), mat4::Identity()};
+    vec4 cascadeParams[4] = {vec4(0, 0, 0, 0), vec4(0, 0, 0, 0), vec4(0, 0, 0, 0), vec4(0, 0, 0, 0)};
+    // x: the cascade count (0: no cascade shadows), y: the depth bias (texels), z: the normal offset (texels), w: 1 the
+    // comparison sampler filters linearly (else nearest compares with manual bilinear weights)
+    vec4 shadowParams = vec4(0, 1, 1, 1);
 };
-static_assert(sizeof(SceneLighting) == 32 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
+static_assert(sizeof(SceneLighting) == 53 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
 
 }  // namespace Vulkan
 }  // namespace Saiga

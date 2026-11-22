@@ -120,7 +120,9 @@ VertexLight surfaceVertexLight(vec3 relPos)
 // The debug views (LightingDebugView of LightingTypes.h)
 const uint viewNone = 0u, viewLightingOnly = 1u, viewAlbedo = 2u, viewNormals = 3u, viewRoughness = 4u,
            viewMetalness = 5u, viewMaterial = 6u, viewDirectOnly = 7u, viewAmbientOnly = 8u, viewSpecularOnly = 9u,
-           viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u;
+           viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u;
+// The overlay flags drawn in the shaders (LightingOverlay)
+const uint overlayCascadeColors = 2u;
 
 bool debugViewActive()
 {
@@ -136,7 +138,7 @@ vec3 debugDisplay(vec3 radiance)
 }
 
 // The light of a surface (radiance before the pre-exposure) with the fog; in a debug frame the view's value
-vec3 shadeSurface(SurfaceInput s)
+vec3 shadeSurfaceView(SurfaceInput s)
 {
     const uint view = lighting.mode.z;
     if (view == viewAlbedo) return s.albedo;
@@ -146,6 +148,14 @@ vec3 shadeSurface(SurfaceInput s)
     if (view == viewMaterial) return vec3(s.roughness, s.metalness, s.ao);
     if (view == viewCloudShadow) return vec3(cloudShadow(s.relPos));
     if (view == viewShadowFactor) return vec3(shadowFactor(s.relPos, s.n));
+    if (view == viewShadowCascades)
+    {
+        // The cascade factor tinted by the cascade; raw in the probe frames: (factor, cascade + 1, 0)
+        int cascade;
+        float f = cascadeShadow(s.relPos, s.n, cascade);
+        if (lighting.debugParams.z > 0.5) return vec3(f, float(cascade + 1), 0.0);
+        return cascadeTint(cascade) * (0.2 + 0.8 * f);
+    }
     if (view == viewLightingOnly)
     {
         s.albedo    = vec3(1.0);
@@ -159,8 +169,10 @@ vec3 shadeSurface(SurfaceInput s)
     if (!physicalLighting())
     {
         // S19a: albedo (sun + ambient) ao, the material's emissive on top
-        vec3 L      = normalize(lighting.studioSun.xyz);
-        float d     = max(dot(s.n, L), 0.0) * lighting.studioSun.w;
+        vec3 L  = normalize(lighting.studioSun.xyz);
+        float d = max(dot(s.n, L), 0.0) * lighting.studioSun.w;
+        // S36a2: the cascades of the studio sun (only where it lights the surface)
+        if (d > 0.0) d *= shadowFactor(s.relPos, s.n);
         c           = s.albedo * (d + studioAmbient(s.n)) * s.ao;
         c           = c * s.tint + s.emissive;
         direct      = s.albedo * d * s.ao;
@@ -177,18 +189,22 @@ vec3 shadeSurface(SurfaceInput s)
         fog            = vl.fog;
         if (lighting.mode.y == 0u)
         {
-            // The shadow factor only for the shadow light (at most one of the bodies); a body below the receiver's
-            // horizon has no light (computeVertexLight)
+            // The shadow light's factor only where it reaches the surface (the wrapped diffuse of foliage included)
+            float shadow = 1.0;
+            if (lighting.shadowLight.w > 0.0 && dot(s.n, lighting.shadowLight.xyz) > -wrap)
+                shadow = shadowFactor(s.relPos, s.n);
+            // A body below the receiver's horizon gives no direct light (its light terms are 0 there,
+            // computeVertexLight)
             if (lighting.sun.w > 0.0 && any(greaterThan(vl.sunE, vec3(0.0))))
             {
                 vec3 sunE = vl.sunE;
-                if (lighting.shadowLight.w == 1.0) sunE *= shadowFactor(s.relPos, s.n);
+                if (lighting.shadowLight.w == 1.0) sunE *= shadow;
                 direct += pbrDirect(s.n, v, lighting.sun.xyz, s.albedo, rough, s.metalness, sunE, lut, wrap);
             }
             if (lighting.moon.w > 0.0 && any(greaterThan(vl.moonE, vec3(0.0))))
             {
                 vec3 moonE = vl.moonE;
-                if (lighting.shadowLight.w == 2.0) moonE *= shadowFactor(s.relPos, s.n);
+                if (lighting.shadowLight.w == 2.0) moonE *= shadow;
                 direct += pbrDirect(s.n, v, lighting.moon.xyz, s.albedo, rough, s.metalness, moonE, lut, wrap);
             }
         }
@@ -213,6 +229,19 @@ vec3 shadeSurface(SurfaceInput s)
         // The luminance's EV100 (L = 2^EV * 12.5 / 100); clay: its unit-less value
         float ev = log2(max(luma(c), 1e-6) * 8.0);
         return turbo((ev - lighting.debugParams.x) / max(lighting.debugParams.y, 1e-3) + 0.5);
+    }
+    return c;
+}
+
+// shadeSurfaceView with the shader overlays (S36a2: CascadeColors tints every view by the receiver's cascade)
+vec3 shadeSurface(SurfaceInput s)
+{
+    vec3 c = shadeSurfaceView(s);
+    if ((lighting.mode.w & overlayCascadeColors) != 0u)
+    {
+        int cascade;
+        cascadeShadow(s.relPos, s.n, cascade);
+        c *= mix(vec3(1.0), cascadeTint(cascade), 0.6);
     }
     return c;
 }

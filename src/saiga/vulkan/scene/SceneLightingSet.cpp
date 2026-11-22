@@ -54,18 +54,30 @@ DescriptorSetLayout SceneLightingSet::layout()
     return l;
 }
 
+DescriptorSetLayout SceneLightingSet::shadowLayout()
+{
+    DescriptorSetLayout l;
+    const auto stages = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    l.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, stages));
+    l.addBinding(1, vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, stages));
+    return l;
+}
+
 void SceneLightingSet::init(VulkanBase& b)
 {
     destroy();
     base      = &b;
     ownLayout = layout();
     ownLayout.create(base);
+    ownShadowLayout = shadowLayout();
+    ownShadowLayout.create(base);
     for (Frame& f : frames)
     {
         f.buffer.createBuffer(*base, sizeof(SceneLighting), vk::BufferUsageFlagBits::eUniformBuffer,
                               vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
         std::memcpy(f.buffer.getMappedPointer(), &f.block, sizeof(SceneLighting));
-        f.set = ownLayout.createRawDescriptorSet();
+        f.set       = ownLayout.createRawDescriptorSet();
+        f.shadowSet = ownShadowLayout.createRawDescriptorSet();
     }
 
     // The dummies, cleared to 0 (depth: 1, lit) and in their sampled layouts
@@ -74,8 +86,12 @@ void SceneLightingSet::init(VulkanBase& b)
     dummy2D.create(*base, 1, 1, vk::Format::eR8G8B8A8Unorm, usage);
     dummyCube.create(*base, 1, vk::Format::eR8G8B8A8Unorm, usage);
     dummyDepth.create(*base, 1, 1, 1, vk::Format::eD32Sfloat, usage);
+    // The cascades' comparison sampler (S36a2): linear (a 2 x 2 bilinear compare per tap) where the format supports
+    // linear filtering, else nearest (shadows.glsl then gathers and weights itself)
+    const auto features = base->physicalDevice.getFormatProperties(vk::Format::eD32Sfloat).optimalTilingFeatures;
+    linearCompare       = bool(features & vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
     SamplerParameters sp;
-    sp.setFilter(vk::Filter::eNearest);
+    sp.setFilter(linearCompare ? vk::Filter::eLinear : vk::Filter::eNearest);
     sp.setAddressMode(vk::SamplerAddressMode::eClampToEdge);
     sp.compareOp = vk::CompareOp::eLessOrEqual;
     compareSampler.create(*base, sp);
@@ -127,14 +143,23 @@ void SceneLightingSet::destroy()
     for (Frame& f : frames)
     {
         f.buffer.destroy();
-        auto set = f.set;
-        if (set) base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
-        f.set = nullptr;
+        for (vk::DescriptorSet* s : {&f.set, &f.shadowSet})
+        {
+            auto set = *s;
+            if (set) base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+            *s = nullptr;
+        }
     }
-    // The layout after the sets (deferred as well, in order)
-    DescriptorSetLayout l = ownLayout;
-    base->deferDelete([l]() mutable { l.destroy(); });
-    ownLayout = DescriptorSetLayout();
+    // The layouts after the sets (deferred as well, in order)
+    DescriptorSetLayout l = ownLayout, sl = ownShadowLayout;
+    base->deferDelete(
+        [l, sl]() mutable
+        {
+            l.destroy();
+            sl.destroy();
+        });
+    ownLayout       = DescriptorSetLayout();
+    ownShadowLayout = DescriptorSetLayout();
     dummyArray.destroy();
     dummyDepth.destroy();
     dummy2D.destroy();
@@ -181,13 +206,17 @@ void SceneLightingSet::write(uint32_t frameIndex, const SceneLighting& block, co
                 if (b == 6 && in.transmittanceLut) info = *in.transmittanceLut;
                 if (b == 7 && in.skyViewLut) info = *in.skyViewLut;
                 if (b == 8 || b == 13) info = depth;
-                if (b == 9) info = array;
+                if (b == 8 && in.cascades) info = *in.cascades;
+                if (b == 9) info = in.horizon ? *in.horizon : array;
                 images[b] = info;
                 writes.emplace_back(f.set, b, 0, 1, vk::DescriptorType::eCombinedImageSampler, &images[b]);
                 break;
             }
         }
     }
+    // The shadow set: the block and the foliage texture
+    writes.emplace_back(f.shadowSet, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &buffers[0]);
+    writes.emplace_back(f.shadowSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &images[1]);
     base->device.updateDescriptorSets(writes, nullptr);
 }
 

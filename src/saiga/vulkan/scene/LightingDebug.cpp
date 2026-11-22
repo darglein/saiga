@@ -37,15 +37,15 @@ struct PreviewPush
     float rangeMax;
     uint32_t groups;
     uint32_t pad;
+    uint32_t layer;
+    uint32_t layers;
     uint32_t step;
-    uint32_t pad1;
-    uint32_t pad2;
-    uint32_t pad3;
+    uint32_t layerWidth;
 };
 static_assert(sizeof(PreviewPush) == 64, "Push of debug_preview.comp");
 
-// The Statistics buffer of debug_preview.comp: stats (min, max, mean, count), range, histogram[16]
-constexpr size_t kStatsBytes = 32 + 16 * 4;
+// The Statistics buffer of debug_preview.comp: stats (min, max, mean, count), range, histogram[16], layerRange[4]
+constexpr size_t kStatsBytes = 32 + 16 * 4 + 4 * 16;
 
 vk::Buffer handle(Buffer& b)
 {
@@ -95,6 +95,7 @@ void LightingDebug::init(VulkanBase& b)
     layout.addBinding(1, vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eStorageImage, 1, c));
     layout.addBinding(2, vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eStorageBuffer, 1, c));
     layout.addBinding(3, vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eStorageBuffer, 1, c));
+    layout.addBinding(4, vk::DescriptorSetLayoutBinding(4, vk::DescriptorType::eCombinedImageSampler, 1, c));
     pipeline.init(*base, 1);
     pipeline.addDescriptorSetLayout(layout);
     pipeline.addPushConstantRange({c, 0, sizeof(PreviewPush)});
@@ -105,6 +106,24 @@ void LightingDebug::init(VulkanBase& b)
     sp.setAddressMode(vk::SamplerAddressMode::eClampToEdge);
     nearestSampler.create(*base, sp);
     for (auto& s : sets) s = pipeline.createRawDescriptorSet();
+    // The dummies of the unused source binding (sampled in eShaderReadOnlyOptimal, content irrelevant)
+    dummy2D.create(*base, 1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled);
+    dummyArray.create(*base, 1, 1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled);
+    auto& q               = base->mainQueue;
+    vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
+    std::array<vk::ImageMemoryBarrier2, 2> toRead;
+    for (int k = 0; k < 2; ++k)
+        toRead[size_t(k)] = vk::ImageMemoryBarrier2(
+            Stage::eNone, Access::eNone, Stage::eComputeShader, Access::eShaderSampledRead, vk::ImageLayout::eUndefined,
+            vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+            k == 0 ? dummy2D.image() : dummyArray.image(),
+            vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
+    cmd.end();
+    q.submitAndWait(cmd);
+    q.commandPool.freeCommandBuffer(cmd);
+    dummy2D.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
+    dummyArray.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 }
 
 void LightingDebug::destroy()
@@ -112,6 +131,8 @@ void LightingDebug::destroy()
     if (!base) return;
     pipeline.destroy();
     nearestSampler.destroy();
+    dummy2D.destroy();
+    dummyArray.destroy();
     partials.destroy();
     auto* pool = &base->descriptorPool;
     for (auto& s : sets)
@@ -245,18 +266,33 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
     uint64_t shownTexels = 0;
     for (size_t k : order)
     {
-        Image& i                     = images[k];
-        const PreviewMapping mapping = i.mapping;
-        const bool fullResolution    = i.fullResolution;
-        Texture2D* source            = sources.image[k];
-        // A shown preview at most kPreviewMaxSize per side: every step-th source texel
-        uint32_t step = 1;
-        if (source && !fullResolution)
-            step = std::max(1u, (std::max(source->width, source->height) + previewMaxSize - 1) / previewMaxSize);
-        const uint32_t w = source ? (source->width + step - 1) / step : 0;
-        const uint32_t h = source ? (source->height + step - 1) / step : 0;
+        Image& i                             = images[k];
+        const PreviewMapping mapping         = i.mapping;
+        const bool fullResolution            = i.fullResolution;
+        Texture2D* source                    = sources.image[k];
+        const Sources::ArraySource& arraySrc = sources.array[k];
+        const bool hasSource                 = source || arraySrc.texture;
+        // The source's size (an array: one layer, the layers side by side) and its step (an array: the scene's)
+        uint32_t sw = 0, sh = 0, layers = 1, step = 1;
+        if (source)
+        {
+            sw = source->width;
+            sh = source->height;
+        }
+        else if (arraySrc.texture)
+        {
+            sw     = arraySrc.texture->width;
+            sh     = arraySrc.texture->height;
+            layers = arraySrc.layers;
+            step   = arraySrc.step;
+        }
+        // A shown preview at most previewMaxSize per side: every step-th source texel
+        if (hasSource && !fullResolution)
+            step = std::max(step, (std::max(sw * layers, sh) + previewMaxSize - 1) / previewMaxSize);
+        const uint32_t layerWidth = (sw + step - 1) / step;
+        const uint32_t w = layerWidth * layers, h = (sh + step - 1) / step;
         // The texel budget of the shown images (the first conversion of the frame is always made)
-        if (source && !fullResolution)
+        if (hasSource && !fullResolution)
         {
             if (dispatches > 0 && shownTexels + uint64_t(w) * h > previewTexelBudget) continue;
             shownTexels += uint64_t(w) * h;
@@ -278,7 +314,7 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
             i.callbacks      = std::move(i.queued.front().callbacks);
             i.queued.pop_front();
         }
-        if (!source) continue;
+        if (!hasSource) continue;
         if (!i.texture || i.texture->width != w || i.texture->height != h)
         {
             if (i.texture) i.texture->destroy();
@@ -308,16 +344,20 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
                                   vk::MemoryPropertyFlagBits::eDeviceLocal);
 
         vk::DescriptorSet set = sets[k * kSlots + frameIndex];
-        vk::DescriptorImageInfo src(vk::Sampler(nearestSampler), source->view(),
+        vk::DescriptorImageInfo src(vk::Sampler(nearestSampler), source ? source->view() : dummy2D.view(),
                                     vk::ImageLayout::eShaderReadOnlyOptimal);
+        vk::DescriptorImageInfo srcArray(vk::Sampler(nearestSampler),
+                                         arraySrc.texture ? arraySrc.texture->view() : dummyArray.view(),
+                                         vk::ImageLayout::eShaderReadOnlyOptimal);
         vk::DescriptorImageInfo dst(nullptr, i.texture->view(), vk::ImageLayout::eGeneral);
         vk::DescriptorBufferInfo part(handle(partials), 0, VK_WHOLE_SIZE);
         vk::DescriptorBufferInfo stats(handle(i.gpuStats[frameIndex]), 0, kStatsBytes);
-        std::array<vk::WriteDescriptorSet, 4> writes = {
+        std::array<vk::WriteDescriptorSet, 5> writes = {
             vk::WriteDescriptorSet(set, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &src),
             vk::WriteDescriptorSet(set, 1, 0, 1, vk::DescriptorType::eStorageImage, &dst),
             vk::WriteDescriptorSet(set, 2, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &part),
-            vk::WriteDescriptorSet(set, 3, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &stats)};
+            vk::WriteDescriptorSet(set, 3, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &stats),
+            vk::WriteDescriptorSet(set, 4, 0, 1, vk::DescriptorType::eCombinedImageSampler, &srcArray)};
         base->device.updateDescriptorSets(writes, nullptr);
 
         // Without a pipeline (its shader did not compile; only without SAIGA_ASSERTS, ComputePipeline::create asserts
@@ -340,20 +380,22 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toGeneral));
         pipeline.bindRawDescriptorSet(cmd, set);
         PreviewPush push;
-        push.size[0]   = int32_t(w);
-        push.size[1]   = int32_t(h);
-        push.kind      = sources.kind[k];
-        push.scale     = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
-        push.useLog    = mapping.log ? 1u : 0u;
-        push.autoRange = mapping.autoRange ? 1u : 0u;
-        push.colorMap  = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
-        push.rangeMin  = mapping.min;
-        push.rangeMax  = mapping.max;
-        push.groups    = groups;
-        push.pad       = 0;
-        push.step      = step;
-        push.pad1 = push.pad2 = push.pad3 = 0;
-        auto pass                         = [&](uint32_t p, uint32_t x, uint32_t y)
+        push.size[0]    = int32_t(w);
+        push.size[1]    = int32_t(h);
+        push.kind       = sources.kind[k];
+        push.scale      = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
+        push.useLog     = mapping.log ? 1u : 0u;
+        push.autoRange  = mapping.autoRange ? 1u : 0u;
+        push.colorMap   = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
+        push.rangeMin   = mapping.min;
+        push.rangeMax   = mapping.max;
+        push.groups     = groups;
+        push.pad        = 0;
+        push.layer      = source ? 0 : arraySrc.layer;
+        push.layers     = source ? 0 : arraySrc.layers;
+        push.step       = step;
+        push.layerWidth = source ? w : layerWidth;
+        auto pass       = [&](uint32_t p, uint32_t x, uint32_t y)
         {
             push.pass = p;
             pipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);

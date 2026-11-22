@@ -23,6 +23,7 @@ namespace Vulkan
 class MeshPool;
 class InstanceBuffer;
 class SceneLightingSet;
+class ShadowPipelineTable;
 
 // The camera of a frame (computed by RenderScene in double)
 struct SceneCamera
@@ -95,6 +96,11 @@ class SAIGA_VULKAN_API SceneCulling
     // prepass: the opaque classes were drawn in the pre-pass (EQUAL, no depth write); returns the number of indirect
     // draw calls
     uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass);
+    // S36a2: inside a cascade's depth pass, the casters of view (1..) with the classes' shadow pipelines (a class
+    // without an entry casts nothing; the PrototypeFoliage class only with the foliage texture); returns the number of
+    // indirect draw calls
+    uint32_t recordShadow(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj, float alpha,
+                          ShadowPipelineTable& table, float slopeBias);
     // The views of the frame (1 + its shadow views; 0 without a cull)
     uint32_t viewCount(uint32_t frameIndex) const { return frames[frameIndex].viewCount; }
     // The scene's set-0 layout (the shadow pipelines are created with it)

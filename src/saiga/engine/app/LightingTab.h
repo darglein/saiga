@@ -27,8 +27,9 @@ class EngineApp;
  * the frame and of the curve, the compensation, the effective exposure and the pre-exposure; S36a1b: the luminance of
  * the frame (the Luminance preview and its reduction, computed only while the section is open) and the exposure
  * curve). S36a1b adds the toolbar (tone map, debug view, overlays, force full updates, the pipeline variant, copy
- * JSON), Ambient (scale, floor, SH9, the prototype albedo colours) and GPU and memory; later parts add sky and clouds,
- * cascades and local lights.
+ * JSON), Ambient (scale, floor, SH9, the prototype albedo colours) and GPU and memory; S36a1c sky and clouds; S36a2
+ * Cascades (the parameters, a row per cascade, the cascades' depth previews: a click on one enlarges it) and the
+ * toolbar's "freeze cascades"; part b local lights.
  */
 class SAIGA_ENGINE_API LightingTab
 {
@@ -48,6 +49,7 @@ class SAIGA_ENGINE_API LightingTab
     void exposure();
     void ambient();
     void skyAndClouds();
+    void cascadesSection();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
@@ -61,6 +63,10 @@ class SAIGA_ENGINE_API LightingTab
     std::array<uint64_t, size_t(Vulkan::LightingImage::Count)> previewVersions{};
     const void* previewImgui = nullptr;
     int environmentMip       = 0;
+    // The enlarged cascade preview (-1: none)
+    int enlargedCascade = -1;
+    // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
+    bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0);
 };
 
 }  // namespace Engine

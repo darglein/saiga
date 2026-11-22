@@ -33,6 +33,14 @@ struct DrawPush
     int32_t gridN;
     int32_t pad;
 };
+// shader/vulkan/scene/lighting/terrain_shadow.vert
+struct ShadowPush
+{
+    mat4 viewProj;
+    int32_t gridN;
+    int32_t pad[3];
+};
+static_assert(sizeof(ShadowPush) == 80, "Push of terrain_shadow.vert");
 struct ProbeGpu
 {
     uint32_t args[4];
@@ -70,7 +78,8 @@ std::vector<uint16_t> gridIndices(int n, bool skirt)
 }
 
 // The box [lo, hi] (camera-relative) is outside a frustum plane
-bool boxCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, 5>& planes)
+template <size_t N>
+bool boxCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, N>& planes)
 {
     for (const Vec4& p : planes)
     {
@@ -146,7 +155,13 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLigh
     {
         f.uniforms.createBuffer(*base, sizeof(TerrainFrameUniforms), vk::BufferUsageFlagBits::eUniformBuffer,
                                 vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        f.set = frameLayout.createRawDescriptorSet();
+        f.set       = frameLayout.createRawDescriptorSet();
+        f.shadowSet = frameLayout.createRawDescriptorSet();
+        // S36a2: the shadow views' nodes (up to kMaxCascades views of maxNodes)
+        f.shadowNodes.createBuffer(
+            *base, size_t(kMaxCascades) * TerrainAtlas::maxNodes * sizeof(GpuNode),
+            vk::BufferUsageFlagBits::eStorageBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     }
     for (size_t i = 0; i < frames.size(); ++i)
     {
@@ -199,6 +214,21 @@ void TerrainPass::createPipelines()
     sky.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
     sky.depthStencilState.depthWriteEnable = VK_FALSE;
     create(skyPipeline, {"vulkan/scene/sky.vert", "vulkan/scene/sky.frag"}, sceneFormats, sky, sky0, false);
+
+    // S36a2: the terrain casters of the cascades (D32, LESS_OR_EQUAL, the slope bias dynamic, set 0 only)
+    PipelineInfo shadow;
+    shadow.depthStencilState.depthCompareOp   = vk::CompareOp::eLessOrEqual;
+    shadow.depthStencilState.depthWriteEnable = VK_TRUE;
+    shadow.rasterizationState.depthBiasEnable = VK_TRUE;
+    shadow.dynamicStateEnables.push_back(vk::DynamicState::eDepthBias);
+    shadowPipeline.init(*base, 1);
+    shadowPipeline.addDescriptorSetLayout(setLayout(), 0);
+    shadowPipeline.addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(ShadowPush)});
+    shadowPipeline.shaderPipeline.loadGLSL(
+        base->device, {{"vulkan/scene/lighting/terrain_shadow.vert", vk::ShaderStageFlagBits::eVertex, defines}});
+    RenderingFormats shadowFormats;
+    shadowFormats.depth = vk::Format::eD32Sfloat;
+    shadowPipeline.create(shadowFormats, shadow);
 }
 
 void TerrainPass::destroy()
@@ -208,15 +238,20 @@ void TerrainPass::destroy()
     depthPipeline.destroy();
     equalPipeline.destroy();
     skyPipeline.destroy();
+    shadowPipeline.destroy();
     probePipeline.destroy();
     indices.destroy();
     auto* pool = &base->descriptorPool;
     for (Frame& f : frames)
     {
         f.uniforms.destroy();
-        auto set = f.set;
-        base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
-        f.set = nullptr;
+        f.shadowNodes.destroy();
+        for (vk::DescriptorSet* s : {&f.set, &f.shadowSet})
+        {
+            auto set = *s;
+            base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+            *s = nullptr;
+        }
     }
     for (auto& sky : skySets)
     {
@@ -248,6 +283,8 @@ void TerrainPass::skipFrame()
     skyValid   = false;
     statistics = Stats();
     nodeInfos.clear();
+    shadowStatistics.clear();
+    for (Frame& f : frames) f.shadowRanges.clear();
 }
 
 bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas& atlas, const SceneCamera& camera,
@@ -298,7 +335,15 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
         const std::optional<double> ground = atlas.surfaceHeightEstimate(c.x(), c.z());
         lodHeight                          = ground ? std::abs(c.y() - *ground) : 0.0;
 
-        select(atlas, camera, anchorX, anchorZ);
+        Selection main;
+        const std::array<Vec4, 6> planes = {camera.planes[0], camera.planes[1], camera.planes[2],
+                                            camera.planes[3], camera.planes[4], Vec4(0, 0, 0, 1e30)};
+        select(atlas, camera.position, planes, anchorX, anchorZ, main);
+        fullNodes    = std::move(main.full);
+        quarterNodes = std::move(main.quarter);
+        fullInfos    = std::move(main.fullInfos);
+        quarterInfos = std::move(main.quarterInfos);
+        statistics   = main.stats;
 
         // The water plane: 400 km centred on the camera's xz rounded down to 4096 m, at the sea level, culled with its
         // own box
@@ -397,12 +442,10 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     return true;
 }
 
-void TerrainPass::select(const TerrainAtlas& atlas, const SceneCamera& camera, int32_t anchorX, int32_t anchorZ)
+void TerrainPass::select(const TerrainAtlas& atlas, const Vec3& camera, const std::array<Vec4, 6>& planes,
+                         int32_t anchorX, int32_t anchorZ, Selection& out)
 {
-    fullNodes.clear();
-    quarterNodes.clear();
-    fullInfos.clear();
-    quarterInfos.clear();
+    out                    = Selection();
     const TerrainLayout& L = atlas.layout();
     const int R            = L.rootLevel();
     std::vector<double> ranges(size_t(R) + 1);
@@ -410,11 +453,12 @@ void TerrainPass::select(const TerrainAtlas& atlas, const SceneCamera& camera, i
     ranges[size_t(R)] = std::numeric_limits<double>::infinity();
     const int roots   = L.sizeChunks / 16;
     for (int z = 0; z < roots; ++z)
-        for (int x = 0; x < roots; ++x) selectNode(atlas, camera, R, x, z, anchorX, anchorZ, ranges);
+        for (int x = 0; x < roots; ++x) selectNode(atlas, camera, planes, R, x, z, anchorX, anchorZ, ranges, out);
 }
 
-bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camera, int level, int32_t nx, int32_t nz,
-                             int32_t anchorX, int32_t anchorZ, const std::vector<double>& ranges)
+bool TerrainPass::selectNode(const TerrainAtlas& atlas, const Vec3& c, const std::array<Vec4, 6>& planes, int level,
+                             int32_t nx, int32_t nz, int32_t anchorX, int32_t anchorZ,
+                             const std::vector<double>& ranges, Selection& out)
 {
     const TerrainLayout& L      = atlas.layout();
     const TerrainAtlas::Bound b = atlas.bound(level, nx, nz);
@@ -424,17 +468,16 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
     const int size                = (32 * L.baseSpacing) << level;
     const double spacing          = double(L.baseSpacing << level);
     const double skirt            = std::max(double(own.hi - own.lo) * kHeightUnit, 2 * spacing);
-    const Vec3& c                 = camera.position;
     const int32_t ox = nx * size, oz = nz * size;
-    // The box for the frustum test reaches down by the skirt; the LOD distance is horizontal (lodDistance)
+    // The box for the culling test reaches down by the skirt; the LOD distance is horizontal (lodDistance)
     const Vec3 lo(double(ox) - c.x(), double(b.lo) * kHeightUnit - skirt - c.y(), double(oz) - c.z());
     const Vec3 hi(double(ox + size) - c.x(), double(b.hi) * kHeightUnit - c.y(), double(oz + size) - c.z());
     const double d = lodDistance(lo, hi, lodHeight);
     if (d > ranges[size_t(level)]) return false;
-    if (boxCulled(lo, hi, camera.planes)) return true;
+    if (boxCulled(lo, hi, planes)) return true;
     if (level == 0 || d > ranges[size_t(level - 1)])
     {
-        addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt);
+        addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt, out);
         return true;
     }
     // Refined only if the children's tile (one tile holds all four) is GPU-resident
@@ -444,8 +487,8 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
         const int64_t tileSize = int64_t(256) << child;
         if (!atlas.tileResident(child, int32_t(int64_t(ox) / tileSize), int32_t(int64_t(oz) / tileSize)))
         {
-            statistics.refusedResidency++;
-            addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt);
+            out.stats.refusedResidency++;
+            addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt, out);
             return true;
         }
     }
@@ -453,22 +496,22 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
     for (int q = 0; q < 4; ++q)
     {
         const int32_t cx = 2 * nx + (q & 1), cz = 2 * nz + (q >> 1);
-        if (!selectNode(atlas, camera, child, cx, cz, anchorX, anchorZ, ranges))
+        if (!selectNode(atlas, c, planes, child, cx, cz, anchorX, anchorZ, ranges, out))
         {
             // The child is out of its range: its area at this level's spacing, culled with this level's own heights
             // (what the quarter draws; the child's bound misses them when the levels' data differ, PR review)
             const int32_t qx = cx * half, qz = cz * half;
             const Vec3 clo(double(qx) - c.x(), double(own.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
             const Vec3 chi(double(qx + half) - c.x(), double(own.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
-            if (atlas.bound(child, cx, cz).valid() && !boxCulled(clo, chi, camera.planes))
-                addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt);
+            if (atlas.bound(child, cx, cz).valid() && !boxCulled(clo, chi, planes))
+                addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt, out);
         }
     }
     return true;
 }
 
 void TerrainPass::addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, bool quarter, int32_t anchorX,
-                          int32_t anchorZ, double skirt)
+                          int32_t anchorZ, double skirt, Selection& out)
 {
     const int32_t spacing = atlas.layout().baseSpacing << level;
     GpuNode n;
@@ -485,20 +528,87 @@ void TerrainPass::addNode(const TerrainAtlas& atlas, int level, int32_t ox, int3
     info.sampleX = n.sampleX;
     info.sampleZ = n.sampleZ;
     info.quarter = quarter;
-    statistics.nodesPerLevel[size_t(level)]++;
+    out.stats.nodesPerLevel[size_t(level)]++;
     if (quarter)
     {
-        statistics.quartersPerLevel[size_t(level)]++;
-        statistics.triangles += (gridN / 2) * (gridN / 2) * 2;
-        quarterNodes.push_back(n);
-        quarterInfos.push_back(info);
+        out.stats.quartersPerLevel[size_t(level)]++;
+        out.stats.triangles += (gridN / 2) * (gridN / 2) * 2;
+        out.quarter.push_back(n);
+        out.quarterInfos.push_back(info);
     }
     else
     {
-        statistics.triangles += gridN * gridN * 2;
-        fullNodes.push_back(n);
-        fullInfos.push_back(info);
+        out.stats.triangles += gridN * gridN * 2;
+        out.full.push_back(n);
+        out.fullInfos.push_back(info);
     }
+}
+
+void TerrainPass::selectForShadow(uint32_t frameIndex, const TerrainAtlas& atlas, const SceneCamera& camera,
+                                  const std::vector<ShadowView>& views)
+{
+    Frame& f = frames[frameIndex];
+    f.shadowRanges.clear();
+    shadowStatistics.clear();
+    if (!frameValid || views.empty()) return;
+    const int32_t anchorX = uniforms.anchor(0), anchorZ = uniforms.anchor(1);
+    auto* dst          = static_cast<GpuNode*>(f.shadowNodes.getMappedPointer());
+    uint32_t used      = 0;
+    const uint32_t cap = uint32_t(kMaxCascades) * TerrainAtlas::maxNodes;
+    Selection sel;
+    for (const ShadowView& v : views)
+    {
+        select(atlas, camera.position, v.planes(true), anchorX, anchorZ, sel);
+        Frame::ShadowRange r;
+        r.first = used;
+        r.full  = uint32_t(std::min<size_t>(sel.full.size(), cap - used));
+        used += r.full;
+        r.quarter = uint32_t(std::min<size_t>(sel.quarter.size(), cap - used));
+        if (r.full) std::memcpy(dst + r.first, sel.full.data(), r.full * sizeof(GpuNode));
+        if (r.quarter) std::memcpy(dst + r.first + r.full, sel.quarter.data(), r.quarter * sizeof(GpuNode));
+        used += r.quarter;
+        f.shadowRanges.push_back(r);
+        ShadowStats st;
+        st.nodes     = int(r.full + r.quarter);
+        st.triangles = int(r.full) * gridN * gridN * 2 + int(r.quarter) * (gridN / 2) * (gridN / 2) * 2;
+        shadowStatistics.push_back(st);
+    }
+    // The set with the shadow nodes at binding 5 (the frame's set for the rest)
+    std::array<vk::DescriptorBufferInfo, 6> infos = {
+        vk::DescriptorBufferInfo(handle(f.uniforms), 0, sizeof(TerrainFrameUniforms)),
+        vk::DescriptorBufferInfo(handle(lastAtlas->atlasBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(lastAtlas->pyramidBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(lastAtlas->pageBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(lastAtlas->maskBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(f.shadowNodes), 0, VK_WHOLE_SIZE)};
+    std::vector<vk::WriteDescriptorSet> writes;
+    writes.emplace_back(f.shadowSet, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &infos[0]);
+    for (uint32_t b = 1; b <= 5; ++b)
+        writes.emplace_back(f.shadowSet, b, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &infos[b]);
+    base->device.updateDescriptorSets(writes, nullptr);
+}
+
+void TerrainPass::renderShadow(vk::CommandBuffer cmd, uint32_t frameIndex, size_t view, const mat4& viewProj,
+                               float slopeBias, const PrototypeSettings& s)
+{
+    Frame& f = frames[frameIndex];
+    if (!frameValid || !s.terrain || view >= f.shadowRanges.size()) return;
+    const Frame::ShadowRange r = f.shadowRanges[view];
+    if (r.full + r.quarter == 0 || !shadowPipeline.bind(cmd)) return;
+    shadowPipeline.bindRawDescriptorSet(cmd, f.shadowSet);
+    cmd.bindIndexBuffer(handle(indices), 0, vk::IndexType::eUint16);
+    cmd.setDepthBias(0.0f, 0.0f, slopeBias);
+    auto draw = [&](const Range& range, int n, uint32_t count, uint32_t first)
+    {
+        ShadowPush push;
+        push.viewProj = viewProj;
+        push.gridN    = n;
+        push.pad[0] = push.pad[1] = push.pad[2] = 0;
+        shadowPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eVertex, sizeof(push), &push);
+        cmd.drawIndexed(range.count, count, range.first, 0, first);
+    };
+    if (r.full > 0) draw(s.terrainSkirts ? fullSkirt : fullPlain, gridN, r.full, r.first);
+    if (r.quarter > 0) draw(s.terrainSkirts ? quarterSkirt : quarterPlain, gridN / 2, r.quarter, r.first + r.full);
 }
 
 void TerrainPass::writeDescriptors(Frame& f, TerrainAtlas& atlas, uint32_t frameIndex)

@@ -41,6 +41,8 @@ class EnvironmentMap;
 class CloudLayer;
 class LightingDebug;
 class DebugLines;
+class CascadedShadows;
+class ShadowPipelineTable;
 class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
@@ -160,7 +162,8 @@ class SAIGA_VULKAN_API RenderScene
     // The newest frame takeGpuFrameTimes returned (frame 0: none yet)
     const FrameTimes& lastGpuFrameTimes() const { return lastTaken; }
     // The sections of FrameTimes::gpuSectionMs in frame order: transfer, environment (S36: the atmosphere and the
-    // environment map), cull, depth, depth.terrain, scene,
+    // environment map), cull, shadow, shadow.cascades, shadow.horizon (S36a2: the cascades' depth passes, the horizon
+    // map's update), depth, depth.terrain, scene,
     // scene.terrain, scene.instances, scene.grass, scene.sky, scene.clouds (S36: the 2D cloud layer), scene.debug (S36:
     // the debug lines), resolve,
     // lighting.preview (S36: the preview conversions), post, imgui. The dotted names are sub-sections
@@ -360,7 +363,7 @@ class SAIGA_VULKAN_API RenderScene
     const LightingStatistics& lightingStatistics() const { return lightStats; }
     // The lighting block of the last recorded frame (tests)
     const SceneLighting& lastLightingBlock() const { return lastBlock; }
-    // probe_lighting's sequence at a pixel of the next frames (8 frames; requests made before the sequence starts share
+    // probe_lighting's sequence at a pixel of the next frames (9 frames; requests made before the sequence starts share
     // it). The camera and the environment (with it the wind phases) are held during the sequence (setCamera /
     // setEnvironment take effect after it); the callback runs after the last frame. While it runs, screenshots and
     // preview conversions wait for the first frame after it (they would read the debug frames), and the output shows
@@ -372,7 +375,23 @@ class SAIGA_VULKAN_API RenderScene
     bool probeRunning() const { return probeRun != nullptr; }
     // A probe sequence runs in the next recorded frame (running or requested)
     bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
-    static constexpr int kProbeFrames = 8;
+    static constexpr int kProbeFrames = 9;
+
+    // ---- the sun and moon shadows (S36a2, A5) --------------------------------------------------------------------
+    // The cascades (fitting, statistics, the depth array) and the shadow pipeline table (S27 / S34 register their
+    // classes' entries; tests remove one)
+    CascadedShadows& cascadedShadows() { return *cascades; }
+    ShadowPipelineTable& shadowPipelines() { return *shadowTable; }
+    // Freezes the cascades' world data and the camera they were fitted to (the overlays show what each covers while
+    // one flies around); they are still rendered every frame
+    void setFreezeCascades(bool frozen) { freezeCascades = frozen; }
+    bool cascadesFrozen() const { return freezeCascades; }
+    // The layer of the Cascade preview (LightingImage::Cascade)
+    void setCascadePreview(int cascade) { previewCascade = cascade; }
+    int cascadePreview() const { return previewCascade; }
+    // The shadow views of the frame being recorded (empty without cascades this frame; a cascade not updated this
+    // frame has an empty view)
+    const std::vector<ShadowView>& frameShadowViews() const { return shadowViews; }
 
    private:
     friend class SceneFrameRenderer;
@@ -396,6 +415,25 @@ class SAIGA_VULKAN_API RenderScene
     // The debug core (S36a1b)
     std::unique_ptr<LightingDebug> debugImages;
     std::unique_ptr<DebugLines> lines;
+    // S36a2: the cascades
+    std::unique_ptr<CascadedShadows> cascades;
+    std::unique_ptr<ShadowPipelineTable> shadowTable;
+    bool freezeCascades = false;
+    int previewCascade  = 0;
+    // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon
+    int shadowLightChoice = 0;
+    // The frame's cascades: rendered this frame, the views (cascade c is view c + 1)
+    bool frameCascades = false;
+    std::vector<ShadowView> shadowViews;
+    // The casters of each cascade's last render (from the GPU statistics of the frame that rendered it)
+    std::array<uint32_t, kMaxCascades> cascadeInstances = {}, cascadeTriangles = {};
+    std::array<TerrainPass::ShadowStats, kMaxCascades> cascadeTerrain = {};
+    // The camera positions of the last second (the staggered cascades' margin) and the frame clock
+    std::deque<std::pair<double, Vec3>> cameraHistory;
+    // The cascades of the frame (after frameLighting: the shadow light; fills the block's cascade fields)
+    void frameShadows(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex);
+    // The overlays of the cascades (DebugLines)
+    void cascadeOverlays();
     LightingDebugState userDebug, frameDebug;
     std::optional<LightingDebugState> debugOverride;
     // The radiance views write raw values (the probe frames)
@@ -473,6 +511,8 @@ class SAIGA_VULKAN_API RenderScene
         uint64_t timelineValue = 0;
         uint32_t drawCommands  = 0;
         uint32_t terrainNodes  = 0;
+        // S36a2: the cascades rendered in the frame (bit c)
+        uint32_t cascadeMask = 0;
     };
     std::array<SlotStatistics, 2> slotStatistics;
     RenderStatistics stats;
@@ -486,7 +526,7 @@ class SAIGA_VULKAN_API RenderScene
     void updateMatrices(int width, int height);
     // The lighting block of the frame's draws (the legacy fields and S36's)
     void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, bool enclosed, int samples,
-                       SceneLighting& out) const;
+                       SceneLighting& out);
     // The frame slot's lighting set (block, ambient, foliage, LUTs): in the transfer section
     void writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& block);
     const Callback* transferFn         = nullptr;
