@@ -17,7 +17,9 @@
 #include "saiga/engine/app/EngineMain.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
 
+#include "games/common/Environment.h"
 #include "games/flight/FlightRender.h"
 
 using namespace Saiga;
@@ -33,7 +35,9 @@ int main(int argc, char** argv)
     setup.name               = "flight";
     setup.render.msaaSamples = 4;
     // The data directory: data/flight (engineMain, --data)
-    setup.world           = flightWorldSetup(context, "");
+    setup.world = flightWorldSetup(context, "");
+    // S36: the time of day and the weather (data/flight/environment.json), ACES
+    enableEnvironment(setup, "flight");
     setup.scenarios       = flightScenarios;
     setup.networkVariants = true;
     setup.checkOptions    = clampCoopDemoDelay;
@@ -88,6 +92,16 @@ int main(int argc, char** argv)
                               start.spawn<Autopilot>(Vec3::Zero());
                           else
                               app.setLocalPlayer(spawnDriven<Aircraft>(start, 0, 0).driver);
+                          // S36: the demo's day passes in 10 minutes from 6:00 (sunrise, noon, sunset, the night with
+                          // the moon; --time-of-day / --day-length override it after this)
+                          if (options.has("--demo"))
+                          {
+                              WorldTimeChange day;
+                              day.hours = 6.0;
+                              day.rate  = 86400.0 / 600.0;
+                              std::string error;
+                              setWorldTime(start, day, error);
+                          }
                           // Fly a while before the first frame, so the demo starts in a turn (and a screenshot shows
                           // it)
                           if (options.has("--demo")) app.stepAll(60 * 12);

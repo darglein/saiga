@@ -17,6 +17,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 
+#include "games/common/Environment.h"
 #include "games/racing/RacingRender.h"
 
 using namespace Saiga;
@@ -32,9 +33,11 @@ int main(int argc, char** argv)
     setup.name               = "racing";
     setup.render.msaaSamples = 4;
     setup.world              = racingWorldSetup(context);
-    setup.scenarios          = racingScenarios;
-    setup.networkVariants    = true;
-    setup.checkOptions       = clampCoopDemoDelay;
+    // S36: the environment with the code defaults (a frozen noon), ACES
+    enableEnvironment(setup, "racing");
+    setup.scenarios       = racingScenarios;
+    setup.networkVariants = true;
+    setup.checkOptions    = clampCoopDemoDelay;
     // --coop: the joined peer's car (R-MECH-1); a leaving peer's driver goes, its car stays empty
     setup.onPeerJoined = [](EngineApp& app, World& host, uint8_t peer)
     { racingPeerJoined(host, peer, app.options().has("--demo")); };
