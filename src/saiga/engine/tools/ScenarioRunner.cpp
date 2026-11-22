@@ -8,6 +8,7 @@
 
 #include "saiga/engine/tools/ScenarioRunner.h"
 
+#include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/save/SaveDiff.h"
 
 #include <algorithm>
@@ -373,9 +374,12 @@ ScenarioResult runScenario(const WorldSetup& setup, const ScenarioList::Entry& e
 std::vector<ScenarioResult> runScenarios(const WorldSetup& setup, const ScenarioList& list, const std::string& filter,
                                          const ScenarioOptions& options)
 {
+    // One content cache for every run of this setup (§17.2, S23a)
+    WorldSetup shared = setup;
+    if (!shared.sharedContent) shared.sharedContent = std::make_shared<ContentCache>();
     std::vector<ScenarioResult> results;
     for (const ScenarioList::Entry* e : list.match(filter))
-        for (ScenarioVariant v : variantsFor(*e, options)) results.push_back(runScenario(setup, *e, v, options));
+        for (ScenarioVariant v : variantsFor(*e, options)) results.push_back(runScenario(shared, *e, v, options));
     return results;
 }
 

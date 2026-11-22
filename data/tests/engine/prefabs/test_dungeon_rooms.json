@@ -1,0 +1,36 @@
+{
+  "format": 1,
+  "footprint": [-64, -64, 64, 64],
+  "entities": [
+    {
+      "class": "TestChest",
+      "position": [10, 0, 10],
+      "components": {
+        "Health": {
+          "hp": 20
+        }
+      }
+    },
+    {
+      "class": "TestEntrance",
+      "position": [0, 0, -30],
+      "space_link": {
+        "to": "parent",
+        "arrival": [0, 0, 20],
+        "arrival_yaw_deg": 180
+      }
+    }
+  ],
+  "static_geometry": [
+    {
+      "mesh": "test/pillar",
+      "position": [-20, 0, -20],
+      "yaw_deg": 0
+    },
+    {
+      "mesh": "test/pillar",
+      "position": [20, 0, 20],
+      "yaw_deg": 90
+    }
+  ]
+}

@@ -8,6 +8,7 @@
 
 #include "saiga/engine/tools/ScenarioWorld.h"
 
+#include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/net/Replication.h"
@@ -29,12 +30,18 @@ WorldSetup scenarioSetup(WorldSetup s)
 {
     // No clock calls: a scenario is reproducible (R-DET-1)
     s.profiling = false;
+    // Content within 128 m of a player is stamped (§17.2; S23a): a scenario that needs content farther away moves its
+    // Player there
+    for (SpaceTemplate& t : s.config.spaceTemplates) t.fullRadius = std::min(t.fullRadius, 128.0);
+    // The worlds of a scenario (host, clients, the save/load replacement) share one content cache (§17.2; one per
+    // setup: the runner passes its own to every run)
+    if (!s.sharedContent) s.sharedContent = std::make_shared<ContentCache>();
     return s;
 }
 }  // namespace
 
 ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, const ScenarioNetwork& n)
-    : setup(scenarioSetup(s)), options(o), network(n), asyncRng(hashCombine(s.seed, 0x5CE7A110ull))
+    : worldSetup(scenarioSetup(s)), options(o), network(n), asyncRng(hashCombine(s.seed, 0x5CE7A110ull))
 {
     logStart = engineLog().lastSequence();
     if (network.enabled)
@@ -42,18 +49,18 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
         // The host (peer 0) and the clients over a loopback network without loss (§17.3); reproducible (R-DET-1)
         LoopbackOptions lo;
         lo.delayRounds = network.delaySteps;
-        lo.seed        = hashCombine(setup.seed, 0x4E7ull);
+        lo.seed        = hashCombine(worldSetup.seed, 0x4E7ull);
         transports     = LoopbackTransport::createNetwork(1 + std::max(1, options.clients), lo);
-        WorldSetup hs  = setup;
+        WorldSetup hs  = worldSetup;
         hs.transport   = transports[0].get();
         hs.role        = NetRole::Host;
         hs.localPeer   = 0;
         w              = std::make_unique<World>(hs);
     }
     else
-        w = std::make_unique<World>(setup);
+        w = std::make_unique<World>(worldSetup);
     // A replacement world shares the data (also after reload_data)
-    setup.sharedData = w->sharedDataStore();
+    worldSetup.sharedData = w->sharedDataStore();
     w->setTickEveryStep(true);
     // Every world of the scenario has its own recording sink, so the extract runs in every scenario (§17.2, S19b)
     hostSink = giveSink(*w);
@@ -66,7 +73,7 @@ ScenarioWorld::ScenarioWorld(const WorldSetup& s, const ScenarioOptions& o, cons
         w->replication().setWriteDetector(report);
         for (size_t i = 1; i < transports.size(); ++i)
         {
-            WorldSetup cs = setup;
+            WorldSetup cs = worldSetup;
             cs.transport  = transports[i].get();
             cs.role       = NetRole::Client;
             cs.localPeer  = uint8_t(i);
@@ -535,7 +542,7 @@ void ScenarioWorld::saveLoad()
     control.saveLoadDone             = true;
     control.swappedAtStep            = observedSteps;
     const std::vector<uint8_t> saved = w->save();
-    auto fresh                       = std::make_unique<World>(setup);
+    auto fresh                       = std::make_unique<World>(worldSetup);
     // Before the load: configure() and onLoad() of the loaded game objects see the scenario's tick setting
     fresh->setTickEveryStep(w->tickEveryStep());
     // Its own sink before the load: the load's structural records create the instances (S19b)

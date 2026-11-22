@@ -19,6 +19,8 @@ namespace Engine
 using ComponentId = uint8_t;
 using EventId     = uint16_t;
 using ClassId     = uint16_t;
+// A content generator of WorldSetup::generators (§12.1; S23a); 0 is the engine's FlatGenerator
+using GeneratorId = uint16_t;
 
 constexpr size_t kMaxComponents           = 256;
 constexpr ComponentId kFirstGameComponent = 64;

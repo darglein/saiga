@@ -21,12 +21,17 @@
 
 #include "json11.hpp"
 
+#include "saiga/core/util/tostring.h"
+
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <iomanip>
 #include <limits>
+#include <locale>
+#include <sstream>
 
 namespace json11
 {
@@ -62,9 +67,11 @@ static void dump(double value, string& out)
 {
     if (std::isfinite(value))
     {
-        char buf[32];
-        snprintf(buf, sizeof buf, "%.17g", value);
-        out += buf;
+        // %.17g without the C locale (a decimal comma under de_DE): the stream's default float format is %g
+        std::ostringstream strm;
+        strm.imbue(std::locale::classic());
+        strm << std::setprecision(17) << value;
+        out += strm.str();
     }
     else
     {
@@ -756,7 +763,19 @@ struct JsonParser final
             while (in_range(str[i], '0', '9')) i++;
         }
 
-        return std::strtod(str.c_str() + start_pos, nullptr);
+        // Without the C locale (strtod reads a decimal comma under de_DE): the validated text through ParseNumber
+        const std::string text = str.substr(start_pos, i - start_pos);
+        double value           = 0;
+        if (!Saiga::ParseNumber(text, value))
+        {
+            // Out of the double range (the text is a valid number): overflow to infinity, underflow to zero, as strtod
+            const size_t e      = text.find_first_of("eE");
+            const bool negExp   = e != std::string::npos && e + 1 < text.size() && text[e + 1] == '-';
+            const bool negative = text[0] == '-';
+            value               = negExp ? 0.0 : std::numeric_limits<double>::infinity();
+            if (negative) value = -value;
+        }
+        return value;
     }
 
     /* expect(str, res)

@@ -83,6 +83,9 @@ class SAIGA_ENGINE_API ScenarioWorld
 
     // The host world (checks run there)
     World& world() { return *w; }
+    // The setup the worlds are built from (F3 of S23a: with the 128 m fullRadius override and the shared data and
+    // content of this scenario), e.g. for checkContentHashes
+    const WorldSetup& setup() const { return worldSetup; }
     // The host + client variants (§17.3): the client world of a peer (1..clients) and a host entity's handle there
     // (through its NetId; Entity{} if it has not arrived)
     bool networked() const { return network.enabled; }
@@ -236,7 +239,7 @@ class SAIGA_ENGINE_API ScenarioWorld
     void involve(Entity e);
     void onStep();
 
-    WorldSetup setup;
+    WorldSetup worldSetup;
     ScenarioOptions options;
     ScenarioNetwork network;
     // Before the worlds: the transports and the sinks outlive them

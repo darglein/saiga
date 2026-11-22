@@ -9,6 +9,7 @@
 
 #include "saiga/engine/api/WorldApi.h"
 
+#include "saiga/engine/api/ComponentJson.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
@@ -237,59 +238,6 @@ std::vector<Entity> childrenOf(World& w, Entity parent)
     return out;
 }
 
-// p is e or one of e's descendants (a Parent link from e to p would close a cycle)
-bool isSelfOrDescendant(World& w, Entity e, Entity p)
-{
-    const uint32_t limit = w.registry().slotCount();
-    for (uint32_t n = 0; n <= limit && p.valid(); ++n)
-    {
-        if (p == e) return true;
-        const Parent* link = w.tryRead<Parent>(p);
-        p                  = link ? link->entity : Entity{};
-    }
-    return false;
-}
-
-// A Parent value from JSON, checked: an alive parent, no cycle, no world-state child (child may be invalid: a new
-// entity of spawn)
-bool parentFromJson(World& w, Entity child, const Json& values, Parent& out, std::string& error)
-{
-    Parent p = out;
-    if (!fromJson(values, p, &error, true)) return false;
-    if (!w.alive(p.entity))
-    {
-        error = "Parent: the parent entity is not alive";
-        return false;
-    }
-    if (stateEntity(w.registry(), p.entity))
-    {
-        error = "Parent: a world-state entity is not a parent";
-        return false;
-    }
-    if (child.valid() && stateEntity(w.registry(), child))
-    {
-        error = "Parent: world-state entities cannot have a parent";
-        return false;
-    }
-    if (child.valid() && isSelfOrDescendant(w, child, p.entity))
-    {
-        error = "Parent: the link would form a cycle";
-        return false;
-    }
-    out = p;
-    return true;
-}
-
-// Components that the generic add/remove/spawn paths do not handle
-std::string specialComponent(ComponentId id, bool adding)
-{
-    if (id == Transform::id) return "Transform: every entity has one (use set_transform; its space: move_to_space)";
-    if (id == Behaviour::id && adding) return "Behaviour: added by spawn with a class";
-    if (id == Persistent::id && adding) return "Persistent: assigned by makePersistent";
-    if (id == NetOwner::id) return "NetOwner: set by setOwner on the host before the spawn (read-only)";
-    return {};
-}
-
 // The network rules of an edit (R-NET-2, §16.2; S16): empty if allowed. A client edits replicated entities only in
 // their owned owner-authoritative components (and its peer-local Never components); the host does not edit the
 // owner-authoritative values of a spawned client-owned entity (adds, removes and destroys stay with the host).
@@ -318,58 +266,6 @@ std::string netEditRefusal(World& w, Entity e, ComponentId id, bool structural)
 bool uniformScale(const Vec3& s)
 {
     return s(1) == s(0) && s(2) == s(0);
-}
-
-// RenderInstance values: the mesh must be registered (aliases resolved); nothing is changed (S19b)
-bool checkRenderMeshValues(World& w, const RenderInstance& current, const Json& values, std::string& error)
-{
-    RenderInstance r = current;
-    if (!fromJson(values, r, &error, true)) return false;
-    Vulkan::MeshId id = 0;
-    if (!w.resolveRenderMesh(r.mesh, id))
-    {
-        error = "RenderInstance: the mesh \"" + r.mesh + "\" is not registered";
-        return false;
-    }
-    return true;
-}
-
-// Checks the values of an initial or added component (nothing is changed)
-bool checkComponentValues(World& w, Entity child, ComponentId id, const Json& values, std::string& error)
-{
-    const std::string special = specialComponent(id, true);
-    if (!special.empty())
-    {
-        error = special;
-        return false;
-    }
-    if (id == RenderInstance::id && !values.is_null() && !checkRenderMeshValues(w, RenderInstance(), values, error))
-        return false;
-    if (id == Parent::id)
-    {
-        Parent p;
-        return parentFromJson(w, child, values.is_null() ? emptyObject() : values, p, error);
-    }
-    if (values.is_null()) return true;
-    return w.registry().poolById(id)->checkJson(values, error);
-}
-
-// Adds a component with values (checked before; a Parent is checked again: hooks may have changed the world since)
-bool addComponentValues(World& w, Entity e, ComponentId id, const Json& values, std::string& error)
-{
-    if (id == Parent::id)
-    {
-        Parent p;
-        if (!parentFromJson(w, e, values.is_null() ? emptyObject() : values, p, error)) return false;
-        w.add<Parent>(e, p);
-        return true;
-    }
-    w.addDefaultNow(e, id);
-    bool ok = true;
-    if (!values.is_null()) ok = w.registry().poolById(id)->mergeJson(e.index, values, error);
-    // The add path of the name (S19b)
-    if (id == RenderInstance::id) w.renderMeshWritten(e, true);
-    return ok;
 }
 
 // The fields set_component accepts back (an undo payload): Transform without space, Behaviour without the derived and
@@ -1742,38 +1638,8 @@ ApiResult WorldApi::spawn(const Json& a)
     for (auto& c : initial)
     {
         if (!w->alive(e)) break;
-        bool ok = true;
         error.clear();
-        if (w->registry().entityMask(e).test(c.first))
-        {
-            if (c.first == Parent::id)
-            {
-                Parent p = w->read<Parent>(e);
-                ok       = parentFromJson(*w, e, c.second, p, error);
-                if (ok)
-                {
-                    w->remove<Parent>(e);
-                    w->add<Parent>(e, p);
-                }
-            }
-            else if (!c.second.is_null())
-            {
-                // RenderInstance: the name write goes through renderMeshWritten (its cached ID and name record; the
-                // values were checked above)
-                std::string previousMesh;
-                if (c.first == RenderInstance::id) previousMesh = w->read<RenderInstance>(e).mesh;
-                ok = w->registry().poolById(c.first)->mergeJson(e.index, c.second, error);
-                if (c.first == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
-            }
-        }
-        else if (c.first == RenderInstance::id && !uniformScale(w->read<Transform>(e).scale()))
-        {
-            // The class set a non-uniform scale (and the request kept it): not rendered
-            ok    = false;
-            error = "an entity with RenderInstance has a uniform scale (x = y = z); the class set a non-uniform one";
-        }
-        else
-            ok = addComponentValues(*w, e, c.first, c.second, error);
+        const bool ok = mergeComponentValues(*w, e, c.first, c.second, error);
         if (!ok)
             skipped.push_back(Json::object{{"component", w->registry().componentInfo(c.first).name}, {"error", error}});
     }
