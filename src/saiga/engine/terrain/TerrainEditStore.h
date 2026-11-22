@@ -137,6 +137,13 @@ class SAIGA_ENGINE_API TerrainEditStore
    private:
     struct Space
     {
+        // Move only: MSVC's unordered_map move constructor is not noexcept, so std::vector would copy a copyable Space
+        Space()                        = default;
+        Space(const Space&)            = delete;
+        Space& operator=(const Space&) = delete;
+        Space(Space&&)                 = default;
+        Space& operator=(Space&&)      = default;
+
         int spacing        = 1;
         int64_t S          = 256;
         int32_t sizeChunks = 0;

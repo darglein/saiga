@@ -365,7 +365,8 @@ TEST(BrushKernel, SmoothRoundsOnceToTheNearest)
 
 TEST(BrushKernel, ClampDecidedAfterTheClamp)
 {
-    constexpr int32_t L = kTerrainHeightLimit;
+    // static: usable in the lambdas without a capture on every compiler (MSVC requires one for a local constexpr)
+    static constexpr int32_t L = kTerrainHeightLimit;
     // Add at +2^23 and Subtract at -2^23 change nothing
     const KernelRun a =
         runKernel(brush(TerrainBrush::Add, 100, 100, 6, 2), 1, 4096, [](int64_t, int64_t) { return L; });
