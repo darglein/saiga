@@ -11,7 +11,11 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/vulkan/scene/RenderScene.h"
+
+#include <algorithm>
+#include <thread>
 
 
 namespace Saiga
@@ -29,6 +33,13 @@ void FlightRender::init(EngineApp& _app)
     prototype.attach(*app->scene(), {}, kFlightFoliageSeed);
     // The world prototype's settings and tree counts as a section of the debug UI (S19c)
     app->debugUi().addSection(DebugTab::Engine, "World", [this]() { prototype.imgui(); });
+
+    // The content sets of the 3 km radius (flightSpaceTemplate) are generated on the terrain's streaming pool: more
+    // workers than the default 2 (a third of the hardware threads, 2 to 6) keep the first frame (completeView) and the
+    // streaming at cruise speed fast; set before the pool is created by the first frame
+    TerrainViewSettings streaming = app->world().terrain().viewSettings();
+    streaming.workers             = std::clamp(int(std::thread::hardware_concurrency()) / 3, 2, 6);
+    app->world().terrain().setViewSettings(streaming);
 
     camera.distance     = 24;
     camera.height       = 5;

@@ -45,8 +45,8 @@ using namespace Engine;
 
 // The generator's constants mirror S20's prototype values (the water plane of PrototypeScene, the circuit)
 static_assert(kFlightSeaLevel == Vulkan::kPrototypeSeaLevel, "the flight sea level is the prototype's water level");
-static_assert(double(kFlightMountainHeight) == Vulkan::kPrototypeMountainHeight * 1024, "the mountain height");
-static_assert(double(kFlightCircuitCentre) == Vulkan::kPrototypeArea / 2, "the circuit centre of the land disc");
+static_assert(double(kFlightCircuitCentre) == Vulkan::kPrototypeArea / 2,
+              "the circuit centre (the land under the circuit)");
 
 std::shared_ptr<const FlightContext> FlightContext::create(uint64_t seed)
 {
@@ -260,7 +260,8 @@ SpaceTemplate flightSpaceTemplate()
     t.seaLevel    = kFlightSeaLevel;
     t.sizeChunks  = 128;
     t.generator   = kFlightOverworldGenerator;
-    t.fullRadius  = 1000;
+    // The trees, rocks and ruins up to 3 km (the content sets; the 32 km world needs more than the 1 km default)
+    t.fullRadius = 3000;
     return t;
 }
 
@@ -374,7 +375,8 @@ std::string ruinStampedOpen(ScenarioWorld& w, const Site& ruin)
 void flightScenarios(ScenarioList& list)
 {
     // The autopilot's positions after 600 and 1800 steps (S13b; re-recorded in S23c over the OverworldGenerator's
-    // terrain: before (6506.433, 402.839, 4752.384) and (5858.335, 362.351, 5875.344) over the prototype's)
+    // terrain: before (6506.433, 402.839, 4752.384) and (5858.335, 362.351, 5875.344) over the prototype's; again after
+    // the 32 km layout: before (6505.742, 325.853, 4741.635) and (5879.619, 330.511, 5857.057) over the land disc)
     list.add("autopilot_flies_the_circuit",
              [](ScenarioWorld& w)
              {
@@ -387,9 +389,9 @@ void flightScenarios(ScenarioList& list)
                                                               std::to_string(p(1)) + " " + std::to_string(p(2)));
                  };
                  w.step(600);
-                 near(Vec3(6505.742, 325.853, 4741.635), "step 600");
+                 near(Vec3(6505.847, 351.931, 4741.826), "step 600");
                  w.step(1200);
-                 near(Vec3(5879.619, 330.511, 5857.057), "step 1800");
+                 near(Vec3(5878.704, 352.505, 5858.160), "step 1800");
                  const double altitude = flightModelOf(w.world(), plane).altitudeAboveGround();
                  w.check(std::abs(altitude - 300) < 30, "holds 300 m above the ground: " + std::to_string(altitude));
                  w.check(!w.world().read<AircraftState>(plane).crashed, "did not crash");

@@ -150,7 +150,7 @@ constexpr const char* kChestMesh = "flight/chest";
 constexpr uint32_t kFlightFoliageSeed = 1;
 
 // The flight demo's generator ID and space template (S23c): flight_overworld (OverworldGenerator), open world, 128
-// chunks (32 km) at base spacing 1, the generator's sea level, fullRadius 1000 m
+// chunks (32 km) at base spacing 1, the generator's sea level, fullRadius 3000 m
 constexpr Engine::GeneratorId kFlightOverworldGenerator = 1;
 Engine::SpaceTemplate flightSpaceTemplate();
 

@@ -1672,8 +1672,9 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
   nothing), `View` (`EngineApp`'s rendered world: `TerrainSystem::updateView` / `completeView` run the content part
   also in a space without terrain; the chunks of the camera's space within `fullRadius`, generated on the streaming
   pool (`ContentRenderSettings::setsPerFrame` requests per update, default 4; a request still queued when its set goes is
-  cancelled), synchronously in `completeView` within its deadline (no build starts after it; the view is then
-  incomplete)) or `Players` (`ScenarioWorld`: a pass in phase 8 after the render extract, the chunks within
+  cancelled), in `completeView` before it returns: every missing set is requested without the budget and the caller
+  runs the pool's jobs with its workers until they are installed, within its deadline (no request after it; the view is
+  then incomplete; S23c's 3 km flight radius needed the workers)) or `Players` (`ScenarioWorld`: a pass in phase 8 after the render extract, the chunks within
   `fullRadius` of every `Player` of the world, synchronous; not in `stepNetworkOnly`); a set goes when its chunk is
   more than `fullRadius + 256 m` from every centre (S24 replaces this). Record changes reach the sink at once
   (`World::onRecordChanged`, also inside `stepNetworkOnly`): another placement version removes the set and requests it
@@ -2277,12 +2278,16 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   rule for its masks (S23b: its exact thresholds, `grassRule()`, are the terrain's mask rule of a legacy space, §10.1). The games' prototype fixture is the `HookGenerator` "prototype" (float noise, `integerOnly()`
   false; `samples/games/common/PrototypeSpace.h`), used by `game_world` and racing until S27 (flight until S23c).
 - **The first game generator** (S23c): flight's `OverworldGenerator` "flight_overworld" v1
-  (`samples/games/flight/content/`, linted): a land disc around the demo's circuit centre (coast radius 4.5-6.5 km)
-  in the 32 km space at base spacing 1, the `biomes` (256 m) and `rivers` (64 m) plan grids filled first in `plan()`,
-  heights in a fixed order (land base, clamp, coastal falloff, river carving, range check), the slots spruce and
-  broadleaf (`TombstoneOnEdit`, one 8 m grid shared by species) and rock (`ReSnapOnEdit`, 32 m), grass from the
-  natural heights on a 4 m lattice, the fixed ruin (key 1, its ground checked in every build) and grid ruins on a
-  2 km grid (prefab `data/flight/prefabs/ruin.json`). About 35 ms per land chunk (single-threaded, Release).
+  (`samples/games/flight/content/`, linted): land over the whole 32 km space at base spacing 1 (after the live demo:
+  a continent mask of an 8 km fbm with coasts, islands, bays and inland seas, about 66 % land, the space edge falling
+  to the ocean, at least 3 km of land around the demo's circuit centre; mountain ranges up to about 1040 m along the
+  zero band of an 8 km noise, rivers from the foothills down the continent to the sea or into a lake, lowland lakes),
+  the `biomes` (256 m, the meadow / forest value) and `rivers` (64 m, the valley weight) plan grids filled first in
+  `plan()`, heights in a fixed order (sea floor or land base with the ranges, clamp, shore band, valleys, range check),
+  the slots spruce and broadleaf (`TombstoneOnEdit`, one 8 m grid shared by species) and rock (`ReSnapOnEdit`, 32 m),
+  grass from the natural heights on a 4 m lattice, the fixed ruin (key 1, its ground checked in every build) and grid
+  ruins on a 2 km grid over the space (prefab `data/flight/prefabs/ruin.json`). About 50-58 ms of heights per land
+  chunk (single-threaded, -O2; the land disc had 32 ms).
 - **Chunk content** (`ChunkContent.h`): `ChunkBase` (keyed by generator, pinned version, plan hash and chunk: the
   level-0 heights at the base spacing, S20's layout), `ChunkPlacement` (keyed by the chunk's placement version: the
   tier-1 instances sorted by (slot, counter), the grass mask with excluded cells cleared, every section hash and the
@@ -3793,7 +3798,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 
 | Game | Shows | Directory, executable |
 |---|---|---|
-| Flight simulator | the large world and efficient rendering: a small airplane over a 32 km generated overworld (S23c: the integer `OverworldGenerator`: land around the circuit, ruin sites, forests and rocks as tier-1 sets within 1 km until S27's far content, CDLOD terrain); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit past the fixed ruin | `samples/games/flight/`, `game_flight` |
+| Flight simulator | the large world and efficient rendering: a small airplane over a 32 km generated overworld (S23c: the integer `OverworldGenerator`: land over the 32 km space with mountain ranges, inland seas, rivers and lakes, ruin sites, forests and rocks as tier-1 sets within 3 km until S27's far content, CDLOD terrain); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit past the fixed ruin | `samples/games/flight/`, `game_flight` |
 | Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level; S21: an enclosed cellar (space 1) behind a door (`SpaceLink`, the interact action F, the engine's `spaceLinkSystem`), `--demo --cellar` runs the demo through it | `samples/games/platformer/`, `game_platformer` |
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
 
@@ -3806,8 +3811,10 @@ client world and answer with the client error). The flight, platformer and racin
 (`samples/games/common/PrototypeSpace.h`: `registerPrototypeGenerator`, `kPrototypeGenerator`; `game_world`'s second
 template `islands` registers its own `HookGenerator`); heights, scenarios and screenshots are unchanged. S23c: flight
 is the first game on an integer generator (`flight_overworld`, §12.1): its space template `flightSpaceTemplate()`
-(128 chunks at 1 m, `fullRadius` 1000 m until S27: trees and rocks up to 1 km, bare terrain beyond; 2 km measured at
-about 3.5x the sets at start and 2x the sets per second, not adopted), the ground `flightGround(world, x, z)` from
+(128 chunks at 1 m, `fullRadius` 3000 m until S27: trees, rocks and ruins up to 3 km, bare terrain beyond; after the
+live demo, raised from S23c's 1000 m: about 510 sets and 39 000 drawn instances at the demo's screenshot, the first
+frame after about 6 s with `completeView` generating the sets on the streaming pool, whose workers `FlightRender` raises
+to a third of the hardware threads, 2 to 6), the ground `flightGround(world, x, z)` from
 `World::terrainHeight` (the context keeps the circuit only), `FlightRender` keeps `PrototypeScene` for the sky, water
 and the foliage texture (`kFlightFoliageSeed`, also the seed of the tree meshes `flight/spruce` / `flight/broadleaf`
 of `renderAssets`) without a forest; the content sets, grass masks and stamping are the engine's. The ruin's chest

@@ -55,8 +55,37 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
   mountain height up to `520 * 1024` (as `kPrototypeMountainHeight`).
 - Template `flight_overworld` (built in `FlightWorld.cpp`, replacing `prototypeSpaceTemplate()` in flight's setup):
   open world, 128 chunks (32 km), base spacing 1, sea level 6 m, `generator` = the `OverworldGenerator`'s ID,
-  `fullRadius` 1000 m (the default; see Scope 3).
-- **Layout** (the circuit is fixed by S20 in the corner of the space, so the land is placed where the demo flies).
+  `fullRadius` 1000 m (the default; see Scope 3; 3000 m after the live demo, L2).
+- **Layout after the live demo** (L1 of the review log; replaces the land disc below, which stays here as the planned
+  and first implemented layout). Land over the whole 32 km space; noise inputs integer metres, every `fbm` / `ridged`
+  satisfies `octaves <= cellShift`:
+  - land mask `m` (Q16, land where `m > 0`): 12000 + `fbm(cellShift 13 (8 km), 3 octaves)`; around the circuit centre
+    `m = max(m, floor)` with floor 30000 within 3 km, fading linearly to -65536 at 7 km (full land under the circuit,
+    the respawn point and the fixed ruin; the floor comes before the coast detail, so a coast near the circuit is not
+    round); + 9000 * `fbm(cellShift 10, 3 octaves)` (coast detail, 1 km - 256 m); the space edge lowers `m` by up to
+    80000 over its last 1200 m (the circuit lies 1638 m inside). About 66 % of the space is land (continent, islands,
+    bays, inland seas of up to about 10 km);
+  - mountain ranges: the range weight is the zero band `|fbm(cellShift 13, 2 octaves)| < 20000` (smoothed), faded along
+    its length by a 4 km gradient noise, inland only (rising over `m` in [0, 24000]) and none within 4 km of the circuit
+    centre (full beyond 6 km); per sample, so the ranges are long winding lines;
+  - `biomes` plan grid (256 m): the vegetation value `min(fbm(cellShift 11, 2 octaves), 12000)` (meadow below -9000,
+    else forest); `biomeAt` raises it towards 65536 by the range weight (mountain from 22000) for slots and grass;
+  - `rivers` plan grid (64 m over the space, 512 x 512): the valley weight (Q16): 65536 on a river or lake cell, falling
+    linearly to 0 over 7 cells (a chamfer distance transform). Up to 24 rivers start in the foothills (range weight
+    0.1-0.27, `m >= 20000`, at least 6 km from the circuit centre, 2.5 km apart, in a hash order) and walk in 32 m
+    steps down the gradient of the continent's two coarsest octaves (+-35 degrees by a noise) until the sea, the space
+    edge or another river; they stop before a range (weight > 0.3) and end in a lake (320 m, noisy) where the guide
+    stops falling for 40 steps; lowland lakes (160-640 m) on a 4 km grid (45 %) where `m >= 16000`, the range weight is
+    below 0.25 and at least 5.5 km from the circuit centre;
+  - **height, in this order**: `m <= 0`: the sea floor, -4 m at the coast to -100 m at `m = -20000` (smoothed); land:
+    12 m + the inland plateau `min(m, 40000) * 70 m / 65536` + hills `fbm(cellShift 10, 6 octaves)` +-60 m + the
+    range weight `w` times (120 m + `ridged(cellShift 11, 5 octaves)^2` * 900 m), clamped to [sea level + 1 m, 1200 m],
+    blended over the shore band `m < 5000` to the coast floor -4 m, then the valleys towards 3 m below the sea level
+    with the weight `valley * (1 - w)` (no gorges through the ranges); the result lies in [-100 m, 1200 m] (asserted;
+    measured -100 m .. 1039 m). `kFlightMountainHeight` is 1200 m (no longer `kPrototypeMountainHeight`: the terrain is
+    clay shaded, nothing reads the prototype's value in flight; the `static_assert` is removed).
+- **Layout as planned and first implemented** (superseded by L1; the circuit is fixed by S20 in the corner of the
+  space, so the land is placed where the demo flies).
   Noise inputs are integer metres; every `fbm` / `ridged` call satisfies S23a's `octaves <= cellShift`:
   - land disc: `d` = the distance from the circuit centre (4096, 4096) in metres (`isqrt64`); the coast radius
     `R(x, z) = 5500 m + fbm(cellShift 11 (2048 m), 3 octaves) * 1000 m / 65536`, so `R` lies in [4500, 6500] m; land
@@ -99,7 +128,8 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
     its centre and four corners) <= 8 m ("fixed ruin site on unsuitable ground: move it"). It is **exempt from the
     circuit rule** below: it lies 2739 m from the circuit centre, about 280 m outside S20's 2458 m line and 240 m
     outside the flown circle, and its plateau (40 m around the origin) is far from the ground under the plane;
-  - **grid ruins** (keys 100 + cell index): a 2 km grid over `[0, 10240)^2` (25 cells), one candidate per cell
+  - **grid ruins** (keys 100 + cell index): a 2 km grid over `[0, 10240)^2` (25 cells; L1: over the whole space,
+    16 x 16 cells, keys 100 + `gz * 16 + gx`, 67 grid ruins), one candidate per cell
     jittered by `contentHash64` (+-600 m) with a random quarter turn; skipped when the natural height at the origin is
     below sea level + 2 m, the slope over the footprint (as above) exceeds 8 m, the rotated footprint leaves the space
     or overlaps another site (incl. the fixed ruin; closed bounds, S23a), or the origin lies within 300 m of the
@@ -157,6 +187,9 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
 - **Content radius**: flight keeps `fullRadius` = 1000 m until S27: at 300 m altitude trees and rocks are drawn up to
   1 km, bare terrain beyond (S27's far content brings them to the horizon). The cost of a larger radius (2 km: about 4x
   the sets and the generation per second of flight) is measured and reported, not adopted. §18.4 is amended.
+  L2 (after the live demo): `fullRadius` = 3000 m; `completeView` generates the missing sets on the streaming pool
+  (its workers and the caller) instead of one by one on the caller, and `FlightRender` raises the pool's workers to a
+  third of the hardware threads (2 to 6).
 
 ### 3b. Foliage material check in the frame (F4 of review round 3; `src/saiga/vulkan/scene/RenderScene.cpp`)
 
@@ -252,13 +285,14 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
 - **Flight shows the pipeline** in the demo that already shows terrain (§18.4): the `--demo` circuit passes a ruin,
   so its screenshot shows a site, tier-1 sets and the flattened patch.
 - **The land follows the circuit**: S20 fixed the circuit in the corner of the 32 km space; a land disc around it
-  guarantees ground under the autopilot and the respawn point without touching the flight code's circuit.
+  guarantees ground under the autopilot and the respawn point without touching the flight code's circuit. L1 keeps
+  the guarantee as a floor of the land mask around the circuit and puts land over the whole space.
 - **Game hashes are local, engine hashes are CI**: the games are not built on the GCC and MSVC jobs and not run by
   ctest; the engine generator exercises the same toolkit and pipeline on all three compilers. The game reuses the
   engine's `checkContentHashes`, so the file format and the update rule are the same.
 - **No cave**: the plane cannot enter it, a walking pilot would be a new game mode (D14), and the engine scenario
   covers site instance spaces.
-- **1 km of tier 1** until S27: the demo's look ends in bare terrain beyond 1 km; S27's far content is the planned fix
+- **1 km of tier 1** until S27 (L2: 3 km): the demo's look ends in bare terrain beyond 1 km; S27's far content is the planned fix
   (S27 depends on S23c, E13).
 
 ## Implementation steps
@@ -351,7 +385,7 @@ scenarios pass in their variants; the `game_world` and racing screenshots show t
    (S23a); chunk generation and streaming are reported.
 3. **The screenshot point** depends on the autopilot over the new terrain; step 3 measures it before the hash file is
    committed in step 4 (moving the fixed ruin later changes the committed plan).
-4. **Trees end at 1 km** until S27 (accepted, amendment 1).
+4. **Trees end at 1 km** until S27 (accepted, amendment 1; L2: at 3 km).
 5. **F4 weakens the early check**: a `PrototypeFoliage` material without the texture is now caught at the first frame
    that draws it instead of at registration; the assert names the cause, and the death test covers it.
 
@@ -496,6 +530,33 @@ Implementation review (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23
   instances and its statistics (`instancesPerLod`, the tracked meshes) count them.
 - The S20 fixes below this branch were rebased in without conflicts.
 
+User feedback after the live demo (2026-11-22: "looks smaller than a 32km world"; the land disc of 4.5-6.5 km in one
+corner and trees ending at 1 km):
+
+- L1 Layout: land over the whole space (Scope 1, "Layout after the live demo"): a continent mask with coasts, islands
+  and inland seas (about 66 % land), mountain ranges along the zero band of an 8 km noise up to about 1040 m
+  (`kFlightMountainHeight` 1200 m, the prototype mirror removed), rivers from the foothills to the sea or a lake,
+  lowland lakes, grid ruins on a 2 km grid over the whole space (67 instead of 11). Kept: land under the whole
+  circuit (a mask floor within 3 km of its centre; 0 of 2160 samples on circles of 2300, 2458 and 2600 m below sea
+  level + 1 m), the respawn point (47.5 m) and the fixed ruin at (6256, 5856) (natural height 50.9 m, slope 4.6 m over
+  its footprint; in front of the plane at the screenshot), heights within [-100 m, 1200 m], integer only (the lint
+  passes: 22 files, 0 findings; three `size_t` loop counters it refused became `uint32_t`). Tree line 380 -> 700 m and
+  grass up to 700 m (was 400 m) for the higher mountains. Generator name and version stay (`flight_overworld` v1):
+  the stage is not released, the hash file is regenerated.
+- L2 Content radius 1000 -> 3000 m (Scope 3). The engine has no cap on `fullRadius` and no content levels yet (S27:
+  `keptCount` is declared, `ContentRenderSystem` builds level 0 only), so the radius is the only lever. Measured with
+  the new layout (radius sweep below): the frame stays far within budget up to 3 km; the start was the limit:
+  `completeView` built the sets one by one on the caller (35 s to the first frame at 3 km). Engine change:
+  `ContentRenderSystem::viewUpdate` with `complete` (`completeSets`) requests every missing set on the streaming pool
+  without the per-frame budget and runs the pool with the caller until they are installed or the deadline passed (no
+  request after the deadline; the deadline-0 test is unchanged); `FlightRender::init` raises the terrain streaming
+  pool's workers (`TerrainViewSettings::workers`, game policy) to a third of the hardware threads, 2 to 6.
+- L3 Recorded values: `autopilot_flies_the_circuit` re-recorded (the ground under the circuit is about 25 m higher:
+  the inland plateau): step 600 (6505.742, 325.853, 4741.635) -> (6505.847, 351.931, 4741.826), step 1800 (5879.619,
+  330.511, 5857.057) -> (5878.704, 352.505, 5858.160). `data/flight/content_hashes.json` regenerated (every plan and
+  chunk hash except the far-sea chunk 0:127:127; the chunk 0:100:60 is land now; 368 chunks in the digest, was 277:
+  more site chunks). `crashes_into_terrain`, `flight_ruin_is_stamped` and the other scenarios pass unchanged.
+
 ## Design changes
 
 The design-doc amendments 1-3 are made in `docs/engine_design.md` (§3 rows and the known deviations, §10.1 (the F4
@@ -504,7 +565,8 @@ the S23c paragraph), §19 (`placeTrees` row), §22 (S23c done)) and in `AGENTS.m
 Changes against the plan (details in the implementation entry of the review log): the fixed ruin at (6256, 5856) (I2),
 river carving without the `d < R - 500 m` limit and with smooth banks (I3), bilinear biome values (I4), clumped tree
 densities (I5), grass from a 4 m lattice (I6), the public `planGrids` (I7), the F4 check over the sets' mesh lists
-(I8).
+(I8). After the live demo: the layout over the whole space (L1, §12.1 and §18.4 updated), `fullRadius` 3000 m and
+`completeView` generating the content sets on the streaming pool (L2, §10.1 and §18.4 updated).
 
 ## Results
 
@@ -548,3 +610,41 @@ Measured on the RTX 5080 Laptop GPU, lavapipe (Mesa with LLVM 21.1.8), GCC 15.2 
   65 m/s (one pool job each, about 35 ms), none left pending at the 2 s samples, 0 unknown meshes. The 2 km content
   radius (measured, not adopted): 222 sets at the start (3.5x), the first frame after 8.9 s, 4.2 sets per second.
 - Not done locally: the MSVC build (CI); `SAIGA_CONTENT_UBSAN` does not cover game sources (I10).
+
+After the live demo (L1-L3; RTX 5080 Laptop GPU, GCC 15.2 RelWithDebInfo with asserts; the demo headless at
+1920 x 1080 through MCP: `measure_performance` over 2 x 300 frames from about step 1100 of `--demo`, the first frame
+timed from the start to `app_status` reporting a rendered frame, incl. the 720 steps of `--demo`):
+
+- **Layout** (whole space at 32 m): 66 % land (17 % meadow, 65 % forest, 17 % mountain), heights -100 m .. 1039 m,
+  68 sites (the fixed ruin + 67 grid ruins), plan 17.5 ms (was 5 ms), the pyramid's 1025^2 heights 678 ms (was
+  104 ms), the heights of a land chunk 50-58 ms (was 32 ms; single-threaded, -O2): above the 50 ms report target,
+  information only; the content sets are generated on the pool workers.
+- **Radius sweep** (new layout, 2 workers; drawn instances after culling, per-frame values averaged; the GPU ran at a
+  low clock in these runs, its totals vary by up to 2x between runs at this load):
+
+  | radius | live sets | drawn instances | GPU total ms | scene.instances ms | cull ms | CPU work ms (p95) | first frame, sets one by one |
+  |---|---|---|---|---|---|---|---|
+  | 1000 (before: land disc) | 75-78 | 2 300 | 3.40 (0.96 at a high clock) | 0.09-0.19 | 0.03-0.06 | 0.53-0.56 (0.87) | 6.1 s |
+  | 1000 | 75-78 | 2 300 | 3.69-3.77 | 0.18-0.25 | 0.06 | 0.49-0.52 (0.88) | 9.4 s |
+  | 2000 | 241-249 | 12 000-13 500 | 3.89-4.00 | 0.33-0.37 | 0.09 | 0.54-0.60 (0.94) | 17.9 s |
+  | 2500 | 366 | 23 400-23 800 | 3.97-4.18 | 0.51-0.53 | 0.10 | 0.58-0.60 (1.14) | 25.9 s |
+  | 3000 | 508-514 | 38 800-39 700 | 4.31-4.32 | 0.79-0.80 | 0.13 | 0.68-0.71 (1.23) | 34.9 s |
+
+  The frame stays far within the 16.7 ms budget at every radius; the start decided: with `completeView` on the pool,
+  2500 m starts after 9.8 s with 2 workers, 5.0 s with 6 and 3.8 s with 10; 3000 m after 5.9 s with 6 workers (1000 m:
+  2.2 s), about the land disc's 6.1 s at 1 km. Adopted: 3000 m with 2-6 workers (6 here). The streaming keeps up at
+  cruise speed (the live set count stays at 505-514 while flying; about 6 new sets per second at 65 m/s, one pool job
+  of about 55 ms each).
+- **Final** (3000 m, 6 workers): the first frame after 5.9 s (`--demo` and without), 505-511 live sets, about 39 000
+  drawn instances, GPU 4.33 ms (a run at a higher clock: 2.80 ms), `scene.instances` 0.58-0.79 ms, cull 0.09-0.14 ms,
+  CPU work 0.61-0.67 ms (p95 1.0 ms).
+- **Scenarios** (GCC build): flight 30 passed, 0 failed (all variants incl. `HostClient`, `HostClientDelay`,
+  `HostClientAsync`); `flight_content_hashes` reproduces with GCC 15 and Clang 19 (368 chunks, 5.5 s).
+- **Tests.** ctest 80/80 on lavapipe (goldens unchanged; `ContentRender.*` incl. the deadline-0 case of
+  `ViewBuildsSetsAndReadiness` pass with the pool build); `ContentLint.Sources` 22 files, 0 findings; the Clang 19
+  build of `game_flight` and `test_engine_content` without warnings. The `game_world` benchmarks were not run (they
+  open a window): `game_world`'s prototype space has no content sets, so `completeSets` returns before requesting
+  anything and its frames are unchanged.
+- **Screenshots**: the `--demo` frame (forests to 3 km, the ranges and lakes on the horizon, the fixed ruin ahead of the
+  plane) and MCP views from 2.5 km above (9000, 9000), over the central range, the eastern inland sea and the
+  south-western coast.
