@@ -2280,8 +2280,9 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
 - **The first game generator** (S23c): flight's `OverworldGenerator` "flight_overworld" v1
   (`samples/games/flight/content/`, linted): land over the whole 32 km space at base spacing 1 (after the live demo:
   a continent mask of an 8 km fbm with coasts, islands, bays and inland seas, about 66 % land, the space edge falling
-  to the ocean, at least 3 km of land around the demo's circuit centre; mountain ranges up to about 1040 m along the
-  zero band of an 8 km noise, rivers from the foothills down the continent to the sea or into a lake, lowland lakes),
+  to the ocean, at least 2.9 km of land around the demo's circuit in the centre of the space with mountains and lakes
+  in view from 3.3 km on; mountain ranges up to about 1040 m along the zero band of an 8 km noise, rivers from the
+  foothills down the continent to the sea or into a lake, lowland lakes),
   the `biomes` (256 m, the meadow / forest value) and `rivers` (64 m, the valley weight) plan grids filled first in
   `plan()`, heights in a fixed order (sea floor or land base with the ranges, clamp, shore band, valleys, range check),
   the slots spruce and broadleaf (`TombstoneOnEdit`, one 8 m grid shared by species) and rock (`ReSnapOnEdit`, 32 m),
@@ -3815,11 +3816,12 @@ is the first game on an integer generator (`flight_overworld`, §12.1): its spac
 live demo, raised from S23c's 1000 m: about 510 sets and 39 000 drawn instances at the demo's screenshot, the first
 frame after about 6 s with `completeView` generating the sets on the streaming pool, whose workers `FlightRender` raises
 to a third of the hardware threads, 2 to 6), the ground `flightGround(world, x, z)` from
-`World::terrainHeight` (the context keeps the circuit only), `FlightRender` keeps `PrototypeScene` for the sky, water
-and the foliage texture (`kFlightFoliageSeed`, also the seed of the tree meshes `flight/spruce` / `flight/broadleaf`
-of `renderAssets`) without a forest; the content sets, grass masks and stamping are the engine's. The ruin's chest
-(`FlightChest`) is stamped around `Player` entities only (flying yourself; `--demo` has no player and shows the patch,
-the static parts, tier 1 and grass). Its scenarios `flight_ruin_is_stamped`, `flight_slot_meshes_resolve` and
+`World::terrainHeight` (the context keeps the circuit only: after the second live demo in the centre of the space,
+(16384, 16384), with S20's radius 2458 m; S20 had it at (4096, 4096)), `FlightRender` keeps `PrototypeScene` for the
+sky, water and the foliage texture (`kFlightFoliageSeed`, also the seed of the tree meshes `flight/spruce` /
+`flight/broadleaf` of `renderAssets`) without a forest; the content sets, grass masks and stamping are the engine's. The
+ruin's chest (`FlightChest`) is stamped around `Player` entities only (flying yourself; `--demo` has no player and shows
+the patch, the static parts, tier 1 and grass). Its scenarios `flight_ruin_is_stamped`, `flight_slot_meshes_resolve` and
 `flight_content_hashes` (the game's hash file and its update recipe, §12.1). `game_world` and racing stay on the
 prototype fixture until S27.
 

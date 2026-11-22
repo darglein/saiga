@@ -35,16 +35,16 @@ namespace Game
  * (with the lever) Host.
  */
 
-// Constant configuration (World::context): the world seed and the autopilot's circuit (S20: in the corner of the 32 km
-// space; S23c: the OverworldGenerator's land disc lies around it). The context is World-independent and shared by the
-// co-op worlds and the renderer; the ground is the world's terrain (flightGround)
+// Constant configuration (World::context): the world seed and the autopilot's circuit (S23c after the live demo: in the
+// centre of the 32 km space, kFlightCircuitCentre, with land under it; S20 had it in the corner). The context is
+// World-independent and shared by the co-op worlds and the renderer; the ground is the world's terrain (flightGround)
 struct FlightContext
 {
     // The space seed (WorldSetup::seed)
     uint64_t seed        = 1;
     Vec3 circuitCenter   = Vec3::Zero();
     double circuitRadius = 2500;
-    // The context of the world seed: the circuit around (4096, 4096) with the radius 0.3 * 8192 m (S20)
+    // The context of the world seed: the circuit around (16384, 16384) with S20's radius 0.3 * 8192 m
     static std::shared_ptr<const FlightContext> create(uint64_t seed = 1);
 };
 

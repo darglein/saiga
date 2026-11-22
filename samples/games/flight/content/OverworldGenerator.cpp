@@ -67,10 +67,10 @@ constexpr int64_t kLandBias = 12000, kCoastDetail = 9000, kShoreBand = 5000, kSe
 constexpr int64_t kEdgeWidth = 1200, kEdgePenalty = 80000;
 // The land under the circuit: the mask at least kCircuitFloor within kCircuitLand metres of the circuit centre, the
 // floor fading to -65536 at kCircuitLandEnd
-constexpr int64_t kCircuitLand = 3000, kCircuitLandEnd = 7000, kCircuitFloor = 30000;
-// No mountain ranges, rivers or lakes near the circuit: none within kClearInner metres of its centre, full beyond
-// kClearOuter
-constexpr int64_t kClearInner = 4000, kClearOuter = 6000;
+constexpr int64_t kCircuitLand = 2900, kCircuitLandEnd = 4500, kCircuitFloor = 30000;
+// No mountain ranges or rivers near the circuit: none within kClearInner metres of its centre, full beyond kClearOuter
+// (a river's valley reaches 448 m); no lowland lake centre within kLakeClear (a lake and its valley reach 1312 m)
+constexpr int64_t kClearInner = 3300, kClearOuter = 4300, kLakeClear = 4200;
 // The mountain range belts: |fbm| below kRangeWidth (Q16)
 constexpr int64_t kRangeWidth = 20000;
 // The river valleys: the chamfer distance (2 per cell orthogonal, 3 diagonal) over which the valley weight falls to 0
@@ -380,7 +380,7 @@ void OverworldGenerator::planRivers(WorldPlan& plan) const
             const int64_t x = lx * 4096 + 2048 - 1500 + int64_t((h >> 8) % 3001);
             const int64_t z = lz * 4096 + 2048 - 1500 + int64_t((h >> 24) % 3001);
             const int64_t m = landMask(plan, x, z);
-            if (m < 16000 || rangeWeight(plan, x, z, m) > 16384 || centreDistance256(x, z) < (kClearOuter - 500) * kPos)
+            if (m < 16000 || rangeWeight(plan, x, z, m) > 16384 || centreDistance256(x, z) < kLakeClear * kPos)
                 continue;
             lake(x, z, 160 + int64_t((h >> 40) % 481), 255);
         }

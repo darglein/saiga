@@ -60,23 +60,24 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
   and first implemented layout). Land over the whole 32 km space; noise inputs integer metres, every `fbm` / `ridged`
   satisfies `octaves <= cellShift`:
   - land mask `m` (Q16, land where `m > 0`): 12000 + `fbm(cellShift 13 (8 km), 3 octaves)`; around the circuit centre
-    `m = max(m, floor)` with floor 30000 within 3 km, fading linearly to -65536 at 7 km (full land under the circuit,
-    the respawn point and the fixed ruin; the floor comes before the coast detail, so a coast near the circuit is not
-    round); + 9000 * `fbm(cellShift 10, 3 octaves)` (coast detail, 1 km - 256 m); the space edge lowers `m` by up to
-    80000 over its last 1200 m (the circuit lies 1638 m inside). About 66 % of the space is land (continent, islands,
-    bays, inland seas of up to about 10 km);
+    `m = max(m, floor)` with floor 30000 within 3 km, fading linearly to -65536 at 7 km (L4: 2.9 km and 4.5 km, the
+    circuit in the centre of the space) (full land under the circuit, the respawn point and the fixed ruin; the floor
+    comes before the coast detail, so a coast near the circuit is not round); + 9000 * `fbm(cellShift 10, 3 octaves)`
+    (coast detail, 1 km - 256 m); the space edge lowers `m` by up to 80000 over its last 1200 m (the circuit lies 1638 m
+    inside; L4: 13.9 km). About 66 % of the space is land (continent, islands, bays, inland seas of up to about 10 km);
   - mountain ranges: the range weight is the zero band `|fbm(cellShift 13, 2 octaves)| < 20000` (smoothed), faded along
     its length by a 4 km gradient noise, inland only (rising over `m` in [0, 24000]) and none within 4 km of the circuit
-    centre (full beyond 6 km); per sample, so the ranges are long winding lines;
+    centre (full beyond 6 km; L4: 3.3 km, full beyond 4.3 km); per sample, so the ranges are long winding lines;
   - `biomes` plan grid (256 m): the vegetation value `min(fbm(cellShift 11, 2 octaves), 12000)` (meadow below -9000,
     else forest); `biomeAt` raises it towards 65536 by the range weight (mountain from 22000) for slots and grass;
   - `rivers` plan grid (64 m over the space, 512 x 512): the valley weight (Q16): 65536 on a river or lake cell, falling
     linearly to 0 over 7 cells (a chamfer distance transform). Up to 24 rivers start in the foothills (range weight
-    0.1-0.27, `m >= 20000`, at least 6 km from the circuit centre, 2.5 km apart, in a hash order) and walk in 32 m
-    steps down the gradient of the continent's two coarsest octaves (+-35 degrees by a noise) until the sea, the space
-    edge or another river; they stop before a range (weight > 0.3) and end in a lake (320 m, noisy) where the guide
-    stops falling for 40 steps; lowland lakes (160-640 m) on a 4 km grid (45 %) where `m >= 16000`, the range weight is
-    below 0.25 and at least 5.5 km from the circuit centre;
+    0.1-0.27, `m >= 20000`, at least 6 km (L4: 4.3 km) from the circuit centre, 2.5 km apart, in a hash order) and walk
+    in 32 m steps down the gradient of the continent's two coarsest octaves (+-35 degrees by a noise) until the sea, the
+    space edge or another river; they stop before a range (weight > 0.3) and 4 km (L4: 3.3 km) from the circuit centre
+    and end in a lake (320 m, noisy) where the guide stops falling for 40 steps; lowland lakes (160-640 m) on a 4 km
+    grid (45 %) where `m >= 16000`, the range weight is below 0.25 and at least 5.5 km (L4: 4.2 km; a lake and its
+    valley reach 1.3 km) from the circuit centre;
   - **height, in this order**: `m <= 0`: the sea floor, -4 m at the coast to -100 m at `m = -20000` (smoothed); land:
     12 m + the inland plateau `min(m, 40000) * 70 m / 65536` + hills `fbm(cellShift 10, 6 octaves)` +-60 m + the
     range weight `w` times (120 m + `ridged(cellShift 11, 5 octaves)^2` * 900 m), clamped to [sea level + 1 m, 1200 m],
@@ -117,7 +118,8 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
 - Grass masks by height and slope (constants of the generator, R-CONTENT-1); no `grassEditRule` (no terraforming in
   flight).
 - **Sites** (all inside the space, D12; footprints validated by the pipeline; prefab `ruin`, Scope 2):
-  - the **fixed ruin** (key 1) at (6272, 5760), the centre of chunk (24, 22), no quarter turn, `baseHeight` = the
+  - the **fixed ruin** (key 1) at (6272, 5760), the centre of chunk (24, 22) (I2: (6256, 5856); L4: (18544, 18144) in
+    chunk (72, 70), the same offset from the circuit centre), no quarter turn, `baseHeight` = the
     natural height at the origin. `--demo` simulates 720 steps before the first frame and the screenshot is frame 60,
     so the plane is about 780 steps (13 s at 65 m/s, about 850 m of the 2498 m circle) past its start (6554, 4096),
     near (6448, 4937) heading north-west; the ruin lies about 840 m ahead of it, about 7 degrees left of its heading
@@ -225,7 +227,8 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
   `flight_overworld` plan and placement version 1), the plan hash of space 0 (flight has one template) and the
   combined plan hash, and the chunks `0:0:0` (sea), `0:16:16` (circuit centre), `0:25:16` (the start point),
   `0:24:22` (the fixed ruin), `0:127:127` (the last chunk), `0:100:60` (far sea); `digest_block` `[12, 12, 28, 28]`
-  (16 x 16 chunks, a 4 km block over the circuit's east half incl. the start and the fixed ruin) plus every site chunk
+  (16 x 16 chunks, a 4 km block over the circuit's east half incl. the start and the fixed ruin; L4, the circuit in the
+  centre: `0:64:64`, `0:73:64`, `0:72:70` and `[60, 60, 76, 76]`) plus every site chunk
   outside it (at most 26 sites, about 100 chunks). The scenario prints its run time (about 350 chunks at <= 50 ms on a
   `JobPool(3)`: about 6 s).
 - Update procedure (AGENTS.md, next to the engine's): `SAIGA_UPDATE_CONTENT_HASHES=1
@@ -241,14 +244,16 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
   (`Vec3(5858.335, 362.351, 5875.344)`) follow the ground at 300 m, so the y values (and through the altitude hold
   slightly x and z) change with the terrain: re-recorded, old and new values in the PR. The 300 +- 30 m altitude check
   and "did not crash" stay.
-- `crashes_into_terrain` and the respawn checks need ground under the circuit and at the respawn point (6554, 4096):
+- `crashes_into_terrain` and the respawn checks need ground under the circuit and at the respawn point (6554, 4096;
+  L4: (18842, 16384)):
   guaranteed by the land disc (Scope 1); their relative expectations (altitude > 250 m after the respawn, flies away
   and back) are unchanged. The co-op and host + client variants are unchanged.
 - New `flight_ruin_is_stamped` (all variants): a driven plane (`spawnDriven<Aircraft>(w.world(), w.defaultPeer(),
   0)`; the driver is the `Player` and follows its plane through `driverPose`) is **held** above the fixed ruin: the
   scenario steps in its own loop (at most 300 steps, 5 s) and before every step teleports the host's plane to 200 m
   above (6272, 5760) with level attitude and zero velocity (on the host, as the respawn does), so neither the circuit
-  respawn (281 m away) nor the 65 m/s cruise moves it off chunk (24, 22). The driver's square then always intersects
+  respawn (281 m away) nor the 65 m/s cruise moves it off chunk (24, 22) (L4: (72, 70); the scenario reads the
+  site). The driver's square then always intersects
   the ruin chunk, so stamping works with the scenario worlds' 128 m `fullRadius` (S23a) and the replication delays of
   the host + client variants. The loop ends when all checks hold:
   - the host has exactly one `FlightChest`, at the prefab position converted exactly (`(6272, baseHeight / 1024,
@@ -286,7 +291,9 @@ R-TEST-2 (benchmarks), R-FILE-1, R-DATA-1 (prefab files), R-DOC-1/2, §18.4 (the
   so its screenshot shows a site, tier-1 sets and the flattened patch.
 - **The land follows the circuit**: S20 fixed the circuit in the corner of the 32 km space; a land disc around it
   guarantees ground under the autopilot and the respawn point without touching the flight code's circuit. L1 keeps
-  the guarantee as a floor of the land mask around the circuit and puts land over the whole space.
+  the guarantee as a floor of the land mask around the circuit and puts land over the whole space; L4 moves the circuit
+  to the centre of the space (`kFlightCircuitCentre` 16384, read by `FlightContext`), so the view from every part of
+  the turn shows land, and narrows the protected zone, so mountains and lakes rise in view of the circuit.
 - **Game hashes are local, engine hashes are CI**: the games are not built on the GCC and MSVC jobs and not run by
   ctest; the engine generator exercises the same toolkit and pipeline on all three compilers. The game reuses the
   engine's `checkContentHashes`, so the file format and the update rule are the same.
@@ -557,6 +564,34 @@ corner and trees ending at 1 km):
   chunk hash except the far-sea chunk 0:127:127; the chunk 0:100:60 is land now; 368 chunks in the digest, was 277:
   more site chunks). `crashes_into_terrain`, `flight_ruin_is_stamped` and the other scenarios pass unchanged.
 
+User feedback after the second live demo (2026-11-22: "put the plane in the center of the terrain. right now half the
+turn just shows a tiny terrain with mostly water"; S20's circuit at (4096, 4096) lies 1.6 km from the space edge, so
+half of each turn looks over the edge ocean):
+
+- L4 The circuit in the centre of the space: `kFlightCircuitCentre` 4096 -> 16384 (`OverworldGenerator.h`), and
+  `FlightContext::create` reads it (centre (16384, 16384), S20's radius 0.3 * 8192 m kept; the `static_assert` tying
+  the centre to `kPrototypeArea / 2` removed). Everything else follows the context: the autopilot circuit, the respawn
+  point and the slots (18842, 16384) of `AircraftBase::respawn`, the `--demo` start, the co-op client's demo pilot and
+  the respawn checks of `crashes_into_terrain`. The fixed ruin keeps its offset from the circuit centre:
+  (6256, 5856) -> (18544, 18144) (chunk (72, 70); natural height 39.9 m, footprint slope 6.0 m <= 8 m; in the
+  `--demo` screenshot in the same place ahead of the plane). The protected zone narrowed (the generator's other layout
+  rules are unchanged, so the terrain beyond about 4.3 km is L1's): the land floor within 2.9 km fading to -65536 at
+  4.5 km (was 3 / 7 km), no ranges within 3.3 km, full beyond 4.3 km (was 4 / 6 km; rivers start beyond 4.3 km and stop
+  at 3.3 km, their 448 m valleys end 2.85 km from the centre), lowland lake centres at least 4.2 km away (was 5.5 km; a
+  lake of up to 864 m with its valley reaches 1.3 km). Layout map (whole space at 32 m): an inland sea about 3.4 km
+  from the circuit centre towards -z, mountain ranges 3.5-6 km away towards -x, +x -z and +z (up to about 1000 m; the
+  +z range fills the `--demo` screenshot ahead of the plane), a large lake about 4.5 km towards +x, forests and meadows
+  under the circuit and towards -x +z; 0 of 2160 samples on circles
+  of 2300, 2458 and 2600 m below sea level + 1 m; the respawn point at 57.9 m; 65 % land, heights -100 m .. 1039 m,
+  71 sites (was 68), plan 17 ms, land chunk heights 50-58 ms (unchanged).
+- Recorded values: `autopilot_flies_the_circuit` step 600 (6505.847, 351.931, 4741.826) -> (18794.478, 369.778,
+  17027.615), step 1800 (5878.704, 352.505, 5858.160) -> (18163.513, 351.898, 18147.840) (the same circuit 12 288 m
+  further, over different ground). `data/flight/content_hashes.json`: the circuit chunks renamed with the circuit
+  (`0:16:16` -> `0:64:64` centre, `0:25:16` -> `0:73:64` start, `0:24:22` -> `0:72:70` fixed ruin, `digest_block`
+  `[12, 12, 28, 28]` -> `[60, 60, 76, 76]`), then regenerated by the update run in its own commit: the plan hash, the
+  combined plan hash, the three renamed chunks and the digest change; `0:0:0`, `0:100:60` and `0:127:127` are
+  unchanged (368 chunks in the digest, 5.4 s). The other scenarios pass unchanged.
+
 ## Design changes
 
 The design-doc amendments 1-3 are made in `docs/engine_design.md` (§3 rows and the known deviations, §10.1 (the F4
@@ -566,7 +601,8 @@ Changes against the plan (details in the implementation entry of the review log)
 river carving without the `d < R - 500 m` limit and with smooth banks (I3), bilinear biome values (I4), clumped tree
 densities (I5), grass from a 4 m lattice (I6), the public `planGrids` (I7), the F4 check over the sets' mesh lists
 (I8). After the live demo: the layout over the whole space (L1, §12.1 and §18.4 updated), `fullRadius` 3000 m and
-`completeView` generating the content sets on the streaming pool (L2, §10.1 and §18.4 updated).
+`completeView` generating the content sets on the streaming pool (L2, §10.1 and §18.4 updated). After the second live
+demo: the circuit in the centre of the space with a narrower protected zone (L4, §12.1 and §18.4 updated).
 
 ## Results
 
@@ -648,3 +684,12 @@ timed from the start to `app_status` reporting a rendered frame, incl. the 720 s
 - **Screenshots**: the `--demo` frame (forests to 3 km, the ranges and lakes on the horizon, the fixed ruin ahead of the
   plane) and MCP views from 2.5 km above (9000, 9000), over the central range, the eastern inland sea and the
   south-western coast.
+
+After the second live demo (L4; RTX 5080 Laptop GPU, GCC 15.2 RelWithDebInfo with asserts):
+
+- **Scenarios**: flight 30 passed, 0 failed (all variants); `flight_content_hashes` reproduces (368 chunks, 5.4 s).
+- **Tests.** ctest 80/80 on lavapipe; `ContentLint.Sources` 22 files, 0 findings.
+- **Start**: `--demo` with `SAIGA_SCREENSHOT` (720 steps, then 60 frames at 3 km content radius) 6.3 s, as before the
+  move (6.5 s); the land chunk heights are unchanged (50-58 ms).
+- **Screenshot**: the `--demo` frame shows the forests to 3 km, the +z range ahead of the plane, the lake towards +x on
+  the horizon and the fixed ruin ahead of the plane, where it was before the move.

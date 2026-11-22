@@ -9,15 +9,16 @@
 // content/ directories). Everything here enters the committed hashes of data/flight/content_hashes.json.
 //
 // - Layout (after the live demo: land over the whole 32 km space): a land mask (Q16, land where > 0): a continent
-//   fbm of 8 km cells (3 octaves) plus a bias towards land; around the circuit centre at least 30000 within 3 km (full
-//   land under the circuit, the respawn point and the fixed ruin), fading over 3-7 km; a 1 km coast detail; the space
+//   fbm of 8 km cells (3 octaves) plus a bias towards land; around the circuit centre (the centre of the space) at
+//   least 30000 within 2.9 km (full land under the circuit, the respawn point and the fixed ruin), fading over
+//   2.9-4.5 km (lakes and mountains from about 3.4 km on stay in view of the circuit); a 1 km coast detail; the space
 //   edge falls to the ocean over its last 1200 m. Coasts, islands, bays and inland seas come from the mask. Mountain
 //   ranges (rangeWeight, per sample): the zero band of an 8 km fbm, faded along its length, inland only, none within
-//   4-6 km of the circuit centre. The natural height in this order: below the mask's zero the sea floor (-4 m at the
-//   coast to -100 m); on land 12 m + an inland plateau of up to 43 m (the mask) + hills of +-60 m + the range weight
-//   times (120 m + ridged peaks of up to 900 m), clamped to [sea level + 1 m, 1200 m], blended over the shore band of
-//   the mask to the coast floor (-4 m), then the river valleys and lakes towards 3 m below the sea level (faded out by
-//   the range weight). The result lies in [-100 m, 1200 m] (asserted).
+//   3.3 km of the circuit centre (full beyond 4.3 km). The natural height in this order: below the mask's zero the sea
+//   floor (-4 m at the coast to -100 m); on land 12 m + an inland plateau of up to 43 m (the mask) + hills of +-60 m +
+//   the range weight times (120 m + ridged peaks of up to 900 m), clamped to [sea level + 1 m, 1200 m], blended over
+//   the shore band of the mask to the coast floor (-4 m), then the river valleys and lakes towards 3 m below the sea
+//   level (faded out by the range weight). The result lies in [-100 m, 1200 m] (asserted).
 // - Plan grids: `biomes` (256 m cells, the vegetation value Q16 at most 12000, bilinear between the cell
 //   centres: meadow or forest; biomeAt raises it by the range weight towards mountain) and `rivers` (64 m cells, the
 //   valley weight Q16: 65536 on a river or lake cell, falling linearly to 0 over 7 cells; rivers walk from the
@@ -46,11 +47,12 @@ namespace Game
 constexpr int32_t kFlightSeaLevel       = 6 * 1024;  // equal to S20's kPrototypeSeaLevel (static_assert in FlightWorld)
 constexpr int32_t kFlightMountainHeight = 1200 * 1024;  // the highest land
 constexpr int32_t kFlightLowestHeight   = -100 * 1024;
-// The demo's circuit (S20: centre (4096, 4096), radius 0.3 * 8192 m), integer metres
-constexpr int64_t kFlightCircuitCentre = 4096;
+// The demo's circuit (S23c after the live demo: the centre of the 32 km space; S20's radius 0.3 * 8192 m), integer
+// metres
+constexpr int64_t kFlightCircuitCentre = 16384;
 constexpr int64_t kFlightCircuitRadius = 2458;
-// The fixed ruin (site key 1): in chunk (24, 22), about 830 m ahead of the plane at the --demo screenshot
-constexpr int64_t kFlightFixedRuinX = 6256, kFlightFixedRuinZ = 5856;
+// The fixed ruin (site key 1): in chunk (72, 70), about 830 m ahead of the plane at the --demo screenshot
+constexpr int64_t kFlightFixedRuinX = 18544, kFlightFixedRuinZ = 18144;
 constexpr uint32_t kFlightFixedRuinKey = 1, kFlightGridRuinKey = 100;
 // The prefab of the ruin sites and its half size (footprint [-40, -40, 40, 40])
 constexpr const char* kFlightRuinPrefab = "ruin";
