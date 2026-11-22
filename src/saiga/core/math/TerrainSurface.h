@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <functional>
+#include <memory>
 #include <vector>
 
 namespace Saiga
@@ -38,6 +39,11 @@ inline int32_t clampTerrainHeight(int32_t h)
 struct TerrainHeightSource
 {
     std::function<int32_t(int64_t x, int64_t z)> height;  // empty: no terrain
+    // Optional: a cache of point grids of this source (S20's pyramid: n x n samples at (i, j) * spacing). It returns
+    // the cached grid of (n, spacing) or the one make computes (the values are make's either way). The generation
+    // pipeline's sources share them through the ContentCache (one pyramid per plan, not per World)
+    using Grid = std::shared_ptr<const std::vector<int32_t>>;
+    std::function<Grid(int n, int64_t spacing, const std::function<std::vector<int32_t>()>& make)> cachedGrid;
     int32_t operator()(int64_t x, int64_t z) const { return height(x, z); }
     explicit operator bool() const { return bool(height); }
     // clampTerrainHeight(hook(seed, x, z)); a null hook gives an empty source

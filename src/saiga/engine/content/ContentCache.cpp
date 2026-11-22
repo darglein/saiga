@@ -57,6 +57,24 @@ std::shared_ptr<const WorldPlan> ContentCache::plan(const PlanKey& key,
     return plans.emplace(key, std::move(p)).first->second;
 }
 
+std::shared_ptr<const std::vector<int32_t>> ContentCache::grid(const GridKey& key,
+                                                               const std::function<std::vector<int32_t>()>& make)
+{
+    {
+        std::lock_guard<std::mutex> lock(mutex);
+        auto it = grids.find(key);
+        if (it != grids.end())
+        {
+            statistics.hits++;
+            return it->second;
+        }
+    }
+    auto g = std::make_shared<const std::vector<int32_t>>(make());
+    std::lock_guard<std::mutex> lock(mutex);
+    statistics.gridBuilds++;
+    return grids.emplace(key, std::move(g)).first->second;
+}
+
 void ContentCache::touch(ChunkEntry& e)
 {
     lru.splice(lru.begin(), lru, e.lru);

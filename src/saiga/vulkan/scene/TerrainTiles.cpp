@@ -49,9 +49,16 @@ TerrainPyramidData generateTerrainPyramid(const TerrainHeightSource& source, con
     SAIGA_ASSERT(source, "generateTerrainPyramid: no height source");
     const int n     = layout.pyramidSamplesPerSide();
     const int64_t s = TerrainLayout::pyramidSpacing;
-    auto heights    = std::make_shared<std::vector<int32_t>>(size_t(n) * n);
-    for (int j = 0; j < n; ++j)
-        for (int i = 0; i < n; ++i) (*heights)[size_t(j) * n + i] = source(i * s, j * s);
+    auto make       = [&]()
+    {
+        std::vector<int32_t> h(size_t(n) * n);
+        for (int j = 0; j < n; ++j)
+            for (int i = 0; i < n; ++i) h[size_t(j) * n + i] = source(i * s, j * s);
+        return h;
+    };
+    std::shared_ptr<const std::vector<int32_t>> heights =
+        source.cachedGrid ? source.cachedGrid(n, s, make) : std::make_shared<const std::vector<int32_t>>(make());
+    SAIGA_ASSERT(heights && heights->size() == size_t(n) * n, "generateTerrainPyramid: a cached grid of another size");
     TerrainPyramidData p;
     p.layout   = layout;
     p.seaLevel = seaLevel;

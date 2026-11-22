@@ -204,7 +204,7 @@ bool parseChunkKey(const std::string& key, ChunkId& out)
 }
 
 // One setup entry; returns the updated entry
-Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c)
+Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c, ContentCache* sharedCache)
 {
     Json::object out    = entry.object_items();
     const std::string w = "setups[" + std::to_string(index) + "] (" + entry["name"].string_value() + ")";
@@ -242,7 +242,8 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
         slotLists[name];
         for (const Json& sl : g["slots"].array_items()) slotLists[name].push_back(sl.string_value());
     }
-    ContentCache cache;
+    ContentCache localCache;
+    ContentCache& cache         = sharedCache ? *sharedCache : localCache;
     const GenerationPlans plans = GenerationPipeline::build(setup, pins, cache);
     if (!plans.ok())
     {
@@ -368,7 +369,8 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
 }
 }  // namespace
 
-ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string& file, bool update)
+ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string& file, bool update,
+                                     std::shared_ptr<ContentCache> cache)
 {
     const auto start = std::chrono::steady_clock::now();
     ContentHashReport report;
@@ -410,7 +412,7 @@ ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string&
     Json::array setups;
     for (size_t i = 0; i < root["setups"].array_items().size(); ++i)
     {
-        setups.push_back(checkEntry(setup, root["setups"][i], int(i), c));
+        setups.push_back(checkEntry(setup, root["setups"][i], int(i), c, cache.get()));
         report.entries++;
     }
     out["setups"] = setups;

@@ -10,7 +10,9 @@
 //
 // Keys: the generator's registration identity (name, version(), slot table hash; a second identity under the same name
 // on one cache stops the program), then plans by (name, pinned version, seed, template view hash, SpaceId), ChunkBase
-// by (name, pinned version, plan hash, chunk) and ChunkPlacement by (name, placement version, plan hash, chunk).
+// by (name, pinned version, plan hash, chunk) and ChunkPlacement by (name, placement version, plan hash, chunk). The
+// point grids of a space's composed height (S20's terrain pyramid through TerrainHeightSource::cachedGrid; never
+// evicted, like plans) by (name, pinned version, plan hash, SpaceId, samples per side, spacing).
 //
 // The in-flight rule (D8): a streaming-pool job registers its key as in flight only when it starts executing (a
 // cancelled queued job leaves nothing behind); another pool job asking for an in-flight key waits for that generation
@@ -64,6 +66,12 @@ class SAIGA_ENGINE_API ContentCache
     std::shared_ptr<const WorldPlan> plan(const PlanKey& key,
                                           const std::function<std::shared_ptr<const WorldPlan>()>& make);
 
+    // A point grid of a space's composed height (the terrain pyramid), made on a miss (outside the lock; the first
+    // insert wins)
+    using GridKey = std::tuple<std::string, uint16_t, uint64_t, SpaceId, int, int64_t>;
+    std::shared_ptr<const std::vector<int32_t>> grid(const GridKey& key,
+                                                     const std::function<std::vector<int32_t>()>& make);
+
     using ChunkKey = std::tuple<std::string, uint16_t, uint64_t, ChunkId>;  // (generator, version, plan hash, chunk)
     // Synchronous: a hit, or generated inline (never a wait)
     std::shared_ptr<const ChunkBase> base(const ChunkKey& key, const std::function<ChunkBase()>& make);
@@ -79,7 +87,7 @@ class SAIGA_ENGINE_API ContentCache
 
     struct Stats
     {
-        uint64_t baseGenerations = 0, placementGenerations = 0, planBuilds = 0;
+        uint64_t baseGenerations = 0, placementGenerations = 0, planBuilds = 0, gridBuilds = 0;
         uint64_t hits = 0, evictions = 0, droppedDuplicates = 0, waits = 0;
         size_t bytes = 0, entries = 0;
     };
@@ -105,6 +113,7 @@ class SAIGA_ENGINE_API ContentCache
     PrefabStore prefabStore;
     std::map<std::string, GeneratorIdentity> identities;
     std::map<PlanKey, std::shared_ptr<const WorldPlan>> plans;
+    std::map<GridKey, std::shared_ptr<const std::vector<int32_t>>> grids;
     std::map<ChunkKey, ChunkEntry> bases, placements;
     // Most recent first: (placement kind, key)
     std::list<std::pair<bool, ChunkKey>> lru;
