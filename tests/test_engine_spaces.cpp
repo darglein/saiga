@@ -162,6 +162,7 @@ WorldSetup spacesSetup(uint64_t seed = 9, void (*components)(Registry&) = nullpt
     s.profiling             = false;
     s.components            = components;
     s.config.spaceTemplates = threeSpaces();
+    s.generators            = registerTestHookGenerators;
     s.classes               = [](ClassList& c)
     {
         c.add<Marker>();
@@ -241,7 +242,7 @@ TEST(SpaceConfig, CountTemplateAndSeed)
     EXPECT_EQ(w.spaceTemplate(2).name, "caves");
     EXPECT_EQ(w.spaceTemplate(0).kind, SpaceKind::OpenWorld);
     EXPECT_EQ(w.spaceTemplate(1).kind, SpaceKind::Enclosed);
-    EXPECT_FALSE(w.spaceTemplate(1).hasTerrain());
+    EXPECT_FALSE(w.spaceHasTerrain(1));
     EXPECT_FALSE(w.spaceTemplate(1).seaLevel.has_value());
     EXPECT_EQ(w.spaceTemplate(1).sizeChunks, 4);
     EXPECT_EQ(w.spaceSeed(0), 41u);
@@ -260,8 +261,9 @@ TEST(SpaceConfig, HooklessOpenWorldIsFlat)
     SpaceTemplate flat;
     flat.name               = "flat";
     s.config.spaceTemplates = {testSpaceTemplate(16, 2, integerTestHook), flat};
+    s.generators            = registerTestHookGenerators;
     World w(s);
-    EXPECT_FALSE(w.spaceTemplate(1).hasTerrain());
+    EXPECT_FALSE(w.spaceHasTerrain(1));
     EXPECT_EQ(w.terrainHeight(1, 100.5, 2000.25), 0.0);
     EXPECT_NE(w.terrainHeight(0, 100.5, 2000.25), 0.0);
 }
@@ -290,6 +292,7 @@ TEST(SpaceConfigDeathTest, InvalidTemplates)
         WorldSetup s;
         s.profiling             = false;
         s.config.spaceTemplates = std::move(list);
+        s.generators            = registerTestHookGenerators;
         World w(s);
     };
     SpaceTemplate a;
@@ -299,8 +302,8 @@ TEST(SpaceConfigDeathTest, InvalidTemplates)
     SpaceTemplate empty;
     empty.name = "";
     EXPECT_DEATH(with({a, empty}), "empty name");
-    SpaceTemplate hooked   = SpaceTemplate::enclosed("cellar");
-    hooked.prototypeHeight = integerTestHook;
+    SpaceTemplate hooked = SpaceTemplate::enclosed("cellar");
+    hooked.generator     = hookGenerator(integerTestHook);
     EXPECT_DEATH(with({a, hooked}),
                  "space template 'cellar': an enclosed space has no terrain .*SpaceTemplate::enclosed");
     EXPECT_DEATH(with({a, SpaceTemplate::enclosed("cellar", 0)}),
@@ -783,6 +786,7 @@ TEST(SpaceSave, SpaceTable)
     {
         WorldSetup s            = spacesSetup(9, zoneComponents);
         s.config.spaceTemplates = std::move(templates);
+        s.generators            = registerTestHookGenerators;
         World b(s);
         const auto before  = b.save();
         const LoadResult r = b.tryLoad(blob);

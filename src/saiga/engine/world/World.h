@@ -59,6 +59,7 @@ namespace Engine
 class GeneratorList;
 class ContentCache;
 class GenerationPipeline;
+class ChunkRecords;
 
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
@@ -396,7 +397,8 @@ class SAIGA_ENGINE_API World
 
     // The template of a space (WorldConfig::spaceTemplates, or the flat default); asserts an unknown space
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
-    // The number of spaces: one per template (SpaceId = template index; S21)
+    // The number of spaces: one per space instance of the plans (SpaceId = instance index, §12.1; S23a: a template can
+    // have several instances, e.g. one per site)
     size_t spaceCount() const;
     // The seed of a space: WorldSetup::seed for space 0, hashCombine(seed, index) for index >= 1 (§12.1, §12.4)
     uint64_t spaceSeed(SpaceId space) const;
@@ -452,6 +454,15 @@ class SAIGA_ENGINE_API World
     uint64_t generationSeed() const { return setupSeed; }
     // E6: the space's generator has terrain (terrain and sea drawn and streamed, terrainHeight from it)
     bool spaceHasTerrain(SpaceId space) const;
+    // Client (S23a): the host's GenerationState differed from this client's generation (refused, nothing applied; the
+    // host + client variants fail on it) / it was checked and equal
+    bool generationMismatch() const { return generationMismatchFlag; }
+    bool generationChecked() const { return generationCheckedFlag; }
+    // GENR, GenerationState and the generation part of hash(): a non-legacy generator or chunk records (§15.1, S23a)
+    bool writesGenerationState() const;
+    // The chunk records (state: the placement version per recorded chunk, the host's stamped chunks)
+    const ChunkRecords& contentRecords() const { return *chunkRecords; }
+    ChunkRecords& contentRecordsForUpdate() { return *chunkRecords; }
     // The total content hash of a chunk at the current placement version (generated synchronously through the
     // cache; the stamp and static lists come from the plan)
     uint64_t contentHash(ChunkId chunk) const;
@@ -714,6 +725,17 @@ class SAIGA_ENGINE_API World
     // tick interval, configure() and onSpawn()
     Entity spawnByClass(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
                         const std::function<void(Entity)>& initial);
+    // The type-erased spawn of a class during a step (S23a, prefab stamping) or between steps: the entity is reserved
+    // now; one command (at once between steps) runs the spawn (Transform at the pose, Behaviour), configure() and
+    // onSpawn(), then afterStart(world, e) (e.g. component values merged after onSpawn)
+    Entity spawnByClassDeferred(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
+                                const Quat& rotation, std::function<void(World&, Entity)> afterStart);
+    // Engine-internal: fn as a command during a step (applied at the phase's flush in recording order), at once
+    // between steps and while commands are applied
+    void recordOrRun(std::function<void(World&)> fn);
+    // Engine-internal: destroys an entity spawned in the running command at once, without its onDestroy (the rollback
+    // of a chunk stamp whose later spawn threw, S23a)
+    void rollbackSpawn(Entity e) { abandonSpawn(e); }
     // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
     int addStepListener(std::function<bool()> fn)
     {
@@ -1031,8 +1053,12 @@ class SAIGA_ENGINE_API World
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
-    // The content generation (S23a)
+    // The content generation (S23a); generationSetup: the setup fields phase A reads (a load builds the plans of the
+    // saved pins with them)
     std::unique_ptr<GenerationPipeline> pipeline;
+    WorldSetup generationSetup;
+    std::unique_ptr<ChunkRecords> chunkRecords;
+    bool generationMismatchFlag = false, generationCheckedFlag = false, nonIntegerWarned = false;
     uint64_t setupSeed    = 0;
     double accumulator    = 0;
     double scale          = 1;

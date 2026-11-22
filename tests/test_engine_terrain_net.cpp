@@ -55,7 +55,8 @@ WorldSetup terrainNetSetup()
     s.seed      = 3;
     s.profiling = false;
     s.config.spaceTemplates.push_back(terraformTestTemplate(2));
-    s.systems = [](SystemList& l)
+    s.generators = registerTestHookGenerators;
+    s.systems    = [](SystemList& l)
     {
         l.add(Phase::Behaviour, "test_terrain_net3", phase3System, RunOn::Both);
         l.add(Phase::Gameplay, "test_terrain_net4", phase4System, RunOn::Both);

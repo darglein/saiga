@@ -8,8 +8,6 @@
 
 #include "saiga/engine/content/gen/TrigTable.h"
 
-#include <cmath>
-
 namespace Saiga
 {
 namespace Engine
@@ -26,11 +24,11 @@ Vec3 contentPosition(const ChunkId& chunk, int32_t x256, int32_t yHeight, int32_
 
 Quat contentRotation(uint16_t yaw)
 {
-    // The half angle of the yaw is index `yaw` of the 2^17-step circle
-    const double w = std::ldexp(double(cosQ30(yaw)), -30);
-    const double y = std::ldexp(double(sinQ30(yaw)), -30);
-    const double n = std::sqrt(w * w + y * y);
-    return Quat(w / n, 0, y / n, 0);
+    // The half angle of the yaw is index `yaw` of the 2^17-step circle; exact scaling of the Q30 values, no
+    // normalisation (R-CONTENT-1: no libm; cos^2 + sin^2 of the table is within 2^-28 of 1)
+    const double w = double(cosQ30(yaw)) / 1073741824.0;
+    const double y = double(sinQ30(yaw)) / 1073741824.0;
+    return Quat(w, 0, y, 0);
 }
 
 double contentScale(uint16_t scale)

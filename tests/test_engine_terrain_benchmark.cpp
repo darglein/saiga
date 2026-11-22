@@ -104,6 +104,7 @@ WorldSetup setupWith(TerrainHeightHook hook, int spacing = 1, int32_t chunks = 3
     s.profiling = false;
     s.seed      = 9;
     s.config.spaceTemplates.push_back(testSpaceTemplate(chunks, spacing, hook));
+    s.generators = registerTestHookGenerators;
     return s;
 }
 
@@ -240,8 +241,8 @@ TEST(TerrainEditBenchmark, HashSaveLoadAndJoinOfFiftyChunks)
     const std::vector<uint8_t> blob = w.save();
     const double saveMs             = ms(t0, Clock::now());
     World b(setupWith(Vulkan::prototypeHeight));
-    const uint64_t hooks = b.terrain().baseHookSamples();
-    t0                   = Clock::now();
+    const uint64_t hooks    = b.terrain().baseHookSamples();
+    t0                      = Clock::now();
     const LoadResult loaded = b.tryLoad(blob);
     ASSERT_TRUE(loaded.ok()) << loaded.error;
     const double loadMs = ms(t0, Clock::now());

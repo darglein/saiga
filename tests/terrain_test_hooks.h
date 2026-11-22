@@ -26,7 +26,12 @@
 #include <condition_variable>
 
 #ifdef SAIGA_TEST_ENGINE
+#    include "saiga/engine/content/GeneratorList.h"
+#    include "saiga/engine/terrain/HookGenerator.h"
 #    include "saiga/engine/world/SpaceTemplate.h"
+
+#    include <memory>
+#    include <string>
 #endif
 
 namespace TerrainTestHooks
@@ -285,16 +290,50 @@ inline void fillTestTerrain(Vulkan::RenderScene& scene, const Vulkan::TerrainLay
 }
 
 #ifdef SAIGA_TEST_ENGINE
-// A space template for the tests: open world, the hook and sea level given
+// The test hooks as generators (S23a: the template hook field became a HookGenerator): every distinct hook gets a
+// fixed GeneratorId (1, 2, ... in the order of first use in this process) and a HookGenerator "test_hook_<id>"
+// (integer only, S20's grass rule). A setup whose templates name a hook registers them all with
+// WorldSetup::generators = registerTestHookGenerators (worlds of one process agree on the IDs).
+inline std::vector<TerrainHeightHook>& testHookTable()
+{
+    static std::vector<TerrainHeightHook> table;
+    return table;
+}
+inline std::mutex& testHookMutex()
+{
+    static std::mutex m;
+    return m;
+}
+inline Engine::GeneratorId hookGenerator(TerrainHeightHook hook)
+{
+    std::lock_guard<std::mutex> lock(testHookMutex());
+    auto& table = testHookTable();
+    for (size_t i = 0; i < table.size(); ++i)
+        if (table[i] == hook) return Engine::GeneratorId(i + 1);
+    table.push_back(hook);
+    return Engine::GeneratorId(table.size());
+}
+inline void registerTestHookGenerators(Engine::GeneratorList& list)
+{
+    std::lock_guard<std::mutex> lock(testHookMutex());
+    const auto& table = testHookTable();
+    for (size_t i = 0; i < table.size(); ++i)
+        list.add(Engine::GeneratorId(i + 1),
+                 std::make_shared<Engine::HookGenerator>("test_hook_" + std::to_string(i + 1), table[i],
+                                                         Engine::HookGrassRule{}, true));
+}
+
+// A space template for the tests: open world, the hook (as its HookGenerator) and sea level given; the setup sets
+// generators = registerTestHookGenerators
 inline Engine::SpaceTemplate testSpaceTemplate(int32_t sizeChunks, int baseSpacing, TerrainHeightHook hook,
                                                std::optional<int32_t> seaLevel = std::nullopt)
 {
     Engine::SpaceTemplate t;
-    t.name            = "test";
-    t.sizeChunks      = sizeChunks;
-    t.baseSpacing     = baseSpacing;
-    t.prototypeHeight = hook;
-    t.seaLevel        = seaLevel;
+    t.name        = "test";
+    t.sizeChunks  = sizeChunks;
+    t.baseSpacing = baseSpacing;
+    t.generator   = hookGenerator(hook);
+    t.seaLevel    = seaLevel;
     return t;
 }
 // S22's terraforming template: open world, 16 chunks, the given spacing (1 or 2), no sea level, integerTestHook

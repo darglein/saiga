@@ -15,8 +15,10 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
+#include "saiga/engine/content/Systems.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -60,12 +62,17 @@ World::World(const WorldSetup& setup)
     // template error is a setup error, fatal in every build, D1), then the generators, the space list and every plan
     {
         validateSpaceTemplates(setup.config.spaceTemplates);
-        setupSeed = setup.seed;
+        setupSeed                             = setup.seed;
+        generationSetup.seed                  = setup.seed;
+        generationSetup.config.spaceTemplates = setup.config.spaceTemplates;
+        generationSetup.generators            = setup.generators;
+        generationSetup.dataDirectory         = setup.dataDirectory;
         std::shared_ptr<ContentCache> cache =
             setup.sharedContent ? setup.sharedContent : std::make_shared<ContentCache>();
         GenerationPlans plans = GenerationPipeline::build(setup, GenerationPins(), *cache);
         if (!plans.ok()) SAIGA_EXIT_ERROR("content generation: " + plans.error);
-        pipeline = std::make_unique<GenerationPipeline>(std::move(plans), std::move(cache));
+        pipeline     = std::make_unique<GenerationPipeline>(std::move(plans), std::move(cache));
+        chunkRecords = std::make_unique<ChunkRecords>();
         std::vector<TerrainSpace> spaces;
         std::vector<SpaceTemplate> templates;
         for (size_t i = 0; i < pipeline->spaceCount(); ++i)
@@ -98,6 +105,11 @@ World::World(const WorldSetup& setup)
     events.validateRegistration();
 
     registerEngineSystems(systems);
+    // S23a: prefab stamping, the first system of phase 7, when some plan has sites or a generator in use is not legacy
+    // (a load can replace the plans with the saved pins' plans, which may have sites; PR review: they were never
+    // stamped); before setupProfiler: it gets its profiler scope. Legacy worlds (no sites possible) have neither
+    if (pipeline->plans().anySites || pipeline->nonLegacy())
+        systems.add(Phase::Streaming, "chunk_stamp", chunkStampSystem, RunOn::Host);
     if (setup.systems) setup.systems(systems);
 
     if (setup.classes) setup.classes(classes);
@@ -307,6 +319,45 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
     }
     startObject(e);
     return e;
+}
+
+Entity World::spawnByClassDeferred(const ClassList::ClassInfo& info, SpaceId space, const Vec3& position,
+                                   const Quat& rotation, std::function<void(World&, Entity)> afterStart)
+{
+    const Entity e = beginSpawn(space);
+    if (!e.valid()) return e;
+    const ClassList::ClassInfo* type = &info;
+    auto apply                       = [e, type, space, position, rotation, after = std::move(afterStart)](World& w)
+    {
+        // A command on an entity destroyed earlier in the same flush is dropped
+        if (!w.alive(e)) return;
+        try
+        {
+            w.finishSpawn(e, *type, space, position);
+            w.reg.get<Transform>(e).setRotation(rotation);
+        }
+        catch (...)
+        {
+            w.abandonSpawn(e);
+            throw;
+        }
+        w.startObject(e);
+        if (after) after(w, e);
+    };
+    if (deferring())
+        record(makeCommand(std::move(apply)));
+    else
+        apply(*this);
+    return e;
+}
+
+void World::recordOrRun(std::function<void(World&)> fn)
+{
+    checkNotParallel("recordOrRun");
+    if (deferring())
+        record(makeCommand(std::move(fn)));
+    else
+        fn(*this);
 }
 
 void World::runStepListeners()
@@ -802,8 +853,10 @@ size_t World::spaceCount() const
 
 uint64_t World::spaceSeed(SpaceId space) const
 {
-    SAIGA_ASSERT(space < terrainSys->spaceCount(), "World::spaceSeed: unknown space");
-    return terrainSys->spaceSeed(space);
+    SAIGA_ASSERT(space < pipeline->spaceCount(), "World::spaceSeed: unknown space");
+    // The pipeline's instance (a load can replace the plans with the saved pins' ones; PR review: the terrain system's
+    // seed of the construction was returned)
+    return pipeline->space(space).instance.seed;
 }
 
 const GeneratorList& World::generators() const
@@ -815,6 +868,11 @@ bool World::spaceHasTerrain(SpaceId space) const
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceHasTerrain: unknown space");
     return pipeline->spaceHasTerrain(space);
+}
+
+bool World::writesGenerationState() const
+{
+    return pipeline->nonLegacy() || !chunkRecords->empty();
 }
 
 uint64_t World::contentHash(ChunkId chunk) const
@@ -1643,6 +1701,23 @@ uint64_t World::hash() const
             h.addU8(deltas ? 1 : 0);
             if (deltas) h.addU64(st.contentHash(c));
         }
+    // The generation state (S23a): only when the world writes it (flat and hook worlds hash as before)
+    if (writesGenerationState())
+    {
+        const GenerationPlans& plans = pipeline->plans();
+        h.addU64(plans.seed);
+        const std::vector<const GeneratorList::Entry*> gens = plans.generators->byName();
+        h.addU32(uint32_t(gens.size()));
+        for (const GeneratorList::Entry* g : gens)
+        {
+            const std::string name = g->generator->name();
+            h.addString(name).addU32(plans.pinned.at(name)).addU32(plans.current.at(name));
+        }
+        const ChunkRecords& rec = *chunkRecords;
+        h.addU32(uint32_t(rec.records().size()));
+        for (const auto& [c, r] : rec.records())
+            h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(r.placementVersion).addU8(rec.isStamped(c) ? 1 : 0);
+    }
     return h.value();
 }
 

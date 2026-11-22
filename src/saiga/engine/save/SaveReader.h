@@ -73,14 +73,24 @@ struct ParsedSave
         uint32_t version = 0;
         size_t begin = 0, end = 0;
     };
-    std::optional<SpaceTable> spaces;  // SPCE
-    std::optional<Range> terrain;      // TERR (parseTerrainSection)
+    std::optional<SpaceTable> spaces;                // SPCE
+    std::optional<Range> terrain;                    // TERR (parseTerrainSection)
+    std::optional<GenerationSection> generation;     // GENR (S23a)
+    std::optional<ChunkRecordSection> chunkRecords;  // CREC (S23a)
 };
 
 SAIGA_ENGINE_API bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& error);
 // SPCE format 1 (the one signature of the optional-section parsers: parseX(BinaryReader&, version, X&, error)): at
 // most 65535 rows, names of at most 256 bytes, a known kind; no bytes left over
 SAIGA_ENGINE_API bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTable& out, std::string& error);
+// GENR format 1 (S23a): at most 65535 templates, generators and slots per generator; no bytes left over. The loader
+// checks it against the setup (seed, names, versions, slot tables, plans)
+SAIGA_ENGINE_API bool parseGenerationSection(BinaryReader& r, uint32_t version, GenerationSection& out,
+                                             std::string& error);
+// CREC format 1 (S23a): ascending unique spaces and chunks (ChunkId order), stamped 0 or 1; no bytes left over. The
+// loader checks the spaces, the chunk ranges and the versions against the plans
+SAIGA_ENGINE_API bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSection& out,
+                                              std::string& error);
 // TERR format 1 (S22): the structure and the codec's bounds, checked without a world: spacing 1 or 2 with its N,
 // ascending unique spaces and chunks (ChunkId order), sequence > 0, known flags, the dense delta decoded (N * N values,
 // |delta| <= 2^24, no bytes left over), deltas present only with a non-zero value; no bytes left over. The loader

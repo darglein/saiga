@@ -16,10 +16,12 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/EngineMessages.h"
+#include "saiga/engine/net/GenerationStateMessage.h"
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainMessages.h"
@@ -441,7 +443,8 @@ void Replication::onHostLoad()
         for (uint8_t p : w.connectedPeers())
         {
             w.send(p, ResyncMessage{currentEpoch});
-            // S22: the loaded terrain modification state right after the Resync (S23a sends GenerationState before it)
+            // S23a: the loaded generation state, then S22's terrain modification state
+            sendGenerationState(p);
             sendChunkSnapshot(p);
         }
 }
@@ -460,6 +463,63 @@ void Replication::sendHostStates()
         counts.terrainMessagesSent += regularPeers.size();
         counts.terrainBytesSent += record.size() * regularPeers.size();
     }
+}
+
+void Replication::sendGenerationState(uint8_t peer)
+{
+    if (!w.writesGenerationState()) return;
+    encodeGenerationState(generationStateOf(w, currentEpoch), record);
+    w.sendRaw(peer, MessageId(EngineMessage::GenerationState), record.data(), record.size());
+    counts.generationStatesSent++;
+}
+
+void Replication::onGenerationState(uint8_t from, const uint8_t* data, size_t size)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "GenerationState: only the host sends it to clients");
+        return;
+    }
+    GenerationStateMessage m;
+    std::string error;
+    if (!decodeGenerationState(data, size, m, error))
+    {
+        w.rejectInput(from, error);
+        return;
+    }
+    if (m.epoch != currentEpoch)
+    {
+        counts.generationStatesDroppedEpoch++;
+        return;
+    }
+    const std::string difference = generationStateDifference(w, m);
+    if (!difference.empty())
+    {
+        // Refused (until S26's handshake adopts the host's versions): nothing is applied
+        w.generationMismatchFlag = true;
+        w.rejectInput(from, "GenerationState: " + difference);
+        SAIGA_LOG("content", "the host's generation state differs: %s", difference.c_str());
+        return;
+    }
+    // The client generates the host's content already: nothing changes
+    w.generationCheckedFlag = true;
+}
+
+bool Replication::terrainRefused(uint8_t from, const char* what)
+{
+    if (w.generationMismatch())
+    {
+        w.rejectInput(from, std::string(what) + " after a refused GenerationState");
+        return true;
+    }
+    // PR review: after a Resync from a host that sends no GenerationState (a legacy setup) the host's chunk states
+    // arrive before the spawn set that refuses it, and were applied
+    if (w.writesGenerationState() && !w.generationChecked())
+    {
+        w.rejectInput(from, std::string(what) + " before a GenerationState");
+        return true;
+    }
+    return false;
 }
 
 void Replication::sendChunkSnapshot(uint8_t peer)
@@ -513,6 +573,8 @@ void Replication::onTerrainModification(uint8_t from, const uint8_t* data, size_
         counts.terrainDroppedEpoch++;
         return;
     }
+    // S23a: the deltas are relative to the host's generation, which this client refused or has not checked yet
+    if (terrainRefused(from, "TerrainModification")) return;
     // Validation against the world, in scratch: nothing is allocated in the store before every part passed
     if (m.space >= w.spaceCount() || w.spaceTemplate(m.space).kind != SpaceKind::OpenWorld)
     {
@@ -623,6 +685,7 @@ void Replication::onTerrainChunkState(uint8_t from, const uint8_t* data, size_t 
         counts.terrainDroppedEpoch++;
         return;
     }
+    if (terrainRefused(from, "TerrainChunkState")) return;
     const SpaceId space = m.chunk.space;
     if (space >= w.spaceCount() || w.spaceTemplate(space).kind != SpaceKind::OpenWorld)
     {
@@ -1096,6 +1159,22 @@ void Replication::hostReplicate(bool networkOnly)
     {
         if (currentEpoch != 0)
             for (uint8_t p : joinedPeers) w.send(p, ResyncMessage{currentEpoch});
+        // S23a: the generation state before the spawn set (a client checks it first); the non-integer warning once
+        for (uint8_t p : joinedPeers) sendGenerationState(p);
+        if (!w.nonIntegerWarned)
+        {
+            w.nonIntegerWarned = true;
+            for (size_t i = 0; i < w.spaceCount(); ++i)
+            {
+                const SpaceGeneration& g = w.generation().space(SpaceId(i));
+                if (g.generator->integerOnly()) continue;
+                SAIGA_LOG("content",
+                          "generator '%s' is not integer-only: clients on other machines or compilers may see other "
+                          "terrain",
+                          g.generatorName.c_str());
+                break;
+            }
+        }
         std::vector<std::pair<int, Entity>> all;
         for (uint32_t i = 1; i < host.size(); ++i)
         {
@@ -1635,6 +1714,17 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
         w.rejectInput(from, "Spawn: only the host sends it to clients");
         return;
     }
+    // S23a: a host whose world writes generation state sends it before the spawn set (join and Resync). A client whose
+    // setup writes it and has received none joined a host of another setup (e.g. legacy terrain), which generates
+    // other terrain: refused as a differing GenerationState (the spawn itself is applied, as after such a refusal)
+    if (w.writesGenerationState() && !w.generationChecked() && !w.generationMismatch())
+    {
+        w.generationMismatchFlag = true;
+        w.rejectInput(from, "Spawn before a GenerationState");
+        SAIGA_LOG("content",
+                  "the host sent no generation state: its setup writes none, this client's setup does (another "
+                  "generator setup)");
+    }
     Registry& reg = w.reg;
     ByteReader r(data, size);
     const uint64_t id64   = r.varint();
@@ -1665,6 +1755,15 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
             e = w.worldState;
         else if (netId >= kFirstSpaceStateNetId && netId - kFirstSpaceStateNetId < w.spaceStates.size())
             e = w.spaceStates[netId - kFirstSpaceStateNetId];
+        // After a refused GenerationState the host's space list may differ (another generator setup): the state
+        // entity of a space this client does not have is refused, the client keeps running (PR review: it exited)
+        if (!e.valid() && w.generationMismatch())
+        {
+            w.rejectInput(from,
+                          "Spawn: the bound NetId " + std::to_string(netId) +
+                              " names a state entity this client does not have (after a refused GenerationState)");
+            return;
+        }
         // Every build: the host has state components this client does not register
         if (!e.valid())
             SAIGA_EXIT_ERROR("Spawn: the bound NetId " + std::to_string(netId) +
@@ -2150,6 +2249,9 @@ void Replication::onResync(uint8_t from, const ResyncMessage& m)
     }
     Immediate scope(w.flushing);
     currentEpoch = m.epoch;
+    // S23a: the host's GenerationState of the new epoch follows
+    w.generationCheckedFlag  = false;
+    w.generationMismatchFlag = false;
     // Every replicated entity goes without callbacks; the bound state entities stay (the spawns overwrite them)
     std::vector<Entity> all;
     for (const auto& kv : clientByNetId)

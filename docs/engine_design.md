@@ -94,7 +94,7 @@ automatically.
 - **R-DET-1** (from S08) Simulation code uses `world.random()` (§8.6) and the step `dt`. Never wall-clock time, never
   `rand()`. A scenario in `ScenarioWorld` gives the same result on every run (§8.6); the live game is not required to be
   reproducible.
-- **R-CONTENT-1** (from S23) Content generators (world plan, terrain heights, placement, prefab stamping, collider
+- **R-CONTENT-1** (from S23a) Content generators (world plan, terrain heights, placement, prefab stamping, collider
   shapes) compute in integer and fixed-point arithmetic. The content hash is computed over this integer output. The
   conversion to float/double uses only exact operations and integer lookup tables (e.g. sin/cos tables indexed by
   fixed-point angles), never libm functions, so every machine and compiler produces identical chunks (§12.1). This
@@ -219,9 +219,13 @@ The rows above describe what exists today; none of it is fixed (§0). **Known de
 rule, stage that removes it):
 
 - `#pragma omp` per-cell loops in `ForestRenderer.cpp` (the hook samples of `placeTrees`; deterministic, the sum is
-  serial): R-PAR-1, accepted inside `vulkan/world/` until S23.
-- Float noise in the generators and the prototype height hook (`prototypeHeight`; the surface rule and the tile and
-  pyramid formats are integer already): R-CONTENT-1, S23.
+  serial): R-PAR-1, accepted inside `vulkan/world/`, narrowed to the prototype fixture (`placeTrees` of `game_world`
+  and racing) until S27.
+- Float noise in the prototype height hook (`prototypeHeight`; the surface rule and the tile and pyramid formats are
+  integer already): R-CONTENT-1, narrowed in S23a to the prototype fixture: the `HookGenerator` "prototype"
+  (`integerOnly()` false, the host warns a networked session) registered by `samples/games/common/`, used by
+  `game_world`, racing, the goldens and the benchmarks until S27; the flight demo moves to an integer generator in
+  S23c. Every other generator is integer only (the content toolkit, the lint, the committed hashes; §12.1).
 
 ## 4. Terms
 
@@ -617,7 +621,7 @@ struct WorldConfig                               // game policies (R-MECH-1)
     int maxStepsPerAdvance = 4;                   // S08
     TickPolicy ticking;                           // S10: §8.4
     std::vector<SpaceTemplate> spaceTemplates;    // S20, S21: 1..65535 templates, SpaceId = index, append-only for a
-                                                  // game's lifetime; space instances come from the world plan (§12.1, S23)
+                                                  // game's lifetime; space instances come from the world plan (§12.1, S23a)
     int maxPlayers = 8, maxSimulationIslands = 4; // S24 (§12.3)
     bool hardIslandLimit = false;                 // S24: true: requestArrival returns false beyond the limit
     bool clientPush = true;                       // S29: clients push host bodies with PushImpulse (§11)
@@ -626,16 +630,19 @@ struct WorldConfig                               // game policies (R-MECH-1)
 };
 
 // [exists: S20, S21] (engine/world/SpaceTemplate.h; A7): name (unique, non-empty, at most 256 bytes; S21), kind,
-// baseSpacing, seaLevel, sizeChunks (open world: a multiple of 16 in 16..512) and prototypeHeight, background (S21);
+// baseSpacing, seaLevel, sizeChunks (open world: a multiple of 16 in 16..512), background (S21), generator and
+// fullRadius (S23a; the transitional prototypeHeight hook field of S20 is gone: a hook is a HookGenerator, §12.1);
 // validated by validateSpaceTemplates in the World constructor (SAIGA_EXIT_ERROR, every build, D1). S21 (A17): an
-// enclosed template has no terrain (hasTerrain() false) and 1..512 chunks; its seaLevel and baseSpacing are ignored;
+// enclosed template has no terrain (its generator has none; phase A refuses one with terrain) and 1..512 chunks; its
+// seaLevel and baseSpacing are ignored;
 // SpaceTemplate::enclosed(name, sizeChunks = 4) builds one; its chunk range is [0, sizeChunks)^2 as for an open world,
 // its authored site's origin the centre of the middle chunk, enclosedOrigin(sizeChunks) = (sizeChunks / 2) * 256 + 128
-// m on both axes ((640, 0, 640) for 4 chunks). An open-world template without a hook is flat. An empty spaceTemplates means one
-// flat default template; a space without a hook is flat and draws no terrain (hasTerrain(), A22, E6: the single "has
-// terrain" test; S23a: Generator::hasTerrain()). ambient and fog are [S36]: until then the game's PrototypeSettings
-// carry them as run-time settings. A3 (D11): space 0's seed is WorldSetup::seed, index >= 1 hashCombine(seed, index)
-// (World::spaceSeed)
+// m on both axes ((640, 0, 640) for 4 chunks). A template with generator 0 (FlatGenerator) is flat. An empty
+// spaceTemplates means one flat default template; a space whose generator has no terrain is flat and draws no terrain
+// (World::spaceHasTerrain = Generator::hasTerrain(), A22, E6: the single "has terrain" test; S23a). ambient and fog are
+// [S36]: until then the game's PrototypeSettings carry them as run-time settings. A3 (D11): space 0's seed is
+// WorldSetup::seed; from S23a the space instances and their seeds come from the plan (§12.1; with FlatGenerator and no
+// sites: index >= 1 hashCombine(seed, index), World::spaceSeed). Scenario worlds lower fullRadius to at most 128 m
 struct SpaceTemplate                              // S20
 {
     std::string name;
@@ -645,20 +652,17 @@ struct SpaceTemplate                              // S20
     WaveSet waves;                                // S39: Gerstner waves of the sea (§10.9)
     int32_t sizeChunks = 128;                     // S20: the space covers chunks [0, sizeChunks)^2 (128 = 32 km);
                                                   // pyramid, tiles and the region quadtree are bounded by it
-    double simulationRadius = 384, fullRadius = 1000;   // §12.3
+    double simulationRadius = 384, fullRadius = 1000;   // §12.3; fullRadius exists from S23a (stamping)
     double clientPhysicsRadius = 384;             // S29: client proxy bodies (§11); default = simulationRadius
     double terrainEditMargin = 64;                // S28: metres of padding of a chunk's collision height range (§11)
     double prefetchMargin = 256;                  // S24: prefetch beyond fullRadius (§12.3)
     double unloadMargin = 128;                    // S24: hysteresis of chunk unloading beyond fullRadius (§12.3)
     double interestRadius = 512;                  // S32: replication interest (§13.4); asserts >= clientPhysicsRadius
     double interestMargin = 64;                   // S32: hysteresis of leaving the interest set (§13.4)
-    int32_t (*prototypeHeight)(uint64_t seed, int64_t x, int64_t z) = nullptr;   // S20: x, z integer metres; result in
-                                                  // integer height units (1/1024 m), point
-                                                  // evaluable; transitional, replaced by `generator` in S23
     AmbientSettings ambient;                      // §10.7: Vec3 skyColor, groundColor; double intensity
     FogSettings fog;                              // §10.5: Vec3 color; double density, heightFalloff, baseHeight
                                                   // (both in saiga/vulkan/scene/RenderSceneTypes.h, prototype values)
-    GeneratorId generator = 0;                    // §12.1 (S23)
+    GeneratorId generator = 0;                    // §12.1 (S23a): WorldSetup::generators; 0 = FlatGenerator
     Vec3 background = Vec3(0.02, 0.02, 0.025);    // S21: the clear color of an enclosed space (linear RGB) until S36
 };
 
@@ -683,7 +687,9 @@ struct WorldSetup
     std::string dataDirectory;                    // S11 e.g. SAIGA_PROJECT_SOURCE_DIR "/data/world"
     std::shared_ptr<DataStore> sharedData;        // S11: an already loaded store (worlds of one setup, scenario runs)
     void (*messages)(MessageList&) = nullptr;     // S15
-    void (*generators)(GeneratorList&) = nullptr; // [planned: S23] world plan, chunk generators, prefabs
+    void (*generators)(GeneratorList&) = nullptr; // [exists: S23a] content generators (FlatGenerator is 0)
+    std::shared_ptr<ContentCache> sharedContent;  // [exists: S23a] the cache of plans, prefabs and chunks shared by
+                                                  // the worlds of a setup (null: the world's own)
     void (*pieceTypes)(PieceTypeList&) = nullptr; // [planned: S30]
     void (*migrations)(MigrationList&) = nullptr; // S11 §15.2
     void (*renderAssets)(World&) = nullptr;       // [exists: S19b] registers meshes and materials by name into the
@@ -741,7 +747,8 @@ class World
     template <class T, class... C> Entity spawnIn(SpaceId space, const Vec3& position, C&&... initial);  // [S10]
                                                                     // any space < spaceCount() (S21)
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);  // §7.4 [exists: S21]
-    size_t spaceCount() const;                                      // one per template [exists: S21]
+    size_t spaceCount() const;                                      // [exists: S21] one per space instance of
+                                                                    // the plans (§12.1; S23a: one template can have several)
     double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
         // §12.4 [exists: S21, E8]: the one readiness the app reads; S21 the terrain's (TerrainSystem::readiness),
         // S23b adds the content sets, S27 far content
@@ -810,7 +817,8 @@ class World
     template <class T> const T& data(const DataRef<T>& ref) const;     // resolved once per store [S11]
     bool reloadData(std::string& error);                               // entries updated in place [S11]
     double terrainHeight(SpaceId space, double x, double z) const;     // §12.2 [exists: S20]; S21 (A2): 0 in an
-                                                                       // enclosed space (its floor) until S23 / S28
+                                                                       // enclosed space (its floor) until S28;
+                                                                       // S23a: from the space's generator (§12.1)
     double waterHeight(SpaceId space, double x, double z) const;       // §10.9 [planned: S39]
     Entity resolve(PersistentId id) const;                             // §9.6 [exists: S10]
     template <class... C> View<C...> ownedBy(uint8_t peer);   // §13.3 [exists: S16: one lookup per entity in the
@@ -2069,76 +2077,183 @@ class PhysicsWorld
 
 ## 12. Spaces, chunks, terrain and streaming
 
-### 12.1 Generation pipeline and chunk content [planned: S23]
+### 12.1 Generation pipeline and chunk content [exists: S23a (pipeline, plans, hashes, saves, stamping); planned: S23b (tombstones, content rendering), S23c (the flight demo's generator)]
 
-- Per space: **world plan** (global, low resolution: biomes, river channels carved below sea level (filled by the sea,
-  §10.9), roads, sites of authored places; computed once from the seed) -> **chunk generation** (terrain heights, tier-1
-  placement, grass masks) -> **prefab stamps** (authored places from prefab data files: terrain edits, placed pieces,
-  entities, loot, entrances to other spaces). Generators and prefabs are game content (`samples/games/<name>/content/`);
-  the pipeline and stamping are engine mechanisms (`engine/content/`). A space can also be fully authored (prefabs only,
-  e.g. a dungeon).
-- S23 scope (before streaming): chunks are generated on demand like the S20 tiles; the host keeps per space the set
-  of chunks whose prefab entities are stamped (saved; from S24 a flag in the chunk record); in phase 7 it
-  stamps, synchronously, **on the host only** (clients receive them by replication, §13.2) and in `ChunkId` order,
-  every unstamped chunk within `fullRadius` of a player, independent of the visual tile cache. Stamped pieces are added
-  in S30 (which regenerates the committed content hashes once).
+- Per space instance: **world plan** (global, low resolution: biomes, river channels carved below sea level (filled by
+  the sea, §10.9), roads, sites of authored places; computed once from the seed) -> **chunk generation** (terrain
+  heights, tier-1 placement, grass masks) -> **prefab stamps** (authored places from prefab files: terrain patches,
+  placed pieces [S30], entities, loot, entrances to other spaces). Generators and prefabs are game content
+  (`samples/games/<name>/content/` or `samples/games/common/content/`, prefabs in `data/<game>/prefabs/`); the
+  pipeline, the toolkit and stamping are engine mechanisms (`engine/content/`; S23a). A space can also be fully
+  authored (prefabs only, e.g. a dungeon: `AuthoredSpaceGenerator`).
+- **The pipeline** (`GenerationPipeline`, one per World; S23a) owns the generator list, the pinned versions and every
+  instance's plan, all computed eagerly at construction and immutable afterwards (plans are small; `terrainHeight`
+  runs inside `parallelEach` and the streaming pool, so nothing computes a plan lazily). **Phase A** (pure, no World:
+  `GenerationPipeline::build(setup, pins, cache)`) runs first in the World constructor: the generator list and its
+  registration checks, the template views, the prefab files of every plan, the space list, every plan with its
+  validation, `sitesByChunk` and the plan hashes; `checkContentHashes` and a load with the saved pins use it too.
+  **Phase B** (`validateEntities`), last in the constructor after `renderAssets`: the prefab entities' classes,
+  component values (the world API's `checkComponentValues`; `Parent`, `NetOwner` and `SpaceLink` refused) and
+  `RenderInstance` meshes. Errors are fatal in the constructor (`SAIGA_EXIT_ERROR`) and load errors in a load.
+- Stamping (S23a, before streaming): the host keeps the set of chunks whose prefab entities are stamped (host only,
+  saved in `CREC`); `chunkStampSystem` (phase 7, `RunOn::Host`, the first system of the phase, registered only when
+  some plan has sites or a generator in use is not legacy: a load may bring plans with sites) stamps, **on the host only** (clients receive the entities by replication, §13.2) and in
+  `ChunkId` order, every unstamped chunk within `SpaceTemplate::fullRadius` of a Player. The stamp list comes from the
+  plan alone (`stampList(ChunkId)`: the prefab entities of the chunk's sites, rotated by the quarter turns, `y =
+  baseHeight + prefab y`, yaw composed), no chunk is generated; spawns go through commands
+  (`World::spawnByClassDeferred`), the component values are merged after `configure()` / `onSpawn()` by the world
+  API's path (`mergeComponentValues`, the flush-safe `World::addDefaultById`), `SpaceLink.target` and `arrival` come
+  from the plan. The record and the stamped entry are written by a command recorded before the chunk's spawns, so all
+  apply at the same flush. Stamped pieces are added in S30 (which regenerates the committed content hashes once).
 - Deterministic and identical on every machine (R-CONTENT-1). Each tier-1 instance has a stable
-  `InstanceKey {uint32 generatorSlot, uint32 counter}`; tombstones name keys.
-- **Generator contract** (needed for far sets, §10.4): (a) terrain height is point-evaluable from the world plan
-  (`height(x, z)` without neighboring tiles); (b) a tier-1 candidate is a pure function of (generator slot, chunk,
-  counter): position and acceptance depend only on the world plan and point-evaluated terrain, never on other candidates
-  (spacing from jittered grids); counters are ordered by importance (§10.4); (c) **sites** (authored places) are part of
-  the world plan with footprint, height patch and exclusion mask: `height(x, z)` includes the site height patches,
-  candidate acceptance tests the exclusion masks, and a site's pieces provide a far mesh generated per region from the
-  plan's site list without chunk generation. Stamped terrain and stamped pieces are base content, not modifications;
-  only later edits are. Piece modifications are: placed pieces (full records), a tombstone set of stamped piece keys,
-  and state overrides for stamped pieces by key; the region summary lists the tombstoned stamped keys for the site far
+  `InstanceKey {uint32 generatorSlot, uint32 counter}`; tombstones name keys [S23b].
+- **Generator contract** (needed for far sets, §10.4): (a) terrain height is point-evaluable from the world plan:
+  `Generator::height(version, plan, x, z)` is the **natural** terrain; the pipeline composes the site patches
+  (`GenerationPipeline::height`, `gen/SitePatch`: quarter turns, weights 0..256, `h = natural + floor((baseHeight +
+  patch - natural) * w / 256)`), so `height()`, the tiles, `terrainHeight`, S27's far sets and S30's far meshes give
+  the same result; (b) a tier-1 candidate is a pure function of (generator slot, chunk, counter): position and
+  acceptance depend only on the world plan and point-evaluated terrain, never on other candidates (spacing from
+  jittered grids; `contentHash64` is the only randomness); counters are ordered by importance (§10.4); (c) **sites**
+  (authored places) are part of the world plan with footprint, height patch and exclusion mask: the pipeline applies
+  the exclusions to candidates and grass cells (each point inverse-rotated into the site's local frame and tested
+  against the local half-open rectangle), and a site's pieces provide a far mesh generated per region from the plan's
+  site list without chunk generation. Stamped terrain and stamped pieces are base content, not modifications; only
+  later edits are. Piece modifications are: placed pieces (full records), a tombstone set of stamped piece keys, and
+  state overrides for stamped pieces by key; the region summary lists the tombstoned stamped keys for the site far
   meshes. A CI test [S27] generates a far set directly and compares it with the filtered full chunk, including a chunk
-  with a site.
-- **Space instances**: the plan of space 0 lists all space instances; every other instance computes its own plan with
-  `plan(version, instanceSeed, template)`, whose `spaces` list is empty. The list: `SpaceId` = index in the plan's space
-  list (0 = overworld), template (`SpaceTemplate`), instance seed = hashCombine(world seed, site key); `SpaceLink::target` is
-  filled at stamping from the plan; the list is part of the pinned plan version. Every space instance comes from the
-  plan; spaces are not created or deleted at run time (§20).
-- **Content hash** per generated chunk over the integer output; a CI test compares generated chunks with committed
-  hashes (committed hashes are never regenerated for a shipped version; a hash change for an existing version is a
-  bug); it runs on the Clang and Windows/MSVC (shared libraries) CI jobs that exist from S04.
+  with a site. Integer generators' heights including the site patches lie in `+-kTerrainHeightLimit` (checked in every
+  build); `HookGenerator` clamps its hook results (`clampTerrainHeight`, E7).
+- **Quarter turns and yaws** (fixed; they enter the hashes): a site's rotation is `quarterTurns` (0..3) times 90 degrees
+  about +y in the yaw direction (yaw θ maps local `(x, z)` to `(x cos θ + z sin θ, -x sin θ + z cos θ)`): a local
+  point maps to `q = 1: (z, -x)`, `q = 2: (-x, -z)`, `q = 3: (-z, x)`, then the site origin is added; the inverse of
+  `q` is `4 - q`. Point tests inverse-rotate the point; rotated **areas** (`sitesByChunk`, the inside-space and overlap
+  tests) use the closed integer bounds of the rotated corners (conservative by the boundary line: a footprint ending on
+  a chunk border is also listed in the next chunk; touching footprints overlap; a footprint ending on the space edge is
+  inside). A stamped entity's or static part's yaw is `uint16(prefab yaw + quarterTurns * 16384)`.
+- **Space instances** (S23a): the pipeline builds the list: (1) the overworld (template 0, the world seed); (2) the
+  instances the generator lists in space 0's `plan.spaces` (seeds chosen by the generator; convention
+  `hashCombine(hashCombine(seed, fnv1a64("listed")), i)`); (3) per site of space 0 in site order, per entry of its
+  prefab's `spaces`: `{template, siteSeed, parent 0, siteKey, link}` with `siteSeed = hashCombine(hashCombine(seed,
+  fnv1a64("site")), key)` for link 0 and `hashCombine(siteSeed(link 0), link)` for link > 0 (domain separated, D11);
+  (4) one instance per template not referenced by 1-3, in template order (`hashCombine(seed, templateIndex)`; with
+  `FlatGenerator` and no sites the list is exactly S21's). `SpaceId` = index; every other instance's plan is the same
+  in/out `plan()` call with its seed and template view, with no listed spaces and no site prefabs with `spaces` (no
+  nested instances). `SpaceLink::target` is filled at stamping from the plan (`"link"`: the instance of (site, link);
+  `"parent"`: the creating space, the arrival relative to the creating site's origin, rotation and base height). The
+  list is part of the pinned plan version; spaces are not created or deleted at run time (§20). Prefix rule: a template
+  appended to the setup adds an unreferenced instance at the end, so a save with fewer spaces loads (its spaces are a
+  prefix); an instance inserted in the middle is a load error. Enclosed sites (`AuthoredSpaceGenerator`) lie at the
+  centre of the middle chunk (E4) and reserve the whole space.
+- **Content hash** (S23a, `gen/SectionHash`, `ContentHash`): per chunk five sections, each its own FNV-1a 64 `Hasher`
+  seeded with `fnv1a64("saiga.content.<section>.v1")`: `heights` (u32 samples per side, u32 spacing, every i32 sample;
+  enclosed: u32 0, u32 0), `tier1` (u32 count; per instance in (slot, counter) order: u32 slot, counter, meshSlot, i32
+  x, z, y, u32 yaw, scale, flags), `grass` (u32 size, every u8), `stamps` (u32 count; per record: u32 site key, u32
+  entity index, string prefab, u32 prefab version, string class, i64 x, z, i32 y, u32 yaw) and `statics` (u32 count;
+  per part: u32 site key, u32 part index, string mesh, i64 x, z, i32 y, u32 yaw); the total (`saiga.content.total.v1`)
+  over u32 space, i32 chunk x, z, u32 pinned and placement version and the five hashes. A plan hash
+  (`saiga.content.plan.v1`: seed, pinned version, the template view, the sites incl. their prefab content hashes, the
+  listed instances, the biomes and rivers grids; `cloudCoverage` and slot mesh tables are not hashed) per space and a
+  combined plan hash (`saiga.content.plans.v1`: u32 N, per SpaceId the template index, generator name and plan hash).
+  A change of a layout is a new `.v2` seed name and a new file entry. **The committed file**
+  `data/tests/engine/content_hashes.json` (`ContentHash.CommittedHashesReproduce`, the engine test generator
+  `TestTerrainGenerator` of `tests/content_test_generator.h`): per setup entry (seed as a string, generator versions,
+  plans by SpaceId, the combined plan hash, listed chunks with their sections, a digest over a chunk block of space 0
+  and every site chunk of space 0, the toolkit hashes); `checkContentHashes(setup, file, update)` (phase A only, an
+  engine function games call from a scenario, S23c) compares or, with `SAIGA_UPDATE_CONTENT_HASHES=1`, rewrites it and
+  fails. It runs on the GCC, Clang (with `SAIGA_CONTENT_UBSAN=ON`: trapping UBSan on `engine/content/` and
+  `test_engine_content`) and MSVC CI jobs. Committed hashes are never regenerated for a shipped version (a hash change
+  for an existing version is a bug); a new version adds an entry. Games keep their own file and scenario (S23c).
+- **Integer only, enforced three ways** (R-CONTENT-1): the `ContentLint` test (a tokenizer and token rules over the
+  generator files: `engine/content/gen/`, the interface headers `Generator.h`, `WorldPlan.h`, `ChunkContent.h`,
+  `engine/world/SpaceKind.h`, the test generator and games' `content/` directories) refuses floating literals and
+  types, `long`, `size_t`, libm names (qualified or not), unordered containers, distributions, `rand`, `Rng`,
+  `std::hash`, `kHeightUnit`, `chunkSize`, `chunkOrigin`, the double math types, `SpaceTemplate` and includes outside an
+  allow-list; the committed hashes on three compilers; trapping UBSan on the Clang job. The toolkit
+  (`gen/FixedMath.h`: floor division and shifts, `mulShift`, `lerpQ16`, the quintic `smoothQ16` with Q32
+  intermediates, `isqrt64`; `gen/TrigTable`: a quarter-wave sine table of 2^17 steps per turn in Q30 from an integer
+  Taylor series; `gen/IntNoise`: `contentHash64` (splitmix64 chained, the only randomness), `gradientNoise`,
+  `valueNoise`, `fbm`, `ridged`) and its rules (`FixedMath.h`: narrow types cast before multiplying, unsigned left
+  shifts, explicit narrowing casts, sort on unique keys) are shared by every generator. Generators see only the
+  integer template view `GenerationTemplate` (name, kind, template index, spacing, size, sea level).
 - **Generator versions** (§15.3): a world pins the versions it was created with.
 
 ```cpp
-class Generator   // engine/content/Generator.h [planned: S23]; implemented by games
+class Generator   // engine/content/Generator.h [exists: S23a]; implemented by games
 {
    public:
     virtual ~Generator() = default;
-    virtual uint16_t version() const = 0;
+    virtual const char* name() const = 0;          // saves, messages and the hash file name generators by name
+    virtual uint16_t version() const = 0;          // the newest version; every older one stays callable
+    virtual std::vector<GeneratorSlot> slots() const = 0;   // append-only; {name, flags, meshes}: name and flags are
+                                                   // content (GENR, GenerationState), meshes presentation only
+    virtual bool integerOnly() const { return true; }       // false only for the float prototype fixture
+    virtual bool legacyTerrain() const { return false; }    // heights equal a pre-S23 hook: no slots, no sites, no
+                                                            // generation state
+    virtual bool hasTerrain() const { return true; }        // false: flat at 0, nothing drawn (World::spaceHasTerrain)
     // `version` is the pinned plan/terrain version for plan() and height(), the chunk's placement version for
-    // candidate() and grassMask() (§15.3)
-    virtual WorldPlan plan(uint16_t version, uint64_t seed, const SpaceTemplate& space) const = 0;
+    // candidate() and grassMask() (§15.3). plan() is in/out: seed and space (the integer template view) are set by the
+    // pipeline before the call and must not change (checked); it fills sites, spaces and grids and may call height()
+    // once the grids height() reads are filled
+    virtual void plan(uint16_t version, WorldPlan& plan) const = 0;
     virtual int32_t height(uint16_t version, const WorldPlan& plan, int64_t x, int64_t z) const = 0;
-                                    // x, z: integer metres in the space; result: integer height units (1/1024 m)
+                                    // the natural terrain; x, z: integer metres; result: height units (1/1024 m)
     virtual bool candidate(uint16_t version, const WorldPlan& plan, ChunkId chunk, uint32_t slot, uint32_t counter,
                            Candidate& out) const = 0;   // false: rejected
-    virtual uint32_t candidatesPerChunk(uint32_t slot) const = 0;
-    virtual uint32_t keptCount(uint32_t slot, int level) const = 0;   // far level L keeps counter < keptCount
+    virtual uint32_t candidatesPerChunk(uint32_t slot) const = 0;   // <= 2^24
+    virtual uint32_t keptCount(uint32_t slot, int level) const = 0; // far level L keeps counter < keptCount [S27]
     virtual void grassMask(uint16_t version, const WorldPlan& plan, ChunkId chunk, GrassMask& out) const = 0;
 };
-struct WorldPlan { std::vector<Site> sites; std::vector<SpaceInstance> spaces;
+struct WorldPlan { uint64_t seed; GenerationTemplate space;              // set by the pipeline
+                   std::vector<Site> sites; std::vector<SpaceInstance> spaces;
                    PlanGrid biomes, rivers;                             // integer grids at plan resolution
                    PlanGrid cloudCoverage;  // [S42] presentation only, not in the content hash
-                 };
+                   std::map<ChunkId, std::vector<uint32_t>> sitesByChunk; };   // filled by the pipeline
+struct Site { uint32_t key; std::string prefab; uint16_t prefabVersion; int64_t x, z;   // integer metres
+              uint8_t quarterTurns; int32_t baseHeight;   // prefab y = 0 (convention: the natural height there)
+              int32_t footprint[4]; };                     // [x0, z0, x1, z1) local metres; the prefab's lies inside
+struct SpaceInstance { uint16_t templateIndex; uint64_t seed; SpaceId parent; uint32_t siteKey; uint8_t link;
+                       uint8_t origin; };                  // overworld, listed, site, unreferenced
 struct Candidate { uint16_t meshSlot; int32_t x, z;   // 1/256 m, chunk relative; y = the terrain surface of
                                                       // §12.2 at (x, z) from the base-spacing height() samples
                                                       // (integer barycentric, 1/1024 m, rounded toward -inf)
                    uint16_t yaw;                         // index into the integer sin/cos table
                    uint16_t scale;                       // 1/1024
-                   uint32_t flags; };                    // re-snap or tombstone on terrain edits, cosmetic
-// The engine converts exactly to double and maps meshSlot to MeshId through the generator-slot name table (§15.2);
-// the content hash covers these integers.
-void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
-// Prefabs: data/<game>/prefabs/<name>.json with terrain patches, pieces, entities (components as visit JSON),
-// SpaceLinks and (enclosed spaces) static geometry mesh names; loaded by the generation pipeline (one file per
-// prefab version, §15.3; not the one-file-per-type data files of §14).
+                   uint32_t flags; };                    // game bits: hashed, not interpreted
+enum SlotFlags : uint32_t { ReSnapOnEdit = 1, TombstoneOnEdit = 2, Cosmetic = 4 };   // per slot: one edit flag
+// GeneratorId 0 is the engine's FlatGenerator (flat, no terrain, legacy); a template names its generator
+// (SpaceTemplate::generator). Registration checks (every build): at most 200 slots (200-255 are engine keys),
+// candidatesPerChunk <= 2^24, unique slot names, one edit flag per slot, keptCount(slot, 0) == candidatesPerChunk and
+// non-increasing, unique names and IDs, every template's generator registered, a legacyTerrain generator without slots
+void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generator);
+// The engine converts exactly to double (ContentConvert: positions by a power-of-two scale, rotations from the trig
+// table's Q30 values scaled by 2^-30, not normalised: within 2^-28 of unit length; scale / 1024) and maps meshSlot to
+// MeshId through the slot mesh table [S23b]; the content hash covers the integers.
+// Prefabs: <dataDirectory>/prefabs/<name>.json (v1) or <name>.v<N>.json with terrain patches, exclusions, entities
+// (components as visit JSON), SpaceLinks, spaces and static geometry; pieces [S30]. Loaded by the pipeline (one file
+// per prefab version, §15.3; not the data files of §14).
 ```
+- `HookGenerator` (`engine/terrain/`, not content, not linted) adapts an S20 height hook (`TerrainHeightHook`, called
+  with `plan.seed`) to the interface: clamped heights, no slots or sites, `legacyTerrain`, with terrain, S20's grass
+  rule for its masks. The games' prototype fixture is the `HookGenerator` "prototype" (float noise, `integerOnly()`
+  false; `samples/games/common/PrototypeSpace.h`), used by `game_world` and racing until S27 and by flight until S23c.
+- **Chunk content** (`ChunkContent.h`): `ChunkBase` (keyed by generator, pinned version, plan hash and chunk: the
+  level-0 heights at the base spacing, S20's layout), `ChunkPlacement` (keyed by the chunk's placement version: the
+  tier-1 instances sorted by (slot, counter), the grass mask with excluded cells cleared, every section hash and the
+  total), `StampRecord` / `StaticPart` (the plan-only lists). Accessors: `chunkBase(ChunkId)`, `chunkPlacement(ChunkId,
+  placementVersion)` (synchronous: a cache hit or inline generation, never a wait), `ContentSource::requestPlacement`
+  (the pool form, D8), `stampList` / `staticList`, `height(space, x, z)` (a lock-free, allocation-free point query;
+  S20's `TerrainHeightSource` of every space is it). `World::contentHash(ChunkId)` gives the total at the current
+  placement version.
+- **Content cache** (`ContentCache`, `WorldSetup::sharedContent`, one per setup): thread safe; plans and prefabs never
+  evicted, chunk entries LRU by a byte budget (256 MB). Keys: the generator's registration identity (name, version,
+  slot table; another identity under a known name on one cache stops the program), then plans by (name, pin, seed,
+  template view, SpaceId), bases by (name, pin, plan hash, chunk), placements by (name, placement version, plan hash,
+  chunk). In-flight rule (D8): a pool job registers its key when it starts; another pool job waits for a running
+  generation of the same key; a synchronous requester never waits (it generates inline); the first insert wins.
+- **Chunk records** (`ChunkRecords`, World state, `CREC`): per chunk the placement version it keeps plus the host-only
+  stamped set. A chunk the host stamps gets a record at the current version (a deliberate extension of E10: the host
+  must save which chunks are stamped); S23b adds the chunks with tombstones; a load keeps the saved records. No other
+  chunk has a record before S25: a chunk without one is generated with the current version by every peer.
 - A chunk holds: terrain tile(s), tier-1 arrays per mesh, grass mask, placed pieces, static colliders,
   plus its **modifications** and the serialized entities of §9.6. **Modifications are state, not a log**: the current
   edited height tile (stored, saved and sent as the difference from the chunk's base, zero where unedited, zstd
@@ -2162,11 +2277,13 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
 ### 12.2 Height-map terrain [exists: S20 (height tiles), S22 (terraforming)]
 
 S21 (A2): `terrainHeight` of an enclosed space (and of a hook-less open-world space) is 0, the floor plane; the
-kinematic mover walks on it until S23's authored geometry and S28's colliders.
+kinematic mover walks on it until S28's colliders (S23a: a space's height comes from its generator; an enclosed space
+has none).
 
 - **Integer heights**: int32 with the fixed unit `kHeightUnit` (1/1024 m, `constexpr double` in
   `saiga/core/math/ChunkId.h`, no offset), bounded by `kTerrainHeightLimit` = 2^23 units (+-8192 m, S20, A18: every hook
-  result is clamped to it with `clampTerrainHeight`; S22 clamps edits, S23 generators to the same limit). Tiles,
+  result is clamped to it with `clampTerrainHeight`; S22 clamps edits; S23a's integer generators are checked to stay
+  within it, a `HookGenerator` clamps). Tiles,
   pyramid, CPU queries, physics, saves, content hashes, network rectangles and the generators use the same integer
   values. A10 (S20, replaces "R32F tiles"): the GPU terrain set is int32 storage buffers (`TerrainAtlas`: an atlas with
   `streamedLevels * tilesPerLevel` layers, the page entry is the layer only, the pyramid, the page table, the grass
@@ -2189,15 +2306,18 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   `terrainGridTriangles`, the hook type and `TerrainHeightSource` (A22, E7: a callable over integer metres with the seed
   bound; `fromHook` clamps). A2: S20 moved every consumer from the prototype's (1,0)-(0,1) split to this diagonal (the
   goldens were regenerated).
-- **Scope before S23** (S20, S22): tiles of all levels are generated on demand from `SpaceTemplate::prototypeHeight`
+- **Scope before S23a** (S20, S22): tiles of all levels are generated on demand from `SpaceTemplate::prototypeHeight`
   (A5, A6: the prototype hook `prototypeHeight` in `vulkan/world/PrototypeTerrain`, the S01 noise evaluated per point,
   continuing beyond the prototype's 8 km with its 819.2 m border falloff at the edges of the 32 km space; the template
   that uses it is built in `samples/games/common/PrototypeSpace.h`; tile, pyramid and grass-mask generation are pure
   functions in `vulkan/scene/TerrainTiles`, wrapped by the engine's `TerrainGeneration`; integer format; R-CONTENT-1
-  applies from S23) on the streaming pool, by camera distance, with an LRU budget per level; S22 introduces the
+  applies from S23a) on the streaming pool, by camera distance, with an LRU budget per level; S22 introduces the
   modification state of §12.1 (the deltas and the per-chunk sequence; saved in `TERR`, §15.1). Simulation height
   queries (`terrainHeight`, mover, edits) evaluate the prototype height hook exactly if the base tile is not resident
-  (the asynchronous path is visual only). Before S26 (S22) the host sends every live modification to every client, and
+  (the asynchronous path is visual only). From S23a every space's height source is its generator through the generation
+  pipeline (`GenerationPipeline::heightSource`: the natural height with the site patches composed; the prototype hook
+  is the `HookGenerator` "prototype"); S20's tile and pyramid functions take it as their `TerrainHeightSource`
+  unchanged. Before S26 (S22) the host sends every live modification to every client, and
   clients keep every edited sample in memory (never evicted); S22's minimal snapshot (`sendChunkSnapshot`, §13.2) serves
   late joiners and host loads; per-loaded-chunk snapshots and the reload rules of §13.2 come with S26. Simulation radii
   and the chunk store follow in S24 and S25.
@@ -2267,7 +2387,7 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
     `TerrainEditStore`, read-only).
 - `world.terrainHeight(space, x, z)` (double; A16: x and z clamped to the space) is exact everywhere: the three samples
   of the containing triangle come from `terrainSample` (S22: base + delta; the base from the resident level-0 tile,
-  otherwise exactly from `Generator::height` / before S23 the prototype height hook), so edits are visible from the
+  otherwise exactly from the generation pipeline's height (S23a; before S23a the prototype height hook), so edits are visible from the
   requesting step on. The pyramid is used only for rendering and far content: nothing in the simulation reads it before
   S27 (S22: it is merged and patched on the visual path; no synchronous CPU pyramid write).
 - Terrain, grass, water, sky/fog and culling shaders work region/camera relative.
@@ -2322,13 +2442,14 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   `IslandLimitEvent {count}` and a statistic, the engine keeps simulating; with `WorldConfig::hardIslandLimit` set,
   `requestArrival` returns false. A Steam Deck can host small sessions (default: 4 players, 2 islands).
 
-### 12.4 Spaces and transitions [exists: S21 (before S23/S24 as below); planned: S24 arrivals, S25 unloading]
+### 12.4 Spaces and transitions [exists: S21, S23a (space instances from the plan, stamped entrances); planned: S24 arrivals, S25 unloading]
 
 - The open world is a height field. Caves, dungeons and interiors are **separate spaces** (enclosed scenes): authored
   from prefabs or generated, with their own chunk grid, static mesh geometry and colliders, ambient light and fog
   settings; `SpaceKind::Enclosed` has no sky and no height map.
 - An **entrance** connects two spaces: an entity with `SpaceLink {SpaceId target; Vec3 arrival; Quat
-  arrivalRotation}` (a prefab-stamped entity from S23; a piece that is an entrance is promoted to an entity).
+  arrivalRotation}` (a prefab-stamped entity from S23a, its target and arrival from the plan; a piece that is an
+  entrance is promoted to an entity).
   Interacting with it starts a **transition**:
   1. the host (`World::requestTransition(player, link)`, called by the game; the engine offers an optional
      `spaceLinkSystem` (phase 4, host) that calls it for an `InteractEvent` whose target has `SpaceLink`) starts an
@@ -2349,8 +2470,12 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   (the layouts may differ), a terrain-less camera space clears it (`clearTerrain`, E1), other spaces keep only their
   CPU-cached pyramid; an exit into an overworld with terrain re-streams its tiles around the camera (a short loading
   screen; keeping them is S25's residency question).
-- **Before S23** (S21): there is one space instance per `spaceTemplates` entry (`SpaceId` = template index; seed: the world seed for space
-  0, hashCombine(world seed, index) for index >= 1, S20 D11, so space 0 keeps the world seed of §12.1); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
+- **Before S23** (S21): there was one space instance per `spaceTemplates` entry (`SpaceId` = template index; seed: the
+  world seed for space 0, hashCombine(world seed, index) for index >= 1, S20 D11). **From S23a** the instances come from
+  the plan (§12.1): `spaceCount()`, `spaceTemplate(i)` and `spaceSeed(i)` are plan-backed, the space-state entities
+  exist per instance and `SPCE` lists the instances (template name per `SpaceId`; names may repeat); with
+  `FlatGenerator` and no sites the list is exactly S21's. Authored enclosed entities are stamped from prefabs (S23a);
+  their static geometry is drawn from S23b, its colliders come in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
   affect the simulation.
@@ -2367,7 +2492,8 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   requests the transition for an `InteractEvent` with a `SpaceLink` target whose actor is an alive root in the link's
   space (other spaces: ignored with a log line). The interact chain from a queued action: step k the `ActionEvent`
   (the game's interact system emits the `InteractEvent`), k + 1 the request, k + 2 the move in phase 1, k + 3 the
-  event. `terrainHeight` of an enclosed space is 0 (its floor plane) until S23 geometry and S28 colliders; an
+  event. `terrainHeight` of an enclosed space is 0 (its floor plane) until S28's colliders (S23a stamps its prefab
+  entities; S23b draws its static geometry); an
   enclosed space's chunk range is `[0, sizeChunks)^2`, its site origin `enclosedOrigin` (§7.9).
 - **The loading screen before S24** (A9): the app keeps the space of the last rendered frame's view camera; a change
   starts a load only if `World::spaceReadiness(space, camera, EngineAppSetup::loadingRadius)` (E8: terrain in S21,
@@ -2404,7 +2530,7 @@ std::vector<PieceKey> World::pieceNeighbours(PieceKey key) const;           // t
 template <class T, class... C> Entity World::promote(ChunkId chunk, InstanceKey key, C&&... initial);   // tier 1
 template <class T, class... C> Entity World::promote(PieceKey piece, C&&... initial);                    // tier 1p
 PieceKey World::demote(Entity e, PieceTypeId type);                         // entity -> placed piece
-void World::tombstone(ChunkId chunk, InstanceKey key);                      // tier 1 (S23)
+void World::tombstone(ChunkId chunk, InstanceKey key);                      // tier 1 (S23b)
 void World::editGrass(SpaceId space, const Vec3& center, double radius, double density);   // S31: edited grass mask
 ```
 - A piece with behavior (a crafting station with a timer) is promoted to an entity while it is active (game decides).
@@ -2422,8 +2548,8 @@ void World::editGrass(SpaceId space, const Vec3& center, double radius, double d
   `RenderPose` and the interpolation buffer, full-state snapshots of all entities (§13.4), host + client scenario
   variant.
 - **With the features that need them** (over `LoopbackTransport`): the world handshake and chunk snapshots (S26), live
-  terrain edits (S22), tombstones (S23; sent like the S22 live terrain modifications to every client until S26), pieces
-  (S30).
+  terrain edits (S22), the generation state check (S23a: `GenerationState`, §13.2), tombstones (S23b; sent like the S22
+  live terrain modifications to every client until S26), pieces (S30).
 - **S32** interest radius, snapshot rate, cosmetic events, loss and reordering; **S33** UDP transport, sessions.
 
 ```cpp
@@ -2451,7 +2577,7 @@ LoopbackTransport::createPair(double dropRate = 0, int delaySteps = 0, uint64_t 
 void LoopbackTransport::disconnect(uint8_t peer);   // [S33] both ends receive Disconnected (tests)
 ```
 
-### 13.2 The world over the network [planned: S26; live terrain edits: exists, S22]
+### 13.2 The world over the network [planned: S26; live terrain edits: exists, S22; GenerationState: exists, S23a]
 
 The world is generated from the seed on every machine (§12.1). The handshake sends the seed and the pinned generator
 versions and compares the protocol version and a hash of the schema table (§15.2); a mismatch rejects the join with a
@@ -2475,7 +2601,8 @@ encoded by `TerrainDeltaCodec` (row-major zigzag varint differences, the predict
 optionally zstd; the decoder bounds the size, the value count and |delta| <= 2^24 and leaves no bytes over). The
 minimal snapshot `Replication::sendChunkSnapshot(peer)` sends one `TerrainChunkState` per chunk with state, in
 `SpaceId`, `ChunkId` order: on a join after the spawn set (`Resync` first if the epoch is not 0; S23a's
-`GenerationState` before the snapshot), on a host load from `onHostLoad` right after `Resync`. A client validates each
+`GenerationState` before the spawn set), on a host load from `onHostLoad` right after `Resync` and `GenerationState`. A
+client validates each
 message on its own into scratch (flags, epoch, an open-world space, chunks in range, boxes inside the tile, the codec's
 bounds, sequence > 0, equal values for samples shared by parts of one message; no check against its present
 neighbours: the host is authoritative) and applies nothing on a failure (`NetStats::rejected`); per part a sequence
@@ -2483,6 +2610,22 @@ neighbours: the host is authoritative) and applies nothing on a failure (`NetSta
 in `NetStats::modificationGaps` and applied. A chunk state replaces the chunk's deltas and sequence if its sequence is
 not older. A client `Resync` clears the whole modification state (each cleared chunk with deltas goes through
 `onTerrainChanged`).
+
+**S23a (before S26)**: `GenerationState` (`net/GenerationStateMessage`; raw, host -> clients, `Channel::State`,
+reliable, with the epoch): the seed, per generator in name order its name, pinned and current version and slot table,
+the space count and the combined plan hash. Sent only by a host whose world writes generation state
+(`World::writesGenerationState`: a non-legacy generator or chunk records; flat and hook worlds send nothing), in E5's
+order: on a join after `Resync` and before the spawn set, on a host load right after `Resync` (before the chunk
+snapshot). The client validates and refuses (untrusted input): the seed equals its setup seed (D11), the generator
+names are its registered ones, the host's pins equal its pins and the host's current versions its `version()`, the
+slot tables are equal, and the space count and combined plan hash equal its own; a failure is counted in
+`NetStats::rejected`, logged (category `content`, naming the first difference) and sets `World::generationMismatch()`
+(the host + client scenario variants fail on it); nothing is applied (later spawns still are, except a state entity
+of a space this client does not have: refused instead of the setup-mismatch exit). A valid message changes nothing
+(`World::generationChecked()`): the client generates the host's content already. Adopting the host's pins is S26's
+handshake (E11): until then a client of another binary version, or a host that loaded a save of an older generator
+version, is refused. The host logs once per world when the first peer joins and a generator in use is not integer only
+(the prototype fixture: "clients on other machines or compilers may see other terrain").
 
 ### 13.3 Ownership [planned: S16; moving platforms: S40]
 
@@ -2691,7 +2834,7 @@ deterministic replicas. S16: the host + client variants are reproducible (the lo
 asynchronous client stepping comes from a seeded `Rng`); two runs give equal host hashes and equal client states
 (tested).
 
-## 14. Content and data [exists: S11 (data files); planned: S23 (prefabs)]
+## 14. Content and data [exists: S11 (data files), S23a (prefabs)]
 
 - Tunable data: one JSON file per type, `data/<game>/<snake_case(T::name)>.json`, an object of named entries
   (`{"wolf": {...}, "bear": {...}}`); loaded in the `World` constructor from `WorldSetup::dataDirectory` (R-DATA-1;
@@ -2701,11 +2844,21 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   all are valid and no entry was removed (entries are updated in place, so references and `DataRef`s see the new values;
   members set in `configure()` change when the objects are configured again: the `reload_data` tool reloads the world
   for that). Data are not saved. Worlds of one setup can share the parsed store (`WorldSetup::sharedData`).
-- Prefabs (authored places): data files with terrain edits, placed pieces, entities, entrances and (for enclosed
-  spaces) static geometry, with their
-  components (`visit` JSON), loaded and stamped by the generation pipeline (§12.1; one file per prefab version, §15.3,
-  not the data file mechanism above). Authored in an external tool or by hand; no
-  editor is planned.
+- Prefabs (authored places, S23a; `engine/content/Prefab`, `PrefabStore`): `<dataDirectory>/prefabs/<name>.json`
+  (version 1) or `<name>.v<N>.json` (version N), read once per (directory, name, version) through the content cache,
+  never reloaded, not data files of the mechanism above (R-DATA-1 rules: unknown keys, malformed or out-of-range values
+  and a missing file are errors naming file and key). Format 1: `footprint` (integer metres, half open), `terrain_patch`
+  (origin and size in metres, samples 1 m apart, heights relative to the site's `baseHeight`, weights 0..256),
+  `exclusion` rectangles, `entities` (`class`, `position`, integer `yaw_deg`, `components` in the `visit` JSON form,
+  `space_link` `{to: "link" | "parent", link, arrival, arrival_yaw_deg}`), `static_geometry` (`mesh`, `position`,
+  `yaw_deg`), `spaces` (the instances a site creates, space-0 sites only); `pieces` is an error until S30. Positions:
+  x and z exact multiples of 1/256 m, y of 1/1024 m (an inexact value such as 0.1 is an error); everything lies inside
+  the footprint; JSON numbers are parsed and written without the C locale (json11 through `ParseNumber` and a
+  classic-locale stream). The component values are checked at plan time (phase B, the world API's
+  `checkComponentValues`; `Parent`, `NetOwner` and `SpaceLink` refused) and applied after `configure()` / `onSpawn()`
+  like the world API's `spawn` (`ComponentJson::mergeComponentValues`: a component the class added is merged, any other
+  added with its default and merged). Each prefab has a content hash over its integer content (not the component
+  values: a changed value in a released prefab is a review rule, §15.3). Authored by hand; no editor is planned.
 - Meshes: procedural or model files (glTF via assimp) [exists: S18 static import; planned: skinned meshes S34];
   impostor and LOD baking as an offline tool (S27). `bool importMeshLods(const std::string& file, MeshLods& out,
   MaterialData* material, std::string& error, const MeshImportOptions& = {})` (`saiga/vulkan/scene/MeshImport.h`,
@@ -2777,7 +2930,7 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   with more than one space): the space count, then per `SpaceId` the template name and kind (names may repeat from
   S23a); the **prefix rule**: the save's rows must equal the setup's first rows (fewer spaces load: appended
   templates; more spaces, another name or kind at an index are load errors naming the space and both values; spacing
-  and size are not compared). Templates are append-only until S23 (then the world plan's pinned instance list). The
+  and size are not compared). Templates are append-only; from S23a the rows are the world plan's instances (§12.1). The
   load also checks the staged spaces (every entity below the save's space count, at most one space-state entity per
   space, a child in its parent's space, `PendingTransition` / `SpaceLink` targets below the setup's space count) and
   maps the space-state entities by their `Transform::space` (§7.8).
@@ -2793,6 +2946,17 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   chunk with deltas before or after goes through `onTerrainChanged` without an event; the host state list and the
   change list are cleared. `diffSaves` reports one-sided chunks, sequence differences and per differing chunk the
   number of differing samples and the first one (kind `terrain`).
+- **`GENR`** [S23a] (format 1, written when the world writes generation state: a non-legacy generator or chunk records):
+  the seed (u64); the template count, per template the generator name; the generator count, per generator in name
+  order the name, the pinned and the current version (u16 each), the slot count and per slot the name and flags; the
+  space count N and the combined plan hash of the spaces 0..N-1 (§12.1). **`CREC`** [S23a] (format 1, only with chunk
+  records): the count of spaces with records; per space in `SpaceId` order the `SpaceId` and the record count; per
+  record in `ChunkId` order x, z, the placement version (u16) and the host's stamped flag (u8; S23b's format 2 appends
+  the tombstones). The load checks of §15.3 run before the commit (with phase A and B of the pipeline on the saved
+  pins); the commit replaces the plans if the pins change them, then the records, before `TERR`'s commit. `diffSaves`
+  reports `generation` differences (seed, template generators, per generator versions and slots, space count, combined
+  hash) and `record` differences per chunk. `data/tests/engine/save_s23a.bin` (the content test setup with a stamped
+  site and an edited chunk) guards both formats; `save_v1.bin` (flat, no `GENR`) keeps loading.
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.
@@ -2831,7 +2995,7 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   reported in one `render` log line per load with the names and the entity count, so a save stays loadable. The IDs of a
   save's names follow the loading world's registration order (the hash does not depend on it).
 
-### 15.3 Generator versions [planned: S23]
+### 15.3 Generator versions [exists: S23a (pins, records of stamped chunks, GENR / CREC); planned: S25 (every generated chunk, retiring a version)]
 
 - A world **pins** the world-plan and terrain generator versions it was created with, so terrain stays continuous
   across chunk borders and under existing bases.
@@ -2848,7 +3012,26 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   reaches existing worlds only through a new plan version (never for an existing world). All shipped prefab versions
   stay in the game data.
 - Retiring a version is an explicit one-time conversion on load that stores the affected chunks' generated bases;
-  only such chunks are sent to clients as base snapshots (§13.2).
+  only such chunks are sent to clients as base snapshots (§13.2) [planned: S25].
+- **S23a**: one version counter per generator: the plan and the terrain at the pinned version, candidates and grass at
+  the chunk's placement version (>= pinned; `candidate(p, plan)` accepts a plan of any version <= p). A new world pins
+  every registered generator's `version()`; the current placement version is `version()` on the host and on clients.
+  Before S25 only chunks with state have a record (the stamped chunks; S23b adds the tombstoned ones; a load keeps the
+  saved records and so an older placement version); a chunk without a record is generated with the current version
+  (placement drift after an upgrade in visited but unmodified chunks is accepted until S25). `GENR` stores the seed,
+  the generator per template, per generator (name order) the pinned and current version and the slot table, and the
+  space count with the combined plan hash; `CREC` the records with the host's stamped flag. Both, like
+  `GenerationState` and the generation part of `world.hash()`, exist only when the world writes generation state (a
+  non-legacy generator or records). The load checks (before the commit, each a load error with the world unchanged):
+  the saved seed equals the setup seed (D11: the seed is setup); the saved generator per template equals the
+  registered one (templates beyond the saved count are new); no version above `version()`; slot tables are an
+  append-only prefix; the plans of the saved pins (phase A and B) give the saved combined plan hash over the first N
+  spaces ("a released version changed" otherwise) and the world's current space table (no run-time rebuild); records
+  inside their space, between the pin and `version()`, only in spaces with slots or sites. A save without `GENR` (from
+  before S23, or of a flat or hook world) loads only if every template's generator is `legacyTerrain`. A host load with
+  other pins (the same space table) replaces the plans and drops everything derived from the old ones (the terrain
+  store, pyramids, edited masks; the sink's terrain is cleared); S22's deltas lie on the loaded pins' base (lazy
+  base). Connected clients receive the new `GenerationState` after `Resync` and are refused until S26.
 
 ### 15.4 Characters [planned: S33]
 
@@ -3082,8 +3265,12 @@ void registerEngineScenarios(ScenarioList& s)
   step listener in every build).
 - `ScenarioWorld` overrides the radii of every `SpaceTemplate` with small defaults (`fullRadius = simulationRadius =
   interestRadius = clientPhysicsRadius = 128`, `prefetchMargin = 0`), which a scenario can raise; it requests no visual
-  tiles or far content, and all worlds of one test process share a cache of generated base chunks (content is
-  deterministic, R-CONTENT-1).
+  tiles or far content. [exists: S23a] `fullRadius` is lowered to at most 128 m (a scenario that needs content farther
+  away moves its Player there); the worlds of a setup share one content cache (`WorldSetup::sharedContent`: the runner
+  creates one per `runScenarios` call, `ScenarioWorld` one per scenario if the setup has none; "per setup", not per
+  process: equal setups may share one explicitly); scenario terrain comes from the setup's generators (flat by default);
+  `ScenarioWorld::setup()` gives a scenario the setup its worlds are built from (e.g. for `checkContentHashes`); a client
+  that refuses the host's `GenerationState` fails the host + client variants.
   [exists: S20] `ScenarioWorld` uses the setup's `spaceTemplates` (flat without a hook): `terrainHeight` and the mover
   follow the terrain as in the game; its `RecordingRenderSink` requests no tiles (only the app's view camera streams,
   §12.2), so a scenario world starts no streaming pool (the radii come with S24).
@@ -3146,7 +3333,10 @@ peer, the chunk, the sequence and the first differing sample); any `NetStats::mo
   state: when a chunk has a sequence > 0, per such chunk in `ChunkId` order the `ChunkId`, the sequence, the
   deltas-present flag and with deltas the chunk's content hash (FNV-1a 64 of the dense delta, cached; nothing is
   appended without such chunks, but registering `TerrainEditedEvent` changed every hash value against pre-S22 builds);
-  S25 adds the other chunk states. It is a debugging aid and the check of the repeat variant.
+  from S23a, only when the world writes generation state (a non-legacy generator or chunk records; flat and hook worlds
+  hash as before), after S22's block: the seed, per generator in name order its name, pinned and current version, and
+  per chunk record in (`SpaceId`, `ChunkId`) order the chunk, its placement version and the stamped flag (S23b appends
+  the tombstones); S25 adds the other chunk states. It is a debugging aid and the check of the repeat variant.
 - Variants of every scenario [exists: S12]: (0) **plain**: once; (a) **repeat**: the scenario runs twice and the
   per-step hashes, the step count and the final hash must be equal (catches wall-clock time, unordered containers and
   uninitialized memory); on a mismatch the runner runs both again up to the first differing step and prints
@@ -3377,6 +3567,9 @@ particles: S41; volumetric clouds: S42; the rest: S37); transparents <= 0.4 ms, 
 ms; rest (UI, culling, uploads) <= 1 ms (sum 14.5 ms, headroom for jitter). Steam Deck: the same split scaled to 22 ms
 at Low. Pass budgets apply to the median; the frame time p95 must stay within the frame time of the table.
 
+Content generation (S23a, release, single-threaded, desktop reference; reported, not a gate): at most 50 ms per 1 m
+chunk (heights, tier 1 and grass of `chunkPlacement`).
+
 Terraforming (S22, release, desktop reference): `terrain_edit_ms` p95 <= 1 ms per edit and `terrain_visual_ms` p95 <=
 1 ms per frame (the step budget excludes edits between steps); the edit bandwidth (`edit_bytes_per_second`) is reported
 against the upload budget below.
@@ -3409,6 +3602,8 @@ the missing target is reported as open).
 | game scenarios | in the game, `EngineAppSetup::scenarios`; run with `game_<name> --scenarios` (not in ctest, §17.2) | | |
 | shaders | `shader/vulkan/<area>/` | `snake_case.vert/.frag/.comp`, `*.glsl` includes | |
 | game data, prefabs | `data/<game>/`, `data/<game>/prefabs/` | `snake_case.json` | |
+| content generation (S23a) | `src/saiga/engine/content/` (the pipeline, cache, prefabs, hashes, records, stamping); generator code (integer only, linted): `src/saiga/engine/content/gen/` (toolkit, chunk generation, section hashes, `FlatGenerator`, `AuthoredSpaceGenerator`), the interface headers `Generator.h`, `WorldPlan.h`, `ChunkContent.h`, `engine/world/SpaceKind.h`, a game's `samples/games/<name>/content/` or `samples/games/common/content/`, the engine test generator `tests/content_test_generator.h` | `CamelCase.h/.cpp` | `Saiga::Engine`, `SAIGA_ENGINE_API` |
+| content test data | `data/tests/engine/prefabs/` (test prefabs), `data/tests/engine/content_hashes.json` (committed hashes), `data/tests/engine/save_s23a.bin` | | |
 | golden images | `data/tests/golden/<test>.png` | | |
 | render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`; S19a: `PrototypeWorld.h` (the settings); S20: `TerrainTiles`, `TerrainAtlas`, `TerrainPass`, `GrassPass`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`; S19a: `scene_lighting.glsl`, `prototype_foliage.vert/.frag`; S20: `terrain*`, `grass.*`, `sky.*`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
 | world prototype, game side (S19a; replaced from S20) | `src/saiga/vulkan/world/` (S20: `PrototypeTerrain`, `WorldNoise`, `FoliageGenerator`, `ForestRenderer` (placement), `PrototypeForest`, `PrototypeScene`, `WorldSettings`, `WorldBenchmark`, `WorldMcp`, `WorldCommon.h`), `shader/vulkan/world/` (`prototype_shading.glsl`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
@@ -3425,7 +3620,7 @@ the missing target is reported as open).
 | scenarios | in `tests/test_engine_scenarios.cpp` with test-only game objects (§17.2) | `EngineAppSetup::scenarios` (`--scenarios`, `run_scenario`) |
 | data file types | – | `WorldSetup::dataTypes` |
 | network messages | `registerEngineMessages(MessageList&)` (S16: the replication messages, `engine/net/EngineMessages.cpp`) | `WorldSetup::messages` |
-| generators, prefabs | – | `WorldSetup::generators` |
+| generators, prefabs | `FlatGenerator` as `GeneratorId` 0 (S23a) | `WorldSetup::generators` (`GeneratorList`; prefabs in `<dataDirectory>/prefabs/`) |
 | piece types | – | `WorldSetup::pieceTypes` |
 | meshes, materials | – | `WorldSetup::renderAssets` (into the `World` by name; forwarded to the sink) |
 | collision meshes and shapes | – | `WorldSetup::collisionAssets` (`CollisionAssetList`, by name) |
@@ -3470,7 +3665,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 
 | Game | Shows | Directory, executable |
 |---|---|---|
-| Flight simulator | the large world and efficient rendering: a small airplane over the 8 km world prototype (CDLOD terrain, 200k GPU culled trees); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit | `samples/games/flight/`, `game_flight` |
+| Flight simulator | the large world and efficient rendering: a small airplane over the 8 km world prototype (CDLOD terrain, 200k GPU culled trees); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit [planned: S23c] on an integer generator with ruin sites | `samples/games/flight/`, `game_flight` |
 | Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level; S21: an enclosed cellar (space 1) behind a door (`SpaceLink`, the interact action F, the engine's `spaceLinkSystem`), `--demo --cellar` runs the demo through it | `samples/games/platformer/`, `game_platformer` |
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
 
@@ -3479,7 +3674,9 @@ the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smo
 cursor (the screen centre without a mouse position) at 10 edits/s while held, radius and strength in its World
 window; the edits go to `app.startWorld()` (the host world, also with `--coop`, where the rendered world is a client and
 receives them through replication). The MCP tool `edit_terrain` makes it scriptable (with `--coop` the tools see the
-client world and answer with the client error). The flight, platformer and racing demos are unchanged by S22.
+client world and answer with the client error). The flight, platformer and racing demos are unchanged by S22. S23a: the prototype hook of `game_world`, flight and racing is the `HookGenerator` "prototype"
+(`samples/games/common/PrototypeSpace.h`: `registerPrototypeGenerator`, `kPrototypeGenerator`; `game_world`'s second
+template `islands` registers its own `HookGenerator`); heights, scenarios and screenshots are unchanged.
 
 - **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` (the engine app's command line, §8.3:
   `--headless`, `--no-render`, `--screenshot`, `--scenarios`, ...; no `config.ini`). `--demo` spawns the demo's
@@ -3574,7 +3771,7 @@ client world and answer with the client error). The flight, platformer and racin
   | platformer `CharacterController`, racing `Vehicle` | `CharacterVirtual`, Jolt's vehicle constraint | S29, S28 |
   | `GameInput` key helpers | the input action map [done: S13b] | S13b |
   | the render-side pose cache (`PoseHistory`) [done: S19b], the world context for the height field | the extract with `RenderPose` and `interpolatedPose` (S19b), `world.terrainHeight` (S20) | S19b, S20 |
-  | cosmetic dynamic instances of the racing wheels and the platformer's limbs (`CosmeticDynamics`), level geometry registered directly on the scene (`LevelGeometry`) | skinned meshes (S34); level content from the world plan and tier-1 pieces (S23, S30) | S34, S23 |
+  | cosmetic dynamic instances of the racing wheels and the platformer's limbs (`CosmeticDynamics`), level geometry registered directly on the scene (`LevelGeometry`) | skinned meshes (S34); level content from the world plan and tier-1 pieces (S23a, S30) | S34, S23a |
 
 ## 19. Migration of the prototype
 
@@ -3591,9 +3788,9 @@ client world and answer with the client error). The flight, platformer and racin
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | S18: the generic path in `RenderScene` (instance sets, culling with `tree_cull.comp`'s rule generalized, flat instance shaders) [exists]; S19a: the trees as instance sets (`PrototypeForest`), `tree.vert` / `foliage.frag` ported onto the instance layout as the transitional `PrototypeFoliage` class (`prototype_foliage.vert/.frag`; `foliage.frag` stays for the grass, the shading in `prototype_shading.glsl`), `ForestRenderer` reduced to `placeTrees`, `tree.vert` and `tree_cull.comp` removed [exists] | S18 (done), S19a (done) |
 | `WorldRenderer`, `WorldStatistics.cpp` | A15 (S20): `PrototypeScene` (settings, GUI, forest) plus the engine debug UI's terrain section; `setPrototypeTerrain` became `setPrototypeEnvironment` [exists] | S19a (done), S20 (done) |
 | `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid (`TerrainSystem`, `TerrainAtlas`, `TerrainPass`, `scene/terrain*`), double camera through a 64 m frame anchor (A2: the (0,0)-(1,1) diagonal) [exists]; edits | S20 (done), extended in S22 |
-| `GrassRenderer`, `grass.vert` | chunk-relative cells (`GrassPass`, `scene/grass.*`), masks from the transitional prototype rule [exists]; generated masks (S23); edited masks (S31) | S20 (done) |
+| `GrassRenderer`, `grass.vert` | chunk-relative cells (`GrassPass`, `scene/grass.*`), masks from the transitional prototype rule [exists]; generated masks (S23b); edited masks (S31) | S20 (done) |
 | `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | `scene/sky.*`, `scene/terrain_shading.glsl` on `TerrainFrame`, the water plane at the `SpaceTemplate`'s sea level snapped to 4096 m [exists: S20]; sky and lighting replaced in S36, water in S39 | S20 (done) |
-| `FoliageGenerator`, `HeightField::generate`, `placeTrees` | S20: the hook `prototypeHeight` (the noise per point), `placeTrees` over a `PrototypeArea` [exists]; generation pipeline with integer math (R-CONTENT-1) | S23 |
+| `FoliageGenerator`, `HeightField::generate`, `placeTrees` | S20: the hook `prototypeHeight` (the noise per point), `placeTrees` over a `PrototypeArea` [exists]; S23a: the hook is the `HookGenerator` "prototype" of the games (`samples/games/common/PrototypeSpace.h`); generation pipeline with integer math (R-CONTENT-1): the flight demo in S23c, `game_world` and racing in S27 | S23c (flight), S27 (`game_world`, racing) |
 | `tests/test_vulkan_world.cpp` | render tests on `RenderScene` (S19a: the forward-renderer fixture dropped) [exists] + engine tests (S19b: `tests/test_engine_extract.cpp`, the app's view camera in `tests/test_engine_app.cpp`) [exists] | S19a (done), S19b (done) |
 
 The sample keeps running and all tests stay green after every stage.
@@ -3682,7 +3879,7 @@ stages without a dependency between them is implemented and tested by the stage 
 leaves the documented stub (e.g. S36 renders piece lights if S30 is done, otherwise S30 adds them to the light list; S41
 consumes the cosmetic events of S32 the same way; S36 adds impostor shadows if S27 is done; S27 bakes skinned impostors
 if S34 is done, otherwise S34 does; S27 bakes the smooth-textured material parameters if S43 is done, otherwise S43
-extends the baking; S23 re-snaps/tombstones tier-1 instances on terrain edits if S22 is done, otherwise S22 does; S35's
+extends the baking; S23b re-snaps/tombstones tier-1 instances on terrain edits (S22 is done); S35's
 camera collides with pieces through the physics raycast, so S30 needs no camera change). "CI" = headless checks in
 GitHub Actions; "local" = GPU checks with MCP.
 
@@ -3715,11 +3912,13 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, int32 GPU tiles in storage buffers (A10 of the S20 plan; planned: R32F), pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance (tested at 28 672 m, a multiple of the 4096 m root node); a 1 mm camera move moves no vertex > 0.5 px (the GPU displacement differs from the double-precision one by at most 0.5 px); `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
 | S21 | Spaces and transitions (done) | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20, S19b, S16b (A16) | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming (done) | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, encoding, visual patching) within budget (local) |
-| S23 | Generation pipeline | `Generator` interface, world plan with sites and space instances, chunk generation, prefab stamping (terrain patches, entities, static geometry; pieces in S30), tombstones, content hashes, pinned versions, the hash test on all CI compilers (§12.1, §15.3) | S20, S21, S22 | committed chunk hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present); a tombstoned instance is hidden on the client in the host + client variant (CI) |
-| S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
+| S23a | Generation pipeline (done) | Fixed-point toolkit and integer lint, `Generator` interface (integer template view), world plans with sites and space instances (eager), chunk generation, prefabs, stamping from the plan (entities, SpaceLinks), content cache, pinned versions, GENR/CREC, GenerationState, content hashes on all CI compilers with UBSan on Clang (§12.1, §15.3) | S20, S21, S22 | committed content hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present) in every variant (CI) |
+| S23b | Tombstones and content rendering | Tombstones in chunk records with replication (TombstoneModification, ChunkRecordState; the sequence stays S22's), content render sets (tier 1, static parts), generated grass masks, re-snap and tombstone-on-edit from applied changed boxes, MCP tools, the generated_site golden (§12.1, §12.2, §12.5, §13.1, §16.2) | S23a | a tombstoned instance is hidden on the client in the host + client variants; generated_site golden with its count check (CI) |
+| S23c | Overworld generator (tech demo) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
+| S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
 | S26 | World over the network | Handshake with schema hash, chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
-| S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4); tech demo: the flight demo shows far content to the horizon over 32 km | S26 | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
+| S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4); tech demo: the flight demo shows far content to the horizon over 32 km | S26, S23c | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
 | S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11); tech demo: the racing car on Jolt (vehicle constraint) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default); the racing demo drives on Jolt (local) |
 | S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16, S16b | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |

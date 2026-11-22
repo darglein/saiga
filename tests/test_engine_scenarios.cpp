@@ -15,6 +15,9 @@
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/ContentConvert.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
@@ -37,6 +40,7 @@
 #include <stdexcept>
 #include <thread>
 
+#include "content_test_setup.h"
 #include "terrain_test_hooks.h"
 
 using namespace Saiga;
@@ -297,6 +301,7 @@ WorldSetup terrainScenarioSetup()
 {
     WorldSetup s = scenarioSetup();
     s.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::slopeRidgeHook, 0));
+    s.generators = TerrainTestHooks::registerTestHookGenerators;
     return s;
 }
 
@@ -776,6 +781,7 @@ WorldSetup terraformScenarioSetup(int spacing)
 {
     WorldSetup s            = spacesScenarioSetup();
     s.config.spaceTemplates = {TerrainTestHooks::terraformTestTemplate(spacing)};
+    s.generators            = TerrainTestHooks::registerTestHookGenerators;
     s.components            = [](Registry& r)
     {
         r.registerComponent<WandererState>();
@@ -912,6 +918,151 @@ void registerTerraformScenarios(ScenarioList& s)
           });
 }
 
+// ---- the content scenarios (S23a; ContentTest::contentTestSetup(2): the test generator, prefabs and classes)
+// ------------------------------------------------------------------------------------------
+
+// The entities whose RenderInstance names a mesh, in a world (host or client)
+std::vector<Entity> withMesh(World& world, const std::string& mesh)
+{
+    std::vector<Entity> out;
+    world.viewAll<const RenderInstance>().each(
+        [&](Entity e, const RenderInstance& r)
+        {
+            if (r.mesh == mesh) out.push_back(e);
+        });
+    return out;
+}
+
+// The entities with SpaceLink in a space
+std::vector<Entity> linksIn(World& world, SpaceId space)
+{
+    std::vector<Entity> out;
+    world.viewAll<const SpaceLink, const Transform>().each(
+        [&](Entity e, const SpaceLink&, const Transform& t)
+        {
+            if (t.space() == space) out.push_back(e);
+        });
+    return out;
+}
+
+// Teleports a player on its owner's world; true once the host sees it within 2 m of p
+bool teleportPlayer(ScenarioWorld& w, Entity player, const Vec3& p)
+{
+    w.edit(player, [p](World& owner, Entity e) { owner.get<Transform>(e).teleport(p, Quat::Identity()); });
+    const int bound = 2 * w.networkConfig().delaySteps + 10 + (w.networkConfig().async ? 6 : 0);
+    return w.stepUntil(
+        [&]
+        {
+            const Vec3 q = w.world().read<Transform>(player).position();
+            return std::abs(q.x() - p.x()) < 2 && std::abs(q.z() - p.z()) < 2;
+        },
+        bound);
+}
+
+void registerContentScenarios(ScenarioList& s)
+{
+    // §22 acceptance (S23a): the prefab of a site is stamped once when a player comes within fullRadius (128 m in
+    // scenarios), its entities stand at the exact prefab positions with the prefab's component values, and the terrain
+    // patch composes into terrainHeight exactly; clients receive the entities and compute the same terrain
+    s.add("prefab_site_is_stamped",
+          [](ScenarioWorld& w)
+          {
+              // Copies: the save/load variant replaces the world during the helpers (re-read world() each time)
+              const Site ruin   = w.world().generation().space(0).plan->sites[0];
+              const Site shrine = w.world().generation().space(0).plan->sites[1];
+              const Vec3 site(double(ruin.x), 0, double(ruin.z));
+              const Entity player = w.spawnPlayer(site + Vec3(2000, 0, 0));
+              w.step(5);
+              w.check(withMesh(w.world(), "test/chest").empty(), "nothing stamped 2 km away");
+              w.check(teleportPlayer(w, player, site + Vec3(0, 0, -60)), "the host sees the player at the site");
+              w.check(w.stepUntil([&] { return !withMesh(w.world(), "test/chest").empty(); }, 5), "the chest");
+              const std::vector<Entity> chests = withMesh(w.world(), "test/chest");
+              w.check(chests.size() == 1, "one chest");
+              if (chests.size() != 1) return;
+              // Local (2.5, 0, -1.25) by one quarter turn: (-1.25, -2.5); y = baseHeight; exact
+              const Vec3 expected(site.x() - 1.25, double(ruin.baseHeight) / 1024.0, site.z() - 2.5);
+              w.check(w.world().read<Transform>(chests[0]).position() == expected, "at the prefab position (exact)");
+              w.check(w.world().read<Health>(chests[0]).hp == 50, "with the prefab's Health value");
+              // The patch centre (full weight, 2048 above the base) and the natural terrain outside the footprint
+              const double centre = double(ruin.baseHeight + 2048) / 1024.0;
+              w.check(w.world().terrainHeight(0, site.x(), site.z()) == centre, "terrainHeight at the patch centre");
+              const int64_t ox = ruin.x + 40, oz = ruin.z;
+              const SpaceGeneration& o = w.world().generation().space(0);
+              const double natural     = double(o.generator->height(o.pinned, *o.plan, ox, oz)) / 1024.0;
+              w.check(w.world().terrainHeight(0, double(ox), double(oz)) == natural, "natural terrain outside");
+              // Leave and return: still one chest
+              w.check(teleportPlayer(w, player, site + Vec3(3000, 0, 0)), "left");
+              w.step(3);
+              w.check(teleportPlayer(w, player, site + Vec3(0, 0, -60)), "returned");
+              w.step(3);
+              w.check(withMesh(w.world(), "test/chest").size() == 1, "still one chest");
+              // The corner site (its footprint spans four chunks) is stamped once
+              w.check(teleportPlayer(w, player, Vec3(double(shrine.x) + 20, 0, double(shrine.z))), "at the shrine");
+              w.step(3);
+              int shrineMarkers = 0;
+              w.world().viewAll<const Health, const Transform>().each(
+                  [&](Entity, const Health& h, const Transform& t)
+                  {
+                      const Vec3 d = t.position() - Vec3(double(shrine.x), 0, double(shrine.z));
+                      if (h.hp == 3 && std::abs(d.x()) < 20 && std::abs(d.z()) < 20) shrineMarkers++;
+                  });
+              w.check(shrineMarkers == 1, "the corner site's marker once (" + std::to_string(shrineMarkers) + ")");
+              w.check(w.world().contentRecords().stamped().size() >= 2, "the stamped chunks are recorded");
+              if (!w.networked()) return;
+              const int bound = w.world().worldConfig().interpolationDelaySteps + w.networkConfig().delaySteps + 5 +
+                                (w.networkConfig().async ? 6 : 0);
+              World& client = w.client(w.defaultPeer());
+              w.check(w.stepUntil([&] { return withMesh(client, "test/chest").size() == 1; }, bound),
+                      "one replicated chest on the client");
+              w.check(client.contentRecords().empty(), "clients never stamp");
+              w.check(client.terrainHeight(0, site.x(), site.z()) == centre,
+                      "the client's terrain at the patch centre");
+          });
+    // The entrance of site 0 links the site's instance space; its prefab's entities are stamped on arrival and the
+    // exit returns to the arrival converted from the site's origin and quarter turn (exact)
+    s.add("site_entrance_links_instance_space",
+          [](ScenarioWorld& w)
+          {
+              const SpaceGeneration& o = w.world().generation().space(0);
+              const Site ruin          = o.plan->sites[0];
+              const Vec3 site(double(ruin.x), 0, double(ruin.z));
+              const Entity player = w.spawnPlayer(site + Vec3(0, 0, -60));
+              w.step(3);
+              w.check(w.stepUntil([&] { return linksIn(w.world(), 0).size() == 1; }, 10), "the entrance is stamped");
+              const std::vector<Entity> entrances = linksIn(w.world(), 0);
+              if (entrances.size() != 1) return;
+              const SpaceLink link = w.world().read<SpaceLink>(entrances[0]);
+              const SpaceId target = link.target;
+              w.check(target == 2 && w.world().generation().space(target).instance.siteKey == ruin.key &&
+                          w.world().generation().space(target).instance.origin == SpaceInstance::FromSite,
+                      "the link targets the site's instance");
+              w.check(link.arrival == Vec3(2176.5, 0, 2180), "the arrival in the dungeon");
+              w.world().requestTransition(player, entrances[0]);
+              w.check(w.stepUntil([&] { return w.world().read<Transform>(player).space() == target; }, 10),
+                      "in the dungeon");
+              w.check(w.stepUntil([&] { return linksIn(w.world(), target).size() == 1; }, 10),
+                      "the dungeon's exit is stamped");
+              w.check(withMesh(w.world(), "test/chest").size() == 2, "the dungeon's chest is stamped");
+              const std::vector<Entity> exits = linksIn(w.world(), target);
+              if (exits.size() != 1) return;
+              const SpaceLink exit = w.world().read<SpaceLink>(exits[0]);
+              // "parent": (0, 0, 20) relative to the site by one quarter turn: (20, 0); yaw 180 + 90 degrees
+              const Vec3 back(site.x() + 20, double(ruin.baseHeight) / 1024.0, site.z());
+              w.check(exit.target == 0, "the exit targets the overworld");
+              w.check(exit.arrival == back, "the exit's arrival from the site's origin and quarter turn (exact)");
+              w.check(exit.arrivalRotation.coeffs() == contentRotation(49152).coeffs(), "and its yaw");
+              w.world().requestTransition(player, exits[0]);
+              w.check(w.stepUntil([&] { return w.world().read<Transform>(player).space() == 0; }, 10), "back outside");
+              const Vec3 p = w.world().read<Transform>(player).position();
+              w.check(std::abs(p.x() - back.x()) < 1e-6 && std::abs(p.z() - back.z()) < 1e-6, "at the exit's arrival");
+          });
+}
+
+WorldSetup contentSetupFor(const std::string&)
+{
+    return ContentTest::contentTestSetup(2);
+}
+
 // A scenario with the setup it runs on and the registration it comes from
 struct Case
 {
@@ -944,6 +1095,7 @@ std::vector<Case> allCases()
     collect(registerEngineScenarios, setupFor);
     collect(registerSpacesScenarios, spacesSetupFor);
     collect(registerTerraformScenarios, terraformSetupFor);
+    collect(registerContentScenarios, contentSetupFor);
     return cases;
 }
 }  // namespace
@@ -1033,6 +1185,22 @@ TEST(ScenarioRunner, AFailingCheckIsReportedWithItsStepLogsAndDumps)
     EXPECT_EQ(r.failures[0], "step 3: always fails");
     EXPECT_TRUE(contains(r, "a log line of the scenario")) << r.report;
     EXPECT_TRUE(contains(r, "TickCount")) << r.report;  // the dump of the involved entity
+}
+
+// Regression (PR review): a GenerationState refused during the final network drain (a host load of a save with
+// other generator pins as the scenario's last action) was never reported, the host + client variant passed
+TEST(ScenarioRunner, GenerationRefusalInTheFinalSyncFails)
+{
+    auto e                 = entry("refused_in_drain",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.step(2);
+                       World v1(ContentTest::contentTestSetup(1));
+                       w.check(w.world().tryLoad(v1.save()).ok(), "the host loads a v1 save");
+                   });
+    const ScenarioResult r = runScenario(ContentTest::contentTestSetup(2), e, ScenarioVariant::HostClient);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "final network sync: client 1 refused the host's generation state")) << r.report;
 }
 
 TEST(ScenarioRunner, RepeatCatchesNondeterminism)

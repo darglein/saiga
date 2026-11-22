@@ -116,7 +116,8 @@ bool insidePoint(int64_t x, int64_t z, const PrefabRect& f)
 
 uint16_t prefabYaw(int64_t degrees)
 {
-    return uint16_t(uint64_t(floorDiv(degrees * 65536 + 180, 360)) & 0xFFFF);
+    // A full turn adds exactly 65536 steps (wrapped away): reduced first, so the product cannot overflow
+    return uint16_t(uint64_t(floorDiv(floorMod(degrees, 360) * 65536 + 180, 360)) & 0xFFFF);
 }
 
 std::string prefabPath(const std::string& dataDirectory, const std::string& name, uint16_t version)
@@ -379,7 +380,8 @@ bool readPrefab(const std::string& dataDirectory, const std::string& name, uint1
                 std::string& error)
 {
     const std::string file = prefabPath(dataDirectory, name, version);
-    if (name.empty() || name.find("..") != std::string::npos || name[0] == '/' || name.find('\\') != std::string::npos)
+    // No '.' (also no "..", no extension): "a.v2" at v1 would name the file of "a" at v2
+    if (name.empty() || name.find('.') != std::string::npos || name[0] == '/' || name.find('\\') != std::string::npos)
     {
         error = "prefab '" + name + "': not a valid prefab name";
         return false;
@@ -395,9 +397,13 @@ bool readPrefab(const std::string& dataDirectory, const std::string& name, uint1
         error = "prefab '" + name + "' v" + std::to_string(version) + ": " + error;
         return false;
     }
-    out.name    = name;
-    out.version = version;
-    return parsePrefab(json, file, out, error);
+    // Into a temporary: a failed parse leaves out unchanged
+    Prefab parsed;
+    parsed.name    = name;
+    parsed.version = version;
+    if (!parsePrefab(json, file, parsed, error)) return false;
+    out = std::move(parsed);
+    return true;
 }
 
 uint64_t prefabContentHash(const Prefab& p)

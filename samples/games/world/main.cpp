@@ -609,18 +609,25 @@ int main(int argc, char* argv[])
     // The prototype's 32 km space (S20); the statistics of its 8 km area (space 0's seed is the world seed)
     // S21: a second open-world space "islands": the prototype noise lowered by 40 m (the sea makes islands); its
     // pyramid is generated only when it is viewed (the start camera and the benchmark stay in space 0)
+    // S23a: both hooks are HookGenerators (the prototype fixture: not integer only)
     Engine::SpaceTemplate islands     = Game::prototypeSpaceTemplate(baseSpacing);
     islands.name                      = "islands";
-    islands.prototypeHeight           = islandsHeight;
+    islands.generator                 = 2;
     setup.world.config.spaceTemplates = {Game::prototypeSpaceTemplate(baseSpacing), islands};
-    game.area                         = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
-    setup.render.msaaSamples          = 4;
-    setup.cameraSpeed                 = 25;
-    setup.cameraSpeedFast             = 250;
-    setup.benchmarks                  = Vulkan::WorldBenchmark::names();
-    setup.mcpInstructions             = Vulkan::worldMcpInstructions();
-    EngineApp* appPtr                 = nullptr;
-    setup.renderHooks.init            = [&](EngineApp& app)
+    setup.world.generators            = [](Engine::GeneratorList& list)
+    {
+        Game::registerPrototypeGenerator(list);
+        list.add(2, std::make_shared<Engine::HookGenerator>("islands", islandsHeight, Engine::HookGrassRule{0.82, 0.4},
+                                                            false));
+    };
+    game.area                = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
+    setup.render.msaaSamples = 4;
+    setup.cameraSpeed        = 25;
+    setup.cameraSpeedFast    = 250;
+    setup.benchmarks         = Vulkan::WorldBenchmark::names();
+    setup.mcpInstructions    = Vulkan::worldMcpInstructions();
+    EngineApp* appPtr        = nullptr;
+    setup.renderHooks.init   = [&](EngineApp& app)
     {
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;

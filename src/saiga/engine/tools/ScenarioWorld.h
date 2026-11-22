@@ -240,6 +240,7 @@ class SAIGA_ENGINE_API ScenarioWorld
     void onStep();
 
     WorldSetup worldSetup;
+    bool generationMismatchReported = false;
     ScenarioOptions options;
     ScenarioNetwork network;
     // Before the worlds: the transports and the sinks outlive them

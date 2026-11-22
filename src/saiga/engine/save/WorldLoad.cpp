@@ -12,6 +12,9 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/ContentHash.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/Replication.h"
@@ -25,6 +28,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <set>
 
 #include <unordered_set>
@@ -66,6 +70,12 @@ class WorldLoader
     // S22: TERR decoded and checked against the world (spaces, spacing, N, the chunk range, the border rule) into a
     // staged TerrainEditStore (only blocks with a non-zero delta); no hook is called
     bool stageTerrain(const std::vector<uint8_t>& data);
+    // S23a: GENR and CREC against the setup (seed, generator names, versions, slot tables; the plans of the saved
+    // pins with their phase B: the combined plan hash and the space table), the records against the plans; a save
+    // without GENR only with legacyTerrain generators
+    bool stageGeneration();
+    // S23a: other pins replace the plans and drop everything derived from the old ones; the records are replaced
+    void commitGeneration();
     // S22: the staged terrain replaces the store; every chunk with deltas before or after goes through
     // onTerrainChanged (no event); the host state list and the change list are cleared
     void commitTerrain();
@@ -99,6 +109,9 @@ class WorldLoader
     std::vector<bool> drop;           // by entity index: dropped by a removed type (DropEntity)
     std::vector<int64_t> generation;  // by entity index after the load: the generation, -1 if not alive
     std::unique_ptr<TerrainEditStore> stagedTerrain;
+    std::optional<GenerationPlans> stagedPlans;  // only when the pins change the plans
+    std::map<ChunkId, ChunkRecord> stagedRecords;
+    std::set<ChunkId> stagedStamped;
 };
 
 namespace
@@ -761,6 +774,8 @@ void WorldLoader::commit()
     restoreStateEntities();
     reg.markAllTransformsChanged();
     rebuildSpatialGrid(w);
+    // S23a: the generation state before the terrain (the loaded deltas lie on the loaded pins' base)
+    commitGeneration();
     commitTerrain();
 }
 
@@ -875,6 +890,127 @@ void WorldLoader::commitTerrain()
         box.k1 = box.k0 + S;
         w.onTerrainChanged(c.space, box, true);
     }
+}
+
+bool WorldLoader::stageGeneration()
+{
+    const GenerationPipeline& pipe = *w.pipeline;
+    const GenerationPlans& cur     = pipe.plans();
+    stagedPlans.reset();
+    stagedRecords.clear();
+    stagedStamped.clear();
+    auto generatorOf = [&](const SpaceTemplate& t) { return cur.generators->find(t.generator)->generator; };
+    if (!p.generation)
+    {
+        if (p.chunkRecords) return fail("CREC without GENR");
+        // A save from before S23 (or of a flat / hook world): heights equal the hooks the templates had
+        for (const SpaceTemplate& t : cur.templates)
+            if (!generatorOf(t)->legacyTerrain())
+                return fail("save from before S23: template '" + t.name + "' now uses generator '" +
+                            generatorOf(t)->name() + "'");
+        return true;
+    }
+    const GenerationSection& gs = *p.generation;
+    if (gs.seed != w.setupSeed)
+        return fail("save seed " + std::to_string(gs.seed) + ", setup seed " + std::to_string(w.setupSeed) +
+                    ": the seed is part of the setup");
+    if (gs.templateGenerators.size() > cur.templates.size())
+        return fail("the save has " + std::to_string(gs.templateGenerators.size()) + " space templates, the setup " +
+                    std::to_string(cur.templates.size()) + " (space templates are append-only)");
+    for (size_t i = 0; i < gs.templateGenerators.size(); ++i)
+        if (gs.templateGenerators[i] != generatorOf(cur.templates[i])->name())
+            return fail("space template '" + cur.templates[i].name + "' used generator '" + gs.templateGenerators[i] +
+                        "', now '" + generatorOf(cur.templates[i])->name() + "'");
+    GenerationPins pins;
+    std::map<std::string, uint16_t> savedPins;
+    for (const GenerationSection::Generator& g : gs.generators)
+    {
+        const GeneratorList::Entry* e = cur.generators->findByName(g.name);
+        if (!e) return fail("the save's generator '" + g.name + "' is not registered");
+        const uint16_t version = e->generator->version();
+        if (g.pinned > version || g.current > version)
+            return fail("save from a newer generator " + g.name + " v" + std::to_string(std::max(g.pinned, g.current)) +
+                        " (this build has v" + std::to_string(version) + ")");
+        if (g.pinned == 0 || g.current < g.pinned)
+            return fail("generator " + g.name + ": the saved versions are invalid");
+        if (g.slots.size() > e->slots.size())
+            return fail("generator " + g.name + ": the save has " + std::to_string(g.slots.size()) +
+                        " slots, this build " + std::to_string(e->slots.size()) + " (slots are append-only)");
+        for (size_t k = 0; k < g.slots.size(); ++k)
+            if (g.slots[k].name != e->slots[k].name || g.slots[k].flags != e->slots[k].flags)
+                return fail("generator " + g.name + ": slot " + std::to_string(k) + " is '" + g.slots[k].name +
+                            "' in the save and '" + e->slots[k].name + "' in this build (slots are append-only)");
+        pins.pinned[g.name] = g.pinned;
+        savedPins[g.name]   = g.pinned;
+    }
+    // The plans of the saved pins (phase A and B before the commit)
+    GenerationPlans plans = GenerationPipeline::build(w.generationSetup, pins, pipe.cache());
+    if (!plans.ok()) return fail("the plans of the save's generator versions: " + plans.error);
+    const std::string entities = GenerationPipeline::validateEntities(w, plans);
+    if (!entities.empty()) return fail(entities);
+    std::string versions;
+    for (const auto& [name, v] : savedPins)
+        versions += (versions.empty() ? "" : ", ") + name + " v" + std::to_string(v);
+    if (gs.spaceCount > plans.spaces.size())
+        return fail("the save has " + std::to_string(gs.spaceCount) + " spaces, its generator versions (" + versions +
+                    ") produce " + std::to_string(plans.spaces.size()));
+    std::vector<CombinedPlanEntry> prefix;
+    for (size_t i = 0; i < gs.spaceCount; ++i)
+        prefix.push_back(
+            {plans.spaces[i]->instance.templateIndex, plans.spaces[i]->generatorName, plans.spaces[i]->planHash});
+    if (combinedPlanHash(prefix) != gs.combinedHash)
+        return fail("the generator versions of the save (" + versions +
+                    ") produce another plan than the saved one: a released version changed");
+    // No run-time rebuild of the space table: the saved pins must give the world's current list
+    bool sameTable = plans.spaces.size() == cur.spaces.size();
+    for (size_t i = 0; sameTable && i < cur.spaces.size(); ++i)
+        sameTable = plans.spaces[i]->instance.templateIndex == cur.spaces[i]->instance.templateIndex;
+    if (!sameTable)
+        return fail("the save's generator versions (" + versions + ") produce another space list than this build's (" +
+                    std::to_string(plans.spaces.size()) + " vs " + std::to_string(cur.spaces.size()) + " spaces)");
+    // The records: spaces with slots or sites, chunks inside their space, versions between the pin and the newest
+    if (p.chunkRecords)
+        for (const ChunkRecordSection::Space& sp : p.chunkRecords->spaces)
+        {
+            if (sp.space >= plans.spaces.size())
+                return fail("CREC: space " + std::to_string(sp.space) + " is not a space of this world");
+            const SpaceGeneration& g = *plans.spaces[sp.space];
+            if (g.plan->sites.empty() && cur.generators->find(g.generatorId)->slots.empty())
+                return fail("CREC: space " + std::to_string(sp.space) + " ('" + g.settings.name +
+                            "') has records, but its generator has no slots and its plan no sites");
+            const uint16_t newest = g.generator->version();
+            for (const ChunkRecordSection::Record& r : sp.records)
+            {
+                const std::string where = "CREC: space " + std::to_string(sp.space) + " chunk (" + std::to_string(r.x) +
+                                          ", " + std::to_string(r.z) + ")";
+                if (r.x < 0 || r.z < 0 || r.x >= g.settings.sizeChunks || r.z >= g.settings.sizeChunks)
+                    return fail(where + ": outside the space");
+                if (r.placementVersion < g.pinned || r.placementVersion > newest)
+                    return fail(where + ": the placement version " + std::to_string(r.placementVersion) +
+                                " is not in v" + std::to_string(g.pinned) + "..v" + std::to_string(newest));
+                ChunkId c;
+                c.space                           = sp.space;
+                c.x                               = r.x;
+                c.z                               = r.z;
+                stagedRecords[c].placementVersion = r.placementVersion;
+                if (r.stamped) stagedStamped.insert(c);
+            }
+        }
+    if (plans.combinedHash != cur.combinedHash || plans.pinned != cur.pinned) stagedPlans = std::move(plans);
+    return true;
+}
+
+void WorldLoader::commitGeneration()
+{
+    if (stagedPlans)
+    {
+        w.pipeline->replacePlans(std::move(*stagedPlans));
+        stagedPlans.reset();
+        std::vector<TerrainHeightSource> sources;
+        for (size_t i = 0; i < w.pipeline->spaceCount(); ++i) sources.push_back(w.pipeline->heightSource(SpaceId(i)));
+        w.terrainSys->replaceSources(std::move(sources));
+    }
+    w.chunkRecords->replace(std::move(stagedRecords), std::move(stagedStamped));
 }
 
 void WorldLoader::restoreStateEntities()
@@ -1049,7 +1185,7 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
         !checkSpaces() || !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes() ||
-        !stageTerrain(data))
+        !stageTerrain(data) || !stageGeneration())
     {
         result.error = error;
         return result;

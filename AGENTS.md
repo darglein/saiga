@@ -92,7 +92,21 @@ src/
                         TerrainEditStore (delta blocks, per-chunk sequence, World::terrainEdits / terrainSample),
                         TerrainDeltaCodec, TerrainMessages (TerrainModification, TerrainChunkState), the visual path
                         (TerrainVisualPatch: merge at the send point and edited grass masks, TerrainDirtyQueue: the
-                        patch step); tests/test_engine_terrain_edit.cpp, _net.cpp, _benchmark.cpp; ecs/: Registry,
+                        patch step); tests/test_engine_terrain_edit.cpp, _net.cpp, _benchmark.cpp; S23a: HookGenerator
+                        (an S20 height hook as a Generator: the games' prototype fixture, the tests' hooks);
+                        content/ (S23a, docs/engine_design.md §12.1): GenerationPipeline (phase A: generators, space
+                        list, plans of every space instance, sitesByChunk, plan hashes; phase B: prefab entities
+                        against classes, components, meshes; heights with the composed site patches, chunkBase /
+                        chunkPlacement, ContentSource for pool jobs, stampList / staticList), GeneratorList, Generator.h
+                        / WorldPlan.h / ChunkContent.h (the interface), Prefab / PrefabStore (versioned prefab files),
+                        ContentCache (WorldSetup::sharedContent), ContentHash (plan hashes), ContentHashFile
+                        (checkContentHashes), ContentConvert (exact conversions), ChunkRecords (CREC state),
+                        chunkStampSystem (phase 7, host); content/gen/ (integer only, linted): FixedMath.h, TrigTable,
+                        IntNoise, SitePatch, ChunkGeneration, SectionHash, FlatGenerator (GeneratorId 0),
+                        AuthoredSpaceGenerator; api/ComponentJson (the component-JSON path of spawn and stamping);
+                        net/GenerationStateMessage; tests/test_engine_content.cpp (+ content_lint.h, the fixture in
+                        tests/content_lint_fixture/, content_test_generator.h, content_test_setup.h),
+                        _content_benchmark.cpp; ecs/: Registry,
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
@@ -140,7 +154,10 @@ data/                   Sample assets (textures, models); test goldens in data/t
                         golden save save_v1.bin/.json and the engine schema schema.json, R-SAVE-1): after a deliberate
                         version change regenerate only the schema (SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_save
                         --gtest_filter='SaveFormat.EngineSchemaIsCommitted'); the golden save is rewritten only for a new
-                        save format version (it must keep loading otherwise)
+                        save format version (it must keep loading otherwise); S23a: the test prefabs in prefabs/, the
+                        committed content hashes content_hashes.json (see Tests) and the golden save save_s23a.bin
+                        (GENR, CREC; rewritten with SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_content
+                        --gtest_filter='ContentSave.CommittedSaveLoads' only for a new GENR / CREC format version)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
@@ -158,7 +175,8 @@ scripts/setup_worktree.sh   Submodule init for a git worktree (borrows objects f
                         Mesa lavapipe) + ctest; Windows MSVC (Ninja + ccache, shared libraries, Core + Vulkan + Engine, no samples;
                         OpenGL and Vision are not built there; the Vulkan tests skip without a driver) + ctest. The
                         Ubuntu jobs fail on any skipped gtest case; the Clang job also builds the samples (incl. the
-                        tech demo games, not run). Changes of only docs/ and Markdown files skip it
+                        tech demo games, not run) and compiles the content code with SAIGA_CONTENT_UBSAN=ON. Changes of
+                        only docs/ and Markdown files skip it
 travis/, .travis.yml    Legacy Travis CI — unused
 ```
 
@@ -176,7 +194,9 @@ sudo apt-get install -y --no-install-recommends \
   xorg-dev libwayland-dev libxkbcommon-dev wayland-protocols extra-cmake-modules \
   libgl-dev libegl-dev libegl-mesa0 libgl1-mesa-dri \
   libvulkan-dev mesa-vulkan-drivers vulkan-validationlayers locales
-sudo locale-gen de_DE.UTF-8   # Ini.IndependentOfCLocale skips without a decimal-comma locale (CI fails on skips)
+sudo locale-gen de_DE.UTF-8   # Ini.IndependentOfCLocale, Json.NumbersIndependentOfCLocale and
+                              # Prefab.IndependentOfCLocale skip without a decimal-comma locale (CI fails on skips);
+                              # without sudo: localedef -i de_DE -f UTF-8 <dir>/de_DE.UTF-8 and LOCPATH=<dir>
 ```
 
 The dependency list in `README.md` is partly outdated (e.g. GLM is no longer used — Eigen is the
@@ -238,12 +258,13 @@ cmake --build build --parallel -- -k 0
 | `SAIGA_DEBUG_ASAN` / `_MSAN` / `_TSAN` | OFF | Sanitizers (TSAN excludes ASAN/MSAN) |
 | `SAIGA_CUDA_ARCH` | "" | CUDA archs; empty = autodetect |
 | `SAIGA_WITH_<LIB>` | mostly ON | Use an optional library if found (ASSIMP, LIBZIP, FFMPEG, FREETYPE, LIBTIFF, YAMLCPP, OPENAL, OPENMESH, G2O, CHOLMOD, ...) |
+| `SAIGA_CONTENT_UBSAN` | OFF | Trapping UBSan (`-fsanitize=signed-integer-overflow,shift,integer-divide-by-zero,bounds,null,alignment,bool,enum,return,unreachable -fsanitize-trap=all`, no runtime) on the content generation sources (`src/saiga/engine/content/`) and `test_engine_content` (S23a); Clang and GCC (an error with MSVC); the Clang CI job turns it ON; undefined behaviour aborts the test (SIGILL) |
 | `SAIGA_WITH_JOLT` | OFF | Download Jolt Physics v5.6.0 with FetchContent (`cmake/Dependencies_jolt.cmake`, not a submodule) and build the target `Jolt` (static, PIC) and `sample_vulkan_jolt`; no saiga library links it. Jolt's own options (e.g. `CROSS_PLATFORM_DETERMINISTIC`) can be set with `-D` |
 | `SAIGA_WITH_TINY_EIGEN` / `_TINY_GLOG` | ON | Use the tiny replacements instead of Eigen / glog (disables vision + some tests) |
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-75 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+78 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -312,6 +333,17 @@ ctest -R test_core_ini --output-on-failure             # one test
   the counts from the `trees per lod` lines of the step "Golden image metrics" into the `ExpectCounts` calls of
   `tests/test_engine_terrain_render.cpp`; then update the Mesa/LLVM versions named here and in `docs/engine_design.md` §17.6
   (the goldens now come from CI's lavapipe). See `docs/engine_design.md` §17.6.
+- **Content hashes** (S23a, `docs/engine_design.md` §12.1): `ContentHash.CommittedHashesReproduce`
+  (`test_engine_content`) regenerates the engine test generator's content (`tests/content_test_generator.h`, the setup
+  of `tests/content_test_setup.h`) and compares it with `data/tests/engine/content_hashes.json` (plan hashes, chunk
+  sections, a digest, the toolkit); every CI compiler must reproduce it (the Clang job with `SAIGA_CONTENT_UBSAN=ON`).
+  A difference is a determinism bug, not a reason to update. Only for a new generator version (a new entry) or a
+  deliberate format change: `SAIGA_UPDATE_CONTENT_HASHES=1 ./build/tests/test_engine_content
+  --gtest_filter='ContentHash.*'` rewrites the file in the source tree and fails the run; commit it in a dedicated
+  commit whose message gives the reason. An entry of a released version is never regenerated. Generator code (the
+  files under `src/saiga/engine/content/gen/`, the interface headers, `tests/content_test_generator.h`, games'
+  `content/` directories) is integer only: `ContentLint.*` refuses floating point, libm, `long`, `size_t`, unordered
+  containers, sequential RNGs and the template header there.
 - **Benchmarks** (local, GPU and display; `docs/engine_design.md` §17.7). Baselines are measured in a separate release
   build without asserts (§17.10) and without `-march=native` (§17.7):
   ```shell

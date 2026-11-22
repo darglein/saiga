@@ -44,7 +44,8 @@ class SAIGA_ENGINE_API TerrainStore
     int tilesAtLevel(int level) const;
     const std::map<RegionId, Tile>& tiles() const { return tileMap; }
 
-    // The pyramid (null before the space's first view); its pointer stays the same while the world lives
+    // The pyramid (null before the space's first view); its pointer stays the same until dropAll (a host load with
+    // other generator pins through TerrainSystem::replaceSources): read it at each use
     const Vulkan::TerrainPyramidData* pyramid() const { return pyramidData.get(); }
     void setPyramid(Vulkan::TerrainPyramidData pyramid);
 
@@ -56,6 +57,9 @@ class SAIGA_ENGINE_API TerrainStore
 
     // Drops the streamed data (tiles and masks), keeps the pyramid
     void dropStreamed();
+    // Drops everything incl. the pyramid (a host load with other generator pins, S23a: a new pyramid gets a new
+    // pointer)
+    void dropAll();
     void dropMasks();
     // The bytes of the tiles, the pyramid and the masks
     size_t cpuBytes() const;

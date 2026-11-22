@@ -160,6 +160,85 @@ void diffSpaceTables(const SpaceTable& a, const SpaceTable& b, Add& add)
     }
 }
 
+// GENR (S23a): the seed, the generator per template, per generator (by name) its versions and slot table, the space
+// count and the combined plan hash ("generation generator test_terrain pinned: 1 != 2")
+template <class Add>
+void diffGeneration(const GenerationSection& a, const GenerationSection& b, Add& add)
+{
+    auto one = [&](const std::string& component, const std::string& field, const Json& x, const Json& y)
+    {
+        if (x == y) return;
+        SaveDifference d;
+        d.kind      = "generation";
+        d.component = component;
+        d.field     = field;
+        d.a         = x;
+        d.b         = y;
+        add(std::move(d));
+    };
+    one("seed", "", Json(std::to_string(a.seed)), Json(std::to_string(b.seed)));
+    for (size_t i = 0; i < std::max(a.templateGenerators.size(), b.templateGenerators.size()); ++i)
+        one("template " + std::to_string(i), "generator",
+            i < a.templateGenerators.size() ? Json(a.templateGenerators[i]) : Json(),
+            i < b.templateGenerators.size() ? Json(b.templateGenerators[i]) : Json());
+    std::map<std::string, const GenerationSection::Generator*> ga, gb;
+    for (const auto& g : a.generators) ga[g.name] = &g;
+    for (const auto& g : b.generators) gb[g.name] = &g;
+    std::set<std::string> names;
+    for (const auto& kv : ga) names.insert(kv.first);
+    for (const auto& kv : gb) names.insert(kv.first);
+    auto slots = [](const GenerationSection::Generator* g)
+    {
+        Json::array s;
+        if (g)
+            for (const auto& slot : g->slots) s.push_back(Json::array{slot.name, double(slot.flags)});
+        return Json(s);
+    };
+    for (const std::string& n : names)
+    {
+        const auto* x = ga.count(n) ? ga[n] : nullptr;
+        const auto* y = gb.count(n) ? gb[n] : nullptr;
+        one("generator " + n, "pinned", x ? Json(double(x->pinned)) : Json(), y ? Json(double(y->pinned)) : Json());
+        one("generator " + n, "current", x ? Json(double(x->current)) : Json(), y ? Json(double(y->current)) : Json());
+        one("generator " + n, "slots", slots(x), slots(y));
+    }
+    one("spaces", "", Json(double(a.spaceCount)), Json(double(b.spaceCount)));
+    one("combined_plan_hash", "", Json(std::to_string(a.combinedHash)), Json(std::to_string(b.combinedHash)));
+}
+
+// CREC (S23a): per chunk record, one-sided records and the version / stamped differences ("record space 0 chunk
+// (4, 5): ...")
+template <class Add>
+void diffChunkRecords(const ChunkRecordSection& a, const ChunkRecordSection& b, Add& add)
+{
+    using Key = std::tuple<SpaceId, int32_t, int32_t>;
+    std::map<Key, const ChunkRecordSection::Record*> ra, rb;
+    for (const auto& sp : a.spaces)
+        for (const auto& r : sp.records) ra[Key(sp.space, r.x, r.z)] = &r;
+    for (const auto& sp : b.spaces)
+        for (const auto& r : sp.records) rb[Key(sp.space, r.x, r.z)] = &r;
+    std::set<Key> keys;
+    for (const auto& kv : ra) keys.insert(kv.first);
+    for (const auto& kv : rb) keys.insert(kv.first);
+    auto state = [](const ChunkRecordSection::Record* r)
+    {
+        if (!r) return Json();
+        return Json(Json::object{{"placement_version", double(r->placementVersion)}, {"stamped", r->stamped}});
+    };
+    for (const Key& k : keys)
+    {
+        const Json x = state(ra.count(k) ? ra[k] : nullptr), y = state(rb.count(k) ? rb[k] : nullptr);
+        if (x == y) continue;
+        SaveDifference d;
+        d.kind      = "record";
+        d.component = "space " + std::to_string(std::get<0>(k)) + " chunk (" + std::to_string(std::get<1>(k)) + ", " +
+                      std::to_string(std::get<2>(k)) + ")";
+        d.a = x;
+        d.b = y;
+        add(std::move(d));
+    }
+}
+
 // TERR (S22): per chunk with terrain state, one-sided chunks, sequence differences and per chunk the number of
 // differing delta samples with the first one ("terrain space 0 chunk (1, 2): ...")
 template <class Add>
@@ -261,6 +340,8 @@ std::string SaveDifference::describe() const
         return e + " " + component + " only in " + kind.substr(18);
     if (kind == "terrain")
         return "terrain " + component + (field.empty() ? "" : " " + field) + ": " + short_(a) + " != " + short_(b);
+    if (kind == "generation" || kind == "record")
+        return kind + " " + component + (field.empty() ? "" : " " + field) + ": " + short_(a) + " != " + short_(b);
     if (kind == "space")
         return "space " + field + ": " + (a.is_string() ? a.string_value() : "none") + " vs " +
                (b.is_string() ? b.string_value() : "none");
@@ -355,6 +436,12 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
     };
     section(kTagSpaces, pa.spaces.has_value(), pb.spaces.has_value());
     if (pa.spaces && pb.spaces) diffSpaceTables(*pa.spaces, *pb.spaces, add);
+    section(kTagGeneration, pa.generation.has_value(), pb.generation.has_value());
+    if (pa.generation && pb.generation) diffGeneration(*pa.generation, *pb.generation, add);
+    section(kTagChunkRecords, pa.chunkRecords.has_value(), pb.chunkRecords.has_value());
+    if (pa.chunkRecords || pb.chunkRecords)
+        diffChunkRecords(pa.chunkRecords ? *pa.chunkRecords : ChunkRecordSection(),
+                         pb.chunkRecords ? *pb.chunkRecords : ChunkRecordSection(), add);
     section(kTagTerrain, pa.terrain.has_value(), pb.terrain.has_value());
     {
         TerrainSection ta, tb;

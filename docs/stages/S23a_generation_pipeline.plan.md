@@ -1,6 +1,6 @@
 # S23a: Generation pipeline
 
-Status: planned.
+Status: done (implemented on `stage-s23a`; results below).
 
 Sections follow the stage plan template of S05; "Implementation steps", "Risks and open questions", "Design-doc
 amendments" and "Review log" are added for this stage. S23 of §22 is split into three stages with their own plans
@@ -89,13 +89,12 @@ Engine mechanisms every generator uses; integer only, header-light, compiled and
     fit: `a != INT64_MIN`, `b != INT64_MIN` and `b == 0 || |a| <= INT64_MAX / |b|` (not a bound on each factor: the
     trig series multiplies `x^2` of about `2.65 * 10^9` by Q30 coefficients). No `__int128` (MSVC has none).
   - `lerpQ16(a, b, t)` = `a + floorShift((b - a) * t, 16)`, `t` in `[0, 65536]`.
-  - `smoothQ16(t)`, `t` in `[0, 65536]`: the quintic fade `6t^5 - 15t^4 + 10t^3` as a stepwise Horner scheme in Q16,
-    `r = 6t - 15 * 65536; r = floorShift(r * t, 16) + 10 * 65536; r = floorShift(r * t, 16)` three times. Every
-    product is below `2^17 * 2^20` (no `t^5` intermediate, which would overflow int64 in Q16). Exact endpoints:
-    `smoothQ16(0) == 0`, `smoothQ16(65536) == 65536`. The floor shifts make it **not** monotone: 1601 inputs step down
-    by 1 LSB (the first at `t = 48775`); every value lies in `[0, 65536]`, `s(t + 1) >= s(t) - 1`, and it stays within
-    2 LSB of the exact polynomial (all three tested). The formula is fixed (it enters the committed hashes); callers
-    need continuity, not strict monotonicity.
+  - `smoothQ16(t)`, `t` in `[0, 65536]`: the quintic fade `6t^5 - 15t^4 + 10t^3` as a stepwise Horner scheme with
+    Q32 intermediates (as implemented, step 3; the first Q16 scheme had 2-LSB steps down and errors up to 3.6 LSB):
+    `r = (6t - 15 * 2^16) * t + 10 * 2^32; r = floorShift(r * t, 16); r = floorShift(r * t, 16);
+    return floorShift(r * t, 32)`. Every product is below 2^53. Exact endpoints: `smoothQ16(0) == 0`,
+    `smoothQ16(65536) == 65536`; monotone, every value in `[0, 65536]` and within 1 LSB of the exact polynomial. The
+    formula is fixed (it enters the committed hashes).
   - `isqrt64(uint64)`: the exact floor of the square root, bitwise (digit by digit), no float.
   - `clampI(v, lo, hi)`; `ceilDiv`.
   - Units: `kPosUnitsPerMetre = 256` (candidate and prefab x/z, 1/256 m) and `kHeightUnitsPerMetre = 1024` (S20's
@@ -506,8 +505,8 @@ struct StaticPart  { uint32_t siteKey; uint32_t part; std::string mesh; int64_t 
   - position `chunkOrigin + (x / 256, y / 1024, z / 256)`: int to double, a power-of-two scale, an addition exact
     below `2^53 / 256`;
   - entity rotation (host only, simulation state, not hashed): `Quat(cosQ30(yaw), 0, sinQ30(yaw), 0)` scaled by
-    `2^-30` and **normalized in double** (the table's norm error of up to `2^-28` would otherwise sit in saved and
-    replicated state; the hashed data stays the integer yaw);
+    `2^-30`, not normalised (R-CONTENT-1: no libm; the table's norm error of up to `2^-28` stays in the state; the
+    hashed data stays the integer yaw; implementation review);
   - scale `scale / 1024`. (Render instances: S23b.)
 
 ### 5. Content cache (`engine/content/ContentCache.{h,cpp}`)
@@ -605,6 +604,10 @@ refuses** (E11); adopting the host's pins is S26's (its handshake).
     base heights).
   - A valid message changes nothing on the client (it already generates the host's content); it records that the
     check passed (`generationChecked()`, read by S23b's record validation and the tests).
+  - No message (PR review): a client whose own world `writesGenerationState()` that receives a `Spawn` (which follows
+    the state on a join and after `Resync`, on the same reliable channel) before any `GenerationState` was checked
+    refuses in the same way ("the host sent no generation state"): the host's setup writes none, so it generates
+    other terrain (`Replication::onSpawn`; test `GenerationState.MissingStateIsRefused`; S26's handshake replaces it).
 - Host: when the first peer joins and a used generator has `integerOnly() == false`, the host logs once
   (`SAIGA_LOG_E`, `content`): "generator 'prototype' is not integer-only: clients on other machines or compilers may
   see other terrain". (The prototype fixture's co-op runs in one process, S16b.)
@@ -681,7 +684,8 @@ refuses** (E11); adopting the host's pins is S26's (its handshake).
 ### 9. Stamping (`engine/content/ChunkStampSystem.cpp`, `content/Systems.h`, `engine/world/World.*`)
 
 - `chunkStampSystem`: phase 7, `RunOn::Host`, registered first in the phase. It is registered only when some plan has
-  sites (otherwise no system, no work, no profiler scope: scenarios and games without sites are unchanged):
+  sites or a generator in use is not legacy (PR review: a load can replace the plans with the saved pins' plans, which
+  may have sites; legacy plans have none, so legacy scenarios and games are unchanged):
   `registerEngineSystems` appends it after phase A of the pipeline has run (Scope 4), so it exists before
   `setupProfiler` creates the per-system scopes.
 - Per step: per space, the chunks whose square intersects the disc of `SpaceTemplate::fullRadius` around any `Player`
@@ -701,7 +705,7 @@ refuses** (E11); adopting the host's pins is S26's (its handshake).
   `afterStart`, as `World::spawnIn<T>` does for typed spawns. Between steps it applies at once (as `spawnIn<T>`), so
   the existing `spawnByClass` becomes a wrapper of it. Per stamp record:
   - the class by name through `ClassList` (R-REG-2: the data boundary);
-  - position and rotation from the exact conversions (rotation normalized in double), in the chunk's space;
+  - position and rotation from the exact conversions (rotation: the Q30 values scaled by `2^-30`), in the chunk's space;
   - `afterStart`: the prefab's component JSON through the shared merge path of Scope 3 with the flush-safe add
     `addDefaultById` (it runs inside the phase-7 flush; a component that cannot be applied any more, e.g. `onSpawn`
     destroyed the entity, is logged with `SAIGA_LOG_E` and counted, not fatal);
@@ -1011,8 +1015,8 @@ device):
   limits; `mulShift` rounding toward negative infinity; `isqrt64` exact (`r^2 <= v < (r+1)^2`) for all `v < 2^20`, for
   the squares `k^2` and `k^2 ± 1` of every `k < 2^16`, of 10^5 `contentHash64`-sampled `k < 2^32`, and for `2^64 - 1`
   (about 4 * 10^5 checks, not 4 * 10^9); `smoothQ16` over all 65537 inputs: exact endpoints, every value in
-  `[0, 65536]`, `s(t + 1) >= s(t) - 1`, within 2 LSB of the polynomial evaluated in `double` (the test may use
-  floating point), and the number of 1-LSB decreases printed (1601; not a failure); `mulShift` of the trig series'
+  `[0, 65536]`, monotone (`s(t + 1) >= s(t)`), within 2 LSB of the polynomial evaluated in `double` (the test may use
+  floating point); `mulShift` of the trig series'
   largest `x^2` (about `2.65 * 10^9`) by a Q30 coefficient passes, an overflowing product stops (death test with
   `SAIGA_ASSERTS`); `lerpQ16` endpoints.
 - `TrigTable.*`: `sinQ30` within 8 LSB of `std::sin` (tests may use libm; the derived bound is 4 LSB, Scope 1, and the
@@ -1151,6 +1155,10 @@ The S23a row of §22 (amendment 1):
 Also: the remaining tests above (CI); `game_world`, racing and flight unchanged (`--scenarios`, `--demo` screenshots;
 local); `test_vulkan_world` and S20's engine goldens unchanged (CI); the benchmark numbers (local, in the PR);
 `docs/engine_design.md` and `AGENTS.md` updated.
+
+State (see Results): met locally on GCC 15 and Clang 19 with `SAIGA_CONTENT_UBSAN=ON` (the hashes, the lint, both
+content scenarios in all six variants, the remaining tests, the games, the goldens on lavapipe, the benchmarks, the
+documents); the MSVC job is read from CI.
 
 ## Verification
 
@@ -1343,8 +1351,8 @@ that file; those owned by S23b or S23c are logged there.
   render part is S23b's.
 - 18 Old saves re-based onto new terrain: `GENR` stores template -> generator names (mismatch = load error); a save
   without `GENR` loads only with `legacyTerrain` generators (Scope 8, check 7).
-- 20 Quaternion norm error in state: the entity rotation is normalized in double (host only, not hashed); hashed data
-  stays the integer yaw.
+- 20 Quaternion norm error in state: the entity rotation is the Q30 values scaled by `2^-30`, within `2^-28` of unit
+  length (no libm, implementation review; host only, not hashed); hashed data stays the integer yaw.
 - 21 Locale: json11 number parsing and formatting made locale independent (`Saiga::ParseNumber`); a prefab test under
   `de_DE` (CI installs the locale).
 
@@ -1516,10 +1524,133 @@ Implementation (steps 4-6):
   blocks; the main thread never does).
 - Enclosed templates whose generator has terrain are refused in phase A (`SAIGA_EXIT_ERROR`).
 
+Implementation (step 7, the switch):
+
+- The engine tests name many hooks at run time (`testSpaceTemplate(size, spacing, hook, sea)`), while
+  `WorldSetup::generators` is a plain function pointer. `tests/terrain_test_hooks.h` keeps a process-wide hook table:
+  `hookGenerator(hook)` gives each distinct hook a fixed ID (1, 2, ... in the order of first use) and
+  `registerTestHookGenerators` registers a `HookGenerator("test_hook_<id>", hook, S20's rule, true)` for every entry;
+  the setups of those tests set `generators = registerTestHookGenerators`. The world API test's `hills` space
+  registers its own `HookGenerator`. `heightSource(template, seed)` (TerrainGeneration) is gone: S20's tests that
+  called it use `TerrainHeightSource::fromHook`.
+- The games: `samples/games/common/PrototypeSpace.h` has `kPrototypeGenerator` (1), `prototypeGenerator()` and
+  `registerPrototypeGenerator`; flight and racing set `generators = registerPrototypeGenerator`; `game_world` also
+  registers `HookGenerator("islands", islandsHeight, ...)` as 2 for its second template.
+- S21's enclosed-template death test keeps its message: phase A's refusal of an enclosed template whose generator has
+  terrain names `SpaceTemplate::enclosed(name, sizeChunks)`.
+- Checked: ctest 79/79 on the GPU, the Vulkan and engine tests 38/38 on lavapipe (goldens gate there, unchanged),
+  `--scenarios` of flight (18), racing (18) and platformer (36) pass.
+
+Implementation (steps 8-11):
+
+- The engine test generator (`tests/content_test_generator.h`): rivers on a 512 m plan grid (about one cell in 23, a
+  smooth channel 3 m below the sea level toward the cell centre, `isqrt64` / `smoothQ16` / `lerpQ16`), biomes on a 2 km
+  grid; height = `fbm` (6 octaves, +-60 m) + `ridged` (4 octaves, 25 m) + a `valueNoise` detail (`mulShift`) + 12 m; no
+  tier-1 instance below sea level + 0.5 m (the natural height under the candidate); rocks offset by up to 3 m in a
+  direction of the trig table; grass from the slope of the natural corner heights (v1: 700, v2: 600 units per base
+  spacing) and 0.4 m above the sea, density from `valueNoise`. The 4 km shrine grid fits all 64 sites, so the overworld
+  has 66 sites. The test classes are `ContentTestClass` 64..66 (their own setup; `test_engine_scenarios`' classes are
+  another setup).
+- `checkContentHashes`: each entry is built on a fresh `ContentCache`; the digest is a `Hasher` seeded with
+  `fnv1a64("saiga.content.digest.v1")` over u32 count, then per chunk (i32 x, i32 z, u64 total) for the block and then
+  the site chunks outside it (the keys of space 0's `sitesByChunk`, in order); the toolkit hashes: the 32769 table
+  entries, a 256 x 256 grid at `((i - 128) * 997, (j - 128) * 1009)` of `fbm(1, ., 12, 5)`, `ridged(2, ., 11, 4, 2)`,
+  `gradientNoise(3, ., 9)`, `valueNoise(4, ., 7)`, and all 65537 `smoothQ16` values. The file is written with sorted
+  keys (json11's objects) and two-space indentation. The step-8 commit contains the generated file (a skeleton alone
+  would fail ctest at that commit).
+- Stamping: `World::spawnByClassDeferred(info, space, position, rotation, afterStart)` and the engine-internal
+  `World::recordOrRun(fn)` (the record / stamped-entry command). `spawnByClass` stays as it was (its `initial` callback
+  runs before `configure()` / `onSpawn()`, the deferred spawn's `afterStart` after them); both use `beginSpawn`,
+  `finishSpawn`, `startObject`. A component that cannot be applied is logged (`SAIGA_LOG_E`, category `content`) and
+  counted in `ChunkRecords::Stats::failedComponents`.
+- Saves: the load requires the saved pins to give the world's **whole** current space table (not only the first N
+  spaces; there is no run-time rebuild, so a longer or shorter rebuilt list cannot be committed); `TableChangeV2`'s
+  load is refused earlier by S21's `SPCE` check ("space 2 is 'test_dungeon' in the save and 'test_valley' in the
+  setup"). `CREC` without `GENR` is a load error. The re-pin drop is `TerrainSystem::replaceSources` (the pool is
+  recreated, every store dropped incl. its pyramid through the new `TerrainStore::dropAll`: a re-pinned pyramid gets a
+  new pointer, the one exception to D5's stable pointer, the sink's terrain cleared). The World keeps the setup fields
+  phase A reads (`generationSetup`). `save_s23a.bin` is generated with `SAIGA_UPDATE_GOLDEN=1` by
+  `ContentSave.CommittedSaveLoads`.
+- `GenerationState` (`net/GenerationStateMessage`): strings as in the saves (u64 length); a client's `Resync` resets
+  `generationChecked` / `generationMismatch` (the state of the new epoch follows); counters `generationStatesSent` and
+  `generationStatesDroppedEpoch` in `Replication::Stats`; the refusal goes through `World::rejectInput` (counted in
+  `NetStats::rejected`) and a `SAIGA_LOG("content", ...)` line naming the difference (no entity for `SAIGA_LOG_E`);
+  `ScenarioWorld` fails the host + client variants when a client refuses. The host's non-integer warning uses
+  `SAIGA_LOG("content", ...)` once per world.
+- Added beyond the Files list: `tests/content_lint.h` (the scanner), `tests/test_engine_content_benchmark.cpp` (the
+  non-gating benchmarks of the Tests section), `.gitattributes` (the lint fixture keeps its mixed line ends on every
+  checkout).
+- **Implementation review** (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack): round 1 (10, minor):
+  `contentRotation` normalised with `std::sqrt` (R-CONTENT-1 forbids libm) -> fixed (`S23a review`): the Q30 values
+  scaled exactly, not normalised (`cos^2 + sin^2` of the table is within 2^-28 of 1). Round 1 (9, moved here from S22,
+  where `generationMismatch` did not exist yet): `onTerrainModification` / `onTerrainChunkState` applied after a refused
+  `GenerationState` -> fixed in the same commit with the S23b handlers' guard. Round 2: no S23a finding; the S20 fixes
+  below this branch were rebased in (`TerrainSystem::height` keeps the space's `hasTerrain` flag before the NaN check;
+  `replaceSources` no longer clears the removed per-tile pyramid heights).
+
 ## Design changes
 
-(Filled when the stage is done.)
+The design-doc amendments 1-17 are made in `docs/engine_design.md` (§3 rows, §7.9, §12.1 (rewritten as implemented),
+§12.2, §12.4, §13.1, §13.2, §14, §15.1, §15.3, §17.2, §17.4, §17.10, §18.1, §18.2, §18.4, §19 rows, the §22 split
+into S23a / S23b / S23c with S24's and S27's dependencies). Changes against the plan made during the implementation
+(each the smallest sound fix; details in the review log above):
+
+- `smoothQ16` uses Q32 intermediates (the plan's Q16 scheme had 2-LSB steps down and 3.6 LSB errors); monotone and
+  within 1 LSB.
+- A site's `footprint` is the generator's reservation that must contain the prefab's footprint;
+  `AuthoredSpaceGenerator` reserves the whole space.
+- `ChunkBase` has no stored exclusion rectangles (point tests through the sites' local rectangles);
+  `StampRecord` / `StaticPart` carry the site index (and the stamp the prefab and class names the hash needs).
+- `TerrainSystem(std::vector<TerrainSpace>)` and `TerrainSystem::hasTerrain(space)`, `replaceSources`;
+  `TerrainStore::dropAll`; S22's `BrushKernel` uses the toolkit's `floorDiv` / `ceilDiv`.
+- The engine tests' hooks are registered through a process-wide hook table (`tests/terrain_test_hooks.h`:
+  `hookGenerator`, `registerTestHookGenerators`), because `WorldSetup::generators` is a plain function pointer.
+- `World::recordOrRun`, `World::generation()`, `World::writesGenerationState()`, `World::contentRecords()`;
+  `spawnByClass` is not rewritten as a wrapper of `spawnByClassDeferred` (different hook points).
+- A load requires the saved pins to reproduce the whole current space table.
 
 ## Results
 
-(Filled when the stage is done.)
+Measured on the RTX 5080 Laptop GPU, lavapipe (Mesa with LLVM 21.1.8), GCC 15.2 and Clang 19.
+
+- **Done when.** `ContentHash.CommittedHashesReproduce` and `ContentHash.PlacementVersionsCoexist` pass with GCC 15
+  (RelWithDebInfo with asserts, and Release without asserts in `build-bench`) and Clang 19 with
+  `SAIGA_CONTENT_UBSAN=ON` (trapping UBSan on the content sources and the test); MSVC is checked by CI. The committed
+  file has two entries (plan v1 with placement v1 and with v2), 3 plans, 9 listed chunks and a digest over 64 + 72
+  chunks each (290 chunks per check, 1.2 s on a `JobPool(3)`). `ContentLint.*` scans 20 files (0 findings) and the
+  fixture's 29 expected findings. `prefab_site_is_stamped` and `site_entrance_links_instance_space` pass in all six
+  variants (plain, repeat with `varyThreads`, save/load with `strictContinuation`, `HostClient`, `HostClientDelay`,
+  `HostClientAsync`).
+- **Tests.** ctest 80/80 on the GPU (the local build with samples; with the CI options 78: S22's 75 +
+  `test_core_json`, `test_engine_content`, `test_engine_content_benchmark`); the Vulkan and engine tests 38/38 on
+  lavapipe (goldens unchanged, incl. `world_*`, `terrain_edit_crater`, `hdr_tonemap`); the Clang 19 build with
+  `SAIGA_CONTENT_UBSAN=ON` and the CI options 80/80 on lavapipe / llvmpipe. The locale tests (`Json.`, `Prefab.`,
+  `Ini.IndependentOfCLocale`) were run with a de_DE locale built by `localedef` (`LOCPATH`). The toolkit: `sinQ30`
+  within 2 LSB of libm (bound 4), `smoothQ16` monotone within 1 LSB, `gradientNoise` extremes -64291 / 65534 at the
+  2^16 cell centres.
+- **Scenarios.** `--scenarios` of flight (18), racing (18) and platformer (36) pass after steps 7 and 11 (the hook is
+  the `HookGenerator` "prototype"; no value re-recorded). `game_world` has no scenarios. `SAIGA_SCREENSHOT` runs of
+  `game_world`, flight `--demo` and racing `--demo` show the terrain, trees, plane and car as before.
+- **Benchmarks** (`build-bench`: Release, no asserts, no `-march=native`; before = the S22 tip's binaries, after = this
+  branch; two interleaved runs each, medians):
+
+  | | before | after |
+  |---|---|---|
+  | flyover `cpu_ms` / `terrain_stream_ms` | 3.797 / 21.97 | 3.865 / 22.13 |
+  | flyover trees / terrain + water / sky / upload + cull (GPU ms) | 1.392 / 0.190 / 0.0125 / 0.101 | 1.396 / 0.190 / 0.0130 / 0.107 |
+  | forest `cpu_ms` | 2.178 | 2.184 |
+  | forest trees / terrain + water / grass / upload + cull | 0.552 / 0.115 / 0.678 / 0.0365 | 0.552 / 0.115 / 0.679 / 0.0367 |
+  | terraform `cpu_ms` (S22) / terrain + water | 1.012 / 0.138 | 1.018 / 0.138 |
+  | scene benchmark cull / instance draw (ms) | 0.058 / 1.264 | 0.057 / 1.249 |
+
+  Every difference is within the run-to-run variation (R-TEST-2): the flyover's frame interval includes streaming
+  frames (S20: not comparable), and "upload + cull" (+0.005 ms) is below 0.1 ms, where runs vary by 5 %. Content
+  generation (`test_engine_content_benchmark`, Release, single-threaded): plan time of the test setup 0.35 ms (3
+  spaces, 68 sites, the prefab files read), of the prototype setup 0.001 ms; a 2 m overworld chunk 17.8 ms (heights
+  9.7, tier 1 1.0, grass 7.1), a 1 m valley chunk 57.4 ms (heights 27.7, tier 1 1.4, grass 28.2): above the 50 ms report
+  target of §17.10, because the test generator's `grassMask` evaluates the full natural height (11 noise evaluations)
+  at every cell corner again (the interface gives it no access to the chunk's base heights; a game generator can use a
+  cheaper rule; noted for S23b / S27); `chunkStampSystem` with nothing to stamp 0.0005 ms, with one site entering
+  0.015-0.02 ms (the spawns apply at the flush); height samples through the pipeline 333 ns against 331 ns through S20's
+  hook source (the prototype hook dominates), `World::terrainHeight` 1.04 µs.
+- Not done locally: the MSVC build (CI).

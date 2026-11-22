@@ -47,6 +47,9 @@ void registerEngineMessages(MessageList& list)
     list.addRaw(MessageId(EngineMessage::TerrainChunkState), "TerrainChunkState", Reliability::Reliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onTerrainChunkState(from, d, n); });
+    list.addRaw(MessageId(EngineMessage::GenerationState), "GenerationState", Reliability::Reliable, Channel::State,
+                [](World& w, uint8_t from, const uint8_t* d, size_t n)
+                { w.replication().onGenerationState(from, d, n); });
 }
 
 }  // namespace Engine

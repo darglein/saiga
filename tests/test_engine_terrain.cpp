@@ -58,6 +58,7 @@ WorldSetup terrainSetup(int32_t sizeChunks, int baseSpacing, TerrainHeightHook h
     s.seed      = seed;
     s.profiling = false;
     s.config.spaceTemplates.push_back(testSpaceTemplate(sizeChunks, baseSpacing, hook, seaLevel));
+    s.generators = registerTestHookGenerators;
     return s;
 }
 }  // namespace
@@ -143,6 +144,7 @@ TEST(Terrain, PrototypeSurfaceEqualsTerrainHeight)
         s.profiling = false;
         s.config.spaceTemplates.push_back(
             testSpaceTemplate(Vulkan::kPrototypeSpaceChunks, bs, Vulkan::prototypeHeight, Vulkan::kPrototypeSeaLevel));
+        s.generators = registerTestHookGenerators;
         World w(s);
         std::mt19937_64 rng{uint64_t(bs)};
         for (int k = 0; k < 1000; ++k)
@@ -167,7 +169,7 @@ TEST(Terrain, FlatWithoutHook)
     setup.profiling = false;
     World world(setup);
     ASSERT_EQ(world.spaceCount(), 1u);
-    EXPECT_FALSE(world.spaceTemplate(0).hasTerrain());
+    EXPECT_FALSE(world.spaceHasTerrain(0));
     std::mt19937_64 rng(3);
     for (int k = 0; k < 1000; ++k)
     {
@@ -217,6 +219,7 @@ TEST(TerrainDeathTest, TemplateValidation)
         WorldSetup s;
         s.profiling             = false;
         s.config.spaceTemplates = std::move(list);
+        s.generators            = registerTestHookGenerators;
         World w(s);
     };
     SpaceTemplate ok;
@@ -549,7 +552,7 @@ TEST(Terrain, TilesShareBordersAndSubsample)
     for (int bs : {1, 2})
     {
         const auto layout = testLayout(16, bs);
-        const auto src    = heightSource(testSpaceTemplate(16, bs, highFrequencyHook), 3);
+        const auto src    = TerrainHeightSource::fromHook(highFrequencyHook, 3);
         const int n       = layout.samplesPerSide();
         auto tile         = [&](int level, int x, int z)
         {
@@ -578,7 +581,7 @@ TEST(Terrain, TilesShareBordersAndSubsample)
 TEST(Terrain, Pyramid)
 {
     const auto layout = testLayout(16, 1);
-    const auto p      = generatePyramid(heightSource(testSpaceTemplate(16, 1, slopeRidgeHook), 4), layout, 1234);
+    const auto p      = generatePyramid(TerrainHeightSource::fromHook(slopeRidgeHook, 4), layout, 1234);
     const int P       = layout.pyramidSamplesPerSide();
     ASSERT_EQ(P, 129);
     EXPECT_EQ(p.seaLevel, std::optional<int32_t>(1234));
@@ -1375,6 +1378,7 @@ WorldSetup fourSpaces()
     SpaceTemplate flat;
     flat.name               = "flat";
     s.config.spaceTemplates = {a, SpaceTemplate::enclosed("cellar", 4), c, flat};
+    s.generators            = registerTestHookGenerators;
     return s;
 }
 

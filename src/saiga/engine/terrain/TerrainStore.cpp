@@ -79,6 +79,12 @@ void TerrainStore::removeMask(const ChunkId& chunk)
     maskMap.erase(chunk);
 }
 
+void TerrainStore::dropAll()
+{
+    dropStreamed();
+    pyramidData.reset();
+}
+
 void TerrainStore::dropStreamed()
 {
     checkThread();
