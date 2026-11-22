@@ -336,6 +336,19 @@ struct Gate
         return waiting.load() >= n;
     }
 };
+// Declared after the gate and the state the jobs capture: releases the gate and waits for the pool before they are
+// destroyed, also when a fatal assertion returns early (regression: a failed ASSERT left a worker waiting on a
+// destroyed gate)
+struct GateRelease
+{
+    Gate& gate;
+    StreamingPool& pool;
+    ~GateRelease()
+    {
+        gate.release();
+        pool.waitIdle();
+    }
+};
 }  // namespace
 
 TEST(StreamingPool, PriorityOrderAndFifo)
@@ -344,6 +357,7 @@ TEST(StreamingPool, PriorityOrderAndFifo)
     Gate gate;
     std::vector<int> order;
     std::mutex orderMutex;
+    GateRelease guard{gate, pool};
     // The only worker is held, so the rest queue up
     pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr);
     ASSERT_TRUE(gate.awaitWaiting(1));
@@ -375,6 +389,7 @@ TEST(StreamingPool, CancelQueuedAndRunning)
     Gate gate;
     std::atomic<bool> sawCancel{false};
     int runningDone = 0, queuedDone = 0;
+    GateRelease guard{gate, pool};
     const uint64_t running = pool.submit(
         [&](const std::atomic<bool>& cancelled)
         {
@@ -407,6 +422,7 @@ TEST(StreamingPool, CountsWithHeldJobs)
     StreamingPool pool(2);
     Gate gate;
     std::vector<uint64_t> ids;
+    GateRelease guard{gate, pool};
     for (int i = 0; i < 5; ++i) ids.push_back(pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr));
     ASSERT_TRUE(gate.awaitWaiting(2));
     EXPECT_EQ(pool.running(), 2);
@@ -430,6 +446,7 @@ TEST(StreamingPool, RunOneOnCaller)
 {
     StreamingPool pool(1);
     Gate gate;
+    GateRelease guard{gate, pool};
     pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr);
     ASSERT_TRUE(gate.awaitWaiting(1));
     std::thread::id ranOn;
@@ -453,6 +470,7 @@ TEST(StreamingPool, ExceptionsAtDrain)
 {
     StreamingPool pool(1);
     Gate gate;
+    GateRelease guard{gate, pool};
     pool.submit([&](const std::atomic<bool>&) { gate.wait(); }, 0, nullptr);
     ASSERT_TRUE(gate.awaitWaiting(1));
     std::vector<int> completions;

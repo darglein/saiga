@@ -339,6 +339,45 @@ TEST_F(VulkanTerrain, BoundsIncludeFinerTilesCpu)
     renderUntilUploaded(*scene);
 }
 
+// Regression (PR review): a replaced GPU-resident tile or pyramid had only the new data's bounds while the GPU still
+// held the old samples (until the tile's copy, while the pyramid's rows are recorded), so culling could reject terrain
+// drawn at the old heights. A replacement of data not yet on the GPU takes the new bounds
+TEST_F(VulkanTerrain, ReplacedResidentDataKeepsBounds)
+{
+    const TerrainLayout layout = testLayout(32, 1);
+    // (301, 521): only level 0 samples it; (320, 512): a pyramid sample
+    spikeTable()              = {Spike{301, 521, 300 * 1024}, Spike{320, 512, 200 * 1024}};
+    const TerrainAtlas& atlas = scene->terrainAtlas();
+    const RegionId r          = Region(0, 1, 2);
+    auto tileHi               = [&]() { return atlas.ownBound(0, 301 / 32, 521 / 32).hi; };
+    // The finest pyramid level (32 m samples)
+    const int P    = layout.streamedLevels();
+    auto pyramidHi = [&]() { return atlas.ownBound(P, 320 / (32 << P), 512 / (32 << P)).hi; };
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    scene->setTerrainPyramid(0, testPyramid(spikeHook, layout));
+    EXPECT_EQ(pyramidHi(), 200 * 1024);
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    EXPECT_EQ(pyramidHi(), 0) << "the replaced pyramid was never GPU-resident";
+    scene->setTerrainTile(r, testTile(spikeHook, layout, r));
+    scene->setTerrainTile(r, testTile(flatHook, layout, r));
+    EXPECT_EQ(tileHi(), 0) << "the replaced tile was never GPU-resident";
+
+    scene->setTerrainPyramid(0, testPyramid(spikeHook, layout));
+    scene->setTerrainTile(r, testTile(spikeHook, layout, r));
+    renderUntilUploaded(*scene);
+    ASSERT_TRUE(atlas.pyramidResident());
+    ASSERT_TRUE(atlas.tileResident(0, 1, 2));
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    scene->setTerrainTile(r, testTile(flatHook, layout, r));
+    EXPECT_EQ(pyramidHi(), 200 * 1024);
+    EXPECT_EQ(tileHi(), 300 * 1024);
+    // Regression (PR review): a negative level reached a negative shift count
+    EXPECT_FALSE(atlas.tileSet(-1, 0, 0));
+    EXPECT_FALSE(atlas.tileResident(-1, 0, 0));
+    spikeTable().clear();
+    renderUntilUploaded(*scene);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Step 4b: the terrain pass (TerrainPass)
 
@@ -841,6 +880,73 @@ TEST_F(VulkanTerrain, RefinesOnlyResidentTiles)
     EXPECT_GT(scene->terrainPassStats().nodesPerLevel[0], 0);
 }
 
+// Regression (PR review): a normal tap on a tile border fell back to the coarser level when the tile containing the
+// sample in the primary lookup was not resident, although its west neighbour holds the same sample: the normal changed
+// when the east tile streamed in
+TEST_F(VulkanTerrain, NormalAtTileBorderUsesTheNeighbour)
+{
+    const int bs               = 1;
+    const TerrainLayout layout = testLayout(16, bs);
+    scene->setTerrainPyramid(0, testPyramid(highFrequencyHook, layout));
+    // Every level's tile of chunk (0, 0); level 0's tile (1, 0) is missing
+    SetPath(layout, highFrequencyHook, 0, 0);
+    renderUntilUploaded(*scene);
+    const Vec3 cam(230, 40, 128);
+    SetCamera(0, cam, lookRotation(direction(0, -45)), 1.0);
+    Capture(2);
+    const auto& nodes = scene->terrainPass().selectedNodes();
+    auto h            = [](int64_t x, int64_t z) { return double(clampTerrainHeight(highFrequencyHook(1, x, z))); };
+    std::vector<TerrainProbe> probes;
+    std::vector<Vec3> expected;
+    for (size_t n = 0; n < nodes.size(); ++n)
+    {
+        if (nodes[n].level != 0 || nodes[n].quarter || nodes[n].originX != 224) continue;
+        // Odd z: the coarser level has no sample there
+        for (int gz = 1; gz < 32; gz += 2)
+        {
+            const int64_t x = 255, z = nodes[n].originZ + gz;
+            probes.push_back(TerrainProbe{int(n), 31, gz, true});
+            const Vec3 nrm((h(x - 1, z) - h(x + 1, z)) * kHeightUnit, 2.0 * bs,
+                           (h(x, z - 1) - h(x, z + 1)) * kHeightUnit);
+            expected.push_back(nrm.normalized());
+        }
+    }
+    ASSERT_GT(probes.size(), 10u);
+    const auto out = scene->terrainPass().probeVertices(probes);
+    for (size_t i = 0; i < probes.size(); ++i)
+    {
+        EXPECT_EQ(out[i](3), 0.0f);
+        for (int c = 0; c < 3; ++c) EXPECT_NEAR(out[i](c), expected[i](c), 1e-5) << "probe " << i;
+    }
+}
+
+namespace
+{
+inline int32_t raised200Hook(uint64_t, int64_t, int64_t)
+{
+    return 200 * 1024;
+}
+}  // namespace
+
+// Regression (PR review): a quarter (a child out of its range, drawn at the parent's level) was culled with the child's
+// bounds, which miss the parent's heights when the levels' data differ (here level 1 raised by 200 m over flat level-0
+// tiles): the raised quarters above a low camera looking up were rejected
+TEST_F(VulkanTerrain, QuarterCulledWithItsOwnHeights)
+{
+    const TerrainLayout layout = testLayout(16, 1);
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    SetPath(layout, flatHook, 0, 0);
+    for (int z = 0; z < 2; ++z)
+        for (int x = 0; x < 2; ++x) scene->setTerrainTile(Region(0, x, z), testTile(flatHook, layout, Region(0, x, z)));
+    scene->setTerrainTile(Region(1, 0, 0), testTile(raised200Hook, layout, Region(1, 0, 0)));
+    renderUntilUploaded(*scene);
+    SetCamera(0, Vec3(100, 5, 100), lookRotation(direction(45, 30)), 1.0);
+    Capture(2);
+    int quarters = 0;
+    for (const auto& n : scene->terrainPass().selectedNodes()) quarters += n.level == 1 && n.quarter ? 1 : 0;
+    EXPECT_GT(quarters, 0);
+}
+
 TEST_F(VulkanTerrain, PyramidOnly)
 {
     const TerrainLayout layout = testLayout(32, 2);
@@ -855,6 +961,27 @@ TEST_F(VulkanTerrain, PyramidOnly)
     EXPECT_LT(countColor(img, kClear, 0), width * height / 2);
     EXPECT_EQ(scene->statistics().terrainNodes, uint32_t(s.nodes));
 }
+
+#ifdef SAIGA_ASSERTS
+// Regression (PR review): a probe after clearTerrain wrote descriptors of the cleared set's destroyed buffers
+TEST_F(VulkanTerrain, ProbeNeedsTheFramesSet)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    const TerrainLayout layout = testLayout(16, 2);
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    renderUntilUploaded(*scene);
+    SetCamera(0, Vec3(1000, 100, 1000), lookRotation(direction(0, -45)), 1.0);
+    Capture(2);
+    ASSERT_GT(scene->terrainPass().selectedNodes().size(), 0u);
+    EXPECT_EQ(scene->terrainPass().probeVertices({TerrainProbe{0, 0, 0}}).size(), 1u);
+    scene->clearTerrain();
+    EXPECT_DEATH(scene->terrainPass().probeVertices({TerrainProbe{0, 0, 0}}), "terrain set changed");
+    // A new set without a frame
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    EXPECT_DEATH(scene->terrainPass().probeVertices({TerrainProbe{0, 0, 0}}), "terrain set changed");
+    renderUntilUploaded(*scene);
+}
+#endif
 
 // Regression: a non-finite camera reached integer conversions (UB); RenderScene draws no terrain for it. A huge finite
 // height is clamped in double before its conversion (the frame anchor) and draws without a level-0 node

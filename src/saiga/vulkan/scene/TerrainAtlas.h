@@ -231,9 +231,11 @@ class SAIGA_VULKAN_API TerrainAtlas
     size_t maskLayerBytes() const { return size_t(setLayout.grassMaskSize()) * setLayout.grassMaskSize(); }
     Buffer& createSetBuffer(Buffer& b, size_t bytes, const char* what);
     TileRecord* findTile(const RegionId& region);
-    // Bounds: own of the nodes of a tile (from its data, or invalid), of every pyramid level, then the bounds up
-    void tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data);
-    void pyramidOwnBounds();
+    // Bounds: own of the nodes of a tile (from its data, or invalid), of every pyramid level, then the bounds up.
+    // widen: the union with the current own bounds (a replacement of GPU-resident data: until its copy is recorded the
+    // GPU holds the old samples, and the pyramid rows of both while they are recorded)
+    void tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data, bool widen = false);
+    void pyramidOwnBounds(bool widen = false);
     void widenOwn(int level, int32_t nx0, int32_t nz0, int32_t nx1, int32_t nz1, int32_t lo, int32_t hi);
     void updateBoundsUp(int level, int32_t nx0, int32_t nz0, int32_t nx1, int32_t nz1);
     NodeBounds& node(int level, int32_t nx, int32_t nz)

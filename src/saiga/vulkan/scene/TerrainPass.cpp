@@ -267,6 +267,7 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
     if (drawTerrain)
     {
         lastAtlas              = &atlas;
+        lastSetRebuilds        = atlas.stats().rebuilds;
         const TerrainLayout& L = atlas.layout();
         // The morph minimum. The S19a bound (2.5 leaf diagonals, more for a late morph start) and the CDLOD invariant
         // of the horizontal metric: at a level-k/k+1 border the fine node's box is within range_k, so the shared edge
@@ -330,9 +331,14 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
         numWater   = uint32_t(waterNodes.size());
         {
             auto* dst = static_cast<GpuNode*>(atlas.nodeBuffer(frameIndex).getMappedPointer());
-            std::memcpy(dst, fullNodes.data(), fullNodes.size() * sizeof(GpuNode));
-            std::memcpy(dst + numFull, quarterNodes.data(), quarterNodes.size() * sizeof(GpuNode));
-            std::memcpy(dst + numFull + numQuarter, waterNodes.data(), waterNodes.size() * sizeof(GpuNode));
+            // An empty group's data() may be null: no memcpy (PR review)
+            auto copy = [](GpuNode* to, const std::vector<GpuNode>& from)
+            {
+                if (!from.empty()) std::memcpy(to, from.data(), from.size() * sizeof(GpuNode));
+            };
+            copy(dst, fullNodes);
+            copy(dst + numFull, quarterNodes);
+            copy(dst + numFull + numQuarter, waterNodes);
         }
         nodeInfos = fullInfos;
         nodeInfos.insert(nodeInfos.end(), quarterInfos.begin(), quarterInfos.end());
@@ -439,12 +445,12 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
         const int32_t cx = 2 * nx + (q & 1), cz = 2 * nz + (q >> 1);
         if (!selectNode(atlas, camera, child, cx, cz, anchorX, anchorZ, ranges))
         {
-            // The child is out of its range: its area at this level's spacing
-            const TerrainAtlas::Bound cb = atlas.bound(child, cx, cz);
+            // The child is out of its range: its area at this level's spacing, culled with this level's own heights
+            // (what the quarter draws; the child's bound misses them when the levels' data differ, PR review)
             const int32_t qx = cx * half, qz = cz * half;
-            const Vec3 clo(double(qx) - c.x(), double(cb.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
-            const Vec3 chi(double(qx + half) - c.x(), double(cb.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
-            if (cb.valid() && !boxCulled(clo, chi, camera.planes))
+            const Vec3 clo(double(qx) - c.x(), double(own.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
+            const Vec3 chi(double(qx + half) - c.x(), double(own.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
+            if (atlas.bound(child, cx, cz).valid() && !boxCulled(clo, chi, camera.planes))
                 addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt);
         }
     }
@@ -543,6 +549,9 @@ std::vector<vec4> TerrainPass::probeVertices(const std::vector<TerrainProbe>& pr
 {
     std::vector<vec4> out;
     SAIGA_ASSERT(lastAtlas && frameValid, "probeVertices: no terrain frame");
+    // The frame's nodes and descriptors refer to its set: a cleared or new set needs a new frame (PR review)
+    SAIGA_ASSERT(lastAtlas->hasSet() && lastAtlas->stats().rebuilds == lastSetRebuilds,
+                 "probeVertices: the terrain set changed after the last terrain frame");
     if (probes.empty()) return out;
     base->device.waitIdle();
     Buffer buffer;
@@ -553,8 +562,9 @@ std::vector<vec4> TerrainPass::probeVertices(const std::vector<TerrainProbe>& pr
     for (size_t i = 0; i < probes.size(); ++i)
     {
         SAIGA_ASSERT(probes[i].node >= 0 && size_t(probes[i].node) < nodeInfos.size(), "probeVertices: no such node");
-        gpu[i] =
-            ProbeGpu{{uint32_t(probes[i].node), uint32_t(probes[i].gridX), uint32_t(probes[i].gridZ), 0}, {0, 0, 0, 0}};
+        gpu[i] = ProbeGpu{{uint32_t(probes[i].node), uint32_t(probes[i].gridX), uint32_t(probes[i].gridZ),
+                           probes[i].normal ? 1u : 0u},
+                          {0, 0, 0, 0}};
     }
     // The last frame's set with the probes
     writeDescriptors(frames[lastFrame], *lastAtlas, lastFrame);

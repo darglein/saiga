@@ -64,10 +64,12 @@ struct TerrainNodeInfo
     bool quarter = false, water = false;
 };
 
-// A probe of TerrainPass::probeVertices: the node's instance index and a grid sample (0..32, 0..16 for a quarter)
+// A probe of TerrainPass::probeVertices: the node's instance index and a grid sample (0..32, 0..16 for a quarter);
+// normal: the vertex normal and the level out instead of the position and the morph factor
 struct TerrainProbe
 {
     int node = 0, gridX = 0, gridZ = 0;
+    bool normal = false;
 };
 
 /**
@@ -178,7 +180,9 @@ class SAIGA_VULKAN_API TerrainPass
     ComputePipeline probePipeline;
     vk::DescriptorSet probeSet;
     TerrainAtlas* lastAtlas = nullptr;
-    int samples             = 1;
+    // The atlas set of the last frame (TerrainAtlas::Stats::rebuilds): probes need the frame's set
+    uint64_t lastSetRebuilds = 0;
+    int samples              = 1;
     uint32_t numFull = 0, numQuarter = 0, numWater = 0;
     TerrainNodeInfo waterInfo;
     // Index buffers in the (n + 3)^2 vertex layout: full and quarter grids with and without the skirt ring

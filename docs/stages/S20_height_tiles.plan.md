@@ -573,8 +573,9 @@ void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliage
       read through the page table (int32, the difference exact).
     - A vertex shared by two nodes (same level, a common edge) computes the same integers and the same `k`, so it is
       bit-identical: no sparkle with skirts off.
-    - The normal uses central differences through the page table. Across a non-resident neighbour it falls back to the
-      next coarser resident level (a possible shading seam, not a crack). Flat shading (the default) keeps `dFdx`.
+    - The normal uses central differences through the page table (a sample on a tile border also from a resident
+      neighbour that shares it, PR #78 review). Across a non-resident neighbour it falls back to the next coarser
+      resident level (a possible shading seam, not a crack). Flat shading (the default) keeps `dFdx`.
   - Skirts: each grid gets a ring of skirt vertices (a flag in the vertex). They hang `skirtDepth` =
     `max(node max - node min, 2 * spacing)` metres below the edge vertex and morph with it. They close the T-junctions
     that residency-driven refinement creates; CDLOD morphing only rules those out when every level is present.
@@ -637,7 +638,8 @@ void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliage
   - `TerrainPass::selectedNodes() -> const std::vector<TerrainNodeInfo>&`: the last frame's node list in instance
     order (`{level, origin, sampleX, sampleZ, quarter, water}`), so a test picks the node index of a probe.
   - `TerrainPass::probeVertices(const std::vector<TerrainProbe>&) -> std::vector<vec4>` runs `terrainVertex` in a
-    compute dispatch with the frame's node data (`{node index, grid x, z}` in, camera-relative position out).
+    compute dispatch with the frame's node data (`{node index, grid x, z, normal}` in, camera-relative position and
+    morph factor out, with `normal` the normal and the level; asserted: the terrain set is the last frame's).
   - `RenderScene::readDepthForTests()` copies the last frame's single-sampled depth (S19a's `SAMPLE_ZERO` resolve
     target) to the host, so one test checks the real vertex pipeline against the probe and the CPU surface.
 
@@ -1535,3 +1537,20 @@ Round 2 (S20 part, fixed in `S20 implementation review round 2`):
 - Flaky wall-clock bounds (F): `CompleteViewTimeout` (< 2 s, the blocked worker awaited with a deadline),
   `ScreenshotTerrainDeadline` (< 3 s: the tool's own answer is the check), `StreamTimePausesTheClock` (at most 3 steps,
   longest interval < 100 ms).
+
+PR #78 (CodeRabbit, S20 part 1; fixed in `S20 PR review (#78)` on top of the S20 branch):
+
+- Fixed: a replaced GPU-resident tile or pyramid keeps the union of the old and new node bounds (the GPU holds the old
+  samples until the copy is recorded; marking it non-resident would drop the pyramid, every node's fallback); a quarter
+  is culled with its own level's heights; a border normal tap reads a resident neighbour that shares the sample;
+  `tileSet`/`tileResident` reject a negative level; no `memcpy` of empty node groups; `probeVertices` asserts the last
+  frame's set; the test readback has a transfer-to-host barrier; `StreamingPool` joins started workers when a worker
+  creation throws; the gate tests release the gate also after a fatal assertion. World goldens unchanged (lavapipe:
+  `world_overview` 0/255, `world_forest` max 1/255).
+- Already fixed: the zero-width morph interval (`morphStart` clamped to [0.05, 0.95], round 2); the save seed (S23a:
+  GENR records the seed, a mismatch is a load error).
+- Not changed: the page-table clear outside the upload cap (a GPU-side `fillBuffer` once per set, no staging; ordered
+  before the page writes by its barrier); cross-frame transfer write-after-write (ordered by the chain of the frame's
+  transfer-to-shader barrier and the next frame's shader-to-transfer barrier); the fixture's
+  `drawIndirectFirstInstance` check before `RenderScene` (needs a device-selection query; every supported driver has
+  the feature).

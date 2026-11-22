@@ -251,10 +251,13 @@ void TerrainAtlas::setPyramid(SpaceId space, const TerrainPyramidData& p)
                 ++it;
         }
     }
-    setSeaLevel    = p.seaLevel;
-    pyramidHeights = p.heights;
+    // A resident pyramid stays drawable while its replacement's rows are recorded (the pyramid is every node's
+    // fallback): its bounds keep the old samples too (PR review)
+    const bool widen = pyramidGpu;
+    setSeaLevel      = p.seaLevel;
+    pyramidHeights   = p.heights;
     queuePyramidRows();
-    pyramidOwnBounds();
+    pyramidOwnBounds(widen);
     updateMemoryStats();
 }
 
@@ -303,7 +306,7 @@ std::optional<double> TerrainAtlas::surfaceHeightEstimate(double x, double z) co
 
 bool TerrainAtlas::tileSet(int level, int32_t tx, int32_t tz) const
 {
-    if (!setAllocated || level >= setLayout.streamedLevels()) return false;
+    if (!setAllocated || level < 0 || level >= setLayout.streamedLevels()) return false;
     const int32_t W = setLayout.tilesPerSide(level);
     if (tx < 0 || tz < 0 || tx >= W || tz >= W) return false;
     return tileSlots[size_t(level)][size_t(tz) * size_t(W) + size_t(tx)] >= 0;
@@ -328,6 +331,9 @@ void TerrainAtlas::setTile(const RegionId& region, const TerrainTileData& tile)
     SAIGA_ASSERT(tile.heights && tile.heights->size() == n * n, "setTerrainTile: wrong sample count");
     int& slot  = tileSlots[region.level][size_t(region.z) * size_t(W) + size_t(region.x)];
     auto& recs = tiles[region.level];
+    // A replaced GPU-resident tile stays resident with its old samples until the new copy is recorded: its nodes'
+    // bounds keep the old samples too, so culling never rejects what the GPU still draws (PR review)
+    const bool widen = slot >= 0 && recs[size_t(slot)].gpu;
     if (slot >= 0)
     {
         // Replaced in place: the queued copy and patches of the old data are superseded
@@ -359,7 +365,7 @@ void TerrainAtlas::setTile(const RegionId& region, const TerrainTileData& tile)
     u.pageValue = u.layer;
     u.bytes     = align16(layerBytes()) + 16;
     enqueue(std::move(u));
-    tileOwnBounds(region.level, region.x, region.z, &r.data);
+    tileOwnBounds(region.level, region.x, region.z, &r.data, widen);
     updateMemoryStats();
 }
 
@@ -566,7 +572,7 @@ TerrainAtlas::Bound TerrainAtlas::bound(int level, int32_t nx, int32_t nz) const
     return Bound{n.lo, n.hi};
 }
 
-void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data)
+void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data, bool widen)
 {
     const int npt = 8 / setLayout.baseSpacing;
     const int n   = setLayout.samplesPerSide();
@@ -574,9 +580,11 @@ void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const Terrai
     {
         for (int lx = 0; lx < npt; ++lx)
         {
-            NodeBounds& nb = node(level, tx * npt + lx, tz * npt + lz);
-            nb.ownLo       = 1;
-            nb.ownHi       = 0;
+            NodeBounds& nb    = node(level, tx * npt + lx, tz * npt + lz);
+            const bool keep   = widen && nb.ownLo <= nb.ownHi;
+            const int32_t oLo = nb.ownLo, oHi = nb.ownHi;
+            nb.ownLo = 1;
+            nb.ownHi = 0;
             if (!data) continue;
             int32_t lo = std::numeric_limits<int32_t>::max(), hi = std::numeric_limits<int32_t>::min();
             const std::vector<int32_t>& hs = *data->heights;
@@ -587,14 +595,14 @@ void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const Terrai
                     lo              = std::min(lo, v);
                     hi              = std::max(hi, v);
                 }
-            nb.ownLo = lo;
-            nb.ownHi = hi;
+            nb.ownLo = keep ? std::min(lo, oLo) : lo;
+            nb.ownHi = keep ? std::max(hi, oHi) : hi;
         }
     }
     updateBoundsUp(level, tx * npt, tz * npt, tx * npt + npt - 1, tz * npt + npt - 1);
 }
 
-void TerrainAtlas::pyramidOwnBounds()
+void TerrainAtlas::pyramidOwnBounds(bool widen)
 {
     const int P                    = setLayout.pyramidSamplesPerSide();
     const std::vector<int32_t>& hs = *pyramidHeights;
@@ -617,9 +625,10 @@ void TerrainAtlas::pyramidOwnBounds()
                         hi              = std::max(hi, v);
                     }
                 }
-                NodeBounds& nb = node(k, nx, nz);
-                nb.ownLo       = lo;
-                nb.ownHi       = hi;
+                NodeBounds& nb  = node(k, nx, nz);
+                const bool keep = widen && nb.ownLo <= nb.ownHi;
+                nb.ownLo        = keep ? std::min(lo, nb.ownLo) : lo;
+                nb.ownHi        = keep ? std::max(hi, nb.ownHi) : hi;
             }
         }
     }
@@ -802,6 +811,9 @@ std::vector<int32_t> TerrainAtlas::download(Buffer& b, size_t offset, size_t byt
         Memory::SafeAccessor c(*host.memoryLocation());
         cmd.copyBuffer(b.memoryLocation()->data, host.memoryLocation()->data, vk::BufferCopy(offset, 0, bytes));
     }
+    // The copy made visible to the host (the fence wait alone does not, PR review)
+    vk::MemoryBarrier2 toHost(Stage::eAllTransfer, Access::eTransferWrite, Stage::eHost, Access::eHostRead);
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, toHost, nullptr, nullptr));
     cmd.end();
     q.submitAndWait(cmd);
     q.commandPool.freeCommandBuffer(cmd);
