@@ -1705,6 +1705,17 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
         w.rejectInput(from, "Spawn: only the host sends it to clients");
         return;
     }
+    // S23a: a host whose world writes generation state sends it before the spawn set (join and Resync). A client whose
+    // setup writes it and has received none joined a host of another setup (e.g. legacy terrain), which generates
+    // other terrain: refused as a differing GenerationState (the spawn itself is applied, as after such a refusal)
+    if (w.writesGenerationState() && !w.generationChecked() && !w.generationMismatch())
+    {
+        w.generationMismatchFlag = true;
+        w.rejectInput(from, "Spawn before a GenerationState");
+        SAIGA_LOG("content",
+                  "the host sent no generation state: its setup writes none, this client's setup does (another "
+                  "generator setup)");
+    }
     Registry& reg = w.reg;
     ByteReader r(data, size);
     const uint64_t id64   = r.varint();

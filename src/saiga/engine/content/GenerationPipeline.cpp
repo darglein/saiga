@@ -50,14 +50,18 @@ uint64_t slotHash(const std::vector<GeneratorSlot>& slots)
     return h.value();
 }
 
-// The closed integer bounds of a site's rotated footprint in space metres
-void siteBounds(const Site& s, int64_t out[4])
+// The closed integer bounds of a site's rotated footprint in space metres; false for an origin far outside every space
+// (|x|, |z| > 2^40: the translation could overflow)
+bool siteBounds(const Site& s, int64_t out[4])
 {
+    constexpr int64_t kOriginLimit = int64_t(1) << 40;
+    if (s.x > kOriginLimit || s.x < -kOriginLimit || s.z > kOriginLimit || s.z < -kOriginLimit) return false;
     rotateBounds(s.footprint, s.quarterTurns, out);
     out[0] += s.x;
     out[2] += s.x;
     out[1] += s.z;
     out[3] += s.z;
+    return true;
 }
 
 // sitesByChunk: every chunk the closed bounds of a site's rotated footprint intersect, clipped to the space
@@ -69,7 +73,7 @@ void fillSitesByChunk(WorldPlan& plan, SpaceId space)
         const Site& s = plan.sites[i];
         if (s.quarterTurns > 3 || s.footprint[0] >= s.footprint[2] || s.footprint[1] >= s.footprint[3]) continue;
         int64_t b[4];
-        siteBounds(s, b);
+        if (!siteBounds(s, b)) continue;  // refused by checkPlan
         const int64_t cx0 = std::max<int64_t>(0, floorDiv(b[0], 256)), cz0 = std::max<int64_t>(0, floorDiv(b[1], 256));
         const int64_t cx1 = std::min<int64_t>(size - 1, floorDiv(b[2], 256));
         const int64_t cz1 = std::min<int64_t>(size - 1, floorDiv(b[3], 256));
@@ -186,6 +190,7 @@ struct Builder
         const int64_t size = int64_t(s.settings.sizeChunks) * 256;
         std::set<uint32_t> keys;
         std::vector<std::array<int64_t, 4>> bounds;
+        std::map<const Prefab*, std::shared_ptr<const SiteContent>> contentOf;
         for (const Site& site : plan.sites)
         {
             const std::string sw = what + ", site " + std::to_string(site.key) + " ('" + site.prefab + "')";
@@ -196,7 +201,9 @@ struct Builder
             if (site.baseHeight > kTerrainHeightLimit || site.baseHeight < -kTerrainHeightLimit)
                 return fail(sw + ": baseHeight beyond kTerrainHeightLimit");
             std::array<int64_t, 4> b;
-            siteBounds(site, b.data());
+            if (!siteBounds(site, b.data()))
+                return fail(sw + ": the origin (" + std::to_string(site.x) + ", " + std::to_string(site.z) +
+                            ") leaves the space");
             if (b[0] < 0 || b[1] < 0 || b[2] > size || b[3] > size)
                 return fail(sw + ": the rotated footprint [" + std::to_string(b[0]) + ", " + std::to_string(b[1]) +
                             ", " + std::to_string(b[2]) + ", " + std::to_string(b[3]) + "] leaves the space [0, " +
@@ -236,7 +243,10 @@ struct Builder
                     return fail(sw + ": a space_link to \"parent\" in a space that no site created (" + prefab->file +
                                 ")");
             s.prefabs.push_back(prefab);
-            s.siteContent.push_back(siteContentOf(*prefab));
+            // One immutable SiteContent per prefab (a prefab placed many times shares its patch arrays)
+            std::shared_ptr<const SiteContent>& content = contentOf[prefab.get()];
+            if (!content) content = siteContentOf(*prefab);
+            s.siteContent.push_back(content);
         }
         std::vector<uint64_t> prefabHashes;
         for (const auto& p : s.prefabs) prefabHashes.push_back(p->contentHash);

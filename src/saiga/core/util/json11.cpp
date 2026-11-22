@@ -768,12 +768,33 @@ struct JsonParser final
         double value           = 0;
         if (!Saiga::ParseNumber(text, value))
         {
-            // Out of the double range (the text is a valid number): overflow to infinity, underflow to zero, as strtod
-            const size_t e      = text.find_first_of("eE");
-            const bool negExp   = e != std::string::npos && e + 1 < text.size() && text[e + 1] == '-';
-            const bool negative = text[0] == '-';
-            value               = negExp ? 0.0 : std::numeric_limits<double>::infinity();
-            if (negative) value = -value;
+            // Out of the double range (the text is a valid number): overflow to infinity, underflow to zero, as strtod.
+            // By the decimal exponent of the first nonzero digit (its position plus the explicit exponent), not by the
+            // exponent's sign: "1" with 400 zeros "e-5" overflows, "0." with 349 zeros "1" underflows
+            const size_t e        = text.find_first_of("eE");
+            const size_t mantissa = e == std::string::npos ? text.size() : e;
+            const size_t dot      = text.find('.');
+            const size_t intEnd   = dot < mantissa ? dot : mantissa;
+            bool found            = false;
+            int64_t magnitude     = 0;
+            for (size_t k = 0; k < mantissa && !found; ++k)
+            {
+                if (text[k] < '1' || text[k] > '9') continue;
+                found = true;
+                // An integer digit's decimal exponent counts down to 0 before the point, a fraction digit's from -1
+                magnitude = k < intEnd ? int64_t(intEnd - k) - 1 : -int64_t(k - intEnd);
+            }
+            int64_t exponent = 0;
+            if (e != std::string::npos)
+            {
+                size_t k            = e + 1;
+                const bool negative = text[k] == '-';
+                if (text[k] == '+' || text[k] == '-') ++k;
+                for (; k < text.size(); ++k) exponent = std::min<int64_t>(exponent * 10 + (text[k] - '0'), 1000000000);
+                if (negative) exponent = -exponent;
+            }
+            value = !found || magnitude + exponent < 0 ? 0.0 : std::numeric_limits<double>::infinity();
+            if (text[0] == '-') value = -value;
         }
         return value;
     }

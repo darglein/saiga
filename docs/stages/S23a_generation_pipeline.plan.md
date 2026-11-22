@@ -89,13 +89,12 @@ Engine mechanisms every generator uses; integer only, header-light, compiled and
     fit: `a != INT64_MIN`, `b != INT64_MIN` and `b == 0 || |a| <= INT64_MAX / |b|` (not a bound on each factor: the
     trig series multiplies `x^2` of about `2.65 * 10^9` by Q30 coefficients). No `__int128` (MSVC has none).
   - `lerpQ16(a, b, t)` = `a + floorShift((b - a) * t, 16)`, `t` in `[0, 65536]`.
-  - `smoothQ16(t)`, `t` in `[0, 65536]`: the quintic fade `6t^5 - 15t^4 + 10t^3` as a stepwise Horner scheme in Q16,
-    `r = 6t - 15 * 65536; r = floorShift(r * t, 16) + 10 * 65536; r = floorShift(r * t, 16)` three times. Every
-    product is below `2^17 * 2^20` (no `t^5` intermediate, which would overflow int64 in Q16). Exact endpoints:
-    `smoothQ16(0) == 0`, `smoothQ16(65536) == 65536`. The floor shifts make it **not** monotone: 1601 inputs step down
-    by 1 LSB (the first at `t = 48775`); every value lies in `[0, 65536]`, `s(t + 1) >= s(t) - 1`, and it stays within
-    2 LSB of the exact polynomial (all three tested). The formula is fixed (it enters the committed hashes); callers
-    need continuity, not strict monotonicity.
+  - `smoothQ16(t)`, `t` in `[0, 65536]`: the quintic fade `6t^5 - 15t^4 + 10t^3` as a stepwise Horner scheme with
+    Q32 intermediates (as implemented, step 3; the first Q16 scheme had 2-LSB steps down and errors up to 3.6 LSB):
+    `r = (6t - 15 * 2^16) * t + 10 * 2^32; r = floorShift(r * t, 16); r = floorShift(r * t, 16);
+    return floorShift(r * t, 32)`. Every product is below 2^53. Exact endpoints: `smoothQ16(0) == 0`,
+    `smoothQ16(65536) == 65536`; monotone, every value in `[0, 65536]` and within 1 LSB of the exact polynomial. The
+    formula is fixed (it enters the committed hashes).
   - `isqrt64(uint64)`: the exact floor of the square root, bitwise (digit by digit), no float.
   - `clampI(v, lo, hi)`; `ceilDiv`.
   - Units: `kPosUnitsPerMetre = 256` (candidate and prefab x/z, 1/256 m) and `kHeightUnitsPerMetre = 1024` (S20's
@@ -605,6 +604,10 @@ refuses** (E11); adopting the host's pins is S26's (its handshake).
     base heights).
   - A valid message changes nothing on the client (it already generates the host's content); it records that the
     check passed (`generationChecked()`, read by S23b's record validation and the tests).
+  - No message (PR review): a client whose own world `writesGenerationState()` that receives a `Spawn` (which follows
+    the state on a join and after `Resync`, on the same reliable channel) before any `GenerationState` was checked
+    refuses in the same way ("the host sent no generation state"): the host's setup writes none, so it generates
+    other terrain (`Replication::onSpawn`; test `GenerationState.MissingStateIsRefused`; S26's handshake replaces it).
 - Host: when the first peer joins and a used generator has `integerOnly() == false`, the host logs once
   (`SAIGA_LOG_E`, `content`): "generator 'prototype' is not integer-only: clients on other machines or compilers may
   see other terrain". (The prototype fixture's co-op runs in one process, S16b.)
@@ -1011,8 +1014,8 @@ device):
   limits; `mulShift` rounding toward negative infinity; `isqrt64` exact (`r^2 <= v < (r+1)^2`) for all `v < 2^20`, for
   the squares `k^2` and `k^2 ± 1` of every `k < 2^16`, of 10^5 `contentHash64`-sampled `k < 2^32`, and for `2^64 - 1`
   (about 4 * 10^5 checks, not 4 * 10^9); `smoothQ16` over all 65537 inputs: exact endpoints, every value in
-  `[0, 65536]`, `s(t + 1) >= s(t) - 1`, within 2 LSB of the polynomial evaluated in `double` (the test may use
-  floating point), and the number of 1-LSB decreases printed (1601; not a failure); `mulShift` of the trig series'
+  `[0, 65536]`, monotone (`s(t + 1) >= s(t)`), within 2 LSB of the polynomial evaluated in `double` (the test may use
+  floating point); `mulShift` of the trig series'
   largest `x^2` (about `2.65 * 10^9`) by a Q30 coefficient passes, an overflowing product stops (death test with
   `SAIGA_ASSERTS`); `lerpQ16` endpoints.
 - `TrigTable.*`: `sinQ30` within 8 LSB of `std::sin` (tests may use libm; the derived bound is 4 LSB, Scope 1, and the

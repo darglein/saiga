@@ -121,8 +121,9 @@ inline Stripped strip(const std::string& raw)
                 if (chars[i] == '\n') put('\n', lineOf[i]);
                 ++i;
             }
+            // The separating placeholder on the line of the closing delimiter (a multi-line comment ends later)
+            put(' ', i < n ? lineOf[i] : line);
             i += 2;
-            put(' ', line);
             continue;
         }
         if (c == '#' && !lineHasContent)
@@ -134,7 +135,20 @@ inline Stripped strip(const std::string& raw)
             while (k < n && identChar(chars[k])) word += chars[k++];
             if (word == "include")
             {
-                while (k < n && (chars[k] == ' ' || chars[k] == '\t')) ++k;
+                // Blanks and block comments before the header name ("#include /* why */ <cmath>")
+                while (k < n)
+                {
+                    if (chars[k] == ' ' || chars[k] == '\t')
+                        ++k;
+                    else if (chars[k] == '/' && at(k + 1) == '*')
+                    {
+                        k += 2;
+                        while (k < n && !(chars[k] == '*' && at(k + 1) == '/') && chars[k] != '\n') ++k;
+                        if (at(k) == '*') k += 2;
+                    }
+                    else
+                        break;
+                }
                 const char open = at(k);
                 if (open == '"' || open == '<')
                 {
@@ -173,8 +187,8 @@ inline Stripped strip(const std::string& raw)
                     if (chars[m] == '\n') put('\n', lineOf[m]);
                     ++m;
                 }
+                put(' ', m < n ? lineOf[m] : line);  // on the line of the closing delimiter
                 i = m + end.size();
-                put(' ', line);
                 continue;
             }
             const bool prefix = ident == "u8" || ident == "u" || ident == "U" || ident == "L";
@@ -238,6 +252,9 @@ struct IncludeRules
 {
     bool gameContent   = false;  // a file of a game's content/ directory: its own content/ headers
     bool testGenerator = false;  // tests/content_test_*.h
+    // gameContent: a quoted header must exist in one of these (the file's directory, the game's directory), so a
+    // quoted standard header ("cmath") is not taken for a game header
+    std::vector<std::filesystem::path> gameDirs;
 };
 
 inline bool includeAllowed(const Include& inc, const IncludeRules& rules)
@@ -261,7 +278,9 @@ inline bool includeAllowed(const Include& inc, const IncludeRules& rules)
     if (std::find(engine.begin(), engine.end(), h) != engine.end()) return true;
     if (rules.testGenerator && h.rfind("content_test_", 0) == 0 && h.find('/') == std::string::npos) return true;
     if (rules.gameContent && h.rfind("saiga/", 0) != 0 && h.find("..") == std::string::npos &&
-        (h.find('/') == std::string::npos || h.rfind("content/", 0) == 0))
+        (h.find('/') == std::string::npos || h.rfind("content/", 0) == 0) &&
+        std::any_of(rules.gameDirs.begin(), rules.gameDirs.end(),
+                    [&](const std::filesystem::path& d) { return std::filesystem::is_regular_file(d / h); }))
         return true;
     return false;
 }
@@ -278,7 +297,7 @@ inline std::vector<Finding> scan(const std::string& text, const IncludeRules& ru
         std::regex(
             R"(\b(sin|cos|tan|asin|acos|atan2?|sinh|cosh|tanh|exp2?|expm1|log(2|10|1p)?|pow|sqrt|cbrt|hypot|fma|)"
             R"(fmod|remainder|round|lround|llround|floor|ceil|trunc|rint|nearbyint|ldexp|frexp|modf|fabs)\s*\()"),
-        std::regex(R"(\bstd::hash\b)"),
+        std::regex(R"(\bstd\s*::\s*hash\b)"),
         std::regex(R"(\b(kHeightUnit|terrainSurfaceDouble|chunkSize|chunkOrigin)\b)"),
         std::regex(R"(\b(Vec[234]|vec[234]|Quat|quat|Mat[34]|mat[34])\b)"),
         std::regex(R"(\bSpaceTemplate\b)"),
@@ -287,25 +306,41 @@ inline std::vector<Finding> scan(const std::string& text, const IncludeRules& ru
     std::vector<Finding> found = s.floats;
     for (const Include& inc : s.includes)
         if (!includeAllowed(inc, rules)) found.push_back({inc.line, inc.header});
-    for (const auto& [line, code] : s.lines)
-        for (const std::regex& r : rules0)
-            for (auto it = std::sregex_iterator(code.begin(), code.end(), r); it != std::sregex_iterator(); ++it)
-            {
-                std::string token = it->str();
-                token.erase(std::remove_if(token.begin(), token.end(), [](char c) { return c == ' ' || c == '\t'; }),
-                            token.end());
-                found.push_back({line, token});
-            }
+    // The rules over the joined text (a call may put a newline between the name and its parenthesis), each match
+    // reported at the line where it starts
+    std::string code;
+    std::vector<size_t> starts;
+    for (const auto& l : s.lines)
+    {
+        starts.push_back(code.size());
+        code += l.second;
+        code += '\n';
+    }
+    for (const std::regex& r : rules0)
+        for (auto it = std::sregex_iterator(code.begin(), code.end(), r); it != std::sregex_iterator(); ++it)
+        {
+            std::string token = it->str();
+            token.erase(
+                std::remove_if(token.begin(), token.end(), [](char c) { return c == ' ' || c == '\t' || c == '\n'; }),
+                token.end());
+            const size_t at   = size_t(it->position());
+            const size_t line = size_t(std::upper_bound(starts.begin(), starts.end(), at) - starts.begin()) - 1;
+            found.push_back({s.lines[line].first, token});
+        }
     std::sort(found.begin(), found.end());
     return found;
 }
 
-inline std::string readFile(const std::filesystem::path& p)
+// False if the file cannot be read (an empty file is read)
+inline bool readFile(const std::filesystem::path& p, std::string& out)
 {
+    out.clear();
     std::ifstream f(p, std::ios::binary);
+    if (!f) return false;
     std::stringstream ss;
-    ss << f.rdbuf();
-    return ss.str();
+    if (f.peek() != std::ifstream::traits_type::eof()) ss << f.rdbuf();
+    out = ss.str();
+    return !f.bad();
 }
 
 }  // namespace ContentLint

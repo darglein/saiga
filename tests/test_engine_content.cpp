@@ -321,7 +321,10 @@ TEST(ContentLint, Sources)
         {
             if (!e.is_regular_file()) continue;
             const std::string ext = e.path().extension().string();
-            if (ext == ".h" || ext == ".hpp" || ext == ".cpp" || ext == ".inl") files.push_back({e.path(), rules});
+            if (ext != ".h" && ext != ".hpp" && ext != ".cpp" && ext != ".inl") continue;
+            ContentLint::IncludeRules r = rules;
+            if (r.gameContent) r.gameDirs = {e.path().parent_path(), dir.parent_path()};
+            files.push_back({e.path(), r});
         }
     };
     auto addFile = [&](const fs::path& f, ContentLint::IncludeRules rules)
@@ -345,7 +348,13 @@ TEST(ContentLint, Sources)
     int findings = 0;
     for (const Entry& f : files)
     {
-        const auto found = ContentLint::scan(ContentLint::readFile(f.path), f.rules);
+        std::string text;
+        if (!ContentLint::readFile(f.path, text))
+        {
+            ADD_FAILURE() << fs::relative(f.path, base).generic_string() << ": cannot be read";
+            continue;
+        }
+        const auto found = ContentLint::scan(text, f.rules);
         for (const auto& x : found)
             ADD_FAILURE() << fs::relative(f.path, base).generic_string() << ":" << x.line
                           << ": refused in content code: " << x.token;
@@ -362,7 +371,8 @@ TEST(ContentLint, Fixture)
 {
     const std::string root = SAIGA_PROJECT_SOURCE_DIR;
     ASSERT_FALSE(root.empty()) << "ContentLint needs SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON";
-    const std::string text = ContentLint::readFile(root + "/tests/content_lint_fixture/bad_generator.h");
+    std::string text;
+    ASSERT_TRUE(ContentLint::readFile(root + "/tests/content_lint_fixture/bad_generator.h", text));
     ASSERT_FALSE(text.empty());
     ASSERT_NE(text.find("\r\n"), std::string::npos) << "the fixture must keep its CRLF lines";
     const std::vector<ContentLint::Finding> expected = {
@@ -400,6 +410,35 @@ TEST(ContentLint, Fixture)
     std::sort(sorted.begin(), sorted.end());
     const auto found = ContentLint::scan(text, {});
     EXPECT_EQ(found, sorted) << "found:\n" << describe(found) << "expected:\n" << describe(sorted);
+}
+
+// Regressions of the scanner (PR review): a missing file read as empty and passed; "#include /* why */ <cmath>" and
+// "std :: hash" were not seen; a libm call with a newline before "(" passed; a token after a multi-line comment or raw
+// string was reported at the comment's first line; a game's quoted "cmath" passed as a game header
+TEST(ContentLint, ScannerEdgeCases)
+{
+    std::string text;
+    EXPECT_FALSE(ContentLint::readFile("/nonexistent/saiga_content_lint.h", text));
+    using F = ContentLint::Finding;
+    const std::string code =
+        "#include /* why */ <cmath>\n"      // 1
+        "int a = std :: hash<int>{}(1);\n"  // 2
+        "int b = std::sin\n"                // 3
+        "    (1);\n"                        // 4
+        "/* a\n"                            // 5
+        "*/ double c;\n"                    // 6
+        "auto d = R\"x(\n"                  // 7
+        ")x\" double e;\n";                 // 8
+    std::vector<F> expected = {{1, "cmath"}, {2, "std::hash"}, {3, "sin("}, {6, "double"}, {8, "double"}};
+    EXPECT_EQ(ContentLint::scan(code, {}), expected) << describe(ContentLint::scan(code, {}));
+
+    const std::string root = SAIGA_PROJECT_SOURCE_DIR;
+    ContentLint::IncludeRules game;
+    game.gameContent           = true;
+    game.gameDirs              = {std::filesystem::path(root) / "tests"};
+    expected                   = {{2, "cmath"}};
+    const std::string includes = "#include \"content_lint.h\"\n#include \"cmath\"\n";
+    EXPECT_EQ(ContentLint::scan(includes, game), expected) << describe(ContentLint::scan(includes, game));
 }
 
 // ---- Generator registration and the engine generators -------------------------------------------------------------
@@ -649,6 +688,9 @@ TEST(Prefab, VersionsSelectFiles)
     EXPECT_EQ(store.size(), 1u);
     EXPECT_EQ(store.get(kTestData, "nope", 1, error), nullptr);
     EXPECT_NE(error.find("prefabs/nope.json"), std::string::npos) << error;
+    // Regression: "test_ruin.v2" at v1 named the file of test_ruin at v2 (one file for two pins)
+    EXPECT_FALSE(readPrefab(kTestData, "test_ruin.v2", 1, v2, error));
+    EXPECT_NE(error.find("not a valid prefab name"), std::string::npos) << error;
 }
 
 TEST(Prefab, ErrorsNameFileAndKey)
@@ -661,6 +703,11 @@ TEST(Prefab, ErrorsNameFileAndKey)
     EXPECT_EQ(p.statics[0].yaw, 65536 - 16384);
     EXPECT_EQ(prefabYaw(1), 182);     // floorDiv(65536 + 180, 360)
     EXPECT_EQ(prefabYaw(-1), 65354);  // floorDiv(-65536 + 180, 360) = -182, wrapped
+    // Regression: degrees * 65536 overflowed for large angles; a full turn is 65536 steps (wrapped away)
+    EXPECT_EQ(prefabYaw(361), prefabYaw(1));
+    EXPECT_EQ(prefabYaw(-359), prefabYaw(1));
+    EXPECT_EQ(prefabYaw(INT64_MAX), prefabYaw(INT64_MAX % 360));
+    EXPECT_EQ(prefabYaw(INT64_MIN), prefabYaw(INT64_MIN % 360 + 360));
 
     auto expectError = [](const std::string& text, const std::string& part)
     {
@@ -872,6 +919,22 @@ WorldSetup siteSetup(const TempPrefabs& prefabs, std::vector<SpaceTemplate> temp
 }
 }  // namespace
 
+// Regression: a failed parse left the requested name and version in a previously read prefab (with its old payload)
+TEST(Prefab, FailedReadLeavesTheOutputUnchanged)
+{
+    TempPrefabs prefabs;
+    prefabs.write("broken", R"({"format": 1, "footprint": [4, 4, 0, 0]})");
+    std::string error;
+    Prefab p;
+    ASSERT_TRUE(readPrefab(kTestData, "test_ruin", 1, p, error)) << error;
+    const uint64_t hash = p.contentHash;
+    EXPECT_FALSE(readPrefab(prefabs.dir.string(), "broken", 1, p, error));
+    EXPECT_FALSE(error.empty());
+    EXPECT_EQ(p.name, "test_ruin");
+    EXPECT_EQ(p.version, 1);
+    EXPECT_EQ(p.contentHash, hash);
+}
+
 // Site composition: the patch at full weight, the partial weight floor-rounded, natural outside; all four quarter
 // turns (the marker at local (3, 1) lands at (1, -3), (-3, -1), (-1, 3)); the patch's first and last sample rows and
 // columns are patched and the next sample outside is natural for every q
@@ -1033,6 +1096,16 @@ TEST(Pipeline, FootprintRules)
         std::string::npos);
     EXPECT_NE(planError({site(1, "marker", 100, 100, 0, {-4, -4, 4, 4})}).find("does not fit"), std::string::npos);
     EXPECT_NE(planError({site(1, "nope", 100, 100, 0, {-8, -8, 8, 8})}).find("prefabs/nope.json"), std::string::npos);
+    // Regression: an origin near INT64_MAX overflowed the translated bounds (the wrapped right edge passed the check)
+    {
+        gSite                 = std::make_shared<SiteTestGenerator>();
+        gSite->baseFromHeight = false;
+        gSite->sites          = {site(1, "edge", INT64_MAX, 0, 0, {0, 0, 1, 1})};
+        ContentCache cache;
+        const std::string e =
+            GenerationPipeline::build(siteSetup(prefabs, {openTemplate("overworld", 1)}), {}, cache).error;
+        EXPECT_NE(e.find("the origin (9223372036854775807, 0) leaves the space"), std::string::npos) << e;
+    }
 
     // A site ending exactly on the chunk border x = 256: listed in chunks 0 and 1, the stamp in chunk 0 only
     gSite        = std::make_shared<SiteTestGenerator>();
@@ -2166,6 +2239,19 @@ TEST(GenerationState, TerrainEditsAfterARefusalAreRejected)
     n.step();
     EXPECT_GT(n.client->netStats().rejected, rejected);
     EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
+}
+
+// Regression: a client whose setup writes generation state accepted a flat host's join (no GenerationState arrives)
+// and generated its own, other terrain; the spawn set without a preceding GenerationState is refused
+TEST(GenerationState, MissingStateIsRefused)
+{
+    WorldSetup h = WorldSetup{};
+    h.classes    = probeClasses;
+    WorldSetup c = ContentTest::contentTestSetup(2);
+    c.classes    = probeClasses;
+    GenNet n(h, c, [](World& host) { host.spawnIn<TestProbe>(0, Vec3(100, 0, 100)); });
+    expectRefused(n, "the host sent no generation state");
+    EXPECT_EQ(n.host->replication().stats().generationStatesSent, 0u);
 }
 
 // Flat and hook worlds send no GenerationState; the non-integer warning is logged once

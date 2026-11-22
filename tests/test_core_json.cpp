@@ -60,6 +60,13 @@ TEST(Json, ParsesNumbers)
     EXPECT_EQ(parsed("1e400"), std::numeric_limits<double>::infinity());
     EXPECT_EQ(parsed("-1e400"), -std::numeric_limits<double>::infinity());
     EXPECT_EQ(parsed("1e-400"), 0.0);
+    // Regression: out-of-range values were classified by the exponent's sign, not by their magnitude
+    const double inf = std::numeric_limits<double>::infinity();
+    EXPECT_EQ(parsed("1" + std::string(400, '0') + "e-5"), inf);
+    EXPECT_EQ(parsed("-1" + std::string(400, '0') + ".5e-5"), -inf);
+    EXPECT_EQ(parsed("0." + std::string(349, '0') + "1"), 0.0);
+    EXPECT_EQ(parsed("0." + std::string(348, '0') + "1e-1"), 0.0);
+    EXPECT_EQ(parsed("0." + std::string(400, '0') + "1e800"), inf);
 }
 
 // Regression (S23a): under a decimal-comma locale strtod read "1.5" as 1 and snprintf wrote "1,5"
