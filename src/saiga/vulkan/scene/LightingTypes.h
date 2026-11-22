@@ -15,9 +15,12 @@
 #include "saiga/export.h"
 
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <utility>
 #include <vector>
 
 namespace Saiga
@@ -144,6 +147,160 @@ struct LightingParameters
     float environmentUpdateDegrees = 0.5f;   // the shadow light's movement that re-captures the environment map
     bool clouds                    = true;   // the cloud layer and its shadows
     bool forceFullUpdates          = false;  // golden mode (§17.6): every incremental effect updates fully every frame
+};
+
+// ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
+
+// The scene debug view (one at a time; uniform branches of lighting.glsl, the LIGHTING_PBR variant). While a view other
+// than None is active the frame latches ToneMap::Identity (no pipeline change). Data views write raw values into the
+// fp16 target (Albedo, Normals as n * 0.5 + 0.5, Roughness, Metalness, Material = (roughness, metalness, ao), the
+// factors); LightingOnly (white albedo, roughness 0.5), the *Only radiance views and the Exposure heat map write
+// display colours (the frame's exposure and the ACES curve in the physical path, as clay in clay mode). The probe
+// frames of probe_lighting write the radiance views raw (linear cd/m^2)
+enum class LightingDebugView : uint8_t
+{
+    None,
+    LightingOnly,
+    Albedo,
+    Normals,
+    Roughness,
+    Metalness,
+    Material,
+    DirectOnly,
+    AmbientOnly,
+    SpecularOnly,
+    CloudShadow,
+    ShadowFactor,
+    Exposure,
+    Count
+};
+// snake_case names (set_lighting_debug, screenshot lighting_view)
+inline const char* lightingDebugViewName(LightingDebugView v)
+{
+    static const char* names[] = {"none",         "lighting_only", "albedo",      "normals",      "roughness",
+                                  "metalness",    "material",      "direct_only", "ambient_only", "specular_only",
+                                  "cloud_shadow", "shadow_factor", "exposure"};
+    static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingDebugView::Count), "lightingDebugViewName");
+    return v < LightingDebugView::Count ? names[size_t(v)] : "none";
+}
+inline std::optional<LightingDebugView> lightingDebugViewFromName(const std::string& name)
+{
+    for (int i = 0; i < int(LightingDebugView::Count); ++i)
+        if (name == lightingDebugViewName(LightingDebugView(i))) return LightingDebugView(i);
+    return std::nullopt;
+}
+
+// The overlays (flags, combinable), drawn on top in the scene pass by DebugLines. a1: SunDirection (lines from the
+// camera's focus towards the sun and the moon); a2 and b add theirs
+enum LightingOverlay : uint32_t
+{
+    OverlaySunDirection = 1u << 0,
+    OverlayAll          = OverlaySunDirection
+};
+inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames()
+{
+    static const std::vector<std::pair<const char*, uint32_t>> names = {{"sun_direction", OverlaySunDirection}};
+    return names;
+}
+
+struct LightingDebugState
+{
+    LightingDebugView view = LightingDebugView::None;
+    uint32_t overlays      = 0;
+    bool operator==(const LightingDebugState& o) const { return view == o.view && overlays == o.overlays; }
+    bool operator!=(const LightingDebugState& o) const { return !(*this == o); }
+};
+
+// The images LightingDebug converts into displayable RGBA8 previews and reduces (min, max, mean, histogram) on demand:
+// a1b Luminance (the resolved HDR luminance in cd/m^2, or the display luminance in clay mode) and BrdfLut (capture
+// only); a1c, a2 and b add theirs
+enum class LightingImage : uint8_t
+{
+    Luminance,
+    BrdfLut,
+    Count
+};
+inline const char* lightingImageName(LightingImage i)
+{
+    static const char* names[] = {"luminance", "brdf_lut"};
+    static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
+    return i < LightingImage::Count ? names[size_t(i)] : "";
+}
+
+enum class ColorMap : uint8_t
+{
+    Gray,
+    Turbo
+};
+
+// The value mapping of a preview: the range (auto: the GPU min / max of the source values; else [min, max]), log2 of
+// the values before the mapping, the colour map. The histogram has 16 bins over the mapped range
+struct PreviewMapping
+{
+    bool autoRange    = true;
+    float min         = 0;
+    float max         = 1;
+    bool log          = false;
+    ColorMap colorMap = ColorMap::Gray;
+};
+
+// The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the
+// image's first channel (luminance: the luminance; brdf_lut: A)
+struct PreviewStatistics
+{
+    float min = 0, max = 0, mean = 0;
+    // The range the histogram and the preview used
+    float rangeMin = 0, rangeMax = 1;
+    std::array<uint32_t, 16> histogram = {};
+    uint32_t count                     = 0;
+};
+
+// The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; a2 and b add theirs)
+struct LightingStatistics
+{
+    uint64_t frame = 0;
+    // 0 none, 1 the sun, 2 the moon
+    int shadowLight    = 0;
+    float sunElevation = 0, moonElevation = 0;  // degrees
+    float ev100 = 0, exposure = 1, preExposure = 1;
+    bool physical = false, pbr = false;
+    LightingDebugState debug;
+    // The ambient's SH9 (lux) and its dominant colour
+    std::array<vec3, 9> sh = {};
+    // The preview conversions recorded in the frame (0 without a request)
+    uint32_t previewDispatches = 0;
+    // The last luminance reduction (when requested) and its frame
+    PreviewStatistics luminance;
+    uint64_t luminanceFrame = 0;
+    // The lighting's GPU memory (block, SH, BRDF LUT, dummies, previews, debug lines)
+    uint64_t memoryBytes = 0;
+};
+
+// The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is
+// normal (the colour and the depth), then the data views Albedo, Normals, Material and the radiance views DirectOnly,
+// AmbientOnly, SpecularOnly (raw); each copies the resolved fp16 pixel (the MSAA average). The camera and the
+// environment are held during the sequence; consistent: the depth changed by at most 1% between the frames
+struct LightingProbe
+{
+    ivec2 pixel  = ivec2(0, 0);
+    bool inImage = false;
+    // A surface was hit (the depth is not the far plane)
+    bool hit        = false;
+    int frames      = 0;
+    bool consistent = true;
+    bool physical   = false;
+    float depth     = 0;  // reversed-Z
+    Vec3 position   = Vec3::Zero();
+    double distance = 0;
+    // Frame 1: the radiance (cd/m^2; clay: the display value), its luminance and EV100 (log2(L * 100 / 12.5))
+    vec3 color      = vec3(0, 0, 0);
+    float luminance = 0, ev100 = 0;
+    vec3 albedo     = vec3(0, 0, 0);
+    vec3 normal     = vec3(0, 0, 0);
+    float roughness = 0, metalness = 0, ao = 0;
+    vec3 direct = vec3(0, 0, 0), ambient = vec3(0, 0, 0), specular = vec3(0, 0, 0);
+    // The shadow factors (a1: the cloud factor, 1 until the cloud layer of a1c; a2 adds the cascades and the horizon)
+    float cloudShadow = 1, shadowFactor = 1;
 };
 
 // The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so

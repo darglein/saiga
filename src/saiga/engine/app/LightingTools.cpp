@@ -4,7 +4,8 @@
  * See LICENSE file for more information.
  */
 
-// The lighting's MCP tools: get_lighting, set_time_of_day, set_weather, set_lighting (S36).
+// The lighting's MCP tools: get_lighting, set_time_of_day, set_weather, set_lighting (S36a1a), set_lighting_debug,
+// capture_lighting, probe_lighting (S36a1b).
 
 #include "saiga/engine/app/LightingTools.h"
 
@@ -12,11 +13,14 @@
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/engine/tools/WorldTools.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <memory>
 #include <optional>
 
 namespace Saiga
@@ -327,6 +331,8 @@ const std::vector<LightingKey>& lightingKeys()
                              [](LightingState& s) -> float& { return s.parameters.environmentUpdateDegrees; }));
         k.push_back(boolKey("force_full_updates", true,
                             [](LightingState& s) -> bool& { return s.parameters.forceFullUpdates; }));
+        // a1b-a1c: the pipeline variant (the LIGHTING_PBR light model; removed in the a1c flip)
+        k.push_back(boolKey("pbr", true, [](LightingState& s) -> bool& { return s.parameters.pbr; }));
         return k;
     }();
     return keys;
@@ -361,9 +367,9 @@ Json keysJson(const LightingState& s, bool parameters)
 
 const std::vector<std::string>& sectionNames()
 {
-    static const std::vector<std::string> names = {"time",         "weather",  "sun",       "moon",
-                                                   "shadow_light", "tone_map", "exposure",  "ambient",
-                                                   "clouds",       "settings", "parameters"};
+    static const std::vector<std::string> names = {"time",       "weather",  "sun",     "moon",   "shadow_light",
+                                                   "tone_map",   "exposure", "ambient", "clouds", "settings",
+                                                   "parameters", "debug",    "gpu",     "memory"};
     return names;
 }
 }  // namespace
@@ -395,6 +401,136 @@ bool validateLightingValues(const Vulkan::EnvironmentSettings& settings, const V
     if (errors.empty()) return true;
     error = errors;
     return false;
+}
+
+namespace
+{
+// The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
+const std::vector<std::string>& lightingGpuSections()
+{
+    static const std::vector<std::string> names = {"scene.debug", "lighting.preview"};
+    return names;
+}
+
+Json mappingJson(const Vulkan::PreviewMapping& m)
+{
+    return Json::object{{"range", m.autoRange ? Json("auto") : Json(Json::array{double(m.min), double(m.max)})},
+                        {"log", m.log},
+                        {"color_map", m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray"}};
+}
+
+// The mapping arguments of capture_lighting / set_lighting_debug: range ("auto" or [min, max]), log, color_map
+bool parseMapping(const Json& range, const Json& log, const Json& colorMap, Vulkan::PreviewMapping& m,
+                  std::string& error)
+{
+    if (!range.is_null())
+    {
+        if (range == Json("auto"))
+            m.autoRange = true;
+        else if (range.is_array() && range.array_items().size() == 2 && range[0].is_number() && range[1].is_number() &&
+                 std::isfinite(range[0].number_value()) && std::isfinite(range[1].number_value()) &&
+                 range[0].number_value() < range[1].number_value())
+        {
+            m.autoRange = false;
+            m.min       = float(range[0].number_value());
+            m.max       = float(range[1].number_value());
+        }
+        else
+        {
+            error = "range: \"auto\" or [min, max] with min < max";
+            return false;
+        }
+    }
+    if (!log.is_null())
+    {
+        if (!log.is_bool())
+        {
+            error = "log: true or false";
+            return false;
+        }
+        m.log = log.bool_value();
+    }
+    if (!colorMap.is_null())
+    {
+        if (colorMap == Json("gray"))
+            m.colorMap = Vulkan::ColorMap::Gray;
+        else if (colorMap == Json("turbo"))
+            m.colorMap = Vulkan::ColorMap::Turbo;
+        else
+        {
+            error = "color_map: gray or turbo";
+            return false;
+        }
+    }
+    return true;
+}
+
+std::vector<std::string> viewNames()
+{
+    std::vector<std::string> names;
+    for (int i = 0; i < int(Vulkan::LightingDebugView::Count); ++i)
+        names.push_back(Vulkan::lightingDebugViewName(Vulkan::LightingDebugView(i)));
+    return names;
+}
+std::vector<std::string> overlayNames()
+{
+    std::vector<std::string> names;
+    for (const auto& o : Vulkan::lightingOverlayNames()) names.push_back(o.first);
+    return names;
+}
+std::string joined(const std::vector<std::string>& v)
+{
+    std::string r;
+    for (const std::string& s : v) r += (r.empty() ? "" : ", ") + s;
+    return r;
+}
+}  // namespace
+
+bool parseLightingDebug(const Json& view, const Json& overlays, Vulkan::LightingDebugState& out, std::string& error)
+{
+    out = Vulkan::LightingDebugState();
+    if (!view.is_null())
+    {
+        const auto v = view.is_string() ? Vulkan::lightingDebugViewFromName(view.string_value()) : std::nullopt;
+        if (!v)
+        {
+            error = "lighting_view: unknown view " + view.dump() + " (views: " + joined(viewNames()) + ")";
+            return false;
+        }
+        out.view = *v;
+    }
+    if (!overlays.is_null())
+    {
+        if (!overlays.is_array())
+        {
+            error = "overlays: a list of overlay names (" + joined(overlayNames()) + ")";
+            return false;
+        }
+        for (const Json& o : overlays.array_items())
+        {
+            bool found = false;
+            for (const auto& n : Vulkan::lightingOverlayNames())
+                if (o.is_string() && o.string_value() == n.first)
+                {
+                    out.overlays |= n.second;
+                    found = true;
+                }
+            if (!found)
+            {
+                error = "overlays: unknown overlay " + o.dump() + " (overlays: " + joined(overlayNames()) + ")";
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+Json lightingDebugJson(const Vulkan::LightingDebugState& state)
+{
+    Json::array overlays;
+    for (const auto& n : Vulkan::lightingOverlayNames())
+        if (state.overlays & n.second) overlays.push_back(n.first);
+    return Json::object{{"view", Vulkan::lightingDebugViewName(state.view)}, {"overlays", overlays}};
 }
 
 World& lightingWriteWorld(EngineApp& app)
@@ -474,10 +610,15 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                      {"multiplier", double(scene->exposure())},
                                      {"effective", double(scene->frameExposure())},
                                      {"note", "no environment: the unit-less exposure multiplier"}};
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    Json::array sh;
+    for (const vec3& c : ls.sh) sh.push_back(vec3Json(c));
     o["ambient"]    = Json::object{{"scale", double(state.settings.ambient.scale)},
                                    {"min", vec3Json(state.settings.ambient.minAmbient)},
                                    {"enclosed", e.enclosed},
-                                   {"enclosed_ambient", vec3Json(e.state.enclosedAmbient)}};
+                                   {"enclosed_ambient", vec3Json(e.state.enclosedAmbient)},
+                                   {"sh9", sh},
+                                   {"dominant", vec3Json(ls.sh[0])}};
     o["clouds"]     = Json::object{{"altitude", double(state.settings.clouds.altitude)},
                                    {"radius", double(state.settings.clouds.radius)},
                                    {"seed", double(state.settings.clouds.seed)},
@@ -486,6 +627,30 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                    {"enabled", state.parameters.clouds}};
     o["settings"]   = keysJson(state, false);
     o["parameters"] = keysJson(state, true);
+    // S36a1b: the debug state, the GPU sections (the last frame and the mean over about 2 s of the app's GPU
+    // profile) against the §17.10 shadow budget, the lighting's memory
+    {
+        Json::object d = lightingDebugJson(scene->lightingDebug()).object_items();
+        d["frame"]     = lightingDebugJson(scene->frameLightingDebug());
+        d["pbr"]       = scene->pbrActive();
+        d["note"]  = "the views are drawn by the LIGHTING_PBR pipeline variant (set_lighting pbr: true until S36a1c)";
+        d["views"] = Json(viewNames());
+        d["overlay_names"] = Json(overlayNames());
+        d["mapping"]       = mappingJson(app.lightingPreviewMapping());
+        o["debug"]         = d;
+        Json::object g;
+        Profiler& p = app.gpuProfile();
+        for (const std::string& n : lightingGpuSections())
+        {
+            const int id   = p.scope("gpu/" + n);
+            double last    = 0;
+            const bool has = p.lastSample(id, last);
+            g[n] = Json::object{{"last_ms", has ? Json(last) : Json()}, {"mean_ms", p.scopeStats(id, 120).avg}};
+        }
+        g["budget_ms"] = 2.5;
+        o["gpu"]       = g;
+        o["memory"]    = Json::object{{"bytes", double(ls.memoryBytes)}};
+    }
     if (!sections.empty())
     {
         Json::object filtered;
@@ -506,7 +671,7 @@ Json lightingStatusJson(EngineApp& app)
         // The sample's EV100 (as get_lighting's exposure.ev100: what the next frame uses)
         {"ev100", scene->hasEnvironment() ? Json(double(app.sampleViewEnvironment().state.ev100)) : Json()},
         {"tone_map", toneMapName(scene->parameters().toneMap)},
-        {"debug_view", "none"}};
+        {"debug_view", Vulkan::lightingDebugViewName(scene->lightingDebug().view)}};
 }
 
 void registerLightingTools(McpServer& server, EngineApp& app)
@@ -670,7 +835,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = arrayProperty("[r, g, b] lux", Json::object{{"type", "number"}});
         else if (n == "sun_override")
             p = Json::object{{"description", "{azimuth_deg, elevation_deg} or null"}};
-        else if (n == "clouds" || n == "force_full_updates")
+        else if (n == "clouds" || n == "force_full_updates" || n == "pbr")
             p = McpServer::BooleanProperty(n);
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
@@ -723,6 +888,282 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             app.scene()->setLightingParameters(after.parameters);
             app.scene()->setToneMap(after.toneMap);
             respond(ToolResult::Text(Json(Json::object{{"values", values}, {"previous", previous}}).dump()));
+        });
+
+    // ---- S36a1b: the debug core
+    server.addTool(
+        "set_lighting_debug",
+        "Changes the lighting's debug view (view: " + joined(viewNames()) +
+            "; data views show raw values, a debug frame uses the identity tone map; the views are drawn by the "
+            "LIGHTING_PBR variant: set_lighting pbr: true until S36a1c), the overlays (a list that replaces the set: " +
+            joined(overlayNames()) +
+            ") and the Lighting tab's preview mapping (mapping: {range: \"auto\" or [min, max], log, color_map: gray "
+            "or turbo}). Missing arguments keep their value. Returns the state, the previous state and the known "
+            "names. "
+            "Changes only the rendering.",
+        schema({{"view", McpServer::StringProperty("The debug view", viewNames())},
+                {"overlays",
+                 arrayProperty("The overlays (replaces the set)", McpServer::StringProperty("", overlayNames()))},
+                {"mapping", Json::object{{"type", "object"},
+                                         {"description", "{range: \"auto\" or [min, max], log, color_map}"}}}}),
+        [&app](const Json& a, McpServer::Respond respond)
+        {
+            std::string error;
+            if (unknownArgument(a, {"view", "overlays", "mapping"}, error)) return respond(ToolResult::Error(error));
+            Vulkan::RenderScene* scene = app.scene();
+            if (!scene) return respond(ToolResult::Error(kNoDevice));
+            const Vulkan::LightingDebugState before = scene->lightingDebug();
+            Vulkan::LightingDebugState after        = before;
+            Vulkan::LightingDebugState parsed;
+            if (!parseLightingDebug(a["view"], a["overlays"], parsed, error))
+            {
+                // The argument is called view here (lighting_view in screenshot)
+                if (error.rfind("lighting_view", 0) == 0) error = "view" + error.substr(13);
+                return respond(ToolResult::Error(error));
+            }
+            if (!a["view"].is_null()) after.view = parsed.view;
+            if (!a["overlays"].is_null()) after.overlays = parsed.overlays;
+            Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
+            if (!a["mapping"].is_null())
+            {
+                const Json& m = a["mapping"];
+                if (!m.is_object()) return respond(ToolResult::Error("mapping: {range, log, color_map}"));
+                for (auto& kv : m.object_items())
+                    if (kv.first != "range" && kv.first != "log" && kv.first != "color_map")
+                        return respond(ToolResult::Error("mapping: unknown key \"" + kv.first +
+                                                         "\" (keys: range, log, color_map)"));
+                if (!parseMapping(m["range"], m["log"], m["color_map"], mapping, error))
+                    return respond(ToolResult::Error("mapping." + error));
+            }
+            scene->setLightingDebug(after);
+            app.lightingPreviewMapping() = mapping;
+            Json::object o               = lightingDebugJson(after).object_items();
+            o["previous"]                = lightingDebugJson(before);
+            o["mapping"]                 = mappingJson(mapping);
+            o["pbr"]                     = scene->lightingParameters().pbr;
+            o["views"]                   = Json(viewNames());
+            o["overlay_names"]           = Json(overlayNames());
+            respond(ToolResult::Text(Json(o).dump()));
+        });
+
+    server.addTool(
+        "capture_lighting",
+        "Captures a lighting debug image as a picture plus a JSON text block: what it shows (the mapping range, log, "
+        "colour map, the size) and the numbers of its source values (min, max, mean, count and a 16-bin histogram over "
+        "the mapped range). image: luminance (the resolved HDR luminance of the frame in cd/m^2, the display luminance "
+        "in clay mode; log2 by default) or brdf_lut (the split-sum BRDF LUT's scale A). range (\"auto\" or [min, "
+        "max]), "
+        "log, color_map (gray, turbo) set the mapping; stats_only: true returns the block without an image (the one "
+        "path to the statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, "
+        "64..8192); full: true updates incremental effects fully first (none before S36a1c). Deferred: answered from "
+        "the frame that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
+        schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut"})},
+                {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
+                {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
+                {"color_map", McpServer::StringProperty("The colour map", {"gray", "turbo"})},
+                {"full", McpServer::BooleanProperty("Update incremental effects fully first")},
+                {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")},
+                {"format", McpServer::StringProperty("Image format (default png)", {"png", "jpg"})},
+                {"stats_only", McpServer::BooleanProperty("Only the JSON block (no image)")}}),
+        [&app, &server](const Json& a, McpServer::Respond respond)
+        {
+            std::string error;
+            if (unknownArgument(a, {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only"},
+                                error))
+                return respond(ToolResult::Error(error));
+            Vulkan::RenderScene* scene = app.scene();
+            if (!scene) return respond(ToolResult::Error(kNoDevice));
+            Vulkan::LightingImage image;
+            if (a["image"] == Json("luminance"))
+                image = Vulkan::LightingImage::Luminance;
+            else if (a["image"] == Json("brdf_lut"))
+                image = Vulkan::LightingImage::BrdfLut;
+            else
+                return respond(ToolResult::Error("image: luminance or brdf_lut"));
+            Vulkan::PreviewMapping mapping;
+            mapping.log = image == Vulkan::LightingImage::Luminance;
+            if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
+                return respond(ToolResult::Error(error));
+            for (const char* b : {"full", "stats_only"})
+                if (!a[b].is_null() && !a[b].is_bool())
+                    return respond(ToolResult::Error(std::string(b) + ": true or false"));
+            const bool statsOnly     = a["stats_only"].bool_value();
+            const std::string format = a["format"].is_null() ? "png" : a["format"].string_value();
+            if (format != "png" && format != "jpg") return respond(ToolResult::Error("format: png or jpg"));
+            int maxWidth = 1280;
+            if (!a["max_width"].is_null())
+            {
+                const double w = a["max_width"].number_value();
+                if (!a["max_width"].is_number() || w != std::floor(w) || w < 64 || w > 8192)
+                    return respond(ToolResult::Error("max_width: an integer 64..8192"));
+                maxWidth = int(w);
+            }
+            auto answered          = std::make_shared<bool>(false);
+            const auto deadline    = answerDeadline(server);
+            const std::string name = Vulkan::lightingImageName(image);
+            scene->lightingDebugImages().request(
+                image, mapping,
+                [&app, respond, answered, statsOnly, format, maxWidth, mapping,
+                 name](const Vulkan::LightingDebug::Capture& c)
+                {
+                    if (*answered) return;
+                    *answered                          = true;
+                    const Vulkan::PreviewStatistics& s = c.statistics;
+                    Json::array histogram;
+                    for (uint32_t h : s.histogram) histogram.push_back(double(h));
+                    Vulkan::PreviewMapping used = mapping;
+                    used.autoRange              = false;
+                    used.min                    = s.rangeMin;
+                    used.max                    = s.rangeMax;
+                    Json::object block{{"image", name},
+                                       {"size", Json::array{c.size(0), c.size(1)}},
+                                       {"frame", double(app.scene() ? app.scene()->frames() + 1 : 0)},
+                                       {"mapping", mappingJson(used)},
+                                       {"auto_range", mapping.autoRange},
+                                       {"stats", Json::object{{"min", double(s.min)},
+                                                              {"max", double(s.max)},
+                                                              {"mean", double(s.mean)},
+                                                              {"count", double(s.count)},
+                                                              {"histogram", histogram}}}};
+                    if (name == "luminance")
+                        block["unit"] = mapping.log ? "log2 cd/m^2 (clay: log2 of the display luminance)"
+                                                    : "cd/m^2 (clay: the display luminance)";
+                    if (statsOnly || c.image.width == 0) return respond(ToolResult::Text(Json(block).dump()));
+                    TemplatedImage<ucvec4> img = c.image;
+                    const int w                = std::min(img.w, maxWidth);
+                    const int h                = std::max(1, int(std::lround(double(img.h) * w / std::max(1, img.w))));
+                    TemplatedImage<ucvec3> out(h, w);
+                    for (int y = 0; y < h; ++y)
+                        for (int x = 0; x < w; ++x)
+                        {
+                            const ucvec4 p =
+                                img(std::min(img.h - 1, y * img.h / h), std::min(img.w - 1, x * img.w / w));
+                            out(y, x) = ucvec3(p(0), p(1), p(2));
+                        }
+                    out.set_compression_quality(90);
+                    const auto data = out.saveToMemory(format);
+                    if (data.empty())
+                        return respond(ToolResult::Error("capture_lighting: could not encode as " + format));
+                    ToolResult result = ToolResult::Image(data, format == "png" ? "image/png" : "image/jpeg");
+                    result.addText(Json(block).dump());
+                    respond(result);
+                },
+                !statsOnly);
+            server.addPollListener(
+                [answered, respond, deadline]()
+                {
+                    if (*answered) return false;
+                    if (std::chrono::steady_clock::now() < deadline) return true;
+                    *answered = true;
+                    respond(
+                        ToolResult::Error("capture_lighting: no frame was rendered before the deadline (rendering "
+                                          "disabled or the window minimized)"));
+                    return false;
+                });
+        });
+
+    server.addTool(
+        "probe_lighting",
+        "Reads the lighting at one pixel ([x, y], row 0 at the top) or at the screen position of a world point "
+        "(position [x, y, z]): a sequence of 7 frames (frame 1 normal, then the albedo, normal and material views and "
+        "the direct, ambient and specular radiance), each copying the resolved pixel (the MSAA average); the camera "
+        "and "
+        "the environment are held during it. Answers depth, world position and distance, albedo, roughness, "
+        "metalness, ao, normal, the shadow factors (cloud: 1 until S36a1c), the direct, ambient (diffuse) and specular "
+        "(environment) radiance and the frame's radiance (cd/m^2; clay: display values), its luminance and EV100, "
+        "frames and consistent (false when the depth changed by more than 1% between the frames). The views need the "
+        "LIGHTING_PBR variant (set_lighting pbr: true until S36a1c). Deferred; an error when no frames are rendered "
+        "before the deadline. Changes nothing.",
+        schema({{"pixel", arrayProperty("[x, y] in pixels", Json::object{{"type", "integer"}})},
+                {"position", McpServer::Vec3Property("A world point [x, y, z] (its screen position)")}}),
+        [&app, &server](const Json& a, McpServer::Respond respond)
+        {
+            std::string error;
+            if (unknownArgument(a, {"pixel", "position"}, error)) return respond(ToolResult::Error(error));
+            Vulkan::RenderScene* scene = app.scene();
+            if (!scene) return respond(ToolResult::Error(kNoDevice));
+            const ivec2 size = scene->size();
+            if (a["pixel"].is_null() == a["position"].is_null())
+                return respond(ToolResult::Error("probe_lighting: pixel [x, y] or position [x, y, z] (one of them)"));
+            ivec2 pixel(0, 0);
+            if (!a["pixel"].is_null())
+            {
+                const Json& p = a["pixel"];
+                if (!p.is_array() || p.array_items().size() != 2 || !p[0].is_number() || !p[1].is_number() ||
+                    p[0].number_value() != std::floor(p[0].number_value()) ||
+                    p[1].number_value() != std::floor(p[1].number_value()))
+                    return respond(ToolResult::Error("pixel: [x, y] (integers)"));
+                pixel = ivec2(int(p[0].number_value()), int(p[1].number_value()));
+            }
+            else
+            {
+                const Json& p = a["position"];
+                if (!p.is_array() || p.array_items().size() != 3)
+                    return respond(ToolResult::Error("position: [x, y, z]"));
+                Vec3 w;
+                for (int i = 0; i < 3; ++i)
+                {
+                    double v = 0;
+                    if (!number(p[size_t(i)], "position[" + std::to_string(i) + "]", -1e9, 1e9, v, error))
+                        return respond(ToolResult::Error(error));
+                    w(i) = v;
+                }
+                // The screen position with the view camera's matrices (camera-relative, R-MATH-1)
+                const Vec3 rel = w - app.viewCamera().position;
+                const vec4 h   = scene->viewProjection() * vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1.0f);
+                if (!(h(3) > 0)) return respond(ToolResult::Error("position: behind the camera"));
+                pixel = ivec2(int(std::floor((h(0) / h(3) * 0.5f + 0.5f) * float(size(0)))),
+                              int(std::floor((h(1) / h(3) * 0.5f + 0.5f) * float(size(1)))));
+            }
+            if (pixel(0) < 0 || pixel(1) < 0 || pixel(0) >= size(0) || pixel(1) >= size(1))
+                return respond(ToolResult::Error("pixel: (" + std::to_string(pixel(0)) + ", " +
+                                                 std::to_string(pixel(1)) + ") is outside the image (" +
+                                                 std::to_string(size(0)) + " x " + std::to_string(size(1)) + ")"));
+            auto answered       = std::make_shared<bool>(false);
+            const auto deadline = answerDeadline(server);
+            scene->requestProbe(pixel,
+                                [respond, answered](const Vulkan::LightingProbe& p)
+                                {
+                                    if (*answered) return;
+                                    *answered = true;
+                                    Json::object o{{"pixel", Json::array{p.pixel(0), p.pixel(1)}},
+                                                   {"frames", p.frames},
+                                                   {"consistent", p.consistent},
+                                                   {"physical", p.physical},
+                                                   {"hit", p.hit},
+                                                   {"depth", double(p.depth)},
+                                                   {"color", vec3Json(p.color)},
+                                                   {"luminance", double(p.luminance)},
+                                                   {"ev100", double(p.ev100)},
+                                                   {"note", "MSAA-averaged values of the resolved pixel"}};
+                                    if (p.hit)
+                                    {
+                                        o["position"] = vec3Json(p.position);
+                                        o["distance"] = p.distance;
+                                    }
+                                    o["albedo"]    = vec3Json(p.albedo);
+                                    o["normal"]    = vec3Json(p.normal);
+                                    o["roughness"] = double(p.roughness);
+                                    o["metalness"] = double(p.metalness);
+                                    o["ao"]        = double(p.ao);
+                                    o["shadow"]    = Json::object{{"cloud", double(p.cloudShadow)},
+                                                                  {"factor", double(p.shadowFactor)}};
+                                    o["radiance"]  = Json::object{{"direct", vec3Json(p.direct)},
+                                                                  {"ambient", vec3Json(p.ambient)},
+                                                                  {"specular", vec3Json(p.specular)}};
+                                    respond(ToolResult::Text(Json(o).dump()));
+                                });
+            server.addPollListener(
+                [answered, respond, deadline]()
+                {
+                    if (*answered) return false;
+                    if (std::chrono::steady_clock::now() < deadline) return true;
+                    *answered = true;
+                    respond(
+                        ToolResult::Error("probe_lighting: the frames were not rendered before the deadline "
+                                          "(rendering disabled or the window minimized)"));
+                    return false;
+                });
         });
 }
 

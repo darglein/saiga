@@ -77,7 +77,13 @@ src/
                         prototype passes (S19a): setPrototypeEnvironment (sky, foliage texture), the PrototypeFoliage
                         pipeline class of the trees, the lighting block, setTime, the depth pre-pass (off for the
                         prototype) and the SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain,
-                        scene.instances, ...)
+                        scene.instances, ...); lighting (S36a1b; shader/vulkan/scene/lighting/): SceneLighting (the
+                        block) and its owner SceneLightingSet (the final set-1 layout of every scene pipeline incl.
+                        terrain, grass and sky, 1x1 dummies), lighting.glsl (shadeSurface: the studio environment in
+                        clay mode, GGX in lux with an environment), BrdfLut, AmbientProvider / SkyAmbient, the
+                        LIGHTING_PBR pipeline variant (LightingParameters::pbr, false until the S36a1c flip; its clay
+                        reproduces S19a); the debug core: LightingDebug (debug views, previews with their reduction,
+                        pixel readbacks, the probe frames), DebugLines (sections scene.debug, lighting.preview)
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app;
                         setHeadlessDeviceReuse: the tests' pool of headless devices)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
@@ -153,7 +159,9 @@ src/
                         load of a view space switch, EngineApp::spaceLoading), engineMain and the command line of engine
                         games, InputMap, the app tools (quit, app_status, set_input; screenshot, set_camera (S21: space)
                         /move_camera with the camera hold, list_scenarios/run_scenario); S36: the app's
-                        EnvironmentSettings, LightingTools (get_lighting, set_time_of_day, set_weather, set_lighting)
+                        EnvironmentSettings, LightingTools (get_lighting, set_time_of_day, set_weather, set_lighting;
+                        S36a1b: set_lighting_debug, capture_lighting, probe_lighting, screenshot lighting_view /
+                        overlays)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -281,7 +289,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-80 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+81 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -354,7 +362,9 @@ ctest -R test_core_ini --output-on-failure             # one test
     dependency check; less with Ninja).
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
-  `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/golden_image.h` (`compareGolden`, golden images),
+  `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/render_scene_test_context.h` (`RenderSceneTest`: a
+  `RenderScene` per test; `RenderSceneSuiteTest`: one per test suite, its state reset in `SetUp`, for binaries with many
+  cases such as `test_vulkan_lighting`), `tests/golden_image.h` (`compareGolden`, golden images),
   `tests/mcp_test_helper.h` (`McpRequest`, the `Poller` that runs `McpServer::poll` in the background for
   `handleMessage` tests of MCP tools).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
@@ -393,7 +403,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'`, the terraformed crater `terrain_edit_crater` (S22) with
   `./build/tests/test_engine_terrain_render --gtest_filter='TerrainRenderTest.EditCraterGolden'`, the generated content
   `generated_site` (S23b: the content test generator's site with tier-1 instances, static parts and a tombstone; its
-  count delta and set check run on every device) with `--gtest_filter='TerrainRenderTest.GeneratedSite'`.
+  count delta and set check run on every device) with `--gtest_filter='TerrainRenderTest.GeneratedSite'`. These five
+  clay goldens also run with the LIGHTING_PBR pipeline variant against the same images (the `*Pbr` cases, S36a1b-a1c);
+  those skip in the update mode (the goldens are written by the legacy variant).
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
   `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then

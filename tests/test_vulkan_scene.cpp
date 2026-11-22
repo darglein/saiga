@@ -577,7 +577,7 @@ TEST_F(VulkanScene, GpuSections)
 {
     // S19a: the depth pre-pass and the sub-sections of the passes (dotted names), written in every frame
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 12u);
+    ASSERT_EQ(names.size(), 14u);
     EXPECT_STREQ(names[0], "transfer");
     EXPECT_STREQ(names[1], "cull");
     EXPECT_STREQ(names[2], "depth");
@@ -587,9 +587,12 @@ TEST_F(VulkanScene, GpuSections)
     EXPECT_STREQ(names[6], "scene.instances");
     EXPECT_STREQ(names[7], "scene.grass");
     EXPECT_STREQ(names[8], "scene.sky");
-    EXPECT_STREQ(names[9], "resolve");
-    EXPECT_STREQ(names[10], "post");
-    EXPECT_STREQ(names[11], "imgui");
+    // S36a1b: the debug lines and the lighting's preview conversions
+    EXPECT_STREQ(names[9], "scene.debug");
+    EXPECT_STREQ(names[10], "resolve");
+    EXPECT_STREQ(names[11], "lighting.preview");
+    EXPECT_STREQ(names[12], "post");
+    EXPECT_STREQ(names[13], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -614,7 +617,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 12u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 14u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);

@@ -26,6 +26,12 @@ void main()
     vec3 dir = normalize(p.xyz / p.w);
 
 #ifdef LIGHTING_PBR
+    // A debug frame: no surface (0)
+    if (debugViewActive())
+    {
+        outColor = vec4(0.0, 0.0, 0.0, 1.0);
+        return;
+    }
     if (physicalLighting())
     {
         outColor = finalColor(ambientDiffuse(dir, dir) / kPi, 1.0);

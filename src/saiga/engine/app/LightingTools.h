@@ -31,6 +31,11 @@ class World;
  *   (validated; in --coop applied to the hidden host, on a pure client refused).
  * - set_lighting(...): the EnvironmentSettings, the LightingParameters and the tone map, validated as a whole and
  *   applied all or nothing from the next frame; returns values and previous (an undo payload).
+ * - set_lighting_debug(view?, overlays?, mapping?) (S36a1b): the debug view, the overlays and the tab's preview
+ * mapping.
+ * - capture_lighting(image, ...) (S36a1b): a preview image (luminance, brdf_lut) with the numbers of its source values,
+ *   or the numbers alone (stats_only); deferred to the frame that computes it.
+ * - probe_lighting(pixel? | position?) (S36a1b): the 7-frame probe sequence of RenderScene::requestProbe at a pixel.
  * Unknown arguments and out-of-range values are errors naming the argument; without a device get_lighting and
  * set_lighting answer "this app renders no frames (no device)".
  */
@@ -48,6 +53,12 @@ SAIGA_ENGINE_API World& lightingWriteWorld(EngineApp& app);
 // get_lighting's answer (sections: the top-level keys to keep; empty: all); false and an error for an unknown section
 SAIGA_ENGINE_API bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, json11::Json& out,
                                    std::string& error);
+
+// The debug view and overlays of the arguments (lighting_view: a LightingDebugView name, overlays: a list of overlay
+// names; both optional, missing: None / no overlays); false and an error naming the argument and the known names
+SAIGA_ENGINE_API bool parseLightingDebug(const json11::Json& view, const json11::Json& overlays,
+                                         Vulkan::LightingDebugState& out, std::string& error);
+SAIGA_ENGINE_API json11::Json lightingDebugJson(const Vulkan::LightingDebugState& state);
 
 // app_status's lighting block: {time_of_day, ev100, tone_map, debug_view}; null without a device
 SAIGA_ENGINE_API json11::Json lightingStatusJson(EngineApp& app);

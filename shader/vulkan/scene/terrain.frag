@@ -66,5 +66,12 @@ void main()
     if (frame.flags.z == 1 && !water) c *= lodTint(inLod);
     c = applyFog(c, inPos);
 #endif
+#ifdef LIGHTING_PBR
+    if (debugViewActive())
+    {
+        outColor = vec4(c, 1.0);
+        return;
+    }
+#endif
     outColor = finalColor(c, 1.0);
 }

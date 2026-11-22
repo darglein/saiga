@@ -1,0 +1,118 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The preview conversion of S36's LightingDebug (A8): a source image's values -> an RGBA8 preview (the value mapping:
+// range, log2, colour map) and their reduction (min, max, mean, a 16-bin histogram over the mapped range), in three
+// dispatches (pc.pass): 0 per workgroup min / max / sum / count of the finite values into partials, 1 one workgroup
+// reduces the partials into the statistics and the range (auto: min / max, else the push constant's), 2 the conversion
+// and the histogram. Value of a texel: luminance (kind 0: luma(rgb) * scale) or the first channel (kind 1).
+
+#include "../color.glsl"
+#include "debug_common.glsl"
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(set = 0, binding = 0) uniform sampler2D source;
+layout(set = 0, binding = 1, rgba8) uniform writeonly image2D preview;
+layout(std430, set = 0, binding = 2) buffer Partials
+{
+    vec4 partials[];  // min, max, sum, count per workgroup
+};
+layout(std430, set = 0, binding = 3) buffer Statistics
+{
+    vec4 stats;  // min, max, mean, count
+    vec4 range;  // min, max of the mapping
+    uint histogram[16];
+};
+
+layout(push_constant) uniform Push
+{
+    ivec2 size;
+    uint pass;
+    uint kind;
+    float scale;
+    uint useLog;
+    uint autoRange;
+    uint colorMap;
+    float rangeMin;
+    float rangeMax;
+    uint groups;
+    uint pad;
+}
+pc;
+
+shared vec4 reduceData[256];
+
+bool sourceValue(ivec2 p, out float v)
+{
+    vec4 t = texelFetch(source, p, 0);
+    v      = pc.kind == 0u ? luma(t.rgb) * pc.scale : t.r;
+    if (pc.useLog != 0u) v = log2(max(v, 1e-10));
+    return !(isnan(v) || isinf(v));
+}
+
+vec4 combine(vec4 a, vec4 b)
+{
+    return vec4(min(a.x, b.x), max(a.y, b.y), a.z + b.z, a.w + b.w);
+}
+
+void main()
+{
+    const vec4 empty = vec4(3.0e38, -3.0e38, 0.0, 0.0);
+    uint local       = gl_LocalInvocationIndex;
+    if (pc.pass == 0u)
+    {
+        ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+        vec4 r  = empty;
+        float v;
+        if (p.x < pc.size.x && p.y < pc.size.y && sourceValue(p, v)) r = vec4(v, v, v, 1.0);
+        reduceData[local] = r;
+        barrier();
+        for (uint s = 128u; s > 0u; s >>= 1)
+        {
+            if (local < s) reduceData[local] = combine(reduceData[local], reduceData[local + s]);
+            barrier();
+        }
+        if (local == 0u) partials[gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x] = reduceData[0];
+    }
+    else if (pc.pass == 1u)
+    {
+        vec4 r = empty;
+        for (uint i = local; i < pc.groups; i += 256u) r = combine(r, partials[i]);
+        reduceData[local] = r;
+        barrier();
+        for (uint s = 128u; s > 0u; s >>= 1)
+        {
+            if (local < s) reduceData[local] = combine(reduceData[local], reduceData[local + s]);
+            barrier();
+        }
+        if (local < 16u) histogram[local] = 0u;
+        if (local == 0u)
+        {
+            vec4 t = reduceData[0];
+            stats  = t.w > 0.0 ? vec4(t.x, t.y, t.z / t.w, t.w) : vec4(0.0);
+            range  = pc.autoRange != 0u ? vec4(stats.x, stats.y, 0.0, 0.0) : vec4(pc.rangeMin, pc.rangeMax, 0.0, 0.0);
+        }
+    }
+    else
+    {
+        ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+        if (p.x >= pc.size.x || p.y >= pc.size.y) return;
+        float v;
+        vec3 c = vec3(1.0, 0.0, 1.0);  // non-finite: magenta
+        if (sourceValue(p, v))
+        {
+            float span = range.y - range.x;
+            float t    = span > 0.0 ? clamp((v - range.x) / span, 0.0, 1.0) : 0.5;
+            c          = pc.colorMap == 1u ? turbo(t) : vec3(t);
+            atomicAdd(histogram[min(uint(t * 16.0), 15u)], 1u);
+        }
+        // Row 0 at the top (the images are stored top-down)
+        imageStore(preview, p, vec4(c, 1.0));
+    }
+}

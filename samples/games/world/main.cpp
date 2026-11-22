@@ -10,10 +10,10 @@
  * (EngineApp), rendered in a uniform gray. S44 builds the first gameplay on it.
  *
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
- * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits. T toggles the terraform mode
- * (S22, game policy): the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain
- * under the mouse cursor, 10 edits per second while held, on the host world (also with --coop); radius and strength
- * in the World window. The MCP tool edit_terrain does the same scriptably.
+ * F1-F5 the debug UI's tabs (F2 performance, F4 the console, F5 lighting), F12 a screenshot, ESC quits. T toggles the
+ * terraform mode (S22, game policy): the left / right mouse button raises / lowers (1..4: add, subtract, flatten,
+ * smooth) the terrain under the mouse cursor, 10 edits per second while held, on the host world (also with --coop);
+ * radius and strength in the World window. The MCP tool edit_terrain does the same scriptably.
  *
  * MCP (http://127.0.0.1:8765/mcp, --mcp-port or SAIGA_MCP_PORT, 0 disables it): the engine's world and app tools and
  * the prototype's tools (screenshot, get_state, set_camera, move_camera, set_settings, terrain_query).

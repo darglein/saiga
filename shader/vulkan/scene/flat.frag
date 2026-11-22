@@ -109,7 +109,12 @@ void main()
     lit = protoApplyFog(lit, inRelPos, lighting.camera.y, lighting.fog, lighting.fogColor.rgb);
 #endif
 #endif
-    if (pc.linear != 0u)
+#ifdef LIGHTING_PBR
+    if (debugViewActive())
+        outColor = vec4(lit, 1.0);
+    else
+#endif
+        if (pc.linear != 0u)
         outColor = vec4(max(lit, vec3(0.0)) * pc.preExposure, 1.0);
     else
         outColor = vec4(linearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))), 1.0);

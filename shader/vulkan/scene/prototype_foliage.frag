@@ -61,5 +61,12 @@ void main()
     if (lighting.debug.x > 0.5) c *= lodTint(inLod);
     c = protoApplyFog(c, inPos, lighting.camera.y, lighting.fog, lighting.fogColor.rgb);
 #endif
+#ifdef LIGHTING_PBR
+    if (debugViewActive())
+    {
+        outColor = vec4(c, clamp(alpha, 0.0, 1.0));
+        return;
+    }
+#endif
     outColor = protoFinalColor(c, clamp(alpha, 0.0, 1.0), pc.linear != 0u ? pc.preExposure : 0.0);
 }

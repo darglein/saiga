@@ -9,11 +9,13 @@
 // per test suite (RenderSceneSuiteTest), skipped without a Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/BrdfLut.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/scene/SkyAmbient.h"
 
 #include <algorithm>
 #include <cmath>
+#include <set>
 
 #include "render_scene_test_context.h"
 #include "terrain_test_hooks.h"
@@ -309,4 +311,250 @@ TEST_F(Pbr, PrototypeColoursOnlyInAces)
     EXPECT_GT(flat(1), flat(2) + 0.05f);
     EXPECT_GT(slope(0), slope(1));
     EXPECT_GT(slope(0), slope(2) + 0.02f);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The debug core (S36a1b): views, overlays, previews, readbacks, the probe
+
+namespace
+{
+class LightingDebugTest : public RenderSceneSuiteTest
+{
+   protected:
+    // A gray plane (top at y = 0) and a red box on it, the camera 6 m above looking down at the plane
+    void PlaneScene(MeshId first)
+    {
+        MaterialData m;
+        m.roughness = 0.6f;
+        scene->addMaterial(MaterialId(first), "debug_plane" + std::to_string(first), m);
+        scene->addMesh(first, "debug_plane" + std::to_string(first),
+                       boxMesh(vec3(20, 0.05f, 20), ucvec4(180, 180, 180, 255)), MaterialId(first));
+        scene->addMesh(MeshId(first + 1), "debug_box" + std::to_string(first),
+                       boxMesh(vec3(0.5f, 0.5f, 0.5f), ucvec4(220, 40, 40, 255)), MaterialId(first));
+        AddSet({instanceAt(vec3(0, -0.05f, 0), first), instanceAt(vec3(2, 0.5f, 0), MeshId(first + 1))});
+        SetCamera(0, Vec3(0, 6, 0.01), lookRotation(Vec3(0, -1, -0.002)), 0.9);
+    }
+    // The resolved fp16 value of a pixel in the next frame
+    vec4 ReadPixel(ivec2 p)
+    {
+        vec4 value(-1, -1, -1, -1);
+        scene->lightingDebugImages().requestPixels({p},
+                                                   [&](const std::vector<LightingDebug::PixelValue>& v)
+                                                   {
+                                                       if (!v.empty() && v[0].valid) value = v[0].color;
+                                                   });
+        RenderFrame();
+        return value;
+    }
+};
+}  // namespace
+
+// Every view and the overlays render 2 frames without a validation error (the LIGHTING_PBR variant, clay and ACES with
+// an environment); the Normals of a plane facing +y read (0.5, 1, 0.5) from the resolved fp16 image (raw data)
+TEST_F(LightingDebugTest, EveryViewRenders)
+{
+    UsePbr();
+    PlaneScene(300);
+    for (ToneMap tone : {ToneMap::Identity, ToneMap::Aces})
+    {
+        scene->setToneMap(tone);
+        for (int v = 0; v < int(LightingDebugView::Count); ++v)
+        {
+            scene->setLightingDebug(LightingDebugState{LightingDebugView(v), OverlayAll});
+            Capture(2);
+            EXPECT_EQ(scene->frameLightingDebug().view, LightingDebugView(v));
+            // A debug frame latches Identity
+            EXPECT_EQ(scene->toneMap(), v == 0 ? tone : ToneMap::Identity);
+        }
+        scene->setLightingDebug(LightingDebugState{LightingDebugView::Normals, 0});
+        Capture(1);
+        const vec4 n = ReadPixel(ivec2(width / 2 - 20, height / 2));
+        EXPECT_NEAR(n(0), 0.5f, 0.01f) << n.transpose();
+        EXPECT_NEAR(n(1), 1.0f, 0.01f) << n.transpose();
+        EXPECT_NEAR(n(2), 0.5f, 0.01f) << n.transpose();
+    }
+    scene->setLightingDebug(LightingDebugState());
+}
+
+// Finding 24 of the plan's review 2: no pipeline depends on the tone map or the debug view (the output mode is a push
+// constant, the resolve mode is chosen per frame): a view switch and a tone map switch create no pipeline
+TEST_F(LightingDebugTest, ViewSwitchCreatesNoPipeline)
+{
+    UsePbr();
+    PlaneScene(320);
+    Capture(2);
+    const uint64_t before = scene->scenePipelineCreations();
+    for (LightingDebugView v : {LightingDebugView::Albedo, LightingDebugView::Exposure, LightingDebugView::None})
+    {
+        scene->setLightingDebug(LightingDebugState{v, OverlaySunDirection});
+        scene->setToneMap(ToneMap::Aces);
+        Capture(2);
+        scene->setToneMap(ToneMap::Identity);
+        Capture(2);
+    }
+    EXPECT_EQ(scene->scenePipelineCreations(), before);
+    // The variant switch itself recreates them (the reference that the counter counts)
+    UsePbr(false);
+    Capture(1);
+    EXPECT_GT(scene->scenePipelineCreations(), before);
+}
+
+// A debug frame (Identity latched) does not update the pre-exposure history: the frame after it has the pre-exposure
+// of the frame before it (with an effective exposure within kMaxPreExposureChange of 1, so a reset to 1 would show)
+TEST_F(LightingDebugTest, DebugFrameKeepsPreExposure)
+{
+    UsePbr();
+    PlaneScene(340);
+    scene->setToneMap(ToneMap::Aces);
+    EnvironmentState e;
+    e.ev100 = float(std::log2(1.0 / (1.2 * 0.25)));  // effective exposure 0.25
+    scene->setEnvironment(e);
+    Capture(3);
+    const float before = scene->preExposure();
+    EXPECT_NEAR(before, 0.25f, 1e-4f);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::Albedo, 0});
+    Capture(1);
+    EXPECT_EQ(scene->preExposure(), 1.0f);
+    scene->setLightingDebug(LightingDebugState());
+    Capture(1);
+    EXPECT_EQ(scene->preExposure(), before);
+}
+
+// The previews: the luminance preview has the frame's size and content, its reduction's min / max match the read-back
+// frame (clay: the display luminance, the post pass shows it unchanged); the BRDF LUT's match the LUT read back
+TEST_F(LightingDebugTest, PreviewsCompute)
+{
+    UsePbr();
+    PlaneScene(360);
+    Capture(2);
+    LightingDebug::Capture lum, lut;
+    bool gotLum = false, gotLut = false;
+    PreviewMapping linear;
+    scene->lightingDebugImages().request(LightingImage::Luminance, linear,
+                                         [&](const LightingDebug::Capture& c)
+                                         {
+                                             lum    = c;
+                                             gotLum = true;
+                                         });
+    scene->lightingDebugImages().request(LightingImage::BrdfLut, linear,
+                                         [&](const LightingDebug::Capture& c)
+                                         {
+                                             lut    = c;
+                                             gotLut = true;
+                                         });
+    const auto frame = RenderFrame();
+    ASSERT_TRUE(gotLum && gotLut);
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 2u);
+    ASSERT_EQ(lum.size, ivec2(width, height));
+    ASSERT_EQ(lum.image.w, width);
+    // Non-constant content (the plane and the box)
+    std::set<int> values;
+    for (int y = 0; y < lum.image.h; y += 4)
+        for (int x = 0; x < lum.image.w; x += 4) values.insert(lum.image(y, x)(0));
+    EXPECT_GT(values.size(), 3u);
+    // The reduction against the read-back frame's luminance (8-bit)
+    float lo = 1e9f, hi = -1e9f;
+    for (int y = 0; y < frame.h; ++y)
+        for (int x = 0; x < frame.w; ++x)
+        {
+            const ucvec4 p = frame(y, x);
+            const float l  = (0.2126f * p(0) + 0.7152f * p(1) + 0.0722f * p(2)) / 255.0f;
+            lo             = std::min(lo, l);
+            hi             = std::max(hi, l);
+        }
+    EXPECT_NEAR(lum.statistics.min, lo, 0.01f);
+    EXPECT_NEAR(lum.statistics.max, hi, 0.01f);
+    EXPECT_EQ(lum.statistics.count, uint32_t(width * height));
+    uint32_t total = 0;
+    for (uint32_t h : lum.statistics.histogram) total += h;
+    EXPECT_EQ(total, uint32_t(width * height));
+    // The BRDF LUT
+    ASSERT_EQ(lut.size, ivec2(BrdfLut::kSize, BrdfLut::kSize));
+    const std::vector<vec2> cpu = scene->brdfLut().read();
+    float a0 = 1e9f, a1 = -1e9f;
+    for (const vec2& v : cpu)
+    {
+        a0 = std::min(a0, v(0));
+        a1 = std::max(a1, v(0));
+    }
+    EXPECT_NEAR(lut.statistics.min, a0, 1e-4f);
+    EXPECT_NEAR(lut.statistics.max, a1, 1e-4f);
+}
+
+// A preview is computed only in a frame that requested it
+TEST_F(LightingDebugTest, NothingComputedWithoutRequest)
+{
+    UsePbr();
+    PlaneScene(380);
+    Capture(2);
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 0u);
+    scene->lightingDebugImages().request(LightingImage::Luminance, PreviewMapping());
+    Capture(1);
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 1u);
+    Capture(1);
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 0u);
+    // Its statistics arrive with the slot's next use (one frame slot later)
+    Capture(2);
+    EXPECT_GT(scene->lightingStatistics().luminanceFrame, 0u);
+}
+
+// probe_lighting's sequence: 7 frames at a pixel of the lit plane, the values equal the views' at that pixel, the
+// camera and the environment are held (a setEnvironment during it takes effect after it), consistent
+TEST_F(LightingDebugTest, ProbeMatchesViews)
+{
+    UsePbr();
+    PlaneScene(400);
+    scene->setToneMap(ToneMap::Aces);
+    EnvironmentState noon;
+    noon.fogDensity = 0;
+    noon.ev100      = 14;
+    scene->setEnvironment(noon);
+    Capture(2);
+    const ivec2 pixel(width / 2 - 20, height / 2);
+    // The views' values at the pixel
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::Albedo, 0});
+    Capture(1);
+    const vec4 albedo = ReadPixel(pixel);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::Material, 0});
+    Capture(1);
+    const vec4 material = ReadPixel(pixel);
+    scene->setLightingDebug(LightingDebugState());
+    Capture(1);
+
+    bool answered = false;
+    LightingProbe probe;
+    const uint64_t startFrame = scene->frames();
+    scene->requestProbe(pixel,
+                        [&](const LightingProbe& p)
+                        {
+                            probe    = p;
+                            answered = true;
+                        });
+    RenderFrame();
+    EXPECT_TRUE(scene->probeRunning());
+    // Held during the sequence: the environment of frame 1
+    EnvironmentState later = noon;
+    later.ev100            = 9;
+    scene->setEnvironment(later);
+    EXPECT_EQ(scene->environment().ev100, 14.0f);
+    for (int i = 0; i < 10 && !answered; ++i) RenderFrame();
+    ASSERT_TRUE(answered);
+    EXPECT_EQ(scene->frames() - startFrame, uint64_t(RenderScene::kProbeFrames));
+    EXPECT_EQ(scene->environment().ev100, 9.0f);
+    EXPECT_EQ(probe.frames, RenderScene::kProbeFrames);
+    EXPECT_TRUE(probe.inImage);
+    EXPECT_TRUE(probe.hit);
+    EXPECT_TRUE(probe.consistent);
+    EXPECT_TRUE(probe.physical);
+    for (int c = 0; c < 3; ++c) EXPECT_NEAR(probe.albedo(c), albedo(c), 1e-3f);
+    EXPECT_NEAR(probe.roughness, material(0), 1e-3f);
+    EXPECT_NEAR(probe.metalness, material(1), 1e-3f);
+    EXPECT_NEAR(probe.normal(1), 1.0f, 0.01f);
+    EXPECT_GT(probe.direct(0), 0.0f);
+    EXPECT_GT(probe.ambient(0), 0.0f);
+    EXPECT_GT(probe.luminance, 0.0f);
+    // The plane at y = 0, 6 m below the camera
+    EXPECT_NEAR(probe.position.y(), 0.0, 0.05);
+    // The user's view is unchanged
+    EXPECT_EQ(scene->lightingDebug().view, LightingDebugView::None);
 }

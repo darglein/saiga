@@ -74,8 +74,10 @@ vec3 pbrDirect(vec3 n, vec3 v, vec3 l, vec3 albedo, float roughness, float metal
 }
 
 // The image-based terms of Fdez-Agüera: radiance = the prefiltered specular radiance in the reflection direction,
-// irradiance = the diffuse irradiance (lux); returns the reflected radiance (single + multiple scattering, diffuse)
-vec3 pbrAmbient(vec3 albedo, float roughness, float metalness, float NoV, vec2 lut, vec3 radiance, vec3 irradiance)
+// irradiance = the diffuse irradiance (lux); the reflected radiance in its specular (single scattering) and diffuse
+// (multiple scattering and Lambert) parts
+void pbrAmbientParts(vec3 albedo, float roughness, float metalness, float NoV, vec2 lut, vec3 radiance,
+                     vec3 irradiance, out vec3 specular, out vec3 diffuse)
 {
     vec3 f0     = pbrF0(albedo, metalness);
     vec3 Fr     = max(vec3(1.0 - roughness), f0) - f0;
@@ -87,7 +89,15 @@ vec3 pbrAmbient(vec3 albedo, float roughness, float metalness, float NoV, vec2 l
     vec3 Fms    = FssEss * Favg / (vec3(1.0) - Ems * Favg);
     vec3 Edss   = vec3(1.0) - (FssEss + Fms * Ems);
     vec3 kD     = albedo * (1.0 - metalness) * Edss;
-    return FssEss * radiance + (Fms * Ems + kD) * irradiance / kPi;
+    specular    = FssEss * radiance;
+    diffuse     = (Fms * Ems + kD) * irradiance / kPi;
+}
+
+vec3 pbrAmbient(vec3 albedo, float roughness, float metalness, float NoV, vec2 lut, vec3 radiance, vec3 irradiance)
+{
+    vec3 specular, diffuse;
+    pbrAmbientParts(albedo, roughness, metalness, NoV, lut, radiance, irradiance, specular, diffuse);
+    return specular + diffuse;
 }
 
 // Importance sampling of the GGX lobe (the LUT and later the environment prefilter): the half vector in tangent space

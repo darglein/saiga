@@ -11,8 +11,10 @@
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/BrdfLut.h"
+#include "saiga/vulkan/scene/DebugLines.h"
 #include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/SceneCulling.h"
@@ -76,9 +78,10 @@ vk::ImageSubresourceRange depthRange()
 // The GPU sections in frame order (the dotted names: sub-sections inside the pass before the dot)
 const std::vector<const char*>& sectionNames()
 {
-    static const std::vector<const char*> names = {
-        "transfer",        "cull",        "depth",     "depth.terrain", "scene", "scene.terrain",
-        "scene.instances", "scene.grass", "scene.sky", "resolve",       "post",  "imgui"};
+    static const std::vector<const char*> names = {"transfer",  "cull",          "depth",           "depth.terrain",
+                                                   "scene",     "scene.terrain", "scene.instances", "scene.grass",
+                                                   "scene.sky", "scene.debug",   "resolve",         "lighting.preview",
+                                                   "post",      "imgui"};
     return names;
 }
 std::vector<std::string> sectionNameStrings()
@@ -87,6 +90,30 @@ std::vector<std::string> sectionNameStrings()
     for (const char* n : sectionNames()) r.push_back(n);
     return r;
 }
+}  // namespace
+
+// probe_lighting's sequence (S36a1b): the views of its frames, the pixels and the values per frame
+struct RenderScene::ProbeRun
+{
+    std::vector<std::pair<ivec2, std::function<void(const LightingProbe&)>>> requests;
+    int step = 0;
+    // Per frame: the values of the pixels (in request order)
+    std::array<std::vector<LightingDebug::PixelValue>, RenderScene::kProbeFrames> values;
+    // Frame 1's camera, its matrices, size and exposure
+    Vec3 camera       = Vec3::Zero();
+    mat4 viewProj     = mat4::Identity();
+    ivec2 size        = ivec2(0, 0);
+    float preExposure = 1;
+    bool physical     = false;
+};
+
+namespace
+{
+// The views of the probe's frames (frame 1: normal); frames 5-7 write raw radiance
+const std::array<LightingDebugView, RenderScene::kProbeFrames> kProbeViews = {
+    LightingDebugView::None,        LightingDebugView::Albedo,     LightingDebugView::Normals,
+    LightingDebugView::Material,    LightingDebugView::DirectOnly, LightingDebugView::AmbientOnly,
+    LightingDebugView::SpecularOnly};
 }  // namespace
 
 /**
@@ -269,6 +296,25 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     s.culling->setPbr(s.framePbr);
     s.terrain->setPbr(s.framePbr);
     s.grass->setPbr(s.framePbr);
+    // The previews' statistics of this slot's previous frame (completed)
+    s.debugImages->harvest(frame.frameIndex);
+    s.debugImages->setFrame(s.frameCount + 1);
+    // probe_lighting: the pixels of this frame of the sequence
+    if (s.probeRun)
+    {
+        RenderScene::ProbeRun* run = s.probeRun.get();
+        std::vector<ivec2> pixels;
+        for (auto& r : run->requests) pixels.push_back(r.first);
+        RenderScene* scene = &s;
+        s.debugImages->requestPixels(pixels,
+                                     [scene, run](const std::vector<LightingDebug::PixelValue>& v)
+                                     {
+                                         if (scene->probeRun.get() != run) return;
+                                         run->values[size_t(run->step)] = v;
+                                         run->step++;
+                                         if (run->step == RenderScene::kProbeFrames) scene->finishProbe();
+                                     });
+    }
     const bool msaa      = samples != vk::SampleCountFlagBits::e1;
     const bool linear    = s.sceneWritesLinear();
     const bool custom    = msaa && linear;  // the tone-map weighted resolve (Identity: the hardware average)
@@ -322,6 +368,28 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.slotStatistics[frame.frameIndex].terrainNodes = uint32_t(s.terrain->stats().nodes);
         SceneLighting lighting;
         s.frameLighting(camera, proto, enclosed, int(samples), lighting);
+        if (s.probeRun && s.probeRun->step == 0)
+        {
+            // The probe's frame 1: its camera and exposure (the later frames hold them)
+            s.probeRun->camera      = camera.position;
+            s.probeRun->viewProj    = camera.viewProj;
+            s.probeRun->size        = ivec2(surfaceWidth, SurfaceHeight);
+            s.probeRun->preExposure = s.framePreExposure;
+            s.probeRun->physical    = s.framePhysical && linear;
+        }
+        // The overlays (DebugLines): the sun and the moon from the camera's focus
+        if ((s.frameDebug.overlays & OverlaySunDirection) && camera.valid)
+        {
+            const Vec3 forward = s.cameraRotation * Vec3(0, 0, -1);
+            const Vec3 focus   = camera.position + forward * 20.0;
+            const vec3 sun     = s.envSet ? s.env.sunDir : s.studioEnvironment(enclosed).sunDir;
+            s.lines->addLine(focus, focus + sun.cast<double>().normalized() * 8.0, vec3(1.0f, 0.85f, 0.2f), true);
+            if (s.envSet)
+                s.lines->addLine(focus, focus + s.env.moonDir.cast<double>().normalized() * 6.0, vec3(0.6f, 0.7f, 1.0f),
+                                 true);
+            s.lines->addLine(focus - Vec3(0.5, 0, 0), focus + Vec3(0.5, 0, 0), vec3(1, 1, 1), true);
+            s.lines->addLine(focus - Vec3(0, 0, 0.5), focus + Vec3(0, 0, 0.5), vec3(1, 1, 1), true);
+        }
         // S23c (F4): the PrototypeFoliage class is checked in the frame, not at its material's registration (a walk
         // over every instance set: only with SAIGA_ASSERTS; without the texture the class is never drawn)
 #ifdef SAIGA_ASSERTS
@@ -509,6 +577,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // camera space (S21: the background is the clear color)
         if (s.foliage && !enclosed) s.terrain->renderSky(cmd, frame.frameIndex, proto);
         subEnd("scene.sky", cmd);
+        // The debug lines (S36: the overlays; written every frame, empty without lines)
+        subBegin("scene.debug", cmd);
+        viewport(cmd);
+        s.lines->record(cmd, frame.frameIndex, camera.position, camera.viewProj,
+                        linear ? s.framePreExposure / std::max(s.frameEffectiveExposure, 1e-30f) : 0.0f);
+        subEnd("scene.debug", cmd);
         cmd.endRendering();
 
         // The sampled depth for later passes (S37's consumers): after the resolve (MSAA) or the depth writes
@@ -556,22 +630,58 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     }
     timings.leaveSection("resolve", cmd);
 
+    // S36a1b: the pixel readbacks of probe_lighting (the resolved colour and the sampled depth, after the resolve)
+    const bool readPixels = s.debugImages->pixelsRequested();
+    if (readPixels)
     {
-        // The resolved image -> post's sampled read; the output image after the acquire (the submit waits for
-        // imageAvailable at COLOR_ATTACHMENT_OUTPUT; headless: the frame that last used it has completed)
+        std::array<vk::ImageMemoryBarrier2, 2> toSrc = {
+            vk::ImageMemoryBarrier2(Stage::eColorAttachmentOutput, Access::eColorAttachmentWrite, Stage::eAllTransfer,
+                                    Access::eTransferRead, vk::ImageLayout::eColorAttachmentOptimal,
+                                    vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                    VK_QUEUE_FAMILY_IGNORED, hdrResolved.image(), colorRange()),
+            vk::ImageMemoryBarrier2(Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
+                                    Stage::eAllTransfer, Access::eTransferRead, vk::ImageLayout::eShaderReadOnlyOptimal,
+                                    vk::ImageLayout::eTransferSrcOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                    VK_QUEUE_FAMILY_IGNORED, sampledDepth().image(), depthRange())};
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toSrc));
+        s.debugImages->recordPixels(cmd, frame.frameIndex, hdrResolved.image(), sampledDepth().image(),
+                                    ivec2(surfaceWidth, SurfaceHeight));
+        vk::ImageMemoryBarrier2 depthBack(
+            Stage::eAllTransfer, Access::eTransferRead, Stage::eFragmentShader | Stage::eComputeShader,
+            Access::eShaderSampledRead, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
+            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, sampledDepth().image(), depthRange());
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, depthBack));
+    }
+    const bool previews = s.debugImages->requested();
+    {
+        // The resolved image -> post's sampled read (and S36's preview conversion); the output image after the acquire
+        // (the submit waits for imageAvailable at COLOR_ATTACHMENT_OUTPUT; headless: the frame that last used it has
+        // completed)
         vk::Image output                                = colorImage(frame.imageIndex);
         std::array<vk::ImageMemoryBarrier2, 2> barriers = {
-            vk::ImageMemoryBarrier2(Stage::eColorAttachmentOutput, Access::eColorAttachmentWrite,
-                                    Stage::eFragmentShader, Access::eShaderSampledRead,
-                                    vk::ImageLayout::eColorAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
-                                    VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, hdrResolved.image(),
-                                    colorRange()),
+            vk::ImageMemoryBarrier2(
+                readPixels ? vk::PipelineStageFlags2(Stage::eAllTransfer) : Stage::eColorAttachmentOutput,
+                readPixels ? vk::AccessFlags2() : vk::AccessFlags2(Access::eColorAttachmentWrite),
+                Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
+                readPixels ? vk::ImageLayout::eTransferSrcOptimal : vk::ImageLayout::eColorAttachmentOptimal,
+                vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+                hdrResolved.image(), colorRange()),
             vk::ImageMemoryBarrier2(Stage::eColorAttachmentOutput, {}, Stage::eColorAttachmentOutput,
                                     Access::eColorAttachmentWrite | Access::eColorAttachmentRead,
                                     vk::ImageLayout::eUndefined, vk::ImageLayout::eColorAttachmentOptimal,
                                     VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, output, colorRange())};
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, barriers));
     }
+    // The preview conversions (S36a1b; written every frame, empty without a request)
+    timings.enterSection("lighting.preview", cmd);
+    {
+        LightingDebug::Sources src;
+        src.hdr                        = &hdrResolved;
+        src.luminanceScale             = linear ? 1.0f / s.framePreExposure : 1.0f;
+        src.brdfLut                    = &s.brdf->lut();
+        s.lightStats.previewDispatches = previews ? s.debugImages->recordPreviews(cmd, frame.frameIndex, src) : 0;
+    }
+    timings.leaveSection("lighting.preview", cmd);
 
     // 4. Post and ImGui on the output image
     {
@@ -621,6 +731,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     recordPresentTransition(cmd, output, screenshot != nullptr);
     submitCommands(cmd, frame);
     finishScreenshots(frame, screenshot.get(), callbacks);
+    // S36a1b: the captures and pixel readbacks of this frame (blocking, like the screenshots)
+    s.debugImages->finishFrame(frame.frameIndex, [this, &frame]() { base().waitFrameValue(frame.timelineValue); });
 }
 
 //==================================================================================================
@@ -643,6 +755,10 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     ambient->init(base());
     brdf = std::make_unique<BrdfLut>();
     brdf->init(base());
+    debugImages = std::make_unique<LightingDebug>();
+    debugImages->init(base());
+    lines = std::make_unique<DebugLines>();
+    lines->init(base(), formats());
     framePbr = params.lighting.pbr;
     culling  = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params, *lightingSet);
@@ -669,6 +785,8 @@ RenderScene::~RenderScene()
     terrain.reset();
     atlas.reset();
     foliage.reset();
+    lines.reset();
+    debugImages.reset();
     brdf.reset();
     ambient.reset();
     lightingSet.reset();
@@ -695,8 +813,9 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     renderFn   = nullptr;
     guiFn      = nullptr;
     if (renderer->submittedFrames() == before) return false;
-    // The scene of the next frame is written with this frame's exposure
-    lastExposure = frameEffectiveExposure;
+    // The scene of the next frame is written with this frame's exposure; a debug frame (Identity latched) keeps the
+    // history, so the next normal frame continues from the last tone-mapped frame (D12)
+    if (frameDebug.view == LightingDebugView::None) lastExposure = frameEffectiveExposure;
     frameCount++;
     submittedFrames.push_back({timeline, frameCount});
     if (submittedFrames.size() > 32) submittedFrames.pop_front();
@@ -706,9 +825,12 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
 void RenderScene::latchFrame()
 {
     // Once per recorded frame, before any callback (setters apply from the next frame)
-    framePbr        = params.lighting.pbr;
-    frameToneMap    = params.toneMap;
-    framePhysical   = envSet && frameToneMap != ToneMap::Identity;
+    latchDebug();
+    framePbr = params.lighting.pbr;
+    // A debug frame latches Identity (no pipeline change: the output mode is a push constant, the resolve mode is
+    // chosen per frame); the light model stays the requested tone map's (the views show the physical path's values)
+    frameToneMap    = frameDebug.view != LightingDebugView::None ? ToneMap::Identity : params.toneMap;
+    framePhysical   = envSet && params.toneMap != ToneMap::Identity;
     frameMultiplier = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
     // S36 (D18): a scene with an environment exposes its EV100 (the multiplier on top); without one the multiplier is
     // the unit-less exposure, as before
@@ -783,6 +905,11 @@ std::vector<VulkanRenderer::ScreenshotCallback> RenderScene::takeScreenshotReque
     return renderer->takeScreenshotRequests();
 }
 
+ImGuiVulkanRenderer* RenderScene::imguiRenderer()
+{
+    return renderer->imguiRenderer();
+}
+
 void RenderScene::setImguiVisible(bool visible)
 {
     renderer->should_render_imgui = visible;
@@ -800,6 +927,12 @@ void RenderScene::setToneMap(ToneMap toneMap)
 
 void RenderScene::setEnvironment(const EnvironmentState& environment)
 {
+    // A probe holds the environment of its frame 1
+    if (probeRun)
+    {
+        heldEnvironment = environment;
+        return;
+    }
     env    = environment;
     envSet = true;
 }
@@ -1013,8 +1146,13 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
     // ---- S36 (the LIGHTING_PBR variant)
     const bool physical = physicalLighting();
     out.mode            = uvec4(physical ? 1u : 0u, enclosed ? 1u : 0u, 0u, 0u);
-    out.exposure =
-        vec4(frameEffectiveExposure, framePreExposure, envSet ? env.ev100 : 0.0f, sceneWritesLinear() ? 1 : 0);
+    // x: the physical exposure (also in a debug frame, which latched Identity: the views' display colours)
+    const float displayExposure = physical ? exposureFromEv100(env.ev100, params.exposure) : 1.0f;
+    out.exposure = vec4(displayExposure, framePreExposure, envSet ? env.ev100 : 0.0f, sceneWritesLinear() ? 1 : 0);
+    out.mode(2)  = uint32_t(frameDebug.view);
+    out.mode(3)  = frameDebug.overlays;
+    const float centre = exposureViewCentre ? *exposureViewCentre : physical ? env.ev100 : float(std::log2(0.18 * 8));
+    out.debugParams    = vec4(centre, exposureViewRange, frameDebugRaw ? 1.0f : 0.0f, 0);
     const StudioEnvironment studio = studioEnvironment(enclosed);
     const vec3 sd                  = studio.sunDir.normalized();
     out.studioSun                  = vec4(sd(0), sd(1), sd(2), studio.sunIntensity);
@@ -1084,6 +1222,127 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     if (foliage) b.foliage = foliage->getDescriptorInfo();
     b.brdfLut = brdf->lut().getDescriptorInfo();
     lightingSet->write(frameIndex, block, b);
+
+    // The statistics of this frame (S36a1b)
+    LightingStatistics& st = lightStats;
+    st.frame               = frameCount + 1;
+    st.shadowLight         = int(block.shadowLight(3));
+    auto elevation         = [](const vec3& d)
+    { return float(std::asin(std::clamp(double(d(1)), -1.0, 1.0)) * 57.29577951308232); };
+    st.sunElevation   = envSet ? elevation(env.sunDir) : 0.0f;
+    st.moonElevation  = envSet ? elevation(env.moonDir) : 0.0f;
+    st.ev100          = envSet ? env.ev100 : 0.0f;
+    st.exposure       = frameEffectiveExposure;
+    st.preExposure    = framePreExposure;
+    st.physical       = framePhysical;
+    st.pbr            = framePbr;
+    st.debug          = frameDebug;
+    st.sh             = ambient->statistics().sh;
+    st.luminance      = debugImages->statistics(LightingImage::Luminance);
+    st.luminanceFrame = debugImages->statisticsFrame(LightingImage::Luminance);
+    // The block and SH buffers, the BRDF LUT (RG16F), the previews, the debug lines
+    st.memoryBytes = 2 * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
+                     uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes();
+}
+
+void RenderScene::latchDebug()
+{
+    frameDebugRaw = false;
+    // A probe starts with the next frame: the requests made until then share its frames
+    if (!probeRun && !probeRequests.empty())
+    {
+        probeRun           = std::make_unique<ProbeRun>();
+        probeRun->requests = std::move(probeRequests);
+        probeRequests.clear();
+    }
+    if (probeRun)
+    {
+        frameDebug.view     = kProbeViews[size_t(probeRun->step)];
+        frameDebug.overlays = 0;
+        frameDebugRaw       = probeRun->step >= 4;
+        return;
+    }
+    // The override applies to the frames that are read back (as the ImGui override)
+    if (debugOverride && renderer->screenshotRequested())
+        frameDebug = *debugOverride;
+    else
+        frameDebug = userDebug;
+}
+
+void RenderScene::requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback)
+{
+    probeRequests.emplace_back(pixel, std::move(callback));
+}
+
+void RenderScene::finishProbe()
+{
+    std::unique_ptr<ProbeRun> run = std::move(probeRun);
+    probeRun.reset();
+    const mat4 invViewProj = inverse(run->viewProj);
+    for (size_t k = 0; k < run->requests.size(); ++k)
+    {
+        LightingProbe p;
+        p.pixel    = run->requests[k].first;
+        p.frames   = kProbeFrames;
+        p.physical = run->physical;
+        auto value = [&](int frame)
+        {
+            const auto& v = run->values[size_t(frame)];
+            return v.size() > k ? v[k] : LightingDebug::PixelValue();
+        };
+        const LightingDebug::PixelValue first = value(0);
+        p.inImage                             = first.valid;
+        if (p.inImage)
+        {
+            p.depth = first.depth;
+            p.hit   = first.depth > 0;
+            for (int f = 1; f < kProbeFrames; ++f)
+            {
+                const float d = value(f).depth;
+                if (std::abs(d - p.depth) > 0.01f * std::max(std::abs(p.depth), 1e-6f)) p.consistent = false;
+            }
+            if (p.hit)
+            {
+                // The position from the depth (reversed-Z) and frame 1's camera-relative matrices
+                const float x  = (float(p.pixel(0)) + 0.5f) / float(run->size(0)) * 2 - 1;
+                const float y  = (float(p.pixel(1)) + 0.5f) / float(run->size(1)) * 2 - 1;
+                const vec4 h   = invViewProj * vec4(x, y, p.depth, 1);
+                const Vec3 rel = Vec3(double(h(0)) / h(3), double(h(1)) / h(3), double(h(2)) / h(3));
+                p.position     = run->camera + rel;
+                p.distance     = rel.norm();
+            }
+            auto rgb       = [](const vec4& v) { return vec3(v(0), v(1), v(2)); };
+            const float pe = run->physical ? run->preExposure : 1.0f;
+            p.color        = rgb(first.color) / pe;
+            p.luminance    = 0.2126f * p.color(0) + 0.7152f * p.color(1) + 0.0722f * p.color(2);
+            p.ev100        = float(std::log2(std::max(double(p.luminance), 1e-6) * 8.0));
+            p.albedo       = rgb(value(1).color);
+            const vec4 n   = value(2).color;
+            const vec3 nn(n(0) * 2 - 1, n(1) * 2 - 1, n(2) * 2 - 1);
+            p.normal     = nn.norm() > 1e-6f ? vec3(nn.normalized()) : nn;
+            const vec4 m = value(3).color;
+            p.roughness  = m(0);
+            p.metalness  = m(1);
+            p.ao         = m(2);
+            p.direct     = rgb(value(4).color);
+            p.ambient    = rgb(value(5).color);
+            p.specular   = rgb(value(6).color);
+        }
+        run->requests[k].second(p);
+    }
+    // The environment and the camera given during the sequence
+    if (heldEnvironment)
+    {
+        env    = *heldEnvironment;
+        envSet = true;
+        heldEnvironment.reset();
+    }
+    if (heldCamera)
+    {
+        const HeldCamera c = *heldCamera;
+        heldCamera.reset();
+        setCamera(c.space, c.position, c.rotation, c.fovy);
+    }
 }
 
 uint64_t RenderScene::scenePipelineCreations() const
@@ -1150,6 +1409,12 @@ void RenderScene::removeDynamic(InstanceHandle h)
 
 void RenderScene::setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy)
 {
+    // A probe holds the camera of its frame 1
+    if (probeRun && cameraSet)
+    {
+        heldCamera = HeldCamera{space, position, rotation, fovy};
+        return;
+    }
     cameraSet      = true;
     cameraSpace    = space;
     cameraPosition = position;

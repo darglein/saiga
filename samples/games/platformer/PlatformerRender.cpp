@@ -187,7 +187,7 @@ void PlatformerRender::gui()
     // Below the debug UI's bar
     ImGui::SetNextWindowPos(ImVec2(10, app->debugUi().barHeight() + 10), ImGuiCond_FirstUseEver);
     ImGui::Begin("Platformer", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("WASD move, shift walk, space jump, F door, Q/E camera, R restart, F1-F4 debug tabs, G GUI");
+    ImGui::Text("WASD move, shift walk, space jump, F door, Q/E camera, R restart, F1-F5 debug tabs, G GUI");
     World& w       = app->world();
     const Entity e = focus();
     if (w.alive(e) && w.has<CharacterMotion>(e))

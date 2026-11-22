@@ -34,6 +34,9 @@ class GrassPass;
 class SceneLightingSet;
 class SkyAmbient;
 class BrdfLut;
+class LightingDebug;
+class DebugLines;
+class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
 struct SceneLighting;
@@ -116,6 +119,8 @@ class SAIGA_VULKAN_API RenderScene
     void requestScreenshot(VulkanRenderer::ScreenshotCallback callback);
     // The screenshot requests not yet taken by a frame, in request order (requestScreenshot gives them back)
     std::vector<VulkanRenderer::ScreenshotCallback> takeScreenshotRequests();
+    // The ImGui renderer of the frame (nullptr without ImGui): ImGui textures (S36: the Lighting tab's previews)
+    ImGuiVulkanRenderer* imguiRenderer();
     void setImguiVisible(bool visible);
     bool imguiVisible() const;
     // True if the last recorded frame drew ImGui
@@ -151,7 +156,8 @@ class SAIGA_VULKAN_API RenderScene
     // The newest frame takeGpuFrameTimes returned (frame 0: none yet)
     const FrameTimes& lastGpuFrameTimes() const { return lastTaken; }
     // The sections of FrameTimes::gpuSectionMs in frame order: transfer, cull, depth, depth.terrain, scene,
-    // scene.terrain, scene.instances, scene.grass, scene.sky, resolve, post, imgui. The dotted names are sub-sections
+    // scene.terrain, scene.instances, scene.grass, scene.sky, scene.debug (S36: the debug lines), resolve,
+    // lighting.preview (S36: the preview conversions), post, imgui. The dotted names are sub-sections
     // of the pass before the dot (consecutive ALL_COMMANDS timestamps inside the pass; S19a); every section is written
     // in every frame, also when its content is off
     static const std::vector<const char*>& gpuSectionNames();
@@ -315,6 +321,36 @@ class SAIGA_VULKAN_API RenderScene
     // The scene pipelines created since the start (SceneCulling's; a debug view switch creates none)
     uint64_t scenePipelineCreations() const;
 
+    // ---- the lighting's debug core (S36a1b, A8) ------------------------------------------------------------------
+    // The debug view and overlays of the next frames. While a view other than None is active a frame latches
+    // ToneMap::Identity (no pipeline changes) and does not update the pre-exposure history; the views are drawn by the
+    // LIGHTING_PBR variant (LightingParameters::pbr until the a1c flip)
+    void setLightingDebug(const LightingDebugState& state) { userDebug = state; }
+    const LightingDebugState& lightingDebug() const { return userDebug; }
+    // A one-frame override for the frames that are read back (requestScreenshot), like setImguiOverride
+    void setLightingDebugOverride(std::optional<LightingDebugState> state) { debugOverride = state; }
+    // The debug state the frame being recorded latched
+    const LightingDebugState& frameLightingDebug() const { return frameDebug; }
+    // The Exposure view's heat map: centre (EV100; nullopt: the frame's EV100 in the physical path, the display
+    // mid-gray log2(0.18 * 8) in clay) and range (EV)
+    void setExposureViewRange(std::optional<float> centre, float range)
+    {
+        exposureViewCentre = centre;
+        exposureViewRange  = range;
+    }
+    // The previews and pixel readbacks (LightingDebug::request, requestPixels) and the debug lines
+    // (DebugLines::addLine)
+    LightingDebug& lightingDebugImages() { return *debugImages; }
+    DebugLines& debugLines() { return *lines; }
+    // The statistics of the newest recorded frame (the luminance reduction when it was requested)
+    const LightingStatistics& lightingStatistics() const { return lightStats; }
+    // probe_lighting's sequence at a pixel of the next frames (7 frames; requests made before the sequence starts share
+    // it). The camera and the environment are held during the sequence (setCamera / setEnvironment take effect after
+    // it); the callback runs after the last frame
+    void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
+    bool probeRunning() const { return probeRun != nullptr; }
+    static constexpr int kProbeFrames = 7;
+
    private:
     friend class SceneFrameRenderer;
     void latchFrame();
@@ -332,6 +368,32 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<SceneLightingSet> lightingSet;
     std::unique_ptr<SkyAmbient> ambient;
     std::unique_ptr<BrdfLut> brdf;
+    // The debug core (S36a1b)
+    std::unique_ptr<LightingDebug> debugImages;
+    std::unique_ptr<DebugLines> lines;
+    LightingDebugState userDebug, frameDebug;
+    std::optional<LightingDebugState> debugOverride;
+    // The radiance views write raw values (the probe frames)
+    bool frameDebugRaw = false;
+    std::optional<float> exposureViewCentre;
+    float exposureViewRange = 8;
+    LightingStatistics lightStats;
+    struct ProbeRun;
+    std::unique_ptr<ProbeRun> probeRun;
+    std::vector<std::pair<ivec2, std::function<void(const LightingProbe&)>>> probeRequests;
+    // While a probe runs: the environment and camera given meanwhile (applied after it)
+    std::optional<EnvironmentState> heldEnvironment;
+    struct HeldCamera
+    {
+        SpaceId space;
+        Vec3 position;
+        Quat rotation;
+        double fovy;
+    };
+    std::optional<HeldCamera> heldCamera;
+    void finishProbe();
+    // The view of the frame being recorded (the probe's step, the override of a read-back frame, the user's)
+    void latchDebug();
     float framePreExposure = 1;
     // The effective exposure of the last submitted frame (the next frame's pre-exposure)
     float lastExposure = 1;

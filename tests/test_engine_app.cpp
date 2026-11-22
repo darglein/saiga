@@ -13,10 +13,12 @@
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
 #include "saiga/engine/app/FrameStatistics.h"
+#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/DestroyOwnedBy.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
@@ -30,6 +32,7 @@
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/Instance.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
@@ -1531,7 +1534,9 @@ TEST_F(EngineAppRender, GpuSections)
                                                "gpu/scene.instances",
                                                "gpu/scene.grass",
                                                "gpu/scene.sky",
+                                               "gpu/scene.debug",
                                                "gpu/resolve",
+                                               "gpu/lighting.preview",
                                                "gpu/post",
                                                "gpu/imgui"};
     EXPECT_EQ(scopes, expected);

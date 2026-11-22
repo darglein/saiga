@@ -49,5 +49,12 @@ void main()
     if (frame.flags.z == 1) c *= lodTint(inLod);
     c = applyFog(c, inPos);
 #endif
+#ifdef LIGHTING_PBR
+    if (debugViewActive())
+    {
+        outColor = vec4(c, clamp(alpha, 0.0, 1.0));
+        return;
+    }
+#endif
     outColor = finalColor(c, clamp(alpha, 0.0, 1.0));
 }

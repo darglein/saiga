@@ -213,6 +213,8 @@ class SAIGA_ENGINE_API EngineApp
     // extract of every rendered frame reads them
     const Vulkan::EnvironmentSettings& environmentSettings() const { return envSettings; }
     void setEnvironmentSettings(const Vulkan::EnvironmentSettings& settings) { envSettings = settings; }
+    // The Lighting tab's preview mapping (set_lighting_debug mapping; S36a1b)
+    Vulkan::PreviewMapping& lightingPreviewMapping() { return previewMapping; }
     // The environment of the view camera's space now (alpha of the world; get_lighting, the Lighting tab)
     EnvironmentSample sampleViewEnvironment() const;
     // The world sends its environment to the sink every rendered frame (S36a1a: only worlds with
@@ -260,6 +262,7 @@ class SAIGA_ENGINE_API EngineApp
     EngineAppSetup appSetup;
     AppOptions appOptions;
     Vulkan::EnvironmentSettings envSettings;
+    Vulkan::PreviewMapping previewMapping;
     std::unique_ptr<Vulkan::VulkanWindow> appWindow;
     std::unique_ptr<Vulkan::RenderScene> renderScene;
     std::unique_ptr<VulkanRenderSink> sink;
