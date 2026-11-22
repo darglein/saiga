@@ -334,9 +334,7 @@ void beforeRender(EngineApp& app)
             g.bench->height = size(1);
         }
     }
-    // The time of the wind (benchmarks: 0); the app sets the camera of the frame
-    World& w = app.world();
-    scene.setTime(g.bench ? 0.0 : w.time() + w.alpha() * w.dt());
+    // The app sets the camera of the frame (S36: the wind's phases come with the environment)
 
     // The CPU times of the previous frame: its interval (until now) and its recording and submit
     const auto now = std::chrono::steady_clock::now();
@@ -509,8 +507,7 @@ void beforeRender(EngineApp& app)
                                   {"cloudiness", e.weather.cloudiness},
                                   {"ev100", double(scene.environment().ev100)},
                                   {"tone_map", scene.parameters().toneMap == Vulkan::ToneMap::Aces ? "aces" : "identity"},
-                                  {"features", json11::Json::object{{"pbr", lp.pbr},
-                                                                    {"atmosphere", scene.physicalLighting()},
+                                  {"features", json11::Json::object{{"atmosphere", scene.physicalLighting()},
                                                                     {"clouds", scene.lightingStatistics().clouds},
                                                                     {"force_full_updates", lp.forceFullUpdates}}}};
         }

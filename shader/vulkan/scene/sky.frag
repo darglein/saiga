@@ -6,18 +6,16 @@
  */
 #extension GL_GOOGLE_include_directive : require
 
-// The sky of S20 (a copy of world/sky.frag on TerrainFrame): the gradient from the fog color at the horizon to the
-// zenith color and a glow around the sun, only where nothing was drawn (EQUAL at depth 0). LIGHTING_PBR (S36): the
-// same gradient in clay mode; in the physical path the atmosphere (A4): the sky-view LUT at the camera height, the sun
+// The sky of S20, only where nothing was drawn (EQUAL at depth 0). In clay mode (S36: the studio environment) S20's
+// gradient from the studio fog colour at the horizon to the zenith colour 0.2 and a glow around the studio sun; in the
+// physical path the atmosphere (A4): the sky-view LUT at the camera height, the sun
 // disc (its radiance clamped below the fp16 limit after the pre-exposure, limb darkened), the moon disc with its phase
 // and the stars (stars.glsl), each through the transmittance to the top of the atmosphere
 
 #include "terrain_common.glsl"
 #include "terrain_shading.glsl"
-#ifdef LIGHTING_PBR
-#    include "lighting/lighting.glsl"
-#    include "lighting/stars.glsl"
-#endif
+#include "lighting/lighting.glsl"
+#include "lighting/stars.glsl"
 
 layout(location = 0) in vec2 inNdc;
 layout(location = 0) out vec4 outColor;
@@ -28,7 +26,6 @@ void main()
     vec4 p   = frame.invViewProjRel * vec4(inNdc, 0.5, 1.0);
     vec3 dir = normalize(p.xyz / p.w);
 
-#ifdef LIGHTING_PBR
     // A debug frame: no surface (0)
     if (debugViewActive())
     {
@@ -60,11 +57,10 @@ void main()
         outColor = vec4(min(max(c, vec3(0.0)) * lighting.exposure.y, vec3(60000.0)), 1.0);
         return;
     }
-#endif
     float t = clamp(dir.y, 0.0, 1.0);
-    vec3 c  = mix(frame.fogColor.rgb, frame.skyColor.rgb, pow(t, 0.45));
+    vec3 c  = mix(lighting.fogColorLin.rgb, vec3(0.2), pow(t, 0.45));
     // A soft glow around the sun
-    float sun = max(dot(dir, normalize(frame.sunDir.xyz)), 0.0);
+    float sun = max(dot(dir, normalize(lighting.studioSun.xyz)), 0.0);
     c += vec3(0.25) * pow(sun, 48.0);
     outColor = finalColor(c, 1.0);
 }

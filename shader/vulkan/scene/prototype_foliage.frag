@@ -8,16 +8,11 @@
 
 // The PrototypeFoliage pipeline class of RenderScene (S19a): the prototype's foliage.frag with the lighting block. The
 // opaque parts (layer < 0) and the alpha tested leaf cards (alpha to coverage with MSAA, the alpha cutoff of the
-// block); clay lighting with AO, the LOD tint from the compacted entry's LOD bits, height fog, the prototype's output.
-// The foliage texture is binding 1 of set 1 (scene_block.glsl). LIGHTING_PBR (S36): shadeSurface with the leaves' and
-// the bark's colours (wrapped diffuse for the cards) in the physical path, the studio environment in clay mode.
+// block); the LOD tint from the compacted entry's LOD bits, the prototype's output. The foliage texture is binding 1 of
+// set 1 (scene_block.glsl). Lit by shadeSurface (S36) with the leaves' and the bark's colours (wrapped diffuse for the
+// cards) and the AO in the physical path, the studio environment's clay albedo in clay mode.
 
-#ifdef LIGHTING_PBR
-#    include "lighting/lighting.glsl"
-#else
-#    include "../world/prototype_shading.glsl"
-#    include "scene_lighting.glsl"
-#endif
+#include "lighting/lighting.glsl"
 
 layout(push_constant) uniform Push
 {
@@ -43,12 +38,11 @@ void main()
     float alpha = 1.0;
     if (inUvLayer.z >= 0.0)
     {
-        alpha = foliageCoverage(foliage, inUvLayer, lighting.ambient.w);
+        alpha = foliageCoverage(foliage, inUvLayer, lighting.foliageParams.x);
         if (alpha <= 0.0 || (lighting.camera.w < 1.5 && alpha < 0.5)) discard;
     }
 
     vec3 N = normalize(inNormal);
-#ifdef LIGHTING_PBR
     bool card       = inUvLayer.z >= 0.0;
     SurfaceInput si = surfaceInput(prototypeAlbedo(card ? lighting.albedoLeaves.rgb : lighting.albedoBark.rgb), N, inPos);
     si.ao           = inAo;
@@ -56,17 +50,10 @@ void main()
     if (card) si.flags |= surfaceFoliage;
     if (lighting.debug.x > 0.5) si.tint = lodTint(inLod);
     vec3 c = shadeSurface(si);
-#else
-    vec3 c = protoClayLighting(N, inAo, lighting.sunDir.xyz, lighting.sunDir.w, lighting.ambient.z, lighting.ambient.x);
-    if (lighting.debug.x > 0.5) c *= lodTint(inLod);
-    c = protoApplyFog(c, inPos, lighting.camera.y, lighting.fog, lighting.fogColor.rgb);
-#endif
-#ifdef LIGHTING_PBR
     if (debugViewActive())
     {
         outColor = vec4(c, clamp(alpha, 0.0, 1.0));
         return;
     }
-#endif
     outColor = protoFinalColor(c, clamp(alpha, 0.0, 1.0), pc.linear != 0u ? pc.preExposure : 0.0);
 }

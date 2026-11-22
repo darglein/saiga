@@ -158,13 +158,6 @@ class RenderSceneSuiteTest : public ::testing::Test
     virtual ivec2 Size() const { return ivec2(128, 128); }
     virtual int Samples() const { return 4; }
 
-    // The LIGHTING_PBR variant (from the next frame)
-    void UsePbr(bool pbr = true)
-    {
-        Vulkan::LightingParameters p = scene->lightingParameters();
-        p.pbr                        = pbr;
-        scene->setLightingParameters(p);
-    }
     Vulkan::InstanceSetHandle AddSet(const std::vector<Vulkan::StaticInstance>& instances)
     {
         sets.push_back(scene->addInstanceSet(RegionId(), instances));

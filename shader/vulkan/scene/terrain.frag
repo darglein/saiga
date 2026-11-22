@@ -6,14 +6,12 @@
  */
 #extension GL_GOOGLE_include_directive : require
 
-// The terrain and the water plane of S20. LIGHTING_PBR (S36): shadeSurface with the prototype's colours (ground ->
-// rock by slope, the shore band above the sea level, the water) in the physical path, the studio environment in clay.
+// The terrain and the water plane of S20, lit by shadeSurface (S36) with the prototype's colours (ground -> rock by
+// slope, the shore band above the sea level, the water) in the physical path, the studio environment in clay.
 
 #include "terrain_common.glsl"
 #include "terrain_shading.glsl"
-#ifdef LIGHTING_PBR
-#    include "lighting/lighting.glsl"
-#endif
+#include "lighting/lighting.glsl"
 
 // Position relative to the camera
 layout(location = 0) in vec3 inPos;
@@ -40,7 +38,6 @@ void main()
     {
         N = normalize(inNormal);
     }
-#ifdef LIGHTING_PBR
     vec3 albedo;
     if (water)
     {
@@ -60,18 +57,10 @@ void main()
     if (water && !physicalLighting()) si.tint = vec3(0.62);
     if (frame.flags.z == 1 && !water) si.tint = lodTint(inLod);
     vec3 c = shadeSurface(si);
-#else
-    vec3 c = clayLighting(N, 1.0);
-    if (water) c *= 0.62;
-    if (frame.flags.z == 1 && !water) c *= lodTint(inLod);
-    c = applyFog(c, inPos);
-#endif
-#ifdef LIGHTING_PBR
     if (debugViewActive())
     {
         outColor = vec4(c, 1.0);
         return;
     }
-#endif
     outColor = finalColor(c, 1.0);
 }

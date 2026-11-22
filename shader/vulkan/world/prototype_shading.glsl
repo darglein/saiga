@@ -4,23 +4,12 @@
  * See LICENSE file for more information.
  */
 
-// The prototype's shading with explicit parameters (S19a): clay lighting (sun + hemisphere ambient), exponential height
-// fog, the LOD tint, the output encoding and the alpha sharpening of the foliage cards. Shared by the world shaders
-// (through shading.glsl: terrain, water, grass, sky) and RenderScene's PrototypeFoliage class
-// (vulkan/scene/prototype_foliage.frag). Fragment shaders only (derivatives). Guarded: S36's lighting.glsl includes it
-// next to the legacy shading of the same shader.
+// The prototype's shading helpers with explicit parameters (S19a; S36: the light is lighting.glsl's shadeSurface):
+// exponential height fog (lighting.glsl's lightingFog), the LOD tint, the output encoding and the alpha sharpening of
+// the foliage cards. Shared by the terrain, water, grass and sky passes and RenderScene's PrototypeFoliage class.
+// Fragment shaders only (derivatives). Guarded: lighting.glsl and terrain_shading.glsl both include it.
 #ifndef PROTOTYPE_SHADING_GLSL
 #define PROTOTYPE_SHADING_GLSL
-
-// Uniform gray with sun + hemisphere light. sunDir: towards the sun (normalized here)
-vec3 protoClayLighting(vec3 N, float ao, vec3 sunDir, float sunIntensity, float albedo, float ambient)
-{
-    vec3 L        = normalize(sunDir);
-    float diffuse = max(dot(N, L), 0.0) * sunIntensity;
-    // Hemisphere ambient: brighter from above
-    float hemi = ambient * (0.6 + 0.4 * N.y);
-    return vec3(albedo * (diffuse + hemi) * ao);
-}
 
 // Optical depth of a ray segment of length L above the water level whose heights above the water go from hA to hB
 // (both >= 0): the integral of a * exp(-b * height), computed from the bounded densities at both ends (no exp of a

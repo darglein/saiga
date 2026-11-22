@@ -48,12 +48,10 @@ class SAIGA_VULKAN_API GrassPass
         int drawCalls = 0;
     };
 
-    // lighting: set 1 (S36; RenderScene's, outlives this); pbr: the pipeline variant (LightingParameters::pbr)
-    void init(VulkanBase& base, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr);
+    // lighting: set 1 (S36; RenderScene's, outlives this)
+    void init(VulkanBase& base, const RenderingFormats& formats, SceneLightingSet& lighting);
     void destroy();
     ~GrassPass() { destroy(); }
-    // The pipeline of the light model (S36a1b): recreated on a change (the old one released deferred)
-    void setPbr(bool pbr);
     // The pipelines created since init (tests: a debug view switch creates none)
     uint64_t pipelineCreations() const { return creations; }
 
@@ -81,7 +79,6 @@ class SAIGA_VULKAN_API GrassPass
     VulkanBase* base              = nullptr;
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
-    bool pbrVariant    = false;
     uint64_t creations = 0;
     Pipeline pipeline;
     Buffer vertices, indices;

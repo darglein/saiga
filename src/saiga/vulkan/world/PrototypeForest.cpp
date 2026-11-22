@@ -123,8 +123,7 @@ void PrototypeForest::initSets(const WorldSettings& settings)
 void PrototypeForest::initMeshes(RenderScene& _scene, uint32_t seed, const WorldSettings& settings)
 {
     SAIGA_ASSERT(!scene, "PrototypeForest::init: once per object");
-    SAIGA_ASSERT(_scene.hasPrototypeEnvironment(),
-                 "PrototypeForest: the scene needs setPrototypeEnvironment (foliage texture)");
+    SAIGA_ASSERT(_scene.hasFoliageTexture(), "PrototypeForest: the scene needs setFoliageTexture");
     scene      = &_scene;
     firstFrame = scene->frames() + 1;
     species    = FoliageGenerator::treeSpecies(seed);

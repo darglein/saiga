@@ -24,14 +24,9 @@ layout(set = 0, binding = 0) uniform TerrainFrameUBO
     ivec4 flags;
     // Per streamed level: x the page-table offset, y the tiles per side
     ivec4 levels[8];
-    // xyz: towards the sun, w: intensity
-    vec4 sunDir;
-    // x: albedo, y: ambient, z: flat shading, w: 0 display values, > 0 linear values times w (the pre-exposure)
+    // z: flat shading, w: 0 display values, > 0 linear values times w (the pre-exposure); S36: the light, the fog and
+    // the sky's colours are the lighting block's
     vec4 shading;
-    // x: density, y: height falloff, z: enabled, w: the camera height above the fog base (m)
-    vec4 fog;
-    vec4 fogColor;
-    vec4 skyColor;
     // x: the range of level 0 (m), y: the morph start ratio
     vec4 lod;
     // x: grass radius, y: grass cell size, z: grass density, w: MSAA samples

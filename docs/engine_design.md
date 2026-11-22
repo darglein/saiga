@@ -182,7 +182,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Forward renderer with MSAA, reversed-Z, infinite far plane; since S17 only for the other samples and the fixtures of `tests/vulkan_test_context.h` (S19a: the world tests moved to `RenderScene`); the shared frame code (command buffers and submit, ImGui frame, screenshots, `selectSampleCount`, GPU sections by name) is in `VulkanRenderer` | `src/saiga/vulkan/VulkanForwardRenderer.*`, `src/saiga/vulkan/Renderer.*` | [exists] |
 | `RenderScene` HDR frame (S17): fp16 scene pass with MSAA and reversed-Z D32, clay mode (identity tone map, hardware average resolve) or ACES (tone-map weighted resolve), pre-exposure, post and ImGui in one pass, `--tonemap` / `--exposure` (§10.1, §10.5) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `tests/test_vulkan_scene.cpp` | [exists] |
 | `RenderScene` scene content (S18): materials, meshes and the palette by explicit IDs (`MeshPool`: vertex and index buffers sub-allocated in element units with VMA virtual blocks (`SubAllocatedBuffer`, growth with a GPU copy), the mesh record table, the material buffer), static instance sets per region and dynamic instances with GPU interpolation (`InstanceBuffer`), the offset table (double camera, float hi + lo), GPU culling (count, scan and write passes, buckets per pipeline class, mesh and LOD) with indexed indirect draws and the flat-color shading (`SceneCulling`), statistics, the `cull` GPU section, glTF mesh import (`MeshImport`), `chunkOrigin`/`regionOrigin` (§10.1, §10.2, §10.8, §14); the culling benchmark | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/`, `src/saiga/core/math/ChunkId.h`, `tests/test_vulkan_scene.cpp`, `data/tests/scene/`, `samples/vulkan/sample_vulkan_scene_benchmark.cpp` | [exists] |
-| `RenderScene` prototype passes (S19a): the trees as S18 instance sets of the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`, the shading include `prototype_shading.glsl` shared with the grass), the lighting block of the instance draws, `setTime` (wind phases, no wall clock), `setMeshLodDistances`, `reserveIds` / `kGameReservedIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections of the GPU sections (§10.1, §10.5); S20: `setPrototypeEnvironment` (the sky on `TerrainFrame`, the foliage texture; replaces `setPrototypeTerrain`, `PrototypeWorld`, `TerrainRenderer` and `GrassRenderer`) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/` | [exists], the environment transitional until S36 |
+| `RenderScene` prototype passes (S19a): the trees as S18 instance sets of the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`, the shading include `prototype_shading.glsl` shared with the grass), the lighting block of the instance draws, `setTime` (wind phases, no wall clock), `setMeshLodDistances`, `reserveIds` / `kGameReservedIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections of the GPU sections (§10.1, §10.5); S20: `setPrototypeEnvironment` (the sky on `TerrainFrame`, the foliage texture; replaces `setPrototypeTerrain`, `PrototypeWorld`, `TerrainRenderer` and `GrassRenderer`); S36a1c: `setFoliageTexture`, the light from the environment (§10.7), no `setTime` | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/` | [exists] |
 | `RenderScene` terrain (S20): the GPU terrain set `TerrainAtlas` (int32 storage buffers: atlas, pyramid, page table, grass masks; the upload queue with a per-frame byte cap; rebuild per space or layout; patches; hierarchical node bounds; `memoryEstimate`), the CDLOD `TerrainPass` (selection in double, 64 m frame anchor, integer node origins, skirts, the water plane, `TerrainFrame`, the probe hooks), the chunk-relative `GrassPass` from grass masks, the pure generation `TerrainTiles` (§10.1, §12.2) | `src/saiga/vulkan/scene/Terrain*`, `GrassPass.*`, `shader/vulkan/scene/terrain*`, `grass.*`, `sky.*`, `tests/test_vulkan_terrain.cpp` | [exists: S20] |
 | Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
 | Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition`, `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
@@ -1455,10 +1455,9 @@ void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings);   // 
                             // {bool openWorld; vec3 background} (RenderSceneTypes.h); the camera space's settings decide
                             // the frame: an enclosed space draws no terrain, grass, water or sky (a terrain set of it
                             // is ignored), clears to background (linear, through the HDR path; sRGB-encoded in clay
-                            // mode) and lights the instances with kEnclosedLighting (the PrototypeSettings defaults
-                            // without fog, PrototypeWorld.h), independent of setPrototypeEnvironment; a space without
-                            // settings is open world (S20's frame); superseded by setEnvironment for ambient and fog in
-                            // S36
+                            // mode); S36: lit by the environment's enclosed values (the template's ambient and EV100,
+                            // §10.7) or in clay by prototypeStudio() without fog; a space without settings is open
+                            // world (S20's frame)
 template <typename T> InstancePose<T> interpolatePose(const InstancePose<T>& prev, const InstancePose<T>& curr, T alpha);
                             // RenderSceneTypes.h: the shaders' dynamic pose on the CPU (lerp, slerp with curr negated
                             // if dot < 0, nlerp if dot > 0.9995); DynamicPose = InstancePose<double>
@@ -1476,8 +1475,10 @@ bool multiDrawIndirect() const;
 // planned
 // [exists: S20] as in RenderSink: setTerrainPyramid, setTerrainTile, removeTerrainTile, setGrassMask,
 // removeGrassMask, clearTerrain, patchTerrainTile, patchTerrainPyramid, terrainUploadsPending; plus
-// setPrototypeEnvironment(settings, foliageSeed) (the sky and the foliage texture, replacing S19a's setPrototypeTerrain,
-// until S36), terrainAtlasStats, terrainPassStats (TerrainAtlas, TerrainPass, GrassPass in vulkan/scene/)
+// setFoliageTexture(foliageSeed) (S36: replaces S20's setPrototypeEnvironment(settings, seed), whose sun and fog are
+// the environment's), terrainAtlasStats, terrainPassStats (TerrainAtlas, TerrainPass, GrassPass in vulkan/scene/)
+// [exists: S36a1] setEnvironment, setLightingParameters, lightingStatistics, setLightingDebug, setStudioEnvironment,
+// requestProbe; setTime and kEnclosedLighting are removed (the phases and the enclosed light come with the environment)
 // [planned: S36 environment and lights, S38 fog volumes, S39 water, S41 emitters, S42 clouds]
 void setEnvironment(const EnvironmentState& env);   // sun/moon direction and intensity, sky, weather, fog, clouds
 // No absolute time reaches a shader: EnvironmentState carries per-effect phases (wind, foliage, flicker, particles)
@@ -1559,15 +1560,15 @@ void removeEmitter(EmitterHandle);                                  // fixed pos
   engine terrain and `setPrototypeEnvironment`, below] (`vulkan/scene/PrototypeWorld.h`, S19a's interface):
 
 ```cpp
-struct PrototypeSettings { bool terrain, grass, sky, water, depthPrePass /* false */, fog; float fogDensity, fogFalloff,
-                           sunAzimuth, sunElevation, sunIntensity, ambient, albedo, wind, terrainLodRange, morphStart,
-                           grassRadius, grassCellSize, grassDensity, alphaCutoff; int debugMode; bool flatShading; };
+struct PrototypeSettings { bool terrain, grass, sky, water, depthPrePass /* false */; float albedo /* clay */, wind,
+                           terrainLodRange, morphStart, grassRadius, grassCellSize, grassDensity, alphaCutoff;
+                           int debugMode; bool flatShading; PrototypeAlbedo colors /* S36, D21 */; };
+                                // S36a1c: the sun, ambient and fog fields moved to the environment (§10.7)
 void setPrototypeTerrain(std::shared_ptr<const HeightField> heights, const PrototypeSettings& settings,
                          uint32_t foliageSeed);         // outside of renderFrame; WorldParameters::seed (foliage texture)
 void setPrototypeSettings(const PrototypeSettings& settings);   // at run time (game_set_settings)
-void setTime(double seconds);   // the caller's time (default 0): the phase uniforms fmod(time * f, 2 pi) are computed
-                                // in double per wind frequency (trees 1.1, 0.9, 4.0; grass 1.7, 1.3), no absolute
-                                // time in a shader; games pass world.time() + alpha * dt, goldens and benchmarks 0
+// S19a's setTime(seconds) is removed in S36a1c: the wind phases (trees 1.1, 0.9, 4.0; grass 1.7, 1.3 rad/s, computed
+// in double) are EnvironmentState::phases (§10.7); without an environment they are 0
 uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the PrototypeFoliage color word
 ```
 
@@ -1580,17 +1581,16 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   `RenderSink::addInstanceSet`; the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`: `tree.vert`'s
   wind and `foliage.frag`'s alpha to coverage on `MeshVertex`, the LOD tint from the compacted entry's LOD bits, the
   shading include `prototype_shading.glsl` shared with the grass) needs the foliage texture of
-  `setPrototypeEnvironment` (S20; S23c, F4: materials of the class can be added and set at any time, the frame asserts
-  "PrototypeFoliage instances need the foliage texture of setPrototypeEnvironment" when an instance set or a dynamic
+  `setFoliageTexture` (S36a1c; S20: `setPrototypeEnvironment`; S23c, F4: materials of the class can be added and set at
+  any time, the frame asserts "PrototypeFoliage instances need the foliage texture of setFoliageTexture" when an
+  instance set or a dynamic
   instance draws a mesh of the class and the texture does not exist; a game registers its foliage material with its
   world, whose sink replays it before the render hooks set the environment). Transitional exception to the camera-relative
   rule: the foliage rebuilds its float world xz (`position + (hi + lo) + camera.xz`) for the per-tree wind phase
-  (valid within the prototype's 8 km). The instance draws read a **lighting block** (set 1, `SceneLighting`): S18's
-  fixed sun (`normalize(0.4, 1, 0.7)`, 0.8) and ambient 0.35 with fog off, or with `setPrototypeEnvironment` (S20,
-  replacing S19a's `setPrototypeTerrain`) the prototype's sun, hemisphere ambient, height fog (base: the terrain set's
-  sea level) and wind (until S36); the flat classes have a fog variant
-  (`SCENE_FOG`), chosen per frame (the camera-relative position as a varying costs ~7 % of the flat draws).
-  `freezeTime` and `freezeCulling` are removed (`setTime` covers goldens and benchmarks).
+  (valid within the prototype's 8 km). The scene draws read the **lighting block** (set 1, `SceneLighting`, owned by
+  `SceneLightingSet` since S36a1b): S36a1c: the environment's light (§10.7) or clay's studio environment (S18's fixed
+  light, or `prototypeStudio()` with the foliage texture); one light model (`shadeSurface`), the camera-relative position
+  in every fragment (S19a's `SCENE_FOG` variant is gone). `freezeTime` and `freezeCulling` are removed (S19a).
 - **Engine side** [exists: S19b]: `RenderInstance {std::string mesh;}` (`engine/components/RenderInstance.h`; a cached
   `MeshId`, not visited) selects what an entity renders, by the name of a mesh registered in the `World` (like `DataRef`:
   `visit` needs no World context, saves keep names, `world.hash()` hashes the name, so it does not depend on the
@@ -1866,7 +1866,9 @@ tracks nothing and costs nothing):
   4. ambient occlusion (half resolution, normals reconstructed from depth) [S37]
   5. opaque passes (terrain, instances, skinned characters, grass); they sample the AO texture (white before S37) and
      apply it to the ambient term and, as specular occlusion, to the environment specular [S19]
-  6. sky [S19a: prototype sky, last in the scene pass (`EQUAL` at depth 0); S36: atmosphere]
+  6. sky [S19a: prototype sky, last in the scene pass (`EQUAL` at depth 0); S36a1c: the atmosphere in the physical path
+     (pass 1 of S36a1c, the `environment` section after transfer, computes its LUTs and the environment map), S20's
+     gradient with the studio light in clay mode]
   7. MSAA resolve, tone-map weighted (custom resolve, not `resolveMode`, so bright edges do not alias: every sample
      sanitized and weighted with `1 / (1 + luma(c * exposure / preExposure))`) [exists: S17]; in clay mode (Identity)
      the hardware average (`resolveMode` average in the scene pass): the weighted resolve of display values would
@@ -1878,9 +1880,12 @@ tracks nothing and costs nothing):
      refraction and foam)
   10. analytic fog composite on opaque and water: analytic height fog to the horizon, beyond the froxel range when
       volumetric fog is on [S36-S38; S19a: the prototype's in-shader fog stays (per sample, before the clamp and
-      encoding; also in the instance shaders): a composite would change foliage edges beyond the golden gate]
-  11. clouds composite (§10.11), applying analytic fog at their own (march) depth: 2D layer [S36]; ray march from the
-      volumetric fog far plane with depth-aware upsample [S42]
+      encoding; also in the instance shaders): a composite would change foliage edges beyond the golden gate; S36a1c:
+      the fog colour is the atmosphere's sky at the horizon, every scene fragment has its relative position (the
+      `SCENE_FOG` variant is gone)]
+  11. clouds composite (§10.11), applying analytic fog at their own (march) depth: 2D layer [exists: S36a1c: a mesh in
+      the MSAA scene pass after the sky, not a composite after the resolve]; ray march from the volumetric fog far
+      plane with depth-aware upsample [S42]
   12. froxel volumetric fog composite inside its range (§10.5.1), nearest to the camera [S38]
   13. transparents and particles on the camera side (sorted back to front per object; they apply fog in their own
       shaders) [S39: transparents; S41: particles]
@@ -1920,7 +1925,7 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 - Third-person camera rig (`engine/app/`): orbit around the local player, collision against terrain, instances and
   pieces, look input applied per frame (§8.3); games configure it.
 
-### 10.7 Lighting, time and weather [exists: S36a1a (world time, weather, the environment extract, the exposure rule, the Lighting tab and tools); planned: S36a1b-S36b]
+### 10.7 Lighting, time and weather [exists: S36a1 (world time, weather, the environment extract, the exposure rule, PBR shading, clay's studio environment, the sky ambient and environment map, the Lighting tab and tools); planned: S36a2 (shadows), S36b (local lights)]
 
 - `WorldTime` (time of day, day count, rate; global) and `Weather` (cloudiness, rain, fog density, snow cover, waves,
   wind, cloud offset; per space) are components of the world-state entities (§7.8); how they change is game policy
@@ -1928,7 +1933,19 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 - **Shading model**: physically based (GGX specular with energy-conserving diffuse, metal/roughness from the
   materials, §10.8), light intensities in physical units (sun illuminance in lux, local lights in lumen). S36 uses a
   fixed or per-time-of-day exposure from a game parameter (goldens use the fixed exposure of §17.6); auto exposure with
-  per-game limits (S37) handles day and night. Both material models use it.
+  per-game limits (S37) handles day and night. Both material models use it. [exists: S36a1: `shadeSurface` of
+  `shader/vulkan/scene/lighting/lighting.glsl` in every scene pass (`pbr.glsl`: GGX, height-correlated Smith, Schlick,
+  the multi-scatter compensation with the BRDF LUT; the direct light of the sun and the moon through the atmosphere's
+  transmittance LUT per pixel, the shadow light's cloud shadow); one light model since the a1c flip (the S19a model,
+  `LightingParameters::pbr`, the `SCENE_FOG` variant, `setTime` and `kEnclosedLighting` are gone)]
+- **Clay mode** (`ToneMap::Identity`) lights with a fixed **studio environment** (`StudioEnvironment`: S18's light
+  `sceneStudio()` without the prototype, `prototypeStudio()` (S19a's sun, hemisphere ambient, albedo 0.55, height fog)
+  with the foliage texture, without fog in an enclosed space; `RenderScene::setStudioEnvironment` overrides it), so clay
+  reproduces S19a exactly and ignores time, weather, sky and clouds; flat-colour instances keep their material colour.
+  Games with an environment render **ACES by default** (`enableEnvironment` of `samples/games/common`; `--tonemap
+  identity` gives the clay view). Until S43's materials the prototype's surfaces have constant albedo colours in the
+  physical path (`PrototypeSettings::colors`: ground, rock by slope, shore, water, grass, leaves, bark). [exists:
+  S36a1]
 - `WorldTime` fields: `double timeOfDay` (hours, [0, 24)), `int64 day`, `double rate` (game seconds per simulated
   second, a time multiplier in [-3600, 3600]; 0 freezes the time; replicated and saved, so agents and the UI change the
   speed like other state), `double validAt` (`World::time()` at which the value is valid); `Weather` fields: `double
@@ -1957,15 +1974,18 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
   of day `timeOfDay + rate * (tr - validAt) / 3600`: on the host it interpolates between the last two steps, on a client
   it extrapolates from the snapshot that wrote the value, so the sun moves smoothly at any snapshot rate and a rate
   change does not jump. An enclosed space (`SpaceKind::Enclosed`) has no sun, moon or sky: its template's `ambient`
-  (lux-equivalent colour) and `ev100`. Until the flip of S36a1c the app sends the environment only for worlds with
-  `EnvironmentSetup::enabled` (no game enables it yet). [exists: S36a1a]
+  (lux-equivalent colour) and `ev100`. Every app with a device sends it (S36a1c; also without
+  `EnvironmentSetup::enabled`: the defaults of `WorldTime` and `Weather`). The wind phases of the trees and the grass
+  are its `phases` (S19a's frequencies; no `setTime`). [exists: S36a1a, S36a1c]
 - **Exposure in EV100**: `ExposureSettings {mode TimeOfDay (a piecewise linear curve of EV100 over the sun elevation,
   clamped at the ends) | Fixed (ev100); compensation (subtracted, +1 EV = twice as bright)}`. A scene with an
   environment (`RenderScene::hasEnvironment`) uses the frame exposure `params.exposure / (1.2 * 2^ev100)` clamped to
   [2^-24, 2^10] (`exposureFromEv100`, `RenderScene::frameExposure`); `params.exposure` (`setExposure`, `--exposure`)
   stays a multiplier on top; a scene on which `setEnvironment` was never called keeps the unit-less exposure
   `params.exposure`. The post pass and the weighted resolve use `exposure / preExposure`, so the fp16 values stay near 1
-  over the whole range. Enclosed spaces use their template's EV100. [exists: S36a1a]
+  over the whole range. Enclosed spaces use their template's EV100. The default curve follows the atmosphere's sky
+  luminance (S36a1c: EV100 15 at the zenith sun, 10.5 at the horizon, 2.5 at -6 degrees, -1.5 in the night). [exists:
+  S36a1a]
 - **Sun and moon**: cascaded shadow maps (multi-view culling, §10.2; cascade count and resolution per quality tier);
   far content casts shadows from its impostors in the far cascades; far cascades update every N frames.
 - **Far terrain shadows**: beyond the cascades, a heightfield shadow (horizon) map computed in compute from the coarse
@@ -1984,9 +2004,16 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
   player-built houses do not darken by themselves (caves and dungeons are separate spaces with their own ambient,
   §12.4); games use per-space ambient, light placement and
   exposure to compensate. The lighting code keeps indirect light behind one interface (`AmbientProvider`), so probe-
-  or occlusion-based methods can be added later without changing materials or passes.
+  or occlusion-based methods can be added later without changing materials or passes. [exists: S36a1: `SkyAmbient`
+  (the only `AmbientProvider`) gives the environment map's SH9 irradiance times `ambientScale`, at least `minAmbient`;
+  the AO input is white until S37]
 - **Reflections**: a sky environment map (re-rendered as the time of day changes) for specular everywhere;
-  screen-space reflections on water (§10.9). No local reflection probes.
+  screen-space reflections on water (§10.9). No local reflection probes. [exists: S36a1c: `EnvironmentMap`: a capture
+  cube (the sky-view LUT without the sun disc, the ground below the horizon, the 2D clouds) with box mips, a front and
+  a back prefiltered cube (`environmentResolution`, 5 GGX mips, 32 samples of a fixed set) and SH9 from the capture's
+  32 x 32 box mip; a re-capture is due when the sun or moon moved more than `environmentUpdateDegrees`, the weather or
+  the camera height changed, and is spread over 7 frames (capture, one mip per frame, the SH); the back is swapped in
+  only when complete; `forceFullUpdates` and the first capture do it in one frame]
 - **Night**: moonlight, minimum ambient and exposure limits are parameters; how dark the night is is game policy.
 - Weather parameters feed fog, sky, wetness and snow in the material shaders.
 - Nothing far away bakes lighting (§10.4).
@@ -2052,13 +2079,24 @@ The engine supports two shading models; a game uses either or both (per material
   cosmetic events (§13.4); they never affect simulation state.
 - Rain and snow are screen/camera-local particle fields driven by `Weather`.
 
-### 10.11 Sky and clouds [planned: S36; volumetric clouds: S42]
+### 10.11 Sky and clouds [exists: S36a1c (atmosphere, sun, moon, stars, the 2D cloud layer and its shadows); planned: volumetric clouds S42]
 
 - Physically based atmosphere (sun and moon, time of day from `WorldTime`), stars at night; the sky color also drives
-  ambient light and fog color.
+  ambient light and fog color. [exists: S36a1c: `Atmosphere`, Hillaire 2020: the transmittance (256 x 64) and
+  multiple-scattering (32 x 32) LUTs when `AtmosphereSettings` change, the sky-view LUT (192 x 108, sun and moon, the
+  ground below the horizon) every frame at the camera height in the `environment` section; the sky pass draws it with
+  the limb-darkened sun disc (clamped below the fp16 limit after the pre-exposure), the moon disc lit by the sun
+  direction and hashed stars in the celestial frame (at least 1.5 px, no twinkle); the fog colour is the sky-view LUT
+  at the horizon in the view's azimuth; cloudiness greys the sky, rain multiplies the fog density]
 - **Clouds**, two mechanisms (game and quality tier choose, R-MECH-1):
   - **2D cloud layer**: a textured layer at a fixed altitude driven by `Weather` (cloudiness, `cloudOffset`); cheap,
-    Steam Deck tier and fallback; its coverage texture is projected as the cloud shadow.
+    Steam Deck tier and fallback; its coverage texture is projected as the cloud shadow. [exists: S36a1c:
+    `CloudLayer`: a tiling 1024^2 R8 fBm coverage of 16 km from `CloudSettings::seed` (the cloudiness mapped through
+    the noise's histogram, so the mean coverage follows it), a camera-centred polar grid at `CloudSettings::altitude`
+    with the earth's curvature and an alpha fade over the outer 30% of its radius, drawn in the MSAA scene pass after
+    the sky (`scene.clouds`, depth tested, premultiplied); `cloudShadow()` in `shadows.glsl` (S42's hook) projects the
+    receiver along the shadow light to the layer (1 at and above it, the mean coverage beyond `shadowFade` of the
+    projected distance); the clouds are in the environment map]
   - **Volumetric clouds (optional)**: a cloud band between two altitudes per space (e.g. 600-1500 m; mountains reach
     into and above it). Density from tiling 3D noise textures shaped by `Weather` (cloudiness, `cloudOffset`) and
     optional per-region coverage maps from the world plan. Ray-marched in a compute pass at reduced
@@ -3258,9 +3296,12 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
 | `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad, and from S16b HostClient, HostClientDelay, HostClientAsync; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
 | `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run); S21: `app_status.space_loading` (`null` or `{space, name, progress, frames}`, §12.4); S36: `app_status.lighting` (`{time_of_day, ev100, tone_map, debug_view}`, null without a device) | [exists: S13] |
-| `get_lighting(sections?)` | S36: reads the lighting of the view camera's space: `time` (hours, day, rate; null without `WorldTime`), `weather`, `sun` / `moon` (direction, azimuth / elevation, illuminance at the top and on the ground, phase), `shadow_light`, `tone_map` (with `identity` a note that clay ignores time and weather), `exposure` (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only the unit-less multiplier), `ambient`, `clouds`, `settings` and `parameters` (the `set_lighting` keys); `sections` filters the top-level keys; answered at once; an error without a device. Later parts add keys | [exists: S36a1a] |
+| `get_lighting(sections?)` | S36: reads the lighting of the view camera's space: `time` (hours, day, rate; null without `WorldTime`), `weather`, `sun` / `moon` (direction, azimuth / elevation, illuminance at the top and on the ground, phase), `shadow_light`, `tone_map` (with `identity` a note that clay ignores time and weather), `exposure` (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only the unit-less multiplier), `ambient`, `environment` (S36a1c: the environment map's validity, last capture frame, captures, progress, the LUT recomputations, the cloud layer's state and mean coverage), `clouds`, `settings` and `parameters` (the `set_lighting` keys), `debug`, `gpu`, `memory` (S36a1b); `sections` filters the top-level keys; answered at once; an error without a device. Later parts add keys | [exists: S36a1a] |
 | `set_time_of_day(hours?, day?, rate?)`, `set_weather(space?, cloudiness?, rain?, fog_density?, snow_cover?, wind?, cloud_offset?, wave_amplitude?, wave_steepness?)` | S36: the validated writes of `WorldTime` / a space's `Weather` (`setWorldTime` / `setWeather`; the error names the argument and its range; unknown arguments are errors); return `values` and `previous`; an error without `WorldTime` / `Weather`; with `--coop` they write the hidden host, a pure client is refused | [exists: S36a1a] |
 | `set_lighting(...)` | S36: the settings, not world state: `tone_map`, `exposure_mode`, `ev100`, `exposure_compensation`, `ambient_scale`, `min_ambient`, `sun_override`, `cloud_altitude`, `cloud_radius`, `cloud_shadow_fade`, `star_intensity`, `ground_albedo` and every `LightingParameters` field by its snake_case name; validated as a whole and applied all or nothing from the next frame (the error names every invalid key); returns `values` and `previous` (an undo payload). Later parts add keys | [exists: S36a1a] |
+| `set_lighting_debug(view?, overlays?, mapping?)`, `screenshot(..., lighting_view?, overlays?)` | S36: the scene debug view (`LightingDebugView`: data views write raw values, a debug frame latches the identity tone map without a pipeline change and keeps the pre-exposure history), the overlays (`DebugLines`) and the tab's preview mapping; the screenshot's one-frame override | [exists: S36a1b] |
+| `capture_lighting(image, mip?, range?, log?, color_map?, full?, max_width?, format?, stats_only?)` | S36: a data image (the preview conversion of `LightingDebug`, the same as the Lighting tab's) plus a JSON block with the mapping and the source values' min, max, mean and 16-bin histogram; `stats_only` the block alone (the only path to GPU image statistics); images `luminance`, `brdf_lut` (S36a1b), `transmittance_lut`, `sky_view_lut`, `environment` (`mip`), `irradiance`, `cloud_coverage`, `cloud_shadow` (S36a1c); `full: true` completes the environment map first; deferred with the screenshot's deadline | [exists: S36a1b, S36a1c] |
+| `probe_lighting(pixel? \| position?)` | S36: a sequence of 8 frames (normal, the albedo, normal and material views, the direct, ambient and specular radiance raw, the cloud shadow) with 1 x 1 readbacks of the resolved pixel; the camera and the environment are held; answers the material, the radiance parts, the shadow factors, the luminance and its EV100, `frames` and `consistent` | [exists: S36a1b; the cloud frame S36a1c] |
 | `set_ui_tab(tab?)` | the debug UI (§17.1): selects a tab by name (`game`, `performance`, `engine`, `console`, `lighting`, a game tab) as its key does, or only reads; returns the tab, the tabs with their keys and whether the UI is visible; an error when the UI is off | [exists: S19c] |
 
 S16: on a client the world API is read-only for replicated entities except the owner-authoritative components of the
@@ -3341,9 +3382,11 @@ written between steps through `setWorldTime` / `setWeather`, so they replicate a
 on the hidden host, read-only on a pure client; without `WorldTime` a line naming `EnvironmentSetup::enabled`), Sun and
 moon (elevation, azimuth, illuminance at the top and on the ground, colour swatches, the shadow light, the moon phase,
 "override sun") and Exposure (mode, the fixed EV100, the frame's EV100 and the curve's, the compensation, the effective
-exposure and the pre-exposure) [exists: S36a1a]; the toolbar (tone map, debug view, overlays), Ambient, Sky and clouds, the debug views
-and previews (`ImGuiVulkanRenderer::addTexture`, ImGui images per draw command [exists: S36a1a]), Cascades, Far terrain
-shadows, Local lights and GPU and memory come with the later parts of S36.
+exposure and the pre-exposure) [exists: S36a1a]; the toolbar (tone map, debug view, overlays, force full updates, copy
+JSON), Ambient (the SH, the albedo colours, the environment cube with its capture progress), Sky and clouds (the
+transmittance and sky-view LUTs, the cloud coverage and cloud shadow previews, the cloud and atmosphere settings), GPU
+and memory, the debug views and previews (`ImGuiVulkanRenderer::addTexture`, ImGui images per draw command) [exists:
+S36a1a-S36a1c]; Cascades, Far terrain shadows and Local lights come with S36a2 and S36b.
 
 The Performance tab shows the frame statistics (`FrameStatistics` in `engine/app/`) over a selectable window (3, 10 or
 30 s, refreshed every 0.5 s; the first second after the start and frames that were not presented are left out): first
@@ -3552,11 +3595,20 @@ goldens).
 - `bool compareGolden(const TemplatedImage<ucvec4>& image, const std::string& name, const std::string& deviceName)` in
   `tests/golden_image.h` (header only; `deviceName` from `VkPhysicalDeviceProperties::deviceName` decides the gating);
   PNGs in `data/tests/golden/`.
-  - Setup: clay mode (`WorldSettings::shading`), time 0 (`RenderScene::setTime(0)`, S19a; before: `freezeTime`),
-    fixed seed, camera, 512 x 512, captured after 5 frames; small scenes (<= 1 km, <= 10^4 instances).
+  - Setup: clay mode (`WorldSettings::shading`; S36: the studio environment, which reproduces S19a's light, so the clay
+    goldens do not move with the atmosphere, clouds or exposure), the wind phases 0 (S36: `EnvironmentState::phases`
+    empty or no environment; S19a: `setTime(0)`), fixed seed, camera, 512 x 512, captured after 5 frames; small scenes
+    (<= 1 km, <= 10^4 instances).
   - Golden mode uses a fixed exposure and forces a full (non-incremental) update of every incremental effect (volumetric
-    fog and cloud history, horizon and cloud shadow maps, shadow atlas) in the captured frame [planned: by the stage of
-    each effect].
+    fog and cloud history, horizon and cloud shadow maps, shadow atlas) in the captured frame [exists: S36a1c: a fixed
+    EV100 (`ExposureMode::Fixed`) and `LightingParameters::forceFullUpdates` (the environment map); the later effects
+    by their stage].
+  - The lighting goldens (S36a1c, `tests/test_engine_lighting_render.cpp`, `LightingGolden.*`): a `World` with the
+    environment enabled on a `VulkanRenderSink`, the `mountainRidgeHook` terrain (4 km at 2 m), 200 `PrototypeFoliage`
+    trees and three boxes, 512 x 512 with 4 samples, ACES: `lighting_noon` (12:00, EV100 15), `lighting_sunset`
+    (17:45, the sun at about 3 degrees, EV100 11.5), `lighting_night` (23:00, the full moon, EV100 -1) and
+    `lighting_clouds` (12:00, cloudiness 0.7, from 2500 m above the layer, EV100 15.5); without sun shadows until
+    S36a2 regenerates them.
 - S02 goldens (`VulkanWorldGolden.WorldOverview` / `.WorldForest`; until S19: `tests/test_vulkan_world.cpp`,
   `WorldParameters` with `terrain.size = 513` (1 km), 5000 trees, seed 1; since S20 the setup below): `world_overview` (camera 300 m above the ground 100 m from the
   west edge at the center z, looking 45 degrees down along +x, so terrain and trees fill the image) and `world_forest`
@@ -3636,11 +3688,14 @@ goldens).
   run without streaming: compare its GPU sections), its time is excluded from the frame
   interval, CPU busy and the stall count and reported as `terrain_stream_ms` / `wait_ms.terrain_stream` with a
   `terrain` block `{uploads, upload_mb, resident_tiles, cpu_mb, gpu_mb, base_spacing}`; `--base-spacing 2` runs the
-  same space at 2 m for comparisons; 1920 x 1080, MSAA 4; 60 warm-up frames excluded; time 0 (`setTime`); `--benchmark` turns validation, vsync,
+  same space at 2 m for comparisons; 1920 x 1080, MSAA 4; 60 warm-up frames excluded; S36a1c: 10:00 frozen (S19a: time 0, `setTime`); `--benchmark` turns validation, vsync,
   ImGui and defragmentation off; the `gpu_ms` keys stay S03's (`WorldBenchmark::gpuKeys`), from S19a computed from
   `RenderScene`'s sections: `trees` = `scene.instances`, `upload + cull` = `transfer` + `cull`, `terrain + water` =
-  `depth.terrain` + `scene.terrain`, `grass` = `scene.grass`, `sky` = `scene.sky` (`wireframe` dropped); `quality` is
-  `"default"` until S37.
+  `depth.terrain` + `scene.terrain`, `grass` = `scene.grass`, `sky` = `scene.sky` (S36a1c: + `scene.clouds` +
+  `environment`; `wireframe` dropped); `quality` is `"default"` until S37. S36a1c: `game_world` renders ACES with its
+  environment (10:00 frozen, cloudiness 0.3; the JSON's `lighting` block `{time, cloudiness, ev100, tone_map,
+  features}`), so the committed baselines of `flyover` and `forest` are ACES numbers from S36a1c on (the clay numbers
+  of `--tonemap identity` are reported once in the plan's Results).
   Writes `benchmark_<name>.json` `{gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height,
   cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}` (plus the
   engine's values below) to the working
@@ -4152,7 +4207,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; leave and rejoin before the next commit: no item lost; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
 | S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6); tech demo: the platformer character skinned, with the animation state machine (replaces the procedural box animation) | S19, S16, S16b | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local); platformer demo screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6); tech demos: all three on the camera rig (third-person for the platformer, chase cameras for the car and the airplane; `ChaseCamera` removed) | S29, S34 | camera collision tests (CI); reviewed in a session (local); tech demo cameras reviewed (local) |
-| S36 | Lighting | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11); tech demos: lighting and shadows shown in the flight demo (day and night) | S19, S20 | golden images per time of day (CI); flight demo screenshots reviewed (local) |
+| S36 | Lighting (five parts, `docs/stages/S36_lighting.plan.md`: S36a1a world state and tools, S36a1b lighting block and PBR, S36a1c sky, environment map, 2D clouds, games and the flip [done]; S36a2 shadows; S36b local lights) | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11); tech demos: lighting and shadows shown in the flight demo (day and night) | S19, S20 | golden images per time of day (CI); flight demo screenshots reviewed (local) |
 | S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10); tech demos: post chain and tiers in all three demos | S36, S27 | per-pass budgets met on the desktop reference (or reported as open per §17.10 if no such card is available) and, when available, the Steam Deck (local); benchmark baselines in `data/tests/benchmarks.json` for the desktop reference class (RTX 3060 / RX 6600, §17.10; or reported as open per §17.10 if no such card is available) (local); golden images per tier (CI); tech demo screenshots per tier reviewed (local) |
 | S38 | Volumetric fog | Froxel fog with light shafts, fog volumes, analytic fog to the horizon (§10.5.1); tech demo: flight through volumetric fog | S37 | golden images with fog and local lights (CI); fog within its budget (local); flight demo screenshots reviewed (local) |
 | S39 | Water | Global sea plane, waves, `waterHeight`, buoyancy, exclusion volumes, rendering incl. the transparent pass, underwater (§10.9); tech demos: flight over the sea, racing along the coast | S28, S37 | boat-floats scenario incl. host + client; a pit dug below sea level shows water; golden images above and below water (CI); water within its budget (local); tech demo screenshots reviewed (local) |

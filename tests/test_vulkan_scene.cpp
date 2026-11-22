@@ -1578,9 +1578,7 @@ TEST(VulkanMeshImport, FlatBox)
     EXPECT_FALSE(error.empty());
 }
 
-// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden;
-// S36a1b: the same golden with the LIGHTING_PBR variant on the same scene (clay: the studio environment keeps the
-// material colours; not in the update mode, the golden is written by the legacy variant)
+// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden
 TEST_F(VulkanSceneContent, ImportedMeshGolden)
 {
     MeshLods lods;
@@ -1612,11 +1610,6 @@ TEST_F(VulkanSceneContent, ImportedMeshGolden)
     EXPECT_NE(top, left);
     EXPECT_NE(left, right);
     compareGolden(img, "scene_flat_box", deviceName());
-    if (goldenUpdateMode()) return;
-    LightingParameters lighting = scene->lightingParameters();
-    lighting.pbr                = true;
-    scene->setLightingParameters(lighting);
-    compareGolden(SceneFrame(), "scene_flat_box", deviceName());
 }
 #endif
 
@@ -2280,7 +2273,8 @@ TEST_F(VulkanSceneContent, DepthPrePassMatches)
         // S20: test tiles of an integer hook on the GPU terrain set (with the environment's light)
         PrototypeSettings ps;
         ps.grass = false;
-        scene->setPrototypeEnvironment(ps, 1);
+        scene->setFoliageTexture(1);
+        scene->setPrototypeSettings(ps);
         const TerrainLayout layout = TerrainTestHooks::testLayout(16, 2);
         const auto source          = TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1);
         scene->addMaterial(1, "flat", flatMaterial());
@@ -2384,22 +2378,15 @@ class VulkanSceneSpaces : public VulkanSceneContent
 };
 
 // An enclosed camera space: no terrain, grass, water or sky (a terrain set of that space is ignored), the background
-// as the clear color through the tone map; its dynamic instances drawn, those of space 0 not; the instances lit by
-// kEnclosedLighting, not by the game's environment
+// as the clear color through the tone map; its dynamic instances drawn, those of space 0 not; without an environment
+// the instances are lit by the enclosed studio light (S36: prototypeStudio() without fog; S21's kEnclosedLighting)
 TEST_F(VulkanSceneSpaces, EnclosedSpace)
 {
     RenderSceneParameters p;
     p.toneMap     = ToneMap::Aces;
     p.msaaSamples = 4;
     CreateScene(p);
-    // The game's outdoor environment: a low, bright sun with fog and more ambient (the enclosed lighting must not use
-    // it)
-    PrototypeSettings game;
-    game.sunElevation = 10;
-    game.fog          = true;
-    game.sunIntensity = 2.5f;
-    game.ambient      = 0.6f;
-    scene->setPrototypeEnvironment(game, 1);
+    scene->setFoliageTexture(1);
     scene->setSpaceSettings(1, enclosedSettings());
     EXPECT_FALSE(scene->spaceSettings(1).openWorld);
     EXPECT_TRUE(scene->spaceSettings(0).openWorld);
@@ -2441,10 +2428,13 @@ TEST_F(VulkanSceneSpaces, EnclosedSpace)
     EXPECT_GT(std::abs(int(lit(0)) - acesPixel(b[0])), 10);
     for (int c = 0; c < 3; ++c) EXPECT_NEAR(int(enclosed(int(out(1)), int(out(0)))(c)), acesPixel(b[c]), 2);
 
-    // The reference: the same box in an open-world space without terrain, lit by kEnclosedLighting (fog and sky off)
-    PrototypeSettings reference = kEnclosedLighting;
-    reference.sky               = false;
+    // The reference: the same box in an open-world space without terrain, lit by the enclosed studio light (the
+    // prototype's without fog; the sky off)
+    EXPECT_FALSE(scene->studioEnvironment(true).fog);
+    PrototypeSettings reference;
+    reference.sky = false;
     scene->setPrototypeSettings(reference);
+    scene->setStudioEnvironment(scene->studioEnvironment(true));
     scene->setDynamic(scene->addDynamic(1), ChunkId{2, 0, 0}, inside, inside);
     camera.space = 2;
     camera.apply(*scene);
@@ -2453,8 +2443,12 @@ TEST_F(VulkanSceneSpaces, EnclosedSpace)
     EXPECT_EQ(st.instancesPerLod[0], 1u);
     const ucvec4 ref = open(int(in(1)), int(in(0)));
     for (int c = 0; c < 3; ++c) EXPECT_NEAR(int(lit(c)), int(ref(c)), 1) << c;
-    // The game's own environment lights it differently (the comparison above means something)
-    scene->setPrototypeSettings(game);
+    // Another light (a low, bright sun with more ambient) lights it differently (the comparison above means something)
+    StudioEnvironment game = prototypeStudio();
+    game.sunDir            = vec3(0.3f, 0.17f, 0.94f).normalized();
+    game.sunIntensity      = 2.5f;
+    game.ambient           = 0.6f;
+    scene->setStudioEnvironment(game);
     SceneFrame();
     const auto gameLit = SceneFrame();
     const ucvec4 g     = gameLit(int(in(1)), int(in(0)));
@@ -2468,8 +2462,7 @@ TEST_F(VulkanSceneSpaces, SwitchBack)
     RenderSceneParameters p;
     p.toneMap = ToneMap::Aces;
     CreateScene(p);
-    PrototypeSettings ps;
-    scene->setPrototypeEnvironment(ps, 1);
+    scene->setFoliageTexture(1);
     scene->setSpaceSettings(1, enclosedSettings());
     scene->addMaterial(1, "flat", flatMaterial());
     scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
@@ -2505,8 +2498,7 @@ TEST_F(VulkanSceneSpaces, SwitchBack)
 TEST_F(VulkanSceneSpaces, NoSettingsMeansOpenWorld)
 {
     CreateScene();
-    PrototypeSettings ps;
-    scene->setPrototypeEnvironment(ps, 1);
+    scene->setFoliageTexture(1);
     scene->setSpaceSettings(1, enclosedSettings());
     // Regression (PR review, S21): the settings of another space as the argument (an element of the resized vector)
     scene->setSpaceSettings(40, scene->spaceSettings(1));

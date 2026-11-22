@@ -9,13 +9,13 @@
 // The PrototypeFoliage pipeline class of RenderScene (S19a, transitional until S43): the prototype trees' tree.vert on
 // the instance layout. The instance is placed as in instance.vert; the color word packs the foliage texture layer (bits
 // 0-7, 0xFF: opaque parts), the AO (bits 8-15) and the wind weight (bits 16-23) (packPrototypeFoliageColor). Wind: the
-// whole tree sways, the leaves flutter, with the phases of the lighting block (fmod(time * f, 2 pi) in double on the
+// whole tree sways, the leaves flutter, with the phases of the lighting block (S36: EnvironmentState::phases, fmod in double on the
 // CPU, no absolute time) and a per-tree phase from its world xz. Transitional exception to the camera-relative rule
 // (S20/S23 replace the prototype): the world xz is rebuilt in float as position + (hi + lo) + camera.xz (valid within
 // the prototype's 8 km).
 
 #include "instance_common.glsl"
-#include "scene_lighting.glsl"
+#include "lighting/scene_block.glsl"
 
 layout(std430, set = 0, binding = 10) readonly buffer Compacted
 {

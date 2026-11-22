@@ -36,9 +36,10 @@ struct PrototypeAlbedo
 
 /**
  * The settings of the prototype content of RenderScene (S19a, docs/engine_design.md §10.1; S20: the terrain, grass,
- * water and sky of the new path, the environment of setPrototypeEnvironment until S36): the game's WorldSettings map to
- * it (R-MECH-1: the toggles, distances and light stay game settings). The tree LOD distances and the wind's bounds
- * padding are mesh data (RenderScene::setMeshLodDistances, PrototypeForest).
+ * water and sky of the new path): the game's WorldSettings map to it (R-MECH-1: the toggles and distances stay game
+ * settings). S36: the sun, ambient and fog are the environment's (WorldTime, Weather, EnvironmentSettings; clay mode's
+ * studio environment is prototypeStudio() with albedo). The tree LOD distances and the wind's bounds padding are mesh
+ * data (RenderScene::setMeshLodDistances, PrototypeForest).
  */
 struct PrototypeSettings
 {
@@ -48,15 +49,8 @@ struct PrototypeSettings
     // environment (the opaque instances). Off by default: the terrain already draws first, so the pre-pass only removes
     // terrain self-overdraw and costs a second CDLOD vertex pass (measured slower in S19a); the mechanism stays for S37
     bool depthPrePass = false;
-    bool fog          = true;
-    float fogDensity  = 0.00015f;
-    float fogFalloff  = 0.0012f;
-    // Degrees
-    float sunAzimuth   = 35.0f;
-    float sunElevation = 38.0f;
-    float sunIntensity = 1.0f;
-    float ambient      = 0.25f;
-    float albedo       = 0.55f;
+    // The clay albedo of the prototype's surfaces (the studio environment of clay mode)
+    float albedo = 0.55f;
     // The wind strength of the trees' and the grass's shaders (the trees' bounds padding is mesh data)
     float wind = 1.0f;
     // CDLOD: the range of level 0 (m) and the morph start as a fraction of a level's range
@@ -75,25 +69,6 @@ struct PrototypeSettings
     // The surface colours of the physical light path (S36, D21; not saved, the Lighting tab edits them)
     PrototypeAlbedo colors;
 };
-
-// The fixed lighting of an enclosed camera space (S21, until S36): the PrototypeSettings defaults (sun azimuth 35,
-// elevation 38, intensity 1, ambient 0.25, albedo 0.55) without fog; independent of the game's
-// setPrototypeEnvironment (its sun and fog belong to the outdoors)
-inline const PrototypeSettings kEnclosedLighting = []()
-{
-    PrototypeSettings s;
-    s.fog = false;
-    return s;
-}();
-
-// The lighting block of the instance draws from the prototype settings (sun, hemisphere ambient, fog with its base
-// height, wind phases of the time, cutoff, tint): RenderScene's environment (S20)
-SAIGA_VULKAN_API void prototypeLighting(const PrototypeSettings& settings, double time, float fogBase,
-                                        SceneLighting& out);
-
-// The studio environment of clay mode from the prototype settings (S36, A3: S19a's sun, hemisphere ambient, albedo and
-// fog reproduced; until the a1c migration moves them out of PrototypeSettings)
-SAIGA_VULKAN_API StudioEnvironment studioFromPrototype(const PrototypeSettings& settings);
 
 // The color word of a PrototypeFoliage vertex (S19a): the foliage texture layer in bits 0-7 (a negative layer: opaque
 // parts, 0xFF), the AO in bits 8-15 and the wind weight in bits 16-23 (unorm8; both asserted in [0, 1])

@@ -77,11 +77,11 @@ struct PrototypeSettings;
  * buffers grow at most to maxStorageBufferRange (RenderSceneParameters' capacities; more is a fatal error).
  *
  * Terrain (S20): the GPU terrain set of one space (TerrainAtlas) filled through the terrain calls (the render sink's),
- * drawn as CDLOD (TerrainPass) with the water plane and the grass (GrassPass). The prototype environment
- * (setPrototypeEnvironment, until S36) adds the sky and the foliage texture of the PrototypeFoliage pipeline class (the
- * trees are instance sets the game creates, PrototypeForest); its settings set the instances' lighting block (sun,
- * hemisphere ambient, height fog, wind; without it S18's fixed light, fog off). The time of the wind phases comes from
- * setTime (no wall clock).
+ * drawn as CDLOD (TerrainPass) with the water plane and the grass (GrassPass). setFoliageTexture adds the foliage
+ * texture of the grass and of the PrototypeFoliage pipeline class (the trees are instance sets the game creates,
+ * PrototypeForest) and the S20 sky. The light (S36, docs/engine_design.md §10.7): the environment of setEnvironment
+ * (sun, moon, sky, clouds, exposure; the wind phases), clay mode's studio environment, the atmosphere's sky in the
+ * physical path.
  */
 class SAIGA_VULKAN_API RenderScene
 {
@@ -173,7 +173,7 @@ class SAIGA_VULKAN_API RenderScene
 
     // Explicit IDs (asserted free, names unique; ID 0 is none). A PipelineClass::PrototypeFoliage material can be
     // added and set at any time (S23c, F4); a frame with instances of that class to draw asserts the foliage texture
-    // of setPrototypeEnvironment
+    // of setFoliageTexture
     void addMaterial(MaterialId id, const std::string& name, const MaterialData& data);
     // A change of alphaMask, twoSided or pipelineClass rebuilds the bucket layout
     void setMaterial(MaterialId id, const MaterialData& data);
@@ -210,7 +210,7 @@ class SAIGA_VULKAN_API RenderScene
     void removeDynamic(InstanceHandle h);
 
     // The render settings of a space (S21): the camera's space decides what the frame draws (an enclosed space: no
-    // terrain, grass, water or sky, the background as the clear color, kEnclosedLighting); a space without settings
+    // terrain, grass, water or sky, the background as the clear color, the template's light); a space without settings
     // is drawn as open world
     void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings);
     const SpaceRenderSettings& spaceSettings(SpaceId space) const;
@@ -275,12 +275,12 @@ class SAIGA_VULKAN_API RenderScene
     // The last recorded frame's grass blocks (GrassPass, S20)
     const GrassPass& grassPass() const { return *grass; }
 
-    // The prototype environment of the new terrain path (S20, until S36): the sun, fog, clay shading and wind of the
-    // settings for the terrain, water, grass and instances, and the foliage texture of the grass and of the
-    // PrototypeFoliage class (foliageSeed). Outside of renderFrame (it waits for the device and uploads); a second
-    // call replaces the texture
-    void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliageSeed);
-    bool hasPrototypeEnvironment() const { return foliage != nullptr; }
+    // The foliage texture of the grass and of the PrototypeFoliage class from the seed (S36: replaces S20's prototype
+    // environment call, whose sun and fog are the environment's; the passes and LOD settings are
+    // setPrototypeSettings'). Outside of renderFrame (it waits for the device and uploads); a second call replaces the
+    // texture. With it the S20 sky is drawn also without an environment
+    void setFoliageTexture(uint32_t foliageSeed);
+    bool hasFoliageTexture() const { return foliage != nullptr; }
     // Tests: the last frame's single-sampled depth (the SAMPLE_ZERO resolve target; waits for the device), row 0 at the
     // top; reversed-Z (1 at the near plane, 0 at infinity)
     std::vector<float> readDepthForTests(int& width, int& height);
@@ -293,19 +293,6 @@ class SAIGA_VULKAN_API RenderScene
     // terrain
     void setPrototypeSettings(const PrototypeSettings& settings);
     const PrototypeSettings& prototypeSettings() const;
-    // The time of the wind phases (seconds, default 0): the shaders get fmod(time * f, 2 pi) per wind frequency,
-    // computed in double (§10.1: no absolute time in a shader). Games pass world.time() + alpha * dt; goldens and
-    // benchmarks keep 0. Transitional exception to the camera-relative rule with it: the foliage rebuilds its float
-    // world xz for the per-tree wind phase (valid within a few km of the origin; S23 replaces the prototype trees)
-    // (held during a probe_lighting sequence like the camera: the foliage's wind would move the probed surface)
-    void setTime(double seconds)
-    {
-        if (probeRun)
-            heldTime = seconds;
-        else
-            sceneTime = seconds;
-    }
-    double time() const { return sceneTime; }
 
     // ---- environment and lighting (S36, docs/engine_design.md §10.7) -----------------------------------------------
     // The environment of the next frames (main thread, from the next frame; also from the transfer callback like
@@ -313,19 +300,16 @@ class SAIGA_VULKAN_API RenderScene
     void setEnvironment(const EnvironmentState& environment);
     const EnvironmentState& environment() const { return env; }
     bool hasEnvironment() const { return envSet; }
-    // Applied at the next frame start (resources are recreated through deferDelete when a size changes; pbr recreates
-    // the scene pipelines)
+    // Applied at the next frame start (resources are recreated through deferDelete when a size changes)
     void setLightingParameters(const LightingParameters& parameters);
     const LightingParameters& lightingParameters() const { return params.lighting; }
-    // The light model the frame being recorded draws with (LightingParameters::pbr as latched at its start)
-    bool pbrActive() const { return framePbr; }
-    // The studio environment of clay mode (A3, D7): by default sceneStudio(), or with the prototype environment its
-    // settings' sun, ambient, albedo and fog (prototypeStudio() at the defaults); an enclosed space uses
-    // prototypeStudio() without fog. setStudioEnvironment overrides both (tests, a game that wants another clay light)
+    // The studio environment of clay mode (A3, D7): by default sceneStudio(), with the foliage texture (the prototype)
+    // prototypeStudio() with PrototypeSettings::albedo; an enclosed space uses prototypeStudio() without fog.
+    // setStudioEnvironment overrides both (tests, a game that wants another clay light)
     void setStudioEnvironment(std::optional<StudioEnvironment> studio) { studioOverride = studio; }
     // The studio environment of the next frame for an open (or an enclosed) camera space
     StudioEnvironment studioEnvironment(bool enclosed = false) const;
-    // The frame being recorded uses the physical path of the LIGHTING_PBR variant: an environment and a tone map other
+    // The frame being recorded uses the physical path: an environment and a tone map other
     // than Identity (latched with the tone map)
     bool physicalLighting() const { return framePhysical; }
     // The lighting's resources (tests, the debug tools)
@@ -340,8 +324,7 @@ class SAIGA_VULKAN_API RenderScene
 
     // ---- the lighting's debug core (S36a1b, A8) ------------------------------------------------------------------
     // The debug view and overlays of the next frames. While a view other than None is active a frame latches
-    // ToneMap::Identity (no pipeline changes) and does not update the pre-exposure history; the views are drawn by the
-    // LIGHTING_PBR variant (LightingParameters::pbr until the a1c flip)
+    // ToneMap::Identity (no pipeline changes) and does not update the pre-exposure history
     void setLightingDebug(const LightingDebugState& state) { userDebug = state; }
     const LightingDebugState& lightingDebug() const { return userDebug; }
     // A one-frame override for the frames that are read back (requestScreenshot), like setImguiOverride
@@ -372,11 +355,11 @@ class SAIGA_VULKAN_API RenderScene
     DebugLines& debugLines() { return *lines; }
     // The statistics of the newest recorded frame (the luminance reduction when it was requested)
     const LightingStatistics& lightingStatistics() const { return lightStats; }
-    // probe_lighting's sequence at a pixel of the next frames (7 frames; requests made before the sequence starts share
-    // it). The camera, the environment and the time are held during the sequence (setCamera / setEnvironment / setTime
-    // take effect after it); the callback runs after the last frame. While it runs, screenshots and preview conversions
-    // wait for the first frame after it (they would read the debug frames), and the output shows frame 1's image (the
-    // window does not flash the debug frames; ImGui stays live)
+    // probe_lighting's sequence at a pixel of the next frames (8 frames; requests made before the sequence starts share
+    // it). The camera and the environment (with it the wind phases) are held during the sequence (setCamera /
+    // setEnvironment take effect after it); the callback runs after the last frame. While it runs, screenshots and
+    // preview conversions wait for the first frame after it (they would read the debug frames), and the output shows
+    // frame 1's image (the window does not flash the debug frames; ImGui stays live)
     void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
     // The same at the pixel of a world point, projected with the camera of the sequence's frame 1 (outside the image:
     // inImage false)
@@ -384,7 +367,7 @@ class SAIGA_VULKAN_API RenderScene
     bool probeRunning() const { return probeRun != nullptr; }
     // A probe sequence runs in the next recorded frame (running or requested)
     bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
-    static constexpr int kProbeFrames = 7;
+    static constexpr int kProbeFrames = 8;
 
    private:
     friend class SceneFrameRenderer;
@@ -396,8 +379,7 @@ class SAIGA_VULKAN_API RenderScene
     // setEnvironment (S36)
     EnvironmentState env;
     bool envSet = false;
-    // S36a1b: the pipeline variant of the frame (LightingParameters::pbr), the studio override
-    bool framePbr      = false;
+    // S36: the physical path of the frame, the studio override
     bool framePhysical = false;
     std::optional<StudioEnvironment> studioOverride;
     std::unique_ptr<SceneLightingSet> lightingSet;
@@ -427,10 +409,9 @@ class SAIGA_VULKAN_API RenderScene
     };
     std::unique_ptr<ProbeRun> probeRun;
     std::vector<ProbeRequest> probeRequests;
-    // While a probe runs: the environment, tone map, camera and time given meanwhile (applied after it)
+    // While a probe runs: the environment, tone map and camera given meanwhile (applied after it)
     std::optional<EnvironmentState> heldEnvironment;
     std::optional<ToneMap> heldToneMap;
-    std::optional<double> heldTime;
     struct HeldCamera
     {
         SpaceId space;
@@ -454,13 +435,12 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<TerrainAtlas> atlas;
     std::unique_ptr<TerrainPass> terrain;
     std::unique_ptr<GrassPass> grass;
-    // The foliage texture of setPrototypeEnvironment
+    // The foliage texture of setFoliageTexture
     std::unique_ptr<Texture2DArray> foliage;
     // The frame's check without the foliage texture (S23c, F4; only with SAIGA_ASSERTS, SceneCulling never draws the
     // class without the texture): asserts that no instance set or dynamic instance draws a mesh of the PrototypeFoliage
     // class
     void checkFoliageInstances() const;
-    double sceneTime = 0;
     // The next IDs of reserveIds (mesh, material)
     std::array<uint32_t, 2> nextReservedId = {1, 1};
     FrameTimes lastTaken;

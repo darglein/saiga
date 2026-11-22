@@ -7,12 +7,12 @@
         "type": "Release"
       },
       "cpu_ms": {
-        "median": 2.3580895,
-        "p95": 6.493994
+        "median": 3.790652999999999,
+        "p95": 6.705351
       },
       "cpu_work_ms": {
-        "median": 0.0352945,
-        "p95": 0.057027999999999995
+        "median": 0.1941985,
+        "p95": 0.311513
       },
       "frames": 600,
       "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
@@ -23,27 +23,34 @@
           "p95": 3.2e-05
         },
         "sky": {
-          "median": 0.01072,
-          "p95": 0.011583999999999999
+          "median": 0.082976,
+          "p95": 0.088224
         },
         "terrain + water": {
-          "median": 0.09184,
-          "p95": 0.139232
+          "median": 0.35270399999999996,
+          "p95": 0.40649599999999997
         },
         "trees": {
-          "median": 1.477552,
-          "p95": 2.659712
+          "median": 1.4163999999999999,
+          "p95": 1.493536
         },
         "upload + cull": {
-          "median": 0.023376,
-          "p95": 0.034592
-        },
-        "wireframe": {
-          "median": 0,
-          "p95": 3.2e-05
+          "median": 0.092288,
+          "p95": 0.16992000000000002
         }
       },
       "height": 1080,
+      "lighting": {
+        "cloudiness": 0.3,
+        "ev100": 14.56442642211914,
+        "features": {
+          "atmosphere": true,
+          "clouds": true,
+          "force_full_updates": false
+        },
+        "time": 10,
+        "tone_map": "aces"
+      },
       "quality": "default",
       "width": 1920
     },
@@ -54,43 +61,50 @@
         "type": "Release"
       },
       "cpu_ms": {
-        "median": 1.973881,
-        "p95": 3.905304
+        "median": 2.8895295,
+        "p95": 3.172749
       },
       "cpu_work_ms": {
-        "median": 0.033160999999999996,
-        "p95": 0.054083000000000006
+        "median": 0.178346,
+        "p95": 0.251814
       },
       "frames": 600,
       "gpu": "NVIDIA GeForce RTX 5080 Laptop GPU",
       "gpu_frames": 600,
       "gpu_ms": {
         "grass": {
-          "median": 0.627216,
-          "p95": 0.773152
+          "median": 1.291376,
+          "p95": 2.0517119999999998
         },
         "sky": {
-          "median": 0.005952,
-          "p95": 0.0070079999999999995
+          "median": 0.08934399999999999,
+          "p95": 0.8465919999999999
         },
         "terrain + water": {
-          "median": 0.049808,
-          "p95": 0.059455999999999995
+          "median": 0.20864,
+          "p95": 0.250752
         },
         "trees": {
-          "median": 0.476128,
-          "p95": 0.549376
+          "median": 0.570688,
+          "p95": 1.368768
         },
         "upload + cull": {
-          "median": 0.020928,
-          "p95": 0.023232
-        },
-        "wireframe": {
-          "median": 0,
-          "p95": 3.2e-05
+          "median": 0.038256,
+          "p95": 0.041248
         }
       },
       "height": 1080,
+      "lighting": {
+        "cloudiness": 0.3,
+        "ev100": 14.56442642211914,
+        "features": {
+          "atmosphere": true,
+          "clouds": true,
+          "force_full_updates": false
+        },
+        "time": 10,
+        "tone_map": "aces"
+      },
       "quality": "default",
       "width": 1920
     },

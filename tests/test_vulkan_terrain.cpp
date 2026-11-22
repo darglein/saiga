@@ -1199,7 +1199,7 @@ ChunkId Chunk(int32_t x, int32_t z)
 TEST_F(VulkanTerrain, GrassNeedsMask)
 {
     const TerrainLayout layout = testLayout(16, 2);
-    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    scene->setFoliageTexture(1);
     const Vec3 cam(300.5, 2, 300.5);
     fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(flatHook, 1), std::nullopt, cam, false);
     SetCamera(0, cam, lookRotation(direction(30, -30)), 1.0);
@@ -1246,7 +1246,7 @@ TEST_F(VulkanTerrain, GrassNeedsMask)
 TEST_F(VulkanTerrain, GrassChunkRelative)
 {
     const TerrainLayout layout = testLayout(16, 1);
-    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    scene->setFoliageTexture(1);
     auto periodic = [](uint64_t, int64_t x, int64_t z)
     { return int32_t(triangleWave(x, 256) * 12 + triangleWave(z + 2 * x, 128) * 8 + 2048); };
     const auto source = TerrainHeightSource::fromHook(periodic, 1);

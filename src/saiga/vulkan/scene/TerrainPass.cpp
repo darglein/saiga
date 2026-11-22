@@ -26,7 +26,7 @@ namespace Vulkan
 namespace
 {
 static_assert(sizeof(TerrainPass::GpuNode) == TerrainAtlas::nodeInstanceBytes, "TerrainNode of terrain_heights.glsl");
-static_assert(sizeof(TerrainFrameUniforms) == 2 * 64 + 4 * 16 + 8 * 16 + 9 * 16, "TerrainFrame of terrain_common.glsl");
+static_assert(sizeof(TerrainFrameUniforms) == 2 * 64 + 4 * 16 + 8 * 16 + 5 * 16, "TerrainFrame of terrain_common.glsl");
 
 struct DrawPush
 {
@@ -46,13 +46,6 @@ vk::Buffer handle(Buffer& b)
 {
     Memory::SafeAccessor acc(*b.memoryLocation());
     return b.memoryLocation()->data;
-}
-
-// Towards the sun from the azimuth and elevation (degrees), as the prototype
-vec3 sunDirection(const PrototypeSettings& s)
-{
-    float az = radians(s.sunAzimuth), el = radians(s.sunElevation);
-    return vec3(std::cos(el) * std::sin(az), std::sin(el), -std::cos(el) * std::cos(az));
 }
 
 // The indices of an n x n grid in the (n + 3)^2 vertex layout (the outer ring: the skirt), with the skirt cells or
@@ -112,13 +105,12 @@ DescriptorSetLayout TerrainPass::setLayout()
     return layout;
 }
 
-void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr)
+void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLightingSet& lighting)
 {
     destroy();
     base         = &b;
     lightingSet  = &lighting;
     sceneFormats = formats;
-    pbrVariant   = pbr;
     samples      = int(formats.samples);
     frameLayout  = setLayout();
     frameLayout.create(base);
@@ -167,22 +159,10 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLigh
     initialized = true;
 }
 
-void TerrainPass::setPbr(bool pbr)
-{
-    if (pbr == pbrVariant) return;
-    pbrVariant = pbr;
-    scenePipeline.destroy();
-    depthPipeline.destroy();
-    equalPipeline.destroy();
-    skyPipeline.destroy();
-    createPipelines();
-}
-
 void TerrainPass::createPipelines()
 {
-    // Set 0: the terrain's frame data; set 1: the lighting set (S36). The LIGHTING_PBR variant lights with
-    // shadeSurface (lighting.glsl)
-    const std::string defines = pbrVariant ? "#define LIGHTING_PBR\n" : "";
+    // Set 0: the terrain's frame data; set 1: the lighting set (S36: shadeSurface of lighting.glsl)
+    const std::string defines;
     PipelineInfo info;
     info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
     const auto vf                         = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
@@ -271,7 +251,7 @@ void TerrainPass::skipFrame()
 }
 
 bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas& atlas, const SceneCamera& camera,
-                           const PrototypeSettings& settings, double time, int width, int height)
+                           const PrototypeSettings& settings, vec2 grassPhases, int width, int height)
 {
     skipFrame();
     if (!camera.valid) return false;
@@ -402,19 +382,11 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
         for (int k = 0; k < L.streamedLevels(); ++k)
             u.levels[size_t(k)] = ivec4(int(atlas.pageOffset(k)), L.tilesPerSide(k), 0, 0);
     }
-    const vec3 sun = sunDirection(settings);
-    u.sunDir       = vec4(sun(0), sun(1), sun(2), settings.sunIntensity);
-    u.shading      = vec4(settings.albedo, settings.ambient, settings.flatShading ? 1 : 0,
-                     camera.linear ? camera.preExposure : 0.0f);
-    // The fog's base: the sea level (0 without one); the camera height above it in double
-    const double fogBase = hasSea ? double(*atlas.seaLevel()) * kHeightUnit : 0.0;
-    u.fog                = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, float(c.y() - fogBase));
-    u.fogColor           = vec4(0.42f, 0.42f, 0.42f, 1);
-    u.skyColor           = vec4(0.2f, 0.2f, 0.2f, 1);
-    u.lod                = vec4(float(range0), morphStart, float(lodHeight), 0);
-    u.grass              = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(samples));
-    u.grassPhases =
-        vec4(prototypeWindPhase(time, 1.7), prototypeWindPhase(time, 1.3), settings.wind, settings.alphaCutoff);
+    // S36: the light, the fog and the sky's colours are the lighting block's
+    u.shading          = vec4(0, 0, settings.flatShading ? 1 : 0, camera.linear ? camera.preExposure : 0.0f);
+    u.lod              = vec4(float(range0), morphStart, float(lodHeight), 0);
+    u.grass            = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(samples));
+    u.grassPhases      = vec4(grassPhases(0), grassPhases(1), settings.wind, settings.alphaCutoff);
     const float aspect = float(width) / float(std::max(height, 1));
     u.viewport         = vec4(aspect, 1, 1.0f / aspect, 1);
     std::memcpy(frames[frameIndex].uniforms.getMappedPointer(), &u, sizeof(u));

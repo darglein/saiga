@@ -7,8 +7,8 @@
 // The lighting of S36 (A3 of docs/stages/S36_lighting.plan.md, docs/engine_design.md §10.7): set 1 of the scene draws
 // (SceneLightingSet: 0 the block, 1 the foliage texture, 2 the ambient SH, 3 the cloud coverage, 4 the prefiltered
 // environment cube, 5 the BRDF LUT, 6 the transmittance LUT, 7 the sky-view LUT; a2: 8 the cascades, 9 the horizon map;
-// b: 10-14 the lights, clusters and atlas) and shadeSurface, which every scene pass of the LIGHTING_PBR variant calls,
-// so every surface lights the same way:
+// b: 10-14 the lights, clusters and atlas) and shadeSurface, which every scene pass calls, so every surface lights the
+// same way:
 // - clay mode (lighting.mode.x == 0: ToneMap::Identity, or no environment): the studio environment, S19a's model
 //   exactly: albedo (sun max(n.l, 0) + ambient) ao, the studio fog; unit-less;
 // - physical (an environment and a tone map): GGX (pbr.glsl) for the sun and the moon in lux with the shadow factor of

@@ -145,7 +145,6 @@ Entity RacingRender::focus()
 
 void RacingRender::beforeRender(double alpha)
 {
-    Vulkan::RenderScene& scene = *app->scene();
     prototype.update();
     const double frameDt = clock.tick();
     World& w             = app->world();
@@ -207,8 +206,6 @@ void RacingRender::beforeRender(double alpha)
     // While a tool holds the camera the app ignores it (S14)
     app->setViewCamera(cameraSpace, camera.eye(), Vulkan::viewRotation(camera.view()),
                        radians(double(prototype.settings.fovy)));
-    // The time of the wind (the world's time between the steps)
-    scene.setTime(w.time() + alpha * w.dt());
 }
 
 void RacingRender::gui()

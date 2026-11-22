@@ -217,8 +217,9 @@ class SAIGA_ENGINE_API EngineApp
     Vulkan::PreviewMapping& lightingPreviewMapping() { return previewMapping; }
     // The environment of the view camera's space now (alpha of the world; get_lighting, the Lighting tab)
     EnvironmentSample sampleViewEnvironment() const;
-    // The world sends its environment to the sink every rendered frame (S36a1a: only worlds with
-    // EnvironmentSetup::enabled; the scene keeps its unit-less exposure otherwise until the flip of S36a1c)
+    // The app sends the view space's environment to the sink every rendered frame (S36: every app with a world and a
+    // device, also without EnvironmentSetup::enabled: the defaults of WorldTime and Weather, enclosed spaces from their
+    // template)
     bool sendsEnvironment() const;
 
     // ---- spaces (S21, §12.4) -------------------------------------------------------------------------------------

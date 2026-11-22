@@ -52,8 +52,6 @@ void enableEnvironment(Engine::EngineAppSetup& setup, const std::string& game)
             s.render.lighting                  = file.lighting;
         }
         s.world.environment.enabled = true;
-        // Until the S36a1c flip: the S36 light model's pipeline variant
-        s.render.lighting.pbr = true;
     };
     setup.world.environment.enabled = true;
     setup.render.toneMap            = Vulkan::ToneMap::Aces;

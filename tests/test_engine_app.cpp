@@ -1526,7 +1526,8 @@ TEST_F(EngineAppRender, GpuSections)
     EXPECT_TRUE(app.scene()->toneMap() == Vulkan::ToneMap::Aces);
     EXPECT_FLOAT_EQ(app.scene()->exposure(), 2.0f);
     EXPECT_TRUE(app.scene()->sceneWritesLinear());
-    EXPECT_FLOAT_EQ(app.scene()->preExposure(), 2.0f);
+    // S36a1c: every app sends the environment: the pre-exposure is the EV100's exposure
+    EXPECT_FLOAT_EQ(app.scene()->preExposure(), app.scene()->frameExposure());
 
     std::vector<std::string> scopes;
     const Json report = app.gpuProfile().report();

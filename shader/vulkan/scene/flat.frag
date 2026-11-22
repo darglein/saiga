@@ -8,22 +8,15 @@
 
 // The flat-color shading of RenderScene's instances (S18, docs/engine_design.md §10.8): the vertex color word (sRGB8
 // RGB + linear alpha) or the palette entry it indexes, times the material's base color; SmoothTextured without textures
-// renders its base color (textures in S43). The light of the lighting block (S19a: S18's fixed sun and ambient by
-// default, the prototype's sun, hemisphere ambient and height fog with RenderScene::setPrototypeEnvironment; S36 replaces
-// it) plus the emissive color; the height fog in the SCENE_FOG variant (SceneCulling selects it per frame). The alpha
-// test of an alphaMask material: alpha * baseColor.a < 0.5 is discarded. Output (S17's contract): linear values times
-// the pre-exposure, or in clay mode display values (clamped, sRGB encoded here). The LIGHTING_PBR variant (S36) lights
-// with shadeSurface (lighting.glsl): the material's roughness and metalness (or the palette entry's), the studio
-// environment in clay mode.
+// renders its base color (textures in S43). Lit by shadeSurface (S36, lighting.glsl): the material's roughness and
+// metalness (or the palette entry's) and its emissive colour, the studio environment in clay mode, the physical light
+// with an environment. The alpha test of an alphaMask material: alpha * baseColor.a < 0.5 is discarded. Output (S17's
+// contract): linear values times the pre-exposure, or in clay mode display values (clamped, sRGB encoded here); a
+// debug frame writes the view's value as it is.
 
 #include "color.glsl"
 
-#ifdef LIGHTING_PBR
-#    include "lighting/lighting.glsl"
-#else
-#    include "../world/prototype_shading.glsl"
-#    include "scene_lighting.glsl"
-#endif
+#include "lighting/lighting.glsl"
 
 struct Material
 {
@@ -62,9 +55,7 @@ layout(location = 0) flat in uint inMaterial;
 layout(location = 1) flat in uint inColor;
 layout(location = 2) in vec3 inNormal;
 layout(location = 3) in vec2 inUv;
-#if defined(SCENE_FOG) || defined(LIGHTING_PBR)
 layout(location = 4) in vec3 inRelPos;
-#endif
 
 layout(location = 0) out vec4 outColor;
 
@@ -88,7 +79,6 @@ void main()
 
     vec3 n = normalize(inNormal);
     if (!gl_FrontFacing) n = -n;
-#ifdef LIGHTING_PBR
     SurfaceInput si = surfaceInput(c.rgb, n, inRelPos);
     si.roughness    = m.emissiveRoughness.w;
     si.metalness    = m.metalness;
@@ -99,22 +89,9 @@ void main()
     }
     si.emissive = m.emissiveRoughness.xyz;
     vec3 lit    = shadeSurface(si);
-#else
-    // S18's constant ambient, or the prototype's hemisphere ambient (brighter from above)
-    float ambient = lighting.ambient.x;
-    if (lighting.ambient.y > 0.5) ambient *= 0.6 + 0.4 * n.y;
-    vec3 lit = c.rgb * (ambient + lighting.sunDir.w * max(dot(n, lighting.sunDir.xyz), 0.0)) + m.emissiveRoughness.xyz;
-#ifdef SCENE_FOG
-    // The fog variant of the pipelines (the lighting block's fog enabled)
-    lit = protoApplyFog(lit, inRelPos, lighting.camera.y, lighting.fog, lighting.fogColor.rgb);
-#endif
-#endif
-#ifdef LIGHTING_PBR
     if (debugViewActive())
         outColor = vec4(lit, 1.0);
-    else
-#endif
-        if (pc.linear != 0u)
+    else if (pc.linear != 0u)
         outColor = vec4(max(lit, vec3(0.0)) * pc.preExposure, 1.0);
     else
         outColor = vec4(linearToSrgb(clamp(lit, vec3(0.0), vec3(1.0))), 1.0);

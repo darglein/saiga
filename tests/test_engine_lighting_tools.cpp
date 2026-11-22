@@ -112,8 +112,7 @@ void showLightingTab(EngineApp& app)
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
 // suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
-// and the clouds' previews; the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the
-// tab's frames
+// and the clouds' previews; a debug view (Exposure: with its legend) and the overlay render in the tab's frames
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
@@ -133,9 +132,6 @@ void renderLightingTab(EngineApp& app)
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
     EXPECT_EQ(dispatches, expected);
     for (auto image : images) EXPECT_NE(app.scene()->lightingDebugImages().preview(image), nullptr);
-    Vulkan::LightingParameters p = app.scene()->lightingParameters();
-    p.pbr                        = true;
-    app.scene()->setLightingParameters(p);
     app.scene()->setLightingDebug(
         Vulkan::LightingDebugState{Vulkan::LightingDebugView::Exposure, Vulkan::OverlaySunDirection});
     app.runFrames(2, 1.0 / 60);
@@ -343,7 +339,7 @@ TEST_F(LightingTools, SetLightingRoundTrip)
         "exposure_compensation": 1, "ambient_scale": 2, "min_ambient": [0.01, 0.02, 0.03],
         "sun_override": {"azimuth_deg": 90, "elevation_deg": 20}, "cloud_altitude": 1800, "cloud_radius": 30000,
         "cloud_shadow_fade": 5000, "star_intensity": 2, "ground_albedo": 0.3, "clouds": false,
-        "environment_resolution": 64, "environment_update_degrees": 1, "force_full_updates": true, "pbr": true})");
+        "environment_resolution": 64, "environment_update_degrees": 1, "force_full_updates": true})");
     const Json r   = result(call(*app, "set_lighting", set));
     EXPECT_EQ(r["values"].object_items().size(), set.object_items().size());
     const Json l = result(call(*app, "get_lighting", obj(R"({"sections": ["settings", "parameters", "tone_map"]})")));
@@ -356,8 +352,6 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_EQ(l["tone_map"]["value"], Json("aces"));
     EXPECT_EQ(app->environmentSettings().exposure.ev100, 12.5f);
     EXPECT_EQ(app->scene()->lightingParameters().environmentResolution, 64);
-    // The write itself, not only the echoed values (both would say false if pbr were never written)
-    EXPECT_TRUE(app->scene()->lightingParameters().pbr);
     EXPECT_TRUE(app->environmentSettings().sunOverride.has_value());
     // The sun override moves the sun of the next frame; the next frame's EV100 is the fixed value minus the
     // compensation
@@ -372,7 +366,6 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_TRUE(back["settings"]["sun_override"].is_null());
     EXPECT_EQ(back["settings"]["ev100"].number_value(), 15);
     EXPECT_EQ(back["parameters"]["environment_resolution"].number_value(), 128);
-    EXPECT_EQ(back["parameters"]["pbr"], Json(false));
     EXPECT_EQ(app->scene()->parameters().toneMap, Vulkan::ToneMap::Identity);
 
     // All or nothing: one valid and two invalid keys change nothing and name both invalid ones
@@ -480,13 +473,6 @@ TEST_F(LightingDebugTools, SetLightingDebug)
 // a raw value, which the identity post pass shows unchanged), the next frame is back to the user's view
 TEST_F(LightingDebugTools, ScreenshotLightingView)
 {
-    // Without the LIGHTING_PBR variant a view would silently show clay: refused (round 1 review of S36a1b); the
-    // overlays alone are drawn by both variants
-    const Json noVariant = call(*app, "screenshot", obj(R"({"lighting_view": "normals"})"));
-    EXPECT_TRUE(isError(noVariant));
-    EXPECT_NE(text(noVariant).find("pbr"), std::string::npos) << text(noVariant);
-    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [20, 24]})"))));
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"pbr": true})"))));
     app->runFrames(1, 1.0 / 60);
     // nullopt if the png does not decode (a black fallback would pass the comparison below)
     auto centre = [](const Json& r) -> std::optional<ucvec3>
@@ -566,7 +552,7 @@ TEST_F(LightingDebugTools, CaptureLighting)
 // units), full: true completes the environment map first, mip only for environment; get_lighting.environment
 TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
 {
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "pbr": true})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
     app->runFrames(2, 1.0 / 60);
     const std::vector<std::pair<std::string, Json>> images = {
         {R"({"image": "transmittance_lut"})", Json(Json::array{256, 64})},
@@ -600,13 +586,13 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
 // the user's view is restored; a pixel outside the image and bad arguments are errors
 TEST_F(LightingDebugTools, ProbeLighting)
 {
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"pbr": true, "tone_map": "aces"})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
     app->scene()->setLightingDebug(Vulkan::LightingDebugState{Vulkan::LightingDebugView::Roughness, 0});
     app->runFrames(1, 1.0 / 60);
     const Json r = callFrames(*app, "probe_lighting", obj(R"({"pixel": [20, 24]})"));
     ASSERT_FALSE(isError(r)) << text(r);
     const Json p = result(r);
-    EXPECT_EQ(p["frames"].number_value(), 7);
+    EXPECT_EQ(p["frames"].number_value(), Vulkan::RenderScene::kProbeFrames);
     EXPECT_EQ(p["consistent"], Json(true));
     EXPECT_EQ(p["hit"], Json(true));
     EXPECT_EQ(p["physical"], Json(true));
@@ -775,14 +761,17 @@ TEST_F(LightingTabTest, CompensationWriteLowersEv100)
     EXPECT_NEAR(app->scene()->environment().ev100, ev - 2, 1e-4);
 }
 
-// A world without the environment keeps the unit-less exposure
-TEST_F(LightingTabPlainTest, NoEnvironmentKeepsTheUnitlessExposure)
+// S36a1c: a world without EnvironmentSetup::enabled also gets the environment (the defaults of WorldTime and Weather:
+// noon); the multiplier keeps its meaning
+TEST_F(LightingTabPlainTest, DefaultEnvironmentReachesTheScene)
 {
     app->scene()->setToneMap(Vulkan::ToneMap::Aces);
     app->scene()->setExposure(2);
     app->runFrames(1, 1.0 / 60);
-    EXPECT_FALSE(app->scene()->hasEnvironment());
-    EXPECT_FLOAT_EQ(app->scene()->frameExposure(), 2.0f);
+    EXPECT_TRUE(app->sendsEnvironment());
+    ASSERT_TRUE(app->scene()->hasEnvironment());
+    EXPECT_FLOAT_EQ(app->scene()->exposure(), 2.0f);
+    EXPECT_FLOAT_EQ(app->scene()->frameExposure(), Vulkan::exposureFromEv100(app->scene()->environment().ev100, 2));
 }
 
 // The Lighting tab renders without WorldTime (the time and weather controls are replaced by a line)

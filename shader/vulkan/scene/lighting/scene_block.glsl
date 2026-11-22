@@ -10,14 +10,8 @@
 // (a2, b) include this file alone (their layout has only bindings 0 and 1).
 layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
 {
-    // ---- legacy (S19a; the default pipeline variant until the a1c flip) ----
-    // xyz: towards the sun (normalized), w: intensity
-    vec4 sunDir;
-    // x: ambient, y: 1 hemisphere ambient (0.6 + 0.4 n.y) else constant, z: albedo (foliage clay), w: alpha cutoff
-    vec4 ambient;
-    // x: density, y: height falloff, z: enabled, w: base height (water level)
-    vec4 fog;
-    vec4 fogColor;
+    // x: the foliage's alpha cutoff (trees and grass), yzw: unused
+    vec4 foliageParams;
     // xyz: the camera position (float), w: MSAA samples
     vec4 camera;
     // xyz: the tree wind phases (1.1, 0.9, 4.0 rad/s, modulo 2 pi), w: the wind strength
@@ -25,7 +19,6 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // x: 1 tint by LOD
     vec4 debug;
 
-    // ---- S36 (LIGHTING_PBR) ----
     // xyz: towards the sun, w: illuminance (lux, top of the atmosphere)
     vec4 sun;
     // xyz: towards the moon, w: illuminance (lux, phase applied)

@@ -270,7 +270,6 @@ TEST_F(Pbr, BrdfLutMatchesCpuIntegration)
 //   probe frames wrote cd/m^2 without the pre-exposure into the fp16 target (inf above 65504)
 TEST_F(Pbr, ProbeMatchesClosedForm)
 {
-    UsePbr();
     scene->setToneMap(ToneMap::Aces);
     const std::vector<vec2> lut = scene->brdfLut().read();
     const ivec2 centre(width / 2, height / 2);
@@ -357,7 +356,6 @@ TEST_F(Pbr, ProbeMatchesClosedForm)
 // term was evaluated with the floored NdotV, a highlight on the back of the surface (CodeRabbit #82)
 TEST_F(Pbr, NoSpecularFacingAway)
 {
-    UsePbr();
     scene->setToneMap(ToneMap::Aces);
     MeshLod lod;
     lod.endDistance = 1000;
@@ -397,7 +395,6 @@ TEST_F(Pbr, NoSpecularFacingAway)
 // compensation of Fdez-Agüera); read through the ACES output, inverted
 TEST_F(Pbr, WhiteFurnace)
 {
-    UsePbr();
     scene->setToneMap(ToneMap::Aces);
     // The exposure maps radiance 1 to 0.18
     const float ev100 = float(std::log2(1.0 / (1.2 * 0.18)));
@@ -432,7 +429,6 @@ TEST_F(Pbr, WhiteFurnace)
 // Clay mode lights with the studio environment: noon and midnight with clouds render the same image
 TEST_F(Pbr, ClayUsesStudioEnvironment)
 {
-    UsePbr();
     scene->addMaterial(200, "clay_box", MaterialData());
     scene->addMesh(200, "clay_box", boxMesh(vec3(1, 1, 1), ucvec4(200, 200, 200, 255)), 200);
     AddSet({instanceAt(vec3(0, 0, 0), 200)});
@@ -461,7 +457,6 @@ TEST_F(Pbr, ClayUsesStudioEnvironment)
 // Clay keeps the material colours of flat-colour instances: a red box stays red
 TEST_F(Pbr, ClayKeepsMaterialColours)
 {
-    UsePbr();
     scene->addMaterial(210, "red_box", MaterialData());
     scene->addMesh(210, "red_box", boxMesh(vec3(1, 1, 1), ucvec4(220, 30, 30, 255)), 210);
     AddSet({instanceAt(vec3(0, 0, 0), 210)});
@@ -477,7 +472,6 @@ TEST_F(Pbr, ClayKeepsMaterialColours)
 // (green over red)
 TEST_F(Pbr, PrototypeColoursOnlyInAces)
 {
-    UsePbr();
     // Flat at 0 m for x < 2048, a 45-degree slope up along +x beyond
     auto hook = [](uint64_t, int64_t x, int64_t) { return int32_t(std::max<int64_t>(0, x - 2048) * 1024); };
     const TerrainLayout layout = testLayout(16, 2);
@@ -555,7 +549,6 @@ class LightingDebugTest : public RenderSceneSuiteTest
 // an environment); the Normals of a plane facing +y read (0.5, 1, 0.5) from the resolved fp16 image (raw data)
 TEST_F(LightingDebugTest, EveryViewRenders)
 {
-    UsePbr();
     PlaneScene(300);
     for (ToneMap tone : {ToneMap::Identity, ToneMap::Aces})
     {
@@ -582,7 +575,6 @@ TEST_F(LightingDebugTest, EveryViewRenders)
 // constant, the resolve mode is chosen per frame): a view switch and a tone map switch create no pipeline
 TEST_F(LightingDebugTest, ViewSwitchCreatesNoPipeline)
 {
-    UsePbr();
     PlaneScene(320);
     Capture(2);
     const uint64_t before = scene->scenePipelineCreations();
@@ -595,17 +587,14 @@ TEST_F(LightingDebugTest, ViewSwitchCreatesNoPipeline)
         Capture(2);
     }
     EXPECT_EQ(scene->scenePipelineCreations(), before);
-    // The variant switch itself recreates them (the reference that the counter counts)
-    UsePbr(false);
-    Capture(1);
-    EXPECT_GT(scene->scenePipelineCreations(), before);
+    // The counter counts (the scene's pipelines at its creation)
+    EXPECT_GT(before, 0u);
 }
 
 // A debug frame (Identity latched) does not update the pre-exposure history: the frame after it has the pre-exposure
 // of the frame before it (with an effective exposure within kMaxPreExposureChange of 1, so a reset to 1 would show)
 TEST_F(LightingDebugTest, DebugFrameKeepsPreExposure)
 {
-    UsePbr();
     PlaneScene(340);
     scene->setToneMap(ToneMap::Aces);
     EnvironmentState e;
@@ -626,7 +615,6 @@ TEST_F(LightingDebugTest, DebugFrameKeepsPreExposure)
 // frame (clay: the display luminance, the post pass shows it unchanged); the BRDF LUT's match the LUT read back
 TEST_F(LightingDebugTest, PreviewsCompute)
 {
-    UsePbr();
     PlaneScene(360);
     Capture(2);
     LightingDebug::Capture lum, lut;
@@ -686,7 +674,6 @@ TEST_F(LightingDebugTest, PreviewsCompute)
 // A preview is computed only in a frame that requested it
 TEST_F(LightingDebugTest, NothingComputedWithoutRequest)
 {
-    UsePbr();
     PlaneScene(380);
     Capture(2);
     EXPECT_EQ(scene->lightingStatistics().previewDispatches, 0u);
@@ -706,7 +693,6 @@ TEST_F(LightingDebugTest, NothingComputedWithoutRequest)
 // RTX 5080 Laptop GPU)
 TEST_F(LightingDebugTest, ShownPreviewsAreRateLimited)
 {
-    UsePbr();
     PlaneScene(390);
     LightingDebug& d = scene->lightingDebugImages();
     d.setPreviewInterval(1e9);
@@ -767,7 +753,6 @@ TEST_F(LightingDebugTest, ShownPreviewsAreRateLimited)
 // the tab's) mapping replaced the first one's
 TEST_F(LightingDebugTest, RequestsKeepTheirMapping)
 {
-    UsePbr();
     PlaneScene(420);
     Capture(2);
     LightingDebug& d = scene->lightingDebugImages();
@@ -796,7 +781,6 @@ TEST_F(LightingDebugTest, RequestsKeepTheirMapping)
 // / raw radiance image); a capture requested with the probe was converted in its frame 1 (CodeRabbit #82)
 TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
 {
-    UsePbr();
     PlaneScene(430);
     scene->setToneMap(ToneMap::Aces);
     EnvironmentState noon;
@@ -861,7 +845,6 @@ TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
 // point behind the camera is not in the image
 TEST_F(LightingDebugTest, ProbeAtWorldPoint)
 {
-    UsePbr();
     PlaneScene(440);
     Capture(1);
     const Vec3 world(1.5, 0, -1);
@@ -907,7 +890,6 @@ TEST_F(LightingDebugTest, ProbeAtWorldPoint)
 // studio lighting while the probe reported physical (CodeRabbit #82)
 TEST_F(LightingDebugTest, ProbeHoldsToneMap)
 {
-    UsePbr();
     PlaneScene(450);
     scene->setToneMap(ToneMap::Aces);
     EnvironmentState noon;
@@ -943,7 +925,6 @@ TEST_F(LightingDebugTest, ProbeHoldsToneMap)
 // camera and the environment are held (a setEnvironment during it takes effect after it), consistent
 TEST_F(LightingDebugTest, ProbeMatchesViews)
 {
-    UsePbr();
     PlaneScene(400);
     scene->setToneMap(ToneMap::Aces);
     EnvironmentState noon;
@@ -1059,7 +1040,6 @@ class AtmosphereTest : public RenderSceneSuiteTest
     // The physical path (ACES, the PBR variant) with the environment, the camera 100 m up looking along forward
     void Physical(const EnvironmentState& e, const Vec3& forward = Vec3(0, 0.3, 1), double fovy = 1.2, bool full = true)
     {
-        UsePbr();
         LightingParameters p = scene->lightingParameters();
         p.forceFullUpdates   = full;
         scene->setLightingParameters(p);
@@ -1179,7 +1159,6 @@ TEST_F(EnvironmentMapTest, FirstFrameAmbientIsFloor)
     EnvironmentState e = sunAt(45);
     e.minAmbient       = vec3(0.5f, 0.25f, 0.125f);
     scene->setEnvironment(e);
-    UsePbr();
     SetCamera(0, Vec3(0, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
     Capture(2);
     EXPECT_FALSE(scene->environmentMap().valid());

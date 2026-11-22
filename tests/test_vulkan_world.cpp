@@ -67,7 +67,8 @@ TEST(VulkanWorld, SettingsJson)
     EXPECT_TRUE(unknown.empty());
     EXPECT_EQ(r.treeLod1, 123);
     EXPECT_TRUE(r.depthPrePass);
-    // S19a: wireframe, freeze_time and freeze_culling are dropped (setTime covers goldens and benchmarks)
+    // S19a: wireframe, freeze_time and freeze_culling are dropped (the environment's wind phases cover goldens and
+    // benchmarks; S36)
     EXPECT_EQ(
         r.fromJson(json11::Json::object{{"wireframe", true}, {"freeze_time", true}, {"freeze_culling", true}}).size(),
         3u);
@@ -662,7 +663,7 @@ TEST_F(VulkanPrototypeScene, RendersTerrainTreesAndSky)
 {
     PrototypeScene p;
     Attach(p, 2000);
-    EXPECT_TRUE(scene->hasPrototypeEnvironment());
+    EXPECT_TRUE(scene->hasFoliageTexture());
     // Above the area's centre, looking at the horizon
     Vec3 c(1536, 0, 1536);
     c(1)           = Ground(c(0), c(2));
@@ -696,11 +697,14 @@ TEST_F(VulkanPrototypeScene, FlatShadingIsStableFarFromTheOrigin)
     Attach(p, 10);
     p.settings.grass       = false;
     p.settings.trees       = false;
-    p.settings.fog         = false;
     p.settings.flatShading = true;
-    p.settings.fovy        = 20;
-    const auto layout      = TerrainTestHooks::testLayout(128, 1);
-    const auto source      = TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1);
+    // No fog (S36: the studio environment's)
+    StudioEnvironment noFog = prototypeStudio();
+    noFog.fog               = false;
+    scene->setStudioEnvironment(noFog);
+    p.settings.fovy   = 20;
+    const auto layout = TerrainTestHooks::testLayout(128, 1);
+    const auto source = TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1);
     const Vec3 ground(30017.3, 0, 30011.7);
     const double h    = double(TerrainTestHooks::slopeRidgeHook(1, 30017, 30011)) * kHeightUnit;
     const Vec3 eye    = Vec3(ground(0), h + 0.15, ground(2));
@@ -808,8 +812,8 @@ TEST_F(VulkanPrototypeScene, GrassToggle)
     EXPECT_GT(pixelsDiffering(withGrass, noGrass, 8), 50);
 }
 
-// The time comes from setTime, not the wall clock: the same time gives the same image after a pause, another time moves
-// the wind (trees and grass)
+// The wind's time comes from the environment's phases (S36; S19a: setTime), not the wall clock: the same phases give
+// the same image after a pause, other phases move the wind (trees and grass)
 TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
 {
     PrototypeScene p;
@@ -821,13 +825,16 @@ TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
     Vec3 eye(1536 - 28, 0, 1536 - 80);
     eye(1)            = std::max(Ground(eye(0), eye(2)), Sea()) + 2.0;
     const Vec3 target = eye + Vec3(1, -0.2, 0);
-    scene->setTime(0);
+    EnvironmentState still;
+    scene->setEnvironment(still);
     auto a = Shot(p, eye, target, 2, true);
     // 100 ms of wall clock at wind 4 would move the foliage; one frame each: the scene's state is settled after a
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
     auto b = Capture(1);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
-    scene->setTime(1.7);
+    EnvironmentState moved = still;
+    for (int i = 0; i < 5; ++i) moved.phases[size_t(i)] = 1.7f * float(i + 1);
+    scene->setEnvironment(moved);
     auto c = Capture(1);
     EXPECT_GT(pixelsDiffering(a, c), 0) << "the wind does not move";
 }
@@ -936,7 +943,7 @@ TEST_F(VulkanPrototypeScene, ReattachReusesTreeMeshes)
     Capture(1);
 }
 
-// setPrototypeEnvironment again with an attached forest (waits for the device, rebinds the foliage texture) gives the
+// setFoliageTexture again with an attached forest (waits for the device, rebinds the foliage texture) gives the
 // same image and counts
 TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
 {
@@ -949,9 +956,8 @@ TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
     const auto sa  = p.forest().stats();
     const auto ta  = scene->statistics().terrainNodes;
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
-    scene->setPrototypeEnvironment(p.settings.prototype(), 1);
-    // The first frame after the call
-    auto b = Capture(1);
+    scene->setFoliageTexture(1);
+    auto b = Capture(3);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
     EXPECT_EQ(scene->statistics().terrainNodes, ta);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
@@ -1089,10 +1095,10 @@ TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
 }
 
-// The PrototypeFoliage class needs the foliage texture of setPrototypeEnvironment: S23c (F4) moved the check from
+// The PrototypeFoliage class needs the foliage texture of setFoliageTexture: S23c (F4) moved the check from
 // addMaterial / setMaterial into the frame (a game registers its foliage material with its world before the render
 // hooks set the environment). Registration passes; a frame with an instance of the class to draw dies; the same frame
-// after setPrototypeEnvironment renders the tree
+// after setFoliageTexture renders the tree
 TEST_F(VulkanPrototypeScene, FoliageClassNeedsTexture)
 {
     MaterialData foliage;
@@ -1116,13 +1122,13 @@ TEST_F(VulkanPrototypeScene, FoliageClassNeedsTexture)
     const InstanceSetHandle set = scene->addInstanceSet(RegionId{0, 0, 4, 4}, {tree});
 #ifdef SAIGA_ASSERTS
     GTEST_FLAG_SET(death_test_style, "threadsafe");
-    EXPECT_DEATH(RenderFrame(), "PrototypeFoliage instances need the foliage texture of setPrototypeEnvironment");
+    EXPECT_DEATH(RenderFrame(), "PrototypeFoliage instances need the foliage texture of setFoliageTexture");
 #endif
-    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    scene->setFoliageTexture(1);
     const TemplatedImage<ucvec4> drawn = Capture(3);
     scene->removeInstanceSet(set);
     const TemplatedImage<ucvec4> background = Capture(3);
-    EXPECT_GT(pixelsDiffering(background, drawn, 8), 50) << "the tree is drawn after setPrototypeEnvironment";
+    EXPECT_GT(pixelsDiffering(background, drawn, 8), 50) << "the tree is drawn after setFoliageTexture";
 }
 
 // The game tools (S20: the context's terrain fields: ground callback, size, sea level, highest point, height range;

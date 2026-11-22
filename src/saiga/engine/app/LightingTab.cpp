@@ -133,15 +133,11 @@ void LightingTab::toolbar()
     for (int i = 0; i < int(Vulkan::LightingDebugView::Count); ++i)
         views.push_back(Vulkan::lightingDebugViewName(Vulkan::LightingDebugView(i)));
     ImGui::SetNextItemWidth(130);
-    // The views are drawn by the LIGHTING_PBR variant: without it a view would show clay (a1b-a1c)
-    const bool variant = scene->lightingParameters().pbr;
-    if (!variant) ImGui::BeginDisabled();
     if (ImGui::Combo("##debug view", &view, views.data(), int(views.size())))
     {
         d.view = Vulkan::LightingDebugView(view);
         scene->setLightingDebug(d);
     }
-    if (!variant) ImGui::EndDisabled();
     for (const auto& o : Vulkan::lightingOverlayNames())
     {
         ImGui::SameLine();
@@ -153,11 +149,7 @@ void LightingTab::toolbar()
         }
     }
     Vulkan::LightingParameters p = scene->lightingParameters();
-    bool changed                 = ImGui::Checkbox("force full updates", &p.forceFullUpdates);
-    ImGui::SameLine();
-    // a1b-a1c: the LIGHTING_PBR pipeline variant (the debug views need it)
-    changed = ImGui::Checkbox("PBR variant", &p.pbr) || changed;
-    if (changed) scene->setLightingParameters(p);
+    if (ImGui::Checkbox("force full updates", &p.forceFullUpdates)) scene->setLightingParameters(p);
     ImGui::SameLine();
     if (ImGui::SmallButton("copy JSON"))
     {
@@ -167,7 +159,6 @@ void LightingTab::toolbar()
     }
     if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: studio light, time of day has no effect");
-    if (!p.pbr) DebugUiStyle::coloredText(DebugUiStyle::kRef, "the debug views need the PBR variant (until S36a1c)");
     if (d.view == Vulkan::LightingDebugView::Exposure) exposureLegend();
 }
 
