@@ -8,7 +8,7 @@
 
 #include "saiga/engine/data/DataRef.h"
 #include "saiga/engine/gameplay/GameObject.h"
-#include "saiga/vulkan/world/HeightField.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "games/common/Driving.h"
 #include "games/common/GameEngine.h"
@@ -36,19 +36,24 @@ namespace Game
  * (with the lever) Host.
  */
 
-// Constant configuration (World::context): the world prototype's height field and the autopilot's circuit
+// Constant configuration (World::context): the world prototype's terrain (S20: the space template of
+// games/common/PrototypeSpace.h; the context is World-independent and shared by the co-op worlds and the renderer, so
+// it evaluates the pure prototypeSurfaceHeight, equal to World::terrainHeight bit for bit) and the autopilot's circuit
 struct FlightContext
 {
-    Vulkan::HeightField heightField;
+    // The space seed (WorldSetup::seed) and base spacing of the prototype's space
+    uint64_t seed        = 1;
+    int baseSpacing      = 1;
     Vec3 circuitCenter   = Vec3::Zero();
     double circuitRadius = 2500;
     // Terrain or water, whichever is higher (the plane crashes into both)
     double ground(double x, double z) const
     {
-        return std::max(double(heightField.height(float(x), float(z))), double(heightField.waterLevel()));
+        return std::max(Vulkan::prototypeSurfaceHeight(seed, baseSpacing, x, z),
+                        double(Vulkan::kPrototypeSeaLevel) * kHeightUnit);
     }
-    // Generates the height field (default parameters of the world prototype; the time is printed)
-    static std::shared_ptr<const FlightContext> create();
+    // The context of the world seed: the circuit around the centre of the prototype's 8 km area
+    static std::shared_ptr<const FlightContext> create(uint64_t seed = 1);
 };
 
 // The airplane's state besides its pose (R-STATE-1)

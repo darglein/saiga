@@ -5,7 +5,7 @@
  * See LICENSE file for more information.
  */
 
-// Full screen triangle at the far plane (depth 0 with reversed depth)
+// The sky of S20 (a copy of world/sky.vert): a full screen triangle at the far plane (depth 0 with reversed depth)
 layout(location = 0) out vec2 outNdc;
 
 void main()

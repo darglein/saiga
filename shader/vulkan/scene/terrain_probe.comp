@@ -7,7 +7,8 @@
 #extension GL_GOOGLE_include_directive : require
 
 // The test probe of TerrainPass (S20): terrainVertex of the frame's nodes for (node index, grid x, grid z), the
-// camera-relative position out (no skirt)
+// camera-relative position (xyz) and the morph factor (w) out (no skirt); with args.w = 1 the normal (xyz) and the level
+// (w)
 
 #include "terrain_common.glsl"
 #include "terrain_heights.glsl"
@@ -17,7 +18,7 @@ layout(local_size_x = 64) in;
 
 struct Probe
 {
-    uvec4 args;  // node index, grid x, grid z, unused
+    uvec4 args;  // node index, grid x, grid z, 1: the normal
     vec4 position;
 };
 layout(std430, set = 0, binding = 6) buffer ProbeBuffer
@@ -37,5 +38,5 @@ void main()
     if (i >= pc.count) return;
     uvec4 a          = probes[i].args;
     TerrainVertex v  = terrainVertex(a.x, ivec2(a.y, a.z), false);
-    probes[i].position = vec4(v.position, 1.0);
+    probes[i].position = a.w == 1u ? vec4(v.normal, v.lod) : vec4(v.position, v.morph);
 }

@@ -82,5 +82,52 @@ void VulkanRenderSink::setInterpolation(float alpha)
     renderScene.setInterpolation(alpha);
 }
 
+// ---- terrain (S20): forwarded to the scene's GPU terrain set
+
+void VulkanRenderSink::setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid)
+{
+    renderScene.setTerrainPyramid(space, pyramid);
+}
+
+void VulkanRenderSink::setTerrainTile(const RegionId& region, const TerrainTileData& tile)
+{
+    renderScene.setTerrainTile(region, tile);
+}
+
+void VulkanRenderSink::removeTerrainTile(const RegionId& region)
+{
+    renderScene.removeTerrainTile(region);
+}
+
+void VulkanRenderSink::setGrassMask(const ChunkId& chunk, const GrassMaskData& mask)
+{
+    renderScene.setGrassMask(chunk, mask);
+}
+
+void VulkanRenderSink::removeGrassMask(const ChunkId& chunk)
+{
+    renderScene.removeGrassMask(chunk);
+}
+
+void VulkanRenderSink::clearTerrain()
+{
+    renderScene.clearTerrain();
+}
+
+void VulkanRenderSink::patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    renderScene.patchTerrainTile(region, x0, z0, w, h, heights);
+}
+
+void VulkanRenderSink::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    renderScene.patchTerrainPyramid(space, x0, z0, w, h, heights);
+}
+
+size_t VulkanRenderSink::terrainUploadsPending() const
+{
+    return renderScene.terrainUploadsPending();
+}
+
 }  // namespace Engine
 }  // namespace Saiga

@@ -13,6 +13,7 @@
 layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) flat in float inLod;
+layout(location = 3) in float inSkirt;
 
 layout(location = 0) out vec4 outColor;
 
@@ -20,7 +21,10 @@ void main()
 {
     bool water = inLod < 0.0;
     vec3 N;
-    if (frame.shading.z > 0.5 && !water)
+    // A skirt fragment (a triangle with a skirt vertex) has the interpolated normal of its edge vertices: flat shading
+    // would light the vertical skirt as a wall
+    bool skirt = inSkirt > 0.0;
+    if (frame.shading.z > 0.5 && !water && !skirt)
     {
         // Flat shading: the normal of the triangle
         N = normalize(cross(dFdx(inPos), dFdy(inPos)));

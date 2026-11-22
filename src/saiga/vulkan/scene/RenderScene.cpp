@@ -10,6 +10,7 @@
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
@@ -17,6 +18,7 @@
 #include "saiga/vulkan/texture/Sampler.h"
 #include "saiga/vulkan/texture/Texture.h"
 #include "saiga/vulkan/window/Window.h"
+#include "saiga/vulkan/world/FoliageGenerator.h"
 
 #include <algorithm>
 #include <cmath>
@@ -263,6 +265,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         {
             if (s.guiFn && *s.guiFn) (*s.guiFn)();
         });
+    s.frameDrewImgui = drawImgui;
 
     vk::CommandBuffer cmd = beginCommands(frame);
     timings.resetFrame(cmd);
@@ -271,7 +274,6 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     s.beginSceneFrame(frame.frameIndex);
     SceneCamera camera;
     s.frameCamera(surfaceWidth, SurfaceHeight, camera);
-    PrototypeWorld* world = s.prototype.get();
     // The prototype settings of this frame: one snapshot after the transfer callback (which may set them) for the
     // lighting, the pre-pass and every prototype draw; a later change (e.g. in the render callback) is the next frame's
     PrototypeSettings proto;
@@ -293,12 +295,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.frameCamera(surfaceWidth, SurfaceHeight, camera);
         proto   = *s.protoSettings;
         prepass = proto.depthPrePass;
-        if (world) world->transfer(cmd, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
         // The S20 terrain: the selection over the GPU set (nothing without a resident pyramid of the camera's space)
         s.terrain->transfer(cmd, frame.frameIndex, *s.atlas, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
-        s.slotStatistics[frame.frameIndex].terrainNodes =
-            world ? uint32_t(world->stats().terrainNodes + world->stats().quarterNodes)
-                  : uint32_t(s.terrain->stats().nodes);
+        s.grass->update(*s.atlas, *s.terrain, camera, proto);
+        s.slotStatistics[frame.frameIndex].terrainNodes = uint32_t(s.terrain->stats().nodes);
         SceneLighting lighting;
         s.frameLighting(camera, proto, int(samples), lighting);
         s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
@@ -372,7 +372,6 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         cmd.beginRendering(info);
         viewport(cmd);
         subBegin("depth.terrain", cmd);
-        if (world) world->renderDepth(cmd, proto);
         s.terrain->render(cmd, frame.frameIndex, TerrainPass::Mode::Depth, proto);
         subEnd("depth.terrain", cmd);
         viewport(cmd);
@@ -455,7 +454,6 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         viewport(cmd);
         // terrain -> the game's render callback -> instances -> grass -> sky (the sky's EQUAL at depth 0 last)
         subBegin("scene.terrain", cmd);
-        if (world) world->renderTerrain(cmd, proto, prepass);
         s.terrain->render(cmd, frame.frameIndex, prepass ? TerrainPass::Mode::Equal : TerrainPass::Mode::Scene, proto);
         subEnd("scene.terrain", cmd);
         viewport(cmd);
@@ -467,10 +465,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         subEnd("scene.instances", cmd);
         viewport(cmd);
         subBegin("scene.grass", cmd);
-        if (world) world->renderGrass(cmd, proto);
+        if (s.foliage) s.grass->render(cmd, frame.frameIndex, *s.terrain);
         subEnd("scene.grass", cmd);
         subBegin("scene.sky", cmd);
-        if (world) world->renderSky(cmd, proto);
+        // The environment's sky (S20): from setPrototypeEnvironment on, with or without terrain
+        if (s.foliage) s.terrain->renderSky(cmd, frame.frameIndex, proto);
         subEnd("scene.sky", cmd);
         cmd.endRendering();
 
@@ -609,6 +608,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     atlas->init(base(), params, culling->storageLimit());
     terrain = std::make_unique<TerrainPass>();
     terrain->init(base(), formats());
+    grass = std::make_unique<GrassPass>();
+    grass->init(base(), formats());
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }
@@ -618,9 +619,10 @@ RenderScene::~RenderScene()
     if (renderer) renderer->waitIdle();
     if (culling) culling->destroy();
     culling.reset();
-    prototype.reset();
+    grass.reset();
     terrain.reset();
     atlas.reset();
+    foliage.reset();
     instanceBuffer.reset();
     meshPool.reset();
 }
@@ -633,9 +635,10 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     const uint64_t before   = renderer->submittedFrames();
     const uint64_t timeline = renderer->base().currentFrameSignalValue();
     RenderInfo info;
-    // The override applies to this frame only; the user's choice stays in should_render_imgui
+    // The override applies to this frame only, and only if it is read back (a screenshot that waits for a later frame
+    // does not hide the GUI of the frames before it); the user's choice stays in should_render_imgui
     const bool userImgui  = renderer->should_render_imgui;
-    const bool overridden = imguiOverride.has_value();
+    const bool overridden = imguiOverride.has_value() && renderer->screenshotRequested();
     if (overridden) renderer->should_render_imgui = *imguiOverride;
     renderer->render(info);
     if (overridden) renderer->should_render_imgui = userImgui;
@@ -718,6 +721,11 @@ void RenderScene::requestScreenshot(VulkanRenderer::ScreenshotCallback callback)
     renderer->requestScreenshot(std::move(callback));
 }
 
+std::vector<VulkanRenderer::ScreenshotCallback> RenderScene::takeScreenshotRequests()
+{
+    return renderer->takeScreenshotRequests();
+}
+
 void RenderScene::setImguiVisible(bool visible)
 {
     renderer->should_render_imgui = visible;
@@ -773,15 +781,15 @@ bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
 
 void RenderScene::addMaterial(MaterialId id, const std::string& name, const MaterialData& data)
 {
-    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype,
-                 "addMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeTerrain");
+    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || foliage,
+                 "addMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeEnvironment");
     meshPool->addMaterial(id, name, data);
 }
 
 void RenderScene::setMaterial(MaterialId id, const MaterialData& data)
 {
-    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || prototype,
-                 "setMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeTerrain");
+    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || foliage,
+                 "setMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeEnvironment");
     meshPool->setMaterial(id, data);
 }
 
@@ -802,29 +810,12 @@ uint16_t RenderScene::reserveIds(SceneIdKind kind, uint32_t count)
     return uint16_t(first);
 }
 
-void RenderScene::setPrototypeTerrain(std::shared_ptr<const HeightField> heights, const PrototypeSettings& settings,
-                                      uint32_t foliageSeed)
-{
-    SAIGA_ASSERT(!transferFn, "setPrototypeTerrain: not inside renderFrame");
-    SAIGA_ASSERT(!terrainPathUsed, "setPrototypeTerrain: the scene uses the terrain set (setTerrainPyramid)");
-    // The frames in flight may use the previous prototype
-    renderer->waitIdle();
-    culling->setFoliageTexture(nullptr);
-    prototype.reset();
-    auto p = std::make_unique<PrototypeWorld>();
-    p->init(base(), formats(), std::move(heights), foliageSeed);
-    prototype = std::move(p);
-    culling->setFoliageTexture(&prototype->foliageTexture());
-    *protoSettings = settings;
-}
 
 //==================================================================================================
 // Terrain (S20)
 
 void RenderScene::setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid)
 {
-    SAIGA_ASSERT(!prototype, "setTerrainPyramid: the scene uses setPrototypeTerrain");
-    terrainPathUsed = true;
     atlas->setPyramid(space, pyramid);
 }
 
@@ -883,6 +874,25 @@ std::vector<float> RenderScene::readDepthForTests(int& w, int& h)
     return renderer->readDepth(w, h);
 }
 
+void RenderScene::setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliageSeed)
+{
+    SAIGA_ASSERT(!transferFn, "setPrototypeEnvironment: not inside renderFrame");
+    // The frames in flight may use the previous texture
+    renderer->waitIdle();
+    culling->setFoliageTexture(nullptr);
+    terrain->setFoliageTexture(nullptr);
+    foliage = std::make_unique<Texture2DArray>();
+    {
+        auto layers = FoliageGenerator::foliageTextures(512, foliageSeed);
+        std::vector<const Image*> images;
+        for (auto& l : layers) images.push_back(&l);
+        foliage->fromImages(base(), images, vk::ImageUsageFlagBits::eSampled, false, true);
+    }
+    culling->setFoliageTexture(foliage.get());
+    terrain->setFoliageTexture(foliage.get());
+    *protoSettings = settings;
+}
+
 void RenderScene::setPrototypeSettings(const PrototypeSettings& settings)
 {
     *protoSettings = settings;
@@ -897,7 +907,10 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
                                 SceneLighting& out) const
 {
     out = SceneLighting();
-    if (prototype) prototype->lighting(proto, sceneTime, out);
+    // The new path's environment (S20): the fog's base is the terrain set's sea level
+    if (foliage)
+        prototypeLighting(proto, sceneTime, atlas->seaLevel() ? float(double(*atlas->seaLevel()) * kHeightUnit) : 0.0f,
+                          out);
     const vec3 p = camera.position.cast<float>();
     out.camera   = vec4(p(0), p(1), p(2), float(samples));
 }

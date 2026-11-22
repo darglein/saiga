@@ -9,7 +9,7 @@
 // The flat-color shading of RenderScene's instances (S18, docs/engine_design.md §10.8): the vertex color word (sRGB8
 // RGB + linear alpha) or the palette entry it indexes, times the material's base color; SmoothTextured without textures
 // renders its base color (textures in S43). The light of the lighting block (S19a: S18's fixed sun and ambient by
-// default, the prototype's sun, hemisphere ambient and height fog with RenderScene::setPrototypeTerrain; S36 replaces
+// default, the prototype's sun, hemisphere ambient and height fog with RenderScene::setPrototypeEnvironment; S36 replaces
 // it) plus the emissive color; the height fog in the SCENE_FOG variant (SceneCulling selects it per frame). The alpha
 // test of an alphaMask material: alpha * baseColor.a < 0.5 is discarded. Output (S17's contract): linear values times
 // the pre-exposure, or in clay mode display values (clamped, sRGB encoded here).

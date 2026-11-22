@@ -19,6 +19,7 @@
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/saiga_buildconfig.h"
 #include "saiga/saiga_modules.h"
@@ -279,6 +280,8 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     // The waits inside render for the frame slot, the swap chain image and the present: with vsync the display's
     // pace, without it the GPU's (idle time, not CPU work)
     scopeWait = frameProfiler.scope("frame/render/wait");
+    // The terrain stream time of a complete point (S20): not work either
+    scopeStream = frameProfiler.scope("frame/render/terrain_stream");
     // The CPU work of the frame: frame without wait (what the CPU really spends; frame is the frame's wall time)
     scopeWork      = frameProfiler.scope("work");
     counterFps     = frameProfiler.counter("fps");
@@ -599,8 +602,10 @@ void EngineApp::frame()
 {
     const auto now = std::chrono::steady_clock::now();
     double dt      = firstFrame ? 0.0 : std::chrono::duration<double>(now - lastFrame).count();
-    firstFrame     = false;
-    lastFrame      = now;
+    // The last frame's terrain stream time pauses the simulation clock (no catch-up steps after a complete point)
+    dt         = std::max(0.0, dt - pendingStreamMs / 1000.0);
+    firstFrame = false;
+    lastFrame  = now;
     frame(dt);
 }
 
@@ -633,6 +638,12 @@ void EngineApp::frame(double dt)
     // frame (rendering suspended, a minimized window, a rejected present) the clock advances: old frames age out and
     // the gap is no long frame
     runSeconds += dt;
+    // The last frame's terrain stream time: the time base covers it, the interval does not contain it (a complete
+    // point is no long frame)
+    if (pendingStreamMs > 0 && runSeconds > kStatisticsWarmupSeconds) frameStats.advance(pendingStreamMs);
+    pendingStreamMs  = 0;
+    frameStreamMs    = 0;
+    streamIdleWaitMs = 0;
     if (dt > 0 && pendingCounted)
     {
         frameStats.addFrame(dt * 1000, pendingWorkMs, waitParts, pendingSteps);
@@ -673,7 +684,10 @@ void EngineApp::frame(double dt)
     // The work also without the profiler (the frame statistics do not depend on it)
     const double frameMs =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - frameStart).count();
-    pendingWorkMs = std::max(frameMs - lastFrameWaitMs, 0.0);
+    // Neither the render's waits nor the terrain stream time of a complete point are CPU work
+    pendingWorkMs = std::max(frameMs - lastFrameWaitMs - frameStreamMs, 0.0);
+    // The benchmark mode's GPU wait before the stream belongs to the pause as well (it exists only because of it)
+    pendingStreamMs = frameStreamMs + streamIdleWaitMs;
     if (timed)
     {
         frameProfiler.add(scopeFrame, frameMs);
@@ -851,6 +865,27 @@ void EngineApp::renderFrame()
     // camera from interpolatedPose, cosmetic instances), then the frame's interpolation and camera (S19b)
     w.extract().catchUp();
     if (h.beforeRender) h.beforeRender(*this, w.alpha());
+    if (!appOptions.screenshot.empty() && !screenshotRequested &&
+        framesRendered + 1 >= uint64_t(appOptions.screenshotFrame))
+    {
+        // SAIGA_SCREENSHOT / --screenshot: a complete point; the capture waits for the terrain uploads
+        screenshotRequested    = true;
+        const std::string file = appOptions.screenshot;
+        requestCapture(
+            [this, file](const TemplatedImage<ucvec4>& img)
+            {
+                const bool saved = img.width > 0 && img.save(file);
+                if (saved)
+                    SAIGA_LOG("app", "saved screenshot %s", file.c_str());
+                else
+                    SAIGA_LOG("app", "could not save the screenshot %s", file.c_str());
+                quit(saved ? 0 : 1);
+            },
+            true);
+    }
+    // The terrain of the view camera (S20): after beforeRender (the frame's camera), before the sink's camera
+    streamTerrain();
+    frameProfiler.add(scopeStream, streamMs);
     sink->setInterpolation(float(w.alpha()));
     sink->setCamera(view.space, view.position, view.rotation, view.fovy);
     view.snap     = false;
@@ -861,28 +896,24 @@ void EngineApp::renderFrame()
         if (h.gui) h.gui();
         ui->draw();
     };
-    if (!appOptions.screenshot.empty() && !screenshotRequested &&
-        framesRendered + 1 >= uint64_t(appOptions.screenshotFrame))
-    {
-        screenshotRequested    = true;
-        const std::string file = appOptions.screenshot;
-        renderScene->requestScreenshot(
-            [this, file](const TemplatedImage<ucvec4>& img)
-            {
-                const bool saved = img.width > 0 && img.save(file);
-                if (saved)
-                    SAIGA_LOG("app", "saved screenshot %s", file.c_str());
-                else
-                    SAIGA_LOG("app", "could not save the screenshot %s", file.c_str());
-                quit(saved ? 0 : 1);
-            });
-    }
     const bool rendered = renderScene->renderFrame(noRecord, noRecord, gui);
     // Also for a frame that was not submitted (e.g. an out-of-date swap chain after the frame slot wait): the wait
     // is not work
-    lastFrameWaitMs    = renderScene->lastWaitMs();
+    lastFrameWaitMs    = renderScene->lastWaitMs() + streamIdleWaitMs;
     lastFrameWaitParts = renderScene->lastWaitParts();
     frameProfiler.add(scopeWait, lastFrameWaitMs);
+    if (!rendered && !frameCaptures.empty())
+    {
+        // The captures of this attempt return to the app's queue (e.g. a minimized window): the next attempt checks the
+        // terrain of its own view. They were requested last (streamTerrain); the scene's earlier requests (F12) stay
+        auto requests = renderScene->takeScreenshotRequests();
+        SAIGA_ASSERT(requests.size() >= frameCaptures.size());
+        for (size_t i = 0; i < requests.size() - frameCaptures.size(); ++i)
+            renderScene->requestScreenshot(std::move(requests[i]));
+        pendingCaptures.insert(pendingCaptures.begin(), std::make_move_iterator(frameCaptures.begin()),
+                               std::make_move_iterator(frameCaptures.end()));
+    }
+    frameCaptures.clear();
     if (!rendered) return;
     frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
     // Whether the frame counts in the frame statistics, decided once for its CPU interval and its GPU time: presented
@@ -917,6 +948,76 @@ void EngineApp::renderFrame()
         }
         else
             frameCallbacks[i++] = std::move(cb);
+    }
+}
+
+void EngineApp::requestCapture(CaptureCallback callback, bool fatal)
+{
+    pendingCaptures.push_back(PendingCapture{std::move(callback), fatal});
+}
+
+void EngineApp::streamTerrain()
+{
+    World& w               = *gameWorld;
+    TerrainSystem& terrain = w.terrain();
+    streamIdleWaitMs       = 0;
+    // Benchmark mode: a frame that has to stream first lets the GPU finish the frames in flight (a wait, not work).
+    // Otherwise the GPU would run ahead during the stream time, and the benchmark's frame interval without the stream
+    // time would hide the GPU's time (S20). The wait pauses the simulation clock and the statistics' interval like the
+    // stream time, but is not part of lastTerrainStreamMs (the benchmark keeps it in its interval)
+    if (completeEachFrame && renderScene && !terrain.viewComplete(view.space, view.position))
+    {
+        const auto idle = std::chrono::steady_clock::now();
+        renderScene->waitIdle();
+        streamIdleWaitMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - idle).count();
+    }
+    const auto start  = std::chrono::steady_clock::now();
+    bool fatalCapture = false, mcpCapture = false;
+    for (const PendingCapture& c : pendingCaptures) (c.fatal ? fatalCapture : mcpCapture) = true;
+    // An MCP capture completes the view only while one of its requests waits (else its readback is abandoned)
+    const auto mcpDeadline = pendingScreenshotDeadline();
+    mcpCapture             = mcpCapture && mcpDeadline.has_value();
+    const bool fatal       = framesRendered == 0 || completeEachFrame || fatalCapture;
+    // An MCP capture whose view did not complete this frame (the requests that wait longer must not get this frame)
+    bool mcpIncomplete = false;
+    if (fatal || mcpCapture)
+    {
+        double timeout = 120;
+        if (!fatal) timeout = std::max(0.0, std::chrono::duration<double>(*mcpDeadline - start).count() - 0.05);
+        const bool complete = terrain.completeView(view.space, view.position, timeout);
+        if (!complete)
+        {
+            if (fatal)
+                SAIGA_EXIT_ERROR("EngineApp: the terrain of the view was not complete within " +
+                                 std::to_string(timeout) + " s (TerrainSystem::completeView)");
+            // The screenshot requests whose deadline passed (or passes before the next frame) answer with an error; the
+            // others keep waiting: the capture is not dispatched in this frame
+            mcpIncomplete = true;
+            if (screenshotExpire) screenshotExpire(std::chrono::steady_clock::now() + std::chrono::milliseconds(100));
+        }
+        streamMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
+    }
+    else
+    {
+        terrain.updateView(view.space, view.position);
+        streamMs = 0;
+    }
+    frameStreamMs = streamMs;
+    // The captures take the first frame before which no terrain upload is pending (at most 16 frames later)
+    if (!pendingCaptures.empty() && !mcpIncomplete)
+    {
+        const bool ready = terrain.terrainUploadsPending() == 0;
+        if (ready || captureWaitFrames >= 16 || !(fatal || mcpCapture))
+        {
+            if (!ready && (fatal || mcpCapture))
+                SAIGA_LOG("app", "capture: terrain uploads still pending after %d frames", captureWaitFrames);
+            for (PendingCapture& c : pendingCaptures) renderScene->requestScreenshot(c.callback);
+            frameCaptures = std::move(pendingCaptures);
+            pendingCaptures.clear();
+            captureWaitFrames = 0;
+        }
+        else
+            captureWaitFrames++;
     }
 }
 

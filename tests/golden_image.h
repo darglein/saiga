@@ -31,6 +31,42 @@ inline bool goldenUpdateMode()
     return update && std::string(update) == "1";
 }
 
+// The golden metrics of two images of the same size (§17.6): the mean absolute difference per channel (/255), the
+// fraction of the pixels with a channel differing by more than 16, the largest difference; pass: mean < 1 and at most
+// 0.5 % large differences
+struct GoldenMetrics
+{
+    double meanAbs = 0, largeFraction = 0;
+    int maxDelta = 0;
+    bool pass    = false;
+};
+inline GoldenMetrics goldenMetrics(const Saiga::TemplatedImage<Saiga::ucvec4>& a,
+                                   const Saiga::TemplatedImage<Saiga::ucvec4>& b)
+{
+    GoldenMetrics m;
+    if (a.w != b.w || a.h != b.h || a.w == 0) return m;
+    double sum        = 0;
+    long large        = 0;
+    const long pixels = long(a.w) * a.h;
+    for (int y = 0; y < a.h; ++y)
+        for (int x = 0; x < a.w; ++x)
+        {
+            int pixelMax = 0;
+            for (int c = 0; c < 3; ++c)
+            {
+                const int d = std::abs(int(a(y, x)(c)) - int(b(y, x)(c)));
+                sum += d;
+                pixelMax = std::max(pixelMax, d);
+            }
+            if (pixelMax > 16) large++;
+            m.maxDelta = std::max(m.maxDelta, pixelMax);
+        }
+    m.meanAbs       = sum / (double(pixels) * 3);
+    m.largeFraction = double(large) / double(pixels);
+    m.pass          = m.meanAbs < 1.0 && m.largeFraction <= 0.005;
+    return m;
+}
+
 // Saves an RGBA image as 8-bit grayscale if it is gray and opaque, else as RGBA
 inline bool saveGolden(const Saiga::TemplatedImage<Saiga::ucvec4>& image, const std::string& file)
 {

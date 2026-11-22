@@ -120,6 +120,10 @@ class SAIGA_VULKAN_API TerrainAtlas
     int maskLayer(int32_t cx, int32_t cz) const;
     // The page-table offset of a streamed level (entries)
     uint32_t pageOffset(int level) const { return pageOffsets[size_t(level)]; }
+    // An estimate of the surface height (m) at (x, z), clamped into the space: bilinear in the finest set tile that
+    // contains it (the heights as set, without later patches), else in the pyramid; none without a set. Continuous
+    // within one level (TerrainPass's LOD metric: the camera height above the surface under it)
+    std::optional<double> surfaceHeightEstimate(double x, double z) const;
 
     // ---- node bounds (height units; lo > hi: invalid)
     struct Bound
@@ -227,9 +231,11 @@ class SAIGA_VULKAN_API TerrainAtlas
     size_t maskLayerBytes() const { return size_t(setLayout.grassMaskSize()) * setLayout.grassMaskSize(); }
     Buffer& createSetBuffer(Buffer& b, size_t bytes, const char* what);
     TileRecord* findTile(const RegionId& region);
-    // Bounds: own of the nodes of a tile (from its data, or invalid), of every pyramid level, then the bounds up
-    void tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data);
-    void pyramidOwnBounds();
+    // Bounds: own of the nodes of a tile (from its data, or invalid), of every pyramid level, then the bounds up.
+    // widen: the union with the current own bounds (a replacement of GPU-resident data: until its copy is recorded the
+    // GPU holds the old samples, and the pyramid rows of both while they are recorded)
+    void tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data, bool widen = false);
+    void pyramidOwnBounds(bool widen = false);
     void widenOwn(int level, int32_t nx0, int32_t nz0, int32_t nx1, int32_t nz1, int32_t lo, int32_t hi);
     void updateBoundsUp(int level, int32_t nx0, int32_t nz0, int32_t nx1, int32_t nz1);
     NodeBounds& node(int level, int32_t nx, int32_t nz)

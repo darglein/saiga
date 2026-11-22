@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <mutex>
 #include <optional>
@@ -31,6 +32,9 @@
 namespace TerrainTestHooks
 {
 using namespace Saiga;
+
+// pi (M_PI is not standard C++: MSVC has it only with _USE_MATH_DEFINES)
+constexpr double kPi = 3.14159265358979323846;
 
 // A triangle wave of period p (p even) with amplitude p / 2: |((v mod p) - p / 2)|
 inline int64_t triangleWave(int64_t v, int64_t p)
@@ -53,11 +57,11 @@ inline int32_t slopeRidgeHook(uint64_t seed, int64_t x, int64_t z)
     return int32_t(h);
 }
 
-// Periodic in 4096 m in x and z (so periodic in 28 672 m): hills from 0 to about 60 m and a valley below the sea level
-// 6 m (the origin-offset test)
+// Periodic in 4096 m in x and z (so periodic in 28 672 m): hills up to about 60 m and a valley below the sea level 6 m
+// along x = 2000 (mod 4096; the origin-offset test's terrain + water view)
 inline int32_t periodic4096Hook(uint64_t, int64_t x, int64_t z)
 {
-    const int64_t a = triangleWave(x, 4096) * 20;         // 0..40960 units (40 m)
+    const int64_t a = triangleWave(x + 2096, 4096) * 20;  // 0..40960 units (40 m), 0 at x = 2000
     const int64_t b = triangleWave(z, 1024) * 30;         // 0..15360 (15 m)
     const int64_t c = triangleWave(x + 2 * z, 256) * 24;  // 0..3072 (3 m)
     const int64_t d = triangleWave(3 * x - z, 64) * 40;   // 0..1280 (1.25 m)
@@ -106,7 +110,9 @@ struct LatchState
 {
     std::mutex mutex;
     std::condition_variable cv;
-    bool armed = false, open = true, sleepAtOrigin = false;
+    bool armed = false, open = true;
+    // Read by the workers without the mutex
+    std::atomic<bool> sleepAtOrigin{false};
     std::thread::id armingThread;
     // Calls on the arming thread, calls that blocked (or would have) on another thread
     std::atomic<int> callsOnArmingThread{0}, callsBlocked{0};
@@ -137,6 +143,15 @@ inline void openLatch()
     }
     s.cv.notify_all();
 }
+// Arms the latch for its scope and opens it at the end (also when a failed assertion returns early: a closed latch
+// would block the pool's workers and hang the world's destruction)
+struct ScopedLatch
+{
+    ScopedLatch() { armLatch(); }
+    ~ScopedLatch() { openLatch(); }
+    ScopedLatch(const ScopedLatch&)            = delete;
+    ScopedLatch& operator=(const ScopedLatch&) = delete;
+};
 inline void setSleepAtOrigin(bool on)
 {
     latchState().sleepAtOrigin = on;
@@ -190,14 +205,29 @@ inline int renderUntilUploaded(Vulkan::RenderScene& scene, int maxFrames = 64)
     return frames;
 }
 
-// The streamed tiles of the default rule (§4.3) for a camera: per level the tiles whose box (heights from the pyramid
-// +- 64 m) lies within 400 * 2^L m of the camera, the nearest tilesPerLevel
+// The surface height of the pyramid (32 m samples, the integer surface rule) at (x, z), clamped to the space
+inline double pyramidSurfaceHeight(const Vulkan::TerrainLayout& layout, const Vulkan::TerrainPyramidData& pyramid,
+                                   double x, double z)
+{
+    const int P       = layout.pyramidSamplesPerSide();
+    const double size = double(layout.sizeChunks) * 256;
+    const double gx = std::min(std::max(x, 0.0), size) / 32, gz = std::min(std::max(z, 0.0), size) / 32;
+    const int i = std::min(int(gx), P - 2), j = std::min(int(gz), P - 2);
+    auto h = [&](int a, int b) { return (*pyramid.heights)[size_t(b) * size_t(P) + size_t(a)]; };
+    return terrainSurfaceDouble(h(i, j), h(i + 1, j), h(i, j + 1), h(i + 1, j + 1), gx - i, gz - j) * kHeightUnit;
+}
+
+// The streamed tiles of the default rule (§4.3, TerrainSystem::computeDesired) for a camera: per level the tiles within
+// 400 * 2^L m of TerrainPass's LOD distance sqrt(dxz^2 + hc^2) (dxz the horizontal distance to the tile, hc the camera
+// height above ground: the given ground height, else the pyramid's surface), the nearest tilesPerLevel
 inline std::vector<RegionId> desiredTestTiles(const Vulkan::TerrainLayout& layout,
                                               const Vulkan::TerrainPyramidData& pyramid, const Vec3& camera,
-                                              SpaceId space = 0, int firstLevel = 0)
+                                              SpaceId space = 0, int firstLevel = 0,
+                                              std::optional<double> ground = std::nullopt)
 {
     std::vector<RegionId> out;
-    const int P = layout.pyramidSamplesPerSide();
+    const double hc =
+        std::abs(camera.y() - (ground ? *ground : pyramidSurfaceHeight(layout, pyramid, camera.x(), camera.z())));
     for (int k = firstLevel; k < layout.streamedLevels(); ++k)
     {
         const double range = 400.0 * double(1 << k);
@@ -207,18 +237,9 @@ inline std::vector<RegionId> desiredTestTiles(const Vulkan::TerrainLayout& layou
         for (int32_t tz = 0; tz < W; ++tz)
             for (int32_t tx = 0; tx < W; ++tx)
             {
-                int32_t lo = kTerrainHeightLimit, hi = -kTerrainHeightLimit;
-                const int s = int(size / 32);
-                for (int j = 0; j <= s; ++j)
-                    for (int i = 0; i <= s; ++i)
-                    {
-                        const int32_t v = (*pyramid.heights)[size_t(tz * s + j) * size_t(P) + size_t(tx * s + i)];
-                        lo              = std::min(lo, v);
-                        hi              = std::max(hi, v);
-                    }
-                const Vec3 bmin(double(tx * size), double(lo) * kHeightUnit - 64, double(tz * size));
-                const Vec3 bmax(double((tx + 1) * size), double(hi) * kHeightUnit + 64, double((tz + 1) * size));
-                const double d = (camera.cwiseMax(bmin).cwiseMin(bmax) - camera).norm();
+                const double dx = std::max({0.0, double(tx * size) - camera.x(), camera.x() - double((tx + 1) * size)});
+                const double dz = std::max({0.0, double(tz * size) - camera.z(), camera.z() - double((tz + 1) * size)});
+                const double d  = std::sqrt(dx * dx + dz * dz + hc * hc);
                 if (d > range) continue;
                 RegionId r;
                 r.space = space;

@@ -25,15 +25,14 @@ namespace
 constexpr uint32_t treeKeySlot = 1;
 }  // namespace
 
-std::vector<PrototypeTreeSet> prototypeTreeSets(const HeightField& hf, int treeCount, uint32_t seed,
+std::vector<PrototypeTreeSet> prototypeTreeSets(const std::vector<ForestRenderer::TreeInstance>& trees,
                                                 const std::vector<TreeSpecies>& species,
                                                 const std::vector<MeshId>& meshIds)
 {
+    // The chunks of the prototype's space
+    const int chunks = kPrototypeSpaceChunks;
     SAIGA_ASSERT(meshIds.size() == species.size(), "prototypeTreeSets: one mesh per species");
-    const auto trees = ForestRenderer::placeTrees(hf, treeCount, seed, species);
     SAIGA_ASSERT(trees.size() < (1u << 24), "prototypeTreeSets: the keys' counters have 24 bits");
-    // The chunks of the world (the last one may be partial; a tree at x = worldSize belongs to the last)
-    const int chunks = std::max(1, int(std::ceil(double(hf.worldSize()) / chunkSize)));
     auto chunkOf = [&](float v) { return std::min(std::max(int(std::floor(double(v) / chunkSize)), 0), chunks - 1); };
 
     std::map<std::pair<int, int>, size_t> index;
@@ -105,12 +104,27 @@ std::array<float, 3> prototypeTreeLodEnds(const WorldSettings& s)
     return {std::min(l1, max), std::min(std::max(l1, l2), max), max};
 }
 
-void PrototypeForest::init(RenderScene& _scene, const HeightField& hf, int treeCount, uint32_t seed,
+void PrototypeForest::init(RenderScene& _scene, const std::vector<ForestRenderer::TreeInstance>& placed, uint32_t seed,
                            const WorldSettings& settings)
 {
+    initMeshes(_scene, seed, settings);
+    sets = prototypeTreeSets(placed, species, meshIds);
+    initSets(settings);
+}
+
+void PrototypeForest::initSets(const WorldSettings& settings)
+{
+    trees = 0;
+    for (const auto& s : sets) trees += int(s.instances.size());
+    shown = false;
+    apply(settings);
+}
+
+void PrototypeForest::initMeshes(RenderScene& _scene, uint32_t seed, const WorldSettings& settings)
+{
     SAIGA_ASSERT(!scene, "PrototypeForest::init: once per object");
-    SAIGA_ASSERT(_scene.hasPrototypeTerrain(),
-                 "PrototypeForest: the scene needs setPrototypeTerrain (foliage texture)");
+    SAIGA_ASSERT(_scene.hasPrototypeEnvironment(),
+                 "PrototypeForest: the scene needs setPrototypeEnvironment (foliage texture)");
     scene      = &_scene;
     firstFrame = scene->frames() + 1;
     species    = FoliageGenerator::treeSpecies(seed);
@@ -144,12 +158,6 @@ void PrototypeForest::init(RenderScene& _scene, const HeightField& hf, int treeC
         meshIds.push_back(id);
     }
     scene->trackMeshStatistics(meshIds);
-
-    sets  = prototypeTreeSets(hf, treeCount, seed, species, meshIds);
-    trees = 0;
-    for (const auto& s : sets) trees += int(s.instances.size());
-    shown = false;
-    apply(settings);
 }
 
 void PrototypeForest::apply(const WorldSettings& settings)

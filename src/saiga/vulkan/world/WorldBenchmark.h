@@ -6,10 +6,12 @@
 
 #pragma once
 
+#include "saiga/core/math/math.h"
 #include "saiga/core/util/json11.hpp"
-#include "saiga/vulkan/world/HeightField.h"
+#include "saiga/export.h"
 
 #include <array>
+#include <functional>
 #include <map>
 #include <memory>
 #include <string>
@@ -67,7 +69,12 @@ class SAIGA_VULKAN_API WorldBenchmark
         double frameWorkMs = -1;
         // The CPU's waits of the frame (ms): the frame slot, the image acquire, the present ({-1, ...}: none)
         std::array<double, 3> waitPartsMs = {-1, -1, -1};
+        // S20: the frame's terrain stream time (EngineApp::lastTerrainStreamMs: its completeView calls), subtracted
+        // from intervalMs (the frame interval, the stalls and the frame rate exclude it) and reported separately
+        double terrainStreamMs = 0;
     };
+    // The ground under (x, z) for the camera paths (S20: max(terrainHeight, sea level))
+    using Ground = std::function<double(double x, double z)>;
 
     // The known benchmarks: "flyover", "forest"
     static const std::vector<std::string>& names();
@@ -83,7 +90,9 @@ class SAIGA_VULKAN_API WorldBenchmark
      *   above the ground below the camera, looking at the center (on the ground);
      * - forest: 2 m above max(terrain, water level), from center - 300 m to center + 300 m along x, looking along +x.
      */
-    static Pose pose(const std::string& name, const HeightField& hf, int measuredFrame);
+    // S20: the same paths over a ground callback (terrain or water, whichever is higher; the centre (4096, 4096) of the
+    // prototype's 8 km area until S27)
+    static Pose pose(const std::string& name, const Ground& ground, int measuredFrame);
 
     // Median and p95 (nearest rank) of the values; zeros for an empty list.
     static Stat summarize(std::vector<double> values);
@@ -92,8 +101,8 @@ class SAIGA_VULKAN_API WorldBenchmark
     // chain recreation, another program). A run with a stalled frame is not comparable.
     static int countStalls(const std::vector<double>& intervalsMs);
 
-    // The height field must outlive the benchmark
-    WorldBenchmark(const std::string& name, const HeightField& heightField, const std::string& gpuName);
+    // S20: over a ground callback
+    WorldBenchmark(const std::string& name, Ground ground, const std::string& gpuName);
     WorldBenchmark(const WorldBenchmark&)            = delete;
     WorldBenchmark& operator=(const WorldBenchmark&) = delete;
 
@@ -137,10 +146,14 @@ class SAIGA_VULKAN_API WorldBenchmark
 
     // The size of the rendered images (the swap chain extent of the measured frames), set by the caller
     int width = 0, height = 0;
+    // S20: the terrain block of the result ({uploads, upload_mb, resident_tiles, cpu_mb, gpu_mb}), set by the game
+    void setTerrainInfo(const json11::Json& info) { terrainInfo = info; }
 
    private:
     std::string name, gpuName;
-    const HeightField* hf;
+    Ground groundFn;
+    json11::Json terrainInfo;
+    std::vector<double> streamMs;
     std::vector<double> cpuMs, cpuWorkMs, frameWorkMs;
     std::vector<std::array<double, 3>> waitParts;
     std::map<std::string, std::vector<double>> gpuMs;

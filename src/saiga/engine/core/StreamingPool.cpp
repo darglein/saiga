@@ -46,7 +46,22 @@ void lowerThreadPriority()
 StreamingPool::StreamingPool(int workers)
 {
     SAIGA_ASSERT(workers >= 1, "StreamingPool: at least one worker");
-    for (int i = 0; i < workers; ++i) threads.emplace_back([this]() { workerLoop(); });
+    try
+    {
+        for (int i = 0; i < workers; ++i) threads.emplace_back([this]() { workerLoop(); });
+    }
+    catch (...)
+    {
+        // A failed thread creation: the destructor does not run, so the started workers are stopped and joined here
+        // (a joinable std::thread's destructor terminates, PR review)
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            stopping = true;
+        }
+        workAvailable.notify_all();
+        for (auto& t : threads) t.join();
+        throw;
+    }
 }
 
 StreamingPool::~StreamingPool()

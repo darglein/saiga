@@ -8,7 +8,7 @@
 
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
-#include "saiga/vulkan/world/HeightField.h"
+#include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/WorldSettings.h"
 
 #include <array>
@@ -33,8 +33,9 @@ struct PrototypeTreeSet
  * generator slot 1, the placeTrees index as the counter), the rotation about y, the scale the tree height, the mesh
  * meshIds[species].
  */
-SAIGA_VULKAN_API std::vector<PrototypeTreeSet> prototypeTreeSets(const HeightField& heightField, int treeCount,
-                                                                 uint32_t seed, const std::vector<TreeSpecies>& species,
+// S20: the placed trees (ForestRenderer::placeTrees of a PrototypeArea) in the chunks of the prototype's space
+SAIGA_VULKAN_API std::vector<PrototypeTreeSet> prototypeTreeSets(const std::vector<ForestRenderer::TreeInstance>& trees,
+                                                                 const std::vector<TreeSpecies>& species,
                                                                  const std::vector<MeshId>& meshIds);
 
 // The mesh of a tree species for the PrototypeFoliage class: its LODs on MeshVertex (the color word
@@ -56,7 +57,7 @@ inline float prototypeTreePadding(const WorldSettings& settings)
 /**
  * The prototype's trees in a RenderScene (S19a; used by game_world, flight, racing and the tests): registers one mesh
  * per species (IDs of RenderScene::reserveIds, names "prototype/tree/<seed>/<species>") with the PrototypeFoliage
- * material ("prototype/foliage"); on a scene that already has them (a WorldRenderer attached again) they are reused by
+ * material ("prototype/foliage"); on a scene that already has them (a PrototypeScene attached again) they are reused by
  * name. Creates the instance sets (prototypeTreeSets) and tracks the species meshes' statistics.
  * apply() follows the settings: the trees toggle removes and re-adds the sets, treeLod1/2/treeMaxDistance and wind
  * rewrite the mesh records (setMeshLodDistances).
@@ -66,7 +67,8 @@ class SAIGA_VULKAN_API PrototypeForest
    public:
     // The scene must have the prototype terrain (the foliage texture of the PrototypeFoliage class). Once per object;
     // a new PrototypeForest on the same scene reuses the registered meshes and material
-    void init(RenderScene& scene, const HeightField& heightField, int treeCount, uint32_t seed,
+    // The placed trees (the species and mesh names of the seed; the scene needs setPrototypeEnvironment)
+    void init(RenderScene& scene, const std::vector<ForestRenderer::TreeInstance>& trees, uint32_t seed,
               const WorldSettings& settings);
     // The trees toggle, the LOD distances and the wind's bounds padding
     void apply(const WorldSettings& settings);
@@ -93,6 +95,8 @@ class SAIGA_VULKAN_API PrototypeForest
     size_t memoryBytes() const;
 
    private:
+    void initMeshes(RenderScene& scene, uint32_t seed, const WorldSettings& settings);
+    void initSets(const WorldSettings& settings);
     RenderScene* scene = nullptr;
     std::vector<TreeSpecies> species;
     std::vector<MeshId> meshIds;

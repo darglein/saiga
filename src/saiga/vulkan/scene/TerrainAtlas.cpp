@@ -7,8 +7,10 @@
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/vulkan/Renderer.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <limits>
 #include <string>
@@ -69,8 +71,8 @@ TerrainMemory TerrainAtlas::memoryEstimate(const TerrainLayout& l, const RenderS
     m.pyramid      = bufferBytes(P * P * 4);
     m.pageTable    = bufferBytes(pageEntries(l) * 4);
     m.masks        = bufferBytes(size_t(l.grassMaskLayers) * size_t(l.grassMaskSize()) * size_t(l.grassMaskSize()));
-    m.nodes        = 2 * size_t(maxNodes) * nodeInstanceBytes;
-    m.staging      = 2 * (p.terrainUploadBytesPerFrame + stagingMargin);
+    m.nodes        = size_t(VulkanRenderer::framesInFlight) * size_t(maxNodes) * nodeInstanceBytes;
+    m.staging      = size_t(VulkanRenderer::framesInFlight) * (p.terrainUploadBytesPerFrame + stagingMargin);
     m.bounds       = totalNodes(l) * sizeof(NodeBounds);
     m.uploadData   = p.terrainUploadBytesPerFrame;
     return m;
@@ -84,12 +86,15 @@ void TerrainAtlas::init(VulkanBase& b, const RenderSceneParameters& p, uint64_t 
     storageLimit = limit;
     SAIGA_ASSERT(params.terrainUploadBytesPerFrame >= 2 * (align16(size_t(257) * 257 * 4) + 16),
                  "RenderSceneParameters::terrainUploadBytesPerFrame must hold at least two 1 m tiles");
-    for (int f = 0; f < 2; ++f)
+    static_assert(VulkanRenderer::framesInFlight == std::tuple_size<decltype(staging)>::value &&
+                      VulkanRenderer::framesInFlight == std::tuple_size<decltype(nodeBuffers)>::value,
+                  "TerrainAtlas: one staging and node buffer per frame in flight");
+    for (size_t f = 0; f < staging.size(); ++f)
     {
-        staging[size_t(f)].createBuffer(
-            *base, params.terrainUploadBytesPerFrame + stagingMargin, vk::BufferUsageFlagBits::eTransferSrc,
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-        nodeBuffers[size_t(f)].createBuffer(
+        staging[f].createBuffer(*base, params.terrainUploadBytesPerFrame + stagingMargin,
+                                vk::BufferUsageFlagBits::eTransferSrc,
+                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        nodeBuffers[f].createBuffer(
             *base, size_t(maxNodes) * nodeInstanceBytes, vk::BufferUsageFlagBits::eStorageBuffer,
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     }
@@ -246,10 +251,13 @@ void TerrainAtlas::setPyramid(SpaceId space, const TerrainPyramidData& p)
                 ++it;
         }
     }
-    setSeaLevel    = p.seaLevel;
-    pyramidHeights = p.heights;
+    // A resident pyramid stays drawable while its replacement's rows are recorded (the pyramid is every node's
+    // fallback): its bounds keep the old samples too (PR review)
+    const bool widen = pyramidGpu;
+    setSeaLevel      = p.seaLevel;
+    pyramidHeights   = p.heights;
     queuePyramidRows();
-    pyramidOwnBounds();
+    pyramidOwnBounds(widen);
     updateMemoryStats();
 }
 
@@ -262,9 +270,43 @@ TerrainAtlas::TileRecord* TerrainAtlas::findTile(const RegionId& region)
     return slot < 0 ? nullptr : &tiles[region.level][size_t(slot)];
 }
 
+std::optional<double> TerrainAtlas::surfaceHeightEstimate(double x, double z) const
+{
+    if (!setAllocated || !pyramidHeights) return std::nullopt;
+    const double size = double(setLayout.sizeChunks) * 256.0;
+    if (!std::isfinite(x) || !std::isfinite(z)) return std::nullopt;
+    x = std::min(std::max(x, 0.0), size);
+    z = std::min(std::max(z, 0.0), size);
+    // Bilinear in a row-major n x n grid of spacing sp with its first sample at (x0, z0)
+    auto bilinear = [&](const std::vector<int32_t>& hs, int n, double sp, double x0, double z0)
+    {
+        const double fx = std::min(std::max((x - x0) / sp, 0.0), double(n - 1));
+        const double fz = std::min(std::max((z - z0) / sp, 0.0), double(n - 1));
+        const int i = std::min(int(fx), n - 2), j = std::min(int(fz), n - 2);
+        const double u = fx - i, v = fz - j;
+        auto h          = [&](int a, int b) { return double(hs[size_t(b) * size_t(n) + size_t(a)]); };
+        const double h0 = h(i, j) + (h(i + 1, j) - h(i, j)) * u;
+        const double h1 = h(i, j + 1) + (h(i + 1, j + 1) - h(i, j + 1)) * u;
+        return (h0 + (h1 - h0) * v) * kHeightUnit;
+    };
+    for (int level = 0; level < setLayout.streamedLevels(); ++level)
+    {
+        const double tileSize = 256.0 * double(1 << level);
+        const int32_t W       = setLayout.tilesPerSide(level);
+        const int32_t tx = std::min(int32_t(x / tileSize), W - 1), tz = std::min(int32_t(z / tileSize), W - 1);
+        const int slot = tileSlots[size_t(level)][size_t(tz) * size_t(W) + size_t(tx)];
+        if (slot < 0) continue;
+        const TileRecord& r = tiles[size_t(level)][size_t(slot)];
+        if (!r.data.heights) continue;
+        return bilinear(*r.data.heights, setLayout.samplesPerSide(), double(setLayout.baseSpacing << level),
+                        tx * tileSize, tz * tileSize);
+    }
+    return bilinear(*pyramidHeights, setLayout.pyramidSamplesPerSide(), 32.0, 0.0, 0.0);
+}
+
 bool TerrainAtlas::tileSet(int level, int32_t tx, int32_t tz) const
 {
-    if (!setAllocated || level >= setLayout.streamedLevels()) return false;
+    if (!setAllocated || level < 0 || level >= setLayout.streamedLevels()) return false;
     const int32_t W = setLayout.tilesPerSide(level);
     if (tx < 0 || tz < 0 || tx >= W || tz >= W) return false;
     return tileSlots[size_t(level)][size_t(tz) * size_t(W) + size_t(tx)] >= 0;
@@ -289,6 +331,9 @@ void TerrainAtlas::setTile(const RegionId& region, const TerrainTileData& tile)
     SAIGA_ASSERT(tile.heights && tile.heights->size() == n * n, "setTerrainTile: wrong sample count");
     int& slot  = tileSlots[region.level][size_t(region.z) * size_t(W) + size_t(region.x)];
     auto& recs = tiles[region.level];
+    // A replaced GPU-resident tile stays resident with its old samples until the new copy is recorded: its nodes'
+    // bounds keep the old samples too, so culling never rejects what the GPU still draws (PR review)
+    const bool widen = slot >= 0 && recs[size_t(slot)].gpu;
     if (slot >= 0)
     {
         // Replaced in place: the queued copy and patches of the old data are superseded
@@ -320,7 +365,7 @@ void TerrainAtlas::setTile(const RegionId& region, const TerrainTileData& tile)
     u.pageValue = u.layer;
     u.bytes     = align16(layerBytes()) + 16;
     enqueue(std::move(u));
-    tileOwnBounds(region.level, region.x, region.z, &r.data);
+    tileOwnBounds(region.level, region.x, region.z, &r.data, widen);
     updateMemoryStats();
 }
 
@@ -527,7 +572,7 @@ TerrainAtlas::Bound TerrainAtlas::bound(int level, int32_t nx, int32_t nz) const
     return Bound{n.lo, n.hi};
 }
 
-void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data)
+void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const TerrainTileData* data, bool widen)
 {
     const int npt = 8 / setLayout.baseSpacing;
     const int n   = setLayout.samplesPerSide();
@@ -535,9 +580,11 @@ void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const Terrai
     {
         for (int lx = 0; lx < npt; ++lx)
         {
-            NodeBounds& nb = node(level, tx * npt + lx, tz * npt + lz);
-            nb.ownLo       = 1;
-            nb.ownHi       = 0;
+            NodeBounds& nb    = node(level, tx * npt + lx, tz * npt + lz);
+            const bool keep   = widen && nb.ownLo <= nb.ownHi;
+            const int32_t oLo = nb.ownLo, oHi = nb.ownHi;
+            nb.ownLo = 1;
+            nb.ownHi = 0;
             if (!data) continue;
             int32_t lo = std::numeric_limits<int32_t>::max(), hi = std::numeric_limits<int32_t>::min();
             const std::vector<int32_t>& hs = *data->heights;
@@ -548,14 +595,14 @@ void TerrainAtlas::tileOwnBounds(int level, int32_t tx, int32_t tz, const Terrai
                     lo              = std::min(lo, v);
                     hi              = std::max(hi, v);
                 }
-            nb.ownLo = lo;
-            nb.ownHi = hi;
+            nb.ownLo = keep ? std::min(lo, oLo) : lo;
+            nb.ownHi = keep ? std::max(hi, oHi) : hi;
         }
     }
     updateBoundsUp(level, tx * npt, tz * npt, tx * npt + npt - 1, tz * npt + npt - 1);
 }
 
-void TerrainAtlas::pyramidOwnBounds()
+void TerrainAtlas::pyramidOwnBounds(bool widen)
 {
     const int P                    = setLayout.pyramidSamplesPerSide();
     const std::vector<int32_t>& hs = *pyramidHeights;
@@ -578,9 +625,10 @@ void TerrainAtlas::pyramidOwnBounds()
                         hi              = std::max(hi, v);
                     }
                 }
-                NodeBounds& nb = node(k, nx, nz);
-                nb.ownLo       = lo;
-                nb.ownHi       = hi;
+                NodeBounds& nb  = node(k, nx, nz);
+                const bool keep = widen && nb.ownLo <= nb.ownHi;
+                nb.ownLo        = keep ? std::min(lo, nb.ownLo) : lo;
+                nb.ownHi        = keep ? std::max(hi, nb.ownHi) : hi;
             }
         }
     }
@@ -763,6 +811,9 @@ std::vector<int32_t> TerrainAtlas::download(Buffer& b, size_t offset, size_t byt
         Memory::SafeAccessor c(*host.memoryLocation());
         cmd.copyBuffer(b.memoryLocation()->data, host.memoryLocation()->data, vk::BufferCopy(offset, 0, bytes));
     }
+    // The copy made visible to the host (the fence wait alone does not, PR review)
+    vk::MemoryBarrier2 toHost(Stage::eAllTransfer, Access::eTransferWrite, Stage::eHost, Access::eHostRead);
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, toHost, nullptr, nullptr));
     cmd.end();
     q.submitAndWait(cmd);
     q.commandPool.freeCommandBuffer(cmd);
@@ -812,12 +863,14 @@ void TerrainAtlas::updateMemoryStats()
         s.masksResident += m.used && m.gpu ? 1 : 0;
     }
     TerrainMemory m;
-    m.atlas          = size_t(atlas.size());
-    m.pyramid        = size_t(pyramid.size());
-    m.pageTable      = size_t(pages.size());
-    m.masks          = size_t(masks.size());
-    m.nodes          = size_t(nodeBuffers[0].size() + nodeBuffers[1].size());
-    m.staging        = size_t(staging[0].size() + staging[1].size());
+    m.atlas     = size_t(atlas.size());
+    m.pyramid   = size_t(pyramid.size());
+    m.pageTable = size_t(pages.size());
+    m.masks     = size_t(masks.size());
+    m.nodes     = 0;
+    m.staging   = 0;
+    for (const auto& b : nodeBuffers) m.nodes += size_t(b.size());
+    for (const auto& b : staging) m.staging += size_t(b.size());
     size_t nodeCount = 0;
     for (const auto& level : nodes) nodeCount += level.size();
     m.bounds     = nodeCount * sizeof(NodeBounds);

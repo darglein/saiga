@@ -25,17 +25,17 @@ using namespace Engine;
 void RacingRender::init(EngineApp& _app)
 {
     app = &_app;
-    Vulkan::WorldParameters params;
+    // The terrain is the engine's (the World's space through the render sink, S20); grass would grow through the track
+    prototype.settings.grass = false;
     // The renderer's trees may follow SAIGA_WORLD_TREES; the track's site does not (RacingContext::kSiteTreeCount)
-    params.treeCount = worldTreeCount();
-    worldRenderer.init(params, std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
-    // Grass would grow through the track
-    worldRenderer.settings.grass = false;
-    // RenderScene draws the prototype world and the trees (S19a)
-    worldRenderer.attach(*app->scene());
-    // The world prototype's settings and statistics as sections of the debug UI (S19c)
-    app->debugUi().addSection(DebugTab::Engine, "World", [this]() { worldRenderer.imgui(); });
-    app->debugUi().addSection(DebugTab::Performance, "World passes", [this]() { worldRenderer.imguiStatistics(); });
+    Vulkan::PrototypeArea area;
+    area.seed        = context->seed;
+    area.baseSpacing = context->baseSpacing;
+    prototype.attach(
+        *app->scene(),
+        Vulkan::ForestRenderer::placeTrees(area, worldTreeCount(), 1, Vulkan::FoliageGenerator::treeSpecies(1)), 1);
+    // The world prototype's settings and tree counts as a section of the debug UI (S19c)
+    app->debugUi().addSection(DebugTab::Engine, "World", [this]() { prototype.imgui(); });
     // The track, its cones and the banner: one instance set at the track's start (S19b)
     level.create(*app->scene(), "racing/level", levelMesh(), context->track.position(0));
     wheels.init(app->vulkanSink());
@@ -62,7 +62,7 @@ void RacingRender::shutdown()
     caches.detach();
     wheels.clear();
     level.release();
-    worldRenderer.destroy();
+    prototype.detach();
 }
 
 MeshData RacingRender::levelMesh() const
@@ -146,7 +146,7 @@ Entity RacingRender::focus()
 void RacingRender::beforeRender(double alpha)
 {
     Vulkan::RenderScene& scene = *app->scene();
-    worldRenderer.update();
+    prototype.update();
     const double frameDt = clock.tick();
     World& w             = app->world();
     const Entity e       = focus();
@@ -201,8 +201,7 @@ void RacingRender::beforeRender(double alpha)
         });
     wheels.end();
     // While a tool holds the camera the app ignores it (S14)
-    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()),
-                       radians(double(worldRenderer.settings.fovy)));
+    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()), radians(double(prototype.settings.fovy)));
     // The time of the wind (the world's time between the steps)
     scene.setTime(w.time() + alpha * w.dt());
 }

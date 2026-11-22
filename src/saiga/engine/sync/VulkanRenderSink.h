@@ -41,6 +41,15 @@ class SAIGA_ENGINE_API VulkanRenderSink : public RenderSink
     void removeDynamic(InstanceHandle h) override;
     void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) override;
     void setInterpolation(float alpha) override;
+    void setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid) override;
+    void setTerrainTile(const RegionId& region, const TerrainTileData& tile) override;
+    void removeTerrainTile(const RegionId& region) override;
+    void setGrassMask(const ChunkId& chunk, const GrassMaskData& mask) override;
+    void removeGrassMask(const ChunkId& chunk) override;
+    void clearTerrain() override;
+    void patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights) override;
+    void patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights) override;
+    size_t terrainUploadsPending() const override;
 
     // The scene (the game's own content: instance sets of level geometry, cosmetic dynamics)
     Vulkan::RenderScene& scene() { return renderScene; }

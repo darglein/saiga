@@ -86,9 +86,15 @@ bool boxCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, 5>& planes
     return false;
 }
 
-double boxDistance(const Vec3& lo, const Vec3& hi)
+// The LOD metric of the selection and the vertex morph: sqrt(dxz^2 + hc^2) with the horizontal distance dxz of the
+// camera-relative box [lo, hi] (xz only) and the frame's camera height hc above the surface under the camera. hc is one
+// value per frame, so the metric is 1-Lipschitz in xz and independent of the relief: the morph invariant at level
+// borders depends only on the horizontal node diagonal (minR0)
+double lodDistance(const Vec3& lo, const Vec3& hi, double hc)
 {
-    return Vec3::Zero().cwiseMax(lo).cwiseMin(hi).norm();
+    const double dx = std::max(0.0, std::max(lo.x(), -hi.x()));
+    const double dz = std::max(0.0, std::max(lo.z(), -hi.z()));
+    return std::sqrt(dx * dx + dz * dz + hc * hc);
 }
 }  // namespace
 
@@ -134,6 +140,21 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats)
     equal.depthStencilState.depthWriteEnable = VK_FALSE;
     create(equalPipeline, shaders, formats, equal);
 
+    // The sky: binding 0 only (the frame's uniforms, also without a terrain set)
+    {
+        DescriptorSetLayout skyLayout;
+        skyLayout.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+                                                               vk::ShaderStageFlagBits::eFragment));
+        PipelineInfo sky                       = info;
+        sky.rasterizationState.cullMode        = vk::CullModeFlagBits::eNone;
+        sky.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
+        sky.depthStencilState.depthWriteEnable = VK_FALSE;
+        skyPipeline.init(*base, 1);
+        skyPipeline.addDescriptorSetLayout(skyLayout, 0);
+        skyPipeline.shaderPipeline.load(base->device, {"vulkan/scene/sky.vert", "vulkan/scene/sky.frag"});
+        skyPipeline.create(formats, sky);
+    }
+
     probePipeline.init(*base, 1);
     probePipeline.addDescriptorSetLayout(setLayout(), 0);
     probePipeline.addPushConstantRange({vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint32_t)});
@@ -163,6 +184,13 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats)
                                 vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
         f.set = scenePipeline.createRawDescriptorSet();
     }
+    for (size_t i = 0; i < frames.size(); ++i)
+    {
+        skySets[i] = skyPipeline.createRawDescriptorSet();
+        vk::DescriptorBufferInfo ubo(handle(frames[i].uniforms), 0, sizeof(TerrainFrameUniforms));
+        base->device.updateDescriptorSets(
+            vk::WriteDescriptorSet(skySets[i], 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &ubo), nullptr);
+    }
     probeSet    = probePipeline.createRawDescriptorSet();
     initialized = true;
 }
@@ -173,6 +201,7 @@ void TerrainPass::destroy()
     scenePipeline.destroy();
     depthPipeline.destroy();
     equalPipeline.destroy();
+    skyPipeline.destroy();
     probePipeline.destroy();
     indices.destroy();
     auto* pool = &base->descriptorPool;
@@ -182,6 +211,12 @@ void TerrainPass::destroy()
         auto set = f.set;
         base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
         f.set = nullptr;
+    }
+    for (auto& sky : skySets)
+    {
+        auto set = sky;
+        base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+        sky = nullptr;
     }
     auto set = probeSet;
     base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
@@ -194,6 +229,7 @@ void TerrainPass::destroy()
 void TerrainPass::skipFrame()
 {
     frameValid = false;
+    skyValid   = false;
     statistics = Stats();
     nodeInfos.clear();
 }
@@ -202,110 +238,152 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
                            const PrototypeSettings& settings, double time, int width, int height)
 {
     skipFrame();
-    // Only the set's space, and only when it is the camera's; nothing before the whole pyramid is on the GPU
-    if (!camera.valid || !atlas.hasSet() || !atlas.pyramidResident() || atlas.space() != camera.space) return false;
+    if (!camera.valid) return false;
+    // A non-finite camera (no conversion to integers below): nothing this frame
+    if (!camera.position.allFinite()) return false;
+    // The terrain only for the set's space when it is the camera's; nothing before the whole pyramid is on the GPU
+    const bool drawTerrain = atlas.hasSet() && atlas.pyramidResident() && atlas.space() == camera.space;
+    const bool hasSea      = drawTerrain && atlas.seaLevel().has_value();
     lastFrame              = frameIndex;
-    lastAtlas              = &atlas;
-    const TerrainLayout& L = atlas.layout();
     const Vec3& c          = camera.position;
-    // The frame anchor: xz rounded down to 64 m, refHeight to 64 m (65536 units), clamped to the limit
-    const int32_t anchorX = int32_t(std::floor(c.x() / 64.0)) * 64;
-    const int32_t anchorZ = int32_t(std::floor(c.z() / 64.0)) * 64;
-    int64_t ref           = int64_t(std::floor(c.y() / kHeightUnit / 65536.0)) * 65536;
-    ref                   = std::min<int64_t>(std::max<int64_t>(ref, -kTerrainHeightLimit), kTerrainHeightLimit);
+    // The frame anchor: xz rounded down to 64 m (clamped to +-2^30 m before the conversion), refHeight to 64 m
+    // (65536 units), clamped to the limit
+    auto anchorOf = [](double v)
+    { return int32_t(std::floor(std::min(std::max(v, -1073741824.0), 1073741824.0) / 64.0)) * 64; };
+    const int32_t anchorX = anchorOf(c.x());
+    const int32_t anchorZ = anchorOf(c.z());
+    // The height clamped in double before the conversion (any finite y)
+    const double refUnits =
+        std::min(std::max(std::floor(c.y() / kHeightUnit / 65536.0) * 65536.0, -double(kTerrainHeightLimit)),
+                 double(kTerrainHeightLimit));
+    const int64_t ref = int64_t(refUnits);
     const Vec3 rel(c.x() - anchorX, c.y() - double(ref) * kHeightUnit, c.z() - anchorZ);
+    // The morph start in [0.05, 0.95] (NaN: 0.05), for the range minimum and the shader alike: >= 1 would invert the
+    // morph, a smaller one void minR0's guarantee
+    float morphStart = settings.morphStart;
+    if (!(morphStart >= 0.05f)) morphStart = 0.05f;
+    morphStart = std::min(morphStart, 0.95f);
 
-    // The S19a morph minimum: a node of level k must fit into the morph area of level k + 1
-    const double leaf  = 32.0 * L.baseSpacing;
-    const double minR0 = 2.5 * leaf * 1.42 * std::max(1.0, 0.3 / std::max(1.0 - double(settings.morphStart), 0.01));
-    range0             = std::max(double(settings.terrainLodRange), minR0);
-
-    select(atlas, camera, anchorX, anchorZ);
-
-    // The water plane: 400 km centred on the camera's xz rounded down to 4096 m, at the sea level, culled with its own
-    // box
-    waterNodes.clear();
-    if (atlas.seaLevel())
+    if (drawTerrain)
     {
-        const int64_t cx = int64_t(std::floor(c.x() / 4096.0)) * 4096, cz = int64_t(std::floor(c.z() / 4096.0)) * 4096;
-        const int32_t ox = int32_t(cx - 200000), oz = int32_t(cz - 200000);
-        const double y = double(*atlas.seaLevel()) * kHeightUnit - c.y();
-        const Vec3 lo(double(ox) - c.x(), y, double(oz) - c.z()),
-            hi(double(ox) + 400000 - c.x(), y, double(oz) + 400000 - c.z());
-        if (!boxCulled(lo, hi, camera.planes))
+        lastAtlas              = &atlas;
+        lastSetRebuilds        = atlas.stats().rebuilds;
+        const TerrainLayout& L = atlas.layout();
+        // The morph minimum. The S19a bound (2.5 leaf diagonals, more for a late morph start) and the CDLOD invariant
+        // of the horizontal metric: at a level-k/k+1 border the fine node's box is within range_k, so the shared edge
+        // is within range_k + its diagonal (sqrt(2) * leaf * 2^k) and must stay before the coarse level's morph start
+        // range_k * (1 + morphStart): range0 >= sqrt(2) * leaf / morphStart, with a 50 % margin
+        const double leaf  = 32.0 * L.baseSpacing;
+        const double ms    = double(morphStart);
+        const double minR0 = std::max(2.5 * leaf * 1.42 * std::max(1.0, 0.3 / std::max(1.0 - ms, 0.01)),
+                                      1.5 * std::sqrt(2.0) * leaf / ms);
+        range0             = std::max(double(settings.terrainLodRange), minR0);
+        // The LOD metric's height: the camera height above the surface under it (one value per frame)
+        const std::optional<double> ground = atlas.surfaceHeightEstimate(c.x(), c.z());
+        lodHeight                          = ground ? std::abs(c.y() - *ground) : 0.0;
+
+        select(atlas, camera, anchorX, anchorZ);
+
+        // The water plane: 400 km centred on the camera's xz rounded down to 4096 m, at the sea level, culled with its
+        // own box
+        waterNodes.clear();
+        if (hasSea)
         {
-            GpuNode n;
-            n.originX    = ox - anchorX;
-            n.originZ    = oz - anchorZ;
-            n.sampleX    = 400000 / (gridN / 2);
-            n.levelFlags = flagWater;
-            waterNodes.push_back(n);
-            TerrainNodeInfo info;
-            info.originX     = ox;
-            info.originZ     = oz;
-            info.water       = true;
-            statistics.water = true;
-            waterInfo        = info;
+            // The centre clamped like the anchor (+-2^30 m) before the conversion: the origins stay in int32_t
+            auto centreOf = [](double v)
+            { return int64_t(std::floor(std::min(std::max(v, -1073741824.0), 1073741824.0) / 4096.0)) * 4096; };
+            const int64_t cx = centreOf(c.x()), cz = centreOf(c.z());
+            const int32_t ox = int32_t(cx - 200000), oz = int32_t(cz - 200000);
+            const double y = double(*atlas.seaLevel()) * kHeightUnit - c.y();
+            const Vec3 lo(double(ox) - c.x(), y, double(oz) - c.z());
+            const Vec3 hi(double(ox) + 400000 - c.x(), y, double(oz) + 400000 - c.z());
+            if (!boxCulled(lo, hi, camera.planes))
+            {
+                GpuNode n;
+                n.originX    = ox - anchorX;
+                n.originZ    = oz - anchorZ;
+                n.sampleX    = 400000 / (gridN / 2);
+                n.levelFlags = flagWater;
+                waterNodes.push_back(n);
+                waterInfo         = TerrainNodeInfo();
+                waterInfo.originX = ox;
+                waterInfo.originZ = oz;
+                waterInfo.water   = true;
+                statistics.water  = true;
+            }
         }
-    }
 
-    // Instances: full, quarter, water; clipped to maxNodes (the water is kept)
-    const size_t room = size_t(TerrainAtlas::maxNodes) - waterNodes.size();
-    if (fullNodes.size() + quarterNodes.size() > room)
-    {
-        statistics.clipped = int(fullNodes.size() + quarterNodes.size() - room);
-        std::cout << "TerrainPass: " << statistics.clipped << " nodes beyond " << TerrainAtlas::maxNodes
-                  << " were clipped" << std::endl;
-        if (fullNodes.size() > room)
+        // Instances: full, quarter, water; clipped to maxNodes (the water is kept)
+        const size_t room = size_t(TerrainAtlas::maxNodes) - waterNodes.size();
+        if (fullNodes.size() + quarterNodes.size() > room)
         {
-            fullNodes.resize(room);
-            fullInfos.resize(room);
+            statistics.clipped = int(fullNodes.size() + quarterNodes.size() - room);
+            std::cout << "TerrainPass: " << statistics.clipped << " nodes beyond " << TerrainAtlas::maxNodes
+                      << " were clipped" << std::endl;
+            if (fullNodes.size() > room)
+            {
+                fullNodes.resize(room);
+                fullInfos.resize(room);
+            }
+            quarterNodes.resize(room - fullNodes.size());
+            quarterInfos.resize(room - fullNodes.size());
         }
-        quarterNodes.resize(room - fullNodes.size());
-        quarterInfos.resize(room - fullNodes.size());
+        numFull    = uint32_t(fullNodes.size());
+        numQuarter = uint32_t(quarterNodes.size());
+        numWater   = uint32_t(waterNodes.size());
+        {
+            auto* dst = static_cast<GpuNode*>(atlas.nodeBuffer(frameIndex).getMappedPointer());
+            // An empty group's data() may be null: no memcpy (PR review)
+            auto copy = [](GpuNode* to, const std::vector<GpuNode>& from)
+            {
+                if (!from.empty()) std::memcpy(to, from.data(), from.size() * sizeof(GpuNode));
+            };
+            copy(dst, fullNodes);
+            copy(dst + numFull, quarterNodes);
+            copy(dst + numFull + numQuarter, waterNodes);
+        }
+        nodeInfos = fullInfos;
+        nodeInfos.insert(nodeInfos.end(), quarterInfos.begin(), quarterInfos.end());
+        if (numWater) nodeInfos.push_back(waterInfo);
+        statistics.nodes    = int(numFull + numQuarter);
+        statistics.quarters = int(numQuarter);
     }
-    numFull    = uint32_t(fullNodes.size());
-    numQuarter = uint32_t(quarterNodes.size());
-    numWater   = uint32_t(waterNodes.size());
-    {
-        auto* dst = static_cast<GpuNode*>(atlas.nodeBuffer(frameIndex).getMappedPointer());
-        std::memcpy(dst, fullNodes.data(), fullNodes.size() * sizeof(GpuNode));
-        std::memcpy(dst + numFull, quarterNodes.data(), quarterNodes.size() * sizeof(GpuNode));
-        std::memcpy(dst + numFull + numQuarter, waterNodes.data(), waterNodes.size() * sizeof(GpuNode));
-    }
-    nodeInfos = fullInfos;
-    nodeInfos.insert(nodeInfos.end(), quarterInfos.begin(), quarterInfos.end());
-    if (numWater) nodeInfos.push_back(waterInfo);
-    statistics.nodes    = int(numFull + numQuarter);
-    statistics.quarters = int(numQuarter);
 
-    // TerrainFrame
+    // TerrainFrame (every frame with a camera: the sky reads it also without a terrain set)
     TerrainFrameUniforms& u = uniforms;
     u.viewProjRel           = camera.viewProj;
     u.invViewProjRel        = inverse(camera.viewProj);
     u.cameraRel             = vec4(float(rel.x()), float(rel.y()), float(rel.z()), 0);
-    u.anchor                = ivec4(anchorX, anchorZ, int32_t(ref), atlas.seaLevel() ? *atlas.seaLevel() : 0);
-    u.grid                  = ivec4(L.samplesPerSide(), L.streamedLevels(), L.pyramidSamplesPerSide(), L.baseSpacing);
-    u.flags                 = ivec4(atlas.seaLevel() ? 1 : 0, L.rootLevel(), settings.debugMode, 0);
-    for (int k = 0; k < 8; ++k)
-        u.levels[size_t(k)] =
-            k < L.streamedLevels() ? ivec4(int(atlas.pageOffset(k)), L.tilesPerSide(k), 0, 0) : ivec4(0, 0, 0, 0);
+    u.anchor                = ivec4(anchorX, anchorZ, int32_t(ref), hasSea ? *atlas.seaLevel() : 0);
+    u.grid                  = ivec4(0, 0, 0, 0);
+    u.flags                 = ivec4(hasSea ? 1 : 0, 0, settings.debugMode, 0);
+    for (int k = 0; k < 8; ++k) u.levels[size_t(k)] = ivec4(0, 0, 0, 0);
+    if (drawTerrain)
+    {
+        const TerrainLayout& L = atlas.layout();
+        u.grid  = ivec4(L.samplesPerSide(), L.streamedLevels(), L.pyramidSamplesPerSide(), L.baseSpacing);
+        u.flags = ivec4(hasSea ? 1 : 0, L.rootLevel(), settings.debugMode, 0);
+        for (int k = 0; k < L.streamedLevels(); ++k)
+            u.levels[size_t(k)] = ivec4(int(atlas.pageOffset(k)), L.tilesPerSide(k), 0, 0);
+    }
     const vec3 sun = sunDirection(settings);
     u.sunDir       = vec4(sun(0), sun(1), sun(2), settings.sunIntensity);
     u.shading      = vec4(settings.albedo, settings.ambient, settings.flatShading ? 1 : 0,
                      camera.linear ? camera.preExposure : 0.0f);
-    // The fog's base: the sea level (0 without one); its height above it in double
-    const double fogBase = atlas.seaLevel() ? double(*atlas.seaLevel()) * kHeightUnit : 0.0;
+    // The fog's base: the sea level (0 without one); the camera height above it in double
+    const double fogBase = hasSea ? double(*atlas.seaLevel()) * kHeightUnit : 0.0;
     u.fog                = vec4(settings.fogDensity, settings.fogFalloff, settings.fog ? 1 : 0, float(c.y() - fogBase));
     u.fogColor           = vec4(0.42f, 0.42f, 0.42f, 1);
     u.skyColor           = vec4(0.2f, 0.2f, 0.2f, 1);
-    u.lod                = vec4(float(range0), settings.morphStart, 0, 0);
+    u.lod                = vec4(float(range0), morphStart, float(lodHeight), 0);
     u.grass              = vec4(settings.grassRadius, settings.grassCellSize, settings.grassDensity, float(samples));
-    u.grassPhases      = vec4(PrototypeWorld::windPhase(time, 1.7), PrototypeWorld::windPhase(time, 1.3), settings.wind,
-                              settings.alphaCutoff);
+    u.grassPhases =
+        vec4(prototypeWindPhase(time, 1.7), prototypeWindPhase(time, 1.3), settings.wind, settings.alphaCutoff);
     const float aspect = float(width) / float(std::max(height, 1));
     u.viewport         = vec4(aspect, 1, 1.0f / aspect, 1);
     std::memcpy(frames[frameIndex].uniforms.getMappedPointer(), &u, sizeof(u));
+    skyValid = true;
+    if (!drawTerrain) return false;
     writeDescriptors(frames[frameIndex], atlas, frameIndex);
     frameValid = true;
     return true;
@@ -340,14 +418,15 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
     const double skirt            = std::max(double(own.hi - own.lo) * kHeightUnit, 2 * spacing);
     const Vec3& c                 = camera.position;
     const int32_t ox = nx * size, oz = nz * size;
+    // The box for the frustum test reaches down by the skirt; the LOD distance is horizontal (lodDistance)
     const Vec3 lo(double(ox) - c.x(), double(b.lo) * kHeightUnit - skirt - c.y(), double(oz) - c.z());
     const Vec3 hi(double(ox + size) - c.x(), double(b.hi) * kHeightUnit - c.y(), double(oz + size) - c.z());
-    const double d = boxDistance(lo, hi);
+    const double d = lodDistance(lo, hi, lodHeight);
     if (d > ranges[size_t(level)]) return false;
     if (boxCulled(lo, hi, camera.planes)) return true;
     if (level == 0 || d > ranges[size_t(level - 1)])
     {
-        addNode(atlas, level, ox, oz, size, false, anchorX, anchorZ, skirt);
+        addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt);
         return true;
     }
     // Refined only if the children's tile (one tile holds all four) is GPU-resident
@@ -358,7 +437,7 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
         if (!atlas.tileResident(child, int32_t(int64_t(ox) / tileSize), int32_t(int64_t(oz) / tileSize)))
         {
             statistics.refusedResidency++;
-            addNode(atlas, level, ox, oz, size, false, anchorX, anchorZ, skirt);
+            addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt);
             return true;
         }
     }
@@ -368,22 +447,21 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const SceneCamera& camer
         const int32_t cx = 2 * nx + (q & 1), cz = 2 * nz + (q >> 1);
         if (!selectNode(atlas, camera, child, cx, cz, anchorX, anchorZ, ranges))
         {
-            // The child is out of its range: its area at this level's spacing
-            const TerrainAtlas::Bound cb = atlas.bound(child, cx, cz);
+            // The child is out of its range: its area at this level's spacing, culled with this level's own heights
+            // (what the quarter draws; the child's bound misses them when the levels' data differ, PR review)
             const int32_t qx = cx * half, qz = cz * half;
-            const Vec3 clo(double(qx) - c.x(), double(cb.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
-            const Vec3 chi(double(qx + half) - c.x(), double(cb.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
-            if (cb.valid() && !boxCulled(clo, chi, camera.planes))
-                addNode(atlas, level, qx, qz, half, true, anchorX, anchorZ, skirt);
+            const Vec3 clo(double(qx) - c.x(), double(own.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
+            const Vec3 chi(double(qx + half) - c.x(), double(own.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
+            if (atlas.bound(child, cx, cz).valid() && !boxCulled(clo, chi, camera.planes))
+                addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt);
         }
     }
     return true;
 }
 
-void TerrainPass::addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, int size, bool quarter,
-                          int32_t anchorX, int32_t anchorZ, double skirt)
+void TerrainPass::addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, bool quarter, int32_t anchorX,
+                          int32_t anchorZ, double skirt)
 {
-    (void)size;
     const int32_t spacing = atlas.layout().baseSpacing << level;
     GpuNode n;
     n.originX    = ox - anchorX;
@@ -462,10 +540,20 @@ void TerrainPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, 
     if (water) draw(quarterPlain, gridN / 2, numWater, numFull + numQuarter);
 }
 
+void TerrainPass::renderSky(vk::CommandBuffer cmd, uint32_t frameIndex, const PrototypeSettings& s)
+{
+    if (!skyValid || !s.sky || !skyPipeline.bind(cmd)) return;
+    skyPipeline.bindRawDescriptorSet(cmd, skySets[frameIndex]);
+    cmd.draw(3, 1, 0, 0);
+}
+
 std::vector<vec4> TerrainPass::probeVertices(const std::vector<TerrainProbe>& probes)
 {
     std::vector<vec4> out;
     SAIGA_ASSERT(lastAtlas && frameValid, "probeVertices: no terrain frame");
+    // The frame's nodes and descriptors refer to its set: a cleared or new set needs a new frame (PR review)
+    SAIGA_ASSERT(lastAtlas->hasSet() && lastAtlas->stats().rebuilds == lastSetRebuilds,
+                 "probeVertices: the terrain set changed after the last terrain frame");
     if (probes.empty()) return out;
     base->device.waitIdle();
     Buffer buffer;
@@ -476,8 +564,9 @@ std::vector<vec4> TerrainPass::probeVertices(const std::vector<TerrainProbe>& pr
     for (size_t i = 0; i < probes.size(); ++i)
     {
         SAIGA_ASSERT(probes[i].node >= 0 && size_t(probes[i].node) < nodeInfos.size(), "probeVertices: no such node");
-        gpu[i] =
-            ProbeGpu{{uint32_t(probes[i].node), uint32_t(probes[i].gridX), uint32_t(probes[i].gridZ), 0}, {0, 0, 0, 0}};
+        gpu[i] = ProbeGpu{{uint32_t(probes[i].node), uint32_t(probes[i].gridX), uint32_t(probes[i].gridZ),
+                           probes[i].normal ? 1u : 0u},
+                          {0, 0, 0, 0}};
     }
     // The last frame's set with the probes
     writeDescriptors(frames[lastFrame], *lastAtlas, lastFrame);

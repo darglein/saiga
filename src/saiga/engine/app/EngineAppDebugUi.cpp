@@ -10,6 +10,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/engine/app/DebugUiStyle.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/Window.h"
 
@@ -814,6 +815,59 @@ void EngineApp::engineTab()
         ImGui::TextDisabled("vsync %s, %dx MSAA, %d x %d", renderScene->vsync() ? "on" : "off",
                             renderScene->parameters().msaaSamples, int(renderScene->size()(0)),
                             int(renderScene->size()(1)));
+    }
+    // The terrain (S20): streaming per level, requests, uploads, memory, the stream time of complete points
+    if (ui->section("engine/Terrain", "Terrain", false))
+    {
+        const TerrainSystem& terrain  = w.terrain();
+        const TerrainSystem::Stats& t = terrain.stats();
+        double gpuMb = 0, cpuMb = double(t.cpuBytes) / (1 << 20);
+        if (renderScene)
+        {
+            gpuMb = double(renderScene->terrainAtlasStats().memory.gpuBytes()) / (1 << 20);
+            cpuMb += double(renderScene->terrainAtlasStats().memory.cpuBytes()) / (1 << 20);
+        }
+        if (DebugUiStyle::beginProperties("##terrain"))
+        {
+            DebugUiStyle::property("requests / uploads");
+            ImGui::Text("%d pending, %d tiles sent last frame", t.pending, t.uploadsLastUpdate);
+            DebugUiStyle::property("upload bytes pending");
+            ImGui::Text("%.0f", double(terrain.terrainUploadsPending()));
+            DebugUiStyle::property("memory");
+            ImGui::Text("CPU %.1f MB, GPU %.1f MB", cpuMb, gpuMb);
+            DebugUiStyle::property("stream time");
+            ImGui::Text("%.2f ms (last completeView %.2f ms)", streamMs, t.lastCompleteMs);
+            DebugUiStyle::property("readiness at 256 m");
+            ImGui::Text("%.3f", terrain.readiness(view.space, view.position, 256));
+            DebugUiStyle::property("grass masks");
+            ImGui::Text("%d desired, %d sent", t.masksDesired, t.masksSent);
+            if (renderScene)
+            {
+                DebugUiStyle::property("patches ignored");
+                ImGui::Text("%llu", (unsigned long long)renderScene->terrainAtlasStats().patchesIgnored);
+            }
+            DebugUiStyle::endProperties();
+        }
+        if (ImGui::BeginTable("##terrainLevels", 6, ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_RowBg))
+        {
+            for (const char* h : {"level", "desired", "truncated", "resident", "sent", "nodes"})
+                ImGui::TableSetupColumn(h);
+            ImGui::TableHeadersRow();
+            const Vulkan::TerrainPass::Stats* pass = renderScene ? &renderScene->terrainPassStats() : nullptr;
+            for (int k = 0; k < 8; ++k)
+            {
+                const auto& l   = t.levels[size_t(k)];
+                const int nodes = pass ? pass->nodesPerLevel[size_t(k)] : 0;
+                if (l.desired + l.resident + l.sent + nodes == 0) continue;
+                ImGui::TableNextRow();
+                for (int v : {k, l.desired, l.truncated, l.resident, l.sent, nodes})
+                {
+                    ImGui::TableNextColumn();
+                    ImGui::Text("%d", v);
+                }
+            }
+            ImGui::EndTable();
+        }
     }
     if (ui->section("engine/Camera", "Camera and input", false))
     {

@@ -62,8 +62,9 @@ int layerSample(int layer, ivec2 local)
     return atlasHeights[layer * n * n + local.y * n + local.x];
 }
 
-// A sample of a level (global sample index s at that level) wherever it is resident: its tile, else the next coarser
-// resident level (rounded down: a possible shading seam, never a crack), else the pyramid
+// A sample of a level (global sample index s at that level) wherever it is resident: its tile (a sample on a tile
+// border also in the west / south neighbours that share it), else the next coarser resident level (rounded down: a
+// possible shading seam, never a crack), else the pyramid
 int anyHeight(int level, ivec2 s)
 {
     int S  = frame.grid.y;
@@ -76,6 +77,16 @@ int anyHeight(int level, ivec2 s)
         ivec2 tile  = min(sc / n1, tiles - 1);
         int layer   = pageLayer(k, tile);
         if (layer >= 0) return layerSample(layer, sc - tile * n1);
+        // On a border the exact sample may be resident in a neighbour (PR review: else the normal changes when this
+        // tile streams in); pageLayer rejects tiles outside the level
+        bvec2 border = equal(sc, tile * n1);
+        for (int c = 1; c < 4; ++c)
+        {
+            ivec2 d = ivec2(c & 1, c >> 1);
+            if ((d.x == 1 && !border.x) || (d.y == 1 && !border.y)) continue;
+            layer = pageLayer(k, tile - d);
+            if (layer >= 0) return layerSample(layer, sc - (tile - d) * n1);
+        }
         s = s >> 1;
     }
     return pyramidSample(s);

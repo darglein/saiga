@@ -1,6 +1,6 @@
 # S20: Height tiles
 
-Status: planned (revised after review round 3).
+Status: implemented (local branch `stage-s20`, rebased onto `master` b23e79ed with S19c; PR pending).
 
 Sections follow the stage plan template of S05; a review log and the design-doc amendments are added at the end. The
 cross-plan decisions D1 to D14 of review round 1 and E1 to E14 of review round 2 (shared by S20 to S23; E overrides
@@ -289,8 +289,9 @@ New `vulkan/scene/TerrainTiles.{h,cpp}` (pure functions of their arguments, thre
 ```cpp
 struct TerrainViewSettings                 // game policy (R-MECH-1); EngineAppSetup / game code may change it
 {
-    double residencyRange0 = 400;          // level k tiles are desired within residencyRange0 * 2^k (3D distance from
-                                           // the camera to the tile box; heights from the pyramid + 64 m margin)
+    double residencyRange0 = 400;          // level k tiles are desired within residencyRange0 * 2^k of TerrainPass's
+                                           // LOD distance sqrt(dxz^2 + hc^2): dxz horizontal to the tile, hc the
+                                           // camera height above height(camera.xz) (implementation review)
     int tilesPerLevel = 48;                // budget per streamed level = GPU atlas layers (part of the layout)
     int grassMaskLayers = 16;              // budget of grass masks = GPU mask layers (part of the layout)
     int uploadsPerFrame = 8;               // tile sink calls per updateView (completeView sends everything)
@@ -313,11 +314,11 @@ class SAIGA_ENGINE_API TerrainSystem
     //  2. a space other than the current view space (or a changed layout) starts a new GPU terrain set (below); a
     //     view space without terrain sends clearTerrain() once (if anything was sent) and stops here: nothing is
     //     requested or sent for it;
-    //  3. the desired set (it needs the pyramid's heights for the tile boxes): while the space's pyramid is not in the
-    //     store, only the pyramid is requested and steps 3-6 are skipped (the desired set is empty, readiness 0).
-    //     Otherwise per streamed level the tiles within the range, sorted by distance and truncated to tilesPerLevel
-    //     (nearest first; the truncated count goes to Stats); grass masks for chunks within grassRadius, truncated to
-    //     grassMaskLayers;
+    //  3. the desired set (with TerrainPass's LOD distance, so every node the pass refines into is desired): while
+    //     the space's pyramid is not in the store, only the pyramid is requested and steps 3-6 are skipped (the
+    //     desired set is empty, readiness 0). Otherwise per streamed level the tiles within the range, sorted by
+    //     distance and truncated to tilesPerLevel (nearest first; the truncated count goes to Stats); grass masks for
+    //     chunks whose box is within grassRadius (3D), truncated to grassMaskLayers;
     //  4. requests: missing desired tiles by distance / range ratio (coarse levels first at equal ratio), then the
     //     masks of desired chunks whose level-0 tile is in the store (a mask job needs it), at most maxInFlight
     //     requests in flight; requests no longer desired are cancelled;
@@ -333,8 +334,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // (§4.3 EngineApp). The main thread (and with it the MCP poll) is blocked meanwhile. Ends a running load of S21's
     // loading screen (D6). A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
-    // D6: the fraction of (the pyramid + the desired tiles of this camera whose box is within radius) that have been
-    // sent to the sink; 0 while the pyramid is not sent; 1 for a space without terrain. Monotone for a fixed camera.
+    // D6: the fraction of (the pyramid + the desired tiles of this camera within radius, the residency's distance) that
+    // have been sent to the sink; 0 while the pyramid is not sent; 1 for a space without terrain. Monotone for a fixed
+    // camera.
     // "Sent" is not "recorded": a load ends only when terrainUploadsPending() is 0 too (E8, S21)
     double readiness(SpaceId space, const Vec3& camera, double radius) const;
     size_t terrainUploadsPending() const;      // the sink's bytes not yet recorded (RenderSink::terrainUploadsPending);
@@ -547,7 +549,10 @@ void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliage
     coarser levels read the pyramid at stride `2^(k - streamedLevels)`. The roots are the 4096 m nodes
     (`(sizeChunks / 16)^2` of them, always considered: the view reaches the space edge whatever the load radius is).
   - Selection is in double: node boxes from `bound`, relative to the camera, camera-relative frustum planes from
-    `SceneCamera`, ranges `terrainLodRange * 2^k`, the S19a morph minimum with leaf size `32 * baseSpacing`. A node is
+    `SceneCamera`, ranges `terrainLodRange * 2^k`, the S19a morph minimum with leaf size `32 * baseSpacing`. The LOD
+    distance (implementation review) is `sqrt(dxz^2 + hc^2)`: `dxz` the horizontal distance to the node box (to the
+    vertex in the shader's morph), `hc` the camera height above the surface under it, one value per frame; the
+    residency (§4.3) uses the same distance to the tiles. A node is
     refined only if each child's tile is GPU-resident. A child that is out of range or not resident is drawn as a
     quarter at the parent's spacing (S19a's quarter mechanism). `terrainLodRange` does not scale with `baseSpacing`
     (1 m gives finer geometry at every level; the triangle count is reported, §6).
@@ -568,8 +573,9 @@ void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliage
       read through the page table (int32, the difference exact).
     - A vertex shared by two nodes (same level, a common edge) computes the same integers and the same `k`, so it is
       bit-identical: no sparkle with skirts off.
-    - The normal uses central differences through the page table. Across a non-resident neighbour it falls back to the
-      next coarser resident level (a possible shading seam, not a crack). Flat shading (the default) keeps `dFdx`.
+    - The normal uses central differences through the page table (a sample on a tile border also from a resident
+      neighbour that shares it, PR #78 review). Across a non-resident neighbour it falls back to the next coarser
+      resident level (a possible shading seam, not a crack). Flat shading (the default) keeps `dFdx`.
   - Skirts: each grid gets a ring of skirt vertices (a flag in the vertex). They hang `skirtDepth` =
     `max(node max - node min, 2 * spacing)` metres below the edge vertex and morph with it. They close the T-junctions
     that residency-driven refinement creates; CDLOD morphing only rules those out when every level is present.
@@ -632,7 +638,8 @@ void setPrototypeEnvironment(const PrototypeSettings& settings, uint32_t foliage
   - `TerrainPass::selectedNodes() -> const std::vector<TerrainNodeInfo>&`: the last frame's node list in instance
     order (`{level, origin, sampleX, sampleZ, quarter, water}`), so a test picks the node index of a probe.
   - `TerrainPass::probeVertices(const std::vector<TerrainProbe>&) -> std::vector<vec4>` runs `terrainVertex` in a
-    compute dispatch with the frame's node data (`{node index, grid x, z}` in, camera-relative position out).
+    compute dispatch with the frame's node data (`{node index, grid x, z, normal}` in, camera-relative position and
+    morph factor out, with `normal` the normal and the level; asserted: the terrain set is the last frame's).
   - `RenderScene::readDepthForTests()` copies the last frame's single-sampled depth (S19a's `SAMPLE_ZERO` resolve
     target) to the host, so one test checks the real vertex pipeline against the probe and the CPU surface.
 
@@ -1285,6 +1292,60 @@ To be applied to `docs/engine_design.md` in step 8, together with the usual stat
   calls them for its view world; a render sink alone (every scenario world has a `RecordingRenderSink`) requests nothing
   and starts no pool.
 
+## Results
+
+Measured on the RTX 5080 Laptop GPU (driver with validation for the tests) and on lavapipe (Mesa with LLVM 21.1.8).
+
+- **Tests.** ctest 73/73 on the GPU (local build with samples; with the CI options 71 tests: 67 + the four new
+  `test_core_terrain_surface`, `test_engine_terrain`, `test_vulkan_terrain`, `test_engine_terrain_render`); every
+  `test_vulkan_*` / `test_engine_*` on lavapipe 33/33.
+- **Done when.** `MemoryBudget32km` (the `game_world` layout at 1 m): worst CPU + GPU 198.1 MB, static bound 202.9 MB
+  (<= 768 MB). `OriginOffsetWithinGoldenTolerance` at 28 672 m: identical images (mean 0). `CameraMoveAt30km`,
+  `TerrainHeightEqualsTheIntegerRule`, `OneVertexPerSampleAtLevelZero` (both spacings), `RenderedDepthMatchesSurface`,
+  `NoCrackAtLevelBorders` pass on both devices. The S02 goldens were regenerated on lavapipe in step 7c (counts:
+  `world_overview` 0 / 2 / 3937 trees per LOD, 72 terrain nodes; `world_forest` 27 / 338 / 506, 131 nodes); on the RTX
+  (not gating) `world_forest` differs by mean 1.02/255. After the implementation review's relief-independent LOD metric
+  `world_overview` (a high camera: coarser) has 65 terrain nodes and was regenerated (it had differed by mean 0.17/255).
+- **Scenarios.** `--scenarios` of flight, racing and platformer: 18 runs passed each (scenarios x variants incl. host + client), no value
+  re-recorded (the flight autopilot positions and the racing lap keep their committed tolerances on the new surface).
+  Racing startup: the site search over `prototypeSurfaceHeight` takes 1.33 s.
+- **Screenshots** (`SAIGA_SCREENSHOT`, RTX): `game_world` (the default camera 167 m above the 8 km area), flight,
+  racing and platformer `--demo`, reviewed: terrain, trees, grass near the ground, sky and water as before; no holes
+  or background between levels. At steep near silhouettes the skirts of finer nodes show as short saw teeth
+  (the risk "Skirt artifacts" below; accepted for the prototype).
+- **Benchmarks** (build-bench, Release without asserts and `-march=native`; 5 interleaved runs, medians of the run
+  medians; before = the S19b tip `c990775` with the plan, after = this branch at 1 m and with `--base-spacing 2`):
+
+  | | before | after 1 m | after 2 m |
+  |---|---|---|---|
+  | flyover `cpu_ms` (interval without stream time) | 2.47 | 3.83 | 3.37 |
+  | flyover GPU busy / `scene` | 2.45 / 2.36 | 2.51 / 2.43 | 1.87 / 1.76 |
+  | flyover trees / terrain + water / sky | 1.440 / 0.094 / 0.011 | 1.406 / 0.191 / 0.013 | 1.401 / 0.123 / 0.011 |
+  | flyover upload + cull | 0.075 | 0.106 | 0.091 |
+  | flyover `terrain_stream_ms` median / mean | - | 22.0 / 13.1 | 6.4 / 3.9 |
+  | forest `cpu_ms` | 2.08 | 2.19 | 2.14 |
+  | forest GPU busy / `scene` | 2.06 / 2.01 | 2.19 / 2.14 | 2.14 / 2.09 |
+  | forest trees / terrain + water / grass | 0.469 / 0.049 / 0.688 | 0.555 / 0.114 / 0.681 | 0.555 / 0.063 / 0.681 |
+  | terrain CPU / GPU MB (flyover) | - | 88.7 / 98.1 | 36.3 / 49.0 |
+
+  `sample_vulkan_scene_benchmark` (2 runs): cull 0.068 -> 0.058 ms, instance draw 1.28 -> 1.27 ms; 126 572 -> 122 517
+  LOD-2 instances (the trees are placed on the new surface).
+  Explanations (R-TEST-2): terrain + water at 1 m is about 2x (4x the triangles per level, as expected); the 2 m run
+  shows the code's own part (+31 % flyover, +29 % forest, 0.03 ms / 0.014 ms: skirts, storage-buffer reads, the
+  quarter grids). The forest's trees +18 % (equal at 1 m and 2 m, while the flyover's trees are -2.6 %, the same
+  pipeline and shaders) is content: `placeTrees` now samples the hook on the integer surface instead of the bilinear
+  2 m height field (199 769 trees in 976 sets instead of 199 466 in 928, and the scene benchmark's visible count
+  changes too), so the forest path near the ground sees a different tree distribution. The flyover's frame interval
+  is not comparable: at 1 m the path streams in most frames (median 22 ms), and before such a frame the benchmark lets
+  the GPU drain (see deviations), which stays in the interval; its GPU sections are the comparison. No new baseline is
+  committed (on acceptance, Done when).
+- TSAN: `test_engine_terrain` built with `-fsanitize=thread` (Core + Vulkan + Engine) passes 36/36 without a
+  ThreadSanitizer warning. `SAIGA_DEBUG_TSAN=ON` itself does not compile (also on `master`):
+  `cmake/Saiga_compiler_flags.cmake` appends `"-fsanitize=thread -static-libasan ..."` as one list element, so the
+  flags were passed through `CMAKE_CXX_FLAGS` / the linker flags instead (a separate fix).
+- Not done locally: the MCP flight to the four coasts of the 32 km space (the instructions allowed only the
+  `SAIGA_SCREENSHOT` demo runs; the memory bound is covered by `MemoryBudget32km`).
+
 ## Review log
 
 Plan review rounds (local Opus) and later the PR reviews are recorded here: date, reviewer, findings, resolution.
@@ -1409,3 +1470,87 @@ Plan review rounds (local Opus) and later the PR reviews are recorded here: date
   - Pyramid reuse (15): `Stats::pyramidsGenerated`; `pyramid(space)` keeps its pointer.
   - Also: `RecordingRenderSink::uploadsPendingForTests` (S21's load end rule pins the forwarding with it).
   - Rejected: none.
+
+### Implementation (2026-11-21, Claude Opus 5.5)
+
+Deviations from the plan, each the smallest sound fix:
+
+- `setPrototypeEnvironment` and the `FoliageClassNeedsTexture` message came in step 5 instead of 7a (the grass needs
+  the foliage texture); the sky followed in 7a.
+- `WorldNoise` moved out of `HeightField` into its own file in 7a (the hook needs it after 7d removes `HeightField`);
+  `PrototypeForest::init` and `PrototypeScene::attach` take the species seed.
+- Rebase onto `master` with S19c: the Terrain statistics are a section of the debug UI's Engine tab
+  (`EngineAppDebugUi.cpp`, "Terrain") instead of the statistics window; `PrototypeScene::imgui` draws widgets only and
+  the games add it as the Engine tab's "World" section; `app_status` has both `ui_tab` and the terrain block.
+- Benchmark mode: before a frame that has to stream (`TerrainSystem::viewComplete` is false), `EngineApp` waits for
+  the GPU to finish the frames in flight. Without it the GPU ran ahead during the stream and the interval minus the
+  stream time came out at about 0.7 ms (1414 fps). The wait is frame wait (not work), pauses the simulation clock and
+  the statistics' interval like the stream time, but stays in the benchmark's interval (`lastTerrainStreamMs` does not
+  contain it). The flyover at 1 m streams in most frames, so its interval is an upper bound; §17.7 says so.
+- `CameraMoveAt30km`: the probes are filtered to a cone in front of the camera, the focal length comes from the
+  nearest probe, the camera sits at half-ulp offsets of 30 km, yaw 45 degrees and pitch -20 degrees.
+- `StreamTimePausesTheClock` (lavapipe): `residencyRange0 = 48`, no grass, only the samples after the move frame are
+  checked, the longest interval < 50 ms.
+- `FramesStepsScreenshotsAndProfiles`: the profile has the scope `frame/render/terrain_stream`; the identity is work
+  + wait + stream == frame.
+- `TerrainAtlas`'s minimum-capacity assertion uses the 16-byte aligned formula of `memoryEstimate`.
+
+### Implementation review (2026-11-22, rounds 1 and 2, one reviewer over the S20-S23c stack)
+
+Round 1 (6 findings on S20, all fixed in `S20 review fixes` and the two commits after it):
+
+- Saw-tooth skirts at steep terrain (1, major): the CDLOD invariant broke at relief (3D distance in the shader and the
+  selection, the skirt-lowered box in the distance, flat-shaded skirts lit as walls). Fixed: the relief-independent
+  LOD distance `sqrt(dxz^2 + hc^2)` (hc the per-frame camera height above the surface, `TerrainFrame` lod.z) in the
+  selection and the shader, the skirt-lowered box only for the frustum test, minR0 also bounds
+  `1.5 * sqrt(2) * leaf / morphStart`, skirt fragments shade with the edge vertex's normal;
+  `NoGapAtLevelBordersOfACliff`; `world_overview` regenerated (65 nodes).
+- `completeView` spun until its deadline without progress (2): returns false at once (logged) when an iteration
+  brought nothing, submitted no job and nothing is in flight.
+- `setSink` sent the whole store ignoring a lowered budget (3): sends the last view camera's desired set.
+- Non-finite cameras reached integer conversions (4): refused; xz clamped before conversions (TerrainPass, GrassPass,
+  TerrainSystem).
+- `TerrainAtlas` hard-coded two frames in flight (5): `static_assert` on `VulkanRenderer::framesInFlight`.
+- `addNode`'s unused `size` (6): removed.
+
+Round 2 (S20 part, fixed in `S20 implementation review round 2`):
+
+- `M_PI` in the terrain tests (1, blocker for MSVC; the two other files compiled only through `imgui_orient.h`'s
+  inexact float `M_PI`): `kPi` in `terrain_test_hooks.h`. A scan of the whole stack for other non-standard constructs
+  (`M_*` constants, `__builtin_*`, VLAs, `long` as 64 bits, designated initializers, missing standard includes) found
+  nothing else.
+- Residency and drawing used different distances (2): `computeDesired` uses the pass's LOD distance with
+  hc = |camera.y - height(camera.xz)|; the per-tile pyramid heights are gone; `desiredTestTiles` follows;
+  `DesiredSetUsesTheLodDistanceAtACliff` (a plateau 500 m above the camera 304 m away: box distance 530 m, now
+  desired). The grass masks keep the 3D distance to the chunk's box (pyramid heights +- 64 m): the grass fades by its
+  3D distance, and the camera height above the ground under the camera would drop masks of chunks on a slope up to
+  the camera (S22's `EditedMasksFromMergedHeights` caught the first version). Benchmarks unchanged (flyover terrain +
+  water 0.189 / 0.191 ms, `cpu_ms` 3.63 / 3.81; forest 0.114 ms, 2.20 / 2.19).
+- A huge finite camera height overflowed the int64 conversion (3): clamped in double first.
+- `terrainHeight` with a NaN coordinate (4): returns 0 (`NonFiniteCoordinates`).
+- `morphStart` clamped only for minR0 (5): clamped to [0.05, 0.95] once, for minR0 and the shader.
+- Regression tests for round 1 (6): `CompleteViewWithoutProgressReturnsAtOnce` (with `holdRequestsForTests`),
+  `NewSinkAfterALowerBudget`, `NonFiniteCameraRequestsNothing`, `VulkanTerrain.NonFiniteAndHugeCameras`.
+- Test races (7): `sleepAtOrigin` atomic; `ScopedLatch` opens the latch when an assertion returns early.
+- `TerrainAtlas` stats summed over the per-frame arrays (8).
+- Docs (9): §12.2 and this plan describe the LOD distance and that residency uses it.
+- Flaky wall-clock bounds (F): `CompleteViewTimeout` (< 2 s, the blocked worker awaited with a deadline),
+  `ScreenshotTerrainDeadline` (< 3 s: the tool's own answer is the check), `StreamTimePausesTheClock` (at most 3 steps,
+  longest interval < 100 ms).
+
+PR #78 (CodeRabbit, S20 part 1; fixed in `S20 PR review (#78)` on top of the S20 branch):
+
+- Fixed: a replaced GPU-resident tile or pyramid keeps the union of the old and new node bounds (the GPU holds the old
+  samples until the copy is recorded; marking it non-resident would drop the pyramid, every node's fallback); a quarter
+  is culled with its own level's heights; a border normal tap reads a resident neighbour that shares the sample;
+  `tileSet`/`tileResident` reject a negative level; no `memcpy` of empty node groups; `probeVertices` asserts the last
+  frame's set; the test readback has a transfer-to-host barrier; `StreamingPool` joins started workers when a worker
+  creation throws; the gate tests release the gate also after a fatal assertion. World goldens unchanged (lavapipe:
+  `world_overview` 0/255, `world_forest` max 1/255).
+- Already fixed: the zero-width morph interval (`morphStart` clamped to [0.05, 0.95], round 2); the save seed (S23a:
+  GENR records the seed, a mismatch is a load error).
+- Not changed: the page-table clear outside the upload cap (a GPU-side `fillBuffer` once per set, no staging; ordered
+  before the page writes by its barrier); cross-frame transfer write-after-write (ordered by the chain of the frame's
+  transfer-to-shader barrier and the next frame's shader-to-transfer barrier); the fixture's
+  `drawIndirectFirstInstance` check before `RenderScene` (needs a device-selection query; every supported driver has
+  the feature).

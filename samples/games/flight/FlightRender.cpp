@@ -22,15 +22,16 @@ using namespace Engine;
 void FlightRender::init(EngineApp& _app)
 {
     app = &_app;
-    Vulkan::WorldParameters params;
-    params.treeCount = worldTreeCount();
-    // The context's height field, shared (the aliasing pointer keeps the context alive); RenderScene draws the
-    // prototype world and the trees (S19a)
-    worldRenderer.init(params, std::shared_ptr<const Vulkan::HeightField>(context, &context->heightField));
-    worldRenderer.attach(*app->scene());
-    // The world prototype's settings and statistics as sections of the debug UI (S19c)
-    app->debugUi().addSection(DebugTab::Engine, "World", [this]() { worldRenderer.imgui(); });
-    app->debugUi().addSection(DebugTab::Performance, "World passes", [this]() { worldRenderer.imguiStatistics(); });
+    // The terrain is the engine's (the World's space through the render sink, S20); the trees of the prototype's 8 km
+    // area and the environment on the scene
+    Vulkan::PrototypeArea area;
+    area.seed        = context->seed;
+    area.baseSpacing = context->baseSpacing;
+    prototype.attach(
+        *app->scene(),
+        Vulkan::ForestRenderer::placeTrees(area, worldTreeCount(), 1, Vulkan::FoliageGenerator::treeSpecies(1)), 1);
+    // The world prototype's settings and tree counts as a section of the debug UI (S19c)
+    app->debugUi().addSection(DebugTab::Engine, "World", [this]() { prototype.imgui(); });
 
     const FlightContext* ctx = context.get();
     camera.distance          = 24;
@@ -42,7 +43,7 @@ void FlightRender::init(EngineApp& _app)
 
 void FlightRender::shutdown()
 {
-    worldRenderer.destroy();
+    prototype.detach();
 }
 
 Entity FlightRender::focus()
@@ -63,7 +64,7 @@ Entity FlightRender::focus()
 void FlightRender::beforeRender(double alpha)
 {
     Vulkan::RenderScene& scene = *app->scene();
-    worldRenderer.update();
+    prototype.update();
     const double frameDt = clock.tick();
     World& w             = app->world();
     const Entity e       = focus();
@@ -86,8 +87,7 @@ void FlightRender::beforeRender(double alpha)
         camera.update(p.position, forwardOf(p.rotation), frameDt);
     }
     // While a tool holds the camera the app ignores it (S14)
-    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()),
-                       radians(double(worldRenderer.settings.fovy)));
+    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()), radians(double(prototype.settings.fovy)));
     // The time of the wind (the world's time between the steps)
     scene.setTime(w.time() + alpha * w.dt());
 }

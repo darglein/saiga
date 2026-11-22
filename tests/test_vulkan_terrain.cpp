@@ -8,6 +8,7 @@
 // integer hooks of terrain_test_hooks.h: the GPU terrain set (TerrainAtlas: uploads, the byte cap, patches, rebuilds,
 // limits, memory, node bounds).
 
+#include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
@@ -18,6 +19,7 @@
 
 #include <cmath>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 #include "render_scene_test_context.h"
@@ -337,6 +339,45 @@ TEST_F(VulkanTerrain, BoundsIncludeFinerTilesCpu)
     renderUntilUploaded(*scene);
 }
 
+// Regression (PR review): a replaced GPU-resident tile or pyramid had only the new data's bounds while the GPU still
+// held the old samples (until the tile's copy, while the pyramid's rows are recorded), so culling could reject terrain
+// drawn at the old heights. A replacement of data not yet on the GPU takes the new bounds
+TEST_F(VulkanTerrain, ReplacedResidentDataKeepsBounds)
+{
+    const TerrainLayout layout = testLayout(32, 1);
+    // (301, 521): only level 0 samples it; (320, 512): a pyramid sample
+    spikeTable()              = {Spike{301, 521, 300 * 1024}, Spike{320, 512, 200 * 1024}};
+    const TerrainAtlas& atlas = scene->terrainAtlas();
+    const RegionId r          = Region(0, 1, 2);
+    auto tileHi               = [&]() { return atlas.ownBound(0, 301 / 32, 521 / 32).hi; };
+    // The finest pyramid level (32 m samples)
+    const int P    = layout.streamedLevels();
+    auto pyramidHi = [&]() { return atlas.ownBound(P, 320 / (32 << P), 512 / (32 << P)).hi; };
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    scene->setTerrainPyramid(0, testPyramid(spikeHook, layout));
+    EXPECT_EQ(pyramidHi(), 200 * 1024);
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    EXPECT_EQ(pyramidHi(), 0) << "the replaced pyramid was never GPU-resident";
+    scene->setTerrainTile(r, testTile(spikeHook, layout, r));
+    scene->setTerrainTile(r, testTile(flatHook, layout, r));
+    EXPECT_EQ(tileHi(), 0) << "the replaced tile was never GPU-resident";
+
+    scene->setTerrainPyramid(0, testPyramid(spikeHook, layout));
+    scene->setTerrainTile(r, testTile(spikeHook, layout, r));
+    renderUntilUploaded(*scene);
+    ASSERT_TRUE(atlas.pyramidResident());
+    ASSERT_TRUE(atlas.tileResident(0, 1, 2));
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    scene->setTerrainTile(r, testTile(flatHook, layout, r));
+    EXPECT_EQ(pyramidHi(), 200 * 1024);
+    EXPECT_EQ(tileHi(), 300 * 1024);
+    // Regression (PR review): a negative level reached a negative shift count
+    EXPECT_FALSE(atlas.tileSet(-1, 0, 0));
+    EXPECT_FALSE(atlas.tileResident(-1, 0, 0));
+    spikeTable().clear();
+    renderUntilUploaded(*scene);
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Step 4b: the terrain pass (TerrainPass)
 
@@ -360,7 +401,7 @@ Quat lookRotation(const Vec3& forward)
 // Along yaw (degrees from +x towards +z) and pitch (degrees, negative: down)
 Vec3 direction(double yawDeg, double pitchDeg)
 {
-    const double y = yawDeg * M_PI / 180, p = pitchDeg * M_PI / 180;
+    const double y = yawDeg * kPi / 180, p = pitchDeg * kPi / 180;
     return Vec3(std::cos(p) * std::cos(y), std::sin(p), std::cos(p) * std::sin(y));
 }
 
@@ -450,10 +491,14 @@ TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
     const auto& frameU = scene->terrainPass().frameUniforms();
     const double range = scene->terrainPass().usedRange0();
     const double start = 0.7 * range;
+    // The LOD metric: the horizontal distance with the frame's camera height above the surface under it
+    const double hc = scene->terrainPass().usedLodHeight();
+    EXPECT_NEAR(hc, cam.y() - surfaceAt(highFrequencyHook, 1, bs, cam.x(), cam.z()), 6.0);
     const Vec3 crel(frameU.cameraRel(0), frameU.cameraRel(1), frameU.cameraRel(2));
     const int32_t ref = frameU.anchor(2);
     std::vector<TerrainProbe> probes;
     std::vector<Vec3> expected;
+    std::vector<double> ks;
     int morphed = 0;
     for (size_t n = 0; n < nodes.size(); ++n)
     {
@@ -464,8 +509,8 @@ TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
                 const int64_t x = nodes[n].originX + gx, z = nodes[n].originZ + gz;
                 const int64_t xt = nodes[n].originX + (gx & ~1), zt = nodes[n].originZ + (gz & ~1);
                 const int32_t h = highFrequencyHook(1, x, z), ht = highFrequencyHook(1, xt, zt);
-                const Vec3 rel(double(x) - cam.x(), double(h) * kHeightUnit - cam.y(), double(z) - cam.z());
-                const double k = std::min(1.0, std::max(0.0, (rel.norm() - start) / (range - start)));
+                const double dist = Vec3(double(x) - cam.x(), hc, double(z) - cam.z()).norm();
+                const double k    = std::min(1.0, std::max(0.0, (dist - start) / (0.99 * range - start)));
                 if (k <= 0.05 || k >= 0.95) continue;
                 morphed++;
                 probes.push_back(TerrainProbe{int(n), gx, gz});
@@ -473,12 +518,14 @@ TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
                              mz = double(z) + (double(zt) - double(z)) * k;
                 const double my = (double(h - ref) + double(ht - h) * k) * kHeightUnit - crel.y() + cam.y();
                 expected.push_back(Vec3(mx, my, mz));
+                ks.push_back(k);
             }
     }
     ASSERT_GT(morphed, 100);
     const auto out = scene->terrainPass().probeVertices(probes);
     for (size_t i = 0; i < probes.size(); ++i)
     {
+        EXPECT_NEAR(out[i](3), ks[i], 1e-4);
         const Vec3 world = cam + Vec3(out[i](0), out[i](1), out[i](2));
         // k from the float distance: a few 1e-4 m
         EXPECT_NEAR(world.x(), expected[i].x(), 2e-3);
@@ -519,7 +566,7 @@ TEST_F(VulkanTerrain, RenderedDepthMatchesSurface)
     const Vec3 eye(2000.25, 0, 1800.75);
     const Vec3 cam = eye + Vec3(0, surfaceAt(slopeRidgeHook, 1, bs, eye.x(), eye.z()) + 20, 0);
     fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(slopeRidgeHook, 1), std::nullopt, cam, false);
-    SetCamera(0, cam, lookRotation(direction(10, -40)), 60.0 * M_PI / 180);
+    SetCamera(0, cam, lookRotation(direction(10, -40)), 60.0 * kPi / 180);
     Capture(2);
     int w = 0, h = 0;
     const std::vector<float> depth = scene->readDepthForTests(w, h);
@@ -655,7 +702,7 @@ TEST_F(VulkanTerrain, NoCrackAtLevelBorders)
     renderUntilUploaded(*scene, 256);
     const Vec3 eye = cam + Vec3(0, surfaceAt(highFrequencyHook, 1, bs, cam.x(), cam.z()) + 40, 0);
     // Across the border 35 degrees down, the border off-centre (yawed)
-    SetCamera(0, eye, lookRotation(direction(12, -35)), 40.0 * M_PI / 180);
+    SetCamera(0, eye, lookRotation(direction(12, -35)), 40.0 * kPi / 180);
     PrototypeSettings s = scene->prototypeSettings();
     s.terrainSkirts     = true;
     scene->setPrototypeSettings(s);
@@ -667,6 +714,112 @@ TEST_F(VulkanTerrain, NoCrackAtLevelBorders)
     scene->setPrototypeSettings(s);
     const auto cracks = Capture(3);
     EXPECT_GT(countColor(cracks, ucvec4(255, 0, 255, 255), 0), 10);
+}
+
+namespace
+{
+// A 900 m cliff facing -z: a ramp of 15 m per m from z = 2048 to 2108, with 8 times highFrequencyHook's noise (48 m)
+// everywhere
+int32_t cliffHook(uint64_t seed, int64_t x, int64_t z)
+{
+    const int64_t t = std::min<int64_t>(std::max<int64_t>(z - 2048, 0), 60);
+    return int32_t(t * 15 * 1024 + 8 * (highFrequencyHook(seed, x, z) - 20 * 1024) + 20 * 1024);
+}
+}  // namespace
+
+// Regression (implementation review of S20): at steep terrain the coarse side of a level border morphed its edge
+// (the LOD distance was 3D: the selection's box, lowered by the skirt, was near while the cliff's edge vertices were
+// far), opening gaps that the skirts filled and flat shading lit as walls (a saw-tooth). With every desired tile
+// resident, at the foot of a cliff: every coarse vertex on a level border has morph factor 0 and every fine one 1 (the
+// old metric: about 90 coarse vertices with factors up to 0.6), and the skirts cover no gap (the same background with
+// and without them)
+TEST_F(VulkanTerrain, NoGapAtLevelBordersOfACliff)
+{
+    RenderSceneParameters p;
+    p.clearColor = vec4(1, 0, 1, 1);
+    Create(320, 200, 4, p);
+    const int bs         = 1;
+    TerrainLayout layout = testLayout(16, bs);
+    layout.tilesPerLevel = 64;
+    const auto source    = TerrainHeightSource::fromHook(cliffHook, 1);
+    scene->setTerrainPyramid(0, generateTerrainPyramid(source, layout, std::nullopt));
+    // 100 m in front of the cliff's foot, 2 m above the ground
+    const Vec3 foot(1800.5, 0, 1948.5);
+    const Vec3 eye = foot + Vec3(0, surfaceAt(cliffHook, 1, bs, foot.x(), foot.z()) + 2, 0);
+    // Every tile within 400 * 2^k m horizontally (the selection never refuses a refinement)
+    for (int k = 0; k < layout.streamedLevels(); ++k)
+    {
+        const double size = double(256 << k), range = 400.0 * double(1 << k);
+        int count = 0;
+        for (int32_t tz = 0; tz < layout.tilesPerSide(k); ++tz)
+            for (int32_t tx = 0; tx < layout.tilesPerSide(k); ++tx)
+            {
+                const double dx = std::max({tx * size - eye.x(), 0.0, eye.x() - (tx + 1) * size});
+                const double dz = std::max({tz * size - eye.z(), 0.0, eye.z() - (tz + 1) * size});
+                if (dx * dx + dz * dz > range * range) continue;
+                scene->setTerrainTile(Region(k, tx, tz), generateTerrainTile(source, layout, Region(k, tx, tz)));
+                count++;
+            }
+        ASSERT_LE(count, layout.tilesPerLevel) << "level " << k;
+    }
+    renderUntilUploaded(*scene, 512);
+    PrototypeSettings s = scene->prototypeSettings();
+    s.terrainSkirts     = false;
+    s.sky               = false;
+    s.water             = false;
+    scene->setPrototypeSettings(s);
+    // Along the cliff (+x) and up at the face where the level-0/1 border crosses it, about 300 m away
+    SetCamera(0, eye, lookRotation(Vec3(283, 400, 100)), 20.0 * kPi / 180);
+    const auto img = Capture(3);
+    const auto& st = scene->terrainPassStats();
+    EXPECT_GT(st.nodesPerLevel[0], 0);
+    EXPECT_GT(st.nodesPerLevel[1], 0);
+    EXPECT_EQ(st.refusedResidency, 0);
+    // Gaps show the background with the skirts off and are covered with them; the sky above the cliff is background in
+    // both images
+    const int magentaOff = countColor(img, ucvec4(255, 0, 255, 255), 0);
+    s.terrainSkirts      = true;
+    scene->setPrototypeSettings(s);
+    const int magentaOn = countColor(Capture(3), ucvec4(255, 0, 255, 255), 0);
+    EXPECT_LT(magentaOn, width * height / 2);
+    EXPECT_EQ(magentaOff, magentaOn);
+
+    // The edge vertices of every node that lie on a node of the next finer (coarser) level
+    const auto& nodes = scene->terrainPass().selectedNodes();
+    auto extent       = [&](const TerrainNodeInfo& n)
+    {
+        const int grid = n.quarter ? 16 : 32;
+        return int32_t(grid * (bs << n.level));
+    };
+    auto inside = [&](const TerrainNodeInfo& n, int64_t x, int64_t z)
+    { return x >= n.originX && x <= n.originX + extent(n) && z >= n.originZ && z <= n.originZ + extent(n); };
+    std::vector<TerrainProbe> probes;
+    std::vector<float> expected;
+    for (size_t a = 0; a < nodes.size(); ++a)
+    {
+        if (nodes[a].water) continue;
+        const int grid = nodes[a].quarter ? 16 : 32, sp = bs << nodes[a].level;
+        for (int gz = 0; gz <= grid; ++gz)
+            for (int gx = 0; gx <= grid; ++gx)
+            {
+                if (gx != 0 && gz != 0 && gx != grid && gz != grid) continue;
+                const int64_t x = nodes[a].originX + gx * sp, z = nodes[a].originZ + gz * sp;
+                for (size_t b = 0; b < nodes.size(); ++b)
+                {
+                    if (b == a || nodes[b].water || std::abs(nodes[b].level - nodes[a].level) != 1) continue;
+                    if (!inside(nodes[b], x, z)) continue;
+                    probes.push_back(TerrainProbe{int(a), gx, gz});
+                    // The coarse side unmorphed, the fine side fully morphed
+                    expected.push_back(nodes[a].level > nodes[b].level ? 0.0f : 1.0f);
+                    break;
+                }
+            }
+    }
+    ASSERT_GT(probes.size(), 50u);
+    const auto out = scene->terrainPass().probeVertices(probes);
+    int wrong      = 0;
+    for (size_t i = 0; i < probes.size(); ++i) wrong += out[i](3) == expected[i] ? 0 : 1;
+    EXPECT_EQ(wrong, 0) << "of " << probes.size() << " border vertices";
 }
 
 // A resident level-0 tile with a 300 m plateau under flat coarse levels: the camera looks up, so the coarse boxes alone
@@ -682,7 +835,7 @@ TEST_F(VulkanTerrain, BoundsIncludeFinerTiles)
     const Vec3 cam(150, 10, 315);
     for (int k = 1; k < layout.streamedLevels(); ++k)
         scene->setTerrainTile(Region(k, 0, 0), testTile(flatHook, layout, Region(k, 0, 0)));
-    SetCamera(0, cam, lookRotation(direction(0, 40)), 40.0 * M_PI / 180);
+    SetCamera(0, cam, lookRotation(direction(0, 40)), 40.0 * kPi / 180);
     renderUntilUploaded(*scene);
     // Without the level-0 tile nothing is in view
     EXPECT_EQ(countColor(Capture(2), kClear, 0), width * height);
@@ -727,6 +880,73 @@ TEST_F(VulkanTerrain, RefinesOnlyResidentTiles)
     EXPECT_GT(scene->terrainPassStats().nodesPerLevel[0], 0);
 }
 
+// Regression (PR review): a normal tap on a tile border fell back to the coarser level when the tile containing the
+// sample in the primary lookup was not resident, although its west neighbour holds the same sample: the normal changed
+// when the east tile streamed in
+TEST_F(VulkanTerrain, NormalAtTileBorderUsesTheNeighbour)
+{
+    const int bs               = 1;
+    const TerrainLayout layout = testLayout(16, bs);
+    scene->setTerrainPyramid(0, testPyramid(highFrequencyHook, layout));
+    // Every level's tile of chunk (0, 0); level 0's tile (1, 0) is missing
+    SetPath(layout, highFrequencyHook, 0, 0);
+    renderUntilUploaded(*scene);
+    const Vec3 cam(230, 40, 128);
+    SetCamera(0, cam, lookRotation(direction(0, -45)), 1.0);
+    Capture(2);
+    const auto& nodes = scene->terrainPass().selectedNodes();
+    auto h            = [](int64_t x, int64_t z) { return double(clampTerrainHeight(highFrequencyHook(1, x, z))); };
+    std::vector<TerrainProbe> probes;
+    std::vector<Vec3> expected;
+    for (size_t n = 0; n < nodes.size(); ++n)
+    {
+        if (nodes[n].level != 0 || nodes[n].quarter || nodes[n].originX != 224) continue;
+        // Odd z: the coarser level has no sample there
+        for (int gz = 1; gz < 32; gz += 2)
+        {
+            const int64_t x = 255, z = nodes[n].originZ + gz;
+            probes.push_back(TerrainProbe{int(n), 31, gz, true});
+            const Vec3 nrm((h(x - 1, z) - h(x + 1, z)) * kHeightUnit, 2.0 * bs,
+                           (h(x, z - 1) - h(x, z + 1)) * kHeightUnit);
+            expected.push_back(nrm.normalized());
+        }
+    }
+    ASSERT_GT(probes.size(), 10u);
+    const auto out = scene->terrainPass().probeVertices(probes);
+    for (size_t i = 0; i < probes.size(); ++i)
+    {
+        EXPECT_EQ(out[i](3), 0.0f);
+        for (int c = 0; c < 3; ++c) EXPECT_NEAR(out[i](c), expected[i](c), 1e-5) << "probe " << i;
+    }
+}
+
+namespace
+{
+inline int32_t raised200Hook(uint64_t, int64_t, int64_t)
+{
+    return 200 * 1024;
+}
+}  // namespace
+
+// Regression (PR review): a quarter (a child out of its range, drawn at the parent's level) was culled with the child's
+// bounds, which miss the parent's heights when the levels' data differ (here level 1 raised by 200 m over flat level-0
+// tiles): the raised quarters above a low camera looking up were rejected
+TEST_F(VulkanTerrain, QuarterCulledWithItsOwnHeights)
+{
+    const TerrainLayout layout = testLayout(16, 1);
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    SetPath(layout, flatHook, 0, 0);
+    for (int z = 0; z < 2; ++z)
+        for (int x = 0; x < 2; ++x) scene->setTerrainTile(Region(0, x, z), testTile(flatHook, layout, Region(0, x, z)));
+    scene->setTerrainTile(Region(1, 0, 0), testTile(raised200Hook, layout, Region(1, 0, 0)));
+    renderUntilUploaded(*scene);
+    SetCamera(0, Vec3(100, 5, 100), lookRotation(direction(45, 30)), 1.0);
+    Capture(2);
+    int quarters = 0;
+    for (const auto& n : scene->terrainPass().selectedNodes()) quarters += n.level == 1 && n.quarter ? 1 : 0;
+    EXPECT_GT(quarters, 0);
+}
+
 TEST_F(VulkanTerrain, PyramidOnly)
 {
     const TerrainLayout layout = testLayout(32, 2);
@@ -740,6 +960,47 @@ TEST_F(VulkanTerrain, PyramidOnly)
     // The ground fills the lower part of the view
     EXPECT_LT(countColor(img, kClear, 0), width * height / 2);
     EXPECT_EQ(scene->statistics().terrainNodes, uint32_t(s.nodes));
+}
+
+#ifdef SAIGA_ASSERTS
+// Regression (PR review): a probe after clearTerrain wrote descriptors of the cleared set's destroyed buffers
+TEST_F(VulkanTerrain, ProbeNeedsTheFramesSet)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    const TerrainLayout layout = testLayout(16, 2);
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    renderUntilUploaded(*scene);
+    SetCamera(0, Vec3(1000, 100, 1000), lookRotation(direction(0, -45)), 1.0);
+    Capture(2);
+    ASSERT_GT(scene->terrainPass().selectedNodes().size(), 0u);
+    EXPECT_EQ(scene->terrainPass().probeVertices({TerrainProbe{0, 0, 0}}).size(), 1u);
+    scene->clearTerrain();
+    EXPECT_DEATH(scene->terrainPass().probeVertices({TerrainProbe{0, 0, 0}}), "terrain set changed");
+    // A new set without a frame
+    scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
+    EXPECT_DEATH(scene->terrainPass().probeVertices({TerrainProbe{0, 0, 0}}), "terrain set changed");
+    renderUntilUploaded(*scene);
+}
+#endif
+
+// Regression: a non-finite camera reached integer conversions (UB); RenderScene draws no terrain for it. A huge finite
+// height is clamped in double before its conversion (the frame anchor) and draws without a level-0 node
+TEST_F(VulkanTerrain, NonFiniteAndHugeCameras)
+{
+    const TerrainLayout layout = testLayout(32, 2);
+    scene->setTerrainPyramid(0, testPyramid(slopeRidgeHook, layout));
+    renderUntilUploaded(*scene);
+    SetCamera(0, Vec3(4000, 600, 4000), lookRotation(direction(30, -35)), 1.0);
+    Capture(2);
+    ASSERT_GT(scene->terrainPassStats().nodes, 0);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    SetCamera(0, Vec3(nan, 600, 4000), lookRotation(direction(30, -35)), 1.0);
+    Capture(2);
+    EXPECT_EQ(scene->terrainPassStats().nodes, 0);
+    EXPECT_EQ(scene->statistics().terrainNodes, 0u);
+    SetCamera(0, Vec3(4000, 1e300, 4000), lookRotation(direction(30, -35)), 1.0);
+    Capture(2);
+    EXPECT_EQ(scene->terrainPassStats().nodesPerLevel[0], 0);
 }
 
 // Remove and set tiles in consecutive frames (a layer reused one frame after its removal): validation clean
@@ -829,6 +1090,14 @@ TEST_F(VulkanTerrain, WaterAtSeaLevel)
     EXPECT_NEAR(double(v[0](1)) + cam.y(), 2.0, 1e-4);
     // The view is filled by water (and terrain)
     EXPECT_EQ(countColor(img, kClear, 0), 0);
+    // Regression (CodeRabbit, S20): a huge finite x reached int64_t(floor(x / 4096)) for the water centre (UB); it is
+    // clamped like the frame anchor (the plane is then far from the camera and culled)
+    for (double x : {1e30, -1e30})
+    {
+        SetCamera(0, Vec3(x, 25, 2000.5), lookRotation(direction(0, -40)), 1.0);
+        Capture(2);
+        EXPECT_FALSE(scene->terrainPassStats().water) << x;
+    }
 }
 
 TEST_F(VulkanTerrain, NoWaterWithoutSeaLevel)
@@ -849,4 +1118,97 @@ TEST_F(VulkanTerrain, NoWaterWithoutSeaLevel)
     scene->setPrototypeSettings(s);
     Capture(2);
     EXPECT_TRUE(scene->terrainPassStats().water);  // selected, not drawn
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Step 5: the grass (GrassPass)
+
+namespace
+{
+GrassMaskData constantMask(const TerrainLayout& layout, uint8_t value)
+{
+    GrassMaskData m;
+    m.size    = layout.grassMaskSize();
+    m.density = std::make_shared<std::vector<uint8_t>>(size_t(m.size) * size_t(m.size), value);
+    return m;
+}
+ChunkId Chunk(int32_t x, int32_t z)
+{
+    ChunkId c;
+    c.x = x;
+    c.z = z;
+    return c;
+}
+}  // namespace
+
+// No clumps without a mask or with a zero mask
+TEST_F(VulkanTerrain, GrassNeedsMask)
+{
+    const TerrainLayout layout = testLayout(16, 2);
+    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    const Vec3 cam(300.5, 2, 300.5);
+    fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(flatHook, 1), std::nullopt, cam, false);
+    SetCamera(0, cam, lookRotation(direction(30, -30)), 1.0);
+    const auto bare = Capture(3);
+    EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+    // Zero masks: blocks are drawn, every clump is discarded
+    for (int32_t z = 0; z < 3; ++z)
+        for (int32_t x = 0; x < 3; ++x) scene->setGrassMask(Chunk(x, z), constantMask(layout, 0));
+    renderUntilUploaded(*scene);
+    const auto zero = Capture(3);
+    EXPECT_GT(scene->grassPass().stats().blocks, 0);
+    // Regression (CodeRabbit, S20): a NaN grass radius passed the "<= 0" guard and reached int32_t conversions (UB):
+    // no grass
+    {
+        PrototypeSettings nanRadius  = scene->prototypeSettings();
+        const PrototypeSettings keep = nanRadius;
+        nanRadius.grassRadius        = std::numeric_limits<decltype(nanRadius.grassRadius)>::quiet_NaN();
+        scene->setPrototypeSettings(nanRadius);
+        Capture(2);
+        EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+        scene->setPrototypeSettings(keep);
+    }
+    int differing = 0;
+    for (int y = 0; y < bare.h; ++y)
+        for (int x = 0; x < bare.w; ++x) differing += bare(y, x) != zero(y, x) ? 1 : 0;
+    EXPECT_EQ(differing, 0);
+    // Full masks: grass
+    for (int32_t z = 0; z < 3; ++z)
+        for (int32_t x = 0; x < 3; ++x) scene->setGrassMask(Chunk(x, z), constantMask(layout, 255));
+    renderUntilUploaded(*scene);
+    const auto full = Capture(3);
+    differing       = 0;
+    for (int y = 0; y < bare.h; ++y)
+        for (int x = 0; x < bare.w; ++x) differing += bare(y, x) != full(y, x) ? 1 : 0;
+    EXPECT_GT(differing, width * height / 20);
+    // A removed mask: no blocks of that chunk
+    for (int32_t z = 0; z < 3; ++z)
+        for (int32_t x = 0; x < 3; ++x) scene->removeGrassMask(Chunk(x, z));
+    Capture(2);
+    EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+}
+
+// The grass is chunk-relative: the image is invariant under a 256 m camera and content offset
+TEST_F(VulkanTerrain, GrassChunkRelative)
+{
+    const TerrainLayout layout = testLayout(16, 1);
+    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    auto periodic = [](uint64_t, int64_t x, int64_t z)
+    { return int32_t(triangleWave(x, 256) * 12 + triangleWave(z + 2 * x, 128) * 8 + 2048); };
+    const auto source = TerrainHeightSource::fromHook(periodic, 1);
+    std::vector<TemplatedImage<ucvec4>> images;
+    for (int k = 0; k < 2; ++k)
+    {
+        const Vec3 eye(1700.3 + 256 * k, 0, 1500.6);
+        const Vec3 cam = eye + Vec3(0, surfaceAt(periodic, 1, 1, eye.x(), eye.z()) + 2, 0);
+        fillTestTerrain(*scene, layout, source, std::nullopt, cam, true);
+        SetCamera(0, cam, lookRotation(direction(20, -45)), 40.0 * kPi / 180);
+        images.push_back(Capture(3));
+        EXPECT_GT(scene->grassPass().stats().blocks, 0);
+    }
+    int differing = 0;
+    for (int y = 0; y < images[0].h; ++y)
+        for (int x = 0; x < images[0].w; ++x) differing += images[0](y, x) != images[1](y, x) ? 1 : 0;
+    EXPECT_EQ(differing, 0);
+    EXPECT_LT(countColor(images[0], kClear, 0), width * height / 10);
 }

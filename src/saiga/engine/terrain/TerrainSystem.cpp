@@ -6,13 +6,57 @@
 
 #include "saiga/engine/terrain/TerrainSystem.h"
 
+#include "saiga/engine/core/Log.h"
+#include "saiga/engine/core/StreamingPool.h"
+#include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/TerrainGeneration.h"
+#include "saiga/engine/terrain/TerrainStore.h"
+
 #include <algorithm>
+#include <chrono>
 #include <cmath>
+#include <limits>
+#include <stdexcept>
 
 namespace Saiga
 {
 namespace Engine
 {
+namespace
+{
+double nowSeconds()
+{
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// floor(v) as an index clamped to [lo, hi] (in double before the conversion: no overflow for any finite v)
+int clampedIndex(double v, int lo, int hi)
+{
+    return int(std::min(std::max(std::floor(v), double(lo)), double(hi)));
+}
+
+RegionId regionOf(SpaceId space, int level, int32_t x, int32_t z)
+{
+    RegionId r;
+    r.space = space;
+    r.level = uint8_t(level);
+    r.x     = x;
+    r.z     = z;
+    return r;
+}
+
+ChunkId chunkOf(SpaceId space, int32_t x, int32_t z)
+{
+    ChunkId c;
+    c.space = space;
+    c.x     = x;
+    c.z     = z;
+    return c;
+}
+
+constexpr int kindPyramid = 0, kindTile = 1, kindMask = 2;
+}  // namespace
+
 TerrainSystem::TerrainSystem(const std::vector<SpaceTemplate>& templates, const std::vector<uint64_t>& seeds)
 {
     SAIGA_ASSERT(templates.size() == seeds.size());
@@ -21,12 +65,17 @@ TerrainSystem::TerrainSystem(const std::vector<SpaceTemplate>& templates, const 
         Space s;
         s.settings = templates[i];
         s.seed     = seeds[i];
-        s.source   = TerrainHeightSource::fromHook(s.settings.prototypeHeight, s.seed);
+        s.source   = Engine::heightSource(s.settings, s.seed);
+        s.store    = std::make_unique<TerrainStore>();
         spaces.push_back(std::move(s));
     }
 }
 
-TerrainSystem::~TerrainSystem() = default;
+TerrainSystem::~TerrainSystem()
+{
+    // First: no job outlives the stores its completion would touch
+    pool.reset();
+}
 
 const SpaceTemplate& TerrainSystem::spaceTemplate(SpaceId space) const
 {
@@ -40,10 +89,52 @@ const TerrainHeightSource& TerrainSystem::heightSource(SpaceId space) const
     return spaces[space].source;
 }
 
+uint64_t TerrainSystem::spaceSeed(SpaceId space) const
+{
+    SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
+    return spaces[space].seed;
+}
+
+const TerrainStore& TerrainSystem::store(SpaceId space) const
+{
+    SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
+    return *spaces[space].store;
+}
+
+Vulkan::TerrainLayout TerrainSystem::layout(SpaceId space) const
+{
+    const SpaceTemplate& t = spaceTemplate(space);
+    Vulkan::TerrainLayout l;
+    l.baseSpacing     = t.baseSpacing;
+    l.sizeChunks      = t.sizeChunks;
+    l.tilesPerLevel   = view.tilesPerLevel;
+    l.grassMaskLayers = view.grassMaskLayers;
+    return l;
+}
+
+const Vulkan::TerrainPyramidData* TerrainSystem::pyramid(SpaceId space) const
+{
+    return store(space).pyramid();
+}
+
+// ---- samples and heights
+
 int32_t TerrainSystem::sample(SpaceId space, int64_t sx, int64_t sz) const
 {
     const Space& s = spaces[space];
     if (!s.settings.hasTerrain()) return 0;
+    // A resident level-0 tile (its samples are the source's: bit-equal, R-DET-1)
+    const int64_t n1 = 256 / s.settings.baseSpacing;
+    const int64_t tx = sx >= 0 ? sx / n1 : -1, tz = sz >= 0 ? sz / n1 : -1;
+    if (tx >= 0 && tz >= 0 && tx < s.settings.sizeChunks && tz < s.settings.sizeChunks)
+    {
+        const TerrainStore::Tile* t = s.store->tile(regionOf(space, 0, int32_t(tx), int32_t(tz)));
+        if (t)
+        {
+            const int64_t n = n1 + 1;
+            return (*t->data.heights)[size_t((sz - tz * n1) * n + (sx - tx * n1))];
+        }
+    }
     const int64_t spacing = s.settings.baseSpacing;
     return s.source(sx * spacing, sz * spacing);
 }
@@ -53,6 +144,8 @@ double TerrainSystem::height(SpaceId space, double x, double z) const
     SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown space");
     const Space& s = spaces[space];
     if (!s.settings.hasTerrain()) return 0;
+    // A NaN coordinate has no point (it would survive the clamps below): 0; infinities clamp to the edges
+    if (std::isnan(x) || std::isnan(z)) return 0;
     const double size = s.settings.sizeMeters();
     // Sample coordinates: exact for spacing 1 or 2
     const double spacing = s.settings.baseSpacing;
@@ -72,6 +165,671 @@ double TerrainSystem::height(SpaceId space, double x, double z) const
     else
         h01 = sample(space, ci, cj + 1);
     return terrainSurfaceDouble(h00, h10, h01, h11, fx, fz) * kHeightUnit;
+}
+
+// ---- the pool
+
+void TerrainSystem::ensurePool()
+{
+    if (!pool) pool = std::make_unique<StreamingPool>(std::max(1, view.workers));
+}
+
+void TerrainSystem::drainPool()
+{
+    if (!pool) return;
+    try
+    {
+        pool->drain();
+    }
+    catch (const std::exception& e)
+    {
+        // A height source is pure and has no recoverable failure (§3): fatal, naming the request
+        SAIGA_EXIT_ERROR(std::string("TerrainSystem: ") + e.what());
+    }
+}
+
+std::string TerrainSystem::describe(const Key& key) const
+{
+    const auto [kind, space, level, x, z] = key;
+    const std::string s                   = "space " + std::to_string(space);
+    if (kind == kindPyramid) return "terrain pyramid " + s;
+    if (kind == kindTile)
+        return "terrain tile " + s + " region L" + std::to_string(level) + " (" + std::to_string(x) + ", " +
+               std::to_string(z) + ")";
+    return "grass mask " + s + " chunk (" + std::to_string(x) + ", " + std::to_string(z) + ")";
+}
+
+namespace
+{
+// The job body with its request named in an exception (drain rethrows it without knowing the request)
+template <class F>
+StreamingPool::Job namedJob(std::string what, F body)
+{
+    return [what = std::move(what), body = std::move(body)](const std::atomic<bool>&)
+    {
+        try
+        {
+            body();
+        }
+        catch (const std::exception& e)
+        {
+            throw std::runtime_error(what + ": " + e.what());
+        }
+        catch (...)
+        {
+            throw std::runtime_error(what + ": unknown exception");
+        }
+    };
+}
+}  // namespace
+
+void TerrainSystem::requestPyramid(SpaceId space)
+{
+    const Key key(kindPyramid, space, 0, 0, 0);
+    if (requests.count(key)) return;
+    ensurePool();
+    Space& sp                        = spaces[space];
+    auto result                      = std::make_shared<Vulkan::TerrainPyramidData>();
+    const TerrainHeightSource source = sp.source;
+    const Vulkan::TerrainLayout lay  = layout(space);
+    const std::optional<int32_t> sea = sp.settings.seaLevel;
+    const uint64_t id                = pool->submit(
+        namedJob(describe(key), [result, source, lay, sea]() { *result = generatePyramid(source, lay, sea); }), 0,
+        [this, key, result, space](bool cancelled)
+        {
+            requests.erase(key);
+            if (cancelled) return;
+            Space& s = spaces[space];
+            s.store->setPyramid(std::move(*result));
+            statistics.generated++;
+            statistics.pyramidsGenerated++;
+        });
+    requests[key] = id;
+    jobsSubmitted++;
+}
+
+void TerrainSystem::requestTile(const RegionId& region, int priority)
+{
+    const Key key(kindTile, region.space, region.level, region.x, region.z);
+    if (requests.count(key)) return;
+    ensurePool();
+    Space& sp                        = spaces[region.space];
+    auto result                      = std::make_shared<Vulkan::TerrainTileData>();
+    const TerrainHeightSource source = sp.source;
+    const Vulkan::TerrainLayout lay  = layout(region.space);
+    const uint64_t id                = pool->submit(
+        namedJob(describe(key), [result, source, lay, region]() { *result = generateTile(source, lay, region); }),
+        priority,
+        [this, key, result, region](bool cancelled)
+        {
+            requests.erase(key);
+            // A job that finished before beginView left its space (its cancel came too late): not stored there
+            if (cancelled || !viewSpaceValid || region.space != viewSpace) return;
+            spaces[region.space].store->addTile(region, std::move(*result), frame);
+            statistics.generated++;
+        });
+    requests[key] = id;
+    jobsSubmitted++;
+}
+
+void TerrainSystem::requestMask(const ChunkId& chunk, int priority)
+{
+    const Key key(kindMask, chunk.space, 0, chunk.x, chunk.z);
+    if (requests.count(key)) return;
+    const TerrainStore::Tile* tile = spaces[chunk.space].store->tile(regionOf(chunk.space, 0, chunk.x, chunk.z));
+    if (!tile) return;
+    ensurePool();
+    auto result                      = std::make_shared<Vulkan::GrassMaskData>();
+    const Vulkan::TerrainTileData t0 = tile->data;
+    const Vulkan::TerrainLayout lay  = layout(chunk.space);
+    const std::optional<int32_t> sea = spaces[chunk.space].settings.seaLevel;
+    const double minNormalY = view.grassMinNormalY, minAboveSea = view.grassMinAboveSea;
+    const uint64_t generation = maskGeneration;
+    const uint64_t id =
+        pool->submit(namedJob(describe(key), [result, t0, lay, sea, minNormalY, minAboveSea]()
+                              { *result = generateGrassMask(t0, lay, sea, minNormalY, minAboveSea); }),
+                     priority,
+                     [this, key, result, chunk, generation](bool cancelled)
+                     {
+                         requests.erase(key);
+                         if (cancelled || generation != maskGeneration || !viewSpaceValid || chunk.space != viewSpace)
+                             return;
+                         spaces[chunk.space].store->addMask(chunk, std::move(*result));
+                         statistics.generated++;
+                     });
+    requests[key] = id;
+    jobsSubmitted++;
+}
+
+// ---- the view
+
+TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& camera) const
+{
+    Desired d;
+    const Space& sp = spaces[space];
+    if (!sp.store->pyramid() || !camera.allFinite()) return d;
+    const Vulkan::TerrainLayout L = layout(space);
+    // TerrainPass's LOD distance (§12.2): the horizontal distance to the tile and the camera height above the surface
+    // under it (one value per call), so the tiles the pass refines into are the desired ones at any relief
+    const double hc = std::abs(camera.y() - height(space, camera.x(), camera.z()));
+    for (int k = 0; k < L.streamedLevels(); ++k)
+    {
+        const double range = view.residencyRange0 * std::ldexp(1.0, k);
+        const double size  = std::ldexp(256.0, k);
+        const int W        = L.tilesPerSide(k);
+        // The lower bounds: ceil - 1 also visits the tile that ends exactly at camera - range (its distance can be
+        // range)
+        const int x0 = clampedIndex(std::ceil((camera.x() - range) / size) - 1, 0, W);
+        const int x1 = clampedIndex((camera.x() + range) / size, -1, W - 1);
+        const int z0 = clampedIndex(std::ceil((camera.z() - range) / size) - 1, 0, W);
+        const int z1 = clampedIndex((camera.z() + range) / size, -1, W - 1);
+        auto& level  = d.tiles[size_t(k)];
+        for (int tz = z0; tz <= z1; ++tz)
+            for (int tx = x0; tx <= x1; ++tx)
+            {
+                const double dx   = std::max({0.0, tx * size - camera.x(), camera.x() - (tx + 1) * size});
+                const double dz   = std::max({0.0, tz * size - camera.z(), camera.z() - (tz + 1) * size});
+                const double dist = std::sqrt(dx * dx + dz * dz + hc * hc);
+                if (dist <= range) level.push_back({dist, regionOf(space, k, tx, tz)});
+            }
+        std::stable_sort(level.begin(), level.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        if (int(level.size()) > L.tilesPerLevel)
+        {
+            d.truncated[size_t(k)] = int(level.size()) - L.tilesPerLevel;
+            level.resize(size_t(L.tilesPerLevel));
+        }
+        for (const auto& t : level) d.tileSet.insert(t.second);
+    }
+    // Grass masks: the chunks (with a desired level-0 tile) whose box is within the grass radius: the 3D distance (the
+    // grass fades out by its 3D distance, GrassPass), the box from the pyramid's heights of the chunk +- 64 m
+    if (view.grassRadius > 0 && L.grassMaskLayers > 0)
+    {
+        const Vulkan::TerrainPyramidData& p = *sp.store->pyramid();
+        const int P                         = L.pyramidSamplesPerSide();
+        for (const auto& t : d.tiles[0])
+        {
+            if (t.first - hc > view.grassRadius) continue;  // horizontally out of the radius (dxz >= t.first - hc)
+            int32_t lo = kTerrainHeightLimit, hi = -kTerrainHeightLimit;
+            for (int j = 0; j <= 8; ++j)
+                for (int i = 0; i <= 8; ++i)
+                {
+                    const int32_t v = (*p.heights)[size_t(t.second.z * 8 + j) * size_t(P) + size_t(t.second.x * 8 + i)];
+                    lo              = std::min(lo, v);
+                    hi              = std::max(hi, v);
+                }
+            const Vec3 bmin(t.second.x * 256.0, double(lo) * kHeightUnit - 64, t.second.z * 256.0);
+            const Vec3 bmax((t.second.x + 1) * 256.0, double(hi) * kHeightUnit + 64, (t.second.z + 1) * 256.0);
+            const double dist = (camera.cwiseMax(bmin).cwiseMin(bmax) - camera).norm();
+            if (dist <= view.grassRadius) d.masks.push_back({dist, chunkOf(space, t.second.x, t.second.z)});
+        }
+        std::stable_sort(d.masks.begin(), d.masks.end(),
+                         [](const auto& a, const auto& b) { return a.first < b.first; });
+        if (int(d.masks.size()) > L.grassMaskLayers)
+        {
+            d.masksTruncated = int(d.masks.size()) - L.grassMaskLayers;
+            d.masks.resize(size_t(L.grassMaskLayers));
+        }
+        for (const auto& m : d.masks) d.maskSet.insert(m.second);
+    }
+    return d;
+}
+
+void TerrainSystem::markDesired(SpaceId space, const Desired& d)
+{
+    for (const RegionId& r : d.tileSet) spaces[space].store->markDesired(r, frame);
+}
+
+void TerrainSystem::cancelUndesired(SpaceId space, const Desired& d)
+{
+    if (!pool) return;
+    for (auto it = requests.begin(); it != requests.end();)
+    {
+        const auto [kind, s, level, x, z] = it->first;
+        bool keep                         = true;
+        if (kind == kindTile) keep = s == space && d.tileSet.count(regionOf(s, level, x, z));
+        if (kind == kindMask) keep = s == space && d.maskSet.count(chunkOf(s, x, z));
+        // A queued job is dropped now; a running one reports the cancel in its completion (which erases it)
+        if (!keep && pool->cancel(it->second))
+            it = requests.erase(it);
+        else
+            ++it;
+    }
+}
+
+void TerrainSystem::issueRequests(SpaceId space, const Desired& d, size_t limit)
+{
+    if (requestsHeld) return;
+    const TerrainStore& st = *spaces[space].store;
+    // Missing desired tiles by distance / range ratio, coarse levels first at equal ratio
+    std::vector<std::tuple<double, int, RegionId>> missingTiles;
+    for (int k = 0; k < 8; ++k)
+        for (const auto& t : d.tiles[size_t(k)])
+        {
+            if (st.tile(t.second) || requests.count(Key(kindTile, space, k, t.second.x, t.second.z))) continue;
+            // A zero range desires only tiles at distance 0 (ratio 0, not 0 / 0)
+            const double range = view.residencyRange0 * std::ldexp(1.0, k);
+            const double ratio = range > 0 ? t.first / range : 0.0;
+            missingTiles.push_back({ratio, -k, t.second});
+        }
+    std::sort(missingTiles.begin(), missingTiles.end(), [](const auto& a, const auto& b)
+              { return std::tie(std::get<0>(a), std::get<1>(a)) < std::tie(std::get<0>(b), std::get<1>(b)); });
+    for (const auto& [ratio, negLevel, region] : missingTiles)
+    {
+        if (requests.size() >= limit) return;
+        // Pyramid 0, tiles 1.. by ratio and level, masks after them
+        requestTile(region, 1 + int(std::min(ratio, 1.0) * 1000) * 8 + (7 + negLevel));
+    }
+    for (const auto& m : d.masks)
+    {
+        if (requests.size() >= limit) return;
+        if (st.mask(m.second)) continue;
+        requestMask(m.second, 100000 + int(m.first));
+    }
+}
+
+void TerrainSystem::evict(SpaceId space, const Desired& d)
+{
+    TerrainStore& st              = *spaces[space].store;
+    const Vulkan::TerrainLayout L = layout(space);
+    for (int k = 0; k < L.streamedLevels(); ++k)
+    {
+        int over = st.tilesAtLevel(k) - L.tilesPerLevel;
+        if (over <= 0) continue;
+        // Not desired, least recently desired first (a desired tile is never evicted: the desired set is truncated)
+        std::vector<std::pair<uint64_t, RegionId>> candidates;
+        for (const auto& [r, t] : st.tiles())
+            if (r.level == k && !d.tileSet.count(r)) candidates.push_back({t.lastDesired, r});
+        std::stable_sort(candidates.begin(), candidates.end(),
+                         [](const auto& a, const auto& b) { return a.first < b.first; });
+        for (size_t i = 0; i < candidates.size() && over > 0; ++i, --over)
+        {
+            st.removeTile(candidates[i].second);
+            statistics.evicted++;
+        }
+    }
+    // The masks that left the grass radius
+    std::vector<ChunkId> gone;
+    for (const auto& m : st.masks())
+        if (!d.maskSet.count(m.first)) gone.push_back(m.first);
+    for (const ChunkId& c : gone) st.removeMask(c);
+}
+
+void TerrainSystem::sendUpdates(SpaceId space, const Desired& d, int limit)
+{
+    if (!sink || !setActive || setSpace != space) return;
+    const TerrainStore& st = *spaces[space].store;
+    // Removals first (not budgeted: the sink never holds a tile the store dropped)
+    for (auto it = sentTiles.begin(); it != sentTiles.end();)
+    {
+        if (!st.tile(*it))
+        {
+            sink->removeTerrainTile(*it);
+            it = sentTiles.erase(it);
+        }
+        else
+            ++it;
+    }
+    for (auto it = sentMasks.begin(); it != sentMasks.end();)
+    {
+        if (!st.mask(*it))
+        {
+            sink->removeGrassMask(*it);
+            it = sentMasks.erase(it);
+        }
+        else
+            ++it;
+    }
+    // Tile additions by distance
+    std::vector<std::pair<double, RegionId>> add;
+    for (int k = 0; k < 8; ++k)
+        for (const auto& t : d.tiles[size_t(k)])
+            if (st.tile(t.second) && !sentTiles.count(t.second)) add.push_back(t);
+    std::stable_sort(add.begin(), add.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    int sent = 0;
+    for (const auto& t : add)
+    {
+        if (limit >= 0 && sent >= limit) break;
+        sendTile(t.second, st.tile(t.second)->data);
+        sent++;
+    }
+    statistics.uploadsLastUpdate = sent;
+    for (const auto& m : d.masks)
+        if (st.mask(m.second) && !sentMasks.count(m.second)) sendGrassMask(m.second, *st.mask(m.second));
+}
+
+bool TerrainSystem::missing(SpaceId space, const Desired& d) const
+{
+    return missingCounts(space, d).total() > 0;
+}
+
+TerrainSystem::MissingCounts TerrainSystem::missingCounts(SpaceId space, const Desired& d) const
+{
+    MissingCounts m;
+    const TerrainStore& st = *spaces[space].store;
+    for (const RegionId& r : d.tileSet)
+    {
+        if (!st.tile(r))
+            m.tilesNotStored++;
+        else if (sink && !sentTiles.count(r))
+            m.tilesNotSent++;
+    }
+    for (const ChunkId& c : d.maskSet)
+    {
+        if (!st.mask(c))
+            m.masksNotStored++;
+        else if (sink && !sentMasks.count(c))
+            m.masksNotSent++;
+    }
+    return m;
+}
+
+void TerrainSystem::sendPyramid(SpaceId space, const Vulkan::TerrainPyramidData& pyramid)
+{
+    // The data with the current layout (the heights are shared)
+    Vulkan::TerrainPyramidData p = pyramid;
+    p.layout                     = layout(space);
+    p.seaLevel                   = spaces[space].settings.seaLevel;
+    sink->setTerrainPyramid(space, p);
+    setActive = true;
+    setSpace  = space;
+    setLayout = p.layout;
+    sentTiles.clear();
+    sentMasks.clear();
+}
+
+void TerrainSystem::sendTile(const RegionId& region, const Vulkan::TerrainTileData& tile)
+{
+    sink->setTerrainTile(region, tile);
+    sentTiles.insert(region);
+}
+
+void TerrainSystem::sendGrassMask(const ChunkId& chunk, const Vulkan::GrassMaskData& mask)
+{
+    sink->setGrassMask(chunk, mask);
+    sentMasks.insert(chunk);
+}
+
+void TerrainSystem::beginView(SpaceId space)
+{
+    SAIGA_ASSERT(space < spaces.size(), "TerrainSystem: unknown view space");
+    const bool terrain = spaces[space].settings.hasTerrain();
+    if (viewSpaceValid && viewSpace != space)
+    {
+        // The old space's streamed CPU tiles and masks go (its pyramid stays cached) and its requests are cancelled
+        spaces[viewSpace].store->dropStreamed();
+        if (pool)
+            for (auto it = requests.begin(); it != requests.end();)
+            {
+                if (std::get<1>(it->first) == viewSpace && std::get<0>(it->first) != kindPyramid &&
+                    pool->cancel(it->second))
+                    it = requests.erase(it);
+                else
+                    ++it;
+            }
+    }
+    viewSpace            = space;
+    viewSpaceValid       = true;
+    statistics.viewSpace = space;
+    if (!sink) return;
+    if (!terrain)
+    {
+        // The view space has no terrain: the sink drops its set (once)
+        if (setActive) sink->clearTerrain();
+        setActive = false;
+        sentTiles.clear();
+        sentMasks.clear();
+        return;
+    }
+    const bool sameSet = setActive && setSpace == space && setLayout == layout(space);
+    if (sameSet) return;
+    // A new set: the sink drops the old one itself when it receives the pyramid. Without a cached pyramid the old set
+    // is cleared now (else it stayed in the sink, e.g. through a later switch to a flat space)
+    const bool hadSet = setActive;
+    setActive         = false;
+    sentTiles.clear();
+    sentMasks.clear();
+    if (const Vulkan::TerrainPyramidData* p = spaces[space].store->pyramid())
+        sendPyramid(space, *p);
+    else if (hadSet)
+        sink->clearTerrain();
+}
+
+void TerrainSystem::updateView(SpaceId space, const Vec3& camera)
+{
+    frame++;
+    // Also for the early returns (sendUpdates sets it when it runs)
+    statistics.uploadsLastUpdate = 0;
+    drainPool();
+    // Without a sink, or with a non-finite camera (nothing is desired, cancelled or evicted for it)
+    if (!sink || !camera.allFinite())
+    {
+        updateStats(space, nullptr);
+        return;
+    }
+    viewCamera = camera;
+    beginView(space);
+    if (!spaces[space].settings.hasTerrain())
+    {
+        updateStats(space, nullptr);
+        return;
+    }
+    Space& sp = spaces[space];
+    if (!sp.store->pyramid())
+    {
+        requestPyramid(space);
+        updateStats(space, nullptr);
+        return;
+    }
+    if (!setActive) sendPyramid(space, *sp.store->pyramid());
+    const Desired d = computeDesired(space, camera);
+    markDesired(space, d);
+    cancelUndesired(space, d);
+    issueRequests(space, d, size_t(std::max(1, view.maxInFlight)));
+    evict(space, d);
+    sendUpdates(space, d, std::max(0, view.uploadsPerFrame));
+    updateStats(space, &d);
+}
+
+void TerrainSystem::runUntil(double deadline)
+{
+    if (!pool) return;
+    // The deadline is checked before each caller job; a running one is finished (it cannot be interrupted)
+    while (nowSeconds() < deadline && pool->runOneOnCaller())
+    {
+    }
+    const double remaining = deadline - nowSeconds();
+    if (remaining > 0) pool->waitIdleFor(remaining);
+}
+
+bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeoutSeconds)
+{
+    const double start    = nowSeconds();
+    const double deadline = start + timeoutSeconds;
+    frame++;
+    drainPool();
+    auto finish = [&](bool ok, const Desired* d)
+    {
+        statistics.lastCompleteMs = (nowSeconds() - start) * 1000.0;
+        updateStats(space, d);
+        return ok;
+    };
+    // A non-finite camera of a terrain space changes nothing (the view, the sink's set and the saved camera stay)
+    if (spaces[space].settings.hasTerrain() && !camera.allFinite())
+    {
+        SAIGA_LOG("terrain", "completeView: the camera of space %u is not finite", unsigned(space));
+        return finish(false, nullptr);
+    }
+    if (camera.allFinite()) viewCamera = camera;
+    beginView(space);
+    if (!spaces[space].settings.hasTerrain()) return finish(true, nullptr);
+    Space& sp = spaces[space];
+    // (a) the pyramid
+    if (!sp.store->pyramid())
+    {
+        requestPyramid(space);
+        runUntil(deadline);
+        drainPool();
+        if (!sp.store->pyramid()) return finish(false, nullptr);
+    }
+    if (sink && !setActive) sendPyramid(space, *sp.store->pyramid());
+    const Desired d = computeDesired(space, camera);
+    markDesired(space, d);
+    cancelUndesired(space, d);
+    int before = missingCounts(space, d).total();
+    for (;;)
+    {
+        const uint64_t submitted = jobsSubmitted;
+        // (b) every missing desired tile
+        issueRequests(space, d, std::numeric_limits<size_t>::max());
+        runUntil(deadline);
+        drainPool();
+        // (c) the masks whose level-0 tile is now stored
+        issueRequests(space, d, std::numeric_limits<size_t>::max());
+        runUntil(deadline);
+        drainPool();
+        // (d) eviction and every send
+        evict(space, d);
+        sendUpdates(space, d, -1);
+        const MissingCounts m = missingCounts(space, d);
+        if (m.total() == 0) return finish(true, &d);
+        if (nowSeconds() >= deadline) return finish(false, &d);
+        // Nothing arrived, no job was submitted (a dropped result is requested again) and nothing is queued or running:
+        // no later iteration can progress either
+        if (m.total() >= before && requests.empty() && jobsSubmitted == submitted)
+        {
+            SAIGA_LOG("terrain",
+                      "completeView: space %u cannot complete (tiles not stored %d, not sent %d; masks not stored %d, "
+                      "not sent %d)",
+                      unsigned(space), m.tilesNotStored, m.tilesNotSent, m.masksNotStored, m.masksNotSent);
+            return finish(false, &d);
+        }
+        before = m.total();
+    }
+}
+
+bool TerrainSystem::viewComplete(SpaceId space, const Vec3& camera) const
+{
+    if (!spaceTemplate(space).hasTerrain()) return true;
+    if (!spaces[space].store->pyramid() || !camera.allFinite()) return false;
+    if (sink && (!setActive || setSpace != space || setLayout != layout(space))) return false;
+    return !missing(space, computeDesired(space, camera));
+}
+
+double TerrainSystem::readiness(SpaceId space, const Vec3& camera, double radius) const
+{
+    if (!spaceTemplate(space).hasTerrain()) return 1;
+    // Also 0 for a stale layout (the new set is sent at the next update)
+    if (!sink || !setActive || setSpace != space || setLayout != layout(space) || !camera.allFinite()) return 0;
+    const Desired d = computeDesired(space, camera);
+    int total = 1, sent = 1;
+    for (int k = 0; k < 8; ++k)
+        for (const auto& t : d.tiles[size_t(k)])
+        {
+            if (t.first > radius) continue;
+            total++;
+            sent += sentTiles.count(t.second) ? 1 : 0;
+        }
+    return double(sent) / double(total);
+}
+
+size_t TerrainSystem::terrainUploadsPending() const
+{
+    return sink ? sink->terrainUploadsPending() : 0;
+}
+
+void TerrainSystem::setViewSettings(const TerrainViewSettings& settings)
+{
+    const bool thresholds =
+        settings.grassMinNormalY != view.grassMinNormalY || settings.grassMinAboveSea != view.grassMinAboveSea;
+    view = settings;
+    if (thresholds)
+    {
+        // Every mask is dropped and regenerated (older results are dropped by their generation)
+        maskGeneration++;
+        for (Space& s : spaces) s.store->dropMasks();
+        if (sink)
+            for (const ChunkId& c : sentMasks) sink->removeGrassMask(c);
+        sentMasks.clear();
+        if (pool)
+            for (auto it = requests.begin(); it != requests.end();)
+            {
+                if (std::get<0>(it->first) == kindMask && pool->cancel(it->second))
+                    it = requests.erase(it);
+                else
+                    ++it;
+            }
+    }
+}
+
+void TerrainSystem::setSink(RenderSink* s)
+{
+    // Regression (CodeRabbit, S20): a sink attached again kept the tiles of its old set (the store may hold others
+    // now); a pyramid of the same space and layout keeps them, and the replay overflowed tilesPerLevel
+    if (sink && setActive && std::find(staleSinks.begin(), staleSinks.end(), sink) == staleSinks.end())
+        staleSinks.push_back(sink);
+    if (s)
+    {
+        auto it = std::find(staleSinks.begin(), staleSinks.end(), s);
+        if (it != staleSinks.end())
+        {
+            staleSinks.erase(it);
+            s->clearTerrain();
+        }
+    }
+    sink      = s;
+    setActive = false;
+    sentTiles.clear();
+    sentMasks.clear();
+    if (!sink || !viewSpaceValid || !spaces[viewSpace].settings.hasTerrain()) return;
+    const TerrainStore& st = *spaces[viewSpace].store;
+    if (!st.pyramid()) return;
+    // What the store holds of the last view camera's desired set (truncated to the current budget: the store can hold
+    // more after setViewSettings lowered it), through the send point
+    sendPyramid(viewSpace, *st.pyramid());
+    const Desired d = computeDesired(viewSpace, viewCamera);
+    for (int k = 0; k < 8; ++k)
+        for (const auto& t : d.tiles[size_t(k)])
+            if (const TerrainStore::Tile* tile = st.tile(t.second)) sendTile(t.second, tile->data);
+    for (const auto& m : d.masks)
+        if (const Vulkan::GrassMaskData* mask = st.mask(m.second)) sendGrassMask(m.second, *mask);
+}
+
+void TerrainSystem::updateStats(SpaceId space, const Desired* d)
+{
+    Stats& s = statistics;
+    s.levels.fill(LevelStats());
+    s.masksDesired = s.masksTruncated = 0;
+    const TerrainStore& st            = *spaces[space].store;
+    for (int k = 0; k < 8; ++k)
+    {
+        s.levels[size_t(k)].resident = st.tilesAtLevel(k);
+        if (d)
+        {
+            s.levels[size_t(k)].desired   = int(d->tiles[size_t(k)].size());
+            s.levels[size_t(k)].truncated = d->truncated[size_t(k)];
+        }
+    }
+    for (const RegionId& r : sentTiles) s.levels[r.level].sent++;
+    if (d)
+    {
+        s.masksDesired   = int(d->masks.size());
+        s.masksTruncated = d->masksTruncated;
+    }
+    s.masksResident = int(st.masks().size());
+    s.masksSent     = int(sentMasks.size());
+    s.pending       = int(requests.size());
+    s.viewSpace     = space;
+    size_t bytes    = 0;
+    for (const Space& sp : spaces) bytes += sp.store->cpuBytes();
+    // The results in flight (at most one per request; their size by kind)
+    for (const auto& [key, id] : requests)
+    {
+        const Vulkan::TerrainLayout L = layout(std::get<1>(key));
+        const size_t n = size_t(L.samplesPerSide()), P = size_t(L.pyramidSamplesPerSide()),
+                     m = size_t(L.grassMaskSize());
+        bytes += std::get<0>(key) == kindPyramid ? P * P * 4 : (std::get<0>(key) == kindTile ? n * n * 4 : m * m);
+    }
+    s.cpuBytes = bytes;
 }
 
 }  // namespace Engine
