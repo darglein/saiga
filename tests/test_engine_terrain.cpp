@@ -929,18 +929,15 @@ TEST(TerrainStreaming, CompleteViewTimeout)
     std::optional<ScopedLatch> latch;
     latch.emplace();
     const Vec3 far(7000, 100, 7000);
-    // The hook calls of one height query at far (no tile there yet): computeDesired makes the same once
-    w.terrain().height(0, far.x(), far.z());
-    const int heightCalls = latchState().callsOnArmingThread.exchange(0);
-    const auto t0         = std::chrono::steady_clock::now();
-    const bool ok         = w.terrain().completeView(0, far, 0.1);
-    const double s        = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    const auto t0  = std::chrono::steady_clock::now();
+    const bool ok  = w.terrain().completeView(0, far, 0.1);
+    const double s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
     EXPECT_FALSE(ok);
     // 0.1 s plus one caller job (a 1 m tile of the latched hook takes a few ms; generous for a loaded machine): no
     // caller job starts after the deadline
     EXPECT_LT(s, 2.0);
-    // Regression (CodeRabbit, S20): the camera height query alone passed a "> 0" check; the caller ran tile jobs
-    EXPECT_GT(latchState().callsOnArmingThread.load(), heightCalls);
+    // (That the caller runs queued jobs is CompleteViewRunsJobsOnTheCaller: a paused test thread may reach the short
+    // deadline before its first job)
     // The workers take the queued jobs and block on the latch (on a loaded machine maybe only after the call returned)
     const auto blockedBy = std::chrono::steady_clock::now() + std::chrono::seconds(10);
     while (latchState().callsBlocked.load() == 0 && std::chrono::steady_clock::now() < blockedBy)
@@ -949,6 +946,40 @@ TEST(TerrainStreaming, CompleteViewTimeout)
     latch.reset();
     // Completes afterwards
     EXPECT_TRUE(w.terrain().completeView(0, far, 60));
+    w.setRenderSink(nullptr);
+}
+
+// With the workers held, the caller runs the queued tile jobs itself: the view completes once the latch opens, which
+// happens only after the caller ran a tile job (a helper thread waits for that)
+TEST(TerrainStreaming, CompleteViewRunsJobsOnTheCaller)
+{
+    World w(terrainSetup(32, 1, latchedHook));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(1500, 100, 1500), 60));
+    std::optional<ScopedLatch> latch;
+    latch.emplace();
+    const Vec3 far(7000, 100, 7000);
+    // The hook calls of one height query at far (no tile there yet): computeDesired makes the same once
+    w.terrain().height(0, far.x(), far.z());
+    const int heightCalls = latchState().callsOnArmingThread.exchange(0);
+    // Regression (CodeRabbit, S20): the camera height query alone passed a "> 0" check; the caller ran tile jobs.
+    // Moved out of CompleteViewTimeout (CodeRabbit, S20): its 0.1 s deadline may pass before the caller's first job
+    std::atomic<bool> callerRan{false};
+    std::thread opener(
+        [&]()
+        {
+            const auto until = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+            while (latchState().callsOnArmingThread.load() <= heightCalls && std::chrono::steady_clock::now() < until)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+            callerRan = latchState().callsOnArmingThread.load() > heightCalls;
+            openLatch();
+        });
+    const bool ok = w.terrain().completeView(0, far, 60);
+    opener.join();
+    EXPECT_TRUE(ok);
+    EXPECT_TRUE(callerRan);
+    latch.reset();
     w.setRenderSink(nullptr);
 }
 
@@ -1079,6 +1110,36 @@ TEST(TerrainStreaming, LayoutChangeStartsNewSet)
     // Masks re-sent too
     EXPECT_FALSE(sink.grassMasks().empty());
     EXPECT_EQ(w.terrain().readiness(0, cam, 1e9), 1.0);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (CodeRabbit, S20): a sink attached again still held the tiles of its old view (no removal calls reach a
+// detached sink); the pyramid of the same space and layout kept them and the replay of the new view overflowed
+// tilesPerLevel. Now the reattached sink gets clearTerrain first
+TEST(TerrainStreaming, ReattachedSinkDropsItsOldSet)
+{
+    World w(terrainSetup(32, 1, integerTestHook));
+    TerrainViewSettings s = kDefaults;
+    s.tilesPerLevel       = 1;
+    w.terrain().setViewSettings(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(1000, 100, 1000)));
+    const auto oldTiles = sink.terrainTiles();
+    w.setRenderSink(nullptr);
+    const Vec3 far(7000, 100, 7000);
+    ASSERT_TRUE(w.terrain().completeView(0, far));
+    w.setRenderSink(&sink);
+    EXPECT_EQ(sink.counters().clearTerrain, 1u);
+    for (int k = 0; k < 5; ++k) EXPECT_LE(sink.terrainTilesAtLevel(k), 1) << k;
+    for (const auto& t : sink.terrainTiles())
+    {
+        if (t.first.level == 0)
+        {
+            EXPECT_EQ(oldTiles.count(t.first), 0u);
+        }
+    }
+    EXPECT_TRUE(w.terrain().viewComplete(0, far));
     w.setRenderSink(nullptr);
 }
 

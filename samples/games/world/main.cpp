@@ -79,6 +79,7 @@ struct WorldGame
     double frameWork                 = 0;   // the app's CPU work of the attempts of the frame of lastBeforeRenderFrame
     std::array<double, 3> frameWaits = {};  // the waits (frame slot, acquire, present) of those attempts
     double frameStreamMs             = 0;   // the terrain stream time of those attempts
+    int frameUploads                 = 0;   // the terrain tiles sent by those attempts
     // The RenderScene frame of lastBeforeRender: a frame that was not submitted is attempted again with the same number
     // (its interval runs from the first attempt, so a stall stays in the result)
     uint64_t lastBeforeRenderFrame = 0;
@@ -222,6 +223,8 @@ void beforeRender(EngineApp& app)
             for (size_t k = 0; k < 3; ++k) g.frameWaits[k] += scene.lastWaitParts()[k];
         // And its terrain stream time (every attempt streams; its completeView ran after its beforeRender)
         if (g.hasLastBeforeRender) g.frameStreamMs += app.lastTerrainStreamMs();
+        // And the tiles it sent (an attempt that was not submitted sent its tiles too, a later one skips them)
+        if (g.hasLastBeforeRender) g.frameUploads += app.world().terrain().stats().uploadsLastUpdate;
     }
     if (!g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame)
     {
@@ -238,13 +241,14 @@ void beforeRender(EngineApp& app)
             g.bench->addSample(sample);
             if (g.bench->measuring(frame - 1))
             {
-                g.terrainUploads += app.world().terrain().stats().uploadsLastUpdate;
+                g.terrainUploads += g.frameUploads;
                 g.terrainUploadBytes += double(scene.terrainAtlasStats().bytesRecorded);
             }
         }
         g.frameWork             = 0;
         g.frameWaits            = {};
         g.frameStreamMs         = 0;
+        g.frameUploads          = 0;
         g.lastBeforeRender      = now;
         g.lastBeforeRenderFrame = frame;
         g.hasLastBeforeRender   = true;

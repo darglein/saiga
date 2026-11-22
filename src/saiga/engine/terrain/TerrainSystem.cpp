@@ -763,6 +763,19 @@ void TerrainSystem::setViewSettings(const TerrainViewSettings& settings)
 
 void TerrainSystem::setSink(RenderSink* s)
 {
+    // Regression (CodeRabbit, S20): a sink attached again kept the tiles of its old set (the store may hold others
+    // now); a pyramid of the same space and layout keeps them, and the replay overflowed tilesPerLevel
+    if (sink && setActive && std::find(staleSinks.begin(), staleSinks.end(), sink) == staleSinks.end())
+        staleSinks.push_back(sink);
+    if (s)
+    {
+        auto it = std::find(staleSinks.begin(), staleSinks.end(), s);
+        if (it != staleSinks.end())
+        {
+            staleSinks.erase(it);
+            s->clearTerrain();
+        }
+    }
     sink      = s;
     setActive = false;
     sentTiles.clear();

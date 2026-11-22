@@ -902,6 +902,18 @@ void EngineApp::renderFrame()
     lastFrameWaitMs    = renderScene->lastWaitMs() + streamIdleWaitMs;
     lastFrameWaitParts = renderScene->lastWaitParts();
     frameProfiler.add(scopeWait, lastFrameWaitMs);
+    if (!rendered && !frameCaptures.empty())
+    {
+        // The captures of this attempt return to the app's queue (e.g. a minimized window): the next attempt checks the
+        // terrain of its own view. They were requested last (streamTerrain); the scene's earlier requests (F12) stay
+        auto requests = renderScene->takeScreenshotRequests();
+        SAIGA_ASSERT(requests.size() >= frameCaptures.size());
+        for (size_t i = 0; i < requests.size() - frameCaptures.size(); ++i)
+            renderScene->requestScreenshot(std::move(requests[i]));
+        pendingCaptures.insert(pendingCaptures.begin(), std::make_move_iterator(frameCaptures.begin()),
+                               std::make_move_iterator(frameCaptures.end()));
+    }
+    frameCaptures.clear();
     if (!rendered) return;
     frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
     // Whether the frame counts in the frame statistics, decided once for its CPU interval and its GPU time: presented
@@ -999,7 +1011,8 @@ void EngineApp::streamTerrain()
         {
             if (!ready && (fatal || mcpCapture))
                 SAIGA_LOG("app", "capture: terrain uploads still pending after %d frames", captureWaitFrames);
-            for (PendingCapture& c : pendingCaptures) renderScene->requestScreenshot(std::move(c.callback));
+            for (PendingCapture& c : pendingCaptures) renderScene->requestScreenshot(c.callback);
+            frameCaptures = std::move(pendingCaptures);
             pendingCaptures.clear();
             captureWaitFrames = 0;
         }

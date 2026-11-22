@@ -141,7 +141,8 @@ class SAIGA_ENGINE_API TerrainSystem
 
     // Engine-internal: the World's render sink (World::setRenderSink). A new sink receives the pyramid and the tiles
     // and masks of the last view camera's desired set (current budget) that the store of the view space holds (through
-    // the send point); a removed sink drops the sent state
+    // the send point); a removed sink drops the sent state. A sink attached again first gets clearTerrain if it kept a
+    // set when it was removed
     void setSink(RenderSink* sink);
     // Tests: a space's store
     const TerrainStore& store(SpaceId space) const;
@@ -184,6 +185,9 @@ class SAIGA_ENGINE_API TerrainSystem
     Vulkan::TerrainLayout setLayout;
     std::set<RegionId> sentTiles;
     std::set<ChunkId> sentMasks;
+    // Sinks that were detached (or set again) while holding a set: no removal calls reached them, so the set is dropped
+    // when one is attached again (compared by address only, never dereferenced while detached)
+    std::vector<RenderSink*> staleSinks;
     bool viewSpaceValid = false;
     SpaceId viewSpace   = 0;
     // The camera of the last view update (setSink sends its desired set)

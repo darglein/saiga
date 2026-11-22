@@ -155,6 +155,15 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
      */
     using ScreenshotCallback = std::function<void(const TemplatedImage<ucvec4>&)>;
     void requestScreenshot(ScreenshotCallback callback) { screenshotCallbacks.push_back(std::move(callback)); }
+    // The callbacks not yet taken by a frame, in request order (e.g. withdrawn after a frame that was not submitted)
+    std::vector<ScreenshotCallback> takeScreenshotRequests()
+    {
+        std::vector<ScreenshotCallback> requests;
+        requests.swap(screenshotCallbacks);
+        return requests;
+    }
+    // True if the next rendered frame is read back
+    bool screenshotRequested() const { return !screenshotCallbacks.empty(); }
 
     /**
      * The largest sample count <= requested that the device supports for framebuffer color and depth attachments

@@ -1383,6 +1383,28 @@ TEST_F(EngineAppRender, ScreenshotKeepsAGuiToggleMeanwhile)
     EXPECT_FALSE(app.scene()->imguiOverridden().has_value());
 }
 
+// Regression (CodeRabbit, S20): the screenshot's GUI override hid the GUI in every frame while the request waited (a
+// capture now waits for the terrain); it applies only to a frame that is read back
+TEST_F(EngineAppRender, ImguiOverrideOnlyInReadBackFrames)
+{
+    EngineAppSetup s = appSetup(true);
+    s.render.imgui   = true;
+    EngineApp app(s);
+    app.scene()->setImguiVisible(true);
+    app.scene()->setImguiOverride(false);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(app.scene()->lastDrewImgui());
+    TemplatedImage<ucvec4> shot;
+    app.scene()->requestScreenshot([&](const TemplatedImage<ucvec4>& img) { shot = img; });
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_GT(shot.width, 0);
+    EXPECT_FALSE(app.scene()->lastDrewImgui());
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(app.scene()->lastDrewImgui());
+    app.scene()->setImguiOverride(std::nullopt);
+    EXPECT_TRUE(app.scene()->imguiVisible());
+}
+
 namespace
 {
 // measure_performance(frames: n) started between frames, run until it answers

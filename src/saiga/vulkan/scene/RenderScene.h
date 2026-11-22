@@ -111,10 +111,15 @@ class SAIGA_VULKAN_API RenderScene
 
     // The next rendered frame (tone mapped, with ImGui) as RGBA, alpha 255
     void requestScreenshot(VulkanRenderer::ScreenshotCallback callback);
+    // The screenshot requests not yet taken by a frame, in request order (requestScreenshot gives them back)
+    std::vector<VulkanRenderer::ScreenshotCallback> takeScreenshotRequests();
     void setImguiVisible(bool visible);
     bool imguiVisible() const;
-    // Draws ImGui (true) or not (false) in the rendered frames until cleared, without changing imguiVisible (the
-    // user's choice, e.g. a key that toggles it); for screenshots with or without the GUI
+    // True if the last recorded frame drew ImGui
+    bool lastDrewImgui() const { return frameDrewImgui; }
+    // Draws ImGui (true) or not (false) in the rendered frames that are read back (requestScreenshot) until cleared,
+    // without changing imguiVisible (the user's choice, e.g. a key that toggles it); for screenshots with or without
+    // the GUI (the other frames keep the user's choice)
     void setImguiOverride(std::optional<bool> visible) { imguiOverride = visible; }
     std::optional<bool> imguiOverridden() const { return imguiOverride; }
 
@@ -331,6 +336,7 @@ class SAIGA_VULKAN_API RenderScene
     const std::function<void()>* guiFn = nullptr;
     uint64_t frameCount                = 0;
     std::optional<bool> imguiOverride;
+    bool frameDrewImgui = false;
     // The frame numbers of the submitted frames by timeline value (GPU times arrive by timeline value)
     std::deque<std::pair<uint64_t, uint64_t>> submittedFrames;
 };

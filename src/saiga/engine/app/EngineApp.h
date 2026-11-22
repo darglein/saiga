@@ -359,6 +359,9 @@ class SAIGA_ENGINE_API EngineApp
         bool fatal = false;
     };
     std::vector<PendingCapture> pendingCaptures;
+    // The captures handed to the scene for the current frame attempt (given back if it is not submitted: the next
+    // attempt checks its own view)
+    std::vector<PendingCapture> frameCaptures;
     int captureWaitFrames = 0;
     std::function<std::optional<std::chrono::steady_clock::time_point>()> screenshotEarliest;
     std::function<void(std::chrono::steady_clock::time_point)> screenshotExpire;

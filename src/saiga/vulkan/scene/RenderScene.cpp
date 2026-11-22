@@ -265,6 +265,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         {
             if (s.guiFn && *s.guiFn) (*s.guiFn)();
         });
+    s.frameDrewImgui = drawImgui;
 
     vk::CommandBuffer cmd = beginCommands(frame);
     timings.resetFrame(cmd);
@@ -634,9 +635,10 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     const uint64_t before   = renderer->submittedFrames();
     const uint64_t timeline = renderer->base().currentFrameSignalValue();
     RenderInfo info;
-    // The override applies to this frame only; the user's choice stays in should_render_imgui
+    // The override applies to this frame only, and only if it is read back (a screenshot that waits for a later frame
+    // does not hide the GUI of the frames before it); the user's choice stays in should_render_imgui
     const bool userImgui  = renderer->should_render_imgui;
-    const bool overridden = imguiOverride.has_value();
+    const bool overridden = imguiOverride.has_value() && renderer->screenshotRequested();
     if (overridden) renderer->should_render_imgui = *imguiOverride;
     renderer->render(info);
     if (overridden) renderer->should_render_imgui = userImgui;
@@ -717,6 +719,11 @@ ivec2 RenderScene::size() const
 void RenderScene::requestScreenshot(VulkanRenderer::ScreenshotCallback callback)
 {
     renderer->requestScreenshot(std::move(callback));
+}
+
+std::vector<VulkanRenderer::ScreenshotCallback> RenderScene::takeScreenshotRequests()
+{
+    return renderer->takeScreenshotRequests();
 }
 
 void RenderScene::setImguiVisible(bool visible)
