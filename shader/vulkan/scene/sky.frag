@@ -11,7 +11,7 @@
 // physical path the atmosphere (A4): the sky-view LUT at the camera height, the sun
 // disc (its radiance clamped below the fp16 limit after the pre-exposure, limb darkened), the moon disc with its phase
 // and the full moon's illuminance, and the stars (stars.glsl; faded with the sun's elevation), each through the
-// transmittance to the top of the atmosphere
+// transmittance to the top of the atmosphere; below the limb the LUT's ground with the height fog of its distance
 
 #include "terrain_common.glsl"
 #include "terrain_shading.glsl"
@@ -59,6 +59,13 @@ void main()
             vec3 celestial = vec3(dot(lighting.starRotation[0].xyz, dir), dot(lighting.starRotation[1].xyz, dir),
                                   dot(lighting.starRotation[2].xyz, dir));
             c += Tview * starRadiance(celestial, pixel, lighting.starRotation[0].w) * smoothstep(-0.02, 0.02, dir.y);
+        }
+        // Below the limb the LUT shows the planet's ground: it gets the height fog of its distance like the terrain
+        // does (no seam where a terrain ends before the horizon)
+        if (rayHitsGround(r, dir.y))
+        {
+            vec4 fog = physicalFog(dir * (distanceToGround(r, dir.y) * 1000.0));
+            c        = c * fog.a + fog.rgb;
         }
         outColor = vec4(min(max(c, vec3(0.0)) * lighting.exposure.y, vec3(60000.0)), 1.0);
         return;
