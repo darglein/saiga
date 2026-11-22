@@ -829,6 +829,9 @@ TEST(WorldTools, EveryToolAnswers)
     track("remove_component", Json::object{{"entity", de}, {"component", "PlayerInput"}});
     track("set_transform", Json::object{{"entity", de}, {"position", Json::array{1, 2, 3}}});
     track("move_to_space", Json::object{{"entity", de}, {"space", 0}, {"position", Json::array{1, 2, 3}}});
+    track("edit_terrain", obj(R"({"op": "add", "center": [10, 0, 10], "radius": 3, "strength": 1})"));
+    track("terrain_height", obj(R"({"x": 10, "z": 10})"));
+    track("terrain_edits", Json::object{});
     track("get_global", obj(R"({"component": "Weather"})"));
     track("set_global", obj(R"({"component": "Weather", "values": {"rain": 1}})"));
     track("emit_event",

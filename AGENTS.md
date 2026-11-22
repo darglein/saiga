@@ -87,7 +87,12 @@ src/
                         participates), Rng (PCG32), Hash (FNV-1a 64), LogRing and SAIGA_LOG (Log.h), Profiler, StreamingPool (S20:
                         background generation jobs, drained on the main thread); terrain/ (S20): TerrainSystem (the
                         World's terrain: terrainHeight, visual streaming of the view camera's space, completeView,
-                        readiness, the single send point to the sink), TerrainStore, TerrainGeneration; ecs/: Registry,
+                        readiness, the single send point to the sink), TerrainStore, TerrainGeneration; S22
+                        terraforming: TerrainBrush and the integer BrushKernel, applyTerrainEdit (World::editTerrain),
+                        TerrainEditStore (delta blocks, per-chunk sequence, World::terrainEdits / terrainSample),
+                        TerrainDeltaCodec, TerrainMessages (TerrainModification, TerrainChunkState), the visual path
+                        (TerrainVisualPatch: merge at the send point and edited grass masks, TerrainDirtyQueue: the
+                        patch step); tests/test_engine_terrain_edit.cpp, _net.cpp, _benchmark.cpp; ecs/: Registry,
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
@@ -238,7 +243,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-72 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+75 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -298,7 +303,8 @@ ctest -R test_core_ini --output-on-failure             # one test
   PNGs); then copy the printed `trees per lod` counts into the `ExpectCounts` calls of `tests/test_engine_terrain_render.cpp`.
   The tone-map golden `hdr_tonemap` (S17) the same way with `./build/tests/test_vulkan_scene
   --gtest_filter='VulkanScene.AcesGolden'`, the imported-mesh golden `scene_flat_box` (S18) with
-  `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'`.
+  `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'`, the terraformed crater `terrain_edit_crater` (S22) with
+  `./build/tests/test_engine_terrain_render --gtest_filter='TerrainRenderTest.EditCraterGolden'`.
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
   `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then
@@ -313,7 +319,7 @@ ctest -R test_core_ini --output-on-failure             # one test
     -DSAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON -DSAIGA_BUILD_TESTS=OFF -DSAIGA_BUILD_SAMPLES=ON
   # CMake >= 4: add -DCMAKE_POLICY_VERSION_MINIMUM=3.5; GCC 15: add -DASSIMP_WARNINGS_AS_ERRORS=OFF (see above)
   cmake --build build-bench --target game_world sample_vulkan_scene_benchmark --parallel
-  (cd build-bench/samples/games && ./game_world --benchmark flyover)   # and --benchmark forest
+  (cd build-bench/samples/games && ./game_world --benchmark flyover)   # and --benchmark forest, --benchmark terraform
   (cd build-bench/samples/vulkan && ./sample_vulkan_scene_benchmark)     # culling benchmark (S18), headless
   ```
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
@@ -331,7 +337,11 @@ ctest -R test_core_ini --output-on-failure             # one test
   with the S03 value). Since S20 the benchmark world is `game_world`'s 32 km space at 1 m (the trees in `[0, 8192]^2`);
   the terrain is completed in every frame (`completeView`), its time is excluded from the frame interval and reported
   as `terrain_stream_ms` with a `terrain` block; `--base-spacing 2` runs the same benchmark on a 2 m template (to
-  separate code changes from the 1 m content). The culling benchmark (S18) renders the
+  separate code changes from the 1 m content). `terraform` (S22) edits the terrain once per frame from a static camera
+  (one step per frame, no per-frame `completeView`; the game's `TerraformBenchmark`) and adds the terraform keys
+  (`terrain_edit_ms`, `terrain_visual_ms`, `edit_bytes_per_second`, ...; it fails on a broken assertion, e.g. a hook read
+  or a tile send in the measured frames); `tests/test_engine_terrain_benchmark.cpp` is its headless, non-gating
+  counterpart. The culling benchmark (S18) renders the
   prototype's 200k trees as flat instances through RenderScene over the flyover path (headless, 1920 x 1080) and writes
   `benchmark_scene_cull.json` (the `cull` section and the instance draw time; not in `benchmarks.json`).
 
@@ -405,7 +415,8 @@ cd build && ctest --output-on-failure --parallel 4                         # all
 ```
 
 Changes to RenderScene, culling, terrain or streaming are performance relevant (R-TEST-2): run the benchmarks of the
-recipe above before and after (`game_world --benchmark flyover|forest` and `sample_vulkan_scene_benchmark`).
+recipe above before and after (`game_world --benchmark flyover|forest` and `sample_vulkan_scene_benchmark`; terrain
+edits also `--benchmark terraform`).
 
 For changes in the CUDA module, which CI does not build, also build that module locally (with a GPU) and say so
 if it could not be built. CI covers the OpenGL and Vulkan modules only through the headless

@@ -76,7 +76,7 @@ class SAIGA_VULKAN_API WorldBenchmark
     // The ground under (x, z) for the camera paths (S20: max(terrainHeight, sea level))
     using Ground = std::function<double(double x, double z)>;
 
-    // The known benchmarks: "flyover", "forest"
+    // The known benchmarks: "flyover", "forest", "terraform" (S22: the edit schedule lives in the game)
     static const std::vector<std::string>& names();
     static bool known(const std::string& name);
     // The S03 keys of gpu_ms: "upload + cull", "terrain + water", "trees", "grass", "sky" (from RenderScene's
@@ -88,7 +88,8 @@ class SAIGA_VULKAN_API WorldBenchmark
      * The camera of measured frame i (0 <= i < measuredFrames; warm-up frames use i = 0):
      * - flyover: one revolution in measuredFrames frames on a circle of radius 3 km around the world center, 300 m
      *   above the ground below the camera, looking at the center (on the ground);
-     * - forest: 2 m above max(terrain, water level), from center - 300 m to center + 300 m along x, looking along +x.
+     * - forest: 2 m above max(terrain, water level), from center - 300 m to center + 300 m along x, looking along +x;
+     * - terraform (S22): static, eye (3968, g + 300, 3940) looking at (3968, g, 3968), g = the ground at (3968, 3968).
      */
     // S20: the same paths over a ground callback (terrain or water, whichever is higher; the centre (4096, 4096) of the
     // prototype's 8 km area until S27)

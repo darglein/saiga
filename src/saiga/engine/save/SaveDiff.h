@@ -22,7 +22,8 @@ namespace Engine
 struct SAIGA_ENGINE_API SaveDifference
 {
     // field, only_in_a, only_in_b (also a reused slot: both), component_only_in_a, component_only_in_b, flags, step,
-    // time, rng, events, actions, free_list, counter
+    // time, rng, events, actions, free_list, counter, space, section_only_in_a/b, terrain (S22: component = "space s
+    // chunk (x, z)", field = the differing samples)
     std::string kind;
     Entity entity;                 // entity differences (in a's numbering; the index is the same in both)
     std::string component, field;  // field differences

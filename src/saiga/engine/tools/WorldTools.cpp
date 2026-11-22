@@ -51,6 +51,16 @@ Json quatProperty(const std::string& description)
                         {"maxItems", 4}};
 }
 
+// A point [x, y, z] or [x, z] (edit_terrain's center)
+Json pointProperty(const std::string& description)
+{
+    return Json::object{{"type", "array"},
+                        {"description", description},
+                        {"items", Json::object{{"type", "number"}}},
+                        {"minItems", 2},
+                        {"maxItems", 3}};
+}
+
 struct ToolSpec
 {
     const char* name;
@@ -133,6 +143,37 @@ std::vector<ToolSpec> toolSpecs()
                           {"position", S::Vec3Property("Position in meters in the target space")},
                           {"rotation", quatProperty("Rotation quaternion [w,x,y,z] (default: the current one)")}},
                          {"entity", "space", "position"})},
+        {"edit_terrain",
+         "Terraforms the height-map terrain of an open-world space (host only, between steps; the change is "
+         "replicated to the clients and saved): op \"add\" / \"subtract\" (strength: metres at the center, 0..64) "
+         "or \"flatten\" / \"smooth\" (strength: blend at the center, 0..1); center [x, y, z] in metres (y: the "
+         "flatten target, 0 when omitted; [x, z] is accepted), radius 0..128 m, quartic falloff. Changes the terrain "
+         "heights. Returns changed_samples, per changed chunk {chunk: [x, z], sequence, box: [x0, z0, w, h] in "
+         "chunk-local samples} and the changed box [x0, z0, x1, z1] in metres. Refused on clients, inside a step, "
+         "for an unknown or enclosed space and for a brush out of its bounds (the error names the field).",
+         S::ObjectSchema(
+             {{"space", S::IntegerProperty("Space (default 0; describe_world lists them)")},
+              {"op", S::StringProperty("add, subtract, flatten or smooth")},
+              {"center", pointProperty("Brush center [x, y, z] or [x, z] in metres (y: the flatten target)")},
+              {"radius", S::NumberProperty("Radius in metres (0..128]")},
+              {"strength", S::NumberProperty("Metres (add/subtract) or blend 0..1 (flatten/smooth)")}},
+             {"op", "center", "radius", "strength"})},
+        {"terrain_height",
+         "Reads the exact terrain surface height at (x, z) of a space (the integer surface rule of §12.2 incl. "
+         "terrain edits), the three integer samples of the containing triangle [i, k, height units of 1/1024 m] and "
+         "edited (one of them has an edit). Changes nothing.",
+         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0)")},
+                          {"x", S::NumberProperty("x in metres")},
+                          {"z", S::NumberProperty("z in metres")}},
+                         {"x", "z"})},
+        {"terrain_edits",
+         "Reads the chunks of a space with terrain modification state (sequence > 0) in chunk order: chunk [x, z], "
+         "sequence, has_deltas, non_zero_samples and the delta min / max in metres; paged (limit, default 100; after: "
+         "the next value of the previous page). Changes nothing.",
+         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0)")},
+                          {"limit", S::IntegerProperty("Chunks per page (1..1000, default 100)")},
+                          {"after", S::IntegerProperty("The next value of the previous page")}},
+                         {})},
         {"spawn",
          "Creates an entity at position with rotation [w,x,y,z] and scale: with class a game object (configure and "
          "onSpawn run), else a plain entity. components {name: fields} are checked before anything is created and "
@@ -268,7 +309,8 @@ std::vector<ToolSpec> toolSpecs()
          "measure_performance fails. Returns the types, the entry count and hook errors.",
          S::ObjectSchema({{"reconfigure", S::BooleanProperty("Reconfigure the game objects (true)")}})},
         {"apply",
-         "Runs a batch: operations [{op: tool name, ...arguments}] in order, one result each. Stops at the first "
+         "Runs a batch: operations [{op: tool name, ...arguments}] or [{op: tool name, args: {arguments}}] (needed "
+         "for edit_terrain, whose brush argument is named op too) in order, one result each. Stops at the first "
          "failing operation (the earlier ones stay applied; the error names it).",
          S::ObjectSchema({{"operations", arrayProperty("Operations", Json::object{{"type", "object"}})}},
                          {"operations"})},

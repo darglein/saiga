@@ -25,6 +25,10 @@
 //   SCHM  the schema table (SchemaTable::write)
 //   SPCE? (S21, version 1; only with more than one space) the space count (u32), then per SpaceId the template name
 //         (u32 length + bytes, at most 256) and the kind (u8, SpaceKind); names may repeat (S23a)
+//   TERR? (S22, version 1; only with a chunk with terrain state, sequence > 0) the space count (u32); per space with
+//         such chunks in SpaceId order: SpaceId (u16), base spacing (u8), N (u16), chunk count (u32); per chunk in
+//         ChunkId order: x (i32), z (i32), sequence (u32, > 0), flags (u8: bit 0 = deltas present); with deltas the
+//         encoded length (u64) and the dense N x N delta (TerrainDeltaCodec, zstd)
 //   ENTS  slot count; per slot from 1: generation (u32), state (u8: 0 free, 2 alive), flags (u8); the free list
 //   COMP  per saved component type: schema index (u32), count (u64), byte length (u64), then per component the entity
 //         index (u32) and the binary form, in the pool's dense order (Transform: index order)
@@ -47,6 +51,7 @@ constexpr uint32_t saveTag(const char (&t)[5])
 constexpr uint32_t kTagHeader     = saveTag("HEAD");
 constexpr uint32_t kTagSchema     = saveTag("SCHM");
 constexpr uint32_t kTagSpaces     = saveTag("SPCE");
+constexpr uint32_t kTagTerrain    = saveTag("TERR");
 constexpr uint32_t kTagEntities   = saveTag("ENTS");
 constexpr uint32_t kTagComponents = saveTag("COMP");
 constexpr uint32_t kTagEvents     = saveTag("EVNT");
@@ -63,8 +68,9 @@ struct SaveSectionEntry
     uint32_t maxVersion;
 };
 constexpr SaveSectionEntry kSaveSections[] = {
-    {kTagHeader, false, 0},     {kTagSchema, false, 0}, {kTagSpaces, true, 1},   {kTagEntities, false, 0},
-    {kTagComponents, false, 0}, {kTagEvents, false, 0}, {kTagActions, false, 0}, {kTagState, false, 0},
+    {kTagHeader, false, 0}, {kTagSchema, false, 0},   {kTagSpaces, true, 1},
+    {kTagTerrain, true, 1}, {kTagEntities, false, 0}, {kTagComponents, false, 0},
+    {kTagEvents, false, 0}, {kTagActions, false, 0},  {kTagState, false, 0},
 };
 
 // SPCE: the template name and kind per SpaceId
@@ -78,6 +84,27 @@ struct SpaceTable
     std::vector<Row> rows;
 };
 constexpr uint32_t kSpaceTableVersion = 1;
+
+// TERR (S22): the terrain modification state per space; dense deltas decoded (N x N, row-major, row = z)
+struct TerrainSection
+{
+    struct Chunk
+    {
+        int32_t x = 0, z = 0;
+        uint32_t sequence = 0;
+        bool hasDeltas    = false;
+        std::vector<int32_t> deltas;  // N * N with deltas, empty without
+    };
+    struct Space
+    {
+        SpaceId space   = 0;
+        uint8_t spacing = 0;
+        uint16_t N      = 0;
+        std::vector<Chunk> chunks;
+    };
+    std::vector<Space> spaces;
+};
+constexpr uint32_t kTerrainSectionVersion = 1;
 
 inline std::string tagName(uint32_t tag)
 {

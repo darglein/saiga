@@ -41,6 +41,12 @@ void registerEngineMessages(MessageList& list)
                           [](World& w, uint8_t from, const PongMessage& m) { w.replication().onPong(from, m); });
     list.add<ResyncMessage>(Reliability::Reliable,
                             [](World& w, uint8_t from, const ResyncMessage& m) { w.replication().onResync(from, m); });
+    list.addRaw(MessageId(EngineMessage::TerrainModification), "TerrainModification", Reliability::Reliable,
+                Channel::State, [](World& w, uint8_t from, const uint8_t* d, size_t n)
+                { w.replication().onTerrainModification(from, d, n); });
+    list.addRaw(MessageId(EngineMessage::TerrainChunkState), "TerrainChunkState", Reliability::Reliable, Channel::State,
+                [](World& w, uint8_t from, const uint8_t* d, size_t n)
+                { w.replication().onTerrainChunkState(from, d, n); });
 }
 
 }  // namespace Engine

@@ -20,6 +20,7 @@
 #include "saiga/engine/net/InterpolationSystem.h"
 #include "saiga/engine/net/NetIds.h"
 #include "saiga/engine/net/NetVisitors.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/world/Phase.h"
 #include "saiga/export.h"
 
@@ -58,6 +59,9 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         uint64_t snapshotsApplied = 0, snapshotsDroppedEpoch = 0;
         uint64_t ownerStatesDropped = 0;  // an older command counter or a sender that does not own the entity
         uint64_t actionsDropped     = 0;  // PlayerActions for players the sender does not own
+        // S22: terrain messages sent (host) / applied, duplicate parts dropped and messages of another epoch (client)
+        uint64_t terrainMessagesSent = 0, terrainBytesSent = 0, terrainMessagesApplied = 0;
+        uint64_t terrainPartsDuplicate = 0, terrainDroppedEpoch = 0;
     };
 
     explicit Replication(World& world);
@@ -125,6 +129,45 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onPing(uint8_t from, const PingMessage& m);
     void onPong(uint8_t from, const PongMessage& m);
     void onResync(uint8_t from, const ResyncMessage& m);
+    // S22: a client applies a host's terrain modification / chunk state (validated on its own: no check against the
+    // present neighbours, the host is authoritative); no hook is called
+    void onTerrainModification(uint8_t from, const uint8_t* data, size_t size);
+    void onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size);
+    // Host (S22, E5): one TerrainChunkState per chunk with terrain state (sequence > 0) of every space, in SpaceId and
+    // ChunkId order (the dense delta only for chunks with deltas): after the spawn set of a join, after Resync on a
+    // host load. S26 replaces it with per-loaded-chunk snapshots
+    void sendChunkSnapshot(uint8_t peer);
+
+    // ---- the host state list (S22, §13.2): ordered host state messages, unencoded, sent by extract to every regular
+    // peer after the component changes (also by stepNetworkOnly's extract), the sent ones removed when the step commits
+    // (also without peers; entries appended after the send stay for the next extract), kept by an aborted step (the
+    // edits of its finished phases stay applied). S23b appends its tombstones, so the messages that bump one chunk's
+    // sequence reach the client in application order
+    struct HostStateEntry
+    {
+        enum class Kind : uint8_t
+        {
+            TerrainModification
+        };
+        Kind kind     = Kind::TerrainModification;
+        SpaceId space = 0;
+        std::vector<TerrainPart> parts;
+    };
+    // Reserve: capacity for one more entry (the edit's reserve step; the append then allocates nothing). Grows
+    // geometrically (an exact reserve would reallocate on every edit of a batch)
+    void reserveHostState()
+    {
+        if (hostStates.size() == hostStates.capacity()) hostStates.reserve(2 * hostStates.size() + 1);
+    }
+    // Host: one TerrainModification (applyTerrainEdit; after reserveHostState)
+    void appendTerrainModification(SpaceId space, std::vector<TerrainPart>&& parts);
+    const std::vector<HostStateEntry>& hostStateList() const { return hostStates; }
+    // A committed host load: the entries describe the replaced state (the load's snapshot follows from onHostLoad)
+    void clearHostStates()
+    {
+        hostStates.clear();
+        hostStatesSent = 0;
+    }
 
     // The component encodings (engine-internal; also the replica comparison and the benchmarks)
     void encodeComponent(Entity e, ComponentId id, std::vector<uint8_t>& out) const;
@@ -176,6 +219,13 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void sendSnapshot(const std::vector<uint8_t>& peers);
     void sendToAll(const std::vector<uint8_t>& peers, MessageId id, const std::vector<uint8_t>& payload);
     std::vector<uint8_t> regularPeers, joinedPeers;
+    std::vector<HostStateEntry> hostStates;
+    // The leading entries of hostStates that this step's extract sent (or had no peer for): commit removes only those,
+    // an entry appended after the send (an edit applied by the flush after stepNetworkOnly's extract) waits for the
+    // next
+    size_t hostStatesSent = 0;
+    // Phase 8 (both extract paths): the host state list to the regular peers
+    void sendHostStates();
 
     std::vector<HostSlot> host;
     std::unordered_map<NetId, Entity> hostByNetId;

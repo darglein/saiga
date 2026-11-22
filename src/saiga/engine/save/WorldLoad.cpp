@@ -18,10 +18,13 @@
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
 #include <algorithm>
+#include <map>
 #include <set>
 
 #include <unordered_set>
@@ -60,6 +63,12 @@ class WorldLoader
     // S19b: resolves the staged RenderInstance names (aliases) and sets the cached IDs; an unregistered name is kept
     // (cached 0: tracked, drawn once the mesh is registered) and counted for one log line after the commit
     bool checkRenderMeshes();
+    // S22: TERR decoded and checked against the world (spaces, spacing, N, the chunk range, the border rule) into a
+    // staged TerrainEditStore (only blocks with a non-zero delta); no hook is called
+    bool stageTerrain(const std::vector<uint8_t>& data);
+    // S22: the staged terrain replaces the store; every chunk with deltas before or after goes through
+    // onTerrainChanged (no event); the host state list and the change list are cleared
+    void commitTerrain();
     // The staged value index -> keep; removes the others from a typed stage
     template <class T>
     static void filterStage(StagedOf<T>& s, const std::vector<bool>& keep);
@@ -89,6 +98,7 @@ class WorldLoader
     size_t unknownMeshEntities = 0;
     std::vector<bool> drop;           // by entity index: dropped by a removed type (DropEntity)
     std::vector<int64_t> generation;  // by entity index after the load: the generation, -1 if not alive
+    std::unique_ptr<TerrainEditStore> stagedTerrain;
 };
 
 namespace
@@ -751,6 +761,120 @@ void WorldLoader::commit()
     restoreStateEntities();
     reg.markAllTransformsChanged();
     rebuildSpatialGrid(w);
+    commitTerrain();
+}
+
+bool WorldLoader::stageTerrain(const std::vector<uint8_t>& data)
+{
+    std::vector<SpaceTemplate> templates;
+    for (size_t i = 0; i < w.spaceCount(); ++i) templates.push_back(w.spaceTemplate(SpaceId(i)));
+    stagedTerrain = std::make_unique<TerrainEditStore>(templates, w.terrainEdits().changeCounter());
+    if (!p.terrain) return true;
+    TerrainSection t;
+    std::string e;
+    if (!parseTerrainSection(data.data() + p.terrain->begin, p.terrain->end - p.terrain->begin, p.terrain->version, t,
+                             e))
+        return fail("TERR: " + e);
+    TerrainEditStore& st = *stagedTerrain;
+    for (const TerrainSection::Space& sp : t.spaces)
+    {
+        const std::string where = "TERR: space " + std::to_string(sp.space);
+        if (sp.space >= w.spaceCount()) return fail(where + ": not a space of this world");
+        const SpaceTemplate& tpl = w.spaceTemplate(sp.space);
+        if (tpl.kind != SpaceKind::OpenWorld) return fail(where + " ('" + tpl.name + "'): not an open-world space");
+        // A changed spacing would need a migration (not offered)
+        if (sp.spacing != tpl.baseSpacing || sp.N != 256 / tpl.baseSpacing + 1)
+            return fail(where + " ('" + tpl.name + "'): saved with base spacing " + std::to_string(sp.spacing) +
+                        ", the world has " + std::to_string(tpl.baseSpacing));
+        const int64_t S = st.chunkSamples(sp.space), N = S + 1;
+        std::map<std::pair<int32_t, int32_t>, const TerrainSection::Chunk*> byChunk;
+        for (const TerrainSection::Chunk& c : sp.chunks)
+        {
+            if (c.x < 0 || c.z < 0 || c.x >= tpl.sizeChunks || c.z >= tpl.sizeChunks)
+                return fail(where + ": chunk (" + std::to_string(c.x) + ", " + std::to_string(c.z) +
+                            ") outside the space");
+            byChunk[{c.x, c.z}] = &c;
+        }
+        // The border rule (a save is one complete state): a shared sample has one value in every chunk that contains
+        // it; a chunk without deltas counts as all zero
+        std::vector<ChunkId> owners;
+        for (const TerrainSection::Chunk& c : sp.chunks)
+        {
+            if (!c.hasDeltas) continue;
+            for (int64_t b = 0; b < 4 * N; ++b)
+            {
+                const int64_t side = b / N, t2 = b % N;
+                const int64_t li = side == 0 ? t2 : (side == 1 ? t2 : (side == 2 ? 0 : S));
+                const int64_t lk = side == 0 ? 0 : (side == 1 ? S : t2);
+                const int32_t v  = c.deltas[size_t(lk * N + li)];
+                const int64_t gi = int64_t(c.x) * S + li, gk = int64_t(c.z) * S + lk;
+                st.chunksOfSample(sp.space, gi, gk, owners);
+                for (const ChunkId& o : owners)
+                {
+                    if (o.x == c.x && o.z == c.z) continue;
+                    auto it = byChunk.find({o.x, o.z});
+                    const int32_t other =
+                        (it == byChunk.end() || !it->second->hasDeltas)
+                            ? 0
+                            : it->second->deltas[size_t((gk - int64_t(o.z) * S) * N + (gi - int64_t(o.x) * S))];
+                    if (other != v)
+                        return fail(where + ": the border sample (" + std::to_string(gi) + ", " + std::to_string(gk) +
+                                    ") differs between chunk (" + std::to_string(c.x) + ", " + std::to_string(c.z) +
+                                    ") and chunk (" + std::to_string(o.x) + ", " + std::to_string(o.z) + ")");
+                }
+            }
+        }
+        // Staged: only blocks with a non-zero delta (shared samples are written once: the second write is equal)
+        for (const TerrainSection::Chunk& c : sp.chunks)
+        {
+            if (!c.hasDeltas) continue;
+            for (int64_t k = 0; k < N; ++k)
+                for (int64_t i = 0; i < N; ++i)
+                {
+                    const int32_t v  = c.deltas[size_t(k * N + i)];
+                    const int64_t gi = int64_t(c.x) * S + i, gk = int64_t(c.z) * S + k;
+                    st.reserveFor(sp.space, gi, gk, v);
+                    st.writeDelta(sp.space, gi, gk, v);
+                }
+        }
+        for (const TerrainSection::Chunk& c : sp.chunks)
+        {
+            ChunkId id;
+            id.space = sp.space;
+            id.x     = c.x;
+            id.z     = c.z;
+            st.setSequence(id, c.sequence);
+        }
+    }
+    return true;
+}
+
+void WorldLoader::commitTerrain()
+{
+    TerrainEditStore& st = w.terrainEditsForUpdate();
+    // The chunks with deltas before and after (the visual path re-patches them to the loaded state)
+    std::set<ChunkId> changed;
+    for (size_t i = 0; i < st.spaceCount(); ++i)
+    {
+        for (const auto& [c, e] : st.chunks(SpaceId(i)))
+            if (e.nonZeroSamples > 0) changed.insert(c);
+        for (const auto& [c, e] : stagedTerrain->chunks(SpaceId(i)))
+            if (e.nonZeroSamples > 0) changed.insert(c);
+    }
+    st.replaceState(std::move(*stagedTerrain));
+    stagedTerrain.reset();
+    w.terrainChanges.clear();
+    w.repl->clearHostStates();
+    for (const ChunkId& c : changed)
+    {
+        const int64_t S = st.chunkSamples(c.space);
+        SampleRect box;
+        box.i0 = int64_t(c.x) * S;
+        box.k0 = int64_t(c.z) * S;
+        box.i1 = box.i0 + S;
+        box.k1 = box.k0 + S;
+        w.onTerrainChanged(c.space, box, true);
+    }
 }
 
 void WorldLoader::restoreStateEntities()
@@ -924,7 +1048,8 @@ LoadResult WorldLoader::run(const std::vector<uint8_t>& data)
     }
     current = SchemaTable::fromWorld(w);
     if (!stageComponents(data) || !stageEvents(data) || !mapClasses() || !dropEntities() || !checkHierarchy() ||
-        !checkSpaces() || !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes())
+        !checkSpaces() || !checkPersistent() || !checkFreedStateEntities() || !checkRenderMeshes() ||
+        !stageTerrain(data))
     {
         result.error = error;
         return result;

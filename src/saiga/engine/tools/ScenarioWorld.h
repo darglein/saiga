@@ -13,6 +13,7 @@
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/LoopbackTransport.h"
+#include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/export.h"
 
@@ -144,6 +145,14 @@ class SAIGA_ENGINE_API ScenarioWorld
     // Steps until predicate() is true (checked before each step), at most maxSteps; false if not reached (no failure)
     bool stepUntil(const std::function<bool()>& predicate, int maxSteps);
 
+    // ---- terrain (S22) ----
+    // Host: World::editTerrain between steps (logged: the line is in the failure report)
+    void editTerrain(const TerrainBrush& brush, SpaceId space = 0);
+    // World::terrainHeight / terrainSample of the host, or of a client (peer) in the host + client variants (the host's
+    // without a network)
+    double terrainHeight(double x, double z, std::optional<int> client = {}, SpaceId space = 0);
+    int32_t terrainSample(int64_t i, int64_t k, std::optional<int> client = {}, SpaceId space = 0);
+
     // Records a failure (with the step) if condition is false; returns condition
     bool check(bool condition, const std::string& message);
     // The distance of the Transform positions (a failed check and infinity if one is not alive)
@@ -213,6 +222,10 @@ class SAIGA_ENGINE_API ScenarioWorld
     void stepClients();
     void applyPending();
     void compareReplicas();
+    // S22: every client's chunk sequences equal the host's (the end condition of the host + client variants)
+    bool terrainSynced();
+    // S22: the terrain modification state of every client equals the host's (sequences, dense deltas); no gaps
+    void compareTerrain();
     void attach();
     // The step observation is two listeners: the counter first (listeners see steps() including the current step) and
     // the observer last (hash, traces, stop-save and limits see the world after every scenario listener ran)

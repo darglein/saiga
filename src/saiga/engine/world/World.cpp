@@ -24,6 +24,7 @@
 #include "saiga/engine/net/Varint.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/TransformSystem.h"
@@ -60,7 +61,9 @@ World::World(const WorldSetup& setup)
         if (templates.empty()) templates.push_back(SpaceTemplate());
         std::vector<uint64_t> seeds;
         for (size_t i = 0; i < templates.size(); ++i) seeds.push_back(i == 0 ? setup.seed : hashCombine(setup.seed, i));
-        terrainSys = std::make_unique<TerrainSystem>(templates, seeds);
+        terrainSys       = std::make_unique<TerrainSystem>(templates, seeds);
+        terrainEditStore = std::make_unique<TerrainEditStore>(templates);
+        terrainSys->setEdits(terrainEditStore.get());
     }
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
@@ -130,6 +133,8 @@ void World::setupProfiler()
         for (const SystemList::System& s : systems.systems(Phase(p)))
             systemScopes[size_t(p)].push_back(prof.scope(phasePath + "/system:" + s.name));
         flushScopes[size_t(p)] = prof.scope(phasePath + "/commands");
+        // Terrain edits applied at the flush (S22)
+        terrainEditScopes[size_t(p)] = prof.scope(phasePath + "/commands/terrain_edit");
     }
     // The extract after phase 8's systems, replication and interpolation (S19b)
     extractScope    = prof.scope(std::string("step/phase:") + phaseName(Phase::Extract) + "/extract");
@@ -770,6 +775,105 @@ double World::terrainHeight(SpaceId space, double x, double z) const
     return terrainSys->height(space, x, z);
 }
 
+int32_t World::terrainSample(SpaceId space, int64_t i, int64_t k) const
+{
+    SAIGA_ASSERT(space < terrainSys->spaceCount(), "World::terrainSample: unknown space");
+    return terrainSys->editedSample(space, i, k);
+}
+
+namespace
+{
+const char* const kTerrainEditDuringLoad =
+    "editTerrain during a load: configure and onLoad change no terrain (the load installs the saved terrain)";
+}  // namespace
+
+bool World::checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::string* error) const
+{
+    auto fail = [&](const std::string& m)
+    {
+        if (error) *error = m;
+        return false;
+    };
+    if (!isHost()) return fail("editTerrain on a client (terrain edits are host commands, R-NET-1)");
+    // PR review: an object's configure / onLoad changed the terrain the load had just installed
+    if (loadHookPhase != 0) return fail(kTerrainEditDuringLoad);
+    if (space >= spaceCount()) return fail("editTerrain: unknown space " + std::to_string(space));
+    const SpaceTemplate& t = spaceTemplate(space);
+    if (t.kind != SpaceKind::OpenWorld)
+        return fail("editTerrain: the space " + std::to_string(space) + " ('" + t.name +
+                    "') is enclosed (only open-world spaces have a height-map terrain)");
+    std::string why;
+    if (!validateBrush(brush, t, &why)) return fail("editTerrain: " + why);
+    return true;
+}
+
+void World::editTerrain(SpaceId space, const TerrainBrush& brush)
+{
+    checkNotParallel("editTerrain");
+    // Refused like the other mutations of a load hook: catchable, the loader reports it as the hook's error
+    if (loadHookPhase != 0) throw std::logic_error(kTerrainEditDuringLoad);
+    std::string error;
+    // Checked at the call in every build, also during a step (the error points at the caller)
+    if (!checkTerrainEdit(space, brush, &error)) SAIGA_EXIT_ERROR(error);
+    if (!deferring())
+    {
+        // Between steps the caller times it (the benchmark); at a flush (a command's own call) under the flush
+        if (!inStep())
+        {
+            applyTerrainEdit(*this, space, brush);
+            return;
+        }
+        Profiler::Timer timer(prof, terrainEditScopes[size_t(phase)]);
+        applyTerrainEdit(*this, space, brush);
+        return;
+    }
+    record(makeCommand(
+        [space, brush](World& w)
+        {
+            Profiler::Timer timer(w.prof, w.terrainEditScopes[size_t(w.phase)]);
+            applyTerrainEdit(w, space, brush);
+        }));
+}
+
+void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
+{
+    if (box.empty()) return;
+    TerrainChange c;
+    c.space = space;
+    c.box   = box;
+    if (!load)
+    {
+        if (inStep())
+            terrainChanges.push_back(c);
+        else
+        {
+            // The changes kept by an aborted step first (PR review: a between-step edit was emitted before them)
+            emitTerrainChanges();
+            emitTerrainEvent(c);
+        }
+    }
+    // The visual dirty queue (only while a render sink is attached)
+    terrainSys->terrainChanged(space, box);
+}
+
+void World::emitTerrainEvent(const TerrainChange& c)
+{
+    const double sp = double(terrainEditStore->spacing(c.space));
+    TerrainEditedEvent e;
+    e.space = c.space;
+    e.x0    = double(c.box.i0) * sp;
+    e.z0    = double(c.box.k0) * sp;
+    e.x1    = double(c.box.i1) * sp;
+    e.z1    = double(c.box.k1) * sp;
+    events.emit(e);
+}
+
+void World::emitTerrainChanges()
+{
+    for (const TerrainChange& c : terrainChanges) emitTerrainEvent(c);
+    terrainChanges.clear();
+}
+
 double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
@@ -1233,6 +1337,8 @@ void World::runStep()
     recordsAtStepStart   = log.appendedTotal();
     // Queued player actions become ActionEvents; with the events of the last step they become readable
     deliverActions();
+    // The terrain changes kept by an aborted step become readable in this one (S22)
+    emitTerrainChanges();
     events.beginStep();
     stepEventsBegun = true;
     try
@@ -1292,6 +1398,8 @@ void World::runStep()
     peerListsCommitted = true;
     // The step completed: the staged replication bookkeeping is committed
     repl->commit();
+    // The step's terrain changes become events (readable in the next step, S22)
+    emitTerrainChanges();
     stepChanged.clear();
     reg.shiftTransformFlags(trackStepChanges > 0 ? &stepChanged : nullptr);
     // The extract's staged pairs become current (an aborted step does not shift them; S19b)
@@ -1349,6 +1457,7 @@ void World::stepNetworkOnly()
     phase              = Phase::None;
     peerListsCommitted = true;
     repl->commit();
+    emitTerrainChanges();
 }
 
 void World::step(int n)
@@ -1451,6 +1560,8 @@ void World::setWorkerThreads(int n)
 
 uint64_t World::hash() const
 {
+    // TerrainEditStore::contentHash caches without synchronization (PR review): not from parallelEach bodies
+    checkNotParallel("hash");
     SAIGA_ASSERT(!inStep() && commands.empty(), "World::hash inside a step");
     Hasher h;
     reg.hashInto(h);
@@ -1468,6 +1579,16 @@ uint64_t World::hash() const
     }
     h.addU64(persistentCounter);
     h.addU64(steps);
+    // The terrain modification state (S22, §17.4): per chunk with state in ChunkId order; nothing without one
+    const TerrainEditStore& st = *terrainEditStore;
+    for (size_t i = 0; i < st.spaceCount(); ++i)
+        for (const auto& [c, e] : st.chunks(SpaceId(i)))
+        {
+            h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(e.sequence);
+            const bool deltas = e.nonZeroSamples > 0;
+            h.addU8(deltas ? 1 : 0);
+            if (deltas) h.addU64(st.contentHash(c));
+        }
     return h.value();
 }
 

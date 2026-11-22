@@ -297,6 +297,11 @@ inline Engine::SpaceTemplate testSpaceTemplate(int32_t sizeChunks, int baseSpaci
     t.seaLevel        = seaLevel;
     return t;
 }
+// S22's terraforming template: open world, 16 chunks, the given spacing (1 or 2), no sea level, integerTestHook
+inline Engine::SpaceTemplate terraformTestTemplate(int spacing)
+{
+    return testSpaceTemplate(16, spacing, integerTestHook, std::nullopt);
+}
 #endif
 
 }  // namespace TerrainTestHooks

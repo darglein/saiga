@@ -86,7 +86,8 @@ struct ApiResult
  *   get_data:         type, name? -> entry values, or the entry names
  *   reload_data:      reconfigure? (true) -> types, entries, hook_errors (re-reads the data files; with reconfigure
  *                     the world is saved and loaded so every game object runs configure() again)
- *   apply:            operations: [{op, ...arguments}] -> one result per operation, applied in order; it stops at the
+ *   apply:            operations: [{op, ...arguments}] or [{op, args: {arguments}}] (needed for edit_terrain, whose
+ *                     brush argument is named op too) -> one result per operation, applied in order; it stops at the
  *                     first failing operation (the earlier ones stay applied). Allowed read-only if every
  *                     operation reads.
  * With allowEdits = false only the reading operations are allowed. The API detaches when the world is destroyed
@@ -172,6 +173,10 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult removeComponent(const json11::Json& a);
     ApiResult setTransform(const json11::Json& a);
     ApiResult moveToSpace(const json11::Json& a);
+    // S22: edit_terrain (between steps, host only), terrain_height, terrain_edits
+    ApiResult editTerrain(const json11::Json& a);
+    ApiResult terrainHeight(const json11::Json& a);
+    ApiResult terrainEdits(const json11::Json& a);
     ApiResult spawn(const json11::Json& a);
     ApiResult destroy(const json11::Json& a);
     ApiResult getGlobal(const json11::Json& a);

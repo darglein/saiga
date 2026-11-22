@@ -82,6 +82,11 @@ class SAIGA_ENGINE_API EngineApp
     void runFrames(int count, double dt);
     // One iteration of the loop with a measured frame time
     void frame();
+    // S22 (§8.3): > 0: every frame advances the worlds by exactly dt (e.g. the world's step dt: one step per frame)
+    // instead of the measured frame time; the frame statistics, the fps counter and the input keep the wall clock.
+    // 0 (the default): the measured time
+    void setFixedFrameTime(double dt);
+    double fixedFrameTime() const { return fixedDt; }
     void quit(int exitCode = 0);
     bool quitting() const { return quitRequested; }
     int exitCode() const { return exitStatus; }
@@ -332,7 +337,7 @@ class SAIGA_ENGINE_API EngineApp
     bool mouseKnown = false;
     Profiler frameProfiler, gpuProfiler;
     int scopeFrame = -1, scopePoll = -1, scopeAdvance = -1, scopeRender = -1, scopeRecording = -1, scopeGpuFrame = -1;
-    int scopeWait = -1, scopeWork = -1, scopeStream = -1;
+    int scopeWait = -1, scopeWork = -1, scopeStream = -1, scopeTerrainVisual = -1;
     // The render waits of the current frame (frame/render/wait), subtracted from the frame for work
     double lastFrameWaitMs                   = 0;
     std::array<double, 3> lastFrameWaitParts = {};  // its parts: frame slot, acquire, present
@@ -354,6 +359,7 @@ class SAIGA_ENGINE_API EngineApp
     uint64_t scenarioRuns = 0;
     // Terrain (S20)
     bool completeEachFrame = false;
+    double fixedDt         = 0;
     double streamMs        = 0;  // the last rendered frame's terrain stream time
     double frameStreamMs   = 0;  // the current frame's (0 without a rendered frame)
     // Benchmark mode: the wait for the GPU before the current frame's stream (a wait, not work; pauses the clock)

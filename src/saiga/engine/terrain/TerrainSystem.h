@@ -13,11 +13,14 @@
 #pragma once
 
 #include "saiga/core/math/TerrainSurface.h"
+#include "saiga/engine/terrain/SampleRect.h"
+#include "saiga/engine/terrain/TerrainDirtyQueue.h"
 #include "saiga/engine/world/SpaceTemplate.h"
 #include "saiga/export.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 
 #include <array>
+#include <atomic>
 #include <map>
 #include <memory>
 #include <optional>
@@ -33,6 +36,8 @@ namespace Engine
 class RenderSink;
 class StreamingPool;
 class TerrainStore;
+class TerrainEditStore;
+class TerrainVisualPatch;
 
 // The visual streaming policy (R-MECH-1): EngineAppSetup / game code may change it (TerrainSystem::setViewSettings)
 struct TerrainViewSettings
@@ -50,6 +55,10 @@ struct TerrainViewSettings
     double grassRadius     = 80;
     double grassMinNormalY = 0.82, grassMinAboveSea = 0.4;
     int workers = 2, maxInFlight = 8;
+    // Terrain edits (S22): the samples patched per updateView (summed over the levels and the pyramid; about 1 MB of
+    // uploads), the edited grass masks submitted per updateView (completeView: no limit)
+    int64_t editSamplesPerFrame = int64_t(1) << 18;
+    int editMasksPerFrame       = 2;
 };
 
 class SAIGA_ENGINE_API TerrainSystem
@@ -63,13 +72,29 @@ class SAIGA_ENGINE_API TerrainSystem
     TerrainSystem& operator=(const TerrainSystem&) = delete;
 
     // World::terrainHeight (§7.10, §12.2): x and z clamped to the space [0, sizeChunks * 256]; the cell of the base
-    // grid (the last cell at the far edge), the three samples of its triangle (sample) and terrainSurfaceDouble, in
-    // metres. 0 for a space without terrain. Const and thread safe (parallelEach)
+    // grid (the last cell at the far edge), the three samples of its triangle (editedSample: base + terrain edit,
+    // S22) and terrainSurfaceDouble, in metres. 0 for a space without terrain while it has no edits (D1). Const and
+    // thread safe (parallelEach)
     double height(SpaceId space, double x, double z) const;
     // A base-grid sample of the BASE data: the resident level-0 tile or the space's height source; 0 for a space
-    // without terrain. A cheap point query, const and thread safe (parallelEach). S22's World::terrainSample = this +
-    // the edit delta; S23a replaces only the source
+    // without terrain. A cheap point query, const and thread safe (parallelEach). S23a replaces only the source
     int32_t sample(SpaceId space, int64_t sx, int64_t sz) const;
+    // World::terrainSample (S22): clampTerrainHeight(sample + the edit delta); the delta 0 without edits. Never
+    // allocates; const and thread safe while the edit store is not mutated
+    int32_t editedSample(SpaceId space, int64_t sx, int64_t sz) const;
+    // The base samples read from the height source instead of a resident level-0 tile, by every caller of sample
+    // (a relaxed counter; S20's pool generation does not go through sample and is not counted). Tests and the
+    // terraform benchmark read differences of it to prove that a path calls no hook
+    uint64_t baseHookSamples() const { return hookSamples.load(std::memory_order_relaxed); }
+    // Engine-internal: the World's terrain edits (read by height and the visual merge; S22)
+    void setEdits(const TerrainEditStore* store) { edits = store; }
+    // Engine-internal (World::onTerrainChanged, S22): a changed box of global base samples. Only while a sink is
+    // attached: a tile box if the space is the view space, a pyramid box of the space (headless worlds keep nothing)
+    void terrainChanged(SpaceId space, const SampleRect& box);
+    // The visual dirty queue (tests)
+    const TerrainDirtyQueue& dirtyQueue() const { return dirty; }
+    // The edited grass masks (tests)
+    const TerrainVisualPatch& visualPatch() const { return *visual; }
 
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
     const TerrainHeightSource& heightSource(SpaceId space) const;
@@ -100,7 +125,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // the store only. A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
-    // nothing. True for a space without terrain; without a sink only the residency counts
+    // nothing of the desired set. True for a space without terrain; without a sink only the residency counts. Queued
+    // patches of terrain edits (the dirty queue) do not count: they wait for no generation, and updateView sends them
+    // within its budget (the benchmark mode's GPU wait before a streaming frame keys on this)
     bool viewComplete(SpaceId space, const Vec3& camera) const;
     // D6: the fraction of (the pyramid + the desired tiles of this camera within radius, the residency's distance) that
     // have been sent to the sink; 0 while the pyramid is not sent (or without a sink); 1 for a space without terrain
@@ -134,6 +161,16 @@ class SAIGA_ENGINE_API TerrainSystem
         SpaceId viewSpace = 0;
         // The time of the last completeView
         double lastCompleteMs = 0;
+        // Terrain edits (S22): patched samples and patch calls (cumulative and of the last update), the queued dirty
+        // boxes, the sends that were merged copies, the edited grass masks computed and the results dropped (the
+        // chunk's terrain changed meanwhile); the time of the visual part of the last update / completeView (the
+        // merge at the send point, the patch step, the mask completions: the frame profile's terrain/visual)
+        uint64_t patchedSamples = 0, patchCalls = 0, mergedSends = 0, maskRecomputes = 0, maskResultsDropped = 0;
+        uint64_t patchedSamplesLastUpdate = 0;
+        // Edited masks submitted to the pool by the last update, queued recomputes, in flight
+        int maskJobsLastUpdate = 0, maskQueue = 0, maskJobsInFlight = 0;
+        size_t queuedBoxes  = 0;
+        double lastVisualMs = 0;
     };
     const Stats& stats() const { return statistics; }
     // The lazy StreamingPool exists (a sink alone starts none)
@@ -172,6 +209,33 @@ class SAIGA_ENGINE_API TerrainSystem
     };
 
     std::vector<Space> spaces;
+    const TerrainEditStore* edits = nullptr;
+    TerrainDirtyQueue dirty;
+    // The visual time of the running update (S22)
+    double visualMs = 0;
+    // S22: the edited grass masks: the cache, the queued recomputes (insertion order, unique), the jobs in flight, the
+    // GPU set the jobs were submitted for (incremented with every new set) and the current desired mask set
+    std::unique_ptr<TerrainVisualPatch> visual;
+    std::vector<ChunkId> maskQueue;
+    std::set<ChunkId> editedJobs;
+    uint64_t setGeneration = 0;
+    std::set<ChunkId> desiredMasks;
+    // Sent masks of chunks whose deltas returned to zero: the store's base mask replaces the edited one once resident
+    std::set<ChunkId> baseResend;
+    // A chunk's mask is current: the cached edited one (a chunk with deltas) or the store's base one
+    const Vulkan::GrassMaskData* readyMask(const ChunkId& chunk) const;
+    bool editedChunk(const ChunkId& chunk) const;
+    void queueMask(const ChunkId& chunk);
+    // Submits at most limit queued recomputes (< 0: all); returns the submissions
+    int processMaskQueue(int limit);
+    void requestEditedMask(const ChunkId& chunk);
+    // S22: the patch step of the view space (budget in samples; < 0: everything); returns the patched samples
+    int64_t patchEditedTiles(SpaceId space, int64_t budget);
+    // The samples a box patches in the sent tiles / the pyramid (patch: send them)
+    int64_t patchTileBox(SpaceId space, const SampleRect& box, bool patch);
+    int64_t patchPyramidBox(SpaceId space, const SampleRect& box, bool patch);
+    std::vector<int32_t> patchScratch;
+    mutable std::atomic<uint64_t> hookSamples{0};
     TerrainViewSettings view;
     RenderSink* sink = nullptr;
     std::unique_ptr<StreamingPool> pool;

@@ -74,12 +74,20 @@ struct ParsedSave
         size_t begin = 0, end = 0;
     };
     std::optional<SpaceTable> spaces;  // SPCE
+    std::optional<Range> terrain;      // TERR (parseTerrainSection)
 };
 
 SAIGA_ENGINE_API bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& error);
 // SPCE format 1 (the one signature of the optional-section parsers: parseX(BinaryReader&, version, X&, error)): at
 // most 65535 rows, names of at most 256 bytes, a known kind; no bytes left over
 SAIGA_ENGINE_API bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTable& out, std::string& error);
+// TERR format 1 (S22): the structure and the codec's bounds, checked without a world: spacing 1 or 2 with its N,
+// ascending unique spaces and chunks (ChunkId order), sequence > 0, known flags, the dense delta decoded (N * N values,
+// |delta| <= 2^24, no bytes left over), deltas present only with a non-zero value; no bytes left over. The loader
+// checks the rest against the world (the spaces, the chunk range, the border rule)
+// The section's bytes after its version (ParsedSave::terrain's range)
+SAIGA_ENGINE_API bool parseTerrainSection(const uint8_t* data, size_t size, uint32_t version, TerrainSection& out,
+                                          std::string& error);
 
 }  // namespace Engine
 }  // namespace Saiga

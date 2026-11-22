@@ -10,17 +10,22 @@
  * (EngineApp), rendered in a uniform gray. S44 builds the first gameplay on it.
  *
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
- * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits.
+ * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits. T toggles the terraform mode
+ * (S22, game policy): the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain
+ * under the mouse cursor, 10 edits per second while held, on the host world (also with --coop); radius and strength
+ * in the World window. The MCP tool edit_terrain does the same scriptably.
  *
  * MCP (http://127.0.0.1:8765/mcp, --mcp-port or SAIGA_MCP_PORT, 0 disables it): the engine's world and app tools and
  * the prototype's tools (screenshot, get_state, set_camera, move_camera, set_settings, terrain_query).
  *
- * Benchmarks (§17.7): game_world --benchmark <flyover|forest> flies a fixed camera path at 1920 x 1080 (validation,
- * vsync, GUI and MCP off, time 0, the default world: SAIGA_WORLD_TREES is ignored), writes
+ * Benchmarks (§17.7): game_world --benchmark <flyover|forest|terraform> flies a fixed camera path at 1920 x 1080
+ * (validation, vsync, GUI and MCP off, time 0, the default world: SAIGA_WORLD_TREES is ignored), writes
  * benchmark_<name>.json to the working directory and exits with 0, or with 1 if the benchmark did not finish, the
  * result could not be written, the rendered size changed or a frame stalled (an old result file is deleted at the
  * start). Terrain residency is completed in every benchmark frame (EngineApp::setCompleteViewEachFrame); its time is
- * reported separately (terrain_stream_ms). --base-spacing 2 (benchmark comparisons) runs the same space at 2 m.
+ * reported separately (terrain_stream_ms). terraform (S22) edits the terrain once per frame from a static camera
+ * (TerraformBenchmark: one step per frame, no per-frame completeView). --base-spacing 2 (benchmark comparisons) runs
+ * the same space at 2 m.
  * --headless runs without a window (agents, servers).
  */
 
@@ -28,6 +33,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/saiga_buildconfig.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -36,9 +42,11 @@
 #include "saiga/vulkan/world/WorldMcp.h"
 
 #include "games/common/PrototypeSpace.h"
+#include "games/world/TerraformBenchmark.h"
 
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -74,11 +82,21 @@ struct WorldGame
     int terrainUploads        = 0;
     double terrainUploadBytes = 0;
     std::unique_ptr<Vulkan::WorldBenchmark> bench;
+    // S22: the edit schedule of --benchmark terraform
+    std::unique_ptr<Game::TerraformBenchmark> terraform;
     std::string benchmarkName;
     bool benchmarkDone = false, benchmarkOk = false, sizeChanged = false;
     bool walkMode   = false;
     float eyeHeight = 1.8f;
     bool fWasDown   = false;
+    // The terraform mode (S22; game policy, R-MECH-1): the brush op of the left button (1..4; the right button applies
+    // the opposite of add / subtract), its radius and strength, the buttons held (read in the GUI, applied in
+    // beforeRender between steps), the time of the last edit
+    bool terraformMode = false, tWasDown = false;
+    int terraformOp       = 0;
+    float terraformRadius = 8, terraformStrength = 0.5f;
+    bool leftHeld = false, rightHeld = false;
+    std::chrono::steady_clock::time_point lastEdit;
     // The frame interval: from the previous frame's beforeRender to this one's (renderFrame to renderFrame)
     std::chrono::steady_clock::time_point lastBeforeRender;
     bool hasLastBeforeRender         = false;
@@ -163,12 +181,101 @@ void initWorld(EngineApp& app)
         auto ground  = [world](double x, double z)
         { return std::max(world->terrainHeight(0, x, z), double(Vulkan::kPrototypeSeaLevel) * kHeightUnit); };
         g.bench = std::make_unique<Vulkan::WorldBenchmark>(g.benchmarkName, ground, gpu);
-        // Terrain residency is deterministic: every frame completes its view (E9)
-        app.setCompleteViewEachFrame(true);
+        if (g.benchmarkName == "terraform")
+        {
+            // S22: the camera is fixed, so the measured frames run updateView with the patch step under its budget (a
+            // game frame); exactly one step per frame (the edits run between steps); the first frame is a complete
+            // point
+            app.setCompleteViewEachFrame(false);
+            app.setFixedFrameTime(w.dt());
+            g.terraform = std::make_unique<Game::TerraformBenchmark>(w);
+        }
+        else
+        {
+            // Terrain residency is deterministic: every frame completes its view (E9)
+            app.setCompleteViewEachFrame(true);
+        }
         std::remove(resultFile(g.benchmarkName).c_str());
         std::cout << "Benchmark " << g.benchmarkName << " on " << gpu << " (base spacing "
                   << w.spaceTemplate(0).baseSpacing << " m)" << std::endl;
     }
+}
+
+// The terrain point under the mouse cursor (the screen centre without a mouse position): a march along the cursor's
+// view ray over terrainHeight of the rendered world (1 m steps, at most 4 km), refined by bisection in the last step;
+// false if the ray does not hit
+bool terrainUnderCursor(EngineApp& app, Vec3& hit)
+{
+    const ViewCamera& cam = app.viewCamera();
+    const World& w        = app.world();
+    // The cursor in normalized device coordinates (x right, y up); ImGui's mouse and display size share window units
+    const ImGuiIO& io = ImGui::GetIO();
+    double nx = 0, ny = 0;
+    if (io.DisplaySize.x > 0 && io.DisplaySize.y > 0 && ImGui::IsMousePosValid(&io.MousePos))
+    {
+        nx = 2.0 * double(io.MousePos.x) / double(io.DisplaySize.x) - 1.0;
+        ny = 1.0 - 2.0 * double(io.MousePos.y) / double(io.DisplaySize.y);
+    }
+    const double t      = std::tan(cam.fovy * 0.5);
+    const double aspect = io.DisplaySize.y > 0 ? double(io.DisplaySize.x) / double(io.DisplaySize.y) : 1.0;
+    const Vec3 dir      = (cam.rotation * Vec3(nx * t * aspect, ny * t, -1)).normalized();
+    auto below          = [&](const Vec3& q) { return q.y() <= w.terrainHeight(cam.space, q.x(), q.z()); };
+    Vec3 p              = cam.position;
+    if (below(p)) return false;
+    for (int i = 0; i < 4000; ++i)
+    {
+        const Vec3 q = p + dir;
+        if (below(q))
+        {
+            // p is above, q below the terrain: bisect the 1 m step to a few millimetres
+            Vec3 a = p, b = q;
+            for (int k = 0; k < 10; ++k)
+            {
+                const Vec3 m       = (a + b) * 0.5;
+                (below(m) ? b : a) = m;
+            }
+            hit = Vec3(b.x(), w.terrainHeight(cam.space, b.x(), b.z()), b.z());
+            return true;
+        }
+        p = q;
+    }
+    return false;
+}
+
+// The terraform mode's edit of this frame (between steps): on the host world (startWorld; with --coop the rendered
+// world is a client and the edit reaches it through replication)
+void terraformEdit(EngineApp& app)
+{
+    WorldGame& g = *g_game;
+    if (!g.terraformMode || (!g.leftHeld && !g.rightHeld)) return;
+    const auto now = std::chrono::steady_clock::now();
+    if (std::chrono::duration<double>(now - g.lastEdit).count() < 0.1) return;
+    // Only open-world spaces have a height-map terrain: in an enclosed one nothing is edited (and nothing reported each
+    // 0.1 s)
+    if (app.world().spaceTemplate(app.viewCamera().space).kind != SpaceKind::OpenWorld) return;
+    // Every pick attempt is throttled, also a miss (PR review: a ray above the terrain marched 4000 steps each frame)
+    g.lastEdit = now;
+    Vec3 hit;
+    if (!terrainUnderCursor(app, hit)) return;
+    TerrainBrush b;
+    b.op = TerrainBrush::Op(g.terraformOp);
+    // The right button lowers: subtract for add, add for subtract (flatten and smooth are the same on both)
+    if (g.rightHeld && b.op == TerrainBrush::Add)
+        b.op = TerrainBrush::Subtract;
+    else if (g.rightHeld && b.op == TerrainBrush::Subtract)
+        b.op = TerrainBrush::Add;
+    b.center            = hit;
+    b.radius            = double(g.terraformRadius);
+    b.strength          = (b.op == TerrainBrush::Add || b.op == TerrainBrush::Subtract)
+                              ? double(g.terraformStrength)
+                              : std::min(1.0, double(g.terraformStrength));
+    World& host         = app.startWorld();
+    const SpaceId space = app.viewCamera().space;
+    std::string error;
+    if (host.checkTerrainEdit(space, b, &error))
+        host.editTerrain(space, b);
+    else
+        std::cout << "terraform: " << error << std::endl;
 }
 
 void beforeRender(EngineApp& app)
@@ -177,13 +284,24 @@ void beforeRender(EngineApp& app)
     Vulkan::RenderScene& scene = *app.scene();
     // The frame being recorded
     const uint64_t frame = scene.frames() + 1;
+    terraformEdit(app);
+    // S22: the measured frames of the terraform benchmark edit after the frame's step, before its updateView; once per
+    // frame (a frame that was not submitted is attempted again with the same number: no second edit or begin)
+    const bool newFrame = !g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame;
+    if (newFrame && g.terraform && g.bench && g.bench->measuring(frame) && !g.benchmarkDone)
+    {
+        if (frame == uint64_t(Vulkan::WorldBenchmark::warmupFrames) + 1) g.terraform->begin(app.world());
+        g.terraform->edit(app.world());
+    }
     g.prototype.update();
     // The terrain's residency range follows the LOD range (a larger render range would only show coarser terrain)
     if (g.prototype.settings.terrainLodRange != g.lastLodRange)
     {
         g.lastLodRange                = g.prototype.settings.terrainLodRange;
         Engine::TerrainViewSettings v = app.world().terrain().viewSettings();
-        v.residencyRange0             = std::max(400.0, 1.3 * double(g.lastLodRange));
+        // The terraform benchmark raises the floor (S22: its brush areas stay resident)
+        const double floor = g.terraform ? Game::TerraformBenchmark::kResidencyRange0 : 400.0;
+        v.residencyRange0  = std::max(floor, 1.3 * double(g.lastLodRange));
         app.world().terrain().setViewSettings(v);
     }
     // The app's free camera is this game's camera: the walk mode and the field of view of the settings adjust it as
@@ -249,6 +367,7 @@ void beforeRender(EngineApp& app)
             {
                 g.terrainUploads += g.frameUploads;
                 g.terrainUploadBytes += double(scene.terrainAtlasStats().bytesRecorded);
+                if (g.terraform) g.terraform->frameDone(app.world(), double(scene.terrainAtlasStats().bytesRecorded));
             }
         }
         g.frameWork             = 0;
@@ -358,6 +477,12 @@ void beforeRender(EngineApp& app)
                     {"mean", s.mean}, {"median", s.median}, {"p95", s.p95}, {"p99", s.p99}, {"max", s.max}};
         }
         result["gpu_frame_ms"] = gpuFrame.empty() ? json11::Json() : json11::Json(gpuFrame);
+        // S22: the terraform keys
+        if (g.terraform)
+        {
+            g.terraform->end(app.world());
+            g.terraform->addResult(result);
+        }
         // The terrain (S20): the uploads of the measured frames, the resident tiles and the memory
         {
             const auto& ts = app.world().terrain().stats();
@@ -391,8 +516,9 @@ void beforeRender(EngineApp& app)
             baseline               = all[result["gpu"].string_value()][g.benchmarkName];
         }
         std::cout << "Benchmark " << g.benchmarkName << ": " << Vulkan::WorldBenchmark::summaryText(result, baseline)
+                  << (g.terraform ? g.terraform->summary() : std::string())
                   << (written ? "Benchmark result: " + file : "Benchmark error: could not write " + file) << std::endl;
-        g.benchmarkOk   = written && complete && !g.sizeChanged && stalls == 0;
+        g.benchmarkOk   = written && complete && !g.sizeChanged && stalls == 0 && (!g.terraform || g.terraform->ok());
         g.benchmarkDone = true;
         app.quit(g.benchmarkOk ? 0 : 1);
     }
@@ -405,10 +531,33 @@ void gui(EngineApp& app)
     const bool fDown = !ImGui::GetIO().WantCaptureKeyboard && ImGui::IsKeyDown(ImGuiKey_F);
     if (fDown && !g.fWasDown) g.walkMode = !g.walkMode;
     g.fWasDown = fDown;
+    // T toggles the terraform mode; 1..4 select the op; the mouse buttons outside ImGui windows edit (S22)
+    const bool keys  = !ImGui::GetIO().WantCaptureKeyboard;
+    const bool tDown = keys && ImGui::IsKeyDown(ImGuiKey_T);
+    if (tDown && !g.tWasDown) g.terraformMode = !g.terraformMode;
+    g.tWasDown = tDown;
+    if (g.terraformMode && keys)
+    {
+        const ImGuiKey digits[4] = {ImGuiKey_1, ImGuiKey_2, ImGuiKey_3, ImGuiKey_4};
+        for (int i = 0; i < 4; ++i)
+            if (ImGui::IsKeyDown(digits[i])) g.terraformOp = i;
+    }
+    const bool mouse = g.terraformMode && !ImGui::GetIO().WantCaptureMouse;
+    g.leftHeld       = mouse && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    g.rightHeld      = mouse && ImGui::IsMouseDown(ImGuiMouseButton_Right);
     // Below the debug UI's bar, at the left (the debug panel is docked at the right)
     ImGui::SetNextWindowPos(ImVec2(10, app.debugUi().barHeight() + 10), ImGuiCond_FirstUseEver);
     ImGui::Begin("World", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
     ImGui::Checkbox("walk mode (F)", &g.walkMode);
+    ImGui::Checkbox("terraform mode (T)", &g.terraformMode);
+    if (g.terraformMode)
+    {
+        const char* ops = "add\0subtract\0flatten\0smooth\0";
+        ImGui::Combo("brush (1-4)", &g.terraformOp, ops);
+        ImGui::SliderFloat("brush radius", &g.terraformRadius, 1, float(kMaxBrushRadius));
+        ImGui::SliderFloat("brush strength", &g.terraformStrength, 0.05f, 8.0f);
+        ImGui::TextUnformatted("left: raise / apply, right: lower (10 edits/s)");
+    }
     ImGui::SliderFloat("eye height", &g.eyeHeight, 0.5f, 50.0f);
     ImGui::SliderFloat("speed", &app.cameraSpeed(), 1, 200);
     ImGui::SliderFloat("speed fast", &app.cameraSpeedFast(), 10, 2000);

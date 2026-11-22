@@ -28,6 +28,7 @@
 #include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/world/Commands.h"
 #include "saiga/engine/world/EventQueues.h"
 #include "saiga/engine/world/EventRegistry.h"
@@ -143,6 +144,7 @@ class Replication;
 class RenderSink;
 class ExtractSystem;
 class TerrainSystem;
+class TerrainEditStore;
 struct StagedValues;
 
 class SAIGA_ENGINE_API World
@@ -253,6 +255,9 @@ class SAIGA_ENGINE_API World
         uint64_t handlerExceptions        = 0;
         uint64_t droppedOnLoad            = 0;  // outbox entries a load discarded
         uint64_t droppedDuringObjectStart = 0;  // sends from configure / onLoad of a load
+        // S22: received terrain parts whose sequence skipped one (before S26 a protocol error: logged, counted,
+        // applied)
+        uint64_t modificationGaps = 0;
     };
     // A registered message to a peer: encoded at once into the outbox (flushed after phase 8, or at once between steps
     // outside a batching scope). An unregistered type, no transport or the own peer stop the program in every build.
@@ -390,6 +395,38 @@ class SAIGA_ENGINE_API World
     // (R-DET-1). 0 for a space without terrain (a hook-less open world, an enclosed space's floor plane until S23 /
     // S28). Const and thread safe (parallelEach)
     double terrainHeight(SpaceId space, double x, double z) const;
+    // A sample of the space's base grid with the terrain edits (§12.2; S22): clampTerrainHeight(base + delta), the base
+    // from TerrainSystem::sample (a resident level-0 tile or the height source), the delta 0 where nothing was edited.
+    // Never allocates; const and thread safe (parallelEach)
+    int32_t terrainSample(SpaceId space, int64_t i, int64_t k) const;
+    // The terrain modification state (tests, tools, the visual path; read-only)
+    const TerrainEditStore& terrainEdits() const { return *terrainEditStore; }
+    // Engine-internal: the mutable state (the edit path, the replication's handlers, loads; store tests)
+    TerrainEditStore& terrainEditsForUpdate() { return *terrainEditStore; }
+    // Host: terraforms a space with a brush (§12.2; S22). The space must exist and be an open world (with or without a
+    // height hook: base 0 without one, D1) and the brush must pass validateBrush for it; the role, the space and the
+    // brush are checked at the call (also during a step, before anything is recorded): a violation stops the program
+    // in every build. During a step a command (the brush copied), applied at the phase flush in recording order;
+    // between steps at once. Not inside parallelEach (R-PAR-1). In a load's configure / onLoad: std::logic_error (the
+    // loader reports it as the hook's error)
+    void editTerrain(SpaceId space, const TerrainBrush& brush);
+    // The checks of editTerrain without stopping: false with the error (the world API)
+    bool checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::string* error) const;
+    // The in-step terrain changes whose TerrainEditedEvents are not emitted yet (global sample boxes, application
+    // order): those of the running step plus the kept ones of aborted steps; empty between steps unless a step aborted
+    const std::vector<TerrainChange>& pendingTerrainChanges() const { return terrainChanges; }
+    // Engine-internal: the single function every applied terrain change goes through (a host edit: one call per
+    // edit; a client message: one per message; a Resync clear and loads: per chunk). Records the change for the
+    // TerrainEditedEvent (emitted at once between steps, listed inside a step; load: no event) and feeds the visual
+    // dirty queue (S22 step 8)
+    void onTerrainChanged(SpaceId space, const SampleRect& box, bool load = false);
+    // Engine-internal: capacity for n more in-step changes (an edit's or a message's reserve step)
+    void reserveTerrainChange(size_t n = 1)
+    {
+        // Geometric growth (an exact reserve would reallocate on every edit of a batch)
+        if (terrainChanges.capacity() - terrainChanges.size() < n)
+            terrainChanges.reserve(std::max(2 * terrainChanges.capacity(), terrainChanges.size() + n));
+    }
     // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
     // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
@@ -444,7 +481,7 @@ class SAIGA_ENGINE_API World
     void setAccumulatedTime(double t) { accumulator = t; }
 
     // FNV-1a 64 over the saved components of the alive entities (index order), the free list, the RNG state, the
-    // pending events and the step index (§17.4). Between steps.
+    // pending events and the step index (§17.4). Between steps; not inside parallelEach.
     uint64_t hash() const;
 
     // ---- data (§14, S11) -------------------------------------------------------------------------------------------
@@ -958,6 +995,13 @@ class SAIGA_ENGINE_API World
 
     WorldConfig config;
     double stepDt;
+    // The terrain modification state (S22); TerrainSystem (destroyed first) reads it through a const pointer
+    std::unique_ptr<TerrainEditStore> terrainEditStore;
+    // In-step terrain changes not emitted as events yet (kept by an aborted step)
+    std::vector<TerrainChange> terrainChanges;
+    void emitTerrainChanges();
+    void emitTerrainEvent(const TerrainChange& c);
+    std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
     double accumulator    = 0;

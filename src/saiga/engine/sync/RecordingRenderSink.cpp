@@ -258,6 +258,9 @@ std::shared_ptr<const std::vector<int32_t>> patched(const std::vector<int32_t>& 
 void RecordingRenderSink::patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights)
 {
     count.patchTerrainTile++;
+    if (logging)
+        note("patchTerrainTile L" + std::to_string(region.level) + " " + std::to_string(region.x) + " " +
+             std::to_string(region.z));
     auto it = tiles.find(region);
     if (!terrainSet || region.space != terrainSetSpace || it == tiles.end())
     {
@@ -279,6 +282,7 @@ void RecordingRenderSink::patchTerrainTile(const RegionId& region, int x0, int z
 void RecordingRenderSink::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)
 {
     count.patchTerrainPyramid++;
+    if (logging) note("patchTerrainPyramid " + std::to_string(space));
     if (!terrainSet || space != terrainSetSpace)
     {
         patchesIgnored++;

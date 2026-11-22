@@ -10,6 +10,9 @@
 
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
+#include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/vulkan/scene/GrassPass.h"
@@ -20,6 +23,7 @@
 
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <cmath>
 #include <iostream>
 #include <memory>
@@ -98,6 +102,114 @@ class TerrainRenderTest : public RenderSceneTest
     std::unique_ptr<World> world;
     std::unique_ptr<VulkanRenderSink> sink;
 };
+
+// S22: an engine-path check of a terrain patch below the tile's minimum: after the dirty queue drained, the atlas
+// layer holds the merged heights, the pit's level-0 node is selected (not culled by the old bounds) and the probe at
+// the pit's centre returns the patched height
+TEST_F(TerrainRenderTest, PatchBelowNodeMinimum)
+{
+    Create(256, 256, 1);
+    MakeWorld(terraformTestTemplate(2));
+    const Vec3 pit(300, 0, 300);
+    const double ground = world->terrainHeight(0, pit.x(), pit.z());
+    const Vec3 eye(pit.x(), ground + 60, pit.z() - 50);
+    const Quat rot = lookRotation(Vec3(pit.x(), ground, pit.z()) - eye);
+    CaptureView(eye, rot, 1.0);
+    RegionId tile;
+    tile.level                  = 0;
+    tile.x                      = 1;
+    tile.z                      = 1;
+    const TerrainTileData* sent = nullptr;
+    for (const auto& [r, t] : world->terrain().store(0).tiles())
+        if (r == tile) sent = &t.data;
+    ASSERT_TRUE(sent);
+    // 30 m below the tile's minimum at the centre sample (150, 150)
+    const int32_t center = world->terrainSample(0, 150, 150);
+    const double depth   = double(center - sent->minHeight) * kHeightUnit + 30;
+    TerrainBrush b;
+    b.op       = TerrainBrush::Subtract;
+    b.center   = Vec3(pit.x(), 0, pit.z());
+    b.radius   = 20;
+    b.strength = std::ceil(depth);
+    applyTerrainEdit(*world, 0, b);
+    const int32_t bottom = world->terrainSample(0, 150, 150);
+    ASSERT_LT(bottom, sent->minHeight - 30 * 1024);
+    for (int i = 0;
+         i < 64 && (world->terrain().dirtyQueue().size() > 0 || world->terrain().terrainUploadsPending() > 0); ++i)
+    {
+        world->terrain().updateView(0, eye);
+        Capture(1);
+    }
+    EXPECT_EQ(world->terrain().dirtyQueue().size(), 0u);
+    EXPECT_EQ(world->terrain().terrainUploadsPending(), 0u);
+    // The layer equals the merged heights
+    std::vector<int32_t> expected(129 * 129);
+    for (int k = 0; k < 129; ++k)
+        for (int i = 0; i < 129; ++i) expected[size_t(k * 129 + i)] = world->terrainSample(0, 128 + i, 128 + k);
+    EXPECT_EQ(scene->terrainAtlas().readLayerForTests(tile), expected);
+    // The pit's level-0 node is selected and its probe returns the patched height
+    Capture(2);
+    const auto& nodes = scene->terrainPass().selectedNodes();
+    int found         = -1;
+    for (size_t n = 0; n < nodes.size(); ++n)
+        if (nodes[n].level == 0 && !nodes[n].quarter && !nodes[n].water && nodes[n].originX <= 300 &&
+            nodes[n].originX + 64 >= 300 && nodes[n].originZ <= 300 && nodes[n].originZ + 64 >= 300)
+            found = int(n);
+    ASSERT_GE(found, 0) << "the pit's level-0 node is not selected";
+    const int gx   = (300 - nodes[size_t(found)].originX) / 2;
+    const int gz   = (300 - nodes[size_t(found)].originZ) / 2;
+    const auto out = scene->terrainPass().probeVertices({Vulkan::TerrainProbe{found, gx, gz}});
+    const Vec3 v   = eye + Vec3(out[0](0), out[0](1), out[0](2));
+    const double d = (Vec3(300, double(bottom) * kHeightUnit, 300) - eye).norm();
+    EXPECT_NEAR(v.x(), 300, 1e-6 * d + 1e-4);
+    EXPECT_NEAR(v.z(), 300, 1e-6 * d + 1e-4);
+    EXPECT_NEAR(v.y(), double(bottom) * kHeightUnit, 1e-6 * d + 1e-4);
+}
+
+// S22: the golden of a terraformed crater: a crater applied before the first completeView (the merge path) and a ring
+// of mounds applied after it (the patch path, the edited grass masks); 512 x 512 on lavapipe
+TEST_F(TerrainRenderTest, EditCraterGolden)
+{
+    Create(512, 512, 4);
+    scene->setPrototypeEnvironment(Vulkan::PrototypeSettings(), 1);
+    MakeWorld(terraformTestTemplate(2));
+    auto edit = [&](TerrainBrush::Op op, double x, double z, double radius, double strength)
+    {
+        TerrainBrush b;
+        b.op       = op;
+        b.center   = Vec3(x, 0, z);
+        b.radius   = radius;
+        b.strength = strength;
+        applyTerrainEdit(*world, 0, b);
+    };
+    const Vec3 c(300, 0, 300);
+    edit(TerrainBrush::Subtract, c.x(), c.z(), 20, 6);
+    const double ground = world->terrainHeight(0, c.x() - 60, c.z() - 60);
+    const Vec3 eye(c.x() - 45, ground + 22, c.z() - 45);
+    const Quat rot    = lookRotation(Vec3(c.x(), ground - 4, c.z()) - eye);
+    const double fovy = 60.0 * kPi / 180;
+    CaptureView(eye, rot, fovy);
+    // The ring: 8 mounds of 2 m on a 24 m circle (integer offsets)
+    const int ring[8][2] = {{24, 0}, {17, 17}, {0, 24}, {-17, 17}, {-24, 0}, {-17, -17}, {0, -24}, {17, -17}};
+    for (const auto& r : ring) edit(TerrainBrush::Add, c.x() + r[0], c.z() + r[1], 6, 2);
+    // Until the background mask jobs are done (a deadline, not a frame count: a loaded machine may need many frames)
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+        world->terrain().updateView(0, eye);
+        Capture(1);
+        const TerrainSystem::Stats& s = world->terrain().stats();
+        if (world->terrain().dirtyQueue().size() == 0 && s.maskQueue == 0 && s.maskJobsInFlight == 0 &&
+            world->terrain().terrainUploadsPending() == 0)
+            break;
+    }
+    EXPECT_EQ(world->terrain().dirtyQueue().size(), 0u);
+    EXPECT_EQ(world->terrain().stats().maskJobsInFlight, 0);
+    EXPECT_GT(world->terrain().stats().maskRecomputes, 0u);
+    SetCamera(0, eye, rot, fovy);
+    const auto img = Capture(3);
+    compareGolden(img, "terrain_edit_crater", deviceName());
+}
 
 // §22 acceptance (S20, A11): the 32 km space with a hook periodic in 4096 m (so in 28 672 m) and grass masks; two
 // compositions (terrain + water looking 35 degrees down from 150 m; grass 30 degrees down from 2 m), each at pose A and
