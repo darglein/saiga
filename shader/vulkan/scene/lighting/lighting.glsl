@@ -44,6 +44,7 @@ layout(set = 1, binding = 7) uniform sampler2D skyViewLut;
 #include "ambient.glsl"
 #include "shadows.glsl"
 #include "vertex_light.glsl"
+#include "atlas_shadow.glsl"
 #include "clusters.glsl"
 
 // SurfaceInput::flags: foliage (wrapped diffuse) and surfaceShSpecular (the land of the terrain): rough dielectric
@@ -122,7 +123,7 @@ VertexLight surfaceVertexLight(vec3 relPos)
 const uint viewNone = 0u, viewLightingOnly = 1u, viewAlbedo = 2u, viewNormals = 3u, viewRoughness = 4u,
            viewMetalness = 5u, viewMaterial = 6u, viewDirectOnly = 7u, viewAmbientOnly = 8u, viewSpecularOnly = 9u,
            viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u, viewHorizonShadow = 14u,
-           viewLocalLightsOnly = 15u, viewClusterLights = 16u;
+           viewLocalLightsOnly = 15u, viewClusterLights = 16u, viewAtlasShadow = 17u;
 // The overlay flags drawn in the shaders (LightingOverlay)
 const uint overlayCascadeColors = 2u;
 
@@ -184,6 +185,9 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
     }
     vec3 c, direct = vec3(0.0), ambientDiff = vec3(0.0), ambientSpec = vec3(0.0), local = vec3(0.0);
     vec4 fog = vec4(0.0, 0.0, 0.0, 1.0);
+    // S36b: the darkest atlas factor of the shadowed local lights that reach the surface and their count
+    float atlasMin = 1.0;
+    int atlasLights = 0;
     if (!physicalLighting())
     {
         // S19a: albedo (sun + ambient) ao, the material's emissive on top
@@ -223,7 +227,8 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
         }
         // S36b: the local lights (also in enclosed spaces)
         if (lighting.lightCounts.x > 0u)
-            local = localLightsDirect(s.n, v, s.relPos, s.albedo, rough, s.metalness, lut, wrap);
+            local = localLightsDirect(s.n, v, s.relPos, s.albedo, rough, s.metalness, lut, wrap, atlasMin,
+                                      atlasLights);
         vec3 irradiance = ambientDiffuse(s.n, s.relPos);
         vec3 specular   = (s.flags & (surfaceFoliage | surfaceShSpecular)) != 0u
                               ? irradiance / kPi
@@ -238,6 +243,13 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
     if (view == viewAmbientOnly) return debugDisplay(ambientDiff * s.tint);
     if (view == viewSpecularOnly) return debugDisplay(ambientSpec * s.tint);
     if (view == viewLocalLightsOnly) return debugDisplay(local * s.tint);
+    if (view == viewAtlasShadow)
+    {
+        // The atlas shadow: the highlighted light's, else the darkest of the shadowed lights that reach the fragment;
+        // raw in the probe frames: (factor, the lights counted, 0); blue-gray where no shadowed light reaches
+        if (lighting.debugParams.z > 0.5) return vec3(atlasMin, float(atlasLights), 0.0);
+        return atlasLights == 0 ? vec3(0.15, 0.18, 0.3) : vec3(0.05 + 0.95 * atlasMin);
+    }
     if (view == viewClusterLights)
     {
         // The lights of the fragment's cluster as a heat map (turbo over 0 .. atlasParams.w lights); an overflowed

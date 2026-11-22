@@ -481,6 +481,11 @@ struct ShadowView
     int lodBias = 0;
     // The camera-relative light view-projection: depth 0 at zMax, 1 at zMin (not reversed), xy over the rectangle
     mat4 viewProj = mat4::Identity();
+    // S36b: a face of the shadow atlas (a perspective light view): its planes (camera-relative, inward) replace the
+    // volume's; the casters it draws (the static layer: static sets and terrain, the dynamic layer: dynamics)
+    bool perspective               = false;
+    std::array<Vec4, 6> facePlanes = {};
+    bool castStatic = true, castDynamic = true;
 
     // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
     // (zMin) and the near cap (zMax + the instances' or the terrain's cap)
@@ -506,6 +511,7 @@ struct ShadowView
     }
     std::array<Vec4, 6> planes(bool terrain) const
     {
+        if (perspective) return facePlanes;
         const double cap = zMax + (terrain ? terrainCap : instanceCap);
         auto plane       = [](const Vec3& n, double w) { return Vec4(n(0), n(1), n(2), w); };
         return {plane(axisX, -rectMin(0)), plane(-axisX, rectMax(0)), plane(axisY, -rectMin(1)),

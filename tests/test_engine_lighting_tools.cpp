@@ -123,9 +123,9 @@ void showLightingTab(EngineApp& app)
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
 // suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
-// and the clouds' previews; S36a2 Cascades the cascades' strip; S36b Local lights the clusters' heat map; a debug view
-// (Exposure: with its legend) and the overlays render in the tab's frames (S36a2: the cascades' view and overlays,
-// frozen)
+// and the clouds' previews; S36a2 Cascades the cascades' strip; S36b Local lights the clusters' heat map, the shadow
+// atlas and the highlighted lamp's tile; a debug view (Exposure: with its legend) and the overlays render in the tab's
+// frames (S36a2: the cascades' view and overlays, frozen)
 void renderLightingTab(EngineApp& app)
 {
     // S36b: a lamp (an entity light, highlighted: the table's selected row with its LightSource widgets) and the local
@@ -147,16 +147,14 @@ void renderLightingTab(EngineApp& app)
     }
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
-    const Vulkan::LightingImage images[] = {Vulkan::LightingImage::Luminance,
-                                            Vulkan::LightingImage::Environment,
-                                            Vulkan::LightingImage::TransmittanceLut,
-                                            Vulkan::LightingImage::SkyViewLut,
-                                            Vulkan::LightingImage::CloudCoverage,
-                                            Vulkan::LightingImage::CloudShadow,
-                                            Vulkan::LightingImage::MultiScatteringLut,
-                                            Vulkan::LightingImage::CascadeStrip,
-                                            Vulkan::LightingImage::Clusters};
-    uint32_t expected                    = 0;
+    const Vulkan::LightingImage images[] = {
+        Vulkan::LightingImage::Luminance,          Vulkan::LightingImage::Environment,
+        Vulkan::LightingImage::TransmittanceLut,   Vulkan::LightingImage::SkyViewLut,
+        Vulkan::LightingImage::CloudCoverage,      Vulkan::LightingImage::CloudShadow,
+        Vulkan::LightingImage::MultiScatteringLut, Vulkan::LightingImage::CascadeStrip,
+        Vulkan::LightingImage::Clusters,           Vulkan::LightingImage::Atlas,
+        Vulkan::LightingImage::AtlasTile};
+    uint32_t expected = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
     for (int f = 0; f < 3; ++f)
@@ -1198,6 +1196,41 @@ TEST_F(LightingDebugTools, LocalLightTools)
     EXPECT_TRUE(pr["cluster"].is_number()) << pr.dump();
     EXPECT_GE(pr["cluster_lights"].array_items().size(), 3u) << pr.dump();
     EXPECT_GT(pr["cluster_lights"][0]["radiance"][1].number_value(), 0) << pr.dump();
+    // S36b step 4: the shadow atlas (get_lighting.atlas, capture_lighting atlas / atlas_tile, probe's atlas_shadow)
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"atlas_resolution": 1024, "atlas_tile": 128})"))));
+    app->runFrames(3, 1.0 / 60);
+    const Json at = result(call(*app, "get_lighting", obj(R"({"sections": ["atlas"]})")))["atlas"];
+    EXPECT_EQ(at["on"], Json(true)) << at.dump();
+    EXPECT_EQ(at["tiles_used"].number_value(), 6) << at.dump();
+    EXPECT_EQ(at["tiles_total"].number_value(), 64);
+    EXPECT_EQ(at["lights_with_tiles"].number_value(), 1);
+    const Json shadowed = result(call(*app, "list_lights", obj(R"({"shadowed": true})")))["lights"][0];
+    EXPECT_EQ(shadowed["atlas"]["tiles"].number_value(), 6) << shadowed.dump();
+    EXPECT_EQ(shadowed["atlas"]["ready"], Json(true)) << shadowed.dump();
+    const Json atlas = callFrames(*app, "capture_lighting", obj(R"({"image": "atlas", "max_width": 64})"));
+    ASSERT_FALSE(isError(atlas)) << text(atlas);
+    EXPECT_EQ(imageBlock(atlas)["size"], Json(Json::array{1024, 1024}));
+    EXPECT_EQ(imageBlock(atlas)["tiles"].array_items().size(), 6u);
+    EXPECT_EQ(imageBlock(atlas)["layer"], Json("static"));
+    const Json tile = callFrames(
+        *app, "capture_lighting",
+        Json::object{{"image", "atlas_tile"}, {"light", shadowed["handle"]}, {"face", 3}, {"stats_only", true}});
+    ASSERT_FALSE(isError(tile)) << text(tile);
+    EXPECT_EQ(result(tile)["size"], Json(Json::array{128, 128}));
+    EXPECT_LT(result(tile)["stats"]["min"].number_value(), 1.0) << "the floor below the lamp (face -y)";
+    for (const char* args : {R"({"image": "atlas_tile", "light": 99999})", R"({"image": "atlas", "layer": "both"})",
+                             R"({"image": "atlas", "face": 1})", R"({"image": "luminance", "layer": "static"})"})
+        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+    const Json probeAt = result(callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})")));
+    EXPECT_TRUE(probeAt["atlas_shadow"].is_object()) << probeAt.dump();
+    EXPECT_GE(probeAt["atlas_shadow"]["lights"].number_value(), 1) << probeAt.dump();
+    // Cross-key: atlas_tile divides atlas_resolution; all or nothing
+    const Json badTile = call(*app, "set_lighting", obj(R"({"atlas_tile": 300, "max_lights": 7})"));
+    EXPECT_TRUE(isError(badTile));
+    EXPECT_NE(text(badTile).find("atlas_resolution"), std::string::npos) << text(badTile);
+    EXPECT_NE(s.lightingParameters().maxLights, 7);
+    EXPECT_TRUE(isError(call(*app, "set_lighting", obj(R"({"faces_per_frame": 12})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"atlas_resolution": 4096, "atlas_tile": 512})"))));
     for (Entity e : lamps) w.destroy(e);
     s.removeLights(list);
     app->runFrames(2, 1.0 / 60);

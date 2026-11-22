@@ -48,6 +48,7 @@ class ShadowPipelineTable;
 class HorizonShadows;
 class LocalLights;
 class LightClusters;
+class ShadowAtlas;
 class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
@@ -368,11 +369,11 @@ class SAIGA_VULKAN_API RenderScene
     const LightingStatistics& lightingStatistics() const { return lightStats; }
     // The lighting block of the last recorded frame (tests)
     const SceneLighting& lastLightingBlock() const { return lastBlock; }
-    // probe_lighting's sequence at a pixel of the next frames (10 frames; requests made before the sequence starts
-    // share it). The camera and the environment (with it the wind phases) are held during the sequence (setCamera /
-    // setEnvironment take effect after it); the callback runs after the last frame. While it runs, screenshots and
-    // preview conversions wait for the first frame after it (they would read the debug frames), and the output shows
-    // frame 1's image (the window does not flash the debug frames; ImGui stays live)
+    // probe_lighting's sequence at a pixel of the next frames (kProbeFrames frames; requests made before the sequence
+    // starts share it). The camera and the environment (with it the wind phases) are held during the sequence
+    // (setCamera / setEnvironment take effect after it); the callback runs after the last frame. While it runs,
+    // screenshots and preview conversions wait for the first frame after it (they would read the debug frames), and the
+    // output shows frame 1's image (the window does not flash the debug frames; ImGui stays live)
     void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
     // The same at the pixel of a world point, projected with the camera of the sequence's frame 1 (outside the image:
     // inImage false)
@@ -380,7 +381,7 @@ class SAIGA_VULKAN_API RenderScene
     bool probeRunning() const { return probeRun != nullptr; }
     // A probe sequence runs in the next recorded frame (running or requested)
     bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
-    static constexpr int kProbeFrames = 10;
+    static constexpr int kProbeFrames = 11;
 
     // ---- the sun and moon shadows (S36a2, A5) --------------------------------------------------------------------
     // The cascades (fitting, statistics, the depth array) and the shadow pipeline table (S27 / S34 register their
@@ -426,6 +427,17 @@ class SAIGA_VULKAN_API RenderScene
     int clusterPreviewSliceValue() const { return clusterPreviewSlice; }
     void setClusterHeatScale(float scale) { clusterHeatScale = std::max(scale, 1.0f); }
     float clusterHeatScaleValue() const { return clusterHeatScale; }
+    // The cached shadow atlas (B4): its tiles and statistics; the layer of the Atlas preview (0 static, 1 dynamic) and
+    // the light (handle) and face of the AtlasTile preview
+    ShadowAtlas& shadowAtlas() { return *atlasShadows; }
+    void setAtlasPreview(int layer) { atlasPreviewLayer = std::clamp(layer, 0, 1); }
+    int atlasPreviewLayerValue() const { return atlasPreviewLayer; }
+    void setAtlasTilePreview(uint32_t light, int face, int layer = 0)
+    {
+        atlasTileLight = light;
+        atlasTileFace  = face;
+        atlasTileLayer = std::clamp(layer, 0, 1);
+    }
 
    private:
     friend class SceneFrameRenderer;
@@ -461,6 +473,16 @@ class SAIGA_VULKAN_API RenderScene
     int clusterPreviewSlice = -1;
     float clusterHeatScale  = 16;
     void clusterOverlays();
+    // S36b: the shadow atlas (the frame's faces to render and their views)
+    std::unique_ptr<ShadowAtlas> atlasShadows;
+    struct AtlasFace;
+    std::vector<AtlasFace> atlasFaces;
+    int atlasPreviewLayer   = 0;
+    uint32_t atlasTileLight = 0;
+    int atlasTileFace = 0, atlasTileLayer = 0;
+    void frameAtlas(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex);
+    void markSetDirty(InstanceSetHandle set);
+    void markRegionDirty(const RegionId& region);
     bool freezeCascades = false;
     // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon
     int shadowLightChoice = 0;

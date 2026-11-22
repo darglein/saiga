@@ -51,7 +51,8 @@ TerrainVertex terrainVertex(uint nodeIndex, ivec2 g, bool skirt)
     // level border never morphs its edge. The morph is complete at 99 % of the range: the fine side of a border (beyond
     // the range in double) is fully morphed also with the float rounding of the distance
     precise float k = 0.0;
-    if (level < frame.flags.y)
+    // S36b: the shadow atlas's nodes of a fixed level (flag 0x400) do not morph
+    if (level < frame.flags.y && (nd.levelFlags & 0x400u) == 0u)
     {
         precise float dist = length(vec3(xz.x, frame.lod.z, xz.y));
         float range        = frame.lod.x * exp2(float(level));

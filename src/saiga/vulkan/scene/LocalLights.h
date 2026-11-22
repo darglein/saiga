@@ -75,7 +75,13 @@ class SAIGA_VULKAN_API LocalLights
     const LocalLightStatistics& statistics() const { return stats; }
     // The buffer index of a light in this frame (-1: not in the frame)
     int frameIndexOf(LightHandle h) const;
-    // Rewrites the records' shadow fields (S36b step 4: the atlas's tile-table entries) into the frame slot's buffer
+    // The shadow fields of a record (the atlas's first tile-table entry, -1: none; every face rendered); then
+    // writeRecords rewrites the frame slot's buffer
+    void setShadow(size_t index, int firstEntry, bool ready)
+    {
+        records[index].intensity(3) = float(firstEntry);
+        records[index].cone(2)      = ready ? 1.0f : 0.0f;
+    }
     void writeRecords(uint32_t frameIndex);
     // The intensity (candela) of a light, the flicker factor at a phase (the frame's: CPU, double)
     static float candela(const LightData& d);

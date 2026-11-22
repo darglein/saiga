@@ -13,6 +13,7 @@
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/RenderScene.h"
+#include "saiga/vulkan/scene/ShadowAtlas.h"
 
 #include <algorithm>
 #include <cmath>
@@ -553,4 +554,288 @@ TEST_F(LightsTest, ClusterDebug)
     ASSERT_TRUE(got);
     EXPECT_GT(st.max, 1.0f);
     EXPECT_LE(st.max, 6.0f);
+}
+
+namespace
+{
+// The atlas suite: the light tests' scene with a small atlas (1024 texels in tiles of 128: 64 tiles as at the
+// defaults; lavapipe)
+class AtlasTest : public LightsTest
+{
+   protected:
+    void SetUp() override
+    {
+        LightsTest::SetUp();
+        if (IsSkipped()) return;
+        LightingParameters p = scene->lightingParameters();
+        p.clusteredLights    = true;
+        p.atlasResolution    = 1024;
+        p.atlasTile          = 128;
+        p.facesPerFrame      = 11;
+        scene->setLightingParameters(p);
+    }
+    void SetFaces(int faces)
+    {
+        LightingParameters p = scene->lightingParameters();
+        p.facesPerFrame      = faces;
+        scene->setLightingParameters(p);
+    }
+    const AtlasStatistics& Stats() { return scene->lightingStatistics().atlas; }
+    // A floor and a box (1 m, top at 1 m) at x, z
+    void FloorAndBox(MeshId first, const vec3& box = vec3(0, 0.5f, 0))
+    {
+        Floor(first);
+        MaterialData m;
+        scene->addMaterial(MaterialId(first + 1), "atlas_box" + std::to_string(first), m);
+        scene->addMesh(MeshId(first + 1), "atlas_box" + std::to_string(first),
+                       boxMesh(vec3(0.5f, 0.5f, 0.5f), ucvec4(200, 200, 200, 255)), MaterialId(first + 1));
+        boxSet    = AddSet({instanceAt(box, MeshId(first + 1))});
+        boxMeshId = MeshId(first + 1);
+    }
+    LightData ShadowedPoint(const vec3& p, float range = 8)
+    {
+        LightData d   = pointLight(p, 2000, range);
+        d.castShadows = true;
+        return d;
+    }
+    InstanceSetHandle boxSet;
+    MeshId boxMeshId = 0;
+};
+}  // namespace
+
+// A static scene: the faces are rendered once; then every face is a cache hit (no re-render)
+TEST_F(AtlasTest, StaticSceneCachesFaces)
+{
+    FloorAndBox(740);
+    AddLight(ShadowedPoint(vec3(2, 3, 0)));
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u);
+    EXPECT_EQ(Stats().tilesUsed, 6u);
+    EXPECT_EQ(Stats().tilesTotal, 64u);
+    Capture(2);
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    EXPECT_EQ(Stats().hits, 6u);
+    EXPECT_EQ(Stats().queue, 0u);
+    const std::vector<FrameLightInfo>& f = scene->frameLights();
+    ASSERT_EQ(f.size(), 1u);
+    EXPECT_EQ(f[0].tiles, 6);
+    EXPECT_TRUE(f[0].shadowReady);
+}
+
+// A light that moves re-renders its faces (its key changes); another light's stay cached
+TEST_F(AtlasTest, MovingLightRerendersItsFaces)
+{
+    FloorAndBox(742);
+    const LightHandle a = AddLight(ShadowedPoint(vec3(2, 3, 0)));
+    LightData spot      = spotLight(vec3(-3, 4, 0), vec3(0, -1, 0), 3000, 10, 20, 35);
+    spot.castShadows    = true;
+    AddLight(spot);
+    Capture(2);
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    scene->setLight(a, ChunkId(), ShadowedPoint(vec3(2.5f, 3, 0)));
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u);
+    EXPECT_EQ(Stats().hits, 1u) << "the spot's tile";
+}
+
+// An instance change inside a light's range re-renders its faces, one outside does not
+TEST_F(AtlasTest, InstanceChangeInRangeRerenders)
+{
+    FloorAndBox(744);
+    AddLight(ShadowedPoint(vec3(0, 3, 0), 6));
+    // A far set (60 m away, outside the range)
+    const InstanceSetHandle far = AddSet({instanceAt(vec3(30, 0.5f, 30), boxMeshId)});
+    Capture(2);
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    scene->updateInstances(far, 0, {instanceAt(vec3(31, 0.5f, 30), boxMeshId)});
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 0u) << "outside the range";
+    scene->updateInstances(boxSet, 0, {instanceAt(vec3(1, 0.5f, 0), boxMeshId)});
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u) << "inside";
+    RenderFrame();
+    scene->removeInstance(boxSet, 0);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u) << "a tombstone inside";
+    // A set leaving the range (its old bounds) and another changing outside in the same frame
+    RenderFrame();
+    scene->updateInstances(far, 0, {instanceAt(vec3(1, 0.5f, 1), boxMeshId)});
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u) << "a set moving into the range";
+    RenderFrame();
+    scene->updateInstances(far, 0, {instanceAt(vec3(40, 0.5f, 40), boxMeshId)});
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u) << "a set leaving the range";
+}
+
+// A camera move keeps the static tiles (their content is camera-independent)
+TEST_F(AtlasTest, CameraMoveKeepsStaticTiles)
+{
+    FloorAndBox(746);
+    AddLight(ShadowedPoint(vec3(0, 3, 0)));
+    Capture(2);
+    SetCamera(0, Vec3(3, 10, 4), lookRotation(Vec3(-0.3, -1, -0.4)), 1.2);
+    Capture(2);
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    EXPECT_EQ(Stats().hits, 6u);
+}
+
+// The dynamic layer is rendered only for the lights with a dynamic instance in range, and cleared once when the last
+// one leaves
+TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
+{
+    FloorAndBox(748);
+    AddLight(ShadowedPoint(vec3(0, 3, 0), 6));
+    LightData spot   = spotLight(vec3(20, 4, 0), vec3(0, -1, 0), 3000, 6, 20, 35);
+    spot.castShadows = true;
+    AddLight(spot);
+    const InstanceHandle d = scene->addDynamic(boxMeshId);
+    DynamicPose pose;
+    pose.position = Vec3(1, 1.5, 0);
+    scene->setDynamic(d, ChunkId(), pose, pose);
+    Capture(2);
+    EXPECT_EQ(Stats().dynamicRenders, 6u) << "the point light's faces only";
+    int dynamicTiles = 0;
+    for (const AtlasTileInfo& t : scene->shadowAtlas().tiles()) dynamicTiles += t.dynamicContent ? 1 : 0;
+    EXPECT_EQ(dynamicTiles, 6);
+    // Away from both lights: the dynamic tiles are cleared once
+    pose.position = Vec3(-40, 1.5, 0);
+    scene->setDynamic(d, ChunkId(), pose, pose);
+    RenderFrame();
+    EXPECT_EQ(Stats().dynamicRenders, 0u);
+    EXPECT_EQ(Stats().dynamicClears, 6u);
+    RenderFrame();
+    EXPECT_EQ(Stats().dynamicClears, 0u);
+    scene->removeDynamic(d);
+}
+
+// The tile budget: 16 shadowed point lights in view, 64 tiles: 10 get tiles, 6 are counted without
+TEST_F(AtlasTest, TileBudgetLimitsShadowedLights)
+{
+    Floor(750);
+    for (int i = 0; i < 16; ++i) AddLight(ShadowedPoint(vec3(-7.5f + 1.0f * float(i), 2, 0), 4 + 0.01f * float(i)));
+    Capture(2);
+    EXPECT_EQ(Stats().lightsWithTiles, 10u);
+    EXPECT_EQ(Stats().lightsWithoutTiles, 6u);
+    EXPECT_EQ(Stats().tilesUsed, 60u);
+    EXPECT_EQ(scene->lightingStatistics().lights.withoutTiles, 6u);
+}
+
+// facesPerFrame limits the renders; the queue is worked off by importance; a light is drawn unshadowed until each of
+// its faces was rendered
+TEST_F(AtlasTest, BudgetAndQueueOrder)
+{
+    Floor(752);
+    SetFaces(4);
+    const LightHandle weak   = AddLight(ShadowedPoint(vec3(-4, 2, 0), 4));
+    LightData strongData     = ShadowedPoint(vec3(4, 2, 0), 4);
+    strongData.lumen         = 8000;
+    const LightHandle strong = AddLight(strongData);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 4u);
+    EXPECT_EQ(Stats().queue, 8u);
+    auto info = [&](LightHandle h)
+    {
+        for (const FrameLightInfo& f : scene->frameLights())
+            if (f.handle == h.id) return f;
+        return FrameLightInfo();
+    };
+    // The strong light first: 4 of its 6 faces, not ready yet (unshadowed); then its last 2 and the weak one's first 2
+    EXPECT_FALSE(info(strong).shadowReady);
+    EXPECT_EQ(info(strong).tiles, 6);
+    RenderFrame();
+    EXPECT_TRUE(info(strong).shadowReady);
+    EXPECT_FALSE(info(weak).shadowReady);
+    RenderFrame();
+    EXPECT_TRUE(info(weak).shadowReady);
+    EXPECT_EQ(Stats().queue, 0u);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 0u);
+}
+
+// A light near the budget's cut keeps its tiles while its importance changes a little (20 % hysteresis)
+TEST_F(AtlasTest, HysteresisAvoidsAlternation)
+{
+    Floor(754);
+    // 10 point lights fill 60 of the 64 tiles; an 11th competes with the weakest
+    std::vector<LightHandle> h;
+    for (int i = 0; i < 10; ++i)
+    {
+        // On a circle around the camera's foot: every light at the same distance (the importance follows the lumen)
+        const float a = 2 * float(kPi) * float(i) / 11;
+        LightData d   = ShadowedPoint(vec3(4 * std::cos(a), 2, 4 * std::sin(a)), 4);
+        d.lumen       = 1000 + 100.0f * float(i);
+        h.push_back(AddLight(d));
+    }
+    const float a10     = 2 * float(kPi) * 10 / 11;
+    LightData rival     = ShadowedPoint(vec3(4 * std::cos(a10), 2, 4 * std::sin(a10)), 4);
+    rival.lumen         = 950;
+    const LightHandle r = AddLight(rival);
+    Capture(2);
+    EXPECT_TRUE(scene->shadowAtlas().tilesOf(r.id).empty());
+    EXPECT_FALSE(scene->shadowAtlas().tilesOf(h[0].id).empty());
+    // Slightly above the weakest (1000): within the hysteresis, nothing changes
+    rival.lumen = 1100;
+    scene->setLight(r, ChunkId(), rival);
+    Capture(2);
+    EXPECT_TRUE(scene->shadowAtlas().tilesOf(r.id).empty());
+    EXPECT_FALSE(scene->shadowAtlas().tilesOf(h[0].id).empty());
+    // Clearly above: the rival takes the weakest's tiles
+    rival.lumen = 1500;
+    scene->setLight(r, ChunkId(), rival);
+    Capture(2);
+    EXPECT_FALSE(scene->shadowAtlas().tilesOf(r.id).empty());
+    EXPECT_TRUE(scene->shadowAtlas().tilesOf(h[0].id).empty());
+}
+
+// The linear depth of D16: a floor at 0.9 range under a point light is lit (no acne), a box on it shadows it
+TEST_F(AtlasTest, NoAcneAtRange)
+{
+    FloorAndBox(756, vec3(0, 0.5f, 0));
+    const float range = 10;
+    AddLight(ShadowedPoint(vec3(0, 0.9f * range, 0), range));
+    const Vec3 eye(0, 12, 0.01);
+    Capture(4);
+    // Lit floor 2 m beside the box, the box's top and the floor next to the box towards -x (lit: the light is above)
+    const vec3 floor = ReadRadiance(Pixel(Vec3(3, 0, 1), eye));
+    const vec3 top   = ReadRadiance(Pixel(Vec3(0, 1, 0), eye));
+    EXPECT_GT(floor(1), 0.0f);
+    EXPECT_GT(top(1), floor(1)) << "the top is nearer";
+    // The same frame without the atlas shadow (castShadows off): the lit pixels are as bright (no acne)
+    std::vector<LightHandle> keep = lights;
+    for (LightHandle l : keep) scene->removeLight(l);
+    lights.clear();
+    LightData unshadowed   = ShadowedPoint(vec3(0, 0.9f * range, 0), range);
+    unshadowed.castShadows = false;
+    AddLight(unshadowed);
+    Capture(2);
+    const vec3 floor2 = ReadRadiance(Pixel(Vec3(3, 0, 1), eye));
+    EXPECT_NEAR(floor(1), floor2(1), 0.02f * floor2(1));
+}
+
+// A box inside a point light's sphere (the light beside it at its height) shadows the floor behind it, in every
+// direction from the light (the six faces)
+TEST_F(AtlasTest, PointLightSixFaces)
+{
+    Floor(758);
+    MaterialData m;
+    scene->addMaterial(MaterialId(759), "atlas_pillar", m);
+    scene->addMesh(MeshId(759), "atlas_pillar", boxMesh(vec3(0.3f, 1.5f, 0.3f), ucvec4(200, 200, 200, 255)),
+                   MaterialId(759));
+    // Four pillars around the light, at +x, -x, +z, -z
+    AddSet({instanceAt(vec3(2, 1.5f, 0), MeshId(759)), instanceAt(vec3(-2, 1.5f, 0), MeshId(759)),
+            instanceAt(vec3(0, 1.5f, 2), MeshId(759)), instanceAt(vec3(0, 1.5f, -2), MeshId(759))});
+    AddLight(ShadowedPoint(vec3(0, 1.0f, 0), 12));
+    const Vec3 eye(0, 12, 0.01);
+    Capture(4);
+    for (const Vec3& dir : {Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)})
+    {
+        // Behind the pillar (4 m from the light) and beside the shadow (rotated by 45 degrees)
+        const Vec3 behind = dir * 4.0;
+        const Vec3 side   = Vec3(dir(0) - dir(2), 0, dir(2) + dir(0)).normalized() * 4.0;
+        const vec3 s      = ReadRadiance(Pixel(behind, eye));
+        const vec3 l      = ReadRadiance(Pixel(side, eye));
+        EXPECT_LT(s(1), 0.2f * l(1)) << dir.transpose();
+    }
+    EXPECT_EQ(Stats().tilesUsed, 6u);
 }

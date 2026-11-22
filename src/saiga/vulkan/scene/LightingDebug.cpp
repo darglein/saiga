@@ -281,8 +281,9 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         }
         else if (arraySrc.texture)
         {
-            sw     = arraySrc.texture->width;
-            sh     = arraySrc.texture->height;
+            // S36b: a sub-rectangle (an atlas tile) or the whole layer
+            sw     = arraySrc.width ? arraySrc.width : arraySrc.texture->width;
+            sh     = arraySrc.height ? arraySrc.height : arraySrc.texture->height;
             layers = arraySrc.layers;
             step   = arraySrc.step;
         }
@@ -383,17 +384,18 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toGeneral));
         pipeline.bindRawDescriptorSet(cmd, set);
         PreviewPush push;
-        push.size[0]    = int32_t(w);
-        push.size[1]    = int32_t(h);
-        push.kind       = sources.kind[k];
-        push.scale      = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
-        push.useLog     = mapping.log ? 1u : 0u;
-        push.autoRange  = mapping.autoRange ? 1u : 0u;
-        push.colorMap   = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
-        push.rangeMin   = mapping.min;
-        push.rangeMax   = mapping.max;
-        push.groups     = groups;
-        push.pad        = 0;
+        push.size[0]   = int32_t(w);
+        push.size[1]   = int32_t(h);
+        push.kind      = sources.kind[k];
+        push.scale     = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
+        push.useLog    = mapping.log ? 1u : 0u;
+        push.autoRange = mapping.autoRange ? 1u : 0u;
+        push.colorMap  = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
+        push.rangeMin  = mapping.min;
+        push.rangeMax  = mapping.max;
+        push.groups    = groups;
+        // S36b: the sub-rectangle's origin (x | y << 16)
+        push.pad        = source ? 0u : (arraySrc.originX & 0xFFFFu) | (arraySrc.originY << 16);
         push.layer      = source ? 0 : arraySrc.layer;
         push.layers     = source ? 0 : arraySrc.layers;
         push.step       = step;

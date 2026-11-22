@@ -49,6 +49,19 @@ struct ProbeGpu
 
 constexpr uint32_t flagQuarter = 1u << 8;
 constexpr uint32_t flagWater   = 1u << 9;
+// S36b: a node of the atlas's fixed level: no morph (terrain_vertex.glsl)
+constexpr uint32_t flagFixed = 1u << 10;
+// The atlas's nodes per frame (spheres of the shadowed lights)
+constexpr uint32_t kMaxAtlasNodes = 16384;
+// terrain_shadow.vert with ATLAS_DEPTH: Push
+struct AtlasPush
+{
+    mat4 viewProj;
+    int32_t gridN;
+    int32_t pad[3];
+    vec4 light;
+};
+static_assert(sizeof(AtlasPush) == 96, "Push of terrain_shadow.vert (ATLAS_DEPTH)");
 
 vk::Buffer handle(Buffer& b)
 {
@@ -162,6 +175,11 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLigh
             *base, size_t(kMaxCascades) * TerrainAtlas::maxNodes * sizeof(GpuNode),
             vk::BufferUsageFlagBits::eStorageBuffer,
             vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        // S36b: the atlas's nodes
+        f.atlasSet = frameLayout.createRawDescriptorSet();
+        f.atlasNodes.createBuffer(*base, size_t(kMaxAtlasNodes) * sizeof(GpuNode),
+                                  vk::BufferUsageFlagBits::eStorageBuffer,
+                                  vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     }
     for (size_t i = 0; i < frames.size(); ++i)
     {
@@ -265,6 +283,8 @@ void TerrainPass::destroy()
     equalPipeline.destroy();
     skyPipeline.destroy();
     shadowPipeline.destroy();
+    atlasPipeline.destroy();
+    atlasPipelineCreated = false;
     sceneNoShadows.destroy();
     equalNoShadows.destroy();
     noShadowPipelines = false;
@@ -275,7 +295,8 @@ void TerrainPass::destroy()
     {
         f.uniforms.destroy();
         f.shadowNodes.destroy();
-        for (vk::DescriptorSet* s : {&f.set, &f.shadowSet})
+        f.atlasNodes.destroy();
+        for (vk::DescriptorSet* s : {&f.set, &f.shadowSet, &f.atlasSet})
         {
             auto set = *s;
             base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
@@ -652,6 +673,143 @@ void TerrainPass::renderShadow(vk::CommandBuffer cmd, uint32_t frameIndex, size_
     };
     if (r.full > 0) draw(s.terrainSkirts ? fullSkirt : fullPlain, gridN, r.full, r.first);
     if (r.quarter > 0) draw(s.terrainSkirts ? quarterSkirt : quarterPlain, gridN / 2, r.quarter, r.first + r.full);
+}
+
+void TerrainPass::selectSphere(const TerrainAtlas& atlas, const Vec3& c, const Vec3& centre, double radius, int level,
+                               int32_t nx, int32_t nz, int32_t anchorX, int32_t anchorZ, Selection& out, uint64_t& key)
+{
+    const TerrainLayout& L      = atlas.layout();
+    const TerrainAtlas::Bound b = atlas.bound(level, nx, nz);
+    if (!b.valid()) return;
+    const TerrainAtlas::Bound own = atlas.ownBound(level, nx, nz);
+    const int size                = (32 * L.baseSpacing) << level;
+    const double spacing          = double(L.baseSpacing << level);
+    const double skirt            = std::max(double(own.hi - own.lo) * kHeightUnit, 2 * spacing);
+    const int32_t ox = nx * size, oz = nz * size;
+    const Vec3 lo(double(ox) - c.x(), double(b.lo) * kHeightUnit - skirt - c.y(), double(oz) - c.z());
+    const Vec3 hi(double(ox + size) - c.x(), double(b.hi) * kHeightUnit - c.y(), double(oz + size) - c.z());
+    // The sphere against the node's box
+    const Vec3 d = (lo - centre).cwiseMax(Vec3::Zero()).cwiseMax(centre - hi);
+    if (d.squaredNorm() > radius * radius) return;
+    // Refined while the children's tile is GPU-resident (the pyramid's levels always are)
+    const int child = level - 1;
+    bool refine     = level > 0;
+    if (refine && child < L.streamedLevels())
+    {
+        const int64_t tileSize = int64_t(256) << child;
+        refine = atlas.tileResident(child, int32_t(int64_t(ox) / tileSize), int32_t(int64_t(oz) / tileSize));
+    }
+    if (refine)
+    {
+        for (int q = 0; q < 4; ++q)
+            selectSphere(atlas, c, centre, radius, child, 2 * nx + (q & 1), 2 * nz + (q >> 1), anchorX, anchorZ, out,
+                         key);
+        return;
+    }
+    addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt, out);
+    out.full.back().levelFlags |= flagFixed;
+    // FNV-1a of the node
+    for (int64_t v : {int64_t(level), int64_t(nx), int64_t(nz)})
+    {
+        key ^= uint64_t(v);
+        key *= 1099511628211ull;
+    }
+}
+
+void TerrainPass::selectForAtlas(uint32_t frameIndex, const TerrainAtlas& atlas, const SceneCamera& camera,
+                                 const std::vector<std::pair<Vec3, double>>& spheres, std::vector<uint64_t>& keys)
+{
+    Frame& f = frames[frameIndex];
+    f.atlasRanges.clear();
+    keys.assign(spheres.size(), 0);
+    atlasNodes = 0;
+    if (!frameValid || spheres.empty()) return;
+    const int32_t anchorX = uniforms.anchor(0), anchorZ = uniforms.anchor(1);
+    auto* dst              = static_cast<GpuNode*>(f.atlasNodes.getMappedPointer());
+    uint32_t used          = 0;
+    const TerrainLayout& L = atlas.layout();
+    const int R            = L.rootLevel();
+    const int roots        = L.sizeChunks / 16;
+    const int rootSize     = (32 * L.baseSpacing) << R;
+    for (size_t i = 0; i < spheres.size(); ++i)
+    {
+        Selection sel;
+        uint64_t key       = 1469598103934665603ull;
+        const Vec3& centre = spheres[i].first;
+        const double r     = spheres[i].second;
+        // Only the roots the sphere touches
+        const Vec3 w = camera.position + centre;
+        const int x0 = std::max(0, int(std::floor((w.x() - r) / rootSize))),
+                  x1 = std::min(roots - 1, int(std::floor((w.x() + r) / rootSize)));
+        const int z0 = std::max(0, int(std::floor((w.z() - r) / rootSize))),
+                  z1 = std::min(roots - 1, int(std::floor((w.z() + r) / rootSize)));
+        for (int z = z0; z <= z1; ++z)
+            for (int x = x0; x <= x1; ++x)
+                selectSphere(atlas, camera.position, centre, r, R, x, z, anchorX, anchorZ, sel, key);
+        Frame::ShadowRange range;
+        range.first = used;
+        range.full  = uint32_t(std::min<size_t>(sel.full.size(), kMaxAtlasNodes - used));
+        if (range.full) std::memcpy(dst + range.first, sel.full.data(), range.full * sizeof(GpuNode));
+        used += range.full;
+        f.atlasRanges.push_back(range);
+        keys[i] = sel.full.empty() ? 0 : key;
+    }
+    atlasNodes                                    = int(used);
+    std::array<vk::DescriptorBufferInfo, 6> infos = {
+        vk::DescriptorBufferInfo(handle(f.uniforms), 0, sizeof(TerrainFrameUniforms)),
+        vk::DescriptorBufferInfo(handle(lastAtlas->atlasBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(lastAtlas->pyramidBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(lastAtlas->pageBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(lastAtlas->maskBuffer()), 0, VK_WHOLE_SIZE),
+        vk::DescriptorBufferInfo(handle(f.atlasNodes), 0, VK_WHOLE_SIZE)};
+    std::vector<vk::WriteDescriptorSet> writes;
+    writes.emplace_back(f.atlasSet, 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &infos[0]);
+    for (uint32_t b = 1; b <= 5; ++b)
+        writes.emplace_back(f.atlasSet, b, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &infos[b]);
+    base->device.updateDescriptorSets(writes, nullptr);
+}
+
+void TerrainPass::createAtlasPipeline()
+{
+    // S36b: the terrain casters of the shadow atlas (D16, the linear depth from the fragment shader, no bias)
+    PipelineInfo atlasInfo;
+    atlasInfo.depthStencilState.depthCompareOp   = vk::CompareOp::eLessOrEqual;
+    atlasInfo.depthStencilState.depthWriteEnable = VK_TRUE;
+    atlasPipeline.init(*base, 1);
+    atlasPipeline.addDescriptorSetLayout(setLayout(), 0);
+    atlasPipeline.addPushConstantRange(
+        {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(AtlasPush)});
+    const std::string atlasDefines = "#define ATLAS_DEPTH\n";
+    atlasPipeline.shaderPipeline.loadGLSL(
+        base->device, {{"vulkan/scene/lighting/terrain_shadow.vert", vk::ShaderStageFlagBits::eVertex, atlasDefines},
+                       {"vulkan/scene/lighting/atlas_depth.frag", vk::ShaderStageFlagBits::eFragment, atlasDefines}});
+    RenderingFormats atlasFormats;
+    atlasFormats.depth = vk::Format::eD16Unorm;
+    atlasPipeline.create(atlasFormats, atlasInfo);
+    atlasPipelineCreated = true;
+}
+
+void TerrainPass::renderAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, size_t sphere, const mat4& viewProj,
+                              const vec4& light, const PrototypeSettings& s)
+{
+    Frame& f = frames[frameIndex];
+    if (!frameValid || !s.terrain || sphere >= f.atlasRanges.size()) return;
+    const Frame::ShadowRange r = f.atlasRanges[sphere];
+    if (r.full == 0) return;
+    // On first use (a scene without shadowed lights compiles none)
+    if (!atlasPipelineCreated) createAtlasPipeline();
+    if (!atlasPipeline.bind(cmd)) return;
+    atlasPipeline.bindRawDescriptorSet(cmd, f.atlasSet);
+    cmd.bindIndexBuffer(handle(indices), 0, vk::IndexType::eUint16);
+    AtlasPush push;
+    push.viewProj = viewProj;
+    push.gridN    = gridN;
+    push.pad[0] = push.pad[1] = push.pad[2] = 0;
+    push.light                              = light;
+    atlasPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, sizeof(push),
+                               &push);
+    const Range& range = s.terrainSkirts ? fullSkirt : fullPlain;
+    cmd.drawIndexed(range.count, r.full, range.first, 0, r.first);
 }
 
 void TerrainPass::writeDescriptors(Frame& f, TerrainAtlas& atlas, uint32_t frameIndex)

@@ -131,6 +131,8 @@ class SAIGA_VULKAN_API LightClusters
     uint64_t frameCounter = 0;
     uint32_t lastSlot     = 0;
     void ensure(Frame& f, const ClusterGrid& grid, size_t lights);
+    bool pipelinesCreated = false;
+    void createPipelines();
 };
 
 }  // namespace Vulkan

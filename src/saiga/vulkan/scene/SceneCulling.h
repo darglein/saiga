@@ -101,6 +101,10 @@ class SAIGA_VULKAN_API SceneCulling
     // indirect draw calls
     uint32_t recordShadow(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj, float alpha,
                           ShadowPipelineTable& table, float slopeBias);
+    // S36b: inside an atlas face's pass (D16), the casters of view with the classes' atlas pipelines (the linear depth;
+    // light: xyz camera-relative, w 1 / range)
+    uint32_t recordAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj, float alpha,
+                         ShadowPipelineTable& table, const vec4& light);
     // The views of the frame (1 + its shadow views; 0 without a cull)
     uint32_t viewCount(uint32_t frameIndex) const { return frames[frameIndex].viewCount; }
     // The scene's set-0 layout (the shadow pipelines are created with it)

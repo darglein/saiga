@@ -389,7 +389,10 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
     {
         std::vector<std::array<Vec4, 6>> viewPlanes;
         for (const ShadowView& v : shadowViews) viewPlanes.push_back(v.planes(false));
-        const uint32_t allViews = (1u << viewCount) - 1u;
+        // S36b: the atlas faces of the dynamic layer draw no static set, those of the static layer no dynamics
+        uint32_t dynamicViews = 1u;
+        for (size_t v = 0; v < shadowViews.size(); ++v)
+            if (shadowViews[v].castDynamic) dynamicViews |= 1u << (v + 1);
         for (const auto& [id, s] : instances.sets())
         {
             if (s.region.space != camera.space || s.used == 0 || !s.hasBounds) continue;
@@ -398,6 +401,7 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             uint32_t mask = aabbCulled(lo, hi, camera.planes, s.maxEndDistance) ? 0u : 1u;
             for (size_t v = 0; v < shadowViews.size(); ++v)
             {
+                if (!shadowViews[v].castStatic) continue;
                 if (aabbCulled(lo, hi, viewPlanes[v], s.maxEndDistance)) continue;
                 if (shadowViews[v].dedupContains(lo, hi, false)) continue;
                 mask |= 1u << (v + 1);
@@ -409,7 +413,8 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
         }
         const uint32_t dynamicCount = uint32_t(instances.dynamics().size());
         for (uint32_t i = 0; i < dynamicCount; i += workChunkSize)
-            chunkList.push_back({i, std::min(workChunkSize, dynamicCount - i), dynamicChunk, allViews});
+            chunkList.push_back(
+                {i, std::min(workChunkSize, dynamicCount - i), dynamicChunk, dynamicViews & ((1u << viewCount) - 1u)});
     }
     if (meshes.buckets().empty()) chunkList.clear();
     // The scratch entries: 256 per chunk and view of its mask
@@ -740,6 +745,22 @@ uint32_t SceneCulling::recordShadow(vk::CommandBuffer cmd, uint32_t frameIndex, 
         if (f.ranges[c].count == 0) continue;
         if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
         if (!table.bind(cmd, c, f.set, lightingSet->shadowSet(frameIndex), viewProj, alpha, slopeBias)) continue;
+        calls += drawRange(cmd, frameIndex, c, view);
+    }
+    return calls;
+}
+
+uint32_t SceneCulling::recordAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj,
+                                   float alpha, ShadowPipelineTable& table, const vec4& light)
+{
+    Frame& f = frames[frameIndex];
+    if (!f.culled || view >= f.viewCount) return 0;
+    uint32_t calls = 0;
+    for (int c = 0; c < pipelineClassCount; ++c)
+    {
+        if (f.ranges[c].count == 0) continue;
+        if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
+        if (!table.bindAtlas(cmd, c, f.set, lightingSet->shadowSet(frameIndex), viewProj, alpha, light)) continue;
         calls += drawRange(cmd, frameIndex, c, view);
     }
     return calls;

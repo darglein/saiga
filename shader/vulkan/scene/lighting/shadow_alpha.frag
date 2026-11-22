@@ -34,6 +34,18 @@ layout(location = 0) flat in uint inMaterial;
 layout(location = 1) flat in uint inColor;
 layout(location = 2) in vec2 inUv;
 
+#ifdef ATLAS_DEPTH
+// S36b: the shadow atlas: the linear depth distance(light, p) / range (D16: range / 65536 per step at every distance)
+layout(location = 3) in vec3 inRelPos;
+layout(push_constant) uniform AtlasPush
+{
+    mat4 viewProj;
+    vec4 pad;
+    vec4 light;  // xyz the light (camera-relative), w 1 / range
+}
+atlasPc;
+#endif
+
 void main()
 {
     Material m = materials[inMaterial];
@@ -41,4 +53,7 @@ void main()
     if ((m.flags & materialUsePalette) != 0u) word = palette[min(inColor, uint(palette.length()) - 1u)].x;
     float a = unpackUnorm4x8(word).a * m.baseColor.a;
     if ((m.flags & materialAlphaMask) != 0u && a < 0.5) discard;
+#ifdef ATLAS_DEPTH
+    gl_FragDepth = clamp(length(inRelPos - atlasPc.light.xyz) * atlasPc.light.w, 0.0, 1.0);
+#endif
 }

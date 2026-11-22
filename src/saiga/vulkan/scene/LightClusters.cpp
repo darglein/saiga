@@ -113,8 +113,17 @@ bool ClusterGrid::operator==(const ClusterGrid& o) const
 void LightClusters::init(VulkanBase& b)
 {
     destroy();
-    base         = &b;
-    const auto c = vk::ShaderStageFlagBits::eCompute;
+    base = &b;
+    // Valid (empty) buffers from the start: the lighting set binds them every frame; the pipelines on first use (a
+    // scene without local lights compiles none)
+    for (Frame& f : frames) ensure(f, ClusterGrid(), 1);
+}
+
+void LightClusters::createPipelines()
+{
+    if (pipelinesCreated) return;
+    pipelinesCreated = true;
+    const auto c     = vk::ShaderStageFlagBits::eCompute;
     {
         DescriptorSetLayout l;
         l.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageBuffer, 1, c));
@@ -148,18 +157,20 @@ void LightClusters::init(VulkanBase& b)
         debugPipeline.create();
         for (auto& s : debugSets) s = debugPipeline.createRawDescriptorSet();
     }
-    // Valid (empty) buffers from the start: the lighting set binds them every frame
-    for (Frame& f : frames) ensure(f, ClusterGrid(), 1);
 }
 
 void LightClusters::destroy()
 {
     if (!base) return;
-    boundsPipeline.destroy();
-    clusterPipeline.destroy();
-    debugPipeline.destroy();
-    auto* pool = &base->descriptorPool;
-    auto free  = [&](vk::DescriptorSet& s)
+    if (pipelinesCreated)
+    {
+        boundsPipeline.destroy();
+        clusterPipeline.destroy();
+        debugPipeline.destroy();
+    }
+    pipelinesCreated = false;
+    auto* pool       = &base->descriptorPool;
+    auto free        = [&](vk::DescriptorSet& s)
     {
         auto set = s;
         if (set) base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
@@ -203,6 +214,7 @@ void LightClusters::ensure(Frame& f, const ClusterGrid& grid, size_t lights)
 void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const ClusterGrid& grid, const mat4& view,
                            const mat4& projection, const LocalLights& lights)
 {
+    createPipelines();
     Frame& f                = frames[frameIndex];
     const size_t lightCount = lights.frameRecords().size();
     ensure(f, grid, lightCount);

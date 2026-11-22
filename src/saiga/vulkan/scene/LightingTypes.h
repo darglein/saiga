@@ -184,6 +184,14 @@ struct LightingParameters
     float clusterNear       = 2;     // m
     float clusterFar        = 1000;  // m
     int maxLightsPerCluster = 128;   // 1..1024
+    // S36b: the cached shadow atlas (B4): two D16 layers of atlasResolution^2 in tiles of atlasTile texels (a spot
+    // light 1 tile, a point light 6), at most facesPerFrame faces rendered per frame (each a culling view: <= 11), the
+    // receivers' bias in D16 steps and their normal offset in texels
+    int atlasResolution     = 4096;  // 512..8192, a power of two
+    int atlasTile           = 512;   // 64..atlasResolution, divides it
+    int facesPerFrame       = 8;     // 0..11
+    float atlasDepthBias    = 2;     // D16 steps (range / 65535)
+    float atlasNormalOffset = 1;     // texels
 };
 
 // ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
@@ -217,15 +225,18 @@ enum class LightingDebugView : uint8_t
     LocalLightsOnly,
     // S36b: the lights of the fragment's cluster as a heat map (turbo; an overflowed cluster magenta)
     ClusterLights,
+    // S36b: the atlas shadow of the local lights (the highlighted light's, else the darkest of the shadowed lights that
+    // reach the fragment; blue where none reaches)
+    AtlasShadow,
     Count
 };
 // snake_case names (set_lighting_debug, screenshot lighting_view)
 inline const char* lightingDebugViewName(LightingDebugView v)
 {
     static const char* names[] = {
-        "none",     "lighting_only",   "albedo",         "normals",           "roughness",     "metalness",
-        "material", "direct_only",     "ambient_only",   "specular_only",     "cloud_shadow",  "shadow_factor",
-        "exposure", "shadow_cascades", "horizon_shadow", "local_lights_only", "cluster_lights"};
+        "none",     "lighting_only",   "albedo",         "normals",           "roughness",      "metalness",
+        "material", "direct_only",     "ambient_only",   "specular_only",     "cloud_shadow",   "shadow_factor",
+        "exposure", "shadow_cascades", "horizon_shadow", "local_lights_only", "cluster_lights", "atlas_shadow"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingDebugView::Count), "lightingDebugViewName");
     return v < LightingDebugView::Count ? names[size_t(v)] : "none";
 }
@@ -254,8 +265,10 @@ enum LightingOverlay : uint32_t
     OverlayLightVolumes = 1u << 5,
     // S36b: the cluster grid's depth slices and tiles (of the frozen camera with freeze cascades)
     OverlayClusterGrid = 1u << 6,
+    // S36b: the owner (light handle and face) of each tile in the atlas preview of the Lighting tab
+    OverlayAtlasOwners = 1u << 7,
     OverlayAll = OverlaySunDirection | OverlayCascadeColors | OverlayCascadeBounds | OverlayCameraFrustumSplits |
-                 OverlayHorizonAnchor | OverlayLightVolumes | OverlayClusterGrid
+                 OverlayHorizonAnchor | OverlayLightVolumes | OverlayClusterGrid | OverlayAtlasOwners
 };
 inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames()
 {
@@ -312,14 +325,19 @@ enum class LightingImage : uint8_t
     Horizon,
     // S36b: the lights per cluster (16 pixels per cluster; one slice or the maximum over the slices)
     Clusters,
+    // S36b: the shadow atlas (a layer: static or dynamic; the linear depth, at most 1024 texels) and one tile (a
+    // light's face at its full resolution)
+    Atlas,
+    AtlasTile,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {
-        "luminance",     "brdf_lut",       "transmittance_lut", "sky_view_lut",         "environment",
-        "irradiance",    "cloud_coverage", "cloud_shadow",      "multi_scattering_lut", "cascade",
-        "cascade_strip", "horizon",        "clusters"};
+    static const char* names[] = {"luminance",      "brdf_lut",      "transmittance_lut",
+                                  "sky_view_lut",   "environment",   "irradiance",
+                                  "cloud_coverage", "cloud_shadow",  "multi_scattering_lut",
+                                  "cascade",        "cascade_strip", "horizon",
+                                  "clusters",       "atlas",         "atlas_tile"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -439,6 +457,34 @@ struct LocalLightStatistics
     uint64_t clusterMemory = 0;
 };
 
+// One tile of the shadow atlas (ShadowAtlas::tiles; the Lighting tab's owner overlay, capture_lighting): its owner (a
+// light handle, 0 free) and face, the frame of its last static render (0: not yet valid), whether its dynamic layer has
+// content
+struct AtlasTileInfo
+{
+    uint32_t owner        = 0;
+    int face              = 0;
+    bool staticValid      = false;
+    uint64_t staticFrame  = 0;
+    bool dynamicContent   = false;
+    uint64_t dynamicFrame = 0;
+};
+
+// The atlas's statistics of the newest recorded frame (LightingStatistics::atlas)
+struct AtlasStatistics
+{
+    bool on        = false;
+    int resolution = 0, tile = 0;
+    uint32_t tilesTotal = 0, tilesUsed = 0;
+    // The faces rendered this frame (static / dynamic layer), the dynamic tiles cleared, the valid static faces that
+    // were not re-rendered (cache hits), the static faces still waiting (queue), the shadowed lights with tiles and
+    // without (the tile budget)
+    uint32_t staticRenders = 0, dynamicRenders = 0, dynamicClears = 0, hits = 0, queue = 0;
+    uint32_t lightsWithTiles = 0, lightsWithoutTiles = 0;
+    int facesPerFrame    = 0;
+    uint64_t memoryBytes = 0;
+};
+
 // One light of the frame (RenderScene::frameLights; the Lighting tab, list_lights): its handle, the buffer index,
 // distance to the camera, importance and (S36b steps 3-4) the clusters it touches and its atlas tiles
 struct FrameLightInfo
@@ -494,8 +540,9 @@ struct LightingStatistics
     // The horizon map the frame's previews converted (the front map after the frame's update; capture_lighting's
     // anchor and reference: CodeRabbit #85 round 2)
     HorizonStatistics horizonPreview;
-    // S36b: the local lights
+    // S36b: the local lights and the shadow atlas
     LocalLightStatistics lights;
+    AtlasStatistics atlas;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is
@@ -540,9 +587,12 @@ struct LightingProbe
         uint32_t handle = 0;
         double distance = 0;
         vec3 radiance   = vec3(0, 0, 0);
-        float shadow    = 1;
     };
     std::vector<LightContribution> lights;
+    // S36b: the atlas shadow (the AtlasShadow frame: the darkest factor of the shadowed lights that reach the pixel, 1:
+    // none) and how many shadowed lights reach it
+    float atlasShadow     = 1;
+    int atlasShadowLights = 0;
 };
 
 // The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so

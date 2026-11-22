@@ -53,7 +53,8 @@ layout(push_constant) uniform Push
     float rangeMin;
     float rangeMax;
     uint groups;
-    uint pad;
+    // S36b: the array source's sub-rectangle origin (x | y << 16; an atlas tile)
+    uint origin;
     // S36a2: the array source's layer, the layers side by side (0: the 2D source), source texels per preview texel and
     // the preview width of one layer
     uint layer;
@@ -76,7 +77,7 @@ bool sourceValue(ivec2 p, out float v)
             layer = pc.layer + uint(p.x) / pc.layerWidth;
             p.x   = p.x % int(pc.layerWidth);
         }
-        ivec2 q  = p * int(pc.step);
+        ivec2 q  = p * int(pc.step) + ivec2(int(pc.origin & 0xFFFFu), int(pc.origin >> 16));
         ivec2 sz = textureSize(sourceArray, 0).xy;
         if (pc.kind == 2u)
         {

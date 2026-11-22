@@ -23,6 +23,7 @@
 #include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
+#include "saiga/vulkan/scene/ShadowAtlas.h"
 
 #include <algorithm>
 #include <cmath>
@@ -923,6 +924,137 @@ void LightingTab::localLightsSection()
             ImGui::Text("lights per cluster (turbo, 0 .. %.0f)", double(scale));
             previewImage(Vulkan::LightingImage::Clusters, false, 384.0f);
             app.lightingPreviewMapping() = saved;
+        }
+    }
+    // The shadow atlas (B4): its parameters, the cache, the preview of a layer with the tiles' owners (a click on a
+    // tile selects its light)
+    {
+        const Vulkan::AtlasStatistics& as = ls.atlas;
+        Vulkan::LightingParameters ap     = scene->lightingParameters();
+        bool atlasChanged                 = false;
+        if (DebugUiStyle::beginProperties("##lighting atlas"))
+        {
+            DebugUiStyle::property("atlas / tile");
+            {
+                const int sizes[]   = {1024, 2048, 4096, 8192};
+                const char* names[] = {"1024", "2048", "4096", "8192"};
+                int current         = 2;
+                for (int i = 0; i < 4; ++i)
+                    if (sizes[i] == ap.atlasResolution) current = i;
+                ImGui::SetNextItemWidth(80);
+                if (ImGui::Combo("##atlas resolution", &current, names, 4))
+                {
+                    ap.atlasResolution = sizes[current];
+                    ap.atlasTile       = std::min(ap.atlasTile, ap.atlasResolution);
+                    atlasChanged       = true;
+                }
+                ImGui::SameLine();
+                const int tiles[]       = {128, 256, 512, 1024};
+                const char* tileNames[] = {"128", "256", "512", "1024"};
+                int t                   = 2;
+                for (int i = 0; i < 4; ++i)
+                    if (tiles[i] == ap.atlasTile) t = i;
+                ImGui::SetNextItemWidth(80);
+                if (ImGui::Combo("##atlas tile", &t, tileNames, 4))
+                {
+                    ap.atlasTile = std::min(tiles[t], ap.atlasResolution);
+                    atlasChanged = true;
+                }
+            }
+            DebugUiStyle::property("faces per frame");
+            atlasChanged = ImGui::SliderInt("##faces per frame", &ap.facesPerFrame, 0, 11) || atlasChanged;
+            DebugUiStyle::property("depth bias (D16 steps)");
+            atlasChanged = ImGui::SliderFloat("##atlas bias", &ap.atlasDepthBias, 0, 64, "%.1f") || atlasChanged;
+            DebugUiStyle::property("normal offset (texels)");
+            atlasChanged = ImGui::SliderFloat("##atlas normal", &ap.atlasNormalOffset, 0, 8, "%.2f") || atlasChanged;
+            DebugUiStyle::property("tiles");
+            ImGui::Text("%u / %u used (%d texels)", as.tilesUsed, as.tilesTotal, as.tile);
+            DebugUiStyle::property("cache this frame");
+            ImGui::Text("%u hits, %u static + %u dynamic renders, %u clears", as.hits, as.staticRenders,
+                        as.dynamicRenders, as.dynamicClears);
+            DebugUiStyle::property("queue");
+            ImGui::Text("%u static faces waiting (%d faces per frame)", as.queue, as.facesPerFrame);
+            DebugUiStyle::property("shadowed lights");
+            ImGui::Text("%u with tiles, %u without (the tile budget)", as.lightsWithTiles, as.lightsWithoutTiles);
+            DebugUiStyle::property("atlas memory");
+            ImGui::Text("%.1f MiB", double(as.memoryBytes) / (1 << 20));
+            DebugUiStyle::endProperties();
+        }
+        if (atlasChanged) scene->setLightingParameters(ap);
+        int longRange = 0;
+        for (const Vulkan::LocalLights::Light& l : scene->localLights().lights())
+            longRange += l.data.castShadows && l.data.range > 100 ? 1 : 0;
+        if (longRange > 0)
+            ImGui::TextColored(ImVec4(1.0f, 0.45f, 0.35f, 1), "%d shadowed lights with a range above 100 m (D16 depth)",
+                               longRange);
+        if (as.on)
+        {
+            int layer = scene->atlasPreviewLayerValue();
+            ImGui::RadioButton("static layer", &layer, 0);
+            ImGui::SameLine();
+            ImGui::RadioButton("dynamic layer", &layer, 1);
+            scene->setAtlasPreview(layer);
+            ImGui::SameLine();
+            bool owners = (d.overlays & Vulkan::OverlayAtlasOwners) != 0;
+            if (ImGui::Checkbox("tile owners", &owners))
+            {
+                d.overlays =
+                    owners ? (d.overlays | Vulkan::OverlayAtlasOwners) : (d.overlays & ~Vulkan::OverlayAtlasOwners);
+                scene->setLightingDebug(d);
+            }
+            ImGui::TextUnformatted("linear depth (distance / range; white: nothing); click a tile to select its light");
+            ImVec2 at;
+            const bool clicked = previewImageClicked(Vulkan::LightingImage::Atlas, false, 384.0f, at);
+            const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
+            const Vulkan::ShadowAtlas& atlas = scene->shadowAtlas();
+            const int perSide                = std::max(atlas.tilesPerSide(), 1);
+            if (clicked)
+            {
+                const int tx   = std::clamp(int(at.x * float(perSide)), 0, perSide - 1);
+                const int ty   = std::clamp(int(at.y * float(perSide)), 0, perSide - 1);
+                const size_t t = size_t(ty * perSide + tx);
+                if (t < atlas.tiles().size() && atlas.tiles()[t].owner)
+                {
+                    d.highlightLight = atlas.tiles()[t].owner;
+                    scene->setLightingDebug(d);
+                }
+            }
+            if (scene->lightingDebugImages().preview(Vulkan::LightingImage::Atlas) &&
+                (d.overlays & Vulkan::OverlayAtlasOwners))
+            {
+                // The owners: a frame per used tile (the selected light's yellow), its light and face
+                ImDrawList* dl   = ImGui::GetWindowDrawList();
+                const float cell = (hi.x - lo.x) / float(perSide);
+                for (int t = 0; t < int(atlas.tiles().size()); ++t)
+                {
+                    const Vulkan::AtlasTileInfo& ti = atlas.tiles()[size_t(t)];
+                    if (!ti.owner) continue;
+                    const ImVec2 a(lo.x + float(t % perSide) * cell, lo.y + float(t / perSide) * cell);
+                    const ImVec2 b(a.x + cell, a.y + cell);
+                    const bool sel  = ti.owner == d.highlightLight;
+                    const ImU32 col = sel              ? IM_COL32(255, 220, 60, 255)
+                                      : ti.staticValid ? IM_COL32(80, 220, 120, 200)
+                                                       : IM_COL32(230, 90, 70, 220);
+                    dl->AddRect(ImVec2(a.x + 1, a.y + 1), ImVec2(b.x - 1, b.y - 1), col, 0, 0, sel ? 2.0f : 1.0f);
+                    char label[24];
+                    std::snprintf(label, sizeof(label), "%u:%d%s", ti.owner, ti.face, ti.dynamicContent ? "d" : "");
+                    if (cell >= 28) dl->AddText(ImVec2(a.x + 3, a.y + 2), col, label);
+                }
+            }
+            // The selected light's tile at full resolution
+            const std::vector<int> selTiles = d.highlightLight ? atlas.tilesOf(d.highlightLight) : std::vector<int>();
+            if (!selTiles.empty())
+            {
+                atlasTileFace = std::clamp(atlasTileFace, 0, int(selTiles.size()) - 1);
+                if (selTiles.size() > 1)
+                {
+                    ImGui::SetNextItemWidth(140);
+                    ImGui::SliderInt("face (+x -x +y -y +z -z)", &atlasTileFace, 0, int(selTiles.size()) - 1);
+                }
+                scene->setAtlasTilePreview(d.highlightLight, atlasTileFace, layer);
+                ImGui::Text("light %u, tile %d", d.highlightLight, selTiles[size_t(atlasTileFace)]);
+                previewImage(Vulkan::LightingImage::AtlasTile, false, 256.0f);
+            }
         }
     }
     // The light table: every light of the scene (the frame's ones with their buffer index); a row selects the light

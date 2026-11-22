@@ -78,37 +78,45 @@ vec3 localLightIlluminance(LocalLight L, vec3 relPos, out vec3 l, out float dist
 #    define LOCAL_LIGHT_SHADOW(L, relPos, n, dist) 1.0
 #endif
 
-// The reflected radiance of the light with buffer index i
-vec3 localLightRadiance(uint i, vec3 n, vec3 v, vec3 relPos, vec3 albedo, float rough, float metalness, vec2 lut,
-                        float wrap)
-{
-    LocalLight L = localLights[i];
-    vec3 l;
-    float dist;
-    vec3 E = localLightIlluminance(L, relPos, l, dist);
-    if (max(E.r, max(E.g, E.b)) <= 0.0 || dot(n, l) <= -wrap) return vec3(0.0);
-    float shadow = L.intensity.w >= 0.0 ? LOCAL_LIGHT_SHADOW(L, relPos, n, dist) : 1.0;
-    return pbrDirect(n, v, l, albedo, rough, metalness, E * shadow, lut, wrap);
-}
-
 // The direct light of the frame's local lights at a surface: every light (brute force, LightingParameters::
-// clusteredLights false: the reference) or the lights of the fragment's cluster
-vec3 localLightsDirect(vec3 n, vec3 v, vec3 relPos, vec3 albedo, float rough, float metalness, vec2 lut, float wrap)
+// clusteredLights false: the reference) or the lights of the fragment's cluster, each with its atlas shadow (one loop,
+// one inlined BRDF: the scene shaders stay small). minShadow / shadowed: the darkest atlas factor of the shadowed
+// lights that reach the surface (only the highlighted light while one is highlighted) and their count (the AtlasShadow
+// view, probe_lighting)
+vec3 localLightsDirect(vec3 n, vec3 v, vec3 relPos, vec3 albedo, float rough, float metalness, vec2 lut, float wrap,
+                       inout float minShadow, inout int shadowed)
 {
-    vec3 sum = vec3(0.0);
-    if (lighting.lightCounts.y == 0u)
+    vec3 sum        = vec3(0.0);
+    bool clustered  = lighting.lightCounts.y != 0u;
+    uint count      = lighting.lightCounts.x;
+    uint base       = 0u;
+    if (clustered)
     {
-        uint count = lighting.lightCounts.x;
-        for (uint i = 0u; i < count; ++i)
-            sum += localLightRadiance(i, n, v, relPos, albedo, rough, metalness, lut, wrap);
-        return sum;
+        int c = fragmentCluster(relPos);
+        if (c < 0) return sum;
+        count = clusterTable[c].x;
+        base  = uint(c) * lighting.clusterGrid.w;
     }
-    int c = fragmentCluster(relPos);
-    if (c < 0) return sum;
-    uint count = clusterTable[c].x;
-    uint base  = uint(c) * lighting.clusterGrid.w;
     for (uint k = 0u; k < count; ++k)
-        sum += localLightRadiance(clusterIndices[base + k], n, v, relPos, albedo, rough, metalness, lut, wrap);
+    {
+        uint i       = clustered ? clusterIndices[base + k] : k;
+        LocalLight L = localLights[i];
+        vec3 l;
+        float dist;
+        vec3 E = localLightIlluminance(L, relPos, l, dist);
+        if (max(E.r, max(E.g, E.b)) <= 0.0 || dot(n, l) <= -wrap) continue;
+        float shadow = 1.0;
+        if (L.intensity.w >= 0.0)
+        {
+            shadow = LOCAL_LIGHT_SHADOW(L, relPos, n, dist);
+            if (lighting.lightCounts.z == 0u || lighting.lightCounts.z == i + 1u)
+            {
+                minShadow = min(minShadow, shadow);
+                shadowed++;
+            }
+        }
+        sum += pbrDirect(n, v, l, albedo, rough, metalness, E * shadow, lut, wrap);
+    }
     return sum;
 }
 

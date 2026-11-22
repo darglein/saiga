@@ -28,8 +28,16 @@ layout(push_constant) uniform Push
     mat4 viewProj;
     float alpha;
     float pad0, pad1, pad2;
+    // S36b (ATLAS_DEPTH): xyz the light (camera-relative), w 1 / range
+    vec4 light;
 }
 pc;
+
+#ifdef ATLAS_DEPTH
+// S36b: the shadow atlas's faces (ShadowPipelineTable's atlas variant): the camera-relative position for the linear
+// depth of the fragment shader; a perspective face: no pancaking
+layout(location = 1) out vec3 outRelPos;
+#endif
 
 layout(location = 0) out vec3 outUvLayer;
 
@@ -58,6 +66,11 @@ void main()
     p.xz += (sway + flutter) * scale * windW * lighting.wind.w;
 
     outUvLayer    = vec3(inUv, layer);
-    gl_Position   = pc.viewProj * vec4(placePoint(pose.position, o, p), 1.0);
+    vec3 rel      = placePoint(pose.position, o, p);
+    gl_Position   = pc.viewProj * vec4(rel, 1.0);
+#ifdef ATLAS_DEPTH
+    outRelPos = rel;
+#else
     gl_Position.z = max(gl_Position.z, 0.0);
+#endif
 }
