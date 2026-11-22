@@ -12,6 +12,7 @@
 #include "saiga/vulkan/svulkan.h"
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -51,7 +52,10 @@ struct EngineAppSetup
     bool noRender = false;  // no Vulkan device at all (with headless): the world steps, MCP answers
     int width = 1600, height = 900;
     bool vsync = true, validation = false;
-    Vulkan::RenderSceneParameters render;        // --tonemap, --exposure set toneMap and exposure
+    Vulkan::RenderSceneParameters render;  // --tonemap, --exposure set toneMap and exposure
+    // The presentation settings of the environment (S36; exposure, ambient, clouds, atmosphere): the initial value of
+    // EngineApp::environmentSettings (filled by the game or from readEnvironmentFile)
+    Vulkan::EnvironmentSettings environment;
     void (*scenarios)(ScenarioList&) = nullptr;  // --scenarios, list_scenarios, run_scenario
     // --scenarios also runs the host + client variants (ScenarioOptions::networkVariants, §17.3); on for the tech
     // demos from S16b
@@ -110,6 +114,9 @@ struct AppOptions
     bool coop     = false;
     int coopDelay = 2;
     std::vector<std::string> gameFlags;  // the declared game flags that were given (e.g. --demo)
+    // --time-of-day h, --day-length s (S36): WorldTime's hours and rate (86400 / s), applied after the game's start;
+    // a world without WorldTime (EnvironmentSetup::enabled) stops with an error
+    std::optional<double> timeOfDay, dayLength;
     bool has(const std::string& flag) const
     {
         for (const std::string& f : gameFlags)

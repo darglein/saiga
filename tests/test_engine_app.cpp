@@ -19,6 +19,7 @@
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/DestroyOwnedBy.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/net/Fragmenter.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
@@ -221,6 +222,50 @@ TEST(AppCommandLine, OptionsGameFlagsAndErrors)
         AppOptions q;
         EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1];
     }
+}
+
+// S36: --time-of-day / --day-length (valued engine options; applied after the game's start)
+TEST(AppCommandLine, TimeOfDayAndDayLength)
+{
+    EngineAppSetup s;
+    AppOptions o;
+    std::string error;
+    auto a = argv({"--time-of-day", "18.5", "--day-length", "240"});
+    ASSERT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
+    ASSERT_TRUE(o.timeOfDay && o.dayLength);
+    EXPECT_EQ(*o.timeOfDay, 18.5);
+    EXPECT_EQ(*o.dayLength, 240);
+    for (auto bad : {argv({"--time-of-day", "24"}), argv({"--time-of-day", "-1"}), argv({"--time-of-day", "x"}),
+                     argv({"--time-of-day"}), argv({"--day-length", "0"}), argv({"--day-length", "10"}),
+                     argv({"--day-length", "nan"})})
+    {
+        EngineAppSetup u;
+        AppOptions q;
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1] << " " << bad[2];
+    }
+    // A world without WorldTime stops with exit code 1 (before the frame loop)
+    EngineAppSetup plain = appSetup(false);
+    auto b               = argv({"--time-of-day", "6"});
+    EXPECT_EQ(engineMain(int(b.size()), b.data(), plain, {}, nullptr), 1);
+}
+
+// S36: the app owns the environment settings; --time-of-day reaches the world
+TEST(EngineAppNoRender, EnvironmentSettingsAndTimeOption)
+{
+    EngineAppSetup s                    = appSetup(false);
+    s.world.environment.enabled         = true;
+    s.environment.exposure.compensation = 2;
+    EngineApp app(s);
+    EXPECT_EQ(app.environmentSettings().exposure.compensation, 2);
+    Vulkan::EnvironmentSettings e = app.environmentSettings();
+    e.ambient.scale               = 3;
+    app.setEnvironmentSettings(e);
+    EXPECT_EQ(app.environmentSettings().ambient.scale, 3);
+    EXPECT_FALSE(app.sendsEnvironment() && app.scene());
+    const EnvironmentSample sample = app.sampleViewEnvironment();
+    EXPECT_TRUE(sample.hasTime);
+    EXPECT_FLOAT_EQ(sample.state.ev100, sample.curveEv100 - 2);
+    EXPECT_EQ(sample.state.ambientScale, 3);
 }
 
 namespace
@@ -1457,6 +1502,35 @@ Json measureDirect(EngineApp& app, int n, std::chrono::seconds budget = std::chr
 // S17: the gpu profile has RenderScene's sections in frame order (S19a: transfer, cull, depth and its sub-section,
 // scene and its sub-sections, resolve, post, imgui); the tone map of the setup reaches RenderScene. S19b: the game's
 // own passes (passNames / passTimes) are gone
+// S36: a world with the environment sends it every rendered frame; the scene's frame exposure follows its EV100 and
+// the multiplier keeps its meaning (exposure()); a world without it keeps the unit-less exposure
+TEST_F(EngineAppRender, EnvironmentReachesTheScene)
+{
+    EngineAppSetup s            = appSetup(true);
+    s.render.toneMap            = Vulkan::ToneMap::Aces;
+    s.render.exposure           = 2;
+    s.world.environment.enabled = true;
+    EngineApp app(s);
+    ASSERT_NE(app.scene(), nullptr);
+    EXPECT_TRUE(app.sendsEnvironment());
+    std::string error;
+    ASSERT_TRUE(setWorldTime(app.world(), WorldTimeChange{12.0, std::nullopt, std::nullopt}, error)) << error;
+    app.runFrames(3, 1.0 / 60);
+    ASSERT_TRUE(app.scene()->hasEnvironment());
+    const float ev100 = app.scene()->environment().ev100;
+    EXPECT_NEAR(ev100, app.environmentSettings().exposure.ev100At(45), 1e-3);
+    EXPECT_FLOAT_EQ(app.scene()->exposure(), 2.0f);
+    EXPECT_FLOAT_EQ(app.scene()->frameExposure(), Vulkan::exposureFromEv100(ev100, 2));
+
+    EngineAppSetup p  = appSetup(true);
+    p.render.toneMap  = Vulkan::ToneMap::Aces;
+    p.render.exposure = 2;
+    EngineApp plain(p);
+    plain.runFrames(3, 1.0 / 60);
+    EXPECT_FALSE(plain.scene()->hasEnvironment());
+    EXPECT_FLOAT_EQ(plain.scene()->frameExposure(), 2.0f);
+}
+
 TEST_F(EngineAppRender, GpuSections)
 {
     EngineAppSetup s  = appSetup(true);

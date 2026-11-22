@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <map>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -39,6 +40,7 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
         uint64_t registerMesh = 0, registerMaterial = 0, addDynamic = 0, setDynamic = 0, removeDynamic = 0;
         uint64_t addInstanceSet = 0, updateInstances = 0, removeInstance = 0, removeInstanceSet = 0;
         uint64_t setCamera = 0, setInterpolation = 0, setSpaceSettings = 0;
+        uint64_t setEnvironment = 0;  // S36
         // Terrain (S20)
         uint64_t setTerrainPyramid = 0, setTerrainTile = 0, removeTerrainTile = 0, setGrassMask = 0,
                  removeGrassMask = 0, clearTerrain = 0, patchTerrainTile = 0, patchTerrainPyramid = 0;
@@ -59,6 +61,7 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings) override;
     void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) override;
     void setInterpolation(float alpha) override;
+    void setEnvironment(const EnvironmentState& environment) override;
     void setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid) override;
     void setTerrainTile(const RegionId& region, const TerrainTileData& tile) override;
     void removeTerrainTile(const RegionId& region) override;
@@ -101,6 +104,9 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     // ---- the space settings (S21): the last per space and the calls per space
     const std::map<SpaceId, SpaceRenderSettings>& spaceSettings() const { return spaces; }
     const std::map<SpaceId, int>& spaceSettingsCalls() const { return spaceCalls; }
+
+    // ---- the environment (S36): the last one (null before the first setEnvironment)
+    const EnvironmentState* environment() const { return lastEnvironment ? &*lastEnvironment : nullptr; }
 
     // ---- state ----
     // Live dynamic instances by handle ID
@@ -145,6 +151,7 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     uint64_t patchesIgnored = 0;
     std::map<SpaceId, SpaceRenderSettings> spaces;
     std::map<SpaceId, int> spaceCalls;
+    std::optional<EnvironmentState> lastEnvironment;
     uint32_t nextHandle = 1, nextSet = 1;
     Counters count;
     float alpha  = 0;

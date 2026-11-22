@@ -10,6 +10,7 @@
 #include "saiga/engine/components/Weather.h"
 #include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/lighting/Celestial.h"
+#include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentFile.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
@@ -28,6 +29,21 @@ using namespace Saiga::Engine;
 
 namespace
 {
+// The environment without worldTimeSystem: the stored values stay, the extract extrapolates from validAt (as on a
+// client between snapshots)
+WorldSetup frozenEnvironmentSetup()
+{
+    WorldSetup s;
+    s.environment.enabled = true;
+    return s;
+}
+
+EnvironmentSample sample(const World& w, double alpha, SpaceId space = 0,
+                         const Vulkan::EnvironmentSettings& settings = Vulkan::EnvironmentSettings())
+{
+    return sampleEnvironment(w, space, alpha, settings, w.environmentSetup());
+}
+
 WorldSetup environmentSetup()
 {
     WorldSetup s;
@@ -454,4 +470,132 @@ TEST(EnvironmentFileDeathTest, UnknownKeyIsFatal)
 {
     const std::string path = writeTemp("saiga_environment_unknown.json", R"({"celestial": {"latitude": 50}})");
     EXPECT_DEATH(readEnvironmentFile(path), "latitude");
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The environment extract
+
+TEST(EnvironmentExtract, InterpolatesBetweenSteps)
+{
+    World w(environmentSetup());
+    std::string error;
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{10.0, std::nullopt, 3600.0}, error));
+    w.step(3);
+    const double current  = w.readGlobal<WorldTime>().timeOfDay;
+    const double previous = current - 3600 * w.dt() / 3600;
+    EXPECT_NEAR(sample(w, 1).time.timeOfDay, current, 1e-9);
+    EXPECT_NEAR(sample(w, 0).time.timeOfDay, previous, 1e-9);
+    EXPECT_NEAR(sample(w, 0.5).time.timeOfDay, 0.5 * (previous + current), 1e-9);
+    // The sun follows the time; the state is the float of the sample
+    const EnvironmentSample a = sample(w, 0.25);
+    EXPECT_NEAR((a.celestial.sunDir - celestialState(CelestialConfig(), a.time.timeOfDay, 0).sunDir).norm(), 0, 1e-12);
+    EXPECT_NEAR(a.state.sunDir(1), float(a.celestial.sunDir(1)), 1e-6);
+    // The wind moves the clouds between the steps as well
+    const Weather& weather = w.readSpaceState<Weather>(0);
+    EXPECT_NEAR(sample(w, 0).weather.cloudOffset(0), weather.cloudOffset(0) - weather.wind(0) * w.dt(), 1e-9);
+}
+
+TEST(EnvironmentExtract, ClientExtrapolatesWithHostClock)
+{
+    // No system writes the time (as on a client between two snapshots): the render time runs ahead of validAt
+    World w(frozenEnvironmentSetup());
+    std::string error;
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{10.0, std::nullopt, 1800.0}, error));
+    const double validAt = w.readGlobal<WorldTime>().validAt;
+    w.step(30);
+    EXPECT_EQ(w.readGlobal<WorldTime>().timeOfDay, 10);
+    const double tr = w.time() + (0.5 - 1) * w.dt();
+    EXPECT_NEAR(sample(w, 0.5).time.timeOfDay, 10 + 1800 * (tr - validAt) / 3600, 1e-9);
+    EXPECT_NEAR(sample(w, 0.5).renderTime, tr, 1e-12);
+    // Monotonic with the render time
+    double last = 0;
+    for (double alpha : {0.0, 0.25, 0.5, 0.75, 0.999})
+    {
+        const double t = sample(w, alpha).time.timeOfDay;
+        EXPECT_GT(t, last);
+        last = t;
+    }
+}
+
+TEST(EnvironmentExtract, RateChangeDoesNotJump)
+{
+    World w(environmentSetup());
+    std::string error;
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{10.0, std::nullopt, 1800.0}, error));
+    w.step(10);
+    const double before = sample(w, 1).time.timeOfDay;
+    // A new rate between steps: the time continues from the same value (validAt is the write's time)
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{std::nullopt, std::nullopt, 3600.0}, error));
+    EXPECT_NEAR(sample(w, 1).time.timeOfDay, before, 1e-12);
+    w.step();
+    EXPECT_NEAR(sample(w, 1).time.timeOfDay, before + 3600 * w.dt() / 3600, 1e-9);
+    EXPECT_NEAR(sample(w, 0).time.timeOfDay, before, 1e-9);
+}
+
+TEST(EnvironmentExtract, SanitisesOutOfRangeWeather)
+{
+    World w(frozenEnvironmentSetup());
+    w.spaceState<Weather>(0).cloudiness = 5;
+    w.spaceState<Weather>(0).rain       = -1;
+    w.spaceState<Weather>(0).fogDensity = std::numeric_limits<double>::quiet_NaN();
+    w.global<WorldTime>().timeOfDay     = 36;
+    const EnvironmentSample s           = sample(w, 1);
+    EXPECT_EQ(s.weather.cloudiness, 1);
+    EXPECT_EQ(s.state.cloudiness, 1.0f);
+    EXPECT_EQ(s.state.rain, 0.0f);
+    EXPECT_FLOAT_EQ(s.state.fogDensity, float(Weather().fogDensity));
+    EXPECT_NEAR(s.time.timeOfDay, 12, 1e-12);
+    EXPECT_EQ(s.time.day, 1);
+}
+
+TEST(EnvironmentExtract, EnclosedSpaceUsesTemplateAmbientAndEv100)
+{
+    for (bool enabled : {true, false})
+    {
+        WorldSetup s            = enabled ? frozenEnvironmentSetup() : WorldSetup{};
+        SpaceTemplate cellar    = SpaceTemplate::enclosed("cellar");
+        cellar.ambient          = Vec3(10, 20, 30);
+        cellar.ev100            = 4;
+        s.config.spaceTemplates = {SpaceTemplate(), cellar};
+        World w(s);
+        Vulkan::EnvironmentSettings settings;
+        settings.exposure.compensation = 1;
+        const EnvironmentSample in     = sample(w, 1, 1, settings);
+        EXPECT_TRUE(in.enclosed);
+        EXPECT_TRUE(in.state.enclosed);
+        EXPECT_EQ(in.state.enclosedAmbient, vec3(10, 20, 30));
+        EXPECT_EQ(in.state.ev100, 3.0f);
+        EXPECT_EQ(in.state.exposureSource, Vulkan::ExposureSource::Enclosed);
+        EXPECT_EQ(in.state.sunIlluminance, 0.0f);
+        EXPECT_EQ(in.state.moonIlluminance, 0.0f);
+        EXPECT_EQ(in.shadowLight, ShadowLight::None);
+        const EnvironmentSample out = sample(w, 1, 0, settings);
+        EXPECT_FALSE(out.state.enclosed);
+        EXPECT_EQ(out.state.exposureSource, Vulkan::ExposureSource::Curve);
+        EXPECT_GT(out.state.sunIlluminance, 0.0f);
+    }
+}
+
+TEST(EnvironmentExtract, DefaultsWithoutEnvironmentAndSunOverride)
+{
+    World plain{WorldSetup{}};
+    const EnvironmentSample s = sample(plain, 1);
+    EXPECT_FALSE(s.hasTime);
+    EXPECT_EQ(s.time.timeOfDay, 12);
+    EXPECT_EQ(s.weather.cloudiness, 0.3);
+    EXPECT_NEAR(s.celestial.sunElevationDeg, 45, 0.1);
+    EXPECT_FLOAT_EQ(s.state.ev100, Vulkan::ExposureSettings().curveEv100(float(s.celestial.sunElevationDeg)));
+    Vulkan::EnvironmentSettings settings;
+    settings.sunOverride      = Vulkan::SunOverride{90, 10};
+    const EnvironmentSample o = sample(plain, 1, 0, settings);
+    EXPECT_NEAR(o.celestial.sunElevationDeg, 10, 1e-9);
+    EXPECT_NEAR(o.celestial.sunAzimuthDeg, 90, 1e-9);
+    EXPECT_GT(o.state.sunDir(0), 0.9f);
+    EXPECT_FLOAT_EQ(o.state.ev100, Vulkan::ExposureSettings().curveEv100(10));
+    // The phases are in [0, 2 pi)
+    for (float ph : o.state.phases)
+    {
+        EXPECT_GE(ph, 0);
+        EXPECT_LT(ph, 6.2832f);
+    }
 }

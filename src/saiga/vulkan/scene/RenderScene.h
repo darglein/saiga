@@ -130,8 +130,12 @@ class SAIGA_VULKAN_API RenderScene
     const RenderSceneParameters& parameters() const { return params; }
     // The latched values of the frame being recorded (the last frame between frames)
     ToneMap toneMap() const { return frameToneMap; }
-    // The effective exposure (1 with Identity)
-    float exposure() const { return frameExposure; }
+    // The frame's exposure multiplier: params.exposure as latched (1 with Identity). Without an environment it is the
+    // effective exposure; with one (S36) the multiplier on top of the EV100
+    float exposure() const { return frameMultiplier; }
+    // The effective exposure the post pass uses: the multiplier, or with an environment exposureFromEv100(EV100,
+    // multiplier) (S36, D18; 1 with Identity)
+    float frameExposure() const { return frameEffectiveExposure; }
     // toneMap() != Identity: the scene shaders write linear values multiplied by preExposure()
     bool sceneWritesLinear() const { return frameToneMap != ToneMap::Identity; }
     // The exposure the scene pass of this frame writes with: the previous frame's effective exposure (1 after
@@ -281,12 +285,26 @@ class SAIGA_VULKAN_API RenderScene
     void setTime(double seconds) { sceneTime = seconds; }
     double time() const { return sceneTime; }
 
+    // ---- environment and lighting (S36, docs/engine_design.md §10.7) -----------------------------------------------
+    // The environment of the next frames (main thread, from the next frame; also from the transfer callback like
+    // setCamera). Until the first call the scene lights with the studio environment and uses params.exposure unchanged
+    void setEnvironment(const EnvironmentState& environment);
+    const EnvironmentState& environment() const { return env; }
+    bool hasEnvironment() const { return envSet; }
+    // Applied at the next frame start (resources are recreated through deferDelete when a size changes)
+    void setLightingParameters(const LightingParameters& parameters);
+    const LightingParameters& lightingParameters() const { return params.lighting; }
+
    private:
     friend class SceneFrameRenderer;
     void latchFrame();
     RenderSceneParameters params;
-    ToneMap frameToneMap   = ToneMap::Identity;
-    float frameExposure    = 1;
+    ToneMap frameToneMap         = ToneMap::Identity;
+    float frameEffectiveExposure = 1;
+    float frameMultiplier        = 1;
+    // setEnvironment (S36)
+    EnvironmentState env;
+    bool envSet            = false;
     float framePreExposure = 1;
     // The effective exposure of the last submitted frame (the next frame's pre-exposure)
     float lastExposure = 1;

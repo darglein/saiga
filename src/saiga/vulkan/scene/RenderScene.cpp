@@ -264,7 +264,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     const bool msaa      = samples != vk::SampleCountFlagBits::e1;
     const bool linear    = s.sceneWritesLinear();
     const bool custom    = msaa && linear;  // the tone-map weighted resolve (Identity: the hardware average)
-    const float scale    = s.frameExposure / s.framePreExposure;
+    const float scale    = s.frameEffectiveExposure / s.framePreExposure;
     const bool drawImgui = imguiFrame(
         [&s]()
         {
@@ -675,7 +675,7 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     guiFn      = nullptr;
     if (renderer->submittedFrames() == before) return false;
     // The scene of the next frame is written with this frame's exposure
-    lastExposure = frameExposure;
+    lastExposure = frameEffectiveExposure;
     frameCount++;
     submittedFrames.push_back({timeline, frameCount});
     if (submittedFrames.size() > 32) submittedFrames.pop_front();
@@ -685,12 +685,18 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
 void RenderScene::latchFrame()
 {
     // Once per recorded frame, before any callback (setters apply from the next frame)
-    frameToneMap  = params.toneMap;
-    frameExposure = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
+    frameToneMap    = params.toneMap;
+    frameMultiplier = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
+    // S36 (D18): a scene with an environment exposes its EV100 (the multiplier on top); without one the multiplier is
+    // the unit-less exposure, as before
+    frameEffectiveExposure = frameToneMap == ToneMap::Identity ? 1.0f
+                             : envSet                          ? exposureFromEv100(env.ev100, params.exposure)
+                                                               : params.exposure;
     // The previous frame's exposure; this frame's after a change by more than kMaxPreExposureChange (fp16: the scaled
     // values would clip at 65504 or lose precision, a one-frame flash). Clay mode ignores exposure: 1.
-    float pre = lastExposure;
-    if (frameExposure > pre * kMaxPreExposureChange || frameExposure * kMaxPreExposureChange < pre) pre = frameExposure;
+    const float e = frameEffectiveExposure;
+    float pre     = lastExposure;
+    if (e > pre * kMaxPreExposureChange || e * kMaxPreExposureChange < pre) pre = e;
     framePreExposure = frameToneMap == ToneMap::Identity ? 1.0f : pre;
 }
 
@@ -767,6 +773,18 @@ bool RenderScene::imguiVisible() const
 void RenderScene::setToneMap(ToneMap toneMap)
 {
     params.toneMap = toneMap;
+}
+
+void RenderScene::setEnvironment(const EnvironmentState& environment)
+{
+    env    = environment;
+    envSet = true;
+}
+
+void RenderScene::setLightingParameters(const LightingParameters& parameters)
+{
+    // No resource depends on the a1a fields yet (the environment map and clouds come with S36a1c)
+    params.lighting = parameters;
 }
 
 void RenderScene::setExposure(float exposure)

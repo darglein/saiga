@@ -11,6 +11,7 @@
 #include "saiga/core/util/crash.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
 #include "saiga/saiga_buildconfig.h"
 
@@ -129,6 +130,21 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
                 return false;
             }
             setup.render.exposure = x;
+        }
+        else if (a == "--time-of-day" || a == "--day-length")
+        {
+            // S36: WorldTime's hours [0, 24), or the real seconds of a game day (rate = 86400 / s, at most 3600)
+            const char* v = value("a number");
+            if (!v) return false;
+            char* end      = nullptr;
+            const double x = std::strtod(v, &end);
+            const bool tod = a == "--time-of-day";
+            if (*end != 0 || !std::isfinite(x) || (tod ? !(x >= 0 && x < 24) : !(x >= 86400.0 / kMaxTimeRate)))
+            {
+                error = tod ? "--time-of-day: hours in [0, 24)" : "--day-length: seconds of a game day, at least 24";
+                return false;
+            }
+            (tod ? options.timeOfDay : options.dayLength) = x;
         }
         else if (a == "--data")
         {
@@ -255,7 +271,7 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         std::cerr << error << "\nUsage: " << setup.name
                   << " [--headless] [--no-render] [--benchmark <name>] [--screenshot <file>] [--screenshot-frame N] "
                      "[--width N] [--height N] [--validation] [--no-vsync] [--stats] [--tonemap identity|aces] "
-                     "[--exposure x] "
+                     "[--exposure x] [--time-of-day h] [--day-length s] "
                      "[--scenarios [filter]] [--mcp-port N] [--data <dir>] [--coop [delay]]";
         for (const std::string& f : gameFlags) std::cerr << " [" << f << "]";
         std::cerr << std::endl;
@@ -268,6 +284,24 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         EngineApp app(setup, options);
         constructed = true;
         if (start) start(app, options);
+        // S36: --time-of-day / --day-length after the game's start (its world exists and has its state)
+        if (options.timeOfDay || options.dayLength)
+        {
+            const char* what = options.timeOfDay ? "--time-of-day" : "--day-length";
+            WorldTimeChange change;
+            change.hours = options.timeOfDay;
+            if (options.dayLength) change.rate = 86400.0 / *options.dayLength;
+            if (!hasWorldTime(app.startWorld()))
+            {
+                std::cerr << what << ": this game has no world time (EnvironmentSetup::enabled)" << std::endl;
+                return 1;
+            }
+            if (!setWorldTime(app.startWorld(), change, error))
+            {
+                std::cerr << what << ": " << error << std::endl;
+                return 1;
+            }
+        }
         return app.run();
     }
     catch (const std::exception& e)

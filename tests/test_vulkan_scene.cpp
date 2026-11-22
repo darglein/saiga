@@ -440,6 +440,67 @@ TEST_F(VulkanScene, LatchesOnlyRecordedFrames)
     EXPECT_NEAR(int(img(midY, midX)(0)), acesPixel(2 * gradient(midX)), 1);
 }
 
+// S36 (round-1 blocker 1): with an environment the frame exposure is exposureFromEv100(EV100, multiplier) over the
+// whole EV100 range of day and night, unclamped, and a radiance scaled to the matching exposure gives the same post
+// output (the pre-exposure keeps the fp16 values near 1)
+TEST_F(VulkanScene, Ev100RangeReachesPost)
+{
+    RenderSceneParameters p;
+    p.imgui       = false;
+    p.msaaSamples = 4;
+    p.toneMap     = ToneMap::Aces;
+    Create(p);
+    std::vector<int> pixels;
+    for (float ev100 : {20.0f, 15.0f, -1.0f, -8.0f})
+    {
+        EnvironmentState env;
+        env.ev100 = ev100;
+        scene->setEnvironment(env);
+        const float exposure = exposureFromEv100(ev100);
+        EXPECT_GT(exposure, std::exp2(-24.0f));
+        EXPECT_LT(exposure, std::exp2(10.0f));
+        const float radiance = 0.5f / exposure;
+        auto draw            = [&](vk::CommandBuffer cmd, bool linear, float pre)
+        { pattern.rect(cmd, 0, 0, W, H, pattern.push(1, radiance, linear, pre)); };
+        auto img = Frame(draw);
+        ASSERT_EQ(img.w, W);
+        EXPECT_FLOAT_EQ(scene->frameExposure(), exposure) << ev100;
+        EXPECT_FLOAT_EQ(scene->preExposure(), exposure) << ev100;
+        EXPECT_FLOAT_EQ(scene->exposure(), 1.0f);
+        EXPECT_NEAR(int(img(bgY, bgX)(0)), acesPixel(0.5), 1) << ev100;
+        pixels.push_back(int(img(bgY, bgX)(0)));
+    }
+    for (int px : pixels) EXPECT_NEAR(px, pixels.front(), 1);
+}
+
+// S36 (review 2, finding 6): a scene on which setEnvironment was never called keeps the unit-less exposure
+TEST_F(VulkanScene, NoEnvironmentKeepsUnitlessExposure)
+{
+    RenderSceneParameters p;
+    p.imgui       = false;
+    p.msaaSamples = 1;
+    p.toneMap     = ToneMap::Aces;
+    p.exposure    = 2;
+    Create(p);
+    auto draw = [&](vk::CommandBuffer cmd, bool linear, float pre) { DrawPattern(cmd, linear, pre); };
+    ASSERT_EQ(Frame(draw).w, W);
+    EXPECT_FALSE(scene->hasEnvironment());
+    EXPECT_FLOAT_EQ(scene->frameExposure(), 2.0f);
+    EXPECT_FLOAT_EQ(scene->exposure(), 2.0f);
+    // With an environment the multiplier stays a multiplier on top of the EV100
+    EnvironmentState env;
+    env.ev100 = 10;
+    scene->setEnvironment(env);
+    ASSERT_EQ(Frame(draw).w, W);
+    EXPECT_TRUE(scene->hasEnvironment());
+    EXPECT_FLOAT_EQ(scene->exposure(), 2.0f);
+    EXPECT_FLOAT_EQ(scene->frameExposure(), exposureFromEv100(10, 2));
+    // Clay ignores both
+    scene->setToneMap(ToneMap::Identity);
+    ASSERT_EQ(Frame(draw).w, W);
+    EXPECT_FLOAT_EQ(scene->frameExposure(), 1.0f);
+}
+
 // NaN, +inf and negative samples give black, white and black pixels (sanitized in the resolve and in post) and do not
 // spread to their neighbours, with 1 and 4 samples
 TEST_F(VulkanScene, SanitizesSpecialValues)

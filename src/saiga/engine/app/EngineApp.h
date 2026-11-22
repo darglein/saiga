@@ -17,6 +17,7 @@
 #include "saiga/engine/app/LoadingScreen.h"
 #include "saiga/engine/app/McpCallLog.h"
 #include "saiga/engine/core/Profiler.h"
+#include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/export.h"
 
 #include <array>
@@ -205,6 +206,18 @@ class SAIGA_ENGINE_API EngineApp
         return screenshotEarliest ? screenshotEarliest() : std::nullopt;
     }
 
+    // ---- environment (S36, §10.7) ---------------------------------------------------------------------------------
+    // The presentation settings of the environment (exposure, ambient, clouds, atmosphere, the sun override): owned by
+    // the app, initially EngineAppSetup::environment; changed by the Lighting tab, set_lighting and the game. The
+    // extract of every rendered frame reads them
+    const Vulkan::EnvironmentSettings& environmentSettings() const { return envSettings; }
+    void setEnvironmentSettings(const Vulkan::EnvironmentSettings& settings) { envSettings = settings; }
+    // The environment of the view camera's space now (alpha of the world; get_lighting, the Lighting tab)
+    EnvironmentSample sampleViewEnvironment() const;
+    // The world sends its environment to the sink every rendered frame (S36a1a: only worlds with
+    // EnvironmentSetup::enabled; the scene keeps its unit-less exposure otherwise until the flip of S36a1c)
+    bool sendsEnvironment() const;
+
     // ---- spaces (S21, §12.4) -------------------------------------------------------------------------------------
     // The running load of the view camera's space (null: none; never with --no-render). Started by a change of the
     // view space to a space that is not ready (EngineAppSetup::loadingRadius), tracked every rendered frame
@@ -245,6 +258,7 @@ class SAIGA_ENGINE_API EngineApp
 
     EngineAppSetup appSetup;
     AppOptions appOptions;
+    Vulkan::EnvironmentSettings envSettings;
     std::unique_ptr<Vulkan::VulkanWindow> appWindow;
     std::unique_ptr<Vulkan::RenderScene> renderScene;
     std::unique_ptr<VulkanRenderSink> sink;

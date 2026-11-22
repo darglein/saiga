@@ -107,6 +107,7 @@ Quat cameraLookRotation(const Vec3& direction, const Vec3& fallbackForward)
 EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     : appSetup(setup),
       appOptions(options),
+      envSettings(setup.environment),
       cameraHolder(std::make_unique<CameraHolder>()),
       frameProfiler(600),
       gpuProfiler(600)
@@ -872,6 +873,17 @@ void EngineApp::releaseInputNow()
     writePlayerInput();
 }
 
+EnvironmentSample EngineApp::sampleViewEnvironment() const
+{
+    const World& w = *gameWorld;
+    return sampleEnvironment(w, view.space, w.alpha(), envSettings, w.environmentSetup());
+}
+
+bool EngineApp::sendsEnvironment() const
+{
+    return gameWorld && gameWorld->environmentSetup().enabled;
+}
+
 void EngineApp::renderFrame()
 {
     const GameRenderHooks& h = appSetup.renderHooks;
@@ -907,6 +919,10 @@ void EngineApp::renderFrame()
     updateSpaceLoading();
     sink->setInterpolation(float(w.alpha()));
     sink->setCamera(view.space, view.position, view.rotation, view.fovy);
+    // The environment of the view camera's space (S36): after beforeRender (the game may change the settings or the
+    // camera's space)
+    if (sendsEnvironment())
+        sink->setEnvironment(environmentState(w, view.space, w.alpha(), envSettings, w.environmentSetup()));
     view.snap     = false;
     auto noRecord = [](vk::CommandBuffer) {};
     auto gui      = [&]()

@@ -24,6 +24,7 @@
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
 #include "saiga/engine/net/Replication.h"
@@ -1276,6 +1277,28 @@ void registerLightingScenarios(ScenarioList& s)
                       "the clouds wrap into the tile");
               if (w.networked())
               {
+                  // The client extrapolates from the last snapshot (validAt): its render-time sun moves with the
+                  // interpolation factor inside a step and never back from one step to the next (the estimated host
+                  // time may hold while snapshots are late), also between snapshots
+                  {
+                      World& client  = w.client(w.defaultPeer());
+                      double lastEnd = -1;
+                      bool monotone  = true;
+                      auto hours     = [&](double alpha)
+                      {
+                          const EnvironmentSample e = sampleEnvironment(client, 0, alpha, Vulkan::EnvironmentSettings(),
+                                                                        client.environmentSetup());
+                          return double(e.time.day) * 24 + e.time.timeOfDay;
+                      };
+                      for (int k = 0; k < 8; ++k)
+                      {
+                          const double a = hours(0), b = hours(0.5), c = hours(1);
+                          monotone = monotone && a < b && b < c && c >= lastEnd - 1e-12;
+                          lastEnd  = c;
+                          w.step();
+                      }
+                      w.check(monotone, "the client's sun is monotonic between snapshots");
+                  }
                   std::string refused;
                   w.check(!setWorldTime(w.client(w.defaultPeer()), WorldTimeChange{6.0, std::nullopt, std::nullopt},
                                         refused),
