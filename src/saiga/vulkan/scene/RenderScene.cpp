@@ -1331,6 +1331,9 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
             out.shadowLight = vec4(e.sunDir(0), e.sunDir(1), e.sunDir(2), 1);
         else if (moonGround > 0)
             out.shadowLight = vec4(e.moonDir(0), e.moonDir(1), e.moonDir(2), 2);
+        // The moon in daylight adds about 1e-6 of the sun's light: no transmittance lookup and GGX for it (the sky's
+        // LUTs and the moon disc take the environment's values)
+        if (moonGround < 1e-4f * sunGround) out.moon(3) = 0;
         out.minAmbient      = vec4(e.minAmbient(0), e.minAmbient(1), e.minAmbient(2), e.ambientScale);
         out.enclosedAmbient = vec4(e.enclosedAmbient(0), e.enclosedAmbient(1), e.enclosedAmbient(2), 0);
         // The cloud layer: the cloudiness through the noise's histogram (the layer's mean coverage follows the
@@ -1407,6 +1410,7 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
     lightingSet->write(frameIndex, block, b);
+    lastBlock = block;
 
     // The statistics of this frame (S36a1b)
     LightingStatistics& st = lightStats;

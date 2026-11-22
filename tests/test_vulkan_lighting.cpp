@@ -1155,6 +1155,30 @@ TEST_F(AtmosphereTest, SkyIsBlueAtNoonAndRedAtSunset)
     EXPECT_GT(away(2) / std::max(away(0), 1e-6f), glow(2) / std::max(glow(0), 1e-6f));
 }
 
+// The moon in daylight gives no direct light in the shading (its light is below 1e-4 of the sun's on the ground: the
+// shaders skip its transmittance lookup and GGX); at night, or as bright as the sun, it does. The sky keeps it
+TEST_F(AtmosphereTest, MoonSkippedInDaylight)
+{
+    EnvironmentState day = sunAt(45);
+    day.moonDir          = vec3(0, 0.5f, 0.8660254f);
+    day.moonIlluminance  = 0.27f;
+    Physical(day, Vec3(0, 0.3, 1), 1.2, false);
+    RenderFrame();
+    EXPECT_EQ(scene->lastLightingBlock().moon(3), 0.0f);
+    EXPECT_EQ(scene->lastLightingBlock().sun(3), day.sunIlluminance);
+    day.moonIlluminance = 0.5f * day.sunIlluminance;
+    scene->setEnvironment(day);
+    RenderFrame();
+    EXPECT_EQ(scene->lastLightingBlock().moon(3), day.moonIlluminance);
+    EnvironmentState night = sunAt(-30);
+    night.moonDir          = day.moonDir;
+    night.moonIlluminance  = 0.27f;
+    scene->setEnvironment(night);
+    RenderFrame();
+    EXPECT_EQ(scene->lastLightingBlock().moon(3), 0.27f);
+    EXPECT_EQ(scene->lastLightingBlock().shadowLight(3), 2.0f);
+}
+
 // The night sky: the full moon disc is bright, the dark sky beside it; a moonless sky shows stars (isolated bright
 // pixels over a dark background)
 TEST_F(AtmosphereTest, NightSkyHasStarsAndMoon)

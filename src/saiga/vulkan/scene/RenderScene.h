@@ -10,6 +10,7 @@
 #include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
+#include "saiga/vulkan/scene/SceneLighting.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 #include "saiga/vulkan/scene/TerrainPass.h"
 
@@ -43,7 +44,6 @@ class DebugLines;
 class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
-struct SceneLighting;
 struct PrototypeSettings;
 
 /**
@@ -355,6 +355,8 @@ class SAIGA_VULKAN_API RenderScene
     DebugLines& debugLines() { return *lines; }
     // The statistics of the newest recorded frame (the luminance reduction when it was requested)
     const LightingStatistics& lightingStatistics() const { return lightStats; }
+    // The lighting block of the last recorded frame (tests)
+    const SceneLighting& lastLightingBlock() const { return lastBlock; }
     // probe_lighting's sequence at a pixel of the next frames (8 frames; requests made before the sequence starts share
     // it). The camera and the environment (with it the wind phases) are held during the sequence (setCamera /
     // setEnvironment take effect after it); the callback runs after the last frame. While it runs, screenshots and
@@ -400,6 +402,7 @@ class SAIGA_VULKAN_API RenderScene
     std::optional<float> exposureViewCentre;
     float exposureViewRange = kDefaultExposureViewRange;
     LightingStatistics lightStats;
+    SceneLighting lastBlock;
     struct ProbeRun;
     struct ProbeRequest
     {

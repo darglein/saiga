@@ -11,6 +11,8 @@
 
 #include "terrain_common.glsl"
 #include "terrain_shading.glsl"
+// S36a1c review: the light terms come from the vertex shader
+#define VERTEX_LIGHT_INPUT
 #include "lighting/lighting.glsl"
 
 // Position relative to the camera
@@ -18,12 +20,16 @@ layout(location = 0) in vec3 inPos;
 layout(location = 1) in vec3 inNormal;
 layout(location = 2) flat in float inLod;
 layout(location = 3) in float inSkirt;
+layout(location = 4) in vec3 inSunE;
+layout(location = 5) in vec3 inMoonE;
+layout(location = 6) in vec4 inFog;
 
 layout(location = 0) out vec4 outColor;
 
 void main()
 {
-    bool water = inLod < 0.0;
+    vertexLightInput = VertexLight(inSunE, inMoonE, inFog);
+    bool water       = inLod < 0.0;
     vec3 N;
     // A skirt fragment (a triangle with a skirt vertex) has the interpolated normal of its edge vertices: flat shading
     // would light the vertical skirt as a wall
@@ -53,6 +59,8 @@ void main()
     }
     SurfaceInput si = surfaceInput(prototypeAlbedo(albedo), N, inPos);
     si.roughness    = water ? 0.08 : 0.9;
+    // The land's specular environment from the SH (rough, dielectric)
+    if (!water) si.flags = surfaceShSpecular;
     // The clay water: S19a's 0.62 on the lit gray
     if (water && !physicalLighting()) si.tint = vec3(0.62);
     if (frame.flags.z == 1 && !water) si.tint = lodTint(inLod);

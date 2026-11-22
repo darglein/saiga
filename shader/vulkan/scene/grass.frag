@@ -12,6 +12,9 @@
 
 #include "terrain_common.glsl"
 #include "terrain_shading.glsl"
+// S36a1c review: the light terms and the cloud shadow come from the vertex shader (per tuft)
+#define VERTEX_LIGHT_INPUT
+#define SHADOW_INPUT
 #include "lighting/lighting.glsl"
 
 // Position relative to the camera
@@ -20,6 +23,9 @@ layout(location = 1) in vec3 inNormal;
 layout(location = 2) in vec3 inUvLayer;
 layout(location = 3) in float inAo;
 layout(location = 4) flat in float inLod;
+layout(location = 5) flat in vec4 inSunE;
+layout(location = 6) flat in vec3 inMoonE;
+layout(location = 7) flat in vec4 inFog;
 
 layout(location = 0) out vec4 outColor;
 
@@ -32,7 +38,9 @@ void main()
         if (alpha <= 0.0 || (frame.grass.w < 1.5 && alpha < 0.5)) discard;
     }
 
-    vec3 N = normalize(inNormal);
+    vertexLightInput = VertexLight(inSunE.rgb, inMoonE, inFog);
+    shadowInput      = inSunE.a;
+    vec3 N           = normalize(inNormal);
     SurfaceInput si = surfaceInput(prototypeAlbedo(lighting.albedoGrass.rgb), N, inPos);
     si.ao           = inAo;
     si.roughness    = 0.7;
