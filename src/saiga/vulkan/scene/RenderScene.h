@@ -189,6 +189,12 @@ class SAIGA_VULKAN_API RenderScene
                     uint32_t boneOffset = 0);
     void removeDynamic(InstanceHandle h);
 
+    // The render settings of a space (S21): the camera's space decides what the frame draws (an enclosed space: no
+    // terrain, grass, water or sky, the background as the clear color, kEnclosedLighting); a space without settings
+    // is drawn as open world
+    void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings);
+    const SpaceRenderSettings& spaceSettings(SpaceId space) const;
+
     // The camera (double; fovy: vertical field of view in radians); the aspect from size(), the near plane from the
     // parameters (reversed-Z, infinite far plane). The camera looks along -z of its rotation, y is up. Also from the
     // transfer callback: the frame being recorded uses it (viewMatrix() / projectionMatrix() follow at once)
@@ -299,6 +305,8 @@ class SAIGA_VULKAN_API RenderScene
     std::array<uint32_t, 2> nextReservedId = {1, 1};
     FrameTimes lastTaken;
 
+    // The render settings per SpaceId (setSpaceSettings; missing: open world)
+    std::vector<SpaceRenderSettings> spaceRenderSettings;
     // The camera (setCamera)
     bool cameraSet       = false;
     SpaceId cameraSpace  = 0;
@@ -329,7 +337,7 @@ class SAIGA_VULKAN_API RenderScene
     // The matrices of the camera for the size
     void updateMatrices(int width, int height);
     // The lighting block of the frame's instance draws
-    void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, int samples,
+    void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, bool enclosed, int samples,
                        SceneLighting& out) const;
     const Callback* transferFn         = nullptr;
     const Callback* renderFn           = nullptr;

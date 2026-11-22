@@ -10,6 +10,7 @@
 
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/save/GenericDecode.h"
+#include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
 
 #include <algorithm>
@@ -134,6 +135,29 @@ const Json& jsonOf(const Value& v, const std::vector<uint8_t>& data, const Parse
     return v.json;
 }
 
+// SPCE: one difference per space id whose row differs ("space 1: 'cellar' (enclosed) vs 'cave' (enclosed)")
+template <class Add>
+void diffSpaceTables(const SpaceTable& a, const SpaceTable& b, Add& add)
+{
+    auto row = [](const SpaceTable& t, size_t i)
+    {
+        if (i >= t.rows.size()) return Json();
+        return Json("'" + t.rows[i].name + "' (" + (t.rows[i].kind == SpaceKind::Enclosed ? "enclosed" : "open world") +
+                    ")");
+    };
+    for (size_t i = 0; i < std::max(a.rows.size(), b.rows.size()); ++i)
+    {
+        const Json x = row(a, i), y = row(b, i);
+        if (x == y) continue;
+        SaveDifference d;
+        d.kind  = "space";
+        d.field = std::to_string(i);
+        d.a     = x;
+        d.b     = y;
+        add(std::move(d));
+    }
+}
+
 Json actionsJson(const ParsedSave& p)
 {
     Json::array a;
@@ -170,6 +194,11 @@ std::string SaveDifference::describe() const
         return e + " only in " + kind.substr(8) + (className.empty() ? "" : " (" + className + ")");
     if (kind == "component_only_in_a" || kind == "component_only_in_b")
         return e + " " + component + " only in " + kind.substr(18);
+    if (kind == "space")
+        return "space " + field + ": " + (a.is_string() ? a.string_value() : "none") + " vs " +
+               (b.is_string() ? b.string_value() : "none");
+    if (kind == "section_only_in_a" || kind == "section_only_in_b")
+        return "section " + component + " only in " + kind.substr(16);
     if (kind == "flags")
         return "entity index " + std::to_string(entity.index) + " " + kind + ": " + short_(a) + " != " + short_(b);
     return kind + (component.empty() ? "" : " " + component) + ": " + short_(a) + " != " + short_(b);
@@ -248,6 +277,17 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
         world("free_list", fa, fb);
     }
     world("actions", actionsJson(pa), actionsJson(pb));
+    // Optional sections (D7): present on one side only, then one comparison per tag
+    auto section = [&](uint32_t tag, bool inA, bool inB)
+    {
+        if (inA == inB) return;
+        SaveDifference d;
+        d.kind      = inA ? "section_only_in_a" : "section_only_in_b";
+        d.component = tagName(tag);
+        add(std::move(d));
+    };
+    section(kTagSpaces, pa.spaces.has_value(), pb.spaces.has_value());
+    if (pa.spaces && pb.spaces) diffSpaceTables(*pa.spaces, *pb.spaces, add);
     {
         std::map<std::string, bool> names;
         for (auto& kv : da.events) names[kv.first] = true;

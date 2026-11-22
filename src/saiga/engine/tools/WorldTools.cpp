@@ -65,23 +65,28 @@ std::vector<ToolSpec> toolSpecs()
     return {
         {"describe_world",
          "Reads the registrations: every component (fields with types, replication, global/space state), game object "
-         "class and event. Start here to learn the names and fields the other tools take. Changes nothing.",
+         "class and event, and the spaces (id, name, kind, size_chunks, has_terrain, sea_level with terrain, "
+         "site_origin of an enclosed space). Start here to learn the names and fields the other tools take. Changes "
+         "nothing.",
          S::ObjectSchema({})},
         {"world_status",
          "Reads step index, simulation time, paused, time scale, entity and game object counts and the "
-         "world hash; in an app with --coop (the tools see the client world) also host: the hidden host world's "
-         "step, time, paused, time scale, counts, dropped steps and hash. Changes nothing.",
+         "world hash, and per space (spaces) the entity count and the players in it; in an app with --coop (the "
+         "tools see the client world) also host: the hidden host world's step, time, paused, time scale, counts, "
+         "dropped steps and hash. Changes nothing.",
          S::ObjectSchema({})},
         {"list_entities",
          "Lists entities in index order with class, position and component names. Filters: class, components (all "
-         "required), near {space, position, radius} (uses the positions of the last step: entities spawned or moved "
-         "since are found after the next step; results then have distance). include: component names whose values "
+         "required), space (the entities of one space, without near), near {space, position, radius} (uses the "
+         "positions of the last step: entities spawned or moved since are found after the next step; results then "
+         "have distance). include: component names whose values "
          "are returned per entity (values). Paged: limit (default 100, at most 1000), after (the index of the last "
          "entity of the previous page; the result has next when more exist). Changes nothing.",
          S::ObjectSchema(
              {{"class", S::StringProperty("Class name")},
               {"components", arrayProperty("Component names", Json::object{{"type", "string"}})},
               {"near", objectProperty("{space?: 0, position: [x,y,z], radius}")},
+              {"space", S::IntegerProperty("Only the entities of this space (not with near)")},
               {"include", arrayProperty("Return these components' values", Json::object{{"type", "string"}})},
               {"limit", S::IntegerProperty("Maximum entities (1..1000, default 100)")},
               {"after", S::IntegerProperty("Entity index to continue after")}})},
@@ -118,6 +123,16 @@ std::vector<ToolSpec> toolSpecs()
                           {"scale", S::Vec3Property("Scale")},
                           {"teleport", S::BooleanProperty("Teleport (default true)")}},
                          {"entity"})},
+        {"move_to_space",
+         "Moves a root and its descendants to another space (or within its space) at position [x,y,z] with rotation "
+         "[w,x,y,z] (default: the current one): a teleport; for a client-owned root on the host the owner gets the "
+         "move as a command. Not children (move their root) or state entities. Returns the entity and previous "
+         "{space, position, rotation} (sent back as a move_to_space it restores the entity).",
+         S::ObjectSchema({{"entity", entityProperty("The root entity")},
+                          {"space", S::IntegerProperty("Target space (describe_world lists them)")},
+                          {"position", S::Vec3Property("Position in meters in the target space")},
+                          {"rotation", quatProperty("Rotation quaternion [w,x,y,z] (default: the current one)")}},
+                         {"entity", "space", "position"})},
         {"spawn",
          "Creates an entity at position with rotation [w,x,y,z] and scale: with class a game object (configure and "
          "onSpawn run), else a plain entity. components {name: fields} are checked before anything is created and "

@@ -46,6 +46,7 @@ class FlightRender
     FrameClock clock;
     Entity followed;
     uint64_t followedSnaps = 0;  // the followed plane's last snap seen (ExtractSystem::snapSequence)
+    SpaceId cameraSpace    = 0;  // the followed plane's space (S21: the view camera's)
 };
 
 }  // namespace Game

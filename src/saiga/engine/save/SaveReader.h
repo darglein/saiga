@@ -8,10 +8,12 @@
 
 #include "saiga/core/math/math.h"
 #include "saiga/engine/ecs/Entity.h"
+#include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SchemaTable.h"
 #include "saiga/export.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -62,9 +64,22 @@ struct ParsedSave
     uint64_t actionSequence = 0;
     uint64_t rngState = 0, rngIncrement = 0;
     uint64_t persistentCounter = 0;
+
+    // ---- the optional sections (S21, D7): one member each, absent when the section is not in the blob
+    // A large optional section kept as its raw bytes [begin, end) of the blob after its version (decoded by the
+    // loader's own pass before the commit; S22's TERR)
+    struct Range
+    {
+        uint32_t version = 0;
+        size_t begin = 0, end = 0;
+    };
+    std::optional<SpaceTable> spaces;  // SPCE
 };
 
 SAIGA_ENGINE_API bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& error);
+// SPCE format 1 (the one signature of the optional-section parsers: parseX(BinaryReader&, version, X&, error)): at
+// most 65535 rows, names of at most 256 bytes, a known kind; no bytes left over
+SAIGA_ENGINE_API bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTable& out, std::string& error);
 
 }  // namespace Engine
 }  // namespace Saiga

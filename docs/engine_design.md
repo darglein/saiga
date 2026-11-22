@@ -185,6 +185,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | `RenderScene` prototype passes (S19a): the trees as S18 instance sets of the `PrototypeFoliage` pipeline class (`prototype_foliage.vert/.frag`, the shading include `prototype_shading.glsl` shared with the grass), the lighting block of the instance draws, `setTime` (wind phases, no wall clock), `setMeshLodDistances`, `reserveIds` / `kGameReservedIds`, the opaque depth pre-pass (off for the prototype) and the `SAMPLE_ZERO` depth resolve, the sub-sections of the GPU sections (§10.1, §10.5); S20: `setPrototypeEnvironment` (the sky on `TerrainFrame`, the foliage texture; replaces `setPrototypeTerrain`, `PrototypeWorld`, `TerrainRenderer` and `GrassRenderer`) | `src/saiga/vulkan/scene/`, `shader/vulkan/scene/` | [exists], the environment transitional until S36 |
 | `RenderScene` terrain (S20): the GPU terrain set `TerrainAtlas` (int32 storage buffers: atlas, pyramid, page table, grass masks; the upload queue with a per-frame byte cap; rebuild per space or layout; patches; hierarchical node bounds; `memoryEstimate`), the CDLOD `TerrainPass` (selection in double, 64 m frame anchor, integer node origins, skirts, the water plane, `TerrainFrame`, the probe hooks), the chunk-relative `GrassPass` from grass masks, the pure generation `TerrainTiles` (§10.1, §12.2) | `src/saiga/vulkan/scene/Terrain*`, `GrassPass.*`, `shader/vulkan/scene/terrain*`, `grass.*`, `sky.*`, `tests/test_vulkan_terrain.cpp` | [exists: S20] |
 | Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
+| Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition`, `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
 | World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
@@ -429,7 +430,8 @@ class Transform
     static constexpr const char* name = "Transform";
     static constexpr ComponentId id = 0;
     static constexpr uint32_t version = 1;      // schema version (R-SAVE-1)
-    SpaceId space() const;                      // changed only by World::moveToSpace
+    SpaceId space() const;                      // changed by World::moveToSpace and the engine's hierarchy and
+                                                // replication paths (one World-internal primitive; S21, A6)
     const Vec3& position() const; const Quat& rotation() const; const Vec3& scale() const;
     void setPosition(const Vec3&); void setRotation(const Quat&); void setScale(const Vec3&);
     void teleport(const Vec3&, const Quat&);   // no interpolation from the previous pose
@@ -459,7 +461,17 @@ struct LocalTransform { Vec3 position = Vec3::Zero(); Quat rotation = Quat::Iden
   compares the poses bitwise with its baseline instead and handles a pending `wasTeleported()` once (§10.3); the extract
   reads the entities changed in phases 7-8 of a step from `changedDuringLastStep()` (`retainStepChanges`).
 - `World::moveToSpace(e, space, position, rotation)` moves an entity and its descendants to another space (a teleport:
-  the body moves to the other space's physics system, grid and interest are re-evaluated).
+  the body moves to the other space's physics system, grid and interest are re-evaluated). [exists: S21] A6: a root
+  only (a child's parent decides; state entities have no space to change); applied at once, between steps and during a
+  step (a pose write, not a structural change: grid queries see the old space until phase 6, §9.5). One World-internal
+  primitive writes the space (`setSubtreeSpace`: the root and its descendants at once, their poses in phase 6 because
+  the root `wasTeleported()`; `teleportTo`: the subtree's space, then one teleport of the root), and the complete list
+  of writers is: `moveToSpace` (on the host for a spawned client-owned root with an `OwnerCommand`, §13.3),
+  `ownerTeleport` (`moveToSpace` in the root's space), the owner's `OwnerCommand` apply, the client's spawn and snapshot
+  apply of a root (§13.4), attaching a child (`add<Parent>`, `reparentNow`: the child and its subtree take the parent's
+  space, flagged as teleported; on a client refused, with an assert, when a local parent would move a replicated
+  entity of the subtree into another space, R-NET-2) and the creation of a space-state entity (§7.8). **A child is always in its parent's
+  space**, from the moment of the write; phase 6 asserts it and repairs nothing.
 - Phase 6 updates children from parents in a depth-sorted list (rebuilt on structural changes); a changed parent marks
   its descendants changed. Destroying a parent destroys its children. `add<Parent>` rejects cycles and a dead parent
   (between steps an assert; during a flush the child is destroyed, like the child of a destroyed parent); `Parent` is
@@ -573,7 +585,7 @@ component asserts: world-state components are added at world creation by their r
 in the slot state and excluded from the spatial grid, chunk membership, chunk unloading and radius interest; their
 interest and residency follow only the rules above.
 `WorldTime` (global) and `Weather` (per space) are added in S36. [exists: S10 for the mechanism (`global`,
-`spaceState`, `readGlobal`, `readSpaceState`; only space 0 before S21)]
+`spaceState`, `readGlobal`, `readSpaceState`); S21: one space-state entity per space]
 
 S10 implementation: the World creates the world-state entity when at least one component is registered with
 `registerGlobal`, and the space-state entity of space 0 when one is registered with `registerSpaceState` (a world
@@ -583,6 +595,12 @@ are visible in views and in the world API, so agents read and change them like o
 `set_global`). In every build they are not destroyed, get no `Parent` (a parent's cascade would take them along) and
 keep their global and space-state components (the refusals assert in builds with asserts).
 
+S21 (A10): one space-state entity per space (in `SpaceId` order after the world-state entity, through
+`World::makeStateEntity`, shared with the loader); its identity is its `Transform::space` (saved already, so a load
+maps the entities by it, not by slot order: a space added to the setup gets its entity at a free slot with its own
+staged defaults). Before S32 every client receives every space-state entity (bound `NetId` 2 + space); the interest
+rule above applies from S32.
+
 ### 7.9 World setup
 
 ```cpp
@@ -591,7 +609,8 @@ struct WorldConfig                               // game policies (R-MECH-1)
     double stepsPerSecond = 60;                   // S08
     int maxStepsPerAdvance = 4;                   // S08
     TickPolicy ticking;                           // S10: §8.4
-    std::vector<SpaceTemplate> spaceTemplates;    // S20 (one entry, space 0), S21 more: templates; space instances come from the world plan (§12.1)
+    std::vector<SpaceTemplate> spaceTemplates;    // S20, S21: 1..65535 templates, SpaceId = index, append-only for a
+                                                  // game's lifetime; space instances come from the world plan (§12.1, S23)
     int maxPlayers = 8, maxSimulationIslands = 4; // S24 (§12.3)
     bool hardIslandLimit = false;                 // S24: true: requestArrival returns false beyond the limit
     bool clientPush = true;                       // S29: clients push host bodies with PushImpulse (§11)
@@ -599,9 +618,13 @@ struct WorldConfig                               // game policies (R-MECH-1)
     int interpolationDelaySteps = 6;              // S16: RenderPose samples the buffer this far behind (§13.4)
 };
 
-// [exists: S20] (engine/world/SpaceTemplate.h; A7): name, kind (OpenWorld only; Enclosed is rejected until S21),
-// baseSpacing, seaLevel, sizeChunks (open world: a multiple of 16 in 16..512) and prototypeHeight; validated by
-// validateSpaceTemplates in the World constructor (SAIGA_EXIT_ERROR, every build, D1). An empty spaceTemplates means one
+// [exists: S20, S21] (engine/world/SpaceTemplate.h; A7): name (unique, non-empty, at most 256 bytes; S21), kind,
+// baseSpacing, seaLevel, sizeChunks (open world: a multiple of 16 in 16..512) and prototypeHeight, background (S21);
+// validated by validateSpaceTemplates in the World constructor (SAIGA_EXIT_ERROR, every build, D1). S21 (A17): an
+// enclosed template has no terrain (hasTerrain() false) and 1..512 chunks; its seaLevel and baseSpacing are ignored;
+// SpaceTemplate::enclosed(name, sizeChunks = 4) builds one; its chunk range is [0, sizeChunks)^2 as for an open world,
+// its authored site's origin the centre of the middle chunk, enclosedOrigin(sizeChunks) = (sizeChunks / 2) * 256 + 128
+// m on both axes ((640, 0, 640) for 4 chunks). An open-world template without a hook is flat. An empty spaceTemplates means one
 // flat default template; a space without a hook is flat and draws no terrain (hasTerrain(), A22, E6: the single "has
 // terrain" test; S23a: Generator::hasTerrain()). ambient and fog are [S36]: until then the game's PrototypeSettings
 // carry them as run-time settings. A3 (D11): space 0's seed is WorldSetup::seed, index >= 1 hashCombine(seed, index)
@@ -629,6 +652,7 @@ struct SpaceTemplate                              // S20
     FogSettings fog;                              // §10.5: Vec3 color; double density, heightFalloff, baseHeight
                                                   // (both in saiga/vulkan/scene/RenderSceneTypes.h, prototype values)
     GeneratorId generator = 0;                    // §12.1 (S23)
+    Vec3 background = Vec3(0.02, 0.02, 0.025);    // S21: the clear color of an enclosed space (linear RGB) until S36
 };
 
 struct WorldSetup
@@ -708,8 +732,12 @@ class World
     Entity create();
     template <class T, class... C> Entity spawn(const Vec3& position, C&&... initial);   // space 0 [exists: S10]
     template <class T, class... C> Entity spawnIn(SpaceId space, const Vec3& position, C&&... initial);  // [S10]
-                                                                    // (asserts space == 0 before S21)
-    void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);              // [S21]
+                                                                    // any space < spaceCount() (S21)
+    void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);  // §7.4 [exists: S21]
+    size_t spaceCount() const;                                      // one per template [exists: S21]
+    double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
+        // §12.4 [exists: S21, E8]: the one readiness the app reads; S21 the terrain's (TerrainSystem::readiness),
+        // S23b adds the content sets, S27 far content
     void destroy(Entity e);
     bool alive(Entity e) const;
     template <class T, class... A> void add(Entity e, A&&... args);
@@ -757,7 +785,8 @@ class World
     PhysicsWorld& physics();                 // §11 [planned: S28]
     Animation& anim();                       // §10.6 [planned: S34]
     Navigation& nav();                       // §9.7 [planned: S45]
-    void requestTransition(Entity player, Entity link);   // §12.4 [planned: S21]; called by the game (policy)
+    void requestTransition(Entity e, Entity link);   // §12.4 [exists: S21, A7]: any root (players, vehicles, driver
+                                                     // entities); the target and arrival pose copied at the request
     bool requestArrival(Entity e, SpaceId space, const Vec3& position);   // §12.3; false: rejected by a game limit
                                                                           // [planned: S24]
     template <class M> void send(uint8_t peer, const M& message);   // §13.6 [exists: S15]; also sendRaw, flushOutbox,
@@ -773,7 +802,8 @@ class World
     template <class T> const T& data(const std::string& name) const;   // §14 [exists: S11]; DataError if missing
     template <class T> const T& data(const DataRef<T>& ref) const;     // resolved once per store [S11]
     bool reloadData(std::string& error);                               // entries updated in place [S11]
-    double terrainHeight(SpaceId space, double x, double z) const;     // §12.2 [planned: S20]
+    double terrainHeight(SpaceId space, double x, double z) const;     // §12.2 [exists: S20]; S21 (A2): 0 in an
+                                                                       // enclosed space (its floor) until S23 / S28
     double waterHeight(SpaceId space, double x, double z) const;       // §10.9 [planned: S39]
     Entity resolve(PersistentId id) const;                             // §9.6 [exists: S10]
     template <class... C> View<C...> ownedBy(uint8_t peer);   // §13.3 [exists: S16: one lookup per entity in the
@@ -843,10 +873,10 @@ generic change detection (only the `Transform` flags), access declarations per s
 
 | Phase | Work | Runs on |
 |---|---|---|
-| 1 Input | local input and received messages (client actions, owner commands, §13.3) in (peer, sequence) order within a receive round (across rounds only per channel and reliability) -> components; each handler's commands are applied before the next handler; S16: spawns, destroys, hierarchy and component changes apply as one unit each, every snapshot goes to the interpolation buffers, then a client applies the newest complete snapshot and slews its host clock | all peers (each for what it owns) |
+| 1 Input | local input and received messages (client actions, owner commands, §13.3) in (peer, sequence) order within a receive round (across rounds only per channel and reliability) -> components; each handler's commands are applied before the next handler; S16: spawns, destroys, hierarchy and component changes apply as one unit each, every snapshot goes to the interpolation buffers, then a client applies the newest complete snapshot and slews its host clock; S21: then `spaceTransitionSystem` (host) completes the previous step's `PendingTransition`s | all peers (each for what it owns) |
 | 2 Events | `behaviourEventSystem` delivers the previous step's `DamageEvent`, `InteractEvent`, `ContactEvent` to `GameObject` handlers | host |
 | 3 Behaviour | `behaviourSystem`: `GameObject::update` for objects whose tick is due (§8.4) | host |
-| 4 Gameplay | engine and game systems in registration order (player control; the kinematic mover until S29) | per system (`RunOn`) |
+| 4 Gameplay | engine and game systems in registration order (player control; the kinematic mover until S29; S21: the optional `spaceLinkSystem`, registered by the game) | per system (`RunOn`) |
 | 5 Physics | owner poses in (S16: `ownerPoseSystem`, host), Jolt step, active bodies -> `Transform`, sorted contacts -> events, character movers from S29 (§11) | host; clients for what they own |
 | 6 Transform | hierarchy, spatial grid, chunk membership | all |
 | 7 Streaming | apply chunk results that are ready, request new ones (§12.3) | all |
@@ -861,6 +891,9 @@ clients apply received live modifications in phase 1.
 ```cpp
 void registerEngineSystems(SystemList& s)
 {
+    s.add(Phase::Input, "space_transition", spaceTransitionSystem, RunOn::Host);   // S21 (A8): first; after the
+        // received messages of phase 1; revalidates (a child, a state entity, a target out of range: removed with a log
+        // line), moveToSpace, SpaceTransitionEvent, removes PendingTransition (a command)
     s.add(Phase::Transform, "transform", transformSystem, RunOn::Both);   // S08: hierarchy, changed list
     s.add(Phase::Events, "behaviour_events", behaviourEventSystem);       // S10
     s.add(Phase::Behaviour, "behaviour", behaviourSystem);                // S10
@@ -1388,6 +1421,14 @@ void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double
                             // far); nothing is culled or drawn before the first setCamera; S19a: also from the
                             // transfer callback (the frame being recorded uses it, the matrices follow at once)
 void setInterpolation(float alpha);
+void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings);   // [exists: S21] (A12) SpaceRenderSettings
+                            // {bool openWorld; vec3 background} (RenderSceneTypes.h); the camera space's settings decide
+                            // the frame: an enclosed space draws no terrain, grass, water or sky (a terrain set of it
+                            // is ignored), clears to background (linear, through the HDR path; sRGB-encoded in clay
+                            // mode) and lights the instances with kEnclosedLighting (the PrototypeSettings defaults
+                            // without fog, PrototypeWorld.h), independent of setPrototypeEnvironment; a space without
+                            // settings is open world (S20's frame); superseded by setEnvironment for ambient and fog in
+                            // S36
 template <typename T> InstancePose<T> interpolatePose(const InstancePose<T>& prev, const InstancePose<T>& curr, T alpha);
                             // RenderSceneTypes.h: the shaders' dynamic pose on the CPU (lerp, slerp with curr negated
                             // if dot < 0, nlerp if dot > 0.9995); DynamicPose = InstancePose<double>
@@ -1568,6 +1609,9 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
     virtual void removeDynamic(InstanceHandle h) = 0;
     virtual void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) = 0;
     virtual void setInterpolation(float alpha) = 0;
+    virtual void setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings) = 0;   // [exists: S21] (A12):
+        // forwarded by the World once per SpaceId whenever a sink is set (as the mesh tables): openWorld = kind,
+        // background from the template; VulkanRenderSink -> RenderScene::setSpaceSettings, RecordingRenderSink records
     // [planned: S30] addGeneratedMesh(RegionId, const MeshLods&, MaterialId) -> MeshId, removeGeneratedMesh(MeshId)
     // [exists: S20] (A8, A9, A21): sent only through TerrainSystem's send point. A pyramid of another space or layout
     // starts a new GPU terrain set (D5; the sink drops the old set's tiles and masks itself, no removal calls) and
@@ -1697,6 +1741,11 @@ tracks nothing and costs nothing):
   (WorldPose) -> ChunkPose {ChunkId chunk; DynamicPose pose;}` for cosmetic `setDynamic`.
 - The extract writes no components, holds no state a save needs (R-STATE-1) and never changes `world.hash()` (tested
   with a recording sink).
+- S21 (A4): `RenderPose` version 2 gets `SpaceId space` (the last field; `Replicate::Never`, `Saved::No`), and every
+  interpolation sample its space: sampling never interpolates between samples of different spaces (a space change is a
+  break like a counter change: the newer sample is used from its step on, with `kTeleported`). The extract takes the
+  space from `RenderPose` when the pose comes from it (also for a composed child: the `RenderPose` owner's space), else
+  from `Transform`; a space change is a teleport pair (prev = curr) in the new space's chunk.
 - S16 (`engine/net/InterpolationSystem.*`): `RenderPose {Vec3 position; Quat rotation; uint8_t flags}` (`kChanged`,
   `kChangedLastStep`, `kTeleported`, shifted every step) is written in phase 8 after the replication: on clients for
   remote entities (added by the spawn; children from their parent's `RenderPose` and `LocalTransform`), on the host for
@@ -2086,6 +2135,9 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
 
 ### 12.2 Height-map terrain [exists: S20 (height tiles); planned: S22 (terraforming)]
 
+S21 (A2): `terrainHeight` of an enclosed space (and of a hook-less open-world space) is 0, the floor plane; the
+kinematic mover walks on it until S23's authored geometry and S28's colliders.
+
 - **Integer heights**: int32 with the fixed unit `kHeightUnit` (1/1024 m, `constexpr double` in
   `saiga/core/math/ChunkId.h`, no offset), bounded by `kTerrainHeightLimit` = 2^23 units (+-8192 m, S20, A18: every hook
   result is clamped to it with `clampTerrainHeight`; S22 clamps edits, S23 generators to the same limit). Tiles,
@@ -2210,7 +2262,7 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
   `IslandLimitEvent {count}` and a statistic, the engine keeps simulating; with `WorldConfig::hardIslandLimit` set,
   `requestArrival` returns false. A Steam Deck can host small sessions (default: 4 players, 2 islands).
 
-### 12.4 Spaces and transitions [planned: S21]
+### 12.4 Spaces and transitions [exists: S21 (before S23/S24 as below); planned: S24 arrivals, S25 unloading]
 
 - The open world is a height field. Caves, dungeons and interiors are **separate spaces** (enclosed scenes): authored
   from prefabs or generated, with their own chunk grid, static mesh geometry and colliders, ambient light and fog
@@ -2230,15 +2282,42 @@ void GeneratorList::add(GeneratorId id, std::unique_ptr<Generator> generator);
      counter (§13.3); the host switches grid, interest and physics system immediately and drops poses with an older
      counter; the owner applies the command in phase 1.
 - Players can be in different spaces at the same time; the host simulates every space that contains a player (each
-  space is a simulation island, §12.3). Spaces without players are unloaded like chunks (their state goes to the chunk
+  space is a simulation island, §12.3). Before S24 every space is simulated (every entity is `Simulated`; A15). Spaces without players are unloaded like chunks (their state goes to the chunk
   store; entities are unloaded, not destroyed, §9.6).
 - Each peer renders only the space of its own camera; switching the space swaps the resident render data, no
-  rendering of two spaces at once.
+  rendering of two spaces at once. S21 (A12): one GPU terrain set for the camera's space (S20); a switch rebuilds it
+  (the layouts may differ), a terrain-less camera space clears it (`clearTerrain`, E1), other spaces keep only their
+  CPU-cached pyramid; an exit into an overworld with terrain re-streams its tiles around the camera (a short loading
+  screen; keeping them is S25's residency question).
 - **Before S23** (S21): there is one space instance per `spaceTemplates` entry (`SpaceId` = template index; seed: the world seed for space
   0, hashCombine(world seed, index) for index >= 1, S20 D11, so space 0 keeps the world seed of §12.1); authored enclosed geometry comes with prefabs in S23, its colliders in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
   affect the simulation.
+- **S21 as implemented** (A2, A7, A8, A9, A17): `requestTransition(e, link)` takes any root and copies the link's
+  target and arrival pose (a target out of range and a second request are logged refusals; during a step a command
+  that re-checks at the flush); the request is the saved component `PendingTransition {Entity link; SpaceId target;
+  Vec3 position; Quat rotation}` (`Replicate::Never`), completed by `spaceTransitionSystem` in phase 1 of the next step
+  (`moveToSpace`: `Transform::space()` of the root and its descendants changes at once, the spatial grid follows in
+  phase 6 as for every move, §9.5, so `queryRadius` in phases 1-5 of that step still finds the root in its old
+  space and not in the target; `SpaceTransitionEvent {entity, link, from, to}` readable one step later; a request
+  made during a step, also by a message handler in phase 1 before the system, is listed in
+  `World::transitionsRequestedInStep` and waits for the next completed step); `SpaceLink` is
+  `Replicate::Host` (clients show prompts). The optional `spaceLinkSystem` (phase 4, host, registered by the game)
+  requests the transition for an `InteractEvent` with a `SpaceLink` target whose actor is an alive root in the link's
+  space (other spaces: ignored with a log line). The interact chain from a queued action: step k the `ActionEvent`
+  (the game's interact system emits the `InteractEvent`), k + 1 the request, k + 2 the move in phase 1, k + 3 the
+  event. `terrainHeight` of an enclosed space is 0 (its floor plane) until S23 geometry and S28 colliders; an
+  enclosed space's chunk range is `[0, sizeChunks)^2`, its site origin `enclosedOrigin` (§7.9).
+- **The loading screen before S24** (A9): the app keeps the space of the last rendered frame's view camera; a change
+  starts a load only if `World::spaceReadiness(space, camera, EngineAppSetup::loadingRadius)` (E8: terrain in S21,
+  content sets from S23b) is below 1 after the frame's stream (an enclosed, flat or still resident target shows
+  nothing). Progress is the running maximum; a load ends at readiness 1 with no pending terrain uploads, at a complete
+  point (§8.3), or after `loadingMaxFrames` (a log line). `EngineAppSetup::{loadingRadius = 256, loadingMaxFrames =
+  600, showLoadingScreen, loadingScreen}`: the engine's default (`drawLoadingScreen`, ImGui until S46) is an opaque
+  background over the viewport, the space's name and a progress bar; the game may replace it. Not with `--no-render`;
+  with `--coop` the client world's camera decides. S24 adds a request-time signal for the player's peer (the move then
+  waits for the arrival).
   **Before S25**: no space unloading; the second space (height map or empty) keeps all its chunks resident.
 
 ### 12.5 Placed pieces (tier 1p) [planned: S30, extended in S31]
@@ -2340,7 +2419,16 @@ result as a difference rectangle (new heights minus base), never the brush; clie
 - Effects of the host on an owned entity (impulse, teleport, attach) are reliable `OwnerCommand` messages applied by the
   owner in phase 1. Every `OwnerCommand` that sets the pose (teleport, arrival, `MoveToSpace`) increments the entity's
   teleport counter (`uint8_t`, sent with every owner pose); the host applies the pose immediately and drops poses with
-  an older counter.
+  an older counter. S21 (A13): `OwnerCommand` version 2 carries the space (sent always; the kind stays `kTeleport`, no
+  separate move kind): `Replication::ownerMove` behind `moveToSpace`; the owner applies it with the World's space
+  primitive; an unknown space is rejected input (the pose not applied, the counter taken, so the owner's later states
+  are not dropped as stale). The host never takes a space from an owner state: a root state at the current counter in
+  another space than the host's is rejected input (`net/rejected`) before the owner record or the interpolation buffer
+  is touched; the samples and the first `RenderPose` use the host's space. An aborted phase that dropped an
+  `ownerMove`'s command also restores the host's `Transform` of the root (pose and space) with the counter, so host and
+  owner agree; the move of a host-owned (or not yet spawned) root in an aborted phase is restored the same way, so the
+  rerun of a phase-1 `spaceTransitionSystem` moves it once (its `PendingTransition` removal was dropped with the
+  phase's commands).
 - **No runtime ownership transfer**: ownership is set when an entity is created (player characters at join,
   `setOwner`) and never changes. Vehicles, platforms and carried objects stay host-owned; a driving client sends its
   input (`PlayerInput`, `PlayerAction`) and the game's vehicle control system on the host moves the vehicle, so steering
@@ -2378,6 +2466,14 @@ of the seat's driver (neutral without a live driver). Ownership stays as above: 
 belongs to the peer. Actions name the driver; the vehicle's game object maps them through `Driver.vehicle`.
 
 ### 13.4 Replication [planned: S16 full state; S32 interest, rate, cosmetic events]
+
+S21 (A5): clients apply a root's `Transform::space` from spawns and snapshots (S16 dropped it): a space that differs
+from the replica's moves its subtree (the World's space primitive) and forces a snap, also without a changed snap
+counter; children (whose `Transform` the host omits) take their parent's space when they are attached (with the
+parent known at the spawn, when it arrives, or by a hierarchy message); the initial `RenderPose` of a spawn carries
+the space; an attach that changes the space sets a `RenderPose` in the subtree to the new space at the current pose
+and drops its interpolation buffer (its samples are from the old space). The owner never takes its root's space from snapshots (its `Transform` is owner-authoritative): it gets it
+from the spawn, a `Resync` and the `OwnerCommand` (§13.3).
 
 - Components are registered `Replicate::Never | Host | HostReliable | OwnerAuthoritative`; events
   `Replicate::Never | Cosmetic`. `HostReliable` is for large, rarely changing components (inventories, container
@@ -2588,6 +2684,22 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   `LoadResult::hookErrors` (a throwing load listener in `listenerErrors`; the others still run). A state entity freed by
   a load (its components are no longer registered as state) must have no children, `PersistentId` or game object, and
   state entities never have game objects.
+- **Optional sections** [exists: S21] (A11, D7): the blob's sections follow a fixed order, `HEAD, SCHM, SPCE?, GENR?,
+  TERR?, CREC?, ENTS, COMP, EVNT, ACTN, STAT` (? optional; the table `kSaveSections` with each optional entry's highest
+  readable format version). An optional section may be absent; it starts with its own format version (u32), and a
+  version this build does not read is a load error naming the section; an unknown tag, a section out of order or twice
+  and a missing required section are errors naming the expected sections. `kSaveFormatVersion` stays 1 (older builds
+  reject a blob with an optional section as an unexpected section). A stage adds a section by the recipe of the S21
+  plan (Scope 5): its tag, its table entry, a `ParsedSave` member (a parsed value from `parseX(BinaryReader&, version,
+  X&, error)` or a raw `ParsedSave::Range` decoded by the loader), the writer in `World::save` between `SCHM` and `ENTS`
+  (only with content), the load check before the commit and a case in `diffSaves`. S21's `SPCE` (format 1, written
+  with more than one space): the space count, then per `SpaceId` the template name and kind (names may repeat from
+  S23a); the **prefix rule**: the save's rows must equal the setup's first rows (fewer spaces load: appended
+  templates; more spaces, another name or kind at an index are load errors naming the space and both values; spacing
+  and size are not compared). Templates are append-only until S23 (then the world plan's pinned instance list). The
+  load also checks the staged spaces (every entity below the save's space count, at most one space-state entity per
+  space, a child in its parent's space, `PendingTransition` / `SpaceLink` targets below the setup's space count) and
+  maps the space-state entities by their `Transform::space` (§7.8).
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.
@@ -2688,12 +2800,13 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Tool | Contract | Status |
 |---|---|---|
 | `screenshot(gui?, format?, max_width?)` | the next rendered frame as jpg (default) or png, downscaled to `max_width` (default 1280, 64..8192, never upscaled), with the camera, step and frame; GUI hidden unless `gui`; an error without a device or when no frame is rendered before the deadline (answered once; the GUI flag restored) | [exists: S14] |
-| `set_camera(position?, look_at?, yaw_deg?, pitch_deg?, release?)`, `move_camera(forward?, right?, up?, yaw_deg?, pitch_deg?)` | place / move the app camera (within ±1e6 m; `look_at` wins over yaw/pitch; move along the ground plane, pitch clamped to ±89); both take the camera hold (§8.3) until `set_camera(release: true)`; S19b: they write the double view camera (`setViewCameraByTool`), the field of view stays the game's | [exists: S14] |
+| `set_camera(space?, position?, look_at?, yaw_deg?, pitch_deg?, release?)`, `move_camera(forward?, right?, up?, yaw_deg?, pitch_deg?)` | place / move the app camera (within ±1e6 m; `look_at` wins over yaw/pitch; move along the ground plane, pitch clamped to ±89); both take the camera hold (§8.3) until `set_camera(release: true)`; S19b: they write the double view camera (`setViewCameraByTool`), the field of view stays the game's; S21: `space` (default: the current one) validated against the view world's spaces (the client world with `--coop`); the camera JSON has `space` | [exists: S14] |
 | `game_get_state`, `game_set_camera(position?, height_above_ground?, walk_mode?)`, `game_set_settings`, `game_terrain_query` | the world prototype's game tools (`game_world`): extent, statistics, settings and the camera's ground height; position [x, y, z] or [x, z], height above the terrain, walk mode (no hold: the app camera is that game's render camera); render settings (S19b: `fovy` sets the view camera's field of view); terrain heights. S19b: `WorldMcp` (`saiga_vulkan`, no engine header) reaches the app's view camera through `WorldMcpContext::getCamera` / `setCamera` (a tool write without a hold), which `game_world` sets | [exists: S14, renamed from `get_state`, `set_camera`, `set_settings`, `terrain_query`] |
-| `describe_world`, `world_status` | the registrations (components with fields, types, replication, global/space state; classes; events; operations); step, time, paused, time scale, counts, hash | [exists: S10] |
-| `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, include?: [names], limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order, the values of the `include` components; near selects by the grid of the last step (`grid_step`) and reports that `grid_position` and the `distance` from it next to the live `position`; `next` when more exist | [exists: S10] |
+| `describe_world`, `world_status` | the registrations (components with fields, types, replication, global/space state; classes; events; operations); step, time, paused, time scale, counts, hash. S21 (A14): `describe_world.spaces` (per space id, name, kind, `size_chunks`, `has_terrain`, `sea_level` with terrain, `site_origin` of an enclosed space), `world_status.spaces` (per space the entities without the state entities and the players in it) | [exists: S10] |
+| `list_entities` | `{class?, components?: [names], near?: {space?, position, radius}, include?: [names], limit? (100, <= 1000), after?}` -> entity, class, position, component names in index order, the values of the `include` components; near selects by the grid of the last step (`grid_step`) and reports that `grid_position` and the `distance` from it next to the live `position`; `next` when more exist. S21: `space?` (the entities of one space, without `near`) | [exists: S10] |
 | `inspect(entity, components?)` | class, flags, parent, children, every component as JSON | [exists: S10] |
 | `set_component`, `add_component`, `remove_component`, `set_transform` | applied at once (between steps); merges the given fields (missing keys keep values; unknown keys and wrong types change nothing; the error lists the fields); Transform through its setters (a teleport by default; refused for children: their `LocalTransform` decides); Parent with the cycle check (no world-state parent or child); Behaviour: the tick flags (the interval is derived again; writing `tickInterval` or `classId` is an error); not `Behaviour` (spawn) or `Persistent` (makePersistent); writes must be finite (nan and inf are errors; quaternions are normalized); `set_component` and `set_global` return the new `values` and the `previous` writable ones (an undo payload `set_component` accepts) | [exists: S10] |
+| `move_to_space(entity, space, position, rotation?)` | S21 (A14): `World::moveToSpace` of a root (rotation default: the current one); errors for a child, a state entity, an unknown space and a client's replicated entity (a client-owned root on the host is allowed: the `OwnerCommand` path); returns the entity and `previous {space, position, rotation}` (sent back it restores the entity). The `space` key of `set_transform` and of `set_component`'s `Transform` values is refused with a text naming `move_to_space` | [exists: S21] |
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
@@ -2705,7 +2818,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file, overwrite?)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
 | `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad, and from S16b HostClient, HostClientDelay, HostClientAsync; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
-| `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run) | [exists: S13] |
+| `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run); S21: `app_status.space_loading` (`null` or `{space, name, progress, frames}`, §12.4) | [exists: S13] |
 | `set_ui_tab(tab?)` | the debug UI (§17.1): selects a tab by name (`game`, `performance`, `engine`, `console`, a game tab) as its key does, or only reads; returns the tab, the tabs with their keys and whether the UI is visible; an error when the UI is off | [exists: S19c] |
 
 S16: on a client the world API is read-only for replicated entities except the owner-authoritative components of the
@@ -2809,6 +2922,12 @@ and the change against the GPU's baseline); the JSON adds `frame_interval_ms` an
 p99, max), `fps` (mean, low_1pct), `long_frames`, `pacing_p99_ms`, `alternating` and `wait_ms`.
 
 ### 17.2 Scenario tests [exists: S12; terrain, streaming, render sink and clients with their stages]
+
+S21: the engine scenarios `uses_a_space_link` (the §22 acceptance: the interact chain to the cellar and back, the move
+exactly 2 steps after the interact step) and `objects_change_space` run on their own `spacesScenarioSetup()`
+(registered by `registerSpacesScenarios`; each test case carries its setup and its registration) in all six variants;
+the end comparison of the host + client variants covers `Transform::space`. `ScenarioWorld::networkConfig()` gives the
+variant's delay for latency bounds.
 
 ```cpp
 // tests/test_engine_scenarios.cpp (Wanderer: a test-only game object of this file)
@@ -3225,7 +3344,7 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | Game | Shows | Directory, executable |
 |---|---|---|
 | Flight simulator | the large world and efficient rendering: a small airplane over the 8 km world prototype (CDLOD terrain, 200k GPU culled trees); flight model with lift, drag, stall and crashes; the demo mode's autopilot flies a circuit | `samples/games/flight/`, `game_flight` |
-| Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level | `samples/games/platformer/`, `game_platformer` |
+| Platformer | character animation: one level of platforms, a humanoid of boxes with procedural skeletal animation (idle, walk and run cycles blended by speed, jump and fall poses, landing squash; blend weights sum to 1), a kinematic controller (coyote time, jump buffer, variable jump height, sub-stepped box collision); the demo runner plays the level; S21: an enclosed cellar (space 1) behind a door (`SpaceLink`, the interact action F, the engine's `spaceLinkSystem`), `--demo --cellar` runs the demo through it | `samples/games/platformer/`, `game_platformer` |
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
 
 - **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` (the engine app's command line, §8.3:
@@ -3258,6 +3377,17 @@ these stages keeps the demos working and shows its feature in them (screenshots 
   components. `samples/games/common` holds the shared helpers (procedural meshes, `RenderAssets`, `CosmeticDynamics`,
   chase camera, `GameEngine.h`, `GameMath.h`) and is compiled into each game. The games are samples and have no tests in `tests/`
   (the saiga tests test the engine, R-TEST-1).
+- **Spaces** (S21): the platformer has two spaces, the outdoor level (the flat default template) and the enclosed
+  `cellar` (`SpaceTemplate::enclosed("cellar", 4)`, the level around its site origin (640, 0, 640),
+  `PlatformerContext::levels` by `SpaceId`), two doors (`SpaceLink` + `RenderInstance "platformer/door"`) and the
+  interact action (key F; `platformerInteractSystem` emits the `InteractEvent` with the nearest door, the engine's
+  `spaceLinkSystem` requests the transition); the restart is `moveToSpace` to space 0. The demo routes are setup data
+  (`PlatformerContext::routes`), the route of a hero is `RunState::route` (version 2); `--cellar` runs the demo runner
+  (and the co-op pilot) through the cellar with a pinned pre-simulation (the capture in the middle of the stay of at
+  least 240 steps, logged by `demo_runner_visits_the_cellar` and `pilot_visits_the_cellar`):
+  `SAIGA_SCREENSHOT=/tmp/cellar.png ./build/samples/games/game_platformer --demo --cellar` (also with `--coop`).
+  `game_world` has a second open-world space `islands` (the prototype hook 40 m lower) and a "Space" combo; flight and
+  racing pass the vehicle's space to the view camera.
 - **Co-op** (S16b): `--coop [delay]` (§8.3) runs each demo as host + client in one process: the host keeps its demo
   AI vehicle (autopilot, AI driver, demo runner) with and without `--demo`, the join policy gives the client its plane,
   car or character next to it (`slot` = peer: a grid offset of the start and respawn positions), and with `--demo` the
@@ -3449,7 +3579,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S19c | Debug UI | `DebugUi` (bar with tabs and a performance summary, one docked panel, keys, state), `DebugUiStyle`, the Performance and Engine tabs, the console (`DebugConsole`, MCP tools as commands, `McpServer::callLocal`), the MCP call log (`McpCallLog`, the call observer), `set_ui_tab`, `queueBetweenSteps`; the games and the world prototype's GUI in the tabs (§17.1) | S13, S14 | console, keys, state and call log tests (CI); every tab renders headless and a tab button click selects it (CI, lavapipe); screenshots of each tab reviewed (local) |
 | S19d | Debug UI tools | Entity inspector and editor in the Engine tab (`list_entities` with filters and paging, `inspect` as a tree, edits as `set_component`), camera tools ("copy camera"), profile freeze and freeze on spike, console argument completion from the input schema | S19c | inspector tests (CI) |
 | S20 | Height tiles | `SpaceTemplate` and `WorldConfig::spaceTemplates` (one entry, space 0), `prototypeHeight` hook, `seaLevel`, `kHeightUnit`, terrain surface rule, integer multi-level tiles, int32 GPU tiles in storage buffers (A10 of the S20 plan; planned: R32F), pyramid, CDLOD terrain with a double camera position and region-relative tile data (the prototype shaders are camera relative already), grass and water plane, visual tile streaming (§7.9, §12.2); tech demo: flight over the height tiles | S19 | terrain CPU+GPU memory <= 768 MB for 32 km at 1 m base spacing (`samples/games/world`); origin offset 0 vs 30 km within golden tolerance (tested at 28 672 m, a multiple of the 4096 m root node); a 1 mm camera move moves no vertex > 0.5 px (the GPU displacement differs from the double-precision one by at most 0.5 px); `terrainHeight` equals the integer rule at seeded random points incl. cell diagonals, and the finest CDLOD level has one vertex per sample with its rendered height matching within float tolerance; adjacent tiles of different levels show no background pixel along their border (CI); the S02 goldens are regenerated in a dedicated commit after review; flight demo screenshots reviewed (local) |
-| S21 | Spaces and transitions | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20 | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
+| S21 | Spaces and transitions (done) | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20, S19b, S16b (A16) | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, CPU tile/pyramid update) within budget (local) |
 | S23 | Generation pipeline | `Generator` interface, world plan with sites and space instances, chunk generation, prefab stamping (terrain patches, entities, static geometry; pieces in S30), tombstones, content hashes, pinned versions, the hash test on all CI compilers (§12.1, §15.3) | S20, S21, S22 | committed chunk hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present); a tombstoned instance is hidden on the client in the host + client variant (CI) |
 | S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |

@@ -50,6 +50,21 @@ std::vector<uint8_t> World::save() const
     schema.write(w);
     s.end();
 
+    // Optional sections in table order, only with content (D7)
+    if (spaceCount() > 1)
+    {
+        s.beginOptional(kTagSpaces, kSpaceTableVersion);
+        w.write(uint32_t(spaceCount()));
+        for (size_t i = 0; i < spaceCount(); ++i)
+        {
+            const SpaceTemplate& t = spaceTemplate(SpaceId(i));
+            w.write(uint32_t(t.name.size()));
+            for (char c : t.name) w.write(uint8_t(c));
+            w.write(uint8_t(t.kind));
+        }
+        s.end();
+    }
+
     s.begin(kTagEntities);
     const uint32_t slots = reg.slotCount();
     w.write(slots);

@@ -12,6 +12,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/vulkan/VulkanForwardRenderer.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/MeshImport.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
@@ -2242,4 +2243,166 @@ TEST_F(VulkanSceneContent, DepthPrePassMatches)
             for (int xx = 0; xx < with.w; ++xx) colored += with(y, xx)(0) > with(y, xx)(2) + 20;
         EXPECT_GT(colored, 50) << samples;
     }
+}
+
+//==================================================================================================
+// Spaces (S21, docs/engine_design.md §10.1, §12.4): the camera space's render settings
+
+namespace
+{
+// The camera's space 1 enclosed with a bright background (so the tone-mapped value is well above 0)
+SpaceRenderSettings enclosedSettings()
+{
+    SpaceRenderSettings s;
+    s.openWorld  = false;
+    s.background = vec3(0.3f, 0.1f, 0.05f);
+    return s;
+}
+}  // namespace
+
+class VulkanSceneSpaces : public VulkanSceneContent
+{
+};
+
+// An enclosed camera space: no terrain, grass, water or sky (a terrain set of that space is ignored), the background
+// as the clear color through the tone map; its dynamic instances drawn, those of space 0 not; the instances lit by
+// kEnclosedLighting, not by the game's environment
+TEST_F(VulkanSceneSpaces, EnclosedSpace)
+{
+    RenderSceneParameters p;
+    p.toneMap     = ToneMap::Aces;
+    p.msaaSamples = 4;
+    CreateScene(p);
+    // The game's outdoor environment: a low, bright sun with fog and more ambient (the enclosed lighting must not use
+    // it)
+    PrototypeSettings game;
+    game.sunElevation = 10;
+    game.fog          = true;
+    game.sunIntensity = 2.5f;
+    game.ambient      = 0.6f;
+    scene->setPrototypeEnvironment(game, 1);
+    scene->setSpaceSettings(1, enclosedSettings());
+    EXPECT_FALSE(scene->spaceSettings(1).openWorld);
+    EXPECT_TRUE(scene->spaceSettings(0).openWorld);
+    EXPECT_TRUE(scene->spaceSettings(7).openWorld);  // no settings: open world
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+    DynamicPose inside, outside;
+    inside.position  = Vec3(100, 2, 96);
+    outside.position = Vec3(104, 2, 96);
+    scene->setDynamic(scene->addDynamic(1), ChunkId{1, 0, 0}, inside, inside);
+    scene->setDynamic(scene->addDynamic(1), ChunkId{0, 0, 0}, outside, outside);
+    camera.space    = 1;
+    camera.position = Vec3(102, 2, 106);
+    camera.rotation = lookRotation(Vec3(0, 0, -1));
+    camera.apply(*scene);
+    // A terrain set of the camera's space with water (an enclosed space never gets one; ignored if it did)
+    const TerrainLayout layout = TerrainTestHooks::testLayout(16, 2);
+    TerrainTestHooks::fillTestTerrain(*scene, layout,
+                                      TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1), 4096,
+                                      camera.position, true, 1);
+    SceneFrame();
+    RenderStatistics st;
+    const auto enclosed = SceneFrame(&st);
+    EXPECT_EQ(st.terrainNodes, 0u);
+    EXPECT_EQ(scene->terrainPassStats().nodes, 0);
+    EXPECT_FALSE(scene->terrainPassStats().water);
+    EXPECT_EQ(scene->grassPass().stats().blocks, 0);
+    EXPECT_EQ(st.instancesPerLod[0], 1u);  // the box of space 1 only
+    // The background (a corner): the space's linear background through ACES and the sRGB output
+    const vec3 b = enclosedSettings().background;
+    for (int c = 0; c < 3; ++c)
+    {
+        EXPECT_NEAR(int(enclosed(2, 2)(c)), acesPixel(b[c]), 2) << c;
+        EXPECT_NEAR(int(enclosed(H - 3, W - 3)(c)), acesPixel(b[c]), 2) << c;
+    }
+    // The box of space 1 is drawn, the one of space 0 is not
+    const Vec2 in = camera.project(inside.position + Vec3(0, 0, 1)), out = camera.project(outside.position);
+    const ucvec4 lit = enclosed(int(in(1)), int(in(0)));
+    EXPECT_GT(std::abs(int(lit(0)) - acesPixel(b[0])), 10);
+    for (int c = 0; c < 3; ++c) EXPECT_NEAR(int(enclosed(int(out(1)), int(out(0)))(c)), acesPixel(b[c]), 2);
+
+    // The reference: the same box in an open-world space without terrain, lit by kEnclosedLighting (fog and sky off)
+    PrototypeSettings reference = kEnclosedLighting;
+    reference.sky               = false;
+    scene->setPrototypeSettings(reference);
+    scene->setDynamic(scene->addDynamic(1), ChunkId{2, 0, 0}, inside, inside);
+    camera.space = 2;
+    camera.apply(*scene);
+    SceneFrame();
+    const auto open = SceneFrame(&st);
+    EXPECT_EQ(st.instancesPerLod[0], 1u);
+    const ucvec4 ref = open(int(in(1)), int(in(0)));
+    for (int c = 0; c < 3; ++c) EXPECT_NEAR(int(lit(c)), int(ref(c)), 1) << c;
+    // The game's own environment lights it differently (the comparison above means something)
+    scene->setPrototypeSettings(game);
+    SceneFrame();
+    const auto gameLit = SceneFrame();
+    const ucvec4 g     = gameLit(int(in(1)), int(in(0)));
+    EXPECT_GT(std::abs(int(g(0)) - int(lit(0))) + std::abs(int(g(1)) - int(lit(1))), 4);
+}
+
+// An open-world frame, an enclosed one, the open-world frame again: the first and the last are equal within the golden
+// metrics (§17.6)
+TEST_F(VulkanSceneSpaces, SwitchBack)
+{
+    RenderSceneParameters p;
+    p.toneMap = ToneMap::Aces;
+    CreateScene(p);
+    PrototypeSettings ps;
+    scene->setPrototypeEnvironment(ps, 1);
+    scene->setSpaceSettings(1, enclosedSettings());
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+    const float h = float(TerrainTestHooks::slopeRidgeHook(1, 128, 120) * kHeightUnit);
+    scene->addInstanceSet(RegionId{0, 0, 0, 0}, {makeInstance(vec3(128, h + 1, 110), quat::Identity(), 1, 1)});
+    camera.position = Vec3(128, h + 6, 130);
+    camera.rotation = lookRotation(Vec3(0, -0.2, -1));
+    camera.apply(*scene);
+    const TerrainLayout layout = TerrainTestHooks::testLayout(16, 2);
+    TerrainTestHooks::fillTestTerrain(*scene, layout,
+                                      TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1), 0,
+                                      camera.position, true, 0);
+    SceneFrame();
+    RenderStatistics st;
+    const auto first = SceneFrame(&st);
+    EXPECT_GT(st.terrainNodes, 0u);
+    TestCamera inside = camera;
+    inside.space      = 1;
+    inside.apply(*scene);
+    SceneFrame();
+    const auto enclosed = SceneFrame(&st);
+    EXPECT_EQ(st.terrainNodes, 0u);
+    EXPECT_GT(goldenMetrics(first, enclosed).meanAbs, 5);
+    camera.apply(*scene);
+    SceneFrame();
+    const auto last = SceneFrame(&st);
+    EXPECT_GT(st.terrainNodes, 0u);
+    const GoldenMetrics m = goldenMetrics(first, last);
+    EXPECT_TRUE(m.pass) << "mean " << m.meanAbs << ", large " << m.largeFraction << ", max " << m.maxDelta;
+}
+
+// A space without settings (the vulkan samples and tests that never call setSpaceSettings) is drawn as open world
+TEST_F(VulkanSceneSpaces, NoSettingsMeansOpenWorld)
+{
+    CreateScene();
+    PrototypeSettings ps;
+    scene->setPrototypeEnvironment(ps, 1);
+    scene->setSpaceSettings(1, enclosedSettings());
+    // Regression (PR review, S21): the settings of another space as the argument (an element of the resized vector)
+    scene->setSpaceSettings(40, scene->spaceSettings(1));
+    EXPECT_FALSE(scene->spaceSettings(40).openWorld);
+    EXPECT_TRUE(scene->spaceSettings(3).openWorld);
+    camera.space    = 3;
+    camera.position = Vec3(128, 40, 130);
+    camera.rotation = lookRotation(Vec3(0, -0.5, -1));
+    camera.apply(*scene);
+    TerrainTestHooks::fillTestTerrain(*scene, TerrainTestHooks::testLayout(16, 2),
+                                      TerrainHeightSource::fromHook(TerrainTestHooks::slopeRidgeHook, 1), 0,
+                                      camera.position, false, 3);
+    SceneFrame();
+    RenderStatistics st;
+    SceneFrame(&st);
+    EXPECT_GT(st.terrainNodes, 0u);
+    EXPECT_TRUE(scene->terrainPassStats().water);
 }

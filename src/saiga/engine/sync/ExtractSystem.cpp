@@ -232,6 +232,7 @@ bool ExtractSystem::sourcePose(Entity e, Source& source, WorldPose& pose) const
             const RenderPose& rp = reg.read<RenderPose>(e);
             pose.position        = rp.position;
             pose.rotation        = rp.rotation;
+            pose.space           = rp.space;  // S21: the interpolated space, not the Transform's
             return true;
         }
         case Source::Composed:
@@ -255,6 +256,7 @@ bool ExtractSystem::sourcePose(Entity e, Source& source, WorldPose& pose) const
             }
             pose.position = p;
             pose.rotation = q;
+            pose.space    = rp.space;  // the RenderPose owner's space
             return true;
         }
         case Source::Pending:
@@ -473,8 +475,9 @@ void ExtractSystem::processStep(Tracked& t, uint64_t step)
         return;
     }
     const Registry& reg = w.registry();
-    bool snap           = s != t.source;  // the source switched (RenderPose added or removed)
-    uint64_t snapStep   = t.snapStep;
+    // The source switched (RenderPose added or removed), or the space changed (S21: a teleport pair in the new space)
+    bool snap         = s != t.source || pose.space != t.curr.space;
+    uint64_t snapStep = t.snapStep;
     if (s == Source::Transform)
     {
         const Transform& tr = reg.read<Transform>(t.entity);
@@ -684,8 +687,9 @@ void ExtractSystem::catchUpRun()
             if (!sourcePose(e, s, pose) || s != Source::Transform || samePose(pose, t->curr)) continue;
             // A late teleport snaps here (and is handled for the next step's late-teleport check)
             const uint64_t lastStep = w.stepIndex() - 1;
-            const bool snap         = reg.read<Transform>(e).wasTeleportedLastStep() && t->snapStep != lastStep;
-            const WorldPose prev    = snap ? pose : t->curr;
+            const bool snap         = (reg.read<Transform>(e).wasTeleportedLastStep() && t->snapStep != lastStep) ||
+                              pose.space != t->curr.space;
+            const WorldPose prev = snap ? pose : t->curr;
             // Sent first (a throwing sink changes nothing)
             if (t->handle) sendPair(t->handle, prev, pose);
             t->prev = prev;

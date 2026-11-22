@@ -37,12 +37,13 @@ Vulkan::MeshId registerDemoMesh(Engine::World& world, const std::string& name, c
 
 // Constant level geometry (the platformer's level, the race track; S19b): one mesh registered directly on the scene
 // (an ID of the game range, RenderScene::reserveIds; its material too) and one instance set in the region of level 0
-// that contains origin, vertices relative to that region's origin; the single LOD ends beyond the mesh's extent (no
-// LOD-out by the distance to its origin). The game owns the handle (release() in shutdown)
+// of the space (S21) that contains origin, vertices relative to that region's origin; the single LOD ends beyond the
+// mesh's extent (no LOD-out by the distance to its origin). The game owns the handle (release() in shutdown)
 class LevelGeometry
 {
    public:
-    void create(Vulkan::RenderScene& scene, const std::string& name, const MeshData& mesh, const Vec3& origin);
+    void create(Vulkan::RenderScene& scene, const std::string& name, const MeshData& mesh, const Vec3& origin,
+                SpaceId space = 0);
     void release();
 
    private:

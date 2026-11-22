@@ -143,6 +143,7 @@ class Replication;
 class RenderSink;
 class ExtractSystem;
 class TerrainSystem;
+struct StagedValues;
 
 class SAIGA_ENGINE_API World
 {
@@ -155,9 +156,11 @@ class SAIGA_ENGINE_API World
     // ---- entities and components (§7.10) -------------------------------------------------------------------------
 
     Entity create();
-    // A game object of class T at position (space 0; spawnIn: S21 adds more spaces): Transform, Behaviour and the
-    // initial components, then configure() and onSpawn() (§9.2). During a step the entity is reserved and returned at
-    // once, the rest happens at the flush; between steps at once. Defined in gameplay/Behaviour.h.
+    // create() in a space (between steps; the world API's spawn without a class)
+    Entity createIn(SpaceId space);
+    // A game object of class T at position (spawn: space 0; spawnIn: any space < spaceCount()): Transform, Behaviour
+    // and the initial components, then configure() and onSpawn() (§9.2). During a step the entity is reserved and
+    // returned at once, the rest happens at the flush; between steps at once. Defined in gameplay/Behaviour.h.
     template <class T, class... C>
     Entity spawn(const Vec3& position, C&&... initial);
     template <class T, class... C>
@@ -305,8 +308,24 @@ class SAIGA_ENGINE_API World
     void setOwner(Entity root, uint8_t peer);
     // Host: a teleport of a root. Before its spawn or for a host-owned entity a plain Transform::teleport; for a
     // spawned client-owned entity the pose is applied here too and sent to the owner as an OwnerCommand with the
-    // incremented command counter (owner states with an older counter are dropped, §13.3)
+    // incremented command counter (owner states with an older counter are dropped, §13.3). moveToSpace with the
+    // root's current space.
     void ownerTeleport(Entity root, const Vec3& position, const Quat& rotation);
+    // Moves a root and its descendants to `space` at the pose (§7.4; S21): a teleport (no interpolation; the spatial
+    // grid, ticking, the extract and the replication follow). Applied at once, between steps and during a step (a
+    // space change is a pose write, not a structural change). The descendants take the space at once and their poses
+    // in phase 6. On the host, for a spawned client-owned root, the pose is applied here and sent to the owner as an
+    // OwnerCommand with the space and the incremented command counter. The same space is a plain teleport. Asserts a
+    // dead or reserved entity, a child, a state entity, an unknown space, a call inside parallelEach and, on a client,
+    // a replicated entity (R-NET-2).
+    void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);
+    // Host: starts a transition of a root (a player, a vehicle, ...) to the link's SpaceLink target at its arrival pose
+    // (copied now; §12.4, S21): adds PendingTransition, completed by spaceTransitionSystem in phase 1 of the next step
+    // (before S24). Between steps applied at once, during a step a command (the flush drops it with a log line if the
+    // entity died, got a parent or a PendingTransition meanwhile). Asserts on a client, a dead or reserved entity, a
+    // child, a state entity, a dead link or one without SpaceLink; refused with a log line (every build): a target that
+    // is not a space, an entity that already has a PendingTransition (the first request wins).
+    void requestTransition(Entity e, Entity link);
     // Engine messages only (receive, owner poses without extrapolation, phase 6's transform system, replication and
     // owner state, the flush): no game systems, listeners, actions or events; the step index and the transform flags
     // do not change (end-of-scenario sync, §17.3)
@@ -315,7 +334,7 @@ class SAIGA_ENGINE_API World
     Replication& replication() { return *repl; }
     const Replication& replication() const { return *repl; }
     // World-state components (registerGlobal) on the world-state entity, space-state components (registerSpaceState)
-    // on the space-state entity of the space (space 0 before S21). A component that is not registered as global or
+    // on the space-state entity of the space (one per space, S21). A component that is not registered as global or
     // space state asserts.
     template <class T>
     T& global()
@@ -362,13 +381,20 @@ class SAIGA_ENGINE_API World
 
     // The template of a space (WorldConfig::spaceTemplates, or the flat default); asserts an unknown space
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
+    // The number of spaces: one per template (SpaceId = template index; S21)
     size_t spaceCount() const;
     // The seed of a space: WorldSetup::seed for space 0, hashCombine(seed, index) for index >= 1 (§12.1, §12.4)
     uint64_t spaceSeed(SpaceId space) const;
     // The exact terrain surface height at (x, z) in metres (§12.2): x and z clamped to the space, the integer heights
     // of the base grid interpolated along the (0,0)-(1,1) diagonal; the same value whether or not a tile is resident
-    // (R-DET-1). 0 for a space without terrain. Const and thread safe (parallelEach)
+    // (R-DET-1). 0 for a space without terrain (a hook-less open world, an enclosed space's floor plane until S23 /
+    // S28). Const and thread safe (parallelEach)
     double terrainHeight(SpaceId space, double x, double z) const;
+    // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
+    // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
+    // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only
+    // for a fixed camera); S23b adds the content sets, S27 far content
+    double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }
@@ -607,6 +633,10 @@ class SAIGA_ENGINE_API World
     // Children whose parent was teleported after their last update in a step (phase 8): teleported in the next
     // phase 6, sorted by index
     std::vector<Entity> pendingChildTeleports;
+    // The roots whose transition was requested during the running step (or an aborted one; cleared when a step
+    // completes and by a load): spaceTransitionSystem leaves them for the next step, also a request of a message
+    // handler, which runs before it in phase 1 (PR review, S21)
+    std::vector<Entity> transitionsRequestedInStep;
     // ---- type-erased access for the world API (between steps; S10) ----
     // Adds a default component by ID with its log record (not Transform, Behaviour, Persistent or Parent)
     void addDefaultNow(Entity e, ComponentId id);
@@ -713,6 +743,10 @@ class SAIGA_ENGINE_API World
     OwnerTableOfWorld ownerTable{this};
     // Client: the entity or one of its descendants is replicated (a destroy would remove a replica, §13.5)
     bool clientSubtreeReplicated(Entity e) const;
+    // Client (R-NET-2, S21): a local attach (the parent is not replicated) that would move a replicated entity of the
+    // child's subtree into the parent's other space; refused in every build (asserts). The replication's own links
+    // (a replicated parent) follow the host
+    bool clientAttachRefused(Entity child, Entity parent) const;
     // Host: an add/remove of Parent or NetOwner that would change the owner of a spawned entity (no transfer after
     // the spawn, §13.3); refused in every build (asserts)
     bool netChangeRefused(Entity e, ComponentId c, bool add, Entity parent);
@@ -785,7 +819,7 @@ class SAIGA_ENGINE_API World
     // spawn: the entity (reserved during a step), then at the flush Transform and Behaviour, the initial components,
     // and the start (tick interval, configure, onSpawn)
     Entity beginSpawn(SpaceId space);
-    void finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position);
+    void finishSpawn(Entity e, const ClassList::ClassInfo& info, SpaceId space, const Vec3& position);
     void startObject(Entity e);
     // A spawn that failed halfway (an exception in configure, onSpawn or an initial add): the entity is destroyed
     // without its onDestroy, so no half-started object ticks
@@ -805,6 +839,13 @@ class SAIGA_ENGINE_API World
         return spaceStates[space];
     }
     void createStateEntities();
+    // The staged defaults of the state components of one state entity, by component ID (the loader; null: the
+    // constructor)
+    using StateDefaults = std::vector<std::unique_ptr<StagedValues>>;
+    // A state entity (flag kWorldState or kSpaceState; a space-state entity gets its space, writer 6 of S21) with
+    // every registered state component of its kind, each from defaults or default-constructed, with its log records
+    Entity makeStateEntity(uint8_t flag, SpaceId space, StateDefaults* defaults);
+    void addStateComponent(Entity e, ComponentId id, StateDefaults* defaults);
     void deliverActions();
     // add<Parent>: false if the child was destroyed because its parent is gone (during a flush); asserts between steps
     // for a dead parent and always for a cycle
@@ -819,6 +860,22 @@ class SAIGA_ENGINE_API World
     void destroyNow(Entity e);
     void destroyOne(Entity e);
     std::vector<Entity> collectDoomed(Entity e) const;
+    // The entity and its descendants, parents before children (one pass over the Parent pool, cycle-safe; not
+    // hierarchyOrder, which can be dirty in the middle of a step)
+    std::vector<Entity> collectSubtree(Entity e) const;
+    // ---- the space primitive (S21): the only code that writes Transform::space (with makeStateEntity and the spawn)
+    // The space of a root and every descendant (no pose, no teleport flag); a child is always in its parent's space
+    void setSubtreeSpace(Entity root, SpaceId space);
+    // setSubtreeSpace if the space differs, then a teleport of the root (teleports grows by exactly 1; the
+    // descendants follow in phase 6)
+    void teleportTo(Entity root, SpaceId space, const Vec3& position, const Quat& rotation);
+    // Attaching a child (writer 5): a child in another space than its new parent takes the parent's space with its
+    // subtree and is teleported at its current pose (phase 6 writes the parent-relative pose). subtreeToFollow
+    // collects the subtree before the attach (empty: the same space; it allocates), followParentSpace applies it
+    // without allocating (the attach is committed then). A RenderPose in the subtree is set to the new space at the
+    // current pose and its interpolation buffer dropped: its samples are from the old space (PR review, S21)
+    std::vector<Entity> subtreeToFollow(Entity child, Entity parent) const;
+    void followParentSpace(Entity child, const std::vector<Entity>& subtree);
     int destroyDepth = 0;              // destroyOne is running (nested destroys are queued)
     std::vector<Entity> destroyQueue;  // destroys requested by hooks during a destroy
     // Game objects of destroyed entities and removed Behaviours, released when no hook runs (a hook may destroy its
@@ -985,6 +1042,7 @@ void World::addNow(Entity e, T&& value)
         // A parent that is gone: the child follows it (destroyed); a cycle asserts
         if (!acceptParent(e, value.entity)) return;
         if (netChangeRefused(e, T::id, true, value.entity)) return;
+        if (clientAttachRefused(e, value.entity)) return;
     }
     if constexpr (T::id == ComponentId(EngineComponent::NetOwner))
     {
@@ -1012,12 +1070,14 @@ void World::addNow(Entity e, T&& value)
     }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
-        const Entity parent = value.entity;
+        const Entity parent               = value.entity;
+        const std::vector<Entity> subtree = subtreeToFollow(e, parent);
         reserveChildSlot(parent);
         reg.add<T>(e, std::move(value));
         changeChildCount(parent, +1);
         hierarchyDirty  = true;
         ownerCacheDirty = true;
+        followParentSpace(e, subtree);
     }
     else if constexpr (T::id == ComponentId(EngineComponent::Persistent))
     {

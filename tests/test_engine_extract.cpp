@@ -253,6 +253,12 @@ const RecordingRenderSink::Dynamic* dynamicOf(const World& w, const RecordingRen
     return s.dynamic(w.extract().instanceOf(e));
 }
 
+// Space 0 and the enclosed space 1 (S21)
+std::vector<SpaceTemplate> twoSpaces()
+{
+    return {SpaceTemplate(), SpaceTemplate::enclosed("cellar")};
+}
+
 // A sink that throws on demand (an aborted extract)
 struct ThrowingSink : RecordingRenderSink
 {
@@ -285,19 +291,21 @@ struct Net
     std::vector<std::unique_ptr<World>> clients;
     RecordingRenderSink hostSink;
     std::vector<std::unique_ptr<RecordingRenderSink>> clientSinks;
-    explicit Net(int delay = 0)
+    explicit Net(int delay = 0, bool spaces = false)
     {
         LoopbackOptions o;
         o.delayRounds = delay;
         t             = LoopbackTransport::createNetwork(2, o);
         WorldSetup s  = baseSetup();
-        s.transport   = t[0].get();
-        host          = std::make_unique<World>(s);
+        if (spaces) s.config.spaceTemplates = twoSpaces();
+        s.transport = t[0].get();
+        host        = std::make_unique<World>(s);
         host->setRenderSink(&hostSink);
         WorldSetup c = baseSetup();
-        c.transport  = t[1].get();
-        c.role       = NetRole::Client;
-        c.localPeer  = 1;
+        if (spaces) c.config.spaceTemplates = twoSpaces();
+        c.transport = t[1].get();
+        c.role      = NetRole::Client;
+        c.localPeer = 1;
         clients.push_back(std::make_unique<World>(c));
         clientSinks.push_back(std::make_unique<RecordingRenderSink>());
         clients[0]->setRenderSink(clientSinks[0].get());
@@ -1518,3 +1526,97 @@ TEST(ExtractReviewDeathTest, RegisterMeshAliasInsideAStep)
     EXPECT_DEATH(w.step(), "registerMeshAlias inside a step");
 }
 #endif
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Spaces (S21)
+
+// A space change is a teleport pair (prev = curr) in the new space's chunk, also when the position stays
+TEST(ExtractSpaces, MoveIsATeleportInTheNewSpace)
+{
+    WorldSetup setup            = baseSetup();
+    setup.config.spaceTemplates = twoSpaces();
+    World w(setup);
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    const Entity a = rendered(w, "test/box", Vec3(5, 0, 5));
+    w.add<Mover>(a, Mover{Vec3(60, 0, 0), 0});
+    w.step(3);
+    const RecordingRenderSink::Dynamic* d = dynamicOf(w, s, a);
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->chunk.space, 0u);
+    EXPECT_NE(d->prev.position, d->curr.position);
+    w.moveToSpace(a, 1, Vec3(640, 0, 640), Quat::Identity());
+    w.step();
+    EXPECT_EQ(d->chunk.space, 1u);
+    EXPECT_EQ(worldOf(d->chunk, d->prev).position, worldOf(d->chunk, d->curr).position);
+    EXPECT_NEAR(worldOf(d->chunk, d->curr).position.x(), 641, 1e-9);  // moved by the step's mover
+    w.step();
+    EXPECT_NE(d->prev.position, d->curr.position);
+    // Back to space 0 at the current position (only the space changes): a snap too
+    w.remove<Mover>(a);
+    w.step();
+    const Vec3 here = w.read<Transform>(a).position();
+    w.moveToSpace(a, 0, here, Quat::Identity());
+    w.step();
+    EXPECT_EQ(d->chunk.space, 0u);
+    EXPECT_EQ(d->prev.position, d->curr.position);
+    w.setRenderSink(nullptr);
+}
+
+// A client draws a remote entity in its RenderPose's space (delayed like the pose), not in its Transform's
+TEST(ExtractSpaces, ClientUsesTheRenderPoseSpace)
+{
+    Net n(0, true);
+    const Entity e = rendered(*n.host, "test/box", Vec3(1, 0, 1));
+    n.host->add<Mover>(e, Mover{Vec3(6, 0, 0), 0});
+    n.step(10);
+    const Entity c = n.onClient(e);
+    ASSERT_TRUE(c.valid());
+    const RecordingRenderSink::Dynamic* d = dynamicOf(n.client(), n.clientSink(), c);
+    ASSERT_NE(d, nullptr);
+    EXPECT_EQ(d->chunk.space, 0u);
+    n.host->moveToSpace(e, 1, Vec3(640, 0, 640), Quat::Identity());
+    bool sawDelay = false, blended = false;
+    for (int i = 0; i < 20; ++i)
+    {
+        n.step();
+        const SpaceId transformSpace = n.client().read<Transform>(c).space();
+        const RenderPose& rp         = n.client().read<RenderPose>(c);
+        EXPECT_EQ(d->chunk.space, rp.space);
+        sawDelay = sawDelay || (transformSpace == 1 && d->chunk.space == 0);
+        if (d->chunk.space == 1)
+            blended = blended || worldOf(d->chunk, d->prev).position.x() < 600 ||
+                      worldOf(d->chunk, d->curr).position.x() < 600;
+    }
+    EXPECT_TRUE(sawDelay);
+    EXPECT_FALSE(blended);
+    EXPECT_EQ(d->chunk.space, 1u);
+}
+
+// The World forwards one setSpaceSettings per SpaceId at setRenderSink (also to a sink set later): open world or
+// enclosed with the template's background
+TEST(ExtractSpaces, SpaceSettingsForwarded)
+{
+    WorldSetup setup            = baseSetup();
+    setup.config.spaceTemplates = twoSpaces();
+    setup.config.spaceTemplates.push_back(SpaceTemplate::enclosed("vault", 2));
+    setup.config.spaceTemplates[2].background = Vec3(0.5, 0.25, 0.125);
+    World w(setup);
+    RecordingRenderSink s;
+    w.setRenderSink(&s);
+    ASSERT_EQ(s.spaceSettingsCalls().size(), 3u);
+    for (const auto& [space, calls] : s.spaceSettingsCalls()) EXPECT_EQ(calls, 1) << space;
+    EXPECT_TRUE(s.spaceSettings().at(0).openWorld);
+    EXPECT_FALSE(s.spaceSettings().at(1).openWorld);
+    EXPECT_FALSE(s.spaceSettings().at(2).openWorld);
+    EXPECT_EQ(s.spaceSettings().at(1).background, SpaceTemplate().background.cast<float>());
+    EXPECT_EQ(s.spaceSettings().at(2).background, vec3(0.5f, 0.25f, 0.125f));
+    w.step();
+    w.setRenderSink(nullptr);
+    // A sink set later gets them too
+    RecordingRenderSink later;
+    w.setRenderSink(&later);
+    EXPECT_EQ(later.counters().setSpaceSettings, 3u);
+    EXPECT_EQ(s.counters().setSpaceSettings, 3u);
+    w.setRenderSink(nullptr);
+}

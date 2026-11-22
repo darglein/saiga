@@ -54,6 +54,12 @@ using namespace Saiga::Engine;
 
 namespace
 {
+// The height hook of the "islands" space (S21): the prototype noise 40 m lower (integer height units of 1/1024 m)
+int32_t islandsHeight(uint64_t seed, int64_t x, int64_t z)
+{
+    return Vulkan::prototypeHeight(seed, x, z) - 40 * 1024;
+}
+
 // The game's state outside the World: the prototype's settings and height field and its camera controls (render state,
 // not world state)
 struct WorldGame
@@ -409,6 +415,18 @@ void gui(EngineApp& app)
     const Vec3 p = app.viewCamera().position;
     ImGui::Text("camera %.1f %.1f %.1f (%.1f m above ground)", p(0), p(1), p(2),
                 p(1) - app.world().terrainHeight(app.viewCamera().space, p(0), p(2)));
+    // S21: the space of the view camera (the same pose in another space; a space not ready shows the loading screen)
+    {
+        World& w             = app.world();
+        const ViewCamera cam = app.viewCamera();
+        int space            = int(cam.space);
+        std::string names;
+        for (size_t i = 0; i < w.spaceCount(); ++i) names += w.spaceTemplate(SpaceId(i)).name + '\0';
+        if (ImGui::Combo("space", &space, names.c_str()) && SpaceId(space) != cam.space)
+            app.setViewCameraByTool(SpaceId(space), cam.position, cam.rotation, cam.fovy, false);
+        if (const SpaceLoading* l = app.spaceLoading())
+            ImGui::Text("loading '%s': %.0f %%", w.spaceTemplate(l->space).name.c_str(), l->progress * 100);
+    }
     if (app.mcp().running()) ImGui::Text("MCP: http://127.0.0.1:%d/mcp", app.mcp().port());
     ImGui::End();
 }
@@ -440,7 +458,12 @@ int main(int argc, char* argv[])
     EngineAppSetup setup;
     setup.name = "world";
     // The prototype's 32 km space (S20); the statistics of its 8 km area (space 0's seed is the world seed)
-    setup.world.config.spaceTemplates = {Game::prototypeSpaceTemplate(baseSpacing)};
+    // S21: a second open-world space "islands": the prototype noise lowered by 40 m (the sea makes islands); its
+    // pyramid is generated only when it is viewed (the start camera and the benchmark stay in space 0)
+    Engine::SpaceTemplate islands     = Game::prototypeSpaceTemplate(baseSpacing);
+    islands.name                      = "islands";
+    islands.prototypeHeight           = islandsHeight;
+    setup.world.config.spaceTemplates = {Game::prototypeSpaceTemplate(baseSpacing), islands};
     game.area                         = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
     setup.render.msaaSamples          = 4;
     setup.cameraSpeed                 = 25;
@@ -477,16 +500,22 @@ int main(int argc, char* argv[])
                                                 {"last_complete_ms", t.lastCompleteMs}};
             return json11::Json(o);
         };
-        context.ground       = [world](double x, double z) { return world->terrainHeight(0, x, z); };
+        // The view camera's space (PR review, S21: space 0 also in the islands)
+        context.ground = [world, &app](double x, double z)
+        { return world->terrainHeight(app.viewCamera().space, x, z); };
         context.worldSize    = world->spaceTemplate(0).sizeMeters();
         context.seaLevel     = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
         context.highestPoint = game.area.highest;
-        // The whole space's from the pyramid once it exists, else the 8 km area's
-        context.heightRange = [world, &game]()
+        // The view camera's space like ground (CodeRabbit, S21: space 0's also in the islands): the whole space's from
+        // the pyramid once it exists, else the 8 km area's (space 0) or the ground under the camera (other spaces)
+        context.heightRange = [world, &game, &app]()
         {
-            if (const auto* p = world->terrain().pyramid(0))
+            const ViewCamera& cam = app.viewCamera();
+            if (const auto* p = world->terrain().pyramid(cam.space))
                 return std::make_pair(double(p->minHeight) * kHeightUnit, double(p->maxHeight) * kHeightUnit);
-            return std::make_pair(game.area.minHeight, game.area.maxHeight);
+            if (cam.space == 0) return std::make_pair(game.area.minHeight, game.area.maxHeight);
+            const double h = world->terrainHeight(cam.space, cam.position(0), cam.position(2));
+            return std::make_pair(h, h);
         };
         context.getCamera = [&app]()
         {

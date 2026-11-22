@@ -9,21 +9,27 @@
 
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/components/Health.h"
+#include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/components/RenderPose.h"
+#include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
+#include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
 #include "saiga/engine/world/World.h"
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <thread>
@@ -50,6 +56,7 @@ enum class TestComponent : uint8_t
     DestroyLog,
     Ref,
     WorkerFlag,
+    TransitionLog,
     Count
 };
 enum class TestClass : uint16_t
@@ -58,6 +65,7 @@ enum class TestClass : uint16_t
     Counter,
     Recorder,
     Lazy,
+    Diver,
     Count
 };
 
@@ -463,20 +471,294 @@ void registerEngineScenarios(ScenarioList& s)
         });
 }
 
+// ---- the spaces scenarios (S21; spacesScenarioSetup)
+// ------------------------------------------------------------------------------------------
+
+// The transitions of a world (a world-state test component, saved with the world: nothing leaks between the runs of
+// a variant): per transition the entity, the link, the spaces and the step that moved it; the steps at which
+// interactSystem saw action 20
+struct TransitionLog
+{
+    static constexpr const char* name = "TransitionLog";
+    static constexpr ComponentId id   = ComponentId(TestComponent::TransitionLog);
+    static constexpr uint32_t version = 1;
+    std::vector<Entity> entities, links;
+    std::vector<uint16_t> from, to;
+    std::vector<uint64_t> steps, interactSteps;
+    template <class V>
+    void visit(V& v)
+    {
+        v("entities", entities);
+        v("links", links);
+        v("from", from);
+        v("to", to);
+        v("steps", steps);
+        v("interactSteps", interactSteps);
+    }
+};
+
+constexpr uint32_t kInteract = 20;
+
+// Moves itself to the cellar (space 1) in its update after 30 updates (during a step)
+class Diver final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(TestClass::Diver);
+    static constexpr const char* name = "Diver";
+    void onSpawn() override
+    {
+        if (!has<TickCount>()) add<TickCount>();
+    }
+    void update(double) override
+    {
+        if (++write<TickCount>().updates == 30 && transform().space() == 0)
+            world().moveToSpace(entity(), 1, Vec3(650, 0, 650), Quat::Identity());
+    }
+};
+
+// Phase 4 (host): an ActionEvent with kInteract emits an InteractEvent towards the nearest SpaceLink within 2 m in the
+// actor's space (ties by entity index) and records the step
+void interactSystem(World& w, double)
+{
+    for (const ActionEvent& a : w.events.read<ActionEvent>())
+    {
+        if (a.action != kInteract || !w.alive(a.player)) continue;
+        w.global<TransitionLog>().interactSteps.push_back(w.stepIndex());
+        const Transform& actor = w.read<Transform>(a.player);
+        Entity best;
+        double bestDistance = 2;
+        w.viewAll<const SpaceLink, const Transform>().each(
+            [&](Entity link, const SpaceLink&, const Transform& t)
+            {
+                if (t.space() != actor.space()) return;
+                const double d = (t.position() - actor.position()).norm();
+                if (d < bestDistance || (d == bestDistance && best.valid() && link.index < best.index))
+                {
+                    best         = link;
+                    bestDistance = d;
+                }
+            });
+        if (best.valid()) w.events.emit(InteractEvent{best, a.player, kInteract});
+    }
+}
+
+// Phase 4 (host): records the completed transitions (the event is readable one step after the move)
+void transitionLogSystem(World& w, double)
+{
+    for (const SpaceTransitionEvent& ev : w.events.read<SpaceTransitionEvent>())
+    {
+        TransitionLog& log = w.global<TransitionLog>();
+        log.entities.push_back(ev.entity);
+        log.links.push_back(ev.link);
+        log.from.push_back(ev.from);
+        log.to.push_back(ev.to);
+        log.steps.push_back(w.stepIndex() - 1);
+    }
+}
+
+// scenarioSetup with space 0 (the flat default) and the enclosed cellar (space 1, site origin (640, 0, 640)), the
+// transition log, the test interact system and the engine's spaceLinkSystem
+WorldSetup spacesScenarioSetup()
+{
+    WorldSetup s            = scenarioSetup();
+    s.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar", 4)};
+    s.components            = [](Registry& r)
+    {
+        r.registerComponent<WandererState>();
+        r.registerGlobal<ActionLog>();
+        r.registerComponent<TickCount>();
+        r.registerComponent<Marker>();
+        r.registerGlobal<DestroyLog>();
+        r.registerComponent<Ref>();
+        r.registerComponent<WorkerFlag>();
+        r.registerGlobal<TransitionLog>();
+    };
+    s.classes = [](ClassList& c)
+    {
+        c.add<Wanderer>();
+        c.add<Counter>();
+        c.add<Recorder>();
+        c.add<Lazy>();
+        c.add<Diver>();
+    };
+    s.systems = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "actionLog", actionLogSystem);
+        l.add(Phase::Gameplay, "workerFlag", workerFlagSystem);
+        l.add(Phase::Gameplay, "interact", interactSystem, RunOn::Host);
+        l.add(Phase::Gameplay, "space_link", spaceLinkSystem, RunOn::Host);
+        l.add(Phase::Gameplay, "transition_log", transitionLogSystem, RunOn::Host);
+    };
+    return s;
+}
+
+Quat yawDegrees(double degrees)
+{
+    const double a = degrees * 3.14159265358979323846 / 360.0;
+    return Quat(std::cos(a), 0, std::sin(a), 0);
+}
+
+Entity spaceLink(ScenarioWorld& w, SpaceId space, const Vec3& p, SpaceId target, const Vec3& arrival,
+                 const Quat& rotation)
+{
+    const Entity e = w.world().create();
+    if (space != 0) w.world().moveToSpace(e, space, p, Quat::Identity());
+    w.world().get<Transform>(e).setPosition(p);
+    w.world().add<SpaceLink>(e, SpaceLink{target, arrival, rotation});
+    return e;
+}
+
+// The angle between two rotations; infinite for a non-finite or non-unit a (the clamp would hide it; PR review)
+double angleBetween(const Quat& a, const Quat& b)
+{
+    const double n = a.norm();
+    if (!std::isfinite(n) || std::abs(n - 1) > 1e-9) return std::numeric_limits<double>::infinity();
+    return 2 * std::acos(std::min(1.0, std::abs(a.dot(b))));
+}
+
+void registerSpacesScenarios(ScenarioList& s)
+{
+    // §22 acceptance (S21): a player uses an entrance to the cellar and back (the interact chain of Scope 6)
+    s.add("uses_a_space_link",
+          [](ScenarioWorld& w)
+          {
+              const Vec3 arrival(640, 0, 640), back(103, 0, 102);
+              const Entity link   = spaceLink(w, 0, Vec3(103, 0, 100), 1, arrival, yawDegrees(90));
+              const Entity exit   = spaceLink(w, 1, Vec3(645, 0, 640), 0, back, yawDegrees(180));
+              const Entity player = w.spawnPlayer({102, 0, 100});
+              w.step(10);
+              w.input(player, kInteract);
+              const Transform* t = nullptr;
+              auto space         = [&] { return w.world().read<Transform>(player).space(); };
+              w.check(w.stepUntil([&] { return space() == 1; }, 30), "in the cellar");
+              t = &w.world().read<Transform>(player);
+              w.check((t->position() - arrival).norm() < 1e-3, "at the arrival position");
+              w.check(angleBetween(t->rotation(), yawDegrees(90)) < 1e-4, "with the arrival rotation");
+              const TransitionLog& log = w.world().readGlobal<TransitionLog>();
+              w.check(!log.interactSteps.empty(), "the interact system saw the action");
+              const int net   = w.networked() ? 1 : 0;
+              const int delay = w.networkConfig().delaySteps;
+              if (net)
+              {
+                  auto ownerSpace = [&]
+                  {
+                      const Entity c = w.onClient(w.defaultPeer(), player);
+                      return c.valid() ? int(w.client(w.defaultPeer()).read<Transform>(c).space()) : -1;
+                  };
+                  const int bound = 2 * delay + 5 + (w.networkConfig().async ? 6 : 0);
+                  w.check(w.stepUntil([&] { return ownerSpace() == 1; }, bound), "the owner's copy in the cellar");
+              }
+              w.step();
+              {
+                  const std::vector<Entity> in1 = w.world().queryRadius(1, arrival, 1);
+                  w.check(std::find(in1.begin(), in1.end(), player) != in1.end(), "found in the cellar");
+                  const std::vector<Entity> in0 = w.world().queryRadius(0, Vec3(102, 0, 100), 5);
+                  w.check(std::find(in0.begin(), in0.end(), player) == in0.end(), "not found outside");
+              }
+              // Walks to the exit (the owner's mover) and interacts with it
+              w.move(player, Vec3(1, 0, 0));
+              w.check(w.stepUntil(
+                          [&]
+                          {
+                              return (w.world().read<Transform>(player).position() -
+                                      w.world().read<Transform>(exit).position())
+                                         .norm() < 2;
+                          },
+                          300),
+                      "walked to the exit");
+              w.move(player, Vec3::Zero());
+              w.input(player, kInteract);
+              w.check(w.stepUntil([&] { return space() == 0; }, 30), "back outside");
+              w.check((w.world().read<Transform>(player).position() - back).norm() < 1e-3,
+                      "at the exit's arrival position");
+              w.step(2);
+              const TransitionLog& l = w.world().readGlobal<TransitionLog>();
+              w.check(l.entities.size() == 2, "two transitions logged");
+              w.check(l.entities.size() == 2 && l.entities[0] == player && l.entities[1] == player,
+                      "both transitions of the player");
+              // Regression (CodeRabbit, S21): a missing interaction record skipped the link, space and timing checks
+              w.check(l.interactSteps.size() >= 2, "both interactions logged");
+              if (l.entities.size() == 2)
+              {
+                  w.check(l.links[0] == link && l.from[0] == 0 && l.to[0] == 1, "the first through the link");
+                  w.check(l.links[1] == exit && l.from[1] == 1 && l.to[1] == 0, "the second through the exit");
+              }
+              if (l.entities.size() == 2 && l.interactSteps.size() >= 2)
+              {
+                  w.check(l.steps[0] - l.interactSteps[0] == 2, "moved 2 steps after the interaction (" +
+                                                                    std::to_string(l.steps[0]) + " - " +
+                                                                    std::to_string(l.interactSteps[0]) + ")");
+                  w.check(l.steps[1] - l.interactSteps.back() == 2, "the exit 2 steps after its interaction");
+              }
+          });
+    // moveToSpace of host-owned objects: between steps with a child, and from GameObject::update
+    s.add("objects_change_space",
+          [](ScenarioWorld& w)
+          {
+              const Entity wanderer = w.spawn<Wanderer>({10, 0, 10});
+              const Entity marker   = w.world().create();
+              w.world().add<LocalTransform>(marker, LocalTransform{Vec3(0, 2, 0), Quat::Identity(), Vec3::Ones()});
+              w.world().add<Parent>(marker, Parent{wanderer});
+              w.world().add<Marker>(marker, Marker{7});
+              const Entity diver = w.spawn<Diver>({20, 0, 20});
+              w.step(5);
+              w.world().moveToSpace(wanderer, 1, Vec3(640, 0, 640), Quat::Identity());
+              w.check(w.world().read<Transform>(marker).space() == 1, "the child moves at once");
+              w.step();
+              w.check(w.world().read<Transform>(marker).position() == Vec3(640, 2, 640), "the child's pose follows");
+              w.check(w.stepUntil([&] { return w.world().read<Transform>(diver).space() == 1; }, 60),
+                      "the diver moved itself");
+              const int32_t updates = w.world().read<TickCount>(diver).updates;
+              w.step(10);
+              w.check(w.world().read<TickCount>(diver).updates == updates + 10, "keeps ticking in the cellar");
+              w.check(
+                  w.world().read<Transform>(wanderer).space() == 1 && w.world().read<Transform>(marker).space() == 1,
+                  "the wanderer and its child stay in the cellar");
+              if (!w.networked()) return;
+              const int bound = w.world().worldConfig().interpolationDelaySteps + w.networkConfig().delaySteps + 3 +
+                                (w.networkConfig().async ? 6 : 0);
+              for (Entity e : {wanderer, marker, diver})
+              {
+                  auto replicaIn1 = [&]
+                  {
+                      const Entity c = w.onClient(w.defaultPeer(), e);
+                      if (!c.valid()) return false;
+                      const World& client = w.client(w.defaultPeer());
+                      return client.read<Transform>(c).space() == 1 && client.has<RenderPose>(c) &&
+                             client.read<RenderPose>(c).space == 1;
+                  };
+                  w.check(w.stepUntil(replicaIn1, bound), "the replica and its RenderPose in the cellar");
+              }
+          });
+}
+
+// A scenario with the setup it runs on and the registration it comes from
 struct Case
 {
     std::string scenario;
     ScenarioVariant variant;
+    WorldSetup (*setup)(const std::string& scenario);
+    void (*registerScenarios)(ScenarioList&);
 };
+WorldSetup spacesSetupFor(const std::string&)
+{
+    return spacesScenarioSetup();
+}
 std::vector<Case> allCases()
 {
-    ScenarioList list;
-    registerEngineScenarios(list);
     std::vector<Case> cases;
     ScenarioOptions options;
     options.networkVariants = true;
-    for (const auto& e : list.entries())
-        for (ScenarioVariant v : variantsFor(e, options)) cases.push_back(Case{e.name, v});
+    auto collect            = [&](void (*registerScenarios)(ScenarioList&), WorldSetup (*setup)(const std::string&))
+    {
+        ScenarioList list;
+        registerScenarios(list);
+        for (const auto& e : list.entries())
+            for (ScenarioVariant v : variantsFor(e, options))
+                cases.push_back(Case{e.name, v, setup, registerScenarios});
+    };
+    collect(registerEngineScenarios, setupFor);
+    collect(registerSpacesScenarios, spacesSetupFor);
     return cases;
 }
 }  // namespace
@@ -489,7 +771,7 @@ TEST_P(EngineScenario, Passes)
 {
     g_mainThread = std::this_thread::get_id();
     ScenarioList list;
-    registerEngineScenarios(list);
+    GetParam().registerScenarios(list);
     const ScenarioList::Entry* entry = list.find(GetParam().scenario);
     ASSERT_TRUE(entry);
     ScenarioOptions options;
@@ -497,7 +779,7 @@ TEST_P(EngineScenario, Passes)
     options.varyThreads        = true;
     options.strictContinuation = true;
     options.networkVariants    = true;
-    const ScenarioResult r     = runScenario(setupFor(entry->name), *entry, GetParam().variant, options);
+    const ScenarioResult r     = runScenario(GetParam().setup(entry->name), *entry, GetParam().variant, options);
     EXPECT_TRUE(r.passed) << r.report;
 }
 

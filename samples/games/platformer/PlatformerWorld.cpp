@@ -9,9 +9,13 @@
 
 #include "games/platformer/PlatformerWorld.h"
 
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
+#include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/MessageList.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/tools/ScenarioList.h"
@@ -52,15 +56,18 @@ CharacterState stateOf(const Transform& t, const CharacterMotion& m)
 // jump and walk bits)
 void characterControllerSystem(World& w, double dt)
 {
-    const Level* level = &w.context<PlatformerContext>().level;
+    const PlatformerContext& context = w.context<PlatformerContext>();
     w.ownedBy<Transform, CharacterMotion, const PlayerInput>(w.localPeer())
         .each(
             [&](Entity, Transform& t, CharacterMotion& m, const PlayerInput& in)
             {
                 CharacterController c;
                 c.params = w.data(m.model);
-                c.level  = level;
-                c.state  = stateOf(t, m);
+                c.level  = &context.levelOf(t.space());  // S21: the level of the hero's space
+                // A teleport of this step (a door's arrival, a restart) sets the facing; the controller steers from
+                // m.yaw. Regression (CodeRabbit, S21): an idle hero kept its old yaw over the arrival rotation
+                if (t.wasTeleported()) m.yaw = headingOf(forwardOf(t.rotation()));
+                c.state = stateOf(t, m);
                 CharacterInput ci;
                 ci.move        = in.move;
                 ci.walk        = heldBit(in.heldButtons, PlatformerButton::Walk);
@@ -81,22 +88,102 @@ void characterControllerSystem(World& w, double dt)
             });
 }
 
+// Host (S21, game policy): an InteractEvent of the hero with the nearest door (SpaceLink) within 1.5 m in its space
+void interactWithNearestDoor(World& w, Entity hero)
+{
+    const Transform& h = w.read<Transform>(hero);
+    Entity best;
+    double bestDistance = 1.5;
+    w.viewAll<const SpaceLink, const Transform>().each(
+        [&](Entity door, const SpaceLink&, const Transform& t)
+        {
+            if (t.space() != h.space()) return;
+            const double d = Vec3(t.position()(0) - h.position()(0), 0, t.position()(2) - h.position()(2)).norm();
+            if (d < bestDistance || (d == bestDistance && best.valid() && door.index < best.index))
+            {
+                best         = door;
+                bestDistance = d;
+            }
+        });
+    if (best.valid()) w.events.emit(InteractEvent{best, hero, uint32_t(PlatformerAction::Interact)});
+}
+
 // The demo runner's input for a character (DemoRunner::update and the owner-side pilot): PlayerInput.move, the held
-// jump bit, and a press through jumpRequest
+// jump bit, and a press through jumpRequest. S21: the route of RunState::route; the runner walks to route[waypoint]
+// while the hero is in that waypoint's space (the consecutive waypoints of that space are the runner's list, so the
+// outdoor route runs exactly as before); at a door within 1 m it stands and queues the interact action every 30 steps
+// (the host drops repeats: the first request wins); after a transition the waypoint advances to the next one in the
+// hero's new space
 void runnerInput(World& w, Entity e, int32_t& waypoint)
 {
-    const Level& level = w.context<PlatformerContext>().level;
+    const PlatformerContext& context    = w.context<PlatformerContext>();
+    const int32_t routeIndex            = w.has<RunState>(e) ? w.read<RunState>(e).route : 0;
+    const std::vector<DemoWaypoint>& rt = context.route(routeIndex);
+    const SpaceId space                 = w.read<Transform>(e).space();
+    PlayerInput& input                  = w.get<PlayerInput>(e);
+    CharacterMotion& motion             = w.get<CharacterMotion>(e);
+    auto stand                          = [&]()
+    {
+        input.move         = Vec3::Zero();
+        input.heldButtons  = 0;
+        motion.jumpRequest = false;
+    };
+    if (waypoint >= 0 && size_t(waypoint) < rt.size() && rt[size_t(waypoint)].space != space)
+    {
+        // Through a door: the next waypoint of the new space
+        if (size_t(waypoint) + 1 < rt.size() && rt[size_t(waypoint) + 1].space == space)
+            waypoint++;
+        else
+            return stand();
+    }
+    if (waypoint < 0 || size_t(waypoint) >= rt.size()) return stand();
+    const DemoWaypoint& target = rt[size_t(waypoint)];
+    if (target.door)
+    {
+        const Vec3 p = w.read<Transform>(e).position();
+        Vec3 d(target.position(0) - p(0), 0, target.position(2) - p(2));
+        const double dist = d.norm();
+        stand();
+        if (dist < 1.0)
+        {
+            // At the door: the interact action (repeated until the transition happens); the host's demo runner is no
+            // player: it uses the door directly (one step less)
+            if (w.stepIndex() % 30 == 0)
+            {
+                if (w.has<Player>(e))
+                    w.queueAction(PlayerAction{e, uint32_t(PlatformerAction::Interact), Vec3::Zero()});
+                else
+                    interactWithNearestDoor(w, e);
+            }
+            return;
+        }
+        input.move = d / dist * std::max(std::min(dist / 1.5, 1.0), 0.3);
+        return;
+    }
+    // The consecutive waypoints of the hero's space up to the next door: the runner's list
+    Level segment;
+    size_t end = size_t(waypoint);
+    while (end < rt.size() && !rt[end].door && rt[end].space == space) segment.waypoints.push_back(rt[end++].position);
+    const Level& level = context.levelOf(space);
     PlatformerDemo runner;
-    runner.next             = size_t(waypoint);
-    const CharacterInput ci = runner.input(characterOf(w, e), level);
-    waypoint                = int32_t(runner.next);
-    PlayerInput& in         = w.get<PlayerInput>(e);
-    in.move                 = ci.move;
+    runner.next             = 0;
+    const CharacterInput ci = runner.input(characterOf(w, e), level, segment.waypoints);
+    waypoint += int32_t(runner.next);
+    PlayerInput& in = input;
+    in.move         = ci.move;
     // The runner holds the jump bit (full jump height) and presses only through a request (never through the bit)
     in.heldButtons     = ci.jumpHeld ? (1u << int(PlatformerButton::Jump)) : 0u;
-    CharacterMotion& m = w.get<CharacterMotion>(e);
+    CharacterMotion& m = motion;
     m.jumpRequest      = ci.jumpPressed;
     m.jumpWasHeld      = m.jumpWasHeld || ci.jumpHeld;
+}
+
+// Phase Gameplay (host; S21): the interact action of a hero becomes an InteractEvent with the nearest door
+// (interactWithNearestDoor; the engine's spaceLinkSystem turns it into the transition)
+void platformerInteractSystem(World& w, double)
+{
+    for (const ActionEvent& a : w.events.read<ActionEvent>())
+        if (a.action == uint32_t(PlatformerAction::Interact) && w.alive(a.player)) interactWithNearestDoor(w, a.player);
 }
 
 // Phase Behaviour on clients (--coop --demo): the demo runner runs the owned heroes with DemoPilot (before the
@@ -133,7 +220,8 @@ void platformerDemoPilotSystem(World& w, double)
 }
 
 // The owner part of a restart: the controller state (the model stays); a jump key held through the restart does not
-// jump, only a fresh press does
+// jump, only a fresh press does; the demo pilot starts at the first waypoint again. Regression (PR review, S21): a
+// host-owned hero with DemoPilot kept the pilot's waypoint -1 after its restart and stood at the start
 void resetMotion(World& w, Entity e)
 {
     CharacterMotion& m = w.get<CharacterMotion>(e);
@@ -141,6 +229,7 @@ void resetMotion(World& w, Entity e)
     m                  = CharacterMotion();
     m.model            = model;
     m.jumpWasHeld      = w.has<PlayerInput>(e) && heldBit(w.read<PlayerInput>(e).heldButtons, PlatformerButton::Jump);
+    if (w.has<DemoPilot>(e)) w.get<DemoPilot>(e).waypoint = 0;
 }
 
 // RestartRun on the hero's owner (phase 1, before the ownerTeleport's OwnerCommand of the same step)
@@ -150,7 +239,6 @@ void onRestartRun(World& w, uint8_t, const RestartRun& m)
     const Entity e = w.replication().entityOfNetId(m.hero);
     if (!e.valid() || !w.alive(e) || w.ownerOf(e) != w.localPeer() || !w.has<CharacterMotion>(e)) return;
     resetMotion(w, e);
-    if (w.has<DemoPilot>(e)) w.get<DemoPilot>(e).waypoint = 0;
 }
 
 Vec3 startOf(const Level& level, int slot)
@@ -165,7 +253,7 @@ CharacterController characterOf(const World& w, Entity e)
 {
     CharacterController c;
     c.params = w.data(w.read<CharacterMotion>(e).model);
-    c.level  = &w.context<PlatformerContext>().level;
+    c.level  = &w.context<PlatformerContext>().levelOf(w.read<Transform>(e).space());
     c.state  = stateOf(w.read<Transform>(e), w.read<CharacterMotion>(e));
     return c;
 }
@@ -183,12 +271,14 @@ void HeroBase::onSpawn()
 
 void HeroBase::restart()
 {
-    World& w           = world();
-    const Level& level = w.context<PlatformerContext>().level;
-    const int32_t slot = read<RunState>().slot;
-    RunState& run      = write<RunState>();
-    run                = RunState();
-    run.slot           = slot;
+    World& w            = world();
+    const Level& level  = w.context<PlatformerContext>().outdoor();
+    const int32_t slot  = read<RunState>().slot;
+    const int32_t route = read<RunState>().route;
+    RunState& run       = write<RunState>();
+    run                 = RunState();
+    run.slot            = slot;
+    run.route           = route;
     // PlayerInput stays: the device (or the demo runner) owns it; a held key must not look like a new press
     const uint8_t owner = w.ownerOf(entity());
     if (owner != 0 && w.replication().spawned(entity()))
@@ -196,14 +286,18 @@ void HeroBase::restart()
         w.send(owner, RestartRun{w.replication().netIdOf(entity())});
     else
         resetMotion(w, entity());
-    w.ownerTeleport(entity(), startOf(level, slot), yawRotation(0));
+    // A door transition requested before the restart is cancelled. Regression (CodeRabbit, S21): it moved the hero
+    // back into the cellar in the next step
+    if (w.has<PendingTransition>(entity())) w.remove<PendingTransition>(entity());
+    // S21: back to the outdoor level also from the cellar (for a client's hero an OwnerCommand with space 0)
+    w.moveToSpace(entity(), 0, startOf(level, slot), yawRotation(0));
 }
 
 // The checks see the result of the previous step's controller (phase Gameplay runs after this one); the run time is
 // counted before this step's move, so the goal time equals the time of the step that reached it
 void HeroBase::update(double dt)
 {
-    const Level& level = world().context<PlatformerContext>().level;
+    const Level& level = world().context<PlatformerContext>().levelOf(transform().space());
     bool restartNow    = false;
     for (const ActionEvent& a : world().events.read<ActionEvent>())
         if (a.player == entity() && a.action == uint32_t(PlatformerAction::Restart)) restartNow = true;
@@ -213,7 +307,7 @@ void HeroBase::update(double dt)
         return;
     }
     RunState& run = write<RunState>();
-    if (run.goalTime < 0)
+    if (run.goalTime < 0 && transform().space() == 0)
     {
         PlatformerDemo probe;
         if (probe.reachedGoal(characterOf(world(), entity()), level)) run.goalTime = run.runTime;
@@ -243,22 +337,59 @@ void DemoRunner::update(double dt)
     write<RunState>().waypoint = waypoint;
 }
 
-Entity spawnHero(World& host, uint8_t peer, int slot)
+Entity spawnHero(World& host, uint8_t peer, int slot, PlatformerRoute route)
 {
     Player p;
     p.peer        = peer;
     p.characterId = uint64_t(peer) + 1;
     RunState run;
     run.slot       = slot;
+    run.route      = int32_t(route);
     const Entity e = host.spawn<PlatformerHero>(Vec3::Zero(), p, PlayerInput{}, run);
     if (peer != 0) host.setOwner(e, peer);
     return e;
 }
 
-void platformerPeerJoined(World& host, uint8_t peer, bool demo)
+Entity spawnDemoRunner(World& host, PlatformerRoute route)
 {
-    const Entity e = spawnHero(host, peer, peer);
+    RunState run;
+    run.route = int32_t(route);
+    return host.spawn<DemoRunner>(Vec3::Zero(), run);
+}
+
+void platformerPeerJoined(World& host, uint8_t peer, bool demo, PlatformerRoute route)
+{
+    const Entity e = spawnHero(host, peer, peer, route);
     if (demo) host.add<DemoPilot>(e);
+}
+
+std::string doorMeshName()
+{
+    return "platformer/door";
+}
+
+void spawnDoors(World& host)
+{
+    auto door = [&](SpaceId space, const Vec3& p, SpaceId target, const Vec3& arrival)
+    {
+        const Entity e = host.create();
+        host.moveToSpace(e, space, p, Quat::Identity());
+        SpaceLink link;
+        link.target  = target;
+        link.arrival = arrival;
+        host.add<SpaceLink>(e, link);
+        host.add<RenderInstance>(e, RenderInstance(doorMeshName()));
+    };
+    door(0, CellarDoors::entrance(), 1, CellarDoors::cellarArrival());
+    door(1, CellarDoors::exit(), 0, CellarDoors::entranceArrival());
+}
+
+PlatformerContext PlatformerContext::demo()
+{
+    PlatformerContext c;
+    c.levels = {Level::demoLevel(), Level::cellarLevel()};
+    c.routes = {outdoorRoute(c.levels[0]), cellarRoute(c.levels[0])};
+    return c;
 }
 
 std::string heroPartMeshName(int joint)
@@ -313,10 +444,21 @@ WorldSetup platformerWorldSetup(std::shared_ptr<const PlatformerContext> context
         r.registerComponent<RunState>(Replicate::Host);
         registerDrivingComponents(r);
     };
-    s.systems = [](SystemList& l)
+    // S21: RunState version 2 adds the route (the outdoor one before)
+    s.migrations = [](MigrationList& m) { m.add<RunState>(1, [](FieldMap& f) { f.set("route", 0); }); };
+    // S21: the outdoor level (the flat default template) and the enclosed cellar (its site origin (640, 0, 640))
+    SpaceTemplate cellar    = SpaceTemplate::enclosed("cellar", CellarDoors::kCellarChunks);
+    cellar.background       = Vec3(0.012, 0.010, 0.009);
+    s.config.spaceTemplates = {SpaceTemplate(), cellar};
+    s.systems               = [](SystemList& l)
     {
-        l.add(Phase::Behaviour, "platformerDemoPilot", platformerDemoPilotSystem, RunOn::Client);
+        // The pilot runs on the hero's owner: a client's (--coop --demo), or a host-owned hero with DemoPilot (the
+        // single-world scenario variants)
+        l.add(Phase::Behaviour, "platformerDemoPilot", platformerDemoPilotSystem, RunOn::Both);
         l.add(Phase::Gameplay, "characterController", characterControllerSystem, RunOn::Both);
+        // S21: the doors (the game's interact rule, then the engine's entrance system; one step apart, §12.4)
+        l.add(Phase::Gameplay, "platformerInteract", platformerInteractSystem, RunOn::Host);
+        l.add(Phase::Gameplay, "space_link", spaceLinkSystem, RunOn::Host);
     };
     s.messages = [](MessageList& m) { m.add<RestartRun>(Reliability::Reliable, onRestartRun); };
     s.classes  = [](ClassList& c)
@@ -327,6 +469,7 @@ WorldSetup platformerWorldSetup(std::shared_ptr<const PlatformerContext> context
     s.actions = [](ActionList& a)
     {
         a.add(uint32_t(PlatformerAction::Restart), "restart");
+        a.add(uint32_t(PlatformerAction::Interact), "interact");
         a.addHeld(int(PlatformerButton::Jump), "jump");
         a.addHeld(int(PlatformerButton::Walk), "walk");
     };
@@ -336,12 +479,44 @@ WorldSetup platformerWorldSetup(std::shared_ptr<const PlatformerContext> context
         const Vulkan::MaterialId flat = w.registerMaterial("platformer/flat", demoMaterial());
         for (int j = 0; j < JointCount; ++j)
             registerDemoMesh(w, heroPartMeshName(j), [j]() { return heroPartMesh(j); }, flat, 500);
+        // S21: a door with its frame (drawn by the extract in the door's space)
+        registerDemoMesh(
+            w, doorMeshName(),
+            []()
+            {
+                MeshData m = MeshBuilder::box(Vec3(0.6, 1.1, 0.06), Vec3(0.38, 0.24, 0.14), Vec3(0, 1.1, 0));
+                m.append(MeshBuilder::box(Vec3(0.08, 1.2, 0.1), Vec3(0.3, 0.3, 0.32), Vec3(-0.68, 1.2, 0)));
+                m.append(MeshBuilder::box(Vec3(0.08, 1.2, 0.1), Vec3(0.3, 0.3, 0.32), Vec3(0.68, 1.2, 0)));
+                m.append(MeshBuilder::box(Vec3(0.76, 0.08, 0.1), Vec3(0.3, 0.3, 0.32), Vec3(0, 2.4, 0)));
+                m.append(MeshBuilder::box(Vec3(0.05, 0.05, 0.05), Vec3(0.9, 0.75, 0.3), Vec3(0.4, 1.05, 0.1)));
+                return m;
+            },
+            flat, 500);
     };
     s.setContext(std::move(context));
     return s;
 }
 
 // ---- scenarios -----------------------------------------------------------------------------------------------------
+
+namespace
+{
+// The cellar scenarios' record of a hero's stay in the cellar (space 1, on the host): the first step in it and the
+// steps spent there
+struct CellarStay
+{
+    int64_t entry = -1;
+    int steps     = 0;
+    bool left     = false;
+    void observe(ScenarioWorld& w, Entity hero)
+    {
+        const bool inside = w.world().read<Transform>(hero).space() == 1;
+        if (inside && entry < 0) entry = int64_t(w.steps());
+        if (inside) steps++;
+        if (!inside && entry >= 0) left = true;
+    }
+};
+}  // namespace
 
 void platformerScenarios(ScenarioList& list)
 {
@@ -422,6 +597,150 @@ void platformerScenarios(ScenarioList& list)
                  w.step(5);
                  hold(jump);
                  w.check(w.stepUntil([&] { return height() > 0.5; }, 30), "a fresh press jumps");
+             });
+    // S21: a hero of the default peer uses the entrance (the interact action at the door), walks through the cellar
+    // around the platforms (steered on the owner from its own pose) and leaves through the exit
+    list.add("cellar_round_trip",
+             [](ScenarioWorld& w)
+             {
+                 spawnDoors(w.world());
+                 const Entity hero = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), w.defaultPeer());
+                 // Before its spawn was sent: a plain move also for a client's hero
+                 w.world().moveToSpace(hero, 0, CellarDoors::entrance() + Vec3(0.6, 0, 0), yawRotation(0));
+                 w.step(10);
+                 auto space = [&]() { return w.world().read<Transform>(hero).space(); };
+                 w.input(hero, uint32_t(PlatformerAction::Interact));
+                 w.check(w.stepUntil([&] { return space() == 1; }, 40), "in the cellar");
+                 w.check((w.world().read<Transform>(hero).position() - CellarDoors::cellarArrival()).norm() < 1e-3,
+                         "at the cellar's arrival");
+                 if (w.networked())
+                 {
+                     auto ownerSpace = [&]()
+                     {
+                         const Entity c = w.onClient(w.defaultPeer(), hero);
+                         return c.valid() ? int(w.client(w.defaultPeer()).read<Transform>(c).space()) : -1;
+                     };
+                     w.check(w.stepUntil([&] { return ownerSpace() == 1; }, 20), "the owner's hero in the cellar");
+                 }
+                 // Around the platforms on the left to the exit
+                 const Vec3 o                   = CellarDoors::origin();
+                 const std::vector<Vec3> points = {o + Vec3(-3.5, 0, 0), o + Vec3(-3.5, 0, -19), CellarDoors::exit()};
+                 auto steer                     = [&]()
+                 {
+                     w.edit(hero,
+                            [points](World& owner, Entity e)
+                            {
+                                const Vec3 p = owner.read<Transform>(e).position();
+                                size_t k     = 0;
+                                if (p.z() < points[0].z() + 0.5) k = 1;
+                                if (p.z() < points[1].z() + 0.5) k = 2;
+                                Vec3 d(points[k].x() - p.x(), 0, points[k].z() - p.z());
+                                PlayerInput& in = owner.get<PlayerInput>(e);
+                                in.move         = d.norm() > 0.3 ? Vec3(d.normalized()) : Vec3::Zero();
+                                in.heldButtons  = 0;
+                            });
+                     const Vec3 p = w.world().read<Transform>(hero).position();
+                     return Vec3(p.x() - CellarDoors::exit().x(), 0, p.z() - CellarDoors::exit().z()).norm() < 1.0;
+                 };
+                 w.check(w.stepUntil(steer, 60 * 10), "walked to the exit");
+                 // Facing away from the arrival rotation (yaw 0): idle, the hero keeps this yaw until the move
+                 w.edit(hero,
+                        [](World& owner, Entity e)
+                        {
+                            owner.get<PlayerInput>(e).move    = Vec3::Zero();
+                            owner.get<CharacterMotion>(e).yaw = 2.0;
+                        });
+                 w.step(5);
+                 w.input(hero, uint32_t(PlatformerAction::Interact));
+                 w.check(w.stepUntil([&] { return space() == 0; }, 40), "back outside");
+                 // Regression (CodeRabbit, S21): the idle controller kept its yaw over the arrival rotation
+                 auto yaw = [&]() { return headingOf(forwardOf(w.world().read<Transform>(hero).rotation())); };
+                 w.check(w.stepUntil([&] { return std::abs(yaw()) < 1e-6; }, 20),
+                         "faces the arrival rotation: yaw " + std::to_string(yaw()));
+                 // The controller of the arrival step ran after the move (phase 4 after phase 1): within its settling
+                 const Vec3 back = w.world().read<Transform>(hero).position();
+                 w.check((back - CellarDoors::entranceArrival()).norm() < 0.05,
+                         "next to the entrance: " + std::to_string((back - CellarDoors::entranceArrival()).norm()));
+             });
+    // S21: the host's demo runner on the cellar route: through the cellar (at least 240 steps there: the pinned
+    // pre-simulation of --demo --cellar), then the outdoor level to the goal
+    list.add("demo_runner_visits_the_cellar",
+             [](ScenarioWorld& w)
+             {
+                 spawnDoors(w.world());
+                 const Entity hero = spawnDemoRunner(w.world(), PlatformerRoute::Cellar);
+                 w.trace<RunState>(hero);
+                 CellarStay stay;
+                 w.check(w.stepUntil(
+                             [&]
+                             {
+                                 stay.observe(w, hero);
+                                 return w.world().read<RunState>(hero).goalTime >= 0;
+                             },
+                             60 * 40),
+                         "reaches the goal");
+                 w.check(stay.left, "left the cellar");
+                 w.check(stay.steps >= 240, "stays at least 240 steps in the cellar: " + std::to_string(stay.steps));
+                 SAIGA_LOG("platformer", "demo_runner_visits_the_cellar: entry step %lld, stay %d steps, goal %.2f s",
+                           (long long)stay.entry, stay.steps, w.world().read<RunState>(hero).goalTime);
+             });
+    // S21: a hero of the default peer with the demo pilot on the cellar route (on the client in the network variants):
+    // in the cellar and back outside within a bounded step count
+    list.add("pilot_visits_the_cellar",
+             [](ScenarioWorld& w)
+             {
+                 spawnDoors(w.world());
+                 RunState run;
+                 run.route         = int32_t(PlatformerRoute::Cellar);
+                 const Entity hero = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), w.defaultPeer(), run);
+                 w.world().add<DemoPilot>(hero);
+                 CellarStay stay;
+                 w.check(w.stepUntil(
+                             [&]
+                             {
+                                 stay.observe(w, hero);
+                                 return stay.left;
+                             },
+                             60 * 30),
+                         "in the cellar and back outside");
+                 w.check(stay.steps >= 240, "stays at least 240 steps in the cellar: " + std::to_string(stay.steps));
+                 SAIGA_LOG("platformer", "pilot_visits_the_cellar: entry step %lld, stay %d steps",
+                           (long long)stay.entry, stay.steps);
+             });
+    // Regression (CodeRabbit, S21): a restart between steps kept a door transition requested before it, which moved the
+    // hero back into the cellar in the next step
+    list.add("restart_cancels_a_door_transition",
+             [](ScenarioWorld& w)
+             {
+                 spawnDoors(w.world());
+                 const Entity hero = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), w.defaultPeer());
+                 w.world().moveToSpace(hero, 0, CellarDoors::entrance() + Vec3(0.6, 0, 0), yawRotation(0));
+                 w.step(10);
+                 w.input(hero, uint32_t(PlatformerAction::Interact));
+                 w.check(w.stepUntil([&] { return w.world().has<PendingTransition>(hero); }, 40), "door requested");
+                 HeroBase* object = gameObjectAs<HeroBase>(w.world(), hero);
+                 w.check(object != nullptr, "the hero's object");
+                 if (!object) return;
+                 object->restart();
+                 w.check(!w.world().has<PendingTransition>(hero), "the request cancelled");
+                 w.step(10);
+                 w.check(w.world().read<Transform>(hero).space() == 0, "stays outside");
+             });
+    // The demo pilot's restart after the goal (the restart action) and the next run (host-owned in the single-world
+    // variants, the client's in the network ones). Regression (PR review, S21): a host-owned pilot stood at the start
+    // after its restart (the waypoint stayed -1)
+    list.add("pilot_runs_again_after_the_restart",
+             [](ScenarioWorld& w)
+             {
+                 const Entity hero = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), w.defaultPeer(), RunState{});
+                 w.world().add<DemoPilot>(hero);
+                 auto run = [&]() -> const RunState& { return w.world().read<RunState>(hero); };
+                 w.check(w.stepUntil([&] { return run().goalTime >= 0; }, 60 * 40), "reaches the goal");
+                 w.check(w.stepUntil([&] { return run().goalTime < 0; }, 60 * 6), "restarted after the goal");
+                 const Vec3 start = w.world().read<Transform>(hero).position();
+                 w.check(w.stepUntil([&] { return (w.world().read<Transform>(hero).position() - start).norm() > 3; },
+                                     60 * 5),
+                         "runs again from the start");
              });
 }
 

@@ -76,6 +76,60 @@ bool readBlocks(BinaryReader& r, size_t base, const SchemaTable& schema, SchemaK
 }
 }  // namespace
 
+bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTable& out, std::string& error)
+{
+    out = SpaceTable();
+    if (version != kSpaceTableVersion)
+    {
+        error = "unknown version " + std::to_string(version);
+        return false;
+    }
+    uint32_t n = 0;
+    r.read(n);
+    if (!r.ok()) return false;
+    // Each row takes at least 5 bytes (an empty name's length and the kind)
+    if (n == 0 || n > 65535 || uint64_t(n) * 5 > r.remaining())
+    {
+        error = "the space count " + std::to_string(n) + " is not in 1..65535 or does not fit into the section";
+        return false;
+    }
+    out.rows.resize(n);
+    for (uint32_t i = 0; i < n && r.ok(); ++i)
+    {
+        uint32_t length = 0;
+        r.read(length);
+        if (!r.ok()) break;
+        if (length > 256 || length > r.remaining())
+        {
+            error = "space " + std::to_string(i) + ": a name of " + std::to_string(length) + " bytes";
+            return false;
+        }
+        std::string& name = out.rows[i].name;
+        name.resize(length);
+        for (uint32_t k = 0; k < length; ++k)
+        {
+            uint8_t c = 0;
+            r.read(c);
+            name[k] = char(c);
+        }
+        uint8_t kind = 0;
+        r.read(kind);
+        if (r.ok() && kind > uint8_t(SpaceKind::Enclosed))
+        {
+            error = "space " + std::to_string(i) + ": the unknown kind " + std::to_string(kind);
+            return false;
+        }
+        out.rows[i].kind = SpaceKind(kind);
+    }
+    if (!r.ok()) return false;
+    if (!r.atEnd())
+    {
+        error = "bytes left over";
+        return false;
+    }
+    return true;
+}
+
 bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& error)
 {
     out = ParsedSave();
@@ -93,9 +147,15 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
                 std::to_string(kSaveFormatVersion) + ")";
         return false;
     }
-    const uint32_t order[] = {kTagHeader, kTagSchema, kTagEntities, kTagComponents, kTagEvents, kTagActions, kTagState};
-    for (uint32_t expected : order)
+    // The order table (D7): an optional entry whose tag is not the next section is absent
+    constexpr size_t kEntries = sizeof(kSaveSections) / sizeof(kSaveSections[0]);
+    size_t next               = 0;
+    while (next < kEntries)
     {
+        // The blob may end only when every remaining entry is optional
+        bool requiredLeft = false;
+        for (size_t i = next; i < kEntries; ++i) requiredLeft = requiredLeft || !kSaveSections[i].optional;
+        if (top.atEnd() && !requiredLeft) break;
         uint32_t tag    = 0;
         uint64_t length = 0;
         top.read(tag);
@@ -105,11 +165,26 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
             error = "truncated save: " + top.error();
             return false;
         }
-        if (tag != expected)
+        // The candidates: the next entry and the optional ones after it, up to the first required one
+        size_t found = kEntries;
+        std::string expected;
+        for (size_t i = next; i < kEntries; ++i)
         {
-            error = "unexpected section " + tagName(tag) + " (expected " + tagName(expected) + ")";
+            expected += (expected.empty() ? "" : " or ") + tagName(kSaveSections[i].tag);
+            if (kSaveSections[i].tag == tag)
+            {
+                found = i;
+                break;
+            }
+            if (!kSaveSections[i].optional) break;
+        }
+        if (found == kEntries)
+        {
+            error = "unexpected section " + tagName(tag) + " (expected " + expected + ")";
             return false;
         }
+        next                         = found + 1;
+        const SaveSectionEntry entry = kSaveSections[found];
         if (length > top.remaining())
         {
             error = "section " + tagName(tag) + " is longer than the save";
@@ -119,8 +194,33 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
         BinaryReader r(data.data() + base, size_t(length));
         top.skip(length);
         std::string sectionError;
-        bool ok = true;
-        if (tag == kTagHeader)
+        bool ok          = true;
+        uint32_t version = 0;
+        if (entry.optional)
+        {
+            r.read(version);
+            if (r.ok() && (version == 0 || version > entry.maxVersion))
+            {
+                error = tagName(tag) + ": section format version " + std::to_string(version) + " (this build reads " +
+                        std::to_string(entry.maxVersion) + ")";
+                return false;
+            }
+        }
+        if (entry.optional)
+        {
+            // One case per optional entry: its parse function or its raw range (the recipe of the S21 plan)
+            switch (tag)
+            {
+                case kTagSpaces:
+                    out.spaces.emplace();
+                    ok = r.ok() && parseSpaceTable(r, version, *out.spaces, sectionError);
+                    break;
+                default:
+                    SAIGA_ASSERT(false, "parseSave: an optional section without a case");
+                    break;
+            }
+        }
+        else if (tag == kTagHeader)
         {
             r.read(out.engineVersion);
             r.read(out.stepsPerSecond);
@@ -197,7 +297,7 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
             error = tagName(tag) + ": " + (sectionError.empty() ? r.error() : sectionError);
             return false;
         }
-        if (!r.atEnd() && tag != kTagComponents && tag != kTagEvents)
+        if (!r.atEnd() && tag != kTagComponents && tag != kTagEvents && !entry.optional)
         {
             error = tagName(tag) + ": bytes left over";
             return false;

@@ -23,6 +23,7 @@
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/ScenarioList.h"
@@ -2480,4 +2481,277 @@ TEST_F(EngineAppRender, StreamTimePausesTheClock)
     double longest = 0;
     for (size_t i = samplesBefore; i < samples.size(); ++i) longest = std::max(longest, samples[i].interval);
     EXPECT_LT(longest, 100.0);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Spaces (S21): the loading screen of a view space switch, set_camera(space)
+
+namespace
+{
+int32_t otherIntegerHook(uint64_t seed, int64_t x, int64_t z)
+{
+    return int32_t(int64_t(seed % 300) * 16 + x * 3 - z * 5 + 4096);
+}
+
+// Space 0: open world (integerTestHook, 2 m, 16 chunks), 1: the enclosed cellar, 2: the latched hook (2 m, 32 chunks
+// = 8 km), 3: an unlatched integer hook (2 m, 32 chunks), 4: flat
+EngineAppSetup fiveSpaceSetup()
+{
+    EngineAppSetup s = appSetup(true);
+    SpaceTemplate a  = TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::integerTestHook, 0);
+    a.name           = "overworld";
+    SpaceTemplate c  = TerrainTestHooks::testSpaceTemplate(32, 2, TerrainTestHooks::latchedHook, 0);
+    c.name           = "latched";
+    SpaceTemplate d  = TerrainTestHooks::testSpaceTemplate(32, 2, otherIntegerHook, 0);
+    d.name           = "islands";
+    SpaceTemplate flat;
+    flat.name                     = "flat";
+    s.world.config.spaceTemplates = {a, SpaceTemplate::enclosed("cellar"), c, d, flat};
+    return s;
+}
+
+// Opens the latch when it goes out of scope (before the app it is declared after: the pool can join)
+struct LatchGuard
+{
+    ~LatchGuard() { TerrainTestHooks::openLatch(); }
+};
+}  // namespace
+
+// End rule 1 and 3 through S20's forwarding of the sink's pending uploads (no device)
+TEST(LoadingRules, EndsOnlyWithoutPendingUploads)
+{
+    WorldSetup ws;
+    ws.profiling = false;
+    World w(ws);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    sink.uploadsPendingForTests = 4096;
+    SpaceLoading l{0, 0.5, 3};
+    EXPECT_FALSE(loadEnds(l, 1.0, w.terrain().terrainUploadsPending(), 600));
+    sink.uploadsPendingForTests = 0;
+    EXPECT_TRUE(loadEnds(l, 1.0, w.terrain().terrainUploadsPending(), 600));
+    EXPECT_FALSE(loadEnds(l, 0.99, w.terrain().terrainUploadsPending(), 600));
+    l.frames = 600;
+    EXPECT_TRUE(loadEnds(l, 0.5, 4096, 600));
+    w.setRenderSink(nullptr);
+}
+
+// set_camera(space): validated against the view world's spaces, with the hold; no load without rendering
+TEST(EngineAppNoRender, SetCameraSpace)
+{
+    EngineAppSetup s              = appSetup(false);
+    s.world.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar")};
+    EngineApp app(s);
+    Json c = callApp(app, "set_camera", obj(R"({"space": 1, "position": [640, 2, 640]})"));
+    ASSERT_FALSE(isError(c)) << c.dump();
+    EXPECT_EQ(toolJson(c)["space"].int_value(), 1);
+    EXPECT_EQ(app.viewCamera().space, 1);
+    EXPECT_TRUE(app.cameraHeldByTool());
+    // Without space: the current one
+    c = callApp(app, "set_camera", obj(R"({"position": [641, 2, 640]})"));
+    EXPECT_EQ(app.viewCamera().space, 1);
+    const Json e = callApp(app, "set_camera", obj(R"({"space": 2})"));
+    EXPECT_TRUE(isError(e));
+    EXPECT_NE(errorText(e).find("2 spaces"), std::string::npos) << errorText(e);
+    EXPECT_TRUE(isError(callApp(app, "set_camera", obj(R"({"space": 0.5})"))));
+    // --no-render: no load while the view space changes
+    app.runFrames(3, 1.0 / 60);
+    EXPECT_EQ(app.spaceLoading(), nullptr);
+    EXPECT_TRUE(toolJson(callApp(app, "app_status", Json::object{}))["space_loading"].is_null());
+}
+
+// The sequence of §12.4 step 2 on five spaces (one app): no load for the enclosed and the flat space; a load in the
+// latched space that stays at 0 while the workers are held (app_status reports it, the game's hook draws it once per
+// frame); a hop out through the enclosed space and a new load that ends at end rule 1 once the latch opens; a load in
+// the unlatched space 3 cut off by an MCP screenshot (a complete point); back to space 0 without a pyramid generation
+TEST_F(EngineAppRender, SpaceLoadingSequence)
+{
+    EngineAppSetup s = fiveSpaceSetup();
+    s.render.imgui   = true;
+    int hookCalls    = 0;
+    s.loadingScreen  = [&](EngineApp&, const SpaceLoading&) { hookCalls++; };
+    EngineApp app(s);
+    app.scene()->setImguiVisible(true);
+    const Vec3 cam0(500, 80, 500);
+    app.setViewCamera(0, cam0, Quat::Identity(), 1.0);
+    app.runFrames(1, 1.0 / 60);  // a complete point in space 0 (never calls the latched hook)
+    const auto* pyramid0 = app.world().terrain().pyramid(0);
+    ASSERT_NE(pyramid0, nullptr);
+    TerrainTestHooks::armLatch();
+    LatchGuard open;
+    auto frame = [&]() { app.runFrames(1, 1.0 / 60); };
+
+    // 1. The enclosed space 1 and the flat space 4: no load
+    app.setViewCameraByTool(1, Vec3(640, 2, 640), Quat::Identity(), 1.0, true);
+    for (int i = 0; i < 3; ++i)
+    {
+        frame();
+        EXPECT_EQ(app.spaceLoading(), nullptr);
+    }
+    app.setViewCameraByTool(4, Vec3(10, 2, 10), Quat::Identity(), 1.0, true);
+    for (int i = 0; i < 3; ++i)
+    {
+        frame();
+        EXPECT_EQ(app.spaceLoading(), nullptr);
+    }
+    EXPECT_EQ(hookCalls, 0);
+
+    // 2. The latched space 2: a load at 0 while the pyramid job is held
+    const Vec3 cam2(1000, 300, 1000);
+    app.setViewCameraByTool(2, cam2, Quat::Identity(), 1.0, true);
+    frame();
+    ASSERT_NE(app.spaceLoading(), nullptr);
+    EXPECT_EQ(app.spaceLoading()->space, 2);
+    EXPECT_EQ(app.spaceLoading()->progress, 0.0);
+    const int callsAtStart = hookCalls;
+    EXPECT_EQ(callsAtStart, 1);
+    for (int i = 0; i < 10; ++i)
+    {
+        frame();
+        ASSERT_NE(app.spaceLoading(), nullptr);
+        EXPECT_EQ(app.spaceLoading()->progress, 0.0);
+    }
+    EXPECT_EQ(hookCalls, callsAtStart + 10);
+    const Json status = callWhileRunning(app, "app_status", Json::object{});
+    const Json sl     = toolJson(status)["space_loading"];
+    ASSERT_TRUE(sl.is_object()) << status.dump().substr(0, 400);
+    EXPECT_EQ(sl["space"].int_value(), 2);
+    EXPECT_EQ(sl["name"].string_value(), "latched");
+    EXPECT_EQ(sl["progress"].number_value(), 0.0);
+    EXPECT_GT(sl["frames"].number_value(), 10);
+
+    // 4. Out through the enclosed space (no load, no pool work), then a new load in space 2 at a fixed camera; the
+    // latch opens: the progress never decreases and the load ends at end rule 1
+    app.setViewCameraByTool(1, Vec3(640, 2, 640), Quat::Identity(), 1.0, true);
+    frame();
+    EXPECT_EQ(app.spaceLoading(), nullptr);
+    app.setViewCameraByTool(2, cam2, Quat::Identity(), 1.0, true);
+    frame();
+    ASSERT_NE(app.spaceLoading(), nullptr);
+    TerrainTestHooks::openLatch();
+    double last     = 0;
+    uint64_t frames = 0;
+    for (int i = 0; i < 600 && app.spaceLoading(); ++i)
+    {
+        EXPECT_GE(app.spaceLoading()->progress, last);
+        last   = app.spaceLoading()->progress;
+        frames = app.spaceLoading()->frames;
+        frame();
+    }
+    EXPECT_EQ(app.spaceLoading(), nullptr);
+    // End rule 1, not the frame limit: frames is the count before the last frame, which ended the load (PR review)
+    EXPECT_LT(frames + 1, 600u);
+    EXPECT_EQ(app.world().spaceReadiness(2, cam2, s.loadingRadius), 1.0);
+
+    // 5. The unlatched space 3: a load (the pyramid is generated on the pool), cut off by an MCP screenshot
+    app.setViewCameraByTool(3, Vec3(2000, 300, 2000), Quat::Identity(), 1.0, true);
+    frame();
+    ASSERT_NE(app.spaceLoading(), nullptr);
+    const Json shot = callWhileRunning(app, "screenshot", Json::object{});
+    EXPECT_FALSE(isError(shot)) << shot.dump().substr(0, 300);
+    EXPECT_EQ(app.spaceLoading(), nullptr);
+
+    // 6. Back to space 0: its tiles were dropped at the first switch (D5), its pyramid is cached
+    const uint64_t pyramids = app.world().terrain().stats().pyramidsGenerated;
+    app.setViewCameraByTool(0, cam0, Quat::Identity(), 1.0, true);
+    frame();
+    ASSERT_NE(app.spaceLoading(), nullptr);
+    for (int i = 0; i < 600 && app.spaceLoading(); ++i) frame();
+    EXPECT_EQ(app.spaceLoading(), nullptr);
+    EXPECT_EQ(app.world().terrain().pyramid(0), pyramid0);
+    EXPECT_EQ(app.world().terrain().stats().pyramidsGenerated, pyramids);
+}
+
+// A moving camera in the latched space (loadingMaxFrames 30, the screen off): the progress never decreases and the load
+// ends after 30 frames with a log line; nothing is drawn while spaceLoading reports the load
+TEST_F(EngineAppRender, SpaceLoadingMovingCamera)
+{
+    EngineAppSetup s    = fiveSpaceSetup();
+    s.render.imgui      = true;
+    s.loadingMaxFrames  = 30;
+    s.showLoadingScreen = false;
+    int hookCalls       = 0;
+    s.loadingScreen     = [&](EngineApp&, const SpaceLoading&) { hookCalls++; };
+    EngineApp app(s);
+    app.scene()->setImguiVisible(true);
+    app.setViewCamera(0, Vec3(500, 80, 500), Quat::Identity(), 1.0);
+    app.runFrames(1, 1.0 / 60);
+    TerrainTestHooks::armLatch();
+    LatchGuard open;
+    const uint64_t before = engineLog().lastSequence();
+    Vec3 cam(1000, 300, 1000);
+    app.setViewCameraByTool(2, cam, Quat::Identity(), 1.0, true);
+    app.runFrames(1, 1.0 / 60);
+    ASSERT_NE(app.spaceLoading(), nullptr);
+    double last = 0;
+    int frames  = 1;
+    while (app.spaceLoading() && frames < 100)
+    {
+        EXPECT_GE(app.spaceLoading()->progress, last);
+        last = app.spaceLoading()->progress;
+        cam.x() += 100;  // 3 km in 30 frames, inside the 8 km space
+        app.setViewCameraByTool(2, cam, Quat::Identity(), 1.0, true);
+        app.runFrames(1, 1.0 / 60);
+        frames++;
+    }
+    EXPECT_EQ(frames, 30);
+    EXPECT_EQ(app.viewCamera().space, 2);
+    EXPECT_EQ(hookCalls, 0);
+    bool logged = false;
+    for (const auto& l : engineLog().since(before))
+        logged = logged || l.message.find("loading of space 'latched' ended after 30 frames") != std::string::npos;
+    EXPECT_TRUE(logged);
+}
+
+// --coop: the rendered client world's camera decides
+TEST_F(EngineAppRender, SpaceLoadingCoopClientCamera)
+{
+    EngineAppSetup s       = coopSetup();
+    const EngineAppSetup r = appSetup(true);
+    s.noRender             = false;
+    s.validation           = r.validation;
+    s.render               = r.render;
+    s.render.imgui         = true;
+    // The latched hook holds the load over the screenshot frame (PR review: with a fast hook the load could end
+    // before the screen was drawn)
+    SpaceTemplate hills           = TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::latchedHook, 0);
+    hills.name                    = "hills";
+    s.world.config.spaceTemplates = {SpaceTemplate(), hills};
+    EngineApp app(s, coopOptions(1));
+    ASSERT_NE(app.hostWorld(), nullptr);
+    app.scene()->setImguiVisible(true);
+    app.runFrames(2, 1.0 / 60);
+    TerrainTestHooks::armLatch();
+    LatchGuard open;
+    app.setViewCameraByTool(1, Vec3(1000, 80, 1000), Quat::Identity(), 1.0, true);
+    app.runFrames(1, 1.0 / 60);
+    ASSERT_NE(app.spaceLoading(), nullptr);
+    // The engine's default screen over the whole viewport (a frame of the scene directly: an app capture would be a
+    // complete point, which ends the load)
+    TemplatedImage<ucvec4> shot;
+    app.scene()->requestScreenshot([&](const TemplatedImage<ucvec4>& img) { shot = img; });
+    app.runFrames(1, 1.0 / 60);
+    app.scene()->waitIdle();
+    ASSERT_GT(shot.w, 0);
+    for (const ivec2 p : {ivec2(1, shot.h - 2), ivec2(shot.w - 2, shot.h - 2)})  // below the debug UI's bar
+    {
+        const ucvec4 c = shot(p.y(), p.x());
+        EXPECT_NEAR(int(c(0)), 12, 3);
+        EXPECT_NEAR(int(c(1)), 13, 3);
+        EXPECT_NEAR(int(c(2)), 16, 3);
+    }
+    TerrainTestHooks::openLatch();
+    // The load's own frame count (it ran frames before this loop), before the frame that ended it. Regression
+    // (CodeRabbit, S21): the loop counted only its own frames, so an end at the frame limit passed the check
+    uint64_t frames = 0;
+    for (int i = 0; i < 600 && app.spaceLoading(); ++i)
+    {
+        frames = app.spaceLoading()->frames;
+        app.runFrames(1, 1.0 / 60);
+    }
+    EXPECT_EQ(app.spaceLoading(), nullptr);
+    EXPECT_LT(frames + 1, s.loadingMaxFrames);  // end rule 1, not the frame limit
+    // The client world streamed it, the hidden host world nothing
+    EXPECT_NE(app.world().terrain().pyramid(1), nullptr);
+    EXPECT_EQ(app.hostWorld()->terrain().pyramid(1), nullptr);
 }

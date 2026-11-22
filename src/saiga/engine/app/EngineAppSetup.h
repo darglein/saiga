@@ -25,6 +25,7 @@ class EngineApp;
 class InputMap;
 class ScenarioList;
 struct AppOptions;
+struct SpaceLoading;
 
 // The game's render hooks (docs/engine_design.md §8.3; S19b): the entities render through the World's render sink
 // (RenderInstance, the extract); the game keeps device-bound state of its own (the prototype's tree sets, level
@@ -80,6 +81,15 @@ struct EngineAppSetup
     // The debug UI (S19c, DebugUi): off frees F1..F10 for the game and draws nothing; persistence: its state in
     // debug_ui.json of the working directory (never when headless, with a screenshot option or a benchmark)
     bool debugUi = true, debugUiPersistence = true;
+    // The loading screen of a space switch (S21, §12.4; game policy, R-MECH-1): a load starts when the view camera's
+    // space changes to one whose World::spaceReadiness within loadingRadius (m) is below 1, and ends at readiness 1
+    // without pending terrain uploads, at a complete point, or after loadingMaxFrames frames (with a log line).
+    // showLoadingScreen false: tracked and reported (EngineApp::spaceLoading, app_status), nothing drawn.
+    // loadingScreen: drawn inside the ImGui frame while a load runs (null: the engine's drawLoadingScreen)
+    double loadingRadius      = 256;
+    uint64_t loadingMaxFrames = 600;
+    bool showLoadingScreen    = true;
+    std::function<void(EngineApp&, const SpaceLoading&)> loadingScreen;
 };
 
 // What the command line selects besides the setup

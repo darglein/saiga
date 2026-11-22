@@ -55,6 +55,11 @@ float srgbToLinear(float c)
 {
     return c <= 0.04045f ? c / 12.92f : std::pow((c + 0.055f) / 1.055f, 2.4f);
 }
+// The piecewise sRGB encode (an enclosed space's linear background in clay mode, which writes display values)
+float linearToSrgb(float c)
+{
+    return c <= 0.0031308f ? c * 12.92f : 1.055f * std::pow(c, 1.0f / 2.4f) - 0.055f;
+}
 
 vk::ImageSubresourceRange colorRange()
 {
@@ -278,6 +283,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // lighting, the pre-pass and every prototype draw; a later change (e.g. in the render callback) is the next frame's
     PrototypeSettings proto;
     bool prepass = false;
+    // The camera space's render settings (S21): an enclosed space draws no terrain, grass, water or sky
+    bool enclosed = false;
 
     timings.enterSection("transfer", cmd);
     {
@@ -293,14 +300,20 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.atlas->recordUploads(cmd, frame.frameIndex);
         // The transfer callback may set the camera of this frame (S19a)
         s.frameCamera(surfaceWidth, SurfaceHeight, camera);
-        proto   = *s.protoSettings;
-        prepass = proto.depthPrePass;
-        // The S20 terrain: the selection over the GPU set (nothing without a resident pyramid of the camera's space)
-        s.terrain->transfer(cmd, frame.frameIndex, *s.atlas, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
+        proto    = *s.protoSettings;
+        prepass  = proto.depthPrePass;
+        enclosed = camera.valid && !s.spaceSettings(camera.space).openWorld;
+        // The S20 terrain: the selection over the GPU set (nothing without a resident pyramid of the camera's space;
+        // nothing in an enclosed camera space, S21)
+        if (enclosed)
+            s.terrain->skipFrame();
+        else
+            s.terrain->transfer(cmd, frame.frameIndex, *s.atlas, camera, proto, s.sceneTime, surfaceWidth,
+                                SurfaceHeight);
         s.grass->update(*s.atlas, *s.terrain, camera, proto);
         s.slotStatistics[frame.frameIndex].terrainNodes = uint32_t(s.terrain->stats().nodes);
         SceneLighting lighting;
-        s.frameLighting(camera, proto, int(samples), lighting);
+        s.frameLighting(camera, proto, enclosed, int(samples), lighting);
         s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
         // ... and make the writes visible to this frame's culling and draws.
         vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
@@ -395,7 +408,16 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     timings.enterSection("scene", cmd);
     {
         vec4 c = s.params.clearColor;
-        if (linear)
+        if (enclosed)
+        {
+            // An enclosed space's background (S21, linear RGB) replaces the sky: pre-exposed like the scene shaders'
+            // output, or as a display value in clay mode
+            const vec3 b = s.spaceSettings(camera.space).background;
+            for (int i = 0; i < 3; ++i)
+                c[i] = linear ? std::max(b[i], 0.0f) * s.framePreExposure : linearToSrgb(std::clamp(b[i], 0.0f, 1.0f));
+            c[3] = 1;
+        }
+        else if (linear)
         {
             // A display value: linear and pre-exposed as the scene shaders' output
             for (int i = 0; i < 3; ++i) c[i] = srgbToLinear(std::clamp(c[i], 0.0f, 1.0f)) * s.framePreExposure;
@@ -465,11 +487,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         subEnd("scene.instances", cmd);
         viewport(cmd);
         subBegin("scene.grass", cmd);
-        if (s.foliage) s.grass->render(cmd, frame.frameIndex, *s.terrain);
+        if (s.foliage && !enclosed) s.grass->render(cmd, frame.frameIndex, *s.terrain);
         subEnd("scene.grass", cmd);
         subBegin("scene.sky", cmd);
-        // The environment's sky (S20): from setPrototypeEnvironment on, with or without terrain
-        if (s.foliage) s.terrain->renderSky(cmd, frame.frameIndex, proto);
+        // The environment's sky (S20): from setPrototypeEnvironment on, with or without terrain; not in an enclosed
+        // camera space (S21: the background is the clear color)
+        if (s.foliage && !enclosed) s.terrain->renderSky(cmd, frame.frameIndex, proto);
         subEnd("scene.sky", cmd);
         cmd.endRendering();
 
@@ -903,12 +926,29 @@ const PrototypeSettings& RenderScene::prototypeSettings() const
     return *protoSettings;
 }
 
-void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, int samples,
+void RenderScene::setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings)
+{
+    // A copy first: settings may be an element of spaceRenderSettings (spaceSettings(other)), which the resize can
+    // move (PR review, S21)
+    const SpaceRenderSettings copy = settings;
+    if (spaceRenderSettings.size() <= space) spaceRenderSettings.resize(size_t(space) + 1);
+    spaceRenderSettings[space] = copy;
+}
+
+const SpaceRenderSettings& RenderScene::spaceSettings(SpaceId space) const
+{
+    static const SpaceRenderSettings openWorld;
+    return space < spaceRenderSettings.size() ? spaceRenderSettings[space] : openWorld;
+}
+
+void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, bool enclosed, int samples,
                                 SceneLighting& out) const
 {
     out = SceneLighting();
+    // An enclosed camera space (S21): the fixed enclosed lighting, independent of the game's environment
+    if (enclosed) prototypeLighting(kEnclosedLighting, sceneTime, 0.0f, out);
     // The new path's environment (S20): the fog's base is the terrain set's sea level
-    if (foliage)
+    else if (foliage)
         prototypeLighting(proto, sceneTime, atlas->seaLevel() ? float(double(*atlas->seaLevel()) * kHeightUnit) : 0.0f,
                           out);
     const vec3 p = camera.position.cast<float>();

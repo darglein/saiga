@@ -11,7 +11,10 @@
 #include "saiga/engine/components/EngineComponents.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderPose.h"
+#include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -148,29 +151,49 @@ void World::setupProfiler()
 
 void World::createStateEntities()
 {
-    // The world-state entity and the space-state entity of space 0 exist when components are registered for them
-    // (§7.8); before S21 there is only space 0
+    // The world-state entity and one space-state entity per space (SpaceId order, S21) exist when components are
+    // registered for them (§7.8)
     bool anyGlobal = false, anySpace = false;
     for (size_t id = 0; id < kMaxComponents; ++id)
     {
         anyGlobal = anyGlobal || reg.isGlobal(ComponentId(id));
         anySpace  = anySpace || reg.isSpaceState(ComponentId(id));
     }
-    auto make = [&](uint8_t flag, bool (Registry::*is)(ComponentId) const)
+    if (anyGlobal) worldState = makeStateEntity(Registry::kWorldState, 0, nullptr);
+    if (anySpace)
+        for (size_t space = 0; space < spaceCount(); ++space)
+            spaceStates.push_back(makeStateEntity(Registry::kSpaceState, SpaceId(space), nullptr));
+}
+
+Entity World::makeStateEntity(uint8_t flag, SpaceId space, StateDefaults* defaults)
+{
+    // Not World::create: the loader creates state entities outside a step's rules
+    Entity e;
     {
-        Entity e = create();
-        reg.setFlags(e, uint8_t(reg.flags(e) | flag));
-        for (size_t id = 0; id < kMaxComponents; ++id)
-        {
-            if (!(reg.*is)(ComponentId(id))) continue;
-            auto record = log.prepare(1);
-            reg.addDefault(e, ComponentId(id));
-            record.append(e, ComponentId(id), true);
-        }
-        return e;
-    };
-    if (anyGlobal) worldState = make(Registry::kWorldState, &Registry::isGlobal);
-    if (anySpace) spaceStates.push_back(make(Registry::kSpaceState, &Registry::isSpaceState));
+        auto record = log.prepare(1);
+        e           = reg.create();
+        record.append(e, Transform::id, true);
+    }
+    reg.setFlags(e, uint8_t(reg.flags(e) | flag));
+    // A space-state entity's identity is its Transform::space (writer 6); the world-state entity stays in space 0
+    if (flag & Registry::kSpaceState) reg.get<Transform>(e).setSpaceInternal(space);
+    for (size_t id = 0; id < kMaxComponents; ++id)
+    {
+        const bool state =
+            (flag & Registry::kWorldState) ? reg.isGlobal(ComponentId(id)) : reg.isSpaceState(ComponentId(id));
+        if (state) addStateComponent(e, ComponentId(id), defaults);
+    }
+    return e;
+}
+
+void World::addStateComponent(Entity e, ComponentId id, StateDefaults* defaults)
+{
+    auto record = log.prepare(1);
+    if (defaults && (*defaults)[id])
+        reg.addStaged(e, id, *(*defaults)[id]);
+    else
+        reg.addDefault(e, id);
+    record.append(e, id, true);
 }
 
 // ---- game objects and gameplay
@@ -207,7 +230,9 @@ bool World::reparentNow(Entity child, Entity parent)
     if (!acceptParent(child, parent)) return false;
     // The owner before (the old root) against the owner after (the new root): no intermediate owner change
     if (netChangeRefused(child, Parent::id, true, parent)) return false;
-    auto record = log.prepare(2);
+    if (clientAttachRefused(child, parent)) return false;
+    auto record                       = log.prepare(2);
+    const std::vector<Entity> subtree = subtreeToFollow(child, parent);
     reserveChildSlot(parent);
     Parent& p        = reg.get<Parent>(child);
     const Entity old = p.entity;
@@ -219,6 +244,7 @@ bool World::reparentNow(Entity child, Entity parent)
     // As a remove and an add (the replication sends one Hierarchy message)
     record.append(child, Parent::id, false);
     record.append(child, Parent::id, true);
+    followParentSpace(child, subtree);
     return true;
 }
 
@@ -230,7 +256,7 @@ Entity World::spawnByClass(const ClassList::ClassInfo& info, SpaceId space, cons
     if (!e.valid()) return e;
     try
     {
-        finishSpawn(e, info, position);
+        finishSpawn(e, info, space, position);
         if (initial) initial(e);
     }
     catch (...)
@@ -275,7 +301,12 @@ void World::runStepListeners()
 Entity World::beginSpawn(SpaceId space)
 {
     checkNotParallel("spawn");
-    SAIGA_ASSERT(space == 0, "spawnIn: only space 0 exists before S21");
+    // An unknown space is refused in every build too (no entity, no hooks; PR review, S21)
+    if (space >= spaceCount())
+    {
+        SAIGA_ASSERT(false, "spawnIn: unknown space " + std::to_string(space));
+        return Entity{};
+    }
     // A replicated game object only arrives on a client (§13.5); refused in every build (no entity, no hooks)
     if (!isHost())
     {
@@ -285,9 +316,11 @@ Entity World::beginSpawn(SpaceId space)
     return create();
 }
 
-void World::finishSpawn(Entity e, const ClassList::ClassInfo& info, const Vec3& position)
+void World::finishSpawn(Entity e, const ClassList::ClassInfo& info, SpaceId space, const Vec3& position)
 {
-    reg.get<Transform>(e).setPosition(position);
+    Transform& t = reg.get<Transform>(e);
+    t.setSpaceInternal(space);
+    t.setPosition(position);
     Behaviour b;
     b.object        = info.factory();
     b.object->owner = this;
@@ -419,7 +452,167 @@ void World::ownerTeleport(Entity root, const Vec3& position, const Quat& rotatio
         SAIGA_ASSERT(false, "ownerTeleport: the entity is not an alive root");
         return;
     }
-    repl->ownerTeleport(root, position, rotation);
+    moveToSpace(root, reg.read<Transform>(root).space(), position, rotation);
+}
+
+void World::moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation)
+{
+    checkNotParallel("moveToSpace");
+    // Code errors (the world API checks them and returns errors instead); refused without asserts too
+    if (!reg.alive(e))
+    {
+        SAIGA_ASSERT(false, "moveToSpace: the entity is not alive (or reserved)");
+        return;
+    }
+    if (reg.has<Parent>(e))
+    {
+        SAIGA_ASSERT(false, "moveToSpace: the entity is a child (its parent decides)");
+        return;
+    }
+    if (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState))
+    {
+        SAIGA_ASSERT(false, "moveToSpace: a world-state or space-state entity");
+        return;
+    }
+    if (space >= spaceCount())
+    {
+        SAIGA_ASSERT(false, "moveToSpace: unknown space " + std::to_string(space));
+        return;
+    }
+    if (clientSubtreeReplicated(e))
+    {
+        // R-NET-2: clients never move replicated entities (the owner applies the host's OwnerCommand), also not as the
+        // descendants of a local root. Regression (PR review, S21): only the root was checked
+        SAIGA_ASSERT(false, "moveToSpace: a client cannot move a replicated entity (or a subtree with one)");
+        return;
+    }
+    if (isHost())
+        repl->ownerMove(e, space, position, rotation);
+    else
+        teleportTo(e, space, position, rotation);
+}
+
+void World::requestTransition(Entity e, Entity link)
+{
+    checkNotParallel("requestTransition");
+    if (!isHost())
+    {
+        SAIGA_ASSERT(false, "requestTransition on a client (a host command)");
+        return;
+    }
+    if (!reg.alive(e))
+    {
+        SAIGA_ASSERT(false, "requestTransition: the entity is not alive (or reserved)");
+        return;
+    }
+    if (reg.has<Parent>(e))
+    {
+        SAIGA_ASSERT(false, "requestTransition: the entity is a child (its parent decides)");
+        return;
+    }
+    if (reg.flags(e) & (Registry::kWorldState | Registry::kSpaceState))
+    {
+        SAIGA_ASSERT(false, "requestTransition: a world-state or space-state entity");
+        return;
+    }
+    if (!reg.alive(link) || !reg.has<SpaceLink>(link))
+    {
+        SAIGA_ASSERT(false, "requestTransition: the link is not alive or has no SpaceLink");
+        return;
+    }
+    const SpaceLink& l = reg.read<SpaceLink>(link);
+    // Data errors (a hand-written or tool-edited link, a second request): refused in every build
+    if (l.target >= spaceCount())
+    {
+        SAIGA_LOG_E("world", e, "requestTransition refused: the link e%u:%u targets the unknown space %d", link.index,
+                    link.generation, int(l.target));
+        return;
+    }
+    if (reg.has<PendingTransition>(e))
+    {
+        SAIGA_LOG_E("world", e, "requestTransition refused: a transition is pending already (the first request wins)");
+        return;
+    }
+    PendingTransition p;
+    p.link     = link;
+    p.target   = l.target;
+    p.position = l.arrival;
+    p.rotation = l.arrivalRotation;
+    if (!deferring())
+    {
+        if (inStep()) transitionsRequestedInStep.push_back(e);
+        addNow<PendingTransition>(e, std::move(p));
+        return;
+    }
+    record(makeCommand(
+        [e, p](World& w) mutable
+        {
+            // Re-checked at the flush: the entity may have died or got a parent (or a request) in the same phase
+            if (!w.reg.alive(e) || w.reg.has<Parent>(e) || w.reg.has<PendingTransition>(e))
+            {
+                SAIGA_LOG_E("world", e,
+                            "requestTransition dropped at the flush: not an alive root without a pending "
+                            "transition any more");
+                return;
+            }
+            w.transitionsRequestedInStep.push_back(e);
+            w.addNow<PendingTransition>(e, std::move(p));
+        }));
+}
+
+void World::setSubtreeSpace(Entity root, SpaceId space)
+{
+    for (Entity x : collectSubtree(root))
+    {
+        Transform& t = reg.get<Transform>(x);
+        if (t.space() == space) continue;
+        t.setSpaceInternal(space);
+        repl->noteWritten(x, Transform::id);
+    }
+}
+
+void World::teleportTo(Entity root, SpaceId space, const Vec3& position, const Quat& rotation)
+{
+    Transform& t = reg.get<Transform>(root);
+    if (space != t.space()) setSubtreeSpace(root, space);
+    reg.get<Transform>(root).teleport(position, rotation);
+    repl->noteWritten(root, Transform::id);
+}
+
+std::vector<Entity> World::subtreeToFollow(Entity child, Entity parent) const
+{
+    if (reg.read<Transform>(child).space() == reg.read<Transform>(parent).space()) return {};
+    return collectSubtree(child);
+}
+
+void World::followParentSpace(Entity child, const std::vector<Entity>& subtree)
+{
+    if (subtree.empty()) return;
+    const SpaceId space    = reg.read<Transform>(reg.read<Parent>(child).entity).space();
+    const bool renderPoses = reg.registered(RenderPose::id);
+    for (Entity x : subtree)
+    {
+        Transform& t = reg.get<Transform>(x);
+        if (t.space() == space) continue;
+        t.setSpaceInternal(space);
+        repl->noteWritten(x, Transform::id);
+        // Regression (PR review, S21): a RenderPose kept the old space (the extract drew the entity there) when no
+        // ancestor's RenderPose rewrote it, and its buffer's old-space samples would rewrite it again
+        if (renderPoses)
+            if (RenderPose* rp = reg.tryGet<RenderPose>(x))
+            {
+                rp->position = t.position();
+                rp->rotation = t.rotation();
+                rp->space    = space;
+                rp->flags    = uint8_t(rp->flags | RenderPose::kChanged | RenderPose::kTeleported);
+                repl->buffers.erase(x.index);
+            }
+    }
+    // At its current pose: phase 6 writes the parent-relative one; the flag keeps the extract and the interpolation
+    // from blending across spaces
+    Transform& c = reg.get<Transform>(child);
+    c.teleport(c.position(), c.rotation());
+    repl->noteWritten(child, Transform::id);
 }
 
 void World::rebuildOwnerCacheChecked() const
@@ -440,6 +633,19 @@ bool World::clientSubtreeReplicated(Entity e) const
     for (Entity x : collectDoomed(e))
         if (repl->netIdOf(x) != 0) return true;
     return false;
+}
+
+bool World::clientAttachRefused(Entity child, Entity parent) const
+{
+    if (isHost() || !reg.alive(child) || !reg.alive(parent) || repl->netIdOf(parent) != 0) return false;
+    if (reg.read<Transform>(child).space() == reg.read<Transform>(parent).space()) return false;
+    if (!clientSubtreeReplicated(child)) return false;
+    // Regression (CodeRabbit, S21): the replica took the local parent's space, and the host's snapshots, which leave a
+    // replica with a local parent in its parent's space, never corrected it
+    SAIGA_ASSERT(false,
+                 "add<Parent>: a client cannot move a replicated entity (or a subtree with one) into the local "
+                 "parent's space");
+    return true;
 }
 
 void World::rebuildOwnerCache() const
@@ -564,6 +770,13 @@ double World::terrainHeight(SpaceId space, double x, double z) const
     return terrainSys->height(space, x, z);
 }
 
+double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const
+{
+    SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
+    // S21: the terrain's (S20, D6); S23b adds the content sets, S27 far content
+    return terrainSys->readiness(space, camera, radius);
+}
+
 World::~World()
 {
     // Observers (the world API, waiting tools) stop using the world
@@ -615,6 +828,15 @@ Entity World::create()
     auto record = log.prepare(1);  // the record cannot be lost after the change (append does not allocate)
     Entity e    = reg.create();
     record.append(e, Transform::id, true);
+    return e;
+}
+
+Entity World::createIn(SpaceId space)
+{
+    SAIGA_ASSERT(!inStep(), "createIn: between steps");
+    SAIGA_ASSERT(space < spaceCount(), "createIn: unknown space " + std::to_string(space));
+    const Entity e = create();
+    reg.get<Transform>(e).setSpaceInternal(space);
     return e;
 }
 
@@ -670,6 +892,11 @@ void World::activateNow(Entity e)
 }
 
 std::vector<Entity> World::collectDoomed(Entity e) const
+{
+    return collectSubtree(e);
+}
+
+std::vector<Entity> World::collectSubtree(Entity e) const
 {
     // The entity and its descendants (§7.4), parents before children. One pass over the Parent pool builds the
     // (parent index, child) list, sorted for a deterministic order; the visited set stops at cycles (add<Parent>
@@ -1072,6 +1299,7 @@ void World::runStep()
     // The records of this step (consumers that read after the step, e.g. the world API, keep older ones a step longer)
     prof.setCounter(recordsCounter, double(log.appendedTotal() - recordsAtStepStart));
     log.truncate();
+    transitionsRequestedInStep.clear();
     steps++;
     prof.setCounter(entitiesCounter, double(reg.aliveCount()));
     prof.setCounter(objectsCounter, double(reg.registered(Behaviour::id) ? reg.poolById(Behaviour::id)->size() : 0));
@@ -1613,6 +1841,15 @@ void World::setRenderSink(RenderSink* sink)
         for (size_t i = 0; i < meshTable.size(); ++i)
             sink->registerMesh(Vulkan::MeshId(Vulkan::kGameReservedIds + i), meshTable[i].name, meshTable[i].lods,
                                meshTable[i].material);
+        // The render settings per space (S21): one call per SpaceId (from S23a several spaces may share a template)
+        for (size_t i = 0; i < spaceCount(); ++i)
+        {
+            const SpaceTemplate& t = spaceTemplate(SpaceId(i));
+            Vulkan::SpaceRenderSettings settings;
+            settings.openWorld  = t.kind == SpaceKind::OpenWorld;
+            settings.background = t.background.cast<float>();
+            sink->setSpaceSettings(SpaceId(i), settings);
+        }
     }
     extractor->setSink(sink);
     // The terrain's send point (S20): a new sink receives what the store holds

@@ -70,7 +70,9 @@ class PlatformerRender
 
     std::shared_ptr<const PlatformerContext> context;
     Engine::EngineApp* app = nullptr;
-    LevelGeometry level;
+    // The level geometry per space (S21: the outdoor level with the flag, the cellar)
+    std::vector<LevelGeometry> levels;
+    SpaceId cameraSpace = 0;  // the followed character's space (the view camera's)
     CosmeticDynamics parts;
     ChaseCamera camera;
     RenderCaches<Motion> caches;

@@ -91,17 +91,23 @@ src/
                         View, ComponentPool, visit rules and binary visitors (Visit.h, VisitBinary.h, FieldList.h),
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
-                        (S19b: the mesh name an entity renders); world/: World (also the mesh and material name
+                        (S19b: the mesh name an entity renders), SpaceLink (S21: an entrance to another space),
+                        PendingTransition (S21: a requested transition); world/: World (also the mesh and material name
                         tables, WorldSetup::renderAssets, setRenderSink; S20: SpaceTemplate and
-                        WorldConfig::spaceTemplates, terrainHeight, spaceSeed)
+                        WorldConfig::spaceTemplates, terrainHeight, spaceSeed; S21: several spaces incl.
+                        SpaceTemplate::enclosed, moveToSpace and the space primitive setSubtreeSpace/teleportTo, a
+                        space-state entity per space, requestTransition, spaceReadiness; SpaceTransitionSystem: phase 1,
+                        completes the PendingTransitions; tests/test_engine_spaces.cpp)
                         (step loop, the setup's context WorldSetup::setContext / World::context, phases, SystemList,
                         commands, StructuralLog, EventQueues, transformSystem, SpatialGrid and spatialGridSystem for
                         World::queryRadius, Events.h); gameplay/: GameObject,
-                        Behaviour (+ World::spawn), ClassList, TickPolicy, the gameplay systems (Systems.h); api/:
+                        Behaviour (+ World::spawn), ClassList, TickPolicy, the gameplay systems (Systems.h; S21: the
+                        optional spaceLinkSystem, SpaceLinkSystem.cpp); api/:
                         WorldApi (the world as JSON by names, for MCP, scenarios, editors; snapshots); tools/:
                         registerWorldTools (MCP world tools), ScenarioWorld/ScenarioList/ScenarioRunner
                         (scenario tests, §17.2); save/: World::save/tryLoad (SaveFormat.h, SchemaTable,
-                        MigrationList, SaveDecoder, diffSaves); data/: data files (DataTypeList, DataStore, DataRef,
+                        MigrationList, SaveDecoder, diffSaves; S21: the optional sections of kSaveSections, SPCE with the
+                        space table and its prefix rule); data/: data files (DataTypeList, DataStore, DataRef,
                         readDataFile); net/: Transport, LoopbackTransport, Fragmenter, MessageList (network messages,
                         World::send), the replication (S16: Replication with the host's NetId table and the client
                         handlers, NetVisitors.h, EngineMessages, NetOwner.h, HostClock, InterpolationSystem;
@@ -113,10 +119,10 @@ src/
                         window or headless, RenderScene and the World's VulkanRenderSink, the view camera
                         setViewCamera, the render hooks init/shutdown/beforeRender/gui, MCP,
                         input map, frame/GPU profiles; S19c: the debug UI DebugUi with its tabs F1-F4, DebugConsole whose
-                        commands are the MCP tools, McpCallLog of every tool call, set_ui_tab), engineMain and the
-                        command line of engine games, InputMap,
-                        the app tools (quit, app_status, set_input; screenshot, set_camera/move_camera with the camera
-                        hold, list_scenarios/run_scenario)
+                        commands are the MCP tools, McpCallLog of every tool call, set_ui_tab; S21: LoadingScreen, the
+                        load of a view space switch, EngineApp::spaceLoading), engineMain and the command line of engine
+                        games, InputMap, the app tools (quit, app_status, set_input; screenshot, set_camera (S21: space)
+                        /move_camera with the camera hold, list_scenarios/run_scenario)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -232,7 +238,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-71 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+72 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -342,7 +348,9 @@ driver) and simulates a few seconds before the first frame, so `SAIGA_SCREENSHOT
 variants); they have no tests in `tests/` (the saiga tests test the engine). `--coop [delay]` (any engine game, S16b)
 runs co-op in one process: a hidden host world and the rendered client world over loopback (default delay 2 steps), the
 client's plane, car or character next to the host's demo one, the MCP tools on the client world:
-`SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --coop --demo`. Stages that change the
+`SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --coop --demo`. The platformer's `--cellar`
+(S21) runs its demo through the enclosed cellar (the screenshot shows the cellar, solo and with `--coop`):
+`SAIGA_SCREENSHOT=/tmp/cellar.png ./build/samples/games/game_platformer --demo --cellar`. Stages that change the
 renderer, physics, animation or camera keep the demos working, run their scenarios and show their feature in them.
 
 ## Code Conventions

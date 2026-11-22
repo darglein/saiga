@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/math/ChunkId.h"
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/math/Types.h"
 #include "saiga/engine/components/EngineIds.h"
@@ -21,12 +22,13 @@ namespace Engine
 // S16): written in phase 8 by the interpolation system for remote entities on clients and for client-owned entities on
 // the host, from the interpolation buffer at estimated host step - interpolationDelaySteps. flags: kChanged (this
 // step), kChangedLastStep, kTeleported (no interpolation from the previous pose); shifted every step by the
-// interpolation system. Replicate::Never, Saved::No (rebuilt from the buffer).
+// interpolation system. space (version 2, S21): the space of the pose (a space change is a teleport, never
+// interpolated). Replicate::Never, Saved::No (rebuilt from the buffer).
 struct RenderPose
 {
     static constexpr const char* name = "RenderPose";
     static constexpr ComponentId id   = ComponentId(EngineComponent::RenderPose);
-    static constexpr uint32_t version = 1;
+    static constexpr uint32_t version = 2;
 
     static constexpr uint8_t kChanged         = 1;
     static constexpr uint8_t kChangedLastStep = 2;
@@ -35,6 +37,7 @@ struct RenderPose
     Vec3 position = Vec3::Zero();
     Quat rotation = Quat::Identity();
     uint8_t flags = 0;
+    SpaceId space = 0;
 
     template <class V>
     void visit(V& v)
@@ -42,6 +45,7 @@ struct RenderPose
         v("position", position);
         v("rotation", rotation);
         v("flags", flags);
+        v("space", space);
     }
 };
 

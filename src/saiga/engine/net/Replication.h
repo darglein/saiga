@@ -106,8 +106,9 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onHostLoad();
     // A client queues an action for an owned player: sent to the host
     void sendPlayerAction(const PlayerAction& action);
-    // World::ownerTeleport
-    void ownerTeleport(Entity root, const Vec3& position, const Quat& rotation);
+    // World::moveToSpace on the host (and ownerTeleport): the move, and for a spawned client-owned root the
+    // OwnerCommand to its owner
+    void ownerMove(Entity root, SpaceId space, const Vec3& position, const Quat& rotation);
     // The write detector of the scenario variant (§17.3): receivers keep a hash of what they last wrote; a mismatch
     // before the next write (another writer touched a component of a remote authority, R-NET-2) is reported
     void setWriteDetector(std::function<void(const std::string&)> report);
@@ -138,7 +139,7 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         bool spawned           = false;
         uint8_t owner          = 0;
         uint8_t snap           = 0;             // bumped by a teleport of the root (sent in snapshots)
-        uint8_t command        = 0;             // incremented by ownerTeleport of a client-owned root
+        uint8_t command        = 0;             // incremented by ownerMove of a client-owned root
         uint64_t snapCountedAt = ~uint64_t(0);  // the step whose teleport was counted
     };
     struct SlotUndo
@@ -208,7 +209,7 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         std::vector<std::pair<ComponentId, std::vector<uint8_t>>> components;
     };
     std::map<uint32_t, OwnerRecord> ownerRecords;
-    // ownerTeleport's changes of the owner record and the interpolation buffer, undone by an abort of their phase
+    // ownerMove's changes of the owner record and the interpolation buffer, undone by an abort of their phase
     struct TeleportUndo
     {
         Phase phase;
@@ -217,6 +218,11 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         OwnerRecord record;
         bool hadBuffer;
         std::pair<uint32_t, InterpolationBuffer> buffer;
+        // The root's pose and space before the move: restored with the command counter, so host and owner agree
+        uint32_t generation = 0;
+        SpaceId space       = 0;
+        Vec3 position       = Vec3::Zero();
+        Quat rotation       = Quat::Identity();
     };
     std::vector<TeleportUndo> teleportUndo;
 
@@ -278,6 +284,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     std::unordered_map<uint32_t, std::pair<uint32_t, InterpolationBuffer>> buffers;  // index -> (generation, buffer)
     Stats counts;
     friend SAIGA_ENGINE_API void interpolationSystem(World& world, double dt);
+    // The space primitive (S21) notes its writes (World::setSubtreeSpace, teleportTo)
+    friend class World;
 };
 
 // Phase 5 (host): the owners' latest states of client-owned roots (§13.3); see Replication::ownerPose

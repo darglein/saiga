@@ -20,7 +20,12 @@ struct PlatformerDemo
 {
     size_t next = 0;
 
-    CharacterInput input(const CharacterController& character, const Level& level);
+    CharacterInput input(const CharacterController& character, const Level& level)
+    {
+        return input(character, level, level.waypoints);
+    }
+    // Towards the given waypoints (next indexes them) over the level's boxes (S21: a route segment of one space)
+    CharacterInput input(const CharacterController& character, const Level& level, const std::vector<Vec3>& waypoints);
     bool reachedGoal(const CharacterController& character, const Level& level) const;
 };
 

@@ -14,6 +14,7 @@
 #include "saiga/engine/app/EngineAppSetup.h"
 #include "saiga/engine/app/FrameStatistics.h"
 #include "saiga/engine/app/InputMap.h"
+#include "saiga/engine/app/LoadingScreen.h"
 #include "saiga/engine/app/McpCallLog.h"
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/export.h"
@@ -199,6 +200,11 @@ class SAIGA_ENGINE_API EngineApp
         return screenshotEarliest ? screenshotEarliest() : std::nullopt;
     }
 
+    // ---- spaces (S21, §12.4) -------------------------------------------------------------------------------------
+    // The running load of the view camera's space (null: none; never with --no-render). Started by a change of the
+    // view space to a space that is not ready (EngineAppSetup::loadingRadius), tracked every rendered frame
+    const SpaceLoading* spaceLoading() const { return loading ? &*loading : nullptr; }
+
    private:
     void frame(double dt);
     void pollInput(double dt);
@@ -363,6 +369,14 @@ class SAIGA_ENGINE_API EngineApp
     // attempt checks its own view)
     std::vector<PendingCapture> frameCaptures;
     int captureWaitFrames = 0;
+    // The view space's load (S21): the space of the last rendered frame's view camera, the running load; a complete
+    // point ran in this frame's stream (completeView)
+    bool haveLastViewSpace = false;
+    SpaceId lastViewSpace  = 0;
+    std::optional<SpaceLoading> loading;
+    bool frameCompletePoint = false;
+    void updateSpaceLoading();
+    void drawSpaceLoading();
     std::function<std::optional<std::chrono::steady_clock::time_point>()> screenshotEarliest;
     std::function<void(std::chrono::steady_clock::time_point)> screenshotExpire;
     // The terrain of the frame: updateView, or completeView at a complete point; hands ready captures to the scene

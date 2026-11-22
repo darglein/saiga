@@ -12,6 +12,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/world/SpaceTransitionSystem.h"
 #include "saiga/engine/world/SpatialGridSystem.h"
 #include "saiga/engine/world/World.h"
 
@@ -81,6 +82,8 @@ bool updateChildren(World& w, bool teleportsOnly)
         const Entity parentEntity = w.read<Parent>(child).entity;
         const Transform& parent   = w.read<Transform>(parentEntity);
         Transform& t              = w.get<Transform>(child);
+        // Every space writer keeps the hierarchy invariant (S21): nothing to repair here
+        SAIGA_ASSERT(t.space() == parent.space(), "transform system: a child in another space than its parent");
         // A teleport of the parent in this step, or after the child's last update in the previous step (phase 8)
         const bool teleport = parent.wasTeleported() ||
                               std::binary_search(w.pendingChildTeleports.begin(), w.pendingChildTeleports.end(), child);
@@ -142,6 +145,8 @@ void transformSystem(World& w, double)
 
 void registerEngineSystems(SystemList& systems)
 {
+    // S21: the transitions of the previous step's requests, after the received messages of phase 1
+    systems.add(Phase::Input, "space_transition", spaceTransitionSystem, RunOn::Host);
     systems.add(Phase::Transform, "transform", transformSystem, RunOn::Both);
     systems.add(Phase::Events, "behaviour_events", behaviourEventSystem);
     systems.add(Phase::Behaviour, "behaviour", behaviourSystem);

@@ -360,6 +360,11 @@ void Replication::abort(Phase aborted)
         if (teleportUndo[i].phase == aborted)
         {
             TeleportUndo& u = teleportUndo[i];
+            // The host's Transform goes back too: the dropped OwnerCommand never reaches the owner, whose states
+            // match the restored counter again. Regression (PR review, S21): the host kept the new space
+            const Entity root = w.reg.aliveAt(u.index);
+            if (root.valid() && root.generation == u.generation && !w.reg.entityMask(root).test(Parent::id))
+                w.teleportTo(root, u.space, u.position, u.rotation);
             if (u.hadRecord)
                 ownerRecords[u.index] = u.record;
             else
@@ -964,14 +969,36 @@ void Replication::sendSnapshot(const std::vector<uint8_t>& peers)
 
 // ---- owner commands, owner state, owner poses ---------------------------------------------------------------------
 
-void Replication::ownerTeleport(Entity root, const Vec3& position, const Quat& rotation)
+void Replication::ownerMove(Entity root, SpaceId space, const Vec3& position, const Quat& rotation)
 {
-    Transform& t        = w.reg.get<Transform>(root);
-    const HostSlot* s   = hostSlot(root);
-    const uint8_t owner = w.ownerOf(root);
-    t.teleport(position, rotation);
+    const HostSlot* s      = hostSlot(root);
+    const uint8_t owner    = w.ownerOf(root);
+    const Transform before = w.reg.read<Transform>(root);
     // Before the spawn or host-owned: a plain teleport (the snapshots convey it)
-    if (!s || !s->spawned || owner == 0 || !w.net) return;
+    if (!s || !s->spawned || owner == 0 || !w.net)
+    {
+        if (w.inStep())
+        {
+            // Undone like an owner's move if its phase aborts (the owner records and buffers stay as they are).
+            // Regression (CodeRabbit, S21): a phase-1 abort kept the move but dropped the removal of its
+            // PendingTransition; the rerun moved the root again and reported the target as the source space
+            TeleportUndo u{w.phase, root.index, false, {}, false, {}};
+            auto r      = ownerRecords.find(root.index);
+            auto b      = buffers.find(root.index);
+            u.hadRecord = r != ownerRecords.end();
+            u.hadBuffer = b != buffers.end();
+            if (u.hadRecord) u.record = r->second;
+            if (u.hadBuffer) u.buffer = b->second;
+            u.generation = root.generation;
+            u.space      = before.space();
+            u.position   = before.position();
+            u.rotation   = before.rotation();
+            teleportUndo.push_back(std::move(u));
+        }
+        w.teleportTo(root, space, position, rotation);
+        return;
+    }
+    w.teleportTo(root, space, position, rotation);
     HostSlot& ws = writeSlot(root.index);
     ws.command++;
     OwnerCommandMessage m;
@@ -980,6 +1007,7 @@ void Replication::ownerTeleport(Entity root, const Vec3& position, const Quat& r
     m.position = position;
     m.rotation = rotation;
     m.counter  = ws.command;
+    m.space    = space;
     w.send(owner, m);
     // The owner's states in flight carry the old counter and are dropped; the stored one is stale
     auto b = buffers.find(root.index);
@@ -989,11 +1017,15 @@ void Replication::ownerTeleport(Entity root, const Vec3& position, const Quat& r
         TeleportUndo u{w.phase, root.index, r != ownerRecords.end(), {}, b != buffers.end(), {}};
         if (u.hadRecord) u.record = r->second;
         if (u.hadBuffer) u.buffer = b->second;
+        u.generation = root.generation;
+        u.space      = before.space();
+        u.position   = before.position();
+        u.rotation   = before.rotation();
         teleportUndo.push_back(std::move(u));
     }
     ownerRecords.erase(root.index);
     if (b != buffers.end() && b->second.first == root.generation)
-        b->second.second.push(double(w.steps), position, rotation, ws.command);
+        b->second.second.push(double(w.steps), space, position, rotation, ws.command);
     noteWritten(root, Transform::id);
 }
 
@@ -1123,6 +1155,25 @@ void Replication::onOwnerState(uint8_t from, const uint8_t* data, size_t size)
             stale = true;
             continue;
         }
+        // The host never takes a space from an owner (S21): a root's Transform in another space than the host's at
+        // the current counter is rejected input (a correct owner's states before a move carry the old counter), before
+        // the owner record or the interpolation buffer is touched
+        const SpaceId hostSpace = reg.read<Transform>(e).space();
+        bool wrongSpace         = false;
+        if (root == e)
+            for (const ComponentBytes& c : rec.components)
+            {
+                if (c.id != Transform::id) continue;
+                Transform t = reg.read<Transform>(e);
+                NetReader nr(c.data, c.size, this);
+                t.visit(nr);
+                wrongSpace = wrongSpace || (nr.ok() && t.space() != hostSpace);
+            }
+        if (wrongSpace)
+        {
+            w.rejectInput(from, "OwnerState: a root in another space than on the host");
+            continue;
+        }
         OwnerRecord& o = ownerRecords[e.index];
         if (o.generation != e.generation || o.peer != from)
         {
@@ -1160,8 +1211,8 @@ void Replication::onOwnerState(uint8_t from, const uint8_t* data, size_t size)
                     b.first = e.generation;
                     b.second.clear();
                 }
-                b.second.push(double(stamp), t.position(), t.rotation(), rec.counter);
-                if (!reg.has<RenderPose>(e)) w.add<RenderPose>(e, RenderPose{t.position(), t.rotation(), 0});
+                b.second.push(double(stamp), hostSpace, t.position(), t.rotation(), rec.counter);
+                if (!reg.has<RenderPose>(e)) w.add<RenderPose>(e, RenderPose{t.position(), t.rotation(), 0, hostSpace});
                 continue;
             }
             bool replaced = false;
@@ -1286,7 +1337,19 @@ void Replication::applyTransform(Entity e, const uint8_t* data, size_t size, boo
     NetReader r(data, size, this);
     decoded.visit(r);
     if (!r.ok()) return;
+    if (decoded.space() >= w.spaceCount())
+    {
+        w.rejectInput(0, "a Transform in the unknown space " + std::to_string(decoded.space()));
+        return;
+    }
     if (track) checkWritten(e, Transform::id, "snapshot receiver");
+    // The root's space (S21, writer 4): a change moves the subtree and snaps (also without a changed snap counter);
+    // a replica under a client-local parent keeps its parent's space
+    if (decoded.space() != w.reg.read<Transform>(e).space() && !w.reg.entityMask(e).test(Parent::id))
+    {
+        w.setSubtreeSpace(e, decoded.space());
+        teleport = true;
+    }
     Transform& t = w.reg.get<Transform>(e);
     if (teleport)
         t.teleport(decoded.position(), decoded.rotation());
@@ -1418,6 +1481,7 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
         RenderPose& rp = reg.get<RenderPose>(e);
         rp.position    = reg.read<Transform>(e).position();
         rp.rotation    = reg.read<Transform>(e).rotation();
+        rp.space       = reg.read<Transform>(e).space();
         rp.flags       = RenderPose::kChanged | RenderPose::kTeleported;
     }
     for (size_t c = 0; c < kMaxComponents; ++c)
@@ -1689,7 +1753,8 @@ void Replication::onSnapshot(uint8_t from, const uint8_t* data, size_t size)
                     b.first = e.generation;
                     b.second.clear();
                 }
-                b.second.push(double(step), t.position(), t.rotation(), rec.counter);
+                if (t.space() >= w.spaceCount()) break;
+                b.second.push(double(step), t.space(), t.position(), t.rotation(), rec.counter);
             }
         }
     }
@@ -1773,10 +1838,21 @@ void Replication::onOwnerCommand(uint8_t from, const OwnerCommandMessage& m)
     }
     const Entity e = entityOfNetId(m.netId);
     if (!e.valid() || w.ownerOf(e) != w.selfPeer) return;
-    if (m.kind == OwnerCommandMessage::kTeleport)
+    if (m.space >= w.spaceCount())
     {
-        w.reg.get<Transform>(e).teleport(m.position, m.rotation);
-        noteWritten(e, Transform::id);
+        // Network input never asserts: the pose is not applied, but the counter is taken (otherwise every later owner
+        // state would carry the old counter and the host would drop them all as stale)
+        w.rejectInput(from, "OwnerCommand: the unknown space " + std::to_string(m.space));
+    }
+    else if (m.kind == OwnerCommandMessage::kTeleport)
+    {
+        if (w.reg.entityMask(e).test(Parent::id))
+        {
+            w.reg.get<Transform>(e).teleport(m.position, m.rotation);
+            noteWritten(e, Transform::id);
+        }
+        else
+            w.teleportTo(e, m.space, m.position, m.rotation);
     }
     if (ClientEntry* ce = clientEntry(e)) ce->command = m.counter;
 }

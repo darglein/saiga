@@ -85,9 +85,11 @@ void FlightRender::beforeRender(double alpha)
             camera.reset();
         }
         camera.update(p.position, forwardOf(p.rotation), frameDt);
+        cameraSpace = p.space;
     }
     // While a tool holds the camera the app ignores it (S14)
-    app->setViewCamera(0, camera.eye(), Vulkan::viewRotation(camera.view()), radians(double(prototype.settings.fovy)));
+    app->setViewCamera(cameraSpace, camera.eye(), Vulkan::viewRotation(camera.view()),
+                       radians(double(prototype.settings.fovy)));
     // The time of the wind (the world's time between the steps)
     scene.setTime(w.time() + alpha * w.dt());
 }

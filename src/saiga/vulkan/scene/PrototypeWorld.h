@@ -57,6 +57,16 @@ struct PrototypeSettings
     bool terrainSkirts = true;
 };
 
+// The fixed lighting of an enclosed camera space (S21, until S36): the PrototypeSettings defaults (sun azimuth 35,
+// elevation 38, intensity 1, ambient 0.25, albedo 0.55) without fog; independent of the game's
+// setPrototypeEnvironment (its sun and fog belong to the outdoors)
+inline const PrototypeSettings kEnclosedLighting = []()
+{
+    PrototypeSettings s;
+    s.fog = false;
+    return s;
+}();
+
 // The lighting block of the instance draws from the prototype settings (sun, hemisphere ambient, fog with its base
 // height, wind phases of the time, cutoff, tint): RenderScene's environment (S20)
 SAIGA_VULKAN_API void prototypeLighting(const PrototypeSettings& settings, double time, float fogBase,
