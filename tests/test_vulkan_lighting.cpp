@@ -1037,17 +1037,24 @@ EnvironmentState sunAt(float elevationDeg, float azimuthDeg = 180)
 class AtmosphereTest : public RenderSceneSuiteTest
 {
    protected:
-    // The physical path (ACES, the PBR variant) with the environment, the camera 100 m up looking along forward
-    void Physical(const EnvironmentState& e, const Vec3& forward = Vec3(0, 0.3, 1), double fovy = 1.2, bool full = true)
+    // The physical path (ACES) with the environment, the camera 100 m up looking along forward; the environment map
+    // is updated fully in the next frame (a settled state in one frame; test speed), everyFrame: in every frame
+    // (forceFullUpdates)
+    void Physical(const EnvironmentState& e, const Vec3& forward = Vec3(0, 0.3, 1), double fovy = 1.2,
+                  bool everyFrame = false)
     {
-        LightingParameters p = scene->lightingParameters();
-        p.forceFullUpdates   = full;
+        LightingParameters p    = scene->lightingParameters();
+        p.forceFullUpdates      = everyFrame;
+        p.environmentResolution = CubeResolution();
         scene->setLightingParameters(p);
+        scene->requestFullUpdate();
         scene->setToneMap(ToneMap::Aces);
         scene->setEnvironment(e);
         SetCamera(0, Vec3(0, 100, 0), lookRotation(forward), fovy);
     }
     float luminance(const ucvec4& p) const { return 0.2126f * p(0) + 0.7152f * p(1) + 0.0722f * p(2); }
+    // The environment map's resolution: the smallest where a suite does not check the cube's content
+    virtual int CubeResolution() const { return 32; }
 };
 }  // namespace
 
@@ -1162,7 +1169,7 @@ TEST_F(AtmosphereTest, MoonSkippedInDaylight)
     EnvironmentState day = sunAt(45);
     day.moonDir          = vec3(0, 0.5f, 0.8660254f);
     day.moonIlluminance  = 0.27f;
-    Physical(day, Vec3(0, 0.3, 1), 1.2, false);
+    Physical(day);
     RenderFrame();
     EXPECT_EQ(scene->lastLightingBlock().moon(3), 0.0f);
     EXPECT_EQ(scene->lastLightingBlock().sun(3), day.sunIlluminance);
@@ -1188,7 +1195,7 @@ TEST_F(AtmosphereTest, StarsFadeWithTheSun)
     {
         EnvironmentState e = sunAt(elevation);
         e.starIntensity    = intensity;
-        Physical(e, Vec3(0, 0.3, 1), 1.2, false);
+        Physical(e);
         RenderFrame();
         EXPECT_NEAR(scene->lastLightingBlock().starRotation[0](3), expected, 1e-3f) << elevation;
     }
@@ -1235,6 +1242,7 @@ namespace
 class EnvironmentMapTest : public AtmosphereTest
 {
    protected:
+    int CubeResolution() const override { return 128; }
     void TearDown() override
     {
         if (scene) scene->environmentMap().setCaptureOverride(std::nullopt);
@@ -1254,18 +1262,20 @@ class EnvironmentMapTest : public AtmosphereTest
 };
 }  // namespace
 
-// First in its suite (a new scene): frames before the first physical frame have the floor as their ambient and no
-// environment map; the first capture completes in its own frame (the floor is not shown for several frames)
+// A new scene's environment map (invalidate): frames before the first physical frame have the floor as their ambient
+// and no environment map; the first capture completes in its own frame (the floor is not shown for several frames)
 TEST_F(EnvironmentMapTest, FirstFrameAmbientIsFloor)
 {
     EnvironmentState e = sunAt(45);
     e.minAmbient       = vec3(0.5f, 0.25f, 0.125f);
+    // The state of a new scene (the suites share one)
+    scene->environmentMap().invalidate();
     scene->setEnvironment(e);
     SetCamera(0, Vec3(0, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
     Capture(2);
     EXPECT_FALSE(scene->environmentMap().valid());
     EXPECT_EQ(scene->lightingStatistics().sh[0], e.minAmbient);
-    Physical(e, Vec3(0, 0.3, 1), 1.2, false);
+    Physical(e);
     RenderFrame();
     EXPECT_TRUE(scene->environmentMap().valid());
     EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, 1u);
@@ -1293,10 +1303,11 @@ TEST_F(EnvironmentMapTest, UniformSkyGivesConstantSh)
 TEST_F(EnvironmentMapTest, RecapturesOnlyWhenDue)
 {
     EnvironmentState e = sunAt(30);
-    Physical(e, Vec3(0, 0.3, 1), 1.2, false);
-    Capture(20);
+    // Settled in one frame (Physical's full update)
+    Physical(e);
+    RenderFrame();
     const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
-    Capture(6);
+    Capture(3);
     EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures);
     EXPECT_EQ(scene->lightingStatistics().environmentMap.progress, 0);
     // Below the threshold (0.5 degrees): nothing
@@ -1311,9 +1322,9 @@ TEST_F(EnvironmentMapTest, RecapturesOnlyWhenDue)
 // During a re-capture the bound cube is the previous complete one; it is swapped after all steps (capture, 5 mips, SH)
 TEST_F(EnvironmentMapTest, SwapsOnlyCompleteCaptures)
 {
-    Physical(sunAt(20), Vec3(0, 0.3, 1), 1.2, false);
-    // Long enough to finish a capture of the previous case and this environment's own
-    Capture(20);
+    Physical(sunAt(20));
+    // Settled in one frame (Physical's full update)
+    RenderFrame();
     EnvironmentMap& map       = scene->environmentMap();
     const vk::Image before    = map.frontCube().image();
     const uint64_t completeAt = scene->lightingStatistics().environmentMap.lastCompleteFrame;
@@ -1349,7 +1360,7 @@ TEST_F(EnvironmentMapTest, LowerHemisphereIsGround)
 // again when the sun moves or the camera climbs (review M2: it was rewritten every frame)
 TEST_F(EnvironmentMapTest, SkyViewOnlyOnChange)
 {
-    Physical(sunAt(40), Vec3(0, 0.3, 1), 1.2, false);
+    Physical(sunAt(40));
     RenderFrame();
     const Atmosphere& a = scene->atmosphereLuts();
     const uint64_t n    = a.skyViewComputations();
@@ -1375,7 +1386,7 @@ TEST_F(EnvironmentMapTest, SkyViewOnlyOnChange)
 // capture's ambient showed in the new sky for 7 frames)
 TEST_F(EnvironmentMapTest, FullUpdateAfterSkippedFrames)
 {
-    Physical(sunAt(45), Vec3(0, 0.3, 1), 1.2, false);
+    Physical(sunAt(45));
     RenderFrame();
     ASSERT_TRUE(scene->environmentMap().valid());
     scene->setToneMap(ToneMap::Identity);
@@ -1412,9 +1423,7 @@ TEST_F(EnvironmentMapTest, RecapturesOnLateralMovement)
 {
     EnvironmentState e = sunAt(40);
     e.cloudiness       = 0.5f;
-    Physical(e, Vec3(0, 0.3, 1), 1.2, false);
-    // A settled state in one frame (no capture of an earlier case in progress)
-    scene->requestFullUpdate();
+    Physical(e);
     RenderFrame();
     const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
     SetCamera(0, Vec3(300, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
@@ -1437,7 +1446,7 @@ TEST_F(EnvironmentMapTest, RecapturesOnLateralMovement)
 // forceFullUpdates: a complete capture (with the swap) in every frame
 TEST_F(EnvironmentMapTest, ForceFullUpdatesCapturesEveryFrame)
 {
-    Physical(sunAt(40));
+    Physical(sunAt(40), Vec3(0, 0.3, 1), 1.2, true);
     RenderFrame();
     const uint64_t c = scene->lightingStatistics().environmentMap.captures;
     for (int i = 1; i <= 3; ++i)

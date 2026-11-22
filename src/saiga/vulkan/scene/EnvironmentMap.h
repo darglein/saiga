@@ -65,6 +65,16 @@ class SAIGA_VULKAN_API EnvironmentMap
     int resolution() const { return size; }
 
     bool valid() const { return frontValid; }
+    // Forgets the captures (tests: the state of a new scene; the next physical frame captures fully)
+    void invalidate()
+    {
+        frontValid    = false;
+        step          = 0;
+        haveKey       = false;
+        shPending     = false;
+        frontShValues = {};
+        stats         = EnvironmentMapStatistics();
+    }
     vk::DescriptorImageInfo frontCubeInfo();
     vk::Buffer frontSh() const;
     static constexpr size_t kShBytes = 9 * 16;

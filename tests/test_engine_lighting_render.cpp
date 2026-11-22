@@ -7,8 +7,8 @@
 // The lighting goldens of S36 (docs/stages/S36_lighting.plan.md, Tests: Goldens; docs/engine_design.md §17.6): a World
 // with the environment enabled (WorldTime, Weather) on a VulkanRenderSink, the mountainRidgeHook terrain of a 4 km
 // space at base spacing 2, 200 PrototypeFoliage trees and a few flat-colour boxes, 512 x 512 with 4 samples, ACES with
-// a fixed EV100 per golden, forceFullUpdates (golden mode: the environment map complete in every frame), the
-// environment from the world (environmentState; its wind phases are 0 at time 0), captured after 5 frames. S36a1:
+// a fixed EV100 per golden, the environment map fully updated in the captured frame (golden mode), the environment
+// from the world (environmentState; its wind phases are 0 at time 0); one scene and world for the suite. S36a1:
 // without sun shadows (a2 regenerates them with the cascades and the horizon map). They gate on lavapipe only; other
 // devices print the metrics. Regenerate on lavapipe: SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render
 // --gtest_filter='LightingGolden.*'
@@ -25,6 +25,7 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <cmath>
 #include <memory>
 
@@ -88,28 +89,82 @@ uint32_t hash32(uint32_t x)
 }
 }  // namespace
 
-class LightingGolden : public RenderSceneTest
+// One scene, world and content for the suite (the scene's pipelines, the world's terrain and the trees are built once:
+// test speed, AGENTS.md); each golden only sets the time, the weather, the exposure and the camera. Order independent:
+// a shot completes its view's terrain, writes the environment and updates the environment map fully in its last frame
+class LightingGolden : public ::testing::Test
 {
    protected:
     static constexpr int size = 512;
 
+    struct Suite
+    {
+        std::unique_ptr<Vulkan::HeadlessWindow> window;
+        std::unique_ptr<Vulkan::RenderScene> scene;
+        std::unique_ptr<World> world;
+        std::unique_ptr<VulkanRenderSink> sink;
+        Vulkan::PrototypeScene prototype;
+        std::vector<Vulkan::InstanceSetHandle> sets;
+        ~Suite()
+        {
+            if (scene)
+            {
+                scene->waitIdle();
+                for (auto h : sets) scene->removeInstanceSet(h);
+            }
+            prototype.detach();
+            if (world) world->setRenderSink(nullptr);
+            sink.reset();
+            world.reset();
+            if (scene) scene->waitIdle();
+            scene.reset();
+            window.reset();
+        }
+    };
+    static std::unique_ptr<Suite>& suite()
+    {
+        static std::unique_ptr<Suite> s;
+        return s;
+    }
+    static void TearDownTestSuite() { suite().reset(); }
+
     void SetUp() override
     {
-        RenderSceneTest::SetUp();
-        if (IsSkipped()) return;
+        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        if (!suite()) CreateSuite();
+        scene = suite()->scene.get();
+        world = suite()->world.get();
+        if (!scene->base().enabledFeatures.drawIndirectFirstInstance)
+            GTEST_SKIP() << "drawIndirectFirstInstance is not supported";
+    }
+
+    static void CreateSuite()
+    {
+        auto st = std::make_unique<Suite>();
+        WindowParameters windowParameters;
+        windowParameters.width  = size;
+        windowParameters.height = size;
+        windowParameters.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
+        Vulkan::VulkanParameters vulkanParameters;
+        vulkanParameters.enableImgui = false;
         Vulkan::RenderSceneParameters p;
-        p.toneMap                   = Vulkan::ToneMap::Aces;
-        p.lighting.forceFullUpdates = true;
-        Create(size, size, 4, p);
+        p.imgui                    = false;
+        p.msaaSamples              = 4;
+        p.nearPlane                = 0.1f;
+        p.toneMap                  = Vulkan::ToneMap::Aces;
+        st->window                 = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
+        st->scene                  = std::make_unique<Vulkan::RenderScene>(*st->window, vulkanParameters, p);
+        Vulkan::RenderScene& scene = *st->scene;
         WorldSetup s;
         s.seed      = 1;
         s.profiling = false;
         s.config.spaceTemplates.push_back(testSpaceTemplate(16, 2, mountainRidgeHook, std::nullopt));
         s.generators          = registerTestHookGenerators;
         s.environment.enabled = true;
-        world                 = std::make_unique<World>(s);
-        sink                  = std::make_unique<VulkanRenderSink>(*scene);
-        world->setRenderSink(sink.get());
+        st->world             = std::make_unique<World>(s);
+        World& world          = *st->world;
+        st->sink              = std::make_unique<VulkanRenderSink>(scene);
+        world.setRenderSink(st->sink.get());
 
         // 200 trees west of the ridge (a hashed grid in [1100, 1700] x [1700, 2400]) and three boxes
         const auto species = Vulkan::FoliageGenerator::treeSpecies(1);
@@ -121,51 +176,50 @@ class LightingGolden : public RenderSceneTest
             const double z   = 1700 + double((h >> 10) % 700);
             Vulkan::ForestRenderer::TreeInstance t;
             t.posYaw =
-                vec4(float(x), float(world->terrainHeight(0, x, z) - 0.25), float(z), float((h >> 20) % 628) * 0.01f);
+                vec4(float(x), float(world.terrainHeight(0, x, z) - 0.25), float(z), float((h >> 20) % 628) * 0.01f);
             t.scaleSpecies = vec4(8.0f + float((h >> 3) % 8), float(i % species.size()), 0, 0);
             trees.push_back(t);
         }
-        prototype.settings.shading = Vulkan::WorldShading::Clay;
-        prototype.attach(*scene, trees, 1);
-        const Vulkan::MaterialId material = Vulkan::MaterialId(scene->reserveIds(Vulkan::SceneIdKind::Material, 1));
-        const Vulkan::MeshId mesh         = Vulkan::MeshId(scene->reserveIds(Vulkan::SceneIdKind::Mesh, 3));
+        st->prototype.settings.shading = Vulkan::WorldShading::Clay;
+        st->prototype.attach(scene, trees, 1);
+        const Vulkan::MaterialId material = Vulkan::MaterialId(scene.reserveIds(Vulkan::SceneIdKind::Material, 1));
+        const Vulkan::MeshId mesh         = Vulkan::MeshId(scene.reserveIds(Vulkan::SceneIdKind::Mesh, 3));
         Vulkan::MaterialData metal;
         metal.roughness = 0.35f;
         metal.metalness = 0;
-        scene->addMaterial(material, "golden_boxes", metal);
-        scene->addMesh(mesh, "golden_red", coloredBox(vec3(6, 6, 6), ucvec4(190, 40, 30, 255)), material);
-        scene->addMesh(Vulkan::MeshId(mesh + 1), "golden_white", coloredBox(vec3(4, 10, 4), ucvec4(230, 230, 225, 255)),
-                       material);
-        scene->addMesh(Vulkan::MeshId(mesh + 2), "golden_blue", coloredBox(vec3(8, 3, 5), ucvec4(40, 80, 190, 255)),
-                       material);
+        scene.addMaterial(material, "golden_boxes", metal);
+        scene.addMesh(mesh, "golden_red", coloredBox(vec3(6, 6, 6), ucvec4(190, 40, 30, 255)), material);
+        scene.addMesh(Vulkan::MeshId(mesh + 1), "golden_white", coloredBox(vec3(4, 10, 4), ucvec4(230, 230, 225, 255)),
+                      material);
+        scene.addMesh(Vulkan::MeshId(mesh + 2), "golden_blue", coloredBox(vec3(8, 3, 5), ucvec4(40, 80, 190, 255)),
+                      material);
         std::vector<Vulkan::StaticInstance> boxes;
         const std::array<vec3, 3> at = {vec3(1500, 0, 1900), vec3(1560, 0, 1960), vec3(1450, 0, 2000)};
         for (int k = 0; k < 3; ++k)
         {
             Vulkan::StaticInstance b;
             vec3 pos = at[size_t(k)];
-            pos(1)   = float(world->terrainHeight(0, pos(0), pos(2))) + (k == 1 ? 10.0f : k == 0 ? 6.0f : 3.0f);
+            pos(1)   = float(world.terrainHeight(0, pos(0), pos(2))) + (k == 1 ? 10.0f : k == 0 ? 6.0f : 3.0f);
             b.setPosition(pos);
             b.scale = 1;
             b.mesh  = Vulkan::MeshId(mesh + k);
             boxes.push_back(b);
         }
-        sets.push_back(scene->addInstanceSet(RegionId(), boxes));
+        st->sets.push_back(scene.addInstanceSet(RegionId(), boxes));
+        suite() = std::move(st);
     }
-    void Destroy() override
+
+    TemplatedImage<ucvec4> RenderFrame()
     {
-        if (scene)
-            for (auto h : sets) scene->removeInstanceSet(h);
-        sets.clear();
-        prototype.detach();
-        if (world) world->setRenderSink(nullptr);
-        sink.reset();
-        world.reset();
-        RenderSceneTest::Destroy();
+        TemplatedImage<ucvec4> img;
+        scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { img = shot; });
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+        return img;
     }
 
     // The frame of a golden: the time of day and cloudiness written to the world, the fixed EV100, the environment of
-    // the world's space 0 at the camera (5 frames)
+    // the world's space 0 at the camera; the terrain of the view uploaded, then one frame with a full update of the
+    // environment map (golden mode: the same image as forceFullUpdates in every frame, at one capture per shot)
     TemplatedImage<ucvec4> Shot(double hours, double cloudiness, float ev100, const Vec3& eye, const Vec3& forward,
                                 double fovyDeg = 60)
     {
@@ -175,6 +229,7 @@ class LightingGolden : public RenderSceneTest
         w.cloudiness = cloudiness;
         w.wind       = Vec2(0, 0);
         EXPECT_TRUE(setWeather(*world, 0, w, error)) << error;
+        Vulkan::EnvironmentSettings settings;
         settings.exposure.mode     = Vulkan::ExposureMode::Fixed;
         settings.exposure.ev100    = ev100;
         Vulkan::EnvironmentState e = environmentState(*world, 0, 1.0, settings, world->environmentSetup());
@@ -183,18 +238,22 @@ class LightingGolden : public RenderSceneTest
         const Quat rotation =
             Vulkan::viewRotation(lookAt(eye.cast<float>(), (eye + forward).cast<float>(), vec3(0, 1, 0)));
         EXPECT_TRUE(world->terrain().completeView(0, eye));
-        SetCamera(0, eye, rotation, fovyDeg * kPi / 180);
-        prototype.update();
+        scene->setCamera(0, eye, rotation, fovyDeg * kPi / 180);
+        suite()->prototype.update();
         renderUntilUploaded(*scene, 256);
-        return Capture(5);
+        scene->requestFullUpdate();
+        TemplatedImage<ucvec4> img = RenderFrame();
+        scene->waitIdle();
+        return img;
     }
     double Ground(double x, double z) const { return world->terrainHeight(0, x, z); }
+    std::string deviceName() const
+    {
+        return std::string(scene->base().physicalDevice.getProperties().deviceName.data());
+    }
 
-    std::unique_ptr<World> world;
-    std::unique_ptr<VulkanRenderSink> sink;
-    Vulkan::PrototypeScene prototype;
-    Vulkan::EnvironmentSettings settings;
-    std::vector<Vulkan::InstanceSetHandle> sets;
+    Vulkan::RenderScene* scene = nullptr;
+    World* world               = nullptr;
 };
 
 // Noon at 45 degrees latitude, a few clouds: the blue sky, the PBR surfaces in sunlight with the sky ambient, the cloud

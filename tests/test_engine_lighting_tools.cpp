@@ -238,13 +238,16 @@ Vulkan::MeshLods planeMesh(const vec3& half)
 class LightingTools : public ::testing::Test
 {
    public:
+    // One app for this suite and LightingDebugTools (an EngineApp costs about 0.45 s on lavapipe; test speed),
+    // destroyed after the last test (LightingToolsCleanup)
     static void SetUpTestSuite()
     {
-        if (!Vulkan::Instance::suitableDeviceAvailable()) return;
+        if (app || !Vulkan::Instance::suitableDeviceAvailable()) return;
         app = std::make_unique<EngineApp>(lightingSetup(true));
         app->runFrames(2, 1.0 / 60);
     }
-    static void TearDownTestSuite() { app.reset(); }
+    static void TearDownTestSuite() {}
+    static void DestroyApp() { app.reset(); }
 
    protected:
     void SetUp() override
@@ -417,8 +420,22 @@ class LightingDebugTools : public LightingTools
         app->setViewCameraByTool(0, Vec3(0, 6, 0.01), lookRotation(Vec3(0, -1, -0.002)), 1, false);
         app->runFrames(1, 1.0 / 60);
     }
+    // The shared app without the plane for the other suite
+    static void TearDownTestSuite()
+    {
+        if (app && plane) app->scene()->removeInstanceSet(*plane);
+        plane.reset();
+    }
     static inline std::optional<Vulkan::InstanceSetHandle> plane;
 };
+
+class LightingToolsCleanup : public ::testing::Environment
+{
+   public:
+    void TearDown() override { LightingTools::DestroyApp(); }
+};
+[[maybe_unused]] const ::testing::Environment* const g_lightingToolsCleanup =
+    ::testing::AddGlobalTestEnvironment(new LightingToolsCleanup);
 
 TEST_F(LightingDebugTools, SetLightingDebug)
 {

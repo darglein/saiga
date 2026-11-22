@@ -103,9 +103,10 @@ class RenderSceneTest : public ::testing::Test
     std::unique_ptr<Vulkan::RenderScene> scene;
 };
 
-// The fixture of the lighting tests (S36a1b, finding 12 of the plan's review 1): one HeadlessWindow and RenderScene per
-// test suite (the scene shaders are compiled per RenderScene: a scene per test would dominate the binary's run time),
-// 128 x 128 with 4 samples by default (a derived fixture with other values is its own suite: override Size / Samples).
+// The fixture of the lighting tests (S36a1b, finding 12 of the plan's review 1): one HeadlessWindow and RenderScene for
+// the suites of a binary (a RenderScene costs about 0.45 s on lavapipe without the pipeline reuse: a scene per test or
+// per suite would dominate the binary's run time; S36a1c review), 128 x 128 with 4 samples by default (a derived
+// fixture with other values overrides Size / Samples and gets a new scene; the scene is destroyed after the last test).
 // SetUp resets the state through the public calls: the lighting parameters, an environment at its defaults, Identity,
 // exposure 1, no studio override, the sky ambient, the terrain cleared and the instance sets added with AddSet removed.
 // Materials and meshes stay registered: each test uses its own IDs. Skipped as RenderSceneTest.
@@ -113,16 +114,22 @@ class RenderSceneSuiteTest : public ::testing::Test
 {
    protected:
     static void SetUpTestSuite() {}
-    static void TearDownTestSuite()
+    // The scene stays for the next suite (DestroySuite after the last test)
+    static void TearDownTestSuite() {}
+
+   public:
+    static void DestroySuite()
     {
         if (suiteScene()) suiteScene()->waitIdle();
         suiteScene().reset();
         suiteWindow().reset();
     }
 
+   protected:
     void SetUp() override
     {
         if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        if (suiteScene() && (suiteSize() != Size() || suiteSamples() != Samples())) DestroySuite();
         if (!suiteScene()) CreateSuite(Size(), Samples());
         scene = suiteScene().get();
         if (!scene->base().enabledFeatures.drawIndirectFirstInstance)
@@ -167,12 +174,14 @@ class RenderSceneSuiteTest : public ::testing::Test
     {
         scene->setCamera(space, eye, rotation, fovy);
     }
+    // The callback owns its image: a screenshot deferred by a probe sequence is answered in a later frame, possibly in
+    // a later case or suite (the scene is shared)
     TemplatedImage<ucvec4> RenderFrame()
     {
-        TemplatedImage<ucvec4> img;
-        scene->requestScreenshot([&](const TemplatedImage<ucvec4>& shot) { img = shot; });
+        auto img = std::make_shared<TemplatedImage<ucvec4>>();
+        scene->requestScreenshot([img](const TemplatedImage<ucvec4>& shot) { *img = shot; });
         scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
-        return img;
+        return *img;
     }
     TemplatedImage<ucvec4> Capture(int n = 3)
     {
@@ -201,9 +210,22 @@ class RenderSceneSuiteTest : public ::testing::Test
         return s;
     }
 
+    static ivec2& suiteSize()
+    {
+        static ivec2 s(0, 0);
+        return s;
+    }
+    static int& suiteSamples()
+    {
+        static int n = 0;
+        return n;
+    }
+
    private:
     static void CreateSuite(ivec2 size, int samples)
     {
+        suiteSize()    = size;
+        suiteSamples() = samples;
         WindowParameters windowParameters;
         windowParameters.width  = size(0);
         windowParameters.height = size(1);
@@ -218,5 +240,14 @@ class RenderSceneSuiteTest : public ::testing::Test
         suiteScene()       = std::make_unique<Vulkan::RenderScene>(*suiteWindow(), vulkanParameters, params);
     }
 };
+
+// Destroys the suites' scene after the last test (before the static destructors)
+class RenderSceneSuiteCleanup : public ::testing::Environment
+{
+   public:
+    void TearDown() override { RenderSceneSuiteTest::DestroySuite(); }
+};
+inline ::testing::Environment* const renderSceneSuiteCleanup =
+    ::testing::AddGlobalTestEnvironment(new RenderSceneSuiteCleanup);
 
 }  // namespace Saiga
