@@ -87,6 +87,12 @@ class SAIGA_ENGINE_API DebugUi
     // A section header whose open state is kept in the state file (key: unique per tab, e.g. "engine/Simulation")
     bool section(const std::string& key, const char* title, bool defaultOpen = true);
 
+    // ---- Named controls (tests click a tab's real widgets)
+    // Records the screen rectangle of the last ImGui item under a name, e.g. "lighting/rate x60" (in an ImGui frame)
+    void markItem(const std::string& name);
+    // The centre of the item last marked under name (the frame it was drawn in); false if it was never drawn
+    bool itemCenter(const std::string& name, ImVec2& center) const;
+
     // ---- Keys
     // now and previous: the raw device states of this and the last frame (previous unfiltered, so a held F-key is one
     // press). F1..F10 select tabs (also while ImGui has the keyboard: they type no text), the grave key the console
@@ -137,6 +143,7 @@ class SAIGA_ENGINE_API DebugUi
     float panelSize(float em) const;
 
     std::vector<Tab> tabs;
+    std::map<std::string, ImVec2> markedItems;
     std::unique_ptr<DebugConsole> consolePtr;
     std::function<void(float)> summary;
     std::function<void()> pauseKey;

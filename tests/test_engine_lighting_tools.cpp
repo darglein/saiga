@@ -6,7 +6,8 @@
 
 // S36: the lighting's MCP tools (get_lighting, set_time_of_day, set_weather, set_lighting, app_status.lighting) through
 // handleMessage, on one headless app per suite (with a device: skipped without a Vulkan 1.3 driver; without a device;
-// --coop), and the console commands.
+// --coop), the console commands, and the app's environment and Lighting tab (F5) on the suites' apps (with and without
+// EnvironmentSetup::enabled).
 
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/DebugUi.h"
@@ -14,12 +15,14 @@
 #include "saiga/engine/components/Weather.h"
 #include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include "gtest/gtest.h"
 
+#include <cfloat>
 #include <cmath>
 #include <limits>
 #include <memory>
@@ -79,6 +82,40 @@ Json result(const Json& r)
     EXPECT_TRUE(err.empty()) << err << ": " << text(r);
     return j;
 }
+
+// The debug UI's apps: ImGui, large enough for the Lighting tab's sections to lay out
+EngineAppSetup tabSetup(bool environment)
+{
+    EngineAppSetup s            = lightingSetup(true);
+    s.width                     = 800;
+    s.height                    = 480;
+    s.render.imgui              = true;
+    s.world.environment.enabled = environment;
+    return s;
+}
+
+// Opens the a1a sections of the Lighting tab and selects it
+void showLightingTab(EngineApp& app)
+{
+    Json::object state = app.debugUi().state().object_items();
+    state["sections"] =
+        Json::object{{"lighting/Time and weather", true}, {"lighting/Sun and moon", true}, {"lighting/Exposure", true}};
+    app.debugUi().setState(state);
+    app.debugUi().select(DebugTab::Lighting);
+}
+
+// A left click at a point: one input event per frame (ImGui spreads a move and a button change of one frame over two)
+void click(EngineApp& app, ImVec2 at)
+{
+    ImGuiIO& io = ImGui::GetIO();
+    io.AddMousePosEvent(at.x, at.y);
+    app.runFrames(1, 1.0 / 60);
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+    app.runFrames(1, 1.0 / 60);
+    io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+    app.runFrames(1, 1.0 / 60);
+    io.AddMousePosEvent(-FLT_MAX, -FLT_MAX);
+}
 }  // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -103,6 +140,7 @@ class LightingTools : public ::testing::Test
         app->setEnvironmentSettings(Vulkan::EnvironmentSettings());
         app->scene()->setLightingParameters(Vulkan::LightingParameters());
         app->scene()->setToneMap(Vulkan::ToneMap::Identity);
+        app->scene()->setExposure(1);
         app->setViewCameraByTool(0, Vec3(0, 2, 6), Quat::Identity(), 1, false);
         ASSERT_FALSE(isError(call(*app, "set_time_of_day", obj(R"({"hours": 12, "day": 0, "rate": 0})"))));
     }
@@ -244,7 +282,137 @@ TEST_F(LightingTools, AppStatusLighting)
     EXPECT_NEAR(st["lighting"]["time_of_day"].number_value(), 9.5, 1e-9);
     EXPECT_EQ(st["lighting"]["tone_map"], Json("aces"));
     EXPECT_EQ(st["lighting"]["debug_view"], Json("none"));
-    EXPECT_TRUE(st["lighting"]["ev100"].is_number());
+    // The EV100 is the curve's at the sun's elevation at 9.5 h, the same as get_lighting's
+    const Json l          = result(call(*app, "get_lighting", obj(R"({"sections": ["sun", "exposure"]})")));
+    const double expected = Vulkan::ExposureSettings().ev100At(float(l["sun"]["elevation_deg"].number_value()));
+    EXPECT_NEAR(st["lighting"]["ev100"].number_value(), expected, 1e-4);
+    EXPECT_NEAR(l["exposure"]["ev100"].number_value(), expected, 1e-4);
+    // The effective exposure follows the EV100 and the multiplier (ACES); the rendered frame's equals it (no change
+    // since)
+    const double effective = Vulkan::exposureFromEv100(float(l["exposure"]["ev100"].number_value()),
+                                                       float(l["exposure"]["multiplier"].number_value()));
+    EXPECT_FLOAT_EQ(float(l["exposure"]["effective"].number_value()), float(effective));
+    EXPECT_FLOAT_EQ(float(l["exposure"]["frame_effective"].number_value()), float(effective));
+}
+
+// Regression: get_lighting's exposure.ev100 and source were the last rendered frame's, curve_ev100 and compensation the
+// current settings': right after set_lighting the two did not agree until a frame had rendered
+TEST_F(LightingTools, ExposureAgreesRightAfterAChange)
+{
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
+    app->runFrames(1, 1.0 / 60);
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"exposure_compensation": 2})"))));
+    const Json e = result(call(*app, "get_lighting", obj(R"({"sections": ["exposure"]})")))["exposure"];
+    EXPECT_NEAR(e["ev100"].number_value(), e["curve_ev100"].number_value() - 2, 1e-4) << e.dump();
+    EXPECT_NEAR(e["frame_ev100"].number_value(), e["curve_ev100"].number_value(), 1e-4) << e.dump();
+    EXPECT_EQ(e["source"], Json("curve"));
+    app->runFrames(1, 1.0 / 60);
+    const Json f = result(call(*app, "get_lighting", obj(R"({"sections": ["exposure"]})")))["exposure"];
+    EXPECT_NEAR(f["frame_ev100"].number_value(), f["ev100"].number_value(), 1e-4) << f.dump();
+}
+
+// S36: the app sends the environment every rendered frame; the scene's frame exposure follows its EV100 and the
+// multiplier keeps its meaning (exposure())
+TEST_F(LightingTools, EnvironmentReachesTheScene)
+{
+    EXPECT_TRUE(app->sendsEnvironment());
+    app->scene()->setToneMap(Vulkan::ToneMap::Aces);
+    app->scene()->setExposure(2);
+    app->runFrames(1, 1.0 / 60);
+    ASSERT_TRUE(app->scene()->hasEnvironment());
+    const float ev100 = app->scene()->environment().ev100;
+    EXPECT_NEAR(ev100, app->environmentSettings().exposure.ev100At(45), 1e-3);
+    EXPECT_FLOAT_EQ(app->scene()->exposure(), 2.0f);
+    EXPECT_FLOAT_EQ(app->scene()->frameExposure(), Vulkan::exposureFromEv100(ev100, 2));
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The Lighting tab: the debug UI's apps with and without EnvironmentSetup::enabled (one app per suite)
+
+template <bool Environment>
+class LightingTabSuite : public ::testing::Test
+{
+   public:
+    static void SetUpTestSuite()
+    {
+        if (!Vulkan::Instance::suitableDeviceAvailable()) return;
+        app = std::make_unique<EngineApp>(tabSetup(Environment));
+    }
+    static void TearDownTestSuite() { app.reset(); }
+
+   protected:
+    void SetUp() override
+    {
+        if (!app) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        app->setEnvironmentSettings(Vulkan::EnvironmentSettings());
+        app->scene()->setToneMap(Vulkan::ToneMap::Identity);
+        app->scene()->setExposure(1);
+        app->debugUi().select(DebugTab::Game);
+    }
+    static inline std::unique_ptr<EngineApp> app;
+};
+using LightingTabTest      = LightingTabSuite<true>;
+using LightingTabPlainTest = LightingTabSuite<false>;
+
+// S36: the Lighting tab (F5) with its a1a sections open renders headless (no validation error); its controls write:
+// a click on the rate button x60 queues setWorldTime (WorldTime::rate after the next frame, an api line in the log),
+// the "override sun" checkbox sets EnvironmentSettings::sunOverride; a click on the tab's button selects it
+TEST_F(LightingTabTest, RendersAndWrites)
+{
+    showLightingTab(*app);
+    app->runFrames(3, 1.0 / 60);
+    EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
+
+    ImVec2 at;
+    ASSERT_TRUE(app->debugUi().itemCenter("lighting/rate x60", at));
+    const uint64_t before = engineLog().lastSequence();
+    click(*app, at);
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_EQ(app->world().readGlobal<WorldTime>().rate, 60);
+    bool api = false;
+    for (const auto& line : engineLog().since(before))
+        api = api || (line.category == "api" && line.message.find("set_world_time") != std::string::npos);
+    EXPECT_TRUE(api);
+
+    // Time and weather collapsed: the sun's rows move up into the window
+    ASSERT_FALSE(app->environmentSettings().sunOverride.has_value());
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Time and weather", false}, {"lighting/Sun and moon", true}};
+    app->debugUi().setState(state);
+    app->runFrames(1, 1.0 / 60);
+    ASSERT_TRUE(app->debugUi().itemCenter("lighting/override sun", at));
+    EXPECT_LT(at.y, ImGui::GetIO().DisplaySize.y);
+    click(*app, at);
+    EXPECT_TRUE(app->environmentSettings().sunOverride.has_value());
+
+    // The tab button "F5 Lighting" is the fifth on the bar
+    app->debugUi().select(DebugTab::Game);
+    app->runFrames(2, 1.0 / 60);
+    float x = 6;
+    for (int i = 0; i < 4; ++i)
+        x += ImGui::CalcTextSize(("F" + std::to_string(i + 1) + " " + app->debugUi().tabName(i)).c_str()).x + 2 * 6 + 2;
+    click(*app, ImVec2(x + 10, app->debugUi().barHeight() / 2));
+    EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
+}
+
+// A world without the environment keeps the unit-less exposure
+TEST_F(LightingTabPlainTest, NoEnvironmentKeepsTheUnitlessExposure)
+{
+    app->scene()->setToneMap(Vulkan::ToneMap::Aces);
+    app->scene()->setExposure(2);
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_FALSE(app->scene()->hasEnvironment());
+    EXPECT_FLOAT_EQ(app->scene()->frameExposure(), 2.0f);
+}
+
+// The Lighting tab renders without WorldTime (the time and weather controls are replaced by a line)
+TEST_F(LightingTabPlainTest, Renders)
+{
+    showLightingTab(*app);
+    app->runFrames(3, 1.0 / 60);
+    EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
+    ImVec2 at;
+    EXPECT_FALSE(app->debugUi().itemCenter("lighting/rate x60", at));
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -291,6 +459,19 @@ TEST(EnvironmentWrites, CoopWritesTheHost)
     app.runFrames(20, 1.0 / 60);
     EXPECT_EQ(app.world().readGlobal<WorldTime>().timeOfDay, 18);
     EXPECT_EQ(app.world().readSpaceState<Weather>(0).cloudiness, 0.9);
+    // The client's view (what get_lighting and app_status report) follows the host
+    EXPECT_NEAR(app.sampleViewEnvironment().time.timeOfDay, 18, 1e-9);
+    EXPECT_NEAR(app.sampleViewEnvironment().weather.cloudiness, 0.9, 1e-12);
+    // The client world itself refuses the writes (the host writes it, R-NET-2; the tools never pick it in --coop, and
+    // the app has no pure-client mode to call them on one)
+    std::string error;
+    EXPECT_FALSE(setWorldTime(app.world(), WorldTimeChange{6.0, std::nullopt, std::nullopt}, error));
+    EXPECT_NE(error.find("replicated"), std::string::npos) << error;
+    WeatherChange c;
+    c.rain = 0.5;
+    EXPECT_FALSE(setWeather(app.world(), 0, c, error));
+    EXPECT_NE(error.find("replicated"), std::string::npos) << error;
+    EXPECT_EQ(app.world().readSpaceState<Weather>(0).rain, 0);
 }
 
 // Every tool is a console command (DebugConsole through McpServer::callLocal)

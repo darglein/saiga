@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace Saiga
 {
@@ -36,6 +37,18 @@ bool checkRange(const char* name, double v, double lo, double hi, bool hiOpen, s
             (hiOpen ? ")" : "]");
     return false;
 }
+// |timeOfDay| at or beyond this many days is not a time but garbage (a raw set_global): it is reset, which keeps the
+// day count's conversion to int64 defined (the range of set_time_of_day's day)
+constexpr double kMaxDays = 1e15;
+
+// day + days, saturated at the int64 limits (no signed overflow)
+int64_t addDays(int64_t day, int64_t days)
+{
+    if (days > 0 && day > std::numeric_limits<int64_t>::max() - days) return std::numeric_limits<int64_t>::max();
+    if (days < 0 && day < std::numeric_limits<int64_t>::min() - days) return std::numeric_limits<int64_t>::min();
+    return day + days;
+}
+
 std::string refusal(const World& world, const char* component)
 {
     if (world.inStep()) return std::string(component) + ": only between steps";
@@ -61,12 +74,13 @@ void normaliseWorldTime(WorldTime& t)
     const WorldTime defaults;
     t.rate    = clampFinite(t.rate, -kMaxTimeRate, kMaxTimeRate, defaults.rate);
     t.validAt = finiteOr(t.validAt, defaults.validAt);
-    if (!std::isfinite(t.timeOfDay)) t.timeOfDay = defaults.timeOfDay;
+    if (!std::isfinite(t.timeOfDay) || !(std::abs(t.timeOfDay) < 24 * kMaxDays)) t.timeOfDay = defaults.timeOfDay;
     if (t.timeOfDay < 0 || t.timeOfDay >= 24)
     {
+        // |days| < kMaxDays: the conversion is defined
         const double days = std::floor(t.timeOfDay / 24);
         t.timeOfDay -= days * 24;
-        t.day += int64_t(days);
+        t.day = addDays(t.day, int64_t(days));
         if (t.timeOfDay >= 24 || t.timeOfDay < 0)
         {
             // Rounding at the boundary
@@ -119,6 +133,14 @@ bool setWorldTime(World& world, const WorldTimeChange& c, std::string& error, Wo
     WorldTime& t = world.global<WorldTime>();
     if (previous) *previous = t;
     normaliseWorldTime(t);
+    // Continue from the time the extract shows: fold in the progress since validAt (zero with worldTimeSystem, which
+    // writes validAt every step; in a world without it the stored time stays and only the extract extrapolates, so
+    // a write of the rate alone would jump back to the stored time)
+    if (!c.hours && t.rate != 0)
+    {
+        t.timeOfDay += t.rate * (world.time() - t.validAt) / 3600.0;
+        normaliseWorldTime(t);
+    }
     if (c.hours) t.timeOfDay = *c.hours;
     if (c.day) t.day = *c.day;
     if (c.rate) t.rate = *c.rate;
@@ -165,6 +187,10 @@ bool setWeather(World& world, SpaceId space, const WeatherChange& c, std::string
     }
     Weather& w = world.spaceState<Weather>(space);
     if (previous) *previous = w;
+    normaliseWeather(w);
+    // Continue from the clouds the extract shows (as setWorldTime: the drift since validAt with the old wind)
+    if (!c.cloudOffset)
+        w.cloudOffset += w.wind * ((world.time() - w.validAt) * world.environmentSetup().cloudWindScale);
     if (c.cloudiness) w.cloudiness = *c.cloudiness;
     if (c.rain) w.rain = *c.rain;
     if (c.fogDensity) w.fogDensity = *c.fogDensity;

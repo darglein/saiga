@@ -10,8 +10,11 @@
 #include "saiga/engine/lighting/EnvironmentFile.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/data/DataFile.h"
 #include "saiga/engine/ecs/VisitJson.h"
+
+#include <cmath>
 
 namespace Saiga
 {
@@ -137,6 +140,34 @@ struct EnvironmentDoc
         v("lighting", lighting);
     }
 };
+// The values without a set_lighting key: finite and in range; the error names the key path
+bool validateFileValues(const EnvironmentFile& f, std::string& error)
+{
+    std::string errors;
+    auto check = [&errors](const char* key, double v, double lo, double hi)
+    {
+        if (std::isfinite(v) && v >= lo && v <= hi) return;
+        errors += (errors.empty() ? "" : "; ") + std::string(key) + ": expected a finite number in [" +
+                  std::to_string(lo) + ", " + std::to_string(hi) + "]";
+    };
+    const CelestialConfig& c = f.setup.celestial;
+    check("celestial.latitudeDeg", c.latitudeDeg, -90, 90);
+    check("celestial.axialTiltDeg", c.axialTiltDeg, -90, 90);
+    check("celestial.dayOfYearAtDay0", c.dayOfYearAtDay0, -1e6, 1e6);
+    check("celestial.yearLengthDays", c.yearLengthDays, 1, 1e6);
+    check("celestial.sunIlluminance", c.sunIlluminance, 0, 1e7);
+    check("celestial.moonIlluminance", c.moonIlluminance, 0, 1e7);
+    check("celestial.moonPhase", c.moonPhase, 0, 1);
+    check("celestial.starIntensity", c.starIntensity, 0, 1e6);
+    check("clouds.windScale", f.setup.cloudWindScale, -100, 100);
+    check("clouds.fogFalloff", f.settings.clouds.fogFalloff, 0, 1);
+    check("atmosphere.rayleighScale", f.settings.atmosphere.rayleighScale, 0, 100);
+    check("atmosphere.mieScale", f.settings.atmosphere.mieScale, 0, 100);
+    check("atmosphere.ozoneScale", f.settings.atmosphere.ozoneScale, 0, 100);
+    if (errors.empty()) return true;
+    error = errors;
+    return false;
+}
 }  // namespace
 
 bool tryReadEnvironmentFile(const std::string& path, EnvironmentFile& out, std::string& error)
@@ -164,7 +195,13 @@ bool tryReadEnvironmentFile(const std::string& path, EnvironmentFile& out, std::
     f.settings.atmosphere    = doc.atmosphere.a;
     f.settings.starIntensity = doc.atmosphere.starIntensity;
     f.lighting               = doc.lighting.p;
-    out                      = f;
+    // R-DATA-1 also for the values: the ranges of set_lighting (its key names) and of the values without a key
+    if (!validateFileValues(f, e) || !validateLightingValues(f.settings, f.lighting, e))
+    {
+        error = path + ": " + e;
+        return false;
+    }
+    out = f;
     return true;
 }
 

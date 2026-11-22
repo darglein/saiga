@@ -237,7 +237,8 @@ TEST(AppCommandLine, TimeOfDayAndDayLength)
     EXPECT_EQ(*o.dayLength, 240);
     for (auto bad : {argv({"--time-of-day", "24"}), argv({"--time-of-day", "-1"}), argv({"--time-of-day", "x"}),
                      argv({"--time-of-day"}), argv({"--day-length", "0"}), argv({"--day-length", "10"}),
-                     argv({"--day-length", "nan"})})
+                     argv({"--day-length", "nan"}), argv({"--time-of-day", "6", "--scenarios"}),
+                     argv({"--scenarios", "--day-length", "60"})})
     {
         EngineAppSetup u;
         AppOptions q;
@@ -1502,35 +1503,6 @@ Json measureDirect(EngineApp& app, int n, std::chrono::seconds budget = std::chr
 // S17: the gpu profile has RenderScene's sections in frame order (S19a: transfer, cull, depth and its sub-section,
 // scene and its sub-sections, resolve, post, imgui); the tone map of the setup reaches RenderScene. S19b: the game's
 // own passes (passNames / passTimes) are gone
-// S36: a world with the environment sends it every rendered frame; the scene's frame exposure follows its EV100 and
-// the multiplier keeps its meaning (exposure()); a world without it keeps the unit-less exposure
-TEST_F(EngineAppRender, EnvironmentReachesTheScene)
-{
-    EngineAppSetup s            = appSetup(true);
-    s.render.toneMap            = Vulkan::ToneMap::Aces;
-    s.render.exposure           = 2;
-    s.world.environment.enabled = true;
-    EngineApp app(s);
-    ASSERT_NE(app.scene(), nullptr);
-    EXPECT_TRUE(app.sendsEnvironment());
-    std::string error;
-    ASSERT_TRUE(setWorldTime(app.world(), WorldTimeChange{12.0, std::nullopt, std::nullopt}, error)) << error;
-    app.runFrames(3, 1.0 / 60);
-    ASSERT_TRUE(app.scene()->hasEnvironment());
-    const float ev100 = app.scene()->environment().ev100;
-    EXPECT_NEAR(ev100, app.environmentSettings().exposure.ev100At(45), 1e-3);
-    EXPECT_FLOAT_EQ(app.scene()->exposure(), 2.0f);
-    EXPECT_FLOAT_EQ(app.scene()->frameExposure(), Vulkan::exposureFromEv100(ev100, 2));
-
-    EngineAppSetup p  = appSetup(true);
-    p.render.toneMap  = Vulkan::ToneMap::Aces;
-    p.render.exposure = 2;
-    EngineApp plain(p);
-    plain.runFrames(3, 1.0 / 60);
-    EXPECT_FALSE(plain.scene()->hasEnvironment());
-    EXPECT_FLOAT_EQ(plain.scene()->frameExposure(), 2.0f);
-}
-
 TEST_F(EngineAppRender, GpuSections)
 {
     EngineAppSetup s  = appSetup(true);
@@ -2394,47 +2366,6 @@ TEST_F(EngineAppRender, DebugUiTabsRender)
     io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
     app.runFrames(1, 1.0 / 60);
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Engine));
-}
-
-// S36: the Lighting tab (F5) with its a1a sections open renders headless (no validation error), also without
-// WorldTime; a click on its tab button selects it
-TEST_F(EngineAppRender, LightingTabRenders)
-{
-    for (bool environment : {true, false})
-    {
-        EngineAppSetup s            = appSetup(true);
-        s.render.imgui              = true;
-        s.width                     = 800;
-        s.height                    = 600;
-        s.world.environment.enabled = environment;
-        EngineApp app(s);
-        Json::object sections{
-            {"lighting/Time and weather", true}, {"lighting/Sun and moon", true}, {"lighting/Exposure", true}};
-        Json::object state = app.debugUi().state().object_items();
-        state["sections"]  = sections;
-        app.debugUi().setState(state);
-        app.debugUi().select(DebugTab::Lighting);
-        app.runFrames(3, 1.0 / 60);
-        EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
-        if (!environment) continue;
-        // The tab button "F5 Lighting" is the fifth on the bar; one input event per frame
-        app.debugUi().select(DebugTab::Game);
-        app.runFrames(2, 1.0 / 60);
-        const float y = app.debugUi().barHeight() / 2;
-        float x       = 6;
-        for (int i = 0; i < 4; ++i)
-            x += ImGui::CalcTextSize(("F" + std::to_string(i + 1) + " " + app.debugUi().tabName(i)).c_str()).x + 2 * 6 +
-                 2;
-        x += 10;
-        ImGuiIO& io = ImGui::GetIO();
-        io.AddMousePosEvent(x, y);
-        app.runFrames(1, 1.0 / 60);
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
-        app.runFrames(1, 1.0 / 60);
-        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
-        app.runFrames(1, 1.0 / 60);
-        EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
-    }
 }
 
 // Regression: the panel was moved in front of all windows every frame, also in front of the popups opened inside it

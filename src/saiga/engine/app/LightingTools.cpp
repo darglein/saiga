@@ -157,6 +157,8 @@ struct LightingKey
     bool parameter;  // a LightingParameters field (get_lighting.parameters), else a setting (get_lighting.settings)
     std::function<Json(const LightingState&)> get;
     std::function<bool(const Json&, LightingState&, std::string&)> set;
+    // The schema's description (the range of a number key)
+    std::string description = {};
 };
 
 LightingKey floatKey(const char* name, bool parameter, double lo, double hi,
@@ -170,7 +172,8 @@ LightingKey floatKey(const char* name, bool parameter, double lo, double hi,
                            if (!number(j, name, lo, hi, v, error)) return false;
                            field(s) = float(v);
                            return true;
-                       }};
+                       },
+                       std::string(name) + " " + rangeText(lo, hi)};
 }
 
 LightingKey boolKey(const char* name, bool parameter, std::function<bool&(LightingState&)> field)
@@ -365,6 +368,35 @@ const std::vector<std::string>& sectionNames()
 }
 }  // namespace
 
+bool validateLightingValues(const Vulkan::EnvironmentSettings& settings, const Vulkan::LightingParameters& parameters,
+                            std::string& error)
+{
+    // Every set_lighting key reads its value and validates it as the tool would (the same ranges)
+    LightingState state;
+    state.settings   = settings;
+    state.parameters = parameters;
+    std::string errors;
+    for (const LightingKey& k : lightingKeys())
+    {
+        LightingState scratch = state;
+        std::string e;
+        if (!k.set(k.get(state), scratch, e)) errors += (errors.empty() ? "" : "; ") + e;
+    }
+    const std::vector<vec2>& curve = settings.exposure.curve;
+    if (curve.empty()) errors += std::string(errors.empty() ? "" : "; ") + "exposure curve: empty";
+    for (size_t i = 0; i < curve.size(); ++i)
+    {
+        if (!std::isfinite(curve[i](0)) || !std::isfinite(curve[i](1)))
+            errors += std::string(errors.empty() ? "" : "; ") + "exposure curve[" + std::to_string(i) + "]: not finite";
+        else if (i > 0 && !(curve[i](0) > curve[i - 1](0)))
+            errors += std::string(errors.empty() ? "" : "; ") + "exposure curve[" + std::to_string(i) +
+                      "]: the elevations must be strictly ascending";
+    }
+    if (errors.empty()) return true;
+    error = errors;
+    return false;
+}
+
 World& lightingWriteWorld(EngineApp& app)
 {
     return app.coop() ? *app.hostWorld() : app.world();
@@ -418,14 +450,25 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
     else
         o["tone_map"] = Json::object{{"value", toneMapName(tone)}};
     if (scene->hasEnvironment())
+    {
+        // ev100, source and effective are the sample's (now, with the current settings: what the next frame uses), so
+        // they agree with curve_ev100 and compensation right after a set_lighting; frame_ev100 and frame_effective are
+        // the last rendered frame's
+        const Vulkan::RenderSceneParameters& p = scene->parameters();
+        const float multiplier                 = p.toneMap == Vulkan::ToneMap::Identity ? 1.0f : p.exposure;
+        const float effective =
+            p.toneMap == Vulkan::ToneMap::Identity ? 1.0f : Vulkan::exposureFromEv100(e.state.ev100, p.exposure);
         o["exposure"] = Json::object{{"mode", exposureModeName(state.settings.exposure.mode)},
-                                     {"source", exposureSourceName(scene->environment().exposureSource)},
-                                     {"ev100", double(scene->environment().ev100)},
+                                     {"source", exposureSourceName(e.state.exposureSource)},
+                                     {"ev100", double(e.state.ev100)},
                                      {"curve_ev100", double(e.curveEv100)},
                                      {"compensation", double(state.settings.exposure.compensation)},
-                                     {"multiplier", double(scene->exposure())},
-                                     {"effective", double(scene->frameExposure())},
+                                     {"multiplier", double(multiplier)},
+                                     {"effective", double(effective)},
+                                     {"frame_ev100", double(scene->environment().ev100)},
+                                     {"frame_effective", double(scene->frameExposure())},
                                      {"pre_exposure", double(scene->preExposure())}};
+    }
     else
         o["exposure"] = Json::object{{"environment", false},
                                      {"multiplier", double(scene->exposure())},
@@ -458,10 +501,12 @@ Json lightingStatusJson(EngineApp& app)
     Vulkan::RenderScene* scene = app.scene();
     if (!scene) return Json();
     const World& w = app.world();
-    return Json::object{{"time_of_day", hasWorldTime(w) ? Json(app.sampleViewEnvironment().time.timeOfDay) : Json()},
-                        {"ev100", scene->hasEnvironment() ? Json(double(scene->environment().ev100)) : Json()},
-                        {"tone_map", toneMapName(scene->parameters().toneMap)},
-                        {"debug_view", "none"}};
+    return Json::object{
+        {"time_of_day", hasWorldTime(w) ? Json(app.sampleViewEnvironment().time.timeOfDay) : Json()},
+        // The sample's EV100 (as get_lighting's exposure.ev100: what the next frame uses)
+        {"ev100", scene->hasEnvironment() ? Json(double(app.sampleViewEnvironment().state.ev100)) : Json()},
+        {"tone_map", toneMapName(scene->parameters().toneMap)},
+        {"debug_view", "none"}};
 }
 
 void registerLightingTools(McpServer& server, EngineApp& app)
@@ -471,11 +516,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "Reads the lighting of the view camera's space: time (hours, day, rate; null without WorldTime), weather, sun "
         "and moon (direction, azimuth and elevation in degrees, illuminance at the top of the atmosphere and on the "
         "ground, the moon's phase), shadow_light, tone_map (identity = clay, which ignores time and weather), "
-        "exposure (mode, source, ev100, curve_ev100, compensation, multiplier, effective, pre_exposure; without an "
-        "environment only the unit-less multiplier), ambient, clouds, settings (the set_lighting keys) and parameters "
+        "exposure (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame "
+        "uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only "
+        "the unit-less multiplier), ambient, clouds, settings (the set_lighting keys) and parameters "
         "(the LightingParameters). sections keeps only the named top-level keys. Answered at once. Changes nothing.",
-        schema({{"sections", arrayProperty("The top-level keys to return (default all)",
-                                           McpServer::StringProperty("", sectionNames()))}}),
+        schema(
+            {{"sections", arrayProperty("The top-level keys to return (default all)",
+                                        McpServer::StringProperty("A top-level key of the answer", sectionNames()))}}),
         [&app](const Json& a, McpServer::Respond respond)
         {
             std::string error;
@@ -628,7 +675,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
         else
-            p = McpServer::NumberProperty(n);
+            p = McpServer::NumberProperty(k.description.empty() ? n : k.description);
         setProperties[n] = p;
     }
     server.addTool(

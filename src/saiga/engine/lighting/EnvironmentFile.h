@@ -9,6 +9,9 @@
 // defaults, unknown keys and wrong types are fatal, naming the file and the key path). The field names are the
 // structs' (camelCase); clouds also takes windScale (EnvironmentSetup::cloudWindScale), atmosphere starIntensity
 // (EnvironmentSettings::starIntensity). EnvironmentSetup::enabled is not read (the game enables the environment).
+// The values are range-checked: the ones with a set_lighting key against its range (validateLightingValues; the error
+// names the set_lighting key), the exposure curve (not empty, strictly ascending elevations) and the others against
+// their ranges (the error names the key path, e.g. celestial.yearLengthDays).
 
 #pragma once
 

@@ -209,6 +209,16 @@ TEST(VulkanImGui, ImageDraws)
         window->renderFrames(1);
         return result;
     };
+    // The text "text" in the top-left corner is drawn with the font's set (the per-command binding of kFontTexture):
+    // some pixel of its rows differs from the window's background (a corner without content)
+    auto hasText = [](const TemplatedImage<ucvec4>& img)
+    {
+        const ucvec4 background = img(img.h - 2, img.w - 2);
+        for (int y = 0; y < 13; ++y)
+            for (int x = 0; x < 31; ++x)
+                if (img(y, x) != background) return true;
+        return false;
+    };
     // ImGui shows a new window from its second frame on
     frame();
     auto img = frame();
@@ -218,6 +228,7 @@ TEST(VulkanImGui, ImageDraws)
     EXPECT_EQ(img(17, 17), red);
     EXPECT_NE(img(40, 40), red);
     EXPECT_NE(img(24, 40), red);
+    EXPECT_TRUE(hasText(img));
 
     // Removed: the command of the unknown ID is not drawn, the frames continue (the set is freed after its frames)
     imgui->removeTexture(app.texture);
@@ -225,6 +236,7 @@ TEST(VulkanImGui, ImageDraws)
     auto after = frame();
     ASSERT_EQ(after.w, 64);
     EXPECT_NE(after(24, 24), red);
+    EXPECT_TRUE(hasText(after));
     app.texture = ImTextureID_Invalid;
     frame();
     renderer->waitIdle();

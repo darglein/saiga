@@ -20,9 +20,11 @@
 #include "gtest/gtest.h"
 
 #include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <fstream>
 #include <limits>
+#include <random>
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -52,13 +54,30 @@ WorldSetup environmentSetup()
     return s;
 }
 
-std::string writeTemp(const std::string& name, const std::string& content)
+// A temporary file with a name unique to the process (parallel ctest runs of several checkouts share the system's temp
+// directory), removed at the end of the scope
+struct TempFile
 {
-    const std::filesystem::path p = std::filesystem::temp_directory_path() / name;
-    std::ofstream f(p);
-    f << content;
-    return p.string();
-}
+    std::string path;
+    TempFile(const std::string& name, const std::string& content)
+    {
+        static const std::string prefix = []
+        {
+            std::random_device rd;
+            return "saiga_" + std::to_string(rd()) + "_" + std::to_string(rd()) + "_";
+        }();
+        path = (std::filesystem::temp_directory_path() / (prefix + name)).string();
+        std::ofstream f(path);
+        f << content;
+    }
+    ~TempFile()
+    {
+        std::error_code ec;
+        std::filesystem::remove(path, ec);
+    }
+    TempFile(const TempFile&)            = delete;
+    TempFile& operator=(const TempFile&) = delete;
+};
 }  // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -276,31 +295,101 @@ TEST(WorldTime, SystemNormalisesInvalidValues)
     w.step();
     EXPECT_TRUE(std::isfinite(w.readGlobal<WorldTime>().timeOfDay));
     EXPECT_EQ(w.readGlobal<WorldTime>().rate, kMaxTimeRate);
+
+    // Regression: a huge finite time converted floor(timeOfDay / 24) to int64 (undefined behaviour, a garbage day that
+    // was saved and replicated), and the day count overflowed at the int64 limits
+    w.global<WorldTime>().rate      = 0;
+    w.global<WorldTime>().day       = 7;
+    w.global<WorldTime>().timeOfDay = 1e300;
+    w.step();
+    EXPECT_EQ(w.readGlobal<WorldTime>().timeOfDay, WorldTime().timeOfDay);
+    EXPECT_EQ(w.readGlobal<WorldTime>().day, 7);
+    w.global<WorldTime>().timeOfDay = -1e300;
+    w.step();
+    EXPECT_EQ(w.readGlobal<WorldTime>().timeOfDay, WorldTime().timeOfDay);
+    EXPECT_EQ(w.readGlobal<WorldTime>().day, 7);
+    w.global<WorldTime>().day       = std::numeric_limits<int64_t>::max();
+    w.global<WorldTime>().timeOfDay = 30;
+    w.step();
+    EXPECT_NEAR(w.readGlobal<WorldTime>().timeOfDay, 6, 1e-12);
+    EXPECT_EQ(w.readGlobal<WorldTime>().day, std::numeric_limits<int64_t>::max());
+    w.global<WorldTime>().day       = std::numeric_limits<int64_t>::min();
+    w.global<WorldTime>().timeOfDay = -30;
+    w.step();
+    EXPECT_NEAR(w.readGlobal<WorldTime>().timeOfDay, 18, 1e-12);
+    EXPECT_EQ(w.readGlobal<WorldTime>().day, std::numeric_limits<int64_t>::min());
+    // A validAt far in the past: the extract's extrapolation gives a huge time, normalised to a valid one
+    World frozen(frozenEnvironmentSetup());
+    frozen.global<WorldTime>().rate       = 3600;
+    frozen.global<WorldTime>().validAt    = -1e300;
+    frozen.spaceState<Weather>(0).validAt = -1e300;
+    const EnvironmentSample s =
+        sampleEnvironment(frozen, 0, 1, Vulkan::EnvironmentSettings(), frozen.environmentSetup());
+    EXPECT_GE(s.time.timeOfDay, 0);
+    EXPECT_LT(s.time.timeOfDay, 24);
+    for (int i = 0; i < 2; ++i)
+    {
+        EXPECT_GE(s.weather.cloudOffset(i), 0);
+        EXPECT_LT(s.weather.cloudOffset(i), kCloudTile);
+    }
+}
+
+// Regression: every step rewrote validAt, also with rate 0 and no wind, so WorldTime and every space's Weather changed
+// (replicated, in the save diff) in every step although nothing moved
+TEST(WorldTime, SystemWritesOnlyWhatMoves)
+{
+    World w(environmentSetup());
+    std::string error;
+    WeatherChange calm;
+    calm.wind = Vec2(0, 0);
+    ASSERT_TRUE(setWeather(w, 0, calm, error)) << error;
+    w.step();
+    const WorldTime t = w.readGlobal<WorldTime>();
+    const Weather a   = w.readSpaceState<Weather>(0);
+    w.step(5);
+    EXPECT_EQ(w.readGlobal<WorldTime>().validAt, t.validAt);
+    EXPECT_EQ(w.readSpaceState<Weather>(0).validAt, a.validAt);
+    EXPECT_EQ(w.readSpaceState<Weather>(0).cloudOffset, a.cloudOffset);
+    // The extract is the same (validAt does not matter when nothing moves)
+    EXPECT_EQ(sample(w, 0.5).time.timeOfDay, t.timeOfDay);
+    // A rate moves the time again and writes validAt
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{std::nullopt, std::nullopt, 60.0}, error)) << error;
+    w.step();
+    EXPECT_NEAR(w.readGlobal<WorldTime>().validAt, w.time(), 1e-12);
+    EXPECT_GT(w.readGlobal<WorldTime>().timeOfDay, t.timeOfDay);
 }
 
 TEST(WorldTime, CloudOffsetWrapsSeamless)
 {
     WorldSetup s                 = environmentSetup();
     s.environment.cloudWindScale = 2;
+    // Two spaces: the system moves the clouds of each with its own wind
+    s.config.spaceTemplates = {SpaceTemplate(), SpaceTemplate::enclosed("cellar")};
     World w(s);
+    const Vec2 wind[2]   = {Vec2(150, -90), Vec2(-7, 3)};
+    const Vec2 offset[2] = {Vec2(16000, 100), Vec2(5, 16380)};
+    for (SpaceId space : {SpaceId(0), SpaceId(1)})
     {
         std::string error;
         WeatherChange c;
-        c.wind        = Vec2(150, -90);
-        c.cloudOffset = Vec2(16000, 100);
-        ASSERT_TRUE(setWeather(w, 0, c, error)) << error;
+        c.wind        = wind[space];
+        c.cloudOffset = offset[space];
+        ASSERT_TRUE(setWeather(w, space, c, error)) << error;
     }
     const int n = 120;
     w.step(n);
-    const Weather& weather = w.readSpaceState<Weather>(0);
-    const double t         = n * w.dt() * 2;
-    for (int i = 0; i < 2; ++i)
+    const double t = n * w.dt() * 2;
+    for (SpaceId space : {SpaceId(0), SpaceId(1)})
     {
-        const double unwrapped = (i == 0 ? 16000 : 100) + (i == 0 ? 150 : -90) * t;
-        EXPECT_GE(weather.cloudOffset(i), 0);
-        EXPECT_LT(weather.cloudOffset(i), kCloudTile);
-        // The wrapped offset is the unwrapped one modulo the tile (what the noise of period kCloudTile sees)
-        EXPECT_NEAR(wrapPeriod(unwrapped, kCloudTile), weather.cloudOffset(i), 1e-6);
+        const Weather& weather = w.readSpaceState<Weather>(space);
+        for (int i = 0; i < 2; ++i)
+        {
+            const double unwrapped = offset[space](i) + wind[space](i) * t;
+            EXPECT_GE(weather.cloudOffset(i), 0);
+            EXPECT_LT(weather.cloudOffset(i), kCloudTile);
+            // The wrapped offset is the unwrapped one modulo the tile (what the noise of period kCloudTile sees)
+            EXPECT_NEAR(wrapPeriod(unwrapped, kCloudTile), weather.cloudOffset(i), 1e-6) << space << " " << i;
+        }
     }
 }
 
@@ -423,14 +512,14 @@ TEST(EnvironmentWrites, RangeErrorsNameTheField)
 
 TEST(EnvironmentFile, MissingKeysKeepDefaults)
 {
-    const std::string path  = writeTemp("saiga_environment_partial.json", R"({
+    const TempFile file("environment_partial.json", R"({
         "celestial": {"latitudeDeg": 50},
         "exposure": {"mode": "fixed", "ev100": 12, "curve": [[0, 5], [90, 10]]},
         "clouds": {"altitude": 1800, "windScale": 0.5},
         "atmosphere": {"starIntensity": 2},
         "lighting": {"environmentResolution": 64}
     })");
-    const EnvironmentFile f = readEnvironmentFile(path);
+    const EnvironmentFile f = readEnvironmentFile(file.path);
     EXPECT_EQ(f.setup.celestial.latitudeDeg, 50);
     EXPECT_EQ(f.setup.celestial.axialTiltDeg, CelestialConfig().axialTiltDeg);
     EXPECT_FALSE(f.setup.enabled);
@@ -446,7 +535,8 @@ TEST(EnvironmentFile, MissingKeysKeepDefaults)
     EXPECT_EQ(f.lighting.environmentResolution, 64);
     EXPECT_EQ(f.lighting.clouds, true);
     // An empty object: all defaults
-    const EnvironmentFile e = readEnvironmentFile(writeTemp("saiga_environment_empty.json", "{}"));
+    const TempFile empty("environment_empty.json", "{}");
+    const EnvironmentFile e = readEnvironmentFile(empty.path);
     EXPECT_EQ(e.settings.exposure.ev100, 15);
     EXPECT_EQ(e.setup.celestial.latitudeDeg, 45);
 }
@@ -455,21 +545,60 @@ TEST(EnvironmentFile, ErrorsNameTheKey)
 {
     EnvironmentFile f;
     std::string error;
-    EXPECT_FALSE(
-        tryReadEnvironmentFile(writeTemp("saiga_environment_bad.json", R"({"clouds": {"altitud": 1}})"), f, error));
+    const TempFile bad("environment_bad.json", R"({"clouds": {"altitud": 1}})");
+    EXPECT_FALSE(tryReadEnvironmentFile(bad.path, f, error));
     EXPECT_NE(error.find("altitud"), std::string::npos) << error;
-    EXPECT_FALSE(tryReadEnvironmentFile(writeTemp("saiga_environment_bad2.json", R"({"exposure": {"mode": "auto"}})"),
-                                        f, error));
+    const TempFile bad2("environment_bad2.json", R"({"exposure": {"mode": "auto"}})");
+    EXPECT_FALSE(tryReadEnvironmentFile(bad2.path, f, error));
     EXPECT_NE(error.find("mode"), std::string::npos) << error;
-    EXPECT_FALSE(tryReadEnvironmentFile(writeTemp("saiga_environment_bad3.json", R"({"weather": {}})"), f, error));
+    const TempFile bad3("environment_bad3.json", R"({"weather": {}})");
+    EXPECT_FALSE(tryReadEnvironmentFile(bad3.path, f, error));
     EXPECT_NE(error.find("weather"), std::string::npos) << error;
     EXPECT_FALSE(tryReadEnvironmentFile("/nonexistent/saiga_environment.json", f, error));
 }
 
+// Regression: the file's values were not range-checked (a descending exposure curve, a resolution that is not a power
+// of two, a negative illuminance or year length were accepted, while set_lighting refuses them): the error names the
+// key (the set_lighting key, or the key path of a value without one); out stays unchanged
+TEST(EnvironmentFile, RangeErrorsNameTheKey)
+{
+    const std::pair<const char*, const char*> cases[] = {
+        {R"({"lighting": {"environmentResolution": 100}})", "environment_resolution"},
+        {R"({"exposure": {"ev100": 99}})", "ev100"},
+        {R"({"clouds": {"altitude": -5}})", "cloud_altitude"},
+        {R"({"exposure": {"curve": [[0, 5], [0, 10]]}})", "curve[1]"},
+        {R"({"exposure": {"curve": [[10, 5], [0, 10]]}})", "ascending"},
+        {R"({"exposure": {"curve": []}})", "curve: empty"},
+        {R"({"celestial": {"sunIlluminance": -1}})", "celestial.sunIlluminance"},
+        {R"({"celestial": {"yearLengthDays": 1e-300}})", "celestial.yearLengthDays"},
+        {R"({"celestial": {"starIntensity": -1}})", "celestial.starIntensity"},
+        {R"({"atmosphere": {"mieScale": -1}})", "atmosphere.mieScale"},
+    };
+    int i = 0;
+    for (const auto& [json, key] : cases)
+    {
+        const TempFile file("environment_range" + std::to_string(i++) + ".json", json);
+        EnvironmentFile f;
+        f.settings.exposure.ev100 = 3;
+        std::string error;
+        EXPECT_FALSE(tryReadEnvironmentFile(file.path, f, error)) << json;
+        EXPECT_NE(error.find(key), std::string::npos) << json << ": " << error;
+        EXPECT_EQ(f.settings.exposure.ev100, 3) << json;
+    }
+    // Two invalid values: both are named
+    const TempFile two("environment_range_two.json",
+                       R"({"lighting": {"environmentResolution": 100}, "atmosphere": {"groundAlbedo": 2}})");
+    EnvironmentFile f;
+    std::string error;
+    EXPECT_FALSE(tryReadEnvironmentFile(two.path, f, error));
+    EXPECT_NE(error.find("environment_resolution"), std::string::npos) << error;
+    EXPECT_NE(error.find("ground_albedo"), std::string::npos) << error;
+}
+
 TEST(EnvironmentFileDeathTest, UnknownKeyIsFatal)
 {
-    const std::string path = writeTemp("saiga_environment_unknown.json", R"({"celestial": {"latitude": 50}})");
-    EXPECT_DEATH(readEnvironmentFile(path), "latitude");
+    const TempFile file("environment_unknown.json", R"({"celestial": {"latitude": 50}})");
+    EXPECT_DEATH(readEnvironmentFile(file.path), "latitude");
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -530,6 +659,40 @@ TEST(EnvironmentExtract, RateChangeDoesNotJump)
     w.step();
     EXPECT_NEAR(sample(w, 1).time.timeOfDay, before + 3600 * w.dt() / 3600, 1e-9);
     EXPECT_NEAR(sample(w, 0).time.timeOfDay, before, 1e-9);
+}
+
+// Regression: without worldTimeSystem (R-MECH-1: optional) the writes set validAt to the write's time without folding
+// in the extrapolated progress, so a rate change jumped the sun back to the stored time and a weather change reset the
+// clouds' drift
+TEST(EnvironmentExtract, WritesWithoutTheSystemDoNotJump)
+{
+    World w(frozenEnvironmentSetup());
+    std::string error;
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{10.0, std::nullopt, 1800.0}, error)) << error;
+    WeatherChange windy;
+    windy.wind = Vec2(10, -4);
+    ASSERT_TRUE(setWeather(w, 0, windy, error)) << error;
+    w.step(30);
+    const EnvironmentSample before = sample(w, 1);
+    EXPECT_GT(before.time.timeOfDay, 10);
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{std::nullopt, std::nullopt, 60.0}, error)) << error;
+    EXPECT_NEAR(sample(w, 1).time.timeOfDay, before.time.timeOfDay, 1e-9);
+    EXPECT_NEAR(w.readGlobal<WorldTime>().timeOfDay, before.time.timeOfDay, 1e-9);
+    WeatherChange cloudy;
+    cloudy.cloudiness = 0.5;
+    ASSERT_TRUE(setWeather(w, 0, cloudy, error)) << error;
+    EXPECT_NEAR(sample(w, 1).weather.cloudOffset(0), before.weather.cloudOffset(0), 1e-9);
+    EXPECT_NEAR(sample(w, 1).weather.cloudOffset(1), before.weather.cloudOffset(1), 1e-9);
+    // A new wind continues from the drifted clouds as well
+    w.step(10);
+    const EnvironmentSample later = sample(w, 1);
+    WeatherChange calm;
+    calm.wind = Vec2(0, 0);
+    ASSERT_TRUE(setWeather(w, 0, calm, error)) << error;
+    EXPECT_NEAR(sample(w, 1).weather.cloudOffset(0), later.weather.cloudOffset(0), 1e-9);
+    // An explicit hours / cloud_offset is taken as given
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{3.0, std::nullopt, std::nullopt}, error)) << error;
+    EXPECT_NEAR(sample(w, 1).time.timeOfDay, 3, 1e-12);
 }
 
 TEST(EnvironmentExtract, SanitisesOutOfRangeWeather)

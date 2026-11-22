@@ -1686,6 +1686,32 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
 - **ImGui textures**: `ImGuiHeadlessRenderer` needed no change (it inherits the per-command binding);
   `VulkanRenderer::imguiRenderer()` (`Renderer.h`, not in the Files list) gives the tab and the test the renderer. An
   unknown texture ID's command is skipped.
+- **Review round 1 of a1a** (2026-11-22):
+  - `normaliseWorldTime` resets a `timeOfDay` of 1e15 days or more (a raw `set_global` of e.g. 1e300) to the default
+    and saturates `day` at the int64 limits (the float-to-int64 conversion and the day addition were undefined).
+  - `setWorldTime` / `setWeather` first fold in the progress since `validAt` (the extract's extrapolation) for the
+    fields they do not set, so a write in a world without `worldTimeSystem` does not jump the sun or the clouds back.
+  - `worldTimeSystem` writes `WorldTime` / a space's `Weather` only when a value changes (rate != 0, the wind moves
+    the clouds, or the normalisation repaired a value): with rate 0 and no wind `validAt` keeps its value, nothing is
+    replicated or appears in a save diff, and the extract is the same.
+  - The environment file is range-checked: the values with a `set_lighting` key through `validateLightingValues`
+    (`LightingTools.h`: every key's own validation, so later parts' keys are covered; the error names the
+    `set_lighting` key), the exposure curve (not empty, finite, strictly ascending elevations) and the values without a
+    key (`celestial.*`, `clouds.windScale` / `fogFalloff`, the atmosphere scales; the error names the key path).
+  - `get_lighting.exposure`: `ev100`, `source`, `multiplier` and `effective` are now the sample's (what the next frame
+    uses, consistent with `curve_ev100` and `compensation` right after a `set_lighting`); the new `frame_ev100` /
+    `frame_effective` are the last rendered frame's. `app_status.lighting.ev100` is the sample's as well. The
+    `set_lighting` schema gives every number key its range.
+  - The Lighting tab: a "fixed EV100" slider (enabled in the fixed mode); the time and weather widgets show the values
+    of the world they write (with `--coop` the hidden host, plus a "client view" row), so incremental widgets do not
+    fight the replication delay; the day is an int64 input; a refused write is logged (`api`). `DebugUi::markItem` /
+    `itemCenter` record named controls (the rate buttons, "override sun") so a test clicks the real widgets.
+  - `--time-of-day` / `--day-length` with `--scenarios` is an error (the scenarios build their own worlds).
+  - Tests: `EngineAppRender.EnvironmentReachesTheScene` and `.LightingTabRenders` moved to the suite apps of
+    `test_engine_lighting_tools.cpp` (`LightingTools.EnvironmentReachesTheScene`; `LightingTabTest` and
+    `LightingTabPlainTest`: one app each with ImGui at 800 x 480, with and without the environment):
+    `test_engine_app` constructs four apps fewer; the tab case clicks the x60 rate button and
+    the sun override; the environment file tests use per-process temporary file names and remove them.
 
 ## Results
 

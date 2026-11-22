@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/json11.hpp"
 #include "saiga/export.h"
+#include "saiga/vulkan/scene/LightingTypes.h"
 
 #include <string>
 #include <vector>
@@ -34,6 +35,12 @@ class World;
  * set_lighting answer "this app renders no frames (no device)".
  */
 SAIGA_ENGINE_API void registerLightingTools(McpServer& server, EngineApp& app);
+
+// The settings and parameters against set_lighting's ranges (every key, also the ones a later part adds) and the
+// exposure curve (not empty, finite, strictly ascending elevations); false and an error naming every invalid key (the
+// set_lighting key's name). Used by the environment file (tryReadEnvironmentFile)
+SAIGA_ENGINE_API bool validateLightingValues(const Vulkan::EnvironmentSettings& settings,
+                                             const Vulkan::LightingParameters& parameters, std::string& error);
 
 // The world the lighting tools and the Lighting tab write: the hidden host with --coop, else the app's world
 SAIGA_ENGINE_API World& lightingWriteWorld(EngineApp& app);

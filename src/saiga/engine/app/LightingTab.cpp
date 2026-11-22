@@ -13,6 +13,7 @@
 #include "saiga/engine/app/DebugUiStyle.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/LightingTools.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
@@ -52,18 +53,24 @@ void LightingTab::timeAndWeather()
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "the world has no WorldTime (EnvironmentSetup::enabled)");
         return;
     }
-    const EnvironmentSample e = app.sampleViewEnvironment();
-    const SpaceId space       = app.viewCamera().space;
+    const SpaceId space = app.viewCamera().space;
+    // The edit widgets show the values of the world they write (with --coop the hidden host, at its latest step): the
+    // client's sample lags by the replication delay, and an incremental widget (drag, +/-) would add its delta to the
+    // stale value and jump back and forth until the replication catches up
+    const EnvironmentSample e =
+        sampleEnvironment(target, space, 1.0, app.environmentSettings(), target.environmentSetup());
     // A pure client cannot write the world state (the host does, R-NET-2)
     const bool writable = target.isHost();
     EngineApp* a        = &app;
-    auto queueTime      = [a](WorldTimeChange c)
+    // A refused write (e.g. a range) disappears from the widget: log it like the tools do
+    auto queueTime = [a](WorldTimeChange c)
     {
         a->queueBetweenSteps(
             [a, c]()
             {
                 std::string error;
-                setWorldTime(lightingWriteWorld(*a), c, error);
+                if (!setWorldTime(lightingWriteWorld(*a), c, error))
+                    SAIGA_LOG("api", "error lighting tab set_time_of_day: %s", error.c_str());
             });
     };
     auto queueWeather = [a, space](WeatherChange c)
@@ -72,7 +79,8 @@ void LightingTab::timeAndWeather()
             [a, space, c]()
             {
                 std::string error;
-                setWeather(lightingWriteWorld(*a), space, c, error);
+                if (!setWeather(lightingWriteWorld(*a), space, c, error))
+                    SAIGA_LOG("api", "error lighting tab set_weather: %s", error.c_str());
             });
     };
     if (!writable) ImGui::BeginDisabled();
@@ -83,8 +91,11 @@ void LightingTab::timeAndWeather()
         if (ImGui::SliderFloat("##time of day", &hours, 0.0f, 23.99f, "%.2f h"))
             queueTime(WorldTimeChange{double(hours), std::nullopt, std::nullopt});
         DebugUiStyle::property("day");
-        int day = int(e.time.day);
-        if (ImGui::InputInt("##day", &day)) queueTime(WorldTimeChange{std::nullopt, int64_t(day), std::nullopt});
+        // The full int64 day (set_time_of_day accepts +-1e15)
+        int64_t day       = e.time.day;
+        const int64_t one = 1;
+        if (ImGui::InputScalar("##day", ImGuiDataType_S64, &day, &one))
+            queueTime(WorldTimeChange{std::nullopt, day, std::nullopt});
         DebugUiStyle::property("rate");
         ImGui::Text("x%.0f", e.time.rate);
         for (double r : {0.0, 1.0, 60.0, 600.0})
@@ -92,6 +103,14 @@ void LightingTab::timeAndWeather()
             ImGui::SameLine();
             const std::string label = "x" + std::to_string(int(r));
             if (ImGui::SmallButton(label.c_str())) queueTime(WorldTimeChange{std::nullopt, std::nullopt, r});
+            ui.markItem("lighting/rate " + label);
+        }
+        if (&target != &app.world())
+        {
+            // --coop: the rendered client's time (it follows the host by the replication delay)
+            const WorldTime view = app.sampleViewEnvironment().time;
+            DebugUiStyle::property("client view");
+            ImGui::Text("%.2f h, day %lld", view.timeOfDay, (long long)view.day);
         }
         DebugUiStyle::endProperties();
     }
@@ -160,8 +179,10 @@ void LightingTab::sunAndMoon()
         // The sun override (inspection; EnvironmentSettings::sunOverride)
         Vulkan::EnvironmentSettings s = app.environmentSettings();
         DebugUiStyle::property("override sun");
-        bool overridden = s.sunOverride.has_value();
-        if (ImGui::Checkbox("##override sun", &overridden))
+        bool overridden    = s.sunOverride.has_value();
+        const bool toggled = ImGui::Checkbox("##override sun", &overridden);
+        ui.markItem("lighting/override sun");
+        if (toggled)
         {
             if (overridden)
                 s.sunOverride = Vulkan::SunOverride{float(c.sunAzimuthDeg), float(c.sunElevationDeg)};
@@ -199,6 +220,12 @@ void LightingTab::exposure()
             s.exposure.mode = Vulkan::ExposureMode(mode);
             app.setEnvironmentSettings(s);
         }
+        // The EV100 of the fixed mode (set_lighting ev100's range)
+        DebugUiStyle::property("fixed EV100");
+        const bool fixed = s.exposure.mode == Vulkan::ExposureMode::Fixed;
+        if (!fixed) ImGui::BeginDisabled();
+        if (ImGui::SliderFloat("##exposure ev100", &s.exposure.ev100, -20, 30, "%.2f")) app.setEnvironmentSettings(s);
+        if (!fixed) ImGui::EndDisabled();
         DebugUiStyle::property("EV100 now");
         if (scene->hasEnvironment())
             ImGui::Text("%.2f", double(scene->environment().ev100));

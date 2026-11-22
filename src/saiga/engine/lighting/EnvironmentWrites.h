@@ -29,12 +29,13 @@ namespace Engine
 class World;
 
 // The ranges (A1 of the S36 plan)
-constexpr double kMaxTimeRate      = 3600;  // game hours per second, |rate|
+constexpr double kMaxTimeRate      = 3600;  // |rate|, game seconds per simulated second
 constexpr double kMaxFogDensity    = 0.05;
 constexpr double kMaxWind          = 200;  // m/s per axis
 constexpr double kMaxWaveAmplitude = 100;
 
-// Wraps timeOfDay into [0, 24) and counts the days; clamps rate; a non-finite value -> its default
+// Wraps timeOfDay into [0, 24) and counts the days (saturated at the int64 limits); clamps rate; a non-finite value or
+// a timeOfDay of 1e15 days or more -> its default
 SAIGA_ENGINE_API void normaliseWorldTime(WorldTime& t);
 // Clamps the ranges, wraps cloudOffset into [0, kCloudTile); a non-finite value -> its default
 SAIGA_ENGINE_API void normaliseWeather(Weather& w);
@@ -55,8 +56,10 @@ struct WeatherChange
 };
 
 // Validates every field (finite, in range: the error names the field and the range), then writes the world's WorldTime
-// (validAt = World::time()) and logs the change under "api". Between steps only; refused on a client (the host writes
-// it, R-NET-2) and in a world without WorldTime (EnvironmentSetup::enabled). previous: the values before the write
+// (validAt = World::time(); the fields not set continue from their value at World::time(), the extrapolation of the
+// extract, so a write without worldTimeSystem does not jump back) and logs the change under "api". Between steps only;
+// refused on a client (the host writes it, R-NET-2) and in a world without WorldTime (EnvironmentSetup::enabled).
+// previous: the values before the write
 SAIGA_ENGINE_API bool setWorldTime(World& world, const WorldTimeChange& change, std::string& error,
                                    WorldTime* previous = nullptr);
 // The same for the Weather of a space

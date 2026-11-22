@@ -213,6 +213,12 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
                                      : "--coop with --benchmark";
         return false;
     }
+    if (options.runScenarios && (options.timeOfDay || options.dayLength))
+    {
+        // The scenarios build their own worlds: the options would be ignored silently
+        error = std::string(options.timeOfDay ? "--time-of-day" : "--day-length") + " with --scenarios";
+        return false;
+    }
     if (setup.checkOptions && !setup.checkOptions(options, error)) return false;
     if (setup.noRender && !options.screenshot.empty())
     {
@@ -287,7 +293,9 @@ int engineMain(int argc, const char* const* argv, EngineAppSetup setup, const st
         // S36: --time-of-day / --day-length after the game's start (its world exists and has its state)
         if (options.timeOfDay || options.dayLength)
         {
-            const char* what = options.timeOfDay ? "--time-of-day" : "--day-length";
+            const char* what = options.timeOfDay && options.dayLength ? "--time-of-day / --day-length"
+                               : options.timeOfDay                    ? "--time-of-day"
+                                                                      : "--day-length";
             WorldTimeChange change;
             change.hours = options.timeOfDay;
             if (options.dayLength) change.rate = 86400.0 / *options.dayLength;
