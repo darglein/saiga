@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
@@ -28,7 +29,8 @@ struct EnvironmentState;
  * prefilters the back cube one mip per frame and then computes the back SH from the capture's 32 x 32 box mip; the
  * front cube and SH are swapped in only when all of it is complete, so a frame never mixes two captures. Due when the
  * sun or the moon moved by more than environmentUpdateDegrees, the weather changed by more than 1%, the camera height
- * moved by 200 m or the settings changed; forceFullUpdates (and the first capture) does all of it in one frame. The
+ * moved by 200 m, the clouds over the camera moved by 500 m (their drift or the camera's horizontal movement) or the
+ * settings changed; forceFullUpdates (and the first capture) does all of it in one frame. The
  * front cube is binding 4 of the lighting set, the front SH binding 2 (through SkyAmbient). Recorded in the
  * "environment" section.
  */
@@ -86,7 +88,8 @@ class SAIGA_VULKAN_API EnvironmentMap
     struct Key
     {
         vec3 sunDir = vec3(0, 0, 0), moonDir = vec3(0, 0, 0);
-        float sunE = 0, moonE = 0, cloudiness = -1, cameraHeight = 0, cloudOffsetX = 0, cloudOffsetY = 0;
+        float sunE = 0, moonE = 0, cloudiness = -1, cameraHeight = 0;
+        vec2 cloudOrigin = vec2(0, 0);  // the camera's coverage position (the drift and the camera's xz)
         AtmosphereSettings atmosphere;
         CloudSettings clouds;
         bool enclosed = false, cloudsOn = true;
@@ -108,7 +111,8 @@ class SAIGA_VULKAN_API EnvironmentMap
     vk::ImageView captureMip0;
     Sampler linear;
     ComputePipeline capturePipeline, prefilterPipeline, shPipeline, debugPipeline;
-    std::array<std::array<vk::DescriptorSet, 2>, 2> debugSets{};
+    // Per frame slot one set per debug mode
+    std::array<std::array<vk::DescriptorSet, 2>, VulkanRenderer::framesInFlight> debugSets{};
     std::array<Texture2D, 2> debugImages;
     std::optional<vec3> captureOverride;
     vk::DescriptorSet captureSet;

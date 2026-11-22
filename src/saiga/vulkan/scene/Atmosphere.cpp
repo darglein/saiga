@@ -127,7 +127,8 @@ void Atmosphere::init(VulkanBase& b)
     cmd.end();
     q.submitAndWait(cmd);
     q.commandPool.freeCommandBuffer(cmd);
-    valid = false;
+    valid        = false;
+    skyViewValid = false;
 }
 
 void Atmosphere::destroy()
@@ -215,29 +216,54 @@ void Atmosphere::record(vk::CommandBuffer cmd, const EnvironmentState& e, float 
     push.moon[3]   = e.enclosed ? 0.0f : e.moonIlluminance;
     push.camera[0] = radiusOf(cameraHeight);
     push.camera[1] = e.cloudiness;
-    auto dispatch  = [&](ComputePipeline& p, vk::DescriptorSet set, Texture2D& out)
+    // A dispatch writes the whole image (false: a shader failed to load)
+    auto dispatch = [&](ComputePipeline& p, vk::DescriptorSet set, Texture2D& out)
     {
         push.size[0] = int32_t(out.width);
         push.size[1] = int32_t(out.height);
         beginWrite(cmd, out);
-        if (p.bind(cmd))
+        const bool ok = p.bind(cmd);
+        if (ok)
         {
             p.bindRawDescriptorSet(cmd, set);
             p.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
             cmd.dispatch((out.width + 7) / 8, (out.height + 7) / 8, 1);
         }
         endWrite(cmd, out);
+        return ok;
     };
+    bool lutsChanged = false;
     if (!valid || !sameSettings(a, computedFor))
     {
-        dispatch(transmittancePipeline, transmittanceSet, transmittanceLut);
-        dispatch(multiScatteringPipeline, multiScatteringSet, multiScatteringLut);
-        valid       = true;
-        computedFor = a;
+        // Valid only after both dispatches (review: a shader that failed to load left the cleared LUTs until the
+        // settings changed)
+        const bool t = dispatch(transmittancePipeline, transmittanceSet, transmittanceLut);
+        const bool m = dispatch(multiScatteringPipeline, multiScatteringSet, multiScatteringLut);
+        valid        = t && m;
+        computedFor  = a;
         computations++;
+        lutsChanged = true;
     }
-    dispatch(skyViewPipeline, skyViewSet, skyViewLut);
-    skyViewHorizonRad = skyViewHorizon(push.camera[0]);
+    // The sky-view LUT when its inputs changed (the frames in flight read the one image: a rewrite waits for the
+    // previous frame's reads, as the transfer section's buffer writes already do)
+    SkyViewKey k;
+    k.sunDir            = vec3(push.sun[0], push.sun[1], push.sun[2]);
+    k.moonDir           = vec3(push.moon[0], push.moon[1], push.moon[2]);
+    k.sunE              = push.sun[3];
+    k.moonE             = push.moon[3];
+    k.radiusKm          = push.camera[0];
+    k.cloudiness        = push.camera[1];
+    const SkyViewKey& c = skyViewKey;
+    auto relative       = [](float x, float y) { return std::abs(x - y) > 1e-3f * std::max(std::abs(y), 1e-6f); };
+    const bool due      = !skyViewValid || lutsChanged || (k.sunDir - c.sunDir).norm() > kSkyViewDirection ||
+                     (k.moonDir - c.moonDir).norm() > kSkyViewDirection || relative(k.sunE, c.sunE) ||
+                     relative(k.moonE, c.moonE) || std::abs(k.radiusKm - c.radiusKm) > kSkyViewHeightM * 1e-3f ||
+                     k.cloudiness != c.cloudiness;
+    if (!due) return;
+    skyViewValid      = dispatch(skyViewPipeline, skyViewSet, skyViewLut) && valid;
+    skyViewKey        = k;
+    skyViewHorizonRad = skyViewHorizon(k.radiusKm);
+    skyViewWrites++;
 }
 
 }  // namespace Vulkan

@@ -399,6 +399,8 @@ class SAIGA_VULKAN_API RenderScene
     bool frameDebugRaw        = false;
     int environmentPreviewMip = 0;
     bool fullUpdateRequested  = false;
+    // The last frame recorded no environment pass (its first frame back updates the environment map fully)
+    bool environmentSkipped = false;
     std::optional<float> exposureViewCentre;
     float exposureViewRange = kDefaultExposureViewRange;
     LightingStatistics lightStats;

@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
@@ -90,7 +91,8 @@ class SAIGA_VULKAN_API CloudLayer
     Sampler linearRepeat;
     Buffer noise;
     ComputePipeline noisePipeline;
-    std::array<vk::DescriptorSet, 5> noiseSets{};  // the generation's, then per frame slot one per preview mode
+    // The generation's, then per frame slot one per preview mode
+    std::array<vk::DescriptorSet, 1 + 2 * VulkanRenderer::framesInFlight> noiseSets{};
     std::array<Texture2D, 2> debugImages;
     // The generation's set binds 1x1 dummies to the bindings it does not use (the shader declares them)
     Texture2D dummySampled, dummyStorage;

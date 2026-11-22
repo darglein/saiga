@@ -1324,6 +1324,95 @@ TEST_F(EnvironmentMapTest, LowerHemisphereIsGround)
     EXPECT_GT(down.sum(), 0.0f);
 }
 
+// The sky-view LUT is written only when its inputs change: not in frames with the same environment and camera height,
+// again when the sun moves or the camera climbs (review M2: it was rewritten every frame)
+TEST_F(EnvironmentMapTest, SkyViewOnlyOnChange)
+{
+    Physical(sunAt(40), Vec3(0, 0.3, 1), 1.2, false);
+    RenderFrame();
+    const Atmosphere& a = scene->atmosphereLuts();
+    const uint64_t n    = a.skyViewComputations();
+    RenderFrame();
+    RenderFrame();
+    EXPECT_EQ(a.skyViewComputations(), n);
+    scene->setEnvironment(sunAt(40.5f));
+    RenderFrame();
+    EXPECT_EQ(a.skyViewComputations(), n + 1);
+    // Below the height threshold: nothing; above it: a write with the new horizon
+    SetCamera(0, Vec3(0, 105, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
+    RenderFrame();
+    EXPECT_EQ(a.skyViewComputations(), n + 1);
+    SetCamera(0, Vec3(0, 2000, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
+    RenderFrame();
+    EXPECT_EQ(a.skyViewComputations(), n + 2);
+    EXPECT_FLOAT_EQ(a.skyViewHorizonElevation(), Atmosphere::skyViewHorizon(Atmosphere::radiusOf(2000)));
+    EXPECT_FLOAT_EQ(scene->lastLightingBlock().atmosphere(3), a.skyViewHorizonElevation());
+}
+
+// The first frame of the physical path after frames without the environment pass (here clay) updates the environment
+// map fully: the bound map is of the current environment, not swapped in kMips + 2 frames later (review M4: the old
+// capture's ambient showed in the new sky for 7 frames)
+TEST_F(EnvironmentMapTest, FullUpdateAfterSkippedFrames)
+{
+    Physical(sunAt(45), Vec3(0, 0.3, 1), 1.2, false);
+    RenderFrame();
+    ASSERT_TRUE(scene->environmentMap().valid());
+    scene->setToneMap(ToneMap::Identity);
+    RenderFrame();
+    const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
+    // The environment changes while the pass is skipped
+    scene->setEnvironment(sunAt(8));
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures);
+    scene->setToneMap(ToneMap::Aces);
+    RenderFrame();
+    const EnvironmentMapStatistics& st = scene->lightingStatistics().environmentMap;
+    EXPECT_EQ(st.captures, captures + 1);
+    EXPECT_EQ(st.progress, 0);
+    EXPECT_EQ(st.lastCompleteFrame, scene->lightingStatistics().frame);
+    // Its SH is the one of a fresh full capture of the same environment
+    scene->waitIdle();
+    scene->environmentMap().harvest();
+    const std::array<vec3, 9> first = scene->environmentMap().sh();
+    scene->requestFullUpdate();
+    RenderFrame();
+    scene->waitIdle();
+    scene->environmentMap().harvest();
+    for (int i = 0; i < 9; ++i)
+        for (int c = 0; c < 3; ++c)
+            EXPECT_NEAR(first[size_t(i)](c), scene->environmentMap().sh()[size_t(i)](c),
+                        1e-3f * std::abs(first[0](c)) + 1e-6f)
+                << i << ", " << c;
+}
+
+// The camera's horizontal movement re-captures the reflected clouds (500 m), without clouds it does not (review: the
+// key held only the cloud drift, so flying without wind kept the clouds of the capture point)
+TEST_F(EnvironmentMapTest, RecapturesOnLateralMovement)
+{
+    EnvironmentState e = sunAt(40);
+    e.cloudiness       = 0.5f;
+    Physical(e, Vec3(0, 0.3, 1), 1.2, false);
+    // A settled state in one frame (no capture of an earlier case in progress)
+    scene->requestFullUpdate();
+    RenderFrame();
+    const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
+    SetCamera(0, Vec3(300, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures);
+    SetCamera(0, Vec3(700, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures + 1);
+    // Without clouds the position does not matter
+    e.cloudiness = 0;
+    scene->requestFullUpdate();
+    scene->setEnvironment(e);
+    RenderFrame();
+    const uint64_t clear = scene->lightingStatistics().environmentMap.captures;
+    SetCamera(0, Vec3(3000, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, clear);
+}
+
 // forceFullUpdates: a complete capture (with the swap) in every frame
 TEST_F(EnvironmentMapTest, ForceFullUpdatesCapturesEveryFrame)
 {

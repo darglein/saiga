@@ -480,9 +480,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     const bool environmentPass = s.framePhysical && s.envSet && !enclosed && !s.env.enclosed && camera.valid;
     if (environmentPass)
     {
+        // A full update also on the first frame after frames without this pass (clay, an enclosed space, a debug
+        // frame): the bound environment map is of an older environment (review: it was swapped in 7 frames later)
         LightingParameters lp = s.params.lighting;
-        lp.forceFullUpdates   = lp.forceFullUpdates || s.fullUpdateRequested;
+        lp.forceFullUpdates   = lp.forceFullUpdates || s.fullUpdateRequested || s.environmentSkipped;
         s.fullUpdateRequested = false;
+        s.environmentSkipped  = false;
         s.atmosphere->record(cmd, s.env, lighting.atmosphere(0));
         s.clouds->record(cmd, s.env.clouds.seed);
         EnvironmentMap::CaptureInputs in;
@@ -500,6 +503,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         }
         s.envMap->record(cmd, s.env, lighting.atmosphere(0), lp, in, s.frameCount + 1);
     }
+    else
+        s.environmentSkipped = true;
     timings.leaveSection("environment", cmd);
     // The lighting set of this frame (after the environment: the environment map swapped in this frame is bound)
     s.writeLightingSet(cmd, frame.frameIndex, lighting);
