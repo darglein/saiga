@@ -116,7 +116,12 @@ src/
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
                         (S19b: the mesh name an entity renders), SpaceLink (S21: an entrance to another space),
-                        PendingTransition (S21: a requested transition); world/: World (also the mesh and material name
+                        PendingTransition (S21: a requested transition), WorldTime / Weather (S36: the time of day
+                        (global) and the weather (space state) with WorldSetup::environment.enabled, else plain
+                        components); lighting/ (S36): EnvironmentSetup, EnvironmentFile (environment.json), the
+                        celestial model (Celestial), worldTimeSystem (addEnvironmentSystems), the validated writes
+                        setWorldTime / setWeather (EnvironmentWrites), the environment extract (EnvironmentExtract);
+                        world/: World (also the mesh and material name
                         tables, WorldSetup::renderAssets, setRenderSink; S20: SpaceTemplate and
                         WorldConfig::spaceTemplates, terrainHeight, spaceSeed; S21: several spaces incl.
                         SpaceTemplate::enclosed, moveToSpace and the space primitive setSubtreeSpace/teleportTo, a
@@ -142,11 +147,13 @@ src/
                         interpolatedPose; tests/test_engine_extract.cpp); app/: EngineApp (the engine's frame loop:
                         window or headless, RenderScene and the World's VulkanRenderSink, the view camera
                         setViewCamera, the render hooks init/shutdown/beforeRender/gui, MCP,
-                        input map, frame/GPU profiles; S19c: the debug UI DebugUi with its tabs F1-F4, DebugConsole whose
+                        input map, frame/GPU profiles; S19c: the debug UI DebugUi with its tabs F1-F5 (S36: F5 the
+                        LightingTab; game tabs F6-F10), DebugConsole whose
                         commands are the MCP tools, McpCallLog of every tool call, set_ui_tab; S21: LoadingScreen, the
                         load of a view space switch, EngineApp::spaceLoading), engineMain and the command line of engine
                         games, InputMap, the app tools (quit, app_status, set_input; screenshot, set_camera (S21: space)
-                        /move_camera with the camera hold, list_scenarios/run_scenario)
+                        /move_camera with the camera hold, list_scenarios/run_scenario); S36: the app's
+                        EnvironmentSettings, LightingTools (get_lighting, set_time_of_day, set_weather, set_lighting)
     export.h            SAIGA_<MODULE>_API dll export/import macros
     *.h.in              Configured into build/include/saiga/ (saiga_buildconfig.h, saiga_modules.h, git sha)
   internal/             stb_image wrappers, precompiled-header lists
@@ -274,7 +281,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-78 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+80 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -461,6 +468,10 @@ client's plane, car or character next to the host's demo one, the MCP tools on t
 (S21) runs its demo through the enclosed cellar (the screenshot shows the cellar, solo and with `--coop`):
 `SAIGA_SCREENSHOT=/tmp/cellar.png ./build/samples/games/game_platformer --demo --cellar`. Stages that change the
 renderer, physics, animation or camera keep the demos working, run their scenarios and show their feature in them.
+Every engine game takes `--time-of-day h` and `--day-length s` (S36: the world's `WorldTime`, an error for a game
+without `EnvironmentSetup::enabled`) and `--exposure x` (a multiplier, on top of the EV100 once a scene has an
+environment); `SAIGA_DEBUG_TAB=5` opens the debug UI's Lighting tab (F1 Game, F2 Performance, F3 Engine, F4 Console,
+F5 Lighting; game tabs F6-F10).
 
 ## Code Conventions
 

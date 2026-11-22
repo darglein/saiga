@@ -1,7 +1,7 @@
 # S36: Lighting
 
-Status: planned (plan written 2026-11-22 on branch `plans-s36`, based on the S20-S23c stack; revised after review
-rounds 1 and 2 the same day; not implemented).
+Status: S36a1a implemented (2026-11-22, branch `stage-s36a1a`); a1b, a1c, a2 and b planned (plan written 2026-11-22 on
+branch `plans-s36`, based on the S20-S23c stack; revised after review rounds 1 and 2 the same day).
 
 Sections follow the stage plan template of S05; the design-doc amendments, the AGENTS.md changes, a decisions table,
 the template's Design changes / Results placeholders, the review log and the questions left to the user are at the end.
@@ -1639,10 +1639,81 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
 
 (filled during implementation: deviations from this plan and the amendments they cause)
 
+**S36a1a** (2026-11-22):
+
+- **The app sends the environment only for worlds with `EnvironmentSetup::enabled` until the a1c flip**
+  (`EngineApp::sendsEnvironment`). A1 says every app with a device sends it (so enclosed spaces light correctly), but in
+  a1a / a1b the scene shaders still write unit-less values: an app with `--tonemap aces` would get the EV100 exposure
+  (about 2^-15 at noon) and render black, an image change of a part that must change none. No game enables the
+  environment before a1c, whose flip commit makes the call unconditional.
+- **`RenderScene::exposure()` is the latched multiplier** (`params.exposure`, 1 with Identity) and the new
+  `frameExposure()` the effective exposure the post pass uses; without an environment both are equal, so S17's tests
+  and `EngineAppRender`'s exposure case are unchanged (the plan's "keep their meaning" made explicit).
+- **`WorldTime::rate` is game seconds per simulated second** (a time multiplier). A1's comment "game hours per
+  simulated second" contradicted its own formula `rate * dt / 3600`, the range [-3600, 3600], the tab's rate buttons
+  x0 / x1 / x60 / x600 and `--day-length s` (rate = 86400 / s); the formula is kept, the text corrected.
+- **Celestial model details**: the moon's hour angle is the sun's **minus** `2 pi * moonPhase` (A1 says plus; minus
+  gives A1's stated behaviour, phase 0.25 rises about at noon; phase 0.5 is the same either way) and its declination
+  is the sun's times `cos(2 pi * phase)` (the full moon opposite the sun); the solar declination uses the day of the year
+  at noon (`day + (timeOfDay - 12) / 24`), so day 0 at 12:00 is exactly the equinox.
+- **`setWorldTime` / `setWeather` write the component directly** and log their `api` line themselves instead of going
+  through a `WorldApi` call: the app's `WorldApi` is bound to the client world in `--coop` and a temporary one would
+  attach listeners; validation, the S16 refusal on a client and the "between steps" rule are the same.
+- **`EnvironmentSettings::starIntensity`** (a multiplier of `CelestialConfig::starIntensity`): `set_lighting
+  star_intensity` changes a setting, and `CelestialConfig` stays constant in `WorldSetup`. In the environment file it
+  is `atmosphere.starIntensity`, and `EnvironmentSetup::cloudWindScale` is `clouds.windScale` (the file's keys stay the
+  six of A1).
+- **`LightingParameters` holds only the a1 fields** (`environmentResolution`, `environmentUpdateDegrees`, `clouds`,
+  `forceFullUpdates`); `pbr` comes with a1b, the a2 and b fields with their parts (with their `set_lighting` keys).
+- **The shadow light of a1a** (`selectShadowLight`, D13): the body with the higher "ground illuminance" approximated as
+  top illuminance times the sine of the elevation (no transmittance before a1c's atmosphere), hysteresis factor 2; the
+  extract is stateless (no previous choice) until a2 keeps one.
+- **`SpaceTemplate::ambient` = (50, 50, 50), `ev100` = 6** (a room of about 50 lux), validated finite by
+  `validateSpaceTemplates`. The enclosed EV100 also subtracts the exposure compensation (the user's knob for every
+  source).
+- **`get_lighting` without an environment** answers `exposure: {environment: false, multiplier, effective, note}`
+  instead of `null` plus a separate key. `get_lighting` and `set_lighting` need a device (the tone map and the
+  parameters are the scene's); `set_time_of_day` / `set_weather` do not.
+- **The scenario's extrapolation check** (`world_time_advances`): strictly monotonic in alpha inside a step, and
+  non-decreasing at alpha 1 from step to step: in the async variant the client's estimated host time holds while
+  snapshots are late, so the render time of alpha 0 of the next step can be earlier than alpha 0.99 of the previous one
+  (the check of "monotonic between snapshots" as the extrapolation guarantees it).
+- **Test placement**: `Exposure.Ev100RangeReachesPost` and `.NoEnvironmentKeepsUnitlessExposure` are
+  `VulkanScene.*` cases in `test_vulkan_scene.cpp` (the a1a Files list; `test_vulkan_lighting.cpp` starts with a1b);
+  `EnvironmentWrites.CoopWritesTheHost` and `DebugConsole.RunsLightingCommands` are in
+  `test_engine_lighting_tools.cpp` (they need an app); `RecordingRenderSink.EnvironmentAndLightsRecorded` is in
+  `test_engine_extract.cpp`.
+- **ImGui textures**: `ImGuiHeadlessRenderer` needed no change (it inherits the per-command binding);
+  `VulkanRenderer::imguiRenderer()` (`Renderer.h`, not in the Files list) gives the tab and the test the renderer. An
+  unknown texture ID's command is skipped.
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features
 off and on, the Q6 measurement, screenshots reviewed)
+
+**S36a1a** (2026-11-22, local, lavapipe = Mesa with LLVM 21.1.8; build with samples and warnings as errors, GCC):
+
+- Commits: step 1 world time and weather, step 2 render interface, step 3 ImGui textures, step 4 tab and tools (with
+  the docs). Every step built without warnings and passed ctest.
+- ctest on lavapipe (`VK_DRIVER_FILES=... ctest --parallel 8`): 82 of 82 passed locally (80 with CI's options, AGENTS.md;
+  2 new binaries `test_engine_lighting`, 27 cases, 0.18 s, and `test_engine_lighting_tools`, 9 cases, 0.32 s). New
+  cases elsewhere: the six `world_time_advances` scenario variants (`test_engine_scenarios`),
+  `VulkanScene.Ev100RangeReachesPost`, `.NoEnvironmentKeepsUnitlessExposure`, `VulkanImGui.ImageDraws`,
+  `RecordingRenderSink.EnvironmentAndLightsRecorded`, `DebugUi.GameTabIndexAfterLighting`, the extended
+  `DebugUi.KeysSelectTabs` and `EngineAppNoRender.SetUiTab`, `AppCommandLine.TimeOfDayAndDayLength`,
+  `EngineAppNoRender.EnvironmentSettingsAndTimeOption`, `EngineAppRender.EnvironmentReachesTheScene`,
+  `.LightingTabRenders`.
+- `test_engine_app` time (ctest, lavapipe, parallel 8; finding 28): 32.7 s before a1a, 33.8 s after (two new
+  render cases).
+- No committed image changed (no golden touched); the five clay goldens and `hdr_tonemap` pass unchanged.
+- Game scenarios (`--scenarios`, all variants): flight 30 passed, platformer 48 passed, racing 18 passed.
+- Screenshot reviewed: `SAIGA_DEBUG_TAB=5 SAIGA_SCREENSHOT=... game_racing --headless --demo`: the F5 Lighting tab with
+  the line "the world has no WorldTime (EnvironmentSetup::enabled)" (no game enables the environment before a1c), Sun
+  and moon (45 degrees at noon, 120000 lux top) and Exposure ("no environment", the curve's 14.62).
+- Benchmarks: not run in a1a (the recipe needs a window; a1a changes no game's frame: the games send no environment, and
+  `latchFrame` gained one branch). The ACES baseline is measured before a1b as planned.
+- Engine schema regenerated (`WorldTime`, `Weather`); the golden save loads unchanged.
 
 ## Review log
 

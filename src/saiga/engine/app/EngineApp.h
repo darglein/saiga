@@ -38,6 +38,7 @@ class RenderScene;
 
 namespace Engine
 {
+class LightingTab;
 class LoopbackTransport;
 class RenderSink;
 class VulkanRenderSink;
@@ -287,6 +288,7 @@ class SAIGA_ENGINE_API EngineApp
     bool renderingEnabled = true;
     std::unique_ptr<McpCallLog> callLog;
     std::unique_ptr<DebugUi> ui;
+    std::unique_ptr<LightingTab> lightingTab;  // S36: the debug UI's F5 tab
     std::vector<std::function<void()>> betweenSteps;
     // The statistics window's numbers: over one of kStatisticsWindows (seconds; the combo), recomputed every
     // kStatisticsRefreshSeconds (numbers that change every frame cannot be read)

@@ -37,7 +37,7 @@ constexpr ImGuiWindowFlags kFixedWindow = ImGuiWindowFlags_NoTitleBar | ImGuiWin
 DebugUi::DebugUi(McpServer* server, std::string stateFile)
     : consolePtr(std::make_unique<DebugConsole>(server, engineLog())), file(std::move(stateFile))
 {
-    for (const char* name : {"Game", "Performance", "Engine", "Console"}) tabs.push_back(Tab{name, {}, {}});
+    for (const char* name : {"Game", "Performance", "Engine", "Console", "Lighting"}) tabs.push_back(Tab{name, {}, {}});
 }
 
 DebugUi::~DebugUi()

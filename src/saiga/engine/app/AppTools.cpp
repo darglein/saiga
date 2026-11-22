@@ -12,6 +12,7 @@
 #include "saiga/core/image/managedImage.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioRunner.h"
@@ -323,7 +324,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "client_peer, delay_steps, dropped_steps} (the tools see the client world), the debug UI's selected tab "
         "(ui_tab; null when the UI is off), terrain {resident, pending, uploads_pending_bytes, cpu_mb, gpu_mb, "
         "readiness (at 256 m of the view camera)} and space_loading (null, or {space, name, progress, frames} while a "
-        "loading screen of the view camera's space runs). Changes nothing.",
+        "loading screen of the view camera's space runs), lighting {time_of_day, ev100, tone_map, debug_view} (null "
+        "without a device). Changes nothing.",
         schema({}),
         [&app](const Json&, McpServer::Respond respond)
         {
@@ -355,6 +357,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
             DebugUi& ui       = app.debugUi();
             o["ui_tab"]       = ui.enabled() ? Json(ui.tabName(ui.selected())) : Json();
             o["terrain"]      = terrainStatusJson(app);
+            // S36: {time_of_day, ev100, tone_map, debug_view} (null without a device)
+            o["lighting"] = lightingStatusJson(app);
             // S21: the view space's load (null: none)
             if (const SpaceLoading* l = app.spaceLoading())
                 o["space_loading"] = Json::object{{"space", int(l->space)},
@@ -369,7 +373,9 @@ void registerAppTools(McpServer& server, EngineApp& app)
     server.addTool(
         "set_ui_tab",
         "Selects a tab of the developer UI, as its F-key does: game (F1, the game without a panel), performance (F2), "
-        "engine (F3), console (F4, the log with the MCP call log) or a game tab by name (case-insensitive). Without "
+        "engine (F3), console (F4, the log with the MCP call log), lighting (F5: time, weather, sun and moon, "
+        "exposure) "
+        "or a game tab by name (case-insensitive). Without "
         "tab it only reads. Returns the selected tab, the tabs with their keys and whether the UI is visible (G hides "
         "all ImGui; this tool does not show it again). Use it before screenshot(gui: true) to capture a tab. Changes "
         "only the UI, not the world.",

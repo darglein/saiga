@@ -2277,16 +2277,21 @@ TEST(EngineAppNoRender, SetUiTab)
     Poller poller(app.mcp());
     Json r = toolJson(callTool(app.mcp(), "set_ui_tab", Json::object{}));
     EXPECT_EQ(r["tab"], Json("Game"));
-    ASSERT_EQ(r["tabs"].array_items().size(), 4u);
+    ASSERT_EQ(r["tabs"].array_items().size(), 5u);
     EXPECT_EQ(r["tabs"][1]["key"], Json("F2"));
+    EXPECT_EQ(r["tabs"][4]["key"], Json("F5"));
     EXPECT_FALSE(r["visible"].bool_value());
     r = toolJson(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "console"})")));
     EXPECT_EQ(r["tab"], Json("Console"));
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Console));
     EXPECT_EQ(toolJson(callTool(app.mcp(), "app_status", Json::object{}))["ui_tab"], Json("Console"));
+    // S36: the Lighting tab (F5)
+    r = toolJson(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "lighting"})")));
+    EXPECT_EQ(r["tab"], Json("Lighting"));
+    EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
     Json bad = callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "nope"})"));
     EXPECT_TRUE(bad["result"]["isError"].bool_value());
-    EXPECT_NE(bad["result"]["content"][0]["text"].string_value().find("Game, Performance, Engine, Console"),
+    EXPECT_NE(bad["result"]["content"][0]["text"].string_value().find("Game, Performance, Engine, Console, Lighting"),
               std::string::npos);
     EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": 3})"))["result"]["isError"].bool_value());
     EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", obj(R"({"page": "game"})"))["result"]["isError"].bool_value());
@@ -2389,6 +2394,47 @@ TEST_F(EngineAppRender, DebugUiTabsRender)
     io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
     app.runFrames(1, 1.0 / 60);
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Engine));
+}
+
+// S36: the Lighting tab (F5) with its a1a sections open renders headless (no validation error), also without
+// WorldTime; a click on its tab button selects it
+TEST_F(EngineAppRender, LightingTabRenders)
+{
+    for (bool environment : {true, false})
+    {
+        EngineAppSetup s            = appSetup(true);
+        s.render.imgui              = true;
+        s.width                     = 800;
+        s.height                    = 600;
+        s.world.environment.enabled = environment;
+        EngineApp app(s);
+        Json::object sections{
+            {"lighting/Time and weather", true}, {"lighting/Sun and moon", true}, {"lighting/Exposure", true}};
+        Json::object state = app.debugUi().state().object_items();
+        state["sections"]  = sections;
+        app.debugUi().setState(state);
+        app.debugUi().select(DebugTab::Lighting);
+        app.runFrames(3, 1.0 / 60);
+        EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
+        if (!environment) continue;
+        // The tab button "F5 Lighting" is the fifth on the bar; one input event per frame
+        app.debugUi().select(DebugTab::Game);
+        app.runFrames(2, 1.0 / 60);
+        const float y = app.debugUi().barHeight() / 2;
+        float x       = 6;
+        for (int i = 0; i < 4; ++i)
+            x += ImGui::CalcTextSize(("F" + std::to_string(i + 1) + " " + app.debugUi().tabName(i)).c_str()).x + 2 * 6 +
+                 2;
+        x += 10;
+        ImGuiIO& io = ImGui::GetIO();
+        io.AddMousePosEvent(x, y);
+        app.runFrames(1, 1.0 / 60);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+        app.runFrames(1, 1.0 / 60);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+        app.runFrames(1, 1.0 / 60);
+        EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
+    }
 }
 
 // Regression: the panel was moved in front of all windows every frame, also in front of the popups opened inside it

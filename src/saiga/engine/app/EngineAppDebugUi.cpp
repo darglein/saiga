@@ -10,6 +10,7 @@
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/engine/app/DebugUiStyle.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/app/LightingTab.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/Window.h"
@@ -929,6 +930,8 @@ void EngineApp::setupDebugUi()
     if (appOptions.debugTab >= 1) ui->select(appOptions.debugTab - 1);
     ui->setTabContent(DebugTab::Performance, [this]() { performanceTab(); });
     ui->setTabContent(DebugTab::Engine, [this]() { engineTab(); });
+    lightingTab = std::make_unique<LightingTab>(*this);
+    ui->setTabContent(DebugTab::Lighting, [this]() { lightingTab->draw(); });
     ui->setSummary([this](float width) { barSummary(width); });
     ui->setPauseKey([this]() { togglePause(); });
 }

@@ -13,6 +13,8 @@
 #include "saiga/core/util/keyboard.h"
 #include "saiga/core/util/mouse.h"
 #include "saiga/engine/app/AppTools.h"
+#include "saiga/engine/app/LightingTab.h"
+#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/core/Log.h"
@@ -261,6 +263,7 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
     worldApi->addProfile("frame", &frameProfiler);
     worldApi->addProfile("gpu", &gpuProfiler);
     registerAppTools(*server, *this);
+    registerLightingTools(*server, *this);
     if (appSetup.gameTools) appSetup.gameTools(*server, *this);
     server->addPollListener(
         [this]()

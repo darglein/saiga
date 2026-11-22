@@ -255,20 +255,24 @@ TEST(DebugUi, KeysSelectTabs)
     out = ui.handleKeys(keys({grave, 'W'}), keys({}), false);
     EXPECT_TRUE(ui.isSelected(DebugTab::Console));
     EXPECT_TRUE(out.keys[size_t('W')]);
-    // A game tab gets the next key; keys without a tab do nothing
-    EXPECT_EQ(ui.addTab("AI", {}), 4);
-    EXPECT_EQ(ui.tabKey(4), 5);
+    // S36: F5 selects the Lighting tab (engine tabs F1-F5)
     ui.handleKeys(keys({F1 + 4}), keys({}), false);
-    EXPECT_EQ(ui.selected(), 4);
+    EXPECT_TRUE(ui.isSelected(DebugTab::Lighting));
+    EXPECT_EQ(ui.findTab("lighting"), int(DebugTab::Lighting));
+    // A game tab gets the next key (F6); keys without a tab do nothing
+    EXPECT_EQ(ui.addTab("AI", {}), 5);
+    EXPECT_EQ(ui.tabKey(5), 6);
+    ui.handleKeys(keys({F1 + 5}), keys({}), false);
+    EXPECT_EQ(ui.selected(), 5);
     ui.handleKeys(keys({F1 + 9}), keys({}), false);
-    EXPECT_EQ(ui.selected(), 4);
-    EXPECT_EQ(ui.findTab("ai"), 4);
+    EXPECT_EQ(ui.selected(), 5);
+    EXPECT_EQ(ui.findTab("ai"), 5);
     EXPECT_EQ(ui.findTab("PERFORMANCE"), 1);
     EXPECT_EQ(ui.findTab("nope"), -1);
     // Disabled: the keys pass through
     ui.setEnabled(false);
     out = ui.handleKeys(keys({F1 + 1}), keys({}), false);
-    EXPECT_EQ(ui.selected(), 4);
+    EXPECT_EQ(ui.selected(), 5);
     EXPECT_TRUE(out.keys[size_t(F1 + 1)]);
 }
 
@@ -419,24 +423,36 @@ TEST(DebugUi, GameTabSelectedWhenItIsAdded)
     EXPECT_EQ(ui.state()["tab"], Json("AI"));
     ui.addTab("Physics", {});
     EXPECT_TRUE(ui.isSelected(DebugTab::Game));
-    EXPECT_EQ(ui.addTab("AI", {}), 5);
-    EXPECT_EQ(ui.selected(), 5);
+    EXPECT_EQ(ui.addTab("AI", {}), 6);
+    EXPECT_EQ(ui.selected(), 6);
     EXPECT_EQ(ui.state()["tab"], Json("AI"));
 
     DebugUi byKey;
-    byKey.select(4);  // SAIGA_DEBUG_TAB=5
+    byKey.select(5);  // SAIGA_DEBUG_TAB=6
     byKey.addTab("AI", {});
-    EXPECT_EQ(byKey.selected(), 4);
+    EXPECT_EQ(byKey.selected(), 5);
 }
 
 // Regression (CodeRabbit): a saved tab name and SAIGA_DEBUG_TAB naming a later game tab: the explicit index wins
+// S36: the game tabs follow the Lighting tab (index 5, F6)
+TEST(DebugUi, GameTabIndexAfterLighting)
+{
+    DebugUi ui;
+    EXPECT_EQ(ui.tabCount(), 5);
+    EXPECT_EQ(ui.tabName(int(DebugTab::Lighting)), "Lighting");
+    EXPECT_EQ(ui.tabKey(int(DebugTab::Lighting)), 5);
+    const int tab = ui.addTab("Game tab", {});
+    EXPECT_EQ(tab, 5);
+    EXPECT_EQ(ui.tabKey(tab), 6);
+}
+
 TEST(DebugUi, RequestedTabIndexReplacesTheSavedName)
 {
     DebugUi ui;
     ui.setState(Json::object{{"tab", "First"}});
-    ui.select(5);  // SAIGA_DEBUG_TAB=6
+    ui.select(6);  // SAIGA_DEBUG_TAB=7
     ui.addTab("First", {});
     EXPECT_TRUE(ui.isSelected(DebugTab::Game));
-    EXPECT_EQ(ui.addTab("Second", {}), 5);
-    EXPECT_EQ(ui.selected(), 5);
+    EXPECT_EQ(ui.addTab("Second", {}), 6);
+    EXPECT_EQ(ui.selected(), 6);
 }

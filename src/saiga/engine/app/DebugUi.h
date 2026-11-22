@@ -23,23 +23,24 @@ class McpServer;
 
 namespace Engine
 {
-// The engine's tabs (indices of DebugUi's tabs; game tabs follow from 4 on)
+// The engine's tabs (indices of DebugUi's tabs; game tabs follow from 5 on). Engine tabs F1-F5, game tabs F6-F10
 enum class DebugTab : int
 {
     Game        = 0,
     Performance = 1,
     Engine      = 2,
-    Console     = 3
+    Console     = 3,
+    Lighting    = 4  // S36
 };
 
 /**
  * The developer UI of the engine app (docs/engine_design.md §17.1; S19c): a one-line bar at the top of the screen with
- * the tabs (F1 Game, F2 Performance, F3 Engine, F4 Console, game tabs on F5..F10) and a performance summary, and one
- * panel docked at the right edge of the screen that shows the selected tab. The tabs are tabs, not toggles: an
- * F-key selects its tab, the selected tab's key changes nothing. F1 Game shows no panel (the game alone, with its own
- * GUI). The panel is never a floating window and cannot be moved: it is placed at the right edge every frame from the
- * display size; only its width can be dragged at its left edge. The grave key (`) selects the console and focuses its
- * command line.
+ * the tabs (F1 Game, F2 Performance, F3 Engine, F4 Console, F5 Lighting, game tabs on F6..F10) and a performance
+ * summary, and one panel docked at the right edge of the screen that shows the selected tab. The tabs are tabs, not
+ * toggles: an F-key selects its tab, the selected tab's key changes nothing. F1 Game shows no panel (the game alone,
+ * with its own GUI). The panel is never a floating window and cannot be moved: it is placed at the right edge every
+ * frame from the display size; only its width can be dragged at its left edge. The grave key (`) selects the console
+ * and focuses its command line.
  *
  * The state (selected tab, panel width, open sections, the console's filters and history) is kept in a JSON file
  * (empty name: not kept). Exists in every app mode (also without ImGui or a device), so games can register tabs and
@@ -68,9 +69,9 @@ class SAIGA_ENGINE_API DebugUi
     void select(DebugTab t) { select(int(t)); }
     // By name, case-insensitive; -1 if unknown
     int findTab(const std::string& name) const;
-    // A game tab (F5..F10 while keys are left; later tabs only by click), shown in the panel; returns its index
+    // A game tab (F6..F10 while keys are left; later tabs only by click), shown in the panel; returns its index
     int addTab(const std::string& name, std::function<void()> draw);
-    // The content of an engine tab (the app sets Performance and Engine; the console is built in)
+    // The content of an engine tab (the app sets Performance, Engine and Lighting; the console is built in)
     void setTabContent(DebugTab tab, std::function<void()> draw);
     // A section appended to a tab, drawn after the tab's content in registration order, with a persisted header
     // (collapsed at first unless defaultOpen: the details a tab does not need at a glance)
