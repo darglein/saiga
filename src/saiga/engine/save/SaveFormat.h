@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/math/ChunkId.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/VisitBinary.h"
 #include "saiga/engine/world/SpaceTemplate.h"
@@ -34,9 +35,10 @@
 //         such chunks in SpaceId order: SpaceId (u16), base spacing (u8), N (u16), chunk count (u32); per chunk in
 //         ChunkId order: x (i32), z (i32), sequence (u32, > 0), flags (u8: bit 0 = deltas present); with deltas the
 //         encoded length (u64) and the dense N x N delta (TerrainDeltaCodec, zstd)
-//   CREC? (S23a, version 1; only with chunk records) the count of spaces with records (u32); per such space in SpaceId
-//         order: SpaceId (u16), record count (u32); per record in ChunkId order: x (i32), z (i32), placement version
-//         (u16), stamped (u8: 0 or 1, the host's stamped set)
+//   CREC? (S23a version 1, S23b version 2; only with chunk records) the count of spaces with records (u32); per such
+//         space in SpaceId order: SpaceId (u16), record count (u32); per record in ChunkId order: x (i32), z (i32),
+//         placement version (u16), stamped (u8: 0 or 1, the host's stamped set); version 2: the tombstone count (u32)
+//         and per key in (slot, counter) order the slot (u8) and the counter (u32). Version 1 reads as no tombstones
 //   ENTS  slot count; per slot from 1: generation (u32), state (u8: 0 free, 2 alive), flags (u8); the free list
 //   COMP  per saved component type: schema index (u32), count (u64), byte length (u64), then per component the entity
 //         index (u32) and the binary form, in the pool's dense order (Transform: index order)
@@ -79,7 +81,7 @@ struct SaveSectionEntry
 };
 constexpr SaveSectionEntry kSaveSections[] = {
     {kTagHeader, false, 0}, {kTagSchema, false, 0},      {kTagSpaces, true, 1},    {kTagGeneration, true, 1},
-    {kTagTerrain, true, 1}, {kTagChunkRecords, true, 1}, {kTagEntities, false, 0}, {kTagComponents, false, 0},
+    {kTagTerrain, true, 1}, {kTagChunkRecords, true, 2}, {kTagEntities, false, 0}, {kTagComponents, false, 0},
     {kTagEvents, false, 0}, {kTagActions, false, 0},     {kTagState, false, 0},
 };
 
@@ -138,7 +140,7 @@ struct GenerationSection
 };
 constexpr uint32_t kGenerationSectionVersion = 1;
 
-// CREC (S23a): the chunk records
+// CREC (S23a; S23b: tombstones): the chunk records
 struct ChunkRecordSection
 {
     struct Record
@@ -146,6 +148,7 @@ struct ChunkRecordSection
         int32_t x = 0, z = 0;
         uint16_t placementVersion = 0;
         bool stamped              = false;
+        std::vector<InstanceKey> tombstones;
     };
     struct Space
     {
@@ -154,7 +157,7 @@ struct ChunkRecordSection
     };
     std::vector<Space> spaces;
 };
-constexpr uint32_t kChunkRecordSectionVersion = 1;
+constexpr uint32_t kChunkRecordSectionVersion = 2;
 
 inline std::string tagName(uint32_t tag)
 {

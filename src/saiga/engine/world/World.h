@@ -11,6 +11,8 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/ContentRenderSystem.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/JobPool.h"
 #include "saiga/engine/core/Profiler.h"
@@ -44,6 +46,7 @@
 #include <array>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <typeinfo>
 #include <utility>
@@ -59,7 +62,6 @@ namespace Engine
 class GeneratorList;
 class ContentCache;
 class GenerationPipeline;
-class ChunkRecords;
 
 // Game policies of a world (R-MECH-1; docs/engine_design.md §7.9). Later stages add their fields.
 struct WorldConfig
@@ -153,6 +155,11 @@ struct WorldSetup
  */
 class Replication;
 class RenderSink;
+class Generator;
+struct HookGrassRule;
+// S23b: the grass thresholds of a generator's space (TerrainSpace::grassRule): a HookGenerator's exact ones, else the
+// generator's grassEditRule converted (none: disabled)
+SAIGA_ENGINE_API std::optional<HookGrassRule> grassRuleOf(const Generator& generator);
 class ExtractSystem;
 class TerrainSystem;
 class TerrainEditStore;
@@ -460,12 +467,52 @@ class SAIGA_ENGINE_API World
     bool generationChecked() const { return generationCheckedFlag; }
     // GENR, GenerationState and the generation part of hash(): a non-legacy generator or chunk records (§15.1, S23a)
     bool writesGenerationState() const;
-    // The chunk records (state: the placement version per recorded chunk, the host's stamped chunks)
+    // The chunk records (state: the placement version and the tombstones per recorded chunk, the host's stamped chunks)
     const ChunkRecords& contentRecords() const { return *chunkRecords; }
     ChunkRecords& contentRecordsForUpdate() { return *chunkRecords; }
+    // S23b: the effective record of a chunk (§12.1): its record, else {the space's current placement version, no
+    // tombstones} (equal on host and clients: GenerationState refuses other versions)
+    uint16_t effectivePlacementVersion(const ChunkId& chunk) const;
+    ChunkRecord effectiveRecord(const ChunkId& chunk) const;
+    // S23b: the one notification of every record writer after it changed a record (created, removed, version changed,
+    // keys added or removed): host tombstones and tombstone-on-edit, stamping, the client's record messages and Resync,
+    // a host load's commit. Forwards to the content render sets and the grass masks
+    void onRecordChanged(const ChunkId& chunk);
+    // Host: tombstones one generated tier-1 instance (§12.5; S23b). Checked at the call in every build, also during a
+    // step (SAIGA_EXIT_ERROR, as editTerrain): the role, the space, the chunk range, the slot, the counter and that the
+    // key names an accepted, not excluded instance at the chunk's effective placement version (generated
+    // synchronously through the cache). Between steps at once; during a step a command applied at the phase flush;
+    // not inside parallelEach. Idempotent: a tombstoned key changes nothing (no sequence, message or notification)
+    void tombstone(ChunkId chunk, InstanceKey key);
+    // The checks of tombstone without stopping: false with the error (the world API)
+    bool checkTombstone(ChunkId chunk, InstanceKey key, std::string* error) const;
+    bool isTombstoned(ChunkId chunk, InstanceKey key) const;
+    // The exact position of a tier-1 instance (§12.2; S23b; generates the chunk's placement synchronously):
+    // ReSnapOnEdit instances at the current surface, TombstoneOnEdit ones at their generated y; empty for a key that is
+    // not an accepted, not excluded candidate or out of range; a tombstoned key still has its position (callers check
+    // isTombstoned). For game code and tests (nothing in the simulation collides with tier 1 before S28)
+    std::optional<Vec3> tierOnePosition(ChunkId chunk, InstanceKey key) const;
+    // The chunk's record (null: none; the effective record is {current version, no tombstones})
+    const ChunkRecord* chunkRecord(ChunkId chunk) const;
+    // Engine-internal: the listeners of onRecordChanged (the content render system, the terrain's grass path)
+    int addRecordListener(std::function<void(const ChunkId&)> fn)
+    {
+        recordListeners.push_back({nextListenerId, std::move(fn)});
+        return nextListenerId++;
+    }
+    void removeRecordListener(int id)
+    {
+        for (size_t i = 0; i < recordListeners.size(); ++i)
+            if (recordListeners[i].first == id) recordListeners.erase(recordListeners.begin() + std::ptrdiff_t(i));
+    }
     // The total content hash of a chunk at the current placement version (generated synchronously through the
     // cache; the stamp and static lists come from the plan)
     uint64_t contentHash(ChunkId chunk) const;
+    // S23b: the content render sets (§10.1, §12.1): ContentRenderSettings::centres None (default) / View (EngineApp) /
+    // Players (ScenarioWorld); a mode other than None needs a render sink (asserted)
+    void setContentRenderSettings(const ContentRenderSettings& settings);
+    const ContentRenderSystem& contentRender() const { return *contentRenderSys; }
+    ContentRenderSystem& contentRenderForUpdate() { return *contentRenderSys; }
     // The terrain of the spaces (streaming, samples; engine-internal and the app)
     TerrainSystem& terrain() { return *terrainSys; }
     const TerrainSystem& terrain() const { return *terrainSys; }
@@ -1051,6 +1098,8 @@ class SAIGA_ENGINE_API World
     void emitTerrainChanges();
     void emitTerrainEvent(const TerrainChange& c);
     std::array<int, size_t(kLastPhase) + 1> terrainEditScopes{};
+    // S23b: the content render sets; declared before terrainSys, so the streaming pool (and its completions) goes first
+    std::unique_ptr<ContentRenderSystem> contentRenderSys;
     // The spaces' terrain (S20)
     std::unique_ptr<TerrainSystem> terrainSys;
     // The content generation (S23a); generationSetup: the setup fields phase A reads (a load builds the plans of the
@@ -1058,6 +1107,7 @@ class SAIGA_ENGINE_API World
     std::unique_ptr<GenerationPipeline> pipeline;
     WorldSetup generationSetup;
     std::unique_ptr<ChunkRecords> chunkRecords;
+    std::vector<std::pair<int, std::function<void(const ChunkId&)>>> recordListeners;
     bool generationMismatchFlag = false, generationCheckedFlag = false, nonIntegerWarned = false;
     uint64_t setupSeed    = 0;
     double accumulator    = 0;

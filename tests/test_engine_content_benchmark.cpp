@@ -11,11 +11,14 @@
 // build of AGENTS.md; printed only (the CI run checks that it runs).
 
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/ContentCache.h"
+#include "saiga/engine/content/ContentRenderSystem.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/gen/ChunkGeneration.h"
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/engine/terrain/HookGenerator.h"
+#include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/vulkan/world/PrototypeTerrain.h"
@@ -172,4 +175,95 @@ TEST(ContentBenchmark, StampSystemAndHeights)
     std::cout << "height samples: S20 hook source " << tHook * 1e6 / n << " ns, pipeline source " << tPipe * 1e6 / n
               << " ns; World::terrainHeight " << tWorld * 1e6 / n << " ns" << std::endl;
     for (int i = 0; i < 1000; ++i) ASSERT_EQ(hook(i * 97, i * 13), pipe(i * 97, i * 13));
+}
+
+// S23b (R-TEST-2, Risks 1): the host cost of World::tombstone and of an edit's tombstone-on-edit step on a cold cache
+// (the chunk's placement generated inside the call) and a warm one, and the creation of one content set per chunk
+// (generation and conversion, then conversion alone)
+TEST(ContentBenchmark, TombstonesAndContentSets)
+{
+    ChunkId chunk;
+    chunk.x = 4;
+    chunk.z = 5;
+    // The accepted test_tree keys of the chunk
+    std::vector<InstanceKey> trees;
+    {
+        World w(ContentTest::contentTestSetup(2));
+        for (const TierOneInstance& t : w.generation().chunkPlacement(chunk, 2)->instances)
+            if (t.key.generatorSlot == 0) trees.push_back(t.key);
+    }
+    ASSERT_GE(trees.size(), 10u);
+    // Cold: the chunk's placement is generated inside the first call; warm: cached
+    std::vector<double> coldCalls, warmCalls;
+    for (int r = 0; r < 5; ++r)
+    {
+        World w(ContentTest::contentTestSetup(2));
+        double a = nowMs();
+        w.tombstone(chunk, trees[0]);
+        coldCalls.push_back(nowMs() - a);
+        for (size_t i = 1; i < 9; ++i)
+        {
+            a = nowMs();
+            w.tombstone(chunk, trees[i]);
+            warmCalls.push_back(nowMs() - a);
+        }
+    }
+    std::sort(coldCalls.begin(), coldCalls.end());
+    std::sort(warmCalls.begin(), warmCalls.end());
+    // An edit over the site's trees: cold (the placement generated in the reserve step) and warm
+    TerrainBrush b;
+    b.op       = TerrainBrush::Add;
+    b.center   = Vec3(1150, 0, 1400);
+    b.radius   = 12;
+    b.strength = 2;
+    std::vector<double> editCold, editWarm;
+    size_t tombstoned = 0;
+    for (int r = 0; r < 5; ++r)
+    {
+        World w(ContentTest::contentTestSetup(2));
+        double a = nowMs();
+        w.editTerrain(0, b);
+        editCold.push_back(nowMs() - a);
+        tombstoned     = w.chunkRecord(chunk) ? w.chunkRecord(chunk)->tombstones.size() : 0;
+        TerrainBrush c = b;
+        c.center       = Vec3(1180, 0, 1430);
+        a              = nowMs();
+        w.editTerrain(0, c);
+        editWarm.push_back(nowMs() - a);
+    }
+    std::sort(editCold.begin(), editCold.end());
+    std::sort(editWarm.begin(), editWarm.end());
+    // A hook space: the edit without content work
+    std::vector<double> editHook;
+    for (int r = 0; r < 5; ++r)
+    {
+        World w(prototypeSetup());
+        const double a = nowMs();
+        w.editTerrain(0, b);
+        editHook.push_back(nowMs() - a);
+    }
+    std::sort(editHook.begin(), editHook.end());
+    // One content set: generation + conversion (cold), conversion alone (warm)
+    std::vector<double> setCold, setWarm;
+    for (int r = 0; r < 5; ++r)
+    {
+        World w(ContentTest::contentTestSetup(2));
+        double a     = nowMs();
+        const auto v = w.contentRenderForUpdate().buildInstances(chunk, 2);
+        setCold.push_back(nowMs() - a);
+        a            = nowMs();
+        const auto u = w.contentRenderForUpdate().buildInstances(chunk, 2);
+        setWarm.push_back(nowMs() - a);
+        ASSERT_EQ(v.size(), u.size());
+    }
+    std::sort(setCold.begin(), setCold.end());
+    std::sort(setWarm.begin(), setWarm.end());
+    std::cout << "tombstone: cold cache " << coldCalls[coldCalls.size() / 2] << " ms, warm "
+              << warmCalls[warmCalls.size() / 2] << " ms (median)" << std::endl;
+    std::cout << "edit with tombstone-on-edit (radius 12 m, " << tombstoned << " trees): cold cache "
+              << editCold[editCold.size() / 2] << " ms, warm " << editWarm[editWarm.size() / 2]
+              << " ms; the same edit in the prototype hook space " << editHook[editHook.size() / 2] << " ms"
+              << std::endl;
+    std::cout << "content set of a 2 m chunk: generation + conversion " << setCold[setCold.size() / 2]
+              << " ms, conversion " << setWarm[setWarm.size() / 2] << " ms" << std::endl;
 }

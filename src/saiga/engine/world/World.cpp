@@ -16,9 +16,11 @@
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Systems.h"
+#include "saiga/engine/content/Tombstones.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/EntityLog.h"
@@ -28,6 +30,7 @@
 #include "saiga/engine/net/Varint.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RenderSink.h"
+#include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/Events.h"
@@ -43,6 +46,18 @@ namespace Saiga
 {
 namespace Engine
 {
+
+std::optional<HookGrassRule> grassRuleOf(const Generator& g)
+{
+    // A hook generator's exact thresholds (its masks stay byte-equal to S20's); another generator's integer rule
+    if (const HookGenerator* h = dynamic_cast<const HookGenerator*>(&g)) return h->grassRule();
+    const GrassEditRule r = g.grassEditRule();
+    if (!r.enabled) return std::nullopt;
+    HookGrassRule out;
+    out.minNormalY  = double(r.minNormalYQ16) / 65536.0;
+    out.minAboveSea = double(r.minAboveSeaUnits) / 1024.0;
+    return out;
+}
 
 World::World(const WorldSetup& setup)
     : events(&reg),
@@ -83,12 +98,21 @@ World::World(const WorldSetup& setup)
             t.seed       = g.instance.seed;
             t.source     = pipeline->heightSource(SpaceId(i));
             t.hasTerrain = g.hasTerrain;
+            // S23b (E3): the grass masks from the generator, or S20's rule with a hook generator's thresholds
+            t.generatorMasks = !g.generator->legacyTerrain();
+            if (t.generatorMasks) t.content = pipeline->contentSource(SpaceId(i));
+            t.grassRule = grassRuleOf(*g.generator);
             templates.push_back(g.settings);
             spaces.push_back(std::move(t));
         }
         terrainSys       = std::make_unique<TerrainSystem>(std::move(spaces));
         terrainEditStore = std::make_unique<TerrainEditStore>(templates);
         terrainSys->setEdits(terrainEditStore.get());
+        terrainSys->setPlacementVersions([this](const ChunkId& c) { return effectivePlacementVersion(c); });
+        // S23b: the content render sets and their part of the view updates
+        contentRenderSys = std::make_unique<ContentRenderSystem>(*this);
+        terrainSys->setContentView([this](SpaceId space, const Vec3& camera, bool complete, double deadline)
+                                   { return contentRenderSys->viewUpdate(space, camera, complete, deadline); });
     }
     extractor = std::make_unique<ExtractSystem>(*this);
     // Before any entity exists: every create reaches the grid through the log
@@ -875,6 +899,78 @@ bool World::writesGenerationState() const
     return pipeline->nonLegacy() || !chunkRecords->empty();
 }
 
+uint16_t World::effectivePlacementVersion(const ChunkId& chunk) const
+{
+    if (const ChunkRecord* r = chunkRecords->find(chunk)) return r->placementVersion;
+    return pipeline->space(chunk.space).current;
+}
+
+ChunkRecord World::effectiveRecord(const ChunkId& chunk) const
+{
+    if (const ChunkRecord* r = chunkRecords->find(chunk)) return *r;
+    ChunkRecord r;
+    r.placementVersion = pipeline->space(chunk.space).current;
+    return r;
+}
+
+bool World::checkTombstone(ChunkId chunk, InstanceKey key, std::string* error) const
+{
+    return Engine::checkTombstone(*this, chunk, key, error);
+}
+
+void World::tombstone(ChunkId chunk, InstanceKey key)
+{
+    checkNotParallel("tombstone");
+    std::string error;
+    // Checked at the call in every build, also during a step (the error points at the caller); the placement version
+    // cannot change before the flush (only tombstones and loads change records)
+    if (!checkTombstone(chunk, key, &error)) SAIGA_EXIT_ERROR(error);
+    recordOrRun([chunk, key](World& w) { applyTombstone(w, chunk, key); });
+}
+
+std::optional<Vec3> World::tierOnePosition(ChunkId chunk, InstanceKey key) const
+{
+    if (chunk.space >= spaceCount()) return std::nullopt;
+    const SpaceGeneration& g = pipeline->space(chunk.space);
+    if (chunk.x < 0 || chunk.z < 0 || chunk.x >= g.settings.sizeChunks || chunk.z >= g.settings.sizeChunks)
+        return std::nullopt;
+    const auto& slots = generators().find(g.generatorId)->slots;
+    if (key.generatorSlot >= slots.size()) return std::nullopt;
+    const auto p             = pipeline->chunkPlacement(chunk, effectivePlacementVersion(chunk));
+    const TierOneInstance* t = findInstance(*p, key);
+    if (!t) return std::nullopt;
+    // ReSnapOnEdit instances stand on the current surface, TombstoneOnEdit ones at their generated y
+    const int32_t y = (slots[key.generatorSlot].flags & ReSnapOnEdit) && g.hasTerrain
+                          ? tierOneSurface(*this, chunk, t->x, t->z)
+                          : t->y;
+    return contentPosition(chunk, t->x, y, t->z);
+}
+
+bool World::isTombstoned(ChunkId chunk, InstanceKey key) const
+{
+    const ChunkRecord* r = chunkRecords->find(chunk);
+    return r && r->tombstoned(key);
+}
+
+const ChunkRecord* World::chunkRecord(ChunkId chunk) const
+{
+    return chunkRecords->find(chunk);
+}
+
+void World::setContentRenderSettings(const ContentRenderSettings& settings)
+{
+    SAIGA_ASSERT(!inStep(), "World::setContentRenderSettings inside a step");
+    contentRenderSys->setSettings(settings);
+}
+
+void World::onRecordChanged(const ChunkId& chunk)
+{
+    contentRenderSys->recordChanged(chunk);
+    // The chunk's generator grass mask (a placement-version change)
+    terrainSys->recordChanged(chunk);
+    for (const auto& l : recordListeners) l.second(chunk);
+}
+
 uint64_t World::contentHash(ChunkId chunk) const
 {
     SAIGA_ASSERT(chunk.space < spaceCount(), "World::contentHash: unknown space");
@@ -966,6 +1062,8 @@ void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
     }
     // The visual dirty queue (only while a render sink is attached)
     terrainSys->terrainChanged(space, box);
+    // S23b: the re-snap queue of the content sets (only while sets exist)
+    contentRenderSys->terrainChanged(space, box);
 }
 
 void World::emitTerrainEvent(const TerrainChange& c)
@@ -989,8 +1087,8 @@ void World::emitTerrainChanges()
 double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) const
 {
     SAIGA_ASSERT(space < spaceCount(), "World::spaceReadiness: unknown space");
-    // S21: the terrain's (S20, D6); S23b adds the content sets, S27 far content
-    return terrainSys->readiness(space, camera, radius);
+    // S21: the terrain's (S20, D6); S23b: and the content sets; S27 far content
+    return std::min(terrainSys->readiness(space, camera, radius), contentRenderSys->readiness(space, camera, radius));
 }
 
 World::~World()
@@ -1490,6 +1588,8 @@ void World::runStep()
                 // The render extract (S19b): after the interpolation, its own scope
                 Profiler::Timer extractTimer(prof, extractScope);
                 extractor->run();
+                // S23b: the content render sets around the players (ScenarioWorld's Players centres)
+                contentRenderSys->playersPass();
             }
         }
         // Children whose parent was teleported after their last update (phase 8) follow in the next phase 6
@@ -1716,7 +1816,12 @@ uint64_t World::hash() const
         const ChunkRecords& rec = *chunkRecords;
         h.addU32(uint32_t(rec.records().size()));
         for (const auto& [c, r] : rec.records())
+        {
             h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(r.placementVersion).addU8(rec.isStamped(c) ? 1 : 0);
+            // S23b: the tombstones (only inside a record: worlds without records hash as before)
+            h.addU32(uint32_t(r.tombstones.size()));
+            for (const InstanceKey& k : r.tombstones) h.addU32(k.generatorSlot).addU32(k.counter);
+        }
     }
     return h.value();
 }
@@ -2104,6 +2209,8 @@ void World::setRenderSink(RenderSink* sink)
     extractor->setSink(sink);
     // The terrain's send point (S20): a new sink receives what the store holds
     terrainSys->setSink(sink);
+    // S23b: the content sets are built again on the new sink
+    contentRenderSys->setSink(sink);
 }
 
 RenderSink* World::renderSink() const

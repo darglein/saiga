@@ -87,8 +87,8 @@ SAIGA_ENGINE_API bool parseSpaceTable(BinaryReader& r, uint32_t version, SpaceTa
 // checks it against the setup (seed, names, versions, slot tables, plans)
 SAIGA_ENGINE_API bool parseGenerationSection(BinaryReader& r, uint32_t version, GenerationSection& out,
                                              std::string& error);
-// CREC format 1 (S23a): ascending unique spaces and chunks (ChunkId order), stamped 0 or 1; no bytes left over. The
-// loader checks the spaces, the chunk ranges and the versions against the plans
+// CREC format 1 (S23a) or 2 (S23b: tombstones): ascending unique spaces and chunks (ChunkId order), stamped 0 or 1; no
+// bytes left over. The loader checks the spaces, the chunk ranges, the versions and the keys against the plans
 SAIGA_ENGINE_API bool parseChunkRecordSection(BinaryReader& r, uint32_t version, ChunkRecordSection& out,
                                               std::string& error);
 // TERR format 1 (S22): the structure and the codec's bounds, checked without a world: spacing 1 or 2 with its N,

@@ -193,6 +193,10 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
         // --coop only the client world renders (the host has no sink)
         sink = std::make_unique<VulkanRenderSink>(*renderScene);
         gameWorld->setRenderSink(sink.get());
+        // S23b: the content render sets around the view camera (TerrainSystem::updateView / completeView)
+        ContentRenderSettings content;
+        content.centres = ContentCentres::View;
+        gameWorld->setContentRenderSettings(content);
     }
 
     // The view camera: from (0, 2, 6) towards the origin

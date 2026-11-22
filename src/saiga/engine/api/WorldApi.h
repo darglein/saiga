@@ -177,6 +177,10 @@ class SAIGA_ENGINE_API WorldApi
     ApiResult editTerrain(const json11::Json& a);
     ApiResult terrainHeight(const json11::Json& a);
     ApiResult terrainEdits(const json11::Json& a);
+    // S23b: chunk records and content
+    ApiResult chunkInfo(const json11::Json& a);
+    ApiResult listSites(const json11::Json& a);
+    ApiResult tombstone(const json11::Json& a);
     ApiResult spawn(const json11::Json& a);
     ApiResult destroy(const json11::Json& a);
     ApiResult getGlobal(const json11::Json& a);

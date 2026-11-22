@@ -97,6 +97,10 @@ class SAIGA_ENGINE_API ContentSource
     // attached to) whose completion runs at the pool's drain() on the main thread. Returns the job's ID
     uint64_t requestPlacement(StreamingPool& pool, ChunkId chunk, uint16_t placementVersion, int priority,
                               std::function<void(std::shared_ptr<const ChunkPlacement>)> onMainThread) const;
+    // The pool form inside a job of another kind (S23b: the grass masks): a hit, a running generation (waited for), or
+    // generated here
+    std::shared_ptr<const ChunkPlacement> placementInJob(ChunkId chunk, uint16_t placementVersion) const;
+    bool valid() const { return sp != nullptr; }
     const SpaceGeneration& space() const { return *sp; }
 
    private:

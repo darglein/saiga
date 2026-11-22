@@ -48,7 +48,11 @@ class SAIGA_ENGINE_API HookGenerator final : public Generator
     uint32_t keptCount(uint32_t, int) const override { return 0; }
     void grassMask(uint16_t version, const WorldPlan& plan, ChunkId chunk, GrassMask& out) const override;
 
+    // The rule in Q16 / height units (rounded; the terrain uses grassRule()'s exact thresholds for legacy spaces)
+    GrassEditRule grassEditRule() const override;
     TerrainHeightHook heightHook() const { return hook; }
+    // The constructor's thresholds (S20's mask of a legacy space; none: all zero)
+    const std::optional<HookGrassRule>& grassRule() const { return grass; }
 
    private:
     std::string generatorName;

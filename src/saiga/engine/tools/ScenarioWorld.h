@@ -229,6 +229,10 @@ class SAIGA_ENGINE_API ScenarioWorld
     bool terrainSynced();
     // S22: the terrain modification state of every client equals the host's (sequences, dense deltas); no gaps
     void compareTerrain();
+    // S23b: per space, over the union of the chunks with a record on either side, every client's effective chunk
+    // records equal the host's (placement version, tombstones; stamped is host-only)
+    bool recordsSynced(std::string* difference = nullptr);
+    void compareRecords();
     void attach();
     // The step observation is two listeners: the counter first (listeners see steps() including the current step) and
     // the observer last (hash, traces, stop-save and limits see the world after every scenario listener ran)

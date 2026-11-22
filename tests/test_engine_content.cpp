@@ -14,11 +14,13 @@
 #include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/ContentHashFile.h"
+#include "saiga/engine/content/ContentMessages.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/content/Prefab.h"
 #include "saiga/engine/content/PrefabStore.h"
 #include "saiga/engine/content/Systems.h"
+#include "saiga/engine/content/Tombstones.h"
 #include "saiga/engine/content/gen/AuthoredSpaceGenerator.h"
 #include "saiga/engine/content/gen/FixedMath.h"
 #include "saiga/engine/content/gen/FlatGenerator.h"
@@ -36,11 +38,14 @@
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
+#include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
+#include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/SpaceTemplate.h"
 #include "saiga/engine/world/World.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "gtest/gtest.h"
 
@@ -49,6 +54,7 @@
 #include <clocale>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -1921,6 +1927,34 @@ class ChangedGenerator final : public Generator
     bool renameSlot = false;
 };
 
+// TestTerrainGenerator's slots without terrain: a generator an enclosed space accepts (tombstone checks)
+class EnclosedSlotsGenerator final : public Generator
+{
+   public:
+    const char* name() const override { return "test_cave"; }
+    uint16_t version() const override { return base.version(); }
+    std::vector<GeneratorSlot> slots() const override { return base.slots(); }
+    bool hasTerrain() const override { return false; }
+    void plan(uint16_t v, WorldPlan& p) const override { base.plan(v, p); }
+    int32_t height(uint16_t v, const WorldPlan& p, int64_t x, int64_t z) const override
+    {
+        return base.height(v, p, x, z);
+    }
+    bool candidate(uint16_t v, const WorldPlan& p, ChunkId c, uint32_t s, uint32_t n, Candidate& o) const override
+    {
+        return base.candidate(v, p, c, s, n, o);
+    }
+    uint32_t candidatesPerChunk(uint32_t s) const override { return base.candidatesPerChunk(s); }
+    uint32_t keptCount(uint32_t s, int l) const override { return base.keptCount(s, l); }
+    void grassMask(uint16_t v, const WorldPlan& p, ChunkId c, GrassMask& o) const override
+    {
+        base.grassMask(v, p, c, o);
+    }
+
+   private:
+    ContentTest::TestTerrainGenerator base{2};
+};
+
 // Stamps site 0 (chunk (4, 5)) of a content world between steps
 void stampSiteZero(World& w)
 {
@@ -1936,6 +1970,32 @@ ChunkId chunkAt(int32_t x, int32_t z, SpaceId space = 0)
     c.x     = x;
     c.z     = z;
     return c;
+}
+
+// A brush centre in the chunk whose brush (radius r) changes the surface of no TombstoneOnEdit instance (no tree within
+// r + 3 base cells): an edit there creates no chunk record (S23b's tombstone-on-edit)
+Vec3 clearSpot(const World& w, const ChunkId& c, double r)
+{
+    const auto p        = w.generation().chunkPlacement(c, w.effectivePlacementVersion(c));
+    const double margin = r + 3 * w.spaceTemplate(c.space).baseSpacing + 1;
+    for (int z = 16; z < 240; z += 2)
+        for (int x = 16; x < 240; x += 2)
+        {
+            bool clear = true;
+            for (const TierOneInstance& t : p->instances)
+            {
+                if (t.key.generatorSlot != 0) continue;
+                const double dx = t.x / 256.0 - x, dz = t.z / 256.0 - z;
+                if (dx * dx + dz * dz < margin * margin)
+                {
+                    clear = false;
+                    break;
+                }
+            }
+            if (clear) return Vec3(c.x * 256.0 + x, 0, c.z * 256.0 + z);
+        }
+    ADD_FAILURE() << "no clear spot in the chunk";
+    return Vec3(c.x * 256.0 + 128, 0, c.z * 256.0 + 128);
 }
 
 std::string committedSection(int entry, const std::string& chunk, const std::string& section)
@@ -1968,9 +2028,10 @@ TEST(ContentSave, RoundTripAndRecords)
     const Entity visitor = addPlayer(a, Vec3(20000, 0, 20000));
     a.step(1);
     a.destroy(visitor);
+    // (S23b: away from the trees: an edit over a TombstoneOnEdit tree tombstones it)
     TerrainBrush b;
-    b.center   = Vec3(300, 0, 300);
-    b.radius   = 10;
+    b.center   = clearSpot(a, chunkAt(1, 1), 4);
+    b.radius   = 4;
     b.strength = 2;
     a.editTerrain(0, b);
     EXPECT_TRUE(a.contentRecords().records().empty());
@@ -2554,4 +2615,1556 @@ TEST(GenerationState, LegacyWorldsSendNothing)
     const size_t first        = lines.find(warning);
     EXPECT_NE(first, std::string::npos) << lines;
     EXPECT_EQ(lines.find(warning, first + 1), std::string::npos) << "logged once";
+}
+
+// ---- chunk records with tombstones (S23b step 2) -------------------------------------------------------------------
+
+namespace
+{
+InstanceKey key(uint32_t slot, uint32_t counter)
+{
+    InstanceKey k;
+    k.generatorSlot = slot;
+    k.counter       = counter;
+    return k;
+}
+
+// The first occurrence of a byte pattern in a blob (npos: none)
+size_t findBytes(const std::vector<uint8_t>& blob, const std::vector<uint8_t>& pattern)
+{
+    auto it = std::search(blob.begin(), blob.end(), pattern.begin(), pattern.end());
+    return it == blob.end() ? std::string::npos : size_t(it - blob.begin());
+}
+
+std::vector<uint8_t> keyBytes(uint8_t slot, uint32_t counter)
+{
+    return {slot, uint8_t(counter), uint8_t(counter >> 8), uint8_t(counter >> 16), uint8_t(counter >> 24)};
+}
+}  // namespace
+
+// CREC format 2 round trip: placement versions and tombstones; world.hash changes with a tombstone and is equal after
+// save / load; diffSaves names the tombstones; the effective record of a chunk without one
+TEST(ChunkRecords, Format2RoundTripHashAndDiff)
+{
+    World a(ContentTest::contentTestSetup(2));
+    EXPECT_EQ(a.effectivePlacementVersion(chunkAt(9, 9)), 2);
+    EXPECT_TRUE(a.effectiveRecord(chunkAt(9, 9)).tombstones.empty());
+    const uint64_t h0 = a.hash();
+    std::vector<ChunkId> notified;
+    a.addRecordListener([&](const ChunkId& c) { notified.push_back(c); });
+    a.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 17), key(1, 3)});
+    a.contentRecordsForUpdate().injectForTests(chunkAt(7, 2), 2, {});
+    a.onRecordChanged(chunkAt(4, 5));
+    EXPECT_EQ(notified.size(), 1u);
+    EXPECT_NE(a.hash(), h0);
+    const uint64_t h1 = a.hash();
+    a.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 18)});
+    EXPECT_NE(a.hash(), h1);
+    EXPECT_EQ(a.effectiveRecord(chunkAt(7, 2)).placementVersion, 2);
+    EXPECT_TRUE(a.effectiveRecord(chunkAt(4, 5)).tombstoned(key(0, 18)));
+
+    const auto blob = a.save();
+    ParsedSave parsed;
+    std::string error;
+    ASSERT_TRUE(parseSave(blob, parsed, error)) << error;
+    ASSERT_TRUE(parsed.chunkRecords);
+    World b(ContentTest::contentTestSetup(2));
+    std::vector<ChunkId> loadNotified;
+    b.addRecordListener([&](const ChunkId& c) { loadNotified.push_back(c); });
+    const LoadResult r = b.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b.contentRecords().records().size(), 2u);
+    EXPECT_EQ(b.effectiveRecord(chunkAt(4, 5)), a.effectiveRecord(chunkAt(4, 5)));
+    EXPECT_EQ(b.effectiveRecord(chunkAt(7, 2)), a.effectiveRecord(chunkAt(7, 2)));
+    EXPECT_EQ(b.hash(), a.hash());
+    EXPECT_EQ(World::diff(a, b), "");
+    // The load notified both recorded chunks
+    EXPECT_EQ(loadNotified, (std::vector<ChunkId>{chunkAt(4, 5), chunkAt(7, 2)}));
+    // A tombstone difference is named
+    World c(ContentTest::contentTestSetup(2));
+    c.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 17)});
+    const std::string d = World::diff(a, c);
+    EXPECT_NE(d.find("record space 0 chunk (4, 5)"), std::string::npos) << d;
+    EXPECT_NE(d.find("tombstones"), std::string::npos) << d;
+}
+
+// Format 1 (S23a's committed save) reads as records without tombstones
+TEST(ChunkRecords, Format1LoadsWithoutTombstones)
+{
+    const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23a.bin";
+    std::ifstream f(path, std::ios::binary);
+    const std::vector<uint8_t> blob((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    ASSERT_FALSE(blob.empty()) << path;
+    World w(ContentTest::contentTestSetup(2));
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    ASSERT_FALSE(w.contentRecords().records().empty());
+    for (const auto& kv : w.contentRecords().records()) EXPECT_TRUE(kv.second.tombstones.empty());
+    // It saves as format 2 (the CREC section's version: parsed.chunkRecords exists for both formats)
+    const std::vector<uint8_t> saved = w.save();
+    ParsedSave parsed;
+    std::string error;
+    ASSERT_TRUE(parseSave(saved, parsed, error)) << error;
+    EXPECT_TRUE(parsed.chunkRecords);
+    // The sections after the magic and the format version: tag (u32), byte length (u64), the payload (its version u32)
+    uint32_t crecVersion = 0;
+    for (size_t pos = 8; pos + 12 <= saved.size();)
+    {
+        uint32_t tag = 0;
+        uint64_t len = 0;
+        std::memcpy(&tag, saved.data() + pos, 4);
+        std::memcpy(&len, saved.data() + pos + 4, 8);
+        if (tag == kTagChunkRecords && len >= 4) std::memcpy(&crecVersion, saved.data() + pos + 12, 4);
+        pos += 12 + size_t(len);
+    }
+    EXPECT_EQ(crecVersion, kChunkRecordSectionVersion);
+    EXPECT_EQ(kChunkRecordSectionVersion, 2u);
+}
+
+// Load errors (the world unchanged): unsorted keys, a slot out of range, a counter out of range, tombstones in a space
+// whose generator has no slots
+TEST(ChunkRecords, LoadErrors)
+{
+    World a(ContentTest::contentTestSetup(2));
+    a.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, {key(0, 12345), key(0, 12346)});
+    const auto blob                   = a.save();
+    std::vector<uint8_t> pair         = keyBytes(0, 12345);
+    const std::vector<uint8_t> second = keyBytes(0, 12346);
+    pair.insert(pair.end(), second.begin(), second.end());
+    const size_t at = findBytes(blob, pair);
+    ASSERT_NE(at, std::string::npos);
+    auto expectError = [&](std::vector<uint8_t> bad, const std::string& what)
+    {
+        World w(ContentTest::contentTestSetup(2));
+        const LoadResult r = loadInto(w, bad);
+        EXPECT_FALSE(r.committed) << what;
+        EXPECT_NE(r.error.find(what), std::string::npos) << r.error;
+    };
+    {
+        std::vector<uint8_t> bad = blob;
+        std::copy(second.begin(), second.end(), bad.begin() + std::ptrdiff_t(at));
+        const std::vector<uint8_t> first = keyBytes(0, 12345);
+        std::copy(first.begin(), first.end(), bad.begin() + std::ptrdiff_t(at + 5));
+        expectError(bad, "not sorted and unique");
+    }
+    {
+        std::vector<uint8_t> bad = blob;
+        bad[at + 5]              = 7;
+        expectError(bad, "a tombstone of slot 7");
+    }
+    {
+        std::vector<uint8_t> bad     = blob;
+        const std::vector<uint8_t> k = keyBytes(0, 20000);
+        std::copy(k.begin(), k.end(), bad.begin() + std::ptrdiff_t(at + 5));
+        expectError(bad, "out of range");
+    }
+    {
+        // The dungeon's AuthoredSpaceGenerator has no slots
+        World d(ContentTest::contentTestSetup(2));
+        d.contentRecordsForUpdate().injectForTests(chunkAt(0, 0, 2), 1, {key(0, 1)});
+        expectError(d.save(), "tombstones in a space whose generator has no slots");
+    }
+}
+
+// ---- tombstones (S23b step 3) --------------------------------------------------------------------------------------
+
+namespace
+{
+// The accepted (in the placement), rejected (no candidate) and excluded (a candidate inside an exclusion) keys of a
+// slot in a chunk at the effective placement version
+struct SlotKeys
+{
+    std::vector<InstanceKey> accepted, rejected, excluded;
+};
+SlotKeys slotKeys(const World& w, const ChunkId& c, uint32_t slot)
+{
+    SlotKeys out;
+    const SpaceGeneration& g = w.generation().space(c.space);
+    const uint16_t v         = w.effectivePlacementVersion(c);
+    const auto p             = w.generation().chunkPlacement(c, v);
+    for (uint32_t n = 0; n < g.generator->candidatesPerChunk(slot); ++n)
+    {
+        Candidate cand;
+        const InstanceKey k = key(slot, n);
+        if (!g.generator->candidate(v, *g.plan, c, slot, n, cand))
+            out.rejected.push_back(k);
+        else if (findInstance(*p, k))
+            out.accepted.push_back(k);
+        else
+            out.excluded.push_back(k);
+    }
+    return out;
+}
+
+// A system that tombstones g_stepKey in phase 4 (the death and flush tests)
+ChunkId g_stepChunk;
+InstanceKey g_stepKey;
+bool g_stepTombstone = false;
+void stepTombstoneSystem(World& w, double)
+{
+    if (!g_stepTombstone) return;
+    g_stepTombstone = false;
+    w.tombstone(g_stepChunk, g_stepKey);
+    // Applied at the flush, not yet
+    EXPECT_FALSE(w.isTombstoned(g_stepChunk, g_stepKey));
+}
+void stepTombstoneSystems(SystemList& l)
+{
+    l.add(Phase::Gameplay, "test_tombstone", stepTombstoneSystem);
+}
+WorldSetup stepTombstoneSetup()
+{
+    WorldSetup s = ContentTest::contentTestSetup(2);
+    s.systems    = stepTombstoneSystems;
+    return s;
+}
+}  // namespace
+
+// A valid key: the record is created at the current version, S22's sequence advances (an entry without deltas, saved
+// by TERR); idempotent; inside a step it applies at the phase flush
+TEST(Tombstone, ApplyIdempotentAndInStep)
+{
+    World w(stepTombstoneSetup());
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(w, c, 0);
+    ASSERT_GE(k.accepted.size(), 2u);
+    ASSERT_FALSE(k.rejected.empty());
+    ASSERT_FALSE(k.excluded.empty()) << "site 0's exclusion lies in chunk (4, 5)";
+    int notified = 0;
+    w.addRecordListener([&](const ChunkId&) { notified++; });
+    std::string error;
+    EXPECT_TRUE(w.checkTombstone(c, k.accepted[0], &error)) << error;
+    w.tombstone(c, k.accepted[0]);
+    ASSERT_TRUE(w.chunkRecord(c));
+    EXPECT_EQ(w.chunkRecord(c)->placementVersion, 2);
+    EXPECT_TRUE(w.isTombstoned(c, k.accepted[0]));
+    EXPECT_FALSE(w.isTombstoned(c, k.accepted[1]));
+    EXPECT_EQ(w.terrainEdits().sequence(c), 1u);
+    EXPECT_FALSE(w.terrainEdits().hasDeltas(c));
+    EXPECT_EQ(notified, 1);
+    // Idempotent
+    w.tombstone(c, k.accepted[0]);
+    EXPECT_EQ(w.terrainEdits().sequence(c), 1u);
+    EXPECT_EQ(notified, 1);
+    // Inside a step: a command applied at the flush of phase 4
+    g_stepChunk     = c;
+    g_stepKey       = k.accepted[1];
+    g_stepTombstone = true;
+    w.step(1);
+    EXPECT_TRUE(w.isTombstoned(c, k.accepted[1]));
+    EXPECT_EQ(w.terrainEdits().sequence(c), 2u);
+    EXPECT_EQ(w.chunkRecord(c)->tombstones, (std::vector<InstanceKey>{k.accepted[0], k.accepted[1]}));
+    // TERR saves the tombstone-only entry; the load restores record and sequence
+    World b(stepTombstoneSetup());
+    ASSERT_TRUE(b.tryLoad(w.save()).ok());
+    EXPECT_EQ(b.terrainEdits().sequence(c), 2u);
+    EXPECT_EQ(b.effectiveRecord(c), w.effectiveRecord(c));
+    EXPECT_EQ(b.hash(), w.hash());
+}
+
+// Regression (PR review of S22): a chunk whose sequence is UINT32_MAX (a save accepts it) wrapped to 0 on the next
+// bump; a tombstone of it is refused and changes nothing (as a terrain edit of it)
+TEST(Tombstone, ExhaustedSequenceRefusesTheTombstone)
+{
+    World w(stepTombstoneSetup());
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(w, c, 0);
+    ASSERT_FALSE(k.accepted.empty());
+    w.terrainEditsForUpdate().setSequence(c, std::numeric_limits<uint32_t>::max());
+    w.tombstone(c, k.accepted[0]);
+    EXPECT_FALSE(w.isTombstoned(c, k.accepted[0]));
+    EXPECT_EQ(w.terrainEdits().sequence(c), std::numeric_limits<uint32_t>::max());
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+}
+
+// An edit of a chunk whose sequence is UINT32_MAX is refused before the tombstone-on-edit placements are generated
+// (the placement generation, which may throw, ran before the sequence check)
+TEST(Tombstone, ExhaustedSequenceRefusesTheEditBeforeGeneration)
+{
+    World w(stepTombstoneSetup());
+    const ChunkId c = chunkAt(4, 5);
+    w.terrainEditsForUpdate().setSequence(c, std::numeric_limits<uint32_t>::max());
+    const uint64_t generations = w.generation().cache().stats().placementGenerations;
+    TerrainBrush b;
+    b.op       = TerrainBrush::Add;
+    b.center   = Vec3(1150, 0, 1400);
+    b.radius   = 12;
+    b.strength = 6;
+    w.editTerrain(0, b);
+    EXPECT_EQ(w.terrainEdits().sequence(c), std::numeric_limits<uint32_t>::max());
+    EXPECT_FALSE(w.terrainEdits().hasDeltas(c));
+    EXPECT_EQ(w.generation().cache().stats().placementGenerations, generations);
+}
+
+// Invalid keys: the check reports them (the world API) and the call stops on the host, also inside a step; a client
+// call stops
+TEST(TombstoneDeathTest, InvalidKeysStop)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    World w(stepTombstoneSetup());
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(w, c, 0);
+    std::string error;
+    EXPECT_FALSE(w.checkTombstone(c, k.rejected[0], &error));
+    EXPECT_NE(error.find("rejected or excluded"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(c, k.excluded[0], &error));
+    EXPECT_NE(error.find("rejected or excluded"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(c, key(0, 16384), &error));
+    EXPECT_NE(error.find("out of range"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(c, key(2, 0), &error));
+    EXPECT_NE(error.find("has no slot 2"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(chunkAt(128, 0), k.accepted[0], &error));
+    EXPECT_NE(error.find("outside the space"), std::string::npos) << error;
+    EXPECT_FALSE(w.checkTombstone(chunkAt(0, 0, 2), key(0, 0), &error));
+    EXPECT_NE(error.find("has no slot 0"), std::string::npos) << error;
+    // An enclosed space whose generator has slots: a tombstone made a sequence-only S22 entry that the save loader
+    // (TERR) and the client (TerrainChunkState) refuse
+    {
+        WorldSetup s = stepTombstoneSetup();
+        s.generators = [](GeneratorList& l)
+        {
+            ContentTest::registerContentTestGenerators<2, ContentTest::Variant::Committed>(l);
+            l.add(3, std::make_shared<EnclosedSlotsGenerator>());
+        };
+        s.config.spaceTemplates[2].generator = 3;
+        World enclosed(s);
+        EXPECT_FALSE(enclosed.checkTombstone(chunkAt(0, 0, 2), key(0, 0), &error));
+        EXPECT_NE(error.find("is enclosed"), std::string::npos) << error;
+    }
+
+    EXPECT_DEATH(w.tombstone(c, k.rejected[0]), "rejected or excluded");
+    EXPECT_DEATH(w.tombstone(c, k.excluded[0]), "rejected or excluded");
+    EXPECT_DEATH(w.tombstone(c, key(0, 16384)), "out of range");
+    EXPECT_DEATH(w.tombstone(chunkAt(-1, 3), k.accepted[0]), "outside the space");
+    auto inStep = [&](InstanceKey bad)
+    {
+        g_stepChunk     = c;
+        g_stepKey       = bad;
+        g_stepTombstone = true;
+        w.step(1);
+    };
+    EXPECT_DEATH(inStep(k.excluded[0]), "rejected or excluded");
+    EXPECT_DEATH(inStep(key(0, 99999)), "out of range");
+    EXPECT_FALSE(w.isTombstoned(c, k.excluded[0]));
+
+    // A client call stops (R-NET-2)
+    auto t       = LoopbackTransport::createNetwork(2, LoopbackOptions());
+    WorldSetup h = ContentTest::contentTestSetup(2);
+    h.transport  = t[0].get();
+    World host(h);
+    WorldSetup cs = ContentTest::contentTestSetup(2);
+    cs.transport  = t[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
+    World client(cs);
+    EXPECT_FALSE(client.checkTombstone(c, k.accepted[0], &error));
+    EXPECT_DEATH(client.tombstone(c, k.accepted[0]), "tombstone on a client");
+}
+
+// A terrain edit creates no chunk record (S22's sequence only), on a FlatGenerator-like hook space and on a test
+// generator space; a tombstone after an edit continues S22's sequence
+TEST(ChunkRecords, EditsCreateNoRecordAndSequencesContinue)
+{
+    World w(ContentTest::contentTestSetup(2));
+    const ChunkId c = chunkAt(4, 5);
+    TerrainBrush b;
+    b.center   = clearSpot(w, c, 3);
+    b.radius   = 3;
+    b.strength = 1;
+    w.editTerrain(0, b);
+    ASSERT_EQ(w.terrainEdits().sequence(c), 1u);
+    EXPECT_TRUE(w.contentRecords().records().empty());
+    const SlotKeys k = slotKeys(w, c, 1);
+    ASSERT_FALSE(k.accepted.empty());
+    w.tombstone(c, k.accepted[0]);
+    EXPECT_EQ(w.terrainEdits().sequence(c), 2u);
+
+    // A world whose only generator is a hook (no slots): an edit, no record, no generation state
+    WorldSetup hook;
+    SpaceTemplate t;
+    t.generator                = 1;
+    t.sizeChunks               = 16;
+    hook.config.spaceTemplates = {t};
+    hook.generators            = [](GeneratorList& l)
+    { l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); })); };
+    World hw(hook);
+    hw.editTerrain(0, b);
+    EXPECT_TRUE(hw.contentRecords().empty());
+    EXPECT_FALSE(hw.writesGenerationState());
+}
+
+// The committed save of S23b: records (stamped, tombstoned, tombstone-only), an edited chunk; it loads and saves again
+// with the same state
+TEST(ChunkRecords, CommittedSaveLoads)
+{
+    const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23b.bin";
+    const ChunkId c45 = chunkAt(4, 5), c20 = chunkAt(20, 30);
+    const char* update = std::getenv("SAIGA_UPDATE_GOLDEN");
+    if (update && std::string(update) == "1")
+    {
+        World w(ContentTest::contentTestSetup(2));
+        stampSiteZero(w);
+        TerrainBrush b;
+        b.center   = Vec3(1110, 0, 1290);
+        b.radius   = 8;
+        b.strength = 2;
+        w.editTerrain(0, b);
+        w.tombstone(c45, slotKeys(w, c45, 0).accepted[0]);
+        w.tombstone(c20, slotKeys(w, c20, 1).accepted[0]);
+        w.step(3);
+        const auto blob = w.save();
+        std::ofstream(path, std::ios::binary)
+            .write(reinterpret_cast<const char*>(blob.data()), std::streamsize(blob.size()));
+        GTEST_SKIP() << "wrote " << path;
+    }
+    std::ifstream f(path, std::ios::binary);
+    const std::vector<uint8_t> blob((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    ASSERT_FALSE(blob.empty()) << path;
+    World w(ContentTest::contentTestSetup(2));
+    const LoadResult r = w.tryLoad(blob);
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_TRUE(w.contentRecords().isStamped(c45));
+    ASSERT_TRUE(w.chunkRecord(c45));
+    // The edit tombstoned the trees under it (tombstone-on-edit), then one more
+    EXPECT_GE(w.chunkRecord(c45)->tombstones.size(), 2u);
+    ASSERT_TRUE(w.chunkRecord(c20));
+    EXPECT_EQ(w.chunkRecord(c20)->tombstones.size(), 1u);
+    EXPECT_FALSE(w.contentRecords().isStamped(c20));
+    EXPECT_EQ(w.terrainEdits().sequence(c20), 1u);
+    EXPECT_FALSE(w.terrainEdits().hasDeltas(c20));
+    EXPECT_TRUE(w.terrainEdits().hasDeltas(c45));
+    EXPECT_EQ(w.terrainEdits().sequence(c45), 1 + w.chunkRecord(c45)->tombstones.size());
+    World again(ContentTest::contentTestSetup(2));
+    ASSERT_TRUE(again.tryLoad(w.save()).ok());
+    EXPECT_EQ(again.hash(), w.hash());
+}
+
+// ---- tombstone and record messages (S23b step 4) -------------------------------------------------------------------
+
+namespace
+{
+std::vector<uint8_t> tombstoneMessage(uint32_t epoch, SpaceId space, const std::vector<TombstoneEntry>& entries)
+{
+    std::vector<uint8_t> out;
+    encodeTombstoneModification(epoch, space, entries, out);
+    return out;
+}
+std::vector<uint8_t> recordMessage(uint32_t epoch, SpaceId space, const std::vector<ChunkRecordPart>& parts)
+{
+    std::vector<uint8_t> out;
+    encodeChunkRecordState(epoch, space, parts, out);
+    return out;
+}
+TombstoneEntry entry(int32_t x, int32_t z, uint16_t version, uint32_t sequence, InstanceKey k)
+{
+    TombstoneEntry e;
+    e.x                = x;
+    e.z                = z;
+    e.placementVersion = version;
+    e.sequence         = sequence;
+    e.key              = k;
+    return e;
+}
+ChunkRecordPart part(int32_t x, int32_t z, uint16_t version, std::vector<InstanceKey> keys)
+{
+    ChunkRecordPart p;
+    p.x                = x;
+    p.z                = z;
+    p.placementVersion = version;
+    p.keys             = std::move(keys);
+    return p;
+}
+void deliverTombstones(World& c, const std::vector<uint8_t>& m)
+{
+    c.replication().onTombstoneModification(0, m.data(), m.size());
+}
+void deliverRecords(World& c, const std::vector<uint8_t>& m)
+{
+    c.replication().onChunkRecordState(0, m.data(), m.size());
+}
+}  // namespace
+
+// Sequences: an old one is dropped, a gap logged and counted (and applied), another epoch dropped; two entries of one
+// chunk in one message apply with consecutive sequences, a skip in the second is a gap only for that entry
+TEST(TombstoneNet, SequencesGapsAndEpochs)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    World& c          = *n.client;
+    const ChunkId k45 = chunkAt(4, 5);
+    // Two entries of one chunk: sequences 1 and 2
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(0, 10)), entry(4, 5, 2, 2, key(0, 11))}));
+    EXPECT_EQ(c.terrainEdits().sequence(k45), 2u);
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 10)));
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 11)));
+    EXPECT_EQ(c.netStats().modificationGaps, 0u);
+    // An old sequence is dropped
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 2, key(0, 12))}));
+    EXPECT_FALSE(c.isTombstoned(k45, key(0, 12)));
+    EXPECT_EQ(c.replication().stats().tombstonesDuplicate, 1u);
+    // The second entry skips: a gap only for it (3 applies, 5 is a gap)
+    deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 2, 3, key(0, 12)), entry(4, 5, 2, 5, key(0, 13))}));
+    EXPECT_EQ(c.netStats().modificationGaps, 1u);
+    EXPECT_EQ(c.terrainEdits().sequence(k45), 5u);
+    EXPECT_TRUE(c.isTombstoned(k45, key(0, 13)));
+    // Another epoch: dropped, not counted as rejected
+    const uint64_t rejected = c.netStats().rejected;
+    deliverTombstones(c, tombstoneMessage(7, 0, {entry(4, 5, 2, 6, key(0, 14))}));
+    EXPECT_FALSE(c.isTombstoned(k45, key(0, 14)));
+    EXPECT_EQ(c.netStats().rejected, rejected);
+    EXPECT_EQ(c.replication().stats().recordsDroppedEpoch, 1u);
+}
+
+// Rejected, counted, nothing applied
+TEST(TombstoneNet, RejectionsApplyNothing)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    World& c            = *n.client;
+    auto expectRejected = [&](const std::vector<uint8_t>& m, bool records, const std::string& what)
+    {
+        const uint64_t before = c.netStats().rejected;
+        const uint64_t hash   = c.hash();
+        if (records)
+            deliverRecords(c, m);
+        else
+            deliverTombstones(c, m);
+        EXPECT_EQ(c.netStats().rejected, before + 1) << what;
+        EXPECT_EQ(c.hash(), hash) << what;
+        EXPECT_TRUE(c.contentRecords().records().empty()) << what;
+    };
+    expectRejected(tombstoneMessage(0, 0, {entry(128, 5, 2, 1, key(0, 1))}), false, "a chunk outside the space");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 3, 1, key(0, 1))}), false, "a version above the current one");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(2, 1))}), false, "a slot beyond the table");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(1, 1024))}), false, "a counter out of range");
+    expectRejected(tombstoneMessage(0, 2, {entry(0, 0, 1, 1, key(0, 1))}), false, "keys in a space without slots");
+    expectRejected(tombstoneMessage(0, 0, {entry(4, 5, 2, 1, key(0, 1)), entry(4, 6, 2, 1, key(9, 1))}), false,
+                   "one invalid entry among valid ones");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 2, {key(0, 5), key(0, 4)})}), true, "unsorted keys");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 3, {key(0, 5)})}), true, "a version above the current one");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 1, {key(0, 5)})}), true, "a version below the pin");
+    expectRejected(recordMessage(0, 2, {part(0, 0, 1, {key(0, 5)})}), true, "keys in a space without slots");
+    expectRejected(recordMessage(0, 0, {part(4, 5, 2, {key(0, 5)}), part(4, 5, 1, {key(0, 6)})}), true,
+                   "parts of one chunk with different versions");
+    // A part without keys needs no slots (the dungeon at its current version)
+    deliverRecords(c, recordMessage(0, 2, {part(0, 0, 1, {})}));
+    EXPECT_TRUE(c.chunkRecord(chunkAt(0, 0, 2)));
+    // A version differing from the chunk's effective one (its record's)
+    {
+        const uint64_t before = c.netStats().rejected;
+        deliverTombstones(c, tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}));
+        deliverRecords(c, recordMessage(0, 2, {part(0, 0, 2, {})}));
+        EXPECT_EQ(c.netStats().rejected, before + 2);
+        EXPECT_EQ(c.chunkRecord(chunkAt(0, 0, 2))->placementVersion, 1);
+    }
+    // A record message after a refused GenerationState
+    GenNet refused(ContentTest::contentTestSetup(2), ContentTest::contentTestSetup(1));
+    refused.step();
+    ASSERT_TRUE(refused.client->generationMismatch());
+    const uint64_t before = refused.client->netStats().rejected;
+    deliverTombstones(*refused.client, tombstoneMessage(0, 0, {entry(4, 5, 1, 1, key(0, 1))}));
+    deliverRecords(*refused.client, recordMessage(0, 0, {part(4, 5, 1, {key(0, 1)})}));
+    EXPECT_EQ(refused.client->netStats().rejected, before + 2);
+    EXPECT_TRUE(refused.client->contentRecords().records().empty());
+}
+
+// The live path: host tombstones reach the client in application order with the terrain edits (sequences equal); a
+// late joiner after a terrain edit on a flat space has no rejections and equal sequences (E10)
+TEST(TombstoneNet, LiveAndFlatJoiner)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(*n.host, c, 1);
+    TerrainBrush b;
+    b.center   = clearSpot(*n.host, c, 3);
+    b.radius   = 3;
+    b.strength = 1;
+    n.host->editTerrain(0, b);
+    n.host->tombstone(c, k.accepted[0]);
+    n.host->editTerrain(0, b);
+    n.host->tombstone(c, k.accepted[1]);
+    n.step();
+    EXPECT_EQ(n.client->terrainEdits().sequence(c), 4u);
+    EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+    // Idempotent: nothing is sent again
+    const uint64_t sent = n.host->replication().stats().tombstoneMessagesSent;
+    n.host->tombstone(c, k.accepted[1]);
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().tombstoneMessagesSent, sent);
+
+    // A flat world: an edit before the join, no rejections, equal sequences
+    GenNet flat(WorldSetup{}, WorldSetup{}, [&](World& h) { h.editTerrain(0, b); });
+    flat.step();
+    EXPECT_EQ(flat.client->netStats().rejected, 0u);
+    EXPECT_EQ(flat.client->terrainEdits().chunkCount(), flat.host->terrainEdits().chunkCount());
+    EXPECT_GT(flat.client->terrainEdits().chunkCount(), 0u);
+    // Per chunk (equal counts alone also held for unequal sequences)
+    for (const auto& kv : flat.host->terrainEdits().chunks(0))
+        EXPECT_EQ(flat.client->terrainEdits().sequence(kv.first), flat.host->terrainEdits().sequence(kv.first));
+}
+
+// A late joiner gets the records of chunks tombstoned before it joined, the ChunkRecordState before the
+// TerrainChunkState (E5); the tombstones pending in the joining step arrive in the snapshot, not again live
+TEST(TombstoneNet, LateJoinerSnapshotOrder)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    const ChunkId c    = chunkAt(4, 5);
+    InstanceKey pending;
+    GenNet n(s, s,
+             [&](World& h)
+             {
+                 TerrainBrush b;
+                 b.center   = Vec3(1150, 0, 1400);
+                 b.radius   = 6;
+                 b.strength = 1;
+                 // Everything pending in the host state list of the joining step (the loopback peer connects at
+                 // once: the host's first step is the join)
+                 h.editTerrain(0, b);
+                 const SlotKeys k = slotKeys(h, c, 1);
+                 h.tombstone(c, k.accepted[0]);
+                 h.editTerrain(0, b);
+                 pending = k.accepted[1];
+                 h.tombstone(c, pending);
+             });
+    // The record arrives before the chunk's terrain state
+    int recordBeforeTerrain = -1;
+    n.client->addRecordListener(
+        [&](const ChunkId& changed)
+        {
+            if (changed == c && recordBeforeTerrain < 0)
+                recordBeforeTerrain = n.client->terrainEdits().sequence(c) == 0 ? 1 : 0;
+        });
+    n.step();
+    EXPECT_EQ(recordBeforeTerrain, 1);
+    EXPECT_TRUE(n.client->isTombstoned(c, pending));
+    EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
+    EXPECT_EQ(n.client->terrainEdits().sequence(c), n.host->terrainEdits().sequence(c));
+    EXPECT_EQ(n.client->replication().stats().tombstonesApplied, 0u) << "the pending tombstone came in the snapshot";
+    EXPECT_EQ(n.client->replication().stats().tombstonesDuplicate, 0u);
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+}
+
+// A host load (Resync): the client clears records and S22's store together; a tombstone made after the save is gone,
+// one in the save comes back with the ChunkRecordState; equal sequences afterwards
+TEST(TombstoneNet, HostLoadResyncs)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    const ChunkId c  = chunkAt(4, 5);
+    const SlotKeys k = slotKeys(*n.host, c, 0);
+    n.host->tombstone(c, k.accepted[0]);
+    n.step();
+    const auto blob = n.host->save();
+    n.host->tombstone(c, k.accepted[1]);
+    n.step();
+    ASSERT_TRUE(n.client->isTombstoned(c, k.accepted[1]));
+    std::vector<ChunkId> changes;
+    n.client->addRecordListener([&](const ChunkId& x) { changes.push_back(x); });
+    ASSERT_TRUE(n.host->tryLoad(blob).ok());
+    n.step();
+    EXPECT_GE(changes.size(), 2u) << "cleared, then the snapshot";
+    EXPECT_TRUE(n.client->isTombstoned(c, k.accepted[0]));
+    EXPECT_FALSE(n.client->isTombstoned(c, k.accepted[1]));
+    EXPECT_EQ(n.client->effectiveRecord(c), n.host->effectiveRecord(c));
+    EXPECT_EQ(n.client->terrainEdits().sequence(c), n.host->terrainEdits().sequence(c));
+    EXPECT_EQ(n.client->netStats().rejected, 0u);
+}
+
+// Bounds: 4096 tombstones in one step arrive in one message, 4097 in two; 3000 injected records in three
+// ChunkRecordStates; one record of 10000 keys in two, united on the client
+TEST(TombstoneNet, MessageBounds)
+{
+    const WorldSetup s = ContentTest::contentTestSetup(2);
+    GenNet n(s, s);
+    n.step();
+    // Accepted test_tree keys of the chunks around (10, 10), in ChunkId then key order
+    std::vector<std::pair<ChunkId, InstanceKey>> keys;
+    for (int32_t x = 10; keys.size() < 4096 + 4097; ++x)
+        for (int32_t z = 10; z < 14; ++z)
+            for (const InstanceKey& k : slotKeys(*n.host, chunkAt(x, z), 0).accepted)
+                keys.push_back({chunkAt(x, z), k});
+    for (size_t i = 0; i < 4096; ++i) n.host->tombstone(keys[i].first, keys[i].second);
+    uint64_t sent = n.host->replication().stats().tombstoneMessagesSent;
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().tombstoneMessagesSent - sent, 1u);
+    EXPECT_EQ(n.client->replication().stats().tombstonesApplied, 4096u);
+    for (size_t i = 4096; i < 4096 + 4097; ++i) n.host->tombstone(keys[i].first, keys[i].second);
+    sent = n.host->replication().stats().tombstoneMessagesSent;
+    n.step();
+    EXPECT_EQ(n.host->replication().stats().tombstoneMessagesSent - sent, 2u);
+    EXPECT_EQ(n.client->replication().stats().tombstonesApplied, 4096u + 4097u);
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+
+    GenNet many(s, s,
+                [](World& h)
+                {
+                    for (int i = 0; i < 3000; ++i)
+                        h.contentRecordsForUpdate().injectForTests(chunkAt(i % 128, i / 128), 2, {key(0, 1)});
+                });
+    many.step();
+    EXPECT_EQ(many.host->replication().stats().recordStatesSent, 3u);
+    EXPECT_EQ(many.client->contentRecords().records().size(), 3000u);
+    EXPECT_EQ(many.client->netStats().rejected, 0u);
+
+    GenNet big(s, s,
+               [](World& h)
+               {
+                   std::vector<InstanceKey> k;
+                   for (uint32_t i = 0; i < 10000; ++i) k.push_back(key(0, i));
+                   h.contentRecordsForUpdate().injectForTests(chunkAt(4, 5), 2, k);
+               });
+    big.step();
+    EXPECT_EQ(big.host->replication().stats().recordStatesSent, 2u);
+    ASSERT_TRUE(big.client->chunkRecord(chunkAt(4, 5)));
+    EXPECT_EQ(big.client->chunkRecord(chunkAt(4, 5))->tombstones.size(), 10000u);
+}
+
+// ---- content render sets (S23b step 5) -----------------------------------------------------------------------------
+
+namespace
+{
+// The content setup with the scenario's fullRadius (128 m: a few chunks per centre)
+WorldSetup contentRenderSetup(uint16_t version = 2, double radius = 128)
+{
+    WorldSetup s = ContentTest::contentTestSetup(version);
+    for (SpaceTemplate& t : s.config.spaceTemplates) t.fullRadius = radius;
+    return s;
+}
+
+RegionId regionOf(const ChunkId& c)
+{
+    RegionId r;
+    r.space = c.space;
+    r.level = 0;
+    r.x     = c.x;
+    r.z     = c.z;
+    return r;
+}
+
+void setCentres(World& w, ContentCentres centres)
+{
+    ContentRenderSettings s;
+    s.centres = centres;
+    w.setContentRenderSettings(s);
+}
+
+// The expected array of a chunk's set: the conversion of its placement at version and its static parts, the record's
+// tombstones at scale 0
+std::vector<StaticInstance> expectedSet(World& w, const ChunkId& c, uint16_t version)
+{
+    std::vector<InstanceKey> keys;
+    std::vector<StaticInstance> v = w.contentRenderForUpdate().buildInstances(c, version, &keys);
+    if (const ChunkRecord* r = w.chunkRecord(c))
+        for (size_t i = 0; i < keys.size(); ++i)
+            if (r->tombstoned(keys[i])) v[i].scale = 0;
+    return v;
+}
+
+bool sameInstances(const std::vector<StaticInstance>& a, const std::vector<StaticInstance>& b)
+{
+    return a.size() == b.size() && std::memcmp(a.data(), b.data(), a.size() * sizeof(StaticInstance)) == 0;
+}
+
+// The index of a key in a chunk's set
+size_t indexOfKey(World& w, const ChunkId& c, uint16_t version, const InstanceKey& k)
+{
+    std::vector<InstanceKey> keys;
+    w.contentRenderForUpdate().buildInstances(c, version, &keys);
+    return size_t(std::lower_bound(keys.begin(), keys.end(), k) - keys.begin());
+}
+
+const ChunkId kSiteChunk = {0, 4, 5};
+const Vec3 kSitePlayer(1150, 0, 1400);
+
+// A latch that holds pool jobs in a test hook. Declared before the World: queued jobs copy the hook, which references
+// the latch until the World's pool is joined. Its Opener, declared after the World, opens it on every exit path (also
+// an ASSERT's early return) before the World joins its workers, so no held job blocks the teardown
+struct JobLatch
+{
+    std::mutex m;
+    std::condition_variable cv;
+    bool released = false;
+    void wait()
+    {
+        std::unique_lock<std::mutex> lock(m);
+        cv.wait(lock, [&] { return released; });
+    }
+    void open()
+    {
+        {
+            std::lock_guard<std::mutex> lock(m);
+            released = true;
+        }
+        cv.notify_all();
+    }
+    void close()
+    {
+        std::lock_guard<std::mutex> lock(m);
+        released = false;
+    }
+    struct Opener
+    {
+        JobLatch& latch;
+        ~Opener() { latch.open(); }
+    };
+};
+}  // namespace
+
+// One set per chunk around the players: tier-1 instances, then the static parts; a later tombstone hides its instance
+// at once (removeInstance); chunks without instances or static parts get no set; sets beyond the hysteresis go
+TEST(ContentRender, SetsAroundPlayers)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    const Entity p = addPlayer(w, kSitePlayer);
+    w.step(1);
+    const auto* set = sink.instanceSetAt(regionOf(kSiteChunk));
+    ASSERT_TRUE(set);
+    const auto expected = expectedSet(w, kSiteChunk, 2);
+    EXPECT_TRUE(sameInstances(set->instances, expected));
+    // The static parts of site 0 (two pillars) after the tier-1 instances, under slot 255
+    const auto& statics = w.generation().staticList(kSiteChunk);
+    ASSERT_EQ(statics.size(), 2u);
+    EXPECT_EQ(set->instances[set->instances.size() - 2].key, 255u << 24 | 0u);
+    EXPECT_EQ(set->instances.back().key, 255u << 24 | 1u);
+    EXPECT_EQ(set->instances.back().mesh, w.findMesh("test/pillar"));
+    EXPECT_EQ(sink.liveInstanceSets(), w.contentRender().liveSets());
+    EXPECT_EQ(w.contentRender().liveSets(), 3u) << "(4, 5), (4, 4), (3, 5)";
+    // A tombstone: removeInstance at once
+    const SlotKeys k       = slotKeys(w, kSiteChunk, 0);
+    const uint64_t removes = sink.counters().removeInstance;
+    w.tombstone(kSiteChunk, k.accepted[0]);
+    EXPECT_EQ(sink.counters().removeInstance, removes + 1);
+    const size_t idx = indexOfKey(w, kSiteChunk, 2, k.accepted[0]);
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[idx].scale, 0.0f);
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(kSiteChunk))->instances, expectedSet(w, kSiteChunk, 2)));
+    // Away: beyond fullRadius + 256 m the sets go
+    w.get<Transform>(p).setPosition(Vec3(1150 + 300, 0, 1400));
+    w.step(1);
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk))) << "within the hysteresis";
+    w.get<Transform>(p).setPosition(Vec3(1150 + 700, 0, 1400));
+    w.step(1);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(kSiteChunk)));
+
+    // The dungeon: only the chunk of the static rooms gets a set (no slots)
+    w.moveToSpace(p, 2, Vec3(2176, 0, 2176), Quat::Identity());
+    w.step(2);
+    const ChunkId rooms = chunkAt(8, 8, 2);
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(rooms)));
+    EXPECT_EQ(sink.instanceSetAt(regionOf(rooms))->instances.size(), 2u);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(chunkAt(8, 7, 2))));
+    EXPECT_GT(w.contentRender().stats().emptyChunks, 0u);
+}
+
+// A disc whose lower edge lies on a chunk boundary includes the chunk below that touches it (distance exactly r): the
+// lower index was floor((x - r) / 256), which skipped chunk (4, 5) for a player at x = 1408 (1408 - 128 = 5 * 256)
+TEST(ContentRender, DiscEdgeOnChunkBoundary)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    addPlayer(w, Vec3(1408, 0, 1400));
+    w.step(1);
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+}
+
+// No sets and no pool job without centres (a sink alone builds nothing), in a setup without slots and static parts,
+// and on the sink-less host of a loopback pair
+TEST(ContentRender, OnlyWhenNeeded)
+{
+    {
+        World w(contentRenderSetup());
+        RecordingRenderSink sink;
+        w.setRenderSink(&sink);
+        addPlayer(w, kSitePlayer);
+        w.step(2);
+        w.terrain().updateView(0, Vec3(1150, 50, 1400));
+        EXPECT_EQ(w.contentRender().stats().passes, 0u);
+        EXPECT_EQ(w.contentRender().stats().poolJobs, 0u);
+        EXPECT_EQ(sink.liveInstanceSets(), 0u);
+    }
+    {
+        WorldSetup hook;
+        SpaceTemplate t;
+        t.generator                = 1;
+        t.sizeChunks               = 16;
+        hook.config.spaceTemplates = {t};
+        hook.generators            = [](GeneratorList& l)
+        {
+            l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); }));
+        };
+        World w(hook);
+        RecordingRenderSink sink;
+        w.setRenderSink(&sink);
+        setCentres(w, ContentCentres::Players);
+        addPlayer(w, Vec3(500, 0, 500));
+        w.step(2);
+        EXPECT_EQ(sink.liveInstanceSets(), 0u);
+        EXPECT_EQ(w.generation().cache().stats().placementGenerations, 0u);
+    }
+    {
+        const WorldSetup s = contentRenderSetup();
+        GenNet n(s, s);
+        addPlayer(*n.host, kSitePlayer);
+        n.step();
+        EXPECT_EQ(n.host->contentRender().stats().passes, 0u);
+        EXPECT_EQ(n.host->contentRender().liveSets(), 0u);
+    }
+}
+
+TEST(ContentRenderDeathTest, CentresNeedASink)
+{
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    World w(contentRenderSetup());
+    EXPECT_DEATH(setCentres(w, ContentCentres::Players), "need a render sink");
+    // The recording sink: a second live set for one region asserts
+    RecordingRenderSink sink;
+    sink.addInstanceSet(regionOf(kSiteChunk), {});
+    sink.addInstanceSet(regionOf(kSiteChunk), {});
+    EXPECT_DEATH(sink.instanceSetAt(regionOf(kSiteChunk)), "2 live sets for one region");
+}
+
+// The recording sink's arrays follow updateInstances and removeInstance
+TEST(ContentRender, RecordingSinkArrays)
+{
+    RecordingRenderSink sink;
+    const MeshId mesh = MeshId(Vulkan::kGameReservedIds);
+    sink.registerMaterial(MaterialId(Vulkan::kGameReservedIds), "m", MaterialData());
+    sink.registerMesh(mesh, "box", ContentTest::contentTestBox(1, 1, 1, 0xFFFFFFFFu),
+                      MaterialId(Vulkan::kGameReservedIds));
+    StaticInstance a, b;
+    a.scale                   = 1;
+    b.scale                   = 2;
+    a.mesh                    = mesh;
+    b.mesh                    = mesh;
+    const InstanceSetHandle h = sink.addInstanceSet(regionOf(kSiteChunk), {a, a, a}, 4);
+    sink.removeInstance(h, 1);
+    EXPECT_EQ(sink.instanceSet(h)->instances[1].scale, 0.0f);
+    sink.updateInstances(h, 1, {b, b});
+    EXPECT_EQ(sink.instanceSet(h)->instances[1].scale, 2.0f);
+    EXPECT_EQ(sink.instanceSet(h)->instances[2].scale, 2.0f);
+    EXPECT_EQ(sink.instanceSet(h)->capacity, 4u);
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk)), sink.instanceSet(h));
+    sink.removeInstanceSet(h);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    // An update past the end leaves the gap at scale 0 (the default instance of scale 1 looked drawn)
+    const InstanceSetHandle g = sink.addInstanceSet(regionOf(kSiteChunk), {a}, 4);
+    sink.updateInstances(g, 3, {b});
+    ASSERT_EQ(sink.instanceSet(g)->instances.size(), 4u);
+    EXPECT_EQ(sink.instanceSet(g)->instances[0].scale, 1.0f);
+    EXPECT_EQ(sink.instanceSet(g)->instances[1].scale, 0.0f);
+    EXPECT_EQ(sink.instanceSet(g)->instances[2].scale, 0.0f);
+    EXPECT_EQ(sink.instanceSet(g)->instances[3].scale, 2.0f);
+}
+
+// View with the camera in the dungeon (no terrain: S20 requests nothing): the static-geometry set is built by
+// completeView and the readiness reaches 1; in the overworld the readiness is below 1 until the sets exist
+TEST(ContentRender, ViewBuildsSetsAndReadiness)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::View);
+    const Vec3 room(2176, 2, 2176);
+    EXPECT_LT(w.spaceReadiness(2, room, 100), 1.0);
+    // completeView's deadline also bounds the content part: after it no set is built and the view is incomplete (the
+    // content sets were built without a deadline)
+    EXPECT_FALSE(w.terrain().completeView(2, room, 0));
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(chunkAt(8, 8, 2))));
+    ASSERT_TRUE(w.terrain().completeView(2, room));
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(chunkAt(8, 8, 2))));
+    EXPECT_EQ(w.spaceReadiness(2, room, 100), 1.0);
+    // The overworld: below 1 before the sets of the radius exist; completeView waits for them
+    const Vec3 cam(1150, 60, 1400);
+    EXPECT_LT(w.spaceReadiness(0, cam, 128), 1.0);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    EXPECT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(chunkAt(8, 8, 2)))) << "the dungeon's set left with the switch (D5)";
+    EXPECT_EQ(w.spaceReadiness(0, cam, 128), 1.0);
+}
+
+// A pool result whose request was replaced before the drain is dropped and requested again; a tombstone during a
+// held job does not drop the result, which arrives with the instance at scale 0
+TEST(ContentRender, HeldPoolResults)
+{
+    JobLatch latch;
+    std::atomic<uint64_t> started{0};
+    World w(contentRenderSetup());
+    JobLatch::Opener opener{latch};
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::View);
+    w.contentRenderForUpdate().jobHookForTests = [&]()
+    {
+        started++;
+        latch.wait();
+    };
+    const Vec3 cam(1150, 60, 1400);
+    w.terrain().updateView(0, cam);
+    const uint64_t jobs = w.contentRender().stats().poolJobs;
+    ASSERT_GE(jobs, 3u) << "more requests than the 2 workers: one stays queued";
+    // Away (the sets and their requests go) and back (requested again): the first results are stale
+    w.terrain().updateView(0, Vec3(9000, 60, 9000));
+    w.terrain().updateView(0, cam);
+    EXPECT_GT(w.contentRender().stats().poolJobs, jobs);
+    // A tombstone while the jobs are held
+    const SlotKeys k = slotKeys(w, kSiteChunk, 0);
+    w.tombstone(kSiteChunk, k.accepted[0]);
+    latch.open();
+    for (int i = 0; i < 2000 && !sink.instanceSetAt(regionOf(kSiteChunk)); ++i)
+    {
+        w.terrain().updateView(0, cam);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    EXPECT_GE(w.contentRender().stats().resultsDropped, jobs);
+    const size_t idx = indexOfKey(w, kSiteChunk, 2, k.accepted[0]);
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[idx].scale, 0.0f);
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(kSiteChunk))->instances, expectedSet(w, kSiteChunk, 2)));
+    // The requests still queued when their sets went were cancelled and never ran (they stayed in the pool and ran
+    // after the move, ahead of the newer requests)
+    w.terrain().streamingPool().waitIdle();
+    EXPECT_LT(started.load(), w.contentRender().stats().poolJobs);
+    w.contentRenderForUpdate().jobHookForTests = nullptr;
+}
+
+// An unknown mesh name is logged once and its instances get scale 0
+TEST(ContentRender, UnknownMeshLoggedOnce)
+{
+    WorldSetup s   = contentRenderSetup();
+    s.renderAssets = [](World& w)
+    {
+        static const auto box      = ContentTest::contentTestBox(0.5f, 0.5f, 0.5f, 0xFFFFFFFFu);
+        const Vulkan::MaterialId m = w.registerMaterial("test/content_flat", Vulkan::MaterialData());
+        for (const char* n : {"test/tree_a", "test/tree_b", "test/pillar", "test/chest"}) w.registerMesh(n, box, m);
+    };
+    World w(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    const uint64_t log = engineLog().lastSequence();
+    addPlayer(w, kSitePlayer);
+    w.step(1);
+    EXPECT_GE(w.contentRender().liveSets(), 2u);
+    EXPECT_EQ(w.contentRender().stats().unknownMeshes, 1u);
+    const std::string lines = logSince(log);
+    const size_t first      = lines.find("\"test/rock\" is not registered");
+    EXPECT_NE(first, std::string::npos) << lines;
+    EXPECT_EQ(lines.find("\"test/rock\" is not registered", first + 1), std::string::npos);
+    for (const StaticInstance& i : sink.instanceSetAt(regionOf(kSiteChunk))->instances)
+    {
+        if ((i.key >> 24) == 1)
+        {
+            EXPECT_EQ(i.scale, 0.0f);
+        }
+    }
+}
+
+// Older placement versions on a host world: a v1 save (chunk (4, 5) recorded at v1 with a tombstone) loaded into the
+// v2 setup builds (4, 5) at v1 and an unrecorded chunk at v2; a v1 record injected for that chunk rebuilds it at v1
+TEST(ContentRender, OlderPlacementVersions)
+{
+    World old(contentRenderSetup(1));
+    addPlayer(old, kSitePlayer);
+    old.step(1);
+    const SlotKeys k = slotKeys(old, kSiteChunk, 0);
+    old.tombstone(kSiteChunk, k.accepted[0]);
+    ASSERT_EQ(old.chunkRecord(kSiteChunk)->placementVersion, 1);
+    const auto blob = old.save();
+
+    World w(contentRenderSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    ASSERT_TRUE(w.tryLoad(blob).ok());
+    w.step(1);
+    const ChunkId other = chunkAt(4, 4);
+    ASSERT_FALSE(w.chunkRecord(other));
+    EXPECT_EQ(w.effectivePlacementVersion(other), 2);
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(kSiteChunk)));
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(other)));
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(kSiteChunk))->instances, expectedSet(w, kSiteChunk, 1)));
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[indexOfKey(w, kSiteChunk, 1, k.accepted[0])].scale,
+              0.0f);
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(other))->instances, expectedSet(w, other, 2)));
+    EXPECT_FALSE(sameInstances(expectedSet(w, other, 1), expectedSet(w, other, 2)));
+    const uint64_t removed = sink.counters().removeInstanceSet;
+    w.contentRecordsForUpdate().injectForTests(other, 1, {});
+    w.onRecordChanged(other);
+    EXPECT_EQ(sink.counters().removeInstanceSet, removed + 1);
+    EXPECT_FALSE(sink.instanceSetAt(regionOf(other)));
+    w.step(1);
+    ASSERT_TRUE(sink.instanceSetAt(regionOf(other)));
+    EXPECT_TRUE(sameInstances(sink.instanceSetAt(regionOf(other))->instances, expectedSet(w, other, 1)));
+}
+
+// A client: a record change applied in stepNetworkOnly reaches its sink at once; after a host load the Resync clear
+// restores the instances (updateInstances with the original), and the following ChunkRecordState hides the saved one
+TEST(ContentRender, ClientRecordChanges)
+{
+    const WorldSetup s = contentRenderSetup();
+    GenNet n(s, s);
+    RecordingRenderSink hostSink, clientSink;
+    n.host->setRenderSink(&hostSink);
+    n.client->setRenderSink(&clientSink);
+    setCentres(*n.host, ContentCentres::Players);
+    setCentres(*n.client, ContentCentres::Players);
+    addPlayer(*n.host, kSitePlayer);
+    n.step(4);
+    ASSERT_TRUE(clientSink.instanceSetAt(regionOf(kSiteChunk)));
+    const SlotKeys k = slotKeys(*n.host, kSiteChunk, 0);
+    const size_t a   = indexOfKey(*n.host, kSiteChunk, 2, k.accepted[0]),
+                 b   = indexOfKey(*n.host, kSiteChunk, 2, k.accepted[1]);
+    auto scale       = [&](size_t i) { return clientSink.instanceSetAt(regionOf(kSiteChunk))->instances[i].scale; };
+    n.host->tombstone(kSiteChunk, k.accepted[0]);
+    n.host->step();
+    n.client->stepNetworkOnly();
+    EXPECT_EQ(scale(a), 0.0f) << "applied in stepNetworkOnly, at once";
+    const auto blob = n.host->save();
+    n.host->tombstone(kSiteChunk, k.accepted[1]);
+    n.step();
+    EXPECT_EQ(scale(b), 0.0f);
+    // The host load: the clear restores both, the snapshot hides a again
+    bool checkedClear = false;
+    n.client->addRecordListener(
+        [&](const ChunkId& c)
+        {
+            if (c != kSiteChunk || checkedClear || n.client->chunkRecord(c)) return;
+            checkedClear = true;
+            EXPECT_GT(scale(a), 0.0f);
+            EXPECT_GT(scale(b), 0.0f);
+        });
+    const uint64_t restores = clientSink.counters().updateInstances;
+    ASSERT_TRUE(n.host->tryLoad(blob).ok());
+    n.step();
+    EXPECT_TRUE(checkedClear);
+    EXPECT_GE(clientSink.counters().updateInstances, restores + 2);
+    ASSERT_TRUE(clientSink.instanceSetAt(regionOf(kSiteChunk)));
+    EXPECT_EQ(scale(a), 0.0f);
+    EXPECT_GT(scale(b), 0.0f);
+    EXPECT_EQ(n.client->terrainEdits().sequence(kSiteChunk), n.host->terrainEdits().sequence(kSiteChunk));
+    n.client->setRenderSink(nullptr);
+    n.host->setRenderSink(nullptr);
+}
+
+// ---- grass masks from the generator (S23b step 6) ------------------------------------------------------------------
+
+namespace
+{
+WorldSetup prototypeGrassSetup(double minNormalY = 0.82)
+{
+    WorldSetup s;
+    s.seed      = 1;
+    s.profiling = false;
+    SpaceTemplate t;
+    t.name                  = "prototype";
+    t.baseSpacing           = 1;
+    t.sizeChunks            = Vulkan::kPrototypeSpaceChunks;
+    t.seaLevel              = Vulkan::kPrototypeSeaLevel;
+    t.generator             = 1;
+    s.config.spaceTemplates = {t};
+    static double threshold;
+    threshold    = minNormalY;
+    s.generators = [](GeneratorList& l)
+    {
+        l.add(1, std::make_shared<HookGenerator>("prototype", Vulkan::prototypeHeight, HookGrassRule{threshold, 0.4},
+                                                 false));
+    };
+    return s;
+}
+
+std::vector<uint8_t> density(const GrassMaskData& m)
+{
+    return m.density ? *m.density : std::vector<uint8_t>(size_t(m.size) * size_t(m.size), 0);
+}
+
+// updateView until the edited masks are done (no queue, no job in flight); false if they are not done in time
+bool settleMasks(World& w, SpaceId space, const Vec3& camera)
+{
+    for (int i = 0; i < 4000; ++i)
+    {
+        w.terrain().updateView(space, camera);
+        const TerrainSystem::Stats& s = w.terrain().stats();
+        if (w.terrain().dirtyQueue().size() == 0 && s.maskQueue == 0 && s.maskJobsInFlight == 0 && i > 2) return true;
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    return false;
+}
+}  // namespace
+
+// A generator space: each chunk's mask is its ChunkPlacement's grass at the effective placement version
+TEST(GrassFromGenerator, TestGeneratorMasks)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(1150, 60, 1400);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_TRUE(sink.grassMasks().count(kSiteChunk));
+    const auto p = w.generation().chunkPlacement(kSiteChunk, 2);
+    EXPECT_EQ(density(sink.grassMasks().at(kSiteChunk)), p->grass.density);
+    EXPECT_EQ(sink.grassMasks().at(kSiteChunk).size, p->grass.size);
+    w.setRenderSink(nullptr);
+}
+
+// A placement-version change of a chunk whose mask was sent: the new mask is uploaded although completeView stores it
+// before its send pass runs (the sink kept the old version's mask: the chunk still counted as sent)
+TEST(GrassFromGenerator, VersionChangeResendsTheMask)
+{
+    // A v1 world's save loaded into the v2 setup: pinned at v1, unrecorded chunks at v2
+    World old(contentRenderSetup(1));
+    World w(contentRenderSetup());
+    ASSERT_TRUE(w.tryLoad(old.save()).ok());
+    ASSERT_EQ(w.effectivePlacementVersion(kSiteChunk), 2);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(1150, 60, 1400);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    const auto v1 = w.generation().chunkPlacement(kSiteChunk, 1);
+    const auto v2 = w.generation().chunkPlacement(kSiteChunk, 2);
+    ASSERT_NE(v1->grass.density, v2->grass.density);
+    ASSERT_TRUE(sink.grassMasks().count(kSiteChunk));
+    ASSERT_EQ(density(sink.grassMasks().at(kSiteChunk)), v2->grass.density);
+    w.contentRecordsForUpdate().injectForTests(kSiteChunk, 1, {});
+    w.onRecordChanged(kSiteChunk);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_TRUE(sink.grassMasks().count(kSiteChunk));
+    EXPECT_EQ(density(sink.grassMasks().at(kSiteChunk)), v1->grass.density);
+    w.setRenderSink(nullptr);
+}
+
+// The prototype (a legacy hook generator): S20's rule over the level-0 tile, without a ChunkPlacement, byte-equal to
+// HookGenerator::grassMask; other thresholds give other masks
+TEST(GrassFromGenerator, PrototypeMasksFromTheTile)
+{
+    World w(prototypeGrassSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(2000, 80, 2000);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    ASSERT_FALSE(sink.grassMasks().empty());
+    EXPECT_EQ(w.generation().cache().stats().placementGenerations, 0u);
+    const SpaceGeneration& g = w.generation().space(0);
+    bool someGrass           = false;
+    for (const auto& [c, m] : sink.grassMasks())
+    {
+        RegionId r                     = regionOf(c);
+        const TerrainStore::Tile* tile = w.terrain().store(0).tile(r);
+        ASSERT_TRUE(tile);
+        const GrassMaskData rule =
+            generateGrassMask(tile->data, w.terrain().layout(0), Vulkan::kPrototypeSeaLevel, 0.82, 0.4);
+        EXPECT_EQ(density(m), density(rule));
+        GrassMask hook;
+        g.generator->grassMask(1, *g.plan, c, hook);
+        EXPECT_EQ(density(m), hook.density);
+        for (uint8_t v : density(m)) someGrass = someGrass || v != 0;
+    }
+    EXPECT_TRUE(someGrass);
+    // Another threshold: other masks
+    World steep(prototypeGrassSetup(0.97));
+    RecordingRenderSink steepSink;
+    steep.setRenderSink(&steepSink);
+    ASSERT_TRUE(steep.terrain().completeView(0, cam));
+    bool differs = false;
+    for (const auto& [c, m] : sink.grassMasks())
+        if (steepSink.grassMasks().count(c)) differs = differs || density(m) != density(steepSink.grassMasks().at(c));
+    EXPECT_TRUE(differs);
+    w.setRenderSink(nullptr);
+    steep.setRenderSink(nullptr);
+}
+
+// An edited chunk of the test generator: its generator mask AND S20's rule over the merged heights (grassEditRule);
+// F1: a tombstone in the chunk while its mask job is held does not drop the result, a second edit does
+TEST(GrassFromGenerator, EditedChunksAndTombstones)
+{
+    JobLatch latch;
+    std::atomic<int> held{0};
+    World w(contentRenderSetup());
+    JobLatch::Opener opener{latch};
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Vec3 cam(1150, 60, 1400);
+    ASSERT_TRUE(w.terrain().completeView(0, cam));
+    TerrainBrush b;
+    b.op       = TerrainBrush::Add;
+    b.center   = Vec3(1150, 0, 1400);
+    b.radius   = 12;
+    b.strength = 6;
+    w.editTerrain(0, b);
+    ASSERT_TRUE(settleMasks(w, 0, cam));
+    ASSERT_TRUE(w.terrainEdits().hasDeltas(kSiteChunk));
+    // The expected mask: the merged level-0 heights of the chunk through S20's rule, ANDed with the generator mask
+    const auto p    = w.generation().chunkPlacement(kSiteChunk, 2);
+    const int64_t S = 128, N = 129;
+    auto heights = std::make_shared<std::vector<int32_t>>(size_t(N * N));
+    for (int64_t k = 0; k < N; ++k)
+        for (int64_t i = 0; i < N; ++i) (*heights)[size_t(k * N + i)] = w.terrainSample(0, 4 * S + i, 5 * S + k);
+    TerrainTileData tile;
+    tile.heights   = heights;
+    tile.minHeight = *std::min_element(heights->begin(), heights->end());
+    tile.maxHeight = *std::max_element(heights->begin(), heights->end());
+    const std::vector<uint8_t> rule =
+        density(generateGrassMask(tile, w.terrain().layout(0), 0, 53740.0 / 65536.0, 410.0 / 1024.0));
+    std::vector<uint8_t> expected = p->grass.density;
+    for (size_t i = 0; i < expected.size(); ++i)
+        if (rule[i] == 0) expected[i] = 0;
+    ASSERT_TRUE(sink.grassMasks().count(kSiteChunk));
+    EXPECT_EQ(density(sink.grassMasks().at(kSiteChunk)), expected);
+    EXPECT_NE(expected, p->grass.density) << "the mound's slope removes grass";
+
+    // F1: a held edited-mask job; a tombstone meanwhile does not drop its result
+    w.terrain().maskJobHookForTests = [&]()
+    {
+        held++;
+        latch.wait();
+    };
+    b.center = Vec3(1160, 0, 1410);
+    w.editTerrain(0, b);
+    for (int i = 0; i < 200 && held == 0; ++i)
+    {
+        w.terrain().updateView(0, cam);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_GT(held.load(), 0);
+    const uint64_t dropped = w.terrain().stats().maskResultsDropped, recomputes = w.terrain().stats().maskRecomputes;
+    w.tombstone(kSiteChunk, slotKeys(w, kSiteChunk, 1).accepted[0]);
+    latch.open();
+    ASSERT_TRUE(settleMasks(w, 0, cam)) << "the next pass would count this pass' jobs";
+    EXPECT_EQ(w.terrain().stats().maskResultsDropped, dropped);
+    EXPECT_GT(w.terrain().stats().maskRecomputes, recomputes);
+    // A second edit while the job is held drops it
+    latch.close();
+    held     = 0;
+    b.center = Vec3(1170, 0, 1420);
+    w.editTerrain(0, b);
+    for (int i = 0; i < 200 && held == 0; ++i)
+    {
+        w.terrain().updateView(0, cam);
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+    ASSERT_GT(held.load(), 0);
+    b.center = Vec3(1180, 0, 1430);
+    w.editTerrain(0, b);
+    latch.open();
+    ASSERT_TRUE(settleMasks(w, 0, cam));
+    EXPECT_GT(w.terrain().stats().maskResultsDropped, dropped);
+    w.terrain().maskJobHookForTests = nullptr;
+    w.setRenderSink(nullptr);
+}
+
+// ---- terrain edits: tombstone-on-edit and re-snap (S23b step 7) ----------------------------------------------------
+
+namespace
+{
+// A test_rock of chunk (4, 5) with a test_tree within 5 m (the brush at the rock covers both)
+struct RockAndTree
+{
+    InstanceKey rock, tree;
+    Vec3 rockPosition = Vec3::Zero();
+};
+RockAndTree rockAndTree(const World& w)
+{
+    RockAndTree out;
+    const auto p = w.generation().chunkPlacement(kSiteChunk, w.effectivePlacementVersion(kSiteChunk));
+    for (const TierOneInstance& r : p->instances)
+    {
+        if (r.key.generatorSlot != 1) continue;
+        for (const TierOneInstance& t : p->instances)
+        {
+            if (t.key.generatorSlot != 0) continue;
+            const double dx = (t.x - r.x) / 256.0, dz = (t.z - r.z) / 256.0;
+            if (dx * dx + dz * dz > 25) continue;
+            out.rock         = r.key;
+            out.tree         = t.key;
+            out.rockPosition = contentPosition(kSiteChunk, r.x, r.y, r.z);
+            return out;
+        }
+    }
+    ADD_FAILURE() << "no rock with a tree within 5 m in chunk (4, 5)";
+    return out;
+}
+
+TerrainBrush moundAt(const Vec3& p)
+{
+    TerrainBrush b;
+    b.op       = TerrainBrush::Add;
+    b.center   = Vec3(p.x(), 0, p.z());
+    b.radius   = 10;
+    b.strength = 2;
+    return b;
+}
+
+// The y (m) of a key in a sink's set of chunk (4, 5)
+float setY(World& w, RecordingRenderSink& sink, const InstanceKey& k)
+{
+    const auto* set = sink.instanceSetAt(regionOf(kSiteChunk));
+    if (!set) return std::numeric_limits<float>::quiet_NaN();
+    return set->instances[indexOfKey(w, kSiteChunk, w.effectivePlacementVersion(kSiteChunk), k)].position[1];
+}
+
+// Delegates to TestTerrainGenerator and throws from candidate() while g_throwCandidates is set
+std::atomic<bool> g_throwCandidates{false};
+class ThrowingGenerator final : public Generator
+{
+   public:
+    const char* name() const override { return "test_throwing"; }
+    uint16_t version() const override { return base.version(); }
+    std::vector<GeneratorSlot> slots() const override { return base.slots(); }
+    void plan(uint16_t v, WorldPlan& p) const override { base.plan(v, p); }
+    int32_t height(uint16_t v, const WorldPlan& p, int64_t x, int64_t z) const override
+    {
+        return base.height(v, p, x, z);
+    }
+    bool candidate(uint16_t v, const WorldPlan& p, ChunkId c, uint32_t s, uint32_t n, Candidate& o) const override
+    {
+        if (g_throwCandidates) throw std::runtime_error("test: chunk generation fails");
+        return base.candidate(v, p, c, s, n, o);
+    }
+    uint32_t candidatesPerChunk(uint32_t s) const override { return base.candidatesPerChunk(s); }
+    uint32_t keptCount(uint32_t s, int l) const override { return base.keptCount(s, l); }
+    void grassMask(uint16_t v, const WorldPlan& p, ChunkId c, GrassMask& o) const override
+    {
+        base.grassMask(v, p, c, o);
+    }
+
+   private:
+    ContentTest::TestTerrainGenerator base{2};
+};
+}  // namespace
+
+// An Add brush over a rock and a tree: the rock's y in the live set and tierOnePosition equal the edited surface; the
+// tree is tombstoned after the terrain part's sequence and listed in the result; a set built after the edit has the
+// re-snapped y; a rejected candidate has no position
+TEST(ContentEdit, ResnapAndTombstoneOnEdit)
+{
+    World w(contentRenderSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    setCentres(w, ContentCentres::Players);
+    addPlayer(w, kSitePlayer);
+    w.step(1);
+    const RockAndTree rt = rockAndTree(w);
+    const float before   = setY(w, sink, rt.rock);
+    EXPECT_EQ(before, float(rt.rockPosition.y()));
+    const TerrainEditResult r = applyTerrainEdit(w, 0, moundAt(rt.rockPosition));
+    w.step(1);
+    // The rock: re-snapped to the edited surface (derived)
+    const std::optional<Vec3> rock = w.tierOnePosition(kSiteChunk, rt.rock);
+    ASSERT_TRUE(rock);
+    EXPECT_GT(rock->y(), rt.rockPosition.y());
+    EXPECT_EQ(setY(w, sink, rt.rock), float(rock->y()));
+    EXPECT_EQ(rock->y(), double(tierOneSurface(w, kSiteChunk, int32_t(std::lround((rock->x() - 1024) * 256)),
+                                               int32_t(std::lround((rock->z() - 1280) * 256)))) /
+                             1024.0);
+    EXPECT_FALSE(w.isTombstoned(kSiteChunk, rt.rock));
+    // The tree: tombstoned (state), after the terrain part
+    EXPECT_TRUE(w.isTombstoned(kSiteChunk, rt.tree));
+    EXPECT_NE(std::find(r.tombstoned.begin(), r.tombstoned.end(), std::make_pair(kSiteChunk, rt.tree)),
+              r.tombstoned.end());
+    ASSERT_FALSE(r.chunks.empty());
+    uint32_t terrainSequence = 0;
+    for (const auto& c : r.chunks)
+        if (c.chunk == kSiteChunk) terrainSequence = c.sequence;
+    EXPECT_EQ(w.terrainEdits().sequence(kSiteChunk),
+              terrainSequence + uint32_t(std::count_if(r.tombstoned.begin(), r.tombstoned.end(),
+                                                       [](const auto& x) { return x.first == kSiteChunk; })));
+    EXPECT_EQ(sink.instanceSetAt(regionOf(kSiteChunk))->instances[indexOfKey(w, kSiteChunk, 2, rt.tree)].scale, 0.0f);
+    // The tree keeps its generated y
+    EXPECT_EQ(w.tierOnePosition(kSiteChunk, rt.tree)->y(),
+              double(w.generation().chunkPlacement(kSiteChunk, 2)->instances[indexOfKey(w, kSiteChunk, 2, rt.tree)].y) /
+                  1024.0);
+    // A set built after the edit: the re-snapped y at creation, equal to the live set that was re-snapped
+    const std::vector<StaticInstance> liveArray = sink.instanceSetAt(regionOf(kSiteChunk))->instances;
+    RecordingRenderSink late;
+    w.setRenderSink(&late);
+    setCentres(w, ContentCentres::Players);
+    w.step(1);
+    EXPECT_EQ(setY(w, late, rt.rock), float(rock->y()));
+    EXPECT_TRUE(sameInstances(late.instanceSetAt(regionOf(kSiteChunk))->instances, liveArray));
+    // A rejected candidate and a key out of range have no position; a tombstoned one keeps it
+    EXPECT_FALSE(w.tierOnePosition(kSiteChunk, slotKeys(w, kSiteChunk, 0).rejected[0]));
+    EXPECT_FALSE(w.tierOnePosition(kSiteChunk, key(0, 20000)));
+    EXPECT_FALSE(w.tierOnePosition(chunkAt(-1, 0), rt.tree));
+    EXPECT_TRUE(w.tierOnePosition(kSiteChunk, rt.tree));
+    w.setRenderSink(nullptr);
+}
+
+// The chunk generation throws inside the edit: the terrain is unchanged (no deltas, no sequence, no message); an edit
+// in a space without slots does no content work
+TEST(ContentEdit, AtomicAndOnlyWithSlots)
+{
+    WorldSetup s = contentRenderSetup();
+    s.generators = [](GeneratorList& l)
+    {
+        l.add(ContentTest::kTestTerrainGenerator, std::make_shared<ThrowingGenerator>());
+        l.add(ContentTest::kTestDungeonGenerator,
+              std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
+    };
+    World w(s);
+    const uint64_t hash  = w.hash();
+    g_throwCandidates    = true;
+    const TerrainBrush b = moundAt(Vec3(1150, 0, 1400));
+    EXPECT_THROW(w.editTerrain(0, b), std::runtime_error);
+    g_throwCandidates = false;
+    EXPECT_EQ(w.hash(), hash);
+    EXPECT_EQ(w.terrainEdits().chunkCount(), 0u);
+    EXPECT_EQ(w.terrainEdits().nonZeroSamples(0), 0u);
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+    EXPECT_TRUE(w.pendingTerrainChanges().empty());
+    // Afterwards the edit applies
+    w.editTerrain(0, b);
+    EXPECT_GT(w.terrainEdits().chunkCount(), 0u);
+
+    // A hook space (no slots): no placement is generated
+    WorldSetup hook;
+    SpaceTemplate t;
+    t.generator                = 1;
+    t.sizeChunks               = 16;
+    hook.config.spaceTemplates = {t};
+    hook.generators            = [](GeneratorList& l)
+    { l.add(1, std::make_shared<HookGenerator>("hills", [](uint64_t, int64_t x, int64_t) { return int32_t(x); })); };
+    World hw(hook);
+    hw.editTerrain(0, b);
+    EXPECT_GT(hw.terrainEdits().chunkCount(), 0u);
+    EXPECT_EQ(hw.generation().cache().stats().placementGenerations, 0u);
+}
+
+// A client re-snaps from an applied TerrainModification and gets the edit's tombstones
+TEST(ContentEdit, ClientResnaps)
+{
+    const WorldSetup s = contentRenderSetup();
+    GenNet n(s, s);
+    RecordingRenderSink hostSink, clientSink;
+    n.host->setRenderSink(&hostSink);
+    n.client->setRenderSink(&clientSink);
+    setCentres(*n.host, ContentCentres::Players);
+    setCentres(*n.client, ContentCentres::Players);
+    addPlayer(*n.host, kSitePlayer);
+    n.step(4);
+    const RockAndTree rt = rockAndTree(*n.host);
+    ASSERT_TRUE(clientSink.instanceSetAt(regionOf(kSiteChunk)));
+    n.host->editTerrain(0, moundAt(rt.rockPosition));
+    n.step(2);
+    const std::optional<Vec3> rock = n.host->tierOnePosition(kSiteChunk, rt.rock);
+    ASSERT_TRUE(rock);
+    EXPECT_EQ(setY(*n.client, clientSink, rt.rock), float(rock->y()));
+    EXPECT_EQ(n.client->tierOnePosition(kSiteChunk, rt.rock)->y(), rock->y());
+    EXPECT_TRUE(n.client->isTombstoned(kSiteChunk, rt.tree));
+    EXPECT_EQ(
+        clientSink.instanceSetAt(regionOf(kSiteChunk))->instances[indexOfKey(*n.client, kSiteChunk, 2, rt.tree)].scale,
+        0.0f);
+    EXPECT_EQ(n.client->terrainEdits().sequence(kSiteChunk), n.host->terrainEdits().sequence(kSiteChunk));
+    EXPECT_EQ(n.client->netStats().modificationGaps, 0u);
+    n.client->setRenderSink(nullptr);
+    n.host->setRenderSink(nullptr);
 }

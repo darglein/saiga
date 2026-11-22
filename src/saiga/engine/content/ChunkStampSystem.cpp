@@ -168,6 +168,7 @@ void stampChunk(World& w, const ChunkId& chunk, const std::vector<StampRecord>& 
                 throw;
             }
             world.contentRecordsForUpdate().markStamped(chunk, current);
+            world.onRecordChanged(chunk);
         });
 }
 }  // namespace

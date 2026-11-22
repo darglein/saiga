@@ -12,6 +12,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
+#include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/VisitJson.h"
@@ -20,6 +21,7 @@
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/terrain/HookGenerator.h"
+#include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/engine/world/World.h"
 #include "saiga/saiga_buildconfig.h"
@@ -42,6 +44,7 @@
 #include <thread>
 #include <vector>
 
+#include "content_test_setup.h"
 #include "mcp_test_helper.h"
 
 using namespace Saiga;
@@ -519,6 +522,13 @@ TEST(WorldTools, EveryToolThroughHandleMessage)
     for (const std::string& op : api->operations()) EXPECT_TRUE(names.count(op)) << op;
     EXPECT_TRUE(names.count("measure_performance"));
     EXPECT_EQ(names.size(), api->operations().size() + 1);
+    // chunk_info's position takes [x, z] too (its schema had the 3 items of a Vec3)
+    for (auto& t : list["result"]["tools"].array_items())
+        if (t["name"].string_value() == "chunk_info")
+        {
+            EXPECT_EQ(t["inputSchema"]["properties"]["position"]["minItems"].number_value(), 2);
+            EXPECT_EQ(t["inputSchema"]["properties"]["position"]["maxItems"].number_value(), 3);
+        }
 
     Poller poller(server);
     // Reading
@@ -834,6 +844,10 @@ TEST(WorldTools, EveryToolAnswers)
     track("edit_terrain", obj(R"({"op": "add", "center": [10, 0, 10], "radius": 3, "strength": 1})"));
     track("terrain_height", obj(R"({"x": 10, "z": 10})"));
     track("terrain_edits", Json::object{});
+    track("chunk_info", obj(R"({"position": [10, 10]})"));
+    track("list_sites", Json::object{});
+    // tombstone needs a generator with slots: WorldTools.ContentTools
+    called.insert("tombstone");
     track("get_global", obj(R"({"component": "Weather"})"));
     track("set_global", obj(R"({"component": "Weather", "values": {"rain": 1}})"));
     track("emit_event",
@@ -2214,4 +2228,167 @@ TEST(WorldApiSpaces, SpawnDescribeStatusAndList)
     EXPECT_TRUE(callTool(server, "list_entities",
                          obj(R"({"space": 1, "near": {"position": [0, 0, 0], "radius": 1}})"))["result"]["isError"]
                     .bool_value());
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// S23b: the content tools through handleMessage: chunk_info, list_sites (paging), tombstone (an unknown slot, a
+// rejected candidate, idempotence, the client error), edit_terrain's tombstoned, describe_world's generators and
+// world_status's generation block
+
+TEST(WorldTools, ContentTools)
+{
+    World w(ContentTest::contentTestSetup(2));
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    auto call = [&](const std::string& name, const Json& args)
+    {
+        Json r = callTool(server, name, args);
+        EXPECT_FALSE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return toolJson(r);
+    };
+    auto error = [&](const std::string& name, const Json& args)
+    {
+        Json r = callTool(server, name, args);
+        EXPECT_TRUE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return r["result"]["content"][0]["text"].string_value();
+    };
+    // describe_world's generators, world_status's generation
+    const Json d     = call("describe_world", Json::object{});
+    bool testTerrain = false;
+    for (const Json& g : d["generators"].array_items())
+        if (g["name"].string_value() == "test_terrain")
+        {
+            testTerrain = true;
+            EXPECT_EQ(g["version"].number_value(), 2);
+            EXPECT_EQ(g["pinned"].number_value(), 2);
+            EXPECT_EQ(g["current"].number_value(), 2);
+            EXPECT_TRUE(g["integer_only"].bool_value());
+            ASSERT_EQ(g["slots"].array_items().size(), 2u);
+            EXPECT_EQ(g["slots"][0]["name"].string_value(), "test_tree");
+            EXPECT_EQ(g["slots"][0]["flags"][0].string_value(), "tombstone_on_edit");
+        }
+    EXPECT_TRUE(testTerrain);
+    const Json status = call("world_status", Json::object{});
+    EXPECT_EQ(status["generation"]["seed"].string_value(), "12345");
+    EXPECT_FALSE(status["generation"]["mismatch"].bool_value());
+
+    // chunk_info of chunk (4, 5): site 0, the instances per slot, no record yet
+    Json info = call("chunk_info", obj(R"({"chunk": [4, 5]})"));
+    EXPECT_EQ(info["placement_version"].number_value(), 2);
+    EXPECT_FALSE(info["recorded"].bool_value());
+    EXPECT_FALSE(info["stamped"].bool_value());
+    EXPECT_GT(info["instances"]["test_tree"].number_value(), 0);
+    EXPECT_EQ(info["sites"][0].number_value(), 0);
+    EXPECT_EQ(info["content_hash"].string_value().size(), 16u);
+    EXPECT_EQ(call("chunk_info", obj(R"({"position": [1150, 1400]})"))["chunk"], info["chunk"]);
+    EXPECT_NE(error("chunk_info", obj(R"({"chunk": [128, 0]})")).find("outside"), std::string::npos);
+    // A position beyond int32_t chunks (1e12 m / 256 m) was converted to int32_t before the range check (undefined)
+    EXPECT_NE(error("chunk_info", obj(R"({"position": [1000000000000, 0]})")).find("outside"), std::string::npos);
+
+    // list_sites: paging and near
+    const Json all  = call("list_sites", Json::object{});
+    const Json page = call("list_sites", obj(R"({"limit": 1})"));
+    ASSERT_EQ(page["sites"].array_items().size(), 1u);
+    EXPECT_EQ(page["sites"][0]["key"].number_value(), 0);
+    EXPECT_EQ(page["sites"][0]["prefab"].string_value(), "test_ruin");
+    EXPECT_EQ(page["sites"][0]["linked_spaces"][0].number_value(), 2);
+    EXPECT_EQ(page["next"].number_value(), 1);
+    const Json next = call("list_sites", obj(R"({"limit": 1, "after": 1})"));
+    EXPECT_EQ(next["sites"][0]["key"].number_value(), 1);
+    EXPECT_EQ(all["total"].number_value(), double(all["sites"].array_items().size()));
+    const Json near = call("list_sites", obj(R"({"near": {"position": [1100, 1300], "radius": 10}})"));
+    ASSERT_EQ(near["sites"].array_items().size(), 1u);
+    EXPECT_EQ(near["sites"][0]["key"].number_value(), 0);
+    // A non-finite position or radius is an argument error (1e999 overflows to infinity)
+    EXPECT_NE(error("list_sites", obj(R"({"near": {"position": [1e999, 1300], "radius": 10}})")).find("near"),
+              std::string::npos);
+    EXPECT_NE(error("list_sites", obj(R"({"near": {"position": [1100, 1300], "radius": 1e999}})")).find("near"),
+              std::string::npos);
+    EXPECT_NE(error("list_sites", obj(R"({"near": {"position": [1100, "a", 1300], "radius": 10}})")).find("near"),
+              std::string::npos);
+
+    // tombstone: the first accepted test_tree of the chunk
+    ChunkId c;
+    c.x              = 4;
+    c.z              = 5;
+    uint32_t counter = 0;
+    for (const auto& t : w.generation().chunkPlacement(c, 2)->instances)
+        if (t.key.generatorSlot == 0)
+        {
+            counter = t.key.counter;
+            break;
+        }
+    const Json args = Json::object{{"chunk", Json::array{4, 5}}, {"slot", "test_tree"}, {"counter", double(counter)}};
+    const Json t1   = call("tombstone", args);
+    EXPECT_TRUE(t1["changed"].bool_value());
+    EXPECT_EQ(t1["sequence"].number_value(), 1);
+    const Json t2 = call("tombstone", args);
+    EXPECT_FALSE(t2["changed"].bool_value());
+    EXPECT_EQ(t2["sequence"].number_value(), 1);
+    info = call("chunk_info", obj(R"({"chunk": [4, 5]})"));
+    EXPECT_TRUE(info["recorded"].bool_value());
+    EXPECT_EQ(info["tombstones"][0]["slot"].string_value(), "test_tree");
+    EXPECT_EQ(info["tombstones"][0]["counter"].number_value(), double(counter));
+    EXPECT_NE(error("tombstone", obj(R"({"chunk": [4, 5], "slot": "test_stone", "counter": 1})")).find("no slot"),
+              std::string::npos);
+    EXPECT_NE(error("tombstone", obj(R"({"chunk": [4, 5], "slot": "test_tree", "counter": 99999})")).find("range"),
+              std::string::npos);
+    EXPECT_NE(error("tombstone", obj(R"({"chunk": [-1, 5], "slot": "test_tree", "counter": 1})")).find("outside"),
+              std::string::npos);
+    // A rejected candidate
+    uint32_t rejected = 0;
+    {
+        const SpaceGeneration& g = w.generation().space(0);
+        Candidate cand;
+        while (g.generator->candidate(2, *g.plan, c, 0, rejected, cand)) rejected++;
+    }
+    EXPECT_NE(error("tombstone",
+                    Json::object{{"chunk", Json::array{4, 5}}, {"slot", "test_tree"}, {"counter", double(rejected)}})
+                  .find("rejected or excluded"),
+              std::string::npos);
+    // An exhausted sequence: an error (the tombstone was refused, but the tool returned changed: true)
+    uint32_t second = 0;
+    for (const auto& t : w.generation().chunkPlacement(c, 2)->instances)
+        if (t.key.generatorSlot == 0 && t.key.counter != counter)
+        {
+            second = t.key.counter;
+            break;
+        }
+    w.terrainEditsForUpdate().setSequence(c, std::numeric_limits<uint32_t>::max());
+    EXPECT_NE(error("tombstone",
+                    Json::object{{"chunk", Json::array{4, 5}}, {"slot", "test_tree"}, {"counter", double(second)}})
+                  .find("exhausted"),
+              std::string::npos);
+    EXPECT_FALSE(w.isTombstoned(c, InstanceKey{0, second}));
+    w.terrainEditsForUpdate().setSequence(c, 1);
+
+    // edit_terrain reports the trees it tombstoned (a mound over chunk (4, 5))
+    const Json e = call("edit_terrain", obj(R"({"op": "add", "center": [1150, 1400], "radius": 12, "strength": 4})"));
+    ASSERT_FALSE(e["tombstoned"].array_items().empty());
+    EXPECT_EQ(e["tombstoned"][0]["slot"].string_value(), "test_tree");
+    EXPECT_EQ(e["tombstoned"][0]["chunk"][0].number_value(), 4);
+}
+
+// A client: tombstone is refused (read-only), chunk_info reads its replicated records
+TEST(WorldTools, ContentToolsOnAClient)
+{
+    auto t       = LoopbackTransport::createNetwork(2, LoopbackOptions());
+    WorldSetup h = ContentTest::contentTestSetup(2);
+    h.transport  = t[0].get();
+    World host(h);
+    WorldSetup cs = ContentTest::contentTestSetup(2);
+    cs.transport  = t[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
+    World client(cs);
+    McpServer server("test");
+    auto api = registerWorldTools(server, client);
+    Poller poller(server);
+    Json r = callTool(server, "tombstone", obj(R"({"chunk": [4, 5], "slot": "test_tree", "counter": 1})"));
+    EXPECT_TRUE(r["result"]["isError"].bool_value());
+    EXPECT_NE(r["result"]["content"][0]["text"].string_value().find("client"), std::string::npos);
+    r = callTool(server, "chunk_info", obj(R"({"chunk": [4, 5]})"));
+    EXPECT_FALSE(r["result"]["isError"].bool_value());
+    EXPECT_TRUE(toolJson(r)["stamped"].is_null()) << "stamped is host-only";
 }

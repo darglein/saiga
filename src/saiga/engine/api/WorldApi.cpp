@@ -13,6 +13,9 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
+#include "saiga/engine/content/ChunkRecords.h"
+#include "saiga/engine/content/GenerationPipeline.h"
+#include "saiga/engine/content/GeneratorList.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/ecs/VisitJson.h"
 #include "saiga/engine/gameplay/Behaviour.h"
@@ -36,6 +39,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <random>
 #include <sstream>
 #include <stdexcept>
@@ -74,6 +78,8 @@ const std::vector<Operation>& operationTable()
         {"get_data", false, {"type", "name"}},
         {"terrain_height", false, {"space", "x", "z"}},
         {"terrain_edits", false, {"space", "limit", "after"}},
+        {"chunk_info", false, {"space", "chunk", "position"}},
+        {"list_sites", false, {"space", "near", "limit", "after"}},
         {"load_snapshot", true, {"name", "paused"}},
         {"export_snapshot", true, {"name", "file", "overwrite"}},
         {"import_snapshot", true, {"name", "file", "overwrite"}},
@@ -84,6 +90,7 @@ const std::vector<Operation>& operationTable()
         {"set_transform", true, {"entity", "position", "rotation", "scale", "teleport"}},
         {"move_to_space", true, {"entity", "space", "position", "rotation"}},
         {"edit_terrain", true, {"space", "op", "center", "radius", "strength"}},
+        {"tombstone", true, {"space", "chunk", "slot", "counter"}},
         {"spawn", true, {"class", "position", "rotation", "scale", "space", "components"}},
         {"destroy", true, {"entity"}},
         {"set_global", true, {"component", "values", "space"}},
@@ -564,6 +571,9 @@ ApiResult WorldApi::run(const std::string& operation, const Json& args)
     if (operation == "edit_terrain") return editTerrain(args);
     if (operation == "terrain_height") return terrainHeight(args);
     if (operation == "terrain_edits") return terrainEdits(args);
+    if (operation == "chunk_info") return chunkInfo(args);
+    if (operation == "list_sites") return listSites(args);
+    if (operation == "tombstone") return tombstone(args);
     if (operation == "spawn") return spawn(args);
     if (operation == "destroy") return destroy(args);
     if (operation == "set_global") return setGlobal(args);
@@ -700,7 +710,32 @@ ApiResult WorldApi::describeWorld(const Json&)
         }
         spaces.push_back(o);
     }
+    // The content generators (S23b): name, version, the pinned plan and current placement versions, the slots
+    Json::array generators;
+    {
+        const GenerationPlans& plans = w->generation().plans();
+        for (const GeneratorList::Entry* g : plans.generators->byName())
+        {
+            const std::string name = g->generator->name();
+            Json::array slots;
+            for (const GeneratorSlot& sl : g->slots)
+            {
+                Json::array flags;
+                if (sl.flags & ReSnapOnEdit) flags.push_back("resnap_on_edit");
+                if (sl.flags & TombstoneOnEdit) flags.push_back("tombstone_on_edit");
+                if (sl.flags & Cosmetic) flags.push_back("cosmetic");
+                slots.push_back(Json::object{{"name", sl.name}, {"flags", flags}});
+            }
+            generators.push_back(Json::object{{"name", name},
+                                              {"version", double(g->generator->version())},
+                                              {"pinned", double(plans.pinned.at(name))},
+                                              {"current", double(plans.current.at(name))},
+                                              {"slots", slots},
+                                              {"integer_only", g->generator->integerOnly()}});
+        }
+    }
     return ApiResult::success(Json::object{{"components", components},
+                                           {"generators", generators},
                                            {"spaces", spaces},
                                            {"messages", messages},
                                            {"classes", classes},
@@ -745,6 +780,10 @@ ApiResult WorldApi::worldStatus(const Json&)
                    {"game_objects", double(objects)},
                    {"hash", hash},
                    {"world_generation", double(generation)}};
+    // S23b: the content generation (the seed as a string: 64 bits)
+    o["generation"] = Json::object{{"seed", std::to_string(w->generationSeed())},
+                                   {"mismatch", w->generationMismatch()},
+                                   {"checked", w->generationChecked()}};
     // Per space (S21): the entities (without the state entities) and the players in it
     {
         std::vector<double> entities(w->spaceCount(), 0);
@@ -1492,7 +1531,14 @@ ApiResult WorldApi::editTerrain(const Json& a)
         chunks.push_back(Json::object{{"chunk", Json::array{c.chunk.x, c.chunk.z}},
                                       {"sequence", double(c.sequence)},
                                       {"box", Json::array{c.x0, c.z0, c.w, c.h}}});
-    Json::object out{{"changed_samples", double(r.changedSamples)}, {"chunks", chunks}};
+    // S23b: the TombstoneOnEdit instances the edit tombstoned
+    const auto& slots = w->generators().find(w->generation().space(space).generatorId)->slots;
+    Json::array tombstoned;
+    for (const auto& [c, k] : r.tombstoned)
+        tombstoned.push_back(Json::object{{"chunk", Json::array{c.x, c.z}},
+                                          {"slot", k.generatorSlot < slots.size() ? slots[k.generatorSlot].name : ""},
+                                          {"counter", double(k.counter)}});
+    Json::object out{{"changed_samples", double(r.changedSamples)}, {"chunks", chunks}, {"tombstoned", tombstoned}};
     if (r.changedSamples > 0)
         out["box"] = Json::array{double(r.i0) * sp, double(r.k0) * sp, double(r.i1) * sp, double(r.k1) * sp};
     return ApiResult::success(out);
@@ -1565,6 +1611,229 @@ ApiResult WorldApi::terrainEdits(const Json& a)
     Json::object out{{"space", int(space)}, {"chunks", chunks}, {"total", double(st.chunks(space).size())}};
     if (more) out["next"] = double(after + limit);
     return ApiResult::success(out);
+}
+
+namespace
+{
+// The chunk of chunk: [x, z] (integers) or position: [x, z] / [x, y, z] (metres); inside the space
+bool chunkArg(const World& w, const Json& a, SpaceId space, ChunkId& out, std::string& error)
+{
+    out.space = space;
+    int64_t x = 0, z = 0;
+    if (!a["chunk"].is_null())
+    {
+        const auto& c = a["chunk"].array_items();
+        if (!a["chunk"].is_array() || c.size() != 2 || !c[0].is_number() || !c[1].is_number() ||
+            c[0].number_value() != std::floor(c[0].number_value()) ||
+            c[1].number_value() != std::floor(c[1].number_value()) || std::abs(c[0].number_value()) > 1e9 ||
+            std::abs(c[1].number_value()) > 1e9)
+        {
+            error = "chunk: [x, z] integers";
+            return false;
+        }
+        x = int64_t(c[0].number_value());
+        z = int64_t(c[1].number_value());
+    }
+    else if (!a["position"].is_null())
+    {
+        const auto& p  = a["position"].array_items();
+        const size_t n = p.size();
+        if (!a["position"].is_array() || (n != 2 && n != 3) || !p[0].is_number() || !p[n - 1].is_number() ||
+            !std::isfinite(p[0].number_value()) || !std::isfinite(p[n - 1].number_value()) ||
+            std::abs(p[0].number_value()) > 1e12 || std::abs(p[n - 1].number_value()) > 1e12)
+        {
+            error = "position: [x, z] or [x, y, z] in metres";
+            return false;
+        }
+        // |position| <= 1e12 m fits in int64_t chunks (not in int32_t): converted after the range check below
+        x = int64_t(std::floor(p[0].number_value() / chunkSize));
+        z = int64_t(std::floor(p[n - 1].number_value() / chunkSize));
+    }
+    else
+    {
+        error = "chunk: [x, z] or position: [x, z] is missing";
+        return false;
+    }
+    const int64_t size = w.spaceTemplate(space).sizeChunks;
+    if (x < 0 || z < 0 || x >= size || z >= size)
+    {
+        error = "the chunk (" + std::to_string(x) + ", " + std::to_string(z) + ") is outside space " +
+                std::to_string(space) + " (" + std::to_string(size) + " x " + std::to_string(size) + " chunks)";
+        return false;
+    }
+    out.x = int32_t(x);
+    out.z = int32_t(z);
+    return true;
+}
+
+std::string hex64(uint64_t v)
+{
+    char text[32];
+    std::snprintf(text, sizeof(text), "%016llx", (unsigned long long)v);
+    return text;
+}
+}  // namespace
+
+ApiResult WorldApi::chunkInfo(const Json& a)
+{
+    std::string error;
+    SpaceId space = 0;
+    ChunkId c;
+    if (!spaceArg(*w, a, space, error) || !chunkArg(*w, a, space, c, error)) return ApiResult::failure(error);
+    const SpaceGeneration& g = w->generation().space(space);
+    const auto& slots        = w->generators().find(g.generatorId)->slots;
+    const uint16_t version   = w->effectivePlacementVersion(c);
+    const ChunkRecord* r     = w->chunkRecord(c);
+    auto slotName            = [&](uint32_t slot)
+    { return slot < slots.size() ? slots[slot].name : (slot == 255 ? std::string("static") : std::to_string(slot)); };
+    Json::array tombstones;
+    bool truncated = false;
+    if (r)
+        for (const InstanceKey& k : r->tombstones)
+        {
+            if (tombstones.size() == 200)
+            {
+                truncated = true;
+                break;
+            }
+            tombstones.push_back(Json::object{{"slot", slotName(k.generatorSlot)}, {"counter", double(k.counter)}});
+        }
+    // Generated on demand (synchronously through the cache)
+    const auto placement = w->generation().chunkPlacement(c, version);
+    std::map<std::string, double> counts;
+    for (const GeneratorSlot& sl : slots) counts[sl.name] = 0;
+    for (const TierOneInstance& t : placement->instances) counts[slotName(t.key.generatorSlot)] += 1;
+    Json::object instances;
+    for (const auto& [name, n] : counts) instances[name] = n;
+    Json::array sites;
+    auto it = g.plan->sitesByChunk.find(c);
+    if (it != g.plan->sitesByChunk.end())
+        for (uint32_t si : it->second) sites.push_back(double(g.plan->sites[si].key));
+    Json::object out{{"space", int(space)},
+                     {"chunk", Json::array{c.x, c.z}},
+                     {"placement_version", double(version)},
+                     {"recorded", r != nullptr},
+                     {"sequence", double(w->terrainEdits().sequence(c))},
+                     {"tombstones", tombstones},
+                     {"tombstone_count", double(r ? r->tombstones.size() : 0)},
+                     {"instances", instances},
+                     {"sites", sites},
+                     {"content_hash", hex64(placement->hashes.total)}};
+    if (truncated) out["truncated"] = true;
+    if (w->isHost()) out["stamped"] = w->contentRecords().isStamped(c);
+    return ApiResult::success(out);
+}
+
+ApiResult WorldApi::listSites(const Json& a)
+{
+    std::string error;
+    SpaceId space = 0;
+    int64_t limit = 0, after = 0;
+    if (!spaceArg(*w, a, space, error) || !intArg(a, "limit", 1, 1000, 100, limit, error) ||
+        !intArg(a, "after", 0, 0xFFFFFFFFll, 0, after, error))
+        return ApiResult::failure(error);
+    bool near = false;
+    double nx = 0, nz = 0, radius = 0;
+    if (!a["near"].is_null())
+    {
+        const Json& n  = a["near"];
+        const auto& p  = n["position"].array_items();
+        const size_t k = p.size();
+        // Finite numbers only (as chunk_info's position; a JSON number may overflow to infinity)
+        auto finite = [](const Json& v) { return v.is_number() && std::isfinite(v.number_value()); };
+        bool valid  = n.is_object() && (k == 2 || k == 3) && finite(n["radius"]) && n["radius"].number_value() >= 0;
+        for (size_t i = 0; valid && i < k; ++i) valid = finite(p[i]);
+        if (!valid) return ApiResult::failure("near: {position: [x, z] or [x, y, z], radius} in metres (finite)");
+        near   = true;
+        nx     = p[0].number_value();
+        nz     = p[k - 1].number_value();
+        radius = n["radius"].number_value();
+    }
+    const SpaceGeneration& g = w->generation().space(space);
+    const WorldPlan& plan    = *g.plan;
+    // The chunks of each site (sitesByChunk) and the spaces it created
+    std::map<uint32_t, std::vector<ChunkId>> chunksOf;
+    for (const auto& [c, list] : plan.sitesByChunk)
+        for (uint32_t si : list) chunksOf[si].push_back(c);
+    Json::array out;
+    bool more = false;
+    for (uint32_t si = uint32_t(after); si < plan.sites.size(); ++si)
+    {
+        const Site& site = plan.sites[si];
+        if (near && std::hypot(double(site.x) - nx, double(site.z) - nz) > radius) continue;
+        if (int64_t(out.size()) == limit)
+        {
+            more  = true;
+            after = si;
+            break;
+        }
+        Json::array linked, chunks;
+        for (size_t i = 0; i < w->generation().spaceCount(); ++i)
+        {
+            const SpaceInstance& inst = w->generation().space(SpaceId(i)).instance;
+            if (i != 0 && inst.origin == SpaceInstance::FromSite && inst.parent == space && inst.siteKey == site.key)
+                linked.push_back(int(i));
+        }
+        for (const ChunkId& c : chunksOf[si])
+        {
+            Json::object o{{"chunk", Json::array{c.x, c.z}}};
+            if (w->isHost()) o["stamped"] = w->contentRecords().isStamped(c);
+            chunks.push_back(o);
+        }
+        const double base = double(site.baseHeight) * kHeightUnit;
+        out.push_back(Json::object{
+            {"key", double(site.key)},
+            {"prefab", site.prefab},
+            {"version", double(site.prefabVersion)},
+            {"position", Json::array{double(site.x), base, double(site.z)}},
+            {"quarter_turns", int(site.quarterTurns)},
+            {"base_height", base},
+            {"footprint", Json::array{site.footprint[0], site.footprint[1], site.footprint[2], site.footprint[3]}},
+            {"linked_spaces", linked},
+            {"chunks", chunks}});
+    }
+    Json::object result{{"space", int(space)}, {"sites", out}, {"total", double(plan.sites.size())}};
+    if (more) result["next"] = double(after);
+    return ApiResult::success(result);
+}
+
+ApiResult WorldApi::tombstone(const Json& a)
+{
+    std::string error;
+    SpaceId space = 0;
+    ChunkId c;
+    if (!spaceArg(*w, a, space, error)) return ApiResult::failure(error);
+    if (!w->isHost())
+        return ApiResult::failure("tombstone: refused on a client (tombstones are host commands, R-NET-2)");
+    if (!a["position"].is_null()) return ApiResult::failure("tombstone: chunk: [x, z] (not position)");
+    if (!chunkArg(*w, a, space, c, error)) return ApiResult::failure("tombstone: " + error);
+    const SpaceGeneration& g = w->generation().space(space);
+    const auto& slots        = w->generators().find(g.generatorId)->slots;
+    if (!a["slot"].is_string()) return ApiResult::failure("slot: a slot name (describe_world lists the generators)");
+    InstanceKey key;
+    bool found = false;
+    for (size_t i = 0; i < slots.size(); ++i)
+        if (slots[i].name == a["slot"].string_value())
+        {
+            key.generatorSlot = uint32_t(i);
+            found             = true;
+        }
+    if (!found)
+        return ApiResult::failure("slot: generator '" + g.generatorName + "' has no slot \"" +
+                                  a["slot"].string_value() + "\"");
+    int64_t counter = 0;
+    if (!intArg(a, "counter", 0, 0xFFFFFFFFll, -1, counter, error) || counter < 0)
+        return ApiResult::failure(error.empty() ? "counter: missing" : error);
+    key.counter = uint32_t(counter);
+    if (!w->checkTombstone(c, key, &error)) return ApiResult::failure(error);
+    const bool changed = !w->isTombstoned(c, key);
+    // An exhausted sequence refuses the tombstone (applyTombstone changes nothing): an error, not changed: true
+    if (changed && w->terrainEdits().sequence(c) == std::numeric_limits<uint32_t>::max())
+        return ApiResult::failure("tombstone: the sequence of chunk (" + std::to_string(c.x) + ", " +
+                                  std::to_string(c.z) + ") is exhausted (refused)");
+    w->tombstone(c, key);
+    return ApiResult::success(Json::object{
+        {"changed", changed}, {"chunk", Json::array{c.x, c.z}}, {"sequence", double(w->terrainEdits().sequence(c))}});
 }
 
 ApiResult WorldApi::spawn(const Json& a)

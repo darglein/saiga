@@ -24,8 +24,8 @@ namespace Game
 // The prototype's generator ID in the games' generator lists
 constexpr Engine::GeneratorId kPrototypeGenerator = 1;
 
-// The prototype hook as a generator (S20's grass thresholds; its masks are used for the content hashes only, the
-// rendering keeps TerrainSystem's grass rule until S23b)
+// The prototype hook as a generator with S20's grass thresholds (S23b: the terrain's grass masks use them, S20's rule
+// over the level-0 tile; fixed at registration)
 inline std::shared_ptr<const Engine::Generator> prototypeGenerator()
 {
     return std::make_shared<Engine::HookGenerator>("prototype", Vulkan::prototypeHeight,

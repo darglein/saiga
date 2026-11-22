@@ -206,8 +206,8 @@ void diffGeneration(const GenerationSection& a, const GenerationSection& b, Add&
     one("combined_plan_hash", "", Json(std::to_string(a.combinedHash)), Json(std::to_string(b.combinedHash)));
 }
 
-// CREC (S23a): per chunk record, one-sided records and the version / stamped differences ("record space 0 chunk
-// (4, 5): ...")
+// CREC (S23a, S23b): per chunk record, one-sided records and the version / stamped / tombstone differences ("record
+// space 0 chunk (4, 5): ...")
 template <class Add>
 void diffChunkRecords(const ChunkRecordSection& a, const ChunkRecordSection& b, Add& add)
 {
@@ -223,7 +223,11 @@ void diffChunkRecords(const ChunkRecordSection& a, const ChunkRecordSection& b, 
     auto state = [](const ChunkRecordSection::Record* r)
     {
         if (!r) return Json();
-        return Json(Json::object{{"placement_version", double(r->placementVersion)}, {"stamped", r->stamped}});
+        Json::array keys;
+        for (const InstanceKey& k : r->tombstones)
+            keys.push_back(Json::array{Json(double(k.generatorSlot)), Json(double(k.counter))});
+        return Json(Json::object{
+            {"placement_version", double(r->placementVersion)}, {"stamped", r->stamped}, {"tombstones", keys}});
     };
     for (const Key& k : keys)
     {

@@ -152,6 +152,13 @@ std::vector<uint8_t> World::save() const
                 w.write(c.z);
                 w.write(r.placementVersion);
                 w.write(uint8_t(rec.isStamped(c) ? 1 : 0));
+                // Format 2 (S23b): the tombstones
+                w.write(uint32_t(r.tombstones.size()));
+                for (const InstanceKey& k : r.tombstones)
+                {
+                    w.write(uint8_t(k.generatorSlot));
+                    w.write(k.counter);
+                }
             }
         }
         s.end();

@@ -187,6 +187,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
 | Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition`, `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
 | Terraforming (S22): `TerrainBrush`, `validateBrush`, the integer `BrushKernel`, `World::editTerrain` / `checkTerrainEdit` / `terrainSample` / `terrainEdits` / `pendingTerrainChanges`, `applyTerrainEdit`, the modification state `TerrainEditStore` (delta blocks, per-chunk sequence, revision, content hash), `TerrainEditedEvent`, the delta codec, the `TERR` save section, `hash()` and `diffSaves` of the state, the messages `TerrainModification` / `TerrainChunkState`, the host state list and `sendChunkSnapshot`, the visual path (merge at the send point, `TerrainDirtyQueue`, the patch step, edited grass masks in `TerrainVisualPatch`), `EngineApp::setFixedFrameTime`, the tools `edit_terrain` / `terrain_height` / `terrain_edits`, `game_world --benchmark terraform` and the terraform mode (§12.1, §12.2, §13.2, §15.1, §16.2, §17.7) | `src/saiga/engine/terrain/`, `src/saiga/engine/save/`, `src/saiga/engine/net/Replication.*`, `samples/games/world/TerraformBenchmark.*`, `tests/test_engine_terrain_edit.cpp`, `tests/test_engine_terrain_net.cpp`, `tests/test_engine_terrain_benchmark.cpp` | [exists: S22] |
+| Tombstones and content rendering (S23b): `ChunkRecord {placementVersion, tombstones}` on every peer, effective records, `World::onRecordChanged`, `CREC` format 2; `World::tombstone` / `checkTombstone` / `isTombstoned` / `chunkRecord` / `tierOnePosition` (`content/Tombstones`), the messages `TombstoneModification` / `ChunkRecordState` (`content/ContentMessages`), the host send-list entries, the snapshot's record part, `clearReplicatedChunkState`; the content render sets (`ContentRenderSystem`, centres `None \| View \| Players`, one set per chunk with tier 1 and static parts, the re-snap queue), `RecordingRenderSink`'s set arrays; grass masks from the generator (`Generator::grassEditRule`); tombstone-on-edit in `applyTerrainEdit`; the tools `chunk_info`, `list_sites`, `tombstone`; the `generated_site` golden (§10.1, §12.1, §12.2, §12.5, §13.2, §16.2, §17.6) | `src/saiga/engine/content/`, `src/saiga/engine/net/Replication.*`, `src/saiga/engine/terrain/`, `src/saiga/engine/sync/RecordingRenderSink.*`, `tests/test_engine_content.cpp`, `tests/test_engine_terrain_render.cpp` | [exists: S23b] |
 | World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
 | Game tools of the world prototype (`game_world`): `game_get_state`, `game_set_camera`, `game_set_settings`, `game_terrain_query` | `src/saiga/vulkan/world/WorldMcp.*`, `tests/test_vulkan_world.cpp` | [exists] (S14: renamed, `handleMessage` tests) |
@@ -751,7 +752,7 @@ class World
                                                                     // the plans (§12.1; S23a: one template can have several)
     double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
         // §12.4 [exists: S21, E8]: the one readiness the app reads; S21 the terrain's (TerrainSystem::readiness),
-        // S23b adds the content sets, S27 far content
+        // S23b: the minimum with the content sets' (ContentRenderSystem::readiness), S27 far content
     void destroy(Entity e);
     bool alive(Entity e) const;
     template <class T, class... A> void add(Entity e, A&&... args);
@@ -900,7 +901,9 @@ generic change detection (only the `Transform` flags), access declarations per s
 Commands are applied after every phase; events of this step become readable in the next step. Terrain and piece
 edits and promotions apply at the flush of the phase that requested them (between steps: immediately) (§12.2, §11);
 clients apply received live modifications in phase 1. S22: phase 8 (host) sends the ordered host state list
-(`Replication::hostStateList`: the terrain modifications of the step and of the edits between steps; S23b's tombstones)
+(`Replication::hostStateList`: the terrain modifications of the step and of the edits between steps; S23b: the
+`TombstoneModification`s, a tombstone appended to the last entry if that is one of the same space with fewer than 4096
+entries)
 after the component changes, also at the `stepNetworkOnly` commit point; the list is cleared when the step commits
 (also without peers) and kept by an aborted step.
 
@@ -1655,6 +1658,36 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
 };
 ```
 
+- **Content render sets** [exists: S23b] (`engine/content/ContentRenderSystem`, owned by the World): one static instance
+  set per chunk (`RegionId{space, 0, x, z}`) with the chunk's tier-1 instances in (slot, counter) order, then the static
+  parts of the plan's sites in the chunk (key slot 255, engine reserved; counter = the part's index); no set for a chunk
+  with neither; only spaces whose generator has slots or whose plan has static parts get sets. `StaticInstance`s from
+  the integers (chunk-relative x / 256, y / 1024, z / 256, exact in float; the yaw quaternion of `ContentConvert`;
+  scale / 1024; the mesh through the slot's mesh table and `World::findMesh`, an unknown name logged once per
+  (generator, slot, mesh) and drawn at scale 0; key `slot << 24 | counter`); tombstoned keys at scale 0. Who drives
+  them is `ContentRenderSettings::centres` (`World::setContentRenderSettings`): `None` (the default: a sink alone builds
+  nothing), `View` (`EngineApp`'s rendered world: `TerrainSystem::updateView` / `completeView` run the content part
+  also in a space without terrain; the chunks of the camera's space within `fullRadius`, generated on the streaming
+  pool (`ContentRenderSettings::setsPerFrame` requests per update, default 4; a request still queued when its set goes is
+  cancelled), synchronously in `completeView` within its deadline (no build starts after it; the view is then
+  incomplete)) or `Players` (`ScenarioWorld`: a pass in phase 8 after the render extract, the chunks within
+  `fullRadius` of every `Player` of the world, synchronous; not in `stepNetworkOnly`); a set goes when its chunk is
+  more than `fullRadius + 256 m` from every centre (S24 replaces this). Record changes reach the sink at once
+  (`World::onRecordChanged`, also inside `stepNetworkOnly`): another placement version removes the set and requests it
+  again; tombstones are diffed (`removeInstance`; a key no longer tombstoned gets `updateInstances` with its original
+  instance, re-snapped). A pool result carries the request counter and version it started with and is dropped when
+  either changed; tombstones and re-snaps never drop a result (applied before the upload). `RecordingRenderSink` keeps
+  each live set's region and full array (`instanceSet`, `instanceSetAt`, which asserts at most one live set per region).
+- **Grass masks from the generator** [exists: S23b, E3]: a generator space's chunk mask is its `ChunkPlacement::grass`
+  at the chunk's effective placement version (S20's single send point; a version change re-requests it); a legacy
+  space (`HookGenerator`, the prototype fixture) keeps S20's rule over the level-0 tile with the `HookGenerator`'s exact
+  thresholds (none: no grass). Edited chunks: generator spaces AND their generator mask with S20's rule over the merged
+  heights (`Generator::grassEditRule`, integer `minNormalYQ16` / `minAboveSeaUnits`; disabled: the generator mask),
+  legacy spaces S22's rule alone; a result is dropped if S22's terrain-only revision or (generator spaces) the chunk's
+  placement version changed while its job ran (F1: a tombstone of the same version changes neither, so it never drops
+  or re-queues a mask). The thresholds are content, no view settings any more (`TerrainViewSettings::grassMinNormalY` /
+  `grassMinAboveSea` removed).
+
 ### 10.2 Culling [exists: S18 (one view); planned: S36 (shadow views)]
 
 Prerequisite [done: S17]: `GLSL.cpp` targets Vulkan 1.3 / SPIR-V 1.6 (`setEnvClient`, `setEnvTarget`), with a
@@ -2077,7 +2110,7 @@ class PhysicsWorld
 
 ## 12. Spaces, chunks, terrain and streaming
 
-### 12.1 Generation pipeline and chunk content [exists: S23a (pipeline, plans, hashes, saves, stamping); planned: S23b (tombstones, content rendering), S23c (the flight demo's generator)]
+### 12.1 Generation pipeline and chunk content [exists: S23a (pipeline, plans, hashes, saves, stamping), S23b (tombstones, content rendering); planned: S23c (the flight demo's generator)]
 
 - Per space instance: **world plan** (global, low resolution: biomes, river channels carved below sea level (filled by
   the sea, §10.9), roads, sites of authored places; computed once from the seed) -> **chunk generation** (terrain
@@ -2106,7 +2139,7 @@ class PhysicsWorld
   from the plan. The record and the stamped entry are written by a command recorded before the chunk's spawns, so all
   apply at the same flush. Stamped pieces are added in S30 (which regenerates the committed content hashes once).
 - Deterministic and identical on every machine (R-CONTENT-1). Each tier-1 instance has a stable
-  `InstanceKey {uint32 generatorSlot, uint32 counter}`; tombstones name keys [S23b].
+  `InstanceKey {uint32 generatorSlot, uint32 counter}`; tombstones name keys (S23b).
 - **Generator contract** (needed for far sets, §10.4): (a) terrain height is point-evaluable from the world plan:
   `Generator::height(version, plan, x, z)` is the **natural** terrain; the pipeline composes the site patches
   (`GenerationPipeline::height`, `gen/SitePatch`: quarter turns, weights 0..256, `h = natural + floor((baseHeight +
@@ -2227,14 +2260,14 @@ enum SlotFlags : uint32_t { ReSnapOnEdit = 1, TombstoneOnEdit = 2, Cosmetic = 4 
 void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generator);
 // The engine converts exactly to double (ContentConvert: positions by a power-of-two scale, rotations from the trig
 // table's Q30 values scaled by 2^-30, not normalised: within 2^-28 of unit length; scale / 1024) and maps meshSlot to
-// MeshId through the slot mesh table [S23b]; the content hash covers the integers.
+// MeshId through the slot mesh table (S23b: the content render sets, §10.1); the content hash covers the integers.
 // Prefabs: <dataDirectory>/prefabs/<name>.json (v1) or <name>.v<N>.json with terrain patches, exclusions, entities
 // (components as visit JSON), SpaceLinks, spaces and static geometry; pieces [S30]. Loaded by the pipeline (one file
 // per prefab version, §15.3; not the data files of §14).
 ```
 - `HookGenerator` (`engine/terrain/`, not content, not linted) adapts an S20 height hook (`TerrainHeightHook`, called
   with `plan.seed`) to the interface: clamped heights, no slots or sites, `legacyTerrain`, with terrain, S20's grass
-  rule for its masks. The games' prototype fixture is the `HookGenerator` "prototype" (float noise, `integerOnly()`
+  rule for its masks (S23b: its exact thresholds, `grassRule()`, are the terrain's mask rule of a legacy space, §10.1). The games' prototype fixture is the `HookGenerator` "prototype" (float noise, `integerOnly()`
   false; `samples/games/common/PrototypeSpace.h`), used by `game_world` and racing until S27 and by flight until S23c.
 - **Chunk content** (`ChunkContent.h`): `ChunkBase` (keyed by generator, pinned version, plan hash and chunk: the
   level-0 heights at the base spacing, S20's layout), `ChunkPlacement` (keyed by the chunk's placement version: the
@@ -2250,10 +2283,23 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   template view, SpaceId), bases by (name, pin, plan hash, chunk), placements by (name, placement version, plan hash,
   chunk). In-flight rule (D8): a pool job registers its key when it starts; another pool job waits for a running
   generation of the same key; a synchronous requester never waits (it generates inline); the first insert wins.
-- **Chunk records** (`ChunkRecords`, World state, `CREC`): per chunk the placement version it keeps plus the host-only
-  stamped set. A chunk the host stamps gets a record at the current version (a deliberate extension of E10: the host
-  must save which chunks are stamped); S23b adds the chunks with tombstones; a load keeps the saved records. No other
-  chunk has a record before S25: a chunk without one is generated with the current version by every peer.
+- **Chunk records** (`ChunkRecords`, World state, `CREC`; S23a, S23b): `ChunkRecord {uint16 placementVersion;
+  std::vector<InstanceKey> tombstones}` (sorted, unique) on every peer, plus the host-only stamped set. A record means
+  "this chunk's tier-1 content is fixed at this placement version". Which chunks have one (E10): the chunks the host
+  stamps (host only, at the current version: the host must save which chunks are stamped), every chunk with a
+  tombstone (every peer), and a record received or loaded with another placement version; a terrain edit creates
+  none. Spaces whose generator has no slots never get a tombstone. The **effective record** of a chunk without one is
+  `{current placement version, no tombstones}` (`World::effectiveRecord` / `effectivePlacementVersion`; equal on host
+  and clients: `GenerationState` refuses other versions). **No sequence in the record**: a tombstone advances S22's
+  per-chunk sequence (`TerrainEditStore::bumpSequence`; a tombstone-only chunk gets S22's entry without deltas, saved
+  by `TERR`, sent by `TerrainChunkState`). Every writer calls `World::onRecordChanged(chunk)` after a change (host
+  tombstones and tombstone-on-edit, stamping, the client's record messages and `Resync` clear, a host load's commit per
+  chunk with a record before or after): it reaches the content render sets and the grass masks (§10.1).
+  `ChunkRecords::injectForTests` (test only). No other chunk has a record before S25.
+- **Tombstones** (S23b, §12.5): `World::tombstone(ChunkId, InstanceKey)` on the host, validated at the call
+  (`checkTombstone`), idempotent, a command during a step; `World::tierOnePosition(chunk, key)` (an optional exact
+  position: `ReSnapOnEdit` instances at the current surface, `TombstoneOnEdit` ones at their generated y; empty for a
+  key that is not an accepted, not excluded candidate).
 - A chunk holds: terrain tile(s), tier-1 arrays per mesh, grass mask, placed pieces, static colliders,
   plus its **modifications** and the serialized entities of §9.6. **Modifications are state, not a log**: the current
   edited height tile (stored, saved and sent as the difference from the chunk's base, zero where unedited, zstd
@@ -2365,9 +2411,23 @@ has none).
   - **Application** (`applyTerrainEdit`, engine-internal, serial on the main thread): quantize; gather the base (row
     copies of resident level-0 tiles, else `TerrainSystem::sample`, counted in `baseHookSamples`) and the pre-edit
     heights; kernel; reserve (the delta blocks of changed samples, the entries of new chunks, the host state list
-    entry; S23b's tombstones are computed and reserved here); commit without allocation (the deltas, `bumpSequence`
-    of every chunk whose closed range contains a changed sample, one `TerrainModification` entry with one part per
-    such chunk); one `World::onTerrainChanged` with the changed box. An edit that changes nothing changes no state.
+    entry; S23b: the tombstone-on-edit keys are computed here and their records, key capacity and send-list entries
+    reserved); commit without allocation (the deltas, `bumpSequence` of every chunk whose closed range contains a
+    changed sample, one `TerrainModification` entry with one part per such chunk, then the tombstones); one
+    `World::onTerrainChanged` with the changed box. An edit that changes nothing changes no state.
+  - **Tombstone-on-edit** [exists: S23b] (state, host; `reserveEditTombstones` / `commitEditTombstones` in
+    `content/Tombstones`): for every changed chunk of a space whose generator has `TombstoneOnEdit` slots, the chunk's
+    `ChunkPlacement` at its effective placement version (synchronous, cache); its non-tombstoned instances of those
+    slots inside the changed box grown by one sample; their y from the post-edit samples (the kernel's output where
+    changed, `terrainSample` elsewhere) with chunk generation's integer surface rule (`tierOneSurface`); every key
+    whose y differs from its generated y is tombstoned, in `ChunkId` then key order, after the edit's terrain part
+    (sequences and send list), then `onRecordChanged` per chunk. A throwing generation leaves the world unchanged.
+    `TerrainEditResult::tombstoned` lists them; `edit_terrain` reports them.
+  - **Re-snap** [exists: S23b] (derived, every peer with content sets; not saved or sent): `onTerrainChanged` hands the
+    box to the content render system's queue (only while it has sets; one merged box per chunk), drained by the next
+    view update or `Players` pass: `ReSnapOnEdit` instances in the grown box get y from the surface rule over
+    `terrainSample`, `updateInstances` for the changed index range; a set built later re-snaps at creation. S22's
+    visual dirty queue is not used.
   - **Edits never change base tile data** (D3): the `TerrainStore` keeps the generated base; the deltas are merged into
     every tile and pyramid when it passes `TerrainSystem`'s send point and patched afterwards through `patchTerrainTile`
     / `patchTerrainPyramid` (the dirty queue: tile boxes of the view space, pyramid boxes per space; the patch step of
@@ -2377,7 +2437,7 @@ has none).
     and its mask is still desired; never the base mask of an edited chunk). The visual work is the frame profile's
     `frame/render/terrain_visual`.
   - **Events**: `TerrainEditedEvent` (§7.7) is the broadcast of every applied change; `onTerrainChanged` is the single
-    engine path (events, the visual dirty queue, S23b's re-snap queue), `World::pendingTerrainChanges()` lists the
+    engine path (events, the visual dirty queue, S23b's re-snap queue of the content sets), `World::pendingTerrainChanges()` lists the
     in-step changes whose events are not emitted yet. The "affected tier-1 instances and pieces" of an edit: S22 reports
     the changed box; S23b adds its tombstones (computed in the edit's reserve step, written in its commit) and re-snaps
     from `onTerrainChanged`; S30 adds pieces. Collider patches [S28], the region modification summary [S27], nav patches
@@ -2475,7 +2535,7 @@ has none).
   the plan (§12.1): `spaceCount()`, `spaceTemplate(i)` and `spaceSeed(i)` are plan-backed, the space-state entities
   exist per instance and `SPCE` lists the instances (template name per `SpaceId`; names may repeat); with
   `FlatGenerator` and no sites the list is exactly S21's. Authored enclosed entities are stamped from prefabs (S23a);
-  their static geometry is drawn from S23b, its colliders come in S28. **Before S24**:
+  their static geometry is drawn as the content render sets' static parts (S23b), its colliders come in S28. **Before S24**:
   there is no arrival mechanism; `requestTransition` completes in the next step (simulation tiles are generated
   synchronously on demand, §12.2); the loading screen waits for the visual data only on the local peer and does not
   affect the simulation.
@@ -2497,7 +2557,8 @@ has none).
   enclosed space's chunk range is `[0, sizeChunks)^2`, its site origin `enclosedOrigin` (§7.9).
 - **The loading screen before S24** (A9): the app keeps the space of the last rendered frame's view camera; a change
   starts a load only if `World::spaceReadiness(space, camera, EngineAppSetup::loadingRadius)` (E8: terrain in S21,
-  content sets from S23b) is below 1 after the frame's stream (an enclosed, flat or still resident target shows
+  S23b the minimum with the fraction of the desired content sets within the radius that are built; an empty chunk
+  counts as built) is below 1 after the frame's stream (an enclosed, flat or still resident target shows
   nothing). Progress is the running maximum; a load ends at readiness 1 with no pending terrain uploads, at a complete
   point (§8.3), or after `loadingMaxFrames` (a log line). `EngineAppSetup::{loadingRadius = 256, loadingMaxFrames =
   600, showLoadingScreen, loadingScreen}`: the engine's default (`drawLoadingScreen`, ImGui until S46) is an opaque
@@ -2530,10 +2591,19 @@ std::vector<PieceKey> World::pieceNeighbours(PieceKey key) const;           // t
 template <class T, class... C> Entity World::promote(ChunkId chunk, InstanceKey key, C&&... initial);   // tier 1
 template <class T, class... C> Entity World::promote(PieceKey piece, C&&... initial);                    // tier 1p
 PieceKey World::demote(Entity e, PieceTypeId type);                         // entity -> placed piece
-void World::tombstone(ChunkId chunk, InstanceKey key);                      // tier 1 (S23b)
+void World::tombstone(ChunkId chunk, InstanceKey key);                      // tier 1 [exists: S23b]
 void World::editGrass(SpaceId space, const Vec3& center, double radius, double density);   // S31: edited grass mask
 ```
 - A piece with behavior (a crafting station with a timer) is promoted to an entity while it is active (game decides).
+- `World::tombstone` [exists: S23b]: host only (a client call stops in every build, R-NET-2); validated at the call in
+  every build, also during a step (`SAIGA_EXIT_ERROR`; `checkTombstone` reports without stopping): the space, the chunk
+  range (D12), the slot, `counter < candidatesPerChunk(slot)`, an open-world space (S22's sequences; an enclosed space
+  refuses) and an accepted, not excluded instance at the chunk's
+  effective placement version (generated synchronously through the cache); between steps at once, during a step a
+  command at the requesting phase's flush (not inside `parallelEach`); idempotent (a tombstoned key changes nothing: no
+  sequence, message or notification); applying creates the record if needed (current version), inserts the key, bumps
+  S22's sequence, appends the host send-list entry and calls `onRecordChanged`. `isTombstoned`, `chunkRecord`,
+  `tierOnePosition` (§12.1).
 
 ## 13. Multiplayer (co-op)
 
@@ -2548,8 +2618,8 @@ void World::editGrass(SpaceId space, const Vec3& center, double radius, double d
   `RenderPose` and the interpolation buffer, full-state snapshots of all entities (§13.4), host + client scenario
   variant.
 - **With the features that need them** (over `LoopbackTransport`): the world handshake and chunk snapshots (S26), live
-  terrain edits (S22), the generation state check (S23a: `GenerationState`, §13.2), tombstones (S23b; sent like the S22
-  live terrain modifications to every client until S26), pieces (S30).
+  terrain edits (S22), the generation state check (S23a: `GenerationState`, §13.2), tombstones (S23b: `TombstoneModification`,
+  `ChunkRecordState`; sent like the S22 live terrain modifications to every client until S26), pieces (S30).
 - **S32** interest radius, snapshot rate, cosmetic events, loss and reordering; **S33** UDP transport, sessions.
 
 ```cpp
@@ -2577,7 +2647,7 @@ LoopbackTransport::createPair(double dropRate = 0, int delaySteps = 0, uint64_t 
 void LoopbackTransport::disconnect(uint8_t peer);   // [S33] both ends receive Disconnected (tests)
 ```
 
-### 13.2 The world over the network [planned: S26; live terrain edits: exists, S22; GenerationState: exists, S23a]
+### 13.2 The world over the network [planned: S26; live terrain edits: exists, S22; GenerationState: exists, S23a; chunk records: exists, S23b]
 
 The world is generated from the seed on every machine (§12.1). The handshake sends the seed and the pinned generator
 versions and compares the protocol version and a hash of the schema table (§15.2); a mismatch rejects the join with a
@@ -2626,6 +2696,28 @@ of a space this client does not have: refused instead of the setup-mismatch exit
 handshake (E11): until then a client of another binary version, or a host that loaded a save of an older generator
 version, is refused. The host logs once per world when the first peer joins and a generator in use is not integer only
 (the prototype fixture: "clients on other machines or compilers may see other terrain").
+
+**S23b (before S26)**: two raw engine messages host -> clients on `Channel::State`, reliable, with the epoch
+(`content/ContentMessages`), applied in phase 1 and by `stepNetworkOnly`: `TombstoneModification` (epoch, space,
+1..4096 entries; per entry chunk x, z, placement version, the chunk's sequence after the change, slot (u8), counter;
+at most about 78 KB) and `ChunkRecordState` (epoch, space, 1..1024 parts, at most 8192 keys; per part chunk x, z,
+placement version, its keys; at most about 55 KB; a record with more keys is split into parts that repeat chunk and
+version, in consecutive messages, united on the client). S22's terrain messages are unchanged. The host send list
+(§8.1) keeps application order, so per chunk the sequence order of terrain parts and tombstones is preserved; an edit's
+tombstones follow its `TerrainModification`. Snapshot (E5): `sendChunkSnapshot` sends the `ChunkRecordState`s (only
+records with tombstones or another placement version than the current one, per space) before the `TerrainChunkState`s:
+per join `Resync` (epoch != 0), `GenerationState`, spawn set, record states, terrain states; per host load `Resync`,
+`GenerationState`, record states, terrain states. The joining step's send-list entries are not sent to the joiner (the
+snapshot includes them). The client validates the whole message before any entry applies (a failure counts in
+`NetStats::rejected`, logs in the categories `net` and `content`, applies nothing): the epoch (another: dropped, not
+counted), no `generationMismatch`, the space, the chunk range, the bounds, the placement version between its pinned and
+current version and equal to the chunk's effective version when it has a record (a `TombstoneModification` for a chunk
+without one carries the current version; older versions reach a client only after S26's handshake), for keys only: a
+generator with slots, slot below the slot count, counter below `candidatesPerChunk`, keys sorted and unique per part.
+`TombstoneModification` sequences against S22's `sequence(chunk)`, cumulatively per chunk within the message: `<=`
+dropped, `+ 1` applied, larger a gap (logged, counted in `modificationGaps`, applied). A client does not check that a
+key is an accepted candidate (no chunk generation on message apply). A client `Resync` clears S22's store and the
+records together (`clearReplicatedChunkState`), then `onTerrainChanged` / `onRecordChanged` per cleared chunk.
 
 ### 13.3 Ownership [planned: S16; moving platforms: S40]
 
@@ -2949,14 +3041,18 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
 - **`GENR`** [S23a] (format 1, written when the world writes generation state: a non-legacy generator or chunk records):
   the seed (u64); the template count, per template the generator name; the generator count, per generator in name
   order the name, the pinned and the current version (u16 each), the slot count and per slot the name and flags; the
-  space count N and the combined plan hash of the spaces 0..N-1 (§12.1). **`CREC`** [S23a] (format 1, only with chunk
+  space count N and the combined plan hash of the spaces 0..N-1 (§12.1). **`CREC`** [S23a format 1, S23b format 2] (only with chunk
   records): the count of spaces with records; per space in `SpaceId` order the `SpaceId` and the record count; per
-  record in `ChunkId` order x, z, the placement version (u16) and the host's stamped flag (u8; S23b's format 2 appends
-  the tombstones). The load checks of §15.3 run before the commit (with phase A and B of the pipeline on the saved
+  record in `ChunkId` order x, z, the placement version (u16) and the host's stamped flag (u8); format 2 (S23b) appends
+  the tombstone count (u32) and per key in (slot, counter) order the slot (u8) and the counter (u32); format 1 reads as
+  records without tombstones. Load errors naming the chunk: keys not sorted and unique, tombstones in a space whose
+  generator has no slots, a slot beyond the slot table, a counter not below `candidatesPerChunk(slot)`. The load checks of §15.3 run before the commit (with phase A and B of the pipeline on the saved
   pins); the commit replaces the plans if the pins change them, then the records, before `TERR`'s commit. `diffSaves`
   reports `generation` differences (seed, template generators, per generator versions and slots, space count, combined
   hash) and `record` differences per chunk. `data/tests/engine/save_s23a.bin` (the content test setup with a stamped
-  site and an edited chunk) guards both formats; `save_v1.bin` (flat, no `GENR`) keeps loading.
+  site and an edited chunk) is the format-1 input (`ChunkRecords.Format1LoadsWithoutTombstones`: read without
+  tombstones, saved as format 2); `save_s23b.bin` guards format 2 with persisted tombstones
+  (`ChunkRecords.CommittedSaveLoads`); `save_v1.bin` (flat, no `GENR`) keeps loading.
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.
@@ -3016,8 +3112,8 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
 - **S23a**: one version counter per generator: the plan and the terrain at the pinned version, candidates and grass at
   the chunk's placement version (>= pinned; `candidate(p, plan)` accepts a plan of any version <= p). A new world pins
   every registered generator's `version()`; the current placement version is `version()` on the host and on clients.
-  Before S25 only chunks with state have a record (the stamped chunks; S23b adds the tombstoned ones; a load keeps the
-  saved records and so an older placement version); a chunk without a record is generated with the current version
+  Before S25 only chunks with state have a record (the stamped chunks; S23b the tombstoned ones; a load keeps the
+  saved records and so an older placement version; S23b's content render sets and grass masks of such a chunk use it); a chunk without a record is generated with the current version
   (placement drift after an upgrade in visited but unmodified chunks is accepted until S25). `GENR` stores the seed,
   the generator per template, per generator (name order) the pinned and current version and the slot table, and the
   space count with the combined plan hash; `CREC` the records with the host's stamped flag. Both, like
@@ -3085,6 +3181,8 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `move_to_space(entity, space, position, rotation?)` | S21 (A14): `World::moveToSpace` of a root (rotation default: the current one); errors for a child, a state entity, an unknown space and a client's replicated entity (a client-owned root on the host is allowed: the `OwnerCommand` path); returns the entity and `previous {space, position, rotation}` (sent back it restores the entity). The `space` key of `set_transform` and of `set_component`'s `Transform` values is refused with a text naming `move_to_space` | [exists: S21] |
 | `edit_terrain(space?, op, center, radius, strength)` | S22: `World::editTerrain` between steps on the host (op `add`, `subtract`, `flatten`, `smooth`; center [x, y, z] or [x, z], y the flatten target); refused inside a step, on clients (with `--coop` the tools see the client world), for an unknown or enclosed space and for an invalid brush (the error names the field and the bound); returns `changed_samples`, per changed chunk `{chunk: [x, z], sequence, box: [x0, z0, w, h]}` (chunk-local samples) and the changed `box: [x0, z0, x1, z1]` in metres; logged under `api`; not registered read-only | [exists: S22] |
 | `terrain_height(space?, x, z)`, `terrain_edits(space?, limit?, after?)` | S22: the exact surface height (§12.2, incl. edits) with the three integer samples of the triangle and `edited`; the chunks with terrain state in `ChunkId` order (sequence, `has_deltas`, `non_zero_samples`, the delta min / max in metres), paged (`next`) | [exists: S22] |
+| `chunk_info(space?, chunk?: [x, z], position?: [x, z])`, `list_sites(space?, near?: {position, radius}, limit? (100, <= 1000), after?)` | S23b, reads: the chunk, `placement_version` (effective), `recorded`, `stamped` (host), `sequence`, `tombstones` (slot name, counter; at most 200, `truncated`), `tombstone_count`, instances per slot, the site keys, `content_hash` (generated on demand), errors for a chunk outside the space; per site key, prefab, version, position, quarter turns, base height (m), footprint, linked space IDs and its chunks with their stamped state, paged (`next`) | [exists: S23b] |
+| `tombstone(space?, chunk: [x, z], slot, counter)` | S23b, changes: tombstones one tier-1 instance (host only; on a client an error), slot by name; errors for an unknown slot, a counter out of range, a rejected or excluded candidate and a chunk outside the space; idempotent (`changed: false`); returns the sequence (an exhausted sequence, `UINT32_MAX`, is an error). `edit_terrain` reports `tombstoned: [{chunk, slot, counter}]`; `describe_world` adds `generators: [{name, version, pinned, current, slots: [{name, flags}], integer_only}]`, `world_status` `generation: {seed (string), mismatch, checked}` | [exists: S23b] |
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
@@ -3265,7 +3363,8 @@ void registerEngineScenarios(ScenarioList& s)
   step listener in every build).
 - `ScenarioWorld` overrides the radii of every `SpaceTemplate` with small defaults (`fullRadius = simulationRadius =
   interestRadius = clientPhysicsRadius = 128`, `prefetchMargin = 0`), which a scenario can raise; it requests no visual
-  tiles or far content. [exists: S23a] `fullRadius` is lowered to at most 128 m (a scenario that needs content farther
+  tiles or far content, but builds content render sets around the players on every peer (S23b:
+  `ContentCentres::Players` on every world's recording sink; only spaces with slots or static parts). [exists: S23a] `fullRadius` is lowered to at most 128 m (a scenario that needs content farther
   away moves its Player there); the worlds of a setup share one content cache (`WorldSetup::sharedContent`: the runner
   creates one per `runScenarios` call, `ScenarioWorld` one per scenario if the setup has none; "per setup", not per
   process: equal setups may share one explicitly); scenario terrain comes from the setup's generators (flat by default);
@@ -3324,6 +3423,9 @@ S22: the end condition also waits until every client's chunk sequences equal the
 the comparison includes the terrain modification state of every scenario: per space over the union of the chunks with
 a sequence > 0 on either side the sequence and, for chunks with deltas, the dense delta (exact; a difference names the
 peer, the chunk, the sequence and the first differing sample); any `NetStats::modificationGaps` on a client fails.
+S23b: the end condition also waits until every client's effective chunk records equal the host's, and the comparison
+checks them per space over the union of the chunks with a record on either side (placement version, tombstone set;
+`stamped` is host-only and not compared).
 
 ### 17.4 Repeat and save/load tests [exists: S08 (hash), S12 (variants)]
 
@@ -3335,8 +3437,8 @@ peer, the chunk, the sequence and the first differing sample); any `NetStats::mo
   appended without such chunks, but registering `TerrainEditedEvent` changed every hash value against pre-S22 builds);
   from S23a, only when the world writes generation state (a non-legacy generator or chunk records; flat and hook worlds
   hash as before), after S22's block: the seed, per generator in name order its name, pinned and current version, and
-  per chunk record in (`SpaceId`, `ChunkId`) order the chunk, its placement version and the stamped flag (S23b appends
-  the tombstones); S25 adds the other chunk states. It is a debugging aid and the check of the repeat variant.
+  per chunk record in (`SpaceId`, `ChunkId`) order the chunk, its placement version and the stamped flag, and (S23b) the
+  tombstone count and per key slot and counter (worlds without records hash as before); S25 adds the other chunk states. It is a debugging aid and the check of the repeat variant.
 - Variants of every scenario [exists: S12]: (0) **plain**: once; (a) **repeat**: the scenario runs twice and the
   per-step hashes, the step count and the final hash must be equal (catches wall-clock time, unordered containers and
   uninitialized memory); on a mismatch the runner runs both again up to the first differing step and prints
@@ -3408,6 +3510,18 @@ goldens).
   imported `data/tests/scene/flat_box.gltf` (two instances, LOD 0: two merged primitives with baked base color factors)
   through `RenderScene`'s instance path (clay mode, 4 samples): face-duplicated flat normals under the fixed sun.
   Written with `--gtest_filter='VulkanSceneContent.ImportedMeshGolden'` on `test_vulkan_scene`.
+- `generated_site` (S23b, E12, `TerrainRenderTest.GeneratedSite` in `tests/test_engine_terrain_render.cpp`, 512 x 512,
+  4 samples, the prototype environment): generated content through the real render path. Two worlds of the content
+  test setup (`tests/content_test_setup.h`, the overworld's `fullRadius` lowered to 300 m, `ContentCentres::View`, the
+  same camera at site 0's base height + 70 m, 90 m south of its origin, looking at it): world A renders through a
+  `VulkanRenderSink`, world B records the exact set arrays. The test_tree of chunk (4, 5) nearest to the site origin is
+  tombstoned on both. Checks on every device: the drawn instances per tracked test mesh (`trackMeshStatistics`, summed
+  over the LODs, the statistics of the rendered frame itself via `takeStatistics`) drop by exactly 1 for the tree's
+  mesh and are unchanged for the others (a count delta: absolute counts depend on culling and the neighbour chunks);
+  B's set of (4, 5) equals the conversion of the chunk's placement and static parts with the tombstoned index at scale
+  0. The image after the tombstone (terrain with the site's patch, the tier-1 test meshes, the pillars, the generator's
+  grass) is compared on lavapipe. Written with `--gtest_filter='TerrainRenderTest.GeneratedSite'` on
+  `test_engine_terrain_render`.
 - Pass: mean absolute difference < 1/255 and at most 0.5% of the pixels differ by more than 16/255. It gates only when
   the device name contains `llvmpipe` (else it prints the metrics). Gray (clay) goldens are stored as 8-bit grayscale
   PNGs.
@@ -3602,7 +3716,7 @@ the missing target is reported as open).
 | game scenarios | in the game, `EngineAppSetup::scenarios`; run with `game_<name> --scenarios` (not in ctest, §17.2) | | |
 | shaders | `shader/vulkan/<area>/` | `snake_case.vert/.frag/.comp`, `*.glsl` includes | |
 | game data, prefabs | `data/<game>/`, `data/<game>/prefabs/` | `snake_case.json` | |
-| content generation (S23a) | `src/saiga/engine/content/` (the pipeline, cache, prefabs, hashes, records, stamping); generator code (integer only, linted): `src/saiga/engine/content/gen/` (toolkit, chunk generation, section hashes, `FlatGenerator`, `AuthoredSpaceGenerator`), the interface headers `Generator.h`, `WorldPlan.h`, `ChunkContent.h`, `engine/world/SpaceKind.h`, a game's `samples/games/<name>/content/` or `samples/games/common/content/`, the engine test generator `tests/content_test_generator.h` | `CamelCase.h/.cpp` | `Saiga::Engine`, `SAIGA_ENGINE_API` |
+| content generation (S23a, S23b) | `src/saiga/engine/content/` (the pipeline, cache, prefabs, hashes, records, stamping; S23b: tombstones, the record messages, the content render sets); generator code (integer only, linted): `src/saiga/engine/content/gen/` (toolkit, chunk generation, section hashes, `FlatGenerator`, `AuthoredSpaceGenerator`), the interface headers `Generator.h`, `WorldPlan.h`, `ChunkContent.h`, `engine/world/SpaceKind.h`, a game's `samples/games/<name>/content/` or `samples/games/common/content/`, the engine test generator `tests/content_test_generator.h` | `CamelCase.h/.cpp` | `Saiga::Engine`, `SAIGA_ENGINE_API` |
 | content test data | `data/tests/engine/prefabs/` (test prefabs), `data/tests/engine/content_hashes.json` (committed hashes), `data/tests/engine/save_s23a.bin` | | |
 | golden images | `data/tests/golden/<test>.png` | | |
 | render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`; S19a: `PrototypeWorld.h` (the settings); S20: `TerrainTiles`, `TerrainAtlas`, `TerrainPass`, `GrassPass`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`; S19a: `scene_lighting.glsl`, `prototype_foliage.vert/.frag`; S20: `terrain*`, `grass.*`, `sky.*`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
@@ -3788,7 +3902,7 @@ template `islands` registers its own `HookGenerator`); heights, scenarios and sc
 | `ForestRenderer`, `tree_cull.comp`, `tree.vert`, `foliage.frag` (alpha-tested leaves, also used by the grass) | S18: the generic path in `RenderScene` (instance sets, culling with `tree_cull.comp`'s rule generalized, flat instance shaders) [exists]; S19a: the trees as instance sets (`PrototypeForest`), `tree.vert` / `foliage.frag` ported onto the instance layout as the transitional `PrototypeFoliage` class (`prototype_foliage.vert/.frag`; `foliage.frag` stays for the grass, the shading in `prototype_shading.glsl`), `ForestRenderer` reduced to `placeTrees`, `tree.vert` and `tree_cull.comp` removed [exists] | S18 (done), S19a (done) |
 | `WorldRenderer`, `WorldStatistics.cpp` | A15 (S20): `PrototypeScene` (settings, GUI, forest) plus the engine debug UI's terrain section; `setPrototypeTerrain` became `setPrototypeEnvironment` [exists] | S19a (done), S20 (done) |
 | `TerrainRenderer`, `HeightField`, `terrain.vert`, `terrain.frag`, `heightmap.glsl` | integer multi-level tiles + pyramid (`TerrainSystem`, `TerrainAtlas`, `TerrainPass`, `scene/terrain*`), double camera through a 64 m frame anchor (A2: the (0,0)-(1,1) diagonal) [exists]; edits | S20 (done), extended in S22 |
-| `GrassRenderer`, `grass.vert` | chunk-relative cells (`GrassPass`, `scene/grass.*`), masks from the transitional prototype rule [exists]; generated masks (S23b); edited masks (S31) | S20 (done) |
+| `GrassRenderer`, `grass.vert` | chunk-relative cells (`GrassPass`, `scene/grass.*`), masks from the transitional prototype rule [exists]; generated masks [exists: S23b; legacy spaces keep the prototype rule with the generator's thresholds]; edited masks (S31) | S20 (done) |
 | `sky.vert`, `sky.frag`, `shading.glsl` (clay lighting, height fog), water plane (a mode of `terrain.vert` / `terrain.frag`) | `scene/sky.*`, `scene/terrain_shading.glsl` on `TerrainFrame`, the water plane at the `SpaceTemplate`'s sea level snapped to 4096 m [exists: S20]; sky and lighting replaced in S36, water in S39 | S20 (done) |
 | `FoliageGenerator`, `HeightField::generate`, `placeTrees` | S20: the hook `prototypeHeight` (the noise per point), `placeTrees` over a `PrototypeArea` [exists]; S23a: the hook is the `HookGenerator` "prototype" of the games (`samples/games/common/PrototypeSpace.h`); generation pipeline with integer math (R-CONTENT-1): the flight demo in S23c, `game_world` and racing in S27 | S23c (flight), S27 (`game_world`, racing) |
 | `tests/test_vulkan_world.cpp` | render tests on `RenderScene` (S19a: the forward-renderer fixture dropped) [exists] + engine tests (S19b: `tests/test_engine_extract.cpp`, the app's view camera in `tests/test_engine_app.cpp`) [exists] | S19a (done), S19b (done) |
@@ -3913,7 +4027,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S21 | Spaces and transitions (done) | Further space instances, `moveToSpace`, entrances, loading-screen transitions (ImGui until S46) (§12.4) | S16, S20, S19b, S16b (A16) | use-a-`SpaceLink` scenario (player ends in space 1 at the arrival pose) incl. save/load and host + client (CI) |
 | S22 | Terraforming (done) | Terrain brushes, synchronous integer result (collider patch from S28), asynchronous visual and nav data, live edit replication to every client (integer results), clients keep all edited tiles (§12.2) | S20, S16 | terraform scenario incl. save/load; host + client end with equal heights, delay 0 and 2 (CI); terraforming benchmark (integer result, encoding, visual patching) within budget (local) |
 | S23a | Generation pipeline (done) | Fixed-point toolkit and integer lint, `Generator` interface (integer template view), world plans with sites and space instances (eager), chunk generation, prefabs, stamping from the plan (entities, SpaceLinks), content cache, pinned versions, GENR/CREC, GenerationState, content hashes on all CI compilers with UBSan on Clang (§12.1, §15.3) | S20, S21, S22 | committed content hashes reproduced on all CI compilers; stamp scenario (prefab entity and terrain patch present) in every variant (CI) |
-| S23b | Tombstones and content rendering | Tombstones in chunk records with replication (TombstoneModification, ChunkRecordState; the sequence stays S22's), content render sets (tier 1, static parts), generated grass masks, re-snap and tombstone-on-edit from applied changed boxes, MCP tools, the generated_site golden (§12.1, §12.2, §12.5, §13.1, §16.2) | S23a | a tombstoned instance is hidden on the client in the host + client variants; generated_site golden with its count check (CI) |
+| S23b | Tombstones and content rendering (done) | Tombstones in chunk records with replication (TombstoneModification, ChunkRecordState; the sequence stays S22's), content render sets (tier 1, static parts), generated grass masks, re-snap and tombstone-on-edit from applied changed boxes, MCP tools, the generated_site golden (§12.1, §12.2, §12.5, §13.1, §16.2) | S23a | a tombstoned instance is hidden on the client in the host + client variants; generated_site golden with its count check (CI) |
 | S23c | Overworld generator (tech demo) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
 | S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |

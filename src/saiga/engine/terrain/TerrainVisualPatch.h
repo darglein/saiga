@@ -51,6 +51,8 @@ class SAIGA_ENGINE_API TerrainVisualPatch
     {
         Vulkan::GrassMaskData mask;
         uint64_t revision = 0;
+        // S23b: the placement version of a generator space's mask (0 for legacy spaces)
+        uint16_t version = 0;
     };
     // The cached mask of a chunk whose revision is current, null otherwise
     const Vulkan::GrassMaskData* currentMask(const ChunkId& chunk, uint64_t revision) const

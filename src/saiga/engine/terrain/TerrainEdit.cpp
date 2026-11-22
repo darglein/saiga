@@ -7,6 +7,7 @@
 #include "saiga/engine/terrain/TerrainEdit.h"
 
 #include "saiga/core/math/TerrainSurface.h"
+#include "saiga/engine/content/Tombstones.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
@@ -140,8 +141,8 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
                 }
         }
     std::sort(chunks.begin(), chunks.end());
-    // A chunk whose sequence is exhausted (UINT32_MAX, e.g. from a save) cannot be bumped (0 is not a valid sequence
-    // of saves and messages): the edit is refused and changes nothing (checked before any block is reserved)
+    // A chunk with an exhausted sequence (UINT32_MAX) is refused before the tombstone-on-edit placements are generated
+    // (as in S22: no generation, nothing that can throw); the combined check below covers the tombstones' bumps
     for (const ChunkId& c : chunks)
         if (st.sequence(c) == std::numeric_limits<uint32_t>::max())
         {
@@ -150,10 +151,6 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
             ss.noopEdits++;
             return result;
         }
-    // 4. reserve the blocks of the new deltas (only a non-zero delta that differs from the current one)
-    for (int64_t k = box.k0; k <= box.k1; ++k)
-        for (int64_t i = box.i0; i <= box.i1; ++i)
-            if (outAt(i, k) != preAt(i, k)) st.reserveFor(space, i, k, outAt(i, k) - baseAt(i, k));
     // 4. reserve the entries of new chunks, the parts of the send-list entry, the result and the change-list slot
     std::vector<TerrainEditStore::EntryNode> entries;
     entries.reserve(chunks.size());
@@ -181,12 +178,41 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
                 p.deltas[size_t((k - z0) * p.w + (i - x0))] = v;
             }
     }
-    result.chunks.resize(chunks.size());
     Replication& repl = world.replication();
     repl.reserveHostState();
     world.reserveTerrainChange();
-    // S23b's extension point (F2): its tombstone-on-edit is computed here from the kernel output (the post-edit
-    // samples) and its chunk records, key capacity and send-list entries are reserved; nothing is written yet
+    // S23b (F2): tombstone-on-edit from the kernel output (the post-edit samples); its chunk records, key capacity and
+    // send-list entries are reserved here; nothing is written yet (a throwing generation leaves the world unchanged)
+    EditTombstones tombstones;
+    reserveEditTombstones(
+        world, space, chunks, box,
+        [&](int64_t i, int64_t k)
+        {
+            if (i >= affected.i0 && i <= affected.i1 && k >= affected.k0 && k <= affected.k1) return outAt(i, k);
+            return world.terrainSample(space, i, k);
+        },
+        tombstones);
+    // A chunk whose sequence would pass UINT32_MAX (e.g. from a save; one bump for the part, one per tombstone) cannot
+    // be bumped (0 is not a valid sequence of saves and messages): the edit is refused and changes nothing (checked
+    // before any delta block is reserved; the reserved capacity holds nothing)
+    for (const ChunkId& c : chunks)
+    {
+        uint64_t bumps = 1;
+        for (const auto& kv : tombstones.keys) bumps += kv.first == c ? 1 : 0;
+        if (uint64_t(std::numeric_limits<uint32_t>::max()) - st.sequence(c) < bumps)
+        {
+            SAIGA_LOG("terrain", "editTerrain: the sequence of chunk (%d, %d) of space %u is exhausted (refused)", c.x,
+                      c.z, unsigned(space));
+            ss.noopEdits++;
+            return result;
+        }
+    }
+    // The blocks of the new deltas (only a non-zero delta that differs from the current one)
+    for (int64_t k = box.k0; k <= box.k1; ++k)
+        for (int64_t i = box.i0; i <= box.i1; ++i)
+            if (outAt(i, k) != preAt(i, k)) st.reserveFor(space, i, k, outAt(i, k) - baseAt(i, k));
+
+    result.chunks.resize(chunks.size());
 
     // 5. commit (writes only, no allocation): entries, deltas, sequences, parts
     for (TerrainEditStore::EntryNode& e : entries) st.insertEntry(std::move(e));
@@ -200,7 +226,8 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
         result.chunks[n]  = {chunks[n], parts[n].sequence, parts[n].x0, parts[n].z0, parts[n].w, parts[n].h};
     }
     repl.appendTerrainModification(space, std::move(parts));
-    // S23b writes the tombstones it reserved here (keys, bumpSequence, its send-list entries after this one)
+    // S23b: the reserved tombstones (keys, sequences after the terrain part's, send-list entries after this one)
+    commitEditTombstones(world, tombstones, result.tombstoned);
 
     result.changedSamples = changed;
     result.i0             = box.i0;

@@ -988,11 +988,30 @@ bool WorldLoader::stageGeneration()
                 if (r.placementVersion < g.pinned || r.placementVersion > newest)
                     return fail(where + ": the placement version " + std::to_string(r.placementVersion) +
                                 " is not in v" + std::to_string(g.pinned) + "..v" + std::to_string(newest));
+                // S23b: the tombstones (sorted and unique, only in a space whose generator has slots, each slot and
+                // counter in range)
+                if (!r.tombstones.empty())
+                {
+                    if (!sortedUniqueKeys(r.tombstones))
+                        return fail(where + ": the tombstones are not sorted and unique");
+                    const uint32_t slots = uint32_t(cur.generators->find(g.generatorId)->slots.size());
+                    if (slots == 0) return fail(where + ": tombstones in a space whose generator has no slots");
+                    for (const InstanceKey& k : r.tombstones)
+                    {
+                        if (k.generatorSlot >= slots)
+                            return fail(where + ": a tombstone of slot " + std::to_string(k.generatorSlot) +
+                                        " (the generator has " + std::to_string(slots) + ")");
+                        if (k.counter >= g.generator->candidatesPerChunk(k.generatorSlot))
+                            return fail(where + ": a tombstone counter " + std::to_string(k.counter) + " of slot " +
+                                        std::to_string(k.generatorSlot) + " is out of range");
+                    }
+                }
                 ChunkId c;
                 c.space                           = sp.space;
                 c.x                               = r.x;
                 c.z                               = r.z;
                 stagedRecords[c].placementVersion = r.placementVersion;
+                stagedRecords[c].tombstones       = r.tombstones;
                 if (r.stamped) stagedStamped.insert(c);
             }
         }
@@ -1007,10 +1026,24 @@ void WorldLoader::commitGeneration()
         w.pipeline->replacePlans(std::move(*stagedPlans));
         stagedPlans.reset();
         std::vector<TerrainHeightSource> sources;
-        for (size_t i = 0; i < w.pipeline->spaceCount(); ++i) sources.push_back(w.pipeline->heightSource(SpaceId(i)));
-        w.terrainSys->replaceSources(std::move(sources));
+        std::vector<ContentSource> content;
+        for (size_t i = 0; i < w.pipeline->spaceCount(); ++i)
+        {
+            sources.push_back(w.pipeline->heightSource(SpaceId(i)));
+            content.push_back(w.pipeline->space(SpaceId(i)).generator->legacyTerrain()
+                                  ? ContentSource()
+                                  : w.pipeline->contentSource(SpaceId(i)));
+        }
+        w.terrainSys->replaceSources(std::move(sources), std::move(content));
+        // S23b: the content sets of the old plans
+        w.contentRenderSys->dropAll();
     }
+    // S23b: every chunk with a record before or after the load goes through onRecordChanged (the render sets follow)
+    std::set<ChunkId> changed;
+    for (const auto& kv : w.chunkRecords->records()) changed.insert(kv.first);
+    for (const auto& kv : stagedRecords) changed.insert(kv.first);
     w.chunkRecords->replace(std::move(stagedRecords), std::move(stagedStamped));
+    for (const ChunkId& c : changed) w.onRecordChanged(c);
 }
 
 void WorldLoader::restoreStateEntities()

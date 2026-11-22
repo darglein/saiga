@@ -1053,7 +1053,7 @@ TEST(TerrainStreaming, NonFiniteCameraRequestsNothing)
     w.setRenderSink(nullptr);
 }
 
-// Masks for chunks within the grass radius, removed when they leave it, regenerated after a threshold change
+// Masks for chunks within the grass radius, removed when they leave it
 TEST(TerrainStreaming, GrassMasks)
 {
     World w(terrainSetup(32, 2, slopeRidgeHook, 0));
@@ -1074,15 +1074,7 @@ TEST(TerrainStreaming, GrassMasks)
     ASSERT_TRUE(w.terrain().completeView(0, cam));
     for (const auto& [c, m] : masks) EXPECT_FALSE(sink.grassMasks().count(c));
     EXPECT_GT(sink.counters().removeGrassMask, 0u);
-    // A threshold change: every mask is dropped and regenerated
-    const uint64_t sent   = sink.counters().setGrassMask;
-    TerrainViewSettings s = kDefaults;
-    s.grassMinNormalY     = 0.95;
-    w.terrain().setViewSettings(s);
-    EXPECT_TRUE(sink.grassMasks().empty());
-    ASSERT_TRUE(w.terrain().completeView(0, cam));
-    EXPECT_GT(sink.counters().setGrassMask, sent);
-    EXPECT_FALSE(sink.grassMasks().empty());
+    // (S23b: the thresholds are the generator's; GrassFromGenerator.* tests that other thresholds give other masks)
     w.setRenderSink(nullptr);
 }
 

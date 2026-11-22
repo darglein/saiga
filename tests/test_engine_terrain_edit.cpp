@@ -1981,13 +1981,14 @@ RegionId level0(int32_t x, int32_t z)
 std::vector<uint8_t> expectedMask(const World& w, const ChunkId& c)
 {
     TerrainTileData t;
-    auto h                       = std::make_shared<std::vector<int32_t>>(expectedTile(w, level0(c.x, c.z)));
-    t.heights                    = h;
-    t.minHeight                  = *std::min_element(h->begin(), h->end());
-    t.maxHeight                  = *std::max_element(h->begin(), h->end());
-    const TerrainViewSettings& v = w.terrain().viewSettings();
-    return *generateGrassMask(t, w.terrain().layout(c.space), w.spaceTemplate(c.space).seaLevel, v.grassMinNormalY,
-                              v.grassMinAboveSea)
+    auto h      = std::make_shared<std::vector<int32_t>>(expectedTile(w, level0(c.x, c.z)));
+    t.heights   = h;
+    t.minHeight = *std::min_element(h->begin(), h->end());
+    t.maxHeight = *std::max_element(h->begin(), h->end());
+    // The test hooks' grass rule (HookGrassRule's defaults, S23b: the generator's thresholds)
+    const HookGrassRule rule;
+    return *generateGrassMask(t, w.terrain().layout(c.space), w.spaceTemplate(c.space).seaLevel, rule.minNormalY,
+                              rule.minAboveSea)
                 .density;
 }
 // updateView until the edits' visual work is done (patches, mask jobs, requests)

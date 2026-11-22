@@ -49,6 +49,16 @@ struct Candidate
     uint32_t flags = 0;     // game bits: hashed, not interpreted
 };
 
+// The grass rule of edited chunks (S23b, §12.2): S20's slope and sea rule over the merged heights, ANDed with the
+// generator's mask. Integers (converted to S20's float parameters outside gen/: minNormalYQ16 / 65536, minAboveSeaUnits
+// / 1024 m); disabled: an edited chunk keeps its generator mask
+struct GrassEditRule
+{
+    bool enabled             = false;
+    int32_t minNormalYQ16    = 0;
+    int32_t minAboveSeaUnits = 0;
+};
+
 // A grass mask (S20's GrassMaskData layout): one texel per base cell (256 / baseSpacing per side), row-major z then x
 struct GrassMask
 {
@@ -87,6 +97,8 @@ class Generator
     virtual uint32_t keptCount(uint32_t slot, int level) const = 0;
     // The chunk's grass mask (size 256 / baseSpacing)
     virtual void grassMask(uint16_t version, const WorldPlan& plan, ChunkId chunk, GrassMask& out) const = 0;
+    // S23b: the rule of edited chunks (presentation: not hashed or saved); a legacyTerrain generator's base mask rule
+    virtual GrassEditRule grassEditRule() const { return GrassEditRule(); }
 };
 
 }  // namespace Engine

@@ -23,6 +23,7 @@
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -1058,6 +1059,164 @@ void registerContentScenarios(ScenarioList& s)
           });
 }
 
+// The set of chunk (4, 5) in a peer's recording sink (null: none)
+const RecordingRenderSink::InstanceSet* siteSet(ScenarioWorld& w, int peer)
+{
+    RegionId r;
+    r.space = 0;
+    r.level = 0;
+    r.x     = 4;
+    r.z     = 5;
+    return w.renderSink(peer).instanceSetAt(r);
+}
+
+// The index of a key in the set of chunk (4, 5) at the current placement version
+size_t siteIndex(World& world, const InstanceKey& key)
+{
+    ChunkId c;
+    c.space = 0;
+    c.x     = 4;
+    c.z     = 5;
+    std::vector<InstanceKey> keys;
+    world.contentRenderForUpdate().buildInstances(c, world.effectivePlacementVersion(c), &keys);
+    return size_t(std::lower_bound(keys.begin(), keys.end(), key) - keys.begin());
+}
+
+void registerTombstoneScenarios(ScenarioList& s)
+{
+    // S23b: an Add brush over a rock (ReSnapOnEdit) and a tree (TombstoneOnEdit) of chunk (4, 5): on host and clients
+    // the rock's rendered y equals the edited surface (derived) and the tree is tombstoned (state)
+    s.add("terrain_edit_resnaps_and_tombstones",
+          [](ScenarioWorld& w)
+          {
+              ChunkId chunk;
+              chunk.space = 0;
+              chunk.x     = 4;
+              chunk.z     = 5;
+              w.spawnPlayer(Vec3(1150, 0, 1400));
+              auto allHaveSets = [&]()
+              {
+                  for (int p = 0; p <= w.clientCount(); ++p)
+                      if (!siteSet(w, p)) return false;
+                  return true;
+              };
+              w.check(w.stepUntil(allHaveSets, 120), "every peer builds the set of chunk (4, 5)");
+              // A rock with a tree within 5 m
+              const auto placement =
+                  w.world().generation().chunkPlacement(chunk, w.world().effectivePlacementVersion(chunk));
+              InstanceKey rock, tree;
+              Vec3 at    = Vec3::Zero();
+              bool found = false;
+              for (const TierOneInstance& r : placement->instances)
+                  for (const TierOneInstance& t : placement->instances)
+                  {
+                      if (found || r.key.generatorSlot != 1 || t.key.generatorSlot != 0) continue;
+                      const double dx = (t.x - r.x) / 256.0, dz = (t.z - r.z) / 256.0;
+                      if (dx * dx + dz * dz > 25) continue;
+                      rock  = r.key;
+                      tree  = t.key;
+                      at    = contentPosition(chunk, r.x, r.y, r.z);
+                      found = true;
+                  }
+              if (!w.check(found, "a rock with a tree nearby")) return;
+              TerrainBrush b;
+              b.op       = TerrainBrush::Add;
+              b.center   = Vec3(at.x(), 0, at.z());
+              b.radius   = 10;
+              b.strength = 2;
+              w.editTerrain(b);
+              auto synced = [&]()
+              {
+                  for (int p = 1; p <= w.clientCount(); ++p)
+                      if (w.client(p).terrainEdits().sequence(chunk) != w.world().terrainEdits().sequence(chunk) ||
+                          w.client(p).effectiveRecord(chunk) != w.world().effectiveRecord(chunk))
+                          return false;
+                  return true;
+              };
+              const int bound = 2 * w.networkConfig().delaySteps + 10 + (w.networkConfig().async ? 6 : 0);
+              w.check(w.stepUntil(synced, bound), "every client has the edit and its tombstones");
+              w.step(1);
+              const std::optional<Vec3> edited = w.world().tierOnePosition(chunk, rock);
+              if (!w.check(edited.has_value() && edited->y() > at.y(), "the rock stands higher")) return;
+              for (int p = 0; p <= w.clientCount(); ++p)
+              {
+                  World& world          = p == 0 ? w.world() : w.client(p);
+                  const std::string who = p == 0 ? "the host" : "client " + std::to_string(p);
+                  const auto* set       = siteSet(w, p);
+                  if (!w.check(set != nullptr, who + " has the set")) continue;
+                  w.check(set->instances[siteIndex(world, rock)].position[1] == float(edited->y()),
+                          who + ": the rock's rendered y is the edited surface");
+                  w.check(world.isTombstoned(chunk, tree), who + ": the tree is tombstoned");
+                  w.check(set->instances[siteIndex(world, tree)].scale == 0, who + ": the tree is hidden");
+              }
+          });
+    // §22 acceptance (S23b): a tombstoned tier-1 instance is hidden on every peer: the host tombstones the first
+    // accepted test_tree of chunk (4, 5); every peer's recording sink has it at scale 0 in the chunk's set, the other
+    // instances keep their scale
+    s.add("tombstone_hides_instance",
+          [](ScenarioWorld& w)
+          {
+              ChunkId chunk;
+              chunk.space = 0;
+              chunk.x     = 4;
+              chunk.z     = 5;
+              w.spawnPlayer(Vec3(1150, 0, 1400));
+              auto allHaveSets = [&]()
+              {
+                  for (int p = 0; p <= w.clientCount(); ++p)
+                      if (!siteSet(w, p)) return false;
+                  return true;
+              };
+              w.check(w.stepUntil(allHaveSets, 120), "every peer builds the set of chunk (4, 5)");
+              // The first accepted test_tree key of the chunk
+              const auto placement =
+                  w.world().generation().chunkPlacement(chunk, w.world().effectivePlacementVersion(chunk));
+              InstanceKey key;
+              bool found = false;
+              for (const TierOneInstance& t : placement->instances)
+                  if (t.key.generatorSlot == 0)
+                  {
+                      key   = t.key;
+                      found = true;
+                      break;
+                  }
+              if (!w.check(found, "a test_tree in chunk (4, 5)")) return;
+              const ApiResult r = w.call("tombstone", json11::Json::object{{"chunk", json11::Json::array{4, 5}},
+                                                                           {"slot", "test_tree"},
+                                                                           {"counter", double(key.counter)}});
+              w.check(r.ok && r.value["changed"].bool_value(), "the host tombstones the tree: " + r.error);
+              auto recordsEqual = [&]()
+              {
+                  for (int p = 1; p <= w.clientCount(); ++p)
+                      if (w.client(p).effectiveRecord(chunk) != w.world().effectiveRecord(chunk)) return false;
+                  return true;
+              };
+              const int bound = 2 * w.networkConfig().delaySteps + 10 + (w.networkConfig().async ? 6 : 0);
+              w.check(w.stepUntil(recordsEqual, bound), "every client has the host's record");
+              // One step: in the save/load variant (swapped after the call) the fresh world's first pass builds its set
+              // (render sets are not state); the step count stays that of the plain run
+              w.step(1);
+              for (int p = 0; p <= w.clientCount(); ++p)
+              {
+                  World& world          = p == 0 ? w.world() : w.client(p);
+                  const std::string who = p == 0 ? "the host" : "client " + std::to_string(p);
+                  const auto* set       = siteSet(w, p);
+                  w.check(world.isTombstoned(chunk, key), who + " reports the tombstone");
+                  if (!w.check(set != nullptr, who + " has the set")) continue;
+                  const size_t index = siteIndex(world, key);
+                  w.check(index < set->instances.size() && set->instances[index].scale == 0,
+                          who + ": the instance is hidden");
+                  // The other instances keep the scale of the conversion
+                  const std::vector<StaticInstance> built =
+                      world.contentRenderForUpdate().buildInstances(chunk, world.effectivePlacementVersion(chunk));
+                  bool others = built.size() == set->instances.size();
+                  for (size_t i = 0; others && i < built.size(); ++i)
+                      others = i == index || set->instances[i].scale == built[i].scale;
+                  w.check(others, who + ": the other instances keep their scale");
+              }
+          });
+}
+
 WorldSetup contentSetupFor(const std::string&)
 {
     return ContentTest::contentTestSetup(2);
@@ -1096,6 +1255,7 @@ std::vector<Case> allCases()
     collect(registerSpacesScenarios, spacesSetupFor);
     collect(registerTerraformScenarios, terraformSetupFor);
     collect(registerContentScenarios, contentSetupFor);
+    collect(registerTombstoneScenarios, contentSetupFor);
     return cases;
 }
 }  // namespace

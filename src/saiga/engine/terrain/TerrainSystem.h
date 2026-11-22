@@ -13,6 +13,8 @@
 #pragma once
 
 #include "saiga/core/math/TerrainSurface.h"
+#include "saiga/engine/content/GenerationPipeline.h"
+#include "saiga/engine/terrain/HookGenerator.h"
 #include "saiga/engine/terrain/SampleRect.h"
 #include "saiga/engine/terrain/TerrainDirtyQueue.h"
 #include "saiga/engine/world/SpaceTemplate.h"
@@ -21,6 +23,7 @@
 
 #include <array>
 #include <atomic>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
@@ -51,9 +54,8 @@ struct TerrainViewSettings
     int grassMaskLayers = 16;
     // Tile sink calls per updateView (completeView sends everything)
     int uploadsPerFrame = 8;
-    // Chunks within this radius get grass masks
-    double grassRadius     = 80;
-    double grassMinNormalY = 0.82, grassMinAboveSea = 0.4;
+    // Chunks within this radius get grass masks (the masks come from the space's generator, S23b: no thresholds here)
+    double grassRadius = 80;
     int workers = 2, maxInFlight = 8;
     // Terrain edits (S22): the samples patched per updateView (summed over the levels and the pyramid; about 1 MB of
     // uploads), the edited grass masks submitted per updateView (completeView: no limit)
@@ -69,6 +71,14 @@ struct TerrainSpace
     uint64_t seed = 0;
     TerrainHeightSource source;
     bool hasTerrain = false;
+    // S23b, the grass masks (E3): a generator space takes each chunk's mask from its ChunkPlacement (content, a pool
+    // job through the ContentSource) and edited chunks AND S20's rule with grassRule (the generator's grassEditRule);
+    // a legacy space (legacyTerrain, the hook generators) computes S20's rule over the level-0 tile with grassRule
+    // (the HookGenerator's exact thresholds). No rule: an edited generator chunk keeps its generator mask, a legacy
+    // space has no grass
+    bool generatorMasks = false;
+    ContentSource content;
+    std::optional<HookGrassRule> grassRule;
 };
 
 class SAIGA_ENGINE_API TerrainSystem
@@ -134,7 +144,8 @@ class SAIGA_ENGINE_API TerrainSystem
     // too). Returns false on timeout (what is resident is still sent; no caller job starts after the deadline, a
     // running one is finished), at once when an iteration brought nothing new, submitted no job and nothing is queued
     // or running (no later one could: logged with what is missing), or for a non-finite camera. Without a sink it fills
-    // the store only. A space without terrain returns true at once
+    // the store only. A space without terrain returns true at once (S23b: then the content part, below, within the same
+    // deadline: false if a content set is still missing at it)
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
     // nothing of the desired set. True for a space without terrain; without a sink only the residency counts. Queued
@@ -147,8 +158,8 @@ class SAIGA_ENGINE_API TerrainSystem
     // The sink's bytes not yet recorded (RenderSink::terrainUploadsPending); 0 without a sink
     size_t terrainUploadsPending() const;
     // tilesPerLevel / grassMaskLayers change the layout (a new GPU set at the next update; the resident tiles are
-    // re-sent, truncated to the new budget); the grass thresholds drop and regenerate every mask; the rest applies from
-    // the next update (workers when the pool is created)
+    // re-sent, truncated to the new budget); the rest applies from the next update (workers when the pool is created).
+    // S23b: the grass thresholds are the generator's (fixed at registration), no view setting
     void setViewSettings(const TerrainViewSettings& settings);
     const TerrainViewSettings& viewSettings() const { return view; }
     // The template + the current settings
@@ -188,10 +199,29 @@ class SAIGA_ENGINE_API TerrainSystem
     // The lazy StreamingPool exists (a sink alone starts none)
     bool poolCreated() const { return pool != nullptr; }
 
-    // Engine-internal (a host load with other generator pins, S23a): new height sources per space; everything derived
-    // from the old ones is dropped (the pool's jobs, the stores incl. the pyramids, the edited masks, the dirty queue)
-    // and the sink's terrain is cleared (clearTerrain): the view's pyramid and tiles are requested again
-    void replaceSources(std::vector<TerrainHeightSource> sources);
+    // Engine-internal (a host load with other generator pins, S23a): new height sources per space (S23b: and content
+    // sources); everything derived from the old ones is dropped (the pool's jobs, the stores incl. the pyramids, the
+    // edited masks, the dirty queue) and the sink's terrain is cleared (clearTerrain): the view's pyramid and tiles are
+    // requested again
+    void replaceSources(std::vector<TerrainHeightSource> sources, std::vector<ContentSource> content = {});
+    // Engine-internal (S23b): the effective placement version of a chunk (World::effectivePlacementVersion)
+    void setPlacementVersions(std::function<uint16_t(const ChunkId&)> fn) { placementVersionOf = std::move(fn); }
+    // Engine-internal (S23b, World::onRecordChanged): a chunk's placement version may have changed; its generator mask
+    // is requested again (a tombstone changes nothing)
+    void recordChanged(const ChunkId& chunk);
+    // Tests: runs in every grass mask job (base and edited) before it computes (e.g. waits on a latch)
+    std::function<void()> maskJobHookForTests;
+    // Engine-internal (S23b): the content part of updateView / completeView (the World's ContentRenderSystem; it runs
+    // whether or not the view space has terrain): called with the view space, the camera, whether the view is
+    // completed and completeView's deadline (steady_clock seconds; no build starts after it); returns false if a
+    // completed view's content is still missing
+    void setContentView(std::function<bool(SpaceId, const Vec3&, bool, double)> fn) { contentView = std::move(fn); }
+    // Engine-internal (S23b): the streaming pool (created on demand) for the content sets' jobs
+    StreamingPool& streamingPool()
+    {
+        ensurePool();
+        return *pool;
+    }
     // Engine-internal: the World's render sink (World::setRenderSink). A new sink receives the pyramid and the tiles
     // and masks of the last view camera's desired set (current budget) that the store of the view space holds (through
     // the send point); a removed sink drops the sent state. A sink attached again first gets clearTerrain if it kept a
@@ -209,7 +239,10 @@ class SAIGA_ENGINE_API TerrainSystem
         SpaceTemplate settings;
         uint64_t seed = 0;
         TerrainHeightSource source;
-        bool hasTerrain = false;
+        bool hasTerrain     = false;
+        bool generatorMasks = false;
+        ContentSource content;
+        std::optional<HookGrassRule> grassRule;
         std::unique_ptr<TerrainStore> store;
     };
     // A request: kind (0 pyramid, 1 tile, 2 mask), space, level, x, z
@@ -227,6 +260,14 @@ class SAIGA_ENGINE_API TerrainSystem
 
     std::vector<Space> spaces;
     const TerrainEditStore* edits = nullptr;
+    std::function<bool(SpaceId, const Vec3&, bool, double)> contentView;
+    std::function<uint16_t(const ChunkId&)> placementVersionOf;
+    // The placement version of each stored generator mask (S23b)
+    std::map<ChunkId, uint16_t> maskVersions;
+    uint16_t placementVersion(const ChunkId& chunk) const;
+    // The terrain part of updateView / completeView
+    void updateTerrainView(SpaceId space, const Vec3& camera);
+    bool completeTerrainView(SpaceId space, const Vec3& camera, double timeoutSeconds);
     TerrainDirtyQueue dirty;
     // The visual time of the running update (S22)
     double visualMs = 0;
@@ -237,7 +278,8 @@ class SAIGA_ENGINE_API TerrainSystem
     std::set<ChunkId> editedJobs;
     uint64_t setGeneration = 0;
     std::set<ChunkId> desiredMasks;
-    // Sent masks of chunks whose deltas returned to zero: the store's base mask replaces the edited one once resident
+    // Sent masks of chunks whose deltas returned to zero (S23b: or whose placement version changed): the store's base
+    // mask replaces the sent one once resident
     std::set<ChunkId> baseResend;
     // A chunk's mask is current: the cached edited one (a chunk with deltas) or the store's base one
     const Vulkan::GrassMaskData* readyMask(const ChunkId& chunk) const;
@@ -274,7 +316,7 @@ class SAIGA_ENGINE_API TerrainSystem
     // The camera of the last view update (setSink sends its desired set)
     Vec3 viewCamera = Vec3::Zero();
     uint64_t frame  = 0;
-    // Incremented when the grass thresholds change: older mask results are dropped
+    // Incremented when the sources are replaced: older mask results are dropped
     uint64_t maskGeneration = 0;
     Stats statistics;
 

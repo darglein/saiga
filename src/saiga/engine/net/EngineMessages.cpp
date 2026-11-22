@@ -50,6 +50,12 @@ void registerEngineMessages(MessageList& list)
     list.addRaw(MessageId(EngineMessage::GenerationState), "GenerationState", Reliability::Reliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onGenerationState(from, d, n); });
+    list.addRaw(MessageId(EngineMessage::TombstoneModification), "TombstoneModification", Reliability::Reliable,
+                Channel::State, [](World& w, uint8_t from, const uint8_t* d, size_t n)
+                { w.replication().onTombstoneModification(from, d, n); });
+    list.addRaw(MessageId(EngineMessage::ChunkRecordState), "ChunkRecordState", Reliability::Reliable, Channel::State,
+                [](World& w, uint8_t from, const uint8_t* d, size_t n)
+                { w.replication().onChunkRecordState(from, d, n); });
 }
 
 }  // namespace Engine

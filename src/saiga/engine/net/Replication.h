@@ -13,6 +13,7 @@
 
 #include "saiga/core/math/Quaternion.h"
 #include "saiga/core/math/Types.h"
+#include "saiga/engine/content/ContentMessages.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
@@ -64,6 +65,10 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         uint64_t terrainPartsDuplicate = 0, terrainDroppedEpoch = 0;
         // S23a: GenerationState messages sent (host) and dropped as of an older epoch (client)
         uint64_t generationStatesSent = 0, generationStatesDroppedEpoch = 0;
+        // S23b: TombstoneModification / ChunkRecordState messages sent (host; per peer) and applied, tombstone entries
+        // applied and dropped as duplicates, record messages of another epoch (client)
+        uint64_t tombstoneMessagesSent = 0, recordStatesSent = 0, recordMessagesApplied = 0;
+        uint64_t tombstonesApplied = 0, tombstonesDuplicate = 0, recordsDroppedEpoch = 0;
     };
 
     explicit Replication(World& world);
@@ -135,6 +140,9 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     // present neighbours, the host is authoritative); no hook is called
     void onTerrainModification(uint8_t from, const uint8_t* data, size_t size);
     void onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size);
+    // S23b: a client applies the host's tombstones / chunk records (validated as a whole before anything applies)
+    void onTombstoneModification(uint8_t from, const uint8_t* data, size_t size);
+    void onChunkRecordState(uint8_t from, const uint8_t* data, size_t size);
     // S23a: the client checks the host's generation state (validate and refuse: World::generationMismatch)
     void onGenerationState(uint8_t from, const uint8_t* data, size_t size);
     // Client (S23a): rejects a terrain message after a refused GenerationState, or before a checked one when this
@@ -144,7 +152,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void sendGenerationState(uint8_t peer);
     // Host (S22, E5): one TerrainChunkState per chunk with terrain state (sequence > 0) of every space, in SpaceId and
     // ChunkId order (the dense delta only for chunks with deltas): after the spawn set of a join, after Resync on a
-    // host load. S26 replaces it with per-loaded-chunk snapshots
+    // host load. S23b sends the ChunkRecordStates first: the records with tombstones or another placement version than
+    // the current one, per space, split by the part and key bounds. S26 replaces it with per-loaded-chunk snapshots
     void sendChunkSnapshot(uint8_t peer);
 
     // ---- the host state list (S22, §13.2): ordered host state messages, unencoded, sent by extract to every regular
@@ -156,11 +165,13 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     {
         enum class Kind : uint8_t
         {
-            TerrainModification
+            TerrainModification,
+            TombstoneModification  // S23b
         };
         Kind kind     = Kind::TerrainModification;
         SpaceId space = 0;
         std::vector<TerrainPart> parts;
+        std::vector<TombstoneEntry> tombstones;
     };
     // Reserve: capacity for one more entry (the edit's reserve step; the append then allocates nothing). Grows
     // geometrically (an exact reserve would reallocate on every edit of a batch)
@@ -170,12 +181,19 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     }
     // Host: one TerrainModification (applyTerrainEdit; after reserveHostState)
     void appendTerrainModification(SpaceId space, std::vector<TerrainPart>&& parts);
+    // S23b, reserve: n more tombstones of a space appended later without allocation (behindNewEntry: another entry is
+    // appended before them, so the current last entry cannot take them: an edit's TerrainModification)
+    void reserveTombstones(SpaceId space, size_t n, bool behindNewEntry = false);
+    // Host (S23b): one tombstone, appended to the last entry if that is an unsent TombstoneModification of the space
+    // with fewer than 4096 entries, else as a new entry (the list order is application order)
+    void appendTombstone(const ChunkId& chunk, uint16_t placementVersion, uint32_t sequence, const InstanceKey& key);
     const std::vector<HostStateEntry>& hostStateList() const { return hostStates; }
     // A committed host load: the entries describe the replaced state (the load's snapshot follows from onHostLoad)
     void clearHostStates()
     {
         hostStates.clear();
         hostStatesSent = 0;
+        spareTombstones.clear();
     }
 
     // The component encodings (engine-internal; also the replica comparison and the benchmarks)
@@ -233,6 +251,14 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     // an entry appended after the send (an edit applied by the flush after stepNetworkOnly's extract) waits for the
     // next
     size_t hostStatesSent = 0;
+    // Entry buffers of reserveTombstones (capacity reserved), taken by appendTombstone for new entries
+    std::vector<std::vector<TombstoneEntry>> spareTombstones;
+    // S23b, client: a rejected record message (counted, logged in the categories net and content)
+    void rejectContent(uint8_t from, const std::string& why);
+    // S23b, client Resync: S22's store and the chunk records together, then onTerrainChanged per cleared chunk with
+    // deltas and onRecordChanged per cleared record
+    void clearReplicatedChunkState();
+    void sendRecordStates(uint8_t peer);
     // Phase 8 (both extract paths): the host state list to the regular peers
     void sendHostStates();
 
