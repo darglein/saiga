@@ -500,7 +500,9 @@ int main(int argc, char* argv[])
                                                 {"last_complete_ms", t.lastCompleteMs}};
             return json11::Json(o);
         };
-        context.ground       = [world](double x, double z) { return world->terrainHeight(0, x, z); };
+        // The view camera's space (PR review, S21: space 0 also in the islands)
+        context.ground = [world, &app](double x, double z)
+        { return world->terrainHeight(app.viewCamera().space, x, z); };
         context.worldSize    = world->spaceTemplate(0).sizeMeters();
         context.seaLevel     = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
         context.highestPoint = game.area.highest;

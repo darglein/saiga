@@ -29,6 +29,7 @@
 #include <atomic>
 #include <chrono>
 #include <cmath>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <thread>
@@ -607,8 +608,11 @@ Entity spaceLink(ScenarioWorld& w, SpaceId space, const Vec3& p, SpaceId target,
     return e;
 }
 
+// The angle between two rotations; infinite for a non-finite or non-unit a (the clamp would hide it; PR review)
 double angleBetween(const Quat& a, const Quat& b)
 {
+    const double n = a.norm();
+    if (!std::isfinite(n) || std::abs(n - 1) > 1e-9) return std::numeric_limits<double>::infinity();
     return 2 * std::acos(std::min(1.0, std::abs(a.dot(b))));
 }
 
@@ -670,6 +674,8 @@ void registerSpacesScenarios(ScenarioList& s)
               w.step(2);
               const TransitionLog& l = w.world().readGlobal<TransitionLog>();
               w.check(l.entities.size() == 2, "two transitions logged");
+              w.check(l.entities.size() == 2 && l.entities[0] == player && l.entities[1] == player,
+                      "both transitions of the player");
               if (l.entities.size() == 2 && l.interactSteps.size() >= 2)
               {
                   w.check(l.links[0] == link && l.from[0] == 0 && l.to[0] == 1, "the first through the link");

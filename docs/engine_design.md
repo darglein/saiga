@@ -2297,7 +2297,9 @@ kinematic mover walks on it until S23's authored geometry and S28's colliders.
   target and arrival pose (a target out of range and a second request are logged refusals; during a step a command
   that re-checks at the flush); the request is the saved component `PendingTransition {Entity link; SpaceId target;
   Vec3 position; Quat rotation}` (`Replicate::Never`), completed by `spaceTransitionSystem` in phase 1 of the next step
-  (`moveToSpace`, `SpaceTransitionEvent {entity, link, from, to}` readable one step later); `SpaceLink` is
+  (`moveToSpace`, `SpaceTransitionEvent {entity, link, from, to}` readable one step later; a request made during a step,
+  also by a message handler in phase 1 before the system, is listed in `World::transitionsRequestedInStep` and waits
+  for the next completed step); `SpaceLink` is
   `Replicate::Host` (clients show prompts). The optional `spaceLinkSystem` (phase 4, host, registered by the game)
   requests the transition for an `InteractEvent` with a `SpaceLink` target whose actor is an alive root in the link's
   space (other spaces: ignored with a log line). The interact chain from a queued action: step k the `ActionEvent`
@@ -2419,7 +2421,9 @@ result as a difference rectangle (new heights minus base), never the brush; clie
   primitive; an unknown space is rejected input (the pose not applied, the counter taken, so the owner's later states
   are not dropped as stale). The host never takes a space from an owner state: a root state at the current counter in
   another space than the host's is rejected input (`net/rejected`) before the owner record or the interpolation buffer
-  is touched; the samples and the first `RenderPose` use the host's space.
+  is touched; the samples and the first `RenderPose` use the host's space. An aborted phase that dropped an
+  `ownerMove`'s command also restores the host's `Transform` of the root (pose and space) with the counter, so host and
+  owner agree.
 - **No runtime ownership transfer**: ownership is set when an entity is created (player characters at join,
   `setOwner`) and never changes. Vehicles, platforms and carried objects stay host-owned; a driving client sends its
   input (`PlayerInput`, `PlayerAction`) and the game's vehicle control system on the host moves the vehicle, so steering
@@ -2462,7 +2466,8 @@ S21 (A5): clients apply a root's `Transform::space` from spawns and snapshots (S
 from the replica's moves its subtree (the World's space primitive) and forces a snap, also without a changed snap
 counter; children (whose `Transform` the host omits) take their parent's space when they are attached (with the
 parent known at the spawn, when it arrives, or by a hierarchy message); the initial `RenderPose` of a spawn carries
-the space. The owner never takes its root's space from snapshots (its `Transform` is owner-authoritative): it gets it
+the space; an attach that changes the space sets a `RenderPose` in the subtree to the new space at the current pose
+and drops its interpolation buffer (its samples are from the old space). The owner never takes its root's space from snapshots (its `Transform` is owner-authoritative): it gets it
 from the spawn, a `Resync` and the `OwnerCommand` (§13.3).
 
 - Components are registered `Replicate::Never | Host | HostReliable | OwnerAuthoritative`; events

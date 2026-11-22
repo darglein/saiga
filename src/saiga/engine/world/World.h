@@ -633,6 +633,10 @@ class SAIGA_ENGINE_API World
     // Children whose parent was teleported after their last update in a step (phase 8): teleported in the next
     // phase 6, sorted by index
     std::vector<Entity> pendingChildTeleports;
+    // The roots whose transition was requested during the running step (or an aborted one; cleared when a step
+    // completes and by a load): spaceTransitionSystem leaves them for the next step, also a request of a message
+    // handler, which runs before it in phase 1 (PR review, S21)
+    std::vector<Entity> transitionsRequestedInStep;
     // ---- type-erased access for the world API (between steps; S10) ----
     // Adds a default component by ID with its log record (not Transform, Behaviour, Persistent or Parent)
     void addDefaultNow(Entity e, ComponentId id);
@@ -862,8 +866,12 @@ class SAIGA_ENGINE_API World
     // descendants follow in phase 6)
     void teleportTo(Entity root, SpaceId space, const Vec3& position, const Quat& rotation);
     // Attaching a child (writer 5): a child in another space than its new parent takes the parent's space with its
-    // subtree and is teleported at its current pose (phase 6 writes the parent-relative pose)
-    void followParentSpace(Entity child);
+    // subtree and is teleported at its current pose (phase 6 writes the parent-relative pose). subtreeToFollow
+    // collects the subtree before the attach (empty: the same space; it allocates), followParentSpace applies it
+    // without allocating (the attach is committed then). A RenderPose in the subtree is set to the new space at the
+    // current pose and its interpolation buffer dropped: its samples are from the old space (PR review, S21)
+    std::vector<Entity> subtreeToFollow(Entity child, Entity parent) const;
+    void followParentSpace(Entity child, const std::vector<Entity>& subtree);
     int destroyDepth = 0;              // destroyOne is running (nested destroys are queued)
     std::vector<Entity> destroyQueue;  // destroys requested by hooks during a destroy
     // Game objects of destroyed entities and removed Behaviours, released when no hook runs (a hook may destroy its
@@ -1057,13 +1065,14 @@ void World::addNow(Entity e, T&& value)
     }
     if constexpr (T::id == ComponentId(EngineComponent::Parent))
     {
-        const Entity parent = value.entity;
+        const Entity parent               = value.entity;
+        const std::vector<Entity> subtree = subtreeToFollow(e, parent);
         reserveChildSlot(parent);
         reg.add<T>(e, std::move(value));
         changeChildCount(parent, +1);
         hierarchyDirty  = true;
         ownerCacheDirty = true;
-        followParentSpace(e);
+        followParentSpace(e, subtree);
     }
     else if constexpr (T::id == ComponentId(EngineComponent::Persistent))
     {

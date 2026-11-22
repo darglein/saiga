@@ -928,8 +928,11 @@ const PrototypeSettings& RenderScene::prototypeSettings() const
 
 void RenderScene::setSpaceSettings(SpaceId space, const SpaceRenderSettings& settings)
 {
+    // A copy first: settings may be an element of spaceRenderSettings (spaceSettings(other)), which the resize can
+    // move (PR review, S21)
+    const SpaceRenderSettings copy = settings;
     if (spaceRenderSettings.size() <= space) spaceRenderSettings.resize(size_t(space) + 1);
-    spaceRenderSettings[space] = settings;
+    spaceRenderSettings[space] = copy;
 }
 
 const SpaceRenderSettings& RenderScene::spaceSettings(SpaceId space) const

@@ -16,6 +16,7 @@
 #include "saiga/engine/world/Events.h"
 #include "saiga/engine/world/World.h"
 
+#include <algorithm>
 #include <vector>
 
 namespace Saiga
@@ -26,7 +27,13 @@ void spaceTransitionSystem(World& w, double)
 {
     // Collected first: moveToSpace and the removals must not run inside the view
     std::vector<std::pair<Entity, PendingTransition>> pending;
-    w.viewAll<const PendingTransition>().each([&](Entity e, const PendingTransition& p) { pending.push_back({e, p}); });
+    // A request of this step (a message handler's in phase 1; or of an aborted run of it) completes in the next one
+    const std::vector<Entity>& thisStep = w.transitionsRequestedInStep;
+    w.viewAll<const PendingTransition>().each(
+        [&](Entity e, const PendingTransition& p)
+        {
+            if (std::find(thisStep.begin(), thisStep.end(), e) == thisStep.end()) pending.push_back({e, p});
+        });
     const Registry& reg = w.registry();
     for (const auto& [e, p] : pending)
     {

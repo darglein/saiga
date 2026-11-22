@@ -216,7 +216,8 @@ void platformerDemoPilotSystem(World& w, double)
 }
 
 // The owner part of a restart: the controller state (the model stays); a jump key held through the restart does not
-// jump, only a fresh press does
+// jump, only a fresh press does; the demo pilot starts at the first waypoint again. Regression (PR review, S21): a
+// host-owned hero with DemoPilot kept the pilot's waypoint -1 after its restart and stood at the start
 void resetMotion(World& w, Entity e)
 {
     CharacterMotion& m = w.get<CharacterMotion>(e);
@@ -224,6 +225,7 @@ void resetMotion(World& w, Entity e)
     m                  = CharacterMotion();
     m.model            = model;
     m.jumpWasHeld      = w.has<PlayerInput>(e) && heldBit(w.read<PlayerInput>(e).heldButtons, PlatformerButton::Jump);
+    if (w.has<DemoPilot>(e)) w.get<DemoPilot>(e).waypoint = 0;
 }
 
 // RestartRun on the hero's owner (phase 1, before the ownerTeleport's OwnerCommand of the same step)
@@ -233,7 +235,6 @@ void onRestartRun(World& w, uint8_t, const RestartRun& m)
     const Entity e = w.replication().entityOfNetId(m.hero);
     if (!e.valid() || !w.alive(e) || w.ownerOf(e) != w.localPeer() || !w.has<CharacterMotion>(e)) return;
     resetMotion(w, e);
-    if (w.has<DemoPilot>(e)) w.get<DemoPilot>(e).waypoint = 0;
 }
 
 Vec3 startOf(const Level& level, int slot)
@@ -688,6 +689,22 @@ void platformerScenarios(ScenarioList& list)
                  w.check(stay.steps >= 240, "stays at least 240 steps in the cellar: " + std::to_string(stay.steps));
                  SAIGA_LOG("platformer", "pilot_visits_the_cellar: entry step %lld, stay %d steps",
                            (long long)stay.entry, stay.steps);
+             });
+    // The demo pilot's restart after the goal (the restart action) and the next run (host-owned in the single-world
+    // variants, the client's in the network ones). Regression (PR review, S21): a host-owned pilot stood at the start
+    // after its restart (the waypoint stayed -1)
+    list.add("pilot_runs_again_after_the_restart",
+             [](ScenarioWorld& w)
+             {
+                 const Entity hero = w.spawnPlayer<PlatformerHero>(Vec3::Zero(), w.defaultPeer(), RunState{});
+                 w.world().add<DemoPilot>(hero);
+                 auto run = [&]() -> const RunState& { return w.world().read<RunState>(hero); };
+                 w.check(w.stepUntil([&] { return run().goalTime >= 0; }, 60 * 40), "reaches the goal");
+                 w.check(w.stepUntil([&] { return run().goalTime < 0; }, 60 * 6), "restarted after the goal");
+                 const Vec3 start = w.world().read<Transform>(hero).position();
+                 w.check(w.stepUntil([&] { return (w.world().read<Transform>(hero).position() - start).norm() > 3; },
+                                     60 * 5),
+                         "runs again from the start");
              });
 }
 

@@ -12,6 +12,7 @@
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
+#include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
@@ -515,6 +516,28 @@ TEST(MoveToSpace, AttachTakesTheParentsSpace)
     EXPECT_TRUE(checked);
 }
 
+// Regression (PR review, S21): an attached child's RenderPose kept the old space when no ancestor had a RenderPose
+// (the extract drew it in the old space), and its interpolation buffer's old-space samples would rewrite it
+TEST(MoveToSpace, AttachRefreshesARenderPose)
+{
+    World w(spacesSetup());
+    const Entity parent = w.createIn(2);
+    const Entity child  = w.create();
+    w.get<Transform>(child).teleport(Vec3(5, 0, 5), Quat::Identity());
+    w.add<RenderPose>(child, RenderPose{Vec3(5, 0, 5), Quat::Identity(), 0, 0});
+    w.step();
+    w.add<Parent>(child, Parent{parent});
+    EXPECT_EQ(w.read<RenderPose>(child).space, 2u);
+    EXPECT_EQ(w.read<RenderPose>(child).position, Vec3(5, 0, 5));
+    w.step();
+    EXPECT_EQ(w.read<RenderPose>(child).space, 2u);
+    // The same space: untouched
+    const Entity other                = w.createIn(2);
+    w.get<RenderPose>(child).position = Vec3(1, 2, 3);
+    EXPECT_TRUE(w.reparentNow(child, other));
+    EXPECT_EQ(w.read<RenderPose>(child).position, Vec3(1, 2, 3));
+}
+
 #ifdef SAIGA_ASSERTS
 TEST(MoveToSpaceDeathTest, Refusals)
 {
@@ -573,6 +596,32 @@ TEST(MoveToSpaceDeathTest, Refusals)
             }
             const Entity c = client.replication().entityOfNetId(host.replication().netIdOf(e));
             if (c.valid()) client.moveToSpace(c, 1, Vec3::Zero(), Quat::Identity());
+        },
+        "a client cannot move a replicated entity");
+    // On a client, a local root with a replicated child (R-NET-2). Regression (PR review, S21): only the root was
+    // checked, the replicated descendant was moved with it
+    EXPECT_DEATH(
+        {
+            auto t        = LoopbackTransport::createNetwork(2, LoopbackOptions{});
+            WorldSetup hs = spacesSetup();
+            hs.transport  = t[0].get();
+            World host(hs);
+            WorldSetup cs = spacesSetup();
+            cs.transport  = t[1].get();
+            cs.role       = NetRole::Client;
+            cs.localPeer  = 1;
+            World client(cs);
+            const Entity e = host.create();
+            for (int k = 0; k < 3; ++k)
+            {
+                host.step();
+                client.step();
+            }
+            const Entity c = client.replication().entityOfNetId(host.replication().netIdOf(e));
+            if (!c.valid()) return;
+            const Entity local = client.create();
+            client.add<Parent>(c, Parent{local});
+            if (client.has<Parent>(c)) client.moveToSpace(local, 1, Vec3::Zero(), Quat::Identity());
         },
         "a client cannot move a replicated entity");
 }
@@ -899,6 +948,60 @@ TEST(Transition, CompletesInTheNextStep)
     EXPECT_FALSE(w.alive(back));
     EXPECT_EQ(events[0].from, 1u);
     EXPECT_EQ(events[0].to, 0u);
+}
+
+namespace
+{
+// A game message whose host handler requests a transition (handlers run in phase 1 before spaceTransitionSystem)
+Entity g_msgPlayer, g_msgLink;
+struct EnterLink
+{
+    static constexpr MessageId id     = 64;
+    static constexpr const char* name = "TestEnterLink";
+    static constexpr uint32_t version = 1;
+    uint32_t value                    = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("value", value);
+    }
+};
+}  // namespace
+
+// Regression (PR review, S21): a request of a message handler completed in the same step (the handler's command is
+// flushed before the phase-1 systems), not in the next one
+TEST(Transition, MessageHandlerRequestCompletesInTheNextStep)
+{
+    auto t        = LoopbackTransport::createNetwork(2, LoopbackOptions{});
+    WorldSetup hs = spacesSetup();
+    hs.transport  = t[0].get();
+    hs.messages   = [](MessageList& l)
+    {
+        l.add<EnterLink>(Reliability::Reliable,
+                         [](World& w, uint8_t, const EnterLink&) { w.requestTransition(g_msgPlayer, g_msgLink); });
+    };
+    World host(hs);
+    WorldSetup cs = spacesSetup();
+    cs.transport  = t[1].get();
+    cs.role       = NetRole::Client;
+    cs.localPeer  = 1;
+    cs.messages   = hs.messages;
+    World client(cs);
+    g_msgLink   = makeLink(host, 0, Vec3(10, 0, 10), 1, Vec3(640, 0, 640), yaw(0));
+    g_msgPlayer = host.create();
+    for (int k = 0; k < 3; ++k)
+    {
+        host.step();
+        client.step();
+    }
+    client.send(0, EnterLink{});
+    client.step();
+    host.step();
+    ASSERT_TRUE(host.has<PendingTransition>(g_msgPlayer));
+    EXPECT_EQ(host.read<Transform>(g_msgPlayer).space(), 0u);
+    host.step();
+    EXPECT_FALSE(host.has<PendingTransition>(g_msgPlayer));
+    EXPECT_EQ(host.read<Transform>(g_msgPlayer).space(), 1u);
 }
 
 TEST(Transition, FirstRequestWins)

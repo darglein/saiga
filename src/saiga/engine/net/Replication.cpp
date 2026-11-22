@@ -360,6 +360,11 @@ void Replication::abort(Phase aborted)
         if (teleportUndo[i].phase == aborted)
         {
             TeleportUndo& u = teleportUndo[i];
+            // The host's Transform goes back too: the dropped OwnerCommand never reaches the owner, whose states
+            // match the restored counter again. Regression (PR review, S21): the host kept the new space
+            const Entity root = w.reg.aliveAt(u.index);
+            if (root.valid() && root.generation == u.generation && !w.reg.entityMask(root).test(Parent::id))
+                w.teleportTo(root, u.space, u.position, u.rotation);
             if (u.hadRecord)
                 ownerRecords[u.index] = u.record;
             else
@@ -974,6 +979,7 @@ void Replication::ownerMove(Entity root, SpaceId space, const Vec3& position, co
         w.teleportTo(root, space, position, rotation);
         return;
     }
+    const Transform before = w.reg.read<Transform>(root);
     w.teleportTo(root, space, position, rotation);
     HostSlot& ws = writeSlot(root.index);
     ws.command++;
@@ -993,6 +999,10 @@ void Replication::ownerMove(Entity root, SpaceId space, const Vec3& position, co
         TeleportUndo u{w.phase, root.index, r != ownerRecords.end(), {}, b != buffers.end(), {}};
         if (u.hadRecord) u.record = r->second;
         if (u.hadBuffer) u.buffer = b->second;
+        u.generation = root.generation;
+        u.space      = before.space();
+        u.position   = before.position();
+        u.rotation   = before.rotation();
         teleportUndo.push_back(std::move(u));
     }
     ownerRecords.erase(root.index);

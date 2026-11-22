@@ -2389,6 +2389,10 @@ TEST_F(VulkanSceneSpaces, NoSettingsMeansOpenWorld)
     PrototypeSettings ps;
     scene->setPrototypeEnvironment(ps, 1);
     scene->setSpaceSettings(1, enclosedSettings());
+    // Regression (PR review, S21): the settings of another space as the argument (an element of the resized vector)
+    scene->setSpaceSettings(40, scene->spaceSettings(1));
+    EXPECT_FALSE(scene->spaceSettings(40).openWorld);
+    EXPECT_TRUE(scene->spaceSettings(3).openWorld);
     camera.space    = 3;
     camera.position = Vec3(128, 40, 130);
     camera.rotation = lookRotation(Vec3(0, -0.5, -1));

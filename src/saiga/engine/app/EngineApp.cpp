@@ -982,7 +982,9 @@ void EngineApp::streamTerrain()
     const auto mcpDeadline = pendingScreenshotDeadline();
     mcpCapture             = mcpCapture && mcpDeadline.has_value();
     const bool fatal       = framesRendered == 0 || completeEachFrame || fatalCapture;
-    frameCompletePoint     = fatal || mcpCapture;
+    // Only a completeView that succeeded is a complete point. Regression (PR review, S21): an MCP capture that timed
+    // out counted as one and ended the space's load (or suppressed the load of a switch) although nothing was complete
+    frameCompletePoint = false;
     // An MCP capture whose view did not complete this frame (the requests that wait longer must not get this frame)
     bool mcpIncomplete = false;
     if (fatal || mcpCapture)
@@ -990,6 +992,7 @@ void EngineApp::streamTerrain()
         double timeout = 120;
         if (!fatal) timeout = std::max(0.0, std::chrono::duration<double>(*mcpDeadline - start).count() - 0.05);
         const bool complete = terrain.completeView(view.space, view.position, timeout);
+        frameCompletePoint  = complete;
         if (!complete)
         {
             if (fatal)

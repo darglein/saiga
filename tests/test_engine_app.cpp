@@ -2639,7 +2639,8 @@ TEST_F(EngineAppRender, SpaceLoadingSequence)
         frame();
     }
     EXPECT_EQ(app.spaceLoading(), nullptr);
-    EXPECT_LT(frames, 600u);  // end rule 1, not the frame limit
+    // End rule 1, not the frame limit: frames is the count before the last frame, which ended the load (PR review)
+    EXPECT_LT(frames + 1, 600u);
     EXPECT_EQ(app.world().spaceReadiness(2, cam2, s.loadingRadius), 1.0);
 
     // 5. The unlatched space 3: a load (the pyramid is generated on the pool), cut off by an MCP screenshot
@@ -2705,19 +2706,23 @@ TEST_F(EngineAppRender, SpaceLoadingMovingCamera)
 // --coop: the rendered client world's camera decides
 TEST_F(EngineAppRender, SpaceLoadingCoopClientCamera)
 {
-    EngineAppSetup s              = coopSetup();
-    const EngineAppSetup r        = appSetup(true);
-    s.noRender                    = false;
-    s.validation                  = r.validation;
-    s.render                      = r.render;
-    s.render.imgui                = true;
-    SpaceTemplate hills           = TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::integerTestHook, 0);
+    EngineAppSetup s       = coopSetup();
+    const EngineAppSetup r = appSetup(true);
+    s.noRender             = false;
+    s.validation           = r.validation;
+    s.render               = r.render;
+    s.render.imgui         = true;
+    // The latched hook holds the load over the screenshot frame (PR review: with a fast hook the load could end
+    // before the screen was drawn)
+    SpaceTemplate hills           = TerrainTestHooks::testSpaceTemplate(16, 2, TerrainTestHooks::latchedHook, 0);
     hills.name                    = "hills";
     s.world.config.spaceTemplates = {SpaceTemplate(), hills};
     EngineApp app(s, coopOptions(1));
     ASSERT_NE(app.hostWorld(), nullptr);
     app.scene()->setImguiVisible(true);
     app.runFrames(2, 1.0 / 60);
+    TerrainTestHooks::armLatch();
+    LatchGuard open;
     app.setViewCameraByTool(1, Vec3(1000, 80, 1000), Quat::Identity(), 1.0, true);
     app.runFrames(1, 1.0 / 60);
     ASSERT_NE(app.spaceLoading(), nullptr);
@@ -2735,8 +2740,11 @@ TEST_F(EngineAppRender, SpaceLoadingCoopClientCamera)
         EXPECT_NEAR(int(c(1)), 13, 3);
         EXPECT_NEAR(int(c(2)), 16, 3);
     }
-    for (int i = 0; i < 600 && app.spaceLoading(); ++i) app.runFrames(1, 1.0 / 60);
+    TerrainTestHooks::openLatch();
+    int frames = 0;
+    for (; frames < 600 && app.spaceLoading(); ++frames) app.runFrames(1, 1.0 / 60);
     EXPECT_EQ(app.spaceLoading(), nullptr);
+    EXPECT_LT(frames, 600);  // end rule 1, not the frame limit
     // The client world streamed it, the hidden host world nothing
     EXPECT_NE(app.world().terrain().pyramid(1), nullptr);
     EXPECT_EQ(app.hostWorld()->terrain().pyramid(1), nullptr);

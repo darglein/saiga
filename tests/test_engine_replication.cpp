@@ -1750,10 +1750,15 @@ TEST(SpaceReplication, AbortedStepUndoesTheCommand)
     EXPECT_EQ(space, 0u);
     EXPECT_LT(position.norm(), 1.0);
     EXPECT_FALSE(snapped);
+    // Regression (PR review, S21): the host's Transform kept the new space while the owner stayed in space 0
+    EXPECT_EQ(n.host->read<Transform>(p).space(), 0u);
+    EXPECT_LT(n.host->read<Transform>(p).position().norm(), 1.0);
     // Nothing was sent: the owner stays in space 0
     n.step(5);
     const Entity c = n.onClient(p);
     EXPECT_EQ(n.client().replication().commandCounter(c), 0);
+    EXPECT_EQ(n.client().read<Transform>(c).space(), 0u);
+    EXPECT_EQ(n.host->read<Transform>(p).space(), 0u);
 }
 
 TEST(SpaceReplication, LateJoinerSeesTheSubtree)

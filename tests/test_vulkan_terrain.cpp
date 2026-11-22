@@ -246,7 +246,10 @@ TEST_F(VulkanTerrain, NewSetOnOtherSpaceOrLayout)
         scene->setCamera(space, camera, down, 1.0);
         for (int i = 0; i < n; ++i) scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
         scene->waitIdle();
-        return scene->terrainPassStats();
+        const TerrainPass::Stats stats = scene->terrainPassStats();
+        // One more frame stays in flight into the next switch (PR review: the waits left none)
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+        return stats;
     };
     const TerrainLayout fine = testLayout(16, 1), coarse = testLayout(16, 2);
     fillTestTerrain(*scene, fine, TerrainHeightSource::fromHook(integerTestHook, 1), std::nullopt, camera, false, 0);

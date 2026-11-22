@@ -639,8 +639,8 @@ bool WorldLoader::buildStateDefaults(std::string& message)
     stateDefaults.resize(target.size());
     for (size_t t = 0; t < target.size(); ++t)
     {
+        if ((t == 0 && !anyGlobal) || (t > 0 && !anySpace)) continue;  // restore returns before using them
         stateDefaults[t].resize(kMaxComponents);
-        if ((t == 0 && !anyGlobal) || (t > 0 && !anySpace)) continue;
         for (size_t id = 1; id < kMaxComponents; ++id)
         {
             const bool state = t == 0 ? reg.isGlobal(ComponentId(id)) : reg.isSpaceState(ComponentId(id));
@@ -686,6 +686,7 @@ void WorldLoader::commit()
     w.changed.clear();
     w.hierarchyOrder.clear();
     w.hierarchyDirty = true;
+    w.transitionsRequestedInStep.clear();
     w.pendingChildTeleports.clear();
     w.persistentIndex.clear();
     w.pendingPersistent.clear();

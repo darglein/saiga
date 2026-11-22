@@ -218,6 +218,11 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         OwnerRecord record;
         bool hadBuffer;
         std::pair<uint32_t, InterpolationBuffer> buffer;
+        // The root's pose and space before the move: restored with the command counter, so host and owner agree
+        uint32_t generation = 0;
+        SpaceId space       = 0;
+        Vec3 position       = Vec3::Zero();
+        Quat rotation       = Quat::Identity();
     };
     std::vector<TeleportUndo> teleportUndo;
 
