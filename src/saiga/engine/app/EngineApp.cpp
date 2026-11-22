@@ -897,6 +897,8 @@ void EngineApp::renderFrame()
     // Edits between steps (a paused world, tools, loads) reach the sink as snaps; then the game's frame state (the
     // camera from interpolatedPose, cosmetic instances), then the frame's interpolation and camera (S19b)
     w.extract().catchUp();
+    // S36b: the lights of moving entities at the frame's interpolated pose
+    w.extract().updateLights(w.alpha());
     if (h.beforeRender) h.beforeRender(*this, w.alpha());
     if (!appOptions.screenshot.empty() && !screenshotRequested &&
         framesRendered + 1 >= uint64_t(appOptions.screenshotFrame))

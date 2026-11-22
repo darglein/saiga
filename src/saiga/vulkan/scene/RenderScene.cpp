@@ -20,6 +20,7 @@
 #include "saiga/vulkan/scene/HorizonShadows.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
+#include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/SceneCulling.h"
@@ -1043,7 +1044,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     shadowTable->init(base());
     horizon = std::make_unique<HorizonShadows>();
     horizon->init(base());
-    culling = std::make_unique<SceneCulling>();
+    lightTable = std::make_unique<LocalLights>();
+    culling    = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params, *lightingSet);
     protoSettings = std::make_unique<PrototypeSettings>();
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
@@ -2010,6 +2012,31 @@ void RenderScene::setCamera(SpaceId space, const Vec3& position, const Quat& rot
     // The matrices at once (a game's draws in the same frame read them)
     const ivec2 s = size();
     if (s(0) > 0 && s(1) > 0) updateMatrices(s(0), s(1));
+}
+
+LightHandle RenderScene::addLight(const ChunkId& chunk, const LightData& light)
+{
+    return lightTable->add(chunk, light);
+}
+
+void RenderScene::setLight(LightHandle h, const ChunkId& chunk, const LightData& light)
+{
+    lightTable->set(h, chunk, light);
+}
+
+void RenderScene::removeLight(LightHandle h)
+{
+    lightTable->remove(h);
+}
+
+LightListHandle RenderScene::addLights(const ChunkId& chunk, const std::vector<LightData>& lights)
+{
+    return lightTable->addList(chunk, lights);
+}
+
+void RenderScene::removeLights(LightListHandle list)
+{
+    lightTable->removeList(list);
 }
 
 void RenderScene::setInterpolation(float a)

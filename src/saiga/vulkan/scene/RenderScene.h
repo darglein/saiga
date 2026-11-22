@@ -45,6 +45,7 @@ class DebugLines;
 class CascadedShadows;
 class ShadowPipelineTable;
 class HorizonShadows;
+class LocalLights;
 class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
@@ -401,6 +402,18 @@ class SAIGA_VULKAN_API RenderScene
     HorizonShadows& horizonShadows() { return *horizon; }
     void requestHorizonRecompute(bool full);
 
+    // ---- local lights (S36b, B2 of the S36 plan, docs/engine_design.md §10.7) -------------------------------------
+    // A light of the scene at a chunk-relative position (main thread, from the next frame; also from the transfer
+    // callback). Lights of every space are kept; a frame lights with the camera space's
+    LightHandle addLight(const ChunkId& chunk, const LightData& light);
+    void setLight(LightHandle h, const ChunkId& chunk, const LightData& light);
+    void removeLight(LightHandle h);
+    // The bulk path of S30's piece lights: one list per chunk (never entities), removed as a whole
+    LightListHandle addLights(const ChunkId& chunk, const std::vector<LightData>& lights);
+    void removeLights(LightListHandle list);
+    // The CPU table of the lights
+    const LocalLights& localLights() const { return *lightTable; }
+
    private:
     friend class SceneFrameRenderer;
     void latchFrame();
@@ -427,6 +440,8 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<CascadedShadows> cascades;
     std::unique_ptr<ShadowPipelineTable> shadowTable;
     std::unique_ptr<HorizonShadows> horizon;
+    // S36b: the local lights
+    std::unique_ptr<LocalLights> lightTable;
     bool freezeCascades = false;
     // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon
     int shadowLightChoice = 0;

@@ -275,6 +275,40 @@ void RecordingRenderSink::setEnvironment(const EnvironmentState& environment)
     if (logging) note("setEnvironment");
 }
 
+LightHandle RecordingRenderSink::addLight(const ChunkId& chunk, const LightData& light)
+{
+    const LightHandle h{nextLight++};
+    liveLights[h.id] = Light{chunk, light, 0};
+    count.addLight++;
+    if (logging) note("addLight -> " + std::to_string(h.id));
+    return h;
+}
+
+void RecordingRenderSink::setLight(LightHandle h, const ChunkId& chunk, const LightData& light)
+{
+    auto it = liveLights.find(h.id);
+    SAIGA_ASSERT(it != liveLights.end(), "RecordingRenderSink: setLight of an unknown handle");
+    it->second.chunk = chunk;
+    it->second.data  = light;
+    it->second.updates++;
+    count.setLight++;
+    if (logging) note("setLight " + std::to_string(h.id));
+}
+
+void RecordingRenderSink::removeLight(LightHandle h)
+{
+    const size_t erased = liveLights.erase(h.id);
+    SAIGA_ASSERT(erased == 1, "RecordingRenderSink: removeLight of an unknown handle");
+    count.removeLight++;
+    if (logging) note("removeLight " + std::to_string(h.id));
+}
+
+const RecordingRenderSink::Light* RecordingRenderSink::light(LightHandle h) const
+{
+    auto it = liveLights.find(h.id);
+    return it == liveLights.end() ? nullptr : &it->second;
+}
+
 void RecordingRenderSink::clearTerrain()
 {
     terrainSet  = false;

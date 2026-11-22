@@ -9,6 +9,7 @@
 
 #include "saiga/engine/sync/ExtractSystem.h"
 
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/RenderInstance.h"
@@ -71,6 +72,26 @@ ChunkPose toChunkPose(const WorldPose& p)
     return c;
 }
 
+namespace
+{
+bool sameLightSource(const LightSource& a, const LightSource& b)
+{
+    return a.kind == b.kind && a.color == b.color && sameBits(a.lumen, b.lumen) && sameBits(a.range, b.range) &&
+           sameBits(a.innerAngleDeg, b.innerAngleDeg) && sameBits(a.outerAngleDeg, b.outerAngleDeg) &&
+           a.offset == b.offset && sameBits(a.rotation.w(), b.rotation.w()) &&
+           sameBits(a.rotation.x(), b.rotation.x()) && sameBits(a.rotation.y(), b.rotation.y()) &&
+           sameBits(a.rotation.z(), b.rotation.z()) && a.on == b.on && a.castShadows == b.castShadows &&
+           sameBits(a.priority, b.priority) && sameBits(a.flickerAmplitude, b.flickerAmplitude) &&
+           sameBits(a.flickerFrequency, b.flickerFrequency);
+}
+bool sameLightData(const Vulkan::LightData& a, const Vulkan::LightData& b)
+{
+    return a.kind == b.kind && a.position == b.position && a.direction == b.direction && a.color == b.color &&
+           a.lumen == b.lumen && a.range == b.range && a.cosInner == b.cosInner && a.cosOuter == b.cosOuter &&
+           a.castShadows == b.castShadows && a.priority == b.priority && a.flicker == b.flicker;
+}
+}  // namespace
+
 ExtractSystem::ExtractSystem(World& world) : w(world) {}
 
 ExtractSystem::~ExtractSystem()
@@ -113,6 +134,15 @@ void ExtractSystem::setSink(RenderSink* sink)
             renderSink->removeDynamic(removals.back());
             removals.pop_back();
         }
+        // S36b: the lights go with the sink as well
+        for (TrackedLight& l : lights)
+            if (l.handle)
+            {
+                renderSink->removeLight(l.handle);
+                l.handle = LightHandle();
+            }
+        lights.clear();
+        lightSlot.clear();
         tracked.clear();
         slotOf.clear();
         remote.clear();
@@ -144,6 +174,10 @@ void ExtractSystem::setSink(RenderSink* sink)
         }
     }
     if (failure) std::rethrow_exception(failure);
+    // S36b: the existing light entities
+    std::vector<Entity> lit;
+    w.registry().view<const LightSource>().each([&](Entity e, const LightSource&) { lit.push_back(e); });
+    for (Entity e : lit) trackLight(e);
 }
 
 void ExtractSystem::meshRegistered()
@@ -432,6 +466,14 @@ void ExtractSystem::consumeLog()
                 else if (reg.alive(r.entity) && reg.has<RenderInstance>(r.entity))
                     track(r.entity);
             }
+            else if (r.component == LightSource::id)
+            {
+                // S36b: a light is added and removed with its component
+                if (!r.added)
+                    untrackLight(r.entity);
+                else if (reg.alive(r.entity) && reg.has<LightSource>(r.entity))
+                    trackLight(r.entity);
+            }
             else if (r.component == RenderPose::id || r.component == Parent::id || r.component == NetOwner::id)
                 sourcesDirty = true;
         });
@@ -589,6 +631,8 @@ void ExtractSystem::commit()
         remote[kept++] = remote[i];
     }
     remote.resize(kept);
+    // S36b: the lights at the step's pose (their pair shifts)
+    syncLights(true);
     committedSteps++;
     // The step covered the edits made before it
     dirty = false;
@@ -702,6 +746,161 @@ void ExtractSystem::catchUpRun()
             }
         }
     }
+    // S36b: the lights at their current pose (edits between steps snap)
+    syncLights(false);
+}
+
+//==================================================================================================
+// Local lights (S36b)
+
+ExtractSystem::TrackedLight* ExtractSystem::findLight(Entity e)
+{
+    if (e.index >= lightSlot.size() || lightSlot[e.index] < 0) return nullptr;
+    TrackedLight& l = lights[size_t(lightSlot[e.index])];
+    return l.entity == e ? &l : nullptr;
+}
+
+const ExtractSystem::TrackedLight* ExtractSystem::findLight(Entity e) const
+{
+    return const_cast<ExtractSystem*>(this)->findLight(e);
+}
+
+void ExtractSystem::trackLight(Entity e)
+{
+    TrackedLight* existing = findLight(e);
+    if (!existing)
+    {
+        if (lightSlot.size() <= e.index) lightSlot.resize(size_t(e.index) + 1, -1);
+        TrackedLight l;
+        l.entity = e;
+        lights.push_back(l);
+        lightSlot[e.index] = int32_t(lights.size() - 1);
+        existing           = &lights.back();
+    }
+    TrackedLight& l = *existing;
+    l.source        = w.registry().read<LightSource>(e);
+    WorldPose p;
+    Source s;
+    l.hasPose = w.registry().has<Transform>(e) && sourcePose(e, s, p);
+    if (l.hasPose) l.prev = l.curr = p;
+    sendLight(l, 1.0);
+}
+
+void ExtractSystem::untrackLight(Entity e)
+{
+    TrackedLight* l = findLight(e);
+    if (!l) return;
+    const LightHandle h = l->handle;
+    const size_t i      = size_t(lightSlot[e.index]);
+    lightSlot[e.index]  = -1;
+    if (i + 1 != lights.size())
+    {
+        lights[i]                         = lights.back();
+        lightSlot[lights[i].entity.index] = int32_t(i);
+    }
+    lights.pop_back();
+    if (h) renderSink->removeLight(h);
+}
+
+void ExtractSystem::sendLight(TrackedLight& l, double alpha)
+{
+    if (!renderSink) return;
+    const LightSource& src = l.source;
+    std::string invalid    = src.invalidReason();
+    if (!invalid.empty() && !l.invalidLogged)
+    {
+        l.invalidLogged = true;
+        SAIGA_LOG_E("extract", l.entity, "has an invalid LightSource (%s); it is not rendered", invalid.c_str());
+    }
+    if (invalid.empty()) l.invalidLogged = false;
+    const bool lit = l.hasPose && src.on && invalid.empty();
+    if (!lit)
+    {
+        if (l.handle) renderSink->removeLight(l.handle);
+        l.handle = LightHandle();
+        return;
+    }
+    // The pose at alpha (S18's interpolatePose in double, as interpolatedPose)
+    DynamicPose a, b;
+    a.position          = l.prev.position;
+    a.rotation          = l.prev.rotation;
+    a.scale             = l.prev.scale;
+    b.position          = l.curr.position;
+    b.rotation          = l.curr.rotation;
+    b.scale             = l.curr.scale;
+    const DynamicPose r = alpha >= 1 ? b : Vulkan::interpolatePose(a, b, alpha);
+    WorldPose at;
+    at.space          = l.curr.space;
+    at.position       = r.position + r.rotation * (src.offset * r.scale);
+    at.rotation       = r.rotation * src.rotation;
+    const ChunkPose c = toChunkPose(at);
+    Vulkan::LightData d;
+    d.kind              = src.kind;
+    d.position          = c.pose.position.cast<float>();
+    d.direction         = (at.rotation * Vec3(0, 0, -1)).normalized().cast<float>();
+    d.color             = src.color.cast<float>();
+    d.lumen             = float(src.lumen);
+    d.range             = float(src.range);
+    const double toRad  = 3.14159265358979323846 / 180;
+    d.cosInner          = float(std::cos(src.innerAngleDeg * toRad));
+    d.cosOuter          = float(std::cos(src.outerAngleDeg * toRad));
+    d.castShadows       = src.castShadows;
+    d.priority          = float(src.priority);
+    d.flicker.amplitude = float(src.flickerAmplitude);
+    d.flicker.frequency = float(src.flickerFrequency);
+    d.flicker.seed      = l.entity.index * 2654435761u;
+    if (!l.handle)
+    {
+        l.handle = renderSink->addLight(c.chunk, d);
+        l.chunk  = c.chunk;
+        l.data   = d;
+        return;
+    }
+    if (l.chunk == c.chunk && sameLightData(l.data, d)) return;
+    renderSink->setLight(l.handle, c.chunk, d);
+    l.chunk = c.chunk;
+    l.data  = d;
+}
+
+void ExtractSystem::syncLights(bool step)
+{
+    const Registry& reg = w.registry();
+    for (TrackedLight& l : lights)
+    {
+        if (!reg.alive(l.entity) || !reg.has<LightSource>(l.entity)) continue;
+        const LightSource& src = reg.read<LightSource>(l.entity);
+        if (!sameLightSource(src, l.source)) l.source = src;
+        WorldPose p;
+        Source s;
+        const bool had = l.hasPose;
+        l.hasPose      = reg.has<Transform>(l.entity) && sourcePose(l.entity, s, p);
+        if (l.hasPose)
+        {
+            // A step shifts the pair (a space change snaps); a catch-up (an edit between steps) snaps
+            l.prev = step && had && p.space == l.curr.space ? l.curr : p;
+            l.curr = p;
+        }
+        sendLight(l, 1.0);
+    }
+}
+
+void ExtractSystem::updateLights(double alpha)
+{
+    for (TrackedLight& l : lights)
+        if (l.hasPose && !samePose(l.prev, l.curr)) sendLight(l, alpha);
+}
+
+size_t ExtractSystem::lightCount() const
+{
+    size_t n = 0;
+    for (const TrackedLight& l : lights) n += l.handle ? 1 : 0;
+    return n;
+}
+
+LightHandle ExtractSystem::lightOf(Entity e) const
+{
+    const TrackedLight* l = findLight(e);
+    return l ? l->handle : LightHandle();
 }
 
 uint64_t ExtractSystem::snapSequence(Entity e) const

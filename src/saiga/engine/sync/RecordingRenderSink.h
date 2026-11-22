@@ -40,7 +40,8 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
         uint64_t registerMesh = 0, registerMaterial = 0, addDynamic = 0, setDynamic = 0, removeDynamic = 0;
         uint64_t addInstanceSet = 0, updateInstances = 0, removeInstance = 0, removeInstanceSet = 0;
         uint64_t setCamera = 0, setInterpolation = 0, setSpaceSettings = 0;
-        uint64_t setEnvironment = 0;  // S36
+        uint64_t setEnvironment = 0;                           // S36
+        uint64_t addLight = 0, setLight = 0, removeLight = 0;  // S36b
         // Terrain (S20)
         uint64_t setTerrainPyramid = 0, setTerrainTile = 0, removeTerrainTile = 0, setGrassMask = 0,
                  removeGrassMask = 0, clearTerrain = 0, patchTerrainTile = 0, patchTerrainPyramid = 0;
@@ -62,6 +63,9 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) override;
     void setInterpolation(float alpha) override;
     void setEnvironment(const EnvironmentState& environment) override;
+    LightHandle addLight(const ChunkId& chunk, const LightData& light) override;
+    void setLight(LightHandle h, const ChunkId& chunk, const LightData& light) override;
+    void removeLight(LightHandle h) override;
     void setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid) override;
     void setTerrainTile(const RegionId& region, const TerrainTileData& tile) override;
     void removeTerrainTile(const RegionId& region) override;
@@ -108,6 +112,18 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     // ---- the environment (S36): the last one (null before the first setEnvironment)
     const EnvironmentState* environment() const { return lastEnvironment ? &*lastEnvironment : nullptr; }
 
+    // ---- the local lights (S36b): the live lights by handle ID with their last chunk and data
+    struct Light
+    {
+        ChunkId chunk;
+        LightData data;
+        uint64_t updates = 0;  // setLight calls
+        // The world position (chunk origin + position)
+        Vec3 worldPosition() const { return chunkOrigin(chunk) + data.position.cast<double>(); }
+    };
+    const std::map<uint32_t, Light>& lights() const { return liveLights; }
+    const Light* light(LightHandle h) const;
+
     // ---- state ----
     // Live dynamic instances by handle ID
     const std::map<uint32_t, Dynamic>& dynamics() const { return live; }
@@ -152,6 +168,8 @@ class SAIGA_ENGINE_API RecordingRenderSink : public RenderSink
     std::map<SpaceId, SpaceRenderSettings> spaces;
     std::map<SpaceId, int> spaceCalls;
     std::optional<EnvironmentState> lastEnvironment;
+    std::map<uint32_t, Light> liveLights;
+    uint32_t nextLight  = 1;
     uint32_t nextHandle = 1, nextSet = 1;
     Counters count;
     float alpha  = 0;

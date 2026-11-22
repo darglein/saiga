@@ -16,6 +16,7 @@
 #pragma once
 
 #include "saiga/core/math/ChunkId.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/ecs/Entity.h"
 #include "saiga/engine/sync/RenderSink.h"
 #include "saiga/export.h"
@@ -77,6 +78,17 @@ class SAIGA_ENGINE_API ExtractSystem
     // extract sends the edit)
     void markDirty() { dirty = true; }
 
+    // ---- local lights (S36b, §10.7) ----
+
+    // Every frame (the app, after catchUp): the lights of moving entities follow their interpolated pose (setLight with
+    // the chunk-relative position; a chunk change is a new chunk). The steps (and catch-ups) send the lights at the
+    // current pose already: a world without frames (a scenario) has its lights at the step's pose
+    void updateLights(double alpha);
+    // The live lights (an entity with a LightSource that is on, valid and has a pose) and the sink light of an entity
+    // (invalid: none)
+    size_t lightCount() const;
+    LightHandle lightOf(Entity e) const;
+
     // Tracked entities (with RenderInstance) and those with a sink instance
     size_t trackedCount() const { return tracked.size(); }
     size_t instanceCount() const;
@@ -136,6 +148,30 @@ class SAIGA_ENGINE_API ExtractSystem
         Source source;
         uint64_t snapStep;
     };
+
+    // A light entity (S36b): the component as last sent, the entity's pose pair of the steps, the sink light and the
+    // chunk and data last sent
+    struct TrackedLight
+    {
+        Entity entity;
+        LightHandle handle;
+        LightSource source;
+        bool hasPose = false;
+        WorldPose prev, curr;
+        ChunkId chunk;
+        Vulkan::LightData data;
+        bool invalidLogged = false;
+    };
+    std::vector<TrackedLight> lights;
+    std::vector<int32_t> lightSlot;  // by entity index: index into lights, -1
+    TrackedLight* findLight(Entity e);
+    const TrackedLight* findLight(Entity e) const;
+    void trackLight(Entity e);
+    void untrackLight(Entity e);
+    // The poses of the lights after a step (step: the pair shifts; else a snap) and the sends of changed lights
+    void syncLights(bool step);
+    // Sends the light at alpha between its pose pair (adds, moves or removes the sink light as needed)
+    void sendLight(TrackedLight& l, double alpha);
 
     void attachConsumer();
     void detachConsumer();

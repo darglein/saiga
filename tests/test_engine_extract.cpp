@@ -11,6 +11,7 @@
 
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/components/CharacterIntent.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
@@ -354,6 +355,45 @@ TEST(RecordingRenderSink, EnvironmentAndLightsRecorded)
     EXPECT_EQ(sink.counters().setEnvironment, 2u);
     EXPECT_EQ(sink.environment()->ev100, 7.0f);
     EXPECT_EQ(sink.environment()->exposureSource, Vulkan::ExposureSource::Fixed);
+    // S36b: the lights of LightSource entities (added, changed, removed; a sink set late gets the existing ones)
+    const Entity lamp = w.create();
+    w.get<Transform>(lamp).setPosition(Vec3(-3, 2, 300));
+    LightSource ls;
+    ls.kind     = LightKind::Spot;
+    ls.rotation = Quat(std::cos(-0.7853981633974483), std::sin(-0.7853981633974483), 0, 0);
+    w.add<LightSource>(lamp, ls);
+    w.step();
+    ASSERT_EQ(sink.lights().size(), 1u);
+    const RecordingRenderSink::Light& l = sink.lights().begin()->second;
+    EXPECT_EQ(l.chunk.x, -1);
+    EXPECT_EQ(l.chunk.z, 1);
+    EXPECT_NEAR((l.worldPosition() - Vec3(-3, 2, 300)).norm(), 0, 1e-4);
+    // -z rotated by -90 degrees about x points down
+    EXPECT_NEAR(l.data.direction(1), -1.0f, 1e-5f);
+    EXPECT_NEAR(l.data.cosOuter, std::cos(35.0 * 3.14159265358979 / 180), 1e-6);
+    EXPECT_EQ(sink.counters().addLight, 1u);
+    // An unchanged step sends nothing; a change of the component one setLight
+    w.step();
+    EXPECT_EQ(sink.counters().setLight, 0u);
+    w.get<LightSource>(lamp).lumen = 2000;
+    w.step();
+    EXPECT_EQ(sink.counters().setLight, 1u);
+    EXPECT_EQ(sink.lights().begin()->second.data.lumen, 2000.0f);
+    // An invalid light is not rendered
+    w.get<LightSource>(lamp).range = -1;
+    w.step();
+    EXPECT_EQ(sink.lights().size(), 0u);
+    w.get<LightSource>(lamp).range = 10;
+    w.step();
+    EXPECT_EQ(sink.lights().size(), 1u);
+    RecordingRenderSink late;
+    w.setRenderSink(&late);
+    EXPECT_EQ(late.lights().size(), 1u);
+    EXPECT_EQ(w.extract().lightCount(), 1u);
+    w.remove<LightSource>(lamp);
+    w.step();
+    EXPECT_EQ(late.lights().size(), 0u);
+    EXPECT_EQ(late.counters().removeLight, 1u);
     w.setRenderSink(nullptr);
 }
 

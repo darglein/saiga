@@ -119,6 +119,21 @@ void VulkanRenderSink::setEnvironment(const EnvironmentState& environment)
     renderScene.setEnvironment(environment);
 }
 
+LightHandle VulkanRenderSink::addLight(const ChunkId& chunk, const LightData& light)
+{
+    return renderScene.addLight(chunk, light);
+}
+
+void VulkanRenderSink::setLight(LightHandle h, const ChunkId& chunk, const LightData& light)
+{
+    renderScene.setLight(h, chunk, light);
+}
+
+void VulkanRenderSink::removeLight(LightHandle h)
+{
+    renderScene.removeLight(h);
+}
+
 void VulkanRenderSink::clearTerrain()
 {
     renderScene.clearTerrain();
