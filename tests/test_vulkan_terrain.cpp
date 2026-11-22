@@ -1245,6 +1245,11 @@ TEST_F(VulkanTerrain, GrassNeedsMask)
 // The grass is chunk-relative: the image is invariant under a 256 m camera and content offset
 TEST_F(VulkanTerrain, GrassChunkRelative)
 {
+    // Without the sun shadows (S36a2): their texel grids are anchored in the world, not chunk-relative
+    Vulkan::LightingParameters lp = scene->lightingParameters();
+    lp.sunShadows                 = false;
+    lp.horizonShadows             = false;
+    scene->setLightingParameters(lp);
     const TerrainLayout layout = testLayout(16, 1);
     scene->setFoliageTexture(1);
     auto periodic = [](uint64_t, int64_t x, int64_t z)

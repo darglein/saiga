@@ -229,6 +229,9 @@ TEST_F(Cascades, MainViewCountsUnchanged)
             instanceAt(vec3((u(rng) - 0.5f) * 400, u(rng) * 5, (u(rng) - 0.5f) * 400), 202, 0.5f + u(rng)));
     AddSet(instances);
 
+    LightingParameters off = scene->lightingParameters();
+    off.sunShadows         = false;
+    scene->setLightingParameters(off);
     const RenderStatistics without = Stats();
     const Vec3 light               = Vec3(-0.3, 0.8, 0.2).normalized();
     std::vector<ShadowView> views  = {squareView(light, Vec3(0, -10, -20), 50, -400, 400, 100),

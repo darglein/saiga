@@ -125,8 +125,9 @@ void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, b
     bool any = false;
     for (int c = 0; c < count; ++c)
     {
-        Cascade& s         = state[size_t(c)];
-        const int interval = c == 0 ? 1 : std::max(p.cascadeInterval[size_t(c)], 1);
+        Cascade& s = state[size_t(c)];
+        // Golden mode (forceFullUpdates): every cascade every frame, fitted to its slice (deterministic)
+        const int interval = c == 0 || p.forceFullUpdates ? 1 : std::max(p.cascadeInterval[size_t(c)], 1);
         const bool due     = !s.valid || interval == 1 || in.frame < s.lastUpdate ||
                          in.frame - s.lastUpdate >= uint64_t(interval) || s.resolution != res ||
                          (in.camera - s.fitCamera).norm() > s.margin;

@@ -7,9 +7,10 @@
 // The lighting goldens of S36 (docs/stages/S36_lighting.plan.md, Tests: Goldens; docs/engine_design.md §17.6): a World
 // with the environment enabled (WorldTime, Weather) on a VulkanRenderSink, the mountainRidgeHook terrain of a 4 km
 // space at base spacing 2, 200 PrototypeFoliage trees and a few flat-colour boxes, 512 x 512 with 4 samples, ACES with
-// a fixed EV100 per golden, the environment map fully updated in the captured frame (golden mode), the environment
-// from the world (environmentState; its wind phases are 0 at time 0); a scene and world per test. S36a1:
-// without sun shadows (a2 regenerates them with the cascades and the horizon map). They gate on lavapipe only; other
+// a fixed EV100 per golden, golden mode (forceFullUpdates: every incremental effect complete) in the captured frame,
+// the environment from the world (environmentState; its wind phases are 0 at time 0); a scene and world per test.
+// S36a2: with the sun and moon shadows (the cascades at 1024, the horizon map at 256 texels). They gate on lavapipe
+// only; other
 // devices print the metrics. Regenerate on lavapipe: SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render
 // --gtest_filter='LightingGolden.*'
 
@@ -142,14 +143,17 @@ class LightingGolden : public ::testing::Test
         windowParameters.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
         Vulkan::VulkanParameters vulkanParameters;
         vulkanParameters.enableImgui = false;
-        Vulkan::RenderSceneParameters p;
-        p.imgui                    = false;
-        p.msaaSamples              = 4;
-        p.nearPlane                = 0.1f;
-        p.toneMap                  = Vulkan::ToneMap::Aces;
-        st->window                 = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
-        st->scene                  = std::make_unique<Vulkan::RenderScene>(*st->window, vulkanParameters, p);
-        Vulkan::RenderScene& scene = *st->scene;
+        // Golden mode's cascades at 1024 and horizon map at 256 texels (goldenSceneParameters); forceFullUpdates only
+        // in the captured frame (Shot)
+        Vulkan::RenderSceneParameters p = goldenSceneParameters();
+        p.lighting.forceFullUpdates     = false;
+        p.imgui                         = false;
+        p.msaaSamples                   = 4;
+        p.nearPlane                     = 0.1f;
+        p.toneMap                       = Vulkan::ToneMap::Aces;
+        st->window                      = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
+        st->scene                       = std::make_unique<Vulkan::RenderScene>(*st->window, vulkanParameters, p);
+        Vulkan::RenderScene& scene      = *st->scene;
         WorldSetup s;
         s.seed      = 1;
         s.profiling = false;
@@ -213,8 +217,8 @@ class LightingGolden : public ::testing::Test
     }
 
     // The frame of a golden: the time of day and cloudiness written to the world, the fixed EV100, the environment of
-    // the world's space 0 at the camera; the terrain of the view uploaded, then one frame with a full update of the
-    // environment map (golden mode: the same image as forceFullUpdates in every frame, at one capture per shot)
+    // the world's space 0 at the camera; the terrain of the view uploaded, then one frame in golden mode (the same image
+    // as forceFullUpdates in every frame: checked against the per-test fixture, bit-identical)
     TemplatedImage<ucvec4> Shot(double hours, double cloudiness, float ev100, const Vec3& eye, const Vec3& forward,
                                 double fovyDeg = 60)
     {
@@ -236,9 +240,15 @@ class LightingGolden : public ::testing::Test
         scene->setCamera(0, eye, rotation, fovyDeg * kPi / 180);
         state->prototype.update();
         renderUntilUploaded(*scene, 256);
-        scene->requestFullUpdate();
+        // Golden mode in the captured frame: the environment map, the cascades (fitted to their slices: no history)
+        // and the horizon map complete
+        Vulkan::LightingParameters lp = scene->lightingParameters();
+        lp.forceFullUpdates           = true;
+        scene->setLightingParameters(lp);
         TemplatedImage<ucvec4> img = RenderFrame();
         scene->waitIdle();
+        lp.forceFullUpdates = false;
+        scene->setLightingParameters(lp);
         return img;
     }
     double Ground(double x, double z) const { return world->terrainHeight(0, x, z); }

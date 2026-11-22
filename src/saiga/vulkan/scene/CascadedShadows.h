@@ -44,8 +44,9 @@ struct CascadeInput
  *   extents; casters nearer to the light are pancaked in the shadow vertex shaders. A cascade is its xy rectangle, so
  *   the receivers' selection and the casters' de-duplication by the rectangle are exact.
  * - Depth: D32, orthographic, not reversed (clear 1, LESS_OR_EQUAL); one Texture2DArray layer per cascade.
- * Freezing keeps every cascade's world data (and the camera they were fitted to); the frozen cascades are still
- * rendered every frame (the casters may move), from the current camera's position.
+ * Golden mode (LightingParameters::forceFullUpdates) updates every cascade every frame (interval 1: no camera speed
+ * margin, deterministic images). Freezing keeps every cascade's world data (and the camera they were fitted to); the
+ * frozen cascades are still rendered every frame (the casters may move), from the current camera's position.
  */
 class SAIGA_VULKAN_API CascadedShadows
 {

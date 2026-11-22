@@ -535,8 +535,9 @@ TEST_F(LightingDebugTools, CaptureLighting)
     ASSERT_FALSE(isError(stats)) << text(stats);
     EXPECT_EQ(stats["result"]["content"].array_items().size(), 1u);
     EXPECT_EQ(result(stats)["mapping"]["range"], Json(Json::array{0.0, 1.0}));
-    for (const char* args : {R"({"image": "cascade"})", R"({})", R"({"image": "luminance", "max_width": 10})",
-                             R"({"image": "luminance", "cascade": 1})", R"({"image": "luminance", "range": [1]})"})
+    for (const char* args :
+         {R"({"image": "cascade", "cascade": 7})", R"({})", R"({"image": "luminance", "max_width": 10})",
+          R"({"image": "luminance", "cascade": 1})", R"({"image": "luminance", "range": [1]})"})
         EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
     // Rendering disabled: the deadline answers once (a short tool timeout; half of it, 0.25 s, is kept for the answer
     // so that it reaches the caller in time on a loaded machine)
@@ -650,7 +651,8 @@ TEST_F(LightingDebugTools, CascadeTools)
         i.mesh  = mesh;
         card    = s.addInstanceSet(RegionId(), {i});
     }
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
+    // From shadows off (S36a2's flip made them the default)
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "sun_shadows": false})"))));
     // Every a2 key round-trips through previous
     const Json set = call(*app, "set_lighting", obj(R"({"sun_shadows": true, "cascade_count": 3,
         "cascade_resolution": 1024, "shadow_distance": 100, "split_lambda": 0.7, "cascade_interval": [1, 1, 2, 2],
@@ -707,7 +709,9 @@ TEST_F(LightingDebugTools, CascadeTools)
     EXPECT_EQ(shadow["cascade_index"], Json(0)) << shadow.dump();
     const Json lit = result(callFrames(*app, "probe_lighting", obj(R"({"position": [3, 0, 2]})")))["shadow"];
     EXPECT_GT(lit["cascade"].number_value(), 0.9) << lit.dump();
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"sun_shadows": false})"))));
+    // The defaults again
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"sun_shadows": true, "cascade_resolution": 2048,
+                                                          "shadow_distance": 1500})"))));
     s.removeInstanceSet(*card);
     card.reset();
 }
@@ -717,7 +721,8 @@ TEST_F(LightingDebugTools, CascadeTools)
 TEST_F(LightingDebugTools, HorizonTools)
 {
     Vulkan::RenderScene& s = *app->scene();
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
+    // The horizon map alone (inside a cascade the receivers use G: the cascades shadow the near terrain)
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "sun_shadows": false})"))));
     // Without terrain: no map
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_shadows": true, "horizon_resolution": 128})"))));
     app->runFrames(2, 1.0 / 60);
@@ -764,7 +769,8 @@ TEST_F(LightingDebugTools, HorizonTools)
     // Back to the defaults of the suite
     env.sunOverride.reset();
     app->setEnvironmentSettings(env);
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_shadows": false})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_resolution": 1024, "horizon_extent": 32768,
+                                                          "horizon_rows_per_frame": 64, "sun_shadows": true})"))));
     s.clearTerrain();
     app->runFrames(1, 1.0 / 60);
 }

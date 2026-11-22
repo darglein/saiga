@@ -1429,6 +1429,9 @@ TEST_F(VulkanSceneContent, Precision)
     RenderSceneParameters p;
     p.msaaSamples    = 4;
     camera.nearPlane = 0.01;
+    // The placement's precision without the sun shadows (S36a2): the cascades' texel grid is anchored in the world
+    // (texel snapping), so their PCF edges differ by 1/255 between two places 30 km apart
+    p.lighting.sunShadows = false;
     CreateScene(p);
     scene->addMaterial(1, "flat", flatMaterial());
     scene->addMaterial(2, "marker", markerMaterial());
@@ -1593,6 +1596,10 @@ TEST_F(VulkanSceneContent, ImportedMeshGolden)
     lods.lods[1].endDistance = 100;
     RenderSceneParameters p;
     p.msaaSamples = 4;
+    // The goldens' lighting (S36a2, render_scene_test_context.h's goldenSceneParameters)
+    p.lighting.forceFullUpdates  = true;
+    p.lighting.cascadeResolution = 1024;
+    p.lighting.horizonResolution = 256;
     CreateScene(p);
     scene->addMaterial(1, "box", material);
     scene->addMesh(1, "box", lods, 1);
@@ -1902,6 +1909,8 @@ TEST_F(VulkanSceneContent, StorageBufferLimit)
     p.staticInstanceCapacity = 16;
     p.dynamicCapacity        = 16;
     p.storageBufferLimit     = 48 * 1024;
+    // The main view's limits (S36a2: the shadow views add scratch entries per instance and view)
+    p.lighting.sunShadows = false;
     CreateScene(p);
     scene->addMaterial(1, "flat", flatMaterial());
     scene->addMesh(1, "box", boxMesh(vec3(0.02f, 0.02f, 0.02f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);

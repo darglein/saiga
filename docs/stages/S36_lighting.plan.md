@@ -1,8 +1,8 @@
 # S36: Lighting
 
 Status: S36a1a implemented (2026-11-22, branch `stage-s36a1a`); S36a1b implemented (2026-11-22, branch
-`stage-s36a1b`, stacked on a1a); S36a1c implemented (2026-11-22, branch `stage-s36a1c`, stacked on a1b); a2 and b
-planned (plan written 2026-11-22 on
+`stage-s36a1b`, stacked on a1a); S36a1c implemented (2026-11-22, branch `stage-s36a1c`, stacked on a1b); S36a2
+implemented (2026-11-22, branch `stage-s36a2`, stacked on a1c); b planned (plan written 2026-11-22 on
 branch `plans-s36`, based on the S20-S23c stack; revised after review rounds 1 and 2 the same day).
 
 Sections follow the stage plan template of S05; the design-doc amendments, the AGENTS.md changes, a decisions table,
@@ -1929,6 +1929,66 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   suite (one full environment update per shot, bit-identical to `forceFullUpdates` in five frames),
   `LightingTools` and `LightingDebugTools` one app.
 
+**S36a2** (2026-11-22):
+
+- **Culling**: `RenderScene::setShadowViewsOverride` (tests: views culled and counted, not drawn) for the per-view
+  CPU reference; the compacted entries are sized by the frame's scratch entries (each visible (instance, view) pair has
+  one; the single view's reserve as before), not by (capacity + dynamics) x views, which broke the storage-limit test.
+  A cascade not rendered in a frame keeps view index c + 1 with an empty volume (the statistics stay per cascade).
+- **Cascade fitting**: the staggered cascade's sphere uses the slice's far **corners** (`f sqrt(1 + k^2)`, the far
+  distance alone does not cover the slice) plus `interval * maxSpeed * dt`, with `maxSpeed` the **mean** speed of the last
+  second (a debug camera's jump of a few metres in one frame inflated the per-frame maximum) and an early refit when the
+  camera leaves that margin (a teleport); jumps over 500 m reset the history. The rectangle is the sphere's square
+  divided by `1 - cascadeBlend` (the slice stays in the band-free part). Each cascade keeps its light basis; the
+  receivers select by each cascade's own matrix (`|ndc.xy| <= 1`). Golden mode (`forceFullUpdates`) updates every
+  cascade every frame (interval 1: no wall-clock margin, deterministic). The depth range of a frame is the union of the
+  rendered cascades' sphere extents along the light.
+- **Caps**: instances `maxCasterHeight / sin(max(el, minShadowElevationDeg))` and terrain `cascadeCasterDistance /
+  max(cos(el), 0.25)` in light-space depth (the plan's horizontal distances along the light ray).
+- **Shadow light**: the ground illuminance on the render side comes from an air-mass model (Kasten-Young, optical depth
+  0.21) instead of the transmittance LUT on the CPU; `CascadedShadows::selectShadowLight` / `groundIlluminance`. Clay's
+  shadow light is the studio sun.
+- **Shadow pipeline table**: the pipeline classes are fixed (`PipelineClass`), so `Shadows.PipelineTableSlotForNewClass`
+  removes the opaque class's entry (casts nothing) and registers it again (casts). The table is `ShadowPipelineTable` in
+  `RenderScene`; `SceneCulling::recordShadow` binds the shadow set (`SceneLightingSet::shadowSet`).
+- **Horizon map**: one RG32F `Texture2DArray` of three layers in `eGeneral` (front / previous / back by index), sampled
+  with linear filtering where RG32F supports it (else four fetches); the max-height chain lives in `HorizonShadows`
+  (`TerrainAtlas` only counts its pyramid changes, `pyramidVersion`) and is **rebuilt whole** on any pyramid change,
+  which also recomputes the **whole map** (not the dirty rows; `HorizonShadows.EditMarksRowsDirty` checks the recompute
+  and the raised shadow heights). **The march**: a step takes the maximum of the cells its segment touches (both ends'
+  cells and, across a corner, the other two; cells at least one step long) minus `t0 tan(el)`; 16 m steps on the 32 m
+  cells up to 1 km and around G's first distance, 32 m to 4 km, then `t / 48` to 24 km (the first version with the
+  2 x 2 cells around each midpoint and a footprint-reduced t shadowed whole valleys at sunset: about 3x the height
+  error). **Blending**: a new map may start at any time; the blend runs from its value at the start to 1 at completion,
+  then restarts at 0 (previous <- front <- back) and continues at the same rate while nothing is computed (so the shown
+  map converges to the newest).
+- **Receivers' cost (step 4)**: the shadow code cost the grass ~0.65 ms in the forest **even with shadows off**
+  (register pressure of the blades' overdraw; measured with shader variants), so: the shadow terms are evaluated once
+  per fragment (`ShadowTerms` of `shadows.glsl`, one `cascadeSample` call site); the grass evaluates them **per vertex**
+  (`SHADOWS_VERTEX` with explicit gradients, `SHADOW_INPUT` in `grass.frag`); the terrain has a variant without the
+  cascade and horizon code (`LIGHTING_NO_SHADOWS`, created on first use) while both are off.
+- **probe_lighting takes 10 frames**: frame 9 the `ShadowCascades` view raw (factor, cascade + 1), frame 10 the
+  `HorizonShadow` view raw (factor, R and G above the receiver); `debug_probe.comp` stays unbuilt.
+- **Previews**: `debug_preview.comp` reads 2D arrays (a layer, or the strip of every layer, `step` source texels per
+  preview texel, the minimum for depth); the strip maps each layer by its own range (the shared depth range made the
+  near cascades flat); `LightingImage::CascadeStrip` is its own image (`capture_lighting(cascade)` without `cascade`);
+  the horizon map's "no occluder" (-1e9) is drawn black and left out of the statistics.
+- **Sections**: `shadow.horizon` exists from step 2 (empty until step 3), so the section-list tests change once.
+- **Tests**: `RenderSceneTest` runs in golden mode (frames compare); `VulkanSceneContent.Precision`,
+  `VulkanTerrain.GrassChunkRelative` and `.StorageBufferLimit` run without sun shadows (the cascades' and the horizon
+  map's grids are anchored in the world; the storage limit is the main view's); `goldenSceneParameters`
+  (`render_scene_test_context.h`) gives every golden the cascades at 1024 and the horizon map at 256 texels;
+  `EngineAppRender.ScreenshotTerrainDeadline` answers its last screenshot (after the latch opened) with the default tool
+  timeout (lavapipe's lit frames are slower). `HorizonShadows.NoRecomputeForSmallCameraMoves` and
+  `.AnchorMoveKeepsShadows` are one case; `Shadows.ShadowLightSwitchHasHysteresis` is `Cascades.*` (pure);
+  `Shadows.CliffNearCameraUsesCascade` and `.TerrainCastsInCascades` use the ridge's terrain (`ShadowsTerrain`).
+- **game_world's benchmark JSON**: the `shadows` key (`shadow`) and the shadow features; `data/tests/benchmarks.json`
+  holds the a2 numbers (the flip's defaults: shadows on).
+- **Files outside the a2 list**: `shader/vulkan/scene/{grass.vert, grass.frag}` (per-vertex shadows),
+  `src/saiga/engine/lighting/EnvironmentFile.cpp` (the a2 keys of the file's `lighting`), `tests/{test_engine_app.cpp,
+  test_vulkan_world.cpp}` (sections, the tab, the deadline test); of the list, `DebugLines.cpp` (the overlays add lines
+  from `RenderScene`), `TerrainAtlas` only for the pyramid counter, and `debug_probe.comp` are unchanged / not created.
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features
@@ -2077,6 +2137,60 @@ errors):
   `sample_vulkan_scene_benchmark` (clay): cull 0.059 ms, scene 1.39 ms (unchanged).
 - Screenshots reviewed (`SAIGA_SCREENSHOT`, RTX): `game_flight --demo --time-of-day 12 | 19 | 23` (the noon sky down
   to a hazy horizon, the golden hour, the night with stars and the moonlit ridge).
+
+**S36a2** (2026-11-22, local, lavapipe = Mesa with LLVM 21.1.8; build with samples and warnings as errors, GCC 15;
+the whole tree also with Clang 19 and warnings as errors in `build-clang`, no warning):
+
+- Commits: step 1 multi-view culling, step 2 cascades (with the Lighting tab's Cascades section and the cascade
+  tools), step 3 horizon shadows (with its section and tools), step 4 measure and tune (the receivers' cost), step 5
+  the flip (`sunShadows` and `horizonShadows` on, the eight goldens, the docs). Every step built without warnings and
+  passed ctest (step 3 was amended once: Clang reported an unused private field). 66 files changed against
+  `stage-s36a1c`.
+- ctest on lavapipe (`--parallel 4`): 85 of 85 passed (83 with CI's options), 81 s; 1 new binary `test_vulkan_shadows`
+  (28 cases: `Cascades.*` CPU fitting and light selection, `Shadows.*` culling per view against the CPU reference,
+  pipeline table, bias and PCF, `ShadowsTerrain.*`, `ShadowsFoliage.*`, `HorizonTest.*`), 9.2 s;
+  `test_engine_lighting_tools` 16 cases (`CascadeTools`, `HorizonTools`), 5.9 s; `test_engine_lighting_render` 9.9 s,
+  `test_engine_terrain_render` 20.6 s, `test_engine_app` 59.5 s (74 cases; a1c 43 s at parallel 8),
+  `test_vulkan_world` 67.4 s, `test_vulkan_terrain` 57.2 s, `test_vulkan_scene` 50.6 s (the longest binaries, all
+  shadowed now).
+- Goldens regenerated (local lavapipe, golden mode: every cascade every frame, the horizon map complete, cascades at
+  1024 and the map at 256 texels): `world_overview`, `world_forest`, `scene_flat_box`, `terrain_edit_crater`,
+  `generated_site` (the clay goldens now with the studio sun's shadows) and `lighting_noon`, `lighting_sunset`,
+  `lighting_night`; `lighting_clouds` is byte-identical (the layer from above, the sun under the clouds' shadow);
+  `hdr_tonemap` unchanged; the tree counts of the world goldens unchanged. Reviewed side by side
+  (`goldens_before_after.png`): tree and building shadows on the ground, the ridge's shadow at sunset, the moon's
+  shadows at night.
+- Game scenarios (`--scenarios`, all variants), after step 2 and after the flip: flight 30 passed, platformer 48
+  passed, racing 18 passed.
+- Benchmarks (`build-bench`, RTX 5080 Laptop, 1920 x 1080, MSAA 4; GPU frame median ms; flyover varies ±0.25 ms
+  between runs):
+
+  | | flyover | forest | terraform |
+  |---|---|---|---|
+  | before (a1c) | 2.29 / 2.75 | 2.89 / 2.89 | 0.41 |
+  | step 4, shadows off | 2.75 | 2.93 (+1.2%) | 0.425 (+3.7%) |
+  | after the flip (shadows on; 2 runs) | 3.42 / 3.51 | 4.03 / 3.94 | 2.01 / 2.37 |
+  | `shadow` section after the flip | 0.96 | 1.26 / 1.27 | 1.24 / 1.69 |
+
+  The shadow passes stay within the 2.5 ms budget (Q6: the cascades take 0.87-1.14 ms in the terraform's mountains,
+  under 2 ms, so the defaults 4 x 2048 at 1500 m stay; `game_flight` sets 2500 m in `data/flight/environment.json`).
+  The horizon map alone: 0.15 ms in a frame that recomputes (the chain 0.03 ms), 0 otherwise; the flight demo's moving
+  sun: 98 rows per frame, 0.16-0.18 ms. The receivers add about 0.9 ms in the forest (the grass's per-vertex terms and
+  the terrain's per-fragment PCF); the off path is within 5% after step 4 (before it, the shadow code alone cost the
+  grass 0.65 ms with shadows off). `sample_vulkan_scene_benchmark`: cull 0.058 -> 0.059-0.061 ms after step 1 (one
+  view), 0.088 ms after the flip (five views), scene 1.38 -> 1.41 ms. `data/tests/benchmarks.json` holds the flip's
+  numbers.
+- Screenshots reviewed (in the session scratchpad `/tmp/claude-1000/-home-dari-Programming-saiga/157ec9df-4167-4908-ba7f-086a7ae500b8/scratchpad/s36a2/`): `final_flight_{12,19,23}.png` (noon, golden hour
+  with long cascaded and horizon shadows, moonlit night), `final_racing.png`, `final_platformer.png`, `final_world.png`,
+  `final_grid.png` (the cascade colours over the world), `mcp_tab*.png` / `tab_crop.png` (the Lighting tab: the
+  cascade table, the clickable strip, the far-terrain section), `mcp_frozen_bounds.png` (frozen cascades with
+  `cascade_bounds` and `camera_frustum_splits`), `mcp_horizon_map2.png` and `sunset_horizon_pair2.png` (the horizon
+  map's R channel and the valley shadow at sunset with and without it), `world10_terms.png` / `world175_terms.png`
+  (the `ShadowCascades` / `HorizonShadow` views).
+- Open: the horizon map is conservative (a far ridge's shadow height can be overestimated, e.g. 140 m instead of 26 m
+  at 7.7 km over 256 m cells: some far valleys shadow early at sunset); any terrain edit recomputes the whole map; after
+  a time jump at night the first frames are bright until the environment map is recaptured (7 frames, a1c behaviour);
+  `EngineAppRender.ScreenshotTerrainDeadline` uses the default timeout for its last screenshot.
 
 ## Review log
 

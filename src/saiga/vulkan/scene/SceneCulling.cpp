@@ -542,8 +542,12 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
                  layoutBuffers, "indirect commands");
     ensureDevice(bucketLods, buckets * views * 4, devStorage, layoutBuffers, "bucket LODs");
     ensureDevice(scratch, size_t(scratchEntries) * 8, devStorage, other, "scratch entries");
-    ensureDevice(compacted, (size_t(instances.capacity()) + std::max<size_t>(dyn.size(), dynamicCapacity)) * views * 8,
-                 devStorage, other, "compacted entries");
+    // The visible (instance, view) pairs are at most the scratch entries; the single view's reserve as before S36a2
+    ensureDevice(
+        compacted,
+        std::max<size_t>(scratchEntries, size_t(instances.capacity()) + std::max<size_t>(dyn.size(), dynamicCapacity)) *
+            8,
+        devStorage, other, "compacted entries");
 
     // 5. Uploads: meshes, instances, tables, the commands' static fields and bucket LODs after a layout change
     meshes.queueUploads(batch);

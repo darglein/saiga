@@ -194,7 +194,7 @@ TEST_F(TerrainRenderTest, PatchBelowNodeMinimum)
 // of mounds applied after it (the patch path, the edited grass masks); 512 x 512 on lavapipe
 TEST_F(TerrainRenderTest, EditCraterGolden)
 {
-    Create(512, 512, 4);
+    Create(512, 512, 4, goldenSceneParameters());
     scene->setFoliageTexture(1);
     MakeWorld(terraformTestTemplate(2));
     auto edit = [&](TerrainBrush::Op op, double x, double z, double radius, double strength)
@@ -299,7 +299,7 @@ class VulkanWorldGolden : public TerrainRenderTest
     {
         TerrainRenderTest::SetUp();
         if (IsSkipped()) return;
-        Create(size, size, 4);
+        Create(size, size, 4, goldenSceneParameters());
         MakeWorld(
             testSpaceTemplate(Vulkan::kPrototypeSpaceChunks, 2, Vulkan::prototypeHeight, Vulkan::kPrototypeSeaLevel));
         Vulkan::PrototypeArea area;
@@ -390,7 +390,7 @@ TEST_F(VulkanWorldGolden, WorldForest)
 // and its static parts with the tombstoned index at scale 0
 TEST_F(TerrainRenderTest, GeneratedSite)
 {
-    Create(512, 512, 4);
+    Create(512, 512, 4, goldenSceneParameters());
     scene->setFoliageTexture(1);
     WorldSetup setup = ContentTest::contentTestSetup(2);
     for (SpaceTemplate& t : setup.config.spaceTemplates) t.fullRadius = 300;

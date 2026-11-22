@@ -151,7 +151,7 @@ struct LightingParameters
     bool clouds                    = true;   // the cloud layer and its shadows
     bool forceFullUpdates          = false;  // golden mode (§17.6): every incremental effect updates fully every frame
     // S36a2: the sun and moon cascades (A5 of the S36 plan)
-    bool sunShadows                    = false;         // the cascaded shadow maps of the shadow light
+    bool sunShadows                    = true;          // the cascaded shadow maps of the shadow light
     int cascadeCount                   = 4;             // 1..4
     int cascadeResolution              = 2048;          // 256..4096, a power of two
     float shadowDistance               = 1500;          // m, the far end of the last cascade
@@ -168,7 +168,7 @@ struct LightingParameters
     float cascadeCasterDistance = 1371;  // m towards the light (horizontally): terrain casters in the cascades
     bool terrainCastsInCascades = true;  // the terrain is drawn into the cascades
     // S36a2: the far terrain horizon map (A6)
-    bool horizonShadows     = false;  // the horizon map of the shadow light
+    bool horizonShadows     = true;   // the horizon map of the shadow light
     int horizonResolution   = 1024;   // 128..4096, a power of two
     float horizonExtent     = 32768;  // m, the square around the anchor
     int horizonRowsPerFrame = 64;     // the base of the incremental update (more when the light moves fast)

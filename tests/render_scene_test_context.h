@@ -21,8 +21,21 @@
 
 namespace Saiga
 {
-// The fixture of the RenderScene tests (S20): per test a HeadlessWindow and a RenderScene (imgui off, near plane 0.1;
-// the VulkanTest fixture holds one static window with the forward renderer, while a RenderScene is its own renderer).
+// The lighting of the goldens (S36a2, §17.6): golden mode (forceFullUpdates: every incremental effect complete in
+// every frame) with the cascades at 1024 and the horizon map at 256 texels (lavapipe's cost; recorded here for every
+// golden of the scene)
+inline Vulkan::RenderSceneParameters goldenSceneParameters(Vulkan::RenderSceneParameters p = {})
+{
+    p.lighting.forceFullUpdates  = true;
+    p.lighting.cascadeResolution = 1024;
+    p.lighting.horizonResolution = 256;
+    return p;
+}
+
+// The fixture of the RenderScene tests (S20): per test a HeadlessWindow and a RenderScene (imgui off, near plane 0.1,
+// S36a2: golden mode, LightingParameters::forceFullUpdates: the incremental effects (the horizon map, the staggered
+// cascades, the environment map) are complete in every frame, so frames compare; the VulkanTest fixture holds one
+// static window with the forward renderer, while a RenderScene is its own renderer).
 // Size() x Samples() (96 x 64, 4 samples) unless a derived fixture overrides them. A new scene per test is cheap with
 // the device and pipeline reuse of the test process (AGENTS.md, Tests, "Test speed"; about 15 ms on lavapipe).
 // Skipped without a Vulkan 1.3 device (as VulkanTest) and without drawIndirectFirstInstance (RenderScene needs it).
@@ -53,12 +66,13 @@ class RenderSceneTest : public ::testing::Test
         windowParameters.height = h;
         windowParameters.saigaParameters.shaderDirectory.push_back(SAIGA_PROJECT_SOURCE_DIR "/shader");
         Vulkan::VulkanParameters vulkanParameters;
-        vulkanParameters.enableImgui = false;
-        params.imgui                 = false;
-        params.msaaSamples           = samples;
-        params.nearPlane             = 0.1f;
-        window                       = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
-        scene                        = std::make_unique<Vulkan::RenderScene>(*window, vulkanParameters, params);
+        vulkanParameters.enableImgui     = false;
+        params.imgui                     = false;
+        params.msaaSamples               = samples;
+        params.nearPlane                 = 0.1f;
+        params.lighting.forceFullUpdates = true;
+        window                           = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
+        scene                            = std::make_unique<Vulkan::RenderScene>(*window, vulkanParameters, params);
     }
     virtual void Destroy()
     {
