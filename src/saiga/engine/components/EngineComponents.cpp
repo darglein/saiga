@@ -20,15 +20,18 @@
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/components/Weather.h"
+#include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/ecs/Registry.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/net/NetOwner.h"
+#include "saiga/engine/world/World.h"
 
 namespace Saiga
 {
 namespace Engine
 {
-void registerEngineComponents(Registry& registry)
+void registerEngineComponents(Registry& registry, const WorldSetup& setup)
 {
     registry.registerComponent<Parent>(Replicate::Host);
     registry.registerComponent<LocalTransform>(Replicate::Host);
@@ -49,6 +52,18 @@ void registerEngineComponents(Registry& registry)
     // S21: entrances (clients show prompts) and requested transitions (host-only state, saved)
     registry.registerComponent<SpaceLink>(Replicate::Host);
     registry.registerComponent<PendingTransition>(Replicate::Never);
+    // S36: the time of day and the weather; world and space state only with the environment (D4), so plain worlds
+    // keep their entities, hashes and saves
+    if (setup.environment.enabled)
+    {
+        registry.registerGlobal<WorldTime>(Replicate::Host);
+        registry.registerSpaceState<Weather>(Replicate::Host);
+    }
+    else
+    {
+        registry.registerComponent<WorldTime>(Replicate::Host);
+        registry.registerComponent<Weather>(Replicate::Host);
+    }
 }
 
 }  // namespace Engine

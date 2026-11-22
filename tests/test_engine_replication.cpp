@@ -52,7 +52,7 @@ enum class TestComponent : uint8_t
     Inventory = kFirstGameComponent,
     Target,
     Score,
-    Weather,
+    TestWeather,
     Big,
     Count
 };
@@ -105,10 +105,10 @@ struct Score
         v("points", points);
     }
 };
-struct Weather
+struct TestWeather
 {
-    static constexpr const char* name = "Weather";
-    static constexpr ComponentId id   = ComponentId(TestComponent::Weather);
+    static constexpr const char* name = "TestWeather";
+    static constexpr ComponentId id   = ComponentId(TestComponent::TestWeather);
     static constexpr uint32_t version = 1;
     double rain                       = 0;
     template <class V>
@@ -201,7 +201,7 @@ WorldSetup baseSetup()
         r.registerComponent<Inventory>(Replicate::HostReliable);
         r.registerComponent<Target>(Replicate::Host);
         r.registerGlobal<Score>(Replicate::Host);
-        r.registerSpaceState<Weather>(Replicate::Host);
+        r.registerSpaceState<TestWeather>(Replicate::Host);
         r.registerComponent<Big>(Replicate::Host);
     };
     s.classes = [](ClassList& c)
@@ -714,13 +714,13 @@ TEST(Replication, SpawnedAndDestroyedInOneStepSendsNothing)
 TEST(Replication, WorldAndSpaceStateAreBound)
 {
     Net n;
-    n.host->global<Score>().points      = 7;
-    n.host->spaceState<Weather>(0).rain = 0.5;
-    const Entity clientWorldState       = n.client().worldStateEntity();
-    const Entity clientSpaceState       = n.client().spaceStateEntity(0);
+    n.host->global<Score>().points          = 7;
+    n.host->spaceState<TestWeather>(0).rain = 0.5;
+    const Entity clientWorldState           = n.client().worldStateEntity();
+    const Entity clientSpaceState           = n.client().spaceStateEntity(0);
     n.step(2);
     EXPECT_EQ(n.client().readGlobal<Score>().points, 7);
-    EXPECT_EQ(n.client().readSpaceState<Weather>(0).rain, 0.5);
+    EXPECT_EQ(n.client().readSpaceState<TestWeather>(0).rain, 0.5);
     // The client's own state entities, bound by the fixed NetIds
     EXPECT_EQ(n.client().worldStateEntity(), clientWorldState);
     EXPECT_EQ(n.client().replication().netIdOf(clientWorldState), kWorldStateNetId);

@@ -63,14 +63,14 @@ enum class TestClass : uint16_t
 };
 enum class TestComponent : uint8_t
 {
-    Weather = kFirstGameComponent,
+    TestWeather = kFirstGameComponent,
     Count
 };
 
-struct Weather
+struct TestWeather
 {
-    static constexpr const char* name = "Weather";
-    static constexpr ComponentId id   = ComponentId(TestComponent::Weather);
+    static constexpr const char* name = "TestWeather";
+    static constexpr ComponentId id   = ComponentId(TestComponent::TestWeather);
     static constexpr uint32_t version = 1;
     double rain                       = 0;
     template <class V>
@@ -119,7 +119,7 @@ void sysActions(World& w, double)
 WorldSetup apiSetup()
 {
     WorldSetup s;
-    s.components    = [](Registry& r) { r.registerGlobal<Weather>(Replicate::Host); };
+    s.components    = [](Registry& r) { r.registerGlobal<TestWeather>(Replicate::Host); };
     s.classes       = [](ClassList& c) { c.add<Dummy>(); };
     s.systems       = [](SystemList& l) { l.add(Phase::Gameplay, "actions", sysActions); };
     s.dataTypes     = [](DataTypeList& d) { d.add<CreatureStats>(); };
@@ -221,7 +221,7 @@ TEST(WorldApi, DescribeStatusSpawnListInspect)
     for (auto& c : d.value["components"].array_items()) components.insert(c["name"].string_value());
     for (auto& c : d.value["classes"].array_items()) classes.insert(c["name"].string_value());
     for (auto& c : d.value["events"].array_items()) events.insert(c["name"].string_value());
-    EXPECT_TRUE(components.count("Health") && components.count("Transform") && components.count("Weather"));
+    EXPECT_TRUE(components.count("Health") && components.count("Transform") && components.count("TestWeather"));
     EXPECT_TRUE(classes.count("Dummy"));
     EXPECT_TRUE(events.count("DamageEvent") && events.count("ActionEvent"));
 
@@ -341,9 +341,10 @@ TEST(WorldApi, GlobalsEventsActionsAndTime)
 {
     World w(apiSetup());
     WorldApi api(w);
-    ASSERT_TRUE(api.call("set_global", obj(R"({"component": "Weather", "values": {"rain": 0.5}})")).ok);
-    EXPECT_EQ(w.readGlobal<Weather>().rain, 0.5);
-    EXPECT_EQ(api.call("get_global", obj(R"({"component": "Weather"})")).value["values"]["rain"].number_value(), 0.5);
+    ASSERT_TRUE(api.call("set_global", obj(R"({"component": "TestWeather", "values": {"rain": 0.5}})")).ok);
+    EXPECT_EQ(w.readGlobal<TestWeather>().rain, 0.5);
+    EXPECT_EQ(api.call("get_global", obj(R"({"component": "TestWeather"})")).value["values"]["rain"].number_value(),
+              0.5);
     EXPECT_FALSE(api.call("get_global", obj(R"({"component": "Health"})")).ok);
     EXPECT_FALSE(api.call("destroy", Json(Json::object{{"entity", WorldApi::entityJson(w.worldStateEntity())}})).ok);
 
@@ -636,7 +637,7 @@ TEST(WorldApi, StrictArgumentsAndGuards)
                                                     {"values", Json::object{{"entity", WorldApi::entityJson(a)}}}}))
             .ok);
     EXPECT_FALSE(api.call("remove_component", Json(Json::object{{"entity", WorldApi::entityJson(w.worldStateEntity())},
-                                                                {"component", "Weather"}}))
+                                                                {"component", "TestWeather"}}))
                      .ok);
     EXPECT_TRUE(w.alive(w.worldStateEntity()));
     // Behaviour: tick flags settable, the interval derived again, classId fixed, no negative times
@@ -848,8 +849,8 @@ TEST(WorldTools, EveryToolAnswers)
     track("list_sites", Json::object{});
     // tombstone needs a generator with slots: WorldTools.ContentTools
     called.insert("tombstone");
-    track("get_global", obj(R"({"component": "Weather"})"));
-    track("set_global", obj(R"({"component": "Weather", "values": {"rain": 1}})"));
+    track("get_global", obj(R"({"component": "TestWeather"})"));
+    track("set_global", obj(R"({"component": "TestWeather", "values": {"rain": 1}})"));
     track("emit_event",
           Json::object{{"event", "DamageEvent"}, {"values", Json::object{{"target", de}, {"amount", 2}}}});
     track("queue_action", Json::object{{"player", WorldApi::entityJson(p)}, {"action", 7}});

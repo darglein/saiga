@@ -73,6 +73,7 @@ World::World(const WorldSetup& setup)
                      setup.config.maxStepsPerAdvance >= 1,
                  "invalid WorldConfig");
     reg.setJobPool(&pool);
+    envSetup = setup.environment;
     // The spaces (S20) and their content generation (S23a, phase A of the pipeline): the templates are checked first (a
     // template error is a setup error, fatal in every build, D1), then the generators, the space list and every plan
     {
@@ -119,7 +120,7 @@ World::World(const WorldSetup& setup)
     gridConsumer = log.addConsumer();
 
     // Engine lists first, then the game's (§7.9, §18.2)
-    registerEngineComponents(reg);
+    registerEngineComponents(reg, setup);
     if (setup.components) setup.components(reg);
     reg.validateRegistration();
 

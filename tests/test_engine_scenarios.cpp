@@ -15,6 +15,8 @@
 #include "saiga/engine/components/PlayerInput.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/components/Weather.h"
+#include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/GenerationPipeline.h"
@@ -22,6 +24,8 @@
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/gameplay/Systems.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/engine/lighting/Systems.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
@@ -1225,6 +1229,80 @@ WorldSetup contentSetupFor(const std::string&)
     return ContentTest::contentTestSetup(2, cache);
 }
 
+// S36: scenarioSetup with the environment (WorldTime global, Weather space state) and worldTimeSystem
+WorldSetup lightingScenarioSetup()
+{
+    WorldSetup s          = scenarioSetup();
+    s.environment.enabled = true;
+    s.systems             = [](SystemList& l)
+    {
+        l.add(Phase::Gameplay, "actionLog", actionLogSystem);
+        l.add(Phase::Gameplay, "workerFlag", workerFlagSystem);
+        addEnvironmentSystems(l);
+    };
+    return s;
+}
+WorldSetup lightingSetupFor(const std::string&)
+{
+    return lightingScenarioSetup();
+}
+
+void registerLightingScenarios(ScenarioList& s)
+{
+    // The time of day advances on the host (wrapping into the next day), replicates to the client, and the client
+    // cannot write it (R-NET-2: the write detector of the host + client variant; the validated write refuses it)
+    s.add("world_time_advances",
+          [](ScenarioWorld& w)
+          {
+              std::string error;
+              // A game hour per simulated second (the maximum rate)
+              w.check(setWorldTime(w.world(), WorldTimeChange{23.0, 0, 3600.0}, error), "set the time: " + error);
+              WeatherChange weather;
+              weather.wind = Vec2(10, -5);
+              w.check(setWeather(w.world(), 0, weather, error), "set the weather: " + error);
+              const double dt = w.world().dt();
+              const int n     = int(std::lround(1.5 / dt));
+              w.step(n);
+              // The world may be replaced by a load (the save/load variant): read it after the steps
+              World& host        = w.world();
+              const WorldTime& t = host.readGlobal<WorldTime>();
+              w.check(std::abs(t.timeOfDay - 0.5) < 1e-6,
+                      "advanced 1.5 h into the next day (" + std::to_string(t.timeOfDay) + ")");
+              w.check(t.day == 1, "counted the day");
+              w.check(std::abs(t.validAt - host.time()) < 1e-9, "valid at the step's end");
+              const Weather& wh = host.readSpaceState<Weather>(0);
+              w.check(std::abs(wh.cloudOffset(0) - 10 * n * dt) < 1e-6, "the clouds move with the wind");
+              w.check(std::abs(wh.cloudOffset(1) - wrapPeriod(-5 * n * dt, kCloudTile)) < 1e-6,
+                      "the clouds wrap into the tile");
+              if (w.networked())
+              {
+                  std::string refused;
+                  w.check(!setWorldTime(w.client(w.defaultPeer()), WorldTimeChange{6.0, std::nullopt, std::nullopt},
+                                        refused),
+                          "a client cannot write the time");
+                  w.check(refused.find("replicated") != std::string::npos, "the S16 message: " + refused);
+                  // Frozen, then the client's copy equals the host's after the delay
+                  w.check(setWorldTime(host, WorldTimeChange{std::nullopt, std::nullopt, 0.0}, error), error);
+                  WeatherChange calm;
+                  calm.wind = Vec2::Zero();
+                  w.check(setWeather(host, 0, calm, error), error);
+                  const int bound = 2 * w.networkConfig().delaySteps + 5 + (w.networkConfig().async ? 6 : 0);
+                  auto same       = [&]
+                  {
+                      World& host        = w.world();
+                      World& client      = w.client(w.defaultPeer());
+                      const WorldTime& a = host.readGlobal<WorldTime>();
+                      const WorldTime& b = client.readGlobal<WorldTime>();
+                      const Weather& wa  = host.readSpaceState<Weather>(0);
+                      const Weather& wb  = client.readSpaceState<Weather>(0);
+                      return a.timeOfDay == b.timeOfDay && a.day == b.day && a.rate == b.rate &&
+                             wa.cloudOffset == wb.cloudOffset && wa.wind == wb.wind;
+                  };
+                  w.check(w.stepUntil(same, bound), "the client's WorldTime and Weather equal the host's");
+              }
+          });
+}
+
 // A scenario with the setup it runs on and the registration it comes from
 struct Case
 {
@@ -1259,6 +1337,7 @@ std::vector<Case> allCases()
     collect(registerTerraformScenarios, terraformSetupFor);
     collect(registerContentScenarios, contentSetupFor);
     collect(registerTombstoneScenarios, contentSetupFor);
+    collect(registerLightingScenarios, lightingSetupFor);
     return cases;
 }
 }  // namespace
