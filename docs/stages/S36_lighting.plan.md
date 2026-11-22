@@ -1776,6 +1776,12 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   `request` (captures, probes) is unchanged: full resolution, at once. Tested by
   `LightingDebugTest.ShownPreviewsAreRateLimited`; `EngineAppRender.LightingTabRenders` counts one conversion over its
   three frames.
+- **The tab's app cases on the suite apps (a1a review round 1)**: `EngineAppRender.LightingTabRenders` is
+  `renderLightingTab` of `test_engine_lighting_tools.cpp`, run by `LightingTabTest.RendersAndWrites` and
+  `LightingTabPlainTest.Renders` (one app per suite, with and without the environment; the previews' conversion count is
+  the number of previews not yet converted by the suite's app), `.LightingTabSettingsChangeEnvironment` is
+  `LightingTabTest.SettingsChangeEnvironment`, and `.LightingTabControlsWriteWorldState` is replaced by the click on the
+  real rate button x60 in `RendersAndWrites` (`DebugUi::markItem`).
 
 ## Results
 
