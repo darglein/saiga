@@ -139,9 +139,10 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void sendChunkSnapshot(uint8_t peer);
 
     // ---- the host state list (S22, §13.2): ordered host state messages, unencoded, sent by extract to every regular
-    // peer after the component changes (also by stepNetworkOnly's extract), cleared when the step commits (also
-    // without peers), kept by an aborted step (the edits of its finished phases stay applied). S23b appends its
-    // tombstones, so the messages that bump one chunk's sequence reach the client in application order
+    // peer after the component changes (also by stepNetworkOnly's extract), the sent ones removed when the step commits
+    // (also without peers; entries appended after the send stay for the next extract), kept by an aborted step (the
+    // edits of its finished phases stay applied). S23b appends its tombstones, so the messages that bump one chunk's
+    // sequence reach the client in application order
     struct HostStateEntry
     {
         enum class Kind : uint8_t
@@ -152,13 +153,21 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
         SpaceId space = 0;
         std::vector<TerrainPart> parts;
     };
-    // Reserve: capacity for one more entry (the edit's reserve step; the append then allocates nothing)
-    void reserveHostState() { hostStates.reserve(hostStates.size() + 1); }
+    // Reserve: capacity for one more entry (the edit's reserve step; the append then allocates nothing). Grows
+    // geometrically (an exact reserve would reallocate on every edit of a batch)
+    void reserveHostState()
+    {
+        if (hostStates.size() == hostStates.capacity()) hostStates.reserve(2 * hostStates.size() + 1);
+    }
     // Host: one TerrainModification (applyTerrainEdit; after reserveHostState)
     void appendTerrainModification(SpaceId space, std::vector<TerrainPart>&& parts);
     const std::vector<HostStateEntry>& hostStateList() const { return hostStates; }
     // A committed host load: the entries describe the replaced state (the load's snapshot follows from onHostLoad)
-    void clearHostStates() { hostStates.clear(); }
+    void clearHostStates()
+    {
+        hostStates.clear();
+        hostStatesSent = 0;
+    }
 
     // The component encodings (engine-internal; also the replica comparison and the benchmarks)
     void encodeComponent(Entity e, ComponentId id, std::vector<uint8_t>& out) const;
@@ -211,6 +220,10 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void sendToAll(const std::vector<uint8_t>& peers, MessageId id, const std::vector<uint8_t>& payload);
     std::vector<uint8_t> regularPeers, joinedPeers;
     std::vector<HostStateEntry> hostStates;
+    // The leading entries of hostStates that this step's extract sent (or had no peer for): commit removes only those,
+    // an entry appended after the send (an edit applied by the flush after stepNetworkOnly's extract) waits for the
+    // next
+    size_t hostStatesSent = 0;
     // Phase 8 (both extract paths): the host state list to the regular peers
     void sendHostStates();
 

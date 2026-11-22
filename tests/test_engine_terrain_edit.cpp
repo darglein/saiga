@@ -21,6 +21,7 @@
 #include "saiga/engine/terrain/BrushKernel.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
+#include "saiga/engine/terrain/TerrainDirtyQueue.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/terrain/TerrainGeneration.h"
@@ -825,6 +826,39 @@ TEST(TerrainEdit, SpaceWithoutTerrain)
     EXPECT_EQ(w.terrainHeight(0, 400, 300), 0.0);
 }
 
+// Regression (PR review of S22): TerrainEditStore divided by the baseSpacing of an enclosed space, which is ignored and
+// not validated (0 stopped the World constructor with a division by zero)
+TEST(TerrainEdit, EnclosedSpaceWithZeroSpacing)
+{
+    WorldSetup s         = editSetup(2);
+    SpaceTemplate cellar = SpaceTemplate::enclosed("cellar");
+    cellar.baseSpacing   = 0;
+    s.config.spaceTemplates.push_back(cellar);
+    World w(s);
+    EXPECT_EQ(w.terrainEdits().spaceCount(), 2u);
+    EXPECT_EQ(w.terrainEdits().nonZeroSamples(1), 0u);
+    EXPECT_GT(applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 10, 2)).changedSamples, 0u);
+}
+
+// Regression (PR review of S22): an edit of a chunk whose sequence is UINT32_MAX (a save accepts it) wrapped the
+// sequence to 0, which saves and messages reject; the edit is refused and changes nothing
+TEST(TerrainEdit, ExhaustedSequenceRefusesTheEdit)
+{
+    World w(editSetup(2));
+    w.terrainEditsForUpdate().setSequence(chunk(1, 1), std::numeric_limits<uint32_t>::max());
+    const std::vector<uint8_t> before = w.save();
+    const TerrainEditResult r         = applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 10, 2));
+    EXPECT_EQ(r.changedSamples, 0u);
+    EXPECT_TRUE(r.chunks.empty());
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(1, 1)), std::numeric_limits<uint32_t>::max());
+    EXPECT_EQ(w.terrainEdits().nonZeroSamples(0), 0u);
+    EXPECT_TRUE(w.replication().hostStateList().empty());
+    EXPECT_EQ(pendingEvents(w), 0u);
+    EXPECT_EQ(w.save(), before);
+    // Other chunks stay editable
+    EXPECT_GT(applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 600, 600, 10, 2)).changedSamples, 0u);
+}
+
 // ---- editTerrain in the step (step 3)
 
 namespace
@@ -1233,6 +1267,21 @@ TEST(TerrainEditSave, RoundTripAndHash)
     EXPECT_TRUE(samples);
 }
 
+// Regression (PR review of S22): diffSaves compared N (the base spacing) only of chunks with deltas on both sides, so
+// two saves of different spacings with delta-free chunks reported no terrain difference
+TEST(TerrainEditSave, DiffReportsTheLayoutOfDeltaFreeChunks)
+{
+    World a(editSetup(1)), b(editSetup(2));
+    a.terrainEditsForUpdate().bumpSequence(chunk(3, 3));
+    b.terrainEditsForUpdate().bumpSequence(chunk(3, 3));
+    const SaveDiff d = diffSaves(a.save(), b.save());
+    ASSERT_TRUE(d.error.empty()) << d.error;
+    bool layout = false;
+    for (const SaveDifference& x : d.differences)
+        layout = layout || (x.kind == "terrain" && x.a == json11::Json("N 257") && x.b == json11::Json("N 129"));
+    EXPECT_TRUE(layout);
+}
+
 TEST(TerrainEditSave, SpaceWithoutTerrainRoundTrip)
 {
     WorldSetup s;
@@ -1458,6 +1507,32 @@ TEST_F(TerrainEditWorld, ToolsThroughHandleMessage)
     EXPECT_TRUE(names.count("terrain_edits"));
 }
 
+// Regression (PR review of S22): apply took "op" as the tool name and removed it, so edit_terrain (whose brush argument
+// is op too) could not run in a batch; the envelope {op, args} carries the arguments
+TEST_F(TerrainEditWorld, EditTerrainInsideApply)
+{
+    World w(hookedSetup(2));
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    const Json edit = Json::object{
+        {"op", "edit_terrain"},
+        {"args", Json::object{{"op", "add"}, {"center", Json::array{300, 0, 300}}, {"radius", 6}, {"strength", 1}}}};
+    const Json height = Json::object{{"op", "terrain_height"}, {"x", 300}, {"z", 300}};
+    Json r            = callTool(server, "apply", Json::object{{"operations", Json::array{edit, height}}});
+    ASSERT_FALSE(r["result"]["isError"].bool_value()) << r.dump();
+    const Json results = toolJson(r)["results"];
+    EXPECT_GT(results[0]["changed_samples"].number_value(), 0);
+    EXPECT_TRUE(results[1]["edited"].bool_value());
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(1, 1)), 1u);
+    // args with other arguments beside it: refused before anything is applied
+    const Json mixed = Json::object{{"op", "terrain_height"}, {"x", 1}, {"args", Json::object{{"z", 1}}}};
+    r                = callTool(server, "apply", Json::object{{"operations", Json::array{edit, mixed}}});
+    EXPECT_TRUE(r["result"]["isError"].bool_value()) << r.dump();
+    EXPECT_NE(toolError(r).find("args"), std::string::npos) << toolError(r);
+    EXPECT_EQ(w.terrainEdits().sequence(chunk(1, 1)), 1u);
+}
+
 TEST_F(TerrainEditWorld, ToolsOnAClientAnswerWithAnError)
 {
     auto net     = LoopbackTransport::createNetwork(2);
@@ -1476,6 +1551,37 @@ TEST_F(TerrainEditWorld, ToolsOnAClientAnswerWithAnError)
 }
 
 // ---- the visual path (step 8)
+
+// Regression (PR review of S22): a merge that grew a box checked only the boxes after it, so an earlier box inside the
+// grown one stayed separate (its samples were patched twice)
+TEST(TerrainDirtyQueue, GrownBoxAbsorbsEarlierBoxes)
+{
+    auto rect = [](int64_t i0, int64_t k0, int64_t i1, int64_t k1)
+    {
+        SampleRect r;
+        r.i0 = i0;
+        r.k0 = k0;
+        r.i1 = i1;
+        r.k1 = k1;
+        return r;
+    };
+    TerrainDirtyQueue q;
+    q.addTileBox(rect(0, 0, 0, 0));
+    q.addTileBox(rect(2, 0, 2, 2));
+    ASSERT_EQ(q.tileBoxes().size(), 2u);
+    q.addTileBox(rect(0, 2, 1, 2));
+    ASSERT_EQ(q.tileBoxes().size(), 1u);
+    EXPECT_EQ(q.tileBoxes()[0].i0, 0);
+    EXPECT_EQ(q.tileBoxes()[0].k0, 0);
+    EXPECT_EQ(q.tileBoxes()[0].i1, 2);
+    EXPECT_EQ(q.tileBoxes()[0].k1, 2);
+    // Isolated boxes stay separate, in insertion order
+    q.addTileBox(rect(10, 10, 11, 11));
+    q.addTileBox(rect(20, 0, 20, 0));
+    ASSERT_EQ(q.tileBoxes().size(), 3u);
+    EXPECT_EQ(q.tileBoxes()[1].i0, 10);
+    EXPECT_EQ(q.tileBoxes()[2].i0, 20);
+}
 
 namespace
 {
@@ -1607,6 +1713,23 @@ TEST(TerrainEditVisual, NewSinkReceivesMergedData)
     w.setRenderSink(&b);
     EXPECT_EQ(b.counters().patchTerrainTile, 0u);
     expectSinkMerged(w, b);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (PR review of S22): the merge at the send point added a delta once per chunk whose closed range contains
+// the sample, so a coarse tile or the pyramid had 2x the delta on a chunk border and 4x on a corner
+TEST(TerrainEditVisual, NewSinkReceivesMergedDataOnAChunkCorner)
+{
+    World w(editSetup(2));
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 256, 256, 40, 3));
+    ASSERT_NE(w.terrainSample(0, 128, 128), w.terrain().sample(0, 128, 128));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    bool coarse = false;
+    for (const auto& kv : sink.terrainTiles()) coarse = coarse || kv.first.level > 0;
+    EXPECT_TRUE(coarse);
+    expectSinkMerged(w, sink);
     w.setRenderSink(nullptr);
 }
 

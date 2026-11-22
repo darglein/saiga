@@ -24,25 +24,27 @@ bool touches(const SampleRect& a, const SampleRect& b)
 void TerrainDirtyQueue::merge(std::vector<SampleRect>& list, SampleRect box)
 {
     if (box.empty()) return;
-    // The first box it touches grows; the grown box may touch further ones (merged into it, in place)
+    auto grow = [](SampleRect& m, const SampleRect& b)
+    {
+        m.i0 = std::min(m.i0, b.i0);
+        m.k0 = std::min(m.k0, b.k0);
+        m.i1 = std::max(m.i1, b.i1);
+        m.k1 = std::max(m.k1, b.k1);
+    };
+    // The first box it touches grows; the grown box may touch further ones, before or after it (merged into it, in
+    // place, until none touches)
     for (size_t i = 0; i < list.size(); ++i)
     {
         if (!touches(list[i], box)) continue;
-        SampleRect& m = list[i];
-        m.i0          = std::min(m.i0, box.i0);
-        m.k0          = std::min(m.k0, box.k0);
-        m.i1          = std::max(m.i1, box.i1);
-        m.k1          = std::max(m.k1, box.k1);
-        for (size_t j = i + 1; j < list.size();)
+        grow(list[i], box);
+        for (size_t j = 0; j < list.size();)
         {
-            if (touches(m, list[j]))
+            if (j != i && touches(list[i], list[j]))
             {
-                m.i0 = std::min(m.i0, list[j].i0);
-                m.k0 = std::min(m.k0, list[j].k0);
-                m.i1 = std::max(m.i1, list[j].i1);
-                m.k1 = std::max(m.k1, list[j].k1);
+                grow(list[i], list[j]);
                 list.erase(list.begin() + std::ptrdiff_t(j));
-                j = i + 1;
+                if (j < i) --i;
+                j = 0;
             }
             else
                 ++j;

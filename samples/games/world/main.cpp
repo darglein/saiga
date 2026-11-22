@@ -263,8 +263,10 @@ void beforeRender(EngineApp& app)
     // The frame being recorded
     const uint64_t frame = scene.frames() + 1;
     terraformEdit(app);
-    // S22: the measured frames of the terraform benchmark edit after the frame's step, before its updateView
-    if (g.terraform && g.bench && g.bench->measuring(frame) && !g.benchmarkDone)
+    // S22: the measured frames of the terraform benchmark edit after the frame's step, before its updateView; once per
+    // frame (a frame that was not submitted is attempted again with the same number: no second edit or begin)
+    const bool newFrame = !g.hasLastBeforeRender || frame != g.lastBeforeRenderFrame;
+    if (newFrame && g.terraform && g.bench && g.bench->measuring(frame) && !g.benchmarkDone)
     {
         if (frame == uint64_t(Vulkan::WorldBenchmark::warmupFrames) + 1) g.terraform->begin(app.world());
         g.terraform->edit(app.world());

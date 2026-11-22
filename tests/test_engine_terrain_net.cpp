@@ -471,6 +471,29 @@ TEST_F(TerrainNet, HostStateListOverStepsAndAborts)
     EXPECT_TRUE(alone.replication().hostStateList().empty());
 }
 
+// Regression (PR review of S22): an edit recorded during stepNetworkOnly's extract (after the host state list was sent)
+// was applied by the flush after it and its entry was cleared by the commit unsent: the client never received it
+TEST_F(TerrainNet, EditAppliedAfterTheSendWaitsForTheNextExtract)
+{
+    Net n;
+    n.step();
+    bool once                     = false;
+    n.host->debugAfterReplication = [&]()
+    {
+        if (once) return;
+        once = true;
+        n.host->editTerrain(0, brush(TerrainBrush::Add, 600, 600, 6, 1));
+    };
+    n.host->stepNetworkOnly();
+    n.host->debugAfterReplication = nullptr;
+    EXPECT_EQ(n.host->terrainEdits().sequence(chunk(2, 2)), 1u);
+    ASSERT_EQ(n.host->replication().hostStateList().size(), 1u);
+    n.step();
+    EXPECT_TRUE(n.host->replication().hostStateList().empty());
+    EXPECT_EQ(n.client().terrainEdits().sequence(chunk(2, 2)), 1u);
+    expectSameState(*n.host, n.client());
+}
+
 // ---- late joiners and host loads
 
 TEST_F(TerrainNet, LateJoinerGetsEveryChunkState)

@@ -125,7 +125,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // the store only. A space without terrain returns true at once
     bool completeView(SpaceId space, const Vec3& camera, double timeoutSeconds = 120);
     // Nothing of this camera's desired set is missing (resident and sent): completeView would generate and send
-    // nothing. True for a space without terrain; without a sink only the residency counts
+    // nothing of the desired set. True for a space without terrain; without a sink only the residency counts. Queued
+    // patches of terrain edits (the dirty queue) do not count: they wait for no generation, and updateView sends them
+    // within its budget (the benchmark mode's GPU wait before a streaming frame keys on this)
     bool viewComplete(SpaceId space, const Vec3& camera) const;
     // D6: the fraction of (the pyramid + the desired tiles of this camera within radius, the residency's distance) that
     // have been sent to the sink; 0 while the pyramid is not sent (or without a sink); 1 for a space without terrain

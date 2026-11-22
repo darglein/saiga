@@ -420,7 +420,12 @@ class SAIGA_ENGINE_API World
     // dirty queue (S22 step 8)
     void onTerrainChanged(SpaceId space, const SampleRect& box, bool load = false);
     // Engine-internal: capacity for n more in-step changes (an edit's or a message's reserve step)
-    void reserveTerrainChange(size_t n = 1) { terrainChanges.reserve(terrainChanges.size() + n); }
+    void reserveTerrainChange(size_t n = 1)
+    {
+        // Geometric growth (an exact reserve would reallocate on every edit of a batch)
+        if (terrainChanges.capacity() - terrainChanges.size() < n)
+            terrainChanges.reserve(std::max(2 * terrainChanges.capacity(), terrainChanges.size() + n));
+    }
     // How much of the visual data around camera within radius is resident and sent (E8; S21): the one readiness the app
     // reads (its loading screen). In S21 the terrain's (TerrainSystem::readiness: the fraction of the desired tiles
     // plus the pyramid that have been sent, 0 while the pyramid is not, 1 for a space without terrain; monotone only

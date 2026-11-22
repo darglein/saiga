@@ -35,8 +35,10 @@ TerrainEditStore::TerrainEditStore(const std::vector<SpaceTemplate>& templates, 
     spaces.resize(templates.size());
     for (size_t i = 0; i < templates.size(); ++i)
     {
-        spaces[i].spacing    = templates[i].baseSpacing;
-        spaces[i].S          = 256 / templates[i].baseSpacing;
+        // An enclosed space holds nothing; its baseSpacing is ignored (not validated, may be 0): the default grid
+        const int spacing    = templates[i].kind == SpaceKind::OpenWorld ? templates[i].baseSpacing : 2;
+        spaces[i].spacing    = spacing;
+        spaces[i].S          = 256 / spacing;
         spaces[i].sizeChunks = templates[i].sizeChunks;
     }
 }
@@ -156,9 +158,12 @@ void TerrainEditStore::reserveBlock(SpaceId space, int64_t i, int64_t k)
 {
     SAIGA_ASSERT(i >= 0 && k >= 0 && i <= maxSample(space) && k <= maxSample(space),
                  "TerrainEditStore: sample outside the space");
-    Space& s = spaces[space];
-    auto& b  = s.blocks[blockKey(i, k)];
-    if (!b) b = std::make_unique<TerrainEditBlock>();
+    Space& s       = spaces[space];
+    const auto key = blockKey(i, k);
+    if (s.blocks.count(key)) return;
+    // The block first: a failed allocation leaves no null entry behind
+    auto b = std::make_unique<TerrainEditBlock>();
+    s.blocks.emplace(key, std::move(b));
 }
 
 TerrainEditStore::EntryNode TerrainEditStore::makeEntry(const ChunkId& chunk) const

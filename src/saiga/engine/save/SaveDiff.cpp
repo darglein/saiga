@@ -197,8 +197,8 @@ void diffTerrain(const TerrainSection& a, const TerrainSection& b, Add& add)
             // A one-sided chunk is one difference; otherwise the deltas are compared too
             if (!x || !y) continue;
         }
-        if (!x->hasDeltas || !y->hasDeltas || x->deltas == y->deltas) continue;
-        // The same N (equal spacing) unless the saves come from different setups
+        // The same N (equal spacing) unless the saves come from different setups (also without deltas: the layouts
+        // are incompatible)
         const size_t N = ia->second.second;
         if (ib->second.second != ia->second.second)
         {
@@ -207,6 +207,7 @@ void diffTerrain(const TerrainSection& a, const TerrainSection& b, Add& add)
             add(std::move(d));
             continue;
         }
+        if (!x->hasDeltas || !y->hasDeltas || x->deltas == y->deltas) continue;
         size_t count = 0, first = 0;
         for (size_t i = 0; i < x->deltas.size(); ++i)
             if (x->deltas[i] != y->deltas[i])

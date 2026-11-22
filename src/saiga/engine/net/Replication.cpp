@@ -341,8 +341,10 @@ void Replication::appendTerrainModification(SpaceId space, std::vector<TerrainPa
 
 void Replication::commit()
 {
-    // The step (or stepNetworkOnly) completed: its extract sent the host state list (with peers)
-    hostStates.clear();
+    // The step (or stepNetworkOnly) completed: its extract sent the host state list (with peers); entries appended
+    // after the send stay for the next extract
+    hostStates.erase(hostStates.begin(), hostStates.begin() + std::ptrdiff_t(hostStatesSent));
+    hostStatesSent = 0;
     slotUndo.clear();
     hashUndo.clear();
     netIdUndo.clear();
@@ -352,6 +354,8 @@ void Replication::commit()
 
 void Replication::abort(Phase aborted)
 {
+    // The host state list stays whole (the next extract sends it again)
+    hostStatesSent = 0;
     // In reverse order, only what the aborted phase staged (finished phases keep their changes, as their messages)
     for (size_t i = slotUndo.size(); i-- > 0;)
         if (slotUndo[i].phase == aborted) host[slotUndo[i].index] = slotUndo[i].old;
@@ -445,6 +449,7 @@ void Replication::onHostLoad()
 
 void Replication::sendHostStates()
 {
+    hostStatesSent = hostStates.size();
     if (regularPeers.empty() || hostStates.empty()) return;
     for (const HostStateEntry& e : hostStates)
     {

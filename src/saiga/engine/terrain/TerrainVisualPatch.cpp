@@ -25,9 +25,10 @@ int32_t clampSum(int32_t base, int32_t delta)
 }
 
 // Writes clamp(base + delta) for every sample of the grid (i0 + a * step, k0 + b * step) of the chunk range that lies
-// in an allocated block (out holds the base already; idempotent)
+// in an allocated block (out holds a copy of base; idempotent: a sample on a chunk border is visited once per chunk
+// that contains it, each visit computes the value from the base)
 void applyRecords(const TerrainEditStore& edits, SpaceId space, int64_t x0, int64_t z0, int64_t x1, int64_t z1,
-                  int64_t i0, int64_t k0, int64_t step, int w, int h, int32_t* out)
+                  int64_t i0, int64_t k0, int64_t step, int w, int h, const int32_t* base, int32_t* out)
 {
     const int64_t S = edits.chunkSamples(space);
     for (const auto& [c, e] : edits.chunks(space))
@@ -54,9 +55,9 @@ void applyRecords(const TerrainEditStore& edits, SpaceId space, int64_t x0, int6
                     lastKey = key;
                 }
                 if (!block) continue;
-                const int32_t d = block->delta[(k & 15) * 16 + (i & 15)];
-                int32_t& v      = out[size_t(b * w + a)];
-                v               = clampSum(v, d);
+                const int32_t d  = block->delta[(k & 15) * 16 + (i & 15)];
+                const size_t idx = size_t(b * w + a);
+                out[idx]         = clampSum(base[idx], d);
             }
         }
     }
@@ -83,7 +84,7 @@ bool TerrainVisualPatch::mergeTile(const TerrainEditStore& edits, const RegionId
     const int64_t S = edits.chunkSamples(region.space);
     auto heights    = std::make_shared<std::vector<int32_t>>(*base.heights);
     applyRecords(edits, region.space, x0, z0, x0 + span - 1, z0 + span - 1, x0 * S, z0 * S, span, N, N,
-                 heights->data());
+                 base.heights->data(), heights->data());
     out.minHeight = *std::min_element(heights->begin(), heights->end());
     out.maxHeight = *std::max_element(heights->begin(), heights->end());
     out.heights   = heights;
@@ -98,7 +99,7 @@ bool TerrainVisualPatch::mergePyramid(const TerrainEditStore& edits, SpaceId spa
     const int P        = base.layout.pyramidSamplesPerSide();
     const int64_t step = Vulkan::TerrainLayout::pyramidSpacing / edits.spacing(space);
     auto heights       = std::make_shared<std::vector<int32_t>>(*base.heights);
-    applyRecords(edits, space, 0, 0, size - 1, size - 1, 0, 0, step, P, P, heights->data());
+    applyRecords(edits, space, 0, 0, size - 1, size - 1, 0, 0, step, P, P, base.heights->data(), heights->data());
     out           = base;
     out.minHeight = *std::min_element(heights->begin(), heights->end());
     out.maxHeight = *std::max_element(heights->begin(), heights->end());

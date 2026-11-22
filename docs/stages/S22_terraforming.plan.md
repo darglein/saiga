@@ -910,7 +910,7 @@ Benchmarks (R-TEST-2): `tests/test_engine_terrain_benchmark.cpp` (non-gating), `
   `VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json ctest -R test_engine_terrain_render`.
 - Samples (Clang configuration with samples ON): the demos' `--scenarios`.
 - Benchmarks: the bench recipe of AGENTS.md, `cmake --build build-bench --target game_world`, then in
-  `build-bench/samples/games/world` (with its `config.ini`): `./game_world --benchmark terraform` (twice),
+  `build-bench/samples/games` (where `game_world` is built): `./game_world --benchmark terraform` (twice),
   `--benchmark flyover`, `--benchmark forest`; compare with `data/tests/benchmarks.json` (the #66 summary for the
   common keys, the terraform lines for the rest).
 - Local look: `SAIGA_SCREENSHOT=/tmp/terraform.png ./game_world` after `edit_terrain` calls through MCP (the

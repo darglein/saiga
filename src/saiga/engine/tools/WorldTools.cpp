@@ -298,7 +298,8 @@ std::vector<ToolSpec> toolSpecs()
          "measure_performance fails. Returns the types, the entry count and hook errors.",
          S::ObjectSchema({{"reconfigure", S::BooleanProperty("Reconfigure the game objects (true)")}})},
         {"apply",
-         "Runs a batch: operations [{op: tool name, ...arguments}] in order, one result each. Stops at the first "
+         "Runs a batch: operations [{op: tool name, ...arguments}] or [{op: tool name, args: {arguments}}] (needed "
+         "for edit_terrain, whose brush argument is named op too) in order, one result each. Stops at the first "
          "failing operation (the earlier ones stay applied; the error names it).",
          S::ObjectSchema({{"operations", arrayProperty("Operations", Json::object{{"type", "object"}})}},
                          {"operations"})},

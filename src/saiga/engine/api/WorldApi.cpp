@@ -2317,6 +2317,9 @@ ApiResult WorldApi::apply(const Json& a)
     {
         if (!op.is_object() || !op["op"].is_string()) return ApiResult::failure("each operation needs \"op\"");
         const std::string name = op["op"].string_value();
+        // The envelope {op, args}: the arguments inside args only (edit_terrain's own "op" fits only there)
+        if (!op["args"].is_null() && (!op["args"].is_object() || op.object_items().size() != 2))
+            return ApiResult::failure(name + ": args must be an object and the only key besides op");
         if (name == "apply") return ApiResult::failure("apply cannot be nested");
         if (!findOperation(name)) return ApiResult::failure("unknown operation \"" + name + "\"");
         if (isEdit(name) && !allowEdits) return ApiResult::failure(name + ": edits are not allowed (read-only)");
@@ -2342,8 +2345,8 @@ ApiResult WorldApi::apply(const Json& a)
             stopped.value     = Json::object{{"results", results}, {"applied", int(index)}, {"stopped_early", true}};
             return stopped;
         }
-        Json::object args = op.object_items();
-        args.erase("op");
+        Json::object args = op["args"].is_object() ? op["args"].object_items() : op.object_items();
+        if (!op["args"].is_object()) args.erase("op");
         ApiResult r = call(op["op"].string_value(), Json(args));
         if (!r.ok)
         {

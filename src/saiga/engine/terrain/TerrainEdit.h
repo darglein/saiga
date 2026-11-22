@@ -69,7 +69,8 @@ SAIGA_ENGINE_API void gatherSamples(const World& world, SpaceId space, const Sam
 // Applies a validated brush on the host (World::editTerrain checked the role, the space and the brush): quantize,
 // gather, kernel, reserve (blocks, entries, the host send-list entry), commit (deltas, sequences, the send-list entry),
 // one World::onTerrainChanged, statistics. Every allocation happens before the first write: an exception leaves the
-// state unchanged. An edit that changes nothing changes no state (no sequence, part or event)
+// state unchanged. An edit that changes nothing changes no state (no sequence, part or event); neither does an edit of
+// a chunk whose sequence is exhausted (UINT32_MAX; refused, logged, counted as a no-op)
 SAIGA_ENGINE_API TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBrush& brush);
 
 }  // namespace Engine
