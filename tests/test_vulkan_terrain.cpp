@@ -47,6 +47,18 @@ class VulkanTerrain : public RenderSceneTest
             scene->setTerrainTile(r, testTile(hook, layout, r));
         }
     }
+    // (The image tests capture two frames after renderUntilUploaded: a tile is GPU-resident from the frame its copy is
+    // recorded, so the second frame selects with every uploaded tile; residency counts frames, not time.)
+    // The terrain and water draw nothing; the selection, the frame's node data (probeVertices) and the uploads are the
+    // same (TerrainPass::transfer). For the tests of the selection and the vertex probes, which read no pixels (test
+    // speed: lavapipe's single-threaded vertex stage, up to 0.5 s per frame of a 1 m terrain at 0.3 m height)
+    void NoTerrainDraws()
+    {
+        PrototypeSettings p = scene->prototypeSettings();
+        p.terrain           = false;
+        p.water             = false;
+        scene->setPrototypeSettings(p);
+    }
     static RegionId Region(int level, int32_t x, int32_t z, SpaceId space = 0)
     {
         RegionId r;
@@ -194,6 +206,7 @@ TEST_F(VulkanTerrain, PatchTileAndPyramid)
 // A pyramid of another space (or layout) drops the tiles, masks and queue; one of the same space and layout keeps them
 TEST_F(VulkanTerrain, NewSetOnOtherSpaceOrLayout)
 {
+    NoTerrainDraws();
     const TerrainLayout layout = testLayout(16, 2);
     scene->setTerrainPyramid(0, testPyramid(slopeRidgeHook, layout));
     SetPath(layout, slopeRidgeHook, 3, 3);
@@ -471,6 +484,7 @@ const ucvec4 kClear(57, 57, 57, 255);
 // §22 acceptance (S20): level 0 has one vertex per sample, at the sample's height (both spacings)
 TEST_F(VulkanTerrain, OneVertexPerSampleAtLevelZero)
 {
+    NoTerrainDraws();
     for (int bs : {1, 2})
     {
         const TerrainLayout layout = testLayout(16, bs);
@@ -516,6 +530,7 @@ TEST_F(VulkanTerrain, OneVertexPerSampleAtLevelZero)
 // same level are bit-identical
 TEST_F(VulkanTerrain, MorphTargetsAndSharedVertices)
 {
+    NoTerrainDraws();
     const int bs               = 1;
     const TerrainLayout layout = testLayout(16, bs);
     const Vec3 cam(1500.5, 120, 1500.5);
@@ -638,6 +653,7 @@ TEST_F(VulkanTerrain, CameraMoveAt30km)
     const Vec3 eye(28682 + 189.49 / 512, 0, 28677 + 365.51 / 512);
     const double ground = surfaceAt(slopeRidgeHook, 1, bs, eye.x(), eye.z());
     const auto pyramid  = generateTerrainPyramid(source, layout, std::nullopt);
+    NoTerrainDraws();
     double worstMove = 0, worstBug = 0;
     for (int finest = 0; finest <= 3; ++finest)
     {
@@ -805,7 +821,7 @@ TEST_F(VulkanTerrain, NoGapAtLevelBordersOfACliff)
     scene->setPrototypeSettings(s);
     // Along the cliff (+x) and up at the face where the level-0/1 border crosses it, about 300 m away
     SetCamera(0, eye, lookRotation(Vec3(283, 400, 100)), 20.0 * kPi / 180);
-    const auto img = Capture(3);
+    const auto img = Capture(2);
     const auto& st = scene->terrainPassStats();
     EXPECT_GT(st.nodesPerLevel[0], 0);
     EXPECT_GT(st.nodesPerLevel[1], 0);
@@ -815,7 +831,7 @@ TEST_F(VulkanTerrain, NoGapAtLevelBordersOfACliff)
     const int magentaOff = countColor(img, ucvec4(255, 0, 255, 255), 0);
     s.terrainSkirts      = true;
     scene->setPrototypeSettings(s);
-    const int magentaOn = countColor(Capture(3), ucvec4(255, 0, 255, 255), 0);
+    const int magentaOn = countColor(Capture(2), ucvec4(255, 0, 255, 255), 0);
     EXPECT_LT(magentaOn, width * height / 2);
     EXPECT_EQ(magentaOff, magentaOn);
 
@@ -889,6 +905,7 @@ TEST_F(VulkanTerrain, RefinesOnlyResidentTiles)
     // Two 1 m tiles per frame
     p.terrainUploadBytesPerFrame = 2 * (((size_t(257) * 257 * 4 + 15) & ~size_t(15)) + 16);
     Create(96, 64, 4, p);
+    NoTerrainDraws();
     const int bs               = 1;
     const TerrainLayout layout = testLayout(16, bs);
     const auto source          = TerrainHeightSource::fromHook(slopeRidgeHook, 1);
@@ -920,6 +937,7 @@ TEST_F(VulkanTerrain, RefinesOnlyResidentTiles)
 // when the east tile streamed in
 TEST_F(VulkanTerrain, NormalAtTileBorderUsesTheNeighbour)
 {
+    NoTerrainDraws();
     const int bs               = 1;
     const TerrainLayout layout = testLayout(16, bs);
     scene->setTerrainPyramid(0, testPyramid(highFrequencyHook, layout));
@@ -1001,6 +1019,7 @@ TEST_F(VulkanTerrain, PyramidOnly)
 // Regression (PR review): a probe after clearTerrain wrote descriptors of the cleared set's destroyed buffers
 TEST_F(VulkanTerrain, ProbeNeedsTheFramesSet)
 {
+    NoTerrainDraws();
     GTEST_FLAG_SET(death_test_style, "threadsafe");
     const TerrainLayout layout = testLayout(16, 2);
     scene->setTerrainPyramid(0, testPyramid(flatHook, layout));
@@ -1080,7 +1099,7 @@ TEST_F(VulkanTerrain, PatchedImageEqualsFullTile)
         for (int i = 0; i < w; ++i) patch[size_t(j * w + i)] = (std::min(i, w - 1 - i) + std::min(j, h - 1 - j)) * 700;
     scene->patchTerrainTile(r, x0, z0, w, h, patch.data());
     renderUntilUploaded(*scene);
-    const auto patched = Capture(3);
+    const auto patched = Capture(2);
     auto full          = std::make_shared<std::vector<int32_t>>(*data.heights);
     const int n        = layout.samplesPerSide();
     for (int j = 0; j < h; ++j)
@@ -1090,7 +1109,7 @@ TEST_F(VulkanTerrain, PatchedImageEqualsFullTile)
     terrainHeightRange(*full, replaced.minHeight, replaced.maxHeight);
     scene->setTerrainTile(r, replaced);
     renderUntilUploaded(*scene);
-    const auto reference = Capture(3);
+    const auto reference = Capture(2);
     EXPECT_LT(countColor(patched, kClear, 0), width * height);
     int differing = 0;
     for (int y = 0; y < patched.h; ++y)
@@ -1184,13 +1203,13 @@ TEST_F(VulkanTerrain, GrassNeedsMask)
     const Vec3 cam(300.5, 2, 300.5);
     fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(flatHook, 1), std::nullopt, cam, false);
     SetCamera(0, cam, lookRotation(direction(30, -30)), 1.0);
-    const auto bare = Capture(3);
+    const auto bare = Capture(2);
     EXPECT_EQ(scene->grassPass().stats().blocks, 0);
     // Zero masks: blocks are drawn, every clump is discarded
     for (int32_t z = 0; z < 3; ++z)
         for (int32_t x = 0; x < 3; ++x) scene->setGrassMask(Chunk(x, z), constantMask(layout, 0));
     renderUntilUploaded(*scene);
-    const auto zero = Capture(3);
+    const auto zero = Capture(2);
     EXPECT_GT(scene->grassPass().stats().blocks, 0);
     // Regression (CodeRabbit, S20): a NaN grass radius passed the "<= 0" guard and reached int32_t conversions (UB):
     // no grass
@@ -1211,7 +1230,7 @@ TEST_F(VulkanTerrain, GrassNeedsMask)
     for (int32_t z = 0; z < 3; ++z)
         for (int32_t x = 0; x < 3; ++x) scene->setGrassMask(Chunk(x, z), constantMask(layout, 255));
     renderUntilUploaded(*scene);
-    const auto full = Capture(3);
+    const auto full = Capture(2);
     differing       = 0;
     for (int y = 0; y < bare.h; ++y)
         for (int x = 0; x < bare.w; ++x) differing += bare(y, x) != full(y, x) ? 1 : 0;
