@@ -1,0 +1,48 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The transmittance LUT of the atmosphere (S36, A4; Hillaire 2020 / Bruneton): per texel (r, mu) the transmittance to
+// the top of the atmosphere, 40 steps. Computed when the atmosphere's parameters change.
+
+#include "atmosphere_common.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rgba16f) uniform writeonly image2D outImage;
+
+layout(push_constant) uniform Push
+{
+    vec4 scales;  // x Rayleigh, y Mie, z ozone, w ground albedo
+    vec4 sun;     // the sky-view pass: towards the sun, illuminance (lux)
+    vec4 moon;
+    vec4 camera;  // x: the camera's radius (km)
+    ivec4 size;
+}
+pc;
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.size.x || p.y >= pc.size.y) return;
+    vec2 uv = (vec2(p) + 0.5) / vec2(pc.size.xy);
+    float r, mu;
+    transmittanceRMu(uv, r, mu);
+    float d      = max(distanceToSphere(r, mu, kTopRadiusKm), 0.0);
+    const int n  = 40;
+    vec3 optical = vec3(0.0);
+    for (int i = 0; i < n; ++i)
+    {
+        float t = d * (float(i) + 0.5) / float(n);
+        float h = sqrt(r * r + t * t + 2.0 * r * mu * t) - kGroundRadiusKm;
+        vec3 rs, ext;
+        float ms;
+        atmosphereMedium(h, pc.scales.xyz, rs, ms, ext);
+        optical += ext * (d / float(n));
+    }
+    imageStore(outImage, p, vec4(exp(-optical), 1.0));
+}

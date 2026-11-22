@@ -1,0 +1,93 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The multiple-scattering LUT of the atmosphere (S36, A4; Hillaire 2020, section 5.5): per texel (cosine of the sun
+// zenith angle, height) the factor Psi_ms = L_2nd / (1 - f_ms) of an isotropic multiple scattering per unit
+// illuminance, from 64 directions of 20 steps each (with the ground albedo's bounce). Computed with the transmittance.
+
+#include "atmosphere_common.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rgba16f) uniform writeonly image2D outImage;
+layout(set = 0, binding = 1) uniform sampler2D transmittanceLut;
+
+layout(push_constant) uniform Push
+{
+    vec4 scales;
+    vec4 sun;
+    vec4 moon;
+    vec4 camera;
+    ivec4 size;
+}
+pc;
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.size.x || p.y >= pc.size.y) return;
+    vec2 uv               = (vec2(p) + 0.5) / vec2(pc.size.xy);
+    float muS             = uv.x * 2.0 - 1.0;
+    float r               = mix(kGroundRadiusKm + 0.01, kTopRadiusKm - 0.01, uv.y);
+    vec3 sunDir           = vec3(sqrt(max(1.0 - muS * muS, 0.0)), muS, 0.0);
+    const int dirs        = 8;
+    const int steps       = 20;
+    vec3 L2               = vec3(0.0);
+    vec3 fms              = vec3(0.0);
+    const float isotropic = 1.0 / (4.0 * kAtmPi);
+    for (int a = 0; a < dirs; ++a)
+        for (int b = 0; b < dirs; ++b)
+        {
+            // Uniform directions on the sphere
+            float cosTheta = 1.0 - 2.0 * (float(a) + 0.5) / float(dirs);
+            float phi      = 2.0 * kAtmPi * (float(b) + 0.5) / float(dirs);
+            float sinTheta = sqrt(max(1.0 - cosTheta * cosTheta, 0.0));
+            vec3 dir       = vec3(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
+            float mu       = dir.y;
+            bool ground    = rayHitsGround(r, mu);
+            float d        = ground ? distanceToGround(r, mu) : max(distanceToSphere(r, mu, kTopRadiusKm), 0.0);
+            vec3 T         = vec3(1.0);
+            vec3 l         = vec3(0.0);
+            vec3 f         = vec3(0.0);
+            float dt       = d / float(steps);
+            for (int i = 0; i < steps; ++i)
+            {
+                float t  = dt * (float(i) + 0.5);
+                vec3 pos = vec3(0.0, r, 0.0) + dir * t;
+                float pr = length(pos);
+                vec3 up  = pos / pr;
+                vec3 rs, ext;
+                float ms;
+                atmosphereMedium(pr - kGroundRadiusKm, pc.scales.xyz, rs, ms, ext);
+                vec3 scattering = rs + vec3(ms);
+                vec3 Ts         = bodyTransmittanceAtRadius(transmittanceLut, pr, vec3(0.0, dot(up, sunDir), 0.0));
+                vec3 stepT      = exp(-ext * dt);
+                vec3 S          = scattering * isotropic * Ts;
+                vec3 Sint       = (S - S * stepT) / max(ext, vec3(1e-6));
+                l += T * Sint;
+                vec3 F = (scattering - scattering * stepT) / max(ext, vec3(1e-6));
+                f += T * F;
+                T *= stepT;
+            }
+            if (ground)
+            {
+                // The ground's Lambert bounce of the sun
+                vec3 pos = vec3(0.0, r, 0.0) + dir * d;
+                vec3 up  = normalize(pos);
+                float c  = max(dot(up, sunDir), 0.0);
+                vec3 Ts  = transmittanceToTop(transmittanceLut, kGroundRadiusKm + 1e-3, c);
+                l += T * Ts * c * pc.scales.w / kAtmPi;
+            }
+            // The integral over the sphere (uniform directions): the weight 4 pi / count, times the isotropic phase
+            float w = 1.0 / float(dirs * dirs);
+            L2 += l * w;
+            fms += f * w;
+        }
+    vec3 psi = L2 / max(vec3(1.0) - fms, vec3(1e-3));
+    imageStore(outImage, p, vec4(psi, 1.0));
+}

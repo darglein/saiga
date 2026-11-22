@@ -245,10 +245,9 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
     for (size_t k : order)
     {
         Image& i                     = images[k];
-        const LightingImage image    = LightingImage(k);
         const PreviewMapping mapping = i.mapping;
         const bool fullResolution    = i.fullResolution;
-        Texture2D* source            = image == LightingImage::Luminance ? sources.hdr : sources.brdfLut;
+        Texture2D* source            = sources.image[k];
         // A shown preview at most kPreviewMaxSize per side: every step-th source texel
         uint32_t step = 1;
         if (source && !fullResolution)
@@ -342,8 +341,8 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         PreviewPush push;
         push.size[0]   = int32_t(w);
         push.size[1]   = int32_t(h);
-        push.kind      = image == LightingImage::Luminance ? 0u : 1u;
-        push.scale     = image == LightingImage::Luminance ? sources.luminanceScale : 1.0f;
+        push.kind      = sources.kind[k];
+        push.scale     = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
         push.useLog    = mapping.log ? 1u : 0u;
         push.autoRange = mapping.autoRange ? 1u : 0u;
         push.colorMap  = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;

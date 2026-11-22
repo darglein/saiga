@@ -39,6 +39,7 @@ layout(set = 1, binding = 5) uniform sampler2D brdfLut;
 layout(set = 1, binding = 6) uniform sampler2D transmittanceLut;
 layout(set = 1, binding = 7) uniform sampler2D skyViewLut;
 
+#include "atmosphere_common.glsl"
 #include "pbr.glsl"
 #include "ambient.glsl"
 #include "shadows.glsl"
@@ -86,16 +87,26 @@ vec3 prototypeAlbedo(vec3 physical)
     return physicalLighting() ? physical : vec3(lighting.studioShading.z);
 }
 
-// The active fog (studio or physical, chosen on the CPU): S19a's height fog with the camera height above its base
+// The active fog (studio or physical, chosen on the CPU): S19a's height fog with the camera height above its base; in
+// the physical path its colour is the sky at the horizon in the view's azimuth (the sky-view LUT: fog and sky match at
+// the horizon)
 vec3 lightingFog(vec3 c, vec3 relPos)
 {
-    return protoApplyFog(c, relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0), lighting.fogColorLin.rgb);
+    vec3 fogColor = lighting.fogColorLin.rgb;
+    if (physicalLighting() && lighting.fogParams.z > 0.5)
+    {
+        vec2 h   = relPos.xz;
+        vec3 dir = dot(h, h) > 1e-8 ? vec3(normalize(h).x, 0.0, normalize(h).y) : vec3(1.0, 0.0, 0.0);
+        fogColor = skyRadiance(skyViewLut, dir, atmosphereRadius(lighting.atmosphere.x));
+    }
+    return protoApplyFog(c, relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0), fogColor);
 }
 
-// The direct light's attenuation until the atmosphere (a1c: the transmittance LUT): the body below the horizon is off
-vec3 bodyTransmittance(vec3 l)
+// The direct light's transmittance through the atmosphere at the receiver (relPos) towards the body l: the
+// transmittance LUT at the receiver's height, 0 behind the planet
+vec3 bodyTransmittance(vec3 l, vec3 relPos)
 {
-    return vec3(smoothstep(-0.02, 0.02, l.y));
+    return bodyTransmittanceAtRadius(transmittanceLut, atmosphereRadius(lighting.atmosphere.x + relPos.y), l);
 }
 
 // The debug views (LightingDebugView of LightingTypes.h)
@@ -156,8 +167,8 @@ vec3 shadeSurface(SurfaceInput s)
         if (lighting.mode.y == 0u)
         {
             float shadow = shadowFactor(s.relPos, s.n);
-            vec3 sunE    = lighting.sun.w * bodyTransmittance(lighting.sun.xyz);
-            vec3 moonE   = lighting.moon.w * bodyTransmittance(lighting.moon.xyz);
+            vec3 sunE    = lighting.sun.w * bodyTransmittance(lighting.sun.xyz, s.relPos);
+            vec3 moonE   = lighting.moon.w * bodyTransmittance(lighting.moon.xyz, s.relPos);
             if (lighting.shadowLight.w == 1.0) sunE *= shadow;
             if (lighting.shadowLight.w == 2.0) moonE *= shadow;
             if (lighting.sun.w > 0.0)

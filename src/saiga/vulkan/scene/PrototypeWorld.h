@@ -24,12 +24,12 @@ struct SceneLighting;
 // Clay mode ignores them (the gray albedo of the studio environment)
 struct PrototypeAlbedo
 {
-    vec3 ground     = vec3(0.26f, 0.30f, 0.16f);
+    vec3 ground     = vec3(0.17f, 0.25f, 0.09f);
     vec3 rock       = vec3(0.36f, 0.34f, 0.31f);
     vec3 shore      = vec3(0.50f, 0.46f, 0.36f);
     vec3 water      = vec3(0.03f, 0.06f, 0.07f);
-    vec3 grass      = vec3(0.20f, 0.30f, 0.10f);
-    vec3 leaves     = vec3(0.11f, 0.20f, 0.07f);
+    vec3 grass      = vec3(0.14f, 0.27f, 0.07f);
+    vec3 leaves     = vec3(0.08f, 0.17f, 0.05f);
     vec3 bark       = vec3(0.25f, 0.19f, 0.14f);
     float rockSlope = 0.75f;
 };

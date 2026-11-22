@@ -15,12 +15,14 @@ namespace Saiga
 {
 namespace Vulkan
 {
+class EnvironmentMap;
+
 /**
- * The sky's ambient light (A3 of the S36 plan): the SH9 irradiance of the sky (lux) in a host-visible buffer per frame
- * slot. S36a1b: the SH of a uniform sky whose radiance follows the sun and the moon (skyRadiance: a blue sky of 0.08
- * of the bodies' horizontal illuminance over pi; a1c: the environment map's SH and its prefiltered cube); at least the
- * environment's minAmbient is applied in the shader. setUniformRadiance replaces the sky by a uniform radiance (tests:
- * the white furnace; inspection).
+ * The sky's ambient light (A3 of the S36 plan): the SH9 irradiance of the sky (lux) and the specular environment. With
+ * a valid environment map (S36a1c, setEnvironmentMap) its front SH and its prefiltered cube; before its first capture
+ * (and in an enclosed space, whose ambient the shader takes from the block) a host-visible buffer per frame slot with
+ * the floor minAmbient as band 0; at least the environment's minAmbient is applied in the shader.
+ * setUniformRadiance replaces the sky by a uniform radiance (tests: the white furnace; inspection): its SH, no cube.
  */
 class SAIGA_VULKAN_API SkyAmbient : public AmbientProvider
 {
@@ -35,8 +37,11 @@ class SAIGA_VULKAN_API SkyAmbient : public AmbientProvider
 
     // A uniform sky radiance (cd/m^2) instead of the sky; nullopt: the sky
     void setUniformRadiance(std::optional<vec3> radiance) { uniform = radiance; }
-    // The uniform sky radiance of an environment (a1b)
-    static vec3 skyRadiance(const EnvironmentState& environment);
+    bool uniformRadiance() const { return uniform.has_value(); }
+    // The environment map whose SH and cube are the sky's (RenderScene's; nullptr: the floor)
+    void setEnvironmentMap(EnvironmentMap* map) { environmentMap = map; }
+    // The environment map is used this frame (valid, no uniform radiance)
+    bool usesEnvironmentMap() const;
 
     static constexpr size_t kShBytes = 9 * 16;
 
@@ -44,6 +49,7 @@ class SAIGA_VULKAN_API SkyAmbient : public AmbientProvider
     VulkanBase* base = nullptr;
     std::array<Buffer, 2> buffers;
     std::optional<vec3> uniform;
+    EnvironmentMap* environmentMap = nullptr;
     AmbientStatistics stats;
 };
 

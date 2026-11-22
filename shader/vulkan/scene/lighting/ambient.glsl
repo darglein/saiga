@@ -6,9 +6,10 @@
 
 // The ambient light of S36 (A3, docs/engine_design.md §10.7; AmbientProvider / SkyAmbient on the CPU): the diffuse
 // irradiance from the SH9 buffer (binding 2, already convolved: evalIrradianceSh gives lux) times the ambient scale and
-// at least the floor, and the specular environment radiance. a1b: a uniform sky's SH and the SH as the specular
-// environment; a1c: the environment map's SH and its prefiltered cube. Probes or occlusion methods replace SkyAmbient
-// later without shader changes outside this file. Requires scene_block.glsl and pbr.glsl.
+// at least the floor, and the specular environment radiance: the prefiltered environment cube (binding 4, stored times
+// kSkyLutScale; EnvironmentMap) when it is valid (lighting.atmosphere.y), else the SH (a uniform sky, the floor).
+// Probes or occlusion methods replace SkyAmbient later without shader changes outside this file. Requires
+// scene_block.glsl and pbr.glsl.
 #ifndef AMBIENT_GLSL
 #define AMBIENT_GLSL
 
@@ -22,8 +23,9 @@ layout(std430, set = 1, binding = 2) readonly buffer AmbientShBuffer
 vec3 evalIrradianceSh(vec3 n)
 {
     return ambientSh[0].rgb + ambientSh[1].rgb * n.y + ambientSh[2].rgb * n.z + ambientSh[3].rgb * n.x +
-           ambientSh[4].rgb * (n.x * n.y) + ambientSh[5].rgb * (n.y * n.z) + ambientSh[6].rgb * (3.0 * n.z * n.z - 1.0) +
-           ambientSh[7].rgb * (n.x * n.z) + ambientSh[8].rgb * (n.x * n.x - n.y * n.y);
+           ambientSh[4].rgb * (n.x * n.y) + ambientSh[5].rgb * (n.y * n.z) +
+           ambientSh[6].rgb * (3.0 * n.z * n.z - 1.0) + ambientSh[7].rgb * (n.x * n.z) +
+           ambientSh[8].rgb * (n.x * n.x - n.y * n.y);
 }
 
 // Clay mode (the studio environment): S19a's hemisphere (0.6 + 0.4 n.y) or constant ambient, unit-less
@@ -45,6 +47,11 @@ vec3 ambientDiffuse(vec3 n, vec3 relPos)
 vec3 ambientSpecular(vec3 r, float roughness, vec3 relPos)
 {
     if (lighting.mode.y != 0u) return lighting.enclosedAmbient.rgb * (0.25 / kPi);
+    if (lighting.atmosphere.y > 0.5)
+    {
+        vec3 L = textureLod(environmentCube, r, roughness * lighting.atmosphere.z).rgb / kSkyLutScale;
+        return max(L * lighting.minAmbient.w, lighting.minAmbient.rgb / kPi);
+    }
     return ambientDiffuse(r, relPos) / kPi;
 }
 

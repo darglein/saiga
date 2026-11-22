@@ -213,18 +213,31 @@ struct LightingDebugState
 
 // The images LightingDebug converts into displayable RGBA8 previews and reduces (min, max, mean, histogram) on demand:
 // a1b Luminance (the resolved HDR luminance in cd/m^2, or the display luminance in clay mode) and BrdfLut (capture
-// only); a1c, a2 and b add theirs
+// only); a1c the atmosphere's TransmittanceLut and SkyViewLut (luminance, cd/m^2), the environment map's Environment
+// (the front cube's mip as a cross, cd/m^2) and Irradiance (its SH per direction, lux; capture only); a2 and b add
+// theirs
 enum class LightingImage : uint8_t
 {
     Luminance,
     BrdfLut,
+    TransmittanceLut,
+    SkyViewLut,
+    Environment,
+    Irradiance,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {"luminance", "brdf_lut"};
+    static const char* names[] = {"luminance",    "brdf_lut",    "transmittance_lut",
+                                  "sky_view_lut", "environment", "irradiance"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
+}
+inline std::optional<LightingImage> lightingImageFromName(const std::string& name)
+{
+    for (int i = 0; i < int(LightingImage::Count); ++i)
+        if (name == lightingImageName(LightingImage(i))) return LightingImage(i);
+    return std::nullopt;
 }
 
 enum class ColorMap : uint8_t
@@ -255,6 +268,17 @@ struct PreviewStatistics
     uint32_t count                     = 0;
 };
 
+// The state of the environment map (EnvironmentMap, S36a1c)
+struct EnvironmentMapStatistics
+{
+    // The frame in which the front cube was completed (0: none yet) and the captures so far
+    uint64_t lastCompleteFrame = 0;
+    uint64_t captures          = 0;
+    // The capture in progress: the steps done of the steps of one capture (capture, one per mip, the SH); 0 none
+    int progress = 0, steps = 0;
+    bool valid = false;
+};
+
 // The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; a2 and b add theirs)
 struct LightingStatistics
 {
@@ -272,8 +296,12 @@ struct LightingStatistics
     // The last luminance reduction (when requested) and its frame
     PreviewStatistics luminance;
     uint64_t luminanceFrame = 0;
-    // The lighting's GPU memory (block, SH, BRDF LUT, dummies, previews, debug lines)
+    // The lighting's GPU memory (block, SH, BRDF LUT, dummies, previews, debug lines, the atmosphere's LUTs, the
+    // environment map)
     uint64_t memoryBytes = 0;
+    // S36a1c: the environment map and the atmosphere's transmittance / multiple-scattering recomputations
+    EnvironmentMapStatistics environmentMap;
+    uint64_t lutComputations = 0;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is

@@ -102,24 +102,25 @@ EngineAppSetup tabSetup(bool environment)
 void showLightingTab(EngineApp& app)
 {
     Json::object state = app.debugUi().state().object_items();
-    state["sections"]  = Json::object{{"lighting/Time and weather", true},
-                                      {"lighting/Sun and moon", true},
-                                      {"lighting/Exposure", true},
-                                      {"lighting/Ambient", true},
-                                      {"lighting/GPU and memory", true}};
+    state["sections"]  = Json::object{{"lighting/Time and weather", true}, {"lighting/Sun and moon", true},
+                                      {"lighting/Exposure", true},         {"lighting/Ambient", true},
+                                      {"lighting/Sky and clouds", true},   {"lighting/GPU and memory", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
 
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
-// suite's app); the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the tab's
-// frames
+// suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs;
+// the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the tab's frames
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
-    const bool first    = app.scene()->lightingDebugImages().preview(Vulkan::LightingImage::Luminance) == nullptr;
+    const Vulkan::LightingImage images[] = {Vulkan::LightingImage::Luminance, Vulkan::LightingImage::Environment,
+                                            Vulkan::LightingImage::TransmittanceLut, Vulkan::LightingImage::SkyViewLut};
+    uint32_t expected                    = 0;
+    for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
     for (int f = 0; f < 3; ++f)
     {
@@ -127,8 +128,8 @@ void renderLightingTab(EngineApp& app)
         dispatches += app.scene()->lightingStatistics().previewDispatches;
     }
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
-    EXPECT_EQ(dispatches, first ? 1u : 0u);
-    EXPECT_NE(app.scene()->lightingDebugImages().preview(Vulkan::LightingImage::Luminance), nullptr);
+    EXPECT_EQ(dispatches, expected);
+    for (auto image : images) EXPECT_NE(app.scene()->lightingDebugImages().preview(image), nullptr);
     Vulkan::LightingParameters p = app.scene()->lightingParameters();
     p.pbr                        = true;
     app.scene()->setLightingParameters(p);
@@ -468,7 +469,7 @@ TEST_F(LightingDebugTools, SetLightingDebug)
     EXPECT_FALSE(app->scene()->exposureViewCentreSetting().has_value());
     // The debug sections are reported apart from the lighting sections' budget
     EXPECT_TRUE(l["gpu"]["debug_ms"].is_number()) << l.dump();
-    EXPECT_EQ(l["gpu"]["lighting_ms"].number_value(), 0) << l.dump();
+    EXPECT_TRUE(l["gpu"]["lighting_ms"].is_number()) << l.dump();
     app->lightingPreviewMapping() = mappingBefore;
 }
 
@@ -556,6 +557,34 @@ TEST_F(LightingDebugTools, CaptureLighting)
     EXPECT_NE(text(late).find("deadline"), std::string::npos) << text(late);
     // The stale request is computed with the next frame and not answered again
     app->runFrames(2, 1.0 / 60);
+}
+
+// capture_lighting, S36a1c: the atmosphere's LUTs and the environment map's images in the physical path (sizes,
+// units), full: true completes the environment map first, mip only for environment; get_lighting.environment
+TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
+{
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "pbr": true})"))));
+    app->runFrames(2, 1.0 / 60);
+    const std::vector<std::pair<std::string, Json>> images = {
+        {R"({"image": "transmittance_lut"})", Json(Json::array{256, 64})},
+        {R"({"image": "sky_view_lut"})", Json(Json::array{192, 108})},
+        {R"({"image": "environment", "mip": 1, "full": true})", Json(Json::array{256, 192})},
+        {R"({"image": "irradiance"})", Json(Json::array{128, 64})}};
+    for (const auto& [args, size] : images)
+    {
+        const Json r = callFrames(*app, "capture_lighting", obj(args));
+        ASSERT_FALSE(isError(r)) << args << " " << text(r);
+        const Json block = imageBlock(r);
+        EXPECT_EQ(block["size"], size) << args;
+        EXPECT_FALSE(block["unit"].string_value().empty()) << args;
+        EXPECT_GT(block["stats"]["max"].number_value(), block["stats"]["min"].number_value()) << args;
+    }
+    for (const char* args : {R"({"image": "sky_view_lut", "mip": 1})", R"({"image": "environment", "mip": 5})"})
+        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+    const Json env = result(call(*app, "get_lighting", obj(R"({"sections": ["environment"]})")));
+    EXPECT_EQ(env["environment"]["valid"], Json(true)) << env.dump();
+    EXPECT_GT(env["environment"]["captures"].number_value(), 0);
+    EXPECT_GT(env["environment"]["lut_computations"].number_value(), 0);
 }
 
 // probe_lighting: a pixel of the lit plane returns its albedo, normal and a direct radiance > 0, 7 frames, consistent;

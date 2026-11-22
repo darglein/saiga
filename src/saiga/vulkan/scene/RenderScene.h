@@ -35,6 +35,8 @@ class GrassPass;
 class SceneLightingSet;
 class SkyAmbient;
 class BrdfLut;
+class Atmosphere;
+class EnvironmentMap;
 class LightingDebug;
 class DebugLines;
 class ImGuiVulkanRenderer;
@@ -156,7 +158,8 @@ class SAIGA_VULKAN_API RenderScene
     bool takeGpuFrameTimes(FrameTimes& out);
     // The newest frame takeGpuFrameTimes returned (frame 0: none yet)
     const FrameTimes& lastGpuFrameTimes() const { return lastTaken; }
-    // The sections of FrameTimes::gpuSectionMs in frame order: transfer, cull, depth, depth.terrain, scene,
+    // The sections of FrameTimes::gpuSectionMs in frame order: transfer, environment (S36: the atmosphere and the
+    // environment map), cull, depth, depth.terrain, scene,
     // scene.terrain, scene.instances, scene.grass, scene.sky, scene.debug (S36: the debug lines), resolve,
     // lighting.preview (S36: the preview conversions), post, imgui. The dotted names are sub-sections
     // of the pass before the dot (consecutive ALL_COMMANDS timestamps inside the pass; S19a); every section is written
@@ -326,6 +329,8 @@ class SAIGA_VULKAN_API RenderScene
     // The lighting's resources (tests, the debug tools)
     SkyAmbient& skyAmbient() { return *ambient; }
     BrdfLut& brdfLut() { return *brdf; }
+    Atmosphere& atmosphereLuts() { return *atmosphere; }
+    EnvironmentMap& environmentMap() { return *envMap; }
     // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
     // creates none)
     uint64_t scenePipelineCreations() const;
@@ -355,6 +360,12 @@ class SAIGA_VULKAN_API RenderScene
     // The previews and pixel readbacks (LightingDebug::request, requestPixels) and the debug lines
     // (DebugLines::addLine)
     LightingDebug& lightingDebugImages() { return *debugImages; }
+    // The next frame updates every incremental effect fully (the environment map; capture_lighting full: true), like a
+    // frame with LightingParameters::forceFullUpdates
+    void requestFullUpdate() { fullUpdateRequested = true; }
+    // The mip of the Environment preview (the front cube's, 0..EnvironmentMap::kMips - 1)
+    void setEnvironmentPreviewMip(int mip) { environmentPreviewMip = mip; }
+    int previewMip() const { return environmentPreviewMip; }
     DebugLines& debugLines() { return *lines; }
     // The statistics of the newest recorded frame (the luminance reduction when it was requested)
     const LightingStatistics& lightingStatistics() const { return lightStats; }
@@ -389,13 +400,17 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<SceneLightingSet> lightingSet;
     std::unique_ptr<SkyAmbient> ambient;
     std::unique_ptr<BrdfLut> brdf;
+    std::unique_ptr<Atmosphere> atmosphere;
+    std::unique_ptr<EnvironmentMap> envMap;
     // The debug core (S36a1b)
     std::unique_ptr<LightingDebug> debugImages;
     std::unique_ptr<DebugLines> lines;
     LightingDebugState userDebug, frameDebug;
     std::optional<LightingDebugState> debugOverride;
     // The radiance views write raw values (the probe frames)
-    bool frameDebugRaw = false;
+    bool frameDebugRaw        = false;
+    int environmentPreviewMip = 0;
+    bool fullUpdateRequested  = false;
     std::optional<float> exposureViewCentre;
     float exposureViewRange = kDefaultExposureViewRange;
     LightingStatistics lightStats;

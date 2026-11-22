@@ -14,6 +14,7 @@
 #include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/tools/WorldTools.h"
+#include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
@@ -367,9 +368,9 @@ Json keysJson(const LightingState& s, bool parameters)
 
 const std::vector<std::string>& sectionNames()
 {
-    static const std::vector<std::string> names = {"time",       "weather",  "sun",     "moon",   "shadow_light",
-                                                   "tone_map",   "exposure", "ambient", "clouds", "settings",
-                                                   "parameters", "debug",    "gpu",     "memory"};
+    static const std::vector<std::string> names = {"time",     "weather",    "sun",     "moon",        "shadow_light",
+                                                   "tone_map", "exposure",   "ambient", "environment", "clouds",
+                                                   "settings", "parameters", "debug",   "gpu",         "memory"};
     return names;
 }
 }  // namespace
@@ -408,7 +409,7 @@ namespace
 // The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
 const std::vector<std::string>& lightingGpuSections()
 {
-    static const std::vector<std::string> names = {"scene.debug", "lighting.preview"};
+    static const std::vector<std::string> names = {"environment", "scene.sky", "scene.debug", "lighting.preview"};
     return names;
 }
 
@@ -618,12 +619,22 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
     const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
     Json::array sh;
     for (const vec3& c : ls.sh) sh.push_back(vec3Json(c));
-    o["ambient"]    = Json::object{{"scale", double(state.settings.ambient.scale)},
-                                   {"min", vec3Json(state.settings.ambient.minAmbient)},
-                                   {"enclosed", e.enclosed},
-                                   {"enclosed_ambient", vec3Json(e.state.enclosedAmbient)},
-                                   {"sh9", sh},
-                                   {"dominant", vec3Json(ls.sh[0])}};
+    o["ambient"] = Json::object{{"scale", double(state.settings.ambient.scale)},
+                                {"min", vec3Json(state.settings.ambient.minAmbient)},
+                                {"enclosed", e.enclosed},
+                                {"enclosed_ambient", vec3Json(e.state.enclosedAmbient)},
+                                {"sh9", sh},
+                                {"dominant", vec3Json(ls.sh[0])}};
+    // S36a1c: the environment map (the frame of its last complete capture, the progress of the one in progress) and the
+    // atmosphere's LUT recomputations
+    {
+        const Vulkan::EnvironmentMapStatistics& em = ls.environmentMap;
+        o["environment"]                           = Json::object{{"valid", em.valid},
+                                                                  {"last_capture_frame", double(em.lastCompleteFrame)},
+                                                                  {"captures", double(em.captures)},
+                                                                  {"progress", Json::array{em.progress, em.steps}},
+                                                                  {"lut_computations", double(ls.lutComputations)}};
+    }
     o["clouds"]     = Json::object{{"altitude", double(state.settings.clouds.altitude)},
                                    {"radius", double(state.settings.clouds.radius)},
                                    {"seed", double(state.settings.clouds.seed)},
@@ -1001,13 +1012,19 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "colour map, the size) and the numbers of its source values (min, max, mean, count and a 16-bin histogram over "
         "the mapped range; with a manual range the edge bins also count the values below and above it). image: "
         "luminance (the resolved HDR luminance of the frame in cd/m^2, the display luminance "
-        "in clay mode; log2 by default) or brdf_lut (the split-sum BRDF LUT's scale A). range (\"auto\" or [min, "
-        "max]), "
+        "in clay mode; log2 by default), brdf_lut (the split-sum BRDF LUT's scale A), transmittance_lut (the "
+        "atmosphere's transmittance, luminance), sky_view_lut (the sky's radiance by azimuth and elevation, cd/m^2, "
+        "log2 "
+        "by default), environment (the environment map's front cube as a cross of the mip mip, cd/m^2, log2 by "
+        "default) "
+        "or irradiance (its SH irradiance per direction, equirectangular, lux). range (\"auto\" or [min, max]), "
         "log, color_map (gray, turbo) set the mapping; stats_only: true returns the block without an image (the one "
         "path to the statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, "
-        "64..8192); full: true updates incremental effects fully first (none before S36a1c). Deferred: answered from "
+        "64..8192); full: true updates incremental effects fully first (the environment map). Deferred: answered from "
         "the frame that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
-        schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut"})},
+        schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut", "transmittance_lut",
+                                                                  "sky_view_lut", "environment", "irradiance"})},
+                {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
                 {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
                 {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
                 {"color_map", McpServer::StringProperty("The colour map", {"gray", "turbo"})},
@@ -1018,26 +1035,37 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         [&app, &server](const Json& a, McpServer::Respond respond)
         {
             std::string error;
-            if (unknownArgument(a, {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only"},
-                                error))
+            if (unknownArgument(
+                    a, {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only", "mip"},
+                    error))
                 return respond(ToolResult::Error(error));
             Vulkan::RenderScene* scene = app.scene();
             if (!scene) return respond(ToolResult::Error(kNoDevice));
-            Vulkan::LightingImage image;
-            if (a["image"] == Json("luminance"))
-                image = Vulkan::LightingImage::Luminance;
-            else if (a["image"] == Json("brdf_lut"))
-                image = Vulkan::LightingImage::BrdfLut;
-            else
-                return respond(ToolResult::Error("image: luminance or brdf_lut"));
+            const std::optional<Vulkan::LightingImage> parsed =
+                a["image"].is_string() ? Vulkan::lightingImageFromName(a["image"].string_value()) : std::nullopt;
+            if (!parsed)
+                return respond(ToolResult::Error(
+                    "image: luminance, brdf_lut, transmittance_lut, sky_view_lut, environment or irradiance"));
+            const Vulkan::LightingImage image = *parsed;
+            if (!a["mip"].is_null())
+            {
+                const double m = a["mip"].number_value();
+                if (!a["mip"].is_number() || m != std::floor(m) || m < 0 || m > Vulkan::EnvironmentMap::kMips - 1)
+                    return respond(ToolResult::Error("mip: an integer 0..4"));
+                if (image != Vulkan::LightingImage::Environment)
+                    return respond(ToolResult::Error("mip: only for image environment"));
+                scene->setEnvironmentPreviewMip(int(m));
+            }
             Vulkan::PreviewMapping mapping;
-            mapping.log = image == Vulkan::LightingImage::Luminance;
+            mapping.log = image == Vulkan::LightingImage::Luminance || image == Vulkan::LightingImage::SkyViewLut ||
+                          image == Vulkan::LightingImage::Environment;
             if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
                 return respond(ToolResult::Error(error));
             for (const char* b : {"full", "stats_only"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
-            const bool statsOnly     = a["stats_only"].bool_value();
+            const bool statsOnly = a["stats_only"].bool_value();
+            if (a["full"].bool_value()) scene->requestFullUpdate();
             const std::string format = a["format"].is_null() ? "png" : a["format"].string_value();
             if (format != "png" && format != "jpg") return respond(ToolResult::Error("format: png or jpg"));
             int maxWidth = 1280;
@@ -1078,6 +1106,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     if (name == "luminance")
                         block["unit"] = mapping.log ? "log2 cd/m^2 (clay: log2 of the display luminance)"
                                                     : "cd/m^2 (clay: the display luminance)";
+                    if (name == "sky_view_lut" || name == "environment")
+                        block["unit"] = mapping.log ? "log2 cd/m^2" : "cd/m^2";
+                    if (name == "irradiance") block["unit"] = mapping.log ? "log2 lux" : "lux";
+                    if (name == "transmittance_lut") block["unit"] = "transmittance (luminance of rgb)";
                     if (statsOnly || c.image.width == 0) return respond(ToolResult::Text(Json(block).dump()));
                     TemplatedImage<ucvec4> img = c.image;
                     const int w                = std::min(img.w, maxWidth);

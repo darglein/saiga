@@ -85,18 +85,26 @@ class SAIGA_VULKAN_API LightingDebug
     }
     static constexpr uint32_t kPreviewMaxSize     = 512;
     static constexpr uint64_t kPreviewTexelBudget = 1u << 20;
+    bool requested(LightingImage image) const { return images[size_t(image)].requested; }
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }
 
     // ---- RenderScene's frame
-    // The sources of this frame's previews (the resolved HDR image in eShaderReadOnlyOptimal, its luminance scale; the
-    // BRDF LUT) and the dispatches; returns the number of preview conversions
+    // The sources of this frame's previews (in eShaderReadOnlyOptimal; a missing one is not converted): per image the
+    // texture, the value (kind 0: the luminance of rgb times scale, 1: the first channel) and the scale; returns the
+    // number of preview conversions
     struct Sources
     {
-        Texture2D* hdr       = nullptr;
-        float luminanceScale = 1;
-        Texture2D* brdfLut   = nullptr;
+        std::array<Texture2D*, size_t(LightingImage::Count)> image{};
+        std::array<uint32_t, size_t(LightingImage::Count)> kind{};
+        std::array<float, size_t(LightingImage::Count)> scale{};
+        void set(LightingImage i, Texture2D* texture, uint32_t valueKind, float valueScale = 1)
+        {
+            image[size_t(i)] = texture;
+            kind[size_t(i)]  = valueKind;
+            scale[size_t(i)] = valueScale;
+        }
     };
     uint32_t recordPreviews(vk::CommandBuffer cmd, uint32_t frameIndex, const Sources& sources);
     // Records the pixel copies (the resolved colour and the sampled depth are in eTransferSrcOptimal)
