@@ -1217,9 +1217,12 @@ void registerTombstoneScenarios(ScenarioList& s)
           });
 }
 
+// One content cache for every run of the content scenarios, as runScenarios shares one per setup (§17.2): the variants
+// of a scenario generate the same chunks (test speed: once per process)
 WorldSetup contentSetupFor(const std::string&)
 {
-    return ContentTest::contentTestSetup(2);
+    static const std::shared_ptr<ContentCache> cache = std::make_shared<ContentCache>();
+    return ContentTest::contentTestSetup(2, cache);
 }
 
 // A scenario with the setup it runs on and the registration it comes from
@@ -1433,7 +1436,8 @@ TEST(ScenarioRunner, NoFurtherRunAfterTheDeadline)
                              {
                           calls++;
                           w.step(1);
-                          std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                          // Past the 100 ms deadline (counted from before the world's construction)
+                          std::this_thread::sleep_for(std::chrono::milliseconds(130));
                       });
     for (ScenarioVariant v : {ScenarioVariant::Repeat, ScenarioVariant::SaveLoad})
     {
@@ -1454,7 +1458,7 @@ TEST(ScenarioRunner, NoFurtherRunAfterTheDeadline)
                           w.step(1000);
                       });
     ScenarioOptions o;
-    o.deadline             = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
+    o.deadline             = std::chrono::steady_clock::now() + std::chrono::milliseconds(100);
     const ScenarioResult r = runScenario(scenarioSetup(), slow, ScenarioVariant::SaveLoad, o);
     EXPECT_FALSE(r.passed);
     EXPECT_GT(r.steps, 0u) << r.report;
