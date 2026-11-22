@@ -3721,6 +3721,19 @@ recording): <= 10 ms desktop, <= 18 ms Steam Deck. Benchmarks report `cpu_ms` sp
 Benchmarks report against these budgets; from S19 they run on both targets when the hardware is available (otherwise
 the missing target is reported as open).
 
+### 17.11 Test speed [exists]
+
+The unit test binaries stay fast (about a second each, at most a few; the budgets per binary and the rules for new
+tests are in AGENTS.md, "Test speed"). Mechanisms: the test executables reuse headless Vulkan devices between tests
+(`Vulkan::setHeadlessDeviceReuse`, off in applications: the instance and the logical device stay in a pool, the objects
+on the device are created per renderer, leaks are reported when the pool is released after the last test); a process
+compiles a shader once (SPIR-V cached by file contents incl. includes; glslang initialized once) and seeds a new
+device's pipeline cache with the previous one's; death test children write no core dump; MCP deadline tests use short
+timeouts with a large answer margin (`McpServer::answerMarginFraction`, default 0.1 in applications); expensive
+deterministic test inputs (terrain tiles of a hook) are generated once per process. Tests do not wait for wall-clock
+time where they can poll a condition, and render small targets, few frames and small scenes on lavapipe unless the
+size is what they test.
+
 ## 18. Files, names and cookbook
 
 ### 18.1 Files and names
