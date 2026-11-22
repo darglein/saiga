@@ -1103,15 +1103,24 @@ void Replication::hostReplicate(bool networkOnly)
             if (!reg.alive(e) || (s && s->spawned) || !hostReplicated(e)) continue;
             queue.push_back(e);
         }
-        // The not yet replicated descendants of a new entity become replicated with it
-        for (size_t i = 0; i < queue.size(); ++i)
+        // The not yet replicated descendants of a new entity become replicated with it. Only the candidates are
+        // expanded, and a candidate inside an already expanded subtree is skipped: its descendants were checked with
+        // that subtree (the checks do not depend on the ancestor that was expanded). Linear in the subtree sizes, not
+        // quadratic in a deep hierarchy (a chain of n new entities was O(n^3)).
+        std::vector<bool> queued(reg.slotCount(), false), covered(reg.slotCount(), false);
+        for (Entity e : queue) queued[e.index] = true;
+        const size_t candidateCount = queue.size();
+        for (size_t i = 0; i < candidateCount; ++i)
         {
-            if (w.childCount(queue[i]) == 0) continue;
+            if (covered[queue[i].index] || w.childCount(queue[i]) == 0) continue;
             for (Entity x : w.collectDoomed(queue[i]))
             {
+                if (x == queue[i]) continue;
+                covered[x.index]  = true;
                 const HostSlot* s = hostSlot(x);
-                if (x == queue[i] || (s && s->spawned) || !hostReplicated(x)) continue;
-                if (std::find(queue.begin(), queue.end(), x) == queue.end()) queue.push_back(x);
+                if (queued[x.index] || (s && s->spawned) || !hostReplicated(x)) continue;
+                queue.push_back(x);
+                queued[x.index] = true;
             }
         }
         for (Entity e : queue) fresh.push_back({depthOf(e), e});
