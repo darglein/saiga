@@ -27,10 +27,13 @@ namespace Vulkan
  * RenderScene owns it). Depth and data images are not displayable, so on demand a compute pass
  * (shader/vulkan/scene/lighting/debug_preview.comp) converts a LightingImage into an RGBA8 preview texture (the
  * PreviewMapping: range, log2, colour map) and reduces its values (min, max, mean, 16-bin histogram). A preview is
- * computed only in a frame in which it was requested (the Lighting tab draws it, capture_lighting, probe_lighting):
- * without a request nothing is dispatched. The preview textures are read by ImGui in the same frame (the conversion
- * runs before the post + ImGui pass) and stay in eShaderReadOnlyOptimal; their statistics arrive one frame slot later
- * (statistics()) or, for a capture, after the frame (blocking, like a screenshot).
+ * computed only in a frame in which it was requested (capture_lighting, probe_lighting: request(), at the source's
+ * resolution) or shown (the Lighting tab draws it: show(), at most 512 texels per side, at most once per
+ * previewInterval() per image unless its mapping changes, and at most 2^20 preview texels per frame (setPreviewLimits):
+ * the others wait for a later frame, the oldest first): without a request nothing is dispatched. The preview textures
+ * are read by ImGui in the same frame (the conversion runs before the post + ImGui pass) and stay in
+ * eShaderReadOnlyOptimal; their statistics arrive one frame slot later (statistics()) or, for a capture, after the
+ * frame (blocking, like a screenshot).
  *
  * Pixel readbacks (probe_lighting): the resolved fp16 colour (the MSAA average) and the sampled depth of pixels, copied
  * after the resolve, read after the frame (blocking).
@@ -63,7 +66,21 @@ class SAIGA_VULKAN_API LightingDebug
     // (else only the statistics). A request without a callback (the tab) only computes the preview and its statistics
     void request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback = nullptr,
                  bool withImage = true);
+    // The tab shows image this frame (rate-limited and at preview resolution, see the class comment)
+    void show(LightingImage image, const PreviewMapping& mapping);
     bool requested() const;
+    // The minimum time between two conversions of a shown image (seconds; 0: every frame)
+    void setPreviewInterval(double seconds) { previewIntervalSeconds = seconds; }
+    double previewInterval() const { return previewIntervalSeconds; }
+    // A shown preview's longest side (texels) and the preview texels a frame converts for shown images (a show() beyond
+    // it waits; the first conversion of a frame is always made)
+    void setPreviewLimits(uint32_t maxSize, uint64_t texelBudget)
+    {
+        previewMaxSize     = std::max(maxSize, 1u);
+        previewTexelBudget = texelBudget;
+    }
+    static constexpr uint32_t kPreviewMaxSize     = 512;
+    static constexpr uint64_t kPreviewTexelBudget = 1u << 20;
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }
@@ -111,9 +128,15 @@ class SAIGA_VULKAN_API LightingDebug
         std::array<uint64_t, 2> pendingFrame = {0, 0};
         PreviewStatistics stats;
         uint64_t statsFrame = 0;
-        // This frame's request
-        bool requested = false;
+        // This frame's request (fullResolution: a request(), else a show()) and the time of the last conversion of a
+        // show() (steady clock seconds)
+        bool requested      = false;
+        bool fullResolution = false;
+        double lastShown    = -1e30;
         PreviewMapping mapping;
+        PreviewMapping shownMapping;
+        // Per frame slot: the device-local statistics the shader writes (copied to statsBuffers after the conversion)
+        std::array<Buffer, 2> gpuStats;
         std::vector<std::pair<CaptureCallback, bool>> callbacks;
         // The callbacks of the recorded frame (answered in finishFrame)
         std::array<std::vector<std::pair<CaptureCallback, bool>>, 2> recorded;
@@ -124,8 +147,11 @@ class SAIGA_VULKAN_API LightingDebug
     Buffer partials;
     std::array<vk::DescriptorSet, size_t(LightingImage::Count) * 2> sets{};
     std::array<Image, size_t(LightingImage::Count)> images;
-    uint32_t dispatches   = 0;
-    uint64_t currentFrame = 0;
+    uint32_t dispatches           = 0;
+    uint64_t currentFrame         = 0;
+    double previewIntervalSeconds = 0.25;
+    uint32_t previewMaxSize       = kPreviewMaxSize;
+    uint64_t previewTexelBudget   = kPreviewTexelBudget;
 
     std::vector<std::pair<std::vector<ivec2>, PixelCallback>> pixelRequests;
     std::array<std::vector<std::pair<std::vector<ivec2>, PixelCallback>>, 2> recordedPixels;

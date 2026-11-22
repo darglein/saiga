@@ -299,10 +299,11 @@ void LightingTab::exposure()
         ImGui::Text("%.3g (multiplier %.3g)", double(scene->frameExposure()), double(scene->exposure()));
         DebugUiStyle::property("pre-exposure");
         ImGui::Text("%.3g", double(scene->preExposure()));
-        // The luminance of the frame: the Luminance preview and its reduction while the section is open (log2)
+        // The luminance of the frame: the Luminance preview and its reduction while the section is open (log2; at
+        // preview resolution, a few times per second)
         Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
         mapping.log                    = true;
-        scene->lightingDebugImages().request(Vulkan::LightingImage::Luminance, mapping);
+        scene->lightingDebugImages().show(Vulkan::LightingImage::Luminance, mapping);
         const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
         DebugUiStyle::property("luminance (log2)");
         if (ls.luminanceFrame > 0)

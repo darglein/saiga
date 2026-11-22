@@ -498,6 +498,60 @@ TEST_F(LightingDebugTest, NothingComputedWithoutRequest)
     EXPECT_GT(scene->lightingStatistics().luminanceFrame, 0u);
 }
 
+// A shown preview (the Lighting tab, show()) is converted at preview resolution, at most once per preview interval
+// unless its mapping changes, and within the per-frame texel budget. Regression: the tab converted the full-resolution
+// luminance every frame with a per-pixel histogram atomic on a host-visible buffer (about 150 ms per 1080p frame on an
+// RTX 5080 Laptop GPU)
+TEST_F(LightingDebugTest, ShownPreviewsAreRateLimited)
+{
+    UsePbr();
+    PlaneScene(390);
+    LightingDebug& d = scene->lightingDebugImages();
+    d.setPreviewInterval(1e9);
+    d.setPreviewLimits(32, LightingDebug::kPreviewTexelBudget);
+    PreviewMapping mapping;
+    mapping.log    = true;
+    uint32_t total = 0;
+    for (int f = 0; f < 4; ++f)
+    {
+        d.show(LightingImage::Luminance, mapping);
+        RenderFrame();
+        total += scene->lightingStatistics().previewDispatches;
+    }
+    EXPECT_EQ(total, 1u);
+    // At preview resolution (every step-th texel), with the statistics of the preview's texels
+    const int step = (std::max(width, height) + 31) / 32;
+    ASSERT_NE(d.preview(LightingImage::Luminance), nullptr);
+    EXPECT_EQ(int(d.preview(LightingImage::Luminance)->width), (width + step - 1) / step);
+    EXPECT_EQ(int(d.preview(LightingImage::Luminance)->height), (height + step - 1) / step);
+    EXPECT_EQ(d.statistics(LightingImage::Luminance).count,
+              uint32_t(((width + step - 1) / step) * ((height + step - 1) / step)));
+    // A mapping change converts at once; a request() (a capture) always converts, at full resolution
+    mapping.colorMap = ColorMap::Turbo;
+    d.show(LightingImage::Luminance, mapping);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 1u);
+    LightingDebug::Capture c;
+    d.request(LightingImage::Luminance, mapping, [&](const LightingDebug::Capture& r) { c = r; });
+    d.show(LightingImage::Luminance, mapping);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 1u);
+    EXPECT_EQ(c.size, ivec2(width, height));
+    // The texel budget: of two shown images only the first is converted in a frame, the other in the next one
+    d.setPreviewInterval(0);
+    d.setPreviewLimits(32, 1);
+    for (int f = 0; f < 2; ++f)
+    {
+        d.show(LightingImage::Luminance, mapping);
+        d.show(LightingImage::BrdfLut, mapping);
+        RenderFrame();
+        EXPECT_EQ(scene->lightingStatistics().previewDispatches, 1u);
+    }
+    EXPECT_NE(d.preview(LightingImage::BrdfLut), nullptr);
+    d.setPreviewInterval(0.25);
+    d.setPreviewLimits(LightingDebug::kPreviewMaxSize, LightingDebug::kPreviewTexelBudget);
+}
+
 // probe_lighting's sequence: 7 frames at a pixel of the lit plane, the values equal the views' at that pixel, the
 // camera and the environment are held (a setEnvironment during it takes effect after it), consistent
 TEST_F(LightingDebugTest, ProbeMatchesViews)

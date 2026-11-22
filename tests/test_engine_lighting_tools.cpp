@@ -111,15 +111,22 @@ void showLightingTab(EngineApp& app)
     app.debugUi().select(DebugTab::Lighting);
 }
 
-// The tab with its sections open renders (no validation error); S36a1b: the open Exposure section requests the
-// luminance preview in its frames (and shows it); the PBR variant with a debug view and the overlay render in the
-// tab's frames
+// The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
+// preview, converted once per preview interval (here once in the three frames; not again in a later case of the
+// suite's app); the PBR variant with a debug view and the overlay render in the tab's frames
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
-    app.runFrames(3, 1.0 / 60);
+    app.scene()->lightingDebugImages().setPreviewInterval(1e9);
+    const bool first    = app.scene()->lightingDebugImages().preview(Vulkan::LightingImage::Luminance) == nullptr;
+    uint32_t dispatches = 0;
+    for (int f = 0; f < 3; ++f)
+    {
+        app.runFrames(1, 1.0 / 60);
+        dispatches += app.scene()->lightingStatistics().previewDispatches;
+    }
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
-    EXPECT_EQ(app.scene()->lightingStatistics().previewDispatches, 1u);
+    EXPECT_EQ(dispatches, first ? 1u : 0u);
     EXPECT_NE(app.scene()->lightingDebugImages().preview(Vulkan::LightingImage::Luminance), nullptr);
     Vulkan::LightingParameters p = app.scene()->lightingParameters();
     p.pbr                        = true;

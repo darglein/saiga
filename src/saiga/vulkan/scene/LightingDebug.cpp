@@ -10,6 +10,7 @@
 #include "saiga/vulkan/pipeline/DescriptorSetLayout.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstring>
 #include <limits>
@@ -36,8 +37,12 @@ struct PreviewPush
     float rangeMax;
     uint32_t groups;
     uint32_t pad;
+    uint32_t step;
+    uint32_t pad1;
+    uint32_t pad2;
+    uint32_t pad3;
 };
-static_assert(sizeof(PreviewPush) == 48, "Push of debug_preview.comp");
+static_assert(sizeof(PreviewPush) == 64, "Push of debug_preview.comp");
 
 // The Statistics buffer of debug_preview.comp: stats (min, max, mean, count), range, histogram[16]
 constexpr size_t kStatsBytes = 32 + 16 * 4;
@@ -46,6 +51,16 @@ vk::Buffer handle(Buffer& b)
 {
     Memory::SafeAccessor acc(*b.memoryLocation());
     return b.memoryLocation()->data;
+}
+
+double nowSeconds()
+{
+    return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+bool sameMapping(const PreviewMapping& a, const PreviewMapping& b)
+{
+    return a.autoRange == b.autoRange && a.min == b.min && a.max == b.max && a.log == b.log && a.colorMap == b.colorMap;
 }
 
 void memoryBarrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
@@ -109,6 +124,7 @@ void LightingDebug::destroy()
         if (i.texture) i.texture->destroy();
         i.texture.reset();
         for (Buffer& b : i.statsBuffers) b.destroy();
+        for (Buffer& b : i.gpuStats) b.destroy();
     }
     for (Buffer& b : pixelBuffers) b.destroy();
     base = nullptr;
@@ -117,10 +133,28 @@ void LightingDebug::destroy()
 void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback,
                             bool withImage)
 {
-    Image& i    = images[size_t(image)];
-    i.requested = true;
-    i.mapping   = mapping;
+    Image& i         = images[size_t(image)];
+    i.requested      = true;
+    i.fullResolution = true;
+    i.mapping        = mapping;
     if (callback) i.callbacks.emplace_back(std::move(callback), withImage);
+}
+
+void LightingDebug::show(LightingImage image, const PreviewMapping& mapping)
+{
+    Image& i = images[size_t(image)];
+    // A request() of this frame takes precedence (its conversion is shown); a waiting show() takes the new mapping
+    if (i.requested)
+    {
+        if (!i.fullResolution) i.mapping = mapping;
+        return;
+    }
+    // The preview is recent enough (the same mapping, converted less than the interval ago)
+    if (i.texture && sameMapping(mapping, i.shownMapping) && nowSeconds() - i.lastShown < previewIntervalSeconds)
+        return;
+    i.requested      = true;
+    i.fullResolution = false;
+    i.mapping        = mapping;
 }
 
 bool LightingDebug::requested() const
@@ -147,6 +181,8 @@ uint64_t LightingDebug::memoryBytes() const
     {
         if (i.texture) bytes += uint64_t(i.texture->width) * i.texture->height * 4;
         for (const Buffer& b : i.statsBuffers)
+            if (b) bytes += b.size();
+        for (const Buffer& b : i.gpuStats)
             if (b) bytes += b.size();
     }
     return bytes;
@@ -184,18 +220,43 @@ void LightingDebug::harvest(uint32_t frameIndex)
 uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameIndex, const Sources& sources)
 {
     dispatches = 0;
+    // The requests first, then the shown images by the age of their preview (the oldest first)
+    std::vector<size_t> order;
     for (size_t k = 0; k < images.size(); ++k)
+        if (images[k].requested) order.push_back(k);
+    std::stable_sort(order.begin(), order.end(),
+                     [&](size_t a, size_t b)
+                     {
+                         const Image &x = images[a], &y = images[b];
+                         if (x.fullResolution != y.fullResolution) return x.fullResolution;
+                         return x.lastShown < y.lastShown;
+                     });
+    const double now     = nowSeconds();
+    uint64_t shownTexels = 0;
+    for (size_t k : order)
     {
-        Image& i = images[k];
-        if (!i.requested) continue;
+        Image& i                  = images[k];
+        const LightingImage image = LightingImage(k);
+        Texture2D* source         = image == LightingImage::Luminance ? sources.hdr : sources.brdfLut;
+        // A shown preview at most kPreviewMaxSize per side: every step-th source texel
+        uint32_t step = 1;
+        if (source && !i.fullResolution)
+            step = std::max(1u, (std::max(source->width, source->height) + previewMaxSize - 1) / previewMaxSize);
+        const uint32_t w = source ? (source->width + step - 1) / step : 0;
+        const uint32_t h = source ? (source->height + step - 1) / step : 0;
+        // The texel budget of the shown images (the first conversion of the frame is always made)
+        if (source && !i.fullResolution)
+        {
+            if (dispatches > 0 && shownTexels + uint64_t(w) * h > previewTexelBudget) continue;
+            shownTexels += uint64_t(w) * h;
+            i.lastShown    = now;
+            i.shownMapping = i.mapping;
+        }
         i.requested = false;
         i.recorded[frameIndex].insert(i.recorded[frameIndex].end(), std::make_move_iterator(i.callbacks.begin()),
                                       std::make_move_iterator(i.callbacks.end()));
         i.callbacks.clear();
-        const LightingImage image = LightingImage(k);
-        Texture2D* source         = image == LightingImage::Luminance ? sources.hdr : sources.brdfLut;
         if (!source) continue;
-        const uint32_t w = source->width, h = source->height;
         if (!i.texture || i.texture->width != w || i.texture->height != h)
         {
             if (i.texture) i.texture->destroy();
@@ -207,10 +268,17 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         for (Buffer& b : i.statsBuffers)
             if (!b)
             {
-                b.createBuffer(*base, kStatsBytes, vk::BufferUsageFlagBits::eStorageBuffer,
+                b.createBuffer(*base, kStatsBytes, vk::BufferUsageFlagBits::eTransferDst,
                                vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
                 std::memset(b.getMappedPointer(), 0, kStatsBytes);
             }
+        // The shader's statistics in device memory: the histogram's atomics on a host-visible buffer (system memory on
+        // a discrete GPU) cost about 150 ms for a 1080p frame on an RTX 5080 Laptop GPU
+        for (Buffer& b : i.gpuStats)
+            if (!b)
+                b.createBuffer(*base, kStatsBytes,
+                               vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
+                               vk::MemoryPropertyFlagBits::eDeviceLocal);
         const uint32_t gx = (w + 15) / 16, gy = (h + 15) / 16, groups = gx * gy;
         const size_t partialBytes = size_t(groups) * 16;
         if (!partials || partials.size() < partialBytes)
@@ -222,7 +290,7 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
                                     vk::ImageLayout::eShaderReadOnlyOptimal);
         vk::DescriptorImageInfo dst(nullptr, i.texture->view(), vk::ImageLayout::eGeneral);
         vk::DescriptorBufferInfo part(handle(partials), 0, VK_WHOLE_SIZE);
-        vk::DescriptorBufferInfo stats(handle(i.statsBuffers[frameIndex]), 0, kStatsBytes);
+        vk::DescriptorBufferInfo stats(handle(i.gpuStats[frameIndex]), 0, kStatsBytes);
         std::array<vk::WriteDescriptorSet, 4> writes = {
             vk::WriteDescriptorSet(set, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &src),
             vk::WriteDescriptorSet(set, 1, 0, 1, vk::DescriptorType::eStorageImage, &dst),
@@ -252,7 +320,9 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         push.rangeMax  = i.mapping.max;
         push.groups    = groups;
         push.pad       = 0;
-        auto pass      = [&](uint32_t p, uint32_t x, uint32_t y)
+        push.step      = step;
+        push.pad1 = push.pad2 = push.pad3 = 0;
+        auto pass                         = [&](uint32_t p, uint32_t x, uint32_t y)
         {
             push.pass = p;
             pipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
@@ -269,8 +339,12 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
             Access::eShaderSampledRead | Access::eTransferRead, vk::ImageLayout::eGeneral,
             vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
             i.texture->image(), vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
-        vk::MemoryBarrier2 host(Stage::eComputeShader, Access::eShaderStorageWrite, Stage::eHost, Access::eHostRead);
-        cmd.pipelineBarrier2(vk::DependencyInfo({}, host, nullptr, toRead));
+        vk::MemoryBarrier2 toCopy(Stage::eComputeShader, Access::eShaderStorageWrite, Stage::eAllTransfer,
+                                  Access::eTransferRead);
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, toCopy, nullptr, toRead));
+        cmd.copyBuffer(handle(i.gpuStats[frameIndex]), handle(i.statsBuffers[frameIndex]),
+                       vk::BufferCopy(0, 0, kStatsBytes));
+        memoryBarrier(cmd, Stage::eAllTransfer, Access::eTransferWrite, Stage::eHost, Access::eHostRead);
         i.texture->setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
         i.pendingFrame[frameIndex] = currentFrame;
         dispatches++;

@@ -1763,6 +1763,19 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   `lighting/debug_common.glsl` (the turbo colour map). Of the list, `terrain_common.glsl`, `terrain_shading.glsl`,
   `post.frag` and `debug_probe.comp` are unchanged (see above), and `AmbientProvider` binds through
   `SceneLightingBindings` (`AmbientBindings`) instead of a `DescriptorWriter`.
+- **Shown previews are rate-limited, at preview resolution, within a texel budget (fix after the live test of the
+  flight demo)**: with the Lighting tab open `lighting.preview` cost 80-150 ms per frame on the RTX 5080 Laptop GPU
+  (flight demo 164 -> 7-13 fps). Cause: the conversion's histogram did one `atomicAdd` per texel on the statistics
+  buffer, which was host visible (system memory over PCIe on a discrete GPU): 2M remote atomics per 1080p luminance
+  preview, every frame. Now `debug_preview.comp` counts the histogram in shared memory (one global add per bin and
+  workgroup) into a device-local statistics buffer that is copied to the host-visible one after the conversion. The
+  tab calls `LightingDebug::show` instead of `request`: a shown image is converted at most `kPreviewMaxSize` (512)
+  texels per side (every step-th source texel; its statistics are those of the preview's texels), at most once per
+  `previewInterval()` (0.25 s) unless its mapping changes, and the shown images of a frame convert at most
+  `kPreviewTexelBudget` (2^20) preview texels (the first always; the rest wait, the oldest preview first).
+  `request` (captures, probes) is unchanged: full resolution, at once. Tested by
+  `LightingDebugTest.ShownPreviewsAreRateLimited`; `EngineAppRender.LightingTabRenders` counts one conversion over its
+  three frames.
 
 ## Results
 
