@@ -147,7 +147,9 @@ std::map<std::string, double> s03Passes(const std::map<std::string, double>& sec
             {"trees", get("scene.instances")},
             {"grass", get("scene.grass")},
             // S36a1c: the sky with the cloud layer and the environment pass (the atmosphere, the environment map)
-            {"sky", get("scene.sky") + get("scene.clouds") + get("environment")}};
+            {"sky", get("scene.sky") + get("scene.clouds") + get("environment")},
+            // S36a2: the cascades and the horizon map (the sub-sections are in gpu_frame_ms)
+            {"shadows", get("shadow")}};
 }
 
 void initWorld(EngineApp& app)
@@ -509,7 +511,12 @@ void beforeRender(EngineApp& app)
                                   {"tone_map", scene.parameters().toneMap == Vulkan::ToneMap::Aces ? "aces" : "identity"},
                                   {"features", json11::Json::object{{"atmosphere", scene.physicalLighting()},
                                                                     {"clouds", scene.lightingStatistics().clouds},
-                                                                    {"force_full_updates", lp.forceFullUpdates}}}};
+                                                                    {"force_full_updates", lp.forceFullUpdates},
+                                                                    {"sun_shadows", lp.sunShadows},
+                                                                    {"horizon_shadows", lp.horizonShadows},
+                                                                    {"cascade_count", lp.cascadeCount},
+                                                                    {"cascade_resolution", lp.cascadeResolution},
+                                                                    {"shadow_distance", double(lp.shadowDistance)}}}};
         }
         const int stalls = result["stalled_frames"].int_value();
         if (stalls > 0)

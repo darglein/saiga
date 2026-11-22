@@ -137,34 +137,40 @@ vec3 debugDisplay(vec3 radiance)
     return linearToSrgb(clamp(radiance, vec3(0.0), vec3(1.0)));
 }
 
-// The light of a surface (radiance before the pre-exposure) with the fog; in a debug frame the view's value
-vec3 shadeSurfaceView(SurfaceInput s)
+// The light of a surface (radiance before the pre-exposure) with the fog; in a debug frame the view's value; cascade:
+// the receiver's cascade (-1: none, or not evaluated)
+vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
 {
     const uint view = lighting.mode.z;
+    // The shadow light's terms, evaluated once (one call site: the shaders of the grass's overdraw stay small): where
+    // the light reaches the surface (the wrapped diffuse of foliage included), for the shadow views and the overlay
+    float wrap      = (s.flags & surfaceFoliage) != 0u ? 0.3 : 0.0;
+    bool shadowView = view == viewCloudShadow || view == viewShadowFactor || view == viewShadowCascades ||
+                      view == viewHorizonShadow;
+    bool reaches = lighting.mode.y == 0u && lighting.shadowLight.w > 0.0 && dot(s.n, lighting.shadowLight.xyz) > -wrap;
+    ShadowTerms sh = noShadow();
+    if (reaches || shadowView || (lighting.mode.w & overlayCascadeColors) != 0u) sh = shadowTerms(s.relPos, s.n);
+    cascade      = sh.index;
+    float shadow = sh.cascade * sh.horizon * sh.cloud;
+
     if (view == viewAlbedo) return s.albedo;
     if (view == viewNormals) return s.n * 0.5 + 0.5;
     if (view == viewRoughness) return vec3(s.roughness);
     if (view == viewMetalness) return vec3(s.metalness);
     if (view == viewMaterial) return vec3(s.roughness, s.metalness, s.ao);
-    if (view == viewCloudShadow) return vec3(cloudShadow(s.relPos));
-    if (view == viewShadowFactor) return vec3(shadowFactor(s.relPos, s.n));
+    if (view == viewCloudShadow) return vec3(sh.cloud);
+    if (view == viewShadowFactor) return vec3(shadow);
     if (view == viewShadowCascades)
     {
         // The cascade factor tinted by the cascade; raw in the probe frames: (factor, cascade + 1, 0)
-        int cascade;
-        float f = cascadeShadow(s.relPos, s.n, cascade);
-        if (lighting.debugParams.z > 0.5) return vec3(f, float(cascade + 1), 0.0);
-        return cascadeTint(cascade) * (0.2 + 0.8 * f);
+        if (lighting.debugParams.z > 0.5) return vec3(sh.cascade, float(sh.index + 1), 0.0);
+        return cascadeTint(sh.index) * (0.2 + 0.8 * sh.cascade);
     }
     if (view == viewHorizonShadow)
     {
         // The horizon map's factor; raw in the probe frames: (factor, R and G above the receiver)
-        int cascade;
-        cascadeShadow(s.relPos, s.n, cascade);
-        vec2 rg;
-        float h = horizonShadow(s.relPos, cascade >= 0 && lighting.horizonParams.z > 0.5, rg);
-        if (lighting.debugParams.z > 0.5) return vec3(h, clamp(rg, vec2(-60000.0), vec2(60000.0)));
-        return vec3(h);
+        if (lighting.debugParams.z > 0.5) return vec3(sh.horizon, clamp(sh.rg, vec2(-60000.0), vec2(60000.0)));
+        return vec3(sh.horizon);
     }
     if (view == viewLightingOnly)
     {
@@ -181,8 +187,8 @@ vec3 shadeSurfaceView(SurfaceInput s)
         // S19a: albedo (sun + ambient) ao, the material's emissive on top
         vec3 L  = normalize(lighting.studioSun.xyz);
         float d = max(dot(s.n, L), 0.0) * lighting.studioSun.w;
-        // S36a2: the cascades of the studio sun (only where it lights the surface)
-        if (d > 0.0) d *= shadowFactor(s.relPos, s.n);
+        // S36a2: the cascades of the studio sun (the shadow light of clay)
+        d *= shadow;
         c           = s.albedo * (d + studioAmbient(s.n)) * s.ao;
         c           = c * s.tint + s.emissive;
         direct      = s.albedo * d * s.ao;
@@ -194,15 +200,10 @@ vec3 shadeSurfaceView(SurfaceInput s)
         float rough = pbrRoughness(s.roughness);
         float NoV   = max(dot(s.n, v), 1e-4);
         vec2 lut    = texture(brdfLut, vec2(NoV, rough)).rg;
-        float wrap  = (s.flags & surfaceFoliage) != 0u ? 0.3 : 0.0;
         VertexLight vl = surfaceVertexLight(s.relPos);
         fog            = vl.fog;
         if (lighting.mode.y == 0u)
         {
-            // The shadow light's factor only where it reaches the surface (the wrapped diffuse of foliage included)
-            float shadow = 1.0;
-            if (lighting.shadowLight.w > 0.0 && dot(s.n, lighting.shadowLight.xyz) > -wrap)
-                shadow = shadowFactor(s.relPos, s.n);
             // A body below the receiver's horizon gives no direct light (its light terms are 0 there,
             // computeVertexLight)
             if (lighting.sun.w > 0.0 && any(greaterThan(vl.sunE, vec3(0.0))))
@@ -246,13 +247,9 @@ vec3 shadeSurfaceView(SurfaceInput s)
 // shadeSurfaceView with the shader overlays (S36a2: CascadeColors tints every view by the receiver's cascade)
 vec3 shadeSurface(SurfaceInput s)
 {
-    vec3 c = shadeSurfaceView(s);
-    if ((lighting.mode.w & overlayCascadeColors) != 0u)
-    {
-        int cascade;
-        cascadeShadow(s.relPos, s.n, cascade);
-        c *= mix(vec3(1.0), cascadeTint(cascade), 0.6);
-    }
+    int cascade;
+    vec3 c = shadeSurfaceView(s, cascade);
+    if ((lighting.mode.w & overlayCascadeColors) != 0u) c *= mix(vec3(1.0), cascadeTint(cascade), 0.6);
     return c;
 }
 

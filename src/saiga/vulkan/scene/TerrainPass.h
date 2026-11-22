@@ -131,8 +131,11 @@ class SAIGA_VULKAN_API TerrainPass
     // Nothing this frame (no set, no camera)
     void skipFrame();
     bool drawsThisFrame() const { return frameValid; }
-    // Inside a pass: the terrain (settings.terrain) and the water (settings.water)
-    void render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& settings);
+    // Inside a pass: the terrain (settings.terrain) and the water (settings.water); shadows: the receivers sample the
+    // cascades and the horizon map (S36a2; false: the variant without their code, created on first use, while both
+    // are off)
+    void render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& settings,
+                bool shadows = true);
     // The sky (settings.sky) of the environment, last in the scene pass (EQUAL at depth 0); TerrainFrame is written
     // for every frame with a camera, also without a terrain set
     void renderSky(vk::CommandBuffer cmd, uint32_t frameIndex, const PrototypeSettings& settings);
@@ -211,6 +214,10 @@ class SAIGA_VULKAN_API TerrainPass
     RenderingFormats sceneFormats;
     uint64_t creations = 0;
     Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline, shadowPipeline;
+    // S36a2: the scene and equal pipelines without the cascade and horizon code (LIGHTING_NO_SHADOWS)
+    Pipeline sceneNoShadows, equalNoShadows;
+    bool noShadowPipelines = false;
+    void createNoShadowPipelines();
     std::vector<ShadowStats> shadowStatistics;
     // The layouts the frame and sky sets are allocated from (independent of the pipelines)
     DescriptorSetLayout frameLayout, skyLayout;

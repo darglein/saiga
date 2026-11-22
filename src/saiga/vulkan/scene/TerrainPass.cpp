@@ -174,6 +174,32 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLigh
     initialized = true;
 }
 
+void TerrainPass::createNoShadowPipelines()
+{
+    // As createPipelines' scene and equal pipelines, with LIGHTING_NO_SHADOWS
+    const std::string defines = "#define LIGHTING_NO_SHADOWS\n";
+    PipelineInfo info;
+    info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
+    const auto vf                         = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
+    auto create                           = [&](Pipeline& p, const PipelineInfo& pi)
+    {
+        p.init(*base, 2);
+        p.addDescriptorSetLayout(setLayout(), 0);
+        p.addDescriptorSetLayout(SceneLightingSet::layout(), 1);
+        p.addPushConstantRange({vf, 0, sizeof(DrawPush)});
+        p.shaderPipeline.loadGLSL(base->device,
+                                  {{"vulkan/scene/terrain.vert", vk::ShaderStageFlagBits::eVertex, ""},
+                                   {"vulkan/scene/terrain.frag", vk::ShaderStageFlagBits::eFragment, defines}});
+        p.create(sceneFormats, pi);
+    };
+    create(sceneNoShadows, info);
+    PipelineInfo equal                       = info;
+    equal.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
+    equal.depthStencilState.depthWriteEnable = VK_FALSE;
+    create(equalNoShadows, equal);
+    noShadowPipelines = true;
+}
+
 void TerrainPass::createPipelines()
 {
     // Set 0: the terrain's frame data; set 1: the lighting set (S36: shadeSurface of lighting.glsl)
@@ -239,6 +265,9 @@ void TerrainPass::destroy()
     equalPipeline.destroy();
     skyPipeline.destroy();
     shadowPipeline.destroy();
+    sceneNoShadows.destroy();
+    equalNoShadows.destroy();
+    noShadowPipelines = false;
     probePipeline.destroy();
     indices.destroy();
     auto* pool = &base->descriptorPool;
@@ -627,13 +656,17 @@ void TerrainPass::writeDescriptors(Frame& f, TerrainAtlas& atlas, uint32_t frame
     base->device.updateDescriptorSets(writes, nullptr);
 }
 
-void TerrainPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& s)
+void TerrainPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& s,
+                         bool shadows)
 {
     if (!frameValid) return;
     const bool terrain = s.terrain && numFull + numQuarter > 0;
     const bool water   = s.water && numWater > 0;
     if (!terrain && !water) return;
-    Pipeline& p = mode == Mode::Depth ? depthPipeline : (mode == Mode::Equal ? equalPipeline : scenePipeline);
+    if (!shadows && mode != Mode::Depth && !noShadowPipelines) createNoShadowPipelines();
+    Pipeline& p = mode == Mode::Depth   ? depthPipeline
+                  : mode == Mode::Equal ? (shadows ? equalPipeline : equalNoShadows)
+                                        : (shadows ? scenePipeline : sceneNoShadows);
     if (!p.bind(cmd)) return;
     p.bindRawDescriptorSet(cmd, frames[frameIndex].set);
     p.bindRawDescriptorSet(cmd, lightingSet->set(frameIndex), 1);

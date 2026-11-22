@@ -15,8 +15,10 @@
 #include "terrain_common.glsl"
 #include "terrain_heights.glsl"
 
-// S36a1c review: the light terms per tuft (the transmittance, the cloud shadow and the fog are low-frequency; the
-// fragment shader of the blades' overdraw does no lookup for them)
+// S36a2: the shadow terms per vertex (the blades are small; their fragment shader carries none of the cascade and
+// horizon code, the grass's overdraw stays cheap); S36a1c review: the light terms per tuft (the transmittance and the
+// fog are low-frequency)
+#define SHADOWS_VERTEX
 #include "lighting/scene_block.glsl"
 layout(set = 1, binding = 3) uniform sampler2D cloudCoverage;
 layout(set = 1, binding = 6) uniform sampler2D transmittanceLut;
@@ -44,11 +46,14 @@ layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outUvLayer;
 layout(location = 3) out float outAo;
 layout(location = 4) flat out float outLod;
-// The light terms (vertex_light.glsl) of the tuft: rgb the sun's light, a the shadow light's cloud shadow; the moon's;
-// the fog
-layout(location = 5) flat out vec4 outSunE;
-layout(location = 6) flat out vec3 outMoonE;
-layout(location = 7) flat out vec4 outFog;
+// The shadow terms: x the cascades, y the horizon map, z the clouds, w the cascade index + 1; the horizon map's R and G
+// above the receiver
+layout(location = 5) out vec4 outShadow;
+layout(location = 6) out vec2 outHorizonRG;
+// The light terms (vertex_light.glsl) of the tuft: the sun's and the moon's light, the fog
+layout(location = 7) flat out vec3 outSunE;
+layout(location = 8) flat out vec3 outMoonE;
+layout(location = 9) flat out vec4 outFog;
 
 uint hash(uint x)
 {
@@ -88,13 +93,15 @@ float latticeNoise(vec2 p)
 
 void degenerate()
 {
-    outPos      = vec3(0);
-    outNormal   = vec3(0, 1, 0);
-    outAo       = 1.0;
-    outSunE     = vec4(0.0, 0.0, 0.0, 1.0);
-    outMoonE    = vec3(0.0);
-    outFog      = vec4(0.0, 0.0, 0.0, 1.0);
-    gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+    outPos       = vec3(0);
+    outNormal    = vec3(0, 1, 0);
+    outAo        = 1.0;
+    outShadow    = vec4(1.0, 1.0, 1.0, 0.0);
+    outHorizonRG = vec2(-60000.0);
+    outSunE      = vec3(0.0);
+    outMoonE     = vec3(0.0);
+    outFog       = vec4(0.0, 0.0, 0.0, 1.0);
+    gl_Position  = vec4(2.0, 2.0, 2.0, 1.0);
 }
 
 void main()
@@ -181,11 +188,14 @@ void main()
     outNormal   = normalize(mix(tn, vec3(0, 1, 0), 0.4));
     outAo       = inPosAo.w * 0.8;
     gl_Position = frame.viewProjRel * vec4(pos, 1.0);
-    // The light terms at the tuft's base (lighting.glsl's rules: the cloud shadow of the shadow light)
-    vec3 root     = vec3(rel.x, h - frame.cameraRel.y, rel.y);
-    VertexLight l = computeVertexLight(root);
-    float cloud   = lighting.mode.y == 0u ? cloudShadow(root) : 1.0;
-    outSunE       = vec4(l.sunE, cloud);
+    // The shadow light's terms (lighting.glsl's rule: an open space with a shadow light)
+    ShadowTerms t = noShadow();
+    if (lighting.mode.y == 0u && lighting.shadowLight.w > 0.0) t = shadowTerms(pos, outNormal);
+    outShadow    = vec4(t.cascade, t.horizon, t.cloud, float(t.index + 1));
+    outHorizonRG = clamp(t.rg, vec2(-60000.0), vec2(60000.0));
+    // The light terms at the tuft's base
+    VertexLight l = computeVertexLight(vec3(rel.x, h - frame.cameraRel.y, rel.y));
+    outSunE       = l.sunE;
     outMoonE      = l.moonE;
     outFog        = l.fog;
 }

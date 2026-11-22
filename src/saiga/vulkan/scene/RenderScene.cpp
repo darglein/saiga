@@ -755,7 +755,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         viewport(cmd);
         // terrain -> the game's render callback -> instances -> grass -> sky (the sky's EQUAL at depth 0 last)
         subBegin("scene.terrain", cmd);
-        s.terrain->render(cmd, frame.frameIndex, prepass ? TerrainPass::Mode::Equal : TerrainPass::Mode::Scene, proto);
+        // S36a2: the variant without the cascade and horizon code while both are off
+        s.terrain->render(cmd, frame.frameIndex, prepass ? TerrainPass::Mode::Equal : TerrainPass::Mode::Scene, proto,
+                          s.params.lighting.sunShadows || s.params.lighting.horizonShadows);
         subEnd("scene.terrain", cmd);
         viewport(cmd);
         if (s.renderFn && *s.renderFn) (*s.renderFn)(cmd);
