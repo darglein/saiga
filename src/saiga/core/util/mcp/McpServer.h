@@ -109,6 +109,11 @@ class SAIGA_CORE_API McpServer
 
     // A tool call that is not answered within this time (e.g. because poll() is not called) fails.
     double toolTimeoutSeconds = 60;
+    // The share of toolTimeoutSeconds that a tool which stops at a deadline leaves for its answer: the engine's
+    // answerDeadline is callDeadline() minus answerMarginFraction * toolTimeoutSeconds (0.1: "the timeout minus a
+    // tenth"). Tests with short timeouts raise it, so that the deadline comes early while the margin stays large in
+    // absolute time (e.g. a 0.8 s timeout with 0.5: the tool answers after 0.4 s, 0.4 s before the timeout).
+    double answerMarginFraction = 0.1;
 
     /**
      * Helper for the input schemas: an object with the given properties, e.g.

@@ -246,8 +246,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
                                                    "set_camera / move_camera place the camera")) +
                   "; list_scenarios / run_scenario run the game's scenarios."
             : appSetup.mcpInstructions;
-    server                     = std::make_unique<McpServer>(appSetup.name, "1.0", instructions);
-    server->toolTimeoutSeconds = appSetup.mcpToolTimeoutSeconds;
+    server                       = std::make_unique<McpServer>(appSetup.name, "1.0", instructions);
+    server->toolTimeoutSeconds   = appSetup.mcpToolTimeoutSeconds;
+    server->answerMarginFraction = appSetup.mcpAnswerMarginFraction;
     WorldToolsOptions toolOptions;
     toolOptions.snapshotDirectory = appSetup.snapshotDirectory;
     if (renderScene)

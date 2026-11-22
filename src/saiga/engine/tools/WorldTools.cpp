@@ -488,8 +488,9 @@ ToolResult toResult(const ApiResult& r)
 
 std::chrono::steady_clock::time_point answerDeadline(const McpServer& server)
 {
-    return server.callDeadline() - std::chrono::duration_cast<std::chrono::steady_clock::duration>(
-                                       std::chrono::duration<double>(0.1 * server.toolTimeoutSeconds));
+    return server.callDeadline() -
+           std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+               std::chrono::duration<double>(server.answerMarginFraction * server.toolTimeoutSeconds));
 }
 
 json11::Json profileWindow(const Profiler& profiler, uint64_t samples)

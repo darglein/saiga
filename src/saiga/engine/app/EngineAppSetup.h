@@ -71,6 +71,8 @@ struct EngineAppSetup
     std::function<void(EngineApp&)> onCameraReleased;
     int mcpPort                  = 8765;  // 0: the server is not started (the tools exist for handleMessage)
     double mcpToolTimeoutSeconds = 120;
+    // McpServer::answerMarginFraction (tests with short timeouts raise it)
+    double mcpAnswerMarginFraction = 0.1;
     std::string inputFile;          // default: <data directory>/input.json if it exists
     std::string snapshotDirectory;  // export_snapshot / import_snapshot (empty: refused)
     std::string mcpInstructions;    // the MCP server's instructions (initialize); a generic text if empty or noRender

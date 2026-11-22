@@ -967,7 +967,13 @@ McpServer::ToolResult McpServer::callTool(const std::string& toolName, const Jso
     // On a timeout the call is claimed: if poll() has not started it yet, it never runs; if it has started, the error
     // says so (its effects may have happened, a deferred answer arriving later is dropped).
     const auto deadline = call->deadline;
-    while (future.wait_for(std::chrono::milliseconds(50)) != std::future_status::ready)
+    // Wakes at the deadline (not up to 50 ms after it) and at least every 50 ms for stop()
+    auto waitStep = [&]()
+    {
+        return std::min(deadline + std::chrono::microseconds(1),
+                        std::chrono::steady_clock::now() + std::chrono::milliseconds(50));
+    };
+    while (future.wait_until(waitStep()) != std::future_status::ready)
     {
         if (stopping)
         {

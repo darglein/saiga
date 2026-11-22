@@ -112,7 +112,8 @@ TEST(McpServer, DeferredResponseAndTimeout)
     server.addTool("later", "Answers on the next poll", McpServer::ObjectSchema({}),
                    [&](const Json&, McpServer::Respond respond) { pending = respond; });
     server.addTool("never", "Never answers", McpServer::ObjectSchema({}), [](const Json&, McpServer::Respond) {});
-    server.toolTimeoutSeconds = 1.0;
+    // "later" is answered one poll (~1 ms) after its call, "never" waits for the timeout
+    server.toolTimeoutSeconds = 0.5;
 
     std::atomic_bool stop{false};
     std::thread poller(
@@ -167,7 +168,7 @@ TEST(McpServer, TimedOutCallsDoNotFillTheQueue)
     std::atomic_int executed{0};
     server.addTool("count", "Counts", McpServer::ObjectSchema({}),
                    [&](const Json&, McpServer::Respond r) { executed++, r(McpServer::ToolResult::Text("ok")); });
-    server.toolTimeoutSeconds = 0.02;
+    server.toolTimeoutSeconds = 0.005;
 
     // More timed-out calls than the queue holds: each reports "not run", none reports a full queue
     for (int i = 0; i < 80; ++i)
@@ -218,8 +219,8 @@ TEST(McpServer, TimeoutOfStartedCall)
     McpServer::Respond deferred;
     server.addTool("later", "Answers too late", McpServer::ObjectSchema({}),
                    [&](const Json&, McpServer::Respond r) { deferred = r; });
-    // Long enough that poll() starts the call before the timeout also on a loaded machine
-    server.toolTimeoutSeconds = 2;
+    // Long enough that poll() (every 5 ms) starts the call before the timeout also on a loaded machine
+    server.toolTimeoutSeconds = 1;
 
     auto result = std::async(std::launch::async, [&]
                              { return server.handleMessage(Request("tools/call", Json::object{{"name", "later"}})); });

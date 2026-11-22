@@ -813,12 +813,13 @@ void testScenarios(ScenarioList& l)
               w.addStepListener([]() { std::this_thread::sleep_for(std::chrono::milliseconds(30)); });
               w.step(10);
           });
-    // One step, then longer than run_scenario's answer deadline (4 s timeout: 3.6 s) but shorter than the timeout
+    // One step, then longer than run_scenario's answer deadline (1.2 s timeout with the margin 0.5: 0.6 s) but shorter
+    // than the timeout (0.3 s to either side)
     l.add("late_finish",
           [](ScenarioWorld& w)
           {
               w.step(1);
-              std::this_thread::sleep_for(std::chrono::milliseconds(3750));
+              std::this_thread::sleep_for(std::chrono::milliseconds(900));
           });
     l.add("reload",
           [](ScenarioWorld& w)
@@ -976,8 +977,10 @@ TEST(EngineAppNoRender, RunScenarioLoadsTheEndState)
 
 TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
 {
-    EngineAppSetup s        = scenarioSetup();
-    s.mcpToolTimeoutSeconds = 3;
+    // The answer deadline after 0.4 s, 0.4 s before the timeout
+    EngineAppSetup s          = scenarioSetup();
+    s.mcpToolTimeoutSeconds   = 0.8;
+    s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
     // The deadline stops a long scenario: no snapshot even with keep
     Json r = toolJson(callApp(app, "run_scenario", obj(R"({"name": "slow", "keep": true})")));
@@ -1005,8 +1008,9 @@ TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
 // and, with load, replaced the live world although the client may already have had its timeout
 TEST(EngineAppNoRender, RunScenarioFinishingAfterTheDeadlineIsNotLoaded)
 {
-    EngineAppSetup s        = scenarioSetup();
-    s.mcpToolTimeoutSeconds = 4;
+    EngineAppSetup s          = scenarioSetup();
+    s.mcpToolTimeoutSeconds   = 1.2;
+    s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
     app.world().step(3);
     const uint64_t liveHash = app.world().hash();
@@ -1360,9 +1364,11 @@ TEST_F(EngineAppRender, ScreenshotTool)
 // not answer a second time and the GUI flag is restored
 TEST_F(EngineAppRender, ScreenshotDeadlineWithoutFrames)
 {
-    EngineAppSetup s        = appSetup(true);
-    s.render.imgui          = true;
-    s.mcpToolTimeoutSeconds = 3;
+    // The answer deadline after 0.4 s, 0.4 s before the timeout
+    EngineAppSetup s          = appSetup(true);
+    s.render.imgui            = true;
+    s.mcpToolTimeoutSeconds   = 0.8;
+    s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
     app.scene()->setImguiVisible(true);
     app.setRenderingEnabled(false);
@@ -1601,7 +1607,8 @@ TEST_F(EngineAppRender, MeasureFramesEndsWithItsLastLoop)
         std::string err;
         result = Json::parse(r.content.empty() ? "" : r.content[0]["text"].string_value(), err);
     };
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(1500);
+    // Generous for the 3 frames and the step below (a software renderer on a loaded machine)
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
     app.measureFrames(3, deadline, respond);
     app.runFrames(3, 1.0 / 60);
     ASSERT_TRUE(result.is_null());  // waits for the GPU samples of its frames
