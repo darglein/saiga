@@ -348,7 +348,7 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
                                     vk::ImageLayout::eShaderReadOnlyOptimal);
         vk::DescriptorImageInfo srcArray(vk::Sampler(nearestSampler),
                                          arraySrc.texture ? arraySrc.texture->view() : dummyArray.view(),
-                                         vk::ImageLayout::eShaderReadOnlyOptimal);
+                                         arraySrc.texture ? arraySrc.layout : vk::ImageLayout::eShaderReadOnlyOptimal);
         vk::DescriptorImageInfo dst(nullptr, i.texture->view(), vk::ImageLayout::eGeneral);
         vk::DescriptorBufferInfo part(handle(partials), 0, VK_WHOLE_SIZE);
         vk::DescriptorBufferInfo stats(handle(i.gpuStats[frameIndex]), 0, kStatsBytes);

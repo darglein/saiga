@@ -69,6 +69,13 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     vec4 cascadeParams[4];
     // x: cascade count (0: off), y: depth bias (texels), z: normal offset (texels), w: 1 linear comparison filtering
     vec4 shadowParams;
+    // S36a2: the horizon map: previous and front map (xy corner - camera (m), z 1 / texel, w layer, -1 none), ref (x, y
+    // the maps' reference height - camera y, z blend previous -> front, w resolution), params (x on, y tan(elevation),
+    // z use G inside the cascades, w linear filtering)
+    vec4 horizonPrev;
+    vec4 horizonFront;
+    vec4 horizonRef;
+    vec4 horizonParams;
 }
 lighting;
 

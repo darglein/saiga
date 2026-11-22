@@ -10,6 +10,7 @@
 // without a Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/CascadedShadows.h"
+#include "saiga/vulkan/scene/HorizonShadows.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/scene/ShadowPipelineTable.h"
@@ -877,4 +878,317 @@ TEST_F(ShadowsFoliage, FoliageAlphaShadow)
     EXPECT_LT(opaque, 0.1) << "the opaque card";
     EXPECT_GT(leaf, 0.1) << "the leaf card is perforated";
     EXPECT_LT(leaf, 0.9) << "the leaf card casts";
+}
+
+//==================================================================================================
+// The far terrain horizon map (A6)
+
+namespace
+{
+// A 10% slope falling towards +x (facing a sun from +x), 200 m high at x = 0
+int32_t slopeTowardsSunHook(uint64_t, int64_t x, int64_t)
+{
+    return int32_t((200 * 1024) - x * 1024 / 10);
+}
+
+class HorizonTest : public Shadows
+{
+   protected:
+    void SetUp() override
+    {
+        Shadows::SetUp();
+        if (!scene) return;
+        LightingParameters p = scene->lightingParameters();
+        p.sunShadows         = false;  // the horizon map alone
+        p.horizonShadows     = true;
+        p.horizonResolution  = 256;
+        p.horizonExtent      = 8192;  // 32 m texels
+        p.forceFullUpdates   = true;
+        scene->setLightingParameters(p);
+        scene->setLightingDebug({LightingDebugView::HorizonShadow, 0});
+    }
+    // A terrain of the hook (4 km, 2 m spacing): the pyramid (the horizon map's source) and the camera's tiles
+    void Terrain(TerrainHeightHook hook, const Vec3& camera)
+    {
+        layout  = TerrainTestHooks::testLayout(16, 2);
+        pyramid = TerrainTestHooks::testPyramid(hook, layout);
+        TerrainTestHooks::fillTestTerrain(*scene, layout, TerrainHeightSource::fromHook(hook, 1), std::nullopt, camera,
+                                          false);
+    }
+    // The light from +x at the elevation (degrees)
+    void Elevation(double deg) { Sun(Vec3(std::cos(deg * kPi / 180), std::sin(deg * kPi / 180), 0)); }
+    // The front map (R, G) and its transform
+    std::vector<vec2> Front(HorizonShadows::MapTransform& t)
+    {
+        HorizonShadows& h = scene->horizonShadows();
+        t                 = h.transform(h.frontLayer());
+        return h.readLayerForTests(h.frontLayer());
+    }
+    // The dense CPU reference of a texel centre (x, z): max over t >= t0 (1 m steps) of the pyramid surface minus t
+    // tan(el), relative to the map's reference
+    double Reference(double x, double z, double el, double t0, const HorizonShadows::MapTransform& t) const
+    {
+        double best = -1e9;
+        for (double s = t0; s < 6000; s += 1.0)
+        {
+            const double px = x + s;
+            if (px > layout.sizeChunks * 256.0) break;
+            best = std::max(best, TerrainTestHooks::pyramidSurfaceHeight(layout, pyramid, px, z) - s * std::tan(el));
+        }
+        return best - double(t.refUnits) * kHeightUnit;
+    }
+    double Surface(double x, double z) const { return TerrainTestHooks::pyramidSurfaceHeight(layout, pyramid, x, z); }
+    TerrainLayout layout;
+    TerrainPyramidData pyramid;
+};
+}  // namespace
+
+// The conservative march against a dense CPU march over the pyramid's surface (finding 5): for 64 texels across the
+// ridge the GPU's shadow heights (R and G) are never below the reference (from 64 m, from cascadeCasterDistance) by
+// more than 0.5 m (no crest missed) and above the reference that starts one footprint earlier by at most that
+// footprint (the 2 x 2 cells of a step reach about 90 m behind it beyond 1 km: 90 m tan(el)) plus 2 m (the cells
+// hold the pyramid's samples, the reference its interpolated surface)
+TEST_F(HorizonTest, MatchCpuReference)
+{
+    const Vec3 eye(1500, 450, 2048);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    for (double deg : {3.0, 12.0})
+    {
+        Elevation(deg);
+        Camera(eye, Vec3(1, -0.5, 0));
+        Capture(2);
+        HorizonShadows::MapTransform t;
+        const std::vector<vec2> map = Front(t);
+        ASSERT_TRUE(t.valid);
+        ASSERT_EQ(map.size(), size_t(t.resolution * t.resolution));
+        const double el = deg * kPi / 180, footprint = 1.4142 * 64, tolerance = 2.0 + footprint * std::tan(el);
+        int checked = 0;
+        for (int k = 0; k < 64; ++k)
+        {
+            const int i = int((1000.0 + k * 16.0 - t.cornerX) / t.texel), j = int((2048.0 - t.cornerZ) / t.texel);
+            if (i < 0 || j < 0 || i >= t.resolution || j >= t.resolution) continue;
+            const double x = t.cornerX + (i + 0.5) * t.texel, z = t.cornerZ + (j + 0.5) * t.texel;
+            const vec2 gpu = map[size_t(j) * size_t(t.resolution) + size_t(i)];
+            const double r = Reference(x, z, el, 64, t), g = Reference(x, z, el, 1371, t);
+            const double rUp = Reference(x, z, el, 64 - 45, t), gUp = Reference(x, z, el, 1371 - 32 - 45, t);
+            EXPECT_GE(gpu(0), r - 0.5) << deg << " deg, x " << x;
+            EXPECT_LE(gpu(0), rUp + tolerance) << deg << " deg, x " << x;
+            if (g > -1e8)
+            {
+                EXPECT_GE(gpu(1), g - 0.5) << deg << " deg, x " << x;
+                EXPECT_LE(gpu(1), gUp + tolerance) << deg << " deg, x " << x;
+            }
+            checked++;
+        }
+        EXPECT_GT(checked, 50);
+    }
+}
+
+// The far shadow edge (the first lit texel going away from the ridge) moves by less than 2 texels when the light
+// turns by 0.1 degrees (the conservative march does not flicker with the light direction)
+TEST_F(HorizonTest, FarEdgeStableUnderSmallRotation)
+{
+    const Vec3 eye(1500, 450, 2048);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    auto edge = [&](double deg, double azimuthDeg)
+    {
+        const double el = deg * kPi / 180, az = azimuthDeg * kPi / 180;
+        Sun(Vec3(std::cos(el) * std::cos(az), std::sin(el), std::cos(el) * std::sin(az)));
+        Camera(eye, Vec3(1, -0.5, 0));
+        Capture(2);
+        HorizonShadows::MapTransform t;
+        const std::vector<vec2> map = Front(t);
+        const int j                 = int((2048.0 - t.cornerZ) / t.texel);
+        bool shadow                 = false;
+        for (int i = int((2040.0 - t.cornerX) / t.texel); i > 0; --i)
+        {
+            const double x = t.cornerX + (i + 0.5) * t.texel, z = t.cornerZ + (j + 0.5) * t.texel;
+            const double y = Surface(x, z) - double(t.refUnits) * kHeightUnit;
+            const bool lit = map[size_t(j) * size_t(t.resolution) + size_t(i)](0) < y;
+            if (!lit) shadow = true;
+            if (lit && shadow) return double(i);
+        }
+        return 0.0;
+    };
+    const double a = edge(4, 0), b = edge(4.1, 0), c = edge(4, 0.1);
+    EXPECT_GT(a, 0);
+    EXPECT_LE(std::abs(a - b), 2.0);
+    EXPECT_LE(std::abs(a - c), 2.0);
+}
+
+// Flat ground and a 10% slope facing the sun are lit at 2, 5 and 10 degrees (finding 4: the one-sided band, the
+// march from 64 m)
+TEST_F(HorizonTest, FlatGroundIsLitAtLowSun)
+{
+    for (TerrainHeightHook hook :
+         {TerrainHeightHook(TerrainTestHooks::flatHook), TerrainHeightHook(slopeTowardsSunHook)})
+    {
+        scene->clearTerrain();
+        const Vec3 eye(2000, 0, 2000);
+        Terrain(hook, eye);
+        const Vec3 cam(2000, Surface(2000, 2000) + 60, 2000);
+        for (double deg : {2.0, 5.0, 10.0})
+        {
+            Elevation(deg);
+            Camera(cam, Vec3(0.3, -1, 0.2));
+            const TemplatedImage<ucvec4> img = Capture(2);
+            for (const Vec2& p : {Vec2(2010, 2010), Vec2(2030, 1990), Vec2(1990, 2025)})
+                EXPECT_GT(FactorAt(img, Vec3(p(0), Surface(p(0), p(1)), p(1))), 0.98f) << deg << " deg";
+        }
+    }
+}
+
+// A valley point behind the ridge (towards -x) is lit at noon and in the ridge's shadow at 3 degrees (the long shadow
+// at sunset)
+TEST_F(HorizonTest, LongShadowAtSunset)
+{
+    const Vec3 point(1500, 0, 2048);
+    const Vec3 eye(1450, 120, 2048.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    const Vec3 ground(point(0), Surface(point(0), point(2)), point(2));
+    Elevation(80);
+    Camera(eye, Vec3(1, -1.5, 0));
+    EXPECT_GT(FactorAt(Capture(2), ground), 0.9f) << "noon";
+    Elevation(3);
+    EXPECT_LT(FactorAt(Capture(2), ground), 0.1f) << "sunset";
+}
+
+// The incremental update (rows per frame) gives the same map as a full update; its rows per frame follow the
+// parameter
+TEST_F(HorizonTest, IncrementalEqualsFull)
+{
+    const Vec3 eye(1500, 450, 2048);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    Elevation(6);
+    Camera(eye, Vec3(1, -0.5, 0));
+    Capture(2);
+    HorizonShadows::MapTransform t;
+    const std::vector<vec2> full = Front(t);
+    // The same light again after another one, incrementally (32 rows per frame: 8 frames)
+    LightingParameters p  = scene->lightingParameters();
+    p.forceFullUpdates    = false;
+    p.horizonRowsPerFrame = 32;
+    scene->setLightingParameters(p);
+    // (60 frames: the light's angular speed of earlier frames decays, the base rows per frame apply)
+    Elevation(20);
+    for (int i = 0; i < 60; ++i) RenderFrame();
+    Elevation(6);
+    int frames = 0;
+    while (frames < 40)
+    {
+        RenderFrame();
+        frames++;
+        scene->waitIdle();
+        const HorizonStatistics st = scene->lightingStatistics().horizon;
+        const vec3 l(float(std::cos(6 * kPi / 180)), float(std::sin(6 * kPi / 180)), 0);
+        if (!st.computing && (st.light - l).norm() < 1e-4f) break;
+    }
+    EXPECT_GE(frames, 8);
+    EXPECT_LT(frames, 40);
+    HorizonShadows::MapTransform u;
+    const std::vector<vec2> incremental = Front(u);
+    ASSERT_EQ(full.size(), incremental.size());
+    float maxDiff = 0;
+    for (size_t k = 0; k < full.size(); ++k)
+        if (full[k](0) > -1e8f)
+            maxDiff =
+                std::max({maxDiff, std::abs(full[k](0) - incremental[k](0)), std::abs(full[k](1) - incremental[k](1))});
+    EXPECT_LE(maxDiff, 1e-3f);
+}
+
+// After a light change the factor at a receiver moves monotonically from the previous map's value to the new map's,
+// not before the new map was computed (16 rows per frame of 256: 16 frames); the blend of the shadow heights moves the
+// shadow's edge continuously over the ground (at one point the factor changes within a few frames)
+TEST_F(HorizonTest, BlendsDuringRecompute)
+{
+    const Vec3 point(1500, 0, 2048);
+    const Vec3 eye(1450, 120, 2048.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    const Vec3 ground(point(0), Surface(point(0), point(2)), point(2));
+    Elevation(80);
+    Camera(eye, Vec3(1, -1.5, 0));
+    const float lit = FactorAt(Capture(2), ground);
+    EXPECT_GT(lit, 0.9f);
+    LightingParameters p  = scene->lightingParameters();
+    p.forceFullUpdates    = false;
+    p.horizonRowsPerFrame = 16;
+    scene->setLightingParameters(p);
+    // (the light's angular speed of earlier frames decays: the base rows per frame apply)
+    for (int i = 0; i < 60; ++i) RenderFrame();
+    Elevation(3);
+    std::vector<float> f;
+    for (int i = 0; i < 40; ++i) f.push_back(FactorAt(Capture(1), ground));
+    EXPECT_LT(f.back(), 0.1f) << "the new map is shown in the end";
+    size_t first = f.size();
+    for (size_t i = 1; i < f.size(); ++i)
+    {
+        EXPECT_LE(f[i], f[i - 1] + 1.0f / 255) << i;
+        if (f[i] < 0.5f && first == f.size()) first = i;
+    }
+    EXPECT_GE(first, 14u) << "the change follows the recompute";
+}
+
+// A small camera move recomputes nothing; leaving the inner half of the map moves the anchor and recomputes, and
+// during that recompute a shadowed world point stays shadowed (each map keeps its own transform; finding 15)
+TEST_F(HorizonTest, NoRecomputeForSmallCameraMovesAndAnchorMoveKeepsShadows)
+{
+    const Vec3 point(1500, 0, 2048);
+    const Vec3 eye(1450, 120, 2048.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    const Vec3 ground(point(0), Surface(point(0), point(2)), point(2));
+    Elevation(3);
+    Camera(eye, Vec3(1, -1.5, 0));
+    EXPECT_LT(FactorAt(Capture(2), ground), 0.1f);
+    LightingParameters p  = scene->lightingParameters();
+    p.forceFullUpdates    = false;
+    p.horizonRowsPerFrame = 16;
+    scene->setLightingParameters(p);
+    const uint64_t before = scene->lightingStatistics().horizon.recomputes;
+    const ivec2 corner    = scene->lightingStatistics().horizon.corner;
+    // 100 m: inside the inner half (2 km)
+    Camera(eye + Vec3(60, 0, 80), Vec3(1, -1.5, 0));
+    Capture(3);
+    EXPECT_EQ(scene->lightingStatistics().horizon.recomputes, before);
+    // 2.5 km along z: a new anchor; the point stays shadowed through the recompute
+    const Vec3 far(eye(0), eye(1), eye(2) - 2500);
+    std::vector<float> f;
+    Camera(eye + Vec3(0, 0, 0.5), Vec3(1, -1.5, 0));
+    for (int i = 0; i < 24; ++i)
+    {
+        // The anchor follows the far camera position; the frames are viewed from near the point
+        scene->horizonShadows();
+        Camera(i == 0 ? far : eye + Vec3(0, 0, 0.5), Vec3(1, -1.5, 0));
+        const TemplatedImage<ucvec4> img = Capture(1);
+        if (i > 0) f.push_back(FactorAt(img, ground));
+    }
+    EXPECT_GT(scene->lightingStatistics().horizon.recomputes, before);
+    EXPECT_NE(scene->lightingStatistics().horizon.corner, corner);
+    for (float v : f) EXPECT_LT(v, 0.1f);
+}
+
+// A terrain edit (a pyramid patch) rebuilds the max chain and recomputes the map: a raised block towards the light
+// raises the shadow heights behind it
+TEST_F(HorizonTest, EditMarksRowsDirty)
+{
+    const Vec3 eye(2000, 200, 2000);
+    Terrain(TerrainTestHooks::flatHook, eye);
+    Elevation(10);
+    Camera(eye, Vec3(1, -1, 0));
+    Capture(2);
+    HorizonShadows::MapTransform t;
+    const std::vector<vec2> before = Front(t);
+    const uint64_t recomputes      = scene->lightingStatistics().horizon.recomputes;
+    // A 100 m block at x 2400..2560 (pyramid samples 75..80), z 1920..2080
+    std::vector<int32_t> heights(6 * 6, 100 * 1024);
+    scene->patchTerrainPyramid(0, 75, 60, 6, 6, heights.data());
+    Capture(3);
+    EXPECT_GT(scene->lightingStatistics().horizon.recomputes, recomputes);
+    HorizonShadows::MapTransform u;
+    const std::vector<vec2> after = Front(u);
+    const int i = int((2200.0 - u.cornerX) / u.texel), j = int((2000.0 - u.cornerZ) / u.texel);
+    const size_t k = size_t(j) * size_t(u.resolution) + size_t(i);
+    EXPECT_GT(after[k](0), before[k](0) + 20) << "behind the block";
+    const int jFar    = int((2600.0 - u.cornerZ) / u.texel);
+    const size_t kFar = size_t(jFar) * size_t(u.resolution) + size_t(i);
+    EXPECT_NEAR(after[kFar](0), before[kFar](0), 1e-3) << "beside it";
 }

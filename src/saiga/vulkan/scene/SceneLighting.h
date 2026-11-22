@@ -90,8 +90,16 @@ struct SceneLighting
     // x: the cascade count (0: no cascade shadows), y: the depth bias (texels), z: the normal offset (texels), w: 1 the
     // comparison sampler filters linearly (else nearest compares with manual bilinear weights)
     vec4 shadowParams = vec4(0, 1, 1, 1);
+    // S36a2: the horizon map (A6). Previous and front map: xy their corner relative to the camera (m), z 1 / texel (m),
+    // w the layer (-1: none); horizonRef: x, y the previous and front map's reference height relative to the camera
+    // (m), z the blend previous -> front, w the resolution; horizonParams: x 1 on, y tan(elevation) of the shadow
+    // light, z 1 receivers inside a cascade use G, w 1 the format filters linearly
+    vec4 horizonPrev   = vec4(0, 0, 0, -1);
+    vec4 horizonFront  = vec4(0, 0, 0, -1);
+    vec4 horizonRef    = vec4(0, 0, 1, 0);
+    vec4 horizonParams = vec4(0, 0, 0, 0);
 };
-static_assert(sizeof(SceneLighting) == 53 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
+static_assert(sizeof(SceneLighting) == 57 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
 
 }  // namespace Vulkan
 }  // namespace Saiga

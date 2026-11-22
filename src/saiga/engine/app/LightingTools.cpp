@@ -442,6 +442,11 @@ const std::vector<LightingKey>& lightingKeys()
         k.push_back(floatKey("min_shadow_elevation_deg", true, 0.5, 45, pf(&P::minShadowElevationDeg)));
         k.push_back(floatKey("cascade_caster_distance", true, 0, 20000, pf(&P::cascadeCasterDistance)));
         k.push_back(boolKey("terrain_casts_in_cascades", true, pb(&P::terrainCastsInCascades)));
+        // S36a2: the horizon map
+        k.push_back(boolKey("horizon_shadows", true, pb(&P::horizonShadows)));
+        k.push_back(intKey("horizon_resolution", true, 128, 4096, pi(&P::horizonResolution), true));
+        k.push_back(floatKey("horizon_extent", true, 1000, 200000, pf(&P::horizonExtent)));
+        k.push_back(intKey("horizon_rows_per_frame", true, 1, 4096, pi(&P::horizonRowsPerFrame)));
         return k;
     }();
     return keys;
@@ -477,8 +482,8 @@ Json keysJson(const LightingState& s, bool parameters)
 const std::vector<std::string>& sectionNames()
 {
     static const std::vector<std::string> names = {
-        "time",        "weather", "sun",      "moon",       "shadow_light", "tone_map", "exposure", "ambient",
-        "environment", "clouds",  "settings", "parameters", "debug",        "gpu",      "memory",   "cascades"};
+        "time",   "weather",  "sun",        "moon",  "shadow_light", "tone_map", "exposure", "ambient", "environment",
+        "clouds", "settings", "parameters", "debug", "gpu",          "memory",   "cascades", "horizon"};
     return names;
 }
 }  // namespace
@@ -517,8 +522,9 @@ namespace
 // The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
 const std::vector<std::string>& lightingGpuSections()
 {
-    static const std::vector<std::string> names = {"environment",  "shadow",      "shadow.cascades", "scene.sky",
-                                                   "scene.clouds", "scene.debug", "lighting.preview"};
+    static const std::vector<std::string> names = {"environment",    "shadow",          "shadow.cascades",
+                                                   "shadow.horizon", "scene.sky",       "scene.clouds",
+                                                   "scene.debug",    "lighting.preview"};
     return names;
 }
 
@@ -825,6 +831,28 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                          {"memory_bytes", double(ls.shadowMemoryBytes)},
                                          {"list", list}};
     }
+    // S36a2: the horizon map (the front map's transform, the map in progress, the blend)
+    {
+        const Vulkan::HorizonStatistics& h = ls.horizon;
+        o["horizon"]                       = Json::object{{"on", h.on},
+                                                          {"enabled", state.parameters.horizonShadows},
+                                                          {"valid", h.valid},
+                                                          {"resolution", h.resolution},
+                                                          {"extent", h.extent},
+                                                          {"texel_m", h.texel},
+                                                          {"anchor", Json::array{h.corner(0), h.corner(1)}},
+                                                          {"reference_height", h.reference},
+                                                          {"direction", vec3Json(h.light)},
+                                                          {"computing", h.computing},
+                                                          {"progress", Json::array{h.rowsDone, h.resolution}},
+                                                          {"rows_this_frame", h.rowsThisFrame},
+                                                          {"blend", double(h.blend)},
+                                                          {"recomputes", double(h.recomputes)},
+                                                          {"completed", double(h.completed)},
+                                                          {"last_complete_frame", double(h.lastComplete)},
+                                                          {"level_at_10km", h.levelAt10km},
+                                                          {"memory_bytes", double(h.memoryBytes)}};
+    }
     if (!sections.empty())
     {
         Json::object filtered;
@@ -1009,8 +1037,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = arrayProperty("[r, g, b] lux", Json::object{{"type", "number"}});
         else if (n == "sun_override")
             p = Json::object{{"description", "{azimuth_deg, elevation_deg} or null"}};
-        else if (n == "clouds" || n == "force_full_updates" || n == "sun_shadows" || n == "terrain_casts_in_cascades")
+        else if (n == "clouds" || n == "force_full_updates" || n == "sun_shadows" || n == "terrain_casts_in_cascades" ||
+                 n == "horizon_shadows")
             p = McpServer::BooleanProperty(n);
+        else if (n == "horizon_resolution")
+            p = McpServer::IntegerProperty("A power of two in [128, 4096]");
+        else if (n == "horizon_rows_per_frame")
+            p = McpServer::IntegerProperty(n);
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
         else if (n == "cloud_seed")
@@ -1038,7 +1071,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "force_full_updates and (the cascades) sun_shadows, cascade_count (1..4), cascade_resolution (256..4096), "
         "shadow_distance (m), split_lambda, cascade_interval ([4], the first 1), depth_bias_texels, slope_bias, "
         "normal_offset_texels, cascade_blend, shadow_lod_bias, small_caster_texels, max_caster_height (m), "
-        "min_shadow_elevation_deg, cascade_caster_distance (m), terrain_casts_in_cascades. Returns values, previous "
+        "min_shadow_elevation_deg, cascade_caster_distance (m), terrain_casts_in_cascades and (the far terrain horizon "
+        "map) horizon_shadows, horizon_resolution (128..4096), horizon_extent (m), horizon_rows_per_frame. Returns "
+        "values, previous "
         "(an undo payload of this tool) and memory_bytes (the cascades after the change; more than 1 GiB of lighting "
         "memory is refused). An error names every invalid key and changes nothing.",
         schema(setProperties),
@@ -1072,10 +1107,15 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                                                     uint64_t(after.parameters.cascadeResolution) * 4 *
                                                     uint64_t(after.parameters.cascadeCount)
                                                        : 0;
-            const uint64_t memory                = ls.memoryBytes - ls.shadowMemoryBytes + cascadeBytes;
+            const uint64_t horizonBytes          = after.parameters.horizonShadows
+                                                       ? uint64_t(after.parameters.horizonResolution) *
+                                                    uint64_t(after.parameters.horizonResolution) * 3 * 8
+                                                       : 0;
+            const uint64_t memory =
+                ls.memoryBytes - ls.shadowMemoryBytes - ls.horizon.memoryBytes + cascadeBytes + horizonBytes;
             if (errors.empty() && memory > (uint64_t(1) << 30))
                 errors = "the lighting memory after the change (" + std::to_string(memory) +
-                         " bytes) exceeds 1 GiB (cascade_resolution, cascade_count)";
+                         " bytes) exceeds 1 GiB (cascade_resolution, cascade_count, horizon_resolution)";
             if (!errors.empty()) return respond(ToolResult::Error(errors + " (nothing changed)"));
             for (auto& kv : previous)
                 values[kv.first] = [&]
@@ -1202,20 +1242,22 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "environment map's front cube as a cross of the mip mip, cd/m^2, log2 by default), irradiance (its SH "
         "irradiance per direction, equirectangular, lux), cloud_coverage (the cloud layer's coverage at the "
         "cloudiness over its 16 km tile), cloud_shadow (the cloud shadow factor on the plane of the camera height "
-        "around the camera, +- the shadow fade) or cascade (S36a2: the cascades' light-space depth, 0 at the near end, "
+        "around the camera, +- the shadow fade), cascade (S36a2: the cascades' light-space depth, 0 at the near end, "
         "1 at the far end, the minimum over the texels a preview texel covers; cascade: its index, without it every "
-        "cascade side by side; the block names each cascade's world box and texel size). range (\"auto\" or [min, "
-        "max]), log, color_map (gray, turbo) set the mapping; mip: the environment's mip (0..4, default 0; a request "
-        "of its own, the Lighting tab's mip is not changed); stats_only: true returns the block without an image (the "
-        "one path to the statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default "
-        "1280, 64..8192); full: true updates incremental effects fully first (the environment map). Deferred: "
-        "answered from the frame that computes the preview; an error when no frame is rendered before the deadline. "
-        "Changes nothing.",
+        "cascade side by side; the block names each cascade's world box and texel size) or horizon (the front horizon "
+        "map's shadow height, m relative to its reference; channel r: occluders from 64 m, g: beyond the cascades' "
+        "terrain; the block names its anchor, extent and direction). range (\"auto\" or [min, max]), log, color_map "
+        "(gray, turbo) set the mapping; mip: the environment's mip (0..4, default 0; a request of its own, the "
+        "Lighting tab's mip is not changed); stats_only: true returns the block without an image (the one path to the "
+        "statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, 64..8192); "
+        "full: true updates incremental effects fully first (the environment map). Deferred: answered from the frame "
+        "that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
         schema(
             {{"image",
               McpServer::StringProperty(
                   "The image", {"luminance", "brdf_lut", "transmittance_lut", "multi_scattering_lut", "sky_view_lut",
-                                "environment", "irradiance", "cloud_coverage", "cloud_shadow", "cascade"})},
+                                "environment", "irradiance", "cloud_coverage", "cloud_shadow", "cascade", "horizon"})},
+             {"channel", McpServer::StringProperty("horizon: the channel (default r)", {"r", "g"})},
              {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
              {"cascade", McpServer::IntegerProperty("cascade: the cascade (0..count - 1; default all side by side)")},
              {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
@@ -1230,7 +1272,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             std::string error;
             if (unknownArgument(a,
                                 {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only",
-                                 "mip", "cascade"},
+                                 "mip", "cascade", "channel"},
                                 error))
                 return respond(ToolResult::Error(error));
             Vulkan::RenderScene* scene = app.scene();
@@ -1241,7 +1283,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (!parsed)
                 return respond(ToolResult::Error(
                     "image: luminance, brdf_lut, transmittance_lut, multi_scattering_lut, sky_view_lut, environment, "
-                    "irradiance, cloud_coverage, cloud_shadow or cascade"));
+                    "irradiance, cloud_coverage, cloud_shadow, cascade or horizon"));
             Vulkan::LightingImage image = *parsed;
             // S36a2: the cascades (one, or all side by side)
             int cascade = -1;
@@ -1265,6 +1307,20 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             }
             else if (!a["cascade"].is_null())
                 return respond(ToolResult::Error("cascade: only for image cascade"));
+            // S36a2: the horizon map's channel
+            if (image == Vulkan::LightingImage::Horizon)
+            {
+                const Vulkan::HorizonStatistics& h = scene->lightingStatistics().horizon;
+                if (!h.valid)
+                    return respond(ToolResult::Error(
+                        "horizon: no horizon map (set_lighting horizon_shadows: true, a shadow light, terrain)"));
+                if (!a["channel"].is_null() && a["channel"] != Json("r") && a["channel"] != Json("g"))
+                    return respond(ToolResult::Error("channel: r or g"));
+                scene->setHorizonPreviewChannel(a["channel"] == Json("g") ? 1 : 0);
+                if (a["full"].bool_value()) scene->requestHorizonRecompute(true);
+            }
+            else if (!a["channel"].is_null())
+                return respond(ToolResult::Error("channel: only for image horizon"));
             int mip = 0;
             if (!a["mip"].is_null())
             {
@@ -1361,6 +1417,20 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         block["cascades"] = boxes;
                         block["layout"]   = cascade >= 0 ? "one cascade" : "every cascade side by side (0 left)";
                     }
+                    if (name == "horizon")
+                    {
+                        block["unit"] = "shadow height (m) relative to the map's reference height";
+                        if (Vulkan::RenderScene* sc = app.scene())
+                        {
+                            const Vulkan::HorizonStatistics& h = sc->lightingStatistics().horizon;
+                            block["channel"]                   = sc->horizonPreviewChannelValue() == 1 ? "g" : "r";
+                            block["anchor"]                    = Json::array{h.corner(0), h.corner(1)};
+                            block["extent"]                    = h.extent;
+                            block["texel_m"]                   = h.texel;
+                            block["reference_height"]          = h.reference;
+                            block["direction"]                 = vec3Json(h.light);
+                        }
+                    }
                     if (statsOnly || c.image.width == 0) return respond(ToolResult::Text(Json(block).dump()));
                     TemplatedImage<ucvec4> img = c.image;
                     const int w                = std::min(img.w, maxWidth);
@@ -1398,14 +1468,15 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "probe_lighting",
         "Reads the lighting at one pixel ([x, y], row 0 at the top) or at the screen position of a world point "
-        "(position [x, y, z]): a sequence of 9 frames (frame 1 normal, then the albedo, normal and material views, "
-        "the direct, ambient and specular radiance, the cloud shadow and the cascades), each copying the resolved "
-        "pixel (the MSAA "
+        "(position [x, y, z]): a sequence of 10 frames (frame 1 normal, then the albedo, normal and material views, "
+        "the direct, ambient and specular radiance, the cloud shadow, the cascades and the horizon map), each copying "
+        "the resolved pixel (the MSAA "
         "average); the camera "
         "and "
         "the environment are held during it. Answers depth, world position and distance, albedo, roughness, "
         "metalness, ao, normal, the shadow factors (cloud, cascade with the cascade index, null outside every cascade, "
-        "and their product), the direct, ambient (diffuse) and specular "
+        "horizon with the horizon map's shadow heights R and G above the receiver in m, and their product), the "
+        "direct, ambient (diffuse) and specular "
         "(environment) radiance and the frame's radiance (cd/m^2; clay: display values), its luminance and EV100, "
         "frames and consistent (false when the depth changed by more than 1% between the frames; the camera and the "
         "environment are held). A position is projected with the camera of the sequence's first frame. Screenshots "
@@ -1489,6 +1560,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 o["shadow"]    = Json::object{{"cloud", double(p.cloudShadow)},
                                               {"cascade", double(p.cascadeShadow)},
                                               {"cascade_index", p.cascade >= 0 ? Json(p.cascade) : Json()},
+                                              {"horizon", double(p.horizonShadow)},
+                                              {"horizon_r_above_receiver", double(p.horizonR)},
+                                              {"horizon_g_above_receiver", double(p.horizonG)},
                                               {"factor", double(p.shadowFactor)}};
                 o["radiance"]  = Json::object{{"direct", vec3Json(p.direct)},
                                               {"ambient", vec3Json(p.ambient)},

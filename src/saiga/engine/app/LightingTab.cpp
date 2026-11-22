@@ -74,6 +74,7 @@ void LightingTab::draw()
     ambient();
     skyAndClouds();
     cascadesSection();
+    horizonSection();
     gpuAndMemory();
 }
 
@@ -732,6 +733,78 @@ void LightingTab::cascadesSection()
     }
 }
 
+void LightingTab::horizonSection()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene || !ui.section("lighting/Far terrain shadows", "Far terrain shadows", false)) return;
+    Vulkan::LightingParameters p       = scene->lightingParameters();
+    const Vulkan::HorizonStatistics& h = scene->lightingStatistics().horizon;
+    bool changed                       = ImGui::Checkbox("horizon shadows", &p.horizonShadows);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("recompute now")) scene->requestHorizonRecompute(false);
+    if (DebugUiStyle::beginProperties("##lighting horizon"))
+    {
+        DebugUiStyle::property("resolution");
+        {
+            const int sizes[]   = {256, 512, 1024, 2048};
+            const char* names[] = {"256", "512", "1024", "2048"};
+            int current         = 2;
+            for (int i = 0; i < 4; ++i)
+                if (sizes[i] == p.horizonResolution) current = i;
+            if (ImGui::Combo("##horizon resolution", &current, names, 4))
+            {
+                p.horizonResolution = sizes[current];
+                changed             = true;
+            }
+        }
+        DebugUiStyle::property("extent");
+        changed = ImGui::SliderFloat("##horizon extent", &p.horizonExtent, 4096, 131072, "%.0f m",
+                                     ImGuiSliderFlags_Logarithmic) ||
+                  changed;
+        DebugUiStyle::property("rows per frame");
+        changed =
+            ImGui::SliderInt("##horizon rows", &p.horizonRowsPerFrame, 1, 1024, "%d", ImGuiSliderFlags_Logarithmic) ||
+            changed;
+        DebugUiStyle::property("map");
+        if (h.valid)
+            ImGui::Text("%d^2, %.1f m texels, %.0f m", h.resolution, h.texel, h.extent);
+        else
+            ImGui::TextUnformatted(p.horizonShadows ? "none yet (no terrain or shadow light)" : "off");
+        DebugUiStyle::property("anchor");
+        ImGui::Text("(%d, %d) m, reference %.0f m", h.corner(0), h.corner(1), h.reference);
+        DebugUiStyle::property("direction");
+        ImGui::Text("(%.3f, %.3f, %.3f), el %.2f deg", double(h.light(0)), double(h.light(1)), double(h.light(2)),
+                    std::asin(std::clamp(double(h.light(1)), -1.0, 1.0)) * 57.29577951308232);
+        DebugUiStyle::property("progress");
+        {
+            char text[64];
+            std::snprintf(text, sizeof(text), h.computing ? "%d / %d rows" : "idle (%d / %d)", h.rowsDone,
+                          h.resolution);
+            ImGui::ProgressBar(h.computing && h.resolution > 0 ? float(h.rowsDone) / float(h.resolution) : 1.0f,
+                               ImVec2(-1, 0), text);
+        }
+        DebugUiStyle::property("blend");
+        ImGui::ProgressBar(h.blend, ImVec2(-1, 0));
+        DebugUiStyle::property("rows this frame");
+        ImGui::Text("%d", h.rowsThisFrame);
+        DebugUiStyle::property("recomputes");
+        ImGui::Text("%llu started, %llu completed (last frame %llu)", (unsigned long long)h.recomputes,
+                    (unsigned long long)h.completed, (unsigned long long)h.lastComplete);
+        DebugUiStyle::property("march level at 10 km");
+        ImGui::Text("%d (%.0f m cells)", h.levelAt10km, 32.0 * double(1 << h.levelAt10km));
+        DebugUiStyle::endProperties();
+    }
+    if (changed) scene->setLightingParameters(p);
+    if (!h.valid) return;
+    ImGui::RadioButton("R (from 64 m)", &horizonChannel, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("G (beyond the cascades' terrain)", &horizonChannel, 1);
+    scene->setHorizonPreviewChannel(horizonChannel);
+    ImGui::TextUnformatted("shadow height (m above the reference; light: high)");
+    previewImage(Vulkan::LightingImage::Horizon, false, 384.0f);
+}
+
 void LightingTab::gpuAndMemory()
 {
     DebugUi& ui                = app.debugUi();
@@ -742,8 +815,8 @@ void LightingTab::gpuAndMemory()
         // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
         Profiler& p     = app.gpuProfile();
         double lighting = 0, debug = 0;
-        for (const char* n :
-             {"environment", "shadow.cascades", "scene.sky", "scene.clouds", "scene.debug", "lighting.preview"})
+        for (const char* n : {"environment", "shadow.cascades", "shadow.horizon", "scene.sky", "scene.clouds",
+                              "scene.debug", "lighting.preview"})
         {
             const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
             const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";

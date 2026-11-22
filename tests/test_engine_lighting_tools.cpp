@@ -32,6 +32,7 @@
 #include <optional>
 
 #include "mcp_test_helper.h"
+#include "terrain_test_hooks.h"
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -98,6 +99,8 @@ EngineAppSetup tabSetup(bool environment)
     // S36a2: the cascades on (small: lavapipe)
     s.render.lighting.sunShadows        = true;
     s.render.lighting.cascadeResolution = 512;
+    s.render.lighting.horizonShadows    = true;
+    s.render.lighting.horizonResolution = 128;
     return s;
 }
 
@@ -108,7 +111,7 @@ void showLightingTab(EngineApp& app)
     state["sections"]  = Json::object{{"lighting/Time and weather", true}, {"lighting/Sun and moon", true},
                                       {"lighting/Exposure", true},         {"lighting/Ambient", true},
                                       {"lighting/Sky and clouds", true},   {"lighting/GPU and memory", true},
-                                      {"lighting/Cascades", true}};
+                                      {"lighting/Cascades", true},         {"lighting/Far terrain shadows", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -707,6 +710,63 @@ TEST_F(LightingDebugTools, CascadeTools)
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"sun_shadows": false})"))));
     s.removeInstanceSet(*card);
     card.reset();
+}
+
+// S36a2: the horizon map's tool keys: the set_lighting keys round-trip, get_lighting.horizon, capture_lighting(horizon)
+// (channels r and g, an error without a map), probe_lighting's horizon keys; the ridge pyramid set on the scene
+TEST_F(LightingDebugTools, HorizonTools)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
+    // Without terrain: no map
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_shadows": true, "horizon_resolution": 128})"))));
+    app->runFrames(2, 1.0 / 60);
+    EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(R"({"image": "horizon"})"))));
+    EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(R"({"image": "luminance", "channel": "g"})"))));
+    const Json set = call(*app, "set_lighting",
+                          obj(R"({"horizon_extent": 4096, "horizon_rows_per_frame": 32, "horizon_resolution": 256})"));
+    ASSERT_FALSE(isError(set)) << text(set);
+    EXPECT_EQ(result(set)["previous"]["horizon_resolution"].number_value(), 128);
+    for (const char* args :
+         {R"({"horizon_resolution": 100})", R"({"horizon_extent": 10})", R"({"horizon_rows_per_frame": 0})"})
+        EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_resolution": 128})"))));
+    // A 4 km space with the ridge (the pyramid only: the horizon map's source), the camera beside it at sunset
+    const Vulkan::TerrainLayout layout = TerrainTestHooks::testLayout(16, 2);
+    s.setTerrainPyramid(0, TerrainTestHooks::testPyramid(TerrainTestHooks::mountainRidgeHook, layout));
+    TerrainTestHooks::renderUntilUploaded(s);
+    Vulkan::EnvironmentSettings env = app->environmentSettings();
+    env.sunOverride                 = Vulkan::SunOverride{90, 3};  // from the east (+x), 3 degrees
+    app->setEnvironmentSettings(env);
+    app->setViewCameraByTool(0, Vec3(1500, 120, 2048.5), lookRotation(Vec3(0.5, -1, 0)), 1, false);
+    // The first map: 128 rows at 32 per frame
+    app->runFrames(8, 1.0 / 60);
+    const Json r =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "full": true, "stats_only": true})"));
+    ASSERT_FALSE(isError(r)) << text(r);
+    EXPECT_EQ(result(r)["size"], Json(Json::array{128, 128}));
+    EXPECT_EQ(result(r)["channel"], Json("r"));
+    EXPECT_GT(result(r)["stats"]["max"].number_value(), result(r)["stats"]["min"].number_value());
+    const Json g =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "channel": "g", "max_width": 64})"));
+    ASSERT_FALSE(isError(g)) << text(g);
+    EXPECT_EQ(imageBlock(g)["channel"], Json("g"));
+    const Json h = result(call(*app, "get_lighting", obj(R"({"sections": ["horizon"]})")))["horizon"];
+    EXPECT_EQ(h["valid"], Json(true)) << h.dump();
+    EXPECT_EQ(h["resolution"].number_value(), 128);
+    EXPECT_GT(h["completed"].number_value(), 0);
+    // A point behind the ridge (towards -x) at 3 degrees: in its shadow
+    const Json pr = callFrames(*app, "probe_lighting", obj(R"({"pixel": [32, 24]})"));
+    ASSERT_FALSE(isError(pr)) << text(pr);
+    const Json shadow = result(pr)["shadow"];
+    EXPECT_LT(shadow["horizon"].number_value(), 0.1) << shadow.dump();
+    EXPECT_GT(shadow["horizon_r_above_receiver"].number_value(), 4) << shadow.dump();
+    // Back to the defaults of the suite
+    env.sunOverride.reset();
+    app->setEnvironmentSettings(env);
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_shadows": false})"))));
+    s.clearTerrain();
+    app->runFrames(1, 1.0 / 60);
 }
 
 TEST_F(LightingTools, AppStatusLighting)

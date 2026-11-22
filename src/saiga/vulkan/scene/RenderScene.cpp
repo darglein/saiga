@@ -17,6 +17,7 @@
 #include "saiga/vulkan/scene/DebugLines.h"
 #include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/GrassPass.h"
+#include "saiga/vulkan/scene/HorizonShadows.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/MeshPool.h"
@@ -122,11 +123,12 @@ struct RenderScene::ProbeRun
 namespace
 {
 // The views of the probe's frames (frame 1: normal); frames 5-7 write raw radiance, frame 8 the cloud shadow, frame 9
-// the cascades (S36a2: factor, cascade + 1; raw data)
+// the cascades (S36a2: factor, cascade + 1), frame 10 the horizon map (factor, R and G above the receiver; raw data)
 const std::array<LightingDebugView, RenderScene::kProbeFrames> kProbeViews = {
     LightingDebugView::None,         LightingDebugView::Albedo,      LightingDebugView::Normals,
     LightingDebugView::Material,     LightingDebugView::DirectOnly,  LightingDebugView::AmbientOnly,
-    LightingDebugView::SpecularOnly, LightingDebugView::CloudShadow, LightingDebugView::ShadowCascades};
+    LightingDebugView::SpecularOnly, LightingDebugView::CloudShadow, LightingDebugView::ShadowCascades,
+    LightingDebugView::HorizonShadow};
 }  // namespace
 
 /**
@@ -489,13 +491,15 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // of an open camera space (written every frame, empty otherwise)
     timings.enterSection("environment", cmd);
     const bool environmentPass = s.framePhysical && s.envSet && !enclosed && !s.env.enclosed && camera.valid;
+    // A full update of the incremental effects (the environment map, S36a2: the horizon map) in this frame
+    const bool fullUpdate = s.params.lighting.forceFullUpdates || s.fullUpdateRequested;
+    s.fullUpdateRequested = false;
     if (environmentPass)
     {
         // A full update also on the first frame after frames without this pass (clay, an enclosed space, a debug
         // frame): the bound environment map is of an older environment (review: it was swapped in 7 frames later)
         LightingParameters lp = s.params.lighting;
-        lp.forceFullUpdates   = lp.forceFullUpdates || s.fullUpdateRequested || s.environmentSkipped;
-        s.fullUpdateRequested = false;
+        lp.forceFullUpdates   = fullUpdate || s.environmentSkipped;
         // probe_lighting: one capture for the whole sequence (CodeRabbit #83: a capture in progress was swapped in
         // between its frames): a capture in progress completes in frame 1, the later frames keep the front cube
         const bool probeHold = probe && probe->step > 0;
@@ -584,8 +588,23 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
     }
     subEnd("shadow.cascades", cmd);
-    // The horizon map's incremental update (S36a2 step 3; empty until then)
+    // The horizon map's incremental update (S36a2, A6): the chain when the pyramid changed, the due rows of the back
+    // map; only for the camera space's resident pyramid and a shadow light (empty otherwise)
     subBegin("shadow.horizon", cmd);
+    {
+        HorizonShadows::Input in;
+        const bool terrainSet = s.atlas->hasSet() && s.atlas->pyramidResident() && camera.valid &&
+                                s.atlas->space() == camera.space && !enclosed;
+        in.atlas      = terrainSet ? s.atlas.get() : nullptr;
+        in.camera     = camera.position;
+        in.hasLight   = lighting.shadowLight(3) > 0;
+        in.light      = Vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2));
+        in.parameters = s.params.lighting;
+        in.force      = fullUpdate;
+        in.frame      = s.frameCount + 1;
+        in.frameIndex = frame.frameIndex;
+        s.horizon->update(cmd, in);
+    }
     subEnd("shadow.horizon", cmd);
     timings.leaveSection("shadow", cmd);
 
@@ -886,6 +905,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             src.setArray(LightingImage::Cascade, s.cascades->depth(), 2, layer, 1, std::max(1u, res / 1024));
             src.setArray(LightingImage::CascadeStrip, s.cascades->depth(), 2, 0, layers, std::max(1u, res / 512));
         }
+        // S36a2: the front horizon map's R or G (in eGeneral)
+        if (s.horizon->hasImages() && s.horizon->transform(s.horizon->frontLayer()).valid)
+        {
+            const uint32_t res = s.horizon->images()->width;
+            src.setArray(LightingImage::Horizon, s.horizon->images(), s.horizonPreviewChannel == 1 ? 4 : 3,
+                         uint32_t(s.horizon->frontLayer()), 1, std::max(1u, res / 1024), vk::ImageLayout::eGeneral);
+        }
         // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
         if (s.debugImages->requested(LightingImage::CloudCoverage) ||
             s.debugImages->requested(LightingImage::CloudShadow))
@@ -1000,6 +1026,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     cascades->init(base());
     shadowTable = std::make_unique<ShadowPipelineTable>();
     shadowTable->init(base());
+    horizon = std::make_unique<HorizonShadows>();
+    horizon->init(base());
     culling = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params, *lightingSet);
     protoSettings = std::make_unique<PrototypeSettings>();
@@ -1029,6 +1057,7 @@ RenderScene::~RenderScene()
     debugImages.reset();
     shadowTable.reset();
     cascades.reset();
+    horizon.reset();
     brdf.reset();
     ambient.reset();
     envMap.reset();
@@ -1510,16 +1539,17 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
         cameraHistory.clear();
     if (camera.valid) cameraHistory.emplace_back(now, camera.position);
     while (!cameraHistory.empty() && now - cameraHistory.front().first > 1.0) cameraHistory.pop_front();
+    // The mean speed over the last second (a debug camera's jump of a few metres in one frame is not a speed; a move
+    // beyond a staggered cascade's margin refits it anyway)
     double maxSpeed = 50, dt = 1.0 / 60.0;
     if (cameraHistory.size() >= 2)
     {
-        dt = (cameraHistory.back().first - cameraHistory.front().first) / double(cameraHistory.size() - 1);
+        const double span = cameraHistory.back().first - cameraHistory.front().first;
+        dt                = span / double(cameraHistory.size() - 1);
+        double path       = 0;
         for (size_t i = 1; i < cameraHistory.size(); ++i)
-        {
-            const double t = cameraHistory[i].first - cameraHistory[i - 1].first;
-            if (t > 1e-6)
-                maxSpeed = std::max(maxSpeed, (cameraHistory[i].second - cameraHistory[i - 1].second).norm() / t);
-        }
+            path += (cameraHistory[i].second - cameraHistory[i - 1].second).norm();
+        if (span > 0.05) maxSpeed = std::max(maxSpeed, path / span);
     }
     const bool on = p.sunShadows && camera.valid && !enclosed && !(envSet && env.enclosed) && block.shadowLight(3) > 0;
     if (!on)
@@ -1569,9 +1599,31 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
         vec4(float(count), p.depthBiasTexels, p.normalOffsetTexels, lightingSet->linearShadowFilter() ? 1 : 0);
 }
 
+void RenderScene::requestHorizonRecompute(bool full)
+{
+    horizon->requestRecompute(full);
+}
+
 void RenderScene::cascadeOverlays()
 {
     const uint32_t overlays = frameDebug.overlays;
+    // The horizon map's extent and its inner half (the anchor moves when the camera leaves it), below the camera
+    if ((overlays & OverlayHorizonAnchor) && horizon->hasImages() && cameraSet)
+    {
+        const HorizonShadows::MapTransform& t = horizon->transform(horizon->frontLayer());
+        if (t.valid)
+        {
+            const double y = cameraPosition.y() - 20;
+            auto square    = [&](double x0, double z0, double size, const vec3& color)
+            {
+                const Vec3 c[4] = {Vec3(x0, y, z0), Vec3(x0 + size, y, z0), Vec3(x0 + size, y, z0 + size),
+                                   Vec3(x0, y, z0 + size)};
+                for (int e = 0; e < 4; ++e) lines->addLine(c[e], c[(e + 1) % 4], color, true);
+            };
+            square(t.cornerX, t.cornerZ, t.extent, vec3(0.9f, 0.5f, 1.0f));
+            square(t.cornerX + 0.25 * t.extent, t.cornerZ + 0.25 * t.extent, 0.5 * t.extent, vec3(0.6f, 0.35f, 0.7f));
+        }
+    }
     if (!frameCascades || !(overlays & (OverlayCascadeBounds | OverlayCameraFrustumSplits))) return;
     const CascadedShadows& cs = *cascades;
     if (overlays & OverlayCascadeBounds)
@@ -1655,7 +1707,15 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     b.skyViewLut       = atmosphere->skyViewInfo();
     b.cloudCoverage    = clouds->coverageInfo();
     if (cascades->hasImages()) b.cascades = cascades->depth()->getDescriptorInfo(lightingSet->shadowSampler());
+    // S36a2: the horizon maps (the state of the previous frame's update: this frame's update writes only the back map)
     SceneLighting block = frameBlock;
+    if (params.lighting.horizonShadows && horizon->hasImages())
+    {
+        b.horizon = horizon->descriptor();
+        horizon->fillBlock(block, cameraPosition, params.lighting, block.shadowLight(3) > 0);
+    }
+    else
+        horizon->fillBlock(block, cameraPosition, LightingParameters(), false);
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
     lightingSet->write(frameIndex, block, b);
@@ -1686,7 +1746,8 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.memoryBytes = VulkanRenderer::framesInFlight * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
                      uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes() +
                      atmosphere->memoryBytes() + envMap->memoryBytes() + clouds->memoryBytes() +
-                     cascades->memoryBytes();
+                     cascades->memoryBytes() + horizon->memoryBytes();
+    st.horizon = horizon->statistics();
     // S36a2: the cascades
     st.shadows            = frameCascades;
     st.frozen             = freezeCascades;
@@ -1813,7 +1874,11 @@ void RenderScene::finishProbe()
             p.cloudShadow   = value(7).color(0);
             p.cascadeShadow = value(8).color(0);
             p.cascade       = int(std::lround(value(8).color(1))) - 1;
-            p.shadowFactor  = p.cloudShadow * p.cascadeShadow;
+            // The horizon map (factor, R and G above the receiver)
+            p.horizonShadow = value(9).color(0);
+            p.horizonR      = value(9).color(1);
+            p.horizonG      = value(9).color(2);
+            p.shadowFactor  = p.cloudShadow * p.cascadeShadow * p.horizonShadow;
         }
         run->requests[k].callback(p);
     }

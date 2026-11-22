@@ -107,6 +107,7 @@ class SAIGA_VULKAN_API LightingDebug
         {
             Texture2DArray* texture = nullptr;
             uint32_t layer = 0, layers = 1, step = 1;
+            vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal;
         };
         std::array<ArraySource, size_t(LightingImage::Count)> array{};
         void set(LightingImage i, Texture2D* texture, uint32_t valueKind, float valueScale = 1)
@@ -116,9 +117,9 @@ class SAIGA_VULKAN_API LightingDebug
             scale[size_t(i)] = valueScale;
         }
         void setArray(LightingImage i, Texture2DArray* texture, uint32_t valueKind, uint32_t layer, uint32_t layers,
-                      uint32_t step)
+                      uint32_t step, vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal)
         {
-            array[size_t(i)] = ArraySource{texture, layer, std::max(layers, 1u), std::max(step, 1u)};
+            array[size_t(i)] = ArraySource{texture, layer, std::max(layers, 1u), std::max(step, 1u), layout};
             kind[size_t(i)]  = valueKind;
             scale[size_t(i)] = 1;
         }

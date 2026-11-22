@@ -703,8 +703,10 @@ void TerrainAtlas::recordUploads(vk::CommandBuffer cmd, uint32_t frameIndex)
     std::vector<int> layers, maskLayers;
     std::vector<uint32_t> pageEntries;
     bool pyramidTouched = false, pyramidPatched = false;
-    auto contains = [](const auto& v, auto x) { return std::find(v.begin(), v.end(), x) != v.end(); };
-    auto flush    = [&]()
+    // S36a2: the frame changed the pyramid (the horizon map's chain follows)
+    bool pyramidChange = false;
+    auto contains      = [](const auto& v, auto x) { return std::find(v.begin(), v.end(), x) != v.end(); };
+    auto flush         = [&]()
     {
         offset = batch.recordAt(cmd, stage, offset);
         transferBarrier(cmd);
@@ -775,6 +777,7 @@ void TerrainAtlas::recordUploads(vk::CommandBuffer cmd, uint32_t frameIndex)
                 batch.add(pyramid, vk::DeviceSize(u.row0) * P * 4, u.heights->data() + size_t(u.row0) * P,
                           size_t(u.rows) * P * 4);
                 pyramidTouched = true;
+                pyramidChange  = true;
                 if (size_t(u.row0 + u.rows) == P) pyramidGpu = true;
                 break;
             case Kind::PyramidPatch:
@@ -782,6 +785,7 @@ void TerrainAtlas::recordUploads(vk::CommandBuffer cmd, uint32_t frameIndex)
                     batch.add(pyramid, (size_t(u.z0 + r) * P + size_t(u.x0)) * 4,
                               u.patch.data() + size_t(r) * size_t(u.w), size_t(u.w) * 4);
                 pyramidTouched = pyramidPatched = true;
+                pyramidChange                   = true;
                 break;
             case Kind::Mask:
                 batch.add(masks, vk::DeviceSize(u.layer) * maskLayerBytes(), u.mask->data(), maskLayerBytes());
@@ -794,6 +798,7 @@ void TerrainAtlas::recordUploads(vk::CommandBuffer cmd, uint32_t frameIndex)
         queue.pop_front();
     }
     batch.recordAt(cmd, stage, offset);
+    if (pyramidChange) pyramidChanges++;
     statistics.bytesRecorded = used;
     updateMemoryStats();
 }

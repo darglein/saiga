@@ -12,6 +12,8 @@
 
 // The cascades: one D32 layer per cascade, compared with ref <= stored (LESS_OR_EQUAL, not reversed)
 layout(set = 1, binding = 8) uniform sampler2DArrayShadow cascadeMap;
+// The horizon maps (RG32F, three layers: the block names the previous and the front map)
+layout(set = 1, binding = 9) uniform sampler2DArray horizonMaps;
 
 #ifdef SHADOW_INPUT
 // SHADOW_INPUT (defined before the include): the cloud shadow comes from the shader's input (shadowInput, set by
@@ -114,11 +116,56 @@ float cascadeShadow(vec3 relPos, vec3 n, out int cascade)
     return 1.0;
 }
 
+// The shadow heights (R, G) of a horizon map at the receiver, relative to the receiver's height (> 0: the receiver is
+// below them); -1e9 outside the map or without it
+vec2 horizonHeights(vec4 map, float refRel, vec3 relPos)
+{
+    const vec2 none = vec2(-1.0e9);
+    if (map.w < 0.0) return none;
+    float res = lighting.horizonRef.w;
+    vec2 st   = (relPos.xz - map.xy) * map.z;  // texels
+    if (any(lessThan(st, vec2(0.5))) || any(greaterThan(st, vec2(res - 0.5)))) return none;
+    vec2 h;
+    if (lighting.horizonParams.w > 0.5)
+        h = textureLod(horizonMaps, vec3(st / res, map.w), 0.0).rg;
+    else
+    {
+        // Nearest fetches with bilinear weights (RG32F without linear filtering)
+        vec2 p  = st - 0.5;
+        ivec2 i = ivec2(floor(p));
+        vec2 f  = p - vec2(i);
+        int l   = int(map.w);
+        vec2 a  = texelFetch(horizonMaps, ivec3(i, l), 0).rg, b = texelFetch(horizonMaps, ivec3(i + ivec2(1, 0), l), 0).rg;
+        vec2 c  = texelFetch(horizonMaps, ivec3(i + ivec2(0, 1), l), 0).rg;
+        vec2 d  = texelFetch(horizonMaps, ivec3(i + ivec2(1, 1), l), 0).rg;
+        h       = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+    }
+    return h + refRel - relPos.y;
+}
+
+// The horizon map's factor at the receiver (S36a2, A6): lit by smoothstep(H - s, H, y) with H the shadow height (G
+// inside a cascade with terrain casters: the cascades shadow the nearer terrain; else R), s = max(4 m, 2 texel
+// tan(el)); the previous and the front map blended; rg: (R, G) above the receiver
+float horizonShadow(vec3 relPos, bool useG, out vec2 rg)
+{
+    rg = vec2(-1.0e9);
+    if (lighting.horizonParams.x < 0.5) return 1.0;
+    vec2 a = horizonHeights(lighting.horizonPrev, lighting.horizonRef.x, relPos);
+    vec2 b = horizonHeights(lighting.horizonFront, lighting.horizonRef.y, relPos);
+    rg     = mix(a, b, lighting.horizonRef.z);
+    float H = useG ? rg.y : rg.x;
+    float s = max(4.0, 2.0 * lighting.horizonParams.y / max(lighting.horizonFront.z, 1e-6));
+    return 1.0 - smoothstep(0.0, s, H);
+}
+
 // The visibility of the shadow light at the receiver (relPos, normal n): cascades x horizon x clouds
 float shadowFactor(vec3 relPos, vec3 n)
 {
     int cascade;
-    return cascadeShadow(relPos, n, cascade) * cloudShadow(relPos);
+    float c = cascadeShadow(relPos, n, cascade);
+    vec2 rg;
+    float h = horizonShadow(relPos, cascade >= 0 && lighting.horizonParams.z > 0.5, rg);
+    return c * h * cloudShadow(relPos);
 }
 
 #endif

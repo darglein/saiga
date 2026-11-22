@@ -29,7 +29,8 @@ class EngineApp;
  * curve). S36a1b adds the toolbar (tone map, debug view, overlays, force full updates, the pipeline variant, copy
  * JSON), Ambient (scale, floor, SH9, the prototype albedo colours) and GPU and memory; S36a1c sky and clouds; S36a2
  * Cascades (the parameters, a row per cascade, the cascades' depth previews: a click on one enlarges it) and the
- * toolbar's "freeze cascades"; part b local lights.
+ * toolbar's "freeze cascades", Far terrain shadows (the horizon map: R / G preview, progress, direction, anchor, rows
+ * per frame, recompute now); part b local lights.
  */
 class SAIGA_ENGINE_API LightingTab
 {
@@ -50,6 +51,7 @@ class SAIGA_ENGINE_API LightingTab
     void ambient();
     void skyAndClouds();
     void cascadesSection();
+    void horizonSection();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
@@ -63,8 +65,9 @@ class SAIGA_ENGINE_API LightingTab
     std::array<uint64_t, size_t(Vulkan::LightingImage::Count)> previewVersions{};
     const void* previewImgui = nullptr;
     int environmentMip       = 0;
-    // The enlarged cascade preview (-1: none)
+    // The enlarged cascade preview (-1: none); the horizon preview's channel (0 R, 1 G)
     int enlargedCascade = -1;
+    int horizonChannel  = 0;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
     bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0);
 };

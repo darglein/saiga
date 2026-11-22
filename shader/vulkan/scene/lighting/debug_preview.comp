@@ -87,6 +87,8 @@ bool sourceValue(ivec2 p, out float v)
         {
             vec4 t = texelFetch(sourceArray, ivec3(min(q, sz - 1), int(layer)), 0);
             v      = pc.kind == 4u ? t.g : t.r;
+            // The horizon map's "no occluder" (-1e9): no value (drawn black)
+            if (v < -1.0e8) return false;
         }
         if (pc.useLog != 0u) v = log2(max(v, 1e-10));
         return !(isnan(v) || isinf(v));
@@ -159,7 +161,8 @@ void main()
         if (p.x < pc.size.x && p.y < pc.size.y)
         {
             float v;
-            vec3 c = vec3(1.0, 0.0, 1.0);  // non-finite: magenta
+            // Non-finite: magenta (horizon: no occluder, black)
+            vec3 c = pc.kind >= 3u ? vec3(0.0) : vec3(1.0, 0.0, 1.0);
             if (sourceValue(p, v))
             {
                 vec2 r = range.xy;

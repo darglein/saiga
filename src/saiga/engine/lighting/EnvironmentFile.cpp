@@ -134,6 +134,11 @@ struct LightingDoc
         v("minShadowElevationDeg", p.minShadowElevationDeg);
         v("cascadeCasterDistance", p.cascadeCasterDistance);
         v("terrainCastsInCascades", p.terrainCastsInCascades);
+        // S36a2: the horizon map
+        v("horizonShadows", p.horizonShadows);
+        v("horizonResolution", p.horizonResolution);
+        v("horizonExtent", p.horizonExtent);
+        v("horizonRowsPerFrame", p.horizonRowsPerFrame);
     }
 };
 

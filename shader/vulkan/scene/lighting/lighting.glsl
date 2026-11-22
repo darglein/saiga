@@ -120,7 +120,7 @@ VertexLight surfaceVertexLight(vec3 relPos)
 // The debug views (LightingDebugView of LightingTypes.h)
 const uint viewNone = 0u, viewLightingOnly = 1u, viewAlbedo = 2u, viewNormals = 3u, viewRoughness = 4u,
            viewMetalness = 5u, viewMaterial = 6u, viewDirectOnly = 7u, viewAmbientOnly = 8u, viewSpecularOnly = 9u,
-           viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u;
+           viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u, viewHorizonShadow = 14u;
 // The overlay flags drawn in the shaders (LightingOverlay)
 const uint overlayCascadeColors = 2u;
 
@@ -155,6 +155,16 @@ vec3 shadeSurfaceView(SurfaceInput s)
         float f = cascadeShadow(s.relPos, s.n, cascade);
         if (lighting.debugParams.z > 0.5) return vec3(f, float(cascade + 1), 0.0);
         return cascadeTint(cascade) * (0.2 + 0.8 * f);
+    }
+    if (view == viewHorizonShadow)
+    {
+        // The horizon map's factor; raw in the probe frames: (factor, R and G above the receiver)
+        int cascade;
+        cascadeShadow(s.relPos, s.n, cascade);
+        vec2 rg;
+        float h = horizonShadow(s.relPos, cascade >= 0 && lighting.horizonParams.z > 0.5, rg);
+        if (lighting.debugParams.z > 0.5) return vec3(h, clamp(rg, vec2(-60000.0), vec2(60000.0)));
+        return vec3(h);
     }
     if (view == viewLightingOnly)
     {
