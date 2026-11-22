@@ -1557,7 +1557,8 @@ TEST(WorldTools, ALongQueueWaitStillAnswersInTime)
     const auto admitDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
     while (server.pendingCallCount() == 0 && std::chrono::steady_clock::now() < admitDeadline)
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
-    ASSERT_EQ(server.pendingCallCount(), 1u);
+    // EXPECT, not ASSERT: the rest of the test still polls and joins the caller (a joinable std::thread terminates)
+    EXPECT_EQ(server.pendingCallCount(), 1u);
     std::this_thread::sleep_for(std::chrono::milliseconds(450));
     const auto start = std::chrono::steady_clock::now();
     while (!answered && std::chrono::steady_clock::now() - start < std::chrono::seconds(2))
