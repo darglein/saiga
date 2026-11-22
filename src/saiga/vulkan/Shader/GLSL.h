@@ -24,6 +24,9 @@ namespace GLSLANG
  *
  * Returns an empty vector if the file is not found or does not compile.
  * includedFiles (optional) receives the full names of all files included by the shader.
+ *
+ * Successful compiles are cached in the process: the same file, stage and injection with an unchanged main file and
+ * unchanged includes return the cached SPIR-V without compiling (createFromString caches by the string and stage).
  */
 SAIGA_VULKAN_API std::vector<uint32_t> loadGLSL(const std::string& file, const vk::ShaderStageFlagBits shader_type,
                                                 const std::string& injection            = {},
@@ -48,6 +51,8 @@ SAIGA_VULKAN_API std::vector<uint32_t> createFromString(const std::string& shade
                                                         const vk::ShaderStageFlagBits shader_type);
 
 
+// Initializes glslang once per process (later calls do nothing; the compile functions call it too). quit() does
+// nothing: glslang stays initialized until the process exits, so its built-in symbol tables are built only once.
 SAIGA_VULKAN_API void init();
 SAIGA_VULKAN_API void quit();
 

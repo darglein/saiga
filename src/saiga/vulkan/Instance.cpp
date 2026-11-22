@@ -144,6 +144,14 @@ int Instance::deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface)
 
 bool Instance::suitableDeviceAvailable()
 {
+    // The drivers do not change while the process runs: checked once (the tests ask before every test, and each check
+    // loads every driver of the system).
+    static const bool available = []() { return checkSuitableDevice(); }();
+    return available;
+}
+
+bool Instance::checkSuitableDevice()
+{
     // Without a driver vkCreateInstance fails with VK_ERROR_INCOMPATIBLE_DRIVER.
     try
     {

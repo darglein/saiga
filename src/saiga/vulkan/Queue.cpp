@@ -42,6 +42,7 @@ void Queue::destroy()
         VLOG(3) << "Destroying command pool: " << static_cast<vk::CommandPool>(pool);
         pool.destroy();
     }
+    commandPools.clear();
 
     commandPool.destroy();
 

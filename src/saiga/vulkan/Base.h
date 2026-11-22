@@ -42,6 +42,11 @@ struct SAIGA_VULKAN_API VulkanBase
     std::unique_ptr<Queue> dedicated_compute_queue;
     std::unique_ptr<Queue> dedicated_transfer_queue;
     Instance* instance = nullptr;
+    // The queues of createLogicalDevice (family, index), for createDeviceObjects
+    std::pair<uint32_t, uint32_t> mainQueueInfo, computeQueueInfo, transferQueueInfo;
+
+    // The objects on the device (frame timeline, queues, descriptor pool) from m_parameters
+    void createDeviceObjects();
 
     // Deferred deletions, see deferDelete().
     std::mutex deletionMutex;
@@ -147,6 +152,16 @@ struct SAIGA_VULKAN_API VulkanBase
      *                this surface. Pass nullptr for headless rendering.
      */
     void createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKHR surface);
+
+    /**
+     * For the reuse of a device (see setHeadlessDeviceReuse in VulkanDevice.h): destroyDeviceObjects() waits for the
+     * device, runs the deferred deletions and destroys everything created on it except the device itself and the
+     * pipeline cache (the memory allocator, the queues with their command pools, the descriptor pool, the frame
+     * timeline); recreateDeviceObjects() creates them again for the parameters (which must request the same device:
+     * features and extensions), as createLogicalDevice does, and resets current_frame. initMemory follows.
+     */
+    void destroyDeviceObjects();
+    void recreateDeviceObjects(const VulkanParameters& parameters);
 
     void renderGUI();
 

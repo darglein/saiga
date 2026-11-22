@@ -13,6 +13,7 @@ namespace Vulkan
 void DescriptorPool::destroy()
 {
     if (device && descriptorPool) device.destroyDescriptorPool(descriptorPool);
+    descriptorPool = nullptr;
 }
 
 void DescriptorPool::create(vk::Device device, uint32_t maxSets, vk::ArrayProxy<const vk::DescriptorPoolSize> poolSizes,
