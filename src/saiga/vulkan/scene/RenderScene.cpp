@@ -463,7 +463,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
 #ifdef SAIGA_ASSERTS
         if (!s.foliage) s.checkFoliageInstances();
 #endif
-        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera);
+        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera,
+                                  s.shadowViewsOverride ? *s.shadowViewsOverride : std::vector<ShadowView>());
         // ... and make the writes visible to this frame's culling and draws.
         vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
                                Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader |

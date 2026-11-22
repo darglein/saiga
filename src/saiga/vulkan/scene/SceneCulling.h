@@ -56,6 +56,12 @@ struct SceneCamera
  *      to coverage, the foliage texture) is never in the pre-pass. The draw pipelines have a second descriptor set
  *      (per frame slot): set 1 of SceneLightingSet (S36: the lighting block, the foliage texture, the lighting's
  *      resources); every scene pipeline lights with shadeSurface (S36, lighting.glsl).
+ * S36a2 (§10.2): views 1..4 are the shadow cascades' light-space volumes (ShadowView): each set's bounds are tested
+ * against every view on the CPU and its work chunks carry a view mask (WorkChunk::pad, 16 bits; scratchBase, the
+ * prefix sum of 256 * popcount(mask), in a parallel buffer); the count and the write pass loop over the chunk's views
+ * (one scratch entry per instance and view; shadow views: the volume, the de-duplication by the previous cascade's xy
+ * rectangle, the small-caster rule, the LOD of the main camera's distance plus the view's bias; the main camera's end
+ * distances apply to every view); buckets, commands and the scan grow by the view count (view * bucketsPerView + ...).
  * Shared device buffers (counts, scratch, compacted, commands, bucket LODs) are recreated at frame start when too
  * small; the per-frame host visible buffers (offset table, work chunks, dynamics, statistics, staging) belong to a
  * frame slot (its previous frame has completed). One descriptor set per frame slot with every binding, rewritten for
@@ -78,8 +84,9 @@ class SAIGA_VULKAN_API SceneCulling
 
     // The transfer section: growth copies, uploads (meshes, instances, tables, the commands' static fields), the
     // frame's offset table, work chunks and dynamics, the buffer sizes and the frame's descriptor set
+    // shadowViews (S36a2): the views 1.. of this frame (at most kMaxCullViews - 1)
     void recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, InstanceBuffer& instances,
-                        const SceneCamera& camera);
+                        const SceneCamera& camera, const std::vector<ShadowView>& shadowViews = {});
     // The cull section (between transfer and scene): fill, count, scan, write
     void recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, const SceneCamera& camera);
     // Inside the depth pre-pass (depth only): the opaque classes; returns the number of indirect draw calls
@@ -88,6 +95,11 @@ class SAIGA_VULKAN_API SceneCulling
     // prepass: the opaque classes were drawn in the pre-pass (EQUAL, no depth write); returns the number of indirect
     // draw calls
     uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass);
+    // The views of the frame (1 + its shadow views; 0 without a cull)
+    uint32_t viewCount(uint32_t frameIndex) const { return frames[frameIndex].viewCount; }
+    // The scene's set-0 layout (the shadow pipelines are created with it)
+    static DescriptorSetLayout setLayout();
+    vk::DescriptorSet sceneSet(uint32_t frameIndex) const { return frames[frameIndex].set; }
     // The foliage texture of the PrototypeFoliage class exists (RenderScene::setFoliageTexture; binding 1 of the
     // lighting set): without it the class is not drawn
     void setFoliageTexture(Texture2DArray* texture) { foliageTexture = texture; }
@@ -104,10 +116,13 @@ class SAIGA_VULKAN_API SceneCulling
    private:
     struct Frame
     {
-        Buffer offsets, chunks, dynamics, stats, staging;
+        Buffer offsets, chunks, dynamics, stats, staging, views, scratchBases;
         vk::DescriptorSet set;
         uint32_t chunkCount = 0;
         bool culled         = false;
+        // S36a2: the views of the frame and the buckets per view of its snapshot
+        uint32_t viewCount      = 1;
+        uint32_t bucketsPerView = 0;
         // The snapshot of recordTransfer for the draws: each pipeline class's buckets, the buffers
         struct Range
         {
@@ -146,6 +161,9 @@ class SAIGA_VULKAN_API SceneCulling
     Buffer counts, scratch, compacted, commands, bucketLods;
     uint64_t uploadedLayout = 0;
     uint32_t bucketCount    = 0;
+    // The view count the commands' static fields were uploaded for (S36a2)
+    uint32_t uploadedViews = 0;
+    std::vector<uint32_t> scratchBaseList;
     UploadBatch batch;
     std::vector<WorkChunk> chunkList;
     std::vector<MeshId> trackedMeshes;
@@ -159,6 +177,8 @@ class SAIGA_VULKAN_API SceneCulling
     void dispatchChunks(vk::CommandBuffer cmd, uint32_t chunkCount) const;
     // The indirect draws of one class range with the pipeline (bound with the frame's sets and push constants)
     uint32_t drawClass(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, Pipeline& p, const SceneCamera& camera);
+    // The indirect draws of one class range of a view (the pipeline bound with its sets and push constants)
+    uint32_t drawRange(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, uint32_t view);
 };
 
 }  // namespace Vulkan

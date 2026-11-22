@@ -7,11 +7,15 @@
 #extension GL_GOOGLE_include_directive : require
 
 // The count pass of RenderScene's culling (S18, docs/engine_design.md §10.2): one workgroup per work chunk (chunk y *
-// x-count + x of a 2D dispatch), one invocation per instance. Rejects tombstones (scale 0), unset or removed dynamics (mesh 0), zeroed mesh records,
-// invalid offset entries (w = 0), instances beyond the mesh's last end distance and instances outside the frustum (5
-// planes, no far plane); selects the LOD by the distance of the bounding sphere's centre (the first LOD with distance
-// <= endDistance) and counts the instance in its bucket (view, pipeline class, mesh, LOD) with atomicAdd. The bucket and
-// the returned slot are stored in the instance's scratch entry (chunk * 256 + invocation), which the write pass uses.
+// x-count + x of a 2D dispatch), one invocation per instance. Rejects tombstones (scale 0), unset or removed dynamics
+// (mesh 0), zeroed mesh records, invalid offset entries (w = 0) and instances beyond the mesh's last end distance from
+// the main camera; then, for each view of the chunk's mask (S36a2), the view's six planes (the main camera's frustum,
+// or a shadow cascade's light-space volume), and for shadow views the de-duplication (the bounding sphere's xy
+// footprint inside the previous cascade's shrunk rectangle) and the small-caster rule; the LOD by the distance of the
+// bounding sphere's centre from the main camera (the first LOD with distance <= endDistance) plus the view's bias,
+// clamped. The instance is counted in its bucket (view, pipeline class, mesh, LOD) with atomicAdd; the bucket and the
+// returned slot are stored in its scratch entry of the view (scratchBase[chunk] + k * 256 + invocation, k-th view of
+// the mask), which the write pass uses.
 
 #include "instance_common.glsl"
 
@@ -25,70 +29,109 @@ layout(std430, set = 0, binding = 6) writeonly buffer Scratch
 {
     uvec2 scratch[];
 };
+layout(std140, set = 0, binding = 13) uniform CullViews
+{
+    CullView views[maxCullViews];
+};
+layout(std430, set = 0, binding = 14) readonly buffer ScratchBases
+{
+    uint scratchBase[];
+};
 
 layout(push_constant) uniform Push
 {
-    // Camera-relative frustum planes (inward normals): dot(n, p) + w >= -radius is inside
-    vec4 planes[5];
     float alpha;
     uint meshCount;
     uint bucketsPerView;
-    uint view;
     uint chunkCount;
 }
 pc;
-
-uvec2 cull(WorkChunk ch, uint i)
-{
-    Pose pose;
-    uint mesh, slot;
-    if (ch.slot == dynamicChunk)
-    {
-        DynamicInstance d = dynamics[ch.first + i];
-        mesh              = d.mesh;
-        if (mesh == 0u) return uvec2(notVisible, 0u);
-        slot = d.slot;
-        pose = dynamicPose(d, pc.alpha);
-    }
-    else
-    {
-        StaticInstance s = instances[ch.first + i];
-        if (s.scale == 0.0) return uvec2(notVisible, 0u);
-        mesh = s.meshFlags & 0xFFFFu;
-        slot = ch.slot;
-        pose = staticPose(s);
-    }
-    if (mesh >= pc.meshCount) return uvec2(notVisible, 0u);
-    MeshRecord m = meshes[mesh];
-    if (m.lodCount == 0u) return uvec2(notVisible, 0u);
-    OffsetEntry o = offsets[slot];
-    if (o.hi.w == 0.0) return uvec2(notVisible, 0u);
-
-    vec3 center = placePoint(pose.position, o, rotateQuat(pose.rotation, m.sphere.xyz * pose.scale));
-    float d     = length(center);
-    if (d > m.lods[m.lodCount - 1u].endDistance) return uvec2(notVisible, 0u);
-    float radius = (m.sphere.w + m.padding.x) * pose.scale;
-    for (int k = 0; k < 5; ++k)
-    {
-        if (dot(pc.planes[k].xyz, center) + pc.planes[k].w < -radius) return uvec2(notVisible, 0u);
-    }
-    uint lod = 0u;
-    while (lod + 1u < m.lodCount && d > m.lods[lod].endDistance) lod++;
-
-    uint bucket = pc.view * pc.bucketsPerView + m.bucketBase + lod;
-    uint index  = atomicAdd(counts[bucket], 1u);
-    return uvec2(bucket | (lod << 30), index);
-}
 
 void main()
 {
     // A 2D dispatch beyond maxComputeWorkGroupCount[0] (SceneCulling::dispatchChunks): its last row is partial
     uint c = gl_WorkGroupID.y * gl_NumWorkGroups.x + gl_WorkGroupID.x;
     if (c >= pc.chunkCount) return;
-    uint i        = gl_LocalInvocationID.x;
-    WorkChunk ch  = chunks[c];
-    uvec2 entry   = uvec2(notVisible, 0u);
-    // Also the invocations beyond the chunk's count: the scratch buffer is reused across frames
-    if (i < ch.count) entry = cull(ch, i);
-    scratch[c * 256u + i] = entry;
+    uint i       = gl_LocalInvocationID.x;
+    WorkChunk ch = chunks[c];
+
+    // The placement, shared by the views (invocations beyond the chunk's count write notVisible: the scratch buffer is
+    // reused across frames)
+    bool valid = i < ch.count;
+    Pose pose;
+    uint mesh = 0u, slot = 0u;
+    if (valid)
+    {
+        if (ch.slot == dynamicChunk)
+        {
+            DynamicInstance d = dynamics[ch.first + i];
+            mesh              = d.mesh;
+            slot              = d.slot;
+            valid             = mesh != 0u;
+            if (valid) pose = dynamicPose(d, pc.alpha);
+        }
+        else
+        {
+            StaticInstance s = instances[ch.first + i];
+            mesh             = s.meshFlags & 0xFFFFu;
+            slot             = ch.slot;
+            valid            = s.scale != 0.0;
+            if (valid) pose = staticPose(s);
+        }
+    }
+    valid = valid && mesh < pc.meshCount;
+    MeshRecord m;
+    if (valid)
+    {
+        m     = meshes[mesh];
+        valid = m.lodCount != 0u;
+    }
+    OffsetEntry o;
+    if (valid)
+    {
+        o     = offsets[slot];
+        valid = o.hi.w != 0.0;
+    }
+    vec3 center  = vec3(0.0);
+    float d      = 0.0;
+    float radius = 0.0;
+    uint lod     = 0u;
+    if (valid)
+    {
+        center = placePoint(pose.position, o, rotateQuat(pose.rotation, m.sphere.xyz * pose.scale));
+        d      = length(center);
+        valid  = d <= m.lods[m.lodCount - 1u].endDistance;
+        radius = (m.sphere.w + m.padding.x) * pose.scale;
+        while (lod + 1u < m.lodCount && d > m.lods[lod].endDistance) lod++;
+    }
+
+    uint base = scratchBase[c];
+    uint k    = 0u;
+    for (uint v = 0u; v < maxCullViews; ++v)
+    {
+        if ((ch.viewMask & (1u << v)) == 0u) continue;
+        uvec2 entry = uvec2(notVisible, 0u);
+        bool inside = valid;
+        CullView view = views[v];
+        for (int p = 0; p < 6 && inside; ++p) inside = dot(view.planes[p].xyz, center) + view.planes[p].w >= -radius;
+        if (inside && view.params.w > 0.5)
+        {
+            if (radius < view.params.y) inside = false;
+            if (inside && view.params.x > 0.5)
+            {
+                vec2 f = vec2(dot(view.axisX.xyz, center), dot(view.axisY.xyz, center));
+                if (all(greaterThanEqual(f - radius, view.dedup.xy)) && all(lessThanEqual(f + radius, view.dedup.zw)))
+                    inside = false;
+            }
+        }
+        if (inside)
+        {
+            uint l      = min(lod + uint(max(view.params.z, 0.0)), m.lodCount - 1u);
+            uint bucket = v * pc.bucketsPerView + m.bucketBase + l;
+            uint index  = atomicAdd(counts[bucket], 1u);
+            entry       = uvec2(bucket | (l << 30), index);
+        }
+        scratch[base + k * 256u + i] = entry;
+        k++;
+    }
 }

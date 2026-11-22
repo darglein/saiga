@@ -388,6 +388,50 @@ struct RenderStatistics
         std::array<uint32_t, 4> instancesPerLod{};
     };
     std::vector<TrackedMesh> trackedMeshes;
+    // S36a2: the instances and triangles drawn into each shadow cascade (views 1..4 of the culling; 0 without
+    // shadows). instancesPerLod and the tracked meshes stay the main view's
+    std::array<uint32_t, 4> cascadeInstances{};
+    std::array<uint32_t, 4> cascadeTriangles{};
+};
+
+// The views of SceneCulling (S36a2, docs/engine_design.md §10.2): view 0 the main camera, views 1..kMaxCascades the
+// shadow cascades; the work chunks' 16-bit view masks leave room for part b's atlas faces
+constexpr int kMaxCascades  = 4;
+constexpr int kMaxCullViews = 16;
+
+// A shadow view of the culling and the shadow passes (S36a2, A5 of docs/stages/S36_lighting.plan.md): a cascade's
+// orthographic light-space volume, relative to the camera. Light space: x = axisX, y = axisY, z = axisZ (towards the
+// light); a camera-relative point p has the coordinates (dot(axisX, p), dot(axisY, p), dot(axisZ, p)). The volume is
+// the xy rectangle times the depth range shared by every cascade (D23): from the receivers' far end zMin to their near
+// end zMax, extended towards the light by the casters' caps (casters nearer than zMax are pancaked onto depth 0)
+struct ShadowView
+{
+    Vec3 axisX = Vec3(1, 0, 0), axisY = Vec3(0, 1, 0), axisZ = Vec3(0, 0, 1);
+    Vec2 rectMin = Vec2::Zero(), rectMax = Vec2::Zero();
+    double zMin = 0, zMax = 0;
+    // The caps towards the light beyond zMax: instances (maxCasterHeight / sin(max(elevation, minimum))), terrain
+    // (cascadeCasterDistance horizontally)
+    double instanceCap = 0, terrainCap = 0;
+    // De-duplication: a caster whose bounding sphere's xy footprint lies inside this rectangle (the previous cascade's
+    // shrunk by the blend band) is not drawn into this view (its whole shadow falls into the previous cascade)
+    bool dedup    = false;
+    Vec2 dedupMin = Vec2::Zero(), dedupMax = Vec2::Zero();
+    // Casters with a (scaled) bounding radius below this are skipped (LightingParameters::smallCasterTexels texels)
+    double smallRadius = 0;
+    // LOD levels added to the main view's LOD (clamped at the mesh's last LOD; D10: 0 for cascades 0-1)
+    int lodBias = 0;
+    // The camera-relative light view-projection: depth 0 at zMax, 1 at zMin (not reversed), xy over the rectangle
+    mat4 viewProj = mat4::Identity();
+
+    // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
+    // (zMin) and the near cap (zMax + the instances' or the terrain's cap)
+    std::array<Vec4, 6> planes(bool terrain) const
+    {
+        const double cap = zMax + (terrain ? terrainCap : instanceCap);
+        auto plane       = [](const Vec3& n, double w) { return Vec4(n(0), n(1), n(2), w); };
+        return {plane(axisX, -rectMin(0)), plane(-axisX, rectMax(0)), plane(axisY, -rectMin(1)),
+                plane(-axisY, rectMax(1)), plane(axisZ, -zMin),       plane(-axisZ, cap)};
+    }
 };
 
 // The maximum length of RenderScene::trackMeshStatistics's list: the scan writes 4 counts per tracked mesh into the

@@ -238,6 +238,12 @@ class SAIGA_VULKAN_API RenderScene
     void trackMeshStatistics(const std::vector<MeshId>& meshes);
     // The indirect draws use multiDrawIndirect (device feature and RenderSceneParameters::allowMultiDrawIndirect)
     bool multiDrawIndirect() const;
+    // S36a2 (tests): the shadow views the culling uses instead of the cascades' (culled and counted in the statistics,
+    // RenderStatistics::cascadeInstances, but not drawn); nullopt: the cascades'
+    void setShadowViewsOverride(std::optional<std::vector<ShadowView>> views)
+    {
+        shadowViewsOverride = std::move(views);
+    }
 
     // Waits until the GPU has finished every frame (before resources used by frames are destroyed)
     void waitIdle();
@@ -428,6 +434,7 @@ class SAIGA_VULKAN_API RenderScene
     // The effective exposure of the last submitted frame (the next frame's pre-exposure)
     float lastExposure = 1;
 
+    std::optional<std::vector<ShadowView>> shadowViewsOverride;
     std::unique_ptr<SceneFrameRenderer> renderer;
     std::unique_ptr<MeshPool> meshPool;
     std::unique_ptr<InstanceBuffer> instanceBuffer;
