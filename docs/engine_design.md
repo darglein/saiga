@@ -2302,7 +2302,10 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   slot table; another identity under a known name on one cache stops the program), then plans by (name, pin, seed,
   template view, SpaceId), bases by (name, pin, plan hash, chunk), placements by (name, placement version, plan hash,
   chunk). In-flight rule (D8): a pool job registers its key when it starts; another pool job waits for a running
-  generation of the same key; a synchronous requester never waits (it generates inline); the first insert wins.
+  generation of the same key; a synchronous requester never waits (it generates inline); the first insert wins. The
+  terrain pyramid of a space (S20's 32 m point grid of the composed height, through `TerrainHeightSource::cachedGrid`
+  of `GenerationPipeline::heightSource`) is cached too, never evicted, by (name, pin, plan hash, SpaceId, grid size):
+  the worlds of one cache generate it once.
 - **Chunk records** (`ChunkRecords`, World state, `CREC`; S23a, S23b): `ChunkRecord {uint16 placementVersion;
   std::vector<InstanceKey> tombstones}` (sorted, unique) on every peer, plus the host-only stamped set. A record means
   "this chunk's tier-1 content is fixed at this placement version". Which chunks have one (E10): the chunks the host
@@ -3726,13 +3729,21 @@ the missing target is reported as open).
 The unit test binaries stay fast (about a second each, at most a few; the budgets per binary and the rules for new
 tests are in AGENTS.md, "Test speed"). Mechanisms: the test executables reuse headless Vulkan devices between tests
 (`Vulkan::setHeadlessDeviceReuse`, off in applications: the instance and the logical device stay in a pool, the objects
-on the device are created per renderer, leaks are reported when the pool is released after the last test); a process
-compiles a shader once (SPIR-V cached by file contents incl. includes; glslang initialized once) and seeds a new
-device's pipeline cache with the previous one's; death test children write no core dump; MCP deadline tests use short
-timeouts with a large answer margin (`McpServer::answerMarginFraction`, default 0.1 in applications); expensive
-deterministic test inputs (terrain tiles of a hook) are generated once per process. Tests do not wait for wall-clock
-time where they can poll a condition, and render small targets, few frames and small scenes on lavapipe unless the
-size is what they test.
+on the device are created per renderer, leaks are reported when the pool is released after the last test); on such a
+reused device the pipeline objects are reused too (`VulkanBase::reusePipelines`: a destroyed pipeline goes to a pool on
+the device keyed by the content of its create info, the shaders by their SPIR-V, with a layout of its own that is
+identically defined to the user's; a RenderScene costs ~15 ms instead of ~70 ms on lavapipe); a process compiles a
+shader once (SPIR-V cached by file contents incl. includes; glslang initialized once) and seeds a new device's pipeline
+cache with the previous one's; death test children write no core dump; MCP deadline tests use short timeouts with a
+large answer margin (`McpServer::answerMarginFraction`, default 0.1 in applications); time constants that tests would
+otherwise wait out are settings (`EngineAppSetup::statisticsWarmupSeconds`, `ShaderModule::autoReloadInterval`);
+expensive deterministic test inputs (terrain tiles of a hook) are generated once per process, and the content of a
+generator is shared through one ContentCache (S23a's cache also holds a space's terrain pyramid per plan, §12.1, so the
+worlds of one cache, e.g. a host and its clients or the scenario variants, generate it once). Tests do not wait for
+wall-clock time where they can poll a condition, and render small targets, few frames and small scenes on lavapipe
+unless the size is what they test: a test that reads the terrain selection, the vertex probes or the streaming state
+switches the terrain draws off (`PrototypeSettings::terrain`; the selection and the uploads run anyway). Goldens keep
+their setup.
 
 ## 18. Files, names and cookbook
 
