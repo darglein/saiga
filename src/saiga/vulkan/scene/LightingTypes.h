@@ -95,6 +95,9 @@ struct AmbientSettings
 
 // The 2D cloud layer (A4): altitude above sea level and radius of the mesh (m), the seed of the coverage texture, the
 // distance over which cloud shadows fade to the mean coverage (m) and the height fog's falloff (1/m)
+// The fog density multiplier of rain: the renderer's density is the weather's times (1 + kRainFogFactor * rain)
+constexpr float kRainFogFactor = 4.0f;
+
 // The largest cloud seed the Lighting tab and set_lighting take (an int)
 constexpr int kMaxCloudSeed = 2147483647;
 

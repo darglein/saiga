@@ -1366,7 +1366,7 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
         {
             // The height fog with the weather's density (rain lowers the visibility: a density multiplier) and
             // CloudSettings::fogFalloff; its colour is the sky-view LUT at the horizon (lighting.glsl)
-            const float density = e.fogDensity * (1.0f + 4.0f * e.rain);
+            const float density = e.fogDensity * (1.0f + kRainFogFactor * e.rain);
             const bool on       = !e.enclosed && density > 0;
             out.fogParams       = vec4(density, e.clouds.fogFalloff, on ? 1 : 0, cameraAboveBase);
             out.fogColorLin     = vec4(0, 0, 0, 1);

@@ -4,10 +4,10 @@
  * See LICENSE file for more information.
  */
 
-// The lighting of S36 on RenderScene (docs/stages/S36_lighting.plan.md, Tests): a1b the LIGHTING_PBR variant (the BRDF
+// The lighting of S36 on RenderScene (docs/stages/S36_lighting.plan.md, Tests): a1b the PBR shading (the BRDF
 // LUT, energy conservation, the studio environment of clay mode, the prototype colours) and the debug core; a1c the
-// atmosphere, the environment map and the cloud layer. One scene
-// per test suite (RenderSceneSuiteTest), skipped without a Vulkan 1.3 device.
+// atmosphere, the environment map and the cloud layer. One scene for the suites (RenderSceneSuiteTest), skipped
+// without a Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/Atmosphere.h"
 #include "saiga/vulkan/scene/BrdfLut.h"
@@ -545,7 +545,7 @@ class LightingDebugTest : public RenderSceneSuiteTest
 };
 }  // namespace
 
-// Every view and the overlays render 2 frames without a validation error (the LIGHTING_PBR variant, clay and ACES with
+// Every view and the overlays render 2 frames without a validation error (the PBR shading, clay and ACES with
 // an environment); the Normals of a plane facing +y read (0.5, 1, 0.5) from the resolved fp16 image (raw data)
 TEST_F(LightingDebugTest, EveryViewRenders)
 {

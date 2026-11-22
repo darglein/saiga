@@ -706,15 +706,23 @@ int main(int argc, char* argv[])
         Vulkan::registerWorldMcpTools(server, context);
     };
 
+    // The benchmark's 10:00 (its JSON's lighting.time): a failed write fails the benchmark
+    bool timeSet   = true;
     const int code = engineMain(int(args.size()), args.data(), setup, {},
-                                [](EngineApp& app, const AppOptions&)
+                                [&timeSet](EngineApp& app, const AppOptions&)
                                 {
                                     WorldTimeChange morning;
                                     morning.hours = 10.0;
                                     morning.rate  = 0.0;
                                     std::string error;
-                                    setWorldTime(app.startWorld(), morning, error);
+                                    timeSet = setWorldTime(app.startWorld(), morning, error);
+                                    if (!timeSet) std::cout << "The time of 10:00 was not set: " << error << std::endl;
                                 });
+    if (code == 0 && !game.benchmarkName.empty() && !timeSet)
+    {
+        std::cout << "Benchmark error: not at 10:00" << std::endl;
+        return 1;
+    }
     // A window closed before the end of the path
     if (code == 0 && !game.benchmarkName.empty() && !game.benchmarkDone)
     {

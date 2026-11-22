@@ -132,7 +132,7 @@ class SAIGA_VULKAN_API WorldBenchmark
      * game_world adds step and recording (the engine's step and command recording times) and gpu_frame_ms: {gpu,
      * <section>: {median, p95}} (the app's gpu profile: the whole GPU frame and RenderScene's sections and
      * sub-sections of the measured frames, S17-S19a) and, S36a1c, lighting: {time, cloudiness, ev100, tone_map,
-     * features: {pbr, atmosphere, clouds, force_full_updates}}.
+     * features: {atmosphere, clouds, force_full_updates}}.
      */
     json11::Json result() const;
     /**

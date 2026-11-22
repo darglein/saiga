@@ -292,6 +292,9 @@ void LightingTab::timeAndWeather()
         slider("rain", w.rain, 0, 1, &WeatherChange::rain);
         slider("fog density", w.fogDensity, 0, float(kMaxFogDensity), &WeatherChange::fogDensity,
                ImGuiSliderFlags_Logarithmic, "%.5f");
+        DebugUiStyle::property("rendered fog density");
+        ImGui::Text("%.5f /m (x (1 + %.0f rain))", w.fogDensity * (1.0 + double(Vulkan::kRainFogFactor) * w.rain),
+                    double(Vulkan::kRainFogFactor));
         slider("snow cover", w.snowCover, 0, 1, &WeatherChange::snowCover);
         DebugUiStyle::property("wind (x, z)");
         float wind[2] = {float(w.wind(0)), float(w.wind(1))};

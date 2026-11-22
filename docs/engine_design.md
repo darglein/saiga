@@ -1929,7 +1929,8 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 
 - `WorldTime` (time of day, day count, rate; global) and `Weather` (cloudiness, rain, fog density, snow cover, waves,
   wind, cloud offset; per space) are components of the world-state entities (§7.8); how they change is game policy
-  (R-MECH-1). [exists: S36a1a]
+  (R-MECH-1). The renderer's fog density is the weather's times (1 + 4 rain) (`kRainFogFactor`: rain lowers the
+  visibility). [exists: S36a1a]
 - **Shading model**: physically based (GGX specular with energy-conserving diffuse, metal/roughness from the
   materials, §10.8), light intensities in physical units (sun illuminance in lux, local lights in lumen). S36 uses a
   fixed or per-time-of-day exposure from a game parameter (goldens use the fixed exposure of §17.6); auto exposure with
@@ -3872,7 +3873,7 @@ their setup.
 | content generation (S23a, S23b) | `src/saiga/engine/content/` (the pipeline, cache, prefabs, hashes, records, stamping; S23b: tombstones, the record messages, the content render sets); generator code (integer only, linted): `src/saiga/engine/content/gen/` (toolkit, chunk generation, section hashes, `FlatGenerator`, `AuthoredSpaceGenerator`), the interface headers `Generator.h`, `WorldPlan.h`, `ChunkContent.h`, `engine/world/SpaceKind.h`, a game's `samples/games/<name>/content/` or `samples/games/common/content/`, the engine test generator `tests/content_test_generator.h` | `CamelCase.h/.cpp` | `Saiga::Engine`, `SAIGA_ENGINE_API` |
 | content test data | `data/tests/engine/prefabs/` (test prefabs), `data/tests/engine/content_hashes.json` (committed hashes), `data/tests/engine/save_s23a.bin` | | |
 | golden images | `data/tests/golden/<test>.png` | | |
-| render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`; S19a: `PrototypeWorld.h` (the settings); S20: `TerrainTiles`, `TerrainAtlas`, `TerrainPass`, `GrassPass`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`; S19a: `scene_lighting.glsl`, `prototype_foliage.vert/.frag`; S20: `terrain*`, `grass.*`, `sky.*`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
+| render scene (S18) | `src/saiga/vulkan/scene/` (`RenderScene`, `RenderSceneTypes`, `MeshPool`, `InstanceBuffer`, `SubAllocatedBuffer`, `UploadBatch`, `SceneCulling`, `MeshImport`; S19a: `PrototypeWorld.h` (the settings); S20: `TerrainTiles`, `TerrainAtlas`, `TerrainPass`, `GrassPass`), `shader/vulkan/scene/` (`instance_common.glsl`, `instance_count.comp`, `bucket_scan.comp`, `instance_write.comp`, `instance.vert`, `flat.frag`; S19a: `prototype_foliage.vert/.frag`; S36: `lighting/` (the lighting block, shading, atmosphere, environment map, clouds); S20: `terrain*`, `grass.*`, `sky.*`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
 | world prototype, game side (S19a; replaced from S20) | `src/saiga/vulkan/world/` (S20: `PrototypeTerrain`, `WorldNoise`, `FoliageGenerator`, `ForestRenderer` (placement), `PrototypeForest`, `PrototypeScene`, `WorldSettings`, `WorldBenchmark`, `WorldMcp`, `WorldCommon.h`), `shader/vulkan/world/` (`prototype_shading.glsl`) | `CamelCase.h/.cpp` | `Saiga::Vulkan`, `SAIGA_VULKAN_API` |
 | render test data | `data/tests/scene/` (glTF files of the import tests and their generator `make_gltf.py`) | | |
 
