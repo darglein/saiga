@@ -9,6 +9,19 @@ if (NOT GTEST_FOUND)
 else ()
 endif ()
 
+# Process settings of every test executable (tests/test_process_setup.cpp: no core dumps of death test children; with
+# saiga_vulkan also the reuse of headless Vulkan devices)
+add_library(saiga_test_setup OBJECT test_process_setup.cpp)
+target_link_libraries(saiga_test_setup PRIVATE ${GTEST_TARGETS})
+target_compile_definitions(saiga_test_setup PRIVATE GTEST_LINKED_AS_SHARED_LIBRARY=1)
+set_target_properties(saiga_test_setup PROPERTIES FOLDER tests)
+if (MODULE_VULKAN)
+    add_library(saiga_test_setup_vulkan OBJECT test_process_setup.cpp)
+    target_link_libraries(saiga_test_setup_vulkan PRIVATE saiga_vulkan ${GTEST_TARGETS})
+    target_compile_definitions(saiga_test_setup_vulkan PRIVATE SAIGA_TEST_VULKAN=1 GTEST_LINKED_AS_SHARED_LIBRARY=1)
+    set_target_properties(saiga_test_setup_vulkan PROPERTIES FOLDER tests)
+endif ()
+
 function(saiga_test FILE_NAME)
     string(REGEX REPLACE "\\.[^.]*$" "" NAME ${FILE_NAME})
 
@@ -17,7 +30,11 @@ function(saiga_test FILE_NAME)
 
     # cuda architecture
     #cmake_policy(SET CMP0104 OLD)
-    add_executable(${TARGET_NAME} ${FILE_NAME})
+    set(SETUP_TARGET saiga_test_setup)
+    if (MODULE_VULKAN AND ("saiga_vulkan" IN_LIST ARGN OR "saiga_engine" IN_LIST ARGN))
+        set(SETUP_TARGET saiga_test_setup_vulkan)
+    endif ()
+    add_executable(${TARGET_NAME} ${FILE_NAME} $<TARGET_OBJECTS:${SETUP_TARGET}>)
     message(STATUS "Test enabled:      ${NAME}")
 
 
