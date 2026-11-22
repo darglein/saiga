@@ -1839,14 +1839,6 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
     int res  = std::clamp(p.atlasResolution, 512, 8192);
     int tile = std::clamp(p.atlasTile, 64, res);
     if (res % tile != 0) tile = res / std::max(res / tile, 1);
-    atlasShadows->ensure(res, tile);
-    // The tiles of removed lights and of lights without castShadows are freed (other cached tiles stay until needed)
-    atlasShadows->retain(
-        [this](uint32_t h)
-        {
-            const LocalLights::Light* l = lightTable->find(LightHandle{h});
-            return l && l->data.castShadows;
-        });
     // The frame's shadowed lights (importance order)
     std::vector<ShadowAtlas::LightInput> in;
     for (const FrameLightInfo& f : lightTable->frameLights())
@@ -1861,6 +1853,22 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
         li.importance = f.importance;
         in.push_back(li);
     }
+    // The image on first use (a frame with a shadowed light; kept afterwards while the local lights are on)
+    if (!in.empty()) atlasShadows->ensure(res, tile);
+    if (!atlasShadows->hasImage())
+    {
+        std::vector<ShadowAtlas::Face> none;
+        atlasShadows->update({}, camera.position, 0, frameCount + 1, none);
+        block.lightCounts(3) = 0;
+        return;
+    }
+    // The tiles of removed lights and of lights without castShadows are freed (other cached tiles stay until needed)
+    atlasShadows->retain(
+        [this](uint32_t h)
+        {
+            const LocalLights::Light* l = lightTable->find(LightHandle{h});
+            return l && l->data.castShadows;
+        });
     // Moving dynamic instances in a light's sphere: its dynamic layer is rendered every frame (resting ones are in the
     // static layer)
     if (!in.empty())

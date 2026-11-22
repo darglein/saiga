@@ -1479,7 +1479,10 @@ bool multiDrawIndirect() const;
 // the environment's), terrainAtlasStats, terrainPassStats (TerrainAtlas, TerrainPass, GrassPass in vulkan/scene/)
 // [exists: S36a1] setEnvironment, setLightingParameters, lightingStatistics, setLightingDebug, setStudioEnvironment,
 // requestProbe; setTime and kEnclosedLighting are removed (the phases and the enclosed light come with the environment)
-// [planned: S36 environment and lights, S38 fog volumes, S39 water, S41 emitters, S42 clouds]
+// [exists: S36b] addLight(chunk, LightData) -> LightHandle, setLight, removeLight (the extract's entity lights), the
+// bulk path addLights(chunk, vector<LightData>) -> LightListHandle / removeLights (S30's piece lights, one list per
+// chunk), localLights (the CPU table), frameLights, lightClusters, shadowAtlas (statistics, previews, tests)
+// [planned: S38 fog volumes, S39 water, S41 emitters, S42 clouds]
 void setEnvironment(const EnvironmentState& env);   // sun/moon direction and intensity, sky, weather, fog, clouds
 // No absolute time reaches a shader: EnvironmentState carries per-effect phases (wind, foliage, flicker, particles)
 // computed in double on the CPU modulo each effect's period, as for the waves (§10.9).
@@ -1661,8 +1664,10 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
     virtual void patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights) = 0;
     virtual void patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights) = 0;
     virtual size_t terrainUploadsPending() const { return 0; }   // E8: bytes sent but not yet recorded
-    // [planned: S36 environment and lights, S38 fog volumes, S39 water, S41 emitters, S42 clouds]: setEnvironment,
-    // add/set/removeLight, add/removeFogVolume, setWater, add/removeEmitter (as in RenderScene)
+    // [exists: S36a1a] setEnvironment; [exists: S36b] addLight(chunk, LightData), setLight, removeLight (the
+    // extract's LightSource lights; RecordingRenderSink keeps the live lights)
+    // [planned: S38 fog volumes, S39 water, S41 emitters, S42 clouds]: add/removeFogVolume, setWater,
+    // add/removeEmitter (as in RenderScene)
 };
 ```
 
@@ -1697,7 +1702,7 @@ class RenderSink   // engine/sync/RenderSink.h [exists: S19b]; types from saiga/
   or re-queues a mask). The thresholds are content, no view settings any more (`TerrainViewSettings::grassMinNormalY` /
   `grassMinAboveSea` removed).
 
-### 10.2 Culling [exists: S18 (one view), S36a2 (the shadow cascades' views); planned: S36b (atlas faces)]
+### 10.2 Culling [exists: S18 (one view), S36a2 (the shadow cascades' views), S36b (the shadow atlas's faces)]
 
 Prerequisite [done: S17]: `GLSL.cpp` targets Vulkan 1.3 / SPIR-V 1.6 (`setEnvClient`, `setEnvTarget`), with a
 test (`VulkanShader.SpirvVersion16`, `.EveryStageFileCompiles`, `.DiscardPipeline`); the device enables
@@ -1755,6 +1760,15 @@ entry per instance and view. The write pass loops over the views the same way; b
 the view count, the compacted entries to at most the scratch entries. The statistics keep `instancesPerLod` and the
 non-empty buckets the main view's and add `cascadeInstances` / `cascadeTriangles`. The shadow draws use the classes'
 `ShadowPipelineTable` (§10.7). With shadows off a chunk has one view (`sample_vulkan_scene_benchmark`'s cull within 5%).
+
+**Atlas views** [exists: S36b]: the shadow atlas's faces rendered in a frame (`ShadowAtlas`, §10.7; at most
+`facesPerFrame <= 11`: main + 4 cascades + 11 faces fill the 16-bit mask) are views after the cascades': a perspective
+`ShadowView` (`perspective`, `facePlanes`: the face's six planes, camera-relative) without de-duplication or the
+small-caster rule, with **caster flags**: a static-layer face draws the static sets (`castStatic`) and the resting
+dynamic instances, a dynamic-layer face only the moving ones (`dynamicFilter`: the count pass reads the moving bit of
+`DynamicInstance::pad`, set by `InstanceBuffer::writeDynamics` when an instance's pose pair differs; carried in the
+view's `dedup.x`). The CPU masks: static sets only for views with `castStatic`, the dynamics' chunks for the views with
+`castDynamic`.
 
 ### 10.3 Extract and interpolation [exists: S19b]
 
@@ -1873,7 +1887,8 @@ tracks nothing and costs nothing):
 - **Pass order** (stage in brackets; the pass exists from then on, the list is the target order):
   1. shadow maps (cascades, far terrain horizon map, local light atlas; cached, §10.7) [exists: S36a2: the `shadow`
      section with `shadow.cascades` (the updated cascades' depth passes) and `shadow.horizon` (the horizon map's chain
-     and rows) after `cull`; S36b the atlas]
+     and rows) after `cull`; S36b: `lights` (the clustered light culling, after `cull`) and `shadow.atlas` (the shadow
+     atlas's faces)]
   2. depth pre-pass (opaque content) [exists: S19a: the terrain and water draw and the opaque instance classes, the same
      vertex shader with `invariant gl_Position`, then the scene pass with `EQUAL` and no depth write; off for the
      prototype (`PrototypeSettings::depthPrePass`: its terrain already draws first, so the pre-pass only removes terrain
@@ -1945,7 +1960,7 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 - Third-person camera rig (`engine/app/`): orbit around the local player, collision against terrain, instances and
   pieces, look input applied per frame (§8.3); games configure it.
 
-### 10.7 Lighting, time and weather [exists: S36a1 (world time, weather, the environment extract, the exposure rule, PBR shading, clay's studio environment, the sky ambient and environment map, the Lighting tab and tools), S36a2 (sun and moon shadows: cascades, far terrain horizon map); planned: S36b (local lights)]
+### 10.7 Lighting, time and weather [exists: S36a1 (world time, weather, the environment extract, the exposure rule, PBR shading, clay's studio environment, the sky ambient and environment map, the Lighting tab and tools), S36a2 (sun and moon shadows: cascades, far terrain horizon map), S36b (local lights: clustered forward lights, the cached shadow atlas)]
 
 - `WorldTime` (time of day, day count, rate; global) and `Weather` (cloudiness, rain, fog density, snow cover, waves,
   wind, cloud offset; per space) are components of the world-state entities (§7.8); how they change is game policy
@@ -2042,13 +2057,44 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 - Receivers: `shadowFactor = cascades x horizon x clouds` (`shadows.glsl`, evaluated once per fragment; the grass
   evaluates it per vertex, the terrain has a variant without the cascade and horizon code while both are off).
 - **Local lights** (point and spot; color, intensity, range, optional flicker): clustered forward light culling with a
-  light budget per quality tier. **Shadowed local lights**: the nearest/most important lights (budget per tier,
-  default 0-1 on Low, 4 on Medium, 16 on High) render into a shadow atlas (point lights as cube faces); the rest are
-  unshadowed. The atlas is **cached**: a face is re-rendered only when its light or a caster in its range changed, with
-  static and dynamic casters in separate layers and a per-tier budget of re-rendered faces per frame.
-  Lights come from entities (`LightSource` component, presentation, its on/off state replicated with its owner) and
-  from placed pieces (per-chunk light lists in the 1p data, §12.5, so a base with hundreds of torches creates no
-  entities).
+  light budget per quality tier. **Shadowed local lights**: the most important shadowed lights take tiles of a shadow
+  atlas until it is full: a **tile budget** (64 tiles of 512 at High = 10 point or 64 spot lights; S37 maps tiers to
+  it); the rest are unshadowed. The atlas is **cached**: a face is re-rendered only when its light or a caster in its
+  range changed, with static and dynamic casters in separate layers and a per-tier budget of re-rendered faces per
+  frame. Lights come from entities (`LightSource` component, presentation, its on/off state replicated with its owner)
+  and from placed pieces (per-chunk light lists in the 1p data, §12.5, so a base with hundreds of torches creates no
+  entities). [exists: S36b, M5 of the S36 plan:
+  - `LightSource` (`engine/components/`, always registered, `Replicate::HostReliable`, saved; kind, colour, lumen,
+    range, cone angles, offset and rotation relative to the entity, on, castShadows, priority, flicker amplitude and
+    frequency): the extract (`ExtractSystem`) adds and removes the sink light with the component (and `on`), sends a
+    changed component (compared with the last sent one) and the entity's pose per step; `updateLights(alpha)` moves the
+    lights of moving entities to the interpolated pose every frame. Flicker is a sum of sines of the environment's flicker
+    phase (`EnvironmentState::phases[6]`, integer multiples: continuous through its wrap), computed on the CPU.
+  - `LocalLights` (`vulkan/scene/`): the CPU table (chunk + chunk-relative position, single lights and per-chunk lists);
+    per frame the lights of the camera's space within `clusterFar + range` and in the frustum, sorted by importance
+    (`priority * lumen / max(distance, range)^2`, ties by handle), capped at `maxLights`, written camera-relative (80
+    bytes: position and range, axis and kind, colour times candela times flicker, the atlas's tile entry, the cone, the
+    cluster range) into the frame slot's light buffer. Falloff: inverse square with the window
+    `saturate(1 - (d / range)^4)^2`; spots a smooth cone between the cosines; the sun's BRDF (`clusters.glsl`).
+  - Clusters (`LightClusters`): `clusterX x clusterY x clusterZ` (16 x 9 x 24) over the screen, slice 0 from the near
+    plane to `clusterNear` (2 m), then exponential to `clusterFar` (1000 m); the cluster AABBs in view space
+    (`light_cluster_bounds.comp`, on a grid, size or projection change); `light_cluster.comp` (section `lights`): one
+    invocation per cluster loops the importance-sorted lights (the workgroup's batch in shared memory; the light's
+    conservative cluster range first, then sphere vs AABB, spots also a cone test) into fixed slots of
+    `maxLightsPerCluster` `uint` indices (no atomics, deterministic), (count, total) per cluster: the excess is
+    overflow, dropped and counted. Fragments find their cluster from `gl_FragCoord` and the view depth.
+  - The shadow atlas (`ShadowAtlas`): a D16 2D array of two layers (`atlasResolution^2`): **static** (static sets,
+    resting dynamic instances, the terrain at the **finest resident level** under the light's sphere without morph,
+    cached) and **dynamic** (moving instances, re-rendered every frame for the lights with one in range; cleared once
+    when the last one leaves); receivers take the minimum of both. Faces store the **linear depth**
+    `distance / range` (a D16 step of `range / 65536` at every distance); fixed tiles of `atlasTile` (spot 1, point 6
+    cube faces). Selection by tiles in importance order with a 20% hysteresis; tiles of lights that are no longer
+    candidates stay cached until needed. A face's cache key: the light's position, axis, cone, range and the terrain
+    selection's hash; content changes push **dirty bounds** (instance sets, dynamic instances taking or leaving a
+    resting pose, terrain tiles and patches; `setMaterial` and pyramid changes invalidate every tile). The queue: the
+    dynamic faces first, then the invalid static faces by importance and age, at most `facesPerFrame`; a light is
+    unshadowed until each of its faces was rendered once. Receivers (`atlas_shadow.glsl`): the face by the major axis,
+    one 2 x 2 linear comparison, a bias in D16 steps and a normal offset in texels.]
 - **Indirect light: ambient + ambient occlusion only.** Sky ambient (from the sky color, §10.11, per-space ambient
   settings for dungeons and caves) modulated by screen-space ambient occlusion. Accepted limitation: interiors of
   player-built houses do not darken by themselves (caves and dungeons are separate spaces with their own ambient,
@@ -3346,12 +3392,13 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
 | `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad, and from S16b HostClient, HostClientDelay, HostClientAsync; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
 | `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run); S21: `app_status.space_loading` (`null` or `{space, name, progress, frames}`, §12.4); S36: `app_status.lighting` (`{time_of_day, ev100, tone_map, debug_view}`, null without a device) | [exists: S13] |
-| `get_lighting(sections?)` | S36: reads the lighting of the view camera's space: `time` (hours, day, rate; null without `WorldTime`), `weather`, `sun` / `moon` (direction, azimuth / elevation, illuminance at the top and on the ground, phase), `shadow_light`, `tone_map` (with `identity` a note that clay ignores time and weather), `exposure` (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only the unit-less multiplier), `ambient`, `environment` (S36a1c: the environment map's validity, last capture frame, captures, progress, the LUT recomputations, the cloud layer's state and mean coverage), `clouds`, `settings` and `parameters` (the `set_lighting` keys), `debug`, `gpu`, `memory` (S36a1b), `cascades` (S36a2: per cascade split, box, texel, interval, last update, instances, triangles, terrain nodes; the shadow light, frozen, memory) and `horizon` (S36a2: the front map's anchor, extent, texel, reference, direction, the progress and blend, the recomputes); `sections` filters the top-level keys; answered at once; an error without a device. Part b adds keys | [exists: S36a1a, S36a2] |
+| `get_lighting(sections?)` | S36: reads the lighting of the view camera's space: `time` (hours, day, rate; null without `WorldTime`), `weather`, `sun` / `moon` (direction, azimuth / elevation, illuminance at the top and on the ground, phase), `shadow_light`, `tone_map` (with `identity` a note that clay ignores time and weather), `exposure` (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only the unit-less multiplier), `ambient`, `environment` (S36a1c: the environment map's validity, last capture frame, captures, progress, the LUT recomputations, the cloud layer's state and mean coverage), `clouds`, `settings` and `parameters` (the `set_lighting` keys), `debug`, `gpu`, `memory` (S36a1b), `cascades` (S36a2: per cascade split, box, texel, interval, last update, instances, triangles, terrain nodes; the shadow light, frozen, memory) and `horizon` (S36a2: the front map's anchor, extent, texel, reference, direction, the progress and blend, the recomputes), `lights` (S36b: submitted, candidates, visible, over budget, shadowed, without tiles), `clusters` (S36b: the grid, max, mean, overflowed clusters, dropped lights) and `atlas` (S36b: tiles used / total, static and dynamic renders, clears, hits, queue, lights with and without tiles); `sections` filters the top-level keys; answered at once; an error without a device | [exists: S36a1a, S36a2, S36b] |
 | `set_time_of_day(hours?, day?, rate?)`, `set_weather(space?, cloudiness?, rain?, fog_density?, snow_cover?, wind?, cloud_offset?, wave_amplitude?, wave_steepness?)` | S36: the validated writes of `WorldTime` / a space's `Weather` (`setWorldTime` / `setWeather`; the error names the argument and its range; unknown arguments are errors); return `values` and `previous`; an error without `WorldTime` / `Weather`; with `--coop` they write the hidden host, a pure client is refused | [exists: S36a1a] |
-| `set_lighting(...)` | S36: the settings, not world state: `tone_map`, `exposure_mode`, `ev100`, `exposure_compensation`, `ambient_scale`, `min_ambient`, `sun_override`, `cloud_altitude`, `cloud_radius`, `cloud_shadow_fade`, `cloud_seed`, `star_intensity`, `ground_albedo`, `rayleigh_scale`, `mie_scale`, `ozone_scale`, `fog_falloff` (S36a1c review) and every `LightingParameters` field by its snake_case name (S36a2: the cascades' and the horizon map's; `cascade_interval[0]` must be 1); validated as a whole and applied all or nothing from the next frame (the error names every invalid key; more than 1 GiB of lighting memory is refused); returns `values`, `previous` (an undo payload) and `memory_bytes`. Part b adds keys | [exists: S36a1a, S36a2] |
-| `set_lighting_debug(view?, overlays?, freeze_cascades?, mapping?)`, `screenshot(..., lighting_view?, overlays?)` | S36: the scene debug view (`LightingDebugView`: data views write raw values, a debug frame latches the identity tone map without a pipeline change and keeps the pre-exposure history), the overlays (`DebugLines`) and the tab's preview mapping; the screenshot's one-frame override | [exists: S36a1b] |
-| `capture_lighting(image, mip?, range?, log?, color_map?, full?, max_width?, format?, stats_only?)` | S36: a data image (the preview conversion of `LightingDebug`, the same as the Lighting tab's) plus a JSON block with the mapping and the source values' min, max, mean and 16-bin histogram; `stats_only` the block alone (the only path to GPU image statistics); images `luminance`, `brdf_lut` (S36a1b), `transmittance_lut`, `multi_scattering_lut`, `sky_view_lut`, `environment` (`mip`: a value of the request, the Lighting tab's mip unchanged; reported in the block), `irradiance`, `cloud_coverage`, `cloud_shadow` (S36a1c), `cascade` (S36a2: `cascade` one layer, else all side by side, each with its own range; the boxes and texel sizes in the block), `horizon` (S36a2: `channel` r or g; the anchor, extent and direction in the block); `full: true` completes the environment map (and the horizon map) first; deferred with the screenshot's deadline | [exists: S36a1b, S36a1c, S36a2] |
-| `probe_lighting(pixel? \| position?)` | S36: a sequence of 10 frames (normal, the albedo, normal and material views, the direct, ambient and specular radiance raw, the cloud shadow, S36a2 the cascades (factor, index) and the horizon map (factor, R and G above the receiver)) with 1 x 1 readbacks of the resolved pixel; the camera and the environment are held; answers the material, the radiance parts, the shadow factors, the luminance and its EV100, `frames` and `consistent` | [exists: S36a1b; the cloud frame S36a1c; the shadow frames S36a2] |
+| `set_lighting(...)` | S36: the settings, not world state: `tone_map`, `exposure_mode`, `ev100`, `exposure_compensation`, `ambient_scale`, `min_ambient`, `sun_override`, `cloud_altitude`, `cloud_radius`, `cloud_shadow_fade`, `cloud_seed`, `star_intensity`, `ground_albedo`, `rayleigh_scale`, `mie_scale`, `ozone_scale`, `fog_falloff` (S36a1c review) and every `LightingParameters` field by its snake_case name (S36a2: the cascades' and the horizon map's; `cascade_interval[0]` must be 1; S36b: `local_lights`, `clustered_lights`, `max_lights`, `cluster_x`, `cluster_y`, `cluster_z`, `cluster_near` < `cluster_far`, `max_lights_per_cluster`, `atlas_resolution`, `atlas_tile` (divides `atlas_resolution`), `faces_per_frame` (<= 11), `atlas_depth_bias`, `atlas_normal_offset`); validated as a whole and applied all or nothing from the next frame (the error names every invalid key; more than 1 GiB of lighting memory is refused); returns `values`, `previous` (an undo payload) and `memory_bytes` | [exists: S36a1a, S36a2, S36b] |
+| `set_lighting_debug(view?, overlays?, freeze_cascades?, highlight_light?, mapping?)`, `screenshot(..., lighting_view?, overlays?)` | S36: the scene debug view (`LightingDebugView`: data views write raw values, a debug frame latches the identity tone map without a pipeline change and keeps the pre-exposure history; S36b `local_lights_only`, `cluster_lights`, `atlas_shadow`), the overlays (`DebugLines`; S36b `light_volumes`, `cluster_grid`, `atlas_owners`), the highlighted light (S36b) and the tab's preview mapping; the screenshot's one-frame override | [exists: S36a1b, S36b] |
+| `capture_lighting(image, mip?, range?, log?, color_map?, full?, max_width?, format?, stats_only?)` | S36: a data image (the preview conversion of `LightingDebug`, the same as the Lighting tab's) plus a JSON block with the mapping and the source values' min, max, mean and 16-bin histogram; `stats_only` the block alone (the only path to GPU image statistics); images `luminance`, `brdf_lut` (S36a1b), `transmittance_lut`, `multi_scattering_lut`, `sky_view_lut`, `environment` (`mip`: a value of the request, the Lighting tab's mip unchanged; reported in the block), `irradiance`, `cloud_coverage`, `cloud_shadow` (S36a1c), `cascade` (S36a2: `cascade` one layer, else all side by side, each with its own range; the boxes and texel sizes in the block), `horizon` (S36a2: `channel` r or g; the anchor, extent and direction in the block), `clusters` (S36b: the lights per cluster, a `slice` or the maximum), `atlas` (S36b: a `layer`, the tiles' owners in the block), `atlas_tile` (S36b: `light`, `face`, `layer`); `full: true` completes the environment map (and the horizon map) first; deferred with the screenshot's deadline | [exists: S36a1b, S36a1c, S36a2, S36b] |
+| `probe_lighting(pixel? \| position?)` | S36: a sequence of 11 frames (normal, the albedo, normal and material views, the direct, ambient and specular radiance raw, the cloud shadow, S36a2 the cascades (factor, index) and the horizon map (factor, R and G above the receiver), S36b the atlas shadow (the darkest factor of the shadowed local lights that reach the pixel)) with 1 x 1 readbacks of the resolved pixel; the camera and the environment are held; answers the material, the radiance parts, the shadow factors, the luminance and its EV100, `frames` and `consistent`; S36b the pixel's cluster and its lights with each light's reflected radiance (the CPU reference) | [exists: S36a1b; the cloud frame S36a1c; the shadow frames S36a2; the local lights S36b] |
+| `list_lights(near?, shadowed?, visible?, limit?, after?)` | S36b: the scene's local lights by handle (entity lights with their entity, scene lights of lists): kind, position, direction, colour, lumen, range, cone angles, priority, shadowed, visible this frame, distance, importance, clusters touched, atlas tiles and the frame of their last render, ready; filters `near: {position, radius}`, `shadowed`, `visible`; paged (`limit` <= 1000, `after`, `next`); entity lights are edited with `set_component` | [exists: S36b] |
 | `set_ui_tab(tab?)` | the debug UI (§17.1): selects a tab by name (`game`, `performance`, `engine`, `console`, `lighting`, a game tab) as its key does, or only reads; returns the tab, the tabs with their keys and whether the UI is visible; an error when the UI is off | [exists: S19c] |
 
 S16: on a client the world API is read-only for replicated entities except the owner-authoritative components of the
@@ -3440,7 +3487,13 @@ parameters, a row per cascade with its split, texel, interval, last update, inst
 cascades' depth side by side with a click to enlarge one, a warning above 2 ms) and Far terrain shadows (the horizon
 map's R / G preview, progress, blend, direction, anchor, rows per frame, "recompute now"), the toolbar's "freeze
 cascades", the `ShadowCascades` / `HorizonShadow` views and the `cascade_colors`, `cascade_bounds`,
-`camera_frustum_splits`, `horizon_anchor` overlays [exists: S36a2]; Local lights come with S36b.
+`camera_frustum_splits`, `horizon_anchor` overlays [exists: S36a2]; Local lights (the counts, max lights, the
+cluster grid and its occupancy, the cluster heat map view, the `cluster_grid` overlay and the Clusters preview of a
+slice or the maximum, the atlas's parameters and cache statistics with its preview of a layer and the tiles' owners (a
+click selects a tile's light), the selected light's tile, a warning for shadowed lights with a range above 100 m, the
+sortable light table: a row selects and highlights a light in the `light_volumes` overlay, "move camera to light", an
+entity light's `LightSource` fields written through `set_component`) [exists: S36b]. `set_ui_tab(sections)` opens and
+closes sections (S36b).
 
 The Performance tab shows the frame statistics (`FrameStatistics` in `engine/app/`) over a selectable window (3, 10 or
 30 s, refreshed every 0.5 s; the first second after the start and frames that were not presented are left out): first
@@ -3664,7 +3717,10 @@ goldens).
     `lighting_clouds` (12:00, cloudiness 0.7, from 2500 m above the layer, EV100 15.5); S36a2: with the sun and moon
     shadows (golden mode with the cascades at 1024 and the horizon map at 256 texels: `goldenSceneParameters` of
     `tests/render_scene_test_context.h`, also used by the five clay goldens, which S36a2 regenerated with the studio
-    sun's shadows; the tree counts unchanged).
+    sun's shadows; the tree counts unchanged); S36b: `lighting_local_lights` (22:00, 12 point and 3 spot lights of
+    `LightSource` entities around the boxes, 4 shadowed, EV100 0) and `lighting_enclosed_lights` (a dark cellar, an
+    enclosed space with its template's ambient and EV100, 6 point lights of an `addLights` list, 2 shadowed, four
+    pillars), the shadow atlas at 1024 in tiles of 128.
 - S02 goldens (`VulkanWorldGolden.WorldOverview` / `.WorldForest`; until S19: `tests/test_vulkan_world.cpp`,
   `WorldParameters` with `terrain.size = 513` (1 km), 5000 trees, seed 1; since S20 the setup below): `world_overview` (camera 300 m above the ground 100 m from the
   west edge at the center z, looking 45 degrees down along +x, so terrain and trees fill the image) and `world_forest`
@@ -3754,7 +3810,11 @@ goldens).
   of `--tonemap identity` are reported once in the plan's Results). S36a2: the `gpu_ms` key `shadows` = `shadow` (its
   sub-sections `shadow.cascades`, `shadow.horizon` in `gpu_frame_ms`), the features add `sun_shadows`,
   `horizon_shadows`, `cascade_count`, `cascade_resolution`, `shadow_distance`; the baselines from S36a2 on include the
-  shadows (the shadows-off comparison is in the plan's Results).
+  shadows (the shadows-off comparison is in the plan's Results). S36b: the features add `local_lights`,
+  `clustered_lights`; the day benchmarks spawn no lamps (`--lamps` default 0 for them: their world is the baseline's);
+  `--benchmark night` (the flyover path at 22:00 with 400 `game_world` lamps on a ring of 2500 m the path looks across;
+  the JSON's `local_lights` block: the lamps, the visible and shadowed lights per frame, the atlas's static and dynamic
+  renders per frame and its cache hit rate) is reported in the plan's Results, not committed to `benchmarks.json`.
   Writes `benchmark_<name>.json` `{gpu, quality, build: {type, asserts, archnative}, frames, gpu_frames, width, height,
   cpu_ms: {median, p95}, cpu_work_ms: {median, p95}, gpu_ms: {<pass>: {median, p95}}, stalled_frames}` (plus the
   engine's values below) to the working
@@ -4256,17 +4316,21 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S23c | Overworld generator (tech demo) (done) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
 | S24 | Streaming | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
-| S26 | World over the network | Handshake with schema hash, chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
+| S26 | World over the network | Handshake with schema hash (and the environment flag of `EnvironmentSetup::enabled`), chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
 | S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4), impostor shadow casters in the far cascades (the shadow pipeline table's impostor entry, S36a2); tech demo: the flight demo shows far content to the horizon over 32 km | S26, S23c | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
 | S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11); tech demo: the racing car on Jolt (vehicle constraint) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default); the racing demo drives on Jolt (local) |
 | S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16, S16b | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |
-| S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions, queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
+| S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions (through `RenderScene::addLights`, one list per chunk, S36b), queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |
 | S31 | Promotion and grass edits | `promote`/`demote`, tombstones from interaction, `editGrass` (§6, §12.5) | S30 | chop-a-tree scenario incl. save/load and host + client (CI) |
 | S32 | Network production | Interest radius, snapshot rate (20 Hz), cosmetic events, loss and reordering handling, snapshot packets (§13.4) | S29, S26 | all scenarios pass in the host + client variant with seeded loss and reordering (CI); `--benchmark host_step` with 7 clients within the step budget, upload per client reported against §17.10 (local) |
 | S33 | Sessions and transport | UDP / Steam Networking transport, drop-in/out, character files (§13.6, §13.7, §15.4) | S32, S25, S30 | character file round trip incl. a rejoin of the same world (`Persistent` IDs kept) and a rejoin with the file of an older commit (receives the loaded commit's character); deposit, disconnect, commit, crash, rejoin: no duplicate item; leave and rejoin before the next commit: no item lost; a loopback disconnect removes the group and emits `PlayerDisconnectedEvent` (CI); two-process co-op session over UDP, join data reported against §17.10 (local) |
 | S34 | Skinned characters | Skinned meshes, GPU skinning, animation state and replication, pose evaluation and LOD (§10.6); tech demo: the platformer character skinned, with the animation state machine (replaces the procedural box animation) | S19, S16, S16b | animation scenario (state replication, pose LOD) (CI); screenshots reviewed (local); platformer demo screenshots reviewed (local) |
 | S35 | Camera rig | Third-person camera with collision, gamepad input (§8.3, §10.6); tech demos: all three on the camera rig (third-person for the platformer, chase cameras for the car and the airplane; `ChaseCamera` removed) | S29, S34 | camera collision tests (CI); reviewed in a session (local); tech demo cameras reviewed (local) |
-| S36 | Lighting (five parts, `docs/stages/S36_lighting.plan.md`: S36a1a world state and tools, S36a1b lighting block and PBR, S36a1c sky, environment map, 2D clouds, games and the flip [done]; S36a2 multi-view culling, sun and moon cascades, far terrain horizon map [done]; S36b local lights) | PBR shading, sun/moon cascades, far terrain shadows, clustered lights with cached shadow atlas, environment map, sky with 2D clouds, `WorldTime`/`Weather` (§10.7, §10.11); tech demos: lighting and shadows shown in the flight demo (day and night) | S19, S20 | golden images per time of day (CI); flight demo screenshots reviewed (local) |
+| S36a1a | Lighting: world state and tools (`docs/stages/S36_lighting.plan.md`) | `WorldTime` / `Weather` (always registered; world and space state with `EnvironmentSetup::enabled`), the celestial model, `EnvironmentState` and the environment extract, the exposure rule, the Lighting tab's first sections and the first lighting tools (§10.7) | S19 (S19a, S19b, S19c for the tab), S20, S21, S23b, S23c | scenario `world_time_advances` in every variant (CI) [done] |
+| S36a1b | Lighting: lighting block, PBR, debug core | `SceneLighting` v2 and `SceneLightingSet`, PBR behind a pipeline variant, clay's studio environment, the debug views, previews, `DebugLines`, `capture_lighting`, `probe_lighting` (§10.7) | S36a1a | the five clay goldens unchanged with both pipeline variants (CI) [done] |
+| S36a1c | Lighting: sky, environment map, 2D clouds, games, flip | Hillaire atmosphere with sun, moon and stars, the sky environment map and ambient, the 2D cloud layer and its shadows, the games with the environment and ACES by default (§10.7, §10.11); tech demo: the flight demo by day, at sunset and at night | S36a1b | the four lighting goldens (CI); flight demo screenshots reviewed (local) [done] |
+| S36a2 | Lighting: sun and moon shadows | Multi-view culling, cascaded shadow maps, the far terrain horizon map, their tab sections and tools (§10.2, §10.7); tech demo: the flight demo's shadows at noon, sunset and night | S36a1c | the clay and lighting goldens with shadows (CI); the shadow passes within the 2.5 ms budget (local) [done] |
+| S36b | Lighting: local lights | `LightSource` and its extract, clustered forward light culling, the cached shadow atlas, their tab section, previews, overlays and tools incl. `list_lights` (§10.2, §10.7); tech demo: `game_world` at night with lamps (`--lamps`, `--benchmark night`), the flight demo's navigation and landing lights | S36a2 | `lighting_local_lights` and `lighting_enclosed_lights` goldens (CI); the night benchmark and screenshots reviewed (local) [done] |
 | S37 | Post chain and tiers | AO, DOF, bloom, exposure, grading, render scale with spatial upscaling, quality tiers and budgets incl. Steam Deck (§10.5, §17.9, §17.10); tech demos: post chain and tiers in all three demos | S36, S27 | per-pass budgets met on the desktop reference (or reported as open per §17.10 if no such card is available) and, when available, the Steam Deck (local); benchmark baselines in `data/tests/benchmarks.json` for the desktop reference class (RTX 3060 / RX 6600, §17.10; or reported as open per §17.10 if no such card is available) (local); golden images per tier (CI); tech demo screenshots per tier reviewed (local) |
 | S38 | Volumetric fog | Froxel fog with light shafts, fog volumes, analytic fog to the horizon (§10.5.1); tech demo: flight through volumetric fog | S37 | golden images with fog and local lights (CI); fog within its budget (local); flight demo screenshots reviewed (local) |
 | S39 | Water | Global sea plane, waves, `waterHeight`, buoyancy, exclusion volumes, rendering incl. the transparent pass, underwater (§10.9); tech demos: flight over the sea, racing along the coast | S28, S37 | boat-floats scenario incl. host + client; a pit dug below sea level shows water; golden images above and below water (CI); water within its budget (local); tech demo screenshots reviewed (local) |

@@ -40,11 +40,9 @@ int main(int argc, char** argv)
     setup.world = flightWorldSetup(context, "");
     // S36: the time of day and the weather (data/flight/environment.json), ACES
     enableEnvironment(setup, "flight");
-    // S36b: the local lights (the planes' navigation and landing lights)
-    setup.render.lighting.localLights = true;
-    setup.scenarios                   = flightScenarios;
-    setup.networkVariants             = true;
-    setup.checkOptions                = clampCoopDemoDelay;
+    setup.scenarios       = flightScenarios;
+    setup.networkVariants = true;
+    setup.checkOptions    = clampCoopDemoDelay;
     // --coop: the joined peer's plane (R-MECH-1); a leaving peer's driver goes, its plane stays empty
     setup.onPeerJoined = [](EngineApp& app, World& host, uint8_t peer)
     { flightPeerJoined(host, peer, app.options().has("--demo")); };

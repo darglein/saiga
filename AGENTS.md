@@ -91,7 +91,11 @@ src/
                         nothing), the shadow views of SceneCulling (view masks per work chunk), TerrainPass::
                         selectForShadow (terrain casters), HorizonShadows (the far terrain horizon map, horizon_*.comp);
                         receivers in lighting/shadows.glsl (the grass per vertex); sections shadow, shadow.cascades,
-                        shadow.horizon
+                        shadow.horizon; S36b the local lights: LocalLights (the CPU table, the frame's selection and
+                        light buffer; addLight / addLights), LightClusters (light_cluster_bounds.comp, light_cluster.comp:
+                        clustered light culling, section lights; clusters.glsl), ShadowAtlas (the cached two-layer D16
+                        atlas of the shadowed local lights, faces as SceneCulling views, the shadow pipelines' and the
+                        terrain's ATLAS_DEPTH variants, atlas_depth.frag, atlas_shadow.glsl; section shadow.atlas)
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app;
                         setHeadlessDeviceReuse: the tests' pool of headless devices)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
@@ -130,7 +134,8 @@ src/
                         VisitJson.h (JSON form of visit), SAIGA_LOG_E; components/: EngineIds.h, Transform, Parent,
                         LocalTransform, Player, Health, PlayerInput, CharacterIntent, Persistent, RenderInstance
                         (S19b: the mesh name an entity renders), SpaceLink (S21: an entrance to another space),
-                        PendingTransition (S21: a requested transition), WorldTime / Weather (S36: the time of day
+                        PendingTransition (S21: a requested transition), LightSource (S36b: an entity's local light,
+                        sent by the extract: ExtractSystem::updateLights), WorldTime / Weather (S36: the time of day
                         (global) and the weather (space state) with WorldSetup::environment.enabled, else plain
                         components); lighting/ (S36): EnvironmentSetup, EnvironmentFile (environment.json), the
                         celestial model (Celestial), worldTimeSystem (addEnvironmentSystems), the validated writes
@@ -191,7 +196,7 @@ data/                   Sample assets (textures, models); test goldens in data/t
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
-                        EngineApp: game_world, --benchmark, MCP of .mcp.json), the tech demos flight/, platformer/, racing/
+                        EngineApp: game_world, --benchmark, --lamps (S36b: Lamps.*), MCP of .mcp.json), the tech demos flight/, platformer/, racing/
                         (on EngineApp: simulation in a World, <Game>World.* and <Game>Render.*; data in data/<game>/;
                         S23c: flight's integer OverworldGenerator in flight/content/ (linted), its prefab
                         data/flight/prefabs/ruin.json and hash file data/flight/content_hashes.json) and
@@ -297,7 +302,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-86 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+87 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -422,7 +427,8 @@ ctest -R test_core_ini --output-on-failure             # one test
   clay goldens use clay's studio environment (S36), so the atmosphere, the clouds and the exposure do not move them
   (S36a2: they show the studio sun's cascade and horizon shadows; the tree counts are unchanged by shadows). The
   lighting goldens (S36a1c: `lighting_noon`, `lighting_sunset`, `lighting_night`, `lighting_clouds`; ACES, a fixed
-  EV100, golden mode with the sun and moon shadows, `goldenSceneParameters`) with
+  EV100, golden mode with the sun and moon shadows, `goldenSceneParameters`; S36b: `lighting_local_lights` and
+  `lighting_enclosed_lights`, the local lights with the shadow atlas) with
   `./build/tests/test_engine_lighting_render --gtest_filter='LightingGolden.*'`.
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
@@ -456,6 +462,7 @@ ctest -R test_core_ini --output-on-failure             # one test
   # CMake >= 4: add -DCMAKE_POLICY_VERSION_MINIMUM=3.5; GCC 15: add -DASSIMP_WARNINGS_AS_ERRORS=OFF (see above)
   cmake --build build-bench --target game_world sample_vulkan_scene_benchmark --parallel
   (cd build-bench/samples/games && ./game_world --benchmark flyover)   # and --benchmark forest, --benchmark terraform
+  (cd build-bench/samples/games && ./game_world --benchmark night)     # S36b: 400 lamps at 22:00, reported only
   (cd build-bench/samples/vulkan && ./sample_vulkan_scene_benchmark)     # culling benchmark (S18), headless
   ```
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
@@ -507,7 +514,11 @@ day passes in 10 minutes from 6:00, `game_world` is at 10:00 frozen. Every engin
 F5 Lighting; game tabs F6-F10). S36a2: the sun and moon cast shadows (cascades to `lighting.shadowDistance`, flight 2500
 m in `data/flight/environment.json`; the far terrain horizon map) in every engine game; the environment file's `lighting`
 key takes every `LightingParameters` field (e.g. `"sunShadows": false`), the Lighting tab's Cascades and Far terrain
-shadows sections and `set_lighting` change them at run time.
+shadows sections and `set_lighting` change them at run time. S36b: local point and spot lights (`LightSource` entities,
+scene lights; clustered, the most important shadowed ones in the cached shadow atlas): `game_world --lamps N` (default
+400 lamps in front of the start camera; on while the sun is below 4 degrees: `--time-of-day 22` shows them),
+`--benchmark night`; the flight demo's navigation and landing lights below 5 degrees sun elevation
+(`SAIGA_SCREENSHOT=/tmp/flight_night.png ./build/samples/games/game_flight --demo --time-of-day 23`).
 
 ## Code Conventions
 

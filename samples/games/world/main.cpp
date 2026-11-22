@@ -714,16 +714,14 @@ int main(int argc, char* argv[])
     { l.add(Phase::Gameplay, "lampPolicy", Game::lampPolicySystem, RunOn::Host); };
     // S36: the environment (data/world/environment.json), ACES; the time is 10:00, frozen (the benchmark keeps it)
     Game::enableEnvironment(setup, "world");
-    // S36b: the local lights (the lamps) on
-    setup.render.lighting.localLights = true;
-    game.area                         = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
-    setup.render.msaaSamples          = 4;
-    setup.cameraSpeed                 = 25;
-    setup.cameraSpeedFast             = 250;
-    setup.benchmarks                  = Vulkan::WorldBenchmark::names();
-    setup.mcpInstructions             = Vulkan::worldMcpInstructions();
-    EngineApp* appPtr                 = nullptr;
-    setup.renderHooks.init            = [&](EngineApp& app)
+    game.area                = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
+    setup.render.msaaSamples = 4;
+    setup.cameraSpeed        = 25;
+    setup.cameraSpeedFast    = 250;
+    setup.benchmarks         = Vulkan::WorldBenchmark::names();
+    setup.mcpInstructions    = Vulkan::worldMcpInstructions();
+    EngineApp* appPtr        = nullptr;
+    setup.renderHooks.init   = [&](EngineApp& app)
     {
         appPtr             = &app;
         game.benchmarkName = app.options().benchmark;

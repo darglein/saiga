@@ -173,9 +173,9 @@ struct LightingParameters
     float horizonExtent     = 32768;  // m, the square around the anchor
     int horizonRowsPerFrame = 64;     // the base of the incremental update (more when the light moves fast)
     // S36b: the local lights (B2)
-    bool localLights     = false;  // the point and spot lights of the scene
-    bool clusteredLights = true;   // false: every fragment loops over every light (the correctness reference)
-    int maxLights        = 1024;   // the lights of a frame (1..4096), the most important ones (the rest: over budget)
+    bool localLights     = true;  // the point and spot lights of the scene
+    bool clusteredLights = true;  // false: every fragment loops over every light (the correctness reference)
+    int maxLights        = 1024;  // the lights of a frame (1..4096), the most important ones (the rest: over budget)
     // S36b: the cluster grid (B3): screen tiles x, y and depth slices z (slice 0 to clusterNear, then exponential to
     // clusterFar, beyond it no local light), the fixed slots per cluster
     int clusterX            = 16;    // 1..64

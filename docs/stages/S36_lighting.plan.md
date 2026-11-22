@@ -2,8 +2,9 @@
 
 Status: S36a1a implemented (2026-11-22, branch `stage-s36a1a`); S36a1b implemented (2026-11-22, branch
 `stage-s36a1b`, stacked on a1a); S36a1c implemented (2026-11-22, branch `stage-s36a1c`, stacked on a1b); S36a2
-implemented (2026-11-22, branch `stage-s36a2`, stacked on a1c); b planned (plan written 2026-11-22 on
-branch `plans-s36`, based on the S20-S23c stack; revised after review rounds 1 and 2 the same day).
+implemented (2026-11-22, branch `stage-s36a2`, stacked on a1c); S36b implemented (2026-11-22, branch `stage-s36b`,
+stacked on a2) (plan written 2026-11-22 on branch `plans-s36`, based on the S20-S23c stack; revised after review rounds
+1 and 2 the same day).
 
 Sections follow the stage plan template of S05; the design-doc amendments, the AGENTS.md changes, a decisions table,
 the template's Design changes / Results placeholders, the review log and the questions left to the user are at the end.
@@ -2062,6 +2063,87 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   test_vulkan_shadows, test_vulkan_sync and the goldens cover the shadows. This supersedes the a2 entry "RenderSceneTest
   runs in golden mode".
 
+**S36b** (2026-11-22):
+
+- **The light table exists from step 1** (`LocalLights` with the CPU table and `RenderScene::addLight` / `setLight` /
+  `removeLight` / `addLights` / `removeLights`), so `VulkanRenderSink` forwards the extract's calls in the step that adds
+  them; step 2 adds the selection, the light buffer and the shading.
+- **The extract's change detection** compares the `LightSource` with the last sent copy (field by field, bitwise) per
+  step instead of a change counter (a gameplay light count of hundreds costs nothing measurable). `on = false` and an
+  invalid component (`LightSource::invalidReason`, logged once) remove the sink light; the pose pair is the extract's
+  own per light entity (shifted at the commit, a snap at a catch-up), so lights need no `RenderInstance`;
+  `updateLights(alpha)` (the app, after `catchUp`) moves the lights of moving entities only. The flicker seed is the
+  entity index.
+- **The light record is 80 bytes**, not 48: position and range, axis and kind, colour times candela times flicker (the
+  flicker is evaluated on the CPU from `phases[6]`: integer multiples of the 10 rad/s base phase, continuous through its
+  wrap), the atlas's tile-table entry, the cone cosines and the ready flag, and (step 5) the light's conservative
+  cluster range, the pre-test of `light_cluster.comp`. The block gets six vec4 (63 x 16 bytes): light counts, the
+  cluster grid and depth, the view's forward and size, the atlas parameters.
+- **The clusters are their own class** (`LightClusters.{h,cpp}`, R-FILE-1; not in the Files list): the bounds and the
+  assignment, the (count, total) table and the per-light cluster counts (atomic adds, statistics only), host visible per
+  frame slot; the debug image of the Clusters preview is a mode of `light_cluster.comp` (`CLUSTER_DEBUG_IMAGE`, 16 pixels
+  per cluster). The compute pipelines are created on first use. `light_cluster.comp` batches the lights in shared
+  memory per workgroup and tests each light's cluster range first (step 5: 0.33 -> 0.1 ms for 232 lights on the RTX).
+  The clusters are computed whenever the frame has lights (also with `clusteredLights = false`, for the heat map and
+  the statistics).
+- **`probe_lighting`'s cluster keys are CPU values**: the cluster from the pixel and the view depth, its lights from the
+  CPU reference of the assignment with frame 1's records, each light's reflected radiance with the probed material and
+  normal (`LocalLights::reflectedRadiance`, without the shadow); the atlas shadow comes from an 11th frame
+  (`AtlasShadow` view raw: the darkest factor of the shadowed lights that reach the pixel and their count), so
+  `kProbeFrames` is 11. `debug_probe.comp` stays unbuilt.
+- **The atlas**: the tile entries (per face the camera-relative view-projection, the tile's rectangle, the texel
+  factor, the dynamic-content flag) are written every frame for the lights with tiles (`writeTable`), not per tile; the
+  faces of a frame are marked rendered at selection time (they are recorded before the scene pass of the same frame);
+  the image is created with the first shadowed light (a scene without one allocates nothing); tiles of lights that are
+  no longer candidates stay cached until a candidate needs them (oldest first), tiles of removed lights or lights
+  without `castShadows` are freed (`retain`). The receivers' 2 x 2 PCF is one linear comparison (D16 supports linear
+  filtering on the devices of interest; else one nearest compare: the plan's manual gather fallback was dropped to keep
+  the scene shaders small). Two extra parameters: `atlasDepthBias` (D16 steps) and `atlasNormalOffset` (texels), with
+  their `set_lighting` keys.
+- **Resting dynamic instances are static casters** (step 5): the plan's dynamic layer held every dynamic instance, but
+  entity lamps are dynamic instances of their own entities, so every lamp re-rendered its faces every frame and the
+  queue never drained. The static layer now draws the static sets, the terrain and the **resting** dynamic instances
+  (prev pose = curr pose), the dynamic layer the **moving** ones (`DynamicInstance::pad` bit 0, the views'
+  `dynamicFilter` in the count pass); a dynamic instance that takes or leaves a resting pose (and a removed resting one)
+  pushes its bounds as a dirty bound. `setMaterial` and pyramid changes invalidate every static tile (rare calls).
+- **The terrain in the atlas**: `TerrainPass::selectForAtlas` per light sphere (the finest resident level, a node flag
+  `0x400` disables the morph in `terrain_vertex.glsl`), its key is a hash of the selected nodes, so a finer level that
+  becomes resident re-renders the faces once; terrain tiles and patches are dirty bounds (the region's xz, every y).
+  The terrain and the classes' atlas pipelines (`ATLAS_DEPTH`) are created on first use. The test of the finer level
+  (`Atlas.CameraMoveKeepsStaticTiles`' second half) is not written (open); the camera-move half is.
+- **The local lights in the grass**: the grass pipeline without the local lights' code (`LIGHTING_NO_LOCAL_LIGHTS`) is
+  used in frames without lights, the variant with them is created on first use (step 5: the code cost the blades'
+  overdraw about 0.18 ms in the forest with no light, as a2's shadow code did). The other scene pipelines keep one
+  variant (within the noise: `test_vulkan_world` 65.4 s with the code, 65.1 s with it compiled out).
+- **Lights in clay**: the selection, clusters and overlays run, the shading is the physical path's only (clay is the
+  studio light); the tab says so.
+- **Flight's lights are scene lights**, not `LightSource` components: three navigation lights (red, green, white; with
+  emissive bulbs as cosmetic dynamic instances) and the shadowed landing light (spot, 20000 lm, range 120 m, 18 degrees
+  down, 14 / 24 degrees) at the planes' interpolated poses, below 5 degrees sun elevation (`FlightRender`; no world
+  entities, nothing replicated, every peer computes them). The plan had cut the navigation lights; the task asked for
+  them. `FlightWorld.{h,cpp}` are unchanged.
+- **game_world's lamps**: posts with a lantern on an arm (the light below the lantern: a point light inside the post
+  made every cube face black), street lamps with a downward spot, torches with flicker; on while the sun is below 4
+  degrees (`lampPolicySystem`, a game system writing `on`); the day benchmarks spawn no lamps (their world is the
+  baseline's), `--benchmark night` puts the 400 lamps on a ring of 2500 m that the flyover path looks across (the grid
+  in front of the start camera is outside the path's view). The benchmark JSON gets a `local_lights` block.
+- **`set_ui_tab` takes `sections`** (`{key: open}`; the answer lists them): the screenshots of the Local lights section
+  in a headless app (not in the Files list: `AppTools.cpp`).
+- **The goldens**: `lighting_local_lights` at EV100 0 (the plan's 3 left the light pools near black), its 15 lights as
+  `LightSource` entities through the extract; `lighting_enclosed_lights` in a cellar template with ambient (1.5, 1.5,
+  1.8) and EV100 3, its lights an `addLights` list. Both with the atlas at 1024 in tiles of 128 (64 tiles as at the
+  defaults).
+- **Files outside the b list**: `src/saiga/vulkan/scene/{LightClusters.h, LightClusters.cpp, InstanceBuffer.h,
+  InstanceBuffer.cpp, GrassPass.h, GrassPass.cpp, SceneLightingSet.h, ShadowPipelineTable.h}`,
+  `src/saiga/vulkan/world/{WorldBenchmark.h, WorldBenchmark.cpp}`, `src/saiga/engine/app/{AppTools.cpp, LightingTab.h,
+  EngineApp.cpp}`, `src/saiga/engine/lighting/EnvironmentFile.cpp`, `shader/vulkan/scene/terrain_vertex.glsl`,
+  `shader/vulkan/scene/lighting/{scene_block.glsl, shadow_depth.vert, shadow_alpha.frag, shadow_foliage.vert,
+  shadow_foliage.frag, terrain_shadow.vert}`, `tests/{test_engine_app.cpp, test_vulkan_scene.cpp,
+  test_vulkan_world.cpp}` (the section lists), `samples/games/flight/main.cpp`. Of the list unchanged:
+  `test_engine_lighting.cpp`, `instance_write.comp`, `debug_probe.comp` (not created), `DebugLines.cpp`,
+  `FlightWorld.{h,cpp}`, `data/tests/benchmarks.json` (the day benchmarks have no lamps; their numbers stay within the
+  noise of the committed a2 baselines).
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features
@@ -2292,6 +2374,72 @@ errors):
   New baselines committed (the median run of five).
 - Synchronization validation over every scene binary (world, terrain, shadows, scene, lighting, engine lighting
   render / tools, terrain render, app): no hazard after the fix.
+
+**S36b** (2026-11-22, local, lavapipe = Mesa with LLVM 21.1.8; build with samples and warnings as errors, GCC 15;
+the whole tree also with Clang 19 and warnings as errors in `build-clang`, no warning):
+
+- Commits: step 1 `LightSource` and the extract, step 2 local lights (selection, light buffer, brute-force shading,
+  the tab's Local lights, `list_lights`), step 3 clusters, step 4 the shadow atlas, step 5 demos and tuning, step 6 the
+  flip (`localLights = true`, the two goldens, the docs). Every step built without warnings and passed ctest. 78 files
+  changed against `stage-s36a2`.
+- ctest on lavapipe (`--parallel 4`): 86 of 86 passed (84 with CI's options), 99 s; 1 new binary
+  `test_vulkan_local_lights` (21 cases: `LightsTest.*` falloff, budget, cone, flicker, lists, enclosed space, debug
+  views, clustered = brute force within 1/255 for 300 random lights, the lists against the CPU reference, overflow,
+  the cluster debug; `AtlasTest.*` caching, moving light, instance changes in and out of range, camera moves, the
+  dynamic layer and its clear, the tile budget (16 shadowed points: 10 with tiles), queue order and readiness,
+  hysteresis, no acne at 0.9 range, six faces), 2.0 s; `test_engine_lighting_tools` 17 cases (`LocalLightTools`),
+  5.6 s; `test_engine_lighting_render` 6 goldens, 12.6 s; new cases elsewhere: the scenarios `light_follows_entity`
+  and `light_toggle_replicates` in every variant (`test_engine_scenarios`), `RecordingRenderSink.
+  EnvironmentAndLightsRecorded` (lights), the extended `EngineAppRender.LightingTabRenders` and the section lists.
+  Per binary (parallel 4, the machine shared with other sessions, load 7-16): `test_vulkan_world` 68 s (alone 65.4 s;
+  65.1 s with the local lights' shader code compiled out: no measurable compile cost), `test_engine_app` 65 s (alone
+  62 s; a2 59.5 s: about 1 s of it is the Lighting tab case, which now compiles the cluster and atlas pipelines),
+  `test_vulkan_terrain` 59 s, `test_vulkan_scene` 52 s, `test_engine_terrain_render` 19 s. Two timing tests
+  (`EngineAppRender.StreamTimePausesTheClock`, `test_engine_world_api`) failed once each under the other sessions'
+  load and passed alone and in the following full runs.
+- Goldens: `lighting_local_lights` and `lighting_enclosed_lights` (local lavapipe; reviewed: the ring of light pools
+  with the spots on the boxes under the moon, the cellar's pillars with their atlas shadows); the four lighting
+  goldens, the five clay goldens and `hdr_tonemap` unchanged by the flip (no lights in their scenes).
+- Game scenarios (`--scenarios`, all variants), after step 5 and after the flip: flight 30 passed, platformer 48
+  passed, racing 18 passed.
+- Benchmarks (`build-bench`, RTX 5080 Laptop, 1920 x 1080, MSAA 4; GPU frame median ms; the machine shared with other
+  sessions, so the medians vary more than in a2):
+
+  | | flyover | forest | terraform | night |
+  |---|---|---|---|---|
+  | before (a2; 2 runs) | 3.41 / 3.86 | 3.89 / 3.79 | 2.07 / 1.93 | - |
+  | step 5 before the grass variant | 3.51 / 3.59 | 4.25 / 4.30 | 2.26 / 2.27 | 3.51 / 4.12 |
+  | after (the flip; 2 runs) | 3.54 / 3.62 | 3.99 / 3.92 | 2.34 / 2.33 | 3.57 / 3.92 |
+
+  The day benchmarks have no lamps (their world stays the baseline's): the local lights cost only their shader code
+  there; the grass without it is back at 1.36 ms (1.38 before, 1.56 with the code: the grass variant of step 5),
+  `scene.instances` and `scene.terrain` within 2%; forest +3% and flyover within its noise; terraform's `shadow`
+  section moves between the cascades and the horizon map's recompute between runs (0.76-1.13 + 0.25-1.0 ms), no light
+  code runs there. `sample_vulkan_scene_benchmark` (clay, no lights): cull 0.088 -> 0.092 ms, draw 1.348 -> 1.367 ms.
+  **Night** (400 lamps on the ring, 22:00): 33 visible lights per frame on average (4.9 shadowed, every shadowed light
+  with tiles), cluster maximum 6 lights, `lights` 0.020 ms (p95 0.04), `shadow.atlas` median 0 ms (p95 0.13-0.14 ms:
+  the frames that render faces; 0.75 static faces per frame), the atlas's cache hit rate 97%; the frame 3.57 ms against
+  the flyover's 3.54. A heavier view (`game_world --time-of-day 22`, headless at 1600 x 900, the start camera: 232
+  visible lights, 39 shadowed, 61 of 64 tiles used): `lights` 0.107 ms (0.33 ms before the step-5 batching), the
+  atlas 0 ms once its faces are cached (61 hits per frame). Against the §17.10 shadow budget (2.5 ms): the cascades,
+  the horizon map and the atlas together stay below 2 ms in every benchmark.
+- Screenshots reviewed (in the session scratchpad
+  `/tmp/claude-1000/-home-dari-Programming-saiga/87d9320d-06ee-4b09-9231-496f8df23f20/scratchpad/s36b/`):
+  `final_world_22.png` (the lamps on the start hill at night), `final_world_10.png` (the same at 10:00: lamps off),
+  `lamp_close_b.png` / `lamp_close_b_atlasview.png` (a shadowed lamp beside a tree: the trunk's and the foliage's atlas
+  shadows on the grass), `final_flight_23.png` and `flight_23_v2_crop.png` (the navigation lights with their bulbs),
+  `flight_landing_light4.png` (the landing light on the forest at 30 m with tree shadows), `mcp_tab_lights.png`,
+  `mcp_tab_part1.png`, `mcp_tab_part2.png`, `mcp_tab_table_crop.png` (the Lighting tab: counts, the cluster section
+  and the heat-map preview, the atlas preview with the tiles' owners, the selected light's tile, the light table and
+  the selected lamp's `LightSource` widgets; the light volumes overlay in the scene), `mcp_cluster_heat.png` (the
+  ClusterLights view with the cluster grid), `mcp_capture_atlas.png`, `mcp_capture_clusters.png`
+  (`capture_lighting`). Findings fixed on the way: the lamp's point light inside the post (every cube face black), the
+  lamps' own entities forcing their faces into the dynamic layer every frame (the queue never drained), the light
+  culling's latency (shared-memory batches and cluster ranges), the landing light's beam missing the ground.
+- Open: the lanterns' emissive heads glow by day too (a material is static); the finer-terrain-level re-render of
+  `Atlas.CameraMoveKeepsStaticTiles` is not tested (the key mechanism is); the night benchmark is light (33 lights per
+  frame) and not committed to `benchmarks.json` (as planned); `data/tests/benchmarks.json` keeps the a2 numbers (the
+  day benchmarks are unchanged within the noise).
 
 ## Review log
 
