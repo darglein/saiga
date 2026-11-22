@@ -152,8 +152,9 @@ class SAIGA_VULKAN_API RenderScene
     //==================================================================================================
     // Scene content (S18)
 
-    // Explicit IDs (asserted free, names unique; ID 0 is none). PipelineClass::PrototypeFoliage needs the foliage
-    // texture of setPrototypeEnvironment (asserted)
+    // Explicit IDs (asserted free, names unique; ID 0 is none). A PipelineClass::PrototypeFoliage material can be
+    // added and set at any time (S23c, F4); a frame with instances of that class to draw asserts the foliage texture
+    // of setPrototypeEnvironment
     void addMaterial(MaterialId id, const std::string& name, const MaterialData& data);
     // A change of alphaMask, twoSided or pipelineClass rebuilds the bucket layout
     void setMaterial(MaterialId id, const MaterialData& data);
@@ -300,6 +301,10 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<GrassPass> grass;
     // The foliage texture of setPrototypeEnvironment
     std::unique_ptr<Texture2DArray> foliage;
+    // The frame's check without the foliage texture (S23c, F4; only with SAIGA_ASSERTS, SceneCulling never draws the
+    // class without the texture): asserts that no instance set or dynamic instance draws a mesh of the PrototypeFoliage
+    // class
+    void checkFoliageInstances() const;
     double sceneTime = 0;
     // The next IDs of reserveIds (mesh, material)
     std::array<uint32_t, 2> nextReservedId = {1, 1};

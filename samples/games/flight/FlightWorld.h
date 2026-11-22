@@ -8,7 +8,6 @@
 
 #include "saiga/engine/data/DataRef.h"
 #include "saiga/engine/gameplay/GameObject.h"
-#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include "games/common/Driving.h"
 #include "games/common/GameEngine.h"
@@ -36,25 +35,22 @@ namespace Game
  * (with the lever) Host.
  */
 
-// Constant configuration (World::context): the world prototype's terrain (S20: the space template of
-// games/common/PrototypeSpace.h; the context is World-independent and shared by the co-op worlds and the renderer, so
-// it evaluates the pure prototypeSurfaceHeight, equal to World::terrainHeight bit for bit) and the autopilot's circuit
+// Constant configuration (World::context): the world seed and the autopilot's circuit (S23c after the live demo: in the
+// centre of the 32 km space, kFlightCircuitCentre, with land under it; S20 had it in the corner). The context is
+// World-independent and shared by the co-op worlds and the renderer; the ground is the world's terrain (flightGround)
 struct FlightContext
 {
-    // The space seed (WorldSetup::seed) and base spacing of the prototype's space
+    // The space seed (WorldSetup::seed)
     uint64_t seed        = 1;
-    int baseSpacing      = 1;
     Vec3 circuitCenter   = Vec3::Zero();
     double circuitRadius = 2500;
-    // Terrain or water, whichever is higher (the plane crashes into both)
-    double ground(double x, double z) const
-    {
-        return std::max(Vulkan::prototypeSurfaceHeight(seed, baseSpacing, x, z),
-                        double(Vulkan::kPrototypeSeaLevel) * kHeightUnit);
-    }
-    // The context of the world seed: the circuit around the centre of the prototype's 8 km area
+    // The context of the world seed: the circuit around (16384, 16384) with S20's radius 0.3 * 8192 m
     static std::shared_ptr<const FlightContext> create(uint64_t seed = 1);
 };
+
+// The ground the plane crashes into: the world's terrain of space 0 (World::terrainHeight: the generated heights with
+// the sites' patches) or the sea, whichever is higher (S23c, replacing S20's FlightContext::ground of the hook)
+double flightGround(const World& world, double x, double z);
 
 // The airplane's state besides its pose (R-STATE-1)
 struct AircraftState
@@ -87,6 +83,7 @@ enum class FlightClass : uint16_t
 {
     Aircraft = Engine::kFirstGameClass,
     Autopilot,
+    FlightChest,
 };
 
 // The player actions of the flight demo
@@ -134,10 +131,30 @@ class Autopilot final : public AircraftBase
     FlightAutopilot pilot;  // constant configuration (configure)
 };
 
+// The chest of the ruin prefab (data/flight/prefabs/ruin.json, S23c): stamped around players; its Health comes from
+// the prefab
+class FlightChest final : public Engine::GameObject
+{
+   public:
+    static constexpr Engine::ClassId id = Engine::ClassId(FlightClass::FlightChest);
+    static constexpr const char* name   = "FlightChest";
+    void onSpawn() override;
+};
+
 // The airplane's mesh (WorldSetup::renderAssets; RenderInstance of every plane)
 constexpr const char* kAirplaneMesh = "flight/airplane";
+// The chest's mesh (its base at the origin)
+constexpr const char* kChestMesh = "flight/chest";
+// The foliage seed of the tree meshes (renderAssets: FoliageGenerator::treeSpecies) and of the foliage texture
+// (FlightRender's PrototypeScene: setPrototypeEnvironment), so the meshes' leaf layers match the texture
+constexpr uint32_t kFlightFoliageSeed = 1;
 
-// The world setup of the flight demo (components, systems, classes, actions, data, the context)
+// The flight demo's generator ID and space template (S23c): flight_overworld (OverworldGenerator), open world, 128
+// chunks (32 km) at base spacing 1, the generator's sea level, fullRadius 3000 m
+constexpr Engine::GeneratorId kFlightOverworldGenerator = 1;
+Engine::SpaceTemplate flightSpaceTemplate();
+
+// The world setup of the flight demo (components, systems, classes, actions, data, generator, the context)
 Engine::WorldSetup flightWorldSetup(std::shared_ptr<const FlightContext> context, const std::string& dataDirectory);
 void flightScenarios(Engine::ScenarioList& list);
 // --coop's join policy: a plane for the joined peer (slot = peer), flown by the autopilot on the owner with demo

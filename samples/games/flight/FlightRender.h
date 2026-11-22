@@ -19,10 +19,12 @@ namespace Saiga
 namespace Game
 {
 /**
- * The render side of the flight demo (GameRenderHooks): the world prototype on the context's height field, the chase
- * camera, the GUI. The airplanes are entities with RenderInstance (drawn by the engine's extract, S19b; remote planes
- * on a co-op client from RenderPose); the camera follows the interpolated pose of the local player's plane (its
- * driver's Driver.vehicle), or of the first airplane (--demo).
+ * The render side of the flight demo (GameRenderHooks): the prototype environment (PrototypeScene without its forest:
+ * sky, water, the foliage texture; S23c), the chase camera over the world's ground (flightGround), the GUI. The
+ * terrain and the generated content (trees, rocks, ruins, grass) are the engine's. The airplanes are entities with
+ * RenderInstance (drawn by the engine's extract, S19b; remote planes on a co-op client from RenderPose); the camera
+ * follows the interpolated pose of the local player's plane (its driver's Driver.vehicle), or of the first airplane
+ * (--demo).
  */
 class FlightRender
 {

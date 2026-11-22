@@ -12,15 +12,15 @@
 //
 // Who drives it (ContentRenderSettings::centres): None (the default: nothing happens, a sink alone builds nothing),
 // View (EngineApp's rendered world: TerrainSystem::updateView / completeView call viewUpdate with the camera; the
-// chunks of the camera's space within fullRadius, generated on the streaming pool and budgeted; completeView builds
-// them synchronously) or Players (ScenarioWorld: a pass in phase 8 after the render extract, the chunks within
-// fullRadius of every Player of this world, generated synchronously). A set is removed when its chunk is more than
-// fullRadius + 256 m from every centre. Record changes (World::onRecordChanged) reach the sink at once in both modes: a
-// placement version change removes the set and requests it again, a tombstone change is diffed (removeInstance, or
-// updateInstances with the original instance so it reappears). Pool results carry the request counter and version they
-// started with and are dropped when either changed; tombstones and re-snaps never drop a result (the drain applies the
-// current state). Terrain edits re-snap ReSnapOnEdit instances (step 7: the changed boxes of World::onTerrainChanged,
-// queued per chunk, drained in viewUpdate / the pass).
+// chunks of the camera's space within fullRadius, generated on the streaming pool and budgeted; completeView requests
+// every missing one and runs the pool with the calling thread until they are built) or Players (ScenarioWorld: a pass
+// in phase 8 after the render extract, the chunks within fullRadius of every Player of this world, generated
+// synchronously). A set is removed when its chunk is more than fullRadius + 256 m from every centre. Record changes
+// (World::onRecordChanged) reach the sink at once in both modes: a placement version change removes the set and
+// requests it again, a tombstone change is diffed (removeInstance, or updateInstances with the original instance so it
+// reappears). Pool results carry the request counter and version they started with and are dropped when either changed;
+// tombstones and re-snaps never drop a result (the drain applies the current state). Terrain edits re-snap ReSnapOnEdit
+// instances (step 7: the changed boxes of World::onTerrainChanged, queued per chunk, drained in viewUpdate / the pass).
 
 #pragma once
 
@@ -81,8 +81,9 @@ class SAIGA_ENGINE_API ContentRenderSystem
 
     // Players: the phase-8 pass (World::step after the render extract; not in stepNetworkOnly)
     void playersPass();
-    // View (TerrainSystem::updateView / completeView): complete builds every desired set synchronously, none after the
-    // deadline (steady_clock seconds, completeView's); false if a desired set of a completed view is not built
+    // View (TerrainSystem::updateView / completeView): complete builds every desired set before it returns (the sets
+    // are generated on the streaming pool, its workers and the calling thread), none is requested after the deadline
+    // (steady_clock seconds, completeView's); false if a desired set of a completed view is not built
     bool viewUpdate(SpaceId space, const Vec3& camera, bool complete,
                     double deadline = std::numeric_limits<double>::infinity());
     // World::onRecordChanged: immediate in both modes (also inside stepNetworkOnly)
@@ -155,6 +156,9 @@ class SAIGA_ENGINE_API ContentRenderSystem
     void install(const ChunkId& chunk, ChunkSet& s, const ChunkPlacement& placement);
     void buildNow(const ChunkId& chunk, ChunkSet& s);
     void request(const ChunkId& chunk, ChunkSet& s, StreamingPool& pool);
+    // viewUpdate with complete: requests every missing set of order (distance, chunk) and runs the pool until they are
+    // installed or the deadline passed
+    bool completeSets(const std::vector<std::pair<double, ChunkId>>& order, double deadline);
     // The original instance i with the current surface (ReSnapOnEdit) and the tombstone (scale 0)
     Vulkan::StaticInstance instanceNow(const ChunkId& chunk, const ChunkSet& s, size_t i, bool tombstoned) const;
     void drainResnaps();

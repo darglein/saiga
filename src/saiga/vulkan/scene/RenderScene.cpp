@@ -314,6 +314,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.slotStatistics[frame.frameIndex].terrainNodes = uint32_t(s.terrain->stats().nodes);
         SceneLighting lighting;
         s.frameLighting(camera, proto, enclosed, int(samples), lighting);
+        // S23c (F4): the PrototypeFoliage class is checked in the frame, not at its material's registration (a walk
+        // over every instance set: only with SAIGA_ASSERTS; without the texture the class is never drawn)
+#ifdef SAIGA_ASSERTS
+        if (!s.foliage) s.checkFoliageInstances();
+#endif
         s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
         // ... and make the writes visible to this frame's culling and draws.
         vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
@@ -804,16 +809,25 @@ bool RenderScene::takeGpuFrameTimes(FrameTimes& out)
 
 void RenderScene::addMaterial(MaterialId id, const std::string& name, const MaterialData& data)
 {
-    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || foliage,
-                 "addMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeEnvironment");
     meshPool->addMaterial(id, name, data);
 }
 
 void RenderScene::setMaterial(MaterialId id, const MaterialData& data)
 {
-    SAIGA_ASSERT(data.pipelineClass != uint8_t(PipelineClass::PrototypeFoliage) || foliage,
-                 "setMaterial: PipelineClass::PrototypeFoliage needs the foliage texture of setPrototypeEnvironment");
     meshPool->setMaterial(id, data);
+}
+
+void RenderScene::checkFoliageInstances() const
+{
+    // The class index of PipelineClass::PrototypeFoliage; no registered mesh of the class: nothing to check
+    const int klass = int(PipelineClass::PrototypeFoliage) - 1;
+    if (meshPool->classRanges()[size_t(klass)].count == 0) return;
+    auto foliageMesh = [&](MeshId mesh) { return mesh != 0 && meshPool->meshClass(mesh) == klass; };
+    bool draws       = false;
+    for (const auto& entry : instanceBuffer->sets())
+        for (MeshId mesh : entry.second.meshes) draws = draws || foliageMesh(mesh);
+    for (const auto& d : instanceBuffer->dynamics()) draws = draws || (d.alive && d.set && foliageMesh(d.mesh));
+    SAIGA_ASSERT(!draws, "PrototypeFoliage instances need the foliage texture of setPrototypeEnvironment");
 }
 
 void RenderScene::setMeshLodDistances(MeshId id, const std::vector<float>& endDistances, float boundsPadding)

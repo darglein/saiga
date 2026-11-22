@@ -359,28 +359,71 @@ bool ContentRenderSystem::viewUpdate(SpaceId space, const Vec3& camera, bool com
     std::vector<std::pair<double, ChunkId>> order;
     for (const ChunkId& c : desired) order.push_back({chunkDistance(c, camera), c});
     std::sort(order.begin(), order.end());
+    if (complete) return completeSets(order, deadline);
     int budget = std::max(0, config.setsPerFrame);
-    bool built = true;
-    auto now   = []()
-    { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); };
     for (const auto& [d, c] : order)
     {
         ChunkSet& s = sets[c];
         if (s.live || s.empty) continue;
-        if (complete)
-        {
-            if (now() < deadline)
-                buildNow(c, s);
-            else
-                built = false;
-        }
-        else if (!s.requested && budget > 0)
+        if (!s.requested && budget > 0)
         {
             request(c, s, w.terrain().streamingPool());
             budget--;
         }
     }
-    return built;
+    return true;
+}
+
+bool ContentRenderSystem::completeSets(const std::vector<std::pair<double, ChunkId>>& order, double deadline)
+{
+    auto now = []()
+    { return std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count(); };
+    auto missing = [&]()
+    {
+        size_t n = 0;
+        for (const auto& [d, c] : order)
+        {
+            const ChunkSet& s = sets[c];
+            if (!s.live && !s.empty) n++;
+        }
+        return n;
+    };
+    if (missing() == 0) return true;
+    if (now() >= deadline) return false;
+    // Every missing set is requested on the streaming pool (no per-frame budget), nearest first; the caller runs the
+    // queued jobs with the workers and installs the results as they are drained (the same path as the budgeted
+    // requests). A request still running at the deadline completes at a later drain
+    StreamingPool& pool = w.terrain().streamingPool();
+    for (const auto& [d, c] : order)
+    {
+        ChunkSet& s = sets[c];
+        if (!s.live && !s.empty && !s.requested) request(c, s, pool);
+    }
+    auto drain = [&]()
+    {
+        try
+        {
+            pool.drain();
+        }
+        catch (const std::exception& e)
+        {
+            // As TerrainSystem::drainPool: a generator is pure and has no recoverable failure (§3)
+            SAIGA_EXIT_ERROR(std::string("ContentRenderSystem: ") + e.what());
+        }
+    };
+    for (;;)
+    {
+        drain();
+        if (missing() == 0) return true;
+        if (now() >= deadline) return false;
+        // A dropped result (a record change during the wait) is requested again
+        for (const auto& [d, c] : order)
+        {
+            ChunkSet& s = sets[c];
+            if (!s.live && !s.empty && !s.requested) request(c, s, pool);
+        }
+        if (!pool.runOneOnCaller()) pool.waitIdleFor(std::min(0.005, std::max(0.0, deadline - now())));
+    }
 }
 
 void ContentRenderSystem::recordChanged(const ChunkId& chunk)

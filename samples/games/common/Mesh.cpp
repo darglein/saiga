@@ -8,6 +8,9 @@
 
 #include "games/common/Mesh.h"
 
+#include <array>
+#include <cmath>
+
 namespace Saiga
 {
 namespace Game
@@ -110,6 +113,36 @@ MeshData cone(double r, double height, int segments, const Vec3& color)
         Vec3 p0(r * std::cos(a0), 0, r * std::sin(a0)), p1(r * std::cos(a1), 0, r * std::sin(a1));
         m.addTriangle(p0, apex, p1, color);
         m.addTriangle(Vec3(0, 0, 0), p0, p1, color);
+    }
+    return m;
+}
+
+MeshData rock(double radius, const Vec3& color)
+{
+    // The icosahedron's vertices (golden ratio) and faces (counter clockwise seen from outside)
+    const double t                                 = (1 + std::sqrt(5.0)) / 2;
+    const std::array<Vec3, 12> base                = {Vec3(-1, t, 0), Vec3(1, t, 0), Vec3(-1, -t, 0), Vec3(1, -t, 0),
+                                                      Vec3(0, -1, t), Vec3(0, 1, t), Vec3(0, -1, -t), Vec3(0, 1, -t),
+                                                      Vec3(t, 0, -1), Vec3(t, 0, 1), Vec3(-t, 0, -1), Vec3(-t, 0, 1)};
+    const std::array<std::array<int, 3>, 20> faces = {{{0, 11, 5}, {0, 5, 1},  {0, 1, 7},   {0, 7, 10}, {0, 10, 11},
+                                                       {1, 5, 9},  {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
+                                                       {3, 9, 4},  {3, 4, 2},  {3, 2, 6},   {3, 6, 8},  {3, 8, 9},
+                                                       {4, 9, 5},  {2, 4, 11}, {6, 2, 10},  {8, 6, 7},  {9, 8, 1}}};
+    // A fixed radial jitter per vertex and a flattened bottom half (rocks lie on the ground)
+    const std::array<double, 12> jitter = {0.92, 1.08, 0.85, 1.0, 1.12, 0.9, 0.96, 1.15, 0.88, 1.05, 1.1, 0.94};
+    std::array<Vec3, 12> v;
+    for (size_t i = 0; i < v.size(); ++i)
+    {
+        Vec3 p = base[i].normalized() * (radius * jitter[i]);
+        if (p(1) < 0) p(1) *= 0.6;
+        v[i] = p;
+    }
+    MeshData m;
+    for (size_t f = 0; f < faces.size(); ++f)
+    {
+        // A slight shade per face
+        const double shade = 0.9 + 0.1 * double(f % 3) / 2;
+        m.addTriangle(v[size_t(faces[f][0])], v[size_t(faces[f][1])], v[size_t(faces[f][2])], color * shade);
     }
     return m;
 }

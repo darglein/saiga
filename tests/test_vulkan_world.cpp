@@ -1066,18 +1066,40 @@ TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
 }
 
-// The PrototypeFoliage class needs the foliage texture of setPrototypeEnvironment (asserted at addMaterial and
-// setMaterial, no frame needed; S23c moves the check into the frame, F4)
+// The PrototypeFoliage class needs the foliage texture of setPrototypeEnvironment: S23c (F4) moved the check from
+// addMaterial / setMaterial into the frame (a game registers its foliage material with its world before the render
+// hooks set the environment). Registration passes; a frame with an instance of the class to draw dies; the same frame
+// after setPrototypeEnvironment renders the tree
 TEST_F(VulkanPrototypeScene, FoliageClassNeedsTexture)
 {
-#ifdef SAIGA_ASSERTS
-    GTEST_FLAG_SET(death_test_style, "threadsafe");
     MaterialData foliage;
     foliage.pipelineClass = uint8_t(PipelineClass::PrototypeFoliage);
-    EXPECT_DEATH(scene->addMaterial(1, "foliage", foliage), "needs the foliage texture of setPrototypeEnvironment");
-    scene->addMaterial(1, "flat", MaterialData());
-    EXPECT_DEATH(scene->setMaterial(1, foliage), "needs the foliage texture of setPrototypeEnvironment");
+    foliage.twoSided      = true;
+    scene->addMaterial(1, "foliage", foliage);
+    scene->addMaterial(2, "flat", MaterialData());
+    scene->setMaterial(2, foliage);
+    scene->setMaterial(2, MaterialData());
+    species = FoliageGenerator::treeSpecies(1);
+    scene->addMesh(1, "tree", prototypeTreeMesh(species[0], {200, 400, 800}, 0), 1);
+    SetCamera(0, Vec3(1030, 8, 1060), viewRotation(lookAt(vec3(1030, 8, 1060), vec3(1030, 8, 1030), vec3(0, 1, 0))),
+              1.0);
+    // Registered, nothing drawn: the frame renders
+    const TemplatedImage<ucvec4> empty = Capture(2);
+    ASSERT_GT(empty.w, 0);
+    StaticInstance tree;
+    tree.mesh = 1;
+    tree.setPosition(vec3(6, 0, 6));
+    tree.scale                  = 16;
+    const InstanceSetHandle set = scene->addInstanceSet(RegionId{0, 0, 4, 4}, {tree});
+#ifdef SAIGA_ASSERTS
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+    EXPECT_DEATH(RenderFrame(), "PrototypeFoliage instances need the foliage texture of setPrototypeEnvironment");
 #endif
+    scene->setPrototypeEnvironment(PrototypeSettings(), 1);
+    const TemplatedImage<ucvec4> drawn = Capture(3);
+    scene->removeInstanceSet(set);
+    const TemplatedImage<ucvec4> background = Capture(3);
+    EXPECT_GT(pixelsDiffering(background, drawn, 8), 50) << "the tree is drawn after setPrototypeEnvironment";
 }
 
 // The game tools (S20: the context's terrain fields: ground callback, size, sea level, highest point, height range;

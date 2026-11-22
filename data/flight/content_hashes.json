@@ -1,0 +1,75 @@
+{
+  "format": 1,
+  "setups": [
+    {
+      "chunks": {
+        "0:0:0": {
+          "grass": "0xaab8c5e0b471426d",
+          "heights": "0xf9a2a66bac0ea580",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0x70d493b35cb0ea86"
+        },
+        "0:100:60": {
+          "grass": "0x3cd893b7c9010b9f",
+          "heights": "0x384d3c216b99a81c",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x1a99c035453c1173",
+          "total": "0x790c1b7cdb2cc574"
+        },
+        "0:127:127": {
+          "grass": "0xaab8c5e0b471426d",
+          "heights": "0xf9a2a66bac0ea580",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x157ded2f805fedf9",
+          "total": "0x6b93813e007e6c76"
+        },
+        "0:64:64": {
+          "grass": "0xed6dd916ed0b8cb2",
+          "heights": "0x8d080eb90e4a362a",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0xf524c68674ec913f",
+          "total": "0xcc94c17c082eb6b1"
+        },
+        "0:72:70": {
+          "grass": "0x44a6812f5d2b0447",
+          "heights": "0x8da8e5a78c7beac4",
+          "stamps": "0x190611a0a5a1dab8",
+          "statics": "0x7f25d3e390911329",
+          "tier1": "0xed1c0bd0593e4037",
+          "total": "0x0c88d1f259a3f722"
+        },
+        "0:73:64": {
+          "grass": "0x412df402ccc24445",
+          "heights": "0x97adf9633330d715",
+          "stamps": "0xdb8986f0691576b6",
+          "statics": "0x9bd5e65337003011",
+          "tier1": "0x3094daddc5751b7b",
+          "total": "0xeb9b272e992dddab"
+        }
+      },
+      "combined_plan_hash": "0x988cffdf638c4113",
+      "digest": "0xda3f965f12b041a1",
+      "digest_block": [60, 60, 76, 76],
+      "generators": {
+        "flight_overworld": {
+          "placement_version": 1,
+          "plan_version": 1,
+          "slots": ["spruce", "broadleaf", "rock"]
+        }
+      },
+      "name": "flight",
+      "plans": {
+        "0": {
+          "generator": "flight_overworld",
+          "hash": "0x7a36f59be789cd76"
+        }
+      },
+      "seed": "1"
+    }
+  ]
+}
