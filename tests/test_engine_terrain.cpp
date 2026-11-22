@@ -1493,3 +1493,44 @@ TEST(TerrainSpaces, NewSinkGetsTheStreamedSpaceOnly)
     for (const auto& [r, t] : later.terrainTiles()) EXPECT_EQ(r.space, 2);
     w.setRenderSink(nullptr);
 }
+
+// Regression (CodeRabbit, S20): a switch to a terrain space without a cached pyramid left the old space's set in the
+// sink, and a switch to a flat space before that pyramid arrived skipped clearTerrain: the old terrain stayed
+TEST(TerrainSpaces, SwitchToAnUncachedSpaceClearsTheSet)
+{
+    World w(fourSpaces());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    ASSERT_TRUE(sink.hasTerrainSet());
+    ASSERT_EQ(w.terrain().pyramid(2), nullptr);
+    w.terrain().updateView(2, kCam);
+    EXPECT_FALSE(sink.hasTerrainSet());
+    EXPECT_EQ(sink.counters().clearTerrain, 1u);
+    w.terrain().updateView(3, kCam);
+    EXPECT_FALSE(sink.hasTerrainSet());
+    w.setRenderSink(nullptr);
+}
+
+// Regression (CodeRabbit, S20): completeView with a non-finite camera of another terrain space switched the view first
+// (the old space's tiles dropped, the other pyramid sent, the old camera kept for it); now it changes nothing
+TEST(TerrainSpaces, NonFiniteCameraKeepsTheView)
+{
+    World w(fourSpaces());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(2, kCam));
+    ASSERT_TRUE(w.terrain().completeView(0, kCam));
+    const size_t tiles      = w.terrain().store(0).tiles().size();
+    const uint64_t pyramids = sink.counters().setTerrainPyramid;
+    ASSERT_GT(tiles, 0u);
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_FALSE(w.terrain().completeView(2, Vec3(nan, 60, 1000)));
+    EXPECT_EQ(w.terrain().store(0).tiles().size(), tiles);
+    EXPECT_EQ(sink.counters().setTerrainPyramid, pyramids);
+    EXPECT_EQ(sink.terrainSpace(), 0);
+    EXPECT_EQ(w.terrain().stats().viewSpace, 0);
+    // A space without terrain completes at once with any camera
+    EXPECT_TRUE(w.terrain().completeView(3, Vec3(nan, 0, 0)));
+    w.setRenderSink(nullptr);
+}

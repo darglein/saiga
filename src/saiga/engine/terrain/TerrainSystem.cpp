@@ -653,11 +653,13 @@ bool TerrainSystem::completeView(SpaceId space, const Vec3& camera, double timeo
         updateStats(space, d);
         return ok;
     };
-    // A non-finite camera of a terrain space changes nothing (the view, the sink's set and the saved camera stay)
+    // A non-finite camera of a terrain space changes nothing (the view, the sink's set, the saved camera and the
+    // statistics of the view space stay)
     if (spaces[space].settings.hasTerrain() && !camera.allFinite())
     {
         SAIGA_LOG("terrain", "completeView: the camera of space %u is not finite", unsigned(space));
-        return finish(false, nullptr);
+        statistics.lastCompleteMs = (nowSeconds() - start) * 1000.0;
+        return false;
     }
     if (camera.allFinite()) viewCamera = camera;
     beginView(space);
