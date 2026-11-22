@@ -15,6 +15,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
+#include <optional>
 #include <set>
 
 #include "render_scene_test_context.h"
@@ -170,6 +172,63 @@ EnvironmentState darkEnvironment(float ev100)
     return e;
 }
 
+// probe_lighting's sequence (RenderScene::requestProbe), rendered until it answers
+LightingProbe runProbe(RenderScene& scene,
+                       const std::function<void(std::function<void(const LightingProbe&)>)>& request)
+{
+    LightingProbe probe;
+    bool answered = false;
+    request(
+        [&](const LightingProbe& p)
+        {
+            probe    = p;
+            answered = true;
+        });
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answered; ++i)
+        scene.renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    EXPECT_TRUE(answered);
+    return probe;
+}
+
+// The LUT as the shader samples it: bilinear between texel centres ((i + 0.5) / n), clamped to the edge texels
+vec2 sampleLut(const std::vector<vec2>& lut, float NoV, float rough)
+{
+    const int n = BrdfLut::kSize;
+    auto at     = [&](int x, int y)
+    { return lut[size_t(std::clamp(y, 0, n - 1)) * size_t(n) + size_t(std::clamp(x, 0, n - 1))]; };
+    const float fx = NoV * float(n) - 0.5f, fy = rough * float(n) - 0.5f;
+    const int x0 = int(std::floor(fx)), y0 = int(std::floor(fy));
+    const float tx = fx - float(x0), ty = fy - float(y0);
+    const vec2 a = at(x0, y0) * (1 - tx) + at(x0 + 1, y0) * tx;
+    const vec2 b = at(x0, y0 + 1) * (1 - tx) + at(x0 + 1, y0 + 1) * tx;
+    return a * (1 - ty) + b * ty;
+}
+
+// pbr.glsl's pbrDirect (GGX, height-correlated Smith, Schlick, Lambert, the energy compensation) in closed form: the
+// reference of the probe's direct radiance
+vec3 pbrDirectReference(const vec3& n, const vec3& v, const vec3& l, const vec3& albedo, float roughness,
+                        float metalness, float E, const vec2& lut)
+{
+    const double pi  = kPi;
+    const double NoL = std::clamp(double(n.dot(l)), 0.0, 1.0), NoV = std::max(double(n.dot(v)), 1e-4);
+    const vec3 h     = (v + l).normalized();
+    const double NoH = std::clamp(double(n.dot(h)), 0.0, 1.0), VoH = std::clamp(double(v.dot(h)), 0.0, 1.0);
+    const double a = double(roughness) * roughness, a2 = a * a;
+    const double f = (NoH * a2 - NoH) * NoH + 1, D = a2 / (pi * f * f);
+    const double V  = 0.5 / (NoL * std::sqrt(NoV * NoV * (1 - a2) + a2) + NoV * std::sqrt(NoL * NoL * (1 - a2) + a2));
+    const double fc = std::pow(1 - VoH, 5.0), Ess = double(lut(0) + lut(1));
+    vec3 out;
+    for (int c = 0; c < 3; ++c)
+    {
+        const double f0   = 0.04 * (1 - metalness) + double(albedo(c)) * metalness;
+        const double F    = f0 + (1 - f0) * fc;
+        const double spec = D * V * F * (1 + f0 * (1 / Ess - 1));
+        const double diff = (1 - F) * (1 - metalness) * double(albedo(c)) / pi;
+        out(c)            = float((diff + spec) * NoL * E);
+    }
+    return out;
+}
+
 class Pbr : public RenderSceneSuiteTest
 {
 };
@@ -192,6 +251,91 @@ TEST_F(Pbr, BrdfLutMatchesCpuIntegration)
         EXPECT_NEAR(gpu(1), cpu(1), 0.01) << "NdotV " << NoV << " roughness " << rough;
         // The directional albedo of a single-scattering lobe is at most 1
         EXPECT_LE(gpu(0) + gpu(1), 1.01f);
+    }
+    // Computed once per process (the later scenes upload it; it cost about 0.1 s per RenderScene on lavapipe)
+    EXPECT_EQ(BrdfLut::computations(), 1);
+}
+
+// The probe's radiance against pbr.glsl in closed form at the centre of a sphere (NdotV ~ 1):
+// - a grey metal of roughness 1 under a uniform environment of radiance 1: the specular part is F0 A + B and the
+//   diffuse part the multi-scattering Fms Ems of the LUT's corner texel (NdotV and roughness at the LUT's upper edge).
+//   Regression: the LUT was sampled with the default repeat address mode, so at NdotV ~ 1 and roughness 1 the filter
+//   mixed in the texels of NdotV ~ 0 and roughness ~ 0 (about half the weight);
+// - a grey dielectric of roughness 0.5 in sunlight (no ambient): the direct radiance of GGX, Smith, Schlick and Lambert
+//   with the energy compensation;
+// - a white metal of roughness 0.2 at its highlight under 100 000 lux (about 5e6 cd/m^2): finite. Regression: the raw
+//   probe frames wrote cd/m^2 without the pre-exposure into the fp16 target (inf above 65504)
+TEST_F(Pbr, ProbeMatchesClosedForm)
+{
+    UsePbr();
+    scene->setToneMap(ToneMap::Aces);
+    const std::vector<vec2> lut = scene->brdfLut().read();
+    const ivec2 centre(width / 2, height / 2);
+    auto sphere = [&](MeshId mesh, float rough, float metal, const ucvec4& color)
+    {
+        MaterialData m;
+        m.roughness = rough;
+        m.metalness = metal;
+        scene->addMaterial(MaterialId(mesh), "probe_sphere" + std::to_string(mesh), m);
+        scene->addMesh(mesh, "probe_sphere" + std::to_string(mesh), sphereMesh(color), MaterialId(mesh));
+        return AddSet({instanceAt(vec3(0, 0, 0), mesh)});
+    };
+    auto probe = [&]() { return runProbe(*scene, [&](auto cb) { scene->requestProbe(centre, cb); }); };
+
+    // The uniform environment
+    scene->setEnvironment(darkEnvironment(float(std::log2(1.0 / (1.2 * 0.18)))));
+    scene->skyAmbient().setUniformRadiance(vec3(1, 1, 1));
+    SetCamera(0, Vec3(0, 0, 4), Quat::Identity(), 0.6);
+    auto set = sphere(110, 1.0f, 1.0f, ucvec4(188, 188, 188, 255));
+    Capture(2);
+    LightingProbe p = probe();
+    ASSERT_TRUE(p.hit);
+    EXPECT_NEAR(p.roughness, 1.0f, 1e-3f);
+    const vec2 corner = lut[size_t(BrdfLut::kSize) * BrdfLut::kSize - 1];
+    for (int c = 0; c < 3; ++c)
+    {
+        const double f0 = p.albedo(c), Ess = corner(0) + corner(1), Ems = 1 - Ess;
+        const double FssEss = f0 * corner(0) + corner(1);
+        const double Favg   = f0 + (1 - f0) / 21;
+        const double Fms    = FssEss * Favg / (1 - Ems * Favg);
+        EXPECT_NEAR(p.specular(c), FssEss, 0.02 * FssEss) << "channel " << c;
+        EXPECT_NEAR(p.ambient(c), Fms * Ems, 0.02 * FssEss) << "channel " << c;
+    }
+    scene->removeInstanceSet(set);
+    sets.pop_back();
+
+    // The sun alone, from the camera's direction
+    const vec3 l         = vec3(0, 0.3f, 1).normalized();
+    EnvironmentState sun = darkEnvironment(15);
+    sun.sunDir           = l;
+    sun.sunIlluminance   = 100000;
+    scene->setEnvironment(sun);
+    scene->skyAmbient().setUniformRadiance(vec3(0, 0, 0));
+    SetCamera(0, (l * 4).cast<double>(), lookRotation(-l.cast<double>()), 0.6);
+    for (int k = 0; k < 2; ++k)
+    {
+        const float rough = k == 0 ? 0.5f : 0.2f, metal = k == 0 ? 0.0f : 1.0f;
+        set = sphere(MeshId(111 + k), rough, metal, k == 0 ? ucvec4(188, 188, 188, 255) : ucvec4(255, 255, 255, 255));
+        Capture(2);
+        p = probe();
+        ASSERT_TRUE(p.hit);
+        const vec3 v  = (Vec3(l.cast<double>() * 4) - p.position).normalized().cast<float>();
+        const float r = std::clamp(p.roughness, 0.045f, 1.0f);
+        const vec3 n  = p.normal.normalized();
+        const vec3 expect =
+            pbrDirectReference(n, v, l, p.albedo, r, p.metalness, 100000, sampleLut(lut, std::max(n.dot(v), 1e-4f), r));
+        for (int c = 0; c < 3; ++c)
+        {
+            EXPECT_TRUE(std::isfinite(p.direct(c))) << "roughness " << rough;
+            EXPECT_NEAR(p.direct(c), expect(c), (k == 0 ? 0.03f : 0.05f) * expect(c))
+                << "roughness " << rough << " channel " << c;
+        }
+        if (k == 1)
+        {
+            EXPECT_GT(p.direct(0), 65504.0f);
+        }
+        scene->removeInstanceSet(set);
+        sets.pop_back();
     }
 }
 
@@ -550,6 +694,116 @@ TEST_F(LightingDebugTest, ShownPreviewsAreRateLimited)
     EXPECT_NE(d.preview(LightingImage::BrdfLut), nullptr);
     d.setPreviewInterval(0.25);
     d.setPreviewLimits(LightingDebug::kPreviewMaxSize, LightingDebug::kPreviewTexelBudget);
+}
+
+// Two captures of one image with different mappings in one frame each get their own mapping's preview and statistics
+// (the second a frame later), and the tab's show() of that frame changes neither. Regression: the last request's (or
+// the tab's) mapping replaced the first one's
+TEST_F(LightingDebugTest, RequestsKeepTheirMapping)
+{
+    UsePbr();
+    PlaneScene(420);
+    Capture(2);
+    LightingDebug& d = scene->lightingDebugImages();
+    PreviewMapping linear, log2Mapping, tab;
+    log2Mapping.log = true;
+    tab.log         = true;
+    tab.colorMap    = ColorMap::Turbo;
+    std::optional<LightingDebug::Capture> a, b;
+    d.request(LightingImage::Luminance, linear, [&](const LightingDebug::Capture& c) { a = c; });
+    d.request(LightingImage::Luminance, log2Mapping, [&](const LightingDebug::Capture& c) { b = c; });
+    d.show(LightingImage::Luminance, tab);
+    for (int i = 0; i < 4 && !(a && b); ++i) RenderFrame();
+    ASSERT_TRUE(a && b);
+    EXPECT_GT(a->statistics.max, 0.05f);
+    EXPECT_NEAR(b->statistics.max, std::log2(a->statistics.max), 0.01f);
+    // Gray, not the tab's turbo
+    const ucvec4 c = a->image(height / 2, width / 2 - 20);
+    EXPECT_EQ(c(0), c(1));
+    EXPECT_EQ(c(1), c(2));
+}
+
+// While a probe runs, a screenshot requested with it and a capture requested during it wait for the frame after the
+// sequence, so they read a normal frame. Regression: they read the probe's debug frames (an Albedo / Normals / raw
+// radiance image)
+TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
+{
+    UsePbr();
+    PlaneScene(430);
+    scene->setToneMap(ToneMap::Aces);
+    EnvironmentState noon;
+    noon.fogDensity = 0;
+    noon.ev100      = 14;
+    scene->setEnvironment(noon);
+    Capture(3);
+    LightingDebug& d = scene->lightingDebugImages();
+    PreviewMapping linear;
+    LightingDebug::Capture normal, during;
+    d.request(LightingImage::Luminance, linear, [&](const LightingDebug::Capture& c) { normal = c; });
+    const auto reference = RenderFrame();
+    bool probed = false, captured = false;
+    uint64_t probeFrame = 0, shotFrame = 0, captureFrame = 0;
+    TemplatedImage<ucvec4> shot;
+    scene->requestProbe(ivec2(width / 2 - 20, height / 2),
+                        [&](const LightingProbe&)
+                        {
+                            probed     = true;
+                            probeFrame = scene->frames();
+                        });
+    scene->requestScreenshot(
+        [&](const TemplatedImage<ucvec4>& img)
+        {
+            shot      = img;
+            shotFrame = scene->frames();
+        });
+    // The capture is requested in the sequence (frame 1 is a normal frame, the later ones are not)
+    scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    ASSERT_TRUE(scene->probeRunning());
+    d.request(LightingImage::Luminance, linear,
+              [&](const LightingDebug::Capture& c)
+              {
+                  during       = c;
+                  captured     = true;
+                  captureFrame = scene->frames();
+              });
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !(probed && captured && shot.w > 0); ++i)
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    ASSERT_TRUE(probed && captured && shot.w > 0);
+    EXPECT_GT(shotFrame, probeFrame);
+    EXPECT_GT(captureFrame, probeFrame);
+    ASSERT_EQ(shot.w, reference.w);
+    int maxDiff = 0;
+    for (int y = 0; y < shot.h; ++y)
+        for (int x = 0; x < shot.w; ++x)
+            for (int c = 0; c < 3; ++c)
+                maxDiff = std::max(maxDiff, std::abs(int(shot(y, x)(c)) - int(reference(y, x)(c))));
+    EXPECT_LE(maxDiff, 1);
+    EXPECT_NEAR(during.statistics.mean, normal.statistics.mean, 1e-3f * std::abs(normal.statistics.mean));
+}
+
+// A probe at a world point projects it with the camera of the sequence's frame 1 (a camera change before that frame
+// is used). Regression: the tool projected with the last frame's matrices around the app's current camera position. A
+// point behind the camera is not in the image
+TEST_F(LightingDebugTest, ProbeAtWorldPoint)
+{
+    UsePbr();
+    PlaneScene(440);
+    Capture(1);
+    const Vec3 world(1.5, 0, -1);
+    LightingProbe p = runProbe(*scene,
+                               [&](auto cb)
+                               {
+                                   scene->requestProbe(world, cb);
+                                   // The camera moves before the sequence's first frame
+                                   SetCamera(0, Vec3(-1, 8, 1), lookRotation(Vec3(0, -1, -0.002)), 0.9);
+                               });
+    ASSERT_TRUE(p.inImage);
+    ASSERT_TRUE(p.hit);
+    EXPECT_NEAR(p.position.x(), world.x(), 0.06);
+    EXPECT_NEAR(p.position.y(), world.y(), 0.02);
+    EXPECT_NEAR(p.position.z(), world.z(), 0.06);
+    p = runProbe(*scene, [&](auto cb) { scene->requestProbe(Vec3(0, 20, 0), cb); });
+    EXPECT_FALSE(p.inImage);
 }
 
 // probe_lighting's sequence: 7 frames at a pixel of the lit plane, the values equal the views' at that pixel, the

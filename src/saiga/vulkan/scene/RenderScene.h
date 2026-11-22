@@ -13,6 +13,7 @@
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 #include "saiga/vulkan/scene/TerrainPass.h"
 
+#include <algorithm>
 #include <array>
 #include <deque>
 #include <functional>
@@ -291,7 +292,14 @@ class SAIGA_VULKAN_API RenderScene
     // computed in double (§10.1: no absolute time in a shader). Games pass world.time() + alpha * dt; goldens and
     // benchmarks keep 0. Transitional exception to the camera-relative rule with it: the foliage rebuilds its float
     // world xz for the per-tree wind phase (valid within a few km of the origin; S23 replaces the prototype trees)
-    void setTime(double seconds) { sceneTime = seconds; }
+    // (held during a probe_lighting sequence like the camera: the foliage's wind would move the probed surface)
+    void setTime(double seconds)
+    {
+        if (probeRun)
+            heldTime = seconds;
+        else
+            sceneTime = seconds;
+    }
     double time() const { return sceneTime; }
 
     // ---- environment and lighting (S36, docs/engine_design.md §10.7) -----------------------------------------------
@@ -318,7 +326,8 @@ class SAIGA_VULKAN_API RenderScene
     // The lighting's resources (tests, the debug tools)
     SkyAmbient& skyAmbient() { return *ambient; }
     BrdfLut& brdfLut() { return *brdf; }
-    // The scene pipelines created since the start (SceneCulling's; a debug view switch creates none)
+    // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
+    // creates none)
     uint64_t scenePipelineCreations() const;
 
     // ---- the lighting's debug core (S36a1b, A8) ------------------------------------------------------------------
@@ -336,8 +345,13 @@ class SAIGA_VULKAN_API RenderScene
     void setExposureViewRange(std::optional<float> centre, float range)
     {
         exposureViewCentre = centre;
-        exposureViewRange  = range;
+        exposureViewRange  = std::clamp(range, 0.5f, 64.0f);
     }
+    static constexpr float kDefaultExposureViewRange = 8;
+    std::optional<float> exposureViewCentreSetting() const { return exposureViewCentre; }
+    float exposureViewRangeSetting() const { return exposureViewRange; }
+    // The centre of the frame being recorded (the automatic one without a setting)
+    float frameExposureViewCentre() const;
     // The previews and pixel readbacks (LightingDebug::request, requestPixels) and the debug lines
     // (DebugLines::addLine)
     LightingDebug& lightingDebugImages() { return *debugImages; }
@@ -345,10 +359,17 @@ class SAIGA_VULKAN_API RenderScene
     // The statistics of the newest recorded frame (the luminance reduction when it was requested)
     const LightingStatistics& lightingStatistics() const { return lightStats; }
     // probe_lighting's sequence at a pixel of the next frames (7 frames; requests made before the sequence starts share
-    // it). The camera and the environment are held during the sequence (setCamera / setEnvironment take effect after
-    // it); the callback runs after the last frame
+    // it). The camera, the environment and the time are held during the sequence (setCamera / setEnvironment / setTime
+    // take effect after it); the callback runs after the last frame. While it runs, screenshots and preview conversions
+    // wait for the first frame after it (they would read the debug frames), and the output shows frame 1's image (the
+    // window does not flash the debug frames; ImGui stays live)
     void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
+    // The same at the pixel of a world point, projected with the camera of the sequence's frame 1 (outside the image:
+    // inImage false)
+    void requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback);
     bool probeRunning() const { return probeRun != nullptr; }
+    // A probe sequence runs in the next recorded frame (running or requested)
+    bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
     static constexpr int kProbeFrames = 7;
 
    private:
@@ -376,13 +397,20 @@ class SAIGA_VULKAN_API RenderScene
     // The radiance views write raw values (the probe frames)
     bool frameDebugRaw = false;
     std::optional<float> exposureViewCentre;
-    float exposureViewRange = 8;
+    float exposureViewRange = kDefaultExposureViewRange;
     LightingStatistics lightStats;
     struct ProbeRun;
+    struct ProbeRequest
+    {
+        ivec2 pixel = ivec2(0, 0);
+        std::optional<Vec3> world;
+        std::function<void(const LightingProbe&)> callback;
+    };
     std::unique_ptr<ProbeRun> probeRun;
-    std::vector<std::pair<ivec2, std::function<void(const LightingProbe&)>>> probeRequests;
-    // While a probe runs: the environment and camera given meanwhile (applied after it)
+    std::vector<ProbeRequest> probeRequests;
+    // While a probe runs: the environment, camera and time given meanwhile (applied after it)
     std::optional<EnvironmentState> heldEnvironment;
+    std::optional<double> heldTime;
     struct HeldCamera
     {
         SpaceId space;

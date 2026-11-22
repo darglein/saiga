@@ -62,7 +62,7 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     vec4 phases[2];
     // x: the camera height above the sea level, y: 1 a sea level exists
     vec4 sea;
-    // x: the Exposure view's centre (EV100), y: its range
+    // x: the Exposure view's centre (EV100), y: its range, z: raw radiance views (probe), w: their scale
     vec4 debugParams;
 }
 lighting;

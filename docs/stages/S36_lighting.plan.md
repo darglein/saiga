@@ -1782,6 +1782,48 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   the number of previews not yet converted by the suite's app), `.LightingTabSettingsChangeEnvironment` is
   `LightingTabTest.SettingsChangeEnvironment`, and `.LightingTabControlsWriteWorldState` is replaced by the click on the
   real rate button x60 in `RendersAndWrites` (`DebugUi::markItem`).
+- **Review round 1 of a1b** (fixes on `stage-s36a1b`):
+  - The BRDF LUT is bound with a linear **clamp-to-edge** sampler (`BrdfLut::descriptorInfo`; the default sampler
+    repeated, so NdotV ~ 1 or roughness 1 mixed in the opposite edge's texels). The lookup stays `vec2(NdotV,
+    roughness)`: texel x holds NdotV = (x + 0.5) / 64, so the filter already interpolates between texel centres, and
+    the clamp holds the edge values (no remap needed). The LUT is computed on the GPU once per process and uploaded by
+    later scenes (`BrdfLut::computations`). Tested by `Pbr.ProbeMatchesClosedForm` (the LUT's corner texel through the
+    probe's specular and multi-scattering parts, a closed-form `pbrDirect` in sunlight, a fp16 highlight).
+  - `LightingDebug::request` keeps a mapping per request: a request of an image with another mapping than the frame's
+    first one waits for the next frame (one conversion per image and frame), and the tab's `show()` never replaces a
+    request; a request's conversion makes the next `show()` convert again (`RequestsKeepTheirMapping`).
+  - `probe_lighting` and `screenshot(lighting_view)` (a view other than none) are errors while `pbr` is off; the tab's
+    view combo is disabled then (the debug views exist only in the variant until the a1c flip). `screenshot` with only
+    `lighting_view` or only `overlays` keeps the user's other value for that frame.
+  - During a probe sequence screenshots (and the ImGui override) wait for the first frame after it and preview
+    conversions skip the debug frames 2-7 (requests made then are converted after the sequence); the post pass of
+    frames 2-7 shows a copy of frame 1's resolved image (`probeHeld`, created at the first probe) with frame 1's
+    exposure, so the window does not flash the debug views (ImGui stays live). The wind time is held like the camera
+    and the environment (`setTime`). `ProbeDefersScreenshotsAndCaptures`.
+  - The raw probe frames write radiance times frame 1's pre-exposure (`debugParams.w`), divided out in `finishProbe`
+    (fp16: a metal highlight under 100 000 lux is about 5e6 cd/m^2). The radiance views include the surface tint.
+  - `probe_lighting(position)` projects the point with the camera of the sequence's frame 1 (`requestProbe(Vec3)`);
+    outside the image the tool answers an error. The answer's note names the tone-map weighted resolve of ACES with
+    MSAA.
+  - The Exposure view has a legend in the tab's toolbar (a turbo bar labelled centre +- range / 2 EV100) with the
+    auto-centre, centre and range controls; `set_lighting_debug exposure_view: {centre: EV100 | "auto", range}` and
+    `get_lighting.debug.exposure_view` (setting, the frame's centre, range). The tab's luminance uses the
+    `set_lighting_debug` mapping as is (`EngineApp`'s default mapping is log2).
+  - `get_lighting.gpu` adds `lighting_ms` (the lighting sections, against `budget_ms`; none in a1b), `debug_ms`
+    (`scene.debug` + `lighting.preview`) and `mean_frames` (120: the means are over frames, not 2 s); the tab shows the
+    budget line and the debug cost separately.
+  - `answerDeadline` keeps at least min(0.2 s, 40% of the timeout) for the answer (the capture deadline test runs with a
+    0.5 s timeout instead of 2 s).
+  - **Deviation kept: clay terrain without the prototype environment.** In the PBR variant the clay studio is the
+    prototype light only with the prototype environment (`setPrototypeEnvironment`); a scene with terrain but without
+    it (`test_vulkan_terrain`, an app that only calls `setPrototypeTerrain`) lights its terrain with `sceneStudio()`,
+    while the legacy terrain always used `PrototypeSettings`. Exact parity would need a second studio in the lighting
+    block for the terrain passes; every app with terrain sets the prototype environment, and the a1c flip keeps the
+    rule.
+  - The `*Pbr` golden cases are merged into their legacy cases (`SwitchToPbr`: the same scene re-rendered with the
+    variant and compared with the same golden and counts); `scenePipelineCreations` also counts the terrain and grass
+    pipelines; the suite fixture resets the debug state and waits out a running probe; the Lighting tab releases its
+    ImGui texture (destructor, a new ImGui renderer); `LightingDebug`'s slots follow `VulkanRenderer::framesInFlight`.
 
 ## Results
 
@@ -1826,6 +1868,9 @@ the affected targets also with Clang 19 and warnings as errors in `build-clang`,
   `Sections`.
 - `test_engine_app` time (ctest, lavapipe, parallel 8; finding 28): 34.3 s after step 1, 36.9 s after step 2 (a1a:
   33.8 s).
+- Review round 1 fixes (alone on lavapipe, before -> after): `test_vulkan_lighting` 1.5 s (12 cases) -> 1.6 s (16),
+  `test_engine_lighting_tools` 4.4 s -> 2.9 s (the capture deadline 2 s -> 0.5 s timeout), `test_engine_terrain_render`
+  15.6 s -> 9.6 s (the `*Pbr` goldens re-render the same scene); ctest 83 of 83.
 - No committed image changed; the five clay goldens give identical metrics with both pipeline variants
   (`world_overview`, `world_forest`, `scene_flat_box` 0 difference; `terrain_edit_crater` mean 0.539/255 and
   `generated_site` 0.187/255 with both, the legacy path's values). A deliberate break of the clay branch (x 0.5) failed

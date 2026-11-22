@@ -138,6 +138,12 @@ class RenderSceneSuiteTest : public ::testing::Test
         scene->clearTerrain();
         for (auto h : sets) scene->removeInstanceSet(h);
         sets.clear();
+        // The debug state of a case that failed midway: the view, the heat map, a running probe sequence (its frames)
+        scene->setLightingDebug(Vulkan::LightingDebugState());
+        scene->setLightingDebugOverride(std::nullopt);
+        scene->setExposureViewRange(std::nullopt, Vulkan::RenderScene::kDefaultExposureViewRange);
+        for (int i = 0; i < 2 * Vulkan::RenderScene::kProbeFrames && scene->probePending(); ++i) RenderFrame();
+        ASSERT_FALSE(scene->probePending());
     }
     void TearDown() override
     {

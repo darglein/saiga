@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/image/templatedImage.h"
+#include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
@@ -14,6 +15,7 @@
 #include "saiga/vulkan/texture/Texture.h"
 
 #include <array>
+#include <deque>
 #include <functional>
 #include <memory>
 #include <vector>
@@ -63,7 +65,9 @@ class SAIGA_VULKAN_API LightingDebug
     ~LightingDebug() { destroy(); }
 
     // The preview of image in the next recorded frame with the mapping; withImage: the capture downloads the preview
-    // (else only the statistics). A request without a callback (the tab) only computes the preview and its statistics
+    // (else only the statistics). A request without a callback only computes the preview and its statistics. Requests
+    // of one image with another mapping than the frame's first request wait for the next frames (one conversion per
+    // image and frame), so each callback gets its own mapping's preview and statistics
     void request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback = nullptr,
                  bool withImage = true);
     // The tab shows image this frame (rate-limited and at preview resolution, see the class comment)
@@ -119,13 +123,15 @@ class SAIGA_VULKAN_API LightingDebug
     static float halfToFloat(uint16_t h);
 
    private:
+    // The frame slots (frames in flight)
+    static constexpr size_t kSlots = VulkanRenderer::framesInFlight;
     struct Image
     {
         std::unique_ptr<Texture2D> texture;
         uint64_t version = 0;
         // Per frame slot: the statistics buffer and the frame it was requested in (0: none)
-        std::array<Buffer, 2> statsBuffers;
-        std::array<uint64_t, 2> pendingFrame = {0, 0};
+        std::array<Buffer, kSlots> statsBuffers;
+        std::array<uint64_t, kSlots> pendingFrame{};
         PreviewStatistics stats;
         uint64_t statsFrame = 0;
         // This frame's request (fullResolution: a request(), else a show()) and the time of the last conversion of a
@@ -136,16 +142,23 @@ class SAIGA_VULKAN_API LightingDebug
         PreviewMapping mapping;
         PreviewMapping shownMapping;
         // Per frame slot: the device-local statistics the shader writes (copied to statsBuffers after the conversion)
-        std::array<Buffer, 2> gpuStats;
+        std::array<Buffer, kSlots> gpuStats;
         std::vector<std::pair<CaptureCallback, bool>> callbacks;
+        // The requests with another mapping than this frame's (the next frames, in order)
+        struct Queued
+        {
+            PreviewMapping mapping;
+            std::vector<std::pair<CaptureCallback, bool>> callbacks;
+        };
+        std::deque<Queued> queued;
         // The callbacks of the recorded frame (answered in finishFrame)
-        std::array<std::vector<std::pair<CaptureCallback, bool>>, 2> recorded;
+        std::array<std::vector<std::pair<CaptureCallback, bool>>, kSlots> recorded;
     };
     VulkanBase* base = nullptr;
     ComputePipeline pipeline;
     Sampler nearestSampler;
     Buffer partials;
-    std::array<vk::DescriptorSet, size_t(LightingImage::Count) * 2> sets{};
+    std::array<vk::DescriptorSet, size_t(LightingImage::Count) * kSlots> sets{};
     std::array<Image, size_t(LightingImage::Count)> images;
     uint32_t dispatches           = 0;
     uint64_t currentFrame         = 0;
@@ -154,9 +167,9 @@ class SAIGA_VULKAN_API LightingDebug
     uint64_t previewTexelBudget   = kPreviewTexelBudget;
 
     std::vector<std::pair<std::vector<ivec2>, PixelCallback>> pixelRequests;
-    std::array<std::vector<std::pair<std::vector<ivec2>, PixelCallback>>, 2> recordedPixels;
-    std::array<Buffer, 2> pixelBuffers;
-    std::array<ivec2, 2> pixelSize = {ivec2(0, 0), ivec2(0, 0)};
+    std::array<std::vector<std::pair<std::vector<ivec2>, PixelCallback>>, kSlots> recordedPixels;
+    std::array<Buffer, kSlots> pixelBuffers;
+    std::array<ivec2, kSlots> pixelSize{};
 
     static PreviewStatistics readStatistics(Buffer& b);
 };

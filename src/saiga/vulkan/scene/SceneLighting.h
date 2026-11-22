@@ -84,8 +84,9 @@ struct SceneLighting
     vec4 phases[2] = {vec4(0, 0, 0, 0), vec4(0, 0, 0, 0)};
     // x: the camera height above the sea level (m, double; the shore band), y: 1 a sea level exists
     vec4 sea = vec4(0, 0, 0, 0);
-    // The debug views (A8): x: the Exposure view's centre (EV100), y: its range (EV), zw: unused
-    vec4 debugParams = vec4(0, 8, 0, 0);
+    // The debug views (A8): x: the Exposure view's centre (EV100), y: its range (EV), z: 1 the radiance views write raw
+    // values (the probe frames), w: their scale (the probe's pre-exposure)
+    vec4 debugParams = vec4(0, 8, 0, 1);
 };
 static_assert(sizeof(SceneLighting) == 34 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
 

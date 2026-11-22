@@ -198,6 +198,7 @@ void TerrainPass::createPipelines()
         if (shaders.size() > 1) modules.emplace_back(shaders[1], vk::ShaderStageFlagBits::eFragment, defines);
         p.shaderPipeline.loadGLSL(base->device, modules);
         p.create(f, pi);
+        creations++;
     };
     const std::vector<std::string> shaders = {"vulkan/scene/terrain.vert", "vulkan/scene/terrain.frag"};
     create(scenePipeline, shaders, sceneFormats, info, setLayout(), true);

@@ -133,7 +133,16 @@ void LightingDebug::destroy()
 void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback,
                             bool withImage)
 {
-    Image& i         = images[size_t(image)];
+    Image& i = images[size_t(image)];
+    // Another mapping than this frame's request: a later frame (with the waiting requests of the same mapping)
+    if (i.requested && i.fullResolution && !sameMapping(i.mapping, mapping))
+    {
+        auto same = std::find_if(i.queued.begin(), i.queued.end(),
+                                 [&](const Image::Queued& q) { return sameMapping(q.mapping, mapping); });
+        if (same == i.queued.end()) same = i.queued.insert(i.queued.end(), Image::Queued{mapping, {}});
+        if (callback) same->callbacks.emplace_back(std::move(callback), withImage);
+        return;
+    }
     i.requested      = true;
     i.fullResolution = true;
     i.mapping        = mapping;
@@ -235,27 +244,40 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
     uint64_t shownTexels = 0;
     for (size_t k : order)
     {
-        Image& i                  = images[k];
-        const LightingImage image = LightingImage(k);
-        Texture2D* source         = image == LightingImage::Luminance ? sources.hdr : sources.brdfLut;
+        Image& i                     = images[k];
+        const LightingImage image    = LightingImage(k);
+        const PreviewMapping mapping = i.mapping;
+        const bool fullResolution    = i.fullResolution;
+        Texture2D* source            = image == LightingImage::Luminance ? sources.hdr : sources.brdfLut;
         // A shown preview at most kPreviewMaxSize per side: every step-th source texel
         uint32_t step = 1;
-        if (source && !i.fullResolution)
+        if (source && !fullResolution)
             step = std::max(1u, (std::max(source->width, source->height) + previewMaxSize - 1) / previewMaxSize);
         const uint32_t w = source ? (source->width + step - 1) / step : 0;
         const uint32_t h = source ? (source->height + step - 1) / step : 0;
         // The texel budget of the shown images (the first conversion of the frame is always made)
-        if (source && !i.fullResolution)
+        if (source && !fullResolution)
         {
             if (dispatches > 0 && shownTexels + uint64_t(w) * h > previewTexelBudget) continue;
             shownTexels += uint64_t(w) * h;
             i.lastShown    = now;
-            i.shownMapping = i.mapping;
+            i.shownMapping = mapping;
         }
         i.requested = false;
         i.recorded[frameIndex].insert(i.recorded[frameIndex].end(), std::make_move_iterator(i.callbacks.begin()),
                                       std::make_move_iterator(i.callbacks.end()));
         i.callbacks.clear();
+        // A request's conversion replaces the shown preview (the next show() converts again); the next waiting request
+        // is the next frame's
+        if (fullResolution) i.lastShown = -1e30;
+        if (!i.queued.empty())
+        {
+            i.requested      = true;
+            i.fullResolution = true;
+            i.mapping        = i.queued.front().mapping;
+            i.callbacks      = std::move(i.queued.front().callbacks);
+            i.queued.pop_front();
+        }
         if (!source) continue;
         if (!i.texture || i.texture->width != w || i.texture->height != h)
         {
@@ -285,7 +307,7 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
             partials.createBuffer(*base, std::max<size_t>(partialBytes, 4096), vk::BufferUsageFlagBits::eStorageBuffer,
                                   vk::MemoryPropertyFlagBits::eDeviceLocal);
 
-        vk::DescriptorSet set = sets[k * 2 + frameIndex];
+        vk::DescriptorSet set = sets[k * kSlots + frameIndex];
         vk::DescriptorImageInfo src(vk::Sampler(nearestSampler), source->view(),
                                     vk::ImageLayout::eShaderReadOnlyOptimal);
         vk::DescriptorImageInfo dst(nullptr, i.texture->view(), vk::ImageLayout::eGeneral);
@@ -313,11 +335,11 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         push.size[1]   = int32_t(h);
         push.kind      = image == LightingImage::Luminance ? 0u : 1u;
         push.scale     = image == LightingImage::Luminance ? sources.luminanceScale : 1.0f;
-        push.useLog    = i.mapping.log ? 1u : 0u;
-        push.autoRange = i.mapping.autoRange ? 1u : 0u;
-        push.colorMap  = i.mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
-        push.rangeMin  = i.mapping.min;
-        push.rangeMax  = i.mapping.max;
+        push.useLog    = mapping.log ? 1u : 0u;
+        push.autoRange = mapping.autoRange ? 1u : 0u;
+        push.colorMap  = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
+        push.rangeMin  = mapping.min;
+        push.rangeMax  = mapping.max;
         push.groups    = groups;
         push.pad       = 0;
         push.step      = step;

@@ -32,6 +32,10 @@ class SAIGA_ENGINE_API LightingTab
 {
    public:
     explicit LightingTab(EngineApp& app) : app(app) {}
+    // Releases the preview's ImGui texture (if the scene's ImGui renderer still exists)
+    ~LightingTab();
+    LightingTab(const LightingTab&)            = delete;
+    LightingTab& operator=(const LightingTab&) = delete;
     // Inside the debug UI's panel (an ImGui frame)
     void draw();
 
@@ -42,10 +46,14 @@ class SAIGA_ENGINE_API LightingTab
     void exposure();
     void ambient();
     void gpuAndMemory();
+    // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
+    void exposureLegend();
     EngineApp& app;
-    // The luminance preview's ImGui texture and the preview version it was registered for
+    // The luminance preview's ImGui texture, the preview version and the ImGui renderer it was registered with (a new
+    // renderer, e.g. a recreated scene, registers it again; the old one's texture went with it)
     ImTextureID luminanceTexture = ImTextureID(0);
     uint64_t luminanceVersion    = 0;
+    const void* luminanceImgui   = nullptr;
 };
 
 }  // namespace Engine

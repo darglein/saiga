@@ -54,6 +54,8 @@ class SAIGA_VULKAN_API GrassPass
     ~GrassPass() { destroy(); }
     // The pipeline of the light model (S36a1b): recreated on a change (the old one released deferred)
     void setPbr(bool pbr);
+    // The pipelines created since init (tests: a debug view switch creates none)
+    uint64_t pipelineCreations() const { return creations; }
 
     // After TerrainPass::transfer of the frame: the visible blocks (nothing if the terrain pass does not draw)
     void update(const TerrainAtlas& atlas, const TerrainPass& terrain, const SceneCamera& camera,
@@ -79,7 +81,8 @@ class SAIGA_VULKAN_API GrassPass
     VulkanBase* base              = nullptr;
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
-    bool pbrVariant = false;
+    bool pbrVariant    = false;
+    uint64_t creations = 0;
     Pipeline pipeline;
     Buffer vertices, indices;
     uint32_t indexCount = 0;

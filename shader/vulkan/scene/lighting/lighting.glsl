@@ -20,8 +20,10 @@
 // n * 0.5 + 0.5, roughness, metalness, (roughness, metalness, ao), the cloud and shadow factors), LightingOnly (white
 // albedo, roughness 0.5) and the radiance views (DirectOnly: the sun and the moon; AmbientOnly: the ambient's diffuse
 // part; SpecularOnly: the environment's specular reflection) display colours (debugDisplay: the frame's exposure and
-// ACES in the physical path; clamped in clay), or raw radiance in the probe frames (debugParams.z), Exposure a heat
-// map of the luminance in EV100 (turbo over debugParams.y EV around debugParams.x).
+// ACES in the physical path; clamped in clay), or raw radiance in the probe frames (debugParams.z; times the probe's
+// pre-exposure debugParams.w, fp16: a glossy highlight in sunlight exceeds 65504 cd/m^2), Exposure a heat map of the
+// luminance in EV100 (turbo over debugParams.y EV around debugParams.x). The radiance views include the surface's tint
+// (as the shaded colour).
 #ifndef LIGHTING_GLSL
 #define LIGHTING_GLSL
 
@@ -109,7 +111,7 @@ bool debugViewActive()
 // A radiance as a display colour of a debug view (raw in the probe frames)
 vec3 debugDisplay(vec3 radiance)
 {
-    if (lighting.debugParams.z > 0.5) return radiance;
+    if (lighting.debugParams.z > 0.5) return radiance * lighting.debugParams.w;
     if (physicalLighting()) return linearToSrgb(acesNarkowicz(max(radiance, vec3(0.0)) * lighting.exposure.x));
     return linearToSrgb(clamp(radiance, vec3(0.0), vec3(1.0)));
 }
@@ -171,9 +173,9 @@ vec3 shadeSurface(SurfaceInput s)
         // The emissive colour keeps its displayed brightness (a display value divided by the exposure)
         c = (direct + ambientDiff + ambientSpec) * s.tint + s.emissive / max(lighting.exposure.x, 1e-30);
     }
-    if (view == viewDirectOnly) return debugDisplay(direct);
-    if (view == viewAmbientOnly) return debugDisplay(ambientDiff);
-    if (view == viewSpecularOnly) return debugDisplay(ambientSpec);
+    if (view == viewDirectOnly) return debugDisplay(direct * s.tint);
+    if (view == viewAmbientOnly) return debugDisplay(ambientDiff * s.tint);
+    if (view == viewSpecularOnly) return debugDisplay(ambientSpec * s.tint);
     c = lightingFog(c, s.relPos);
     if (view == viewLightingOnly) return debugDisplay(c);
     if (view == viewExposure)

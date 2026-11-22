@@ -125,6 +125,8 @@ class SAIGA_VULKAN_API TerrainPass
     ~TerrainPass() { destroy(); }
     // The pipelines of the light model (S36a1b): recreated on a change (the old ones released deferred)
     void setPbr(bool pbr);
+    // The pipelines created since init (tests: a debug view switch creates none)
+    uint64_t pipelineCreations() const { return creations; }
 
     // The transfer section: the node selection, the frame's node instances and TerrainFrame, the descriptor set.
     // Draws nothing (and returns false) without a GPU-resident pyramid of the camera's space
@@ -179,7 +181,8 @@ class SAIGA_VULKAN_API TerrainPass
     VulkanBase* base              = nullptr;
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
-    bool pbrVariant = false;
+    bool pbrVariant    = false;
+    uint64_t creations = 0;
     Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline;
     // The layouts the frame and sky sets are allocated from (independent of the pipelines, which setPbr recreates)
     DescriptorSetLayout frameLayout, skyLayout;

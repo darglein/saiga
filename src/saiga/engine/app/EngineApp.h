@@ -262,7 +262,8 @@ class SAIGA_ENGINE_API EngineApp
     EngineAppSetup appSetup;
     AppOptions appOptions;
     Vulkan::EnvironmentSettings envSettings;
-    Vulkan::PreviewMapping previewMapping;
+    // The Lighting tab's preview mapping (set_lighting_debug mapping): log2 by default (the luminance)
+    Vulkan::PreviewMapping previewMapping{true, 0, 1, true, Vulkan::ColorMap::Gray};
     std::unique_ptr<Vulkan::VulkanWindow> appWindow;
     std::unique_ptr<Vulkan::RenderScene> renderScene;
     std::unique_ptr<VulkanRenderSink> sink;

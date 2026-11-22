@@ -13,6 +13,7 @@
 #include "saiga/engine/core/Profiler.h"
 #include "saiga/engine/world/World.h"
 
+#include <algorithm>
 #include <charconv>
 #include <chrono>
 #include <cmath>

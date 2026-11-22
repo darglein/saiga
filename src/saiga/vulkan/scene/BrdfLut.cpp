@@ -7,12 +7,15 @@
 #include "saiga/vulkan/scene/BrdfLut.h"
 
 #include "saiga/core/util/assert.h"
+#include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/pipeline/DescriptorSetLayout.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <mutex>
 
 namespace Saiga
 {
@@ -26,18 +29,17 @@ struct LutPush
     uint32_t samples;
 };
 
-// IEEE half -> float (the LUT's RG16F texels)
-float halfToFloat(uint16_t h)
+// The texels of the first LUT computed in the process (RG16F, row-major) and the number of GPU computations
+struct LutCache
 {
-    const uint32_t sign = uint32_t(h >> 15) & 1u, exponent = uint32_t(h >> 10) & 0x1Fu, mantissa = h & 0x3FFu;
-    float v;
-    if (exponent == 0)
-        v = std::ldexp(float(mantissa), -24);
-    else if (exponent == 31)
-        v = mantissa ? NAN : INFINITY;
-    else
-        v = std::ldexp(float(mantissa | 0x400u), int(exponent) - 25);
-    return sign ? -v : v;
+    std::mutex mutex;
+    std::vector<uint8_t> bytes;
+    int computations = 0;
+};
+LutCache& lutCache()
+{
+    static LutCache cache;
+    return cache;
 }
 
 double visibility(double NoV, double NoL, double a)
@@ -49,7 +51,52 @@ double visibility(double NoV, double NoL, double a)
 }
 }  // namespace
 
+int BrdfLut::computations()
+{
+    std::lock_guard<std::mutex> lock(lutCache().mutex);
+    return lutCache().computations;
+}
+
 void BrdfLut::init(VulkanBase& base)
+{
+    SamplerParameters sp;
+    sp.setAddressMode(vk::SamplerAddressMode::eClampToEdge);
+    sampler.create(base, sp);
+    LutCache& cache = lutCache();
+    std::vector<uint8_t> bytes;
+    {
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        bytes = cache.bytes;
+    }
+    if (!bytes.empty()) return upload(base, bytes);
+    compute(base);
+    bytes = texture.download();
+    SAIGA_ASSERT(bytes.size() == size_t(kSize) * kSize * 4);
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    cache.computations++;
+    if (cache.bytes.empty()) cache.bytes = std::move(bytes);
+}
+
+void BrdfLut::upload(VulkanBase& base, const std::vector<uint8_t>& bytes)
+{
+    texture.create(base, kSize, kSize, vk::Format::eR16G16Sfloat,
+                   vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
+    StagingBuffer staging;
+    staging.init(base, bytes.size(), bytes.data());
+    auto& q               = base.mainQueue;
+    vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
+    texture.transitionImageLayout(cmd, vk::ImageLayout::eTransferDstOptimal);
+    vk::BufferImageCopy region(0, 0, 0, vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
+                               vk::Offset3D(0, 0, 0), vk::Extent3D(kSize, kSize, 1));
+    staging.copyTo(cmd, texture.image(), vk::ImageLayout::eTransferDstOptimal, region);
+    texture.transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
+    cmd.end();
+    q.submitAndWait(cmd);
+    q.commandPool.freeCommandBuffer(cmd);
+    staging.destroyImmediately();
+}
+
+void BrdfLut::compute(VulkanBase& base)
 {
     texture.create(base, kSize, kSize, vk::Format::eR16G16Sfloat,
                    vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eStorage);
@@ -94,7 +141,7 @@ std::vector<vec2> BrdfLut::read()
     {
         uint16_t h[2];
         std::memcpy(h, bytes.data() + i * 4, 4);
-        out[i] = vec2(halfToFloat(h[0]), halfToFloat(h[1]));
+        out[i] = vec2(LightingDebug::halfToFloat(h[0]), LightingDebug::halfToFloat(h[1]));
     }
     return out;
 }

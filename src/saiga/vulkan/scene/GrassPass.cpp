@@ -96,6 +96,7 @@ void GrassPass::setPbr(bool pbr)
                                      {{"vulkan/scene/grass.vert", vk::ShaderStageFlagBits::eVertex, defines},
                                       {"vulkan/scene/grass.frag", vk::ShaderStageFlagBits::eFragment, defines}});
     pipeline.create(sceneFormats, info);
+    creations++;
 }
 
 void GrassPass::destroy()

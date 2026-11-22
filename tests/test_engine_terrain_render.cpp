@@ -122,19 +122,18 @@ class TerrainRenderTest : public RenderSceneTest
         world->setRenderSink(sink.get());
     }
 
-    // S36a1b: the clay goldens also run with the LIGHTING_PBR pipeline variant against the same committed images (its
-    // studio environment reproduces S19a's light; the guard of the shader rewrite). Not in the update mode (the goldens
-    // are written by the legacy variant)
-    bool UsePbr(bool pbr)
+    // S36a1b: the clay goldens are also rendered with the LIGHTING_PBR pipeline variant against the same committed
+    // images (its studio environment reproduces S19a's light; the guard of the shader rewrite): the same scene,
+    // switched to the variant after the legacy image (the pipelines change from the next frame). Not in the update mode
+    // (the goldens are written by the legacy variant)
+    bool SwitchToPbr()
     {
-        if (pbr && goldenUpdateMode()) return false;
+        if (goldenUpdateMode()) return false;
         Vulkan::LightingParameters p = scene->lightingParameters();
-        p.pbr                        = pbr;
+        p.pbr                        = true;
         scene->setLightingParameters(p);
         return true;
     }
-    void RunEditCraterGolden(bool pbr);
-    void RunGeneratedSite(bool pbr);
 
     std::unique_ptr<World> world;
     std::unique_ptr<VulkanRenderSink> sink;
@@ -204,11 +203,11 @@ TEST_F(TerrainRenderTest, PatchBelowNodeMinimum)
 }
 
 // S22: the golden of a terraformed crater: a crater applied before the first completeView (the merge path) and a ring
-// of mounds applied after it (the patch path, the edited grass masks); 512 x 512 on lavapipe
-void TerrainRenderTest::RunEditCraterGolden(bool pbr)
+// of mounds applied after it (the patch path, the edited grass masks); 512 x 512 on lavapipe. S36a1b: also with the
+// LIGHTING_PBR variant (SwitchToPbr)
+TEST_F(TerrainRenderTest, EditCraterGolden)
 {
     Create(512, 512, 4);
-    if (!UsePbr(pbr)) GTEST_SKIP() << "the goldens are written by the legacy variant";
     scene->setPrototypeEnvironment(Vulkan::PrototypeSettings(), 1);
     MakeWorld(terraformTestTemplate(2));
     auto edit = [&](TerrainBrush::Op op, double x, double z, double radius, double strength)
@@ -247,17 +246,7 @@ void TerrainRenderTest::RunEditCraterGolden(bool pbr)
     SetCamera(0, eye, rot, fovy);
     const auto img = Capture(3);
     compareGolden(img, "terrain_edit_crater", deviceName());
-}
-
-TEST_F(TerrainRenderTest, EditCraterGolden)
-{
-    RunEditCraterGolden(false);
-}
-
-// S36a1b: the same golden with the LIGHTING_PBR variant (clay: the studio environment)
-TEST_F(TerrainRenderTest, EditCraterGoldenPbr)
-{
-    RunEditCraterGolden(true);
+    if (SwitchToPbr()) compareGolden(Capture(2), "terrain_edit_crater", deviceName());
 }
 
 // §22 acceptance (S20, A11): the 32 km space with a hook periodic in 4096 m (so in 28 672 m) and grass masks; two
@@ -375,17 +364,14 @@ class VulkanWorldGolden : public TerrainRenderTest
         EXPECT_EQ(int(st.terrainNodes), terrainNodes);
     }
 
-    void RunWorldOverview(bool pbr);
-    void RunWorldForest(bool pbr);
-
     Vulkan::PrototypeScene prototype;
     std::vector<Vulkan::TreeSpecies> species;
     std::vector<Vulkan::ForestRenderer::TreeInstance> trees;
 };
 
-void VulkanWorldGolden::RunWorldOverview(bool pbr)
+// S36a1b: the world goldens and their counts also with the LIGHTING_PBR variant (SwitchToPbr)
+TEST_F(VulkanWorldGolden, WorldOverview)
 {
-    if (!UsePbr(pbr)) GTEST_SKIP() << "the goldens are written by the legacy variant";
     // 300 m above the ground 100 m inside the square's west edge at its centre z, looking 45 degrees down along +x
     Vec3 c(1124, 0, 1536);
     c(1)           = Ground(c(0), c(2));
@@ -395,22 +381,13 @@ void VulkanWorldGolden::RunWorldOverview(bool pbr)
     EXPECT_EQ(img.w, 512);
     compareGolden(img, "world_overview", deviceName());
     ExpectCounts("world_overview", 0, 2, 3937, 65);
+    if (!SwitchToPbr()) return;
+    compareGolden(Capture(2), "world_overview", deviceName());
+    ExpectCounts("world_overview", 0, 2, 3937, 65);
 }
 
-TEST_F(VulkanWorldGolden, WorldOverview)
+TEST_F(VulkanWorldGolden, WorldForest)
 {
-    RunWorldOverview(false);
-}
-
-// S36a1b: the same golden and counts with the LIGHTING_PBR variant (clay: the studio environment)
-TEST_F(VulkanWorldGolden, WorldOverviewPbr)
-{
-    RunWorldOverview(true);
-}
-
-void VulkanWorldGolden::RunWorldForest(bool pbr)
-{
-    if (!UsePbr(pbr)) GTEST_SKIP() << "the goldens are written by the legacy variant";
     // 2 m above max(ground, water) at a clearing near the square's centre: (1524, 1564), found by a search on a 4 m
     // grid of [1400, 1700]^2 for the point nearest to the centre whose nearest tree is >= 15 m away (16.2 m), looking
     // along +x and slightly down: a close tree with alpha-to-coverage foliage, grass, trunks, the forest at mid
@@ -422,17 +399,9 @@ void VulkanWorldGolden::RunWorldForest(bool pbr)
     EXPECT_EQ(img.w, 512);
     compareGolden(img, "world_forest", deviceName());
     ExpectCounts("world_forest", 27, 338, 506, 131);
-}
-
-TEST_F(VulkanWorldGolden, WorldForest)
-{
-    RunWorldForest(false);
-}
-
-// S36a1b: the same golden and counts with the LIGHTING_PBR variant (clay: the studio environment)
-TEST_F(VulkanWorldGolden, WorldForestPbr)
-{
-    RunWorldForest(true);
+    if (!SwitchToPbr()) return;
+    compareGolden(Capture(2), "world_forest", deviceName());
+    ExpectCounts("world_forest", 27, 338, 506, 131);
 }
 
 // S23b (§17.6, E12): the golden of generated content through the real render path: the content test generator's chunk
@@ -440,11 +409,11 @@ TEST_F(VulkanWorldGolden, WorldForestPbr)
 // renders through a VulkanRenderSink, world B (same setup and camera) records the exact set arrays. Count check: the
 // drawn instances of the tombstoned tree's mesh drop by exactly 1, every other mesh's count is unchanged (the
 // statistics of the rendered frame itself). Set check: B's set of (4, 5) equals the conversion of the chunk's placement
-// and its static parts with the tombstoned index at scale 0
-void TerrainRenderTest::RunGeneratedSite(bool pbr)
+// and its static parts with the tombstoned index at scale 0. S36a1b: the golden also with the LIGHTING_PBR variant
+// (SwitchToPbr)
+TEST_F(TerrainRenderTest, GeneratedSite)
 {
     Create(512, 512, 4);
-    if (!UsePbr(pbr)) GTEST_SKIP() << "the goldens are written by the legacy variant";
     scene->setPrototypeEnvironment(Vulkan::PrototypeSettings(), 1);
     WorldSetup setup = ContentTest::contentTestSetup(2);
     for (SpaceTemplate& t : setup.config.spaceTemplates) t.fullRadius = 300;
@@ -553,16 +522,6 @@ void TerrainRenderTest::RunGeneratedSite(bool pbr)
     SetCamera(0, eye, rot, fovy);
     const auto img = Capture(3);
     compareGolden(img, "generated_site", deviceName());
+    if (SwitchToPbr()) compareGolden(Capture(2), "generated_site", deviceName());
     recording.setRenderSink(nullptr);
-}
-
-TEST_F(TerrainRenderTest, GeneratedSite)
-{
-    RunGeneratedSite(false);
-}
-
-// S36a1b: the same golden with the LIGHTING_PBR variant (clay: the studio environment)
-TEST_F(TerrainRenderTest, GeneratedSitePbr)
-{
-    RunGeneratedSite(true);
 }

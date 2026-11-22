@@ -95,7 +95,7 @@ std::vector<std::string> sectionNameStrings()
 // probe_lighting's sequence (S36a1b): the views of its frames, the pixels and the values per frame
 struct RenderScene::ProbeRun
 {
-    std::vector<std::pair<ivec2, std::function<void(const LightingProbe&)>>> requests;
+    std::vector<RenderScene::ProbeRequest> requests;
     int step = 0;
     // Per frame: the values of the pixels (in request order)
     std::array<std::vector<LightingDebug::PixelValue>, RenderScene::kProbeFrames> values;
@@ -105,6 +105,9 @@ struct RenderScene::ProbeRun
     ivec2 size        = ivec2(0, 0);
     float preExposure = 1;
     bool physical     = false;
+    // Frame 1's post pass (the later frames show frame 1's image: the window does not flash the debug frames)
+    float postScale = 1;
+    bool postLinear = false;
 };
 
 namespace
@@ -160,7 +163,8 @@ class SceneFrameRenderer : public VulkanRenderer
             resolveSet = resolvePipeline.createDescriptorSet();
         }
         create(postPipeline, "vulkan/scene/post.frag", sizeof(PostPush), getColorFormat());
-        postSet = postPipeline.createDescriptorSet();
+        postSet      = postPipeline.createDescriptorSet();
+        probeHeldSet = postPipeline.createDescriptorSet();
 
         // ImGui draws on top of the post pass (single-sampled, no depth)
         if (imGui) imGui->initResources(base(), outputFormats());
@@ -223,6 +227,46 @@ class SceneFrameRenderer : public VulkanRenderer
         };
         if (msaa) write(resolveSet, hdrMsaa);
         write(postSet, hdrResolved);
+        probeHeld.destroy();
+    }
+
+    bool probeHeldValid() const
+    {
+        return probeHeld.memoryLocation && probeHeld.width == uint32_t(surfaceWidth) &&
+               probeHeld.height == uint32_t(SurfaceHeight);
+    }
+
+    // The probe's frame 1 (hdrResolved in eTransferSrcOptimal): copies the resolved image into probeHeld (created at
+    // the first probe, with its post set), which the post pass of the probe's debug frames shows
+    void recordProbeHold(vk::CommandBuffer cmd)
+    {
+        if (!probeHeldValid())
+        {
+            probeHeld.destroy();
+            probeHeld.create(base(), uint32_t(surfaceWidth), uint32_t(SurfaceHeight), hdrFormat,
+                             vk::ImageUsageFlagBits::eSampled);
+            vk::DescriptorImageInfo info(vk::Sampler(sampler), probeHeld.view(),
+                                         vk::ImageLayout::eShaderReadOnlyOptimal);
+            base().device.updateDescriptorSets(vk::WriteDescriptorSet(vk::DescriptorSet(probeHeldSet), 0, 0, 1,
+                                                                      vk::DescriptorType::eCombinedImageSampler, &info),
+                                               nullptr);
+        }
+        vk::ImageMemoryBarrier2 toDst(Stage::eFragmentShader, {}, Stage::eAllTransfer, Access::eTransferWrite,
+                                      vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal,
+                                      VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, probeHeld.image(),
+                                      colorRange());
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toDst));
+        const vk::ImageSubresourceLayers layers(vk::ImageAspectFlagBits::eColor, 0, 0, 1);
+        cmd.copyImage(
+            hdrResolved.image(), vk::ImageLayout::eTransferSrcOptimal, probeHeld.image(),
+            vk::ImageLayout::eTransferDstOptimal,
+            vk::ImageCopy(layers, {0, 0, 0}, layers, {0, 0, 0}, {uint32_t(surfaceWidth), uint32_t(SurfaceHeight), 1}));
+        vk::ImageMemoryBarrier2 toRead(Stage::eAllTransfer, Access::eTransferWrite, Stage::eFragmentShader,
+                                       Access::eShaderSampledRead, vk::ImageLayout::eTransferDstOptimal,
+                                       vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                       VK_QUEUE_FAMILY_IGNORED, probeHeld.image(), colorRange());
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
+        probeHeld.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     }
 
     void render(const FrameInfo& frame) override;
@@ -271,10 +315,12 @@ class SceneFrameRenderer : public VulkanRenderer
     RenderScene& scene;
     Sampler sampler;
     Pipeline resolvePipeline, postPipeline;
-    StaticDescriptorSet resolveSet, postSet;
+    StaticDescriptorSet resolveSet, postSet, probeHeldSet;
     // Shared by the frames in flight. hdrMsaa only with MSAA (stored only for the custom resolve); hdrResolved is the
     // scene target with 1 sample. depthResolved: the SAMPLE_ZERO depth resolve, only with MSAA.
     Texture2D depthImage, depthResolved, hdrMsaa, hdrResolved;
+    // probe_lighting: frame 1's resolved image, shown by the sequence's debug frames (created at the first probe)
+    Texture2D probeHeld;
     // The depth image that later passes sample (S37's consumers)
     Texture2D& sampledDepth() { return samples != vk::SampleCountFlagBits::e1 ? depthResolved : depthImage; }
 
@@ -299,27 +345,15 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // The previews' statistics of this slot's previous frame (completed)
     s.debugImages->harvest(frame.frameIndex);
     s.debugImages->setFrame(s.frameCount + 1);
-    // probe_lighting: the pixels of this frame of the sequence
-    if (s.probeRun)
-    {
-        RenderScene::ProbeRun* run = s.probeRun.get();
-        std::vector<ivec2> pixels;
-        for (auto& r : run->requests) pixels.push_back(r.first);
-        RenderScene* scene = &s;
-        s.debugImages->requestPixels(pixels,
-                                     [scene, run](const std::vector<LightingDebug::PixelValue>& v)
-                                     {
-                                         if (scene->probeRun.get() != run) return;
-                                         run->values[size_t(run->step)] = v;
-                                         run->step++;
-                                         if (run->step == RenderScene::kProbeFrames) scene->finishProbe();
-                                     });
-    }
-    const bool msaa      = samples != vk::SampleCountFlagBits::e1;
-    const bool linear    = s.sceneWritesLinear();
-    const bool custom    = msaa && linear;  // the tone-map weighted resolve (Identity: the hardware average)
-    const float scale    = s.frameEffectiveExposure / s.framePreExposure;
-    const bool drawImgui = imguiFrame(
+    // probe_lighting's frames 2-7 (debug views): no preview conversion (they would reduce the debug values; the
+    // requests wait for the frame after the sequence), the post pass shows frame 1's image
+    RenderScene::ProbeRun* probe = s.probeRun.get();
+    const bool probeDebugFrame   = probe && probe->step > 0;
+    const bool msaa              = samples != vk::SampleCountFlagBits::e1;
+    const bool linear            = s.sceneWritesLinear();
+    const bool custom            = msaa && linear;  // the tone-map weighted resolve (Identity: the hardware average)
+    const float scale            = s.frameEffectiveExposure / s.framePreExposure;
+    const bool drawImgui         = imguiFrame(
         [&s]()
         {
             if (s.guiFn && *s.guiFn) (*s.guiFn)();
@@ -368,14 +402,41 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.slotStatistics[frame.frameIndex].terrainNodes = uint32_t(s.terrain->stats().nodes);
         SceneLighting lighting;
         s.frameLighting(camera, proto, enclosed, int(samples), lighting);
-        if (s.probeRun && s.probeRun->step == 0)
+        if (probe && probe->step == 0)
         {
-            // The probe's frame 1: its camera and exposure (the later frames hold them)
-            s.probeRun->camera      = camera.position;
-            s.probeRun->viewProj    = camera.viewProj;
-            s.probeRun->size        = ivec2(surfaceWidth, SurfaceHeight);
-            s.probeRun->preExposure = s.framePreExposure;
-            s.probeRun->physical    = s.framePhysical && linear;
+            // The probe's frame 1: its camera and exposure (the later frames hold them); a world point's pixel with
+            // this camera
+            probe->camera      = camera.position;
+            probe->viewProj    = camera.viewProj;
+            probe->size        = ivec2(surfaceWidth, SurfaceHeight);
+            probe->preExposure = s.framePreExposure;
+            probe->physical    = s.framePhysical && linear;
+            probe->postScale   = scale;
+            probe->postLinear  = linear;
+            for (RenderScene::ProbeRequest& r : probe->requests)
+            {
+                if (!r.world) continue;
+                const Vec3 rel = *r.world - camera.position;
+                const vec4 h   = camera.viewProj * vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1.0f);
+                r.pixel        = h(3) > 0 ? ivec2(int(std::floor((h(0) / h(3) * 0.5f + 0.5f) * float(surfaceWidth))),
+                                                  int(std::floor((h(1) / h(3) * 0.5f + 0.5f) * float(SurfaceHeight))))
+                                          : ivec2(-1, -1);
+            }
+        }
+        // probe_lighting: the pixels of this frame of the sequence
+        if (probe)
+        {
+            std::vector<ivec2> pixels;
+            for (auto& r : probe->requests) pixels.push_back(r.pixel);
+            RenderScene* scene = &s;
+            s.debugImages->requestPixels(pixels,
+                                         [scene, probe](const std::vector<LightingDebug::PixelValue>& v)
+                                         {
+                                             if (scene->probeRun.get() != probe) return;
+                                             probe->values[size_t(probe->step)] = v;
+                                             probe->step++;
+                                             if (probe->step == RenderScene::kProbeFrames) scene->finishProbe();
+                                         });
         }
         // The overlays (DebugLines): the sun and the moon from the camera's focus
         if ((s.frameDebug.overlays & OverlaySunDirection) && camera.valid)
@@ -646,13 +707,15 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toSrc));
         s.debugImages->recordPixels(cmd, frame.frameIndex, hdrResolved.image(), sampledDepth().image(),
                                     ivec2(surfaceWidth, SurfaceHeight));
+        // The probe's frame 1: a copy of the resolved image, which the post pass of frames 2-7 shows
+        if (probe && probe->step == 0) recordProbeHold(cmd);
         vk::ImageMemoryBarrier2 depthBack(
             Stage::eAllTransfer, Access::eTransferRead, Stage::eFragmentShader | Stage::eComputeShader,
             Access::eShaderSampledRead, vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
             VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, sampledDepth().image(), depthRange());
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, depthBack));
     }
-    const bool previews = s.debugImages->requested();
+    const bool previews = s.debugImages->requested() && !probeDebugFrame;
     {
         // The resolved image -> post's sampled read (and S36's preview conversion); the output image after the acquire
         // (the submit waits for imageAvailable at COLOR_ATTACHMENT_OUTPUT; headless: the frame that last used it has
@@ -701,8 +764,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         timings.enterSection("post", cmd);
         if (postPipeline.bind(cmd))
         {
-            PostPush push{scale, linear ? 1 : 0, isSrgbFormat(getColorFormat()) ? 1 : 0};
-            postPipeline.bindDescriptorSet(cmd, postSet);
+            // The probe's frames 2-7 show frame 1's image (held by recordProbeHold)
+            const bool held = probeDebugFrame && probeHeldValid();
+            PostPush push{held ? probe->postScale : scale, (held ? probe->postLinear : linear) ? 1 : 0,
+                          isSrgbFormat(getColorFormat()) ? 1 : 0};
+            postPipeline.bindDescriptorSet(cmd, held ? probeHeldSet : postSet);
             postPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eFragment, sizeof(push), &push);
             cmd.draw(3, 1, 0, 0);
         }
@@ -727,7 +793,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // Screenshots of the final image (tone mapped, with ImGui)
     vk::Image output = colorImage(frame.imageIndex);
     std::vector<ScreenshotCallback> callbacks;
-    std::unique_ptr<StagingBuffer> screenshot = beginScreenshots(cmd, output, callbacks);
+    // (not in a probe frame: the screenshots wait for the first frame after the sequence)
+    std::unique_ptr<StagingBuffer> screenshot = probe ? nullptr : beginScreenshots(cmd, output, callbacks);
     recordPresentTransition(cmd, output, screenshot != nullptr);
     submitCommands(cmd, frame);
     finishScreenshots(frame, screenshot.get(), callbacks);
@@ -794,6 +861,11 @@ RenderScene::~RenderScene()
     meshPool.reset();
 }
 
+float RenderScene::frameExposureViewCentre() const
+{
+    return exposureViewCentre ? *exposureViewCentre : physicalLighting() ? env.ev100 : float(std::log2(0.18 * 8));
+}
+
 bool RenderScene::renderFrame(const Callback& transferCb, const Callback& renderCb, const std::function<void()>& gui)
 {
     transferFn              = &transferCb;
@@ -804,8 +876,9 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
     RenderInfo info;
     // The override applies to this frame only, and only if it is read back (a screenshot that waits for a later frame
     // does not hide the GUI of the frames before it); the user's choice stays in should_render_imgui
-    const bool userImgui  = renderer->should_render_imgui;
-    const bool overridden = imguiOverride.has_value() && renderer->screenshotRequested();
+    const bool userImgui = renderer->should_render_imgui;
+    // (not in a probe frame: the screenshot waits for the frame after the sequence)
+    const bool overridden = imguiOverride.has_value() && renderer->screenshotRequested() && !probePending();
     if (overridden) renderer->should_render_imgui = *imguiOverride;
     renderer->render(info);
     if (overridden) renderer->should_render_imgui = userImgui;
@@ -1151,8 +1224,11 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
     out.exposure = vec4(displayExposure, framePreExposure, envSet ? env.ev100 : 0.0f, sceneWritesLinear() ? 1 : 0);
     out.mode(2)  = uint32_t(frameDebug.view);
     out.mode(3)  = frameDebug.overlays;
-    const float centre = exposureViewCentre ? *exposureViewCentre : physical ? env.ev100 : float(std::log2(0.18 * 8));
-    out.debugParams    = vec4(centre, exposureViewRange, frameDebugRaw ? 1.0f : 0.0f, 0);
+    const float centre = frameExposureViewCentre();
+    // w: the probe's raw radiance frames write radiance times frame 1's pre-exposure (fp16: a glossy highlight in
+    // sunlight exceeds 65504 cd/m^2), finishProbe divides it out
+    const float rawScale           = frameDebugRaw && probeRun ? probeRun->preExposure : 1.0f;
+    out.debugParams                = vec4(centre, exposureViewRange, frameDebugRaw ? 1.0f : 0.0f, rawScale);
     const StudioEnvironment studio = studioEnvironment(enclosed);
     const vec3 sd                  = studio.sunDir.normalized();
     out.studioSun                  = vec4(sd(0), sd(1), sd(2), studio.sunIntensity);
@@ -1220,7 +1296,7 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     SceneLightingBindings b;
     b.ambient = ambient->bindings(frameIndex);
     if (foliage) b.foliage = foliage->getDescriptorInfo();
-    b.brdfLut = brdf->lut().getDescriptorInfo();
+    b.brdfLut = brdf->descriptorInfo();
     lightingSet->write(frameIndex, block, b);
 
     // The statistics of this frame (S36a1b)
@@ -1240,8 +1316,9 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.sh             = ambient->statistics().sh;
     st.luminance      = debugImages->statistics(LightingImage::Luminance);
     st.luminanceFrame = debugImages->statisticsFrame(LightingImage::Luminance);
-    // The block and SH buffers, the BRDF LUT (RG16F), the previews, the debug lines
-    st.memoryBytes = 2 * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
+    // The block and SH buffers per frame in flight, the BRDF LUT (RG16F), the previews, the debug lines (not the
+    // dummy textures)
+    st.memoryBytes = VulkanRenderer::framesInFlight * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
                      uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes();
 }
 
@@ -1271,7 +1348,12 @@ void RenderScene::latchDebug()
 
 void RenderScene::requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback)
 {
-    probeRequests.emplace_back(pixel, std::move(callback));
+    probeRequests.push_back(ProbeRequest{pixel, std::nullopt, std::move(callback)});
+}
+
+void RenderScene::requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback)
+{
+    probeRequests.push_back(ProbeRequest{ivec2(-1, -1), world, std::move(callback)});
 }
 
 void RenderScene::finishProbe()
@@ -1282,7 +1364,7 @@ void RenderScene::finishProbe()
     for (size_t k = 0; k < run->requests.size(); ++k)
     {
         LightingProbe p;
-        p.pixel    = run->requests[k].first;
+        p.pixel    = run->requests[k].pixel;
         p.frames   = kProbeFrames;
         p.physical = run->physical;
         auto value = [&](int frame)
@@ -1324,11 +1406,13 @@ void RenderScene::finishProbe()
             p.roughness  = m(0);
             p.metalness  = m(1);
             p.ao         = m(2);
-            p.direct     = rgb(value(4).color);
-            p.ambient    = rgb(value(5).color);
-            p.specular   = rgb(value(6).color);
+            // The raw frames are scaled by frame 1's pre-exposure (frameLighting)
+            const float raw = std::max(run->preExposure, 1e-30f);
+            p.direct        = rgb(value(4).color) / raw;
+            p.ambient       = rgb(value(5).color) / raw;
+            p.specular      = rgb(value(6).color) / raw;
         }
-        run->requests[k].second(p);
+        run->requests[k].callback(p);
     }
     // The environment and the camera given during the sequence
     if (heldEnvironment)
@@ -1336,6 +1420,11 @@ void RenderScene::finishProbe()
         env    = *heldEnvironment;
         envSet = true;
         heldEnvironment.reset();
+    }
+    if (heldTime)
+    {
+        sceneTime = *heldTime;
+        heldTime.reset();
     }
     if (heldCamera)
     {
@@ -1347,7 +1436,7 @@ void RenderScene::finishProbe()
 
 uint64_t RenderScene::scenePipelineCreations() const
 {
-    return culling->pipelineCreations();
+    return culling->pipelineCreations() + terrain->pipelineCreations() + grass->pipelineCreations();
 }
 
 void RenderScene::addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material)

@@ -968,7 +968,6 @@ class VulkanSceneContent : public VulkanScene
         return img;
     }
 
-    void RunImportedMeshGolden(bool pbr);
     TestCamera camera;
 };
 
@@ -1575,8 +1574,10 @@ TEST(VulkanMeshImport, FlatBox)
     EXPECT_FALSE(error.empty());
 }
 
-// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden
-void VulkanSceneContent::RunImportedMeshGolden(bool pbr)
+// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden;
+// S36a1b: the same golden with the LIGHTING_PBR variant on the same scene (clay: the studio environment keeps the
+// material colours; not in the update mode, the golden is written by the legacy variant)
+TEST_F(VulkanSceneContent, ImportedMeshGolden)
 {
     MeshLods lods;
     MaterialData material;
@@ -1585,8 +1586,7 @@ void VulkanSceneContent::RunImportedMeshGolden(bool pbr)
     lods.lods[0].endDistance = 50;
     lods.lods[1].endDistance = 100;
     RenderSceneParameters p;
-    p.msaaSamples  = 4;
-    p.lighting.pbr = pbr;
+    p.msaaSamples = 4;
     CreateScene(p);
     scene->addMaterial(1, "box", material);
     scene->addMesh(1, "box", lods, 1);
@@ -1608,18 +1608,11 @@ void VulkanSceneContent::RunImportedMeshGolden(bool pbr)
     EXPECT_NE(top, left);
     EXPECT_NE(left, right);
     compareGolden(img, "scene_flat_box", deviceName());
-}
-
-TEST_F(VulkanSceneContent, ImportedMeshGolden)
-{
-    RunImportedMeshGolden(false);
-}
-
-// S36a1b: the same golden with the LIGHTING_PBR variant (clay: the studio environment keeps the material colours)
-TEST_F(VulkanSceneContent, ImportedMeshGoldenPbr)
-{
-    if (goldenUpdateMode()) GTEST_SKIP() << "the golden is written by the legacy variant";
-    RunImportedMeshGolden(true);
+    if (goldenUpdateMode()) return;
+    LightingParameters lighting = scene->lightingParameters();
+    lighting.pbr                = true;
+    scene->setLightingParameters(lighting);
+    compareGolden(SceneFrame(), "scene_flat_box", deviceName());
 }
 #endif
 

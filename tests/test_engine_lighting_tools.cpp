@@ -113,7 +113,8 @@ void showLightingTab(EngineApp& app)
 
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
-// suite's app); the PBR variant with a debug view and the overlay render in the tab's frames
+// suite's app); the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the tab's
+// frames
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
@@ -135,6 +136,8 @@ void renderLightingTab(EngineApp& app)
         Vulkan::LightingDebugState{Vulkan::LightingDebugView::Exposure, Vulkan::OverlaySunDirection});
     app.runFrames(2, 1.0 / 60);
     app.scene()->setLightingDebug(Vulkan::LightingDebugState());
+    // The Exposure view's legend leaves the toolbar: one frame for the layout (the item positions of a later click)
+    app.runFrames(1, 1.0 / 60);
 }
 
 // A left click at a point: one input event per frame (ImGui spreads a move and a button change of one frame over two)
@@ -415,6 +418,9 @@ class LightingDebugTools : public LightingTools
 
 TEST_F(LightingDebugTools, SetLightingDebug)
 {
+    const Vulkan::PreviewMapping mappingBefore = app->lightingPreviewMapping();
+    // The tab's luminance is log2 by default
+    EXPECT_TRUE(mappingBefore.log);
     for (int v = 0; v < int(Vulkan::LightingDebugView::Count); ++v)
     {
         const std::string name = Vulkan::lightingDebugViewName(Vulkan::LightingDebugView(v));
@@ -445,13 +451,35 @@ TEST_F(LightingDebugTools, SetLightingDebug)
                              R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
     EXPECT_EQ(app->scene()->lightingDebug().view, Vulkan::LightingDebugView::Normals);
-    app->lightingPreviewMapping() = Vulkan::PreviewMapping();
+    // The Exposure view's heat map (centre and range; the legend of the tab)
+    const Json ev = result(call(*app, "set_lighting_debug", obj(R"({"exposure_view": {"centre": 12, "range": 4}})")));
+    EXPECT_EQ(ev["exposure_view"]["centre"].number_value(), 12);
+    EXPECT_EQ(app->scene()->exposureViewCentreSetting(), std::optional<float>(12.0f));
+    EXPECT_EQ(app->scene()->exposureViewRangeSetting(), 4.0f);
+    const Json evGet = result(call(*app, "get_lighting", obj(R"({"sections": ["debug"]})")));
+    EXPECT_EQ(evGet["debug"]["exposure_view"]["range"].number_value(), 4) << evGet.dump();
+    for (const char* args : {R"({"exposure_view": {"range": 0}})", R"({"exposure_view": {"centre": "x"}})",
+                             R"({"exposure_view": {"width": 2}})"})
+        EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
+    ASSERT_FALSE(
+        isError(call(*app, "set_lighting_debug", obj(R"({"exposure_view": {"centre": "auto", "range": 8}})"))));
+    EXPECT_FALSE(app->scene()->exposureViewCentreSetting().has_value());
+    // The debug sections are reported apart from the lighting sections' budget
+    EXPECT_TRUE(l["gpu"]["debug_ms"].is_number()) << l.dump();
+    EXPECT_EQ(l["gpu"]["lighting_ms"].number_value(), 0) << l.dump();
+    app->lightingPreviewMapping() = mappingBefore;
 }
 
 // screenshot(lighting_view, overlays): that frame shows the view (the Normals of the plane facing +y: (0.5, 1, 0.5) as
 // a raw value, which the identity post pass shows unchanged), the next frame is back to the user's view
 TEST_F(LightingDebugTools, ScreenshotLightingView)
 {
+    // Without the LIGHTING_PBR variant a view would silently show clay: refused (round 1 review of S36a1b); the
+    // overlays alone are drawn by both variants
+    const Json noVariant = call(*app, "screenshot", obj(R"({"lighting_view": "normals"})"));
+    EXPECT_TRUE(isError(noVariant));
+    EXPECT_NE(text(noVariant).find("pbr"), std::string::npos) << text(noVariant);
+    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [20, 24]})"))));
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"pbr": true})"))));
     app->runFrames(1, 1.0 / 60);
     auto centre = [](const Json& r)
@@ -506,10 +534,11 @@ TEST_F(LightingDebugTools, CaptureLighting)
     for (const char* args : {R"({"image": "cascade"})", R"({})", R"({"image": "luminance", "max_width": 10})",
                              R"({"image": "luminance", "cascade": 1})", R"({"image": "luminance", "range": [1]})"})
         EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
-    // Rendering disabled: the deadline (a short tool timeout) answers once
+    // Rendering disabled: the deadline (a short tool timeout; answerDeadline keeps 0.2 s of it for the answer) answers
+    // once
     app->setRenderingEnabled(false);
     const double timeout          = app->mcp().toolTimeoutSeconds;
-    app->mcp().toolTimeoutSeconds = 2;
+    app->mcp().toolTimeoutSeconds = 0.5;
     const Json late = call(*app, "capture_lighting", obj(R"({"image": "luminance", "stats_only": true})"));
     app->mcp().toolTimeoutSeconds = timeout;
     app->setRenderingEnabled(true);
