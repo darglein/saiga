@@ -826,7 +826,7 @@ void RenderScene::checkFoliageInstances() const
     bool draws       = false;
     for (const auto& entry : instanceBuffer->sets())
         for (MeshId mesh : entry.second.meshes) draws = draws || foliageMesh(mesh);
-    for (const auto& d : instanceBuffer->dynamics()) draws = draws || (d.alive && foliageMesh(d.mesh));
+    for (const auto& d : instanceBuffer->dynamics()) draws = draws || (d.alive && d.set && foliageMesh(d.mesh));
     SAIGA_ASSERT(!draws, "PrototypeFoliage instances need the foliage texture of setPrototypeEnvironment");
 }
 
