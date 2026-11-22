@@ -26,6 +26,10 @@ function(saiga_test FILE_NAME)
     # on Windows (not set on gtest itself, gtest_main would then import its own main)
     target_compile_definitions(${TARGET_NAME} PRIVATE GTEST_LINKED_AS_SHARED_LIBRARY=1)
     target_link_libraries(${TARGET_NAME} PUBLIC ${ARGN})
+    # The engine-only part of the shared test headers (tests/terrain_test_hooks.h, S20)
+    if ("saiga_engine" IN_LIST ARGN)
+        target_compile_definitions(${TARGET_NAME} PRIVATE SAIGA_TEST_ENGINE=1)
+    endif ()
 
     add_test(
             NAME ${TARGET_NAME}
@@ -60,6 +64,7 @@ if (MODULE_CORE)
     saiga_test(test_core_frustum.cpp)
     saiga_test(test_core_kdtree.cpp)
     saiga_test(test_core_math_functions.cpp)
+    saiga_test(test_core_terrain_surface.cpp)
     saiga_test(test_core_file_io.cpp)
     saiga_test(test_core_ini.cpp)
     saiga_test(test_core_image_decode.cpp)
@@ -145,6 +150,7 @@ if (MODULE_VULKAN)
     saiga_test(test_vulkan_memory.cpp "saiga_vulkan")
     saiga_test(test_vulkan_world.cpp "saiga_vulkan")
     saiga_test(test_vulkan_scene.cpp "saiga_vulkan")
+    saiga_test(test_vulkan_terrain.cpp "saiga_vulkan")
     saiga_test(test_vulkan_standalone_window.cpp "saiga_vulkan")
 endif ()
 
@@ -169,6 +175,7 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_replication.cpp "saiga_engine")
     saiga_test(test_engine_net_benchmark.cpp "saiga_engine")
     saiga_test(test_engine_extract.cpp "saiga_engine")
+    saiga_test(test_engine_terrain.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

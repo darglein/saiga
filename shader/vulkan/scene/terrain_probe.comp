@@ -1,0 +1,41 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The test probe of TerrainPass (S20): terrainVertex of the frame's nodes for (node index, grid x, grid z), the
+// camera-relative position out (no skirt)
+
+#include "terrain_common.glsl"
+#include "terrain_heights.glsl"
+#include "terrain_vertex.glsl"
+
+layout(local_size_x = 64) in;
+
+struct Probe
+{
+    uvec4 args;  // node index, grid x, grid z, unused
+    vec4 position;
+};
+layout(std430, set = 0, binding = 6) buffer ProbeBuffer
+{
+    Probe probes[];
+};
+
+layout(push_constant) uniform PushConstants
+{
+    uint count;
+}
+pc;
+
+void main()
+{
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= pc.count) return;
+    uvec4 a          = probes[i].args;
+    TerrainVertex v  = terrainVertex(a.x, ivec2(a.y, a.z), false);
+    probes[i].position = vec4(v.position, 1.0);
+}

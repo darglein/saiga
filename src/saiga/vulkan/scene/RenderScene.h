@@ -10,6 +10,8 @@
 #include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
+#include "saiga/vulkan/scene/TerrainAtlas.h"
+#include "saiga/vulkan/scene/TerrainPass.h"
 
 #include <array>
 #include <deque>
@@ -209,6 +211,41 @@ class SAIGA_VULKAN_API RenderScene
     void waitIdle();
 
     //==================================================================================================
+    // Terrain (S20, docs/engine_design.md §10.1, §12.2): the GPU terrain set of one space (TerrainAtlas), filled
+    // through these calls (the RenderSink's terrain calls; main thread, effective in the next renderFrame). Exclusive
+    // with setPrototypeTerrain (asserted in both directions).
+
+    // Another space or layout than the current set's: a new GPU set (the old set's tiles and masks are dropped); the
+    // same: the pyramid data is replaced in place. Its seaLevel is the water plane
+    void setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid);
+    // New: a free layer of its level (asserted); already set: replaced in the same layer
+    void setTerrainTile(const RegionId& region, const TerrainTileData& tile);
+    void removeTerrainTile(const RegionId& region);
+    // A set mask is replaced in its layer
+    void setGrassMask(const ChunkId& chunk, const GrassMaskData& mask);
+    void removeGrassMask(const ChunkId& chunk);
+    // E1: drops the set; no terrain, grass or water is drawn until the next pyramid
+    void clearTerrain();
+    // E2: absolute heights of a sub-rectangle of a tile's (the pyramid's) sample grid, w values per row, copied at the
+    // call and queued behind a pending full copy; without a layer or for another space ignored and counted
+    // (TerrainAtlas::Stats::patchesIgnored)
+    void patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights);
+    void patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights);
+    // The bytes of terrain uploads not yet recorded
+    size_t terrainUploadsPending() const;
+    // The set, its residency, bytes and patches
+    const TerrainAtlas::Stats& terrainAtlasStats() const;
+    // The GPU set itself (tests: readLayerForTests, node bounds)
+    TerrainAtlas& terrainAtlas() { return *atlas; }
+    // The last recorded frame's terrain selection: nodes per level, refusals for residency, the water node
+    const TerrainPass::Stats& terrainPassStats() const;
+    // The terrain pass (tests: selectedNodes, probeVertices)
+    TerrainPass& terrainPass() { return *terrain; }
+    // Tests: the last frame's single-sampled depth (the SAMPLE_ZERO resolve target; waits for the device), row 0 at the
+    // top; reversed-Z (1 at the near plane, 0 at infinity)
+    std::vector<float> readDepthForTests(int& width, int& height);
+
+    //==================================================================================================
     // Prototype content (S19a, transitional until S20, docs/engine_design.md §10.1)
 
     // The prototype's terrain (CDLOD with the water plane), grass and sky on the shared height field, drawn in the
@@ -247,7 +284,11 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<SceneCulling> culling;
     std::unique_ptr<PrototypeWorld> prototype;
     std::unique_ptr<PrototypeSettings> protoSettings;
-    double sceneTime = 0;
+    std::unique_ptr<TerrainAtlas> atlas;
+    std::unique_ptr<TerrainPass> terrain;
+    // The new terrain path was used (setTerrainPyramid): exclusive with setPrototypeTerrain until S20's step 7d
+    bool terrainPathUsed = false;
+    double sceneTime     = 0;
     // The next IDs of reserveIds (mesh, material)
     std::array<uint32_t, 2> nextReservedId = {1, 1};
     FrameTimes lastTaken;

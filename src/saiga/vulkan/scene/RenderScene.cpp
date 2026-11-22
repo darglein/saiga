@@ -20,6 +20,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 
 namespace Saiga
@@ -166,9 +167,10 @@ class SceneFrameRenderer : public VulkanRenderer
         // The sampled depth (S19a): the SAMPLE_ZERO resolve of the multisampled depth, or with 1 sample the depth
         // image itself
         const auto depthUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment;
-        depthImage.create(base(), w, h, depthFormat, msaa ? depthUsage : depthUsage | vk::ImageUsageFlagBits::eSampled,
-                          1, samples);
-        if (msaa) depthResolved.create(base(), w, h, depthFormat, depthUsage | vk::ImageUsageFlagBits::eSampled);
+        // The sampled depth is also a copy source (RenderScene::readDepthForTests, S20)
+        const auto sampledUsage = depthUsage | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc;
+        depthImage.create(base(), w, h, depthFormat, msaa ? depthUsage : sampledUsage, 1, samples);
+        if (msaa) depthResolved.create(base(), w, h, depthFormat, sampledUsage);
         if (msaa)
             hdrMsaa.create(base(), w, h, hdrFormat,
                            vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled, 1, samples);
@@ -187,6 +189,44 @@ class SceneFrameRenderer : public VulkanRenderer
     }
 
     void render(const FrameInfo& frame) override;
+
+    // Tests: the sampled depth of the last frame (in eShaderReadOnlyOptimal after a frame), row 0 at the top
+    std::vector<float> readDepth(int& w, int& h)
+    {
+        waitIdle();
+        Texture2D& depth   = sampledDepth();
+        w                  = surfaceWidth;
+        h                  = SurfaceHeight;
+        const size_t bytes = size_t(w) * size_t(h) * 4;
+        Buffer host;
+        host.createBuffer(base(), bytes, vk::BufferUsageFlagBits::eTransferDst,
+                          vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+        auto& q               = base().mainQueue;
+        vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
+        auto barrier          = [&](vk::ImageLayout from, vk::ImageLayout to)
+        {
+            vk::ImageMemoryBarrier2 b(Stage::eAllCommands, Access::eMemoryWrite | Access::eMemoryRead,
+                                      Stage::eAllCommands, Access::eMemoryWrite | Access::eMemoryRead, from, to,
+                                      VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, depth.image(), depthRange());
+            cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, b));
+        };
+        barrier(vk::ImageLayout::eShaderReadOnlyOptimal, vk::ImageLayout::eTransferSrcOptimal);
+        {
+            Memory::SafeAccessor acc(*host.memoryLocation());
+            vk::BufferImageCopy region(0, 0, 0, vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eDepth, 0, 0, 1),
+                                       {0, 0, 0}, {uint32_t(w), uint32_t(h), 1});
+            cmd.copyImageToBuffer(depth.image(), vk::ImageLayout::eTransferSrcOptimal, host.memoryLocation()->data,
+                                  region);
+        }
+        barrier(vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+        cmd.end();
+        q.submitAndWait(cmd);
+        q.commandPool.freeCommandBuffer(cmd);
+        std::vector<float> out(size_t(w) * size_t(h));
+        std::memcpy(out.data(), host.getMappedPointer(), bytes);
+        host.destroyImmediately();
+        return out;
+    }
 
     vk::SampleCountFlagBits samples = vk::SampleCountFlagBits::e1;
 
@@ -247,13 +287,18 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                                Access::eShaderStorageWrite, Stage::eAllTransfer, Access::eTransferWrite);
         cmd.pipelineBarrier2(vk::DependencyInfo({}, war, nullptr, nullptr));
         if (s.transferFn && *s.transferFn) (*s.transferFn)(cmd);
+        // The terrain uploads (S20): at most the cap per frame, in queue order
+        s.atlas->recordUploads(cmd, frame.frameIndex);
         // The transfer callback may set the camera of this frame (S19a)
         s.frameCamera(surfaceWidth, SurfaceHeight, camera);
         proto   = *s.protoSettings;
         prepass = proto.depthPrePass;
         if (world) world->transfer(cmd, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
+        // The S20 terrain: the selection over the GPU set (nothing without a resident pyramid of the camera's space)
+        s.terrain->transfer(cmd, frame.frameIndex, *s.atlas, camera, proto, s.sceneTime, surfaceWidth, SurfaceHeight);
         s.slotStatistics[frame.frameIndex].terrainNodes =
-            world ? uint32_t(world->stats().terrainNodes + world->stats().quarterNodes) : 0;
+            world ? uint32_t(world->stats().terrainNodes + world->stats().quarterNodes)
+                  : uint32_t(s.terrain->stats().nodes);
         SceneLighting lighting;
         s.frameLighting(camera, proto, int(samples), lighting);
         s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
@@ -328,6 +373,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         viewport(cmd);
         subBegin("depth.terrain", cmd);
         if (world) world->renderDepth(cmd, proto);
+        s.terrain->render(cmd, frame.frameIndex, TerrainPass::Mode::Depth, proto);
         subEnd("depth.terrain", cmd);
         viewport(cmd);
         s.culling->recordPrepass(cmd, frame.frameIndex, camera);
@@ -410,6 +456,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // terrain -> the game's render callback -> instances -> grass -> sky (the sky's EQUAL at depth 0 last)
         subBegin("scene.terrain", cmd);
         if (world) world->renderTerrain(cmd, proto, prepass);
+        s.terrain->render(cmd, frame.frameIndex, prepass ? TerrainPass::Mode::Equal : TerrainPass::Mode::Scene, proto);
         subEnd("scene.terrain", cmd);
         viewport(cmd);
         if (s.renderFn && *s.renderFn) (*s.renderFn)(cmd);
@@ -558,6 +605,10 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
     instanceBuffer = std::make_unique<InstanceBuffer>();
     instanceBuffer->init(base(), params.staticInstanceCapacity, culling->storageLimit());
+    atlas = std::make_unique<TerrainAtlas>();
+    atlas->init(base(), params, culling->storageLimit());
+    terrain = std::make_unique<TerrainPass>();
+    terrain->init(base(), formats());
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }
@@ -568,6 +619,8 @@ RenderScene::~RenderScene()
     if (culling) culling->destroy();
     culling.reset();
     prototype.reset();
+    terrain.reset();
+    atlas.reset();
     instanceBuffer.reset();
     meshPool.reset();
 }
@@ -753,6 +806,7 @@ void RenderScene::setPrototypeTerrain(std::shared_ptr<const HeightField> heights
                                       uint32_t foliageSeed)
 {
     SAIGA_ASSERT(!transferFn, "setPrototypeTerrain: not inside renderFrame");
+    SAIGA_ASSERT(!terrainPathUsed, "setPrototypeTerrain: the scene uses the terrain set (setTerrainPyramid)");
     // The frames in flight may use the previous prototype
     renderer->waitIdle();
     culling->setFoliageTexture(nullptr);
@@ -762,6 +816,71 @@ void RenderScene::setPrototypeTerrain(std::shared_ptr<const HeightField> heights
     prototype = std::move(p);
     culling->setFoliageTexture(&prototype->foliageTexture());
     *protoSettings = settings;
+}
+
+//==================================================================================================
+// Terrain (S20)
+
+void RenderScene::setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid)
+{
+    SAIGA_ASSERT(!prototype, "setTerrainPyramid: the scene uses setPrototypeTerrain");
+    terrainPathUsed = true;
+    atlas->setPyramid(space, pyramid);
+}
+
+void RenderScene::setTerrainTile(const RegionId& region, const TerrainTileData& tile)
+{
+    atlas->setTile(region, tile);
+}
+
+void RenderScene::removeTerrainTile(const RegionId& region)
+{
+    atlas->removeTile(region);
+}
+
+void RenderScene::setGrassMask(const ChunkId& chunk, const GrassMaskData& mask)
+{
+    atlas->setGrassMask(chunk, mask);
+}
+
+void RenderScene::removeGrassMask(const ChunkId& chunk)
+{
+    atlas->removeGrassMask(chunk);
+}
+
+void RenderScene::clearTerrain()
+{
+    atlas->clear();
+}
+
+void RenderScene::patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    atlas->patchTile(region, x0, z0, w, h, heights);
+}
+
+void RenderScene::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)
+{
+    atlas->patchPyramid(space, x0, z0, w, h, heights);
+}
+
+size_t RenderScene::terrainUploadsPending() const
+{
+    return atlas->uploadsPending();
+}
+
+const TerrainAtlas::Stats& RenderScene::terrainAtlasStats() const
+{
+    return atlas->stats();
+}
+
+const TerrainPass::Stats& RenderScene::terrainPassStats() const
+{
+    return terrain->stats();
+}
+
+std::vector<float> RenderScene::readDepthForTests(int& w, int& h)
+{
+    return renderer->readDepth(w, h);
 }
 
 void RenderScene::setPrototypeSettings(const PrototypeSettings& settings)

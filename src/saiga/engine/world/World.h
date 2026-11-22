@@ -32,6 +32,7 @@
 #include "saiga/engine/world/EventQueues.h"
 #include "saiga/engine/world/EventRegistry.h"
 #include "saiga/engine/world/Phase.h"
+#include "saiga/engine/world/SpaceTemplate.h"
 #include "saiga/engine/world/SpatialGrid.h"
 #include "saiga/engine/world/StructuralLog.h"
 #include "saiga/engine/world/SystemList.h"
@@ -62,6 +63,9 @@ struct WorldConfig
     TickPolicy ticking;  // §8.4 (S10)
     // RenderPose samples the interpolation buffer this many steps behind the (estimated) host step (§13.4, S16)
     int interpolationDelaySteps = 6;
+    // The spaces of the world (§7.9, §12.4; S20), SpaceId = index: an explicit list (R-REG-1). Empty: one default
+    // template (flat, no hook: no terrain, D1). Checked by validateSpaceTemplates (fatal in every build)
+    std::vector<SpaceTemplate> spaceTemplates;
 };
 
 struct WorldSetup
@@ -138,6 +142,7 @@ struct WorldSetup
 class Replication;
 class RenderSink;
 class ExtractSystem;
+class TerrainSystem;
 
 class SAIGA_ENGINE_API World
 {
@@ -352,6 +357,21 @@ class SAIGA_ENGINE_API World
     // The same into out (cleared first; allocates only if out's capacity is smaller than the result)
     void queryRadius(SpaceId space, const Vec3& center, double radius, const ComponentMask& mask,
                      std::vector<Entity>& out) const;
+
+    // ---- spaces and terrain (§7.9, §7.10, §12.2; S20) -------------------------------------------------------------
+
+    // The template of a space (WorldConfig::spaceTemplates, or the flat default); asserts an unknown space
+    const SpaceTemplate& spaceTemplate(SpaceId space) const;
+    size_t spaceCount() const;
+    // The seed of a space: WorldSetup::seed for space 0, hashCombine(seed, index) for index >= 1 (§12.1, §12.4)
+    uint64_t spaceSeed(SpaceId space) const;
+    // The exact terrain surface height at (x, z) in metres (§12.2): x and z clamped to the space, the integer heights
+    // of the base grid interpolated along the (0,0)-(1,1) diagonal; the same value whether or not a tile is resident
+    // (R-DET-1). 0 for a space without terrain. Const and thread safe (parallelEach)
+    double terrainHeight(SpaceId space, double x, double z) const;
+    // The terrain of the spaces (streaming, samples; engine-internal and the app)
+    TerrainSystem& terrain() { return *terrainSys; }
+    const TerrainSystem& terrain() const { return *terrainSys; }
 
     // ---- time and steps (§8.3, §8.6) -----------------------------------------------------------------------------
 
@@ -881,6 +901,8 @@ class SAIGA_ENGINE_API World
 
     WorldConfig config;
     double stepDt;
+    // The spaces' terrain (S20)
+    std::unique_ptr<TerrainSystem> terrainSys;
     double accumulator    = 0;
     double scale          = 1;
     bool paused           = false;

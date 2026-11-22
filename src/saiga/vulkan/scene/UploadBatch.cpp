@@ -41,7 +41,18 @@ void UploadBatch::record(VulkanBase& base, vk::CommandBuffer cmd, Buffer& stagin
         staging.createBuffer(base, size, vk::BufferUsageFlagBits::eTransferSrc,
                              vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     }
-    std::memcpy(staging.getMappedPointer(), data.data(), data.size());
+    recordAt(cmd, staging, 0);
+}
+
+size_t UploadBatch::recordAt(vk::CommandBuffer cmd, Buffer& staging, size_t stagingOffset)
+{
+    stagingOffset = (stagingOffset + 15) & ~size_t(15);
+    if (copies.empty()) return stagingOffset;
+    SAIGA_ASSERT(stagingOffset + data.size() <= staging.size(),
+                 "UploadBatch::recordAt: the staging buffer is too small");
+    std::memcpy(static_cast<uint8_t*>(staging.getMappedPointer()) + stagingOffset, data.data(), data.size());
+    const size_t end = (stagingOffset + data.size() + 15) & ~size_t(15);
+    for (Copy& c : copies) c.srcOffset += stagingOffset;
     vk::Buffer src;
     {
         Memory::SafeAccessor acc(*staging.memoryLocation());
@@ -62,6 +73,7 @@ void UploadBatch::record(VulkanBase& base, vk::CommandBuffer cmd, Buffer& stagin
     }
     data.clear();
     copies.clear();
+    return end;
 }
 
 }  // namespace Vulkan

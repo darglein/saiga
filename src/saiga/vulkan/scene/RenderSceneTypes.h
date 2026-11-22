@@ -13,6 +13,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <vector>
 
 namespace Saiga
@@ -60,6 +62,72 @@ struct RenderSceneParameters
     // Draw a pipeline class's buckets with one multi-draw-indirect call if the device supports it; false draws them
     // one by one (tests compare both paths without a new device)
     bool allowMultiDrawIndirect = true;
+    // The terrain's upload cap per frame (S20, TerrainAtlas): each frame records at most this many bytes of terrain
+    // copies (tiles, patches, page-table entries, pyramid rows, grass masks); the terrain's staging buffers are created
+    // once at this size (plus alignment) per frame in flight and never grow
+    size_t terrainUploadBytesPerFrame = size_t(16) << 20;
+};
+
+//==================================================================================================
+// Terrain (S20, docs/engine_design.md §10.1, §12.2): the data the RenderSink terrain calls carry. The engine's store
+// keeps the same objects by shared_ptr (no copies between store, sink and the scene's upload queue).
+
+// Fixed per GPU terrain set (D5): from the space template and the engine's TerrainViewSettings
+struct TerrainLayout
+{
+    // From the SpaceTemplate: 1 m (257 x 257 tiles) or 2 m (129 x 129); the space size in chunks (multiple of 16)
+    int32_t baseSpacing = 2, sizeChunks = 128;
+    // From TerrainViewSettings: tiles per streamed level (= GPU atlas layers per level), grass mask layers
+    int32_t tilesPerLevel = 48, grassMaskLayers = 16;
+    // The pyramid's spacing in metres, for both base spacings
+    static constexpr int32_t pyramidSpacing = 32;
+
+    // 257 / 129: tiles share their borders
+    int samplesPerSide() const { return 256 / baseSpacing + 1; }
+    // The levels with a spacing below 32 m: 5 (1 m), 4 (2 m)
+    int streamedLevels() const { return baseSpacing == 1 ? 5 : 4; }
+    // The CDLOD level of the 4096 m root nodes: 7 (1 m), 6 (2 m)
+    int rootLevel() const { return baseSpacing == 1 ? 7 : 6; }
+    // The pyramid's samples per side: 8 * sizeChunks + 1 (1025 for 32 km)
+    int pyramidSamplesPerSide() const { return 8 * sizeChunks + 1; }
+    // Grass mask texels per side: one per base cell
+    int grassMaskSize() const { return 256 / baseSpacing; }
+    // The spacing of level L in metres
+    int32_t levelSpacing(int level) const { return baseSpacing << level; }
+    // Tiles per side of the space at a streamed level
+    int32_t tilesPerSide(int level) const { return sizeChunks >> level; }
+    bool operator==(const TerrainLayout& o) const
+    {
+        return baseSpacing == o.baseSpacing && sizeChunks == o.sizeChunks && tilesPerLevel == o.tilesPerLevel &&
+               grassMaskLayers == o.grassMaskLayers;
+    }
+    bool operator!=(const TerrainLayout& o) const { return !(*this == o); }
+};
+
+// RegionId level L < streamedLevels: 2^L chunks at spacing baseSpacing * 2^L
+struct TerrainTileData
+{
+    // Height units, of these samples
+    int32_t minHeight = 0, maxHeight = 0;
+    // samplesPerSide^2, row j = z, index j * n + i; sample (i, j) at regionOrigin + (i, 0, j) * spacing
+    std::shared_ptr<const std::vector<int32_t>> heights;
+};
+
+// The whole space at 32 m: (8 * sizeChunks + 1)^2 samples (1025^2 for 32 km)
+struct TerrainPyramidData
+{
+    TerrainLayout layout;
+    // The water plane until S39's setWater (amendment A9)
+    std::optional<int32_t> seaLevel;
+    int32_t minHeight = 0, maxHeight = 0;
+    std::shared_ptr<const std::vector<int32_t>> heights;
+};
+
+// One chunk: (256 / baseSpacing)^2 density texels, one per base cell (0..255)
+struct GrassMaskData
+{
+    int32_t size = 0;
+    std::shared_ptr<const std::vector<uint8_t>> density;
 };
 
 //==================================================================================================
@@ -257,7 +325,7 @@ struct RenderStatistics
     uint64_t frame = 0;  // RenderScene's frame number (0: none yet)
     // Drawn instances per LOD (static and dynamic)
     std::array<uint32_t, 4> instancesPerLod{};
-    uint32_t terrainNodes = 0;  // the prototype terrain's selected nodes (S19a; S20: tiles)
+    uint32_t terrainNodes = 0;  // the terrain's selected nodes incl. quarters (S19a: the prototype's; S20: TerrainPass)
     // The indirect draw calls issued in the scene pass (one per pipeline class and view, or one per bucket without
     // multiDrawIndirect); the depth pre-pass repeats those of the opaque classes (S19a), not counted
     uint32_t drawCommands = 0;

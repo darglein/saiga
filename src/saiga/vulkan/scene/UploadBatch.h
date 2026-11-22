@@ -27,6 +27,9 @@ class SAIGA_VULKAN_API UploadBatch
     void add(Buffer& dst, vk::DeviceSize dstOffset, const void* data, size_t size);
     // Copies the data into the staging buffer and records the copies; clears the batch
     void record(VulkanBase& base, vk::CommandBuffer cmd, Buffer& staging);
+    // The same into a fixed staging buffer at stagingOffset (S20's terrain uploads: several batches per frame in one
+    // staging buffer that never grows; asserted to fit); returns the end offset (16-byte aligned) for the next batch
+    size_t recordAt(vk::CommandBuffer cmd, Buffer& staging, size_t stagingOffset);
     bool empty() const { return copies.empty(); }
     size_t bytes() const { return data.size(); }
 
