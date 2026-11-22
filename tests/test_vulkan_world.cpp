@@ -581,21 +581,21 @@ class VulkanPrototypeScene : public RenderSceneTest
     {
         attachedSeed = seed;
         PrototypeArea area;
-        area.x0          = 1024;
-        area.z0          = 1024;
-        area.size        = 1024;
-        area.seed        = seed;
-        area.baseSpacing = kSpacing;
-        species          = FoliageGenerator::treeSpecies(seed);
-        trees            = ForestRenderer::placeTrees(area, treeCount, seed, species);
+        area.x0                    = 1024;
+        area.z0                    = 1024;
+        area.size                  = 1024;
+        area.seed                  = seed;
+        area.baseSpacing           = kSpacing;
+        species                    = FoliageGenerator::treeSpecies(seed);
+        trees                      = ForestRenderer::placeTrees(area, treeCount, seed, species);
+        p.settings.terrainLodRange = 40;
         p.attach(*scene, trees, seed);
     }
     // The terrain around the camera (the default residency rule), with grass masks
     void Terrain(const Vec3& camera, bool withMasks = false)
     {
-        TerrainTestHooks::fillTestTerrain(*scene, Layout(),
-                                          TerrainHeightSource::fromHook(prototypeHeight, attachedSeed),
-                                          kPrototypeSeaLevel, camera, withMasks);
+        TerrainTestHooks::fillTestTerrain(*scene, Layout(), prototypeHeight, attachedSeed, kPrototypeSeaLevel, camera,
+                                          withMasks);
     }
     double Ground(double x, double z) const { return prototypeSurfaceHeight(attachedSeed, kSpacing, x, z); }
     double Sea() const { return double(kPrototypeSeaLevel) * kHeightUnit; }
@@ -746,10 +746,11 @@ TEST_F(VulkanPrototypeScene, ForestFollowsSettings)
     Look(p, eye, target);
     p.update();
     Terrain(eye);
+    // One frame per check: statistics() is the newest frame's, which already has the changed settings
     auto check = [&](const char* what)
     {
         p.update();
-        Capture(3);
+        Capture(1);
         const auto st = p.forest().stats();
         EXPECT_EQ(st.frame, scene->frames()) << what;
         const auto ref = Reference(p);
