@@ -397,7 +397,8 @@ class SAIGA_ENGINE_API World
 
     // The template of a space (WorldConfig::spaceTemplates, or the flat default); asserts an unknown space
     const SpaceTemplate& spaceTemplate(SpaceId space) const;
-    // The number of spaces: one per template (SpaceId = template index; S21)
+    // The number of spaces: one per space instance of the plans (SpaceId = instance index, §12.1; S23a: a template can
+    // have several instances, e.g. one per site)
     size_t spaceCount() const;
     // The seed of a space: WorldSetup::seed for space 0, hashCombine(seed, index) for index >= 1 (§12.1, §12.4)
     uint64_t spaceSeed(SpaceId space) const;

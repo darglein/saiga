@@ -505,6 +505,23 @@ void Replication::onGenerationState(uint8_t from, const uint8_t* data, size_t si
     w.generationCheckedFlag = true;
 }
 
+bool Replication::terrainRefused(uint8_t from, const char* what)
+{
+    if (w.generationMismatch())
+    {
+        w.rejectInput(from, std::string(what) + " after a refused GenerationState");
+        return true;
+    }
+    // PR review: after a Resync from a host that sends no GenerationState (a legacy setup) the host's chunk states
+    // arrive before the spawn set that refuses it, and were applied
+    if (w.writesGenerationState() && !w.generationChecked())
+    {
+        w.rejectInput(from, std::string(what) + " before a GenerationState");
+        return true;
+    }
+    return false;
+}
+
 void Replication::sendChunkSnapshot(uint8_t peer)
 {
     const TerrainEditStore& st = w.terrainEdits();
@@ -556,12 +573,8 @@ void Replication::onTerrainModification(uint8_t from, const uint8_t* data, size_
         counts.terrainDroppedEpoch++;
         return;
     }
-    // S23a: the deltas are relative to the host's generation, which this client refused
-    if (w.generationMismatch())
-    {
-        w.rejectInput(from, "TerrainModification after a refused GenerationState");
-        return;
-    }
+    // S23a: the deltas are relative to the host's generation, which this client refused or has not checked yet
+    if (terrainRefused(from, "TerrainModification")) return;
     // Validation against the world, in scratch: nothing is allocated in the store before every part passed
     if (m.space >= w.spaceCount() || w.spaceTemplate(m.space).kind != SpaceKind::OpenWorld)
     {
@@ -672,11 +685,7 @@ void Replication::onTerrainChunkState(uint8_t from, const uint8_t* data, size_t 
         counts.terrainDroppedEpoch++;
         return;
     }
-    if (w.generationMismatch())
-    {
-        w.rejectInput(from, "TerrainChunkState after a refused GenerationState");
-        return;
-    }
+    if (terrainRefused(from, "TerrainChunkState")) return;
     const SpaceId space = m.chunk.space;
     if (space >= w.spaceCount() || w.spaceTemplate(space).kind != SpaceKind::OpenWorld)
     {

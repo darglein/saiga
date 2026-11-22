@@ -1411,6 +1411,11 @@ TEST(ContentHash, CommittedHashesReproduce)
     std::cout << report.summary() << std::endl;
     EXPECT_TRUE(report.ok) << report.summary();
     EXPECT_EQ(report.entries, 2);
+    // The toolkit section is optional for checkContentHashes, the engine's file has it (PR review)
+    json11::Json file;
+    std::string error;
+    ASSERT_TRUE(readJsonFile(contentHashFile(), file, error)) << error;
+    EXPECT_TRUE(file["toolkit"].is_object());
 }
 
 // Plan v1 with placement v1 and v2: heights, stamps and statics equal; tier1 and grass differ; both entries are
@@ -1542,6 +1547,14 @@ TEST(ContentHashFile, UpdateAndMismatch)
                "setups[0] (small).generators.test_dungeon.plan_version: expected an integer in [1, 65535], got 1.5");
     structural("\"digest_block\": [0, 0, 1, 1]", "\"digest_block\": [0, 0, 1e300, 1]",
                "setups[0] (small).digest_block[2]: expected an integer");
+    // Regressions (PR review): a block past the space was clipped silently; a non-canonical chunk key named the same
+    // chunk as the canonical one; slots, chunks and toolkit values of another type read as empty
+    structural("\"digest_block\": [0, 0, 1, 1]", "\"digest_block\": [-1, 0, 1, 1]",
+               "setups[0] (small).digest_block[0]: expected an integer in [0, 128]");
+    structural("\"0:4:5\"", "\"0:04:5\"", "setups[0] (small).chunks.0:04:5: not a chunk of the setup");
+    structural("\"slots\": []", "\"slots\": 7", "setups[0] (small).generators.test_dungeon.slots: expected an array");
+    structural("\"chunks\": {", "\"chunks\": [], \"unused\": {", "setups[0] (small).chunks: expected an object");
+    structural("\"format\": 1,", "\"format\": 1, \"toolkit\": [],", "toolkit: expected an object");
 }
 
 // The test setup in a World: the space list (0 overworld, 1 test_valley listed, 2 test_dungeon of site 0), terrain per
@@ -1701,6 +1714,7 @@ TEST(Stamp, RegisteredOnlyWithSites)
     bool found = false;
     for (const auto& s : content.systemList().systems(Phase::Streaming)) found = found || s.name == "chunk_stamp";
     EXPECT_TRUE(found);
+    ASSERT_FALSE(content.systemList().systems(Phase::Streaming).empty());
     EXPECT_EQ(content.systemList().systems(Phase::Streaming).front().name, "chunk_stamp");
     WorldSetup flat;
     World plain(flat);
@@ -1773,6 +1787,29 @@ TEST(Stamp, DuringAStep)
     EXPECT_EQ(w.contentRecords().stats().failedComponents, 0u);
 }
 
+// Regression (PR review): the candidate range started at floor((x - r) / 256), so a site chunk whose square only
+// touches the disc (distance exactly fullRadius, accepted by the distance test) was skipped on its lower side; a
+// coordinate of 1e30 overflowed the conversion to int64_t
+TEST(Stamp, ChunkTouchingTheRadius)
+{
+    World w(ContentTest::contentTestSetup(2));
+    const SpaceGeneration& o = w.generation().space(0);
+    const Site& ruin         = o.plan->sites[0];
+    ChunkId c;
+    c.x = int32_t(ruin.x / 256);
+    c.z = int32_t(ruin.z / 256);
+    ASSERT_FALSE(w.generation().stampList(c).empty());
+    // The chunk's right edge is exactly fullRadius away
+    const double x = double(c.x + 1) * 256 + o.settings.fullRadius;
+    ASSERT_LT(x, double(o.settings.sizeChunks) * 256);
+    const Entity player = addPlayer(w, Vec3(1e30, 0, -1e30));
+    w.step(1);
+    EXPECT_FALSE(w.contentRecords().isStamped(c));
+    w.get<Transform>(player).setPosition(Vec3(x, 0, double(c.z) * 256 + 128));
+    w.step(1);
+    EXPECT_TRUE(w.contentRecords().isStamped(c));
+}
+
 // Between steps the spawn applies at once; a stamp whose onSpawn destroys the entity is logged and counted
 TEST(Stamp, BetweenStepsAndDestroyedInOnSpawn)
 {
@@ -1834,7 +1871,8 @@ TEST(Stamp, ThrowingSpawnLeavesTheChunkUnstamped)
     EXPECT_THROW(v.step(1), std::runtime_error);
     g_stampThrow = false;
     EXPECT_FALSE(v.contentRecords().isStamped(c));
-    EXPECT_EQ(shrineMarkers(), entitiesOf<TestThrowOnSpawn>(v).size());
+    EXPECT_EQ(shrineMarkers(), 0u);
+    EXPECT_TRUE(entitiesOf<TestThrowOnSpawn>(v).empty());
     v.step(1);
     EXPECT_TRUE(v.contentRecords().isStamped(c));
     EXPECT_GE(entitiesOf<TestThrowOnSpawn>(v).size(), 1u);
@@ -2225,8 +2263,10 @@ TEST(ContentSave, CommittedSaveLoads)
         w.editTerrain(0, b);
         w.step(3);
         const auto blob = w.save();
-        std::ofstream(path, std::ios::binary)
-            .write(reinterpret_cast<const char*>(blob.data()), std::streamsize(blob.size()));
+        std::ofstream out(path, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(blob.data()), std::streamsize(blob.size()));
+        out.close();
+        ASSERT_TRUE(out) << "cannot write " << path;
         GTEST_SKIP() << "wrote " << path;
     }
     std::ifstream f(path, std::ios::binary);
@@ -2409,6 +2449,28 @@ TEST(GenerationState, MissingStateIsRefused)
     GenNet n(h, c, [](World& host) { host.spawnIn<TestProbe>(0, Vec3(100, 0, 100)); });
     expectRefused(n, "the host sent no generation state");
     EXPECT_EQ(n.host->replication().stats().generationStatesSent, 0u);
+}
+
+// Regression (PR review): a host that sends no GenerationState (a legacy setup) and no spawn set left a client whose
+// setup writes generation state unchecked, and the host's terrain states were applied (a join's chunk snapshot, and
+// after a Resync of a host load, which also resets the refusal, the chunk states arrive before the spawn set)
+TEST(GenerationState, TerrainBeforeAStateIsRejected)
+{
+    TerrainBrush b;
+    b.center   = Vec3(300, 0, 300);
+    b.radius   = 10;
+    b.strength = 2;
+    GenNet n(WorldSetup{}, ContentTest::contentTestSetup(2), [&](World& h) { h.editTerrain(0, b); });
+    n.step();
+    EXPECT_GT(n.host->terrainEdits().chunkCount(), 0u);
+    EXPECT_GE(n.client->netStats().rejected, 1u);
+    EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
+    const auto blob = n.host->save();
+    ASSERT_TRUE(n.host->tryLoad(blob).ok());
+    const uint64_t rejected = n.client->netStats().rejected;
+    n.step();
+    EXPECT_GT(n.client->netStats().rejected, rejected);
+    EXPECT_EQ(n.client->terrainEdits().chunkCount(), 0u);
 }
 
 namespace

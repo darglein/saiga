@@ -22,14 +22,15 @@
 //                                               "statics": ..}},
 //                "digest": "0x.."}]}
 // The digest: FNV-1a 64 seeded with fnv1a64("saiga.content.digest.v1") over u32 count, then per chunk (i32 x, i32 z,
-// u64 total) for the chunks [x0, x1) x [z0, z1) of space 0 and then every site chunk of space 0 outside the block
-// (the keys of its sitesByChunk), each once, in ChunkId order. Chunks are generated on a JobPool(3).
+// u64 total) for the chunks [x0, x1) x [z0, z1) of space 0 (endpoints in [0, sizeChunks]) and then every site chunk of
+// space 0 outside the block (the keys of its sitesByChunk), each once, in ChunkId order. Chunk keys are decimal without
+// leading zeros. Chunks are generated on a JobPool(3).
 //
-// update: the file is rewritten in place (the entries, chunk IDs and digest blocks are kept, every value recomputed)
-// and the report fails (an update run never passes); a problem of the file's structure (e.g. a chunk outside its space,
-// a version or digest_block value that is not an integer in range) leaves the file unchanged. A missing file is an
-// error naming the path, also with update:
-// a new file is committed first as a skeleton whose values are "0x0".
+// update: the file is rewritten (through a sibling ".tmp" file that replaces it) (the entries, chunk IDs and digest
+// blocks are kept, every value recomputed) and the report fails (an update run never passes); a problem of the file's
+// structure (e.g. a chunk outside its space, a version or digest_block value that is not an integer in range) leaves
+// the file unchanged. A missing file is an error naming the path, also with update: a new file is committed first as a
+// skeleton whose values are "0x0".
 
 #pragma once
 

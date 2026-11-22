@@ -184,13 +184,18 @@ void chunkStampSystem(World& w, double)
             if (space >= g.spaceCount()) return;
             const SpaceGeneration& sp = g.space(space);
             if (sp.plan->sitesByChunk.empty()) return;
-            const double r   = sp.settings.fullRadius;
-            const Vec3 p     = t.position();
-            const int64_t n  = sp.settings.sizeChunks;
-            const int64_t x0 = std::max<int64_t>(0, int64_t(std::floor((p.x() - r) / 256)));
-            const int64_t z0 = std::max<int64_t>(0, int64_t(std::floor((p.z() - r) / 256)));
-            const int64_t x1 = std::min<int64_t>(n - 1, int64_t(std::floor((p.x() + r) / 256)));
-            const int64_t z1 = std::min<int64_t>(n - 1, int64_t(std::floor((p.z() + r) / 256)));
+            const double r  = sp.settings.fullRadius;
+            const Vec3 p    = t.position();
+            const int64_t n = sp.settings.sizeChunks;
+            if (!std::isfinite(p.x()) || !std::isfinite(p.z()) || !(r >= 0)) return;
+            // The candidate range, clamped to [-1, n] before the conversion (PR review: a coordinate of 1e30 overflowed
+            // int64_t). The lower bound ceil(..) - 1 includes a chunk whose square only touches the disc (PR review:
+            // floor skipped chunk 0 for a Player at x = 512 with radius 256, the distance test accepts it)
+            auto bound       = [n](double v) { return int64_t(std::min(std::max(v, -1.0), double(n))); };
+            const int64_t x0 = std::max<int64_t>(0, bound(std::ceil((p.x() - r) / 256) - 1));
+            const int64_t z0 = std::max<int64_t>(0, bound(std::ceil((p.z() - r) / 256) - 1));
+            const int64_t x1 = std::min<int64_t>(n - 1, bound(std::floor((p.x() + r) / 256)));
+            const int64_t z1 = std::min<int64_t>(n - 1, bound(std::floor((p.z() + r) / 256)));
             for (int64_t cz = z0; cz <= z1; ++cz)
                 for (int64_t cx = x0; cx <= x1; ++cx)
                 {

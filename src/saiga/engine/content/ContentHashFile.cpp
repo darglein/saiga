@@ -194,6 +194,9 @@ bool parseChunkKey(const std::string& key, ChunkId& out)
     };
     if (!num(key.substr(0, a), s) || !num(key.substr(a + 1, b - a - 1), x) || !num(key.substr(b + 1), z)) return false;
     if (s < 0 || s > 65535 || x < INT32_MIN || x > INT32_MAX || z < INT32_MIN || z > INT32_MAX) return false;
+    // Only the canonical form (PR review: "00:4:5" and "0:4:5" named the same chunk, the check read one key's hashes
+    // twice and an update dropped the other)
+    if (key != std::to_string(s) + ":" + std::to_string(x) + ":" + std::to_string(z)) return false;
     out.space = SpaceId(s);
     out.x     = int32_t(x);
     out.z     = int32_t(z);
@@ -230,6 +233,12 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
         }
         pins.pinned[name]  = uint16_t(plan);
         pins.current[name] = uint16_t(place);
+        // PR review: a slots value that is not an array read as an empty slot table
+        if (!g["slots"].is_array())
+        {
+            c.problem(gw + ".slots: expected an array of slot names");
+            return entry;
+        }
         slotLists[name];
         for (const Json& sl : g["slots"].array_items()) slotLists[name].push_back(sl.string_value());
     }
@@ -280,30 +289,33 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
 
     // The chunks to generate: the listed ones and the digest's
     std::vector<ChunkId> listed;
+    // PR review: a chunks value that is not an object listed no chunks and passed
+    if (!entry["chunks"].is_object()) c.problem(w + ".chunks: expected an object {\"space:x:z\": {...}}");
     for (const auto& kv : entry["chunks"].object_items())
     {
         ChunkId id;
         if (!parseChunkKey(kv.first, id) || id.space >= plans.spaces.size() || id.x < 0 || id.z < 0 ||
             id.x >= plans.spaces[id.space]->settings.sizeChunks || id.z >= plans.spaces[id.space]->settings.sizeChunks)
         {
-            c.problem(w + ".chunks." + kv.first + ": not a chunk of the setup (\"space:x:z\" inside the space)");
+            c.problem(w + ".chunks." + kv.first +
+                      ": not a chunk of the setup (\"space:x:z\" in decimal without leading zeros, inside the space)");
             continue;
         }
         listed.push_back(id);
     }
-    const Json& block = entry["digest_block"];
-    int64_t b[4]      = {0, 0, 0, 0};
+    // The block's endpoints lie in [0, sizeChunks] of space 0 (PR review: a block past the space was clipped silently,
+    // so the digest covered fewer chunks than the block names)
+    const Json& block   = entry["digest_block"];
+    const int64_t size0 = plans.spaces[0]->settings.sizeChunks;
+    int64_t b[4]        = {0, 0, 0, 0};
     if (!block.is_array() || block.array_items().size() != 4)
         c.problem(w + ".digest_block: expected [x0, z0, x1, z1]");
     else
         for (int k = 0; k < 4; ++k)
-            if (!c.integer(block[size_t(k)], INT32_MIN, INT32_MAX, w + ".digest_block[" + std::to_string(k) + "]",
-                           b[k]))
-                b[k] = 0;
+            if (!c.integer(block[size_t(k)], 0, size0, w + ".digest_block[" + std::to_string(k) + "]", b[k])) b[k] = 0;
     std::set<ChunkId> digestSet;
-    const int64_t size0 = plans.spaces[0]->settings.sizeChunks;
-    for (int64_t x = std::max<int64_t>(0, b[0]); x < std::min(b[2], size0); ++x)
-        for (int64_t z = std::max<int64_t>(0, b[1]); z < std::min(b[3], size0); ++z)
+    for (int64_t x = b[0]; x < b[2]; ++x)
+        for (int64_t z = b[1]; z < b[3]; ++z)
         {
             ChunkId id;
             id.x = int32_t(x);
@@ -385,6 +397,8 @@ ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string&
         return finish();
     }
     Json::object out = root.object_items();
+    // Optional, but an object when present (PR review: a toolkit value of [] skipped the toolkit hashes)
+    if (!root["toolkit"].is_null() && !root["toolkit"].is_object()) c.problem(file + ": toolkit: expected an object");
     if (root["toolkit"].is_object())
     {
         const Json& t = root["toolkit"];
@@ -410,12 +424,24 @@ ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string&
     {
         std::string text;
         pretty(Json(out), 0, text);
-        std::ofstream f(file, std::ios::binary | std::ios::trunc);
-        f << text << "\n";
-        if (!f)
-            c.problem(file + ": cannot be written");
-        else
-            report.updated = true;
+        // Into a sibling file that replaces the file only when written completely (PR review: a failed write of the
+        // truncated file lost it and still reported "updated")
+        const std::string tmp = file + ".tmp";
+        {
+            std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
+            f << text << "\n";
+            f.close();
+            ec.clear();
+            if (f) std::filesystem::rename(tmp, file, ec);
+            if (!f || ec)
+            {
+                std::filesystem::remove(tmp, ec);
+                c.problem(file + ": cannot be written");
+                report.ok = false;
+                return finish();
+            }
+        }
+        report.updated = true;
         c.problem(file + ": updated (an update run fails; commit the file in a dedicated commit with the reason)");
         report.ok = false;
         return finish();

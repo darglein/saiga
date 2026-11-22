@@ -137,6 +137,9 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onTerrainChunkState(uint8_t from, const uint8_t* data, size_t size);
     // S23a: the client checks the host's generation state (validate and refuse: World::generationMismatch)
     void onGenerationState(uint8_t from, const uint8_t* data, size_t size);
+    // Client (S23a): rejects a terrain message after a refused GenerationState, or before a checked one when this
+    // client's world writes generation state; returns true if rejected
+    bool terrainRefused(uint8_t from, const char* what);
     // Host (S23a): the GenerationState to a peer, only when the world writes generation state
     void sendGenerationState(uint8_t peer);
     // Host (S22, E5): one TerrainChunkState per chunk with terrain state (sequence > 0) of every space, in SpaceId and

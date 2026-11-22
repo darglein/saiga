@@ -747,7 +747,8 @@ class World
     template <class T, class... C> Entity spawnIn(SpaceId space, const Vec3& position, C&&... initial);  // [S10]
                                                                     // any space < spaceCount() (S21)
     void moveToSpace(Entity e, SpaceId space, const Vec3& position, const Quat& rotation);  // §7.4 [exists: S21]
-    size_t spaceCount() const;                                      // one per template [exists: S21]
+    size_t spaceCount() const;                                      // [exists: S21] one per space instance of
+                                                                    // the plans (§12.1; S23a: one template can have several)
     double spaceReadiness(SpaceId space, const Vec3& camera, double radius) const;
         // §12.4 [exists: S21, E8]: the one readiness the app reads; S21 the terrain's (TerrainSystem::readiness),
         // S23b adds the content sets, S27 far content
