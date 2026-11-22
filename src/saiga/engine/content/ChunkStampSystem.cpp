@@ -71,59 +71,104 @@ bool resolveLink(const GenerationPipeline& g, SpaceId space, const Site& site, c
     return false;
 }
 
+// One stamp entry, resolved when the stamp is recorded
+struct StampSpawn
+{
+    const ClassList::ClassInfo* info;
+    Vec3 position;
+    Quat rotation;
+    std::shared_ptr<const json11::Json> components;
+    std::optional<SpaceLink> link;
+    std::string what;
+};
+
+void applyStampComponents(World& world, Entity e, const StampSpawn& s)
+{
+    ChunkRecords::Stats& stats = world.contentRecordsForUpdate().statsForUpdate();
+    stats.entities++;
+    for (const auto& kv : s.components->object_items())
+    {
+        const int found = world.registry().findComponent(kv.first);
+        std::string error;
+        if (!world.alive(e))
+            error = "the entity was destroyed by its class";
+        else if (found < 0)
+            error = "unknown component";
+        else if (mergeComponentValues(world, e, ComponentId(found), kv.second, error))
+            continue;
+        stats.failedComponents++;
+        SAIGA_LOG_E("content", e, "stamp %s: %s not applied: %s", s.what.c_str(), kv.first.c_str(), error.c_str());
+    }
+    if (s.link && world.alive(e))
+    {
+        if (world.has<SpaceLink>(e))
+            world.get<SpaceLink>(e) = *s.link;
+        else
+            world.add<SpaceLink>(e, *s.link);
+    }
+}
+
 void stampChunk(World& w, const ChunkId& chunk, const std::vector<StampRecord>& list)
 {
     const GenerationPipeline& g = w.generation();
     const SpaceGeneration& sp   = g.space(chunk.space);
-    // The record and the stamped entry first: everything of this chunk applies at the same flush
-    const uint16_t current = sp.current;
-    w.recordOrRun([chunk, current](World& world) { world.contentRecordsForUpdate().markStamped(chunk, current); });
+    std::vector<StampSpawn> spawns;
+    spawns.reserve(list.size());
     for (const StampRecord& r : list)
     {
-        const Site& site                 = sp.plan->sites[r.siteIndex];
-        const PrefabEntity& entity       = sp.prefabs[r.siteIndex]->entities[r.entity];
-        const ClassList::ClassInfo* info = w.classList().find(r.className);
-        SAIGA_ASSERT(info, "chunk stamping: the class " + r.className + " was checked in phase B");
-        std::optional<SpaceLink> link;
+        const Site& site           = sp.plan->sites[r.siteIndex];
+        const PrefabEntity& entity = sp.prefabs[r.siteIndex]->entities[r.entity];
+        StampSpawn s;
+        s.info = w.classList().find(r.className);
+        SAIGA_ASSERT(s.info, "chunk stamping: the class " + r.className + " was checked in phase B");
+        s.position   = contentPosition(r.x, r.y, r.z);
+        s.rotation   = contentRotation(r.yaw);
+        s.components = std::make_shared<const json11::Json>(entity.components);
+        s.what       = r.prefab + " entity " + std::to_string(r.entity);
         if (entity.spaceLink)
         {
             SpaceLink l;
             if (resolveLink(g, chunk.space, site, *entity.spaceLink, l))
-                link = l;
+                s.link = l;
             else
                 SAIGA_LOG("content", "stamp: the space_link of %s (site %u) has no target space", r.className.c_str(),
                           r.siteKey);
         }
-        auto components        = std::make_shared<const json11::Json>(entity.components);
-        const std::string what = r.prefab + " entity " + std::to_string(r.entity);
-        w.spawnByClassDeferred(*info, chunk.space, contentPosition(r.x, r.y, r.z), contentRotation(r.yaw),
-                               [components, link, what](World& world, Entity e)
-                               {
-                                   ChunkRecords::Stats& stats = world.contentRecordsForUpdate().statsForUpdate();
-                                   stats.entities++;
-                                   for (const auto& kv : components->object_items())
-                                   {
-                                       const int found = world.registry().findComponent(kv.first);
-                                       std::string error;
-                                       if (!world.alive(e))
-                                           error = "the entity was destroyed by its class";
-                                       else if (found < 0)
-                                           error = "unknown component";
-                                       else if (mergeComponentValues(world, e, ComponentId(found), kv.second, error))
-                                           continue;
-                                       stats.failedComponents++;
-                                       SAIGA_LOG_E("content", e, "stamp %s: %s not applied: %s", what.c_str(),
-                                                   kv.first.c_str(), error.c_str());
-                                   }
-                                   if (link && world.alive(e))
-                                   {
-                                       if (world.has<SpaceLink>(e))
-                                           world.get<SpaceLink>(e) = *link;
-                                       else
-                                           world.add<SpaceLink>(e, *link);
-                                   }
-                               });
+        spawns.push_back(std::move(s));
     }
+    // One command for the whole chunk (everything applies at the same flush): the spawns run at once inside it, the
+    // stamped entry after them. A spawn that throws (configure, onSpawn) rolls back the chunk's earlier spawns (without
+    // onDestroy) before the exception propagates, so the chunk stays unstamped and is stamped whole later (PR review:
+    // the stamped entry used to apply first and stayed with only part of the entities)
+    const uint16_t current = sp.current;
+    w.recordOrRun(
+        [chunk, current, spawns = std::move(spawns)](World& world)
+        {
+            std::vector<Entity> spawned;
+            spawned.reserve(spawns.size());
+            try
+            {
+                // Applied at once (no command is recorded while commands are applied or between steps)
+                for (const StampSpawn& s : spawns)
+                    world.spawnByClassDeferred(*s.info, chunk.space, s.position, s.rotation,
+                                               [&s, &spawned](World& ww, Entity x)
+                                               {
+                                                   spawned.push_back(x);
+                                                   applyStampComponents(ww, x, s);
+                                               });
+            }
+            catch (...)
+            {
+                ChunkRecords::Stats& stats = world.contentRecordsForUpdate().statsForUpdate();
+                for (Entity e : spawned)
+                {
+                    world.rollbackSpawn(e);
+                    stats.entities--;
+                }
+                throw;
+            }
+            world.contentRecordsForUpdate().markStamped(chunk, current);
+        });
 }
 }  // namespace
 

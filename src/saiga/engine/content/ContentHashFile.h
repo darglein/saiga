@@ -26,7 +26,9 @@
 // (the keys of its sitesByChunk), each once, in ChunkId order. Chunks are generated on a JobPool(3).
 //
 // update: the file is rewritten in place (the entries, chunk IDs and digest blocks are kept, every value recomputed)
-// and the report fails (an update run never passes). A missing file is an error naming the path, also with update:
+// and the report fails (an update run never passes); a problem of the file's structure (e.g. a chunk outside its space,
+// a version or digest_block value that is not an integer in range) leaves the file unchanged. A missing file is an
+// error naming the path, also with update:
 // a new file is committed first as a skeleton whose values are "0x0".
 
 #pragma once

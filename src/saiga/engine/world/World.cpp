@@ -105,9 +105,11 @@ World::World(const WorldSetup& setup)
     events.validateRegistration();
 
     registerEngineSystems(systems);
-    // S23a: prefab stamping, the first system of phase 7, only when some plan has sites (before setupProfiler: it gets
-    // its profiler scope; worlds without sites have neither)
-    if (pipeline->plans().anySites) systems.add(Phase::Streaming, "chunk_stamp", chunkStampSystem, RunOn::Host);
+    // S23a: prefab stamping, the first system of phase 7, when some plan has sites or a generator in use is not legacy
+    // (a load can replace the plans with the saved pins' plans, which may have sites; PR review: they were never
+    // stamped); before setupProfiler: it gets its profiler scope. Legacy worlds (no sites possible) have neither
+    if (pipeline->plans().anySites || pipeline->nonLegacy())
+        systems.add(Phase::Streaming, "chunk_stamp", chunkStampSystem, RunOn::Host);
     if (setup.systems) setup.systems(systems);
 
     if (setup.classes) setup.classes(classes);
@@ -851,8 +853,10 @@ size_t World::spaceCount() const
 
 uint64_t World::spaceSeed(SpaceId space) const
 {
-    SAIGA_ASSERT(space < terrainSys->spaceCount(), "World::spaceSeed: unknown space");
-    return terrainSys->spaceSeed(space);
+    SAIGA_ASSERT(space < pipeline->spaceCount(), "World::spaceSeed: unknown space");
+    // The pipeline's instance (a load can replace the plans with the saved pins' ones; PR review: the terrain system's
+    // seed of the construction was returned)
+    return pipeline->space(space).instance.seed;
 }
 
 const GeneratorList& World::generators() const

@@ -2096,7 +2096,7 @@ class PhysicsWorld
   `RenderInstance` meshes. Errors are fatal in the constructor (`SAIGA_EXIT_ERROR`) and load errors in a load.
 - Stamping (S23a, before streaming): the host keeps the set of chunks whose prefab entities are stamped (host only,
   saved in `CREC`); `chunkStampSystem` (phase 7, `RunOn::Host`, the first system of the phase, registered only when
-  some plan has sites) stamps, **on the host only** (clients receive the entities by replication, §13.2) and in
+  some plan has sites or a generator in use is not legacy: a load may bring plans with sites) stamps, **on the host only** (clients receive the entities by replication, §13.2) and in
   `ChunkId` order, every unstamped chunk within `SpaceTemplate::fullRadius` of a Player. The stamp list comes from the
   plan alone (`stampList(ChunkId)`: the prefab entities of the chunk's sites, rotated by the quarter turns, `y =
   baseHeight + prefab y`, yaw composed), no chunk is generated; spawns go through commands
@@ -2225,8 +2225,8 @@ enum SlotFlags : uint32_t { ReSnapOnEdit = 1, TombstoneOnEdit = 2, Cosmetic = 4 
 // non-increasing, unique names and IDs, every template's generator registered, a legacyTerrain generator without slots
 void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generator);
 // The engine converts exactly to double (ContentConvert: positions by a power-of-two scale, rotations from the trig
-// table normalized in double, scale / 1024) and maps meshSlot to MeshId through the slot mesh table [S23b]; the content
-// hash covers the integers.
+// table's Q30 values scaled by 2^-30, not normalised: within 2^-28 of unit length; scale / 1024) and maps meshSlot to
+// MeshId through the slot mesh table [S23b]; the content hash covers the integers.
 // Prefabs: <dataDirectory>/prefabs/<name>.json (v1) or <name>.v<N>.json with terrain patches, exclusions, entities
 // (components as visit JSON), SpaceLinks, spaces and static geometry; pieces [S30]. Loaded by the pipeline (one file
 // per prefab version, §15.3; not the data files of §14).
@@ -2619,7 +2619,8 @@ snapshot). The client validates and refuses (untrusted input): the seed equals i
 names are its registered ones, the host's pins equal its pins and the host's current versions its `version()`, the
 slot tables are equal, and the space count and combined plan hash equal its own; a failure is counted in
 `NetStats::rejected`, logged (category `content`, naming the first difference) and sets `World::generationMismatch()`
-(the host + client scenario variants fail on it); nothing is applied. A valid message changes nothing
+(the host + client scenario variants fail on it); nothing is applied (later spawns still are, except a state entity
+of a space this client does not have: refused instead of the setup-mismatch exit). A valid message changes nothing
 (`World::generationChecked()`): the client generates the host's content already. Adopting the host's pins is S26's
 handshake (E11): until then a client of another binary version, or a host that loaded a save of an older generator
 version, is refused. The host logs once per world when the first peer joins and a generator in use is not integer only

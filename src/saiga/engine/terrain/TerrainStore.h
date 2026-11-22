@@ -44,7 +44,8 @@ class SAIGA_ENGINE_API TerrainStore
     int tilesAtLevel(int level) const;
     const std::map<RegionId, Tile>& tiles() const { return tileMap; }
 
-    // The pyramid (null before the space's first view); its pointer stays the same while the world lives
+    // The pyramid (null before the space's first view); its pointer stays the same until dropAll (a host load with
+    // other generator pins through TerrainSystem::replaceSources): read it at each use
     const Vulkan::TerrainPyramidData* pyramid() const { return pyramidData.get(); }
     void setPyramid(Vulkan::TerrainPyramidData pyramid);
 

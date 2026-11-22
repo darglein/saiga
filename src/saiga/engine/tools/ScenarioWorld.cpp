@@ -707,6 +707,14 @@ void ScenarioWorld::finishNetwork()
             synced = synced && terrainSynced();
         }
     }
+    // S23a: a refusal received during the drain fails the variant too (once; PR review: only onStep reported it)
+    for (size_t i = 0; i < clientWorlds.size(); ++i)
+        if (clientWorlds[i]->generationMismatch() && !generationMismatchReported)
+        {
+            generationMismatchReported = true;
+            failed.push_back("final network sync: client " + std::to_string(i + 1) +
+                             " refused the host's generation state (see the log)");
+        }
     if (!check(synced, "the final network sync did not finish in 600 steps")) return;
     check(steps <= bound, "the final network sync took " + std::to_string(steps) + " steps (at most " +
                               std::to_string(bound) + " without loss)");

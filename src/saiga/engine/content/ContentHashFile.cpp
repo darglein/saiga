@@ -144,16 +144,40 @@ struct Checker
 {
     ContentHashReport& report;
     bool update;
+    // Problems of the file's structure (not of a hash value): an update run does not rewrite the file then (it would
+    // drop the entry's invalid parts; PR review)
+    int structural = 0;
 
-    void problem(const std::string& p) { report.problems.push_back(p); }
+    void problem(const std::string& p)
+    {
+        report.problems.push_back(p);
+        structural++;
+    }
+    // A value an update recomputes (a hash, the plans' generators and spaces)
+    void mismatch(const std::string& p) { report.problems.push_back(p); }
+    // An integer of the file: a JSON number, integral and within [lo, hi] (NaN and out-of-range values fail before
+    // any conversion; PR review: 1.5 became 1, 1e300 was converted to int64_t)
+    bool integer(const Json& v, int64_t lo, int64_t hi, const std::string& what, int64_t& out)
+    {
+        const double d = v.number_value();
+        if (!v.is_number() || !(d >= double(lo) && d <= double(hi)) || double(int64_t(d)) != d)
+        {
+            problem(what + ": expected an integer in [" + std::to_string(lo) + ", " + std::to_string(hi) + "], got " +
+                    v.dump());
+            return false;
+        }
+        out = int64_t(d);
+        return true;
+    }
     // Compares a hex value of the file with the actual one; returns the value to write
     Json compare(const Json& expected, uint64_t actual, const std::string& what)
     {
         uint64_t e = 0;
+        // Value problems (an update rewrites them)
         if (!expected.is_string() || !parseU64(expected.string_value(), true, e))
-            problem(what + ": expected a \"0x...\" string, got " + expected.dump());
+            mismatch(what + ": expected a \"0x...\" string, got " + expected.dump());
         else if (e != actual)
-            problem(what + ": expected " + expected.string_value() + ", actual " + hexU64(actual));
+            mismatch(what + ": expected " + expected.string_value() + ", actual " + hexU64(actual));
         return Json(hexU64(actual));
     }
 };
@@ -194,9 +218,12 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
     std::map<std::string, std::vector<std::string>> slotLists;
     for (const auto& [name, g] : entry["generators"].object_items())
     {
-        const int64_t plan  = int64_t(g["plan_version"].number_value()),
-                      place = int64_t(g["placement_version"].number_value());
-        if (plan < 1 || plan > 65535 || place < plan || place > 65535)
+        const std::string gw = w + ".generators." + name;
+        int64_t plan = 0, place = 0;
+        if (!c.integer(g["plan_version"], 1, 65535, gw + ".plan_version", plan) ||
+            !c.integer(g["placement_version"], 1, 65535, gw + ".placement_version", place))
+            return entry;
+        if (place < plan)
         {
             c.problem(w + ".generators." + name + ": invalid plan / placement versions");
             return entry;
@@ -234,16 +261,16 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
     Json::object planOut;
     const Json& filePlans = entry["plans"];
     if (filePlans.object_items().size() != plans.spaces.size())
-        c.problem(w + ".plans: the file lists " + std::to_string(filePlans.object_items().size()) +
-                  " spaces, the setup has " + std::to_string(plans.spaces.size()));
+        c.mismatch(w + ".plans: the file lists " + std::to_string(filePlans.object_items().size()) +
+                   " spaces, the setup has " + std::to_string(plans.spaces.size()));
     for (size_t i = 0; i < plans.spaces.size(); ++i)
     {
         const SpaceGeneration& sp = *plans.spaces[i];
         const std::string key     = std::to_string(i);
         const Json& e             = filePlans[key];
         if (e.is_object() && e["generator"].string_value() != sp.generatorName)
-            c.problem(w + ".plans." + key + ": generator '" + e["generator"].string_value() + "', actual '" +
-                      sp.generatorName + "'");
+            c.mismatch(w + ".plans." + key + ": generator '" + e["generator"].string_value() + "', actual '" +
+                       sp.generatorName + "'");
         planOut[key] = Json::object{
             {"generator", sp.generatorName},
             {"hash", c.compare(e["hash"], sp.planHash, w + ".plans." + key + " (" + sp.settings.name + ")")}};
@@ -269,7 +296,10 @@ Json checkEntry(const WorldSetup& base, const Json& entry, int index, Checker& c
     if (!block.is_array() || block.array_items().size() != 4)
         c.problem(w + ".digest_block: expected [x0, z0, x1, z1]");
     else
-        for (int k = 0; k < 4; ++k) b[k] = int64_t(block[size_t(k)].number_value());
+        for (int k = 0; k < 4; ++k)
+            if (!c.integer(block[size_t(k)], INT32_MIN, INT32_MAX, w + ".digest_block[" + std::to_string(k) + "]",
+                           b[k]))
+                b[k] = 0;
     std::set<ChunkId> digestSet;
     const int64_t size0 = plans.spaces[0]->settings.sizeChunks;
     for (int64_t x = std::max<int64_t>(0, b[0]); x < std::min(b[2], size0); ++x)
@@ -370,6 +400,12 @@ ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string&
         report.entries++;
     }
     out["setups"] = setups;
+    if (update && c.structural > 0)
+    {
+        c.problem(file + ": not updated (fix the problems of the file's structure first)");
+        report.ok = false;
+        return finish();
+    }
     if (update)
     {
         std::string text;

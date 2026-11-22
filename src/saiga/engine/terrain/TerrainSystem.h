@@ -109,6 +109,7 @@ class SAIGA_ENGINE_API TerrainSystem
     // E6: the space has terrain (its generator's hasTerrain; S23a)
     bool hasTerrain(SpaceId space) const;
     const TerrainHeightSource& heightSource(SpaceId space) const;
+    // The seed of the construction (World::spaceSeed follows the plans of a load)
     uint64_t spaceSeed(SpaceId space) const;
     size_t spaceCount() const { return spaces.size(); }
 

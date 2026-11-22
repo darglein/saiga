@@ -732,6 +732,9 @@ class SAIGA_ENGINE_API World
     // Engine-internal: fn as a command during a step (applied at the phase's flush in recording order), at once
     // between steps and while commands are applied
     void recordOrRun(std::function<void(World&)> fn);
+    // Engine-internal: destroys an entity spawned in the running command at once, without its onDestroy (the rollback
+    // of a chunk stamp whose later spawn threw, S23a)
+    void rollbackSpawn(Entity e) { abandonSpawn(e); }
     // Runs fn after every completed step (also of step(n) and advance); fn returns false to be removed
     int addStepListener(std::function<bool()> fn)
     {

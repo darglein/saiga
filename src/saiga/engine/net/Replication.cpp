@@ -1746,6 +1746,15 @@ void Replication::onSpawn(uint8_t from, const uint8_t* data, size_t size)
             e = w.worldState;
         else if (netId >= kFirstSpaceStateNetId && netId - kFirstSpaceStateNetId < w.spaceStates.size())
             e = w.spaceStates[netId - kFirstSpaceStateNetId];
+        // After a refused GenerationState the host's space list may differ (another generator setup): the state
+        // entity of a space this client does not have is refused, the client keeps running (PR review: it exited)
+        if (!e.valid() && w.generationMismatch())
+        {
+            w.rejectInput(from,
+                          "Spawn: the bound NetId " + std::to_string(netId) +
+                              " names a state entity this client does not have (after a refused GenerationState)");
+            return;
+        }
         // Every build: the host has state components this client does not register
         if (!e.valid())
             SAIGA_EXIT_ERROR("Spawn: the bound NetId " + std::to_string(netId) +

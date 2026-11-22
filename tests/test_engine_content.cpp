@@ -1404,7 +1404,9 @@ TEST(ContentHash, CommittedHashesReproduce)
 {
     const std::string root = SAIGA_PROJECT_SOURCE_DIR;
     ASSERT_FALSE(root.empty()) << "the committed hashes need SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON";
-    const bool update              = std::getenv("SAIGA_UPDATE_CONTENT_HASHES") != nullptr;
+    // Only the value 1 (PR review: an exported SAIGA_UPDATE_CONTENT_HASHES=0 rewrote the committed file)
+    const char* env                = std::getenv("SAIGA_UPDATE_CONTENT_HASHES");
+    const bool update              = env && std::string(env) == "1";
     const ContentHashReport report = checkContentHashes(ContentTest::contentTestSetup(2), contentHashFile(), update);
     std::cout << report.summary() << std::endl;
     EXPECT_TRUE(report.ok) << report.summary();
@@ -1518,6 +1520,28 @@ TEST(ContentHashFile, UpdateAndMismatch)
         changed.problems[0].find("setups[0] (small).chunks.0:4:5 tier1: expected 0x0000000000000001, actual " + tier1),
         std::string::npos)
         << changed.problems[0];
+
+    // Problems of the structure are reported per field, and an update run leaves the file unchanged (regressions: a
+    // chunk outside its space was dropped from the rewritten file; plan_version 1.5 was read as 1 and a digest_block
+    // value of 1e300 converted to int64_t)
+    auto structural = [&](const std::string& from, const std::string& to, const std::string& expected)
+    {
+        std::string bad = j.dump();
+        ASSERT_NE(bad.find(from), std::string::npos) << from;
+        bad.replace(bad.find(from), from.size(), to);
+        std::ofstream(file, std::ios::trunc) << bad;
+        const ContentHashReport r = checkContentHashes(setup, file, true);
+        EXPECT_FALSE(r.ok);
+        EXPECT_FALSE(r.updated);
+        EXPECT_NE(r.summary().find(expected), std::string::npos) << r.summary();
+        std::ifstream in(file, std::ios::binary);
+        EXPECT_EQ(std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>()), bad);
+    };
+    structural("\"0:4:5\"", "\"0:128:5\"", "setups[0] (small).chunks.0:128:5: not a chunk of the setup");
+    structural("\"plan_version\": 1,", "\"plan_version\": 1.5,",
+               "setups[0] (small).generators.test_dungeon.plan_version: expected an integer in [1, 65535], got 1.5");
+    structural("\"digest_block\": [0, 0, 1, 1]", "\"digest_block\": [0, 0, 1e300, 1]",
+               "setups[0] (small).digest_block[2]: expected an integer");
 }
 
 // The test setup in a World: the space list (0 overworld, 1 test_valley listed, 2 test_dungeon of site 0), terrain per
@@ -1628,10 +1652,24 @@ class TestVanish final : public GameObject
     void onSpawn() override { destroy(); }
 };
 
+// Throws in onSpawn while g_stampThrow is set
+bool g_stampThrow = false;
+class TestThrowOnSpawn final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(int(ContentTest::ContentTestClass::Count) + 1);
+    static constexpr const char* name = "TestThrowOnSpawn";
+    void onSpawn() override
+    {
+        if (g_stampThrow) throw std::runtime_error("TestThrowOnSpawn");
+    }
+};
+
 void vanishClasses(ClassList& c)
 {
     ContentTest::registerContentTestClasses(c);
     c.add<TestVanish>();
+    c.add<TestThrowOnSpawn>();
 }
 
 Entity addPlayer(World& w, const Vec3& p, SpaceId space = 0)
@@ -1655,7 +1693,8 @@ std::vector<Entity> entitiesOf(World& w)
 }
 }  // namespace
 
-// The stamp system is registered only when some plan has sites (and gets its profiler scope)
+// The stamp system is registered when some plan has sites or a generator is not legacy (and gets its profiler scope);
+// legacy worlds have none
 TEST(Stamp, RegisteredOnlyWithSites)
 {
     World content(ContentTest::contentTestSetup(2));
@@ -1667,6 +1706,18 @@ TEST(Stamp, RegisteredOnlyWithSites)
     World plain(flat);
     EXPECT_TRUE(plain.systemList().systems(Phase::Streaming).empty());
     EXPECT_TRUE(plain.contentRecords().empty());
+    // Regression (PR review): a non-legacy world without sites had no stamp system, so a load whose saved pins bring
+    // plans with sites never stamped them
+    WorldSetup noSites;
+    noSites.seed       = 1;
+    noSites.generators = [](GeneratorList& l) { l.add(1, slotGenerator(1)); };
+    SpaceTemplate t;
+    t.generator                   = 1;
+    noSites.config.spaceTemplates = {t};
+    World generated(noSites);
+    EXPECT_FALSE(generated.generation().plans().anySites);
+    ASSERT_FALSE(generated.systemList().systems(Phase::Streaming).empty());
+    EXPECT_EQ(generated.systemList().systems(Phase::Streaming).front().name, "chunk_stamp");
 }
 
 // During a step: a class that adds Health in onSpawn gets the prefab's value (no "already has" assert); a class that
@@ -1754,6 +1805,43 @@ TEST(Stamp, BetweenStepsAndDestroyedInOnSpawn)
     v.step(1);
     EXPECT_GE(v.contentRecords().stats().failedComponents, 1u);
     EXPECT_TRUE(entitiesOf<TestVanish>(v).empty());
+}
+
+// A spawn of a chunk's stamp that throws rolls back the chunk's earlier spawns and leaves the chunk unstamped; the next
+// step stamps it whole (regression: the stamped entry applied first, so the chunk stayed stamped with only the entities
+// spawned before the exception and was never completed)
+TEST(Stamp, ThrowingSpawnLeavesTheChunkUnstamped)
+{
+    PrefabCopy copy;
+    copy.write("test_shrine", R"({"format": 1, "footprint": [-8, -8, 8, 8],
+        "entities": [{"class": "TestMarker", "components": {"Health": {"hp": 11}}}, {"class": "TestThrowOnSpawn"}]})");
+    WorldSetup s    = ContentTest::contentTestSetup(2);
+    s.dataDirectory = copy.dir.string();
+    s.classes       = vanishClasses;
+    World v(s);
+    const Site& shrine = v.generation().space(0).plan->sites[1];
+    addPlayer(v, Vec3(double(shrine.x), 0, double(shrine.z)));
+    ChunkId c;
+    c.x                = int32_t(shrine.x / 256);
+    c.z                = int32_t(shrine.z / 256);
+    auto shrineMarkers = [&]()
+    {
+        size_t n = 0;
+        for (Entity m : entitiesOf<ContentTest::TestMarker>(v)) n += v.has<Health>(m) && v.read<Health>(m).hp == 11;
+        return n;
+    };
+    g_stampThrow = true;
+    EXPECT_THROW(v.step(1), std::runtime_error);
+    g_stampThrow = false;
+    EXPECT_FALSE(v.contentRecords().isStamped(c));
+    EXPECT_EQ(shrineMarkers(), entitiesOf<TestThrowOnSpawn>(v).size());
+    v.step(1);
+    EXPECT_TRUE(v.contentRecords().isStamped(c));
+    EXPECT_GE(entitiesOf<TestThrowOnSpawn>(v).size(), 1u);
+    EXPECT_EQ(shrineMarkers(), entitiesOf<TestThrowOnSpawn>(v).size());
+    EXPECT_EQ(v.contentRecords().stats().entities,
+              entitiesOf<ContentTest::TestMarker>(v).size() + entitiesOf<TestThrowOnSpawn>(v).size() +
+                  entitiesOf<ContentTest::TestChest>(v).size() + entitiesOf<ContentTest::TestEntrance>(v).size());
 }
 
 // ---- Records and saves (S23a step 10) -------------------------------------------------------------------------------
@@ -2024,6 +2112,72 @@ TEST(ContentSave, RepinDropsDerivedTerrain)
     b.setRenderSink(nullptr);
 }
 
+namespace
+{
+// test_terrain whose listed instance (test_valley) gets a seed per plan version
+class ListedSeedGenerator final : public Generator
+{
+   public:
+    explicit ListedSeedGenerator(uint16_t maxVersion) : base(maxVersion) {}
+    const char* name() const override { return base.name(); }
+    uint16_t version() const override { return base.version(); }
+    std::vector<GeneratorSlot> slots() const override { return base.slots(); }
+    void plan(uint16_t v, WorldPlan& p) const override
+    {
+        base.plan(v, p);
+        for (SpaceInstance& i : p.spaces) i.seed = hashCombine(i.seed, v);
+    }
+    int32_t height(uint16_t v, const WorldPlan& p, int64_t x, int64_t z) const override
+    {
+        return base.height(v, p, x, z);
+    }
+    bool candidate(uint16_t v, const WorldPlan& p, ChunkId c, uint32_t s, uint32_t n, Candidate& o) const override
+    {
+        return base.candidate(v, p, c, s, n, o);
+    }
+    uint32_t candidatesPerChunk(uint32_t s) const override { return base.candidatesPerChunk(s); }
+    uint32_t keptCount(uint32_t s, int l) const override { return base.keptCount(s, l); }
+    void grassMask(uint16_t v, const WorldPlan& p, ChunkId c, GrassMask& o) const override
+    {
+        base.grassMask(v, p, c, o);
+    }
+
+   private:
+    ContentTest::TestTerrainGenerator base;
+};
+
+template <uint16_t MaxVersion>
+void listedSeedGenerators(GeneratorList& l)
+{
+    l.add(ContentTest::kTestTerrainGenerator, std::make_shared<ListedSeedGenerator>(MaxVersion));
+    l.add(ContentTest::kTestDungeonGenerator,
+          std::make_shared<AuthoredSpaceGenerator>("test_dungeon", "test_dungeon_rooms", 1));
+}
+}  // namespace
+
+// Regression (PR review): a load whose saved pins give a listed instance another seed (same template indices) kept
+// the construction's seed in World::spaceSeed
+TEST(ContentSave, RepinUpdatesSpaceSeeds)
+{
+    WorldSetup s1 = ContentTest::contentTestSetup(1);
+    s1.generators = listedSeedGenerators<1>;
+    WorldSetup s2 = ContentTest::contentTestSetup(2);
+    s2.generators = listedSeedGenerators<2>;
+    World a(s1);
+    World b(s2);
+    ASSERT_EQ(a.generation().space(1).instance.origin, SpaceInstance::Listed);
+    ASSERT_NE(a.spaceSeed(1), b.spaceSeed(1));
+    EXPECT_EQ(b.spaceSeed(0), a.spaceSeed(0));
+    const LoadResult r = b.tryLoad(a.save());
+    ASSERT_TRUE(r.ok()) << r.error;
+    EXPECT_EQ(b.spaceSeed(1), a.spaceSeed(1));
+    EXPECT_EQ(b.spaceSeed(2), a.spaceSeed(2));
+    // An unchanged seed stays valid: a v2 save into a v2 world
+    World c(s2);
+    ASSERT_TRUE(c.tryLoad(World(s2).save()).ok());
+    EXPECT_EQ(c.spaceSeed(1), World(s2).spaceSeed(1));
+}
+
 // A pre-S23 save with TERR into a setup whose template moved to a non-legacy generator: a load error
 TEST(ContentSave, PreS23SaveNeedsLegacyGenerators)
 {
@@ -2158,10 +2312,13 @@ void expectRefused(GenNet& n, const std::string& difference)
 // check), after a host load it follows the Resync
 TEST(GenerationState, EqualSetupsPass)
 {
-    WorldSetup s   = ContentTest::contentTestSetup(2);
-    s.classes      = probeClasses;
+    WorldSetup s = ContentTest::contentTestSetup(2);
+    s.classes    = probeClasses;
+    // The client's own setup (its own content cache: it reproduces the host's plans independently)
+    WorldSetup cs  = ContentTest::contentTestSetup(2);
+    cs.classes     = probeClasses;
     g_probeChecked = -1;
-    GenNet n(s, s, [](World& h) { h.spawnIn<TestProbe>(2, Vec3(2176, 0, 2176)); });
+    GenNet n(s, cs, [](World& h) { h.spawnIn<TestProbe>(2, Vec3(2176, 0, 2176)); });
     n.step();
     EXPECT_TRUE(n.client->generationChecked());
     EXPECT_FALSE(n.client->generationMismatch());
@@ -2252,6 +2409,42 @@ TEST(GenerationState, MissingStateIsRefused)
     GenNet n(h, c, [](World& host) { host.spawnIn<TestProbe>(0, Vec3(100, 0, 100)); });
     expectRefused(n, "the host sent no generation state");
     EXPECT_EQ(n.host->replication().stats().generationStatesSent, 0u);
+}
+
+namespace
+{
+// A space-state component (one state entity per space, bound NetIds)
+struct TestSpaceZone
+{
+    static constexpr const char* name = "TestSpaceZone";
+    static constexpr ComponentId id   = ComponentId(kFirstGameComponent);
+    static constexpr uint32_t version = 1;
+    int32_t level                     = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("level", level);
+    }
+};
+void spaceZoneComponents(Registry& r)
+{
+    r.registerSpaceState<TestSpaceZone>(Replicate::Host);
+}
+}  // namespace
+
+// Regression: after a refused GenerationState the host's space-state entity of a space the client does not have (the
+// host has 3 spaces, the flat client 1) ended the client process (SAIGA_EXIT_ERROR); now the spawn is refused
+TEST(GenerationState, StateOfAMissingSpaceAfterARefusal)
+{
+    WorldSetup h = ContentTest::contentTestSetup(2);
+    h.components = spaceZoneComponents;
+    WorldSetup c = WorldSetup{};
+    c.components = spaceZoneComponents;
+    GenNet n(h, c, [](World& host) { host.get<TestSpaceZone>(host.spaceStateEntity(0)).level = 5; });
+    expectRefused(n, "names a state entity this client does not have (after a refused GenerationState)");
+    ASSERT_EQ(n.client->spaceCount(), 1u);
+    // The state of the space both have is applied
+    EXPECT_EQ(n.client->read<TestSpaceZone>(n.client->spaceStateEntity(0)).level, 5);
 }
 
 // Flat and hook worlds send no GenerationState; the non-integer warning is logged once

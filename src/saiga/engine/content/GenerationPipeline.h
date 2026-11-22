@@ -82,7 +82,8 @@ struct GenerationPlans
     // By generator name
     std::map<std::string, uint16_t> pinned, current;
     uint64_t combinedHash = 0;
-    // Some plan has sites (chunkStampSystem is registered); some template's generator is not legacyTerrain
+    // Some plan has sites (chunkStampSystem is registered, also when nonLegacy); some template's generator is not
+    // legacyTerrain
     bool anySites = false, nonLegacy = false;
 };
 

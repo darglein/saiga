@@ -967,9 +967,9 @@ void registerContentScenarios(ScenarioList& s)
     s.add("prefab_site_is_stamped",
           [](ScenarioWorld& w)
           {
-              const SpaceGeneration& o = w.world().generation().space(0);
-              const Site ruin          = o.plan->sites[0];
-              const Site shrine        = o.plan->sites[1];
+              // Copies: the save/load variant replaces the world during the helpers (re-read world() each time)
+              const Site ruin   = w.world().generation().space(0).plan->sites[0];
+              const Site shrine = w.world().generation().space(0).plan->sites[1];
               const Vec3 site(double(ruin.x), 0, double(ruin.z));
               const Entity player = w.spawnPlayer(site + Vec3(2000, 0, 0));
               w.step(5);
@@ -987,7 +987,8 @@ void registerContentScenarios(ScenarioList& s)
               const double centre = double(ruin.baseHeight + 2048) / 1024.0;
               w.check(w.world().terrainHeight(0, site.x(), site.z()) == centre, "terrainHeight at the patch centre");
               const int64_t ox = ruin.x + 40, oz = ruin.z;
-              const double natural = double(o.generator->height(o.pinned, *o.plan, ox, oz)) / 1024.0;
+              const SpaceGeneration& o = w.world().generation().space(0);
+              const double natural     = double(o.generator->height(o.pinned, *o.plan, ox, oz)) / 1024.0;
               w.check(w.world().terrainHeight(0, double(ox), double(oz)) == natural, "natural terrain outside");
               // Leave and return: still one chest
               w.check(teleportPlayer(w, player, site + Vec3(3000, 0, 0)), "left");
@@ -1184,6 +1185,22 @@ TEST(ScenarioRunner, AFailingCheckIsReportedWithItsStepLogsAndDumps)
     EXPECT_EQ(r.failures[0], "step 3: always fails");
     EXPECT_TRUE(contains(r, "a log line of the scenario")) << r.report;
     EXPECT_TRUE(contains(r, "TickCount")) << r.report;  // the dump of the involved entity
+}
+
+// Regression (PR review): a GenerationState refused during the final network drain (a host load of a save with
+// other generator pins as the scenario's last action) was never reported, the host + client variant passed
+TEST(ScenarioRunner, GenerationRefusalInTheFinalSyncFails)
+{
+    auto e                 = entry("refused_in_drain",
+                                   [](ScenarioWorld& w)
+                                   {
+                       w.step(2);
+                       World v1(ContentTest::contentTestSetup(1));
+                       w.check(w.world().tryLoad(v1.save()).ok(), "the host loads a v1 save");
+                   });
+    const ScenarioResult r = runScenario(ContentTest::contentTestSetup(2), e, ScenarioVariant::HostClient);
+    EXPECT_FALSE(r.passed);
+    EXPECT_TRUE(contains(r, "final network sync: client 1 refused the host's generation state")) << r.report;
 }
 
 TEST(ScenarioRunner, RepeatCatchesNondeterminism)

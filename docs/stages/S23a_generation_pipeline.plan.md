@@ -505,8 +505,8 @@ struct StaticPart  { uint32_t siteKey; uint32_t part; std::string mesh; int64_t 
   - position `chunkOrigin + (x / 256, y / 1024, z / 256)`: int to double, a power-of-two scale, an addition exact
     below `2^53 / 256`;
   - entity rotation (host only, simulation state, not hashed): `Quat(cosQ30(yaw), 0, sinQ30(yaw), 0)` scaled by
-    `2^-30` and **normalized in double** (the table's norm error of up to `2^-28` would otherwise sit in saved and
-    replicated state; the hashed data stays the integer yaw);
+    `2^-30`, not normalised (R-CONTENT-1: no libm; the table's norm error of up to `2^-28` stays in the state; the
+    hashed data stays the integer yaw; implementation review);
   - scale `scale / 1024`. (Render instances: S23b.)
 
 ### 5. Content cache (`engine/content/ContentCache.{h,cpp}`)
@@ -684,7 +684,8 @@ refuses** (E11); adopting the host's pins is S26's (its handshake).
 ### 9. Stamping (`engine/content/ChunkStampSystem.cpp`, `content/Systems.h`, `engine/world/World.*`)
 
 - `chunkStampSystem`: phase 7, `RunOn::Host`, registered first in the phase. It is registered only when some plan has
-  sites (otherwise no system, no work, no profiler scope: scenarios and games without sites are unchanged):
+  sites or a generator in use is not legacy (PR review: a load can replace the plans with the saved pins' plans, which
+  may have sites; legacy plans have none, so legacy scenarios and games are unchanged):
   `registerEngineSystems` appends it after phase A of the pipeline has run (Scope 4), so it exists before
   `setupProfiler` creates the per-system scopes.
 - Per step: per space, the chunks whose square intersects the disc of `SpaceTemplate::fullRadius` around any `Player`
@@ -704,7 +705,7 @@ refuses** (E11); adopting the host's pins is S26's (its handshake).
   `afterStart`, as `World::spawnIn<T>` does for typed spawns. Between steps it applies at once (as `spawnIn<T>`), so
   the existing `spawnByClass` becomes a wrapper of it. Per stamp record:
   - the class by name through `ClassList` (R-REG-2: the data boundary);
-  - position and rotation from the exact conversions (rotation normalized in double), in the chunk's space;
+  - position and rotation from the exact conversions (rotation: the Q30 values scaled by `2^-30`), in the chunk's space;
   - `afterStart`: the prefab's component JSON through the shared merge path of Scope 3 with the flush-safe add
     `addDefaultById` (it runs inside the phase-7 flush; a component that cannot be applied any more, e.g. `onSpawn`
     destroyed the entity, is logged with `SAIGA_LOG_E` and counted, not fatal);
@@ -1350,8 +1351,8 @@ that file; those owned by S23b or S23c are logged there.
   render part is S23b's.
 - 18 Old saves re-based onto new terrain: `GENR` stores template -> generator names (mismatch = load error); a save
   without `GENR` loads only with `legacyTerrain` generators (Scope 8, check 7).
-- 20 Quaternion norm error in state: the entity rotation is normalized in double (host only, not hashed); hashed data
-  stays the integer yaw.
+- 20 Quaternion norm error in state: the entity rotation is the Q30 values scaled by `2^-30`, within `2^-28` of unit
+  length (no libm, implementation review; host only, not hashed); hashed data stays the integer yaw.
 - 21 Locale: json11 number parsing and formatting made locale independent (`Saiga::ParseNumber`); a prefab test under
   `de_DE` (CI installs the locale).
 
