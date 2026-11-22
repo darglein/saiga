@@ -86,6 +86,8 @@ class SAIGA_VULKAN_API LightingDebug
     static constexpr uint32_t kPreviewMaxSize     = 512;
     static constexpr uint64_t kPreviewTexelBudget = 1u << 20;
     bool requested(LightingImage image) const { return images[size_t(image)].requested; }
+    // The source mip of this frame's conversion of image (its request's or show's PreviewMapping::mip)
+    int sourceMip(LightingImage image) const { return images[size_t(image)].mapping.mip; }
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }

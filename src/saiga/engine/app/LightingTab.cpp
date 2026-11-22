@@ -75,11 +75,12 @@ void LightingTab::draw()
     gpuAndMemory();
 }
 
-void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth)
+void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip)
 {
     Vulkan::RenderScene* scene     = app.scene();
     Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
     mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
+    mapping.mip                    = mip;
     // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
     // second (LightingDebug::show)
     Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
@@ -502,8 +503,7 @@ void LightingTab::ambient()
         ImGui::SliderInt("##environment mip", &environmentMip, 0, Vulkan::EnvironmentMap::kMips - 1);
         DebugUiStyle::endProperties();
     }
-    scene->setEnvironmentPreviewMip(environmentMip);
-    previewImage(Vulkan::LightingImage::Environment, true, 384.0f);
+    previewImage(Vulkan::LightingImage::Environment, true, 384.0f, environmentMip);
 }
 
 void LightingTab::skyAndClouds()
@@ -538,6 +538,13 @@ void LightingTab::skyAndClouds()
         }
         DebugUiStyle::property("ground albedo");
         changed = ImGui::SliderFloat("##ground albedo", &s.atmosphere.groundAlbedo, 0, 1, "%.2f") || changed;
+        DebugUiStyle::property("cloud seed");
+        int seed = int(std::min<uint32_t>(s.clouds.seed, uint32_t(Vulkan::kMaxCloudSeed)));
+        if (ImGui::InputInt("##cloud seed", &seed))
+        {
+            s.clouds.seed = uint32_t(std::clamp(seed, 0, Vulkan::kMaxCloudSeed));
+            changed       = true;
+        }
         DebugUiStyle::property("LUT recomputations");
         ImGui::Text("%llu", (unsigned long long)scene->lightingStatistics().lutComputations);
         DebugUiStyle::endProperties();
@@ -556,6 +563,8 @@ void LightingTab::skyAndClouds()
     previewImage(Vulkan::LightingImage::TransmittanceLut, false, 256.0f);
     ImGui::TextUnformatted("sky-view LUT (log2 cd/m^2)");
     previewImage(Vulkan::LightingImage::SkyViewLut, true, 288.0f);
+    ImGui::TextUnformatted("multiple-scattering LUT");
+    previewImage(Vulkan::LightingImage::MultiScatteringLut, false, 128.0f);
 }
 
 void LightingTab::gpuAndMemory()

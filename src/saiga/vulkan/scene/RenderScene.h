@@ -349,9 +349,6 @@ class SAIGA_VULKAN_API RenderScene
     // The next frame updates every incremental effect fully (the environment map; capture_lighting full: true), like a
     // frame with LightingParameters::forceFullUpdates
     void requestFullUpdate() { fullUpdateRequested = true; }
-    // The mip of the Environment preview (the front cube's, 0..EnvironmentMap::kMips - 1)
-    void setEnvironmentPreviewMip(int mip) { environmentPreviewMip = mip; }
-    int previewMip() const { return environmentPreviewMip; }
     DebugLines& debugLines() { return *lines; }
     // The statistics of the newest recorded frame (the luminance reduction when it was requested)
     const LightingStatistics& lightingStatistics() const { return lightStats; }
@@ -396,9 +393,8 @@ class SAIGA_VULKAN_API RenderScene
     LightingDebugState userDebug, frameDebug;
     std::optional<LightingDebugState> debugOverride;
     // The radiance views write raw values (the probe frames)
-    bool frameDebugRaw        = false;
-    int environmentPreviewMip = 0;
-    bool fullUpdateRequested  = false;
+    bool frameDebugRaw       = false;
+    bool fullUpdateRequested = false;
     // The last frame recorded no environment pass (its first frame back updates the environment map fully)
     bool environmentSkipped = false;
     std::optional<float> exposureViewCentre;

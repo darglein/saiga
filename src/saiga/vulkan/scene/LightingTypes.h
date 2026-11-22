@@ -95,6 +95,9 @@ struct AmbientSettings
 
 // The 2D cloud layer (A4): altitude above sea level and radius of the mesh (m), the seed of the coverage texture, the
 // distance over which cloud shadows fade to the mean coverage (m) and the height fog's falloff (1/m)
+// The largest cloud seed the Lighting tab and set_lighting take (an int)
+constexpr int kMaxCloudSeed = 2147483647;
+
 struct CloudSettings
 {
     float altitude   = 2000;
@@ -213,7 +216,7 @@ struct LightingDebugState
 // only); a1c the atmosphere's TransmittanceLut and SkyViewLut (luminance, cd/m^2), the environment map's Environment
 // (the front cube's mip as a cross, cd/m^2), Irradiance (its SH per direction, lux; capture only), the cloud layer's
 // CloudCoverage (the coverage at the cloudiness over the tile) and CloudShadow (the cloud shadow factor on the plane of
-// the camera height around the camera); a2 and b add theirs
+// the camera height around the camera), the a1c review the MultiScatteringLut (luminance); a2 and b add theirs
 enum class LightingImage : uint8_t
 {
     Luminance,
@@ -224,12 +227,15 @@ enum class LightingImage : uint8_t
     Irradiance,
     CloudCoverage,
     CloudShadow,
+    // S36a1c review: the atmosphere's multiple-scattering LUT (the luminance of rgb)
+    MultiScatteringLut,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {"luminance",   "brdf_lut",   "transmittance_lut", "sky_view_lut",
-                                  "environment", "irradiance", "cloud_coverage",    "cloud_shadow"};
+    static const char* names[] = {"luminance",      "brdf_lut",     "transmittance_lut",
+                                  "sky_view_lut",   "environment",  "irradiance",
+                                  "cloud_coverage", "cloud_shadow", "multi_scattering_lut"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -255,6 +261,9 @@ struct PreviewMapping
     float max         = 1;
     bool log          = false;
     ColorMap colorMap = ColorMap::Gray;
+    // The source's mip (the environment map's cube; 0 for the other images): part of the request, so a capture and the
+    // tab's preview of different mips do not overwrite each other (each frame converts one)
+    int mip = 0;
 };
 
 // The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the

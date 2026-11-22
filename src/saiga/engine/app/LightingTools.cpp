@@ -311,6 +311,31 @@ const std::vector<LightingKey>& lightingKeys()
                              [](LightingState& s) -> float& { return s.settings.starIntensity; }));
         k.push_back(floatKey("ground_albedo", false, 0, 1,
                              [](LightingState& s) -> float& { return s.settings.atmosphere.groundAlbedo; }));
+        // The a1c review: the rest of what the tab edits (the atmosphere's scales, the fog falloff, the cloud seed)
+        k.push_back(floatKey("rayleigh_scale", false, 0, 10,
+                             [](LightingState& s) -> float& { return s.settings.atmosphere.rayleighScale; }));
+        k.push_back(floatKey("mie_scale", false, 0, 10,
+                             [](LightingState& s) -> float& { return s.settings.atmosphere.mieScale; }));
+        k.push_back(floatKey("ozone_scale", false, 0, 10,
+                             [](LightingState& s) -> float& { return s.settings.atmosphere.ozoneScale; }));
+        k.push_back(floatKey("fog_falloff", false, 0, 0.1,
+                             [](LightingState& s) -> float& { return s.settings.clouds.fogFalloff; }));
+        k.push_back(LightingKey{"cloud_seed", false,
+                                [](const LightingState& s) { return Json(double(s.settings.clouds.seed)); },
+                                [](const Json& j, LightingState& s, std::string& error)
+                                {
+                                    double v = 0;
+                                    if (!number(j, "cloud_seed", 0, double(Vulkan::kMaxCloudSeed), v, error))
+                                        return false;
+                                    if (v != std::floor(v))
+                                    {
+                                        error = "cloud_seed: an integer";
+                                        return false;
+                                    }
+                                    s.settings.clouds.seed = uint32_t(v);
+                                    return true;
+                                },
+                                "cloud_seed [0, 2147483647] (an integer)"});
         // The LightingParameters (a1)
         k.push_back(boolKey("clouds", true, [](LightingState& s) -> bool& { return s.parameters.clouds; }));
         k.push_back(LightingKey{"environment_resolution", true,
@@ -865,6 +890,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = McpServer::BooleanProperty(n);
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
+        else if (n == "cloud_seed")
+            p = McpServer::IntegerProperty(k.description);
         else
             p = McpServer::NumberProperty(k.description.empty() ? n : k.description);
         setProperties[n] = p;
@@ -874,8 +901,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "Changes the lighting settings (not world state: not replicated, not saved), validated as a whole and applied "
         "all or nothing from the next frame: tone_map (aces, identity), exposure_mode (time_of_day, fixed), ev100, "
         "exposure_compensation (EV, +1 is twice as bright), ambient_scale, min_ambient ([r, g, b] lux), sun_override "
-        "({azimuth_deg, elevation_deg} or null), cloud_altitude, cloud_radius, cloud_shadow_fade (m), star_intensity, "
-        "ground_albedo, and the LightingParameters clouds, environment_resolution, environment_update_degrees, "
+        "({azimuth_deg, elevation_deg} or null), cloud_altitude, cloud_radius, cloud_shadow_fade (m), cloud_seed (the "
+        "coverage texture's), star_intensity, ground_albedo, rayleigh_scale, mie_scale, ozone_scale (the atmosphere's "
+        "coefficients), fog_falloff (1/m), and the LightingParameters clouds, environment_resolution, "
+        "environment_update_degrees, "
         "force_full_updates. Returns values and previous (previous is an undo payload of this tool). An error names "
         "every invalid key and changes nothing.",
         schema(setProperties),
@@ -1007,26 +1036,24 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "capture_lighting",
         "Captures a lighting debug image as a picture plus a JSON text block: what it shows (the mapping range, log, "
-        "colour map, the size) and the numbers of its source values (min, max, mean, count and a 16-bin histogram over "
-        "the mapped range; with a manual range the edge bins also count the values below and above it). image: "
-        "luminance (the resolved HDR luminance of the frame in cd/m^2, the display luminance "
-        "in clay mode; log2 by default), brdf_lut (the split-sum BRDF LUT's scale A), transmittance_lut (the "
-        "atmosphere's transmittance, luminance), sky_view_lut (the sky's radiance by azimuth and elevation, cd/m^2, "
-        "log2 "
-        "by default), environment (the environment map's front cube as a cross of the mip mip, cd/m^2, log2 by "
-        "default) "
-        "irradiance (its SH irradiance per direction, equirectangular, lux), cloud_coverage (the cloud layer's "
-        "coverage at "
-        "the cloudiness over its 16 km tile) or cloud_shadow (the cloud shadow factor on the plane of the camera "
-        "height "
-        "around the camera, +- the shadow fade). range (\"auto\" or [min, max]), "
-        "log, color_map (gray, turbo) set the mapping; stats_only: true returns the block without an image (the one "
-        "path to the statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, "
-        "64..8192); full: true updates incremental effects fully first (the environment map). Deferred: answered from "
-        "the frame that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
-        schema({{"image", McpServer::StringProperty(
-                              "The image", {"luminance", "brdf_lut", "transmittance_lut", "sky_view_lut", "environment",
-                                            "irradiance", "cloud_coverage", "cloud_shadow"})},
+        "colour map, the size, the mip) and the numbers of its source values (min, max, mean, count and a 16-bin "
+        "histogram over the mapped range; with a manual range the edge bins also count the values below and above "
+        "it). image: luminance (the resolved HDR luminance of the frame in cd/m^2, the display luminance in clay mode; "
+        "log2 by default), brdf_lut (the split-sum BRDF LUT's scale A), transmittance_lut (the atmosphere's "
+        "transmittance, luminance), multi_scattering_lut (the atmosphere's multiple-scattering transfer, luminance), "
+        "sky_view_lut (the sky's radiance by azimuth and elevation, cd/m^2, log2 by default), environment (the "
+        "environment map's front cube as a cross of the mip mip, cd/m^2, log2 by default), irradiance (its SH "
+        "irradiance per direction, equirectangular, lux), cloud_coverage (the cloud layer's coverage at the "
+        "cloudiness over its 16 km tile) or cloud_shadow (the cloud shadow factor on the plane of the camera height "
+        "around the camera, +- the shadow fade). range (\"auto\" or [min, max]), log, color_map (gray, turbo) set "
+        "the mapping; mip: the environment's mip (0..4, default 0; a request of its own, the Lighting tab's mip is "
+        "not changed); stats_only: true returns the block without an image (the one path to the statistics of a GPU "
+        "image); format png (default) or jpg, downscaled to max_width (default 1280, 64..8192); full: true updates "
+        "incremental effects fully first (the environment map). Deferred: answered from the frame that computes the "
+        "preview; an error when no frame is rendered before the deadline. Changes nothing.",
+        schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut", "transmittance_lut",
+                                                                  "multi_scattering_lut", "sky_view_lut", "environment",
+                                                                  "irradiance", "cloud_coverage", "cloud_shadow"})},
                 {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
                 {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
                 {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
@@ -1048,9 +1075,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 a["image"].is_string() ? Vulkan::lightingImageFromName(a["image"].string_value()) : std::nullopt;
             if (!parsed)
                 return respond(ToolResult::Error(
-                    "image: luminance, brdf_lut, transmittance_lut, sky_view_lut, environment, irradiance, "
-                    "cloud_coverage or cloud_shadow"));
+                    "image: luminance, brdf_lut, transmittance_lut, multi_scattering_lut, sky_view_lut, environment, "
+                    "irradiance, cloud_coverage or cloud_shadow"));
             const Vulkan::LightingImage image = *parsed;
+            int mip                           = 0;
             if (!a["mip"].is_null())
             {
                 const double m = a["mip"].number_value();
@@ -1058,13 +1086,14 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     return respond(ToolResult::Error("mip: an integer 0..4"));
                 if (image != Vulkan::LightingImage::Environment)
                     return respond(ToolResult::Error("mip: only for image environment"));
-                scene->setEnvironmentPreviewMip(int(m));
+                mip = int(m);
             }
             Vulkan::PreviewMapping mapping;
             mapping.log = image == Vulkan::LightingImage::Luminance || image == Vulkan::LightingImage::SkyViewLut ||
                           image == Vulkan::LightingImage::Environment;
             if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
                 return respond(ToolResult::Error(error));
+            mapping.mip = mip;
             for (const char* b : {"full", "stats_only"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
@@ -1112,6 +1141,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                                                     : "cd/m^2 (clay: the display luminance)";
                     if (name == "sky_view_lut" || name == "environment")
                         block["unit"] = mapping.log ? "log2 cd/m^2" : "cd/m^2";
+                    if (name == "environment") block["mip"] = mapping.mip;
+                    if (name == "multi_scattering_lut")
+                        block["unit"] = "multiple-scattering transfer (luminance of rgb, per unit illuminance)";
                     if (name == "irradiance") block["unit"] = mapping.log ? "log2 lux" : "lux";
                     if (name == "transmittance_lut") block["unit"] = "transmittance (luminance of rgb)";
                     if (name == "cloud_coverage") block["unit"] = "coverage (opacity 0..1)";

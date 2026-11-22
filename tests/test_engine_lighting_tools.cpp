@@ -118,9 +118,10 @@ void renderLightingTab(EngineApp& app)
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
     const Vulkan::LightingImage images[] = {
-        Vulkan::LightingImage::Luminance,        Vulkan::LightingImage::Environment,
-        Vulkan::LightingImage::TransmittanceLut, Vulkan::LightingImage::SkyViewLut,
-        Vulkan::LightingImage::CloudCoverage,    Vulkan::LightingImage::CloudShadow};
+        Vulkan::LightingImage::Luminance,         Vulkan::LightingImage::Environment,
+        Vulkan::LightingImage::TransmittanceLut,  Vulkan::LightingImage::SkyViewLut,
+        Vulkan::LightingImage::CloudCoverage,     Vulkan::LightingImage::CloudShadow,
+        Vulkan::LightingImage::MultiScatteringLut};
     uint32_t expected = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
@@ -339,6 +340,7 @@ TEST_F(LightingTools, SetLightingRoundTrip)
         "exposure_compensation": 1, "ambient_scale": 2, "min_ambient": [0.01, 0.02, 0.03],
         "sun_override": {"azimuth_deg": 90, "elevation_deg": 20}, "cloud_altitude": 1800, "cloud_radius": 30000,
         "cloud_shadow_fade": 5000, "star_intensity": 2, "ground_albedo": 0.3, "clouds": false,
+        "rayleigh_scale": 1.5, "mie_scale": 0.5, "ozone_scale": 2, "fog_falloff": 0.002, "cloud_seed": 7,
         "environment_resolution": 64, "environment_update_degrees": 1, "force_full_updates": true})");
     const Json r   = result(call(*app, "set_lighting", set));
     EXPECT_EQ(r["values"].object_items().size(), set.object_items().size());
@@ -353,6 +355,8 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_EQ(app->environmentSettings().exposure.ev100, 12.5f);
     EXPECT_EQ(app->scene()->lightingParameters().environmentResolution, 64);
     EXPECT_TRUE(app->environmentSettings().sunOverride.has_value());
+    EXPECT_EQ(app->environmentSettings().atmosphere.rayleighScale, 1.5f);
+    EXPECT_EQ(app->environmentSettings().clouds.seed, 7u);
     // The sun override moves the sun of the next frame; the next frame's EV100 is the fixed value minus the
     // compensation
     app->runFrames(1, 1.0 / 60);
@@ -375,9 +379,10 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_NE(text(bad).find("environment_resolution"), std::string::npos) << text(bad);
     EXPECT_NE(text(bad).find("ground_albedo"), std::string::npos) << text(bad);
     EXPECT_EQ(app->environmentSettings().exposure.ev100, 15.0f);
-    for (const char* args : {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})",
-                             R"({"min_ambient": [1, 2]})", R"({"sun_override": {"azimuth": 3}})",
-                             R"({"environment_resolution": 1024})", R"({"clouds": 1})", R"({"cascade_count": 4})"})
+    for (const char* args :
+         {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})", R"({"min_ambient": [1, 2]})",
+          R"({"sun_override": {"azimuth": 3}})", R"({"environment_resolution": 1024})", R"({"clouds": 1})",
+          R"({"cascade_count": 4})", R"({"cloud_seed": 1.5})", R"({"cloud_seed": -1})", R"({"mie_scale": 11})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
     // tone_map identity is clay: get_lighting says so
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "identity"})"))));
@@ -557,6 +562,7 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
     const std::vector<std::pair<std::string, Json>> images = {
         {R"({"image": "transmittance_lut"})", Json(Json::array{256, 64})},
         {R"({"image": "sky_view_lut"})", Json(Json::array{192, 108})},
+        {R"({"image": "multi_scattering_lut"})", Json(Json::array{32, 32})},
         {R"({"image": "environment", "mip": 1, "full": true})", Json(Json::array{256, 192})},
         {R"({"image": "irradiance"})", Json(Json::array{128, 64})},
         {R"({"image": "cloud_coverage"})", Json(Json::array{512, 512})},
@@ -568,6 +574,10 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
         const Json block = imageBlock(r);
         EXPECT_EQ(block["size"], size) << args;
         EXPECT_FALSE(block["unit"].string_value().empty()) << args;
+        if (args.find("environment") != std::string::npos)
+        {
+            EXPECT_EQ(block["mip"], Json(1)) << args;
+        }
         // The cloud shadow may be uniform (a low sun fades it to the mean)
         if (args.find("cloud_shadow") == std::string::npos)
         {
@@ -739,6 +749,31 @@ TEST_F(LightingTabTest, RendersAndWrites)
         x += ImGui::CalcTextSize(("F" + std::to_string(i + 1) + " " + app->debugUi().tabName(i)).c_str()).x + 2 * 6 + 2;
     click(*app, ImVec2(x + 10, app->debugUi().barHeight() / 2));
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
+}
+
+// capture_lighting's mip is a value of its request: with the tab's Ambient section open (its preview at mip 0 every
+// frame) the capture returns the mip it asked for, and the tab's mip stays (review M5: the mip was scene state the tab
+// overwrote each frame, and the call changed the tab's preview)
+TEST_F(LightingTabTest, CaptureMipWithTabOpen)
+{
+    // Only the Ambient section open (its preview on screen)
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Ambient", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->scene()->setToneMap(Vulkan::ToneMap::Aces);
+    app->runFrames(2, 1.0 / 60);
+    const Json r = callFrames(*app, "capture_lighting", obj(R"({"image": "environment", "mip": 3})"));
+    ASSERT_FALSE(isError(r)) << text(r);
+    const Json block = imageBlock(r);
+    const int n      = app->scene()->lightingParameters().environmentResolution >> 3;
+    EXPECT_EQ(block["size"], Json(Json::array{4 * n, 3 * n}));
+    EXPECT_EQ(block["mip"], Json(3));
+    // The mip is not left behind: a capture without it is mip 0
+    const Json r0 = callFrames(*app, "capture_lighting", obj(R"({"image": "environment"})"));
+    ASSERT_FALSE(isError(r0)) << text(r0);
+    EXPECT_EQ(imageBlock(r0)["size"], Json(Json::array{32 * n, 24 * n}));
+    EXPECT_EQ(imageBlock(r0)["mip"], Json(0));
 }
 
 // S36: the write of the Lighting tab's settings (setEnvironmentSettings, which its compensation slider calls; the

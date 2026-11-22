@@ -794,9 +794,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // S36a1c: the atmosphere's LUTs and the environment map's debug images (recorded on demand)
         src.set(LightingImage::TransmittanceLut, &s.atmosphere->transmittance(), 0);
         src.set(LightingImage::SkyViewLut, &s.atmosphere->skyView(), 0, 1.0f / Atmosphere::kSkyLutScale);
+        src.set(LightingImage::MultiScatteringLut, &s.atmosphere->multiScattering(), 0);
         if (previews && s.debugImages->requested(LightingImage::Environment))
-            src.set(LightingImage::Environment,
-                    s.envMap->recordDebug(cmd, frame.frameIndex, 0, s.environmentPreviewMip), 0);
+            src.set(
+                LightingImage::Environment,
+                s.envMap->recordDebug(cmd, frame.frameIndex, 0, s.debugImages->sourceMip(LightingImage::Environment)),
+                0);
         if (previews && s.debugImages->requested(LightingImage::Irradiance))
             src.set(LightingImage::Irradiance, s.envMap->recordDebug(cmd, frame.frameIndex, 1, 0), 0);
         // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
