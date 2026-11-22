@@ -12,7 +12,7 @@
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
  * F1-F4 the debug UI's tabs (F2 performance, F4 the console), F12 a screenshot, ESC quits. T toggles the terraform mode
  * (S22, game policy): the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain
- * under the screen centre, 10 edits per second while held, on the host world (also with --coop); radius and strength
+ * under the mouse cursor, 10 edits per second while held, on the host world (also with --coop); radius and strength
  * in the World window. The MCP tool edit_terrain does the same scriptably.
  *
  * MCP (http://127.0.0.1:8765/mcp, --mcp-port or SAIGA_MCP_PORT, 0 disables it): the engine's world and app tools and
@@ -46,6 +46,7 @@
 
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <fstream>
@@ -200,20 +201,40 @@ void initWorld(EngineApp& app)
     }
 }
 
-// The terrain point under the screen centre of the view camera: a march along the view direction over terrainHeight of
-// the rendered world (1 m steps, at most 4 km); false if the ray does not hit
-bool terrainUnderCenter(EngineApp& app, Vec3& hit)
+// The terrain point under the mouse cursor (the screen centre without a mouse position): a march along the cursor's
+// view ray over terrainHeight of the rendered world (1 m steps, at most 4 km), refined by bisection in the last step;
+// false if the ray does not hit
+bool terrainUnderCursor(EngineApp& app, Vec3& hit)
 {
     const ViewCamera& cam = app.viewCamera();
-    const Vec3 dir        = cam.rotation * Vec3(0, 0, -1);
     const World& w        = app.world();
-    Vec3 p                = cam.position;
+    // The cursor in normalized device coordinates (x right, y up); ImGui's mouse and display size share window units
+    const ImGuiIO& io = ImGui::GetIO();
+    double nx = 0, ny = 0;
+    if (io.DisplaySize.x > 0 && io.DisplaySize.y > 0 && ImGui::IsMousePosValid(&io.MousePos))
+    {
+        nx = 2.0 * double(io.MousePos.x) / double(io.DisplaySize.x) - 1.0;
+        ny = 1.0 - 2.0 * double(io.MousePos.y) / double(io.DisplaySize.y);
+    }
+    const double t      = std::tan(cam.fovy * 0.5);
+    const double aspect = io.DisplaySize.y > 0 ? double(io.DisplaySize.x) / double(io.DisplaySize.y) : 1.0;
+    const Vec3 dir      = (cam.rotation * Vec3(nx * t * aspect, ny * t, -1)).normalized();
+    auto below          = [&](const Vec3& q) { return q.y() <= w.terrainHeight(cam.space, q.x(), q.z()); };
+    Vec3 p              = cam.position;
+    if (below(p)) return false;
     for (int i = 0; i < 4000; ++i)
     {
         const Vec3 q = p + dir;
-        if (q.y() <= w.terrainHeight(cam.space, q.x(), q.z()))
+        if (below(q))
         {
-            hit = Vec3(q.x(), w.terrainHeight(cam.space, q.x(), q.z()), q.z());
+            // p is above, q below the terrain: bisect the 1 m step to a few millimetres
+            Vec3 a = p, b = q;
+            for (int k = 0; k < 10; ++k)
+            {
+                const Vec3 m       = (a + b) * 0.5;
+                (below(m) ? b : a) = m;
+            }
+            hit = Vec3(b.x(), w.terrainHeight(cam.space, b.x(), b.z()), b.z());
             return true;
         }
         p = q;
@@ -233,7 +254,7 @@ void terraformEdit(EngineApp& app)
     // 0.1 s)
     if (app.world().spaceTemplate(app.viewCamera().space).kind != SpaceKind::OpenWorld) return;
     Vec3 hit;
-    if (!terrainUnderCenter(app, hit)) return;
+    if (!terrainUnderCursor(app, hit)) return;
     g.lastEdit = now;
     TerrainBrush b;
     b.op = TerrainBrush::Op(g.terraformOp);

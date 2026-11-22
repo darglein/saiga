@@ -629,7 +629,7 @@ The §22 row does not require a demo change. Minimal, because the 32 km world is
 benchmark lives there:
 
 - Key `T` toggles the terraform mode; while it is on, the left / right mouse button raises / lowers (`1`..`4` select
-  add, subtract, flatten, smooth) at the terrain point under the screen center (found by marching `terrainHeight` of
+  add, subtract, flatten, smooth) at the terrain point under the mouse cursor (found by marching `terrainHeight` of
   the rendered world in game code). The game calls `app.startWorld().editTerrain(space, brush)` between steps (in
   `beforeRender`) at 10 edits/s while a button is held: `startWorld()` is the host world, also with `--coop` (S16b),
   where the rendered world is a client and an edit on it would stop the program (R-NET-1); the edit reaches the
