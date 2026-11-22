@@ -965,6 +965,7 @@ class VulkanSceneContent : public VulkanScene
         return img;
     }
 
+    void RunImportedMeshGolden(bool pbr);
     TestCamera camera;
 };
 
@@ -1572,7 +1573,7 @@ TEST(VulkanMeshImport, FlatBox)
 }
 
 // The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden
-TEST_F(VulkanSceneContent, ImportedMeshGolden)
+void VulkanSceneContent::RunImportedMeshGolden(bool pbr)
 {
     MeshLods lods;
     MaterialData material;
@@ -1581,7 +1582,8 @@ TEST_F(VulkanSceneContent, ImportedMeshGolden)
     lods.lods[0].endDistance = 50;
     lods.lods[1].endDistance = 100;
     RenderSceneParameters p;
-    p.msaaSamples = 4;
+    p.msaaSamples  = 4;
+    p.lighting.pbr = pbr;
     CreateScene(p);
     scene->addMaterial(1, "box", material);
     scene->addMesh(1, "box", lods, 1);
@@ -1603,6 +1605,18 @@ TEST_F(VulkanSceneContent, ImportedMeshGolden)
     EXPECT_NE(top, left);
     EXPECT_NE(left, right);
     compareGolden(img, "scene_flat_box", deviceName());
+}
+
+TEST_F(VulkanSceneContent, ImportedMeshGolden)
+{
+    RunImportedMeshGolden(false);
+}
+
+// S36a1b: the same golden with the LIGHTING_PBR variant (clay: the studio environment keeps the material colours)
+TEST_F(VulkanSceneContent, ImportedMeshGoldenPbr)
+{
+    if (goldenUpdateMode()) GTEST_SKIP() << "the golden is written by the legacy variant";
+    RunImportedMeshGolden(true);
 }
 #endif
 

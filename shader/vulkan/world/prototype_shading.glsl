@@ -7,7 +7,10 @@
 // The prototype's shading with explicit parameters (S19a): clay lighting (sun + hemisphere ambient), exponential height
 // fog, the LOD tint, the output encoding and the alpha sharpening of the foliage cards. Shared by the world shaders
 // (through shading.glsl: terrain, water, grass, sky) and RenderScene's PrototypeFoliage class
-// (vulkan/scene/prototype_foliage.frag). Fragment shaders only (derivatives).
+// (vulkan/scene/prototype_foliage.frag). Fragment shaders only (derivatives). Guarded: S36's lighting.glsl includes it
+// next to the legacy shading of the same shader.
+#ifndef PROTOTYPE_SHADING_GLSL
+#define PROTOTYPE_SHADING_GLSL
 
 // Uniform gray with sun + hemisphere light. sunDir: towards the sun (normalized here)
 vec3 protoClayLighting(vec3 N, float ao, vec3 sunDir, float sunIntensity, float albedo, float ambient)
@@ -88,3 +91,4 @@ float foliageCoverage(sampler2DArray foliage, vec3 uvLayer, float cutoff)
     // Sharpen the edge to about one pixel (alpha to coverage)
     return (alpha - cutoff) / max(fwidth(alpha), 1e-4) + 0.5;
 }
+#endif

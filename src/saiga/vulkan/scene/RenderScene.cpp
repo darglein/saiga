@@ -10,11 +10,14 @@
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/pipeline/DescriptorSet.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
+#include "saiga/vulkan/scene/BrdfLut.h"
 #include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/SceneCulling.h"
+#include "saiga/vulkan/scene/SceneLightingSet.h"
+#include "saiga/vulkan/scene/SkyAmbient.h"
 #include "saiga/vulkan/texture/Sampler.h"
 #include "saiga/vulkan/texture/Texture.h"
 #include "saiga/vulkan/window/Window.h"
@@ -261,6 +264,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     RenderScene& s = scene;
     // An acquired frame: latched before any callback (a renderFrame call without a frame keeps the last frame's values)
     s.latchFrame();
+    // The light model's pipelines (S36a1b: LightingParameters::pbr; a change creates the variant's pipelines, the old
+    // ones are released after the frames in flight)
+    s.culling->setPbr(s.framePbr);
+    s.terrain->setPbr(s.framePbr);
+    s.grass->setPbr(s.framePbr);
     const bool msaa      = samples != vk::SampleCountFlagBits::e1;
     const bool linear    = s.sceneWritesLinear();
     const bool custom    = msaa && linear;  // the tone-map weighted resolve (Identity: the hardware average)
@@ -319,7 +327,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
 #ifdef SAIGA_ASSERTS
         if (!s.foliage) s.checkFoliageInstances();
 #endif
-        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera, lighting);
+        s.writeLightingSet(cmd, frame.frameIndex, lighting);
+        s.culling->recordTransfer(cmd, frame.frameIndex, *s.meshPool, *s.instanceBuffer, camera,
+                                  lighting.fog(2) > 0.5f);
         // ... and make the writes visible to this frame's culling and draws.
         vk::MemoryBarrier2 raw(Stage::eAllTransfer, Access::eTransferWrite,
                                Stage::eVertexInput | Stage::eVertexShader | Stage::eFragmentShader |
@@ -626,8 +636,16 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     renderer            = std::make_unique<SceneFrameRenderer>(*this, window, vp);
     meshPool            = std::make_unique<MeshPool>();
     meshPool->init(base(), params.vertexCapacity, params.indexCapacity);
-    culling = std::make_unique<SceneCulling>();
-    culling->init(base(), formats(), params);
+    // The lighting (S36): set 1 of the scene draws, the ambient, the BRDF LUT
+    lightingSet = std::make_unique<SceneLightingSet>();
+    lightingSet->init(base());
+    ambient = std::make_unique<SkyAmbient>();
+    ambient->init(base());
+    brdf = std::make_unique<BrdfLut>();
+    brdf->init(base());
+    framePbr = params.lighting.pbr;
+    culling  = std::make_unique<SceneCulling>();
+    culling->init(base(), formats(), params, *lightingSet);
     protoSettings = std::make_unique<PrototypeSettings>();
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
     instanceBuffer = std::make_unique<InstanceBuffer>();
@@ -635,9 +653,9 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     atlas = std::make_unique<TerrainAtlas>();
     atlas->init(base(), params, culling->storageLimit());
     terrain = std::make_unique<TerrainPass>();
-    terrain->init(base(), formats());
+    terrain->init(base(), formats(), *lightingSet, framePbr);
     grass = std::make_unique<GrassPass>();
-    grass->init(base(), formats());
+    grass->init(base(), formats(), *lightingSet, framePbr);
     // The values the first frame latches (the game's init may read them)
     latchFrame();
 }
@@ -651,6 +669,9 @@ RenderScene::~RenderScene()
     terrain.reset();
     atlas.reset();
     foliage.reset();
+    brdf.reset();
+    ambient.reset();
+    lightingSet.reset();
     instanceBuffer.reset();
     meshPool.reset();
 }
@@ -685,7 +706,9 @@ bool RenderScene::renderFrame(const Callback& transferCb, const Callback& render
 void RenderScene::latchFrame()
 {
     // Once per recorded frame, before any callback (setters apply from the next frame)
+    framePbr        = params.lighting.pbr;
     frameToneMap    = params.toneMap;
+    framePhysical   = envSet && frameToneMap != ToneMap::Identity;
     frameMultiplier = frameToneMap == ToneMap::Identity ? 1.0f : params.exposure;
     // S36 (D18): a scene with an environment exposes its EV100 (the multiplier on top); without one the multiplier is
     // the unit-less exposure, as before
@@ -935,7 +958,6 @@ void RenderScene::setPrototypeEnvironment(const PrototypeSettings& settings, uin
     // The frames in flight may use the previous texture
     renderer->waitIdle();
     culling->setFoliageTexture(nullptr);
-    terrain->setFoliageTexture(nullptr);
     foliage = std::make_unique<Texture2DArray>();
     {
         auto layers = FoliageGenerator::foliageTextures(512, foliageSeed);
@@ -944,7 +966,6 @@ void RenderScene::setPrototypeEnvironment(const PrototypeSettings& settings, uin
         foliage->fromImages(base(), images, vk::ImageUsageFlagBits::eSampled, false, true);
     }
     culling->setFoliageTexture(foliage.get());
-    terrain->setFoliageTexture(foliage.get());
     *protoSettings = settings;
 }
 
@@ -977,14 +998,97 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
                                 SceneLighting& out) const
 {
     out = SceneLighting();
+    // The fog's base: the terrain set's sea level (the new path's environment, S20)
+    const std::optional<int64_t> sea = atlas->seaLevel();
+    const double fogBase             = sea ? double(*sea) * kHeightUnit : 0.0;
+    // ---- the legacy S19a model (the default pipeline variant)
     // An enclosed camera space (S21): the fixed enclosed lighting, independent of the game's environment
     if (enclosed) prototypeLighting(kEnclosedLighting, sceneTime, 0.0f, out);
     // The new path's environment (S20): the fog's base is the terrain set's sea level
     else if (foliage)
-        prototypeLighting(proto, sceneTime, atlas->seaLevel() ? float(double(*atlas->seaLevel()) * kHeightUnit) : 0.0f,
-                          out);
+        prototypeLighting(proto, sceneTime, float(fogBase), out);
     const vec3 p = camera.position.cast<float>();
     out.camera   = vec4(p(0), p(1), p(2), float(samples));
+
+    // ---- S36 (the LIGHTING_PBR variant)
+    const bool physical = physicalLighting();
+    out.mode            = uvec4(physical ? 1u : 0u, enclosed ? 1u : 0u, 0u, 0u);
+    out.exposure =
+        vec4(frameEffectiveExposure, framePreExposure, envSet ? env.ev100 : 0.0f, sceneWritesLinear() ? 1 : 0);
+    const StudioEnvironment studio = studioEnvironment(enclosed);
+    const vec3 sd                  = studio.sunDir.normalized();
+    out.studioSun                  = vec4(sd(0), sd(1), sd(2), studio.sunIntensity);
+    out.studioShading              = vec4(studio.ambient, studio.hemisphere ? 1 : 0, studio.albedo, 0);
+    const float cameraAboveBase    = float(camera.position.y() - fogBase);
+    if (!physical)
+    {
+        out.fogParams   = vec4(studio.fogDensity, studio.fogFalloff, studio.fog ? 1 : 0, cameraAboveBase);
+        out.fogColorLin = vec4(studio.fogColor(0), studio.fogColor(1), studio.fogColor(2), 1);
+    }
+    if (envSet)
+    {
+        const EnvironmentState& e = env;
+        out.sun                   = vec4(e.sunDir(0), e.sunDir(1), e.sunDir(2), e.sunIlluminance);
+        out.moon                  = vec4(e.moonDir(0), e.moonDir(1), e.moonDir(2), e.moonIlluminance);
+        // The shadow light (D13; a2 adds the hysteresis): the body with the higher illuminance on the ground
+        const float sunGround  = e.sunIlluminance * std::max(e.sunDir(1), 0.0f);
+        const float moonGround = e.moonIlluminance * std::max(e.moonDir(1), 0.0f);
+        if (sunGround > 0 && sunGround >= moonGround)
+            out.shadowLight = vec4(e.sunDir(0), e.sunDir(1), e.sunDir(2), 1);
+        else if (moonGround > 0)
+            out.shadowLight = vec4(e.moonDir(0), e.moonDir(1), e.moonDir(2), 2);
+        out.minAmbient      = vec4(e.minAmbient(0), e.minAmbient(1), e.minAmbient(2), e.ambientScale);
+        out.enclosedAmbient = vec4(e.enclosedAmbient(0), e.enclosedAmbient(1), e.enclosedAmbient(2), 0);
+        out.clouds          = vec4(out.clouds(0), out.clouds(1), e.cloudiness, out.clouds(3));
+        out.cloudMotion     = vec4(e.cloudOffset(0), e.cloudOffset(1), e.wind(0), e.wind(1));
+        for (int r = 0; r < 3; ++r)
+            out.starRotation[r] = vec4(e.starRotation(r, 0), e.starRotation(r, 1), e.starRotation(r, 2), 0);
+        out.phases[0] = vec4(e.phases[0], e.phases[1], e.phases[2], e.phases[3]);
+        out.phases[1] = vec4(e.phases[4], e.phases[5], e.phases[6], e.phases[7]);
+        if (physical)
+        {
+            // The height fog with the weather's density (a1c: the atmosphere's colour and CloudSettings::fogFalloff);
+            // the colour: the sky's radiance
+            const vec3 c    = SkyAmbient::skyRadiance(e);
+            const bool on   = !e.enclosed && e.fogDensity > 0;
+            out.fogParams   = vec4(e.fogDensity, proto.fogFalloff, on ? 1 : 0, cameraAboveBase);
+            out.fogColorLin = vec4(c(0), c(1), c(2), 1);
+        }
+    }
+    // The prototype albedo colours (D21)
+    const PrototypeAlbedo& a = proto.colors;
+    auto rgb                 = [](const vec3& v, float w) { return vec4(v(0), v(1), v(2), w); };
+    out.albedoGround         = rgb(a.ground, a.rockSlope);
+    out.albedoRock           = rgb(a.rock, 0);
+    out.albedoShore          = rgb(a.shore, 0);
+    out.albedoWater          = rgb(a.water, 0);
+    out.albedoGrass          = rgb(a.grass, 0);
+    out.albedoLeaves         = rgb(a.leaves, 0);
+    out.albedoBark           = rgb(a.bark, 0);
+    out.sea                  = vec4(sea ? float(camera.position.y() - fogBase) : 0.0f, sea ? 1.0f : 0.0f, 0, 0);
+}
+
+StudioEnvironment RenderScene::studioEnvironment(bool enclosed) const
+{
+    if (studioOverride) return *studioOverride;
+    // An enclosed space: the prototype preset without fog (S21's kEnclosedLighting)
+    if (enclosed) return studioFromPrototype(kEnclosedLighting);
+    return foliage ? studioFromPrototype(*protoSettings) : sceneStudio();
+}
+
+void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& block)
+{
+    ambient->update(cmd, frameIndex, env);
+    SceneLightingBindings b;
+    b.ambient = ambient->bindings(frameIndex);
+    if (foliage) b.foliage = foliage->getDescriptorInfo();
+    b.brdfLut = brdf->lut().getDescriptorInfo();
+    lightingSet->write(frameIndex, block, b);
+}
+
+uint64_t RenderScene::scenePipelineCreations() const
+{
+    return culling->pipelineCreations();
 }
 
 void RenderScene::addMesh(MeshId id, const std::string& name, const MeshLods& lods, MaterialId material)

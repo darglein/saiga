@@ -9,6 +9,7 @@
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
+#include "saiga/vulkan/scene/SceneLighting.h"
 #include "saiga/vulkan/scene/UploadBatch.h"
 #include "saiga/vulkan/texture/Texture.h"
 
@@ -21,6 +22,7 @@ namespace Vulkan
 {
 class MeshPool;
 class InstanceBuffer;
+class SceneLightingSet;
 
 // The camera of a frame (computed by RenderScene in double)
 struct SceneCamera
@@ -37,29 +39,6 @@ struct SceneCamera
     bool linear                = false;
 };
 
-// The lighting block of the instance draws (std140, shader/vulkan/scene/scene_lighting.glsl; S19a, a RenderScene block
-// until S36's lighting): the defaults are S18's fixed light (sun normalize(0.4, 1, 0.7) with 0.8, ambient 0.35, no
-// hemisphere term, fog off); RenderScene::setPrototypeEnvironment takes the prototype's sun, ambient, fog and wind
-struct SceneLighting
-{
-    // xyz: towards the sun (normalized), w: intensity
-    vec4 sunDir = vec4(0.3113996f, 0.7784989f, 0.5449493f, 0.8f);
-    // x: ambient, y: 1 hemisphere ambient (0.6 + 0.4 n.y, the prototype's) else constant, z: albedo (foliage clay), w:
-    // the foliage's alpha cutoff
-    vec4 ambient = vec4(0.35f, 0, 0.55f, 0.45f);
-    // x: density, y: height falloff, z: enabled (0/1), w: the fog's base height (the water level)
-    vec4 fog      = vec4(0, 0, 0, 0);
-    vec4 fogColor = vec4(0.42f, 0.42f, 0.42f, 1);
-    // xyz: the camera position (float, the space's coordinates: the foliage's wind phase and the fog height), w: the
-    // MSAA samples
-    vec4 camera = vec4(0, 0, 0, 1);
-    // xyz: the tree wind phases fmod(time * (1.1, 0.9, 4.0), 2 pi) (computed in double), w: the wind strength
-    vec4 wind = vec4(0, 0, 0, 0);
-    // x: debug mode (1: tint by LOD)
-    vec4 debug = vec4(0, 0, 0, 0);
-};
-static_assert(sizeof(SceneLighting) == 112, "SceneLighting of scene_lighting.glsl");
-
 /**
  * The GPU culling and the instance draws of RenderScene (S18, docs/engine_design.md §10.2):
  *   1. CPU: the instance sets' bounds against the frustum and their meshes' end distances -> work chunks of at most 256
@@ -75,7 +54,9 @@ static_assert(sizeof(SceneLighting) == 112, "SceneLighting of scene_lighting.gls
  *      two-sided) also in the depth pre-pass (depth only, the same vertex shader with invariant gl_Position), then in
  *      the scene pass with EQUAL and no depth write; the PrototypeFoliage class (prototype_foliage.vert/.frag, alpha
  *      to coverage, the foliage texture) is never in the pre-pass. The draw pipelines have a second descriptor set
- *      (per frame slot): the lighting block (SceneLighting) and the foliage texture.
+ *      (per frame slot): set 1 of SceneLightingSet (S36: the lighting block, the foliage texture, the lighting's
+ *      resources). S36a1b: two pipeline variants, the legacy S19a light model (with its SCENE_FOG variant) and the
+ *      LIGHTING_PBR one (LightingParameters::pbr; created on demand by setPbr, the other variant's pipelines released).
  * Shared device buffers (counts, scratch, compacted, commands, bucket LODs) are recreated at frame start when too
  * small; the per-frame host visible buffers (offset table, work chunks, dynamics, statistics, staging) belong to a
  * frame slot (its previous frame has completed). One descriptor set per frame slot with every binding, rewritten for
@@ -86,15 +67,25 @@ static_assert(sizeof(SceneLighting) == 112, "SceneLighting of scene_lighting.gls
 class SAIGA_VULKAN_API SceneCulling
 {
    public:
-    void init(VulkanBase& base, const RenderingFormats& formats, const RenderSceneParameters& params);
+    // lighting: set 1 of the draws (RenderScene's, outlives this)
+    void init(VulkanBase& base, const RenderingFormats& formats, const RenderSceneParameters& params,
+              SceneLightingSet& lighting);
     // The size limit of a storage buffer bound whole (maxStorageBufferRange or the parameters' lower test limit)
     uint64_t storageLimit() const { return storageBytes; }
     void destroy();
 
+    // The draw pipelines of the light model (LightingParameters::pbr; at a frame start, outside of the recording): a
+    // change creates the variant's pipelines and releases the others (deferred)
+    void setPbr(bool pbr);
+    bool pbr() const { return pbrVariant; }
+    // The pipelines created since init (tests: a debug view switch creates none)
+    uint64_t pipelineCreations() const { return creations; }
+
     // The transfer section: growth copies, uploads (meshes, instances, tables, the commands' static fields), the
-    // frame's offset table, work chunks and dynamics, the buffer sizes and the frame's descriptor set
+    // frame's offset table, work chunks and dynamics, the buffer sizes and the frame's descriptor set. fog: the legacy
+    // variant's SCENE_FOG pipelines (the lighting block's fog is enabled)
     void recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, InstanceBuffer& instances,
-                        const SceneCamera& camera, const SceneLighting& lighting);
+                        const SceneCamera& camera, bool fog);
     // The cull section (between transfer and scene): fill, count, scan, write
     void recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, const SceneCamera& camera);
     // Inside the depth pre-pass (depth only): the opaque classes; returns the number of indirect draw calls
@@ -103,8 +94,8 @@ class SAIGA_VULKAN_API SceneCulling
     // prepass: the opaque classes were drawn in the pre-pass (EQUAL, no depth write); returns the number of indirect
     // draw calls
     uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass);
-    // The foliage texture of the PrototypeFoliage class (RenderScene::setPrototypeEnvironment; nullptr: none), written
-    // into the frame slots' sets from the next recordTransfer
+    // The foliage texture of the PrototypeFoliage class exists (RenderScene::setPrototypeEnvironment; binding 1 of the
+    // lighting set): without it the class is not drawn
     void setFoliageTexture(Texture2DArray* texture) { foliageTexture = texture; }
 
     // The statistics the scan wrote into the frame slot's readback (instancesPerLod, nonEmptyBuckets, the tracked
@@ -119,8 +110,8 @@ class SAIGA_VULKAN_API SceneCulling
    private:
     struct Frame
     {
-        Buffer offsets, chunks, dynamics, stats, staging, lighting;
-        vk::DescriptorSet set, lightingSet;
+        Buffer offsets, chunks, dynamics, stats, staging;
+        vk::DescriptorSet set;
         uint32_t chunkCount = 0;
         bool culled         = false;
         // The snapshot of recordTransfer for the draws: each pipeline class's buckets, the buffers
@@ -138,8 +129,12 @@ class SAIGA_VULKAN_API SceneCulling
         uint32_t first, count, slot, pad;
     };
 
-    VulkanBase* base = nullptr;
-    bool multiDraw   = false;
+    VulkanBase* base              = nullptr;
+    SceneLightingSet* lightingSet = nullptr;
+    RenderingFormats sceneFormats;
+    bool multiDraw     = false;
+    bool pbrVariant    = false;
+    uint64_t creations = 0;
     // RenderSceneParameters::dynamicCapacity: the initial size of the dynamics and compacted buffers
     uint32_t dynamicCapacity      = 0;
     uint32_t maxDrawIndirectCount = 1;
@@ -154,6 +149,12 @@ class SAIGA_VULKAN_API SceneCulling
     // variant][class])
     std::array<Pipeline, 2> prepassPipelines;
     std::array<std::array<Pipeline, 2>, 2> equalPipelines;
+    // The LIGHTING_PBR variant (S36a1b): every class and the opaque classes after the pre-pass; the relative position
+    // is always a varying (no fog variant)
+    std::array<Pipeline, pipelineClassCount> pbrPipelines;
+    std::array<Pipeline, 2> pbrEqualPipelines;
+    void createDrawPipelines();
+    void destroyDrawPipelines();
     Texture2DArray* foliageTexture = nullptr;
     std::array<Frame, 2> frames;
     Buffer counts, scratch, compacted, commands, bucketLods;
@@ -171,7 +172,7 @@ class SAIGA_VULKAN_API SceneCulling
     // One workgroup per chunk, 2D beyond maxWorkGroups
     void dispatchChunks(vk::CommandBuffer cmd, uint32_t chunkCount) const;
     // The indirect draws of one class range with the pipeline (bound with the frame's sets and push constants)
-    uint32_t drawClass(vk::CommandBuffer cmd, Frame& f, int klass, Pipeline& p, const SceneCamera& camera);
+    uint32_t drawClass(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, Pipeline& p, const SceneCamera& camera);
 };
 
 }  // namespace Vulkan

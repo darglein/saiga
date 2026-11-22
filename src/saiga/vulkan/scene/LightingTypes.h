@@ -12,6 +12,7 @@
 #pragma once
 
 #include "saiga/core/math/math.h"
+#include "saiga/export.h"
 
 #include <algorithm>
 #include <cmath>
@@ -135,11 +136,43 @@ struct EnvironmentSettings
 // set_lighting key. Later parts of S36 add the shadow (a2) and local light (b) fields.
 struct LightingParameters
 {
+    // a1b-a1c: the scene pipelines' variant: false the legacy S19a light model, true the S36 model (the shader define
+    // LIGHTING_PBR: shadeSurface of lighting.glsl with the studio environment in clay mode and physical units with an
+    // environment). A change recreates the scene pipelines at the next frame start. Removed in the a1c flip commit
+    bool pbr                       = false;
     int environmentResolution      = 128;    // 32..512, a power of two
     float environmentUpdateDegrees = 0.5f;   // the shadow light's movement that re-captures the environment map
     bool clouds                    = true;   // the cloud layer and its shadows
     bool forceFullUpdates          = false;  // golden mode (§17.6): every incremental effect updates fully every frame
 };
+
+// The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so
+// that clay reproduces the S19a light model exactly. Used by the LIGHTING_PBR variant in clay mode (ToneMap::Identity)
+// and in a scene without an environment (RenderScene::setEnvironment never called)
+struct StudioEnvironment
+{
+    vec3 sunDir        = vec3(0.3113996f, 0.7784989f, 0.5449493f);  // towards the sun (normalized)
+    float sunIntensity = 0.8f;
+    float ambient      = 0.35f;
+    // The hemisphere ambient ambient * (0.6 + 0.4 n.y) (else constant)
+    bool hemisphere = false;
+    // The clay albedo of the prototype's surfaces (terrain, water, grass, foliage); flat-colour instances keep their
+    // material colour
+    float albedo = 0.55f;
+    // The height fog (protoApplyFog of S19a): density, height falloff (1/m), colour; its base is the sea level
+    bool fog         = false;
+    float fogDensity = 0.00015f, fogFalloff = 0.0012f;
+    vec3 fogColor = vec3(0.42f, 0.42f, 0.42f);
+};
+
+// S18's fixed light: a RenderScene without the prototype environment
+inline StudioEnvironment sceneStudio()
+{
+    return StudioEnvironment();
+}
+// S19a's PrototypeSettings defaults (sun azimuth 35, elevation 38, intensity 1, hemisphere ambient 0.25, albedo 0.55,
+// fog 0.00015 / 0.0012, gray fog 0.42): the scene with the prototype environment (setPrototypeEnvironment)
+SAIGA_VULKAN_API StudioEnvironment prototypeStudio();
 
 }  // namespace Vulkan
 }  // namespace Saiga

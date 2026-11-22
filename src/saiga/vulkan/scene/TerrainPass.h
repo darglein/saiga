@@ -19,6 +19,7 @@ namespace Saiga
 namespace Vulkan
 {
 class TerrainAtlas;
+class SceneLightingSet;
 struct SceneCamera;
 struct PrototypeSettings;
 struct Texture2DArray;
@@ -117,9 +118,13 @@ class SAIGA_VULKAN_API TerrainPass
         int triangles = 0;
     };
 
-    void init(VulkanBase& base, const RenderingFormats& formats);
+    // lighting: set 1 of the terrain, water and sky pipelines (S36; RenderScene's, outlives this); pbr: the pipeline
+    // variant (LightingParameters::pbr)
+    void init(VulkanBase& base, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr);
     void destroy();
     ~TerrainPass() { destroy(); }
+    // The pipelines of the light model (S36a1b): recreated on a change (the old ones released deferred)
+    void setPbr(bool pbr);
 
     // The transfer section: the node selection, the frame's node instances and TerrainFrame, the descriptor set.
     // Draws nothing (and returns false) without a GPU-resident pyramid of the camera's space
@@ -145,10 +150,9 @@ class SAIGA_VULKAN_API TerrainPass
     const TerrainFrameUniforms& frameUniforms() const { return uniforms; }
     vk::DescriptorSet descriptorSet(uint32_t frameIndex) const { return frames[frameIndex].set; }
     Buffer& uniformBuffer(uint32_t frameIndex) { return frames[frameIndex].uniforms; }
-    // The descriptor set layout of the terrain passes (set 0): grass and sky pipelines are created with it
+    // The descriptor set layout of the terrain passes (set 0): grass pipelines are created with it (S36: the foliage
+    // texture moved to binding 1 of the lighting set)
     static DescriptorSetLayout setLayout();
-    // The foliage texture of the grass (binding 7), written into the frame sets from the next transfer
-    void setFoliageTexture(Texture2DArray* texture) { foliage = texture; }
     // The range of level 0 actually used (the morph minimum)
     double usedRange0() const { return range0; }
     // The LOD metric's height of the last frame (m): distances are sqrt(dxz^2 + lodHeight^2)
@@ -172,8 +176,14 @@ class SAIGA_VULKAN_API TerrainPass
         Buffer uniforms;
         vk::DescriptorSet set;
     };
-    VulkanBase* base = nullptr;
+    VulkanBase* base              = nullptr;
+    SceneLightingSet* lightingSet = nullptr;
+    RenderingFormats sceneFormats;
+    bool pbrVariant = false;
     Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline;
+    // The layouts the frame and sky sets are allocated from (independent of the pipelines, which setPbr recreates)
+    DescriptorSetLayout frameLayout, skyLayout;
+    void createPipelines();
     // The sky's sets (binding 0: the frame's uniform buffer), written once
     std::array<vk::DescriptorSet, 2> skySets;
     bool skyValid = false;
@@ -194,11 +204,10 @@ class SAIGA_VULKAN_API TerrainPass
     Range fullSkirt, fullPlain, quarterSkirt, quarterPlain;
     std::array<Frame, 2> frames;
     TerrainFrameUniforms uniforms;
-    Texture2DArray* foliage = nullptr;
-    bool initialized        = false;
-    bool frameValid         = false;
-    uint32_t lastFrame      = 0;
-    double range0           = 300;
+    bool initialized   = false;
+    bool frameValid    = false;
+    uint32_t lastFrame = 0;
+    double range0      = 300;
     // The LOD metric's height (TerrainFrame lod.z): the camera height above the surface under it
     double lodHeight = 0;
     // The frame's nodes: full, quarter, water (their instance ranges)

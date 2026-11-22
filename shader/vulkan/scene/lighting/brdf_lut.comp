@@ -1,0 +1,52 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The split-sum BRDF LUT of S36 (BrdfLut, A3): per texel (NdotV = (x + 0.5) / size, perceptual roughness = (y + 0.5) /
+// size) the scale A and bias B of F0 in the directional albedo of the GGX lobe with the height-correlated Smith
+// visibility, importance sampled with a fixed Hammersley set (deterministic). Computed once at init into RG16F.
+
+#include "pbr.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rg16f) uniform writeonly image2D lut;
+
+layout(push_constant) uniform Push
+{
+    int size;
+    uint samples;
+}
+pc;
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.size || p.y >= pc.size) return;
+    float NoV   = (float(p.x) + 0.5) / float(pc.size);
+    float rough = (float(p.y) + 0.5) / float(pc.size);
+    float a     = rough * rough;
+    vec3 v      = vec3(sqrt(1.0 - NoV * NoV), 0.0, NoV);
+    float A = 0.0, B = 0.0;
+    for (uint i = 0u; i < pc.samples; ++i)
+    {
+        vec3 h    = importanceSampleGgx(hammersley(i, pc.samples), a);
+        vec3 l    = 2.0 * dot(v, h) * h - v;
+        float NoL = clamp(l.z, 0.0, 1.0);
+        float NoH = clamp(h.z, 0.0, 1.0);
+        float VoH = clamp(dot(v, h), 0.0, 1.0);
+        if (NoL > 0.0)
+        {
+            // pdf(l) = D NoH / (4 VoH): the estimator V * 4 NoL VoH / NoH (V = G / (4 NoV NoL))
+            float w  = visibilitySmithGgx(NoV, NoL, a) * 4.0 * NoL * VoH / NoH;
+            float fc = pow(1.0 - VoH, 5.0);
+            A += (1.0 - fc) * w;
+            B += fc * w;
+        }
+    }
+    imageStore(lut, p, vec4(A, B, 0.0, 0.0) / float(pc.samples));
+}

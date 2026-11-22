@@ -31,6 +31,9 @@ class MeshPool;
 class InstanceBuffer;
 class SceneCulling;
 class GrassPass;
+class SceneLightingSet;
+class SkyAmbient;
+class BrdfLut;
 struct Texture2DArray;
 struct SceneCamera;
 struct SceneLighting;
@@ -291,9 +294,26 @@ class SAIGA_VULKAN_API RenderScene
     void setEnvironment(const EnvironmentState& environment);
     const EnvironmentState& environment() const { return env; }
     bool hasEnvironment() const { return envSet; }
-    // Applied at the next frame start (resources are recreated through deferDelete when a size changes)
+    // Applied at the next frame start (resources are recreated through deferDelete when a size changes; pbr recreates
+    // the scene pipelines)
     void setLightingParameters(const LightingParameters& parameters);
     const LightingParameters& lightingParameters() const { return params.lighting; }
+    // The light model the frame being recorded draws with (LightingParameters::pbr as latched at its start)
+    bool pbrActive() const { return framePbr; }
+    // The studio environment of clay mode (A3, D7): by default sceneStudio(), or with the prototype environment its
+    // settings' sun, ambient, albedo and fog (prototypeStudio() at the defaults); an enclosed space uses
+    // prototypeStudio() without fog. setStudioEnvironment overrides both (tests, a game that wants another clay light)
+    void setStudioEnvironment(std::optional<StudioEnvironment> studio) { studioOverride = studio; }
+    // The studio environment of the next frame for an open (or an enclosed) camera space
+    StudioEnvironment studioEnvironment(bool enclosed = false) const;
+    // The frame being recorded uses the physical path of the LIGHTING_PBR variant: an environment and a tone map other
+    // than Identity (latched with the tone map)
+    bool physicalLighting() const { return framePhysical; }
+    // The lighting's resources (tests, the debug tools)
+    SkyAmbient& skyAmbient() { return *ambient; }
+    BrdfLut& brdfLut() { return *brdf; }
+    // The scene pipelines created since the start (SceneCulling's; a debug view switch creates none)
+    uint64_t scenePipelineCreations() const;
 
    private:
     friend class SceneFrameRenderer;
@@ -304,7 +324,14 @@ class SAIGA_VULKAN_API RenderScene
     float frameMultiplier        = 1;
     // setEnvironment (S36)
     EnvironmentState env;
-    bool envSet            = false;
+    bool envSet = false;
+    // S36a1b: the pipeline variant of the frame (LightingParameters::pbr), the studio override
+    bool framePbr      = false;
+    bool framePhysical = false;
+    std::optional<StudioEnvironment> studioOverride;
+    std::unique_ptr<SceneLightingSet> lightingSet;
+    std::unique_ptr<SkyAmbient> ambient;
+    std::unique_ptr<BrdfLut> brdf;
     float framePreExposure = 1;
     // The effective exposure of the last submitted frame (the next frame's pre-exposure)
     float lastExposure = 1;
@@ -359,9 +386,11 @@ class SAIGA_VULKAN_API RenderScene
     void frameCamera(int width, int height, SceneCamera& camera);
     // The matrices of the camera for the size
     void updateMatrices(int width, int height);
-    // The lighting block of the frame's instance draws
+    // The lighting block of the frame's draws (the legacy fields and S36's)
     void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, bool enclosed, int samples,
                        SceneLighting& out) const;
+    // The frame slot's lighting set (block, ambient, foliage, LUTs): in the transfer section
+    void writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& block);
     const Callback* transferFn         = nullptr;
     const Callback* renderFn           = nullptr;
     const std::function<void()>* guiFn = nullptr;

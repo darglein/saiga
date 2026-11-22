@@ -26,6 +26,26 @@ vec3 sunDirection(const PrototypeSettings& s)
 }
 }  // namespace
 
+StudioEnvironment studioFromPrototype(const PrototypeSettings& s)
+{
+    StudioEnvironment e;
+    e.sunDir       = sunDirection(s);
+    e.sunIntensity = s.sunIntensity;
+    e.ambient      = s.ambient;
+    e.hemisphere   = true;
+    e.albedo       = s.albedo;
+    e.fog          = s.fog;
+    e.fogDensity   = s.fogDensity;
+    e.fogFalloff   = s.fogFalloff;
+    e.fogColor     = vec3(0.42f, 0.42f, 0.42f);
+    return e;
+}
+
+StudioEnvironment prototypeStudio()
+{
+    return studioFromPrototype(PrototypeSettings());
+}
+
 uint32_t packPrototypeFoliageColor(int layer, float ao, float wind)
 {
     SAIGA_ASSERT(layer < 255, "packPrototypeFoliageColor: the layer must be < 255 (255: opaque)");

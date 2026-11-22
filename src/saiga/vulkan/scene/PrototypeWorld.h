@@ -8,6 +8,7 @@
 
 #include "saiga/core/math/math.h"
 #include "saiga/export.h"
+#include "saiga/vulkan/scene/LightingTypes.h"
 
 #include <memory>
 
@@ -16,6 +17,22 @@ namespace Saiga
 namespace Vulkan
 {
 struct SceneLighting;
+
+// The prototype's surface colours of the physical light path (S36, D21; linear albedo; S43 replaces them with
+// materials): the terrain blends ground -> rock by slope (smoothstep on n.y around rockSlope) and ground -> shore in
+// the 3 m above the sea level; the water plane, the grass, the foliage cards (leaves) and the opaque tree parts (bark).
+// Clay mode ignores them (the gray albedo of the studio environment)
+struct PrototypeAlbedo
+{
+    vec3 ground     = vec3(0.26f, 0.30f, 0.16f);
+    vec3 rock       = vec3(0.36f, 0.34f, 0.31f);
+    vec3 shore      = vec3(0.50f, 0.46f, 0.36f);
+    vec3 water      = vec3(0.03f, 0.06f, 0.07f);
+    vec3 grass      = vec3(0.20f, 0.30f, 0.10f);
+    vec3 leaves     = vec3(0.11f, 0.20f, 0.07f);
+    vec3 bark       = vec3(0.25f, 0.19f, 0.14f);
+    float rockSlope = 0.75f;
+};
 
 /**
  * The settings of the prototype content of RenderScene (S19a, docs/engine_design.md §10.1; S20: the terrain, grass,
@@ -55,6 +72,8 @@ struct PrototypeSettings
     bool flatShading = true;
     // The skirts of the S20 terrain nodes (TerrainPass); off only for debugging and the crack test
     bool terrainSkirts = true;
+    // The surface colours of the physical light path (S36, D21; not saved, the Lighting tab edits them)
+    PrototypeAlbedo colors;
 };
 
 // The fixed lighting of an enclosed camera space (S21, until S36): the PrototypeSettings defaults (sun azimuth 35,
@@ -71,6 +90,10 @@ inline const PrototypeSettings kEnclosedLighting = []()
 // height, wind phases of the time, cutoff, tint): RenderScene's environment (S20)
 SAIGA_VULKAN_API void prototypeLighting(const PrototypeSettings& settings, double time, float fogBase,
                                         SceneLighting& out);
+
+// The studio environment of clay mode from the prototype settings (S36, A3: S19a's sun, hemisphere ambient, albedo and
+// fog reproduced; until the a1c migration moves them out of PrototypeSettings)
+SAIGA_VULKAN_API StudioEnvironment studioFromPrototype(const PrototypeSettings& settings);
 
 // The color word of a PrototypeFoliage vertex (S19a): the foliage texture layer in bits 0-7 (a negative layer: opaque
 // parts, 0xFF), the AO in bits 8-15 and the wind weight in bits 16-23 (unorm8; both asserted in [0, 1])

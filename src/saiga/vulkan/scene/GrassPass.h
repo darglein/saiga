@@ -18,6 +18,7 @@ namespace Vulkan
 {
 class TerrainAtlas;
 class TerrainPass;
+class SceneLightingSet;
 struct SceneCamera;
 struct PrototypeSettings;
 
@@ -47,14 +48,17 @@ class SAIGA_VULKAN_API GrassPass
         int drawCalls = 0;
     };
 
-    void init(VulkanBase& base, const RenderingFormats& formats);
+    // lighting: set 1 (S36; RenderScene's, outlives this); pbr: the pipeline variant (LightingParameters::pbr)
+    void init(VulkanBase& base, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr);
     void destroy();
     ~GrassPass() { destroy(); }
+    // The pipeline of the light model (S36a1b): recreated on a change (the old one released deferred)
+    void setPbr(bool pbr);
 
     // After TerrainPass::transfer of the frame: the visible blocks (nothing if the terrain pass does not draw)
     void update(const TerrainAtlas& atlas, const TerrainPass& terrain, const SceneCamera& camera,
                 const PrototypeSettings& settings);
-    // Inside the scene pass (needs the foliage texture in the terrain's set)
+    // Inside the scene pass (needs the foliage texture in the lighting set)
     void render(vk::CommandBuffer cmd, uint32_t frameIndex, const TerrainPass& terrain);
 
     const Stats& stats() const { return statistics; }
@@ -72,7 +76,10 @@ class SAIGA_VULKAN_API GrassPass
     };
 
    private:
-    VulkanBase* base = nullptr;
+    VulkanBase* base              = nullptr;
+    SceneLightingSet* lightingSet = nullptr;
+    RenderingFormats sceneFormats;
+    bool pbrVariant = false;
     Pipeline pipeline;
     Buffer vertices, indices;
     uint32_t indexCount = 0;
