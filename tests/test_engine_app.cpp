@@ -14,6 +14,7 @@
 #include "saiga/engine/app/EngineMain.h"
 #include "saiga/engine/app/FrameStatistics.h"
 #include "saiga/engine/app/LightingTools.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"

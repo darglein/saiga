@@ -411,8 +411,10 @@ class SAIGA_VULKAN_API RenderScene
     // The bulk path of S30's piece lights: one list per chunk (never entities), removed as a whole
     LightListHandle addLights(const ChunkId& chunk, const std::vector<LightData>& lights);
     void removeLights(LightListHandle list);
-    // The CPU table of the lights
+    // The CPU table of the lights and the frame's selection (the lights of the frame being recorded, the last frame
+    // between frames; in buffer order)
     const LocalLights& localLights() const { return *lightTable; }
+    const std::vector<FrameLightInfo>& frameLights() const;
 
    private:
     friend class SceneFrameRenderer;
@@ -460,6 +462,9 @@ class SAIGA_VULKAN_API RenderScene
     void frameShadows(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex);
     // The overlays of the cascades and the horizon map (DebugLines)
     void cascadeOverlays();
+    // S36b: the local lights of the frame (selection, light buffer, the block's fields) and their overlays
+    void frameLocalLights(const SceneCamera& camera, SceneLighting& block, uint32_t frameIndex);
+    void lightOverlays();
     LightingDebugState userDebug, frameDebug;
     std::optional<LightingDebugState> debugOverride;
     // The radiance views write raw values (the probe frames)

@@ -897,6 +897,14 @@ size_t ExtractSystem::lightCount() const
     return n;
 }
 
+std::vector<std::pair<Entity, LightHandle>> ExtractSystem::lightEntities() const
+{
+    std::vector<std::pair<Entity, LightHandle>> r;
+    for (const TrackedLight& l : lights)
+        if (l.handle) r.emplace_back(l.entity, l.handle);
+    return r;
+}
+
 LightHandle ExtractSystem::lightOf(Entity e) const
 {
     const TrackedLight* l = findLight(e);

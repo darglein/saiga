@@ -417,6 +417,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (s.frameCascades && s.params.lighting.terrainCastsInCascades)
             s.terrain->selectForShadow(frame.frameIndex, *s.atlas, camera, s.shadowViews);
         s.cascadeOverlays();
+        // S36b: the local lights of the frame
+        s.frameLocalLights(camera, lighting, frame.frameIndex);
+        s.lightOverlays();
         if (probe && probe->step == 0)
         {
             // The probe's frame 1: its camera and exposure (the later frames hold them); a world point's pixel with
@@ -1045,7 +1048,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     horizon = std::make_unique<HorizonShadows>();
     horizon->init(base());
     lightTable = std::make_unique<LocalLights>();
-    culling    = std::make_unique<SceneCulling>();
+    lightTable->init(base());
+    culling = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params, *lightingSet);
     protoSettings = std::make_unique<PrototypeSettings>();
     // The static instance buffer is bound whole: it grows up to the storage buffer limit
@@ -1075,6 +1079,7 @@ RenderScene::~RenderScene()
     shadowTable.reset();
     cascades.reset();
     horizon.reset();
+    lightTable.reset();
     brdf.reset();
     ambient.reset();
     envMap.reset();
@@ -1629,6 +1634,100 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
         vec4(float(count), p.depthBiasTexels, p.normalOffsetTexels, lightingSet->linearShadowFilter() ? 1 : 0);
 }
 
+const std::vector<FrameLightInfo>& RenderScene::frameLights() const
+{
+    return lightTable->frameLights();
+}
+
+void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& block, uint32_t frameIndex)
+{
+    const LightingParameters& p = params.lighting;
+    LocalLights::FrameInput in;
+    in.valid  = camera.valid;
+    in.space  = camera.space;
+    in.camera = camera.position;
+    for (size_t k = 0; k < in.planes.size(); ++k) in.planes[k] = camera.planes[k];
+    in.on           = p.localLights;
+    in.maxLights    = p.maxLights;
+    in.clusterFar   = 1000;
+    in.flickerPhase = envSet ? env.phases[6] : 0.0f;
+    in.highlight    = frameDebug.highlightLight;
+    lightTable->prepareFrame(frameIndex, in);
+    const uint32_t count = uint32_t(lightTable->frameRecords().size());
+    block.lightCounts    = uvec4(count, 0, uint32_t(lightTable->highlightIndex() + 1), 0);
+    const Vec3 forward   = cameraRotation * Vec3(0, 0, -1);
+    block.viewForward    = vec4(float(forward(0)), float(forward(1)), float(forward(2)), 0);
+    const ivec2 sz       = size();
+    block.viewport       = vec4(float(sz(0)), float(sz(1)), 0, 0);
+}
+
+void RenderScene::lightOverlays()
+{
+    if (!(frameDebug.overlays & OverlayLightVolumes)) return;
+    const LocalLights& t                    = *lightTable;
+    const std::vector<FrameLightInfo>& list = t.frameLights();
+    const double kTwoPi                     = 6.283185307179586;
+    // At most 512 lights (the most important ones), 24 segments per circle
+    const size_t n = std::min<size_t>(list.size(), 512);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const LocalLights::Light* l = t.find(LightHandle{list[i].handle});
+        if (!l) continue;
+        const LightData& d     = l->data;
+        const bool highlighted = int(i) == t.highlightIndex();
+        const float m          = std::max({d.color(0), d.color(1), d.color(2), 1e-6f});
+        const vec3 color       = highlighted ? vec3(1, 1, 1) : vec3(d.color / m);
+        const Vec3 c           = l->worldPosition();
+        const double r         = double(d.range);
+        // Shadowed lights thick (a second copy slightly larger), the highlighted light on top
+        const int copies = d.castShadows || highlighted ? 2 : 1;
+        auto circle      = [&](const Vec3& centre, const Vec3& u, const Vec3& v, double radius)
+        {
+            for (int copy = 0; copy < copies; ++copy)
+            {
+                const double rr = radius * (1.0 + 0.01 * copy);
+                for (int k = 0; k < 24; ++k)
+                {
+                    const double a0 = kTwoPi * k / 24, a1 = kTwoPi * (k + 1) / 24;
+                    lines->addLine(centre + (u * std::cos(a0) + v * std::sin(a0)) * rr,
+                                   centre + (u * std::cos(a1) + v * std::sin(a1)) * rr, color, highlighted);
+                }
+            }
+        };
+        if (d.kind == LightKind::Point)
+        {
+            circle(c, Vec3(1, 0, 0), Vec3(0, 1, 0), r);
+            circle(c, Vec3(1, 0, 0), Vec3(0, 0, 1), r);
+            circle(c, Vec3(0, 1, 0), Vec3(0, 0, 1), r);
+        }
+        else
+        {
+            // The cone to the range: its end circle and four edges from the apex
+            const Vec3 axis   = d.direction.cast<double>().normalized();
+            const Vec3 helper = std::abs(axis(1)) < 0.9 ? Vec3(0, 1, 0) : Vec3(1, 0, 0);
+            const Vec3 u      = axis.cross(helper).normalized();
+            const Vec3 v      = axis.cross(u);
+            const double co   = std::clamp(double(d.cosOuter), 0.0, 1.0);
+            const double so   = std::sqrt(1 - co * co);
+            const Vec3 end    = c + axis * (r * co);
+            const double rad  = r * so;
+            circle(end, u, v, rad);
+            for (int k = 0; k < 4; ++k)
+            {
+                const double a = kTwoPi * k / 4;
+                lines->addLine(c, end + (u * std::cos(a) + v * std::sin(a)) * rad, color, highlighted);
+            }
+        }
+        if (highlighted)
+        {
+            const double s = std::max(0.25, 0.05 * r);
+            lines->addLine(c - Vec3(s, 0, 0), c + Vec3(s, 0, 0), color, true);
+            lines->addLine(c - Vec3(0, s, 0), c + Vec3(0, s, 0), color, true);
+            lines->addLine(c - Vec3(0, 0, s), c + Vec3(0, 0, s), color, true);
+        }
+    }
+}
+
 void RenderScene::requestHorizonRecompute(bool full)
 {
     horizon->requestRecompute(full);
@@ -1747,6 +1846,8 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
         horizon->fillBlock(block, cameraPosition, cameraSpace, LightingParameters(), false, false);
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
+    // S36b: the frame's lights
+    b.lights = lightTable->bufferInfo(frameIndex);
     lightingSet->write(frameIndex, block, b);
     lastBlock = block;
 
@@ -1775,9 +1876,10 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.memoryBytes = VulkanRenderer::framesInFlight * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
                      uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes() +
                      atmosphere->memoryBytes() + envMap->memoryBytes() + clouds->memoryBytes() +
-                     cascades->memoryBytes() + horizon->memoryBytes();
+                     cascades->memoryBytes() + horizon->memoryBytes() + lightTable->statistics().memoryBytes;
     st.horizon        = horizon->statistics();
     st.horizonPreview = st.horizon;
+    st.lights         = lightTable->statistics();
     // S36a2: the cascades
     st.shadows            = frameCascades;
     st.frozen             = freezeCascades;

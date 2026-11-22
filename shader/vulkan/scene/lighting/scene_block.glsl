@@ -76,6 +76,17 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     vec4 horizonFront;
     vec4 horizonRef;
     vec4 horizonParams;
+    // S36b: the local lights: lightCounts (x the frame's lights, y 1 clustered, z the highlighted light's index + 1, w
+    // 1 the shadow atlas is bound), clusterGrid (xyz clusters per axis, w slots per cluster), clusterDepth (x near
+    // plane, y clusterNear, z clusterFar, w (clusterZ - 1) / log(far / near)), viewForward (xyz the camera's forward),
+    // viewport (xy pixels), atlasParams (x resolution, y depth bias in D16 steps, z normal offset in texels, w the
+    // cluster heat map's scale)
+    uvec4 lightCounts;
+    uvec4 clusterGrid;
+    vec4 clusterDepth;
+    vec4 viewForward;
+    vec4 viewport;
+    vec4 atlasParams;
 }
 lighting;
 

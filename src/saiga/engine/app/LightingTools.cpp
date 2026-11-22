@@ -13,9 +13,11 @@
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/tools/WorldTools.h"
 #include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
+#include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include <algorithm>
@@ -23,6 +25,8 @@
 #include <functional>
 #include <memory>
 #include <optional>
+
+#include <unordered_map>
 
 namespace Saiga
 {
@@ -447,6 +451,10 @@ const std::vector<LightingKey>& lightingKeys()
         k.push_back(intKey("horizon_resolution", true, 128, 4096, pi(&P::horizonResolution), true));
         k.push_back(floatKey("horizon_extent", true, 1000, 200000, pf(&P::horizonExtent)));
         k.push_back(intKey("horizon_rows_per_frame", true, 1, 4096, pi(&P::horizonRowsPerFrame)));
+        // S36b: the local lights
+        k.push_back(boolKey("local_lights", true, pb(&P::localLights)));
+        k.push_back(boolKey("clustered_lights", true, pb(&P::clusteredLights)));
+        k.push_back(intKey("max_lights", true, 1, 4096, pi(&P::maxLights)));
         return k;
     }();
     return keys;
@@ -483,7 +491,7 @@ const std::vector<std::string>& sectionNames()
 {
     static const std::vector<std::string> names = {
         "time",   "weather",  "sun",        "moon",  "shadow_light", "tone_map", "exposure", "ambient", "environment",
-        "clouds", "settings", "parameters", "debug", "gpu",          "memory",   "cascades", "horizon"};
+        "clouds", "settings", "parameters", "debug", "gpu",          "memory",   "cascades", "horizon", "lights"};
     return names;
 }
 }  // namespace
@@ -651,7 +659,9 @@ Json lightingDebugJson(const Vulkan::LightingDebugState& state)
     Json::array overlays;
     for (const auto& n : Vulkan::lightingOverlayNames())
         if (state.overlays & n.second) overlays.push_back(n.first);
-    return Json::object{{"view", Vulkan::lightingDebugViewName(state.view)}, {"overlays", overlays}};
+    return Json::object{{"view", Vulkan::lightingDebugViewName(state.view)},
+                        {"overlays", overlays},
+                        {"highlight_light", state.highlightLight ? Json(double(state.highlightLight)) : Json()}};
 }
 
 World& lightingWriteWorld(EngineApp& app)
@@ -854,6 +864,21 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                                           {"last_complete_frame", double(h.lastComplete)},
                                                           {"level_at_10km", h.levelAt10km},
                                                           {"memory_bytes", double(h.memoryBytes)}};
+    }
+    // S36b: the local lights of the newest recorded frame
+    {
+        const Vulkan::LocalLightStatistics& l = ls.lights;
+        o["lights"]                           = Json::object{{"on", l.on},
+                                                             {"enabled", state.parameters.localLights},
+                                                             {"clustered", state.parameters.clusteredLights},
+                                                             {"submitted", double(l.submitted)},
+                                                             {"candidates", double(l.candidates)},
+                                                             {"visible", double(l.visible)},
+                                                             {"over_budget", double(l.overBudget)},
+                                                             {"shadowed", double(l.shadowed)},
+                                                             {"without_tiles", double(l.withoutTiles)},
+                                                             {"max_lights", state.parameters.maxLights},
+                                                             {"memory_bytes", double(l.memoryBytes)}};
     }
     if (!sections.empty())
     {
@@ -1144,14 +1169,17 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             joined(overlayNames()) +
             "), freeze_cascades (S36a2: the cascades and the camera they were fitted to stay, still rendered every "
             "frame; with the cascade_bounds and camera_frustum_splits overlays one flies around and sees what each "
-            "covers), the Lighting tab's preview mapping (mapping: {range: \"auto\" or [min, max], log, color_map: "
-            "gray or turbo}) and the exposure view's heat map (exposure_view: {centre: EV100 or \"auto\", range: EV, "
-            "0.5..64; turbo over centre +- range / 2}). Missing arguments keep their value. Returns the state, the "
-            "previous state and the known names. Changes only the rendering.",
+            "covers), highlight_light (S36b: a light handle of list_lights, white in the light_volumes overlay and "
+            "selected in the Lighting tab; 0 or null: none), the Lighting tab's preview mapping (mapping: {range: "
+            "\"auto\" or [min, max], log, color_map: gray or turbo}) and the exposure view's heat map (exposure_view: "
+            "{centre: EV100 or \"auto\", range: EV, 0.5..64; turbo over centre +- range / 2}). Missing arguments keep "
+            "their value. Returns the state, the previous state and the known names. Changes only the rendering.",
         schema({{"view", McpServer::StringProperty("The debug view", viewNames())},
                 {"overlays",
                  arrayProperty("The overlays (replaces the set)", McpServer::StringProperty("", overlayNames()))},
                 {"freeze_cascades", McpServer::BooleanProperty("Freeze the cascades")},
+                {"highlight_light",
+                 McpServer::IntegerProperty("The highlighted light's handle (list_lights; 0 or null: none)")},
                 {"mapping",
                  Json::object{{"type", "object"}, {"description", "{range: \"auto\" or [min, max], log, color_map}"}}},
                 {"exposure_view",
@@ -1159,8 +1187,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         [&app](const Json& a, McpServer::Respond respond)
         {
             std::string error;
-            if (unknownArgument(a, {"view", "overlays", "mapping", "freeze_cascades", "exposure_view"}, error))
+            if (unknownArgument(
+                    a, {"view", "overlays", "mapping", "freeze_cascades", "highlight_light", "exposure_view"}, error))
                 return respond(ToolResult::Error(error));
+            const Json& hl = a["highlight_light"];
+            if (!hl.is_null() && (!hl.is_number() || hl.number_value() != std::floor(hl.number_value()) ||
+                                  hl.number_value() < 0 || hl.number_value() > 4294967295.0))
+                return respond(ToolResult::Error("highlight_light: a light handle (an integer >= 0; 0 or null: none)"));
             if (!a["freeze_cascades"].is_null() && !a["freeze_cascades"].is_bool())
                 return respond(ToolResult::Error("freeze_cascades: true or false"));
             Vulkan::RenderScene* scene = app.scene();
@@ -1176,6 +1209,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             }
             if (!a["view"].is_null()) after.view = parsed.view;
             if (!a["overlays"].is_null()) after.overlays = parsed.overlays;
+            if (a.object_items().count("highlight_light"))
+                after.highlightLight = hl.is_null() ? 0u : uint32_t(hl.number_value());
             Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
             if (!a["mapping"].is_null())
             {
@@ -1597,6 +1632,134 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                                           "(rendering disabled or the window minimized)"));
                     return false;
                 });
+        });
+    server.addTool(
+        "list_lights",
+        "Reads the scene's local lights (S36b; entity lights of LightSource components and lights added on the scene, "
+        "e.g. S30's piece lights), ordered by handle: handle, entity (null for a scene light), kind (point or spot), "
+        "position (world), direction (spots), color (linear), lumen, range, inner and outer cone angles (degrees), "
+        "shadowed (castShadows), visible this frame (selected within the budget), distance to the camera, the "
+        "importance, the clusters it touches, its atlas tiles and their last render frame, the cache state. Filters: "
+        "near {position: [x, y, z], radius} (the light's sphere intersects), shadowed, visible. Paged: limit (default "
+        "100, at most 1000) and after (the last handle of the previous page; the answer's next). Entity lights are "
+        "edited with set_component (LightSource); scene lights are read-only. Changes nothing.",
+        schema(
+            {{"near", Json::object{{"type", "object"},
+                                   {"description", "{position: [x, y, z], radius}: lights whose sphere intersects"}}},
+             {"shadowed", McpServer::BooleanProperty("Only lights with (true) or without (false) castShadows")},
+             {"visible", McpServer::BooleanProperty("Only lights in (true) or not in (false) this frame")},
+             {"limit", McpServer::IntegerProperty("At most this many lights (default 100, 1..1000)")},
+             {"after", McpServer::IntegerProperty("Lights with a handle after this one (paging)")}}),
+        [&app](const Json& a, McpServer::Respond respond)
+        {
+            std::string error;
+            if (unknownArgument(a, {"near", "shadowed", "visible", "limit", "after"}, error))
+                return respond(ToolResult::Error(error));
+            Vulkan::RenderScene* scene = app.scene();
+            if (!scene) return respond(ToolResult::Error(kNoDevice));
+            double limit = 100, after = 0;
+            if (!a["limit"].is_null() && !number(a["limit"], "limit", 1, 1000, limit, error))
+                return respond(ToolResult::Error(error));
+            if (!a["after"].is_null() && !number(a["after"], "after", 0, 4294967295.0, after, error))
+                return respond(ToolResult::Error(error));
+            if (limit != std::floor(limit) || after != std::floor(after))
+                return respond(ToolResult::Error("limit and after: integers"));
+            for (const char* b : {"shadowed", "visible"})
+                if (!a[b].is_null() && !a[b].is_bool())
+                    return respond(ToolResult::Error(std::string(b) + ": true or false"));
+            std::optional<std::pair<Vec3, double>> near;
+            if (!a["near"].is_null())
+            {
+                const Json& n = a["near"];
+                const Json& p = n["position"];
+                if (!n.is_object() || !p.is_array() || p.array_items().size() != 3 || !n["radius"].is_number())
+                    return respond(ToolResult::Error("near: {position: [x, y, z], radius}"));
+                for (auto& kv : n.object_items())
+                    if (kv.first != "position" && kv.first != "radius")
+                        return respond(ToolResult::Error("near: unknown key \"" + kv.first + "\" (position, radius)"));
+                Vec3 pos;
+                for (int i = 0; i < 3; ++i)
+                {
+                    if (!p[size_t(i)].is_number() || !std::isfinite(p[size_t(i)].number_value()))
+                        return respond(ToolResult::Error("near.position: three finite numbers"));
+                    pos(i) = p[size_t(i)].number_value();
+                }
+                double r = 0;
+                if (!number(n["radius"], "near.radius", 0, 1e7, r, error)) return respond(ToolResult::Error(error));
+                near = std::make_pair(pos, r);
+            }
+            // The entity of each light (the view world's extract: the client world with --coop)
+            std::unordered_map<uint32_t, Entity> entities;
+            for (const auto& el : app.world().extract().lightEntities()) entities[el.second.id] = el.first;
+            std::unordered_map<uint32_t, const Vulkan::FrameLightInfo*> frame;
+            for (const Vulkan::FrameLightInfo& f : scene->frameLights()) frame[f.handle] = &f;
+            std::vector<const Vulkan::LocalLights::Light*> list;
+            for (const Vulkan::LocalLights::Light& l : scene->localLights().lights()) list.push_back(&l);
+            std::sort(list.begin(), list.end(), [](auto* x, auto* y) { return x->handle.id < y->handle.id; });
+            const Vec3 camera = app.viewCamera().position;
+            Json::array out;
+            uint32_t next  = 0;
+            size_t matched = 0;
+            for (const Vulkan::LocalLights::Light* l : list)
+            {
+                if (l->handle.id <= uint32_t(after)) continue;
+                const Vulkan::LightData& d = l->data;
+                const Vec3 p               = l->worldPosition();
+                if (near && (p - near->first).norm() > near->second + double(d.range)) continue;
+                if (!a["shadowed"].is_null() && a["shadowed"].bool_value() != d.castShadows) continue;
+                auto f             = frame.find(l->handle.id);
+                const bool visible = f != frame.end();
+                if (!a["visible"].is_null() && a["visible"].bool_value() != visible) continue;
+                matched++;
+                if (out.size() >= size_t(limit))
+                {
+                    next = out.empty() ? 0 : uint32_t(out.back()["handle"].number_value());
+                    break;
+                }
+                auto deg = [](float c) { return std::acos(std::clamp(double(c), -1.0, 1.0)) * 57.29577951308232; };
+                auto e   = entities.find(l->handle.id);
+                Json::object o{{"handle", double(l->handle.id)},
+                               {"entity", e != entities.end() ? WorldApi::entityJson(e->second) : Json()},
+                               {"list", l->list ? Json(double(l->list)) : Json()},
+                               {"kind", Vulkan::lightKindName(d.kind)},
+                               {"space", int(l->chunk.space)},
+                               {"position", vec3Json(p)},
+                               {"color", vec3Json(d.color)},
+                               {"lumen", double(d.lumen)},
+                               {"range", double(d.range)},
+                               {"priority", double(d.priority)},
+                               {"shadowed", d.castShadows},
+                               {"visible", visible},
+                               {"distance", (p - camera).norm()}};
+                if (d.kind == Vulkan::LightKind::Spot)
+                {
+                    o["direction"]       = vec3Json(d.direction);
+                    o["inner_angle_deg"] = deg(d.cosInner);
+                    o["outer_angle_deg"] = deg(d.cosOuter);
+                }
+                if (d.flicker.amplitude > 0)
+                    o["flicker"] = Json::object{{"amplitude", double(d.flicker.amplitude)},
+                                                {"frequency", double(d.flicker.frequency)}};
+                if (visible)
+                {
+                    const Vulkan::FrameLightInfo& fi = *f->second;
+                    o["index"]                       = double(fi.index);
+                    o["importance"]                  = fi.importance;
+                    o["clusters"]                    = double(fi.clusters);
+                    o["atlas"]                       = Json::object{{"tiles", fi.tiles},
+                                                                    {"first_tile", fi.firstTile >= 0 ? Json(fi.firstTile) : Json()},
+                                                                    {"last_render_frame", double(fi.lastRender)},
+                                                                    {"ready", fi.shadowReady}};
+                }
+                out.push_back(o);
+            }
+            Json::object answer{{"lights", out},
+                                {"count", double(out.size())},
+                                {"total", double(scene->localLights().size())},
+                                {"frame", double(scene->lightingStatistics().frame)},
+                                {"next", next ? Json(double(next)) : Json()}};
+            (void)matched;
+            respond(ToolResult::Text(Json(answer).dump()));
         });
 }
 

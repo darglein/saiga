@@ -88,6 +88,8 @@ class SAIGA_ENGINE_API ExtractSystem
     // (invalid: none)
     size_t lightCount() const;
     LightHandle lightOf(Entity e) const;
+    // The entity of each sink light (the Lighting tab, list_lights)
+    std::vector<std::pair<Entity, LightHandle>> lightEntities() const;
 
     // Tracked entities (with RenderInstance) and those with a sink instance
     size_t trackedCount() const { return tracked.size(); }

@@ -13,11 +13,13 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/DebugUi.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Weather.h"
 #include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -110,10 +112,10 @@ EngineAppSetup tabSetup(bool environment)
 void showLightingTab(EngineApp& app)
 {
     Json::object state = app.debugUi().state().object_items();
-    state["sections"]  = Json::object{{"lighting/Time and weather", true}, {"lighting/Sun and moon", true},
-                                      {"lighting/Exposure", true},         {"lighting/Ambient", true},
-                                      {"lighting/Sky and clouds", true},   {"lighting/GPU and memory", true},
-                                      {"lighting/Cascades", true},         {"lighting/Far terrain shadows", true}};
+    state["sections"]  = Json::object{
+         {"lighting/Time and weather", true}, {"lighting/Sun and moon", true},        {"lighting/Exposure", true},
+         {"lighting/Ambient", true},          {"lighting/Sky and clouds", true},      {"lighting/GPU and memory", true},
+         {"lighting/Cascades", true},         {"lighting/Far terrain shadows", true}, {"lighting/Local lights", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -125,6 +127,23 @@ void showLightingTab(EngineApp& app)
 // overlays render in the tab's frames (S36a2: the cascades' view and overlays, frozen)
 void renderLightingTab(EngineApp& app)
 {
+    // S36b: a lamp (an entity light, highlighted: the table's selected row with its LightSource widgets) and the local
+    // lights on; removed at the end (the suite's app)
+    const Entity lamp = app.world().create();
+    {
+        app.world().get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
+        LightSource l;
+        l.castShadows = true;
+        app.world().add<LightSource>(lamp, l);
+        Vulkan::LightingParameters lp = app.scene()->lightingParameters();
+        lp.localLights                = true;
+        app.scene()->setLightingParameters(lp);
+        app.runFrames(1, 1.0 / 60);
+        Vulkan::LightingDebugState d;
+        d.highlightLight = app.world().extract().lightOf(lamp).id;
+        EXPECT_NE(d.highlightLight, 0u);
+        app.scene()->setLightingDebug(d);
+    }
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
     const Vulkan::LightingImage images[] = {
@@ -153,6 +172,8 @@ void renderLightingTab(EngineApp& app)
     app.runFrames(2, 1.0 / 60);
     app.scene()->setFreezeCascades(false);
     app.scene()->setLightingDebug(Vulkan::LightingDebugState());
+    EXPECT_EQ(app.scene()->lightingStatistics().lights.submitted, 1u);
+    app.world().destroy(lamp);
     // The Exposure view's legend leaves the toolbar: one frame for the layout (the item positions of a later click)
     app.runFrames(1, 1.0 / 60);
 }
@@ -388,7 +409,7 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     for (const char* args :
          {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})", R"({"min_ambient": [1, 2]})",
           R"({"sun_override": {"azimuth": 3}})", R"({"environment_resolution": 1024})", R"({"clouds": 1})",
-          R"({"local_lights": true})", R"({"cascade_count": 5})", R"({"cascade_resolution": 1000})",
+          R"({"local_lights": 1})", R"({"cascade_count": 5})", R"({"cascade_resolution": 1000})",
           R"({"cascade_interval": [2, 1, 1, 2]})", R"({"cloud_seed": 1.5})", R"({"cloud_seed": -1})",
           R"({"mie_scale": 11})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
@@ -451,12 +472,12 @@ TEST_F(LightingDebugTools, SetLightingDebug)
     const Json bad = call(*app, "set_lighting_debug", obj(R"({"view": "shiny"})"));
     EXPECT_TRUE(isError(bad));
     EXPECT_NE(text(bad).find("albedo"), std::string::npos) << text(bad);
-    const Json badOverlay = call(*app, "set_lighting_debug", obj(R"({"overlays": ["light_volumes"]})"));
+    const Json badOverlay = call(*app, "set_lighting_debug", obj(R"({"overlays": ["light_cones"]})"));
     EXPECT_TRUE(isError(badOverlay));
     EXPECT_NE(text(badOverlay).find("sun_direction"), std::string::npos) << text(badOverlay);
     for (const char* args :
-         {R"({"freeze_cascades": 1})", R"({"highlight_light": 3})", R"({"mapping": {"range": [2, 1]}})",
-          R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
+         {R"({"freeze_cascades": 1})", R"({"highlight_light": -3})", R"({"highlight_light": 1.5})",
+          R"({"mapping": {"range": [2, 1]}})", R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
     EXPECT_EQ(app->scene()->lightingDebug().view, Vulkan::LightingDebugView::Normals);
     // The Exposure view's heat map (centre and range; the legend of the tab)
@@ -1073,4 +1094,84 @@ TEST(DebugConsole, RunsLightingCommands)
     app.debugUi().console().submit("set_weather cloudiness=0.25");
     app.runFrames(2, 1.0 / 60);
     EXPECT_EQ(app.world().readSpaceState<Weather>(0).cloudiness, 0.25);
+}
+
+// S36b: list_lights (paging, near, shadowed and visible filters, entity and scene lights), get_lighting.lights, the
+// local light keys of set_lighting and set_lighting_debug's highlight_light
+TEST_F(LightingDebugTools, LocalLightTools)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "local_lights": true})"))));
+    World& w = app->world();
+    std::vector<Entity> lamps;
+    for (int i = 0; i < 4; ++i)
+    {
+        const Entity e = w.create();
+        w.get<Transform>(e).setPosition(Vec3(2.0 * i - 3, 1, 0));
+        LightSource l;
+        l.castShadows = i == 1;
+        l.lumen       = 500 + 100 * i;
+        w.add<LightSource>(e, l);
+        lamps.push_back(e);
+    }
+    // A scene light far away (not visible) in a list
+    const Vulkan::LightListHandle list = s.addLights(ChunkId{0, 20, 20}, {Vulkan::LightData(), Vulkan::LightData()});
+    app->runFrames(3, 1.0 / 60);
+    const Json all = result(call(*app, "list_lights", Json::object{}));
+    ASSERT_EQ(all["lights"].array_items().size(), 6u) << all.dump();
+    EXPECT_EQ(all["total"].number_value(), 6);
+    EXPECT_TRUE(all["next"].is_null());
+    int entities = 0, visible = 0;
+    for (const Json& l : all["lights"].array_items())
+    {
+        entities += l["entity"].is_null() ? 0 : 1;
+        visible += l["visible"].bool_value() ? 1 : 0;
+    }
+    EXPECT_EQ(entities, 4);
+    EXPECT_EQ(visible, 4) << all.dump();
+    // Paging
+    const Json p1 = result(call(*app, "list_lights", obj(R"({"limit": 4})")));
+    ASSERT_EQ(p1["lights"].array_items().size(), 4u);
+    ASSERT_TRUE(p1["next"].is_number()) << p1.dump();
+    const Json p2 = result(call(*app, "list_lights", Json::object{{"after", p1["next"]}, {"limit", 4}}));
+    EXPECT_EQ(p2["lights"].array_items().size(), 2u);
+    EXPECT_TRUE(p2["next"].is_null());
+    EXPECT_GT(p2["lights"][0]["handle"].number_value(), p1["next"].number_value());
+    // Filters
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"shadowed": true})")))["lights"].array_items().size(), 1u);
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"visible": false})")))["lights"].array_items().size(), 2u);
+    const Json near = result(call(*app, "list_lights", obj(R"({"near": {"position": [-12, 1, 0], "radius": 0}})")));
+    EXPECT_EQ(near["lights"].array_items().size(), 1u) << "range 10: only the lamp at x = -3" << near.dump();
+    for (const char* args :
+         {R"({"limit": 0})", R"({"limit": 1001})", R"({"near": {"position": [0, 0]}})",
+          R"({"near": {"position": [0, 0, 0], "radius": 1, "r": 2}})", R"({"shadowed": 1})", R"({"page": 2})"})
+        EXPECT_TRUE(isError(call(*app, "list_lights", obj(args)))) << args;
+    // get_lighting.lights
+    const Json l = result(call(*app, "get_lighting", obj(R"({"sections": ["lights"]})")))["lights"];
+    EXPECT_EQ(l["on"], Json(true)) << l.dump();
+    EXPECT_EQ(l["submitted"].number_value(), 6);
+    EXPECT_EQ(l["visible"].number_value(), 4);
+    EXPECT_EQ(l["shadowed"].number_value(), 1);
+    // set_lighting's local light keys round-trip
+    const Json set = call(*app, "set_lighting", obj(R"({"clustered_lights": false, "max_lights": 2})"));
+    ASSERT_FALSE(isError(set)) << text(set);
+    app->runFrames(2, 1.0 / 60);
+    const Json params = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters", "lights"]})")));
+    EXPECT_EQ(params["parameters"]["max_lights"].number_value(), 2);
+    EXPECT_EQ(params["parameters"]["clustered_lights"], Json(false));
+    EXPECT_EQ(params["lights"]["over_budget"].number_value(), 2);
+    ASSERT_FALSE(isError(call(*app, "set_lighting", result(set)["previous"])));
+    EXPECT_TRUE(isError(call(*app, "set_lighting", obj(R"({"max_lights": 0})"))));
+    // highlight_light
+    const double h = all["lights"][0]["handle"].number_value();
+    ASSERT_FALSE(isError(call(*app, "set_lighting_debug", Json::object{{"highlight_light", h}})));
+    EXPECT_EQ(s.lightingDebug().highlightLight, uint32_t(h));
+    const Json dbg = result(call(*app, "get_lighting", obj(R"({"sections": ["debug"]})")))["debug"];
+    EXPECT_EQ(dbg["highlight_light"].number_value(), h);
+    ASSERT_FALSE(isError(call(*app, "set_lighting_debug", obj(R"({"highlight_light": null})"))));
+    EXPECT_EQ(s.lightingDebug().highlightLight, 0u);
+    for (Entity e : lamps) w.destroy(e);
+    s.removeLights(list);
+    app->runFrames(2, 1.0 / 60);
+    EXPECT_EQ(result(call(*app, "list_lights", Json::object{}))["total"].number_value(), 0);
 }

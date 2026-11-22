@@ -30,6 +30,10 @@ struct SceneLightingBindings
     std::optional<vk::DescriptorImageInfo> cloudCoverage, brdfLut, transmittanceLut, skyViewLut;
     // S36a2: the cascade shadow map (a depth 2D array with its comparison sampler) and the horizon maps
     std::optional<vk::DescriptorImageInfo> cascades, horizon;
+    // S36b: the frame's lights (10), the cluster counts (11) and light indices (12), the shadow atlas (13, a D16 2D
+    // array with the comparison sampler) and its tile table (14)
+    std::optional<vk::DescriptorBufferInfo> lights, clusterCounts, clusterIndices, atlasTiles;
+    std::optional<vk::DescriptorImageInfo> atlas;
 };
 
 /**
@@ -70,6 +74,9 @@ class SAIGA_VULKAN_API SceneLightingSet
     vk::DescriptorSet& shadowSet(uint32_t frameIndex) { return frames[frameIndex].shadowSet; }
     // The comparison sampler of the cascades (linear where D32 supports linear filtering) and whether it is linear
     Sampler& shadowSampler() { return compareSampler; }
+    // The atlas's comparison sampler (S36b; linear where D16 supports linear filtering) and whether it is linear
+    Sampler& atlasSampler() { return atlasCompareSampler; }
+    bool linearAtlasFilter() const { return linearAtlasCompare; }
     bool linearShadowFilter() const { return linearCompare; }
     // The frame slot's block and bindings (its previous frame has completed)
     void write(uint32_t frameIndex, const SceneLighting& block, const SceneLightingBindings& bindings);
@@ -89,11 +96,12 @@ class SAIGA_VULKAN_API SceneLightingSet
     bool linearCompare = false;
     std::array<Frame, 2> frames;
     // 1x1 dummies: a color 2D array (foliage, horizon), a 2D texture, a cube, a depth 2D array with a comparison
-    // sampler, a storage buffer
-    Texture2DArray dummyArray, dummyDepth;
+    // sampler (D32: the cascades; D16: the atlas, S36b), a storage buffer
+    Texture2DArray dummyArray, dummyDepth, dummyDepth16;
     Texture2D dummy2D;
     TextureCube dummyCube;
-    Sampler compareSampler;
+    Sampler compareSampler, atlasCompareSampler;
+    bool linearAtlasCompare = false;
     Buffer dummyStorage;
 };
 

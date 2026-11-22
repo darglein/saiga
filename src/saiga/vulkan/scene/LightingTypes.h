@@ -172,6 +172,10 @@ struct LightingParameters
     int horizonResolution   = 1024;   // 128..4096, a power of two
     float horizonExtent     = 32768;  // m, the square around the anchor
     int horizonRowsPerFrame = 64;     // the base of the incremental update (more when the light moves fast)
+    // S36b: the local lights (B2)
+    bool localLights     = false;  // the point and spot lights of the scene
+    bool clusteredLights = true;   // false: every fragment loops over every light (the correctness reference)
+    int maxLights        = 1024;   // the lights of a frame (1..4096), the most important ones (the rest: over budget)
 };
 
 // ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
@@ -201,14 +205,17 @@ enum class LightingDebugView : uint8_t
     ShadowCascades,
     // S36a2: the horizon map's factor (raw)
     HorizonShadow,
+    // S36b: the local lights' direct light alone (display colours)
+    LocalLightsOnly,
     Count
 };
 // snake_case names (set_lighting_debug, screenshot lighting_view)
 inline const char* lightingDebugViewName(LightingDebugView v)
 {
-    static const char* names[] = {"none",         "lighting_only", "albedo",      "normals",         "roughness",
-                                  "metalness",    "material",      "direct_only", "ambient_only",    "specular_only",
-                                  "cloud_shadow", "shadow_factor", "exposure",    "shadow_cascades", "horizon_shadow"};
+    static const char* names[] = {"none",         "lighting_only",   "albedo",         "normals",
+                                  "roughness",    "metalness",       "material",       "direct_only",
+                                  "ambient_only", "specular_only",   "cloud_shadow",   "shadow_factor",
+                                  "exposure",     "shadow_cascades", "horizon_shadow", "local_lights_only"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingDebugView::Count), "lightingDebugViewName");
     return v < LightingDebugView::Count ? names[size_t(v)] : "none";
 }
@@ -232,17 +239,18 @@ enum LightingOverlay : uint32_t
     OverlayCameraFrustumSplits = 1u << 3,
     // The horizon map's extent and its inner half (the anchor moves when the camera leaves it)
     OverlayHorizonAnchor = 1u << 4,
+    // S36b: the volumes of the frame's lights (spheres of point lights, cones of spot lights, in the light's colour;
+    // shadowed ones thick; the highlighted light white)
+    OverlayLightVolumes = 1u << 5,
     OverlayAll = OverlaySunDirection | OverlayCascadeColors | OverlayCascadeBounds | OverlayCameraFrustumSplits |
-                 OverlayHorizonAnchor
+                 OverlayHorizonAnchor | OverlayLightVolumes
 };
 inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames()
 {
     static const std::vector<std::pair<const char*, uint32_t>> names = {
-        {"sun_direction", OverlaySunDirection},
-        {"cascade_colors", OverlayCascadeColors},
-        {"cascade_bounds", OverlayCascadeBounds},
-        {"camera_frustum_splits", OverlayCameraFrustumSplits},
-        {"horizon_anchor", OverlayHorizonAnchor}};
+        {"sun_direction", OverlaySunDirection},   {"cascade_colors", OverlayCascadeColors},
+        {"cascade_bounds", OverlayCascadeBounds}, {"camera_frustum_splits", OverlayCameraFrustumSplits},
+        {"horizon_anchor", OverlayHorizonAnchor}, {"light_volumes", OverlayLightVolumes}};
     return names;
 }
 // The display colours of the cascades (the ShadowCascades view, the overlays)
@@ -257,7 +265,12 @@ struct LightingDebugState
 {
     LightingDebugView view = LightingDebugView::None;
     uint32_t overlays      = 0;
-    bool operator==(const LightingDebugState& o) const { return view == o.view && overlays == o.overlays; }
+    // S36b: the highlighted light (its handle ID; 0: none): white in LightVolumes, its row in the tab
+    uint32_t highlightLight = 0;
+    bool operator==(const LightingDebugState& o) const
+    {
+        return view == o.view && overlays == o.overlays && highlightLight == o.highlightLight;
+    }
     bool operator!=(const LightingDebugState& o) const { return !(*this == o); }
 };
 
@@ -392,6 +405,34 @@ struct HorizonStatistics
     uint64_t chainBytes  = 0;
 };
 
+// The local lights of a frame (S36b, LightingStatistics::lights): the scene's lights (submitted), those of the
+// camera's space within clusterFar + range and in the frustum (candidates), the frame's (visible: at most maxLights,
+// the most important), the rest (over budget); shadowed: visible with castShadows; without tiles: shadowed but no
+// atlas tile (S36b step 4)
+struct LocalLightStatistics
+{
+    bool on            = false;
+    bool clustered     = false;
+    uint32_t submitted = 0, candidates = 0, visible = 0, overBudget = 0, shadowed = 0, withoutTiles = 0;
+    uint64_t memoryBytes = 0;
+};
+
+// One light of the frame (RenderScene::frameLights; the Lighting tab, list_lights): its handle, the buffer index,
+// distance to the camera, importance and (S36b steps 3-4) the clusters it touches and its atlas tiles
+struct FrameLightInfo
+{
+    uint32_t handle   = 0;
+    uint32_t index    = 0;
+    double distance   = 0;
+    double importance = 0;
+    uint32_t clusters = 0;
+    // The atlas tiles (0: unshadowed), the first tile and the frame of its last render (0: not yet)
+    int tiles           = 0;
+    int firstTile       = -1;
+    uint64_t lastRender = 0;
+    bool shadowReady    = false;
+};
+
 // The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; b adds its own)
 struct LightingStatistics
 {
@@ -431,6 +472,8 @@ struct LightingStatistics
     // The horizon map the frame's previews converted (the front map after the frame's update; capture_lighting's
     // anchor and reference: CodeRabbit #85 round 2)
     HorizonStatistics horizonPreview;
+    // S36b: the local lights
+    LocalLightStatistics lights;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is

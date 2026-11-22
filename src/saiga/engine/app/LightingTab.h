@@ -30,7 +30,9 @@ class EngineApp;
  * JSON), Ambient (scale, floor, SH9, the prototype albedo colours) and GPU and memory; S36a1c sky and clouds; S36a2
  * Cascades (the parameters, a row per cascade, the cascades' depth previews: a click on one enlarges it) and the
  * toolbar's "freeze cascades", Far terrain shadows (the horizon map: R / G preview, progress, direction, anchor, rows
- * per frame, recompute now); part b local lights.
+ * per frame, recompute now); S36b Local lights (counts, the light table: a row selects and highlights a light, "move
+ * camera to light", an entity light's LightSource fields written through set_component; S36b steps 3-4 add the
+ * cluster heat map and the shadow atlas preview with its cache statistics).
  */
 class SAIGA_ENGINE_API LightingTab
 {
@@ -52,6 +54,7 @@ class SAIGA_ENGINE_API LightingTab
     void skyAndClouds();
     void cascadesSection();
     void horizonSection();
+    void localLightsSection();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
@@ -68,6 +71,9 @@ class SAIGA_ENGINE_API LightingTab
     // The enlarged cascade preview (-1: none); the horizon preview's channel (0 R, 1 G)
     int enlargedCascade = -1;
     int horizonChannel  = 0;
+    // S36b: the light table's sort column and direction
+    int lightSortColumn     = 3;
+    bool lightSortAscending = true;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
     bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0,
                              int layer = 0);
