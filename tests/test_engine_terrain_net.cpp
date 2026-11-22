@@ -23,6 +23,7 @@
 
 #include "gtest/gtest.h"
 
+#include <deque>
 #include <functional>
 #include <memory>
 #include <stdexcept>
@@ -80,20 +81,55 @@ ChunkId chunk(int32_t x, int32_t z)
     return c;
 }
 
-// A host and clients over loopback; step() steps the host, then every client
+// A transport that holds back every event of the inner one (the Connected events of the peers too) until release()
+class HeldTransport : public Transport
+{
+   public:
+    explicit HeldTransport(Transport& inner) : inner(inner) {}
+    uint8_t localPeer() const override { return inner.localPeer(); }
+    void send(uint8_t to, Channel channel, const std::vector<uint8_t>& packet, Reliability reliability) override
+    {
+        inner.send(to, channel, packet, reliability);
+    }
+    bool poll(TransportEvent& event) override
+    {
+        TransportEvent e;
+        while (inner.poll(e)) held.push_back(std::move(e));
+        if (holding || held.empty()) return false;
+        event = std::move(held.front());
+        held.pop_front();
+        return true;
+    }
+    TransportStats stats() const override { return inner.stats(); }
+    void release() { holding = false; }
+
+   private:
+    Transport& inner;
+    bool holding = true;
+    std::deque<TransportEvent> held;
+};
+
+// A host and clients over loopback; step() steps the host, then every client. holdHost: the host's events wait in a
+// HeldTransport until hostTransport->release()
 struct Net
 {
     std::vector<std::unique_ptr<LoopbackTransport>> t;
+    std::unique_ptr<HeldTransport> hostTransport;
     std::unique_ptr<World> host;
     std::vector<std::unique_ptr<World>> clients;
-    explicit Net(int n = 1, int delay = 0, bool createClients = true)
+    explicit Net(int n = 1, int delay = 0, bool createClients = true, bool holdHost = false)
     {
         LoopbackOptions o;
         o.delayRounds = delay;
         t             = LoopbackTransport::createNetwork(1 + n, o);
         WorldSetup s  = terrainNetSetup();
         s.transport   = t[0].get();
-        host          = std::make_unique<World>(s);
+        if (holdHost)
+        {
+            hostTransport = std::make_unique<HeldTransport>(*t[0]);
+            s.transport   = hostTransport.get();
+        }
+        host = std::make_unique<World>(s);
         if (createClients)
             for (int i = 1; i <= n; ++i) addClient(i);
     }
@@ -227,6 +263,9 @@ TEST_F(TerrainNet, InvalidMessagesAreRejectedAndApplyNothing)
     bad.push_back(modification(0, {part(0, 0, 0, 10, 10, 2, 2, 5)}));
     bad.push_back(modification(0, {part(16, 0, 1, 10, 10, 2, 2, 5)}));
     bad.push_back(modification(0, {part(0, 0, 1, 128, 10, 2, 2, 5)}));
+    // Regression (PR review): two interior parts of one new chunk were both applied (two entries reserved for it, the
+    // sequence moved from 2 back to 1)
+    bad.push_back(modification(0, {part(3, 3, 2, 10, 10, 2, 2, 5), part(3, 3, 1, 20, 20, 2, 2, 6)}));
     // A delta beyond 2^24 (by hand: the encoder asserts)
     {
         std::vector<uint8_t> m = {0, 0, 0, 0, 0, 0, 0, 1, 0};
@@ -326,12 +365,18 @@ TEST_F(TerrainNet, HostAuthorityOverNeighbours)
     n.host->sendRaw(1, MessageId(EngineMessage::TerrainChunkState), ma.data(), ma.size());
     n.step();
     EXPECT_EQ(c.terrainEdits().sequence(chunk(5, 5)), 1u);
-    EXPECT_EQ(c.terrainEdits().entry(chunk(5, 5))->nonZeroSamples, 12u);
+    const TerrainChunkEdits* e55 = c.terrainEdits().entry(chunk(5, 5));
+    ASSERT_NE(e55, nullptr);
+    EXPECT_EQ(e55->nonZeroSamples, 12u);
     EXPECT_EQ(c.terrainEdits().delta(0, 6 * 128, 5 * 128 + 15), 9);  // the absent neighbour's border reads it
     n.host->sendRaw(1, MessageId(EngineMessage::TerrainChunkState), mb.data(), mb.size());
     n.step();
-    EXPECT_EQ(c.terrainEdits().entry(chunk(6, 5))->nonZeroSamples, 11u);
-    EXPECT_EQ(c.terrainEdits().entry(chunk(5, 5))->nonZeroSamples, 12u);
+    const TerrainChunkEdits* e65 = c.terrainEdits().entry(chunk(6, 5));
+    ASSERT_NE(e65, nullptr);
+    EXPECT_EQ(e65->nonZeroSamples, 11u);
+    e55 = c.terrainEdits().entry(chunk(5, 5));
+    ASSERT_NE(e55, nullptr);
+    EXPECT_EQ(e55->nonZeroSamples, 12u);
     EXPECT_EQ(c.netStats().rejected, rejected);
 }
 
@@ -500,14 +545,21 @@ TEST_F(TerrainNet, LateJoinerGetsEveryChunkState)
 {
     for (bool editInJoinStep : {false, true})
     {
-        Net n(1, 0, false);
+        // The host sees the peer join only after the edits (PR review: the loopback peer was connected from the first
+        // step, so the join-step edit reached it as a regular modification)
+        Net n(1, 0, false, true);
         n.host->editTerrain(0, brush(TerrainBrush::Add, 256, 256, 12, 2));  // four chunks
         n.host->editTerrain(0, brush(TerrainBrush::Subtract, 1000, 700, 9, 1));
         n.host->terrainEditsForUpdate().bumpSequence(chunk(10, 10));  // a state without deltas
         n.step(3);
+        EXPECT_TRUE(n.host->connectedPeers().empty());
         n.addClient(1);
+        n.hostTransport->release();
         if (editInJoinStep) n.host->editTerrain(0, brush(TerrainBrush::Smooth, 256, 256, 12, 1));
-        n.step(2);
+        n.host->step();
+        EXPECT_EQ(n.host->peersJoined(), std::vector<uint8_t>{1});
+        n.client().step();
+        n.step();
         expectSameState(*n.host, n.client());
         EXPECT_EQ(n.client().terrainEdits().sequence(chunk(10, 10)), 1u);
         EXPECT_FALSE(n.client().terrainEdits().hasDeltas(chunk(10, 10)));

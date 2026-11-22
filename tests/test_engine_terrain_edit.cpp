@@ -12,6 +12,8 @@
 #include "saiga/engine/core/Hash.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/core/LogRing.h"
+#include "saiga/engine/gameplay/ClassList.h"
+#include "saiga/engine/gameplay/GameObject.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/net/Varint.h"
@@ -838,16 +840,32 @@ TEST(TerrainEdit, EnclosedSpaceWithZeroSpacing)
     EXPECT_EQ(w.terrainEdits().spaceCount(), 2u);
     EXPECT_EQ(w.terrainEdits().nonZeroSamples(1), 0u);
     EXPECT_GT(applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 10, 2)).changedSamples, 0u);
+    // Second review: gatherSamples and the terrain_height tool divided by it too
+    SampleRect r;
+    r.i0 = 3;
+    r.k0 = 4;
+    r.i1 = 6;
+    r.k1 = 5;
+    std::vector<int32_t> base, height;
+    gatherSamples(w, 1, r, base, height);
+    EXPECT_EQ(base, std::vector<int32_t>(8, 0));
+    EXPECT_EQ(height, std::vector<int32_t>(8, 0));
+    WorldApi api(w);
+    const ApiResult h = api.call("terrain_height", json11::Json::object{{"space", 1}, {"x", 10}, {"z", 20}});
+    ASSERT_TRUE(h.ok) << h.error;
+    EXPECT_EQ(h.value["height"].number_value(), 0.0);
 }
 
 // Regression (PR review of S22): an edit of a chunk whose sequence is UINT32_MAX (a save accepts it) wrapped the
-// sequence to 0, which saves and messages reject; the edit is refused and changes nothing
+// sequence to 0, which saves and messages reject; the edit is refused and changes nothing (second review: it reserved
+// delta blocks before the refusal)
 TEST(TerrainEdit, ExhaustedSequenceRefusesTheEdit)
 {
     World w(editSetup(2));
     w.terrainEditsForUpdate().setSequence(chunk(1, 1), std::numeric_limits<uint32_t>::max());
     const std::vector<uint8_t> before = w.save();
     const TerrainEditResult r         = applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 10, 2));
+    EXPECT_EQ(w.terrainEdits().blockCount(0), 0u);
     EXPECT_EQ(r.changedSamples, 0u);
     EXPECT_TRUE(r.chunks.empty());
     EXPECT_EQ(w.terrainEdits().sequence(chunk(1, 1)), std::numeric_limits<uint32_t>::max());
@@ -995,6 +1013,64 @@ TEST_F(TerrainEditWorld, AbortedStepKeepsTheChange)
     EXPECT_EQ(readPerStep[3], 0u);
     // The edit's send-list entry was kept by the aborted steps and cleared by the completed one
     EXPECT_TRUE(w.replication().hostStateList().empty());
+}
+
+TEST_F(TerrainEditWorld, KeptChangesAreEmittedBeforeABetweenStepEdit)
+{
+    // Regression (PR review): edit A, kept by an aborted step, was emitted after a between-step edit B (game systems
+    // read B before A, replication sends A first)
+    World w(hookedSetup(2));
+    bool aborted = false;
+    std::vector<double> readX0;
+    g_hooks.phase3 = [&](World& world)
+    {
+        if (!aborted) world.editTerrain(0, brush(TerrainBrush::Add, 300, 300, 6, 1));
+    };
+    g_hooks.phase4a = [&](World& world)
+    {
+        for (const TerrainEditedEvent& e : world.events.read<TerrainEditedEvent>()) readX0.push_back(e.x0);
+        if (!aborted)
+        {
+            aborted = true;
+            throw std::runtime_error("abort phase 4");
+        }
+    };
+    EXPECT_THROW(w.step(), std::runtime_error);
+    ASSERT_EQ(w.pendingTerrainChanges().size(), 1u);
+    w.editTerrain(0, brush(TerrainBrush::Add, 900, 900, 6, 1));
+    EXPECT_TRUE(w.pendingTerrainChanges().empty());
+    w.step();
+    ASSERT_EQ(readX0.size(), 2u);
+    EXPECT_LT(readX0[0], 400.0);
+    EXPECT_GT(readX0[1], 800.0);
+}
+
+namespace
+{
+class EditsTerrainOnLoad final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(kFirstGameClass);
+    static constexpr const char* name = "EditsTerrainOnLoad";
+    void onLoad() override { world().editTerrain(0, brush(TerrainBrush::Add, 300, 300, 6, 1)); }
+};
+}  // namespace
+
+// Regression (PR review): an object's onLoad changed the terrain the load had just installed; refused like the other
+// mutations of a load hook (a hook error)
+TEST(TerrainEditLoad, OnLoadCannotEditTheTerrain)
+{
+    WorldSetup s = editSetup(2);
+    s.classes    = [](ClassList& c) { c.add<EditsTerrainOnLoad>(); };
+    World a(s);
+    const Entity e = a.spawn<EditsTerrainOnLoad>(Vec3(0, 0, 0));
+    World b(s);
+    const LoadResult r = b.tryLoad(a.save());
+    ASSERT_TRUE(r.committed);
+    ASSERT_EQ(r.hookErrors.size(), 1u);
+    EXPECT_NE(r.hookErrors[0].message.find("editTerrain during a load"), std::string::npos) << r.hookErrors[0].message;
+    EXPECT_FALSE(b.alive(e));
+    EXPECT_EQ(b.terrainEdits().chunkCount(), 0u);
 }
 
 TEST_F(TerrainEditWorld, ViolationsStopTheProgram)
@@ -1327,7 +1403,6 @@ TEST(TerrainEditSave, TamperedSectionsAreRefused)
         std::vector<uint8_t> payload;
     };
     const std::vector<Case> cases = {
-        {"wrong N", terrPayload(2, 257, {{1, 1, 1, 1, good, {}}})},
         {"wrong spacing", terrPayload(1, 257, {{1, 1, 1, 1, std::vector<int32_t>(257 * 257, 1), {}}})},
         {"out of range", terrPayload(2, 129, {{16, 1, 1, 1, good, {}}})},
         {"negative chunk", terrPayload(2, 129, {{-1, 1, 1, 1, good, {}}})},
@@ -1356,6 +1431,12 @@ TEST(TerrainEditSave, TamperedSectionsAreRefused)
         EXPECT_NE(r.error.find("TERR"), std::string::npos) << c.name << ": " << r.error;
         EXPECT_EQ(b.hash(), before) << c.name;
     }
+    // N that does not match the section's spacing, with a sequence-only chunk (PR review: with 129 x 129 deltas the
+    // short delta payload was refused too, so the test passed without the N check)
+    const LoadResult wrongN = b.tryLoad(withTerr(blob, terrPayload(2, 257, {{1, 1, 1, 0, {}, {}}})));
+    EXPECT_FALSE(wrongN.committed);
+    EXPECT_NE(wrongN.error.find("does not match the base spacing"), std::string::npos) << wrongN.error;
+    EXPECT_EQ(b.hash(), before);
     EXPECT_EQ(b.save(), beforeSave);
     // The control: an equal border loads
     std::vector<int32_t> right = good;
@@ -1581,6 +1662,14 @@ TEST(TerrainDirtyQueue, GrownBoxAbsorbsEarlierBoxes)
     ASSERT_EQ(q.tileBoxes().size(), 3u);
     EXPECT_EQ(q.tileBoxes()[1].i0, 10);
     EXPECT_EQ(q.tileBoxes()[2].i0, 20);
+    // An active (split) front box takes no new box: a touching one is queued after it
+    TerrainDirtyQueue a;
+    a.addTileBox(rect(0, 5, 9, 9));
+    a.tileList().frontActive = true;
+    a.addTileBox(rect(0, 3, 9, 4));
+    ASSERT_EQ(a.tileBoxes().size(), 2u);
+    EXPECT_EQ(a.tileBoxes()[0].k0, 5);
+    EXPECT_EQ(a.tileBoxes()[1].k0, 3);
 }
 
 namespace
@@ -1795,6 +1884,38 @@ TEST(TerrainEditVisual, BudgetSpreadsALargeEditByRows)
     w.setRenderSink(nullptr);
 }
 
+// Regression (PR review): an edit next to the sent rows of a split box grew it back to its first row, so with an edit
+// every frame the patch step sent the first rows again and again and the lower rows never reached the sink
+TEST(TerrainEditVisual, EditsNextToASplitBoxDoNotStarveItsRows)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    TerrainViewSettings v = w.terrain().viewSettings();
+    v.editSamplesPerFrame = 150;  // about one row of the box per frame
+    w.terrain().setViewSettings(v);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 100, 5));  // rows 101..199
+    auto sentLevel0 = [&](int64_t i, int64_t k)
+    {
+        RegionId r;
+        r.space = 0;
+        r.level = 0;
+        r.x     = int32_t(i / 128);
+        r.z     = int32_t(k / 128);
+        return (*sink.terrainTiles().at(r).heights)[size_t((k - r.z * 128) * 129 + (i - r.x * 128))];
+    };
+    for (int frame = 0; frame < 400; ++frame)
+    {
+        // A small edit of rows 101..103 every frame
+        applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 204, 3, 0.1));
+        w.terrain().updateView(0, kCamera);
+    }
+    EXPECT_EQ(sentLevel0(150, 190), w.terrainSample(0, 150, 190));
+    EXPECT_NE(w.terrainSample(0, 150, 190), w.terrain().sample(0, 150, 190));
+    w.setRenderSink(nullptr);
+}
+
 TEST(TerrainEditVisual, EditInAnotherSpaceQueuesOnlyPyramidBoxes)
 {
     WorldSetup s         = editSetup(2);
@@ -1954,6 +2075,47 @@ TEST(TerrainEditGrass, ReturnToZeroSendsTheBaseMask)
     settle(w, kCamera);
     EXPECT_FALSE(w.terrain().visualPatch().masks.count(c));
     EXPECT_EQ(*sink.grassMasks().at(c).density, base);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (PR review): a chunk edited before its base mask was made, whose deltas returned to zero while no sink was
+// attached, sent its stale edited mask to the next sink as an unedited chunk's mask (and kept it)
+TEST(TerrainEditGrass, ReturnToZeroWithoutSinkSendsNoStaleMask)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const ChunkId c = chunk(1, 1);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Subtract, 300, 300, 8, 6));
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    ASSERT_TRUE(sink.grassMasks().count(c));
+    ASSERT_EQ(w.terrain().store(0).mask(c), nullptr);
+    ASSERT_TRUE(w.terrain().visualPatch().masks.count(c));
+    w.setRenderSink(nullptr);
+    applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 300, 300, 8, 6));
+    ASSERT_FALSE(w.terrainEdits().hasDeltas(c));
+    RecordingRenderSink b;
+    w.setRenderSink(&b);
+    EXPECT_FALSE(b.grassMasks().count(c));
+    ASSERT_TRUE(w.terrain().completeView(0, kCamera));
+    ASSERT_TRUE(b.grassMasks().count(c));
+    ASSERT_NE(w.terrain().store(0).mask(c), nullptr);
+    EXPECT_EQ(*b.grassMasks().at(c).density, *w.terrain().store(0).mask(c)->density);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (PR review): the grass mask selection used the base box of a chunk (+- 64 m), so a camera on terrain
+// raised by 200 m was too far from it and the chunk lost its grass
+TEST(TerrainEditGrass, RaisedChunkKeepsItsMask)
+{
+    World w(editSetup(2));
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    for (int i = 0; i < 4; ++i) applyTerrainEdit(w, 0, brush(TerrainBrush::Add, 384, 384, 120, 50));
+    const double h = w.terrainHeight(0, 384, 384);
+    ASSERT_GT(h - w.terrain().sample(0, 192, 192) * kHeightUnit, 199.0);
+    ASSERT_TRUE(w.terrain().completeView(0, Vec3(384, h + 2, 384)));
+    EXPECT_TRUE(sink.grassMasks().count(chunk(1, 1)));
     w.setRenderSink(nullptr);
 }
 

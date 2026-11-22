@@ -253,9 +253,10 @@ void terraformEdit(EngineApp& app)
     // Only open-world spaces have a height-map terrain: in an enclosed one nothing is edited (and nothing reported each
     // 0.1 s)
     if (app.world().spaceTemplate(app.viewCamera().space).kind != SpaceKind::OpenWorld) return;
+    // Every pick attempt is throttled, also a miss (PR review: a ray above the terrain marched 4000 steps each frame)
+    g.lastEdit = now;
     Vec3 hit;
     if (!terrainUnderCursor(app, hit)) return;
-    g.lastEdit = now;
     TerrainBrush b;
     b.op = TerrainBrush::Op(g.terraformOp);
     // The right button lowers: subtract for add, add for subtract (flatten and smooth are the same on both)

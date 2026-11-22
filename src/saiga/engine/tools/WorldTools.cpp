@@ -51,6 +51,16 @@ Json quatProperty(const std::string& description)
                         {"maxItems", 4}};
 }
 
+// A point [x, y, z] or [x, z] (edit_terrain's center)
+Json pointProperty(const std::string& description)
+{
+    return Json::object{{"type", "array"},
+                        {"description", description},
+                        {"items", Json::object{{"type", "number"}}},
+                        {"minItems", 2},
+                        {"maxItems", 3}};
+}
+
 struct ToolSpec
 {
     const char* name;
@@ -141,12 +151,13 @@ std::vector<ToolSpec> toolSpecs()
          "heights. Returns changed_samples, per changed chunk {chunk: [x, z], sequence, box: [x0, z0, w, h] in "
          "chunk-local samples} and the changed box [x0, z0, x1, z1] in metres. Refused on clients, inside a step, "
          "for an unknown or enclosed space and for a brush out of its bounds (the error names the field).",
-         S::ObjectSchema({{"space", S::IntegerProperty("Space (default 0; describe_world lists them)")},
-                          {"op", S::StringProperty("add, subtract, flatten or smooth")},
-                          {"center", S::Vec3Property("Brush center [x, y, z] in metres (y: the flatten target)")},
-                          {"radius", S::NumberProperty("Radius in metres (0..128]")},
-                          {"strength", S::NumberProperty("Metres (add/subtract) or blend 0..1 (flatten/smooth)")}},
-                         {"op", "center", "radius", "strength"})},
+         S::ObjectSchema(
+             {{"space", S::IntegerProperty("Space (default 0; describe_world lists them)")},
+              {"op", S::StringProperty("add, subtract, flatten or smooth")},
+              {"center", pointProperty("Brush center [x, y, z] or [x, z] in metres (y: the flatten target)")},
+              {"radius", S::NumberProperty("Radius in metres (0..128]")},
+              {"strength", S::NumberProperty("Metres (add/subtract) or blend 0..1 (flatten/smooth)")}},
+             {"op", "center", "radius", "strength"})},
         {"terrain_height",
          "Reads the exact terrain surface height at (x, z) of a space (the integer surface rule of §12.2 incl. "
          "terrain edits), the three integer samples of the containing triangle [i, k, height units of 1/1024 m] and "

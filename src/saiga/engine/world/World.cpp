@@ -781,6 +781,12 @@ int32_t World::terrainSample(SpaceId space, int64_t i, int64_t k) const
     return terrainSys->editedSample(space, i, k);
 }
 
+namespace
+{
+const char* const kTerrainEditDuringLoad =
+    "editTerrain during a load: configure and onLoad change no terrain (the load installs the saved terrain)";
+}  // namespace
+
 bool World::checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::string* error) const
 {
     auto fail = [&](const std::string& m)
@@ -789,6 +795,8 @@ bool World::checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::stri
         return false;
     };
     if (!isHost()) return fail("editTerrain on a client (terrain edits are host commands, R-NET-1)");
+    // PR review: an object's configure / onLoad changed the terrain the load had just installed
+    if (loadHookPhase != 0) return fail(kTerrainEditDuringLoad);
     if (space >= spaceCount()) return fail("editTerrain: unknown space " + std::to_string(space));
     const SpaceTemplate& t = spaceTemplate(space);
     if (t.kind != SpaceKind::OpenWorld)
@@ -802,6 +810,8 @@ bool World::checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::stri
 void World::editTerrain(SpaceId space, const TerrainBrush& brush)
 {
     checkNotParallel("editTerrain");
+    // Refused like the other mutations of a load hook: catchable, the loader reports it as the hook's error
+    if (loadHookPhase != 0) throw std::logic_error(kTerrainEditDuringLoad);
     std::string error;
     // Checked at the call in every build, also during a step (the error points at the caller)
     if (!checkTerrainEdit(space, brush, &error)) SAIGA_EXIT_ERROR(error);
@@ -836,7 +846,11 @@ void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
         if (inStep())
             terrainChanges.push_back(c);
         else
+        {
+            // The changes kept by an aborted step first (PR review: a between-step edit was emitted before them)
+            emitTerrainChanges();
             emitTerrainEvent(c);
+        }
     }
     // The visual dirty queue (only while a render sink is attached)
     terrainSys->terrainChanged(space, box);
@@ -1546,6 +1560,8 @@ void World::setWorkerThreads(int n)
 
 uint64_t World::hash() const
 {
+    // TerrainEditStore::contentHash caches without synchronization (PR review): not from parallelEach bodies
+    checkNotParallel("hash");
     SAIGA_ASSERT(!inStep() && commands.empty(), "World::hash inside a step");
     Hasher h;
     reg.hashInto(h);

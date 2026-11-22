@@ -32,7 +32,8 @@ void gatherSamples(const World& world, SpaceId space, const SampleRect& rect, st
     height.resize(size_t(w * h));
     if (rect.empty()) return;
     const SpaceTemplate& t = terrain.spaceTemplate(space);
-    const int64_t S        = 256 / t.baseSpacing;
+    // The store's grid (PR review: the baseSpacing of an enclosed space is ignored and may be 0)
+    const int64_t S        = st.chunkSamples(space);
     const int64_t N        = S + 1;
     const TerrainStore& ts = terrain.store(space);
     for (int64_t k = rect.k0; k <= rect.k1; ++k)
@@ -125,8 +126,6 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
             box.i1 = std::max(box.i1, i);
             box.k0 = std::min(box.k0, k);
             box.k1 = std::max(box.k1, k);
-            // 4. reserve the block of the new delta (only a non-zero delta that differs from the current one)
-            st.reserveFor(space, i, k, outAt(i, k) - baseAt(i, k));
             // The chunks of this sample: i / S, and i / S - 1 on a border (clipped to the space)
             const int64_t cx = i / S, cz = k / S;
             for (int64_t z = (k % S == 0 ? cz - 1 : cz); z <= cz; ++z)
@@ -142,7 +141,7 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
         }
     std::sort(chunks.begin(), chunks.end());
     // A chunk whose sequence is exhausted (UINT32_MAX, e.g. from a save) cannot be bumped (0 is not a valid sequence
-    // of saves and messages): the edit is refused and changes nothing (the blocks reserved above hold no delta)
+    // of saves and messages): the edit is refused and changes nothing (checked before any block is reserved)
     for (const ChunkId& c : chunks)
         if (st.sequence(c) == std::numeric_limits<uint32_t>::max())
         {
@@ -151,6 +150,10 @@ TerrainEditResult applyTerrainEdit(World& world, SpaceId space, const TerrainBru
             ss.noopEdits++;
             return result;
         }
+    // 4. reserve the blocks of the new deltas (only a non-zero delta that differs from the current one)
+    for (int64_t k = box.k0; k <= box.k1; ++k)
+        for (int64_t i = box.i0; i <= box.i1; ++i)
+            if (outAt(i, k) != preAt(i, k)) st.reserveFor(space, i, k, outAt(i, k) - baseAt(i, k));
     // 4. reserve the entries of new chunks, the parts of the send-list entry, the result and the change-list slot
     std::vector<TerrainEditStore::EntryNode> entries;
     entries.reserve(chunks.size());

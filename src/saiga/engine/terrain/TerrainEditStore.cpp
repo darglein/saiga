@@ -121,6 +121,26 @@ void TerrainEditStore::denseDelta(const ChunkId& chunk, std::vector<int32_t>& ou
         }
 }
 
+void TerrainEditStore::deltaRange(const ChunkId& chunk, int32_t& lo, int32_t& hi) const
+{
+    lo = hi         = 0;
+    const Space& s  = spaces[chunk.space];
+    const int64_t N = s.S + 1, i0 = int64_t(chunk.x) * s.S, k0 = int64_t(chunk.z) * s.S;
+    for (int64_t bk = k0 >> 4; bk <= (k0 + N - 1) >> 4; ++bk)
+        for (int64_t bi = i0 >> 4; bi <= (i0 + N - 1) >> 4; ++bi)
+        {
+            const TerrainEditBlock* b = block(chunk.space, bi * 16, bk * 16);
+            if (!b) continue;
+            for (int64_t k = std::max(bk * 16, k0); k < std::min(bk * 16 + 16, k0 + N); ++k)
+                for (int64_t i = std::max(bi * 16, i0); i < std::min(bi * 16 + 16, i0 + N); ++i)
+                {
+                    const int32_t v = b->delta[(k & 15) * 16 + (i & 15)];
+                    lo              = std::min(lo, v);
+                    hi              = std::max(hi, v);
+                }
+        }
+}
+
 uint32_t TerrainEditStore::countNonZero(const ChunkId& chunk) const
 {
     const Space& s  = spaces[chunk.space];

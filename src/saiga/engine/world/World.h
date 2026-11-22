@@ -407,7 +407,8 @@ class SAIGA_ENGINE_API World
     // height hook: base 0 without one, D1) and the brush must pass validateBrush for it; the role, the space and the
     // brush are checked at the call (also during a step, before anything is recorded): a violation stops the program
     // in every build. During a step a command (the brush copied), applied at the phase flush in recording order;
-    // between steps at once. Not inside parallelEach (R-PAR-1)
+    // between steps at once. Not inside parallelEach (R-PAR-1). In a load's configure / onLoad: std::logic_error (the
+    // loader reports it as the hook's error)
     void editTerrain(SpaceId space, const TerrainBrush& brush);
     // The checks of editTerrain without stopping: false with the error (the world API)
     bool checkTerrainEdit(SpaceId space, const TerrainBrush& brush, std::string* error) const;
@@ -480,7 +481,7 @@ class SAIGA_ENGINE_API World
     void setAccumulatedTime(double t) { accumulator = t; }
 
     // FNV-1a 64 over the saved components of the alive entities (index order), the free list, the RNG state, the
-    // pending events and the step index (§17.4). Between steps.
+    // pending events and the step index (§17.4). Between steps; not inside parallelEach.
     uint64_t hash() const;
 
     // ---- data (§14, S11) -------------------------------------------------------------------------------------------

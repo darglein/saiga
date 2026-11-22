@@ -29,6 +29,7 @@
 #include <cmath>
 #include <limits>
 #include <map>
+#include <set>
 #include <zstd.h>
 
 namespace Saiga
@@ -521,12 +522,20 @@ void Replication::onTerrainModification(uint8_t from, const uint8_t* data, size_
     TerrainEditStore& st = w.terrainEditsForUpdate();
     const int64_t S = st.chunkSamples(m.space), N = S + 1;
     std::map<std::pair<int64_t, int64_t>, int32_t> shared;
+    std::set<ChunkId> partChunks;
     for (const TerrainPart& p : m.parts)
     {
         if (p.chunk.x < 0 || p.chunk.z < 0 || p.chunk.x >= st.sizeChunks(m.space) ||
             p.chunk.z >= st.sizeChunks(m.space) || p.x0 + p.w > N || p.z0 + p.h > N || p.sequence == 0)
         {
             w.rejectInput(from, "TerrainModification: a part outside the space or its tile, or sequence 0");
+            return;
+        }
+        // One part per chunk (PR review: two parts of a new chunk reserved two entries for it and could move its
+        // sequence backward)
+        if (!partChunks.insert(p.chunk).second)
+        {
+            w.rejectInput(from, "TerrainModification: two parts of one chunk");
             return;
         }
         // Parts of one message that share samples (chunk borders) carry equal values there

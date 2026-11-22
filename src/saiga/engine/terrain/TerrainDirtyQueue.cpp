@@ -21,10 +21,13 @@ bool touches(const SampleRect& a, const SampleRect& b)
 }
 }  // namespace
 
-void TerrainDirtyQueue::merge(std::vector<SampleRect>& list, SampleRect box)
+void TerrainDirtyQueue::merge(List& l, SampleRect box)
 {
     if (box.empty()) return;
-    auto grow = [](SampleRect& m, const SampleRect& b)
+    std::vector<SampleRect>& list = l.boxes;
+    // An active front box is neither grown nor absorbed
+    const size_t first = l.frontActive ? 1 : 0;
+    auto grow          = [](SampleRect& m, const SampleRect& b)
     {
         m.i0 = std::min(m.i0, b.i0);
         m.k0 = std::min(m.k0, b.k0);
@@ -33,18 +36,18 @@ void TerrainDirtyQueue::merge(std::vector<SampleRect>& list, SampleRect box)
     };
     // The first box it touches grows; the grown box may touch further ones, before or after it (merged into it, in
     // place, until none touches)
-    for (size_t i = 0; i < list.size(); ++i)
+    for (size_t i = first; i < list.size(); ++i)
     {
         if (!touches(list[i], box)) continue;
         grow(list[i], box);
-        for (size_t j = 0; j < list.size();)
+        for (size_t j = first; j < list.size();)
         {
             if (j != i && touches(list[i], list[j]))
             {
                 grow(list[i], list[j]);
                 list.erase(list.begin() + std::ptrdiff_t(j));
                 if (j < i) --i;
-                j = 0;
+                j = first;
             }
             else
                 ++j;
@@ -56,15 +59,15 @@ void TerrainDirtyQueue::merge(std::vector<SampleRect>& list, SampleRect box)
 
 size_t TerrainDirtyQueue::size() const
 {
-    size_t n = tiles.size();
-    for (const auto& kv : pyramids) n += kv.second.size();
+    size_t n = tiles.boxes.size();
+    for (const auto& kv : pyramids) n += kv.second.boxes.size();
     return n;
 }
 
 bool TerrainDirtyQueue::empty(SpaceId viewSpace) const
 {
     auto it = pyramids.find(viewSpace);
-    return tiles.empty() && (it == pyramids.end() || it->second.empty());
+    return tiles.boxes.empty() && (it == pyramids.end() || it->second.boxes.empty());
 }
 
 }  // namespace Engine

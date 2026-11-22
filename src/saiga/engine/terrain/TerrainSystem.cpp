@@ -354,7 +354,8 @@ TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& 
         for (const auto& t : level) d.tileSet.insert(t.second);
     }
     // Grass masks: the chunks (with a desired level-0 tile) whose box is within the grass radius: the 3D distance (the
-    // grass fades out by its 3D distance, GrassPass), the box from the pyramid's heights of the chunk +- 64 m
+    // grass fades out by its 3D distance, GrassPass), the box from the pyramid's heights of the chunk +- 64 m, widened
+    // by the deltas of an edited chunk (PR review: the base box of a raised chunk was too far for its grass)
     if (view.grassRadius > 0 && L.grassMaskLayers > 0)
     {
         const Vulkan::TerrainPyramidData& p = *sp.store->pyramid();
@@ -370,8 +371,12 @@ TerrainSystem::Desired TerrainSystem::computeDesired(SpaceId space, const Vec3& 
                     lo              = std::min(lo, v);
                     hi              = std::max(hi, v);
                 }
-            const Vec3 bmin(t.second.x * 256.0, double(lo) * kHeightUnit - 64, t.second.z * 256.0);
-            const Vec3 bmax((t.second.x + 1) * 256.0, double(hi) * kHeightUnit + 64, (t.second.z + 1) * 256.0);
+            int32_t dlo = 0, dhi = 0;
+            if (const ChunkId c = chunkOf(space, t.second.x, t.second.z); editedChunk(c))
+                edits->deltaRange(c, dlo, dhi);
+            const Vec3 bmin(t.second.x * 256.0, (double(lo) + double(dlo)) * kHeightUnit - 64, t.second.z * 256.0);
+            const Vec3 bmax((t.second.x + 1) * 256.0, (double(hi) + double(dhi)) * kHeightUnit + 64,
+                            (t.second.z + 1) * 256.0);
             const double dist = (camera.cwiseMax(bmin).cwiseMin(bmax) - camera).norm();
             if (dist <= view.grassRadius) d.masks.push_back({dist, chunkOf(space, t.second.x, t.second.z)});
         }
@@ -796,9 +801,10 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
                 int64_t(c.z) * S <= b.k1 && int64_t(c.z) * S + S >= b.k0)
                 queueMask(c);
     };
-    auto drain = [&](std::vector<SampleRect>& list, bool tiles)
+    auto drain = [&](TerrainDirtyQueue::List& l, bool tiles)
     {
-        auto cost = [&](const SampleRect& b)
+        std::vector<SampleRect>& list = l.boxes;
+        auto cost                     = [&](const SampleRect& b)
         { return tiles ? patchTileBox(space, b, false) : patchPyramidBox(space, b, false); };
         while (!list.empty())
         {
@@ -811,6 +817,7 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
                 used += tiles ? patchTileBox(space, box, true) : patchPyramidBox(space, box, true);
                 if (tiles) queueMasks(box);
                 list.erase(list.begin());
+                l.frontActive = false;
                 continue;
             }
             // The most rows that fit (cost is monotone in the rows)
@@ -835,11 +842,12 @@ int64_t TerrainSystem::patchEditedTiles(SpaceId space, int64_t budget)
             used += tiles ? patchTileBox(space, head, true) : patchPyramidBox(space, head, true);
             if (tiles) queueMasks(head);
             list.front().k0 = box.k0 + lo;
+            l.frontActive   = true;
             return false;
         }
         return true;
     };
-    if (drain(dirty.tileBoxes(), true)) drain(dirty.pyramidBoxes(space), false);
+    if (drain(dirty.tileList(), true)) drain(dirty.pyramidList(space), false);
     statistics.patchedSamples += uint64_t(used);
     statistics.patchedSamplesLastUpdate += uint64_t(used);
     return used;
@@ -1143,8 +1151,9 @@ void TerrainSystem::setSink(RenderSink* s)
     {
         if (const Vulkan::GrassMaskData* mask = st.mask(m.second))
             sendGrassMask(m.second, *mask);
-        else if (auto it = visual->masks.find(m.second); it != visual->masks.end())
-            // The edited mask of a chunk without a base mask (S22)
+        else if (auto it = visual->masks.find(m.second); it != visual->masks.end() && editedChunk(m.second))
+            // The edited mask of a chunk without a base mask (S22), only while the chunk has deltas (PR review: a mask
+            // of deltas returned to zero went out as an unedited chunk's mask; sendGrassMask checks its revision)
             sendGrassMask(m.second, it->second.mask);
     }
 }

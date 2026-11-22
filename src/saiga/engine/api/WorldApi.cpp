@@ -1612,10 +1612,12 @@ ApiResult WorldApi::terrainHeight(const Json& a)
         return ApiResult::failure("x, z: finite numbers in metres");
     const double x = a["x"].number_value(), z = a["z"].number_value();
     const SpaceTemplate& t = w->spaceTemplate(space);
-    // The three samples of the containing triangle (§12.2; TerrainSystem::height)
-    const double size = t.sizeMeters(), spacing = t.baseSpacing;
+    // The three samples of the containing triangle (§12.2; TerrainSystem::height) on the store's grid (PR review: the
+    // baseSpacing of an enclosed space is ignored and may be 0; its samples are 0)
+    const int sp      = w->terrainEdits().spacing(space);
+    const double size = t.sizeMeters(), spacing = sp;
     const double gx = std::min(std::max(x, 0.0), size) / spacing, gz = std::min(std::max(z, 0.0), size) / spacing;
-    const int64_t n  = int64_t(t.sizeChunks) * 256 / t.baseSpacing;
+    const int64_t n  = int64_t(t.sizeChunks) * 256 / sp;
     const int64_t ci = std::min(int64_t(std::floor(gx)), n - 1), cj = std::min(int64_t(std::floor(gz)), n - 1);
     const bool a1           = gx - double(ci) >= gz - double(cj);
     const int64_t idx[3][2] = {{ci, cj}, {a1 ? ci + 1 : ci, a1 ? cj : cj + 1}, {ci + 1, cj + 1}};

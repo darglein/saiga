@@ -2759,8 +2759,9 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   entities (removes and creates in the structural log; load listeners get the log range), rebuilds the derived state and
   recreates the game objects in three passes (create all, `configure` all, `onLoad` all; `onSpawn` is not called; during
   a load `configure` makes no structural changes and `onLoad` adds or removes only `Saved::No` components of its own
-  entity: refused in every build, an assert and an exception that becomes a hook error); a load is refused (an error,
-  the world unchanged) inside a step, a game hook or a view; a hook that throws removes its entity with its descendants without hooks and is reported in
+  entity, neither edits the terrain (S22): refused in every build, an assert and an exception that becomes a hook
+  error); a load is refused (an error, the world unchanged) inside a step, a game hook or a view; a hook that throws
+  removes its entity with its descendants without hooks and is reported in
   `LoadResult::hookErrors` (a throwing load listener in `listenerErrors`; the others still run). A state entity freed by
   a load (its components are no longer registered as state) must have no children, `PersistentId` or game object, and
   state entities never have game objects.
@@ -3474,11 +3475,11 @@ these stages keeps the demos working and shows its feature in them (screenshots 
 | Racing | physics and world: a car (rigid body on four spring-damper wheels, tire friction circle) on a closed track placed on gentle, tree-poor land of the world prototype; checkpoints and lap times; the demo mode's AI driver races | `samples/games/racing/`, `game_racing` |
 
 `game_world` (the world prototype on `EngineApp`, §19) has a terraform mode since S22 (game policy, D14): T toggles it,
-the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain under the screen
-centre at 10 edits/s while held, radius and strength in its World window; the edits go to `app.startWorld()` (the host
-world, also with `--coop`, where the rendered world is a client and receives them through replication). The MCP tool
-`edit_terrain` makes it scriptable (with `--coop` the tools see the client world and answer with the client error). The
-flight, platformer and racing demos are unchanged by S22.
+the left / right mouse button raises / lowers (1..4: add, subtract, flatten, smooth) the terrain under the mouse
+cursor (the screen centre without a mouse position) at 10 edits/s while held, radius and strength in its World
+window; the edits go to `app.startWorld()` (the host world, also with `--coop`, where the rendered world is a client and
+receives them through replication). The MCP tool `edit_terrain` makes it scriptable (with `--coop` the tools see the
+client world and answer with the client error). The flight, platformer and racing demos are unchanged by S22.
 
 - **Running**: `./build/samples/games/game_<flight|platformer|racing> [--demo]` (the engine app's command line, §8.3:
   `--headless`, `--no-render`, `--screenshot`, `--scenarios`, ...; no `config.ini`). `--demo` spawns the demo's

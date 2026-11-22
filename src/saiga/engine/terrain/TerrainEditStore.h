@@ -11,9 +11,9 @@
 // with state a TerrainChunkEdits entry (sequence > 0) in ChunkId order. Never evicted.
 //
 // Mutated only on the main thread at phase flushes, in phase-1 message handlers and between steps; the const reads are
-// lock-free and safe from parallelEach bodies while nothing mutates the store. Writers follow reserve-then-commit:
-// reserveBlock / makeEntry allocate (before the first write), insertEntry / writeDelta / bumpSequence / setSequence
-// commit without allocating.
+// lock-free and safe from parallelEach bodies while nothing mutates the store (except contentHash, main thread only).
+// Writers follow reserve-then-commit: reserveBlock / makeEntry allocate (before the first write), insertEntry /
+// writeDelta / bumpSequence / setSequence commit without allocating.
 
 #pragma once
 
@@ -92,7 +92,10 @@ class SAIGA_ENGINE_API TerrainEditStore
     size_t chunkCount() const;
     // The dense N x N deltas of the chunk's closed range (row-major, row = z)
     void denseDelta(const ChunkId& chunk, std::vector<int32_t>& out) const;
-    // FNV-1a 64 of the dense delta of a chunk with state (cached; recomputed when dirty)
+    // The smallest and largest delta of the chunk's closed range, both including 0
+    void deltaRange(const ChunkId& chunk, int32_t& lo, int32_t& hi) const;
+    // FNV-1a 64 of the dense delta of a chunk with state (cached; recomputed when dirty). Main thread only: unlike the
+    // other const reads it writes the cache, so it is not safe from parallelEach bodies
     uint64_t contentHash(const ChunkId& chunk) const;
     // The store's delta-change counter (monotone, never reset)
     uint64_t changeCounter() const { return counter; }
