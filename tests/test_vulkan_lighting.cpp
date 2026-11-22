@@ -1078,7 +1078,53 @@ TEST_F(AtmosphereTest, TransmittanceReference)
     EXPECT_NEAR(zenith(0), 0.94f, 0.02f);
 }
 
-// The sky-view LUT: blue at the zenith at noon, red near the horizon towards the sun at sunset
+namespace
+{
+// The sky-view LUT's texel of a direction (elevation in degrees, azimuth atan(z, x) in degrees) for the camera 100 m
+// above the sea level (AtmosphereTest::Physical), through the CPU copy of the mapping
+vec3 skyViewTexel(const std::vector<uint8_t>& lut, float elevationDeg, float azimuthDeg)
+{
+    const int w = int(Atmosphere::kSkyViewWidth), h = int(Atmosphere::kSkyViewHeight);
+    const float el = elevationDeg * float(kPi) / 180, az = azimuthDeg * float(kPi) / 180;
+    const vec2 uv = Atmosphere::skyViewUv(vec3(std::cos(el) * std::cos(az), std::sin(el), std::cos(el) * std::sin(az)),
+                                          Atmosphere::skyViewHorizon(Atmosphere::radiusOf(100)));
+    return halfTexel(lut, std::clamp(int(uv(0) * float(w)), 0, w - 1), std::clamp(int(uv(1) * float(h)), 0, h - 1), w);
+}
+}  // namespace
+
+// The sky-view LUT's mapping (CPU copy of atmosphere_common.glsl): the horizon is the planet's limb (-0.32 degrees at
+// 100 m), uv and direction round-trip, and the rows concentrate at the horizon. Regression: the horizon was computed
+// as -acos(sqrt(r^2 - Rg^2) / r) = -89.7 degrees (the angle to the nadir), which put half of the rows next to the
+// nadir and about 4.8 degrees of elevation into each row at the horizon
+TEST(SkyViewMapping, HorizonAndRows)
+{
+    const float horizon = Atmosphere::skyViewHorizon(Atmosphere::radiusOf(100));
+    const float pif     = 3.14159265f;
+    const float degrees = horizon * 180 / pif;
+    EXPECT_NEAR(degrees, -0.32f, 0.01f);
+    const float v0 = Atmosphere::skyViewUv(vec3(1, 0, 0), horizon)(1);
+    EXPECT_NEAR(v0, 0.5f + 0.5f * std::sqrt(-horizon / (0.5f * pif - horizon)), 1e-6f);
+    for (float v : {0.02f, 0.3f, 0.49f, 0.51f, 0.6f, 0.97f})
+        for (float u : {0.1f, 0.5f, 0.8f})
+        {
+            const vec2 back = Atmosphere::skyViewUv(Atmosphere::skyViewDir(vec2(u, v), horizon), horizon);
+            EXPECT_NEAR(back(0), u, 1e-4f) << u << ", " << v;
+            EXPECT_NEAR(back(1), v, 1e-4f) << u << ", " << v;
+        }
+    // The rows whose centre is within 5 degrees of the elevation 0
+    int rows = 0;
+    for (int y = 0; y < int(Atmosphere::kSkyViewHeight); ++y)
+    {
+        const vec3 d =
+            Atmosphere::skyViewDir(vec2(0.5f, (float(y) + 0.5f) / float(Atmosphere::kSkyViewHeight)), horizon);
+        if (std::abs(std::asin(d(1))) < 5 * pif / 180) rows++;
+    }
+    EXPECT_GE(rows, 15);
+}
+
+// The sky-view LUT: blue at the zenith at noon, sky above and ground below the horizon row, red near the horizon
+// towards the sun at sunset (sampled by elevation through the CPU copy of the mapping: the old test read fixed rows
+// that were ground texels under the wrong horizon)
 TEST_F(AtmosphereTest, SkyIsBlueAtNoonAndRedAtSunset)
 {
     const int w = int(Atmosphere::kSkyViewWidth), h = int(Atmosphere::kSkyViewHeight);
@@ -1087,14 +1133,25 @@ TEST_F(AtmosphereTest, SkyIsBlueAtNoonAndRedAtSunset)
     std::vector<uint8_t> noon = scene->atmosphereLuts().skyView().download();
     const vec3 zenith         = halfTexel(noon, w / 2, h - 1, w);
     EXPECT_GT(zenith(2), 1.5f * zenith(0)) << zenith.transpose();
-    // Sunset in the south (+z): the azimuth atan(z, x) = 90 degrees is u = 0.75; just above the horizon (v = 0.5)
+    // The row just above v = 0.5 is the sky at the horizon (bright, bluish), the row just below the ground (darker)
+    const vec3 skyRow = halfTexel(noon, w / 4, h / 2, w), groundRow = halfTexel(noon, w / 4, h / 2 - 1, w);
+    EXPECT_GT(skyRow(2), skyRow(0)) << skyRow.transpose();
+    EXPECT_GT(skyRow.sum(), 1.2f * groundRow.sum()) << skyRow.transpose() << " / " << groundRow.transpose();
+    // A few degrees up the sky is blue, a few degrees down the ground is darker than it
+    for (float el : {1.0f, 3.0f, 10.0f})
+    {
+        const vec3 sky = skyViewTexel(noon, el, 0), ground = skyViewTexel(noon, -el - 0.5f, 0);
+        EXPECT_GT(sky(2), sky(0)) << el << ": " << sky.transpose();
+        EXPECT_GT(sky.sum(), ground.sum()) << el << ": " << sky.transpose() << " / " << ground.transpose();
+    }
+    // Sunset in the south (+z): the azimuth atan(z, x) = 90 degrees; two degrees above the horizon
     Physical(sunAt(1));
     Capture(2);
     std::vector<uint8_t> sunset = scene->atmosphereLuts().skyView().download();
-    const vec3 glow             = halfTexel(sunset, int(0.75 * w), h / 2 + 2, w);
+    const vec3 glow             = skyViewTexel(sunset, 2, 90);
     EXPECT_GT(glow(0), 1.2f * glow(2)) << glow.transpose();
     // Opposite the sun the sky stays bluer than towards it
-    const vec3 away = halfTexel(sunset, int(0.25 * w), h / 2 + 10, w);
+    const vec3 away = skyViewTexel(sunset, 10, -90);
     EXPECT_GT(away(2) / std::max(away(0), 1e-6f), glow(2) / std::max(glow(0), 1e-6f));
 }
 

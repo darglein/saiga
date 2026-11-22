@@ -98,9 +98,10 @@ vec3 lightingFog(vec3 c, vec3 relPos)
     // The fog factor first (the height fog of a black surface in a white fog): near surfaces skip the colour's lookup
     float f = protoApplyFog(vec3(0.0), relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0), vec3(1.0)).r;
     if (f < 1.0 / 2048.0) return c;
+    // The LUT's row of the elevation 0 (skyViewFogV of the block's horizon), the azimuth of relPos
     vec2 h        = relPos.xz;
-    vec3 dir      = dot(h, h) > 1e-8 ? vec3(normalize(h).x, 0.0, normalize(h).y) : vec3(1.0, 0.0, 0.0);
-    vec3 fogColor = skyRadiance(skyViewLut, dir, atmosphereRadius(lighting.atmosphere.x));
+    float u       = dot(h, h) > 1e-8 ? atan(h.y, h.x) / (2.0 * kAtmPi) + 0.5 : 0.5;
+    vec3 fogColor = textureLod(skyViewLut, vec2(u, skyViewFogV(lighting.atmosphere.w)), 0.0).rgb / kSkyLutScale;
     return mix(c, fogColor, f);
 }
 

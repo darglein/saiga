@@ -486,12 +486,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.atmosphere->record(cmd, s.env, lighting.atmosphere(0));
         s.clouds->record(cmd, s.env.clouds.seed);
         EnvironmentMap::CaptureInputs in;
-        in.skyView       = s.atmosphere->skyViewInfo();
-        in.transmittance = s.atmosphere->transmittanceInfo();
-        in.coverage      = s.clouds->coverageInfo();
-        in.cloudOrigin   = vec2(lighting.cloudMotion(0), lighting.cloudMotion(1));
-        in.clouds        = lighting.cloudMotion(3) > 0.5f;
-        in.cloudiness    = lighting.clouds(2);
+        in.skyView        = s.atmosphere->skyViewInfo();
+        in.transmittance  = s.atmosphere->transmittanceInfo();
+        in.skyViewHorizon = s.atmosphere->skyViewHorizonElevation();
+        in.coverage       = s.clouds->coverageInfo();
+        in.cloudOrigin    = vec2(lighting.cloudMotion(0), lighting.cloudMotion(1));
+        in.clouds         = lighting.cloudMotion(3) > 0.5f;
+        in.cloudiness     = lighting.clouds(2);
         if (lighting.shadowLight(3) > 0)
         {
             in.light            = vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2));
@@ -1404,6 +1405,7 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     b.cloudCoverage     = clouds->coverageInfo();
     SceneLighting block = frameBlock;
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
+    block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
     lightingSet->write(frameIndex, block, b);
 
     // The statistics of this frame (S36a1b)

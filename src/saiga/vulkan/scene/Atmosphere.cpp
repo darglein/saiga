@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 
 namespace Saiga
 {
@@ -32,6 +33,7 @@ struct AtmospherePush
 };
 
 constexpr float kGroundRadiusKm = 6360.0f, kTopRadiusKm = 6460.0f;
+constexpr float kPiF = 3.14159265358979f;
 
 bool sameSettings(const AtmosphereSettings& a, const AtmosphereSettings& b)
 {
@@ -149,6 +151,47 @@ void Atmosphere::destroy()
     base = nullptr;
 }
 
+float Atmosphere::radiusOf(float heightM)
+{
+    return std::clamp(kGroundRadiusKm + heightM * 1e-3f, kGroundRadiusKm + 1e-3f, kTopRadiusKm - 1e-3f);
+}
+
+float Atmosphere::skyViewHorizon(float radiusKm)
+{
+    return -std::acos(std::clamp(kGroundRadiusKm / radiusKm, 0.0f, 1.0f));
+}
+
+vec2 Atmosphere::skyViewUv(const vec3& dir, float horizon)
+{
+    const float halfPi = 0.5f * kPiF;
+    const float el     = std::asin(std::clamp(dir(1), -1.0f, 1.0f));
+    float v;
+    if (el >= horizon)
+        v = 0.5f + 0.5f * std::sqrt(std::clamp((el - horizon) / (halfPi - horizon), 0.0f, 1.0f));
+    else
+        v = 0.5f - 0.5f * std::sqrt(std::clamp((horizon - el) / (horizon + halfPi), 0.0f, 1.0f));
+    const float u = std::atan2(dir(2), dir(0)) / (2.0f * kPiF) + 0.5f;
+    return vec2(u, v);
+}
+
+vec3 Atmosphere::skyViewDir(const vec2& uv, float horizon)
+{
+    const float halfPi = 0.5f * kPiF;
+    float el;
+    if (uv(1) >= 0.5f)
+    {
+        const float t = (uv(1) - 0.5f) * 2.0f;
+        el            = horizon + t * t * (halfPi - horizon);
+    }
+    else
+    {
+        const float t = (0.5f - uv(1)) * 2.0f;
+        el            = horizon - t * t * (horizon + halfPi);
+    }
+    const float az = (uv(0) - 0.5f) * 2.0f * kPiF;
+    return vec3(std::cos(el) * std::cos(az), std::sin(el), std::cos(el) * std::sin(az));
+}
+
 uint64_t Atmosphere::memoryBytes() const
 {
     return 8ull * (kTransmittanceWidth * kTransmittanceHeight + kMultiScatteringSize * kMultiScatteringSize +
@@ -170,7 +213,7 @@ void Atmosphere::record(vk::CommandBuffer cmd, const EnvironmentState& e, float 
     }
     push.sun[3]    = e.enclosed ? 0.0f : e.sunIlluminance;
     push.moon[3]   = e.enclosed ? 0.0f : e.moonIlluminance;
-    push.camera[0] = std::clamp(kGroundRadiusKm + cameraHeight * 1e-3f, kGroundRadiusKm + 1e-3f, kTopRadiusKm - 1e-3f);
+    push.camera[0] = radiusOf(cameraHeight);
     push.camera[1] = e.cloudiness;
     auto dispatch  = [&](ComputePipeline& p, vk::DescriptorSet set, Texture2D& out)
     {
@@ -194,6 +237,7 @@ void Atmosphere::record(vk::CommandBuffer cmd, const EnvironmentState& e, float 
         computations++;
     }
     dispatch(skyViewPipeline, skyViewSet, skyViewLut);
+    skyViewHorizonRad = skyViewHorizon(push.camera[0]);
 }
 
 }  // namespace Vulkan

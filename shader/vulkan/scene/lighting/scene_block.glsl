@@ -59,7 +59,7 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // x: the Exposure view's centre (EV100), y: its range, z: raw radiance views (probe), w: their scale
     vec4 debugParams;
     // x: the camera height above the sea level (m; the atmosphere's LUTs), y: 1 the environment cube is valid, z: its
-    // last mip, w: unused
+    // last mip, w: the sky-view LUT's horizon elevation (rad; skyViewHorizon of the radius it was computed at)
     vec4 atmosphere;
 }
 lighting;

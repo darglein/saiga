@@ -50,7 +50,7 @@ void main()
     vec3 L       = cloudLayerRadiance(E, l, v, skyE, groundE, coverage, below);
     // Through the air: towards the sky's colour with the distance
     float air = exp(-length(inRelPos) / 30000.0);
-    L         = mix(skyRadiance(skyViewLut, v, atmosphereRadius(lighting.atmosphere.x)), L, air);
+    L         = mix(skyRadiance(skyViewLut, v, lighting.atmosphere.w), L, air);
     L         = lightingFog(L, inRelPos);
     outColor  = vec4(min(max(L, vec3(0.0)) * pc.params.x, vec3(60000.0)) * alpha, alpha);
 }

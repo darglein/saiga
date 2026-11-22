@@ -48,6 +48,7 @@ class SAIGA_VULKAN_API EnvironmentMap
     struct CaptureInputs
     {
         vk::DescriptorImageInfo skyView, transmittance, coverage;
+        float skyViewHorizon   = 0;  // the sky-view LUT's horizon elevation (rad; Atmosphere::skyViewHorizonElevation)
         vec2 cloudOrigin       = vec2(0, 0);
         float cloudiness       = 0;  // the layer's (CloudLayer::effectiveCloudiness)
         bool clouds            = false;

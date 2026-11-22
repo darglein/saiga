@@ -25,7 +25,7 @@ layout(set = 0, binding = 3) uniform sampler2D transmittanceLut;
 layout(push_constant) uniform Push
 {
     ivec4 size;       // x: the face size
-    vec4 camera;      // x: the camera's radius (km), y: the camera's height (m)
+    vec4 camera;      // x: the camera's radius (km), y: the camera's height (m), z: the sky-view LUT's horizon (rad)
     vec4 uniformSky;  // w > 0: a uniform radiance rgb (cd/m^2) instead of the sky (EnvironmentMap::setCaptureOverride)
     vec4 clouds;      // altitude, radius, cloudiness (0: no layer), ground albedo
     vec4 origin;      // xy: the camera's coverage position (m)
@@ -38,7 +38,7 @@ void main()
     ivec3 p = ivec3(gl_GlobalInvocationID);
     if (p.x >= pc.size.x || p.y >= pc.size.x) return;
     vec3 dir = cubeTexelDirection(uint(p.z), p.xy, pc.size.x);
-    vec3 c   = textureLod(skyViewLut, skyViewUv(dir, pc.camera.x), 0.0).rgb;
+    vec3 c   = textureLod(skyViewLut, skyViewUv(dir, pc.camera.z), 0.0).rgb;
     float h  = pc.camera.y;
     if (pc.clouds.z > 0.0 && abs(dir.y) > 1e-3 && (pc.clouds.x - h) * dir.y > 0.0)
     {
@@ -58,7 +58,7 @@ void main()
                 l = normalize(pc.light.xyz);
                 E = pc.light.w * bodyTransmittanceAtRadius(transmittanceLut, atmosphereRadius(pc.clouds.x), l);
             }
-            vec3 zenith = textureLod(skyViewLut, skyViewUv(vec3(0.0, 1.0, 0.0), pc.camera.x), 0.0).rgb / kSkyLutScale;
+            vec3 zenith = textureLod(skyViewLut, skyViewUv(vec3(0.0, 1.0, 0.0), pc.camera.z), 0.0).rgb / kSkyLutScale;
             vec3 skyE   = zenith * kAtmPi;
             vec3 L      = cloudLayerRadiance(E, l, dir, skyE, skyE * pc.clouds.w, coverage, h < pc.clouds.x);
             L           = mix(c / kSkyLutScale, L, exp(-t / 30000.0));

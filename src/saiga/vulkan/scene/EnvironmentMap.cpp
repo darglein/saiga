@@ -28,7 +28,7 @@ constexpr vk::Format kFormat = vk::Format::eR16G16B16A16Sfloat;
 struct CapturePush
 {
     int32_t size[4];
-    float camera[4];      // x: the camera's radius (km), y: its height (m)
+    float camera[4];      // x: the camera's radius (km), y: its height (m), z: the sky-view LUT's horizon (rad)
     float uniformSky[4];  // w > 0: a uniform radiance
     float clouds[4];      // altitude, radius, cloudiness (0: none), ground albedo
     float origin[4];      // the camera's coverage position (m)
@@ -319,6 +319,7 @@ void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, const EnvironmentState
         push.size[0]   = size;
         push.camera[0] = std::clamp(6360.0f + cameraHeight * 1e-3f, 6360.001f, 6459.999f);
         push.camera[1] = cameraHeight;
+        push.camera[2] = in.skyViewHorizon;
         push.clouds[0] = e.clouds.altitude;
         push.clouds[1] = e.clouds.radius;
         push.clouds[2] = in.clouds ? in.cloudiness : 0.0f;

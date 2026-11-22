@@ -117,12 +117,19 @@ vec2 multiScatteringUv(float r, float muS)
     return vec2(muS * 0.5 + 0.5, (r - kGroundRadiusKm) / (kTopRadiusKm - kGroundRadiusKm));
 }
 
-// The sky-view LUT at the radius r: x the azimuth (atan(z, x)), y the elevation with the horizon at 0.5 and more
-// texels near it (Hillaire's non-linear mapping)
-vec2 skyViewUv(vec3 dir, float r)
+// The sky-view LUT's horizon: the elevation (rad, below 0) of the planet's limb seen from the radius r
+float skyViewHorizon(float r)
 {
-    float horizon = -acos(clamp(sqrt(max(r * r - kGroundRadiusKm * kGroundRadiusKm, 0.0)) / r, 0.0, 1.0));
-    float el      = asin(clamp(dir.y, -1.0, 1.0));
+    return -acos(clamp(kGroundRadiusKm / r, 0.0, 1.0));
+}
+
+// The sky-view LUT (computed at a radius whose horizon elevation is horizon, skyViewHorizon): x the azimuth
+// (atan(z, x)), y the elevation with the horizon at 0.5 and more texels near it (Hillaire's non-linear mapping). The
+// scene shaders take the LUT's horizon from the block (lighting.atmosphere.w): the LUT is rewritten only when its
+// inputs changed (Saiga::Vulkan::Atmosphere, which has the CPU copy of this mapping)
+vec2 skyViewUv(vec3 dir, float horizon)
+{
+    float el = asin(clamp(dir.y, -1.0, 1.0));
     float v;
     if (el >= horizon)
         v = 0.5 + 0.5 * sqrt(clamp((el - horizon) / (0.5 * kAtmPi - horizon), 0.0, 1.0));
@@ -133,9 +140,8 @@ vec2 skyViewUv(vec3 dir, float r)
     return vec2(u, v);
 }
 
-vec3 skyViewDir(vec2 uv, float r)
+vec3 skyViewDir(vec2 uv, float horizon)
 {
-    float horizon = -acos(clamp(sqrt(max(r * r - kGroundRadiusKm * kGroundRadiusKm, 0.0)) / r, 0.0, 1.0));
     float el;
     if (uv.y >= 0.5)
     {
@@ -151,10 +157,20 @@ vec3 skyViewDir(vec2 uv, float r)
     return vec3(cos(el) * cos(az), sin(el), cos(el) * sin(az));
 }
 
-// The sky's radiance (cd/m^2, without the sun and moon discs) in the direction dir seen from the radius r
-vec3 skyRadiance(sampler2D skyView, vec3 dir, float r)
+// The rows of the sky-view LUT (Atmosphere::kSkyViewHeight)
+const float kSkyViewRows = 108.0;
+
+// The LUT's v at the elevation 0 (the fog colour, lighting.glsl): at least the centre of the first sky row, so the
+// bilinear lookup never mixes in the ground (a camera at the sea level has its horizon at 0)
+float skyViewFogV(float horizon)
 {
-    return textureLod(skyView, skyViewUv(dir, r), 0.0).rgb / kSkyLutScale;
+    return max(0.5 + 0.5 * sqrt(-horizon / (0.5 * kAtmPi - horizon)), 0.5 + 0.5 / kSkyViewRows);
+}
+
+// The sky's radiance (cd/m^2, without the sun and moon discs) in the direction dir (the LUT's horizon elevation)
+vec3 skyRadiance(sampler2D skyView, vec3 dir, float horizon)
+{
+    return textureLod(skyView, skyViewUv(dir, horizon), 0.0).rgb / kSkyLutScale;
 }
 
 // ---- The 2D cloud layer (S36a1c, A4; Saiga::Vulkan::CloudLayer): a tiling coverage texture of kCloudTile metres, a

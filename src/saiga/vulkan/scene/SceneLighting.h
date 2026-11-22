@@ -79,7 +79,8 @@ struct SceneLighting
     // values (the probe frames), w: their scale (the probe's pre-exposure)
     vec4 debugParams = vec4(0, 8, 0, 1);
     // S36a1c: x the camera height above the sea level (m; the atmosphere's LUTs), y: 1 the environment cube (binding 4)
-    // is valid (else the specular environment is the SH), z: its last mip, w: unused
+    // is valid (else the specular environment is the SH), z: its last mip, w: the sky-view LUT's horizon elevation
+    // (rad, of the radius the LUT was computed at; Atmosphere::skyViewHorizonElevation)
     vec4 atmosphere = vec4(0, 0, 0, 0);
 };
 static_assert(sizeof(SceneLighting) == 32 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");

@@ -35,7 +35,7 @@ void main()
     if (physicalLighting())
     {
         float r     = atmosphereRadius(lighting.atmosphere.x);
-        vec3 c      = skyRadiance(skyViewLut, dir, r);
+        vec3 c      = skyRadiance(skyViewLut, dir, lighting.atmosphere.w);
         float pixel = max(length(fwidth(dir)), 1e-5);
         vec3 Tview  = bodyTransmittanceAtRadius(transmittanceLut, r, dir);
         // The sun disc (angular radius 0.00465 rad), limb darkened

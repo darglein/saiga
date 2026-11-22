@@ -55,6 +55,17 @@ class SAIGA_VULKAN_API Atmosphere
     vk::DescriptorImageInfo skyViewInfo() { return skyViewLut.getDescriptorInfo(skyViewSampler); }
     // The LUT recomputations so far (tests)
     uint64_t lutComputations() const { return computations; }
+    // The sky-view LUT's horizon elevation (rad; the block's atmosphere.w): of the radius it was computed at
+    float skyViewHorizonElevation() const { return skyViewHorizonRad; }
+
+    // The CPU copy of the sky-view LUT's mapping (atmosphere_common.glsl; tests): the horizon elevation (rad, below 0)
+    // seen from the radius (km), the uv of a direction (x the azimuth atan(z, x), y the elevation: the horizon at 0.5,
+    // more rows near it) and back
+    static float skyViewHorizon(float radiusKm);
+    static vec2 skyViewUv(const vec3& dir, float horizon);
+    static vec3 skyViewDir(const vec2& uv, float horizon);
+    // The radius (km) of a height above the sea level (m) inside the atmosphere (atmosphereRadius)
+    static float radiusOf(float heightM);
     uint64_t memoryBytes() const;
 
    private:
@@ -65,7 +76,8 @@ class SAIGA_VULKAN_API Atmosphere
     vk::DescriptorSet transmittanceSet, multiScatteringSet, skyViewSet;
     bool valid = false;
     AtmosphereSettings computedFor;
-    uint64_t computations = 0;
+    uint64_t computations   = 0;
+    float skyViewHorizonRad = 0;
 };
 
 }  // namespace Vulkan
