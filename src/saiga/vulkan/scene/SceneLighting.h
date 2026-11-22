@@ -68,8 +68,9 @@ struct SceneLighting
     vec4 enclosedAmbient = vec4(0, 0, 0, 0);
     // The cloud layer (a1c): x altitude, y radius, z cloudiness, w the shadow fade distance (m)
     vec4 clouds = vec4(2000, 40000, 0.3f, 8000);
-    // xy: the wrapped cloud offset (m), zw: the wind (m/s)
-    vec4 cloudMotion = vec4(0, 0, 3, 1);
+    // xy: the coverage texture's position of the camera (camera xz + the cloud offset, wrapped to the tile in double;
+    // m), z: the mean coverage at the cloudiness, w: 1 the cloud layer and its shadows are on (S36a1c)
+    vec4 cloudMotion = vec4(0, 0, 0, 0);
     // The stars' rotation (rows of a mat3 in xyz)
     vec4 starRotation[3] = {vec4(1, 0, 0, 0), vec4(0, 1, 0, 0), vec4(0, 0, 1, 0)};
     // The prototype albedo colours (D21, linear; the physical path only): rgb, w of albedoGround: the rock slope (n.y)

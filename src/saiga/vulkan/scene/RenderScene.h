@@ -37,6 +37,7 @@ class SkyAmbient;
 class BrdfLut;
 class Atmosphere;
 class EnvironmentMap;
+class CloudLayer;
 class LightingDebug;
 class DebugLines;
 class ImGuiVulkanRenderer;
@@ -160,7 +161,8 @@ class SAIGA_VULKAN_API RenderScene
     const FrameTimes& lastGpuFrameTimes() const { return lastTaken; }
     // The sections of FrameTimes::gpuSectionMs in frame order: transfer, environment (S36: the atmosphere and the
     // environment map), cull, depth, depth.terrain, scene,
-    // scene.terrain, scene.instances, scene.grass, scene.sky, scene.debug (S36: the debug lines), resolve,
+    // scene.terrain, scene.instances, scene.grass, scene.sky, scene.clouds (S36: the 2D cloud layer), scene.debug (S36:
+    // the debug lines), resolve,
     // lighting.preview (S36: the preview conversions), post, imgui. The dotted names are sub-sections
     // of the pass before the dot (consecutive ALL_COMMANDS timestamps inside the pass; S19a); every section is written
     // in every frame, also when its content is off
@@ -331,6 +333,7 @@ class SAIGA_VULKAN_API RenderScene
     BrdfLut& brdfLut() { return *brdf; }
     Atmosphere& atmosphereLuts() { return *atmosphere; }
     EnvironmentMap& environmentMap() { return *envMap; }
+    CloudLayer& cloudLayer() { return *clouds; }
     // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
     // creates none)
     uint64_t scenePipelineCreations() const;
@@ -402,6 +405,7 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<BrdfLut> brdf;
     std::unique_ptr<Atmosphere> atmosphere;
     std::unique_ptr<EnvironmentMap> envMap;
+    std::unique_ptr<CloudLayer> clouds;
     // The debug core (S36a1b)
     std::unique_ptr<LightingDebug> debugImages;
     std::unique_ptr<DebugLines> lines;

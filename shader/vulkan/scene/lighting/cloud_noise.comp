@@ -1,0 +1,113 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The cloud layer's coverage texture and previews (S36a1c, A4; CloudLayer). mode 0: the tiling fBm of the seed (7
+// octaves of periodic gradient noise, the coarsest with 6 cells across the tile) into a byte buffer (four texels per
+// uint; copied into the R8 texture), or the test blob (a disc of coverage 1 around a texel, periodic); mode 1: the
+// coverage at the cloudiness over the whole tile (the CloudCoverage preview); mode 2: the cloud shadow factor on the
+// plane of the camera height around the camera (the CloudShadow preview; +x right, +z down).
+
+#include "atmosphere_common.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(std430, set = 0, binding = 0) writeonly buffer NoiseOut
+{
+    uint noiseWords[];
+};
+layout(set = 0, binding = 1) uniform sampler2D coverage;
+layout(set = 0, binding = 2, rgba16f) uniform writeonly image2D previewOut;
+
+layout(push_constant) uniform Push
+{
+    ivec4 size;    // x: the texture size (mode 0) or the preview's, y: the mode, z: the seed, w: 1 the test blob
+    vec4 blob;     // the blob: centre (texel x, z), radius (texels); mode 2: x the extent (m) of the preview
+    vec4 clouds;   // altitude, radius, cloudiness, shadow fade
+    vec4 origin;   // xy: the camera's coverage position (m), z: the mean coverage, w: the camera height (m)
+    vec4 light;    // towards the shadow light
+}
+pc;
+
+uint noiseHash(uvec3 v)
+{
+    uint h = v.x * 0x8da6b343u ^ v.y * 0xd8163841u ^ v.z * 0xcb1ab31fu;
+    h ^= h >> 16;
+    h *= 0x7feb352du;
+    h ^= h >> 15;
+    h *= 0x846ca68bu;
+    h ^= h >> 16;
+    return h;
+}
+
+vec2 gradient(ivec2 p, int period, uint seed)
+{
+    p       = ((p % period) + period) % period;
+    float a = float(noiseHash(uvec3(uvec2(p), seed)) & 0xFFFFu) * (2.0 * kAtmPi / 65536.0);
+    return vec2(cos(a), sin(a));
+}
+
+// Periodic gradient noise at x (in cells) with the period (cells), about [-0.7, 0.7]
+float gradientNoise(vec2 x, int period, uint seed)
+{
+    ivec2 i = ivec2(floor(x));
+    vec2 f  = x - vec2(i);
+    vec2 u  = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+    float a = dot(gradient(i, period, seed), f);
+    float b = dot(gradient(i + ivec2(1, 0), period, seed), f - vec2(1.0, 0.0));
+    float c = dot(gradient(i + ivec2(0, 1), period, seed), f - vec2(0.0, 1.0));
+    float d = dot(gradient(i + ivec2(1, 1), period, seed), f - vec2(1.0, 1.0));
+    return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+
+float noiseAt(ivec2 t, int n)
+{
+    if (pc.size.w != 0)
+    {
+        // The test blob: periodic distance to its centre
+        vec2 d = abs(vec2(t) + 0.5 - pc.blob.xy);
+        d      = min(d, float(n) - d);
+        return 1.0 - smoothstep(pc.blob.z - 1.0, pc.blob.z + 1.0, length(d));
+    }
+    vec2 uv   = (vec2(t) + 0.5) / float(n);
+    float sum = 0.0, amplitude = 0.5;
+    int period = 6;
+    for (int o = 0; o < 7; ++o)
+    {
+        sum += amplitude * gradientNoise(uv * float(period), period, uint(pc.size.z) + uint(o) * 7919u);
+        amplitude *= 0.55;
+        period *= 2;
+    }
+    return clamp(0.5 + sum * 1.1, 0.0, 1.0);
+}
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    int n   = pc.size.x;
+    if (pc.size.y == 0)
+    {
+        if (p.x * 4 >= n || p.y >= n) return;
+        uint word = 0u;
+        for (int k = 0; k < 4; ++k)
+            word |= uint(clamp(noiseAt(ivec2(p.x * 4 + k, p.y), n) * 255.0 + 0.5, 0.0, 255.0)) << (8 * k);
+        noiseWords[p.y * (n / 4) + p.x] = word;
+        return;
+    }
+    if (p.x >= n || p.y >= n) return;
+    float v;
+    if (pc.size.y == 1)
+    {
+        v = cloudCoverageFromNoise(textureLod(coverage, (vec2(p) + 0.5) / float(n), 0.0).r, pc.clouds.z);
+    }
+    else
+    {
+        vec2 rel = ((vec2(p) + 0.5) / float(n) * 2.0 - 1.0) * pc.blob.x;
+        v = cloudShadowAt(coverage, pc.origin.xy, rel, pc.origin.w, normalize(pc.light.xyz), pc.clouds, pc.origin.z);
+    }
+    imageStore(previewOut, p, vec4(v, v, v, 1.0));
+}

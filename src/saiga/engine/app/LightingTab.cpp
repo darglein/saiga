@@ -552,6 +552,15 @@ void LightingTab::skyAndClouds()
         DebugUiStyle::endProperties();
     }
     if (changed) app.setEnvironmentSettings(s);
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    if (ls.clouds)
+        ImGui::Text("cloud layer on, mean coverage %.2f", double(ls.cloudMeanCoverage));
+    else
+        DebugUiStyle::coloredText(DebugUiStyle::kRef, "cloud layer off (clay, enclosed, clouds false or cloudiness 0)");
+    ImGui::TextUnformatted("cloud coverage (the tile)");
+    previewImage(Vulkan::LightingImage::CloudCoverage, false, 256.0f);
+    ImGui::TextUnformatted("cloud shadow (around the camera, +- the shadow fade)");
+    previewImage(Vulkan::LightingImage::CloudShadow, false, 256.0f);
     ImGui::TextUnformatted("transmittance LUT");
     previewImage(Vulkan::LightingImage::TransmittanceLut, false, 256.0f);
     ImGui::TextUnformatted("sky-view LUT (log2 cd/m^2)");
@@ -568,7 +577,7 @@ void LightingTab::gpuAndMemory()
         // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
         Profiler& p     = app.gpuProfile();
         double lighting = 0, debug = 0;
-        for (const char* n : {"environment", "scene.sky", "scene.debug", "lighting.preview"})
+        for (const char* n : {"environment", "scene.sky", "scene.clouds", "scene.debug", "lighting.preview"})
         {
             const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
             const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";

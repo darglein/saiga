@@ -12,6 +12,7 @@
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/scene/Atmosphere.h"
 #include "saiga/vulkan/scene/BrdfLut.h"
+#include "saiga/vulkan/scene/CloudLayer.h"
 #include "saiga/vulkan/scene/DebugLines.h"
 #include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/GrassPass.h"
@@ -81,10 +82,9 @@ vk::ImageSubresourceRange depthRange()
 const std::vector<const char*>& sectionNames()
 {
     static const std::vector<const char*> names = {
-        "transfer",         "environment", "cull",          "depth",
-        "depth.terrain",    "scene",       "scene.terrain", "scene.instances",
-        "scene.grass",      "scene.sky",   "scene.debug",   "resolve",
-        "lighting.preview", "post",        "imgui"};
+        "transfer",      "environment",      "cull",        "depth",     "depth.terrain", "scene",
+        "scene.terrain", "scene.instances",  "scene.grass", "scene.sky", "scene.clouds",  "scene.debug",
+        "resolve",       "lighting.preview", "post",        "imgui"};
     return names;
 }
 std::vector<std::string> sectionNameStrings()
@@ -490,7 +490,20 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         lp.forceFullUpdates   = lp.forceFullUpdates || s.fullUpdateRequested;
         s.fullUpdateRequested = false;
         s.atmosphere->record(cmd, s.env, lighting.atmosphere(0));
-        s.envMap->record(cmd, s.env, lighting.atmosphere(0), lp, s.atmosphere->skyViewInfo(), s.frameCount + 1);
+        s.clouds->record(cmd, s.env.clouds.seed);
+        EnvironmentMap::CaptureInputs in;
+        in.skyView       = s.atmosphere->skyViewInfo();
+        in.transmittance = s.atmosphere->transmittanceInfo();
+        in.coverage      = s.clouds->coverageInfo();
+        in.cloudOrigin   = vec2(lighting.cloudMotion(0), lighting.cloudMotion(1));
+        in.clouds        = lighting.cloudMotion(3) > 0.5f;
+        in.cloudiness    = lighting.clouds(2);
+        if (lighting.shadowLight(3) > 0)
+        {
+            in.light            = vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2));
+            in.lightIlluminance = lighting.shadowLight(3) == 1 ? s.env.sunIlluminance : s.env.moonIlluminance;
+        }
+        s.envMap->record(cmd, s.env, lighting.atmosphere(0), lp, in, s.frameCount + 1);
     }
     timings.leaveSection("environment", cmd);
     // The lighting set of this frame (after the environment: the environment map swapped in this frame is bound)
@@ -666,6 +679,14 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // atmosphere in the physical path; not in an enclosed camera space (S21: the background is the clear color)
         if ((s.foliage || environmentPass) && !enclosed) s.terrain->renderSky(cmd, frame.frameIndex, proto);
         subEnd("scene.sky", cmd);
+        // The 2D cloud layer (S36a1c): after the sky, in the physical path with LightingParameters::clouds
+        subBegin("scene.clouds", cmd);
+        if (environmentPass && lighting.cloudMotion(3) > 0.5f)
+        {
+            viewport(cmd);
+            s.clouds->draw(cmd, s.lightingSet->set(frame.frameIndex), camera.viewProj, s.framePreExposure);
+        }
+        subEnd("scene.clouds", cmd);
         // The debug lines (S36: the overlays; written every frame, empty without lines)
         subBegin("scene.debug", cmd);
         viewport(cmd);
@@ -778,6 +799,23 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                     s.envMap->recordDebug(cmd, frame.frameIndex, 0, s.environmentPreviewMip), 0);
         if (previews && s.debugImages->requested(LightingImage::Irradiance))
             src.set(LightingImage::Irradiance, s.envMap->recordDebug(cmd, frame.frameIndex, 1, 0), 0);
+        // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
+        if (s.debugImages->requested(LightingImage::CloudCoverage) ||
+            s.debugImages->requested(LightingImage::CloudShadow))
+        {
+            CloudLayer::DebugInput in;
+            in.clouds = lighting.clouds;
+            in.origin = vec2(lighting.cloudMotion(0), lighting.cloudMotion(1));
+            in.mean   = lighting.cloudMotion(2);
+            in.height = lighting.atmosphere(0);
+            in.light  = lighting.shadowLight(3) > 0
+                            ? vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2))
+                            : vec3(0, 1, 0);
+            if (s.debugImages->requested(LightingImage::CloudCoverage))
+                src.set(LightingImage::CloudCoverage, s.clouds->recordDebug(cmd, frame.frameIndex, 1, in), 1);
+            if (s.debugImages->requested(LightingImage::CloudShadow))
+                src.set(LightingImage::CloudShadow, s.clouds->recordDebug(cmd, frame.frameIndex, 2, in), 1);
+        }
         s.lightStats.previewDispatches = previews ? s.debugImages->recordPreviews(cmd, frame.frameIndex, src) : 0;
     }
     timings.leaveSection("lighting.preview", cmd);
@@ -862,6 +900,8 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     atmosphere->init(base());
     envMap = std::make_unique<EnvironmentMap>();
     envMap->init(base(), params.lighting.environmentResolution);
+    clouds = std::make_unique<CloudLayer>();
+    clouds->init(base(), formats(), CloudSettings().seed);
     ambient->setEnvironmentMap(envMap.get());
     debugImages = std::make_unique<LightingDebug>();
     debugImages->init(base());
@@ -898,6 +938,7 @@ RenderScene::~RenderScene()
     brdf.reset();
     ambient.reset();
     envMap.reset();
+    clouds.reset();
     atmosphere.reset();
     lightingSet.reset();
     instanceBuffer.reset();
@@ -1302,8 +1343,20 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
             out.shadowLight = vec4(e.moonDir(0), e.moonDir(1), e.moonDir(2), 2);
         out.minAmbient      = vec4(e.minAmbient(0), e.minAmbient(1), e.minAmbient(2), e.ambientScale);
         out.enclosedAmbient = vec4(e.enclosedAmbient(0), e.enclosedAmbient(1), e.enclosedAmbient(2), 0);
-        out.clouds          = vec4(out.clouds(0), out.clouds(1), e.cloudiness, out.clouds(3));
-        out.cloudMotion     = vec4(e.cloudOffset(0), e.cloudOffset(1), e.wind(0), e.wind(1));
+        // The cloud layer: the cloudiness through the noise's histogram (the layer's mean coverage follows the
+        // weather's cloudiness)
+        out.clouds =
+            vec4(e.clouds.altitude, e.clouds.radius, clouds->effectiveCloudiness(e.cloudiness), e.clouds.shadowFade);
+        // The coverage texture's position of the camera (double: the camera's xz and the wrapped offset)
+        auto wrap = [](double v)
+        {
+            const double t = std::fmod(v, CloudLayer::kTile);
+            return float(t < 0 ? t + CloudLayer::kTile : t);
+        };
+        const bool cloudsOn = physical && params.lighting.clouds && !e.enclosed && !enclosed && e.cloudiness > 0;
+        out.cloudMotion     = vec4(wrap(camera.position.x() + double(e.cloudOffset(0))),
+                                   wrap(camera.position.z() + double(e.cloudOffset(1))),
+                                   clouds->meanCoverage(out.clouds(2)), cloudsOn ? 1.0f : 0.0f);
         for (int r = 0; r < 3; ++r)
             out.starRotation[r] = vec4(e.starRotation(r, 0), e.starRotation(r, 1), e.starRotation(r, 2), 0);
         out.phases[0] = vec4(e.phases[0], e.phases[1], e.phases[2], e.phases[3]);
@@ -1317,7 +1370,6 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
             out.fogParams       = vec4(density, e.clouds.fogFalloff, on ? 1 : 0, cameraAboveBase);
             out.fogColorLin     = vec4(0, 0, 0, 1);
         }
-        out.clouds             = vec4(e.clouds.altitude, e.clouds.radius, e.cloudiness, e.clouds.shadowFade);
         out.starRotation[0](3) = e.starIntensity;
     }
     // The prototype albedo colours (D21)
@@ -1353,6 +1405,7 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     b.brdfLut           = brdf->descriptorInfo();
     b.transmittanceLut  = atmosphere->transmittanceInfo();
     b.skyViewLut        = atmosphere->skyViewInfo();
+    b.cloudCoverage     = clouds->coverageInfo();
     SceneLighting block = frameBlock;
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     lightingSet->write(frameIndex, block, b);
@@ -1363,24 +1416,26 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.shadowLight         = int(block.shadowLight(3));
     auto elevation         = [](const vec3& d)
     { return float(std::asin(std::clamp(double(d(1)), -1.0, 1.0)) * 57.29577951308232); };
-    st.sunElevation    = envSet ? elevation(env.sunDir) : 0.0f;
-    st.moonElevation   = envSet ? elevation(env.moonDir) : 0.0f;
-    st.ev100           = envSet ? env.ev100 : 0.0f;
-    st.exposure        = frameEffectiveExposure;
-    st.preExposure     = framePreExposure;
-    st.physical        = framePhysical;
-    st.pbr             = framePbr;
-    st.debug           = frameDebug;
-    st.sh              = ambient->statistics().sh;
-    st.environmentMap  = envMap->statistics();
-    st.lutComputations = atmosphere->lutComputations();
-    st.luminance       = debugImages->statistics(LightingImage::Luminance);
-    st.luminanceFrame  = debugImages->statisticsFrame(LightingImage::Luminance);
-    // The block and SH buffers per frame in flight, the BRDF LUT (RG16F), the previews, the debug lines, the LUTs and
-    // the environment map (not the dummy textures)
+    st.sunElevation      = envSet ? elevation(env.sunDir) : 0.0f;
+    st.moonElevation     = envSet ? elevation(env.moonDir) : 0.0f;
+    st.ev100             = envSet ? env.ev100 : 0.0f;
+    st.exposure          = frameEffectiveExposure;
+    st.preExposure       = framePreExposure;
+    st.physical          = framePhysical;
+    st.pbr               = framePbr;
+    st.debug             = frameDebug;
+    st.sh                = ambient->statistics().sh;
+    st.environmentMap    = envMap->statistics();
+    st.lutComputations   = atmosphere->lutComputations();
+    st.clouds            = block.cloudMotion(3) > 0.5f;
+    st.cloudMeanCoverage = block.cloudMotion(2);
+    st.luminance         = debugImages->statistics(LightingImage::Luminance);
+    st.luminanceFrame    = debugImages->statisticsFrame(LightingImage::Luminance);
+    // The block and SH buffers per frame in flight, the BRDF LUT (RG16F), the previews, the debug lines, the LUTs, the
+    // environment map and the clouds (not the dummy textures)
     st.memoryBytes = VulkanRenderer::framesInFlight * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
                      uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes() +
-                     atmosphere->memoryBytes() + envMap->memoryBytes();
+                     atmosphere->memoryBytes() + envMap->memoryBytes() + clouds->memoryBytes();
 }
 
 void RenderScene::latchDebug()

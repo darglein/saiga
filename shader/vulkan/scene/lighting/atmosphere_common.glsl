@@ -157,4 +157,58 @@ vec3 skyRadiance(sampler2D skyView, vec3 dir, float r)
     return textureLod(skyView, skyViewUv(dir, r), 0.0).rgb / kSkyLutScale;
 }
 
+// ---- The 2D cloud layer (S36a1c, A4; Saiga::Vulkan::CloudLayer): a tiling coverage texture of kCloudTile metres, a
+// layer at the altitude (m above the sea level) with the earth's curvature, its alpha fading over the outer 30% of the
+// radius. Shared by the layer's pass (cloud_layer.frag), the environment capture, the cloud shadow (shadows.glsl) and
+// the previews.
+const float kCloudTile          = 16384.0;
+const float kEarthRadiusM       = 6371000.0;
+const float kCloudShadowOpacity = 0.85;
+
+// The layer's opacity at the coverage texture's uv for the cloudiness (the noise's top (1 - cloudiness))
+float cloudCoverageFromNoise(float n, float cloudiness)
+{
+    return cloudiness <= 0.0 ? 0.0 : smoothstep(1.0 - cloudiness - 0.1, 1.0 - cloudiness + 0.1, n);
+}
+
+// The alpha of the layer's edge at the fraction of its radius (no visible rim)
+float cloudEdgeAlpha(float r01)
+{
+    return 1.0 - smoothstep(0.7, 1.0, r01);
+}
+
+// The radiance of the layer (cd/m^2) seen along v: sunE the illuminance of the shadow light at the layer (after the
+// transmittance) from the direction l, skyE and groundE the irradiance from above and below, coverage the opacity,
+// below: the viewer is below the layer. A slab: the side towards the light reflects it diffusely (low light grazes
+// it), the other side shows what a dense cloud lets through; thin parts scatter forward around the light (the silver
+// lining)
+vec3 cloudLayerRadiance(vec3 sunE, vec3 l, vec3 v, vec3 skyE, vec3 groundE, float coverage, bool below)
+{
+    const float albedo = 0.9;
+    bool lightAbove    = l.y > 0.0;
+    float through      = below == lightAbove ? mix(0.75, 0.22, coverage) : 1.0;
+    float grazing      = 0.35 + 0.65 * abs(l.y);
+    vec3 direct        = sunE * (albedo / kAtmPi) * grazing * through;
+    float c            = dot(v, l);
+    direct += sunE * miePhase(c) * 0.12 * (1.0 - coverage);
+    vec3 ambient = (below ? mix(skyE, groundE, 0.35) : skyE) * (albedo / kAtmPi);
+    return direct + ambient;
+}
+
+// The cloud layer's shadow (the factor of the shadow light's direct light) at a receiver: relXZ its camera-relative
+// horizontal position, heightM its height above the sea level, l towards the light; origin the coverage texture's
+// position of the camera (m, wrapped), clouds (altitude, radius, cloudiness, shadow fade), mean the mean coverage at
+// the cloudiness. The receiver is projected along l to the layer; at or above the layer (with a 50 m blend below) the
+// factor is 1; beyond the fade distance of the projected point the mean coverage replaces the texture
+float cloudShadowAt(sampler2D coverage, vec2 origin, vec2 relXZ, float heightM, vec3 l, vec4 clouds, float mean)
+{
+    if (clouds.z <= 0.0 || l.y <= 0.0) return 1.0;
+    float above = smoothstep(clouds.x - 50.0, clouds.x, heightM);
+    vec2 p      = relXZ + (clouds.x - heightM) * l.xz / max(l.y, 0.02);
+    float fade  = smoothstep(0.7 * clouds.w, clouds.w, length(p));
+    float c     = cloudCoverageFromNoise(textureLod(coverage, (origin + p) / kCloudTile, 2.0).r, clouds.z);
+    float occl  = mix(c, mean, fade) * kCloudShadowOpacity;
+    return mix(1.0 - occl, 1.0, above);
+}
+
 #endif

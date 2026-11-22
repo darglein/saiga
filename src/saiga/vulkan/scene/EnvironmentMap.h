@@ -43,10 +43,21 @@ class SAIGA_VULKAN_API EnvironmentMap
     void destroy();
     ~EnvironmentMap() { destroy(); }
 
+    // The inputs of a capture: the atmosphere's sky-view LUT and transmittance, the cloud layer's coverage (the same
+    // textures for the scene's life), the frame's cloud values and the shadow light
+    struct CaptureInputs
+    {
+        vk::DescriptorImageInfo skyView, transmittance, coverage;
+        vec2 cloudOrigin       = vec2(0, 0);
+        float cloudiness       = 0;  // the layer's (CloudLayer::effectiveCloudiness)
+        bool clouds            = false;
+        vec3 light             = vec3(0, 1, 0);
+        float lightIlluminance = 0;
+    };
     // Records this frame's work (after the atmosphere's sky-view LUT): a new capture when due, the next step of one in
     // progress, the swap when complete. frame: RenderScene's frame number
     void record(vk::CommandBuffer cmd, const EnvironmentState& environment, float cameraHeight,
-                const LightingParameters& parameters, vk::DescriptorImageInfo skyView, uint64_t frame);
+                const LightingParameters& parameters, const CaptureInputs& inputs, uint64_t frame);
     // A different resolution recreates the cubes (from the next record; deferDelete)
     int resolution() const { return size; }
 
@@ -82,7 +93,7 @@ class SAIGA_VULKAN_API EnvironmentMap
     bool due(const Key& k, const LightingParameters& p) const;
     void createImages(int resolution);
     void destroyImages();
-    void recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInfo skyView, float cameraHeight);
+    void recordCapture(vk::CommandBuffer cmd, const EnvironmentState& e, const CaptureInputs& in, float cameraHeight);
     void recordPrefilter(vk::CommandBuffer cmd, int mip);
     void recordSh(vk::CommandBuffer cmd);
 

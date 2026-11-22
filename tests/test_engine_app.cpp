@@ -1542,6 +1542,7 @@ TEST_F(EngineAppRender, GpuSections)
                                                "gpu/scene.instances",
                                                "gpu/scene.grass",
                                                "gpu/scene.sky",
+                                               "gpu/scene.clouds",
                                                "gpu/scene.debug",
                                                "gpu/resolve",
                                                "gpu/lighting.preview",

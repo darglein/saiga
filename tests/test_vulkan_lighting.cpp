@@ -6,11 +6,12 @@
 
 // The lighting of S36 on RenderScene (docs/stages/S36_lighting.plan.md, Tests): a1b the LIGHTING_PBR variant (the BRDF
 // LUT, energy conservation, the studio environment of clay mode, the prototype colours) and the debug core; a1c the
-// atmosphere and the environment map. One scene
+// atmosphere, the environment map and the cloud layer. One scene
 // per test suite (RenderSceneSuiteTest), skipped without a Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/Atmosphere.h"
 #include "saiga/vulkan/scene/BrdfLut.h"
+#include "saiga/vulkan/scene/CloudLayer.h"
 #include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -500,6 +501,7 @@ TEST_F(Pbr, PrototypeColoursOnlyInAces)
     scene->setToneMap(ToneMap::Aces);
     EnvironmentState noon;
     noon.fogDensity = 0;
+    noon.cloudiness = 0;
     scene->setEnvironment(noon);
     // The environment map of this environment in the first frame (it updates incrementally otherwise)
     LightingParameters full = scene->lightingParameters();
@@ -1275,4 +1277,196 @@ TEST_F(EnvironmentMapTest, ForceFullUpdatesCapturesEveryFrame)
         EXPECT_EQ(scene->lightingStatistics().environmentMap.progress, 0);
         EXPECT_TRUE(scene->environmentMap().valid());
     }
+}
+
+namespace
+{
+class CloudsTest : public AtmosphereTest
+{
+   protected:
+    void TearDown() override
+    {
+        if (scene) scene->cloudLayer().setTestBlob(std::nullopt);
+        AtmosphereTest::TearDown();
+    }
+    // A grey plane (a flat box, visible to 1e6 m) with its top at y
+    void Plane(MeshId id, float y, float half = 3000)
+    {
+        MeshLods m            = boxMesh(vec3(half, 1, half), ucvec4(180, 180, 180, 255));
+        m.lods[0].endDistance = 1e6f;
+        scene->addMaterial(MaterialId(id), "cloud_plane" + std::to_string(id), MaterialData());
+        scene->addMesh(id, "cloud_plane" + std::to_string(id), m, MaterialId(id));
+        AddSet({instanceAt(vec3(0, y - 1, 0), id)});
+    }
+    // The physical path with the cloud layer (the cloudiness, altitude), the sun at the elevation from the azimuth
+    EnvironmentState Cloudy(float cloudiness, float altitude, float elevationDeg, float azimuthDeg = 90)
+    {
+        EnvironmentState e = sunAt(elevationDeg, azimuthDeg);
+        e.cloudiness       = cloudiness;
+        e.clouds.altitude  = altitude;
+        e.ev100            = 14;
+        return e;
+    }
+    // The resolved fp16 value of a pixel in the next frame
+    vec4 ReadPixel(ivec2 p)
+    {
+        vec4 value(-1, -1, -1, -1);
+        scene->lightingDebugImages().requestPixels({p},
+                                                   [&](const std::vector<LightingDebug::PixelValue>& v)
+                                                   {
+                                                       if (!v.empty() && v[0].valid) value = v[0].color;
+                                                   });
+        RenderFrame();
+        return value;
+    }
+    void View(LightingDebugView v) { scene->setLightingDebug(LightingDebugState{v, 0}); }
+};
+}  // namespace
+
+// The layer's mean coverage follows the weather's cloudiness (the histogram mapping): monotonic, 0 at 0; the GPU
+// coverage preview has the same mean
+TEST_F(CloudsTest, CoverageFollowsCloudiness)
+{
+    Physical(Cloudy(0.4f, 2000, 45));
+    Capture(2);
+    scene->waitIdle();
+    CloudLayer& layer = scene->cloudLayer();
+    layer.harvest();
+    float previous = -1;
+    for (int i = 0; i <= 10; ++i)
+    {
+        const float c    = 0.1f * float(i);
+        const float mean = layer.meanCoverage(layer.effectiveCloudiness(c));
+        EXPECT_GE(mean, previous) << c;
+        EXPECT_NEAR(mean, c, 0.05f) << c;
+        previous = mean;
+    }
+    EXPECT_EQ(layer.meanCoverage(layer.effectiveCloudiness(0)), 0.0f);
+    bool got = false;
+    LightingDebug::Capture capture;
+    PreviewMapping mapping;
+    scene->lightingDebugImages().request(LightingImage::CloudCoverage, mapping,
+                                         [&](const LightingDebug::Capture& c)
+                                         {
+                                             capture = c;
+                                             got     = true;
+                                         });
+    RenderFrame();
+    ASSERT_TRUE(got);
+    EXPECT_EQ(capture.size, ivec2(512, 512));
+    EXPECT_NEAR(capture.statistics.mean, scene->lightingStatistics().cloudMeanCoverage, 0.03f);
+    EXPECT_NEAR(capture.statistics.mean, 0.4f, 0.05f);
+}
+
+// The shadow of a single blob of the layer (a test texture) on a plane moves away from the sun by altitude / tan(el):
+// the sun in the east (+x) at 45 degrees and the layer at 500 m put it 500 m west of the blob
+TEST_F(CloudsTest, ShadowProjectsAlongSun)
+{
+    Plane(MeshId(3001), 0);
+    scene->cloudLayer().setTestBlob(vec3(0, 0, 10));
+    Physical(Cloudy(0.5f, 500, 45, 90), Vec3(0.001, -1, 0), 1.2);
+    SetCamera(0, Vec3(0, 1500, 0), lookRotation(Vec3(0.001, -1, 0)), 1.2);
+    View(LightingDebugView::CloudShadow);
+    const TemplatedImage<ucvec4> img = Capture(3);
+    // The centroid of the shadowed pixels
+    double sx = 0, sy = 0, n = 0;
+    for (int y = 0; y < height; ++y)
+        for (int x = 0; x < width; ++x)
+            if (img(y, x)(0) < 128)
+            {
+                sx += x;
+                sy += y;
+                n++;
+            }
+    ASSERT_GT(n, 4) << "no shadow";
+    // The expected ground point (-500, 0, 0) in the image (row 0 at the top)
+    const mat4 vp   = scene->viewProjection();
+    const vec4 h    = vp * vec4(-500, -1500, 0, 1);
+    const double px = (h(0) / h(3) * 0.5 + 0.5) * width, py = (h(1) / h(3) * 0.5 + 0.5) * height;
+    EXPECT_NEAR(sx / n, px, 6.0) << "x";
+    EXPECT_NEAR(sy / n, py, 6.0) << "y";
+    View(LightingDebugView::None);
+}
+
+// Seen from above, terrain (here a box) rising above the layer covers it: the box's top is drawn, the layer around it
+TEST_F(CloudsTest, OccludedByTerrainAboveAltitude)
+{
+    MeshLods m            = boxMesh(vec3(60, 250, 60), ucvec4(220, 30, 30, 255));
+    m.lods[0].endDistance = 1e6f;
+    scene->addMaterial(MaterialId(3002), "cloud_tower", MaterialData());
+    scene->addMesh(MeshId(3002), "cloud_tower", m, MaterialId(3002));
+    AddSet({instanceAt(vec3(0, 250, 0), MeshId(3002))});
+    Plane(MeshId(3003), 0);
+    Physical(Cloudy(1, 300, 60));
+    SetCamera(0, Vec3(0, 800, 0), lookRotation(Vec3(0.001, -1, 0)), 1.0);
+    const TemplatedImage<ucvec4> img = Capture(3);
+    const ucvec4 top = img(height / 2, width / 2), cloud = img(8, 8);
+    EXPECT_GT(int(top(0)), 2 * int(top(1)) + 20) << "the box above the layer";
+    EXPECT_LT(std::abs(int(cloud(0)) - int(cloud(2))), 40) << "the layer around it";
+    EXPECT_GT(int(cloud(1)), int(top(1)) + 40);
+}
+
+// The layer's alpha fades out over the outer 30% of its radius (no rim)
+TEST_F(CloudsTest, EdgeFades)
+{
+    EXPECT_EQ(CloudLayer::edgeAlpha(0.5f), 1.0f);
+    EXPECT_LT(CloudLayer::edgeAlpha(0.95f), 0.2f);
+    EXPECT_EQ(CloudLayer::edgeAlpha(1.0f), 0.0f);
+    float previous = 2;
+    for (int i = 0; i <= 20; ++i)
+    {
+        const float a = CloudLayer::edgeAlpha(0.05f * float(i));
+        EXPECT_LE(a, previous);
+        previous = a;
+    }
+}
+
+// A receiver at or above the layer (2100 m, layer at 2000 m) under full coverage is not shadowed; the ground is
+TEST_F(CloudsTest, NoShadowAboveLayer)
+{
+    Plane(MeshId(3004), 2100, 200);
+    Plane(MeshId(3005), 0);
+    Physical(Cloudy(1, 2000, 70));
+    View(LightingDebugView::CloudShadow);
+    SetCamera(0, Vec3(0, 2400, 0), lookRotation(Vec3(0.001, -1, 0)), 0.3);
+    Capture(2);
+    EXPECT_GT(ReadPixel(ivec2(width / 2, height / 2))(0), 0.99f) << "above the layer";
+    SetCamera(0, Vec3(1000, 900, 1000), lookRotation(Vec3(0.001, -1, 0)), 0.3);
+    Capture(2);
+    EXPECT_LT(ReadPixel(ivec2(width / 2, height / 2))(0), 0.3f) << "below the layer";
+    View(LightingDebugView::None);
+}
+
+// At 3 degrees the projection reaches about 38 km, beyond the shadow fade: the factor is 1 - opacity * the mean
+// coverage everywhere
+TEST_F(CloudsTest, LowSunFadesToMean)
+{
+    Plane(MeshId(3006), 0);
+    Physical(Cloudy(0.5f, 2000, 3));
+    View(LightingDebugView::CloudShadow);
+    SetCamera(0, Vec3(0, 100, 0), lookRotation(Vec3(0.001, -1, 0)), 1.0);
+    Capture(2);
+    const float mean = scene->lightingStatistics().cloudMeanCoverage;
+    EXPECT_NEAR(mean, 0.5f, 0.05f);
+    for (ivec2 p : {ivec2(width / 2, height / 2), ivec2(10, 10), ivec2(width - 10, height - 20)})
+        EXPECT_NEAR(ReadPixel(p)(0), 1.0f - CloudLayer::kShadowOpacity * mean, 0.02f) << p.transpose();
+    View(LightingDebugView::None);
+}
+
+// The coverage texture tiles: across its edges the texels differ no more than between neighbours inside (the wrap of
+// Weather::cloudOffset to the tile is seamless)
+TEST_F(CloudsTest, CoverageTilesSeamlessly)
+{
+    std::vector<uint8_t> t = scene->cloudLayer().coverageTexture().download(0);
+    const int n            = int(CloudLayer::kSize);
+    ASSERT_EQ(t.size(), size_t(n) * n);
+    double inside = 0, across = 0;
+    for (int y = 0; y < n; ++y)
+    {
+        inside += std::abs(int(t[size_t(y) * n + n / 2]) - int(t[size_t(y) * n + n / 2 - 1]));
+        across += std::abs(int(t[size_t(y) * n]) - int(t[size_t(y) * n + n - 1]));
+        inside += std::abs(int(t[size_t(n / 2) * n + y]) - int(t[size_t(n / 2 - 1) * n + y]));
+        across += std::abs(int(t[y]) - int(t[size_t(n - 1) * n + y]));
+    }
+    EXPECT_LT(across, 1.5 * inside + n);
 }

@@ -111,15 +111,18 @@ void showLightingTab(EngineApp& app)
 
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
-// suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs;
-// the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the tab's frames
+// suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
+// and the clouds' previews; the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the
+// tab's frames
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
-    const Vulkan::LightingImage images[] = {Vulkan::LightingImage::Luminance, Vulkan::LightingImage::Environment,
-                                            Vulkan::LightingImage::TransmittanceLut, Vulkan::LightingImage::SkyViewLut};
-    uint32_t expected                    = 0;
+    const Vulkan::LightingImage images[] = {
+        Vulkan::LightingImage::Luminance,        Vulkan::LightingImage::Environment,
+        Vulkan::LightingImage::TransmittanceLut, Vulkan::LightingImage::SkyViewLut,
+        Vulkan::LightingImage::CloudCoverage,    Vulkan::LightingImage::CloudShadow};
+    uint32_t expected = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
     for (int f = 0; f < 3; ++f)
@@ -569,7 +572,9 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
         {R"({"image": "transmittance_lut"})", Json(Json::array{256, 64})},
         {R"({"image": "sky_view_lut"})", Json(Json::array{192, 108})},
         {R"({"image": "environment", "mip": 1, "full": true})", Json(Json::array{256, 192})},
-        {R"({"image": "irradiance"})", Json(Json::array{128, 64})}};
+        {R"({"image": "irradiance"})", Json(Json::array{128, 64})},
+        {R"({"image": "cloud_coverage"})", Json(Json::array{512, 512})},
+        {R"({"image": "cloud_shadow"})", Json(Json::array{256, 256})}};
     for (const auto& [args, size] : images)
     {
         const Json r = callFrames(*app, "capture_lighting", obj(args));
@@ -577,7 +582,11 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
         const Json block = imageBlock(r);
         EXPECT_EQ(block["size"], size) << args;
         EXPECT_FALSE(block["unit"].string_value().empty()) << args;
-        EXPECT_GT(block["stats"]["max"].number_value(), block["stats"]["min"].number_value()) << args;
+        // The cloud shadow may be uniform (a low sun fades it to the mean)
+        if (args.find("cloud_shadow") == std::string::npos)
+        {
+            EXPECT_GT(block["stats"]["max"].number_value(), block["stats"]["min"].number_value()) << args;
+        }
     }
     for (const char* args : {R"({"image": "sky_view_lut", "mip": 1})", R"({"image": "environment", "mip": 5})"})
         EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;

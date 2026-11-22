@@ -48,7 +48,8 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     vec4 enclosedAmbient;
     // x altitude, y radius, z cloudiness, w shadow fade
     vec4 clouds;
-    // xy: cloud offset, zw: wind
+    // xy: the coverage texture's position of the camera (camera xz + cloud offset, wrapped to the tile; m), z: the mean
+    // coverage at the cloudiness, w: 1 the cloud layer and its shadows are on
     vec4 cloudMotion;
     vec4 starRotation[3];
     // rgb; albedoGround.w: the rock slope (n.y)

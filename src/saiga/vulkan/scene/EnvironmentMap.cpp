@@ -28,8 +28,11 @@ constexpr vk::Format kFormat = vk::Format::eR16G16B16A16Sfloat;
 struct CapturePush
 {
     int32_t size[4];
-    float camera[4];      // x: the camera's radius (km)
+    float camera[4];      // x: the camera's radius (km), y: its height (m)
     float uniformSky[4];  // w > 0: a uniform radiance
+    float clouds[4];      // altitude, radius, cloudiness (0: none), ground albedo
+    float origin[4];      // the camera's coverage position (m)
+    float light[4];       // towards the shadow light, its illuminance
 };
 struct DebugPush
 {
@@ -85,13 +88,15 @@ void EnvironmentMap::init(VulkanBase& b, int resolution)
         DescriptorSetLayout l;
         l.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageImage, 1, c));
         l.addBinding(1, vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, c));
-        for (auto* p : {&capturePipeline, &prefilterPipeline})
-        {
-            p->init(b, 1);
-            p->addDescriptorSetLayout(l);
-            p->addPushConstantRange(
-                {c, 0, uint32_t(p == &capturePipeline ? sizeof(CapturePush) : sizeof(PrefilterPush))});
-        }
+        prefilterPipeline.init(b, 1);
+        prefilterPipeline.addDescriptorSetLayout(l);
+        prefilterPipeline.addPushConstantRange({c, 0, uint32_t(sizeof(PrefilterPush))});
+        // The capture: also the cloud coverage (2) and the transmittance (3)
+        l.addBinding(2, vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eCombinedImageSampler, 1, c));
+        l.addBinding(3, vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eCombinedImageSampler, 1, c));
+        capturePipeline.init(b, 1);
+        capturePipeline.addDescriptorSetLayout(l);
+        capturePipeline.addPushConstantRange({c, 0, uint32_t(sizeof(CapturePush))});
         capturePipeline.shaderPipeline.loadCompute(b.device, "vulkan/scene/lighting/env_capture.comp");
         capturePipeline.create();
         prefilterPipeline.shaderPipeline.loadCompute(b.device, "vulkan/scene/lighting/env_prefilter.comp");
@@ -294,13 +299,17 @@ void EnvironmentMap::harvest()
     shPending = false;
 }
 
-void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInfo skyView, float cameraHeight)
+void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, const EnvironmentState& e, const CaptureInputs& in,
+                                   float cameraHeight)
 {
     if (!skyViewWritten)
     {
-        // The sky-view LUT is the same texture for the scene's life: written once (the set is not in use yet)
-        base->device.updateDescriptorSets(
-            vk::WriteDescriptorSet(captureSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &skyView), nullptr);
+        // The inputs are the same textures for the scene's life: written once (the set is not in use yet)
+        std::array<vk::WriteDescriptorSet, 3> writes = {
+            vk::WriteDescriptorSet(captureSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &in.skyView),
+            vk::WriteDescriptorSet(captureSet, 2, 0, 1, vk::DescriptorType::eCombinedImageSampler, &in.coverage),
+            vk::WriteDescriptorSet(captureSet, 3, 0, 1, vk::DescriptorType::eCombinedImageSampler, &in.transmittance)};
+        base->device.updateDescriptorSets(writes, nullptr);
         skyViewWritten = true;
     }
     capture.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
@@ -309,6 +318,15 @@ void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInf
         CapturePush push{};
         push.size[0]   = size;
         push.camera[0] = std::clamp(6360.0f + cameraHeight * 1e-3f, 6360.001f, 6459.999f);
+        push.camera[1] = cameraHeight;
+        push.clouds[0] = e.clouds.altitude;
+        push.clouds[1] = e.clouds.radius;
+        push.clouds[2] = in.clouds ? in.cloudiness : 0.0f;
+        push.clouds[3] = e.atmosphere.groundAlbedo;
+        push.origin[0] = in.cloudOrigin(0);
+        push.origin[1] = in.cloudOrigin(1);
+        for (int i = 0; i < 3; ++i) push.light[i] = in.light(i);
+        push.light[3] = in.lightIlluminance;
         if (captureOverride)
             for (int i = 0; i < 3; ++i) push.uniformSky[i] = (*captureOverride)(i);
         push.uniformSky[3] = captureOverride ? 1.0f : 0.0f;
@@ -394,7 +412,7 @@ Texture2D* EnvironmentMap::recordDebug(vk::CommandBuffer cmd, uint32_t frameInde
 }
 
 void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, float cameraHeight,
-                            const LightingParameters& p, vk::DescriptorImageInfo skyView, uint64_t frame)
+                            const LightingParameters& p, const CaptureInputs& inputs, uint64_t frame)
 {
     const int wanted = std::clamp(p.environmentResolution, int(kShSize), 512);
     if (wanted != size)
@@ -415,7 +433,7 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
     k.atmosphere   = e.atmosphere;
     k.clouds       = e.clouds;
     k.enclosed     = e.enclosed;
-    k.cloudsOn     = p.clouds;
+    k.cloudsOn     = inputs.clouds;
     stats.steps    = kMips + 2;
 
     // A new capture when due and none is in progress (a running capture finishes first: no mixed captures); the first
@@ -426,7 +444,7 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
     {
         current = k;
         haveKey = true;
-        recordCapture(cmd, skyView, cameraHeight);
+        recordCapture(cmd, e, inputs, cameraHeight);
         stats.captures++;
         step = 1;
         if (!full)

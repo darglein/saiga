@@ -409,7 +409,8 @@ namespace
 // The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
 const std::vector<std::string>& lightingGpuSections()
 {
-    static const std::vector<std::string> names = {"environment", "scene.sky", "scene.debug", "lighting.preview"};
+    static const std::vector<std::string> names = {"environment", "scene.sky", "scene.clouds", "scene.debug",
+                                                   "lighting.preview"};
     return names;
 }
 
@@ -640,7 +641,9 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                    {"seed", double(state.settings.clouds.seed)},
                                    {"shadow_fade", double(state.settings.clouds.shadowFade)},
                                    {"fog_falloff", double(state.settings.clouds.fogFalloff)},
-                                   {"enabled", state.parameters.clouds}};
+                                   {"enabled", state.parameters.clouds},
+                                   {"drawn", ls.clouds},
+                                   {"mean_coverage", double(ls.cloudMeanCoverage)}};
     o["settings"]   = keysJson(state, false);
     o["parameters"] = keysJson(state, true);
     // S36a1b: the debug state, the GPU sections (the last frame and the mean over the last 120 frames of the app's GPU
@@ -1017,13 +1020,18 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "log2 "
         "by default), environment (the environment map's front cube as a cross of the mip mip, cd/m^2, log2 by "
         "default) "
-        "or irradiance (its SH irradiance per direction, equirectangular, lux). range (\"auto\" or [min, max]), "
+        "irradiance (its SH irradiance per direction, equirectangular, lux), cloud_coverage (the cloud layer's "
+        "coverage at "
+        "the cloudiness over its 16 km tile) or cloud_shadow (the cloud shadow factor on the plane of the camera "
+        "height "
+        "around the camera, +- the shadow fade). range (\"auto\" or [min, max]), "
         "log, color_map (gray, turbo) set the mapping; stats_only: true returns the block without an image (the one "
         "path to the statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, "
         "64..8192); full: true updates incremental effects fully first (the environment map). Deferred: answered from "
         "the frame that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
-        schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut", "transmittance_lut",
-                                                                  "sky_view_lut", "environment", "irradiance"})},
+        schema({{"image", McpServer::StringProperty(
+                              "The image", {"luminance", "brdf_lut", "transmittance_lut", "sky_view_lut", "environment",
+                                            "irradiance", "cloud_coverage", "cloud_shadow"})},
                 {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
                 {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
                 {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
@@ -1045,7 +1053,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 a["image"].is_string() ? Vulkan::lightingImageFromName(a["image"].string_value()) : std::nullopt;
             if (!parsed)
                 return respond(ToolResult::Error(
-                    "image: luminance, brdf_lut, transmittance_lut, sky_view_lut, environment or irradiance"));
+                    "image: luminance, brdf_lut, transmittance_lut, sky_view_lut, environment, irradiance, "
+                    "cloud_coverage or cloud_shadow"));
             const Vulkan::LightingImage image = *parsed;
             if (!a["mip"].is_null())
             {
@@ -1110,6 +1119,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         block["unit"] = mapping.log ? "log2 cd/m^2" : "cd/m^2";
                     if (name == "irradiance") block["unit"] = mapping.log ? "log2 lux" : "lux";
                     if (name == "transmittance_lut") block["unit"] = "transmittance (luminance of rgb)";
+                    if (name == "cloud_coverage") block["unit"] = "coverage (opacity 0..1)";
+                    if (name == "cloud_shadow") block["unit"] = "the shadow light's factor (0..1)";
                     if (statsOnly || c.image.width == 0) return respond(ToolResult::Text(Json(block).dump()));
                     TemplatedImage<ucvec4> img = c.image;
                     const int w                = std::min(img.w, maxWidth);

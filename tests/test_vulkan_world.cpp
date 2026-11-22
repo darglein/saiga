@@ -858,10 +858,10 @@ TEST_F(VulkanPrototypeScene, DepthResolveAndPrePass)
 TEST_F(VulkanPrototypeScene, Sections)
 {
     const auto& names                       = RenderScene::gpuSectionNames();
-    const std::vector<std::string> expected = {"transfer",         "environment", "cull",          "depth",
-                                               "depth.terrain",    "scene",       "scene.terrain", "scene.instances",
-                                               "scene.grass",      "scene.sky",   "scene.debug",   "resolve",
-                                               "lighting.preview", "post",        "imgui"};
+    const std::vector<std::string> expected = {
+        "transfer",      "environment",      "cull",        "depth",     "depth.terrain", "scene",
+        "scene.terrain", "scene.instances",  "scene.grass", "scene.sky", "scene.clouds",  "scene.debug",
+        "resolve",       "lighting.preview", "post",        "imgui"};
     ASSERT_EQ(names.size(), expected.size());
     for (size_t i = 0; i < names.size(); ++i) EXPECT_EQ(names[i], expected[i]);
     PrototypeScene p;
@@ -890,8 +890,9 @@ TEST_F(VulkanPrototypeScene, Sections)
             ASSERT_EQ(t.gpuSectionMs.size(), names.size());
             for (double ms : t.gpuSectionMs) EXPECT_GE(ms, 0);
             EXPECT_LE(t.gpuSectionMs[4], t.gpuSectionMs[3] + 0.01);
-            EXPECT_LE(t.gpuSectionMs[6] + t.gpuSectionMs[7] + t.gpuSectionMs[8] + t.gpuSectionMs[9],
-                      t.gpuSectionMs[5] + 0.01);
+            EXPECT_LE(
+                t.gpuSectionMs[6] + t.gpuSectionMs[7] + t.gpuSectionMs[8] + t.gpuSectionMs[9] + t.gpuSectionMs[10],
+                t.gpuSectionMs[5] + 0.01);
             EXPECT_GE(t.gpuMs, t.gpuSectionMs[5]);
         }
     }

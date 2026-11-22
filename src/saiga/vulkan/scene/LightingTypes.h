@@ -214,8 +214,9 @@ struct LightingDebugState
 // The images LightingDebug converts into displayable RGBA8 previews and reduces (min, max, mean, histogram) on demand:
 // a1b Luminance (the resolved HDR luminance in cd/m^2, or the display luminance in clay mode) and BrdfLut (capture
 // only); a1c the atmosphere's TransmittanceLut and SkyViewLut (luminance, cd/m^2), the environment map's Environment
-// (the front cube's mip as a cross, cd/m^2) and Irradiance (its SH per direction, lux; capture only); a2 and b add
-// theirs
+// (the front cube's mip as a cross, cd/m^2), Irradiance (its SH per direction, lux; capture only), the cloud layer's
+// CloudCoverage (the coverage at the cloudiness over the tile) and CloudShadow (the cloud shadow factor on the plane of
+// the camera height around the camera); a2 and b add theirs
 enum class LightingImage : uint8_t
 {
     Luminance,
@@ -224,12 +225,14 @@ enum class LightingImage : uint8_t
     SkyViewLut,
     Environment,
     Irradiance,
+    CloudCoverage,
+    CloudShadow,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {"luminance",    "brdf_lut",    "transmittance_lut",
-                                  "sky_view_lut", "environment", "irradiance"};
+    static const char* names[] = {"luminance",   "brdf_lut",   "transmittance_lut", "sky_view_lut",
+                                  "environment", "irradiance", "cloud_coverage",    "cloud_shadow"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -302,6 +305,9 @@ struct LightingStatistics
     // S36a1c: the environment map and the atmosphere's transmittance / multiple-scattering recomputations
     EnvironmentMapStatistics environmentMap;
     uint64_t lutComputations = 0;
+    // The cloud layer: drawn (and its shadows on) this frame, the mean coverage at the cloudiness
+    bool clouds             = false;
+    float cloudMeanCoverage = 0;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is
