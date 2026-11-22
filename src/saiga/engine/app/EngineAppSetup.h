@@ -73,6 +73,9 @@ struct EngineAppSetup
     double mcpToolTimeoutSeconds = 120;
     // McpServer::answerMarginFraction (tests with short timeouts raise it)
     double mcpAnswerMarginFraction = 0.1;
+    // The frame statistics count presented frames from this much run time on (the sum of the frame intervals; tests
+    // shorten it instead of waiting a second of real time)
+    double statisticsWarmupSeconds = 1.0;
     std::string inputFile;          // default: <data directory>/input.json if it exists
     std::string snapshotDirectory;  // export_snapshot / import_snapshot (empty: refused)
     std::string mcpInstructions;    // the MCP server's instructions (initialize); a generic text if empty or noRender

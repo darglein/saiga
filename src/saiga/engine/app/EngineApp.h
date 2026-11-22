@@ -282,8 +282,7 @@ class SAIGA_ENGINE_API EngineApp
     FrameStatistics frameStats;
     double pendingWorkMs      = -1;  // the CPU work of the last frame, added with its interval at the next frame
     uint64_t statisticsResets = 0;   // frameProfiler.resetCount() the frame statistics belong to
-    static constexpr double kStatisticsWarmupSeconds = 1.0;
-    double runSeconds                                = 0;        // the sum of the frame intervals since the start
+    double runSeconds         = 0;   // the sum of the frame intervals since the start
     std::deque<std::pair<uint64_t, double>> renderedFrameTimes;  // RenderScene frame -> frameStats time
     struct ShownStatistics
     {

@@ -29,6 +29,7 @@
 #include "saiga/engine/tools/ScenarioList.h"
 #include "saiga/engine/tools/ScenarioWorld.h"
 #include "saiga/vulkan/Instance.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include "gtest/gtest.h"
@@ -813,13 +814,13 @@ void testScenarios(ScenarioList& l)
               w.addStepListener([]() { std::this_thread::sleep_for(std::chrono::milliseconds(30)); });
               w.step(10);
           });
-    // One step, then longer than run_scenario's answer deadline (1.2 s timeout with the margin 0.5: 0.6 s) but shorter
-    // than the timeout (0.3 s to either side)
+    // One step, then longer than run_scenario's answer deadline (0.8 s timeout with the margin 0.5: 0.4 s) but shorter
+    // than the timeout (0.2 s to either side)
     l.add("late_finish",
           [](ScenarioWorld& w)
           {
               w.step(1);
-              std::this_thread::sleep_for(std::chrono::milliseconds(900));
+              std::this_thread::sleep_for(std::chrono::milliseconds(600));
           });
     l.add("reload",
           [](ScenarioWorld& w)
@@ -977,9 +978,9 @@ TEST(EngineAppNoRender, RunScenarioLoadsTheEndState)
 
 TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
 {
-    // The answer deadline after 0.4 s, 0.4 s before the timeout
+    // The answer deadline after 0.3 s, 0.3 s before the timeout
     EngineAppSetup s          = scenarioSetup();
-    s.mcpToolTimeoutSeconds   = 0.8;
+    s.mcpToolTimeoutSeconds   = 0.6;
     s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
     // The deadline stops a long scenario: no snapshot even with keep
@@ -1009,7 +1010,7 @@ TEST(EngineAppNoRender, RunScenarioSnapshotSlotsAndDeadline)
 TEST(EngineAppNoRender, RunScenarioFinishingAfterTheDeadlineIsNotLoaded)
 {
     EngineAppSetup s          = scenarioSetup();
-    s.mcpToolTimeoutSeconds   = 1.2;
+    s.mcpToolTimeoutSeconds   = 0.8;
     s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
     app.world().step(3);
@@ -1364,10 +1365,10 @@ TEST_F(EngineAppRender, ScreenshotTool)
 // not answer a second time and the GUI flag is restored
 TEST_F(EngineAppRender, ScreenshotDeadlineWithoutFrames)
 {
-    // The answer deadline after 0.4 s, 0.4 s before the timeout
+    // The answer deadline after 0.3 s, 0.3 s before the timeout
     EngineAppSetup s          = appSetup(true);
     s.render.imgui            = true;
-    s.mcpToolTimeoutSeconds   = 0.8;
+    s.mcpToolTimeoutSeconds   = 0.6;
     s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
     app.scene()->setImguiVisible(true);
@@ -1607,8 +1608,8 @@ TEST_F(EngineAppRender, MeasureFramesEndsWithItsLastLoop)
         std::string err;
         result = Json::parse(r.content.empty() ? "" : r.content[0]["text"].string_value(), err);
     };
-    // Generous for the 3 frames and the step below (a software renderer on a loaded machine)
-    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(800);
+    // Generous for the 3 frames and the step below (a few ms each on a software renderer; 400 ms on a loaded machine)
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(400);
     app.measureFrames(3, deadline, respond);
     app.runFrames(3, 1.0 / 60);
     ASSERT_TRUE(result.is_null());  // waits for the GPU samples of its frames
@@ -2363,6 +2364,19 @@ EngineAppSetup terrainAppSetup(TerrainHeightHook hook)
     return s;
 }
 
+// The terrain streams and uploads, but its passes (terrain, water, grass, sky) draw nothing: for the tests of
+// streaming, readiness, deadlines and loads, whose assertions read no terrain pixels (test speed: a CDLOD frame is
+// about 100k triangles, 50 ms in lavapipe's single-threaded vertex stage)
+void noTerrainDraws(EngineApp& app)
+{
+    Vulkan::PrototypeSettings p = app.scene()->prototypeSettings();
+    p.terrain                   = false;
+    p.water                     = false;
+    p.grass                     = false;
+    p.sky                       = false;
+    app.scene()->setPrototypeSettings(p);
+}
+
 // A tool call on another thread while this (the app's main) thread runs frames, until it answers
 Json callWhileRunning(EngineApp& app, const std::string& name, const Json& args, double* seconds = nullptr,
                       int maxFrames = 20000)
@@ -2391,6 +2405,7 @@ Json callWhileRunning(EngineApp& app, const std::string& name, const Json& args,
 TEST_F(EngineAppRender, TerrainStatus)
 {
     EngineApp app(terrainAppSetup(TerrainTestHooks::integerTestHook));
+    noTerrainDraws(app);
     app.setViewCamera(0, Vec3(1000, 80, 1000), Quat::Identity(), 1.0);
     app.runFrames(3, 1.0 / 60);
     EXPECT_GT(app.lastTerrainStreamMs() + 1, 0.0);
@@ -2419,6 +2434,7 @@ TEST_F(EngineAppRender, TerrainStatus)
 TEST_F(EngineAppRender, ScreenshotCompletesTheView)
 {
     EngineApp app(terrainAppSetup(TerrainTestHooks::integerTestHook));
+    noTerrainDraws(app);
     app.runFrames(2, 1.0 / 60);
     const Json c =
         callWhileRunning(app, "set_camera", obj(R"({"position": [6500, 120, 7000], "yaw_deg": 30, "pitch_deg": -30})"));
@@ -2430,14 +2446,16 @@ TEST_F(EngineAppRender, ScreenshotCompletesTheView)
     EXPECT_EQ(app.world().terrain().terrainUploadsPending(), 0u);
 }
 
-// With the workers held (armed after the first frame: that one is a complete point with a fatal timeout) and a 1 s tool
-// timeout, a screenshot of an unstreamed area answers "terrain not complete before the deadline" within the 0.9 s
-// budget, exactly once, and the app keeps running
+// With the workers held (armed after the first frame: that one is a complete point with a fatal timeout) and a 0.6 s
+// tool timeout, a screenshot of an unstreamed area answers "terrain not complete before the deadline" within the 0.3 s
+// budget (0.3 s before the timeout), exactly once, and the app keeps running
 TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
 {
-    EngineAppSetup s        = terrainAppSetup(TerrainTestHooks::latchedHook);
-    s.mcpToolTimeoutSeconds = 1;
+    EngineAppSetup s          = terrainAppSetup(TerrainTestHooks::latchedHook);
+    s.mcpToolTimeoutSeconds   = 0.6;
+    s.mcpAnswerMarginFraction = 0.5;
     EngineApp app(s);
+    noTerrainDraws(app);
     app.setViewCamera(0, Vec3(500, 80, 500), Quat::Identity(), 1.0);
     app.runFrames(2, 1.0 / 60);
     TerrainTestHooks::armLatch();
@@ -2450,7 +2468,7 @@ TEST_F(EngineAppRender, ScreenshotTerrainDeadline)
     const Json r   = callWhileRunning(app, "screenshot", Json::object{}, &seconds);
     ASSERT_TRUE(isError(r)) << r.dump().substr(0, 300);
     EXPECT_NE(errorText(r).find("terrain not complete before the deadline"), std::string::npos) << errorText(r);
-    // The answer is the tool's own (a call past the 1 s timeout would answer with the timeout error); the wall-clock
+    // The answer is the tool's own (a call past the 0.6 s timeout would answer with the timeout error); the wall-clock
     // bound only catches a hang (generous for a loaded machine)
     EXPECT_LT(seconds, 3.0);
     // Exactly once: no second answer (the deadline listener) and the app keeps running
@@ -2473,7 +2491,11 @@ TEST_F(EngineAppRender, StreamTimePausesTheClock)
     {
         ~Reset() { TerrainTestHooks::setSleepAtOrigin(false); }
     } reset;
-    EngineApp app(terrainAppSetup(TerrainTestHooks::latchedHook));
+    // A short statistics warm-up (the frames after it count; 1 s of real time by default)
+    EngineAppSetup setup          = terrainAppSetup(TerrainTestHooks::latchedHook);
+    setup.statisticsWarmupSeconds = 0.1;
+    EngineApp app(setup);
+    noTerrainDraws(app);
     app.setCompleteViewEachFrame(true);
     // Few tiles: the frames' upload copies stay short also on a software renderer (their GPU time is a real wait)
     TerrainViewSettings view = app.world().terrain().viewSettings();
@@ -2485,7 +2507,7 @@ TEST_F(EngineAppRender, StreamTimePausesTheClock)
     app.frame();
     EXPECT_GE(app.lastTerrainStreamMs(), 100.0);
     // Past the statistics' warm-up
-    const auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(1300);
+    const auto end = std::chrono::steady_clock::now() + std::chrono::milliseconds(250);
     while (std::chrono::steady_clock::now() < end)
     {
         app.frame();
@@ -2606,6 +2628,7 @@ TEST_F(EngineAppRender, SpaceLoadingSequence)
     int hookCalls    = 0;
     s.loadingScreen  = [&](EngineApp&, const SpaceLoading&) { hookCalls++; };
     EngineApp app(s);
+    noTerrainDraws(app);
     app.scene()->setImguiVisible(true);
     const Vec3 cam0(500, 80, 500);
     app.setViewCamera(0, cam0, Quat::Identity(), 1.0);
@@ -2708,6 +2731,7 @@ TEST_F(EngineAppRender, SpaceLoadingMovingCamera)
     int hookCalls       = 0;
     s.loadingScreen     = [&](EngineApp&, const SpaceLoading&) { hookCalls++; };
     EngineApp app(s);
+    noTerrainDraws(app);
     app.scene()->setImguiVisible(true);
     app.setViewCamera(0, Vec3(500, 80, 500), Quat::Identity(), 1.0);
     app.runFrames(1, 1.0 / 60);
@@ -2754,6 +2778,7 @@ TEST_F(EngineAppRender, SpaceLoadingCoopClientCamera)
     s.world.config.spaceTemplates = {SpaceTemplate(), hills};
     s.world.generators            = TerrainTestHooks::registerTestHookGenerators;
     EngineApp app(s, coopOptions(1));
+    noTerrainDraws(app);
     ASSERT_NE(app.hostWorld(), nullptr);
     app.scene()->setImguiVisible(true);
     app.runFrames(2, 1.0 / 60);
