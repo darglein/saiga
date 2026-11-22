@@ -44,7 +44,7 @@ vec3 starFaceRadiance(vec3 d, uint face, vec2 uv, float pixel)
             vec2 cell = floor(g) + vec2(i, j);
             if (cell.x < 0.0 || cell.y < 0.0 || cell.x >= cells || cell.y >= cells) continue;
             uint h = starHash(uvec3(uvec2(cell), face));
-            if (starRandom(h) > 0.12) continue;
+            if (starRandom(h) > 0.07) continue;
             vec2 pos  = cell + vec2(starRandom(h * 747796405u + 1u), starRandom(h * 2891336453u + 7u));
             vec2 puv  = pos / cells * 2.0 - 1.0;
             vec3 sdir = face == 0u   ? vec3(1.0, puv.y, puv.x)
@@ -56,7 +56,7 @@ vec3 starFaceRadiance(vec3 d, uint face, vec2 uv, float pixel)
             sdir      = normalize(sdir);
             // The illuminance (lux): a steep magnitude distribution, the brightest about 1e-5 lux
             float m = starRandom(h * 1103515245u + 12345u);
-            float E = 1.2e-5 * pow(m, 6.0) + 1e-8;
+            float E = 8e-6 * pow(m, 8.0) + 2e-8;
             // Colour temperature: blue-white to orange
             float k      = starRandom(h * 22695477u + 3u);
             vec3 tint    = mix(vec3(1.0, 0.82, 0.6), vec3(0.75, 0.85, 1.0), k);

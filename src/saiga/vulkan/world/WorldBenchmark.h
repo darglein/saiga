@@ -80,8 +80,9 @@ class SAIGA_VULKAN_API WorldBenchmark
     static const std::vector<std::string>& names();
     static bool known(const std::string& name);
     // The S03 keys of gpu_ms: "upload + cull", "terrain + water", "trees", "grass", "sky" (from RenderScene's
-    // sections: transfer + cull, depth.terrain + scene.terrain, scene.instances, scene.grass, scene.sky; a sum of
-    // sections can count their overlap twice: a section begins at TOP_OF_PIPE and ends at BOTTOM_OF_PIPE)
+    // sections: transfer + cull, depth.terrain + scene.terrain, scene.instances, scene.grass, scene.sky (S36a1c: +
+    // scene.clouds + environment); a sum of sections can count their overlap twice: a section begins at TOP_OF_PIPE and
+    // ends at BOTTOM_OF_PIPE)
     static const std::vector<std::string>& gpuKeys();
 
     /**
@@ -130,7 +131,8 @@ class SAIGA_VULKAN_API WorldBenchmark
      * recording and submit (S19a). gpu_ms is null if no GPU times were measured (no timestamp support).
      * game_world adds step and recording (the engine's step and command recording times) and gpu_frame_ms: {gpu,
      * <section>: {median, p95}} (the app's gpu profile: the whole GPU frame and RenderScene's sections and
-     * sub-sections of the measured frames, S17-S19a).
+     * sub-sections of the measured frames, S17-S19a) and, S36a1c, lighting: {time, cloudiness, ev100, tone_map,
+     * features: {pbr, atmosphere, clouds, force_full_updates}}.
      */
     json11::Json result() const;
     /**

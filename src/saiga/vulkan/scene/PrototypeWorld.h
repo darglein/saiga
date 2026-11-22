@@ -29,7 +29,7 @@ struct PrototypeAlbedo
     vec3 shore      = vec3(0.50f, 0.46f, 0.36f);
     vec3 water      = vec3(0.03f, 0.06f, 0.07f);
     vec3 grass      = vec3(0.14f, 0.27f, 0.07f);
-    vec3 leaves     = vec3(0.08f, 0.17f, 0.05f);
+    vec3 leaves     = vec3(0.10f, 0.21f, 0.06f);
     vec3 bark       = vec3(0.25f, 0.19f, 0.14f);
     float rockSlope = 0.75f;
 };

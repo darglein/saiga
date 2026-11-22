@@ -49,7 +49,8 @@ struct ExposureSettings
     ExposureMode mode = ExposureMode::TimeOfDay;
     float ev100       = 15;  // Fixed
     // (sun elevation in degrees, EV100), ascending in the elevation; piecewise linear, clamped at the ends
-    std::vector<vec2> curve = {vec2(-18, -1), vec2(-6, 3), vec2(0, 9), vec2(10, 13), vec2(30, 14.5f), vec2(90, 15)};
+    std::vector<vec2> curve = {vec2(-18, -1.5f), vec2(-10, -1),   vec2(-6, 2.5f),  vec2(-3, 7), vec2(0, 10.5f),
+                               vec2(5, 12.3f),   vec2(10, 13.3f), vec2(30, 14.5f), vec2(90, 15)};
     // Subtracted from the EV100 (+1: one stop brighter, the same as an exposure multiplier of 2)
     float compensation = 0;
 

@@ -92,14 +92,16 @@ vec3 prototypeAlbedo(vec3 physical)
 // the horizon)
 vec3 lightingFog(vec3 c, vec3 relPos)
 {
-    vec3 fogColor = lighting.fogColorLin.rgb;
-    if (physicalLighting() && lighting.fogParams.z > 0.5)
-    {
-        vec2 h   = relPos.xz;
-        vec3 dir = dot(h, h) > 1e-8 ? vec3(normalize(h).x, 0.0, normalize(h).y) : vec3(1.0, 0.0, 0.0);
-        fogColor = skyRadiance(skyViewLut, dir, atmosphereRadius(lighting.atmosphere.x));
-    }
-    return protoApplyFog(c, relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0), fogColor);
+    if (!physicalLighting() || lighting.fogParams.z < 0.5)
+        return protoApplyFog(c, relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0),
+                             lighting.fogColorLin.rgb);
+    // The fog factor first (the height fog of a black surface in a white fog): near surfaces skip the colour's lookup
+    float f = protoApplyFog(vec3(0.0), relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0), vec3(1.0)).r;
+    if (f < 1.0 / 2048.0) return c;
+    vec2 h        = relPos.xz;
+    vec3 dir      = dot(h, h) > 1e-8 ? vec3(normalize(h).x, 0.0, normalize(h).y) : vec3(1.0, 0.0, 0.0);
+    vec3 fogColor = skyRadiance(skyViewLut, dir, atmosphereRadius(lighting.atmosphere.x));
+    return mix(c, fogColor, f);
 }
 
 // The direct light's transmittance through the atmosphere at the receiver (relPos) towards the body l: the
@@ -167,14 +169,19 @@ vec3 shadeSurface(SurfaceInput s)
         if (lighting.mode.y == 0u)
         {
             float shadow = shadowFactor(s.relPos, s.n);
-            vec3 sunE    = lighting.sun.w * bodyTransmittance(lighting.sun.xyz, s.relPos);
-            vec3 moonE   = lighting.moon.w * bodyTransmittance(lighting.moon.xyz, s.relPos);
-            if (lighting.shadowLight.w == 1.0) sunE *= shadow;
-            if (lighting.shadowLight.w == 2.0) moonE *= shadow;
-            if (lighting.sun.w > 0.0)
+            // A body below the horizon gives no direct light (the transmittance is 0 there; no lookup)
+            if (lighting.sun.w > 0.0 && lighting.sun.y > -0.1)
+            {
+                vec3 sunE = lighting.sun.w * bodyTransmittance(lighting.sun.xyz, s.relPos);
+                if (lighting.shadowLight.w == 1.0) sunE *= shadow;
                 direct += pbrDirect(s.n, v, lighting.sun.xyz, s.albedo, rough, s.metalness, sunE, lut, wrap);
-            if (lighting.moon.w > 0.0)
+            }
+            if (lighting.moon.w > 0.0 && lighting.moon.y > -0.1)
+            {
+                vec3 moonE = lighting.moon.w * bodyTransmittance(lighting.moon.xyz, s.relPos);
+                if (lighting.shadowLight.w == 2.0) moonE *= shadow;
                 direct += pbrDirect(s.n, v, lighting.moon.xyz, s.albedo, rough, s.metalness, moonE, lut, wrap);
+            }
         }
         vec3 r = reflect(-v, s.n);
         pbrAmbientParts(s.albedo, rough, s.metalness, NoV, lut, ambientSpecular(r, rough, s.relPos),

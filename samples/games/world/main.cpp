@@ -33,6 +33,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -145,7 +146,8 @@ std::map<std::string, double> s03Passes(const std::map<std::string, double>& sec
             {"terrain + water", get("depth.terrain") + get("scene.terrain")},
             {"trees", get("scene.instances")},
             {"grass", get("scene.grass")},
-            {"sky", get("scene.sky")}};
+            // S36a1c: the sky with the cloud layer and the environment pass (the atmosphere, the environment map)
+            {"sky", get("scene.sky") + get("scene.clouds") + get("environment")}};
 }
 
 void initWorld(EngineApp& app)
@@ -497,6 +499,20 @@ void beforeRender(EngineApp& app)
                                                      {"cpu_mb", double(ts.cpuBytes + mem.cpuBytes()) / (1 << 20)},
                                                      {"gpu_mb", double(mem.gpuBytes()) / (1 << 20)},
                                                      {"base_spacing", app.world().spaceTemplate(0).baseSpacing}};
+        }
+        // S36a1c: the lighting of the measured frames (the time and weather are frozen)
+        {
+            const Engine::EnvironmentSample e    = app.sampleViewEnvironment();
+            const Vulkan::LightingParameters& lp = scene.lightingParameters();
+            result["lighting"]                   = json11::Json::object{
+                                  {"time", e.hasTime ? json11::Json(e.time.timeOfDay) : json11::Json()},
+                                  {"cloudiness", e.weather.cloudiness},
+                                  {"ev100", double(scene.environment().ev100)},
+                                  {"tone_map", scene.parameters().toneMap == Vulkan::ToneMap::Aces ? "aces" : "identity"},
+                                  {"features", json11::Json::object{{"pbr", lp.pbr},
+                                                                    {"atmosphere", scene.physicalLighting()},
+                                                                    {"clouds", scene.lightingStatistics().clouds},
+                                                                    {"force_full_updates", lp.forceFullUpdates}}}};
         }
         const int stalls = result["stalled_frames"].int_value();
         if (stalls > 0)
