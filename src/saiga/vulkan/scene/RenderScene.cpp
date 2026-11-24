@@ -1429,8 +1429,9 @@ void RenderScene::setEnvironment(const EnvironmentState& environment)
 void RenderScene::setLightingParameters(const LightingParameters& parameters)
 {
     // Only stored: the resources that depend on the parameters (the environment map's resolution, the clouds, the
-    // cascades and the horizon map) are created or resized lazily when the next frame records them
-    // (EnvironmentMap::record, CascadedShadows::ensureImages, HorizonShadows::ensureImages)
+    // cascades, the horizon map, the shadow atlas and the light clusters) are created or resized lazily when the next
+    // frame records them (EnvironmentMap::record, CascadedShadows::ensureImages, HorizonShadows::ensureImages,
+    // ShadowAtlas::ensure, LightClusters::ensure)
     params.lighting = parameters;
 }
 
