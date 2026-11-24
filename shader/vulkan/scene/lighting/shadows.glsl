@@ -123,11 +123,15 @@ vec3 cascadeBiased(int c, vec3 relPos, vec3 n, vec3 L)
 
 // The cascades' factor at the receiver (relPos, normal n): the first cascade whose rectangle contains the receiver's
 // light-space xy (selection by the xy rectangle; the depth range is shared, D23), blended into the next cascade over
-// the band at its border (beyond the last into lit: the horizon map and the clouds take over); cascade: the index, -1
-// outside every rectangle (factor 1). One cascadeSample call site in a loop (keeps the shaders small)
-float cascadeShadow(vec3 relPos, vec3 n, out int cascade)
+// the band at its border; cascade: the index, -1 outside every rectangle (factor 1). In the band of a cascade without a
+// next one (the last, or the next not valid) the cascade's own factor is returned and toLit is the band's weight
+// towards outside (shadowTerms blends the cascade with the horizon map's G into the outside's R: the terrain between
+// 64 m and cascadeCasterDistance has no gap at the border; S36a2 review, major 5); else toLit is 0. One cascadeSample
+// call site in a loop (keeps the shaders small)
+float cascadeShadow(vec3 relPos, vec3 n, out int cascade, out float toLit)
 {
     cascade   = -1;
+    toLit     = 0.0;
     int count = int(lighting.shadowParams.x);
     if (count == 0) return 1.0;
     float t = 0.0;
@@ -143,34 +147,41 @@ float cascadeShadow(vec3 relPos, vec3 n, out int cascade)
         break;
     }
     if (cascade < 0) return 1.0;
-    // The next cascade of the band, else lit
+    // The next cascade of the band, else towards outside
     int next = -1;
     if (t > 0.0 && cascade + 1 < count && lighting.cascadeParams[cascade + 1].z > 0.5)
     {
         vec2 ndc = (lighting.cascadeMatrix[cascade + 1] * vec4(relPos, 1.0)).xy;
         if (max(abs(ndc.x), abs(ndc.y)) <= 1.0) next = cascade + 1;
     }
+    if (next < 0)
+    {
+        toLit = t;
+        if (t >= 1.0) return 1.0;
+    }
     vec3 L       = normalize(lighting.shadowLight.xyz);
-    float result = next < 0 ? t : 0.0;
+    float result = 0.0;
     int samples  = next < 0 ? 1 : 2;
     for (int k = 0; k < samples; ++k)
     {
         int c   = k == 0 ? cascade : next;
-        float w = k == 0 ? 1.0 - t : t;
+        float w = next < 0 ? 1.0 : k == 0 ? 1.0 - t : t;
         if (w > 0.0) result += w * cascadeSample(c, cascadeBiased(c, relPos, n, L));
     }
     return result;
 }
 
 // The shadow heights (R, G) of a horizon map at the receiver, relative to the receiver's height (> 0: the receiver is
-// below them); -1e9 outside the map or without it
-vec2 horizonHeights(vec4 map, float refRel, vec3 relPos)
+// below them); inside: the map covers the receiver (else -1e9). A texel without an occluder holds -1e9 too (lit)
+vec2 horizonHeights(vec4 map, float refRel, vec3 relPos, out bool inside)
 {
     const vec2 none = vec2(-1.0e9);
+    inside          = false;
     if (map.w < 0.0) return none;
     float res = lighting.horizonRef.w;
     vec2 st   = (relPos.xz - map.xy) * map.z;  // texels
     if (any(lessThan(st, vec2(0.5))) || any(greaterThan(st, vec2(res - 0.5)))) return none;
+    inside = true;
     vec2 h;
     if (lighting.horizonParams.w > 0.5)
         h = textureLod(horizonMaps, vec3(st / res, map.w), 0.0).rg;
@@ -190,27 +201,43 @@ vec2 horizonHeights(vec4 map, float refRel, vec3 relPos)
     return h + refRel - relPos.y;
 }
 
-// The horizon map's factor at the receiver (S36a2, A6): lit by smoothstep(H - s, H, y) with H the shadow height (G
-// inside a cascade with terrain casters: the cascades shadow the nearer terrain; else R), s = max(4 m, 2 texel
-// tan(el)); the previous and the front map blended; rg: (R, G) above the receiver
-float horizonShadow(vec3 relPos, bool useG, out vec2 rg)
+// The horizon map's shadow heights (R, G) above the receiver (S36a2, A6): the previous and the front map blended by
+// the front's progress; a map that does not cover the receiver gives way to the other (after an anchor move the
+// receivers outside the previous map are shadowed by the front map at once; S36a2 review, major 4); -1e9 outside both
+vec2 horizonRg(vec3 relPos)
 {
-    rg = vec2(-1.0e9);
-    if (lighting.horizonParams.x < 0.5) return 1.0;
-    vec2 a  = horizonHeights(lighting.horizonPrev, lighting.horizonRef.x, relPos);
-    vec2 b  = horizonHeights(lighting.horizonFront, lighting.horizonRef.y, relPos);
-    rg      = mix(a, b, lighting.horizonRef.z);
-    float H = useG ? rg.y : rg.x;
+    if (lighting.horizonParams.x < 0.5) return vec2(-1.0e9);
+    bool inPrev, inFront;
+    vec2 a  = horizonHeights(lighting.horizonPrev, lighting.horizonRef.x, relPos, inPrev);
+    vec2 b  = horizonHeights(lighting.horizonFront, lighting.horizonRef.y, relPos, inFront);
+    float w = !inPrev ? 1.0 : !inFront ? 0.0 : lighting.horizonRef.z;
+    return mix(a, b, w);
+}
+
+// The horizon map's factor of a shadow height H above the receiver: lit by smoothstep(H - s, H, y), s = max(4 m,
+// 2 texel tan(el))
+float horizonFactor(float H)
+{
     float s = max(4.0, 2.0 * lighting.horizonParams.y / max(lighting.horizonFront.z, 1e-6));
     return 1.0 - smoothstep(0.0, s, H);
 }
 
+// The shadow terms (A5, A6): inside a cascade rectangle with terrain casters the horizon map's G (the cascades shadow
+// the nearer terrain), else R. In the band of the last cascade the inside's product (cascade x G) is blended with the
+// outside's R by the band's weight; the cascade term is the factor blended towards 1 (as shown by the debug views) and
+// the horizon term the rest of the product
 ShadowTerms shadowTerms(vec3 relPos, vec3 n)
 {
     ShadowTerms t;
-    t.cascade = cascadeShadow(relPos, n, t.index);
-    t.horizon = horizonShadow(relPos, t.index >= 0 && lighting.horizonParams.z > 0.5, t.rg);
-    t.cloud   = cloudShadow(relPos);
+    float toLit;
+    float c        = cascadeShadow(relPos, n, t.index, toLit);
+    t.rg           = horizonRg(relPos);
+    float outside  = horizonFactor(t.rg.x);
+    float inside   = t.index >= 0 && lighting.horizonParams.z > 0.5 ? horizonFactor(t.rg.y) : outside;
+    float combined = mix(c * inside, outside, toLit);
+    t.cascade      = mix(c, 1.0, toLit);
+    t.horizon      = t.cascade > 1e-6 ? combined / t.cascade : inside;
+    t.cloud        = cloudShadow(relPos);
     return t;
 }
 #endif

@@ -952,6 +952,52 @@ TEST_F(ShadowsTerrain, CliffNearCameraUsesCascade)
     EXPECT_NEAR(measured, edge, tolerance) << "cascade " << c << " texel " << st.cascades[size_t(c)].texelSize;
 }
 
+// Regression (S36a2 review, major 5): in the blend band of the last cascade the cascade faded towards lit while the
+// receivers still used the horizon map's G (from cascadeCasterDistance on), so the ridge's shadow (300-650 m away,
+// in neither G nor the faded cascade) had a lit gap along the border; outside the rectangles R shadowed it again. A
+// line of ground points in the ridge's shadow at 10 degrees (x = 1398, along z away from the camera: across every
+// cascade, their bands and beyond) is shadowed everywhere
+TEST_F(ShadowsTerrain, NoLitGapAtTheLastCascadeBorder)
+{
+    const double el = 10 * kPi / 180;
+    const double x0 = 1398;
+    // x0 is deep in the ridge's shadow, cast by the slope 250-650 m towards the light (beyond R's 64 m, before G's
+    // 1371 m)
+    double horizon = -1e9;
+    for (double t = 0.5; t < 1200; t += 0.5) horizon = std::max(horizon, ridgeHeight(x0 + t) - t * std::tan(el));
+    ASSERT_GT(horizon, ridgeHeight(x0) + 20);
+    const Vec3 eye(x0, 100, 2048.5);
+    Ridge(eye);
+    LightingParameters p = scene->lightingParameters();
+    p.shadowDistance     = 300;
+    p.cascadeResolution  = 512;
+    p.horizonResolution  = 256;
+    p.horizonExtent      = 8192;
+    p.forceFullUpdates   = true;
+    scene->setLightingParameters(p);
+    Sun(Vec3(std::cos(el), std::sin(el), 0));
+    SetCamera(0, eye, lookRotation(Vec3(0, -0.45, 1)), 1.2);
+    // (two frames: the horizon map is sampled from the frame after its computation)
+    const TemplatedImage<ucvec4> img = Capture(2);
+    const LightingStatistics& st     = scene->lightingStatistics();
+    ASSERT_TRUE(st.shadows);
+    int checked = 0, inBand = 0;
+    for (double z = 2048 + 60; z < 2048 + 1200; z += 2)
+    {
+        const Vec3 q(x0, ridgeHeight(x0), z);
+        const float f = FactorAt(img, q);
+        if (f < 0) continue;
+        checked++;
+        // Beyond the last cascade's band start (its half extent along z times 1 - blend; the rectangle is centred near
+        // the camera)
+        const double half = st.cascades[size_t(st.cascadeCount - 1)].halfExtent;
+        if (std::abs(z - eye(2)) > half * (1 - p.cascadeBlend) - 40 && std::abs(z - eye(2)) < half + 40) inBand++;
+        EXPECT_LT(f, 0.25f) << "z " << z;
+    }
+    EXPECT_GT(checked, 100);
+    EXPECT_GT(inBand, 5) << "the line crosses the last cascade's band";
+}
+
 namespace
 {
 // The PrototypeFoliage class needs the foliage texture: its own scene
@@ -1303,6 +1349,40 @@ TEST_F(HorizonTest, NoRecomputeForSmallCameraMovesAndAnchorMoveKeepsShadows)
     EXPECT_GT(scene->lightingStatistics().horizon.recomputes, before);
     EXPECT_NE(scene->lightingStatistics().horizon.corner, corner);
     for (float v : f) EXPECT_LT(v, 0.1f);
+}
+
+// Regression (S36a2 review, major 4): after an anchor move a receiver outside the previous map was lit for the whole
+// blend that follows the new map's completion (the blend mixed the previous map's "none" (-1e9) with the front map's
+// height). A map of 4 km at 32 m texels, 16 rows per frame: the camera moves 3 km along z (the receiver lies outside
+// the first map); from the frame the new map completes on, the receiver in the ridge's shadow at sunset is shadowed
+TEST_F(HorizonTest, ReceiverOutsidePreviousMapShadowedAfterAnchorMove)
+{
+    const Vec3 point(1500, 0, 3500);
+    const Vec3 eye(1450, 120, 3500.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    const Vec3 ground(point(0), Surface(point(0), point(2)), point(2));
+    LightingParameters p = scene->lightingParameters();
+    p.horizonResolution  = 128;
+    p.horizonExtent      = 4096;
+    scene->setLightingParameters(p);
+    Elevation(3);
+    // The first map around z = 500: it covers z up to 2548
+    Camera(Vec3(eye(0), eye(1), 500), Vec3(1, -1.5, 0));
+    Capture(2);
+    const uint64_t completed = scene->lightingStatistics().horizon.completed;
+    p.forceFullUpdates       = false;
+    p.horizonRowsPerFrame    = 16;
+    scene->setLightingParameters(p);
+    Camera(eye, Vec3(1, -1.5, 0));
+    std::vector<float> after;
+    for (int i = 0; i < 40 && after.size() < 6; ++i)
+    {
+        const TemplatedImage<ucvec4> img = Capture(1);
+        const HorizonStatistics st       = scene->lightingStatistics().horizon;
+        if (st.completed > completed) after.push_back(FactorAt(img, ground));
+    }
+    ASSERT_EQ(after.size(), 6u) << "the new map completed";
+    for (size_t i = 0; i < after.size(); ++i) EXPECT_LT(after[i], 0.1f) << "frame " << i << " after the completion";
 }
 
 // A terrain edit (a pyramid patch) rebuilds the max chain and recomputes the map: a raised block towards the light
