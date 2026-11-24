@@ -120,6 +120,8 @@ class SAIGA_VULKAN_API HorizonShadows
     Vec3 lastLight         = Vec3(0, 1, 0);
     double degreesPerFrame = 0;
     uint64_t recomputes = 0, completed = 0, lastComplete = 0, restarts = 0;
+    // The map in progress was restarted by a terrain change (at most once per map)
+    bool restartedMap = false;
     bool requested = false, requestedFull = false;
     int levelAt10km = 0;
 

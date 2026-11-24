@@ -151,8 +151,9 @@ void HorizonShadows::ensureImages(int resolution)
     q.commandPool.freeCommandBuffer(cmd);
     maps->setImageLayout(vk::ImageLayout::eGeneral);
     for (MapTransform& t : transforms) t = MapTransform();
-    computing = false;
-    blend     = 1;
+    computing    = false;
+    restartedMap = false;
+    blend        = 1;
 }
 
 vk::DescriptorImageInfo HorizonShadows::descriptor() const
@@ -297,7 +298,8 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
             maps.reset();
         }
         for (MapTransform& t : transforms) t = MapTransform();
-        computing = false;
+        computing    = false;
+        restartedMap = false;
         return 0;
     }
     if (!in.atlas || !in.hasLight) return 0;
@@ -321,9 +323,14 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         chainPyramid  = &atlas;
         requested     = true;
         // A map in progress restarts on the new chain (its rows before the change would keep the old terrain, and the
-        // edit would show only after a second complete map; S36a2 review, finding 14)
-        if (computing) restarts++;
-        computing = false;
+        // edit would show only after a second complete map; S36a2 review, finding 14), once per map: with an edit in
+        // every frame (terraforming) a map restarted on each would never complete; a later edit is in the next map
+        if (computing && !restartedMap)
+        {
+            restarts++;
+            restartedMap = true;
+            computing    = false;
+        }
     }
     // The light's angular speed (the rows per frame follow it); a jump of 5 degrees or more (a time change, a new
     // light) is no speed: it starts over from the base rows per frame (S36a2 review, finding 6d: the speed of the
@@ -341,7 +348,8 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
     if (computing && full)
     {
         // A full update replaces the map in progress
-        computing = false;
+        computing    = false;
+        restartedMap = false;
     }
     if (!computing && due)
     {
@@ -376,6 +384,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
             front           = back;
             back            = old;
             computing       = false;
+            restartedMap    = false;
             completed++;
             lastComplete  = in.frame;
             blend         = show ? 1.0f : 0.0f;

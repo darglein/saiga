@@ -1531,6 +1531,34 @@ TEST_F(HorizonTest, EditRestartsTheMapInProgress)
     EXPECT_GT(after[k](0), before[k](0) + 20) << "behind the block in the first map after the edit";
 }
 
+// An edit in every frame (terraforming) restarts the map in progress only once: the map still completes (a restart
+// per edit starved it: game_world --benchmark terraform never completed a map) and shows the edits of its frames
+TEST_F(HorizonTest, EditsEveryFrameStillComplete)
+{
+    const Vec3 eye(2000, 200, 2000);
+    Terrain(TerrainTestHooks::flatHook, eye);
+    Elevation(10);
+    Camera(eye, Vec3(1, -1, 0));
+    Capture(2);
+    LightingParameters p  = scene->lightingParameters();
+    p.forceFullUpdates    = false;
+    p.horizonRowsPerFrame = 64;
+    scene->setLightingParameters(p);
+    Elevation(16);
+    const uint64_t completed = scene->lightingStatistics().horizon.completed;
+    std::vector<int32_t> heights(6 * 6, 0);
+    int frames = 0;
+    for (; frames < 24 && scene->lightingStatistics().horizon.completed == completed; ++frames)
+    {
+        // A block rising by 5 m per frame
+        std::fill(heights.begin(), heights.end(), (frames + 1) * 5 * 1024);
+        scene->patchTerrainPyramid(0, 75, 60, 6, 6, heights.data());
+        Capture(1);
+    }
+    EXPECT_GT(scene->lightingStatistics().horizon.completed, completed) << frames << " frames";
+    EXPECT_EQ(scene->lightingStatistics().horizon.restarts, 1u);
+}
+
 // A terrain edit (a pyramid patch) rebuilds the max chain and recomputes the whole map (nit 20: the name said dirty
 // rows): a raised block towards the light raises the shadow heights behind it
 TEST_F(HorizonTest, EditRecomputesMap)
