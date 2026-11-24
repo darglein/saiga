@@ -320,6 +320,16 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
             vk::WriteDescriptorSet(set, 3, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &stats)};
         base->device.updateDescriptorSets(writes, nullptr);
 
+        // Without a pipeline (its shader did not compile; only without SAIGA_ASSERTS, ComputePipeline::create asserts
+        // it): no conversion, the preview stays in the read-only layout ImGui's set expects (round 2, finding 19: the
+        // skipped transition left it in the general layout) and the frame's capture answers empty (an error)
+        if (!pipeline.bind(cmd))
+        {
+            if (i.texture->getImageLayout() != vk::ImageLayout::eShaderReadOnlyOptimal)
+                i.texture->transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
+            i.pendingFrame[frameIndex] = 0;
+            continue;
+        }
         // The preview: the previous frame's ImGui read or capture copy before the writes (its content is replaced)
         vk::ImageMemoryBarrier2 toGeneral(
             Stage::eFragmentShader | Stage::eAllTransfer | Stage::eComputeShader,
@@ -328,7 +338,6 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
             VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, i.texture->image(),
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toGeneral));
-        if (!pipeline.bind(cmd)) continue;
         pipeline.bindRawDescriptorSet(cmd, set);
         PreviewPush push;
         push.size[0]   = int32_t(w);
