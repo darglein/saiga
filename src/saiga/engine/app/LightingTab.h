@@ -22,6 +22,7 @@ namespace Saiga
 namespace Engine
 {
 class EngineApp;
+struct LightingGpuTimes;
 
 // The Lighting tab's preview selectors beyond mip and layer (PreviewMapping: the cluster slice, the atlas tile's light
 // and face)
@@ -72,6 +73,8 @@ class SAIGA_ENGINE_API LightingTab
 
    private:
     void summary();
+    // The summary's graph of the lighting's GPU time per frame against its budget
+    void lightingGraph(const LightingGpuTimes& t);
     void controls();
     void timeAndWeather();
     void sunAndMoon();

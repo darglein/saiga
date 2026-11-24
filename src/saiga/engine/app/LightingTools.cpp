@@ -194,6 +194,13 @@ LightingGpuTimes lightingGpuTimes(EngineApp& app)
         s.hasLast    = p.lastSample(id, s.lastMs);
         s.meanMs     = p.scopeStats(id, LightingGpuTimes::kMeanFrames).avg;
         if (s.summed) (s.debug ? t.debugMs : t.lightingMs) += s.meanMs;
+        if (s.summed && !s.debug)
+        {
+            // Every scope's ring holds the same frames (a scope not timed in a frame counts 0)
+            const std::vector<double> h = p.scopeHistory(id);
+            if (t.lightingHistory.size() < h.size()) t.lightingHistory.resize(h.size(), 0.0);
+            for (size_t i = 0; i < h.size(); ++i) t.lightingHistory[i] += h[i];
+        }
         t.sections.push_back(s);
     }
     return t;

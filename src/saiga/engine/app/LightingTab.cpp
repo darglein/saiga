@@ -463,6 +463,51 @@ void LightingTab::summary()
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("The lighting's GPU time (mean of %d frames) against its budget (GPU and memory)",
                           LightingGpuTimes::kMeanFrames);
+    lightingGraph(t);
+}
+
+void LightingTab::lightingGraph(const LightingGpuTimes& t)
+{
+    // The lighting's GPU time of every kept frame (the user's request after the S36 demo): a line in the GPU color, the
+    // budget as a dashed line (red frames above it), the scale from 0 to the larger of 1.25 x the budget and the
+    // highest frame; hovering shows a frame's time
+    const std::vector<double>& h = t.lightingHistory;
+    if (h.size() < 2) return;
+    const float em     = ImGui::GetFontSize();
+    const float width  = ImGui::GetContentRegionAvail().x;
+    const float height = 3 * em;
+    if (width < 4 * em) return;
+    double top = 1.25 * LightingGpuTimes::kBudgetMs;
+    for (double v : h) top = std::max(top, v);
+    const ImVec2 p0 = ImGui::GetCursorScreenPos();
+    ImGui::InvisibleButton("##lighting graph", ImVec2(width, height));
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    const ImVec2 p1(p0.x + width, p0.y + height);
+    dl->AddRectFilled(p0, p1, IM_COL32(255, 255, 255, 12));
+    auto y = [&](double ms) { return p1.y - float(ms / top) * (height - 1); };
+    const float budgetY = y(LightingGpuTimes::kBudgetMs);
+    for (float x = p0.x; x < p1.x; x += 8)
+        dl->AddLine(ImVec2(x, budgetY), ImVec2(std::min(x + 4, p1.x), budgetY), DebugUiStyle::kWarn & 0xA0FFFFFF);
+    const float step = width / float(h.size() - 1);
+    for (size_t i = 1; i < h.size(); ++i)
+    {
+        const ImVec2 a(p0.x + step * float(i - 1), y(h[i - 1]));
+        const ImVec2 b(p0.x + step * float(i), y(h[i]));
+        const bool over = h[i] > LightingGpuTimes::kBudgetMs || h[i - 1] > LightingGpuTimes::kBudgetMs;
+        dl->AddLine(a, b, over ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, 1.5f);
+    }
+    char text[48];
+    std::snprintf(text, sizeof(text), "%.1f ms", top);
+    dl->AddText(ImVec2(p0.x + 3, p0.y + 1), IM_COL32(255, 255, 255, 120), text);
+    if (ImGui::IsItemHovered())
+    {
+        const float mx = ImGui::GetIO().MousePos.x - p0.x;
+        const size_t i = std::min(h.size() - 1, size_t(std::max(0.0f, mx / step + 0.5f)));
+        const float x  = p0.x + step * float(i);
+        dl->AddLine(ImVec2(x, p0.y), ImVec2(x, p1.y), IM_COL32(255, 255, 255, 90));
+        ImGui::SetTooltip("lighting GPU time: %.3f ms (frame %d of the last %d; budget %.1f ms)", h[i],
+                          int(i) - int(h.size()) + 1, int(h.size()), LightingGpuTimes::kBudgetMs);
+    }
 }
 
 void LightingTab::controls()

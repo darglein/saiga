@@ -79,6 +79,8 @@ struct LightingGpuTimes
     };
     std::vector<Section> sections;
     double lightingMs = 0, debugMs = 0;
+    // The summed lighting time of each kept frame of the GPU profile, oldest first (the tab's summary graph)
+    std::vector<double> lightingHistory;
     static constexpr double kBudgetMs = 2.5;
     static constexpr int kMeanFrames  = 120;
 };
