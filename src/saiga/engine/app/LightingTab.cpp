@@ -195,6 +195,30 @@ void LightingTab::toolbar()
         std::string error;
         if (lightingJson(app, {}, out, error)) ImGui::SetClipboardText(out.dump().c_str());
     }
+    // The previews' mapping (set_lighting_debug mapping; round 2, finding 12: the tab only read it)
+    {
+        Vulkan::PreviewMapping& m = app.lightingPreviewMapping();
+        ImGui::TextUnformatted("previews:");
+        ImGui::SameLine();
+        ImGui::Checkbox("auto range", &m.autoRange);
+        if (!m.autoRange)
+        {
+            ImGui::SameLine();
+            float range[2] = {m.min, m.max};
+            ImGui::SetNextItemWidth(140);
+            if (ImGui::InputFloat2("##preview range", range, "%.3g") && std::isfinite(range[0]) &&
+                std::isfinite(range[1]) && range[0] < range[1])
+            {
+                m.min = range[0];
+                m.max = range[1];
+            }
+        }
+        ImGui::SameLine();
+        ImGui::Checkbox("log", &m.log);
+        ImGui::SameLine();
+        bool turbo = m.colorMap == Vulkan::ColorMap::Turbo;
+        if (ImGui::Checkbox("turbo", &turbo)) m.colorMap = turbo ? Vulkan::ColorMap::Turbo : Vulkan::ColorMap::Gray;
+    }
     if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: studio light, time of day has no effect");
     // The last refused write (validateLighting: a typed value out of range, a cross-key rule, the memory)
@@ -374,6 +398,18 @@ void LightingTab::timeAndWeather()
         {
             WeatherChange c;
             c.wind = Vec2(wind[0], wind[1]);
+            queueWeather(c);
+        }
+        // Round 2, finding 12: set_weather's other keys
+        slider("wave amplitude", w.waveAmplitude, 0, float(kMaxWaveAmplitude), &WeatherChange::waveAmplitude,
+               ImGuiSliderFlags_Logarithmic, "%.2f");
+        slider("wave steepness", w.waveSteepness, 0, 1, &WeatherChange::waveSteepness);
+        DebugUiStyle::property("cloud offset (x, z)");
+        float offset[2] = {float(w.cloudOffset(0)), float(w.cloudOffset(1))};
+        if (ImGui::DragFloat2("##cloud offset", offset, 10.0f, 0, 0, "%.0f m"))
+        {
+            WeatherChange c;
+            c.cloudOffset = Vec2(offset[0], offset[1]);
             queueWeather(c);
         }
         DebugUiStyle::property("space");
@@ -576,6 +612,23 @@ void LightingTab::ambient()
                            em.progress > 0 ? "capturing" : "idle");
         DebugUiStyle::property("mip");
         ImGui::SliderInt("##environment mip", &environmentMip, 0, Vulkan::EnvironmentMap::kMips - 1);
+        // Round 2, finding 12: set_lighting's environment_resolution and environment_update_degrees
+        Vulkan::LightingParameters lp = scene->lightingParameters();
+        DebugUiStyle::property("resolution");
+        int resolution = lp.environmentResolution;
+        bool lpChanged = false;
+        for (int r : {32, 64, 128, 256, 512})
+        {
+            if (r != 32) ImGui::SameLine();
+            lpChanged = ImGui::RadioButton((std::to_string(r) + "##environment resolution").c_str(), &resolution, r) ||
+                        lpChanged;
+        }
+        DebugUiStyle::property("update every");
+        lpChanged = ImGui::SliderFloat("##environment update degrees", &lp.environmentUpdateDegrees, 0.01f, 90.0f,
+                                       "%.2f deg of sun", ImGuiSliderFlags_Logarithmic) ||
+                    lpChanged;
+        lp.environmentResolution = resolution;
+        if (lpChanged) applyParameters(lp);
         DebugUiStyle::endProperties();
     }
     previewImage(Vulkan::LightingImage::Environment, true, 384.0f, environmentMip);
@@ -590,6 +643,10 @@ void LightingTab::skyAndClouds()
     bool changed                  = false;
     if (DebugUiStyle::beginProperties("##lighting sky"))
     {
+        // Round 2, finding 12: set_lighting's clouds
+        DebugUiStyle::property("cloud layer");
+        Vulkan::LightingParameters lp = scene->lightingParameters();
+        if (ImGui::Checkbox("##clouds", &lp.clouds)) applyParameters(lp);
         DebugUiStyle::property("cloud altitude");
         changed = ImGui::SliderFloat("##cloud altitude", &s.clouds.altitude, 200, 10000, "%.0f m") || changed;
         DebugUiStyle::property("cloud radius");
@@ -1202,12 +1259,13 @@ void LightingTab::lightTable()
     const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                                   ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
     const float height = ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), 12) + 3);
-    if (!rows.empty() && ImGui::BeginTable("##light table", 10, flags, ImVec2(0, height)))
+    // (round 2, finding 12: A8's buffer index, the light's index in the frame's light buffer, as the last column)
+    if (!rows.empty() && ImGui::BeginTable("##light table", 11, flags, ImVec2(0, height)))
     {
         ImGui::TableSetupScrollFreeze(1, 1);
-        const char* headers[] = {"handle", "entity",  "state",    "kind",  "distance m",
-                                 "lumen",  "range m", "clusters", "tiles", "shadow frame"};
-        for (int i = 0; i < 10; ++i)
+        const char* headers[] = {"handle",  "entity",   "state", "kind",         "distance m", "lumen",
+                                 "range m", "clusters", "tiles", "shadow frame", "buffer"};
+        for (int i = 0; i < 11; ++i)
             ImGui::TableSetupColumn(headers[i], i == 4 ? ImGuiTableColumnFlags_DefaultSort : 0);
         ImGui::TableHeadersRow();
         if (ImGuiTableSortSpecs* sort = ImGui::TableGetSortSpecs())
@@ -1242,6 +1300,8 @@ void LightingTab::lightTable()
                     return r.info ? double(r.info->tiles) : -1.0;
                 case 9:
                     return r.info ? double(r.info->lastRender) : -1.0;
+                case 10:
+                    return r.info ? double(r.info->index) : -1.0;
                 default:
                     return r.distance;
             }
@@ -1341,6 +1401,11 @@ void LightingTab::lightTable()
                 ImGui::TableNextColumn();
                 if (r.info && r.info->lastRender)
                     ImGui::Text("%llu", (unsigned long long)r.info->lastRender);
+                else
+                    ImGui::TextUnformatted("-");
+                ImGui::TableNextColumn();
+                if (r.info)
+                    ImGui::Text("%u", r.info->index);
                 else
                     ImGui::TextUnformatted("-");
                 if (!r.info) ImGui::PopStyleColor();

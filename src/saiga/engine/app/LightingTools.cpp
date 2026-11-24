@@ -280,6 +280,8 @@ const std::vector<LightingKey>& lightingKeys()
                                 }});
         k.push_back(
             floatKey("ev100", false, -20, 30, [](LightingState& s) -> float& { return s.settings.exposure.ev100; }));
+        // (round 2, finding 14: the input of the fixed mode, not the frame's EV100 of get_lighting.exposure)
+        k.back().description += " (exposure_mode fixed: the EV100; no effect in time_of_day mode)";
         k.push_back(floatKey("exposure_compensation", false, -20, 20,
                              [](LightingState& s) -> float& { return s.settings.exposure.compensation; }));
         k.push_back(floatKey("ambient_scale", false, 0, 100,
@@ -909,6 +911,7 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
         d["views"]                        = Json(viewNames());
         d["overlay_names"]                = Json(overlayNames());
         d["mapping"]                      = mappingJson(app.lightingPreviewMapping());
+        d["cluster_heat_scale"]           = double(scene->clusterHeatScaleValue());
         o["debug"]                        = d;
         Json::object g;
         const LightingGpuTimes t = lightingGpuTimes(app);
@@ -1068,7 +1071,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "exposure (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame "
         "uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only "
         "the unit-less multiplier), ambient, clouds, settings (the set_lighting keys) and parameters "
-        "(the LightingParameters). sections keeps only the named top-level keys. Answered at once. Changes nothing.",
+        "(the LightingParameters). The topical blocks (exposure, ambient, clouds, ...) report the frame's resulting "
+        "values under their own names (exposure.ev100 is the EV100 the frame uses, also in time_of_day mode); settings "
+        "and parameters hold the values set_lighting takes, under its key names (settings.ev100 is the fixed mode's "
+        "input; exposure.compensation is set_lighting's exposure_compensation, ambient.scale / ambient.min are "
+        "ambient_scale / min_ambient, clouds.altitude / seed / enabled are cloud_altitude / cloud_seed / clouds). "
+        "sections keeps only the named top-level keys. Answered at once. Changes nothing.",
         schema(
             {{"sections", arrayProperty("The top-level keys to return (default all)",
                                         McpServer::StringProperty("A top-level key of the answer", sectionNames()))}}),
@@ -1246,7 +1254,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "set_lighting",
         "Changes the lighting settings (not world state: not replicated, not saved), validated as a whole and applied "
-        "all or nothing from the next frame: tone_map (aces, identity), exposure_mode (time_of_day, fixed), ev100, "
+        "all or nothing from the next frame: tone_map (aces, identity), exposure_mode (time_of_day, fixed), ev100 (the "
+        "fixed mode's EV100: no visible change in time_of_day mode, where the curve gives it; "
+        "get_lighting.exposure.ev100 "
+        "is the frame's resulting value), "
         "exposure_compensation (EV, +1 is twice as bright), ambient_scale, min_ambient ([r, g, b] lux), sun_override "
         "({azimuth_deg, elevation_deg} or null), cloud_altitude, cloud_radius, cloud_shadow_fade (m), cloud_seed (the "
         "coverage texture's), star_intensity, ground_albedo, rayleigh_scale, mie_scale, ozone_scale (the atmosphere's "
@@ -1324,8 +1335,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             "covers), highlight_light (S36b: a light handle of list_lights, white in the light_volumes overlay and "
             "selected in the Lighting tab; 0 or null: none), the Lighting tab's preview mapping (mapping: {range: "
             "\"auto\" or [min, max], log, color_map: gray or turbo}) and the exposure view's heat map (exposure_view: "
-            "{centre: EV100 or \"auto\", range: EV, 0.5..64; turbo over centre +- range / 2}). Missing arguments keep "
-            "their value. Returns the state, the previous state and the known names. Changes only the rendering.",
+            "{centre: EV100 or \"auto\", range: EV, 0.5..64; turbo over centre +- range / 2}), cluster_heat_scale "
+            "(S36b: the lights per cluster at the top of the cluster_lights view's colour map, 1..256) and "
+            "recompute_horizon (true: a new horizon map from the next frame on, also when the map is invalid; the "
+            "tab's \"recompute now\"; capture_lighting horizon full: true completes a valid one in a frame). Missing "
+            "arguments keep their value. Returns the state, the previous state and the "
+            "known names. Changes only the rendering.",
         schema({{"view", McpServer::StringProperty("The debug view", viewNames())},
                 {"overlays",
                  arrayProperty("The overlays (replaces the set)", McpServer::StringProperty("", overlayNames()))},
@@ -1335,13 +1350,24 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 {"mapping",
                  Json::object{{"type", "object"}, {"description", "{range: \"auto\" or [min, max], log, color_map}"}}},
                 {"exposure_view",
-                 Json::object{{"type", "object"}, {"description", "{centre: EV100 or \"auto\", range: EV}"}}}}),
+                 Json::object{{"type", "object"}, {"description", "{centre: EV100 or \"auto\", range: EV}"}}},
+                {"cluster_heat_scale", McpServer::NumberProperty("[1, 256] lights per cluster")},
+                {"recompute_horizon", McpServer::BooleanProperty("Start a new horizon map")}}),
         [&app](const Json& a, McpServer::Respond respond)
         {
             std::string error;
-            if (unknownArgument(
-                    a, {"view", "overlays", "mapping", "freeze_cascades", "highlight_light", "exposure_view"}, error))
+            if (unknownArgument(a,
+                                {"view", "overlays", "mapping", "freeze_cascades", "highlight_light", "exposure_view",
+                                 "cluster_heat_scale", "recompute_horizon"},
+                                error))
                 return respond(ToolResult::Error(error));
+            // Round 2, finding 12: the tab's cluster heat scale and "Recompute now"
+            double heat = 0;
+            if (!a["cluster_heat_scale"].is_null() &&
+                !number(a["cluster_heat_scale"], "cluster_heat_scale", 1, 256, heat, error))
+                return respond(ToolResult::Error(error));
+            if (!a["recompute_horizon"].is_null() && !a["recompute_horizon"].is_bool())
+                return respond(ToolResult::Error("recompute_horizon: true or false"));
             const Json& hl = a["highlight_light"];
             if (!hl.is_null() && (!hl.is_number() || hl.number_value() != std::floor(hl.number_value()) ||
                                   hl.number_value() < 0 || hl.number_value() > 4294967295.0))
@@ -1403,7 +1429,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 }
             }
             const bool frozenBefore = scene->cascadesFrozen();
+            const float heatBefore  = scene->clusterHeatScaleValue();
             if (!a["freeze_cascades"].is_null()) scene->setFreezeCascades(a["freeze_cascades"].bool_value());
+            if (!a["cluster_heat_scale"].is_null()) scene->setClusterHeatScale(float(heat));
+            if (a["recompute_horizon"].bool_value()) scene->requestHorizonRecompute(false);
             scene->setLightingDebug(after);
             scene->setExposureViewRange(centre, range);
             app.lightingPreviewMapping() = mapping;
@@ -1411,6 +1440,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             o["freeze_cascades"]         = scene->cascadesFrozen();
             Json::object prev            = lightingDebugJson(before).object_items();
             prev["freeze_cascades"]      = frozenBefore;
+            prev["cluster_heat_scale"]   = double(heatBefore);
+            o["cluster_heat_scale"]      = double(scene->clusterHeatScaleValue());
             o["previous"]                = prev;
             o["mapping"]                 = mappingJson(mapping);
             o["exposure_view"] =

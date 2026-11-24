@@ -509,6 +509,17 @@ TEST_F(LightingDebugTools, SetLightingDebug)
     ASSERT_FALSE(
         isError(call(*app, "set_lighting_debug", obj(R"({"exposure_view": {"centre": "auto", "range": 8}})"))));
     EXPECT_FALSE(app->scene()->exposureViewCentreSetting().has_value());
+    // Round 2, finding 12: the tab's cluster heat scale and "recompute now" are tool keys too
+    const Json heat =
+        result(call(*app, "set_lighting_debug", obj(R"({"cluster_heat_scale": 32, "recompute_horizon": true})")));
+    EXPECT_EQ(heat["cluster_heat_scale"], Json(32.0)) << heat.dump();
+    EXPECT_EQ(heat["previous"]["cluster_heat_scale"], Json(16.0)) << heat.dump();
+    EXPECT_EQ(app->scene()->clusterHeatScaleValue(), 32.0f);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["debug"]})")))["debug"]["cluster_heat_scale"],
+              Json(32.0));
+    for (const char* args :
+         {R"({"cluster_heat_scale": 0.5})", R"({"cluster_heat_scale": 300})", R"({"recompute_horizon": 1})"})
+        EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
     // The debug sections are reported apart from the lighting sections' budget
     EXPECT_TRUE(l["gpu"]["debug_ms"].is_number()) << l.dump();
     EXPECT_TRUE(l["gpu"]["lighting_ms"].is_number()) << l.dump();
@@ -1337,6 +1348,9 @@ TEST(LightingToolsNoDevice, SetLightingSchemaGivesIntegerRanges)
     }
     EXPECT_NE(props["cluster_z"]["description"].string_value().find("[2, 128]"), std::string::npos)
         << props["cluster_z"]["description"].dump();
+    // Round 2, finding 14: ev100 is the fixed mode's input (get_lighting.exposure.ev100 is the frame's value)
+    EXPECT_NE(props["ev100"]["description"].string_value().find("fixed"), std::string::npos)
+        << props["ev100"]["description"].dump();
 }
 
 // Regression (round 2, finding 17): a float key at the edge of its range round-trips. The value was checked as a
