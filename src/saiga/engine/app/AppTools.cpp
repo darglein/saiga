@@ -165,7 +165,10 @@ TemplatedImage<ucvec3> downscale(const TemplatedImage<ucvec4>& img, int maxWidth
 // released
 struct ScreenshotRequest
 {
-    bool gui      = false;
+    bool gui = false;
+    // S36a1b: the frame's lighting debug view and overlays (a one-frame override; nullopt: the user's)
+    std::optional<Vulkan::LightingDebugState> debug;
+    bool sameFrame(const ScreenshotRequest& o) const { return gui == o.gui && debug == o.debug; }
     bool answered = false;
     std::function<void(const TemplatedImage<ucvec4>&)> answer;
     // The answer deadline of the tool call (answerDeadline, S20): the frame's terrain completion is bounded by the
@@ -174,14 +177,16 @@ struct ScreenshotRequest
     std::function<void(const std::string&)> fail;
 };
 
-// The screenshot requests before the next frame share one readback of it if they want the same GUI option (drawn
-// through RenderScene's ImGui override, so the user's GUI visibility is untouched); a request with the other option
-// waits for the next readback. At most one readback and one frame callback are registered (a readback cannot be
-// cancelled: with nothing rendered it stays registered, but holds no request after the deadline answered them).
+// The screenshot requests before the next frame share one readback of it if they want the same GUI option and lighting
+// debug view (drawn through RenderScene's ImGui and lighting debug overrides, so the user's choices are untouched); a
+// request with another option waits for the next readback. At most one readback and one frame callback are registered
+// (a readback cannot be cancelled: with nothing rendered it stays registered, but holds no request after the deadline
+// answered them).
 struct ScreenshotBatch
 {
     bool inFlight = false;  // a readback and its frame callback are registered
     bool gui      = false;  // the option of current
+    std::optional<Vulkan::LightingDebugState> debug;
     std::vector<std::shared_ptr<ScreenshotRequest>> current, deferred;
     bool hasImage = false;
     TemplatedImage<ucvec4> image;
@@ -195,14 +200,26 @@ void updateBatch(EngineApp& app, ScreenshotBatch& batch)
 {
     if (batch.current.empty() && !batch.deferred.empty())
     {
-        batch.current.swap(batch.deferred);
-        batch.gui = batch.current.front()->gui;
+        // Only the requests of the first one's frame settings (one readback answers them with one image); the others
+        // keep waiting
+        const std::shared_ptr<ScreenshotRequest> first = batch.deferred.front();
+        std::vector<std::shared_ptr<ScreenshotRequest>> rest;
+        for (auto& r : batch.deferred) (r->sameFrame(*first) ? batch.current : rest).push_back(r);
+        batch.deferred.swap(rest);
+        batch.gui   = first->gui;
+        batch.debug = first->debug;
     }
     if (!app.scene()) return;
     if (batch.inFlight && !batch.current.empty())
+    {
         app.scene()->setImguiOverride(batch.gui);
+        app.scene()->setLightingDebugOverride(batch.debug);
+    }
     else
+    {
         app.scene()->setImguiOverride(std::nullopt);
+        app.scene()->setLightingDebugOverride(std::nullopt);
+    }
 }
 
 // The frame of the readback was rendered: answers the current requests, then starts the deferred ones
@@ -216,7 +233,11 @@ void finishScreenshots(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& b
     batch->image                 = TemplatedImage<ucvec4>();
     batch->hasImage              = false;
     batch->inFlight              = false;
-    if (app.scene()) app.scene()->setImguiOverride(std::nullopt);
+    if (app.scene())
+    {
+        app.scene()->setImguiOverride(std::nullopt);
+        app.scene()->setLightingDebugOverride(std::nullopt);
+    }
     for (auto& r : requests)
     {
         if (r->answered) continue;
@@ -236,9 +257,10 @@ void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& bat
     if (batch->inFlight)
     {
         // Joins the waiting readback (or adopts it when the deadline answered all its requests)
-        if (batch->current.empty() || batch->gui == r->gui)
+        if (batch->current.empty() || (batch->gui == r->gui && batch->debug == r->debug))
         {
-            batch->gui = r->gui;
+            batch->gui   = r->gui;
+            batch->debug = r->debug;
             batch->current.push_back(r);
         }
         else
@@ -248,6 +270,7 @@ void startScreenshot(EngineApp& app, const std::shared_ptr<ScreenshotBatch>& bat
     }
     batch->inFlight = true;
     batch->gui      = r->gui;
+    batch->debug    = r->debug;
     batch->current.push_back(r);
     updateBatch(app, *batch);
     // The readback (inside renderFrame) only stores the image; the frame callback of the same frame answers. A capture
@@ -501,14 +524,21 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "error without a device "
         "or when no frame is rendered before the deadline (rendering disabled, a minimized window). The frame shows "
         "the "
-        "complete terrain of the view (streamed first; an error if that does not finish before the deadline). Changes "
-        "nothing.",
-        schema({{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
-                {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
-                {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")}}),
+        "complete terrain of the view (streamed first; an error if that does not finish before the deadline). S36: "
+        "lighting_view (a set_lighting_debug view name) and overlays (a list of overlay names) render that frame with "
+        "the debug view and overlays (a one-frame override; the next frame is back to the user's; the one not given "
+        "keeps the user's; a view other than none needs set_lighting pbr: true until S36a1c). Changes nothing.",
+        schema(
+            {{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
+             {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
+             {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")},
+             {"lighting_view", McpServer::StringProperty("The lighting debug view of this frame (set_lighting_debug)")},
+             {"overlays", Json::object{{"type", "array"},
+                                       {"description", "The lighting overlays of this frame"},
+                                       {"items", Json::object{{"type", "string"}}}}}}),
         [&app, &server, batch](const Json& args, McpServer::Respond respond)
         {
-            if (unknownArgument(args, {"gui", "format", "max_width"}, respond)) return;
+            if (unknownArgument(args, {"gui", "format", "max_width", "lighting_view", "overlays"}, respond)) return;
             if (!app.scene()) return respond(ToolResult::Error("screenshot: this app renders no frames (no device)"));
             if (!args["gui"].is_null() && !args["gui"].is_bool()) return respond(ToolResult::Error("gui: a bool"));
             const bool gui           = args["gui"].bool_value();
@@ -522,7 +552,23 @@ void registerAppTools(McpServer& server, EngineApp& app)
                     return respond(ToolResult::Error("max_width: an integer 64..8192"));
                 maxWidth = int(w);
             }
-            auto r              = std::make_shared<ScreenshotRequest>();
+            auto r = std::make_shared<ScreenshotRequest>();
+            if (!args["lighting_view"].is_null() || !args["overlays"].is_null())
+            {
+                // The argument given replaces the user's view or overlays for this frame; the other keeps its value
+                Vulkan::LightingDebugState parsed, debug = app.scene()->lightingDebug();
+                std::string error;
+                if (!parseLightingDebug(args["lighting_view"], args["overlays"], parsed, error))
+                    return respond(ToolResult::Error(error));
+                if (!args["lighting_view"].is_null()) debug.view = parsed.view;
+                if (!args["overlays"].is_null()) debug.overlays = parsed.overlays;
+                // Without the variant a debug frame would silently show clay
+                if (debug.view != Vulkan::LightingDebugView::None && !app.scene()->lightingParameters().pbr)
+                    return respond(
+                        ToolResult::Error("lighting_view: the views need the LIGHTING_PBR variant "
+                                          "(set_lighting pbr: true first; until S36a1c)"));
+                r->debug = debug;
+            }
             const auto deadline = answerDeadline(server);
             r->gui              = gui;
             r->deadline         = deadline;

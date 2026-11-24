@@ -216,7 +216,7 @@ void RacingRender::gui()
     // The GUI runs inside the frame (after beforeRender): the car it shows is focus()'s
     ImGui::SetNextWindowPos(ImVec2(10, ImGui::GetIO().DisplaySize.y - 170), ImGuiCond_FirstUseEver);
     ImGui::Begin("Racing", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, F1-F4 debug tabs, G GUI");
+    ImGui::Text("W/S throttle and brake, A/D steer, R back to the track, F1-F5 debug tabs, G GUI");
     World& w       = app->world();
     const Entity e = focus();
     if (w.alive(e) && w.has<VehicleState>(e))

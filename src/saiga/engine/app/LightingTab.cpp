@@ -15,10 +15,16 @@
 #include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
+#include <string>
+#include <vector>
 
 namespace Saiga
 {
@@ -34,13 +40,130 @@ ImVec4 bodyColor(double elevationDeg, bool moon)
     const float t = float(std::min(elevationDeg / 30.0, 1.0));
     return ImVec4(1.0f, 0.55f + 0.4f * t, 0.3f + 0.6f * t, 1);
 }
+
+// The turbo colour map of the Exposure view (debug_common.glsl's polynomial)
+ImU32 turboColor(float t)
+{
+    t              = std::clamp(t, 0.0f, 1.0f);
+    const float t2 = t * t, t3 = t2 * t, t4 = t3 * t, t5 = t4 * t;
+    auto c = [&](float a, float b, float d, float e, float f, float g)
+    { return std::clamp(a + b * t + d * t2 + e * t3 + f * t4 + g * t5, 0.0f, 1.0f); };
+    return ImGui::ColorConvertFloat4ToU32(
+        ImVec4(c(0.13572138f, 4.61539260f, -42.66032258f, 132.13108234f, -152.94239396f, 59.28637943f),
+               c(0.09140261f, 2.19418839f, 4.84296658f, -14.18503333f, 4.27729857f, 2.82956604f),
+               c(0.10667330f, 12.64194608f, -60.58204836f, 110.36276771f, -89.90310912f, 27.34824973f), 1.0f));
+}
 }  // namespace
+
+LightingTab::~LightingTab()
+{
+    Vulkan::RenderScene* scene = app.scene();
+    if (luminanceTexture && scene && scene->imguiRenderer() == luminanceImgui)
+        scene->imguiRenderer()->removeTexture(luminanceTexture);
+}
 
 void LightingTab::draw()
 {
+    toolbar();
     timeAndWeather();
     sunAndMoon();
     exposure();
+    ambient();
+    gpuAndMemory();
+}
+
+void LightingTab::toolbar()
+{
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene) return;
+    // The tone map (clay: the studio light; time of day has no effect)
+    int tone            = scene->parameters().toneMap == Vulkan::ToneMap::Aces ? 1 : 0;
+    const char* tones[] = {"clay", "ACES"};
+    ImGui::SetNextItemWidth(70);
+    if (ImGui::Combo("##tone map", &tone, tones, 2))
+        scene->setToneMap(tone == 1 ? Vulkan::ToneMap::Aces : Vulkan::ToneMap::Identity);
+    ImGui::SameLine();
+    Vulkan::LightingDebugState d = scene->lightingDebug();
+    int view                     = int(d.view);
+    std::vector<const char*> views;
+    for (int i = 0; i < int(Vulkan::LightingDebugView::Count); ++i)
+        views.push_back(Vulkan::lightingDebugViewName(Vulkan::LightingDebugView(i)));
+    ImGui::SetNextItemWidth(130);
+    // The views are drawn by the LIGHTING_PBR variant: without it a view would show clay (a1b-a1c)
+    const bool variant = scene->lightingParameters().pbr;
+    if (!variant) ImGui::BeginDisabled();
+    if (ImGui::Combo("##debug view", &view, views.data(), int(views.size())))
+    {
+        d.view = Vulkan::LightingDebugView(view);
+        scene->setLightingDebug(d);
+    }
+    if (!variant) ImGui::EndDisabled();
+    for (const auto& o : Vulkan::lightingOverlayNames())
+    {
+        ImGui::SameLine();
+        bool on = (d.overlays & o.second) != 0;
+        if (ImGui::Checkbox(o.first, &on))
+        {
+            d.overlays = on ? (d.overlays | o.second) : (d.overlays & ~o.second);
+            scene->setLightingDebug(d);
+        }
+    }
+    Vulkan::LightingParameters p = scene->lightingParameters();
+    bool changed                 = ImGui::Checkbox("force full updates", &p.forceFullUpdates);
+    ImGui::SameLine();
+    // a1b-a1c: the LIGHTING_PBR pipeline variant (the debug views need it)
+    changed = ImGui::Checkbox("PBR variant", &p.pbr) || changed;
+    if (changed) scene->setLightingParameters(p);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("copy JSON"))
+    {
+        json11::Json out;
+        std::string error;
+        if (lightingJson(app, {}, out, error)) ImGui::SetClipboardText(out.dump().c_str());
+    }
+    if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
+        DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: studio light, time of day has no effect");
+    if (!p.pbr) DebugUiStyle::coloredText(DebugUiStyle::kRef, "the debug views need the PBR variant (until S36a1c)");
+    if (d.view == Vulkan::LightingDebugView::Exposure) exposureLegend();
+}
+
+void LightingTab::exposureLegend()
+{
+    Vulkan::RenderScene* scene        = app.scene();
+    const std::optional<float> centre = scene->exposureViewCentreSetting();
+    const float range                 = scene->exposureViewRangeSetting();
+    const float c                     = scene->frameExposureViewCentre();
+    // The colour bar: the heat map's turbo over [c - range / 2, c + range / 2] EV100
+    const ImVec2 p0    = ImGui::GetCursorScreenPos();
+    const float width  = std::max(ImGui::GetContentRegionAvail().x, 64.0f);
+    const float height = 12;
+    ImDrawList* list   = ImGui::GetWindowDrawList();
+    const int n        = 32;
+    for (int i = 0; i < n; ++i)
+    {
+        const float x0 = p0.x + width * float(i) / n, x1 = p0.x + width * float(i + 1) / n;
+        list->AddRectFilled(ImVec2(x0, p0.y), ImVec2(x1, p0.y + height), turboColor((float(i) + 0.5f) / n));
+    }
+    ImGui::Dummy(ImVec2(width, height));
+    ImGui::Text("%.1f EV", double(c - 0.5f * range));
+    ImGui::SameLine(std::max(width * 0.5f - 30, 0.0f));
+    ImGui::Text("%.1f EV100%s", double(c), centre ? "" : " (auto)");
+    ImGui::SameLine(std::max(width - 50, 0.0f));
+    ImGui::Text("%.1f EV", double(c + 0.5f * range));
+    // The centre (auto: the frame's EV100, the display mid-gray in clay) and the range
+    bool automatic = !centre;
+    bool changed   = ImGui::Checkbox("auto centre", &automatic);
+    float value    = centre ? *centre : c;
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120);
+    if (automatic) ImGui::BeginDisabled();
+    changed = ImGui::SliderFloat("##exposure view centre", &value, -10, 20, "centre %.1f") || changed;
+    if (automatic) ImGui::EndDisabled();
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(120);
+    float r = range;
+    changed = ImGui::SliderFloat("##exposure view range", &r, 0.5f, 64, "range %.1f EV") || changed;
+    if (changed) scene->setExposureViewRange(automatic ? std::nullopt : std::optional<float>(value), r);
 }
 
 void LightingTab::timeAndWeather()
@@ -240,6 +363,137 @@ void LightingTab::exposure()
         ImGui::Text("%.3g (multiplier %.3g)", double(scene->frameExposure()), double(scene->exposure()));
         DebugUiStyle::property("pre-exposure");
         ImGui::Text("%.3g", double(scene->preExposure()));
+        // The luminance of the frame: the Luminance preview and its reduction while the section is open (the mapping
+        // of set_lighting_debug, log2 by default; at preview resolution, a few times per second)
+        const Vulkan::PreviewMapping& mapping = app.lightingPreviewMapping();
+        scene->lightingDebugImages().show(Vulkan::LightingImage::Luminance, mapping);
+        const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+        DebugUiStyle::property(mapping.log ? "luminance (log2)" : "luminance");
+        if (ls.luminanceFrame > 0)
+            ImGui::Text("mean %.2f  max %.2f  (%s)", double(ls.luminance.mean), double(ls.luminance.max),
+                        scene->sceneWritesLinear() ? "cd/m^2" : "display");
+        else
+            ImGui::TextUnformatted("-");
+        DebugUiStyle::endProperties();
+    }
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    if (ls.luminanceFrame > 0)
+    {
+        float bins[16];
+        for (int i = 0; i < 16; ++i) bins[i] = float(ls.luminance.histogram[size_t(i)]);
+        ImGui::PlotHistogram("##luminance histogram", bins, 16, 0, "luminance histogram", 0.0f, FLT_MAX,
+                             ImVec2(-1, 48));
+    }
+    // The exposure curve with the current sun elevation
+    {
+        float curve[56];
+        for (int i = 0; i < 56; ++i) curve[i] = s.exposure.curveEv100(-20.0f + 2.0f * float(i));
+        const std::string label = "EV100 by elevation (-20..90), now " +
+                                  std::to_string(int(std::lround(e.celestial.sunElevationDeg))) + " deg";
+        ImGui::PlotLines("##exposure curve", curve, 56, 0, label.c_str(), -4.0f, 18.0f, ImVec2(-1, 48));
+    }
+    // The luminance preview (registered once per preview texture as an ImGui texture)
+    Vulkan::ImGuiVulkanRenderer* imgui = scene->imguiRenderer();
+    Vulkan::Texture2D* preview         = scene->lightingDebugImages().preview(Vulkan::LightingImage::Luminance);
+    if (imgui && preview)
+    {
+        const uint64_t version = scene->lightingDebugImages().previewVersion(Vulkan::LightingImage::Luminance);
+        if (version != luminanceVersion || imgui != luminanceImgui)
+        {
+            if (luminanceTexture && imgui == luminanceImgui) imgui->removeTexture(luminanceTexture);
+            luminanceTexture = imgui->addTexture(preview->view(), preview->memoryLocation->data.sampler,
+                                                 vk::ImageLayout::eShaderReadOnlyOptimal);
+            luminanceVersion = version;
+            luminanceImgui   = imgui;
+        }
+        const float w = std::min(ImGui::GetContentRegionAvail().x, 256.0f);
+        ImGui::Image(luminanceTexture, ImVec2(w, w * float(preview->height) / float(std::max(preview->width, 1u))));
+    }
+}
+
+void LightingTab::ambient()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene || !ui.section("lighting/Ambient", "Ambient", false)) return;
+    Vulkan::EnvironmentSettings s        = app.environmentSettings();
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    if (DebugUiStyle::beginProperties("##lighting ambient"))
+    {
+        DebugUiStyle::property("scale");
+        bool changed = ImGui::SliderFloat("##ambient scale", &s.ambient.scale, 0, 4, "%.2f");
+        DebugUiStyle::property("minimum (lux)");
+        changed = ImGui::DragFloat3("##min ambient", s.ambient.minAmbient.data(), 0.001f, 0, 100, "%.3f") || changed;
+        if (changed) app.setEnvironmentSettings(s);
+        DebugUiStyle::property("dominant (SH L0)");
+        const vec3 d  = ls.sh[0];
+        const float m = std::max({d(0), d(1), d(2), 1e-6f});
+        ImGui::ColorButton("##dominant", ImVec4(d(0) / m, d(1) / m, d(2) / m, 1), ImGuiColorEditFlags_NoTooltip,
+                           ImVec2(12, 12));
+        ImGui::SameLine();
+        ImGui::Text("%.4g %.4g %.4g lux", double(d(0)), double(d(1)), double(d(2)));
+        for (int i = 1; i < 9; ++i)
+        {
+            const std::string label = "SH " + std::to_string(i);
+            DebugUiStyle::property(label.c_str());
+            const vec3& c = ls.sh[size_t(i)];
+            ImGui::Text("%.4g %.4g %.4g", double(c(0)), double(c(1)), double(c(2)));
+        }
+        DebugUiStyle::endProperties();
+    }
+    // The prototype albedo colours of the physical path (D21; not saved, S43 replaces them)
+    Vulkan::PrototypeSettings p = scene->prototypeSettings();
+    Vulkan::PrototypeAlbedo& a  = p.colors;
+    bool changed                = false;
+    if (DebugUiStyle::beginProperties("##lighting albedo"))
+    {
+        auto color = [&](const char* label, vec3& c)
+        {
+            DebugUiStyle::property(label);
+            changed =
+                ImGui::ColorEdit3((std::string("##albedo ") + label).c_str(), c.data(), ImGuiColorEditFlags_Float) ||
+                changed;
+        };
+        color("ground", a.ground);
+        color("rock", a.rock);
+        color("shore", a.shore);
+        color("water", a.water);
+        color("grass", a.grass);
+        color("leaves", a.leaves);
+        color("bark", a.bark);
+        DebugUiStyle::property("rock slope (n.y)");
+        changed = ImGui::SliderFloat("##rock slope", &a.rockSlope, 0, 1, "%.2f") || changed;
+        DebugUiStyle::endProperties();
+    }
+    if (changed) scene->setPrototypeSettings(p);
+}
+
+void LightingTab::gpuAndMemory()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene || !ui.section("lighting/GPU and memory", "GPU and memory", false)) return;
+    if (DebugUiStyle::beginProperties("##lighting gpu"))
+    {
+        // The lighting sections against the §17.10 shadow budget (none in a1b), the debug sections' cost separately
+        Profiler& p     = app.gpuProfile();
+        double lighting = 0, debug = 0;
+        for (const char* n : {"scene.debug", "lighting.preview"})
+        {
+            const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
+            const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";
+            (isDebug ? debug : lighting) += mean;
+            DebugUiStyle::property(n);
+            ImGui::Text("%.3f ms (120 frame mean)", mean);
+        }
+        DebugUiStyle::property("lighting / shadow budget");
+        ImGui::Text("%.3f of 2.5 ms (§17.10)", lighting);
+        DebugUiStyle::property("debug cost");
+        ImGui::Text("%.3f ms", debug);
+        DebugUiStyle::property("memory");
+        ImGui::Text("%.2f MiB", double(scene->lightingStatistics().memoryBytes) / (1 << 20));
+        DebugUiStyle::property("preview dispatches");
+        ImGui::Text("%u", scene->lightingStatistics().previewDispatches);
         DebugUiStyle::endProperties();
     }
 }

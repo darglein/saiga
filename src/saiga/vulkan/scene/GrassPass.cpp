@@ -9,6 +9,7 @@
 #include "saiga/core/math/ChunkId.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/SceneCulling.h"
+#include "saiga/vulkan/scene/SceneLightingSet.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 #include "saiga/vulkan/scene/TerrainPass.h"
 #include "saiga/vulkan/world/FoliageGenerator.h"
@@ -50,10 +51,12 @@ int GrassPass::cellsPerChunk(double cellSize)
     return 16 * std::max(1, int(std::lround(256.0 / (16.0 * c))));
 }
 
-void GrassPass::init(VulkanBase& b, const RenderingFormats& formats)
+void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr)
 {
     destroy();
     base             = &b;
+    lightingSet      = &lighting;
+    sceneFormats     = formats;
     FoliageMesh mesh = FoliageGenerator::grassClump();
     indexCount       = uint32_t(mesh.indices.size());
     vertices.createBuffer(*base, mesh.vertices.size() * sizeof(TreeVertex),
@@ -65,6 +68,16 @@ void GrassPass::init(VulkanBase& b, const RenderingFormats& formats)
                          vk::MemoryPropertyFlagBits::eDeviceLocal);
     indices.stagedUpload(*base, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data());
 
+    pbrVariant = !pbr;
+    setPbr(pbr);
+    initialized = true;
+}
+
+void GrassPass::setPbr(bool pbr)
+{
+    if (pbr == pbrVariant) return;
+    pbrVariant = pbr;
+    pipeline.destroy();
     PipelineInfo info;
     info.depthStencilState.depthCompareOp       = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
     info.rasterizationState.cullMode            = vk::CullModeFlagBits::eNone;
@@ -73,13 +86,17 @@ void GrassPass::init(VulkanBase& b, const RenderingFormats& formats)
                           {{0, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, posAo)},
                            {1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, normalWind)},
                            {2, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, uvLayer)}});
-    pipeline.init(*base, 1);
+    pipeline.init(*base, 2);
     pipeline.addDescriptorSetLayout(TerrainPass::setLayout(), 0);
+    pipeline.addDescriptorSetLayout(SceneLightingSet::layout(), 1);
     pipeline.addPushConstantRange(
         {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(BlockDraw)});
-    pipeline.shaderPipeline.load(base->device, {"vulkan/scene/grass.vert", "vulkan/scene/grass.frag"});
-    pipeline.create(formats, info);
-    initialized = true;
+    const std::string defines = pbr ? "#define LIGHTING_PBR\n" : "";
+    pipeline.shaderPipeline.loadGLSL(base->device,
+                                     {{"vulkan/scene/grass.vert", vk::ShaderStageFlagBits::eVertex, defines},
+                                      {"vulkan/scene/grass.frag", vk::ShaderStageFlagBits::eFragment, defines}});
+    pipeline.create(sceneFormats, info);
+    creations++;
 }
 
 void GrassPass::destroy()
@@ -162,6 +179,7 @@ void GrassPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, const Terrain
     if (!pipeline.bind(cmd)) return;
     vk::DescriptorSet set = terrain.descriptorSet(frameIndex);
     pipeline.bindRawDescriptorSet(cmd, set);
+    pipeline.bindRawDescriptorSet(cmd, lightingSet->set(frameIndex), 1);
     cmd.bindVertexBuffers(0, handle(vertices), vk::DeviceSize(0));
     cmd.bindIndexBuffer(handle(indices), 0, vk::IndexType::eUint32);
     const auto stages = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;

@@ -13,6 +13,7 @@
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 #include "saiga/vulkan/scene/TerrainPass.h"
 
+#include <algorithm>
 #include <array>
 #include <deque>
 #include <functional>
@@ -31,6 +32,12 @@ class MeshPool;
 class InstanceBuffer;
 class SceneCulling;
 class GrassPass;
+class SceneLightingSet;
+class SkyAmbient;
+class BrdfLut;
+class LightingDebug;
+class DebugLines;
+class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
 struct SceneLighting;
@@ -113,6 +120,8 @@ class SAIGA_VULKAN_API RenderScene
     void requestScreenshot(VulkanRenderer::ScreenshotCallback callback);
     // The screenshot requests not yet taken by a frame, in request order (requestScreenshot gives them back)
     std::vector<VulkanRenderer::ScreenshotCallback> takeScreenshotRequests();
+    // The ImGui renderer of the frame (nullptr without ImGui): ImGui textures (S36: the Lighting tab's previews)
+    ImGuiVulkanRenderer* imguiRenderer();
     void setImguiVisible(bool visible);
     bool imguiVisible() const;
     // True if the last recorded frame drew ImGui
@@ -123,7 +132,7 @@ class SAIGA_VULKAN_API RenderScene
     void setImguiOverride(std::optional<bool> visible) { imguiOverride = visible; }
     std::optional<bool> imguiOverridden() const { return imguiOverride; }
 
-    // From the next frame on (R-MECH-1). The exposure is clamped to [1/1024, 1024]
+    // From the next frame on (R-MECH-1; the tone map after a running probe). The exposure is clamped to [1/1024, 1024]
     void setToneMap(ToneMap toneMap);
     void setExposure(float exposure);
     // The requested values (the next frame's)
@@ -148,7 +157,8 @@ class SAIGA_VULKAN_API RenderScene
     // The newest frame takeGpuFrameTimes returned (frame 0: none yet)
     const FrameTimes& lastGpuFrameTimes() const { return lastTaken; }
     // The sections of FrameTimes::gpuSectionMs in frame order: transfer, cull, depth, depth.terrain, scene,
-    // scene.terrain, scene.instances, scene.grass, scene.sky, resolve, post, imgui. The dotted names are sub-sections
+    // scene.terrain, scene.instances, scene.grass, scene.sky, scene.debug (S36: the debug lines), resolve,
+    // lighting.preview (S36: the preview conversions), post, imgui. The dotted names are sub-sections
     // of the pass before the dot (consecutive ALL_COMMANDS timestamps inside the pass; S19a); every section is written
     // in every frame, also when its content is off
     static const std::vector<const char*>& gpuSectionNames();
@@ -282,7 +292,14 @@ class SAIGA_VULKAN_API RenderScene
     // computed in double (§10.1: no absolute time in a shader). Games pass world.time() + alpha * dt; goldens and
     // benchmarks keep 0. Transitional exception to the camera-relative rule with it: the foliage rebuilds its float
     // world xz for the per-tree wind phase (valid within a few km of the origin; S23 replaces the prototype trees)
-    void setTime(double seconds) { sceneTime = seconds; }
+    // (held during a probe_lighting sequence like the camera: the foliage's wind would move the probed surface)
+    void setTime(double seconds)
+    {
+        if (probeRun)
+            heldTime = seconds;
+        else
+            sceneTime = seconds;
+    }
     double time() const { return sceneTime; }
 
     // ---- environment and lighting (S36, docs/engine_design.md §10.7) -----------------------------------------------
@@ -291,9 +308,69 @@ class SAIGA_VULKAN_API RenderScene
     void setEnvironment(const EnvironmentState& environment);
     const EnvironmentState& environment() const { return env; }
     bool hasEnvironment() const { return envSet; }
-    // Applied at the next frame start (resources are recreated through deferDelete when a size changes)
+    // Applied at the next frame start (resources are recreated through deferDelete when a size changes; pbr recreates
+    // the scene pipelines)
     void setLightingParameters(const LightingParameters& parameters);
     const LightingParameters& lightingParameters() const { return params.lighting; }
+    // The light model the frame being recorded draws with (LightingParameters::pbr as latched at its start)
+    bool pbrActive() const { return framePbr; }
+    // The studio environment of clay mode (A3, D7): by default sceneStudio(), or with the prototype environment its
+    // settings' sun, ambient, albedo and fog (prototypeStudio() at the defaults); an enclosed space uses
+    // prototypeStudio() without fog. setStudioEnvironment overrides both (tests, a game that wants another clay light)
+    void setStudioEnvironment(std::optional<StudioEnvironment> studio) { studioOverride = studio; }
+    // The studio environment of the next frame for an open (or an enclosed) camera space
+    StudioEnvironment studioEnvironment(bool enclosed = false) const;
+    // The frame being recorded uses the physical path of the LIGHTING_PBR variant: an environment and a tone map other
+    // than Identity (latched with the tone map)
+    bool physicalLighting() const { return framePhysical; }
+    // The lighting's resources (tests, the debug tools)
+    SkyAmbient& skyAmbient() { return *ambient; }
+    BrdfLut& brdfLut() { return *brdf; }
+    // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
+    // creates none)
+    uint64_t scenePipelineCreations() const;
+
+    // ---- the lighting's debug core (S36a1b, A8) ------------------------------------------------------------------
+    // The debug view and overlays of the next frames. While a view other than None is active a frame latches
+    // ToneMap::Identity (no pipeline changes) and does not update the pre-exposure history; the views are drawn by the
+    // LIGHTING_PBR variant (LightingParameters::pbr until the a1c flip)
+    void setLightingDebug(const LightingDebugState& state) { userDebug = state; }
+    const LightingDebugState& lightingDebug() const { return userDebug; }
+    // A one-frame override for the frames that are read back (requestScreenshot), like setImguiOverride
+    void setLightingDebugOverride(std::optional<LightingDebugState> state) { debugOverride = state; }
+    // The debug state the frame being recorded latched
+    const LightingDebugState& frameLightingDebug() const { return frameDebug; }
+    // The Exposure view's heat map: centre (EV100; nullopt: the frame's EV100 in the physical path, the display
+    // mid-gray log2(0.18 * 8) in clay) and range (EV)
+    void setExposureViewRange(std::optional<float> centre, float range)
+    {
+        exposureViewCentre = centre;
+        exposureViewRange  = std::clamp(range, 0.5f, 64.0f);
+    }
+    static constexpr float kDefaultExposureViewRange = 8;
+    std::optional<float> exposureViewCentreSetting() const { return exposureViewCentre; }
+    float exposureViewRangeSetting() const { return exposureViewRange; }
+    // The centre of the frame being recorded (the automatic one without a setting)
+    float frameExposureViewCentre() const;
+    // The previews and pixel readbacks (LightingDebug::request, requestPixels) and the debug lines
+    // (DebugLines::addLine)
+    LightingDebug& lightingDebugImages() { return *debugImages; }
+    DebugLines& debugLines() { return *lines; }
+    // The statistics of the newest recorded frame (the luminance reduction when it was requested)
+    const LightingStatistics& lightingStatistics() const { return lightStats; }
+    // probe_lighting's sequence at a pixel of the next frames (7 frames; requests made before the sequence starts share
+    // it). The camera, the environment and the time are held during the sequence (setCamera / setEnvironment / setTime
+    // take effect after it); the callback runs after the last frame. While it runs, screenshots and preview conversions
+    // wait for the first frame after it (they would read the debug frames), and the output shows frame 1's image (the
+    // window does not flash the debug frames; ImGui stays live)
+    void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
+    // The same at the pixel of a world point, projected with the camera of the sequence's frame 1 (outside the image:
+    // inImage false)
+    void requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback);
+    bool probeRunning() const { return probeRun != nullptr; }
+    // A probe sequence runs in the next recorded frame (running or requested)
+    bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
+    static constexpr int kProbeFrames = 7;
 
    private:
     friend class SceneFrameRenderer;
@@ -304,7 +381,48 @@ class SAIGA_VULKAN_API RenderScene
     float frameMultiplier        = 1;
     // setEnvironment (S36)
     EnvironmentState env;
-    bool envSet            = false;
+    bool envSet = false;
+    // S36a1b: the pipeline variant of the frame (LightingParameters::pbr), the studio override
+    bool framePbr      = false;
+    bool framePhysical = false;
+    std::optional<StudioEnvironment> studioOverride;
+    std::unique_ptr<SceneLightingSet> lightingSet;
+    std::unique_ptr<SkyAmbient> ambient;
+    std::unique_ptr<BrdfLut> brdf;
+    // The debug core (S36a1b)
+    std::unique_ptr<LightingDebug> debugImages;
+    std::unique_ptr<DebugLines> lines;
+    LightingDebugState userDebug, frameDebug;
+    std::optional<LightingDebugState> debugOverride;
+    // The radiance views write raw values (the probe frames)
+    bool frameDebugRaw = false;
+    std::optional<float> exposureViewCentre;
+    float exposureViewRange = kDefaultExposureViewRange;
+    LightingStatistics lightStats;
+    struct ProbeRun;
+    struct ProbeRequest
+    {
+        ivec2 pixel = ivec2(0, 0);
+        std::optional<Vec3> world;
+        std::function<void(const LightingProbe&)> callback;
+    };
+    std::unique_ptr<ProbeRun> probeRun;
+    std::vector<ProbeRequest> probeRequests;
+    // While a probe runs: the environment, tone map, camera and time given meanwhile (applied after it)
+    std::optional<EnvironmentState> heldEnvironment;
+    std::optional<ToneMap> heldToneMap;
+    std::optional<double> heldTime;
+    struct HeldCamera
+    {
+        SpaceId space;
+        Vec3 position;
+        Quat rotation;
+        double fovy;
+    };
+    std::optional<HeldCamera> heldCamera;
+    void finishProbe();
+    // The view of the frame being recorded (the probe's step, the override of a read-back frame, the user's)
+    void latchDebug();
     float framePreExposure = 1;
     // The effective exposure of the last submitted frame (the next frame's pre-exposure)
     float lastExposure = 1;
@@ -359,9 +477,11 @@ class SAIGA_VULKAN_API RenderScene
     void frameCamera(int width, int height, SceneCamera& camera);
     // The matrices of the camera for the size
     void updateMatrices(int width, int height);
-    // The lighting block of the frame's instance draws
+    // The lighting block of the frame's draws (the legacy fields and S36's)
     void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, bool enclosed, int samples,
                        SceneLighting& out) const;
+    // The frame slot's lighting set (block, ambient, foliage, LUTs): in the transfer section
+    void writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& block);
     const Callback* transferFn         = nullptr;
     const Callback* renderFn           = nullptr;
     const std::function<void()>* guiFn = nullptr;

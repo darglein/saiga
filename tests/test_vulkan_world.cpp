@@ -858,9 +858,10 @@ TEST_F(VulkanPrototypeScene, DepthResolveAndPrePass)
 TEST_F(VulkanPrototypeScene, Sections)
 {
     const auto& names                       = RenderScene::gpuSectionNames();
-    const std::vector<std::string> expected = {
-        "transfer",        "cull",        "depth",     "depth.terrain", "scene", "scene.terrain",
-        "scene.instances", "scene.grass", "scene.sky", "resolve",       "post",  "imgui"};
+    const std::vector<std::string> expected = {"transfer",  "cull",          "depth",           "depth.terrain",
+                                               "scene",     "scene.terrain", "scene.instances", "scene.grass",
+                                               "scene.sky", "scene.debug",   "resolve",         "lighting.preview",
+                                               "post",      "imgui"};
     ASSERT_EQ(names.size(), expected.size());
     for (size_t i = 0; i < names.size(); ++i) EXPECT_EQ(names[i], expected[i]);
     PrototypeScene p;

@@ -577,7 +577,7 @@ TEST_F(VulkanScene, GpuSections)
 {
     // S19a: the depth pre-pass and the sub-sections of the passes (dotted names), written in every frame
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 12u);
+    ASSERT_EQ(names.size(), 14u);
     EXPECT_STREQ(names[0], "transfer");
     EXPECT_STREQ(names[1], "cull");
     EXPECT_STREQ(names[2], "depth");
@@ -587,9 +587,12 @@ TEST_F(VulkanScene, GpuSections)
     EXPECT_STREQ(names[6], "scene.instances");
     EXPECT_STREQ(names[7], "scene.grass");
     EXPECT_STREQ(names[8], "scene.sky");
-    EXPECT_STREQ(names[9], "resolve");
-    EXPECT_STREQ(names[10], "post");
-    EXPECT_STREQ(names[11], "imgui");
+    // S36a1b: the debug lines and the lighting's preview conversions
+    EXPECT_STREQ(names[9], "scene.debug");
+    EXPECT_STREQ(names[10], "resolve");
+    EXPECT_STREQ(names[11], "lighting.preview");
+    EXPECT_STREQ(names[12], "post");
+    EXPECT_STREQ(names[13], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -614,7 +617,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 12u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 14u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);
@@ -1571,7 +1574,9 @@ TEST(VulkanMeshImport, FlatBox)
     EXPECT_FALSE(error.empty());
 }
 
-// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden
+// The imported box rendered as one instance (face-duplicated flat normals, the fixed light), pinned by a golden;
+// S36a1b: the same golden with the LIGHTING_PBR variant on the same scene (clay: the studio environment keeps the
+// material colours; not in the update mode, the golden is written by the legacy variant)
 TEST_F(VulkanSceneContent, ImportedMeshGolden)
 {
     MeshLods lods;
@@ -1603,6 +1608,11 @@ TEST_F(VulkanSceneContent, ImportedMeshGolden)
     EXPECT_NE(top, left);
     EXPECT_NE(left, right);
     compareGolden(img, "scene_flat_box", deviceName());
+    if (goldenUpdateMode()) return;
+    LightingParameters lighting = scene->lightingParameters();
+    lighting.pbr                = true;
+    scene->setLightingParameters(lighting);
+    compareGolden(SceneFrame(), "scene_flat_box", deviceName());
 }
 #endif
 

@@ -4,7 +4,10 @@
  * See LICENSE file for more information.
  */
 
-// Color helpers of RenderScene's resolve and post passes (S17).
+// Color helpers of RenderScene's resolve and post passes (S17). Guarded (S36: lighting.glsl includes it next to
+// flat.frag's include).
+#ifndef COLOR_GLSL
+#define COLOR_GLSL
 
 // The largest finite half float
 const float maxHalf = 65504.0;
@@ -38,3 +41,4 @@ vec3 acesNarkowicz(vec3 x)
 {
     return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
 }
+#endif
