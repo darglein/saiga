@@ -69,7 +69,9 @@ struct LightSource
         v("flickerFrequency", flickerFrequency);
     }
 
-    // The validity of the fields (the world API's writes and the extract): an empty string, or the first violation
+    // The validity of the fields: an empty string, or the first violation. The world API refuses an invalid light
+    // (add_component, set_component, spawn and prefab values: checkLightSourceValues); the extract does not send one
+    // (a light written in code: list_lights shows it with the reason)
     std::string invalidReason() const
     {
         auto finite = [](double x) { return std::isfinite(x); };
@@ -80,6 +82,9 @@ struct LightSource
         if (!finite(color(0)) || !finite(color(1)) || !finite(color(2)) || color.minCoeff() < 0)
             return "color must be finite and >= 0";
         if (!finite(offset(0)) || !finite(offset(1)) || !finite(offset(2))) return "offset must be finite";
+        const Vec4 q = rotation.coeffs();
+        if (!finite(q(0)) || !finite(q(1)) || !finite(q(2)) || !finite(q(3)) || !(q.norm() > 1e-6))
+            return "rotation must be a finite, non-zero quaternion";
         if (!(priority >= 0) || !finite(priority)) return "priority must be finite and >= 0";
         if (!(flickerAmplitude >= 0 && flickerAmplitude <= 1)) return "flickerAmplitude must be in [0, 1]";
         if (!(flickerFrequency >= 0 && flickerFrequency <= 100)) return "flickerFrequency must be in [0, 100] Hz";

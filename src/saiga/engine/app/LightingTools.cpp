@@ -41,6 +41,17 @@ using ToolResult = McpServer::ToolResult;
 
 const char* kNoDevice = "this app renders no frames (no device)";
 
+// capture_lighting's image names: every LightingImage but the cascade strip ("cascade" without its argument;
+// round 1, finding 6: the schema's list was written by hand and missed atlas and atlas_tile)
+std::vector<std::string> captureImageNames()
+{
+    std::vector<std::string> names;
+    for (int i = 0; i < int(Vulkan::LightingImage::Count); ++i)
+        if (Vulkan::LightingImage(i) != Vulkan::LightingImage::CascadeStrip)
+            names.push_back(Vulkan::lightingImageName(Vulkan::LightingImage(i)));
+    return names;
+}
+
 Json schema(const Json::object& properties)
 {
     return Json::object{{"type", "object"}, {"properties", properties}, {"additionalProperties", false}};
@@ -1372,10 +1383,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "(the environment map). Deferred: answered from the frame that computes the preview; an error when no frame "
         "is rendered before the deadline. Changes nothing.",
         schema(
-            {{"image", McpServer::StringProperty(
-                           "The image", {"luminance", "brdf_lut", "transmittance_lut", "multi_scattering_lut",
-                                         "sky_view_lut", "environment", "irradiance", "cloud_coverage", "cloud_shadow",
-                                         "cascade", "horizon", "clusters"})},
+            {{"image", McpServer::StringProperty("The image", captureImageNames())},
+             {"layer",
+              McpServer::StringProperty("atlas, atlas_tile: the layer (default static)", {"static", "dynamic"})},
+             {"light", McpServer::IntegerProperty("atlas_tile: the light's handle (list_lights)")},
+             {"face", McpServer::IntegerProperty("atlas_tile: the face (0..5 for a point light: +x, -x, +y, -y, +z, "
+                                                 "-z; 0 for a spot light; default 0)")},
              {"slice", McpServer::IntegerProperty("clusters: the depth slice (0..cluster_z - 1; default the maximum "
                                                   "over the slices)")},
              {"channel", McpServer::StringProperty("horizon: the channel (default r)", {"r", "g"})},

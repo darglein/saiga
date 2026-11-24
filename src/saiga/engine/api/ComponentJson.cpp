@@ -6,6 +6,7 @@
 
 #include "saiga/engine/api/ComponentJson.h"
 
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/Transform.h"
@@ -67,6 +68,16 @@ bool checkRenderMeshValues(const World& w, const RenderInstance& current, const 
     return true;
 }
 
+bool checkLightSourceValues(const LightSource& current, const Json& values, std::string& error)
+{
+    LightSource l = current;
+    if (!fromJson(values, l, &error, true)) return false;
+    const std::string invalid = l.invalidReason();
+    if (invalid.empty()) return true;
+    error = "LightSource: " + invalid;
+    return false;
+}
+
 // A Parent value from JSON, checked: an alive parent, no cycle, no world-state child (child may be invalid: a new
 // entity of spawn)
 bool parentFromJson(const World& w, Entity child, const Json& values, Parent& out, std::string& error)
@@ -117,6 +128,8 @@ bool checkComponentValues(const World& w, Entity child, ComponentId id, const Js
         return false;
     }
     if (id == RenderInstance::id && !values.is_null() && !checkRenderMeshValues(w, RenderInstance(), values, error))
+        return false;
+    if (id == LightSource::id && !values.is_null() && !checkLightSourceValues(LightSource(), values, error))
         return false;
     if (id == Parent::id)
     {

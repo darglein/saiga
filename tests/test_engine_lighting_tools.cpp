@@ -32,6 +32,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 
 #include "lighting_test_parameters.h"
 #include "mcp_test_helper.h"
@@ -1042,6 +1043,30 @@ TEST(LightingToolsNoDevice, RenderToolsNeedADevice)
     EXPECT_FALSE(isError(call(app, "set_time_of_day", obj(R"({"hours": 20})"))));
     EXPECT_EQ(app.world().readGlobal<WorldTime>().timeOfDay, 20);
     EXPECT_TRUE(result(call(app, "app_status", Json::object{}))["lighting"].is_null());
+}
+
+// Regression (round 1, finding 6): capture_lighting's schema offers every image the tool accepts (the hand-written
+// enum missed atlas and atlas_tile) and every argument it accepts (layer, light and face were missing)
+TEST(LightingToolsNoDevice, CaptureLightingSchemaListsEveryImage)
+{
+    EngineApp app(lightingSetup(false));
+    std::string description;
+    Json schema;
+    ASSERT_TRUE(app.mcp().toolInfo("capture_lighting", description, schema));
+    const Json& props = schema["properties"];
+    std::set<std::string> images;
+    for (const Json& n : props["image"]["enum"].array_items()) images.insert(n.string_value());
+    for (int i = 0; i < int(Vulkan::LightingImage::Count); ++i)
+    {
+        const std::string name = Vulkan::lightingImageName(Vulkan::LightingImage(i));
+        if (Vulkan::LightingImage(i) == Vulkan::LightingImage::CascadeStrip) continue;  // "cascade" without the index
+        EXPECT_TRUE(images.count(name)) << name;
+        EXPECT_NE(description.find(name), std::string::npos) << name;
+    }
+    for (const char* key : {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only", "mip",
+                            "cascade", "channel", "slice", "layer", "light", "face"})
+        EXPECT_TRUE(props[key].is_object()) << key;
+    EXPECT_EQ(props["layer"]["enum"], Json(Json::array{"static", "dynamic"}));
 }
 
 TEST(LightingToolsNoDevice, NoWorldTimeIsAnError)

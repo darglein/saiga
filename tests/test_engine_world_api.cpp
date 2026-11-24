@@ -8,6 +8,7 @@
 
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/components/Health.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
@@ -33,6 +34,7 @@
 #include <clocale>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <limits>
@@ -335,6 +337,56 @@ TEST(WorldApi, ChangeComponentsTransformsAndHierarchy)
     ASSERT_TRUE(d.ok) << d.error;
     EXPECT_EQ(d.value["destroyed"].array_items().size(), 2u);
     EXPECT_FALSE(w.alive(b));
+}
+
+// Regression (S36b round 1, finding 7): an invalid LightSource is refused with the reason by set_component,
+// add_component and spawn, and changes nothing (the old path accepted it, and the light silently stopped rendering)
+TEST(WorldApi, LightSourceWritesAreValidated)
+{
+    World w(apiSetup());
+    WorldApi api(w);
+    Entity a             = w.create();
+    const std::string ea = entityString(a);
+    for (const char* values : {R"({"range": 0})", R"({"kind": "spot", "outerAngleDeg": 95})",
+                               R"({"flickerAmplitude": 2})", R"({"rotation": [0, 0, 0, 0]})"})
+    {
+        ApiResult r = api.call(
+            "add_component", obj(R"({"entity": )" + ea + R"(, "component": "LightSource", "values": )" + values + "}"));
+        EXPECT_FALSE(r.ok) << values;
+        // (a zero rotation is already refused by the JSON reader of agent writes)
+        if (!std::strstr(values, "rotation"))
+        {
+            EXPECT_NE(r.error.find("LightSource: "), std::string::npos) << r.error;
+        }
+        EXPECT_FALSE(w.has<LightSource>(a)) << values;
+        EXPECT_FALSE(api.call("spawn", obj(R"({"position": [0, 0, 0], "components": {"LightSource": )" +
+                                           std::string(values) + "}}"))
+                         .ok)
+            << values;
+    }
+    ASSERT_TRUE(api.call("add_component",
+                         obj(R"({"entity": )" + ea + R"(, "component": "LightSource", "values": {"range": 12}})"))
+                    .ok);
+    for (const char* values :
+         {R"({"range": 0})", R"({"range": 1001})", R"({"kind": "spot", "innerAngleDeg": 40, "outerAngleDeg": 30})",
+          R"({"lumen": -1})", R"({"rotation": [0, 0, 0, 0]})"})
+    {
+        ApiResult r = api.call(
+            "set_component", obj(R"({"entity": )" + ea + R"(, "component": "LightSource", "values": )" + values + "}"));
+        EXPECT_FALSE(r.ok) << values;
+        if (!std::strstr(values, "rotation"))
+        {
+            EXPECT_NE(r.error.find("LightSource: "), std::string::npos) << r.error;
+        }
+        EXPECT_EQ(w.read<LightSource>(a).range, 12) << values;
+        EXPECT_EQ(w.read<LightSource>(a).kind, LightKind::Point) << values;
+    }
+    // Valid: a spot whose angles are checked against the merged values
+    ApiResult ok = api.call("set_component", obj(R"({"entity": )" + ea +
+                                                 R"(, "component": "LightSource", "values": {"kind": "spot", )"
+                                                 R"("innerAngleDeg": 20, "outerAngleDeg": 30}})"));
+    EXPECT_TRUE(ok.ok) << ok.error;
+    EXPECT_EQ(w.read<LightSource>(a).kind, LightKind::Spot);
 }
 
 TEST(WorldApi, GlobalsEventsActionsAndTime)
