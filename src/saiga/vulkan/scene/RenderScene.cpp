@@ -136,6 +136,9 @@ struct RenderScene::ProbeRun
     Vec3 forward  = Vec3(0, 0, -1);
     std::vector<LocalLights::GpuLight> lights;
     std::vector<uint32_t> handles;
+    // The surface changed size during the sequence (its pixels are other surface points; frame 1's held image is gone):
+    // the run ends with the next latch and answers without values (CodeRabbit #82)
+    bool resized = false;
 };
 
 namespace
@@ -478,6 +481,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                 r.pixel = inside ? ivec2(int(px), int(py)) : ivec2(-1, -1);
             }
         }
+        if (probe && probe->step > 0 && probe->size != ivec2(surfaceWidth, SurfaceHeight)) probe->resized = true;
         // probe_lighting: the pixels of this frame of the sequence
         if (probe)
         {
@@ -2348,6 +2352,8 @@ void RenderScene::latchDebug()
         probeRun.reset();
         applyHeldProbeState();
     }
+    // A resized surface ends the sequence (finishProbe answers without values)
+    if (probeRun && probeRun->resized) finishProbe();
     // A probe starts with the next frame: the requests made until then share its frames
     if (!probeRun && !probeRequests.empty())
     {
@@ -2386,12 +2392,19 @@ void RenderScene::finishProbe()
     std::unique_ptr<ProbeRun> run = std::move(probeRun);
     probeRun.reset();
     const mat4 invViewProj = inverse(run->viewProj);
+    std::vector<LightingProbe> answers(run->requests.size());
     for (size_t k = 0; k < run->requests.size(); ++k)
     {
-        LightingProbe p;
-        p.pixel    = run->requests[k].pixel;
-        p.frames   = kProbeFrames;
-        p.physical = run->physical;
+        LightingProbe& p = answers[k];
+        p.pixel          = run->requests[k].pixel;
+        p.frames         = kProbeFrames;
+        p.physical       = run->physical;
+        // A resized surface: the frames sampled other points, no values (not consistent, not in the image)
+        if (run->resized)
+        {
+            p.consistent = false;
+            continue;
+        }
         auto value = [&](int frame)
         {
             const auto& v = run->values[size_t(frame)];
@@ -2483,9 +2496,11 @@ void RenderScene::finishProbe()
                 }
             }
         }
-        if (!run->requests[k].isCancelled()) run->requests[k].callback(p);
     }
+    // The held state first: the callbacks see it, and what they set is not overwritten by it (CodeRabbit #82)
     applyHeldProbeState();
+    for (size_t k = 0; k < run->requests.size(); ++k)
+        if (!run->requests[k].isCancelled()) run->requests[k].callback(answers[k]);
 }
 
 void RenderScene::applyHeldProbeState()

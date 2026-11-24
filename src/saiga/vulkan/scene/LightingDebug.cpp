@@ -153,7 +153,12 @@ void LightingDebug::destroy()
         for (Buffer& b : i.gpuStats) b.destroy();
     }
     for (Buffer& b : pixelBuffers) b.destroy();
-    base = nullptr;
+    // The requests and slot tags of the destroyed buffers (a later init starts empty: harvest must not read them)
+    for (Image& i : images) i = Image();
+    pixelRequests.clear();
+    for (auto& r : recordedPixels) r.clear();
+    pixelSize = {};
+    base      = nullptr;
 }
 
 void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback,

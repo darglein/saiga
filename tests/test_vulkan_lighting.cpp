@@ -951,6 +951,71 @@ TEST_F(LightingDebugTest, ProbeColourWithoutEnvironment)
     EXPECT_NEAR(b.luminance, a.luminance, 0.01f * a.luminance);
 }
 
+// The probe's callbacks run after the held environment is applied: they see it, and an environment they set stays.
+// Regression (CodeRabbit #82): the callbacks ran first, so the held state then overwrote what they set
+TEST_F(LightingDebugTest, ProbeCallbackSeesHeldState)
+{
+    PlaneScene(460);
+    scene->setToneMap(ToneMap::Aces);
+    EnvironmentState start, held, fromCallback;
+    start.ev100        = 10;
+    held.ev100         = 11;
+    fromCallback.ev100 = 12;
+    scene->setEnvironment(start);
+    Capture(2);
+    float seen    = 0;
+    bool answered = false;
+    scene->requestProbe(ivec2(width / 2 - 20, height / 2),
+                        [&](const LightingProbe&)
+                        {
+                            seen = scene->environment().ev100;
+                            scene->setEnvironment(fromCallback);
+                            answered = true;
+                        });
+    RenderFrame();
+    ASSERT_TRUE(scene->probeRunning());
+    scene->setEnvironment(held);
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answered; ++i) RenderFrame();
+    ASSERT_TRUE(answered);
+    EXPECT_EQ(seen, 11);
+    EXPECT_EQ(scene->environment().ev100, 12);
+}
+
+// A resize during the sequence ends it without values (the later frames would sample other surface points at the same
+// pixel indices; frame 1's held image is gone). Regression (CodeRabbit #82): the samples of both sizes were combined
+// and reported consistent (a plane at a constant depth)
+TEST_F(LightingDebugTest, ProbeEndsOnResize)
+{
+    PlaneScene(470);
+    Capture(2);
+    std::optional<LightingProbe> answer;
+    scene->requestProbe(ivec2(width / 2 - 20, height / 2), [&](const LightingProbe& p) { answer = p; });
+    RenderFrame();
+    RenderFrame();
+    ASSERT_TRUE(scene->probeRunning());
+    window->setSize(width / 2, height / 2);
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answer; ++i) RenderFrame();
+    ASSERT_TRUE(answer.has_value());
+    EXPECT_FALSE(answer->consistent);
+    EXPECT_FALSE(answer->inImage);
+    EXPECT_FALSE(scene->probeRunning());
+}
+
+// A new init drops the requests and the statistics slots of the destroyed buffers. Regression (CodeRabbit #82): the
+// pending slot tag stayed, and the next harvest read the destroyed statistics buffer
+TEST_F(LightingDebugTest, ReinitDropsPendingStatistics)
+{
+    PlaneScene(480);
+    LightingDebug& d = scene->lightingDebugImages();
+    d.show(LightingImage::Luminance, PreviewMapping());
+    RenderFrame();
+    scene->waitIdle();
+    d.init(scene->base());
+    EXPECT_EQ(d.preview(LightingImage::Luminance), nullptr);
+    Capture(2);
+    EXPECT_EQ(d.statisticsFrame(LightingImage::Luminance), 0u);
+}
+
 // probe_lighting's sequence: 7 frames at a pixel of the lit plane, the values equal the views' at that pixel, the
 // camera and the environment are held (a setEnvironment during it takes effect after it), consistent
 TEST_F(LightingDebugTest, ProbeMatchesViews)
