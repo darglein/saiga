@@ -126,6 +126,8 @@ void ShadowAtlas::ensure(int resolution, int tile, vk::CommandBuffer cmd)
 
 void ShadowAtlas::markDirty(const Vec3& lo, const Vec3& hi)
 {
+    // The bounds carry no space (nit 24): an edit in one space invalidates the tiles of lights at the same coordinates
+    // in another (only extra re-renders, never a stale face)
     // A long list (a terrain stream) collapses into one invalidation
     if (dirty.size() > 4096)
         allDirty = true;
@@ -507,10 +509,10 @@ void ShadowAtlas::writeTable(uint32_t frameIndex, const std::vector<LightInput>&
     const int perSide = std::max(tilesPerSide(), 1);
     for (size_t i = 0; i < lights.size() && image; ++i)
     {
+        // Every input light that owns tiles was selected by update (step 2 freed the candidates that were not)
         auto it = owners.find(lights[i].handle);
-        if (it == owners.end() || it->second.lastUsed == 0) continue;
+        if (it == owners.end()) continue;
         const Owner& o = it->second;
-        // Only the lights selected this frame (update set lastUsed)
         bool complete = true;
         firstEntry[i] = int(entries.size());
         for (int k = 0; k < int(o.tiles.size()); ++k)

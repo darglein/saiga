@@ -189,7 +189,8 @@ void initWorld(EngineApp& app)
     // S36b: the lamps (on the host world: they replicate to a --coop client): a grid 250 m in front of the start
     // camera, or for --benchmark night a ring of 2500 m around the area's centre (the flyover path looks across it)
     {
-        const bool dayBenchmark = !g.benchmarkName.empty() && g.benchmarkName != "night";
+        const bool nightBenchmark = g.benchmarkName == "night" || g.benchmarkName == "night_town";
+        const bool dayBenchmark   = !g.benchmarkName.empty() && !nightBenchmark;
         const int count         = g.lamps >= 0 ? g.lamps : dayBenchmark ? 0 : 400;
         World& host             = app.startWorld();
         auto groundAt           = [&host](double x, double z) { return host.terrainHeight(0, x, z); };
@@ -197,6 +198,9 @@ void initWorld(EngineApp& app)
         int spawned             = 0;
         if (g.benchmarkName == "night")
             spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeArea * 0.5, Vulkan::kPrototypeArea * 0.5, 0, 2500,
+                                       groundAt, sea);
+        else if (g.benchmarkName == "night_town")
+            spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeArea * 0.5, Vulkan::kPrototypeArea * 0.5, 25, 0,
                                        groundAt, sea);
         else
         {
@@ -789,8 +793,9 @@ int main(int argc, char* argv[])
                                 [&timeSet](EngineApp& app, const AppOptions& options)
                                 {
                                     WorldTimeChange morning;
-                                    // S36b: --benchmark night at 22:00
-                                    morning.hours = options.benchmark == "night" ? 22.0 : 10.0;
+                                    // S36b: --benchmark night and night_town at 22:00
+                                    morning.hours =
+                                        options.benchmark == "night" || options.benchmark == "night_town" ? 22.0 : 10.0;
                                     morning.rate  = 0.0;
                                     std::string error;
                                     timeSet = setWorldTime(app.startWorld(), morning, error);

@@ -842,6 +842,7 @@ void LightingTab::localLightsSection()
         DebugUiStyle::property("max lights");
         changed =
             ImGui::SliderInt("##max lights", &p.maxLights, 1, 4096, "%d", ImGuiSliderFlags_Logarithmic) || changed;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("at least 1: the \"local lights\" checkbox switches them off");
         DebugUiStyle::property("lights");
         ImGui::Text("%u submitted, %u candidates, %u visible, %u over budget", c.submitted, c.candidates, c.visible,
                     c.overBudget);

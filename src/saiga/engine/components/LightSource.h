@@ -29,7 +29,8 @@ using Vulkan::LightKind;
 // added and removed with the component (or with on), changed when a field changes (a write through the world API, a
 // replicated change), moved with the entity's interpolated pose every frame. Flicker is a render effect (presentation,
 // §10.7; its phase is the environment's). Registered Replicate::HostReliable (rarely changing; on/off toggles
-// reliable, not in the snapshots) and saved.
+// reliable, not in the snapshots) and saved: host-authoritative, a client's write is not replicated (a player's own
+// light, e.g. a torch, is switched by the game's systems from the owner's input; S32 may revisit this).
 struct LightSource
 {
     static constexpr const char* name = "LightSource";

@@ -2061,7 +2061,8 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
   atlas until it is full: a **tile budget** (64 tiles of 512 at High = 10 point or 64 spot lights; S37 maps tiers to
   it); the rest are unshadowed. The atlas is **cached**: a face is re-rendered only when its light or a caster in its
   range changed, with static and dynamic casters in separate layers and a per-tier budget of re-rendered faces per
-  frame. Lights come from entities (`LightSource` component, presentation, its on/off state replicated with its owner)
+  frame. Lights come from entities (`LightSource` component, presentation, host-authoritative: its on/off state is
+  replicated reliably from the host, an owner switches its light through the game's systems)
   and from placed pieces (per-chunk light lists in the 1p data, §12.5, so a base with hundreds of torches creates no
   entities). [exists: S36b, M5 of the S36 plan:
   - `LightSource` (`engine/components/`, always registered, `Replicate::HostReliable`, saved; kind, colour, lumen,

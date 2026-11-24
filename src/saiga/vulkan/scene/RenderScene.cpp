@@ -1903,7 +1903,8 @@ void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, b
     for (size_t i = 0; i < in.size(); ++i) in[i].terrainKey = i < keys.size() ? keys[i] : 0;
     // The faces of this frame: views of the culling after the cascades' (the 16-bit view masks: at most 11 atlas views)
     const int freeViews = kMaxCullViews - 1 - int(shadowViews.size());
-    const int faces     = std::clamp(std::min(p.facesPerFrame, freeViews), 0, 11);
+    // Golden mode (forceFullUpdates, §17.6; nit 25): every due face up to the 11 views of a frame
+    const int faces = std::clamp(std::min(p.forceFullUpdates ? 11 : p.facesPerFrame, freeViews), 0, 11);
     std::vector<ShadowAtlas::Face> list;
     atlasShadows->update(in, camera.position, shadowViewsOverride ? 0 : faces, frameCount + 1, list);
     // The faces are recorded in this frame's shadow section, before the scene pass reads them: rendered for the table

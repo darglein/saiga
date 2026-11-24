@@ -175,7 +175,8 @@ struct LightingParameters
     // S36b: the local lights (B2)
     bool localLights     = true;  // the point and spot lights of the scene
     bool clusteredLights = true;  // false: every fragment loops over every light (the correctness reference)
-    int maxLights        = 1024;  // the lights of a frame (1..4096), the most important ones (the rest: over budget)
+    // The lights of a frame (1..4096; the off switch is localLights), the most important ones (the rest: over budget)
+    int maxLights = 1024;
     // S36b: the cluster grid (B3): screen tiles x, y and depth slices z (slice 0 to clusterNear, then exponential to
     // clusterFar, beyond it no local light), the fixed slots per cluster
     int clusterX            = 16;    // 1..64

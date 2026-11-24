@@ -12,6 +12,7 @@
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/Transform.h"
@@ -74,16 +75,6 @@ ChunkPose toChunkPose(const WorldPose& p)
 
 namespace
 {
-bool sameLightSource(const LightSource& a, const LightSource& b)
-{
-    return a.kind == b.kind && a.color == b.color && sameBits(a.lumen, b.lumen) && sameBits(a.range, b.range) &&
-           sameBits(a.innerAngleDeg, b.innerAngleDeg) && sameBits(a.outerAngleDeg, b.outerAngleDeg) &&
-           a.offset == b.offset && sameBits(a.rotation.w(), b.rotation.w()) &&
-           sameBits(a.rotation.x(), b.rotation.x()) && sameBits(a.rotation.y(), b.rotation.y()) &&
-           sameBits(a.rotation.z(), b.rotation.z()) && a.on == b.on && a.castShadows == b.castShadows &&
-           sameBits(a.priority, b.priority) && sameBits(a.flickerAmplitude, b.flickerAmplitude) &&
-           sameBits(a.flickerFrequency, b.flickerFrequency);
-}
 bool sameLightData(const Vulkan::LightData& a, const Vulkan::LightData& b)
 {
     return a.kind == b.kind && a.position == b.position && a.direction == b.direction && a.color == b.color &&
@@ -848,7 +839,14 @@ void ExtractSystem::sendLight(TrackedLight& l, double alpha)
     d.priority          = float(src.priority);
     d.flicker.amplitude = float(src.flickerAmplitude);
     d.flicker.frequency = float(src.flickerFrequency);
-    d.flicker.seed      = l.entity.index * 2654435761u;
+    // A seed that is the same on every peer and after a load (round 1, nit 21: the entity index differs between host
+    // and client): the NetId of a replicated entity, else the persistent ID, else the entity index
+    uint32_t stable = w.replication().netIdOf(l.entity);
+    if (!stable)
+        if (const Persistent* pid = w.registry().tryRead<Persistent>(l.entity))
+            stable = uint32_t(pid->persistentId.value ^ (pid->persistentId.value >> 32));
+    if (!stable) stable = l.entity.index;
+    d.flicker.seed = stable * 2654435761u;
     if (!l.handle)
     {
         l.handle = renderSink->addLight(c.chunk, d);
@@ -868,8 +866,8 @@ void ExtractSystem::syncLights(bool step)
     for (TrackedLight& l : lights)
     {
         if (!reg.alive(l.entity) || !reg.has<LightSource>(l.entity)) continue;
-        const LightSource& src = reg.read<LightSource>(l.entity);
-        if (!sameLightSource(src, l.source)) l.source = src;
+        // (sendLight compares the resulting LightData: the source is copied as is; nit 22)
+        l.source = reg.read<LightSource>(l.entity);
         WorldPose p;
         Source s;
         const bool had = l.hasPose;

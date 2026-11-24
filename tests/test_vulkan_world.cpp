@@ -336,6 +336,15 @@ TEST(WorldBenchmark, Paths)
     }
     EXPECT_TRUE(WorldBenchmark::known("forest"));
     EXPECT_FALSE(WorldBenchmark::known("forests"));
+    // S36b: night_town circles 150 m around the centre, 30 m above the ground, looking at the centre
+    for (int i : {0, 300})
+    {
+        auto pose = WorldBenchmark::pose("night_town", ground, i);
+        EXPECT_NEAR(std::hypot(pose.eye(0) - c, pose.eye(2) - c), 150.0f, 0.01f);
+        EXPECT_NEAR(pose.eye(1), ground(pose.eye(0), pose.eye(2)) + 30.0, 1e-3);
+        EXPECT_NEAR(pose.target(0), c, 1e-3f);
+    }
+    EXPECT_TRUE(WorldBenchmark::known("night_town"));
 }
 
 // Regression: a minimized window or a swap chain recreation during the measured frames inflated p95 unnoticed
