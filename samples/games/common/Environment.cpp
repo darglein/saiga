@@ -30,24 +30,30 @@ void systemsWithEnvironment(Engine::SystemList& l)
 
 void enableEnvironment(Engine::EngineAppSetup& setup, const std::string& game)
 {
-    std::string dir = setup.world.dataDirectory;
-    if (dir.empty())
+    // The environment file of the final data directory (--data; CodeRabbit #83: it was read before the command line,
+    // from the default directory), after the command line's settings (--tonemap, --exposure are other fields)
+    setup.onDataDirectory = [game](Engine::EngineAppSetup& s)
     {
-        const std::string source = SAIGA_PROJECT_SOURCE_DIR;
-        dir                      = (source.empty() ? std::string("data") : source + "/data") + "/" + game;
-    }
-    const std::string path = dir + "/environment.json";
-    if (std::ifstream(path).good())
-    {
-        const Engine::EnvironmentFile file = Engine::readEnvironmentFile(path);
-        setup.world.environment            = file.setup;
-        setup.environment                  = file.settings;
-        setup.render.lighting              = file.lighting;
-    }
+        std::string dir = s.world.dataDirectory;
+        if (dir.empty())
+        {
+            const std::string source = SAIGA_PROJECT_SOURCE_DIR;
+            dir                      = (source.empty() ? std::string("data") : source + "/data") + "/" + game;
+        }
+        const std::string path = dir + "/environment.json";
+        if (std::ifstream(path).good())
+        {
+            const Engine::EnvironmentFile file = Engine::readEnvironmentFile(path);
+            s.world.environment                = file.setup;
+            s.environment                      = file.settings;
+            s.render.lighting                  = file.lighting;
+        }
+        s.world.environment.enabled = true;
+        // Until the S36a1c flip: the S36 light model's pipeline variant
+        s.render.lighting.pbr = true;
+    };
     setup.world.environment.enabled = true;
     setup.render.toneMap            = Vulkan::ToneMap::Aces;
-    // Until the S36a1c flip: the S36 light model's pipeline variant
-    setup.render.lighting.pbr = true;
     if (setup.world.systems != systemsWithEnvironment)
     {
         gameSystems         = setup.world.systems;

@@ -22,7 +22,8 @@ namespace Game
  * (the time passes with WorldTime::rate) and renders ACES by default (D22: the time of day exists only in the
  * tone-mapped path;
  * --tonemap identity still gives the clay view, parsed after this). Call it before engineMain, after setup.world is
- * set. The data directory is the world setup's, else the source tree's data/<game> (as engineMain resolves it).
+ * set. The file is read when the command line has resolved the data directory (EngineAppSetup::onDataDirectory: --data
+ * selects it), else from the source tree's data/<game>.
  */
 void enableEnvironment(Engine::EngineAppSetup& setup, const std::string& game);
 

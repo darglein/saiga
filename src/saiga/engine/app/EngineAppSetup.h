@@ -66,6 +66,10 @@ struct EngineAppSetup
     // Called after the command line was parsed, before the app exists (the game may adjust the options, e.g. clamp
     // the co-op delay for its --demo); return false and an error to reject them
     std::function<bool(AppOptions&, std::string& error)> checkOptions;
+    // Called at the end of parseCommandLine, when world.dataDirectory is final (--data, else data/<name>): the game
+    // reads its data files that set up the app (S36: the environment file of games/common/Environment, which --data
+    // must select; CodeRabbit #83). The command line's own settings (--tonemap, --exposure) are already in the setup
+    std::function<void(EngineAppSetup&)> onDataDirectory;
     std::function<void(McpServer&, EngineApp&)> gameTools;  // game_* tools
     // Writes the game's own control components from the input map (e.g. flight sticks); with a local player
     std::function<void(const InputMap&, World&, Entity localPlayer)> applyInput;

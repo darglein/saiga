@@ -27,7 +27,7 @@ namespace Engine
  * --time-of-day h and --day-length s (S36: WorldTime's hours and a rate of 86400 / s, set after the game's start; an
  * error without WorldTime, EnvironmentSetup::enabled). Declared game
  * flags (e.g. --demo) are passed on in options.gameFlags; anything else is an error. EngineAppSetup::checkOptions runs
- * last. No config.ini.
+ * after them, EngineAppSetup::onDataDirectory at the end (the final data directory). No config.ini.
  */
 SAIGA_ENGINE_API bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::string>& gameFlags,
                                        EngineAppSetup& setup, AppOptions& options, std::string& error);
