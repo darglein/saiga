@@ -181,6 +181,27 @@ LightingKey floatKey(const char* name, bool parameter, double lo, double hi,
                        std::string(name) + " " + rangeText(lo, hi)};
 }
 
+LightingKey intKey(const char* name, bool parameter, int lo, int hi, std::function<int&(LightingState&)> field,
+                   bool powerOfTwo = false)
+{
+    return LightingKey{name, parameter,
+                       [field](const LightingState& s) { return Json(field(const_cast<LightingState&>(s))); },
+                       [field, name, lo, hi, powerOfTwo](const Json& j, LightingState& s, std::string& error)
+                       {
+                           double v = 0;
+                           if (!number(j, name, lo, hi, v, error)) return false;
+                           const int i = int(v);
+                           if (double(i) != v || (powerOfTwo && (i & (i - 1)) != 0))
+                           {
+                               error = std::string(name) + ": " + (powerOfTwo ? "a power of two" : "an integer") +
+                                       " in " + rangeText(lo, hi);
+                               return false;
+                           }
+                           field(s) = i;
+                           return true;
+                       }};
+}
+
 LightingKey boolKey(const char* name, bool parameter, std::function<bool&(LightingState&)> field)
 {
     return LightingKey{name, parameter,
@@ -357,6 +378,75 @@ const std::vector<LightingKey>& lightingKeys()
                              [](LightingState& s) -> float& { return s.parameters.environmentUpdateDegrees; }));
         k.push_back(boolKey("force_full_updates", true,
                             [](LightingState& s) -> bool& { return s.parameters.forceFullUpdates; }));
+        // S36a2: the cascades
+        using P = Vulkan::LightingParameters;
+        auto pf = [](float P::* f)
+        {
+            return [f](LightingState& s) -> float& { return s.parameters.*f; };
+        };
+        auto pi = [](int P::* f)
+        {
+            return [f](LightingState& s) -> int& { return s.parameters.*f; };
+        };
+        auto pb = [](bool P::* f)
+        {
+            return [f](LightingState& s) -> bool& { return s.parameters.*f; };
+        };
+        k.push_back(boolKey("sun_shadows", true, pb(&P::sunShadows)));
+        k.push_back(intKey("cascade_count", true, 1, 4, pi(&P::cascadeCount)));
+        k.push_back(intKey("cascade_resolution", true, 256, 4096, pi(&P::cascadeResolution), true));
+        k.push_back(floatKey("shadow_distance", true, 10, 20000, pf(&P::shadowDistance)));
+        k.push_back(floatKey("split_lambda", true, 0, 1, pf(&P::splitLambda)));
+        k.push_back(LightingKey{
+            "cascade_interval", true,
+            [](const LightingState& s)
+            {
+                Json::array a;
+                for (int v : s.parameters.cascadeInterval) a.push_back(v);
+                return Json(a);
+            },
+            [](const Json& j, LightingState& s, std::string& error)
+            {
+                if (!j.is_array() || j.array_items().size() != 4)
+                {
+                    error = "cascade_interval: [4] integers in [1, 8], the first 1";
+                    return false;
+                }
+                std::array<int, 4> v;
+                for (size_t i = 0; i < 4; ++i)
+                {
+                    double d = 0;
+                    if (!number(j[i], "cascade_interval[" + std::to_string(i) + "]", 1, 8, d, error)) return false;
+                    if (d != std::floor(d))
+                    {
+                        error = "cascade_interval[" + std::to_string(i) + "]: an integer in [1, 8]";
+                        return false;
+                    }
+                    v[i] = int(d);
+                }
+                if (v[0] != 1)
+                {
+                    error = "cascade_interval[0]: must be 1 (cascade 0 is fitted to the camera frustum every frame)";
+                    return false;
+                }
+                s.parameters.cascadeInterval = v;
+                return true;
+            }});
+        k.push_back(floatKey("depth_bias_texels", true, 0, 20, pf(&P::depthBiasTexels)));
+        k.push_back(floatKey("slope_bias", true, 0, 20, pf(&P::slopeBias)));
+        k.push_back(floatKey("normal_offset_texels", true, 0, 20, pf(&P::normalOffsetTexels)));
+        k.push_back(floatKey("cascade_blend", true, 0, 0.5, pf(&P::cascadeBlend)));
+        k.push_back(intKey("shadow_lod_bias", true, 0, 3, pi(&P::shadowLodBias)));
+        k.push_back(floatKey("small_caster_texels", true, 0, 100, pf(&P::smallCasterTexels)));
+        k.push_back(floatKey("max_caster_height", true, 0, 10000, pf(&P::maxCasterHeight)));
+        k.push_back(floatKey("min_shadow_elevation_deg", true, 0.5, 45, pf(&P::minShadowElevationDeg)));
+        k.push_back(floatKey("cascade_caster_distance", true, 0, 20000, pf(&P::cascadeCasterDistance)));
+        k.push_back(boolKey("terrain_casts_in_cascades", true, pb(&P::terrainCastsInCascades)));
+        // S36a2: the horizon map
+        k.push_back(boolKey("horizon_shadows", true, pb(&P::horizonShadows)));
+        k.push_back(intKey("horizon_resolution", true, 128, 4096, pi(&P::horizonResolution), true));
+        k.push_back(floatKey("horizon_extent", true, 1000, 200000, pf(&P::horizonExtent)));
+        k.push_back(intKey("horizon_rows_per_frame", true, 1, 4096, pi(&P::horizonRowsPerFrame)));
         return k;
     }();
     return keys;
@@ -391,9 +481,9 @@ Json keysJson(const LightingState& s, bool parameters)
 
 const std::vector<std::string>& sectionNames()
 {
-    static const std::vector<std::string> names = {"time",     "weather",    "sun",     "moon",        "shadow_light",
-                                                   "tone_map", "exposure",   "ambient", "environment", "clouds",
-                                                   "settings", "parameters", "debug",   "gpu",         "memory"};
+    static const std::vector<std::string> names = {
+        "time",   "weather",  "sun",        "moon",  "shadow_light", "tone_map", "exposure", "ambient", "environment",
+        "clouds", "settings", "parameters", "debug", "gpu",          "memory",   "cascades", "horizon"};
     return names;
 }
 }  // namespace
@@ -432,8 +522,9 @@ namespace
 // The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
 const std::vector<std::string>& lightingGpuSections()
 {
-    static const std::vector<std::string> names = {"environment", "scene.sky", "scene.clouds", "scene.debug",
-                                                   "lighting.preview"};
+    static const std::vector<std::string> names = {"environment",    "shadow",          "shadow.cascades",
+                                                   "shadow.horizon", "scene.sky",       "scene.clouds",
+                                                   "scene.debug",    "lighting.preview"};
     return names;
 }
 
@@ -675,6 +766,7 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
     {
         Json::object d                    = lightingDebugJson(scene->lightingDebug()).object_items();
         d["frame"]                        = lightingDebugJson(scene->frameLightingDebug());
+        d["freeze_cascades"]              = scene->cascadesFrozen();
         const std::optional<float> centre = scene->exposureViewCentreSetting();
         d["exposure_view"]                = Json::object{{"centre", centre ? Json(double(*centre)) : Json("auto")},
                                                          {"frame_centre", double(scene->frameExposureViewCentre())},
@@ -701,6 +793,67 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
         g["debug_ms"]    = debug;
         o["gpu"]         = g;
         o["memory"]      = Json::object{{"bytes", double(ls.memoryBytes)}};
+    }
+    // S36a2: the cascades of the newest recorded frame (instances and triangles of each cascade's last render, from
+    // the GPU statistics)
+    {
+        Json::array list;
+        for (int c = 0; c < ls.cascadeCount; ++c)
+        {
+            const Vulkan::CascadeStatistics& k = ls.cascades[size_t(c)];
+            list.push_back(Json::object{{"cascade", c},
+                                        {"valid", k.valid},
+                                        {"split_near", double(k.splitNear)},
+                                        {"split_far", double(k.splitFar)},
+                                        {"center", vec3Json(k.center)},
+                                        {"half_extent", double(k.halfExtent)},
+                                        {"depth_range", double(k.depthRange)},
+                                        {"texel_m", double(k.texelSize)},
+                                        {"interval", k.interval},
+                                        {"last_update", double(k.lastUpdate)},
+                                        {"updated_this_frame", k.updatedThisFrame},
+                                        {"instances", double(k.instances)},
+                                        {"triangles", double(k.triangles)},
+                                        {"terrain_nodes", double(k.terrainNodes)},
+                                        {"terrain_triangles", double(k.terrainTriangles)},
+                                        {"terrain_nodes_deduplicated", double(k.terrainDeduplicated)}});
+        }
+        const char* light = ls.shadowLight == 0   ? "none"
+                            : !ls.physical        ? "studio"
+                            : ls.shadowLight == 1 ? "sun"
+                                                  : "moon";
+        o["cascades"]     = Json::object{{"on", ls.shadows},
+                                         {"enabled", state.parameters.sunShadows},
+                                         {"frozen", ls.frozen},
+                                         {"shadow_light", light},
+                                         {"light_direction", vec3Json(ls.shadowLightDir)},
+                                         {"count", ls.cascadeCount},
+                                         {"resolution", state.parameters.cascadeResolution},
+                                         {"linear_filter", ls.linearShadowFilter},
+                                         {"memory_bytes", double(ls.shadowMemoryBytes)},
+                                         {"list", list}};
+    }
+    // S36a2: the horizon map (the front map's transform, the map in progress, the blend)
+    {
+        const Vulkan::HorizonStatistics& h = ls.horizon;
+        o["horizon"]                       = Json::object{{"on", h.on},
+                                                          {"enabled", state.parameters.horizonShadows},
+                                                          {"valid", h.valid},
+                                                          {"resolution", h.resolution},
+                                                          {"extent", h.extent},
+                                                          {"texel_m", h.texel},
+                                                          {"anchor", Json::array{h.corner(0), h.corner(1)}},
+                                                          {"reference_height", h.reference},
+                                                          {"direction", vec3Json(h.light)},
+                                                          {"computing", h.computing},
+                                                          {"progress", Json::array{h.rowsDone, h.resolution}},
+                                                          {"rows_this_frame", h.rowsThisFrame},
+                                                          {"blend", double(h.blend)},
+                                                          {"recomputes", double(h.recomputes)},
+                                                          {"completed", double(h.completed)},
+                                                          {"last_complete_frame", double(h.lastComplete)},
+                                                          {"level_at_10km", h.levelAt10km},
+                                                          {"memory_bytes", double(h.memoryBytes)}};
     }
     if (!sections.empty())
     {
@@ -886,12 +1039,24 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = arrayProperty("[r, g, b] lux", Json::object{{"type", "number"}});
         else if (n == "sun_override")
             p = Json::object{{"description", "{azimuth_deg, elevation_deg} or null"}};
-        else if (n == "clouds" || n == "force_full_updates")
+        else if (n == "clouds" || n == "force_full_updates" || n == "sun_shadows" || n == "terrain_casts_in_cascades" ||
+                 n == "horizon_shadows")
             p = McpServer::BooleanProperty(n);
+        else if (n == "horizon_resolution")
+            p = McpServer::IntegerProperty("A power of two in [128, 4096]");
+        else if (n == "horizon_rows_per_frame")
+            p = McpServer::IntegerProperty(n);
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
         else if (n == "cloud_seed")
             p = McpServer::IntegerProperty(k.description);
+        else if (n == "cascade_resolution")
+            p = McpServer::IntegerProperty("A power of two in [256, 4096]");
+        else if (n == "cascade_count" || n == "shadow_lod_bias")
+            p = McpServer::IntegerProperty(n);
+        else if (n == "cascade_interval")
+            p = arrayProperty("[4] frames between the cascades' updates (the first 1)",
+                              Json::object{{"type", "integer"}});
         else
             p = McpServer::NumberProperty(k.description.empty() ? n : k.description);
         setProperties[n] = p;
@@ -905,8 +1070,14 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "coverage texture's), star_intensity, ground_albedo, rayleigh_scale, mie_scale, ozone_scale (the atmosphere's "
         "coefficients), fog_falloff (1/m), and the LightingParameters clouds, environment_resolution, "
         "environment_update_degrees, "
-        "force_full_updates. Returns values and previous (previous is an undo payload of this tool). An error names "
-        "every invalid key and changes nothing.",
+        "force_full_updates and (the cascades) sun_shadows, cascade_count (1..4), cascade_resolution (256..4096), "
+        "shadow_distance (m), split_lambda, cascade_interval ([4], the first 1), depth_bias_texels, slope_bias, "
+        "normal_offset_texels, cascade_blend, shadow_lod_bias, small_caster_texels, max_caster_height (m), "
+        "min_shadow_elevation_deg, cascade_caster_distance (m), terrain_casts_in_cascades and (the far terrain horizon "
+        "map) horizon_shadows, horizon_resolution (128..4096), horizon_extent (m), horizon_rows_per_frame. Returns "
+        "values, previous "
+        "(an undo payload of this tool) and memory_bytes (the cascades after the change; more than 1 GiB of lighting "
+        "memory is refused). An error names every invalid key and changes nothing.",
         schema(setProperties),
         [&app](const Json& a, McpServer::Respond respond)
         {
@@ -931,6 +1102,23 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 }
                 previous[k.name] = k.get(before);
             }
+            // The memory check of the whole call (finding 23): the cascades after the change next to the rest
+            const Vulkan::LightingStatistics& ls = app.scene()->lightingStatistics();
+            const uint64_t cascadeBytes          = after.parameters.sunShadows
+                                                       ? uint64_t(after.parameters.cascadeResolution) *
+                                                    uint64_t(after.parameters.cascadeResolution) * 4 *
+                                                    uint64_t(after.parameters.cascadeCount)
+                                                       : 0;
+            const uint64_t horizonBytes          = after.parameters.horizonShadows
+                                                       ? uint64_t(after.parameters.horizonResolution) *
+                                                    uint64_t(after.parameters.horizonResolution) * 3 * 8
+                                                       : 0;
+            // (the horizon maps replaced by the estimate; the resident chain stays: CodeRabbit #85 round 2)
+            const uint64_t memory = ls.memoryBytes - ls.shadowMemoryBytes -
+                                    (ls.horizon.memoryBytes - ls.horizon.chainBytes) + cascadeBytes + horizonBytes;
+            if (errors.empty() && memory > (uint64_t(1) << 30))
+                errors = "the lighting memory after the change (" + std::to_string(memory) +
+                         " bytes) exceeds 1 GiB (cascade_resolution, cascade_count, horizon_resolution)";
             if (!errors.empty()) return respond(ToolResult::Error(errors + " (nothing changed)"));
             for (auto& kv : previous)
                 values[kv.first] = [&]
@@ -942,7 +1130,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             app.setEnvironmentSettings(after.settings);
             app.scene()->setLightingParameters(after.parameters);
             app.scene()->setToneMap(after.toneMap);
-            respond(ToolResult::Text(Json(Json::object{{"values", values}, {"previous", previous}}).dump()));
+            respond(ToolResult::Text(
+                Json(Json::object{{"values", values}, {"previous", previous}, {"memory_bytes", double(memory)}})
+                    .dump()));
         });
 
     // ---- S36a1b: the debug core
@@ -952,13 +1142,16 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             "; data views show raw values, a debug frame uses the identity tone map), the overlays (a list that "
             "replaces the set: " +
             joined(overlayNames()) +
-            ") and the Lighting tab's preview mapping (mapping: {range: \"auto\" or [min, max], log, color_map: gray "
-            "or turbo}), the exposure view's heat map (exposure_view: {centre: EV100 or \"auto\", range: EV, 0.5..64; "
-            "turbo over centre +- range / 2}). Missing arguments keep their value. Returns the state, the previous "
-            "state and the known names. Changes only the rendering.",
+            "), freeze_cascades (S36a2: the cascades and the camera they were fitted to stay, still rendered every "
+            "frame; with the cascade_bounds and camera_frustum_splits overlays one flies around and sees what each "
+            "covers), the Lighting tab's preview mapping (mapping: {range: \"auto\" or [min, max], log, color_map: "
+            "gray or turbo}) and the exposure view's heat map (exposure_view: {centre: EV100 or \"auto\", range: EV, "
+            "0.5..64; turbo over centre +- range / 2}). Missing arguments keep their value. Returns the state, the "
+            "previous state and the known names. Changes only the rendering.",
         schema({{"view", McpServer::StringProperty("The debug view", viewNames())},
                 {"overlays",
                  arrayProperty("The overlays (replaces the set)", McpServer::StringProperty("", overlayNames()))},
+                {"freeze_cascades", McpServer::BooleanProperty("Freeze the cascades")},
                 {"mapping",
                  Json::object{{"type", "object"}, {"description", "{range: \"auto\" or [min, max], log, color_map}"}}},
                 {"exposure_view",
@@ -966,8 +1159,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         [&app](const Json& a, McpServer::Respond respond)
         {
             std::string error;
-            if (unknownArgument(a, {"view", "overlays", "mapping", "exposure_view"}, error))
+            if (unknownArgument(a, {"view", "overlays", "mapping", "freeze_cascades", "exposure_view"}, error))
                 return respond(ToolResult::Error(error));
+            if (!a["freeze_cascades"].is_null() && !a["freeze_cascades"].is_bool())
+                return respond(ToolResult::Error("freeze_cascades: true or false"));
             Vulkan::RenderScene* scene = app.scene();
             if (!scene) return respond(ToolResult::Error(kNoDevice));
             const Vulkan::LightingDebugState before = scene->lightingDebug();
@@ -1020,11 +1215,16 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     range = float(r);
                 }
             }
+            const bool frozenBefore = scene->cascadesFrozen();
+            if (!a["freeze_cascades"].is_null()) scene->setFreezeCascades(a["freeze_cascades"].bool_value());
             scene->setLightingDebug(after);
             scene->setExposureViewRange(centre, range);
             app.lightingPreviewMapping() = mapping;
             Json::object o               = lightingDebugJson(after).object_items();
-            o["previous"]                = lightingDebugJson(before);
+            o["freeze_cascades"]         = scene->cascadesFrozen();
+            Json::object prev            = lightingDebugJson(before).object_items();
+            prev["freeze_cascades"]      = frozenBefore;
+            o["previous"]                = prev;
             o["mapping"]                 = mappingJson(mapping);
             o["exposure_view"] =
                 Json::object{{"centre", centre ? Json(double(*centre)) : Json("auto")}, {"range", range}};
@@ -1044,41 +1244,85 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "sky_view_lut (the sky's radiance by azimuth and elevation, cd/m^2, log2 by default), environment (the "
         "environment map's front cube as a cross of the mip mip, cd/m^2, log2 by default), irradiance (its SH "
         "irradiance per direction, equirectangular, lux), cloud_coverage (the cloud layer's coverage at the "
-        "cloudiness over its 16 km tile) or cloud_shadow (the cloud shadow factor on the plane of the camera height "
-        "around the camera, +- the shadow fade). range (\"auto\" or [min, max]), log, color_map (gray, turbo) set "
-        "the mapping; mip: the environment's mip (0..4, default 0; a request of its own, the Lighting tab's mip is "
-        "not changed); stats_only: true returns the block without an image (the one path to the statistics of a GPU "
-        "image); format png (default) or jpg, downscaled to max_width (default 1280, 64..8192); full: true updates "
-        "incremental effects fully first (the environment map). Deferred: answered from the frame that computes the "
-        "preview; an error when no frame is rendered before the deadline. Changes nothing.",
-        schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut", "transmittance_lut",
-                                                                  "multi_scattering_lut", "sky_view_lut", "environment",
-                                                                  "irradiance", "cloud_coverage", "cloud_shadow"})},
-                {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
-                {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
-                {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
-                {"color_map", McpServer::StringProperty("The colour map", {"gray", "turbo"})},
-                {"full", McpServer::BooleanProperty("Update incremental effects fully first")},
-                {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")},
-                {"format", McpServer::StringProperty("Image format (default png)", {"png", "jpg"})},
-                {"stats_only", McpServer::BooleanProperty("Only the JSON block (no image)")}}),
+        "cloudiness over its 16 km tile), cloud_shadow (the cloud shadow factor on the plane of the camera height "
+        "around the camera, +- the shadow fade), cascade (S36a2: the cascades' light-space depth, 0 at the near end, "
+        "1 at the far end, the minimum over the texels a preview texel covers; cascade: its index, without it every "
+        "cascade side by side; the block names each cascade's world box and texel size) or horizon (the front horizon "
+        "map's shadow height, m relative to its reference; channel r: occluders from 64 m, g: beyond the cascades' "
+        "terrain; the block names its anchor, extent and direction). range (\"auto\" or [min, max]), log, color_map "
+        "(gray, turbo) set the mapping; mip: the environment's mip (0..4, default 0; a request of its own, the "
+        "Lighting tab's mip is not changed); stats_only: true returns the block without an image (the one path to the "
+        "statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, 64..8192); "
+        "full: true updates incremental effects fully first (the environment map). Deferred: answered from the frame "
+        "that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
+        schema(
+            {{"image",
+              McpServer::StringProperty(
+                  "The image", {"luminance", "brdf_lut", "transmittance_lut", "multi_scattering_lut", "sky_view_lut",
+                                "environment", "irradiance", "cloud_coverage", "cloud_shadow", "cascade", "horizon"})},
+             {"channel", McpServer::StringProperty("horizon: the channel (default r)", {"r", "g"})},
+             {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
+             {"cascade", McpServer::IntegerProperty("cascade: the cascade (0..count - 1; default all side by side)")},
+             {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
+             {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
+             {"color_map", McpServer::StringProperty("The colour map", {"gray", "turbo"})},
+             {"full", McpServer::BooleanProperty("Update incremental effects fully first")},
+             {"max_width", McpServer::IntegerProperty("Downscale to at most this width (default 1280, 64..8192)")},
+             {"format", McpServer::StringProperty("Image format (default png)", {"png", "jpg"})},
+             {"stats_only", McpServer::BooleanProperty("Only the JSON block (no image)")}}),
         [&app, &server](const Json& a, McpServer::Respond respond)
         {
             std::string error;
-            if (unknownArgument(
-                    a, {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only", "mip"},
-                    error))
+            if (unknownArgument(a,
+                                {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only",
+                                 "mip", "cascade", "channel"},
+                                error))
                 return respond(ToolResult::Error(error));
             Vulkan::RenderScene* scene = app.scene();
             if (!scene) return respond(ToolResult::Error(kNoDevice));
-            const std::optional<Vulkan::LightingImage> parsed =
+            std::optional<Vulkan::LightingImage> parsed =
                 a["image"].is_string() ? Vulkan::lightingImageFromName(a["image"].string_value()) : std::nullopt;
+            if (parsed == Vulkan::LightingImage::CascadeStrip) parsed.reset();  // "cascade" without the argument
             if (!parsed)
                 return respond(ToolResult::Error(
                     "image: luminance, brdf_lut, transmittance_lut, multi_scattering_lut, sky_view_lut, environment, "
-                    "irradiance, cloud_coverage or cloud_shadow"));
-            const Vulkan::LightingImage image = *parsed;
-            int mip                           = 0;
+                    "irradiance, cloud_coverage, cloud_shadow, cascade or horizon"));
+            Vulkan::LightingImage image = *parsed;
+            // S36a2: the cascades (one, or all side by side)
+            int cascade = -1;
+            if (image == Vulkan::LightingImage::Cascade)
+            {
+                const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+                if (!ls.shadows || ls.cascadeCount == 0)
+                    return respond(ToolResult::Error(
+                        "cascade: no cascades are rendered (set_lighting sun_shadows: true, a shadow light)"));
+                if (!a["cascade"].is_null())
+                {
+                    const double c = a["cascade"].number_value();
+                    if (!a["cascade"].is_number() || c != std::floor(c) || c < 0 || c >= ls.cascadeCount)
+                        return respond(
+                            ToolResult::Error("cascade: an integer 0.." + std::to_string(ls.cascadeCount - 1)));
+                    cascade = int(c);
+                }
+                else
+                    image = Vulkan::LightingImage::CascadeStrip;
+            }
+            else if (!a["cascade"].is_null())
+                return respond(ToolResult::Error("cascade: only for image cascade"));
+            // S36a2: the horizon map's channel
+            if (image == Vulkan::LightingImage::Horizon)
+            {
+                const Vulkan::HorizonStatistics& h = scene->lightingStatistics().horizon;
+                if (!h.valid)
+                    return respond(ToolResult::Error(
+                        "horizon: no horizon map (set_lighting horizon_shadows: true, a shadow light, terrain)"));
+                if (!a["channel"].is_null() && a["channel"] != Json("r") && a["channel"] != Json("g"))
+                    return respond(ToolResult::Error("channel: r or g"));
+                if (a["full"].bool_value()) scene->requestHorizonRecompute(true);
+            }
+            else if (!a["channel"].is_null())
+                return respond(ToolResult::Error("channel: only for image horizon"));
+            int mip = 0;
             if (!a["mip"].is_null())
             {
                 const double m = a["mip"].number_value();
@@ -1094,6 +1338,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
                 return respond(ToolResult::Error(error));
             mapping.mip = mip;
+            // The cascade's layer or the horizon map's channel of this request (not the tab's)
+            if (image == Vulkan::LightingImage::Cascade) mapping.layer = cascade;
+            if (image == Vulkan::LightingImage::Horizon) mapping.layer = a["channel"] == Json("g") ? 1 : 0;
             for (const char* b : {"full", "stats_only"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
@@ -1114,11 +1361,16 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             const std::string name = Vulkan::lightingImageName(image);
             scene->lightingDebugImages().request(
                 image, mapping,
-                [&app, respond, answered, statsOnly, format, maxWidth, mapping,
-                 name](const Vulkan::LightingDebug::Capture& c)
+                [&app, respond, answered, statsOnly, format, maxWidth, mapping, name,
+                 cascade](const Vulkan::LightingDebug::Capture& c)
                 {
                     if (*answered) return;
-                    *answered                          = true;
+                    *answered = true;
+                    // A cascade count lowered after the request: the frame converted a substitute layer
+                    const int count = app.scene() ? app.scene()->lightingStatistics().cascadeCount : 0;
+                    if (cascade >= count)
+                        return respond(
+                            ToolResult::Error("cascade: the cascade count changed to " + std::to_string(count)));
                     const Vulkan::PreviewStatistics& s = c.statistics;
                     Json::array histogram;
                     for (uint32_t h : s.histogram) histogram.push_back(double(h));
@@ -1148,6 +1400,47 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     if (name == "transmittance_lut") block["unit"] = "transmittance (luminance of rgb)";
                     if (name == "cloud_coverage") block["unit"] = "coverage (opacity 0..1)";
                     if (name == "cloud_shadow") block["unit"] = "the shadow light's factor (0..1)";
+                    if (name == "cascade" || name == "cascade_strip")
+                    {
+                        // The cascades' boxes (world) and texel sizes of the frame
+                        block["image"] = "cascade";
+                        block["unit"]  = "light-space depth (0 near end, 1 far end; 1: nothing)";
+                        Json::array boxes;
+                        if (Vulkan::RenderScene* sc = app.scene())
+                        {
+                            const Vulkan::LightingStatistics& ls = sc->lightingStatistics();
+                            for (int k = 0; k < ls.cascadeCount; ++k)
+                            {
+                                if (cascade >= 0 && k != cascade) continue;
+                                const Vulkan::CascadeStatistics& cs = ls.cascades[size_t(k)];
+                                boxes.push_back(
+                                    Json::object{{"cascade", k},
+                                                 {"center", vec3Json(cs.center)},
+                                                 {"half_extent", double(cs.halfExtent)},
+                                                 {"depth_range", double(cs.depthRange)},
+                                                 {"texel_m", double(cs.texelSize)},
+                                                 {"split", Json::array{double(cs.splitNear), double(cs.splitFar)}}});
+                            }
+                            block["light_direction"] = vec3Json(ls.shadowLightDir);
+                        }
+                        block["cascades"] = boxes;
+                        block["layout"]   = cascade >= 0 ? "one cascade" : "every cascade side by side (0 left)";
+                    }
+                    if (name == "horizon")
+                    {
+                        block["unit"] = "shadow height (m) relative to the map's reference height";
+                        if (Vulkan::RenderScene* sc = app.scene())
+                        {
+                            // (the map the frame converted, after its update)
+                            const Vulkan::HorizonStatistics& h = sc->lightingStatistics().horizonPreview;
+                            block["channel"]                   = mapping.layer == 1 ? "g" : "r";
+                            block["anchor"]                    = Json::array{h.corner(0), h.corner(1)};
+                            block["extent"]                    = h.extent;
+                            block["texel_m"]                   = h.texel;
+                            block["reference_height"]          = h.reference;
+                            block["direction"]                 = vec3Json(h.light);
+                        }
+                    }
                     if (statsOnly || c.image.width == 0) return respond(ToolResult::Text(Json(block).dump()));
                     TemplatedImage<ucvec4> img = c.image;
                     const int w                = std::min(img.w, maxWidth);
@@ -1185,12 +1478,18 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "probe_lighting",
         "Reads the lighting at one pixel ([x, y], row 0 at the top) or at the screen position of a world point "
-        "(position [x, y, z]): a sequence of 8 frames (frame 1 normal, then the albedo, normal and material views, "
-        "the direct, ambient and specular radiance and the cloud shadow), each copying the resolved pixel (the MSAA "
+        "(position [x, y, z]): a sequence of 10 frames (frame 1 normal, then the albedo, normal and material views, "
+        "the direct, ambient and specular radiance, the cloud shadow, the cascades and the horizon map), each copying "
+        "the resolved pixel (the MSAA "
         "average); the camera "
         "and "
         "the environment are held during it. Answers depth, world position and distance, albedo, roughness, "
-        "metalness, ao, normal, the shadow factors (the cloud shadow), the direct, ambient (diffuse) and specular "
+        "metalness, ao, normal, the shadow factors (cloud, cascade with the cascade index, null outside every cascade, "
+        "horizon with the horizon map's shadow heights R and G above the receiver in m, and their product), the "
+        "probe pixel should lie inside a surface: the values are the MSAA average (at a cascade border or an edge the "
+        "cascade index is rounded from the average); R and G pass the fp16 target (about 1 m precision at 1-2 km, "
+        "2 m up to 4 km, 32 m near the +-60 km clamp), the "
+        "direct, ambient (diffuse) and specular "
         "(environment) radiance and the frame's radiance (cd/m^2; clay: display values), its luminance and EV100, "
         "frames and consistent (false when the depth changed by more than 1% between the frames; the camera and the "
         "environment are held). A position is projected with the camera of the sequence's first frame. Screenshots "
@@ -1271,7 +1570,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 o["roughness"] = double(p.roughness);
                 o["metalness"] = double(p.metalness);
                 o["ao"]        = double(p.ao);
-                o["shadow"]    = Json::object{{"cloud", double(p.cloudShadow)}, {"factor", double(p.shadowFactor)}};
+                o["shadow"]    = Json::object{{"cloud", double(p.cloudShadow)},
+                                              {"cascade", double(p.cascadeShadow)},
+                                              {"cascade_index", p.cascade >= 0 ? Json(p.cascade) : Json()},
+                                              {"horizon", double(p.horizonShadow)},
+                                              {"horizon_r_above_receiver", double(p.horizonR)},
+                                              {"horizon_g_above_receiver", double(p.horizonG)},
+                                              {"factor", double(p.shadowFactor)}};
                 o["radiance"]  = Json::object{{"direct", vec3Json(p.direct)},
                                               {"ambient", vec3Json(p.ambient)},
                                               {"specular", vec3Json(p.specular)}};

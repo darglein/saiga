@@ -10,14 +10,29 @@
 // and the vertex shader share.
 
 // A work chunk of the count and write passes: up to 256 instances [first, first + count) of the instance buffer with
-// their offset slot, or of the dynamics (slot = dynamicChunk: each dynamic carries its chunk's slot)
+// their offset slot, or of the dynamics (slot = dynamicChunk: each dynamic carries its chunk's slot); viewMask (S36a2):
+// bits 0..15, the views the chunk is culled for (0: the main camera, 1..: the shadow cascades)
 struct WorkChunk
 {
     uint first;
     uint count;
     uint slot;
-    uint pad;
+    uint viewMask;
 };
+
+// A view of the culling (S36a2; SceneCulling.cpp GpuCullView): six planes (camera-relative, inward: dot(n, p) + w >=
+// -radius is inside), the light-space x and y axes of a shadow view (w: the de-duplication's light depth interval,
+// axisX.w its minimum, axisY.w its maximum; the light-space z axis is planes[4].xyz), the de-duplication rectangle (xy
+// min, zw max) and params (x: 1 de-duplication on, y: the small-caster radius, z: the LOD bias, w: 1 a shadow view)
+struct CullView
+{
+    vec4 planes[6];
+    vec4 axisX;
+    vec4 axisY;
+    vec4 dedup;
+    vec4 params;
+};
+const uint maxCullViews = 16u;
 const uint dynamicChunk = 0xFFFFFFFFu;
 
 // Saiga::Vulkan::StaticInstance (32 bytes; region-relative position, quaternion as snorm16 pairs)
@@ -105,7 +120,8 @@ layout(std430, set = 0, binding = 4) readonly buffer Offsets
     OffsetEntry offsets[];
 };
 // Binding 5: the bucket counts, 6: the scratch entries, 7: the indirect commands, 8: the LOD of each bucket, 9: the
-// statistics, 10: the compacted entries, 11: the materials, 12: the palette (declared by the shaders that use them)
+// statistics, 10: the compacted entries, 11: the materials, 12: the palette, 13: the views (uniform), 14: the work
+// chunks' scratch bases (declared by the shaders that use them)
 
 // The scratch entry of an instance that is not visible
 const uint notVisible = 0xFFFFFFFFu;

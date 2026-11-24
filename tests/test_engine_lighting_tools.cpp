@@ -31,7 +31,9 @@
 #include <memory>
 #include <optional>
 
+#include "lighting_test_parameters.h"
 #include "mcp_test_helper.h"
+#include "terrain_test_hooks.h"
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -51,6 +53,7 @@ EngineAppSetup lightingSetup(bool render)
     s.height                    = 48;
     s.mcpPort                   = 0;
     s.render.imgui              = false;
+    s.render.lighting           = testLightingParameters();
     s.validation                = render;
     s.world.environment.enabled = true;
     s.world.systems             = addEnvironmentSystems;
@@ -95,6 +98,11 @@ EngineAppSetup tabSetup(bool environment)
     s.height                    = 480;
     s.render.imgui              = true;
     s.world.environment.enabled = environment;
+    // S36a2: the cascades on (small: lavapipe)
+    s.render.lighting.sunShadows        = true;
+    s.render.lighting.cascadeResolution = 512;
+    s.render.lighting.horizonShadows    = true;
+    s.render.lighting.horizonResolution = 128;
     return s;
 }
 
@@ -104,7 +112,8 @@ void showLightingTab(EngineApp& app)
     Json::object state = app.debugUi().state().object_items();
     state["sections"]  = Json::object{{"lighting/Time and weather", true}, {"lighting/Sun and moon", true},
                                       {"lighting/Exposure", true},         {"lighting/Ambient", true},
-                                      {"lighting/Sky and clouds", true},   {"lighting/GPU and memory", true}};
+                                      {"lighting/Sky and clouds", true},   {"lighting/GPU and memory", true},
+                                      {"lighting/Cascades", true},         {"lighting/Far terrain shadows", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -112,16 +121,17 @@ void showLightingTab(EngineApp& app)
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
 // suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
-// and the clouds' previews; a debug view (Exposure: with its legend) and the overlay render in the tab's frames
+// and the clouds' previews; S36a2 Cascades the cascades' strip; a debug view (Exposure: with its legend) and the
+// overlays render in the tab's frames (S36a2: the cascades' view and overlays, frozen)
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
     const Vulkan::LightingImage images[] = {
-        Vulkan::LightingImage::Luminance,         Vulkan::LightingImage::Environment,
-        Vulkan::LightingImage::TransmittanceLut,  Vulkan::LightingImage::SkyViewLut,
-        Vulkan::LightingImage::CloudCoverage,     Vulkan::LightingImage::CloudShadow,
-        Vulkan::LightingImage::MultiScatteringLut};
+        Vulkan::LightingImage::Luminance,          Vulkan::LightingImage::Environment,
+        Vulkan::LightingImage::TransmittanceLut,   Vulkan::LightingImage::SkyViewLut,
+        Vulkan::LightingImage::CloudCoverage,      Vulkan::LightingImage::CloudShadow,
+        Vulkan::LightingImage::MultiScatteringLut, Vulkan::LightingImage::CascadeStrip};
     uint32_t expected = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
@@ -131,11 +141,17 @@ void renderLightingTab(EngineApp& app)
         dispatches += app.scene()->lightingStatistics().previewDispatches;
     }
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
+    EXPECT_TRUE(app.scene()->lightingStatistics().shadows);
     EXPECT_EQ(dispatches, expected);
     for (auto image : images) EXPECT_NE(app.scene()->lightingDebugImages().preview(image), nullptr);
     app.scene()->setLightingDebug(
         Vulkan::LightingDebugState{Vulkan::LightingDebugView::Exposure, Vulkan::OverlaySunDirection});
     app.runFrames(2, 1.0 / 60);
+    app.scene()->setFreezeCascades(true);
+    app.scene()->setLightingDebug(
+        Vulkan::LightingDebugState{Vulkan::LightingDebugView::ShadowCascades, Vulkan::OverlayAll});
+    app.runFrames(2, 1.0 / 60);
+    app.scene()->setFreezeCascades(false);
     app.scene()->setLightingDebug(Vulkan::LightingDebugState());
     // The Exposure view's legend leaves the toolbar: one frame for the layout (the item positions of a later click)
     app.runFrames(1, 1.0 / 60);
@@ -372,7 +388,9 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     for (const char* args :
          {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})", R"({"min_ambient": [1, 2]})",
           R"({"sun_override": {"azimuth": 3}})", R"({"environment_resolution": 1024})", R"({"clouds": 1})",
-          R"({"cascade_count": 4})", R"({"cloud_seed": 1.5})", R"({"cloud_seed": -1})", R"({"mie_scale": 11})"})
+          R"({"local_lights": true})", R"({"cascade_count": 5})", R"({"cascade_resolution": 1000})",
+          R"({"cascade_interval": [2, 1, 1, 2]})", R"({"cloud_seed": 1.5})", R"({"cloud_seed": -1})",
+          R"({"mie_scale": 11})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
     // tone_map identity is clay: get_lighting says so
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "identity"})"))));
@@ -433,11 +451,12 @@ TEST_F(LightingDebugTools, SetLightingDebug)
     const Json bad = call(*app, "set_lighting_debug", obj(R"({"view": "shiny"})"));
     EXPECT_TRUE(isError(bad));
     EXPECT_NE(text(bad).find("albedo"), std::string::npos) << text(bad);
-    const Json badOverlay = call(*app, "set_lighting_debug", obj(R"({"overlays": ["cascade_bounds"]})"));
+    const Json badOverlay = call(*app, "set_lighting_debug", obj(R"({"overlays": ["light_volumes"]})"));
     EXPECT_TRUE(isError(badOverlay));
     EXPECT_NE(text(badOverlay).find("sun_direction"), std::string::npos) << text(badOverlay);
-    for (const char* args : {R"({"freeze_cascades": true})", R"({"mapping": {"range": [2, 1]}})",
-                             R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
+    for (const char* args :
+         {R"({"freeze_cascades": 1})", R"({"highlight_light": 3})", R"({"mapping": {"range": [2, 1]}})",
+          R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
     EXPECT_EQ(app->scene()->lightingDebug().view, Vulkan::LightingDebugView::Normals);
     // The Exposure view's heat map (centre and range; the legend of the tab)
@@ -490,8 +509,8 @@ TEST_F(LightingDebugTools, ScreenshotLightingView)
     ASSERT_TRUE(normalCentre.has_value());
     EXPECT_NE(*normalCentre, c);
     EXPECT_EQ(app->scene()->frameLightingDebug().view, Vulkan::LightingDebugView::None);
-    EXPECT_TRUE(isError(call(*app, "screenshot", obj(R"({"lighting_view": "x-ray"})"))));
-    EXPECT_TRUE(isError(call(*app, "screenshot", obj(R"({"overlays": "sun_direction"})"))));
+    EXPECT_TRUE(isError(callFrames(*app, "screenshot", obj(R"({"lighting_view": "x-ray"})"))));
+    EXPECT_TRUE(isError(callFrames(*app, "screenshot", obj(R"({"overlays": "sun_direction"})"))));
 }
 
 // capture_lighting: each a1b image returns a png of its size and the JSON block (mapping, stats with the histogram);
@@ -518,9 +537,10 @@ TEST_F(LightingDebugTools, CaptureLighting)
     ASSERT_FALSE(isError(stats)) << text(stats);
     EXPECT_EQ(stats["result"]["content"].array_items().size(), 1u);
     EXPECT_EQ(result(stats)["mapping"]["range"], Json(Json::array{0.0, 1.0}));
-    for (const char* args : {R"({"image": "cascade"})", R"({})", R"({"image": "luminance", "max_width": 10})",
-                             R"({"image": "luminance", "cascade": 1})", R"({"image": "luminance", "range": [1]})"})
-        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+    for (const char* args :
+         {R"({"image": "cascade", "cascade": 7})", R"({})", R"({"image": "luminance", "max_width": 10})",
+          R"({"image": "luminance", "cascade": 1})", R"({"image": "luminance", "range": [1]})"})
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
     // Rendering disabled: the deadline answers once (a short tool timeout; half of it, 0.25 s, is kept for the answer
     // so that it reaches the caller in time on a loaded machine)
     app->setRenderingEnabled(false);
@@ -570,7 +590,7 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
         }
     }
     for (const char* args : {R"({"image": "sky_view_lut", "mip": 1})", R"({"image": "environment", "mip": 5})"})
-        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
     const Json env = result(call(*app, "get_lighting", obj(R"({"sections": ["environment"]})")));
     EXPECT_EQ(env["environment"]["valid"], Json(true)) << env.dump();
     EXPECT_GT(env["environment"]["captures"].number_value(), 0);
@@ -610,7 +630,160 @@ TEST_F(LightingDebugTools, ProbeLighting)
     EXPECT_NEAR(wp["position"][0].number_value(), 0, 0.2);
     for (const char* args : {R"({"pixel": [64, 0]})", R"({"pixel": [-1, 3]})", R"({"pixel": [1.5, 2]})", R"({})",
                              R"({"pixel": [1, 2], "position": [0, 0, 0]})", R"({"pixel": [1, 2], "light": 3})"})
-        EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(args)))) << args;
+        EXPECT_TRUE(isError(callFrames(*app, "probe_lighting", obj(args)))) << args;
+}
+
+// S36a2: the cascades' tool keys: every set_lighting key of the part round-trips (with memory_bytes), get_lighting's
+// cascades, capture_lighting(cascade) for one cascade and all side by side, freeze_cascades, and probe_lighting in the
+// shadow of a card 1 m above the plane (the noon sun from the south: the shadow 1 m to the north) returns the cascade's
+// factor and index
+TEST_F(LightingDebugTools, CascadeTools)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    // The card (removed with the test's scene)
+    const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
+    const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
+    s.addMaterial(mat, "shadow_card", Vulkan::MaterialData());
+    s.addMesh(mesh, "shadow_card", planeMesh(vec3(0.5f, 0, 0.5f)), mat);
+    Vulkan::StaticInstance i;
+    i.setPosition(vec3(0, 1, 0));
+    i.scale                              = 1;
+    i.mesh                               = mesh;
+    const Vulkan::InstanceSetHandle card = s.addInstanceSet(RegionId(), {i});
+    // From shadows off (S36a2's flip made them the default)
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "sun_shadows": false})"))));
+    const Json initial = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})")))["parameters"];
+    // Every a2 key round-trips through previous: each requested key is in the answer's values and get_lighting's
+    // parameters (float keys as floats), and the undo restores the initial values
+    const Json request = obj(R"({"sun_shadows": true, "cascade_count": 3,
+        "cascade_resolution": 1024, "shadow_distance": 100, "split_lambda": 0.7, "cascade_interval": [1, 1, 2, 2],
+        "depth_bias_texels": 1.5, "slope_bias": 2, "normal_offset_texels": 0.5, "cascade_blend": 0.2,
+        "shadow_lod_bias": 2, "small_caster_texels": 2, "max_caster_height": 150, "min_shadow_elevation_deg": 4,
+        "cascade_caster_distance": 1000, "terrain_casts_in_cascades": false})");
+    const Json set     = call(*app, "set_lighting", request);
+    ASSERT_FALSE(isError(set)) << text(set);
+    const Json values = result(set);
+    EXPECT_EQ(values["previous"]["sun_shadows"], Json(false));
+    EXPECT_EQ(values["memory_bytes"].number_value() >= 3.0 * 1024 * 1024 * 4, true) << values.dump();
+    const Json params = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})")))["parameters"];
+    auto same         = [](const Json& a, const Json& b)
+    { return a.is_number() && b.is_number() ? float(a.number_value()) == float(b.number_value()) : a == b; };
+    for (const auto& kv : request.object_items())
+    {
+        EXPECT_TRUE(same(values["values"][kv.first], kv.second)) << kv.first << ": " << values["values"].dump();
+        EXPECT_TRUE(same(params[kv.first], kv.second)) << kv.first << ": " << params.dump();
+    }
+    EXPECT_EQ(s.lightingParameters().cascadeCount, 3);
+    // Undo with previous, then the defaults with 4 cascades for the rest
+    ASSERT_FALSE(isError(call(*app, "set_lighting", values["previous"])));
+    EXPECT_FALSE(s.lightingParameters().sunShadows);
+    const Json undone = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})")))["parameters"];
+    for (const auto& kv : request.object_items())
+        EXPECT_EQ(undone[kv.first], initial[kv.first]) << kv.first << " after the undo";
+    EXPECT_TRUE(isError(call(*app, "set_lighting", obj(R"({"sun_shadows": true, "cascade_interval": [2, 1, 1, 1]})"))));
+    EXPECT_FALSE(s.lightingParameters().sunShadows) << "all or nothing";
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"sun_shadows": true, "cascade_resolution": 1024,
+                                                          "shadow_distance": 100})"))));
+    app->runFrames(3, 1.0 / 60);
+    const Json c = result(call(*app, "get_lighting", obj(R"({"sections": ["cascades"]})")))["cascades"];
+    EXPECT_EQ(c["on"], Json(true)) << c.dump();
+    EXPECT_EQ(c["shadow_light"], Json("sun"));
+    ASSERT_EQ(c["list"].array_items().size(), 4u) << c.dump();
+    EXPECT_GT(c["list"][0]["texel_m"].number_value(), 0);
+    EXPECT_GT(c["list"][3]["split_far"].number_value(), 99.0);
+    // capture_lighting: one cascade (1024 / 1) and every cascade side by side (4 x 1024 / 2)
+    const Json one =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "cascade", "cascade": 0, "max_width": 64})"));
+    ASSERT_FALSE(isError(one)) << text(one);
+    EXPECT_EQ(imageBlock(one)["size"], Json(Json::array{1024, 1024}));
+    EXPECT_EQ(imageBlock(one)["cascades"].array_items().size(), 1u);
+    EXPECT_LT(imageBlock(one)["stats"]["min"].number_value(), 1.0) << "the card and the plane";
+    const Json all = callFrames(*app, "capture_lighting", obj(R"({"image": "cascade", "stats_only": true})"));
+    ASSERT_FALSE(isError(all)) << text(all);
+    EXPECT_EQ(result(all)["size"], Json(Json::array{2048, 512}));
+    EXPECT_EQ(result(all)["cascades"].array_items().size(), 4u);
+    for (const char* args : {R"({"image": "cascade", "cascade": 4})", R"({"image": "cascade", "cascade": -1})",
+                             R"({"image": "cascade_strip"})"})
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
+    // freeze_cascades
+    ASSERT_FALSE(isError(call(*app, "set_lighting_debug", obj(R"({"freeze_cascades": true})"))));
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["cascades"]})")))["cascades"]["frozen"],
+              Json(true));
+    ASSERT_FALSE(isError(call(*app, "set_lighting_debug", obj(R"({"freeze_cascades": false})"))));
+    // probe_lighting in the card's shadow
+    const Json pr = callFrames(*app, "probe_lighting", obj(R"({"position": [0, 0, -1.2]})"));
+    ASSERT_FALSE(isError(pr)) << text(pr);
+    const Json shadow = result(pr)["shadow"];
+    ASSERT_TRUE(shadow["cascade"].is_number()) << shadow.dump();
+    EXPECT_LT(shadow["cascade"].number_value(), 0.1) << shadow.dump();
+    EXPECT_EQ(shadow["cascade_index"], Json(0)) << shadow.dump();
+    const Json lit = result(callFrames(*app, "probe_lighting", obj(R"({"position": [3, 0, 2]})")))["shadow"];
+    EXPECT_GT(lit["cascade"].number_value(), 0.9) << lit.dump();
+    // The defaults again
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"sun_shadows": true, "cascade_resolution": 2048,
+                                                          "shadow_distance": 1500})"))));
+    s.removeInstanceSet(card);
+}
+
+// S36a2: the horizon map's tool keys: the set_lighting keys round-trip, get_lighting.horizon, capture_lighting(horizon)
+// (channels r and g, an error without a map), probe_lighting's horizon keys; the ridge pyramid set on the scene
+TEST_F(LightingDebugTools, HorizonTools)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    // The horizon map alone (inside a cascade the receivers use G: the cascades shadow the near terrain)
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "sun_shadows": false})"))));
+    // Without terrain: no map
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_shadows": true, "horizon_resolution": 128})"))));
+    app->runFrames(2, 1.0 / 60);
+    EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(R"({"image": "horizon"})"))));
+    EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(R"({"image": "luminance", "channel": "g"})"))));
+    const Json set = call(*app, "set_lighting",
+                          obj(R"({"horizon_extent": 4096, "horizon_rows_per_frame": 32, "horizon_resolution": 256})"));
+    ASSERT_FALSE(isError(set)) << text(set);
+    EXPECT_EQ(result(set)["previous"]["horizon_resolution"].number_value(), 128);
+    for (const char* args :
+         {R"({"horizon_resolution": 100})", R"({"horizon_extent": 10})", R"({"horizon_rows_per_frame": 0})"})
+        EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_resolution": 128})"))));
+    // A 4 km space with the ridge (the pyramid only: the horizon map's source), the camera beside it at sunset
+    const Vulkan::TerrainLayout layout = TerrainTestHooks::testLayout(16, 2);
+    s.setTerrainPyramid(0, TerrainTestHooks::testPyramid(TerrainTestHooks::mountainRidgeHook, layout));
+    TerrainTestHooks::renderUntilUploaded(s);
+    Vulkan::EnvironmentSettings env = app->environmentSettings();
+    env.sunOverride                 = Vulkan::SunOverride{90, 3};  // from the east (+x), 3 degrees
+    app->setEnvironmentSettings(env);
+    app->setViewCameraByTool(0, Vec3(1500, 120, 2048.5), lookRotation(Vec3(0.5, -1, 0)), 1, false);
+    // The first map: 128 rows at 32 per frame
+    app->runFrames(8, 1.0 / 60);
+    const Json r =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "full": true, "stats_only": true})"));
+    ASSERT_FALSE(isError(r)) << text(r);
+    EXPECT_EQ(result(r)["size"], Json(Json::array{128, 128}));
+    EXPECT_EQ(result(r)["channel"], Json("r"));
+    EXPECT_GT(result(r)["stats"]["max"].number_value(), result(r)["stats"]["min"].number_value());
+    const Json g =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "channel": "g", "max_width": 64})"));
+    ASSERT_FALSE(isError(g)) << text(g);
+    EXPECT_EQ(imageBlock(g)["channel"], Json("g"));
+    const Json h = result(call(*app, "get_lighting", obj(R"({"sections": ["horizon"]})")))["horizon"];
+    EXPECT_EQ(h["valid"], Json(true)) << h.dump();
+    EXPECT_EQ(h["resolution"].number_value(), 128);
+    EXPECT_GT(h["completed"].number_value(), 0);
+    // A point behind the ridge (towards -x) at 3 degrees: in its shadow
+    const Json pr = callFrames(*app, "probe_lighting", obj(R"({"pixel": [32, 24]})"));
+    ASSERT_FALSE(isError(pr)) << text(pr);
+    const Json shadow = result(pr)["shadow"];
+    ASSERT_TRUE(shadow["horizon"].is_number()) << shadow.dump();
+    EXPECT_LT(shadow["horizon"].number_value(), 0.1) << shadow.dump();
+    EXPECT_GT(shadow["horizon_r_above_receiver"].number_value(), 4) << shadow.dump();
+    // Back to the defaults of the suite
+    env.sunOverride.reset();
+    app->setEnvironmentSettings(env);
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"horizon_resolution": 1024, "horizon_extent": 32768,
+                                                          "horizon_rows_per_frame": 64, "sun_shadows": true})"))));
+    s.clearTerrain();
+    app->runFrames(1, 1.0 / 60);
 }
 
 TEST_F(LightingTools, AppStatusLighting)
@@ -747,6 +920,36 @@ TEST_F(LightingTabTest, CaptureMipWithTabOpen)
     ASSERT_FALSE(isError(r0)) << text(r0);
     EXPECT_EQ(imageBlock(r0)["size"], Json(Json::array{32 * n, 24 * n}));
     EXPECT_EQ(imageBlock(r0)["mip"], Json(0));
+}
+
+// Regression (S36a2 review, finding 7): the horizon map's channel was scene state that the tab's Far terrain section
+// set in every frame, so with the section open on R capture_lighting(horizon, channel: g) returned the R image (and
+// said "r"). The channel is a value of the request now: the capture returns G, the tab's R preview stays
+TEST_F(LightingTabTest, CaptureChannelWithTabOpen)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    s.setTerrainPyramid(
+        0, TerrainTestHooks::testPyramid(TerrainTestHooks::mountainRidgeHook, TerrainTestHooks::testLayout(16, 2)));
+    TerrainTestHooks::renderUntilUploaded(s);
+    Vulkan::EnvironmentSettings env = app->environmentSettings();
+    env.sunOverride                 = Vulkan::SunOverride{90, 3};
+    app->setEnvironmentSettings(env);
+    app->setViewCameraByTool(0, Vec3(1500, 120, 2048.5), lookRotation(Vec3(0.5, -1, 0)), 1, false);
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Far terrain shadows", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(4, 1.0 / 60);
+    const Json r = callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "stats_only": true})"));
+    ASSERT_FALSE(isError(r)) << text(r);
+    const Json g =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "channel": "g", "stats_only": true})"));
+    ASSERT_FALSE(isError(g)) << text(g);
+    EXPECT_EQ(result(r)["channel"], Json("r"));
+    EXPECT_EQ(result(g)["channel"], Json("g"));
+    // G (from cascadeCasterDistance on) is not R (from 64 m) over the ridge's lee side
+    EXPECT_NE(result(g)["stats"]["mean"].number_value(), result(r)["stats"]["mean"].number_value());
+    EXPECT_LT(result(g)["stats"]["max"].number_value(), result(r)["stats"]["max"].number_value());
 }
 
 // S36: the write of the Lighting tab's settings (setEnvironmentSettings, which its compensation slider calls; the

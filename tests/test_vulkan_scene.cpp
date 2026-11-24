@@ -29,6 +29,7 @@
 #include <set>
 
 #include "golden_image.h"
+#include "lighting_test_parameters.h"
 #include "terrain_test_hooks.h"
 #include "vulkan_test_context.h"
 
@@ -196,6 +197,13 @@ class VulkanScene : public ::testing::Test
         VulkanParameters vp;
         vp.enableImgui     = params.imgui;
         vp.offscreenFormat = offscreen;
+        params.lighting    = testLightingParameters(params.lighting);
+        // Not about shadows (as RenderSceneTest's Shadows(); the goldens keep them)
+        if (!params.lighting.forceFullUpdates)
+        {
+            params.lighting.sunShadows     = false;
+            params.lighting.horizonShadows = false;
+        }
         window             = std::make_unique<MinimizableWindow>(wp);
         scene              = std::make_unique<RenderScene>(*window, vp, params);
         pattern.init(scene->base(), scene->formats());
@@ -577,26 +585,30 @@ TEST_F(VulkanScene, GpuSections)
 {
     // S19a: the depth pre-pass and the sub-sections of the passes (dotted names), written in every frame
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 16u);
+    ASSERT_EQ(names.size(), 19u);
     EXPECT_STREQ(names[0], "transfer");
     // S36a1c: the atmosphere and the environment map
     EXPECT_STREQ(names[1], "environment");
     EXPECT_STREQ(names[2], "cull");
-    EXPECT_STREQ(names[3], "depth");
-    EXPECT_STREQ(names[4], "depth.terrain");
-    EXPECT_STREQ(names[5], "scene");
-    EXPECT_STREQ(names[6], "scene.terrain");
-    EXPECT_STREQ(names[7], "scene.instances");
-    EXPECT_STREQ(names[8], "scene.grass");
-    EXPECT_STREQ(names[9], "scene.sky");
+    // S36a2: the cascades and the horizon map
+    EXPECT_STREQ(names[3], "shadow");
+    EXPECT_STREQ(names[4], "shadow.cascades");
+    EXPECT_STREQ(names[5], "shadow.horizon");
+    EXPECT_STREQ(names[6], "depth");
+    EXPECT_STREQ(names[7], "depth.terrain");
+    EXPECT_STREQ(names[8], "scene");
+    EXPECT_STREQ(names[9], "scene.terrain");
+    EXPECT_STREQ(names[10], "scene.instances");
+    EXPECT_STREQ(names[11], "scene.grass");
+    EXPECT_STREQ(names[12], "scene.sky");
     // S36a1c: the 2D cloud layer
-    EXPECT_STREQ(names[10], "scene.clouds");
+    EXPECT_STREQ(names[13], "scene.clouds");
     // S36a1b: the debug lines and the lighting's preview conversions
-    EXPECT_STREQ(names[11], "scene.debug");
-    EXPECT_STREQ(names[12], "resolve");
-    EXPECT_STREQ(names[13], "lighting.preview");
-    EXPECT_STREQ(names[14], "post");
-    EXPECT_STREQ(names[15], "imgui");
+    EXPECT_STREQ(names[14], "scene.debug");
+    EXPECT_STREQ(names[15], "resolve");
+    EXPECT_STREQ(names[16], "lighting.preview");
+    EXPECT_STREQ(names[17], "post");
+    EXPECT_STREQ(names[18], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -621,7 +633,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 16u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 19u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);
@@ -1425,6 +1437,9 @@ TEST_F(VulkanSceneContent, Precision)
     RenderSceneParameters p;
     p.msaaSamples    = 4;
     camera.nearPlane = 0.01;
+    // The placement's precision without the sun shadows (S36a2): the cascades' texel grid is anchored in the world
+    // (texel snapping), so their PCF edges differ by 1/255 between two places 30 km apart
+    p.lighting.sunShadows = false;
     CreateScene(p);
     scene->addMaterial(1, "flat", flatMaterial());
     scene->addMaterial(2, "marker", markerMaterial());
@@ -1589,6 +1604,10 @@ TEST_F(VulkanSceneContent, ImportedMeshGolden)
     lods.lods[1].endDistance = 100;
     RenderSceneParameters p;
     p.msaaSamples = 4;
+    // The goldens' lighting (S36a2, render_scene_test_context.h's goldenSceneParameters)
+    p.lighting.forceFullUpdates  = true;
+    p.lighting.cascadeResolution = 1024;
+    p.lighting.horizonResolution = 256;
     CreateScene(p);
     scene->addMaterial(1, "box", material);
     scene->addMesh(1, "box", lods, 1);
@@ -1898,6 +1917,8 @@ TEST_F(VulkanSceneContent, StorageBufferLimit)
     p.staticInstanceCapacity = 16;
     p.dynamicCapacity        = 16;
     p.storageBufferLimit     = 48 * 1024;
+    // The main view's limits (S36a2: the shadow views add scratch entries per instance and view)
+    p.lighting.sunShadows = false;
     CreateScene(p);
     scene->addMaterial(1, "flat", flatMaterial());
     scene->addMesh(1, "box", boxMesh(vec3(0.02f, 0.02f, 0.02f), vec3(0, 0, 0), {100}, {ucvec4(255, 255, 255, 255)}), 1);

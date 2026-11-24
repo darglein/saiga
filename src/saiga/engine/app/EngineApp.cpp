@@ -697,6 +697,9 @@ void EngineApp::frame(double dt)
         if (renderScene && renderingEnabled)
         {
             Profiler::Timer t(frameProfiler, scopeRender);
+            // The frame's time step for the scene's time-dependent parts (the staggered cascades' margin): the
+            // simulation's, not the machine's frame time (S36a2 review, finding 9)
+            renderScene->setFrameTime(fixedDt > 0 ? fixedDt : dt);
             renderFrame();
         }
     }

@@ -19,10 +19,25 @@
 #include <string>
 #include <vector>
 
+#include "lighting_test_parameters.h"
+
 namespace Saiga
 {
-// The fixture of the RenderScene tests (S20): per test a HeadlessWindow and a RenderScene (imgui off, near plane 0.1;
-// the VulkanTest fixture holds one static window with the forward renderer, while a RenderScene is its own renderer).
+// The lighting of the goldens (S36a2, §17.6): golden mode (forceFullUpdates: every incremental effect complete in
+// every frame) with the cascades at 1024 and the horizon map at 256 texels (lavapipe's cost; recorded here for every
+// golden of the scene)
+inline Vulkan::RenderSceneParameters goldenSceneParameters(Vulkan::RenderSceneParameters p = {})
+{
+    p.lighting.forceFullUpdates  = true;
+    p.lighting.cascadeResolution = 1024;
+    p.lighting.horizonResolution = 256;
+    return p;
+}
+
+// The fixture of the RenderScene tests (S20): per test a HeadlessWindow and a RenderScene (imgui off, near plane 0.1,
+// S36a2: testLightingParameters; a test that compares frames uses golden mode, goldenSceneParameters or
+// LightingParameters::forceFullUpdates; the VulkanTest fixture holds one static window with the forward renderer,
+// while a RenderScene is its own renderer).
 // Size() x Samples() (96 x 64, 4 samples) unless a derived fixture overrides them. A new scene per test is cheap with
 // the device and pipeline reuse of the test process (AGENTS.md, Tests, "Test speed"; about 15 ms on lavapipe).
 // Skipped without a Vulkan 1.3 device (as VulkanTest) and without drawIndirectFirstInstance (RenderScene needs it).
@@ -42,6 +57,10 @@ class RenderSceneTest : public ::testing::Test
     // The scene's size and samples (a derived fixture may override them)
     virtual ivec2 Size() const { return ivec2(96, 64); }
     virtual int Samples() const { return 4; }
+    // The sun shadows (the cascades and the horizon map) of the scenes Create makes without golden mode: off in the
+    // fixtures of tests that are not about shadows (S36a2 review, test speed: on lavapipe the cascades' terrain costs a
+    // prototype frame about 30 ms); test_vulkan_shadows, test_vulkan_sync and the goldens cover them
+    virtual bool Shadows() const { return true; }
 
     void Create(int w, int h, int samples, Vulkan::RenderSceneParameters params = Vulkan::RenderSceneParameters())
     {
@@ -57,8 +76,14 @@ class RenderSceneTest : public ::testing::Test
         params.imgui                 = false;
         params.msaaSamples           = samples;
         params.nearPlane             = 0.1f;
-        window                       = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
-        scene                        = std::make_unique<Vulkan::RenderScene>(*window, vulkanParameters, params);
+        params.lighting              = testLightingParameters(params.lighting);
+        if (!Shadows() && !params.lighting.forceFullUpdates)
+        {
+            params.lighting.sunShadows     = false;
+            params.lighting.horizonShadows = false;
+        }
+        window = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
+        scene  = std::make_unique<Vulkan::RenderScene>(*window, vulkanParameters, params);
     }
     virtual void Destroy()
     {
@@ -76,6 +101,16 @@ class RenderSceneTest : public ::testing::Test
         cameraRotation = rotation;
         cameraFovy     = fovy;
         scene->setCamera(space, eye, rotation, fovy);
+    }
+
+    // Golden mode (LightingParameters::forceFullUpdates) for a test that compares frames: the incremental effects (the
+    // staggered cascades, the horizon map, the environment map) are complete in every frame (S36a2 review, finding 6:
+    // only these tests pay for it)
+    void GoldenMode(bool on = true)
+    {
+        Vulkan::LightingParameters l = scene->lightingParameters();
+        l.forceFullUpdates           = on;
+        scene->setLightingParameters(l);
     }
 
     // A static instance set in region 0 (removed with the scene)

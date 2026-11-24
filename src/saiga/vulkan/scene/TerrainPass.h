@@ -110,7 +110,9 @@ class SAIGA_VULKAN_API TerrainPass
         int nodes = 0, quarters = 0;
         // Refinements refused because the children's tile was not GPU-resident
         int refusedResidency = 0;
-        bool water           = false;
+        // A shadow view's nodes skipped by its de-duplication (with their subtrees; S36a2 review, finding 8)
+        int deduplicated = 0;
+        bool water       = false;
         // Nodes beyond TerrainAtlas::maxNodes (clipped)
         int clipped   = 0;
         int triangles = 0;
@@ -131,8 +133,11 @@ class SAIGA_VULKAN_API TerrainPass
     // Nothing this frame (no set, no camera)
     void skipFrame();
     bool drawsThisFrame() const { return frameValid; }
-    // Inside a pass: the terrain (settings.terrain) and the water (settings.water)
-    void render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& settings);
+    // Inside a pass: the terrain (settings.terrain) and the water (settings.water); shadows: the receivers sample the
+    // cascades and the horizon map (S36a2; false: the variant without their code, created on first use, while both
+    // are off)
+    void render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, const PrototypeSettings& settings,
+                bool shadows = true);
     // The sky (settings.sky) of the environment, last in the scene pass (EQUAL at depth 0); TerrainFrame is written
     // for every frame with a camera, also without a terrain set
     void renderSky(vk::CommandBuffer cmd, uint32_t frameIndex, const PrototypeSettings& settings);
@@ -143,6 +148,25 @@ class SAIGA_VULKAN_API TerrainPass
     // Runs terrainVertex for the probes with the last frame's node data (waits for the device); camera-relative
     // positions
     std::vector<vec4> probeVertices(const std::vector<TerrainProbe>& probes);
+
+    // S36a2: the terrain casters of the shadow views (A5): per view the CDLOD nodes inside its volume (the rectangle,
+    // the shared depth range and the terrain cap towards the light: cascadeCasterDistance horizontally) with the main
+    // view's LOD metric and morph (the same level per node as the main view draws: the shadow mesh equals the receiver
+    // mesh), in the frame slot's shadow node buffer. After transfer (it reuses the frame's anchor and ranges); nothing
+    // without a terrain frame
+    void selectForShadow(uint32_t frameIndex, const TerrainAtlas& atlas, const SceneCamera& camera,
+                         const std::vector<ShadowView>& views);
+    // Inside a cascade's depth pass: the nodes of view index (into selectForShadow's views) with terrain_shadow.vert
+    void renderShadow(vk::CommandBuffer cmd, uint32_t frameIndex, size_t view, const mat4& viewProj, float slopeBias,
+                      const PrototypeSettings& settings);
+    // Per shadow view of the last selectForShadow: the nodes and triangles
+    struct ShadowStats
+    {
+        // The selected nodes and their triangles, the nodes skipped by the view's de-duplication (in the previous
+        // cascade; with their subtrees)
+        int nodes = 0, triangles = 0, deduplicated = 0;
+    };
+    const std::vector<ShadowStats>& shadowStats() const { return shadowStatistics; }
 
     // The frame's uniforms (the grass and the sky bind the set of the frame slot)
     const TerrainFrameUniforms& frameUniforms() const { return uniforms; }
@@ -173,12 +197,32 @@ class SAIGA_VULKAN_API TerrainPass
     {
         Buffer uniforms;
         vk::DescriptorSet set;
+        // S36a2: the shadow views' nodes and the set with them at binding 5
+        Buffer shadowNodes;
+        vk::DescriptorSet shadowSet;
+        struct ShadowRange
+        {
+            uint32_t first = 0, full = 0, quarter = 0;
+        };
+        std::vector<ShadowRange> shadowRanges;
+    };
+    // The node selection's output (the main view's or a shadow view's)
+    struct Selection
+    {
+        std::vector<GpuNode> full, quarter;
+        std::vector<TerrainNodeInfo> fullInfos, quarterInfos;
+        Stats stats;
     };
     VulkanBase* base              = nullptr;
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
     uint64_t creations = 0;
-    Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline;
+    Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline, shadowPipeline;
+    // S36a2: the scene and equal pipelines without the cascade and horizon code (LIGHTING_NO_SHADOWS)
+    Pipeline sceneNoShadows, equalNoShadows;
+    bool noShadowPipelines = false;
+    void createNoShadowPipelines();
+    std::vector<ShadowStats> shadowStatistics;
     // The layouts the frame and sky sets are allocated from (independent of the pipelines)
     DescriptorSetLayout frameLayout, skyLayout;
     void createPipelines();
@@ -213,11 +257,15 @@ class SAIGA_VULKAN_API TerrainPass
     std::vector<TerrainNodeInfo> fullInfos, quarterInfos, nodeInfos;
     Stats statistics;
 
-    void select(const TerrainAtlas& atlas, const SceneCamera& camera, int32_t anchorX, int32_t anchorZ);
-    bool selectNode(const TerrainAtlas& atlas, const SceneCamera& camera, int level, int32_t nx, int32_t nz,
-                    int32_t anchorX, int32_t anchorZ, const std::vector<double>& ranges);
+    // The selection inside the planes (camera-relative, inward) with the frame's LOD ranges
+    // dedup: a shadow view whose de-duplication skips the nodes inside the previous cascade (nullptr: none)
+    void select(const TerrainAtlas& atlas, const Vec3& camera, const std::array<Vec4, 6>& planes, int32_t anchorX,
+                int32_t anchorZ, Selection& out, const ShadowView* dedup = nullptr);
+    bool selectNode(const TerrainAtlas& atlas, const Vec3& camera, const std::array<Vec4, 6>& planes, int level,
+                    int32_t nx, int32_t nz, int32_t anchorX, int32_t anchorZ, const std::vector<double>& ranges,
+                    Selection& out, const ShadowView* dedup);
     void addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, bool quarter, int32_t anchorX,
-                 int32_t anchorZ, double skirt);
+                 int32_t anchorZ, double skirt, Selection& out);
     void writeDescriptors(Frame& f, TerrainAtlas& atlas, uint32_t frameIndex);
 };
 

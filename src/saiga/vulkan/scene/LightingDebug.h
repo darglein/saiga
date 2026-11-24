@@ -88,6 +88,8 @@ class SAIGA_VULKAN_API LightingDebug
     bool requested(LightingImage image) const { return images[size_t(image)].requested; }
     // The source mip of this frame's conversion of image (its request's or show's PreviewMapping::mip)
     int sourceMip(LightingImage image) const { return images[size_t(image)].mapping.mip; }
+    // The source layer or channel (PreviewMapping::layer) the same way
+    int sourceLayer(LightingImage image) const { return images[size_t(image)].mapping.layer; }
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }
@@ -101,11 +103,27 @@ class SAIGA_VULKAN_API LightingDebug
         std::array<Texture2D*, size_t(LightingImage::Count)> image{};
         std::array<uint32_t, size_t(LightingImage::Count)> kind{};
         std::array<float, size_t(LightingImage::Count)> scale{};
+        // S36a2: a layer (or with layers > 1 that many layers side by side) of a 2D array, step source texels per
+        // preview texel (kind 2: the minimum of the first channel over them; 3: the first, 4: the second channel)
+        struct ArraySource
+        {
+            Texture2DArray* texture = nullptr;
+            uint32_t layer = 0, layers = 1, step = 1;
+            vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        };
+        std::array<ArraySource, size_t(LightingImage::Count)> array{};
         void set(LightingImage i, Texture2D* texture, uint32_t valueKind, float valueScale = 1)
         {
             image[size_t(i)] = texture;
             kind[size_t(i)]  = valueKind;
             scale[size_t(i)] = valueScale;
+        }
+        void setArray(LightingImage i, Texture2DArray* texture, uint32_t valueKind, uint32_t layer, uint32_t layers,
+                      uint32_t step, vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal)
+        {
+            array[size_t(i)] = ArraySource{texture, layer, std::max(layers, 1u), std::max(step, 1u), layout};
+            kind[size_t(i)]  = valueKind;
+            scale[size_t(i)] = 1;
         }
     };
     uint32_t recordPreviews(vk::CommandBuffer cmd, uint32_t frameIndex, const Sources& sources);
@@ -167,6 +185,9 @@ class SAIGA_VULKAN_API LightingDebug
     VulkanBase* base = nullptr;
     ComputePipeline pipeline;
     Sampler nearestSampler;
+    // The unused source binding's dummies (a 2D source or a 2D array source)
+    Texture2D dummy2D;
+    Texture2DArray dummyArray;
     Buffer partials;
     std::array<vk::DescriptorSet, size_t(LightingImage::Count) * kSlots> sets{};
     std::array<Image, size_t(LightingImage::Count)> images;

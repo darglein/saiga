@@ -113,6 +113,9 @@ class SAIGA_VULKAN_API TerrainAtlas
     const TerrainLayout& layout() const { return setLayout; }
     std::optional<int32_t> seaLevel() const { return setSeaLevel; }
     bool pyramidResident() const { return pyramidGpu; }
+    // Counts the recorded frames that changed the pyramid on the GPU (its rows or a patch; S36a2: the horizon map's
+    // max-height chain and maps follow it)
+    uint64_t pyramidVersion() const { return pyramidChanges; }
     // A tile of a streamed level is set (CPU) / GPU-resident (its copy recorded)
     bool tileSet(int level, int32_t tx, int32_t tz) const;
     bool tileResident(int level, int32_t tx, int32_t tz) const;
@@ -203,8 +206,9 @@ class SAIGA_VULKAN_API TerrainAtlas
     SpaceId setSpace      = 0;
     TerrainLayout setLayout;
     std::optional<int32_t> setSeaLevel;
-    bool pyramidGpu       = false;
-    bool pageClearPending = false;
+    bool pyramidGpu         = false;
+    uint64_t pyramidChanges = 0;
+    bool pageClearPending   = false;
     std::shared_ptr<const std::vector<int32_t>> pyramidHeights;
     Buffer atlas, pyramid, pages, masks;
     std::array<Buffer, 2> nodeBuffers, staging;

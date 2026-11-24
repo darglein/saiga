@@ -1,0 +1,54 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+// The max-height chain of the horizon map's conservative march (S36a2, A6; HorizonShadows): level 0 holds per pyramid
+// cell (32 m) the maximum of its 4 corner samples, level k the maximum of 2 x 2 cells of level k - 1 (ceil sizes);
+// int32 height units like the pyramid, all levels in one buffer at the push constant's offsets. One dispatch per level.
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer Pyramid
+{
+    int pyramid[];
+};
+layout(std430, set = 0, binding = 1) buffer Chain
+{
+    int chain[];
+};
+
+layout(push_constant) uniform Push
+{
+    int samples;  // the pyramid's samples per side
+    int level;
+    int srcOffset, srcSize;
+    int dstOffset, dstSize;
+}
+pc;
+
+void main()
+{
+    ivec2 c = ivec2(gl_GlobalInvocationID.xy);
+    if (c.x >= pc.dstSize || c.y >= pc.dstSize) return;
+    int m = -2147483647;
+    if (pc.level == 0)
+    {
+        for (int k = 0; k < 4; ++k)
+        {
+            ivec2 s = min(c + ivec2(k & 1, k >> 1), ivec2(pc.samples - 1));
+            m       = max(m, pyramid[s.y * pc.samples + s.x]);
+        }
+    }
+    else
+    {
+        for (int k = 0; k < 4; ++k)
+        {
+            ivec2 s = c * 2 + ivec2(k & 1, k >> 1);
+            if (s.x < pc.srcSize && s.y < pc.srcSize) m = max(m, chain[pc.srcOffset + s.y * pc.srcSize + s.x]);
+        }
+    }
+    chain[pc.dstOffset + c.y * pc.dstSize + c.x] = m;
+}

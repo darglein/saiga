@@ -23,6 +23,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <optional>
 #include <string>
 #include <vector>
@@ -72,15 +73,25 @@ void LightingTab::draw()
     exposure();
     ambient();
     skyAndClouds();
+    cascadesSection();
+    horizonSection();
     gpuAndMemory();
 }
 
-void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip)
+void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip, int layer)
+{
+    ImVec2 at;
+    previewImageClicked(image, log, maxWidth, at, mip, layer);
+}
+
+bool LightingTab::previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip,
+                                      int layer)
 {
     Vulkan::RenderScene* scene     = app.scene();
     Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
     mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
     mapping.mip                    = mip;
+    mapping.layer                  = layer;
     // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
     // second (LightingDebug::show)
     Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
@@ -91,12 +102,12 @@ void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxW
         if (!ImGui::IsRectVisible(size))
         {
             ImGui::Dummy(size);
-            return;
+            return false;
         }
     }
     scene->lightingDebugImages().show(image, mapping);
     Vulkan::ImGuiVulkanRenderer* imgui = scene->imguiRenderer();
-    if (!imgui || !preview) return;
+    if (!imgui || !preview) return false;
     // A new ImGui renderer (a recreated scene): the old one's textures went with it
     if (imgui != previewImgui)
     {
@@ -114,7 +125,12 @@ void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxW
         previewVersions[k] = version;
     }
     const float w = std::min(ImGui::GetContentRegionAvail().x, maxWidth);
-    ImGui::Image(previewTextures[k], ImVec2(w, w * float(preview->height) / float(std::max(preview->width, 1u))));
+    const ImVec2 size(w, w * float(preview->height) / float(std::max(preview->width, 1u)));
+    ImGui::Image(previewTextures[k], size);
+    if (!ImGui::IsItemClicked()) return false;
+    const ImVec2 lo = ImGui::GetItemRectMin(), mouse = ImGui::GetMousePos();
+    at = ImVec2((mouse.x - lo.x) / std::max(size.x, 1.0f), (mouse.y - lo.y) / std::max(size.y, 1.0f));
+    return true;
 }
 
 void LightingTab::toolbar()
@@ -141,7 +157,11 @@ void LightingTab::toolbar()
     }
     for (const auto& o : Vulkan::lightingOverlayNames())
     {
-        ImGui::SameLine();
+        // Wraps when the checkbox does not fit the panel's width
+        const ImGuiStyle& style = ImGui::GetStyle();
+        const float w           = ImGui::GetFrameHeight() + style.ItemInnerSpacing.x + ImGui::CalcTextSize(o.first).x;
+        const float lineEnd     = ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+        if (ImGui::GetItemRectMax().x + style.ItemSpacing.x + w <= lineEnd) ImGui::SameLine();
         bool on = (d.overlays & o.second) != 0;
         if (ImGui::Checkbox(o.first, &on))
         {
@@ -151,6 +171,10 @@ void LightingTab::toolbar()
     }
     Vulkan::LightingParameters p = scene->lightingParameters();
     if (ImGui::Checkbox("force full updates", &p.forceFullUpdates)) scene->setLightingParameters(p);
+    ImGui::SameLine();
+    // S36a2: freeze the cascades (with the cascade bounds and frustum splits overlays: what each cascade covers)
+    bool frozen = scene->cascadesFrozen();
+    if (ImGui::Checkbox("freeze cascades", &frozen)) scene->setFreezeCascades(frozen);
     ImGui::SameLine();
     if (ImGui::SmallButton("copy JSON"))
     {
@@ -570,6 +594,222 @@ void LightingTab::skyAndClouds()
     previewImage(Vulkan::LightingImage::MultiScatteringLut, false, 128.0f);
 }
 
+void LightingTab::cascadesSection()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene || !ui.section("lighting/Cascades", "Cascades", false)) return;
+    Vulkan::LightingParameters p         = scene->lightingParameters();
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    bool changed                         = false;
+    changed                              = ImGui::Checkbox("sun shadows", &p.sunShadows) || changed;
+    ImGui::SameLine();
+    changed = ImGui::Checkbox("terrain casts", &p.terrainCastsInCascades) || changed;
+    ImGui::SameLine();
+    bool frozen = scene->cascadesFrozen();
+    if (ImGui::Checkbox("freeze##cascades", &frozen)) scene->setFreezeCascades(frozen);
+    // The state of the frame
+    const char* light = ls.shadowLight == 0   ? "none"
+                        : !ls.physical        ? "studio sun"
+                        : ls.shadowLight == 1 ? "sun"
+                                              : "moon";
+    if (ls.shadows)
+        ImGui::Text("%d cascades, shadow light %s (%.2f, %.2f, %.2f)%s, %s filter, %.1f MiB", ls.cascadeCount, light,
+                    double(ls.shadowLightDir(0)), double(ls.shadowLightDir(1)), double(ls.shadowLightDir(2)),
+                    ls.frozen ? ", frozen" : "", ls.linearShadowFilter ? "linear" : "manual bilinear",
+                    double(ls.shadowMemoryBytes) / (1 << 20));
+    else
+        DebugUiStyle::coloredText(
+            DebugUiStyle::kRef,
+            p.sunShadows ? "no cascades this frame (no shadow light or an enclosed space)" : "sun shadows off");
+    // The GPU time against the 2 ms of the measurement rule (A5) and the 2.5 ms shadow budget (§17.10)
+    {
+        Profiler& prof  = app.gpuProfile();
+        const double ms = prof.scopeStats(prof.scope("gpu/shadow.cascades"), 120).avg;
+        if (ms > 2.0)
+        {
+            char text[96];
+            std::snprintf(text, sizeof(text), "shadow.cascades %.2f ms (2 s mean) exceeds 2 ms", ms);
+            DebugUiStyle::coloredText(DebugUiStyle::kWarn, text);
+        }
+        else
+            ImGui::Text("shadow.cascades %.3f ms (2 s mean)", ms);
+    }
+    if (DebugUiStyle::beginProperties("##lighting cascades"))
+    {
+        DebugUiStyle::property("count");
+        changed = ImGui::SliderInt("##cascade count", &p.cascadeCount, 1, 4) || changed;
+        DebugUiStyle::property("resolution");
+        {
+            const int sizes[]   = {512, 1024, 2048, 4096};
+            const char* names[] = {"512", "1024", "2048", "4096"};
+            int current         = 2;
+            for (int i = 0; i < 4; ++i)
+                if (sizes[i] == p.cascadeResolution) current = i;
+            if (ImGui::Combo("##cascade resolution", &current, names, 4))
+            {
+                p.cascadeResolution = sizes[current];
+                changed             = true;
+            }
+        }
+        DebugUiStyle::property("distance");
+        changed = ImGui::SliderFloat("##shadow distance", &p.shadowDistance, 50, 10000, "%.0f m",
+                                     ImGuiSliderFlags_Logarithmic) ||
+                  changed;
+        DebugUiStyle::property("split lambda");
+        changed = ImGui::SliderFloat("##split lambda", &p.splitLambda, 0, 1, "%.2f") || changed;
+        DebugUiStyle::property("blend band");
+        changed = ImGui::SliderFloat("##cascade blend", &p.cascadeBlend, 0, 0.5f, "%.2f") || changed;
+        DebugUiStyle::property("intervals 1-3");
+        if (ImGui::InputInt3("##cascade intervals", &p.cascadeInterval[1]))
+        {
+            for (int i = 1; i < 4; ++i) p.cascadeInterval[size_t(i)] = std::clamp(p.cascadeInterval[size_t(i)], 1, 8);
+            changed = true;
+        }
+        DebugUiStyle::property("depth bias (texels)");
+        changed = ImGui::SliderFloat("##depth bias", &p.depthBiasTexels, 0, 8, "%.2f") || changed;
+        DebugUiStyle::property("slope bias");
+        changed = ImGui::SliderFloat("##slope bias", &p.slopeBias, 0, 8, "%.2f") || changed;
+        DebugUiStyle::property("normal offset (texels)");
+        changed = ImGui::SliderFloat("##normal offset", &p.normalOffsetTexels, 0, 8, "%.2f") || changed;
+        DebugUiStyle::property("LOD bias (cascades 2-3)");
+        changed = ImGui::SliderInt("##shadow lod bias", &p.shadowLodBias, 0, 3) || changed;
+        DebugUiStyle::property("small casters (texels)");
+        changed = ImGui::SliderFloat("##small casters", &p.smallCasterTexels, 0, 10, "%.1f") || changed;
+        DebugUiStyle::property("max caster height");
+        changed = ImGui::SliderFloat("##max caster height", &p.maxCasterHeight, 0, 1000, "%.0f m") || changed;
+        DebugUiStyle::property("min caster elevation");
+        changed =
+            ImGui::SliderFloat("##min shadow elevation", &p.minShadowElevationDeg, 0.5f, 45, "%.1f deg") || changed;
+        DebugUiStyle::property("terrain caster distance");
+        changed =
+            ImGui::SliderFloat("##terrain caster distance", &p.cascadeCasterDistance, 0, 5000, "%.0f m") || changed;
+        DebugUiStyle::endProperties();
+    }
+    if (changed) scene->setLightingParameters(p);
+    if (!ls.shadows) return;
+    // A row per cascade (the casters of its last render)
+    if (ImGui::BeginTable("##cascade rows", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit))
+    {
+        for (const char* h : {"", "split (m)", "texel", "every", "updated", "instances", "triangles", "terrain"})
+            ImGui::TableSetupColumn(h);
+        ImGui::TableHeadersRow();
+        for (int c = 0; c < ls.cascadeCount; ++c)
+        {
+            const Vulkan::CascadeStatistics& k = ls.cascades[size_t(c)];
+            const vec3 col                     = Vulkan::cascadeColor(c);
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextColored(ImVec4(col(0), col(1), col(2), 1), "%d", c);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.1f - %.0f", double(k.splitNear), double(k.splitFar));
+            ImGui::TableNextColumn();
+            ImGui::Text("%.3f m", double(k.texelSize));
+            ImGui::TableNextColumn();
+            ImGui::Text("%d", k.interval);
+            ImGui::TableNextColumn();
+            ImGui::Text("%llu", (unsigned long long)k.lastUpdate);
+            ImGui::TableNextColumn();
+            ImGui::Text("%u", k.instances);
+            ImGui::TableNextColumn();
+            ImGui::Text("%.1fk", double(k.triangles) / 1000);
+            ImGui::TableNextColumn();
+            ImGui::Text("%u nodes (%u dedup), %.0fk", k.terrainNodes, k.terrainDeduplicated,
+                        double(k.terrainTriangles) / 1000);
+        }
+        ImGui::EndTable();
+    }
+    // The cascades' depth side by side; a click enlarges one (again: back to the strip)
+    if (enlargedCascade < 0 || enlargedCascade >= ls.cascadeCount)
+    {
+        enlargedCascade = -1;
+        ImGui::TextUnformatted("depth (light space, 0 near .. 1 far); click a cascade to enlarge it");
+        ImVec2 at;
+        if (previewImageClicked(Vulkan::LightingImage::CascadeStrip, false, 512.0f, at))
+            enlargedCascade = std::clamp(int(at.x * float(ls.cascadeCount)), 0, ls.cascadeCount - 1);
+    }
+    else
+    {
+        ImGui::Text("cascade %d (texel %.3f m, half extent %.0f m); click to go back", enlargedCascade,
+                    double(ls.cascades[size_t(enlargedCascade)].texelSize),
+                    double(ls.cascades[size_t(enlargedCascade)].halfExtent));
+        ImVec2 at;
+        if (previewImageClicked(Vulkan::LightingImage::Cascade, false, 512.0f, at, 0, enlargedCascade))
+            enlargedCascade = -1;
+    }
+}
+
+void LightingTab::horizonSection()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene || !ui.section("lighting/Far terrain shadows", "Far terrain shadows", false)) return;
+    Vulkan::LightingParameters p       = scene->lightingParameters();
+    const Vulkan::HorizonStatistics& h = scene->lightingStatistics().horizon;
+    bool changed                       = ImGui::Checkbox("horizon shadows", &p.horizonShadows);
+    ImGui::SameLine();
+    if (ImGui::SmallButton("recompute now")) scene->requestHorizonRecompute(false);
+    if (DebugUiStyle::beginProperties("##lighting horizon"))
+    {
+        DebugUiStyle::property("resolution");
+        {
+            const int sizes[]   = {256, 512, 1024, 2048};
+            const char* names[] = {"256", "512", "1024", "2048"};
+            int current         = 2;
+            for (int i = 0; i < 4; ++i)
+                if (sizes[i] == p.horizonResolution) current = i;
+            if (ImGui::Combo("##horizon resolution", &current, names, 4))
+            {
+                p.horizonResolution = sizes[current];
+                changed             = true;
+            }
+        }
+        DebugUiStyle::property("extent");
+        changed = ImGui::SliderFloat("##horizon extent", &p.horizonExtent, 4096, 131072, "%.0f m",
+                                     ImGuiSliderFlags_Logarithmic) ||
+                  changed;
+        DebugUiStyle::property("rows per frame");
+        changed =
+            ImGui::SliderInt("##horizon rows", &p.horizonRowsPerFrame, 1, 1024, "%d", ImGuiSliderFlags_Logarithmic) ||
+            changed;
+        DebugUiStyle::property("map");
+        if (h.valid)
+            ImGui::Text("%d^2, %.1f m texels, %.0f m", h.resolution, h.texel, h.extent);
+        else
+            ImGui::TextUnformatted(p.horizonShadows ? "none yet (no terrain or shadow light)" : "off");
+        DebugUiStyle::property("anchor");
+        ImGui::Text("(%d, %d) m, reference %.0f m", h.corner(0), h.corner(1), h.reference);
+        DebugUiStyle::property("direction");
+        ImGui::Text("(%.3f, %.3f, %.3f), el %.2f deg", double(h.light(0)), double(h.light(1)), double(h.light(2)),
+                    std::asin(std::clamp(double(h.light(1)), -1.0, 1.0)) * 57.29577951308232);
+        DebugUiStyle::property("progress");
+        {
+            char text[64];
+            std::snprintf(text, sizeof(text), h.computing ? "%d / %d rows" : "idle (%d / %d)", h.rowsDone,
+                          h.resolution);
+            ImGui::ProgressBar(h.computing && h.resolution > 0 ? float(h.rowsDone) / float(h.resolution) : 1.0f,
+                               ImVec2(-1, 0), text);
+        }
+        DebugUiStyle::property("blend");
+        ImGui::ProgressBar(h.blend, ImVec2(-1, 0));
+        DebugUiStyle::property("rows this frame");
+        ImGui::Text("%d", h.rowsThisFrame);
+        DebugUiStyle::property("recomputes");
+        ImGui::Text("%llu started, %llu completed (last frame %llu)", (unsigned long long)h.recomputes,
+                    (unsigned long long)h.completed, (unsigned long long)h.lastComplete);
+        DebugUiStyle::property("march level at 10 km");
+        ImGui::Text("%d (%.0f m cells)", h.levelAt10km, 32.0 * double(1 << h.levelAt10km));
+        DebugUiStyle::endProperties();
+    }
+    if (changed) scene->setLightingParameters(p);
+    if (!h.valid) return;
+    ImGui::RadioButton("R (from 64 m)", &horizonChannel, 0);
+    ImGui::SameLine();
+    ImGui::RadioButton("G (beyond the cascades' terrain)", &horizonChannel, 1);
+    ImGui::TextUnformatted("shadow height (m above the reference; light: high)");
+    previewImage(Vulkan::LightingImage::Horizon, false, 384.0f, 0, horizonChannel);
+}
+
 void LightingTab::gpuAndMemory()
 {
     DebugUi& ui                = app.debugUi();
@@ -580,7 +820,8 @@ void LightingTab::gpuAndMemory()
         // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
         Profiler& p     = app.gpuProfile();
         double lighting = 0, debug = 0;
-        for (const char* n : {"environment", "scene.sky", "scene.clouds", "scene.debug", "lighting.preview"})
+        for (const char* n : {"environment", "shadow.cascades", "shadow.horizon", "scene.sky", "scene.clouds",
+                              "scene.debug", "lighting.preview"})
         {
             const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
             const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";

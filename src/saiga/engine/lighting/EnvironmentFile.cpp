@@ -117,6 +117,28 @@ struct LightingDoc
         v("environmentUpdateDegrees", p.environmentUpdateDegrees);
         v("clouds", p.clouds);
         v("forceFullUpdates", p.forceFullUpdates);
+        // S36a2: the cascades
+        v("sunShadows", p.sunShadows);
+        v("cascadeCount", p.cascadeCount);
+        v("cascadeResolution", p.cascadeResolution);
+        v("shadowDistance", p.shadowDistance);
+        v("splitLambda", p.splitLambda);
+        v("cascadeInterval", p.cascadeInterval);
+        v("depthBiasTexels", p.depthBiasTexels);
+        v("slopeBias", p.slopeBias);
+        v("normalOffsetTexels", p.normalOffsetTexels);
+        v("cascadeBlend", p.cascadeBlend);
+        v("shadowLodBias", p.shadowLodBias);
+        v("smallCasterTexels", p.smallCasterTexels);
+        v("maxCasterHeight", p.maxCasterHeight);
+        v("minShadowElevationDeg", p.minShadowElevationDeg);
+        v("cascadeCasterDistance", p.cascadeCasterDistance);
+        v("terrainCastsInCascades", p.terrainCastsInCascades);
+        // S36a2: the horizon map
+        v("horizonShadows", p.horizonShadows);
+        v("horizonResolution", p.horizonResolution);
+        v("horizonExtent", p.horizonExtent);
+        v("horizonRowsPerFrame", p.horizonRowsPerFrame);
     }
 };
 

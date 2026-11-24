@@ -143,13 +143,35 @@ struct EnvironmentSettings
 
 // The renderer's lighting parameters (RenderSceneParameters::lighting, RenderScene::setLightingParameters; the target
 // of S37's quality tiers; R-MECH-1). Every field is changeable at run time (applied at the next frame start) and has a
-// set_lighting key. Later parts of S36 add the shadow (a2) and local light (b) fields.
+// set_lighting key. Part b of S36 adds the local light fields.
 struct LightingParameters
 {
     int environmentResolution      = 128;    // 32..512, a power of two
     float environmentUpdateDegrees = 0.5f;   // the shadow light's movement that re-captures the environment map
     bool clouds                    = true;   // the cloud layer and its shadows
     bool forceFullUpdates          = false;  // golden mode (§17.6): every incremental effect updates fully every frame
+    // S36a2: the sun and moon cascades (A5 of the S36 plan)
+    bool sunShadows                    = true;          // the cascaded shadow maps of the shadow light
+    int cascadeCount                   = 4;             // 1..4
+    int cascadeResolution              = 2048;          // 256..4096, a power of two
+    float shadowDistance               = 1500;          // m, the far end of the last cascade
+    float splitLambda                  = 0.8f;          // the log / linear blend of the splits
+    std::array<int, 4> cascadeInterval = {1, 1, 1, 2};  // frames between the updates of each cascade (the first 1)
+    float depthBiasTexels       = 1.0f;  // the receiver's constant bias along the light, in texels of its cascade
+    float slopeBias             = 1.5f;  // the rasterizer's depthBiasSlopeFactor
+    float normalOffsetTexels    = 1.0f;  // the receiver's offset along its normal, in texels of its cascade
+    float cascadeBlend          = 0.1f;  // the blend band at a cascade's border, a fraction of its half extent
+    int shadowLodBias           = 1;     // LOD levels added for cascades 2-3 (cascades 0-1: the main view's LOD)
+    float smallCasterTexels     = 1.5f;  // casters whose radius projects below this many texels are skipped
+    float maxCasterHeight       = 120;   // m above the receivers: the instances' cap towards the light
+    float minShadowElevationDeg = 5;     // the elevation the instances' cap is built for at most
+    float cascadeCasterDistance = 1371;  // m towards the light (horizontally): terrain casters in the cascades
+    bool terrainCastsInCascades = true;  // the terrain is drawn into the cascades
+    // S36a2: the far terrain horizon map (A6)
+    bool horizonShadows     = true;   // the horizon map of the shadow light
+    int horizonResolution   = 1024;   // 128..4096, a power of two
+    float horizonExtent     = 32768;  // m, the square around the anchor
+    int horizonRowsPerFrame = 64;     // the base of the incremental update (more when the light moves fast)
 };
 
 // ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
@@ -175,14 +197,18 @@ enum class LightingDebugView : uint8_t
     CloudShadow,
     ShadowFactor,
     Exposure,
+    // S36a2: the cascade factor tinted by the cascade index (red, green, blue, yellow; gray outside every cascade)
+    ShadowCascades,
+    // S36a2: the horizon map's factor (raw)
+    HorizonShadow,
     Count
 };
 // snake_case names (set_lighting_debug, screenshot lighting_view)
 inline const char* lightingDebugViewName(LightingDebugView v)
 {
-    static const char* names[] = {"none",         "lighting_only", "albedo",      "normals",      "roughness",
-                                  "metalness",    "material",      "direct_only", "ambient_only", "specular_only",
-                                  "cloud_shadow", "shadow_factor", "exposure"};
+    static const char* names[] = {"none",         "lighting_only", "albedo",      "normals",         "roughness",
+                                  "metalness",    "material",      "direct_only", "ambient_only",    "specular_only",
+                                  "cloud_shadow", "shadow_factor", "exposure",    "shadow_cascades", "horizon_shadow"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingDebugView::Count), "lightingDebugViewName");
     return v < LightingDebugView::Count ? names[size_t(v)] : "none";
 }
@@ -194,16 +220,37 @@ inline std::optional<LightingDebugView> lightingDebugViewFromName(const std::str
 }
 
 // The overlays (flags, combinable), drawn on top in the scene pass by DebugLines. a1: SunDirection (lines from the
-// camera's focus towards the sun and the moon); a2 and b add theirs
+// camera's focus towards the sun and the moon); a2: CascadeColors (the surfaces tinted by their cascade, also with
+// other views; in the shaders), CascadeBounds (each cascade's box and caster volume as a wireframe in its colour),
+// CameraFrustumSplits (the split planes of the camera frustum the cascades were fitted to; with frozen cascades the
+// frozen camera's); b adds theirs
 enum LightingOverlay : uint32_t
 {
-    OverlaySunDirection = 1u << 0,
-    OverlayAll          = OverlaySunDirection
+    OverlaySunDirection        = 1u << 0,
+    OverlayCascadeColors       = 1u << 1,
+    OverlayCascadeBounds       = 1u << 2,
+    OverlayCameraFrustumSplits = 1u << 3,
+    // The horizon map's extent and its inner half (the anchor moves when the camera leaves it)
+    OverlayHorizonAnchor = 1u << 4,
+    OverlayAll = OverlaySunDirection | OverlayCascadeColors | OverlayCascadeBounds | OverlayCameraFrustumSplits |
+                 OverlayHorizonAnchor
 };
 inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames()
 {
-    static const std::vector<std::pair<const char*, uint32_t>> names = {{"sun_direction", OverlaySunDirection}};
+    static const std::vector<std::pair<const char*, uint32_t>> names = {
+        {"sun_direction", OverlaySunDirection},
+        {"cascade_colors", OverlayCascadeColors},
+        {"cascade_bounds", OverlayCascadeBounds},
+        {"camera_frustum_splits", OverlayCameraFrustumSplits},
+        {"horizon_anchor", OverlayHorizonAnchor}};
     return names;
+}
+// The display colours of the cascades (the ShadowCascades view, the overlays)
+inline vec3 cascadeColor(int cascade)
+{
+    static const vec3 colors[4] = {vec3(1.0f, 0.25f, 0.2f), vec3(0.3f, 1.0f, 0.3f), vec3(0.3f, 0.5f, 1.0f),
+                                   vec3(1.0f, 0.9f, 0.2f)};
+    return cascade >= 0 && cascade < 4 ? colors[cascade] : vec3(0.6f, 0.6f, 0.6f);
 }
 
 struct LightingDebugState
@@ -219,7 +266,10 @@ struct LightingDebugState
 // only); a1c the atmosphere's TransmittanceLut and SkyViewLut (luminance, cd/m^2), the environment map's Environment
 // (the front cube's mip as a cross, cd/m^2), Irradiance (its SH per direction, lux; capture only), the cloud layer's
 // CloudCoverage (the coverage at the cloudiness over the tile) and CloudShadow (the cloud shadow factor on the plane of
-// the camera height around the camera), the a1c review the MultiScatteringLut (luminance); a2 and b add theirs
+// the camera height around the camera), the a1c review the MultiScatteringLut (luminance); a2 the cascades' depth
+// (Cascade: one layer, RenderScene's preview cascade; CascadeStrip: every layer side by side; the light-space depth 0
+// at the near end, 1 at the far end, at most 1024 texels per layer, the minimum over the texels a preview texel
+// covers), Horizon (the front horizon map's R or G shadow height, m relative to its reference); b adds theirs
 enum class LightingImage : uint8_t
 {
     Luminance,
@@ -232,13 +282,16 @@ enum class LightingImage : uint8_t
     CloudShadow,
     // S36a1c review: the atmosphere's multiple-scattering LUT (the luminance of rgb)
     MultiScatteringLut,
+    Cascade,
+    CascadeStrip,
+    Horizon,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {"luminance",      "brdf_lut",     "transmittance_lut",
-                                  "sky_view_lut",   "environment",  "irradiance",
-                                  "cloud_coverage", "cloud_shadow", "multi_scattering_lut"};
+    static const char* names[] = {
+        "luminance",      "brdf_lut",     "transmittance_lut",    "sky_view_lut", "environment",   "irradiance",
+        "cloud_coverage", "cloud_shadow", "multi_scattering_lut", "cascade",      "cascade_strip", "horizon"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -267,6 +320,9 @@ struct PreviewMapping
     // The source's mip (the environment map's cube; 0 for the other images): part of the request, so a capture and the
     // tab's preview of different mips do not overwrite each other (each frame converts one)
     int mip = 0;
+    // The source's layer or channel the same way (S36a2 review, finding 7): the cascade (Cascade) or the horizon map's
+    // channel (Horizon: 0 R, 1 G); 0 for the other images
+    int layer = 0;
 };
 
 // The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the
@@ -291,7 +347,52 @@ struct EnvironmentMapStatistics
     bool valid = false;
 };
 
-// The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; a2 and b add theirs)
+// One shadow cascade (S36a2, LightingStatistics::cascades): its slice of the camera frustum, its light-space box (the
+// centre in world coordinates, the half extent in xy, the shared depth range), texel size, update interval and the
+// frame it was last rendered in, and the casters drawn into it the last time (instances and triangles from the GPU
+// statistics; terrain nodes and triangles from the selection)
+struct CascadeStatistics
+{
+    bool valid      = false;
+    float splitNear = 0, splitFar = 0;   // m from the camera
+    Vec3 center         = Vec3::Zero();  // world (the box's centre at mid depth)
+    float halfExtent    = 0;             // m, the rectangle's half side
+    float depthRange    = 0;             // m, the shared light-space depth range
+    float texelSize     = 0;             // m
+    int interval        = 1;
+    uint64_t lastUpdate = 0;
+    // Rendered in this frame (a staggered cascade every interval frames, or again when its de-duplication no longer
+    // holds; nit 21)
+    bool updatedThisFrame = false;
+    uint32_t instances = 0, triangles = 0, terrainNodes = 0, terrainTriangles = 0;
+    // The terrain nodes skipped by the de-duplication (drawn by the previous cascade, with their subtrees)
+    uint32_t terrainDeduplicated = 0;
+};
+
+// The horizon map (S36a2, LightingStatistics::horizon): the front map's transform (its corner in integer metres, its
+// reference height in m, the light it was computed for), the back map in progress (rows done), the blend between the
+// previous and the front map, the rows computed in the frame, the recomputes started and completed, the chain level
+// the march uses at 10 km (far shadows can grow by one cell's height range of it)
+struct HorizonStatistics
+{
+    bool on = false, valid = false, computing = false;
+    int resolution = 0;
+    double extent = 0, texel = 0;
+    ivec2 corner     = ivec2(0, 0);
+    double reference = 0;
+    vec3 light       = vec3(0, 1, 0);
+    int rowsDone = 0, rowsThisFrame = 0;
+    float blend         = 1;
+    uint64_t recomputes = 0, completed = 0, lastComplete = 0;
+    // Maps in progress restarted by a terrain change (their rows would mix the old and the new terrain)
+    uint64_t restarts    = 0;
+    int levelAt10km      = 0;
+    // The chain buffer and the maps; chainBytes: the chain's part
+    uint64_t memoryBytes = 0;
+    uint64_t chainBytes  = 0;
+};
+
+// The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; b adds its own)
 struct LightingStatistics
 {
     uint64_t frame = 0;
@@ -317,6 +418,19 @@ struct LightingStatistics
     // The cloud layer: drawn (and its shadows on) this frame, the mean coverage at the cloudiness
     bool clouds             = false;
     float cloudMeanCoverage = 0;
+    // S36a2: the cascades (on: rendered this frame or kept), the shadow light's direction they were built for, frozen
+    bool shadows                              = false;
+    bool frozen                               = false;
+    int cascadeCount                          = 0;
+    vec3 shadowLightDir                       = vec3(0, 1, 0);
+    std::array<CascadeStatistics, 4> cascades = {};
+    // The cascades' depth images (bytes) and whether the comparison sampler filters linearly
+    uint64_t shadowMemoryBytes = 0;
+    bool linearShadowFilter    = false;
+    HorizonStatistics horizon;
+    // The horizon map the frame's previews converted (the front map after the frame's update; capture_lighting's
+    // anchor and reference: CodeRabbit #85 round 2)
+    HorizonStatistics horizonPreview;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is
@@ -343,8 +457,14 @@ struct LightingProbe
     vec3 normal     = vec3(0, 0, 0);
     float roughness = 0, metalness = 0, ao = 0;
     vec3 direct = vec3(0, 0, 0), ambient = vec3(0, 0, 0), specular = vec3(0, 0, 0);
-    // The shadow factors (a1: the cloud factor, the CloudShadow frame; a2 adds the cascades and the horizon)
+    // The shadow factors (a1: the cloud factor, the CloudShadow frame; a2: the cascades, the ShadowCascades frame: the
+    // cascade's factor and its index, -1 outside every cascade)
     float cloudShadow = 1, shadowFactor = 1;
+    float cascadeShadow = 1;
+    int cascade         = -1;
+    // The horizon map (the HorizonShadow frame): its factor and the shadow heights R and G above the receiver (m;
+    // negative: below it, lit)
+    float horizonShadow = 1, horizonR = 0, horizonG = 0;
 };
 
 // The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so

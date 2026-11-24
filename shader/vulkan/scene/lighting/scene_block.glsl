@@ -63,6 +63,19 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // x: the camera height above the sea level (m; the atmosphere's LUTs), y: 1 the environment cube is valid, z: its
     // last mip, w: the sky-view LUT's horizon elevation (rad; skyViewHorizon of the radius it was computed at)
     vec4 atmosphere;
+    // S36a2: per cascade the camera-relative light view-projection (xy NDC over its rectangle, z depth 0 near .. 1 far)
+    // and params (x texel size m, y the blend band in NDC, z 1 valid, w the edge margin in NDC: weight 0 beyond 1 - w)
+    mat4 cascadeMatrix[4];
+    vec4 cascadeParams[4];
+    // x: cascade count (0: off), y: depth bias (texels), z: normal offset (texels), w: 1 linear comparison filtering
+    vec4 shadowParams;
+    // S36a2: the horizon map: previous and front map (xy corner - camera (m), z 1 / texel, w layer, -1 none), ref (x, y
+    // the maps' reference height - camera y, z blend previous -> front, w resolution), params (x on, y tan(elevation),
+    // z use G inside the cascades, w linear filtering)
+    vec4 horizonPrev;
+    vec4 horizonFront;
+    vec4 horizonRef;
+    vec4 horizonParams;
 }
 lighting;
 

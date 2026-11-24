@@ -388,6 +388,75 @@ struct RenderStatistics
         std::array<uint32_t, 4> instancesPerLod{};
     };
     std::vector<TrackedMesh> trackedMeshes;
+    // S36a2: the instances and triangles drawn into each shadow cascade (views 1..4 of the culling; 0 without
+    // shadows). instancesPerLod and the tracked meshes stay the main view's
+    std::array<uint32_t, 4> cascadeInstances{};
+    std::array<uint32_t, 4> cascadeTriangles{};
+};
+
+// The views of SceneCulling (S36a2, docs/engine_design.md §10.2): view 0 the main camera, views 1..kMaxCascades the
+// shadow cascades; the work chunks' 16-bit view masks leave room for part b's atlas faces
+constexpr int kMaxCascades  = 4;
+constexpr int kMaxCullViews = 16;
+
+// A shadow view of the culling and the shadow passes (S36a2, A5 of docs/stages/S36_lighting.plan.md): a cascade's
+// orthographic light-space volume, relative to the camera. Light space: x = axisX, y = axisY, z = axisZ (towards the
+// light); a camera-relative point p has the coordinates (dot(axisX, p), dot(axisY, p), dot(axisZ, p)). The volume is
+// the xy rectangle times the depth range shared by every cascade (D23): from the receivers' far end zMin to their near
+// end zMax, extended towards the light by the casters' caps (casters nearer than zMax are pancaked onto depth 0)
+struct ShadowView
+{
+    Vec3 axisX = Vec3(1, 0, 0), axisY = Vec3(0, 1, 0), axisZ = Vec3(0, 0, 1);
+    Vec2 rectMin = Vec2::Zero(), rectMax = Vec2::Zero();
+    double zMin = 0, zMax = 0;
+    // The caps towards the light beyond zMax: instances (maxCasterHeight / sin(max(elevation, minimum))), terrain
+    // (cascadeCasterDistance horizontally)
+    double instanceCap = 0, terrainCap = 0;
+    // De-duplication: a caster whose bounding sphere's xy footprint lies inside this rectangle and whose light depth
+    // lies inside [dedupZMin, dedupZMax] (a part of the previous cascade's caster volume) is not drawn into this view
+    // (its whole shadow falls into the previous cascade, which contains it)
+    bool dedup    = false;
+    Vec2 dedupMin = Vec2::Zero(), dedupMax = Vec2::Zero();
+    double dedupZMin = 0, dedupZMax = 0;
+    // The terrain's de-duplication interval ends at the previous cascade's terrain cap (<= dedupZMax; S36a2 review,
+    // finding 8: the terrain nodes are de-duplicated like the instances)
+    double dedupZMaxTerrain = 0;
+    // Casters with a (scaled) bounding radius below this are skipped (LightingParameters::smallCasterTexels texels)
+    double smallRadius = 0;
+    // LOD levels added to the main view's LOD (clamped at the mesh's last LOD; D10: 0 for cascades 0-1)
+    int lodBias = 0;
+    // The camera-relative light view-projection: depth 0 at zMax, 1 at zMin (not reversed), xy over the rectangle
+    mat4 viewProj = mat4::Identity();
+
+    // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
+    // (zMin) and the near cap (zMax + the instances' or the terrain's cap)
+    // The light-space footprint of the camera-relative AABB [lo, hi] lies inside the de-duplication rectangle and its
+    // light depth inside the de-duplication interval (of the instances, or of the terrain)
+    bool dedupContains(const Vec3& lo, const Vec3& hi, bool terrain) const
+    {
+        if (!dedup) return false;
+        double x0 = 1e300, x1 = -1e300, y0 = 1e300, y1 = -1e300, z0 = 1e300, z1 = -1e300;
+        for (int c = 0; c < 8; ++c)
+        {
+            const Vec3 p((c & 1) ? hi(0) : lo(0), (c & 2) ? hi(1) : lo(1), (c & 4) ? hi(2) : lo(2));
+            const double x = axisX.dot(p), y = axisY.dot(p), z = axisZ.dot(p);
+            x0 = std::min(x0, x);
+            x1 = std::max(x1, x);
+            y0 = std::min(y0, y);
+            y1 = std::max(y1, y);
+            z0 = std::min(z0, z);
+            z1 = std::max(z1, z);
+        }
+        return x0 >= dedupMin(0) && x1 <= dedupMax(0) && y0 >= dedupMin(1) && y1 <= dedupMax(1) && z0 >= dedupZMin &&
+               z1 <= (terrain ? dedupZMaxTerrain : dedupZMax);
+    }
+    std::array<Vec4, 6> planes(bool terrain) const
+    {
+        const double cap = zMax + (terrain ? terrainCap : instanceCap);
+        auto plane       = [](const Vec3& n, double w) { return Vec4(n(0), n(1), n(2), w); };
+        return {plane(axisX, -rectMin(0)), plane(-axisX, rectMax(0)), plane(axisY, -rectMin(1)),
+                plane(-axisY, rectMax(1)), plane(axisZ, -zMin),       plane(-axisZ, cap)};
+    }
 };
 
 // The maximum length of RenderScene::trackMeshStatistics's list: the scan writes 4 counts per tracked mesh into the

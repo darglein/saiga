@@ -28,6 +28,8 @@ struct SceneLightingBindings
     std::optional<vk::DescriptorImageInfo> foliage;
     AmbientBindings ambient;
     std::optional<vk::DescriptorImageInfo> cloudCoverage, brdfLut, transmittanceLut, skyViewLut;
+    // S36a2: the cascade shadow map (a depth 2D array with its comparison sampler) and the horizon maps
+    std::optional<vk::DescriptorImageInfo> cascades, horizon;
 };
 
 /**
@@ -40,6 +42,9 @@ struct SceneLightingBindings
  * horizon maps (sampler2DArray), 10 the lights, 11 the cluster table, 12 the light indices (storage), 13 the shadow
  * atlas (sampler2DArrayShadow), 14 the atlas tile table (storage). RenderScene writes it once per frame; SceneCulling,
  * TerrainPass and GrassPass create their pipelines with layout() and bind set(frameIndex) as set 1.
+ *
+ * The shadow and atlas pipelines (S36a2, b) use the small shadowLayout() (0 the block, 1 the foliage texture) and
+ * shadowSet(frameIndex): a depth image that is the current attachment must not be bound through a set of the same draw.
  */
 class SAIGA_VULKAN_API SceneLightingSet
 {
@@ -60,6 +65,12 @@ class SAIGA_VULKAN_API SceneLightingSet
 
     // The layout's description for a pipeline (identically defined: compatible with the sets of set())
     static DescriptorSetLayout layout();
+    // The shadow pipelines' set 1 (S36a2): the block and the foliage texture only
+    static DescriptorSetLayout shadowLayout();
+    vk::DescriptorSet& shadowSet(uint32_t frameIndex) { return frames[frameIndex].shadowSet; }
+    // The comparison sampler of the cascades (linear where D32 supports linear filtering) and whether it is linear
+    Sampler& shadowSampler() { return compareSampler; }
+    bool linearShadowFilter() const { return linearCompare; }
     // The frame slot's block and bindings (its previous frame has completed)
     void write(uint32_t frameIndex, const SceneLighting& block, const SceneLightingBindings& bindings);
     vk::DescriptorSet& set(uint32_t frameIndex) { return frames[frameIndex].set; }
@@ -70,11 +81,12 @@ class SAIGA_VULKAN_API SceneLightingSet
     struct Frame
     {
         Buffer buffer;
-        vk::DescriptorSet set;
+        vk::DescriptorSet set, shadowSet;
         SceneLighting block;
     };
     VulkanBase* base = nullptr;
-    DescriptorSetLayout ownLayout;
+    DescriptorSetLayout ownLayout, ownShadowLayout;
+    bool linearCompare = false;
     std::array<Frame, 2> frames;
     // 1x1 dummies: a color 2D array (foliage, horizon), a 2D texture, a cube, a depth 2D array with a comparison
     // sampler, a storage buffer

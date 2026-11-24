@@ -47,6 +47,7 @@
 #include <map>
 #include <thread>
 
+#include "lighting_test_parameters.h"
 #include "mcp_test_helper.h"
 #include "terrain_test_hooks.h"
 
@@ -75,8 +76,9 @@ EngineAppSetup appSetup(bool render)
     s.height        = 48;
     s.mcpPort       = 0;
     s.world.actions = actions;
-    s.render.imgui  = false;
-    s.validation    = render;  // a validation error fails the render tests (if the layer is installed)
+    s.render.imgui    = false;
+    s.render.lighting = testLightingParameters();
+    s.validation      = render;  // a validation error fails the render tests (if the layer is installed)
     return s;
 }
 
@@ -1536,6 +1538,9 @@ TEST_F(EngineAppRender, GpuSections)
                                                "gpu/transfer",
                                                "gpu/environment",
                                                "gpu/cull",
+                                               "gpu/shadow",
+                                               "gpu/shadow.cascades",
+                                               "gpu/shadow.horizon",
                                                "gpu/depth",
                                                "gpu/depth.terrain",
                                                "gpu/scene",
@@ -2431,6 +2436,11 @@ EngineAppSetup terrainAppSetup(TerrainHeightHook hook)
     EngineAppSetup s = appSetup(true);
     s.world.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(32, 2, hook, 0));
     s.world.generators = TerrainTestHooks::registerTestHookGenerators;
+    // No cascades and no horizon map (the clay studio sun is a shadow light): these tests bound the wall clock of
+    // frames after camera jumps of kilometres, where a refit with the terrain casters and the horizon map's restart
+    // cost a loaded lavapipe more than the bounds (CI: a 124 ms frame against StreamTimePausesTheClock's 100 ms)
+    s.render.lighting.sunShadows     = false;
+    s.render.lighting.horizonShadows = false;
     return s;
 }
 

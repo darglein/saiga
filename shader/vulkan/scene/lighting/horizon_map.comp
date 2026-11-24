@@ -1,0 +1,100 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+
+// The far terrain horizon map (S36a2, A6; HorizonShadows): per texel two shadow heights relative to the map's
+// reference height, with d the horizontal direction towards the shadow light and the march over the terrain's
+// max-height chain (horizon_maxmip.comp): R = max over t >= 64 m of (h(x + t d) - t tan(el)), G the same over t >=
+// cascadeCasterDistance (the cascades draw the terrain nearer than that). The march is conservative (D25): a step
+// [t0, t1] takes the maximum of the cells its segment touches (the cells of both ends and, when they are diagonal
+// neighbours, the other two; cells at least one step long) minus t0 tan(el), a bound of every point of the ray in it;
+// 16 m steps on the 32 m cells up to 1 km and around G's first distance, 32 m steps up to 4 km, then geometric (t / 48)
+// up to 24 km or the space's edge. A crest is never missed; far shadows grow by at most the height range of a cell
+// beside the ray (the level used at 10 km is reported). Rows [row0, row0 + rows) of the map layer.
+
+layout(local_size_x = 64) in;
+
+layout(std430, set = 0, binding = 0) readonly buffer Chain
+{
+    int chain[];
+};
+layout(set = 0, binding = 1, rg32f) uniform writeonly image2DArray horizon;
+
+layout(push_constant) uniform Push
+{
+    ivec2 corner;  // the map's corner in the space (integer metres)
+    int resolution;
+    int layer;
+    int row0;
+    int rows;
+    float texel;          // m
+    int refUnits;         // the reference height (height units), relative heights below
+    vec2 towardsLight;    // horizontal, normalized
+    float tanEl;          // tan(elevation)
+    float casterDistance; // m: G's first distance
+    int cells;            // level 0's cells per side
+    int levels;
+    float spaceSize;      // m
+    float pad;
+    ivec4 offsets[3];     // the chain's level offsets (12 levels)
+}
+pc;
+
+const float kHeightUnit = 1.0 / 1024.0;
+const float kNone       = -1.0e9;
+
+int levelOffset(int l)
+{
+    return pc.offsets[l >> 2][l & 3];
+}
+
+// The height (m, relative to the reference) of cell c of level l, kNone outside the space
+float cellHeight(int l, ivec2 c)
+{
+    int n = (pc.cells + (1 << l) - 1) >> l;
+    if (any(lessThan(c, ivec2(0))) || any(greaterThanEqual(c, ivec2(n)))) return kNone;
+    return float(chain[levelOffset(l) + c.y * n + c.x] - pc.refUnits) * kHeightUnit;
+}
+
+// The maximum height of the cells of level l the segment [a, b] touches (b - a no longer than a cell)
+float segmentMax(int l, vec2 a, vec2 b)
+{
+    // The pyramid's 32 m cells (TerrainLayout::pyramidSpacing; HorizonShadows.cpp asserts it)
+    float size = 32.0 * float(1 << l);
+    ivec2 ca   = ivec2(floor(a / size)), cb = ivec2(floor(b / size));
+    float h    = max(cellHeight(l, ca), cellHeight(l, cb));
+    if (ca.x != cb.x && ca.y != cb.y) h = max(h, max(cellHeight(l, ivec2(ca.x, cb.y)), cellHeight(l, ivec2(cb.x, ca.y))));
+    return h;
+}
+
+void main()
+{
+    int x = int(gl_GlobalInvocationID.x);
+    int y = pc.row0 + int(gl_GlobalInvocationID.y);
+    if (x >= pc.resolution || y >= pc.row0 + pc.rows || y >= pc.resolution) return;
+    vec2 p  = vec2(pc.corner) + (vec2(x, y) + 0.5) * pc.texel;
+    vec2 d  = pc.towardsLight;
+    float R = kNone, G = kNone;
+    float t = 64.0;
+    while (t < 24000.0)
+    {
+        bool fine = t < 1000.0 || abs(t - pc.casterDistance) < 96.0;
+        float l   = fine ? 16.0 : (t < 4000.0 ? 32.0 : t / 48.0);
+        // The level whose cells are at least one step long
+        int lvl = min(max(int(ceil(log2(l / 32.0) - 1e-4)), 0), pc.levels - 1);
+        vec2 a  = p + d * t, b = p + d * (t + l);
+        // Outside the space: no more terrain towards the light
+        if (any(lessThan(a, vec2(-l))) || any(greaterThan(a, vec2(pc.spaceSize + l)))) break;
+        float h = segmentMax(lvl, a, b);
+        if (h > kNone)
+        {
+            R = max(R, h - t * pc.tanEl);
+            if (t + l > pc.casterDistance) G = max(G, h - max(t, pc.casterDistance) * pc.tanEl);
+        }
+        t += l;
+    }
+    imageStore(horizon, ivec3(x, y, pc.layer), vec4(R, G, 0.0, 0.0));
+}
