@@ -9,6 +9,7 @@
 #include "saiga/core/math/ChunkId.h"
 #include "saiga/core/math/math.h"
 #include "saiga/export.h"
+#include "saiga/vulkan/scene/LightingTypes.h"
 
 #include <array>
 #include <cstddef>
@@ -40,8 +41,11 @@ struct RenderSceneParameters
     vec4 clearColor = vec4(57, 57, 57, 255) / 255.0f;
     bool imgui      = true;
     ToneMap toneMap = ToneMap::Identity;
-    // Fixed until auto exposure (S37); ignored (1) with Identity
+    // Fixed until auto exposure (S37); ignored (1) with Identity. Without an environment (setEnvironment never called)
+    // the frame's exposure; with one (S36) a multiplier on top of its EV100 (exposureFromEv100: 2 is one stop brighter)
     float exposure = 1;
+    // The lighting's parameters (S36; RenderScene::setLightingParameters changes them at run time)
+    LightingParameters lighting;
 
     // The camera's near plane (reversed-Z with an infinite far plane, S18)
     float nearPlane = 0.1f;
@@ -328,6 +332,36 @@ struct SpaceRenderSettings
 {
     bool openWorld  = true;
     vec3 background = vec3(0.02f, 0.02f, 0.025f);
+};
+
+// The environment of a frame (docs/engine_design.md §10.1, §10.7; S36): sun, moon, stars, weather, exposure and
+// ambient of the view camera's space, extracted once per rendered frame by the engine (environmentState) and given to
+// RenderScene::setEnvironment. Render data: float, directions unit vectors (y up, north = -z)
+struct EnvironmentState
+{
+    vec3 sunDir           = vec3(0, 0.70710678f, 0.70710678f);  // towards the sun (noon at 45 degrees latitude)
+    float sunIlluminance  = 120000;                             // lux at the top of the atmosphere (the LUT attenuates)
+    vec3 moonDir          = vec3(0, -0.70710678f, -0.70710678f);
+    float moonIlluminance = 0.27f;  // lux, scaled by the lit fraction of the phase
+    float moonPhase       = 0.5f;
+    float starIntensity   = 1;
+    mat3 starRotation     = mat3::Identity();  // the hour angle about the celestial pole
+    // Weather (§10.7)
+    float cloudiness = 0.3f, rain = 0, fogDensity = 0.00015f, snowCover = 0;
+    vec2 wind        = vec2(3, 1);
+    vec2 cloudOffset = vec2(0, 0);  // already wrapped to the cloud tile (float exact below 2^24)
+    // Exposure (A3): the resolved EV100 of this frame (curve or fixed value, compensation applied) and its source
+    float ev100                   = 15;
+    ExposureSource exposureSource = ExposureSource::Fixed;
+    // Ambient (A3)
+    float ambientScale = 1;
+    vec3 minAmbient    = vec3(0.002f, 0.002f, 0.002f);  // lux-equivalent floor (night policy)
+    // An enclosed space: its template's ambient (lux-equivalent colour) and EV100, no sun, sky or sky ambient
+    bool enclosed        = false;
+    vec3 enclosedAmbient = vec3(0, 0, 0);
+    // Phases (radians, fmod in double on the CPU; no absolute time in a shader, §10.1): the trees' wind (0-2), the
+    // grass's (3-4), the cloud drift remainder (5), the flicker base (6)
+    std::array<float, 8> phases = {};
 };
 
 struct RenderStatistics

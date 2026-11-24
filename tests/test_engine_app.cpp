@@ -19,6 +19,7 @@
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/DestroyOwnedBy.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/net/Fragmenter.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
@@ -221,6 +222,53 @@ TEST(AppCommandLine, OptionsGameFlagsAndErrors)
         AppOptions q;
         EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1];
     }
+}
+
+// S36: --time-of-day / --day-length (valued engine options; applied after the game's start)
+TEST(AppCommandLine, TimeOfDayAndDayLength)
+{
+    EngineAppSetup s;
+    AppOptions o;
+    std::string error;
+    auto a = argv({"--time-of-day", "18.5", "--day-length", "240"});
+    ASSERT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
+    ASSERT_TRUE(o.timeOfDay && o.dayLength);
+    EXPECT_EQ(*o.timeOfDay, 18.5);
+    EXPECT_EQ(*o.dayLength, 240);
+    for (auto bad : {argv({"--time-of-day", "24"}), argv({"--time-of-day", "-1"}), argv({"--time-of-day", "x"}),
+                     argv({"--time-of-day"}), argv({"--day-length", "0"}), argv({"--day-length", "10"}),
+                     argv({"--day-length", "nan"}), argv({"--time-of-day", "6", "--scenarios"}),
+                     argv({"--scenarios", "--day-length", "60"})})
+    {
+        EngineAppSetup u;
+        AppOptions q;
+        std::string args;
+        for (size_t i = 1; i < bad.size(); ++i) args += std::string(i > 1 ? " " : "") + bad[i];
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << args;
+    }
+    // A world without WorldTime stops with exit code 1 (before the frame loop)
+    EngineAppSetup plain = appSetup(false);
+    auto b               = argv({"--time-of-day", "6"});
+    EXPECT_EQ(engineMain(int(b.size()), b.data(), plain, {}, nullptr), 1);
+}
+
+// S36: the app owns the environment settings; --time-of-day reaches the world
+TEST(EngineAppNoRender, EnvironmentSettingsAndTimeOption)
+{
+    EngineAppSetup s                    = appSetup(false);
+    s.world.environment.enabled         = true;
+    s.environment.exposure.compensation = 2;
+    EngineApp app(s);
+    EXPECT_EQ(app.environmentSettings().exposure.compensation, 2);
+    Vulkan::EnvironmentSettings e = app.environmentSettings();
+    e.ambient.scale               = 3;
+    app.setEnvironmentSettings(e);
+    EXPECT_EQ(app.environmentSettings().ambient.scale, 3);
+    EXPECT_FALSE(app.sendsEnvironment() && app.scene());
+    const EnvironmentSample sample = app.sampleViewEnvironment();
+    EXPECT_TRUE(sample.hasTime);
+    EXPECT_FLOAT_EQ(sample.state.ev100, sample.curveEv100 - 2);
+    EXPECT_EQ(sample.state.ambientScale, 3);
 }
 
 namespace
@@ -1684,7 +1732,9 @@ TEST(AppCommandLine, Coop)
         EngineAppSetup u;
         u.benchmarks = {"flyover"};
         AppOptions q;
-        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1] << " " << bad[2];
+        std::string args;
+        for (size_t i = 1; i < bad.size(); ++i) args += std::string(i > 1 ? " " : "") + bad[i];
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << args;
     }
 }
 
@@ -2203,16 +2253,21 @@ TEST(EngineAppNoRender, SetUiTab)
     Poller poller(app.mcp());
     Json r = toolJson(callTool(app.mcp(), "set_ui_tab", Json::object{}));
     EXPECT_EQ(r["tab"], Json("Game"));
-    ASSERT_EQ(r["tabs"].array_items().size(), 4u);
+    ASSERT_EQ(r["tabs"].array_items().size(), 5u);
     EXPECT_EQ(r["tabs"][1]["key"], Json("F2"));
+    EXPECT_EQ(r["tabs"][4]["key"], Json("F5"));
     EXPECT_FALSE(r["visible"].bool_value());
     r = toolJson(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "console"})")));
     EXPECT_EQ(r["tab"], Json("Console"));
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Console));
     EXPECT_EQ(toolJson(callTool(app.mcp(), "app_status", Json::object{}))["ui_tab"], Json("Console"));
+    // S36: the Lighting tab (F5)
+    r = toolJson(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "lighting"})")));
+    EXPECT_EQ(r["tab"], Json("Lighting"));
+    EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
     Json bad = callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": "nope"})"));
     EXPECT_TRUE(bad["result"]["isError"].bool_value());
-    EXPECT_NE(bad["result"]["content"][0]["text"].string_value().find("Game, Performance, Engine, Console"),
+    EXPECT_NE(bad["result"]["content"][0]["text"].string_value().find("Game, Performance, Engine, Console, Lighting"),
               std::string::npos);
     EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", obj(R"({"tab": 3})"))["result"]["isError"].bool_value());
     EXPECT_TRUE(callTool(app.mcp(), "set_ui_tab", obj(R"({"page": "game"})"))["result"]["isError"].bool_value());

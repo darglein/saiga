@@ -20,6 +20,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/gameplay/ClassList.h"
+#include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/net/LoopbackTransport.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
@@ -331,6 +332,30 @@ struct Net
 
 // ---------------------------------------------------------------------------------------------------------------------
 // Name tables and the sink
+
+// S36: the recording sink keeps the last environment and counts the calls (the app's per-frame call; the World does
+// not forward one)
+TEST(RecordingRenderSink, EnvironmentAndLightsRecorded)
+{
+    WorldSetup s;
+    s.environment.enabled = true;
+    World w(s);
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    w.step(3);
+    EXPECT_EQ(sink.environment(), nullptr);
+    EXPECT_EQ(sink.counters().setEnvironment, 0u);
+    Vulkan::EnvironmentSettings settings;
+    settings.exposure.mode  = Vulkan::ExposureMode::Fixed;
+    settings.exposure.ev100 = 7;
+    sink.setEnvironment(environmentState(w, 0, w.alpha(), settings, w.environmentSetup()));
+    sink.setEnvironment(environmentState(w, 0, w.alpha(), settings, w.environmentSetup()));
+    ASSERT_NE(sink.environment(), nullptr);
+    EXPECT_EQ(sink.counters().setEnvironment, 2u);
+    EXPECT_EQ(sink.environment()->ev100, 7.0f);
+    EXPECT_EQ(sink.environment()->exposureSource, Vulkan::ExposureSource::Fixed);
+    w.setRenderSink(nullptr);
+}
 
 TEST(ExtractSink, RegistrationsForwardedWhenTheSinkIsSetLate)
 {

@@ -19,6 +19,7 @@
 #include "saiga/engine/ecs/Ids.h"
 #include "saiga/engine/world/SpaceKind.h"
 
+#include <cmath>
 #include <cstdint>
 #include <optional>
 #include <set>
@@ -47,6 +48,10 @@ struct SpaceTemplate
     double fullRadius = 1000;
     // The clear color of an enclosed space (linear RGB; open-world spaces draw the sky). S36's ambient / fog replace it
     Vec3 background = Vec3(0.02, 0.02, 0.025);
+    // The lighting of an enclosed space (S36, the environment extract; open-world spaces have the sky): its ambient
+    // (lux-equivalent linear colour, no sun or sky) and its EV100 (a room of about 50 lux)
+    Vec3 ambient = Vec3(50, 50, 50);
+    double ev100 = 6;
 
     // An enclosed space of sizeChunks x sizeChunks chunks (chunk range [0, sizeChunks)^2; 4: 1 km): no terrain, no sea
     static SpaceTemplate enclosed(std::string name, int32_t sizeChunks = 4)
@@ -82,6 +87,9 @@ inline void validateSpaceTemplates(const std::vector<SpaceTemplate>& templates)
         if (t.name.empty()) SAIGA_EXIT_ERROR("WorldConfig::spaceTemplates: a space template has an empty name");
         if (t.name.size() > 256) SAIGA_EXIT_ERROR(what + "the name is longer than 256 bytes");
         if (!names.insert(t.name).second) SAIGA_EXIT_ERROR(what + "the name is used by another space template");
+        if (!std::isfinite(t.ev100) || !std::isfinite(t.ambient(0)) || !std::isfinite(t.ambient(1)) ||
+            !std::isfinite(t.ambient(2)) || t.ambient.minCoeff() < 0)
+            SAIGA_EXIT_ERROR(what + "ambient must be finite and not negative, ev100 finite");
         if (t.kind == SpaceKind::Enclosed)
         {
             if (t.sizeChunks < 1 || t.sizeChunks > 512)

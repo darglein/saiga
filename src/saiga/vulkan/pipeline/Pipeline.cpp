@@ -34,12 +34,13 @@ void Pipeline::create(const RenderingFormats& _formats, PipelineInfo _pipelineIn
 std::string Pipeline::reuseKey()
 {
     auto ci = pipelineInfo.createCreateInfo(pipelineLayout, formats);
-    shaderPipeline.addToPipeline(ci);
+    // (the modules are not created for the key: a pooled pipeline does not need them)
+    shaderPipeline.addToPipeline(ci, false);
     PipelineKeyWriter k;
     k.bytes = "G";
     k.f(ci.flags);
     k.raw(ci.stageCount);
-    for (uint32_t i = 0; i < ci.stageCount; ++i) k.stage(ci.pStages[i], shaderPipeline);
+    for (uint32_t i = 0; i < ci.stageCount; ++i) k.stage(ci.pStages[i], shaderPipeline.moduleAt(i));
     // The dynamic rendering formats (the only pNext of createCreateInfo)
     const auto* r = static_cast<const vk::PipelineRenderingCreateInfo*>(ci.pNext);
     if (!r || r->sType != vk::StructureType::ePipelineRenderingCreateInfo) return {};

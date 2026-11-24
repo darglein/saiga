@@ -24,6 +24,7 @@
 #include "saiga/engine/gameplay/ClassList.h"
 #include "saiga/engine/gameplay/PlayerAction.h"
 #include "saiga/engine/gameplay/TickPolicy.h"
+#include "saiga/engine/lighting/EnvironmentSetup.h"
 #include "saiga/engine/net/MessageList.h"
 #include "saiga/engine/net/NetIds.h"
 #include "saiga/engine/net/NetOwner.h"
@@ -116,6 +117,9 @@ struct WorldSetup
     // Times every step, phase, system and command flush and counts entities, objects and updates (Profiler, S10);
     // false: no clock calls
     bool profiling = true;
+    // The time of day and the weather (S36, §10.7): enabled makes WorldTime a global and Weather space state
+    // (registerEngineComponents); the celestial model and the cloud wind scale (constant after the world exists)
+    EnvironmentSetup environment;
 
     // Registers the meshes and materials by name (World::registerMesh / registerMaterial, §7.9; S19b), called once at
     // the end of the World's construction; build each MeshLods once per process (a static cache of shared_ptr<const
@@ -533,6 +537,8 @@ class SAIGA_ENGINE_API World
         return *static_cast<const T*>(contextPtr.get());
     }
     bool hasContext() const { return contextPtr != nullptr; }
+    // WorldSetup::environment (S36): constant after the world exists
+    const EnvironmentSetup& environmentSetup() const { return envSetup; }
     // timeBase: a loaded save keeps its time also if it was saved with another step rate (S11)
     // On a client the estimated host time (§13.4, S16)
     double time() const { return timeBase + (double(steps - stepBase) + hostStepOffset) * stepDt; }
@@ -1109,7 +1115,8 @@ class SAIGA_ENGINE_API World
     std::unique_ptr<ChunkRecords> chunkRecords;
     std::vector<std::pair<int, std::function<void(const ChunkId&)>>> recordListeners;
     bool generationMismatchFlag = false, generationCheckedFlag = false, nonIntegerWarned = false;
-    uint64_t setupSeed    = 0;
+    uint64_t setupSeed = 0;
+    EnvironmentSetup envSetup;
     double accumulator    = 0;
     double scale          = 1;
     bool paused           = false;

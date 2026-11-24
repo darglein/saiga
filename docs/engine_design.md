@@ -596,8 +596,13 @@ clients whose player is in that space. Access:
 component asserts: world-state components are added at world creation by their registration). Both kinds are flagged
 in the slot state and excluded from the spatial grid, chunk membership, chunk unloading and radius interest; their
 interest and residency follow only the rules above.
-`WorldTime` (global) and `Weather` (per space) are added in S36. [exists: S10 for the mechanism (`global`,
-`spaceState`, `readGlobal`, `readSpaceState`); S21: one space-state entity per space]
+`WorldTime` (global) and `Weather` (per space) exist from S36a1a: both are **always registered** (the engine IDs stay
+a registered prefix, `Registry::validateRegistration`), as global / space state only with
+`WorldSetup::environment.enabled` (`EnvironmentSetup`), otherwise as plain components that no entity has (plain worlds
+keep their entities, hashes and saves; one schema for every world); `registerEngineComponents(Registry&, const
+WorldSetup&)` chooses the kind. Host and clients must be built with the same `enabled` (no join check before S26).
+[exists: S10 for the mechanism (`global`, `spaceState`, `readGlobal`, `readSpaceState`); S21: one space-state entity
+per space; S36a1a: `WorldTime`, `Weather`]
 
 S10 implementation: the World creates the world-state entity when at least one component is registered with
 `registerGlobal`, and the space-state entity of space 0 when one is registered with `registerSpaceState` (a world
@@ -1915,17 +1920,52 @@ with matching density at the boundary. Files: `shader/vulkan/render/volumetric_f
 - Third-person camera rig (`engine/app/`): orbit around the local player, collision against terrain, instances and
   pieces, look input applied per frame (§8.3); games configure it.
 
-### 10.7 Lighting, time and weather [planned: S36]
+### 10.7 Lighting, time and weather [exists: S36a1a (world time, weather, the environment extract, the exposure rule, the Lighting tab and tools); planned: S36a1b-S36b]
 
-- `WorldTime` (time of day, day count; global) and `Weather` (cloudiness, rain, fog density, snow cover; per space) are
-  components of the world-state entities (§7.8); how they change is game policy (R-MECH-1).
+- `WorldTime` (time of day, day count, rate; global) and `Weather` (cloudiness, rain, fog density, snow cover, waves,
+  wind, cloud offset; per space) are components of the world-state entities (§7.8); how they change is game policy
+  (R-MECH-1). [exists: S36a1a]
 - **Shading model**: physically based (GGX specular with energy-conserving diffuse, metal/roughness from the
   materials, §10.8), light intensities in physical units (sun illuminance in lux, local lights in lumen). S36 uses a
   fixed or per-time-of-day exposure from a game parameter (goldens use the fixed exposure of §17.6); auto exposure with
   per-game limits (S37) handles day and night. Both material models use it.
-- `WorldTime` fields: `double timeOfDay` (hours), `int64 day`; `Weather` fields: `double cloudiness, rain, fogDensity,
-  snowCover, waveAmplitude, waveSteepness; Vec2 wind; Vec2 cloudOffset` (accumulated and wrapped by the host,
-  replicated, so clouds never jump), each blended slowly by game systems.
+- `WorldTime` fields: `double timeOfDay` (hours, [0, 24)), `int64 day`, `double rate` (game seconds per simulated
+  second, a time multiplier in [-3600, 3600]; 0 freezes the time; replicated and saved, so agents and the UI change the
+  speed like other state), `double validAt` (`World::time()` at which the value is valid); `Weather` fields: `double
+  cloudiness, rain, fogDensity, snowCover, waveAmplitude, waveSteepness; Vec2 wind; Vec2 cloudOffset` (accumulated and
+  wrapped to `kCloudTile` = 16384 m by the host, replicated, so clouds never jump), `double validAt`; how they blend is
+  game policy (game systems). [exists: S36a1a]
+- **Simulation and presentation settings**: `EnvironmentSetup` (in `WorldSetup`, constant: `enabled`, the celestial
+  model `CelestialConfig` (latitude, axial tilt, day of the year at day 0, year length, sun and full-moon illuminance in
+  lux, moon phase as a parameter, star intensity), `cloudWindScale`) is what the simulation reads; the presentation
+  settings `EnvironmentSettings` (exposure, ambient, clouds, atmosphere, star intensity, the sun override) are owned
+  mutably by the engine app (`EngineApp::environmentSettings`, initially `EngineAppSetup::environment`), changed by the
+  Lighting tab, `set_lighting` and the game. Both can come from `data/<game>/environment.json` (`readEnvironmentFile`,
+  R-DATA-1). The optional `worldTimeSystem` (`addEnvironmentSystems`, phase 4, host) advances the time by `rate * dt /
+  3600` hours and the cloud offset by the wind and **normalises** both every step (wrap with the day count saturated
+  at the int64 limits, clamp the ranges, a non-finite value or a time of 1e15 days or more -> the default: a raw
+  `set_global` can write anything); it writes a component only when a value changes (rate 0 and no wind: nothing is
+  replicated). The tools and the tab write through the validated `setWorldTime` / `setWeather`
+  (`engine/lighting/EnvironmentWrites.h`), which continue from the extrapolated values (no jump in a world without the
+  system). The environment file's values are range-checked (the `set_lighting` ranges, the exposure curve, the
+  celestial values). [exists: S36a1a]
+- **Environment extract** (`environmentState`, `engine/lighting/EnvironmentExtract.h`): once per rendered frame for the
+  view camera's space the app computes `EnvironmentState` (render floats: sun and moon directions and illuminance, star
+  rotation, weather, the frame's EV100 and its source, ambient settings, an enclosed space's ambient, the phases in
+  double) and sends it with `RenderSink::setEnvironment` (`RenderScene::setEnvironment`). The render time is `tr =
+  World::time() + (alpha - 1) * dt` (on a client `World::time()` is the `HostClock` estimate of the host time), the time
+  of day `timeOfDay + rate * (tr - validAt) / 3600`: on the host it interpolates between the last two steps, on a client
+  it extrapolates from the snapshot that wrote the value, so the sun moves smoothly at any snapshot rate and a rate
+  change does not jump. An enclosed space (`SpaceKind::Enclosed`) has no sun, moon or sky: its template's `ambient`
+  (lux-equivalent colour) and `ev100`. Until the flip of S36a1c the app sends the environment only for worlds with
+  `EnvironmentSetup::enabled` (no game enables it yet). [exists: S36a1a]
+- **Exposure in EV100**: `ExposureSettings {mode TimeOfDay (a piecewise linear curve of EV100 over the sun elevation,
+  clamped at the ends) | Fixed (ev100); compensation (subtracted, +1 EV = twice as bright)}`. A scene with an
+  environment (`RenderScene::hasEnvironment`) uses the frame exposure `params.exposure / (1.2 * 2^ev100)` clamped to
+  [2^-24, 2^10] (`exposureFromEv100`, `RenderScene::frameExposure`); `params.exposure` (`setExposure`, `--exposure`)
+  stays a multiplier on top; a scene on which `setEnvironment` was never called keeps the unit-less exposure
+  `params.exposure`. The post pass and the weighted resolve use `exposure / preExposure`, so the fp16 values stay near 1
+  over the whole range. Enclosed spaces use their template's EV100. [exists: S36a1a]
 - **Sun and moon**: cascaded shadow maps (multi-view culling, §10.2; cascade count and resolution per quality tier);
   far content casts shadows from its impostors in the far cascades; far cascades update every N frames.
 - **Far terrain shadows**: beyond the cascades, a heightfield shadow (horizon) map computed in compute from the coarse
@@ -3217,8 +3257,11 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file, overwrite?)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
 | `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad, and from S16b HostClient, HostClientDelay, HostClientAsync; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
-| `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run); S21: `app_status.space_loading` (`null` or `{space, name, progress, frames}`, §12.4) | [exists: S13] |
-| `set_ui_tab(tab?)` | the debug UI (§17.1): selects a tab by name (`game`, `performance`, `engine`, `console`, a game tab) as its key does, or only reads; returns the tab, the tabs with their keys and whether the UI is visible; an error when the UI is off | [exists: S19c] |
+| `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run); S21: `app_status.space_loading` (`null` or `{space, name, progress, frames}`, §12.4); S36: `app_status.lighting` (`{time_of_day, ev100, tone_map, debug_view}`, null without a device) | [exists: S13] |
+| `get_lighting(sections?)` | S36: reads the lighting of the view camera's space: `time` (hours, day, rate; null without `WorldTime`), `weather`, `sun` / `moon` (direction, azimuth / elevation, illuminance at the top and on the ground, phase), `shadow_light`, `tone_map` (with `identity` a note that clay ignores time and weather), `exposure` (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only the unit-less multiplier), `ambient`, `clouds`, `settings` and `parameters` (the `set_lighting` keys); `sections` filters the top-level keys; answered at once; an error without a device. Later parts add keys | [exists: S36a1a] |
+| `set_time_of_day(hours?, day?, rate?)`, `set_weather(space?, cloudiness?, rain?, fog_density?, snow_cover?, wind?, cloud_offset?, wave_amplitude?, wave_steepness?)` | S36: the validated writes of `WorldTime` / a space's `Weather` (`setWorldTime` / `setWeather`; the error names the argument and its range; unknown arguments are errors); return `values` and `previous`; an error without `WorldTime` / `Weather`; with `--coop` they write the hidden host, a pure client is refused | [exists: S36a1a] |
+| `set_lighting(...)` | S36: the settings, not world state: `tone_map`, `exposure_mode`, `ev100`, `exposure_compensation`, `ambient_scale`, `min_ambient`, `sun_override`, `cloud_altitude`, `cloud_radius`, `cloud_shadow_fade`, `star_intensity`, `ground_albedo` and every `LightingParameters` field by its snake_case name; validated as a whole and applied all or nothing from the next frame (the error names every invalid key); returns `values` and `previous` (an undo payload). Later parts add keys | [exists: S36a1a] |
+| `set_ui_tab(tab?)` | the debug UI (§17.1): selects a tab by name (`game`, `performance`, `engine`, `console`, `lighting`, a game tab) as its key does, or only reads; returns the tab, the tabs with their keys and whether the UI is visible; an error when the UI is off | [exists: S19c] |
 
 S16: on a client the world API is read-only for replicated entities except the owner-authoritative components of the
 entities the client owns (and its peer-local `Never` components): edits, adds, removes and destroys of them are
@@ -3280,7 +3323,8 @@ waiting: `frame/render/wait` is the time the render blocked for the frame slot, 
 without it (the CPU's busy time).
 
 The debug UI (`DebugUi`, `engine/app/`, S19c) replaces the loose ImGui windows: a one-line bar at the top with the tabs
-F1 Game, F2 Performance, F3 Engine, F4 Console (game tabs on F5-F10, `DebugUi::addTab`) and a performance summary on the
+F1 Game, F2 Performance, F3 Engine, F4 Console, F5 Lighting (S36: engine tabs F1-F5; game tabs on F6-F10,
+`DebugUi::addTab`) and a performance summary on the
 right (fps, CPU and GPU busy, the step time, warnings for stutter, dropped steps, a long MCP call, PAUSED). The tabs are
 tabs, not toggles: a key selects its tab. F1 shows the game alone (the game's own GUI, `GameRenderHooks::gui`, is drawn
 in every tab); F2-F4 share one panel docked at the right edge (not movable, the width can be dragged), never floating
@@ -3290,6 +3334,16 @@ console's filters and history are kept in `debug_ui.json` of the working directo
 option or a benchmark). Games add sections (`DebugUi::addSection`; the world prototype's settings and statistics) and
 change the world from GUI buttons through `EngineApp::queueBetweenSteps` (run after the next `poll`, never while a frame
 is recorded). `EngineAppSetup::debugUi = false` turns it off. The Pause key pauses and resumes the world.
+
+The **Lighting tab** (F5, `LightingTab`, S36; `SAIGA_DEBUG_TAB=5` opens it at start, `set_ui_tab lighting`): Time and
+weather (the time-of-day slider, day, rate buttons x0, x1, x60, x600, the weather sliders of the view camera's space;
+written between steps through `setWorldTime` / `setWeather`, so they replicate and appear as `api` lines; with `--coop`
+on the hidden host, read-only on a pure client; without `WorldTime` a line naming `EnvironmentSetup::enabled`), Sun and
+moon (elevation, azimuth, illuminance at the top and on the ground, colour swatches, the shadow light, the moon phase,
+"override sun") and Exposure (mode, the fixed EV100, the frame's EV100 and the curve's, the compensation, the effective
+exposure and the pre-exposure) [exists: S36a1a]; the toolbar (tone map, debug view, overlays), Ambient, Sky and clouds, the debug views
+and previews (`ImGuiVulkanRenderer::addTexture`, ImGui images per draw command [exists: S36a1a]), Cascades, Far terrain
+shadows, Local lights and GPU and memory come with the later parts of S36.
 
 The Performance tab shows the frame statistics (`FrameStatistics` in `engine/app/`) over a selectable window (3, 10 or
 30 s, refreshed every 0.5 s; the first second after the start and frames that were not presented are left out): first

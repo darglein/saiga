@@ -37,7 +37,7 @@ constexpr ImGuiWindowFlags kFixedWindow = ImGuiWindowFlags_NoTitleBar | ImGuiWin
 DebugUi::DebugUi(McpServer* server, std::string stateFile)
     : consolePtr(std::make_unique<DebugConsole>(server, engineLog())), file(std::move(stateFile))
 {
-    for (const char* name : {"Game", "Performance", "Engine", "Console"}) tabs.push_back(Tab{name, {}, {}});
+    for (const char* name : {"Game", "Performance", "Engine", "Console", "Lighting"}) tabs.push_back(Tab{name, {}, {}});
 }
 
 DebugUi::~DebugUi()
@@ -91,6 +91,20 @@ void DebugUi::addSection(int tab, const std::string& title, std::function<void()
 {
     if (tab < 0 || tab >= tabCount()) return;
     tabs[size_t(tab)].sections.push_back({title, std::move(draw), defaultOpen});
+}
+
+void DebugUi::markItem(const std::string& name)
+{
+    const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+    markedItems[name] = ImVec2((a.x + b.x) / 2, (a.y + b.y) / 2);
+}
+
+bool DebugUi::itemCenter(const std::string& name, ImVec2& center) const
+{
+    auto it = markedItems.find(name);
+    if (it == markedItems.end()) return false;
+    center = it->second;
+    return true;
 }
 
 bool DebugUi::section(const std::string& key, const char* title, bool defaultOpen)

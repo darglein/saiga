@@ -114,6 +114,11 @@ void VulkanRenderSink::setSpaceSettings(SpaceId space, const SpaceRenderSettings
     renderScene.setSpaceSettings(space, settings);
 }
 
+void VulkanRenderSink::setEnvironment(const EnvironmentState& environment)
+{
+    renderScene.setEnvironment(environment);
+}
+
 void VulkanRenderSink::clearTerrain()
 {
     renderScene.clearTerrain();

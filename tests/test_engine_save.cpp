@@ -51,9 +51,9 @@ enum class Mood
 };
 const char* const kMoodNames[] = {"Calm", "Angry"};
 
-struct Weather
+struct TestWeather
 {
-    static constexpr const char* name = "Weather";
+    static constexpr const char* name = "TestWeather";
     static constexpr ComponentId id   = ComponentId(kFirstGameComponent);
     static constexpr uint32_t version = 1;
     double rain                       = 0;
@@ -178,7 +178,7 @@ class Fragile final : public GameObject
 
 void baseComponents(Registry& r)
 {
-    r.registerGlobal<Weather>(Replicate::Host);
+    r.registerGlobal<TestWeather>(Replicate::Host);
     r.registerComponent<Link>();
     r.registerComponent<WalkerState>();
     r.registerComponent<WalkerRender>(Replicate::Never, Saved::No);
@@ -220,7 +220,7 @@ std::vector<Entity> fill(World& w)
     w.destroy(e[5]);
     w.spawn<Walker>(Vec3(10, 0, 10));
     w.spawn<Sitter>(Vec3(-10, 0, 0));
-    w.global<Weather>().rain = 0.25;
+    w.global<TestWeather>().rain = 0.25;
     w.events.emit(DamageEvent{e[0], e[1], 7});
     w.queueAction(PlayerAction{e[1], 3, Vec3(1, 2, 3)});
     w.random().nextU32();
@@ -270,7 +270,7 @@ TEST(Save, RoundTripRestoresEverySavedState)
     EXPECT_FALSE(b.alive(e[5]));
     EXPECT_FALSE(b.alive(b.read<Link>(e[4]).target));
     EXPECT_EQ(b.resolve(b.read<Link>(e[4]).pid), e[3]);
-    EXPECT_DOUBLE_EQ(b.readGlobal<Weather>().rain, 0.25);
+    EXPECT_DOUBLE_EQ(b.readGlobal<TestWeather>().rain, 0.25);
     // The next entities get the same indices and generations
     EXPECT_EQ(b.create(), a.create());
     // Grid queries work at once (the grid was rebuilt)
@@ -780,7 +780,7 @@ TEST(SaveMigration, RemovedClassesAndSavedNoComponents)
         WorldSetup s;
         s.components = [](Registry& r)
         {
-            r.registerGlobal<Weather>(Replicate::Host);
+            r.registerGlobal<TestWeather>(Replicate::Host);
             r.registerComponent<Link>(Replicate::Never, Saved::No);
             r.registerComponent<WalkerState>();
             r.registerComponent<WalkerRender>(Replicate::Never, Saved::No);
@@ -995,13 +995,13 @@ TEST(Save, StateEntitiesFollowTheRegistrations)
     World b(baseSetup());
     ASSERT_TRUE(b.tryLoad(a.save()).ok());
     ASSERT_TRUE(b.worldStateEntity().valid());
-    EXPECT_EQ(b.readGlobal<Weather>().rain, 0);
+    EXPECT_EQ(b.readGlobal<TestWeather>().rain, 0);
     // The reverse: the world-state entity is freed
     World c(baseSetup());
-    c.global<Weather>().rain = 1;
+    c.global<TestWeather>().rain = 1;
     WorldSetup dropWeather;
     // Types without saved values need no entry
-    dropWeather.migrations = [](MigrationList& m) { m.addRemoved("Weather", RemovedPolicy::DropComponent); };
+    dropWeather.migrations = [](MigrationList& m) { m.addRemoved("TestWeather", RemovedPolicy::DropComponent); };
     World e(dropWeather);
     ASSERT_TRUE(e.tryLoad(c.save()).ok());
     EXPECT_FALSE(e.worldStateEntity().valid());
@@ -1477,15 +1477,15 @@ std::vector<uint8_t> withSchema(const std::vector<uint8_t>& data, const SchemaTa
     t.write(w);
     return replaceSection(data, kTagSchema, content);
 }
-// A save whose Weather type got an extra field of the given type (same version: the slow path decodes it)
+// A save whose TestWeather type got an extra field of the given type (same version: the slow path decodes it)
 std::vector<uint8_t> weatherWithField(const std::string& type)
 {
     World a(baseSetup());
-    a.global<Weather>().rain = 1;
-    const auto blob          = a.save();
-    SchemaTable t            = readSchema(blob);
+    a.global<TestWeather>().rain = 1;
+    const auto blob              = a.save();
+    SchemaTable t                = readSchema(blob);
     for (SchemaType& s : t.types)
-        if (s.name == "Weather") s.fields.push_back(FieldInfo{"x", type, {}});
+        if (s.name == "TestWeather") s.fields.push_back(FieldInfo{"x", type, {}});
     return withSchema(blob, t);
 }
 }  // namespace
@@ -1554,7 +1554,7 @@ TEST(SaveRobustness, StateEntitiesWithChildrenOrGameObjects)
         const Entity child = a.create();
         a.add<Parent>(child, Parent{a.worldStateEntity()});
         WorldSetup s;
-        s.migrations = [](MigrationList& m) { m.addRemoved("Weather", RemovedPolicy::DropComponent); };
+        s.migrations = [](MigrationList& m) { m.addRemoved("TestWeather", RemovedPolicy::DropComponent); };
         World w(s);
         const LoadResult r = w.tryLoad(a.save());
         EXPECT_FALSE(r.committed);
@@ -1648,7 +1648,7 @@ TEST(SaveRobustness, NestedEmptyStructsAreBounded)
         t.types.push_back(s);
     }
     for (SchemaType& s : t.types)
-        if (s.name == "Weather") s.fields.push_back(FieldInfo{"x", "F0", {}});
+        if (s.name == "TestWeather") s.fields.push_back(FieldInfo{"x", "F0", {}});
     const auto bad   = withSchema(blob, t);
     const auto start = std::chrono::steady_clock::now();
     World w(baseSetup());

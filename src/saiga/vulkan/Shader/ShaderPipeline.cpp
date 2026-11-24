@@ -111,34 +111,27 @@ bool ShaderPipelineBase::valid()
 
 
 
-const ShaderModule* ShaderPipelineBase::findModule(vk::ShaderModule module) const
-{
-    for (const auto& s : modules)
-        if (s.module == module) return &s;
-    return nullptr;
-}
-
-void ShaderPipelineBase::createPipelineInfo()
+void ShaderPipelineBase::createPipelineInfo(bool createModules)
 {
     pipelineInfo.clear();
     for (auto& s : modules)
     {
-        pipelineInfo.push_back(s.createPipelineInfo());
+        pipelineInfo.push_back(s.createPipelineInfo(createModules));
     }
 }
 
-void GraphicsShaderPipeline::addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo)
+void GraphicsShaderPipeline::addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo, bool createModules)
 {
-    createPipelineInfo();
+    createPipelineInfo(createModules);
 
     pipelineCreateInfo.stageCount = pipelineInfo.size();
     pipelineCreateInfo.pStages    = pipelineInfo.data();
 }
 
-void ComputeShaderPipeline::addToPipeline(vk::ComputePipelineCreateInfo& pipelineCreateInfo)
+void ComputeShaderPipeline::addToPipeline(vk::ComputePipelineCreateInfo& pipelineCreateInfo, bool createModules)
 {
     SAIGA_ASSERT(!modules.empty());
-    createPipelineInfo();
+    createPipelineInfo(createModules);
     pipelineCreateInfo.stage = pipelineInfo.front();
 }
 

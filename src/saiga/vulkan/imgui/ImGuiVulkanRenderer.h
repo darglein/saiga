@@ -22,6 +22,8 @@
 #include "saiga/vulkan/pipeline/Pipeline.h"
 #include "saiga/vulkan/texture/Texture.h"
 
+#include <unordered_map>
+
 
 namespace Saiga
 {
@@ -96,6 +98,18 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
     using ImGuiRenderer::render;
     void render(vk::CommandBuffer commandBuffer, size_t frameIndex);
 
+    // Textures for ImGui::Image (S36): each draw command binds the descriptor set of its ImDrawCmd::GetTexID(). The
+    // view and the sampler stay the caller's: the image must be in layout whenever ImGui draws it, and after
+    // removeTexture the caller destroys the view through VulkanBase::deferDelete (a frame in flight may still draw it).
+    // Returns the ID for ImGui::Image
+    ImTextureID addTexture(vk::ImageView view, vk::Sampler sampler, vk::ImageLayout layout);
+    // Releases the texture's descriptor set through deferDelete; its ID is not used again
+    void removeTexture(ImTextureID id);
+    // The textures added and not removed (without the font)
+    size_t textureCount() const { return textures.size(); }
+    // The font atlas's ID (its set is bound for every command that draws text)
+    static constexpr ImTextureID kFontTexture = 1;
+
    protected:
     struct PushConstBlock
     {
@@ -113,6 +127,9 @@ class SAIGA_VULKAN_API ImGuiVulkanRenderer : public Pipeline, public ImGuiRender
     Texture2D fontTexture;
 
     StaticDescriptorSet descriptorSet;
+    // addTexture's descriptor sets by ID (the font's is descriptorSet)
+    std::unordered_map<ImTextureID, vk::DescriptorSet> textures;
+    ImTextureID nextTexture = kFontTexture + 1;
     Saiga::Vulkan::VulkanBase* vulkanDevice;
 
     double g_Time = 0.0f;

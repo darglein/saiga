@@ -55,6 +55,13 @@ ImGuiVulkanRenderer::ImGuiVulkanRenderer(size_t _frameCount, const ImGuiParamete
 
 ImGuiVulkanRenderer::~ImGuiVulkanRenderer()
 {
+    for (auto& t : textures)
+    {
+        auto* pool = &base->descriptorPool;
+        auto set   = t.second;
+        base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+    }
+    textures.clear();
     for (auto& data : frameData)
     {
         data.destroy(*base);
@@ -91,6 +98,9 @@ void ImGuiVulkanRenderer::initResources(VulkanBase& _base, const RenderingFormat
 
 
     fontTexture.fromImage(_base, img, vk::ImageUsageFlagBits::eSampled, false);
+    // The legacy font upload (no ImGuiBackendFlags_RendererHasTextures): the atlas keeps this ID, which selects the
+    // font's descriptor set per draw command
+    io.Fonts->SetTexID(kFontTexture);
 
     {
         device = this->vulkanDevice->device;
@@ -177,7 +187,9 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     vk::CommandBuffer cmd = commandBuffer;
 
     if (!Pipeline::bind(commandBuffer)) return;
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, descriptorSet, nullptr);
+    vk::DescriptorSet fontSet = descriptorSet;
+    vk::DescriptorSet bound   = fontSet;
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, bound, nullptr);
     //    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline);
 
     //    vertexBuffer.bind(commandBuffer);
@@ -226,6 +238,25 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
                     continue;
                 }
 
+                // The command's texture (S36): the font or an added texture; an unknown ID is not drawn
+                const ImTextureID id  = pcmd->GetTexID();
+                vk::DescriptorSet set = fontSet;
+                if (id != kFontTexture)
+                {
+                    auto it = textures.find(id);
+                    if (it == textures.end())
+                    {
+                        indexOffset += pcmd->ElemCount;
+                        continue;
+                    }
+                    set = it->second;
+                }
+                if (set != bound)
+                {
+                    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, set, nullptr);
+                    bound = set;
+                }
+
                 VkRect2D scissorRect;
                 scissorRect.offset.x      = (int32_t)x0;
                 scissorRect.offset.y      = (int32_t)y0;
@@ -240,6 +271,30 @@ void ImGuiVulkanRenderer::render(vk::CommandBuffer commandBuffer, size_t frameIn
     }
 }
 
+
+ImTextureID ImGuiVulkanRenderer::addTexture(vk::ImageView view, vk::Sampler sampler, vk::ImageLayout layout)
+{
+    SAIGA_ASSERT(base, "ImGuiVulkanRenderer::addTexture before initResources");
+    vk::DescriptorSet set = createRawDescriptorSet();
+    vk::DescriptorImageInfo info(sampler, view, layout);
+    device.updateDescriptorSets(
+        {vk::WriteDescriptorSet(set, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &info, nullptr, nullptr)},
+        nullptr);
+    const ImTextureID id = nextTexture++;
+    textures.emplace(id, set);
+    return id;
+}
+
+void ImGuiVulkanRenderer::removeTexture(ImTextureID id)
+{
+    auto it = textures.find(id);
+    SAIGA_ASSERT(it != textures.end(), "ImGuiVulkanRenderer::removeTexture: unknown texture");
+    if (it == textures.end()) return;
+    auto* pool = &base->descriptorPool;
+    auto set   = it->second;
+    base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+    textures.erase(it);
+}
 
 void ImGuiVulkanRenderer::endFrame()
 {

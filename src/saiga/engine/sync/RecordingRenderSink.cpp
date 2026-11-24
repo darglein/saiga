@@ -268,6 +268,13 @@ void RecordingRenderSink::setSpaceSettings(SpaceId space, const SpaceRenderSetti
     if (logging) note("setSpaceSettings " + std::to_string(space) + (settings.openWorld ? " open" : " enclosed"));
 }
 
+void RecordingRenderSink::setEnvironment(const EnvironmentState& environment)
+{
+    lastEnvironment = environment;
+    count.setEnvironment++;
+    if (logging) note("setEnvironment");
+}
+
 void RecordingRenderSink::clearTerrain()
 {
     terrainSet  = false;

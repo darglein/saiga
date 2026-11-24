@@ -22,6 +22,7 @@ namespace Saiga
 namespace Engine
 {
 using Vulkan::DynamicPose;
+using Vulkan::EnvironmentState;
 using Vulkan::GrassMaskData;
 using Vulkan::InstanceHandle;
 using Vulkan::InstanceSetHandle;
@@ -66,6 +67,9 @@ class RenderSink
     // The view (double; fovy in radians) and the interpolation factor of the dynamic instances
     virtual void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) = 0;
     virtual void setInterpolation(float alpha)                                                     = 0;
+    // The environment of the frame (S36, §10.7): sent by the app once per rendered frame for the view camera's space
+    // (environmentState); the World does not forward one
+    virtual void setEnvironment(const EnvironmentState& environment) = 0;
 
     // ---- terrain (S20, §10.1, §12.2): sent only by TerrainSystem (its single send point). The sink holds the terrain
     // of one space: a pyramid of another space or layout starts a new GPU terrain set (the sink drops the old set's

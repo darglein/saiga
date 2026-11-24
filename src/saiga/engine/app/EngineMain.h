@@ -23,7 +23,9 @@ namespace Engine
  * --width/--height N, --validation, --no-vsync, --tonemap identity|aces and --exposure x (setup.render: the tone map
  * and exposure of RenderScene, S17), --scenarios [filter], --mcp-port N (also SAIGA_MCP_PORT; 0: off),
  * --data <dir> (default: data/<setup.name> of the source tree), --coop [delay] (S16b: a hidden host and the rendered
- * client world over a loopback pair, delay 0..30 steps, default 2; not with --scenarios or --benchmark). Declared game
+ * client world over a loopback pair, delay 0..30 steps, default 2; not with --scenarios or --benchmark),
+ * --time-of-day h and --day-length s (S36: WorldTime's hours and a rate of 86400 / s, set after the game's start; an
+ * error without WorldTime, EnvironmentSetup::enabled). Declared game
  * flags (e.g. --demo) are passed on in options.gameFlags; anything else is an error. EngineAppSetup::checkOptions runs
  * last. No config.ini.
  */

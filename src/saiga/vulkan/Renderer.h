@@ -164,6 +164,8 @@ class SAIGA_VULKAN_API VulkanRenderer : public RendererBase
     }
     // True if the next rendered frame is read back
     bool screenshotRequested() const { return !screenshotCallbacks.empty(); }
+    // The ImGui renderer (null without ImGui): its textures for ImGui::Image (S36, addTexture)
+    ImGuiVulkanRenderer* imguiRenderer() { return imGui.get(); }
 
     /**
      * The largest sample count <= requested that the device supports for framebuffer color and depth attachments

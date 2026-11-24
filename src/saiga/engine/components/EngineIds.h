@@ -32,6 +32,8 @@ enum class EngineComponent : uint8_t
     RenderInstance,     // S19b
     SpaceLink,          // S21
     PendingTransition,  // S21
+    WorldTime,          // S36
+    Weather,            // S36
     Count
 };
 
