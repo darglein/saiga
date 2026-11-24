@@ -288,7 +288,8 @@ void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const Clu
         writes[i] = vk::WriteDescriptorSet(clusterSets[frameIndex], i, 0, 1, vk::DescriptorType::eStorageBuffer,
                                            nullptr, &infos[i]);
     base->device.updateDescriptorSets(writes, nullptr);
-    if (clusterPipeline.bind(cmd))
+    const bool clusterRecorded = clusterPipeline.bind(cmd);
+    if (clusterRecorded)
     {
         ClusterPush push;
         push.view       = view;
@@ -307,6 +308,9 @@ void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const Clu
                   Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderStorageRead);
     vk::MemoryBarrier2 host(Stage::eComputeShader, Access::eShaderStorageWrite, Stage::eHost, Access::eHostRead);
     cmd.pipelineBarrier2(vk::DependencyInfo({}, host, nullptr, nullptr));
+    // A slot is published only with its dispatch (CodeRabbit #86 round 2: an unbound pipeline left another frame's
+    // table under this frame's number)
+    if (!clusterRecorded) return;
     f.pending = true;
     f.frame   = sceneFrame;
     lastSlot  = frameIndex;

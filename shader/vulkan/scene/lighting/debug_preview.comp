@@ -61,6 +61,8 @@ layout(push_constant) uniform Push
     uint layers;
     uint step;
     uint layerWidth;
+    // S36b: the sub-rectangle's size (x | y << 16; 0: the whole layer): the reads stay inside it
+    uint extent;
 }
 pc;
 
@@ -77,18 +79,20 @@ bool sourceValue(ivec2 p, out float v)
             layer = pc.layer + uint(p.x) / pc.layerWidth;
             p.x   = p.x % int(pc.layerWidth);
         }
-        ivec2 q  = p * int(pc.step) + ivec2(int(pc.origin & 0xFFFFu), int(pc.origin >> 16));
-        ivec2 sz = textureSize(sourceArray, 0).xy;
+        ivec2 o  = ivec2(int(pc.origin & 0xFFFFu), int(pc.origin >> 16));
+        ivec2 q  = p * int(pc.step) + o;
+        ivec2 hi = textureSize(sourceArray, 0).xy - 1;
+        if (pc.extent != 0u) hi = min(hi, o + ivec2(int(pc.extent & 0xFFFFu), int(pc.extent >> 16)) - 1);
         if (pc.kind == 2u)
         {
             v = 3.0e38;
             for (int y = 0; y < int(pc.step); ++y)
                 for (int x = 0; x < int(pc.step); ++x)
-                    v = min(v, texelFetch(sourceArray, ivec3(min(q + ivec2(x, y), sz - 1), int(layer)), 0).r);
+                    v = min(v, texelFetch(sourceArray, ivec3(min(q + ivec2(x, y), hi), int(layer)), 0).r);
         }
         else
         {
-            vec4 t = texelFetch(sourceArray, ivec3(min(q, sz - 1), int(layer)), 0);
+            vec4 t = texelFetch(sourceArray, ivec3(min(q, hi), int(layer)), 0);
             v      = pc.kind == 4u ? t.g : t.r;
             // The horizon map's "no occluder" (-1e9): no value (drawn black)
             if (v < -1.0e8) return false;

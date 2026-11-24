@@ -1205,6 +1205,9 @@ TEST_F(LightingTabTest, CaptureClustersAndAtlasTileWithTabOpen)
     const Json tileA =
         callFrames(*app, "capture_lighting",
                    Json::object{{"image", "atlas_tile"}, {"light", double(a)}, {"face", 3}, {"stats_only", true}});
+    // (the control capture itself succeeded: a null stats object would differ as well)
+    ASSERT_FALSE(isError(tileA)) << text(tileA);
+    ASSERT_TRUE(result(tileA)["stats"].is_object()) << text(tileA);
     EXPECT_NE(result(tileA)["stats"], result(tileClosed)["stats"]);
     for (const Entity e : lamps) w.destroy(e);
 }

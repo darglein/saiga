@@ -229,6 +229,10 @@ class SAIGA_ENGINE_API ExtractSystem
     std::vector<Entity> unposed;
     // Handles of untracked entities whose removeDynamic threw: removed again by the next extract or catch-up
     std::vector<InstanceHandle> removals;
+    // S36b (CodeRabbit #86 round 2): the lights whose addLight threw (sent again by the next extract or catch-up until
+    // the sink returns a handle or the light needs none) and the handles of untracked lights whose removeLight threw
+    std::vector<Entity> lightRetry;
+    std::vector<LightHandle> lightRemovals;
     // A RenderPose, Parent or NetOwner record was consumed and the sources are not evaluated again yet
     bool sourcesDirty = false;
     void retryPending();

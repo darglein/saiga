@@ -215,6 +215,10 @@ class SAIGA_ENGINE_API EngineApp
     void setEnvironmentSettings(const Vulkan::EnvironmentSettings& settings) { envSettings = settings; }
     // The Lighting tab's preview mapping (set_lighting_debug mapping; S36a1b)
     Vulkan::PreviewMapping& lightingPreviewMapping() { return previewMapping; }
+    // The explicit clears of the light highlight (set_lighting_debug highlight_light: null or 0): the Lighting tab
+    // drops its selection also when the highlight was already 0 (an entity light that is off; CodeRabbit #86 round 2)
+    void clearLightHighlight() { highlightClears++; }
+    uint64_t lightHighlightClears() const { return highlightClears; }
     // The environment of the view camera's space now (alpha of the world; get_lighting, the Lighting tab)
     EnvironmentSample sampleViewEnvironment() const;
     // The app sends the view space's environment to the sink every rendered frame (S36: every app with a world and a
@@ -265,6 +269,7 @@ class SAIGA_ENGINE_API EngineApp
     Vulkan::EnvironmentSettings envSettings;
     // The Lighting tab's preview mapping (set_lighting_debug mapping): log2 by default (the luminance)
     Vulkan::PreviewMapping previewMapping{true, 0, 1, true, Vulkan::ColorMap::Gray};
+    uint64_t highlightClears = 0;
     std::unique_ptr<Vulkan::VulkanWindow> appWindow;
     std::unique_ptr<Vulkan::RenderScene> renderScene;
     std::unique_ptr<VulkanRenderSink> sink;

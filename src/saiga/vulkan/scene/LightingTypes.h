@@ -264,7 +264,7 @@ enum LightingOverlay : uint32_t
     // S36b: the volumes of the frame's lights (spheres of point lights, cones of spot lights, in the light's colour;
     // shadowed ones thick; the highlighted light white)
     OverlayLightVolumes = 1u << 5,
-    // S36b: the cluster grid's depth slices and tiles (of the frozen camera with freeze cascades)
+    // S36b: the cluster grid's depth slices and tiles (of the frame's camera, which assigns the clusters)
     OverlayClusterGrid = 1u << 6,
     // S36b: the owner (light handle and face) of each tile in the atlas preview of the Lighting tab
     OverlayAtlasOwners = 1u << 7,
@@ -559,7 +559,7 @@ struct LightingStatistics
 // normal (the colour and the depth), then the data views Albedo, Normals, Material, the radiance views DirectOnly,
 // AmbientOnly, SpecularOnly (raw) and CloudShadow (S36a1c); each copies the resolved fp16 pixel (the MSAA average). The
 // camera and the environment are held during the sequence; consistent: the depth changed by at most 1% between the
-// frames
+// frames and (S36b) the local lights' state (switches, records, atlas tiles) stayed frame 1's
 struct LightingProbe
 {
     ivec2 pixel  = ivec2(0, 0);

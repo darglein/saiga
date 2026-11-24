@@ -12,6 +12,7 @@
 #include "saiga/engine/ecs/Visit.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <string>
@@ -39,7 +40,7 @@ struct LightSource
 
     LightKind kind = LightKind::Point;
     Vec3 color     = Vec3(1, 0.9, 0.8);  // linear
-    double lumen   = 800;                // >= 0
+    double lumen   = 800;                // [0, kMaxLumen]
     double range   = 10;                 // m, (0, 1000]
     // Spot: the full intensity inside innerAngleDeg, none beyond outerAngleDeg (0 < inner <= outer < 90)
     double innerAngleDeg = 25, outerAngleDeg = 35;
@@ -51,6 +52,8 @@ struct LightSource
     double flickerAmplitude = 0, flickerFrequency = 0;  // [0, 1], Hz (0: none)
 
     static constexpr const char* kindNames[] = {"point", "spot"};
+    // The largest lumen (the sink's float payload and the shaders' products stay finite; CodeRabbit #86 round 2)
+    static constexpr double kMaxLumen = 1e9;
 
     template <class V>
     void visit(V& v)
@@ -77,7 +80,7 @@ struct LightSource
     {
         auto finite = [](double x) { return std::isfinite(x); };
         if (!(range > 0 && range <= 1000)) return "range must be in (0, 1000] m";
-        if (!(lumen >= 0) || !finite(lumen)) return "lumen must be finite and >= 0";
+        if (!(lumen >= 0 && lumen <= kMaxLumen)) return "lumen must be in [0, 1e9]";
         if (kind == LightKind::Spot && !(innerAngleDeg > 0 && innerAngleDeg <= outerAngleDeg && outerAngleDeg < 90))
             return "spot angles must satisfy 0 < innerAngleDeg <= outerAngleDeg < 90";
         if (!finite(color(0)) || !finite(color(1)) || !finite(color(2)) || color.minCoeff() < 0)
@@ -86,10 +89,21 @@ struct LightSource
         const Vec4 q = rotation.coeffs();
         if (!finite(q(0)) || !finite(q(1)) || !finite(q(2)) || !finite(q(3)) || !(q.norm() > 1e-6))
             return "rotation must be a finite, non-zero quaternion";
-        if (!(priority >= 0) || !finite(priority)) return "priority must be finite and >= 0";
+        if (!(priority >= 0 && priority <= 1e30)) return "priority must be in [0, 1e30]";
         if (!(flickerAmplitude >= 0 && flickerAmplitude <= 1)) return "flickerAmplitude must be in [0, 1]";
         if (!(flickerFrequency >= 0 && flickerFrequency <= 100)) return "flickerFrequency must be in [0, 100] Hz";
         return "";
+    }
+    // The rotation as a unit quaternion (a valid rotation need not be normalized: Quat(2, 2, 0, 0) is accepted;
+    // scaled by its largest coefficient first, so the norm does not overflow; CodeRabbit #86 round 2)
+    Quat unitRotation() const
+    {
+        Vec4 c         = rotation.coeffs();
+        const double m = std::max(std::max(std::abs(c(0)), std::abs(c(1))), std::max(std::abs(c(2)), std::abs(c(3))));
+        if (!(m > 0) || !std::isfinite(m)) return Quat::Identity();
+        c /= m;
+        c /= c.norm();
+        return Quat(c(3), c(0), c(1), c(2));
     }
 };
 

@@ -1344,4 +1344,13 @@ TEST_F(AtlasTest, TerrainUnderLights)
     RenderFrame();
     EXPECT_EQ(Stats().staticRenders, 11u);
     EXPECT_EQ(Stats().queue, 1u);
+    RenderFrame();
+    EXPECT_EQ(Stats().queue, 0u);
+    // Regression (CodeRabbit #86 round 2): the terrain's draw state (the terrain switch, its skirts) is a part of the
+    // key: the faces render again when it changes (a tile rendered without the terrain was reused after it was switched
+    // on). The skirts here: the terrain switch would draw the main view's terrain (test speed)
+    ps.terrainSkirts = !ps.terrainSkirts;
+    scene->setPrototypeSettings(ps);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 11u);
 }

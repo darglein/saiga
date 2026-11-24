@@ -132,8 +132,14 @@ void ExtractSystem::setSink(RenderSink* sink)
                 renderSink->removeLight(l.handle);
                 l.handle = LightHandle();
             }
+        while (!lightRemovals.empty())
+        {
+            renderSink->removeLight(lightRemovals.back());
+            lightRemovals.pop_back();
+        }
         lights.clear();
         lightSlot.clear();
+        lightRetry.clear();
         tracked.clear();
         slotOf.clear();
         remote.clear();
@@ -167,7 +173,18 @@ void ExtractSystem::setSink(RenderSink* sink)
     // S36b: the existing light entities (also when an instance failed: CodeRabbit #86, nothing else would track them)
     std::vector<Entity> lit;
     w.registry().view<const LightSource>().each([&](Entity e, const LightSource&) { lit.push_back(e); });
-    for (Entity e : lit) trackLight(e);
+    // (each one also when the sink throws for another: CodeRabbit #86 round 2; a failed one is on the retry list)
+    for (Entity e : lit)
+    {
+        try
+        {
+            trackLight(e);
+        }
+        catch (...)
+        {
+            if (!failure) failure = std::current_exception();
+        }
+    }
     if (failure) std::rethrow_exception(failure);
 }
 
@@ -351,6 +368,28 @@ void ExtractSystem::retryPending()
     {
         renderSink->removeDynamic(removals.back());
         removals.pop_back();
+    }
+    while (!lightRemovals.empty())
+    {
+        renderSink->removeLight(lightRemovals.back());
+        lightRemovals.pop_back();
+    }
+    // S36b: the lights whose creation threw (at their current pose)
+    std::vector<Entity> retryLights;
+    retryLights.swap(lightRetry);
+    for (size_t i = 0; i < retryLights.size(); ++i)
+    {
+        TrackedLight* l = findLight(retryLights[i]);
+        if (!l || l->handle || !w.registry().alive(l->entity)) continue;
+        try
+        {
+            sendLight(*l, 1.0);
+        }
+        catch (...)
+        {
+            lightRetry.insert(lightRetry.end(), retryLights.begin() + std::ptrdiff_t(i) + 1, retryLights.end());
+            throw;
+        }
     }
     std::vector<Entity> list;
     list.swap(unposed);
@@ -643,7 +682,7 @@ bool ExtractSystem::catchUp()
     const bool stepped     = committedSteps != committedAtLastCatchUp;
     committedAtLastCatchUp = committedSteps;
     // An instance creation (or its snap) or a removal that the sink refused is retried in any frame (not an edit)
-    if (!unposed.empty() || !removals.empty()) retryPending();
+    if (!unposed.empty() || !removals.empty() || !lightRetry.empty() || !lightRemovals.empty()) retryPending();
     if (!dirty && (stepped || !(w.isPaused() || w.timeScale() == 0 || w.structuralLog().unread(consumer) > 0)))
         return false;
     dirty = false;
@@ -773,7 +812,14 @@ void ExtractSystem::trackLight(Entity e)
     WorldPose p;
     Source s;
     l.hasPose = w.registry().has<Transform>(e) && sourcePose(e, s, p);
-    if (l.hasPose) l.prev = l.curr = p;
+    if (l.hasPose)
+    {
+        l.prev = l.curr = p;
+        // The source and teleport count of this pose: the first step interpolates a normal move (CodeRabbit #86 round
+        // 2: Pending -> Transform was taken as a switch and snapped)
+        l.poseSource = s;
+        if (s == Source::Transform) l.teleports = w.registry().read<Transform>(e).teleportCount();
+    }
     sendLight(l, 1.0);
 }
 
@@ -790,7 +836,14 @@ void ExtractSystem::untrackLight(Entity e)
         lightSlot[lights[i].entity.index] = int32_t(i);
     }
     lights.pop_back();
-    if (h) renderSink->removeLight(h);
+    if (h)
+    {
+        // Kept until the sink removed it (a throwing sink: retried by the next extract or catch-up; CodeRabbit #86
+        // round 2: the handle was lost with the entry)
+        lightRemovals.push_back(h);
+        renderSink->removeLight(h);
+        lightRemovals.pop_back();
+    }
 }
 
 void ExtractSystem::sendLight(TrackedLight& l, double alpha)
@@ -823,7 +876,7 @@ void ExtractSystem::sendLight(TrackedLight& l, double alpha)
     WorldPose at;
     at.space          = l.curr.space;
     at.position       = r.position + r.rotation * (src.offset * r.scale);
-    at.rotation       = r.rotation * src.rotation;
+    at.rotation       = r.rotation * src.unitRotation();
     const ChunkPose c = toChunkPose(at);
     Vulkan::LightData d;
     d.kind              = src.kind;
@@ -849,9 +902,13 @@ void ExtractSystem::sendLight(TrackedLight& l, double alpha)
     d.flicker.seed = stable * 2654435761u;
     if (!l.handle)
     {
+        // On the retry list until the sink returns a handle (CodeRabbit #86 round 2: a failed creation waited for an
+        // edit of the light)
+        lightRetry.push_back(l.entity);
         l.handle = renderSink->addLight(c.chunk, d);
-        l.chunk  = c.chunk;
-        l.data   = d;
+        lightRetry.pop_back();
+        l.chunk = c.chunk;
+        l.data  = d;
         return;
     }
     if (l.chunk == c.chunk && sameLightData(l.data, d)) return;

@@ -141,10 +141,46 @@ struct RenderScene::ProbeRun
     // The surface changed size during the sequence (its pixels are other surface points; frame 1's held image is gone):
     // the run ends with the next latch and answers without values (CodeRabbit #82)
     bool resized = false;
+    // The light state of frame 1 (probeLightKey) and whether a later frame had another (CodeRabbit #86 round 2: the
+    // contributions of frame 1's lights next to an atlas result of another state were reported as consistent)
+    uint64_t lightKey  = 0;
+    bool lightsChanged = false;
 };
 
 namespace
 {
+// The light state a probe frame shades with: the local-light switches and the frame's records without their
+// intensity (flicker changes it every frame), incl. the atlas tiles and their readiness
+uint64_t probeLightKey(const LightingParameters& p, const std::vector<LocalLights::GpuLight>& records,
+                       const std::vector<FrameLightInfo>& lights)
+{
+    uint64_t h = 1469598103934665603ull;
+    auto mix   = [&](uint64_t v)
+    {
+        h ^= v;
+        h *= 1099511628211ull;
+    };
+    auto mixFloat = [&](float f)
+    {
+        uint32_t u;
+        std::memcpy(&u, &f, 4);
+        mix(u);
+    };
+    mix(p.localLights ? 1 : 0);
+    mix(p.clusteredLights ? 1 : 0);
+    mix(records.size());
+    for (const FrameLightInfo& f : lights) mix(f.handle);
+    for (const LocalLights::GpuLight& g : records)
+        for (int i = 0; i < 4; ++i)
+        {
+            mixFloat(g.posRange(i));
+            mixFloat(g.dirKind(i));
+            mixFloat(g.cone(i));
+        }
+    for (const LocalLights::GpuLight& g : records) mixFloat(g.intensity(3));
+    return h;
+}
+
 // The views of the probe's frames (frame 1: normal); frames 5-7 write raw radiance, frame 8 the cloud shadow, frame 9
 // the cascades (S36a2: factor, cascade + 1), frame 10 the horizon map (factor, R and G above the receiver; raw data),
 // frame 11 the local lights' atlas shadow (S36b: factor, the shadowed lights that reach the pixel)
@@ -467,6 +503,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             probe->proj        = s.frameProjection;
             probe->forward     = s.cameraRotation * Vec3(0, 0, -1);
             probe->lights      = s.lightTable->frameRecords();
+            probe->lightKey =
+                probeLightKey(s.params.lighting, s.lightTable->frameRecords(), s.lightTable->frameLights());
             probe->handles.clear();
             for (const FrameLightInfo& f : s.lightTable->frameLights()) probe->handles.push_back(f.handle);
             probe->cameraTaken = true;
@@ -485,6 +523,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             }
         }
         if (probe && probe->step > 0 && probe->size != ivec2(surfaceWidth, SurfaceHeight)) probe->resized = true;
+        if (probe && probe->step > 0 &&
+            probeLightKey(s.params.lighting, s.lightTable->frameRecords(), s.lightTable->frameLights()) !=
+                probe->lightKey)
+            probe->lightsChanged = true;
         // probe_lighting: the pixels of this frame of the sequence
         if (probe)
         {
@@ -1377,8 +1419,10 @@ void RenderScene::setToneMap(ToneMap toneMap)
 void RenderScene::ensureBrdf()
 {
     if (brdf) return;
-    brdf = std::make_unique<BrdfLut>();
-    brdf->init(base());
+    // Published after a successful init (CodeRabbit #86 round 2: a throwing init left a partial LUT in use)
+    auto lut = std::make_unique<BrdfLut>();
+    lut->init(base());
+    brdf = std::move(lut);
 }
 
 void RenderScene::ensureEnvironmentResources()
@@ -1854,7 +1898,9 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     in.forward      = cameraRotation * Vec3(0, 0, -1);
     in.on           = p.localLights;
     in.maxLights    = p.maxLights;
-    in.clusterFar   = std::max(double(p.clusterFar), 1.0);
+    // The grid's far plane (CodeRabbit #86 round 2: the selection stopped at max(clusterFar, 1), the grid at
+    // max(clusterFar, 2 nearPlane))
+    in.clusterFar   = std::max(double(p.clusterFar), 2.0 * double(params.nearPlane));
     in.flickerPhase = envSet ? env.phases[6] : 0.0f;
     in.highlight    = frameDebug.highlightLight;
     lightTable->prepareFrame(frameIndex, in);
@@ -1881,6 +1927,7 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     // device (CodeRabbit #86: a 64 x 64 x 128 grid with 1024 slots was a 2 GiB binding)
     const uint64_t slotsInLimit = storageBufferLimit() / (uint64_t(g.count()) * 4);
     g.maxLightsPerCluster       = int(std::clamp<uint64_t>(slotsInLimit, 1, uint64_t(g.maxLightsPerCluster)));
+    g.clustered                 = p.clusteredLights;
 
     frameClusters = camera.valid && count > 0;
     if (!frameClusters) clusterCull->clearStatistics();
@@ -1930,6 +1977,7 @@ void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, b
         li.handle     = f.handle;
         li.index      = int(f.index);
         li.world      = l->worldPosition();
+        li.space      = l->chunk.space;
         li.data       = l->data;
         li.importance = f.importance;
         in.push_back(li);
@@ -1959,13 +2007,17 @@ void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, b
             const MeshPool::Mesh* m = meshPool->mesh(d.mesh);
             if (!m) continue;
             // The bound of every pose between prev and curr that the frame's alpha can render (CodeRabbit #86: the curr
-            // sphere alone missed a face that only an interpolated pose reaches)
-            auto sphereAt = [&](const DynamicPose& q)
-            { return chunkOrigin(d.chunk) + q.position + q.rotation * (m->sphereCenter.cast<double>() * q.scale); };
-            const Vec3 a = sphereAt(d.prev), b = sphereAt(d.curr);
+            // sphere alone missed a face that only an interpolated pose reaches): the segment of the origins, widened
+            // by the scaled mesh-centre offset under any rotation and the padded radius (round 2: the endpoints' sphere
+            // centres missed an off-centre mesh rotating between them)
+            const Vec3 origin   = chunkOrigin(d.chunk);
+            const Vec3 a        = origin + d.prev.position;
+            const Vec3 b        = origin + d.curr.position;
             const Vec3 centre   = 0.5 * (a + b);
-            const double radius = double(m->sphereRadius + m->boundsPadding) * std::max(d.prev.scale, d.curr.scale) +
-                                  0.5 * (b - a).norm();
+            const double scale  = std::max(d.prev.scale, d.curr.scale);
+            const double radius =
+                (m->sphereCenter.cast<double>().norm() + double(m->sphereRadius + m->boundsPadding)) * scale +
+                0.5 * (b - a).norm();
             for (ShadowAtlas::LightInput& li : in)
                 if ((centre - li.world).norm() <= radius + double(li.data.range))
                     li.movers.emplace_back(centre, radius);
@@ -1980,11 +2032,21 @@ void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, b
         terrain->selectForAtlas(frameIndex, *atlas, camera, spheres, keys);
     else
         keys.assign(in.size(), 0);
-    for (size_t i = 0; i < in.size(); ++i) in[i].terrainKey = i < keys.size() ? keys[i] : 0;
+    // The terrain draw state is a part of the key: the prototype's terrain switch and the skirts (CodeRabbit #86 round
+    // 2: a tile rendered without the terrain was reused after it was switched on)
+    const uint64_t drawState = (protoSettings->terrain ? 1u : 0u) | (protoSettings->terrainSkirts ? 2u : 0u);
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        uint64_t key = i < keys.size() ? keys[i] : 0;
+        if (key) key = (key ^ (drawState + 0x5bd1e995ull)) * 1099511628211ull;
+        in[i].terrainKey = key;
+    }
     // The faces of this frame: views of the culling after the cascades' (the 16-bit view masks: at most 11 atlas views)
     const int freeViews = kMaxCullViews - 1 - int(shadowViews.size());
-    // Golden mode (forceFullUpdates, §17.6; nit 25): every due face up to the 11 views of a frame
-    const int faces = std::clamp(std::min(p.forceFullUpdates ? 11 : p.facesPerFrame, freeViews), 0, 11);
+    // Golden mode (forceFullUpdates, §17.6; nit 25) and a one-shot requestFullUpdate (CodeRabbit #86 round 2): every
+    // due face up to the 11 views of a frame
+    const bool full = p.forceFullUpdates || fullUpdateRequested;
+    const int faces = std::clamp(std::min(full ? 11 : p.facesPerFrame, freeViews), 0, 11);
     std::vector<ShadowAtlas::Face> list;
     atlasShadows->update(in, camera.position, shadowViewsOverride ? 0 : faces, frameCount + 1, list);
     // The faces are recorded in this frame's shadow section, before the scene pass reads them: rendered for the table
@@ -2044,19 +2106,15 @@ void RenderScene::clusterOverlays()
 {
     if (!(frameDebug.overlays & OverlayClusterGrid) || !cameraSet) return;
     const ClusterGrid& g = *clusterGrid;
-    // The camera of the grid: the frozen camera of the cascades while they are frozen, else this frame's
-    Vec3 eye    = cameraPosition;
-    Mat3 R      = cameraRotation.matrix();
-    double fovy = cameraFovy;
-    if (freezeCascades && cascades->fittedCamera().fovy > 0)
-    {
-        eye  = cascades->fittedCamera().camera;
-        R    = cascades->fittedCamera().cameraRotation;
-        fovy = cascades->fittedCamera().fovy;
-    }
+    // The camera of the grid: this frame's (the clusters are assigned with it, also while the cascades are frozen;
+    // CodeRabbit #86 round 2)
+    const Vec3 eye    = cameraPosition;
+    const Mat3 R      = cameraRotation.matrix();
+    const double fovy = cameraFovy;
     const double tanY = std::tan(fovy * 0.5), tanX = tanY * g.aspect;
     // Pixel row 0 at the top: +y in view space
-    auto point = [&](double sx, double sy, double d) { return eye + R * Vec3(sx * tanX * d, -sy * tanY * d, -d); };
+    auto point = [&](double sx, double sy, double d) -> Vec3
+    { return eye + R * Vec3(sx * tanX * d, -sy * tanY * d, -d); };
     for (int k = 0; k <= g.z; ++k)
     {
         double d0, d1;
@@ -2311,9 +2369,9 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
                      (envMap ? envMap->memoryBytes() : 0) + (clouds ? clouds->memoryBytes() : 0) +
                      cascades->memoryBytes() + horizon->memoryBytes() + lightTable->statistics().memoryBytes +
                      clusterCull->statistics().memoryBytes + atlasShadows->memoryBytes();
-    st.horizon             = horizon->statistics();
-    st.horizonPreview = st.horizon;
-    st.lights              = lightTable->statistics();
+    st.horizon                     = horizon->statistics();
+    st.horizonPreview              = st.horizon;
+    st.lights                      = lightTable->statistics();
     st.atlas                       = atlasShadows->statistics();
     st.atlas.terrainNodes          = uint32_t(terrain->atlasNodeCount());
     st.atlas.terrainNodesTruncated = uint32_t(terrain->atlasNodesTruncated());
@@ -2437,6 +2495,8 @@ void RenderScene::finishProbe()
         };
         const LightingDebug::PixelValue first = value(0);
         p.inImage                             = first.valid;
+        // (another light state in a later frame)
+        if (run->lightsChanged) p.consistent = false;
         if (p.inImage)
         {
             p.depth = first.depth;
@@ -2657,7 +2717,13 @@ void RenderScene::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dynam
                                old.curr.scale == now.curr.scale;
         if (wasResting && !(resting && samePlace)) markDynamicDirty(old.mesh, old.chunk, old.curr);
         if (resting && !(wasResting && samePlace)) markDynamicDirty(now.mesh, now.chunk, now.curr);
-        if (now.snappedMove)
+        // A repeated identical write keeps the snap's frame (it cannot postpone the settle; CodeRabbit #86 round 2)
+        const bool identical = old.set && old.chunk == now.chunk && old.prev.position == now.prev.position &&
+                               old.prev.rotation.coeffs() == now.prev.rotation.coeffs() &&
+                               old.prev.scale == now.prev.scale && samePlace;
+        if (now.snappedMove && identical)
+            snappedDynamics.emplace(h.id, frameCount);
+        else if (now.snappedMove)
             snappedDynamics[h.id] = frameCount;
         else
             snappedDynamics.erase(h.id);

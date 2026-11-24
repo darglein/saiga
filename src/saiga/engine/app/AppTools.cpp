@@ -399,7 +399,8 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "engine (F3), console (F4, the log with the MCP call log), lighting (F5: time, weather, sun and moon, "
         "exposure) "
         "or a game tab by name (case-insensitive). Without "
-        "tab it only reads. Returns the selected tab, the tabs with their keys and whether the UI is visible (G hides "
+        "tab the current tab stays; without tab and sections it only reads. Returns the selected tab, the tabs with "
+        "their keys and whether the UI is visible (G hides "
         "all ImGui; this tool does not show it again). sections (S36b): {key: open} opens or closes collapsible "
         "sections by their key (e.g. \"lighting/Local lights\"; the keys are in the answer's sections). Use it before "
         "screenshot(gui: true) to capture a tab. Changes only the UI, not the world.",

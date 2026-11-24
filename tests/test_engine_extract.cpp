@@ -283,6 +283,19 @@ struct ThrowingSink : RecordingRenderSink
         if (throwOnSet > 0 && --throwOnSet == 0) throw std::runtime_error("sink: setDynamic");
         RecordingRenderSink::setDynamic(h, chunk, prev, curr, boneOffset);
     }
+    // S36b: the lights
+    int throwOnAddLight    = 0;  // the n-th next addLight throws
+    int throwOnRemoveLight = 0;  // the n-th next removeLight throws (before removing)
+    LightHandle addLight(const ChunkId& chunk, const LightData& light) override
+    {
+        if (throwOnAddLight > 0 && --throwOnAddLight == 0) throw std::runtime_error("sink: addLight");
+        return RecordingRenderSink::addLight(chunk, light);
+    }
+    void removeLight(LightHandle h) override
+    {
+        if (throwOnRemoveLight > 0 && --throwOnRemoveLight == 0) throw std::runtime_error("sink: removeLight");
+        RecordingRenderSink::removeLight(h);
+    }
 };
 
 // A host and clients over loopback (S16), each with its own recording sink
@@ -420,7 +433,26 @@ TEST(ExtractSink, LightPairsKeptByCatchUpAndSnappedByTeleports)
     w.get<Transform>(lamp).teleport(Vec3(1000, 0, 0), Quat::Identity());
     w.step();
     w.extract().updateLights(0.5);
+    ASSERT_EQ(sink.lights().size(), 1u) << "the light after the teleport";
     EXPECT_NEAR(sink.lights().begin()->second.worldPosition()(0), 1000, 1e-3);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (CodeRabbit #86 round 2): a light tracked when the sink was set had no pose source yet, so its first
+// normal move was taken as a source switch and snapped (at alpha 0.5 the light was at the step's end)
+TEST(ExtractSink, FirstMoveAfterTheSinkIsSetInterpolates)
+{
+    World w(baseSetup());
+    const Entity lamp = w.create();
+    w.add<LightSource>(lamp, LightSource());
+    w.step();
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    w.get<Transform>(lamp).setPosition(Vec3(10, 0, 0));
+    w.step();
+    w.extract().updateLights(0.5);
+    ASSERT_EQ(sink.lights().size(), 1u);
+    EXPECT_NEAR(sink.lights().begin()->second.worldPosition()(0), 5, 1e-4);
     w.setRenderSink(nullptr);
 }
 
@@ -1710,5 +1742,33 @@ TEST(ExtractSpaces, SpaceSettingsForwarded)
     w.setRenderSink(&later);
     EXPECT_EQ(later.counters().setSpaceSettings, 3u);
     EXPECT_EQ(s.counters().setSpaceSettings, 3u);
+    w.setRenderSink(nullptr);
+}
+
+// Regression (CodeRabbit #86 round 2): a throwing sink lost lights. (1) setRenderSink stopped tracking the existing
+// lights at the first addLight that threw (the consumer starts after their records: the second was never rendered);
+// (2) a failed creation waited for an edit of the light (a catch-up without a step did not retry it); (3) a failed
+// removeLight dropped the handle with the entry (the sink kept the deleted entity's light)
+TEST(ExtractReview, ThrowingLightSinkRetries)
+{
+    World w(baseSetup());
+    const Entity a = w.create(), b = w.create();
+    w.add<LightSource>(a, LightSource());
+    w.add<LightSource>(b, LightSource());
+    w.step();
+    ThrowingSink s;
+    s.throwOnAddLight = 1;
+    EXPECT_ANY_THROW(w.setRenderSink(&s));
+    EXPECT_EQ(s.lights().size(), 1u) << "the other light is tracked";
+    // A frame without a step or an edit (catchUp returns before it syncs) retries the failed creation
+    EXPECT_FALSE(w.extract().catchUp());
+    EXPECT_EQ(s.lights().size(), 2u) << "the failed creation retried";
+    // A removal the sink refuses is retried
+    s.throwOnRemoveLight = 1;
+    w.destroy(a);
+    EXPECT_ANY_THROW(w.extract().catchUp());
+    EXPECT_EQ(s.lights().size(), 2u);
+    w.extract().catchUp();
+    EXPECT_EQ(s.lights().size(), 1u) << "the refused removal retried";
     w.setRenderSink(nullptr);
 }

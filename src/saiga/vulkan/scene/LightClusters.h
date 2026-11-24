@@ -29,6 +29,8 @@ struct SAIGA_VULKAN_API ClusterGrid
     double nearPlane = 0.1, clusterNear = 2, clusterFar = 1000;
     int width = 1, height = 1;
     double fovy = 1, aspect = 1;
+    // The frame shaded with the clusters (else the brute-force loop; not a part of the grid's identity)
+    bool clustered = true;
     int count() const { return x * y * z; }
     // The view-space depth range of a slice
     void sliceDepth(int slice, double& d0, double& d1) const;

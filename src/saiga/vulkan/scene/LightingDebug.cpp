@@ -41,8 +41,9 @@ struct PreviewPush
     uint32_t layers;
     uint32_t step;
     uint32_t layerWidth;
+    uint32_t extent;  // S36b: the sub-rectangle's size (x | y << 16; 0: the whole layer)
 };
-static_assert(sizeof(PreviewPush) == 64, "Push of debug_preview.comp");
+static_assert(sizeof(PreviewPush) == 68, "Push of debug_preview.comp");
 
 // The Statistics buffer of debug_preview.comp: stats (min, max, mean, count), range, histogram[16], layerRange[4]
 constexpr size_t kStatsBytes = 32 + 16 * 4 + 4 * 16;
@@ -446,6 +447,11 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         push.groups    = groups;
         // S36b: the sub-rectangle's origin (x | y << 16)
         push.pad        = source ? 0u : (arraySrc.originX & 0xFFFFu) | (arraySrc.originY << 16);
+        // and its size: the reduction of a texel stays inside it (CodeRabbit #86 round 2: the last column's minimum
+        // read the neighbouring tile)
+        push.extent     = source || arraySrc.width == 0 || arraySrc.height == 0
+                              ? 0u
+                              : (arraySrc.width & 0xFFFFu) | (arraySrc.height << 16);
         push.layer      = source ? 0 : arraySrc.layer;
         push.layers     = source ? 0 : arraySrc.layers;
         push.step       = step;

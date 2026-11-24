@@ -218,6 +218,11 @@ class LightingGolden : public ::testing::Test
         state = std::move(st);
     }
 
+    // A frame without a screenshot (a warm-up frame: no blocking readback)
+    void Frame()
+    {
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    }
     TemplatedImage<ucvec4> RenderFrame()
     {
         TemplatedImage<ucvec4> img;
@@ -252,7 +257,7 @@ class LightingGolden : public ::testing::Test
         renderUntilUploaded(*scene, 256);
         // The pre-exposure follows the previous frame's exposure: settled after a shot of another EV100 (order
         // independent)
-        RenderFrame();
+        Frame();
         return GoldenFrame();
     }
     // One frame in golden mode: the environment map, the cascades (fitted to their slices: no history), the horizon
@@ -263,7 +268,7 @@ class LightingGolden : public ::testing::Test
         Vulkan::LightingParameters lp = scene->lightingParameters();
         lp.forceFullUpdates           = true;
         scene->setLightingParameters(lp);
-        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+        Frame();
         TemplatedImage<ucvec4> img = RenderFrame();
         scene->waitIdle();
         lp.forceFullUpdates = false;
@@ -431,9 +436,9 @@ TEST_F(LightingGolden, EnclosedLights)
     const Quat rotation =
         Vulkan::viewRotation(lookAt(eye.cast<float>(), vec3(float(o), 0.0f, float(o)), vec3(0, 1, 0)));
     scene->setCamera(1, eye, rotation, 60 * kPi / 180);
-    // Five frames as the per-test fixture (the pre-exposure follows the cellar's EV100 over the frames), the last in
-    // golden mode
-    for (int i = 0; i < 4; ++i) RenderFrame();
+    // Six frames (the pre-exposure follows the cellar's EV100 over the frames): four warm-up frames and GoldenFrame's
+    // two in golden mode, a screenshot only of the last
+    for (int i = 0; i < 4; ++i) Frame();
     auto img = GoldenFrame();
     EXPECT_EQ(scene->lightingStatistics().lights.visible, 6u);
     EXPECT_EQ(scene->lightingStatistics().atlas.lightsWithTiles, 2u);

@@ -206,8 +206,9 @@ void LightingTab::toolbar()
             ImGui::SameLine();
             float range[2] = {m.min, m.max};
             ImGui::SetNextItemWidth(140);
+            // (a finite span: the shader maps and bins over max - min; CodeRabbit #86 round 2)
             if (ImGui::InputFloat2("##preview range", range, "%.3g") && std::isfinite(range[0]) &&
-                std::isfinite(range[1]) && range[0] < range[1])
+                std::isfinite(range[1]) && range[0] < range[1] && std::isfinite(range[1] - range[0]))
             {
                 m.min = range[0];
                 m.max = range[1];
@@ -230,9 +231,11 @@ bool LightingTab::applySettings(const Vulkan::EnvironmentSettings& s)
 {
     Vulkan::RenderScene* scene = app.scene();
     std::string error;
-    const bool ok = scene ? validateLighting(scene->lightingStatistics(), scene->storageBufferLimit(), s,
-                                             scene->lightingParameters(), error)
-                          : validateLightingValues(s, Vulkan::LightingParameters(), error);
+    // The settings' values only: the parameters are unchanged, so their memory and device limits are not checked again
+    // (CodeRabbit #86 round 2: an environment file's cluster slots, reduced by the scene to the device's limit, refused
+    // every exposure edit)
+    const bool ok =
+        validateLightingValues(s, scene ? scene->lightingParameters() : Vulkan::LightingParameters(), error);
     if (!ok)
     {
         writeError = error;
@@ -1202,6 +1205,13 @@ void LightingTab::lightTable()
         if (st.handle) entities[st.handle.id] = st.entity;
         byEntity[st.entity.index] = &st;
     }
+    // An explicit clear (MCP highlight_light: null) drops the selection, also of an entity light that is off (its
+    // highlight was 0 already)
+    if (app.lightHighlightClears() != seenHighlightClears)
+    {
+        seenHighlightClears = app.lightHighlightClears();
+        if (d.highlightLight == 0) selectedEntity = Entity();
+    }
     // Another change of the highlight (an atlas tile click, MCP) selects that light's entity
     if (d.highlightLight != tabHighlight)
     {
@@ -1454,7 +1464,11 @@ void LightingTab::lightTable()
     {
         hasPos = selState->hasPose;
         pos    = worldOf(*selState);
-        dir    = selState->pose.rotation * selState->source.rotation * Vec3(0, 0, -1);
+        // An invalid light (e.g. a NaN offset) is moved to at its entity's origin; without a finite one the camera is
+        // not moved (CodeRabbit #86 round 2: the tool held the camera at a NaN eye)
+        if (!pos.allFinite()) pos = selState->pose.position;
+        hasPos = hasPos && pos.allFinite();
+        dir    = selState->pose.rotation * selState->source.unitRotation() * Vec3(0, 0, -1);
         range  = selState->source.range;
         space  = selState->pose.space;
         spot   = selState->source.kind == Vulkan::LightKind::Spot;

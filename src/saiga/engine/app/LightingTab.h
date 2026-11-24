@@ -105,6 +105,8 @@ class SAIGA_ENGINE_API LightingTab
     // highlightLight, e.g. an atlas tile click or MCP, selects that light's entity)
     Entity selectedEntity;
     uint32_t tabHighlight = 0;
+    // EngineApp::lightHighlightClears seen by the tab
+    uint64_t seenHighlightClears = 0;
     // The table's order (round 1, finding 17: sorted when the sort spec or the light set changes, else at most every
     // 30 frames for the distances): row keys (a handle, or 1 << 32 | entity index for an unrendered entity light)
     std::vector<uint64_t> lightOrder;

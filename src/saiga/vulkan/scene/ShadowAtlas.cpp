@@ -92,14 +92,15 @@ void ShadowAtlas::ensure(int resolution, int tile, vk::CommandBuffer cmd)
     image->create(*base, uint32_t(resolution), uint32_t(resolution), 2, kAtlasFormat,
                   vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled |
                       vk::ImageUsageFlagBits::eTransferDst);
-    res        = resolution;
-    tileTexels = tile;
     for (uint32_t l = 0; l < 2; ++l)
     {
         vk::ImageViewCreateInfo info({}, image->image(), vk::ImageViewType::e2D, kAtlasFormat, {},
                                      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, l, 1));
         layerViews[l] = base->device.createImageView(info);
     }
+    // The size only after both views exist (a throwing view creation is retried in full; CodeRabbit #86 round 2)
+    res        = resolution;
+    tileTexels = tile;
     // Both layers lit (1) and readable, recorded into the frame's command buffer (round 1, finding 14: a blocking
     // submitAndWait stalled the frame on the first shadowed light and on every resolution or tile change); the frame's
     // atlas pass and the receivers come after it
@@ -165,10 +166,12 @@ void ShadowAtlas::faceView(const LightData& d, const Vec3& lightRel, int face, m
     {
         F                = d.direction.cast<double>();
         F                = F.norm() > 1e-9 ? Vec3(F.normalized()) : Vec3(0, -1, 0);
-        const double co  = std::clamp(double(d.cosOuter), 0.05, 1.0);
+        // Every admitted cone (outer < 90 degrees; CodeRabbit #86 round 2: the projection stopped at 85 degrees and an
+        // 89 degree spot sampled the clamped tile border)
+        const double co  = std::clamp(double(d.cosOuter), 0.008, 1.0);
         const double tan = std::sqrt(1 - co * co) / co;
         // A small margin over the cone (the receivers' filter at its edge)
-        tanHalf = std::min(tan * 1.05 + 0.01, 11.43);
+        tanHalf = std::min(tan * 1.05 + 0.01, 140.0);
     }
     else
     {
@@ -179,7 +182,8 @@ void ShadowAtlas::faceView(const LightData& d, const Vec3& lightRel, int face, m
     const Vec3 R       = F.cross(up).normalized();
     const Vec3 U       = R.cross(F);
     const double range = std::max(double(d.range), 1e-3);
-    const double nearP = std::max(0.02, range * 1e-3);
+    // (below the range for a short-range light: CodeRabbit #86 round 2, a 0.015 m range was beyond the near plane)
+    const double nearP = std::min(std::max(0.02, range * 1e-3), 0.25 * range);
     // The view (rows R, U, -F: right-handed like the main camera) and a standard perspective (depth 0 near, 1 far;
     // the atlas stores the linear depth of the fragment shader, z only clips)
     Mat4 V             = Mat4::Identity();
@@ -216,6 +220,8 @@ uint64_t ShadowAtlas::projectionKey(const LightInput& l, int face)
     uint64_t h = 1469598103934665603ull;
     h          = mix(h, l.handle);
     h          = mix(h, uint64_t(face));
+    // The space (another space's casters at the same coordinates; CodeRabbit #86 round 2)
+    h = mix(h, uint64_t(l.space));
     for (int i = 0; i < 3; ++i) h = mix(h, bits(l.world(i)));
     h = mix(h, uint64_t(l.data.kind));
     h = mix(h, bits(l.data.range));

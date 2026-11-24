@@ -259,8 +259,11 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
     Dynamic& d = dynamicList[h.id - 1];
     auto same  = [](const DynamicPose& a, const DynamicPose& b)
     { return a.position == b.position && a.scale == b.scale && a.rotation.coeffs() == b.rotation.coeffs(); };
-    // Committed with the pose, after the chunk operations that may throw (CodeRabbit #86)
-    const bool snappedMove = d.set && same(prev, curr) && (d.chunk != chunk || !same(d.curr, curr));
+    // Committed with the pose, after the chunk operations that may throw (CodeRabbit #86); an identical write keeps a
+    // pending snap (CodeRabbit #86 round 2: a repeated (B, B) cleared it and the instance was settled at once)
+    const bool identical = d.set && d.chunk == chunk && same(d.prev, prev) && same(d.curr, curr);
+    const bool snappedMove =
+        identical ? d.snappedMove : d.set && same(prev, curr) && (d.chunk != chunk || !same(d.curr, curr));
     if (!d.set || d.chunk != chunk)
     {
         // Room for the old chunk's slot first: after acquireChunk nothing may throw (RenderSink's failure contract)

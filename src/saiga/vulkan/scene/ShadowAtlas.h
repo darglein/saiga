@@ -63,6 +63,7 @@ class SAIGA_VULKAN_API ShadowAtlas
         uint32_t handle = 0;
         int index       = 0;  // the frame's light buffer index
         Vec3 world      = Vec3::Zero();
+        SpaceId space   = 0;
         LightData data;
         double importance = 0;
         // The moving dynamic instances whose sphere intersects the light's (world centre, radius): a face gets a

@@ -219,7 +219,13 @@ PipelineBase& TerrainPass::pipeline(Kind k)
                          : k == Kind::Sky    ? &skyPipeline
                          : k == Kind::Shadow ? &shadowPipeline
                                              : static_cast<PipelineBase*>(&probePipeline);
-    if (createdPipelines & bit) return *out;
+    if (createdPipelines & bit)
+    {
+        // The probe's set again after a failed allocation (the pipeline exists; CodeRabbit #86 round 2: a null set
+        // reached updateDescriptorSets)
+        if (k == Kind::Probe && !probeSet) probeSet = probePipeline.createRawDescriptorSet();
+        return *out;
+    }
     createdPipelines |= bit;
     // Set 0: the terrain's frame data; set 1: the lighting set (S36: shadeSurface of lighting.glsl)
     const std::string defines;

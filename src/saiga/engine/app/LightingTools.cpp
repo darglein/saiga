@@ -222,8 +222,8 @@ LightingMemoryEstimate lightingMemoryAfter(const Vulkan::LightingStatistics& ls,
     const uint64_t clusterBytes = std::max(clusterNew, ls.lights.clusterMemory);
     LightingMemoryEstimate m;
     // (the horizon maps are replaced by the estimate, the resident chain stays: CodeRabbit #85 round 2)
-    const uint64_t replaced = ls.shadowMemoryBytes + (ls.horizon.memoryBytes - ls.horizon.chainBytes) + atlasNow +
-                              ls.lights.clusterMemory;
+    const uint64_t replaced =
+        ls.shadowMemoryBytes + (ls.horizon.memoryBytes - ls.horizon.chainBytes) + atlasNow + ls.lights.clusterMemory;
     m.total = (ls.memoryBytes > replaced ? ls.memoryBytes - replaced : 0) + cascadeBytes + horizonBytes + atlasBytes +
               clusterBytes;
     m.largestBinding = p.localLights ? indicesPerSlot : 0;
@@ -291,19 +291,25 @@ bool parseMapping(const Json& range, const Json& log, const Json& colorMap, Vulk
 {
     if (!range.is_null())
     {
+        // [min, max] in the shader's float: both within the float range, distinct after the conversion and a finite
+        // span (CodeRabbit #86 round 2: [1, 1.00000001] became [1, 1], opposite endpoints near FLT_MAX an infinite
+        // span)
+        auto inFloat = [](const Json& v)
+        { return v.is_number() && std::isfinite(v.number_value()) && std::abs(v.number_value()) <= 3.0e38; };
+        const bool pair = range.is_array() && range.array_items().size() == 2 && inFloat(range[0]) && inFloat(range[1]);
+        const float lo  = pair ? float(range[0].number_value()) : 0.0f;
+        const float hi  = pair ? float(range[1].number_value()) : 0.0f;
         if (range == Json("auto"))
             m.autoRange = true;
-        else if (range.is_array() && range.array_items().size() == 2 && range[0].is_number() && range[1].is_number() &&
-                 std::isfinite(range[0].number_value()) && std::isfinite(range[1].number_value()) &&
-                 range[0].number_value() < range[1].number_value())
+        else if (pair && lo < hi && std::isfinite(hi - lo))
         {
             m.autoRange = false;
-            m.min       = float(range[0].number_value());
-            m.max       = float(range[1].number_value());
+            m.min       = lo;
+            m.max       = hi;
         }
         else
         {
-            error = "range: \"auto\" or [min, max] with min < max";
+            error = "range: \"auto\" or [min, max] with min < max (distinct floats, a finite span)";
             return false;
         }
     }
@@ -630,7 +636,8 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                      {"cluster_near", double(g.clusterNear)},
                                      {"cluster_far", double(g.clusterFar)},
                                      {"max_lights_per_cluster", g.maxLightsPerCluster},
-                                     {"clustered", l.clustered},
+                                     // (the mode of that frame; CodeRabbit #86 round 2)
+                                     {"clustered", l.clusterFrame != 0 ? g.clustered : l.clustered},
                                      {"clusters", double(l.clusterCount)},
                                      {"max", double(l.clusterMax)},
                                      {"mean", l.clusterMean},
@@ -1059,6 +1066,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (!a["cluster_heat_scale"].is_null()) scene->setClusterHeatScale(float(heat));
             if (a["recompute_horizon"].bool_value()) scene->requestHorizonRecompute(false);
             scene->setLightingDebug(after);
+            if (a.object_items().count("highlight_light") && after.highlightLight == 0) app.clearLightHighlight();
             scene->setExposureViewRange(centre, range);
             app.lightingPreviewMapping() = mapping;
             Json::object o               = lightingDebugJson(after).object_items();
@@ -1353,11 +1361,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         {
                             Vulkan::ShadowAtlas& at = sc->shadowAtlas();
                             Json::array tiles;
+                            bool faceFound = false;
                             for (int t = 0; t < int(at.tiles().size()); ++t)
                             {
                                 const Vulkan::AtlasTileInfo& ti = at.tiles()[size_t(t)];
                                 if (!ti.owner) continue;
                                 if (name == "atlas_tile" && ti.owner != lightHandle) continue;
+                                faceFound = faceFound || ti.face == face;
                                 tiles.push_back(
                                     Json::object{{"tile", t},
                                                  {"light", double(ti.owner)},
@@ -1373,6 +1383,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                             block["tile_size"]  = at.tileSize();
                             if (name == "atlas_tile")
                             {
+                                // The face must still exist (a point light changed to a spot has face 0 only: the
+                                // scene converted another face; CodeRabbit #86 round 2)
+                                if (!faceFound)
+                                    return respond(ToolResult::Error("face: light " + std::to_string(lightHandle) +
+                                                                     " has no atlas face " + std::to_string(face) +
+                                                                     " in the frame of the capture"));
                                 block["light"] = double(lightHandle);
                                 block["face"]  = face;
                             }
@@ -1397,6 +1413,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                             }
                             const Vulkan::LocalLightStatistics& l = sc->lightingStatistics().lights;
                             cl["overflowed"]                      = double(l.overflowedClusters);
+                            // (the count's frame: the newest harvested one, not necessarily the capture's; CodeRabbit
+                            // #86 round 2)
+                            cl["overflowed_frame"]                = double(l.clusterFrame);
                             block["clusters"]                     = cl;
                         }
                     }
@@ -1557,6 +1576,11 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     return respond(ToolResult::Error("position: outside the image or behind the camera (pixel (" +
                                                      std::to_string(p.pixel(0)) + ", " + std::to_string(p.pixel(1)) +
                                                      "))"));
+                // A pixel request without a sample: the surface was resized during the frames (CodeRabbit #86 round
+                // 2: answered with default values)
+                if (!p.inImage)
+                    return respond(
+                        ToolResult::Error("probe_lighting: the surface was resized during the frames (no sample)"));
                 Json::object o{{"pixel", Json::array{p.pixel(0), p.pixel(1)}},
                                {"frames", p.frames},
                                {"consistent", p.consistent},
@@ -1709,7 +1733,11 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             auto deg          = [](float c) { return std::acos(std::clamp(double(c), -1.0, 1.0)) * 57.29577951308232; };
             auto passes       = [&](const Vec3* p, double range, bool shadowed, bool visible, bool rendered)
             {
-                if (near && (!p || (*p - near->first).norm() > near->second + range)) return false;
+                // (near needs a finite sphere: an invalid light with a NaN position or range is not near anything;
+                // CodeRabbit #86 round 2)
+                if (near && (!p || !p->allFinite() || !std::isfinite(range) || range < 0 ||
+                             !((*p - near->first).norm() <= near->second + range)))
+                    return false;
                 if (!a["shadowed"].is_null() && a["shadowed"].bool_value() != shadowed) return false;
                 if (!a["visible"].is_null() && a["visible"].bool_value() != visible) return false;
                 if (!a["rendered"].is_null() && a["rendered"].bool_value() != rendered) return false;
@@ -1812,7 +1840,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 if (src.kind == Vulkan::LightKind::Spot)
                 {
                     o["direction"] =
-                        st.hasPose ? vec3Json(Vec3((st.pose.rotation * src.rotation * Vec3(0, 0, -1)))) : Json();
+                        st.hasPose ? vec3Json(Vec3((st.pose.rotation * src.unitRotation() * Vec3(0, 0, -1)))) : Json();
                     o["inner_angle_deg"] = src.innerAngleDeg;
                     o["outer_angle_deg"] = src.outerAngleDeg;
                 }
