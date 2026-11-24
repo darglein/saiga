@@ -38,11 +38,14 @@ bool envSet(const char* name)
 }
 
 #if defined(SAIGA_TEST_VULKAN)
-// Releases the pooled devices after the last test (inside RUN_ALL_TESTS, so a validation error fails the run)
+// Releases the pooled devices after the last test (inside RUN_ALL_TESTS, so a validation error fails the run) and
+// turns the reuse off: a renderer that another environment destroys later (RenderSceneSuiteTest's scene, its TearDown
+// may run after this one) destroys its device directly instead of returning it to the pool, which would otherwise be
+// destroyed only in the static destruction, after the validation layer (the process aborted at exit)
 class ReleasePooledDevices : public ::testing::Environment
 {
    public:
-    void TearDown() override { Saiga::Vulkan::releasePooledDevices(); }
+    void TearDown() override { Saiga::Vulkan::setHeadlessDeviceReuse(false); }
 };
 #endif
 
