@@ -12,7 +12,9 @@
 // (RenderSceneTest), skipped without a Vulkan 1.3 device.
 
 #include "saiga/core/math/math.h"
+#include "saiga/vulkan/scene/CloudLayer.h"
 #include "saiga/vulkan/scene/GrassPass.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -122,4 +124,66 @@ TEST_F(SyncValidation, ShadowedGrassFrame)
     }
     scene->waitIdle();
     EXPECT_TRUE(scene->lightingStatistics().shadows);
+}
+
+// Round 2 (finding 3): the frames above wait for every frame (a screenshot each), so two frames are never in flight
+// and a hazard against the previous frame (a write-after-read, a descriptor set updated while a pending command buffer
+// has it bound) cannot occur. Here 8 frames are recorded back to back without a wait (2 frames in flight), each
+// changing something that rewrites resources of the frame before: the fovy (the projection), the cloud seed in
+// consecutive frames (finding 11: the noise and the coverage texture regenerated while the previous frame reads them),
+// the environment map's resolution, the horizon map's resolution and the cascade count; a capture and a probe on the
+// way. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon maps
+TEST_F(SyncValidation, FramesInFlightWithChanges)
+{
+    ASSERT_TRUE(syncValidationOn);
+    const TerrainLayout layout = testLayout(16, 2);
+    const Vec3 cam(300.5, 12, 300.5);
+    fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
+    LightingParameters p;
+    p.cascadeResolution     = 256;
+    p.horizonResolution     = 128;
+    p.environmentResolution = 32;
+    p.shadowDistance        = 60;
+    scene->setLightingParameters(p);
+    EnvironmentState e;
+    e.cloudiness = 0.5f;
+    scene->setEnvironment(e);
+    scene->setToneMap(ToneMap::Aces);
+    const Quat rot = viewRotation(lookAt(cam.cast<float>(), vec3(300.5f, 0, 299.5f), vec3(0, 1, 0)));
+    SetCamera(0, cam, rot, 1.0);
+    renderUntilUploaded(*scene);
+    bool captured = false, probed = false;
+    for (int frame = 0; frame < 8; ++frame)
+    {
+        // Every frame: another projection
+        SetCamera(0, cam, rot, 1.0 + 0.02 * frame);
+        // Consecutive frames: another cloud seed
+        if (frame == 1 || frame == 2)
+        {
+            e.clouds.seed = uint32_t(10 + frame);
+            scene->setEnvironment(e);
+        }
+        if (frame == 3)
+        {
+            p.environmentResolution = 64;
+            p.horizonResolution     = 256;
+            scene->setLightingParameters(p);
+        }
+        if (frame == 4)
+        {
+            p.cascadeCount = 2;
+            scene->setLightingParameters(p);
+            scene->lightingDebugImages().request(LightingImage::Luminance, PreviewMapping(),
+                                                 [&](const LightingDebug::Capture&) { captured = true; });
+        }
+        if (frame == 5) scene->requestProbe(ivec2(width / 2, height / 2), [&](const LightingProbe&) { probed = true; });
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    }
+    // (the probe's sequence takes frames; render until it answered)
+    for (int frame = 0; frame < 32 && !probed; ++frame)
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    scene->waitIdle();
+    EXPECT_TRUE(captured);
+    EXPECT_TRUE(probed);
+    EXPECT_GE(scene->cloudLayer().generations(), 2u);
 }
