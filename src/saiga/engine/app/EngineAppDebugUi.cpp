@@ -606,12 +606,13 @@ void EngineApp::performanceTab()
     perfSummary();
     ImGui::Spacing();
     // The graph gets the height the collapsed sections leave (measured before them: expanding one scrolls the panel,
-    // the graph keeps its size)
+    // the graph keeps its size), at most 18 lines (the user's request after the S36 demo: on a tall panel each plot
+    // took almost half the screen)
     {
         const float em      = ImGui::GetFontSize();
         const int sections  = 2 + ui->sectionCount(DebugTab::Performance) + (showEngineGpuSections() ? 1 : 0);
         const float reserve = float(sections + 2) * ImGui::GetFrameHeightWithSpacing();
-        perfGraph(std::max(ImGui::GetContentRegionAvail().y - reserve, 9 * em));
+        perfGraph(std::clamp(ImGui::GetContentRegionAvail().y - reserve, 9 * em, 18 * em));
     }
     // The window, copy and reset in one line under the graph (wrapped when the panel is narrow)
     const FrameStatistics::Summary& sum = shownStatistics.summary;
