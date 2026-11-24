@@ -667,7 +667,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     {
         ShadowAtlas& at = *s.atlasShadows;
         const vk::ImageSubresourceRange layers(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 2);
-        vk::ImageMemoryBarrier2 toWrite(Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
+        // (the lighting set's readers: SceneLightingSet::kReaderStages; round 2, finding 18)
+        vk::ImageMemoryBarrier2 toWrite(SceneLightingSet::kReaderStages, Access::eShaderSampledRead,
                                         Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
                                         Access::eDepthStencilAttachmentRead | Access::eDepthStencilAttachmentWrite,
                                         vk::ImageLayout::eShaderReadOnlyOptimal,
@@ -709,11 +710,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             }
             cmd.endRendering();
         }
-        vk::ImageMemoryBarrier2 toRead(
-            Stage::eEarlyFragmentTests | Stage::eLateFragmentTests, Access::eDepthStencilAttachmentWrite,
-            Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
-            vk::ImageLayout::eDepthStencilAttachmentOptimal, vk::ImageLayout::eShaderReadOnlyOptimal,
-            VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, at.texture()->image(), layers);
+        vk::ImageMemoryBarrier2 toRead(Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
+                                       Access::eDepthStencilAttachmentWrite, SceneLightingSet::kReaderStages,
+                                       Access::eShaderSampledRead, vk::ImageLayout::eDepthStencilAttachmentOptimal,
+                                       vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                       VK_QUEUE_FAMILY_IGNORED, at.texture()->image(), layers);
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
     }
     subEnd("shadow.atlas", cmd);
