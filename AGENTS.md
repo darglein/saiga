@@ -139,7 +139,8 @@ src/
                         (global) and the weather (space state) with WorldSetup::environment.enabled, else plain
                         components); lighting/ (S36): EnvironmentSetup, EnvironmentFile (environment.json), the
                         celestial model (Celestial), worldTimeSystem (addEnvironmentSystems), the validated writes
-                        setWorldTime / setWeather (EnvironmentWrites), the environment extract (EnvironmentExtract);
+                        setWorldTime / setWeather (EnvironmentWrites), the environment extract (EnvironmentExtract),
+                        set_lighting's key table and validateLightingValues (LightingKeys; tool, tab and file);
                         world/: World (also the mesh and material name
                         tables, WorldSetup::renderAssets, setRenderSink; S20: SpaceTemplate and
                         WorldConfig::spaceTemplates, terrainHeight, spaceSeed; S21: several spaces incl.

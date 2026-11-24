@@ -10,9 +10,9 @@
 #include "saiga/engine/lighting/EnvironmentFile.h"
 
 #include "saiga/core/util/assert.h"
-#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/data/DataFile.h"
 #include "saiga/engine/ecs/VisitJson.h"
+#include "saiga/engine/lighting/LightingKeys.h"
 
 #include <cmath>
 

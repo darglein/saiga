@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/util/json11.hpp"
+#include "saiga/engine/lighting/LightingKeys.h"
 #include "saiga/export.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
 
@@ -41,12 +42,7 @@ class World;
  */
 SAIGA_ENGINE_API void registerLightingTools(McpServer& server, EngineApp& app);
 
-// The settings and parameters against set_lighting's ranges (every key, also the ones a later part adds), its cross-key
-// rules (cluster_near < cluster_far, atlas_tile divides atlas_resolution) and the exposure curve (not empty, finite,
-// strictly ascending elevations); false and an error naming every invalid key (the set_lighting key's name). Used by
-// the environment file (tryReadEnvironmentFile) and validateLighting
-SAIGA_ENGINE_API bool validateLightingValues(const Vulkan::EnvironmentSettings& settings,
-                                             const Vulkan::LightingParameters& parameters, std::string& error);
+// validateLightingValues: saiga/engine/lighting/LightingKeys.h (included)
 
 // The lighting memory after a change of the parameters (round 2, finding 2): the memory now (LightingStatistics) with
 // the cascades, the horizon maps, the shadow atlas and the cluster buffers replaced by their sizes for the parameters;
