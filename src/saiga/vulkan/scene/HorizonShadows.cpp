@@ -134,7 +134,24 @@ void HorizonShadows::destroy()
     if (maps) maps->destroy();
     maps.reset();
     sampler.destroy();
+    // The chain and the maps are gone: a later init builds them again (CodeRabbit #85 round 2: the cached chain
+    // identity skipped the rebuild of the released buffer)
+    invalidate();
     base = nullptr;
+}
+
+void HorizonShadows::invalidate()
+{
+    for (MapTransform& t : transforms) t = MapTransform();
+    computing     = false;
+    restartedMap  = false;
+    rowsDone      = 0;
+    blend         = 1;
+    blendStart    = 1;
+    chainRebuilds = ~uint64_t(0);
+    chainVersion  = ~uint64_t(0);
+    chainPyramid  = nullptr;
+    chainSpace    = 0;
 }
 
 void HorizonShadows::ensureImages(int resolution)
@@ -312,6 +329,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         restartedMap = false;
         return 0;
     }
+    if (in.terrainCleared) invalidate();
     if (!in.atlas || !in.hasLight) return 0;
     const int res = std::clamp(p.horizonResolution, 16, 8192);
     ensureImages(res);
@@ -325,7 +343,19 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         computing = false;
         blend     = 1;
     }
-    if (rebuilds != chainRebuilds || version != chainVersion || &atlas != chainPyramid)
+    const bool full = in.force || requestedFull;
+    if (computing && full)
+    {
+        // A full update replaces the map in progress, in this frame (CodeRabbit #85 round 2: without a due change it
+        // was not started again), on the newest chain
+        computing    = false;
+        restartedMap = false;
+        requested    = true;
+    }
+    // After the one restart of a map, a later edit waits for the next map (the map in progress keeps one terrain
+    // version: a rebuilt chain would mix versions in its rows; CodeRabbit #85 round 2)
+    const bool changed = rebuilds != chainRebuilds || version != chainVersion || &atlas != chainPyramid;
+    if (changed && !(computing && restartedMap))
     {
         buildChain(cmd, atlas, in.frameIndex);
         chainRebuilds = rebuilds;
@@ -355,13 +385,6 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
     const bool sameGrid       = f.valid && f.resolution == target.resolution && f.extent == target.extent;
     const bool due            = requested || !sameGrid || f.cornerX != target.cornerX || f.cornerZ != target.cornerZ ||
                      angleDeg(f.light, in.light) > 0.1 || f.casterDistance != target.casterDistance;
-    const bool full = in.force || requestedFull;
-    if (computing && full)
-    {
-        // A full update replaces the map in progress
-        computing    = false;
-        restartedMap = false;
-    }
     if (!computing && due)
     {
         transforms[size_t(back)] = target;
@@ -410,7 +433,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
 }
 
 void HorizonShadows::fillBlock(SceneLighting& block, const Vec3& camera, SpaceId space, const LightingParameters& p,
-                               bool hasLight) const
+                               bool hasLight, bool terrainDrawn) const
 {
     block.horizonPrev     = vec4(0, 0, 0, -1);
     block.horizonFront    = vec4(0, 0, 0, -1);
@@ -430,8 +453,8 @@ void HorizonShadows::fillBlock(SceneLighting& block, const Vec3& camera, SpaceId
     block.horizonRef    = vec4(ref(transforms[size_t(previous)]), ref(f), blend, float(f.resolution));
     const Vec3 l        = f.light;
     const double hn     = Vec2(l.x(), l.z()).norm();
-    block.horizonParams = vec4(1, float(hn > 1e-6 ? l.y() / hn : 1e6), p.terrainCastsInCascades && p.sunShadows ? 1 : 0,
-                               linearFilter ? 1 : 0);
+    block.horizonParams = vec4(1, float(hn > 1e-6 ? l.y() / hn : 1e6),
+                               p.terrainCastsInCascades && p.sunShadows && terrainDrawn ? 1 : 0, linearFilter ? 1 : 0);
 }
 
 HorizonStatistics HorizonShadows::statistics() const
@@ -456,6 +479,7 @@ HorizonStatistics HorizonShadows::statistics() const
     s.lastComplete        = lastComplete;
     s.levelAt10km         = levelAt10km;
     s.memoryBytes         = memoryBytes();
+    s.chainBytes          = chain ? uint64_t(chain.size()) : 0;
     return s;
 }
 

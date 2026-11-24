@@ -387,7 +387,9 @@ struct HorizonStatistics
     // Maps in progress restarted by a terrain change (their rows would mix the old and the new terrain)
     uint64_t restarts    = 0;
     int levelAt10km      = 0;
+    // The chain buffer and the maps; chainBytes: the chain's part
     uint64_t memoryBytes = 0;
+    uint64_t chainBytes  = 0;
 };
 
 // The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; b adds its own)
@@ -426,6 +428,9 @@ struct LightingStatistics
     uint64_t shadowMemoryBytes = 0;
     bool linearShadowFilter    = false;
     HorizonStatistics horizon;
+    // The horizon map the frame's previews converted (the front map after the frame's update; capture_lighting's
+    // anchor and reference: CodeRabbit #85 round 2)
+    HorizonStatistics horizonPreview;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is

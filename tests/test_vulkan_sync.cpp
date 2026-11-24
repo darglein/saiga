@@ -71,9 +71,22 @@ uint32_t validationLayerVersion()
     return 0;
 }
 
+// Whether the instance offers VK_EXT_debug_utils (Instance::create enables the validation layer only with it)
+bool hasDebugUtils()
+{
+    uint32_t count = 0;
+    if (vkEnumerateInstanceExtensionProperties(nullptr, &count, nullptr) != VK_SUCCESS) return false;
+    std::vector<VkExtensionProperties> extensions(count);
+    if (vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data()) != VK_SUCCESS) return false;
+    for (uint32_t i = 0; i < count; ++i)
+        if (std::string(extensions[i].extensionName) == VK_EXT_DEBUG_UTILS_EXTENSION_NAME) return true;
+    return false;
+}
+
 // Whether the frames are checked by sync validation: requested by SAIGA_TEST_SYNC_VALIDATION=1/0 (it wins over
 // VK_LAYER_VALIDATE_SYNC), else by VK_LAYER_VALIDATE_SYNC, else on with a layer of at least kMinSyncValidationLayer;
-// VK_LAYER_VALIDATE_SYNC is set to the request, and the frames are checked only with a validation layer installed
+// VK_LAYER_VALIDATE_SYNC is set to the request, and the frames are checked only with a validation layer installed and
+// VK_EXT_debug_utils (as Instance::create; CodeRabbit #85 round 2)
 const bool syncValidationOn = []()
 {
     const uint32_t layer = validationLayerVersion();
@@ -91,14 +104,15 @@ const bool syncValidationOn = []()
     }
     setEnv("VK_LAYER_VALIDATE_SYNC", requested ? "1" : "0", true);
     if (requested) setEnv("VK_LAYER_SYNCVAL_SHADER_ACCESSES_HEURISTIC", "1", false);
-    const bool on = requested && layer > 0;
+    const bool debugUtils = hasDebugUtils();
+    const bool on         = requested && layer > 0 && debugUtils;
     std::cout << "test_vulkan_sync: synchronization validation " << (on ? "on" : "off") << " (requested "
               << (requested ? "on" : "off") << " by " << source << "; validation layer "
               << (layer > 0 ? std::to_string(VK_API_VERSION_MAJOR(layer)) + "." +
                                   std::to_string(VK_API_VERSION_MINOR(layer)) + "." +
                                   std::to_string(VK_API_VERSION_PATCH(layer))
                             : std::string("not installed"))
-              << ")" << std::endl;
+              << (debugUtils ? "" : "; no VK_EXT_debug_utils") << ")" << std::endl;
     return on;
 }();
 
@@ -181,8 +195,8 @@ TEST_F(SyncValidation, ShadowedGrassFrame)
 // has it bound) cannot occur. Here 8 frames are recorded back to back without a wait (2 frames in flight), each
 // changing something that rewrites resources of the frame before: the fovy (the projection), the cloud seed in
 // consecutive frames (finding 11: the noise and the coverage texture regenerated while the previous frame reads them),
-// the environment map's resolution, the horizon map's resolution and the cascade count; a capture and a probe on the
-// way. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon maps
+// the environment map's resolution, the horizon map's resolution and the cascade count; a capture and a probe after
+// eight frames. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon maps
 TEST_F(SyncValidation, FramesInFlightWithChanges)
 {
     RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
@@ -223,13 +237,16 @@ TEST_F(SyncValidation, FramesInFlightWithChanges)
         {
             p.cascadeCount = 2;
             scene->setLightingParameters(p);
-            scene->lightingDebugImages().request(LightingImage::Luminance, PreviewMapping(),
-                                                 [&](const LightingDebug::Capture&) { captured = true; });
         }
-        if (frame == 5) scene->requestProbe(ivec2(width / 2, height / 2), [&](const LightingProbe&) { probed = true; });
         scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
     }
-    // (the probe's sequence takes frames; render until it answered)
+    // The blocking readbacks after the eight frames (CodeRabbit #85 round 2: a capture waits for its frame and the
+    // probe holds the camera, so the frames after them neither overlapped nor changed the projection): a capture and
+    // a probe on frames in flight; the probe's sequence takes frames, render until it answered
+    scene->lightingDebugImages().request(LightingImage::Luminance, PreviewMapping(),
+                                         [&](const LightingDebug::Capture&) { captured = true; });
+    scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    scene->requestProbe(ivec2(width / 2, height / 2), [&](const LightingProbe&) { probed = true; });
     for (int frame = 0; frame < 32 && !probed; ++frame)
         scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
     scene->waitIdle();

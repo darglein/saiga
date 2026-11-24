@@ -111,13 +111,18 @@ class SAIGA_VULKAN_API CascadedShadows
     // the fit's texel matches the image's)
     static int clampedResolution(const LightingParameters& p);
     // The receivers' edge margin and the blend band of a cascade, fractions of its half extent (S36a2 review, finding
-    // 12): within kEdgeMarginTexels of the rectangle's edge the PCF footprint and the normal offset would read beyond
-    // the layer (clamp to edge), so the cascade's weight is 0 there (the shaders blend over band - margin); the band is
-    // at least the margin plus kMinBlendTexels (also with cascadeBlend 0)
+    // 12): within the PCF footprint (kPcfMarginTexels) plus the normal offset (normalOffsetTexels, up to its full
+    // length; CodeRabbit #85 round 2) of the rectangle's edge the taps would read beyond the layer (clamp to edge), so
+    // the cascade's weight is 0 there (the shaders blend over band - margin); the band is at least the margin plus
+    // kMinBlendTexels (also with cascadeBlend 0)
     // (one constant per declaration: MSVC C2487 in a dll interface class)
-    static constexpr double kEdgeMarginTexels = 3;
-    static constexpr double kMinBlendTexels   = 4;
-    static double edgeMargin(int resolution) { return 2 * kEdgeMarginTexels / double(std::max(resolution, 1)); }
+    static constexpr double kPcfMarginTexels = 2;
+    static constexpr double kMinBlendTexels  = 4;
+    static double edgeMarginTexels(const LightingParameters& p);
+    static double edgeMargin(const LightingParameters& p, int resolution)
+    {
+        return 2 * edgeMarginTexels(p) / double(std::max(resolution, 1));
+    }
     static double blendBand(const LightingParameters& p, int resolution);
     // The shadow light's direction the cascades are fitted to moves in steps of this angle (S36a2 review, finding 13:
     // the light basis refit to every small move of a moving sun rotated the texel grid in every frame, and every shadow

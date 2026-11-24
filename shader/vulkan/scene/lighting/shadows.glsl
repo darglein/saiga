@@ -208,7 +208,9 @@ vec2 horizonHeights(vec4 map, float refRel, vec3 relPos, out bool inside)
 
 // The horizon map's shadow heights (R, G) above the receiver (S36a2, A6): the previous and the front map blended by
 // the front's progress; a map that does not cover the receiver gives way to the other (after an anchor move the
-// receivers outside the previous map are shadowed by the front map at once; S36a2 review, major 4); -1e9 outside both
+// receivers outside the previous map are shadowed by the front map at once; S36a2 review, major 4); -1e9 outside both.
+// During the blend a map's "no occluder" (-1e9) is blended as the lit height min(other, 0), not as a height (a mix
+// with -1e9 kept the receiver lit until the blend's end; CodeRabbit #85 round 2)
 vec2 horizonRg(vec3 relPos)
 {
     if (lighting.horizonParams.x < 0.5) return vec2(-1.0e9);
@@ -216,6 +218,14 @@ vec2 horizonRg(vec3 relPos)
     vec2 a  = horizonHeights(lighting.horizonPrev, lighting.horizonRef.x, relPos, inPrev);
     vec2 b  = horizonHeights(lighting.horizonFront, lighting.horizonRef.y, relPos, inFront);
     float w = !inPrev ? 1.0 : !inFront ? 0.0 : lighting.horizonRef.z;
+    if (w <= 0.0) return a;
+    if (w >= 1.0) return b;
+    for (int k = 0; k < 2; ++k)
+    {
+        bool noneA = a[k] < -1.0e8, noneB = b[k] < -1.0e8;
+        if (noneA && !noneB) a[k] = min(b[k], 0.0);
+        if (noneB && !noneA) b[k] = min(a[k], 0.0);
+    }
     return mix(a, b, w);
 }
 

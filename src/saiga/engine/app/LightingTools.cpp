@@ -1113,8 +1113,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                                                        ? uint64_t(after.parameters.horizonResolution) *
                                                     uint64_t(after.parameters.horizonResolution) * 3 * 8
                                                        : 0;
-            const uint64_t memory =
-                ls.memoryBytes - ls.shadowMemoryBytes - ls.horizon.memoryBytes + cascadeBytes + horizonBytes;
+            // (the horizon maps replaced by the estimate; the resident chain stays: CodeRabbit #85 round 2)
+            const uint64_t memory = ls.memoryBytes - ls.shadowMemoryBytes -
+                                    (ls.horizon.memoryBytes - ls.horizon.chainBytes) + cascadeBytes + horizonBytes;
             if (errors.empty() && memory > (uint64_t(1) << 30))
                 errors = "the lighting memory after the change (" + std::to_string(memory) +
                          " bytes) exceeds 1 GiB (cascade_resolution, cascade_count, horizon_resolution)";
@@ -1430,7 +1431,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         block["unit"] = "shadow height (m) relative to the map's reference height";
                         if (Vulkan::RenderScene* sc = app.scene())
                         {
-                            const Vulkan::HorizonStatistics& h = sc->lightingStatistics().horizon;
+                            // (the map the frame converted, after its update)
+                            const Vulkan::HorizonStatistics& h = sc->lightingStatistics().horizonPreview;
                             block["channel"]                   = mapping.layer == 1 ? "g" : "r";
                             block["anchor"]                    = Json::array{h.corner(0), h.corner(1)};
                             block["extent"]                    = h.extent;

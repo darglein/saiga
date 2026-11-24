@@ -241,12 +241,12 @@ class LightingGolden : public ::testing::Test
         state->prototype.update();
         renderUntilUploaded(*scene, 256);
         // Golden mode in the captured frame: the environment map, the cascades (fitted to their slices: no history)
-        // and the horizon map complete. One frame before it: a frame binds the horizon map of the previous frame's
-        // update (its own update writes the back map; CodeRabbit #85)
+        // and the horizon map complete. One frame before it, without a screenshot: it completes the horizon map, which
+        // a frame binds from the previous frame's update (its own update writes the back map; CodeRabbit #85)
         Vulkan::LightingParameters lp = scene->lightingParameters();
         lp.forceFullUpdates           = true;
         scene->setLightingParameters(lp);
-        RenderFrame();
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
         TemplatedImage<ucvec4> img = RenderFrame();
         scene->waitIdle();
         lp.forceFullUpdates = false;

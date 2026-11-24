@@ -528,7 +528,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         s.environmentSkipped = true;
     timings.leaveSection("environment", cmd);
     // The lighting set of this frame (after the environment: the environment map swapped in this frame is bound)
-    s.writeLightingSet(cmd, frame.frameIndex, lighting);
+    s.writeLightingSet(cmd, frame.frameIndex, lighting, proto.terrain);
 
     // The GPU culling of the scene's instances (written every frame, empty without instances or a camera)
     timings.enterSection("cull", cmd);
@@ -596,15 +596,24 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         HorizonShadows::Input in;
         const bool terrainSet = s.atlas->hasSet() && s.atlas->pyramidResident() && camera.valid &&
                                 s.atlas->space() == camera.space && !enclosed;
-        in.atlas      = terrainSet ? s.atlas.get() : nullptr;
-        in.camera     = camera.position;
+        in.atlas          = terrainSet ? s.atlas.get() : nullptr;
+        in.terrainCleared = !s.atlas->hasSet();
+        in.camera         = camera.position;
         in.hasLight   = lighting.shadowLight(3) > 0;
         in.light      = Vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2));
         in.parameters = s.params.lighting;
         in.force      = fullUpdate;
         in.frame      = s.frameCount + 1;
         in.frameIndex = frame.frameIndex;
-        s.horizon->update(cmd, in);
+        // probe_lighting: no update during the sequence, so every frame binds the maps of the frame before it (the
+        // factors and the radiance of one map state; CodeRabbit #85 round 2); a full update goes to the first frame
+        // after
+        if (probe)
+        {
+            if (fullUpdate) s.horizon->requestRecompute(true);
+        }
+        else
+            s.horizon->update(cmd, in);
     }
     subEnd("shadow.horizon", cmd);
     timings.leaveSection("shadow", cmd);
@@ -916,6 +925,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             src.setArray(LightingImage::Horizon, s.horizon->images(),
                          s.debugImages->sourceLayer(LightingImage::Horizon) == 1 ? 4 : 3,
                          uint32_t(s.horizon->frontLayer()), 1, std::max(1u, res / 1024), vk::ImageLayout::eGeneral);
+            s.lightStats.horizonPreview = s.horizon->statistics();
         }
         // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
         if (s.debugImages->requested(LightingImage::CloudCoverage) ||
@@ -1602,7 +1612,7 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
         block.cascadeMatrix[c]            = v.viewProj;
         // The texel, the band and the edge margin (fractions of the half extent), valid
         block.cascadeParams[c] = vec4(float(k.texelSize), float(CascadedShadows::blendBand(p, res)),
-                                      k.valid ? 1.0f : 0.0f, float(CascadedShadows::edgeMargin(res)));
+                                      k.valid ? 1.0f : 0.0f, float(CascadedShadows::edgeMargin(p, res)));
         if (!k.updated)
         {
             // Not rendered this frame: an empty volume (the culling rejects everything)
@@ -1651,7 +1661,7 @@ void RenderScene::cascadeOverlays()
             const CascadedShadows::Cascade& k = cs.cascades()[size_t(c)];
             if (!k.valid) continue;
             const vec3 color = cascadeColor(c);
-            auto corner      = [&](double sx, double sy, double z)
+            auto corner      = [&](double sx, double sy, double z) -> Vec3
             { return k.axisX * (k.cx + sx * k.halfExtent) + k.axisY * (k.cy + sy * k.halfExtent) + k.axisZ * z; };
             // The receivers' box (the shared depth range) and the instances' caster volume towards the light (the
             // cap the culling used, CascadedShadows::Cascade::casterTop; nit 22: no copy of its formula)
@@ -1677,7 +1687,7 @@ void RenderScene::cascadeOverlays()
         const std::vector<double> splits = CascadedShadows::cascadeSplits(in.nearPlane, params.lighting.shadowDistance,
                                                                           cs.count(), params.lighting.splitLambda);
         const double tanY = std::tan(in.fovy * 0.5), tanX = tanY * in.aspect;
-        auto point = [&](double sx, double sy, double d)
+        auto point = [&](double sx, double sy, double d) -> Vec3
         { return in.camera + in.cameraRotation * Vec3(sx * tanX * d, sy * tanY * d, -d); };
         const double ax[4] = {-1, 1, 1, -1}, ay[4] = {-1, -1, 1, 1};
         for (size_t i = 0; i < splits.size(); ++i)
@@ -1710,7 +1720,8 @@ StudioEnvironment RenderScene::studioEnvironment(bool enclosed) const
     return s;
 }
 
-void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& frameBlock)
+void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& frameBlock,
+                                   bool terrainDrawn)
 {
     ambient->update(cmd, frameIndex, env);
     SceneLightingBindings b;
@@ -1726,10 +1737,12 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     if (params.lighting.horizonShadows && horizon->hasImages())
     {
         b.horizon = horizon->descriptor();
-        horizon->fillBlock(block, cameraPosition, cameraSpace, params.lighting, block.shadowLight(3) > 0);
+        // G (the cascades shadow the near terrain) only when the cascade pass draws the terrain (not with the
+        // prototype's terrain off; CodeRabbit #85 round 2)
+        horizon->fillBlock(block, cameraPosition, cameraSpace, params.lighting, block.shadowLight(3) > 0, terrainDrawn);
     }
     else
-        horizon->fillBlock(block, cameraPosition, cameraSpace, LightingParameters(), false);
+        horizon->fillBlock(block, cameraPosition, cameraSpace, LightingParameters(), false, false);
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
     lightingSet->write(frameIndex, block, b);
@@ -1761,7 +1774,8 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
                      uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes() +
                      atmosphere->memoryBytes() + envMap->memoryBytes() + clouds->memoryBytes() +
                      cascades->memoryBytes() + horizon->memoryBytes();
-    st.horizon = horizon->statistics();
+    st.horizon        = horizon->statistics();
+    st.horizonPreview = st.horizon;
     // S36a2: the cascades
     st.shadows            = frameCascades;
     st.frozen             = freezeCascades;

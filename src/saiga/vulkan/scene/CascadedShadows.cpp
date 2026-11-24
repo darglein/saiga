@@ -61,9 +61,15 @@ int CascadedShadows::clampedResolution(const LightingParameters& p)
     return std::clamp(p.cascadeResolution, 256, 4096);
 }
 
+double CascadedShadows::edgeMarginTexels(const LightingParameters& p)
+{
+    const double offset = std::isfinite(p.normalOffsetTexels) ? std::max(double(p.normalOffsetTexels), 0.0) : 0.0;
+    return kPcfMarginTexels + offset;
+}
+
 double CascadedShadows::blendBand(const LightingParameters& p, int resolution)
 {
-    const double texels = 2 * (kEdgeMarginTexels + kMinBlendTexels) / double(std::max(resolution, 1));
+    const double texels = 2 * (edgeMarginTexels(p) + kMinBlendTexels) / double(std::max(resolution, 1));
     return std::max(std::clamp(double(p.cascadeBlend), 0.0, 0.5), texels);
 }
 

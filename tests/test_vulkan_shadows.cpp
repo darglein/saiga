@@ -380,7 +380,7 @@ Vec3 frustumPoint(const CascadeInput& in, double sx, double sy, double d)
 }  // namespace
 
 // The splits are lambda * log + (1 - lambda) * linear between the near plane and the shadow distance
-TEST_F(Cascades, SplitsMatchFormula)
+TEST(CascadesFit, SplitsMatchFormula)
 {
     const std::vector<double> s = CascadedShadows::cascadeSplits(0.1, 1500, 4, 0.8);
     ASSERT_EQ(s.size(), 5u);
@@ -396,7 +396,7 @@ TEST_F(Cascades, SplitsMatchFormula)
 }
 
 // Every point of the camera frustum up to the shadow distance lies inside some cascade's box (xy and depth)
-TEST_F(Cascades, CoverCameraFrustum)
+TEST(CascadesFit, CoverCameraFrustum)
 {
     LightingParameters p;
     p.sunShadows = true;
@@ -422,7 +422,7 @@ TEST_F(Cascades, CoverCameraFrustum)
 
 // Texel snapping: a camera move of 0.3 texel moves a cascade's centre by a whole number of texels (at most one, the
 // matrices map world points to the same texel grid); a rotation keeps the sphere radius
-TEST_F(Cascades, StableUnderSubTexelMoves)
+TEST(CascadesFit, StableUnderSubTexelMoves)
 {
     LightingParameters p;
     p.sunShadows     = true;
@@ -453,7 +453,7 @@ TEST_F(Cascades, StableUnderSubTexelMoves)
 
 // A cascade that is not updated in a frame (interval 2) shadows the same world point after a camera move: its matrix
 // is rebuilt camera-relative from the double centre
-TEST_F(Cascades, IntervalKeepsMatrixCorrect)
+TEST(CascadesFit, IntervalKeepsMatrixCorrect)
 {
     LightingParameters p;
     p.sunShadows = true;
@@ -482,7 +482,7 @@ TEST_F(Cascades, IntervalKeepsMatrixCorrect)
 // between its updates (its sphere around the camera has the margin interval * maxSpeed * dt). The cascade of frame 1
 // is checked with frame 2's camera directly: in a fit of frame 2 it is rendered again, as cascade 2 turned away from
 // the casters cascade 3 skipped (CascadesFit.SkippedCastersStayInPreviousCascade)
-TEST_F(Cascades, StaleCascadeStillCoversFrustum)
+TEST(CascadesFit, StaleCascadeStillCoversFrustum)
 {
     LightingParameters p;
     p.sunShadows = true;
@@ -594,9 +594,15 @@ TEST(CascadesFit, BlendBandKeepsTheFootprintInside)
     for (int res : {256, 2048})
     {
         const double texel = 2.0 / res;  // one texel, a fraction of the half extent
-        EXPECT_NEAR(CascadedShadows::edgeMargin(res), 3 * texel, 1e-12);
+        EXPECT_NEAR(CascadedShadows::edgeMargin(p, res), 3 * texel, 1e-12);
         EXPECT_NEAR(CascadedShadows::blendBand(p, res), 7 * texel, 1e-12);
     }
+    // CodeRabbit #85 round 2: the margin holds the whole normal offset (20 texels moved the taps 17 texels past the
+    // fixed 3-texel margin), and the band stays wider than it
+    p.normalOffsetTexels = 20;
+    EXPECT_NEAR(CascadedShadows::edgeMargin(p, 2048), 22 * 2.0 / 2048, 1e-12);
+    EXPECT_NEAR(CascadedShadows::blendBand(p, 2048), 26 * 2.0 / 2048, 1e-12);
+    p.normalOffsetTexels = 1;
     p.cascadeBlend = 0.1f;
     EXPECT_NEAR(CascadedShadows::blendBand(p, 2048), 0.1, 1e-7);
     // Finding 10: the fit's resolution is the image's
@@ -660,7 +666,7 @@ TEST(CascadesFit, SkippedCastersStayInPreviousCascade)
 
 // The light basis near the zenith: orthonormal, and a light tilted by 0.01 rad changes the basis by about as much (no
 // flip); towards the north horizon the fallback keeps it finite
-TEST_F(Cascades, BasisStableNearZenith)
+TEST(CascadesFit, BasisStableNearZenith)
 {
     Vec3 x0, y0, z0;
     CascadedShadows::lightBasis(Vec3(0, 1, 0), x0, y0, z0);
@@ -685,7 +691,7 @@ TEST_F(Cascades, BasisStableNearZenith)
 
 // The shadow light switch (D13): by ground illuminance with a hysteresis of a factor 2, no alternation around the
 // threshold; none when neither body is above the horizon
-TEST_F(Cascades, ShadowLightSwitchHasHysteresis)
+TEST(CascadesFit, ShadowLightSwitchHasHysteresis)
 {
     EXPECT_EQ(CascadedShadows::selectShadowLight(0, 0, 0), 0);
     EXPECT_EQ(CascadedShadows::selectShadowLight(0, 10, 1), 1);
@@ -1332,8 +1338,13 @@ TEST_F(HorizonTest, FarEdgeStableUnderSmallRotation)
         Capture(2);
         HorizonShadows::MapTransform t;
         const std::vector<vec2> map = Front(t);
-        const int j                 = int((2048.0 - t.cornerZ) / t.texel);
-        bool shadow                 = false;
+        // (no map: a failure, not an out-of-range scan)
+        const bool valid =
+            t.valid && t.texel > 0 && t.resolution > 0 && map.size() == size_t(t.resolution) * size_t(t.resolution);
+        EXPECT_TRUE(valid) << "no horizon map at " << deg << ", " << azimuthDeg;
+        if (!valid) return -1.0;
+        const int j = int((2048.0 - t.cornerZ) / t.texel);
+        bool shadow = false;
         for (int i = int((2040.0 - t.cornerX) / t.texel); i > 0; --i)
         {
             const double x = t.cornerX + (i + 0.5) * t.texel, z = t.cornerZ + (j + 0.5) * t.texel;
@@ -1414,6 +1425,11 @@ TEST_F(HorizonTest, IncrementalEqualsFull)
         frames++;
         scene->waitIdle();
         const HorizonStatistics st = scene->lightingStatistics().horizon;
+        // (the rows of each frame follow horizonRowsPerFrame: the steady light adds none)
+        if (st.computing)
+        {
+            EXPECT_EQ(st.rowsThisFrame, 32) << frames;
+        }
         const vec3 l(float(std::cos(6 * kPi / 180)), float(std::sin(6 * kPi / 180)), 0);
         if (!st.computing && (st.light - l).norm() < 1e-4f) break;
     }
@@ -1503,9 +1519,9 @@ TEST_F(HorizonTest, NoMapInAnotherSpace)
     Capture(2);
     const LightingParameters p = scene->lightingParameters();
     SceneLighting block;
-    scene->horizonShadows().fillBlock(block, eye, 0, p, true);
+    scene->horizonShadows().fillBlock(block, eye, 0, p, true, true);
     EXPECT_GE(block.horizonFront(3), 0.0f) << "the map in its space";
-    scene->horizonShadows().fillBlock(block, eye, 1, p, true);
+    scene->horizonShadows().fillBlock(block, eye, 1, p, true, true);
     EXPECT_LT(block.horizonFront(3), 0.0f) << "no map in space 1";
 }
 
@@ -1571,18 +1587,14 @@ TEST_F(HorizonTest, ReceiverOutsidePreviousMapShadowedAfterAnchorMove)
     scene->setLightingParameters(p);
     Camera(eye, Vec3(1, -1.5, 0));
     std::vector<float> after;
-    bool completing = true;
     for (int i = 0; i < 40 && after.size() < 6; ++i)
     {
         const TemplatedImage<ucvec4> img = Capture(1);
-        const HorizonStatistics st       = scene->lightingStatistics().horizon;
+        // The statistics are taken before the frame's update: the frame that completes the map (it binds the maps of
+        // the previous update) still reports the old count, the first frame that reports the new one samples the new
+        // map (CodeRabbit #85 round 2: that frame was skipped too)
+        const HorizonStatistics st = scene->lightingStatistics().horizon;
         if (st.completed <= completed) continue;
-        // The frame that completes the map binds the maps of the previous update: from the next frame on
-        if (completing)
-        {
-            completing = false;
-            continue;
-        }
         after.push_back(FactorAt(img, ground));
     }
     ASSERT_EQ(after.size(), 6u) << "the new map completed";
@@ -1634,6 +1646,8 @@ TEST_F(HorizonTest, EditsEveryFrameStillComplete)
     Elevation(10);
     Camera(eye, Vec3(1, -1, 0));
     Capture(2);
+    HorizonShadows::MapTransform t0;
+    const std::vector<vec2> unedited = Front(t0);
     LightingParameters p  = scene->lightingParameters();
     p.forceFullUpdates    = false;
     p.horizonRowsPerFrame = 64;
@@ -1644,8 +1658,9 @@ TEST_F(HorizonTest, EditsEveryFrameStillComplete)
     int frames = 0;
     for (; frames < 24 && scene->lightingStatistics().horizon.completed == completed; ++frames)
     {
-        // A block rising by 5 m per frame
-        std::fill(heights.begin(), heights.end(), (frames + 1) * 5 * 1024);
+        // A block from 100 m rising by 10 m per frame (every height distinct and visible behind the block at 16
+        // degrees; CodeRabbit #85 round 2: from 5 m the last heights could hide behind the ground's own shadow height)
+        std::fill(heights.begin(), heights.end(), (100 + frames * 10) * 1024);
         scene->patchTerrainPyramid(0, 75, 60, 6, 6, heights.data());
         Capture(1);
     }
@@ -1664,6 +1679,8 @@ TEST_F(HorizonTest, EditsEveryFrameStillComplete)
     const int i = int((2200.0 - t.cornerX) / t.texel), j = int((2000.0 - t.cornerZ) / t.texel);
     const size_t k = size_t(j) * size_t(t.resolution) + size_t(i);
     EXPECT_GT(next[k](0), -1e8f) << "behind the block";
+    // (the full recompute sees the block: the comparison can detect a stale map)
+    EXPECT_GT(full[k](0), unedited[k](0) + 20) << "behind the block";
     EXPECT_EQ(next[k](0), full[k](0)) << "behind the block";
 }
 
@@ -1692,4 +1709,103 @@ TEST_F(HorizonTest, EditRecomputesMap)
     const int jFar    = int((2600.0 - u.cornerZ) / u.texel);
     const size_t kFar = size_t(jFar) * size_t(u.resolution) + size_t(i);
     EXPECT_NEAR(after[kFar](0), before[kFar](0), 1e-3) << "beside it";
+}
+
+// Regression (CodeRabbit #85 round 2): after clearTerrain the front map of the removed terrain stayed valid and shown
+// in its space (the update returned before it invalidated the maps)
+TEST_F(HorizonTest, ClearedTerrainHidesTheMap)
+{
+    const Vec3 eye(1450, 120, 2048.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    Elevation(3);
+    Camera(eye, Vec3(1, -1.5, 0));
+    Capture(2);
+    ASSERT_TRUE(scene->lightingStatistics().horizon.valid);
+    scene->clearTerrain();
+    Capture(2);
+    EXPECT_FALSE(scene->lightingStatistics().horizon.valid);
+    const LightingParameters p = scene->lightingParameters();
+    SceneLighting block;
+    scene->horizonShadows().fillBlock(block, eye, 0, p, true, true);
+    EXPECT_LT(block.horizonFront(3), 0.0f) << "no map after the terrain was cleared";
+}
+
+// Regression (CodeRabbit #85 round 2): a full update cancelled the map in progress, but started none when nothing else
+// was due (the edit's request was taken by the cancelled map): the front map kept the terrain before the edit
+TEST_F(HorizonTest, FullUpdateReplacesTheMapInProgress)
+{
+    const Vec3 eye(2000, 200, 2000);
+    Terrain(TerrainTestHooks::flatHook, eye);
+    Elevation(10);
+    Camera(eye, Vec3(1, -1, 0));
+    Capture(2);
+    HorizonShadows::MapTransform t;
+    const std::vector<vec2> before = Front(t);
+    LightingParameters p           = scene->lightingParameters();
+    p.forceFullUpdates             = false;
+    p.horizonRowsPerFrame          = 32;
+    scene->setLightingParameters(p);
+    // The edit starts a map of 8 frames; after two of them a full update
+    std::vector<int32_t> heights(6 * 6, 100 * 1024);
+    scene->patchTerrainPyramid(0, 75, 60, 6, 6, heights.data());
+    RenderFrame();
+    RenderFrame();
+    scene->waitIdle();
+    ASSERT_TRUE(scene->horizonShadows().statistics().computing);
+    const uint64_t completed = scene->horizonShadows().statistics().completed;
+    // (the scene's one-shot full update: unlike requestHorizonRecompute it requests no map of its own)
+    scene->requestFullUpdate();
+    RenderFrame();
+    scene->waitIdle();
+    const HorizonStatistics st = scene->horizonShadows().statistics();
+    EXPECT_GT(st.completed, completed) << "the replacement completed in the frame of the full update";
+    HorizonShadows::MapTransform u;
+    const std::vector<vec2> after = Front(u);
+    const int i = int((2200.0 - u.cornerX) / u.texel), j = int((2000.0 - u.cornerZ) / u.texel);
+    const size_t k = size_t(j) * size_t(u.resolution) + size_t(i);
+    EXPECT_GT(after[k](0), before[k](0) + 20) << "behind the block";
+}
+
+// Regression (CodeRabbit #85 round 2): after the one restart of a map, a second edit rebuilt the chain under the map in
+// progress, so its rows mixed two terrain versions. The map keeps the terrain of its restart: it equals a full
+// recompute of that terrain, not of the second edit's higher block
+TEST_F(HorizonTest, LaterEditWaitsForTheNextMap)
+{
+    const Vec3 eye(2000, 200, 2000);
+    Terrain(TerrainTestHooks::flatHook, eye);
+    Elevation(10);
+    Camera(eye, Vec3(1, -1, 0));
+    Capture(2);
+    LightingParameters p  = scene->lightingParameters();
+    p.forceFullUpdates    = false;
+    p.horizonRowsPerFrame = 32;
+    scene->setLightingParameters(p);
+    // A new light starts a map; the first edit restarts it, the second (a higher block) comes before the probed row
+    // 128 is computed
+    Elevation(16);
+    RenderFrame();
+    std::vector<int32_t> low(6 * 6, 60 * 1024), high(6 * 6, 200 * 1024);
+    scene->patchTerrainPyramid(0, 75, 60, 6, 6, low.data());
+    RenderFrame();
+    scene->patchTerrainPyramid(0, 75, 60, 6, 6, high.data());
+    const uint64_t completed = scene->horizonShadows().statistics().completed;
+    for (int i = 0; i < 40 && scene->horizonShadows().statistics().completed == completed; ++i)
+    {
+        RenderFrame();
+        scene->waitIdle();
+    }
+    ASSERT_GT(scene->horizonShadows().statistics().completed, completed);
+    EXPECT_EQ(scene->horizonShadows().statistics().restarts, 1u);
+    HorizonShadows::MapTransform t, u;
+    const std::vector<vec2> restarted = Front(t);
+    // The full recompute of the restart's terrain
+    scene->patchTerrainPyramid(0, 75, 60, 6, 6, low.data());
+    scene->requestHorizonRecompute(true);
+    Capture(1);
+    const std::vector<vec2> full = Front(u);
+    ASSERT_EQ(restarted.size(), full.size());
+    const int i = int((2200.0 - t.cornerX) / t.texel), j = int((2000.0 - t.cornerZ) / t.texel);
+    const size_t k = size_t(j) * size_t(t.resolution) + size_t(i);
+    EXPECT_GT(full[k](0), -1e8f) << "behind the block";
+    EXPECT_NEAR(restarted[k](0), full[k](0), 1e-3) << "behind the block: the restart's terrain";
 }

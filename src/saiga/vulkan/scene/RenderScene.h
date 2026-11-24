@@ -538,8 +538,9 @@ class SAIGA_VULKAN_API RenderScene
     // The lighting block of the frame's draws (the legacy fields and S36's)
     void frameLighting(const SceneCamera& camera, const PrototypeSettings& proto, bool enclosed, int samples,
                        SceneLighting& out);
-    // The frame slot's lighting set (block, ambient, foliage, LUTs): in the transfer section
-    void writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& block);
+    // The frame slot's lighting set (block, ambient, foliage, LUTs): in the transfer section; terrainDrawn: the frame's
+    // prototype terrain setting (the cascades draw the terrain)
+    void writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneLighting& block, bool terrainDrawn);
     const Callback* transferFn         = nullptr;
     const Callback* renderFn           = nullptr;
     const std::function<void()>* guiFn = nullptr;

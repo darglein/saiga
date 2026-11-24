@@ -61,7 +61,10 @@ class SAIGA_VULKAN_API HorizonShadows
     {
         // The atlas when it holds the camera space's resident pyramid, else nullptr (nothing is updated)
         const TerrainAtlas* atlas = nullptr;
-        Vec3 camera               = Vec3::Zero();
+        // The atlas holds no terrain set (cleared): the maps are invalidated (CodeRabbit #85 round 2: the front map of
+        // the removed terrain stayed shown in its space)
+        bool terrainCleared = false;
+        Vec3 camera         = Vec3::Zero();
         // Towards the shadow light; none: nothing is updated
         bool hasLight = false;
         Vec3 light    = Vec3(0, 1, 0);
@@ -79,9 +82,10 @@ class SAIGA_VULKAN_API HorizonShadows
     // The frame's update (in the shadow section, outside of a pass): the chain when the pyramid changed, the due rows
     // of the back map; returns the rows computed
     int update(vk::CommandBuffer cmd, const Input& in);
-    // The block's horizon fields for the camera in space (no map, a map of another space or off: the factor is 1)
-    void fillBlock(SceneLighting& block, const Vec3& camera, SpaceId space, const LightingParameters& p,
-                   bool hasLight) const;
+    // The block's horizon fields for the camera in space (no map, a map of another space or off: the factor is 1);
+    // terrainDrawn: the cascade pass draws the terrain (with terrainCastsInCascades and sunShadows: G inside cascades)
+    void fillBlock(SceneLighting& block, const Vec3& camera, SpaceId space, const LightingParameters& p, bool hasLight,
+                   bool terrainDrawn) const;
     // Binding 9 of the lighting set (the three maps in eGeneral); none before the first update
     bool hasImages() const { return maps != nullptr; }
     vk::DescriptorImageInfo descriptor() const;
@@ -135,6 +139,8 @@ class SAIGA_VULKAN_API HorizonShadows
     bool requested = false, requestedFull = false;
     int levelAt10km = 0;
 
+    // No map, no chain: the next update with a terrain set builds the chain and starts a map
+    void invalidate();
     void ensureImages(int resolution);
     void buildChain(vk::CommandBuffer cmd, const TerrainAtlas& atlas, uint32_t frameIndex);
     void recordRows(vk::CommandBuffer cmd, const MapTransform& t, int layer, int row0, int rows,
