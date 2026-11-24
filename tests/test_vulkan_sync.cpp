@@ -46,12 +46,12 @@ using namespace TerrainTestHooks;
 namespace
 {
 // Before main: the instance of the first test reads the layer settings from the environment
-void setEnv(const char* name, const char* value)
+void setEnv(const char* name, const char* value, bool overwrite)
 {
 #if defined(_WIN32)
-    if (!std::getenv(name)) _putenv_s(name, value);
+    if (overwrite || !std::getenv(name)) _putenv_s(name, value);
 #else
-    setenv(name, value, 0);
+    setenv(name, value, overwrite ? 1 : 0);
 #endif
 }
 // The oldest layer used with sync validation: 1.4.328 knows the shader-access heuristic
@@ -59,28 +59,46 @@ void setEnv(const char* name, const char* value)
 // local layer (1.4.341) is clean
 constexpr uint32_t kMinSyncValidationLayer = VK_MAKE_API_VERSION(0, 1, 4, 328);
 
-bool syncValidationWanted()
+// The spec version of the installed Khronos validation layer (0: none)
+uint32_t validationLayerVersion()
 {
-    if (const char* forced = std::getenv("SAIGA_TEST_SYNC_VALIDATION")) return std::string(forced) != "0";
     uint32_t count = 0;
-    if (vkEnumerateInstanceLayerProperties(&count, nullptr) != VK_SUCCESS) return false;
+    if (vkEnumerateInstanceLayerProperties(&count, nullptr) != VK_SUCCESS) return 0;
     std::vector<VkLayerProperties> layers(count);
-    if (vkEnumerateInstanceLayerProperties(&count, layers.data()) != VK_SUCCESS) return false;
+    if (vkEnumerateInstanceLayerProperties(&count, layers.data()) != VK_SUCCESS) return 0;
     for (uint32_t i = 0; i < count; ++i)
-        if (std::string(layers[i].layerName) == "VK_LAYER_KHRONOS_validation")
-            return layers[i].specVersion >= kMinSyncValidationLayer;
-    return false;
+        if (std::string(layers[i].layerName) == "VK_LAYER_KHRONOS_validation") return layers[i].specVersion;
+    return 0;
 }
 
+// Whether the frames are checked by sync validation: requested by SAIGA_TEST_SYNC_VALIDATION=1/0 (it wins over
+// VK_LAYER_VALIDATE_SYNC), else by VK_LAYER_VALIDATE_SYNC, else on with a layer of at least kMinSyncValidationLayer;
+// VK_LAYER_VALIDATE_SYNC is set to the request, and the frames are checked only with a validation layer installed
 const bool syncValidationOn = []()
 {
-    const bool on = syncValidationWanted();
-    if (on)
+    const uint32_t layer = validationLayerVersion();
+    bool requested       = layer >= kMinSyncValidationLayer;
+    const char* source   = "the layer version";
+    if (const char* forced = std::getenv("SAIGA_TEST_SYNC_VALIDATION"))
     {
-        setEnv("VK_LAYER_VALIDATE_SYNC", "1");
-        setEnv("VK_LAYER_SYNCVAL_SHADER_ACCESSES_HEURISTIC", "1");
+        requested = std::string(forced) != "0";
+        source    = "SAIGA_TEST_SYNC_VALIDATION";
     }
-    std::cout << "test_vulkan_sync: synchronization validation " << (on ? "on" : "off") << std::endl;
+    else if (const char* env = std::getenv("VK_LAYER_VALIDATE_SYNC"))
+    {
+        requested = std::string(env) != "0" && std::string(env) != "false";
+        source    = "VK_LAYER_VALIDATE_SYNC";
+    }
+    setEnv("VK_LAYER_VALIDATE_SYNC", requested ? "1" : "0", true);
+    if (requested) setEnv("VK_LAYER_SYNCVAL_SHADER_ACCESSES_HEURISTIC", "1", false);
+    const bool on = requested && layer > 0;
+    std::cout << "test_vulkan_sync: synchronization validation " << (on ? "on" : "off") << " (requested "
+              << (requested ? "on" : "off") << " by " << source << "; validation layer "
+              << (layer > 0 ? std::to_string(VK_API_VERSION_MAJOR(layer)) + "." +
+                                  std::to_string(VK_API_VERSION_MINOR(layer)) + "." +
+                                  std::to_string(VK_API_VERSION_PATCH(layer))
+                            : std::string("not installed"))
+              << ")" << std::endl;
     return on;
 }();
 

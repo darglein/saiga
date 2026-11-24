@@ -190,16 +190,18 @@ vec2 horizonHeights(vec4 map, float refRel, vec3 relPos, out bool inside)
         h = textureLod(horizonMaps, vec3(st / res, map.w), 0.0).rg;
     else
     {
-        // Nearest fetches with bilinear weights (RG32F without linear filtering)
-        vec2 p  = st - 0.5;
-        ivec2 i = ivec2(floor(p));
-        vec2 f  = p - vec2(i);
-        int l   = int(map.w);
-        vec2 a  = texelFetch(horizonMaps, ivec3(i, l), 0).rg;
-        vec2 b  = texelFetch(horizonMaps, ivec3(i + ivec2(1, 0), l), 0).rg;
-        vec2 c  = texelFetch(horizonMaps, ivec3(i + ivec2(0, 1), l), 0).rg;
-        vec2 d  = texelFetch(horizonMaps, ivec3(i + ivec2(1, 1), l), 0).rg;
-        h       = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+        // Nearest fetches with bilinear weights (RG32F without linear filtering); the neighbours clamped to the map (at
+        // its last texel the weight of the next is 0, but a fetch outside the image is undefined)
+        vec2 p   = st - 0.5;
+        ivec2 i  = ivec2(floor(p));
+        vec2 f   = p - vec2(i);
+        int l    = int(map.w);
+        ivec2 i1 = min(i + 1, ivec2(int(res) - 1));
+        vec2 a   = texelFetch(horizonMaps, ivec3(i, l), 0).rg;
+        vec2 b   = texelFetch(horizonMaps, ivec3(i1.x, i.y, l), 0).rg;
+        vec2 c   = texelFetch(horizonMaps, ivec3(i.x, i1.y, l), 0).rg;
+        vec2 d   = texelFetch(horizonMaps, ivec3(i1, l), 0).rg;
+        h        = mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
     }
     return h + refRel - relPos.y;
 }

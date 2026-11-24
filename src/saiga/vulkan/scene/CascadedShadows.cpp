@@ -243,7 +243,11 @@ void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, b
         use.frame        = in.frame;
         use.towardsLight = fitLight;
     }
-    const bool refitAll = !anyFit || !sameFit(p, fittedFor);
+    // A changed projection (near plane, field of view, aspect) moves every cascade's slice: all are refitted (the
+    // staggered ones would keep the old slices until due; CodeRabbit #85)
+    const bool projectionChanged = anyFit && (use.nearPlane != lastInput.nearPlane || use.fovy != lastInput.fovy ||
+                                              use.aspect != lastInput.aspect);
+    const bool refitAll          = !anyFit || !sameFit(p, fittedFor) || projectionChanged;
     if (refitAll)
         for (Cascade& c : state) c.valid = false;
     activeCount = count;

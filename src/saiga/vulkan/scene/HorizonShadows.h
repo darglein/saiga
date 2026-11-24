@@ -54,6 +54,8 @@ class SAIGA_VULKAN_API HorizonShadows
         Vec3 light       = Vec3(0, 1, 0);  // towards the light, the map was computed for
         double texel = 32, extent = 32768;
         int resolution = 0;
+        // m: G's first distance (LightingParameters::cascadeCasterDistance), the map was computed for
+        float casterDistance = 0;
     };
     struct Input
     {
@@ -77,8 +79,9 @@ class SAIGA_VULKAN_API HorizonShadows
     // The frame's update (in the shadow section, outside of a pass): the chain when the pyramid changed, the due rows
     // of the back map; returns the rows computed
     int update(vk::CommandBuffer cmd, const Input& in);
-    // The block's horizon fields for the camera (no map or off: the factor is 1)
-    void fillBlock(SceneLighting& block, const Vec3& camera, const LightingParameters& p, bool hasLight) const;
+    // The block's horizon fields for the camera in space (no map, a map of another space or off: the factor is 1)
+    void fillBlock(SceneLighting& block, const Vec3& camera, SpaceId space, const LightingParameters& p,
+                   bool hasLight) const;
     // Binding 9 of the lighting set (the three maps in eGeneral); none before the first update
     bool hasImages() const { return maps != nullptr; }
     vk::DescriptorImageInfo descriptor() const;
@@ -120,6 +123,9 @@ class SAIGA_VULKAN_API HorizonShadows
     // The pyramid the chain was built for (the atlas's set rebuilds and pyramid version)
     uint64_t chainRebuilds = ~uint64_t(0), chainVersion = ~uint64_t(0);
     const void* chainPyramid = nullptr;
+    // The space of the chain's pyramid: the maps are not shown in another space (the camera's space without the atlas's
+    // pyramid updates nothing; CodeRabbit #85)
+    SpaceId chainSpace = 0;
     // The light of the last update (the angular speed) and the recomputes so far
     Vec3 lastLight         = Vec3(0, 1, 0);
     double degreesPerFrame = 0;
@@ -132,7 +138,7 @@ class SAIGA_VULKAN_API HorizonShadows
     void ensureImages(int resolution);
     void buildChain(vk::CommandBuffer cmd, const TerrainAtlas& atlas, uint32_t frameIndex);
     void recordRows(vk::CommandBuffer cmd, const MapTransform& t, int layer, int row0, int rows,
-                    const TerrainAtlas& atlas, const LightingParameters& p, uint32_t frameIndex);
+                    const TerrainAtlas& atlas, uint32_t frameIndex);
     // A new map's transform for the camera and the light (the anchor kept while the camera stays in the inner half)
     MapTransform targetTransform(const Vec3& camera, const Vec3& light, const LightingParameters& p) const;
 };

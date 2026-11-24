@@ -337,7 +337,10 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
                 b.createBuffer(*base, kStatsBytes,
                                vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
                                vk::MemoryPropertyFlagBits::eDeviceLocal);
-        const uint32_t gx = (w + 15) / 16, gy = (h + 15) / 16, groups = gx * gy;
+        // A strip's workgroups are aligned to its layers (debug_preview.comp: each partial belongs to one layer's
+        // range)
+        const uint32_t gx = !source && layers > 1 ? (layerWidth + 15) / 16 * layers : (w + 15) / 16;
+        const uint32_t gy = (h + 15) / 16, groups = gx * gy;
         const size_t partialBytes = size_t(groups) * 16;
         if (!partials || partials.size() < partialBytes)
             partials.createBuffer(*base, std::max<size_t>(partialBytes, 4096), vk::BufferUsageFlagBits::eStorageBuffer,

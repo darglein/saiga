@@ -1548,7 +1548,12 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
     // margin, CascadedShadows::fit)
     if (camera.valid && !cameraHistory.empty() && (camera.position - cameraHistory.back().second).norm() > 500)
         cameraHistory.clear();
-    if (camera.valid) cameraHistory.emplace_back(now, camera.position);
+    // One sample per time (frames with a zero step, e.g. a paused clock, keep the newest position: the speed's dt is
+    // the span over the samples)
+    if (camera.valid && !cameraHistory.empty() && cameraHistory.back().first == now)
+        cameraHistory.back().second = camera.position;
+    else if (camera.valid)
+        cameraHistory.emplace_back(now, camera.position);
     while (!cameraHistory.empty() && now - cameraHistory.front().first > 1.0) cameraHistory.pop_front();
     // The mean speed over the last second (a debug camera's jump of a few metres in one frame is not a speed; a move
     // beyond a staggered cascade's margin refits it anyway)
@@ -1721,10 +1726,10 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     if (params.lighting.horizonShadows && horizon->hasImages())
     {
         b.horizon = horizon->descriptor();
-        horizon->fillBlock(block, cameraPosition, params.lighting, block.shadowLight(3) > 0);
+        horizon->fillBlock(block, cameraPosition, cameraSpace, params.lighting, block.shadowLight(3) > 0);
     }
     else
-        horizon->fillBlock(block, cameraPosition, LightingParameters(), false);
+        horizon->fillBlock(block, cameraPosition, cameraSpace, LightingParameters(), false);
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
     block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
     lightingSet->write(frameIndex, block, b);

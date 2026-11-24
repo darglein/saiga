@@ -226,6 +226,7 @@ HorizonShadows::MapTransform HorizonShadows::targetTransform(const Vec3& camera,
     t.extent               = std::max(double(p.horizonExtent), 64.0);
     t.texel                = t.extent / double(t.resolution);
     t.light                = light.normalized();
+    t.casterDistance       = p.cascadeCasterDistance;
     const MapTransform& f  = transforms[size_t(front)];
     const MapTransform& bk = transforms[size_t(back)];
     // The anchor of the newest map (the one in progress, else the front) while the camera stays in its inner half
@@ -256,7 +257,7 @@ HorizonShadows::MapTransform HorizonShadows::targetTransform(const Vec3& camera,
 }
 
 void HorizonShadows::recordRows(vk::CommandBuffer cmd, const MapTransform& t, int layer, int row0, int rows,
-                                const TerrainAtlas& atlas, const LightingParameters& p, uint32_t frameIndex)
+                                const TerrainAtlas& atlas, uint32_t frameIndex)
 {
     createPipelines();
     vk::DescriptorSet mapSet                      = mapSets[frameIndex];
@@ -285,7 +286,7 @@ void HorizonShadows::recordRows(vk::CommandBuffer cmd, const MapTransform& t, in
     push.towardsLight[1] = hn > 1e-9 ? float(h.y() / hn) : 0.0f;
     // At the zenith no terrain shadows: an elevation so steep that nothing reaches
     push.tanEl          = hn > 1e-6 ? float(t.light.y() / hn) : 1e6f;
-    push.casterDistance = p.cascadeCasterDistance;
+    push.casterDistance = t.casterDistance;
     push.cells          = levelSizes.empty() ? 0 : levelSizes[0];
     push.levels         = int32_t(levelSizes.size());
     push.spaceSize      = float(atlas.layout().sizeChunks) * 256.0f;
@@ -330,6 +331,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         chainRebuilds = rebuilds;
         chainVersion  = version;
         chainPyramid  = &atlas;
+        chainSpace    = atlas.space();
         requested     = true;
         // A map in progress restarts on the new chain (its rows before the change would keep the old terrain, and the
         // edit would show only after a second complete map; S36a2 review, finding 14), once per map: with an edit in
@@ -352,7 +354,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
     const MapTransform& f     = transforms[size_t(front)];
     const bool sameGrid       = f.valid && f.resolution == target.resolution && f.extent == target.extent;
     const bool due            = requested || !sameGrid || f.cornerX != target.cornerX || f.cornerZ != target.cornerZ ||
-                     angleDeg(f.light, in.light) > 0.1;
+                     angleDeg(f.light, in.light) > 0.1 || f.casterDistance != target.casterDistance;
     const bool full = in.force || requestedFull;
     if (computing && full)
     {
@@ -379,7 +381,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         // The previous frames' reads of the maps before this frame's writes into the back map
         memoryBarrier(cmd, readers | Stage::eAllTransfer, Access::eShaderSampledRead | Access::eTransferRead,
                       Stage::eComputeShader, Access::eShaderStorageWrite);
-        recordRows(cmd, transforms[size_t(back)], back, rowsDone, rows, atlas, p, in.frameIndex);
+        recordRows(cmd, transforms[size_t(back)], back, rowsDone, rows, atlas, in.frameIndex);
         rowsDone += rows;
         lastRows = rows;
         blend    = blendStart + (1 - blendStart) * float(rowsDone) / float(res);
@@ -407,7 +409,7 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
     return lastRows;
 }
 
-void HorizonShadows::fillBlock(SceneLighting& block, const Vec3& camera, const LightingParameters& p,
+void HorizonShadows::fillBlock(SceneLighting& block, const Vec3& camera, SpaceId space, const LightingParameters& p,
                                bool hasLight) const
 {
     block.horizonPrev     = vec4(0, 0, 0, -1);
@@ -415,7 +417,7 @@ void HorizonShadows::fillBlock(SceneLighting& block, const Vec3& camera, const L
     block.horizonRef      = vec4(0, 0, 1, 0);
     block.horizonParams   = vec4(0, 0, 0, 0);
     const MapTransform& f = transforms[size_t(front)];
-    if (!p.horizonShadows || !hasLight || !maps || !f.valid) return;
+    if (!p.horizonShadows || !hasLight || !maps || !f.valid || space != chainSpace) return;
     auto map = [&](const MapTransform& t, int layer)
     {
         if (!t.valid || t.resolution != f.resolution) return vec4(0, 0, 0, -1);

@@ -14,8 +14,10 @@
 // source's texel at p * step (a preview at a lower resolution than its source: every step-th texel); S36a2 a layer of
 // the array source (kind 2: the minimum of the first channel over the step x step texels a preview texel covers, a
 // depth map's casters stay visible; kind 3: the first, kind 4: the second channel at the block's first texel), with
-// layers > 1 every layer side by side (the strip). The histogram is counted in shared memory, one global add per bin
-// and workgroup (the Statistics buffer is device local; LightingDebug copies it to the host).
+// layers > 1 every layer side by side (the strip; its workgroups are aligned to the layers, a workgroup never spans two
+// layers, so that each workgroup's partial belongs to one layer's range). The histogram is counted over the reported
+// range (not a strip layer's own) in shared memory, one global add per bin and workgroup (the Statistics buffer is
+// device local; LightingDebug copies it to the host).
 
 #include "../color.glsl"
 #include "debug_common.glsl"
@@ -103,6 +105,23 @@ bool sourceValue(ivec2 p, out float v)
     return !(isnan(v) || isinf(v));
 }
 
+// The strip's workgroups per layer (16 columns each; the last of a layer is partly outside it)
+uint groupsPerLayer()
+{
+    return (pc.layerWidth + 15u) / 16u;
+}
+
+// The preview texel of this invocation: in a strip, workgroup x covers columns of one layer (a column beyond the layer's
+// width is outside the image)
+ivec2 texelOf()
+{
+    if (pc.layers <= 1u) return ivec2(gl_GlobalInvocationID.xy);
+    uint perLayer = groupsPerLayer();
+    uint column   = (gl_WorkGroupID.x % perLayer) * 16u + gl_LocalInvocationID.x;
+    int x         = column < pc.layerWidth ? int((gl_WorkGroupID.x / perLayer) * pc.layerWidth + column) : pc.size.x;
+    return ivec2(x, int(gl_GlobalInvocationID.y));
+}
+
 vec4 combine(vec4 a, vec4 b)
 {
     return vec4(min(a.x, b.x), max(a.y, b.y), a.z + b.z, a.w + b.w);
@@ -114,7 +133,7 @@ void main()
     uint local       = gl_LocalInvocationIndex;
     if (pc.pass == 0u)
     {
-        ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+        ivec2 p = texelOf();
         vec4 r  = empty;
         float v;
         if (p.x < pc.size.x && p.y < pc.size.y && sourceValue(p, v)) r = vec4(v, v, v, 1.0);
@@ -145,13 +164,14 @@ void main()
             stats  = t.w > 0.0 ? vec4(t.x, t.y, t.z / t.w, t.w) : vec4(0.0);
             range  = pc.autoRange != 0u ? vec4(stats.x, stats.y, 0.0, 0.0) : vec4(pc.rangeMin, pc.rangeMax, 0.0, 0.0);
         }
-        // The strip's per-layer ranges: the partials of the workgroups whose first column lies in the layer
+        // The strip's per-layer ranges: the partials of the layer's workgroups
         if (pc.layers > 1u && local < pc.layers && local < 4u)
         {
-            uint gx = (uint(pc.size.x) + 15u) / 16u;
-            vec4 r  = empty;
+            uint perLayer = groupsPerLayer();
+            uint gx       = perLayer * pc.layers;
+            vec4 r        = empty;
             for (uint i = 0u; i < pc.groups; ++i)
-                if (((i % gx) * 16u) / pc.layerWidth == local) r = combine(r, partials[i]);
+                if ((i % gx) / perLayer == local) r = combine(r, partials[i]);
             layerRange[local] = r.w > 0.0 ? vec4(r.x, r.y, 0.0, 0.0) : vec4(0.0, 1.0, 0.0, 0.0);
         }
     }
@@ -159,7 +179,7 @@ void main()
     {
         if (local < 16u) localHistogram[local] = 0u;
         barrier();
-        ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+        ivec2 p = texelOf();
         if (p.x < pc.size.x && p.y < pc.size.y)
         {
             float v;
@@ -172,7 +192,10 @@ void main()
                 float span = r.y - r.x;
                 float t    = span > 0.0 ? clamp((v - r.x) / span, 0.0, 1.0) : 0.5;
                 c          = pc.colorMap == 1u ? turbo(t) : vec3(t);
-                atomicAdd(localHistogram[min(uint(t * 16.0), 15u)], 1u);
+                // The histogram over the reported range (a strip layer's colours use its own)
+                float g = range.y - range.x;
+                float h = g > 0.0 ? clamp((v - range.x) / g, 0.0, 1.0) : 0.5;
+                atomicAdd(localHistogram[min(uint(h * 16.0), 15u)], 1u);
             }
             // Row 0 at the top (the images are stored top-down)
             imageStore(preview, p, vec4(c, 1.0));

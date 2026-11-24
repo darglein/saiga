@@ -1364,7 +1364,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                  cascade](const Vulkan::LightingDebug::Capture& c)
                 {
                     if (*answered) return;
-                    *answered                          = true;
+                    *answered = true;
+                    // A cascade count lowered after the request: the frame converted a substitute layer
+                    const int count = app.scene() ? app.scene()->lightingStatistics().cascadeCount : 0;
+                    if (cascade >= count)
+                        return respond(
+                            ToolResult::Error("cascade: the cascade count changed to " + std::to_string(count)));
                     const Vulkan::PreviewStatistics& s = c.statistics;
                     Json::array histogram;
                     for (uint32_t h : s.histogram) histogram.push_back(double(h));

@@ -849,11 +849,11 @@ TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
 // validation clean and the same image
 TEST_F(VulkanPrototypeScene, DepthResolveAndPrePass)
 {
-    // Compares frames: golden mode
-    GoldenMode();
     for (int samples : {4, 1})
     {
         Create(96, 64, samples);
+        // Compares frames: golden mode (per scene: Create makes a new one)
+        GoldenMode();
         PrototypeScene p;
         Attach(p, 500);
         Vec3 c(1536, 0, 1536);

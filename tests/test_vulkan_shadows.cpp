@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 #include <random>
 
 #include "render_scene_test_context.h"
@@ -745,15 +746,17 @@ class Shadows : public RenderSceneTest
         scene->addMaterial(MaterialId(id), "shadow_box_" + std::to_string(id), MaterialData());
         scene->addMesh(id, "shadow_box_" + std::to_string(id), m, MaterialId(id));
     }
-    // The factor (0..1) at a world point of the last frame (its matrices), -1 outside the image
+    // The factor (0..1) at a world point of the last frame (its matrices), NaN outside the image: every comparison
+    // with it fails (a point a check needs must be in view), scans skip it with std::isnan
     float FactorAt(const TemplatedImage<ucvec4>& img, const Vec3& world)
     {
-        const Vec3 rel = world - cameraEye;
-        const vec4 h   = scene->viewProjection() * vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1);
-        if (h(3) <= 0) return -1;
+        const float none = std::numeric_limits<float>::quiet_NaN();
+        const Vec3 rel   = world - cameraEye;
+        const vec4 h     = scene->viewProjection() * vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1);
+        if (h(3) <= 0) return none;
         const int x = int(std::floor((h(0) / h(3) * 0.5f + 0.5f) * float(img.w)));
         const int y = int(std::floor((h(1) / h(3) * 0.5f + 0.5f) * float(img.h)));
-        if (x < 0 || y < 0 || x >= img.w || y >= img.h) return -1;
+        if (x < 0 || y < 0 || x >= img.w || y >= img.h) return none;
         return float(img(y, x)(0)) / 255.0f;
     }
     void Camera(const Vec3& eye, const Vec3& forward) { SetCamera(0, eye, lookRotation(forward), 1.0); }
@@ -875,6 +878,39 @@ TEST_F(Shadows, StaggeredMarginUsesTheFrameTime)
     EXPECT_DOUBLE_EQ(in.maxSpeed, 50);
 }
 
+// Regression (CodeRabbit #85): a changed projection (here the field of view) kept the staggered cascades on the slices
+// of the old frustum until they were due; every cascade is refitted in the frame of the change
+TEST_F(Shadows, ProjectionChangeRefitsEveryCascade)
+{
+    LightingParameters p = scene->lightingParameters();
+    p.forceFullUpdates   = false;
+    p.cascadeInterval    = {1, 8, 8, 8};
+    scene->setLightingParameters(p);
+    Box(314, vec3(60, 0.5f, 60));
+    AddSet({instanceAt(vec3(0, -0.5f, 0), 314)});
+    Sun(Vec3(0.5, 1, 0.2));
+    const Vec3 forward(6.5, -7, 0);
+    Camera(Vec3(-7, 7, 0.01), forward);
+    for (int i = 0; i < 3; ++i)
+    {
+        scene->setFrameTime(1.0 / 60);
+        RenderFrame();
+    }
+    scene->waitIdle();
+    const LightingStatistics before = scene->lightingStatistics();
+    ASSERT_TRUE(before.shadows);
+    ASSERT_EQ(before.cascadeCount, 4);
+    // A wider field of view: every slice's bounding sphere grows (a narrower one refits the staggered cascades anyway:
+    // their de-duplication against the shrunk cascade 0 no longer holds)
+    SetCamera(0, cameraEye, lookRotation(forward), 1.4);
+    scene->setFrameTime(1.0 / 60);
+    RenderFrame();
+    scene->waitIdle();
+    const LightingStatistics& st = scene->lightingStatistics();
+    for (size_t c = 0; c < 4; ++c)
+        EXPECT_GT(st.cascades[c].halfExtent, before.cascades[c].halfExtent * 1.1f) << "cascade " << c;
+}
+
 // Regression (S36a2 review, findings 10 and 11): a C++ caller's resolution outside 256..4096 fitted the texel snap
 // and the biases to another texel than the image's; and while frozen a resolution or count change (the images are
 // recreated, every cascade invalid) rendered no cascade until unfrozen. Frozen, then 128 texels (an image of 256): the
@@ -943,6 +979,8 @@ TEST_F(Shadows, StaticViewSameCastersEveryFrame)
     {
         const TemplatedImage<ucvec4> img = Capture(1);
         const RenderStatistics st        = scene->statistics();
+        ASSERT_GT(img.w, 0);
+        ASSERT_GT(img.h, 0);
         if (f == 0)
         {
             reference = img;
@@ -1091,7 +1129,7 @@ TEST_F(ShadowsTerrain, NoLitGapAtTheLastCascadeBorder)
     {
         const Vec3 q(x0, ridgeHeight(x0), z);
         const float f = FactorAt(img, q);
-        if (f < 0) continue;
+        if (std::isnan(f)) continue;
         checked++;
         // Beyond the last cascade's band start (its half extent along z times 1 - blend; the rectangle is centred near
         // the camera)
@@ -1163,7 +1201,7 @@ TEST_F(ShadowsFoliage, FoliageAlphaShadow)
             for (double z = -2; z <= 2; z += 0.25)
             {
                 const float f = FactorAt(side, Vec3(cx + x, 0, z));
-                if (f < 0) continue;
+                if (std::isnan(f)) continue;
                 sum += f;
                 n++;
             }
@@ -1411,8 +1449,18 @@ TEST_F(HorizonTest, BlendsDuringRecompute)
     scene->setLightingParameters(p);
     // (the jump to 3 degrees resets the light's angular speed: the base rows per frame apply)
     Elevation(3);
+    const uint64_t completed = scene->lightingStatistics().horizon.completed;
     std::vector<float> f;
-    for (int i = 0; i < 40; ++i) f.push_back(FactorAt(Capture(1), ground));
+    int completion = -1;  // the sample of the frame that completed the new map
+    for (int i = 0; i < 40; ++i)
+    {
+        f.push_back(FactorAt(Capture(1), ground));
+        if (completion < 0 && scene->lightingStatistics().horizon.completed > completed) completion = i;
+    }
+    ASSERT_GE(completion, 0) << "the new map completed";
+    // Up to the frame that completes the new map (it binds the maps of the previous update) the factor is the previous
+    // map's
+    for (int i = 0; i <= completion; ++i) EXPECT_GT(f[size_t(i)], 0.9f) << i << " (completed in " << completion << ")";
     EXPECT_LT(f.back(), 0.1f) << "the new map is shown in the end";
     size_t first = f.size();
     for (size_t i = 1; i < f.size(); ++i)
@@ -1421,6 +1469,44 @@ TEST_F(HorizonTest, BlendsDuringRecompute)
         if (f[i] < 0.5f && first == f.size()) first = i;
     }
     EXPECT_GE(first, 14u) << "the change follows the recompute";
+}
+
+// Regression (CodeRabbit #85): a changed cascadeCasterDistance (where G starts) did not recompute the horizon map, G
+// kept the old distance
+TEST_F(HorizonTest, CasterDistanceChangeRecomputes)
+{
+    const Vec3 eye(1450, 120, 2048.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    Elevation(3);
+    Camera(eye, Vec3(1, -1.5, 0));
+    Capture(2);
+    const uint64_t before   = scene->lightingStatistics().horizon.recomputes;
+    LightingParameters p    = scene->lightingParameters();
+    p.cascadeCasterDistance = 800;
+    scene->setLightingParameters(p);
+    // (the statistics are written before the frame's update)
+    Capture(2);
+    EXPECT_GT(scene->lightingStatistics().horizon.recomputes, before);
+    HorizonShadows::MapTransform t;
+    Front(t);
+    EXPECT_EQ(t.casterDistance, 800.0f);
+}
+
+// Regression (CodeRabbit #85): with the camera in another space (whose pyramid the atlas does not hold: nothing is
+// updated) the lighting block still carried the previous space's horizon map
+TEST_F(HorizonTest, NoMapInAnotherSpace)
+{
+    const Vec3 eye(1450, 120, 2048.5);
+    Terrain(TerrainTestHooks::mountainRidgeHook, eye);
+    Elevation(3);
+    Camera(eye, Vec3(1, -1.5, 0));
+    Capture(2);
+    const LightingParameters p = scene->lightingParameters();
+    SceneLighting block;
+    scene->horizonShadows().fillBlock(block, eye, 0, p, true);
+    EXPECT_GE(block.horizonFront(3), 0.0f) << "the map in its space";
+    scene->horizonShadows().fillBlock(block, eye, 1, p, true);
+    EXPECT_LT(block.horizonFront(3), 0.0f) << "no map in space 1";
 }
 
 // A small camera move recomputes nothing; leaving the inner half of the map moves the anchor and recomputes, and
@@ -1485,11 +1571,19 @@ TEST_F(HorizonTest, ReceiverOutsidePreviousMapShadowedAfterAnchorMove)
     scene->setLightingParameters(p);
     Camera(eye, Vec3(1, -1.5, 0));
     std::vector<float> after;
+    bool completing = true;
     for (int i = 0; i < 40 && after.size() < 6; ++i)
     {
         const TemplatedImage<ucvec4> img = Capture(1);
         const HorizonStatistics st       = scene->lightingStatistics().horizon;
-        if (st.completed > completed) after.push_back(FactorAt(img, ground));
+        if (st.completed <= completed) continue;
+        // The frame that completes the map binds the maps of the previous update: from the next frame on
+        if (completing)
+        {
+            completing = false;
+            continue;
+        }
+        after.push_back(FactorAt(img, ground));
     }
     ASSERT_EQ(after.size(), 6u) << "the new map completed";
     for (size_t i = 0; i < after.size(); ++i) EXPECT_LT(after[i], 0.1f) << "frame " << i << " after the completion";
@@ -1557,6 +1651,20 @@ TEST_F(HorizonTest, EditsEveryFrameStillComplete)
     }
     EXPECT_GT(scene->lightingStatistics().horizon.completed, completed) << frames << " frames";
     EXPECT_EQ(scene->lightingStatistics().horizon.restarts, 1u);
+    // The edits stop: the next map (due: the chain changed) holds the block's final height, as a full recompute does
+    const uint64_t first = scene->lightingStatistics().horizon.completed;
+    for (int i = 0; i < 24 && scene->lightingStatistics().horizon.completed == first; ++i) Capture(1);
+    ASSERT_GT(scene->lightingStatistics().horizon.completed, first);
+    HorizonShadows::MapTransform t, u;
+    const std::vector<vec2> next = Front(t);
+    scene->requestHorizonRecompute(true);
+    Capture(1);
+    const std::vector<vec2> full = Front(u);
+    ASSERT_EQ(next.size(), full.size());
+    const int i = int((2200.0 - t.cornerX) / t.texel), j = int((2000.0 - t.cornerZ) / t.texel);
+    const size_t k = size_t(j) * size_t(t.resolution) + size_t(i);
+    EXPECT_GT(next[k](0), -1e8f) << "behind the block";
+    EXPECT_EQ(next[k](0), full[k](0)) << "behind the block";
 }
 
 // A terrain edit (a pyramid patch) rebuilds the max chain and recomputes the whole map (nit 20: the name said dirty
