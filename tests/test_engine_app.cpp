@@ -2436,6 +2436,11 @@ EngineAppSetup terrainAppSetup(TerrainHeightHook hook)
     EngineAppSetup s = appSetup(true);
     s.world.config.spaceTemplates.push_back(TerrainTestHooks::testSpaceTemplate(32, 2, hook, 0));
     s.world.generators = TerrainTestHooks::registerTestHookGenerators;
+    // No cascades and no horizon map (the clay studio sun is a shadow light): these tests bound the wall clock of
+    // frames after camera jumps of kilometres, where a refit with the terrain casters and the horizon map's restart
+    // cost a loaded lavapipe more than the bounds (CI: a 124 ms frame against StreamTimePausesTheClock's 100 ms)
+    s.render.lighting.sunShadows     = false;
+    s.render.lighting.horizonShadows = false;
     return s;
 }
 
