@@ -2857,6 +2857,35 @@ nitpicks) and #82 (4 major, 19 minor). All fixed except where noted.
   calls with different settings in flight; the change is a partition of the deferred list).
 - Goldens: none changed.
 
+### Code review round 4 (Opus), 2026-11-24
+
+Round 4 (`r4_opus.md`): no blocker or major, 2 minor, 4 nits; one CI failure. All fixed. a1a, a1b and a1c1 are
+unchanged (CodeRabbit was reviewing #83); the fixes are on a1c, a2 and b.
+
+- **Minor 1 (game_world's lamp policy rewrote every LightSource's `on` each step)**: `lampPolicySystem` drives only
+  the lamps `spawnLamps` spawned (a game component `LampPolicy` on them, Replicate::Never, saved: the day/night state
+  last applied) and writes their light only on a transition, so a light switched by hand (the Lighting tab,
+  `set_component`) holds until the next dusk or dawn and a light added by hand is never switched. game_world now has
+  `--scenarios`: `lamp_hand_switch_holds` (Plain, Repeat, SaveLoad; fails on the old policy) (b 1dd012db8).
+- **Minor 2 (the coop light editor showed and resent the client's lagging replica)**: in `--coop` the editor reads
+  the host's LightSource (the entity it writes) and sends only the fields the frame changed.
+  `EnvironmentWrites.CoopLightEditorWritesTheHost` runs with a 20-step delay and edits "cast shadows" while the
+  replica still lags; it fails on the old editor (the host's `on` came back) (b 1dd012db8).
+- **Nit 3**: `floatKey` checks the double (finite, `|d| <= FLT_MAX`) before the float conversion (b 1dd012db8).
+- **Nit 4 (AGENTS.md's test count)**: CI's real numbers: 84 on a1c (0c5793919, which also counts master's two
+  uncounted tests), 86 on a2 and 87 on b (folded into the rebased flip commits of a2 and b, which set the count). The
+  counts of a1a, a1b and a1c1 (80, 81, 81; really 82, 83, 83) stay: those branches were not to be changed.
+- **Nit 5 (stale comment in `RenderScene::setLightingParameters`)**: the comment names the resources that adapt
+  lazily in the next frame, per branch: the environment map and clouds (a1c 0c5793919), the cascades and the horizon
+  map (a2 4945e9b7d), the shadow atlas and the light clusters (b 46ba04221).
+- **Nit 6**: `SyncValidation.FirstUsesInFlight` checks that the atlas rendered faces and the light was shadowed in the
+  frames after the first shadowed light (b 1dd012db8).
+- **CI failure 3** (run 45402792778, both Ubuntu jobs): `SyncValidation.LocalLightsAndAtlasFrame` asserted that sync
+  validation is on, which the layer-version gate turns off on CI's 1.3.275 layer; it now renders without it like the
+  other three tests (no skip). No other test of the file assumes it (b 1dd012db8). Checked with the local layer (on)
+  and with `SAIGA_TEST_SYNC_VALIDATION=0`.
+- Goldens: none changed.
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
