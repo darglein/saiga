@@ -1055,30 +1055,34 @@ void LightingTab::atlasSection()
         {
             DebugUiStyle::property("atlas / tile");
             {
-                const int sizes[]   = {1024, 2048, 4096, 8192};
-                const char* names[] = {"1024", "2048", "4096", "8192"};
-                int current         = 2;
-                for (int i = 0; i < 4; ++i)
-                    if (sizes[i] == ap.atlasResolution) current = i;
-                ImGui::SetNextItemWidth(80);
-                if (ImGui::Combo("##atlas resolution", &current, names, 4))
+                // The combos show the stored values (CodeRabbit #86: an admitted value outside the lists, e.g. 512 or
+                // 64, showed another entry); every admitted power of two is listed
+                auto combo = [](const char* id, int& value, const std::vector<int>& choices)
                 {
-                    ap.atlasResolution = sizes[current];
-                    ap.atlasTile       = std::min(ap.atlasTile, ap.atlasResolution);
-                    atlasChanged       = true;
-                }
-                ImGui::SameLine();
-                const int tiles[]       = {128, 256, 512, 1024};
-                const char* tileNames[] = {"128", "256", "512", "1024"};
-                int t                   = 2;
-                for (int i = 0; i < 4; ++i)
-                    if (tiles[i] == ap.atlasTile) t = i;
-                ImGui::SetNextItemWidth(80);
-                if (ImGui::Combo("##atlas tile", &t, tileNames, 4))
+                    const std::string preview = std::to_string(value);
+                    bool changed              = false;
+                    ImGui::SetNextItemWidth(80);
+                    if (ImGui::BeginCombo(id, preview.c_str()))
+                    {
+                        for (int c : choices)
+                            if (ImGui::Selectable(std::to_string(c).c_str(), c == value))
+                            {
+                                changed = c != value;
+                                value   = c;
+                            }
+                        ImGui::EndCombo();
+                    }
+                    return changed;
+                };
+                if (combo("##atlas resolution", ap.atlasResolution, {512, 1024, 2048, 4096, 8192}))
                 {
-                    ap.atlasTile = std::min(tiles[t], ap.atlasResolution);
+                    ap.atlasTile = std::min(ap.atlasTile, ap.atlasResolution);
                     atlasChanged = true;
                 }
+                ImGui::SameLine();
+                std::vector<int> tileChoices;
+                for (int t = 64; t <= std::min(ap.atlasResolution, 1024); t *= 2) tileChoices.push_back(t);
+                atlasChanged = combo("##atlas tile", ap.atlasTile, tileChoices) || atlasChanged;
             }
             DebugUiStyle::property("faces per frame");
             atlasChanged = ImGui::SliderInt("##faces per frame", &ap.facesPerFrame, 0, 11) || atlasChanged;
@@ -1306,6 +1310,8 @@ void LightingTab::lightTable()
                     return r.distance;
             }
         };
+        // The frame's lights, the other scene lights, the unrendered ones
+        auto rowGroup = [](const Row& r) { return r.info ? 0 : (r.light ? 1 : 2); };
         // Sorted when the sort spec or the light set changes, else every 30 frames (the distances change slowly; S30's
         // thousands of piece lights)
         const uint64_t now = scene->frames();
@@ -1327,6 +1333,8 @@ void LightingTab::lightTable()
                 rows.swap(ordered);
             else
                 resort = true;
+            // A light that changed its group (visible, rendered, not rendered) moves at once (CodeRabbit #86)
+            for (size_t k = 1; k < rows.size() && !resort; ++k) resort = rowGroup(rows[k]) < rowGroup(rows[k - 1]);
         }
         if (resort)
         {
@@ -1334,10 +1342,14 @@ void LightingTab::lightTable()
                              [&](const Row& a, const Row& b)
                              {
                                  // The frame's lights first, then the other scene lights, then the unrendered ones
-                                 const int ga = a.info ? 0 : (a.light ? 1 : 2), gb = b.info ? 0 : (b.light ? 1 : 2);
+                                 const int ga = rowGroup(a), gb = rowGroup(b);
                                  if (ga != gb) return ga < gb;
+                                 // A NaN key (an invalid light's lumen) after the numbers in both directions (a
+                                 // strict weak order; CodeRabbit #86)
                                  const double ka = key(a), kb = key(b);
-                                 if (ka != kb) return lightSortAscending ? ka < kb : ka > kb;
+                                 const bool na = std::isnan(ka), nb = std::isnan(kb);
+                                 if (na != nb) return nb;
+                                 if (!na && ka != kb) return lightSortAscending ? ka < kb : ka > kb;
                                  return a.key < b.key;
                              });
             lightOrder.clear();

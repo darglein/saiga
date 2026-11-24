@@ -131,9 +131,11 @@ struct RenderScene::ProbeRun
     // S36b: frame 1's lights and cluster grid (the probe's cluster keys)
     ClusterGrid grid;
     bool clusters = false;
-    mat4 view     = mat4::Identity();
-    mat4 proj     = mat4::Identity();
-    Vec3 forward  = Vec3(0, 0, -1);
+    // Clustered shading (the cluster's slots cap its lights; the brute-force loop shades every light)
+    bool clustered = false;
+    mat4 view      = mat4::Identity();
+    mat4 proj      = mat4::Identity();
+    Vec3 forward   = Vec3(0, 0, -1);
     std::vector<LocalLights::GpuLight> lights;
     std::vector<uint32_t> handles;
     // The surface changed size during the sequence (its pixels are other surface points; frame 1's held image is gone):
@@ -460,6 +462,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             probe->postLinear  = linear;
             probe->grid        = *s.clusterGrid;
             probe->clusters    = s.frameClusters;
+            probe->clustered   = s.frameClusters && s.params.lighting.clusteredLights;
             probe->view        = s.frameView;
             probe->proj        = s.frameProjection;
             probe->forward     = s.cameraRotation * Vec3(0, 0, -1);
@@ -579,7 +582,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // S36b: the clustered light culling (B3; written every frame, empty without lights)
     timings.enterSection("lights", cmd);
     if (s.frameClusters)
-        s.clusterCull->record(cmd, frame.frameIndex, *s.clusterGrid, s.frameView, s.frameProjection, *s.lightTable);
+        s.clusterCull->record(cmd, frame.frameIndex, *s.clusterGrid, s.frameView, s.frameProjection, *s.lightTable,
+                              s.frameCount + 1);
     timings.leaveSection("lights", cmd);
 
     // S36a2: the cascades' depth passes (§10.5 pass 1; written every frame, empty without cascades): the casters of the
@@ -1000,6 +1004,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // The preview conversions (S36a1b; written every frame, empty without a request)
     timings.enterSection("lighting.preview", cmd);
     {
+        // The cancelled requests go first: the sources below follow the mappings that recordPreviews converts
+        s.debugImages->pruneCancelled();
         LightingDebug::Sources src;
         src.set(LightingImage::Luminance, &hdrResolved, 0, linear ? 1.0f / s.framePreExposure : 1.0f);
         // (the BRDF LUT is created for its preview; the environment's resources exist after the first environment)
@@ -1082,12 +1088,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                 a.width = a.height = uint32_t(at.tileSize());
             }
         }
-        // S36b: the lights per cluster (from this frame's table)
-        if (s.debugImages->requested(LightingImage::Clusters) && s.frameClusters)
-            src.set(LightingImage::Clusters,
-                    s.clusterCull->recordDebug(cmd, frame.frameIndex,
-                                               s.debugImages->sourceMapping(LightingImage::Clusters).slice),
-                    1);
+        // S36b: the lights per cluster (from this frame's table); a slice the frame's grid no longer has (a request
+        // queued before a cluster_z change) is not converted: the capture answers that it was not rendered
+        // (CodeRabbit #86: the shader read beyond the table)
+        const int clusterSlice = s.debugImages->sourceMapping(LightingImage::Clusters).slice;
+        if (s.debugImages->requested(LightingImage::Clusters) && s.frameClusters && clusterSlice < s.clusterGrid->z)
+            src.set(LightingImage::Clusters, s.clusterCull->recordDebug(cmd, frame.frameIndex, clusterSlice), 1);
         s.lightStats.previewDispatches = previews ? s.debugImages->recordPreviews(cmd, frame.frameIndex, src) : 0;
     }
     timings.leaveSection("lighting.preview", cmd);
@@ -1379,12 +1385,17 @@ void RenderScene::ensureEnvironmentResources()
 {
     if (atmosphere) return;
     ensureBrdf();
-    atmosphere = std::make_unique<Atmosphere>();
-    atmosphere->init(base());
-    envMap = std::make_unique<EnvironmentMap>();
-    envMap->init(base(), params.lighting.environmentResolution);
-    clouds = std::make_unique<CloudLayer>();
-    clouds->init(base(), formats(), CloudSettings().seed);
+    // Committed after every initializer succeeded (CodeRabbit #86: a throwing one left atmosphere set, and the next
+    // call returned with envMap or clouds missing)
+    auto a = std::make_unique<Atmosphere>();
+    a->init(base());
+    auto e = std::make_unique<EnvironmentMap>();
+    e->init(base(), params.lighting.environmentResolution);
+    auto c = std::make_unique<CloudLayer>();
+    c->init(base(), formats(), CloudSettings().seed);
+    atmosphere = std::move(a);
+    envMap     = std::move(e);
+    clouds     = std::move(c);
     ambient->setEnvironmentMap(envMap.get());
 }
 
@@ -1840,6 +1851,7 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     in.space  = camera.space;
     in.camera = camera.position;
     for (size_t k = 0; k < in.planes.size(); ++k) in.planes[k] = camera.planes[k];
+    in.forward      = cameraRotation * Vec3(0, 0, -1);
     in.on           = p.localLights;
     in.maxLights    = p.maxLights;
     in.clusterFar   = std::max(double(p.clusterFar), 1.0);
@@ -1864,14 +1876,20 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     g.height              = std::max(sz(1), 1);
     g.fovy                = cameraFovy;
     g.aspect              = double(g.width) / double(g.height);
-    frameClusters         = camera.valid && count > 0;
+    // The index buffer (every cluster's slots, bound whole) within the storage-buffer limit: the slots per cluster are
+    // reduced to fit. set_lighting rejects such values; an environment file or a C++ caller is not checked against the
+    // device (CodeRabbit #86: a 64 x 64 x 128 grid with 1024 slots was a 2 GiB binding)
+    const uint64_t slotsInLimit = storageBufferLimit() / (uint64_t(g.count()) * 4);
+    g.maxLightsPerCluster       = int(std::clamp<uint64_t>(slotsInLimit, 1, uint64_t(g.maxLightsPerCluster)));
+
+    frameClusters = camera.valid && count > 0;
     if (!frameClusters) clusterCull->clearStatistics();
-    const bool clustered  = frameClusters && p.clusteredLights;
-    block.lightCounts     = uvec4(count, clustered ? 1u : 0u, uint32_t(lightTable->highlightIndex() + 1), 0);
-    block.clusterGrid     = uvec4(uint32_t(g.x), uint32_t(g.y), uint32_t(g.z), uint32_t(g.maxLightsPerCluster));
-    block.clusterDepth    = vec4(float(g.nearPlane), float(g.clusterNear), float(g.clusterFar),
-                                 float(double(g.z - 1) / std::log(g.clusterFar / g.clusterNear)));
-    block.atlasParams(3)  = clusterHeatScale;
+    const bool clustered = frameClusters && p.clusteredLights;
+    block.lightCounts    = uvec4(count, clustered ? 1u : 0u, uint32_t(lightTable->highlightIndex() + 1), 0);
+    block.clusterGrid    = uvec4(uint32_t(g.x), uint32_t(g.y), uint32_t(g.z), uint32_t(g.maxLightsPerCluster));
+    block.clusterDepth   = vec4(float(g.nearPlane), float(g.clusterNear), float(g.clusterFar),
+                                float(double(g.z - 1) / std::log(g.clusterFar / g.clusterNear)));
+    block.atlasParams(3) = clusterHeatScale;
     // The lights' cluster ranges (light_cluster.comp's pre-test)
     if (frameClusters)
     {
@@ -1940,10 +1958,14 @@ void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, b
             if (!d.alive || !d.set || d.chunk.space != camera.space || !InstanceBuffer::moving(d)) continue;
             const MeshPool::Mesh* m = meshPool->mesh(d.mesh);
             if (!m) continue;
-            const double scale = d.curr.scale;
-            const Vec3 centre =
-                chunkOrigin(d.chunk) + d.curr.position + d.curr.rotation * (m->sphereCenter.cast<double>() * scale);
-            const double radius = double(m->sphereRadius + m->boundsPadding) * scale;
+            // The bound of every pose between prev and curr that the frame's alpha can render (CodeRabbit #86: the curr
+            // sphere alone missed a face that only an interpolated pose reaches)
+            auto sphereAt = [&](const DynamicPose& q)
+            { return chunkOrigin(d.chunk) + q.position + q.rotation * (m->sphereCenter.cast<double>() * q.scale); };
+            const Vec3 a = sphereAt(d.prev), b = sphereAt(d.curr);
+            const Vec3 centre   = 0.5 * (a + b);
+            const double radius = double(m->sphereRadius + m->boundsPadding) * std::max(d.prev.scale, d.curr.scale) +
+                                  0.5 * (b - a).norm();
             for (ShadowAtlas::LightInput& li : in)
                 if ((centre - li.world).norm() <= radius + double(li.data.range))
                     li.movers.emplace_back(centre, radius);
@@ -2353,7 +2375,9 @@ void RenderScene::latchDebug()
         probeRun.reset();
         applyHeldProbeState();
     }
-    // A resized surface ends the sequence (finishProbe answers without values)
+    // A resized surface ends the sequence (finishProbe answers without values), detected here before the frame's view
+    // is chosen (CodeRabbit #86: the frame of the resize rendered a debug view)
+    if (probeRun && probeRun->step > 0 && probeRun->size != size()) probeRun->resized = true;
     if (probeRun && probeRun->resized) finishProbe();
     // A probe starts with the next frame: the requests made until then share its frames
     if (!probeRun && !probeRequests.empty())
@@ -2484,7 +2508,7 @@ void RenderScene::finishProbe()
                             !LightClusters::lightTouches(run->lights[i], run->view, lo, hi))
                             continue;
                         p.clusterTotal++;
-                        if (p.lights.size() >= size_t(run->grid.maxLightsPerCluster)) continue;
+                        if (run->clustered && p.lights.size() >= size_t(run->grid.maxLightsPerCluster)) continue;
                         LightingProbe::LightContribution c;
                         c.handle                       = i < run->handles.size() ? run->handles[i] : 0;
                         const LocalLights::GpuLight& L = run->lights[i];

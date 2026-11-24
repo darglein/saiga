@@ -2414,6 +2414,7 @@ TEST_F(VulkanSceneContent, ClaySceneCreatesNoLightingResources)
     camera.apply(*scene);
     SceneFrame();
     EXPECT_FALSE(scene->environmentResourcesCreated());
+    EXPECT_FALSE(scene->brdfLutCreated());
     EXPECT_EQ(scene->lightingStatistics().lutComputations, 0u);
     // One draw pipeline (the opaque class), no terrain or grass pipeline (no terrain)
     EXPECT_EQ(scene->scenePipelineCreations() - created, 1u);

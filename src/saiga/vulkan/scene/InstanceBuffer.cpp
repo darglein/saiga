@@ -259,7 +259,8 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
     Dynamic& d = dynamicList[h.id - 1];
     auto same  = [](const DynamicPose& a, const DynamicPose& b)
     { return a.position == b.position && a.scale == b.scale && a.rotation.coeffs() == b.rotation.coeffs(); };
-    d.snappedMove = d.set && same(prev, curr) && (d.chunk != chunk || !same(d.curr, curr));
+    // Committed with the pose, after the chunk operations that may throw (CodeRabbit #86)
+    const bool snappedMove = d.set && same(prev, curr) && (d.chunk != chunk || !same(d.curr, curr));
     if (!d.set || d.chunk != chunk)
     {
         // Room for the old chunk's slot first: after acquireChunk nothing may throw (RenderSink's failure contract)
@@ -270,10 +271,11 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
         d.slot  = slot;
         d.chunk = chunk;
     }
-    d.set        = true;
-    d.prev       = prev;
-    d.curr       = curr;
-    d.boneOffset = boneOffset;
+    d.set         = true;
+    d.snappedMove = snappedMove;
+    d.prev        = prev;
+    d.curr        = curr;
+    d.boneOffset  = boneOffset;
 }
 
 void InstanceBuffer::removeDynamic(InstanceHandle h)

@@ -268,7 +268,9 @@ std::string noSourceReason(const std::string& name)
         return "the frame drew no cloud layer: it needs the environment pass (an environment, tone_map aces, an open "
                "camera space), set_lighting clouds: true and a cloudiness above 0";
     if (name == "brdf_lut") return "no BRDF LUT";
-    if (name == "clusters") return "the frame had no cluster table (local and clustered lights in view)";
+    if (name == "clusters")
+        return "the frame had no cluster table (local lights in view), or the requested slice is beyond the grid's "
+               "cluster_z";
     if (name == "atlas" || name == "atlas_tile") return "no shadow atlas in the frame (a shadowed light in view)";
     if (name == "cascade" || name == "cascade_strip") return "no cascades in the frame (sun_shadows, a shadow light)";
     if (name == "horizon") return "no valid horizon map in the frame";
@@ -610,20 +612,32 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
     }
     // S36b: the clusters of the newest completed frame
     {
+        // The grid of the frame that produced the counts (CodeRabbit #86: the current parameters may differ, and the
+        // scene reduces the slots to the storage-buffer limit); before one the parameters
         const Vulkan::LocalLightStatistics& l = ls.lights;
         const Vulkan::LightingParameters& p   = state.parameters;
-        o["clusters"]                         = Json::object{{"grid", Json::array{p.clusterX, p.clusterY, p.clusterZ}},
-                                                             {"cluster_near", double(p.clusterNear)},
-                                                             {"cluster_far", double(p.clusterFar)},
-                                                             {"max_lights_per_cluster", p.maxLightsPerCluster},
-                                                             {"clustered", l.clustered},
-                                                             {"clusters", double(l.clusterCount)},
-                                                             {"max", double(l.clusterMax)},
-                                                             {"mean", l.clusterMean},
-                                                             {"overflowed", double(l.overflowedClusters)},
-                                                             {"dropped_lights", double(l.droppedLights)},
-                                                             {"frame", double(l.clusterFrame)},
-                                                             {"memory_bytes", double(l.clusterMemory)}};
+        Vulkan::ClusterGrid g                 = scene->lightClusters().lastGrid();
+        if (l.clusterFrame == 0)
+        {
+            g.x                   = p.clusterX;
+            g.y                   = p.clusterY;
+            g.z                   = p.clusterZ;
+            g.clusterNear         = p.clusterNear;
+            g.clusterFar          = p.clusterFar;
+            g.maxLightsPerCluster = p.maxLightsPerCluster;
+        }
+        o["clusters"] = Json::object{{"grid", Json::array{g.x, g.y, g.z}},
+                                     {"cluster_near", double(g.clusterNear)},
+                                     {"cluster_far", double(g.clusterFar)},
+                                     {"max_lights_per_cluster", g.maxLightsPerCluster},
+                                     {"clustered", l.clustered},
+                                     {"clusters", double(l.clusterCount)},
+                                     {"max", double(l.clusterMax)},
+                                     {"mean", l.clusterMean},
+                                     {"overflowed", double(l.overflowedClusters)},
+                                     {"dropped_lights", double(l.droppedLights)},
+                                     {"frame", double(l.clusterFrame)},
+                                     {"memory_bytes", double(l.clusterMemory)}};
     }
     // S36b: the shadow atlas of the newest recorded frame
     {
@@ -956,7 +970,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                  arrayProperty("The overlays (replaces the set)", McpServer::StringProperty("", overlayNames()))},
                 {"freeze_cascades", McpServer::BooleanProperty("Freeze the cascades")},
                 {"highlight_light",
-                 McpServer::IntegerProperty("The highlighted light's handle (list_lights; 0 or null: none)")},
+                 Json::object{{"type", Json::array{"integer", "null"}},
+                              {"description", "The highlighted light's handle (list_lights; 0 or null: none)"}}},
                 {"mapping",
                  Json::object{{"type", "object"}, {"description", "{range: \"auto\" or [min, max], log, color_map}"}}},
                 {"exposure_view",
@@ -1198,10 +1213,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 if (scene->lightingStatistics().lights.visible == 0)
                     return respond(ToolResult::Error(
                         "clusters: the frame has no local lights (set_lighting local_lights: true, lights in view)"));
-                // (round 2, finding 6: the preview needs the frame's cluster table)
-                if (!scene->lightingStatistics().lights.clustered)
-                    return respond(ToolResult::Error(
-                        "clusters: the lights are not clustered (set_lighting clustered_lights: true)"));
+                // (round 2, finding 6: the preview needs the frame's cluster table, which a frame with lights has also
+                // with the brute-force loop; CodeRabbit #86)
                 if (!a["slice"].is_null())
                 {
                     const double z = a["slice"].number_value();

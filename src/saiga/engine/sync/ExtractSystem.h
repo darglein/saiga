@@ -174,6 +174,9 @@ class SAIGA_ENGINE_API ExtractSystem
         LightSource source;
         bool hasPose = false;
         WorldPose prev, curr;
+        // The source of curr (a switch snaps the pair) and the Transform's teleport count of the last sync
+        Source poseSource = Source::Pending;
+        uint8_t teleports = 0;
         ChunkId chunk;
         Vulkan::LightData data;
         bool invalidLogged = false;

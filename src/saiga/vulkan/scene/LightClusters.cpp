@@ -186,7 +186,16 @@ void LightClusters::destroy()
         f.table.destroy();
         f.indices.destroy();
         f.lightCounts.destroy();
+        // No pending result: harvest after a new init would read the new buffers with this grid (CodeRabbit #86)
+        f.pending = false;
+        f.grid    = ClusterGrid();
+        f.handles.clear();
     }
+    stats         = Statistics();
+    harvestedGrid = ClusterGrid();
+    counts.clear();
+    totals.clear();
+    clusterCountsByHandle.clear();
     debugImage.destroy();
     boundsValid = false;
     base        = nullptr;
@@ -213,7 +222,7 @@ void LightClusters::ensure(Frame& f, const ClusterGrid& grid, size_t lights)
 }
 
 void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const ClusterGrid& grid, const mat4& view,
-                           const mat4& projection, const LocalLights& lights)
+                           const mat4& projection, const LocalLights& lights, uint64_t sceneFrame)
 {
     createPipelines();
     Frame& f                = frames[frameIndex];
@@ -299,7 +308,7 @@ void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const Clu
     vk::MemoryBarrier2 host(Stage::eComputeShader, Access::eShaderStorageWrite, Stage::eHost, Access::eHostRead);
     cmd.pipelineBarrier2(vk::DependencyInfo({}, host, nullptr, nullptr));
     f.pending = true;
-    f.frame   = ++frameCounter;
+    f.frame   = sceneFrame;
     lastSlot  = frameIndex;
     f.grid    = grid;
     f.handles.clear();

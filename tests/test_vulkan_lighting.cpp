@@ -694,6 +694,26 @@ TEST_F(LightingDebugTest, NothingComputedWithoutRequest)
     EXPECT_GT(scene->lightingStatistics().luminanceFrame, 0u);
 }
 
+// Regression (CodeRabbit #86): a request without a callback merged with a request whose callback was cancelled (a
+// capture past its deadline): pruning the cancelled callback dropped the request, and the conversion it wanted was
+// never made
+TEST_F(LightingDebugTest, CancelledCallbackKeepsARequestWithoutOne)
+{
+    PlaneScene(385);
+    Capture(2);
+    auto cancelled = std::make_shared<bool>(false);
+    bool called    = false;
+    scene->lightingDebugImages().request(
+        LightingImage::Luminance, PreviewMapping(), [&](const LightingDebug::Capture&) { called = true; }, false,
+        cancelled);
+    scene->lightingDebugImages().request(LightingImage::Luminance, PreviewMapping());
+    *cancelled = true;
+    Capture(1);
+    EXPECT_EQ(scene->lightingStatistics().previewDispatches, 1u);
+    Capture(2);
+    EXPECT_FALSE(called);
+}
+
 // A shown preview (the Lighting tab, show()) is converted at preview resolution, at most once per preview interval
 // unless its mapping changes, and within the per-frame texel budget. Regression: the tab converted the full-resolution
 // luminance every frame with a per-pixel histogram atomic on a host-visible buffer (about 150 ms per 1080p frame on an

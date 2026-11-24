@@ -361,7 +361,7 @@ struct LightData
     float cosInner   = 0.9063078f;              // cos(25 degrees)
     float cosOuter   = 0.8191520f;              // cos(35 degrees)
     bool castShadows = false;
-    float priority   = 1;  // scales the importance (the budget order)
+    float priority   = 1;  // scales the importance (the budget order); >= 0 and finite (a non-finite one: not drawn)
     LightFlicker flicker;
 };
 struct LightHandle

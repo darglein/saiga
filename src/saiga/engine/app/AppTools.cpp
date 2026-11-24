@@ -419,27 +419,30 @@ void registerAppTools(McpServer& server, EngineApp& app)
                 tabs.push_back(t);
                 names += (names.empty() ? "" : ", ") + ui.tabName(i);
             }
+            // Both arguments are checked before either changes the UI (CodeRabbit #86)
+            int tab = -1;
             if (!a["tab"].is_null())
             {
                 if (!a["tab"].is_string()) return respond(ToolResult::Error("tab: a string"));
-                const int t = ui.findTab(a["tab"].string_value());
-                if (t < 0)
+                tab = ui.findTab(a["tab"].string_value());
+                if (tab < 0)
                     return respond(
                         ToolResult::Error("Unknown tab \"" + a["tab"].string_value() + "\" (tabs: " + names + ")"));
-                ui.select(t);
             }
             // S36b: the open state of sections (merged into the UI's state)
             if (!a["sections"].is_null())
             {
                 if (!a["sections"].is_object()) return respond(ToolResult::Error("sections: {key: true or false}"));
-                Json::object state    = ui.state().object_items();
-                Json::object sections = state["sections"].object_items();
                 for (const auto& kv : a["sections"].object_items())
-                {
                     if (!kv.second.is_bool())
                         return respond(ToolResult::Error("sections: \"" + kv.first + "\": true or false"));
-                    sections[kv.first] = kv.second;
-                }
+            }
+            if (tab >= 0) ui.select(tab);
+            if (!a["sections"].is_null())
+            {
+                Json::object state    = ui.state().object_items();
+                Json::object sections = state["sections"].object_items();
+                for (const auto& kv : a["sections"].object_items()) sections[kv.first] = kv.second;
                 state["sections"] = sections;
                 ui.setState(state);
             }

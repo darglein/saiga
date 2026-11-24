@@ -768,12 +768,13 @@ void TerrainPass::selectForAtlas(uint32_t frameIndex, const TerrainAtlas& atlas,
         uint64_t key       = 1469598103934665603ull;
         const Vec3& centre = spheres[i].first;
         const double r     = spheres[i].second;
-        // Only the roots the sphere touches
-        const Vec3 w = camera.position + centre;
-        const int x0 = std::max(0, int(std::floor((w.x() - r) / rootSize))),
-                  x1 = std::min(roots - 1, int(std::floor((w.x() + r) / rootSize)));
-        const int z0 = std::max(0, int(std::floor((w.z() - r) / rootSize))),
-                  z1 = std::min(roots - 1, int(std::floor((w.z() + r) / rootSize)));
+        // Only the roots the sphere touches (clamped in double before the conversion: a sphere far outside the space
+        // is an empty range, not an int overflow; CodeRabbit #86)
+        const Vec3 w  = camera.position + centre;
+        auto lowRoot  = [&](double v) { return int(std::clamp(std::floor(v / rootSize), 0.0, double(roots))); };
+        auto highRoot = [&](double v) { return int(std::clamp(std::floor(v / rootSize), -1.0, double(roots - 1))); };
+        const int x0 = lowRoot(w.x() - r), x1 = highRoot(w.x() + r);
+        const int z0 = lowRoot(w.z() - r), z1 = highRoot(w.z() + r);
         for (int z = z0; z <= z1; ++z)
             for (int x = x0; x <= x1; ++x)
                 selectSphere(atlas, camera.position, centre, r, R, x, z, anchorX, anchorZ, sel, key);

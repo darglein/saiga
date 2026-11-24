@@ -11,9 +11,8 @@
 // the environment from the world (environmentState; its wind phases are 0 at time 0); a scene and world per test.
 // S36a2: with the sun and moon shadows (the cascades at 1024, the horizon map at 256 texels). S36b: the local lights
 // (entity lights of the world through the extract; the bulk list of a cellar) with the shadow atlas at 1024 in tiles of
-// 128. They gate on lavapipe only; other devices print the metrics. Regenerate on lavapipe:
-// SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render
-// --gtest_filter='LightingGolden.*'
+// 128. They gate on lavapipe only; other devices print the metrics. Regenerate on lavapipe (one command):
+//   SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render --gtest_filter='LightingGolden.*'
 
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/core/Log.h"

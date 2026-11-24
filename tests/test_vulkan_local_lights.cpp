@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <random>
 #include <set>
 
@@ -171,10 +172,12 @@ class LightsTest : public RenderSceneTest
         SetCamera(0, eye, lookRotation(Vec3(0, -1, -0.001)), 1.2);
     }
     // The resolved fp16 values of pixels in the next frame, divided by the frame's pre-exposure: the radiance (one
-    // frame for all of them: test speed, finding 16)
+    // frame for all of them: test speed, finding 16); NaN for a pixel without a value (every comparison with it fails:
+    // a missing sample is not dark)
     std::vector<vec3> ReadRadiances(const std::vector<ivec2>& pixels)
     {
-        std::vector<vec3> out(pixels.size(), vec3(-1, -1, -1));
+        const float none = std::numeric_limits<float>::quiet_NaN();
+        std::vector<vec3> out(pixels.size(), vec3(none, none, none));
         scene->lightingDebugImages().requestPixels(pixels,
                                                    [&](const std::vector<LightingDebug::PixelValue>& v)
                                                    {
@@ -423,6 +426,10 @@ TEST_F(LightsTest, ClusteredEqualsBruteForce)
     const TemplatedImage<ucvec4> clustered = Capture(2);
     EXPECT_EQ(scene->lightingStatistics().lights.overflowedClusters, 0u);
     EXPECT_TRUE(scene->lightingStatistics().lights.clustered);
+    ASSERT_GT(brute.w, 0);
+    ASSERT_GT(brute.h, 0);
+    ASSERT_EQ(brute.w, clustered.w);
+    ASSERT_EQ(brute.h, clustered.h);
     int maxDiff = 0;
     double lit  = 0;
     for (int y = 0; y < brute.h; ++y)
@@ -477,17 +484,26 @@ TEST_F(LightsTest, ClusterListsMatchCpuReference)
                (LightClusters::inRange(b.clusterRange, tx, ty, tz) &&
                 LightClusters::lightTouches(b, scene->viewMatrix(), lo, hi));
     };
+    // The readback's sizes, each cluster's count within its 64 slots and the indices within the records
+    ASSERT_EQ(grid.maxLightsPerCluster, 64);
+    ASSERT_GE(table.size(), 2 * size_t(grid.count()));
+    ASSERT_GE(indices.size(), 64 * size_t(grid.count()));
     int nonEmpty = 0, differences = 0, overflowed = 0;
     for (int c = 0; c < grid.count(); ++c)
     {
         const uint32_t count = table[2 * size_t(c)];
         const uint32_t total = table[2 * size_t(c) + 1];
+        ASSERT_LE(count, 64u) << "cluster " << c;
+        ASSERT_LE(count, total) << "cluster " << c;
         nonEmpty += count > 0 ? 1 : 0;
         overflowed += total > count ? 1 : 0;
         std::vector<uint32_t> gpu(indices.begin() + ptrdiff_t(size_t(c) * 64),
                                   indices.begin() + ptrdiff_t(size_t(c) * 64 + count));
-        // In importance order: increasing buffer indices
-        EXPECT_TRUE(std::is_sorted(gpu.begin(), gpu.end())) << "cluster " << c;
+        for (uint32_t i : gpu) ASSERT_LT(size_t(i), records.size()) << "cluster " << c;
+        // In importance order: strictly increasing buffer indices (a duplicate is an error, not a borderline light)
+        EXPECT_TRUE(std::adjacent_find(gpu.begin(), gpu.end(), [](uint32_t x, uint32_t y) { return x >= y; }) ==
+                    gpu.end())
+            << "cluster " << c;
         if (total > count) continue;  // the cap's cut can differ by a borderline light: checked below
         std::set<uint32_t> a(gpu.begin(), gpu.end()), b(cpu[size_t(c)].begin(), cpu[size_t(c)].end());
         for (uint32_t i : a)
@@ -538,12 +554,42 @@ TEST_F(LightsTest, ClusterGridGrowthFirstFrame)
     const TemplatedImage<ucvec4> grown = RenderFrame();
     scene->waitIdle();
     EXPECT_EQ(scene->frameClusterGrid().z, 48);
+    ASSERT_GT(brute.w, 0);
+    ASSERT_GT(brute.h, 0);
+    ASSERT_EQ(brute.w, grown.w);
+    ASSERT_EQ(brute.h, grown.h);
     int maxDiff = 0;
     for (int y = 0; y < brute.h; ++y)
         for (int x = 0; x < brute.w; ++x)
             for (int c = 0; c < 3; ++c)
                 maxDiff = std::max(maxDiff, std::abs(int(brute(y, x)(c)) - int(grown(y, x)(c))));
     EXPECT_LE(maxDiff, 1);
+}
+
+// Regression (CodeRabbit #86): the cluster index buffer (bound whole) is grid x slots x 4 bytes, and only each value
+// was clamped: an environment file or a C++ caller could exceed the storage-buffer limit (64 x 64 x 128 with 1024
+// slots: 2 GiB). The slots per cluster are reduced to fit (a 4 MiB limit: 303 slots of the default grid, not 1024)
+TEST_F(LightsTest, ClusterSlotsWithinStorageLimit)
+{
+    RenderSceneParameters rp;
+    rp.storageBufferLimit = 4 << 20;
+    Create(Size()(0), Size()(1), Samples(), rp);
+    LightingParameters p  = scene->lightingParameters();
+    p.localLights         = true;
+    p.clusteredLights     = true;
+    p.sunShadows          = false;
+    p.horizonShadows      = false;
+    p.clouds              = false;
+    p.maxLightsPerCluster = 1024;
+    scene->setLightingParameters(p);
+    scene->setEnvironment(nightEnvironment());
+    Floor(730);
+    AddLight(pointLight(vec3(0, 2, 0), 1200, 18));
+    Capture(1);
+    const ClusterGrid& g = scene->frameClusterGrid();
+    EXPECT_EQ(g.count(), 16 * 9 * 24);
+    EXPECT_LE(uint64_t(g.count()) * uint64_t(g.maxLightsPerCluster) * 4, uint64_t(4) << 20);
+    EXPECT_GE(g.maxLightsPerCluster, 300);
 }
 
 // A cluster with more lights than slots keeps the most important ones and counts the overflow (statistics of the
@@ -721,6 +767,31 @@ TEST_F(AtlasTest, MovingLightRerendersItsFaces)
     EXPECT_EQ(Stats().hits, 1u) << "the spot's tile";
 }
 
+// Regression (CodeRabbit #86): a spot that turned while its face waited in the queue was published with the new
+// projection over the old depth (receivers sampled the wrong texels). It is unshadowed until the face is rendered for
+// the current projection
+TEST_F(AtlasTest, TurnedLightUnshadowedUntilRendered)
+{
+    FloorAndBox(743);
+    LightData spot      = spotLight(vec3(-3, 4, 0), vec3(0, -1, 0), 3000, 10, 20, 35);
+    spot.castShadows    = true;
+    const LightHandle h = AddLight(spot);
+    Capture(2);
+    ASSERT_EQ(scene->frameLights().size(), 1u);
+    EXPECT_TRUE(scene->frameLights()[0].shadowReady);
+    // No face budget: the turned spot's face waits
+    SetFaces(0);
+    spot.direction = vec3(0.3f, -1, 0).normalized();
+    scene->setLight(h, ChunkId(), spot);
+    RenderFrame();
+    EXPECT_EQ(Stats().queue, 1u);
+    EXPECT_FALSE(scene->frameLights()[0].shadowReady) << "the old depth with the new projection";
+    SetFaces(11);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 1u);
+    EXPECT_TRUE(scene->frameLights()[0].shadowReady);
+}
+
 // An instance change inside a light's range re-renders its faces, one outside does not
 TEST_F(AtlasTest, InstanceChangeInRangeRerenders)
 {
@@ -881,12 +952,23 @@ TEST_F(AtlasTest, BudgetAndQueueOrder)
             if (f.handle == h.id) return f;
         return FrameLightInfo();
     };
+    // The faces of a light rendered so far
+    auto rendered = [&](LightHandle h)
+    {
+        int n = 0;
+        for (int t : scene->shadowAtlas().tilesOf(h.id)) n += scene->shadowAtlas().tiles()[size_t(t)].staticFrame > 0;
+        return n;
+    };
     // The strong light first: 4 of its 6 faces, not ready yet (unshadowed); then its last 2 and the weak one's first 2
     EXPECT_FALSE(info(strong).shadowReady);
     EXPECT_EQ(info(strong).tiles, 6);
+    EXPECT_EQ(rendered(strong), 4);
+    EXPECT_EQ(rendered(weak), 0);
     RenderFrame();
     EXPECT_TRUE(info(strong).shadowReady);
     EXPECT_FALSE(info(weak).shadowReady);
+    EXPECT_EQ(rendered(strong), 6);
+    EXPECT_EQ(rendered(weak), 2);
     RenderFrame();
     EXPECT_TRUE(info(weak).shadowReady);
     EXPECT_EQ(Stats().queue, 0u);
@@ -968,11 +1050,19 @@ TEST_F(AtlasTest, NoSeamsAtFaceEdges)
     const LightHandle shadowed = AddLight(d);
     scene->setLightingDebug(LightingDebugState{LightingDebugView::LocalLightsOnly, 0});
     const TemplatedImage<ucvec4> a = Capture(1);
+    // a samples the atlas: every face of the light rendered in its frame
+    ASSERT_EQ(scene->frameLights().size(), 1u);
+    ASSERT_TRUE(scene->frameLights()[0].shadowReady);
+    ASSERT_EQ(scene->frameLights()[0].tiles, 6);
     scene->removeLight(shadowed);
     d.castShadows = false;
     AddLight(d);
     const TemplatedImage<ucvec4> b = Capture(1);
-    int differing                  = 0;
+    ASSERT_GT(a.w, 0);
+    ASSERT_GT(a.h, 0);
+    ASSERT_EQ(a.w, b.w);
+    ASSERT_EQ(a.h, b.h);
+    int differing = 0;
     for (int y = 0; y < a.h; ++y)
         for (int x = 0; x < a.w; ++x)
             for (int c = 0; c < 3; ++c)

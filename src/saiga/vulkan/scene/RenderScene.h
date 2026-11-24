@@ -342,6 +342,8 @@ class SAIGA_VULKAN_API RenderScene
     uint64_t storageBufferLimit() const;
     // Whether the environment's resources exist (the first setEnvironment or an accessor created them)
     bool environmentResourcesCreated() const { return atmosphere != nullptr; }
+    // Whether the BRDF LUT exists (created with the environment or by brdfLut())
+    bool brdfLutCreated() const { return brdf != nullptr; }
     // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
     // creates none)
     uint64_t scenePipelineCreations() const;

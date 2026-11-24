@@ -135,12 +135,17 @@ void LocalLights::prepareFrame(uint32_t frameIndex, const FrameInput& in)
             const Vec3 rel        = l.worldPosition() - in.camera;
             const double distance = rel.norm();
             const double r        = double(l.data.range);
-            if (distance - r > in.clusterFar) continue;
+            // Beyond the clusters' far plane (the view depth, as the cluster lookup; CodeRabbit #86: the distance
+            // dropped lights at the frustum's sides whose depth is inside)
+            if (rel.dot(in.forward) - r > in.clusterFar) continue;
             bool inside = true;
             for (const Vec4& p : in.planes)
                 inside = inside && p(0) * rel(0) + p(1) * rel(1) + p(2) * rel(2) + p(3) >= -r;
             if (!inside) continue;
-            cand.push_back({i, distance, importance(l.data, distance)});
+            // A non-finite importance (a C++ caller's priority; LightSource refuses it) would break the sort's order
+            const double imp = importance(l.data, distance);
+            if (!std::isfinite(imp)) continue;
+            cand.push_back({i, distance, imp});
         }
         stats.candidates = uint32_t(cand.size());
         std::sort(cand.begin(), cand.end(),

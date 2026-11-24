@@ -620,8 +620,8 @@ TEST_F(LightingDebugTools, CaptureLighting)
     app->runFrames(1, 1.0 / 60);
     EXPECT_FALSE(app->scene()->probePending());
     // Round 2, finding 16: huge integers are refused before their conversion (undefined behaviour before)
-    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [1e30, 0]})"))));
-    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [-1e30, 1e300]})"))));
+    EXPECT_TRUE(isError(callFrames(*app, "probe_lighting", obj(R"({"pixel": [1e30, 0]})"))));
+    EXPECT_TRUE(isError(callFrames(*app, "probe_lighting", obj(R"({"pixel": [-1e30, 1e300]})"))));
 }
 
 // capture_lighting, S36a1c: the atmosphere's LUTs and the environment map's images in the physical path (sizes,
@@ -847,7 +847,8 @@ TEST_F(LightingDebugTools, HorizonTools)
         if (!s.lightingStatistics().horizon.computing && s.lightingStatistics().horizon.completed == before) break;
     }
     const uint64_t completed = s.lightingStatistics().horizon.completed;
-    EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(R"({"image": "horizon", "full": true, "format": "bmp"})"))));
+    EXPECT_TRUE(
+        isError(callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "full": true, "format": "bmp"})"))));
     // (the statistics are written before the frame's update: two frames)
     app->runFrames(2, 1.0 / 60);
     EXPECT_EQ(s.lightingStatistics().horizon.completed, completed);
@@ -1609,11 +1610,11 @@ TEST_F(LightingDebugTools, LocalLightTools)
     const Json set = call(*app, "set_lighting", obj(R"({"clustered_lights": false, "max_lights": 2})"));
     ASSERT_FALSE(isError(set)) << text(set);
     app->runFrames(2, 1.0 / 60);
-    // Regression (round 2, finding 6): the clusters of a frame without clustering are an error (the old answer was a
-    // success with an empty image and zero statistics)
-    const Json noClusters = callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "stats_only": true})"));
-    EXPECT_TRUE(isError(noClusters));
-    EXPECT_NE(text(noClusters).find("clustered"), std::string::npos) << text(noClusters);
+    // Regression (CodeRabbit #86): a frame with lights has its cluster table also with the brute-force loop (the view
+    // and the statistics): the capture of the clusters was refused without clustered shading
+    const Json brute = callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "stats_only": true})"));
+    ASSERT_FALSE(isError(brute)) << text(brute);
+    EXPECT_GT(result(brute)["stats"]["max"].number_value(), 0) << text(brute);
     const Json params = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters", "lights"]})")));
     EXPECT_EQ(params["parameters"]["max_lights"].number_value(), 2);
     EXPECT_EQ(params["parameters"]["clustered_lights"], Json(false));
@@ -1644,7 +1645,7 @@ TEST_F(LightingDebugTools, LocalLightTools)
     ASSERT_FALSE(isError(slice)) << text(slice);
     EXPECT_EQ(result(slice)["clusters"]["depth"].array_items().size(), 2u);
     for (const char* args : {R"({"image": "clusters", "slice": 24})", R"({"image": "luminance", "slice": 1})"})
-        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
     const Json probe = callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})"));
     ASSERT_FALSE(isError(probe)) << text(probe);
     const Json pr = result(probe);
@@ -1676,7 +1677,7 @@ TEST_F(LightingDebugTools, LocalLightTools)
     for (const char* args : {R"({"image": "atlas_tile", "light": 99999})", R"({"image": "atlas_tile", "light": 1e30})",
                              R"({"image": "atlas", "layer": "both"})", R"({"image": "atlas", "face": 1})",
                              R"({"image": "luminance", "layer": "static"})"})
-        EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
     const Json probeAt = result(callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})")));
     EXPECT_TRUE(probeAt["atlas_shadow"].is_object()) << probeAt.dump();
     EXPECT_GE(probeAt["atlas_shadow"]["lights"].number_value(), 1) << probeAt.dump();

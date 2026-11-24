@@ -397,6 +397,33 @@ TEST(RecordingRenderSink, EnvironmentAndLightsRecorded)
     w.setRenderSink(nullptr);
 }
 
+// Regression (CodeRabbit #86): a catch-up (an edit between steps) snapped the pair of every light, so a moving light
+// jumped to the step's pose while its instance was interpolated; and a teleport did not snap the pair (the light swept
+// across the jump)
+TEST(ExtractSink, LightPairsKeptByCatchUpAndSnappedByTeleports)
+{
+    World w(baseSetup());
+    RecordingRenderSink sink;
+    w.setRenderSink(&sink);
+    const Entity lamp = w.create();
+    w.add<LightSource>(lamp, LightSource());
+    w.step();
+    w.get<Transform>(lamp).setPosition(Vec3(10, 0, 0));
+    w.step();
+    // An edit of something else between the steps
+    w.extract().markDirty();
+    EXPECT_TRUE(w.extract().catchUp());
+    w.extract().updateLights(0.5);
+    ASSERT_EQ(sink.lights().size(), 1u);
+    EXPECT_NEAR(sink.lights().begin()->second.worldPosition()(0), 5, 1e-4) << "the step's pair";
+    // A teleport snaps the pair
+    w.get<Transform>(lamp).teleport(Vec3(1000, 0, 0), Quat::Identity());
+    w.step();
+    w.extract().updateLights(0.5);
+    EXPECT_NEAR(sink.lights().begin()->second.worldPosition()(0), 1000, 1e-3);
+    w.setRenderSink(nullptr);
+}
+
 TEST(ExtractSink, RegistrationsForwardedWhenTheSinkIsSetLate)
 {
     World w(baseSetup());

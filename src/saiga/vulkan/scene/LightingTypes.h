@@ -588,8 +588,9 @@ struct LightingProbe
     // negative: below it, lit)
     float horizonShadow = 1, horizonR = 0, horizonG = 0;
     // S36b: the cluster of the pixel (-1: none: no lights, beyond clusterFar or no surface), its lights in
-    // importance order (the CPU reference of the assignment: total before the cap) with each light's reflected
-    // radiance at the pixel (cd/m^2, the BRDF with the probed material and normal; S36b step 4: times its atlas shadow)
+    // importance order (the CPU reference of the assignment: total before the cap; the cap only with clustered shading,
+    // the brute-force loop shades every light) with each light's reflected radiance at the pixel (cd/m^2, the BRDF with
+    // the probed material and normal; unshadowed: the lights' atlas shadow is atlasShadow)
     int cluster           = -1;
     uint32_t clusterTotal = 0;
     struct LightContribution

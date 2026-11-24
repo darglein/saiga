@@ -365,17 +365,7 @@ void beforeRender(EngineApp& app)
                           fovy);
         if (g.bench->measuring(frame))
         {
-            // S36b: the local lights and the shadow atlas of the previous recorded frame (the night benchmark's block)
-            const Vulkan::LightingStatistics& ls = scene.lightingStatistics();
-            g.lightFrames++;
-            g.lightsVisible += ls.lights.visible;
-            g.lightsShadowed += ls.lights.shadowed;
-            g.lightsWithoutTiles += ls.lights.withoutTiles;
-            g.atlasStatic += ls.atlas.staticRenders;
-            g.atlasDynamic += ls.atlas.dynamicRenders;
-            g.atlasHits += ls.atlas.hits;
-            g.clusterMax = std::max(g.clusterMax, ls.lights.clusterMax);
-            ivec2 size   = scene.size();
+            ivec2 size = scene.size();
             if (g.bench->width != 0 && (size(0) != g.bench->width || size(1) != g.bench->height)) g.sizeChanged = true;
             g.bench->width  = size(0);
             g.bench->height = size(1);
@@ -414,6 +404,17 @@ void beforeRender(EngineApp& app)
             g.bench->addSample(sample);
             if (g.bench->measuring(frame - 1))
             {
+                // S36b: the local lights and the shadow atlas of the previous frame (the night benchmark's block), once
+                // per measured frame (CodeRabbit #86: counted per attempt, from the frame before the measured one)
+                const Vulkan::LightingStatistics& ls = scene.lightingStatistics();
+                g.lightFrames++;
+                g.lightsVisible += ls.lights.visible;
+                g.lightsShadowed += ls.lights.shadowed;
+                g.lightsWithoutTiles += ls.lights.withoutTiles;
+                g.atlasStatic += ls.atlas.staticRenders;
+                g.atlasDynamic += ls.atlas.dynamicRenders;
+                g.atlasHits += ls.atlas.hits;
+                g.clusterMax = std::max(g.clusterMax, ls.lights.clusterMax);
                 g.terrainUploads += g.frameUploads;
                 g.terrainUploadBytes += double(scene.terrainAtlasStats().bytesRecorded);
                 if (g.terraform) g.terraform->frameDone(app.world(), double(scene.terrainAtlasStats().bytesRecorded));

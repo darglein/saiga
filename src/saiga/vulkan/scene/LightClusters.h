@@ -60,9 +60,10 @@ class SAIGA_VULKAN_API LightClusters
     ~LightClusters() { destroy(); }
 
     // The cull of the frame (in the lights section): the bounds when the grid changed, the assignment; view: the
-    // camera rotation's view matrix (camera-relative world -> view), projection: the frame's
+    // camera rotation's view matrix (camera-relative world -> view), projection: the frame's; sceneFrame: the scene's
+    // frame number (Statistics::frame)
     void record(vk::CommandBuffer cmd, uint32_t frameIndex, const ClusterGrid& grid, const mat4& view,
-                const mat4& projection, const LocalLights& lights);
+                const mat4& projection, const LocalLights& lights, uint64_t sceneFrame);
     // The frame slot's buffers for the grid and the light count, before the frame's lighting set binds them (record
     // also calls it; round 1, finding 3: a grid that grew in record left the scene pass reading the old, smaller
     // buffers with the new grid)
@@ -80,7 +81,7 @@ class SAIGA_VULKAN_API LightClusters
     void clearStatistics();
     struct Statistics
     {
-        uint64_t frame         = 0;
+        uint64_t frame         = 0;  // the scene frame that recorded the cull
         uint32_t clusters      = 0;
         uint32_t maxLights     = 0;  // the most lights in a cluster (after the cap)
         double meanLights      = 0;  // over every cluster
@@ -148,8 +149,7 @@ class SAIGA_VULKAN_API LightClusters
     ClusterGrid harvestedGrid;
     std::vector<uint32_t> counts, totals;
     std::vector<std::pair<uint32_t, uint32_t>> clusterCountsByHandle;
-    uint64_t frameCounter = 0;
-    uint32_t lastSlot     = 0;
+    uint32_t lastSlot = 0;
     void ensure(Frame& f, const ClusterGrid& grid, size_t lights);
     bool pipelinesCreated = false;
     void createPipelines();

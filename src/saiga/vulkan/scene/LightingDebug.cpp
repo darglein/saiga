@@ -170,14 +170,22 @@ void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, 
     {
         auto same = std::find_if(i.queued.begin(), i.queued.end(),
                                  [&](const Image::Queued& q) { return sameMapping(q.mapping, mapping); });
-        if (same == i.queued.end()) same = i.queued.insert(i.queued.end(), Image::Queued{mapping, {}});
-        if (callback) same->callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+        if (same == i.queued.end()) same = i.queued.insert(i.queued.end(), Image::Queued{mapping, {}, false});
+        if (callback)
+            same->callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+        else
+            same->demand = true;
         return;
     }
+    // (a show() of this frame becomes the request: its demand is the request's)
+    if (!(i.requested && i.fullResolution)) i.demand = false;
     i.requested      = true;
     i.fullResolution = true;
     i.mapping        = mapping;
-    if (callback) i.callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+    if (callback)
+        i.callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+    else
+        i.demand = true;
 }
 
 void LightingDebug::pruneCancelled()
@@ -190,9 +198,10 @@ void LightingDebug::pruneCancelled()
     };
     for (Image& i : images)
     {
+        // A group is dropped when every callback was cancelled and no request without a callback wants it
         for (auto q = i.queued.begin(); q != i.queued.end();)
-            q = prune(q->callbacks) ? i.queued.erase(q) : std::next(q);
-        if (i.requested && i.fullResolution && prune(i.callbacks))
+            q = prune(q->callbacks) && !q->demand ? i.queued.erase(q) : std::next(q);
+        if (i.requested && i.fullResolution && prune(i.callbacks) && !i.demand)
         {
             i.requested = false;
             if (!i.queued.empty())
@@ -200,6 +209,7 @@ void LightingDebug::pruneCancelled()
                 i.requested = true;
                 i.mapping   = i.queued.front().mapping;
                 i.callbacks = std::move(i.queued.front().callbacks);
+                i.demand    = i.queued.front().demand;
                 i.queued.pop_front();
             }
         }
@@ -345,12 +355,14 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         // A request's conversion replaces the shown preview (the next show() converts again); the next waiting request
         // is the next frame's
         if (fullResolution) i.lastShown = -1e30;
+        i.demand = false;
         if (!i.queued.empty())
         {
             i.requested      = true;
             i.fullResolution = true;
             i.mapping        = i.queued.front().mapping;
             i.callbacks      = std::move(i.queued.front().callbacks);
+            i.demand         = i.queued.front().demand;
             i.queued.pop_front();
         }
         if (!hasSource) continue;

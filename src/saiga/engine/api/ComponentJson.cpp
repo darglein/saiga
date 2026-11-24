@@ -171,6 +171,9 @@ bool mergeComponentValues(World& w, Entity e, ComponentId id, const Json& values
             return true;
         }
         if (values.is_null()) return true;
+        // LightSource: the values merged into the class's light must give a valid light (spawn checked them against
+        // the default light only; CodeRabbit #86)
+        if (id == LightSource::id && !checkLightSourceValues(w.read<LightSource>(e), values, error)) return false;
         // RenderInstance: the name write goes through renderMeshWritten (its cached ID and name record; the values
         // were checked before)
         std::string previousMesh;

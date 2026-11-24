@@ -1068,6 +1068,57 @@ TEST(WorldApi, SpawnMergesInitialComponentsTheObjectAdded)
     EXPECT_EQ(l.value["entities"][0]["distance"].number_value(), 0);
 }
 
+namespace
+{
+enum class LampClass : uint16_t
+{
+    SpotLamp = kFirstGameClass + 1,
+};
+// Adds a spot light (inner 20, outer 30 degrees) in onSpawn
+class SpotLamp final : public GameObject
+{
+   public:
+    static constexpr ClassId id       = ClassId(LampClass::SpotLamp);
+    static constexpr const char* name = "SpotLamp";
+    void onSpawn() override
+    {
+        LightSource l;
+        l.kind          = LightKind::Spot;
+        l.innerAngleDeg = 20;
+        l.outerAngleDeg = 30;
+        add<LightSource>(l);
+    }
+};
+}  // namespace
+
+// Regression (CodeRabbit #86): spawn checked an initial LightSource against the default light (a point light: the
+// angles unchecked), then merged it into the class's spot: an outer angle of 15 under the class's inner 20 made an
+// invalid spot. The merged light is checked: the component is skipped, the class's light stays
+TEST(WorldApi, SpawnChecksTheMergedLight)
+{
+    WorldSetup s = apiSetup();
+    s.classes    = [](ClassList& c)
+    {
+        c.add<Dummy>();
+        c.add<SpotLamp>();
+    };
+    World w(s);
+    WorldApi api(w);
+    ApiResult r = api.call("spawn", obj(R"({"class": "SpotLamp", "position": [0, 0, 0],
+                                           "components": {"LightSource": {"innerAngleDeg": 10, "outerAngleDeg": 15}}})"));
+    ASSERT_TRUE(r.ok) << r.error;
+    const Entity e = entityOf(r.value["entity"]);
+    EXPECT_EQ(w.read<LightSource>(e).outerAngleDeg, 15) << "a valid merge";
+    r = api.call("spawn", obj(R"({"class": "SpotLamp", "position": [0, 0, 0],
+                                  "components": {"LightSource": {"outerAngleDeg": 15}}})"));
+    ASSERT_TRUE(r.ok) << r.error;
+    const Entity f = entityOf(r.value["entity"]);
+    EXPECT_TRUE(w.read<LightSource>(f).invalidReason().empty());
+    EXPECT_EQ(w.read<LightSource>(f).outerAngleDeg, 30);
+    ASSERT_EQ(r.value["skipped"].array_items().size(), 1u) << r.value.dump();
+    EXPECT_EQ(r.value["skipped"][0]["component"], Json("LightSource"));
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // Review regressions (S10 round 3)
 

@@ -80,6 +80,8 @@ class SAIGA_VULKAN_API ShadowAtlas
         mat4 viewProj              = mat4::Identity();
         std::array<Vec4, 6> planes = {};
         vec4 lightPush             = vec4(0, 0, 0, 1);
+        // The face's projection key (projectionKey): the depth it renders is valid for that projection only
+        uint64_t projection = 0;
     };
 
     void init(VulkanBase& base);
@@ -142,11 +144,16 @@ class SAIGA_VULKAN_API ShadowAtlas
     int res = 0, tileTexels = 0;
     std::vector<AtlasTileInfo> tileState;
     std::vector<uint64_t> tileKeys;
+    // Per tile the projection key of its rendered static and dynamic depth (CodeRabbit #86): the table uses a layer
+    // only while it matches the owner's current face (a moved, rotated or re-ranged light, a new owner of the tile)
+    std::vector<uint64_t> staticProjection, dynamicProjection;
     std::unordered_map<uint32_t, Owner> owners;
     std::vector<std::pair<Vec3, Vec3>> dirty;
     bool allDirty = false;
     std::array<Buffer, 2> tables;
     AtlasStatistics stats;
+    // The face's projection (the light, its pose, kind, range and cone) and, with the terrain key, its cache key
+    static uint64_t projectionKey(const LightInput& l, int face);
     static uint64_t faceKey(const LightInput& l, int face);
 };
 

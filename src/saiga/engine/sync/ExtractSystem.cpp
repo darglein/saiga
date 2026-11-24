@@ -164,11 +164,11 @@ void ExtractSystem::setSink(RenderSink* sink)
             if (!failure) failure = std::current_exception();
         }
     }
-    if (failure) std::rethrow_exception(failure);
-    // S36b: the existing light entities
+    // S36b: the existing light entities (also when an instance failed: CodeRabbit #86, nothing else would track them)
     std::vector<Entity> lit;
     w.registry().view<const LightSource>().each([&](Entity e, const LightSource&) { lit.push_back(e); });
     for (Entity e : lit) trackLight(e);
+    if (failure) std::rethrow_exception(failure);
 }
 
 void ExtractSystem::meshRegistered()
@@ -874,9 +874,29 @@ void ExtractSystem::syncLights(bool step)
         l.hasPose      = reg.has<Transform>(l.entity) && sourcePose(l.entity, s, p);
         if (l.hasPose)
         {
-            // A step shifts the pair (a space change snaps); a catch-up (an edit between steps) snaps
-            l.prev = step && had && p.space == l.curr.space ? l.curr : p;
-            l.curr = p;
+            // A step shifts the pair; a space change, a switch of the pose source and a teleport snap (as the
+            // instances' pairs). A catch-up (an edit between steps) snaps a light whose pose changed and keeps the
+            // pair of an unchanged one (CodeRabbit #86: an unrelated edit snapped every moving light)
+            bool snap = !had || p.space != l.curr.space || s != l.poseSource;
+            if (s == Source::Transform)
+            {
+                // A teleport since the last sync (in or between the steps: the count tells)
+                const uint8_t teleports = reg.read<Transform>(l.entity).teleportCount();
+                snap                    = snap || teleports != l.teleports;
+                l.teleports             = teleports;
+            }
+            else
+            {
+                Entity owner;
+                sourceOf(l.entity, owner);
+                snap = snap || (owner.valid() && (reg.read<RenderPose>(owner).flags & RenderPose::kTeleported));
+            }
+            if (step)
+                l.prev = snap ? p : l.curr;
+            else if (snap || !samePose(p, l.curr))
+                l.prev = p;
+            l.curr       = p;
+            l.poseSource = s;
         }
         sendLight(l, 1.0);
     }

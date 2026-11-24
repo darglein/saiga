@@ -122,6 +122,8 @@ void ShadowAtlas::ensure(int resolution, int tile, vk::CommandBuffer cmd)
     const int n = tilesPerSide() * tilesPerSide();
     tileState.assign(size_t(n), AtlasTileInfo());
     tileKeys.assign(size_t(n), 0);
+    staticProjection.assign(size_t(n), 0);
+    dynamicProjection.assign(size_t(n), 0);
 }
 
 void ShadowAtlas::markDirty(const Vec3& lo, const Vec3& hi)
@@ -209,7 +211,7 @@ void ShadowAtlas::faceView(const LightData& d, const Vec3& lightRel, int face, m
               plane(-F, F.dot(lightRel) + range)};
 }
 
-uint64_t ShadowAtlas::faceKey(const LightInput& l, int face)
+uint64_t ShadowAtlas::projectionKey(const LightInput& l, int face)
 {
     uint64_t h = 1469598103934665603ull;
     h          = mix(h, l.handle);
@@ -222,7 +224,12 @@ uint64_t ShadowAtlas::faceKey(const LightInput& l, int face)
         for (int i = 0; i < 3; ++i) h = mix(h, bits(l.data.direction(i)));
         h = mix(h, bits(l.data.cosOuter));
     }
-    return mix(h, l.terrainKey);
+    return h;
+}
+
+uint64_t ShadowAtlas::faceKey(const LightInput& l, int face)
+{
+    return mix(projectionKey(l, face), l.terrainKey);
 }
 
 void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& camera, int facesPerFrame, uint64_t frame,
@@ -434,8 +441,11 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
                          return a.age < b.age;
                      });
     int budgetFaces = std::max(facesPerFrame, 0);
-    const int staticReserve =
+    int staticReserve =
         std::min(int(staticJobs.size()), staticJobs.empty() || budgetFaces == 0 ? 0 : std::max(1, budgetFaces / 4));
+    // A budget of one face: the slot alternates between the queues while both have work (CodeRabbit #86: the reserve
+    // was the whole budget, the dynamic faces waited until no static face was due)
+    if (budgetFaces == 1 && !dynamicJobs.empty() && !staticJobs.empty()) staticReserve = (frame & 1) ? 1 : 0;
     auto emit = [&](const Job& j, int layer)
     {
         const LightInput& l = lights[j.light];
@@ -447,7 +457,8 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
         double tanHalf;
         const Vec3 rel = l.world - camera;
         faceView(l.data, rel, j.face, f.viewProj, f.planes, tanHalf);
-        f.lightPush = vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1.0f / std::max(l.data.range, 1e-3f));
+        f.lightPush  = vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1.0f / std::max(l.data.range, 1e-3f));
+        f.projection = projectionKey(l, j.face);
         faces.push_back(f);
     };
     for (const Job& j : dynamicJobs)
@@ -491,13 +502,15 @@ void ShadowAtlas::rendered(const std::vector<Face>& faces, uint64_t frame)
         }
         if (f.layer == 0)
         {
-            t.staticValid = true;
-            t.staticFrame = frame;
+            t.staticValid                    = true;
+            t.staticFrame                    = frame;
+            staticProjection[size_t(f.tile)] = f.projection;
         }
         else
         {
-            t.dynamicContent = true;
-            t.dynamicFrame   = frame;
+            t.dynamicContent                  = true;
+            t.dynamicFrame                    = frame;
+            dynamicProjection[size_t(f.tile)] = f.projection;
         }
     }
 }
@@ -524,11 +537,15 @@ void ShadowAtlas::writeTable(uint32_t frameIndex, const std::vector<LightInput>&
             std::array<Vec4, 6> planes;
             double tanHalf;
             faceView(lights[i].data, lights[i].world - camera, k, g.viewProj, planes, tanHalf);
-            const float s = float(tileTexels) / float(res);
-            g.rect        = vec4(float(t % perSide) * s, float(t / perSide) * s, s, s);
-            g.params      = vec4(float(2 * tanHalf / tileTexels), 1.0f / float(tileTexels),
-                            tileState[size_t(t)].dynamicContent ? 1.0f : 0.0f, 0);
-            complete      = complete && tileState[size_t(t)].staticFrame > 0;
+            // A layer rendered for another projection (the light moved, turned or changed its range while its face
+            // waited in the queue, or another owner's dynamic depth): not sampled; the light stays unshadowed until
+            // every static face matches (CodeRabbit #86)
+            const uint64_t key = projectionKey(lights[i], k);
+            const bool dynamic = tileState[size_t(t)].dynamicContent && dynamicProjection[size_t(t)] == key;
+            const float s      = float(tileTexels) / float(res);
+            g.rect             = vec4(float(t % perSide) * s, float(t / perSide) * s, s, s);
+            g.params = vec4(float(2 * tanHalf / tileTexels), 1.0f / float(tileTexels), dynamic ? 1.0f : 0.0f, 0);
+            complete = complete && tileState[size_t(t)].staticFrame > 0 && staticProjection[size_t(t)] == key;
             entries.push_back(g);
         }
         ready[i] = complete;

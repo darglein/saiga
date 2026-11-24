@@ -88,6 +88,10 @@ class SAIGA_VULKAN_API LightingDebug
     static constexpr uint32_t kPreviewMaxSize     = 512;
     static constexpr uint64_t kPreviewTexelBudget = 1u << 20;
     bool requested(LightingImage image) const { return images[size_t(image)].requested; }
+    // Removes the cancelled callbacks; drops a request whose callbacks were all cancelled (the next waiting one moves
+    // up). RenderScene calls it before it prepares the frame's sources (a source of a layer, slice or tile follows the
+    // mapping recordPreviews converts; CodeRabbit #86); recordPreviews calls it too
+    void pruneCancelled();
     // The source mip of this frame's conversion of image (its request's or show's PreviewMapping::mip)
     int sourceMip(LightingImage image) const { return images[size_t(image)].mapping.mip; }
     // The source layer or channel (PreviewMapping::layer) the same way
@@ -169,9 +173,6 @@ class SAIGA_VULKAN_API LightingDebug
         std::shared_ptr<const bool> cancelled;
         bool isCancelled() const { return cancelled && *cancelled; }
     };
-    // Removes the cancelled callbacks; drops a request whose callbacks were all cancelled (the next waiting one moves
-    // up)
-    void pruneCancelled();
     struct Image
     {
         std::unique_ptr<Texture2D> texture;
@@ -191,11 +192,15 @@ class SAIGA_VULKAN_API LightingDebug
         // Per frame slot: the device-local statistics the shader writes (copied to statsBuffers after the conversion)
         std::array<Buffer, kSlots> gpuStats;
         std::vector<PendingCallback> callbacks;
+        // A request() without a callback (a conversion wanted without an answer): cancelling the callbacks keeps it
+        // (CodeRabbit #86)
+        bool demand = false;
         // The requests with another mapping than this frame's (the next frames, in order)
         struct Queued
         {
             PreviewMapping mapping;
             std::vector<PendingCallback> callbacks;
+            bool demand = false;
         };
         std::deque<Queued> queued;
         // The callbacks of the recorded frame (answered in finishFrame)

@@ -53,8 +53,10 @@ class SAIGA_VULKAN_API LocalLights
         bool valid    = false;  // a camera
         SpaceId space = 0;
         Vec3 camera   = Vec3::Zero();
-        // The camera's frustum planes (SceneCamera::planes: camera-relative, inward)
+        // The camera's frustum planes (SceneCamera::planes: camera-relative, inward) and view direction (the depth of
+        // clusterFar)
         std::array<Vec4, 5> planes = {};
+        Vec3 forward               = Vec3(0, 0, -1);
         bool on                    = false;  // LightingParameters::localLights
         int maxLights              = 1024;
         double clusterFar          = 1000;
