@@ -286,6 +286,14 @@ TEST(WorldBenchmark, SummaryText)
     base["build"] = Json::object{{"type", "Release"}, {"asserts", true}, {"archnative", false}};
     text          = WorldBenchmark::summaryText(r, base);
     EXPECT_LT(text.find("baseline not comparable"), text.find("vs baseline")) << text;
+    // Regression (CodeRabbit #87): a baseline of another workload (the prototype area elsewhere) is not compared
+    base["build"]       = r["build"];
+    base["area_origin"] = 0;
+    r["area_origin"]    = kPrototypeAreaOrigin;
+    text                = WorldBenchmark::summaryText(r, base);
+    EXPECT_NE(text.find("baseline of another workload"), std::string::npos) << text;
+    EXPECT_EQ(text.find("vs baseline"), std::string::npos) << text;
+    r.erase("area_origin");
     // Regression (CodeRabbit): no measured wait names no wait as the limit
     {
         Json::object idle    = r;

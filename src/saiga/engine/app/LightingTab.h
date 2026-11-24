@@ -41,24 +41,29 @@ SAIGA_ENGINE_API std::pair<Vec3, Quat> lightViewPose(const Vec3& light, const Ve
 
 /**
  * The debug UI's Lighting tab (F5; docs/engine_design.md §17.1; S36), set by the app with DebugUi::setTabContent. At
- * the top, not scrolled with the sections (UI rating round 1): a summary (tags of the states that change what the frame
- * shows, each a button that undoes it: CLAY, SUN OVERRIDE, CASCADES FROZEN, VIEW; the time, the sun and the moon, the
- * shadow light; the EV100, the frame's luminance, the visible local lights, the lighting's GPU time against its budget)
+ * the top, not scrolled with the sections (UI rating rounds 1-3): the tags of the states that change what the frame
+ * shows (each a button that undoes it: CLAY, SUN OVERRIDE, CASCADES FROZEN, VIEW) on their own line, a summary (the
+ * time, the sun and the moon, the shadow light; the EV100, the exposed key of the lit frame, the visible local lights,
+ * the lighting's GPU time and its 1% longest frames against the budget), the graph of the lighting's GPU time per frame
  * and one row of controls (the debug view, the overlays in a popup, copy JSON). Then the sections, only Time and
- * weather open at first; their details are sub-sections (DebugUi::subSection, collapsed):
+ * weather open at first; their details are closed, indented sub-sections (DebugUi::subSection); a section shows what
+ * is looked at first (state, preview) and its views and overlays after a "show:" label:
  * Time and weather (the time of day, day and rate; the weather of the view camera's space; writes through setWorldTime
  * / setWeather between steps, so they replicate and appear in the log; with --coop on the hidden host, read-only on a
  * pure client), Sun and moon (directions, illuminance, the shadow light, the sun override), Exposure (the tone map, the
- * mode, the EV100 of the frame and of the curve, the compensation, the effective exposure; the luminance histogram, the
- * exposure curve with the current elevation, the Luminance preview), Ambient (scale, floor, SH L0; SH 1-8, the
- * prototype albedo, the environment map), Sky and clouds (the cloud layer; the atmosphere, the previews), Cascades (the
- * state, a row per cascade, the cascades' depth previews: a click on one enlarges it; split and resolution, bias,
- * casters), Far terrain shadows (the horizon map: progress, direction, anchor, R / G preview, recompute now), Local
- * lights (counts, the light table: a row selects and highlights a light, "move camera to light", an entity light's
- * LightSource fields written through set_component; entity lights that are not rendered (off, invalid, no pose) are
- * greyed rows with their state and stay editable), Light clusters (the grid, the occupancy, the heat map), Shadow atlas
- * (its parameters, the cache statistics, the preview with the tile owners) and GPU and memory (the GPU sections against
- * the budget, the memory, force full updates). The preview mapping is a popup above the first preview on screen.
+ * mode, the EV100, the compensation, the effective exposure, the lit frame's luminance and exposed key; the luminance
+ * histogram, the exposure curve with the current elevation, the Luminance preview), Ambient (scale, floor, SH L0; SH
+ * 1-8, the prototype albedo, the environment map), Sky and clouds (the cloud layer; the atmosphere, the previews),
+ * Cascades (the state, a row per cascade, the cascades' depth previews: a click on one enlarges it; split and
+ * resolution, bias, casters), Far terrain shadows (the horizon map: progress, near / far preview; settings, details),
+ * Local lights (one status line, the selected light's editor: "move camera to light", an entity light's LightSource
+ * fields written through set_component; the light table with a filter: a row selects and highlights a light, entity
+ * lights that are not rendered (off, invalid, no pose) are greyed rows with their state and stay editable; settings),
+ * Light clusters (the occupancy, the heat map; the grid), Shadow atlas (the tiles, the preview with the tile owners;
+ * settings, the cache details) and GPU and memory (the GPU sections against the budget, the memory, force full
+ * updates). The previews that use the shared preview mapping (set_lighting_debug mapping) have its button on their
+ * caption line; the luminance (log2 over a fixed range) and the cluster heat map (turbo over the heat scale) have
+ * their own mappings.
  */
 class SAIGA_ENGINE_API LightingTab
 {

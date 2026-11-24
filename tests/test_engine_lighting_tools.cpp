@@ -1057,9 +1057,16 @@ TEST_F(LightingTabTest, MoveCameraToLightIsRepeatableAndFree)
         app->runFrames(1, 1.0 / 60);
         eyes.push_back(app->viewCamera().position);
         EXPECT_FALSE(app->cameraHeldByTool()) << "click " << k;
+        // Moved away (the same rotation) before the second click: an ignored click would not return (CodeRabbit #87)
+        if (k == 0)
+        {
+            const ViewCamera v = app->viewCamera();
+            ASSERT_TRUE(app->setViewCamera(v.space, v.position + Vec3(30, 5, 0), v.rotation, v.fovy, true));
+            app->runFrames(1, 1.0 / 60);
+        }
     }
     EXPECT_LT((eyes[0] - Vec3(3, 2, -4)).norm(), 20.0) << "the camera moved to the light";
-    EXPECT_LT((eyes[1] - eyes[0]).norm(), 1e-6) << "a second click keeps the pose";
+    EXPECT_LT((eyes[1] - eyes[0]).norm(), 1e-6) << "the second click returns to the same pose";
     w.destroy(lamp);
 }
 
@@ -1125,7 +1132,7 @@ TEST_F(LightingTabTest, TypedValueOutOfRangeIsRefused)
         sections[std::string("lighting/") + s] = false;
     sections["lighting/Local lights"]           = true;
     sections["lighting/Local lights: Settings"] = true;
-    state["sections"]                 = sections;
+    state["sections"]                           = sections;
     app->debugUi().setState(state);
     app->debugUi().select(DebugTab::Lighting);
     app->runFrames(2, 1.0 / 60);

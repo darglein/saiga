@@ -263,6 +263,8 @@ json11::Json WorldBenchmark::result() const
         {"gpu", gpuName},
         {"quality", "default"},
         {"build", buildInfo()},
+        // The workload: the prototype area's origin (S36: at the space's centre; the paths are around its centre)
+        {"area_origin", kPrototypeAreaOrigin},
         {"frames", int(cpuMs.size())},
         {"gpu_frames", gpuFrames},
         {"width", width},
@@ -397,8 +399,16 @@ std::string WorldBenchmark::summaryText(const json11::Json& r, const json11::Jso
         }
         out += "\n";
     }
-    // The committed baseline of this GPU (data/tests/benchmarks.json): the change of the S03 numbers
-    if (baseline.is_object())
+    // The committed baseline of this GPU (data/tests/benchmarks.json): the change of the S03 numbers. A baseline of
+    // another workload (the prototype area elsewhere: before S36 in the space's corner, no area_origin) is not compared
+    if (baseline.is_object() && baseline["area_origin"].number_value() != r["area_origin"].number_value())
+    {
+        std::snprintf(line, sizeof(line),
+                      "baseline of another workload (area origin %.0f, now %.0f): not compared, measure a new one\n",
+                      baseline["area_origin"].number_value(), r["area_origin"].number_value());
+        out += line;
+    }
+    else if (baseline.is_object())
     {
         // The warning first: a baseline of another build is no comparison
         const auto& bb = baseline["build"];

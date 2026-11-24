@@ -491,10 +491,11 @@ void LightingTab::summary()
         // The exposed key: the frame's log-average luminance times the exposure against mid-gray (UI rating round 2,
         // finding 3: "too dark / too bright" took mental arithmetic); held while a debug view replaces the frame
         // (finding 2: the reduction measured the debug image)
-        if (litLuminanceFrame > 0 && litLuminanceFrame + 600 >= scene->frames() && litLinear)
+        // (a held sample stays however old it is: CodeRabbit #87, the key disappeared 600 frames into a debug view)
+        const bool held = d.view != Vulkan::LightingDebugView::None;
+        if (litLuminanceFrame > 0 && (held || litLuminanceFrame + 600 >= scene->frames()) && litLinear)
         {
             const double key = exposedKey();
-            const bool held  = d.view != Vulkan::LightingDebugView::None;
             // A dark night under the time-of-day curve is intended (round 3, finding 8: always yellow at night)
             const bool night  = s.exposure.mode != Vulkan::ExposureMode::Fixed && !e.enclosed && c.sunElevationDeg < -6;
             const char* where = night ? " (night)" : key < -2 ? " dark" : key > 2 ? " bright" : "";
@@ -1100,7 +1101,8 @@ void LightingTab::exposure()
     // finding 3)
     if (litLuminanceFrame > 0)
     {
-        ImGui::TextDisabled("luminance histogram (log2 cd/m^2, 2 EV per bin)");
+        // (the sample's units: display values in clay; CodeRabbit #87)
+        ImGui::TextDisabled("luminance histogram (log2 %s, 2 EV per bin)", litLinear ? "cd/m^2" : "display");
         float bins[16];
         for (int i = 0; i < 16; ++i) bins[i] = float(litLuminance.histogram[size_t(i)]);
         ImGui::PlotHistogram("##luminance histogram", bins, 16, 0, nullptr, 0.0f, FLT_MAX, ImVec2(-1, 48));
@@ -2056,9 +2058,11 @@ void LightingTab::lightTable()
             {
                 auto match = [&](const Row& r)
                 {
-                    char text[96];
-                    std::snprintf(text, sizeof(text), "%u %u %s", r.light ? r.light->handle.id : 0u,
-                                  r.state ? r.state->entity.index : 0u,
+                    // The entity as shown (index:generation) and as its index (CodeRabbit #87: "42:3" found nothing)
+                    char text[128];
+                    std::snprintf(text, sizeof(text), "%u %u %u:%u %s", r.light ? r.light->handle.id : 0u,
+                                  r.state ? r.state->entity.index : 0u, r.state ? r.state->entity.index : 0u,
+                                  r.state ? r.state->entity.generation : 0u,
                                   r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
                     return lightFilter.PassFilter(text);
                 };
@@ -2083,7 +2087,9 @@ void LightingTab::lightTable()
             const char* headers[] = {"handle",  "entity",   "state", "kind",         "distance m", "lumen",
                                      "range m", "clusters", "tiles", "shadow frame", "buffer"};
             for (int i = 0; i < 11; ++i)
-                ImGui::TableSetupColumn(headers[i], i == 4   ? ImGuiTableColumnFlags_DefaultSort
+                // (the handle column carries the row's Selectable: never hidden; CodeRabbit #87)
+                ImGui::TableSetupColumn(headers[i], i == 0   ? ImGuiTableColumnFlags_NoHide
+                                                    : i == 4 ? ImGuiTableColumnFlags_DefaultSort
                                                     : i >= 9 ? ImGuiTableColumnFlags_DefaultHide
                                                              : 0);
             ImGui::TableHeadersRow();
@@ -2438,22 +2444,28 @@ void LightingTab::lightTable()
             // A write through the world API (set_component, logged; refused on a pure client), between the steps; only
             // the fields this frame changed (a field written meanwhile by the host or a system keeps its value)
             auto vec3 = [](const Vec3& v) { return json11::Json::array{v(0), v(1), v(2)}; };
+            // A field differs unless both are equal or both NaN (CodeRabbit #87: an untouched NaN field of an invalid
+            // light compared unequal to itself and was sent with every edit, which then failed)
+            auto differs  = [](double a, double b) { return !(a == b) && !(std::isnan(a) && std::isnan(b)); };
+            auto differs3 = [&](const Vec3& a, const Vec3& b)
+            { return differs(a(0), b(0)) || differs(a(1), b(1)) || differs(a(2), b(2)); };
             json11::Json::object values;
             if (s.on != before.on) values["on"] = s.on;
             if (s.castShadows != before.castShadows) values["castShadows"] = s.castShadows;
             if (s.kind != before.kind) values["kind"] = s.kind == Vulkan::LightKind::Spot ? "spot" : "point";
-            if (s.lumen != before.lumen) values["lumen"] = s.lumen;
-            if (s.range != before.range) values["range"] = s.range;
-            if (s.color != before.color) values["color"] = vec3(s.color);
-            if (s.offset != before.offset) values["offset"] = vec3(s.offset);
-            if (s.rotation.coeffs() != before.rotation.coeffs())
+            if (differs(s.lumen, before.lumen)) values["lumen"] = s.lumen;
+            if (differs(s.range, before.range)) values["range"] = s.range;
+            if (differs3(s.color, before.color)) values["color"] = vec3(s.color);
+            if (differs3(s.offset, before.offset)) values["offset"] = vec3(s.offset);
+            if (differs(s.rotation.w(), before.rotation.w()) || differs(s.rotation.x(), before.rotation.x()) ||
+                differs(s.rotation.y(), before.rotation.y()) || differs(s.rotation.z(), before.rotation.z()))
                 values["rotation"] =
                     json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()};
-            if (s.innerAngleDeg != before.innerAngleDeg) values["innerAngleDeg"] = s.innerAngleDeg;
-            if (s.outerAngleDeg != before.outerAngleDeg) values["outerAngleDeg"] = s.outerAngleDeg;
-            if (s.priority != before.priority) values["priority"] = s.priority;
-            if (s.flickerAmplitude != before.flickerAmplitude) values["flickerAmplitude"] = s.flickerAmplitude;
-            if (s.flickerFrequency != before.flickerFrequency) values["flickerFrequency"] = s.flickerFrequency;
+            if (differs(s.innerAngleDeg, before.innerAngleDeg)) values["innerAngleDeg"] = s.innerAngleDeg;
+            if (differs(s.outerAngleDeg, before.outerAngleDeg)) values["outerAngleDeg"] = s.outerAngleDeg;
+            if (differs(s.priority, before.priority)) values["priority"] = s.priority;
+            if (differs(s.flickerAmplitude, before.flickerAmplitude)) values["flickerAmplitude"] = s.flickerAmplitude;
+            if (differs(s.flickerFrequency, before.flickerFrequency)) values["flickerFrequency"] = s.flickerFrequency;
             if (values.empty()) return;
             EngineApp* a = &app;
             app.queueBetweenSteps(

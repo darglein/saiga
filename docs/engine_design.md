@@ -3867,12 +3867,13 @@ goldens).
   against §17.10 and `streamingStalls`.
 - Terraforming benchmark [exists: S22, extended in S28] `game_world --benchmark terraform` (window, 1920 x 1080; the
   edit schedule in the game's `TerraformBenchmark`, `WorldBenchmark` only knows the name and the static pose: eye
-  (3968, g + 300, 3940) looking at (3968, g, 3968), g the ground there): it opts out of the per-frame `completeView`
+  (e, g + 300, e - 28) looking at (e, g, e), e = `kPrototypeAreaCentre` - 128 (S36; 3968 before), g the ground
+  there): it opts out of the per-frame `completeView`
   (the camera is fixed: the measured frames run `updateView` with the patch step under its budget, like a game frame;
   the first warm-up frame is a complete point), advances exactly one step per frame (`EngineApp::setFixedFrameTime`)
   and raises the floor of the game's `residencyRange0` rule to 600 m. 8 brushes, two on each of the 4 chunk corners
-  (3840 + 256 (c % 2), 3840 + 256 (c / 2)): Add r 4 / Flatten r 12, Subtract r 8 / Smooth r 16, Add r 16 / Flatten r
-  8, Subtract r 12 / Smooth r 4 (0.25 m or 0.5), orbiting the corner on a circle of half their radius, 1 m of arc per
+  (o + 256 (c % 2), o + 256 (c / 2)), o = `kPrototypeAreaCentre` - 256 (S36; 3840 before): Add r 4 / Flatten r 12,
+  Subtract r 8 / Smooth r 16, Add r 16 / Flatten r 8, Subtract r 12 / Smooth r 4 (0.25 m or 0.5), orbiting the corner on a circle of half their radius, 1 m of arc per
   edit; one edit per measured frame after the frame's step (600 edits, 60 edits/s), timed per `World::editTerrain`
   call; the host state list's new entry is encoded with the phase-8 encoder (timed separately, nothing sent).
   Asserted: every Add / Subtract edit changes exactly 4 chunks, `chunks_edited >= 1200`, the brush areas' level-0 tiles
