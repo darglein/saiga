@@ -62,8 +62,7 @@ std::shared_ptr<const RacingContext> RacingContext::create(uint64_t seed)
     const double radius      = 220;
     const uint32_t trackSeed = 7;
     const double sea         = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
-    const Vec3 site =
-        Track::findSite(ground, area.x0, area.z0, area.size, radius, sea + 3, 12, trackSeed, treePenalty);
+    const Vec3 site = Track::findSite(ground, area.x0, area.z0, area.size, radius, sea + 3, 12, trackSeed, treePenalty);
     c->track.width  = 12;
     c->track.build(Track::loop(site, radius, 12, trackSeed), 10);
     std::cout << "Racing: " << trees.size() << " trees and the track (" << c->track.length() << " m) in "

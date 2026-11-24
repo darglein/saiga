@@ -194,11 +194,11 @@ void initWorld(EngineApp& app)
     {
         const bool nightBenchmark = g.benchmarkName == "night" || g.benchmarkName == "night_town";
         const bool dayBenchmark   = !g.benchmarkName.empty() && !nightBenchmark;
-        const int count         = g.lamps >= 0 ? g.lamps : dayBenchmark ? 0 : 400;
-        World& host             = app.startWorld();
-        auto groundAt           = [&host](double x, double z) { return host.terrainHeight(0, x, z); };
-        const double sea        = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
-        int spawned             = 0;
+        const int count           = g.lamps >= 0 ? g.lamps : dayBenchmark ? 0 : 400;
+        World& host               = app.startWorld();
+        auto groundAt             = [&host](double x, double z) { return host.terrainHeight(0, x, z); };
+        const double sea          = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
+        int spawned               = 0;
         if (g.benchmarkName == "night")
             spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeAreaCentre, Vulkan::kPrototypeAreaCentre, 0, 2500,
                                        groundAt, sea);
@@ -739,8 +739,8 @@ int main(int argc, char* argv[])
     { l.add(Phase::Gameplay, "lampPolicy", Game::lampPolicySystem, RunOn::Host); };
     // S36: the environment (data/world/environment.json), ACES; the time is 10:00, frozen (the benchmark keeps it)
     Game::enableEnvironment(setup, "world");
-    game.area                = Vulkan::prototypeAreaStats(setup.world.seed, Vulkan::kPrototypeAreaOrigin,
-                                                          Vulkan::kPrototypeAreaOrigin, Vulkan::kPrototypeArea, 32);
+    game.area = Vulkan::prototypeAreaStats(setup.world.seed, Vulkan::kPrototypeAreaOrigin, Vulkan::kPrototypeAreaOrigin,
+                                           Vulkan::kPrototypeArea, 32);
     setup.render.msaaSamples = 4;
     setup.cameraSpeed        = 25;
     setup.cameraSpeedFast    = 250;
@@ -818,7 +818,7 @@ int main(int argc, char* argv[])
                                     // S36b: --benchmark night and night_town at 22:00
                                     morning.hours =
                                         options.benchmark == "night" || options.benchmark == "night_town" ? 22.0 : 10.0;
-                                    morning.rate  = 0.0;
+                                    morning.rate = 0.0;
                                     std::string error;
                                     timeSet = setWorldTime(app.startWorld(), morning, error);
                                     if (!timeSet) std::cout << "The time of day was not set: " << error << std::endl;
