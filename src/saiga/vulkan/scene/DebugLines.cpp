@@ -32,7 +32,14 @@ void DebugLines::init(VulkanBase& b, const RenderingFormats& formats)
 {
     destroy();
     base        = &b;
-    auto create = [&](Pipeline& p, bool test)
+    lineFormats = formats;
+}
+
+void DebugLines::createPipelines()
+{
+    if (pipelinesCreated) return;
+    pipelinesCreated = true;
+    auto create      = [&](Pipeline& p, bool test)
     {
         PipelineInfo info;
         info.inputAssemblyState.topology        = vk::PrimitiveTopology::eLineList;
@@ -48,7 +55,7 @@ void DebugLines::init(VulkanBase& b, const RenderingFormats& formats)
             {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(LinePush)});
         p.shaderPipeline.load(base->device,
                               {"vulkan/scene/lighting/debug_lines.vert", "vulkan/scene/lighting/debug_lines.frag"});
-        p.create(formats, info);
+        p.create(lineFormats, info);
     };
     create(depthTested, true);
     create(onTop, false);
@@ -59,6 +66,7 @@ void DebugLines::destroy()
     if (!base) return;
     depthTested.destroy();
     onTop.destroy();
+    pipelinesCreated = false;
     for (Buffer& v : vertices) v.destroy();
     lines.clear();
     base = nullptr;
@@ -81,6 +89,7 @@ size_t DebugLines::record(vk::CommandBuffer cmd, uint32_t frameIndex, const Vec3
                           float colorScale)
 {
     if (lines.empty()) return 0;
+    createPipelines();
     // Depth-tested lines first, then the ones on top
     std::stable_sort(lines.begin(), lines.end(), [](const Line& x, const Line& y) { return !x.onTop && y.onTop; });
     const size_t bytes = lines.size() * 2 * sizeof(Vertex);

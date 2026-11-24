@@ -57,6 +57,10 @@ class SAIGA_VULKAN_API DebugLines
     };
     VulkanBase* base = nullptr;
     Pipeline depthTested, onTop;
+    // The pipelines are created on the first frame with lines (S36 review round 2, finding 4a)
+    RenderingFormats lineFormats;
+    bool pipelinesCreated = false;
+    void createPipelines();
     std::array<Buffer, 2> vertices;
     std::vector<Line> lines;
 };
