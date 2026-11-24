@@ -334,8 +334,11 @@ ctest -R test_core_ini --output-on-failure             # one test
   when the pool is released after the last test; `SAIGA_TEST_NEW_DEVICES=1` creates a device per renderer). On a
   reused device the pipeline objects are reused as well (`VulkanBase::reusePipelines`: a destroyed pipeline returns to
   a pool on the device, keyed by the content of its create info with the shaders by their SPIR-V; a RenderScene's ~25
-  pipelines cost ~55 ms on lavapipe, its construction now ~15 ms). The process also caches the SPIR-V of compiled
-  shaders (keyed by the file contents incl. includes) and glslang's tables.
+  pipelines cost ~55 ms on lavapipe, its construction now ~15 ms). A pooled pipeline creates no shader module (the key
+  needs only the SPIR-V hashes; `vkCreateShaderModule` validates the SPIR-V with the validation layer, ~0.4 ms per
+  lighting shader), and RenderScene creates its lighting subsystems and draw pipelines on first use (a clay scene
+  without an environment, lights or shadows creates none of them; S36 review round 2). The process also caches the
+  SPIR-V of compiled shaders (keyed by the file contents incl. includes) and glslang's tables.
   Every test still gets its own RenderScene / EngineApp / World (no suite-wide renderer with a reset between tests:
   the pipeline pool makes a new scene cheap, and test independence stays structural). What is shared between tests is
   pure, deterministic data, opt-in per test:
@@ -366,16 +369,15 @@ ctest -R test_core_ini --output-on-failure             # one test
   - Measure with `./build/tests/<binary> --gtest_print_time=1` (or the gtest XML of `GTEST_OUTPUT=xml:<dir>/`) on
     lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
     threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
-    `test_vulkan_world` 10 s (prototype scenes with terrain and trees; S36a1c: shaded with the lighting),
-    `test_engine_terrain_render` 9 s (goldens at 512 x 512; S36a2: the cascades and the horizon map),
-    `test_engine_app` 7.5 s (the MCP deadline tests wait ~3 s of real time), `test_vulkan_terrain` 7.5 s,
-    `test_vulkan_scene` 6.5 s, `test_engine_content` 6 s (the test generator's pyramids and the committed hashes),
-    `test_vulkan_shadows` 5 s (cascade and horizon maps rendered per test), `test_vulkan_lighting` 3 s (the atmosphere
-    and environment-map tests), `test_engine_lighting_tools` 2.5 s, every other binary <= 2 s. (S36a1c and S36a2 raised
-    them: every RenderScene creates the BRDF LUT, the atmosphere, the environment map, the clouds, the shadow pipelines
-    and the terrain's shadow pipelines at construction; S36b creates them with the first use and brings
-    `test_vulkan_scene`, `test_vulkan_terrain`, `test_engine_terrain_render` and `test_vulkan_shadows` back to 5.5 / 5 /
-    6 / 4 s.) These are ceilings: a change that makes a binary slower than its budget makes it
+    `test_vulkan_world` 9.5 s (prototype scenes with terrain and trees; S36: their frames shade with the lighting's
+    `shadeSurface` and per-vertex light terms, ~1.5x lavapipe's frame cost of S19a's shaders), `test_engine_app` 6.5 s
+    (70 tests; the MCP deadline tests wait ~3 s of real time), `test_engine_terrain_render` 6 s (goldens at 512 x 512 in
+    the S36 golden mode: cascades at 1024, the horizon map, ACES), `test_engine_content` 6 s (the test generator's
+    pyramids and the committed hashes), `test_vulkan_scene` 5.5 s, `test_vulkan_terrain` 5 s, the S36 lighting
+    binaries `test_vulkan_shadows` 4 s (39 tests: cascade and horizon maps rendered per test), `test_engine_lighting_tools`
+    3.5 s (34 tests: an EngineApp per test, the tab tests drive ImGui), `test_engine_lighting_render` 3 s (goldens),
+    `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), every other binary <= 2 s. These
+    are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
     10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the
     dependency check; less with Ninja).
