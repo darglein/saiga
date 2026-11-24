@@ -1103,7 +1103,8 @@ void RenderScene::setEnvironment(const EnvironmentState& environment)
 
 void RenderScene::setLightingParameters(const LightingParameters& parameters)
 {
-    // No resource depends on the a1a fields yet (the environment map and clouds come with S36a1c)
+    // Only stored: the resources that depend on the parameters (the environment map's resolution, the clouds) are
+    // created or resized lazily when the next frame records them (EnvironmentMap::record)
     params.lighting = parameters;
 }
 
