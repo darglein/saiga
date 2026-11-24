@@ -31,9 +31,11 @@ namespace
 {
 constexpr const char* kPostMesh   = "world/lamp_post";
 constexpr const char* kHeadMesh   = "world/lamp_head";
+constexpr const char* kHeadOff    = "world/lamp_head_off";
 constexpr const char* kStreetMesh = "world/street_lamp";
 constexpr const char* kTorchMesh  = "world/torch";
 constexpr const char* kFlameMesh  = "world/torch_flame";
+constexpr const char* kFlameOff   = "world/torch_flame_off";
 // The sun elevation below which the lamps are on (degrees)
 constexpr double kLampsOnBelowDeg = 4;
 
@@ -57,7 +59,8 @@ Entity spawnMesh(World& w, const std::string& mesh, const Vec3& p)
 void lampRenderAssets(World& w)
 {
     const Vulkan::MaterialId flat = w.registerMaterial("world/flat", demoMaterial());
-    // The heads and flames glow (a display value: the same by day; the lamps' light is the LightSource)
+    // The heads and flames glow while their light is on (lampPolicySystem switches the mesh; the lamps' light is the
+    // LightSource); the unlit variants with the flat material
     Vulkan::MaterialData glow       = demoMaterial();
     glow.emissive                   = vec3(0.9f, 0.7f, 0.4f);
     const Vulkan::MaterialId glowId = w.registerMaterial("world/glow", glow);
@@ -75,6 +78,7 @@ void lampRenderAssets(World& w)
         },
         flat, 600);
     registerDemoMesh(w, kHeadMesh, []() { return box(Vec3(0.1, 0.12, 0.1), Vec3(1, 0.9, 0.7)); }, glowId, 600);
+    registerDemoMesh(w, kHeadOff, []() { return box(Vec3(0.1, 0.12, 0.1), Vec3(0.55, 0.52, 0.45)); }, flat, 600);
     registerDemoMesh(
         w, kStreetMesh,
         [metal]()
@@ -89,6 +93,7 @@ void lampRenderAssets(World& w)
     registerDemoMesh(
         w, kTorchMesh, [wood]() { return moved(cylinder(0.05, 0.75, 6, wood), Vec3(0, 0.75, 0)); }, flat, 400);
     registerDemoMesh(w, kFlameMesh, []() { return box(Vec3(0.08, 0.12, 0.08), Vec3(1, 0.55, 0.2)); }, glowId, 400);
+    registerDemoMesh(w, kFlameOff, []() { return box(Vec3(0.06, 0.05, 0.06), Vec3(0.12, 0.1, 0.09)); }, flat, 400);
 }
 
 int spawnLamps(World& w, int count, double centreX, double centreZ, double spacing, double ringRadius,
@@ -118,13 +123,13 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
         LightSource l;
         if (spawned % 20 == 10)
         {
-            // A torch: short, orange, flickering
-            spawnMesh(w, kFlameMesh, p + Vec3(0, 1.6, 0));
-            const Entity e     = spawnMesh(w, kTorchMesh, p);
+            // A torch: short, orange, flickering (the flame carries the light)
+            spawnMesh(w, kTorchMesh, p);
+            const Entity e     = spawnMesh(w, kFlameMesh, p + Vec3(0, 1.6, 0));
             l.color            = Vec3(1.0, 0.55, 0.22);
             l.lumen            = 400;
             l.range            = 9;
-            l.offset           = Vec3(0, 1.75, 0);
+            l.offset           = Vec3(0, 0.15, 0);
             l.flickerAmplitude = 0.35;
             l.flickerFrequency = 6;
             w.add<LightSource>(e, l);
@@ -147,13 +152,13 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
         }
         else
         {
-            // A lamp post: a warm point light under its head; every 8th shadowed
-            spawnMesh(w, kHeadMesh, p + Vec3(0.5, 3.52, 0));
-            const Entity e = spawnMesh(w, kPostMesh, p);
+            // A lamp post: a warm point light under its head (the head carries the light); every 8th shadowed
+            spawnMesh(w, kPostMesh, p);
+            const Entity e = spawnMesh(w, kHeadMesh, p + Vec3(0.5, 3.52, 0));
             l.color        = Vec3(1.0, 0.82, 0.6);
             l.lumen        = 1200;
             l.range        = 18;
-            l.offset       = Vec3(0.5, 3.3, 0);
+            l.offset       = Vec3(0, -0.22, 0);
             l.castShadows  = spawned % 8 == 0;
             w.add<LightSource>(e, l);
         }
@@ -176,6 +181,16 @@ void lampPolicySystem(World& w, double)
             if (l.on != on) change.push_back(e);
         });
     for (Entity e : change) w.get<LightSource>(e).on = on;
+    // The heads and flames glow while their light is on (also a light switched by hand, e.g. in the Lighting tab)
+    w.view<const LightSource, const RenderInstance>().each(
+        [&](Entity e, const LightSource& l, const RenderInstance& r)
+        {
+            const bool head = r.mesh == kHeadMesh || r.mesh == kHeadOff;
+            const bool fire = r.mesh == kFlameMesh || r.mesh == kFlameOff;
+            if (!head && !fire) return;
+            const char* want = head ? (l.on ? kHeadMesh : kHeadOff) : (l.on ? kFlameMesh : kFlameOff);
+            if (r.mesh != want) w.setRenderMesh(e, want);
+        });
 }
 
 }  // namespace Game

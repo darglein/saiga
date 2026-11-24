@@ -18,9 +18,10 @@ namespace Game
  * The lamps of game_world (S36b, B7 of docs/stages/S36_lighting.plan.md; game policy, R-MECH-1): lamp posts with a
  * warm point light (1200 lm, range 18 m; every 8th casts shadows: the atlas's tile budget decides which get tiles),
  * street lamps with a spot light pointing down (25 / 35 degrees) and flickering torches, on a grid along the terrain
- * around a point (the heights from the terrain; none below the sea). Entities with a RenderInstance (the post, its
- * glowing head) and a LightSource; lampPolicySystem switches them on while the sun is below 4 degrees (they replicate
- * with their entities).
+ * around a point (the heights from the terrain; none below the sea). Entities with a RenderInstance: the post and
+ * its head (the torch and its flame); the head (the flame, the street lamp itself) carries the LightSource.
+ * lampPolicySystem switches them on while the sun is below 4 degrees (they replicate with their entities) and gives a
+ * head or flame its glowing mesh only while its light is on (round 1, finding 18: the heads glowed by day).
  */
 // The meshes of the lamps (WorldSetup::renderAssets)
 void lampRenderAssets(Engine::World& world);
@@ -28,7 +29,8 @@ void lampRenderAssets(Engine::World& world);
 // radius around it; the ground from ground(x, z), none below seaLevel; returns the lamps spawned
 int spawnLamps(Engine::World& world, int count, double centreX, double centreZ, double spacing, double ringRadius,
                const std::function<double(double, double)>& ground, double seaLevel);
-// Phase Gameplay (host): every LightSource on while the sun is below 4 degrees (the world's time and celestial model)
+// Phase Gameplay (host): every LightSource on while the sun is below 4 degrees (the world's time and celestial model);
+// a lamp head or torch flame glows while its light is on
 void lampPolicySystem(Engine::World& world, double dt);
 
 }  // namespace Game
