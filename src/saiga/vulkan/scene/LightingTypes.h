@@ -368,9 +368,15 @@ struct PreviewMapping
     // The source's mip (the environment map's cube; 0 for the other images): part of the request, so a capture and the
     // tab's preview of different mips do not overwrite each other (each frame converts one)
     int mip = 0;
-    // The source's layer or channel the same way (S36a2 review, finding 7): the cascade (Cascade) or the horizon map's
-    // channel (Horizon: 0 R, 1 G); 0 for the other images
+    // The source's layer or channel the same way (S36a2 review, finding 7): the cascade (Cascade), the horizon map's
+    // channel (Horizon: 0 R, 1 G) or (S36b) the atlas layer (Atlas, AtlasTile: 0 static, 1 dynamic); 0 for the other
+    // images
     int layer = 0;
+    // S36b, the same way (round 2, finding 5: they were scene state the tab overwrote in the frame of a capture): the
+    // depth slice of Clusters (-1: the maximum over the slices), the light (handle) and face of AtlasTile
+    int slice      = -1;
+    uint32_t light = 0;
+    int face       = 0;
 };
 
 // The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the

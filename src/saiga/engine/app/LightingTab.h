@@ -22,6 +22,15 @@ namespace Engine
 {
 class EngineApp;
 
+// The Lighting tab's preview selectors beyond mip and layer (PreviewMapping: the cluster slice, the atlas tile's light
+// and face)
+struct LightingPreviewSelection
+{
+    int slice      = -1;
+    uint32_t light = 0;
+    int face       = 0;
+};
+
 /**
  * The debug UI's Lighting tab (F5; docs/engine_design.md §17.1; S36), set by the app with DebugUi::setTabContent:
  * Time and weather (the time of day, day and rate, the weather of the view camera's space; writes through setWorldTime
@@ -64,7 +73,9 @@ class SAIGA_ENGINE_API LightingTab
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
-    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0);
+    using Selection = LightingPreviewSelection;
+    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0,
+                      const Selection& selection = Selection());
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
     // Every write of the settings and parameters goes through validateLighting (round 2, finding 9: the tab wrote
@@ -88,6 +99,7 @@ class SAIGA_ENGINE_API LightingTab
     bool lightSortAscending = true;
     int clusterSlice        = -1;
     int atlasTileFace       = 0;
+    int atlasLayer          = 0;
     // The selected entity light (round 1, finding 8: kept by entity, so it stays selected while switched off; its sink
     // handle is the debug state's highlightLight while rendered) and the highlight the tab set last (another change of
     // highlightLight, e.g. an atlas tile click or MCP, selects that light's entity)
@@ -101,7 +113,7 @@ class SAIGA_ENGINE_API LightingTab
     uint64_t orderFrame = 0;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
     bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0,
-                             int layer = 0);
+                             int layer = 0, const Selection& selection = Selection());
 };
 
 }  // namespace Engine

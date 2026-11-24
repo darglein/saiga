@@ -589,7 +589,6 @@ TEST_F(LightsTest, ClusterDebug)
     PreviewMapping m;
     PreviewStatistics st;
     bool got = false;
-    scene->setClusterPreviewSlice(-1);
     scene->lightingDebugImages().request(LightingImage::Clusters, m,
                                          [&](const LightingDebug::Capture& c)
                                          {

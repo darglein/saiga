@@ -892,7 +892,6 @@ TEST_F(VulkanPrototypeScene, AtlasFoliageUsesWindPhaseZero)
         scene->shadowAtlas().invalidateAll();
         Frame(p);
         PreviewStatistics st;
-        scene->setAtlasPreview(0);
         scene->lightingDebugImages().request(LightingImage::Atlas, PreviewMapping(),
                                              [&](const LightingDebug::Capture& c) { st = c.statistics; });
         Frame(p);

@@ -61,7 +61,8 @@ double nowSeconds()
 bool sameMapping(const PreviewMapping& a, const PreviewMapping& b)
 {
     return a.autoRange == b.autoRange && a.min == b.min && a.max == b.max && a.log == b.log &&
-           a.colorMap == b.colorMap && a.mip == b.mip && a.layer == b.layer;
+           a.colorMap == b.colorMap && a.mip == b.mip && a.layer == b.layer && a.slice == b.slice &&
+           a.light == b.light && a.face == b.face;
 }
 
 void memoryBarrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
@@ -156,7 +157,7 @@ void LightingDebug::destroy()
 }
 
 void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback,
-                            bool withImage)
+                            bool withImage, std::shared_ptr<const bool> cancelled)
 {
     Image& i = images[size_t(image)];
     // Another mapping than this frame's request: a later frame (with the waiting requests of the same mapping)
@@ -165,13 +166,39 @@ void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, 
         auto same = std::find_if(i.queued.begin(), i.queued.end(),
                                  [&](const Image::Queued& q) { return sameMapping(q.mapping, mapping); });
         if (same == i.queued.end()) same = i.queued.insert(i.queued.end(), Image::Queued{mapping, {}});
-        if (callback) same->callbacks.emplace_back(std::move(callback), withImage);
+        if (callback) same->callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
         return;
     }
     i.requested      = true;
     i.fullResolution = true;
     i.mapping        = mapping;
-    if (callback) i.callbacks.emplace_back(std::move(callback), withImage);
+    if (callback) i.callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+}
+
+void LightingDebug::pruneCancelled()
+{
+    auto prune = [](std::vector<PendingCallback>& v)
+    {
+        const size_t before = v.size();
+        v.erase(std::remove_if(v.begin(), v.end(), [](const PendingCallback& c) { return c.isCancelled(); }), v.end());
+        return before > 0 && v.empty();  // every callback was cancelled
+    };
+    for (Image& i : images)
+    {
+        for (auto q = i.queued.begin(); q != i.queued.end();)
+            q = prune(q->callbacks) ? i.queued.erase(q) : std::next(q);
+        if (i.requested && i.fullResolution && prune(i.callbacks))
+        {
+            i.requested = false;
+            if (!i.queued.empty())
+            {
+                i.requested = true;
+                i.mapping   = i.queued.front().mapping;
+                i.callbacks = std::move(i.queued.front().callbacks);
+                i.queued.pop_front();
+            }
+        }
+    }
 }
 
 void LightingDebug::show(LightingImage image, const PreviewMapping& mapping)
@@ -254,6 +281,7 @@ void LightingDebug::harvest(uint32_t frameIndex)
 uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameIndex, const Sources& sources)
 {
     dispatches = 0;
+    pruneCancelled();
     // The requests first, then the shown images by the age of their preview (the oldest first)
     std::vector<size_t> order;
     for (size_t k = 0; k < images.size(); ++k)
@@ -488,7 +516,7 @@ void LightingDebug::finishFrame(uint32_t frameIndex, const std::function<void()>
             i.stats      = c.statistics;
             i.statsFrame = i.pendingFrame[frameIndex];
             bool image   = false;
-            for (auto& cb : callbacks) image = image || cb.second;
+            for (auto& cb : callbacks) image = image || (cb.withImage && !cb.isCancelled());
             if (image)
             {
                 std::vector<uint8_t> bytes = i.texture->download();
@@ -497,7 +525,8 @@ void LightingDebug::finishFrame(uint32_t frameIndex, const std::function<void()>
                     std::memcpy(c.image.data(), bytes.data(), bytes.size());
             }
         }
-        for (auto& cb : callbacks) cb.first(c);
+        for (auto& cb : callbacks)
+            if (!cb.isCancelled()) cb.callback(c);
     }
     auto requests = std::move(recordedPixels[frameIndex]);
     recordedPixels[frameIndex].clear();

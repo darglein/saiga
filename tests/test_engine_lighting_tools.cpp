@@ -149,6 +149,8 @@ void renderLightingTab(EngineApp& app)
         Vulkan::LightingParameters lp = app.scene()->lightingParameters();
         lp.localLights                = true;
         app.scene()->setLightingParameters(lp);
+        // The physical path: the environment's previews need the frame's environment pass (round 2, finding 6)
+        app.scene()->setToneMap(Vulkan::ToneMap::Aces);
         app.runFrames(1, 1.0 / 60);
         Vulkan::LightingDebugState d;
         d.highlightLight = app.world().extract().lightOf(lamp).id;
@@ -588,8 +590,26 @@ TEST_F(LightingDebugTools, CaptureLighting)
     app->setRenderingEnabled(true);
     EXPECT_TRUE(isError(late));
     EXPECT_NE(text(late).find("deadline"), std::string::npos) << text(late);
-    // The stale request is computed with the next frame and not answered again
-    app->runFrames(2, 1.0 / 60);
+    // Regression (round 2, finding 13): the request ends with its deadline error, so the next frame converts nothing
+    // (the old request stayed queued and was converted, at full resolution with a blocking download, for an answer
+    // nobody read)
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_EQ(app->scene()->lightingStatistics().previewDispatches, 0u);
+    // The same for probe_lighting: after its deadline error no sequence runs (the old one ran its 11 frames with the
+    // camera and the environment held)
+    app->setRenderingEnabled(false);
+    app->mcp().toolTimeoutSeconds   = 0.5;
+    app->mcp().answerMarginFraction = 0.5;
+    const Json lateProbe            = call(*app, "probe_lighting", obj(R"({"pixel": [10, 10]})"));
+    app->mcp().toolTimeoutSeconds   = timeout;
+    app->mcp().answerMarginFraction = margin;
+    app->setRenderingEnabled(true);
+    EXPECT_TRUE(isError(lateProbe));
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_FALSE(app->scene()->probePending());
+    // Round 2, finding 16: huge integers are refused before their conversion (undefined behaviour before)
+    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [1e30, 0]})"))));
+    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [-1e30, 1e300]})"))));
 }
 
 // capture_lighting, S36a1c: the atmosphere's LUTs and the environment map's images in the physical path (sizes,
@@ -796,6 +816,20 @@ TEST_F(LightingDebugTools, HorizonTools)
     EXPECT_EQ(result(r)["size"], Json(Json::array{128, 128}));
     EXPECT_EQ(result(r)["channel"], Json("r"));
     EXPECT_GT(result(r)["stats"]["max"].number_value(), result(r)["stats"]["min"].number_value());
+    // Regression (round 2, finding 7): a call that fails on a later argument changes nothing (the old one started a
+    // full horizon recompute before it checked the format)
+    // (a full recompute completes a map in one frame: first until no map is in progress and none completes)
+    for (int k = 0; k < 16; ++k)
+    {
+        const uint64_t before = s.lightingStatistics().horizon.completed;
+        app->runFrames(1, 1.0 / 60);
+        if (!s.lightingStatistics().horizon.computing && s.lightingStatistics().horizon.completed == before) break;
+    }
+    const uint64_t completed = s.lightingStatistics().horizon.completed;
+    EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(R"({"image": "horizon", "full": true, "format": "bmp"})"))));
+    // (the statistics are written before the frame's update: two frames)
+    app->runFrames(2, 1.0 / 60);
+    EXPECT_EQ(s.lightingStatistics().horizon.completed, completed);
     const Json g =
         callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "channel": "g", "max_width": 64})"));
     ASSERT_FALSE(isError(g)) << text(g);
@@ -1074,6 +1108,78 @@ TEST_F(LightingTabTest, CaptureMipWithTabOpen)
     EXPECT_EQ(imageBlock(r0)["mip"], Json(0));
 }
 
+// Regression (round 2, finding 5): the cluster preview's slice and the atlas tile's light and face were scene state
+// that the tab's sections set in every frame (the clusters preview at "max", the selected light's tile), so with them
+// open capture_lighting(clusters, slice 3) returned the maximum over the slices and capture_lighting(atlas_tile, light
+// B) the tab's light A, with the requested values in the block. They are values of the request now: the captures with
+// the tab open equal the ones with the tab closed
+TEST_F(LightingTabTest, CaptureClustersAndAtlasTileWithTabOpen)
+{
+    ASSERT_FALSE(
+        isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "local_lights": true, "atlas_resolution": 1024,
+                                      "atlas_tile": 128})"))));
+    app->setViewCameraByTool(0, Vec3(0, 2, 6), Quat::Identity(), 1, false);
+    // A floor (the tiles of face -y see it 1 m and 3 m below the lamps)
+    Vulkan::RenderScene& s       = *app->scene();
+    const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
+    const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
+    s.addMaterial(mat, "tab_floor", Vulkan::MaterialData());
+    s.addMesh(mesh, "tab_floor", planeMesh(vec3(50, 1, 50)), mat);
+    Vulkan::StaticInstance floor;
+    floor.setPosition(vec3(0, -1, 0));
+    floor.mesh = mesh;
+    s.addInstanceSet(RegionId(), {floor});
+    World& w = app->world();
+    std::vector<Entity> lamps;
+    for (const Vec3& p : {Vec3(-1, 1, 0), Vec3(2, 3, 0)})
+    {
+        const Entity e = w.create();
+        w.get<Transform>(e).setPosition(p);
+        LightSource l;
+        l.castShadows = true;
+        w.add<LightSource>(e, l);
+        lamps.push_back(e);
+    }
+    app->runFrames(3, 1.0 / 60);
+    const uint32_t a = w.extract().lightOf(lamps[0]).id, b = w.extract().lightOf(lamps[1]).id;
+    ASSERT_NE(a, 0u);
+    ASSERT_NE(b, 0u);
+    Vulkan::LightingDebugState d;
+    d.highlightLight = a;
+    app->scene()->setLightingDebug(d);
+    const Json sliceArgs = obj(R"({"image": "clusters", "slice": 3, "stats_only": true})");
+    const Json tileArgs =
+        Json::object{{"image", "atlas_tile"}, {"light", double(b)}, {"face", 3}, {"stats_only", true}};
+    // The tab with the clusters preview (at "max") and the atlas with light a's tile
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Local lights", true},
+                                      {"lighting/Local lights: clusters", true},
+                                      {"lighting/Local lights: shadow atlas", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    const Json sliceOpen = callFrames(*app, "capture_lighting", sliceArgs);
+    const Json tileOpen  = callFrames(*app, "capture_lighting", tileArgs);
+    ASSERT_FALSE(isError(sliceOpen)) << text(sliceOpen);
+    ASSERT_FALSE(isError(tileOpen)) << text(tileOpen);
+    // The tab closed
+    app->debugUi().select(DebugTab::Game);
+    app->runFrames(2, 1.0 / 60);
+    const Json sliceClosed = callFrames(*app, "capture_lighting", sliceArgs);
+    const Json tileClosed  = callFrames(*app, "capture_lighting", tileArgs);
+    ASSERT_FALSE(isError(sliceClosed)) << text(sliceClosed);
+    ASSERT_FALSE(isError(tileClosed)) << text(tileClosed);
+    EXPECT_EQ(result(sliceOpen)["stats"], result(sliceClosed)["stats"]);
+    EXPECT_EQ(result(sliceOpen)["clusters"]["slice"], Json(3));
+    EXPECT_EQ(result(tileOpen)["stats"], result(tileClosed)["stats"]);
+    // (the two lights' tiles differ: the floor 1 m and 3 m below them)
+    const Json tileA =
+        callFrames(*app, "capture_lighting",
+                   Json::object{{"image", "atlas_tile"}, {"light", double(a)}, {"face", 3}, {"stats_only", true}});
+    EXPECT_NE(result(tileA)["stats"], result(tileClosed)["stats"]);
+    for (const Entity e : lamps) w.destroy(e);
+}
+
 // Regression (S36a2 review, finding 7): the horizon map's channel was scene state that the tab's Far terrain section
 // set in every frame, so with the section open on R capture_lighting(horizon, channel: g) returned the R image (and
 // said "r"). The channel is a value of the request now: the capture returns G, the tab's R preview stays
@@ -1143,6 +1249,13 @@ TEST_F(LightingTabPlainTest, Renders)
     renderLightingTab(*app);
     ImVec2 at;
     EXPECT_FALSE(app->debugUi().itemCenter("lighting/rate x60", at));
+    // Round 2, finding 6: an image without a source in its frame is an error naming the image (clay: no environment
+    // pass, the LUTs are stale or never written)
+    app->scene()->setToneMap(Vulkan::ToneMap::Identity);
+    app->runFrames(1, 1.0 / 60);
+    const Json lut = callFrames(*app, "capture_lighting", obj(R"({"image": "transmittance_lut", "stats_only": true})"));
+    EXPECT_TRUE(isError(lut));
+    EXPECT_NE(text(lut).find("transmittance_lut: not rendered"), std::string::npos) << text(lut);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1386,6 +1499,11 @@ TEST_F(LightingDebugTools, LocalLightTools)
     const Json set = call(*app, "set_lighting", obj(R"({"clustered_lights": false, "max_lights": 2})"));
     ASSERT_FALSE(isError(set)) << text(set);
     app->runFrames(2, 1.0 / 60);
+    // Regression (round 2, finding 6): the clusters of a frame without clustering are an error (the old answer was a
+    // success with an empty image and zero statistics)
+    const Json noClusters = callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "stats_only": true})"));
+    EXPECT_TRUE(isError(noClusters));
+    EXPECT_NE(text(noClusters).find("clustered"), std::string::npos) << text(noClusters);
     const Json params = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters", "lights"]})")));
     EXPECT_EQ(params["parameters"]["max_lights"].number_value(), 2);
     EXPECT_EQ(params["parameters"]["clustered_lights"], Json(false));
@@ -1445,8 +1563,9 @@ TEST_F(LightingDebugTools, LocalLightTools)
     ASSERT_FALSE(isError(tile)) << text(tile);
     EXPECT_EQ(result(tile)["size"], Json(Json::array{128, 128}));
     EXPECT_LT(result(tile)["stats"]["min"].number_value(), 1.0) << "the floor below the lamp (face -y)";
-    for (const char* args : {R"({"image": "atlas_tile", "light": 99999})", R"({"image": "atlas", "layer": "both"})",
-                             R"({"image": "atlas", "face": 1})", R"({"image": "luminance", "layer": "static"})"})
+    for (const char* args : {R"({"image": "atlas_tile", "light": 99999})", R"({"image": "atlas_tile", "light": 1e30})",
+                             R"({"image": "atlas", "layer": "both"})", R"({"image": "atlas", "face": 1})",
+                             R"({"image": "luminance", "layer": "static"})"})
         EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
     const Json probeAt = result(callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})")));
     EXPECT_TRUE(probeAt["atlas_shadow"].is_object()) << probeAt.dump();

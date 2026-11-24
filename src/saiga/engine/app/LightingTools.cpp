@@ -631,6 +631,24 @@ const std::vector<std::string>& lightingGpuSections()
     return names;
 }
 
+// Why a capture_lighting image had no source in its frame (round 2, finding 6)
+std::string noSourceReason(const std::string& name)
+{
+    if (name == "transmittance_lut" || name == "multi_scattering_lut" || name == "sky_view_lut" ||
+        name == "environment" || name == "irradiance")
+        return "the frame had no environment pass: it needs an environment, the physical path (set_lighting "
+               "tone_map: aces) and an open camera space";
+    if (name == "cloud_coverage" || name == "cloud_shadow")
+        return "the frame drew no cloud layer: it needs the environment pass (an environment, tone_map aces, an open "
+               "camera space), set_lighting clouds: true and a cloudiness above 0";
+    if (name == "brdf_lut") return "no BRDF LUT";
+    if (name == "clusters") return "the frame had no cluster table (local and clustered lights in view)";
+    if (name == "atlas" || name == "atlas_tile") return "no shadow atlas in the frame (a shadowed light in view)";
+    if (name == "cascade" || name == "cascade_strip") return "no cascades in the frame (sun_shadows, a shadow light)";
+    if (name == "horizon") return "no valid horizon map in the frame";
+    return "no source";
+}
+
 bool lightingDebugGpuSection(const std::string& name)
 {
     return name == "scene.debug" || name == "lighting.preview";
@@ -1502,12 +1520,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 {
                     if (!a["light"].is_null() || !a["face"].is_null())
                         return respond(ToolResult::Error("light, face: only for image atlas_tile"));
-                    scene->setAtlasPreview(atlasLayer);
                 }
                 else
                 {
                     const double h = a["light"].number_value();
-                    if (!a["light"].is_number() || h != std::floor(h) || h < 1)
+                    // (in range before the conversion: round 2, finding 16)
+                    if (!a["light"].is_number() || h != std::floor(h) || h < 1 || h > 4294967295.0)
                         return respond(
                             ToolResult::Error("light: the handle of a light with atlas tiles (list_lights)"));
                     lightHandle                  = uint32_t(h);
@@ -1524,7 +1542,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                                 ToolResult::Error("face: an integer 0.." + std::to_string(tiles.size() - 1)));
                         face = int(f);
                     }
-                    scene->setAtlasTilePreview(lightHandle, face, atlasLayer);
                 }
             }
             else if (!a["layer"].is_null() || !a["light"].is_null() || !a["face"].is_null())
@@ -1536,6 +1553,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 if (scene->lightingStatistics().lights.visible == 0)
                     return respond(ToolResult::Error(
                         "clusters: the frame has no local lights (set_lighting local_lights: true, lights in view)"));
+                // (round 2, finding 6: the preview needs the frame's cluster table)
+                if (!scene->lightingStatistics().lights.clustered)
+                    return respond(ToolResult::Error(
+                        "clusters: the lights are not clustered (set_lighting clustered_lights: true)"));
                 if (!a["slice"].is_null())
                 {
                     const double z = a["slice"].number_value();
@@ -1544,7 +1565,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         return respond(ToolResult::Error("slice: an integer 0.." + std::to_string(n - 1)));
                     slice = int(z);
                 }
-                scene->setClusterPreviewSlice(slice);
             }
             else if (!a["slice"].is_null())
                 return respond(ToolResult::Error("slice: only for image clusters"));
@@ -1557,7 +1577,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         "horizon: no horizon map (set_lighting horizon_shadows: true, a shadow light, terrain)"));
                 if (!a["channel"].is_null() && a["channel"] != Json("r") && a["channel"] != Json("g"))
                     return respond(ToolResult::Error("channel: r or g"));
-                if (a["full"].bool_value()) scene->requestHorizonRecompute(true);
             }
             else if (!a["channel"].is_null())
                 return respond(ToolResult::Error("channel: only for image horizon"));
@@ -1577,14 +1596,22 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
                 return respond(ToolResult::Error(error));
             mapping.mip = mip;
-            // The cascade's layer or the horizon map's channel of this request (not the tab's)
+            // The cascade's layer, the horizon map's channel, the atlas layer, light and face and the cluster slice of
+            // this request (not the tab's; round 2, finding 5: the atlas and cluster selectors were scene state the
+            // tab overwrote in the same frame, and the capture changed the tab's atlas layer)
             if (image == Vulkan::LightingImage::Cascade) mapping.layer = cascade;
             if (image == Vulkan::LightingImage::Horizon) mapping.layer = a["channel"] == Json("g") ? 1 : 0;
+            if (atlasImage) mapping.layer = atlasLayer;
+            if (image == Vulkan::LightingImage::AtlasTile)
+            {
+                mapping.light = lightHandle;
+                mapping.face  = face;
+            }
+            if (image == Vulkan::LightingImage::Clusters) mapping.slice = slice;
             for (const char* b : {"full", "stats_only"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
-            const bool statsOnly = a["stats_only"].bool_value();
-            if (a["full"].bool_value()) scene->requestFullUpdate();
+            const bool statsOnly     = a["stats_only"].bool_value();
             const std::string format = a["format"].is_null() ? "png" : a["format"].string_value();
             if (format != "png" && format != "jpg") return respond(ToolResult::Error("format: png or jpg"));
             int maxWidth = 1280;
@@ -1594,6 +1621,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 if (!a["max_width"].is_number() || w != std::floor(w) || w < 64 || w > 8192)
                     return respond(ToolResult::Error("max_width: an integer 64..8192"));
                 maxWidth = int(w);
+            }
+            // Every argument is valid: the state changes only now (round 2, finding 7: a full horizon recompute or a
+            // full update was started by a call that then failed on a later argument)
+            if (a["full"].bool_value())
+            {
+                scene->requestFullUpdate();
+                if (image == Vulkan::LightingImage::Horizon) scene->requestHorizonRecompute(true);
             }
             if (image == Vulkan::LightingImage::Clusters && a["range"].is_null())
             {
@@ -1613,6 +1647,11 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 {
                     if (*answered) return;
                     *answered = true;
+                    // No source in the frame of the conversion (round 2, finding 6: answered as success with an
+                    // empty image and zero statistics)
+                    if (c.size(0) == 0 || c.size(1) == 0)
+                        return respond(
+                            ToolResult::Error(name + ": not rendered in this frame (" + noSourceReason(name) + ")"));
                     // A cascade count lowered after the request: the frame converted a substitute layer
                     const int count = app.scene() ? app.scene()->lightingStatistics().cascadeCount : 0;
                     if (cascade >= count)
@@ -1764,7 +1803,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     result.addText(Json(block).dump());
                     respond(result);
                 },
-                !statsOnly);
+                !statsOnly, answered);
             server.addPollListener(
                 [answered, respond, deadline]()
                 {
@@ -1822,7 +1861,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     p[0].number_value() != std::floor(p[0].number_value()) ||
                     p[1].number_value() != std::floor(p[1].number_value()))
                     return respond(ToolResult::Error("pixel: [x, y] (integers)"));
-                pixel = ivec2(int(p[0].number_value()), int(p[1].number_value()));
+                // The range in double before the conversion (round 2, finding 16: int() of a huge value is undefined)
+                const double x = p[0].number_value(), y = p[1].number_value();
+                if (x < 0 || y < 0 || x >= double(size(0)) || y >= double(size(1)))
+                    return respond(ToolResult::Error("pixel: (" + p[0].dump() + ", " + p[1].dump() +
+                                                     ") is outside the image (" + std::to_string(size(0)) + " x " +
+                                                     std::to_string(size(1)) + ")"));
+                pixel = ivec2(int(x), int(y));
             }
             else
             {
@@ -1898,9 +1943,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 respond(ToolResult::Text(Json(o).dump()));
             };
             if (world)
-                scene->requestProbe(*world, answer);
+                scene->requestProbe(*world, answer, answered);
             else
-                scene->requestProbe(pixel, answer);
+                scene->requestProbe(pixel, answer, answered);
             server.addPollListener(
                 [answered, respond, deadline]()
                 {

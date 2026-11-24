@@ -1000,19 +1000,21 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // (the BRDF LUT is created for its preview; the environment's resources exist after the first environment)
         if (s.debugImages->requested(LightingImage::BrdfLut)) s.ensureBrdf();
         if (s.brdf) src.set(LightingImage::BrdfLut, &s.brdf->lut(), 1);
-        // S36a1c: the atmosphere's LUTs and the environment map's debug images (recorded on demand)
-        if (s.atmosphere)
+        // S36a1c: the atmosphere's LUTs and the environment map's debug images (recorded on demand), only in a frame
+        // with the environment pass (round 2, finding 6: in clay or an enclosed space they are stale or never written;
+        // the capture is an error then)
+        if (s.atmosphere && environmentPass)
         {
             src.set(LightingImage::TransmittanceLut, &s.atmosphere->transmittance(), 0);
             src.set(LightingImage::SkyViewLut, &s.atmosphere->skyView(), 0, 1.0f / Atmosphere::kSkyLutScale);
             src.set(LightingImage::MultiScatteringLut, &s.atmosphere->multiScattering(), 0);
         }
-        if (previews && s.envMap && s.debugImages->requested(LightingImage::Environment))
+        if (previews && environmentPass && s.envMap && s.debugImages->requested(LightingImage::Environment))
             src.set(
                 LightingImage::Environment,
                 s.envMap->recordDebug(cmd, frame.frameIndex, 0, s.debugImages->sourceMip(LightingImage::Environment)),
                 0);
-        if (previews && s.envMap && s.debugImages->requested(LightingImage::Irradiance))
+        if (previews && environmentPass && s.envMap && s.debugImages->requested(LightingImage::Irradiance))
             src.set(LightingImage::Irradiance, s.envMap->recordDebug(cmd, frame.frameIndex, 1, 0), 0);
         // S36a2: the cascades' depth (one layer, or every layer side by side; the minimum over the covered texels)
         if (s.cascades->hasImages())
@@ -1034,8 +1036,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             s.lightStats.horizonPreview = s.horizon->statistics();
         }
         // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
-        if (s.clouds && (s.debugImages->requested(LightingImage::CloudCoverage) ||
-                         s.debugImages->requested(LightingImage::CloudShadow)))
+        // (the cloud layer's: with the environment pass and the layer on, as it is drawn)
+        if (s.clouds && environmentPass && lighting.cloudMotion(3) > 0.5f &&
+            (s.debugImages->requested(LightingImage::CloudCoverage) ||
+             s.debugImages->requested(LightingImage::CloudShadow)))
         {
             CloudLayer::DebugInput in;
             in.clouds = lighting.clouds;
@@ -1057,13 +1061,16 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         {
             ShadowAtlas& at    = *s.atlasShadows;
             const uint32_t res = uint32_t(at.resolution());
-            src.setArray(LightingImage::Atlas, at.texture(), 2, uint32_t(s.atlasPreviewLayer), 1,
+            // (the layer, light and face of the request: round 2, finding 5)
+            const PreviewMapping& am = s.debugImages->sourceMapping(LightingImage::Atlas);
+            src.setArray(LightingImage::Atlas, at.texture(), 2, uint32_t(std::clamp(am.layer, 0, 1)), 1,
                          std::max(1u, res / 1024));
-            const std::vector<int> tiles = at.tilesOf(s.atlasTileLight);
+            const PreviewMapping& tm     = s.debugImages->sourceMapping(LightingImage::AtlasTile);
+            const std::vector<int> tiles = at.tilesOf(tm.light);
             if (!tiles.empty())
             {
-                const int t = tiles[size_t(std::clamp(s.atlasTileFace, 0, int(tiles.size()) - 1))];
-                src.setArray(LightingImage::AtlasTile, at.texture(), 2, uint32_t(s.atlasTileLayer), 1, 1);
+                const int t = tiles[size_t(std::clamp(tm.face, 0, int(tiles.size()) - 1))];
+                src.setArray(LightingImage::AtlasTile, at.texture(), 2, uint32_t(std::clamp(tm.layer, 0, 1)), 1, 1);
                 LightingDebug::Sources::ArraySource& a = src.array[size_t(LightingImage::AtlasTile)];
                 a.originX                              = uint32_t((t % at.tilesPerSide()) * at.tileSize());
                 a.originY                              = uint32_t((t / at.tilesPerSide()) * at.tileSize());
@@ -1072,7 +1079,9 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         }
         // S36b: the lights per cluster (from this frame's table)
         if (s.debugImages->requested(LightingImage::Clusters) && s.frameClusters)
-            src.set(LightingImage::Clusters, s.clusterCull->recordDebug(cmd, frame.frameIndex, s.clusterPreviewSlice),
+            src.set(LightingImage::Clusters,
+                    s.clusterCull->recordDebug(cmd, frame.frameIndex,
+                                               s.debugImages->sourceMapping(LightingImage::Clusters).slice),
                     1);
         s.lightStats.previewDispatches = previews ? s.debugImages->recordPreviews(cmd, frame.frameIndex, src) : 0;
     }
@@ -2328,6 +2337,16 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
 void RenderScene::latchDebug()
 {
     frameDebugRaw = false;
+    // Cancelled requests are dropped; a sequence whose requests are all cancelled ends (round 2, finding 13)
+    probeRequests.erase(std::remove_if(probeRequests.begin(), probeRequests.end(),
+                                       [](const ProbeRequest& r) { return r.isCancelled(); }),
+                        probeRequests.end());
+    if (probeRun && std::all_of(probeRun->requests.begin(), probeRun->requests.end(),
+                                [](const ProbeRequest& r) { return r.isCancelled(); }))
+    {
+        probeRun.reset();
+        applyHeldProbeState();
+    }
     // A probe starts with the next frame: the requests made until then share its frames
     if (!probeRun && !probeRequests.empty())
     {
@@ -2349,14 +2368,16 @@ void RenderScene::latchDebug()
         frameDebug = userDebug;
 }
 
-void RenderScene::requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback)
+void RenderScene::requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback,
+                               std::shared_ptr<const bool> cancelled)
 {
-    probeRequests.push_back(ProbeRequest{pixel, std::nullopt, std::move(callback)});
+    probeRequests.push_back(ProbeRequest{pixel, std::nullopt, std::move(callback), std::move(cancelled)});
 }
 
-void RenderScene::requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback)
+void RenderScene::requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback,
+                               std::shared_ptr<const bool> cancelled)
 {
-    probeRequests.push_back(ProbeRequest{ivec2(-1, -1), world, std::move(callback)});
+    probeRequests.push_back(ProbeRequest{ivec2(-1, -1), world, std::move(callback), std::move(cancelled)});
 }
 
 void RenderScene::finishProbe()
@@ -2461,8 +2482,13 @@ void RenderScene::finishProbe()
                 }
             }
         }
-        run->requests[k].callback(p);
+        if (!run->requests[k].isCancelled()) run->requests[k].callback(p);
     }
+    applyHeldProbeState();
+}
+
+void RenderScene::applyHeldProbeState()
+{
     // The environment and the camera given during the sequence
     if (heldEnvironment)
     {

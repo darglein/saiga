@@ -86,20 +86,24 @@ void LightingTab::draw()
     gpuAndMemory();
 }
 
-void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip, int layer)
+void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip, int layer,
+                               const Selection& selection)
 {
     ImVec2 at;
-    previewImageClicked(image, log, maxWidth, at, mip, layer);
+    previewImageClicked(image, log, maxWidth, at, mip, layer, selection);
 }
 
 bool LightingTab::previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip,
-                                      int layer)
+                                      int layer, const Selection& selection)
 {
     Vulkan::RenderScene* scene     = app.scene();
     Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
     mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
     mapping.mip                    = mip;
     mapping.layer                  = layer;
+    mapping.slice                  = selection.slice;
+    mapping.light                  = selection.light;
+    mapping.face                   = selection.face;
     // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
     // second (LightingDebug::show)
     Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
@@ -958,7 +962,7 @@ void LightingTab::localLightsSection()
             const int slices = scene->frameClusterGrid().z;
             ImGui::SetNextItemWidth(160);
             ImGui::SliderInt("preview slice (-1: max)", &clusterSlice, -1, slices - 1);
-            scene->setClusterPreviewSlice(std::clamp(clusterSlice, -1, slices - 1));
+            clusterSlice                       = std::clamp(clusterSlice, -1, slices - 1);
             Vulkan::PreviewMapping m           = app.lightingPreviewMapping();
             m.autoRange                        = false;
             m.min                              = 0;
@@ -967,7 +971,9 @@ void LightingTab::localLightsSection()
             const Vulkan::PreviewMapping saved = app.lightingPreviewMapping();
             app.lightingPreviewMapping()       = m;
             ImGui::Text("lights per cluster (turbo, 0 .. %.0f)", double(scale));
-            previewImage(Vulkan::LightingImage::Clusters, false, 384.0f);
+            Selection sel;
+            sel.slice = clusterSlice;
+            previewImage(Vulkan::LightingImage::Clusters, false, 384.0f, 0, 0, sel);
             app.lightingPreviewMapping() = saved;
         }
     }
@@ -1047,11 +1053,10 @@ void LightingTab::atlasSection()
                                longRange);
         if (as.on)
         {
-            int layer = scene->atlasPreviewLayerValue();
+            int& layer = atlasLayer;
             ImGui::RadioButton("static layer", &layer, 0);
             ImGui::SameLine();
             ImGui::RadioButton("dynamic layer", &layer, 1);
-            scene->setAtlasPreview(layer);
             ImGui::SameLine();
             bool owners = (d.overlays & Vulkan::OverlayAtlasOwners) != 0;
             if (ImGui::Checkbox("tile owners", &owners))
@@ -1062,7 +1067,7 @@ void LightingTab::atlasSection()
             }
             ImGui::TextUnformatted("linear depth (distance / range; white: nothing); click a tile to select its light");
             ImVec2 at;
-            const bool clicked = previewImageClicked(Vulkan::LightingImage::Atlas, false, 384.0f, at);
+            const bool clicked = previewImageClicked(Vulkan::LightingImage::Atlas, false, 384.0f, at, 0, layer);
             const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
             const Vulkan::ShadowAtlas& atlas = scene->shadowAtlas();
             const int perSide                = std::max(atlas.tilesPerSide(), 1);
@@ -1109,9 +1114,11 @@ void LightingTab::atlasSection()
                     ImGui::SetNextItemWidth(140);
                     ImGui::SliderInt("face (+x -x +y -y +z -z)", &atlasTileFace, 0, int(selTiles.size()) - 1);
                 }
-                scene->setAtlasTilePreview(d.highlightLight, atlasTileFace, layer);
                 ImGui::Text("light %u, tile %d", d.highlightLight, selTiles[size_t(atlasTileFace)]);
-                previewImage(Vulkan::LightingImage::AtlasTile, false, 256.0f);
+                Selection sel;
+                sel.light = d.highlightLight;
+                sel.face  = atlasTileFace;
+                previewImage(Vulkan::LightingImage::AtlasTile, false, 256.0f, 0, layer, sel);
             }
         }
     }

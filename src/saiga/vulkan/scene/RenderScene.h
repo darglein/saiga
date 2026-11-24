@@ -383,10 +383,15 @@ class SAIGA_VULKAN_API RenderScene
     // (setCamera / setEnvironment take effect after it); the callback runs after the last frame. While it runs,
     // screenshots and preview conversions wait for the first frame after it (they would read the debug frames), and the
     // output shows frame 1's image (the window does not flash the debug frames; ImGui stays live)
-    void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
+    // cancelled: the caller's flag (round 2, finding 13: set when it gives up, e.g. probe_lighting's deadline); a
+    // cancelled request is dropped, a sequence whose requests are all cancelled ends (the held camera and environment
+    // apply)
+    void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback,
+                      std::shared_ptr<const bool> cancelled = nullptr);
     // The same at the pixel of a world point, projected with the camera of the sequence's frame 1 (outside the image:
     // inImage false)
-    void requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback);
+    void requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback,
+                      std::shared_ptr<const bool> cancelled = nullptr);
     bool probeRunning() const { return probeRun != nullptr; }
     // A probe sequence runs in the next recorded frame (running or requested)
     bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
@@ -428,25 +433,16 @@ class SAIGA_VULKAN_API RenderScene
     const LocalLights& localLights() const { return *lightTable; }
     const std::vector<FrameLightInfo>& frameLights() const;
     // The clustered light culling (B3): the cluster grid of the frame being recorded, the clusters' statistics and the
-    // CPU reference; the slice of the Clusters preview (-1: the maximum over the slices) and the heat map's scale
-    // (lights per cluster at the top of the colour map; the ClusterLights view and the preview's default)
+    // CPU reference; the heat map's scale (lights per cluster at the top of the colour map; the ClusterLights view and
+    // the preview's default). The Clusters preview's slice is PreviewMapping::slice of its request
     LightClusters& lightClusters() { return *clusterCull; }
     const ClusterGrid& frameClusterGrid() const;
-    void setClusterPreviewSlice(int slice) { clusterPreviewSlice = slice; }
-    int clusterPreviewSliceValue() const { return clusterPreviewSlice; }
     void setClusterHeatScale(float scale) { clusterHeatScale = std::max(scale, 1.0f); }
     float clusterHeatScaleValue() const { return clusterHeatScale; }
-    // The cached shadow atlas (B4): its tiles and statistics; the layer of the Atlas preview (0 static, 1 dynamic) and
-    // the light (handle) and face of the AtlasTile preview
+    // The cached shadow atlas (B4): its tiles and statistics. The Atlas preview's layer (PreviewMapping::layer: 0
+    // static, 1 dynamic) and the AtlasTile preview's light, face and layer are values of its request (round 2, finding
+    // 5)
     ShadowAtlas& shadowAtlas() { return *atlasShadows; }
-    void setAtlasPreview(int layer) { atlasPreviewLayer = std::clamp(layer, 0, 1); }
-    int atlasPreviewLayerValue() const { return atlasPreviewLayer; }
-    void setAtlasTilePreview(uint32_t light, int face, int layer = 0)
-    {
-        atlasTileLight = light;
-        atlasTileFace  = face;
-        atlasTileLayer = std::clamp(layer, 0, 1);
-    }
 
    private:
     friend class SceneFrameRenderer;
@@ -481,16 +477,12 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<LightClusters> clusterCull;
     std::unique_ptr<ClusterGrid> clusterGrid;
     bool frameClusters      = false;
-    int clusterPreviewSlice = -1;
     float clusterHeatScale  = 16;
     void clusterOverlays();
     // S36b: the shadow atlas (the frame's faces to render and their views)
     std::unique_ptr<ShadowAtlas> atlasShadows;
     struct AtlasFace;
     std::vector<AtlasFace> atlasFaces;
-    int atlasPreviewLayer   = 0;
-    uint32_t atlasTileLight = 0;
-    int atlasTileFace = 0, atlasTileLayer = 0;
     void frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, bool enclosed, SceneLighting& block,
                     uint32_t frameIndex);
     void markSetDirty(InstanceSetHandle set);
@@ -538,6 +530,8 @@ class SAIGA_VULKAN_API RenderScene
         ivec2 pixel = ivec2(0, 0);
         std::optional<Vec3> world;
         std::function<void(const LightingProbe&)> callback;
+        std::shared_ptr<const bool> cancelled;
+        bool isCancelled() const { return cancelled && *cancelled; }
     };
     std::unique_ptr<ProbeRun> probeRun;
     std::vector<ProbeRequest> probeRequests;
@@ -553,6 +547,8 @@ class SAIGA_VULKAN_API RenderScene
     };
     std::optional<HeldCamera> heldCamera;
     void finishProbe();
+    // The camera and environment given during a sequence (after finishProbe or a cancelled sequence)
+    void applyHeldProbeState();
     // The view of the frame being recorded (the probe's step, the override of a read-back frame, the user's)
     void latchDebug();
     float framePreExposure = 1;

@@ -68,8 +68,10 @@ class SAIGA_VULKAN_API LightingDebug
     // (else only the statistics). A request without a callback only computes the preview and its statistics. Requests
     // of one image with another mapping than the frame's first request wait for the next frames (one conversion per
     // image and frame), so each callback gets its own mapping's preview and statistics
+    // cancelled: the caller's flag (set when it gives up; the callback is then not called, and a request with only
+    // cancelled callbacks is not converted)
     void request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback = nullptr,
-                 bool withImage = true);
+                 bool withImage = true, std::shared_ptr<const bool> cancelled = nullptr);
     // The tab shows image this frame (rate-limited and at preview resolution, see the class comment)
     void show(LightingImage image, const PreviewMapping& mapping);
     bool requested() const;
@@ -90,6 +92,8 @@ class SAIGA_VULKAN_API LightingDebug
     int sourceMip(LightingImage image) const { return images[size_t(image)].mapping.mip; }
     // The source layer or channel (PreviewMapping::layer) the same way
     int sourceLayer(LightingImage image) const { return images[size_t(image)].mapping.layer; }
+    // The whole mapping of this frame's conversion (the cluster slice, the atlas tile's light and face)
+    const PreviewMapping& sourceMapping(LightingImage image) const { return images[size_t(image)].mapping; }
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }
@@ -156,6 +160,18 @@ class SAIGA_VULKAN_API LightingDebug
    private:
     // The frame slots (frames in flight)
     static constexpr size_t kSlots = VulkanRenderer::framesInFlight;
+    // A request's callback: withImage, and the caller's cancellation (round 2, finding 13: true when the caller gave
+    // up, e.g. capture_lighting's deadline; a request whose callbacks are all cancelled is not converted)
+    struct PendingCallback
+    {
+        CaptureCallback callback;
+        bool withImage = true;
+        std::shared_ptr<const bool> cancelled;
+        bool isCancelled() const { return cancelled && *cancelled; }
+    };
+    // Removes the cancelled callbacks; drops a request whose callbacks were all cancelled (the next waiting one moves
+    // up)
+    void pruneCancelled();
     struct Image
     {
         std::unique_ptr<Texture2D> texture;
@@ -174,16 +190,16 @@ class SAIGA_VULKAN_API LightingDebug
         PreviewMapping shownMapping;
         // Per frame slot: the device-local statistics the shader writes (copied to statsBuffers after the conversion)
         std::array<Buffer, kSlots> gpuStats;
-        std::vector<std::pair<CaptureCallback, bool>> callbacks;
+        std::vector<PendingCallback> callbacks;
         // The requests with another mapping than this frame's (the next frames, in order)
         struct Queued
         {
             PreviewMapping mapping;
-            std::vector<std::pair<CaptureCallback, bool>> callbacks;
+            std::vector<PendingCallback> callbacks;
         };
         std::deque<Queued> queued;
         // The callbacks of the recorded frame (answered in finishFrame)
-        std::array<std::vector<std::pair<CaptureCallback, bool>>, kSlots> recorded;
+        std::array<std::vector<PendingCallback>, kSlots> recorded;
     };
     VulkanBase* base = nullptr;
     ComputePipeline pipeline;
