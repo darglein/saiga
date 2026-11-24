@@ -2144,6 +2144,59 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   `FlightWorld.{h,cpp}`, `data/tests/benchmarks.json` (the day benchmarks have no lamps; their numbers stay within the
   noise of the committed a2 baselines).
 
+**S36b review, round 1** (2026-11-24; the fixes of the 27 findings of `r1_b.md`, see Results and the review log):
+
+- **Atlas tiles follow the face count** (major 1): a candidate whose tile count differs from its kind's face count
+  (a spot that became a point light, or back) frees its tiles in step 2 and takes new ones in step 3.
+- **Dirty bounds reach cached owners** (major 2): an `Owner` keeps the world position and range of its last frame as
+  a candidate; the dirty list and `invalidateAll` invalidate the faces of every owner, not only the frame's candidates.
+- **The cluster buffers grow before the lighting set binds them** (major 3): `LightClusters::prepare` in
+  `frameLocalLights` (record keeps calling `ensure`, then a no-op).
+- **The atlas queue** (major 4): a dynamic job per face whose frustum contains a moving instance's sphere (the
+  `LightInput::movers`, not the light's whole sphere: a point light with one mover usually renders 1-2 faces), the
+  dynamic jobs oldest first (ties: importance), a quarter of `facesPerFrame` (at least 1) reserved for the static
+  faces while any is due; `AtlasStatistics::dynamicSkipped` (get_lighting `atlas.dynamic_skipped`, the tab). A new
+  light next to many movers is ready after `faces / reserve` frames (12 faces at a budget of 8: 6 frames).
+- **Atlas faces are camera-independent for instances too** (major 5): `ShadowView::lodFromOrigin` / `lodOrigin`; an
+  atlas view takes the instances' LOD and last end distance from its light (`instance_count.comp`: the origin in
+  `axisX.xyz`, the flag `dedup.y` of a view without de-duplication; the CPU set cull measures the end distance from the
+  same origin). The camera's LOD bias does not apply to atlas views (their bias is 0).
+- **capture_lighting's image list is generated** (major 6) from `lightingImageName` (all but the cascade strip), with
+  `layer`, `light` and `face` in the schema.
+- **LightSource validation in the world API** (major 7): `checkLightSourceValues` (ComponentJson) in `add_component`,
+  `set_component` (against the merged value), `spawn` and prefab values; `invalidReason` also checks the rotation. A
+  light written in code can still be invalid: the extract does not send it and `list_lights` shows the reason.
+- **Unrendered entity lights are visible** (major 8): `ExtractSystem::lightStates` (state rendered / off /
+  "invalid: <reason>" / no pose). `list_lights` lists them after the scene's lights (by entity index; `rendered`,
+  `state`, filter `rendered`, cursor `after_entity` / `next_entity`, `matched_total`, `unrendered`). The Lighting tab:
+  greyed rows with a state column, the selection kept by entity (the highlight follows its current sink light; another
+  highlight change, e.g. an atlas tile click or MCP, selects that light's entity), the editor also for an off or
+  invalid light, a note that a game's systems may switch the light again. The tab's layout: the counts, the light table
+  and the editor first, then "Local lights: clusters" and "Local lights: shadow atlas" as sections of their own (the
+  editor was 1400 px down the panel); the table scrolls horizontally with the handle column frozen, the units in the
+  headers, sorted when the sort spec or the light set changes, else every 30 frames; the editor gains kind, offset and
+  the spot direction (yaw, pitch).
+- Minor 9: `LightClusters::clearStatistics` in a frame without lights. Minor 10: the atlas variant of
+  `shadow_foliage.vert` uses the wind phases 0. Minor 11: a dynamic instance snapped (prev == curr) to another place
+  moves for the atlas in the frame of the call (`InstanceBuffer::Dynamic::snappedMove`) and settles in the next frame
+  unless snapped again (`RenderScene::settleSnapped`: its rest bounds are dirty once); flight keeps passing the
+  interpolated pose as both. A teleport into a light's range rests one frame later than before. Minor 12: the point
+  light's face is chosen from the offset point (no geometry was found on which the old choice is visible: the clamped
+  border texel always looks farther than the offset point; the test `NoSeamsAtFaceEdges` is coverage). Minor 13:
+  `TerrainPass` counts the nodes cut by the 16384 limit (`AtlasStatistics::terrainNodes` / `terrainNodesTruncated`,
+  get_lighting, the tab) and folds the cut into the sphere's key (`setAtlasNodeLimit` for tests). Minor 14: the atlas
+  image's clear and transition are recorded into the frame's command buffer (the transfer section), no
+  `submitAndWait`. Minor 15: the tests of the list (see Results). Minor 16: see Results (test speed). Minor 17: see
+  major 8. Minor 18: game_world's lamp head (torch flame) entity carries the `LightSource` and `lampPolicySystem`
+  switches its mesh between the glowing one and an unlit variant with the light's `on` (game policy; the engine's
+  per-instance emissive scale stays S43's). Minor 19: `--benchmark night_town` (a 150 m circle 30 m above the centre
+  of a 25 m lamp grid at 22:00; reported, not in `benchmarks.json`; windowed, not run in this round). Minor 20: §10.7
+  and `LightSource` say host-authoritative (an owner switches its light through the game's systems; S32 may revisit).
+- Nits: 21 the flicker seed is the NetId, else the persistent ID, else the entity index; 22 `sameLightSource` removed;
+  23 `writeTable`'s vacuous test removed; 24 a comment (dirty bounds carry no space: only extra re-renders); 25 golden
+  mode renders up to 11 due atlas faces per frame; 26 `matched_total`; 27 `max_lights`' minimum 1 documented (the off
+  switch is `local_lights`).
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features
@@ -2441,6 +2494,44 @@ the whole tree also with Clang 19 and warnings as errors in `build-clang`, no wa
   frame) and not committed to `benchmarks.json` (as planned); `data/tests/benchmarks.json` keeps the a2 numbers (the
   day benchmarks are unchanged within the noise).
 
+**S36b review fixes** (2026-11-24, local, lavapipe = Mesa with LLVM 21.1.8, GCC 15 and Clang 19 with warnings as
+errors; build with samples):
+
+- ctest on lavapipe (`--parallel 4`): 87 of 87 passed, 27.7 s. New cases (each fails on the old code unless noted):
+  `AtlasTest.KindChangeRetakesTiles` (major 1), `.DirtyBoundsReachCachedLights` (major 2),
+  `LightsTest.ClusterGridGrowthFirstFrame` (major 3), `AtlasTest.DynamicFacesDoNotStarve` (major 4),
+  `.CachedFacesIndependentOfCamera` (major 5), `LightingToolsNoDevice.CaptureLightingSchemaListsEveryImage` (major
+  6), `WorldApi.LightSourceWritesAreValidated` (major 7), `LightingTabTest.SwitchedOffLightStaysEditable` and the
+  off / invalid part of `LightingDebugTools.LocalLightTools` (major 8), the end of `LightsTest.ClusterDebug` (minor
+  9), `VulkanPrototypeScene.AtlasFoliageUsesWindPhaseZero` (minor 10), `AtlasTest.SnappedDynamicMoves` (minor 11),
+  `AtlasTest.TerrainUnderLights` (minor 13; also the finer terrain level becoming resident and a pyramid patch,
+  minor 15), `SyncValidation.LocalLightsAndAtlasFrame` (the atlas created and recreated inside the frame, a cluster
+  grid growth, a kind change, dynamic faces under synchronization validation; a dropped barrier of the atlas clear
+  is reported). Coverage only: `AtlasTest.PointLightUpDownFaces` (the +-y faces), `AtlasTest.NoSeamsAtFaceEdges`
+  (minor 12, passes on the old shader too), `WorldBenchmark.Paths`' night_town part.
+- Test times, each binary alone on lavapipe (before at the S36b tip / after): `test_vulkan_local_lights` 2.05 / 2.6 s
+  (21 -> 30 cases; its first case pays the process's pipeline compile, 0.65 s; a case costs ~30 ms for its scene, of
+  which SceneCulling's init is 11 ms, the terrain pass 5 ms and the clouds 4 ms (a1/a2 and older code; the S36b
+  parts 0.1 ms), so ~1 s is not reachable with a scene per test (kept, a2 review); the cases now read their pixels in
+  one frame and render the minimum frames: 27 cases took 2.63 s before that and 2.38 s after),
+  `test_engine_lighting_render` 3.27 / 3.29 s (unchanged: the goldens keep their setup), `test_engine_lighting_tools`
+  3.30 / 3.37 s (25 -> 27 cases), `test_engine_app` 8.04 / 7.99 s, `test_vulkan_sync` 0.86 / 1.06 s (1 -> 2 cases),
+  `test_vulkan_world` 10.2 / 11.1 s (+1 case with the prototype forest, 0.9 s). `testLightingParameters` makes the
+  default atlas 1024 / 128 for every test scene and app (the 4096^2 image was created for any shadowed light).
+- Goldens: not regenerated; every golden passes against the committed images (the lighting goldens below 0.0003/255).
+- Performance (headless, RTX 5080 Laptop; the windowed `game_world --benchmark` runs were skipped in this round):
+  `sample_vulkan_scene_benchmark` (build-bench, before / after, two runs each): cull 0.0876 / 0.0880 -> 0.0886 /
+  0.0882 ms, draw 1.360 / 1.361 -> 1.393 / 1.364 ms (the per-view LOD origin of major 5 within the noise). A
+  night_town-like view in headless `game_world --lamps 400 --time-of-day 22` at 1920 x 1080 (four static cameras on
+  a 150 m circle 30 m above the lamp grid, 120 frames each): 195-208 visible lights, 21-40 shadowed (19 with tiles,
+  64 of 64 tiles), cluster maximum 15-18; GPU medians `lights` 0.12-0.135 ms, `cull` 0.03-0.25 ms, `shadow.atlas` 0
+  ms once cached (60-64 hits per frame), the scene 1.0-4.1 ms (terrain and instances, view-dependent).
+- Game scenarios (headless): flight 30, platformer 48, racing 18 passed. Screenshots (headless, in
+  `/tmp/claude-1000/-home-dari-Programming-saiga/87d9320d-06ee-4b09-9231-496f8df23f20/scratchpad/s36b_fix/`):
+  `world_lamps_night.png`, `world_lamps_day.png`, the close-ups `lamp_head_day.png` / `lamp_head_night.png` and
+  `torch_day.png` / `torch_night.png` (minor 18: unlit by day, glowing at night; taken through MCP with
+  `set_camera`), `flight_night.png` (the navigation lights; the landing light is out of range at 314 m).
+
 ## Review log
 
 Plan review rounds (local Opus) and later the PR reviews are recorded here: date, reviewer, findings, resolution.
@@ -2592,6 +2683,14 @@ a1c suite fixtures removed), minors 7-14 (8: terrain de-duplication; 14 bounded 
 21 (in part), 22. Documented, not changed: minor 15, minor 16 (probe_lighting's description), nit 19, the overlay of
 nit 21. Minor 17 (coverage) by the new tests. See Design changes "S36a2 review, round 1" and Results "S36a2 review
 fixes".
+
+### S36b code review round 1, 2026-11-24
+
+8 major, 12 minor, 7 nits (`r1_b.md`, the diff `stage-s36a2..stage-s36b`). Fixed: majors 1-8, minors 9-11, 13, 14,
+17-20, nits 21-27; minor 12 fixed without a discriminating test (coverage test only); minor 15 by the new tests;
+minor 16 in part (the atlas 1024 / 128 for every test, fewer frames, one frame per pixel check; the per-scene floor
+of older code keeps `test_vulkan_local_lights` at 2.6 s for 30 cases). Minor 19: the scenario `night_town` added,
+not run (windowed). See Design changes "S36b review, round 1" and Results "S36b review fixes".
 
 ## Questions for the user
 
