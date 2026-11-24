@@ -567,6 +567,30 @@ bool validateLightingValues(const Vulkan::EnvironmentSettings& settings, const V
     return false;
 }
 
+LightingGpuTimes lightingGpuTimes(EngineApp& app)
+{
+    // The sections of S36a1b (a1c, a2 and b add theirs): the parent "shadow" encloses its sub-sections (RenderScene's
+    // GPU sections), so it is reported but not summed (round 2, finding 8: get_lighting summed it twice, the tab not)
+    static const std::vector<std::pair<const char*, int>> names = {
+        {"environment", 0},  {"lights", 0},    {"shadow", 2},       {"shadow.cascades", 0}, {"shadow.horizon", 0},
+        {"shadow.atlas", 0}, {"scene.sky", 0}, {"scene.clouds", 0}, {"scene.debug", 1},     {"lighting.preview", 1}};
+    LightingGpuTimes t;
+    Profiler& p = app.gpuProfile();
+    for (const auto& [name, kind] : names)
+    {
+        LightingGpuTimes::Section s;
+        s.name       = name;
+        s.debug      = kind == 1;
+        s.summed     = kind != 2;
+        const int id = p.scope(std::string("gpu/") + name);
+        s.hasLast    = p.lastSample(id, s.lastMs);
+        s.meanMs     = p.scopeStats(id, LightingGpuTimes::kMeanFrames).avg;
+        if (s.summed) (s.debug ? t.debugMs : t.lightingMs) += s.meanMs;
+        t.sections.push_back(s);
+    }
+    return t;
+}
+
 LightingMemoryEstimate lightingMemoryAfter(const Vulkan::LightingStatistics& ls, const Vulkan::LightingParameters& p)
 {
     // The cascades (D32 layers) and the horizon maps (three RG32F maps) while on
@@ -622,14 +646,6 @@ bool validateLighting(const Vulkan::LightingStatistics& now, uint64_t storageLim
 
 namespace
 {
-// The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
-const std::vector<std::string>& lightingGpuSections()
-{
-    static const std::vector<std::string> names = {"environment",    "lights",          "shadow",    "shadow.cascades",
-                                                   "shadow.horizon", "shadow.atlas",    "scene.sky", "scene.clouds",
-                                                   "scene.debug",    "lighting.preview"};
-    return names;
-}
 
 // Why a capture_lighting image had no source in its frame (round 2, finding 6)
 std::string noSourceReason(const std::string& name)
@@ -649,10 +665,6 @@ std::string noSourceReason(const std::string& name)
     return "no source";
 }
 
-bool lightingDebugGpuSection(const std::string& name)
-{
-    return name == "scene.debug" || name == "lighting.preview";
-}
 
 Json mappingJson(const Vulkan::PreviewMapping& m)
 {
@@ -899,21 +911,13 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
         d["mapping"]                      = mappingJson(app.lightingPreviewMapping());
         o["debug"]                        = d;
         Json::object g;
-        Profiler& p     = app.gpuProfile();
-        double lighting = 0, debug = 0;
-        for (const std::string& n : lightingGpuSections())
-        {
-            const int id      = p.scope("gpu/" + n);
-            double last       = 0;
-            const bool has    = p.lastSample(id, last);
-            const double mean = p.scopeStats(id, 120).avg;
-            (lightingDebugGpuSection(n) ? debug : lighting) += mean;
-            g[n] = Json::object{{"last_ms", has ? Json(last) : Json()}, {"mean_ms", mean}};
-        }
-        g["mean_frames"] = 120;
-        g["lighting_ms"] = lighting;
-        g["budget_ms"]   = 2.5;
-        g["debug_ms"]    = debug;
+        const LightingGpuTimes t = lightingGpuTimes(app);
+        for (const LightingGpuTimes::Section& s : t.sections)
+            g[s.name] = Json::object{{"last_ms", s.hasLast ? Json(s.lastMs) : Json()}, {"mean_ms", s.meanMs}};
+        g["mean_frames"] = LightingGpuTimes::kMeanFrames;
+        g["lighting_ms"] = t.lightingMs;
+        g["budget_ms"]   = LightingGpuTimes::kBudgetMs;
+        g["debug_ms"]    = t.debugMs;
         o["gpu"]         = g;
         o["memory"]      = Json::object{{"bytes", double(ls.memoryBytes)}};
     }

@@ -745,6 +745,15 @@ TEST_F(LightingDebugTools, CascadeTools)
     ASSERT_EQ(c["list"].array_items().size(), 4u) << c.dump();
     EXPECT_GT(c["list"][0]["texel_m"].number_value(), 0);
     EXPECT_GT(c["list"][3]["split_far"].number_value(), 99.0);
+    // Regression (round 2, finding 8): lighting_ms sums the lighting sections without the parent "shadow" (it encloses
+    // shadow.cascades, shadow.horizon and shadow.atlas: it was counted twice), and without the debug sections
+    const Json gpu = result(call(*app, "get_lighting", obj(R"({"sections": ["gpu"]})")))["gpu"];
+    ASSERT_GT(gpu["shadow"]["mean_ms"].number_value(), 0) << gpu.dump();
+    double sum = 0;
+    for (const char* n :
+         {"environment", "lights", "shadow.cascades", "shadow.horizon", "shadow.atlas", "scene.sky", "scene.clouds"})
+        sum += gpu[n]["mean_ms"].number_value();
+    EXPECT_NEAR(gpu["lighting_ms"].number_value(), sum, 1e-9) << gpu.dump();
     // capture_lighting: one cascade (1024 / 1) and every cascade side by side (4 x 1024 / 2)
     const Json one =
         callFrames(*app, "capture_lighting", obj(R"({"image": "cascade", "cascade": 0, "max_width": 64})"));

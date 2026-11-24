@@ -1534,22 +1534,18 @@ void LightingTab::gpuAndMemory()
     if (!scene || !ui.section("lighting/GPU and memory", "GPU and memory", false)) return;
     if (DebugUiStyle::beginProperties("##lighting gpu"))
     {
-        // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
-        Profiler& p     = app.gpuProfile();
-        double lighting = 0, debug = 0;
-        for (const char* n : {"environment", "lights", "shadow.cascades", "shadow.horizon", "shadow.atlas", "scene.sky",
-                              "scene.clouds", "scene.debug", "lighting.preview"})
+        // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately (get_lighting's
+        // list and sums: lightingGpuTimes)
+        const LightingGpuTimes t = lightingGpuTimes(app);
+        for (const LightingGpuTimes::Section& s : t.sections)
         {
-            const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
-            const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";
-            (isDebug ? debug : lighting) += mean;
-            DebugUiStyle::property(n);
-            ImGui::Text("%.3f ms (120 frame mean)", mean);
+            DebugUiStyle::property(s.name.c_str());
+            ImGui::Text(s.summed ? "%.3f ms (120 frame mean)" : "%.3f ms (120 frame mean; its sub-sections)", s.meanMs);
         }
         DebugUiStyle::property("lighting / shadow budget");
-        ImGui::Text("%.3f of 2.5 ms (§17.10)", lighting);
+        ImGui::Text("%.3f of %.1f ms (§17.10)", t.lightingMs, LightingGpuTimes::kBudgetMs);
         DebugUiStyle::property("debug cost");
-        ImGui::Text("%.3f ms", debug);
+        ImGui::Text("%.3f ms", t.debugMs);
         DebugUiStyle::property("memory");
         ImGui::Text("%.2f MiB", double(scene->lightingStatistics().memoryBytes) / (1 << 20));
         DebugUiStyle::property("preview dispatches");
