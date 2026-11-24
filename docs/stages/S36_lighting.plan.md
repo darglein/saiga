@@ -2009,6 +2009,59 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
   (the same per-cascade instances and the same shadow image every frame); `Cascades.StaleCascadeStillCoversFrustum`
   checks frame 1's cascade with frame 2's camera directly (after its 30 degree turn a fit renders cascade 3 again).
 
+**S36a2 review, round 1** (2026-11-24; the fixes of the 22 findings, see Results and the review log):
+
+- **Barriers (blocker 1)**: the readers of the lighting set are `SceneLightingSet::kReaderStages` (vertex, fragment,
+  compute): the grass samples the cascades and the horizon maps per vertex, the grass and the terrain the atmosphere
+  LUTs (the LUTs' barriers on a1c; there the culling pass's barrier chained them, no visible bug). Synchronization
+  validation needs `VK_LAYER_VALIDATE_SYNC=1` and `VK_LAYER_SYNCVAL_SHADER_ACCESSES_HEURISTIC=1` (without the heuristic
+  the layer does not see a draw's descriptor reads); the new binary `test_vulkan_sync` sets both before its instance.
+  With Ubuntu 24.04's layer (CI) it only renders.
+- **Depth range and staggered de-duplication (findings 2, 3)**: covered by the earlier "stable cascade caster sets" fix
+  (the range of every valid cascade; a stale cascade's stored de-duplication volume is checked against c - 1's current
+  volume in every frame and the cascade is rendered again if it is no longer inside). Not changed.
+- **Horizon blend (major 4)**: a map that does not cover the receiver gives way to the other (`horizonRg`); a texel
+  "without an occluder" (-1e9) still blends as before (it pops at the blend's end; only the coverage is special-cased).
+- **The last cascade's band (major 5)**: the band blends the inside's product (cascade x G) into the outside's R;
+  `cascadeShadow` returns the cascade's own factor and the band weight; `ShadowTerms::cascade` stays the factor blended
+  to 1 (the debug views), `horizon` is the rest of the product.
+- **Terrain de-duplication (finding 8)**: `TerrainPass::selectNode` skips a node or quarter inside the view's
+  de-duplication volume with its subtree (`ShadowView::dedupContains`, shared with the instances' CPU test), its depth
+  interval capped at the previous cascade's terrain cap (`dedupZMaxTerrain`). For a stale c - 1 with another camera the
+  skipped region uses c - 1's nodes of its own frame (its LOD may differ slightly), as for the instances.
+- **Frame clock (finding 9)**: `RenderScene::setFrameTime`; EngineApp passes its frame dt (the fixed one if set). A frame
+  without it uses the wall clock's step.
+- **Resolution, frozen, band (findings 10-12)**: `CascadedShadows::clampedResolution` for the images and the fit; frozen
+  cascades refit once for the frozen camera and light after a parameter or image change; the receivers' weight is 0
+  within 3 texels of the rectangle's edge and the band is at least that plus 4 texels (`blendBand`, `edgeMargin`,
+  `cascadeParams.w`), also with `cascade_blend` 0 (a band of 7 texels: 0.7% of the half extent at 2048).
+- **Light steps (finding 13)**: the cascades' light direction moves in steps of 0.05 degrees (`kLightStepDeg`, exact in
+  golden mode and on a refit of all); the receivers' bias direction and the shading use the exact light. With the
+  flight demo's day in 10 minutes the grid changes every 5 frames instead of every frame. Not a setting (a constant;
+  the horizon map's 0.1 degrees is one too).
+- **Previews (finding 7)**: the cascade layer and the horizon channel are `PreviewMapping::layer` of each request (like
+  the mip); `setCascadePreview` / `setHorizonPreviewChannel` are removed.
+- **Horizon restart (finding 14)**: a terrain change restarts the map in progress **once per map** (a restart per edit
+  starved the map under an edit in every frame: `--benchmark terraform` completed none); a later edit is in the next map.
+  `HorizonStatistics::restarts`. A light jump of 5 degrees or more resets the light's angular speed (finding 6d).
+- **Not changed, documented**: nit 15 (the probe's R and G through the fp16 target: about 1 m at 1-2 km, 32 m near the
+  clamp) and minor 16 (the cascade index of the MSAA average) in probe_lighting's description; nit 19 (an extent that is
+  not a multiple of the resolution gives a non-integer texel and an anchor off the texel grid: each map carries its own
+  transform, so the result is correct; `set_lighting` sets extent and resolution in separate calls, so a coupled
+  validation would refuse valid sequences); nit 21's de-duplication rectangle overlay (the `updated_this_frame` key and
+  column and the `min_shadow_elevation_deg` control are added).
+- **Tests and test speed (finding 6; the a1c review's suite fixtures)**: with #80's device and pipeline reuse a scene
+  per test is cheap, so `RenderSceneSuiteTest` (a1c) is removed: every lighting test has its own scene or app again
+  (AGENTS.md's rule); `CloudLayer` caches the noise of the last seed per process (22 ms per scene on lavapipe), as
+  `BrdfLut`. `testLightingParameters` (tests/lighting_test_parameters.h): cascades at 256, the horizon map at 128 over 4
+  km where the parameters have the defaults' sizes (RenderSceneTest, VulkanScene, the apps of test_engine_app and
+  test_engine_lighting_tools). `RenderSceneTest` is no longer in golden mode; `GoldenMode()` in the twelve tests that
+  compare frames. The fixtures of tests not about shadows (VulkanPrototypeScene, VulkanTerrain, TerrainRenderTest and
+  VulkanScene outside their goldens) turn the sun shadows off (`RenderSceneTest::Shadows()`): the cascades' terrain
+  (four cascades around the camera at the main view's LOD, ~270 nodes) cost a prototype frame about 30 ms on lavapipe.
+  test_vulkan_shadows, test_vulkan_sync and the goldens cover the shadows. This supersedes the a2 entry "RenderSceneTest
+  runs in golden mode".
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features
@@ -2212,6 +2265,34 @@ the whole tree also with Clang 19 and warnings as errors in `build-clang`, no wa
   a time jump at night the first frames are bright until the environment map is recaptured (7 frames, a1c behaviour);
   `EngineAppRender.ScreenshotTerrainDeadline` uses the default timeout for its last screenshot.
 
+**S36a2 review fixes** (2026-11-24, local, lavapipe = Mesa with LLVM 21.1.8, GCC 15 and Clang 19 with warnings as
+errors):
+
+- ctest on lavapipe (`--parallel 4`): 86 of 86 passed, 25 s (before the fixes 34 s; master 14 s). New binary
+  `test_vulkan_sync` (0.8 s); new cases: `HorizonTest.ReceiverOutsidePreviousMapShadowedAfterAnchorMove`,
+  `.EditRestartsTheMapInProgress`, `.EditsEveryFrameStillComplete`, `ShadowsTerrain.NoLitGapAtTheLastCascadeBorder`,
+  `Shadows.StaggeredMarginUsesTheFrameTime`, `.FrozenCascadesFollowAResolutionChange`, `CascadesFit.SlowLightMovesInSteps`,
+  `.BlendBandKeepsTheFootprintInside`, `LightingTabTest.CaptureChannelWithTabOpen`; each fails on the old code (the
+  sync test with SYNC-HAZARD-READ-AFTER-WRITE of the vertex stage).
+- Test times, each binary alone on lavapipe (before the fixes at the S36b tip / after, at the a2 tip):
+  `test_vulkan_shadows` 5.5 / 5.4 s (33 -> 40 cases; the two horizon cases without their 60 warm-up frames 1.34 /
+  0.87 -> 0.39 / 0.35 s), `test_vulkan_lighting` 3.6 / 3.6 s (a1c: 1.9 s with the suite fixture, 2.9 s per test),
+  `test_engine_lighting_tools` 3.4 / 2.7 s, `test_engine_lighting_render` 3.0 / 1.9 s, `test_vulkan_world` 17.7 / 10.2 s,
+  `test_vulkan_terrain` 13.9 / 8.0 s, `test_vulkan_scene` 11.2 / 7.8 s, `test_engine_app` 12.4 / 7.7 s,
+  `test_engine_terrain_render` 12.0 / 9.7 s (its goldens alone 7 s). With the shadows off everywhere the world,
+  terrain, scene and app binaries take 10.1 / 7.8 / 7.7 / 7.5 s: the rest above the master budgets comes from a1.
+- Goldens: not regenerated; every golden passes against the committed images (max 3/255: `world_overview` mean
+  0.011/255, `generated_site` 0.0014/255, the lighting goldens below 0.0003/255; the shader changes of majors 4, 5 and
+  finding 12 touch few pixels).
+- Benchmarks (`build-bench`, RTX 5080 Laptop, 1920 x 1080, release; medians of five runs before / after; GPU frame,
+  `shadow` section, `shadow.horizon`): forest 3.541 / 3.485 ms, shadow 1.449 / 1.364 ms (-5.9%: the terrain's
+  de-duplication); flyover 3.542 / 3.629 ms (the scene section varies 2.2-3.1 ms between runs, the shadow section
+  0.991 / 0.951 ms, -4%); terraform 1.841 / 1.761 ms, shadow 1.265 / 1.226 ms, horizon 0.787 / 0.766 ms;
+  `cpu_work_ms` forest 0.331 / 0.321. `sample_vulkan_scene_benchmark` cull 0.088 / 0.088 ms, scene 1.407 / 1.408 ms.
+  New baselines committed (the median run of five).
+- Synchronization validation over every scene binary (world, terrain, shadows, scene, lighting, engine lighting
+  render / tools, terrain render, app): no hazard after the fix.
+
 ## Review log
 
 Plan review rounds (local Opus) and later the PR reviews are recorded here: date, reviewer, findings, resolution.
@@ -2354,6 +2435,15 @@ nits 1-6; minor 6 in part (the screenshot after the latch has its own timeout; t
 test-speed branch's `mcpAnswerMarginFraction`). Not fixed: M1e (the SH in device-local memory: at most 0.06 ms,
 measured with a constant SH), minor 7 (documented in Design changes). See Design changes "S36a1c review, round 1" and
 Results "S36a1c review fixes".
+
+### S36a2 code review round 1, 2026-11-24
+
+2 blockers, 4 major, 11 minor, 5 nits (the diff `stage-s36a1c..stage-s36a2`). Fixed: B1 (the vertex stage in the
+barriers, test_vulkan_sync), B2 and M3 (by the earlier stable-caster-sets fix, checked), M4, M5, M6 (test speed; the
+a1c suite fixtures removed), minors 7-14 (8: terrain de-duplication; 14 bounded to one restart per map), nits 18, 20,
+21 (in part), 22. Documented, not changed: minor 15, minor 16 (probe_lighting's description), nit 19, the overlay of
+nit 21. Minor 17 (coverage) by the new tests. See Design changes "S36a2 review, round 1" and Results "S36a2 review
+fixes".
 
 ## Questions for the user
 
