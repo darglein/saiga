@@ -16,6 +16,7 @@
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
 #include "saiga/vulkan/scene/EnvironmentMap.h"
@@ -1410,6 +1411,19 @@ void LightingTab::lightTable()
     const Entity e = selectedEntity;
     World& w       = app.world();
     if (!w.alive(e) || !w.has<LightSource>(e)) return;
+    // --coop (round 2, finding 10): the client's LightSource is replicated (HostReliable), its writes are refused; the
+    // editor writes the host's entity of the same NetId (as the environment edits write the host's world)
+    Entity target = e;
+    if (app.coop())
+    {
+        const NetId id = w.replication().netIdOf(e);
+        target         = id ? app.hostWorld()->replication().entityOfNetId(id) : Entity();
+        if (!app.hostWorld()->alive(target) || !app.hostWorld()->has<LightSource>(target))
+        {
+            ImGui::TextUnformatted("read-only in --coop (no host entity of this light)");
+            return;
+        }
+    }
     LightSource s = w.read<LightSource>(e);
     bool edit     = false;
     ImGui::TextDisabled(
@@ -1516,12 +1530,19 @@ void LightingTab::lightTable()
             {"flickerFrequency", s.flickerFrequency}};
         EngineApp* a = &app;
         app.queueBetweenSteps(
-            [a, e, values]()
+            [a, target, values]()
             {
-                const ApiResult r =
-                    a->api().call("set_component", json11::Json::object{{"entity", WorldApi::entityJson(e)},
-                                                                        {"component", "LightSource"},
-                                                                        {"values", values}});
+                const json11::Json args = json11::Json::object{
+                    {"entity", WorldApi::entityJson(target)}, {"component", "LightSource"}, {"values", values}};
+                ApiResult r;
+                if (a->coop())
+                {
+                    // The host's world (its API: the same validation and log line)
+                    WorldApi host(*a->hostWorld());
+                    r = host.call("set_component", args);
+                }
+                else
+                    r = a->api().call("set_component", args);
                 if (!r.ok) SAIGA_LOG("lighting", "set_component LightSource: %s", r.error.c_str());
             });
     }

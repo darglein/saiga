@@ -21,6 +21,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
+#include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
@@ -1434,6 +1435,60 @@ TEST(EnvironmentWrites, CoopWritesTheHost)
     EXPECT_FALSE(setWeather(app.world(), 0, c, error));
     EXPECT_NE(error.find("replicated"), std::string::npos) << error;
     EXPECT_EQ(app.world().readSpaceState<Weather>(0).rain, 0);
+}
+
+// Regression (round 2, finding 10): in --coop the Lighting tab's light editor writes the host's entity of the same
+// NetId. The client's LightSource is replicated (HostReliable), so the old editor's set_component on the client world
+// was refused (only a log line): nothing could be edited
+TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
+{
+    if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+    AppOptions o;
+    o.coop      = true;
+    o.coopDelay = 2;
+    EngineApp app(tabSetup(true), o);
+    ASSERT_NE(app.hostWorld(), nullptr);
+    Vulkan::LightingParameters lp = app.scene()->lightingParameters();
+    lp.localLights                = true;
+    app.scene()->setLightingParameters(lp);
+    World& host       = *app.hostWorld();
+    const Entity lamp = host.create();
+    host.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
+    host.add<LightSource>(lamp, LightSource());
+    app.runFrames(10, 1.0 / 60);
+    // The client's replica and its rendered light
+    const NetId id = host.replication().netIdOf(lamp);
+    ASSERT_NE(id, 0u);
+    const Entity replica = app.world().replication().entityOfNetId(id);
+    ASSERT_TRUE(app.world().alive(replica));
+    Vulkan::LightingDebugState d;
+    d.highlightLight = app.world().extract().lightOf(replica).id;
+    ASSERT_NE(d.highlightLight, 0u);
+    app.scene()->setLightingDebug(d);
+    Json::object state = app.debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Time and weather", false},
+                                      {"lighting/Sun and moon", false},
+                                      {"lighting/Exposure", false},
+                                      {"lighting/Local lights", true}};
+    app.debugUi().setState(state);
+    app.debugUi().select(DebugTab::Lighting);
+    app.runFrames(2, 1.0 / 60);
+    ImVec2 at;
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light on", at));
+    ImGuiIO& io = ImGui::GetIO();
+    for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 20; ++k)
+    {
+        io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+        io.AddMouseWheelEvent(0, -2);
+        app.runFrames(1, 1.0 / 60);
+        ASSERT_TRUE(app.debugUi().itemCenter("lighting/light on", at));
+    }
+    click(app, at);
+    app.runFrames(2, 1.0 / 60);
+    EXPECT_FALSE(host.read<LightSource>(lamp).on);
+    // The client follows the host
+    app.runFrames(10, 1.0 / 60);
+    EXPECT_FALSE(app.world().read<LightSource>(replica).on);
 }
 
 // Every tool is a console command (DebugConsole through McpServer::callLocal)
