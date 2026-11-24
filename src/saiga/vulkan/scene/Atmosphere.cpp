@@ -8,6 +8,7 @@
 
 #include "saiga/vulkan/pipeline/DescriptorSetLayout.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
+#include "saiga/vulkan/scene/SceneLightingSet.h"
 
 #include <algorithm>
 #include <array>
@@ -41,23 +42,22 @@ bool sameSettings(const AtmosphereSettings& a, const AtmosphereSettings& b)
            a.groundAlbedo == b.groundAlbedo;
 }
 
-// The barriers around a compute write of a whole image: earlier reads (fragment, compute) -> the write (the content is
-// discarded), the write -> fragment and compute reads
+// The barriers around a compute write of a whole image: earlier reads (vertex, fragment, compute) -> the write (the
+// content is discarded), the write -> the reads (the grass and the terrain sample the LUTs per vertex)
 void beginWrite(vk::CommandBuffer cmd, Texture2D& t)
 {
-    vk::ImageMemoryBarrier2 b(Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
-                              Stage::eComputeShader, Access::eShaderStorageWrite, vk::ImageLayout::eUndefined,
-                              vk::ImageLayout::eGeneral, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, t.image(),
+    vk::ImageMemoryBarrier2 b(SceneLightingSet::kReaderStages, Access::eShaderSampledRead, Stage::eComputeShader,
+                              Access::eShaderStorageWrite, vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
+                              VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, t.image(),
                               vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, b));
 }
 void endWrite(vk::CommandBuffer cmd, Texture2D& t)
 {
-    vk::ImageMemoryBarrier2 b(Stage::eComputeShader, Access::eShaderStorageWrite,
-                              Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
-                              vk::ImageLayout::eGeneral, vk::ImageLayout::eShaderReadOnlyOptimal,
-                              VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, t.image(),
-                              vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
+    vk::ImageMemoryBarrier2 b(Stage::eComputeShader, Access::eShaderStorageWrite, SceneLightingSet::kReaderStages,
+                              Access::eShaderSampledRead, vk::ImageLayout::eGeneral,
+                              vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED,
+                              t.image(), vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, b));
     t.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 }

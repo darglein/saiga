@@ -47,6 +47,12 @@ class SAIGA_VULKAN_API SceneLightingSet
     static constexpr uint32_t kBindingCount = 15;
     // The storage buffers of the set (per stage, next to the scene set's)
     static constexpr uint32_t kStorageBuffers = 5;
+    // The pipeline stages that sample the set's images and buffers: the scene's vertex shaders too (the grass and the
+    // terrain evaluate light terms per vertex: vertex_light.glsl, the grass's shadows), the fragment and the compute
+    // shaders (previews, the environment capture). The barriers around a write of a bound resource use them
+    static constexpr vk::PipelineStageFlags2 kReaderStages = vk::PipelineStageFlagBits2::eVertexShader |
+                                                             vk::PipelineStageFlagBits2::eFragmentShader |
+                                                             vk::PipelineStageFlagBits2::eComputeShader;
 
     void init(VulkanBase& base);
     void destroy();
