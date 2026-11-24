@@ -190,9 +190,16 @@ LightingKey floatKey(const char* name, bool parameter, double lo, double hi,
                        [field](const LightingState& s) { return Json(double(field(const_cast<LightingState&>(s)))); },
                        [field, name, lo, hi](const Json& j, LightingState& s, std::string& error)
                        {
-                           double v = 0;
-                           if (!number(j, name, lo, hi, v, error)) return false;
-                           field(s) = float(v);
+                           // The stored float against the bounds as floats (round 2, finding 17: 0.01 is stored as
+                           // 0.0099999998, which failed the >= 0.01 check when it was sent back, e.g. the undo
+                           // payload or a saved environment file)
+                           const float f = j.is_number() ? float(j.number_value()) : 0.0f;
+                           if (!j.is_number() || !std::isfinite(f) || !(f >= float(lo) && f <= float(hi)))
+                           {
+                               error = std::string(name) + ": expected a finite number in " + rangeText(lo, hi);
+                               return false;
+                           }
+                           field(s) = f;
                            return true;
                        },
                        std::string(name) + " " + rangeText(lo, hi)};
@@ -216,7 +223,9 @@ LightingKey intKey(const char* name, bool parameter, int lo, int hi, std::functi
                            }
                            field(s) = i;
                            return true;
-                       }};
+                       },
+                       // (round 2, finding 15: the schema showed the integer keys with their names only)
+                       std::string(name) + " " + rangeText(lo, hi) + (powerOfTwo ? ", a power of two" : "")};
 }
 
 LightingKey boolKey(const char* name, bool parameter, std::function<bool&(LightingState&)> field)
@@ -1132,8 +1141,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = McpServer::BooleanProperty(n);
         else if (n == "horizon_resolution")
             p = McpServer::IntegerProperty("A power of two in [128, 4096]");
-        else if (n == "horizon_rows_per_frame")
-            p = McpServer::IntegerProperty(n);
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
         else if (n == "cloud_seed")
@@ -1142,8 +1149,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = McpServer::IntegerProperty("A power of two in [256, 4096]");
         else if (n == "cascade_count" || n == "shadow_lod_bias" || n == "max_lights" || n == "cluster_x" ||
                  n == "cluster_y" || n == "cluster_z" || n == "max_lights_per_cluster" || n == "atlas_tile" ||
-                 n == "faces_per_frame")
-            p = McpServer::IntegerProperty(n);
+                 n == "faces_per_frame" || n == "horizon_rows_per_frame")
+            p = McpServer::IntegerProperty(k.description + (n == "atlas_tile" ? " (divides atlas_resolution)" : ""));
         else if (n == "atlas_resolution")
             p = McpServer::IntegerProperty("A power of two in [512, 8192]");
         else if (n == "cascade_interval")

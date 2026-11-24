@@ -14,6 +14,7 @@
 #include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/app/DebugUi.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Weather.h"
 #include "saiga/engine/components/WorldTime.h"
@@ -1124,6 +1125,40 @@ TEST(LightingToolsNoDevice, CaptureLightingSchemaListsEveryImage)
                             "cascade", "channel", "slice", "layer", "light", "face"})
         EXPECT_TRUE(props[key].is_object()) << key;
     EXPECT_EQ(props["layer"]["enum"], Json(Json::array{"static", "dynamic"}));
+}
+
+// Regression (round 2, finding 15): set_lighting's integer keys appear in the schema with their range (intKey set no
+// description: cascade_count, max_lights, cluster_* etc. showed only their names)
+TEST(LightingToolsNoDevice, SetLightingSchemaGivesIntegerRanges)
+{
+    EngineApp app(lightingSetup(false));
+    std::string description;
+    Json schema;
+    ASSERT_TRUE(app.mcp().toolInfo("set_lighting", description, schema));
+    const Json& props = schema["properties"];
+    for (const char* key : {"cascade_count", "shadow_lod_bias", "max_lights", "cluster_x", "cluster_y", "cluster_z",
+                            "max_lights_per_cluster", "atlas_tile", "faces_per_frame", "horizon_rows_per_frame"})
+    {
+        EXPECT_EQ(props[key]["type"].string_value(), "integer") << key;
+        EXPECT_NE(props[key]["description"].string_value().find('['), std::string::npos)
+            << key << ": " << props[key]["description"].dump();
+    }
+    EXPECT_NE(props["cluster_z"]["description"].string_value().find("[2, 128]"), std::string::npos)
+        << props["cluster_z"]["description"].dump();
+}
+
+// Regression (round 2, finding 17): a float key at the edge of its range round-trips. The value was checked as a
+// double but stored as a float: cluster_near 0.01 became 0.0099999998, which failed the >= 0.01 check when it was sent
+// back (set_lighting's undo payload, a value saved into an environment file)
+TEST(LightingToolsNoDevice, FloatKeysRoundTripAtTheirBounds)
+{
+    Vulkan::EnvironmentSettings settings;
+    Vulkan::LightingParameters p;
+    p.clusterNear              = 0.01f;
+    p.environmentUpdateDegrees = 0.01f;
+    p.minShadowElevationDeg    = 0.5f;
+    std::string error;
+    EXPECT_TRUE(validateLightingValues(settings, p, error)) << error;
 }
 
 TEST(LightingToolsNoDevice, NoWorldTimeIsAnError)
