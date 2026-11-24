@@ -77,8 +77,21 @@ double angleDeg(const Vec3& a, const Vec3& b)
 void HorizonShadows::init(VulkanBase& b)
 {
     destroy();
-    base         = &b;
-    const auto c = vk::ShaderStageFlagBits::eCompute;
+    base = &b;
+    // Linear filtering of RG32F is optional: else nearest with manual bilinear weights (shadows.glsl)
+    const auto features = base->physicalDevice.getFormatProperties(vk::Format::eR32G32Sfloat).optimalTilingFeatures;
+    linearFilter        = bool(features & vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
+    SamplerParameters sp;
+    sp.setFilter(linearFilter ? vk::Filter::eLinear : vk::Filter::eNearest);
+    sp.setAddressMode(vk::SamplerAddressMode::eClampToEdge);
+    sampler.create(*base, sp);
+}
+
+void HorizonShadows::createPipelines()
+{
+    if (pipelinesCreated) return;
+    pipelinesCreated = true;
+    const auto c     = vk::ShaderStageFlagBits::eCompute;
     {
         DescriptorSetLayout l;
         l.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageBuffer, 1, c));
@@ -101,13 +114,6 @@ void HorizonShadows::init(VulkanBase& b)
         mapPipeline.create();
         for (auto& set : mapSets) set = mapPipeline.createRawDescriptorSet();
     }
-    // Linear filtering of RG32F is optional: else nearest with manual bilinear weights (shadows.glsl)
-    const auto features = base->physicalDevice.getFormatProperties(vk::Format::eR32G32Sfloat).optimalTilingFeatures;
-    linearFilter        = bool(features & vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
-    SamplerParameters sp;
-    sp.setFilter(linearFilter ? vk::Filter::eLinear : vk::Filter::eNearest);
-    sp.setAddressMode(vk::SamplerAddressMode::eClampToEdge);
-    sampler.create(*base, sp);
 }
 
 void HorizonShadows::destroy()
@@ -115,6 +121,7 @@ void HorizonShadows::destroy()
     if (!base) return;
     chainPipeline.destroy();
     mapPipeline.destroy();
+    pipelinesCreated = false;
     auto* pool = &base->descriptorPool;
     for (auto* sets : {&chainSets, &mapSets})
         for (vk::DescriptorSet& s : *sets)
@@ -163,6 +170,7 @@ vk::DescriptorImageInfo HorizonShadows::descriptor() const
 
 void HorizonShadows::buildChain(vk::CommandBuffer cmd, const TerrainAtlas& atlas, uint32_t frameIndex)
 {
+    createPipelines();
     vk::DescriptorSet chainSet = chainSets[frameIndex];
     const int samples          = atlas.layout().pyramidSamplesPerSide();
     levelOffsets.clear();
@@ -250,6 +258,7 @@ HorizonShadows::MapTransform HorizonShadows::targetTransform(const Vec3& camera,
 void HorizonShadows::recordRows(vk::CommandBuffer cmd, const MapTransform& t, int layer, int row0, int rows,
                                 const TerrainAtlas& atlas, const LightingParameters& p, uint32_t frameIndex)
 {
+    createPipelines();
     vk::DescriptorSet mapSet                      = mapSets[frameIndex];
     std::array<vk::DescriptorBufferInfo, 1> infos = {vk::DescriptorBufferInfo(handle(chain), 0, VK_WHOLE_SIZE)};
     vk::DescriptorImageInfo image(nullptr, maps->view(), vk::ImageLayout::eGeneral);

@@ -99,6 +99,10 @@ class SAIGA_VULKAN_API HorizonShadows
    private:
     VulkanBase* base = nullptr;
     ComputePipeline chainPipeline, mapPipeline;
+    // The pipelines are created on the first update (S36 review round 2, finding 4a: a scene without the horizon map
+    // pays nothing)
+    bool pipelinesCreated = false;
+    void createPipelines();
     // Per frame slot (a set must not be updated while a pending frame uses it)
     std::array<vk::DescriptorSet, 2> chainSets{}, mapSets{};
     Buffer chain;
