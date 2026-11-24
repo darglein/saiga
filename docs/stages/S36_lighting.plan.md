@@ -1377,11 +1377,11 @@ and night; the five clay goldens are unchanged; the ACES baseline and the clay r
 
 ```shell
 # CI recipe (AGENTS.md "Build (Linux)"), then
-cd build && ctest --output-on-failure --parallel 4
+ctest --test-dir build --output-on-failure --parallel 4   # from the repository root (the paths below are root-relative)
 # lavapipe as CI; the pattern also matches test_engine_lighting_render and test_engine_lighting_tools (intended);
 # build first (the compile-fail note of AGENTS.md: ctest must not rebuild the libraries while tests run; nit 35)
 VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json \
-  ctest -R 'test_vulkan_lighting|test_vulkan_shadows|test_vulkan_local_lights|test_engine_lighting' --output-on-failure
+  ctest --test-dir build -R 'test_vulkan_lighting|test_vulkan_shadows|test_vulkan_local_lights|test_engine_lighting' --output-on-failure
 # goldens (the flip commit of a1c, a2, b; lavapipe)
 VK_DRIVER_FILES=/usr/share/vulkan/icd.d/lvp_icd.json SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render \
   --gtest_filter='LightingGolden.*'

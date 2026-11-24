@@ -242,7 +242,9 @@ TEST(AppCommandLine, TimeOfDayAndDayLength)
     {
         EngineAppSetup u;
         AppOptions q;
-        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1] << " " << bad[2];
+        std::string args;
+        for (size_t i = 1; i < bad.size(); ++i) args += std::string(i > 1 ? " " : "") + bad[i];
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << args;
     }
     // A world without WorldTime stops with exit code 1 (before the frame loop)
     EngineAppSetup plain = appSetup(false);
@@ -1730,7 +1732,9 @@ TEST(AppCommandLine, Coop)
         EngineAppSetup u;
         u.benchmarks = {"flyover"};
         AppOptions q;
-        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1] << " " << bad[2];
+        std::string args;
+        for (size_t i = 1; i < bad.size(); ++i) args += std::string(i > 1 ? " " : "") + bad[i];
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << args;
     }
 }
 

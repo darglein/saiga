@@ -81,11 +81,10 @@ void normaliseWorldTime(WorldTime& t)
         const double days = std::floor(t.timeOfDay / 24);
         t.timeOfDay -= days * 24;
         t.day = addDays(t.day, int64_t(days));
-        if (t.timeOfDay >= 24 || t.timeOfDay < 0)
-        {
-            // Rounding at the boundary
-            t.timeOfDay = 0;
-        }
+        // Rounding at the boundary. A tiny negative time (e.g. -4.6e-18 h, one step back from midnight) moved the day
+        // back and rounded up to 24: it stays just before the end of that day (setting 0 lost a whole day per step)
+        if (t.timeOfDay >= 24) t.timeOfDay = std::nextafter(24.0, 0.0);
+        if (t.timeOfDay < 0) t.timeOfDay = 0;
     }
 }
 
@@ -135,8 +134,9 @@ bool setWorldTime(World& world, const WorldTimeChange& c, std::string& error, Wo
     normaliseWorldTime(t);
     // Continue from the time the extract shows: fold in the progress since validAt (zero with worldTimeSystem, which
     // writes validAt every step; in a world without it the stored time stays and only the extract extrapolates, so
-    // a write of the rate alone would jump back to the stored time)
-    if (!c.hours && t.rate != 0)
+    // a write of the rate alone would jump back to the stored time). Also with an explicit hours: the day continues
+    // from the extrapolated one unless the change sets it
+    if (t.rate != 0)
     {
         t.timeOfDay += t.rate * (world.time() - t.validAt) / 3600.0;
         normaliseWorldTime(t);

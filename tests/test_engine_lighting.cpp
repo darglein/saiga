@@ -274,6 +274,41 @@ TEST(WorldTime, SystemAdvancesWrapsAndCountsDays)
     EXPECT_EQ(w.readGlobal<WorldTime>().timeOfDay, 10);
 }
 
+// Regression: one step back from midnight with a tiny negative rate (-4.6e-18 h) moved the day back and rounded the
+// time up to 24, which normalisation reset to 0: every step lost a whole day
+TEST(WorldTime, TinyNegativeStepKeepsTheDay)
+{
+    WorldTime t;
+    t.timeOfDay = 0;
+    t.day       = 5;
+    t.rate      = -1e-12;
+    for (int i = 0; i < 100; ++i)
+    {
+        t.timeOfDay += t.rate * (1.0 / 60) / 3600;
+        normaliseWorldTime(t);
+    }
+    EXPECT_EQ(t.day, 4);
+    EXPECT_LT(t.timeOfDay, 24);
+    EXPECT_GT(t.timeOfDay, 23.9);
+}
+
+// Regression: without worldTimeSystem a write of hours alone skipped the extrapolation, so the day stayed the stored
+// one although the extract already showed the next day (unset fields continue from their extrapolated values)
+TEST(WorldTime, HoursWriteContinuesTheExtrapolatedDay)
+{
+    World w(frozenEnvironmentSetup());
+    std::string error;
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{23.0, 4, 3600.0}, error)) << error;
+    w.step(int(std::lround(2.0 / w.dt())));
+    EXPECT_EQ(sample(w, 1).time.day, 5);
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{6.0, std::nullopt, std::nullopt}, error)) << error;
+    EXPECT_EQ(w.readGlobal<WorldTime>().day, 5);
+    EXPECT_EQ(w.readGlobal<WorldTime>().timeOfDay, 6);
+    // An explicit day takes precedence
+    ASSERT_TRUE(setWorldTime(w, WorldTimeChange{6.0, 9, std::nullopt}, error)) << error;
+    EXPECT_EQ(w.readGlobal<WorldTime>().day, 9);
+}
+
 TEST(WorldTime, SystemNormalisesInvalidValues)
 {
     World w(environmentSetup());
