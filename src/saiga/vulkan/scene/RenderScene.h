@@ -25,6 +25,8 @@
 #include <string>
 #include <vector>
 
+#include <unordered_map>
+
 namespace Saiga
 {
 namespace Vulkan
@@ -484,6 +486,10 @@ class SAIGA_VULKAN_API RenderScene
                     uint32_t frameIndex);
     void markSetDirty(InstanceSetHandle set);
     void markDynamicDirty(MeshId mesh, const ChunkId& chunk, const DynamicPose& pose);
+    // S36b round 1, finding 11: the dynamics snapped to a new place (by handle: frameCount at the call); a snap moves
+    // for the atlas in the next frame only, then the instance rests (settleSnapped: its rest bounds are dirty)
+    std::unordered_map<uint32_t, uint64_t> snappedDynamics;
+    void settleSnapped();
     void markRegionDirty(const RegionId& region);
     bool freezeCascades = false;
     // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon

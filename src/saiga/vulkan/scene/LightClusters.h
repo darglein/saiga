@@ -75,6 +75,9 @@ class SAIGA_VULKAN_API LightClusters
     vk::DescriptorBufferInfo indexInfo(uint32_t frameIndex);
     // The slot's previous frame has completed: its statistics become statistics() and clustersOf()
     void harvest(uint32_t frameIndex);
+    // A frame without lights (no cull recorded): the statistics, the counts and clustersOf are empty (round 1,
+    // finding 9: they kept the last frame with lights)
+    void clearStatistics();
     struct Statistics
     {
         uint64_t frame         = 0;

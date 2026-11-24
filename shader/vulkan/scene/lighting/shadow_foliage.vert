@@ -57,12 +57,18 @@ void main()
     float scale    = pose.scale;
     vec3 p         = rotateQuat(pose.rotation, inPosition * scale);
 
-    // The wind of prototype_foliage.vert (keep both in sync)
+    // The wind of prototype_foliage.vert (keep both in sync). S36b (B4, round 1 finding 10): an atlas face is cached,
+    // so it uses the wind phases 0 (a fixed pose, not the phase of the frame that rendered it)
+#ifdef ATLAS_DEPTH
+    vec3 windPhase = vec3(0.0);
+#else
+    vec3 windPhase = lighting.wind.xyz;
+#endif
     vec2 worldXz = pose.position.xz + (o.hi.xz + o.lo.xz) + lighting.camera.xz;
     float phase  = worldXz.x * 0.031 + worldXz.y * 0.027;
-    vec2 sway    = vec2(sin(lighting.wind.x + phase), cos(lighting.wind.y + phase * 1.7)) * 0.012;
+    vec2 sway    = vec2(sin(windPhase.x + phase), cos(windPhase.y + phase * 1.7)) * 0.012;
     float flutter =
-        layer >= 0.0 ? sin(lighting.wind.z + phase * 5.0 + inPosition.x * 20.0 + inPosition.y * 13.0) * 0.004 : 0.0;
+        layer >= 0.0 ? sin(windPhase.z + phase * 5.0 + inPosition.x * 20.0 + inPosition.y * 13.0) * 0.004 : 0.0;
     p.xz += (sway + flutter) * scale * windW * lighting.wind.w;
 
     outUvLayer    = vec3(inUv, layer);

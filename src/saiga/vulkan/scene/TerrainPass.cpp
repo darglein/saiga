@@ -722,7 +722,8 @@ void TerrainPass::selectForAtlas(uint32_t frameIndex, const TerrainAtlas& atlas,
     Frame& f = frames[frameIndex];
     f.atlasRanges.clear();
     keys.assign(spheres.size(), 0);
-    atlasNodes = 0;
+    atlasNodes     = 0;
+    atlasTruncated = 0;
     if (!frameValid || spheres.empty()) return;
     const int32_t anchorX = uniforms.anchor(0), anchorZ = uniforms.anchor(1);
     auto* dst              = static_cast<GpuNode*>(f.atlasNodes.getMappedPointer());
@@ -748,10 +749,14 @@ void TerrainPass::selectForAtlas(uint32_t frameIndex, const TerrainAtlas& atlas,
                 selectSphere(atlas, camera.position, centre, r, R, x, z, anchorX, anchorZ, sel, key);
         Frame::ShadowRange range;
         range.first = used;
-        range.full  = uint32_t(std::min<size_t>(sel.full.size(), kMaxAtlasNodes - used));
+        range.full  = uint32_t(std::min<size_t>(sel.full.size(), atlasNodeLimit - used));
         if (range.full) std::memcpy(dst + range.first, sel.full.data(), range.full * sizeof(GpuNode));
         used += range.full;
         f.atlasRanges.push_back(range);
+        // A cut selection: counted, and its key changes with the cut (the faces render again once there is room)
+        const uint32_t cut = uint32_t(sel.full.size()) - range.full;
+        atlasTruncated += int(cut);
+        if (cut) key = (key ^ (uint64_t(cut) + 0x9E3779B97F4A7C15ull)) * 1099511628211ull;
         keys[i] = sel.full.empty() ? 0 : key;
     }
     atlasNodes                                    = int(used);
@@ -767,6 +772,11 @@ void TerrainPass::selectForAtlas(uint32_t frameIndex, const TerrainAtlas& atlas,
     for (uint32_t b = 1; b <= 5; ++b)
         writes.emplace_back(f.atlasSet, b, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &infos[b]);
     base->device.updateDescriptorSets(writes, nullptr);
+}
+
+void TerrainPass::setAtlasNodeLimit(uint32_t limit)
+{
+    atlasNodeLimit = std::clamp<uint32_t>(limit, 1, kMaxAtlasNodes);
 }
 
 void TerrainPass::createAtlasPipeline()

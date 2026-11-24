@@ -437,7 +437,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (s.frameCascades && s.params.lighting.terrainCastsInCascades)
             s.terrain->selectForShadow(frame.frameIndex, *s.atlas, camera, s.shadowViews);
         s.cascadeOverlays();
-        // S36b: the local lights of the frame
+        // S36b: the dynamics snapped in an earlier frame and not since come to rest; the local lights of the frame
+        s.settleSnapped();
         s.frameLocalLights(camera, lighting, frame.frameIndex);
         // S36b: the shadow atlas (its faces are views of the culling after the cascades')
         s.frameAtlas(cmd, camera, enclosed, lighting, frame.frameIndex);
@@ -1806,6 +1807,7 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     g.fovy                = cameraFovy;
     g.aspect              = double(g.width) / double(g.height);
     frameClusters         = camera.valid && count > 0;
+    if (!frameClusters) clusterCull->clearStatistics();
     const bool clustered  = frameClusters && p.clusteredLights;
     block.lightCounts     = uvec4(count, clustered ? 1u : 0u, uint32_t(lightTable->highlightIndex() + 1), 0);
     block.clusterGrid     = uvec4(uint32_t(g.x), uint32_t(g.y), uint32_t(g.z), uint32_t(g.maxLightsPerCluster));
@@ -2226,7 +2228,9 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.horizon             = horizon->statistics();
     st.horizonPreview = st.horizon;
     st.lights              = lightTable->statistics();
-    st.atlas               = atlasShadows->statistics();
+    st.atlas                       = atlasShadows->statistics();
+    st.atlas.terrainNodes          = uint32_t(terrain->atlasNodeCount());
+    st.atlas.terrainNodesTruncated = uint32_t(terrain->atlasNodesTruncated());
     st.lights.withoutTiles = st.atlas.lightsWithoutTiles;
     {
         const LightClusters::Statistics& cs = clusterCull->statistics();
@@ -2532,13 +2536,38 @@ void RenderScene::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dynam
                                old.curr.scale == now.curr.scale;
         if (wasResting && !(resting && samePlace)) markDynamicDirty(old.mesh, old.chunk, old.curr);
         if (resting && !(wasResting && samePlace)) markDynamicDirty(now.mesh, now.chunk, now.curr);
+        if (now.snappedMove)
+            snappedDynamics[h.id] = frameCount;
+        else
+            snappedDynamics.erase(h.id);
         return;
     }
     instanceBuffer->setDynamic(h, chunk, prev, curr, boneOffset);
 }
 
+void RenderScene::settleSnapped()
+{
+    // A dynamic snapped before the previous frame and not since: at rest (its rest pose is a static caster)
+    for (auto it = snappedDynamics.begin(); it != snappedDynamics.end();)
+    {
+        if (it->second >= frameCount)
+        {
+            ++it;
+            continue;
+        }
+        const InstanceHandle h{it->first};
+        if (instanceBuffer->settle(h))
+        {
+            const InstanceBuffer::Dynamic& d = instanceBuffer->dynamics()[h.id - 1];
+            if (!InstanceBuffer::moving(d)) markDynamicDirty(d.mesh, d.chunk, d.curr);
+        }
+        it = snappedDynamics.erase(it);
+    }
+}
+
 void RenderScene::removeDynamic(InstanceHandle h)
 {
+    snappedDynamics.erase(h.id);
     const auto& list = instanceBuffer->dynamics();
     if (h.id >= 1 && h.id <= list.size() && list[h.id - 1].alive && !InstanceBuffer::moving(list[h.id - 1]))
         markDynamicDirty(list[h.id - 1].mesh, list[h.id - 1].chunk, list[h.id - 1].curr);

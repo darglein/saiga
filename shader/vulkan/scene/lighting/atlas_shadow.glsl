@@ -38,7 +38,13 @@ float atlasCompare(vec2 uv, float layer, float ref)
 float atlasShadow(vec4 posRange, vec4 dirKind, vec4 intensity, vec4 cone, vec3 relPos, vec3 n)
 {
     if (cone.z < 0.5 || intensity.w < 0.0 || lighting.lightCounts.w == 0u) return 1.0;
-    vec3 d    = relPos - posRange.xyz;
+    // The normal offset: texels of the face at the receiver's distance (towards the light's side of the surface; the
+    // texel factor is the same for the six faces of a point light)
+    float dist = length(relPos - posRange.xyz);
+    vec3 p     = relPos + n * (atlasTiles[uint(intensity.w)].params.x * dist * lighting.atlasParams.z);
+    // The face of the offset point (round 1, finding 12: the face of the receiver itself made a point near a cube edge
+    // project outside its face, onto the clamped tile border)
+    vec3 d    = p - posRange.xyz;
     uint face = 0u;
     if (dirKind.w < 0.5)
     {
@@ -46,9 +52,6 @@ float atlasShadow(vec4 posRange, vec4 dirKind, vec4 intensity, vec4 cone, vec3 r
         face   = a.x >= a.y && a.x >= a.z ? (d.x > 0.0 ? 0u : 1u) : a.y >= a.z ? (d.y > 0.0 ? 2u : 3u) : (d.z > 0.0 ? 4u : 5u);
     }
     AtlasTile t = atlasTiles[uint(intensity.w) + face];
-    // The normal offset: texels of the face at the receiver's distance (towards the light's side of the surface)
-    float dist  = length(d);
-    vec3 p      = relPos + n * (t.params.x * dist * lighting.atlasParams.z);
     vec4 clip   = t.viewProj * vec4(p, 1.0);
     if (clip.w <= 0.0) return 1.0;
     vec2 uv     = clip.xy / clip.w * 0.5 + 0.5;

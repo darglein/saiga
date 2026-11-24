@@ -936,6 +936,8 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                                         {"hits", double(a.hits)},
                                                         {"queue", double(a.queue)},
                                                         {"dynamic_skipped", double(a.dynamicSkipped)},
+                                                        {"terrain_nodes", double(a.terrainNodes)},
+                                                        {"terrain_nodes_truncated", double(a.terrainNodesTruncated)},
                                                         {"lights_with_tiles", double(a.lightsWithTiles)},
                                                         {"lights_without_tiles", double(a.lightsWithoutTiles)},
                                                         {"faces_per_frame", a.facesPerFrame},

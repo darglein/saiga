@@ -64,6 +64,10 @@ class SAIGA_VULKAN_API InstanceBuffer
         uint32_t slot = 0;
         DynamicPose prev, curr;
         uint32_t boneOffset = 0;
+        // S36b round 1, finding 11: the last setDynamic snapped the instance (prev == curr) to another place than the
+        // call before (a game that passes an interpolated pose as both): it moves for the shadow atlas in the frame of
+        // that call (RenderScene settles it in the next frame unless it is snapped again)
+        bool snappedMove = false;
     };
     struct Slot
     {
@@ -117,10 +121,13 @@ class SAIGA_VULKAN_API InstanceBuffer
     bool recordGrowth(vk::CommandBuffer cmd) { return buffer.recordGrowth(cmd); }
     void queueUploads(UploadBatch& batch);
     Buffer& instanceBuffer() { return buffer.buffer(); }
-    // S36b: the instance moves (its prev and curr pose differ; the shadow atlas's dynamic layer)
+    // S36b: the instance moves (its prev and curr pose differ, or it was snapped to another place by its last
+    // setDynamic; the shadow atlas's dynamic layer). A resting instance (the same pose twice) is a static caster
     static bool moving(const Dynamic& d);
     // Writes dynamics().size() entries (free or unset entries with mesh 0)
     void writeDynamics(GpuDynamic* out) const;
+    // S36b: a snapped instance that was not set again comes to rest (snappedMove cleared; false: it was not snapped)
+    bool settle(InstanceHandle h);
 
    private:
     SubAllocatedBuffer buffer;

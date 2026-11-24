@@ -12,8 +12,10 @@
 #include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/LocalLights.h"
+#include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/scene/ShadowAtlas.h"
+#include "saiga/vulkan/scene/TerrainPass.h"
 
 #include <algorithm>
 #include <cmath>
@@ -22,6 +24,7 @@
 #include <set>
 
 #include "render_scene_test_context.h"
+#include "terrain_test_hooks.h"
 
 using namespace Saiga;
 using namespace Saiga::Vulkan;
@@ -598,6 +601,18 @@ TEST_F(LightsTest, ClusterDebug)
     ASSERT_TRUE(got);
     EXPECT_GT(st.max, 1.0f);
     EXPECT_LE(st.max, 6.0f);
+    // Regression (round 1, finding 9): without lights the cluster statistics are empty (they kept the last frame with
+    // lights: get_lighting.clusters and the tab's heat map range)
+    EXPECT_GT(scene->lightingStatistics().lights.clusterMax, 0u);
+    const uint32_t first = lights[0].id;
+    EXPECT_GT(scene->lightClusters().clustersOf(first), 0u);
+    for (LightHandle l : lights) scene->removeLight(l);
+    lights.clear();
+    Capture(1);
+    EXPECT_EQ(scene->lightingStatistics().lights.clusterMax, 0u);
+    EXPECT_EQ(scene->lightingStatistics().lights.clusterMean, 0.0);
+    EXPECT_EQ(scene->lightClusters().clustersOf(first), 0u);
+    EXPECT_TRUE(scene->lightClusters().lastCounts().empty());
 }
 
 namespace
@@ -781,14 +796,58 @@ TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
     EXPECT_EQ(Stats().dynamicClears, 2u);
     RenderFrame();
     EXPECT_EQ(Stats().dynamicClears, 0u);
-    // At rest inside the point light: no dynamic face, the static faces re-rendered once (its rest pose is dirty)
+    // Snapped into the point light: it moves in the snap's frame (the dynamic layer; round 1, finding 11), then rests:
+    // no dynamic face, the static faces re-rendered once (its rest pose is dirty)
     pose.position = Vec3(1, 1.5, 0);
     scene->setDynamic(d, ChunkId(), pose, pose);
+    RenderFrame();
+    EXPECT_EQ(Stats().dynamicRenders, 2u);
+    EXPECT_EQ(Stats().staticRenders, 0u);
     RenderFrame();
     EXPECT_EQ(Stats().dynamicRenders, 0u);
     EXPECT_EQ(Stats().staticRenders, 6u);
     RenderFrame();
     EXPECT_EQ(Stats().staticRenders, 0u);
+    scene->removeDynamic(d);
+}
+
+// Regression (round 1, finding 11): a dynamic instance that a game snaps (prev == curr, as flight's bulbs) to a new
+// place every frame moves for the atlas (its dynamic layer), not a resting instance at a new place each frame: the old
+// code pushed its old and new bounds as dirty bounds every frame (every static face in range re-rendered per frame).
+// When it stays (the same pose again, or no call in the next frame) it rests: its static faces are rendered once
+TEST_F(AtlasTest, SnappedDynamicMoves)
+{
+    FloorAndBox(790);
+    AddLight(ShadowedPoint(vec3(0, 3, 0), 6));
+    Capture(2);
+    const InstanceHandle d = scene->addDynamic(boxMeshId);
+    DynamicPose pose;
+    pose.position = Vec3(1, 1.5, 0);
+    scene->setDynamic(d, ChunkId(), pose, pose);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u) << "at rest where it appeared";
+    for (int i = 0; i < 3; ++i)
+    {
+        pose.position += Vec3(0.05, 0, 0);
+        scene->setDynamic(d, ChunkId(), pose, pose);
+        RenderFrame();
+        EXPECT_EQ(Stats().staticRenders, i == 0 ? 6u : 0u) << i << " (the first: its resting bounds are dirty)";
+        EXPECT_GT(Stats().dynamicRenders, 0u) << i;
+    }
+    scene->setDynamic(d, ChunkId(), pose, pose);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u) << "at rest again";
+    EXPECT_EQ(Stats().dynamicRenders, 0u);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    // A snap without a further call: moving in its frame, at rest in the next
+    pose.position += Vec3(0.05, 0, 0);
+    scene->setDynamic(d, ChunkId(), pose, pose);
+    RenderFrame();
+    EXPECT_GT(Stats().dynamicRenders, 0u);
+    RenderFrame();
+    EXPECT_EQ(Stats().dynamicRenders, 0u);
+    EXPECT_EQ(Stats().staticRenders, 6u);
     scene->removeDynamic(d);
 }
 
@@ -894,6 +953,36 @@ TEST_F(AtlasTest, NoAcneAtRange)
     Capture(1);
     const vec3 floor2 = ReadRadiance(Pixel(Vec3(3, 0, 1), eye));
     EXPECT_NEAR(floor(1), floor2(1), 0.02f * floor2(1));
+}
+
+// Regression (round 1, finding 12): a point light over an open floor (nothing casts a shadow) looks the same with and
+// without its atlas shadow, also along the cube faces' edges (|x| or |z| = the light's height on the floor), with a
+// large normal offset. The old shader chose the face from the receiver, then offset it along the normal: near an edge
+// the offset point projected outside its face, onto the clamped tile border
+TEST_F(AtlasTest, NoSeamsAtFaceEdges)
+{
+    Floor(788);
+    LightingParameters p = scene->lightingParameters();
+    p.atlasNormalOffset  = 8;
+    scene->setLightingParameters(p);
+    LightData d                = ShadowedPoint(vec3(0, 1.5f, 0), 10);
+    const LightHandle shadowed = AddLight(d);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::LocalLightsOnly, 0});
+    const TemplatedImage<ucvec4> a = Capture(1);
+    scene->removeLight(shadowed);
+    d.castShadows = false;
+    AddLight(d);
+    const TemplatedImage<ucvec4> b = Capture(1);
+    int differing                  = 0;
+    for (int y = 0; y < a.h; ++y)
+        for (int x = 0; x < a.w; ++x)
+            for (int c = 0; c < 3; ++c)
+                if (std::abs(int(a(y, x)(c)) - int(b(y, x)(c))) > 4)
+                {
+                    differing++;
+                    break;
+                }
+    EXPECT_EQ(differing, 0);
 }
 
 // A box inside a point light's sphere (the light beside it at its height) shadows the floor behind it, in every
@@ -1104,4 +1193,66 @@ TEST_F(AtlasTest, CachedFacesIndependentOfCamera)
     Capture(1);
     EXPECT_EQ(Stats().staticRenders, 0u) << "still cached";
     ExpectShadowed(BehindPillars({Vec3(1, 0, 0), Vec3(-1, 0, 0)}), eye);
+}
+
+// The terrain under shadowed lights (finding 13, finding 15's open case): a lamp 300 m from the camera has only coarse
+// terrain under it; a finer tile that becomes resident there changes its terrain key: its faces are rendered again,
+// then cached. Regression (round 1, finding 13): the atlas's terrain nodes cut by the node buffer's limit are counted,
+// and a cut sphere's key changes with the cut, so its faces render again when the cut changes (the old key ignored
+// the cut: faces cached without the missing terrain stayed until something else dirtied them)
+TEST_F(AtlasTest, TerrainUnderLights)
+{
+    using namespace TerrainTestHooks;
+    // No terrain pixels are read: the terrain and water draws off (the selections and uploads run; test speed, a CDLOD
+    // frame is ~100k triangles on lavapipe)
+    PrototypeSettings ps = scene->prototypeSettings();
+    ps.terrain           = false;
+    ps.water             = false;
+    scene->setPrototypeSettings(ps);
+    const TerrainLayout layout = testLayout(16, 2);
+    const Vec3 cam(300.5, 12, 300.5);
+    fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
+    SetCamera(0, cam, lookRotation(Vec3(1, -0.3, 0)), 1.2);
+    AddLight(ShadowedPoint(vec3(600, 3, 300.5f), 8));
+    AddLight(ShadowedPoint(vec3(330, 3, 300.5f), 8));
+    // 12 faces at 11 per frame, then cached
+    Capture(3);
+    ASSERT_EQ(Stats().lightsWithTiles, 2u);
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    const uint32_t nodes = scene->lightingStatistics().atlas.terrainNodes;
+    ASSERT_GT(nodes, 1u);
+    EXPECT_EQ(scene->lightingStatistics().atlas.terrainNodesTruncated, 0u);
+    // A limit one node short: the last sphere's selection is cut (counted) and its faces render again
+    scene->terrainPass().setAtlasNodeLimit(nodes - 1);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().atlas.terrainNodesTruncated, 1u);
+    EXPECT_EQ(Stats().staticRenders, 6u);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    // Room again: rendered with the whole selection
+    scene->terrainPass().setAtlasNodeLimit(16384);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().atlas.terrainNodesTruncated, 0u);
+    EXPECT_EQ(Stats().staticRenders, 6u);
+    // The level-0 tile under the far lamp becomes resident: its faces render again (the finer level), then cached
+    RegionId r;
+    r.level = 0;
+    r.x     = 2;
+    r.z     = 1;
+    scene->setTerrainTile(r, generateTerrainTile(TerrainHeightSource::fromHook(flatHook, 1), layout, r));
+    uint32_t renders = 0;
+    for (int i = 0; i < 4; ++i)
+    {
+        RenderFrame();
+        renders += Stats().staticRenders;
+    }
+    EXPECT_GE(renders, 6u);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 0u);
+    // A pyramid patch invalidates every face (finding 15): the 12 faces at 11 per frame
+    const int32_t zero = 0;
+    scene->patchTerrainPyramid(0, 0, 0, 1, 1, &zero);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 11u);
+    EXPECT_EQ(Stats().queue, 1u);
 }

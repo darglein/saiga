@@ -343,6 +343,17 @@ void LightClusters::harvest(uint32_t frameIndex)
     std::sort(clusterCountsByHandle.begin(), clusterCountsByHandle.end());
 }
 
+void LightClusters::clearStatistics()
+{
+    Statistics s;
+    s.memoryBytes = bounds.size();
+    for (const Frame& o : frames) s.memoryBytes += o.table.size() + o.indices.size() + o.lightCounts.size();
+    stats = s;
+    counts.clear();
+    totals.clear();
+    clusterCountsByHandle.clear();
+}
+
 uint32_t LightClusters::clustersOf(uint32_t handle) const
 {
     auto it = std::lower_bound(clusterCountsByHandle.begin(), clusterCountsByHandle.end(),

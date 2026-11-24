@@ -177,8 +177,12 @@ class SAIGA_VULKAN_API TerrainPass
     // (ATLAS_DEPTH: the linear depth distance / range; light: xyz camera-relative, w 1 / range)
     void renderAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, size_t sphere, const mat4& viewProj, const vec4& light,
                      const PrototypeSettings& s);
-    // The nodes of the last selectForAtlas (all spheres)
+    // The nodes of the last selectForAtlas (all spheres) and the nodes cut by the node buffer's limit (round 1,
+    // finding 13: a cut sphere's key includes its cut count, so its faces render again once there is room)
     int atlasNodeCount() const { return atlasNodes; }
+    int atlasNodesTruncated() const { return atlasTruncated; }
+    // The node buffer's limit (at most 16384; tests lower it)
+    void setAtlasNodeLimit(uint32_t limit);
 
     // The frame's uniforms (the grass and the sky bind the set of the frame slot)
     const TerrainFrameUniforms& frameUniforms() const { return uniforms; }
@@ -235,6 +239,8 @@ class SAIGA_VULKAN_API TerrainPass
     uint64_t creations = 0;
     Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline, shadowPipeline, atlasPipeline;
     int atlasNodes            = 0;
+    int atlasTruncated        = 0;
+    uint32_t atlasNodeLimit   = 16384;
     bool atlasPipelineCreated = false;
     void createAtlasPipeline();
     // The nodes at the finest resident level that intersect a sphere (camera-relative centre)

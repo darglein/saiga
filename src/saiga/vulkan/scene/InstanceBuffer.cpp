@@ -257,6 +257,9 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
     SAIGA_ASSERT(h.id > 0 && h.id <= dynamicList.size() && dynamicList[h.id - 1].alive,
                  "setDynamic: unknown dynamic instance");
     Dynamic& d = dynamicList[h.id - 1];
+    auto same  = [](const DynamicPose& a, const DynamicPose& b)
+    { return a.position == b.position && a.scale == b.scale && a.rotation.coeffs() == b.rotation.coeffs(); };
+    d.snappedMove = d.set && same(prev, curr) && (d.chunk != chunk || !same(d.curr, curr));
     if (!d.set || d.chunk != chunk)
     {
         // Room for the old chunk's slot first: after acquireChunk nothing may throw (RenderSink's failure contract)
@@ -290,9 +293,18 @@ void InstanceBuffer::removeDynamic(InstanceHandle h)
     freeDynamics.push_back(h.id - 1);
 }
 
+bool InstanceBuffer::settle(InstanceHandle h)
+{
+    if (h.id == 0 || h.id > dynamicList.size() || !dynamicList[h.id - 1].alive) return false;
+    Dynamic& d         = dynamicList[h.id - 1];
+    const bool snapped = d.snappedMove;
+    d.snappedMove      = false;
+    return snapped;
+}
+
 bool InstanceBuffer::moving(const Dynamic& d)
 {
-    return d.prev.position != d.curr.position || d.prev.scale != d.curr.scale ||
+    return d.snappedMove || d.prev.position != d.curr.position || d.prev.scale != d.curr.scale ||
            d.prev.rotation.coeffs() != d.curr.rotation.coeffs();
 }
 

@@ -993,6 +993,8 @@ void LightingTab::atlasSection()
             DebugUiStyle::property("queue");
             ImGui::Text("%u static faces waiting, %u dynamic faces skipped (%d faces per frame)", as.queue,
                         as.dynamicSkipped, as.facesPerFrame);
+            DebugUiStyle::property("terrain nodes");
+            ImGui::Text("%u (%u cut by the 16384 limit)", as.terrainNodes, as.terrainNodesTruncated);
             DebugUiStyle::property("shadowed lights");
             ImGui::Text("%u with tiles, %u without (the tile budget)", as.lightsWithTiles, as.lightsWithoutTiles);
             DebugUiStyle::property("atlas memory");

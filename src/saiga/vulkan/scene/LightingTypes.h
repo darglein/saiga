@@ -482,6 +482,8 @@ struct AtlasStatistics
     // budget (they keep their last image), the shadowed lights with tiles and without (the tile budget)
     uint32_t staticRenders = 0, dynamicRenders = 0, dynamicClears = 0, hits = 0, queue = 0, dynamicSkipped = 0;
     uint32_t lightsWithTiles = 0, lightsWithoutTiles = 0;
+    // The terrain nodes of the frame's atlas selection and the nodes cut by the node buffer's limit (16384)
+    uint32_t terrainNodes = 0, terrainNodesTruncated = 0;
     int facesPerFrame    = 0;
     uint64_t memoryBytes = 0;
 };
