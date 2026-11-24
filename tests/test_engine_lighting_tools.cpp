@@ -987,6 +987,58 @@ TEST_F(LightingTabTest, RendersAndWrites)
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
 }
 
+// Regression (S36 demo): "move camera to light" held the camera as an MCP tool does (the free camera no longer moved),
+// and each further click moved the eye higher (it went back along the view's full forward, which then looked down at
+// the light). A second click keeps the pose; the camera is not held
+TEST_F(LightingTabTest, MoveCameraToLightIsRepeatableAndFree)
+{
+    World& w          = app->world();
+    const Entity lamp = w.create();
+    w.get<Transform>(lamp).setPosition(Vec3(3, 2, -4));
+    LightSource source;
+    source.range = 10;
+    w.add<LightSource>(lamp, source);
+    Vulkan::LightingParameters lp = app->scene()->lightingParameters();
+    lp.localLights                = true;
+    app->scene()->setLightingParameters(lp);
+    app->runFrames(1, 1.0 / 60);
+    Vulkan::LightingDebugState d;
+    d.highlightLight = w.extract().lightOf(lamp).id;
+    ASSERT_NE(d.highlightLight, 0u);
+    app->scene()->setLightingDebug(d);
+    Json::object state = app->debugUi().state().object_items();
+    // Only the Local lights section open (the button inside the 800 x 480 window)
+    state["sections"] = Json::object{{"lighting/Time and weather", false},
+                                     {"lighting/Sun and moon", false},
+                                     {"lighting/Exposure", false},
+                                     {"lighting/Local lights", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    std::vector<Vec3> eyes;
+    for (int k = 0; k < 2; ++k)
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app->debugUi().itemCenter("lighting/move camera to light", at));
+        ImGuiIO& io = ImGui::GetIO();
+        for (int s = 0; s < 40 && at.y > io.DisplaySize.y - 20; ++s)
+        {
+            io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+            io.AddMouseWheelEvent(0, -2);
+            app->runFrames(1, 1.0 / 60);
+            ASSERT_TRUE(app->debugUi().itemCenter("lighting/move camera to light", at));
+        }
+        ASSERT_LT(at.y, io.DisplaySize.y - 20);
+        click(*app, at);
+        app->runFrames(1, 1.0 / 60);
+        eyes.push_back(app->viewCamera().position);
+        EXPECT_FALSE(app->cameraHeldByTool()) << "click " << k;
+    }
+    EXPECT_LT((eyes[0] - Vec3(3, 2, -4)).norm(), 20.0) << "the camera moved to the light";
+    EXPECT_LT((eyes[1] - eyes[0]).norm(), 1e-6) << "a second click keeps the pose";
+    w.destroy(lamp);
+}
+
 // Regression (round 1, finding 8): an entity light switched off in the tab stays selected and editable (its row is
 // greyed with the state "off") and is switched on again by the same checkbox. The old tab lost the selection and the
 // editor with the sink light, so the light could not be switched on from the tab

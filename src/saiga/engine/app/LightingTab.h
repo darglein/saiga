@@ -14,6 +14,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Saiga
@@ -30,6 +31,12 @@ struct LightingPreviewSelection
     uint32_t light = 0;
     int face       = 0;
 };
+
+// The camera pose of the Lighting tab's "move camera to light": back from the light (range) along the view's horizontal
+// direction, or (spotDirection non-zero) behind and above a spot's cone, looking at the light; applied again from its
+// own result it returns the same pose
+SAIGA_ENGINE_API std::pair<Vec3, Quat> lightViewPose(const Vec3& light, const Vec3& spotDirection, double range,
+                                                     const Quat& view);
 
 /**
  * The debug UI's Lighting tab (F5; docs/engine_design.md §17.1; S36), set by the app with DebugUi::setTabContent:

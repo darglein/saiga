@@ -65,6 +65,21 @@ ImU32 turboColor(float t)
 }
 }  // namespace
 
+std::pair<Vec3, Quat> lightViewPose(const Vec3& light, const Vec3& spotDirection, double range, const Quat& view)
+{
+    // Back from the light along the view's horizontal direction (a spot: behind and above its cone), looking at it.
+    // Regression (S36 demo): the view's full forward was used, so every further click of "move camera to light" (the
+    // camera then looking down at the light) moved the eye higher
+    Vec3 forward = view * Vec3(0, 0, -1);
+    forward(1)   = 0;
+    if (forward.norm() < 1e-6) forward = Vec3(0, 0, -1);
+    forward.normalize();
+    if (spotDirection.norm() > 1e-9) forward = spotDirection.normalized();
+    const double back = std::max(2.0, 0.6 * range);
+    const Vec3 eye    = light - forward * back + Vec3(0, 0.3 * back, 0);
+    return {eye, cameraLookRotation(light - eye)};
+}
+
 LightingTab::~LightingTab()
 {
     Vulkan::RenderScene* scene = app.scene();
@@ -1477,14 +1492,15 @@ void LightingTab::lightTable()
         if (selState->state.rfind("invalid", 0) == 0)
             DebugUiStyle::coloredText(DebugUiStyle::kWarn, "an invalid LightSource is not rendered");
     }
-    if (hasPos && ImGui::SmallButton("move camera to light"))
+    const bool moveCamera = hasPos && ImGui::SmallButton("move camera to light");
+    if (hasPos) app.debugUi().markItem("lighting/move camera to light");
+    if (moveCamera)
     {
-        // Back from the light along the view direction (a spot: behind and above its cone), looking at it
-        const Vec3 forward =
-            spot && dir.norm() > 1e-9 ? Vec3(dir.normalized()) : Vec3(app.viewCamera().rotation * Vec3(0, 0, -1));
-        const double back  = std::max(2.0, 0.6 * range);
-        const Vec3 eye     = pos - forward * back + Vec3(0, 0.3 * back, 0);
-        app.setViewCameraByTool(space, eye, cameraLookRotation(pos - eye), app.viewCamera().fovy, true);
+        const auto [eye, rotation] = lightViewPose(pos, spot ? dir : Vec3::Zero(), range, app.viewCamera().rotation);
+        // Regression (S36 demo): the camera was held as by an MCP tool, so the free camera no longer moved; the button
+        // moves it once and leaves it free (also from a tool's hold: the user takes the camera)
+        app.releaseCamera();
+        app.setViewCameraByTool(space, eye, rotation, app.viewCamera().fovy, false);
     }
     if (hasPos) ImGui::SameLine();
     if (ImGui::SmallButton("deselect"))
