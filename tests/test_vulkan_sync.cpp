@@ -302,26 +302,46 @@ TEST_F(SyncValidation, LocalLightsAndAtlasFrame)
 // Round 2 (finding 3): the frames above wait for every frame (a screenshot each), so two frames are never in flight
 // and a hazard against the previous frame (a write-after-read, a descriptor set updated while a pending command buffer
 // has it bound) cannot occur. Here 8 frames are recorded back to back without a wait (2 frames in flight), each
-// changing something that rewrites resources of the frame before: the fovy (the projection), the cloud seed in
-// consecutive frames (finding 11: the noise and the coverage texture regenerated while the previous frame reads them),
-// the environment map's resolution, the horizon map's resolution and the cascade count; a capture and a probe after
-// eight frames. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon maps
+// changing something that rewrites resources of the frame before: the fovy (the projection; S36b: the cluster bounds,
+// round 2 finding 1: their single descriptor set was rewritten while the previous frame had it bound, an error of the
+// core validation; a local light keeps the clusters on), the cloud seed in consecutive frames (finding 11: the noise
+// and the coverage texture regenerated while the previous frame reads them), the environment map's resolution, the
+// horizon map's resolution, the cascade count and (S36b) the cluster grid's depth slices; a capture and a probe after
+// the eight frames. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon
+// maps
 TEST_F(SyncValidation, FramesInFlightWithChanges)
 {
     RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
     const TerrainLayout layout = testLayout(16, 2);
     const Vec3 cam(300.5, 12, 300.5);
     fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
+    MaterialData m;
+    scene->addMaterial(MaterialId(900), "sync_box", m);
+    scene->addMesh(MeshId(900), "sync_box", syncBox(vec3(0.5f, 0.5f, 0.5f)), MaterialId(900));
+    AddSet({[&]()
+            {
+                StaticInstance s;
+                s.setPosition(vec3(301.5f, 0.5f, 300.5f));
+                s.mesh = MeshId(900);
+                return s;
+            }()});
     LightingParameters p;
     p.cascadeResolution     = 256;
     p.horizonResolution     = 128;
     p.environmentResolution = 32;
     p.shadowDistance        = 60;
+    p.localLights           = true;
     scene->setLightingParameters(p);
     EnvironmentState e;
     e.cloudiness = 0.5f;
     scene->setEnvironment(e);
     scene->setToneMap(ToneMap::Aces);
+    LightData point;
+    point.kind     = LightKind::Point;
+    point.position = vec3(300.5f, 3, 300.5f);
+    point.lumen    = 2000;
+    point.range    = 10;
+    scene->addLight(ChunkId(), point);
     const Quat rot = viewRotation(lookAt(cam.cast<float>(), vec3(300.5f, 0, 299.5f), vec3(0, 1, 0)));
     SetCamera(0, cam, rot, 1.0);
     renderUntilUploaded(*scene);
@@ -345,6 +365,7 @@ TEST_F(SyncValidation, FramesInFlightWithChanges)
         if (frame == 4)
         {
             p.cascadeCount = 2;
+            p.clusterZ     = 48;
             scene->setLightingParameters(p);
         }
         scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
@@ -361,5 +382,6 @@ TEST_F(SyncValidation, FramesInFlightWithChanges)
     scene->waitIdle();
     EXPECT_TRUE(captured);
     EXPECT_TRUE(probed);
+    EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
     EXPECT_GE(scene->cloudLayer().generations(), 2u);
 }

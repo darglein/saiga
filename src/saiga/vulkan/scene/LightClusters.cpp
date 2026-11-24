@@ -132,7 +132,7 @@ void LightClusters::createPipelines()
         boundsPipeline.addPushConstantRange({c, 0, sizeof(BoundsPush)});
         boundsPipeline.shaderPipeline.loadCompute(base->device, "vulkan/scene/lighting/light_cluster_bounds.comp");
         boundsPipeline.create();
-        boundsSet = boundsPipeline.createRawDescriptorSet();
+        for (auto& s : boundsSets) s = boundsPipeline.createRawDescriptorSet();
     }
     {
         DescriptorSetLayout l;
@@ -176,7 +176,8 @@ void LightClusters::destroy()
         if (set) base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
         s = nullptr;
     };
-    free(boundsSet);
+    for (auto& s : boundsSets) free(s);
+    boundsSetVersions = {};
     for (auto& s : clusterSets) free(s);
     for (auto& s : debugSets) free(s);
     bounds.destroy();
@@ -226,15 +227,23 @@ void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const Clu
         bounds.createBuffer(*base, size_t(n) * 32, vk::BufferUsageFlagBits::eStorageBuffer,
                             vk::MemoryPropertyFlagBits::eDeviceLocal);
         boundsValid = false;
+        boundsVersion++;
     }
     // The bounds when the grid or the projection changed (the previous frames' reads come before the write)
     if (!boundsValid || boundsGrid != grid || boundsProjection != projection)
     {
         memoryBarrier(cmd, Stage::eComputeShader, Access::eShaderStorageRead, Stage::eComputeShader,
                       Access::eShaderStorageWrite);
-        vk::DescriptorBufferInfo info(handle(bounds), 0, VK_WHOLE_SIZE);
-        base->device.updateDescriptorSets(
-            vk::WriteDescriptorSet(boundsSet, 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &info), nullptr);
+        // The slot's set (its previous frame has completed), only when it points to another buffer
+        if (boundsSetVersions[frameIndex] != boundsVersion)
+        {
+            vk::DescriptorBufferInfo info(handle(bounds), 0, VK_WHOLE_SIZE);
+            base->device.updateDescriptorSets(
+                vk::WriteDescriptorSet(boundsSets[frameIndex], 0, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr,
+                                       &info),
+                nullptr);
+            boundsSetVersions[frameIndex] = boundsVersion;
+        }
         if (boundsPipeline.bind(cmd))
         {
             BoundsPush push;
@@ -247,7 +256,7 @@ void LightClusters::record(vk::CommandBuffer cmd, uint32_t frameIndex, const Clu
             push.depth[1] = float(grid.clusterNear);
             push.depth[2] = float(grid.clusterFar);
             push.depth[3] = 0;
-            boundsPipeline.bindRawDescriptorSet(cmd, boundsSet);
+            boundsPipeline.bindRawDescriptorSet(cmd, boundsSets[frameIndex]);
             boundsPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
             cmd.dispatch((n + 63) / 64, 1, 1);
         }

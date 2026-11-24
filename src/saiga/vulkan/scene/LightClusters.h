@@ -124,8 +124,12 @@ class SAIGA_VULKAN_API LightClusters
    private:
     VulkanBase* base = nullptr;
     ComputePipeline boundsPipeline, clusterPipeline, debugPipeline;
-    vk::DescriptorSet boundsSet;
-    std::array<vk::DescriptorSet, 2> clusterSets{}, debugSets{};
+    // One bounds set per frame slot (round 2, finding 1: a single set was rewritten while the previous frame's command
+    // buffer had it bound), written only when the slot's set has an older bounds buffer (by version: a recreated
+    // buffer may get the destroyed one's handle)
+    std::array<vk::DescriptorSet, 2> boundsSets{}, clusterSets{}, debugSets{};
+    std::array<uint64_t, 2> boundsSetVersions{};
+    uint64_t boundsVersion = 0;
     Buffer bounds;
     struct Frame
     {
