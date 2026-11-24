@@ -14,12 +14,40 @@
 #include "Debug.h"
 
 #include <array>
+#include <cstring>
 #include <limits>
+#include <map>
+#include <mutex>
 
 namespace Saiga
 {
 namespace Vulkan
 {
+// The pipeline cache data of the devices destroyed in this process, per physical device (vendor, device id and the
+// driver's pipelineCacheUUID): a device created later on the same physical device starts with the pipelines of the
+// previous ones (e.g. the tests, which create a device and the same pipelines per test). The driver checks the data's
+// header again and ignores data it cannot use.
+namespace
+{
+struct PipelineCacheStore
+{
+    std::mutex mutex;
+    std::map<std::string, std::vector<uint8_t>> data;
+};
+PipelineCacheStore& pipelineCacheStore()
+{
+    static PipelineCacheStore store;
+    return store;
+}
+std::string pipelineCacheKey(vk::PhysicalDevice physicalDevice)
+{
+    auto p = physicalDevice.getProperties();
+    std::string key(reinterpret_cast<const char*>(p.pipelineCacheUUID.data()), VK_UUID_SIZE);
+    key += std::to_string(p.vendorID) + ":" + std::to_string(p.deviceID) + ":" + std::to_string(p.driverVersion);
+    return key;
+}
+}  // namespace
+
 VulkanBase::VulkanBase()
 {
     Vulkan::GLSLANG::init();
@@ -55,9 +83,77 @@ void VulkanBase::destroy()
 
     VLOG(3) << "Destroying VulkanBase with device: " << device;
 
-    flushDeferredDeletes();
+    destroyDeviceObjects();
+    destroyPooledPipelines();
 
+    if (pipelineCache)
+    {
+        auto data   = device.getPipelineCacheData(pipelineCache);
+        auto& store = pipelineCacheStore();
+        std::lock_guard<std::mutex> lock(store.mutex);
+        store.data[pipelineCacheKey(physicalDevice)] = std::move(data);
+    }
     vkDestroyPipelineCache(device, pipelineCache, nullptr);
+    pipelineCache = nullptr;
+
+    device.destroy();
+    device = nullptr;
+
+    VLOG(3) << "Vulkan device destroyed.";
+}
+
+bool VulkanBase::takePooledPipeline(const std::string& key, vk::Pipeline& pipeline, vk::PipelineLayout& layout)
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    auto it = pipelinePool.find(key);
+    if (it == pipelinePool.end())
+    {
+        pipelinePoolMisses++;
+        return false;
+    }
+    pipelinePoolHits++;
+    pipeline = it->second.first;
+    layout   = it->second.second;
+    pipelinePool.erase(it);
+    return true;
+}
+
+void VulkanBase::returnPooledPipeline(const std::string& key, vk::Pipeline pipeline, vk::PipelineLayout layout)
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    pipelinePool.emplace(key, std::make_pair(pipeline, layout));
+}
+
+size_t VulkanBase::pooledPipelines()
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    return pipelinePool.size();
+}
+
+VulkanBase::PipelineReuseStats VulkanBase::pipelineReuseStats()
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    PipelineReuseStats s;
+    s.hits   = pipelinePoolHits;
+    s.misses = pipelinePoolMisses;
+    return s;
+}
+
+void VulkanBase::destroyPooledPipelines()
+{
+    std::lock_guard<std::mutex> lock(pipelinePoolMutex);
+    for (auto& [key, entry] : pipelinePool)
+    {
+        device.destroyPipeline(entry.first);
+        device.destroyPipelineLayout(entry.second);
+    }
+    pipelinePool.clear();
+}
+
+void VulkanBase::destroyDeviceObjects()
+{
+    if (!device) return;
+    flushDeferredDeletes();
 
     // Before the queues: a defragmentation pass frees its command buffer of the main queue.
     memory.destroy();
@@ -76,13 +172,18 @@ void VulkanBase::destroy()
 
     descriptorPool.destroy();
 
+    computeQueue  = nullptr;
+    transferQueue = nullptr;
+
     device.destroy(frameTimeline);
     frameTimeline = nullptr;
+}
 
-    device.destroy();
-    device = nullptr;
-
-    VLOG(3) << "Vulkan device destroyed.";
+void VulkanBase::recreateDeviceObjects(const VulkanParameters& parameters)
+{
+    SAIGA_ASSERT(device && !frameTimeline, "recreateDeviceObjects needs a device without its objects");
+    m_parameters = parameters;
+    createDeviceObjects();
 }
 
 uint64_t VulkanBase::completedFrameValue() const
@@ -174,7 +275,9 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKH
         findQueueFamily(vk::QueueFlagBits::eTransfer, transfer_idx, ++offset);
     }
 
-    std::pair<uint32_t, uint32_t> main_queue_info, transfer_info, compute_info;
+    std::pair<uint32_t, uint32_t>& main_queue_info = mainQueueInfo;
+    std::pair<uint32_t, uint32_t>& transfer_info   = transferQueueInfo;
+    std::pair<uint32_t, uint32_t>& compute_info    = computeQueueInfo;
 
     main_queue_info = std::make_pair(main_idx, queueCounts[main_idx] % queueFamilyProperties[main_idx].queueCount);
     queueCounts[main_idx]++;
@@ -263,9 +366,27 @@ void VulkanBase::createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKH
     enabledFeatures = featuresToEnable;
 
     vk::PipelineCacheCreateInfo pipelineCacheCreateInfo = {};
-    pipelineCache                                       = device.createPipelineCache(pipelineCacheCreateInfo);
+    std::vector<uint8_t> initialCacheData;
+    {
+        auto& store = pipelineCacheStore();
+        std::lock_guard<std::mutex> lock(store.mutex);
+        auto it = store.data.find(pipelineCacheKey(physicalDevice));
+        if (it != store.data.end()) initialCacheData = it->second;
+    }
+    pipelineCacheCreateInfo.initialDataSize = initialCacheData.size();
+    pipelineCacheCreateInfo.pInitialData    = initialCacheData.empty() ? nullptr : initialCacheData.data();
+    pipelineCache                           = device.createPipelineCache(pipelineCacheCreateInfo);
     SAIGA_ASSERT(pipelineCache);
 
+    createDeviceObjects();
+}
+
+void VulkanBase::createDeviceObjects()
+{
+    const VulkanParameters& parameters                   = m_parameters;
+    const std::pair<uint32_t, uint32_t>& main_queue_info = mainQueueInfo;
+    const std::pair<uint32_t, uint32_t>& compute_info    = computeQueueInfo;
+    const std::pair<uint32_t, uint32_t>& transfer_info   = transferQueueInfo;
     {
         vk::SemaphoreTypeCreateInfo timelineInfo(vk::SemaphoreType::eTimeline, 0);
         vk::SemaphoreCreateInfo semaphoreInfo;

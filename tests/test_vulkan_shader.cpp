@@ -102,17 +102,15 @@ TEST_F(VulkanShader, ReloadAfterMissingInclude)
 
     Vulkan::ShaderModule module;
     ASSERT_TRUE(module.loadGLSL(base().device, vk::ShaderStageFlagBits::eFragment, shader.string()));
-
-    // autoReload() looks at the files at most every 0.5 s.
-    auto wait = []() { std::this_thread::sleep_for(std::chrono::milliseconds(600)); };
+    // autoReload() looks at the files at every call (default: at most every 0.5 s); the include's removal and its new
+    // version change its write time (a missing file has the time min())
+    module.autoReloadInterval = std::chrono::milliseconds(0);
 
     std::filesystem::remove(include);
-    wait();
     EXPECT_FALSE(module.autoReload());
     EXPECT_TRUE(module.valid());
 
     write(include, "vec4 color() { return vec4(0, 1, 0, 1); }\n");
-    wait();
     EXPECT_TRUE(module.autoReload());
 
     module.destroy();

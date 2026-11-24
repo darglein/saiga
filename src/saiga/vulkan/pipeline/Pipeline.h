@@ -41,7 +41,10 @@ class SAIGA_VULKAN_API Pipeline : public PipelineBase
     RenderingFormats formats;
     PipelineInfo pipelineInfo;
 
-    vk::Pipeline createPipeline();
+    // With the given layout (pipelineLayout, or the pool's creation layout)
+    vk::Pipeline createPipeline(vk::PipelineLayout layout);
+    // The content key of the pipeline reuse (empty: none)
+    std::string reuseKey();
 
     virtual bool checkShader() override;
 };

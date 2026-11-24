@@ -2302,7 +2302,10 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   slot table; another identity under a known name on one cache stops the program), then plans by (name, pin, seed,
   template view, SpaceId), bases by (name, pin, plan hash, chunk), placements by (name, placement version, plan hash,
   chunk). In-flight rule (D8): a pool job registers its key when it starts; another pool job waits for a running
-  generation of the same key; a synchronous requester never waits (it generates inline); the first insert wins.
+  generation of the same key; a synchronous requester never waits (it generates inline); the first insert wins. The
+  terrain pyramid of a space (S20's 32 m point grid of the composed height, through `TerrainHeightSource::cachedGrid`
+  of `GenerationPipeline::heightSource`) is cached too, never evicted, by (name, pin, plan hash, SpaceId, grid size):
+  the worlds of one cache generate it once.
 - **Chunk records** (`ChunkRecords`, World state, `CREC`; S23a, S23b): `ChunkRecord {uint16 placementVersion;
   std::vector<InstanceKey> tombstones}` (sorted, unique) on every peer, plus the host-only stamped set. A record means
   "this chunk's tier-1 content is fixed at this placement version". Which chunks have one (E10): the chunks the host
@@ -3206,7 +3209,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `spawn(class?, position, rotation?, scale?, space?, components?)`, `destroy(entity)` | initial components as JSON, checked before anything is created and applied after `onSpawn` (merged into components the object added itself); returns the entity; destroy returns the destroyed descendants (onDestroy runs); world-state entities cannot be destroyed | [exists: S10] |
 | `get_global`, `set_global` | world-state (or with `space` space-state) components | [exists: S10] |
 | `emit_event(event, values)`, `queue_action(player, action, aim?)` | the gameplay path: readable in the next step (e.g. `DamageEvent` reaches `onDamage`) | [exists: S10] |
-| `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs n steps (stops at the request's answer deadline, the tool timeout minus a tenth: `ran`, `stopped_early`; `apply` shares one budget and stops between operations) | [exists: S10] |
+| `pause`, `resume`, `step(n)`, `time_scale(s)` | `step` only while paused, runs n steps (stops at the request's answer deadline, the tool timeout minus a tenth (`McpServer::answerMarginFraction`, 0.1; tests with short timeouts raise it): `ran`, `stopped_early`; `apply` shares one budget and stops between operations) | [exists: S10] |
 | `changes_since(cursor?, include_moved?, limit?)` | created, destroyed (its components folded in), component added/removed with sequence numbers and steps (a journal of 100000; `truncated`, `more`; `limit` per call, default 200); with `include_moved` the entities moved since the cursor (once each, with the handle they moved with; a move window's members are fixed when it opens (a snapshot shared by the cursors paging it; the newest 16 windows are kept, an older continued window reports `moves_truncated`) and paged by entity index with `moved_more`, so every entity that moved in it is delivered; moves made meanwhile come in the next window; tracked from the first such call); the cursor is opaque (`0`: everything kept, `"now"`: from now on); one of another session (a random epoch per API) is an error | [exists: S10] |
 | `get_profile(steps?, scopes?)`, `reset_profile`, `measure_performance(steps? \| frames?)` | step profile (§17.1), filtered by scope path prefixes; measure (at most the 600 samples of the history) runs n steps while paused or waits for n steps while running (refused at time scale 0); `frames: n` (the app with a device, `WorldToolsOptions::measureFrames`) measures the next n frame loops, also while paused: their frame profile, the steps they ran (`steps.ran`, `truncated` beyond 600) and the GPU samples of the frames they rendered (`gpu.frames`); a load, a profile reset or `run_scenario` meanwhile is an error | [exists: S10; S13 adds frame and GPU scopes; S14 `frames`] |
 | `logs(since?, category?)` | log lines with a sequence number > `since` (at most 500, `first`, `truncated`; category `api`: the edits made through the tools, logged after they ran with `ok` or `failed:`; an empty result names the known `categories`) | [exists: S10] |
@@ -3720,6 +3723,27 @@ the Steam Deck as host with 4 players / 2 islands <= 6 ms. Main thread per frame
 recording): <= 10 ms desktop, <= 18 ms Steam Deck. Benchmarks report `cpu_ms` split into step, extract and recording.
 Benchmarks report against these budgets; from S19 they run on both targets when the hardware is available (otherwise
 the missing target is reported as open).
+
+### 17.11 Test speed [exists]
+
+The unit test binaries stay fast (about a second each, at most a few; the budgets per binary and the rules for new
+tests are in AGENTS.md, "Test speed"). Mechanisms: the test executables reuse headless Vulkan devices between tests
+(`Vulkan::setHeadlessDeviceReuse`, off in applications: the instance and the logical device stay in a pool, the objects
+on the device are created per renderer, leaks are reported when the pool is released after the last test); on such a
+reused device the pipeline objects are reused too (`VulkanBase::reusePipelines`: a destroyed pipeline goes to a pool on
+the device keyed by the content of its create info, the shaders by their SPIR-V, with a layout of its own that is
+identically defined to the user's; a RenderScene costs ~15 ms instead of ~70 ms on lavapipe); a process compiles a
+shader once (SPIR-V cached by file contents incl. includes; glslang initialized once) and seeds a new device's pipeline
+cache with the previous one's; death test children write no core dump; MCP deadline tests use short timeouts with a
+large answer margin (`McpServer::answerMarginFraction`, default 0.1 in applications); time constants that tests would
+otherwise wait out are settings (`EngineAppSetup::statisticsWarmupSeconds`, `ShaderModule::autoReloadInterval`);
+expensive deterministic test inputs (terrain tiles of a hook) are generated once per process, and the content of a
+generator is shared through one ContentCache (S23a's cache also holds a space's terrain pyramid per plan, §12.1, so the
+worlds of one cache, e.g. a host and its clients or the scenario variants, generate it once). Tests do not wait for
+wall-clock time where they can poll a condition, and render small targets, few frames and small scenes on lavapipe
+unless the size is what they test: a test that reads the terrain selection, the vertex probes or the streaming state
+switches the terrain draws off (`PrototypeSettings::terrain`; the selection and the uploads run anyway). Goldens keep
+their setup.
 
 ## 18. Files, names and cookbook
 

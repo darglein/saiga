@@ -18,6 +18,9 @@
 #include <cstring>
 #include <deque>
 #include <iostream>
+#include <map>
+#include <mutex>
+#include <tuple>
 
 namespace Saiga
 {
@@ -97,6 +100,13 @@ struct MyIncluder : public glslang::TShader::Includer
     std::vector<IncludeResult*> results;
     // All included files (for the hot reload of a shader when one of its includes changes)
     std::vector<std::string> includedFiles;
+    // Every include request (base file, requested name) with the file it resolved to and its content: the input of the
+    // compile besides the main file, compared by the SPIR-V cache (see SpirvCache below)
+    struct Request
+    {
+        std::string base, header, resolved, content;
+    };
+    std::vector<Request> requests;
 
     virtual ~MyIncluder()
     {
@@ -116,6 +126,7 @@ struct MyIncluder : public glslang::TShader::Includer
         //        std::endl; std::cout << "base " << base << std::endl;
 
         auto includeFileName = SearchPathes::shader.getRelative(base, headerName).string();
+        requests.push_back({base, headerName, includeFileName, {}});
 
         if (includeFileName.empty())
         {
@@ -124,6 +135,7 @@ struct MyIncluder : public glslang::TShader::Includer
 
         includedFiles.push_back(includeFileName);
         data.push_back(File::loadFileString(includeFileName));
+        requests.back().content = data.back();
 
         IncludeResult* result = new IncludeResult(includeFileName, data.back().data(), data.back().size(), nullptr);
         results.push_back(result);
@@ -140,8 +152,52 @@ struct MyIncluder : public glslang::TShader::Includer
     virtual void releaseInclude(IncludeResult*) override {}
 };
 
+// The SPIR-V of every successful compile in this process. A compile is a pure function of the main file's content, the
+// stage, the injection and the included files (each include request resolves to a file through the search paths), so
+// a cached result is returned only if the main file and every include request still resolve to the same files with
+// the same content; otherwise the shader is compiled again (a hot reload of a changed shader or include). Failed
+// compiles are not cached (they print their errors every time). This avoids recompiling the same shaders for every
+// device of the process: an app creates its pipelines once, but tests create a device and its renderer per test.
+struct SpirvCache
+{
+    struct Entry
+    {
+        std::string source;
+        std::vector<MyIncluder::Request> requests;
+        std::vector<std::string> includedFiles;
+        std::vector<uint32_t> spirv;
+    };
+    std::mutex mutex;
+    std::map<std::tuple<std::string, int, std::string>, Entry> files;  // (file, stage, injection)
+    std::map<std::pair<std::string, int>, std::vector<uint32_t>> strings;
+};
+static SpirvCache& spirvCache()
+{
+    static SpirvCache cache;
+    return cache;
+}
+
+// Whether the include requests of a cached compile still resolve to the same files with the same content
+static bool includesUnchanged(const std::vector<MyIncluder::Request>& requests)
+{
+    for (const auto& r : requests)
+    {
+        if (SearchPathes::shader.getRelative(r.base, r.header).string() != r.resolved) return false;
+        if (!r.resolved.empty() && File::loadFileString(r.resolved) != r.content) return false;
+    }
+    return true;
+}
+
 std::vector<uint32_t> createFromString(const std::string& shaderString, const vk::ShaderStageFlagBits shader_type)
 {
+    init();
+    auto& cache    = spirvCache();
+    const auto key = std::make_pair(shaderString, int(shader_type));
+    {
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        auto it = cache.strings.find(key);
+        if (it != cache.strings.end()) return it->second;
+    }
     glslang::TShader shader(FindLanguage(shader_type));
     SetTarget(shader, FindLanguage(shader_type));
 
@@ -159,7 +215,13 @@ std::vector<uint32_t> createFromString(const std::string& shaderString, const vk
         return {};  // something didn't work
     }
 
-    return LinkToSpirv(shader, FindLanguage(shader_type), messages);
+    auto spirv = LinkToSpirv(shader, FindLanguage(shader_type), messages);
+    if (!spirv.empty())
+    {
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        cache.strings[key] = spirv;
+    }
+    return spirv;
 }
 
 std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFlagBits shader_type,
@@ -181,6 +243,20 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
         std::cout << "Could not load " << file << std::endl;
         return {};
     }
+
+    init();
+    auto& cache    = spirvCache();
+    const auto key = std::make_tuple(file, int(shader_type), injection);
+    {
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        auto it = cache.files.find(key);
+        if (it != cache.files.end() && it->second.source == shaderString && includesUnchanged(it->second.requests))
+        {
+            if (includedFiles) *includedFiles = it->second.includedFiles;
+            return it->second.spirv;
+        }
+    }
+    const std::string source = shaderString;
 
     glslang::TShader shader(FindLanguage(shader_type));
     SetTarget(shader, FindLanguage(shader_type));
@@ -212,7 +288,13 @@ std::vector<uint32_t> loadGLSL(const std::string& _file, const vk::ShaderStageFl
     }
 
     auto spirv = LinkToSpirv(shader, FindLanguage(shader_type), messages);
-    if (spirv.empty()) std::cout << "Error in " << _file << std::endl;
+    if (spirv.empty())
+    {
+        std::cout << "Error in " << _file << std::endl;
+        return spirv;
+    }
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    cache.files[key] = {source, includer.requests, includer.includedFiles, spirv};
     return spirv;
 }
 
@@ -380,12 +462,15 @@ static const TBuiltInResource& GetResources()
 
 void init()
 {
-    glslang::InitializeProcess();
+    // Once per process: FinalizeProcess would free glslang's built-in symbol tables, which every following
+    // InitializeProcess builds again (expensive, e.g. for each test that creates a device). They are freed at exit.
+    static std::once_flag once;
+    std::call_once(once, []() { glslang::InitializeProcess(); });
 }
 
 void quit()
 {
-    glslang::FinalizeProcess();
+    // Nothing: glslang stays initialized for the process (see init).
 }
 
 

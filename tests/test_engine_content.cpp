@@ -1392,6 +1392,15 @@ std::string contentHashFile()
     return std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/content_hashes.json";
 }
 
+// The content cache of the hash checks of contentTestSetup(2), one per process: the committed file's second entry and
+// UpdateAndMismatch's small file have the same pins and seed (plan v1, placement v2), so their chunks are generated
+// once (each check still compares every value; the first to run generates them)
+std::shared_ptr<ContentCache> hashCheckCache()
+{
+    static const std::shared_ptr<ContentCache> cache = std::make_shared<ContentCache>();
+    return cache;
+}
+
 // A copy of the test prefabs in a temporary directory (a test overwrites one of them)
 struct PrefabCopy : TempPrefabs
 {
@@ -1411,9 +1420,10 @@ TEST(ContentHash, CommittedHashesReproduce)
     const std::string root = SAIGA_PROJECT_SOURCE_DIR;
     ASSERT_FALSE(root.empty()) << "the committed hashes need SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON";
     // Only the value 1 (PR review: an exported SAIGA_UPDATE_CONTENT_HASHES=0 rewrote the committed file)
-    const char* env                = std::getenv("SAIGA_UPDATE_CONTENT_HASHES");
-    const bool update              = env && std::string(env) == "1";
-    const ContentHashReport report = checkContentHashes(ContentTest::contentTestSetup(2), contentHashFile(), update);
+    const char* env   = std::getenv("SAIGA_UPDATE_CONTENT_HASHES");
+    const bool update = env && std::string(env) == "1";
+    const ContentHashReport report =
+        checkContentHashes(ContentTest::contentTestSetup(2), contentHashFile(), update, hashCheckCache());
     std::cout << report.summary() << std::endl;
     EXPECT_TRUE(report.ok) << report.summary();
     EXPECT_EQ(report.entries, 2);
@@ -1488,7 +1498,7 @@ TEST(ContentHashFile, UpdateAndMismatch)
     const std::string missing = (tmp.dir / "nope.json").string();
     for (bool update : {false, true})
     {
-        const ContentHashReport r = checkContentHashes(setup, missing, update);
+        const ContentHashReport r = checkContentHashes(setup, missing, update, hashCheckCache());
         EXPECT_FALSE(r.ok);
         ASSERT_FALSE(r.problems.empty());
         EXPECT_NE(r.problems[0].find(missing), std::string::npos);
@@ -1507,12 +1517,12 @@ TEST(ContentHashFile, UpdateAndMismatch)
                    "2:8:8": {"total": "0x0", "heights": "0x0", "tier1": "0x0", "grass": "0x0", "stamps": "0x0",
                              "statics": "0x0"}},
         "digest": "0x0"}]})";
-    const ContentHashReport first = checkContentHashes(setup, file, false);
+    const ContentHashReport first = checkContentHashes(setup, file, false, hashCheckCache());
     EXPECT_FALSE(first.ok);
-    const ContentHashReport updated = checkContentHashes(setup, file, true);
+    const ContentHashReport updated = checkContentHashes(setup, file, true, hashCheckCache());
     EXPECT_FALSE(updated.ok);
     EXPECT_TRUE(updated.updated);
-    const ContentHashReport second = checkContentHashes(setup, file, false);
+    const ContentHashReport second = checkContentHashes(setup, file, false, hashCheckCache());
     EXPECT_TRUE(second.ok) << second.summary();
     std::cout << "small hash file: " << second.chunks << " chunks in " << second.seconds << " s" << std::endl;
 
@@ -1524,7 +1534,7 @@ TEST(ContentHashFile, UpdateAndMismatch)
     const std::string tier1 = j["setups"][0]["chunks"]["0:4:5"]["tier1"].string_value();
     text.replace(text.find(tier1), tier1.size(), "0x0000000000000001");
     std::ofstream(file, std::ios::trunc) << text;
-    const ContentHashReport changed = checkContentHashes(setup, file, false);
+    const ContentHashReport changed = checkContentHashes(setup, file, false, hashCheckCache());
     EXPECT_FALSE(changed.ok);
     ASSERT_EQ(changed.problems.size(), 1u) << changed.summary();
     EXPECT_NE(
@@ -1541,7 +1551,7 @@ TEST(ContentHashFile, UpdateAndMismatch)
         ASSERT_NE(bad.find(from), std::string::npos) << from;
         bad.replace(bad.find(from), from.size(), to);
         std::ofstream(file, std::ios::trunc) << bad;
-        const ContentHashReport r = checkContentHashes(setup, file, true);
+        const ContentHashReport r = checkContentHashes(setup, file, true, hashCheckCache());
         EXPECT_FALSE(r.ok);
         EXPECT_FALSE(r.updated);
         EXPECT_NE(r.summary().find(expected), std::string::npos) << r.summary();
@@ -2180,6 +2190,20 @@ TEST(ContentSave, OlderVersionKeepsRecordedPlacement)
     EXPECT_TRUE(rm.ok()) << rm.error;
 }
 
+namespace
+{
+// The terrain view of the tests that need only the chunks near the camera (masks, sets, pyramids): level-k tiles within
+// 100 m * 2^k of the LOD distance instead of 400 m * 2^k (test speed: a third of the tiles, each a point-sampled noise
+// tile). The grass masks of the chunks within grassRadius (80 m, 3D) keep their level-0 tiles: a chunk box within 80 m
+// of the camera is within 100 m of the LOD distance at camera heights up to 60 m above the surface
+void nearView(World& w)
+{
+    TerrainViewSettings v = w.terrain().viewSettings();
+    v.residencyRange0     = 100;
+    w.terrain().setViewSettings(v);
+}
+}  // namespace
+
 // PlanChangeV2: a v1 save loads into the v2 binary (same space table, other heights): the plans are replaced, the
 // sink's terrain cleared and the pyramid sent again; terrainHeight at the moved site and an edited sample there equal
 // v1's
@@ -2195,6 +2219,7 @@ TEST(ContentSave, RepinDropsDerivedTerrain)
     const int32_t edited    = a.terrainSample(0, 768, 770);
     ASSERT_NE(edited, a.terrain().sample(0, 768, 770));
     World b(ContentTest::contentTestSetup(2, nullptr, ContentTest::Variant::PlanChangeV2));
+    nearView(b);
     ASSERT_NE(b.terrainHeight(0, 1536, 1536), siteHeight);
     RecordingRenderSink sink;
     b.setRenderSink(&sink);
@@ -3330,10 +3355,21 @@ TEST(TombstoneNet, MessageBounds)
 
 namespace
 {
-// The content setup with the scenario's fullRadius (128 m: a few chunks per centre)
-WorldSetup contentRenderSetup(uint16_t version = 2, double radius = 128)
+// A content cache per version for the tests that opt in (test speed: the overworld's terrain pyramid, 1024^2 noise
+// samples, and the chunks are generated once per process; the values are the generator's either way). Only for tests
+// that do not count generations, cache hits or in-flight jobs
+std::shared_ptr<ContentCache> sharedTestCache(uint16_t version)
 {
-    WorldSetup s = ContentTest::contentTestSetup(version);
+    static std::map<uint16_t, std::shared_ptr<ContentCache>> caches;
+    std::shared_ptr<ContentCache>& c = caches[version];
+    if (!c) c = std::make_shared<ContentCache>();
+    return c;
+}
+
+// The content setup with the scenario's fullRadius (128 m: a few chunks per centre); shared: sharedTestCache
+WorldSetup contentRenderSetup(uint16_t version = 2, double radius = 128, bool shared = false)
+{
+    WorldSetup s = ContentTest::contentTestSetup(version, shared ? sharedTestCache(version) : nullptr);
     for (SpaceTemplate& t : s.config.spaceTemplates) t.fullRadius = radius;
     return s;
 }
@@ -3571,7 +3607,8 @@ TEST(ContentRender, RecordingSinkArrays)
 // completeView and the readiness reaches 1; in the overworld the readiness is below 1 until the sets exist
 TEST(ContentRender, ViewBuildsSetsAndReadiness)
 {
-    World w(contentRenderSetup());
+    World w(contentRenderSetup(2, 128, true));
+    nearView(w);
     RecordingRenderSink sink;
     w.setRenderSink(&sink);
     setCentres(w, ContentCentres::View);
@@ -3599,7 +3636,8 @@ TEST(ContentRender, HeldPoolResults)
 {
     JobLatch latch;
     std::atomic<uint64_t> started{0};
-    World w(contentRenderSetup());
+    // The shared cache: every request is a pool job (a cached placement is found inside the job, after the hook)
+    World w(contentRenderSetup(2, 128, true));
     JobLatch::Opener opener{latch};
     RecordingRenderSink sink;
     w.setRenderSink(&sink);
@@ -3805,7 +3843,8 @@ bool settleMasks(World& w, SpaceId space, const Vec3& camera)
 // A generator space: each chunk's mask is its ChunkPlacement's grass at the effective placement version
 TEST(GrassFromGenerator, TestGeneratorMasks)
 {
-    World w(contentRenderSetup());
+    World w(contentRenderSetup(2, 128, true));
+    nearView(w);
     RecordingRenderSink sink;
     w.setRenderSink(&sink);
     const Vec3 cam(1150, 60, 1400);
@@ -3822,8 +3861,9 @@ TEST(GrassFromGenerator, TestGeneratorMasks)
 TEST(GrassFromGenerator, VersionChangeResendsTheMask)
 {
     // A v1 world's save loaded into the v2 setup: pinned at v1, unrecorded chunks at v2
-    World old(contentRenderSetup(1));
-    World w(contentRenderSetup());
+    World old(contentRenderSetup(1, 128, true));
+    World w(contentRenderSetup(2, 128, true));
+    nearView(w);
     ASSERT_TRUE(w.tryLoad(old.save()).ok());
     ASSERT_EQ(w.effectivePlacementVersion(kSiteChunk), 2);
     RecordingRenderSink sink;
@@ -3848,6 +3888,7 @@ TEST(GrassFromGenerator, VersionChangeResendsTheMask)
 TEST(GrassFromGenerator, PrototypeMasksFromTheTile)
 {
     World w(prototypeGrassSetup());
+    nearView(w);
     RecordingRenderSink sink;
     w.setRenderSink(&sink);
     const Vec3 cam(2000, 80, 2000);
@@ -3871,7 +3912,11 @@ TEST(GrassFromGenerator, PrototypeMasksFromTheTile)
     }
     EXPECT_TRUE(someGrass);
     // Another threshold: other masks
-    World steep(prototypeGrassSetup(0.97));
+    // The same heights: the pyramid of w's cache
+    WorldSetup steepSetup    = prototypeGrassSetup(0.97);
+    steepSetup.sharedContent = w.generation().sharedCache();
+    World steep(steepSetup);
+    nearView(steep);
     RecordingRenderSink steepSink;
     steep.setRenderSink(&steepSink);
     ASSERT_TRUE(steep.terrain().completeView(0, cam));
@@ -3889,7 +3934,9 @@ TEST(GrassFromGenerator, EditedChunksAndTombstones)
 {
     JobLatch latch;
     std::atomic<int> held{0};
-    World w(contentRenderSetup());
+    // The shared cache: the held jobs are the terrain's mask jobs (maskJobHookForTests), not content generations
+    World w(contentRenderSetup(2, 128, true));
+    nearView(w);
     JobLatch::Opener opener{latch};
     RecordingRenderSink sink;
     w.setRenderSink(&sink);

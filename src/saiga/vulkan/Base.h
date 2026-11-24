@@ -27,7 +27,9 @@
 #include <deque>
 #include <exception>
 #include <functional>
+#include <map>
 #include <mutex>
+#include <string>
 
 namespace Saiga
 {
@@ -42,10 +44,21 @@ struct SAIGA_VULKAN_API VulkanBase
     std::unique_ptr<Queue> dedicated_compute_queue;
     std::unique_ptr<Queue> dedicated_transfer_queue;
     Instance* instance = nullptr;
+    // The queues of createLogicalDevice (family, index), for createDeviceObjects
+    std::pair<uint32_t, uint32_t> mainQueueInfo, computeQueueInfo, transferQueueInfo;
+
+    // The objects on the device (frame timeline, queues, descriptor pool) from m_parameters
+    void createDeviceObjects();
 
     // Deferred deletions, see deferDelete().
     std::mutex deletionMutex;
     std::deque<std::pair<uint64_t, std::function<void()>>> deletionQueue;
+
+    // The pipeline pool of reusePipelines: (pipeline, the layout it was created with) by key
+    std::mutex pipelinePoolMutex;
+    std::multimap<std::string, std::pair<vk::Pipeline, vk::PipelineLayout>> pipelinePool;
+    uint64_t pipelinePoolHits = 0, pipelinePoolMisses = 0;
+    void destroyPooledPipelines();
 
    public:
     /**
@@ -80,6 +93,24 @@ struct SAIGA_VULKAN_API VulkanBase
 
     // Waits for the device and runs all deferred deletions.
     void flushDeferredDeletes();
+
+    /**
+     * Pipeline reuse (on for the reused headless devices of setHeadlessDeviceReuse, i.e. the tests): a destroyed
+     * PipelineBase returns its pipeline and the layout it was created with (its own copy, identically defined) to a
+     * pool on the device, keyed by the content of its create info (the shaders by their SPIR-V); a new pipeline with
+     * the same key takes it instead of compiling (lavapipe: ~2 ms per pipeline, ~50 ms per RenderScene). The pool
+     * keeps them until the device is destroyed (they outlive destroyDeviceObjects).
+     */
+    bool reusePipelines = false;
+    bool takePooledPipeline(const std::string& key, vk::Pipeline& pipeline, vk::PipelineLayout& layout);
+    void returnPooledPipeline(const std::string& key, vk::Pipeline pipeline, vk::PipelineLayout layout);
+    size_t pooledPipelines();
+    // Cumulative over the device's life: takes that found a pipeline (hits) and that did not (misses)
+    struct PipelineReuseStats
+    {
+        uint64_t hits = 0, misses = 0;
+    };
+    PipelineReuseStats pipelineReuseStats();
     ~VulkanBase();
 
     vk::PhysicalDevice physicalDevice;
@@ -147,6 +178,16 @@ struct SAIGA_VULKAN_API VulkanBase
      *                this surface. Pass nullptr for headless rendering.
      */
     void createLogicalDevice(VulkanParameters& parameters, vk::SurfaceKHR surface);
+
+    /**
+     * For the reuse of a device (see setHeadlessDeviceReuse in VulkanDevice.h): destroyDeviceObjects() waits for the
+     * device, runs the deferred deletions and destroys everything created on it except the device itself and the
+     * pipeline cache (the memory allocator, the queues with their command pools, the descriptor pool, the frame
+     * timeline); recreateDeviceObjects() creates them again for the parameters (which must request the same device:
+     * features and extensions), as createLogicalDevice does, and resets current_frame. initMemory follows.
+     */
+    void destroyDeviceObjects();
+    void recreateDeviceObjects(const VulkanParameters& parameters);
 
     void renderGUI();
 

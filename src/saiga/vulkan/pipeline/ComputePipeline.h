@@ -38,7 +38,10 @@ class SAIGA_VULKAN_API ComputePipeline : public PipelineBase
    protected:
     virtual bool checkShader() override;
 
-    vk::Pipeline createPipeline();
+    // With the given layout (pipelineLayout, or the pool's creation layout)
+    vk::Pipeline createPipeline(vk::PipelineLayout layout);
+    // The content key of the pipeline reuse (empty: none)
+    std::string reuseKey();
 };
 
 

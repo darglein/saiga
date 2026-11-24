@@ -246,8 +246,9 @@ EngineApp::EngineApp(const EngineAppSetup& setup, const AppOptions& options)
                                                    "set_camera / move_camera place the camera")) +
                   "; list_scenarios / run_scenario run the game's scenarios."
             : appSetup.mcpInstructions;
-    server                     = std::make_unique<McpServer>(appSetup.name, "1.0", instructions);
-    server->toolTimeoutSeconds = appSetup.mcpToolTimeoutSeconds;
+    server                       = std::make_unique<McpServer>(appSetup.name, "1.0", instructions);
+    server->toolTimeoutSeconds   = appSetup.mcpToolTimeoutSeconds;
+    server->answerMarginFraction = appSetup.mcpAnswerMarginFraction;
     WorldToolsOptions toolOptions;
     toolOptions.snapshotDirectory = appSetup.snapshotDirectory;
     if (renderScene)
@@ -653,7 +654,7 @@ void EngineApp::frame(double dt)
     runSeconds += dt;
     // The last frame's terrain stream time: the time base covers it, the interval does not contain it (a complete
     // point is no long frame)
-    if (pendingStreamMs > 0 && runSeconds > kStatisticsWarmupSeconds) frameStats.advance(pendingStreamMs);
+    if (pendingStreamMs > 0 && runSeconds > appSetup.statisticsWarmupSeconds) frameStats.advance(pendingStreamMs);
     pendingStreamMs  = 0;
     frameStreamMs    = 0;
     streamIdleWaitMs = 0;
@@ -663,7 +664,7 @@ void EngineApp::frame(double dt)
         if (!renderedFrameTimes.empty() && renderedFrameTimes.back().second < 0)
             renderedFrameTimes.back().second = frameStats.now();
     }
-    else if (dt > 0 && runSeconds > kStatisticsWarmupSeconds)
+    else if (dt > 0 && runSeconds > appSetup.statisticsWarmupSeconds)
         frameStats.advance(dt * 1000);
     pendingCounted = false;
     pendingSteps   = 0;
@@ -937,7 +938,7 @@ void EngineApp::renderFrame()
     frameProfiler.add(scopeRecording, renderScene->lastRecordingMs());
     // Whether the frame counts in the frame statistics, decided once for its CPU interval and its GPU time: presented
     // (not rejected by the presentation engine) and after the warm-up. Its time is set when its interval is added
-    pendingCounted = renderScene->lastPresented() && runSeconds > kStatisticsWarmupSeconds;
+    pendingCounted = renderScene->lastPresented() && runSeconds > appSetup.statisticsWarmupSeconds;
     if (pendingCounted) renderedFrameTimes.push_back({renderScene->frames(), -1.0});
     if (renderedFrameTimes.size() > 64) renderedFrameTimes.pop_front();
     lastFrameRendered = true;

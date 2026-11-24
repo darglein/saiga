@@ -581,21 +581,23 @@ class VulkanPrototypeScene : public RenderSceneTest
     {
         attachedSeed = seed;
         PrototypeArea area;
-        area.x0          = 1024;
-        area.z0          = 1024;
-        area.size        = 1024;
-        area.seed        = seed;
-        area.baseSpacing = kSpacing;
-        species          = FoliageGenerator::treeSpecies(seed);
-        trees            = ForestRenderer::placeTrees(area, treeCount, seed, species);
+        area.x0                    = 1024;
+        area.z0                    = 1024;
+        area.size                  = 1024;
+        area.seed                  = seed;
+        area.baseSpacing           = kSpacing;
+        species                    = FoliageGenerator::treeSpecies(seed);
+        trees                      = ForestRenderer::placeTrees(area, treeCount, seed, species);
+        p.settings.terrainLodRange = 40;
         p.attach(*scene, trees, seed);
     }
-    // The terrain around the camera (the default residency rule), with grass masks
+    // The terrain around the camera, with grass masks: the tiles of level k within 100 m * 2^k (the default residency
+    // rule has 400 m * 2^k; test speed: a quarter of the tiles to upload, and coarser nodes beyond them, i.e. fewer
+    // triangles for lavapipe's vertex stage; no test here looks at the distant terrain's detail)
     void Terrain(const Vec3& camera, bool withMasks = false)
     {
-        TerrainTestHooks::fillTestTerrain(*scene, Layout(),
-                                          TerrainHeightSource::fromHook(prototypeHeight, attachedSeed),
-                                          kPrototypeSeaLevel, camera, withMasks);
+        TerrainTestHooks::fillTestTerrain(*scene, Layout(), prototypeHeight, attachedSeed, kPrototypeSeaLevel, camera,
+                                          withMasks, 0, 100);
     }
     double Ground(double x, double z) const { return prototypeSurfaceHeight(attachedSeed, kSpacing, x, z); }
     double Sea() const { return double(kPrototypeSeaLevel) * kHeightUnit; }
@@ -733,23 +735,26 @@ TEST_F(VulkanPrototypeScene, FlatShadingIsStableFarFromTheOrigin)
 }
 
 // The drawn trees per LOD equal the CPU reference also after the settings change (wind, crossed LOD distances, the
-// trees toggle)
+// trees toggle). The counts come from the culling, not from the terrain: no terrain set and no terrain draws (test
+// speed: lavapipe's vertex stage)
 TEST_F(VulkanPrototypeScene, ForestFollowsSettings)
 {
     PrototypeScene p;
     Attach(p, 5000);
     p.settings.treeLod1 = 30;
     p.settings.treeLod2 = 120;
+    p.settings.terrain  = false;
+    p.settings.water    = false;
     Vec3 eye(1536, 0, 1536);
     eye(1)            = Ground(eye(0), eye(2)) + 40;
     const Vec3 target = eye + Vec3(1, -0.3, 0.2);
     Look(p, eye, target);
     p.update();
-    Terrain(eye);
+    // One frame per check: statistics() is the newest frame's, which already has the changed settings
     auto check = [&](const char* what)
     {
         p.update();
-        Capture(3);
+        Capture(1);
         const auto st = p.forest().stats();
         EXPECT_EQ(st.frame, scene->frames()) << what;
         const auto ref = Reference(p);
@@ -760,7 +765,8 @@ TEST_F(VulkanPrototypeScene, ForestFollowsSettings)
     check("wind 0");
     p.settings.wind = 4;
     check("wind 4");
-    p.settings.treeLod1 = 500;
+    // Crossed (LOD 1 empty); LOD 0 to 100 m (test speed: a LOD 0 tree is the expensive mesh)
+    p.settings.treeLod1 = 100;
     p.settings.treeLod2 = 50;
     auto crossed        = check("crossed LOD distances");
     EXPECT_EQ(crossed.visible[1], 0u);
@@ -807,18 +813,22 @@ TEST_F(VulkanPrototypeScene, GrassToggle)
 TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
 {
     PrototypeScene p;
-    Attach(p, 5000);
+    // 1000 trees (a few dozen in view) and the grass show the wind (test speed: 5000 cost 120 ms per frame)
+    Attach(p, 1000);
     p.settings.wind = 4;
+    // The grass within 20 m (in view, a few metres away; test speed: 60 m were 350k triangles per frame)
+    p.settings.grassRadius = 20;
     Vec3 eye(1536 - 28, 0, 1536 - 80);
     eye(1)            = std::max(Ground(eye(0), eye(2)), Sea()) + 2.0;
     const Vec3 target = eye + Vec3(1, -0.2, 0);
     scene->setTime(0);
     auto a = Shot(p, eye, target, 2, true);
-    std::this_thread::sleep_for(std::chrono::milliseconds(300));
-    auto b = Capture(2);
+    // 100 ms of wall clock at wind 4 would move the foliage; one frame each: the scene's state is settled after a
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    auto b = Capture(1);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
     scene->setTime(1.7);
-    auto c = Capture(2);
+    auto c = Capture(1);
     EXPECT_GT(pixelsDiffering(a, c), 0) << "the wind does not move";
 }
 
@@ -837,7 +847,8 @@ TEST_F(VulkanPrototypeScene, DepthResolveAndPrePass)
         auto with               = Shot(p, c + Vec3(0, 40, 120), c, 2);
         p.settings.depthPrePass = false;
         p.update();
-        auto without = Capture(2);
+        // The frame right after the switch (the settings are a per-frame snapshot)
+        auto without = Capture(1);
         EXPECT_EQ(pixelsDiffering(with, without), 0) << samples << " samples";
     }
 }
@@ -901,7 +912,7 @@ TEST_F(VulkanPrototypeScene, ReattachReusesTreeMeshes)
     Vec3 c(1536, 0, 1536);
     c(1)                = Ground(c(0), c(2));
     const Vec3 eye      = c + Vec3(0, 40, 120);
-    auto a              = Shot(p, eye, c, 3);
+    auto a              = Shot(p, eye, c, 2);
     const auto sa       = p.forest().stats();
     const auto meshes   = p.forest().meshes();
     const auto material = p.forest().material();
@@ -910,15 +921,17 @@ TEST_F(VulkanPrototypeScene, ReattachReusesTreeMeshes)
     Attach(p, 2000);
     EXPECT_EQ(p.forest().meshes(), meshes);
     EXPECT_EQ(p.forest().material(), material);
-    auto b        = Shot(p, eye, c, 3);
+    auto b        = Shot(p, eye, c, 2);
     const auto sb = p.forest().stats();
     EXPECT_EQ(sb.visible, sa.visible);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
-    // Another seed: other species meshes (their names carry the seed), the same material
+    // Another seed: other species meshes (their names carry the seed), the same material; a frame with them over the
+    // seed 1 terrain (the trees are what is drawn here, a seed 2 terrain would cost new tiles)
     Attach(p, 2000, 2);
     EXPECT_NE(p.forest().meshes(), meshes);
     EXPECT_EQ(p.forest().material(), material);
-    Shot(p, eye, c, 2);
+    p.update();
+    Capture(1);
 }
 
 // setPrototypeEnvironment again with an attached forest (waits for the device, rebinds the foliage texture) gives the
@@ -930,12 +943,13 @@ TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
     Vec3 c(1536, 0, 1536);
     c(1)           = Ground(c(0), c(2));
     const Vec3 eye = c + Vec3(0, 40, 120);
-    auto a         = Shot(p, eye, c, 3, true);
+    auto a         = Shot(p, eye, c, 2, true);
     const auto sa  = p.forest().stats();
     const auto ta  = scene->statistics().terrainNodes;
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
     scene->setPrototypeEnvironment(p.settings.prototype(), 1);
-    auto b = Capture(3);
+    // The first frame after the call
+    auto b = Capture(1);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
     EXPECT_EQ(scene->statistics().terrainNodes, ta);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
@@ -952,13 +966,14 @@ TEST_F(VulkanPrototypeScene, ResizeWithPrototype)
     const Vec3 eye = c + Vec3(0, 40, 120);
     Shot(p, eye, c, 2);
     window->setSize(160, 80);
-    auto without = Capture(3);
+    // The first frames at the new size
+    auto without = Capture(2);
     EXPECT_EQ(without.w, 160);
     EXPECT_EQ(without.h, 80);
     EXPECT_GT(scene->statistics().terrainNodes, 0u);
     p.settings.depthPrePass = true;
     p.update();
-    auto with = Capture(3);
+    auto with = Capture(1);
     EXPECT_EQ(with.w, 160);
     EXPECT_EQ(pixelsDiffering(with, without), 0);
 }
@@ -968,11 +983,15 @@ TEST_F(VulkanPrototypeScene, ResizeWithPrototype)
 TEST_F(VulkanPrototypeScene, TreesToggleInFlight)
 {
     PrototypeScene p;
-    Attach(p, 5000);
+    // 2000 trees still fill every 256 m chunk's set of the area (the sets are what is toggled in flight); no terrain
+    // draws (test speed: lavapipe's vertex stage)
+    p.settings.terrain = false;
+    p.settings.water   = false;
+    Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
     c(1)           = Ground(c(0), c(2));
     const Vec3 eye = c + Vec3(0, 60, 200);
-    auto a         = Shot(p, eye, c, 3);
+    auto a         = Shot(p, eye, c, 2);
     const auto sa  = p.forest().stats();
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
     for (int i = 0; i < 6; ++i)
@@ -983,7 +1002,8 @@ TEST_F(VulkanPrototypeScene, TreesToggleInFlight)
     }
     p.settings.trees = true;
     p.update();
-    auto b = Capture(3);
+    // Capture waits for the frames in flight; its last frame is the first with the trees on for good
+    auto b = Capture(2);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
 }
@@ -1023,14 +1043,16 @@ TEST_F(VulkanPrototypeScene, PrototypeSettingsSnapshotPerFrame)
 // first frame; the GPU times of a new scene count from its first frames (RenderScene::takeGpuFrameTimes)
 TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
 {
+    // The forest's counts and the GPU times: no terrain (test speed: lavapipe's vertex stage)
     PrototypeScene p;
+    p.settings.terrain = false;
+    p.settings.water   = false;
     Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
     c(1)           = Ground(c(0), c(2));
     const Vec3 eye = c + Vec3(0, 40, 120);
     Look(p, eye, c);
     p.update();
-    Terrain(eye);
     auto frames = [&](int n)
     {
         bool gpu = false;
@@ -1043,7 +1065,7 @@ TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
         scene->waitIdle();
         return gpu;
     };
-    frames(10);
+    frames(4);
     const auto sa = p.forest().stats();
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
     // The same scene and seed without trees: no counts before its first frame, none after it
@@ -1061,7 +1083,6 @@ TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
     Attach(p, 2000);
     Look(p, eye, c);
     p.update();
-    Terrain(eye);
     EXPECT_TRUE(frames(4) || !scene->base().physicalDevice.getProperties().limits.timestampComputeAndGraphics);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
 }

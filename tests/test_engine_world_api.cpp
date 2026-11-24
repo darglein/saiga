@@ -1281,8 +1281,10 @@ TEST(WorldTools, MeasurementDeadlineWithoutStepsAndReset)
 {
     World w(apiSetup());
     McpServer server("test");
-    server.toolTimeoutSeconds = 1;
-    auto api                  = registerWorldTools(server, w);
+    // The answer deadline after 0.2 s, 0.3 s before the timeout
+    server.toolTimeoutSeconds   = 0.5;
+    server.answerMarginFraction = 0.6;
+    auto api                    = registerWorldTools(server, w);
     {
         // Running, but nothing steps: answered from poll at the deadline with the steps measured so far (0)
         Poller poller(server);
@@ -1392,8 +1394,9 @@ TEST(WorldTools, AMeasurementWithoutStepsIsEmpty)
     World w(apiSetup());
     w.step(5);
     McpServer server("test");
-    server.toolTimeoutSeconds = 1;
-    auto api                  = registerWorldTools(server, w);
+    server.toolTimeoutSeconds   = 0.5;
+    server.answerMarginFraction = 0.6;
+    auto api                    = registerWorldTools(server, w);
     Poller poller(server);
     Json m = callTool(server, "measure_performance", obj(R"({"steps": 10})"));
     ASSERT_FALSE(m["result"]["isError"].bool_value()) << m.dump();
@@ -1505,9 +1508,11 @@ TEST(WorldTools, RepeatedMeasurementsWithoutStepsLeaveNoListeners)
     World w(apiSetup());
     w.step(3);
     McpServer server("test");
-    server.toolTimeoutSeconds = 0.4;
-    auto api                  = registerWorldTools(server, w);
-    const size_t listeners    = w.stepListenerCount();
+    // The answer deadline after 0.2 s, 0.2 s before the timeout
+    server.toolTimeoutSeconds   = 0.4;
+    server.answerMarginFraction = 0.5;
+    auto api                    = registerWorldTools(server, w);
+    const size_t listeners      = w.stepListenerCount();
     {
         Poller poller(server);
         for (int i = 0; i < 3; ++i)
@@ -1534,15 +1539,29 @@ TEST(WorldTools, ALongQueueWaitStillAnswersInTime)
     World w(setup);
     w.setPaused(true);
     McpServer server("test");
-    server.toolTimeoutSeconds = 1.0;
-    auto api                  = registerWorldTools(server, w);
+    // The answer deadline after 0.6 s, 0.2 s before the timeout
+    server.toolTimeoutSeconds   = 0.8;
+    server.answerMarginFraction = 0.25;
+    auto api                    = registerWorldTools(server, w);
     Json response;
-    // 5000 steps of 1 ms: far more than the 0.3 s left after the queue wait
-    std::thread caller([&]() { response = callTool(server, "step", obj(R"({"n": 5000})")); });
-    // The main loop is busy for 0.6 s before it polls
-    std::this_thread::sleep_for(std::chrono::milliseconds(600));
+    std::atomic_bool answered{false};
+    // 5000 steps of 1 ms: far more than the 0.15 s left after the queue wait
+    std::thread caller(
+        [&]()
+        {
+            response = callTool(server, "step", obj(R"({"n": 5000})"));
+            answered = true;
+        });
+    // The request is queued first (a late caller thread would otherwise shorten the queue wait), then the main loop
+    // is busy for 0.45 s (more than half the timeout) before it polls
+    const auto admitDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (server.pendingCallCount() == 0 && std::chrono::steady_clock::now() < admitDeadline)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    // EXPECT, not ASSERT: the rest of the test still polls and joins the caller (a joinable std::thread terminates)
+    EXPECT_EQ(server.pendingCallCount(), 1u);
+    std::this_thread::sleep_for(std::chrono::milliseconds(450));
     const auto start = std::chrono::steady_clock::now();
-    while (std::chrono::steady_clock::now() - start < std::chrono::seconds(2))
+    while (!answered && std::chrono::steady_clock::now() - start < std::chrono::seconds(2))
     {
         server.poll();
         std::this_thread::sleep_for(std::chrono::milliseconds(1));

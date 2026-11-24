@@ -50,6 +50,8 @@ class SAIGA_VULKAN_API ShaderModule
      */
     vk::ShaderStageFlagBits stage = vk::ShaderStageFlagBits::eVertex;
     vk::ShaderModule module       = nullptr;
+    // The SPIR-V of the module: its size in bytes and two 64-bit hashes (the content key of pipeline reuse)
+    uint64_t spirvSize = 0, spirvHashA = 0, spirvHashB = 0;
 
 
     /**
@@ -96,10 +98,12 @@ class SAIGA_VULKAN_API ShaderModule
 
     /**
      * Checks if the file (or one of its includes) was changed and reloads it.
-     * The file times are checked at most every 0.5 s, so this is cheap enough to call on every bind.
-     * Returns true if it was reloaded successfully.
+     * The file times are checked at most every autoReloadInterval (0.5 s), so this is cheap enough to call on every
+     * bind. Returns true if it was reloaded successfully.
      */
     bool autoReload();
+    // Tests set 0 (every call looks at the files) instead of waiting
+    std::chrono::milliseconds autoReloadInterval{500};
 
    private:
     // These variables are only required for the reloading.

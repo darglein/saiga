@@ -13,6 +13,7 @@ namespace Vulkan
 void CommandPool::destroy()
 {
     if (device && commandPool) device.destroyCommandPool(commandPool);
+    commandPool = nullptr;
 }
 
 void CommandPool::create(vk::Device device, std::mutex* _mutex, uint32_t queueFamilyIndex_,

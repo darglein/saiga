@@ -36,8 +36,8 @@ struct WorldToolsOptions
         measureFrames;
 };
 
-// When a tool handler must answer: the caller's deadline minus a tenth of the tool timeout (formatting and returning
-// the result)
+// When a tool handler must answer: the caller's deadline minus McpServer::answerMarginFraction (default a tenth) of the
+// tool timeout (formatting and returning the result)
 SAIGA_ENGINE_API std::chrono::steady_clock::time_point answerDeadline(const McpServer& server);
 // The profile of the last n samples (n = 0: an empty window, not the whole history)
 SAIGA_ENGINE_API json11::Json profileWindow(const Profiler& profiler, uint64_t samples);

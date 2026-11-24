@@ -18,9 +18,11 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <thread>
+#include <tuple>
 #include <vector>
 
 #include <condition_variable>
@@ -223,19 +225,20 @@ inline double pyramidSurfaceHeight(const Vulkan::TerrainLayout& layout, const Vu
 }
 
 // The streamed tiles of the default rule (§4.3, TerrainSystem::computeDesired) for a camera: per level the tiles within
-// 400 * 2^L m of TerrainPass's LOD distance sqrt(dxz^2 + hc^2) (dxz the horizontal distance to the tile, hc the camera
-// height above ground: the given ground height, else the pyramid's surface), the nearest tilesPerLevel
+// range0 * 2^L m (the default residencyRange0 400) of TerrainPass's LOD distance sqrt(dxz^2 + hc^2) (dxz the horizontal
+// distance to the tile, hc the camera height above ground: the given ground height, else the pyramid's surface), the
+// nearest tilesPerLevel
 inline std::vector<RegionId> desiredTestTiles(const Vulkan::TerrainLayout& layout,
                                               const Vulkan::TerrainPyramidData& pyramid, const Vec3& camera,
                                               SpaceId space = 0, int firstLevel = 0,
-                                              std::optional<double> ground = std::nullopt)
+                                              std::optional<double> ground = std::nullopt, double range0 = 400)
 {
     std::vector<RegionId> out;
     const double hc =
         std::abs(camera.y() - (ground ? *ground : pyramidSurfaceHeight(layout, pyramid, camera.x(), camera.z())));
     for (int k = firstLevel; k < layout.streamedLevels(); ++k)
     {
-        const double range = 400.0 * double(1 << k);
+        const double range = range0 * double(1 << k);
         const int64_t size = int64_t(256) << k;
         const int32_t W    = layout.tilesPerSide(k);
         std::vector<std::pair<double, RegionId>> level;
@@ -260,18 +263,19 @@ inline std::vector<RegionId> desiredTestTiles(const Vulkan::TerrainLayout& layou
     return out;
 }
 
-// Fills a RenderScene without an engine: the pyramid, the desired tiles of the camera (desiredTestTiles), with
-// withMasks the prototypeGrassMasks (default thresholds 0.82, 0.4 m) of the level-0 chunks within 80 m, then waits for
-// the uploads
-inline void fillTestTerrain(Vulkan::RenderScene& scene, const Vulkan::TerrainLayout& layout,
-                            const TerrainHeightSource& source, std::optional<int32_t> seaLevel, const Vec3& camera,
-                            bool withMasks, SpaceId space = 0)
+// Fills a RenderScene without an engine: the pyramid, the desired tiles of the camera (desiredTestTiles with range0),
+// with withMasks the prototypeGrassMasks (default thresholds 0.82, 0.4 m) of the level-0 chunks within 80 m, then waits
+// for the uploads. pyramidOf / tileOf generate them (see the overloads below).
+template <typename PyramidFn, typename TileFn>
+inline void fillTestTerrainWith(Vulkan::RenderScene& scene, const Vulkan::TerrainLayout& layout,
+                                std::optional<int32_t> seaLevel, const Vec3& camera, bool withMasks, SpaceId space,
+                                PyramidFn pyramidOf, TileFn tileOf, double range0 = 400)
 {
-    const Vulkan::TerrainPyramidData pyramid = Vulkan::generateTerrainPyramid(source, layout, seaLevel);
+    const Vulkan::TerrainPyramidData& pyramid = pyramidOf();
     scene.setTerrainPyramid(space, pyramid);
-    for (const RegionId& r : desiredTestTiles(layout, pyramid, camera, space))
+    for (const RegionId& r : desiredTestTiles(layout, pyramid, camera, space, 0, std::nullopt, range0))
     {
-        const Vulkan::TerrainTileData tile = Vulkan::generateTerrainTile(source, layout, r);
+        const Vulkan::TerrainTileData& tile = tileOf(r);
         scene.setTerrainTile(r, tile);
         if (withMasks && r.level == 0)
         {
@@ -287,6 +291,67 @@ inline void fillTestTerrain(Vulkan::RenderScene& scene, const Vulkan::TerrainLay
         }
     }
     renderUntilUploaded(scene, 256);
+}
+
+inline void fillTestTerrain(Vulkan::RenderScene& scene, const Vulkan::TerrainLayout& layout,
+                            const TerrainHeightSource& source, std::optional<int32_t> seaLevel, const Vec3& camera,
+                            bool withMasks, SpaceId space = 0)
+{
+    Vulkan::TerrainPyramidData pyramid;
+    Vulkan::TerrainTileData tile;
+    fillTestTerrainWith(
+        scene, layout, seaLevel, camera, withMasks, space,
+        [&]() -> const Vulkan::TerrainPyramidData&
+        {
+            pyramid = Vulkan::generateTerrainPyramid(source, layout, seaLevel);
+            return pyramid;
+        },
+        [&](const RegionId& r) -> const Vulkan::TerrainTileData&
+        {
+            tile = Vulkan::generateTerrainTile(source, layout, r);
+            return tile;
+        });
+}
+
+// The same for TerrainHeightSource::fromHook(hook, seed), with the pyramids and tiles generated once per process: they
+// are a pure function of the hook, the seed, the layout, the sea level (pyramid) and the region, and the tests fill
+// the same terrain again (the prototype noise is expensive to evaluate)
+inline void fillTestTerrain(Vulkan::RenderScene& scene, const Vulkan::TerrainLayout& layout, TerrainHeightHook hook,
+                            uint64_t seed, std::optional<int32_t> seaLevel, const Vec3& camera, bool withMasks,
+                            SpaceId space = 0, double range0 = 400)
+{
+    using Key = std::tuple<TerrainHeightHook, uint64_t, int32_t, int32_t, int32_t, int32_t>;
+    struct Cache
+    {
+        std::mutex mutex;
+        std::map<std::pair<Key, std::optional<int32_t>>, Vulkan::TerrainPyramidData> pyramids;
+        std::map<std::pair<Key, std::tuple<SpaceId, int, int32_t, int32_t>>, Vulkan::TerrainTileData> tiles;
+    };
+    static Cache cache;
+    const Key key(hook, seed, layout.baseSpacing, layout.sizeChunks, layout.tilesPerLevel, layout.grassMaskLayers);
+    const TerrainHeightSource source = TerrainHeightSource::fromHook(hook, seed);
+    std::lock_guard<std::mutex> lock(cache.mutex);
+    fillTestTerrainWith(
+        scene, layout, seaLevel, camera, withMasks, space,
+        [&]() -> const Vulkan::TerrainPyramidData&
+        {
+            auto it = cache.pyramids.find({key, seaLevel});
+            if (it == cache.pyramids.end())
+                it = cache.pyramids
+                         .emplace(std::make_pair(key, seaLevel),
+                                  Vulkan::generateTerrainPyramid(source, layout, seaLevel))
+                         .first;
+            return it->second;
+        },
+        [&](const RegionId& r) -> const Vulkan::TerrainTileData&
+        {
+            const auto tileKey = std::make_pair(key, std::make_tuple(r.space, int(r.level), r.x, r.z));
+            auto it            = cache.tiles.find(tileKey);
+            if (it == cache.tiles.end())
+                it = cache.tiles.emplace(tileKey, Vulkan::generateTerrainTile(source, layout, r)).first;
+            return it->second;
+        },
+        range0);
 }
 
 #ifdef SAIGA_TEST_ENGINE

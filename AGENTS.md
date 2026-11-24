@@ -78,7 +78,8 @@ src/
                         pipeline class of the trees, the lighting block, setTime, the depth pre-pass (off for the
                         prototype) and the SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain,
                         scene.instances, ...)
-                        VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app)
+                        VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app;
+                        setHeadlessDeviceReuse: the tests' pool of headless devices)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
                         chosen at runtime as in opengl/: GLFWWindow or HeadlessWindow (offscreen images, ImGui through
                         ImGuiHeadlessRenderer; core/imgui/imgui_headless_platform.h is shared with OpenGL)
@@ -173,7 +174,8 @@ samples/games/          Games on saiga_engine, one executable per samples/games/
                         data/flight/prefabs/ruin.json and hash file data/flight/content_hashes.json) and
                         their shared common/, compiled into each game (docs/engine_design.md §18.4). Not tested by tests/
                         (the tests test the engine; the games' scenarios run with --scenarios)
-tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list)
+tests/                  test_<module>_*.cpp/.cu + CMakeLists.txt (explicit saiga_test(...) list); test_process_setup.cpp
+                        (linked into every test: no core dumps, Vulkan device reuse; see Tests, "Test speed")
 submodules/             Vendored git submodules: eigen, glog, googletest, glfw, assimp, zlib, zstd, libpng,
                         libtiff, libzip, libavif, aom, SVT-AV1, TinyTIFF, glslang (built from submodules/CMakeLists.txt),
                         VulkanMemoryAllocator (header only, included by saiga_vulkan), plus tiny-eigen and tiny-glog, which are plain files maintained in this repository
@@ -294,6 +296,55 @@ ctest -R test_core_ini --output-on-failure             # one test
   `CERES_FOUND`).
 - Test style: `using namespace Saiga;`, plain `TEST(Suite, Name)`, `EXPECT_*`/`ASSERT_*`; a
   regression test carries a short comment describing the bug it guards against.
+- **Test speed**: a test binary should take about a second, at most a few (budget below). Every test executable links
+  `tests/test_process_setup.cpp` (an object library in `tests/CMakeLists.txt`): no core dumps (a soft `RLIMIT_CORE` of
+  1 byte; each `EXPECT_DEATH` child aborts, and its dump to systemd-coredump / apport took 0.1-0.3 s per death test;
+  `SAIGA_TEST_CORE_DUMPS=1` keeps the shell's limit) and, in executables that link `saiga_vulkan`, the reuse of
+  headless Vulkan devices (`Vulkan::setHeadlessDeviceReuse` in `VulkanDevice.h`: the instance and the logical device
+  of a destroyed `HeadlessWindow` renderer stay in a pool, everything on the device is created per renderer; an
+  instance and a device cost 0.25 s per test on the NVIDIA driver; leaked objects are reported by the validation layer
+  when the pool is released after the last test; `SAIGA_TEST_NEW_DEVICES=1` creates a device per renderer). On a
+  reused device the pipeline objects are reused as well (`VulkanBase::reusePipelines`: a destroyed pipeline returns to
+  a pool on the device, keyed by the content of its create info with the shaders by their SPIR-V; a RenderScene's ~25
+  pipelines cost ~55 ms on lavapipe, its construction now ~15 ms). The process also caches the SPIR-V of compiled
+  shaders (keyed by the file contents incl. includes) and glslang's tables.
+  Every test still gets its own RenderScene / EngineApp / World (no suite-wide renderer with a reset between tests:
+  the pipeline pool makes a new scene cheap, and test independence stays structural). What is shared between tests is
+  pure, deterministic data, opt-in per test:
+  - `TerrainTestHooks::fillTestTerrain(hook, seed, ...)` caches the pyramid and tiles of a height hook per process.
+  - Content: a `ContentCache` shared by several worlds (`WorldSetup::sharedContent`) generates their plans, chunks and
+    terrain pyramids once (the cache keeps a space's pyramid per plan; `ContentCache::grid`). The content tests share
+    one per version (`sharedTestCache` in `test_engine_content.cpp`), the content scenarios one for all their variants
+    (as `runScenarios` does), `test_engine_terrain_render` one for its hook worlds, and `checkContentHashes(..., cache)`
+    one for the committed file and the small hash-file test. Only tests that do not count generations, cache hits or
+    in-flight jobs opt in (their assertions must not depend on what an earlier test generated).
+  Rules for new tests:
+  - No fixed sleeps or wall-clock waits where a condition can be polled: loop until the condition, with a deadline
+    only as the bound. MCP deadline tests use a short timeout with a large margin (`McpServer::answerMarginFraction`,
+    `EngineAppSetup::mcpAnswerMarginFraction`; e.g. 0.6 s and 0.5: the tool answers after 0.3 s, 0.3 s before the
+    timeout); keep the absolute margin >= 0.2 s (CI is loaded). A time constant that a test would wait out becomes a
+    setting the test shortens (`EngineAppSetup::statisticsWarmupSeconds`, `ShaderModule::autoReloadInterval`).
+  - Rendering on lavapipe costs CPU (its vertex stage is single-threaded, sub-pixel triangles are expensive; a CDLOD
+    terrain frame is ~100k triangles, 50 ms): small targets (the fixtures' 64 x 48 / 96 x 64), few frames
+    (`RenderScene::statistics()` is the newest frame's: one frame after a change, not three; a terrain tile is
+    GPU-resident from the frame its copy is recorded, so two frames after `renderUntilUploaded`), small scenes
+    (instances, LOD 0 distances, grass radius, terrain tiles: `fillTestTerrain(..., range0)`) unless size is what is
+    tested. A test that reads the terrain selection, vertex probes, streaming or loading state but no terrain pixels
+    switches the terrain draws off (`PrototypeSettings::terrain` / `water`; the selection, the node data and the
+    uploads run anyway: `NoTerrainDraws` in `test_vulkan_terrain.cpp`, `noTerrainDraws` in `test_engine_app.cpp`).
+    Goldens keep their setup (§17.6). Record the reason for a reduction in the test's comment.
+  - Death tests are cheap (fork, no dump); `GTEST_FLAG_SET(death_test_style, "threadsafe")` re-runs the binary up
+    to the death test (incl. its Vulkan device): only where the forked child would deadlock.
+  - Measure with `./build/tests/<binary> --gtest_print_time=1` (or the gtest XML of `GTEST_OUTPUT=xml:<dir>/`) on
+    lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
+    threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
+    `test_vulkan_world` 7 s (prototype scenes with terrain and trees), `test_engine_app` 6.5 s (68 tests; the MCP
+    deadline tests wait ~3 s of real time), `test_engine_content` 6 s (the test generator's pyramids and the committed
+    hashes), `test_vulkan_scene` 5.5 s, `test_engine_terrain_render` 5.5 s (goldens at 512 x 512), `test_vulkan_terrain`
+    5 s, every other binary <= 2 s. These are ceilings: a change that makes a binary slower than its budget makes it
+    faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
+    10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the
+    dependency check; less with Ninja).
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
   `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/golden_image.h` (`compareGolden`, golden images),

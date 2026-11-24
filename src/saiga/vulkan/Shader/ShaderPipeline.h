@@ -29,7 +29,7 @@ class SAIGA_VULKAN_API ShaderPipelineBase
 
     bool load(vk::Device device, std::vector<std::string> shaders);
     bool loadGLSL(vk::Device device,
-                  std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders);
+                  std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string>> shaders);
 
     bool loadCompute(vk::Device device, std::string shader, std::string injection = {});
     // From GLSL source code in memory (no #include, not reloaded). Returns false if a shader does not compile.
@@ -52,6 +52,9 @@ class SAIGA_VULKAN_API ShaderPipelineBase
      * all shader modules are valid.
      */
     bool valid();
+
+    // The loaded module of the handle (null if none): its SPIR-V size and hashes key the pipeline reuse
+    const ShaderModule* findModule(vk::ShaderModule module) const;
 
    protected:
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineInfo;

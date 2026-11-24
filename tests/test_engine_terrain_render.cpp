@@ -8,6 +8,7 @@
 // with a test space template streams into the scene (TerrainSystem::completeView, a VulkanRenderSink); the origin
 // offset acceptance of §22.
 
+#include "saiga/engine/content/ContentCache.h"
 #include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/ContentRenderSystem.h"
 #include "saiga/engine/content/GenerationPipeline.h"
@@ -85,8 +86,12 @@ class TerrainRenderTest : public RenderSceneTest
         s.profiling = false;
         s.config.spaceTemplates.push_back(space);
         s.generators = registerTestHookGenerators;
-        world        = std::make_unique<World>(s);
-        sink         = std::make_unique<VulkanRenderSink>(*scene);
+        // One content cache for the hook worlds of the process (each hook is its own generator "test_hook_<id>"): the
+        // terrain pyramid of a hook and seed is generated once (the prototype's 1024^2 samples took ~0.4 s per world)
+        static const std::shared_ptr<ContentCache> cache = std::make_shared<ContentCache>();
+        s.sharedContent                                  = cache;
+        world                                            = std::make_unique<World>(s);
+        sink                                             = std::make_unique<VulkanRenderSink>(*scene);
         world->setRenderSink(sink.get());
     }
     void DestroyWorld()

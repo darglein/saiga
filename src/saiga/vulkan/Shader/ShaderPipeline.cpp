@@ -26,7 +26,7 @@ bool ShaderPipelineBase::load(vk::Device device, std::vector<std::string> shader
 
 
 bool ShaderPipelineBase::loadGLSL(vk::Device device,
-                                  std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string> > shaders)
+                                  std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string>> shaders)
 {
     destroy();
     bool valid = true;
@@ -110,6 +110,13 @@ bool ShaderPipelineBase::valid()
 }
 
 
+
+const ShaderModule* ShaderPipelineBase::findModule(vk::ShaderModule module) const
+{
+    for (const auto& s : modules)
+        if (s.module == module) return &s;
+    return nullptr;
+}
 
 void ShaderPipelineBase::createPipelineInfo()
 {

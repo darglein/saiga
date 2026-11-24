@@ -31,12 +31,16 @@
 // structure (e.g. a chunk outside its space, a version or digest_block value that is not an integer in range) leaves
 // the file unchanged. A missing file is an error naming the path, also with update: a new file is committed first as a
 // skeleton whose values are "0x0".
+//
+// cache: the content cache of the generation (null: a new one per entry). Tests pass one cache to several checks of
+// the same setup (the same plans and chunks are generated once per process; the values are the generator's either way)
 
 #pragma once
 
 #include "saiga/export.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -45,6 +49,7 @@ namespace Saiga
 namespace Engine
 {
 struct WorldSetup;
+class ContentCache;
 
 struct SAIGA_ENGINE_API ContentHashReport
 {
@@ -57,7 +62,8 @@ struct SAIGA_ENGINE_API ContentHashReport
     std::string summary() const;
 };
 
-SAIGA_ENGINE_API ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string& file, bool update);
+SAIGA_ENGINE_API ContentHashReport checkContentHashes(const WorldSetup& setup, const std::string& file, bool update,
+                                                      std::shared_ptr<ContentCache> cache = nullptr);
 
 // A u64 from a string with std::from_chars: decimal, or hexadecimal after a "0x" prefix (hex); the whole string must
 // be consumed

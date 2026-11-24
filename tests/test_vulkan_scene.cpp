@@ -1125,10 +1125,11 @@ TEST_F(VulkanSceneContent, TakeStatisticsInFrameOrder)
     scene->addMesh(1, "a", boxMesh(vec3(0.3f, 0.3f, 0.3f), vec3(0, 0, 0), {1000}, {ucvec4(255, 0, 0, 255)}), 1);
     camera.position = Vec3(0, 0, 10);
     camera.apply(*scene);
-    // Enough visible instances that a frame is still running when the next one is recorded (both slots pending)
+    // Enough visible instances that a frame is still running when the next one is recorded (both slots pending; on
+    // lavapipe a frame of these takes ~60 ms, the recording of the next a few ms)
     std::vector<StaticInstance> v;
-    for (int i = 0; i < 40000; ++i)
-        v.push_back(makeInstance(vec3(-4 + (i % 200) * 0.04f, -2 + (i / 200) * 0.02f, 0), quat::Identity(), 1, 1));
+    for (int i = 0; i < 10000; ++i)
+        v.push_back(makeInstance(vec3(-4 + (i % 200) * 0.04f, -2 + (i / 200) * 0.08f, 0), quat::Identity(), 1, 1));
     scene->addInstanceSet(RegionId(), v);
     RenderStatistics st;
     auto noop = [](vk::CommandBuffer) {};
@@ -1146,7 +1147,7 @@ TEST_F(VulkanSceneContent, TakeStatisticsInFrameOrder)
         while (scene->takeStatistics(st))
         {
             frames.push_back(st.frame);
-            EXPECT_EQ(st.instancesPerLod[0], 40000u) << st.frame;
+            EXPECT_EQ(st.instancesPerLod[0], 10000u) << st.frame;
         }
         std::vector<uint64_t> expected;
         for (uint64_t f = first; f <= scene->frames(); ++f) expected.push_back(f);
@@ -2259,6 +2260,49 @@ SpaceRenderSettings enclosedSettings()
     return s;
 }
 }  // namespace
+
+// Pipeline reuse (VulkanBase::reusePipelines, on for the tests' reused headless devices): a destroyed scene returns its
+// pipelines to the device's pool, a scene with the same parameters takes every one of them and renders the same image
+// (the pooled pipelines bound with the new scene's own, identically defined layouts; validation clean); a scene with
+// another sample count takes other pipelines (the formats and samples are part of the key)
+TEST_F(VulkanSceneContent, PipelinesReusedAcrossScenes)
+{
+    auto build = [&](int samples, VulkanBase::PipelineReuseStats& before, VulkanBase::PipelineReuseStats& after)
+    {
+        RenderSceneParameters p;
+        p.msaaSamples = samples;
+        // The stats of the pooled device before this scene's pipelines: from the previous scene (none at first)
+        if (scene) before = scene->base().pipelineReuseStats();
+        CreateScene(p);
+        after = scene->base().pipelineReuseStats();
+        scene->addMaterial(1, "flat", flatMaterial());
+        scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+        scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -5), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
+        camera.position = Vec3(0, 0, 0);
+        camera.apply(*scene);
+        return SceneFrame();
+    };
+    VulkanBase::PipelineReuseStats b0, a0, b1, a1, b2, a2;
+    const auto first = build(4, b0, a0);
+    if (!scene->base().reusePipelines) GTEST_SKIP() << "pipeline reuse is off (SAIGA_TEST_NEW_DEVICES=1)";
+    const auto second = build(4, b1, a1);
+    // Every pipeline of the second scene came from the pool (the same device: the pool holds one device per key)
+    EXPECT_GT(a1.hits - b1.hits, 10u);
+    EXPECT_EQ(a1.misses, b1.misses);
+    EXPECT_EQ(maxPixelDiff(first, second), 0);
+    int colored = 0;
+    for (int y = 0; y < second.h; ++y)
+        for (int x = 0; x < second.w; ++x) colored += second(y, x)(0) > second(y, x)(2) + 20;
+    EXPECT_GT(colored, 50);
+    // One sample: other keys for the multisampled pipelines (a pipeline of the 4x pass in the 1x pass would be a
+    // validation error, which fails the test); the box is drawn
+    const auto single = build(1, b2, a2);
+    EXPECT_GT(a2.hits + a2.misses, b2.hits + b2.misses);
+    colored = 0;
+    for (int y = 0; y < single.h; ++y)
+        for (int x = 0; x < single.w; ++x) colored += single(y, x)(0) > single(y, x)(2) + 20;
+    EXPECT_GT(colored, 50);
+}
 
 class VulkanSceneSpaces : public VulkanSceneContent
 {

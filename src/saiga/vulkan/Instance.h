@@ -42,6 +42,7 @@ class SAIGA_VULKAN_API Instance
     /**
      * Returns true if a Vulkan driver is installed that provides a device saiga can render with (without a surface,
      * see HeadlessWindow). Creating a renderer without such a device exits the program, so e.g. tests check this first.
+     * Checked once per process (the result is cached).
      */
     static bool suitableDeviceAvailable();
 
@@ -82,6 +83,8 @@ class SAIGA_VULKAN_API Instance
 
     // Returns a score < 0 if the device can not be used.
     static int deviceScore(vk::PhysicalDevice device, vk::SurfaceKHR surface);
+    // The check of suitableDeviceAvailable (a temporary instance)
+    static bool checkSuitableDevice();
 };
 
 }  // namespace Vulkan

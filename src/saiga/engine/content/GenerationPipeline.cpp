@@ -460,6 +460,11 @@ TerrainHeightSource GenerationPipeline::heightSource(SpaceId id) const
     TerrainHeightSource source;
     source.height = [s](int64_t x, int64_t z)
     { return composedHeight(*s->generator, s->pinned, *s->plan, s->id, s->siteContent, x, z); };
+    // The pyramid once per plan in the cache (the worlds of a shared cache: a host and its clients, the scenario
+    // variants, tests)
+    std::shared_ptr<ContentCache> cache = contentCache;
+    source.cachedGrid = [s, cache](int n, int64_t spacing, const std::function<std::vector<int32_t>()>& make)
+    { return cache->grid(ContentCache::GridKey{s->generatorName, s->pinned, s->planHash, s->id, n, spacing}, make); };
     return source;
 }
 
