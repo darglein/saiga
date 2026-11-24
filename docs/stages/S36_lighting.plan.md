@@ -2984,6 +2984,23 @@ stack above is rebased.
   (the pre-exposure follows the previous frame's exposure, so the probe at exposure 4 latches 4).
 - Goldens: none changed.
 
+### CodeRabbit round 2 (#85, #86), 2026-11-24
+
+#85: 18 inline, 3 outside the diff, 1 nitpick; #86: 7 inline (major), 6 outside the diff, 18 + 8 minor, 3 nitpicks.
+Fixed on a2 (b98df20ff) and b (6e0acc44a), a regression test (failing on the old code) for each correctness bug a
+test reaches; a1a..a1c are unchanged. **a2**: a cleared terrain set invalidates the horizon maps
+(`ClearedTerrainHidesTheMap`), a full update that cancels a map starts its replacement (`FullUpdateReplacesTheMapInProgress`),
+after the one restart a later edit waits for the next map (`LaterEditWaitsForTheNextMap`), the cascade edge margin holds
+the normal offset, the horizon blend treats "no occluder" as lit, G only when the cascades draw the terrain, no horizon
+update during a probe, the capture's horizon anchor of the converted map. **b**: the light sink failures retried
+(`ThrowingLightSinkRetries`), a light's first move after the sink is set interpolates
+(`FirstMoveAfterTheSinkIsSetInterpolates`), the atlas keys with the space and the terrain's draw state
+(`TerrainUnderLights`), spot projections up to 90 degrees, the swept bound of an off-centre mover, the probe's light
+state in `consistent`, the tools' float ranges and face checks. Not fixed: the override views (a test hook), the tab's
+preview during a capture and its atlas clicks (one conversion per image and frame), the atlas node budget before the
+tile allocation (the terrain key is an input of the allocation), plain `TEST` for the fixtures' tests, the staged
+residency test. Goldens: none changed.
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
