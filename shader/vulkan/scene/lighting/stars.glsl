@@ -28,31 +28,14 @@ float starRandom(uint h)
     return float(h & 0xFFFFFFu) / 16777216.0;
 }
 
-// The stars' radiance (cd/m^2) in the celestial direction d; pixel: the angular size of a pixel (rad); intensity: the
-// brightness multiplier (EnvironmentState::starIntensity)
-vec3 starRadiance(vec3 d, float pixel, float intensity)
+// The stars of one cube face's cells around the celestial direction d; uv: d projected onto the face (its axis
+// component scaled to 1). A star is its face and cell (its hash), so evaluating several faces counts none twice
+vec3 starFaceRadiance(vec3 d, uint face, vec2 uv, float pixel)
 {
-    if (intensity <= 0.0) return vec3(0.0);
     const float cells = 160.0;
-    vec3 a            = abs(d);
-    uint face;
-    vec2 uv;
-    if (a.x >= a.y && a.x >= a.z)
-    {
-        face = d.x > 0.0 ? 0u : 1u;
-        uv   = d.zy / a.x;
-    }
-    else if (a.y >= a.z)
-    {
-        face = d.y > 0.0 ? 2u : 3u;
-        uv   = d.xz / a.y;
-    }
-    else
-    {
-        face = d.z > 0.0 ? 4u : 5u;
-        uv   = d.xy / a.z;
-    }
-    vec2 g      = (uv * 0.5 + 0.5) * cells;
+    vec2 g            = (uv * 0.5 + 0.5) * cells;
+    // Only within a cell of the face: the neighbour search reaches no further
+    if (any(lessThan(g, vec2(-1.0))) || any(greaterThan(g, vec2(cells + 1.0)))) return vec3(0.0);
     vec3 result = vec3(0.0);
     // The cell and its neighbours (a star near a cell border)
     for (int j = -1; j <= 1; ++j)
@@ -82,6 +65,23 @@ vec3 starRadiance(vec3 d, float pixel, float intensity)
             float w      = 1.0 - smoothstep(0.5 * radius, radius, dist);
             result += tint * (E * w / (kAtmPi * radius * radius * 0.6));
         }
+    return result;
+}
+
+// The stars' radiance (cd/m^2) in the celestial direction d; pixel: the angular size of a pixel (rad); intensity: the
+// brightness multiplier (EnvironmentState::starIntensity)
+vec3 starRadiance(vec3 d, float pixel, float intensity)
+{
+    if (intensity <= 0.0) return vec3(0.0);
+    // The face of d and the faces whose edge is near (CodeRabbit #83: a star disc next to a cube edge was cut off on
+    // the other face's side; the 3 x 3 cells reach one cell, about 0.7 degrees, and 0.9 of the major component keeps
+    // every face within it)
+    vec3 a      = abs(d);
+    float major = max(a.x, max(a.y, a.z));
+    vec3 result = vec3(0.0);
+    if (a.x >= 0.9 * major) result += starFaceRadiance(d, d.x > 0.0 ? 0u : 1u, d.zy / a.x, pixel);
+    if (a.y >= 0.9 * major) result += starFaceRadiance(d, d.y > 0.0 ? 2u : 3u, d.xz / a.y, pixel);
+    if (a.z >= 0.9 * major) result += starFaceRadiance(d, d.z > 0.0 ? 4u : 5u, d.xy / a.z, pixel);
     return result * intensity;
 }
 
