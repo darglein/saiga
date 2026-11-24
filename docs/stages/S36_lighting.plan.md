@@ -1136,20 +1136,13 @@ with their tests (finding 12).
 ## Tests
 
 New test files are registered in `tests/CMakeLists.txt` inside `if (MODULE_ENGINE)` (engine) or the Vulkan guard.
-**ctest time (finding 28; review 2, findings 12 and 28)**: the scene shaders are compiled at run time per
-`RenderScene` (no SPIR-V cache), so the lighting test binaries create **one scene per test suite**. Today's
-`RenderSceneTest` creates a window and scene per test (`render_scene_test_context.h`, `SetUp`, 96 x 64), so a1b adds
-the fixture **`RenderSceneSuiteTest`** to that header (`SetUpTestSuite` / `TearDownTestSuite`: a static headless
-window and scene at the suite's size and MSAA, 128 x 128 and 4 samples by default; `SetUp` resets the state through
-the public calls: `setLightingParameters(defaults)`, `setEnvironment(defaults)`, `setLightingDebug(None)`, the content
-cleared). Cases that need another size or sample count are their own suite (a derived fixture with its own
-parameters); a change of `LightingParameters` recreates resources through `deferDelete` and is a normal case. A
-validation error aborts the whole binary, so the first failure hides later cases: acceptable, and the binaries stay
-per area (`test_vulkan_lighting` a1, `test_vulkan_shadows` a2, `test_vulkan_local_lights` b). The engine-app tests
-(`test_engine_lighting_tools.cpp`, the Lighting tab cases in `test_engine_app.cpp`) use **one headless app per
-suite** the same way. Each new binary stays below 60 s on CI's lavapipe, and `test_engine_app`'s time is reported
-before and after each part (measured in a1a.4, a1b.2 and every later step that adds cases, reported in Results); if
-a binary exceeds it, an in-process SPIR-V cache keyed by the source hash (`ShaderModule`) is added in that step.
+**ctest time (finding 28; review 2, findings 12 and 28)**: every test has its own `RenderScene`, `EngineApp` and
+`World` (AGENTS.md, Tests, "Test speed": no suite-wide renderer with a reset between tests). The original plan of a
+suite fixture `RenderSceneSuiteTest` and one app per suite (a1b) is superseded: the process's device, pipeline and
+SPIR-V reuse made a scene per test cheap (about 15 ms on lavapipe), so a1c removed the suite fixtures (Design
+changes, "test speed"; CodeRabbit #81). A validation error aborts the whole binary, so the first failure hides later
+cases: acceptable, and the binaries stay per area (`test_vulkan_lighting` a1, `test_vulkan_shadows` a2,
+`test_vulkan_local_lights` b). The budgets per binary are AGENTS.md's.
 
 **Unit (no device), `tests/test_engine_lighting.cpp`** (a1 unless marked):
 
@@ -1178,8 +1171,8 @@ a binary exceeds it, an in-process SPIR-V cache keyed by the source hash (`Shade
 - `RecordingRenderSink.EnvironmentAndLightsRecorded` (a1: `setEnvironment` count and last value; b: lights).
 
 **Vulkan scene, `tests/test_vulkan_lighting.cpp` (a1), `tests/test_vulkan_shadows.cpp` (a2),
-`tests/test_vulkan_local_lights.cpp` (b)** (`RenderSceneSuiteTest` of `tests/render_scene_test_context.h`, one scene
-per suite, lavapipe in CI, skip without a driver):
+`tests/test_vulkan_local_lights.cpp` (b)** (`RenderSceneTest` of `tests/render_scene_test_context.h`, a scene per
+test, lavapipe in CI, skip without a driver):
 
 - a1a: `Exposure.Ev100RangeReachesPost` (round-1 blocker 1), `Exposure.NoEnvironmentKeepsUnitlessExposure`.
 - a1b: `Pbr.BrdfLutMatchesCpuIntegration` (8 (NdotV, roughness) points within 0.01 of a CPU split-sum integration),
@@ -2817,6 +2810,52 @@ every key exists); nits 14 (described, names kept), 15, 16, 17, 18 (a1c, b), 19 
 bug: minor 11 (the memcpy runs only in `init`). Not adopted: AlwaysClamp (finding 9), the per-process environment
 cache and the "fast" death tests (finding 4c, 4d). Split: a1c into `stage-s36a1c1` (steps 1-2, 45 files) and
 `stage-s36a1c` (89 files); every PR below 100 files. See Design changes "Code review round 2" and Results.
+
+### Code review round 3 (Fable) and CodeRabbit round 1 (#81, #82), 2026-11-24
+
+Round 3 (`r3_fable.md`): 2 blockers, 1 major, 3 minor, 5 nits; the two CI failures; CodeRabbit #81 (5 inline, 2
+nitpicks) and #82 (4 major, 19 minor). All fixed except where noted.
+
+- **Blocker 1 (MSVC C2487)**: one `static constexpr` per declaration in the exported classes: `Atmosphere.h` (a1c1
+  5c452652e; a1c 0b568d127), `CloudLayer.h` (a1c 0b568d127), `CascadedShadows.h` (a2 716af435a); no other
+  multi-declarator static member in the stage's 65 headers. The rest of the diff was checked for MSVC pitfalls (export
+  macros of cross-module functions, implicit special members of exported classes, GCC-only constructs, missing
+  standard includes, level-1 warnings C4305 / C4715 / C4834, constexpr): none found; it can only be confirmed by the
+  Windows job.
+- **Blocker 2 (`test_vulkan_sync` on CI's layer 1.3.275)**: sync validation only with a Khronos layer of at least
+  1.4.328 (it knows the shader-access heuristic; 1.3.275 reports the scene pass's SAMPLE_ZERO depth resolve against
+  its own depth writes, a false positive inside one dynamic-rendering pass; 1.4.341 accepts it), enumerated before the
+  first instance; below it the tests render without sync validation (no skip); `SAIGA_TEST_SYNC_VALIDATION=1/0`
+  forces it (a2 716af435a). Checked with the local layer (on), forced off, and with the threshold above the local
+  layer (off).
+- **Major 3**: `lightingMemoryAfter` counts the cluster buffers and the binding limit whenever the local lights are
+  on; `ClusterMemoryIsChecked` with `clustered_lights: false` (b e6759541b; fails on the old code).
+- **Minor 4 (test budgets per PR)**: AGENTS.md of a1c (55647830f) and a2 (6f60fba4d) state the budgets of their code
+  with the reason (every RenderScene creates the subsystems at construction; b's lazy creation brings them down).
+  Moving the lazy creation down into a1b..a2 was the more expensive option (four branches of RenderScene changes).
+- **Minor 5** (`matched_total` on `after_entity` pages), **minor 6** (`SyncValidation.FirstUsesInFlight`: the first
+  environment, shadowed light, overlay and preview with a frame in flight; coverage, no bug found), **nits 7-10**
+  (description, `--lamps` / `--base-spacing` errors with the game's usage, eviction tie by handle, cluster memory
+  never below the current buffers): b e6759541b. Nit 8 in part: the engine's own usage line still does not list the
+  game's value flags (the game prints its usage for its own flags' errors). **Nit 11**: the key table and
+  `validateLightingValues` in `engine/lighting/LightingKeys` (b 858c546c9).
+- **CodeRabbit #81**: midnight with a tiny negative rate and the hours write without `worldTimeSystem` (a1a
+  ac573fbdf, both with failing tests), the test's argument diagnostic and the plan's ctest commands (a1a); the float
+  bound round trip was already fixed (b a424fa5d1); the suite-wide apps were already removed (a1c 0b0865866), the
+  plan's Tests section now says so (b).
+- **CodeRabbit #82**: fixed in a1b 0621ca1ec (the probe projection's range, the pre-exposure of every linear probe
+  frame (its test in a1c 0b568d127: it needs a scene without an environment), no previews in any probe frame,
+  deferred screenshots promoted by their frame settings, the half-vector and log-mapping guards, the test fixes) and
+  b 603ee15ec (the held state before the probe callbacks, a resize ends the probe without values,
+  `LightingDebug::destroy` resets its requests). Already fixed later in the stack: the pixel range of
+  `probe_lighting` (b 1f5278b85), the deferred screenshot's storage (a1c fb2861045), the suite plane (a1c 0b0865866).
+  Not fixed: the `pbr` latch and the forced Identity of an unsupported view (the switch and the legacy variant are
+  removed by a1c's flip c68f9b3bc), the paired legacy / PBR golden comparisons (removed by the flip as well), the
+  unwritten preview after a failed pipeline bind (unreachable with SAIGA_ASSERTS: the pipeline's creation asserts its
+  shader), the feature check before the scene's construction (master's fixture; every Vulkan 1.3 driver in use has
+  `drawIndirectFirstInstance`). The screenshot batch fix has no regression test (it needs two deadline-bound MCP
+  calls with different settings in flight; the change is a partition of the deferred list).
+- Goldens: none changed.
 
 ## Questions for the user
 
