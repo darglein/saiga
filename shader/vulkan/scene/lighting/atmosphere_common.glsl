@@ -128,7 +128,8 @@ vec2 skyViewUv(vec3 dir, float r)
         v = 0.5 + 0.5 * sqrt(clamp((el - horizon) / (0.5 * kAtmPi - horizon), 0.0, 1.0));
     else
         v = 0.5 - 0.5 * sqrt(clamp((horizon - el) / (horizon + 0.5 * kAtmPi), 0.0, 1.0));
-    float u = atan(dir.z, dir.x) / (2.0 * kAtmPi) + 0.5;
+    // atan(0, 0) is undefined (GLSL): a vertical ray takes the azimuth 0 (CodeRabbit #83)
+    float u = dir.x != 0.0 || dir.z != 0.0 ? atan(dir.z, dir.x) / (2.0 * kAtmPi) + 0.5 : 0.5;
     return vec2(u, v);
 }
 
