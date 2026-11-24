@@ -2886,6 +2886,34 @@ unchanged (CodeRabbit was reviewing #83); the fixes are on a1c, a2 and b.
   and with `SAIGA_TEST_SYNC_VALIDATION=0`.
 - Goldens: none changed.
 
+### CodeRabbit round 1 (#83, #84) and CI flake 4, 2026-11-24
+
+#83: 11 inline, 1 nitpick; #84: 6 inline. a1a and a1b are unchanged.
+
+- **Fixed on a1c1**: the games read `environment.json` after the command line, so `--data` selects it
+  (`EngineAppSetup::onDataDirectory`; check in `AppCommandLine.OptionsGameFlagsAndErrors`) (3a14ea76e);
+  `skyViewUv` has a defined azimuth for vertical rays (`atan(0, 0)`) (0ec3e1608); a star disc next to a cube edge
+  is no longer cut off on the other face: the faces whose edge is within a cell are searched too, and a star keeps
+  its face and cell (6f094dc8e). The flip commit drops the `pbr` line from the moved file read.
+- **Fixed on a1c**: the stars fade at the limb of the camera's radius (not `y = 0`), and the sun and moon give
+  direct light above the receiver's horizon (`limbCosine`, not `y > -0.1`) (2a91e9376); the water's fog per fragment
+  (25 km triangles; 2ae463a8b had moved it to the vertices) (e2f4881cd); one environment capture per probe (a
+  capture in progress completes in frame 1 and the later frames keep the front cube; `ProbeKeepsOneCapture`), the
+  capture key holds the layer's cloudiness (`RecapturesWhenTheLayerCloudinessChanges`; both fail on the old code),
+  the cloud shadow preview is 1 without a shadow light (01842d2d4); `Sections` sums every pass's sub-sections by name
+  (scene.debug was missing on a1c, a2 and b) (f8d0c89f1).
+- **Already fixed** later in a1c: the sky-view horizon (1991f90d3), the moon disc's illuminance and the stars' fade
+  with the sun (6886e9c82; A4's "faded by the sky luminance" is that CPU fade), `capture_lighting`'s mip per request
+  (731f6ad96), the suite-wide scene and app of the tests (110e54cb6).
+- **Not fixed**: moon and stars in the environment capture (Design changes: below a cube texel, no energy); the
+  sky-view LUT after a failed pipeline bind (unreachable with SAIGA_ASSERTS, as #82's preview item).
+- **CI flake 4** (`StreamTimePausesTheClock`, 124 ms against 100 ms after a 5 km jump): the terrain apps of
+  `test_engine_app.cpp` run without cascades and horizon map (the clay studio sun is a shadow light); this covers
+  `ScreenshotTerrainDeadline` too, the other test whose wall-clock bound follows a jump (a2 228634052).
+- Goldens: `lighting_noon`, `lighting_sunset`, `lighting_clouds` (the zenith lookups' azimuth; noon mean 0.008 / 255)
+  and `lighting_night` (stars) on a2 (bc0f7a878), `lighting_local_lights` on b (0ef460501); lavapipe. On a1c the
+  lighting goldens were already stale; a2 regenerates them.
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
