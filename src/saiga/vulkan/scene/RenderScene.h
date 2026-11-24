@@ -132,7 +132,7 @@ class SAIGA_VULKAN_API RenderScene
     void setImguiOverride(std::optional<bool> visible) { imguiOverride = visible; }
     std::optional<bool> imguiOverridden() const { return imguiOverride; }
 
-    // From the next frame on (R-MECH-1). The exposure is clamped to [1/1024, 1024]
+    // From the next frame on (R-MECH-1; the tone map after a running probe). The exposure is clamped to [1/1024, 1024]
     void setToneMap(ToneMap toneMap);
     void setExposure(float exposure);
     // The requested values (the next frame's)
@@ -408,8 +408,9 @@ class SAIGA_VULKAN_API RenderScene
     };
     std::unique_ptr<ProbeRun> probeRun;
     std::vector<ProbeRequest> probeRequests;
-    // While a probe runs: the environment, camera and time given meanwhile (applied after it)
+    // While a probe runs: the environment, tone map, camera and time given meanwhile (applied after it)
     std::optional<EnvironmentState> heldEnvironment;
+    std::optional<ToneMap> heldToneMap;
     std::optional<double> heldTime;
     struct HeldCamera
     {

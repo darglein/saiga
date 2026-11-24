@@ -576,12 +576,19 @@ TEST_F(LightingDebugTools, ProbeLighting)
     // The vertex colour 180 (sRGB) -> linear 0.456
     EXPECT_NEAR(p["albedo"][0].number_value(), 0.456, 0.01);
     EXPECT_GT(p["radiance"]["direct"][0].number_value(), 0);
+    // (a missing position would read as 0)
+    ASSERT_EQ(p["position"].array_items().size(), 3u) << p.dump();
+    ASSERT_TRUE(p["position"][1].is_number()) << p.dump();
     EXPECT_NEAR(p["position"][1].number_value(), 0, 0.05);
     EXPECT_EQ(app->scene()->lightingDebug().view, Vulkan::LightingDebugView::Roughness);
     // A world point: its pixel
     const Json w = callFrames(*app, "probe_lighting", obj(R"({"position": [0, 0, 0]})"));
     ASSERT_FALSE(isError(w)) << text(w);
-    EXPECT_NEAR(result(w)["position"][0].number_value(), 0, 0.2);
+    const Json wp = result(w);
+    EXPECT_EQ(wp["hit"], Json(true)) << wp.dump();
+    ASSERT_EQ(wp["position"].array_items().size(), 3u) << wp.dump();
+    for (const Json& x : wp["position"].array_items()) ASSERT_TRUE(x.is_number()) << wp.dump();
+    EXPECT_NEAR(wp["position"][0].number_value(), 0, 0.2);
     for (const char* args : {R"({"pixel": [64, 0]})", R"({"pixel": [-1, 3]})", R"({"pixel": [1.5, 2]})", R"({})",
                              R"({"pixel": [1, 2], "position": [0, 0, 0]})", R"({"pixel": [1, 2], "light": 3})"})
         EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(args)))) << args;

@@ -105,6 +105,8 @@ struct RenderScene::ProbeRun
     ivec2 size        = ivec2(0, 0);
     float preExposure = 1;
     bool physical     = false;
+    // Frame 1's camera is taken (the camera given from then on is held; frame 1's transfer callback still sets it)
+    bool cameraTaken = false;
     // Frame 1's post pass (the later frames show frame 1's image: the window does not flash the debug frames)
     float postScale = 1;
     bool postLinear = false;
@@ -413,6 +415,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             probe->physical    = s.framePhysical && linear;
             probe->postScale   = scale;
             probe->postLinear  = linear;
+            probe->cameraTaken = true;
             for (RenderScene::ProbeRequest& r : probe->requests)
             {
                 if (!r.world) continue;
@@ -485,7 +488,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // The targets are shared by the frames in flight: the previous frame's attachment writes and sampled reads
         // (resolve, post, the sampled depth's consumers) come before this frame's writes; the previous content is
         // discarded.
-        const auto prevColor  = Stage::eColorAttachmentOutput | Stage::eFragmentShader;
+        // (the compute stage: the preview conversion samples hdrResolved)
+        const auto prevColor  = Stage::eColorAttachmentOutput | Stage::eFragmentShader | Stage::eComputeShader;
         const auto colorWrite = Access::eColorAttachmentWrite | Access::eColorAttachmentRead;
         const auto depthTests = Stage::eEarlyFragmentTests | Stage::eLateFragmentTests;
         const auto depthRW    = Access::eDepthStencilAttachmentWrite | Access::eDepthStencilAttachmentRead;
@@ -1000,6 +1004,12 @@ bool RenderScene::imguiVisible() const
 
 void RenderScene::setToneMap(ToneMap toneMap)
 {
+    // A probe holds the tone map of its frame 1: it chooses the light model (physical or studio) of every frame
+    if (probeRun)
+    {
+        heldToneMap = toneMap;
+        return;
+    }
     params.toneMap = toneMap;
 }
 
@@ -1428,6 +1438,11 @@ void RenderScene::finishProbe()
         envSet = true;
         heldEnvironment.reset();
     }
+    if (heldToneMap)
+    {
+        params.toneMap = *heldToneMap;
+        heldToneMap.reset();
+    }
     if (heldTime)
     {
         sceneTime = *heldTime;
@@ -1505,8 +1520,8 @@ void RenderScene::removeDynamic(InstanceHandle h)
 
 void RenderScene::setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy)
 {
-    // A probe holds the camera of its frame 1
-    if (probeRun && cameraSet)
+    // A probe holds the camera of its frame 1 (frame 1's transfer callback still sets it: the render path's camera)
+    if (probeRun && probeRun->cameraTaken && cameraSet)
     {
         heldCamera = HeldCamera{space, position, rotation, fovy};
         return;

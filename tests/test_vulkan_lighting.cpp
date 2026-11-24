@@ -336,6 +336,46 @@ TEST_F(Pbr, ProbeMatchesClosedForm)
     }
 }
 
+// A normal facing away from the viewer reflects no direct specular light towards it: a front-facing quad whose normals
+// face away, a white metal (no diffuse part) of roughness 1 lit from behind along its normal. Regression: the specular
+// term was evaluated with the floored NdotV, a highlight on the back of the surface (CodeRabbit #82)
+TEST_F(Pbr, NoSpecularFacingAway)
+{
+    UsePbr();
+    scene->setToneMap(ToneMap::Aces);
+    MeshLod lod;
+    lod.endDistance = 1000;
+    for (const vec3& c : {vec3(-1, -1, 0), vec3(1, -1, 0), vec3(1, 1, 0), vec3(-1, 1, 0)})
+    {
+        MeshVertex v;
+        v.position = c;
+        v.normal   = packNormalOct(vec3(0, 0, -1));
+        v.color    = packColor(ucvec4(255, 255, 255, 255));
+        lod.vertices.push_back(v);
+    }
+    lod.indices = {0, 1, 2, 0, 2, 3};
+    MeshLods quad;
+    quad.lods.push_back(lod);
+    quad.sphereRadius = std::sqrt(2.0f);
+    MaterialData m;
+    m.roughness = 1;
+    m.metalness = 1;
+    scene->addMaterial(MaterialId(115), "facing_away", m);
+    scene->addMesh(115, "facing_away", quad, MaterialId(115));
+    AddSet({instanceAt(vec3(0, 0, 0), 115)});
+    EnvironmentState sun = darkEnvironment(15);
+    sun.sunDir           = vec3(0, 0, -1);
+    sun.sunIlluminance   = 100000;
+    scene->setEnvironment(sun);
+    scene->skyAmbient().setUniformRadiance(vec3(0, 0, 0));
+    SetCamera(0, Vec3(0, 0, 4), Quat::Identity(), 0.6);
+    Capture(2);
+    const LightingProbe p = runProbe(*scene, [&](auto cb) { scene->requestProbe(ivec2(width / 2, height / 2), cb); });
+    ASSERT_TRUE(p.hit);
+    EXPECT_LT(p.normal.z(), -0.99f);
+    for (int c = 0; c < 3; ++c) EXPECT_LT(p.direct(c), 1.0f) << "channel " << c;
+}
+
 // Energy conservation: a white dielectric and a white metal sphere under a uniform white environment (radiance 1, no
 // sun or moon) reflect the environment's radiance within 3% for roughness 0.2, 0.5 and 1 (the multi-scatter
 // compensation of Fdez-Agüera); read through the ACES output, inverted
@@ -714,16 +754,18 @@ TEST_F(LightingDebugTest, RequestsKeepTheirMapping)
     log2Mapping.log = true;
     tab.log         = true;
     tab.colorMap    = ColorMap::Turbo;
-    std::optional<LightingDebug::Capture> a, b;
-    d.request(LightingImage::Luminance, linear, [&](const LightingDebug::Capture& c) { a = c; });
-    d.request(LightingImage::Luminance, log2Mapping, [&](const LightingDebug::Capture& c) { b = c; });
+    // The callbacks own the captures (a failed assertion returns with a request still queued in the scene)
+    auto a = std::make_shared<std::optional<LightingDebug::Capture>>();
+    auto b = std::make_shared<std::optional<LightingDebug::Capture>>();
+    d.request(LightingImage::Luminance, linear, [a](const LightingDebug::Capture& c) { *a = c; });
+    d.request(LightingImage::Luminance, log2Mapping, [b](const LightingDebug::Capture& c) { *b = c; });
     d.show(LightingImage::Luminance, tab);
-    for (int i = 0; i < 4 && !(a && b); ++i) RenderFrame();
-    ASSERT_TRUE(a && b);
-    EXPECT_GT(a->statistics.max, 0.05f);
-    EXPECT_NEAR(b->statistics.max, std::log2(a->statistics.max), 0.01f);
+    for (int i = 0; i < 4 && !(*a && *b); ++i) RenderFrame();
+    ASSERT_TRUE(*a && *b);
+    EXPECT_GT((*a)->statistics.max, 0.05f);
+    EXPECT_NEAR((*b)->statistics.max, std::log2((*a)->statistics.max), 0.01f);
     // Gray, not the tab's turbo
-    const ucvec4 c = a->image(height / 2, width / 2 - 20);
+    const ucvec4 c = (*a)->image(height / 2, width / 2 - 20);
     EXPECT_EQ(c(0), c(1));
     EXPECT_EQ(c(1), c(2));
 }
@@ -819,6 +861,61 @@ TEST_F(LightingDebugTest, ProbeAtWorldPoint)
     // Far off screen (beyond the int range in pixels: the range is checked before the conversion; CodeRabbit #82)
     p = runProbe(*scene, [&](auto cb) { scene->requestProbe(Vec3(1e9, 0, -1), cb); });
     EXPECT_FALSE(p.inImage);
+    // The transfer callback of frame 1 sets the camera (the render path's camera): frame 1 uses it, the later frames
+    // hold it. Regression: it was held until after the sequence, frame 1 projected with the previous camera, which
+    // looks away from the point (CodeRabbit #82)
+    SetCamera(0, Vec3(-1, 8, 1), lookRotation(Vec3(0, 1, 0.002)), 0.9);
+    Capture(1);
+    auto answer = std::make_shared<std::optional<LightingProbe>>();
+    scene->requestProbe(world, [answer](const LightingProbe& r) { *answer = r; });
+    const auto transfer = [&](vk::CommandBuffer)
+    { SetCamera(0, Vec3(-1, 8, 1), lookRotation(Vec3(0, -1, -0.002)), 0.9); };
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answer->has_value(); ++i)
+        scene->renderFrame(transfer, [](vk::CommandBuffer) {}, nullptr);
+    ASSERT_TRUE(answer->has_value());
+    p = **answer;
+    ASSERT_TRUE(p.inImage);
+    ASSERT_TRUE(p.hit);
+    EXPECT_TRUE(p.consistent);
+    EXPECT_NEAR(p.position.x(), world.x(), 0.06);
+    EXPECT_NEAR(p.position.z(), world.z(), 0.06);
+}
+
+// All frames of a probe use frame 1's light model: a tone map set during the sequence (Identity: the studio lighting)
+// takes effect after it. Regression: the light model followed the tone map per frame, the raw frames 5-7 used the
+// studio lighting while the probe reported physical (CodeRabbit #82)
+TEST_F(LightingDebugTest, ProbeHoldsToneMap)
+{
+    UsePbr();
+    PlaneScene(450);
+    scene->setToneMap(ToneMap::Aces);
+    EnvironmentState noon;
+    noon.fogDensity = 0;
+    noon.ev100      = 14;
+    scene->setEnvironment(noon);
+    Capture(2);
+    const ivec2 pixel(width / 2 - 20, height / 2);
+    const LightingProbe reference = runProbe(*scene, [&](auto cb) { scene->requestProbe(pixel, cb); });
+    ASSERT_TRUE(reference.hit);
+    auto answer = std::make_shared<std::optional<LightingProbe>>();
+    scene->requestProbe(pixel, [answer](const LightingProbe& r) { *answer = r; });
+    // (no screenshots: they wait for the frame after the sequence)
+    const auto frame = [&]() { scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr); };
+    frame();
+    ASSERT_TRUE(scene->probeRunning());
+    scene->setToneMap(ToneMap::Identity);
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answer->has_value(); ++i) frame();
+    ASSERT_TRUE(answer->has_value());
+    const LightingProbe& p = **answer;
+    EXPECT_TRUE(p.physical);
+    for (int c = 0; c < 3; ++c)
+    {
+        EXPECT_NEAR(p.direct(c), reference.direct(c), 0.01f * reference.direct(c)) << "channel " << c;
+        EXPECT_NEAR(p.ambient(c), reference.ambient(c), 0.01f * reference.ambient(c)) << "channel " << c;
+    }
+    // Applied after the sequence
+    EXPECT_EQ(scene->parameters().toneMap, ToneMap::Identity);
+    scene->setToneMap(ToneMap::Aces);
 }
 
 // probe_lighting's sequence: 7 frames at a pixel of the lit plane, the values equal the views' at that pixel, the

@@ -66,13 +66,17 @@ vec3 pbrDirect(vec3 n, vec3 v, vec3 l, vec3 albedo, float roughness, float metal
     vec3 hv   = v + l;
     float hl  = dot(hv, hv);
     vec3 h    = hl > 1e-12 ? hv * inversesqrt(hl) : n;
-    float NoV = max(dot(n, v), 1e-4);
+    // A normal facing away from the viewer (an interpolated normal, the back of a foliage card) reflects no specular
+    // light towards it; the floored NoV keeps the visibility term finite
+    float NoVs = dot(n, v);
+    float NoV  = max(NoVs, 1e-4);
     float NoH = clamp(dot(n, h), 0.0, 1.0);
     float VoH = clamp(dot(v, h), 0.0, 1.0);
     float a   = roughness * roughness;
     vec3 f0   = pbrF0(albedo, metalness);
     vec3 F    = fresnelSchlick(VoH, f0);
     vec3 spec = distributionGgx(NoH, a) * visibilitySmithGgx(NoV, NoL, a) * F * pbrEnergyCompensation(f0, lut);
+    if (NoVs <= 0.0) spec = vec3(0.0);
     vec3 diff = (vec3(1.0) - F) * (1.0 - metalness) * albedo / kPi;
     return (diff * NoLd + spec * NoL) * E;
 }
