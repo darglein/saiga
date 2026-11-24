@@ -65,6 +65,8 @@ class SAIGA_VULKAN_API CloudLayer
         float mean   = 0;
         float height = 0;
         vec3 light   = vec3(0, 1, 0);
+        // A shadow light exists (else the shadow preview is 1: the scene's cloud shadow is off)
+        bool shadowLight = false;
     };
     Texture2D* recordDebug(vk::CommandBuffer cmd, uint32_t frameIndex, int mode, const DebugInput& input);
 

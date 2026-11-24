@@ -29,7 +29,7 @@ layout(push_constant) uniform Push
     vec4 blob;     // the blob: centre (texel x, z), radius (texels); mode 2: x the extent (m) of the preview
     vec4 clouds;   // altitude, radius, cloudiness, shadow fade
     vec4 origin;   // xy: the camera's coverage position (m), z: the mean coverage, w: the camera height (m)
-    vec4 light;    // towards the shadow light
+    vec4 light;    // towards the shadow light; w: 1 if there is one
 }
 pc;
 
@@ -107,7 +107,10 @@ void main()
     else
     {
         vec2 rel = ((vec2(p) + 0.5) / float(n) * 2.0 - 1.0) * pc.blob.x;
-        v = cloudShadowAt(coverage, pc.origin.xy, rel, pc.origin.w, normalize(pc.light.xyz), pc.clouds, pc.origin.z);
+        // Without a shadow light the scene has no cloud shadow (shadows.glsl's cloudShadow; CodeRabbit #84)
+        v = pc.light.w > 0.5 ? cloudShadowAt(coverage, pc.origin.xy, rel, pc.origin.w, normalize(pc.light.xyz),
+                                             pc.clouds, pc.origin.z)
+                             : 1.0;
     }
     imageStore(previewOut, p, vec4(v, v, v, 1.0));
 }

@@ -65,6 +65,8 @@ class SAIGA_VULKAN_API EnvironmentMap
     int resolution() const { return size; }
 
     bool valid() const { return frontValid; }
+    // A capture is in progress (its steps run in the next frames; the front cube is the previous one)
+    bool capturing() const { return step != 0; }
     vk::DescriptorImageInfo frontCubeInfo();
     vk::Buffer frontSh() const;
     static constexpr size_t kShBytes = 9 * 16;
@@ -93,6 +95,9 @@ class SAIGA_VULKAN_API EnvironmentMap
         AtmosphereSettings atmosphere;
         CloudSettings clouds;
         bool enclosed = false, cloudsOn = true;
+        // The cloud layer's cloudiness the capture used (CaptureInputs::cloudiness: the weather's through the noise's
+        // histogram, which changes when a new seed's histogram is read back)
+        float layerCloudiness = -1;
     };
     bool due(const Key& k, const LightingParameters& p) const;
     void createImages(int resolution);

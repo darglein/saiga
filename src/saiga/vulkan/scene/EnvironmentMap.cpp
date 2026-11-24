@@ -315,7 +315,9 @@ bool EnvironmentMap::due(const Key& k, const LightingParameters& p) const
     const float deg = p.environmentUpdateDegrees;
     if (angleDeg(k.sunDir, c.sunDir) > deg || angleDeg(k.moonDir, c.moonDir) > deg) return true;
     if (relativeChange(k.sunE, c.sunE, 0.01f) || relativeChange(k.moonE, c.moonE, 0.01f)) return true;
-    if (std::abs(k.cloudiness - c.cloudiness) > 0.01f) return true;
+    // The layer's too (CodeRabbit #84: after a new seed's histogram the capture kept the old one's threshold)
+    if (std::abs(k.cloudiness - c.cloudiness) > 0.01f || std::abs(k.layerCloudiness - c.layerCloudiness) > 0.01f)
+        return true;
     if (std::abs(k.cameraHeight - c.cameraHeight) > 200.0f) return true;
     const AtmosphereSettings &a = k.atmosphere, &b = c.atmosphere;
     if (a.rayleighScale != b.rayleighScale || a.mieScale != b.mieScale || a.ozoneScale != b.ozoneScale ||
@@ -476,6 +478,8 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
     k.enclosed     = e.enclosed;
     k.cloudsOn     = inputs.clouds;
     stats.steps    = kMips + 2;
+    // The layer's cloudiness of the capture (push.clouds[2])
+    k.layerCloudiness = inputs.clouds ? inputs.cloudiness : 0.0f;
 
     // A new capture when due and none is in progress (a running capture finishes first: no mixed captures); the first
     // capture and forceFullUpdates do all steps in this frame

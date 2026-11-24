@@ -1373,6 +1373,29 @@ TEST_F(EnvironmentMapTest, SwapsOnlyCompleteCaptures)
     EXPECT_GT(scene->lightingStatistics().environmentMap.lastCompleteFrame, completeAt);
 }
 
+// Regression (CodeRabbit #83): a capture in progress when probe_lighting started was swapped in during the sequence,
+// so its later views (ambient, specular) described another capture than its frame 1. It completes in frame 1, and the
+// front cube stays for the sequence
+TEST_F(EnvironmentMapTest, ProbeKeepsOneCapture)
+{
+    Physical(sunAt(20));
+    RenderFrame();
+    scene->setEnvironment(sunAt(25));
+    RenderFrame();
+    ASSERT_TRUE(scene->environmentMap().capturing());
+    auto answered = std::make_shared<bool>(false);
+    scene->requestProbe(ivec2(64, 64), [answered](const LightingProbe&) { *answered = true; });
+    RenderFrame();
+    EXPECT_FALSE(scene->environmentMap().capturing());
+    const vk::Image front = scene->environmentMap().frontCube().image();
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !*answered; ++i)
+    {
+        RenderFrame();
+        EXPECT_EQ(scene->environmentMap().frontCube().image(), front) << "frame " << i + 2;
+    }
+    EXPECT_TRUE(*answered);
+}
+
 // Below the horizon the capture is the ground (grey, lit through the atmosphere), not the blue sky
 TEST_F(EnvironmentMapTest, LowerHemisphereIsGround)
 {
@@ -1529,6 +1552,28 @@ class CloudsTest : public AtmosphereTest
     void View(LightingDebugView v) { scene->setLightingDebug(LightingDebugState{v, 0}); }
 };
 }  // namespace
+
+// Regression (CodeRabbit #84): the environment map's key held the weather's cloudiness, not the layer's that the
+// capture used: a new seed's capture took the old noise's histogram (it is read back after the frame), and when the
+// new histogram changed the layer's cloudiness the capture kept the old threshold until something else changed
+TEST_F(CloudsTest, RecapturesWhenTheLayerCloudinessChanges)
+{
+    EnvironmentState e = Cloudy(0.5f, 2000, 30);
+    Physical(e);
+    RenderFrame();
+    const float before = scene->cloudLayer().effectiveCloudiness(e.cloudiness);
+    e.clouds.seed      = 12345;
+    scene->setEnvironment(e);
+    RenderFrame();
+    // The new seed's capture (the old histogram), then its histogram: another layer cloudiness (by 0.014 for this
+    // seed) and, when the capture is complete, one more capture
+    const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
+    for (int i = 0;
+         i < 3 * (EnvironmentMap::kMips + 2) && scene->lightingStatistics().environmentMap.captures == captures; ++i)
+        RenderFrame();
+    ASSERT_GT(std::abs(scene->cloudLayer().effectiveCloudiness(e.cloudiness) - before), 0.01f);
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures + 1);
+}
 
 // The layer's mean coverage follows the weather's cloudiness (the histogram mapping): monotonic, 0 at 0; the GPU
 // coverage preview has the same mean

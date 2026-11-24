@@ -486,6 +486,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         lp.forceFullUpdates   = lp.forceFullUpdates || s.fullUpdateRequested || s.environmentSkipped;
         s.fullUpdateRequested = false;
         s.environmentSkipped  = false;
+        // probe_lighting: one capture for the whole sequence (CodeRabbit #83: a capture in progress was swapped in
+        // between its frames): a capture in progress completes in frame 1, the later frames keep the front cube
+        const bool probeHold = probe && probe->step > 0;
+        if (probe && probe->step == 0 && s.envMap->capturing()) lp.forceFullUpdates = true;
         s.atmosphere->record(cmd, s.env, lighting.atmosphere(0));
         s.clouds->record(cmd, s.env.clouds.seed);
         EnvironmentMap::CaptureInputs in;
@@ -501,7 +505,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             in.light            = vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2));
             in.lightIlluminance = lighting.shadowLight(3) == 1 ? s.env.sunIlluminance : s.env.moonIlluminance;
         }
-        s.envMap->record(cmd, s.env, lighting.atmosphere(0), lp, in, s.frameCount + 1);
+        if (!probeHold) s.envMap->record(cmd, s.env, lighting.atmosphere(0), lp, in, s.frameCount + 1);
     }
     else
         s.environmentSkipped = true;
@@ -814,6 +818,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             in.light  = lighting.shadowLight(3) > 0
                             ? vec3(lighting.shadowLight(0), lighting.shadowLight(1), lighting.shadowLight(2))
                             : vec3(0, 1, 0);
+            // The shadow preview is 1 without a shadow light (as the scene's cloud shadow)
+            in.shadowLight = lighting.shadowLight(3) > 0;
             if (s.debugImages->requested(LightingImage::CloudCoverage))
                 src.set(LightingImage::CloudCoverage, s.clouds->recordDebug(cmd, frame.frameIndex, 1, in), 1);
             if (s.debugImages->requested(LightingImage::CloudShadow))

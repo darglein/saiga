@@ -330,6 +330,7 @@ Texture2D* CloudLayer::recordDebug(vk::CommandBuffer cmd, uint32_t frameIndex, i
         push.origin[2] = in.mean;
         push.origin[3] = in.height;
         for (int i = 0; i < 3; ++i) push.light[i] = in.light(i);
+        push.light[3] = in.shadowLight ? 1.0f : 0.0f;
         noisePipeline.bindRawDescriptorSet(cmd, set);
         noisePipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
         cmd.dispatch(n / 8, n / 8, 1);
