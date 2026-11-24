@@ -29,6 +29,7 @@
 #include <set>
 
 #include "golden_image.h"
+#include "lighting_test_parameters.h"
 #include "terrain_test_hooks.h"
 #include "vulkan_test_context.h"
 
@@ -196,6 +197,13 @@ class VulkanScene : public ::testing::Test
         VulkanParameters vp;
         vp.enableImgui     = params.imgui;
         vp.offscreenFormat = offscreen;
+        params.lighting    = testLightingParameters(params.lighting);
+        // Not about shadows (as RenderSceneTest's Shadows(); the goldens keep them)
+        if (!params.lighting.forceFullUpdates)
+        {
+            params.lighting.sunShadows     = false;
+            params.lighting.horizonShadows = false;
+        }
         window             = std::make_unique<MinimizableWindow>(wp);
         scene              = std::make_unique<RenderScene>(*window, vp, params);
         pattern.init(scene->base(), scene->formats());

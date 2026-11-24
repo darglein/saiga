@@ -575,6 +575,8 @@ McpServer::Json toolResultJson(const McpServer::Json& r)
 class VulkanPrototypeScene : public RenderSceneTest
 {
    protected:
+    // Not about shadows (render_scene_test_context.h)
+    bool Shadows() const override { return false; }
     static constexpr int kSpacing = 2;
     TerrainLayout Layout() const { return TerrainTestHooks::testLayout(16, kSpacing); }
 
@@ -786,6 +788,8 @@ TEST_F(VulkanPrototypeScene, ForestFollowsSettings)
 // The grass toggle (racing turns it off): grass from the masks, no blocks and no grass pixels when off
 TEST_F(VulkanPrototypeScene, GrassToggle)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     Attach(p, 10);
     p.settings.trees = false;
@@ -816,6 +820,8 @@ TEST_F(VulkanPrototypeScene, GrassToggle)
 // the same image after a pause, other phases move the wind (trees and grass)
 TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     // 1000 trees (a few dozen in view) and the grass show the wind (test speed: 5000 cost 120 ms per frame)
     Attach(p, 1000);
@@ -843,6 +849,8 @@ TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
 // validation clean and the same image
 TEST_F(VulkanPrototypeScene, DepthResolveAndPrePass)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     for (int samples : {4, 1})
     {
         Create(96, 64, samples);
@@ -923,6 +931,8 @@ TEST_F(VulkanPrototypeScene, Sections)
 // same image with the same counts; another seed has other species meshes
 TEST_F(VulkanPrototypeScene, ReattachReusesTreeMeshes)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
@@ -954,6 +964,8 @@ TEST_F(VulkanPrototypeScene, ReattachReusesTreeMeshes)
 // same image and counts
 TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
@@ -974,6 +986,8 @@ TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
 // pre-pass the same image
 TEST_F(VulkanPrototypeScene, ResizeWithPrototype)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     Attach(p, 2000);
     Vec3 c(1536, 0, 1536);
@@ -997,6 +1011,8 @@ TEST_F(VulkanPrototypeScene, ResizeWithPrototype)
 // same image and counts
 TEST_F(VulkanPrototypeScene, TreesToggleInFlight)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     // 2000 trees still fill every 256 m chunk's set of the area (the sets are what is toggled in flight); no terrain
     // draws (test speed: lavapipe's vertex stage)
@@ -1027,6 +1043,8 @@ TEST_F(VulkanPrototypeScene, TreesToggleInFlight)
 // change in the render callback is the next frame's (setPrototypeSettings stays the per-frame setter)
 TEST_F(VulkanPrototypeScene, PrototypeSettingsSnapshotPerFrame)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     PrototypeScene p;
     Attach(p, 0);
     Vec3 eye(1536, 0, 1536);
@@ -1108,6 +1126,8 @@ TEST_F(VulkanPrototypeScene, ReattachStartsFreshStatistics)
 // after setFoliageTexture renders the tree
 TEST_F(VulkanPrototypeScene, FoliageClassNeedsTexture)
 {
+    // Compares frames: golden mode
+    GoldenMode();
     MaterialData foliage;
     foliage.pipelineClass = uint8_t(PipelineClass::PrototypeFoliage);
     foliage.twoSided      = true;

@@ -1260,9 +1260,9 @@ TEST_F(HorizonTest, IncrementalEqualsFull)
     p.forceFullUpdates    = false;
     p.horizonRowsPerFrame = 32;
     scene->setLightingParameters(p);
-    // (60 frames: the light's angular speed of earlier frames decays, the base rows per frame apply)
+    // (a jump of the light resets its angular speed: the base rows per frame apply)
     Elevation(20);
-    for (int i = 0; i < 60; ++i) RenderFrame();
+    RenderFrame();
     Elevation(6);
     int frames = 0;
     while (frames < 40)
@@ -1304,8 +1304,7 @@ TEST_F(HorizonTest, BlendsDuringRecompute)
     p.forceFullUpdates    = false;
     p.horizonRowsPerFrame = 16;
     scene->setLightingParameters(p);
-    // (the light's angular speed of earlier frames decays: the base rows per frame apply)
-    for (int i = 0; i < 60; ++i) RenderFrame();
+    // (the jump to 3 degrees resets the light's angular speed: the base rows per frame apply)
     Elevation(3);
     std::vector<float> f;
     for (int i = 0; i < 40; ++i) f.push_back(FactorAt(Capture(1), ground));

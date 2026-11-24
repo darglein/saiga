@@ -31,6 +31,7 @@
 #include <memory>
 #include <optional>
 
+#include "lighting_test_parameters.h"
 #include "mcp_test_helper.h"
 #include "terrain_test_hooks.h"
 
@@ -52,6 +53,7 @@ EngineAppSetup lightingSetup(bool render)
     s.height                    = 48;
     s.mcpPort                   = 0;
     s.render.imgui              = false;
+    s.render.lighting           = testLightingParameters();
     s.validation                = render;
     s.world.environment.enabled = true;
     s.world.systems             = addEnvironmentSystems;

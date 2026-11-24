@@ -47,6 +47,7 @@
 #include <map>
 #include <thread>
 
+#include "lighting_test_parameters.h"
 #include "mcp_test_helper.h"
 #include "terrain_test_hooks.h"
 
@@ -75,8 +76,9 @@ EngineAppSetup appSetup(bool render)
     s.height        = 48;
     s.mcpPort       = 0;
     s.world.actions = actions;
-    s.render.imgui  = false;
-    s.validation    = render;  // a validation error fails the render tests (if the layer is installed)
+    s.render.imgui    = false;
+    s.render.lighting = testLightingParameters();
+    s.validation      = render;  // a validation error fails the render tests (if the layer is installed)
     return s;
 }
 

@@ -78,6 +78,8 @@ Vec3 direction(double yawDeg, double pitchDeg)
 class TerrainRenderTest : public RenderSceneTest
 {
    protected:
+    // Not about shadows outside the goldens (render_scene_test_context.h; the goldens' golden mode keeps them)
+    bool Shadows() const override { return false; }
     void MakeWorld(const SpaceTemplate& space, uint64_t seed = 1)
     {
         DestroyWorld();

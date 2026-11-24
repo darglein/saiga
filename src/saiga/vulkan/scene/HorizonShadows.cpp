@@ -315,9 +315,11 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         chainPyramid  = &atlas;
         requested     = true;
     }
-    // The light's angular speed (the rows per frame follow it)
+    // The light's angular speed (the rows per frame follow it); a jump of 5 degrees or more (a time change, a new
+    // light) is no speed: it starts over from the base rows per frame (S36a2 review, finding 6d: the speed of the
+    // frames before a jump decayed over about 60 frames)
     const double moved = angleDeg(lastLight, in.light);
-    degreesPerFrame    = moved < 5 ? std::max(moved, degreesPerFrame * 0.9) : degreesPerFrame;
+    degreesPerFrame    = moved < 5 ? std::max(moved, degreesPerFrame * 0.9) : 0.0;
     lastLight          = in.light;
 
     const MapTransform target = targetTransform(in.camera, in.light, p);
