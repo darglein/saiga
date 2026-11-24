@@ -214,11 +214,18 @@ TEST_F(TerrainRenderTest, EditCraterGolden)
     const Vec3 eye(c.x() - 45, ground + 22, c.z() - 45);
     const Quat rot    = lookRotation(Vec3(c.x(), ground - 4, c.z()) - eye);
     const double fovy = 60.0 * kPi / 180;
-    CaptureView(eye, rot, fovy);
+    // (one frame: the terrain resident before the edits; its image is not read)
+    CaptureView(eye, rot, fovy, 1);
     // The ring: 8 mounds of 2 m on a 24 m circle (integer offsets)
     const int ring[8][2] = {{24, 0}, {17, 17}, {0, 24}, {-17, 17}, {-24, 0}, {-17, -17}, {0, -24}, {17, -17}};
     for (const auto& r : ring) edit(TerrainBrush::Add, c.x() + r[0], c.z() + r[1], 6, 2);
-    // Until the background mask jobs are done (a deadline, not a frame count: a loaded machine may need many frames)
+    // Until the background mask jobs are done (a deadline, not a frame count: a loaded machine may need many frames).
+    // The frames of the wait draw no terrain, water or grass (their pixels are not read; the selection, the node data
+    // and the uploads run anyway; round 2, finding 4: test speed, each was a full 512 x 512 golden frame)
+    Vulkan::PrototypeSettings ps  = scene->prototypeSettings();
+    Vulkan::PrototypeSettings off = ps;
+    off.terrain = off.water = off.grass = false;
+    scene->setPrototypeSettings(off);
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
     while (std::chrono::steady_clock::now() < deadline)
     {
@@ -229,6 +236,7 @@ TEST_F(TerrainRenderTest, EditCraterGolden)
             world->terrain().terrainUploadsPending() == 0)
             break;
     }
+    scene->setPrototypeSettings(ps);
     EXPECT_EQ(world->terrain().dirtyQueue().size(), 0u);
     EXPECT_EQ(world->terrain().stats().maskJobsInFlight, 0);
     EXPECT_GT(world->terrain().stats().maskRecomputes, 0u);
@@ -328,7 +336,9 @@ class VulkanWorldGolden : public TerrainRenderTest
         SetCamera(0, eye, rotation, double(radians(prototype.settings.fovy)));
         prototype.update();
         renderUntilUploaded(*scene, 256);
-        return Capture(5);
+        // Two frames (a tile is GPU-resident from the frame its copy is recorded; round 2, finding 4: the image of
+        // the 2nd frame equals the 5th's in golden mode, the three more were 512 x 512 frames for nothing)
+        return Capture(2);
     }
 
     // The committed counts (docs/engine_design.md §17.6)
@@ -439,9 +449,15 @@ TEST_F(TerrainRenderTest, GeneratedSite)
     std::vector<MeshId> meshes;
     for (const std::string& n : names) meshes.push_back(world->findMesh(n));
     scene->trackMeshStatistics(meshes);
-    // The drawn instances per tracked mesh (summed over the LODs) of the frame rendered now
-    auto renderCounts = [&]()
+    // The drawn instances per tracked mesh (summed over the LODs) of the frame rendered now. The frames draw no
+    // terrain, water or grass (the counts are the culling's; the selection and the uploads run anyway; round 2, finding
+    // 4: test speed, they were full 512 x 512 golden frames)
+    const Vulkan::PrototypeSettings drawn = scene->prototypeSettings();
+    Vulkan::PrototypeSettings counting    = drawn;
+    counting.terrain = counting.water = counting.grass = false;
+    auto renderCounts                                  = [&]()
     {
+        scene->setPrototypeSettings(counting);
         SetCamera(0, eye, rot, fovy);
         renderUntilUploaded(*scene, 256);
         RenderFrame();
@@ -468,6 +484,7 @@ TEST_F(TerrainRenderTest, GeneratedSite)
             for (uint32_t c : out.trackedMeshes[m].instancesPerLod) n += c;
             counts[names[m]] = n;
         }
+        scene->setPrototypeSettings(drawn);
         return counts;
     };
     ASSERT_TRUE(world->terrain().completeView(0, eye));
