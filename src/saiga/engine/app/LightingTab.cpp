@@ -15,6 +15,7 @@
 #include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/lighting/Celestial.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/sync/ExtractSystem.h"
@@ -100,8 +101,16 @@ const char* const kOverlayTooltips[] = {
     "The owner (light and face) of each tile in the shadow atlas preview"};
 constexpr size_t kOverlays = sizeof(kOverlayLabels) / sizeof(kOverlayLabels[0]);
 
-// An overlay's checkbox (the overlays popup and the sections draw the same one)
-void overlayCheckbox(Vulkan::RenderScene& scene, uint32_t flag)
+void flowItem(float w, bool first);
+// The width of a checkbox with its label
+float checkboxWidth(const char* label)
+{
+    return ImGui::GetFrameHeight() + ImGui::GetStyle().ItemInnerSpacing.x + ImGui::CalcTextSize(label).x;
+}
+
+// An overlay's checkbox (the overlays popup and the sections draw the same one); flow: on the previous item's line if
+// it fits, else on the next
+void overlayCheckbox(Vulkan::RenderScene& scene, uint32_t flag, bool flow = false)
 {
     const auto& names = Vulkan::lightingOverlayNames();
     for (size_t i = 0; i < names.size() && i < kOverlays; ++i)
@@ -109,6 +118,7 @@ void overlayCheckbox(Vulkan::RenderScene& scene, uint32_t flag)
         if (names[i].second != flag) continue;
         Vulkan::LightingDebugState d = scene.lightingDebug();
         bool on                      = (d.overlays & flag) != 0;
+        if (flow) flowItem(checkboxWidth(kOverlayLabels[i]), false);
         if (ImGui::Checkbox(kOverlayLabels[i], &on))
         {
             d.overlays = on ? (d.overlays | flag) : (d.overlays & ~flag);
@@ -116,6 +126,22 @@ void overlayCheckbox(Vulkan::RenderScene& scene, uint32_t flag)
         }
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s\n(overlay %s)", kOverlayTooltips[i], names[i].first);
     }
+}
+
+// A debug view's checkbox in a section (the same label as in the view combo; off: view none). UI rating round 2, finding
+// 8: the views were reachable only through the combo at the top
+void viewCheckbox(Vulkan::RenderScene& scene, Vulkan::LightingDebugView view, bool flow = false)
+{
+    Vulkan::LightingDebugState d = scene.lightingDebug();
+    bool on                      = d.view == view;
+    if (flow) flowItem(checkboxWidth(kViewLabels[size_t(view)]), false);
+    if (ImGui::Checkbox(kViewLabels[size_t(view)], &on))
+    {
+        d.view = on ? view : Vulkan::LightingDebugView::None;
+        scene.setLightingDebug(d);
+    }
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s\n(view %s)", kViewTooltips[size_t(view)], Vulkan::lightingDebugViewName(view));
 }
 
 // Continues the line with an item w wide if it fits the region, else the item starts a new line (and always for the
@@ -197,7 +223,6 @@ LightingTab::~LightingTab()
 void LightingTab::draw()
 {
     // The summary and the controls stay at the top; the sections scroll below them (UI rating round 1, finding 15)
-    mappingDrawn = false;
     summary();
     controls();
     ImGui::Spacing();
@@ -214,6 +239,7 @@ void LightingTab::draw()
         clustersSection();
         atlasSection();
         gpuAndMemory();
+        app.debugUi().endSubSection();
     }
     ImGui::EndChild();
 }
@@ -228,11 +254,19 @@ void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxW
 bool LightingTab::previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip,
                                       int layer, const Selection& selection)
 {
-    // The mapping's control above the frame's first preview that uses it (the clusters preview has its own)
-    if (!mappingDrawn && image != Vulkan::LightingImage::Clusters) previewMappingControl();
+    // The mapping's control on every preview's caption line that uses it (UI rating round 2, finding 7: only above the
+    // frame's first one, at changing places); the clusters and the luminance have their own mappings
+    if (image != Vulkan::LightingImage::Clusters && image != Vulkan::LightingImage::Luminance)
+    {
+        ImGui::PushID(int(image));
+        previewMappingControl();
+        ImGui::PopID();
+    }
     Vulkan::RenderScene* scene     = app.scene();
-    Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
-    mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
+    // The luminance with its own mapping (the summary's reduction requests the same)
+    Vulkan::PreviewMapping mapping =
+        image == Vulkan::LightingImage::Luminance ? luminanceMapping() : app.lightingPreviewMapping();
+    if (image != Vulkan::LightingImage::Luminance) mapping.log = log;
     mapping.mip                    = mip;
     mapping.layer                  = layer;
     mapping.slice                  = selection.slice;
@@ -283,14 +317,12 @@ void LightingTab::previewMappingControl()
 {
     // The previews' mapping (set_lighting_debug mapping) in a popup: it matters only next to a preview (UI rating round
     // 1, finding 3: it was in the toolbar, always visible)
-    mappingDrawn              = true;
     Vulkan::PreviewMapping& m = app.lightingPreviewMapping();
     char label[96];
     if (m.autoRange)
-        std::snprintf(label, sizeof(label), "preview mapping: auto range, %s",
-                      m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray");
+        std::snprintf(label, sizeof(label), "mapping: auto, %s", m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray");
     else
-        std::snprintf(label, sizeof(label), "preview mapping: %.3g .. %.3g, %s", double(m.min), double(m.max),
+        std::snprintf(label, sizeof(label), "mapping: %.3g .. %.3g, %s", double(m.min), double(m.max),
                       m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray");
     // At the right of the preview's label line if it fits, else on a line of its own
     const float w       = ImGui::CalcTextSize(label).x + 2 * ImGui::GetStyle().FramePadding.x;
@@ -317,7 +349,6 @@ void LightingTab::previewMappingControl()
                 m.max = range[1];
             }
         }
-        ImGui::Checkbox("log2 (the luminance)", &m.log);
         bool turbo = m.colorMap == Vulkan::ColorMap::Turbo;
         if (ImGui::Checkbox("turbo colors", &turbo))
             m.colorMap = turbo ? Vulkan::ColorMap::Turbo : Vulkan::ColorMap::Gray;
@@ -378,6 +409,8 @@ void LightingTab::summary()
         ui.markItem("lighting/tag view");
         first = false;
     }
+    // The tags on a line of their own (UI rating round 2, finding 10: a tag pushed the time line's end to a new line)
+    first = true;
 
     // The time, the sun and the moon, the shadow light
     const int minutes = int(std::floor(e.time.timeOfDay * 60.0));
@@ -430,20 +463,25 @@ void LightingTab::summary()
             std::snprintf(text, sizeof(text), "(curve)");
         flowText(DebugUiStyle::kRef, text);
         // (the request of the Exposure section's preview: one conversion per frame)
-        Vulkan::PreviewMapping luminance = app.lightingPreviewMapping();
-        luminance.mip = luminance.layer = luminance.face = 0;
-        luminance.slice                                    = -1;
-        luminance.light                                    = 0;
-        scene->lightingDebugImages().show(Vulkan::LightingImage::Luminance, luminance);
-        if (ls.luminanceFrame > 0 && ls.luminanceFrame + 600 >= scene->frames())
+        scene->lightingDebugImages().show(Vulkan::LightingImage::Luminance, luminanceMapping());
+        updateLitLuminance();
+        // The exposed key: the frame's log-average luminance times the exposure against mid-gray (UI rating round 2,
+        // finding 3: "too dark / too bright" took mental arithmetic); held while a debug view replaces the frame
+        // (finding 2: the reduction measured the debug image)
+        if (litLuminanceFrame > 0 && litLuminanceFrame + 600 >= scene->frames() && scene->sceneWritesLinear())
         {
-            const bool log = app.lightingPreviewMapping().log;
-            std::snprintf(text, sizeof(text), log ? "lum %.1f / %.1f log2" : "lum %.3g / %.3g",
-                          double(ls.luminance.mean), double(ls.luminance.max));
-            flowText(DebugUiStyle::kWhite, text);
+            const double key  = exposedKey();
+            const bool held   = d.view != Vulkan::LightingDebugView::None;
+            const char* where = key < -2 ? " dark" : key > 2 ? " bright" : "";
+            std::snprintf(text, sizeof(text), "key %+.1f EV%s%s", key, where, held ? " (held)" : "");
+            flowText(held ? DebugUiStyle::kRef : std::abs(key) > 2 ? DebugUiStyle::kWarning : DebugUiStyle::kWhite,
+                     text);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("The frame's mean / max luminance (%s; Exposure has the histogram)",
-                                  scene->sceneWritesLinear() ? "cd/m^2" : "display values");
+                ImGui::SetTooltip("The exposed frame against mid-gray: log2(log-average luminance x exposure / 0.18).\n"
+                                  "0: as bright as mid-gray, beyond +-2 EV too bright / too dark.\n"
+                                  "Luminance mean %.1f, max %.1f (log2 cd/m^2) of the lit frame%s",
+                                  double(litLuminance.mean), double(litLuminance.max),
+                                  held ? ",\nheld while a debug view replaces the frame" : "");
         }
     }
     if (p.localLights)
@@ -469,6 +507,43 @@ void LightingTab::summary()
                           "the graph's %d frames, against the budget of %.1f ms (GPU and memory)",
                           LightingGpuTimes::kMeanFrames, int(t.lightingHistory.size()), LightingGpuTimes::kBudgetMs);
     lightingGraph(t);
+}
+
+Vulkan::PreviewMapping LightingTab::luminanceMapping() const
+{
+    // The luminance's own mapping (UI rating round 2, finding 1: the previews' mapping changed the luminance numbers and
+    // the histogram's bins): log2 over a fixed range of kLuminanceMin .. kLuminanceMax (2 EV per bin), only the color
+    // map from the previews' mapping
+    Vulkan::PreviewMapping m;
+    m.autoRange = false;
+    m.log       = true;
+    m.min       = kLuminanceMin;
+    m.max       = kLuminanceMax;
+    m.colorMap  = app.lightingPreviewMapping().colorMap;
+    return m;
+}
+
+void LightingTab::updateLitLuminance()
+{
+    // The statistics of the lit frame: a debug view replaces the resolved image that the reduction reads, so its
+    // values are held while a view is on, and taken again from the third frame after it is off (the reduction of a
+    // frame arrives a few frames later)
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene) return;
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    if (scene->lightingDebug().view != Vulkan::LightingDebugView::None)
+        litLuminanceAfter = scene->frames() + 3;
+    else if (ls.luminanceFrame > litLuminanceAfter)
+    {
+        litLuminance      = ls.luminance;
+        litLuminanceFrame = ls.luminanceFrame;
+        litExposure       = scene->frameExposure();
+    }
+}
+
+double LightingTab::exposedKey() const
+{
+    return double(litLuminance.mean) + std::log2(std::max(double(litExposure), 1e-30)) - std::log2(0.18);
 }
 
 void LightingTab::lightingGraph(const LightingGpuTimes& t)
@@ -631,22 +706,29 @@ void LightingTab::exposureLegend()
         list->AddRectFilled(ImVec2(x0, p0.y), ImVec2(x1, p0.y + height), turboColor((float(i) + 0.5f) / n));
     }
     ImGui::Dummy(ImVec2(width, height));
-    ImGui::Text("%.1f EV", double(c - 0.5f * range));
-    ImGui::SameLine(std::max(width * 0.5f - 30, 0.0f));
-    ImGui::Text("%.1f EV100%s", double(c), centre ? "" : " (auto)");
-    ImGui::SameLine(std::max(width - 50, 0.0f));
-    ImGui::Text("%.1f EV", double(c + 0.5f * range));
+    // The labels placed by their measured widths, the controls in em (UI rating round 2, finding 13: pixel offsets)
+    char left[32], middle[48], right[32];
+    std::snprintf(left, sizeof(left), "%.1f EV", double(c - 0.5f * range));
+    std::snprintf(middle, sizeof(middle), "%.1f EV100%s", double(c), centre ? "" : " (auto)");
+    std::snprintf(right, sizeof(right), "%.1f EV", double(c + 0.5f * range));
+    const float x0 = ImGui::GetCursorPosX();
+    ImGui::TextUnformatted(left);
+    ImGui::SameLine(x0 + std::max((width - ImGui::CalcTextSize(middle).x) * 0.5f, ImGui::CalcTextSize(left).x + 8));
+    ImGui::TextUnformatted(middle);
+    ImGui::SameLine(x0 + std::max(width - ImGui::CalcTextSize(right).x, ImGui::GetItemRectMax().x - p0.x + 8));
+    ImGui::TextUnformatted(right);
     // The centre (auto: the frame's EV100, the display mid-gray in clay) and the range
+    const float em = ImGui::GetFontSize();
     bool automatic = !centre;
     bool changed   = ImGui::Checkbox("auto centre", &automatic);
     float value    = centre ? *centre : c;
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(120);
+    flowItem(8 * em, false);
+    ImGui::SetNextItemWidth(8 * em);
     if (automatic) ImGui::BeginDisabled();
     changed = ImGui::SliderFloat("##exposure view centre", &value, -10, 20, "centre %.1f") || changed;
     if (automatic) ImGui::EndDisabled();
-    ImGui::SameLine();
-    ImGui::SetNextItemWidth(120);
+    flowItem(8 * em, false);
+    ImGui::SetNextItemWidth(8 * em);
     float r = range;
     changed = ImGui::SliderFloat("##exposure view range", &r, 0.5f, 64, "range %.1f EV") || changed;
     if (changed) scene->setExposureViewRange(automatic ? std::nullopt : std::optional<float>(value), r);
@@ -760,6 +842,8 @@ void LightingTab::timeAndWeather()
                 }
             };
             slider("cloudiness", w.cloudiness, 0, 1, &WeatherChange::cloudiness);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("The cloud layer's look (altitude, radius, shadow fade): Sky and clouds");
             slider("rain", w.rain, 0, 1, &WeatherChange::rain);
             slider("fog density", w.fogDensity, 0, float(kMaxFogDensity), &WeatherChange::fogDensity,
                    ImGuiSliderFlags_Logarithmic, "%.5f /m");
@@ -804,6 +888,8 @@ void LightingTab::sunAndMoon()
     if (!ui.section("lighting/Sun and moon", "Sun and moon", false)) return;
     const EnvironmentSample e = app.sampleViewEnvironment();
     const CelestialState& c   = e.celestial;
+    // (UI rating round 2, finding 8)
+    if (app.scene()) overlayCheckbox(*app.scene(), Vulkan::OverlaySunDirection);
     if (DebugUiStyle::beginProperties("##lighting bodies"))
     {
         DebugUiStyle::property("sun");
@@ -854,6 +940,8 @@ void LightingTab::exposure()
     if (!scene || !ui.section("lighting/Exposure", "Exposure", false)) return;
     const EnvironmentSample e     = app.sampleViewEnvironment();
     Vulkan::EnvironmentSettings s = app.environmentSettings();
+    // (UI rating round 2, finding 8: the view where it explains something)
+    viewCheckbox(*scene, Vulkan::LightingDebugView::Exposure);
     if (DebugUiStyle::beginProperties("##lighting exposure"))
     {
         // The tone map (clay: the studio light; time of day has no effect); the same names as F3 Engine's
@@ -882,8 +970,12 @@ void LightingTab::exposure()
             ImGui::Text("%.2f", double(scene->environment().ev100));
         else
             DebugUiStyle::coloredText(DebugUiStyle::kRef, "no environment (unit-less exposure)");
-        DebugUiStyle::property("curve EV100");
-        ImGui::Text("%.2f", double(e.curveEv100));
+        // Only when it differs from the EV100 now (UI rating round 2, finding 3)
+        if (scene->hasEnvironment() && std::abs(double(e.curveEv100) - double(scene->environment().ev100)) > 0.005)
+        {
+            DebugUiStyle::property("curve EV100");
+            ImGui::Text("%.2f", double(e.curveEv100));
+        }
         DebugUiStyle::property("compensation");
         if (ImGui::SliderFloat("##exposure compensation", &s.exposure.compensation, -10, 10, "%.1f EV"))
             applySettings(s);
@@ -895,26 +987,54 @@ void LightingTab::exposure()
             ImGui::SetTooltip("The frame's exposure: from the EV100, times the exposure multiplier of F3 Engine > "
                               "Rendering.\nPre-exposure (the scene pass's scale): %.3g",
                               double(scene->preExposure()));
-        // The luminance of the frame: the Luminance preview and its reduction (the mapping of set_lighting_debug,
-        // log2 by default; previewImage below shows it, the summary requests it)
-        const Vulkan::PreviewMapping& mapping = app.lightingPreviewMapping();
-        const Vulkan::LightingStatistics& ls  = scene->lightingStatistics();
-        DebugUiStyle::property(mapping.log ? "luminance (log2)" : "luminance");
-        if (ls.luminanceFrame > 0)
-            ImGui::Text("mean %.2f  max %.2f  (%s)", double(ls.luminance.mean), double(ls.luminance.max),
-                        scene->sceneWritesLinear() ? "cd/m^2" : "display");
+        // The luminance of the lit frame (the reduction of the Luminance preview, log2 over a fixed range; held while
+        // a debug view is on) and the exposed key (the summary's)
+        const bool held = scene->lightingDebug().view != Vulkan::LightingDebugView::None;
+        DebugUiStyle::property("luminance (log2)");
+        if (litLuminanceFrame > 0)
+            ImGui::Text("mean %.2f  max %.2f  (%s)%s", double(litLuminance.mean), double(litLuminance.max),
+                        scene->sceneWritesLinear() ? "cd/m^2" : "display", held ? " held" : "");
         else
             ImGui::TextUnformatted("-");
+        if (litLuminanceFrame > 0 && scene->sceneWritesLinear())
+        {
+            DebugUiStyle::property("exposed key");
+            const double key = exposedKey();
+            char text[64];
+            std::snprintf(text, sizeof(text), "%+.1f EV against mid-gray%s", key,
+                          key < -2 ? ": too dark" : key > 2 ? ": too bright" : "");
+            DebugUiStyle::coloredText(std::abs(key) > 2 ? DebugUiStyle::kWarning : DebugUiStyle::kWhite, text);
+        }
         DebugUiStyle::endProperties();
     }
-    // The plots with their labels above them (UI rating round 1, finding 12: the overlay text covered the data)
-    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
-    if (ls.luminanceFrame > 0)
+    // The plots with their labels above them (UI rating round 1, finding 12: the overlay text covered the data); the
+    // histogram's range at its ends and mid-gray (the luminance that the exposure maps to 0.18) as a line (round 2,
+    // finding 3)
+    if (litLuminanceFrame > 0)
     {
-        ImGui::TextDisabled("luminance histogram (16 bins over the preview's range)");
+        ImGui::TextDisabled("luminance histogram (log2 cd/m^2, 2 EV per bin)");
         float bins[16];
-        for (int i = 0; i < 16; ++i) bins[i] = float(ls.luminance.histogram[size_t(i)]);
+        for (int i = 0; i < 16; ++i) bins[i] = float(litLuminance.histogram[size_t(i)]);
         ImGui::PlotHistogram("##luminance histogram", bins, 16, 0, nullptr, 0.0f, FLT_MAX, ImVec2(-1, 48));
+        const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        const float lo = litLuminance.rangeMin, hi = litLuminance.rangeMax;
+        if (hi > lo && scene->sceneWritesLinear())
+        {
+            const double gray = std::log2(0.18) - std::log2(std::max(double(litExposure), 1e-30));
+            const float x     = a.x + (b.x - a.x) * float((gray - lo) / (hi - lo));
+            if (x >= a.x && x <= b.x)
+            {
+                ImGui::GetWindowDrawList()->AddLine(ImVec2(x, a.y), ImVec2(x, b.y), DebugUiStyle::kWarning);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("The yellow line: mid-gray (%.1f log2 cd/m^2, exposed to 0.18)", gray);
+            }
+        }
+        char text[32];
+        std::snprintf(text, sizeof(text), "%.0f", double(lo));
+        ImGui::TextDisabled("%s", text);
+        std::snprintf(text, sizeof(text), "%.0f", double(hi));
+        ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize(text).x);
+        ImGui::TextDisabled("%s", text);
     }
     // The exposure curve with the current sun elevation (a marker on the curve)
     {
@@ -935,10 +1055,14 @@ void LightingTab::exposure()
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->AddLine(ImVec2(x, a.y), ImVec2(x, b.y), DebugUiStyle::kRef);
         dl->AddCircleFilled(ImVec2(x, y), 3.5f, DebugUiStyle::kWarning);
+        // The y range in the corners (round 2, finding 3)
+        const ImU32 label = ImGui::GetColorU32(ImGuiCol_TextDisabled);
+        dl->AddText(ImVec2(a.x + 2, a.y), label, "18");
+        dl->AddText(ImVec2(a.x + 2, b.y - ImGui::GetFontSize()), label, "-4");
     }
-    // The luminance preview (the set_lighting_debug mapping as is)
-    ImGui::TextDisabled("luminance");
-    previewImage(Vulkan::LightingImage::Luminance, app.lightingPreviewMapping().log, 256.0f);
+    // The luminance preview (log2 over the histogram's range)
+    ImGui::TextDisabled("luminance (log2, %.0f .. %.0f)", double(kLuminanceMin), double(kLuminanceMax));
+    previewImage(Vulkan::LightingImage::Luminance, true, 256.0f);
 }
 
 void LightingTab::ambient()
@@ -1024,6 +1148,16 @@ void LightingTab::ambient()
             ImGui::TextUnformatted("idle");
         DebugUiStyle::property("preview mip");
         ImGui::SliderInt("##environment mip", &environmentMip, 0, Vulkan::EnvironmentMap::kMips - 1);
+        DebugUiStyle::endProperties();
+    }
+    // The cube before its settings (UI rating round 2, finding 4)
+    ImGui::TextDisabled("the cube as a cross (log2), mip %d", environmentMip);
+    previewImage(Vulkan::LightingImage::Environment, true, 384.0f, environmentMip);
+    // (a tree node inside the sub-section, without its own indent)
+    if (ImGui::TreeNodeEx("environment map settings",
+                          ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen) &&
+        DebugUiStyle::beginProperties("##lighting environment settings"))
+    {
         // Round 2, finding 12: set_lighting's environment_resolution and environment_update_degrees
         Vulkan::LightingParameters lp = scene->lightingParameters();
         DebugUiStyle::property("resolution");
@@ -1043,8 +1177,6 @@ void LightingTab::ambient()
         if (lpChanged) applyParameters(lp);
         DebugUiStyle::endProperties();
     }
-    ImGui::TextDisabled("the cube as a cross (log2), mip %d", environmentMip);
-    previewImage(Vulkan::LightingImage::Environment, true, 384.0f, environmentMip);
 }
 
 void LightingTab::skyAndClouds()
@@ -1055,6 +1187,17 @@ void LightingTab::skyAndClouds()
     Vulkan::EnvironmentSettings s        = app.environmentSettings();
     const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
     bool changed                         = false;
+    // (UI rating round 2, finding 8: the view; finding 11: the weather's part of the clouds and the fog is world state
+    // in Time and weather)
+    viewCheckbox(*scene, Vulkan::LightingDebugView::CloudShadow);
+    {
+        const EnvironmentSample e = app.sampleViewEnvironment();
+        ImGui::TextDisabled("weather: cloudiness %.2f, fog %.5f /m (Time and weather)", double(e.weather.cloudiness),
+                            double(e.weather.fogDensity));
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("The cloudiness and the fog density are the world's weather (they replicate and are "
+                              "saved); this section has the look of the cloud layer and the sky");
+    }
     if (DebugUiStyle::beginProperties("##lighting sky"))
     {
         // Round 2, finding 12: set_lighting's clouds
@@ -1110,7 +1253,7 @@ void LightingTab::skyAndClouds()
     if (!ui.subSection("lighting/Sky and clouds: Previews", "Previews", false)) return;
     ImGui::TextDisabled("cloud coverage (the tile)");
     previewImage(Vulkan::LightingImage::CloudCoverage, false, 256.0f);
-    ImGui::TextDisabled("cloud shadow (around the camera, +- the shadow fade)");
+    ImGui::TextDisabled("cloud shadow (around the camera)");
     previewImage(Vulkan::LightingImage::CloudShadow, false, 256.0f);
     ImGui::TextDisabled("transmittance LUT");
     previewImage(Vulkan::LightingImage::TransmittanceLut, false, 256.0f);
@@ -1128,7 +1271,9 @@ void LightingTab::cascadesSection()
     Vulkan::LightingParameters p         = scene->lightingParameters();
     const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
     bool changed                         = false;
-    changed                              = ImGui::Checkbox("sun shadows", &p.sunShadows) || changed;
+    // (UI rating round 2, finding 9: "sun shadows" while the moon cast them)
+    changed = ImGui::Checkbox("cascade shadows", &p.sunShadows) || changed;
+    if (ImGui::IsItemHovered()) ImGui::SetTooltip("The shadows of the sun or the moon (whichever is the shadow light)");
     ImGui::SameLine();
     changed = ImGui::Checkbox("terrain casts", &p.terrainCastsInCascades) || changed;
     ImGui::SameLine();
@@ -1155,33 +1300,41 @@ void LightingTab::cascadesSection()
     else
         DebugUiStyle::coloredText(
             DebugUiStyle::kRef,
-            p.sunShadows ? "no cascades this frame (no shadow light or an enclosed space)" : "sun shadows off");
+            p.sunShadows ? "no cascades this frame (no shadow light or an enclosed space)" : "cascade shadows off");
     // The GPU time against the 2 ms of the measurement rule (the shadow budget is in GPU and memory)
     {
         Profiler& prof  = app.gpuProfile();
         const double ms = prof.scopeStats(prof.scope("gpu/shadow.cascades"), LightingGpuTimes::kMeanFrames).avg;
         char text[96];
-        std::snprintf(text, sizeof(text), "shadow.cascades %.3f ms%s (mean of %d frames)", ms,
-                      ms > 2.0 ? ", above 2 ms" : "", LightingGpuTimes::kMeanFrames);
+        std::snprintf(text, sizeof(text), "GPU %.3f ms (limit 2 ms, mean of %d frames)", ms,
+                      LightingGpuTimes::kMeanFrames);
         DebugUiStyle::coloredText(ms > 2.0 ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, text);
     }
+    // The views and overlays of the cascades (round 2, finding 8)
+    viewCheckbox(*scene, Vulkan::LightingDebugView::ShadowCascades);
+    overlayCheckbox(*scene, Vulkan::OverlayCascadeBounds, true);
+    overlayCheckbox(*scene, Vulkan::OverlayCameraFrustumSplits, true);
     if (ls.shadows)
     {
         // A row per cascade (the casters of its last render); a horizontal scroll with the index column frozen (UI
         // rating round 1, finding 9: the terrain column was cut), numbers right-aligned
+        // (UI rating round 2, finding 9: the scrollbar's row only when the table is wider than the panel, about 44
+        // lines; the headers right-aligned over the numbers; the age instead of the frame number)
         const ImGuiStyle& style = ImGui::GetStyle();
-        const float height      = float(ls.cascadeCount + 1) * (ImGui::GetTextLineHeight() + 2 * style.CellPadding.y) +
-                             style.ScrollbarSize + 4;
+        const bool scrolls      = ImGui::GetContentRegionAvail().x < 44 * ImGui::GetFontSize();
+        const float height = float(ls.cascadeCount + 1) * (ImGui::GetTextLineHeight() + 2 * style.CellPadding.y) +
+                             (scrolls ? style.ScrollbarSize : 0.0f) + 4;
         if (ImGui::BeginTable("##cascade rows", 8,
                               ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX,
                               ImVec2(0, height)))
         {
             ImGui::TableSetupScrollFreeze(1, 1);
-            for (const char* h : {"#", "split m", "texel m", "every", "updated", "instances", "triangles", "terrain"})
+            for (const char* h : {"#", "split m", "texel m", "every", "age", "instances", "triangles", "terrain"})
                 ImGui::TableSetupColumn(h);
-            ImGui::TableHeadersRow();
+            DebugUiStyle::headerRow({"#", "split m", "texel m", "every", "age", "instances", "triangles", "terrain"});
             if (ImGui::IsItemHovered())
                 ImGui::SetTooltip("terrain: CDLOD nodes (deduplicated with the previous cascade), triangles");
+            const uint64_t frames = scene->frames();
             for (int c = 0; c < ls.cascadeCount; ++c)
             {
                 const Vulkan::CascadeStatistics& k = ls.cascades[size_t(c)];
@@ -1189,10 +1342,13 @@ void LightingTab::cascadesSection()
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
                 ImGui::TextColored(ImVec4(col(0), col(1), col(2), 1), "%d", c);
-                cellRightf("%.1f - %.0f", double(k.splitNear), double(k.splitFar));
+                if (k.splitNear >= 10)
+                    cellRightf("%.0f - %.0f", double(k.splitNear), double(k.splitFar));
+                else
+                    cellRightf("%.1f - %.0f", double(k.splitNear), double(k.splitFar));
                 cellRightf("%.3f", double(k.texelSize));
                 cellRightf("%d", k.interval);
-                cellRightf("%llu", (unsigned long long)k.lastUpdate);
+                cellRightf("%llu", (unsigned long long)(frames > k.lastUpdate ? frames - k.lastUpdate : 0));
                 cellRightf("%u", k.instances);
                 cellRightf("%.1fk", double(k.triangles) / 1000);
                 cellRightf("%u (%u) %.0fk", k.terrainNodes, k.terrainDeduplicated, double(k.terrainTriangles) / 1000);
@@ -1203,16 +1359,21 @@ void LightingTab::cascadesSection()
         if (enlargedCascade < 0 || enlargedCascade >= ls.cascadeCount)
         {
             enlargedCascade = -1;
-            ImGui::TextDisabled("depth (light space, 0 near .. 1 far); click a cascade to enlarge it");
+            // (the short caption leaves room for the mapping's button; round 2, finding 7)
+            ImGui::TextDisabled("depth, click to enlarge");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Each cascade's depth in light space (0 near .. 1 far); a click enlarges a cascade");
             ImVec2 at;
             if (previewImageClicked(Vulkan::LightingImage::CascadeStrip, false, 512.0f, at))
                 enlargedCascade = std::clamp(int(at.x * float(ls.cascadeCount)), 0, ls.cascadeCount - 1);
         }
         else
         {
-            ImGui::TextDisabled("cascade %d (texel %.3f m, half extent %.0f m); click to go back", enlargedCascade,
-                                double(ls.cascades[size_t(enlargedCascade)].texelSize),
-                                double(ls.cascades[size_t(enlargedCascade)].halfExtent));
+            ImGui::TextDisabled("cascade %d, click to go back", enlargedCascade);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("texel %.3f m, half extent %.0f m",
+                                  double(ls.cascades[size_t(enlargedCascade)].texelSize),
+                                  double(ls.cascades[size_t(enlargedCascade)].halfExtent));
             ImVec2 at;
             if (previewImageClicked(Vulkan::LightingImage::Cascade, false, 512.0f, at, 0, enlargedCascade))
                 enlargedCascade = -1;
@@ -1290,12 +1451,48 @@ void LightingTab::horizonSection()
     DebugUi& ui                = app.debugUi();
     Vulkan::RenderScene* scene = app.scene();
     if (!scene || !ui.section("lighting/Far terrain shadows", "Far terrain shadows", false)) return;
+    // The state and the map first, the settings and the details in closed sub-sections (UI rating round 2, finding 4:
+    // twelve rows before the map)
     Vulkan::LightingParameters p       = scene->lightingParameters();
     const Vulkan::HorizonStatistics& h = scene->lightingStatistics().horizon;
     bool changed                       = ImGui::Checkbox("horizon shadows", &p.horizonShadows);
     ImGui::SameLine();
     if (ImGui::SmallButton("recompute now")) scene->requestHorizonRecompute(false);
+    viewCheckbox(*scene, Vulkan::LightingDebugView::HorizonShadow);
+    overlayCheckbox(*scene, Vulkan::OverlayHorizonAnchor, true);
     if (DebugUiStyle::beginProperties("##lighting horizon"))
+    {
+        DebugUiStyle::property("map");
+        if (h.valid)
+            ImGui::Text("%d^2, %.1f m texels, %.0f m", h.resolution, h.texel, h.extent);
+        else
+            ImGui::TextUnformatted(p.horizonShadows ? "none yet (no terrain or shadow light)" : "off");
+        // A bar only while a map is computed (UI rating round 1, finding 8: idle showed a full bar with 0 rows)
+        DebugUiStyle::property("progress");
+        if (h.computing)
+        {
+            char text[64];
+            std::snprintf(text, sizeof(text), "%d / %d rows", h.rowsDone, h.resolution);
+            ImGui::ProgressBar(h.resolution > 0 ? float(h.rowsDone) / float(h.resolution) : 0.0f, ImVec2(-1, 0), text);
+        }
+        else if (h.completed > 0)
+            ImGui::Text("idle (last map %llu frames ago)",
+                        (unsigned long long)(scene->frames() > h.lastComplete ? scene->frames() - h.lastComplete : 0));
+        else
+            ImGui::TextUnformatted("idle");
+        DebugUiStyle::endProperties();
+    }
+    if (h.valid)
+    {
+        // (round 2, finding 12: the channels were named R and G)
+        ImGui::RadioButton("near (from 64 m)", &horizonChannel, 0);
+        ImGui::SameLine();
+        ImGui::RadioButton("far (beyond the cascades)", &horizonChannel, 1);
+        ImGui::TextDisabled("shadow height (light: high)");
+        previewImage(Vulkan::LightingImage::Horizon, false, 384.0f, 0, horizonChannel);
+    }
+    if (ui.subSection("lighting/Far terrain shadows: Settings", "Settings", false) &&
+        DebugUiStyle::beginProperties("##lighting horizon settings"))
     {
         DebugUiStyle::property("resolution");
         {
@@ -1318,28 +1515,20 @@ void LightingTab::horizonSection()
         changed =
             ImGui::SliderInt("##horizon rows", &p.horizonRowsPerFrame, 1, 1024, "%d", ImGuiSliderFlags_Logarithmic) ||
             changed;
-        DebugUiStyle::property("map");
-        if (h.valid)
-            ImGui::Text("%d^2, %.1f m texels, %.0f m", h.resolution, h.texel, h.extent);
-        else
-            ImGui::TextUnformatted(p.horizonShadows ? "none yet (no terrain or shadow light)" : "off");
+        DebugUiStyle::endProperties();
+    }
+    if (ui.subSection("lighting/Far terrain shadows: Details", "Details", false) &&
+        DebugUiStyle::beginProperties("##lighting horizon details"))
+    {
         DebugUiStyle::property("anchor");
         ImGui::Text("(%d, %d) m, reference %.0f m", h.corner(0), h.corner(1), h.reference);
-        DebugUiStyle::property("light direction");
-        ImGui::Text("(%.3f, %.3f, %.3f), el %.2f deg", double(h.light(0)), double(h.light(1)), double(h.light(2)),
-                    std::asin(std::clamp(double(h.light(1)), -1.0, 1.0)) * kDegrees);
-        // A bar only while a map is computed (UI rating round 1, finding 8: idle showed a full bar with 0 rows)
-        DebugUiStyle::property("progress");
-        if (h.computing)
-        {
-            char text[64];
-            std::snprintf(text, sizeof(text), "%d / %d rows", h.rowsDone, h.resolution);
-            ImGui::ProgressBar(h.resolution > 0 ? float(h.rowsDone) / float(h.resolution) : 0.0f, ImVec2(-1, 0), text);
-        }
-        else if (h.completed > 0)
-            ImGui::Text("idle (last map complete in frame %llu)", (unsigned long long)h.lastComplete);
-        else
-            ImGui::TextUnformatted("idle");
+        // The light as elevation and azimuth, the vector in the tooltip (round 2, finding 12)
+        DebugUiStyle::property("light");
+        ImGui::Text("elevation %.1f, azimuth %.1f deg", std::asin(std::clamp(double(h.light(1)), -1.0, 1.0)) * kDegrees,
+                    azimuthDeg(Vec3(double(h.light(0)), double(h.light(1)), double(h.light(2)))));
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("direction (%.3f, %.3f, %.3f)", double(h.light(0)), double(h.light(1)),
+                              double(h.light(2)));
         DebugUiStyle::property("blend to the new map");
         ImGui::Text("%.0f %%", double(h.blend) * 100);
         DebugUiStyle::property("rows this frame");
@@ -1351,12 +1540,6 @@ void LightingTab::horizonSection()
         DebugUiStyle::endProperties();
     }
     if (changed) applyParameters(p);
-    if (!h.valid) return;
-    ImGui::RadioButton("R (from 64 m)", &horizonChannel, 0);
-    ImGui::SameLine();
-    ImGui::RadioButton("G (beyond the cascades' terrain)", &horizonChannel, 1);
-    ImGui::TextDisabled("shadow height (m above the reference; light: high)");
-    previewImage(Vulkan::LightingImage::Horizon, false, 384.0f, 0, horizonChannel);
 }
 
 void LightingTab::localLightsSection()
@@ -1370,8 +1553,7 @@ void LightingTab::localLightsSection()
     bool changed                          = ImGui::Checkbox("local lights", &p.localLights);
     ImGui::SameLine();
     changed = ImGui::Checkbox("clustered", &p.clusteredLights) || changed;
-    ImGui::SameLine();
-    overlayCheckbox(*scene, Vulkan::OverlayLightVolumes);
+    overlayCheckbox(*scene, Vulkan::OverlayLightVolumes, true);
     if (DebugUiStyle::beginProperties("##lighting lights"))
     {
         DebugUiStyle::property("max lights");
@@ -1409,11 +1591,60 @@ void LightingTab::clustersSection()
     if (!scene || !ui.section("lighting/Light clusters", "Light clusters", false)) return;
     Vulkan::LightingParameters p          = scene->lightingParameters();
     const Vulkan::LocalLightStatistics& c = scene->lightingStatistics().lights;
-    Vulkan::LightingDebugState d          = scene->lightingDebug();
     if (!p.localLights) DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (Local lights)");
     bool changed = false;
-    // The clusters (B3): the grid, the occupancy, the heat map
+    // The clusters (B3): the occupancy and the heat map first, the grid's settings in a closed sub-section (UI rating
+    // round 2, finding 4)
     if (DebugUiStyle::beginProperties("##lighting clusters"))
+    {
+        DebugUiStyle::property("occupancy");
+        ImGui::Text("max %u, mean %.2f lights", c.clusterMax, c.clusterMean);
+        DebugUiStyle::property("overflowed");
+        char text[64];
+        std::snprintf(text, sizeof(text), "%u clusters, %llu lights dropped", c.overflowedClusters,
+                      (unsigned long long)c.droppedLights);
+        DebugUiStyle::coloredText(c.overflowedClusters > 0 ? DebugUiStyle::kWarn : DebugUiStyle::kWhite, text);
+        if (c.overflowedClusters > 0 && ImGui::IsItemHovered())
+            ImGui::SetTooltip("An overflowed cluster drops its least important lights");
+        DebugUiStyle::endProperties();
+    }
+    // The cluster heat map: the view (the same label as in the view combo) and the preview (a slice or the maximum
+    // over the slices)
+    viewCheckbox(*scene, Vulkan::LightingDebugView::ClusterLights);
+    overlayCheckbox(*scene, Vulkan::OverlayClusterGrid, true);
+    if (c.visible > 0)
+    {
+        const float scale = scene->clusterHeatScaleValue();
+        const int slices  = scene->frameClusterGrid().z;
+        if (DebugUiStyle::beginProperties("##lighting cluster preview"))
+        {
+            // (round 2, finding 13: the slider's label was on its right, unlike every other row)
+            DebugUiStyle::property("preview slice");
+            ImGui::SliderInt("##preview slice", &clusterSlice, -1, slices - 1, clusterSlice < 0 ? "max of all" : "%d");
+            clusterSlice = std::clamp(clusterSlice, -1, slices - 1);
+            DebugUiStyle::property("heat scale");
+            float heat = scale;
+            if (ImGui::SliderFloat("##heat scale", &heat, 1, 256, "%.0f lights", ImGuiSliderFlags_Logarithmic))
+                scene->setClusterHeatScale(heat);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("The lights per cluster at the top of the heat map's colors");
+            DebugUiStyle::endProperties();
+        }
+        Vulkan::PreviewMapping m           = app.lightingPreviewMapping();
+        m.autoRange                        = false;
+        m.min                              = 0;
+        m.max                              = scale;
+        m.colorMap                         = Vulkan::ColorMap::Turbo;
+        const Vulkan::PreviewMapping saved = app.lightingPreviewMapping();
+        app.lightingPreviewMapping()       = m;
+        ImGui::TextDisabled("lights per cluster (turbo, 0 .. %.0f)", double(scale));
+        Selection sel;
+        sel.slice = clusterSlice;
+        previewImage(Vulkan::LightingImage::Clusters, false, 384.0f, 0, 0, sel);
+        app.lightingPreviewMapping() = saved;
+    }
+    if (ui.subSection("lighting/Light clusters: Settings", "Settings", false) &&
+        DebugUiStyle::beginProperties("##lighting cluster settings"))
     {
         DebugUiStyle::property("grid (x, y, z)");
         int grid[3] = {p.clusterX, p.clusterY, p.clusterZ};
@@ -1436,53 +1667,9 @@ void LightingTab::clustersSection()
         changed =
             ImGui::SliderInt("##cluster slots", &p.maxLightsPerCluster, 1, 1024, "%d", ImGuiSliderFlags_Logarithmic) ||
             changed;
-        DebugUiStyle::property("occupancy");
-        ImGui::Text("max %u, mean %.2f", c.clusterMax, c.clusterMean);
-        DebugUiStyle::property("overflowed");
-        char text[64];
-        std::snprintf(text, sizeof(text), "%u clusters, %llu lights dropped", c.overflowedClusters,
-                      (unsigned long long)c.droppedLights);
-        DebugUiStyle::coloredText(c.overflowedClusters > 0 ? DebugUiStyle::kWarn : DebugUiStyle::kWhite, text);
-        if (c.overflowedClusters > 0 && ImGui::IsItemHovered())
-            ImGui::SetTooltip("An overflowed cluster drops its least important lights");
-        DebugUiStyle::property("heat scale");
-        float scale = scene->clusterHeatScaleValue();
-        if (ImGui::SliderFloat("##heat scale", &scale, 1, 256, "%.0f lights", ImGuiSliderFlags_Logarithmic))
-            scene->setClusterHeatScale(scale);
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The lights per cluster at the top of the heat map's colors");
         DebugUiStyle::endProperties();
     }
     if (changed) applyParameters(p);
-    // The cluster heat map: the view (the same label as in the view combo) and the preview (a slice or the maximum
-    // over the slices)
-    bool heat = d.view == Vulkan::LightingDebugView::ClusterLights;
-    if (ImGui::Checkbox(kViewLabels[size_t(Vulkan::LightingDebugView::ClusterLights)], &heat))
-    {
-        d.view = heat ? Vulkan::LightingDebugView::ClusterLights : Vulkan::LightingDebugView::None;
-        scene->setLightingDebug(d);
-    }
-    if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("%s\n(view cluster_lights)", kViewTooltips[size_t(Vulkan::LightingDebugView::ClusterLights)]);
-    ImGui::SameLine();
-    overlayCheckbox(*scene, Vulkan::OverlayClusterGrid);
-    if (c.visible == 0) return;
-    const float scale = scene->clusterHeatScaleValue();
-    const int slices  = scene->frameClusterGrid().z;
-    ImGui::SetNextItemWidth(10 * ImGui::GetFontSize());
-    ImGui::SliderInt("preview slice", &clusterSlice, -1, slices - 1, clusterSlice < 0 ? "max of all" : "%d");
-    clusterSlice                       = std::clamp(clusterSlice, -1, slices - 1);
-    Vulkan::PreviewMapping m           = app.lightingPreviewMapping();
-    m.autoRange                        = false;
-    m.min                              = 0;
-    m.max                              = scale;
-    m.colorMap                         = Vulkan::ColorMap::Turbo;
-    const Vulkan::PreviewMapping saved = app.lightingPreviewMapping();
-    app.lightingPreviewMapping()       = m;
-    ImGui::TextDisabled("lights per cluster (turbo, 0 .. %.0f)", double(scale));
-    Selection sel;
-    sel.slice = clusterSlice;
-    previewImage(Vulkan::LightingImage::Clusters, false, 384.0f, 0, 0, sel);
-    app.lightingPreviewMapping() = saved;
 }
 
 void LightingTab::atlasSection()
@@ -1491,14 +1678,36 @@ void LightingTab::atlasSection()
     Vulkan::RenderScene* scene = app.scene();
     if (!scene || !ui.section("lighting/Shadow atlas", "Shadow atlas", false)) return;
     const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
-    Vulkan::LightingDebugState d         = scene->lightingDebug();
-    // The shadow atlas (B4): its parameters, the cache, the preview of a layer with the tiles' owners (a click on a
-    // tile selects its light)
+    // The shadow atlas (B4): its tiles, the preview of a layer with the tiles' owners, its parameters, the cache
     const Vulkan::AtlasStatistics& as = ls.atlas;
     Vulkan::LightingParameters ap     = scene->lightingParameters();
     if (!ap.localLights) DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (Local lights)");
-    bool atlasChanged = false;
+    // The tiles and the preview first, the settings and the cache details in closed sub-sections (UI rating round 2,
+    // finding 4: ten rows before the preview, which was cut by the panel's bottom)
     if (DebugUiStyle::beginProperties("##lighting atlas"))
+    {
+        DebugUiStyle::property("tiles");
+        ImGui::Text("%u / %u used (%d texels)", as.tilesUsed, as.tilesTotal, as.tile);
+        DebugUiStyle::property("shadowed lights");
+        ImGui::Text("%u with tiles, %u without (the tile budget)", as.lightsWithTiles, as.lightsWithoutTiles);
+        DebugUiStyle::endProperties();
+    }
+    int longRange = 0;
+    for (const Vulkan::LocalLights::Light& l : scene->localLights().lights())
+        longRange += l.data.castShadows && l.data.range > 100 ? 1 : 0;
+    if (longRange > 0)
+    {
+        char text[96];
+        std::snprintf(text, sizeof(text), "%d shadowed lights with a range above 100 m (coarse 16-bit depth)",
+                      longRange);
+        DebugUiStyle::coloredText(DebugUiStyle::kWarn, text);
+    }
+    viewCheckbox(*scene, Vulkan::LightingDebugView::AtlasShadow);
+    overlayCheckbox(*scene, Vulkan::OverlayAtlasOwners, true);
+    if (as.on) atlasPreview();
+    bool atlasChanged = false;
+    if (ui.subSection("lighting/Shadow atlas: Settings", "Settings", false) &&
+        DebugUiStyle::beginProperties("##lighting atlas settings"))
     {
         DebugUiStyle::property("atlas / tile");
         {
@@ -1508,7 +1717,7 @@ void LightingTab::atlasSection()
             {
                 const std::string preview = std::to_string(value);
                 bool changed              = false;
-                ImGui::SetNextItemWidth(80);
+                ImGui::SetNextItemWidth(5 * ImGui::GetFontSize());
                 if (ImGui::BeginCombo(id, preview.c_str()))
                 {
                     for (int c : choices)
@@ -1537,8 +1746,12 @@ void LightingTab::atlasSection()
         atlasChanged = ImGui::SliderFloat("##atlas bias", &ap.atlasDepthBias, 0, 64, "%.1f") || atlasChanged;
         DebugUiStyle::property("normal offset (texels)");
         atlasChanged = ImGui::SliderFloat("##atlas normal", &ap.atlasNormalOffset, 0, 8, "%.2f") || atlasChanged;
-        DebugUiStyle::property("tiles");
-        ImGui::Text("%u / %u used (%d texels)", as.tilesUsed, as.tilesTotal, as.tile);
+        DebugUiStyle::endProperties();
+    }
+    if (atlasChanged) applyParameters(ap);
+    if (ui.subSection("lighting/Shadow atlas: Details", "Details", false) &&
+        DebugUiStyle::beginProperties("##lighting atlas details"))
+    {
         DebugUiStyle::property("cache this frame");
         ImGui::Text("%u hits, %u static + %u dynamic renders, %u clears", as.hits, as.staticRenders,
                     as.dynamicRenders, as.dynamicClears);
@@ -1546,34 +1759,24 @@ void LightingTab::atlasSection()
         ImGui::Text("%u static faces waiting, %u dynamic faces skipped", as.queue, as.dynamicSkipped);
         DebugUiStyle::property("terrain nodes");
         ImGui::Text("%u (%u cut by the 16384 limit)", as.terrainNodes, as.terrainNodesTruncated);
-        DebugUiStyle::property("shadowed lights");
-        ImGui::Text("%u with tiles, %u without (the tile budget)", as.lightsWithTiles, as.lightsWithoutTiles);
         DebugUiStyle::property("atlas memory");
         ImGui::Text("%.1f MiB", double(as.memoryBytes) / (1 << 20));
         DebugUiStyle::endProperties();
     }
-    if (atlasChanged) applyParameters(ap);
-    int longRange = 0;
-    for (const Vulkan::LocalLights::Light& l : scene->localLights().lights())
-        longRange += l.data.castShadows && l.data.range > 100 ? 1 : 0;
-    if (longRange > 0)
-    {
-        char text[96];
-        std::snprintf(text, sizeof(text), "%d shadowed lights with a range above 100 m (coarse 16-bit depth)",
-                      longRange);
-        DebugUiStyle::coloredText(DebugUiStyle::kWarn, text);
-    }
-    if (!as.on) return;
-    int& layer = atlasLayer;
+}
+
+void LightingTab::atlasPreview()
+{
+    // A layer of the atlas with the tiles' owners (a click on a tile selects its light) and the selected light's tile
+    Vulkan::RenderScene* scene   = app.scene();
+    Vulkan::LightingDebugState d = scene->lightingDebug();
+    int& layer                   = atlasLayer;
     ImGui::RadioButton("static layer", &layer, 0);
     ImGui::SameLine();
     ImGui::RadioButton("dynamic layer", &layer, 1);
-    ImGui::SameLine();
-    overlayCheckbox(*scene, Vulkan::OverlayAtlasOwners);
-    d = scene->lightingDebug();
-    ImGui::PushTextWrapPos(0);
-    ImGui::TextDisabled("linear depth (distance / range; white: nothing); click a tile to select its light");
-    ImGui::PopTextWrapPos();
+    ImGui::TextDisabled("depth, click a tile");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip("Linear depth (distance / range; white: nothing); a click on a tile selects its light");
     ImVec2 at;
     const bool clicked = previewImageClicked(Vulkan::LightingImage::Atlas, false, 384.0f, at, 0, layer);
     const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
@@ -1618,7 +1821,7 @@ void LightingTab::atlasSection()
         atlasTileFace = std::clamp(atlasTileFace, 0, int(selTiles.size()) - 1);
         if (selTiles.size() > 1)
         {
-            ImGui::SetNextItemWidth(140);
+            ImGui::SetNextItemWidth(9 * ImGui::GetFontSize());
             ImGui::SliderInt("face (+x -x +y -y +z -z)", &atlasTileFace, 0, int(selTiles.size()) - 1);
         }
         ImGui::TextDisabled("light %u, tile %d", d.highlightLight, selTiles[size_t(atlasTileFace)]);
@@ -1706,23 +1909,46 @@ void LightingTab::lightTable()
                             st.hasPose ? (worldOf(st) - camera).norm() : std::numeric_limits<double>::infinity(),
                             (uint64_t(1) << 32) | st.entity.index});
         }
-    // (UI rating round 1, finding 11: "(0 in lists)" and "0 entity lights not rendered" were always shown)
+    // A filter of the rows by handle, entity and state, and the counts the "visible" row does not have (UI rating round
+    // 2, finding 6: the caption repeated the visible count, and a lamp could only be found by scrolling)
     {
-        std::string caption = std::to_string(table.size()) + " lights, " + std::to_string(frame.size()) + " visible";
-        if (table.listCount() > 0) caption += ", " + std::to_string(table.listCount()) + " from lists";
-        if (unrendered > 0) caption += ", " + std::to_string(unrendered) + " entity lights not rendered";
-        ImGui::PushTextWrapPos(0);
-        ImGui::TextUnformatted(caption.c_str());
-        ImGui::PopTextWrapPos();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextDisabled("filter");
+        ImGui::SameLine();
+        lightFilter.Draw("##light filter", 10 * ImGui::GetFontSize());
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The visible lights first, then the other scene lights, then the entity lights that are "
-                              "not rendered (greyed); a row selects its light");
+            ImGui::SetTooltip("Handle, entity or state, e.g. 424 or off (\"-\" excludes: -visible)");
+        std::string extra;
+        if (table.listCount() > 0) extra += std::to_string(table.listCount()) + " from lists";
+        if (unrendered > 0) extra += (extra.empty() ? "" : ", ") + std::to_string(unrendered) + " not rendered";
+        if (!extra.empty())
+        {
+            ImGui::SameLine();
+            ImGui::TextDisabled("%s", extra.c_str());
+        }
+        if (lightFilter.IsActive())
+        {
+            auto match = [&](const Row& r)
+            {
+                char text[96];
+                std::snprintf(text, sizeof(text), "%u %u %s", r.light ? r.light->handle.id : 0u,
+                              r.state ? r.state->entity.index : 0u,
+                              r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
+                return lightFilter.PassFilter(text);
+            };
+            rows.erase(std::remove_if(rows.begin(), rows.end(), [&](const Row& r) { return !match(r); }), rows.end());
+        }
     }
     // Columns clipped in a narrow tab (round 1, finding 17): a horizontal scroll with the handle column frozen, the
-    // units in the headers
+    // units in the headers; 6 rows while a light is selected (round 2, finding 6: its editor below a 15-row table was
+    // off screen), the scrollbar's height added (it covered the last row)
     const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
                                   ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
-    const float height = ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), 12) + 3);
+    const bool anySelected = selectedEntity.valid() || d.highlightLight != 0;
+    const float height =
+        ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), anySelected ? 6 : 12) + 2) +
+        ImGui::GetStyle().ScrollbarSize;
+    if (rows.empty() && lightFilter.IsActive()) ImGui::TextDisabled("no light matches the filter");
     // (round 2, finding 12: A8's buffer index, the light's index in the frame's light buffer, as the last column)
     if (!rows.empty() && ImGui::BeginTable("##light table", 11, flags, ImVec2(0, height)))
     {
@@ -2144,8 +2370,23 @@ void LightingTab::gpuAndMemory()
             {
                 if (s.debug != debug) continue;
                 // A sub-section ("shadow.cascades" under "shadow") by its name after the parent's
-                const bool sub = !parent.empty() && s.name.rfind(parent + ".", 0) == 0;
-                row(sub ? s.name.substr(parent.size() + 1) : s.name, sub, s.meanMs, DebugUiStyle::kGpu);
+                // Readable names (UI rating round 2, finding 9: the profiler's scene.sky, lighting.preview)
+                const bool sub   = !parent.empty() && s.name.rfind(parent + ".", 0) == 0;
+                std::string name = sub ? s.name.substr(parent.size() + 1) : s.name;
+                if (name == "scene.sky")
+                    name = "sky";
+                else if (name == "scene.clouds")
+                    name = "clouds";
+                else if (name == "scene.debug")
+                    name = "debug view and overlays";
+                else if (name == "lighting.preview")
+                    name = "previews";
+                else if (name == "environment")
+                    name = "environment map";
+                else if (name == "lights")
+                    name = "local lights";
+                row(name, sub, s.meanMs, DebugUiStyle::kGpu);
+                if (ImGui::IsItemHovered()) ImGui::SetTooltip("GPU section %s", s.name.c_str());
                 if (!s.summed) parent = s.name;
             }
             if (!debug)

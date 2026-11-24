@@ -86,9 +86,12 @@ class SAIGA_ENGINE_API DebugUi
     int sectionCount(DebugTab tab) const { return int(tabs[size_t(tab)].sections.size()); }
     // A section header whose open state is kept in the state file (key: unique per tab, e.g. "engine/Simulation")
     bool section(const std::string& key, const char* title, bool defaultOpen = true);
-    // A sub-section inside a section: a tree node without indent (the details of a section, e.g. "lighting/Ambient: SH
-    // coefficients"), its open state kept in the state file like a section's
+    // A sub-section inside a section: a tree node (the details of a section, e.g. "lighting/Ambient: SH coefficients"),
+    // its open state kept in the state file like a section's. An open one indents what follows until endSubSection,
+    // which the next section or sub-section calls (UI rating round 2, finding 5: the contents were not nested); call it
+    // after a tab's last sub-section and before other content of the same section
     bool subSection(const std::string& key, const char* title, bool defaultOpen = false);
+    void endSubSection();
 
     // ---- Named controls (tests click a tab's real widgets)
     // Records the screen rectangle of the last ImGui item under a name, e.g. "lighting/rate x60" (in an ImGui frame)
@@ -147,6 +150,8 @@ class SAIGA_ENGINE_API DebugUi
 
     std::vector<Tab> tabs;
     std::map<std::string, ImVec2> markedItems;
+    // The indent of the open sub-section (0: none)
+    float subIndent = 0;
     std::unique_ptr<DebugConsole> consolePtr;
     std::function<void(float)> summary;
     std::function<void()> pauseKey;

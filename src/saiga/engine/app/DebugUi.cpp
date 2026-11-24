@@ -109,6 +109,7 @@ bool DebugUi::itemCenter(const std::string& name, ImVec2& center) const
 
 bool DebugUi::section(const std::string& key, const char* title, bool defaultOpen)
 {
+    endSubSection();
     auto it = sections.find(key);
     if (it == sections.end()) it = sections.emplace(key, defaultOpen).first;
     ImGui::PushID(key.c_str());
@@ -119,13 +120,26 @@ bool DebugUi::section(const std::string& key, const char* title, bool defaultOpe
 
 bool DebugUi::subSection(const std::string& key, const char* title, bool defaultOpen)
 {
+    endSubSection();
     auto it = sections.find(key);
     if (it == sections.end()) it = sections.emplace(key, defaultOpen).first;
     ImGui::PushID(key.c_str());
     ImGui::SetNextItemOpen(it->second, ImGuiCond_Always);
     it->second = ImGui::TreeNodeEx(title, ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen);
     ImGui::PopID();
+    if (it->second)
+    {
+        subIndent = ImGui::GetFontSize();
+        ImGui::Indent(subIndent);
+    }
     return it->second;
+}
+
+void DebugUi::endSubSection()
+{
+    if (subIndent <= 0) return;
+    ImGui::Unindent(subIndent);
+    subIndent = 0;
 }
 
 InputState DebugUi::handleKeys(const InputState& now, const InputState& previous, bool captured)

@@ -75,6 +75,19 @@ class SAIGA_ENGINE_API LightingTab
     void summary();
     // The summary's graph of the lighting's GPU time per frame against its budget
     void lightingGraph(const LightingGpuTimes& t);
+    // The luminance reduction's own mapping (log2 over a fixed range), the statistics of the lit frame (held while a
+    // debug view is on) and their exposed key in EV (0: mid-gray)
+    Vulkan::PreviewMapping luminanceMapping() const;
+    void updateLitLuminance();
+    double exposedKey() const;
+    // (one declarator per line: MSVC C2487 in an exported class)
+    static constexpr float kLuminanceMin = -14;
+    static constexpr float kLuminanceMax = 18;
+    Vulkan::PreviewStatistics litLuminance;
+    // The light table's filter (handle, entity, state)
+    ImGuiTextFilter lightFilter;
+    uint64_t litLuminanceFrame = 0, litLuminanceAfter = 0;
+    float litExposure          = 1;
     void controls();
     void timeAndWeather();
     void sunAndMoon();
@@ -87,15 +100,15 @@ class SAIGA_ENGINE_API LightingTab
     void lightTable();
     void clustersSection();
     void atlasSection();
+    void atlasPreview();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
     using Selection = LightingPreviewSelection;
     void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0,
                       const Selection& selection = Selection());
-    // The preview mapping's button and popup (drawn once per frame, above the first preview that uses it)
+    // The preview mapping's button and popup (on the caption line of every preview that uses it)
     void previewMappingControl();
-    bool mappingDrawn = false;
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
     // Every write of the settings and parameters goes through validateLighting (round 2, finding 9: the tab wrote
