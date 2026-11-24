@@ -136,7 +136,6 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     base         = &b;
     lightingSet  = &lighting;
     sceneFormats = formats;
-    pbrVariant   = params.lighting.pbr;
     SAIGA_ASSERT(base->enabledFeatures.drawIndirectFirstInstance,
                  "RenderScene: the drawIndirectFirstInstance feature is required");
     multiDraw         = params.allowMultiDrawIndirect && base->enabledFeatures.multiDrawIndirect;
@@ -175,23 +174,11 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     for (Frame& f : frames) f.set = countPipeline.createRawDescriptorSet();
 }
 
-void SceneCulling::setPbr(bool pbr)
-{
-    if (pbr == pbrVariant) return;
-    pbrVariant = pbr;
-    destroyDrawPipelines();
-    createDrawPipelines();
-}
-
 void SceneCulling::destroyDrawPipelines()
 {
-    for (auto& v : drawPipelines)
-        for (auto& p : v) p.destroy();
+    for (auto& p : drawPipelines) p.destroy();
     for (auto& p : prepassPipelines) p.destroy();
-    for (auto& v : equalPipelines)
-        for (auto& p : v) p.destroy();
-    for (auto& p : pbrPipelines) p.destroy();
-    for (auto& p : pbrEqualPipelines) p.destroy();
+    for (auto& p : equalPipelines) p.destroy();
 }
 
 void SceneCulling::createDrawPipelines()
@@ -250,21 +237,8 @@ void SceneCulling::createDrawPipelines()
         info                                    = initDraw(p, flatShaders, defines, info);
         p.create(formats, info);
     };
-    if (pbrVariant)
-    {
-        const std::string defines = "#define LIGHTING_PBR\n";
-        for (int c = 0; c < pipelineClassCount; ++c) createClass(pbrPipelines[c], c, defines, defines);
-        for (int k = 0; k < 2; ++k) createEqual(pbrEqualPipelines[k], k, defines);
-    }
-    else
-    {
-        for (int fog = 0; fog < 2; ++fog)
-        {
-            const std::string defines = fog ? "#define SCENE_FOG\n" : "";
-            for (int c = 0; c < pipelineClassCount; ++c) createClass(drawPipelines[fog][c], c, defines, "");
-            for (int k = 0; k < 2; ++k) createEqual(equalPipelines[fog][k], k, defines);
-        }
-    }
+    for (int c = 0; c < pipelineClassCount; ++c) createClass(drawPipelines[c], c, "", "");
+    for (int k = 0; k < 2; ++k) createEqual(equalPipelines[k], k, "");
     // The opaque classes in the pre-pass: depth only, the vertex shader alone (invariant gl_Position: the same depth
     // as every variant's)
     for (int k = 0; k < 2; ++k)
@@ -337,12 +311,10 @@ void SceneCulling::ensureDevice(Buffer& b, size_t bytes, vk::BufferUsageFlags us
 }
 
 void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes,
-                                  InstanceBuffer& instances, const SceneCamera& camera, bool fog)
+                                  InstanceBuffer& instances, const SceneCamera& camera)
 {
     Frame& f = frames[frameIndex];
 
-    // 0. The legacy variant's fog pipelines (S36: the lighting set is written by RenderScene)
-    f.fog = fog;
 
     // 1. Growth copies, made visible to the uploads that follow (an updated range of a moved set)
     bool copied = meshes.recordGrowth(cmd);
@@ -611,16 +583,15 @@ uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, co
     Frame& f = frames[frameIndex];
     if (!f.culled) return 0;
     uint32_t calls = 0;
-    const int v    = f.fog ? 1 : 0;
     for (int c = 0; c < pipelineClassCount; ++c)
     {
         // The prototype foliage reads the foliage texture (binding 1, written only with it): not drawn without it (a
         // frame with such instances asserts in RenderScene with SAIGA_ASSERTS). Only the draw is skipped: the GPU
         // culling still processes those instances, and its statistics (instancesPerLod, the tracked meshes) count them
         if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
-        Pipeline* p = pbrVariant ? &pbrPipelines[c] : &drawPipelines[v][c];
-        if (prepass && c == 0) p = pbrVariant ? &pbrEqualPipelines[0] : &equalPipelines[v][0];
-        if (prepass && c == 2) p = pbrVariant ? &pbrEqualPipelines[1] : &equalPipelines[v][1];
+        Pipeline* p = &drawPipelines[c];
+        if (prepass && c == 0) p = &equalPipelines[0];
+        if (prepass && c == 2) p = &equalPipelines[1];
         calls += drawClass(cmd, frameIndex, c, *p, camera);
     }
     return calls;

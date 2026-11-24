@@ -884,7 +884,7 @@ EnvironmentSample EngineApp::sampleViewEnvironment() const
 
 bool EngineApp::sendsEnvironment() const
 {
-    return gameWorld && gameWorld->environmentSetup().enabled;
+    return gameWorld != nullptr;
 }
 
 void EngineApp::renderFrame()

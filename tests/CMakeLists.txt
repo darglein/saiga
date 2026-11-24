@@ -201,6 +201,7 @@ if (MODULE_ENGINE)
     saiga_test(test_engine_terrain_net.cpp "saiga_engine")
     saiga_test(test_engine_terrain_benchmark.cpp "saiga_engine")
     saiga_test(test_engine_terrain_render.cpp "saiga_engine")
+    saiga_test(test_engine_lighting_render.cpp "saiga_engine")
     saiga_test(test_engine_spaces.cpp "saiga_engine")
     # The content generation (S23a): the toolkit, the integer lint, the pipeline and the committed content hashes; with
     # SAIGA_CONTENT_UBSAN its own unit (the toolkit's inline functions, the test generator) with trapping UBSan

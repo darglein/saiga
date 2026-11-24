@@ -10,6 +10,13 @@
 #include "terrain_heights.glsl"
 #include "terrain_vertex.glsl"
 
+// S36a1c review: the light terms per vertex (the transmittance and the fog are smooth over the CDLOD grid)
+#include "lighting/scene_block.glsl"
+layout(set = 1, binding = 6) uniform sampler2D transmittanceLut;
+layout(set = 1, binding = 7) uniform sampler2D skyViewLut;
+#include "lighting/atmosphere_common.glsl"
+#include "lighting/vertex_light.glsl"
+
 // The grid of a node: (gridN + 3)^2 vertices, from gl_VertexIndex; the outer ring is the skirt (hangs below the edge
 // vertex). The instance is the node (gl_InstanceIndex includes the draw's first instance)
 layout(push_constant) uniform PushConstants
@@ -25,6 +32,10 @@ layout(location = 1) out vec3 outNormal;
 layout(location = 2) flat out float outLod;
 // 1 at the skirt ring, 0 at the grid: > 0 in every fragment of a skirt triangle (the shading of the skirt)
 layout(location = 3) out float outSkirt;
+// The light terms (vertex_light.glsl): the sun's and the moon's light, the fog
+layout(location = 4) out vec3 outSunE;
+layout(location = 5) out vec3 outMoonE;
+layout(location = 6) out vec4 outFog;
 
 // The depth pre-pass draws the terrain with this shader alone: the scene pass's EQUAL test needs bit-identical depths
 invariant gl_Position;
@@ -41,4 +52,8 @@ void main()
     outLod       = v.lod;
     outSkirt     = skirt ? 1.0 : 0.0;
     gl_Position  = frame.viewProjRel * vec4(v.position, 1.0);
+    VertexLight l = computeVertexLight(v.position);
+    outSunE       = l.sunE;
+    outMoonE      = l.moonE;
+    outFog        = l.fog;
 }

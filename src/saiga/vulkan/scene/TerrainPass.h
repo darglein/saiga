@@ -40,11 +40,9 @@ struct TerrainFrameUniforms
     ivec4 flags = ivec4(0, 0, 0, 0);
     // Per streamed level: x the page-table offset, y the tiles per side
     std::array<ivec4, 8> levels;
-    vec4 sunDir   = vec4(0, 1, 0, 1);
-    vec4 shading  = vec4(0, 0, 0, 0);
-    vec4 fog      = vec4(0, 0, 0, 0);  // w: the camera height above the fog base (m)
-    vec4 fogColor = vec4(0, 0, 0, 1);
-    vec4 skyColor = vec4(0, 0, 0, 1);
+    // z: flat shading, w: the pre-exposure (0: display values; S36: the light, fog and sky colours are the lighting
+    // block's)
+    vec4 shading = vec4(0, 0, 0, 0);
     // x: the range of level 0 used (m), y: morph start, z: the LOD metric's height (the camera height above the
     // surface under it, m)
     vec4 lod   = vec4(0, 0, 0, 0);
@@ -118,20 +116,18 @@ class SAIGA_VULKAN_API TerrainPass
         int triangles = 0;
     };
 
-    // lighting: set 1 of the terrain, water and sky pipelines (S36; RenderScene's, outlives this); pbr: the pipeline
-    // variant (LightingParameters::pbr)
-    void init(VulkanBase& base, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr);
+    // lighting: set 1 of the terrain, water and sky pipelines (S36; RenderScene's, outlives this)
+    void init(VulkanBase& base, const RenderingFormats& formats, SceneLightingSet& lighting);
     void destroy();
     ~TerrainPass() { destroy(); }
-    // The pipelines of the light model (S36a1b): recreated on a change (the old ones released deferred)
-    void setPbr(bool pbr);
     // The pipelines created since init (tests: a debug view switch creates none)
     uint64_t pipelineCreations() const { return creations; }
 
     // The transfer section: the node selection, the frame's node instances and TerrainFrame, the descriptor set.
-    // Draws nothing (and returns false) without a GPU-resident pyramid of the camera's space
+    // Draws nothing (and returns false) without a GPU-resident pyramid of the camera's space. grassPhases: the grass's
+    // wind phases (EnvironmentState::phases 3-4; S36: no scene time)
     bool transfer(vk::CommandBuffer cmd, uint32_t frameIndex, TerrainAtlas& atlas, const SceneCamera& camera,
-                  const PrototypeSettings& settings, double time, int width, int height);
+                  const PrototypeSettings& settings, vec2 grassPhases, int width, int height);
     // Nothing this frame (no set, no camera)
     void skipFrame();
     bool drawsThisFrame() const { return frameValid; }
@@ -181,10 +177,9 @@ class SAIGA_VULKAN_API TerrainPass
     VulkanBase* base              = nullptr;
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
-    bool pbrVariant    = false;
     uint64_t creations = 0;
     Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline;
-    // The layouts the frame and sky sets are allocated from (independent of the pipelines, which setPbr recreates)
+    // The layouts the frame and sky sets are allocated from (independent of the pipelines)
     DescriptorSetLayout frameLayout, skyLayout;
     void createPipelines();
     // The sky's sets (binding 0: the frame's uniform buffer), written once

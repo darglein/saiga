@@ -64,6 +64,17 @@ inline int32_t slopeRidgeHook(uint64_t seed, int64_t x, int64_t z)
     return int32_t(h);
 }
 
+// S36a1c: one ridge across z at x = 2048 of a 4 km space: 300 m high, 800 m wide at its foot (a squared parabola of the
+// distance, integer only), on a 20 m base (the lighting goldens: the ridge against the low sun)
+inline int32_t mountainRidgeHook(uint64_t, int64_t x, int64_t)
+{
+    const int64_t d    = x > 2048 ? x - 2048 : 2048 - x;
+    const int64_t base = 20 * 1024;
+    if (d >= 400) return int32_t(base);
+    const int64_t t = 160000 - d * d;  // 400^2 - d^2
+    return int32_t(base + 300 * 1024 * (t / 400) * (t / 400) / 160000);
+}
+
 // Periodic in 4096 m in x and z (so periodic in 28 672 m): hills up to about 60 m and a valley below the sea level 6 m
 // along x = 2000 (mod 4096; the origin-offset test's terrain + water view)
 inline int32_t periodic4096Hook(uint64_t, int64_t x, int64_t z)

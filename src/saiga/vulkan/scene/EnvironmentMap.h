@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/buffer/Buffer.h"
 #include "saiga/vulkan/pipeline/ComputePipeline.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
@@ -28,7 +29,8 @@ struct EnvironmentState;
  * prefilters the back cube one mip per frame and then computes the back SH from the capture's 32 x 32 box mip; the
  * front cube and SH are swapped in only when all of it is complete, so a frame never mixes two captures. Due when the
  * sun or the moon moved by more than environmentUpdateDegrees, the weather changed by more than 1%, the camera height
- * moved by 200 m or the settings changed; forceFullUpdates (and the first capture) does all of it in one frame. The
+ * moved by 200 m, the clouds over the camera moved by 500 m (their drift or the camera's horizontal movement) or the
+ * settings changed; forceFullUpdates (and the first capture) does all of it in one frame. The
  * front cube is binding 4 of the lighting set, the front SH binding 2 (through SkyAmbient). Recorded in the
  * "environment" section.
  */
@@ -43,14 +45,28 @@ class SAIGA_VULKAN_API EnvironmentMap
     void destroy();
     ~EnvironmentMap() { destroy(); }
 
+    // The inputs of a capture: the atmosphere's sky-view LUT and transmittance, the cloud layer's coverage (the same
+    // textures for the scene's life), the frame's cloud values and the shadow light
+    struct CaptureInputs
+    {
+        vk::DescriptorImageInfo skyView, transmittance, coverage;
+        float skyViewHorizon   = 0;  // the sky-view LUT's horizon elevation (rad; Atmosphere::skyViewHorizonElevation)
+        vec2 cloudOrigin       = vec2(0, 0);
+        float cloudiness       = 0;  // the layer's (CloudLayer::effectiveCloudiness)
+        bool clouds            = false;
+        vec3 light             = vec3(0, 1, 0);
+        float lightIlluminance = 0;
+    };
     // Records this frame's work (after the atmosphere's sky-view LUT): a new capture when due, the next step of one in
     // progress, the swap when complete. frame: RenderScene's frame number
     void record(vk::CommandBuffer cmd, const EnvironmentState& environment, float cameraHeight,
-                const LightingParameters& parameters, vk::DescriptorImageInfo skyView, uint64_t frame);
+                const LightingParameters& parameters, const CaptureInputs& inputs, uint64_t frame);
     // A different resolution recreates the cubes (from the next record; deferDelete)
     int resolution() const { return size; }
 
     bool valid() const { return frontValid; }
+    // A capture is in progress (its steps run in the next frames; the front cube is the previous one)
+    bool capturing() const { return step != 0; }
     vk::DescriptorImageInfo frontCubeInfo();
     vk::Buffer frontSh() const;
     static constexpr size_t kShBytes = 9 * 16;
@@ -74,15 +90,19 @@ class SAIGA_VULKAN_API EnvironmentMap
     struct Key
     {
         vec3 sunDir = vec3(0, 0, 0), moonDir = vec3(0, 0, 0);
-        float sunE = 0, moonE = 0, cloudiness = -1, cameraHeight = 0, cloudOffsetX = 0, cloudOffsetY = 0;
+        float sunE = 0, moonE = 0, cloudiness = -1, cameraHeight = 0;
+        vec2 cloudOrigin = vec2(0, 0);  // the camera's coverage position (the drift and the camera's xz)
         AtmosphereSettings atmosphere;
         CloudSettings clouds;
         bool enclosed = false, cloudsOn = true;
+        // The cloud layer's cloudiness the capture used (CaptureInputs::cloudiness: the weather's through the noise's
+        // histogram, which changes when a new seed's histogram is read back)
+        float layerCloudiness = -1;
     };
     bool due(const Key& k, const LightingParameters& p) const;
     void createImages(int resolution);
     void destroyImages();
-    void recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInfo skyView, float cameraHeight);
+    void recordCapture(vk::CommandBuffer cmd, const EnvironmentState& e, const CaptureInputs& in, float cameraHeight);
     void recordPrefilter(vk::CommandBuffer cmd, int mip);
     void recordSh(vk::CommandBuffer cmd);
 
@@ -96,7 +116,8 @@ class SAIGA_VULKAN_API EnvironmentMap
     vk::ImageView captureMip0;
     Sampler linear;
     ComputePipeline capturePipeline, prefilterPipeline, shPipeline, debugPipeline;
-    std::array<std::array<vk::DescriptorSet, 2>, 2> debugSets{};
+    // Per frame slot one set per debug mode
+    std::array<std::array<vk::DescriptorSet, 2>, VulkanRenderer::framesInFlight> debugSets{};
     std::array<Texture2D, 2> debugImages;
     std::optional<vec3> captureOverride;
     vk::DescriptorSet captureSet;

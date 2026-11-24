@@ -17,33 +17,24 @@ namespace Vulkan
 namespace
 {
 constexpr double twoPi = 6.283185307179586;
-
-// Towards the sun from the azimuth and elevation (degrees), as the prototype
-vec3 sunDirection(const PrototypeSettings& s)
-{
-    float az = radians(s.sunAzimuth), el = radians(s.sunElevation);
-    return vec3(std::cos(el) * std::sin(az), std::sin(el), -std::cos(el) * std::cos(az));
-}
 }  // namespace
-
-StudioEnvironment studioFromPrototype(const PrototypeSettings& s)
-{
-    StudioEnvironment e;
-    e.sunDir       = sunDirection(s);
-    e.sunIntensity = s.sunIntensity;
-    e.ambient      = s.ambient;
-    e.hemisphere   = true;
-    e.albedo       = s.albedo;
-    e.fog          = s.fog;
-    e.fogDensity   = s.fogDensity;
-    e.fogFalloff   = s.fogFalloff;
-    e.fogColor     = vec3(0.42f, 0.42f, 0.42f);
-    return e;
-}
 
 StudioEnvironment prototypeStudio()
 {
-    return studioFromPrototype(PrototypeSettings());
+    // S19a's PrototypeSettings defaults: the sun from azimuth 35, elevation 38 degrees with intensity 1, the hemisphere
+    // ambient 0.25, the albedo 0.55, the height fog 0.00015 / 0.0012 in gray 0.42
+    StudioEnvironment e;
+    const float az = radians(35.0f), el = radians(38.0f);
+    e.sunDir       = vec3(std::cos(el) * std::sin(az), std::sin(el), -std::cos(el) * std::cos(az));
+    e.sunIntensity = 1.0f;
+    e.ambient      = 0.25f;
+    e.hemisphere   = true;
+    e.albedo       = 0.55f;
+    e.fog          = true;
+    e.fogDensity   = 0.00015f;
+    e.fogFalloff   = 0.0012f;
+    e.fogColor     = vec3(0.42f, 0.42f, 0.42f);
+    return e;
 }
 
 uint32_t packPrototypeFoliageColor(int layer, float ao, float wind)
@@ -64,18 +55,6 @@ float prototypeWindPhase(double time, double frequency)
     return float(p);
 }
 
-void prototypeLighting(const PrototypeSettings& s, double time, float fogBase, SceneLighting& out)
-{
-    const vec3 sun = sunDirection(s);
-    out.sunDir     = vec4(sun(0), sun(1), sun(2), s.sunIntensity);
-    out.ambient    = vec4(s.ambient, 1, s.albedo, s.alphaCutoff);
-    out.fog        = vec4(s.fogDensity, s.fogFalloff, s.fog ? 1 : 0, fogBase);
-    out.fogColor   = vec4(0.42f, 0.42f, 0.42f, 1);
-    // The tree.vert frequencies of the sway (x, z) and the flutter
-    out.wind =
-        vec4(prototypeWindPhase(time, 1.1), prototypeWindPhase(time, 0.9), prototypeWindPhase(time, 4.0), s.wind);
-    out.debug = vec4(float(s.debugMode), 0, 0, 0);
-}
 
 }  // namespace Vulkan
 }  // namespace Saiga

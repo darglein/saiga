@@ -7,8 +7,8 @@
 // The lighting of S36 (A3 of docs/stages/S36_lighting.plan.md, docs/engine_design.md §10.7): set 1 of the scene draws
 // (SceneLightingSet: 0 the block, 1 the foliage texture, 2 the ambient SH, 3 the cloud coverage, 4 the prefiltered
 // environment cube, 5 the BRDF LUT, 6 the transmittance LUT, 7 the sky-view LUT; a2: 8 the cascades, 9 the horizon map;
-// b: 10-14 the lights, clusters and atlas) and shadeSurface, which every scene pass of the LIGHTING_PBR variant calls,
-// so every surface lights the same way:
+// b: 10-14 the lights, clusters and atlas) and shadeSurface, which every scene pass calls, so every surface lights the
+// same way:
 // - clay mode (lighting.mode.x == 0: ToneMap::Identity, or no environment): the studio environment, S19a's model
 //   exactly: albedo (sun max(n.l, 0) + ambient) ao, the studio fog; unit-less;
 // - physical (an environment and a tone map): GGX (pbr.glsl) for the sun and the moon in lux with the shadow factor of
@@ -43,9 +43,13 @@ layout(set = 1, binding = 7) uniform sampler2D skyViewLut;
 #include "pbr.glsl"
 #include "ambient.glsl"
 #include "shadows.glsl"
+#include "vertex_light.glsl"
 
-// SurfaceInput::flags: foliage (wrapped diffuse)
-const uint surfaceFoliage = 1u;
+// SurfaceInput::flags: foliage (wrapped diffuse) and surfaceShSpecular (the land of the terrain): rough dielectric
+// surfaces whose specular environment is the diffuse irradiance's mean radiance (irradiance(n) / pi, already
+// evaluated for the diffuse part) instead of the prefiltered cube: their wide GGX lobe sees about that, the F0 of 0.04
+// keeps the difference small, and it saves the cube fetch per fragment of the grass's overdraw (S36a1c review)
+const uint surfaceFoliage = 1u, surfaceShSpecular = 2u;
 
 struct SurfaceInput
 {
@@ -88,25 +92,29 @@ vec3 prototypeAlbedo(vec3 physical)
 }
 
 // The active fog (studio or physical, chosen on the CPU): S19a's height fog with the camera height above its base; in
-// the physical path its colour is the sky at the horizon in the view's azimuth (the sky-view LUT: fog and sky match at
-// the horizon)
+// the physical path its colour is the sky at the horizon in the view's azimuth (vertex_light.glsl's physicalFog)
 vec3 lightingFog(vec3 c, vec3 relPos)
 {
-    vec3 fogColor = lighting.fogColorLin.rgb;
-    if (physicalLighting() && lighting.fogParams.z > 0.5)
-    {
-        vec2 h   = relPos.xz;
-        vec3 dir = dot(h, h) > 1e-8 ? vec3(normalize(h).x, 0.0, normalize(h).y) : vec3(1.0, 0.0, 0.0);
-        fogColor = skyRadiance(skyViewLut, dir, atmosphereRadius(lighting.atmosphere.x));
-    }
-    return protoApplyFog(c, relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0), fogColor);
+    if (!physicalLighting())
+        return protoApplyFog(c, relPos, lighting.fogParams.w, vec4(lighting.fogParams.xyz, 0.0),
+                             lighting.fogColorLin.rgb);
+    vec4 fog = physicalFog(relPos);
+    return c * fog.a + fog.rgb;
 }
 
-// The direct light's transmittance through the atmosphere at the receiver (relPos) towards the body l: the
-// transmittance LUT at the receiver's height, 0 behind the planet
-vec3 bodyTransmittance(vec3 l, vec3 relPos)
+#ifdef VERTEX_LIGHT_INPUT
+// The vertex shader's light terms (set by main from its inputs)
+VertexLight vertexLightInput = VertexLight(vec3(0.0), vec3(0.0), vec4(0.0, 0.0, 0.0, 1.0));
+#endif
+
+// The light terms of a fragment (vertex_light.glsl): the vertex shader's (VERTEX_LIGHT_INPUT) or per fragment
+VertexLight surfaceVertexLight(vec3 relPos)
 {
-    return bodyTransmittanceAtRadius(transmittanceLut, atmosphereRadius(lighting.atmosphere.x + relPos.y), l);
+#ifdef VERTEX_LIGHT_INPUT
+    return vertexLightInput;
+#else
+    return computeVertexLight(relPos);
+#endif
 }
 
 // The debug views (LightingDebugView of LightingTypes.h)
@@ -147,6 +155,7 @@ vec3 shadeSurface(SurfaceInput s)
         s.tint      = vec3(1.0);
     }
     vec3 c, direct = vec3(0.0), ambientDiff = vec3(0.0), ambientSpec = vec3(0.0);
+    vec4 fog = vec4(0.0, 0.0, 0.0, 1.0);
     if (!physicalLighting())
     {
         // S19a: albedo (sun + ambient) ao, the material's emissive on top
@@ -164,21 +173,30 @@ vec3 shadeSurface(SurfaceInput s)
         float NoV   = max(dot(s.n, v), 1e-4);
         vec2 lut    = texture(brdfLut, vec2(NoV, rough)).rg;
         float wrap  = (s.flags & surfaceFoliage) != 0u ? 0.3 : 0.0;
+        VertexLight vl = surfaceVertexLight(s.relPos);
+        fog            = vl.fog;
         if (lighting.mode.y == 0u)
         {
-            float shadow = shadowFactor(s.relPos, s.n);
-            vec3 sunE    = lighting.sun.w * bodyTransmittance(lighting.sun.xyz, s.relPos);
-            vec3 moonE   = lighting.moon.w * bodyTransmittance(lighting.moon.xyz, s.relPos);
-            if (lighting.shadowLight.w == 1.0) sunE *= shadow;
-            if (lighting.shadowLight.w == 2.0) moonE *= shadow;
-            if (lighting.sun.w > 0.0)
+            // The shadow factor only for the shadow light (at most one of the bodies); a body below the receiver's
+            // horizon has no light (computeVertexLight)
+            if (lighting.sun.w > 0.0 && any(greaterThan(vl.sunE, vec3(0.0))))
+            {
+                vec3 sunE = vl.sunE;
+                if (lighting.shadowLight.w == 1.0) sunE *= shadowFactor(s.relPos, s.n);
                 direct += pbrDirect(s.n, v, lighting.sun.xyz, s.albedo, rough, s.metalness, sunE, lut, wrap);
-            if (lighting.moon.w > 0.0)
+            }
+            if (lighting.moon.w > 0.0 && any(greaterThan(vl.moonE, vec3(0.0))))
+            {
+                vec3 moonE = vl.moonE;
+                if (lighting.shadowLight.w == 2.0) moonE *= shadowFactor(s.relPos, s.n);
                 direct += pbrDirect(s.n, v, lighting.moon.xyz, s.albedo, rough, s.metalness, moonE, lut, wrap);
+            }
         }
-        vec3 r = reflect(-v, s.n);
-        pbrAmbientParts(s.albedo, rough, s.metalness, NoV, lut, ambientSpecular(r, rough, s.relPos),
-                        ambientDiffuse(s.n, s.relPos), ambientSpec, ambientDiff);
+        vec3 irradiance = ambientDiffuse(s.n, s.relPos);
+        vec3 specular   = (s.flags & (surfaceFoliage | surfaceShSpecular)) != 0u
+                              ? irradiance / kPi
+                              : ambientSpecular(reflect(-v, s.n), rough, s.relPos);
+        pbrAmbientParts(s.albedo, rough, s.metalness, NoV, lut, specular, irradiance, ambientSpec, ambientDiff);
         ambientSpec *= s.ao;
         ambientDiff *= s.ao;
         // The emissive colour keeps its displayed brightness (a display value divided by the exposure)
@@ -187,7 +205,8 @@ vec3 shadeSurface(SurfaceInput s)
     if (view == viewDirectOnly) return debugDisplay(direct * s.tint);
     if (view == viewAmbientOnly) return debugDisplay(ambientDiff * s.tint);
     if (view == viewSpecularOnly) return debugDisplay(ambientSpec * s.tint);
-    c = lightingFog(c, s.relPos);
+    // The fog: the physical path's from the light terms, clay's studio fog per fragment
+    c = physicalLighting() ? c * fog.a + fog.rgb : lightingFog(c, s.relPos);
     if (view == viewLightingOnly) return debugDisplay(c);
     if (view == viewExposure)
     {

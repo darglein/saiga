@@ -24,7 +24,8 @@ void PrototypeScene::attach(RenderScene& scene, const std::vector<ForestRenderer
     const auto t0 = std::chrono::steady_clock::now();
     renderScene   = &scene;
     settings.clamp();
-    scene.setPrototypeEnvironment(settings.prototype(), seed);
+    scene.setFoliageTexture(seed);
+    scene.setPrototypeSettings(settings.prototype());
     trees.init(scene, placed, seed, settings);
     std::cout << "PrototypeScene: " << trees.treeCount() << " trees in " << trees.setCount() << " sets in "
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() << " s" << std::endl;
@@ -111,8 +112,6 @@ void PrototypeScene::imgui()
         ImGui::Checkbox("water", &st.water);
         ImGui::SameLine();
         ImGui::Checkbox("sky", &st.sky);
-        ImGui::SameLine();
-        ImGui::Checkbox("fog", &st.fog);
         ImGui::Checkbox("flat shading", &st.flatShading);
         ImGui::SameLine();
         ImGui::Checkbox("depth pre-pass", &st.depthPrePass);
@@ -130,17 +129,12 @@ void PrototypeScene::imgui()
         ImGui::SliderFloat("grass density", &st.grassDensity, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("alpha cutoff", &st.alphaCutoff, 0.05f, 0.95f, "%.3f", ImGuiSliderFlags_AlwaysClamp);
     }
-    if (subSection("Lighting", false))
+    // S36: the sun, the fog and the time of day are in the Lighting tab (F5)
+    if (subSection("Camera and wind", false))
     {
         ImGui::SliderFloat("fovy", &st.fovy, 20, 110, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("sun azimuth", &st.sunAzimuth, -180, 180, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("sun elevation", &st.sunElevation, -10, 90, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("sun intensity", &st.sunIntensity, 0, 2, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("ambient", &st.ambient, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("albedo", &st.albedo, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
+        ImGui::SliderFloat("clay albedo", &st.albedo, 0, 1, "%.3f", ImGuiSliderFlags_AlwaysClamp);
         ImGui::SliderFloat("wind", &st.wind, 0, 4, "%.3f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("fog density", &st.fogDensity, 0, 0.002f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
-        ImGui::SliderFloat("fog falloff", &st.fogFalloff, 0.0001f, 0.01f, "%.5f", ImGuiSliderFlags_AlwaysClamp);
     }
 }
 

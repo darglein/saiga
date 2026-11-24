@@ -55,8 +55,7 @@ struct SceneCamera
  *      the scene pass with EQUAL and no depth write; the PrototypeFoliage class (prototype_foliage.vert/.frag, alpha
  *      to coverage, the foliage texture) is never in the pre-pass. The draw pipelines have a second descriptor set
  *      (per frame slot): set 1 of SceneLightingSet (S36: the lighting block, the foliage texture, the lighting's
- *      resources). S36a1b: two pipeline variants, the legacy S19a light model (with its SCENE_FOG variant) and the
- *      LIGHTING_PBR one (LightingParameters::pbr; created on demand by setPbr, the other variant's pipelines released).
+ *      resources); every scene pipeline lights with shadeSurface (S36, lighting.glsl).
  * Shared device buffers (counts, scratch, compacted, commands, bucket LODs) are recreated at frame start when too
  * small; the per-frame host visible buffers (offset table, work chunks, dynamics, statistics, staging) belong to a
  * frame slot (its previous frame has completed). One descriptor set per frame slot with every binding, rewritten for
@@ -74,18 +73,13 @@ class SAIGA_VULKAN_API SceneCulling
     uint64_t storageLimit() const { return storageBytes; }
     void destroy();
 
-    // The draw pipelines of the light model (LightingParameters::pbr; at a frame start, outside of the recording): a
-    // change creates the variant's pipelines and releases the others (deferred)
-    void setPbr(bool pbr);
-    bool pbr() const { return pbrVariant; }
     // The pipelines created since init (tests: a debug view switch creates none)
     uint64_t pipelineCreations() const { return creations; }
 
     // The transfer section: growth copies, uploads (meshes, instances, tables, the commands' static fields), the
-    // frame's offset table, work chunks and dynamics, the buffer sizes and the frame's descriptor set. fog: the legacy
-    // variant's SCENE_FOG pipelines (the lighting block's fog is enabled)
+    // frame's offset table, work chunks and dynamics, the buffer sizes and the frame's descriptor set
     void recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, InstanceBuffer& instances,
-                        const SceneCamera& camera, bool fog);
+                        const SceneCamera& camera);
     // The cull section (between transfer and scene): fill, count, scan, write
     void recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPool& meshes, const SceneCamera& camera);
     // Inside the depth pre-pass (depth only): the opaque classes; returns the number of indirect draw calls
@@ -94,7 +88,7 @@ class SAIGA_VULKAN_API SceneCulling
     // prepass: the opaque classes were drawn in the pre-pass (EQUAL, no depth write); returns the number of indirect
     // draw calls
     uint32_t recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass);
-    // The foliage texture of the PrototypeFoliage class exists (RenderScene::setPrototypeEnvironment; binding 1 of the
+    // The foliage texture of the PrototypeFoliage class exists (RenderScene::setFoliageTexture; binding 1 of the
     // lighting set): without it the class is not drawn
     void setFoliageTexture(Texture2DArray* texture) { foliageTexture = texture; }
 
@@ -121,8 +115,6 @@ class SAIGA_VULKAN_API SceneCulling
         };
         std::array<Range, pipelineClassCount> ranges = {};
         vk::Buffer vertices, indices, commands;
-        // The lighting block's fog is enabled: the SCENE_FOG variant of the flat pipelines
-        bool fog = false;
     };
     struct WorkChunk
     {
@@ -133,7 +125,6 @@ class SAIGA_VULKAN_API SceneCulling
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
     bool multiDraw     = false;
-    bool pbrVariant    = false;
     uint64_t creations = 0;
     // RenderSceneParameters::dynamicCapacity: the initial size of the dynamics and compacted buffers
     uint32_t dynamicCapacity      = 0;
@@ -142,17 +133,12 @@ class SAIGA_VULKAN_API SceneCulling
     uint32_t maxWorkGroupsY       = 65535;
     uint64_t storageBytes         = 0;
     ComputePipeline countPipeline, scanPipeline, writePipeline;
-    // [fog variant][class]: the flat classes without (0) and with (1) the height fog (SCENE_FOG: the camera-relative
-    // position as a varying, which costs ~7 % of the flat draws when unused); the foliage class always has fog
-    std::array<std::array<Pipeline, pipelineClassCount>, 2> drawPipelines;
-    // The opaque classes (opaque, two-sided): depth only for the pre-pass, EQUAL without depth write after it ([fog
-    // variant][class])
+    // Per class (S36: one light model; the camera-relative position is always a varying: the fog, the cloud shadow and
+    // the specular of every fragment need it, so the SCENE_FOG variant of S19a is gone)
+    std::array<Pipeline, pipelineClassCount> drawPipelines;
+    // The opaque classes (opaque, two-sided): depth only for the pre-pass, EQUAL without depth write after it
     std::array<Pipeline, 2> prepassPipelines;
-    std::array<std::array<Pipeline, 2>, 2> equalPipelines;
-    // The LIGHTING_PBR variant (S36a1b): every class and the opaque classes after the pre-pass; the relative position
-    // is always a varying (no fog variant)
-    std::array<Pipeline, pipelineClassCount> pbrPipelines;
-    std::array<Pipeline, 2> pbrEqualPipelines;
+    std::array<Pipeline, 2> equalPipelines;
     void createDrawPipelines();
     void destroyDrawPipelines();
     Texture2DArray* foliageTexture = nullptr;

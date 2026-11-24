@@ -22,7 +22,9 @@ struct EnvironmentState;
  * the precomputed LUTs of the Earth's Rayleigh, Mie and ozone medium (AtmosphereSettings' scales;
  * shader/vulkan/scene/lighting/atmosphere_*.comp): the transmittance LUT (256 x 64) and the multiple-scattering LUT
  * (32 x 32), recomputed only when the parameters change, and the sky-view LUT (192 x 108, the sun's and the moon's
- * in-scattered radiance times kSkyLutScale) every frame at the camera height. Bindings 6 and 7 of the lighting set; the
+ * in-scattered radiance times kSkyLutScale) at the camera height, rewritten only when its inputs changed (a body moved
+ * by more than kSkyViewDirection, an illuminance by 0.1%, the camera height by kSkyViewHeightM, the cloudiness or the
+ * settings; the shaders read the LUT's own horizon). Bindings 6 and 7 of the lighting set; the
  * sky pass, the fog colour, the environment map and the direct light's transmittance read them. Recorded in the frame's
  * "environment" section.
  */
@@ -38,14 +40,18 @@ class SAIGA_VULKAN_API Atmosphere
     static constexpr uint32_t kSkyViewHeight       = 108;
     // The sky-view LUT and the environment cube store radiance times this (shader: kSkyLutScale)
     static constexpr float kSkyLutScale = 1.0f / 16.0f;
+    // The sky-view LUT's update thresholds: a body's direction (rad; about 3.5 s of the sun at the time rate 1), the
+    // camera height (m)
+    static constexpr float kSkyViewDirection = 2.5e-4f;
+    static constexpr float kSkyViewHeightM   = 10.0f;
 
     void init(VulkanBase& base);
     void destroy();
     ~Atmosphere() { destroy(); }
 
     // Records the LUTs of this frame: the transmittance and multiple scattering when the settings changed (or the first
-    // time), the sky-view LUT for the environment's sun and moon at the camera height (m above the sea level). The LUTs
-    // are in eShaderReadOnlyOptimal afterwards, visible to the fragment and compute shaders
+    // time), the sky-view LUT for the environment's sun and moon at the camera height (m above the sea level) when its
+    // inputs changed. The LUTs are in eShaderReadOnlyOptimal afterwards, visible to the fragment and compute shaders
     void record(vk::CommandBuffer cmd, const EnvironmentState& environment, float cameraHeight);
 
     Texture2D& transmittance() { return transmittanceLut; }
@@ -55,6 +61,19 @@ class SAIGA_VULKAN_API Atmosphere
     vk::DescriptorImageInfo skyViewInfo() { return skyViewLut.getDescriptorInfo(skyViewSampler); }
     // The LUT recomputations so far (tests)
     uint64_t lutComputations() const { return computations; }
+    // The sky-view LUT's writes so far (tests)
+    uint64_t skyViewComputations() const { return skyViewWrites; }
+    // The sky-view LUT's horizon elevation (rad; the block's atmosphere.w): of the radius it was computed at
+    float skyViewHorizonElevation() const { return skyViewHorizonRad; }
+
+    // The CPU copy of the sky-view LUT's mapping (atmosphere_common.glsl; tests): the horizon elevation (rad, below 0)
+    // seen from the radius (km), the uv of a direction (x the azimuth atan(z, x), y the elevation: the horizon at 0.5,
+    // more rows near it) and back
+    static float skyViewHorizon(float radiusKm);
+    static vec2 skyViewUv(const vec3& dir, float horizon);
+    static vec3 skyViewDir(const vec2& uv, float horizon);
+    // The radius (km) of a height above the sea level (m) inside the atmosphere (atmosphereRadius)
+    static float radiusOf(float heightM);
     uint64_t memoryBytes() const;
 
    private:
@@ -65,7 +84,17 @@ class SAIGA_VULKAN_API Atmosphere
     vk::DescriptorSet transmittanceSet, multiScatteringSet, skyViewSet;
     bool valid = false;
     AtmosphereSettings computedFor;
-    uint64_t computations = 0;
+    uint64_t computations   = 0;
+    float skyViewHorizonRad = 0;
+    // The inputs of the sky-view LUT's last write
+    struct SkyViewKey
+    {
+        vec3 sunDir = vec3(0, 0, 0), moonDir = vec3(0, 0, 0);
+        float sunE = -1, moonE = -1, radiusKm = 0, cloudiness = -1;
+    };
+    bool skyViewValid = false;
+    SkyViewKey skyViewKey;
+    uint64_t skyViewWrites = 0;
 };
 
 }  // namespace Vulkan

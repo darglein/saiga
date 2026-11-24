@@ -46,7 +46,7 @@ void main()
     if (p.x >= pc.size.x || p.y >= pc.size.y) return;
     vec2 uv     = (vec2(p) + 0.5) / vec2(pc.size.xy);
     float r     = pc.camera.x;
-    vec3 dir    = skyViewDir(uv, r);
+    vec3 dir    = skyViewDir(uv, skyViewHorizon(r));
     float mu    = dir.y;
     bool ground = rayHitsGround(r, mu);
     float d     = ground ? distanceToGround(r, mu) : max(distanceToSphere(r, mu, kTopRadiusKm), 0.0);

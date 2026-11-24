@@ -103,11 +103,17 @@ vec3 transmittanceToTop(sampler2D lut, float r, float mu)
     return textureLod(lut, transmittanceUv(r, mu), 0.0).rgb;
 }
 
+// The y of the planet's limb seen from the radius r (the cosine of the zenith angle of the horizon, below 0)
+float limbCosine(float r)
+{
+    return -sqrt(max(1.0 - kGroundRadiusKm * kGroundRadiusKm / (r * r), 0.0));
+}
+
 // The transmittance of a body's light (direction l towards it) at the radius r: 0 behind the planet, a soft edge of
 // about the sun disc's size at the horizon
 vec3 bodyTransmittanceAtRadius(sampler2D lut, float r, vec3 l)
 {
-    float horizon = -sqrt(max(1.0 - kGroundRadiusKm * kGroundRadiusKm / (r * r), 0.0));
+    float horizon = limbCosine(r);
     return transmittanceToTop(lut, r, l.y) * smoothstep(horizon - 0.004, horizon + 0.004, l.y);
 }
 
@@ -117,12 +123,19 @@ vec2 multiScatteringUv(float r, float muS)
     return vec2(muS * 0.5 + 0.5, (r - kGroundRadiusKm) / (kTopRadiusKm - kGroundRadiusKm));
 }
 
-// The sky-view LUT at the radius r: x the azimuth (atan(z, x)), y the elevation with the horizon at 0.5 and more
-// texels near it (Hillaire's non-linear mapping)
-vec2 skyViewUv(vec3 dir, float r)
+// The sky-view LUT's horizon: the elevation (rad, below 0) of the planet's limb seen from the radius r
+float skyViewHorizon(float r)
 {
-    float horizon = -acos(clamp(sqrt(max(r * r - kGroundRadiusKm * kGroundRadiusKm, 0.0)) / r, 0.0, 1.0));
-    float el      = asin(clamp(dir.y, -1.0, 1.0));
+    return -acos(clamp(kGroundRadiusKm / r, 0.0, 1.0));
+}
+
+// The sky-view LUT (computed at a radius whose horizon elevation is horizon, skyViewHorizon): x the azimuth
+// (atan(z, x)), y the elevation with the horizon at 0.5 and more texels near it (Hillaire's non-linear mapping). The
+// scene shaders take the LUT's horizon from the block (lighting.atmosphere.w): the LUT is rewritten only when its
+// inputs changed (Saiga::Vulkan::Atmosphere, which has the CPU copy of this mapping)
+vec2 skyViewUv(vec3 dir, float horizon)
+{
+    float el = asin(clamp(dir.y, -1.0, 1.0));
     float v;
     if (el >= horizon)
         v = 0.5 + 0.5 * sqrt(clamp((el - horizon) / (0.5 * kAtmPi - horizon), 0.0, 1.0));
@@ -133,9 +146,8 @@ vec2 skyViewUv(vec3 dir, float r)
     return vec2(u, v);
 }
 
-vec3 skyViewDir(vec2 uv, float r)
+vec3 skyViewDir(vec2 uv, float horizon)
 {
-    float horizon = -acos(clamp(sqrt(max(r * r - kGroundRadiusKm * kGroundRadiusKm, 0.0)) / r, 0.0, 1.0));
     float el;
     if (uv.y >= 0.5)
     {
@@ -151,10 +163,75 @@ vec3 skyViewDir(vec2 uv, float r)
     return vec3(cos(el) * cos(az), sin(el), cos(el) * sin(az));
 }
 
-// The sky's radiance (cd/m^2, without the sun and moon discs) in the direction dir seen from the radius r
-vec3 skyRadiance(sampler2D skyView, vec3 dir, float r)
+// The rows of the sky-view LUT (Atmosphere::kSkyViewHeight)
+const float kSkyViewRows = 108.0;
+
+// The LUT's v at the elevation 0 (the fog colour, lighting.glsl): at least the centre of the first sky row, so the
+// bilinear lookup never mixes in the ground (a camera at the sea level has its horizon at 0)
+float skyViewFogV(float horizon)
 {
-    return textureLod(skyView, skyViewUv(dir, r), 0.0).rgb / kSkyLutScale;
+    return max(0.5 + 0.5 * sqrt(-horizon / (0.5 * kAtmPi - horizon)), 0.5 + 0.5 / kSkyViewRows);
+}
+
+// The sky's radiance (cd/m^2, without the sun and moon discs) in the direction dir (the LUT's horizon elevation)
+vec3 skyRadiance(sampler2D skyView, vec3 dir, float horizon)
+{
+    return textureLod(skyView, skyViewUv(dir, horizon), 0.0).rgb / kSkyLutScale;
+}
+
+// ---- The 2D cloud layer (S36a1c, A4; Saiga::Vulkan::CloudLayer): a tiling coverage texture of kCloudTile metres, a
+// layer at the altitude (m above the sea level) with the earth's curvature, its alpha fading over the outer 30% of the
+// radius. Shared by the layer's pass (cloud_layer.frag), the environment capture, the cloud shadow (shadows.glsl) and
+// the previews.
+const float kCloudTile          = 16384.0;
+// The planet's radius of the cloud layer's curvature: the atmosphere's ground (one constant; review minor 8)
+const float kEarthRadiusM       = kGroundRadiusKm * 1000.0;
+const float kCloudShadowOpacity = 0.85;
+
+// The layer's opacity at the coverage texture's uv for the cloudiness (the noise's top (1 - cloudiness))
+float cloudCoverageFromNoise(float n, float cloudiness)
+{
+    return cloudiness <= 0.0 ? 0.0 : smoothstep(1.0 - cloudiness - 0.1, 1.0 - cloudiness + 0.1, n);
+}
+
+// The alpha of the layer's edge at the fraction of its radius (no visible rim)
+float cloudEdgeAlpha(float r01)
+{
+    return 1.0 - smoothstep(0.7, 1.0, r01);
+}
+
+// The radiance of the layer (cd/m^2) seen along v: sunE the illuminance of the shadow light at the layer (after the
+// transmittance) from the direction l, skyE and groundE the irradiance from above and below, coverage the opacity,
+// below: the viewer is below the layer. A slab: the side towards the light reflects it diffusely (low light grazes
+// it), the other side shows what a dense cloud lets through; thin parts scatter forward around the light (the silver
+// lining)
+vec3 cloudLayerRadiance(vec3 sunE, vec3 l, vec3 v, vec3 skyE, vec3 groundE, float coverage, bool below)
+{
+    const float albedo = 0.9;
+    bool lightAbove    = l.y > 0.0;
+    float through      = below == lightAbove ? mix(0.75, 0.22, coverage) : 1.0;
+    float grazing      = 0.35 + 0.65 * abs(l.y);
+    vec3 direct        = sunE * (albedo / kAtmPi) * grazing * through;
+    float c            = dot(v, l);
+    direct += sunE * miePhase(c) * 0.12 * (1.0 - coverage);
+    vec3 ambient = (below ? mix(skyE, groundE, 0.35) : skyE) * (albedo / kAtmPi);
+    return direct + ambient;
+}
+
+// The cloud layer's shadow (the factor of the shadow light's direct light) at a receiver: relXZ its camera-relative
+// horizontal position, heightM its height above the sea level, l towards the light; origin the coverage texture's
+// position of the camera (m, wrapped), clouds (altitude, radius, cloudiness, shadow fade), mean the mean coverage at
+// the cloudiness. The receiver is projected along l to the layer; at or above the layer (with a 50 m blend below) the
+// factor is 1; beyond the fade distance of the projected point the mean coverage replaces the texture
+float cloudShadowAt(sampler2D coverage, vec2 origin, vec2 relXZ, float heightM, vec3 l, vec4 clouds, float mean)
+{
+    if (clouds.z <= 0.0 || l.y <= 0.0) return 1.0;
+    float above = smoothstep(clouds.x - 50.0, clouds.x, heightM);
+    vec2 p      = relXZ + (clouds.x - heightM) * l.xz / max(l.y, 0.02);
+    float fade  = smoothstep(0.7 * clouds.w, clouds.w, length(p));
+    float c     = cloudCoverageFromNoise(textureLod(coverage, (origin + p) / kCloudTile, 2.0).r, clouds.z);
+    float occl  = mix(c, mean, fade) * kCloudShadowOpacity;
+    return mix(1.0 - occl, 1.0, above);
 }
 
 #endif

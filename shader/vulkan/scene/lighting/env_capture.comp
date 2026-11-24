@@ -8,7 +8,9 @@
 
 // The capture of the environment map (S36, A4; EnvironmentMap): per texel of the capture cube's mip 0 the sky seen from
 // the camera height without the sun disc (the sun's specular comes from the direct light): the sky-view LUT, below the
-// horizon its ground (the ground albedo lit through the atmosphere). Stored times kSkyLutScale like the LUT.
+// horizon its ground (the ground albedo lit through the atmosphere), and the 2D cloud layer in front of it (its
+// coverage along the ray to the layer, lit as in cloud_layer.frag with the sky's irradiance estimated from the zenith).
+// Stored times kSkyLutScale like the LUT.
 
 #include "atmosphere_common.glsl"
 #include "env_common.glsl"
@@ -17,12 +19,17 @@ layout(local_size_x = 8, local_size_y = 8) in;
 
 layout(set = 0, binding = 0, rgba16f) uniform writeonly image2DArray outCube;
 layout(set = 0, binding = 1) uniform sampler2D skyViewLut;
+layout(set = 0, binding = 2) uniform sampler2D cloudCoverage;
+layout(set = 0, binding = 3) uniform sampler2D transmittanceLut;
 
 layout(push_constant) uniform Push
 {
     ivec4 size;       // x: the face size
-    vec4 camera;      // x: the camera's radius (km)
+    vec4 camera;      // x: the camera's radius (km), y: the camera's height (m), z: the sky-view LUT's horizon (rad)
     vec4 uniformSky;  // w > 0: a uniform radiance rgb (cd/m^2) instead of the sky (EnvironmentMap::setCaptureOverride)
+    vec4 clouds;      // altitude, radius, cloudiness (0: no layer), ground albedo
+    vec4 origin;      // xy: the camera's coverage position (m)
+    vec4 light;       // towards the shadow light, its illuminance (lux; 0: none)
 }
 pc;
 
@@ -31,7 +38,33 @@ void main()
     ivec3 p = ivec3(gl_GlobalInvocationID);
     if (p.x >= pc.size.x || p.y >= pc.size.x) return;
     vec3 dir = cubeTexelDirection(uint(p.z), p.xy, pc.size.x);
-    vec3 c   = textureLod(skyViewLut, skyViewUv(dir, pc.camera.x), 0.0).rgb;
+    vec3 c   = textureLod(skyViewLut, skyViewUv(dir, pc.camera.z), 0.0).rgb;
+    float h  = pc.camera.y;
+    if (pc.clouds.z > 0.0 && abs(dir.y) > 1e-3 && (pc.clouds.x - h) * dir.y > 0.0)
+    {
+        // The ray to the layer (a plane at the altitude; the curvature is negligible inside the radius)
+        float t   = (pc.clouds.x - h) / dir.y;
+        vec2 p    = dir.xz * t;
+        float r01 = length(p) / pc.clouds.y;
+        if (r01 < 1.0)
+        {
+            float coverage = cloudCoverageFromNoise(textureLod(cloudCoverage, (pc.origin.xy + p) / kCloudTile, 1.0).r,
+                                                    pc.clouds.z);
+            float alpha    = coverage * cloudEdgeAlpha(r01);
+            vec3 E         = vec3(0.0);
+            vec3 l         = vec3(0.0, 1.0, 0.0);
+            if (pc.light.w > 0.0)
+            {
+                l = normalize(pc.light.xyz);
+                E = pc.light.w * bodyTransmittanceAtRadius(transmittanceLut, atmosphereRadius(pc.clouds.x), l);
+            }
+            vec3 zenith = textureLod(skyViewLut, skyViewUv(vec3(0.0, 1.0, 0.0), pc.camera.z), 0.0).rgb / kSkyLutScale;
+            vec3 skyE   = zenith * kAtmPi;
+            vec3 L      = cloudLayerRadiance(E, l, dir, skyE, skyE * pc.clouds.w, coverage, h < pc.clouds.x);
+            L           = mix(c / kSkyLutScale, L, exp(-t / 30000.0));
+            c           = mix(c, L * kSkyLutScale, alpha);
+        }
+    }
     if (pc.uniformSky.w > 0.0) c = pc.uniformSky.rgb * kSkyLutScale;
     imageStore(outCube, p, vec4(c, 1.0));
 }

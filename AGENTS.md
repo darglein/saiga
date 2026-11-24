@@ -74,16 +74,18 @@ src/
                         table and grass masks, the upload queue with a per-frame byte cap), TerrainPass (CDLOD in
                         double with a 64 m frame anchor, skirts, the water plane, the sky, TerrainFrame), GrassPass
                         (chunk-relative grass from masks), TerrainTiles (pure tile / pyramid / mask generation);
-                        prototype passes (S19a): setPrototypeEnvironment (sky, foliage texture), the PrototypeFoliage
-                        pipeline class of the trees, the lighting block, setTime, the depth pre-pass (off for the
-                        prototype) and the SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain,
-                        scene.instances, ...); lighting (S36a1b; shader/vulkan/scene/lighting/): SceneLighting (the
-                        block) and its owner SceneLightingSet (the final set-1 layout of every scene pipeline incl.
-                        terrain, grass and sky, 1x1 dummies), lighting.glsl (shadeSurface: the studio environment in
-                        clay mode, GGX in lux with an environment), BrdfLut, AmbientProvider / SkyAmbient, the
-                        LIGHTING_PBR pipeline variant (LightingParameters::pbr, false until the S36a1c flip; its clay
-                        reproduces S19a); the debug core: LightingDebug (debug views, previews with their reduction,
-                        pixel readbacks, the probe frames), DebugLines (sections scene.debug, lighting.preview)
+                        prototype passes (S19a): setFoliageTexture (S36; the foliage texture and the S20 sky), the
+                        PrototypeFoliage pipeline class of the trees, the depth pre-pass (off for the prototype) and the
+                        SAMPLE_ZERO depth resolve; GPU sections with sub-sections (scene.terrain, scene.instances, ...);
+                        lighting (S36, shader/vulkan/scene/lighting/): SceneLighting (the block) and its owner
+                        SceneLightingSet (the set-1 layout of every scene pipeline incl. terrain, grass and sky, 1x1
+                        dummies), lighting.glsl (shadeSurface, the one light model: clay's studio environment, which
+                        reproduces S19a, or GGX in lux with an environment), BrdfLut, AmbientProvider / SkyAmbient
+                        (the environment map's SH), Atmosphere (Hillaire LUTs, the sky with sun, moon and stars),
+                        EnvironmentMap (capture, prefilter, SH; front / back), CloudLayer (the 2D clouds and their
+                        shadows); the environment GPU section (atmosphere, environment map), scene.clouds; the debug
+                        core: LightingDebug (debug views, previews with their reduction, pixel readbacks, the probe
+                        frames), DebugLines (sections scene.debug, lighting.preview)
                         VulkanDevice/createVulkanDevice: instance, surface and device (VulkanRenderer and the app;
                         setHeadlessDeviceReuse: the tests' pool of headless devices)
                         window/StandaloneWindow: the base of Vulkan apps (VulkanExampleBase); the window backend is
@@ -289,7 +291,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-81 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+84 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -353,18 +355,20 @@ ctest -R test_core_ini --output-on-failure             # one test
   - Measure with `./build/tests/<binary> --gtest_print_time=1` (or the gtest XML of `GTEST_OUTPUT=xml:<dir>/`) on
     lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
     threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
-    `test_vulkan_world` 7 s (prototype scenes with terrain and trees), `test_engine_app` 6.5 s (68 tests; the MCP
-    deadline tests wait ~3 s of real time), `test_engine_content` 6 s (the test generator's pyramids and the committed
-    hashes), `test_vulkan_scene` 5.5 s, `test_engine_terrain_render` 5.5 s (goldens at 512 x 512), `test_vulkan_terrain`
-    5 s, every other binary <= 2 s. These are ceilings: a change that makes a binary slower than its budget makes it
+    `test_vulkan_world` 9 s (prototype scenes with terrain and trees; S36a1c: shaded with the lighting), `test_engine_app`
+    7 s (the MCP deadline tests wait ~3 s of real time), `test_engine_terrain_render` 6.5 s (goldens at 512 x 512),
+    `test_vulkan_terrain` 6.5 s, `test_engine_content` 6 s (the test generator's pyramids and the committed hashes),
+    `test_vulkan_scene` 5.5 s, `test_vulkan_lighting` 2.5 s (the atmosphere and environment-map tests), every other
+    binary <= 2 s. (S36a1c raised the first four: every RenderScene creates the BRDF LUT, the atmosphere, the
+    environment map and the clouds at construction; S36b creates them with the first use and brings `test_vulkan_scene`,
+    `test_vulkan_terrain` and `test_engine_terrain_render` back to 5.5 / 5 / 6 s.) These are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
     10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the
     dependency check; less with Ninja).
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
   `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/render_scene_test_context.h` (`RenderSceneTest`: a
-  `RenderScene` per test; `RenderSceneSuiteTest`: one per test suite, its state reset in `SetUp`, for binaries with many
-  cases such as `test_vulkan_lighting`), `tests/golden_image.h` (`compareGolden`, golden images),
+  `RenderScene` per test, also in the lighting binaries), `tests/golden_image.h` (`compareGolden`, golden images),
   `tests/mcp_test_helper.h` (`McpRequest`, the `Poller` that runs `McpServer::poll` in the background for
   `handleMessage` tests of MCP tools).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
@@ -404,8 +408,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   `./build/tests/test_engine_terrain_render --gtest_filter='TerrainRenderTest.EditCraterGolden'`, the generated content
   `generated_site` (S23b: the content test generator's site with tier-1 instances, static parts and a tombstone; its
   count delta and set check run on every device) with `--gtest_filter='TerrainRenderTest.GeneratedSite'`. These five
-  clay goldens also run with the LIGHTING_PBR pipeline variant against the same images (the `*Pbr` cases, S36a1b-a1c);
-  those skip in the update mode (the goldens are written by the legacy variant).
+  clay goldens use clay's studio environment (S36), so the atmosphere, the clouds and the exposure do not move them. The
+  lighting goldens (S36a1c: `lighting_noon`, `lighting_sunset`, `lighting_night`, `lighting_clouds`; ACES, a fixed
+  EV100, `forceFullUpdates`) with `./build/tests/test_engine_lighting_render --gtest_filter='LightingGolden.*'`.
   If CI fails after a Mesa update, take the actual images of the failed run (the artifact exists only for a run
   whose comparison failed; the actual images are saved like goldens):
   `gh run download <run-id> -n golden-failed-ubuntu -D /tmp/golden`, then
@@ -480,9 +485,12 @@ client's plane, car or character next to the host's demo one, the MCP tools on t
 (S21) runs its demo through the enclosed cellar (the screenshot shows the cellar, solo and with `--coop`):
 `SAIGA_SCREENSHOT=/tmp/cellar.png ./build/samples/games/game_platformer --demo --cellar`. Stages that change the
 renderer, physics, animation or camera keep the demos working, run their scenarios and show their feature in them.
-Every engine game takes `--time-of-day h` and `--day-length s` (S36: the world's `WorldTime`, an error for a game
-without `EnvironmentSetup::enabled`) and `--exposure x` (a multiplier, on top of the EV100 once a scene has an
-environment); `SAIGA_DEBUG_TAB=5` opens the debug UI's Lighting tab (F1 Game, F2 Performance, F3 Engine, F4 Console,
+The demos enable the environment (S36a1c, `samples/games/common/Environment.*`: `data/<game>/environment.json` if it
+exists) and render **ACES by default** (`--tonemap identity`: the clay view with the studio light); flight's `--demo`
+day passes in 10 minutes from 6:00, `game_world` is at 10:00 frozen. Every engine game takes `--time-of-day h` and
+`--day-length s` (S36: the world's `WorldTime`, an error for a game without `EnvironmentSetup::enabled`), e.g.
+`SAIGA_SCREENSHOT=/tmp/flight_sunset.png ./build/samples/games/game_flight --demo --time-of-day 19`, and `--exposure x`
+(a multiplier on top of the EV100); `SAIGA_DEBUG_TAB=5` opens the debug UI's Lighting tab (F1 Game, F2 Performance, F3 Engine, F4 Console,
 F5 Lighting; game tabs F6-F10).
 
 ## Code Conventions

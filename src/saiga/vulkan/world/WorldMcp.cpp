@@ -186,7 +186,8 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
     server.addTool("game_set_settings",
                    "Changes render settings of the prototype (only the given ones; values are clamped to the GUI "
                    "ranges). Returns all settings and invalid_keys (unknown keys or values of the wrong type, not "
-                   "applied). debug_mode: 0 off, 1 tint by level of detail. Changes the render settings.",
+                   "applied; the sun and fog keys of S19a name their replacement tools in replaced_by). debug_mode: 0 "
+                   "off, 1 tint by level of detail. Changes the render settings.",
                    settingsSchema(*c.settings),
                    [c](const Json& args, McpServer::Respond respond)
                    {
@@ -200,6 +201,21 @@ void registerWorldMcpTools(McpServer& server, const WorldMcpContext& context)
                        }
                        Json::object o{{"settings", c.settings->toJson()}};
                        if (!unknown.empty()) o["invalid_keys"] = Json::array(unknown.begin(), unknown.end());
+                       // S36 (D9): the sun and the fog are the environment's
+                       Json::object replaced;
+                       for (const std::string& k : unknown)
+                       {
+                           if (k == "sun_azimuth" || k == "sun_elevation" || k == "sun_intensity")
+                               replaced[k] = "set_time_of_day (the sun follows WorldTime), set_lighting sun_override";
+                           else if (k == "fog" || k == "fog_density")
+                               replaced[k] = "set_weather fog_density";
+                           else if (k == "fog_falloff")
+                               replaced[k] =
+                                   "EnvironmentSettings::clouds.fogFalloff (environment.json clouds.fogFalloff)";
+                           else if (k == "ambient")
+                               replaced[k] = "set_lighting ambient_scale, min_ambient";
+                       }
+                       if (!replaced.empty()) o["replaced_by"] = replaced;
                        respond(ToolResult::FromJson(o));
                    });
 

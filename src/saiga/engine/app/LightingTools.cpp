@@ -311,6 +311,31 @@ const std::vector<LightingKey>& lightingKeys()
                              [](LightingState& s) -> float& { return s.settings.starIntensity; }));
         k.push_back(floatKey("ground_albedo", false, 0, 1,
                              [](LightingState& s) -> float& { return s.settings.atmosphere.groundAlbedo; }));
+        // The a1c review: the rest of what the tab edits (the atmosphere's scales, the fog falloff, the cloud seed)
+        k.push_back(floatKey("rayleigh_scale", false, 0, 10,
+                             [](LightingState& s) -> float& { return s.settings.atmosphere.rayleighScale; }));
+        k.push_back(floatKey("mie_scale", false, 0, 10,
+                             [](LightingState& s) -> float& { return s.settings.atmosphere.mieScale; }));
+        k.push_back(floatKey("ozone_scale", false, 0, 10,
+                             [](LightingState& s) -> float& { return s.settings.atmosphere.ozoneScale; }));
+        k.push_back(floatKey("fog_falloff", false, 0, 0.1,
+                             [](LightingState& s) -> float& { return s.settings.clouds.fogFalloff; }));
+        k.push_back(LightingKey{"cloud_seed", false,
+                                [](const LightingState& s) { return Json(double(s.settings.clouds.seed)); },
+                                [](const Json& j, LightingState& s, std::string& error)
+                                {
+                                    double v = 0;
+                                    if (!number(j, "cloud_seed", 0, double(Vulkan::kMaxCloudSeed), v, error))
+                                        return false;
+                                    if (v != std::floor(v))
+                                    {
+                                        error = "cloud_seed: an integer";
+                                        return false;
+                                    }
+                                    s.settings.clouds.seed = uint32_t(v);
+                                    return true;
+                                },
+                                "cloud_seed [0, 2147483647] (an integer)"});
         // The LightingParameters (a1)
         k.push_back(boolKey("clouds", true, [](LightingState& s) -> bool& { return s.parameters.clouds; }));
         k.push_back(LightingKey{"environment_resolution", true,
@@ -332,8 +357,6 @@ const std::vector<LightingKey>& lightingKeys()
                              [](LightingState& s) -> float& { return s.parameters.environmentUpdateDegrees; }));
         k.push_back(boolKey("force_full_updates", true,
                             [](LightingState& s) -> bool& { return s.parameters.forceFullUpdates; }));
-        // a1b-a1c: the pipeline variant (the LIGHTING_PBR light model; removed in the a1c flip)
-        k.push_back(boolKey("pbr", true, [](LightingState& s) -> bool& { return s.parameters.pbr; }));
         return k;
     }();
     return keys;
@@ -409,7 +432,8 @@ namespace
 // The lighting's GPU sections of S36a1b (a1c, a2 and b add theirs) and the §17.10 shadow budget
 const std::vector<std::string>& lightingGpuSections()
 {
-    static const std::vector<std::string> names = {"environment", "scene.sky", "scene.debug", "lighting.preview"};
+    static const std::vector<std::string> names = {"environment", "scene.sky", "scene.clouds", "scene.debug",
+                                                   "lighting.preview"};
     return names;
 }
 
@@ -640,17 +664,17 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                    {"seed", double(state.settings.clouds.seed)},
                                    {"shadow_fade", double(state.settings.clouds.shadowFade)},
                                    {"fog_falloff", double(state.settings.clouds.fogFalloff)},
-                                   {"enabled", state.parameters.clouds}};
+                                   {"enabled", state.parameters.clouds},
+                                   {"drawn", ls.clouds},
+                                   {"mean_coverage", double(ls.cloudMeanCoverage)}};
     o["settings"]   = keysJson(state, false);
     o["parameters"] = keysJson(state, true);
     // S36a1b: the debug state, the GPU sections (the last frame and the mean over the last 120 frames of the app's GPU
     // profile; the lighting sections against the §17.10 shadow budget, the debug sections separately), the lighting's
     // memory
     {
-        Json::object d = lightingDebugJson(scene->lightingDebug()).object_items();
-        d["frame"]     = lightingDebugJson(scene->frameLightingDebug());
-        d["pbr"]       = scene->pbrActive();
-        d["note"] = "the views are drawn by the LIGHTING_PBR pipeline variant (set_lighting pbr: true until S36a1c)";
+        Json::object d                    = lightingDebugJson(scene->lightingDebug()).object_items();
+        d["frame"]                        = lightingDebugJson(scene->frameLightingDebug());
         const std::optional<float> centre = scene->exposureViewCentreSetting();
         d["exposure_view"]                = Json::object{{"centre", centre ? Json(double(*centre)) : Json("auto")},
                                                          {"frame_centre", double(scene->frameExposureViewCentre())},
@@ -862,10 +886,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             p = arrayProperty("[r, g, b] lux", Json::object{{"type", "number"}});
         else if (n == "sun_override")
             p = Json::object{{"description", "{azimuth_deg, elevation_deg} or null"}};
-        else if (n == "clouds" || n == "force_full_updates" || n == "pbr")
+        else if (n == "clouds" || n == "force_full_updates")
             p = McpServer::BooleanProperty(n);
         else if (n == "environment_resolution")
             p = McpServer::IntegerProperty("A power of two in [32, 512]");
+        else if (n == "cloud_seed")
+            p = McpServer::IntegerProperty(k.description);
         else
             p = McpServer::NumberProperty(k.description.empty() ? n : k.description);
         setProperties[n] = p;
@@ -875,8 +901,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "Changes the lighting settings (not world state: not replicated, not saved), validated as a whole and applied "
         "all or nothing from the next frame: tone_map (aces, identity), exposure_mode (time_of_day, fixed), ev100, "
         "exposure_compensation (EV, +1 is twice as bright), ambient_scale, min_ambient ([r, g, b] lux), sun_override "
-        "({azimuth_deg, elevation_deg} or null), cloud_altitude, cloud_radius, cloud_shadow_fade (m), star_intensity, "
-        "ground_albedo, and the LightingParameters clouds, environment_resolution, environment_update_degrees, "
+        "({azimuth_deg, elevation_deg} or null), cloud_altitude, cloud_radius, cloud_shadow_fade (m), cloud_seed (the "
+        "coverage texture's), star_intensity, ground_albedo, rayleigh_scale, mie_scale, ozone_scale (the atmosphere's "
+        "coefficients), fog_falloff (1/m), and the LightingParameters clouds, environment_resolution, "
+        "environment_update_degrees, "
         "force_full_updates. Returns values and previous (previous is an undo payload of this tool). An error names "
         "every invalid key and changes nothing.",
         schema(setProperties),
@@ -921,8 +949,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "set_lighting_debug",
         "Changes the lighting's debug view (view: " + joined(viewNames()) +
-            "; data views show raw values, a debug frame uses the identity tone map; the views are drawn by the "
-            "LIGHTING_PBR variant: set_lighting pbr: true until S36a1c), the overlays (a list that replaces the set: " +
+            "; data views show raw values, a debug frame uses the identity tone map), the overlays (a list that "
+            "replaces the set: " +
             joined(overlayNames()) +
             ") and the Lighting tab's preview mapping (mapping: {range: \"auto\" or [min, max], log, color_map: gray "
             "or turbo}), the exposure view's heat map (exposure_view: {centre: EV100 or \"auto\", range: EV, 0.5..64; "
@@ -1000,7 +1028,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             o["mapping"]                 = mappingJson(mapping);
             o["exposure_view"] =
                 Json::object{{"centre", centre ? Json(double(*centre)) : Json("auto")}, {"range", range}};
-            o["pbr"]           = scene->lightingParameters().pbr;
             o["views"]         = Json(viewNames());
             o["overlay_names"] = Json(overlayNames());
             respond(ToolResult::Text(Json(o).dump()));
@@ -1009,21 +1036,24 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "capture_lighting",
         "Captures a lighting debug image as a picture plus a JSON text block: what it shows (the mapping range, log, "
-        "colour map, the size) and the numbers of its source values (min, max, mean, count and a 16-bin histogram over "
-        "the mapped range; with a manual range the edge bins also count the values below and above it). image: "
-        "luminance (the resolved HDR luminance of the frame in cd/m^2, the display luminance "
-        "in clay mode; log2 by default), brdf_lut (the split-sum BRDF LUT's scale A), transmittance_lut (the "
-        "atmosphere's transmittance, luminance), sky_view_lut (the sky's radiance by azimuth and elevation, cd/m^2, "
-        "log2 "
-        "by default), environment (the environment map's front cube as a cross of the mip mip, cd/m^2, log2 by "
-        "default) "
-        "or irradiance (its SH irradiance per direction, equirectangular, lux). range (\"auto\" or [min, max]), "
-        "log, color_map (gray, turbo) set the mapping; stats_only: true returns the block without an image (the one "
-        "path to the statistics of a GPU image); format png (default) or jpg, downscaled to max_width (default 1280, "
-        "64..8192); full: true updates incremental effects fully first (the environment map). Deferred: answered from "
-        "the frame that computes the preview; an error when no frame is rendered before the deadline. Changes nothing.",
+        "colour map, the size, the mip) and the numbers of its source values (min, max, mean, count and a 16-bin "
+        "histogram over the mapped range; with a manual range the edge bins also count the values below and above "
+        "it). image: luminance (the resolved HDR luminance of the frame in cd/m^2, the display luminance in clay mode; "
+        "log2 by default), brdf_lut (the split-sum BRDF LUT's scale A), transmittance_lut (the atmosphere's "
+        "transmittance, luminance), multi_scattering_lut (the atmosphere's multiple-scattering transfer, luminance), "
+        "sky_view_lut (the sky's radiance by azimuth and elevation, cd/m^2, log2 by default), environment (the "
+        "environment map's front cube as a cross of the mip mip, cd/m^2, log2 by default), irradiance (its SH "
+        "irradiance per direction, equirectangular, lux), cloud_coverage (the cloud layer's coverage at the "
+        "cloudiness over its 16 km tile) or cloud_shadow (the cloud shadow factor on the plane of the camera height "
+        "around the camera, +- the shadow fade). range (\"auto\" or [min, max]), log, color_map (gray, turbo) set "
+        "the mapping; mip: the environment's mip (0..4, default 0; a request of its own, the Lighting tab's mip is "
+        "not changed); stats_only: true returns the block without an image (the one path to the statistics of a GPU "
+        "image); format png (default) or jpg, downscaled to max_width (default 1280, 64..8192); full: true updates "
+        "incremental effects fully first (the environment map). Deferred: answered from the frame that computes the "
+        "preview; an error when no frame is rendered before the deadline. Changes nothing.",
         schema({{"image", McpServer::StringProperty("The image", {"luminance", "brdf_lut", "transmittance_lut",
-                                                                  "sky_view_lut", "environment", "irradiance"})},
+                                                                  "multi_scattering_lut", "sky_view_lut", "environment",
+                                                                  "irradiance", "cloud_coverage", "cloud_shadow"})},
                 {"mip", McpServer::IntegerProperty("environment: the mip (0..4, default 0)")},
                 {"range", Json::object{{"description", "\"auto\" or [min, max]"}}},
                 {"log", McpServer::BooleanProperty("log2 of the values before the mapping")},
@@ -1045,8 +1075,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 a["image"].is_string() ? Vulkan::lightingImageFromName(a["image"].string_value()) : std::nullopt;
             if (!parsed)
                 return respond(ToolResult::Error(
-                    "image: luminance, brdf_lut, transmittance_lut, sky_view_lut, environment or irradiance"));
+                    "image: luminance, brdf_lut, transmittance_lut, multi_scattering_lut, sky_view_lut, environment, "
+                    "irradiance, cloud_coverage or cloud_shadow"));
             const Vulkan::LightingImage image = *parsed;
+            int mip                           = 0;
             if (!a["mip"].is_null())
             {
                 const double m = a["mip"].number_value();
@@ -1054,13 +1086,14 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                     return respond(ToolResult::Error("mip: an integer 0..4"));
                 if (image != Vulkan::LightingImage::Environment)
                     return respond(ToolResult::Error("mip: only for image environment"));
-                scene->setEnvironmentPreviewMip(int(m));
+                mip = int(m);
             }
             Vulkan::PreviewMapping mapping;
             mapping.log = image == Vulkan::LightingImage::Luminance || image == Vulkan::LightingImage::SkyViewLut ||
                           image == Vulkan::LightingImage::Environment;
             if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
                 return respond(ToolResult::Error(error));
+            mapping.mip = mip;
             for (const char* b : {"full", "stats_only"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
@@ -1108,8 +1141,13 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                                                     : "cd/m^2 (clay: the display luminance)";
                     if (name == "sky_view_lut" || name == "environment")
                         block["unit"] = mapping.log ? "log2 cd/m^2" : "cd/m^2";
+                    if (name == "environment") block["mip"] = mapping.mip;
+                    if (name == "multi_scattering_lut")
+                        block["unit"] = "multiple-scattering transfer (luminance of rgb, per unit illuminance)";
                     if (name == "irradiance") block["unit"] = mapping.log ? "log2 lux" : "lux";
                     if (name == "transmittance_lut") block["unit"] = "transmittance (luminance of rgb)";
+                    if (name == "cloud_coverage") block["unit"] = "coverage (opacity 0..1)";
+                    if (name == "cloud_shadow") block["unit"] = "the shadow light's factor (0..1)";
                     if (statsOnly || c.image.width == 0) return respond(ToolResult::Text(Json(block).dump()));
                     TemplatedImage<ucvec4> img = c.image;
                     const int w                = std::min(img.w, maxWidth);
@@ -1147,17 +1185,17 @@ void registerLightingTools(McpServer& server, EngineApp& app)
     server.addTool(
         "probe_lighting",
         "Reads the lighting at one pixel ([x, y], row 0 at the top) or at the screen position of a world point "
-        "(position [x, y, z]): a sequence of 7 frames (frame 1 normal, then the albedo, normal and material views and "
-        "the direct, ambient and specular radiance), each copying the resolved pixel (the MSAA average); the camera "
+        "(position [x, y, z]): a sequence of 8 frames (frame 1 normal, then the albedo, normal and material views, "
+        "the direct, ambient and specular radiance and the cloud shadow), each copying the resolved pixel (the MSAA "
+        "average); the camera "
         "and "
         "the environment are held during it. Answers depth, world position and distance, albedo, roughness, "
-        "metalness, ao, normal, the shadow factors (cloud: 1 until S36a1c), the direct, ambient (diffuse) and specular "
+        "metalness, ao, normal, the shadow factors (the cloud shadow), the direct, ambient (diffuse) and specular "
         "(environment) radiance and the frame's radiance (cd/m^2; clay: display values), its luminance and EV100, "
-        "frames and consistent (false when the depth changed by more than 1% between the frames; the camera, the "
-        "environment and the wind time are held). A position is projected with the camera of the sequence's first "
-        "frame. The views need the LIGHTING_PBR variant: an error while it is off (set_lighting pbr: true until "
-        "S36a1c). Screenshots and lighting captures wait for the frame after the sequence; the window shows the first "
-        "frame meanwhile. Deferred; an error when no frames are rendered before the deadline. Changes nothing.",
+        "frames and consistent (false when the depth changed by more than 1% between the frames; the camera and the "
+        "environment are held). A position is projected with the camera of the sequence's first frame. Screenshots "
+        "and lighting captures wait for the frame after the sequence; the window shows the first frame meanwhile. "
+        "Deferred; an error when no frames are rendered before the deadline. Changes nothing.",
         schema({{"pixel", arrayProperty("[x, y] in pixels", Json::object{{"type", "integer"}})},
                 {"position", McpServer::Vec3Property("A world point [x, y, z] (its screen position)")}}),
         [&app, &server](const Json& a, McpServer::Respond respond)
@@ -1166,10 +1204,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (unknownArgument(a, {"pixel", "position"}, error)) return respond(ToolResult::Error(error));
             Vulkan::RenderScene* scene = app.scene();
             if (!scene) return respond(ToolResult::Error(kNoDevice));
-            if (!scene->lightingParameters().pbr)
-                return respond(
-                    ToolResult::Error("probe_lighting: the views need the LIGHTING_PBR variant (set_lighting "
-                                      "pbr: true first; until S36a1c)"));
             const ivec2 size = scene->size();
             if (a["pixel"].is_null() == a["position"].is_null())
                 return respond(ToolResult::Error("probe_lighting: pixel [x, y] or position [x, y, z] (one of them)"));

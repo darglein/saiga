@@ -527,7 +527,7 @@ void registerAppTools(McpServer& server, EngineApp& app)
         "complete terrain of the view (streamed first; an error if that does not finish before the deadline). S36: "
         "lighting_view (a set_lighting_debug view name) and overlays (a list of overlay names) render that frame with "
         "the debug view and overlays (a one-frame override; the next frame is back to the user's; the one not given "
-        "keeps the user's; a view other than none needs set_lighting pbr: true until S36a1c). Changes nothing.",
+        "keeps the user's). Changes nothing.",
         schema(
             {{"gui", McpServer::BooleanProperty("Include the ImGui windows (default false)")},
              {"format", McpServer::StringProperty("Image format (default jpg)", {"jpg", "png"})},
@@ -562,11 +562,6 @@ void registerAppTools(McpServer& server, EngineApp& app)
                     return respond(ToolResult::Error(error));
                 if (!args["lighting_view"].is_null()) debug.view = parsed.view;
                 if (!args["overlays"].is_null()) debug.overlays = parsed.overlays;
-                // Without the variant a debug frame would silently show clay
-                if (debug.view != Vulkan::LightingDebugView::None && !app.scene()->lightingParameters().pbr)
-                    return respond(
-                        ToolResult::Error("lighting_view: the views need the LIGHTING_PBR variant "
-                                          "(set_lighting pbr: true first; until S36a1c)"));
                 r->debug = debug;
             }
             const auto deadline = answerDeadline(server);

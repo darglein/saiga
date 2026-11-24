@@ -43,15 +43,10 @@ struct SAIGA_VULKAN_API WorldSettings
 
     float fovy = 60.0f;
 
-    bool fog           = true;
-    float fogDensity   = 0.00015f;
-    float fogFalloff   = 0.0012f;
-    float sunAzimuth   = 35.0f;
-    float sunElevation = 38.0f;
-    float sunIntensity = 1.0f;
-    float ambient      = 0.25f;
-    float albedo       = 0.55f;
-    float wind         = 1.0f;
+    // S36 (D9): the sun and the fog are the environment's (set_time_of_day, set_weather, set_lighting); albedo is clay
+    // mode's
+    float albedo = 0.55f;
+    float wind   = 1.0f;
 
     float terrainLodRange = 300.0f;
     float morphStart      = 0.7f;

@@ -51,7 +51,7 @@ int GrassPass::cellsPerChunk(double cellSize)
     return 16 * std::max(1, int(std::lround(256.0 / (16.0 * c))));
 }
 
-void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLightingSet& lighting, bool pbr)
+void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLightingSet& lighting)
 {
     destroy();
     base             = &b;
@@ -68,16 +68,6 @@ void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLighti
                          vk::MemoryPropertyFlagBits::eDeviceLocal);
     indices.stagedUpload(*base, mesh.indices.size() * sizeof(uint32_t), mesh.indices.data());
 
-    pbrVariant = !pbr;
-    setPbr(pbr);
-    initialized = true;
-}
-
-void GrassPass::setPbr(bool pbr)
-{
-    if (pbr == pbrVariant) return;
-    pbrVariant = pbr;
-    pipeline.destroy();
     PipelineInfo info;
     info.depthStencilState.depthCompareOp       = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
     info.rasterizationState.cullMode            = vk::CullModeFlagBits::eNone;
@@ -91,12 +81,10 @@ void GrassPass::setPbr(bool pbr)
     pipeline.addDescriptorSetLayout(SceneLightingSet::layout(), 1);
     pipeline.addPushConstantRange(
         {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(BlockDraw)});
-    const std::string defines = pbr ? "#define LIGHTING_PBR\n" : "";
-    pipeline.shaderPipeline.loadGLSL(base->device,
-                                     {{"vulkan/scene/grass.vert", vk::ShaderStageFlagBits::eVertex, defines},
-                                      {"vulkan/scene/grass.frag", vk::ShaderStageFlagBits::eFragment, defines}});
+    pipeline.shaderPipeline.load(base->device, {"vulkan/scene/grass.vert", "vulkan/scene/grass.frag"});
     pipeline.create(sceneFormats, info);
     creations++;
+    initialized = true;
 }
 
 void GrassPass::destroy()

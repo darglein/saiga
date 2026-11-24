@@ -22,6 +22,8 @@
 #include "games/common/Environment.h"
 #include "games/flight/FlightRender.h"
 
+#include <iostream>
+
 using namespace Saiga;
 using namespace Saiga::Engine;
 using namespace Saiga::Game;
@@ -100,7 +102,8 @@ int main(int argc, char** argv)
                               day.hours = 6.0;
                               day.rate  = 86400.0 / 600.0;
                               std::string error;
-                              setWorldTime(start, day, error);
+                              if (!setWorldTime(start, day, error))
+                                  std::cout << "--demo: the day was not set: " << error << std::endl;
                           }
                           // Fly a while before the first frame, so the demo starts in a turn (and a screenshot shows
                           // it)

@@ -5,8 +5,8 @@
  */
 
 // S36: the lighting's MCP tools (get_lighting, set_time_of_day, set_weather, set_lighting, app_status.lighting) through
-// handleMessage, on one headless app per suite (with a device: skipped without a Vulkan 1.3 driver; without a device;
-// --coop), the console commands, and the app's environment and Lighting tab (F5) on the suites' apps (with and without
+// handleMessage, on a headless app per test (with a device: skipped without a Vulkan 1.3 driver; without a device;
+// --coop), the console commands, and the app's environment and Lighting tab (F5) (with and without
 // EnvironmentSetup::enabled).
 
 #include "saiga/core/image/templatedImage.h"
@@ -111,15 +111,18 @@ void showLightingTab(EngineApp& app)
 
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
-// suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs;
-// the PBR variant with a debug view (Exposure: with its legend) and the overlay render in the tab's frames
+// suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
+// and the clouds' previews; a debug view (Exposure: with its legend) and the overlay render in the tab's frames
 void renderLightingTab(EngineApp& app)
 {
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
-    const Vulkan::LightingImage images[] = {Vulkan::LightingImage::Luminance, Vulkan::LightingImage::Environment,
-                                            Vulkan::LightingImage::TransmittanceLut, Vulkan::LightingImage::SkyViewLut};
-    uint32_t expected                    = 0;
+    const Vulkan::LightingImage images[] = {
+        Vulkan::LightingImage::Luminance,         Vulkan::LightingImage::Environment,
+        Vulkan::LightingImage::TransmittanceLut,  Vulkan::LightingImage::SkyViewLut,
+        Vulkan::LightingImage::CloudCoverage,     Vulkan::LightingImage::CloudShadow,
+        Vulkan::LightingImage::MultiScatteringLut};
+    uint32_t expected = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
     for (int f = 0; f < 3; ++f)
@@ -130,9 +133,6 @@ void renderLightingTab(EngineApp& app)
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Lighting));
     EXPECT_EQ(dispatches, expected);
     for (auto image : images) EXPECT_NE(app.scene()->lightingDebugImages().preview(image), nullptr);
-    Vulkan::LightingParameters p = app.scene()->lightingParameters();
-    p.pbr                        = true;
-    app.scene()->setLightingParameters(p);
     app.scene()->setLightingDebug(
         Vulkan::LightingDebugState{Vulkan::LightingDebugView::Exposure, Vulkan::OverlaySunDirection});
     app.runFrames(2, 1.0 / 60);
@@ -233,32 +233,22 @@ Vulkan::MeshLods planeMesh(const vec3& half)
 }  // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------
-// With a device (one app for the suite)
+// With a device (an app per test)
 
 class LightingTools : public ::testing::Test
 {
-   public:
-    static void SetUpTestSuite()
-    {
-        if (!Vulkan::Instance::suitableDeviceAvailable()) return;
-        app = std::make_unique<EngineApp>(lightingSetup(true));
-        app->runFrames(2, 1.0 / 60);
-    }
-    static void TearDownTestSuite() { app.reset(); }
-
    protected:
     void SetUp() override
     {
-        if (!app) GTEST_SKIP() << "No Vulkan 1.3 device available";
-        // The state of the previous case: the default settings, noon, the view in space 0
-        app->setEnvironmentSettings(Vulkan::EnvironmentSettings());
-        app->scene()->setLightingParameters(Vulkan::LightingParameters());
-        app->scene()->setToneMap(Vulkan::ToneMap::Identity);
-        app->scene()->setExposure(1);
+        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        app = std::make_unique<EngineApp>(lightingSetup(true));
+        app->runFrames(2, 1.0 / 60);
+        // Noon, the view in space 0
         app->setViewCameraByTool(0, Vec3(0, 2, 6), Quat::Identity(), 1, false);
         ASSERT_FALSE(isError(call(*app, "set_time_of_day", obj(R"({"hours": 12, "day": 0, "rate": 0})"))));
     }
-    static inline std::unique_ptr<EngineApp> app;
+    void TearDown() override { app.reset(); }
+    std::unique_ptr<EngineApp> app;
 };
 
 TEST_F(LightingTools, GetLightingKeysAndSections)
@@ -340,7 +330,8 @@ TEST_F(LightingTools, SetLightingRoundTrip)
         "exposure_compensation": 1, "ambient_scale": 2, "min_ambient": [0.01, 0.02, 0.03],
         "sun_override": {"azimuth_deg": 90, "elevation_deg": 20}, "cloud_altitude": 1800, "cloud_radius": 30000,
         "cloud_shadow_fade": 5000, "star_intensity": 2, "ground_albedo": 0.3, "clouds": false,
-        "environment_resolution": 64, "environment_update_degrees": 1, "force_full_updates": true, "pbr": true})");
+        "rayleigh_scale": 1.5, "mie_scale": 0.5, "ozone_scale": 2, "fog_falloff": 0.002, "cloud_seed": 7,
+        "environment_resolution": 64, "environment_update_degrees": 1, "force_full_updates": true})");
     const Json r   = result(call(*app, "set_lighting", set));
     EXPECT_EQ(r["values"].object_items().size(), set.object_items().size());
     const Json l = result(call(*app, "get_lighting", obj(R"({"sections": ["settings", "parameters", "tone_map"]})")));
@@ -353,9 +344,9 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_EQ(l["tone_map"]["value"], Json("aces"));
     EXPECT_EQ(app->environmentSettings().exposure.ev100, 12.5f);
     EXPECT_EQ(app->scene()->lightingParameters().environmentResolution, 64);
-    // The write itself, not only the echoed values (both would say false if pbr were never written)
-    EXPECT_TRUE(app->scene()->lightingParameters().pbr);
     EXPECT_TRUE(app->environmentSettings().sunOverride.has_value());
+    EXPECT_EQ(app->environmentSettings().atmosphere.rayleighScale, 1.5f);
+    EXPECT_EQ(app->environmentSettings().clouds.seed, 7u);
     // The sun override moves the sun of the next frame; the next frame's EV100 is the fixed value minus the
     // compensation
     app->runFrames(1, 1.0 / 60);
@@ -369,7 +360,6 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_TRUE(back["settings"]["sun_override"].is_null());
     EXPECT_EQ(back["settings"]["ev100"].number_value(), 15);
     EXPECT_EQ(back["parameters"]["environment_resolution"].number_value(), 128);
-    EXPECT_EQ(back["parameters"]["pbr"], Json(false));
     EXPECT_EQ(app->scene()->parameters().toneMap, Vulkan::ToneMap::Identity);
 
     // All or nothing: one valid and two invalid keys change nothing and name both invalid ones
@@ -379,9 +369,10 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_NE(text(bad).find("environment_resolution"), std::string::npos) << text(bad);
     EXPECT_NE(text(bad).find("ground_albedo"), std::string::npos) << text(bad);
     EXPECT_EQ(app->environmentSettings().exposure.ev100, 15.0f);
-    for (const char* args : {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})",
-                             R"({"min_ambient": [1, 2]})", R"({"sun_override": {"azimuth": 3}})",
-                             R"({"environment_resolution": 1024})", R"({"clouds": 1})", R"({"cascade_count": 4})"})
+    for (const char* args :
+         {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})", R"({"min_ambient": [1, 2]})",
+          R"({"sun_override": {"azimuth": 3}})", R"({"environment_resolution": 1024})", R"({"clouds": 1})",
+          R"({"cascade_count": 4})", R"({"cloud_seed": 1.5})", R"({"cloud_seed": -1})", R"({"mie_scale": 11})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
     // tone_map identity is clay: get_lighting says so
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "identity"})"))));
@@ -398,25 +389,20 @@ class LightingDebugTools : public LightingTools
     void SetUp() override
     {
         LightingTools::SetUp();
-        if (IsSkipped()) return;
-        Vulkan::RenderScene& s = *app->scene();
-        if (!plane)
-        {
-            const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
-            const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
-            s.addMaterial(mat, "debug_plane", Vulkan::MaterialData());
-            s.addMesh(mesh, "debug_plane", planeMesh(vec3(50, 1, 50)), mat);
-            Vulkan::StaticInstance i;
-            i.setPosition(vec3(0, -1, 0));
-            i.scale = 1;
-            i.mesh  = mesh;
-            plane   = s.addInstanceSet(RegionId(), {i});
-        }
-        s.setLightingDebug(Vulkan::LightingDebugState());
+        if (IsSkipped() || HasFatalFailure()) return;
+        Vulkan::RenderScene& s       = *app->scene();
+        const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
+        const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
+        s.addMaterial(mat, "debug_plane", Vulkan::MaterialData());
+        s.addMesh(mesh, "debug_plane", planeMesh(vec3(50, 1, 50)), mat);
+        Vulkan::StaticInstance i;
+        i.setPosition(vec3(0, -1, 0));
+        i.scale = 1;
+        i.mesh  = mesh;
+        s.addInstanceSet(RegionId(), {i});
         app->setViewCameraByTool(0, Vec3(0, 6, 0.01), lookRotation(Vec3(0, -1, -0.002)), 1, false);
         app->runFrames(1, 1.0 / 60);
     }
-    static inline std::optional<Vulkan::InstanceSetHandle> plane;
 };
 
 TEST_F(LightingDebugTools, SetLightingDebug)
@@ -477,13 +463,6 @@ TEST_F(LightingDebugTools, SetLightingDebug)
 // a raw value, which the identity post pass shows unchanged), the next frame is back to the user's view
 TEST_F(LightingDebugTools, ScreenshotLightingView)
 {
-    // Without the LIGHTING_PBR variant a view would silently show clay: refused (round 1 review of S36a1b); the
-    // overlays alone are drawn by both variants
-    const Json noVariant = call(*app, "screenshot", obj(R"({"lighting_view": "normals"})"));
-    EXPECT_TRUE(isError(noVariant));
-    EXPECT_NE(text(noVariant).find("pbr"), std::string::npos) << text(noVariant);
-    EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [20, 24]})"))));
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"pbr": true})"))));
     app->runFrames(1, 1.0 / 60);
     // nullopt if the png does not decode (a black fallback would pass the comparison below)
     auto centre = [](const Json& r) -> std::optional<ucvec3>
@@ -563,13 +542,16 @@ TEST_F(LightingDebugTools, CaptureLighting)
 // units), full: true completes the environment map first, mip only for environment; get_lighting.environment
 TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
 {
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "pbr": true})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
     app->runFrames(2, 1.0 / 60);
     const std::vector<std::pair<std::string, Json>> images = {
         {R"({"image": "transmittance_lut"})", Json(Json::array{256, 64})},
         {R"({"image": "sky_view_lut"})", Json(Json::array{192, 108})},
+        {R"({"image": "multi_scattering_lut"})", Json(Json::array{32, 32})},
         {R"({"image": "environment", "mip": 1, "full": true})", Json(Json::array{256, 192})},
-        {R"({"image": "irradiance"})", Json(Json::array{128, 64})}};
+        {R"({"image": "irradiance"})", Json(Json::array{128, 64})},
+        {R"({"image": "cloud_coverage"})", Json(Json::array{512, 512})},
+        {R"({"image": "cloud_shadow"})", Json(Json::array{256, 256})}};
     for (const auto& [args, size] : images)
     {
         const Json r = callFrames(*app, "capture_lighting", obj(args));
@@ -577,7 +559,15 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
         const Json block = imageBlock(r);
         EXPECT_EQ(block["size"], size) << args;
         EXPECT_FALSE(block["unit"].string_value().empty()) << args;
-        EXPECT_GT(block["stats"]["max"].number_value(), block["stats"]["min"].number_value()) << args;
+        if (args.find("environment") != std::string::npos)
+        {
+            EXPECT_EQ(block["mip"], Json(1)) << args;
+        }
+        // The cloud shadow may be uniform (a low sun fades it to the mean)
+        if (args.find("cloud_shadow") == std::string::npos)
+        {
+            EXPECT_GT(block["stats"]["max"].number_value(), block["stats"]["min"].number_value()) << args;
+        }
     }
     for (const char* args : {R"({"image": "sky_view_lut", "mip": 1})", R"({"image": "environment", "mip": 5})"})
         EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
@@ -591,13 +581,13 @@ TEST_F(LightingDebugTools, CaptureLightingAtmosphere)
 // the user's view is restored; a pixel outside the image and bad arguments are errors
 TEST_F(LightingDebugTools, ProbeLighting)
 {
-    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"pbr": true, "tone_map": "aces"})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces"})"))));
     app->scene()->setLightingDebug(Vulkan::LightingDebugState{Vulkan::LightingDebugView::Roughness, 0});
     app->runFrames(1, 1.0 / 60);
     const Json r = callFrames(*app, "probe_lighting", obj(R"({"pixel": [20, 24]})"));
     ASSERT_FALSE(isError(r)) << text(r);
     const Json p = result(r);
-    EXPECT_EQ(p["frames"].number_value(), 7);
+    EXPECT_EQ(p["frames"].number_value(), Vulkan::RenderScene::kProbeFrames);
     EXPECT_EQ(p["consistent"], Json(true));
     EXPECT_EQ(p["hit"], Json(true));
     EXPECT_EQ(p["physical"], Json(true));
@@ -678,31 +668,19 @@ TEST_F(LightingTools, EnvironmentReachesTheScene)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The Lighting tab: the debug UI's apps with and without EnvironmentSetup::enabled (one app per suite)
+// The Lighting tab: the debug UI's apps with and without EnvironmentSetup::enabled (an app per test)
 
 template <bool Environment>
 class LightingTabSuite : public ::testing::Test
 {
-   public:
-    static void SetUpTestSuite()
-    {
-        if (!Vulkan::Instance::suitableDeviceAvailable()) return;
-        app = std::make_unique<EngineApp>(tabSetup(Environment));
-    }
-    static void TearDownTestSuite() { app.reset(); }
-
    protected:
     void SetUp() override
     {
-        if (!app) GTEST_SKIP() << "No Vulkan 1.3 device available";
-        app->setEnvironmentSettings(Vulkan::EnvironmentSettings());
-        app->scene()->setLightingParameters(Vulkan::LightingParameters());
-        app->scene()->setLightingDebug(Vulkan::LightingDebugState());
-        app->scene()->setToneMap(Vulkan::ToneMap::Identity);
-        app->scene()->setExposure(1);
-        app->debugUi().select(DebugTab::Game);
+        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        app = std::make_unique<EngineApp>(tabSetup(Environment));
     }
-    static inline std::unique_ptr<EngineApp> app;
+    void TearDown() override { app.reset(); }
+    std::unique_ptr<EngineApp> app;
 };
 using LightingTabTest      = LightingTabSuite<true>;
 using LightingTabPlainTest = LightingTabSuite<false>;
@@ -746,6 +724,31 @@ TEST_F(LightingTabTest, RendersAndWrites)
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
 }
 
+// capture_lighting's mip is a value of its request: with the tab's Ambient section open (its preview at mip 0 every
+// frame) the capture returns the mip it asked for, and the tab's mip stays (review M5: the mip was scene state the tab
+// overwrote each frame, and the call changed the tab's preview)
+TEST_F(LightingTabTest, CaptureMipWithTabOpen)
+{
+    // Only the Ambient section open (its preview on screen)
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Ambient", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->scene()->setToneMap(Vulkan::ToneMap::Aces);
+    app->runFrames(2, 1.0 / 60);
+    const Json r = callFrames(*app, "capture_lighting", obj(R"({"image": "environment", "mip": 3})"));
+    ASSERT_FALSE(isError(r)) << text(r);
+    const Json block = imageBlock(r);
+    const int n      = app->scene()->lightingParameters().environmentResolution >> 3;
+    EXPECT_EQ(block["size"], Json(Json::array{4 * n, 3 * n}));
+    EXPECT_EQ(block["mip"], Json(3));
+    // The mip is not left behind: a capture without it is mip 0
+    const Json r0 = callFrames(*app, "capture_lighting", obj(R"({"image": "environment"})"));
+    ASSERT_FALSE(isError(r0)) << text(r0);
+    EXPECT_EQ(imageBlock(r0)["size"], Json(Json::array{32 * n, 24 * n}));
+    EXPECT_EQ(imageBlock(r0)["mip"], Json(0));
+}
+
 // S36: the write of the Lighting tab's settings (setEnvironmentSettings, which its compensation slider calls; the
 // slider's input itself is not driven here): a compensation of +2 EV lowers the next frame's EV100 by 2 (through the
 // environment extract)
@@ -766,14 +769,17 @@ TEST_F(LightingTabTest, CompensationWriteLowersEv100)
     EXPECT_NEAR(app->scene()->environment().ev100, ev - 2, 1e-4);
 }
 
-// A world without the environment keeps the unit-less exposure
-TEST_F(LightingTabPlainTest, NoEnvironmentKeepsTheUnitlessExposure)
+// S36a1c: a world without EnvironmentSetup::enabled also gets the environment (the defaults of WorldTime and Weather:
+// noon); the multiplier keeps its meaning
+TEST_F(LightingTabPlainTest, DefaultEnvironmentReachesTheScene)
 {
     app->scene()->setToneMap(Vulkan::ToneMap::Aces);
     app->scene()->setExposure(2);
     app->runFrames(1, 1.0 / 60);
-    EXPECT_FALSE(app->scene()->hasEnvironment());
-    EXPECT_FLOAT_EQ(app->scene()->frameExposure(), 2.0f);
+    EXPECT_TRUE(app->sendsEnvironment());
+    ASSERT_TRUE(app->scene()->hasEnvironment());
+    EXPECT_FLOAT_EQ(app->scene()->exposure(), 2.0f);
+    EXPECT_FLOAT_EQ(app->scene()->frameExposure(), Vulkan::exposureFromEv100(app->scene()->environment().ev100, 2));
 }
 
 // The Lighting tab renders without WorldTime (the time and weather controls are replaced by a line)

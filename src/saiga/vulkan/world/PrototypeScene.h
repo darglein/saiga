@@ -23,13 +23,13 @@ class RenderScene;
  * The game side of the world prototype on a RenderScene (S20, replacing WorldRenderer; docs/engine_design.md §19, A15):
  * the settings (WorldSettings: GUI, game_* MCP tools) with their mapping to RenderScene's PrototypeSettings, and the
  * trees (PrototypeForest). The terrain, grass and water come from the engine (the World's terrain through the render
- * sink); the environment (sky, sun, fog, the foliage texture) from setPrototypeEnvironment. The frame and terrain
+ * sink); the foliage texture from setFoliageTexture, the light from the environment (S36). The frame and terrain
  * statistics are in the engine's debug UI; imgui() shows the settings and the tree counts.
  *
  *   PrototypeScene prototype;
- *   prototype.attach(scene, trees, seed);   // renderHooks.init: setPrototypeEnvironment and the trees' instance sets
+ *   prototype.attach(scene, trees, seed);   // renderHooks.init: setFoliageTexture and the trees' instance sets
  *   per frame before the scene records it:   // e.g. beforeRender
- *       prototype.update(); scene.setTime(world time);
+ *       prototype.update();
  */
 class SAIGA_VULKAN_API PrototypeScene
 {
@@ -40,7 +40,7 @@ class SAIGA_VULKAN_API PrototypeScene
     PrototypeScene& operator=(const PrototypeScene&) = delete;
     ~PrototypeScene() { detach(); }
 
-    // setPrototypeEnvironment(settings, seed) and the instance sets of the placed trees (outside of renderFrame; seed:
+    // setFoliageTexture(seed), the settings and the instance sets of the placed trees (outside of renderFrame; seed:
     // the foliage texture and the tree species). A second attach (also to another scene) detaches first; the tree
     // meshes stay registered on a scene and are reused by name
     void attach(RenderScene& scene, const std::vector<ForestRenderer::TreeInstance>& trees, uint32_t seed);

@@ -75,11 +75,12 @@ void LightingTab::draw()
     gpuAndMemory();
 }
 
-void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth)
+void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip)
 {
     Vulkan::RenderScene* scene     = app.scene();
     Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
     mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
+    mapping.mip                    = mip;
     // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
     // second (LightingDebug::show)
     Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
@@ -133,15 +134,11 @@ void LightingTab::toolbar()
     for (int i = 0; i < int(Vulkan::LightingDebugView::Count); ++i)
         views.push_back(Vulkan::lightingDebugViewName(Vulkan::LightingDebugView(i)));
     ImGui::SetNextItemWidth(130);
-    // The views are drawn by the LIGHTING_PBR variant: without it a view would show clay (a1b-a1c)
-    const bool variant = scene->lightingParameters().pbr;
-    if (!variant) ImGui::BeginDisabled();
     if (ImGui::Combo("##debug view", &view, views.data(), int(views.size())))
     {
         d.view = Vulkan::LightingDebugView(view);
         scene->setLightingDebug(d);
     }
-    if (!variant) ImGui::EndDisabled();
     for (const auto& o : Vulkan::lightingOverlayNames())
     {
         ImGui::SameLine();
@@ -153,11 +150,7 @@ void LightingTab::toolbar()
         }
     }
     Vulkan::LightingParameters p = scene->lightingParameters();
-    bool changed                 = ImGui::Checkbox("force full updates", &p.forceFullUpdates);
-    ImGui::SameLine();
-    // a1b-a1c: the LIGHTING_PBR pipeline variant (the debug views need it)
-    changed = ImGui::Checkbox("PBR variant", &p.pbr) || changed;
-    if (changed) scene->setLightingParameters(p);
+    if (ImGui::Checkbox("force full updates", &p.forceFullUpdates)) scene->setLightingParameters(p);
     ImGui::SameLine();
     if (ImGui::SmallButton("copy JSON"))
     {
@@ -167,7 +160,6 @@ void LightingTab::toolbar()
     }
     if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: studio light, time of day has no effect");
-    if (!p.pbr) DebugUiStyle::coloredText(DebugUiStyle::kRef, "the debug views need the PBR variant (until S36a1c)");
     if (d.view == Vulkan::LightingDebugView::Exposure) exposureLegend();
 }
 
@@ -300,6 +292,9 @@ void LightingTab::timeAndWeather()
         slider("rain", w.rain, 0, 1, &WeatherChange::rain);
         slider("fog density", w.fogDensity, 0, float(kMaxFogDensity), &WeatherChange::fogDensity,
                ImGuiSliderFlags_Logarithmic, "%.5f");
+        DebugUiStyle::property("rendered fog density");
+        ImGui::Text("%.5f /m (x (1 + %.0f rain))", w.fogDensity * (1.0 + double(Vulkan::kRainFogFactor) * w.rain),
+                    double(Vulkan::kRainFogFactor));
         slider("snow cover", w.snowCover, 0, 1, &WeatherChange::snowCover);
         DebugUiStyle::property("wind (x, z)");
         float wind[2] = {float(w.wind(0)), float(w.wind(1))};
@@ -511,8 +506,7 @@ void LightingTab::ambient()
         ImGui::SliderInt("##environment mip", &environmentMip, 0, Vulkan::EnvironmentMap::kMips - 1);
         DebugUiStyle::endProperties();
     }
-    scene->setEnvironmentPreviewMip(environmentMip);
-    previewImage(Vulkan::LightingImage::Environment, true, 384.0f);
+    previewImage(Vulkan::LightingImage::Environment, true, 384.0f, environmentMip);
 }
 
 void LightingTab::skyAndClouds()
@@ -547,15 +541,33 @@ void LightingTab::skyAndClouds()
         }
         DebugUiStyle::property("ground albedo");
         changed = ImGui::SliderFloat("##ground albedo", &s.atmosphere.groundAlbedo, 0, 1, "%.2f") || changed;
+        DebugUiStyle::property("cloud seed");
+        int seed = int(std::min<uint32_t>(s.clouds.seed, uint32_t(Vulkan::kMaxCloudSeed)));
+        if (ImGui::InputInt("##cloud seed", &seed))
+        {
+            s.clouds.seed = uint32_t(std::clamp(seed, 0, Vulkan::kMaxCloudSeed));
+            changed       = true;
+        }
         DebugUiStyle::property("LUT recomputations");
         ImGui::Text("%llu", (unsigned long long)scene->lightingStatistics().lutComputations);
         DebugUiStyle::endProperties();
     }
     if (changed) app.setEnvironmentSettings(s);
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    if (ls.clouds)
+        ImGui::Text("cloud layer on, mean coverage %.2f", double(ls.cloudMeanCoverage));
+    else
+        DebugUiStyle::coloredText(DebugUiStyle::kRef, "cloud layer off (clay, enclosed, clouds false or cloudiness 0)");
+    ImGui::TextUnformatted("cloud coverage (the tile)");
+    previewImage(Vulkan::LightingImage::CloudCoverage, false, 256.0f);
+    ImGui::TextUnformatted("cloud shadow (around the camera, +- the shadow fade)");
+    previewImage(Vulkan::LightingImage::CloudShadow, false, 256.0f);
     ImGui::TextUnformatted("transmittance LUT");
     previewImage(Vulkan::LightingImage::TransmittanceLut, false, 256.0f);
     ImGui::TextUnformatted("sky-view LUT (log2 cd/m^2)");
     previewImage(Vulkan::LightingImage::SkyViewLut, true, 288.0f);
+    ImGui::TextUnformatted("multiple-scattering LUT");
+    previewImage(Vulkan::LightingImage::MultiScatteringLut, false, 128.0f);
 }
 
 void LightingTab::gpuAndMemory()
@@ -568,7 +580,7 @@ void LightingTab::gpuAndMemory()
         // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
         Profiler& p     = app.gpuProfile();
         double lighting = 0, debug = 0;
-        for (const char* n : {"environment", "scene.sky", "scene.debug", "lighting.preview"})
+        for (const char* n : {"environment", "scene.sky", "scene.clouds", "scene.debug", "lighting.preview"})
         {
             const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
             const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";

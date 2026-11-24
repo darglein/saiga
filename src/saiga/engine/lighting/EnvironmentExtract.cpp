@@ -19,9 +19,10 @@ namespace Engine
 namespace
 {
 constexpr double kTwoPi = 6.28318530717958647692;
-// The angular frequencies (rad/s) of the phases: the trees' wind (3), the grass's (2), the cloud drift remainder (a
-// period of 64 s of the drift), the flicker base
-constexpr double kPhaseRates[7] = {0.9, 1.7, 3.1, 1.3, 2.3, kTwoPi / 64, 10.0};
+// The angular frequencies (rad/s) of the phases: the trees' wind (3) and the grass's (2) (S19a's sway, flutter and
+// grass frequencies: the animation of setTime kept), the cloud drift remainder (a period of 64 s of the drift), the
+// flicker base
+constexpr double kPhaseRates[7] = {1.1, 0.9, 4.0, 1.7, 1.3, kTwoPi / 64, 10.0};
 
 vec3 toFloat(const Vec3& v)
 {
@@ -78,6 +79,7 @@ EnvironmentSample sampleEnvironment(const World& world, SpaceId space, double al
     s.sunIlluminance            = float(c.sunIlluminance);
     s.moonDir                   = toFloat(c.moonDir);
     s.moonIlluminance           = float(c.moonIlluminance);
+    s.moonFullIlluminance       = float(setup.celestial.moonIlluminance);
     s.moonPhase                 = float(c.moonPhase);
     s.starIntensity             = float(setup.celestial.starIntensity * double(settings.starIntensity));
     const Mat3 stars            = starRotation(setup.celestial, c.hourAngle);
@@ -109,6 +111,7 @@ EnvironmentSample sampleEnvironment(const World& world, SpaceId space, double al
         s.enclosedAmbient        = toFloat(tpl.ambient);
         s.sunIlluminance         = 0;
         s.moonIlluminance        = 0;
+        s.moonFullIlluminance    = 0;
         s.starIntensity          = 0;
         s.ev100                  = float(tpl.ev100) - e.compensation;
         s.exposureSource         = Vulkan::ExposureSource::Enclosed;

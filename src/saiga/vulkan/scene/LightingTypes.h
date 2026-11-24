@@ -49,7 +49,8 @@ struct ExposureSettings
     ExposureMode mode = ExposureMode::TimeOfDay;
     float ev100       = 15;  // Fixed
     // (sun elevation in degrees, EV100), ascending in the elevation; piecewise linear, clamped at the ends
-    std::vector<vec2> curve = {vec2(-18, -1), vec2(-6, 3), vec2(0, 9), vec2(10, 13), vec2(30, 14.5f), vec2(90, 15)};
+    std::vector<vec2> curve = {vec2(-18, -1.5f), vec2(-10, -1),   vec2(-6, 2.5f),  vec2(-3, 7), vec2(0, 10.5f),
+                               vec2(5, 12.3f),   vec2(10, 13.3f), vec2(30, 14.5f), vec2(90, 15)};
     // Subtracted from the EV100 (+1: one stop brighter, the same as an exposure multiplier of 2)
     float compensation = 0;
 
@@ -94,6 +95,12 @@ struct AmbientSettings
 
 // The 2D cloud layer (A4): altitude above sea level and radius of the mesh (m), the seed of the coverage texture, the
 // distance over which cloud shadows fade to the mean coverage (m) and the height fog's falloff (1/m)
+// The fog density multiplier of rain: the renderer's density is the weather's times (1 + kRainFogFactor * rain)
+constexpr float kRainFogFactor = 4.0f;
+
+// The largest cloud seed the Lighting tab and set_lighting take (an int)
+constexpr int kMaxCloudSeed = 2147483647;
+
 struct CloudSettings
 {
     float altitude   = 2000;
@@ -139,10 +146,6 @@ struct EnvironmentSettings
 // set_lighting key. Later parts of S36 add the shadow (a2) and local light (b) fields.
 struct LightingParameters
 {
-    // a1b-a1c: the scene pipelines' variant: false the legacy S19a light model, true the S36 model (the shader define
-    // LIGHTING_PBR: shadeSurface of lighting.glsl with the studio environment in clay mode and physical units with an
-    // environment). A change recreates the scene pipelines at the next frame start. Removed in the a1c flip commit
-    bool pbr                       = false;
     int environmentResolution      = 128;    // 32..512, a power of two
     float environmentUpdateDegrees = 0.5f;   // the shadow light's movement that re-captures the environment map
     bool clouds                    = true;   // the cloud layer and its shadows
@@ -151,7 +154,7 @@ struct LightingParameters
 
 // ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
 
-// The scene debug view (one at a time; uniform branches of lighting.glsl, the LIGHTING_PBR variant). While a view other
+// The scene debug view (one at a time; uniform branches of lighting.glsl). While a view other
 // than None is active the frame latches ToneMap::Identity (no pipeline change). Data views write raw values into the
 // fp16 target (Albedo, Normals as n * 0.5 + 0.5, Roughness, Metalness, Material = (roughness, metalness, ao), the
 // factors); LightingOnly (white albedo, roughness 0.5), the *Only radiance views and the Exposure heat map write
@@ -214,8 +217,9 @@ struct LightingDebugState
 // The images LightingDebug converts into displayable RGBA8 previews and reduces (min, max, mean, histogram) on demand:
 // a1b Luminance (the resolved HDR luminance in cd/m^2, or the display luminance in clay mode) and BrdfLut (capture
 // only); a1c the atmosphere's TransmittanceLut and SkyViewLut (luminance, cd/m^2), the environment map's Environment
-// (the front cube's mip as a cross, cd/m^2) and Irradiance (its SH per direction, lux; capture only); a2 and b add
-// theirs
+// (the front cube's mip as a cross, cd/m^2), Irradiance (its SH per direction, lux; capture only), the cloud layer's
+// CloudCoverage (the coverage at the cloudiness over the tile) and CloudShadow (the cloud shadow factor on the plane of
+// the camera height around the camera), the a1c review the MultiScatteringLut (luminance); a2 and b add theirs
 enum class LightingImage : uint8_t
 {
     Luminance,
@@ -224,12 +228,17 @@ enum class LightingImage : uint8_t
     SkyViewLut,
     Environment,
     Irradiance,
+    CloudCoverage,
+    CloudShadow,
+    // S36a1c review: the atmosphere's multiple-scattering LUT (the luminance of rgb)
+    MultiScatteringLut,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {"luminance",    "brdf_lut",    "transmittance_lut",
-                                  "sky_view_lut", "environment", "irradiance"};
+    static const char* names[] = {"luminance",      "brdf_lut",     "transmittance_lut",
+                                  "sky_view_lut",   "environment",  "irradiance",
+                                  "cloud_coverage", "cloud_shadow", "multi_scattering_lut"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -255,6 +264,9 @@ struct PreviewMapping
     float max         = 1;
     bool log          = false;
     ColorMap colorMap = ColorMap::Gray;
+    // The source's mip (the environment map's cube; 0 for the other images): part of the request, so a capture and the
+    // tab's preview of different mips do not overwrite each other (each frame converts one)
+    int mip = 0;
 };
 
 // The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the
@@ -287,7 +299,7 @@ struct LightingStatistics
     int shadowLight    = 0;
     float sunElevation = 0, moonElevation = 0;  // degrees
     float ev100 = 0, exposure = 1, preExposure = 1;
-    bool physical = false, pbr = false;
+    bool physical = false;
     LightingDebugState debug;
     // The ambient's SH9 (lux) and its dominant colour
     std::array<vec3, 9> sh = {};
@@ -302,12 +314,16 @@ struct LightingStatistics
     // S36a1c: the environment map and the atmosphere's transmittance / multiple-scattering recomputations
     EnvironmentMapStatistics environmentMap;
     uint64_t lutComputations = 0;
+    // The cloud layer: drawn (and its shadows on) this frame, the mean coverage at the cloudiness
+    bool clouds             = false;
+    float cloudMeanCoverage = 0;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is
-// normal (the colour and the depth), then the data views Albedo, Normals, Material and the radiance views DirectOnly,
-// AmbientOnly, SpecularOnly (raw); each copies the resolved fp16 pixel (the MSAA average). The camera and the
-// environment are held during the sequence; consistent: the depth changed by at most 1% between the frames
+// normal (the colour and the depth), then the data views Albedo, Normals, Material, the radiance views DirectOnly,
+// AmbientOnly, SpecularOnly (raw) and CloudShadow (S36a1c); each copies the resolved fp16 pixel (the MSAA average). The
+// camera and the environment are held during the sequence; consistent: the depth changed by at most 1% between the
+// frames
 struct LightingProbe
 {
     ivec2 pixel  = ivec2(0, 0);
@@ -327,12 +343,12 @@ struct LightingProbe
     vec3 normal     = vec3(0, 0, 0);
     float roughness = 0, metalness = 0, ao = 0;
     vec3 direct = vec3(0, 0, 0), ambient = vec3(0, 0, 0), specular = vec3(0, 0, 0);
-    // The shadow factors (a1: the cloud factor, 1 until the cloud layer of a1c; a2 adds the cascades and the horizon)
+    // The shadow factors (a1: the cloud factor, the CloudShadow frame; a2 adds the cascades and the horizon)
     float cloudShadow = 1, shadowFactor = 1;
 };
 
 // The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so
-// that clay reproduces the S19a light model exactly. Used by the LIGHTING_PBR variant in clay mode (ToneMap::Identity)
+// that clay reproduces the S19a light model exactly. Used by shadeSurface in clay mode (ToneMap::Identity)
 // and in a scene without an environment (RenderScene::setEnvironment never called)
 struct StudioEnvironment
 {
@@ -356,7 +372,8 @@ inline StudioEnvironment sceneStudio()
     return StudioEnvironment();
 }
 // S19a's PrototypeSettings defaults (sun azimuth 35, elevation 38, intensity 1, hemisphere ambient 0.25, albedo 0.55,
-// fog 0.00015 / 0.0012, gray fog 0.42): the scene with the prototype environment (setPrototypeEnvironment)
+// fog 0.00015 / 0.0012, gray fog 0.42): the scene with the foliage texture (setFoliageTexture), with
+// PrototypeSettings::albedo
 SAIGA_VULKAN_API StudioEnvironment prototypeStudio();
 
 }  // namespace Vulkan

@@ -67,7 +67,7 @@ class SAIGA_VULKAN_API PrototypeForest
    public:
     // The scene must have the prototype terrain (the foliage texture of the PrototypeFoliage class). Once per object;
     // a new PrototypeForest on the same scene reuses the registered meshes and material
-    // The placed trees (the species and mesh names of the seed; the scene needs setPrototypeEnvironment)
+    // The placed trees (the species and mesh names of the seed; the scene needs setFoliageTexture)
     void init(RenderScene& scene, const std::vector<ForestRenderer::TreeInstance>& trees, uint32_t seed,
               const WorldSettings& settings);
     // The trees toggle, the LOD distances and the wind's bounds padding

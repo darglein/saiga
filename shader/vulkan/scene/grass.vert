@@ -15,6 +15,16 @@
 #include "terrain_common.glsl"
 #include "terrain_heights.glsl"
 
+// S36a1c review: the light terms per tuft (the transmittance, the cloud shadow and the fog are low-frequency; the
+// fragment shader of the blades' overdraw does no lookup for them)
+#include "lighting/scene_block.glsl"
+layout(set = 1, binding = 3) uniform sampler2D cloudCoverage;
+layout(set = 1, binding = 6) uniform sampler2D transmittanceLut;
+layout(set = 1, binding = 7) uniform sampler2D skyViewLut;
+#include "lighting/atmosphere_common.glsl"
+#include "lighting/shadows.glsl"
+#include "lighting/vertex_light.glsl"
+
 layout(location = 0) in vec4 inPosAo;
 layout(location = 1) in vec4 inNormalWind;
 layout(location = 2) in vec4 inUvLayer;
@@ -34,6 +44,11 @@ layout(location = 1) out vec3 outNormal;
 layout(location = 2) out vec3 outUvLayer;
 layout(location = 3) out float outAo;
 layout(location = 4) flat out float outLod;
+// The light terms (vertex_light.glsl) of the tuft: rgb the sun's light, a the shadow light's cloud shadow; the moon's;
+// the fog
+layout(location = 5) flat out vec4 outSunE;
+layout(location = 6) flat out vec3 outMoonE;
+layout(location = 7) flat out vec4 outFog;
 
 uint hash(uint x)
 {
@@ -76,6 +91,9 @@ void degenerate()
     outPos      = vec3(0);
     outNormal   = vec3(0, 1, 0);
     outAo       = 1.0;
+    outSunE     = vec4(0.0, 0.0, 0.0, 1.0);
+    outMoonE    = vec3(0.0);
+    outFog      = vec4(0.0, 0.0, 0.0, 1.0);
     gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
 }
 
@@ -163,4 +181,11 @@ void main()
     outNormal   = normalize(mix(tn, vec3(0, 1, 0), 0.4));
     outAo       = inPosAo.w * 0.8;
     gl_Position = frame.viewProjRel * vec4(pos, 1.0);
+    // The light terms at the tuft's base (lighting.glsl's rules: the cloud shadow of the shadow light)
+    vec3 root     = vec3(rel.x, h - frame.cameraRel.y, rel.y);
+    VertexLight l = computeVertexLight(root);
+    float cloud   = lighting.mode.y == 0u ? cloudShadow(root) : 1.0;
+    outSunE       = vec4(l.sunE, cloud);
+    outMoonE      = l.moonE;
+    outFog        = l.fog;
 }

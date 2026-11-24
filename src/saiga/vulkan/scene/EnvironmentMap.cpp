@@ -8,7 +8,9 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/vulkan/pipeline/DescriptorSetLayout.h"
+#include "saiga/vulkan/scene/CloudLayer.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
+#include "saiga/vulkan/scene/SceneLightingSet.h"
 
 #include <algorithm>
 #include <cmath>
@@ -28,8 +30,11 @@ constexpr vk::Format kFormat = vk::Format::eR16G16B16A16Sfloat;
 struct CapturePush
 {
     int32_t size[4];
-    float camera[4];      // x: the camera's radius (km)
+    float camera[4];      // x: the camera's radius (km), y: its height (m), z: the sky-view LUT's horizon (rad)
     float uniformSky[4];  // w > 0: a uniform radiance
+    float clouds[4];      // altitude, radius, cloudiness (0: none), ground albedo
+    float origin[4];      // the camera's coverage position (m)
+    float light[4];       // towards the shadow light, its illuminance
 };
 struct DebugPush
 {
@@ -63,11 +68,47 @@ bool relativeChange(float a, float b, float tolerance)
     return std::abs(a - b) > tolerance * std::max(std::max(std::abs(a), std::abs(b)), 1e-6f);
 }
 
-void memoryBarrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
-                   vk::PipelineStageFlags2 dstStage, vk::AccessFlags2 dstAccess)
+// A barrier on one SH buffer (the back one: review M2, no global barrier)
+void bufferBarrier(vk::CommandBuffer cmd, vk::Buffer buffer, vk::PipelineStageFlags2 srcStage,
+                   vk::AccessFlags2 srcAccess, vk::PipelineStageFlags2 dstStage, vk::AccessFlags2 dstAccess)
 {
-    vk::MemoryBarrier2 b(srcStage, srcAccess, dstStage, dstAccess);
-    cmd.pipelineBarrier2(vk::DependencyInfo({}, b, nullptr, nullptr));
+    vk::BufferMemoryBarrier2 b(srcStage, srcAccess, dstStage, dstAccess, VK_QUEUE_FAMILY_IGNORED,
+                               VK_QUEUE_FAMILY_IGNORED, buffer, 0, VK_WHOLE_SIZE);
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, b, nullptr));
+}
+
+// The back cube's transitions: its reads as the front cube (the lighting set's readers,
+// SceneLightingSet::kReaderStages; round 2, finding 18: named fragment and compute only, correct while ambient.glsl is
+// fragment-only, but not the contract) before the prefilter's writes (the content is discarded), the writes before the
+// reads as the next front cube
+void cubeBarrier(vk::CommandBuffer cmd, TextureCube& cube, bool toWrite)
+{
+    const auto reads = SceneLightingSet::kReaderStages;
+    vk::ImageMemoryBarrier2 b =
+        toWrite ? vk::ImageMemoryBarrier2(reads, {}, Stage::eComputeShader, Access::eShaderStorageWrite,
+                                          vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
+                                          VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, cube.image(), {})
+                : vk::ImageMemoryBarrier2(Stage::eComputeShader, Access::eShaderStorageWrite, reads,
+                                          Access::eShaderSampledRead, vk::ImageLayout::eGeneral,
+                                          vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                          VK_QUEUE_FAMILY_IGNORED, cube.image(), {});
+    b.subresourceRange = vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, cube.mipLevels, 0, 6);
+    cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, b));
+    cube.setImageLayout(toWrite ? vk::ImageLayout::eGeneral : vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+constexpr float kCloudTileM = float(CloudLayer::kTile);
+
+// The distance (m) between two positions on the cloud tile (wrapped)
+float wrappedDistance(const vec2& a, const vec2& b)
+{
+    float d = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        const float x = std::abs(a(i) - b(i));
+        d += std::min(x, kCloudTileM - x);
+    }
+    return d;
 }
 }  // namespace
 
@@ -85,13 +126,15 @@ void EnvironmentMap::init(VulkanBase& b, int resolution)
         DescriptorSetLayout l;
         l.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eStorageImage, 1, c));
         l.addBinding(1, vk::DescriptorSetLayoutBinding(1, vk::DescriptorType::eCombinedImageSampler, 1, c));
-        for (auto* p : {&capturePipeline, &prefilterPipeline})
-        {
-            p->init(b, 1);
-            p->addDescriptorSetLayout(l);
-            p->addPushConstantRange(
-                {c, 0, uint32_t(p == &capturePipeline ? sizeof(CapturePush) : sizeof(PrefilterPush))});
-        }
+        prefilterPipeline.init(b, 1);
+        prefilterPipeline.addDescriptorSetLayout(l);
+        prefilterPipeline.addPushConstantRange({c, 0, uint32_t(sizeof(PrefilterPush))});
+        // The capture: also the cloud coverage (2) and the transmittance (3)
+        l.addBinding(2, vk::DescriptorSetLayoutBinding(2, vk::DescriptorType::eCombinedImageSampler, 1, c));
+        l.addBinding(3, vk::DescriptorSetLayoutBinding(3, vk::DescriptorType::eCombinedImageSampler, 1, c));
+        capturePipeline.init(b, 1);
+        capturePipeline.addDescriptorSetLayout(l);
+        capturePipeline.addPushConstantRange({c, 0, uint32_t(sizeof(CapturePush))});
         capturePipeline.shaderPipeline.loadCompute(b.device, "vulkan/scene/lighting/env_capture.comp");
         capturePipeline.create();
         prefilterPipeline.shaderPipeline.loadCompute(b.device, "vulkan/scene/lighting/env_prefilter.comp");
@@ -272,7 +315,9 @@ bool EnvironmentMap::due(const Key& k, const LightingParameters& p) const
     const float deg = p.environmentUpdateDegrees;
     if (angleDeg(k.sunDir, c.sunDir) > deg || angleDeg(k.moonDir, c.moonDir) > deg) return true;
     if (relativeChange(k.sunE, c.sunE, 0.01f) || relativeChange(k.moonE, c.moonE, 0.01f)) return true;
-    if (std::abs(k.cloudiness - c.cloudiness) > 0.01f) return true;
+    // The layer's too (CodeRabbit #84: after a new seed's histogram the capture kept the old one's threshold)
+    if (std::abs(k.cloudiness - c.cloudiness) > 0.01f || std::abs(k.layerCloudiness - c.layerCloudiness) > 0.01f)
+        return true;
     if (std::abs(k.cameraHeight - c.cameraHeight) > 200.0f) return true;
     const AtmosphereSettings &a = k.atmosphere, &b = c.atmosphere;
     if (a.rayleighScale != b.rayleighScale || a.mieScale != b.mieScale || a.ozoneScale != b.ozoneScale ||
@@ -280,8 +325,9 @@ bool EnvironmentMap::due(const Key& k, const LightingParameters& p) const
         return true;
     const CloudSettings &x = k.clouds, &y = c.clouds;
     if (x.altitude != y.altitude || x.radius != y.radius || x.seed != y.seed) return true;
-    // The cloud drift: a fraction of the coverage texture's feature size (step a1c.3)
-    if (std::abs(k.cloudOffsetX - c.cloudOffsetX) + std::abs(k.cloudOffsetY - c.cloudOffsetY) > 500.0f) return true;
+    // The clouds over the camera moved (the drift or the camera's horizontal movement: the coverage position) by a
+    // fraction of the coverage texture's feature size (step a1c.3; review: the camera's movement was missing)
+    if (k.cloudsOn && wrappedDistance(k.cloudOrigin, c.cloudOrigin) > 500.0f) return true;
     return k.enclosed != c.enclosed || k.cloudsOn != c.cloudsOn;
 }
 
@@ -294,13 +340,17 @@ void EnvironmentMap::harvest()
     shPending = false;
 }
 
-void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInfo skyView, float cameraHeight)
+void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, const EnvironmentState& e, const CaptureInputs& in,
+                                   float cameraHeight)
 {
     if (!skyViewWritten)
     {
-        // The sky-view LUT is the same texture for the scene's life: written once (the set is not in use yet)
-        base->device.updateDescriptorSets(
-            vk::WriteDescriptorSet(captureSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &skyView), nullptr);
+        // The inputs are the same textures for the scene's life: written once (the set is not in use yet)
+        std::array<vk::WriteDescriptorSet, 3> writes = {
+            vk::WriteDescriptorSet(captureSet, 1, 0, 1, vk::DescriptorType::eCombinedImageSampler, &in.skyView),
+            vk::WriteDescriptorSet(captureSet, 2, 0, 1, vk::DescriptorType::eCombinedImageSampler, &in.coverage),
+            vk::WriteDescriptorSet(captureSet, 3, 0, 1, vk::DescriptorType::eCombinedImageSampler, &in.transmittance)};
+        base->device.updateDescriptorSets(writes, nullptr);
         skyViewWritten = true;
     }
     capture.transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
@@ -309,6 +359,16 @@ void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInf
         CapturePush push{};
         push.size[0]   = size;
         push.camera[0] = std::clamp(6360.0f + cameraHeight * 1e-3f, 6360.001f, 6459.999f);
+        push.camera[1] = cameraHeight;
+        push.camera[2] = in.skyViewHorizon;
+        push.clouds[0] = e.clouds.altitude;
+        push.clouds[1] = e.clouds.radius;
+        push.clouds[2] = in.clouds ? in.cloudiness : 0.0f;
+        push.clouds[3] = e.atmosphere.groundAlbedo;
+        push.origin[0] = in.cloudOrigin(0);
+        push.origin[1] = in.cloudOrigin(1);
+        for (int i = 0; i < 3; ++i) push.light[i] = in.light(i);
+        push.light[3] = in.lightIlluminance;
         if (captureOverride)
             for (int i = 0; i < 3; ++i) push.uniformSky[i] = (*captureOverride)(i);
         push.uniformSky[3] = captureOverride ? 1.0f : 0.0f;
@@ -319,7 +379,7 @@ void EnvironmentMap::recordCapture(vk::CommandBuffer cmd, vk::DescriptorImageInf
     // The box mips (the prefilter's filtered importance sampling and the SH source)
     capture.recordGenerateMipmaps(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
     // The back cube: its earlier reads (it was the front) before the writes
-    cubes[size_t(1 - front)].transitionImageLayout(cmd, vk::ImageLayout::eGeneral);
+    cubeBarrier(cmd, cubes[size_t(1 - front)], true);
 }
 
 void EnvironmentMap::recordPrefilter(vk::CommandBuffer cmd, int mip)
@@ -340,8 +400,10 @@ void EnvironmentMap::recordPrefilter(vk::CommandBuffer cmd, int mip)
 void EnvironmentMap::recordSh(vk::CommandBuffer cmd)
 {
     const int back = 1 - front;
-    // The back SH buffer's earlier reads (it was the front) before the write
-    memoryBarrier(cmd, Stage::eFragmentShader | Stage::eComputeShader | Stage::eHost,
+    // The back SH buffer's earlier reads (it was the front: the scene's fragments, the previews, harvest) before the
+    // write
+    const vk::Buffer sh = handle(shBuffers[size_t(back)]);
+    bufferBarrier(cmd, sh, Stage::eFragmentShader | Stage::eComputeShader | Stage::eHost,
                   Access::eShaderStorageRead | Access::eHostRead, Stage::eComputeShader, Access::eShaderStorageWrite);
     if (shPipeline.bind(cmd))
     {
@@ -352,11 +414,11 @@ void EnvironmentMap::recordSh(vk::CommandBuffer cmd)
         shPipeline.pushConstant(cmd, vk::ShaderStageFlagBits::eCompute, sizeof(push), &push);
         cmd.dispatch(1, 1, 1);
     }
-    memoryBarrier(cmd, Stage::eComputeShader, Access::eShaderStorageWrite,
+    bufferBarrier(cmd, sh, Stage::eComputeShader, Access::eShaderStorageWrite,
                   Stage::eFragmentShader | Stage::eComputeShader | Stage::eHost,
                   Access::eShaderStorageRead | Access::eHostRead);
     // The back cube is complete: read only
-    cubes[size_t(back)].transitionImageLayout(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
+    cubeBarrier(cmd, cubes[size_t(back)], false);
 }
 
 Texture2D* EnvironmentMap::recordDebug(vk::CommandBuffer cmd, uint32_t frameIndex, int mode, int mip)
@@ -394,7 +456,7 @@ Texture2D* EnvironmentMap::recordDebug(vk::CommandBuffer cmd, uint32_t frameInde
 }
 
 void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, float cameraHeight,
-                            const LightingParameters& p, vk::DescriptorImageInfo skyView, uint64_t frame)
+                            const LightingParameters& p, const CaptureInputs& inputs, uint64_t frame)
 {
     const int wanted = std::clamp(p.environmentResolution, int(kShSize), 512);
     if (wanted != size)
@@ -410,13 +472,14 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
     k.moonE        = e.enclosed ? 0.0f : e.moonIlluminance;
     k.cloudiness   = e.cloudiness;
     k.cameraHeight = cameraHeight;
-    k.cloudOffsetX = e.cloudOffset(0);
-    k.cloudOffsetY = e.cloudOffset(1);
+    k.cloudOrigin  = inputs.cloudOrigin;
     k.atmosphere   = e.atmosphere;
     k.clouds       = e.clouds;
     k.enclosed     = e.enclosed;
-    k.cloudsOn     = p.clouds;
+    k.cloudsOn     = inputs.clouds;
     stats.steps    = kMips + 2;
+    // The layer's cloudiness of the capture (push.clouds[2])
+    k.layerCloudiness = inputs.clouds ? inputs.cloudiness : 0.0f;
 
     // A new capture when due and none is in progress (a running capture finishes first: no mixed captures); the first
     // capture and forceFullUpdates do all steps in this frame
@@ -426,7 +489,7 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
     {
         current = k;
         haveKey = true;
-        recordCapture(cmd, skyView, cameraHeight);
+        recordCapture(cmd, e, inputs, cameraHeight);
         stats.captures++;
         step = 1;
         if (!full)
@@ -440,14 +503,22 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
         stats.progress = 0;
         return;
     }
-    // The prefilter, one mip per frame (all with full), then the SH and the swap
-    while (step >= 1 && step <= kMips)
+    // The prefilter, one mip per frame (all with full); the SH and the swap in the frame after the last mip (in the
+    // same frame with full): capture, kMips mips, SH = kMips + 2 frames
+    if (step >= 1 && step <= kMips)
     {
-        recordPrefilter(cmd, step - 1);
-        step++;
-        if (!full) break;
+        do
+        {
+            recordPrefilter(cmd, step - 1);
+            step++;
+        } while (full && step <= kMips);
+        if (!full)
+        {
+            stats.progress = step;
+            return;
+        }
     }
-    if (step == kMips + 1 && (full || stats.progress == kMips + 1))
+    if (step == kMips + 1)
     {
         recordSh(cmd);
         front                   = 1 - front;
@@ -458,9 +529,7 @@ void EnvironmentMap::record(vk::CommandBuffer cmd, const EnvironmentState& e, fl
         stats.lastCompleteFrame = frame;
         stats.progress          = 0;
         stats.valid             = true;
-        return;
     }
-    stats.progress = step;
 }
 
 }  // namespace Vulkan

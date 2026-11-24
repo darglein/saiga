@@ -1,7 +1,8 @@
 # S36: Lighting
 
 Status: S36a1a implemented (2026-11-22, branch `stage-s36a1a`); S36a1b implemented (2026-11-22, branch
-`stage-s36a1b`, stacked on a1a); a1c, a2 and b planned (plan written 2026-11-22 on
+`stage-s36a1b`, stacked on a1a); S36a1c implemented (2026-11-22, branch `stage-s36a1c`, stacked on a1b); a2 and b
+planned (plan written 2026-11-22 on
 branch `plans-s36`, based on the S20-S23c stack; revised after review rounds 1 and 2 the same day).
 
 Sections follow the stage plan template of S05; the design-doc amendments, the AGENTS.md changes, a decisions table,
@@ -755,9 +756,9 @@ lighting memory is refused with the number); the error names every violated key.
 | `get_lighting(sections?)` | Reads: `time` (time of day, day, rate; null without `WorldTime`), `weather` of the view space, `sun` / `moon` (direction, azimuth / elevation deg, illuminance top and ground, phase), `shadow_light`, `tone_map` (`aces` / `identity`; with `identity` a note that clay uses the studio light and ignores time and weather), `exposure` (mode, `source`: curve / fixed / enclosed, ev100, curve ev100, compensation, the effective exposure, pre-exposure; without an environment `null` and the unit-less multiplier), `ambient` (scale, min, SH9), `environment` (last capture frame, progress), `clouds` (settings), `settings` (the whole `EnvironmentSettings`), `parameters` (all `LightingParameters`), `debug` (view, overlays, frozen), `gpu` (lighting sections' last frame and 2 s mean ms), `memory`; answered at once (no GPU readback: the luminance statistics are `capture_lighting(image: luminance, stats_only: true)`, review 2 finding 13); a2: `cascades` (per cascade split near/far, box, texel m, interval, last update frame, instances, triangles, terrain nodes), `horizon` (progress, direction, anchor, extent); b: `lights` (counts), `clusters` (max, mean, overflow), `atlas` (tiles used / total, re-renders, hits, queue, lights without tiles). `sections` filters the top-level keys. Changes nothing | a1a (a1b, a1c, a2, b add keys) |
 | `set_time_of_day(hours?, day?, rate?)` | Changes `WorldTime`; `hours` [0, 24), `rate` [-3600, 3600]; returns `values` and `previous`. Error without `WorldTime`; `--coop`: the host | a1a |
 | `set_weather(space?, cloudiness?, rain?, fog_density?, snow_cover?, wind?: [x, z], cloud_offset?: [x, z], wave_amplitude?, wave_steepness?)` | Changes the space's `Weather`; ranges as A1; returns `values` and `previous` | a1a |
-| `set_lighting(...)` | Changes the settings (not world state; not replicated, not saved), validated as a whole and applied all or nothing: `tone_map` (`aces`, `identity`; blocker 1c), `exposure_mode` (`time_of_day`, `fixed`), `ev100`, `exposure_compensation`, `ambient_scale`, `min_ambient` ([r, g, b] lux), `sun_override` ({azimuth_deg, elevation_deg} or null), `cloud_altitude`, `cloud_radius`, `cloud_shadow_fade`, `star_intensity`, `ground_albedo`, and every `LightingParameters` field by its snake_case name (a1: `clouds`, `environment_resolution`, `environment_update_degrees`, `force_full_updates`; a2: `sun_shadows`, `cascade_count`, `cascade_resolution`, `shadow_distance`, `split_lambda`, `cascade_interval` ([4]), `depth_bias_texels`, `slope_bias`, `normal_offset_texels`, `cascade_blend`, `shadow_lod_bias`, `small_caster_texels`, `max_caster_height`, `min_shadow_elevation_deg`, `terrain_casts_in_cascades`, `horizon_shadows`, `horizon_resolution`, `horizon_extent`, `horizon_rows_per_frame`; b: `local_lights`, `clustered_lights`, `max_lights`, `cluster_x`, `cluster_y`, `cluster_z`, `cluster_near`, `cluster_far`, `max_lights_per_cluster`, `atlas_resolution`, `atlas_tile`, `faces_per_frame`). Applied from the next frame; returns `values` and `previous` | a1a (a1b, a1c, a2, b add keys) |
+| `set_lighting(...)` | Changes the settings (not world state; not replicated, not saved), validated as a whole and applied all or nothing: `tone_map` (`aces`, `identity`; blocker 1c), `exposure_mode` (`time_of_day`, `fixed`), `ev100`, `exposure_compensation`, `ambient_scale`, `min_ambient` ([r, g, b] lux), `sun_override` ({azimuth_deg, elevation_deg} or null), `cloud_altitude`, `cloud_radius`, `cloud_shadow_fade`, `star_intensity`, `ground_albedo`, (the a1c review) `rayleigh_scale`, `mie_scale`, `ozone_scale`, `fog_falloff`, `cloud_seed`, and every `LightingParameters` field by its snake_case name (a1: `clouds`, `environment_resolution`, `environment_update_degrees`, `force_full_updates`; a2: `sun_shadows`, `cascade_count`, `cascade_resolution`, `shadow_distance`, `split_lambda`, `cascade_interval` ([4]), `depth_bias_texels`, `slope_bias`, `normal_offset_texels`, `cascade_blend`, `shadow_lod_bias`, `small_caster_texels`, `max_caster_height`, `min_shadow_elevation_deg`, `terrain_casts_in_cascades`, `horizon_shadows`, `horizon_resolution`, `horizon_extent`, `horizon_rows_per_frame`; b: `local_lights`, `clustered_lights`, `max_lights`, `cluster_x`, `cluster_y`, `cluster_z`, `cluster_near`, `cluster_far`, `max_lights_per_cluster`, `atlas_resolution`, `atlas_tile`, `faces_per_frame`). Applied from the next frame; returns `values` and `previous` | a1a (a1b, a1c, a2, b add keys) |
 | `set_lighting_debug(view?, overlays?, freeze_cascades?, highlight_light?, mapping?: {range, log, color_map})` | Changes the debug view (names of `LightingDebugView`, snake_case), the overlays (a list of names; replaces the set), the cascade freeze (a2), the highlighted light (b) and the tab's preview mapping; returns the state and the known names. Changes only the rendering | a1b |
-| `capture_lighting(image, cascade?, light?, face?, slice?, channel?, mip?, layer?, range?, log?, color_map?, full?, max_width?, format?, stats_only?)` | Returns a data image (none with `stats_only: true`, the one path for the statistics of a GPU image) plus a JSON text block: what it shows (the mapping range, the cascade's world box and texel size, the horizon map's extent, anchor and direction, the atlas tiles' owners) and the **numbers** of the source values (`min`, `max`, `mean`, a 16-bin histogram). `format` png (default for data images) or jpg; downscaled to `max_width` (default 1280, 64..8192, as `screenshot`). `image`: a1 `cloud_coverage`, `cloud_shadow`, `transmittance_lut`, `sky_view_lut`, `environment` (`mip`), `irradiance`, `brdf_lut`, `luminance`; a2 `cascade` (`cascade`, or all side by side without it), `horizon` (`channel` r/g); b `atlas` (`layer` static/dynamic), `atlas_tile` (`light`, `face`), `clusters` (`slice` or max). `full: true` fully updates the horizon map and the environment map first. Deferred: answered from the frame that computed the preview (a frame callback, never rendered in the handler); a deadline error like `screenshot` | a1b (a1c, a2, b add images) |
+| `capture_lighting(image, cascade?, light?, face?, slice?, channel?, mip?, layer?, range?, log?, color_map?, full?, max_width?, format?, stats_only?)` | Returns a data image (none with `stats_only: true`, the one path for the statistics of a GPU image) plus a JSON text block: what it shows (the mapping range, the cascade's world box and texel size, the horizon map's extent, anchor and direction, the atlas tiles' owners) and the **numbers** of the source values (`min`, `max`, `mean`, a 16-bin histogram). `format` png (default for data images) or jpg; downscaled to `max_width` (default 1280, 64..8192, as `screenshot`). `image`: a1 `cloud_coverage`, `cloud_shadow`, `transmittance_lut`, `multi_scattering_lut` (a1c review), `sky_view_lut`, `environment` (`mip`, a value of the request), `irradiance`, `brdf_lut`, `luminance`; a2 `cascade` (`cascade`, or all side by side without it), `horizon` (`channel` r/g); b `atlas` (`layer` static/dynamic), `atlas_tile` (`light`, `face`), `clusters` (`slice` or max). `full: true` fully updates the horizon map and the environment map first. Deferred: answered from the frame that computed the preview (a frame callback, never rendered in the handler); a deadline error like `screenshot` | a1b (a1c, a2, b add images) |
 | `screenshot(..., lighting_view?, overlays?)` (extended, finding 23) | The existing tool gets two optional arguments: the frame is rendered with that debug view and overlays (a one-frame override like `gui`; requests batch per (gui, view, overlays)), then restored. No second "render a frame" path | a1b |
 | `probe_lighting(pixel?: [x, y], position?: [x, y, z])` (finding 25; review 2, finding 7) | Reads, for one pixel (or the screen position of a world point): depth and world position, albedo / roughness / metalness, normal, the three shadow factors (cascade, horizon, cloud; a2: the cascade index, the horizon `H` (R and G) and the receiver height), direct / ambient / specular radiance, luminance and its EV100; b: the cluster index and its light handles with each light's contribution. A **short frame sequence** (below); answers with `frames` and `consistent`. Changes nothing | a1b (a2, b add keys) |
 | `list_lights(near?: {position, radius}, shadowed?, visible?, limit? (100, <= 1000), after?)` | Reads the scene's lights (entity lights and lights added on the scene): handle, entity (or null), kind, position, colour, lumen, range, cone angles, shadowed, visible this frame, distance to the camera, clusters touched, atlas tiles and their last render frame, cache state; paged (`next`) | b |
@@ -1825,6 +1826,109 @@ a2 parts of M9-M14; b: M5, the b parts), with the status updates of §3, §10.1,
     pipelines; the suite fixture resets the debug state and waits out a running probe; the Lighting tab releases its
     ImGui texture (destructor, a new ImGui renderer); `LightingDebug`'s slots follow `VulkanRenderer::framesInFlight`.
 
+**S36a1c** (2026-11-22):
+
+- **The cloud layer stays in a1c** (51 changed files against `stage-s36a1b` after its step, below the 95 of the seam
+  rule; 96 with the flip, its goldens and docs).
+- **`EnvironmentState` carries the renderer's settings**: `CloudSettings clouds` and `AtmosphereSettings atmosphere`
+  (filled by the extract from `EnvironmentSettings`), so the scene needs no second channel for them.
+- **The lighting block** (32 vec4 after the flip): a1c adds `atmosphere` (the camera height above the sea level for
+  the LUTs, the environment cube's validity and last mip); `cloudMotion` is the coverage texture's position of the
+  camera (camera xz + cloud offset, wrapped in double), the mean coverage and the on flag (the wind is not needed in a
+  shader); the flip removes the S19a fields (`sunDir`, `ambient`, `fog`, `fogColor`) and keeps the foliage's alpha
+  cutoff in `foliageParams.x`. `TerrainFrameUniforms` loses `sunDir`, `fog`, `fogColor`, `skyColor` (the clay sky reads
+  the block's studio sun and fog colour; the zenith colour 0.2 is a constant).
+- **Storage of radiance**: the sky-view LUT and the environment cubes store radiance times `kSkyLutScale` = 1/16 in
+  RGBA16F (a sunlit sky and cloud tops stay below the fp16 limit, a moonlit sky above its precision floor). The
+  sky-view LUT holds the sun's and the moon's in-scattering together (no LUT per body).
+- **The environment map**: the capture cube (with box mips by blits) is separate from the front and back prefiltered
+  cubes; a re-capture takes 7 frames (the capture, 5 prefiltered mips, the SH). The lower hemisphere is the sky-view
+  LUT's ground (the ground albedo lit by the sun and the moon through the atmosphere), not `groundAlbedo / pi *
+  skyIrradiance(up)`; the moon disc and the stars are not captured (below a cube texel, no energy). The first capture
+  is complete in its own frame (`EnvironmentMap.FirstFrameAmbientIsFloor` checks that the frames before the first
+  physical frame have the floor and that the first capture completes in its frame). `capture_lighting(environment)`
+  has a `mip` argument; `full: true` requests one full update (`RenderScene::requestFullUpdate`).
+- **The cloud layer**: the cloudiness is mapped through the noise's histogram (`CloudLayer::effectiveCloudiness`, read
+  back once per seed), so the mean coverage equals the weather's cloudiness (the plan's `1 - cloudiness` threshold on
+  fBm noise gave 7% coverage at 0.3); the cloud shadow's opacity of full coverage is 0.85 (so `LowSunFadesToMean`
+  checks `1 - 0.85 * mean`); the layer is lit as a slab (the side towards the light diffuse, the other side the light
+  let through, a forward-scattering silver lining) and fades into the sky's colour over 30 km. The previews come from
+  `cloud_noise.comp`'s modes (coverage over the tile, the shadow around the camera). `Clouds.OccludedByTerrainAboveAltitude`
+  uses a box rising above the layer; `Clouds.CoverageTilesSeamlessly` checks the tiling of the texture.
+- **`probe_lighting` takes 8 frames**: the cloud factor comes from an eighth frame with the `CloudShadow` view (raw
+  data), not a compute dispatch (`debug_probe.comp` stays unbuilt; a2 adds it with the cascade keys).
+- **Every app sends the environment** (the a1a hand-over): also without `EnvironmentSetup::enabled` (the defaults:
+  noon); `EngineAppRender.EnvironmentReachesTheScene` and `.GpuSections` follow (an ACES app now exposes by EV100).
+- **The wind phases** come from `EnvironmentState::phases` with S19a's frequencies (the extract's rates changed to
+  1.1, 0.9, 4.0 for the trees and 1.7, 1.3 for the grass), so the animation of `setTime` is kept;
+  `VulkanPrototypeScene.TimeIndependentOfWallClock` sets the phases through `setEnvironment`.
+- **Clay**: `kEnclosedLighting` is `prototypeStudio()` without fog; `VulkanSceneSpaces.EnclosedSpace` compares with
+  `setStudioEnvironment`. The S20 sky is drawn in the physical path also without the foliage texture (racing and the
+  platformer get the atmosphere).
+- **Tuning (step 4)**: the exposure curve `(-18, -1.5) (-10, -1) (-6, 2.5) (-3, 7) (0, 10.5) (5, 12.3) (10, 13.3)
+  (30, 14.5) (90, 15)` (the low sun was a stop overexposed; the atmosphere's twilight sky falls off about ten times
+  faster than a real one below -6 degrees, so the curve follows the model); fewer and fainter stars; the prototype's
+  ground (0.17, 0.25, 0.09), grass (0.14, 0.27, 0.07) and leaves (0.10, 0.21, 0.06) (the physical sun at 45 degrees is
+  yellowish: the old colours read olive). Flight's environment file sets the day of the year 140 (late May): on the
+  equinox at latitude 50 the sun sets at 18:00, so `--time-of-day 19` (the plan's sunset) would be night.
+- **Two shader optimizations** (step 4, grass overdraw): the fog colour's LUT lookup only where the fog factor is
+  above 1/2048, no transmittance lookup for a body below the horizon.
+- **Goldens**: the scene is 200 hashed trees and three flat-colour boxes on the ridge terrain (no content-generator
+  meshes: the trees and boxes cover PBR and foliage); `lighting_sunset` is at 17:45 (18:40 is after the sunset on the
+  equinox at 45 degrees), EV100 11.5 (10 overexposed); `lighting_clouds` uses EV100 15.5 (sunlit cloud tops at EV100 15
+  clip).
+- **`game_set_settings`** answers the removed sun and fog keys with `invalid_keys` and a `replaced_by` map naming the
+  replacement tools (D9).
+- **Files outside the a1c list** (21): `samples/games/flight/FlightWorld.h` (a comment), `shader/vulkan/scene/
+  {instance.vert, prototype_foliage.vert, terrain_common.glsl}` (the flip), `shader/vulkan/scene/lighting/{env_common.glsl,
+  env_debug.comp, scene_block.glsl, shadows.glsl}`, `src/saiga/engine/app/{EngineApp.h, EngineApp.cpp, LightingTab.h}`,
+  `src/saiga/engine/lighting/EnvironmentExtract.cpp`, `src/saiga/vulkan/scene/{GrassPass.h, LightingDebug.h,
+  SkyAmbient.h, TerrainPass.h}`, `src/saiga/vulkan/world/PrototypeForest.{h,cpp}`,
+  `tests/{render_scene_test_context.h, test_engine_lighting.cpp, test_vulkan_terrain.cpp}`; `scene_lighting.glsl` is
+  deleted. **Of the list unchanged** (11): the five clay goldens (as intended), `GameEngine.h` (the games call
+  `common/Environment`), `FlightWorld.cpp`, `PlatformerRender.cpp`, `debug_preview.comp` (the previews' sources are
+  converted by their owners), `SceneLightingSet.cpp`, `WorldBenchmark.cpp` (the sky key is `game_world`'s `s03Passes`).
+  96 files changed against `stage-s36a1b` (51 after the cloud step, so the clouds stayed in a1c).
+
+**S36a1c review, round 1** (2026-11-22; the fixes of the review findings, see Results):
+
+- **The sky-view LUT's horizon** is the planet's limb `-acos(Rg / r)` (it was `-acos(sqrt(r^2 - Rg^2) / r)`, the angle
+  to the nadir: half of the rows next to the nadir, 4.8 degrees per row at the horizon). The LUT is rewritten only when
+  its inputs changed (a body moved by 2.5e-4 rad, an illuminance by 0.1%, the camera height by 10 m, the cloudiness or
+  the settings), so the shaders take the LUT's own horizon from the block (`atmosphere.w`) and the capture's push
+  constant; `Atmosphere` has the CPU copy of the mapping. The fog colour is the LUT's row of the elevation 0 (at least
+  the first sky row) in the azimuth only.
+- **The sky below the limb** (the LUT's ground) gets the height fog of its distance: with the sharp horizon it showed
+  as an unfogged dark band where a terrain ends before the horizon.
+- **The light terms of the grass and the terrain per vertex** (`vertex_light.glsl`): the bodies' light through the
+  atmosphere at the receiver and the fog (the grass per tuft, flat, with the cloud shadow; the terrain per vertex, its
+  cloud shadow per fragment: a2's cascades are per fragment there); the other passes compute them per fragment through
+  the same function. Rough dielectric surfaces (foliage, the terrain's land: `surfaceShSpecular`) take their specular
+  environment from the irradiance's mean radiance `irradiance(n) / pi` (already evaluated) instead of the cube: the
+  review's `evalIrradianceSh(reflect) / pi` (a second SH evaluation) cost more than the cube fetch. The CPU zeroes the
+  shading moon in daylight (below 1e-4 of the sun's light on the ground). Not taken: the terrain's cloud shadow per
+  vertex (0.045 ms in the flyover only), the SH in device-local memory (an upper bound of 0.06 ms with a constant SH).
+- **The environment map** updates fully on the first frame after frames without the environment pass (clay, an
+  enclosed space, a debug frame), re-captures when the clouds over the camera moved by 500 m (also by the camera's
+  horizontal movement), and its barriers are on the back SH buffer and cube only.
+- **The stars** fade out with the sun's elevation from -10 to -4 degrees (A4's "faded by the sky luminance" as a CPU
+  fade; no star loop in a day sky); **the moon disc** uses the full moon's illuminance
+  (`EnvironmentState::moonFullIlluminance`, the block's `starRotation[1].w`); the cloud curvature uses the
+  atmosphere's ground radius.
+- **`capture_lighting`'s mip** is a value of the request (`PreviewMapping::mip`; the tab's preview has its own, a
+  request of another mip waits a frame like another mapping) and is reported in the block;
+  `RenderScene::setEnvironmentPreviewMip` is removed. `set_lighting` gains `rayleigh_scale`, `mie_scale`,
+  `ozone_scale`, `fog_falloff`, `cloud_seed` (A9's table is extended by these), `capture_lighting` the image
+  `multi_scattering_lut`, the tab a cloud seed control and the rendered fog density (`kRainFogFactor` = 4: the
+  renderer's fog density is the weather's times (1 + 4 rain)).
+- **A cloud seed change** uses the previous seed's histogram until the new one is read back (about two frames: the
+  coverage texture changes at once, `effectiveCloudiness` and the mean coverage follow when the frame completes); kept
+  and documented (review minor 7: a second coverage image for two frames of a debug control is not worth its memory).
+- **Tests**: `RenderSceneSuiteTest` keeps one scene for the suites of a binary (a RenderScene costs about 0.45 s on
+  lavapipe on this base, which has no device or pipeline reuse yet), `LightingGolden` one scene and world for its
+  suite (one full environment update per shot, bit-identical to `forceFullUpdates` in five frames),
+  `LightingTools` and `LightingDebugTools` one app.
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features
@@ -1889,6 +1993,90 @@ the affected targets also with Clang 19 and warnings as errors in `build-clang`,
   exposure (before its automatic centre), `capture_lighting` luminance (turbo) and brdf_lut; the physical path on the
   test plane (noon at EV100 14, the Exposure view, SpecularOnly, clay). `probe_lighting` on `game_world`: 7 frames,
   consistent, albedo 0.55 (clay), normal and position plausible.
+
+**S36a1c** (2026-11-22, local, lavapipe = Mesa with LLVM 21.1.8; build with samples and warnings as errors, GCC 15;
+the affected targets also with Clang 19 and warnings as errors in `build-clang`, no warning):
+
+- Commits: step 1 atmosphere and environment map, step 2 games, step 3 clouds, step 4 tuning, step 5 the flip (with the
+  four goldens and the docs). Every step built without warnings and passed ctest (step 1 was amended once: clang-format had
+  reordered the includes of `lighting.glsl`; GLSL files are not clang-formatted since). 96 files changed against
+  `stage-s36a1b`.
+- ctest on lavapipe (`--parallel 8`): 84 of 84 passed (82 with CI's options; 1 new binary
+  `test_engine_lighting_render`, 4 goldens, 5 s). `test_vulkan_lighting` 27 cases (16 new: 3 atmosphere, 6 environment
+  map, 7 clouds), 4 s; `test_engine_lighting_tools` 15 cases (`CaptureLightingAtmosphere`), 3 s. `test_engine_app`:
+  43 s (36.9 s after a1b; parallel 8 with the new binaries). `EngineAppRender.ScreenshotTerrainDeadline` (a 1 s tool
+  timeout) failed once in one parallel run and passed alone and in the following full runs.
+- Goldens: `lighting_noon`, `lighting_sunset`, `lighting_night`, `lighting_clouds` (local lavapipe; reviewed: the blue
+  sky with clouds over the ridge, the golden-hour sun with lit clouds and trees against it, the moonlit terrain with
+  stars and dark clouds, the layer from above with the ground in the gaps). The five clay goldens pass unchanged
+  through the flip (the second, `*Pbr` run of their tests is removed); `hdr_tonemap` unchanged.
+- Game scenarios (`--scenarios`, all variants), after step 2 and after the flip: flight 30 passed, platformer 48
+  passed, racing 18 passed; `flight_content_hashes` unchanged (no committed entity count of a game world changed).
+- Benchmarks (`build-bench`, RTX 5080 Laptop, 1920 x 1080, MSAA 4; GPU frame median ms; the laptop's flyover varies
+  ±0.25 ms between runs):
+
+  | | flyover | forest |
+  |---|---|---|
+  | clay, before (a1b, committed code path) | 2.514 | 2.198 |
+  | ACES baseline, before (a1b, `--tonemap aces`, the legacy variant; 2 runs) | 2.005 / 2.494 | 2.192 / 2.195 |
+  | ACES after the flip (default; 2 runs) | 2.316 / 2.762 | 2.898 / 2.902 |
+  | ACES after the flip, `clouds = false` | 2.723 | 2.776 |
+  | clay after the flip (`--tonemap identity`) | 2.526 (+0.5%) | 2.290 (+4.2%) |
+
+  Sections after the flip (forest): `scene.grass` 1.29 ms (0.68 before), `scene.terrain` 0.21 (0.12), `environment`
+  0.027, `scene.sky` + `scene.clouds` 0.06, `resolve` 0.05; flyover: `scene.terrain` 0.35 (0.19), `environment` 0.027,
+  `scene.clouds` 0.021. The clay re-check stays within 5%. **The physical lighting costs +0.7 ms in the forest (+32%)
+  and about +0.3 ms in the flyover**, almost all of it per fragment in the grass's overdraw and the terrain (the
+  transmittance, the cloud shadow, the specular environment and the fog colour per fragment; measured with each term
+  removed: about 0.4 ms of grass each before the two optimizations of step 4, which took the grass from 1.64 to 1.29
+  ms). The features-off comparison of the plan cannot reach the 5% here: after the flip only the clouds can be turned
+  off (the legacy light model is gone), and the ACES baseline measured the legacy model. The committed baselines of
+  `data/tests/benchmarks.json` are the ACES numbers of the flip (O2). `sample_vulkan_scene_benchmark` (clay, no
+  environment): cull 0.058 ms (0.057 before), scene 1.38 ms (1.29). CPU work (`cpu_work_ms`, forest) 0.140 -> 0.178 ms
+  (the environment's extract and recording).
+- Screenshots reviewed (`SAIGA_SCREENSHOT`, RTX): `game_flight --demo --time-of-day 7 | 12 | 19 | 21 | 22 | 23`
+  (morning, noon with clouds and cloud shadows, the golden hour, the blue twilight with pink clouds, the night, the
+  moonlit night with stars), `--time-of-day 23 --tonemap identity` (the unchanged clay view), `game_world` (10:00),
+  `game_racing --demo`, `game_platformer --demo` and `--demo --cellar` (the enclosed cellar with its template's light),
+  the cloud layer from above (a scratch scene).
+
+**S36a1c review fixes** (2026-11-22, local, lavapipe = Mesa with LLVM 21.1.8, GCC 15 and Clang 19 with warnings as
+errors):
+
+- ctest on lavapipe (`--parallel 4`): 84 of 84 passed. New cases: `SkyViewMapping.HorizonAndRows`,
+  `AtmosphereTest.MoonSkippedInDaylight`, `.StarsFadeWithTheSun`, `EnvironmentMapTest.SkyViewOnlyOnChange`,
+  `.FullUpdateAfterSkippedFrames`, `.RecapturesOnLateralMovement`, `LightingTabTest.CaptureMipWithTabOpen`; the
+  horizon, skipped-frame and lateral-movement tests fail on the old code.
+- Test times (each binary alone on lavapipe, before / after): `test_vulkan_lighting` 4.07 / 1.80 s,
+  `test_engine_lighting_render` 5.30 / 1.18 s, `test_engine_lighting_tools` 2.77 / 2.34 s. What remains is mostly the
+  construction of a RenderScene or an EngineApp (about 0.45 s each on this base; the test-speed branch's device and
+  pipeline reuse removes most of it) and `CaptureLighting`'s deadline case (0.3 s of real time).
+- Goldens regenerated (their own commit): `lighting_noon`, `lighting_sunset`, `lighting_night`, `lighting_clouds`
+  (reviewed: the sky to the horizon without the dark band, the sunset glow down to the horizon, the night unchanged in
+  character); the five clay goldens and `hdr_tonemap` pass unchanged.
+- Benchmarks (`build-bench`, RTX 5080 Laptop, 1920 x 1080, MSAA 4, ACES; medians of five runs; GPU frame / scene
+  section / `cpu_ms`):
+
+  | | forest | flyover |
+  |---|---|---|
+  | a1b, the same day (clay) | 2.219 / 2.170 / 2.206 | 2.570 / 2.493 / 3.931 |
+  | a1c before the review fixes | 2.910 / 2.772 / 2.892 | 2.769 / 2.619 / 4.145 |
+  | a1c after the review fixes | 2.495 / 2.396 / 2.485 | 2.775 / 2.643 / 4.133 |
+
+  The forest is 14% faster than before the fixes and 12% above a1b's clay frame (the physical lighting's remaining
+  cost: the BRDF LUT, the SH, the GGX and the cloud shadow per fragment, the ACES resolve 0.04 ms); the flyover is
+  unchanged within its run-to-run spread of about 4% (2.68-2.91 ms; no grass there). Variants measured on the forest
+  (three runs each): per-fragment grass with the review's SH-of-reflect specular 3.00 ms, per-vertex grass with it
+  2.67, per-vertex grass with the cube 2.60, per-vertex grass with `irradiance(n) / pi` 2.53 (taken). The section
+  medians are not additive when passes overlap (forest: grass 1.29 -> 0.88 ms while sky 0.09 -> 0.77 ms and the scene
+  section 2.77 -> 2.40 ms): compare the frame and the scene section. `cpu_ms` and `cpu_work_ms` equal a1b's of the same
+  day; the a1b values of the old baseline (2.36 ms, 0.035 ms) were of an older state, and the transfer + cull sections
+  are a1b's (0.097 ms flyover), so review M2's "unexplained regressions" were the old baseline. The sky-view LUT's
+  barrier adds no wait: the transfer section's write-after-read barrier already orders a frame after the previous
+  frame's fragment shaders. New baselines of forest and flyover committed (the median run of five).
+  `sample_vulkan_scene_benchmark` (clay): cull 0.059 ms, scene 1.39 ms (unchanged).
+- Screenshots reviewed (`SAIGA_SCREENSHOT`, RTX): `game_flight --demo --time-of-day 12 | 19 | 23` (the noon sky down
+  to a hazy horizon, the golden hour, the night with stars and the moonlit ridge).
 
 ## Review log
 
@@ -2022,6 +2210,16 @@ the shorter deadline test) and the minors and nits as listed in Design changes "
 decided there: minor 7 ("Deviation kept: clay terrain without the prototype environment"). Recorded in round 2
 (finding 21; the entry was missing).
 
+### S36a1c code review round 1, 2026-11-22
+
+1 blocker, 6 major, 9 minor, 6 nit (the diff `stage-s36a1b..stage-s36a1c`). Fixed: B1 (the sky-view horizon), M1a-d
+(the per-vertex light terms, the specular of rough surfaces from the irradiance, the moon in daylight), M2 (the
+sky-view LUT on change, the environment map's barriers; the "unexplained" cpu_ms / cpu_work / upload + cull numbers
+were the old a1b baseline), M3 (the baselines after the fixes, medians of five runs), M4, M5, M6, minors 1-5, 8, 9 and
+nits 1-6; minor 6 in part (the screenshot after the latch has its own timeout; the deadline's margin is the
+test-speed branch's `mcpAnswerMarginFraction`). Not fixed: M1e (the SH in device-local memory: at most 0.06 ms,
+measured with a constant SH), minor 7 (documented in Design changes). See Design changes "S36a1c review, round 1" and
+Results "S36a1c review fixes".
 
 ## Questions for the user
 

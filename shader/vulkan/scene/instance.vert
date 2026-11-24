@@ -38,11 +38,8 @@ layout(location = 0) flat out uint outMaterial;
 layout(location = 1) flat out uint outColor;
 layout(location = 2) out vec3 outNormal;
 layout(location = 3) out vec2 outUv;
-#if defined(SCENE_FOG) || defined(LIGHTING_PBR)
-// The position relative to the camera (the fog variant of the legacy pipelines: the varying costs ~7 % of the flat
-// draws; always in the LIGHTING_PBR variant of S36)
+// The position relative to the camera (S36: the lighting's fog, cloud shadow and specular need it in every fragment)
 layout(location = 4) out vec3 outRelPos;
-#endif
 
 invariant gl_Position;
 
@@ -70,8 +67,6 @@ void main()
     outColor    = inColor;
     outNormal   = rotateQuat(pose.rotation, decodeOct(inNormal));
     outUv       = inUv;
-#if defined(SCENE_FOG) || defined(LIGHTING_PBR)
     outRelPos = p;
-#endif
     gl_Position = pc.viewProj * vec4(p, 1.0);
 }

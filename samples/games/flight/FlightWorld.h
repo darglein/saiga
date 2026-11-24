@@ -146,7 +146,7 @@ constexpr const char* kAirplaneMesh = "flight/airplane";
 // The chest's mesh (its base at the origin)
 constexpr const char* kChestMesh = "flight/chest";
 // The foliage seed of the tree meshes (renderAssets: FoliageGenerator::treeSpecies) and of the foliage texture
-// (FlightRender's PrototypeScene: setPrototypeEnvironment), so the meshes' leaf layers match the texture
+// (FlightRender's PrototypeScene: setFoliageTexture), so the meshes' leaf layers match the texture
 constexpr uint32_t kFlightFoliageSeed = 1;
 
 // The flight demo's generator ID and space template (S23c): flight_overworld (OverworldGenerator), open world, 128

@@ -208,11 +208,13 @@ TEST(Celestial, AnglesRoundTrip)
 TEST(Exposure, CurveInterpolatesAndClamps)
 {
     Vulkan::ExposureSettings e;
-    EXPECT_FLOAT_EQ(e.ev100At(-90), -1);
-    EXPECT_FLOAT_EQ(e.ev100At(-18), -1);
-    EXPECT_FLOAT_EQ(e.ev100At(-12), 1);
-    EXPECT_FLOAT_EQ(e.ev100At(0), 9);
-    EXPECT_FLOAT_EQ(e.ev100At(5), 11);
+    // S36a1c's tuned curve
+    EXPECT_FLOAT_EQ(e.ev100At(-90), -1.5f);
+    EXPECT_FLOAT_EQ(e.ev100At(-18), -1.5f);
+    EXPECT_FLOAT_EQ(e.ev100At(-14), -1.25f);
+    EXPECT_FLOAT_EQ(e.ev100At(-6), 2.5f);
+    EXPECT_FLOAT_EQ(e.ev100At(0), 10.5f);
+    EXPECT_FLOAT_EQ(e.ev100At(2.5f), 11.4f);
     EXPECT_FLOAT_EQ(e.ev100At(90), 15);
     EXPECT_FLOAT_EQ(e.ev100At(120), 15);
     e.curve.clear();

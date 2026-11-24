@@ -10,14 +10,8 @@
 // (a2, b) include this file alone (their layout has only bindings 0 and 1).
 layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
 {
-    // ---- legacy (S19a; the default pipeline variant until the a1c flip) ----
-    // xyz: towards the sun (normalized), w: intensity
-    vec4 sunDir;
-    // x: ambient, y: 1 hemisphere ambient (0.6 + 0.4 n.y) else constant, z: albedo (foliage clay), w: alpha cutoff
-    vec4 ambient;
-    // x: density, y: height falloff, z: enabled, w: base height (water level)
-    vec4 fog;
-    vec4 fogColor;
+    // x: the foliage's alpha cutoff (trees and grass), yzw: unused
+    vec4 foliageParams;
     // xyz: the camera position (float), w: MSAA samples
     vec4 camera;
     // xyz: the tree wind phases (1.1, 0.9, 4.0 rad/s, modulo 2 pi), w: the wind strength
@@ -25,7 +19,6 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // x: 1 tint by LOD
     vec4 debug;
 
-    // ---- S36 (LIGHTING_PBR) ----
     // xyz: towards the sun, w: illuminance (lux, top of the atmosphere)
     vec4 sun;
     // xyz: towards the moon, w: illuminance (lux, phase applied)
@@ -48,8 +41,11 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     vec4 enclosedAmbient;
     // x altitude, y radius, z cloudiness, w shadow fade
     vec4 clouds;
-    // xy: cloud offset, zw: wind
+    // xy: the coverage texture's position of the camera (camera xz + cloud offset, wrapped to the tile; m), z: the mean
+    // coverage at the cloudiness, w: 1 the cloud layer and its shadows are on
     vec4 cloudMotion;
+    // xyz: the rows of the star rotation; [0].w the stars' intensity (0 in daylight), [1].w the full moon's illuminance
+    // (lux; the moon disc)
     vec4 starRotation[3];
     // rgb; albedoGround.w: the rock slope (n.y)
     vec4 albedoGround;
@@ -65,7 +61,7 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // x: the Exposure view's centre (EV100), y: its range, z: raw radiance views (probe), w: their scale
     vec4 debugParams;
     // x: the camera height above the sea level (m; the atmosphere's LUTs), y: 1 the environment cube is valid, z: its
-    // last mip, w: unused
+    // last mip, w: the sky-view LUT's horizon elevation (rad; skyViewHorizon of the radius it was computed at)
     vec4 atmosphere;
 }
 lighting;
