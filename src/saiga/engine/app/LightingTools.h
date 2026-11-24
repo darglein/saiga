@@ -82,7 +82,7 @@ struct LightingGpuTimes
     // The summed lighting time of each kept frame of the GPU profile, oldest first (the tab's summary graph)
     std::vector<double> lightingHistory;
     // The mean of the largest 1% of lightingHistory (at least one frame): the long frames that the mean hides
-    double lightingWorst1PercentMs = 0;
+    double lightingWorst1PercentMs    = 0;
     static constexpr double kBudgetMs = 2.5;
     static constexpr int kMeanFrames  = 120;
 };

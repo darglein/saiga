@@ -60,11 +60,24 @@ ImU32 turboColor(float t)
 // The debug views and the overlays under readable labels (UI rating round 1, findings 3 and 5: the MCP names, e.g.
 // cluster_lights, were the labels; they are in the tooltips now) and what each shows. A state that also has a control
 // in a section (light volumes, cluster grid, atlas tile owners, the cluster heat map) has the same label there
-const char* const kViewLabels[] = {"none",           "lighting only",    "albedo",          "normals",
-                                   "roughness",      "metalness",        "material",        "direct only",
-                                   "ambient only",   "specular only",    "cloud shadow",    "shadow factor",
-                                   "exposure",       "shadow cascades",  "horizon shadow",  "local lights only",
-                                   "cluster heat map", "atlas shadow"};
+const char* const kViewLabels[]   = {"none",
+                                     "lighting only",
+                                     "albedo",
+                                     "normals",
+                                     "roughness",
+                                     "metalness",
+                                     "material",
+                                     "direct only",
+                                     "ambient only",
+                                     "specular only",
+                                     "cloud shadow",
+                                     "shadow factor",
+                                     "exposure heat map",
+                                     "cascade tint",
+                                     "far terrain shadow",
+                                     "local lights only",
+                                     "cluster heat map",
+                                     "atlas shadow"};
 const char* const kViewTooltips[] = {
     "The lit frame",
     "The lighting on a white surface (roughness 0.5)",
@@ -87,9 +100,9 @@ const char* const kViewTooltips[] = {
 static_assert(sizeof(kViewLabels) / sizeof(kViewLabels[0]) == size_t(Vulkan::LightingDebugView::Count), "views");
 static_assert(sizeof(kViewTooltips) / sizeof(kViewTooltips[0]) == size_t(Vulkan::LightingDebugView::Count), "views");
 // In the order of lightingOverlayNames
-const char* const kOverlayLabels[]   = {"sun direction",  "cascade colors",        "cascade bounds",
-                                        "camera frustum splits", "horizon anchor", "light volumes",
-                                        "cluster grid",   "atlas tile owners"};
+const char* const kOverlayLabels[]   = {"sun direction",         "cascade colors",         "cascade bounds",
+                                        "camera frustum splits", "far terrain map extent", "light volumes",
+                                        "cluster grid",          "atlas tile owners"};
 const char* const kOverlayTooltips[] = {
     "Lines from the camera's focus towards the sun and the moon",
     "The surfaces tinted by their cascade (also with the other views)",
@@ -128,8 +141,8 @@ void overlayCheckbox(Vulkan::RenderScene& scene, uint32_t flag, bool flow = fals
     }
 }
 
-// A debug view's checkbox in a section (the same label as in the view combo; off: view none). UI rating round 2, finding
-// 8: the views were reachable only through the combo at the top
+// A debug view's checkbox in a section (the same label as in the view combo; off: view none). UI rating round 2,
+// finding 8: the views were reachable only through the combo at the top
 void viewCheckbox(Vulkan::RenderScene& scene, Vulkan::LightingDebugView view, bool flow = false)
 {
     Vulkan::LightingDebugState d = scene.lightingDebug();
@@ -142,6 +155,15 @@ void viewCheckbox(Vulkan::RenderScene& scene, Vulkan::LightingDebugView view, bo
     }
     if (ImGui::IsItemHovered())
         ImGui::SetTooltip("%s\n(view %s)", kViewTooltips[size_t(view)], Vulkan::lightingDebugViewName(view));
+}
+
+// The label before a section's row of views and overlays (UI rating round 3, finding 2: next to the section's own
+// switches, e.g. "cascade shadows", the view checkboxes read like feature switches)
+void showLabel()
+{
+    ImGui::AlignTextToFramePadding();
+    ImGui::TextDisabled("show:");
+    ImGui::SameLine();
 }
 
 // Continues the line with an item w wide if it fits the region, else the item starts a new line (and always for the
@@ -262,16 +284,16 @@ bool LightingTab::previewImageClicked(Vulkan::LightingImage image, bool log, flo
         previewMappingControl();
         ImGui::PopID();
     }
-    Vulkan::RenderScene* scene     = app.scene();
+    Vulkan::RenderScene* scene = app.scene();
     // The luminance with its own mapping (the summary's reduction requests the same)
     Vulkan::PreviewMapping mapping =
         image == Vulkan::LightingImage::Luminance ? luminanceMapping() : app.lightingPreviewMapping();
     if (image != Vulkan::LightingImage::Luminance) mapping.log = log;
-    mapping.mip                    = mip;
-    mapping.layer                  = layer;
-    mapping.slice                  = selection.slice;
-    mapping.light                  = selection.light;
-    mapping.face                   = selection.face;
+    mapping.mip   = mip;
+    mapping.layer = layer;
+    mapping.slice = selection.slice;
+    mapping.light = selection.light;
+    mapping.face  = selection.face;
     // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
     // second (LightingDebug::show)
     Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
@@ -320,7 +342,8 @@ void LightingTab::previewMappingControl()
     Vulkan::PreviewMapping& m = app.lightingPreviewMapping();
     char label[96];
     if (m.autoRange)
-        std::snprintf(label, sizeof(label), "mapping: auto, %s", m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray");
+        std::snprintf(label, sizeof(label), "mapping: auto, %s",
+                      m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray");
     else
         std::snprintf(label, sizeof(label), "mapping: %.3g .. %.3g, %s", double(m.min), double(m.max),
                       m.colorMap == Vulkan::ColorMap::Turbo ? "turbo" : "gray");
@@ -470,18 +493,21 @@ void LightingTab::summary()
         // (finding 2: the reduction measured the debug image)
         if (litLuminanceFrame > 0 && litLuminanceFrame + 600 >= scene->frames() && litLinear)
         {
-            const double key  = exposedKey();
-            const bool held   = d.view != Vulkan::LightingDebugView::None;
-            const char* where = key < -2 ? " dark" : key > 2 ? " bright" : "";
+            const double key = exposedKey();
+            const bool held  = d.view != Vulkan::LightingDebugView::None;
+            // A dark night under the time-of-day curve is intended (round 3, finding 8: always yellow at night)
+            const bool night  = s.exposure.mode != Vulkan::ExposureMode::Fixed && !e.enclosed && c.sunElevationDeg < -6;
+            const char* where = night ? " (night)" : key < -2 ? " dark" : key > 2 ? " bright" : "";
             std::snprintf(text, sizeof(text), "key %+.1f EV%s%s", key, where, held ? " (held)" : "");
-            flowText(held ? DebugUiStyle::kRef : std::abs(key) > 2 ? DebugUiStyle::kWarning : DebugUiStyle::kWhite,
-                     text);
+            const bool warn = std::abs(key) > 2 && !(night && key < 0);
+            flowText(held ? DebugUiStyle::kRef : warn ? DebugUiStyle::kWarning : DebugUiStyle::kWhite, text);
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("The exposed frame against mid-gray: log2(log-average luminance x exposure / 0.18).\n"
-                                  "0: as bright as mid-gray, beyond +-2 EV too bright / too dark.\n"
-                                  "Luminance mean %.1f, max %.1f (log2 cd/m^2) of the lit frame%s",
-                                  double(litLuminance.mean), double(litLuminance.max),
-                                  held ? ",\nheld while a debug view replaces the frame" : "");
+                ImGui::SetTooltip(
+                    "The exposed frame against mid-gray: log2(log-average luminance x exposure / 0.18).\n"
+                    "0: as bright as mid-gray, beyond +-2 EV too bright / too dark.\n"
+                    "Luminance mean %.1f, max %.1f (log2 cd/m^2) of the lit frame%s",
+                    double(litLuminance.mean), double(litLuminance.max),
+                    held ? ",\nheld while a debug view replaces the frame" : "");
         }
     }
     if (p.localLights)
@@ -503,17 +529,18 @@ void LightingTab::summary()
                                                                        : DebugUiStyle::kGpu,
              text, first);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("The lighting's GPU time: the mean of %d frames, in brackets the mean of the longest 1%% of "
-                          "the graph's %d frames, against the budget of %.1f ms (GPU and memory)",
-                          LightingGpuTimes::kMeanFrames, int(t.lightingHistory.size()), LightingGpuTimes::kBudgetMs);
+        ImGui::SetTooltip(
+            "The lighting's GPU time: the mean of %d frames, in brackets the mean of the longest 1%% of "
+            "the graph's %d frames, against the budget of %.1f ms (GPU and memory)",
+            LightingGpuTimes::kMeanFrames, int(t.lightingHistory.size()), LightingGpuTimes::kBudgetMs);
     lightingGraph(t);
 }
 
 Vulkan::PreviewMapping LightingTab::luminanceMapping() const
 {
-    // The luminance's own mapping (UI rating round 2, finding 1: the previews' mapping changed the luminance numbers and
-    // the histogram's bins): log2 over a fixed range of kLuminanceMin .. kLuminanceMax (2 EV per bin), only the color
-    // map from the previews' mapping
+    // The luminance's own mapping (UI rating round 2, finding 1: the previews' mapping changed the luminance numbers
+    // and the histogram's bins): log2 over a fixed range of kLuminanceMin .. kLuminanceMax (2 EV per bin), only the
+    // color map from the previews' mapping
     Vulkan::PreviewMapping m;
     m.autoRange = false;
     m.log       = true;
@@ -561,6 +588,7 @@ void LightingTab::lightingGraph(const LightingGpuTimes& t)
     if (h.size() < 2 || width < 4 * em)
     {
         ImGui::Dummy(ImVec2(std::max(width, 1.0f), height));
+        ImGui::TextDisabled(" ");  // (the time axis' line)
         return;
     }
     double top = 1.25 * LightingGpuTimes::kBudgetMs;
@@ -570,21 +598,56 @@ void LightingTab::lightingGraph(const LightingGpuTimes& t)
     ImDrawList* dl = ImGui::GetWindowDrawList();
     const ImVec2 p1(p0.x + width, p0.y + height);
     dl->AddRectFilled(p0, p1, IM_COL32(255, 255, 255, 12));
-    auto y = [&](double ms) { return p1.y - float(ms / top) * (height - 1); };
+    auto y              = [&](double ms) { return p1.y - float(ms / top) * (height - 1); };
     const float budgetY = y(LightingGpuTimes::kBudgetMs);
     for (float x = p0.x; x < p1.x; x += 8)
         dl->AddLine(ImVec2(x, budgetY), ImVec2(std::min(x + 4, p1.x), budgetY), DebugUiStyle::kWarn & 0xA0FFFFFF);
     const float step = width / float(h.size() - 1);
-    for (size_t i = 1; i < h.size(); ++i)
+    // More frames than pixel columns (UI rating round 3, finding 6: the line alternating every frame drew a solid
+    // band): per column the frames' min .. max as a faint band and their mean as the line
+    const int columns = std::max(1, int(width / 2));
+    if (int(h.size()) > columns)
     {
-        const ImVec2 a(p0.x + step * float(i - 1), y(h[i - 1]));
-        const ImVec2 b(p0.x + step * float(i), y(h[i]));
-        const bool over = h[i] > LightingGpuTimes::kBudgetMs || h[i - 1] > LightingGpuTimes::kBudgetMs;
-        dl->AddLine(a, b, over ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, 1.5f);
+        const double perColumn = double(h.size()) / double(columns);
+        ImVec2 previous;
+        for (int c = 0; c < columns; ++c)
+        {
+            const size_t a = size_t(double(c) * perColumn), b = std::min(h.size(), size_t(double(c + 1) * perColumn));
+            double lo = h[a], hi = h[a], sum = 0;
+            for (size_t i = a; i < b; ++i)
+            {
+                lo = std::min(lo, h[i]);
+                hi = std::max(hi, h[i]);
+                sum += h[i];
+            }
+            const double mean = sum / double(std::max<size_t>(b - a, 1));
+            const float x0    = p0.x + width * float(c) / float(columns),
+                        x1    = p0.x + width * float(c + 1) / float(columns);
+            const bool over   = hi > LightingGpuTimes::kBudgetMs;
+            dl->AddRectFilled(ImVec2(x0, y(hi)), ImVec2(x1, y(lo) + 1),
+                              (over ? DebugUiStyle::kWarn : DebugUiStyle::kGpu) & 0x60FFFFFFu);
+            const ImVec2 point(0.5f * (x0 + x1), y(mean));
+            if (c > 0)
+                dl->AddLine(previous, point,
+                            mean > LightingGpuTimes::kBudgetMs ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, 1.5f);
+            previous = point;
+        }
     }
+    else
+        for (size_t i = 1; i < h.size(); ++i)
+        {
+            const ImVec2 a(p0.x + step * float(i - 1), y(h[i - 1]));
+            const ImVec2 b(p0.x + step * float(i), y(h[i]));
+            const bool over = h[i] > LightingGpuTimes::kBudgetMs || h[i - 1] > LightingGpuTimes::kBudgetMs;
+            dl->AddLine(a, b, over ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, 1.5f);
+        }
+    // The scale's top at the left, the budget line's value at its right end, the time axis below (as F2's graph)
+    const ImU32 label = IM_COL32(255, 255, 255, 120);
     char text[48];
     std::snprintf(text, sizeof(text), "%.1f ms", top);
-    dl->AddText(ImVec2(p0.x + 3, p0.y + 1), IM_COL32(255, 255, 255, 120), text);
+    dl->AddText(ImVec2(p0.x + 3, p0.y + 1), label, text);
+    std::snprintf(text, sizeof(text), "budget %.1f ms", LightingGpuTimes::kBudgetMs);
+    dl->AddText(ImVec2(p1.x - ImGui::CalcTextSize(text).x - 3, budgetY - ImGui::GetFontSize() - 1), label, text);
     if (ImGui::IsItemHovered())
     {
         const float mx = ImGui::GetIO().MousePos.x - p0.x;
@@ -594,6 +657,9 @@ void LightingTab::lightingGraph(const LightingGpuTimes& t)
         ImGui::SetTooltip("lighting GPU time: %.3f ms (frame %d of the last %d; budget %.1f ms)", h[i],
                           int(i) - int(h.size()) + 1, int(h.size()), LightingGpuTimes::kBudgetMs);
     }
+    ImGui::TextDisabled("-%d frames", int(h.size()));
+    ImGui::SameLine(ImGui::GetContentRegionMax().x - ImGui::CalcTextSize("now").x);
+    ImGui::TextDisabled("now");
 }
 
 void LightingTab::controls()
@@ -894,7 +960,11 @@ void LightingTab::sunAndMoon()
     const EnvironmentSample e = app.sampleViewEnvironment();
     const CelestialState& c   = e.celestial;
     // (UI rating round 2, finding 8)
-    if (app.scene()) overlayCheckbox(*app.scene(), Vulkan::OverlaySunDirection);
+    if (app.scene())
+    {
+        showLabel();
+        overlayCheckbox(*app.scene(), Vulkan::OverlaySunDirection);
+    }
     if (DebugUiStyle::beginProperties("##lighting bodies"))
     {
         DebugUiStyle::property("sun");
@@ -946,6 +1016,7 @@ void LightingTab::exposure()
     const EnvironmentSample e     = app.sampleViewEnvironment();
     Vulkan::EnvironmentSettings s = app.environmentSettings();
     // (UI rating round 2, finding 8: the view where it explains something)
+    showLabel();
     viewCheckbox(*scene, Vulkan::LightingDebugView::Exposure);
     if (DebugUiStyle::beginProperties("##lighting exposure"))
     {
@@ -993,9 +1064,10 @@ void LightingTab::exposure()
         else
             ImGui::Text("%.3g (multiplier %.3g)", double(scene->frameExposure()), double(scene->exposure()));
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The frame's exposure: from the EV100, times the exposure multiplier of F3 Engine > "
-                              "Rendering.\nPre-exposure (the scene pass's scale): %.3g",
-                              double(scene->preExposure()));
+            ImGui::SetTooltip(
+                "The frame's exposure: from the EV100, times the exposure multiplier of F3 Engine > "
+                "Rendering.\nPre-exposure (the scene pass's scale): %.3g",
+                double(scene->preExposure()));
         // The luminance of the lit frame (the reduction of the Luminance preview, log2 over a fixed range; held while
         // a debug view is on) and the exposed key (the summary's)
         const bool held = scene->lightingDebug().view != Vulkan::LightingDebugView::None;
@@ -1008,11 +1080,18 @@ void LightingTab::exposure()
         if (litLuminanceFrame > 0 && litLinear)
         {
             DebugUiStyle::property("exposed key");
+            // (as the summary: a dark night under the time-of-day curve is intended)
             const double key = exposedKey();
+            const bool night =
+                s.exposure.mode != Vulkan::ExposureMode::Fixed && !e.enclosed && e.celestial.sunElevationDeg < -6;
             char text[64];
             std::snprintf(text, sizeof(text), "%+.1f EV against mid-gray%s", key,
-                          key < -2 ? ": too dark" : key > 2 ? ": too bright" : "");
-            DebugUiStyle::coloredText(std::abs(key) > 2 ? DebugUiStyle::kWarning : DebugUiStyle::kWhite, text);
+                          night      ? " (night)"
+                          : key < -2 ? ": too dark"
+                          : key > 2  ? ": too bright"
+                                     : "");
+            const bool warn = std::abs(key) > 2 && !(night && key < 0);
+            DebugUiStyle::coloredText(warn ? DebugUiStyle::kWarning : DebugUiStyle::kWhite, text);
         }
         DebugUiStyle::endProperties();
     }
@@ -1151,8 +1230,7 @@ void LightingTab::ambient()
             DebugUiStyle::coloredText(DebugUiStyle::kRef, "no capture yet (the physical path captures it)");
         DebugUiStyle::property("capture");
         if (em.progress > 0)
-            ImGui::ProgressBar(em.steps > 0 ? float(em.progress) / float(em.steps) : 0.0f, ImVec2(-1, 0),
-                               "capturing");
+            ImGui::ProgressBar(em.steps > 0 ? float(em.progress) / float(em.steps) : 0.0f, ImVec2(-1, 0), "capturing");
         else
             ImGui::TextUnformatted("idle");
         DebugUiStyle::property("preview mip");
@@ -1163,8 +1241,7 @@ void LightingTab::ambient()
     ImGui::TextDisabled("the cube as a cross (log2), mip %d", environmentMip);
     previewImage(Vulkan::LightingImage::Environment, true, 384.0f, environmentMip);
     // (a tree node inside the sub-section, without its own indent)
-    if (ImGui::TreeNodeEx("environment map settings",
-                          ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen) &&
+    if (ImGui::TreeNodeEx("Settings", ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen) &&
         DebugUiStyle::beginProperties("##lighting environment settings"))
     {
         // Round 2, finding 12: set_lighting's environment_resolution and environment_update_degrees
@@ -1198,14 +1275,16 @@ void LightingTab::skyAndClouds()
     bool changed                         = false;
     // (UI rating round 2, finding 8: the view; finding 11: the weather's part of the clouds and the fog is world state
     // in Time and weather)
+    showLabel();
     viewCheckbox(*scene, Vulkan::LightingDebugView::CloudShadow);
     {
         const EnvironmentSample e = app.sampleViewEnvironment();
         ImGui::TextDisabled("weather: cloudiness %.2f, fog %.5f /m (Time and weather)", double(e.weather.cloudiness),
                             double(e.weather.fogDensity));
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("The cloudiness and the fog density are the world's weather (they replicate and are "
-                              "saved); this section has the look of the cloud layer and the sky");
+            ImGui::SetTooltip(
+                "The cloudiness and the fog density are the world's weather (they replicate and are "
+                "saved); this section has the look of the cloud layer and the sky");
     }
     if (DebugUiStyle::beginProperties("##lighting sky"))
     {
@@ -1320,6 +1399,7 @@ void LightingTab::cascadesSection()
         DebugUiStyle::coloredText(ms > 2.0 ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, text);
     }
     // The views and overlays of the cascades (round 2, finding 8)
+    showLabel();
     viewCheckbox(*scene, Vulkan::LightingDebugView::ShadowCascades);
     overlayCheckbox(*scene, Vulkan::OverlayCascadeBounds, true);
     overlayCheckbox(*scene, Vulkan::OverlayCameraFrustumSplits, true);
@@ -1329,20 +1409,36 @@ void LightingTab::cascadesSection()
         // rating round 1, finding 9: the terrain column was cut), numbers right-aligned
         // (UI rating round 2, finding 9: the scrollbar's row only when the table is wider than the panel, about 44
         // lines; the headers right-aligned over the numbers; the age instead of the frame number)
+        // Round 3, finding 3: the columns' widths from their headers and widest values (right-aligned headers do not
+        // widen a fit column, so they were clipped), the scroll only when they do not fit
         const ImGuiStyle& style = ImGui::GetStyle();
-        const bool scrolls      = ImGui::GetContentRegionAvail().x < 44 * ImGui::GetFontSize();
+        const char* headers[8]  = {"#",         "split m",   "texel m", "every / age",
+                                   "instances", "triangles", "nodes",   "terrain"};
+        const char* widest[8]   = {"0", "333 - 1500", "0.000", "16 / 16", "000000", "0000.0k", "000 (000)", "0000k"};
+        float widths[8], total = 0;
+        for (int i = 0; i < 8; ++i)
+        {
+            widths[i] = std::max(ImGui::CalcTextSize(headers[i]).x, ImGui::CalcTextSize(widest[i]).x);
+            total += widths[i] + 2 * style.CellPadding.x + 1;
+        }
+        const bool scrolls = ImGui::GetContentRegionAvail().x < total;
         const float height = float(ls.cascadeCount + 1) * (ImGui::GetTextLineHeight() + 2 * style.CellPadding.y) +
                              (scrolls ? style.ScrollbarSize : 0.0f) + 4;
         if (ImGui::BeginTable("##cascade rows", 8,
-                              ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_ScrollX,
+                              ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit |
+                                  (scrolls ? ImGuiTableFlags_ScrollX : ImGuiTableFlags_None),
                               ImVec2(0, height)))
         {
-            ImGui::TableSetupScrollFreeze(1, 1);
-            for (const char* h : {"#", "split m", "texel m", "every", "age", "instances", "triangles", "terrain"})
-                ImGui::TableSetupColumn(h);
-            DebugUiStyle::headerRow({"#", "split m", "texel m", "every", "age", "instances", "triangles", "terrain"});
+            if (scrolls) ImGui::TableSetupScrollFreeze(1, 1);
+            for (int i = 0; i < 8; ++i)
+                ImGui::TableSetupColumn(headers[i], ImGuiTableColumnFlags_WidthFixed, widths[i]);
+            DebugUiStyle::headerRow(
+                {"#", "split m", "texel m", "every / age", "instances", "triangles", "nodes", "terrain"});
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("terrain: CDLOD nodes (deduplicated with the previous cascade), triangles");
+                ImGui::SetTooltip(
+                    "every / age: the cascade's update interval and the frames since its last render; "
+                    "nodes: terrain CDLOD nodes (in brackets: shared with the previous cascade); "
+                    "terrain: the terrain triangles");
             const uint64_t frames = scene->frames();
             for (int c = 0; c < ls.cascadeCount; ++c)
             {
@@ -1356,11 +1452,16 @@ void LightingTab::cascadesSection()
                 else
                     cellRightf("%.1f - %.0f", double(k.splitNear), double(k.splitFar));
                 cellRightf("%.3f", double(k.texelSize));
-                cellRightf("%d", k.interval);
-                cellRightf("%llu", (unsigned long long)(frames > k.lastUpdate ? frames - k.lastUpdate : 0));
+                cellRightf("%d / %llu", k.interval,
+                           (unsigned long long)(frames > k.lastUpdate ? frames - k.lastUpdate : 0));
                 cellRightf("%u", k.instances);
-                cellRightf("%.1fk", double(k.triangles) / 1000);
-                cellRightf("%u (%u) %.0fk", k.terrainNodes, k.terrainDeduplicated, double(k.terrainTriangles) / 1000);
+                // (round 3, finding 9: "1509.2k" read badly)
+                if (k.triangles >= 1000000)
+                    cellRightf("%.2fM", double(k.triangles) / 1e6);
+                else
+                    cellRightf("%.1fk", double(k.triangles) / 1000);
+                cellRightf("%u (%u)", k.terrainNodes, k.terrainDeduplicated);
+                cellRightf("%.0fk", double(k.terrainTriangles) / 1000);
             }
             ImGui::EndTable();
         }
@@ -1464,16 +1565,17 @@ void LightingTab::horizonSection()
     // twelve rows before the map)
     Vulkan::LightingParameters p       = scene->lightingParameters();
     const Vulkan::HorizonStatistics& h = scene->lightingStatistics().horizon;
-    bool changed                       = ImGui::Checkbox("horizon shadows", &p.horizonShadows);
+    bool changed                       = ImGui::Checkbox("far terrain shadows", &p.horizonShadows);
     ImGui::SameLine();
     if (ImGui::SmallButton("recompute now")) scene->requestHorizonRecompute(false);
+    showLabel();
     viewCheckbox(*scene, Vulkan::LightingDebugView::HorizonShadow);
     overlayCheckbox(*scene, Vulkan::OverlayHorizonAnchor, true);
     if (DebugUiStyle::beginProperties("##lighting horizon"))
     {
         DebugUiStyle::property("map");
         if (h.valid)
-            ImGui::Text("%d^2, %.1f m texels, %.0f m", h.resolution, h.texel, h.extent);
+            ImGui::Text("%d x %d, %.1f m texels, %.1f km", h.resolution, h.resolution, h.texel, h.extent / 1000);
         else
             ImGui::TextUnformatted(p.horizonShadows ? "none yet (no terrain or shadow light)" : "off");
         // A bar only while a map is computed (UI rating round 1, finding 8: idle showed a full bar with 0 rows)
@@ -1559,31 +1661,25 @@ void LightingTab::localLightsSection()
     Vulkan::LightingParameters p          = scene->lightingParameters();
     const Vulkan::LightingStatistics& ls  = scene->lightingStatistics();
     const Vulkan::LocalLightStatistics& c = ls.lights;
-    bool changed                          = ImGui::Checkbox("local lights", &p.localLights);
+    // The switch, one status line, the selected light and the table; the settings in a closed sub-section below (UI
+    // rating round 3, finding 4: five rows before the table pushed the editor off screen)
+    bool changed = ImGui::Checkbox("local lights", &p.localLights);
     ImGui::SameLine();
-    changed = ImGui::Checkbox("clustered", &p.clusteredLights) || changed;
-    overlayCheckbox(*scene, Vulkan::OverlayLightVolumes, true);
-    if (DebugUiStyle::beginProperties("##lighting lights"))
+    showLabel();
+    overlayCheckbox(*scene, Vulkan::OverlayLightVolumes);
     {
-        DebugUiStyle::property("max lights");
-        changed =
-            ImGui::SliderInt("##max lights", &p.maxLights, 1, 4096, "%d", ImGuiSliderFlags_Logarithmic) || changed;
-        ui.markItem("lighting/max lights");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("at least 1: the \"local lights\" checkbox switches them off");
-        // (UI rating round 1, finding 10: one line of four counts was cut)
-        DebugUiStyle::property("visible");
-        ImGui::Text("%u of %u (%u candidates)", c.visible, c.submitted, c.candidates);
-        DebugUiStyle::property("over budget");
-        char text[32];
-        std::snprintf(text, sizeof(text), "%u", c.overBudget);
-        DebugUiStyle::coloredText(c.overBudget > 0 ? DebugUiStyle::kWarn : DebugUiStyle::kWhite, text);
-        DebugUiStyle::property("shadowed");
-        ImGui::Text("%u, %u without atlas tiles", c.shadowed, c.withoutTiles);
-        DebugUiStyle::property("light buffers");
-        ImGui::Text("%.1f KiB", double(c.memoryBytes) / 1024);
-        DebugUiStyle::endProperties();
+        char text[160];
+        std::snprintf(text, sizeof(text), "%u of %u visible (%u candidates), %u shadowed (%u without tiles)", c.visible,
+                      c.submitted, c.candidates, c.shadowed, c.withoutTiles);
+        ImGui::PushTextWrapPos(0);
+        ImGui::TextUnformatted(text);
+        ImGui::PopTextWrapPos();
+        if (c.overBudget > 0)
+        {
+            std::snprintf(text, sizeof(text), "%u over the budget of %d lights", c.overBudget, p.maxLights);
+            DebugUiStyle::coloredText(DebugUiStyle::kWarn, text);
+        }
     }
-    if (changed) applyParameters(p);
     if (!p.localLights)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (LightingParameters::localLights)");
     else if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
@@ -1591,6 +1687,22 @@ void LightingTab::localLightsSection()
     // The light table and the selected light's editor (the clusters and the shadow atlas are sections of their own: UI
     // rating round 1, finding 4)
     lightTable();
+    if (ui.subSection("lighting/Local lights: Settings", "Settings", false) &&
+        DebugUiStyle::beginProperties("##lighting lights"))
+    {
+        DebugUiStyle::property("clustered");
+        changed = ImGui::Checkbox("##clustered", &p.clusteredLights) || changed;
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("off: every light is tested per pixel (the reference path)");
+        DebugUiStyle::property("max lights");
+        changed =
+            ImGui::SliderInt("##max lights", &p.maxLights, 1, 4096, "%d", ImGuiSliderFlags_Logarithmic) || changed;
+        ui.markItem("lighting/max lights");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("at least 1: the \"local lights\" checkbox switches them off");
+        DebugUiStyle::property("light buffers");
+        ImGui::Text("%.1f KiB", double(c.memoryBytes) / 1024);
+        DebugUiStyle::endProperties();
+    }
+    if (changed) applyParameters(p);
 }
 
 void LightingTab::clustersSection()
@@ -1619,6 +1731,7 @@ void LightingTab::clustersSection()
     }
     // The cluster heat map: the view (the same label as in the view combo) and the preview (a slice or the maximum
     // over the slices)
+    showLabel();
     viewCheckbox(*scene, Vulkan::LightingDebugView::ClusterLights);
     overlayCheckbox(*scene, Vulkan::OverlayClusterGrid, true);
     if (c.visible > 0)
@@ -1635,8 +1748,7 @@ void LightingTab::clustersSection()
             float heat = scale;
             if (ImGui::SliderFloat("##heat scale", &heat, 1, 256, "%.0f lights", ImGuiSliderFlags_Logarithmic))
                 scene->setClusterHeatScale(heat);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("The lights per cluster at the top of the heat map's colors");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("The lights per cluster at the top of the heat map's colors");
             DebugUiStyle::endProperties();
         }
         Vulkan::PreviewMapping m           = app.lightingPreviewMapping();
@@ -1711,6 +1823,7 @@ void LightingTab::atlasSection()
                       longRange);
         DebugUiStyle::coloredText(DebugUiStyle::kWarn, text);
     }
+    showLabel();
     viewCheckbox(*scene, Vulkan::LightingDebugView::AtlasShadow);
     overlayCheckbox(*scene, Vulkan::OverlayAtlasOwners, true);
     if (as.on) atlasPreview();
@@ -1762,8 +1875,8 @@ void LightingTab::atlasSection()
         DebugUiStyle::beginProperties("##lighting atlas details"))
     {
         DebugUiStyle::property("cache this frame");
-        ImGui::Text("%u hits, %u static + %u dynamic renders, %u clears", as.hits, as.staticRenders,
-                    as.dynamicRenders, as.dynamicClears);
+        ImGui::Text("%u hits, %u static + %u dynamic renders, %u clears", as.hits, as.staticRenders, as.dynamicRenders,
+                    as.dynamicClears);
         DebugUiStyle::property("queue");
         ImGui::Text("%u static faces waiting, %u dynamic faces skipped", as.queue, as.dynamicSkipped);
         DebugUiStyle::property("terrain nodes");
@@ -1922,8 +2035,8 @@ void LightingTab::lightTable()
     // shrank when a light was selected; round 2: the editor below the table was off screen)
     auto drawTable = [&]()
     {
-        // A filter of the rows by handle, entity and state, and the counts the "visible" row does not have (UI rating round
-        // 2, finding 6: the caption repeated the visible count, and a lamp could only be found by scrolling)
+        // A filter of the rows by handle, entity and state, and the counts the "visible" row does not have (UI rating
+        // round 2, finding 6: the caption repeated the visible count, and a lamp could only be found by scrolling)
         {
             ImGui::AlignTextToFramePadding();
             ImGui::TextDisabled("filter");
@@ -1949,13 +2062,17 @@ void LightingTab::lightTable()
                                   r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
                     return lightFilter.PassFilter(text);
                 };
-                rows.erase(std::remove_if(rows.begin(), rows.end(), [&](const Row& r) { return !match(r); }), rows.end());
+                rows.erase(std::remove_if(rows.begin(), rows.end(), [&](const Row& r) { return !match(r); }),
+                           rows.end());
             }
         }
         // Columns clipped in a narrow tab (round 1, finding 17): a horizontal scroll with the handle column frozen, the
         // units in the headers; the scrollbar's height added (round 2, finding 6: it covered the last row)
-        const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
-                                      ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
+        // (round 3, finding 4: the shadow frame and the buffer index hidden by default; a right click on the headers
+        // shows them)
+        const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_Hideable | ImGuiTableFlags_ScrollX |
+                                      ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders |
+                                      ImGuiTableFlags_SizingFixedFit;
         const float height = ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), 12) + 2) +
                              ImGui::GetStyle().ScrollbarSize;
         if (rows.empty() && lightFilter.IsActive()) ImGui::TextDisabled("no light matches the filter");
@@ -1966,7 +2083,9 @@ void LightingTab::lightTable()
             const char* headers[] = {"handle",  "entity",   "state", "kind",         "distance m", "lumen",
                                      "range m", "clusters", "tiles", "shadow frame", "buffer"};
             for (int i = 0; i < 11; ++i)
-                ImGui::TableSetupColumn(headers[i], i == 4 ? ImGuiTableColumnFlags_DefaultSort : 0);
+                ImGui::TableSetupColumn(headers[i], i == 4   ? ImGuiTableColumnFlags_DefaultSort
+                                                    : i >= 9 ? ImGuiTableColumnFlags_DefaultHide
+                                                             : 0);
             ImGui::TableHeadersRow();
             // The selected row in the selected light's yellow (UI rating round 1, finding 11: hardly visible)
             ImGui::PushStyleColor(ImGuiCol_Header, (kSelectedLight & 0x00FFFFFFu) | (90u << IM_COL32_A_SHIFT));
@@ -2010,8 +2129,8 @@ void LightingTab::lightTable()
             };
             // The frame's lights, the other scene lights, the unrendered ones
             auto rowGroup = [](const Row& r) { return r.info ? 0 : (r.light ? 1 : 2); };
-            // Sorted when the sort spec or the light set changes, else every 30 frames (the distances change slowly; S30's
-            // thousands of piece lights)
+            // Sorted when the sort spec or the light set changes, else every 30 frames (the distances change slowly;
+            // S30's thousands of piece lights)
             const uint64_t now = scene->frames();
             bool resort        = orderColumn != lightSortColumn || orderAscending != lightSortAscending ||
                           lightOrder.size() != rows.size() || now >= orderFrame + 30 || now < orderFrame;
@@ -2148,14 +2267,15 @@ void LightingTab::lightTable()
                         ld.castShadows ? ", shadowed" : "");
             ImGui::PopTextWrapPos();
             if (ld.castShadows && ld.range > 100)
-                DebugUiStyle::coloredText(DebugUiStyle::kWarn, "shadowed with a range above 100 m: coarse 16-bit depth");
+                DebugUiStyle::coloredText(DebugUiStyle::kWarn,
+                                          "shadowed with a range above 100 m: coarse 16-bit depth");
         }
         else
         {
             hasPos = selState->hasPose;
             pos    = worldOf(*selState);
-            // An invalid light (e.g. a NaN offset) is moved to at its entity's origin; without a finite one the camera is
-            // not moved (CodeRabbit #86 round 2: the tool held the camera at a NaN eye)
+            // An invalid light (e.g. a NaN offset) is moved to at its entity's origin; without a finite one the camera
+            // is not moved (CodeRabbit #86 round 2: the tool held the camera at a NaN eye)
             if (!pos.allFinite()) pos = selState->pose.position;
             hasPos = hasPos && pos.allFinite();
             dir    = selState->pose.rotation * selState->source.unitRotation() * Vec3(0, 0, -1);
@@ -2171,9 +2291,10 @@ void LightingTab::lightTable()
         if (hasPos) app.debugUi().markItem("lighting/move camera to light");
         if (moveCamera)
         {
-            const auto [eye, rotation] = lightViewPose(pos, spot ? dir : Vec3::Zero(), range, app.viewCamera().rotation);
-            // Regression (S36 demo): the camera was held as by an MCP tool, so the free camera no longer moved; the button
-            // moves it once and leaves it free (also from a tool's hold: the user takes the camera)
+            const auto [eye, rotation] =
+                lightViewPose(pos, spot ? dir : Vec3::Zero(), range, app.viewCamera().rotation);
+            // Regression (S36 demo): the camera was held as by an MCP tool, so the free camera no longer moved; the
+            // button moves it once and leaves it free (also from a tool's hold: the user takes the camera)
             app.releaseCamera();
             app.setViewCameraByTool(space, eye, rotation, app.viewCamera().fovy, false);
         }
@@ -2187,14 +2308,15 @@ void LightingTab::lightTable()
         }
         if (!selState)
         {
-            ImGui::TextUnformatted(sel && sel->list ? "a scene light of a list (read-only)" : "a scene light (read-only)");
+            ImGui::TextUnformatted(sel && sel->list ? "a scene light of a list (read-only)"
+                                                    : "a scene light (read-only)");
             return;
         }
         const Entity e = selectedEntity;
         World& w       = app.world();
         if (!w.alive(e) || !w.has<LightSource>(e)) return;
-        // --coop (round 2, finding 10): the client's LightSource is replicated (HostReliable), its writes are refused; the
-        // editor writes the host's entity of the same NetId (as the environment edits write the host's world)
+        // --coop (round 2, finding 10): the client's LightSource is replicated (HostReliable), its writes are refused;
+        // the editor writes the host's entity of the same NetId (as the environment edits write the host's world)
         Entity target = e;
         if (app.coop())
         {
@@ -2206,8 +2328,8 @@ void LightingTab::lightTable()
                 return;
             }
         }
-        // The values of the entity that is written (round 4, minor 2: in --coop the client's replica lags the host by the
-        // replication delay; a drag restarted from it each frame and an edit resent other fields' stale values)
+        // The values of the entity that is written (round 4, minor 2: in --coop the client's replica lags the host by
+        // the replication delay; a drag restarted from it each frame and an edit resent other fields' stale values)
         const World& owner       = app.coop() ? *app.hostWorld() : w;
         const LightSource before = owner.read<LightSource>(target);
         LightSource s            = before;
@@ -2222,8 +2344,9 @@ void LightingTab::lightTable()
             ImGui::SameLine();
             ImGui::TextDisabled("(?)");
             if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("A game's systems may switch the light again (e.g. game_world's lamps follow the time "
-                                  "of day)");
+                ImGui::SetTooltip(
+                    "A game's systems may switch the light again (e.g. game_world's lamps follow the time "
+                    "of day)");
             DebugUiStyle::property("cast shadows");
             edit = ImGui::Checkbox("##light shadows", &s.castShadows) || edit;
             app.debugUi().markItem("lighting/light shadows");
@@ -2257,7 +2380,8 @@ void LightingTab::lightTable()
             }
             DebugUiStyle::endProperties();
         }
-        if (app.debugUi().subSection("lighting/Local lights: Light details", "Offset, spot, priority, flicker", false) &&
+        if (app.debugUi().subSection("lighting/Local lights: Light details", "Offset, spot, priority, flicker",
+                                     false) &&
             DebugUiStyle::beginProperties("##lighting light details"))
         {
             DebugUiStyle::property("offset (entity, m)");
@@ -2277,7 +2401,8 @@ void LightingTab::lightTable()
                     s.outerAngleDeg = std::max(cone[0], cone[1]);
                     edit            = true;
                 }
-                // The spot's direction relative to the entity (its -z after rotation) as yaw (about +y, 0: -z) and pitch
+                // The spot's direction relative to the entity (its -z after rotation) as yaw (about +y, 0: -z) and
+                // pitch
                 DebugUiStyle::property("direction (yaw, pitch)");
                 const Vec3 local = s.rotation * Vec3(0, 0, -1);
                 float yp[2]      = {float(std::atan2(-local(0), -local(2)) * 57.29577951308232),
@@ -2310,8 +2435,8 @@ void LightingTab::lightTable()
         }
         if (edit)
         {
-            // A write through the world API (set_component, logged; refused on a pure client), between the steps; only the
-            // fields this frame changed (a field written meanwhile by the host or a system keeps its value)
+            // A write through the world API (set_component, logged; refused on a pure client), between the steps; only
+            // the fields this frame changed (a field written meanwhile by the host or a system keeps its value)
             auto vec3 = [](const Vec3& v) { return json11::Json::array{v(0), v(1), v(2)}; };
             json11::Json::object values;
             if (s.on != before.on) values["on"] = s.on;
@@ -2322,7 +2447,8 @@ void LightingTab::lightTable()
             if (s.color != before.color) values["color"] = vec3(s.color);
             if (s.offset != before.offset) values["offset"] = vec3(s.offset);
             if (s.rotation.coeffs() != before.rotation.coeffs())
-                values["rotation"] = json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()};
+                values["rotation"] =
+                    json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()};
             if (s.innerAngleDeg != before.innerAngleDeg) values["innerAngleDeg"] = s.innerAngleDeg;
             if (s.outerAngleDeg != before.outerAngleDeg) values["outerAngleDeg"] = s.outerAngleDeg;
             if (s.priority != before.priority) values["priority"] = s.priority;

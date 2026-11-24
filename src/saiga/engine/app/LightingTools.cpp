@@ -1431,8 +1431,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                             cl["overflowed"]                      = double(l.overflowedClusters);
                             // (the count's frame: the newest harvested one, not necessarily the capture's; CodeRabbit
                             // #86 round 2)
-                            cl["overflowed_frame"]                = double(l.clusterFrame);
-                            block["clusters"]                     = cl;
+                            cl["overflowed_frame"] = double(l.clusterFrame);
+                            block["clusters"]      = cl;
                         }
                     }
                     if (name == "cascade" || name == "cascade_strip")

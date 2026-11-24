@@ -107,8 +107,12 @@ bool DebugUi::section(const std::string& key, const char* title, bool defaultOpe
     auto it = sections.find(key);
     if (it == sections.end()) it = sections.emplace(key, defaultOpen).first;
     ImGui::PushID(key.c_str());
-    const bool open = DebugUiStyle::section(title, it->second);
+    const bool wasOpen = it->second;
+    const bool open    = DebugUiStyle::section(title, it->second);
     ImGui::PopID();
+    // A section opened by its header scrolls to the top of the panel (UI rating round 3, finding 5: a section near the
+    // bottom opened below the panel's edge)
+    if (open && !wasOpen) ImGui::SetScrollHereY(0.0f);
     return open;
 }
 

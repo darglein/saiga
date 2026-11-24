@@ -43,8 +43,9 @@ enum class DebugTab : int
  * and focuses its command line.
  *
  * The state (selected tab, panel width, open sections, the console's filters and history) is not kept between runs
- * (S36: the user's choice; a saved file kept outdated defaults, e.g. every section open). Exists in every app mode (also without ImGui or a device), so games can register tabs and
- * sections unconditionally; disabled it draws nothing and passes the keys through. Main thread.
+ * (S36: the user's choice; a saved file kept outdated defaults, e.g. every section open). Exists in every app mode
+ * (also without ImGui or a device), so games can register tabs and sections unconditionally; disabled it draws nothing
+ * and passes the keys through. Main thread.
  */
 class SAIGA_ENGINE_API DebugUi
 {

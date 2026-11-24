@@ -133,10 +133,16 @@ void showLightingTab(EngineApp& app)
                                       {"lighting/Cascades: Bias", true},
                                       {"lighting/Cascades: Casters", true},
                                       {"lighting/Far terrain shadows", true},
+                                      {"lighting/Far terrain shadows: Settings", true},
+                                      {"lighting/Far terrain shadows: Details", true},
                                       {"lighting/Local lights", true},
                                       {"lighting/Local lights: Light details", true},
+                                      {"lighting/Local lights: Settings", true},
                                       {"lighting/Light clusters", true},
-                                      {"lighting/Shadow atlas", true}};
+                                      {"lighting/Light clusters: Settings", true},
+                                      {"lighting/Shadow atlas", true},
+                                      {"lighting/Shadow atlas: Settings", true},
+                                      {"lighting/Shadow atlas: Details", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -1112,13 +1118,13 @@ TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
 TEST_F(LightingTabTest, TypedValueOutOfRangeIsRefused)
 {
     Json::object state = app->debugUi().state().object_items();
-    // Only the Local lights section open (the slider inside the 1280 x 720 window)
+    // Only the Local lights section and its settings open (the slider inside the 1280 x 720 window)
     Json::object sections;
-    for (const char* s :
-         {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",
-          "Far terrain shadows", "Light clusters", "Shadow atlas", "GPU and memory"})
+    for (const char* s : {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",
+                          "Far terrain shadows", "Light clusters", "Shadow atlas", "GPU and memory"})
         sections[std::string("lighting/") + s] = false;
-    sections["lighting/Local lights"] = true;
+    sections["lighting/Local lights"]           = true;
+    sections["lighting/Local lights: Settings"] = true;
     state["sections"]                 = sections;
     app->debugUi().setState(state);
     app->debugUi().select(DebugTab::Lighting);
@@ -1252,7 +1258,7 @@ TEST_F(LightingTabTest, CaptureClustersAndAtlasTileWithTabOpen)
     // The tab with the clusters preview (at "max") and the atlas with light a's tile
     Json::object state = app->debugUi().state().object_items();
     state["sections"]  = Json::object{
-        {"lighting/Local lights", true}, {"lighting/Light clusters", true}, {"lighting/Shadow atlas", true}};
+         {"lighting/Local lights", true}, {"lighting/Light clusters", true}, {"lighting/Shadow atlas", true}};
     app->debugUi().setState(state);
     app->debugUi().select(DebugTab::Lighting);
     app->runFrames(2, 1.0 / 60);

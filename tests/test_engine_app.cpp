@@ -70,13 +70,13 @@ void actions(ActionList& a)
 EngineAppSetup appSetup(bool render)
 {
     EngineAppSetup s;
-    s.name          = "test_app";
-    s.headless      = true;
-    s.noRender      = !render;
-    s.width         = 64;
-    s.height        = 48;
-    s.mcpPort       = 0;
-    s.world.actions = actions;
+    s.name            = "test_app";
+    s.headless        = true;
+    s.noRender        = !render;
+    s.width           = 64;
+    s.height          = 48;
+    s.mcpPort         = 0;
+    s.world.actions   = actions;
     s.render.imgui    = false;
     s.render.lighting = testLightingParameters();
     s.validation      = render;  // a validation error fails the render tests (if the layer is installed)
