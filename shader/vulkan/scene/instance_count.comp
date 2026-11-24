@@ -9,14 +9,15 @@
 // The count pass of RenderScene's culling (S18, docs/engine_design.md §10.2): one workgroup per work chunk (chunk y *
 // x-count + x of a 2D dispatch), one invocation per instance. Rejects tombstones (scale 0), unset or removed dynamics
 // (mesh 0), zeroed mesh records, invalid offset entries (w = 0) and instances beyond the mesh's last end distance from
-// the main camera; then, for each view of the chunk's mask (S36a2), the view's six planes (the main camera's frustum,
-// or a shadow cascade's light-space volume), and for shadow views the de-duplication (the bounding sphere's xy
-// footprint inside the de-duplication rectangle and its light depth inside the de-duplication interval) and the
-// small-caster rule (S36b: an atlas face's dynamic filter: the static layer draws the resting dynamic instances, the
-// dynamic layer the moving ones); the LOD by the distance of the bounding sphere's centre from the main camera (the
-// first LOD with distance <= endDistance) plus the view's bias, clamped. The instance is counted in its bucket (view, pipeline class, mesh, LOD) with atomicAdd; the bucket and the
-// returned slot are stored in its scratch entry of the view (scratchBase[chunk] + k * 256 + invocation, k-th view of
-// the mask), which the write pass uses.
+// the main camera (an atlas face: from its light); then, for each view of the chunk's mask (S36a2), the view's six
+// planes (the main camera's frustum, or a shadow cascade's light-space volume), and for shadow views the
+// de-duplication (the bounding sphere's xy footprint inside the de-duplication rectangle and its light depth inside
+// the de-duplication interval) and the small-caster rule (S36b: an atlas face's dynamic filter: the static layer
+// draws the resting dynamic instances, the dynamic layer the moving ones); the LOD by the distance of the bounding
+// sphere's centre from the main camera (the first LOD with distance <= endDistance; an atlas face: from its light)
+// plus the view's bias, clamped. The instance is counted in its bucket (view, pipeline class, mesh, LOD) with
+// atomicAdd; the bucket and the returned slot are stored in its scratch entry of the view (scratchBase[chunk] + k *
+// 256 + invocation, k-th view of the mask), which the write pass uses.
 
 #include "instance_common.glsl"
 
@@ -101,11 +102,12 @@ void main()
     float d      = 0.0;
     float radius = 0.0;
     uint lod     = 0u;
+    bool inEnd   = false;
     if (valid)
     {
         center = placePoint(pose.position, o, rotateQuat(pose.rotation, m.sphere.xyz * pose.scale));
         d      = length(center);
-        valid  = d <= m.lods[m.lodCount - 1u].endDistance;
+        inEnd  = d <= m.lods[m.lodCount - 1u].endDistance;
         radius = (m.sphere.w + m.padding.x) * pose.scale;
         while (lod + 1u < m.lodCount && d > m.lods[lod].endDistance) lod++;
     }
@@ -115,9 +117,19 @@ void main()
     for (uint v = 0u; v < maxCullViews; ++v)
     {
         if ((ch.viewMask & (1u << v)) == 0u) continue;
-        uvec2 entry = uvec2(notVisible, 0u);
-        bool inside = valid;
+        uvec2 entry   = uvec2(notVisible, 0u);
         CullView view = views[v];
+        // S36b round 1, finding 5: an atlas face takes the LOD and the end distance from its light (axisX.xyz, flag
+        // dedup.y without de-duplication): a cached face does not depend on the camera
+        uint viewLod = lod;
+        bool inside  = valid && inEnd;
+        if (valid && view.params.w > 0.5 && view.params.x < 0.5 && view.dedup.y > 0.5)
+        {
+            float dl = length(center - view.axisX.xyz);
+            inside   = dl <= m.lods[m.lodCount - 1u].endDistance;
+            viewLod  = 0u;
+            while (viewLod + 1u < m.lodCount && dl > m.lods[viewLod].endDistance) viewLod++;
+        }
         for (int p = 0; p < 6 && inside; ++p) inside = dot(view.planes[p].xyz, center) + view.planes[p].w >= -radius;
         if (inside && view.params.w > 0.5)
         {
@@ -136,7 +148,7 @@ void main()
         }
         if (inside)
         {
-            uint l      = min(lod + uint(max(view.params.z, 0.0)), m.lodCount - 1u);
+            uint l      = min(viewLod + uint(max(view.params.z, 0.0)), m.lodCount - 1u);
             uint bucket = v * pc.bucketsPerView + m.bucketBase + l;
             uint index  = atomicAdd(counts[bucket], 1u);
             entry       = uvec2(bucket | (l << 30), index);

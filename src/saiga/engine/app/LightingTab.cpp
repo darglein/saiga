@@ -973,7 +973,8 @@ void LightingTab::localLightsSection()
             ImGui::Text("%u hits, %u static + %u dynamic renders, %u clears", as.hits, as.staticRenders,
                         as.dynamicRenders, as.dynamicClears);
             DebugUiStyle::property("queue");
-            ImGui::Text("%u static faces waiting (%d faces per frame)", as.queue, as.facesPerFrame);
+            ImGui::Text("%u static faces waiting, %u dynamic faces skipped (%d faces per frame)", as.queue,
+                        as.dynamicSkipped, as.facesPerFrame);
             DebugUiStyle::property("shadowed lights");
             ImGui::Text("%u with tiles, %u without (the tile budget)", as.lightsWithTiles, as.lightsWithoutTiles);
             DebugUiStyle::property("atlas memory");

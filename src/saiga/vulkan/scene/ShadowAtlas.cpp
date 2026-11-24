@@ -225,7 +225,6 @@ uint64_t ShadowAtlas::faceKey(const LightInput& l, int face)
 void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& camera, int facesPerFrame, uint64_t frame,
                          std::vector<Face>& faces)
 {
-    (void)camera;
     faces.clear();
     stats               = AtlasStatistics();
     stats.facesPerFrame = facesPerFrame;
@@ -280,12 +279,16 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
         }
         owners.erase(it);
     };
-    // 2. Candidates that lost their tiles free them (non-candidates stay cached until their tiles are needed)
+    // 2. Candidates that lost their tiles free them (non-candidates stay cached until their tiles are needed), and so
+    // do candidates whose face count changed (a kind change: the tiles are taken anew in step 3; round 1, finding 1:
+    // a spot that became a point light kept 1 tile, and the receivers read 6 table entries)
     std::vector<uint32_t> losers;
     for (const auto& o : owners)
     {
         auto in = inputOf.find(o.first);
-        if (in != inputOf.end() && !selected[in->second]) losers.push_back(o.first);
+        if (in == inputOf.end()) continue;
+        if (!selected[in->second] || int(o.second.tiles.size()) != faceCount(lights[in->second].data))
+            losers.push_back(o.first);
     }
     for (uint32_t h : losers) freeOwner(h);
     // 3. The selected lights without tiles take free tiles (evicting the oldest cached non-candidates)
@@ -331,7 +334,18 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
         int face, tile;
         uint64_t age;
     };
+    auto dirtyHit = [&](const Vec3& world, double r)
+    {
+        bool hit = allDirty;
+        for (size_t k = 0; k < dirty.size() && !hit; ++k)
+        {
+            const Vec3 d = (dirty[k].first - world).cwiseMax(Vec3::Zero()).cwiseMax(world - dirty[k].second);
+            hit          = d.squaredNorm() <= r * r;
+        }
+        return hit;
+    };
     std::vector<Job> dynamicJobs, staticJobs;
+    std::vector<bool> dynamicNeeded(size_t(total), false);
     for (size_t i : order)
     {
         auto it = owners.find(lights[i].handle);
@@ -344,44 +358,66 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
         Owner& o            = it->second;
         o.lastUsed          = frame;
         const LightInput& l = lights[i];
-        const double r      = double(l.data.range);
-        bool dirtyHit       = allDirty;
-        for (size_t k = 0; k < dirty.size() && !dirtyHit; ++k)
-        {
-            const Vec3 d = (dirty[k].first - l.world).cwiseMax(Vec3::Zero()).cwiseMax(l.world - dirty[k].second);
-            dirtyHit     = d.squaredNorm() <= r * r;
-        }
+        o.world             = l.world;
+        o.range             = double(l.data.range);
+        const bool hit      = dirtyHit(l.world, o.range);
+        const Vec3 rel      = l.world - camera;
         for (int k = 0; k < int(o.tiles.size()); ++k)
         {
             const int t        = o.tiles[size_t(k)];
             AtlasTileInfo& ts  = tileState[size_t(t)];
             const uint64_t key = faceKey(l, k);
-            if (key != tileKeys[size_t(t)] || dirtyHit) ts.staticValid = false;
+            if (key != tileKeys[size_t(t)] || hit) ts.staticValid = false;
             tileKeys[size_t(t)] = key;
             if (!ts.staticValid)
                 staticJobs.push_back({i, k, t, ts.staticFrame});
             else
                 stats.hits++;
-            if (l.dynamics) dynamicJobs.push_back({i, k, t, ts.dynamicFrame});
+            // A dynamic job only for a face whose frustum contains a moving instance (a point light with one mover
+            // usually needs 1-2 of its 6 faces)
+            if (l.movers.empty()) continue;
+            mat4 vp;
+            std::array<Vec4, 6> planes;
+            double tanHalf;
+            faceView(l.data, rel, k, vp, planes, tanHalf);
+            bool any = false;
+            for (const auto& m : l.movers)
+            {
+                const Vec3 c = m.first - camera;
+                bool inside  = true;
+                for (const Vec4& p : planes) inside = inside && p.head<3>().dot(c) + p(3) >= -m.second;
+                any = any || inside;
+            }
+            if (!any) continue;
+            dynamicJobs.push_back({i, k, t, ts.dynamicFrame});
+            dynamicNeeded[size_t(t)] = true;
         }
     }
+    // The cached owners that are not candidates this frame see the dirty bounds as well (their key does not change
+    // with a caster: round 1, finding 2, a tree removed while the lamp was off screen kept its shadow)
+    if (allDirty || !dirty.empty())
+        for (auto& [handle, o] : owners)
+        {
+            if (o.lastUsed == frame || o.range <= 0 || !dirtyHit(o.world, o.range)) continue;
+            for (int t : o.tiles) tileState[size_t(t)].staticValid = false;
+        }
     dirty.clear();
     allDirty = false;
-    // Dynamic tiles whose light has no dynamic instance in range any more (or a new owner): cleared once
+    // Dynamic tiles without a moving instance in their frustum any more (or a new owner): cleared once
     for (int t = 0; t < total; ++t)
     {
         AtlasTileInfo& ts = tileState[size_t(t)];
-        if (!ts.dynamicContent) continue;
-        auto in         = inputOf.find(ts.owner);
-        const bool keep = ts.owner != 0 && in != inputOf.end() && lights[in->second].dynamics;
-        if (keep) continue;
+        if (!ts.dynamicContent || dynamicNeeded[size_t(t)]) continue;
         Face f;
         f.tile      = t;
         f.layer     = 1;
         f.clearOnly = true;
         faces.push_back(f);
     }
-    // The queue: dynamic faces first (importance), then the invalid static faces by importance and age
+    // The queue (round 1, finding 4: dynamic faces first by importance starved the rest): the dynamic faces oldest
+    // first (ties: importance), the invalid static faces by importance and age; a quarter of the budget (at least 1)
+    // is reserved for the static faces while any is due
+    std::stable_sort(dynamicJobs.begin(), dynamicJobs.end(), [](const Job& a, const Job& b) { return a.age < b.age; });
     std::stable_sort(staticJobs.begin(), staticJobs.end(),
                      [&](const Job& a, const Job& b)
                      {
@@ -393,7 +429,9 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
                          return a.age < b.age;
                      });
     int budgetFaces = std::max(facesPerFrame, 0);
-    auto emit       = [&](const Job& j, int layer)
+    const int staticReserve =
+        std::min(int(staticJobs.size()), staticJobs.empty() || budgetFaces == 0 ? 0 : std::max(1, budgetFaces / 4));
+    auto emit = [&](const Job& j, int layer)
     {
         const LightInput& l = lights[j.light];
         Face f;
@@ -409,7 +447,11 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
     };
     for (const Job& j : dynamicJobs)
     {
-        if (budgetFaces == 0) break;
+        if (budgetFaces <= staticReserve)
+        {
+            stats.dynamicSkipped++;
+            continue;
+        }
         emit(j, 1);
         budgetFaces--;
         stats.dynamicRenders++;

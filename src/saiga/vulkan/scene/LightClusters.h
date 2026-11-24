@@ -63,6 +63,13 @@ class SAIGA_VULKAN_API LightClusters
     // camera rotation's view matrix (camera-relative world -> view), projection: the frame's
     void record(vk::CommandBuffer cmd, uint32_t frameIndex, const ClusterGrid& grid, const mat4& view,
                 const mat4& projection, const LocalLights& lights);
+    // The frame slot's buffers for the grid and the light count, before the frame's lighting set binds them (record
+    // also calls it; round 1, finding 3: a grid that grew in record left the scene pass reading the old, smaller
+    // buffers with the new grid)
+    void prepare(uint32_t frameIndex, const ClusterGrid& grid, size_t lights)
+    {
+        ensure(frames[frameIndex], grid, lights);
+    }
     // The frame slot's table and indices (binding 11, 12; valid after init)
     vk::DescriptorBufferInfo tableInfo(uint32_t frameIndex);
     vk::DescriptorBufferInfo indexInfo(uint32_t frameIndex);

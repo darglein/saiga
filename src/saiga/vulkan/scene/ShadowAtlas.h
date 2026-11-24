@@ -35,11 +35,14 @@ namespace Vulkan
  * unshadowed and counted); tiles of lights that are no longer candidates stay cached until another light needs them
  * (oldest first). A static face is invalid when its key (the light's position, axis, cone, range and the terrain
  * selection under its sphere) changed or a dirty bound (markDirty: content changes; terrain tiles and patches)
- * intersects the light's sphere. The queue renders the dynamic faces first, then the invalid static faces by
- * importance and age, at most facesPerFrame per frame (each a view of SceneCulling); a skipped dynamic face keeps its
- * last image. A light is drawn unshadowed until each of its faces was rendered once. The tile table (binding 14 of
- * set 1) holds per face the camera-relative view-projection, the tile's rectangle and its texel factor, written every
- * frame (writeTable).
+ * intersects the light's sphere (also while the light is not a candidate: its cached faces see every dirty bound).
+ * A light whose face count changed (a point light that became a spot or back) takes new tiles. The queue renders at
+ * most facesPerFrame faces per frame (each a view of SceneCulling): the dynamic faces (a face whose frustum contains
+ * a moving dynamic instance) oldest first, then the invalid static faces by importance and age, with a quarter of
+ * the budget (at least 1) reserved for the static faces while any is due: neither queue starves; a skipped dynamic
+ * face keeps its last image. A light is drawn unshadowed until each of its faces was rendered once. The tile table
+ * (binding 14 of set 1) holds per face the camera-relative view-projection, the tile's rectangle and its texel factor,
+ * written every frame (writeTable).
  */
 class SAIGA_VULKAN_API ShadowAtlas
 {
@@ -61,8 +64,10 @@ class SAIGA_VULKAN_API ShadowAtlas
         int index       = 0;  // the frame's light buffer index
         Vec3 world      = Vec3::Zero();
         LightData data;
-        double importance   = 0;
-        bool dynamics       = false;  // a dynamic instance's sphere intersects the light's
+        double importance = 0;
+        // The moving dynamic instances whose sphere intersects the light's (world centre, radius): a face gets a
+        // dynamic job only when one of them intersects its frustum (round 1, finding 4)
+        std::vector<std::pair<Vec3, double>> movers;
         uint64_t terrainKey = 0;
     };
     // A face to render (or a dynamic tile to clear) this frame
@@ -125,6 +130,10 @@ class SAIGA_VULKAN_API ShadowAtlas
     {
         std::vector<int> tiles;
         uint64_t lastUsed = 0;
+        // The light's world position and range when it was last a candidate: the dirty bounds also reach the cached
+        // owners that are not candidates (round 1, finding 2)
+        Vec3 world   = Vec3::Zero();
+        double range = 0;
     };
     VulkanBase* base = nullptr;
     std::unique_ptr<Texture2DArray> image;

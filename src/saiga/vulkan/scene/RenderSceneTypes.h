@@ -488,6 +488,11 @@ struct ShadowView
     bool castStatic = true, castDynamic = true;
     // The dynamic instances it draws: 0 all, 1 the resting ones (the static layer caches them), 2 the moving ones
     int dynamicFilter = 0;
+    // The origin of the instances' LOD and end-distance cull (camera-relative; an atlas face: the light, so that a
+    // cached face does not depend on where the camera was when it was rendered; round 1, finding 5); off: the main
+    // camera's distance
+    bool lodFromOrigin = false;
+    Vec3 lodOrigin     = Vec3::Zero();
 
     // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
     // (zMin) and the near cap (zMax + the instances' or the terrain's cap)

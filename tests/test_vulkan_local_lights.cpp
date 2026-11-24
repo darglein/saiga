@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <functional>
 #include <random>
 #include <set>
 
@@ -502,6 +503,42 @@ TEST_F(LightsTest, ClusterListsMatchCpuReference)
     EXPECT_EQ(overflowed, 0);
 }
 
+// Regression (round 1, finding 3): a cluster grid that grows between two frames (more slices, more slots per cluster)
+// is right in the first frame after the change. The old code grew the slot's buffers in the lights section, after the
+// frame's lighting set had bound the old, smaller ones: the scene pass read them with the new grid (out of bounds)
+TEST_F(LightsTest, ClusterGridGrowthFirstFrame)
+{
+    Floor(728, Vec3(0, 18, 26));
+    SetCamera(0, Vec3(0, 18, 26), lookRotation(Vec3(0, -0.8, -1)), 1.2);
+    std::vector<LightData> list;
+    randomLights(list, 300, 13);
+    for (const LightData& d : list) AddLight(d);
+    LightingParameters p  = scene->lightingParameters();
+    p.maxLightsPerCluster = 512;
+    p.clusteredLights     = false;
+    scene->setLightingParameters(p);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::LocalLightsOnly, 0});
+    const TemplatedImage<ucvec4> brute = Capture(2);
+    // A small grid first (its buffers are the slots' sizes), then a larger one
+    p.clusteredLights     = true;
+    p.clusterZ            = 8;
+    p.maxLightsPerCluster = 256;
+    scene->setLightingParameters(p);
+    Capture(2);
+    p.clusterZ            = 48;
+    p.maxLightsPerCluster = 512;
+    scene->setLightingParameters(p);
+    const TemplatedImage<ucvec4> grown = RenderFrame();
+    scene->waitIdle();
+    EXPECT_EQ(scene->frameClusterGrid().z, 48);
+    int maxDiff = 0;
+    for (int y = 0; y < brute.h; ++y)
+        for (int x = 0; x < brute.w; ++x)
+            for (int c = 0; c < 3; ++c)
+                maxDiff = std::max(maxDiff, std::abs(int(brute(y, x)(c)) - int(grown(y, x)(c))));
+    EXPECT_LE(maxDiff, 1);
+}
+
 // A cluster with more lights than slots keeps the most important ones and counts the overflow (statistics of the
 // completed frame)
 TEST_F(LightsTest, OverflowCounted)
@@ -683,9 +720,9 @@ TEST_F(AtlasTest, CameraMoveKeepsStaticTiles)
     EXPECT_EQ(Stats().hits, 6u);
 }
 
-// The dynamic layer is rendered only for the lights with a moving dynamic instance in range, and cleared once when the
-// last one leaves (comes to rest elsewhere); a resting dynamic instance is a static caster (its rest pose is a dirty
-// bound)
+// The dynamic layer is rendered only for the faces whose frustum contains a moving dynamic instance, and cleared once
+// when the last one leaves (comes to rest elsewhere); a resting dynamic instance is a static caster (its rest pose is
+// a dirty bound)
 TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
 {
     FloorAndBox(748);
@@ -701,16 +738,18 @@ TEST_F(AtlasTest, DynamicLayerOnlyNearDynamics)
     pose.position = Vec3(1, 1.5, 0);
     scene->setDynamic(d, ChunkId(), prev, pose);
     Capture(2);
-    EXPECT_EQ(Stats().dynamicRenders, 6u) << "the point light's faces only";
+    // Round 1, finding 4: only the faces whose frustum contains the instance (centre 1 m along +x and 1.5 m down, 0.87
+    // m radius: the +x and -y faces), not all six
+    EXPECT_EQ(Stats().dynamicRenders, 2u) << "the point light's +x and -y faces only";
     int dynamicTiles = 0;
     for (const AtlasTileInfo& t : scene->shadowAtlas().tiles()) dynamicTiles += t.dynamicContent ? 1 : 0;
-    EXPECT_EQ(dynamicTiles, 6);
+    EXPECT_EQ(dynamicTiles, 2);
     // Away from both lights: the dynamic tiles are cleared once
     pose.position = Vec3(-40, 1.5, 0);
     scene->setDynamic(d, ChunkId(), pose, pose);
     RenderFrame();
     EXPECT_EQ(Stats().dynamicRenders, 0u);
-    EXPECT_EQ(Stats().dynamicClears, 6u);
+    EXPECT_EQ(Stats().dynamicClears, 2u);
     RenderFrame();
     EXPECT_EQ(Stats().dynamicClears, 0u);
     // At rest inside the point light: no dynamic face, the static faces re-rendered once (its rest pose is dirty)
@@ -853,4 +892,210 @@ TEST_F(AtlasTest, PointLightSixFaces)
         EXPECT_LT(s(1), 0.2f * l(1)) << dir.transpose();
     }
     EXPECT_EQ(Stats().tilesUsed, 6u);
+}
+
+// Regression (round 1, finding 1): a shadowed light that changes kind (spot -> point -> spot) takes the tiles of its
+// new face count. The old code kept the spot's 1 tile for the point light: its receivers read 6 table entries (the
+// next light's or past the buffer) and the budget counted 6 tiles with 1 taken. The point light's shadow is correct in
+// every direction
+TEST_F(AtlasTest, KindChangeRetakesTiles)
+{
+    Floor(760);
+    MaterialData m;
+    scene->addMaterial(MaterialId(761), "atlas_kind_pillar", m);
+    scene->addMesh(MeshId(761), "atlas_kind_pillar", boxMesh(vec3(0.3f, 1.5f, 0.3f), ucvec4(200, 200, 200, 255)),
+                   MaterialId(761));
+    AddSet({instanceAt(vec3(2, 1.5f, 0), MeshId(761)), instanceAt(vec3(-2, 1.5f, 0), MeshId(761)),
+            instanceAt(vec3(0, 1.5f, 2), MeshId(761)), instanceAt(vec3(0, 1.5f, -2), MeshId(761))});
+    LightData spot      = spotLight(vec3(0, 1, 0), vec3(0, -1, 0), 2000, 12, 20, 35);
+    spot.castShadows    = true;
+    const LightHandle h = AddLight(spot);
+    RenderFrame();
+    EXPECT_EQ(scene->shadowAtlas().tilesOf(h.id).size(), 1u);
+    EXPECT_EQ(Stats().tilesUsed, 1u);
+    scene->setLight(h, ChunkId(), ShadowedPoint(vec3(0, 1, 0), 12));
+    RenderFrame();
+    EXPECT_EQ(scene->shadowAtlas().tilesOf(h.id).size(), 6u);
+    EXPECT_EQ(Stats().tilesUsed, 6u);
+    EXPECT_EQ(Stats().staticRenders, 6u);
+    ASSERT_EQ(scene->frameLights().size(), 1u);
+    EXPECT_EQ(scene->frameLights()[0].tiles, 6);
+    EXPECT_TRUE(scene->frameLights()[0].shadowReady);
+    const Vec3 eye(0, 12, 0.01);
+    for (const Vec3& dir : {Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)})
+    {
+        const Vec3 side = Vec3(dir(0) - dir(2), 0, dir(2) + dir(0)).normalized() * 4.0;
+        EXPECT_LT(ReadRadiance(Pixel(dir * 4.0, eye))(1), 0.2f * ReadRadiance(Pixel(side, eye))(1)) << dir.transpose();
+    }
+    scene->setLight(h, ChunkId(), spot);
+    RenderFrame();
+    EXPECT_EQ(scene->shadowAtlas().tilesOf(h.id).size(), 1u);
+    EXPECT_EQ(Stats().tilesUsed, 1u);
+}
+
+// The +y and -y faces of a point light (finding 15: PointLightSixFaces covers the horizontal ones): a wall in front of
+// the camera, the light 2 m before it; a box above and one below the light shadow the wall where the direction from
+// the light is mostly up or down
+TEST_F(AtlasTest, PointLightUpDownFaces)
+{
+    MaterialData m;
+    m.roughness = 1.0f;
+    scene->addMaterial(MaterialId(762), "atlas_wall", m);
+    scene->addMesh(MeshId(762), "atlas_wall", boxMesh(vec3(10, 10, 0.05f), ucvec4(160, 160, 160, 255)),
+                   MaterialId(762));
+    scene->addMaterial(MaterialId(763), "atlas_blocker", m);
+    scene->addMesh(MeshId(763), "atlas_blocker", boxMesh(vec3(0.3f, 0.3f, 0.3f), ucvec4(160, 160, 160, 255)),
+                   MaterialId(763));
+    // The wall's front at z = -4; the blockers halfway between the light (0, 1, -2) and the wall points (0, 5, -4)
+    // and (0, -3, -4)
+    AddSet({instanceAt(vec3(0, 1, -4.05f), MeshId(762)), instanceAt(vec3(0, 3, -3), MeshId(763)),
+            instanceAt(vec3(0, -1, -3), MeshId(763))});
+    AddLight(ShadowedPoint(vec3(0, 1, -2), 12));
+    const Vec3 eye(0, 1, 6);
+    SetCamera(0, eye, lookRotation(Vec3(0, 0, -1)), 1.2);
+    Capture(2);
+    for (double y : {5.0, -3.0})
+    {
+        // Behind the blocker, and 2 m beside it (the same face: |dy| = 4 > |dx|, |dz|)
+        const vec3 s = ReadRadiance(Pixel(Vec3(0, y, -4), eye));
+        const vec3 l = ReadRadiance(Pixel(Vec3(1.8, y, -4), eye));
+        EXPECT_GT(l(1), 0.0f) << y;
+        EXPECT_LT(s(1), 0.2f * l(1)) << y;
+    }
+}
+
+// Regression (round 1, finding 2): the dirty bounds (a removed instance) and invalidateAll (setMaterial) reach the
+// cached faces of a light that is not a candidate in that frame (off screen). The old code tested them only against
+// the frame's candidates and then dropped them: the faces stayed hits when the light came back, with the removed box's
+// shadow
+TEST_F(AtlasTest, DirtyBoundsReachCachedLights)
+{
+    FloorAndBox(764);
+    const LightHandle h = AddLight(ShadowedPoint(vec3(0, 3, 0)));
+    const Vec3 eye(0, 12, 0.01);
+    const Quat down = lookRotation(Vec3(0, -1, -0.001)), up = lookRotation(Vec3(0, 1, 0.001));
+    Capture(2);
+    EXPECT_EQ(Stats().hits, 6u);
+    auto awayAndBack = [&](const std::function<void()>& change)
+    {
+        SetCamera(0, eye, up, 1.2);
+        RenderFrame();
+        EXPECT_TRUE(scene->frameLights().empty()) << "off screen: not a candidate";
+        EXPECT_EQ(scene->shadowAtlas().tilesOf(h.id).size(), 6u) << "still cached";
+        change();
+        RenderFrame();
+        SetCamera(0, eye, down, 1.2);
+        RenderFrame();
+        EXPECT_EQ(Stats().staticRenders, 6u);
+        EXPECT_EQ(Stats().hits, 0u);
+        RenderFrame();
+        EXPECT_EQ(Stats().hits, 6u);
+    };
+    awayAndBack([&]() { scene->removeInstance(boxSet, 0); });
+    MaterialData m;
+    m.roughness = 0.5f;
+    awayAndBack([&]() { scene->setMaterial(MaterialId(765), m); });
+    // While the light is a candidate, setMaterial invalidates its faces as well
+    scene->setMaterial(MaterialId(765), m);
+    RenderFrame();
+    EXPECT_EQ(Stats().staticRenders, 6u);
+}
+
+// Regression (round 1, finding 4): two shadowed point lights with moving instances around them (12 dynamic faces)
+// and facesPerFrame 8. The old queue rendered the 8 dynamic faces of the more important light every frame: the
+// other light's dynamic faces and every static face starved (neither light became ready). Now the dynamic faces go
+// oldest first with a quarter of the budget for the static faces: every face renders within a few frames
+TEST_F(AtlasTest, DynamicFacesDoNotStarve)
+{
+    Floor(766);
+    MaterialData m;
+    scene->addMaterial(MaterialId(767), "atlas_mover", m);
+    scene->addMesh(MeshId(767), "atlas_mover", boxMesh(vec3(0.2f, 0.2f, 0.2f), ucvec4(200, 200, 200, 255)),
+                   MaterialId(767));
+    SetFaces(8);
+    std::vector<LightHandle> l;
+    std::vector<InstanceHandle> movers;
+    for (float x : {-5.0f, 5.0f})
+    {
+        LightData d = ShadowedPoint(vec3(x, 3, 0), 4);
+        d.lumen     = x < 0 ? 4000 : 2000;
+        l.push_back(AddLight(d));
+        // A moving instance in front of each of the six faces
+        for (const Vec3& a :
+             {Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 1, 0), Vec3(0, -1, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)})
+        {
+            const InstanceHandle i = scene->addDynamic(MeshId(767));
+            DynamicPose prev, curr;
+            curr.position = Vec3(x, 3, 0) + 1.5 * a;
+            prev.position = curr.position + Vec3(0.01, 0, 0);
+            scene->setDynamic(i, ChunkId(), prev, curr);
+            movers.push_back(i);
+        }
+    }
+    // The 12 static faces at 2 per frame (the reserve) while the dynamic faces take 6: ready after 6 frames
+    for (int i = 0; i < 7; ++i) RenderFrame();
+    ASSERT_EQ(scene->frameLights().size(), 2u);
+    for (const FrameLightInfo& f : scene->frameLights()) EXPECT_TRUE(f.shadowReady) << f.handle;
+    EXPECT_EQ(Stats().queue, 0u);
+    // Every dynamic face rendered recently (6 per frame of 12: each at most 2 frames old)
+    uint64_t maxFrame = 0;
+    for (const LightHandle& h : l)
+        for (int t : scene->shadowAtlas().tilesOf(h.id))
+            maxFrame = std::max(maxFrame, scene->shadowAtlas().tiles()[size_t(t)].dynamicFrame);
+    for (const LightHandle& h : l)
+        for (int t : scene->shadowAtlas().tilesOf(h.id))
+        {
+            const AtlasTileInfo& ti = scene->shadowAtlas().tiles()[size_t(t)];
+            EXPECT_TRUE(ti.dynamicContent) << t;
+            EXPECT_GE(ti.dynamicFrame + 2, maxFrame) << t;
+        }
+    EXPECT_EQ(Stats().dynamicRenders, 8u) << "no static face due: the whole budget";
+    EXPECT_EQ(Stats().dynamicSkipped, 4u);
+    for (InstanceHandle i : movers) scene->removeDynamic(i);
+}
+
+namespace
+{
+// A pillar (0.6 x 3 m) whose LODs are given by end distance: LOD 0 the pillar, later LODs a 2 cm box (no shadow)
+MeshLods pillarLods(const std::vector<float>& endDistances)
+{
+    MeshLods m;
+    for (size_t i = 0; i < endDistances.size(); ++i)
+    {
+        MeshLods b = boxMesh(i == 0 ? vec3(0.3f, 1.5f, 0.3f) : vec3(0.01f, 0.01f, 0.01f), ucvec4(200, 200, 200, 255));
+        b.lods[0].endDistance = endDistances[i];
+        m.lods.push_back(b.lods[0]);
+    }
+    m.sphereRadius = vec3(0.3f, 1.5f, 0.3f).norm();
+    return m;
+}
+}  // namespace
+
+// Regression (round 1, finding 5): a light's cached static faces do not depend on where the camera was when they were
+// rendered. The old culling took the instances' end distance and LOD from the main camera: from 60 m away the pillar
+// at +x (end distance 30 m) was culled and the pillar at -x (LOD 0 up to 20 m, then a 2 cm box) drawn at LOD 1, so
+// the cached faces had no pillar shadows when the camera came near. Now the atlas faces take both from the light
+TEST_F(AtlasTest, CachedFacesIndependentOfCamera)
+{
+    Floor(768);
+    MaterialData m;
+    scene->addMaterial(MaterialId(769), "atlas_far_pillar", m);
+    scene->addMesh(MeshId(769), "atlas_end_pillar", pillarLods({30}), MaterialId(769));
+    scene->addMesh(MeshId(770), "atlas_lod_pillar", pillarLods({20, 2000}), MaterialId(769));
+    AddSet({instanceAt(vec3(2, 1.5f, 0), MeshId(769)), instanceAt(vec3(-2, 1.5f, 0), MeshId(770))});
+    AddLight(ShadowedPoint(vec3(0, 1, 0), 12));
+    // 60 m away, looking at the light
+    const Vec3 far(0, 20, 57);
+    SetCamera(0, far, lookRotation(Vec3(0, 1, 0) - far), 1.2);
+    Capture(2);
+    EXPECT_EQ(Stats().hits, 6u) << "cached from afar";
+    const Vec3 eye(0, 12, 0.01);
+    SetCamera(0, eye, lookRotation(Vec3(0, -1, -0.001)), 1.2);
+    Capture(1);
+    EXPECT_EQ(Stats().staticRenders, 0u) << "still cached";
+    for (const Vec3& dir : {Vec3(1, 0, 0), Vec3(-1, 0, 0)})
+    {
+        const Vec3 side = Vec3(dir(0), 0, dir(0)).normalized() * 4.0;
+        EXPECT_LT(ReadRadiance(Pixel(dir * 4.0, eye))(1), 0.2f * ReadRadiance(Pixel(side, eye))(1)) << dir.transpose();
+    }
 }

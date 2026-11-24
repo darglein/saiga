@@ -146,12 +146,13 @@ vk::Buffer handle(Buffer& b)
     return b.memoryLocation()->data;
 }
 
-// The AABB [lo, hi] (camera-relative) is outside a plane or farther than maxDistance
+// The AABB [lo, hi] (camera-relative) is outside a plane or farther than maxDistance from origin (camera-relative)
 template <size_t N>
-bool aabbCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, N>& planes, double maxDistance)
+bool aabbCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, N>& planes, double maxDistance,
+                const Vec3& origin = Vec3::Zero())
 {
-    Vec3 nearest = Vec3::Zero().cwiseMax(lo).cwiseMin(hi);
-    if (nearest.norm() > maxDistance) return true;
+    Vec3 nearest = origin.cwiseMax(lo).cwiseMin(hi);
+    if ((nearest - origin).norm() > maxDistance) return true;
     for (const Vec4& p : planes)
     {
         // The corner farthest along the normal
@@ -402,7 +403,8 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             for (size_t v = 0; v < shadowViews.size(); ++v)
             {
                 if (!shadowViews[v].castStatic) continue;
-                if (aabbCulled(lo, hi, viewPlanes[v], s.maxEndDistance)) continue;
+                const Vec3 origin = shadowViews[v].lodFromOrigin ? shadowViews[v].lodOrigin : Vec3::Zero();
+                if (aabbCulled(lo, hi, viewPlanes[v], s.maxEndDistance, origin)) continue;
                 if (shadowViews[v].dedupContains(lo, hi, false)) continue;
                 mask |= 1u << (v + 1);
             }
@@ -465,6 +467,12 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             g.params[0] = sv.dedup ? 1.0f : 0.0f;
             // S36b: an atlas face (no de-duplication): dedup.x is its dynamic filter (1 resting, 2 moving instances)
             if (!sv.dedup) g.dedup[0] = float(sv.dynamicFilter);
+            // S36b round 1, finding 5: the LOD origin of an atlas face (axisX.xyz, flag dedup.y; no de-duplication)
+            if (!sv.dedup && sv.lodFromOrigin)
+            {
+                storeVec(g.axisX, sv.lodOrigin, 0);
+                g.dedup[1] = 1;
+            }
             g.params[1] = float(sv.smallRadius);
             g.params[2] = float(sv.lodBias);
             g.params[3] = 1;

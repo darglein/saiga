@@ -1815,6 +1815,8 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     // The lights' cluster ranges (light_cluster.comp's pre-test)
     if (frameClusters)
     {
+        // The slot's cluster buffers for this grid before writeLightingSet binds them
+        clusterCull->prepare(frameIndex, g, count);
         for (LocalLights::GpuLight& r : lightTable->frameRecordsMutable())
             r.clusterRange = LightClusters::clusterRange(g, frameView, frameProjection, r);
         lightTable->writeRecords(frameIndex);
@@ -1869,8 +1871,8 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
             const LocalLights::Light* l = lightTable->find(LightHandle{h});
             return l && l->data.castShadows;
         });
-    // Moving dynamic instances in a light's sphere: its dynamic layer is rendered every frame (resting ones are in the
-    // static layer)
+    // Moving dynamic instances in a light's sphere: the faces whose frustum contains one render their dynamic layer
+    // every frame (resting ones are in the static layer)
     if (!in.empty())
         for (const InstanceBuffer::Dynamic& d : instanceBuffer->dynamics())
         {
@@ -1882,7 +1884,8 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
                 chunkOrigin(d.chunk) + d.curr.position + d.curr.rotation * (m->sphereCenter.cast<double>() * scale);
             const double radius = double(m->sphereRadius + m->boundsPadding) * scale;
             for (ShadowAtlas::LightInput& li : in)
-                if ((centre - li.world).norm() <= radius + double(li.data.range)) li.dynamics = true;
+                if ((centre - li.world).norm() <= radius + double(li.data.range))
+                    li.movers.emplace_back(centre, radius);
         }
     // The terrain under each light at the finest resident level (its key: a finer level that becomes resident changes
     // it); none in an enclosed space
@@ -1917,6 +1920,9 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
             v.castDynamic   = true;
             v.dynamicFilter = f.layer == 0 ? 1 : 2;
             v.viewProj      = f.viewProj;
+            // The instances' LOD and end distance from the light (a cached face is camera-independent)
+            v.lodFromOrigin = true;
+            v.lodOrigin     = Vec3(f.lightPush(0), f.lightPush(1), f.lightPush(2));
             shadowViews.push_back(v);
             af.view = uint32_t(shadowViews.size());
         }

@@ -478,9 +478,9 @@ struct AtlasStatistics
     int resolution = 0, tile = 0;
     uint32_t tilesTotal = 0, tilesUsed = 0;
     // The faces rendered this frame (static / dynamic layer), the dynamic tiles cleared, the valid static faces that
-    // were not re-rendered (cache hits), the static faces still waiting (queue), the shadowed lights with tiles and
-    // without (the tile budget)
-    uint32_t staticRenders = 0, dynamicRenders = 0, dynamicClears = 0, hits = 0, queue = 0;
+    // were not re-rendered (cache hits), the static faces still waiting (queue), the dynamic faces skipped by the
+    // budget (they keep their last image), the shadowed lights with tiles and without (the tile budget)
+    uint32_t staticRenders = 0, dynamicRenders = 0, dynamicClears = 0, hits = 0, queue = 0, dynamicSkipped = 0;
     uint32_t lightsWithTiles = 0, lightsWithoutTiles = 0;
     int facesPerFrame    = 0;
     uint64_t memoryBytes = 0;
