@@ -29,9 +29,13 @@ struct EnvironmentState;
 class SAIGA_VULKAN_API Atmosphere
 {
    public:
-    static constexpr uint32_t kTransmittanceWidth = 256, kTransmittanceHeight = 64;
+    // One constant per declaration: MSVC rejects a second declarator of a static member of a dll interface class
+    // (C2487)
+    static constexpr uint32_t kTransmittanceWidth  = 256;
+    static constexpr uint32_t kTransmittanceHeight = 64;
     static constexpr uint32_t kMultiScatteringSize = 32;
-    static constexpr uint32_t kSkyViewWidth = 192, kSkyViewHeight = 108;
+    static constexpr uint32_t kSkyViewWidth        = 192;
+    static constexpr uint32_t kSkyViewHeight       = 108;
     // The sky-view LUT and the environment cube store radiance times this (shader: kSkyLutScale)
     static constexpr float kSkyLutScale = 1.0f / 16.0f;
 
