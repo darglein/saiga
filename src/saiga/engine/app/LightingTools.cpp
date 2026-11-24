@@ -203,6 +203,15 @@ LightingGpuTimes lightingGpuTimes(EngineApp& app)
         }
         t.sections.push_back(s);
     }
+    if (!t.lightingHistory.empty())
+    {
+        std::vector<double> sorted = t.lightingHistory;
+        const size_t n             = std::max<size_t>(1, sorted.size() / 100);
+        std::partial_sort(sorted.begin(), sorted.begin() + std::ptrdiff_t(n), sorted.end(), std::greater<double>());
+        double sum = 0;
+        for (size_t i = 0; i < n; ++i) sum += sorted[i];
+        t.lightingWorst1PercentMs = sum / double(n);
+    }
     return t;
 }
 

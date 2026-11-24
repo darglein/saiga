@@ -2395,6 +2395,32 @@ TEST_F(EngineAppRender, DebugUiTabsRender)
     EXPECT_TRUE(app.debugUi().isSelected(DebugTab::Engine));
 }
 
+// The bar's pause button (every tab): a click pauses the world, a click on the PAUSED button resumes it
+TEST_F(EngineAppRender, BarPauseButton)
+{
+    EngineAppSetup s = appSetup(true);
+    s.render.imgui   = true;
+    s.width          = 800;
+    s.height         = 600;
+    EngineApp app(s);
+    app.debugUi().select(DebugTab::Engine);
+    app.runFrames(2, 1.0 / 60);
+    ImGuiIO& io = ImGui::GetIO();
+    for (bool paused : {true, false})
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app.debugUi().itemCenter("bar/pause", at));
+        io.AddMousePosEvent(at.x, at.y);
+        app.runFrames(1, 1.0 / 60);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, true);
+        app.runFrames(1, 1.0 / 60);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, false);
+        // The click queues the tool between steps: applied in the next frame
+        app.runFrames(2, 1.0 / 60);
+        EXPECT_EQ(app.world().isPaused(), paused);
+    }
+}
+
 // Regression: the panel was moved in front of all windows every frame, also in front of the popups opened inside it
 // (combo lists): the Performance tab's window combo showed no list and could not be changed
 TEST_F(EngineAppRender, DebugUiPopupsStayInFront)

@@ -707,23 +707,28 @@ void EngineApp::barSummary(float width)
         for (const Item& i : items) w += itemWidth(i) + gap;
         return w - gap;
     };
-    for (int drop = 4; drop >= 1 && total() > width; --drop)
+    // The pause button before the numbers, in every tab (the user's request after the S36 demo; before, only a PAUSED
+    // button while paused): "pause" while running, the red "PAUSED (Pause)" while paused (a click resumes)
+    const bool paused   = gameWorld->isPaused();
+    const char* pausedL = paused ? "PAUSED (Pause)" : "pause";
+    const float pausedW = ImGui::CalcTextSize(pausedL).x + 2 * ImGui::GetStyle().FramePadding.x + gap;
+    for (int drop = 4; drop >= 1 && total() + pausedW > width; --drop)
         items.erase(std::remove_if(items.begin(), items.end(), [&](const Item& i) { return i.drop == drop; }),
                     items.end());
-    // PAUSED: a button (resumes) before the numbers
-    const bool paused   = gameWorld->isPaused();
-    const char* pausedL = "PAUSED (Pause)";
-    const float pausedW = paused ? ImGui::CalcTextSize(pausedL).x + 2 * ImGui::GetStyle().FramePadding.x + gap : 0.0f;
-    const float w       = total() + pausedW;
+    const float w = total() + pausedW;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(width - w, 0.0f));
-    if (paused)
+    if (paused) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(150, 60, 50, 255));
+    if (ImGui::Button(pausedL))
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(150, 60, 50, 255));
-        if (ImGui::Button(pausedL)) queueBetweenSteps([this]() { worldApi->call("resume", json11::Json::object{}); });
-        ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The world is paused: click or press Pause to resume");
-        ImGui::SameLine(0, gap);
+        const char* tool = paused ? "resume" : "pause";
+        queueBetweenSteps([this, tool]() { worldApi->call(tool, json11::Json::object{}); });
     }
+    if (paused) ImGui::PopStyleColor();
+    if (ui) ui->markItem("bar/pause");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(paused ? "The world is paused: click or press Pause to resume"
+                                 : "Pauses the world (the Pause key does the same)");
+    ImGui::SameLine(0, gap);
     ImGui::BeginGroup();
     for (size_t i = 0; i < items.size(); ++i)
     {

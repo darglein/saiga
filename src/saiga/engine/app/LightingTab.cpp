@@ -458,11 +458,16 @@ void LightingTab::summary()
                               l.overflowedClusters);
     }
     const LightingGpuTimes t = lightingGpuTimes(app);
-    std::snprintf(text, sizeof(text), "lighting %.2f / %.1f ms", t.lightingMs, LightingGpuTimes::kBudgetMs);
-    flowText(t.lightingMs > LightingGpuTimes::kBudgetMs ? DebugUiStyle::kWarn : DebugUiStyle::kGpu, text, first);
+    std::snprintf(text, sizeof(text), "lighting %.2f (1%% %.2f) / %.1f ms", t.lightingMs, t.lightingWorst1PercentMs,
+                  LightingGpuTimes::kBudgetMs);
+    flowText(t.lightingMs > LightingGpuTimes::kBudgetMs                ? DebugUiStyle::kWarn
+             : t.lightingWorst1PercentMs > LightingGpuTimes::kBudgetMs ? DebugUiStyle::kWarning
+                                                                       : DebugUiStyle::kGpu,
+             text, first);
     if (ImGui::IsItemHovered())
-        ImGui::SetTooltip("The lighting's GPU time (mean of %d frames) against its budget (GPU and memory)",
-                          LightingGpuTimes::kMeanFrames);
+        ImGui::SetTooltip("The lighting's GPU time: the mean of %d frames, in brackets the mean of the longest 1%% of "
+                          "the graph's %d frames, against the budget of %.1f ms (GPU and memory)",
+                          LightingGpuTimes::kMeanFrames, int(t.lightingHistory.size()), LightingGpuTimes::kBudgetMs);
     lightingGraph(t);
 }
 
@@ -475,7 +480,9 @@ void LightingTab::lightingGraph(const LightingGpuTimes& t)
     if (h.size() < 2) return;
     const float em     = ImGui::GetFontSize();
     const float width  = ImGui::GetContentRegionAvail().x;
-    const float height = 3 * em;
+    // 6 lines (the user's request: larger than the first 3), less in a small window (the summary is pinned above the
+    // scrolling sections)
+    const float height = std::clamp(0.08f * ImGui::GetIO().DisplaySize.y, 3 * em, 6 * em);
     if (width < 4 * em) return;
     double top = 1.25 * LightingGpuTimes::kBudgetMs;
     for (double v : h) top = std::max(top, v);
