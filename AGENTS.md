@@ -365,8 +365,7 @@ ctest -R test_core_ini --output-on-failure             # one test
 - Shared helpers: `tests/compare_numbers.h`, `tests/numeric_derivative.h` (numeric Jacobians for the
   vision derivative tests), `tests/opengl_test_context.h` (the `OpenGLTest` fixture),
   `tests/vulkan_test_context.h` (the `VulkanTest` fixture), `tests/render_scene_test_context.h` (`RenderSceneTest`: a
-  `RenderScene` per test; `RenderSceneSuiteTest`: one per test suite, its state reset in `SetUp`, for binaries with many
-  cases such as `test_vulkan_lighting`), `tests/golden_image.h` (`compareGolden`, golden images),
+  `RenderScene` per test, also in the lighting binaries), `tests/golden_image.h` (`compareGolden`, golden images),
   `tests/mcp_test_helper.h` (`McpRequest`, the `Poller` that runs `McpServer::poll` in the background for
   `handleMessage` tests of MCP tools).
 - **OpenGL tests** (`test_opengl_*`, built when OpenGL + EGL are found) need no window or X server: the
