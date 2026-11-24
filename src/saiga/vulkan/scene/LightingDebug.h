@@ -187,6 +187,9 @@ class SAIGA_VULKAN_API LightingDebug
     };
     VulkanBase* base = nullptr;
     ComputePipeline pipeline;
+    // The pipeline, its sets, the sampler and the dummies: created by the first recordPreviews with work
+    bool resourcesCreated = false;
+    void createResources(vk::CommandBuffer cmd);
     Sampler nearestSampler;
     // The unused source binding's dummies (a 2D source or a 2D array source)
     Texture2D dummy2D;

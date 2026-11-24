@@ -68,7 +68,6 @@ class SAIGA_VULKAN_API ShadowPipelineTable
     std::array<std::optional<Entry>, pipelineClassCount> entries;
     std::array<std::unique_ptr<Pipeline>, pipelineClassCount> pipelines, atlasPipelines;
     uint64_t creations = 0;
-    void create(int klass);
     void createVariant(int klass, bool atlas);
 };
 

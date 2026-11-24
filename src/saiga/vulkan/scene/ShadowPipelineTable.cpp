@@ -73,14 +73,9 @@ void ShadowPipelineTable::setEntry(int klass, std::optional<Entry> entry)
     pipelines[size_t(klass)].reset();
     if (atlasPipelines[size_t(klass)]) atlasPipelines[size_t(klass)]->destroy();
     atlasPipelines[size_t(klass)].reset();
+    // Both variants on first use (bind, bindAtlas): a scene without shadows compiles none (S36 review round 2,
+    // finding 4a)
     entries[size_t(klass)] = std::move(entry);
-    if (entries[size_t(klass)]) create(klass);
-}
-
-void ShadowPipelineTable::create(int klass)
-{
-    // The atlas variant on first use (bindAtlas): a scene without shadowed lights compiles none
-    createVariant(klass, false);
 }
 
 void ShadowPipelineTable::createVariant(int klass, bool atlas)
@@ -126,6 +121,8 @@ void ShadowPipelineTable::createVariant(int klass, bool atlas)
 bool ShadowPipelineTable::bind(vk::CommandBuffer cmd, int klass, vk::DescriptorSet sceneSet,
                                vk::DescriptorSet shadowSet, const mat4& viewProj, float alpha, float slopeBias)
 {
+    if (!entries[size_t(klass)]) return false;
+    if (!pipelines[size_t(klass)]) createVariant(klass, false);
     Pipeline* p = pipelines[size_t(klass)].get();
     if (!p || !p->bind(cmd)) return false;
     ShadowPush push;

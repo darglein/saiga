@@ -89,6 +89,12 @@ void LightingDebug::init(VulkanBase& b)
 {
     destroy();
     base = &b;
+}
+
+void LightingDebug::createResources(vk::CommandBuffer cmd)
+{
+    if (resourcesCreated) return;
+    resourcesCreated = true;
     DescriptorSetLayout layout;
     const auto c = vk::ShaderStageFlagBits::eCompute;
     layout.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, c));
@@ -109,8 +115,7 @@ void LightingDebug::init(VulkanBase& b)
     // The dummies of the unused source binding (sampled in eShaderReadOnlyOptimal, content irrelevant)
     dummy2D.create(*base, 1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled);
     dummyArray.create(*base, 1, 1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled);
-    auto& q               = base->mainQueue;
-    vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
+    // (in the frame's command buffer, before the first preview reads them)
     std::array<vk::ImageMemoryBarrier2, 2> toRead;
     for (int k = 0; k < 2; ++k)
         toRead[size_t(k)] = vk::ImageMemoryBarrier2(
@@ -119,9 +124,6 @@ void LightingDebug::init(VulkanBase& b)
             k == 0 ? dummy2D.image() : dummyArray.image(),
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
-    cmd.end();
-    q.submitAndWait(cmd);
-    q.commandPool.freeCommandBuffer(cmd);
     dummy2D.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     dummyArray.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 }
@@ -130,6 +132,7 @@ void LightingDebug::destroy()
 {
     if (!base) return;
     pipeline.destroy();
+    resourcesCreated = false;
     nearestSampler.destroy();
     dummy2D.destroy();
     dummyArray.destroy();
@@ -262,6 +265,8 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
                          if (x.fullResolution != y.fullResolution) return x.fullResolution;
                          return x.lastShown < y.lastShown;
                      });
+    // The pipeline, sets and dummies on the first frame with a preview (S36 review round 2, finding 4a)
+    if (!order.empty()) createResources(cmd);
     const double now     = nowSeconds();
     uint64_t shownTexels = 0;
     for (size_t k : order)

@@ -329,12 +329,16 @@ class SAIGA_VULKAN_API RenderScene
     // The frame being recorded uses the physical path: an environment and a tone map other
     // than Identity (latched with the tone map)
     bool physicalLighting() const { return framePhysical; }
-    // The lighting's resources (tests, the debug tools)
+    // The lighting's resources (tests, the debug tools). The BRDF LUT, the atmosphere's LUTs, the environment map and
+    // the cloud layer are created by the first setEnvironment (or by these accessors; S36 review round 2, finding 4a:
+    // a clay scene creates none of them)
     SkyAmbient& skyAmbient() { return *ambient; }
-    BrdfLut& brdfLut() { return *brdf; }
-    Atmosphere& atmosphereLuts() { return *atmosphere; }
-    EnvironmentMap& environmentMap() { return *envMap; }
-    CloudLayer& cloudLayer() { return *clouds; }
+    BrdfLut& brdfLut();
+    Atmosphere& atmosphereLuts();
+    EnvironmentMap& environmentMap();
+    CloudLayer& cloudLayer();
+    // Whether the environment's resources exist (the first setEnvironment or an accessor created them)
+    bool environmentResourcesCreated() const { return atmosphere != nullptr; }
     // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
     // creates none)
     uint64_t scenePipelineCreations() const;
@@ -460,6 +464,8 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<Atmosphere> atmosphere;
     std::unique_ptr<EnvironmentMap> envMap;
     std::unique_ptr<CloudLayer> clouds;
+    void ensureBrdf();
+    void ensureEnvironmentResources();
     // The debug core (S36a1b)
     std::unique_ptr<LightingDebug> debugImages;
     std::unique_ptr<DebugLines> lines;
