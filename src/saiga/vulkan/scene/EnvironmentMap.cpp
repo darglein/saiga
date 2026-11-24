@@ -10,6 +10,7 @@
 #include "saiga/vulkan/pipeline/DescriptorSetLayout.h"
 #include "saiga/vulkan/scene/CloudLayer.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
+#include "saiga/vulkan/scene/SceneLightingSet.h"
 
 #include <algorithm>
 #include <cmath>
@@ -76,11 +77,13 @@ void bufferBarrier(vk::CommandBuffer cmd, vk::Buffer buffer, vk::PipelineStageFl
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, b, nullptr));
 }
 
-// The back cube's transitions: its reads as the front cube (fragment, compute) before the prefilter's writes (the
-// content is discarded), the writes before the reads as the next front cube
+// The back cube's transitions: its reads as the front cube (the lighting set's readers,
+// SceneLightingSet::kReaderStages; round 2, finding 18: named fragment and compute only, correct while ambient.glsl is
+// fragment-only, but not the contract) before the prefilter's writes (the content is discarded), the writes before the
+// reads as the next front cube
 void cubeBarrier(vk::CommandBuffer cmd, TextureCube& cube, bool toWrite)
 {
-    const auto reads = Stage::eFragmentShader | Stage::eComputeShader;
+    const auto reads = SceneLightingSet::kReaderStages;
     vk::ImageMemoryBarrier2 b =
         toWrite ? vk::ImageMemoryBarrier2(reads, {}, Stage::eComputeShader, Access::eShaderStorageWrite,
                                           vk::ImageLayout::eUndefined, vk::ImageLayout::eGeneral,
