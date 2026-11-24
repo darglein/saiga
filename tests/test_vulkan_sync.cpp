@@ -190,6 +190,115 @@ TEST_F(SyncValidation, ShadowedGrassFrame)
     EXPECT_TRUE(scene->lightingStatistics().shadows);
 }
 
+namespace
+{
+MeshLods syncBox(const vec3& half)
+{
+    MeshLod lod;
+    lod.endDistance = 2000;
+    for (int f = 0; f < 6; ++f)
+    {
+        const int axis      = f / 2;
+        const float s       = (f % 2) ? -1.0f : 1.0f;
+        vec3 n              = vec3::Zero();
+        n(axis)             = s;
+        const vec3 u        = axis == 1 ? vec3(1, 0, 0) : vec3(0, 1, 0);
+        const vec3 v        = n.cross(u);
+        const uint32_t base = uint32_t(lod.vertices.size());
+        for (const vec2 c : {vec2(-1, -1), vec2(1, -1), vec2(1, 1), vec2(-1, 1)})
+        {
+            MeshVertex m;
+            m.position = (n + c(0) * u + c(1) * v).cwiseProduct(half);
+            m.normal   = packNormalOct(n);
+            m.color    = packColor(ucvec4(200, 200, 200, 255));
+            lod.vertices.push_back(m);
+        }
+        for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u}) lod.indices.push_back(base + i);
+    }
+    MeshLods m;
+    m.lods.push_back(lod);
+    m.sphereRadius = half.norm();
+    return m;
+}
+}  // namespace
+
+// S36b round 1 (findings 3, 14; the review's request for a hazard check of the local lights): a frame with shadowed
+// point and spot lights over terrain (the atlas's terrain path), a moving dynamic instance (the dynamic layer), the
+// clusters; the atlas is created inside the frame's command buffer (finding 14: no blocking submit) and recreated
+// (a resolution change), the cluster grid grows between frames (finding 3: the buffers before the lighting set binds
+// them), a light changes its kind (finding 1)
+TEST_F(SyncValidation, LocalLightsAndAtlasFrame)
+{
+    ASSERT_TRUE(syncValidationOn);
+    const TerrainLayout layout = testLayout(16, 2);
+    const Vec3 cam(300.5, 12, 300.5);
+    fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
+    MaterialData m;
+    scene->addMaterial(MaterialId(900), "sync_box", m);
+    scene->addMesh(MeshId(900), "sync_box", syncBox(vec3(0.5f, 0.5f, 0.5f)), MaterialId(900));
+    const double ground = 0;  // flatHook
+    AddSet({[&]()
+            {
+                StaticInstance s;
+                s.setPosition(vec3(301.5f, float(ground) + 0.5f, 300.5f));
+                s.mesh = MeshId(900);
+                return s;
+            }()});
+    LightingParameters p;
+    p.cascadeResolution = 256;
+    p.horizonResolution = 128;
+    p.sunShadows        = false;
+    p.horizonShadows    = false;
+    p.localLights       = true;
+    p.atlasResolution   = 512;
+    p.atlasTile         = 128;
+    p.facesPerFrame     = 11;
+    scene->setLightingParameters(p);
+    EnvironmentState e;
+    e.sunIlluminance  = 0;
+    e.moonIlluminance = 0;
+    scene->setEnvironment(e);
+    scene->setToneMap(ToneMap::Aces);
+    LightData point;
+    point.kind          = LightKind::Point;
+    point.position      = vec3(300.5f, float(ground) + 3, 300.5f);
+    point.lumen         = 2000;
+    point.range         = 10;
+    point.castShadows   = true;
+    const LightHandle a = scene->addLight(ChunkId(), point);
+    LightData spot      = point;
+    spot.kind           = LightKind::Spot;
+    spot.position       = vec3(303.5f, float(ground) + 4, 300.5f);
+    spot.direction      = vec3(0, -1, 0);
+    spot.cosInner       = 0.9f;
+    spot.cosOuter       = 0.8f;
+    scene->addLight(ChunkId(), spot);
+    const InstanceHandle d = scene->addDynamic(MeshId(900));
+    SetCamera(0, cam, viewRotation(lookAt(cam.cast<float>(), vec3(300.5f, float(ground), 299.5f), vec3(0, 1, 0))), 1.0);
+    renderUntilUploaded(*scene);
+    for (int frame = 0; frame < 4; ++frame)
+    {
+        DynamicPose prev, curr;
+        prev.position = Vec3(299.5 + 0.1 * frame, ground + 1.5, 300.5);
+        curr.position = prev.position + Vec3(0.1, 0, 0);
+        scene->setDynamic(d, ChunkId(), prev, curr);
+        if (frame == 1)
+        {
+            p.clusterZ            = 48;
+            p.maxLightsPerCluster = 256;
+            p.atlasResolution     = 1024;
+            scene->setLightingParameters(p);
+        }
+        if (frame == 2) scene->setLight(a, ChunkId(), spot);
+        RenderFrame();
+    }
+    scene->waitIdle();
+    EXPECT_TRUE(scene->lightingStatistics().atlas.on);
+    EXPECT_EQ(scene->lightingStatistics().atlas.resolution, 1024);
+    EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
+    scene->removeDynamic(d);
+}
+
 // Round 2 (finding 3): the frames above wait for every frame (a screenshot each), so two frames are never in flight
 // and a hazard against the previous frame (a write-after-read, a descriptor set updated while a pending command buffer
 // has it bound) cannot occur. Here 8 frames are recorded back to back without a wait (2 frames in flight), each

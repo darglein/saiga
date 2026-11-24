@@ -167,19 +167,23 @@ class LightsTest : public RenderSceneTest
         AddSet({instanceAt(vec3(0, -0.05f, 0), first)});
         SetCamera(0, eye, lookRotation(Vec3(0, -1, -0.001)), 1.2);
     }
-    // The resolved fp16 value of a pixel in the next frame, divided by the frame's pre-exposure: the radiance
-    vec3 ReadRadiance(ivec2 p)
+    // The resolved fp16 values of pixels in the next frame, divided by the frame's pre-exposure: the radiance (one
+    // frame for all of them: test speed, finding 16)
+    std::vector<vec3> ReadRadiances(const std::vector<ivec2>& pixels)
     {
-        vec4 value(-1, -1, -1, -1);
-        scene->lightingDebugImages().requestPixels({p},
+        std::vector<vec3> out(pixels.size(), vec3(-1, -1, -1));
+        scene->lightingDebugImages().requestPixels(pixels,
                                                    [&](const std::vector<LightingDebug::PixelValue>& v)
                                                    {
-                                                       if (!v.empty() && v[0].valid) value = v[0].color;
+                                                       for (size_t k = 0; k < v.size() && k < out.size(); ++k)
+                                                           if (v[k].valid) out[k] = v[k].color.head<3>();
                                                    });
         RenderFrame();
         const float pe = scene->preExposure();
-        return vec3(value(0), value(1), value(2)) / pe;
+        for (vec3& o : out) o /= pe;
+        return out;
     }
+    vec3 ReadRadiance(ivec2 p) { return ReadRadiances({p})[0]; }
     // The screen pixel of a world point (the frame's camera-relative matrices)
     ivec2 Pixel(const Vec3& world, const Vec3& camera)
     {
@@ -197,16 +201,17 @@ TEST_F(LightsTest, PointLightFollowsInverseSquare)
 {
     Floor(700);
     AddLight(pointLight(vec3(0, 2, 0), 1200, 18));
-    Capture(3);
+    Capture(1);
     const Vec3 eye(0, 12, 0.01);
-    const vec3 centre   = ReadRadiance(Pixel(Vec3(0, 0, 0), eye));
+    const std::vector<vec3> r = ReadRadiances({Pixel(Vec3(0, 0, 0), eye), Pixel(Vec3(6, 0, 0), eye)});
+    const vec3 centre         = r[0];
     const double albedo = std::pow((160.0 / 255 + 0.055) / 1.055, 2.4);
     const double I      = 1200 / (4 * kPi);
     const double w      = std::pow(1 - std::pow(2.0 / 18, 4), 2);
     const double L      = albedo / kPi * I / 4 * w;
     EXPECT_NEAR(centre(1), L, 0.25 * L) << centre.transpose();
     // 6 m away (oblique: cos 18.4 deg at the floor, d^2 = 40): darker
-    const vec3 side = ReadRadiance(Pixel(Vec3(6, 0, 0), eye));
+    const vec3 side = r[1];
     EXPECT_LT(side(1), centre(1) * 0.2f);
     const LocalLightStatistics& st = scene->lightingStatistics().lights;
     EXPECT_EQ(st.visible, 1u);
@@ -214,7 +219,6 @@ TEST_F(LightsTest, PointLightFollowsInverseSquare)
     LightingParameters p = scene->lightingParameters();
     p.localLights        = false;
     scene->setLightingParameters(p);
-    Capture(2);
     EXPECT_LT(ReadRadiance(Pixel(Vec3(0, 0, 0), eye))(1), 1e-3f * float(L));
     EXPECT_EQ(scene->lightingStatistics().lights.visible, 0u);
 }
@@ -254,11 +258,11 @@ TEST_F(LightsTest, SpotCone)
 {
     Floor(704);
     AddLight(spotLight(vec3(0, 4, 0), vec3(0, -1, 0), 4000, 20, 20, 30));
-    Capture(3);
+    Capture(1);
     const Vec3 eye(0, 12, 0.01);
-    const vec3 inside = ReadRadiance(Pixel(Vec3(0.5, 0, 0), eye));
     // tan(30 deg) * 4 = 2.31 m: 3.5 m is outside
-    const vec3 outside = ReadRadiance(Pixel(Vec3(3.5, 0, 0), eye));
+    const std::vector<vec3> r = ReadRadiances({Pixel(Vec3(0.5, 0, 0), eye), Pixel(Vec3(3.5, 0, 0), eye)});
+    const vec3 inside = r[0], outside = r[1];
     EXPECT_GT(inside(1), 0.0f);
     EXPECT_LT(outside(1), inside(1) * 1e-3f) << inside.transpose() << " / " << outside.transpose();
 }
@@ -279,7 +283,7 @@ TEST_F(LightsTest, FlickerUsesPhases)
         EnvironmentState e = nightEnvironment();
         e.phases[6]        = phase;
         scene->setEnvironment(e);
-        Capture(2);
+        Capture(1);
         return ReadRadiance(Pixel(Vec3(0, 0, 0), eye))(1);
     };
     const float a = at(0.7f), b = at(2.1f), c = at(0.7f);
@@ -348,13 +352,13 @@ TEST_F(LightsTest, EnclosedSpaceLit)
     const Vec3 eye(0, 8, 0.01);
     SetCamera(3, eye, lookRotation(Vec3(0, -1, -0.001)), 1.2);
     AddLight(pointLight(vec3(0, 1, 0), 600, 8), ChunkId{0, 0, 0});  // space 0: not in the room
-    Capture(2);
+    Capture(1);
     EXPECT_EQ(scene->frameLights().size(), 0u);
     EXPECT_LT(ReadRadiance(Pixel(Vec3(0, 0, 0), eye))(1), 1e-4f);
     ChunkId roomChunk;
     roomChunk.space = 3;
     AddLight(pointLight(vec3(0, 1.5f, 0), 600, 8), roomChunk);
-    Capture(2);
+    Capture(1);
     EXPECT_EQ(scene->frameLights().size(), 1u);
     EXPECT_GT(ReadRadiance(Pixel(Vec3(0, 0, 0), eye))(1), 1.0f);
     scene->setSpaceSettings(3, SpaceRenderSettings());
@@ -410,10 +414,10 @@ TEST_F(LightsTest, ClusteredEqualsBruteForce)
     p.clusteredLights     = false;
     scene->setLightingParameters(p);
     scene->setLightingDebug(LightingDebugState{LightingDebugView::LocalLightsOnly, 0});
-    const TemplatedImage<ucvec4> brute = Capture(3);
+    const TemplatedImage<ucvec4> brute = Capture(2);
     p.clusteredLights                  = true;
     scene->setLightingParameters(p);
-    const TemplatedImage<ucvec4> clustered = Capture(3);
+    const TemplatedImage<ucvec4> clustered = Capture(2);
     EXPECT_EQ(scene->lightingStatistics().lights.overflowedClusters, 0u);
     EXPECT_TRUE(scene->lightingStatistics().lights.clustered);
     int maxDiff = 0;
@@ -549,7 +553,7 @@ TEST_F(LightsTest, OverflowCounted)
     p.clusteredLights     = true;
     p.maxLightsPerCluster = 4;
     scene->setLightingParameters(p);
-    Capture(4);
+    Capture(3);
     const LocalLightStatistics& st = scene->lightingStatistics().lights;
     EXPECT_GT(st.overflowedClusters, 0u);
     EXPECT_GT(st.droppedLights, 0u);
@@ -578,7 +582,7 @@ TEST_F(LightsTest, ClusterDebug)
     p.clusteredLights    = true;
     scene->setLightingParameters(p);
     scene->setLightingDebug(LightingDebugState{LightingDebugView::ClusterLights, OverlayClusterGrid});
-    Capture(3);
+    Capture(2);
     PreviewMapping m;
     PreviewStatistics st;
     bool got = false;
@@ -637,6 +641,31 @@ class AtlasTest : public LightsTest
         LightData d   = pointLight(p, 2000, range);
         d.castShadows = true;
         return d;
+    }
+    // Each pair's first point is in shadow, its second lit: the first's radiance below 20 % of the second's (one frame)
+    void ExpectShadowed(const std::vector<std::pair<Vec3, Vec3>>& pairs, const Vec3& eye)
+    {
+        std::vector<ivec2> px;
+        for (const auto& p : pairs)
+        {
+            px.push_back(Pixel(p.first, eye));
+            px.push_back(Pixel(p.second, eye));
+        }
+        const std::vector<vec3> r = ReadRadiances(px);
+        for (size_t k = 0; k < pairs.size(); ++k)
+        {
+            EXPECT_GT(r[2 * k + 1](1), 0.0f) << pairs[k].second.transpose();
+            EXPECT_LT(r[2 * k](1), 0.2f * r[2 * k + 1](1)) << pairs[k].first.transpose();
+        }
+    }
+    // Behind a pillar 2 m from the light along each direction (4 m from it) and beside the shadow (rotated by 45
+    // degrees)
+    static std::vector<std::pair<Vec3, Vec3>> BehindPillars(const std::vector<Vec3>& dirs)
+    {
+        std::vector<std::pair<Vec3, Vec3>> pairs;
+        for (const Vec3& dir : dirs)
+            pairs.emplace_back(dir * 4.0, Vec3(dir(0) - dir(2), 0, dir(2) + dir(0)).normalized() * 4.0);
+        return pairs;
     }
     InstanceSetHandle boxSet;
     MeshId boxMeshId = 0;
@@ -849,10 +878,10 @@ TEST_F(AtlasTest, NoAcneAtRange)
     const float range = 10;
     AddLight(ShadowedPoint(vec3(0, 0.9f * range, 0), range));
     const Vec3 eye(0, 12, 0.01);
-    Capture(4);
+    Capture(1);
     // Lit floor 2 m beside the box, the box's top and the floor next to the box towards -x (lit: the light is above)
-    const vec3 floor = ReadRadiance(Pixel(Vec3(3, 0, 1), eye));
-    const vec3 top   = ReadRadiance(Pixel(Vec3(0, 1, 0), eye));
+    const std::vector<vec3> r = ReadRadiances({Pixel(Vec3(3, 0, 1), eye), Pixel(Vec3(0, 1, 0), eye)});
+    const vec3 floor = r[0], top = r[1];
     EXPECT_GT(floor(1), 0.0f);
     EXPECT_GT(top(1), floor(1)) << "the top is nearer";
     // The same frame without the atlas shadow (castShadows off): the lit pixels are as bright (no acne)
@@ -862,7 +891,7 @@ TEST_F(AtlasTest, NoAcneAtRange)
     LightData unshadowed   = ShadowedPoint(vec3(0, 0.9f * range, 0), range);
     unshadowed.castShadows = false;
     AddLight(unshadowed);
-    Capture(2);
+    Capture(1);
     const vec3 floor2 = ReadRadiance(Pixel(Vec3(3, 0, 1), eye));
     EXPECT_NEAR(floor(1), floor2(1), 0.02f * floor2(1));
 }
@@ -881,16 +910,8 @@ TEST_F(AtlasTest, PointLightSixFaces)
             instanceAt(vec3(0, 1.5f, 2), MeshId(759)), instanceAt(vec3(0, 1.5f, -2), MeshId(759))});
     AddLight(ShadowedPoint(vec3(0, 1.0f, 0), 12));
     const Vec3 eye(0, 12, 0.01);
-    Capture(4);
-    for (const Vec3& dir : {Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)})
-    {
-        // Behind the pillar (4 m from the light) and beside the shadow (rotated by 45 degrees)
-        const Vec3 behind = dir * 4.0;
-        const Vec3 side   = Vec3(dir(0) - dir(2), 0, dir(2) + dir(0)).normalized() * 4.0;
-        const vec3 s      = ReadRadiance(Pixel(behind, eye));
-        const vec3 l      = ReadRadiance(Pixel(side, eye));
-        EXPECT_LT(s(1), 0.2f * l(1)) << dir.transpose();
-    }
+    Capture(1);
+    ExpectShadowed(BehindPillars({Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)}), eye);
     EXPECT_EQ(Stats().tilesUsed, 6u);
 }
 
@@ -921,12 +942,7 @@ TEST_F(AtlasTest, KindChangeRetakesTiles)
     ASSERT_EQ(scene->frameLights().size(), 1u);
     EXPECT_EQ(scene->frameLights()[0].tiles, 6);
     EXPECT_TRUE(scene->frameLights()[0].shadowReady);
-    const Vec3 eye(0, 12, 0.01);
-    for (const Vec3& dir : {Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)})
-    {
-        const Vec3 side = Vec3(dir(0) - dir(2), 0, dir(2) + dir(0)).normalized() * 4.0;
-        EXPECT_LT(ReadRadiance(Pixel(dir * 4.0, eye))(1), 0.2f * ReadRadiance(Pixel(side, eye))(1)) << dir.transpose();
-    }
+    ExpectShadowed(BehindPillars({Vec3(1, 0, 0), Vec3(-1, 0, 0), Vec3(0, 0, 1), Vec3(0, 0, -1)}), Vec3(0, 12, 0.01));
     scene->setLight(h, ChunkId(), spot);
     RenderFrame();
     EXPECT_EQ(scene->shadowAtlas().tilesOf(h.id).size(), 1u);
@@ -953,15 +969,9 @@ TEST_F(AtlasTest, PointLightUpDownFaces)
     AddLight(ShadowedPoint(vec3(0, 1, -2), 12));
     const Vec3 eye(0, 1, 6);
     SetCamera(0, eye, lookRotation(Vec3(0, 0, -1)), 1.2);
-    Capture(2);
-    for (double y : {5.0, -3.0})
-    {
-        // Behind the blocker, and 2 m beside it (the same face: |dy| = 4 > |dx|, |dz|)
-        const vec3 s = ReadRadiance(Pixel(Vec3(0, y, -4), eye));
-        const vec3 l = ReadRadiance(Pixel(Vec3(1.8, y, -4), eye));
-        EXPECT_GT(l(1), 0.0f) << y;
-        EXPECT_LT(s(1), 0.2f * l(1)) << y;
-    }
+    Capture(1);
+    // Behind the blocker, and 1.8 m beside it (the same face: |dy| = 4 > |dx|, |dz|)
+    ExpectShadowed({{Vec3(0, 5, -4), Vec3(1.8, 5, -4)}, {Vec3(0, -3, -4), Vec3(1.8, -3, -4)}}, eye);
 }
 
 // Regression (round 1, finding 2): the dirty bounds (a removed instance) and invalidateAll (setMaterial) reach the
@@ -1093,9 +1103,5 @@ TEST_F(AtlasTest, CachedFacesIndependentOfCamera)
     SetCamera(0, eye, lookRotation(Vec3(0, -1, -0.001)), 1.2);
     Capture(1);
     EXPECT_EQ(Stats().staticRenders, 0u) << "still cached";
-    for (const Vec3& dir : {Vec3(1, 0, 0), Vec3(-1, 0, 0)})
-    {
-        const Vec3 side = Vec3(dir(0), 0, dir(0)).normalized() * 4.0;
-        EXPECT_LT(ReadRadiance(Pixel(dir * 4.0, eye))(1), 0.2f * ReadRadiance(Pixel(side, eye))(1)) << dir.transpose();
-    }
+    ExpectShadowed(BehindPillars({Vec3(1, 0, 0), Vec3(-1, 0, 0)}), eye);
 }

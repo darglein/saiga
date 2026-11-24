@@ -84,13 +84,14 @@ void ShadowAtlas::release()
     owners.clear();
 }
 
-void ShadowAtlas::ensure(int resolution, int tile)
+void ShadowAtlas::ensure(int resolution, int tile, vk::CommandBuffer cmd)
 {
     if (image && res == resolution && tileTexels == tile) return;
     release();
     image = std::make_unique<Texture2DArray>();
     image->create(*base, uint32_t(resolution), uint32_t(resolution), 2, kAtlasFormat,
-                  vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled);
+                  vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled |
+                      vk::ImageUsageFlagBits::eTransferDst);
     res        = resolution;
     tileTexels = tile;
     for (uint32_t l = 0; l < 2; ++l)
@@ -99,9 +100,9 @@ void ShadowAtlas::ensure(int resolution, int tile)
                                      vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, l, 1));
         layerViews[l] = base->device.createImageView(info);
     }
-    // Both layers lit (1) and readable
-    auto& q               = base->mainQueue;
-    vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
+    // Both layers lit (1) and readable, recorded into the frame's command buffer (round 1, finding 14: a blocking
+    // submitAndWait stalled the frame on the first shadowed light and on every resolution or tile change); the frame's
+    // atlas pass and the receivers come after it
     const vk::ImageSubresourceRange range(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 2);
     vk::ImageMemoryBarrier2 toDst(Stage::eNone, Access::eNone, Stage::eClear, Access::eTransferWrite,
                                   vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal,
@@ -109,14 +110,14 @@ void ShadowAtlas::ensure(int resolution, int tile)
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toDst));
     cmd.clearDepthStencilImage(image->image(), vk::ImageLayout::eTransferDstOptimal,
                                vk::ClearDepthStencilValue(1.0f, 0), range);
-    vk::ImageMemoryBarrier2 toRead(Stage::eClear, Access::eTransferWrite, Stage::eAllCommands,
-                                   Access::eShaderSampledRead, vk::ImageLayout::eTransferDstOptimal,
-                                   vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
-                                   VK_QUEUE_FAMILY_IGNORED, image->image(), range);
+    vk::ImageMemoryBarrier2 toRead(
+        Stage::eClear, Access::eTransferWrite,
+        Stage::eVertexShader | Stage::eFragmentShader | Stage::eComputeShader | Stage::eEarlyFragmentTests |
+            Stage::eLateFragmentTests,
+        Access::eShaderSampledRead | Access::eDepthStencilAttachmentRead | Access::eDepthStencilAttachmentWrite,
+        vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
+        VK_QUEUE_FAMILY_IGNORED, image->image(), range);
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
-    cmd.end();
-    q.submitAndWait(cmd);
-    q.commandPool.freeCommandBuffer(cmd);
     image->setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     const int n = tilesPerSide() * tilesPerSide();
     tileState.assign(size_t(n), AtlasTileInfo());

@@ -86,8 +86,9 @@ class SAIGA_VULKAN_API ShadowAtlas
     void destroy();
     ~ShadowAtlas() { destroy(); }
 
-    // The image of the parameters (recreated through deferDelete on a change, every tile invalid); false: off
-    void ensure(int resolution, int tile);
+    // The image of the parameters (recreated through deferDelete on a change, every tile invalid; its clear is
+    // recorded into cmd, the frame's command buffer before the atlas pass)
+    void ensure(int resolution, int tile, vk::CommandBuffer cmd);
     void release();
     bool hasImage() const { return image != nullptr; }
     Texture2DArray* texture() { return image.get(); }

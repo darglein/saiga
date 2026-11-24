@@ -480,7 +480,8 @@ class SAIGA_VULKAN_API RenderScene
     int atlasPreviewLayer   = 0;
     uint32_t atlasTileLight = 0;
     int atlasTileFace = 0, atlasTileLayer = 0;
-    void frameAtlas(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex);
+    void frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, bool enclosed, SceneLighting& block,
+                    uint32_t frameIndex);
     void markSetDirty(InstanceSetHandle set);
     void markDynamicDirty(MeshId mesh, const ChunkId& chunk, const DynamicPose& pose);
     void markRegionDirty(const RegionId& region);

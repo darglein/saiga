@@ -440,7 +440,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         // S36b: the local lights of the frame
         s.frameLocalLights(camera, lighting, frame.frameIndex);
         // S36b: the shadow atlas (its faces are views of the culling after the cascades')
-        s.frameAtlas(camera, enclosed, lighting, frame.frameIndex);
+        s.frameAtlas(cmd, camera, enclosed, lighting, frame.frameIndex);
         s.lightOverlays();
         s.clusterOverlays();
         if (probe && probe->step == 0)
@@ -1826,7 +1826,8 @@ void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& blo
     block.viewport     = vec4(float(sz(0)), float(sz(1)), 0, 0);
 }
 
-void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex)
+void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, bool enclosed, SceneLighting& block,
+                             uint32_t frameIndex)
 {
     atlasFaces.clear();
     const LightingParameters& p = params.lighting;
@@ -1856,7 +1857,7 @@ void RenderScene::frameAtlas(const SceneCamera& camera, bool enclosed, SceneLigh
         in.push_back(li);
     }
     // The image on first use (a frame with a shadowed light; kept afterwards while the local lights are on)
-    if (!in.empty()) atlasShadows->ensure(res, tile);
+    if (!in.empty()) atlasShadows->ensure(res, tile, cmd);
     if (!atlasShadows->hasImage())
     {
         std::vector<ShadowAtlas::Face> none;
