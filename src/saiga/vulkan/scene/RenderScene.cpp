@@ -549,14 +549,15 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         {
             if (!cs.cascades()[size_t(c)].updated) continue;
             const vk::ImageSubresourceRange layer(vk::ImageAspectFlagBits::eDepth, 0, 1, uint32_t(c), 1);
-            // The previous frames' sampled reads (scene, previews) before the writes; the content is replaced
-            toWrite.emplace_back(Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
+            // The previous frames' sampled reads (scene: also the grass's vertex shader, previews) before the writes;
+            // the content is replaced
+            toWrite.emplace_back(SceneLightingSet::kReaderStages, Access::eShaderSampledRead,
                                  Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
                                  Access::eDepthStencilAttachmentRead | Access::eDepthStencilAttachmentWrite,
                                  vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal,
                                  VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, cs.depth()->image(), layer);
             toRead.emplace_back(Stage::eLateFragmentTests, Access::eDepthStencilAttachmentWrite,
-                                Stage::eFragmentShader | Stage::eComputeShader, Access::eShaderSampledRead,
+                                SceneLightingSet::kReaderStages, Access::eShaderSampledRead,
                                 vk::ImageLayout::eDepthStencilAttachmentOptimal,
                                 vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
                                 VK_QUEUE_FAMILY_IGNORED, cs.depth()->image(), layer);

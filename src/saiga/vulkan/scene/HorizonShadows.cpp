@@ -8,6 +8,7 @@
 
 #include "saiga/vulkan/pipeline/DescriptorSetLayout.h"
 #include "saiga/vulkan/scene/SceneLighting.h"
+#include "saiga/vulkan/scene/SceneLightingSet.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
 
 #include <algorithm>
@@ -339,7 +340,8 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         requested                = false;
         recomputes++;
     }
-    const auto readers = Stage::eFragmentShader | Stage::eComputeShader;
+    // The maps' readers: the scene's shaders (the grass samples them per vertex) and the previews
+    const auto readers = SceneLightingSet::kReaderStages;
     if (computing)
     {
         const int needed = int(std::ceil(double(res) * degreesPerFrame / 0.1));
