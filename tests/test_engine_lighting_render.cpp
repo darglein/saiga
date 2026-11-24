@@ -8,7 +8,7 @@
 // with the environment enabled (WorldTime, Weather) on a VulkanRenderSink, the mountainRidgeHook terrain of a 4 km
 // space at base spacing 2, 200 PrototypeFoliage trees and a few flat-colour boxes, 512 x 512 with 4 samples, ACES with
 // a fixed EV100 per golden, the environment map fully updated in the captured frame (golden mode), the environment
-// from the world (environmentState; its wind phases are 0 at time 0); one scene and world for the suite. S36a1:
+// from the world (environmentState; its wind phases are 0 at time 0); a scene and world per test. S36a1:
 // without sun shadows (a2 regenerates them with the cascades and the horizon map). They gate on lavapipe only; other
 // devices print the metrics. Regenerate on lavapipe: SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render
 // --gtest_filter='LightingGolden.*'
@@ -89,15 +89,15 @@ uint32_t hash32(uint32_t x)
 }
 }  // namespace
 
-// One scene, world and content for the suite (the scene's pipelines, the world's terrain and the trees are built once:
-// test speed, AGENTS.md); each golden only sets the time, the weather, the exposure and the camera. Order independent:
-// a shot completes its view's terrain, writes the environment and updates the environment map fully in its last frame
+// A scene, world and content per test (the same for every golden); each golden sets the time, the weather, the exposure
+// and the camera. A shot completes its view's terrain, writes the environment and updates the environment map fully in
+// its last frame
 class LightingGolden : public ::testing::Test
 {
    protected:
     static constexpr int size = 512;
 
-    struct Suite
+    struct State
     {
         std::unique_ptr<Vulkan::HeadlessWindow> window;
         std::unique_ptr<Vulkan::RenderScene> scene;
@@ -105,7 +105,7 @@ class LightingGolden : public ::testing::Test
         std::unique_ptr<VulkanRenderSink> sink;
         Vulkan::PrototypeScene prototype;
         std::vector<Vulkan::InstanceSetHandle> sets;
-        ~Suite()
+        ~State()
         {
             if (scene)
             {
@@ -121,26 +121,21 @@ class LightingGolden : public ::testing::Test
             window.reset();
         }
     };
-    static std::unique_ptr<Suite>& suite()
-    {
-        static std::unique_ptr<Suite> s;
-        return s;
-    }
-    static void TearDownTestSuite() { suite().reset(); }
+    void TearDown() override { state.reset(); }
 
     void SetUp() override
     {
         if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
-        if (!suite()) CreateSuite();
-        scene = suite()->scene.get();
-        world = suite()->world.get();
+        CreateState();
+        scene = state->scene.get();
+        world = state->world.get();
         if (!scene->base().enabledFeatures.drawIndirectFirstInstance)
             GTEST_SKIP() << "drawIndirectFirstInstance is not supported";
     }
 
-    static void CreateSuite()
+    void CreateState()
     {
-        auto st = std::make_unique<Suite>();
+        auto st = std::make_unique<State>();
         WindowParameters windowParameters;
         windowParameters.width  = size;
         windowParameters.height = size;
@@ -206,7 +201,7 @@ class LightingGolden : public ::testing::Test
             boxes.push_back(b);
         }
         st->sets.push_back(scene.addInstanceSet(RegionId(), boxes));
-        suite() = std::move(st);
+        state = std::move(st);
     }
 
     TemplatedImage<ucvec4> RenderFrame()
@@ -239,7 +234,7 @@ class LightingGolden : public ::testing::Test
             Vulkan::viewRotation(lookAt(eye.cast<float>(), (eye + forward).cast<float>(), vec3(0, 1, 0)));
         EXPECT_TRUE(world->terrain().completeView(0, eye));
         scene->setCamera(0, eye, rotation, fovyDeg * kPi / 180);
-        suite()->prototype.update();
+        state->prototype.update();
         renderUntilUploaded(*scene, 256);
         scene->requestFullUpdate();
         TemplatedImage<ucvec4> img = RenderFrame();
@@ -252,6 +247,7 @@ class LightingGolden : public ::testing::Test
         return std::string(scene->base().physicalDevice.getProperties().deviceName.data());
     }
 
+    std::unique_ptr<State> state;
     Vulkan::RenderScene* scene = nullptr;
     World* world               = nullptr;
 };

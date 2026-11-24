@@ -5,8 +5,8 @@
  */
 
 // S36: the lighting's MCP tools (get_lighting, set_time_of_day, set_weather, set_lighting, app_status.lighting) through
-// handleMessage, on one headless app per suite (with a device: skipped without a Vulkan 1.3 driver; without a device;
-// --coop), the console commands, and the app's environment and Lighting tab (F5) on the suites' apps (with and without
+// handleMessage, on a headless app per test (with a device: skipped without a Vulkan 1.3 driver; without a device;
+// --coop), the console commands, and the app's environment and Lighting tab (F5) (with and without
 // EnvironmentSetup::enabled).
 
 #include "saiga/core/image/templatedImage.h"
@@ -233,35 +233,22 @@ Vulkan::MeshLods planeMesh(const vec3& half)
 }  // namespace
 
 // ---------------------------------------------------------------------------------------------------------------------
-// With a device (one app for the suite)
+// With a device (an app per test)
 
 class LightingTools : public ::testing::Test
 {
-   public:
-    // One app for this suite and LightingDebugTools (an EngineApp costs about 0.45 s on lavapipe; test speed),
-    // destroyed after the last test (LightingToolsCleanup)
-    static void SetUpTestSuite()
-    {
-        if (app || !Vulkan::Instance::suitableDeviceAvailable()) return;
-        app = std::make_unique<EngineApp>(lightingSetup(true));
-        app->runFrames(2, 1.0 / 60);
-    }
-    static void TearDownTestSuite() {}
-    static void DestroyApp() { app.reset(); }
-
    protected:
     void SetUp() override
     {
-        if (!app) GTEST_SKIP() << "No Vulkan 1.3 device available";
-        // The state of the previous case: the default settings, noon, the view in space 0
-        app->setEnvironmentSettings(Vulkan::EnvironmentSettings());
-        app->scene()->setLightingParameters(Vulkan::LightingParameters());
-        app->scene()->setToneMap(Vulkan::ToneMap::Identity);
-        app->scene()->setExposure(1);
+        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        app = std::make_unique<EngineApp>(lightingSetup(true));
+        app->runFrames(2, 1.0 / 60);
+        // Noon, the view in space 0
         app->setViewCameraByTool(0, Vec3(0, 2, 6), Quat::Identity(), 1, false);
         ASSERT_FALSE(isError(call(*app, "set_time_of_day", obj(R"({"hours": 12, "day": 0, "rate": 0})"))));
     }
-    static inline std::unique_ptr<EngineApp> app;
+    void TearDown() override { app.reset(); }
+    std::unique_ptr<EngineApp> app;
 };
 
 TEST_F(LightingTools, GetLightingKeysAndSections)
@@ -402,40 +389,21 @@ class LightingDebugTools : public LightingTools
     void SetUp() override
     {
         LightingTools::SetUp();
-        if (IsSkipped()) return;
-        Vulkan::RenderScene& s = *app->scene();
-        if (!plane)
-        {
-            const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
-            const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
-            s.addMaterial(mat, "debug_plane", Vulkan::MaterialData());
-            s.addMesh(mesh, "debug_plane", planeMesh(vec3(50, 1, 50)), mat);
-            Vulkan::StaticInstance i;
-            i.setPosition(vec3(0, -1, 0));
-            i.scale = 1;
-            i.mesh  = mesh;
-            plane   = s.addInstanceSet(RegionId(), {i});
-        }
-        s.setLightingDebug(Vulkan::LightingDebugState());
+        if (IsSkipped() || HasFatalFailure()) return;
+        Vulkan::RenderScene& s       = *app->scene();
+        const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
+        const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
+        s.addMaterial(mat, "debug_plane", Vulkan::MaterialData());
+        s.addMesh(mesh, "debug_plane", planeMesh(vec3(50, 1, 50)), mat);
+        Vulkan::StaticInstance i;
+        i.setPosition(vec3(0, -1, 0));
+        i.scale = 1;
+        i.mesh  = mesh;
+        s.addInstanceSet(RegionId(), {i});
         app->setViewCameraByTool(0, Vec3(0, 6, 0.01), lookRotation(Vec3(0, -1, -0.002)), 1, false);
         app->runFrames(1, 1.0 / 60);
     }
-    // The shared app without the plane for the other suite
-    static void TearDownTestSuite()
-    {
-        if (app && plane) app->scene()->removeInstanceSet(*plane);
-        plane.reset();
-    }
-    static inline std::optional<Vulkan::InstanceSetHandle> plane;
 };
-
-class LightingToolsCleanup : public ::testing::Environment
-{
-   public:
-    void TearDown() override { LightingTools::DestroyApp(); }
-};
-[[maybe_unused]] const ::testing::Environment* const g_lightingToolsCleanup =
-    ::testing::AddGlobalTestEnvironment(new LightingToolsCleanup);
 
 TEST_F(LightingDebugTools, SetLightingDebug)
 {
@@ -700,31 +668,19 @@ TEST_F(LightingTools, EnvironmentReachesTheScene)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// The Lighting tab: the debug UI's apps with and without EnvironmentSetup::enabled (one app per suite)
+// The Lighting tab: the debug UI's apps with and without EnvironmentSetup::enabled (an app per test)
 
 template <bool Environment>
 class LightingTabSuite : public ::testing::Test
 {
-   public:
-    static void SetUpTestSuite()
-    {
-        if (!Vulkan::Instance::suitableDeviceAvailable()) return;
-        app = std::make_unique<EngineApp>(tabSetup(Environment));
-    }
-    static void TearDownTestSuite() { app.reset(); }
-
    protected:
     void SetUp() override
     {
-        if (!app) GTEST_SKIP() << "No Vulkan 1.3 device available";
-        app->setEnvironmentSettings(Vulkan::EnvironmentSettings());
-        app->scene()->setLightingParameters(Vulkan::LightingParameters());
-        app->scene()->setLightingDebug(Vulkan::LightingDebugState());
-        app->scene()->setToneMap(Vulkan::ToneMap::Identity);
-        app->scene()->setExposure(1);
-        app->debugUi().select(DebugTab::Game);
+        if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+        app = std::make_unique<EngineApp>(tabSetup(Environment));
     }
-    static inline std::unique_ptr<EngineApp> app;
+    void TearDown() override { app.reset(); }
+    std::unique_ptr<EngineApp> app;
 };
 using LightingTabTest      = LightingTabSuite<true>;
 using LightingTabPlainTest = LightingTabSuite<false>;

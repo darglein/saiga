@@ -85,7 +85,9 @@ class SAIGA_VULKAN_API CloudLayer
     uint64_t memoryBytes() const;
 
    private:
-    void generate(vk::CommandBuffer cmd, uint32_t seed);
+    // fromCache: the noise of a seed generated before in the process is copied into the buffer instead of computed
+    // (only where no copy of the buffer is in flight: init)
+    void generate(vk::CommandBuffer cmd, uint32_t seed, bool fromCache = false);
     VulkanBase* base = nullptr;
     Texture2D coverage;
     Sampler linearRepeat;

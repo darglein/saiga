@@ -12,6 +12,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <mutex>
+#include <vector>
 
 namespace Saiga
 {
@@ -22,6 +24,21 @@ using Access = vk::AccessFlagBits2;
 
 namespace
 {
+// The noise of the last seed generated in the process (R8, kSize^2): a new scene's first texture is a copy (the
+// generation cost about 22 ms per RenderScene on lavapipe; the tests create a scene per test). Deterministic data of
+// the seed, as BrdfLut's cache
+struct NoiseCache
+{
+    std::mutex mutex;
+    std::optional<uint32_t> seed;
+    std::vector<uint8_t> bytes;
+};
+NoiseCache& noiseCache()
+{
+    static NoiseCache cache;
+    return cache;
+}
+
 struct NoisePush
 {
     int32_t size[4];  // size, mode, seed, blob
@@ -133,7 +150,7 @@ void CloudLayer::init(VulkanBase& b, const RenderingFormats& formats, uint32_t s
     // The first texture at once (blocking): sampled from the first frame
     auto& q               = b.mainQueue;
     vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
-    generate(cmd, seed);
+    generate(cmd, seed, true);
     cmd.end();
     q.submitAndWait(cmd);
     q.commandPool.freeCommandBuffer(cmd);
@@ -168,13 +185,24 @@ uint64_t CloudLayer::memoryBytes() const
     return base ? uint64_t(kSize) * kSize * 4 / 3 + uint64_t(kSize) * kSize : 0;
 }
 
-void CloudLayer::generate(vk::CommandBuffer cmd, uint32_t seed)
+void CloudLayer::generate(vk::CommandBuffer cmd, uint32_t seed, bool fromCache)
 {
+    bool cached = false;
+    if (fromCache && !testBlob)
+    {
+        NoiseCache& cache = noiseCache();
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        if (cache.seed == seed && cache.bytes.size() == size_t(kSize) * kSize)
+        {
+            std::memcpy(noise.getMappedPointer(), cache.bytes.data(), cache.bytes.size());
+            cached = true;
+        }
+    }
     // The previous copy's reads of the buffer and the host's read before the writes
     vk::MemoryBarrier2 before(Stage::eAllTransfer | Stage::eHost, Access::eTransferRead | Access::eHostRead,
                               Stage::eComputeShader, Access::eShaderStorageWrite);
     cmd.pipelineBarrier2(vk::DependencyInfo({}, before, nullptr, nullptr));
-    if (noisePipeline.bind(cmd))
+    if (!cached && noisePipeline.bind(cmd))
     {
         NoisePush push{};
         push.size[0] = int32_t(kSize);
@@ -219,6 +247,16 @@ void CloudLayer::harvest()
     for (size_t i = 0; i < size_t(kSize) * kSize; ++i) histogram[bytes[i]]++;
     histogramTotal   = kSize * kSize;
     histogramPending = false;
+    if (generatedSeed && !generatedBlob)
+    {
+        NoiseCache& cache = noiseCache();
+        std::lock_guard<std::mutex> lock(cache.mutex);
+        if (cache.seed != generatedSeed)
+        {
+            cache.seed = generatedSeed;
+            cache.bytes.assign(bytes, bytes + size_t(kSize) * kSize);
+        }
+    }
 }
 
 float CloudLayer::effectiveCloudiness(float cloudiness) const

@@ -6,7 +6,7 @@
 
 // The lighting of S36 on RenderScene (docs/stages/S36_lighting.plan.md, Tests): a1b the PBR shading (the BRDF
 // LUT, energy conservation, the studio environment of clay mode, the prototype colours) and the debug core; a1c the
-// atmosphere, the environment map and the cloud layer. One scene for the suites (RenderSceneSuiteTest), skipped
+// atmosphere, the environment map and the cloud layer. A scene per test (RenderSceneTest at 128 x 128), skipped
 // without a Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/Atmosphere.h"
@@ -231,7 +231,14 @@ vec3 pbrDirectReference(const vec3& n, const vec3& v, const vec3& l, const vec3&
     return out;
 }
 
-class Pbr : public RenderSceneSuiteTest
+// The lighting tests' scenes: 128 x 128 with 4 samples
+class LightingSceneTest : public RenderSceneTest
+{
+   protected:
+    ivec2 Size() const override { return ivec2(128, 128); }
+};
+
+class Pbr : public LightingSceneTest
 {
 };
 }  // namespace
@@ -514,7 +521,7 @@ TEST_F(Pbr, PrototypeColoursOnlyInAces)
 
 namespace
 {
-class LightingDebugTest : public RenderSceneSuiteTest
+class LightingDebugTest : public LightingSceneTest
 {
    protected:
     // A gray plane (top at y = 0) and a red box on it, the camera 6 m above looking down at the plane
@@ -1034,7 +1041,7 @@ EnvironmentState sunAt(float elevationDeg, float azimuthDeg = 180)
     return e;
 }
 
-class AtmosphereTest : public RenderSceneSuiteTest
+class AtmosphereTest : public LightingSceneTest
 {
    protected:
     // The physical path (ACES) with the environment, the camera 100 m up looking along forward; the environment map
@@ -1262,14 +1269,12 @@ class EnvironmentMapTest : public AtmosphereTest
 };
 }  // namespace
 
-// A new scene's environment map (invalidate): frames before the first physical frame have the floor as their ambient
+// A new scene's environment map: frames before the first physical frame have the floor as their ambient
 // and no environment map; the first capture completes in its own frame (the floor is not shown for several frames)
 TEST_F(EnvironmentMapTest, FirstFrameAmbientIsFloor)
 {
     EnvironmentState e = sunAt(45);
     e.minAmbient       = vec3(0.5f, 0.25f, 0.125f);
-    // The state of a new scene (the suites share one)
-    scene->environmentMap().invalidate();
     scene->setEnvironment(e);
     SetCamera(0, Vec3(0, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
     Capture(2);
