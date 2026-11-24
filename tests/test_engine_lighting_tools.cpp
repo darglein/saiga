@@ -534,13 +534,16 @@ TEST_F(LightingDebugTools, CaptureLighting)
     for (const char* args : {R"({"image": "cascade"})", R"({})", R"({"image": "luminance", "max_width": 10})",
                              R"({"image": "luminance", "cascade": 1})", R"({"image": "luminance", "range": [1]})"})
         EXPECT_TRUE(isError(call(*app, "capture_lighting", obj(args)))) << args;
-    // Rendering disabled: the deadline (a short tool timeout; answerDeadline keeps 0.2 s of it for the answer) answers
-    // once
+    // Rendering disabled: the deadline answers once (a short tool timeout; half of it, 0.25 s, is kept for the answer
+    // so that it reaches the caller in time on a loaded machine)
     app->setRenderingEnabled(false);
-    const double timeout          = app->mcp().toolTimeoutSeconds;
-    app->mcp().toolTimeoutSeconds = 0.5;
+    const double timeout            = app->mcp().toolTimeoutSeconds;
+    const double margin             = app->mcp().answerMarginFraction;
+    app->mcp().toolTimeoutSeconds   = 0.5;
+    app->mcp().answerMarginFraction = 0.5;
     const Json late = call(*app, "capture_lighting", obj(R"({"image": "luminance", "stats_only": true})"));
-    app->mcp().toolTimeoutSeconds = timeout;
+    app->mcp().toolTimeoutSeconds   = timeout;
+    app->mcp().answerMarginFraction = margin;
     app->setRenderingEnabled(true);
     EXPECT_TRUE(isError(late));
     EXPECT_NE(text(late).find("deadline"), std::string::npos) << text(late);
