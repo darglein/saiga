@@ -11,7 +11,7 @@
 #include "saiga/engine/world/SystemList.h"
 #include "saiga/saiga_buildconfig.h"
 
-#include <fstream>
+#include <filesystem>
 
 namespace Saiga
 {
@@ -41,7 +41,10 @@ void enableEnvironment(Engine::EngineAppSetup& setup, const std::string& game)
             dir                      = (source.empty() ? std::string("data") : source + "/data") + "/" + game;
         }
         const std::string path = dir + "/environment.json";
-        if (std::ifstream(path).good())
+        // Only an absent file is optional (CodeRabbit #83: an unreadable one was skipped too); any other file, or an
+        // error of the file system, goes to readEnvironmentFile, which reports it
+        std::error_code ec;
+        if (std::filesystem::status(path, ec).type() != std::filesystem::file_type::not_found)
         {
             const Engine::EnvironmentFile file = Engine::readEnvironmentFile(path);
             s.world.environment                = file.setup;
