@@ -30,6 +30,9 @@ void main()
 {
     vertexLightInput = VertexLight(inSunE, inMoonE, inFog);
     bool water       = inLod < 0.0;
+    // The water plane's triangles are 25 km wide: its fog per fragment (CodeRabbit #84: the vertices' fog put the
+    // fog of distant corners on near water); the bodies' light is the same at every vertex of the plane
+    if (water && lighting.mode.x == 1u) vertexLightInput.fog = physicalFog(inPos);
     vec3 N;
     // A skirt fragment (a triangle with a skirt vertex) has the interpolated normal of its edge vertices: flat shading
     // would light the vertical skirt as a wall
