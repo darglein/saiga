@@ -1221,11 +1221,17 @@ TEST_F(AtmosphereTest, MoonSkippedInDaylight)
 TEST_F(AtmosphereTest, StarsFadeWithTheSun)
 {
     const float intensity = 2;
+    bool first            = true;
     for (auto [elevation, expected] : {std::pair<float, float>{10, 0}, {-4, 0}, {-7, 1}, {-10, 2}, {-40, 2}})
     {
         EnvironmentState e = sunAt(elevation);
         e.starIntensity    = intensity;
-        Physical(e);
+        // (only the block is read: one full capture for the first sample)
+        if (first)
+            Physical(e);
+        else
+            scene->setEnvironment(e);
+        first = false;
         RenderFrame();
         EXPECT_NEAR(scene->lastLightingBlock().starRotation[0](3), expected, 1e-3f) << elevation;
     }
@@ -1303,7 +1309,11 @@ TEST_F(EnvironmentMapTest, FirstFrameAmbientIsFloor)
     Capture(2);
     EXPECT_FALSE(scene->environmentMap().valid());
     EXPECT_EQ(scene->lightingStatistics().sh[0], e.minAmbient);
-    Physical(e);
+    // The physical path without requestFullUpdate (Physical requests one): the first physical frame captures by itself
+    LightingParameters p    = scene->lightingParameters();
+    p.environmentResolution = CubeResolution();
+    scene->setLightingParameters(p);
+    scene->setToneMap(ToneMap::Aces);
     RenderFrame();
     EXPECT_TRUE(scene->environmentMap().valid());
     EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, 1u);
@@ -1678,7 +1688,7 @@ TEST_F(CloudsTest, OccludedByTerrainAboveAltitude)
 }
 
 // The layer's alpha fades out over the outer 30% of its radius (no rim)
-TEST_F(CloudsTest, EdgeFades)
+TEST(CloudEdge, EdgeFades)
 {
     EXPECT_EQ(CloudLayer::edgeAlpha(0.5f), 1.0f);
     EXPECT_LT(CloudLayer::edgeAlpha(0.95f), 0.2f);
@@ -1704,7 +1714,9 @@ TEST_F(CloudsTest, NoShadowAboveLayer)
     EXPECT_GT(ReadPixel(ivec2(width / 2, height / 2))(0), 0.99f) << "above the layer";
     SetCamera(0, Vec3(1000, 900, 1000), lookRotation(Vec3(0.001, -1, 0)), 0.3);
     Capture(2);
-    EXPECT_LT(ReadPixel(ivec2(width / 2, height / 2))(0), 0.3f) << "below the layer";
+    const float below = ReadPixel(ivec2(width / 2, height / 2))(0);
+    EXPECT_GE(below, 0.0f) << "a valid sample (-1 without one)";
+    EXPECT_LT(below, 0.3f) << "below the layer";
     View(LightingDebugView::None);
 }
 
@@ -1731,6 +1743,8 @@ TEST_F(CloudsTest, CoverageTilesSeamlessly)
     std::vector<uint8_t> t = scene->cloudLayer().coverageTexture().download(0);
     const int n            = int(CloudLayer::kSize);
     ASSERT_EQ(t.size(), size_t(n) * n);
+    const auto [lo, hi] = std::minmax_element(t.begin(), t.end());
+    ASSERT_GT(int(*hi) - int(*lo), 100) << "generated coverage, not a constant texture";
     double inside = 0, across = 0;
     for (int y = 0; y < n; ++y)
     {
