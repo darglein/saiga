@@ -1396,6 +1396,25 @@ TEST_F(EnvironmentMapTest, ProbeKeepsOneCapture)
     EXPECT_TRUE(*answered);
 }
 
+// Regression (CodeRabbit #84): a requestFullUpdate during a probe's held frames was consumed by a frame that records no
+// capture; it now completes a capture in the first frame after the probe
+TEST_F(EnvironmentMapTest, FullUpdateDuringProbe)
+{
+    Physical(sunAt(20));
+    RenderFrame();
+    const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
+    auto answered           = std::make_shared<bool>(false);
+    scene->requestProbe(ivec2(64, 64), [answered](const LightingProbe&) { *answered = true; });
+    RenderFrame();
+    RenderFrame();
+    ASSERT_TRUE(scene->probeRunning());
+    scene->requestFullUpdate();
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !*answered; ++i) RenderFrame();
+    ASSERT_TRUE(*answered);
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures + 1);
+}
+
 // Below the horizon the capture is the ground (grey, lit through the atmosphere), not the blue sky
 TEST_F(EnvironmentMapTest, LowerHemisphereIsGround)
 {

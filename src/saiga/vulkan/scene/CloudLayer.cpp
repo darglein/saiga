@@ -198,11 +198,15 @@ void CloudLayer::generate(vk::CommandBuffer cmd, uint32_t seed, bool fromCache)
             cached = true;
         }
     }
+    // Without the noise (a pipeline without a valid shader) the previous coverage stays and nothing is recorded, so
+    // record() tries again (CodeRabbit #84: the buffer's old contents became this seed's coverage and cache entry)
+    const bool haveNoise = cached || noisePipeline.bind(cmd);
+    if (!haveNoise && generatedSeed) return;
     // The previous copy's reads of the buffer and the host's read before the writes
     vk::MemoryBarrier2 before(Stage::eAllTransfer | Stage::eHost, Access::eTransferRead | Access::eHostRead,
                               Stage::eComputeShader, Access::eShaderStorageWrite);
     cmd.pipelineBarrier2(vk::DependencyInfo({}, before, nullptr, nullptr));
-    if (!cached && noisePipeline.bind(cmd))
+    if (!cached && haveNoise)
     {
         NoisePush push{};
         push.size[0] = int32_t(kSize);
@@ -223,6 +227,8 @@ void CloudLayer::generate(vk::CommandBuffer cmd, uint32_t seed, bool fromCache)
                                {kSize, kSize, 1});
     cmd.copyBufferToImage(handle(noise), coverage.image(), vk::ImageLayout::eTransferDstOptimal, region);
     coverage.recordGenerateMipmaps(cmd, vk::ImageLayout::eShaderReadOnlyOptimal);
+    // (the first coverage is copied anyway: it is sampled from the first frame and needs its layout)
+    if (!haveNoise) return;
     generatedSeed    = seed;
     generatedBlob    = testBlob;
     histogramPending = true;

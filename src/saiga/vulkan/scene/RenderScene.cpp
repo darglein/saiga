@@ -485,10 +485,12 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         LightingParameters lp = s.params.lighting;
         lp.forceFullUpdates   = lp.forceFullUpdates || s.fullUpdateRequested || s.environmentSkipped;
         s.fullUpdateRequested = false;
-        s.environmentSkipped  = false;
         // probe_lighting: one capture for the whole sequence (CodeRabbit #83: a capture in progress was swapped in
         // between its frames): a capture in progress completes in frame 1, the later frames keep the front cube
         const bool probeHold = probe && probe->step > 0;
+        // A held frame records no capture: its full update goes to the first frame after the probe (CodeRabbit #84: a
+        // requestFullUpdate during the probe was lost)
+        s.environmentSkipped = probeHold && lp.forceFullUpdates;
         if (probe && probe->step == 0 && s.envMap->capturing()) lp.forceFullUpdates = true;
         s.atmosphere->record(cmd, s.env, lighting.atmosphere(0));
         s.clouds->record(cmd, s.env.clouds.seed);
