@@ -200,9 +200,14 @@ void updateBatch(EngineApp& app, ScreenshotBatch& batch)
 {
     if (batch.current.empty() && !batch.deferred.empty())
     {
-        batch.current.swap(batch.deferred);
-        batch.gui   = batch.current.front()->gui;
-        batch.debug = batch.current.front()->debug;
+        // Only the requests of the first one's frame settings (one readback answers them with one image); the others
+        // keep waiting
+        const std::shared_ptr<ScreenshotRequest> first = batch.deferred.front();
+        std::vector<std::shared_ptr<ScreenshotRequest>> rest;
+        for (auto& r : batch.deferred) (r->sameFrame(*first) ? batch.current : rest).push_back(r);
+        batch.deferred.swap(rest);
+        batch.gui   = first->gui;
+        batch.debug = first->debug;
     }
     if (!app.scene()) return;
     if (batch.inFlight && !batch.current.empty())

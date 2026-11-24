@@ -418,9 +418,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                 if (!r.world) continue;
                 const Vec3 rel = *r.world - camera.position;
                 const vec4 h   = camera.viewProj * vec4(float(rel(0)), float(rel(1)), float(rel(2)), 1.0f);
-                r.pixel        = h(3) > 0 ? ivec2(int(std::floor((h(0) / h(3) * 0.5f + 0.5f) * float(surfaceWidth))),
-                                                  int(std::floor((h(1) / h(3) * 0.5f + 0.5f) * float(SurfaceHeight))))
-                                          : ivec2(-1, -1);
+                // The range is checked in float before the conversion (a point far off screen projects beyond the
+                // int range: undefined behaviour)
+                const float px    = std::floor((h(0) / h(3) * 0.5f + 0.5f) * float(surfaceWidth));
+                const float py    = std::floor((h(1) / h(3) * 0.5f + 0.5f) * float(SurfaceHeight));
+                const bool inside = h(3) > 0 && std::isfinite(px) && std::isfinite(py) && px >= 0 && py >= 0 &&
+                                    px < float(surfaceWidth) && py < float(SurfaceHeight);
+                r.pixel = inside ? ivec2(int(px), int(py)) : ivec2(-1, -1);
             }
         }
         // probe_lighting: the pixels of this frame of the sequence
@@ -715,7 +719,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             VK_QUEUE_FAMILY_IGNORED, VK_QUEUE_FAMILY_IGNORED, sampledDepth().image(), depthRange());
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, depthBack));
     }
-    const bool previews = s.debugImages->requested() && !probeDebugFrame;
+    // (not in any frame of a probe, also not its normal frame 1: the captures wait for the frame after the sequence)
+    const bool previews = s.debugImages->requested() && !probe;
     {
         // The resolved image -> post's sampled read (and S36's preview conversion); the output image after the acquire
         // (the submit waits for imageAvailable at COLOR_ATTACHMENT_OUTPUT; headless: the frame that last used it has
@@ -1394,7 +1399,9 @@ void RenderScene::finishProbe()
                 p.distance     = rel.norm();
             }
             auto rgb       = [](const vec4& v) { return vec3(v(0), v(1), v(2)); };
-            const float pe = run->physical ? run->preExposure : 1.0f;
+            // Every linear frame is written with the pre-exposure (also ACES without an environment, which is not
+            // physical); the clay output is the display value
+            const float pe = run->postLinear ? run->preExposure : 1.0f;
             p.color        = rgb(first.color) / pe;
             p.luminance    = 0.2126f * p.color(0) + 0.7152f * p.color(1) + 0.0722f * p.color(2);
             p.ev100        = float(std::log2(std::max(double(p.luminance), 1e-6) * 8.0));

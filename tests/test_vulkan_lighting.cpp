@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <set>
 
@@ -176,18 +177,14 @@ EnvironmentState darkEnvironment(float ev100)
 LightingProbe runProbe(RenderScene& scene,
                        const std::function<void(std::function<void(const LightingProbe&)>)>& request)
 {
-    LightingProbe probe;
-    bool answered = false;
-    request(
-        [&](const LightingProbe& p)
-        {
-            probe    = p;
-            answered = true;
-        });
-    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answered; ++i)
+    // The renderer may answer after this function returned (a probe that did not finish in time): the callback owns
+    // the answer
+    auto answer = std::make_shared<std::optional<LightingProbe>>();
+    request([answer](const LightingProbe& p) { *answer = p; });
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !answer->has_value(); ++i)
         scene.renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
-    EXPECT_TRUE(answered);
-    return probe;
+    EXPECT_TRUE(answer->has_value());
+    return answer->value_or(LightingProbe());
 }
 
 // The LUT as the shader samples it: bilinear between texel centres ((i + 0.5) / n), clamped to the edge texels
@@ -684,6 +681,10 @@ TEST_F(LightingDebugTest, ShownPreviewsAreRateLimited)
     // The texel budget: of two shown images only the first is converted in a frame, the other in the next one
     d.setPreviewInterval(0);
     d.setPreviewLimits(32, 1);
+    // Both are converted (their statistics advance; a preview of an earlier test on the scene would pass a null check)
+    Capture(2);
+    const uint64_t luminanceBefore = d.statisticsFrame(LightingImage::Luminance);
+    const uint64_t lutBefore       = d.statisticsFrame(LightingImage::BrdfLut);
     for (int f = 0; f < 2; ++f)
     {
         d.show(LightingImage::Luminance, mapping);
@@ -692,6 +693,10 @@ TEST_F(LightingDebugTest, ShownPreviewsAreRateLimited)
         EXPECT_EQ(scene->lightingStatistics().previewDispatches, 1u);
     }
     EXPECT_NE(d.preview(LightingImage::BrdfLut), nullptr);
+    // The statistics arrive with the slots' next use
+    Capture(2);
+    EXPECT_GT(d.statisticsFrame(LightingImage::Luminance), luminanceBefore);
+    EXPECT_GT(d.statisticsFrame(LightingImage::BrdfLut), lutBefore);
     d.setPreviewInterval(0.25);
     d.setPreviewLimits(LightingDebug::kPreviewMaxSize, LightingDebug::kPreviewTexelBudget);
 }
@@ -723,9 +728,9 @@ TEST_F(LightingDebugTest, RequestsKeepTheirMapping)
     EXPECT_EQ(c(1), c(2));
 }
 
-// While a probe runs, a screenshot requested with it and a capture requested during it wait for the frame after the
-// sequence, so they read a normal frame. Regression: they read the probe's debug frames (an Albedo / Normals / raw
-// radiance image)
+// While a probe runs, a screenshot and a capture requested with it and a capture requested during it wait for the frame
+// after the sequence, so they read a normal frame. Regression: they read the probe's debug frames (an Albedo / Normals
+// / raw radiance image); a capture requested with the probe was converted in its frame 1 (CodeRabbit #82)
 TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
 {
     UsePbr();
@@ -741,8 +746,8 @@ TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
     LightingDebug::Capture normal, during;
     d.request(LightingImage::Luminance, linear, [&](const LightingDebug::Capture& c) { normal = c; });
     const auto reference = RenderFrame();
-    bool probed = false, captured = false;
-    uint64_t probeFrame = 0, shotFrame = 0, captureFrame = 0;
+    bool probed = false, captured = false, capturedWith = false;
+    uint64_t probeFrame = 0, shotFrame = 0, captureFrame = 0, captureWithFrame = 0;
     TemplatedImage<ucvec4> shot;
     scene->requestProbe(ivec2(width / 2 - 20, height / 2),
                         [&](const LightingProbe&)
@@ -756,6 +761,12 @@ TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
             shot      = img;
             shotFrame = scene->frames();
         });
+    d.request(LightingImage::Luminance, linear,
+              [&](const LightingDebug::Capture&)
+              {
+                  capturedWith     = true;
+                  captureWithFrame = scene->frames();
+              });
     // The capture is requested in the sequence (frame 1 is a normal frame, the later ones are not)
     scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
     ASSERT_TRUE(scene->probeRunning());
@@ -766,11 +777,12 @@ TEST_F(LightingDebugTest, ProbeDefersScreenshotsAndCaptures)
                   captured     = true;
                   captureFrame = scene->frames();
               });
-    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !(probed && captured && shot.w > 0); ++i)
+    for (int i = 0; i < 2 * RenderScene::kProbeFrames && !(probed && captured && capturedWith && shot.w > 0); ++i)
         scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
-    ASSERT_TRUE(probed && captured && shot.w > 0);
+    ASSERT_TRUE(probed && captured && capturedWith && shot.w > 0);
     EXPECT_GT(shotFrame, probeFrame);
     EXPECT_GT(captureFrame, probeFrame);
+    EXPECT_GT(captureWithFrame, probeFrame);
     ASSERT_EQ(shot.w, reference.w);
     int maxDiff = 0;
     for (int y = 0; y < shot.h; ++y)
@@ -803,6 +815,9 @@ TEST_F(LightingDebugTest, ProbeAtWorldPoint)
     EXPECT_NEAR(p.position.y(), world.y(), 0.02);
     EXPECT_NEAR(p.position.z(), world.z(), 0.06);
     p = runProbe(*scene, [&](auto cb) { scene->requestProbe(Vec3(0, 20, 0), cb); });
+    EXPECT_FALSE(p.inImage);
+    // Far off screen (beyond the int range in pixels: the range is checked before the conversion; CodeRabbit #82)
+    p = runProbe(*scene, [&](auto cb) { scene->requestProbe(Vec3(1e9, 0, -1), cb); });
     EXPECT_FALSE(p.inImage);
 }
 

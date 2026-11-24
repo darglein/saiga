@@ -352,6 +352,8 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     EXPECT_EQ(l["tone_map"]["value"], Json("aces"));
     EXPECT_EQ(app->environmentSettings().exposure.ev100, 12.5f);
     EXPECT_EQ(app->scene()->lightingParameters().environmentResolution, 64);
+    // The write itself, not only the echoed values (both would say false if pbr were never written)
+    EXPECT_TRUE(app->scene()->lightingParameters().pbr);
     EXPECT_TRUE(app->environmentSettings().sunOverride.has_value());
     // The sun override moves the sun of the next frame; the next frame's EV100 is the fixed value minus the
     // compensation
@@ -482,26 +484,31 @@ TEST_F(LightingDebugTools, ScreenshotLightingView)
     EXPECT_TRUE(isError(call(*app, "probe_lighting", obj(R"({"pixel": [20, 24]})"))));
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"pbr": true})"))));
     app->runFrames(1, 1.0 / 60);
-    auto centre = [](const Json& r)
+    // nullopt if the png does not decode (a black fallback would pass the comparison below)
+    auto centre = [](const Json& r) -> std::optional<ucvec3>
     {
         const std::string data = base64Decode(r["result"]["content"][0]["data"].string_value());
         TemplatedImage<ucvec3> img;
         if (!img.loadFromMemory(ArrayView<const char>(data.data(), data.size()), "png") || img.w == 0)
-            return ucvec3(0, 0, 0);
+            return std::nullopt;
         // Left of the centre: the sun direction overlay's cross is at the centre
         return img(img.h / 2, img.w / 4);
     };
     const Json n = callFrames(*app, "screenshot", obj(R"({"format": "png", "lighting_view": "normals",
                                                           "overlays": ["sun_direction"]})"));
     ASSERT_FALSE(isError(n)) << text(n);
-    const ucvec3 c = centre(n);
+    const std::optional<ucvec3> viewCentre = centre(n);
+    ASSERT_TRUE(viewCentre.has_value());
+    const ucvec3 c = *viewCentre;
     EXPECT_NEAR(int(c(0)), 128, 2);
     EXPECT_NEAR(int(c(1)), 255, 2);
     EXPECT_NEAR(int(c(2)), 128, 2);
     EXPECT_EQ(app->scene()->lightingDebug().view, Vulkan::LightingDebugView::None);
     const Json normal = callFrames(*app, "screenshot", obj(R"({"format": "png"})"));
     ASSERT_FALSE(isError(normal));
-    EXPECT_NE(centre(normal), c);
+    const std::optional<ucvec3> normalCentre = centre(normal);
+    ASSERT_TRUE(normalCentre.has_value());
+    EXPECT_NE(*normalCentre, c);
     EXPECT_EQ(app->scene()->frameLightingDebug().view, Vulkan::LightingDebugView::None);
     EXPECT_TRUE(isError(call(*app, "screenshot", obj(R"({"lighting_view": "x-ray"})"))));
     EXPECT_TRUE(isError(call(*app, "screenshot", obj(R"({"overlays": "sun_direction"})"))));
@@ -703,9 +710,10 @@ TEST_F(LightingTabTest, RendersAndWrites)
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
 }
 
-// S36: the Lighting tab's settings write the app's EnvironmentSettings: a compensation of +2 EV lowers the next frame's
-// EV100 by 2 (through the environment extract)
-TEST_F(LightingTabTest, SettingsChangeEnvironment)
+// S36: the write of the Lighting tab's settings (setEnvironmentSettings, which its compensation slider calls; the
+// slider's input itself is not driven here): a compensation of +2 EV lowers the next frame's EV100 by 2 (through the
+// environment extract)
+TEST_F(LightingTabTest, CompensationWriteLowersEv100)
 {
     Json::object state = app->debugUi().state().object_items();
     state["sections"]  = Json::object{{"lighting/Exposure", true}, {"lighting/Ambient", true}};
@@ -714,7 +722,7 @@ TEST_F(LightingTabTest, SettingsChangeEnvironment)
     app->runFrames(2, 1.0 / 60);
     ASSERT_TRUE(app->scene()->hasEnvironment());
     const float ev = app->scene()->environment().ev100;
-    // The compensation slider writes the settings (setEnvironmentSettings, as the tab does on a change)
+    // The settings write of the compensation slider
     Vulkan::EnvironmentSettings settings = app->environmentSettings();
     settings.exposure.compensation       = 2;
     app->setEnvironmentSettings(settings);

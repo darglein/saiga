@@ -60,6 +60,8 @@ bool sourceValue(ivec2 p, out float v)
 {
     vec4 t = texelFetch(source, min(p * int(pc.step), textureSize(source, 0) - 1), 0);
     v      = pc.kind == 0u ? luma(t.rgb) * pc.scale : t.r;
+    // Invalid before the log (max would turn -inf, and maybe NaN, into the finite floor)
+    if (isnan(v) || isinf(v)) return false;
     if (pc.useLog != 0u) v = log2(max(v, 1e-10));
     return !(isnan(v) || isinf(v));
 }
