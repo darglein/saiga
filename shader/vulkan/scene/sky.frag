@@ -58,7 +58,11 @@ void main()
         {
             vec3 celestial = vec3(dot(lighting.starRotation[0].xyz, dir), dot(lighting.starRotation[1].xyz, dir),
                                   dot(lighting.starRotation[2].xyz, dir));
-            c += Tview * starRadiance(celestial, pixel, lighting.starRotation[0].w) * smoothstep(-0.02, 0.02, dir.y);
+            // Faded at the camera's horizon (CodeRabbit #83: a fixed fade at y = 0 removed the stars between it and
+            // the lower limb of a high camera)
+            float limb = limbCosine(r);
+            c += Tview * starRadiance(celestial, pixel, lighting.starRotation[0].w) *
+                 smoothstep(limb - 0.02, limb + 0.02, dir.y);
         }
         // Below the limb the LUT shows the planet's ground: it gets the height fog of its distance like the terrain
         // does (no seam where a terrain ends before the horizon)

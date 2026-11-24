@@ -177,14 +177,15 @@ vec3 shadeSurface(SurfaceInput s)
         fog            = vl.fog;
         if (lighting.mode.y == 0u)
         {
-            // The shadow factor only for the shadow light (at most one of the bodies)
-            if (lighting.sun.w > 0.0 && lighting.sun.y > -0.1)
+            // The shadow factor only for the shadow light (at most one of the bodies); a body below the receiver's
+            // horizon has no light (computeVertexLight)
+            if (lighting.sun.w > 0.0 && any(greaterThan(vl.sunE, vec3(0.0))))
             {
                 vec3 sunE = vl.sunE;
                 if (lighting.shadowLight.w == 1.0) sunE *= shadowFactor(s.relPos, s.n);
                 direct += pbrDirect(s.n, v, lighting.sun.xyz, s.albedo, rough, s.metalness, sunE, lut, wrap);
             }
-            if (lighting.moon.w > 0.0 && lighting.moon.y > -0.1)
+            if (lighting.moon.w > 0.0 && any(greaterThan(vl.moonE, vec3(0.0))))
             {
                 vec3 moonE = vl.moonE;
                 if (lighting.shadowLight.w == 2.0) moonE *= shadowFactor(s.relPos, s.n);

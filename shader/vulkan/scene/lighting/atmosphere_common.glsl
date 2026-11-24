@@ -103,11 +103,17 @@ vec3 transmittanceToTop(sampler2D lut, float r, float mu)
     return textureLod(lut, transmittanceUv(r, mu), 0.0).rgb;
 }
 
+// The y of the planet's limb seen from the radius r (the cosine of the zenith angle of the horizon, below 0)
+float limbCosine(float r)
+{
+    return -sqrt(max(1.0 - kGroundRadiusKm * kGroundRadiusKm / (r * r), 0.0));
+}
+
 // The transmittance of a body's light (direction l towards it) at the radius r: 0 behind the planet, a soft edge of
 // about the sun disc's size at the horizon
 vec3 bodyTransmittanceAtRadius(sampler2D lut, float r, vec3 l)
 {
-    float horizon = -sqrt(max(1.0 - kGroundRadiusKm * kGroundRadiusKm / (r * r), 0.0));
+    float horizon = limbCosine(r);
     return transmittanceToTop(lut, r, l.y) * smoothstep(horizon - 0.004, horizon + 0.004, l.y);
 }
 

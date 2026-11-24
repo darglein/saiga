@@ -44,15 +44,17 @@ VertexLight computeVertexLight(vec3 relPos)
     v.moonE = vec3(0.0);
     v.fog   = vec4(0.0, 0.0, 0.0, 1.0);
     if (lighting.mode.x != 1u) return v;
-    // An open space: the bodies' light through the atmosphere at the receiver's height; a body below the horizon gives
-    // no direct light (the transmittance is 0 there; no lookup). The CPU zeroes the moon's w in daylight (no light
-    // worth a lookup)
+    // An open space: the bodies' light through the atmosphere at the receiver's height; a body below the receiver's
+    // horizon gives no direct light (the transmittance is 0 there; no lookup; CodeRabbit #84: a fixed -0.1 dropped the
+    // light of a body above the horizon of a receiver higher than 32 km). The CPU zeroes the moon's w in daylight (no
+    // light worth a lookup)
     if (lighting.mode.y == 0u)
     {
-        float r = atmosphereRadius(lighting.atmosphere.x + relPos.y);
-        if (lighting.sun.w > 0.0 && lighting.sun.y > -0.1)
+        float r       = atmosphereRadius(lighting.atmosphere.x + relPos.y);
+        float horizon = limbCosine(r) - 0.004;
+        if (lighting.sun.w > 0.0 && lighting.sun.y > horizon)
             v.sunE = lighting.sun.w * bodyTransmittanceAtRadius(transmittanceLut, r, lighting.sun.xyz);
-        if (lighting.moon.w > 0.0 && lighting.moon.y > -0.1)
+        if (lighting.moon.w > 0.0 && lighting.moon.y > horizon)
             v.moonE = lighting.moon.w * bodyTransmittanceAtRadius(transmittanceLut, r, lighting.moon.xyz);
     }
     v.fog = physicalFog(relPos);
