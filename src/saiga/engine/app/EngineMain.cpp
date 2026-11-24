@@ -236,6 +236,7 @@ bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::
         const std::string source  = SAIGA_PROJECT_SOURCE_DIR;
         setup.world.dataDirectory = (source.empty() ? std::string("data") : source + "/data") + "/" + setup.name;
     }
+    if (setup.onDataDirectory) setup.onDataDirectory(setup);
     return true;
 }
 

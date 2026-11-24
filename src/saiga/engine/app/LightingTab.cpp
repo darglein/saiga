@@ -16,6 +16,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
+#include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -58,8 +59,9 @@ ImU32 turboColor(float t)
 LightingTab::~LightingTab()
 {
     Vulkan::RenderScene* scene = app.scene();
-    if (luminanceTexture && scene && scene->imguiRenderer() == luminanceImgui)
-        scene->imguiRenderer()->removeTexture(luminanceTexture);
+    if (!scene || scene->imguiRenderer() != previewImgui) return;
+    for (ImTextureID t : previewTextures)
+        if (t) scene->imguiRenderer()->removeTexture(t);
 }
 
 void LightingTab::draw()
@@ -69,7 +71,49 @@ void LightingTab::draw()
     sunAndMoon();
     exposure();
     ambient();
+    skyAndClouds();
     gpuAndMemory();
+}
+
+void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth)
+{
+    Vulkan::RenderScene* scene     = app.scene();
+    Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
+    mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
+    // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
+    // second (LightingDebug::show)
+    Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
+    if (preview)
+    {
+        const float w = std::min(ImGui::GetContentRegionAvail().x, maxWidth);
+        const ImVec2 size(w, w * float(preview->height) / float(std::max(preview->width, 1u)));
+        if (!ImGui::IsRectVisible(size))
+        {
+            ImGui::Dummy(size);
+            return;
+        }
+    }
+    scene->lightingDebugImages().show(image, mapping);
+    Vulkan::ImGuiVulkanRenderer* imgui = scene->imguiRenderer();
+    if (!imgui || !preview) return;
+    // A new ImGui renderer (a recreated scene): the old one's textures went with it
+    if (imgui != previewImgui)
+    {
+        previewTextures.fill(ImTextureID(0));
+        previewVersions.fill(0);
+        previewImgui = imgui;
+    }
+    const size_t k         = size_t(image);
+    const uint64_t version = scene->lightingDebugImages().previewVersion(image);
+    if (version != previewVersions[k] || !previewTextures[k])
+    {
+        if (previewTextures[k]) imgui->removeTexture(previewTextures[k]);
+        previewTextures[k] = imgui->addTexture(preview->view(), preview->memoryLocation->data.sampler,
+                                               vk::ImageLayout::eShaderReadOnlyOptimal);
+        previewVersions[k] = version;
+    }
+    const float w = std::min(ImGui::GetContentRegionAvail().x, maxWidth);
+    ImGui::Image(previewTextures[k], ImVec2(w, w * float(preview->height) / float(std::max(preview->width, 1u))));
 }
 
 void LightingTab::toolbar()
@@ -364,10 +408,9 @@ void LightingTab::exposure()
         DebugUiStyle::property("pre-exposure");
         ImGui::Text("%.3g", double(scene->preExposure()));
         // The luminance of the frame: the Luminance preview and its reduction while the section is open (the mapping
-        // of set_lighting_debug, log2 by default; at preview resolution, a few times per second)
+        // of set_lighting_debug, log2 by default; previewImage below shows it)
         const Vulkan::PreviewMapping& mapping = app.lightingPreviewMapping();
-        scene->lightingDebugImages().show(Vulkan::LightingImage::Luminance, mapping);
-        const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+        const Vulkan::LightingStatistics& ls  = scene->lightingStatistics();
         DebugUiStyle::property(mapping.log ? "luminance (log2)" : "luminance");
         if (ls.luminanceFrame > 0)
             ImGui::Text("mean %.2f  max %.2f  (%s)", double(ls.luminance.mean), double(ls.luminance.max),
@@ -392,23 +435,8 @@ void LightingTab::exposure()
                                   std::to_string(int(std::lround(e.celestial.sunElevationDeg))) + " deg";
         ImGui::PlotLines("##exposure curve", curve, 56, 0, label.c_str(), -4.0f, 18.0f, ImVec2(-1, 48));
     }
-    // The luminance preview (registered once per preview texture as an ImGui texture)
-    Vulkan::ImGuiVulkanRenderer* imgui = scene->imguiRenderer();
-    Vulkan::Texture2D* preview         = scene->lightingDebugImages().preview(Vulkan::LightingImage::Luminance);
-    if (imgui && preview)
-    {
-        const uint64_t version = scene->lightingDebugImages().previewVersion(Vulkan::LightingImage::Luminance);
-        if (version != luminanceVersion || imgui != luminanceImgui)
-        {
-            if (luminanceTexture && imgui == luminanceImgui) imgui->removeTexture(luminanceTexture);
-            luminanceTexture = imgui->addTexture(preview->view(), preview->memoryLocation->data.sampler,
-                                                 vk::ImageLayout::eShaderReadOnlyOptimal);
-            luminanceVersion = version;
-            luminanceImgui   = imgui;
-        }
-        const float w = std::min(ImGui::GetContentRegionAvail().x, 256.0f);
-        ImGui::Image(luminanceTexture, ImVec2(w, w * float(preview->height) / float(std::max(preview->width, 1u))));
-    }
+    // The luminance preview (the set_lighting_debug mapping as is)
+    previewImage(Vulkan::LightingImage::Luminance, app.lightingPreviewMapping().log, 256.0f);
 }
 
 void LightingTab::ambient()
@@ -466,6 +494,68 @@ void LightingTab::ambient()
         DebugUiStyle::endProperties();
     }
     if (changed) scene->setPrototypeSettings(p);
+    // The environment map (S36a1c): its capture progress and the front cube as a cross of a mip
+    const Vulkan::EnvironmentMapStatistics& em = ls.environmentMap;
+    if (DebugUiStyle::beginProperties("##lighting environment"))
+    {
+        DebugUiStyle::property("environment map");
+        if (em.valid)
+            ImGui::Text("complete in frame %llu, %llu captures", (unsigned long long)em.lastCompleteFrame,
+                        (unsigned long long)em.captures);
+        else
+            DebugUiStyle::coloredText(DebugUiStyle::kRef, "no capture yet (the physical path captures it)");
+        DebugUiStyle::property("capture progress");
+        ImGui::ProgressBar(em.steps > 0 ? float(em.progress) / float(em.steps) : 0.0f, ImVec2(-1, 0),
+                           em.progress > 0 ? "capturing" : "idle");
+        DebugUiStyle::property("mip");
+        ImGui::SliderInt("##environment mip", &environmentMip, 0, Vulkan::EnvironmentMap::kMips - 1);
+        DebugUiStyle::endProperties();
+    }
+    scene->setEnvironmentPreviewMip(environmentMip);
+    previewImage(Vulkan::LightingImage::Environment, true, 384.0f);
+}
+
+void LightingTab::skyAndClouds()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene || !ui.section("lighting/Sky and clouds", "Sky and clouds", false)) return;
+    Vulkan::EnvironmentSettings s = app.environmentSettings();
+    bool changed                  = false;
+    if (DebugUiStyle::beginProperties("##lighting sky"))
+    {
+        DebugUiStyle::property("cloud altitude");
+        changed = ImGui::SliderFloat("##cloud altitude", &s.clouds.altitude, 200, 10000, "%.0f m") || changed;
+        DebugUiStyle::property("cloud radius");
+        changed = ImGui::SliderFloat("##cloud radius", &s.clouds.radius, 1000, 100000, "%.0f m") || changed;
+        DebugUiStyle::property("cloud shadow fade");
+        changed = ImGui::SliderFloat("##cloud shadow fade", &s.clouds.shadowFade, 100, 50000, "%.0f m") || changed;
+        DebugUiStyle::property("fog falloff");
+        changed = ImGui::SliderFloat("##fog falloff", &s.clouds.fogFalloff, 0.0001f, 0.01f, "%.5f /m",
+                                     ImGuiSliderFlags_Logarithmic) ||
+                  changed;
+        DebugUiStyle::property("star intensity");
+        changed = ImGui::SliderFloat("##star intensity", &s.starIntensity, 0, 10, "%.2f") || changed;
+        DebugUiStyle::property("Rayleigh / Mie / ozone");
+        float scales[3] = {s.atmosphere.rayleighScale, s.atmosphere.mieScale, s.atmosphere.ozoneScale};
+        if (ImGui::DragFloat3("##atmosphere scales", scales, 0.01f, 0, 10, "%.2f"))
+        {
+            s.atmosphere.rayleighScale = scales[0];
+            s.atmosphere.mieScale      = scales[1];
+            s.atmosphere.ozoneScale    = scales[2];
+            changed                    = true;
+        }
+        DebugUiStyle::property("ground albedo");
+        changed = ImGui::SliderFloat("##ground albedo", &s.atmosphere.groundAlbedo, 0, 1, "%.2f") || changed;
+        DebugUiStyle::property("LUT recomputations");
+        ImGui::Text("%llu", (unsigned long long)scene->lightingStatistics().lutComputations);
+        DebugUiStyle::endProperties();
+    }
+    if (changed) app.setEnvironmentSettings(s);
+    ImGui::TextUnformatted("transmittance LUT");
+    previewImage(Vulkan::LightingImage::TransmittanceLut, false, 256.0f);
+    ImGui::TextUnformatted("sky-view LUT (log2 cd/m^2)");
+    previewImage(Vulkan::LightingImage::SkyViewLut, true, 288.0f);
 }
 
 void LightingTab::gpuAndMemory()
@@ -475,10 +565,10 @@ void LightingTab::gpuAndMemory()
     if (!scene || !ui.section("lighting/GPU and memory", "GPU and memory", false)) return;
     if (DebugUiStyle::beginProperties("##lighting gpu"))
     {
-        // The lighting sections against the §17.10 shadow budget (none in a1b), the debug sections' cost separately
+        // The lighting sections against the §17.10 shadow budget, the debug sections' cost separately
         Profiler& p     = app.gpuProfile();
         double lighting = 0, debug = 0;
-        for (const char* n : {"scene.debug", "lighting.preview"})
+        for (const char* n : {"environment", "scene.sky", "scene.debug", "lighting.preview"})
         {
             const double mean  = p.scopeStats(p.scope(std::string("gpu/") + n), 120).avg;
             const bool isDebug = std::string(n) == "scene.debug" || std::string(n) == "lighting.preview";

@@ -183,6 +183,13 @@ TEST(AppCommandLine, OptionsGameFlagsAndErrors)
     EXPECT_EQ(o.screenshotFrame, 5);
     EXPECT_TRUE(o.has("--demo"));
     EXPECT_EQ(s.world.dataDirectory, "/tmp/d");
+    // Regression (CodeRabbit #83): the games read their environment file before the command line, so --data did not
+    // select it; onDataDirectory runs after it with the final directory (also the default one)
+    std::string seen;
+    s.onDataDirectory = [&seen](EngineAppSetup& x) { seen = x.world.dataDirectory; };
+    auto e            = argv({"--data", "/tmp/e"});
+    ASSERT_TRUE(parseCommandLine(int(e.size()), e.data(), {}, s, o, error)) << error;
+    EXPECT_EQ(seen, "/tmp/e");
 
     EngineAppSetup t;
     t.name = "flight";
@@ -1526,6 +1533,7 @@ TEST_F(EngineAppRender, GpuSections)
     for (const auto& sc : report["scopes"].array_items()) scopes.push_back(sc["scope"].string_value());
     const std::vector<std::string> expected = {"gpu",
                                                "gpu/transfer",
+                                               "gpu/environment",
                                                "gpu/cull",
                                                "gpu/depth",
                                                "gpu/depth.terrain",

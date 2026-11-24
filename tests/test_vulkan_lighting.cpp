@@ -5,16 +5,20 @@
  */
 
 // The lighting of S36 on RenderScene (docs/stages/S36_lighting.plan.md, Tests): a1b the LIGHTING_PBR variant (the BRDF
-// LUT, energy conservation, the studio environment of clay mode, the prototype colours) and the debug core. One scene
+// LUT, energy conservation, the studio environment of clay mode, the prototype colours) and the debug core; a1c the
+// atmosphere and the environment map. One scene
 // per test suite (RenderSceneSuiteTest), skipped without a Vulkan 1.3 device.
 
+#include "saiga/vulkan/scene/Atmosphere.h"
 #include "saiga/vulkan/scene/BrdfLut.h"
+#include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/scene/SkyAmbient.h"
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -259,7 +263,8 @@ TEST_F(Pbr, BrdfLutMatchesCpuIntegration)
 //   Regression: the LUT was sampled with the default repeat address mode, so at NdotV ~ 1 and roughness 1 the filter
 //   mixed in the texels of NdotV ~ 0 and roughness ~ 0 (about half the weight);
 // - a grey dielectric of roughness 0.5 in sunlight (no ambient): the direct radiance of GGX, Smith, Schlick and Lambert
-//   with the energy compensation;
+//   with the energy compensation (S36a1c: times the atmosphere's transmittance, measured there, so the metal below
+//   checks the GGX lobe against it);
 // - a white metal of roughness 0.2 at its highlight under 100 000 lux (about 5e6 cd/m^2): finite. Regression: the raw
 //   probe frames wrote cd/m^2 without the pre-exposure into the fp16 target (inf above 65504)
 TEST_F(Pbr, ProbeMatchesClosedForm)
@@ -309,6 +314,7 @@ TEST_F(Pbr, ProbeMatchesClosedForm)
     scene->setEnvironment(sun);
     scene->skyAmbient().setUniformRadiance(vec3(0, 0, 0));
     SetCamera(0, (l * 4).cast<double>(), lookRotation(-l.cast<double>()), 0.6);
+    vec3 transmittance(1, 1, 1);
     for (int k = 0; k < 2; ++k)
     {
         const float rough = k == 0 ? 0.5f : 0.2f, metal = k == 0 ? 0.0f : 1.0f;
@@ -324,8 +330,17 @@ TEST_F(Pbr, ProbeMatchesClosedForm)
         for (int c = 0; c < 3; ++c)
         {
             EXPECT_TRUE(std::isfinite(p.direct(c))) << "roughness " << rough;
-            EXPECT_NEAR(p.direct(c), expect(c), (k == 0 ? 0.03f : 0.05f) * expect(c))
-                << "roughness " << rough << " channel " << c;
+            // S36a1c: the sun reaches the ground through the atmosphere's transmittance (per channel, < 1): measured
+            // on the dielectric, the metal's GGX lobe is checked against it
+            if (k == 0)
+            {
+                transmittance(c) = p.direct(c) / expect(c);
+                EXPECT_GT(transmittance(c), 0.3f) << "channel " << c;
+                EXPECT_LE(transmittance(c), 1.01f) << "channel " << c;
+            }
+            else
+                EXPECT_NEAR(p.direct(c), transmittance(c) * expect(c), 0.05f * transmittance(c) * expect(c))
+                    << "roughness " << rough << " channel " << c;
         }
         if (k == 1)
         {
@@ -486,6 +501,10 @@ TEST_F(Pbr, PrototypeColoursOnlyInAces)
     EnvironmentState noon;
     noon.fogDensity = 0;
     scene->setEnvironment(noon);
+    // The environment map of this environment in the first frame (it updates incrementally otherwise)
+    LightingParameters full = scene->lightingParameters();
+    full.forceFullUpdates   = true;
+    scene->setLightingParameters(full);
     const auto aces = halves(Capture(3));
     const vec3 flat = aces[0], slope = aces[1];
     EXPECT_GT(flat(1), flat(0) + 0.02f);
@@ -977,4 +996,283 @@ TEST_F(LightingDebugTest, ProbeMatchesViews)
     EXPECT_NEAR(probe.position.y(), 0.0, 0.05);
     // The user's view is unchanged
     EXPECT_EQ(scene->lightingDebug().view, LightingDebugView::None);
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// The atmosphere and the environment map (S36a1c)
+
+namespace
+{
+// A texel of an RGBA16F download
+vec3 halfTexel(const std::vector<uint8_t>& bytes, int x, int y, int w)
+{
+    uint16_t h[4];
+    std::memcpy(h, bytes.data() + (size_t(y) * size_t(w) + size_t(x)) * 8, 8);
+    return vec3(LightingDebug::halfToFloat(h[0]), LightingDebug::halfToFloat(h[1]), LightingDebug::halfToFloat(h[2]));
+}
+
+// The CPU reference of the transmittance (Hillaire's Earth medium, a dense midpoint integration in double) from the
+// radius r (km) along the cosine mu to the top of the atmosphere
+vec3 referenceTransmittance(double r, double mu)
+{
+    const double G = 6360, T = 6460;
+    const double d = -r * mu + std::sqrt(std::max(r * r * (mu * mu - 1) + T * T, 0.0));
+    const int n    = 20000;
+    double opt[3]  = {0, 0, 0};
+    for (int i = 0; i < n; ++i)
+    {
+        const double t  = d * (i + 0.5) / n;
+        const double h  = std::sqrt(r * r + t * t + 2 * r * mu * t) - G;
+        const double rd = std::exp(-h / 8), md = std::exp(-h / 1.2), od = std::max(0.0, 1 - std::abs(h - 25) / 15);
+        const double ray[3] = {5.802e-3, 13.558e-3, 33.1e-3}, oz[3] = {0.650e-3, 1.881e-3, 0.085e-3};
+        for (int c = 0; c < 3; ++c) opt[c] += (ray[c] * rd + 4.40e-3 * md + oz[c] * od) * d / n;
+    }
+    return vec3(float(std::exp(-opt[0])), float(std::exp(-opt[1])), float(std::exp(-opt[2])));
+}
+
+// The (r, mu) of a transmittance LUT texel centre (atmosphere_common.glsl's transmittanceRMu)
+void transmittanceRMu(double u, double v, double& r, double& mu)
+{
+    const double G = 6360, T = 6460, H = std::sqrt(T * T - G * G);
+    const double rho = H * v;
+    r                = std::sqrt(rho * rho + G * G);
+    const double dm = T - r, dM = rho + H, d = dm + u * (dM - dm);
+    mu = d == 0 ? 1.0 : std::clamp((H * H - rho * rho - d * d) / (2 * r * d), -1.0, 1.0);
+}
+
+EnvironmentState sunAt(float elevationDeg, float azimuthDeg = 180)
+{
+    // Azimuth clockwise from north (-z): 180 is south (+z)
+    EnvironmentState e;
+    const float el = elevationDeg * float(kPi) / 180, az = azimuthDeg * float(kPi) / 180;
+    e.sunDir     = vec3(std::cos(el) * std::sin(az), std::sin(el), -std::cos(el) * std::cos(az));
+    e.moonDir    = -e.sunDir;
+    e.fogDensity = 0;
+    return e;
+}
+
+class AtmosphereTest : public RenderSceneSuiteTest
+{
+   protected:
+    // The physical path (ACES, the PBR variant) with the environment, the camera 100 m up looking along forward
+    void Physical(const EnvironmentState& e, const Vec3& forward = Vec3(0, 0.3, 1), double fovy = 1.2, bool full = true)
+    {
+        UsePbr();
+        LightingParameters p = scene->lightingParameters();
+        p.forceFullUpdates   = full;
+        scene->setLightingParameters(p);
+        scene->setToneMap(ToneMap::Aces);
+        scene->setEnvironment(e);
+        SetCamera(0, Vec3(0, 100, 0), lookRotation(forward), fovy);
+    }
+    float luminance(const ucvec4& p) const { return 0.2126f * p(0) + 0.7152f * p(1) + 0.0722f * p(2); }
+};
+}  // namespace
+
+// The transmittance LUT against a dense CPU integration of the same medium at the texel centres (zenith to horizon)
+TEST_F(AtmosphereTest, TransmittanceReference)
+{
+    Physical(sunAt(45));
+    Capture(2);
+    std::vector<uint8_t> bytes = scene->atmosphereLuts().transmittance().download();
+    const int w = int(Atmosphere::kTransmittanceWidth), h = int(Atmosphere::kTransmittanceHeight);
+    ASSERT_EQ(bytes.size(), size_t(w) * h * 8);
+    for (int y : {0, 10, 40})
+        for (int x : {0, 64, 128, 200, 255})
+        {
+            double r, mu;
+            transmittanceRMu((x + 0.5) / w, (y + 0.5) / h, r, mu);
+            const vec3 ref = referenceTransmittance(r, mu);
+            const vec3 gpu = halfTexel(bytes, x, y, w);
+            for (int c = 0; c < 3; ++c)
+                EXPECT_NEAR(gpu(c), ref(c), 0.02f * std::max(ref(c), 0.05f) + 2e-3f)
+                    << "texel " << x << ", " << y << " channel " << c;
+        }
+    // The zenith at the sea level (Earth): about 0.94 red, 0.76 blue
+    double r, mu;
+    transmittanceRMu(0.5 / w, 0.5 / h, r, mu);
+    const vec3 zenith = halfTexel(bytes, 0, 0, w);
+    EXPECT_GT(zenith(0), zenith(2));
+    EXPECT_NEAR(zenith(0), 0.94f, 0.02f);
+}
+
+// The sky-view LUT: blue at the zenith at noon, red near the horizon towards the sun at sunset
+TEST_F(AtmosphereTest, SkyIsBlueAtNoonAndRedAtSunset)
+{
+    const int w = int(Atmosphere::kSkyViewWidth), h = int(Atmosphere::kSkyViewHeight);
+    Physical(sunAt(60));
+    Capture(2);
+    std::vector<uint8_t> noon = scene->atmosphereLuts().skyView().download();
+    const vec3 zenith         = halfTexel(noon, w / 2, h - 1, w);
+    EXPECT_GT(zenith(2), 1.5f * zenith(0)) << zenith.transpose();
+    // Sunset in the south (+z): the azimuth atan(z, x) = 90 degrees is u = 0.75; just above the horizon (v = 0.5)
+    Physical(sunAt(1));
+    Capture(2);
+    std::vector<uint8_t> sunset = scene->atmosphereLuts().skyView().download();
+    const vec3 glow             = halfTexel(sunset, int(0.75 * w), h / 2 + 2, w);
+    EXPECT_GT(glow(0), 1.2f * glow(2)) << glow.transpose();
+    // Opposite the sun the sky stays bluer than towards it
+    const vec3 away = halfTexel(sunset, int(0.25 * w), h / 2 + 10, w);
+    EXPECT_GT(away(2) / std::max(away(0), 1e-6f), glow(2) / std::max(glow(0), 1e-6f));
+}
+
+// The night sky: the full moon disc is bright, the dark sky beside it; a moonless sky shows stars (isolated bright
+// pixels over a dark background)
+TEST_F(AtmosphereTest, NightSkyHasStarsAndMoon)
+{
+    EnvironmentState night = sunAt(-30, 0);
+    night.moonDir          = vec3(0, 0.5f, 0.8660254f);
+    night.moonIlluminance  = 0.27f;
+    night.ev100            = -1;
+    Physical(night, Vec3(night.moonDir.cast<double>()), 0.1);
+    const TemplatedImage<ucvec4> moon = Capture(2);
+    EXPECT_GT(luminance(moon(height / 2, width / 2)), 200.0f);
+    EXPECT_LT(luminance(moon(4, 4)), 60.0f);
+    // A moonless night: the moon below the horizon, a wide view up
+    night.moonDir         = vec3(0, -0.5f, 0.8660254f);
+    night.moonIlluminance = 0;
+    night.ev100           = -3;
+    Physical(night, Vec3(0, 1, 0.3), 0.3);
+    const TemplatedImage<ucvec4> stars = Capture(2);
+    std::vector<float> values;
+    for (int y = 0; y < height; ++y)
+        for (int x = 0; x < width; ++x) values.push_back(luminance(stars(y, x)));
+    std::vector<float> sorted = values;
+    std::sort(sorted.begin(), sorted.end());
+    const float median = sorted[sorted.size() / 2];
+    const auto bright  = std::count_if(values.begin(), values.end(), [&](float v) { return v > median + 30; });
+    EXPECT_LT(median, 40.0f);
+    EXPECT_GT(bright, 10);
+    EXPECT_LT(bright, long(values.size() / 10));
+}
+
+namespace
+{
+class EnvironmentMapTest : public AtmosphereTest
+{
+   protected:
+    void TearDown() override
+    {
+        if (scene) scene->environmentMap().setCaptureOverride(std::nullopt);
+        AtmosphereTest::TearDown();
+    }
+    // The mean colour of a face of the capture cube at a mip
+    vec3 captureFace(int face, uint32_t mip)
+    {
+        TextureCube& cube          = scene->environmentMap().captureCube();
+        std::vector<uint8_t> bytes = cube.download(mip, uint32_t(face));
+        const int n                = int(cube.mipWidth(mip));
+        vec3 sum(0, 0, 0);
+        for (int y = 0; y < n; ++y)
+            for (int x = 0; x < n; ++x) sum += halfTexel(bytes, x, y, n);
+        return sum / float(n * n);
+    }
+};
+}  // namespace
+
+// First in its suite (a new scene): frames before the first physical frame have the floor as their ambient and no
+// environment map; the first capture completes in its own frame (the floor is not shown for several frames)
+TEST_F(EnvironmentMapTest, FirstFrameAmbientIsFloor)
+{
+    EnvironmentState e = sunAt(45);
+    e.minAmbient       = vec3(0.5f, 0.25f, 0.125f);
+    scene->setEnvironment(e);
+    UsePbr();
+    SetCamera(0, Vec3(0, 100, 0), lookRotation(Vec3(0, 0.3, 1)), 1.2);
+    Capture(2);
+    EXPECT_FALSE(scene->environmentMap().valid());
+    EXPECT_EQ(scene->lightingStatistics().sh[0], e.minAmbient);
+    Physical(e, Vec3(0, 0.3, 1), 1.2, false);
+    RenderFrame();
+    EXPECT_TRUE(scene->environmentMap().valid());
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, 1u);
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.progress, 0);
+}
+
+// A uniform sky (the capture override) gives a constant SH: band 0 = pi L, the other bands 0
+TEST_F(EnvironmentMapTest, UniformSkyGivesConstantSh)
+{
+    scene->environmentMap().setCaptureOverride(vec3(2, 3, 4));
+    Physical(sunAt(45));
+    Capture(3);
+    scene->environmentMap().harvest();
+    const std::array<vec3, 9>& sh = scene->environmentMap().sh();
+    for (int c = 0; c < 3; ++c)
+    {
+        const float expected = 3.14159265f * (2.0f + float(c));
+        EXPECT_NEAR(sh[0](c), expected, 0.01f * expected);
+    }
+    for (int i = 1; i < 9; ++i)
+        for (int c = 0; c < 3; ++c) EXPECT_NEAR(sh[size_t(i)](c), 0.0f, 0.01f * sh[0](c)) << "band " << i;
+}
+
+// Frames without a change capture nothing; a sun move beyond environmentUpdateDegrees starts one capture
+TEST_F(EnvironmentMapTest, RecapturesOnlyWhenDue)
+{
+    EnvironmentState e = sunAt(30);
+    Physical(e, Vec3(0, 0.3, 1), 1.2, false);
+    Capture(20);
+    const uint64_t captures = scene->lightingStatistics().environmentMap.captures;
+    Capture(6);
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures);
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.progress, 0);
+    // Below the threshold (0.5 degrees): nothing
+    scene->setEnvironment(sunAt(30.3f));
+    Capture(2);
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures);
+    scene->setEnvironment(sunAt(31));
+    RenderFrame();
+    EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, captures + 1);
+}
+
+// During a re-capture the bound cube is the previous complete one; it is swapped after all steps (capture, 5 mips, SH)
+TEST_F(EnvironmentMapTest, SwapsOnlyCompleteCaptures)
+{
+    Physical(sunAt(20), Vec3(0, 0.3, 1), 1.2, false);
+    // Long enough to finish a capture of the previous case and this environment's own
+    Capture(20);
+    EnvironmentMap& map       = scene->environmentMap();
+    const vk::Image before    = map.frontCube().image();
+    const uint64_t completeAt = scene->lightingStatistics().environmentMap.lastCompleteFrame;
+    scene->setEnvironment(sunAt(25));
+    int frames = 0;
+    do
+    {
+        RenderFrame();
+        frames++;
+        if (scene->lightingStatistics().environmentMap.progress > 0)
+        {
+            EXPECT_EQ(map.frontCube().image(), before);
+            EXPECT_TRUE(map.valid());
+        }
+    } while (scene->lightingStatistics().environmentMap.progress > 0 && frames < 20);
+    EXPECT_EQ(frames, EnvironmentMap::kMips + 2);
+    EXPECT_NE(map.frontCube().image(), before);
+    EXPECT_GT(scene->lightingStatistics().environmentMap.lastCompleteFrame, completeAt);
+}
+
+// Below the horizon the capture is the ground (grey, lit through the atmosphere), not the blue sky
+TEST_F(EnvironmentMapTest, LowerHemisphereIsGround)
+{
+    Physical(sunAt(50));
+    Capture(2);
+    scene->waitIdle();
+    const vec3 up = captureFace(2, 2), down = captureFace(3, 2);
+    EXPECT_GT(up(2) / up(0), 1.3f * down(2) / down(0)) << up.transpose() << " / " << down.transpose();
+    EXPECT_GT(down.sum(), 0.0f);
+}
+
+// forceFullUpdates: a complete capture (with the swap) in every frame
+TEST_F(EnvironmentMapTest, ForceFullUpdatesCapturesEveryFrame)
+{
+    Physical(sunAt(40));
+    RenderFrame();
+    const uint64_t c = scene->lightingStatistics().environmentMap.captures;
+    for (int i = 1; i <= 3; ++i)
+    {
+        RenderFrame();
+        EXPECT_EQ(scene->lightingStatistics().environmentMap.captures, c + uint64_t(i));
+        EXPECT_EQ(scene->lightingStatistics().environmentMap.progress, 0);
+        EXPECT_TRUE(scene->environmentMap().valid());
+    }
 }

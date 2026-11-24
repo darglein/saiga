@@ -98,6 +98,8 @@ EnvironmentSample sampleEnvironment(const World& world, SpaceId space, double al
         e.mode == Vulkan::ExposureMode::Fixed ? Vulkan::ExposureSource::Fixed : Vulkan::ExposureSource::Curve;
     s.ambientScale = settings.ambient.scale;
     s.minAmbient   = settings.ambient.minAmbient;
+    s.clouds       = settings.clouds;
+    s.atmosphere   = settings.atmosphere;
 
     if (out.enclosed)
     {

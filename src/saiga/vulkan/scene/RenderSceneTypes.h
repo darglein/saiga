@@ -362,6 +362,10 @@ struct EnvironmentState
     // Phases (radians, fmod in double on the CPU; no absolute time in a shader, §10.1): the trees' wind (0-2), the
     // grass's (3-4), the cloud drift remainder (5), the flicker base (6)
     std::array<float, 8> phases = {};
+    // The presentation settings the renderer reads (S36a1c, from EnvironmentSettings): the cloud layer (altitude,
+    // radius, seed, shadow fade, fog falloff) and the atmosphere (scales, ground albedo)
+    CloudSettings clouds;
+    AtmosphereSettings atmosphere;
 };
 
 struct RenderStatistics

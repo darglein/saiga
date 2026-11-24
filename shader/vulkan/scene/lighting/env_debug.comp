@@ -1,0 +1,61 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The environment map's debug images (S36, A8; EnvironmentMap::recordDebug, the sources of LightingDebug's previews):
+// mode 0 the front cube's mip as a cross (4 x 3 faces: +y on top, -x +z +x -z in the middle row, -y below; radiance in
+// cd/m^2, black outside the faces), mode 1 the front SH's irradiance (lux) per direction as an equirectangular image
+// (the azimuth atan(z, x) along x, the elevation from +90 at the top).
+
+#include "atmosphere_common.glsl"
+#include "env_common.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rgba16f) uniform writeonly image2D outImage;
+layout(set = 0, binding = 1) uniform samplerCube cube;
+layout(std430, set = 0, binding = 2) readonly buffer ShIn
+{
+    vec4 sh[9];
+};
+
+layout(push_constant) uniform Push
+{
+    ivec4 size;  // xy: the image's size, z: the mode, w: the mip
+}
+pc;
+
+void main()
+{
+    ivec2 p = ivec2(gl_GlobalInvocationID.xy);
+    if (p.x >= pc.size.x || p.y >= pc.size.y) return;
+    vec3 c = vec3(0.0);
+    if (pc.size.z == 0)
+    {
+        int n    = pc.size.x / 4;
+        ivec2 f  = p / n;
+        int face = -1;
+        if (f.y == 0 && f.x == 1) face = 2;
+        if (f.y == 1) face = f.x == 0 ? 1 : f.x == 1 ? 4 : f.x == 2 ? 0 : 5;
+        if (f.y == 2 && f.x == 1) face = 3;
+        if (face >= 0)
+        {
+            vec3 d = cubeTexelDirection(uint(face), p - f * n, n);
+            c      = textureLod(cube, d, float(pc.size.w)).rgb / kSkyLutScale;
+        }
+    }
+    else
+    {
+        float az = ((float(p.x) + 0.5) / float(pc.size.x) - 0.5) * 2.0 * kAtmPi;
+        float el = (0.5 - (float(p.y) + 0.5) / float(pc.size.y)) * kAtmPi;
+        vec3 n   = vec3(cos(el) * cos(az), sin(el), cos(el) * sin(az));
+        c        = sh[0].rgb + sh[1].rgb * n.y + sh[2].rgb * n.z + sh[3].rgb * n.x + sh[4].rgb * (n.x * n.y) +
+            sh[5].rgb * (n.y * n.z) + sh[6].rgb * (3.0 * n.z * n.z - 1.0) + sh[7].rgb * (n.x * n.z) +
+            sh[8].rgb * (n.x * n.x - n.y * n.y);
+    }
+    imageStore(outImage, p, vec4(max(c, vec3(0.0)), 1.0));
+}

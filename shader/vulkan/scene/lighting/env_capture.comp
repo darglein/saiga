@@ -1,0 +1,37 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The capture of the environment map (S36, A4; EnvironmentMap): per texel of the capture cube's mip 0 the sky seen from
+// the camera height without the sun disc (the sun's specular comes from the direct light): the sky-view LUT, below the
+// horizon its ground (the ground albedo lit through the atmosphere). Stored times kSkyLutScale like the LUT.
+
+#include "atmosphere_common.glsl"
+#include "env_common.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rgba16f) uniform writeonly image2DArray outCube;
+layout(set = 0, binding = 1) uniform sampler2D skyViewLut;
+
+layout(push_constant) uniform Push
+{
+    ivec4 size;       // x: the face size
+    vec4 camera;      // x: the camera's radius (km)
+    vec4 uniformSky;  // w > 0: a uniform radiance rgb (cd/m^2) instead of the sky (EnvironmentMap::setCaptureOverride)
+}
+pc;
+
+void main()
+{
+    ivec3 p = ivec3(gl_GlobalInvocationID);
+    if (p.x >= pc.size.x || p.y >= pc.size.x) return;
+    vec3 dir = cubeTexelDirection(uint(p.z), p.xy, pc.size.x);
+    vec3 c   = textureLod(skyViewLut, skyViewUv(dir, pc.camera.x), 0.0).rgb;
+    if (pc.uniformSky.w > 0.0) c = pc.uniformSky.rgb * kSkyLutScale;
+    imageStore(outCube, p, vec4(c, 1.0));
+}

@@ -33,6 +33,7 @@
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
+#include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/saiga_buildconfig.h"
@@ -41,6 +42,7 @@
 #include "saiga/vulkan/world/WorldBenchmark.h"
 #include "saiga/vulkan/world/WorldMcp.h"
 
+#include "games/common/Environment.h"
 #include "games/common/PrototypeSpace.h"
 #include "games/world/TerraformBenchmark.h"
 
@@ -620,6 +622,8 @@ int main(int argc, char* argv[])
         list.add(2, std::make_shared<Engine::HookGenerator>("islands", islandsHeight, Engine::HookGrassRule{0.82, 0.4},
                                                             false));
     };
+    // S36: the environment (data/world/environment.json), ACES; the time is 10:00, frozen (the benchmark keeps it)
+    Game::enableEnvironment(setup, "world");
     game.area                = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
     setup.render.msaaSamples = 4;
     setup.cameraSpeed        = 25;
@@ -689,7 +693,15 @@ int main(int argc, char* argv[])
         Vulkan::registerWorldMcpTools(server, context);
     };
 
-    const int code = engineMain(int(args.size()), args.data(), setup, {}, [](EngineApp&, const AppOptions&) {});
+    const int code = engineMain(int(args.size()), args.data(), setup, {},
+                                [](EngineApp& app, const AppOptions&)
+                                {
+                                    WorldTimeChange morning;
+                                    morning.hours = 10.0;
+                                    morning.rate  = 0.0;
+                                    std::string error;
+                                    setWorldTime(app.startWorld(), morning, error);
+                                });
     // A window closed before the end of the path
     if (code == 0 && !game.benchmarkName.empty() && !game.benchmarkDone)
     {

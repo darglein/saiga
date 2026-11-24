@@ -1,0 +1,75 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The irradiance SH9 of the environment map (S36, A4; EnvironmentMap): one workgroup projects the capture cube's box
+// mip of 32 x 32 texels per face (not a GGX mip) onto the SH basis of ambient.glsl with the texels' solid angles, folds
+// in the cosine convolution and the basis constants and writes lux (the capture's kSkyLutScale removed).
+
+#include "atmosphere_common.glsl"
+#include "env_common.glsl"
+
+layout(local_size_x = 256) in;
+
+layout(set = 0, binding = 0) uniform samplerCube captureCube;
+layout(std430, set = 0, binding = 1) writeonly buffer ShOut
+{
+    vec4 shOut[9];
+};
+
+layout(push_constant) uniform Push
+{
+    ivec4 size;  // x: the face size of the SH source (32), y: its mip in the capture cube
+}
+pc;
+
+shared vec3 reduceData[256];
+
+void main()
+{
+    const int n     = pc.size.x;
+    const int total = 6 * n * n;
+    vec3 c[9];
+    for (int k = 0; k < 9; ++k) c[k] = vec3(0.0);
+    for (int i = int(gl_LocalInvocationIndex); i < total; i += 256)
+    {
+        int face = i / (n * n);
+        int rem  = i - face * n * n;
+        ivec2 p  = ivec2(rem % n, rem / n);
+        vec2 st  = (vec2(p) + 0.5) / float(n) * 2.0 - 1.0;
+        vec3 d   = cubeDirection(uint(face), st);
+        float w  = 4.0 / (float(n * n) * pow(1.0 + dot(st, st), 1.5));
+        vec3 L   = textureLod(captureCube, d, float(pc.size.y)).rgb * w;
+        c[0] += L;
+        c[1] += L * d.y;
+        c[2] += L * d.z;
+        c[3] += L * d.x;
+        c[4] += L * (d.x * d.y);
+        c[5] += L * (d.y * d.z);
+        c[6] += L * (3.0 * d.z * d.z - 1.0);
+        c[7] += L * (d.x * d.z);
+        c[8] += L * (d.x * d.x - d.y * d.y);
+    }
+    // A_l * K_lm^2 per coefficient (the irradiance of the projected radiance), the capture's scale removed
+    const float K0 = 0.282095, K1 = 0.488603, K2 = 1.092548, K20 = 0.315392, K22 = 0.546274;
+    const float A0 = kAtmPi, A1 = 2.0 * kAtmPi / 3.0, A2 = kAtmPi / 4.0;
+    const float f[9] = float[](A0 * K0 * K0, A1 * K1 * K1, A1 * K1 * K1, A1 * K1 * K1, A2 * K2 * K2, A2 * K2 * K2,
+                               A2 * K20 * K20, A2 * K2 * K2, A2 * K22 * K22);
+    uint local       = gl_LocalInvocationIndex;
+    for (int k = 0; k < 9; ++k)
+    {
+        reduceData[local] = c[k];
+        barrier();
+        for (uint s = 128u; s > 0u; s >>= 1)
+        {
+            if (local < s) reduceData[local] += reduceData[local + s];
+            barrier();
+        }
+        if (local == 0u) shOut[k] = vec4(reduceData[0] * f[k] / kSkyLutScale, 0.0);
+        barrier();
+    }
+}

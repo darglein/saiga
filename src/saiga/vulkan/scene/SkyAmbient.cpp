@@ -6,6 +6,7 @@
 
 #include "saiga/vulkan/scene/SkyAmbient.h"
 
+#include "saiga/vulkan/scene/EnvironmentMap.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 
 #include <algorithm>
@@ -44,21 +45,22 @@ void SkyAmbient::destroy()
     base = nullptr;
 }
 
-vec3 SkyAmbient::skyRadiance(const EnvironmentState& e)
+bool SkyAmbient::usesEnvironmentMap() const
 {
-    // The bodies' illuminance on a horizontal plane (above the horizon), a blue sky of 8% of it spread over the
-    // hemisphere (radiance = E / pi)
-    const float sunE  = e.sunIlluminance * std::max(e.sunDir(1), 0.0f);
-    const float moonE = e.moonIlluminance * std::max(e.moonDir(1), 0.0f);
-    return vec3(0.55f, 0.7f, 1.0f) * (0.08f * (sunE + moonE) / kPi);
+    return !uniform && environmentMap && environmentMap->valid();
 }
 
 void SkyAmbient::update(vk::CommandBuffer, uint32_t frameIndex, const EnvironmentState& environment)
 {
-    // A uniform radiance L: the irradiance is pi L for every normal (band 0 only)
-    const vec3 L     = uniform ? *uniform : skyRadiance(environment);
-    stats            = AmbientStatistics();
-    stats.sh[0]      = L * kPi;
+    stats = AmbientStatistics();
+    if (usesEnvironmentMap())
+    {
+        stats.sh       = environmentMap->sh();
+        stats.dominant = stats.sh[0];
+        return;
+    }
+    // A uniform radiance L: the irradiance is pi L for every normal (band 0 only); else the floor
+    stats.sh[0]      = uniform ? vec3(*uniform * kPi) : environment.minAmbient;
     stats.dominant   = stats.sh[0];
     float data[9][4] = {};
     for (int i = 0; i < 9; ++i)
@@ -69,6 +71,13 @@ void SkyAmbient::update(vk::CommandBuffer, uint32_t frameIndex, const Environmen
 AmbientBindings SkyAmbient::bindings(uint32_t frameIndex)
 {
     AmbientBindings b;
+    if (usesEnvironmentMap())
+    {
+        b.sh          = environmentMap->frontSh();
+        b.shBytes     = EnvironmentMap::kShBytes;
+        b.environment = environmentMap->frontCubeInfo();
+        return b;
+    }
     b.sh      = handle(buffers[frameIndex]);
     b.shBytes = kShBytes;
     return b;

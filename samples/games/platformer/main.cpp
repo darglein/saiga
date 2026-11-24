@@ -19,6 +19,7 @@
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/PlayerInput.h"
 
+#include "games/common/Environment.h"
 #include "games/platformer/PlatformerRender.h"
 
 using namespace Saiga;
@@ -40,9 +41,11 @@ int main(int argc, char** argv)
     setup.render.msaaSamples = 4;
     setup.render.clearColor  = vec4(0.62f, 0.74f, 0.86f, 1);
     setup.world              = platformerWorldSetup(context);
-    setup.scenarios          = platformerScenarios;
-    setup.networkVariants    = true;
-    setup.checkOptions       = clampCoopDemoDelay;
+    // S36: the environment with the code defaults (a frozen noon outdoors; the cellar is lit by its template), ACES
+    enableEnvironment(setup, "platformer");
+    setup.scenarios       = platformerScenarios;
+    setup.networkVariants = true;
+    setup.checkOptions    = clampCoopDemoDelay;
     // --coop: the joined peer's hero (R-MECH-1); a leaving peer's hero is destroyed
     setup.onPeerJoined = [](EngineApp& app, World& host, uint8_t peer)
     {

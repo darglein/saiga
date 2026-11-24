@@ -8,7 +8,9 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/export.h"
+#include "saiga/vulkan/scene/LightingTypes.h"
 
+#include <array>
 #include <cstdint>
 
 namespace Saiga
@@ -45,15 +47,20 @@ class SAIGA_ENGINE_API LightingTab
     void sunAndMoon();
     void exposure();
     void ambient();
+    void skyAndClouds();
     void gpuAndMemory();
+    // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
+    // ImGui texture), at most maxWidth wide
+    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth);
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
     EngineApp& app;
-    // The luminance preview's ImGui texture, the preview version and the ImGui renderer it was registered with (a new
-    // renderer, e.g. a recreated scene, registers it again; the old one's texture went with it)
-    ImTextureID luminanceTexture = ImTextureID(0);
-    uint64_t luminanceVersion    = 0;
-    const void* luminanceImgui   = nullptr;
+    // Per preview image: its ImGui texture and the preview version it was registered for; the ImGui renderer they were
+    // registered with (a new renderer, e.g. a recreated scene, registers them again; the old one's went with it)
+    std::array<ImTextureID, size_t(Vulkan::LightingImage::Count)> previewTextures{};
+    std::array<uint64_t, size_t(Vulkan::LightingImage::Count)> previewVersions{};
+    const void* previewImgui = nullptr;
+    int environmentMip       = 0;
 };
 
 }  // namespace Engine

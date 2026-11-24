@@ -1,0 +1,64 @@
+#version 450
+/**
+ * Copyright (c) 2021 Darius Rückert
+ * Licensed under the MIT License.
+ * See LICENSE file for more information.
+ */
+#extension GL_GOOGLE_include_directive : require
+
+// The GGX prefilter of the environment map (S36, A4; EnvironmentMap): one mip of the prefiltered cube per dispatch, for
+// the perceptual roughness mip / lastMip, from the capture cube (its box mips: filtered importance sampling with 32
+// samples of a fixed Hammersley set, deterministic; mip 0 copies the capture).
+
+#include "pbr.glsl"
+
+#include "env_common.glsl"
+
+layout(local_size_x = 8, local_size_y = 8) in;
+
+layout(set = 0, binding = 0, rgba16f) uniform writeonly image2DArray outCube;
+layout(set = 0, binding = 1) uniform samplerCube captureCube;
+
+layout(push_constant) uniform Push
+{
+    ivec4 size;  // x: this mip's face size, y: the capture's face size, z: the mip, w: the last mip
+}
+pc;
+
+void main()
+{
+    ivec3 p = ivec3(gl_GlobalInvocationID);
+    if (p.x >= pc.size.x || p.y >= pc.size.x) return;
+    vec3 n = cubeTexelDirection(uint(p.z), p.xy, pc.size.x);
+    if (pc.size.z == 0)
+    {
+        imageStore(outCube, p, vec4(textureLod(captureCube, n, 0.0).rgb, 1.0));
+        return;
+    }
+    float rough      = float(pc.size.z) / float(max(pc.size.w, 1));
+    float a          = rough * rough;
+    vec3 up          = abs(n.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tx          = normalize(cross(up, n));
+    vec3 ty          = cross(n, tx);
+    const uint count = 32u;
+    // The solid angle of a capture texel
+    float texelOmega = 4.0 * kPi / (6.0 * float(pc.size.y * pc.size.y));
+    vec3 sum         = vec3(0.0);
+    float weight     = 0.0;
+    for (uint i = 0u; i < count; ++i)
+    {
+        vec3 hT   = importanceSampleGgx(hammersley(i, count), a);
+        vec3 h    = tx * hT.x + ty * hT.y + n * hT.z;
+        vec3 l    = reflect(-n, h);
+        float NoL = dot(n, l);
+        if (NoL <= 0.0) continue;
+        float NoH   = max(hT.z, 1e-4);
+        float D     = distributionGgx(NoH, a);
+        float pdf   = D / 4.0;
+        float omega = 1.0 / (float(count) * max(pdf, 1e-6));
+        float lod   = clamp(0.5 * log2(omega / texelOmega) + 1.0, 0.0, float(pc.size.w + 4));
+        sum += textureLod(captureCube, l, lod).rgb * NoL;
+        weight += NoL;
+    }
+    imageStore(outCube, p, vec4(sum / max(weight, 1e-6), 1.0));
+}
