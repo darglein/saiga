@@ -549,6 +549,62 @@ TEST(CascadesFit, StaticViewKeepsLayout)
     EXPECT_LE(first[0].zFar, first[3].zFar);
 }
 
+// Regression (S36a2 review, finding 13): the light basis followed every small move of the light, so with a moving sun
+// (the flight demo's day in 10 minutes: about 0.01 degrees per frame) the texel grid rotated in every frame and every
+// shadow edge crawled. The cascades' light moves in steps of kLightStepDeg: over 12 frames at 0.01 degrees per frame
+// (static camera) the basis changes at most twice and stays within a step of the light; golden mode follows the light
+TEST(CascadesFit, SlowLightMovesInSteps)
+{
+    LightingParameters p;
+    p.sunShadows = true;
+    CascadedShadows cs;
+    Vec3 axis    = Vec3::Zero();
+    int changes  = 0;
+    auto lightAt = [](int f)
+    {
+        const double el = (20 + 0.01 * f) * kPi / 180;
+        return Vec3(std::cos(el), std::sin(el), 0.3);
+    };
+    for (int f = 1; f <= 12; ++f)
+    {
+        const Vec3 light = lightAt(f).normalized();
+        cs.fit(cameraInput(Vec3(0, 30, 0), Vec3(0.2, -0.3, -1), light, uint64_t(f)), p, false);
+        const Vec3 x = cs.cascades()[0].axisX;
+        if (f > 1 && (x - axis).norm() > 0) changes++;
+        axis = x;
+        EXPECT_LE(std::acos(std::min(1.0, cs.fittedLight().dot(light))) * 180 / kPi,
+                  CascadedShadows::kLightStepDeg + 1e-9)
+            << f;
+    }
+    EXPECT_GE(changes, 1);
+    EXPECT_LE(changes, 2);
+    p.forceFullUpdates = true;
+    cs.fit(cameraInput(Vec3(0, 30, 0), Vec3(0.2, -0.3, -1), lightAt(13), 13), p, false);
+    EXPECT_LT((cs.fittedLight() - lightAt(13).normalized()).norm(), 1e-12) << "golden mode: the exact light";
+}
+
+// Regression (S36a2 review, finding 12): the band and the edge margin of the receivers (fractions of the half extent):
+// with cascadeBlend 0 the cascade's weight reached the rectangle's edge, where the PCF footprint and the normal offset
+// read beyond the layer (clamp to edge: streaks); now the band is at least the margin plus 4 texels
+TEST(CascadesFit, BlendBandKeepsTheFootprintInside)
+{
+    LightingParameters p;
+    p.cascadeBlend = 0;
+    for (int res : {256, 2048})
+    {
+        const double texel = 2.0 / res;  // one texel, a fraction of the half extent
+        EXPECT_NEAR(CascadedShadows::edgeMargin(res), 3 * texel, 1e-12);
+        EXPECT_NEAR(CascadedShadows::blendBand(p, res), 7 * texel, 1e-12);
+    }
+    p.cascadeBlend = 0.1f;
+    EXPECT_NEAR(CascadedShadows::blendBand(p, 2048), 0.1, 1e-7);
+    // Finding 10: the fit's resolution is the image's
+    p.cascadeResolution = 128;
+    EXPECT_EQ(CascadedShadows::clampedResolution(p), 256);
+    p.cascadeResolution = 8192;
+    EXPECT_EQ(CascadedShadows::clampedResolution(p), 4096);
+}
+
 // A caster skipped by cascade c lies in cascade c - 1's caster volume in every frame in which c's map is sampled: with
 // a moving and turning camera and a moving light, each cascade's stored de-duplication volume (rectangle times light
 // depth interval) is inside cascade c - 1's current rectangle (shrunk by the blend band) times its depth range up to
@@ -793,6 +849,55 @@ TEST_F(Shadows, LongShadowCrossesCascadeSplit)
     for (double x : {split * 0.6, split * 0.9, split * 1.1, split * 1.6})
         EXPECT_LT(FactorAt(img, Vec3(x, 0, 0)), 0.2f) << "x " << x << " (split " << split << ")";
     for (double x : {split * 0.9, split * 1.6}) EXPECT_GT(FactorAt(img, Vec3(x, 0, 3)), 0.9f) << "lit beside, x " << x;
+}
+
+// Regression (S36a2 review, finding 9): the staggered cascade's margin (interval x speed x dt) took the frame time and
+// the camera's speed from the wall clock, so its radius and texel depended on the machine's frame time (lavapipe's
+// 0.1 s frames gave a 10x margin). With RenderScene::setFrameTime (the app's frame dt) the fit uses the frames' clock:
+// dt is the given step and the speed of a static camera is the minimum
+TEST_F(Shadows, StaggeredMarginUsesTheFrameTime)
+{
+    LightingParameters p = scene->lightingParameters();
+    p.forceFullUpdates   = false;
+    scene->setLightingParameters(p);
+    Box(313, vec3(60, 0.5f, 60));
+    AddSet({instanceAt(vec3(0, -0.5f, 0), 313)});
+    Sun(Vec3(0.5, 1, 0.2));
+    Camera(Vec3(-7, 7, 0.01), Vec3(6.5, -7, 0));
+    for (int i = 0; i < 6; ++i)
+    {
+        scene->setFrameTime(1.0 / 60);
+        RenderFrame();
+    }
+    scene->waitIdle();
+    const CascadeInput& in = scene->cascadedShadows().fittedCamera();
+    EXPECT_DOUBLE_EQ(in.dt, 1.0 / 60);
+    EXPECT_DOUBLE_EQ(in.maxSpeed, 50);
+}
+
+// Regression (S36a2 review, findings 10 and 11): a C++ caller's resolution outside 256..4096 fitted the texel snap
+// and the biases to another texel than the image's; and while frozen a resolution or count change (the images are
+// recreated, every cascade invalid) rendered no cascade until unfrozen. Frozen, then 128 texels (an image of 256): the
+// cascades are refitted once for the frozen camera with the image's texel, and the pole's shadow stays
+TEST_F(Shadows, FrozenCascadesFollowAResolutionChange)
+{
+    Box(311, vec3(60, 0.5f, 60));
+    Box(312, vec3(0.5f, 4, 0.5f));
+    AddSet({instanceAt(vec3(0, -0.5f, 0), 311), instanceAt(vec3(0, 4, 0), 312)});
+    Sun(Vec3(0.5, 1, 0));
+    Camera(Vec3(-7, 7, 0.01), Vec3(6.5, -7, 0));
+    const Vec3 shadow(-2, 0, 0);
+    EXPECT_LT(FactorAt(Capture(2), shadow), 0.2f);
+    scene->setFreezeCascades(true);
+    LightingParameters p = scene->lightingParameters();
+    p.cascadeResolution  = 128;
+    scene->setLightingParameters(p);
+    const TemplatedImage<ucvec4> img = Capture(2);
+    const LightingStatistics& st     = scene->lightingStatistics();
+    ASSERT_TRUE(st.shadows);
+    ASSERT_TRUE(st.cascades[0].valid);
+    EXPECT_NEAR(st.cascades[0].texelSize * 256, 2 * st.cascades[0].halfExtent, 1e-6) << "the image's texel";
+    EXPECT_LT(FactorAt(img, shadow), 0.2f) << "frozen cascades after the change";
 }
 
 // Review 2, finding 3: a 20 m pole inside cascade 0, 30 m from the camera, at 5 degrees: its shadow on the ground 100 m

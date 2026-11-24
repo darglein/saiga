@@ -56,6 +56,17 @@ void CascadedShadows::lightBasis(const Vec3& towardsLight, Vec3& x, Vec3& y, Vec
     y = z.cross(x);
 }
 
+int CascadedShadows::clampedResolution(const LightingParameters& p)
+{
+    return std::clamp(p.cascadeResolution, 256, 4096);
+}
+
+double CascadedShadows::blendBand(const LightingParameters& p, int resolution)
+{
+    const double texels = 2 * (kEdgeMarginTexels + kMinBlendTexels) / double(std::max(resolution, 1));
+    return std::max(std::clamp(double(p.cascadeBlend), 0.0, 0.5), texels);
+}
+
 int CascadedShadows::selectShadowLight(int previous, double sunGround, double moonGround)
 {
     const bool sun = sunGround > 0, moon = moonGround > 0;
@@ -104,8 +115,8 @@ void CascadedShadows::fitCascade(int c, const CascadeInput& in, const LightingPa
 {
     Cascade& s         = state[size_t(c)];
     const int interval = c == 0 || p.forceFullUpdates ? 1 : std::max(p.cascadeInterval[size_t(c)], 1);
-    const double blend = std::clamp(double(p.cascadeBlend), 0.0, 0.5);
-    const int res      = std::max(p.cascadeResolution, 16);
+    const int res      = clampedResolution(p);
+    const double blend = blendBand(p, res);
     const double n = splits[size_t(c)], f = splits[size_t(c) + 1];
     Vec3 centre;
     double r;
@@ -177,7 +188,7 @@ void CascadedShadows::setDedup(int c, const LightingParameters& p)
     if (c == 0) return;
     const Cascade& prev = state[size_t(c) - 1];
     if (!prev.valid) return;
-    const double band  = std::clamp(double(p.cascadeBlend), 0.0, 0.5) * prev.halfExtent;
+    const double band  = blendBand(p, prev.resolution) * prev.halfExtent;
     const double guard = s.interval > 1 ? kDedupGuard * prev.halfExtent : 0.0;
     // prev's shrunk rectangle in this cascade's basis, less the rotation's slack when the bases differ, times this
     // cascade's caster depth range (shrunk by the guard)
@@ -206,7 +217,7 @@ bool CascadedShadows::dedupHolds(int c, const LightingParameters& p) const
     if (!s.dedup) return true;
     const Cascade& prev = state[size_t(c) - 1];
     if (!prev.valid) return false;
-    const double band = std::clamp(double(p.cascadeBlend), 0.0, 0.5) * prev.halfExtent;
+    const double band = blendBand(p, prev.resolution) * prev.halfExtent;
     return insideVolume(prev, prev.halfExtent - band, s.axisX, s.axisY, s.axisZ, s.dedupCx, s.dedupCy, s.dedupHalf,
                         s.dedupZ0, s.dedupZ1);
 }
@@ -215,21 +226,42 @@ void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, b
 {
     const int count = std::clamp(p.cascadeCount, 1, kMaxCascades);
     for (Cascade& c : state) c.updated = false;
+    CascadeInput use = in;
     if (frozen && anyFit)
     {
-        // Frozen: the world data and the camera stay; every valid cascade is rendered (the casters may move)
-        for (int c = 0; c < activeCount; ++c) state[size_t(c)].updated = state[size_t(c)].valid;
-        return;
+        // Frozen: the world data and the camera stay; every valid cascade is rendered (the casters may move). After a
+        // change of the parameters or the images (every cascade invalid) they are refitted once for the frozen camera
+        // and light (S36a2 review, finding 11: no cascade was rendered until unfrozen)
+        bool anyValid = false;
+        for (int c = 0; c < activeCount; ++c) anyValid = anyValid || state[size_t(c)].valid;
+        if (anyValid && sameFit(p, fittedFor))
+        {
+            for (int c = 0; c < activeCount; ++c) state[size_t(c)].updated = state[size_t(c)].valid;
+            return;
+        }
+        use              = lastInput;
+        use.frame        = in.frame;
+        use.towardsLight = fitLight;
     }
     const bool refitAll = !anyFit || !sameFit(p, fittedFor);
     if (refitAll)
         for (Cascade& c : state) c.valid = false;
     activeCount = count;
     fittedFor   = p;
-    anyFit      = true;
-    lastInput   = in;
+    // The light in steps of kLightStepDeg (golden mode: exact; a first fit or a refit of all: the light itself)
+    if (!anyFit || refitAll || p.forceFullUpdates ||
+        std::acos(std::clamp(fitLight.dot(use.towardsLight.normalized()), -1.0, 1.0)) * 180 / kPi > kLightStepDeg)
+        fitLight = use.towardsLight.normalized();
+    use.towardsLight = fitLight;
+    anyFit           = true;
+    lastInput        = use;
     for (int c = count; c < kMaxCascades; ++c) state[size_t(c)] = Cascade();
+    fitDue(use, p);
+}
 
+void CascadedShadows::fitDue(const CascadeInput& in, const LightingParameters& p)
+{
+    const int count = activeCount;
     Vec3 x, y, z;
     lightBasis(in.towardsLight, x, y, z);
     const std::vector<double> splits = cascadeSplits(in.nearPlane, p.shadowDistance, count, p.splitLambda);
@@ -237,7 +269,7 @@ void CascadedShadows::fit(const CascadeInput& in, const LightingParameters& p, b
     const double tanX                = tanY * in.aspect;
     const double k                   = std::sqrt(tanX * tanX + tanY * tanY);
     const Vec3 forward               = in.cameraRotation * Vec3(0, 0, -1);
-    const int res                    = std::max(p.cascadeResolution, 16);
+    const int res                    = clampedResolution(p);
     const double elevation           = std::asin(std::clamp(z(1), -1.0, 1.0));
     const double cap                 = instanceCap(p, elevation);
 

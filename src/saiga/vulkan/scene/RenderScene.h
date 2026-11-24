@@ -16,6 +16,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <deque>
 #include <functional>
 #include <memory>
@@ -386,6 +387,10 @@ class SAIGA_VULKAN_API RenderScene
     // Freezes the cascades' world data and the camera they were fitted to (the overlays show what each covers while
     // one flies around); they are still rendered every frame
     void setFreezeCascades(bool frozen) { freezeCascades = frozen; }
+    // The time step (s) of the next frame for its time-dependent parts (the staggered cascades' margin from the
+    // camera's speed): an app passes its frame's dt, so the cascades do not depend on the machine's frame time for a
+    // fixed dt (S36a2 review, finding 9); a frame without it uses the wall clock since the previous frame
+    void setFrameTime(double dt) { nextFrameDt = std::isfinite(dt) ? std::max(dt, 0.0) : 0.0; }
     bool cascadesFrozen() const { return freezeCascades; }
     // The layer of the Cascade preview (LightingImage::Cascade)
     void setCascadePreview(int cascade) { previewCascade = cascade; }
@@ -439,6 +444,9 @@ class SAIGA_VULKAN_API RenderScene
     std::array<TerrainPass::ShadowStats, kMaxCascades> cascadeTerrain = {};
     // The camera positions of the last second (the staggered cascades' margin) and the frame clock
     std::deque<std::pair<double, Vec3>> cameraHistory;
+    // The clock of cameraHistory: the frames' time steps (setFrameTime) or the wall clock's
+    std::optional<double> nextFrameDt;
+    double frameClock = 0, lastWallClock = -1;
     // The cascades of the frame (after frameLighting: the shadow light; fills the block's cascade fields)
     void frameShadows(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex);
     // The overlays of the cascades and the horizon map (DebugLines)

@@ -141,9 +141,12 @@ float cascadeShadow(vec3 relPos, vec3 n, out int cascade, out float toLit)
         vec2 ndc   = (lighting.cascadeMatrix[c] * vec4(relPos, 1.0)).xy;
         float edge = max(abs(ndc.x), abs(ndc.y));
         if (edge > 1.0) continue;
-        cascade    = c;
-        float band = lighting.cascadeParams[c].y;
-        t          = clamp((edge - (1.0 - band)) / max(band, 1e-4), 0.0, 1.0);
+        cascade = c;
+        // The band ends at the edge margin (the PCF footprint and the normal offset stay inside the layer where the
+        // cascade has weight; S36a2 review, finding 12)
+        float band   = lighting.cascadeParams[c].y;
+        float margin = lighting.cascadeParams[c].w;
+        t            = clamp((edge - (1.0 - band)) / max(band - margin, 1e-4), 0.0, 1.0);
         break;
     }
     if (cascade < 0) return 1.0;

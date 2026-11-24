@@ -1534,8 +1534,13 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
     shadowViews.clear();
     frameCascades               = false;
     const LightingParameters& p = params.lighting;
-    // The camera's speed over the last second (the staggered cascades' margin) and the frame time
-    const double now = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    // The camera's speed over the last second (the staggered cascades' margin) and the frame time, on the frames' clock
+    // (setFrameTime, else the wall clock's step)
+    const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now().time_since_epoch()).count();
+    frameClock += nextFrameDt ? *nextFrameDt : lastWallClock < 0 ? 0.0 : wall - lastWallClock;
+    nextFrameDt.reset();
+    lastWallClock    = wall;
+    const double now = frameClock;
     // A jump of more than 500 m in a frame is a teleport, not a speed (the cascades refit when the camera leaves their
     // margin, CascadedShadows::fit)
     if (camera.valid && !cameraHistory.empty() && (camera.position - cameraHistory.back().second).norm() > 500)
@@ -1565,7 +1570,7 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
         return;
     }
     const int count = std::clamp(p.cascadeCount, 1, kMaxCascades);
-    int res         = std::clamp(p.cascadeResolution, 256, 4096);
+    const int res   = CascadedShadows::clampedResolution(p);
     cascades->ensureImages(count, res);
     CascadeInput in;
     in.camera         = camera.position;
@@ -1579,15 +1584,17 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
     in.maxSpeed       = maxSpeed;
     in.dt             = dt;
     cascades->fit(in, p, freezeCascades);
-    const double elevation = std::asin(std::clamp(in.towardsLight.normalized()(1), -1.0, 1.0));
+    // The light the cascades were fitted to (in steps)
+    const double elevation = std::asin(std::clamp(cascades->fittedLight()(1), -1.0, 1.0));
     frameCascades          = true;
     for (int c = 0; c < count; ++c)
     {
         const CascadedShadows::Cascade& k = cascades->cascades()[size_t(c)];
         ShadowView v                      = k.valid ? cascades->view(c, camera.position, p, elevation) : ShadowView();
         block.cascadeMatrix[c]            = v.viewProj;
-        block.cascadeParams[c] =
-            vec4(float(k.texelSize), std::clamp(p.cascadeBlend, 0.0f, 0.5f), k.valid ? 1.0f : 0.0f, 0);
+        // The texel, the band and the edge margin (fractions of the half extent), valid
+        block.cascadeParams[c] = vec4(float(k.texelSize), float(CascadedShadows::blendBand(p, res)),
+                                      k.valid ? 1.0f : 0.0f, float(CascadedShadows::edgeMargin(res)));
         if (!k.updated)
         {
             // Not rendered this frame: an empty volume (the culling rejects everything)

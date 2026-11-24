@@ -107,6 +107,20 @@ class SAIGA_VULKAN_API CascadedShadows
     static double instanceCap(const LightingParameters& p, double elevationRad);
     // The guard of a staggered cascade's de-duplication rectangle (a fraction of the previous cascade's half extent)
     static constexpr double kDedupGuard = 1.0 / 16.0;
+    // The resolution of the depth images and of the fit (the parameter clamped to 256..4096; S36a2 review, finding 10:
+    // the fit's texel matches the image's)
+    static int clampedResolution(const LightingParameters& p);
+    // The receivers' edge margin and the blend band of a cascade, fractions of its half extent (S36a2 review, finding
+    // 12): within kEdgeMarginTexels of the rectangle's edge the PCF footprint and the normal offset would read beyond
+    // the layer (clamp to edge), so the cascade's weight is 0 there (the shaders blend over band - margin); the band is
+    // at least the margin plus kMinBlendTexels (also with cascadeBlend 0)
+    static constexpr double kEdgeMarginTexels = 3, kMinBlendTexels = 4;
+    static double edgeMargin(int resolution) { return 2 * kEdgeMarginTexels / double(std::max(resolution, 1)); }
+    static double blendBand(const LightingParameters& p, int resolution);
+    // The shadow light's direction the cascades are fitted to moves in steps of this angle (S36a2 review, finding 13:
+    // the light basis refit to every small move of a moving sun rotated the texel grid in every frame, and every shadow
+    // edge crawled); golden mode (forceFullUpdates) uses the exact light
+    static constexpr double kLightStepDeg = 0.05;
 
     // ---- CPU: the cascades of a frame
     // Fits the due cascades (none while frozen; every cascade on a parameter or count change) for the light; the
@@ -122,6 +136,8 @@ class SAIGA_VULKAN_API CascadedShadows
     mat4 matrix(int c, const Vec3& camera) const;
     // The camera the cascades were fitted to (frozen: the frozen camera)
     const CascadeInput& fittedCamera() const { return lastInput; }
+    // The light direction the cascades were fitted to (in steps of kLightStepDeg)
+    const Vec3& fittedLight() const { return fitLight; }
 
     // ---- GPU
     void init(VulkanBase& base);
@@ -145,9 +161,12 @@ class SAIGA_VULKAN_API CascadedShadows
     LightingParameters fittedFor;
     bool anyFit = false;
     CascadeInput lastInput;
+    Vec3 fitLight = Vec3(0, 1, 0);
 
     // fit's steps: one cascade's sphere and rectangle; cascade c's de-duplication against c - 1 (rendered cascades) and
     // whether the stored one still holds (cascades not rendered this frame)
+    // The due cascades of a fit (in.towardsLight: the stepped light), the shared depth range, the de-duplication
+    void fitDue(const CascadeInput& in, const LightingParameters& p);
     void fitCascade(int c, const CascadeInput& in, const LightingParameters& p, const Vec3& x, const Vec3& y,
                     const Vec3& z, const std::vector<double>& splits, double k, const Vec3& forward);
     void setDedup(int c, const LightingParameters& p);

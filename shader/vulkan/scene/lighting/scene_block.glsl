@@ -64,7 +64,7 @@ layout(std140, set = 1, binding = 0) uniform SceneLightingBlock
     // last mip, w: the sky-view LUT's horizon elevation (rad; skyViewHorizon of the radius it was computed at)
     vec4 atmosphere;
     // S36a2: per cascade the camera-relative light view-projection (xy NDC over its rectangle, z depth 0 near .. 1 far)
-    // and params (x texel size m, y the blend band in NDC, z 1 valid)
+    // and params (x texel size m, y the blend band in NDC, z 1 valid, w the edge margin in NDC: weight 0 beyond 1 - w)
     mat4 cascadeMatrix[4];
     vec4 cascadeParams[4];
     // x: cascade count (0: off), y: depth bias (texels), z: normal offset (texels), w: 1 linear comparison filtering

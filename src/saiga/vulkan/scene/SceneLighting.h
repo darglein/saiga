@@ -84,7 +84,8 @@ struct SceneLighting
     vec4 atmosphere = vec4(0, 0, 0, 0);
     // S36a2: the cascades (A5). Per cascade the camera-relative light view-projection (xy: NDC over its rectangle, z:
     // depth 0 at the shared range's near end, 1 at its far end), params (x: texel size in m, y: the blend band in NDC,
-    // z: 1 valid, w: unused)
+    // z: 1 valid, w: the edge margin in NDC: the cascade's weight is 0 beyond 1 - w; CascadedShadows::blendBand,
+    // edgeMargin)
     mat4 cascadeMatrix[4] = {mat4::Identity(), mat4::Identity(), mat4::Identity(), mat4::Identity()};
     vec4 cascadeParams[4] = {vec4(0, 0, 0, 0), vec4(0, 0, 0, 0), vec4(0, 0, 0, 0), vec4(0, 0, 0, 0)};
     // x: the cascade count (0: no cascade shadows), y: the depth bias (texels), z: the normal offset (texels), w: 1 the
