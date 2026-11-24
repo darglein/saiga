@@ -10,6 +10,7 @@
 #include "saiga/engine/api/WorldApi.h"
 
 #include "saiga/engine/api/ComponentJson.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
@@ -1346,6 +1347,9 @@ ApiResult WorldApi::setComponent(const Json& a)
         if (!checkRenderMeshValues(*w, current, values, error)) return ApiResult::failure(error);
         previousMesh = current.mesh;
     }
+    // LightSource: the merged light must be valid (an error instead of a light that silently stops rendering)
+    if (id == LightSource::id && !checkLightSourceValues(w->read<LightSource>(e), values, error))
+        return ApiResult::failure(error);
     if (!pool->mergeJson(e.index, values, error)) return ApiResult::failure(error);
     if (id == RenderInstance::id) w->renderMeshWritten(e, false, &previousMesh);
     if (id == Behaviour::id) assignTickInterval(*w, e, w->get<Behaviour>(e), false);

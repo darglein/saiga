@@ -14,6 +14,9 @@
 #include "games/common/GameEngine.h"
 #include "games/flight/FlightWorld.h"
 
+#include <array>
+#include <map>
+
 namespace Saiga
 {
 namespace Game
@@ -40,6 +43,19 @@ class FlightRender
 
    private:
     Entity focus();
+    // S36b: the planes' navigation lights (red left, green right, white tail; unshadowed) and the shadowed landing
+    // light (a spot from the nose, 20000 lm, range 120 m), switched on below 5 degrees sun elevation (game policy);
+    // scene lights at the planes' interpolated poses (presentation, like the camera: no entities, nothing replicated)
+    void updateLights(double alpha);
+    void removeLights();
+    struct PlaneLights
+    {
+        std::array<Vulkan::LightHandle, 4> lights{};
+        // The bulbs of the navigation lights (emissive cosmetic instances on the scene)
+        std::array<Vulkan::InstanceHandle, 3> bulbs{};
+    };
+    std::map<uint64_t, PlaneLights> planeLights;
+    Vulkan::MeshId bulbMesh = 0;  // the first of the three bulb meshes (red, green, white)
 
     std::shared_ptr<const FlightContext> context;
     Engine::EngineApp* app = nullptr;

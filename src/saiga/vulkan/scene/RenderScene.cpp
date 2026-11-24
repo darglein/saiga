@@ -19,11 +19,14 @@
 #include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/HorizonShadows.h"
 #include "saiga/vulkan/scene/InstanceBuffer.h"
+#include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
+#include "saiga/vulkan/scene/LocalLights.h"
 #include "saiga/vulkan/scene/MeshPool.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/SceneCulling.h"
 #include "saiga/vulkan/scene/SceneLightingSet.h"
+#include "saiga/vulkan/scene/ShadowAtlas.h"
 #include "saiga/vulkan/scene/ShadowPipelineTable.h"
 #include "saiga/vulkan/scene/SkyAmbient.h"
 #include "saiga/vulkan/texture/Sampler.h"
@@ -86,10 +89,10 @@ vk::ImageSubresourceRange depthRange()
 const std::vector<const char*>& sectionNames()
 {
     static const std::vector<const char*> names = {
-        "transfer",  "environment",   "cull",        "shadow",        "shadow.cascades",  "shadow.horizon",
-        "depth",     "depth.terrain", "scene",       "scene.terrain", "scene.instances",  "scene.grass",
-        "scene.sky", "scene.clouds",  "scene.debug", "resolve",       "lighting.preview", "post",
-        "imgui"};
+        "transfer",         "environment",  "cull",      "lights",        "shadow",      "shadow.cascades",
+        "shadow.horizon",   "shadow.atlas", "depth",     "depth.terrain", "scene",       "scene.terrain",
+        "scene.instances",  "scene.grass",  "scene.sky", "scene.clouds",  "scene.debug", "resolve",
+        "lighting.preview", "post",         "imgui"};
     return names;
 }
 std::vector<std::string> sectionNameStrings()
@@ -99,6 +102,13 @@ std::vector<std::string> sectionNameStrings()
     return r;
 }
 }  // namespace
+
+// S36b: an atlas face of the frame with its culling view and terrain sphere
+struct RenderScene::AtlasFace
+{
+    ShadowAtlas::Face face;
+    uint32_t view = 0;
+};
 
 // probe_lighting's sequence (S36a1b): the views of its frames, the pixels and the values per frame
 struct RenderScene::ProbeRun
@@ -118,17 +128,67 @@ struct RenderScene::ProbeRun
     // Frame 1's post pass (the later frames show frame 1's image: the window does not flash the debug frames)
     float postScale = 1;
     bool postLinear = false;
+    // S36b: frame 1's lights and cluster grid (the probe's cluster keys)
+    ClusterGrid grid;
+    bool clusters = false;
+    // Clustered shading (the cluster's slots cap its lights; the brute-force loop shades every light)
+    bool clustered = false;
+    mat4 view      = mat4::Identity();
+    mat4 proj      = mat4::Identity();
+    Vec3 forward   = Vec3(0, 0, -1);
+    std::vector<LocalLights::GpuLight> lights;
+    std::vector<uint32_t> handles;
+    // The surface changed size during the sequence (its pixels are other surface points; frame 1's held image is gone):
+    // the run ends with the next latch and answers without values (CodeRabbit #82)
+    bool resized = false;
+    // The light state of frame 1 (probeLightKey) and whether a later frame had another (CodeRabbit #86 round 2: the
+    // contributions of frame 1's lights next to an atlas result of another state were reported as consistent)
+    uint64_t lightKey  = 0;
+    bool lightsChanged = false;
 };
 
 namespace
 {
+// The light state a probe frame shades with: the local-light switches and the frame's records without their
+// intensity (flicker changes it every frame), incl. the atlas tiles and their readiness
+uint64_t probeLightKey(const LightingParameters& p, const std::vector<LocalLights::GpuLight>& records,
+                       const std::vector<FrameLightInfo>& lights)
+{
+    uint64_t h = 1469598103934665603ull;
+    auto mix   = [&](uint64_t v)
+    {
+        h ^= v;
+        h *= 1099511628211ull;
+    };
+    auto mixFloat = [&](float f)
+    {
+        uint32_t u;
+        std::memcpy(&u, &f, 4);
+        mix(u);
+    };
+    mix(p.localLights ? 1 : 0);
+    mix(p.clusteredLights ? 1 : 0);
+    mix(records.size());
+    for (const FrameLightInfo& f : lights) mix(f.handle);
+    for (const LocalLights::GpuLight& g : records)
+        for (int i = 0; i < 4; ++i)
+        {
+            mixFloat(g.posRange(i));
+            mixFloat(g.dirKind(i));
+            mixFloat(g.cone(i));
+        }
+    for (const LocalLights::GpuLight& g : records) mixFloat(g.intensity(3));
+    return h;
+}
+
 // The views of the probe's frames (frame 1: normal); frames 5-7 write raw radiance, frame 8 the cloud shadow, frame 9
-// the cascades (S36a2: factor, cascade + 1), frame 10 the horizon map (factor, R and G above the receiver; raw data)
+// the cascades (S36a2: factor, cascade + 1), frame 10 the horizon map (factor, R and G above the receiver; raw data),
+// frame 11 the local lights' atlas shadow (S36b: factor, the shadowed lights that reach the pixel)
 const std::array<LightingDebugView, RenderScene::kProbeFrames> kProbeViews = {
-    LightingDebugView::None,         LightingDebugView::Albedo,      LightingDebugView::Normals,
-    LightingDebugView::Material,     LightingDebugView::DirectOnly,  LightingDebugView::AmbientOnly,
-    LightingDebugView::SpecularOnly, LightingDebugView::CloudShadow, LightingDebugView::ShadowCascades,
-    LightingDebugView::HorizonShadow};
+    LightingDebugView::None,          LightingDebugView::Albedo,      LightingDebugView::Normals,
+    LightingDebugView::Material,      LightingDebugView::DirectOnly,  LightingDebugView::AmbientOnly,
+    LightingDebugView::SpecularOnly,  LightingDebugView::CloudShadow, LightingDebugView::ShadowCascades,
+    LightingDebugView::HorizonShadow, LightingDebugView::AtlasShadow};
 }  // namespace
 
 /**
@@ -352,6 +412,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // The previews' statistics of this slot's previous frame (completed)
     s.debugImages->harvest(frame.frameIndex);
     s.debugImages->setFrame(s.frameCount + 1);
+    // S36b: the clusters' statistics of this slot's previous frame (completed)
+    s.clusterCull->harvest(frame.frameIndex);
     // probe_lighting's frames 2-7 (debug views): no preview conversion (they would reduce the debug values; the
     // requests wait for the frame after the sequence), the post pass shows frame 1's image
     RenderScene::ProbeRun* probe = s.probeRun.get();
@@ -416,6 +478,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (s.frameCascades && s.params.lighting.terrainCastsInCascades)
             s.terrain->selectForShadow(frame.frameIndex, *s.atlas, camera, s.shadowViews);
         s.cascadeOverlays();
+        // S36b: the dynamics snapped in an earlier frame and not since come to rest; the local lights of the frame
+        s.settleSnapped();
+        s.frameLocalLights(camera, lighting, frame.frameIndex);
+        // S36b: the shadow atlas (its faces are views of the culling after the cascades')
+        s.frameAtlas(cmd, camera, enclosed, lighting, frame.frameIndex);
+        s.lightOverlays();
+        s.clusterOverlays();
         if (probe && probe->step == 0)
         {
             // The probe's frame 1: its camera and exposure (the later frames hold them); a world point's pixel with
@@ -427,6 +496,17 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             probe->physical    = s.framePhysical && linear;
             probe->postScale   = scale;
             probe->postLinear  = linear;
+            probe->grid        = *s.clusterGrid;
+            probe->clusters    = s.frameClusters;
+            probe->clustered   = s.frameClusters && s.params.lighting.clusteredLights;
+            probe->view        = s.frameView;
+            probe->proj        = s.frameProjection;
+            probe->forward     = s.cameraRotation * Vec3(0, 0, -1);
+            probe->lights      = s.lightTable->frameRecords();
+            probe->lightKey =
+                probeLightKey(s.params.lighting, s.lightTable->frameRecords(), s.lightTable->frameLights());
+            probe->handles.clear();
+            for (const FrameLightInfo& f : s.lightTable->frameLights()) probe->handles.push_back(f.handle);
             probe->cameraTaken = true;
             for (RenderScene::ProbeRequest& r : probe->requests)
             {
@@ -442,6 +522,11 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
                 r.pixel = inside ? ivec2(int(px), int(py)) : ivec2(-1, -1);
             }
         }
+        if (probe && probe->step > 0 && probe->size != ivec2(surfaceWidth, SurfaceHeight)) probe->resized = true;
+        if (probe && probe->step > 0 &&
+            probeLightKey(s.params.lighting, s.lightTable->frameRecords(), s.lightTable->frameLights()) !=
+                probe->lightKey)
+            probe->lightsChanged = true;
         // probe_lighting: the pixels of this frame of the sequence
         if (probe)
         {
@@ -490,7 +575,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // The environment (S36a1c, §10.5 pass 1): the atmosphere's LUTs and the environment map, only in the physical path
     // of an open camera space (written every frame, empty otherwise)
     timings.enterSection("environment", cmd);
-    const bool environmentPass = s.framePhysical && s.envSet && !enclosed && !s.env.enclosed && camera.valid;
+    const bool environmentPass =
+        s.framePhysical && s.envSet && !enclosed && !s.env.enclosed && camera.valid && s.atmosphere;
     // A full update of the incremental effects (the environment map, S36a2: the horizon map) in this frame
     const bool fullUpdate = s.params.lighting.forceFullUpdates || s.fullUpdateRequested;
     s.fullUpdateRequested = false;
@@ -534,6 +620,13 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     timings.enterSection("cull", cmd);
     s.culling->recordCull(cmd, frame.frameIndex, *s.meshPool, camera);
     timings.leaveSection("cull", cmd);
+
+    // S36b: the clustered light culling (B3; written every frame, empty without lights)
+    timings.enterSection("lights", cmd);
+    if (s.frameClusters)
+        s.clusterCull->record(cmd, frame.frameIndex, *s.clusterGrid, s.frameView, s.frameProjection, *s.lightTable,
+                              s.frameCount + 1);
+    timings.leaveSection("lights", cmd);
 
     // S36a2: the cascades' depth passes (§10.5 pass 1; written every frame, empty without cascades): the casters of the
     // updated cascades (instances by class with the shadow pipeline table, the terrain nodes of selectForShadow)
@@ -616,6 +709,65 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             s.horizon->update(cmd, in);
     }
     subEnd("shadow.horizon", cmd);
+    // S36b: the shadow atlas's faces (B4; empty without a face to render): per layer one pass that keeps the other
+    // tiles, per face its tile cleared to 1 and the casters of its view (the static layer: static sets and the terrain
+    // at the fixed level, the dynamic layer: dynamics)
+    subBegin("shadow.atlas", cmd);
+    if (!s.atlasFaces.empty() && !s.shadowViewsOverride && s.atlasShadows->hasImage())
+    {
+        ShadowAtlas& at = *s.atlasShadows;
+        const vk::ImageSubresourceRange layers(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 2);
+        // (the lighting set's readers: SceneLightingSet::kReaderStages; round 2, finding 18)
+        vk::ImageMemoryBarrier2 toWrite(SceneLightingSet::kReaderStages, Access::eShaderSampledRead,
+                                        Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
+                                        Access::eDepthStencilAttachmentRead | Access::eDepthStencilAttachmentWrite,
+                                        vk::ImageLayout::eShaderReadOnlyOptimal,
+                                        vk::ImageLayout::eDepthStencilAttachmentOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                        VK_QUEUE_FAMILY_IGNORED, at.texture()->image(), layers);
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toWrite));
+        const int tile    = at.tileSize();
+        const int perSide = at.tilesPerSide();
+        for (int layer = 0; layer < 2; ++layer)
+        {
+            bool any = false;
+            for (const RenderScene::AtlasFace& f : s.atlasFaces) any = any || f.face.layer == layer;
+            if (!any) continue;
+            vk::RenderingAttachmentInfo depth;
+            depth.imageView   = at.layerView(layer);
+            depth.imageLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+            depth.loadOp      = vk::AttachmentLoadOp::eLoad;
+            depth.storeOp     = vk::AttachmentStoreOp::eStore;
+            vk::RenderingInfo info;
+            info.renderArea       = vk::Rect2D({0, 0}, {uint32_t(at.resolution()), uint32_t(at.resolution())});
+            info.layerCount       = 1;
+            info.pDepthAttachment = &depth;
+            cmd.beginRendering(info);
+            for (const RenderScene::AtlasFace& f : s.atlasFaces)
+            {
+                if (f.face.layer != layer) continue;
+                const int tx = f.face.tile % perSide, ty = f.face.tile / perSide;
+                const vk::Rect2D rect({tx * tile, ty * tile}, {uint32_t(tile), uint32_t(tile)});
+                cmd.setViewport(0, vk::Viewport(float(tx * tile), float(ty * tile), float(tile), float(tile), 0, 1));
+                cmd.setScissor(0, rect);
+                vk::ClearAttachment clear(vk::ImageAspectFlagBits::eDepth, 0, vk::ClearDepthStencilValue(1.0f, 0));
+                cmd.clearAttachments(clear, vk::ClearRect(rect, 0, 1));
+                if (f.face.clearOnly) continue;
+                s.culling->recordAtlas(cmd, frame.frameIndex, f.view, f.face.viewProj, camera.alpha, *s.shadowTable,
+                                       f.face.lightPush);
+                if (layer == 0)
+                    s.terrain->renderAtlas(cmd, frame.frameIndex, f.face.light, f.face.viewProj, f.face.lightPush,
+                                           proto);
+            }
+            cmd.endRendering();
+        }
+        vk::ImageMemoryBarrier2 toRead(Stage::eEarlyFragmentTests | Stage::eLateFragmentTests,
+                                       Access::eDepthStencilAttachmentWrite, SceneLightingSet::kReaderStages,
+                                       Access::eShaderSampledRead, vk::ImageLayout::eDepthStencilAttachmentOptimal,
+                                       vk::ImageLayout::eShaderReadOnlyOptimal, VK_QUEUE_FAMILY_IGNORED,
+                                       VK_QUEUE_FAMILY_IGNORED, at.texture()->image(), layers);
+        cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
+    }
+    subEnd("shadow.atlas", cmd);
     timings.leaveSection("shadow", cmd);
 
     // ImGui's vertex data is in host visible memory, one buffer per frame in flight.
@@ -778,7 +930,7 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         subEnd("scene.instances", cmd);
         viewport(cmd);
         subBegin("scene.grass", cmd);
-        if (s.foliage && !enclosed) s.grass->render(cmd, frame.frameIndex, *s.terrain);
+        if (s.foliage && !enclosed) s.grass->render(cmd, frame.frameIndex, *s.terrain, lighting.lightCounts(0) > 0);
         subEnd("scene.grass", cmd);
         subBegin("scene.sky", cmd);
         // The environment's sky (S20): with the foliage texture (the prototype), with or without terrain, and (S36a1c)
@@ -894,19 +1046,28 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
     // The preview conversions (S36a1b; written every frame, empty without a request)
     timings.enterSection("lighting.preview", cmd);
     {
+        // The cancelled requests go first: the sources below follow the mappings that recordPreviews converts
+        s.debugImages->pruneCancelled();
         LightingDebug::Sources src;
         src.set(LightingImage::Luminance, &hdrResolved, 0, linear ? 1.0f / s.framePreExposure : 1.0f);
-        src.set(LightingImage::BrdfLut, &s.brdf->lut(), 1);
-        // S36a1c: the atmosphere's LUTs and the environment map's debug images (recorded on demand)
-        src.set(LightingImage::TransmittanceLut, &s.atmosphere->transmittance(), 0);
-        src.set(LightingImage::SkyViewLut, &s.atmosphere->skyView(), 0, 1.0f / Atmosphere::kSkyLutScale);
-        src.set(LightingImage::MultiScatteringLut, &s.atmosphere->multiScattering(), 0);
-        if (previews && s.debugImages->requested(LightingImage::Environment))
+        // (the BRDF LUT is created for its preview; the environment's resources exist after the first environment)
+        if (s.debugImages->requested(LightingImage::BrdfLut)) s.ensureBrdf();
+        if (s.brdf) src.set(LightingImage::BrdfLut, &s.brdf->lut(), 1);
+        // S36a1c: the atmosphere's LUTs and the environment map's debug images (recorded on demand), only in a frame
+        // with the environment pass (round 2, finding 6: in clay or an enclosed space they are stale or never written;
+        // the capture is an error then)
+        if (s.atmosphere && environmentPass)
+        {
+            src.set(LightingImage::TransmittanceLut, &s.atmosphere->transmittance(), 0);
+            src.set(LightingImage::SkyViewLut, &s.atmosphere->skyView(), 0, 1.0f / Atmosphere::kSkyLutScale);
+            src.set(LightingImage::MultiScatteringLut, &s.atmosphere->multiScattering(), 0);
+        }
+        if (previews && environmentPass && s.envMap && s.debugImages->requested(LightingImage::Environment))
             src.set(
                 LightingImage::Environment,
                 s.envMap->recordDebug(cmd, frame.frameIndex, 0, s.debugImages->sourceMip(LightingImage::Environment)),
                 0);
-        if (previews && s.debugImages->requested(LightingImage::Irradiance))
+        if (previews && environmentPass && s.envMap && s.debugImages->requested(LightingImage::Irradiance))
             src.set(LightingImage::Irradiance, s.envMap->recordDebug(cmd, frame.frameIndex, 1, 0), 0);
         // S36a2: the cascades' depth (one layer, or every layer side by side; the minimum over the covered texels)
         if (s.cascades->hasImages())
@@ -928,8 +1089,10 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             s.lightStats.horizonPreview = s.horizon->statistics();
         }
         // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
-        if (s.debugImages->requested(LightingImage::CloudCoverage) ||
-            s.debugImages->requested(LightingImage::CloudShadow))
+        // (the cloud layer's: with the environment pass and the layer on, as it is drawn)
+        if (s.clouds && environmentPass && lighting.cloudMotion(3) > 0.5f &&
+            (s.debugImages->requested(LightingImage::CloudCoverage) ||
+             s.debugImages->requested(LightingImage::CloudShadow)))
         {
             CloudLayer::DebugInput in;
             in.clouds = lighting.clouds;
@@ -946,6 +1109,33 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
             if (s.debugImages->requested(LightingImage::CloudShadow))
                 src.set(LightingImage::CloudShadow, s.clouds->recordDebug(cmd, frame.frameIndex, 2, in), 1);
         }
+        // S36b: the shadow atlas (a layer; one light's tile) after this frame's faces
+        if (s.atlasShadows->hasImage())
+        {
+            ShadowAtlas& at    = *s.atlasShadows;
+            const uint32_t res = uint32_t(at.resolution());
+            // (the layer, light and face of the request: round 2, finding 5)
+            const PreviewMapping& am = s.debugImages->sourceMapping(LightingImage::Atlas);
+            src.setArray(LightingImage::Atlas, at.texture(), 2, uint32_t(std::clamp(am.layer, 0, 1)), 1,
+                         std::max(1u, res / 1024));
+            const PreviewMapping& tm     = s.debugImages->sourceMapping(LightingImage::AtlasTile);
+            const std::vector<int> tiles = at.tilesOf(tm.light);
+            if (!tiles.empty())
+            {
+                const int t = tiles[size_t(std::clamp(tm.face, 0, int(tiles.size()) - 1))];
+                src.setArray(LightingImage::AtlasTile, at.texture(), 2, uint32_t(std::clamp(tm.layer, 0, 1)), 1, 1);
+                LightingDebug::Sources::ArraySource& a = src.array[size_t(LightingImage::AtlasTile)];
+                a.originX                              = uint32_t((t % at.tilesPerSide()) * at.tileSize());
+                a.originY                              = uint32_t((t / at.tilesPerSide()) * at.tileSize());
+                a.width = a.height = uint32_t(at.tileSize());
+            }
+        }
+        // S36b: the lights per cluster (from this frame's table); a slice the frame's grid no longer has (a request
+        // queued before a cluster_z change) is not converted: the capture answers that it was not rendered
+        // (CodeRabbit #86: the shader read beyond the table)
+        const int clusterSlice = s.debugImages->sourceMapping(LightingImage::Clusters).slice;
+        if (s.debugImages->requested(LightingImage::Clusters) && s.frameClusters && clusterSlice < s.clusterGrid->z)
+            src.set(LightingImage::Clusters, s.clusterCull->recordDebug(cmd, frame.frameIndex, clusterSlice), 1);
         s.lightStats.previewDispatches = previews ? s.debugImages->recordPreviews(cmd, frame.frameIndex, src) : 0;
     }
     timings.leaveSection("lighting.preview", cmd);
@@ -1024,15 +1214,6 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     lightingSet->init(base());
     ambient = std::make_unique<SkyAmbient>();
     ambient->init(base());
-    brdf = std::make_unique<BrdfLut>();
-    brdf->init(base());
-    atmosphere = std::make_unique<Atmosphere>();
-    atmosphere->init(base());
-    envMap = std::make_unique<EnvironmentMap>();
-    envMap->init(base(), params.lighting.environmentResolution);
-    clouds = std::make_unique<CloudLayer>();
-    clouds->init(base(), formats(), CloudSettings().seed);
-    ambient->setEnvironmentMap(envMap.get());
     debugImages = std::make_unique<LightingDebug>();
     debugImages->init(base());
     lines = std::make_unique<DebugLines>();
@@ -1043,6 +1224,13 @@ RenderScene::RenderScene(VulkanWindow& window, const VulkanParameters& vulkanPar
     shadowTable->init(base());
     horizon = std::make_unique<HorizonShadows>();
     horizon->init(base());
+    lightTable = std::make_unique<LocalLights>();
+    lightTable->init(base());
+    clusterCull = std::make_unique<LightClusters>();
+    clusterCull->init(base());
+    clusterGrid  = std::make_unique<ClusterGrid>();
+    atlasShadows = std::make_unique<ShadowAtlas>();
+    atlasShadows->init(base());
     culling = std::make_unique<SceneCulling>();
     culling->init(base(), formats(), params, *lightingSet);
     protoSettings = std::make_unique<PrototypeSettings>();
@@ -1073,6 +1261,9 @@ RenderScene::~RenderScene()
     shadowTable.reset();
     cascades.reset();
     horizon.reset();
+    clusterCull.reset();
+    atlasShadows.reset();
+    lightTable.reset();
     brdf.reset();
     ambient.reset();
     envMap.reset();
@@ -1225,8 +1416,61 @@ void RenderScene::setToneMap(ToneMap toneMap)
     params.toneMap = toneMap;
 }
 
+void RenderScene::ensureBrdf()
+{
+    if (brdf) return;
+    // Published after a successful init (CodeRabbit #86 round 2: a throwing init left a partial LUT in use)
+    auto lut = std::make_unique<BrdfLut>();
+    lut->init(base());
+    brdf = std::move(lut);
+}
+
+void RenderScene::ensureEnvironmentResources()
+{
+    if (atmosphere) return;
+    ensureBrdf();
+    // Committed after every initializer succeeded (CodeRabbit #86: a throwing one left atmosphere set, and the next
+    // call returned with envMap or clouds missing)
+    auto a = std::make_unique<Atmosphere>();
+    a->init(base());
+    auto e = std::make_unique<EnvironmentMap>();
+    e->init(base(), params.lighting.environmentResolution);
+    auto c = std::make_unique<CloudLayer>();
+    c->init(base(), formats(), CloudSettings().seed);
+    atmosphere = std::move(a);
+    envMap     = std::move(e);
+    clouds     = std::move(c);
+    ambient->setEnvironmentMap(envMap.get());
+}
+
+BrdfLut& RenderScene::brdfLut()
+{
+    ensureBrdf();
+    return *brdf;
+}
+
+Atmosphere& RenderScene::atmosphereLuts()
+{
+    ensureEnvironmentResources();
+    return *atmosphere;
+}
+
+EnvironmentMap& RenderScene::environmentMap()
+{
+    ensureEnvironmentResources();
+    return *envMap;
+}
+
+CloudLayer& RenderScene::cloudLayer()
+{
+    ensureEnvironmentResources();
+    return *clouds;
+}
+
 void RenderScene::setEnvironment(const EnvironmentState& environment)
 {
+    // The environment's resources (S36 review round 2, finding 4a: created with the first environment)
+    ensureEnvironmentResources();
     // A probe holds the environment of its frame 1
     if (probeRun)
     {
@@ -1240,8 +1484,9 @@ void RenderScene::setEnvironment(const EnvironmentState& environment)
 void RenderScene::setLightingParameters(const LightingParameters& parameters)
 {
     // Only stored: the resources that depend on the parameters (the environment map's resolution, the clouds, the
-    // cascades and the horizon map) are created or resized lazily when the next frame records them
-    // (EnvironmentMap::record, CascadedShadows::ensureImages, HorizonShadows::ensureImages)
+    // cascades, the horizon map, the shadow atlas and the light clusters) are created or resized lazily when the next
+    // frame records them (EnvironmentMap::record, CascadedShadows::ensureImages, HorizonShadows::ensureImages,
+    // ShadowAtlas::ensure, LightClusters::ensure)
     params.lighting = parameters;
 }
 
@@ -1290,6 +1535,8 @@ void RenderScene::addMaterial(MaterialId id, const std::string& name, const Mate
 
 void RenderScene::setMaterial(MaterialId id, const MaterialData& data)
 {
+    // S36b: a caster class or its alpha may change: every static atlas tile is re-rendered (a rare call)
+    atlasShadows->invalidateAll();
     meshPool->setMaterial(id, data);
 }
 
@@ -1329,16 +1576,20 @@ uint16_t RenderScene::reserveIds(SceneIdKind kind, uint32_t count)
 
 void RenderScene::setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid)
 {
+    atlasShadows->invalidateAll();
     atlas->setPyramid(space, pyramid);
 }
 
 void RenderScene::setTerrainTile(const RegionId& region, const TerrainTileData& tile)
 {
+    // S36b: the atlas's static tiles under the region (their terrain key follows the residency as well)
+    markRegionDirty(region);
     atlas->setTile(region, tile);
 }
 
 void RenderScene::removeTerrainTile(const RegionId& region)
 {
+    markRegionDirty(region);
     atlas->removeTile(region);
 }
 
@@ -1354,16 +1605,20 @@ void RenderScene::removeGrassMask(const ChunkId& chunk)
 
 void RenderScene::clearTerrain()
 {
+    atlasShadows->invalidateAll();
     atlas->clear();
 }
 
 void RenderScene::patchTerrainTile(const RegionId& region, int x0, int z0, int w, int h, const int32_t* heights)
 {
+    markRegionDirty(region);
     atlas->patchTile(region, x0, z0, w, h, heights);
 }
 
 void RenderScene::patchTerrainPyramid(SpaceId space, int x0, int z0, int w, int h, const int32_t* heights)
 {
+    // The pyramid's coarse levels: every static tile (rare: terraforming patches the tiles)
+    atlasShadows->invalidateAll();
     atlas->patchPyramid(space, x0, z0, w, h, heights);
 }
 
@@ -1494,8 +1749,8 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
         out.enclosedAmbient = vec4(e.enclosedAmbient(0), e.enclosedAmbient(1), e.enclosedAmbient(2), 0);
         // The cloud layer: the cloudiness through the noise's histogram (the layer's mean coverage follows the
         // weather's cloudiness)
-        out.clouds =
-            vec4(e.clouds.altitude, e.clouds.radius, clouds->effectiveCloudiness(e.cloudiness), e.clouds.shadowFade);
+        out.clouds = vec4(e.clouds.altitude, e.clouds.radius,
+                          clouds ? clouds->effectiveCloudiness(e.cloudiness) : e.cloudiness, e.clouds.shadowFade);
         // The coverage texture's position of the camera (double: the camera's xz and the wrapped offset)
         auto wrap = [](double v)
         {
@@ -1505,7 +1760,7 @@ void RenderScene::frameLighting(const SceneCamera& camera, const PrototypeSettin
         const bool cloudsOn = physical && params.lighting.clouds && !e.enclosed && !enclosed && e.cloudiness > 0;
         out.cloudMotion     = vec4(wrap(camera.position.x() + double(e.cloudOffset(0))),
                                    wrap(camera.position.z() + double(e.cloudOffset(1))),
-                                   clouds->meanCoverage(out.clouds(2)), cloudsOn ? 1.0f : 0.0f);
+                               clouds ? clouds->meanCoverage(out.clouds(2)) : 0.0f, cloudsOn ? 1.0f : 0.0f);
         for (int r = 0; r < 3; ++r)
             out.starRotation[r] = vec4(e.starRotation(r, 0), e.starRotation(r, 1), e.starRotation(r, 2), 0);
         out.phases[0] = vec4(e.phases[0], e.phases[1], e.phases[2], e.phases[3]);
@@ -1627,6 +1882,334 @@ void RenderScene::frameShadows(const SceneCamera& camera, bool enclosed, SceneLi
         vec4(float(count), p.depthBiasTexels, p.normalOffsetTexels, lightingSet->linearShadowFilter() ? 1 : 0);
 }
 
+const std::vector<FrameLightInfo>& RenderScene::frameLights() const
+{
+    return lightTable->frameLights();
+}
+
+void RenderScene::frameLocalLights(const SceneCamera& camera, SceneLighting& block, uint32_t frameIndex)
+{
+    const LightingParameters& p = params.lighting;
+    LocalLights::FrameInput in;
+    in.valid  = camera.valid;
+    in.space  = camera.space;
+    in.camera = camera.position;
+    for (size_t k = 0; k < in.planes.size(); ++k) in.planes[k] = camera.planes[k];
+    in.forward      = cameraRotation * Vec3(0, 0, -1);
+    in.on           = p.localLights;
+    in.maxLights    = p.maxLights;
+    // The grid's far plane (CodeRabbit #86 round 2: the selection stopped at max(clusterFar, 1), the grid at
+    // max(clusterFar, 2 nearPlane))
+    in.clusterFar   = std::max(double(p.clusterFar), 2.0 * double(params.nearPlane));
+    in.flickerPhase = envSet ? env.phases[6] : 0.0f;
+    in.highlight    = frameDebug.highlightLight;
+    lightTable->prepareFrame(frameIndex, in);
+    const uint32_t count = uint32_t(lightTable->frameRecords().size());
+    // The clusters touched by each light (the newest completed frame's)
+    for (FrameLightInfo& f : lightTable->frameLightsMutable()) f.clusters = clusterCull->clustersOf(f.handle);
+    // The cluster grid of the frame (B3): computed whenever the frame has lights (also with the brute-force loop: the
+    // ClusterLights view and the statistics)
+    ClusterGrid& g        = *clusterGrid;
+    g.x                   = std::clamp(p.clusterX, 1, 64);
+    g.y                   = std::clamp(p.clusterY, 1, 64);
+    g.z                   = std::clamp(p.clusterZ, 2, 128);
+    g.maxLightsPerCluster = std::clamp(p.maxLightsPerCluster, 1, 1024);
+    g.nearPlane           = double(params.nearPlane);
+    g.clusterFar          = std::max(double(p.clusterFar), 2.0 * double(params.nearPlane));
+    g.clusterNear         = std::clamp(double(p.clusterNear), double(params.nearPlane) * 1.001, g.clusterFar * 0.999);
+    const ivec2 sz        = size();
+    g.width               = std::max(sz(0), 1);
+    g.height              = std::max(sz(1), 1);
+    g.fovy                = cameraFovy;
+    g.aspect              = double(g.width) / double(g.height);
+    // The index buffer (every cluster's slots, bound whole) within the storage-buffer limit: the slots per cluster are
+    // reduced to fit. set_lighting rejects such values; an environment file or a C++ caller is not checked against the
+    // device (CodeRabbit #86: a 64 x 64 x 128 grid with 1024 slots was a 2 GiB binding)
+    const uint64_t slotsInLimit = storageBufferLimit() / (uint64_t(g.count()) * 4);
+    g.maxLightsPerCluster       = int(std::clamp<uint64_t>(slotsInLimit, 1, uint64_t(g.maxLightsPerCluster)));
+    g.clustered                 = p.clusteredLights;
+
+    frameClusters = camera.valid && count > 0;
+    if (!frameClusters) clusterCull->clearStatistics();
+    const bool clustered = frameClusters && p.clusteredLights;
+    block.lightCounts    = uvec4(count, clustered ? 1u : 0u, uint32_t(lightTable->highlightIndex() + 1), 0);
+    block.clusterGrid    = uvec4(uint32_t(g.x), uint32_t(g.y), uint32_t(g.z), uint32_t(g.maxLightsPerCluster));
+    block.clusterDepth   = vec4(float(g.nearPlane), float(g.clusterNear), float(g.clusterFar),
+                                float(double(g.z - 1) / std::log(g.clusterFar / g.clusterNear)));
+    block.atlasParams(3) = clusterHeatScale;
+    // The lights' cluster ranges (light_cluster.comp's pre-test)
+    if (frameClusters)
+    {
+        // The slot's cluster buffers for this grid before writeLightingSet binds them
+        clusterCull->prepare(frameIndex, g, count);
+        for (LocalLights::GpuLight& r : lightTable->frameRecordsMutable())
+            r.clusterRange = LightClusters::clusterRange(g, frameView, frameProjection, r);
+        lightTable->writeRecords(frameIndex);
+    }
+    const Vec3 forward = cameraRotation * Vec3(0, 0, -1);
+    block.viewForward  = vec4(float(forward(0)), float(forward(1)), float(forward(2)), 0);
+    block.viewport     = vec4(float(sz(0)), float(sz(1)), 0, 0);
+}
+
+void RenderScene::frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, bool enclosed, SceneLighting& block,
+                             uint32_t frameIndex)
+{
+    atlasFaces.clear();
+    const LightingParameters& p = params.lighting;
+    // The atlas exists while the local lights are on (its image is released otherwise)
+    if (!p.localLights)
+    {
+        if (atlasShadows->hasImage()) atlasShadows->release();
+        std::vector<ShadowAtlas::Face> none;
+        atlasShadows->update({}, camera.position, 0, frameCount + 1, none);
+        return;
+    }
+    int res  = std::clamp(p.atlasResolution, 512, 8192);
+    int tile = std::clamp(p.atlasTile, 64, res);
+    if (res % tile != 0) tile = res / std::max(res / tile, 1);
+    // The frame's shadowed lights (importance order)
+    std::vector<ShadowAtlas::LightInput> in;
+    for (const FrameLightInfo& f : lightTable->frameLights())
+    {
+        const LocalLights::Light* l = lightTable->find(LightHandle{f.handle});
+        if (!l || !l->data.castShadows) continue;
+        ShadowAtlas::LightInput li;
+        li.handle     = f.handle;
+        li.index      = int(f.index);
+        li.world      = l->worldPosition();
+        li.space      = l->chunk.space;
+        li.data       = l->data;
+        li.importance = f.importance;
+        in.push_back(li);
+    }
+    // The image on first use (a frame with a shadowed light; kept afterwards while the local lights are on)
+    if (!in.empty()) atlasShadows->ensure(res, tile, cmd);
+    if (!atlasShadows->hasImage())
+    {
+        std::vector<ShadowAtlas::Face> none;
+        atlasShadows->update({}, camera.position, 0, frameCount + 1, none);
+        block.lightCounts(3) = 0;
+        return;
+    }
+    // The tiles of removed lights and of lights without castShadows are freed (other cached tiles stay until needed)
+    atlasShadows->retain(
+        [this](uint32_t h)
+        {
+            const LocalLights::Light* l = lightTable->find(LightHandle{h});
+            return l && l->data.castShadows;
+        });
+    // Moving dynamic instances in a light's sphere: the faces whose frustum contains one render their dynamic layer
+    // every frame (resting ones are in the static layer)
+    if (!in.empty())
+        for (const InstanceBuffer::Dynamic& d : instanceBuffer->dynamics())
+        {
+            if (!d.alive || !d.set || d.chunk.space != camera.space || !InstanceBuffer::moving(d)) continue;
+            const MeshPool::Mesh* m = meshPool->mesh(d.mesh);
+            if (!m) continue;
+            // The bound of every pose between prev and curr that the frame's alpha can render (CodeRabbit #86: the curr
+            // sphere alone missed a face that only an interpolated pose reaches): the segment of the origins, widened
+            // by the scaled mesh-centre offset under any rotation and the padded radius (round 2: the endpoints' sphere
+            // centres missed an off-centre mesh rotating between them)
+            const Vec3 origin   = chunkOrigin(d.chunk);
+            const Vec3 a        = origin + d.prev.position;
+            const Vec3 b        = origin + d.curr.position;
+            const Vec3 centre   = 0.5 * (a + b);
+            const double scale  = std::max(d.prev.scale, d.curr.scale);
+            const double radius =
+                (m->sphereCenter.cast<double>().norm() + double(m->sphereRadius + m->boundsPadding)) * scale +
+                0.5 * (b - a).norm();
+            for (ShadowAtlas::LightInput& li : in)
+                if ((centre - li.world).norm() <= radius + double(li.data.range))
+                    li.movers.emplace_back(centre, radius);
+        }
+    // The terrain under each light at the finest resident level (its key: a finer level that becomes resident changes
+    // it); none in an enclosed space
+    std::vector<std::pair<Vec3, double>> spheres;
+    for (const ShadowAtlas::LightInput& li : in)
+        spheres.emplace_back(li.world - camera.position, double(li.data.range));
+    std::vector<uint64_t> keys;
+    if (!enclosed && camera.valid)
+        terrain->selectForAtlas(frameIndex, *atlas, camera, spheres, keys);
+    else
+        keys.assign(in.size(), 0);
+    // The terrain draw state is a part of the key: the prototype's terrain switch and the skirts (CodeRabbit #86 round
+    // 2: a tile rendered without the terrain was reused after it was switched on)
+    const uint64_t drawState = (protoSettings->terrain ? 1u : 0u) | (protoSettings->terrainSkirts ? 2u : 0u);
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        uint64_t key = i < keys.size() ? keys[i] : 0;
+        if (key) key = (key ^ (drawState + 0x5bd1e995ull)) * 1099511628211ull;
+        in[i].terrainKey = key;
+    }
+    // The faces of this frame: views of the culling after the cascades' (the 16-bit view masks: at most 11 atlas views)
+    const int freeViews = kMaxCullViews - 1 - int(shadowViews.size());
+    // Golden mode (forceFullUpdates, §17.6; nit 25) and a one-shot requestFullUpdate (CodeRabbit #86 round 2): every
+    // due face up to the 11 views of a frame
+    const bool full = p.forceFullUpdates || fullUpdateRequested;
+    const int faces = std::clamp(std::min(full ? 11 : p.facesPerFrame, freeViews), 0, 11);
+    std::vector<ShadowAtlas::Face> list;
+    atlasShadows->update(in, camera.position, shadowViewsOverride ? 0 : faces, frameCount + 1, list);
+    // The faces are recorded in this frame's shadow section, before the scene pass reads them: rendered for the table
+    atlasShadows->rendered(list, frameCount + 1);
+    for (const ShadowAtlas::Face& f : list)
+    {
+        AtlasFace af;
+        af.face = f;
+        if (!f.clearOnly)
+        {
+            // The static layer: static sets, the terrain and the resting dynamic instances (cached); the dynamic layer:
+            // the moving dynamic instances
+            ShadowView v;
+            v.perspective   = true;
+            v.facePlanes    = f.planes;
+            v.castStatic    = f.layer == 0;
+            v.castDynamic   = true;
+            v.dynamicFilter = f.layer == 0 ? 1 : 2;
+            v.viewProj      = f.viewProj;
+            // The instances' LOD and end distance from the light (a cached face is camera-independent)
+            v.lodFromOrigin = true;
+            v.lodOrigin     = Vec3(f.lightPush(0), f.lightPush(1), f.lightPush(2));
+            shadowViews.push_back(v);
+            af.view = uint32_t(shadowViews.size());
+        }
+        atlasFaces.push_back(af);
+    }
+    // The tile table and the lights' shadow fields
+    std::vector<int> first;
+    std::vector<bool> ready;
+    atlasShadows->writeTable(frameIndex, in, camera.position, first, ready);
+    std::vector<FrameLightInfo>& frame = lightTable->frameLightsMutable();
+    for (size_t i = 0; i < in.size(); ++i)
+    {
+        lightTable->setShadow(size_t(in[i].index), first[i], ready[i]);
+        FrameLightInfo& fi           = frame[size_t(in[i].index)];
+        const std::vector<int> tiles = atlasShadows->tilesOf(in[i].handle);
+        fi.tiles                     = first[i] >= 0 ? int(tiles.size()) : 0;
+        fi.firstTile                 = first[i] >= 0 && !tiles.empty() ? tiles[0] : -1;
+        fi.shadowReady               = ready[i];
+        uint64_t last                = 0;
+        for (int t : tiles) last = std::max(last, atlasShadows->tiles()[size_t(t)].staticFrame);
+        fi.lastRender = last;
+    }
+    lightTable->writeRecords(frameIndex);
+    block.lightCounts(3) = atlasShadows->hasImage() ? (lightingSet->linearAtlasFilter() ? 2u : 1u) : 0u;
+    block.atlasParams =
+        vec4(float(atlasShadows->resolution()), p.atlasDepthBias, p.atlasNormalOffset, clusterHeatScale);
+}
+
+const ClusterGrid& RenderScene::frameClusterGrid() const
+{
+    return *clusterGrid;
+}
+
+void RenderScene::clusterOverlays()
+{
+    if (!(frameDebug.overlays & OverlayClusterGrid) || !cameraSet) return;
+    const ClusterGrid& g = *clusterGrid;
+    // The camera of the grid: this frame's (the clusters are assigned with it, also while the cascades are frozen;
+    // CodeRabbit #86 round 2)
+    const Vec3 eye    = cameraPosition;
+    const Mat3 R      = cameraRotation.matrix();
+    const double fovy = cameraFovy;
+    const double tanY = std::tan(fovy * 0.5), tanX = tanY * g.aspect;
+    // Pixel row 0 at the top: +y in view space
+    auto point = [&](double sx, double sy, double d) -> Vec3
+    { return eye + R * Vec3(sx * tanX * d, -sy * tanY * d, -d); };
+    for (int k = 0; k <= g.z; ++k)
+    {
+        double d0, d1;
+        g.sliceDepth(std::min(k, g.z - 1), d0, d1);
+        const double d = k == g.z ? d1 : d0;
+        // Near slices cyan, far ones orange
+        const float t  = float(k) / float(g.z);
+        const vec3 col = k == 0 ? vec3(1, 1, 1) : vec3(0.2f + 0.8f * t, 0.9f - 0.4f * t, 1.0f - 0.8f * t);
+        // The slice plane's tile lines
+        for (int i = 0; i <= g.x; ++i)
+        {
+            const double sx = -1 + 2.0 * i / g.x;
+            lines->addLine(point(sx, -1, d), point(sx, 1, d), col, false);
+        }
+        for (int j = 0; j <= g.y; ++j)
+        {
+            const double sy = -1 + 2.0 * j / g.y;
+            lines->addLine(point(-1, sy, d), point(1, sy, d), col, false);
+        }
+    }
+    // The frustum's edges to clusterFar
+    for (int c = 0; c < 4; ++c)
+    {
+        const double sx = (c & 1) ? 1 : -1, sy = (c & 2) ? 1 : -1;
+        lines->addLine(point(sx, sy, g.nearPlane), point(sx, sy, g.clusterFar), vec3(1, 1, 1), false);
+    }
+}
+
+void RenderScene::lightOverlays()
+{
+    if (!(frameDebug.overlays & OverlayLightVolumes)) return;
+    const LocalLights& t                    = *lightTable;
+    const std::vector<FrameLightInfo>& list = t.frameLights();
+    const double kTwoPi                     = 6.283185307179586;
+    // At most 512 lights (the most important ones), 24 segments per circle
+    const size_t n = std::min<size_t>(list.size(), 512);
+    for (size_t i = 0; i < n; ++i)
+    {
+        const LocalLights::Light* l = t.find(LightHandle{list[i].handle});
+        if (!l) continue;
+        const LightData& d     = l->data;
+        const bool highlighted = int(i) == t.highlightIndex();
+        const float m          = std::max({d.color(0), d.color(1), d.color(2), 1e-6f});
+        const vec3 color       = highlighted ? vec3(1, 1, 1) : vec3(d.color / m);
+        const Vec3 c           = l->worldPosition();
+        const double r         = double(d.range);
+        // Shadowed lights thick (a second copy slightly larger), the highlighted light on top
+        const int copies = d.castShadows || highlighted ? 2 : 1;
+        auto circle      = [&](const Vec3& centre, const Vec3& u, const Vec3& v, double radius)
+        {
+            for (int copy = 0; copy < copies; ++copy)
+            {
+                const double rr = radius * (1.0 + 0.01 * copy);
+                for (int k = 0; k < 24; ++k)
+                {
+                    const double a0 = kTwoPi * k / 24, a1 = kTwoPi * (k + 1) / 24;
+                    lines->addLine(centre + (u * std::cos(a0) + v * std::sin(a0)) * rr,
+                                   centre + (u * std::cos(a1) + v * std::sin(a1)) * rr, color, highlighted);
+                }
+            }
+        };
+        if (d.kind == LightKind::Point)
+        {
+            circle(c, Vec3(1, 0, 0), Vec3(0, 1, 0), r);
+            circle(c, Vec3(1, 0, 0), Vec3(0, 0, 1), r);
+            circle(c, Vec3(0, 1, 0), Vec3(0, 0, 1), r);
+        }
+        else
+        {
+            // The cone to the range: its end circle and four edges from the apex
+            const Vec3 axis   = d.direction.cast<double>().normalized();
+            const Vec3 helper = std::abs(axis(1)) < 0.9 ? Vec3(0, 1, 0) : Vec3(1, 0, 0);
+            const Vec3 u      = axis.cross(helper).normalized();
+            const Vec3 v      = axis.cross(u);
+            const double co   = std::clamp(double(d.cosOuter), 0.0, 1.0);
+            const double so   = std::sqrt(1 - co * co);
+            const Vec3 end    = c + axis * (r * co);
+            const double rad  = r * so;
+            circle(end, u, v, rad);
+            for (int k = 0; k < 4; ++k)
+            {
+                const double a = kTwoPi * k / 4;
+                lines->addLine(c, end + (u * std::cos(a) + v * std::sin(a)) * rad, color, highlighted);
+            }
+        }
+        if (highlighted)
+        {
+            const double s = std::max(0.25, 0.05 * r);
+            lines->addLine(c - Vec3(s, 0, 0), c + Vec3(s, 0, 0), color, true);
+            lines->addLine(c - Vec3(0, s, 0), c + Vec3(0, s, 0), color, true);
+            lines->addLine(c - Vec3(0, 0, s), c + Vec3(0, 0, s), color, true);
+        }
+    }
+}
+
 void RenderScene::requestHorizonRecompute(bool full)
 {
     horizon->requestRecompute(full);
@@ -1727,10 +2310,14 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     SceneLightingBindings b;
     b.ambient = ambient->bindings(frameIndex);
     if (foliage) b.foliage = foliage->getDescriptorInfo();
-    b.brdfLut          = brdf->descriptorInfo();
-    b.transmittanceLut = atmosphere->transmittanceInfo();
-    b.skyViewLut       = atmosphere->skyViewInfo();
-    b.cloudCoverage    = clouds->coverageInfo();
+    // (the dummies while the environment's resources do not exist: a clay scene)
+    if (brdf) b.brdfLut = brdf->descriptorInfo();
+    if (atmosphere)
+    {
+        b.transmittanceLut = atmosphere->transmittanceInfo();
+        b.skyViewLut       = atmosphere->skyViewInfo();
+        b.cloudCoverage    = clouds->coverageInfo();
+    }
     if (cascades->hasImages()) b.cascades = cascades->depth()->getDescriptorInfo(lightingSet->shadowSampler());
     // S36a2: the horizon maps (the state of the previous frame's update: this frame's update writes only the back map)
     SceneLighting block = frameBlock;
@@ -1744,7 +2331,13 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     else
         horizon->fillBlock(block, cameraPosition, cameraSpace, LightingParameters(), false, false);
     block.atmosphere(1) = ambient->usesEnvironmentMap() ? 1.0f : 0.0f;
-    block.atmosphere(3) = atmosphere->skyViewHorizonElevation();
+    block.atmosphere(3) = atmosphere ? atmosphere->skyViewHorizonElevation() : 0.0f;
+    // S36b: the frame's lights
+    b.lights         = lightTable->bufferInfo(frameIndex);
+    b.clusterCounts  = clusterCull->tableInfo(frameIndex);
+    b.clusterIndices = clusterCull->indexInfo(frameIndex);
+    b.atlasTiles     = atlasShadows->tableInfo(frameIndex);
+    if (atlasShadows->hasImage()) b.atlas = atlasShadows->texture()->getDescriptorInfo(lightingSet->atlasSampler());
     lightingSet->write(frameIndex, block, b);
     lastBlock = block;
 
@@ -1762,8 +2355,8 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     st.physical          = framePhysical;
     st.debug             = frameDebug;
     st.sh                = ambient->statistics().sh;
-    st.environmentMap    = envMap->statistics();
-    st.lutComputations   = atmosphere->lutComputations();
+    st.environmentMap    = envMap ? envMap->statistics() : EnvironmentMapStatistics();
+    st.lutComputations   = atmosphere ? atmosphere->lutComputations() : 0;
     st.clouds            = block.cloudMotion(3) > 0.5f;
     st.cloudMeanCoverage = block.cloudMotion(2);
     st.luminance         = debugImages->statistics(LightingImage::Luminance);
@@ -1771,11 +2364,29 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
     // The block and SH buffers per frame in flight, the BRDF LUT (RG16F), the previews, the debug lines, the LUTs, the
     // environment map and the clouds (not the dummy textures)
     st.memoryBytes = VulkanRenderer::framesInFlight * (sizeof(SceneLighting) + SkyAmbient::kShBytes) +
-                     uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 + debugImages->memoryBytes() + lines->memoryBytes() +
-                     atmosphere->memoryBytes() + envMap->memoryBytes() + clouds->memoryBytes() +
-                     cascades->memoryBytes() + horizon->memoryBytes();
-    st.horizon        = horizon->statistics();
-    st.horizonPreview = st.horizon;
+                     (brdf ? uint64_t(BrdfLut::kSize) * BrdfLut::kSize * 4 : 0) + debugImages->memoryBytes() +
+                     lines->memoryBytes() + (atmosphere ? atmosphere->memoryBytes() : 0) +
+                     (envMap ? envMap->memoryBytes() : 0) + (clouds ? clouds->memoryBytes() : 0) +
+                     cascades->memoryBytes() + horizon->memoryBytes() + lightTable->statistics().memoryBytes +
+                     clusterCull->statistics().memoryBytes + atlasShadows->memoryBytes();
+    st.horizon                     = horizon->statistics();
+    st.horizonPreview              = st.horizon;
+    st.lights                      = lightTable->statistics();
+    st.atlas                       = atlasShadows->statistics();
+    st.atlas.terrainNodes          = uint32_t(terrain->atlasNodeCount());
+    st.atlas.terrainNodesTruncated = uint32_t(terrain->atlasNodesTruncated());
+    st.lights.withoutTiles = st.atlas.lightsWithoutTiles;
+    {
+        const LightClusters::Statistics& cs = clusterCull->statistics();
+        st.lights.clusterCount              = cs.clusters;
+        st.lights.clusterMax                = cs.maxLights;
+        st.lights.clusterMean               = cs.meanLights;
+        st.lights.overflowedClusters        = cs.overflowed;
+        st.lights.droppedLights             = cs.droppedLights;
+        st.lights.clusterFrame              = cs.frame;
+        st.lights.clusterMemory             = cs.memoryBytes;
+        st.lights.clustered                 = params.lighting.clusteredLights && frameClusters;
+    }
     // S36a2: the cascades
     st.shadows            = frameCascades;
     st.frozen             = freezeCascades;
@@ -1812,6 +2423,20 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
 void RenderScene::latchDebug()
 {
     frameDebugRaw = false;
+    // Cancelled requests are dropped; a sequence whose requests are all cancelled ends (round 2, finding 13)
+    probeRequests.erase(std::remove_if(probeRequests.begin(), probeRequests.end(),
+                                       [](const ProbeRequest& r) { return r.isCancelled(); }),
+                        probeRequests.end());
+    if (probeRun && std::all_of(probeRun->requests.begin(), probeRun->requests.end(),
+                                [](const ProbeRequest& r) { return r.isCancelled(); }))
+    {
+        probeRun.reset();
+        applyHeldProbeState();
+    }
+    // A resized surface ends the sequence (finishProbe answers without values), detected here before the frame's view
+    // is chosen (CodeRabbit #86: the frame of the resize rendered a debug view)
+    if (probeRun && probeRun->step > 0 && probeRun->size != size()) probeRun->resized = true;
+    if (probeRun && probeRun->resized) finishProbe();
     // A probe starts with the next frame: the requests made until then share its frames
     if (!probeRun && !probeRequests.empty())
     {
@@ -1833,14 +2458,16 @@ void RenderScene::latchDebug()
         frameDebug = userDebug;
 }
 
-void RenderScene::requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback)
+void RenderScene::requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback,
+                               std::shared_ptr<const bool> cancelled)
 {
-    probeRequests.push_back(ProbeRequest{pixel, std::nullopt, std::move(callback)});
+    probeRequests.push_back(ProbeRequest{pixel, std::nullopt, std::move(callback), std::move(cancelled)});
 }
 
-void RenderScene::requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback)
+void RenderScene::requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback,
+                               std::shared_ptr<const bool> cancelled)
 {
-    probeRequests.push_back(ProbeRequest{ivec2(-1, -1), world, std::move(callback)});
+    probeRequests.push_back(ProbeRequest{ivec2(-1, -1), world, std::move(callback), std::move(cancelled)});
 }
 
 void RenderScene::finishProbe()
@@ -1848,12 +2475,19 @@ void RenderScene::finishProbe()
     std::unique_ptr<ProbeRun> run = std::move(probeRun);
     probeRun.reset();
     const mat4 invViewProj = inverse(run->viewProj);
+    std::vector<LightingProbe> answers(run->requests.size());
     for (size_t k = 0; k < run->requests.size(); ++k)
     {
-        LightingProbe p;
-        p.pixel    = run->requests[k].pixel;
-        p.frames   = kProbeFrames;
-        p.physical = run->physical;
+        LightingProbe& p = answers[k];
+        p.pixel          = run->requests[k].pixel;
+        p.frames         = kProbeFrames;
+        p.physical       = run->physical;
+        // A resized surface: the frames sampled other points, no values (not consistent, not in the image)
+        if (run->resized)
+        {
+            p.consistent = false;
+            continue;
+        }
         auto value = [&](int frame)
         {
             const auto& v = run->values[size_t(frame)];
@@ -1861,6 +2495,8 @@ void RenderScene::finishProbe()
         };
         const LightingDebug::PixelValue first = value(0);
         p.inImage                             = first.valid;
+        // (another light state in a later frame)
+        if (run->lightsChanged) p.consistent = false;
         if (p.inImage)
         {
             p.depth = first.depth;
@@ -1909,9 +2545,51 @@ void RenderScene::finishProbe()
             p.horizonR      = value(9).color(1);
             p.horizonG      = value(9).color(2);
             p.shadowFactor  = p.cloudShadow * p.cascadeShadow * p.horizonShadow;
+            // S36b: the atlas shadow of the local lights (the darkest factor, the lights counted)
+            p.atlasShadow       = value(10).color(0);
+            p.atlasShadowLights = int(std::lround(value(10).color(1)));
+            // S36b: the cluster and its lights (the CPU reference with frame 1's records), each light's radiance
+            if (p.hit && run->clusters && run->physical)
+            {
+                const Vec3 rel = p.position - run->camera;
+                p.cluster =
+                    run->grid.clusterAt(double(p.pixel(0)) + 0.5, double(p.pixel(1)) + 0.5, rel.dot(run->forward));
+                if (p.cluster >= 0)
+                {
+                    vec3 lo, hi;
+                    LightClusters::clusterBounds(run->grid, run->proj, p.cluster, lo, hi);
+                    const vec3 v = (-rel).normalized().cast<float>();
+                    const vec3 x = rel.cast<float>();
+                    for (size_t i = 0; i < run->lights.size(); ++i)
+                    {
+                        const int cl = p.cluster, gx = run->grid.x, gy = run->grid.y;
+                        if (!LightClusters::inRange(run->lights[i].clusterRange, cl % gx, (cl / gx) % gy,
+                                                    cl / (gx * gy)) ||
+                            !LightClusters::lightTouches(run->lights[i], run->view, lo, hi))
+                            continue;
+                        p.clusterTotal++;
+                        if (run->clustered && p.lights.size() >= size_t(run->grid.maxLightsPerCluster)) continue;
+                        LightingProbe::LightContribution c;
+                        c.handle                       = i < run->handles.size() ? run->handles[i] : 0;
+                        const LocalLights::GpuLight& L = run->lights[i];
+                        const vec3 lp(L.posRange(0), L.posRange(1), L.posRange(2));
+                        c.distance = double((lp - x).norm());
+                        c.radiance =
+                            LocalLights::reflectedRadiance(L, x, p.normal, v, p.albedo, p.roughness, p.metalness);
+                        p.lights.push_back(c);
+                    }
+                }
+            }
         }
-        run->requests[k].callback(p);
     }
+    // The held state first: the callbacks see it, and what they set is not overwritten by it (CodeRabbit #82)
+    applyHeldProbeState();
+    for (size_t k = 0; k < run->requests.size(); ++k)
+        if (!run->requests[k].isCancelled()) run->requests[k].callback(answers[k]);
+}
+
+void RenderScene::applyHeldProbeState()
+{
     // The environment and the camera given during the sequence
     if (heldEnvironment)
     {
@@ -1930,6 +2608,11 @@ void RenderScene::finishProbe()
         heldCamera.reset();
         setCamera(c.space, c.position, c.rotation, c.fovy);
     }
+}
+
+uint64_t RenderScene::storageBufferLimit() const
+{
+    return culling->storageLimit();
 }
 
 uint64_t RenderScene::scenePipelineCreations() const
@@ -1957,24 +2640,47 @@ void RenderScene::setPalette(const std::vector<PaletteEntry>& palette)
     meshPool->setPalette(palette);
 }
 
+// S36b: the world bounds of a set as a dirty bound of the shadow atlas (its static tiles in range are re-rendered)
+void RenderScene::markSetDirty(InstanceSetHandle set)
+{
+    auto it = instanceBuffer->sets().find(set.id);
+    if (it == instanceBuffer->sets().end() || !it->second.hasBounds) return;
+    const Vec3 o = regionOrigin(it->second.region);
+    atlasShadows->markDirty(o + it->second.boundsMin, o + it->second.boundsMax);
+}
+
+void RenderScene::markRegionDirty(const RegionId& region)
+{
+    const Vec3 o      = regionOrigin(region);
+    const double size = std::ldexp(chunkSize, region.level);
+    atlasShadows->markDirty(Vec3(o(0), -1e30, o(2)), Vec3(o(0) + size, 1e30, o(2) + size));
+}
+
 InstanceSetHandle RenderScene::addInstanceSet(const RegionId& region, const std::vector<StaticInstance>& instances,
                                               uint32_t capacity)
 {
-    return instanceBuffer->addSet(region, instances, capacity, *meshPool);
+    const InstanceSetHandle h = instanceBuffer->addSet(region, instances, capacity, *meshPool);
+    markSetDirty(h);
+    return h;
 }
 
 void RenderScene::updateInstances(InstanceSetHandle set, uint32_t first, const std::vector<StaticInstance>& instances)
 {
+    // The bounds before (moved or removed casters) and after (new ones)
+    markSetDirty(set);
     instanceBuffer->update(set, first, instances, *meshPool);
+    markSetDirty(set);
 }
 
 void RenderScene::removeInstance(InstanceSetHandle set, uint32_t index)
 {
+    markSetDirty(set);
     instanceBuffer->removeInstance(set, index);
 }
 
 void RenderScene::removeInstanceSet(InstanceSetHandle set)
 {
+    markSetDirty(set);
     instanceBuffer->removeSet(set);
 }
 
@@ -1983,14 +2689,75 @@ InstanceHandle RenderScene::addDynamic(MeshId mesh)
     return instanceBuffer->addDynamic(mesh);
 }
 
+void RenderScene::markDynamicDirty(MeshId mesh, const ChunkId& chunk, const DynamicPose& pose)
+{
+    // S36b: a resting dynamic instance is in the atlas's static layer: its bounds are dirty when it leaves or takes a
+    // resting pose
+    const MeshPool::Mesh* m = meshPool->mesh(mesh);
+    if (!m) return;
+    const double scale  = pose.scale;
+    const Vec3 centre   = chunkOrigin(chunk) + pose.position + pose.rotation * (m->sphereCenter.cast<double>() * scale);
+    const double radius = double(m->sphereRadius + m->boundsPadding) * scale;
+    atlasShadows->markDirty(centre - Vec3(radius, radius, radius), centre + Vec3(radius, radius, radius));
+}
+
 void RenderScene::setDynamic(InstanceHandle h, const ChunkId& chunk, const DynamicPose& prev, const DynamicPose& curr,
                              uint32_t boneOffset)
 {
+    const auto& list = instanceBuffer->dynamics();
+    if (h.id >= 1 && h.id <= list.size())
+    {
+        const InstanceBuffer::Dynamic old = list[h.id - 1];
+        const bool wasResting             = old.alive && old.set && !InstanceBuffer::moving(old);
+        instanceBuffer->setDynamic(h, chunk, prev, curr, boneOffset);
+        const InstanceBuffer::Dynamic& now = list[h.id - 1];
+        const bool resting                 = !InstanceBuffer::moving(now);
+        const bool samePlace = old.set && old.chunk == now.chunk && old.curr.position == now.curr.position &&
+                               old.curr.rotation.coeffs() == now.curr.rotation.coeffs() &&
+                               old.curr.scale == now.curr.scale;
+        if (wasResting && !(resting && samePlace)) markDynamicDirty(old.mesh, old.chunk, old.curr);
+        if (resting && !(wasResting && samePlace)) markDynamicDirty(now.mesh, now.chunk, now.curr);
+        // A repeated identical write keeps the snap's frame (it cannot postpone the settle; CodeRabbit #86 round 2)
+        const bool identical = old.set && old.chunk == now.chunk && old.prev.position == now.prev.position &&
+                               old.prev.rotation.coeffs() == now.prev.rotation.coeffs() &&
+                               old.prev.scale == now.prev.scale && samePlace;
+        if (now.snappedMove && identical)
+            snappedDynamics.emplace(h.id, frameCount);
+        else if (now.snappedMove)
+            snappedDynamics[h.id] = frameCount;
+        else
+            snappedDynamics.erase(h.id);
+        return;
+    }
     instanceBuffer->setDynamic(h, chunk, prev, curr, boneOffset);
+}
+
+void RenderScene::settleSnapped()
+{
+    // A dynamic snapped before the previous frame and not since: at rest (its rest pose is a static caster)
+    for (auto it = snappedDynamics.begin(); it != snappedDynamics.end();)
+    {
+        if (it->second >= frameCount)
+        {
+            ++it;
+            continue;
+        }
+        const InstanceHandle h{it->first};
+        if (instanceBuffer->settle(h))
+        {
+            const InstanceBuffer::Dynamic& d = instanceBuffer->dynamics()[h.id - 1];
+            if (!InstanceBuffer::moving(d)) markDynamicDirty(d.mesh, d.chunk, d.curr);
+        }
+        it = snappedDynamics.erase(it);
+    }
 }
 
 void RenderScene::removeDynamic(InstanceHandle h)
 {
+    snappedDynamics.erase(h.id);
+    const auto& list = instanceBuffer->dynamics();
+    if (h.id >= 1 && h.id <= list.size() && list[h.id - 1].alive && !InstanceBuffer::moving(list[h.id - 1]))
+        markDynamicDirty(list[h.id - 1].mesh, list[h.id - 1].chunk, list[h.id - 1].curr);
     instanceBuffer->removeDynamic(h);
 }
 
@@ -2010,6 +2777,31 @@ void RenderScene::setCamera(SpaceId space, const Vec3& position, const Quat& rot
     // The matrices at once (a game's draws in the same frame read them)
     const ivec2 s = size();
     if (s(0) > 0 && s(1) > 0) updateMatrices(s(0), s(1));
+}
+
+LightHandle RenderScene::addLight(const ChunkId& chunk, const LightData& light)
+{
+    return lightTable->add(chunk, light);
+}
+
+void RenderScene::setLight(LightHandle h, const ChunkId& chunk, const LightData& light)
+{
+    lightTable->set(h, chunk, light);
+}
+
+void RenderScene::removeLight(LightHandle h)
+{
+    lightTable->remove(h);
+}
+
+LightListHandle RenderScene::addLights(const ChunkId& chunk, const std::vector<LightData>& lights)
+{
+    return lightTable->addList(chunk, lights);
+}
+
+void RenderScene::removeLights(LightListHandle list)
+{
+    lightTable->removeList(list);
 }
 
 void RenderScene::setInterpolation(float a)

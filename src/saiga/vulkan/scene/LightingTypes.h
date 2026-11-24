@@ -172,6 +172,27 @@ struct LightingParameters
     int horizonResolution   = 1024;   // 128..4096, a power of two
     float horizonExtent     = 32768;  // m, the square around the anchor
     int horizonRowsPerFrame = 64;     // the base of the incremental update (more when the light moves fast)
+    // S36b: the local lights (B2)
+    bool localLights     = true;  // the point and spot lights of the scene
+    bool clusteredLights = true;  // false: every fragment loops over every light (the correctness reference)
+    // The lights of a frame (1..4096; the off switch is localLights), the most important ones (the rest: over budget)
+    int maxLights = 1024;
+    // S36b: the cluster grid (B3): screen tiles x, y and depth slices z (slice 0 to clusterNear, then exponential to
+    // clusterFar, beyond it no local light), the fixed slots per cluster
+    int clusterX            = 16;    // 1..64
+    int clusterY            = 9;     // 1..64
+    int clusterZ            = 24;    // 2..128
+    float clusterNear       = 2;     // m
+    float clusterFar        = 1000;  // m
+    int maxLightsPerCluster = 128;   // 1..1024
+    // S36b: the cached shadow atlas (B4): two D16 layers of atlasResolution^2 in tiles of atlasTile texels (a spot
+    // light 1 tile, a point light 6), at most facesPerFrame faces rendered per frame (each a culling view: <= 11), the
+    // receivers' bias in D16 steps and their normal offset in texels
+    int atlasResolution     = 4096;  // 512..8192, a power of two
+    int atlasTile           = 512;   // 64..atlasResolution, divides it
+    int facesPerFrame       = 8;     // 0..11
+    float atlasDepthBias    = 2;     // D16 steps (range / 65535)
+    float atlasNormalOffset = 1;     // texels
 };
 
 // ---- the debug views, overlays and previews (A8 of the S36 plan; RenderScene::setLightingDebug, LightingDebug)
@@ -201,14 +222,22 @@ enum class LightingDebugView : uint8_t
     ShadowCascades,
     // S36a2: the horizon map's factor (raw)
     HorizonShadow,
+    // S36b: the local lights' direct light alone (display colours)
+    LocalLightsOnly,
+    // S36b: the lights of the fragment's cluster as a heat map (turbo; an overflowed cluster magenta)
+    ClusterLights,
+    // S36b: the atlas shadow of the local lights (the highlighted light's, else the darkest of the shadowed lights that
+    // reach the fragment; blue where none reaches)
+    AtlasShadow,
     Count
 };
 // snake_case names (set_lighting_debug, screenshot lighting_view)
 inline const char* lightingDebugViewName(LightingDebugView v)
 {
-    static const char* names[] = {"none",         "lighting_only", "albedo",      "normals",         "roughness",
-                                  "metalness",    "material",      "direct_only", "ambient_only",    "specular_only",
-                                  "cloud_shadow", "shadow_factor", "exposure",    "shadow_cascades", "horizon_shadow"};
+    static const char* names[] = {
+        "none",     "lighting_only",   "albedo",         "normals",           "roughness",      "metalness",
+        "material", "direct_only",     "ambient_only",   "specular_only",     "cloud_shadow",   "shadow_factor",
+        "exposure", "shadow_cascades", "horizon_shadow", "local_lights_only", "cluster_lights", "atlas_shadow"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingDebugView::Count), "lightingDebugViewName");
     return v < LightingDebugView::Count ? names[size_t(v)] : "none";
 }
@@ -232,17 +261,23 @@ enum LightingOverlay : uint32_t
     OverlayCameraFrustumSplits = 1u << 3,
     // The horizon map's extent and its inner half (the anchor moves when the camera leaves it)
     OverlayHorizonAnchor = 1u << 4,
+    // S36b: the volumes of the frame's lights (spheres of point lights, cones of spot lights, in the light's colour;
+    // shadowed ones thick; the highlighted light white)
+    OverlayLightVolumes = 1u << 5,
+    // S36b: the cluster grid's depth slices and tiles (of the frame's camera, which assigns the clusters)
+    OverlayClusterGrid = 1u << 6,
+    // S36b: the owner (light handle and face) of each tile in the atlas preview of the Lighting tab
+    OverlayAtlasOwners = 1u << 7,
     OverlayAll = OverlaySunDirection | OverlayCascadeColors | OverlayCascadeBounds | OverlayCameraFrustumSplits |
-                 OverlayHorizonAnchor
+                 OverlayHorizonAnchor | OverlayLightVolumes | OverlayClusterGrid | OverlayAtlasOwners
 };
 inline const std::vector<std::pair<const char*, uint32_t>>& lightingOverlayNames()
 {
     static const std::vector<std::pair<const char*, uint32_t>> names = {
-        {"sun_direction", OverlaySunDirection},
-        {"cascade_colors", OverlayCascadeColors},
-        {"cascade_bounds", OverlayCascadeBounds},
-        {"camera_frustum_splits", OverlayCameraFrustumSplits},
-        {"horizon_anchor", OverlayHorizonAnchor}};
+        {"sun_direction", OverlaySunDirection},   {"cascade_colors", OverlayCascadeColors},
+        {"cascade_bounds", OverlayCascadeBounds}, {"camera_frustum_splits", OverlayCameraFrustumSplits},
+        {"horizon_anchor", OverlayHorizonAnchor}, {"light_volumes", OverlayLightVolumes},
+        {"cluster_grid", OverlayClusterGrid},     {"atlas_owners", OverlayAtlasOwners}};
     return names;
 }
 // The display colours of the cascades (the ShadowCascades view, the overlays)
@@ -257,7 +292,12 @@ struct LightingDebugState
 {
     LightingDebugView view = LightingDebugView::None;
     uint32_t overlays      = 0;
-    bool operator==(const LightingDebugState& o) const { return view == o.view && overlays == o.overlays; }
+    // S36b: the highlighted light (its handle ID; 0: none): white in LightVolumes, its row in the tab
+    uint32_t highlightLight = 0;
+    bool operator==(const LightingDebugState& o) const
+    {
+        return view == o.view && overlays == o.overlays && highlightLight == o.highlightLight;
+    }
     bool operator!=(const LightingDebugState& o) const { return !(*this == o); }
 };
 
@@ -285,13 +325,21 @@ enum class LightingImage : uint8_t
     Cascade,
     CascadeStrip,
     Horizon,
+    // S36b: the lights per cluster (16 pixels per cluster; one slice or the maximum over the slices)
+    Clusters,
+    // S36b: the shadow atlas (a layer: static or dynamic; the linear depth, at most 1024 texels) and one tile (a
+    // light's face at its full resolution)
+    Atlas,
+    AtlasTile,
     Count
 };
 inline const char* lightingImageName(LightingImage i)
 {
-    static const char* names[] = {
-        "luminance",      "brdf_lut",     "transmittance_lut",    "sky_view_lut", "environment",   "irradiance",
-        "cloud_coverage", "cloud_shadow", "multi_scattering_lut", "cascade",      "cascade_strip", "horizon"};
+    static const char* names[] = {"luminance",      "brdf_lut",      "transmittance_lut",
+                                  "sky_view_lut",   "environment",   "irradiance",
+                                  "cloud_coverage", "cloud_shadow",  "multi_scattering_lut",
+                                  "cascade",        "cascade_strip", "horizon",
+                                  "clusters",       "atlas",         "atlas_tile"};
     static_assert(sizeof(names) / sizeof(names[0]) == size_t(LightingImage::Count), "lightingImageName");
     return i < LightingImage::Count ? names[size_t(i)] : "";
 }
@@ -320,9 +368,15 @@ struct PreviewMapping
     // The source's mip (the environment map's cube; 0 for the other images): part of the request, so a capture and the
     // tab's preview of different mips do not overwrite each other (each frame converts one)
     int mip = 0;
-    // The source's layer or channel the same way (S36a2 review, finding 7): the cascade (Cascade) or the horizon map's
-    // channel (Horizon: 0 R, 1 G); 0 for the other images
+    // The source's layer or channel the same way (S36a2 review, finding 7): the cascade (Cascade), the horizon map's
+    // channel (Horizon: 0 R, 1 G) or (S36b) the atlas layer (Atlas, AtlasTile: 0 static, 1 dynamic); 0 for the other
+    // images
     int layer = 0;
+    // S36b, the same way (round 2, finding 5: they were scene state the tab overwrote in the frame of a capture): the
+    // depth slice of Clusters (-1: the maximum over the slices), the light (handle) and face of AtlasTile
+    int slice      = -1;
+    uint32_t light = 0;
+    int face       = 0;
 };
 
 // The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the
@@ -392,6 +446,71 @@ struct HorizonStatistics
     uint64_t chainBytes  = 0;
 };
 
+// The local lights of a frame (S36b, LightingStatistics::lights): the scene's lights (submitted), those of the
+// camera's space within clusterFar + range and in the frustum (candidates), the frame's (visible: at most maxLights,
+// the most important), the rest (over budget); shadowed: visible with castShadows; without tiles: shadowed but no
+// atlas tile (S36b step 4)
+struct LocalLightStatistics
+{
+    bool on            = false;
+    bool clustered     = false;
+    uint32_t submitted = 0, candidates = 0, visible = 0, overBudget = 0, shadowed = 0, withoutTiles = 0;
+    uint64_t memoryBytes = 0;
+    // The clusters (B3) of the newest completed frame: the most lights in a cluster, the mean over the clusters, the
+    // clusters with more lights than slots and the lights they dropped, the frame they come from
+    uint32_t clusterCount = 0, clusterMax = 0, overflowedClusters = 0;
+    double clusterMean     = 0;
+    uint64_t droppedLights = 0;
+    uint64_t clusterFrame  = 0;
+    uint64_t clusterMemory = 0;
+};
+
+// One tile of the shadow atlas (ShadowAtlas::tiles; the Lighting tab's owner overlay, capture_lighting): its owner (a
+// light handle, 0 free) and face, the frame of its last static render (0: not yet valid), whether its dynamic layer has
+// content
+struct AtlasTileInfo
+{
+    uint32_t owner        = 0;
+    int face              = 0;
+    bool staticValid      = false;
+    uint64_t staticFrame  = 0;
+    bool dynamicContent   = false;
+    uint64_t dynamicFrame = 0;
+};
+
+// The atlas's statistics of the newest recorded frame (LightingStatistics::atlas)
+struct AtlasStatistics
+{
+    bool on        = false;
+    int resolution = 0, tile = 0;
+    uint32_t tilesTotal = 0, tilesUsed = 0;
+    // The faces rendered this frame (static / dynamic layer), the dynamic tiles cleared, the valid static faces that
+    // were not re-rendered (cache hits), the static faces still waiting (queue), the dynamic faces skipped by the
+    // budget (they keep their last image), the shadowed lights with tiles and without (the tile budget)
+    uint32_t staticRenders = 0, dynamicRenders = 0, dynamicClears = 0, hits = 0, queue = 0, dynamicSkipped = 0;
+    uint32_t lightsWithTiles = 0, lightsWithoutTiles = 0;
+    // The terrain nodes of the frame's atlas selection and the nodes cut by the node buffer's limit (16384)
+    uint32_t terrainNodes = 0, terrainNodesTruncated = 0;
+    int facesPerFrame    = 0;
+    uint64_t memoryBytes = 0;
+};
+
+// One light of the frame (RenderScene::frameLights; the Lighting tab, list_lights): its handle, the buffer index,
+// distance to the camera, importance and (S36b steps 3-4) the clusters it touches and its atlas tiles
+struct FrameLightInfo
+{
+    uint32_t handle   = 0;
+    uint32_t index    = 0;
+    double distance   = 0;
+    double importance = 0;
+    uint32_t clusters = 0;
+    // The atlas tiles (0: unshadowed), the first tile and the frame of its last render (0: not yet)
+    int tiles           = 0;
+    int firstTile       = -1;
+    uint64_t lastRender = 0;
+    bool shadowReady    = false;
+};
+
 // The lighting's statistics of the newest recorded frame (RenderScene::lightingStatistics; b adds its own)
 struct LightingStatistics
 {
@@ -431,13 +550,16 @@ struct LightingStatistics
     // The horizon map the frame's previews converted (the front map after the frame's update; capture_lighting's
     // anchor and reference: CodeRabbit #85 round 2)
     HorizonStatistics horizonPreview;
+    // S36b: the local lights and the shadow atlas
+    LocalLightStatistics lights;
+    AtlasStatistics atlas;
 };
 
 // The answer of a probe (RenderScene::requestProbe, probe_lighting): a short frame sequence at one pixel. Frame 1 is
 // normal (the colour and the depth), then the data views Albedo, Normals, Material, the radiance views DirectOnly,
 // AmbientOnly, SpecularOnly (raw) and CloudShadow (S36a1c); each copies the resolved fp16 pixel (the MSAA average). The
 // camera and the environment are held during the sequence; consistent: the depth changed by at most 1% between the
-// frames
+// frames and (S36b) the local lights' state (switches, records, atlas tiles) stayed frame 1's
 struct LightingProbe
 {
     ivec2 pixel  = ivec2(0, 0);
@@ -465,6 +587,23 @@ struct LightingProbe
     // The horizon map (the HorizonShadow frame): its factor and the shadow heights R and G above the receiver (m;
     // negative: below it, lit)
     float horizonShadow = 1, horizonR = 0, horizonG = 0;
+    // S36b: the cluster of the pixel (-1: none: no lights, beyond clusterFar or no surface), its lights in
+    // importance order (the CPU reference of the assignment: total before the cap; the cap only with clustered shading,
+    // the brute-force loop shades every light) with each light's reflected radiance at the pixel (cd/m^2, the BRDF with
+    // the probed material and normal; unshadowed: the lights' atlas shadow is atlasShadow)
+    int cluster           = -1;
+    uint32_t clusterTotal = 0;
+    struct LightContribution
+    {
+        uint32_t handle = 0;
+        double distance = 0;
+        vec3 radiance   = vec3(0, 0, 0);
+    };
+    std::vector<LightContribution> lights;
+    // S36b: the atlas shadow (the AtlasShadow frame: the darkest factor of the shadowed lights that reach the pixel, 1:
+    // none) and how many shadowed lights reach it
+    float atlasShadow     = 1;
+    int atlasShadowLights = 0;
 };
 
 // The fixed light of clay mode (A3 of the S36 plan; D7): independent of the time of day and the weather, defined so

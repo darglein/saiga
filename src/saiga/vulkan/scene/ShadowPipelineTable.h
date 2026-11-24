@@ -26,7 +26,9 @@ namespace Vulkan
  * shadow_depth.vert + shadow_alpha.frag (the material's alpha test); PrototypeFoliage shadow_foliage.vert/.frag (the
  * wind of the frame's phases, the foliage texture's alpha cutoff). A class without an entry casts nothing: S27's
  * impostor class and S34's skinned class register theirs with setEntry. Set 0 is SceneCulling's, set 1 the lighting
- * set's shadowLayout() (the block and the foliage texture).
+ * set's shadowLayout() (the block and the foliage texture). S36b: every entry also has the shadow atlas's variant (the
+ * same shaders with ATLAS_DEPTH: no pancaking, the fragment shader writes the linear depth; atlas_depth.frag for an
+ * entry without one; D16, no slope bias).
  */
 class SAIGA_VULKAN_API ShadowPipelineTable
 {
@@ -38,6 +40,8 @@ class SAIGA_VULKAN_API ShadowPipelineTable
         bool twoSided = false;
     };
     static constexpr vk::Format kDepthFormat = vk::Format::eD32Sfloat;
+    // S36b: the shadow atlas's variant of every entry (ATLAS_DEPTH, D16, no slope bias)
+    static constexpr vk::Format kAtlasFormat = vk::Format::eD16Unorm;
     // The default entry of a class index (0..pipelineClassCount - 1)
     static Entry defaultEntry(int klass);
 
@@ -54,14 +58,17 @@ class SAIGA_VULKAN_API ShadowPipelineTable
     // interpolation) and the slope bias; false without an entry
     bool bind(vk::CommandBuffer cmd, int klass, vk::DescriptorSet sceneSet, vk::DescriptorSet shadowSet,
               const mat4& viewProj, float alpha, float slopeBias);
+    // S36b: the atlas variant (the linear depth distance / range; light: xyz camera-relative, w 1 / range)
+    bool bindAtlas(vk::CommandBuffer cmd, int klass, vk::DescriptorSet sceneSet, vk::DescriptorSet shadowSet,
+                   const mat4& viewProj, float alpha, const vec4& light);
     uint64_t pipelineCreations() const { return creations; }
 
    private:
     VulkanBase* base = nullptr;
     std::array<std::optional<Entry>, pipelineClassCount> entries;
-    std::array<std::unique_ptr<Pipeline>, pipelineClassCount> pipelines;
+    std::array<std::unique_ptr<Pipeline>, pipelineClassCount> pipelines, atlasPipelines;
     uint64_t creations = 0;
-    void create(int klass);
+    void createVariant(int klass, bool atlas);
 };
 
 }  // namespace Vulkan

@@ -7,17 +7,29 @@
 #pragma once
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/engine/ecs/Entity.h"
 #include "saiga/export.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
 
 #include <array>
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace Saiga
 {
 namespace Engine
 {
 class EngineApp;
+
+// The Lighting tab's preview selectors beyond mip and layer (PreviewMapping: the cluster slice, the atlas tile's light
+// and face)
+struct LightingPreviewSelection
+{
+    int slice      = -1;
+    uint32_t light = 0;
+    int face       = 0;
+};
 
 /**
  * The debug UI's Lighting tab (F5; docs/engine_design.md §17.1; S36), set by the app with DebugUi::setTabContent:
@@ -30,7 +42,10 @@ class EngineApp;
  * JSON), Ambient (scale, floor, SH9, the prototype albedo colours) and GPU and memory; S36a1c sky and clouds; S36a2
  * Cascades (the parameters, a row per cascade, the cascades' depth previews: a click on one enlarges it) and the
  * toolbar's "freeze cascades", Far terrain shadows (the horizon map: R / G preview, progress, direction, anchor, rows
- * per frame, recompute now); part b local lights.
+ * per frame, recompute now); S36b Local lights (counts, the light table: a row selects and highlights a light, "move
+ * camera to light", an entity light's LightSource fields written through set_component; entity lights that are not
+ * rendered (off, invalid, no pose) are greyed rows with their state and stay editable; S36b steps 3-4 add the
+ * cluster heat map and the shadow atlas preview with its cache statistics).
  */
 class SAIGA_ENGINE_API LightingTab
 {
@@ -52,12 +67,23 @@ class SAIGA_ENGINE_API LightingTab
     void skyAndClouds();
     void cascadesSection();
     void horizonSection();
+    void localLightsSection();
+    void lightTable();
+    void atlasSection();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
-    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0);
+    using Selection = LightingPreviewSelection;
+    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0,
+                      const Selection& selection = Selection());
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
+    // Every write of the settings and parameters goes through validateLighting (round 2, finding 9: the tab wrote
+    // without set_lighting's checks, e.g. a typed slider value out of range or a cluster grid beyond the memory limit);
+    // a refused write keeps the state and shows its error (writeError) until the next accepted one
+    bool applySettings(const Vulkan::EnvironmentSettings& s);
+    bool applyParameters(const Vulkan::LightingParameters& p);
+    std::string writeError;
     EngineApp& app;
     // Per preview image: its ImGui texture and the preview version it was registered for; the ImGui renderer they were
     // registered with (a new renderer, e.g. a recreated scene, registers them again; the old one's went with it)
@@ -68,9 +94,28 @@ class SAIGA_ENGINE_API LightingTab
     // The enlarged cascade preview (-1: none); the horizon preview's channel (0 R, 1 G)
     int enlargedCascade = -1;
     int horizonChannel  = 0;
+    // S36b: the light table's sort column and direction
+    int lightSortColumn     = 3;
+    bool lightSortAscending = true;
+    int clusterSlice        = -1;
+    int atlasTileFace       = 0;
+    int atlasLayer          = 0;
+    // The selected entity light (round 1, finding 8: kept by entity, so it stays selected while switched off; its sink
+    // handle is the debug state's highlightLight while rendered) and the highlight the tab set last (another change of
+    // highlightLight, e.g. an atlas tile click or MCP, selects that light's entity)
+    Entity selectedEntity;
+    uint32_t tabHighlight = 0;
+    // EngineApp::lightHighlightClears seen by the tab
+    uint64_t seenHighlightClears = 0;
+    // The table's order (round 1, finding 17: sorted when the sort spec or the light set changes, else at most every
+    // 30 frames for the distances): row keys (a handle, or 1 << 32 | entity index for an unrendered entity light)
+    std::vector<uint64_t> lightOrder;
+    int orderColumn     = -1;
+    bool orderAscending = true;
+    uint64_t orderFrame = 0;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
     bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0,
-                             int layer = 0);
+                             int layer = 0, const Selection& selection = Selection());
 };
 
 }  // namespace Engine

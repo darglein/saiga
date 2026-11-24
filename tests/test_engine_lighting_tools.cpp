@@ -11,13 +11,18 @@
 
 #include "saiga/core/image/templatedImage.h"
 #include "saiga/core/util/mcp/McpServer.h"
+#include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/app/DebugUi.h"
 #include "saiga/engine/app/EngineApp.h"
+#include "saiga/engine/app/LightingTools.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Weather.h"
 #include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
+#include "saiga/engine/net/Replication.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/vulkan/Instance.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/RenderScene.h"
@@ -30,6 +35,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <set>
 
 #include "lighting_test_parameters.h"
 #include "mcp_test_helper.h"
@@ -110,10 +116,17 @@ EngineAppSetup tabSetup(bool environment)
 void showLightingTab(EngineApp& app)
 {
     Json::object state = app.debugUi().state().object_items();
-    state["sections"]  = Json::object{{"lighting/Time and weather", true}, {"lighting/Sun and moon", true},
-                                      {"lighting/Exposure", true},         {"lighting/Ambient", true},
-                                      {"lighting/Sky and clouds", true},   {"lighting/GPU and memory", true},
-                                      {"lighting/Cascades", true},         {"lighting/Far terrain shadows", true}};
+    state["sections"]  = Json::object{{"lighting/Time and weather", true},
+                                      {"lighting/Sun and moon", true},
+                                      {"lighting/Exposure", true},
+                                      {"lighting/Ambient", true},
+                                      {"lighting/Sky and clouds", true},
+                                      {"lighting/GPU and memory", true},
+                                      {"lighting/Cascades", true},
+                                      {"lighting/Far terrain shadows", true},
+                                      {"lighting/Local lights", true},
+                                      {"lighting/Local lights: clusters", true},
+                                      {"lighting/Local lights: shadow atlas", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -121,17 +134,39 @@ void showLightingTab(EngineApp& app)
 // The tab with its sections open renders (no validation error); S36a1b: the open Exposure section shows the luminance
 // preview, converted once per preview interval (here once in the three frames; not again in a later case of the
 // suite's app); S36a1c: also the Ambient section's environment cube, Sky and clouds' transmittance and sky-view LUTs
-// and the clouds' previews; S36a2 Cascades the cascades' strip; a debug view (Exposure: with its legend) and the
-// overlays render in the tab's frames (S36a2: the cascades' view and overlays, frozen)
+// and the clouds' previews; S36a2 Cascades the cascades' strip; S36b Local lights the clusters' heat map, the shadow
+// atlas and the highlighted lamp's tile; a debug view (Exposure: with its legend) and the overlays render in the tab's
+// frames (S36a2: the cascades' view and overlays, frozen)
 void renderLightingTab(EngineApp& app)
 {
+    // S36b: a lamp (an entity light, highlighted: the table's selected row with its LightSource widgets) and the local
+    // lights on; removed at the end (the suite's app)
+    const Entity lamp = app.world().create();
+    {
+        app.world().get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
+        LightSource l;
+        l.castShadows = true;
+        app.world().add<LightSource>(lamp, l);
+        Vulkan::LightingParameters lp = app.scene()->lightingParameters();
+        lp.localLights                = true;
+        app.scene()->setLightingParameters(lp);
+        // The physical path: the environment's previews need the frame's environment pass (round 2, finding 6)
+        app.scene()->setToneMap(Vulkan::ToneMap::Aces);
+        app.runFrames(1, 1.0 / 60);
+        Vulkan::LightingDebugState d;
+        d.highlightLight = app.world().extract().lightOf(lamp).id;
+        EXPECT_NE(d.highlightLight, 0u);
+        app.scene()->setLightingDebug(d);
+    }
     showLightingTab(app);
     app.scene()->lightingDebugImages().setPreviewInterval(1e9);
     const Vulkan::LightingImage images[] = {
         Vulkan::LightingImage::Luminance,          Vulkan::LightingImage::Environment,
         Vulkan::LightingImage::TransmittanceLut,   Vulkan::LightingImage::SkyViewLut,
         Vulkan::LightingImage::CloudCoverage,      Vulkan::LightingImage::CloudShadow,
-        Vulkan::LightingImage::MultiScatteringLut, Vulkan::LightingImage::CascadeStrip};
+        Vulkan::LightingImage::MultiScatteringLut, Vulkan::LightingImage::CascadeStrip,
+        Vulkan::LightingImage::Clusters,           Vulkan::LightingImage::Atlas,
+        Vulkan::LightingImage::AtlasTile};
     uint32_t expected = 0;
     for (auto image : images) expected += app.scene()->lightingDebugImages().preview(image) == nullptr ? 1 : 0;
     uint32_t dispatches = 0;
@@ -153,6 +188,8 @@ void renderLightingTab(EngineApp& app)
     app.runFrames(2, 1.0 / 60);
     app.scene()->setFreezeCascades(false);
     app.scene()->setLightingDebug(Vulkan::LightingDebugState());
+    EXPECT_EQ(app.scene()->lightingStatistics().lights.submitted, 1u);
+    app.world().destroy(lamp);
     // The Exposure view's legend leaves the toolbar: one frame for the layout (the item positions of a later click)
     app.runFrames(1, 1.0 / 60);
 }
@@ -388,7 +425,7 @@ TEST_F(LightingTools, SetLightingRoundTrip)
     for (const char* args :
          {R"({"tone_map": "reinhard"})", R"({"exposure_mode": "auto"})", R"({"min_ambient": [1, 2]})",
           R"({"sun_override": {"azimuth": 3}})", R"({"environment_resolution": 1024})", R"({"clouds": 1})",
-          R"({"local_lights": true})", R"({"cascade_count": 5})", R"({"cascade_resolution": 1000})",
+          R"({"local_lights": 1})", R"({"cascade_count": 5})", R"({"cascade_resolution": 1000})",
           R"({"cascade_interval": [2, 1, 1, 2]})", R"({"cloud_seed": 1.5})", R"({"cloud_seed": -1})",
           R"({"mie_scale": 11})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting", obj(args)))) << args;
@@ -451,12 +488,12 @@ TEST_F(LightingDebugTools, SetLightingDebug)
     const Json bad = call(*app, "set_lighting_debug", obj(R"({"view": "shiny"})"));
     EXPECT_TRUE(isError(bad));
     EXPECT_NE(text(bad).find("albedo"), std::string::npos) << text(bad);
-    const Json badOverlay = call(*app, "set_lighting_debug", obj(R"({"overlays": ["light_volumes"]})"));
+    const Json badOverlay = call(*app, "set_lighting_debug", obj(R"({"overlays": ["light_cones"]})"));
     EXPECT_TRUE(isError(badOverlay));
     EXPECT_NE(text(badOverlay).find("sun_direction"), std::string::npos) << text(badOverlay);
     for (const char* args :
-         {R"({"freeze_cascades": 1})", R"({"highlight_light": 3})", R"({"mapping": {"range": [2, 1]}})",
-          R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
+         {R"({"freeze_cascades": 1})", R"({"highlight_light": -3})", R"({"highlight_light": 1.5})",
+          R"({"mapping": {"range": [2, 1]}})", R"({"mapping": {"gamma": 2}})", R"({"mapping": {"color_map": "jet"}})"})
         EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
     EXPECT_EQ(app->scene()->lightingDebug().view, Vulkan::LightingDebugView::Normals);
     // The Exposure view's heat map (centre and range; the legend of the tab)
@@ -472,6 +509,17 @@ TEST_F(LightingDebugTools, SetLightingDebug)
     ASSERT_FALSE(
         isError(call(*app, "set_lighting_debug", obj(R"({"exposure_view": {"centre": "auto", "range": 8}})"))));
     EXPECT_FALSE(app->scene()->exposureViewCentreSetting().has_value());
+    // Round 2, finding 12: the tab's cluster heat scale and "recompute now" are tool keys too
+    const Json heat =
+        result(call(*app, "set_lighting_debug", obj(R"({"cluster_heat_scale": 32, "recompute_horizon": true})")));
+    EXPECT_EQ(heat["cluster_heat_scale"], Json(32.0)) << heat.dump();
+    EXPECT_EQ(heat["previous"]["cluster_heat_scale"], Json(16.0)) << heat.dump();
+    EXPECT_EQ(app->scene()->clusterHeatScaleValue(), 32.0f);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["debug"]})")))["debug"]["cluster_heat_scale"],
+              Json(32.0));
+    for (const char* args :
+         {R"({"cluster_heat_scale": 0.5})", R"({"cluster_heat_scale": 300})", R"({"recompute_horizon": 1})"})
+        EXPECT_TRUE(isError(call(*app, "set_lighting_debug", obj(args)))) << args;
     // The debug sections are reported apart from the lighting sections' budget
     EXPECT_TRUE(l["gpu"]["debug_ms"].is_number()) << l.dump();
     EXPECT_TRUE(l["gpu"]["lighting_ms"].is_number()) << l.dump();
@@ -554,8 +602,26 @@ TEST_F(LightingDebugTools, CaptureLighting)
     app->setRenderingEnabled(true);
     EXPECT_TRUE(isError(late));
     EXPECT_NE(text(late).find("deadline"), std::string::npos) << text(late);
-    // The stale request is computed with the next frame and not answered again
-    app->runFrames(2, 1.0 / 60);
+    // Regression (round 2, finding 13): the request ends with its deadline error, so the next frame converts nothing
+    // (the old request stayed queued and was converted, at full resolution with a blocking download, for an answer
+    // nobody read)
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_EQ(app->scene()->lightingStatistics().previewDispatches, 0u);
+    // The same for probe_lighting: after its deadline error no sequence runs (the old one ran its 11 frames with the
+    // camera and the environment held)
+    app->setRenderingEnabled(false);
+    app->mcp().toolTimeoutSeconds   = 0.5;
+    app->mcp().answerMarginFraction = 0.5;
+    const Json lateProbe            = call(*app, "probe_lighting", obj(R"({"pixel": [10, 10]})"));
+    app->mcp().toolTimeoutSeconds   = timeout;
+    app->mcp().answerMarginFraction = margin;
+    app->setRenderingEnabled(true);
+    EXPECT_TRUE(isError(lateProbe));
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_FALSE(app->scene()->probePending());
+    // Round 2, finding 16: huge integers are refused before their conversion (undefined behaviour before)
+    EXPECT_TRUE(isError(callFrames(*app, "probe_lighting", obj(R"({"pixel": [1e30, 0]})"))));
+    EXPECT_TRUE(isError(callFrames(*app, "probe_lighting", obj(R"({"pixel": [-1e30, 1e300]})"))));
 }
 
 // capture_lighting, S36a1c: the atmosphere's LUTs and the environment map's images in the physical path (sizes,
@@ -691,6 +757,15 @@ TEST_F(LightingDebugTools, CascadeTools)
     ASSERT_EQ(c["list"].array_items().size(), 4u) << c.dump();
     EXPECT_GT(c["list"][0]["texel_m"].number_value(), 0);
     EXPECT_GT(c["list"][3]["split_far"].number_value(), 99.0);
+    // Regression (round 2, finding 8): lighting_ms sums the lighting sections without the parent "shadow" (it encloses
+    // shadow.cascades, shadow.horizon and shadow.atlas: it was counted twice), and without the debug sections
+    const Json gpu = result(call(*app, "get_lighting", obj(R"({"sections": ["gpu"]})")))["gpu"];
+    ASSERT_GT(gpu["shadow"]["mean_ms"].number_value(), 0) << gpu.dump();
+    double sum = 0;
+    for (const char* n :
+         {"environment", "lights", "shadow.cascades", "shadow.horizon", "shadow.atlas", "scene.sky", "scene.clouds"})
+        sum += gpu[n]["mean_ms"].number_value();
+    EXPECT_NEAR(gpu["lighting_ms"].number_value(), sum, 1e-9) << gpu.dump();
     // capture_lighting: one cascade (1024 / 1) and every cascade side by side (4 x 1024 / 2)
     const Json one =
         callFrames(*app, "capture_lighting", obj(R"({"image": "cascade", "cascade": 0, "max_width": 64})"));
@@ -762,6 +837,21 @@ TEST_F(LightingDebugTools, HorizonTools)
     EXPECT_EQ(result(r)["size"], Json(Json::array{128, 128}));
     EXPECT_EQ(result(r)["channel"], Json("r"));
     EXPECT_GT(result(r)["stats"]["max"].number_value(), result(r)["stats"]["min"].number_value());
+    // Regression (round 2, finding 7): a call that fails on a later argument changes nothing (the old one started a
+    // full horizon recompute before it checked the format)
+    // (a full recompute completes a map in one frame: first until no map is in progress and none completes)
+    for (int k = 0; k < 16; ++k)
+    {
+        const uint64_t before = s.lightingStatistics().horizon.completed;
+        app->runFrames(1, 1.0 / 60);
+        if (!s.lightingStatistics().horizon.computing && s.lightingStatistics().horizon.completed == before) break;
+    }
+    const uint64_t completed = s.lightingStatistics().horizon.completed;
+    EXPECT_TRUE(
+        isError(callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "full": true, "format": "bmp"})"))));
+    // (the statistics are written before the frame's update: two frames)
+    app->runFrames(2, 1.0 / 60);
+    EXPECT_EQ(s.lightingStatistics().horizon.completed, completed);
     const Json g =
         callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "channel": "g", "max_width": 64})"));
     ASSERT_FALSE(isError(g)) << text(g);
@@ -897,6 +987,131 @@ TEST_F(LightingTabTest, RendersAndWrites)
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
 }
 
+// Regression (round 1, finding 8): an entity light switched off in the tab stays selected and editable (its row is
+// greyed with the state "off") and is switched on again by the same checkbox. The old tab lost the selection and the
+// editor with the sink light, so the light could not be switched on from the tab
+TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
+{
+    World& w          = app->world();
+    const Entity lamp = w.create();
+    w.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
+    w.add<LightSource>(lamp, LightSource());
+    Vulkan::LightingParameters lp = app->scene()->lightingParameters();
+    lp.localLights                = true;
+    app->scene()->setLightingParameters(lp);
+    app->runFrames(1, 1.0 / 60);
+    Vulkan::LightingDebugState d;
+    d.highlightLight = w.extract().lightOf(lamp).id;
+    ASSERT_NE(d.highlightLight, 0u);
+    app->scene()->setLightingDebug(d);
+    Json::object state = app->debugUi().state().object_items();
+    // Only the Local lights section open (the editor inside the 800 x 480 window)
+    state["sections"] = Json::object{{"lighting/Time and weather", false},
+                                     {"lighting/Sun and moon", false},
+                                     {"lighting/Exposure", false},
+                                     {"lighting/Local lights", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    for (bool on : {false, true})
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app->debugUi().itemCenter("lighting/light on", at)) << "the editor while on = " << !on;
+        // The panel scrolled down to the editor (mouse wheel over the panel)
+        ImGuiIO& io = ImGui::GetIO();
+        for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 20; ++k)
+        {
+            io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+            io.AddMouseWheelEvent(0, -2);
+            app->runFrames(1, 1.0 / 60);
+            ASSERT_TRUE(app->debugUi().itemCenter("lighting/light on", at));
+        }
+        ASSERT_LT(at.y, io.DisplaySize.y - 20);
+        click(*app, at);
+        app->runFrames(2, 1.0 / 60);
+        EXPECT_EQ(w.read<LightSource>(lamp).on, on);
+        EXPECT_EQ(bool(w.extract().lightOf(lamp)), on);
+        EXPECT_EQ(app->scene()->lightingDebug().highlightLight, w.extract().lightOf(lamp).id) << "the selection";
+    }
+    w.destroy(lamp);
+}
+
+// Regression (round 2, finding 9): the tab's writes go through set_lighting's checks (validateLighting). A value typed
+// into a slider (Ctrl+click: ImGui does not clamp it) beyond the key's range is refused with the error shown, the
+// parameters stay; the old tab applied it (max lights 5000, max_lights' range is [1, 4096]). An accepted value applies
+TEST_F(LightingTabTest, TypedValueOutOfRangeIsRefused)
+{
+    Json::object state = app->debugUi().state().object_items();
+    // Only the Local lights section open (the slider inside the 800 x 480 window)
+    Json::object sections;
+    for (const char* s :
+         {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",
+          "Far terrain shadows", "Local lights: clusters", "Local lights: shadow atlas", "GPU and memory"})
+        sections[std::string("lighting/") + s] = false;
+    sections["lighting/Local lights"] = true;
+    state["sections"]                 = sections;
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    const int before = app->scene()->lightingParameters().maxLights;
+    auto type        = [&](const char* value)
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app->debugUi().itemCenter("lighting/max lights", at));
+        ImGuiIO& io = ImGui::GetIO();
+        // The panel scrolled to the slider (mouse wheel over the panel)
+        for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 40; ++k)
+        {
+            io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+            io.AddMouseWheelEvent(0, -2);
+            app->runFrames(1, 1.0 / 60);
+            ASSERT_TRUE(app->debugUi().itemCenter("lighting/max lights", at));
+        }
+        ASSERT_LT(at.y, io.DisplaySize.y - 40);
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        click(*app, at);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        app->runFrames(1, 1.0 / 60);
+        // Replace the text (select all, then type) and confirm
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddKeyEvent(ImGuiKey_A, true);
+        app->runFrames(1, 1.0 / 60);
+        io.AddKeyEvent(ImGuiKey_A, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        app->runFrames(1, 1.0 / 60);
+        io.AddInputCharactersUTF8(value);
+        app->runFrames(1, 1.0 / 60);
+        io.AddKeyEvent(ImGuiKey_Enter, true);
+        app->runFrames(1, 1.0 / 60);
+        io.AddKeyEvent(ImGuiKey_Enter, false);
+        app->runFrames(2, 1.0 / 60);
+    };
+    type("5000");
+    EXPECT_EQ(app->scene()->lightingParameters().maxLights, before);
+    type("77");
+    EXPECT_EQ(app->scene()->lightingParameters().maxLights, 77);
+}
+
+// Regression (round 2, finding 2): set_lighting refuses a cluster grid whose buffers exceed the lighting memory limit
+// (the old check left the cluster buffers out: this call passed every per-key range, then asked for 4 GiB), and
+// nothing changes
+TEST_F(LightingTools, ClusterMemoryIsChecked)
+{
+    const Json before = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})")));
+    const Json r      = call(*app, "set_lighting", obj(R"({"local_lights": true, "clustered_lights": true,
+        "cluster_x": 64, "cluster_y": 64, "cluster_z": 128, "max_lights_per_cluster": 1024})"));
+    ASSERT_TRUE(isError(r));
+    EXPECT_NE(text(r).find("1 GiB"), std::string::npos) << text(r);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})"))), before);
+    // Regression (round 3, finding 3): with clustered_lights off the check skipped the cluster buffers, but the frame
+    // builds them whenever the local lights are on: the call passed and the next frame's allocation aborted the app
+    const Json off = call(*app, "set_lighting", obj(R"({"local_lights": true, "clustered_lights": false,
+        "cluster_x": 64, "cluster_y": 64, "cluster_z": 128, "max_lights_per_cluster": 1024})"));
+    ASSERT_TRUE(isError(off));
+    EXPECT_NE(text(off).find("1 GiB"), std::string::npos) << text(off);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})"))), before);
+}
+
 // capture_lighting's mip is a value of its request: with the tab's Ambient section open (its preview at mip 0 every
 // frame) the capture returns the mip it asked for, and the tab's mip stays (review M5: the mip was scene state the tab
 // overwrote each frame, and the call changed the tab's preview)
@@ -920,6 +1135,81 @@ TEST_F(LightingTabTest, CaptureMipWithTabOpen)
     ASSERT_FALSE(isError(r0)) << text(r0);
     EXPECT_EQ(imageBlock(r0)["size"], Json(Json::array{32 * n, 24 * n}));
     EXPECT_EQ(imageBlock(r0)["mip"], Json(0));
+}
+
+// Regression (round 2, finding 5): the cluster preview's slice and the atlas tile's light and face were scene state
+// that the tab's sections set in every frame (the clusters preview at "max", the selected light's tile), so with them
+// open capture_lighting(clusters, slice 3) returned the maximum over the slices and capture_lighting(atlas_tile, light
+// B) the tab's light A, with the requested values in the block. They are values of the request now: the captures with
+// the tab open equal the ones with the tab closed
+TEST_F(LightingTabTest, CaptureClustersAndAtlasTileWithTabOpen)
+{
+    ASSERT_FALSE(
+        isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "local_lights": true, "atlas_resolution": 1024,
+                                      "atlas_tile": 128})"))));
+    app->setViewCameraByTool(0, Vec3(0, 2, 6), Quat::Identity(), 1, false);
+    // A floor (the tiles of face -y see it 1 m and 3 m below the lamps)
+    Vulkan::RenderScene& s       = *app->scene();
+    const Vulkan::MaterialId mat = Vulkan::MaterialId(s.reserveIds(Vulkan::SceneIdKind::Material, 1));
+    const Vulkan::MeshId mesh    = Vulkan::MeshId(s.reserveIds(Vulkan::SceneIdKind::Mesh, 1));
+    s.addMaterial(mat, "tab_floor", Vulkan::MaterialData());
+    s.addMesh(mesh, "tab_floor", planeMesh(vec3(50, 1, 50)), mat);
+    Vulkan::StaticInstance floor;
+    floor.setPosition(vec3(0, -1, 0));
+    floor.mesh = mesh;
+    s.addInstanceSet(RegionId(), {floor});
+    World& w = app->world();
+    std::vector<Entity> lamps;
+    for (const Vec3& p : {Vec3(-1, 1, 0), Vec3(2, 3, 0)})
+    {
+        const Entity e = w.create();
+        w.get<Transform>(e).setPosition(p);
+        LightSource l;
+        l.castShadows = true;
+        w.add<LightSource>(e, l);
+        lamps.push_back(e);
+    }
+    app->runFrames(3, 1.0 / 60);
+    const uint32_t a = w.extract().lightOf(lamps[0]).id, b = w.extract().lightOf(lamps[1]).id;
+    ASSERT_NE(a, 0u);
+    ASSERT_NE(b, 0u);
+    Vulkan::LightingDebugState d;
+    d.highlightLight = a;
+    app->scene()->setLightingDebug(d);
+    const Json sliceArgs = obj(R"({"image": "clusters", "slice": 3, "stats_only": true})");
+    const Json tileArgs =
+        Json::object{{"image", "atlas_tile"}, {"light", double(b)}, {"face", 3}, {"stats_only", true}};
+    // The tab with the clusters preview (at "max") and the atlas with light a's tile
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Local lights", true},
+                                      {"lighting/Local lights: clusters", true},
+                                      {"lighting/Local lights: shadow atlas", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    const Json sliceOpen = callFrames(*app, "capture_lighting", sliceArgs);
+    const Json tileOpen  = callFrames(*app, "capture_lighting", tileArgs);
+    ASSERT_FALSE(isError(sliceOpen)) << text(sliceOpen);
+    ASSERT_FALSE(isError(tileOpen)) << text(tileOpen);
+    // The tab closed
+    app->debugUi().select(DebugTab::Game);
+    app->runFrames(2, 1.0 / 60);
+    const Json sliceClosed = callFrames(*app, "capture_lighting", sliceArgs);
+    const Json tileClosed  = callFrames(*app, "capture_lighting", tileArgs);
+    ASSERT_FALSE(isError(sliceClosed)) << text(sliceClosed);
+    ASSERT_FALSE(isError(tileClosed)) << text(tileClosed);
+    EXPECT_EQ(result(sliceOpen)["stats"], result(sliceClosed)["stats"]);
+    EXPECT_EQ(result(sliceOpen)["clusters"]["slice"], Json(3));
+    EXPECT_EQ(result(tileOpen)["stats"], result(tileClosed)["stats"]);
+    // (the two lights' tiles differ: the floor 1 m and 3 m below them)
+    const Json tileA =
+        callFrames(*app, "capture_lighting",
+                   Json::object{{"image", "atlas_tile"}, {"light", double(a)}, {"face", 3}, {"stats_only", true}});
+    // (the control capture itself succeeded: a null stats object would differ as well)
+    ASSERT_FALSE(isError(tileA)) << text(tileA);
+    ASSERT_TRUE(result(tileA)["stats"].is_object()) << text(tileA);
+    EXPECT_NE(result(tileA)["stats"], result(tileClosed)["stats"]);
+    for (const Entity e : lamps) w.destroy(e);
 }
 
 // Regression (S36a2 review, finding 7): the horizon map's channel was scene state that the tab's Far terrain section
@@ -991,6 +1281,13 @@ TEST_F(LightingTabPlainTest, Renders)
     renderLightingTab(*app);
     ImVec2 at;
     EXPECT_FALSE(app->debugUi().itemCenter("lighting/rate x60", at));
+    // Round 2, finding 6: an image without a source in its frame is an error naming the image (clay: no environment
+    // pass, the LUTs are stale or never written)
+    app->scene()->setToneMap(Vulkan::ToneMap::Identity);
+    app->runFrames(1, 1.0 / 60);
+    const Json lut = callFrames(*app, "capture_lighting", obj(R"({"image": "transmittance_lut", "stats_only": true})"));
+    EXPECT_TRUE(isError(lut));
+    EXPECT_NE(text(lut).find("transmittance_lut: not rendered"), std::string::npos) << text(lut);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -1018,6 +1315,119 @@ TEST(LightingToolsNoDevice, RenderToolsNeedADevice)
     EXPECT_FALSE(isError(call(app, "set_time_of_day", obj(R"({"hours": 20})"))));
     EXPECT_EQ(app.world().readGlobal<WorldTime>().timeOfDay, 20);
     EXPECT_TRUE(result(call(app, "app_status", Json::object{}))["lighting"].is_null());
+}
+
+// Regression (round 1, finding 6): capture_lighting's schema offers every image the tool accepts (the hand-written
+// enum missed atlas and atlas_tile) and every argument it accepts (layer, light and face were missing)
+TEST(LightingToolsNoDevice, CaptureLightingSchemaListsEveryImage)
+{
+    EngineApp app(lightingSetup(false));
+    std::string description;
+    Json schema;
+    ASSERT_TRUE(app.mcp().toolInfo("capture_lighting", description, schema));
+    const Json& props = schema["properties"];
+    std::set<std::string> images;
+    for (const Json& n : props["image"]["enum"].array_items()) images.insert(n.string_value());
+    for (int i = 0; i < int(Vulkan::LightingImage::Count); ++i)
+    {
+        const std::string name = Vulkan::lightingImageName(Vulkan::LightingImage(i));
+        if (Vulkan::LightingImage(i) == Vulkan::LightingImage::CascadeStrip) continue;  // "cascade" without the index
+        EXPECT_TRUE(images.count(name)) << name;
+        EXPECT_NE(description.find(name), std::string::npos) << name;
+    }
+    for (const char* key : {"image", "range", "log", "color_map", "full", "max_width", "format", "stats_only", "mip",
+                            "cascade", "channel", "slice", "layer", "light", "face"})
+        EXPECT_TRUE(props[key].is_object()) << key;
+    EXPECT_EQ(props["layer"]["enum"], Json(Json::array{"static", "dynamic"}));
+}
+
+// Regression (round 2, finding 15): set_lighting's integer keys appear in the schema with their range (intKey set no
+// description: cascade_count, max_lights, cluster_* etc. showed only their names)
+TEST(LightingToolsNoDevice, SetLightingSchemaGivesIntegerRanges)
+{
+    EngineApp app(lightingSetup(false));
+    std::string description;
+    Json schema;
+    ASSERT_TRUE(app.mcp().toolInfo("set_lighting", description, schema));
+    const Json& props = schema["properties"];
+    for (const char* key : {"cascade_count", "shadow_lod_bias", "max_lights", "cluster_x", "cluster_y", "cluster_z",
+                            "max_lights_per_cluster", "atlas_tile", "faces_per_frame", "horizon_rows_per_frame"})
+    {
+        EXPECT_EQ(props[key]["type"].string_value(), "integer") << key;
+        EXPECT_NE(props[key]["description"].string_value().find('['), std::string::npos)
+            << key << ": " << props[key]["description"].dump();
+    }
+    EXPECT_NE(props["cluster_z"]["description"].string_value().find("[2, 128]"), std::string::npos)
+        << props["cluster_z"]["description"].dump();
+    // Round 2, finding 14: ev100 is the fixed mode's input (get_lighting.exposure.ev100 is the frame's value)
+    EXPECT_NE(props["ev100"]["description"].string_value().find("fixed"), std::string::npos)
+        << props["ev100"]["description"].dump();
+}
+
+// Regression (round 2, finding 17): a float key at the edge of its range round-trips. The value was checked as a
+// double but stored as a float: cluster_near 0.01 became 0.0099999998, which failed the >= 0.01 check when it was sent
+// back (set_lighting's undo payload, a value saved into an environment file)
+TEST(LightingToolsNoDevice, FloatKeysRoundTripAtTheirBounds)
+{
+    Vulkan::EnvironmentSettings settings;
+    Vulkan::LightingParameters p;
+    p.clusterNear              = 0.01f;
+    p.environmentUpdateDegrees = 0.01f;
+    p.minShadowElevationDeg    = 0.5f;
+    std::string error;
+    EXPECT_TRUE(validateLightingValues(settings, p, error)) << error;
+}
+
+// Regression (round 2, findings 2, 9): the shared check of set_lighting, the tab and the environment file
+// (validateLighting / validateLightingValues). The memory estimate includes the cluster buffers: a 64 x 64 x 128 grid
+// with 1024 slots asks for 2 GiB of light indices per frame slot (set_lighting's old check summed only the cascades,
+// the horizon map and the atlas, so the call passed and the allocation aborted the program); a grid within 1 GiB whose
+// index buffer exceeds the device's storage binding limit is refused too; the cross-key rules apply to the file loader
+TEST(LightingToolsNoDevice, ValidateLightingChecksClustersAndCrossKeys)
+{
+    Vulkan::EnvironmentSettings settings;
+    Vulkan::LightingParameters p;
+    p.localLights         = true;
+    p.clusteredLights     = true;
+    p.clusterX            = 64;
+    p.clusterY            = 64;
+    p.clusterZ            = 128;
+    p.maxLightsPerCluster = 1024;
+    const Vulkan::LightingStatistics now;
+    const LightingMemoryEstimate m = lightingMemoryAfter(now, p);
+    EXPECT_EQ(m.largestBinding, uint64_t(64 * 64 * 128) * 1024 * 4);
+    EXPECT_GT(m.total, uint64_t(4) << 30);
+    std::string error;
+    EXPECT_FALSE(validateLighting(now, uint64_t(4) << 30, settings, p, error));
+    EXPECT_NE(error.find("1 GiB"), std::string::npos) << error;
+    // Within 1 GiB, beyond a 128 MiB binding limit (64 x 64 x 32 clusters x 257 slots x 4 bytes)
+    p.clusterZ            = 32;
+    p.maxLightsPerCluster = 257;
+    error.clear();
+    EXPECT_FALSE(validateLighting(now, uint64_t(128) << 20, settings, p, error));
+    EXPECT_NE(error.find("storage buffer limit"), std::string::npos) << error;
+    p.maxLightsPerCluster = 64;
+    EXPECT_TRUE(validateLighting(now, uint64_t(128) << 20, settings, p, error)) << error;
+    // Regression (round 3, finding 10): the cluster buffers only grow, so a smaller grid keeps the current memory (the
+    // estimate subtracted it and added the smaller grid's, below what get_lighting then reported)
+    Vulkan::LightingStatistics big;
+    big.lights.clusterMemory = uint64_t(200) << 20;
+    big.memoryBytes          = big.lights.clusterMemory;
+    EXPECT_GE(lightingMemoryAfter(big, p).total, big.lights.clusterMemory);
+    // The buffers stay when the local lights go off
+    Vulkan::LightingParameters noLights = p;
+    noLights.localLights                = false;
+    EXPECT_GE(lightingMemoryAfter(big, noLights).total, big.lights.clusterMemory);
+    EXPECT_EQ(lightingMemoryAfter(big, noLights).largestBinding, 0u);
+    // The cross-key rules
+    Vulkan::LightingParameters c;
+    c.clusterNear = 50;
+    c.clusterFar  = 40;
+    c.atlasTile   = 768;
+    error.clear();
+    EXPECT_FALSE(validateLightingValues(settings, c, error));
+    EXPECT_NE(error.find("cluster_near"), std::string::npos) << error;
+    EXPECT_NE(error.find("atlas_tile"), std::string::npos) << error;
 }
 
 TEST(LightingToolsNoDevice, NoWorldTimeIsAnError)
@@ -1063,6 +1473,74 @@ TEST(EnvironmentWrites, CoopWritesTheHost)
     EXPECT_EQ(app.world().readSpaceState<Weather>(0).rain, 0);
 }
 
+// Regression (round 2, finding 10): in --coop the Lighting tab's light editor writes the host's entity of the same
+// NetId. The client's LightSource is replicated (HostReliable), so the old editor's set_component on the client world
+// was refused (only a log line): nothing could be edited. Regression (round 4, minor 2): the editor showed and resent
+// every field of the client's replica, which lags the host by the replication delay, so an edit of a second field
+// right after the first wrote the first field's old value back to the host
+TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
+{
+    if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
+    AppOptions o;
+    o.coop = true;
+    // A delay longer than the two clicks (3 frames each): the second edit happens while the replica still lags
+    o.coopDelay = 20;
+    EngineApp app(tabSetup(true), o);
+    ASSERT_NE(app.hostWorld(), nullptr);
+    Vulkan::LightingParameters lp = app.scene()->lightingParameters();
+    lp.localLights                = true;
+    app.scene()->setLightingParameters(lp);
+    World& host       = *app.hostWorld();
+    const Entity lamp = host.create();
+    host.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
+    host.add<LightSource>(lamp, LightSource());
+    app.runFrames(30, 1.0 / 60);
+    // The client's replica and its rendered light
+    const NetId id = host.replication().netIdOf(lamp);
+    ASSERT_NE(id, 0u);
+    const Entity replica = app.world().replication().entityOfNetId(id);
+    ASSERT_TRUE(app.world().alive(replica));
+    Vulkan::LightingDebugState d;
+    d.highlightLight = app.world().extract().lightOf(replica).id;
+    ASSERT_NE(d.highlightLight, 0u);
+    app.scene()->setLightingDebug(d);
+    Json::object state = app.debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Time and weather", false},
+                                      {"lighting/Sun and moon", false},
+                                      {"lighting/Exposure", false},
+                                      {"lighting/Local lights", true}};
+    app.debugUi().setState(state);
+    app.debugUi().select(DebugTab::Lighting);
+    app.runFrames(2, 1.0 / 60);
+    // Scrolled until both checkboxes are on the screen ("cast shadows" is the row below "on")
+    ImVec2 at;
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light shadows", at));
+    ImGuiIO& io = ImGui::GetIO();
+    for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 20; ++k)
+    {
+        io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+        io.AddMouseWheelEvent(0, -2);
+        app.runFrames(1, 1.0 / 60);
+        ASSERT_TRUE(app.debugUi().itemCenter("lighting/light shadows", at));
+    }
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light on", at));
+    click(app, at);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_FALSE(host.read<LightSource>(lamp).on);
+    EXPECT_TRUE(app.world().read<LightSource>(replica).on) << "the replica lags (the delay of the test)";
+    // A second field while the replica still lags: only that field is written, the first edit holds
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light shadows", at));
+    click(app, at);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(app.world().read<LightSource>(replica).on) << "the replica still lags";
+    EXPECT_TRUE(host.read<LightSource>(lamp).castShadows);
+    EXPECT_FALSE(host.read<LightSource>(lamp).on);
+    // The client follows the host
+    app.runFrames(30, 1.0 / 60);
+    EXPECT_FALSE(app.world().read<LightSource>(replica).on);
+    EXPECT_TRUE(app.world().read<LightSource>(replica).castShadows);
+}
+
 // Every tool is a console command (DebugConsole through McpServer::callLocal)
 TEST(DebugConsole, RunsLightingCommands)
 {
@@ -1073,4 +1551,184 @@ TEST(DebugConsole, RunsLightingCommands)
     app.debugUi().console().submit("set_weather cloudiness=0.25");
     app.runFrames(2, 1.0 / 60);
     EXPECT_EQ(app.world().readSpaceState<Weather>(0).cloudiness, 0.25);
+}
+
+// S36b: list_lights (paging, near, shadowed and visible filters, entity and scene lights), get_lighting.lights, the
+// local light keys of set_lighting and set_lighting_debug's highlight_light
+TEST_F(LightingDebugTools, LocalLightTools)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"tone_map": "aces", "local_lights": true})"))));
+    World& w = app->world();
+    std::vector<Entity> lamps;
+    for (int i = 0; i < 4; ++i)
+    {
+        const Entity e = w.create();
+        w.get<Transform>(e).setPosition(Vec3(2.0 * i - 3, 1, 0));
+        LightSource l;
+        l.castShadows = i == 1;
+        l.lumen       = 500 + 100 * i;
+        w.add<LightSource>(e, l);
+        lamps.push_back(e);
+    }
+    // A scene light far away (not visible) in a list
+    const Vulkan::LightListHandle list = s.addLights(ChunkId{0, 20, 20}, {Vulkan::LightData(), Vulkan::LightData()});
+    app->runFrames(3, 1.0 / 60);
+    const Json all = result(call(*app, "list_lights", Json::object{}));
+    ASSERT_EQ(all["lights"].array_items().size(), 6u) << all.dump();
+    EXPECT_EQ(all["total"].number_value(), 6);
+    EXPECT_TRUE(all["next"].is_null());
+    int entities = 0, visible = 0;
+    for (const Json& l : all["lights"].array_items())
+    {
+        entities += l["entity"].is_null() ? 0 : 1;
+        visible += l["visible"].bool_value() ? 1 : 0;
+    }
+    EXPECT_EQ(entities, 4);
+    EXPECT_EQ(visible, 4) << all.dump();
+    // Paging
+    const Json p1 = result(call(*app, "list_lights", obj(R"({"limit": 4})")));
+    ASSERT_EQ(p1["lights"].array_items().size(), 4u);
+    ASSERT_TRUE(p1["next"].is_number()) << p1.dump();
+    const Json p2 = result(call(*app, "list_lights", Json::object{{"after", p1["next"]}, {"limit", 4}}));
+    EXPECT_EQ(p2["lights"].array_items().size(), 2u);
+    EXPECT_TRUE(p2["next"].is_null());
+    EXPECT_GT(p2["lights"][0]["handle"].number_value(), p1["next"].number_value());
+    // Filters
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"shadowed": true})")))["lights"].array_items().size(), 1u);
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"visible": false})")))["lights"].array_items().size(), 2u);
+    const Json near = result(call(*app, "list_lights", obj(R"({"near": {"position": [-12, 1, 0], "radius": 0}})")));
+    EXPECT_EQ(near["lights"].array_items().size(), 1u) << "range 10: only the lamp at x = -3" << near.dump();
+    for (const char* args :
+         {R"({"limit": 0})", R"({"limit": 1001})", R"({"near": {"position": [0, 0]}})",
+          R"({"near": {"position": [0, 0, 0], "radius": 1, "r": 2}})", R"({"shadowed": 1})", R"({"page": 2})"})
+        EXPECT_TRUE(isError(call(*app, "list_lights", obj(args)))) << args;
+    // get_lighting.lights
+    const Json l = result(call(*app, "get_lighting", obj(R"({"sections": ["lights"]})")))["lights"];
+    EXPECT_EQ(l["on"], Json(true)) << l.dump();
+    EXPECT_EQ(l["submitted"].number_value(), 6);
+    EXPECT_EQ(l["visible"].number_value(), 4);
+    EXPECT_EQ(l["shadowed"].number_value(), 1);
+    // set_lighting's local light keys round-trip
+    const Json set = call(*app, "set_lighting", obj(R"({"clustered_lights": false, "max_lights": 2})"));
+    ASSERT_FALSE(isError(set)) << text(set);
+    app->runFrames(2, 1.0 / 60);
+    // Regression (CodeRabbit #86): a frame with lights has its cluster table also with the brute-force loop (the view
+    // and the statistics): the capture of the clusters was refused without clustered shading
+    const Json brute = callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "stats_only": true})"));
+    ASSERT_FALSE(isError(brute)) << text(brute);
+    EXPECT_GT(result(brute)["stats"]["max"].number_value(), 0) << text(brute);
+    const Json params = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters", "lights"]})")));
+    EXPECT_EQ(params["parameters"]["max_lights"].number_value(), 2);
+    EXPECT_EQ(params["parameters"]["clustered_lights"], Json(false));
+    EXPECT_EQ(params["lights"]["over_budget"].number_value(), 2);
+    ASSERT_FALSE(isError(call(*app, "set_lighting", result(set)["previous"])));
+    EXPECT_TRUE(isError(call(*app, "set_lighting", obj(R"({"max_lights": 0})"))));
+    // highlight_light
+    const double h = all["lights"][0]["handle"].number_value();
+    ASSERT_FALSE(isError(call(*app, "set_lighting_debug", Json::object{{"highlight_light", h}})));
+    EXPECT_EQ(s.lightingDebug().highlightLight, uint32_t(h));
+    const Json dbg = result(call(*app, "get_lighting", obj(R"({"sections": ["debug"]})")))["debug"];
+    EXPECT_EQ(dbg["highlight_light"].number_value(), h);
+    ASSERT_FALSE(isError(call(*app, "set_lighting_debug", obj(R"({"highlight_light": null})"))));
+    EXPECT_EQ(s.lightingDebug().highlightLight, 0u);
+    // S36b step 3: the clusters (get_lighting.clusters, capture_lighting clusters, probe_lighting's cluster keys)
+    app->runFrames(3, 1.0 / 60);
+    const Json cl = result(call(*app, "get_lighting", obj(R"({"sections": ["clusters"]})")))["clusters"];
+    EXPECT_EQ(cl["grid"], Json(Json::array{16, 9, 24})) << cl.dump();
+    EXPECT_GT(cl["max"].number_value(), 0) << cl.dump();
+    EXPECT_EQ(cl["clustered"], Json(true));
+    const Json heat = callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "max_width": 64})"));
+    ASSERT_FALSE(isError(heat)) << text(heat);
+    EXPECT_EQ(imageBlock(heat)["size"], Json(Json::array{256, 144}));
+    EXPECT_EQ(imageBlock(heat)["clusters"]["slice"], Json("max"));
+    EXPECT_GT(imageBlock(heat)["stats"]["max"].number_value(), 0);
+    const Json slice =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "clusters", "slice": 3, "stats_only": true})"));
+    ASSERT_FALSE(isError(slice)) << text(slice);
+    EXPECT_EQ(result(slice)["clusters"]["depth"].array_items().size(), 2u);
+    for (const char* args : {R"({"image": "clusters", "slice": 24})", R"({"image": "luminance", "slice": 1})"})
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
+    const Json probe = callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})"));
+    ASSERT_FALSE(isError(probe)) << text(probe);
+    const Json pr = result(probe);
+    EXPECT_TRUE(pr["cluster"].is_number()) << pr.dump();
+    EXPECT_GE(pr["cluster_lights"].array_items().size(), 3u) << pr.dump();
+    EXPECT_GT(pr["cluster_lights"][0]["radiance"][1].number_value(), 0) << pr.dump();
+    // S36b step 4: the shadow atlas (get_lighting.atlas, capture_lighting atlas / atlas_tile, probe's atlas_shadow)
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"atlas_resolution": 1024, "atlas_tile": 128})"))));
+    app->runFrames(3, 1.0 / 60);
+    const Json at = result(call(*app, "get_lighting", obj(R"({"sections": ["atlas"]})")))["atlas"];
+    EXPECT_EQ(at["on"], Json(true)) << at.dump();
+    EXPECT_EQ(at["tiles_used"].number_value(), 6) << at.dump();
+    EXPECT_EQ(at["tiles_total"].number_value(), 64);
+    EXPECT_EQ(at["lights_with_tiles"].number_value(), 1);
+    const Json shadowed = result(call(*app, "list_lights", obj(R"({"shadowed": true})")))["lights"][0];
+    EXPECT_EQ(shadowed["atlas"]["tiles"].number_value(), 6) << shadowed.dump();
+    EXPECT_EQ(shadowed["atlas"]["ready"], Json(true)) << shadowed.dump();
+    const Json atlas = callFrames(*app, "capture_lighting", obj(R"({"image": "atlas", "max_width": 64})"));
+    ASSERT_FALSE(isError(atlas)) << text(atlas);
+    EXPECT_EQ(imageBlock(atlas)["size"], Json(Json::array{1024, 1024}));
+    EXPECT_EQ(imageBlock(atlas)["tiles"].array_items().size(), 6u);
+    EXPECT_EQ(imageBlock(atlas)["layer"], Json("static"));
+    const Json tile = callFrames(
+        *app, "capture_lighting",
+        Json::object{{"image", "atlas_tile"}, {"light", shadowed["handle"]}, {"face", 3}, {"stats_only", true}});
+    ASSERT_FALSE(isError(tile)) << text(tile);
+    EXPECT_EQ(result(tile)["size"], Json(Json::array{128, 128}));
+    EXPECT_LT(result(tile)["stats"]["min"].number_value(), 1.0) << "the floor below the lamp (face -y)";
+    for (const char* args : {R"({"image": "atlas_tile", "light": 99999})", R"({"image": "atlas_tile", "light": 1e30})",
+                             R"({"image": "atlas", "layer": "both"})", R"({"image": "atlas", "face": 1})",
+                             R"({"image": "luminance", "layer": "static"})"})
+        EXPECT_TRUE(isError(callFrames(*app, "capture_lighting", obj(args)))) << args;
+    const Json probeAt = result(callFrames(*app, "probe_lighting", obj(R"({"position": [-1, 0, 0]})")));
+    EXPECT_TRUE(probeAt["atlas_shadow"].is_object()) << probeAt.dump();
+    EXPECT_GE(probeAt["atlas_shadow"]["lights"].number_value(), 1) << probeAt.dump();
+    // Cross-key: atlas_tile divides atlas_resolution; all or nothing
+    const Json badTile = call(*app, "set_lighting", obj(R"({"atlas_tile": 300, "max_lights": 7})"));
+    EXPECT_TRUE(isError(badTile));
+    EXPECT_NE(text(badTile).find("atlas_resolution"), std::string::npos) << text(badTile);
+    EXPECT_NE(s.lightingParameters().maxLights, 7);
+    EXPECT_TRUE(isError(call(*app, "set_lighting", obj(R"({"faces_per_frame": 12})"))));
+    ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"atlas_resolution": 4096, "atlas_tile": 512})"))));
+    // Round 1, finding 8: an entity light that is off or invalid is listed (rendered false, its state) and can be
+    // switched on again with set_component; the filter rendered, after_entity paging, matched_total
+    ASSERT_FALSE(isError(call(*app, "set_component",
+                              Json::object{{"entity", WorldApi::entityJson(lamps[0])},
+                                           {"component", "LightSource"},
+                                           {"values", obj(R"({"on": false})")}})));
+    w.get<LightSource>(lamps[2]).range = 0;  // invalid, written in code (the API refuses it)
+    app->runFrames(1, 1.0 / 60);
+    const Json off = result(call(*app, "list_lights", obj(R"({"rendered": false})")));
+    ASSERT_EQ(off["lights"].array_items().size(), 2u) << off.dump();
+    EXPECT_EQ(off["matched_total"].number_value(), 2);
+    EXPECT_EQ(off["total"].number_value(), 6);
+    EXPECT_EQ(off["unrendered"].number_value(), 2);
+    EXPECT_EQ(off["lights"][0]["entity"]["index"].number_value(), double(lamps[0].index));
+    EXPECT_EQ(off["lights"][0]["state"], Json("off"));
+    EXPECT_TRUE(off["lights"][0]["handle"].is_null());
+    EXPECT_EQ(off["lights"][0]["rendered"], Json(false));
+    EXPECT_NE(off["lights"][1]["state"].string_value().find("invalid: range"), std::string::npos) << off.dump();
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"rendered": true})")))["lights"].array_items().size(), 4u);
+    // Paging across both parts: 4 rendered, then the 2 unrendered (after_entity)
+    const Json q1 = result(call(*app, "list_lights", obj(R"({"limit": 5})")));
+    ASSERT_EQ(q1["lights"].array_items().size(), 5u);
+    EXPECT_EQ(q1["matched_total"].number_value(), 6);
+    ASSERT_TRUE(q1["next_entity"].is_number()) << q1.dump();
+    const Json q2 = result(call(*app, "list_lights", Json::object{{"after_entity", q1["next_entity"]}, {"limit", 5}}));
+    ASSERT_EQ(q2["lights"].array_items().size(), 1u) << q2.dump();
+    EXPECT_TRUE(q2["next"].is_null() && q2["next_entity"].is_null());
+    // Regression (round 3, finding 5): an after_entity page left the scene's lights out of matched_total
+    EXPECT_EQ(q2["matched_total"].number_value(), 6);
+    EXPECT_TRUE(isError(call(*app, "list_lights", obj(R"({"after": 1, "after_entity": 1})"))));
+    ASSERT_FALSE(isError(call(*app, "set_component",
+                              Json::object{{"entity", WorldApi::entityJson(lamps[0])},
+                                           {"component", "LightSource"},
+                                           {"values", obj(R"({"on": true})")}})));
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"rendered": false})")))["lights"].array_items().size(), 1u);
+    for (Entity e : lamps) w.destroy(e);
+    s.removeLights(list);
+    app->runFrames(2, 1.0 / 60);
+    EXPECT_EQ(result(call(*app, "list_lights", Json::object{}))["total"].number_value(), 0);
 }

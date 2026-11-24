@@ -146,12 +146,13 @@ vk::Buffer handle(Buffer& b)
     return b.memoryLocation()->data;
 }
 
-// The AABB [lo, hi] (camera-relative) is outside a plane or farther than maxDistance
+// The AABB [lo, hi] (camera-relative) is outside a plane or farther than maxDistance from origin (camera-relative)
 template <size_t N>
-bool aabbCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, N>& planes, double maxDistance)
+bool aabbCulled(const Vec3& lo, const Vec3& hi, const std::array<Vec4, N>& planes, double maxDistance,
+                const Vec3& origin = Vec3::Zero())
 {
-    Vec3 nearest = Vec3::Zero().cwiseMax(lo).cwiseMin(hi);
-    if (nearest.norm() > maxDistance) return true;
+    Vec3 nearest = origin.cwiseMax(lo).cwiseMin(hi);
+    if ((nearest - origin).norm() > maxDistance) return true;
     for (const Vec4& p : planes)
     {
         // The corner farthest along the normal
@@ -219,8 +220,6 @@ void SceneCulling::init(VulkanBase& b, const RenderingFormats& formats, const Re
     initCompute(scanPipeline, "vulkan/scene/bucket_scan.comp", sizeof(ScanPush));
     initCompute(writePipeline, "vulkan/scene/instance_write.comp", sizeof(WritePush));
 
-    createDrawPipelines();
-
     // The sets are compatible with every pipeline's layout (identically defined set layouts)
     for (Frame& f : frames) f.set = countPipeline.createRawDescriptorSet();
 }
@@ -230,15 +229,29 @@ void SceneCulling::destroyDrawPipelines()
     for (auto& p : drawPipelines) p.destroy();
     for (auto& p : prepassPipelines) p.destroy();
     for (auto& p : equalPipelines) p.destroy();
+    createdDrawPipelines = 0;
 }
 
-void SceneCulling::createDrawPipelines()
+Pipeline& SceneCulling::drawPipeline(DrawVariant v, int index)
+{
+    Pipeline& p        = v == DrawVariant::Draw    ? drawPipelines[size_t(index)]
+                         : v == DrawVariant::Equal ? equalPipelines[size_t(index)]
+                                                   : prepassPipelines[size_t(index)];
+    const uint32_t bit = 1u << (uint32_t(index) + 8 * uint32_t(v));
+    if ((createdDrawPipelines & bit) == 0)
+    {
+        createDrawPipeline(v, index, p);
+        createdDrawPipelines |= bit;
+    }
+    return p;
+}
+
+void SceneCulling::createDrawPipeline(DrawVariant v, int index, Pipeline& p)
 {
     const RenderingFormats& formats = sceneFormats;
     // The draw pipelines: set 0 the scene's buffers, set 1 the lighting set (SceneLightingSet). shaders: vertex and
-    // (optional) fragment shader, injected with the defines
-    auto initDraw =
-        [&](Pipeline& p, const std::vector<std::string>& shaders, const std::string& defines, PipelineInfo info)
+    // (optional) fragment shader
+    auto initDraw = [&](const std::vector<std::string>& shaders, PipelineInfo info)
     {
         info.addVertexBinding(0, sizeof(MeshVertex), vk::VertexInputRate::eVertex,
                               {{0, 0, vk::Format::eR32G32B32Sfloat, uint32_t(offsetof(MeshVertex, position))},
@@ -251,54 +264,49 @@ void SceneCulling::createDrawPipelines()
         p.addPushConstantRange(
             {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(DrawPush)});
         std::vector<std::tuple<std::string, vk::ShaderStageFlagBits, std::string>> modules = {
-            {shaders[0], vk::ShaderStageFlagBits::eVertex, defines}};
-        if (shaders.size() > 1) modules.emplace_back(shaders[1], vk::ShaderStageFlagBits::eFragment, defines);
+            {shaders[0], vk::ShaderStageFlagBits::eVertex, ""}};
+        if (shaders.size() > 1) modules.emplace_back(shaders[1], vk::ShaderStageFlagBits::eFragment, "");
         p.shaderPipeline.loadGLSL(base->device, modules);
         creations++;
         return info;
     };
-    RenderingFormats depthOnly = formats;
-    depthOnly.color.clear();
     const std::vector<std::string> flatShaders = {"vulkan/scene/instance.vert", "vulkan/scene/flat.frag"};
-    // One class's pipeline: opaque, alpha-masked, two-sided, alpha-masked two-sided, prototype foliage
-    // (MeshPool::pipelineClassIndex)
-    auto createClass = [&](Pipeline& p, int c, const std::string& defines, const std::string& foliageDefines)
+    PipelineInfo info;
+    if (v == DrawVariant::Draw)
     {
-        const bool foliage  = c == int(PipelineClass::PrototypeFoliage) - 1;
-        const bool twoSided = c >= 2;
-        PipelineInfo info;
+        // One class's pipeline: opaque, alpha-masked, two-sided, alpha-masked two-sided, prototype foliage
+        // (MeshPool::pipelineClassIndex)
+        const bool foliage                    = index == int(PipelineClass::PrototypeFoliage) - 1;
+        const bool twoSided                   = index >= 2;
         info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;  // reversed-Z
         info.rasterizationState.cullMode      = twoSided ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
         // The leaf cards: alpha to coverage (with MSAA); the opaque parts write alpha 1
         if (foliage) info.multisampleState.alphaToCoverageEnable = VK_TRUE;
-        const std::vector<std::string> shaders =
-            foliage
-                ? std::vector<std::string>{"vulkan/scene/prototype_foliage.vert", "vulkan/scene/prototype_foliage.frag"}
-                : flatShaders;
-        info = initDraw(p, shaders, foliage ? foliageDefines : defines, info);
+        info = initDraw(foliage ? std::vector<std::string>{"vulkan/scene/prototype_foliage.vert",
+                                                           "vulkan/scene/prototype_foliage.frag"}
+                                : flatShaders,
+                        info);
         p.create(formats, info);
-    };
-    // The opaque classes after the pre-pass: EQUAL, no depth write
-    auto createEqual = [&](Pipeline& p, int k, const std::string& defines)
+    }
+    else if (v == DrawVariant::Equal)
     {
-        PipelineInfo info;
+        // The opaque classes after the pre-pass: EQUAL, no depth write
         info.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
         info.depthStencilState.depthWriteEnable = VK_FALSE;
-        info.rasterizationState.cullMode        = k == 1 ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
-        info                                    = initDraw(p, flatShaders, defines, info);
+        info.rasterizationState.cullMode = index == 1 ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
+        info                             = initDraw(flatShaders, info);
         p.create(formats, info);
-    };
-    for (int c = 0; c < pipelineClassCount; ++c) createClass(drawPipelines[c], c, "", "");
-    for (int k = 0; k < 2; ++k) createEqual(equalPipelines[k], k, "");
-    // The opaque classes in the pre-pass: depth only, the vertex shader alone (invariant gl_Position: the same depth
-    // as every variant's)
-    for (int k = 0; k < 2; ++k)
+    }
+    else
     {
-        PipelineInfo info;
+        // The opaque classes in the pre-pass: depth only, the vertex shader alone (invariant gl_Position: the same
+        // depth as every variant's)
+        RenderingFormats depthOnly = formats;
+        depthOnly.color.clear();
         info.depthStencilState.depthCompareOp = vk::CompareOp::eGreaterOrEqual;
-        info.rasterizationState.cullMode      = k == 1 ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
-        info                                  = initDraw(prepassPipelines[k], {"vulkan/scene/instance.vert"}, "", info);
-        prepassPipelines[k].create(depthOnly, info);
+        info.rasterizationState.cullMode      = index == 1 ? vk::CullModeFlagBits::eNone : vk::CullModeFlagBits::eBack;
+        info                                  = initDraw({"vulkan/scene/instance.vert"}, info);
+        p.create(depthOnly, info);
     }
 }
 
@@ -389,7 +397,10 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
     {
         std::vector<std::array<Vec4, 6>> viewPlanes;
         for (const ShadowView& v : shadowViews) viewPlanes.push_back(v.planes(false));
-        const uint32_t allViews = (1u << viewCount) - 1u;
+        // S36b: the atlas faces of the dynamic layer draw no static set, those of the static layer no dynamics
+        uint32_t dynamicViews = 1u;
+        for (size_t v = 0; v < shadowViews.size(); ++v)
+            if (shadowViews[v].castDynamic) dynamicViews |= 1u << (v + 1);
         for (const auto& [id, s] : instances.sets())
         {
             if (s.region.space != camera.space || s.used == 0 || !s.hasBounds) continue;
@@ -398,7 +409,9 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             uint32_t mask = aabbCulled(lo, hi, camera.planes, s.maxEndDistance) ? 0u : 1u;
             for (size_t v = 0; v < shadowViews.size(); ++v)
             {
-                if (aabbCulled(lo, hi, viewPlanes[v], s.maxEndDistance)) continue;
+                if (!shadowViews[v].castStatic) continue;
+                const Vec3 origin = shadowViews[v].lodFromOrigin ? shadowViews[v].lodOrigin : Vec3::Zero();
+                if (aabbCulled(lo, hi, viewPlanes[v], s.maxEndDistance, origin)) continue;
                 if (shadowViews[v].dedupContains(lo, hi, false)) continue;
                 mask |= 1u << (v + 1);
             }
@@ -409,7 +422,8 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
         }
         const uint32_t dynamicCount = uint32_t(instances.dynamics().size());
         for (uint32_t i = 0; i < dynamicCount; i += workChunkSize)
-            chunkList.push_back({i, std::min(workChunkSize, dynamicCount - i), dynamicChunk, allViews});
+            chunkList.push_back(
+                {i, std::min(workChunkSize, dynamicCount - i), dynamicChunk, dynamicViews & ((1u << viewCount) - 1u)});
     }
     if (meshes.buckets().empty()) chunkList.clear();
     // The scratch entries: 256 per chunk and view of its mask
@@ -458,6 +472,14 @@ void SceneCulling::recordTransfer(vk::CommandBuffer cmd, uint32_t frameIndex, Me
             g.dedup[2]  = float(sv.dedupMax(0));
             g.dedup[3]  = float(sv.dedupMax(1));
             g.params[0] = sv.dedup ? 1.0f : 0.0f;
+            // S36b: an atlas face (no de-duplication): dedup.x is its dynamic filter (1 resting, 2 moving instances)
+            if (!sv.dedup) g.dedup[0] = float(sv.dynamicFilter);
+            // S36b round 1, finding 5: the LOD origin of an atlas face (axisX.xyz, flag dedup.y; no de-duplication)
+            if (!sv.dedup && sv.lodFromOrigin)
+            {
+                storeVec(g.axisX, sv.lodOrigin, 0);
+                g.dedup[1] = 1;
+            }
             g.params[1] = float(sv.smallRadius);
             g.params[2] = float(sv.lodBias);
             g.params[3] = 1;
@@ -651,11 +673,12 @@ void SceneCulling::recordCull(vk::CommandBuffer cmd, uint32_t frameIndex, MeshPo
                   Access::eIndirectCommandRead | Access::eShaderStorageRead | Access::eHostRead);
 }
 
-uint32_t SceneCulling::drawClass(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, Pipeline& p,
+uint32_t SceneCulling::drawClass(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, DrawVariant v, int index,
                                  const SceneCamera& camera)
 {
     Frame& f = frames[frameIndex];
     if (f.ranges[klass].count == 0) return 0;
+    Pipeline& p = drawPipeline(v, index);
     if (!p.bind(cmd)) return 0;
     DrawPush push;
     push.viewProj    = camera.viewProj;
@@ -706,8 +729,8 @@ uint32_t SceneCulling::recordPrepass(vk::CommandBuffer cmd, uint32_t frameIndex,
     Frame& f = frames[frameIndex];
     if (!f.culled) return 0;
     // The opaque classes: opaque (index 0) and two-sided (index 2)
-    return drawClass(cmd, frameIndex, 0, prepassPipelines[0], camera) +
-           drawClass(cmd, frameIndex, 2, prepassPipelines[1], camera);
+    return drawClass(cmd, frameIndex, 0, DrawVariant::Prepass, 0, camera) +
+           drawClass(cmd, frameIndex, 2, DrawVariant::Prepass, 1, camera);
 }
 
 uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, const SceneCamera& camera, bool prepass)
@@ -721,10 +744,10 @@ uint32_t SceneCulling::recordDraw(vk::CommandBuffer cmd, uint32_t frameIndex, co
         // frame with such instances asserts in RenderScene with SAIGA_ASSERTS). Only the draw is skipped: the GPU
         // culling still processes those instances, and its statistics (instancesPerLod, the tracked meshes) count them
         if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
-        Pipeline* p = &drawPipelines[c];
-        if (prepass && c == 0) p = &equalPipelines[0];
-        if (prepass && c == 2) p = &equalPipelines[1];
-        calls += drawClass(cmd, frameIndex, c, *p, camera);
+        if (prepass && (c == 0 || c == 2))
+            calls += drawClass(cmd, frameIndex, c, DrawVariant::Equal, c / 2, camera);
+        else
+            calls += drawClass(cmd, frameIndex, c, DrawVariant::Draw, c, camera);
     }
     return calls;
 }
@@ -740,6 +763,22 @@ uint32_t SceneCulling::recordShadow(vk::CommandBuffer cmd, uint32_t frameIndex, 
         if (f.ranges[c].count == 0) continue;
         if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
         if (!table.bind(cmd, c, f.set, lightingSet->shadowSet(frameIndex), viewProj, alpha, slopeBias)) continue;
+        calls += drawRange(cmd, frameIndex, c, view);
+    }
+    return calls;
+}
+
+uint32_t SceneCulling::recordAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj,
+                                   float alpha, ShadowPipelineTable& table, const vec4& light)
+{
+    Frame& f = frames[frameIndex];
+    if (!f.culled || view >= f.viewCount) return 0;
+    uint32_t calls = 0;
+    for (int c = 0; c < pipelineClassCount; ++c)
+    {
+        if (f.ranges[c].count == 0) continue;
+        if (c == int(PipelineClass::PrototypeFoliage) - 1 && !foliageTexture) continue;
+        if (!table.bindAtlas(cmd, c, f.set, lightingSet->shadowSet(frameIndex), viewProj, alpha, light)) continue;
         calls += drawRange(cmd, frameIndex, c, view);
     }
     return calls;

@@ -23,7 +23,9 @@ struct WorkChunk
 // A view of the culling (S36a2; SceneCulling.cpp GpuCullView): six planes (camera-relative, inward: dot(n, p) + w >=
 // -radius is inside), the light-space x and y axes of a shadow view (w: the de-duplication's light depth interval,
 // axisX.w its minimum, axisY.w its maximum; the light-space z axis is planes[4].xyz), the de-duplication rectangle (xy
-// min, zw max) and params (x: 1 de-duplication on, y: the small-caster radius, z: the LOD bias, w: 1 a shadow view)
+// min, zw max) and params (x: 1 de-duplication on, y: the small-caster radius, z: the LOD bias, w: 1 a shadow view);
+// S36b, an atlas face (no de-duplication): dedup.x its dynamic filter, dedup.y 1 when axisX.xyz is the origin of the
+// LOD and the end distance (its light)
 struct CullView
 {
     vec4 planes[6];

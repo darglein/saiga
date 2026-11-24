@@ -28,6 +28,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -190,29 +191,159 @@ TEST_F(SyncValidation, ShadowedGrassFrame)
     EXPECT_TRUE(scene->lightingStatistics().shadows);
 }
 
+namespace
+{
+MeshLods syncBox(const vec3& half)
+{
+    MeshLod lod;
+    lod.endDistance = 2000;
+    for (int f = 0; f < 6; ++f)
+    {
+        const int axis      = f / 2;
+        const float s       = (f % 2) ? -1.0f : 1.0f;
+        vec3 n              = vec3::Zero();
+        n(axis)             = s;
+        const vec3 u        = axis == 1 ? vec3(1, 0, 0) : vec3(0, 1, 0);
+        const vec3 v        = n.cross(u);
+        const uint32_t base = uint32_t(lod.vertices.size());
+        for (const vec2 c : {vec2(-1, -1), vec2(1, -1), vec2(1, 1), vec2(-1, 1)})
+        {
+            MeshVertex m;
+            m.position = (n + c(0) * u + c(1) * v).cwiseProduct(half);
+            m.normal   = packNormalOct(n);
+            m.color    = packColor(ucvec4(200, 200, 200, 255));
+            lod.vertices.push_back(m);
+        }
+        for (uint32_t i : {0u, 1u, 2u, 0u, 2u, 3u}) lod.indices.push_back(base + i);
+    }
+    MeshLods m;
+    m.lods.push_back(lod);
+    m.sphereRadius = half.norm();
+    return m;
+}
+}  // namespace
+
+// S36b round 1 (findings 3, 14; the review's request for a hazard check of the local lights): a frame with shadowed
+// point and spot lights over terrain (the atlas's terrain path), a moving dynamic instance (the dynamic layer), the
+// clusters; the atlas is created inside the frame's command buffer (finding 14: no blocking submit) and recreated
+// (a resolution change), the cluster grid grows between frames (finding 3: the buffers before the lighting set binds
+// them), a light changes its kind (finding 1)
+TEST_F(SyncValidation, LocalLightsAndAtlasFrame)
+{
+    // Without sync validation (CI's old layer, the gate above) the frames still run under the core validation
+    RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
+    const TerrainLayout layout = testLayout(16, 2);
+    const Vec3 cam(300.5, 12, 300.5);
+    fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
+    MaterialData m;
+    scene->addMaterial(MaterialId(900), "sync_box", m);
+    scene->addMesh(MeshId(900), "sync_box", syncBox(vec3(0.5f, 0.5f, 0.5f)), MaterialId(900));
+    const double ground = 0;  // flatHook
+    AddSet({[&]()
+            {
+                StaticInstance s;
+                s.setPosition(vec3(301.5f, float(ground) + 0.5f, 300.5f));
+                s.mesh = MeshId(900);
+                return s;
+            }()});
+    LightingParameters p;
+    p.cascadeResolution = 256;
+    p.horizonResolution = 128;
+    p.sunShadows        = false;
+    p.horizonShadows    = false;
+    p.localLights       = true;
+    p.atlasResolution   = 512;
+    p.atlasTile         = 128;
+    p.facesPerFrame     = 11;
+    scene->setLightingParameters(p);
+    EnvironmentState e;
+    e.sunIlluminance  = 0;
+    e.moonIlluminance = 0;
+    scene->setEnvironment(e);
+    scene->setToneMap(ToneMap::Aces);
+    LightData point;
+    point.kind          = LightKind::Point;
+    point.position      = vec3(300.5f, float(ground) + 3, 300.5f);
+    point.lumen         = 2000;
+    point.range         = 10;
+    point.castShadows   = true;
+    const LightHandle a = scene->addLight(ChunkId(), point);
+    LightData spot      = point;
+    spot.kind           = LightKind::Spot;
+    spot.position       = vec3(303.5f, float(ground) + 4, 300.5f);
+    spot.direction      = vec3(0, -1, 0);
+    spot.cosInner       = 0.9f;
+    spot.cosOuter       = 0.8f;
+    scene->addLight(ChunkId(), spot);
+    const InstanceHandle d = scene->addDynamic(MeshId(900));
+    SetCamera(0, cam, viewRotation(lookAt(cam.cast<float>(), vec3(300.5f, float(ground), 299.5f), vec3(0, 1, 0))), 1.0);
+    renderUntilUploaded(*scene);
+    for (int frame = 0; frame < 4; ++frame)
+    {
+        DynamicPose prev, curr;
+        prev.position = Vec3(299.5 + 0.1 * frame, ground + 1.5, 300.5);
+        curr.position = prev.position + Vec3(0.1, 0, 0);
+        scene->setDynamic(d, ChunkId(), prev, curr);
+        if (frame == 1)
+        {
+            p.clusterZ            = 48;
+            p.maxLightsPerCluster = 256;
+            p.atlasResolution     = 1024;
+            scene->setLightingParameters(p);
+        }
+        if (frame == 2) scene->setLight(a, ChunkId(), spot);
+        RenderFrame();
+    }
+    scene->waitIdle();
+    EXPECT_TRUE(scene->lightingStatistics().atlas.on);
+    EXPECT_EQ(scene->lightingStatistics().atlas.resolution, 1024);
+    EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
+    scene->removeDynamic(d);
+}
+
 // Round 2 (finding 3): the frames above wait for every frame (a screenshot each), so two frames are never in flight
 // and a hazard against the previous frame (a write-after-read, a descriptor set updated while a pending command buffer
 // has it bound) cannot occur. Here 8 frames are recorded back to back without a wait (2 frames in flight), each
-// changing something that rewrites resources of the frame before: the fovy (the projection), the cloud seed in
-// consecutive frames (finding 11: the noise and the coverage texture regenerated while the previous frame reads them),
-// the environment map's resolution, the horizon map's resolution and the cascade count; a capture and a probe after
-// eight frames. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon maps
+// changing something that rewrites resources of the frame before: the fovy (the projection; S36b: the cluster bounds,
+// round 2 finding 1: their single descriptor set was rewritten while the previous frame had it bound, an error of the
+// core validation; a local light keeps the clusters on), the cloud seed in consecutive frames (the noise and the
+// coverage texture regenerated on the GPU while the previous frame reads them; finding 11's host copy runs only in
+// init), the environment map's resolution, the horizon map's resolution, the cascade count and (S36b) the cluster
+// grid's depth slices; a capture and a probe after the eight frames. Small images (test speed): 32/64 texel
+// environment maps, 256 texel cascades, 128/256 texel horizon maps
 TEST_F(SyncValidation, FramesInFlightWithChanges)
 {
     RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
     const TerrainLayout layout = testLayout(16, 2);
     const Vec3 cam(300.5, 12, 300.5);
     fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
+    MaterialData m;
+    scene->addMaterial(MaterialId(900), "sync_box", m);
+    scene->addMesh(MeshId(900), "sync_box", syncBox(vec3(0.5f, 0.5f, 0.5f)), MaterialId(900));
+    AddSet({[&]()
+            {
+                StaticInstance s;
+                s.setPosition(vec3(301.5f, 0.5f, 300.5f));
+                s.mesh = MeshId(900);
+                return s;
+            }()});
     LightingParameters p;
     p.cascadeResolution     = 256;
     p.horizonResolution     = 128;
     p.environmentResolution = 32;
     p.shadowDistance        = 60;
+    p.localLights           = true;
     scene->setLightingParameters(p);
     EnvironmentState e;
     e.cloudiness = 0.5f;
     scene->setEnvironment(e);
     scene->setToneMap(ToneMap::Aces);
+    LightData point;
+    point.kind     = LightKind::Point;
+    point.position = vec3(300.5f, 3, 300.5f);
+    point.lumen    = 2000;
+    point.range    = 10;
+    scene->addLight(ChunkId(), point);
     const Quat rot = viewRotation(lookAt(cam.cast<float>(), vec3(300.5f, 0, 299.5f), vec3(0, 1, 0)));
     SetCamera(0, cam, rot, 1.0);
     renderUntilUploaded(*scene);
@@ -236,6 +367,7 @@ TEST_F(SyncValidation, FramesInFlightWithChanges)
         if (frame == 4)
         {
             p.cascadeCount = 2;
+            p.clusterZ     = 48;
             scene->setLightingParameters(p);
         }
         scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
@@ -252,5 +384,68 @@ TEST_F(SyncValidation, FramesInFlightWithChanges)
     scene->waitIdle();
     EXPECT_TRUE(captured);
     EXPECT_TRUE(probed);
+    EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
     EXPECT_GE(scene->cloudLayer().generations(), 2u);
+}
+
+// Round 3 (finding 6): the subsystems are created with their first use (round 2: the environment's resources, the
+// preview pipeline and its layout transitions in the frame's command buffer, the debug lines, the shadow and the draw
+// pipelines), here while the previous frame is in flight: frames recorded back to back from clay without an
+// environment, then a frame apart the first environment with ACES, the first shadowed local light (the atlas written
+// with two frames in flight), the first overlay and the first shown preview
+TEST_F(SyncValidation, FirstUsesInFlight)
+{
+    RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
+    MaterialData m;
+    scene->addMaterial(MaterialId(910), "sync_first", m);
+    scene->addMesh(MeshId(910), "sync_first", syncBox(vec3(4, 0.25f, 4)), MaterialId(910));
+    AddSet({[&]()
+            {
+                StaticInstance s;
+                s.setPosition(vec3(0, -0.25f, 0));
+                s.mesh = MeshId(910);
+                return s;
+            }()});
+    LightingParameters p;
+    p.cascadeResolution     = 256;
+    p.environmentResolution = 32;
+    p.shadowDistance        = 30;
+    p.horizonShadows        = false;
+    p.localLights           = true;
+    scene->setLightingParameters(p);
+    const Vec3 cam(0, 4, 6);
+    SetCamera(0, cam, viewRotation(lookAt(cam.cast<float>(), vec3(0, 0, 0), vec3(0, 1, 0))), 1.0);
+    auto frame = [&]() { scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr); };
+    frame();
+    frame();
+    scene->setEnvironment(EnvironmentState());
+    scene->setToneMap(ToneMap::Aces);
+    frame();
+    LightData lamp;
+    lamp.kind        = LightKind::Point;
+    lamp.position    = vec3(0, 2, 0);
+    lamp.lumen       = 2000;
+    lamp.range       = 8;
+    lamp.castShadows = true;
+    scene->addLight(ChunkId(), lamp);
+    // The atlas is written in these frames (round 4, nit 6: the first shadowed light is the point of this step); the
+    // statistics are the newest frame's
+    uint32_t atlasRenders = 0, shadowed = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        frame();
+        atlasRenders += scene->lightingStatistics().atlas.staticRenders;
+        shadowed = std::max(shadowed, scene->lightingStatistics().lights.shadowed);
+    }
+    EXPECT_GT(atlasRenders, 0u);
+    EXPECT_GT(shadowed, 0u);
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::None, OverlaySunDirection | OverlayLightVolumes});
+    frame();
+    scene->lightingDebugImages().show(LightingImage::Luminance, PreviewMapping());
+    frame();
+    frame();
+    scene->waitIdle();
+    EXPECT_TRUE(scene->hasEnvironment());
+    EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
+    EXPECT_NE(scene->lightingDebugImages().preview(LightingImage::Luminance), nullptr);
 }

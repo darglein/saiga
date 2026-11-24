@@ -9,14 +9,16 @@
 // space at base spacing 2, 200 PrototypeFoliage trees and a few flat-colour boxes, 512 x 512 with 4 samples, ACES with
 // a fixed EV100 per golden, golden mode (forceFullUpdates: every incremental effect complete) in the captured frame,
 // the environment from the world (environmentState; its wind phases are 0 at time 0); a scene and world per test.
-// S36a2: with the sun and moon shadows (the cascades at 1024, the horizon map at 256 texels). They gate on lavapipe
-// only; other
-// devices print the metrics. Regenerate on lavapipe: SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render
-// --gtest_filter='LightingGolden.*'
+// S36a2: with the sun and moon shadows (the cascades at 1024, the horizon map at 256 texels). S36b: the local lights
+// (entity lights of the world through the extract; the bulk list of a cellar) with the shadow atlas at 1024 in tiles of
+// 128. They gate on lavapipe only; other devices print the metrics. Regenerate on lavapipe (one command):
+//   SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_lighting_render --gtest_filter='LightingGolden.*'
 
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentExtract.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/VulkanRenderSink.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/engine/world/World.h"
@@ -91,8 +93,8 @@ uint32_t hash32(uint32_t x)
 }  // namespace
 
 // A scene, world and content per test (the same for every golden); each golden sets the time, the weather, the exposure
-// and the camera. A shot completes its view's terrain, writes the environment and updates the environment map fully in
-// its last frame
+// and the camera. A shot completes its view's terrain, writes the environment and renders its last frame in golden
+// mode
 class LightingGolden : public ::testing::Test
 {
    protected:
@@ -151,13 +153,21 @@ class LightingGolden : public ::testing::Test
         p.msaaSamples                   = 4;
         p.nearPlane                     = 0.1f;
         p.toneMap                       = Vulkan::ToneMap::Aces;
-        st->window                      = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
-        st->scene                       = std::make_unique<Vulkan::RenderScene>(*st->window, vulkanParameters, p);
-        Vulkan::RenderScene& scene      = *st->scene;
+        // S36b: the atlas small (lavapipe; the same 64 tiles as at the defaults)
+        p.lighting.atlasResolution = 1024;
+        p.lighting.atlasTile       = 128;
+        st->window                 = std::make_unique<Vulkan::HeadlessWindow>(windowParameters);
+        st->scene                  = std::make_unique<Vulkan::RenderScene>(*st->window, vulkanParameters, p);
+        Vulkan::RenderScene& scene = *st->scene;
         WorldSetup s;
         s.seed      = 1;
         s.profiling = false;
         s.config.spaceTemplates.push_back(testSpaceTemplate(16, 2, mountainRidgeHook, std::nullopt));
+        // S36b: a dark cellar (an enclosed space: no sun, sky or terrain; its template's ambient and EV100)
+        SpaceTemplate cellar = SpaceTemplate::enclosed("cellar");
+        cellar.ambient       = Vec3(1.5, 1.5, 1.8);
+        cellar.ev100         = 3;
+        s.config.spaceTemplates.push_back(cellar);
         s.generators          = registerTestHookGenerators;
         s.environment.enabled = true;
         st->world             = std::make_unique<World>(s);
@@ -208,6 +218,11 @@ class LightingGolden : public ::testing::Test
         state = std::move(st);
     }
 
+    // A frame without a screenshot (a warm-up frame: no blocking readback)
+    void Frame()
+    {
+        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+    }
     TemplatedImage<ucvec4> RenderFrame()
     {
         TemplatedImage<ucvec4> img;
@@ -217,8 +232,8 @@ class LightingGolden : public ::testing::Test
     }
 
     // The frame of a golden: the time of day and cloudiness written to the world, the fixed EV100, the environment of
-    // the world's space 0 at the camera; the terrain of the view uploaded, then one frame in golden mode (the same image
-    // as forceFullUpdates in every frame: checked against the per-test fixture, bit-identical)
+    // the world's space 0 at the camera; the terrain of the view uploaded, then one frame in golden mode (the same
+    // image as forceFullUpdates in every frame: checked against the per-test fixture, bit-identical)
     TemplatedImage<ucvec4> Shot(double hours, double cloudiness, float ev100, const Vec3& eye, const Vec3& forward,
                                 double fovyDeg = 60)
     {
@@ -240,13 +255,20 @@ class LightingGolden : public ::testing::Test
         scene->setCamera(0, eye, rotation, fovyDeg * kPi / 180);
         state->prototype.update();
         renderUntilUploaded(*scene, 256);
-        // Golden mode in the captured frame: the environment map, the cascades (fitted to their slices: no history)
-        // and the horizon map complete. One frame before it, without a screenshot: it completes the horizon map, which
-        // a frame binds from the previous frame's update (its own update writes the back map; CodeRabbit #85)
+        // The pre-exposure follows the previous frame's exposure: settled after a shot of another EV100 (order
+        // independent)
+        Frame();
+        return GoldenFrame();
+    }
+    // One frame in golden mode: the environment map, the cascades (fitted to their slices: no history), the horizon
+    // map and the shadow atlas complete. One frame before it, without a screenshot: it completes the horizon map, which
+    // a frame binds from the previous frame's update (its own update writes the back map; CodeRabbit #85)
+    TemplatedImage<ucvec4> GoldenFrame()
+    {
         Vulkan::LightingParameters lp = scene->lightingParameters();
         lp.forceFullUpdates           = true;
         scene->setLightingParameters(lp);
-        scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr);
+        Frame();
         TemplatedImage<ucvec4> img = RenderFrame();
         scene->waitIdle();
         lp.forceFullUpdates = false;
@@ -304,4 +326,123 @@ TEST_F(LightingGolden, Clouds)
     auto img = Shot(12.0, 0.7, 15.5f, eye, Vec3(0.4, -0.45, 0.6));
     EXPECT_TRUE(scene->lightingStatistics().clouds);
     compareGolden(img, "lighting_clouds", deviceName());
+}
+
+// S36b: 22:00 with 12 point lights and 3 spot lights around the boxes (entity lights through the extract), 4 of them
+// shadowed by the atlas (2 points, 2 spots), the moon low; EV100 0 (the plan's 3 left the light pools near black)
+TEST_F(LightingGolden, LocalLights)
+{
+    const Vec3 centre(1505, Ground(1505, 1950), 1950);
+    std::vector<Entity> lamps;
+    auto lamp = [&](const Vec3& p, const LightSource& l)
+    {
+        const Entity e = world->create();
+        world->get<Transform>(e).setPosition(p);
+        world->add<LightSource>(e, l);
+        lamps.push_back(e);
+    };
+    const std::array<Vec3, 4> tints = {Vec3(1.0, 0.8, 0.55), Vec3(0.75, 0.85, 1.0), Vec3(1.0, 0.65, 0.4),
+                                       Vec3(0.9, 1.0, 0.8)};
+    for (int k = 0; k < 12; ++k)
+    {
+        const double a = 2 * kPi * k / 12;
+        const double x = centre(0) + 34 * std::cos(a), z = centre(2) + 34 * std::sin(a);
+        LightSource l;
+        l.color       = tints[size_t(k % 4)];
+        l.lumen       = 2500;
+        l.range       = 24;
+        l.castShadows = k == 0 || k == 6;
+        lamp(Vec3(x, Ground(x, z) + 4, z), l);
+    }
+    const std::array<Vec3, 3> spots = {Vec3(1500, 0, 1900), Vec3(1560, 0, 1960), Vec3(1450, 0, 2000)};
+    for (int k = 0; k < 3; ++k)
+    {
+        LightSource l;
+        l.kind          = LightKind::Spot;
+        l.color         = Vec3(1, 0.95, 0.85);
+        l.lumen         = 9000;
+        l.range         = 45;
+        l.innerAngleDeg = 18;
+        l.outerAngleDeg = 30;
+        l.castShadows   = k < 2;
+        // Pointing down (-z rotated by -90 degrees about x) from 30 m above the box, 10 m to its side
+        l.rotation   = Quat(std::cos(-kPi / 4), std::sin(-kPi / 4), 0, 0);
+        const Vec3 b = spots[size_t(k)] + Vec3(10, 0, 0);
+        lamp(Vec3(b(0), Ground(b(0), b(2)) + 30, b(2)), l);
+    }
+    // The lights reach the sink with the structural log (the world takes no step here)
+    world->extract().catchUp();
+    const Vec3 eye(1455, Ground(1455, 1890) + 28, 1890);
+    auto img                             = Shot(22.0, 0.1, 0, eye, Vec3(1, -0.55, 0.9));
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    EXPECT_EQ(ls.lights.submitted, 15u);
+    EXPECT_EQ(ls.atlas.lightsWithTiles, 4u) << "2 points (12 tiles) and 2 spots";
+    compareGolden(img, "lighting_local_lights", deviceName());
+    for (Entity e : lamps) world->destroy(e);
+}
+
+// S36b: a dark cellar (an enclosed space, finding 34) with 6 point lights of a bulk list (S30's piece lights:
+// RenderScene::addLights), 2 of them shadowed by pillars; the template's ambient and EV100
+TEST_F(LightingGolden, EnclosedLights)
+{
+    const Vulkan::MaterialId material = Vulkan::MaterialId(scene->reserveIds(Vulkan::SceneIdKind::Material, 1));
+    const Vulkan::MeshId mesh         = Vulkan::MeshId(scene->reserveIds(Vulkan::SceneIdKind::Mesh, 2));
+    scene->addMaterial(material, "cellar", Vulkan::MaterialData());
+    scene->addMesh(mesh, "cellar_floor", coloredBox(vec3(16, 0.2f, 16), ucvec4(150, 140, 125, 255)), material);
+    scene->addMesh(Vulkan::MeshId(mesh + 1), "cellar_pillar",
+                   coloredBox(vec3(0.6f, 2.5f, 0.6f), ucvec4(170, 160, 150, 255)), material);
+    // The cellar's site: the centre of its middle chunk
+    const double o = double(SpaceTemplate::enclosedOrigin(4));
+    RegionId room;
+    room.space = 1;
+    std::vector<Vulkan::StaticInstance> content;
+    auto add = [&](const vec3& p, Vulkan::MeshId m)
+    {
+        Vulkan::StaticInstance i;
+        i.setPosition(p);
+        i.scale = 1;
+        i.mesh  = m;
+        content.push_back(i);
+    };
+    add(vec3(float(o), -0.2f, float(o)), mesh);
+    for (int k = 0; k < 4; ++k)
+        add(vec3(float(o) + (k % 2 ? 5.0f : -5.0f), 2.5f, float(o) + (k / 2 ? 5.0f : -5.0f)), Vulkan::MeshId(mesh + 1));
+    const Vulkan::InstanceSetHandle set = scene->addInstanceSet(room, content);
+    std::vector<Vulkan::LightData> list;
+    for (int k = 0; k < 6; ++k)
+    {
+        Vulkan::LightData d;
+        const double a = 2 * kPi * k / 6;
+        // Relative to chunk (1, 1) of the cellar (its origin at 256, 256)
+        d.position    = vec3(float(o - 256 + 8 * std::cos(a)), 2.0f, float(o - 256 + 8 * std::sin(a)));
+        d.color       = k % 2 ? vec3(1.0f, 0.7f, 0.45f) : vec3(0.6f, 0.75f, 1.0f);
+        d.lumen       = 900;
+        d.range       = 12;
+        d.castShadows = k < 2;
+        list.push_back(d);
+    }
+    ChunkId chunk;
+    chunk.space                          = 1;
+    chunk.x                              = 1;
+    chunk.z                              = 1;
+    const Vulkan::LightListHandle lights = scene->addLights(chunk, list);
+    Vulkan::EnvironmentSettings settings;
+    settings.exposure.mode     = Vulkan::ExposureMode::Fixed;
+    Vulkan::EnvironmentState e = environmentState(*world, 1, 1.0, settings, world->environmentSetup());
+    e.phases                   = {};
+    EXPECT_TRUE(e.enclosed);
+    scene->setEnvironment(e);
+    const Vec3 eye(o - 13, 9, o + 11);
+    const Quat rotation =
+        Vulkan::viewRotation(lookAt(eye.cast<float>(), vec3(float(o), 0.0f, float(o)), vec3(0, 1, 0)));
+    scene->setCamera(1, eye, rotation, 60 * kPi / 180);
+    // Six frames (the pre-exposure follows the cellar's EV100 over the frames): four warm-up frames and GoldenFrame's
+    // two in golden mode, a screenshot only of the last
+    for (int i = 0; i < 4; ++i) Frame();
+    auto img = GoldenFrame();
+    EXPECT_EQ(scene->lightingStatistics().lights.visible, 6u);
+    EXPECT_EQ(scene->lightingStatistics().atlas.lightsWithTiles, 2u);
+    compareGolden(img, "lighting_enclosed_lights", deviceName());
+    scene->removeLights(lights);
+    scene->removeInstanceSet(set);
 }

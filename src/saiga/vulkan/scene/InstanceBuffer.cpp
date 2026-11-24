@@ -257,6 +257,13 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
     SAIGA_ASSERT(h.id > 0 && h.id <= dynamicList.size() && dynamicList[h.id - 1].alive,
                  "setDynamic: unknown dynamic instance");
     Dynamic& d = dynamicList[h.id - 1];
+    auto same  = [](const DynamicPose& a, const DynamicPose& b)
+    { return a.position == b.position && a.scale == b.scale && a.rotation.coeffs() == b.rotation.coeffs(); };
+    // Committed with the pose, after the chunk operations that may throw (CodeRabbit #86); an identical write keeps a
+    // pending snap (CodeRabbit #86 round 2: a repeated (B, B) cleared it and the instance was settled at once)
+    const bool identical = d.set && d.chunk == chunk && same(d.prev, prev) && same(d.curr, curr);
+    const bool snappedMove =
+        identical ? d.snappedMove : d.set && same(prev, curr) && (d.chunk != chunk || !same(d.curr, curr));
     if (!d.set || d.chunk != chunk)
     {
         // Room for the old chunk's slot first: after acquireChunk nothing may throw (RenderSink's failure contract)
@@ -267,10 +274,11 @@ void InstanceBuffer::setDynamic(InstanceHandle h, const ChunkId& chunk, const Dy
         d.slot  = slot;
         d.chunk = chunk;
     }
-    d.set        = true;
-    d.prev       = prev;
-    d.curr       = curr;
-    d.boneOffset = boneOffset;
+    d.set         = true;
+    d.snappedMove = snappedMove;
+    d.prev        = prev;
+    d.curr        = curr;
+    d.boneOffset  = boneOffset;
 }
 
 void InstanceBuffer::removeDynamic(InstanceHandle h)
@@ -288,6 +296,21 @@ void InstanceBuffer::removeDynamic(InstanceHandle h)
     if (d.set) releaseChunk(d.chunk);
     d = Dynamic();
     freeDynamics.push_back(h.id - 1);
+}
+
+bool InstanceBuffer::settle(InstanceHandle h)
+{
+    if (h.id == 0 || h.id > dynamicList.size() || !dynamicList[h.id - 1].alive) return false;
+    Dynamic& d         = dynamicList[h.id - 1];
+    const bool snapped = d.snappedMove;
+    d.snappedMove      = false;
+    return snapped;
+}
+
+bool InstanceBuffer::moving(const Dynamic& d)
+{
+    return d.snappedMove || d.prev.position != d.curr.position || d.prev.scale != d.curr.scale ||
+           d.prev.rotation.coeffs() != d.curr.rotation.coeffs();
 }
 
 void InstanceBuffer::writeDynamics(GpuDynamic* out) const
@@ -313,6 +336,8 @@ void InstanceBuffer::writeDynamics(GpuDynamic* out) const
             g.mesh       = d.mesh;
             g.slot       = d.slot;
             g.boneOffset = d.boneOffset;
+            // S36b: bit 0 the instance moves (its pair differs): the atlas's dynamic layer, not its cached static one
+            g.pad = moving(d) ? 1u : 0u;
         }
         out[i] = g;
     }

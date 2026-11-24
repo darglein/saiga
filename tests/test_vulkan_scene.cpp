@@ -585,30 +585,33 @@ TEST_F(VulkanScene, GpuSections)
 {
     // S19a: the depth pre-pass and the sub-sections of the passes (dotted names), written in every frame
     const auto& names = RenderScene::gpuSectionNames();
-    ASSERT_EQ(names.size(), 19u);
+    ASSERT_EQ(names.size(), 21u);
     EXPECT_STREQ(names[0], "transfer");
     // S36a1c: the atmosphere and the environment map
     EXPECT_STREQ(names[1], "environment");
     EXPECT_STREQ(names[2], "cull");
-    // S36a2: the cascades and the horizon map
-    EXPECT_STREQ(names[3], "shadow");
-    EXPECT_STREQ(names[4], "shadow.cascades");
-    EXPECT_STREQ(names[5], "shadow.horizon");
-    EXPECT_STREQ(names[6], "depth");
-    EXPECT_STREQ(names[7], "depth.terrain");
-    EXPECT_STREQ(names[8], "scene");
-    EXPECT_STREQ(names[9], "scene.terrain");
-    EXPECT_STREQ(names[10], "scene.instances");
-    EXPECT_STREQ(names[11], "scene.grass");
-    EXPECT_STREQ(names[12], "scene.sky");
+    // S36b: the clustered light culling
+    EXPECT_STREQ(names[3], "lights");
+    // S36a2: the cascades and the horizon map; S36b the shadow atlas
+    EXPECT_STREQ(names[4], "shadow");
+    EXPECT_STREQ(names[5], "shadow.cascades");
+    EXPECT_STREQ(names[6], "shadow.horizon");
+    EXPECT_STREQ(names[7], "shadow.atlas");
+    EXPECT_STREQ(names[8], "depth");
+    EXPECT_STREQ(names[9], "depth.terrain");
+    EXPECT_STREQ(names[10], "scene");
+    EXPECT_STREQ(names[11], "scene.terrain");
+    EXPECT_STREQ(names[12], "scene.instances");
+    EXPECT_STREQ(names[13], "scene.grass");
+    EXPECT_STREQ(names[14], "scene.sky");
     // S36a1c: the 2D cloud layer
-    EXPECT_STREQ(names[13], "scene.clouds");
+    EXPECT_STREQ(names[15], "scene.clouds");
     // S36a1b: the debug lines and the lighting's preview conversions
-    EXPECT_STREQ(names[14], "scene.debug");
-    EXPECT_STREQ(names[15], "resolve");
-    EXPECT_STREQ(names[16], "lighting.preview");
-    EXPECT_STREQ(names[17], "post");
-    EXPECT_STREQ(names[18], "imgui");
+    EXPECT_STREQ(names[16], "scene.debug");
+    EXPECT_STREQ(names[17], "resolve");
+    EXPECT_STREQ(names[18], "lighting.preview");
+    EXPECT_STREQ(names[19], "post");
+    EXPECT_STREQ(names[20], "imgui");
     struct Config
     {
         ToneMap toneMap;
@@ -633,7 +636,7 @@ TEST_F(VulkanScene, GpuSections)
             while (scene->takeGpuFrameTimes(t))
             {
                 got++;
-                ASSERT_EQ(t.gpuSectionMs.size(), 19u);
+                ASSERT_EQ(t.gpuSectionMs.size(), 21u);
                 for (double ms : t.gpuSectionMs)
                 {
                     EXPECT_GE(ms, 0);
@@ -2364,20 +2367,22 @@ TEST_F(VulkanSceneContent, PipelinesReusedAcrossScenes)
         // The stats of the pooled device before this scene's pipelines: from the previous scene (none at first)
         if (scene) before = scene->base().pipelineReuseStats();
         CreateScene(p);
-        after = scene->base().pipelineReuseStats();
         scene->addMaterial(1, "flat", flatMaterial());
         scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
         scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -5), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
         camera.position = Vec3(0, 0, 0);
         camera.apply(*scene);
-        return SceneFrame();
+        auto img = SceneFrame();
+        // (after the frame: the scene creates its draw pipelines on first use, S36 review round 2)
+        after = scene->base().pipelineReuseStats();
+        return img;
     };
     VulkanBase::PipelineReuseStats b0, a0, b1, a1, b2, a2;
     const auto first = build(4, b0, a0);
     if (!scene->base().reusePipelines) GTEST_SKIP() << "pipeline reuse is off (SAIGA_TEST_NEW_DEVICES=1)";
     const auto second = build(4, b1, a1);
     // Every pipeline of the second scene came from the pool (the same device: the pool holds one device per key)
-    EXPECT_GT(a1.hits - b1.hits, 10u);
+    EXPECT_GT(a1.hits - b1.hits, 5u);
     EXPECT_EQ(a1.misses, b1.misses);
     EXPECT_EQ(maxPixelDiff(first, second), 0);
     int colored = 0;
@@ -2392,6 +2397,29 @@ TEST_F(VulkanSceneContent, PipelinesReusedAcrossScenes)
     for (int y = 0; y < single.h; ++y)
         for (int x = 0; x < single.w; ++x) colored += single(y, x)(0) > single(y, x)(2) + 20;
     EXPECT_GT(colored, 50);
+}
+
+// The lighting subsystems are created when a scene needs them (S36 review round 2, finding 4a: test speed and every
+// app's init): a clay scene's frames create no environment resources (the BRDF LUT, the atmosphere's LUTs, the
+// environment map, the clouds; the set-1 dummies are bound) and only the draw pipelines of the classes it draws; the
+// first setEnvironment creates the environment's resources (the physical frames are test_vulkan_lighting's)
+TEST_F(VulkanSceneContent, ClaySceneCreatesNoLightingResources)
+{
+    CreateScene();
+    const uint64_t created = scene->scenePipelineCreations();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -5), quat::Identity(), 1, 1)});
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    SceneFrame();
+    EXPECT_FALSE(scene->environmentResourcesCreated());
+    EXPECT_FALSE(scene->brdfLutCreated());
+    EXPECT_EQ(scene->lightingStatistics().lutComputations, 0u);
+    // One draw pipeline (the opaque class), no terrain or grass pipeline (no terrain)
+    EXPECT_EQ(scene->scenePipelineCreations() - created, 1u);
+    scene->setEnvironment(EnvironmentState());
+    EXPECT_TRUE(scene->environmentResourcesCreated());
 }
 
 class VulkanSceneSpaces : public VulkanSceneContent

@@ -10,9 +10,9 @@
 #include "saiga/engine/lighting/EnvironmentFile.h"
 
 #include "saiga/core/util/assert.h"
-#include "saiga/engine/app/LightingTools.h"
 #include "saiga/engine/data/DataFile.h"
 #include "saiga/engine/ecs/VisitJson.h"
+#include "saiga/engine/lighting/LightingKeys.h"
 
 #include <cmath>
 
@@ -139,6 +139,21 @@ struct LightingDoc
         v("horizonResolution", p.horizonResolution);
         v("horizonExtent", p.horizonExtent);
         v("horizonRowsPerFrame", p.horizonRowsPerFrame);
+        // S36b: the local lights, the clusters, the shadow atlas
+        v("localLights", p.localLights);
+        v("clusteredLights", p.clusteredLights);
+        v("maxLights", p.maxLights);
+        v("clusterX", p.clusterX);
+        v("clusterY", p.clusterY);
+        v("clusterZ", p.clusterZ);
+        v("clusterNear", p.clusterNear);
+        v("clusterFar", p.clusterFar);
+        v("maxLightsPerCluster", p.maxLightsPerCluster);
+        v("atlasResolution", p.atlasResolution);
+        v("atlasTile", p.atlasTile);
+        v("facesPerFrame", p.facesPerFrame);
+        v("atlasDepthBias", p.atlasDepthBias);
+        v("atlasNormalOffset", p.atlasNormalOffset);
     }
 };
 
@@ -182,10 +197,8 @@ bool validateFileValues(const EnvironmentFile& f, std::string& error)
     check("celestial.moonPhase", c.moonPhase, 0, 1);
     check("celestial.starIntensity", c.starIntensity, 0, 1e6);
     check("clouds.windScale", f.setup.cloudWindScale, -100, 100);
-    check("clouds.fogFalloff", f.settings.clouds.fogFalloff, 0, 1);
-    check("atmosphere.rayleighScale", f.settings.atmosphere.rayleighScale, 0, 100);
-    check("atmosphere.mieScale", f.settings.atmosphere.mieScale, 0, 100);
-    check("atmosphere.ozoneScale", f.settings.atmosphere.ozoneScale, 0, 100);
+    // (round 2, finding 9: the fog falloff and the atmosphere's scales have set_lighting keys, checked with their
+    // ranges by validateLightingValues; the looser ranges here were dead)
     if (errors.empty()) return true;
     error = errors;
     return false;

@@ -86,6 +86,7 @@ void SceneLightingSet::init(VulkanBase& b)
     dummy2D.create(*base, 1, 1, vk::Format::eR8G8B8A8Unorm, usage);
     dummyCube.create(*base, 1, vk::Format::eR8G8B8A8Unorm, usage);
     dummyDepth.create(*base, 1, 1, 1, vk::Format::eD32Sfloat, usage);
+    dummyDepth16.create(*base, 1, 1, 2, vk::Format::eD16Unorm, usage);
     // The cascades' comparison sampler (S36a2): linear (a 2 x 2 bilinear compare per tap) where the format supports
     // linear filtering, else nearest (shadows.glsl then gathers and weights itself)
     const auto features = base->physicalDevice.getFormatProperties(vk::Format::eD32Sfloat).optimalTilingFeatures;
@@ -95,6 +96,11 @@ void SceneLightingSet::init(VulkanBase& b)
     sp.setAddressMode(vk::SamplerAddressMode::eClampToEdge);
     sp.compareOp = vk::CompareOp::eLessOrEqual;
     compareSampler.create(*base, sp);
+    // The atlas's (S36b, D16)
+    const auto features16 = base->physicalDevice.getFormatProperties(vk::Format::eD16Unorm).optimalTilingFeatures;
+    linearAtlasCompare    = bool(features16 & vk::FormatFeatureFlagBits::eSampledImageFilterLinear);
+    sp.setFilter(linearAtlasCompare ? vk::Filter::eLinear : vk::Filter::eNearest);
+    atlasCompareSampler.create(*base, sp);
     dummyStorage.createBuffer(*base, 256, vk::BufferUsageFlagBits::eStorageBuffer,
                               vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     std::memset(dummyStorage.getMappedPointer(), 0, 256);
@@ -117,6 +123,7 @@ void SceneLightingSet::init(VulkanBase& b)
     add(dummy2D, color, vk::ImageLayout::eShaderReadOnlyOptimal);
     add(dummyCube, color, vk::ImageLayout::eShaderReadOnlyOptimal);
     add(dummyDepth, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eShaderReadOnlyOptimal);
+    add(dummyDepth16, vk::ImageAspectFlagBits::eDepth, vk::ImageLayout::eShaderReadOnlyOptimal);
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toDst));
     const vk::ClearColorValue zero(std::array<float, 4>{0, 0, 0, 0});
     for (Texture* t : std::initializer_list<Texture*>{&dummyArray, &dummy2D, &dummyCube})
@@ -125,11 +132,14 @@ void SceneLightingSet::init(VulkanBase& b)
     cmd.clearDepthStencilImage(dummyDepth.image(), vk::ImageLayout::eTransferDstOptimal,
                                vk::ClearDepthStencilValue(1.0f, 0),
                                vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 1));
+    cmd.clearDepthStencilImage(dummyDepth16.image(), vk::ImageLayout::eTransferDstOptimal,
+                               vk::ClearDepthStencilValue(1.0f, 0),
+                               vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eDepth, 0, 1, 0, 2));
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
     cmd.end();
     q.submitAndWait(cmd);
     q.commandPool.freeCommandBuffer(cmd);
-    for (Texture* t : std::initializer_list<Texture*>{&dummyArray, &dummy2D, &dummyCube, &dummyDepth})
+    for (Texture* t : std::initializer_list<Texture*>{&dummyArray, &dummy2D, &dummyCube, &dummyDepth, &dummyDepth16})
         t->setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 
     // Every binding valid from the start (the dummies)
@@ -162,9 +172,11 @@ void SceneLightingSet::destroy()
     ownShadowLayout = DescriptorSetLayout();
     dummyArray.destroy();
     dummyDepth.destroy();
+    dummyDepth16.destroy();
     dummy2D.destroy();
     dummyCube.destroy();
     compareSampler.destroy();
+    atlasCompareSampler.destroy();
     dummyStorage.destroy();
     base = nullptr;
 }
@@ -194,6 +206,11 @@ void SceneLightingSet::write(uint32_t frameIndex, const SceneLighting& block, co
             case Kind::Storage:
                 buffers[b] =
                     b == 2 && in.ambient.sh ? vk::DescriptorBufferInfo(in.ambient.sh, 0, in.ambient.shBytes) : storage;
+                // S36b: the lights, the clusters and the atlas's tile table
+                if (b == 10 && in.lights) buffers[b] = *in.lights;
+                if (b == 11 && in.clusterCounts) buffers[b] = *in.clusterCounts;
+                if (b == 12 && in.clusterIndices) buffers[b] = *in.clusterIndices;
+                if (b == 14 && in.atlasTiles) buffers[b] = *in.atlasTiles;
                 writes.emplace_back(f.set, b, 0, 1, vk::DescriptorType::eStorageBuffer, nullptr, &buffers[b]);
                 break;
             case Kind::Sampler:
@@ -205,7 +222,8 @@ void SceneLightingSet::write(uint32_t frameIndex, const SceneLighting& block, co
                 if (b == 5 && in.brdfLut) info = *in.brdfLut;
                 if (b == 6 && in.transmittanceLut) info = *in.transmittanceLut;
                 if (b == 7 && in.skyViewLut) info = *in.skyViewLut;
-                if (b == 8 || b == 13) info = depth;
+                if (b == 8) info = depth;
+                if (b == 13) info = in.atlas ? *in.atlas : dummyDepth16.getDescriptorInfo(atlasCompareSampler);
                 if (b == 8 && in.cascades) info = *in.cascades;
                 if (b == 9) info = in.horizon ? *in.horizon : array;
                 images[b] = info;

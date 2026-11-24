@@ -101,6 +101,10 @@ class SAIGA_VULKAN_API SceneCulling
     // indirect draw calls
     uint32_t recordShadow(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj, float alpha,
                           ShadowPipelineTable& table, float slopeBias);
+    // S36b: inside an atlas face's pass (D16), the casters of view with the classes' atlas pipelines (the linear depth;
+    // light: xyz camera-relative, w 1 / range)
+    uint32_t recordAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, uint32_t view, const mat4& viewProj, float alpha,
+                         ShadowPipelineTable& table, const vec4& light);
     // The views of the frame (1 + its shadow views; 0 without a cull)
     uint32_t viewCount(uint32_t frameIndex) const { return frames[frameIndex].viewCount; }
     // The scene's set-0 layout (the shadow pipelines are created with it)
@@ -160,8 +164,21 @@ class SAIGA_VULKAN_API SceneCulling
     // The opaque classes (opaque, two-sided): depth only for the pre-pass, EQUAL without depth write after it
     std::array<Pipeline, 2> prepassPipelines;
     std::array<Pipeline, 2> equalPipelines;
-    void createDrawPipelines();
+    // The draw pipelines are created on first use (S36 review round 2, finding 4b: most scenes draw one or two classes;
+    // a cold PBR pipeline costs lavapipe ~30 ms to compile)
+    enum class DrawVariant
+    {
+        Draw,     // drawPipelines[index]
+        Equal,    // equalPipelines[index]
+        Prepass,  // prepassPipelines[index]
+    };
+    // Bit index + (0, 8, 16) by variant: created
+    uint32_t createdDrawPipelines = 0;
+    Pipeline& drawPipeline(DrawVariant v, int index);
+    void createDrawPipeline(DrawVariant v, int index, Pipeline& p);
     void destroyDrawPipelines();
+    uint32_t drawClass(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, DrawVariant v, int index,
+                       const SceneCamera& camera);
     Texture2DArray* foliageTexture = nullptr;
     std::array<Frame, 2> frames;
     Buffer counts, scratch, compacted, commands, bucketLods;
@@ -181,8 +198,8 @@ class SAIGA_VULKAN_API SceneCulling
     void writeDescriptors(Frame& f, MeshPool& meshes, InstanceBuffer& instances);
     // One workgroup per chunk, 2D beyond maxWorkGroups
     void dispatchChunks(vk::CommandBuffer cmd, uint32_t chunkCount) const;
-    // The indirect draws of one class range with the pipeline (bound with the frame's sets and push constants)
-    uint32_t drawClass(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, Pipeline& p, const SceneCamera& camera);
+    // The indirect draws of one class range with the variant's pipeline (created on first use, bound with the frame's
+    // sets and push constants)
     // The indirect draws of one class range of a view (the pipeline bound with its sets and push constants)
     uint32_t drawRange(vk::CommandBuffer cmd, uint32_t frameIndex, int klass, uint32_t view);
 };

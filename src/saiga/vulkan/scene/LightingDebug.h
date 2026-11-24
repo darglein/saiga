@@ -68,8 +68,10 @@ class SAIGA_VULKAN_API LightingDebug
     // (else only the statistics). A request without a callback only computes the preview and its statistics. Requests
     // of one image with another mapping than the frame's first request wait for the next frames (one conversion per
     // image and frame), so each callback gets its own mapping's preview and statistics
+    // cancelled: the caller's flag (set when it gives up; the callback is then not called, and a request with only
+    // cancelled callbacks is not converted)
     void request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback = nullptr,
-                 bool withImage = true);
+                 bool withImage = true, std::shared_ptr<const bool> cancelled = nullptr);
     // The tab shows image this frame (rate-limited and at preview resolution, see the class comment)
     void show(LightingImage image, const PreviewMapping& mapping);
     bool requested() const;
@@ -86,10 +88,16 @@ class SAIGA_VULKAN_API LightingDebug
     static constexpr uint32_t kPreviewMaxSize     = 512;
     static constexpr uint64_t kPreviewTexelBudget = 1u << 20;
     bool requested(LightingImage image) const { return images[size_t(image)].requested; }
+    // Removes the cancelled callbacks; drops a request whose callbacks were all cancelled (the next waiting one moves
+    // up). RenderScene calls it before it prepares the frame's sources (a source of a layer, slice or tile follows the
+    // mapping recordPreviews converts; CodeRabbit #86); recordPreviews calls it too
+    void pruneCancelled();
     // The source mip of this frame's conversion of image (its request's or show's PreviewMapping::mip)
     int sourceMip(LightingImage image) const { return images[size_t(image)].mapping.mip; }
     // The source layer or channel (PreviewMapping::layer) the same way
     int sourceLayer(LightingImage image) const { return images[size_t(image)].mapping.layer; }
+    // The whole mapping of this frame's conversion (the cluster slice, the atlas tile's light and face)
+    const PreviewMapping& sourceMapping(LightingImage image) const { return images[size_t(image)].mapping; }
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }
@@ -110,6 +118,8 @@ class SAIGA_VULKAN_API LightingDebug
             Texture2DArray* texture = nullptr;
             uint32_t layer = 0, layers = 1, step = 1;
             vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal;
+            // S36b: a sub-rectangle of the layer (size 0: the whole layer; the atlas's tiles)
+            uint32_t originX = 0, originY = 0, width = 0, height = 0;
         };
         std::array<ArraySource, size_t(LightingImage::Count)> array{};
         void set(LightingImage i, Texture2D* texture, uint32_t valueKind, float valueScale = 1)
@@ -121,7 +131,8 @@ class SAIGA_VULKAN_API LightingDebug
         void setArray(LightingImage i, Texture2DArray* texture, uint32_t valueKind, uint32_t layer, uint32_t layers,
                       uint32_t step, vk::ImageLayout layout = vk::ImageLayout::eShaderReadOnlyOptimal)
         {
-            array[size_t(i)] = ArraySource{texture, layer, std::max(layers, 1u), std::max(step, 1u), layout};
+            array[size_t(i)] =
+                ArraySource{texture, layer, std::max(layers, 1u), std::max(step, 1u), layout, 0, 0, 0, 0};
             kind[size_t(i)]  = valueKind;
             scale[size_t(i)] = 1;
         }
@@ -153,6 +164,15 @@ class SAIGA_VULKAN_API LightingDebug
    private:
     // The frame slots (frames in flight)
     static constexpr size_t kSlots = VulkanRenderer::framesInFlight;
+    // A request's callback: withImage, and the caller's cancellation (round 2, finding 13: true when the caller gave
+    // up, e.g. capture_lighting's deadline; a request whose callbacks are all cancelled is not converted)
+    struct PendingCallback
+    {
+        CaptureCallback callback;
+        bool withImage = true;
+        std::shared_ptr<const bool> cancelled;
+        bool isCancelled() const { return cancelled && *cancelled; }
+    };
     struct Image
     {
         std::unique_ptr<Texture2D> texture;
@@ -171,19 +191,26 @@ class SAIGA_VULKAN_API LightingDebug
         PreviewMapping shownMapping;
         // Per frame slot: the device-local statistics the shader writes (copied to statsBuffers after the conversion)
         std::array<Buffer, kSlots> gpuStats;
-        std::vector<std::pair<CaptureCallback, bool>> callbacks;
+        std::vector<PendingCallback> callbacks;
+        // A request() without a callback (a conversion wanted without an answer): cancelling the callbacks keeps it
+        // (CodeRabbit #86)
+        bool demand = false;
         // The requests with another mapping than this frame's (the next frames, in order)
         struct Queued
         {
             PreviewMapping mapping;
-            std::vector<std::pair<CaptureCallback, bool>> callbacks;
+            std::vector<PendingCallback> callbacks;
+            bool demand = false;
         };
         std::deque<Queued> queued;
         // The callbacks of the recorded frame (answered in finishFrame)
-        std::array<std::vector<std::pair<CaptureCallback, bool>>, kSlots> recorded;
+        std::array<std::vector<PendingCallback>, kSlots> recorded;
     };
     VulkanBase* base = nullptr;
     ComputePipeline pipeline;
+    // The pipeline, its sets, the sampler and the dummies: created by the first recordPreviews with work
+    bool resourcesCreated = false;
+    void createResources(vk::CommandBuffer cmd);
     Sampler nearestSampler;
     // The unused source binding's dummies (a 2D source or a 2D array source)
     Texture2D dummy2D;

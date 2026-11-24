@@ -28,8 +28,16 @@ layout(push_constant) uniform Push
     mat4 viewProj;
     float alpha;
     float pad0, pad1, pad2;
+    // S36b (ATLAS_DEPTH): xyz the light (camera-relative), w 1 / range
+    vec4 light;
 }
 pc;
+
+#ifdef ATLAS_DEPTH
+// S36b: the shadow atlas's faces (ShadowPipelineTable's atlas variant): the camera-relative position for the linear
+// depth of the fragment shader; a perspective face: no pancaking
+layout(location = 1) out vec3 outRelPos;
+#endif
 
 layout(location = 0) out vec3 outUvLayer;
 
@@ -49,15 +57,26 @@ void main()
     float scale    = pose.scale;
     vec3 p         = rotateQuat(pose.rotation, inPosition * scale);
 
-    // The wind of prototype_foliage.vert (keep both in sync)
+    // The wind of prototype_foliage.vert (keep both in sync). S36b (B4, round 1 finding 10): an atlas face is cached,
+    // so it uses the wind phases 0 (a fixed pose, not the phase of the frame that rendered it)
+#ifdef ATLAS_DEPTH
+    vec3 windPhase = vec3(0.0);
+#else
+    vec3 windPhase = lighting.wind.xyz;
+#endif
     vec2 worldXz = pose.position.xz + (o.hi.xz + o.lo.xz) + lighting.camera.xz;
     float phase  = worldXz.x * 0.031 + worldXz.y * 0.027;
-    vec2 sway    = vec2(sin(lighting.wind.x + phase), cos(lighting.wind.y + phase * 1.7)) * 0.012;
+    vec2 sway    = vec2(sin(windPhase.x + phase), cos(windPhase.y + phase * 1.7)) * 0.012;
     float flutter =
-        layer >= 0.0 ? sin(lighting.wind.z + phase * 5.0 + inPosition.x * 20.0 + inPosition.y * 13.0) * 0.004 : 0.0;
+        layer >= 0.0 ? sin(windPhase.z + phase * 5.0 + inPosition.x * 20.0 + inPosition.y * 13.0) * 0.004 : 0.0;
     p.xz += (sway + flutter) * scale * windW * lighting.wind.w;
 
     outUvLayer    = vec3(inUv, layer);
-    gl_Position   = pc.viewProj * vec4(placePoint(pose.position, o, p), 1.0);
+    vec3 rel      = placePoint(pose.position, o, p);
+    gl_Position   = pc.viewProj * vec4(rel, 1.0);
+#ifdef ATLAS_DEPTH
+    outRelPos = rel;
+#else
     gl_Position.z = max(gl_Position.z, 0.0);
+#endif
 }

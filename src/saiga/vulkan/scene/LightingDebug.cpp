@@ -41,8 +41,9 @@ struct PreviewPush
     uint32_t layers;
     uint32_t step;
     uint32_t layerWidth;
+    uint32_t extent;  // S36b: the sub-rectangle's size (x | y << 16; 0: the whole layer)
 };
-static_assert(sizeof(PreviewPush) == 64, "Push of debug_preview.comp");
+static_assert(sizeof(PreviewPush) == 68, "Push of debug_preview.comp");
 
 // The Statistics buffer of debug_preview.comp: stats (min, max, mean, count), range, histogram[16], layerRange[4]
 constexpr size_t kStatsBytes = 32 + 16 * 4 + 4 * 16;
@@ -61,7 +62,8 @@ double nowSeconds()
 bool sameMapping(const PreviewMapping& a, const PreviewMapping& b)
 {
     return a.autoRange == b.autoRange && a.min == b.min && a.max == b.max && a.log == b.log &&
-           a.colorMap == b.colorMap && a.mip == b.mip && a.layer == b.layer;
+           a.colorMap == b.colorMap && a.mip == b.mip && a.layer == b.layer && a.slice == b.slice &&
+           a.light == b.light && a.face == b.face;
 }
 
 void memoryBarrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
@@ -89,6 +91,12 @@ void LightingDebug::init(VulkanBase& b)
 {
     destroy();
     base = &b;
+}
+
+void LightingDebug::createResources(vk::CommandBuffer cmd)
+{
+    if (resourcesCreated) return;
+    resourcesCreated = true;
     DescriptorSetLayout layout;
     const auto c = vk::ShaderStageFlagBits::eCompute;
     layout.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eCombinedImageSampler, 1, c));
@@ -109,8 +117,7 @@ void LightingDebug::init(VulkanBase& b)
     // The dummies of the unused source binding (sampled in eShaderReadOnlyOptimal, content irrelevant)
     dummy2D.create(*base, 1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled);
     dummyArray.create(*base, 1, 1, 1, vk::Format::eR8G8B8A8Unorm, vk::ImageUsageFlagBits::eSampled);
-    auto& q               = base->mainQueue;
-    vk::CommandBuffer cmd = q.commandPool.createAndBeginOneTimeBuffer();
+    // (in the frame's command buffer, before the first preview reads them)
     std::array<vk::ImageMemoryBarrier2, 2> toRead;
     for (int k = 0; k < 2; ++k)
         toRead[size_t(k)] = vk::ImageMemoryBarrier2(
@@ -119,9 +126,6 @@ void LightingDebug::init(VulkanBase& b)
             k == 0 ? dummy2D.image() : dummyArray.image(),
             vk::ImageSubresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1));
     cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toRead));
-    cmd.end();
-    q.submitAndWait(cmd);
-    q.commandPool.freeCommandBuffer(cmd);
     dummy2D.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
     dummyArray.setImageLayout(vk::ImageLayout::eShaderReadOnlyOptimal);
 }
@@ -130,6 +134,7 @@ void LightingDebug::destroy()
 {
     if (!base) return;
     pipeline.destroy();
+    resourcesCreated = false;
     nearestSampler.destroy();
     dummy2D.destroy();
     dummyArray.destroy();
@@ -149,11 +154,16 @@ void LightingDebug::destroy()
         for (Buffer& b : i.gpuStats) b.destroy();
     }
     for (Buffer& b : pixelBuffers) b.destroy();
-    base = nullptr;
+    // The requests and slot tags of the destroyed buffers (a later init starts empty: harvest must not read them)
+    for (Image& i : images) i = Image();
+    pixelRequests.clear();
+    for (auto& r : recordedPixels) r.clear();
+    pixelSize = {};
+    base      = nullptr;
 }
 
 void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, CaptureCallback callback,
-                            bool withImage)
+                            bool withImage, std::shared_ptr<const bool> cancelled)
 {
     Image& i = images[size_t(image)];
     // Another mapping than this frame's request: a later frame (with the waiting requests of the same mapping)
@@ -161,14 +171,50 @@ void LightingDebug::request(LightingImage image, const PreviewMapping& mapping, 
     {
         auto same = std::find_if(i.queued.begin(), i.queued.end(),
                                  [&](const Image::Queued& q) { return sameMapping(q.mapping, mapping); });
-        if (same == i.queued.end()) same = i.queued.insert(i.queued.end(), Image::Queued{mapping, {}});
-        if (callback) same->callbacks.emplace_back(std::move(callback), withImage);
+        if (same == i.queued.end()) same = i.queued.insert(i.queued.end(), Image::Queued{mapping, {}, false});
+        if (callback)
+            same->callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+        else
+            same->demand = true;
         return;
     }
+    // (a show() of this frame becomes the request: its demand is the request's)
+    if (!(i.requested && i.fullResolution)) i.demand = false;
     i.requested      = true;
     i.fullResolution = true;
     i.mapping        = mapping;
-    if (callback) i.callbacks.emplace_back(std::move(callback), withImage);
+    if (callback)
+        i.callbacks.push_back(PendingCallback{std::move(callback), withImage, std::move(cancelled)});
+    else
+        i.demand = true;
+}
+
+void LightingDebug::pruneCancelled()
+{
+    auto prune = [](std::vector<PendingCallback>& v)
+    {
+        const size_t before = v.size();
+        v.erase(std::remove_if(v.begin(), v.end(), [](const PendingCallback& c) { return c.isCancelled(); }), v.end());
+        return before > 0 && v.empty();  // every callback was cancelled
+    };
+    for (Image& i : images)
+    {
+        // A group is dropped when every callback was cancelled and no request without a callback wants it
+        for (auto q = i.queued.begin(); q != i.queued.end();)
+            q = prune(q->callbacks) && !q->demand ? i.queued.erase(q) : std::next(q);
+        if (i.requested && i.fullResolution && prune(i.callbacks) && !i.demand)
+        {
+            i.requested = false;
+            if (!i.queued.empty())
+            {
+                i.requested = true;
+                i.mapping   = i.queued.front().mapping;
+                i.callbacks = std::move(i.queued.front().callbacks);
+                i.demand    = i.queued.front().demand;
+                i.queued.pop_front();
+            }
+        }
+    }
 }
 
 void LightingDebug::show(LightingImage image, const PreviewMapping& mapping)
@@ -251,6 +297,7 @@ void LightingDebug::harvest(uint32_t frameIndex)
 uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameIndex, const Sources& sources)
 {
     dispatches = 0;
+    pruneCancelled();
     // The requests first, then the shown images by the age of their preview (the oldest first)
     std::vector<size_t> order;
     for (size_t k = 0; k < images.size(); ++k)
@@ -262,6 +309,8 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
                          if (x.fullResolution != y.fullResolution) return x.fullResolution;
                          return x.lastShown < y.lastShown;
                      });
+    // The pipeline, sets and dummies on the first frame with a preview (S36 review round 2, finding 4a)
+    if (!order.empty()) createResources(cmd);
     const double now     = nowSeconds();
     uint64_t shownTexels = 0;
     for (size_t k : order)
@@ -281,8 +330,9 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         }
         else if (arraySrc.texture)
         {
-            sw     = arraySrc.texture->width;
-            sh     = arraySrc.texture->height;
+            // S36b: a sub-rectangle (an atlas tile) or the whole layer
+            sw     = arraySrc.width ? arraySrc.width : arraySrc.texture->width;
+            sh     = arraySrc.height ? arraySrc.height : arraySrc.texture->height;
             layers = arraySrc.layers;
             step   = arraySrc.step;
         }
@@ -306,12 +356,14 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         // A request's conversion replaces the shown preview (the next show() converts again); the next waiting request
         // is the next frame's
         if (fullResolution) i.lastShown = -1e30;
+        i.demand = false;
         if (!i.queued.empty())
         {
             i.requested      = true;
             i.fullResolution = true;
             i.mapping        = i.queued.front().mapping;
             i.callbacks      = std::move(i.queued.front().callbacks);
+            i.demand         = i.queued.front().demand;
             i.queued.pop_front();
         }
         if (!hasSource) continue;
@@ -383,17 +435,23 @@ uint32_t LightingDebug::recordPreviews(vk::CommandBuffer cmd, uint32_t frameInde
         cmd.pipelineBarrier2(vk::DependencyInfo({}, nullptr, nullptr, toGeneral));
         pipeline.bindRawDescriptorSet(cmd, set);
         PreviewPush push;
-        push.size[0]    = int32_t(w);
-        push.size[1]    = int32_t(h);
-        push.kind       = sources.kind[k];
-        push.scale      = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
-        push.useLog     = mapping.log ? 1u : 0u;
-        push.autoRange  = mapping.autoRange ? 1u : 0u;
-        push.colorMap   = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
-        push.rangeMin   = mapping.min;
-        push.rangeMax   = mapping.max;
-        push.groups     = groups;
-        push.pad        = 0;
+        push.size[0]   = int32_t(w);
+        push.size[1]   = int32_t(h);
+        push.kind      = sources.kind[k];
+        push.scale     = sources.kind[k] == 0 ? sources.scale[k] : 1.0f;
+        push.useLog    = mapping.log ? 1u : 0u;
+        push.autoRange = mapping.autoRange ? 1u : 0u;
+        push.colorMap  = mapping.colorMap == ColorMap::Turbo ? 1u : 0u;
+        push.rangeMin  = mapping.min;
+        push.rangeMax  = mapping.max;
+        push.groups    = groups;
+        // S36b: the sub-rectangle's origin (x | y << 16)
+        push.pad        = source ? 0u : (arraySrc.originX & 0xFFFFu) | (arraySrc.originY << 16);
+        // and its size: the reduction of a texel stays inside it (CodeRabbit #86 round 2: the last column's minimum
+        // read the neighbouring tile)
+        push.extent     = source || arraySrc.width == 0 || arraySrc.height == 0
+                              ? 0u
+                              : (arraySrc.width & 0xFFFFu) | (arraySrc.height << 16);
         push.layer      = source ? 0 : arraySrc.layer;
         push.layers     = source ? 0 : arraySrc.layers;
         push.step       = step;
@@ -481,7 +539,7 @@ void LightingDebug::finishFrame(uint32_t frameIndex, const std::function<void()>
             i.stats      = c.statistics;
             i.statsFrame = i.pendingFrame[frameIndex];
             bool image   = false;
-            for (auto& cb : callbacks) image = image || cb.second;
+            for (auto& cb : callbacks) image = image || (cb.withImage && !cb.isCancelled());
             if (image)
             {
                 std::vector<uint8_t> bytes = i.texture->download();
@@ -490,7 +548,8 @@ void LightingDebug::finishFrame(uint32_t frameIndex, const std::function<void()>
                     std::memcpy(c.image.data(), bytes.data(), bytes.size());
             }
         }
-        for (auto& cb : callbacks) cb.first(c);
+        for (auto& cb : callbacks)
+            if (!cb.isCancelled()) cb.callback(c);
     }
     auto requests = std::move(recordedPixels[frameIndex]);
     recordedPixels[frameIndex].clear();

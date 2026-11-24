@@ -99,8 +99,22 @@ struct SceneLighting
     vec4 horizonFront  = vec4(0, 0, 0, -1);
     vec4 horizonRef    = vec4(0, 0, 1, 0);
     vec4 horizonParams = vec4(0, 0, 0, 0);
+    // S36b: the local lights (B2-B4). lightCounts: x the frame's lights (the light buffer's count), y 1 clustered (else
+    // the brute-force loop over every light), z the highlighted light's buffer index + 1 (0: none), w the shadow atlas
+    // is bound (1)
+    uvec4 lightCounts = uvec4(0, 0, 0, 0);
+    // The cluster grid: x, y, z the clusters per axis, w the slots per cluster (maxLightsPerCluster)
+    uvec4 clusterGrid = uvec4(16, 9, 24, 128);
+    // x: the near plane, y: clusterNear (the end of slice 0), z: clusterFar, w: (clusterZ - 1) / log(far / near)
+    vec4 clusterDepth = vec4(0.1f, 2, 1000, 1);
+    // xyz: the camera's forward (camera-relative world), w: unused; viewport: xy the frame's size in pixels
+    vec4 viewForward = vec4(0, 0, -1, 0);
+    vec4 viewport    = vec4(1, 1, 0, 0);
+    // The shadow atlas: x the atlas resolution (texels), y the depth bias (D16 steps), z the normal offset (texels), w
+    // the debug heat map's scale (lights per cluster at the top of the colour map)
+    vec4 atlasParams = vec4(4096, 1, 1, 16);
 };
-static_assert(sizeof(SceneLighting) == 57 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
+static_assert(sizeof(SceneLighting) == 63 * 16, "SceneLighting of shader/vulkan/scene/lighting/scene_block.glsl");
 
 }  // namespace Vulkan
 }  // namespace Saiga

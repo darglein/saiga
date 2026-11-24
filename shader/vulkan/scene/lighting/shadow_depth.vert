@@ -29,8 +29,16 @@ layout(push_constant) uniform Push
     mat4 viewProj;
     float alpha;
     float pad0, pad1, pad2;
+    // S36b (ATLAS_DEPTH): xyz the light (camera-relative), w 1 / range
+    vec4 light;
 }
 pc;
+
+#ifdef ATLAS_DEPTH
+// S36b: the shadow atlas's faces (ShadowPipelineTable's atlas variant): the camera-relative position for the linear
+// depth of the fragment shader; a perspective face: no pancaking
+layout(location = 3) out vec3 outRelPos;
+#endif
 
 layout(location = 0) flat out uint outMaterial;
 layout(location = 1) flat out uint outColor;
@@ -59,5 +67,9 @@ void main()
     outColor      = inColor;
     outUv         = inUv;
     gl_Position   = pc.viewProj * vec4(p, 1.0);
+#ifdef ATLAS_DEPTH
+    outRelPos = p;
+#else
     gl_Position.z = max(gl_Position.z, 0.0);
+#endif
 }

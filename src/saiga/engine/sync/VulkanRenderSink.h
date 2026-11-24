@@ -43,6 +43,9 @@ class SAIGA_ENGINE_API VulkanRenderSink : public RenderSink
     void setCamera(SpaceId space, const Vec3& position, const Quat& rotation, double fovy) override;
     void setInterpolation(float alpha) override;
     void setEnvironment(const EnvironmentState& environment) override;
+    LightHandle addLight(const ChunkId& chunk, const LightData& light) override;
+    void setLight(LightHandle h, const ChunkId& chunk, const LightData& light) override;
+    void removeLight(LightHandle h) override;
     void setTerrainPyramid(SpaceId space, const TerrainPyramidData& pyramid) override;
     void setTerrainTile(const RegionId& region, const TerrainTileData& tile) override;
     void removeTerrainTile(const RegionId& region) override;

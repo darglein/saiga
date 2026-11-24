@@ -9,8 +9,10 @@
 
 #include "saiga/engine/sync/ExtractSystem.h"
 
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
+#include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/Transform.h"
@@ -71,6 +73,16 @@ ChunkPose toChunkPose(const WorldPose& p)
     return c;
 }
 
+namespace
+{
+bool sameLightData(const Vulkan::LightData& a, const Vulkan::LightData& b)
+{
+    return a.kind == b.kind && a.position == b.position && a.direction == b.direction && a.color == b.color &&
+           a.lumen == b.lumen && a.range == b.range && a.cosInner == b.cosInner && a.cosOuter == b.cosOuter &&
+           a.castShadows == b.castShadows && a.priority == b.priority && a.flicker == b.flicker;
+}
+}  // namespace
+
 ExtractSystem::ExtractSystem(World& world) : w(world) {}
 
 ExtractSystem::~ExtractSystem()
@@ -113,6 +125,21 @@ void ExtractSystem::setSink(RenderSink* sink)
             renderSink->removeDynamic(removals.back());
             removals.pop_back();
         }
+        // S36b: the lights go with the sink as well
+        for (TrackedLight& l : lights)
+            if (l.handle)
+            {
+                renderSink->removeLight(l.handle);
+                l.handle = LightHandle();
+            }
+        while (!lightRemovals.empty())
+        {
+            renderSink->removeLight(lightRemovals.back());
+            lightRemovals.pop_back();
+        }
+        lights.clear();
+        lightSlot.clear();
+        lightRetry.clear();
         tracked.clear();
         slotOf.clear();
         remote.clear();
@@ -137,6 +164,21 @@ void ExtractSystem::setSink(RenderSink* sink)
         try
         {
             track(e);
+        }
+        catch (...)
+        {
+            if (!failure) failure = std::current_exception();
+        }
+    }
+    // S36b: the existing light entities (also when an instance failed: CodeRabbit #86, nothing else would track them)
+    std::vector<Entity> lit;
+    w.registry().view<const LightSource>().each([&](Entity e, const LightSource&) { lit.push_back(e); });
+    // (each one also when the sink throws for another: CodeRabbit #86 round 2; a failed one is on the retry list)
+    for (Entity e : lit)
+    {
+        try
+        {
+            trackLight(e);
         }
         catch (...)
         {
@@ -327,6 +369,28 @@ void ExtractSystem::retryPending()
         renderSink->removeDynamic(removals.back());
         removals.pop_back();
     }
+    while (!lightRemovals.empty())
+    {
+        renderSink->removeLight(lightRemovals.back());
+        lightRemovals.pop_back();
+    }
+    // S36b: the lights whose creation threw (at their current pose)
+    std::vector<Entity> retryLights;
+    retryLights.swap(lightRetry);
+    for (size_t i = 0; i < retryLights.size(); ++i)
+    {
+        TrackedLight* l = findLight(retryLights[i]);
+        if (!l || l->handle || !w.registry().alive(l->entity)) continue;
+        try
+        {
+            sendLight(*l, 1.0);
+        }
+        catch (...)
+        {
+            lightRetry.insert(lightRetry.end(), retryLights.begin() + std::ptrdiff_t(i) + 1, retryLights.end());
+            throw;
+        }
+    }
     std::vector<Entity> list;
     list.swap(unposed);
     for (size_t i = 0; i < list.size(); ++i)
@@ -431,6 +495,14 @@ void ExtractSystem::consumeLog()
                     untrack(r.entity);
                 else if (reg.alive(r.entity) && reg.has<RenderInstance>(r.entity))
                     track(r.entity);
+            }
+            else if (r.component == LightSource::id)
+            {
+                // S36b: a light is added and removed with its component
+                if (!r.added)
+                    untrackLight(r.entity);
+                else if (reg.alive(r.entity) && reg.has<LightSource>(r.entity))
+                    trackLight(r.entity);
             }
             else if (r.component == RenderPose::id || r.component == Parent::id || r.component == NetOwner::id)
                 sourcesDirty = true;
@@ -589,6 +661,8 @@ void ExtractSystem::commit()
         remote[kept++] = remote[i];
     }
     remote.resize(kept);
+    // S36b: the lights at the step's pose (their pair shifts)
+    syncLights(true);
     committedSteps++;
     // The step covered the edits made before it
     dirty = false;
@@ -608,7 +682,7 @@ bool ExtractSystem::catchUp()
     const bool stepped     = committedSteps != committedAtLastCatchUp;
     committedAtLastCatchUp = committedSteps;
     // An instance creation (or its snap) or a removal that the sink refused is retried in any frame (not an edit)
-    if (!unposed.empty() || !removals.empty()) retryPending();
+    if (!unposed.empty() || !removals.empty() || !lightRetry.empty() || !lightRemovals.empty()) retryPending();
     if (!dirty && (stepped || !(w.isPaused() || w.timeScale() == 0 || w.structuralLog().unread(consumer) > 0)))
         return false;
     dirty = false;
@@ -702,6 +776,242 @@ void ExtractSystem::catchUpRun()
             }
         }
     }
+    // S36b: the lights at their current pose (edits between steps snap)
+    syncLights(false);
+}
+
+//==================================================================================================
+// Local lights (S36b)
+
+ExtractSystem::TrackedLight* ExtractSystem::findLight(Entity e)
+{
+    if (e.index >= lightSlot.size() || lightSlot[e.index] < 0) return nullptr;
+    TrackedLight& l = lights[size_t(lightSlot[e.index])];
+    return l.entity == e ? &l : nullptr;
+}
+
+const ExtractSystem::TrackedLight* ExtractSystem::findLight(Entity e) const
+{
+    return const_cast<ExtractSystem*>(this)->findLight(e);
+}
+
+void ExtractSystem::trackLight(Entity e)
+{
+    TrackedLight* existing = findLight(e);
+    if (!existing)
+    {
+        if (lightSlot.size() <= e.index) lightSlot.resize(size_t(e.index) + 1, -1);
+        TrackedLight l;
+        l.entity = e;
+        lights.push_back(l);
+        lightSlot[e.index] = int32_t(lights.size() - 1);
+        existing           = &lights.back();
+    }
+    TrackedLight& l = *existing;
+    l.source        = w.registry().read<LightSource>(e);
+    WorldPose p;
+    Source s;
+    l.hasPose = w.registry().has<Transform>(e) && sourcePose(e, s, p);
+    if (l.hasPose)
+    {
+        l.prev = l.curr = p;
+        // The source and teleport count of this pose: the first step interpolates a normal move (CodeRabbit #86 round
+        // 2: Pending -> Transform was taken as a switch and snapped)
+        l.poseSource = s;
+        if (s == Source::Transform) l.teleports = w.registry().read<Transform>(e).teleportCount();
+    }
+    sendLight(l, 1.0);
+}
+
+void ExtractSystem::untrackLight(Entity e)
+{
+    TrackedLight* l = findLight(e);
+    if (!l) return;
+    const LightHandle h = l->handle;
+    const size_t i      = size_t(lightSlot[e.index]);
+    lightSlot[e.index]  = -1;
+    if (i + 1 != lights.size())
+    {
+        lights[i]                         = lights.back();
+        lightSlot[lights[i].entity.index] = int32_t(i);
+    }
+    lights.pop_back();
+    if (h)
+    {
+        // Kept until the sink removed it (a throwing sink: retried by the next extract or catch-up; CodeRabbit #86
+        // round 2: the handle was lost with the entry)
+        lightRemovals.push_back(h);
+        renderSink->removeLight(h);
+        lightRemovals.pop_back();
+    }
+}
+
+void ExtractSystem::sendLight(TrackedLight& l, double alpha)
+{
+    if (!renderSink) return;
+    const LightSource& src = l.source;
+    std::string invalid    = src.invalidReason();
+    if (!invalid.empty() && !l.invalidLogged)
+    {
+        l.invalidLogged = true;
+        SAIGA_LOG_E("extract", l.entity, "has an invalid LightSource (%s); it is not rendered", invalid.c_str());
+    }
+    if (invalid.empty()) l.invalidLogged = false;
+    const bool lit = l.hasPose && src.on && invalid.empty();
+    if (!lit)
+    {
+        if (l.handle) renderSink->removeLight(l.handle);
+        l.handle = LightHandle();
+        return;
+    }
+    // The pose at alpha (S18's interpolatePose in double, as interpolatedPose)
+    DynamicPose a, b;
+    a.position          = l.prev.position;
+    a.rotation          = l.prev.rotation;
+    a.scale             = l.prev.scale;
+    b.position          = l.curr.position;
+    b.rotation          = l.curr.rotation;
+    b.scale             = l.curr.scale;
+    const DynamicPose r = alpha >= 1 ? b : Vulkan::interpolatePose(a, b, alpha);
+    WorldPose at;
+    at.space          = l.curr.space;
+    at.position       = r.position + r.rotation * (src.offset * r.scale);
+    at.rotation       = r.rotation * src.unitRotation();
+    const ChunkPose c = toChunkPose(at);
+    Vulkan::LightData d;
+    d.kind              = src.kind;
+    d.position          = c.pose.position.cast<float>();
+    d.direction         = (at.rotation * Vec3(0, 0, -1)).normalized().cast<float>();
+    d.color             = src.color.cast<float>();
+    d.lumen             = float(src.lumen);
+    d.range             = float(src.range);
+    const double toRad  = 3.14159265358979323846 / 180;
+    d.cosInner          = float(std::cos(src.innerAngleDeg * toRad));
+    d.cosOuter          = float(std::cos(src.outerAngleDeg * toRad));
+    d.castShadows       = src.castShadows;
+    d.priority          = float(src.priority);
+    d.flicker.amplitude = float(src.flickerAmplitude);
+    d.flicker.frequency = float(src.flickerFrequency);
+    // A seed that is the same on every peer and after a load (round 1, nit 21: the entity index differs between host
+    // and client): the NetId of a replicated entity, else the persistent ID, else the entity index
+    uint32_t stable = w.replication().netIdOf(l.entity);
+    if (!stable)
+        if (const Persistent* pid = w.registry().tryRead<Persistent>(l.entity))
+            stable = uint32_t(pid->persistentId.value ^ (pid->persistentId.value >> 32));
+    if (!stable) stable = l.entity.index;
+    d.flicker.seed = stable * 2654435761u;
+    if (!l.handle)
+    {
+        // On the retry list until the sink returns a handle (CodeRabbit #86 round 2: a failed creation waited for an
+        // edit of the light)
+        lightRetry.push_back(l.entity);
+        l.handle = renderSink->addLight(c.chunk, d);
+        lightRetry.pop_back();
+        l.chunk = c.chunk;
+        l.data  = d;
+        return;
+    }
+    if (l.chunk == c.chunk && sameLightData(l.data, d)) return;
+    renderSink->setLight(l.handle, c.chunk, d);
+    l.chunk = c.chunk;
+    l.data  = d;
+}
+
+void ExtractSystem::syncLights(bool step)
+{
+    const Registry& reg = w.registry();
+    for (TrackedLight& l : lights)
+    {
+        if (!reg.alive(l.entity) || !reg.has<LightSource>(l.entity)) continue;
+        // (sendLight compares the resulting LightData: the source is copied as is; nit 22)
+        l.source = reg.read<LightSource>(l.entity);
+        WorldPose p;
+        Source s;
+        const bool had = l.hasPose;
+        l.hasPose      = reg.has<Transform>(l.entity) && sourcePose(l.entity, s, p);
+        if (l.hasPose)
+        {
+            // A step shifts the pair; a space change, a switch of the pose source and a teleport snap (as the
+            // instances' pairs). A catch-up (an edit between steps) snaps a light whose pose changed and keeps the
+            // pair of an unchanged one (CodeRabbit #86: an unrelated edit snapped every moving light)
+            bool snap = !had || p.space != l.curr.space || s != l.poseSource;
+            if (s == Source::Transform)
+            {
+                // A teleport since the last sync (in or between the steps: the count tells)
+                const uint8_t teleports = reg.read<Transform>(l.entity).teleportCount();
+                snap                    = snap || teleports != l.teleports;
+                l.teleports             = teleports;
+            }
+            else
+            {
+                Entity owner;
+                sourceOf(l.entity, owner);
+                snap = snap || (owner.valid() && (reg.read<RenderPose>(owner).flags & RenderPose::kTeleported));
+            }
+            if (step)
+                l.prev = snap ? p : l.curr;
+            else if (snap || !samePose(p, l.curr))
+                l.prev = p;
+            l.curr       = p;
+            l.poseSource = s;
+        }
+        sendLight(l, 1.0);
+    }
+}
+
+void ExtractSystem::updateLights(double alpha)
+{
+    for (TrackedLight& l : lights)
+        if (l.hasPose && !samePose(l.prev, l.curr)) sendLight(l, alpha);
+}
+
+size_t ExtractSystem::lightCount() const
+{
+    size_t n = 0;
+    for (const TrackedLight& l : lights) n += l.handle ? 1 : 0;
+    return n;
+}
+
+std::vector<std::pair<Entity, LightHandle>> ExtractSystem::lightEntities() const
+{
+    std::vector<std::pair<Entity, LightHandle>> r;
+    for (const TrackedLight& l : lights)
+        if (l.handle) r.emplace_back(l.entity, l.handle);
+    return r;
+}
+
+std::vector<ExtractSystem::LightEntityState> ExtractSystem::lightStates() const
+{
+    std::vector<LightEntityState> r;
+    r.reserve(lights.size());
+    for (const TrackedLight& l : lights)
+    {
+        LightEntityState s;
+        s.entity                  = l.entity;
+        s.handle                  = l.handle;
+        s.source                  = l.source;
+        s.hasPose                 = l.hasPose;
+        s.pose                    = l.curr;
+        const std::string invalid = l.source.invalidReason();
+        if (l.handle)
+            s.state = "rendered";
+        else if (!invalid.empty())
+            s.state = "invalid: " + invalid;
+        else if (!l.hasPose)
+            s.state = "no pose";
+        else if (!l.source.on)
+            s.state = "off";
+        else
+            s.state = "no render sink";
+        r.push_back(std::move(s));
+    }
+    return r;
+}
+
+LightHandle ExtractSystem::lightOf(Entity e) const
+{
+    const TrackedLight* l = findLight(e);
+    return l ? l->handle : LightHandle();
 }
 
 uint64_t ExtractSystem::snapSequence(Entity e) const

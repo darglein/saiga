@@ -26,6 +26,8 @@ using Vulkan::EnvironmentState;
 using Vulkan::GrassMaskData;
 using Vulkan::InstanceHandle;
 using Vulkan::InstanceSetHandle;
+using Vulkan::LightData;
+using Vulkan::LightHandle;
 using Vulkan::MaterialData;
 using Vulkan::MaterialId;
 using Vulkan::MeshId;
@@ -70,6 +72,12 @@ class RenderSink
     // The environment of the frame (S36, §10.7): sent by the app once per rendered frame for the view camera's space
     // (environmentState); the World does not forward one
     virtual void setEnvironment(const EnvironmentState& environment) = 0;
+    // The local lights of entities (S36b, §10.7): sent by the extract (LightSource; ExtractSystem), the position
+    // relative to the chunk's origin. setLight replaces the light's data (a chunk change is a new chunk); a removed
+    // handle is not used again
+    virtual LightHandle addLight(const ChunkId& chunk, const LightData& light)         = 0;
+    virtual void setLight(LightHandle h, const ChunkId& chunk, const LightData& light) = 0;
+    virtual void removeLight(LightHandle h)                                            = 0;
 
     // ---- terrain (S20, §10.1, §12.2): sent only by TerrainSystem (its single send point). The sink holds the terrain
     // of one space: a pyramid of another space or layout starts a new GPU terrain set (the sink drops the old set's

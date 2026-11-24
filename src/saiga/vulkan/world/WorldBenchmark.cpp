@@ -62,7 +62,9 @@ json11::Json WorldBenchmark::buildInfo()
 
 const std::vector<std::string>& WorldBenchmark::names()
 {
-    static const std::vector<std::string> n = {"flyover", "forest", "terraform"};
+    // S36b: night is the flyover path at 22:00 with game_world's lamps, night_town (round 1, finding 19) a low circle
+    // inside a dense lamp grid at 22:00 (both reported, not in benchmarks.json)
+    static const std::vector<std::string> n = {"flyover", "forest", "terraform", "night", "night_town"};
     return n;
 }
 
@@ -84,13 +86,25 @@ WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground&
     // The centre of the prototype's 8 km area (until S27, §17.7)
     const double c = 4096;
     Pose p;
-    if (name == "flyover")
+    if (name == "flyover" || name == "night")
     {
         const double pi    = 3.14159265358979323846;
         const double angle = 2.0 * pi * double(measuredFrame) / measuredFrames;
         const double x     = c + 3000.0 * std::cos(angle);
         const double z     = c + 3000.0 * std::sin(angle);
         p.eye              = vec3(float(x), float(ground(x, z) + 300.0), float(z));
+        p.target           = vec3(float(c), float(ground(c, c)), float(c));
+    }
+    else if (name == "night_town")
+    {
+        // S36b round 1, finding 19: a circle of 150 m radius 30 m above the ground around the centre of game_world's
+        // lamp grid (25 m spacing around the area's centre), looking at the centre: hundreds of lights in view, more
+        // shadowed lamps than the atlas's tiles, the clusters full
+        const double pi    = 3.14159265358979323846;
+        const double angle = 2.0 * pi * double(measuredFrame) / measuredFrames;
+        const double x     = c + 150.0 * std::cos(angle);
+        const double z     = c + 150.0 * std::sin(angle);
+        p.eye              = vec3(float(x), float(ground(x, z) + 30.0), float(z));
         p.target           = vec3(float(c), float(ground(c, c)), float(c));
     }
     else if (name == "terraform")

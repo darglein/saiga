@@ -9,6 +9,7 @@
 #include "saiga/core/image/managedImage.h"
 #include "saiga/vulkan/Renderer.h"
 #include "saiga/vulkan/pipeline/PipelineInfo.h"
+#include "saiga/vulkan/scene/LightClusters.h"
 #include "saiga/vulkan/scene/RenderSceneTypes.h"
 #include "saiga/vulkan/scene/SceneLighting.h"
 #include "saiga/vulkan/scene/TerrainAtlas.h"
@@ -23,6 +24,8 @@
 #include <optional>
 #include <string>
 #include <vector>
+
+#include <unordered_map>
 
 namespace Saiga
 {
@@ -45,6 +48,9 @@ class DebugLines;
 class CascadedShadows;
 class ShadowPipelineTable;
 class HorizonShadows;
+class LocalLights;
+class LightClusters;
+class ShadowAtlas;
 class ImGuiVulkanRenderer;
 struct Texture2DArray;
 struct SceneCamera;
@@ -323,12 +329,21 @@ class SAIGA_VULKAN_API RenderScene
     // The frame being recorded uses the physical path: an environment and a tone map other
     // than Identity (latched with the tone map)
     bool physicalLighting() const { return framePhysical; }
-    // The lighting's resources (tests, the debug tools)
+    // The lighting's resources (tests, the debug tools). The BRDF LUT, the atmosphere's LUTs, the environment map and
+    // the cloud layer are created by the first setEnvironment (or by these accessors; S36 review round 2, finding 4a:
+    // a clay scene creates none of them)
     SkyAmbient& skyAmbient() { return *ambient; }
-    BrdfLut& brdfLut() { return *brdf; }
-    Atmosphere& atmosphereLuts() { return *atmosphere; }
-    EnvironmentMap& environmentMap() { return *envMap; }
-    CloudLayer& cloudLayer() { return *clouds; }
+    BrdfLut& brdfLut();
+    Atmosphere& atmosphereLuts();
+    EnvironmentMap& environmentMap();
+    CloudLayer& cloudLayer();
+    // The device's limit of a storage buffer binding (maxStorageBufferRange, or
+    // RenderSceneParameters::storageBufferLimit)
+    uint64_t storageBufferLimit() const;
+    // Whether the environment's resources exist (the first setEnvironment or an accessor created them)
+    bool environmentResourcesCreated() const { return atmosphere != nullptr; }
+    // Whether the BRDF LUT exists (created with the environment or by brdfLut())
+    bool brdfLutCreated() const { return brdf != nullptr; }
     // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch
     // creates none)
     uint64_t scenePipelineCreations() const;
@@ -365,19 +380,24 @@ class SAIGA_VULKAN_API RenderScene
     const LightingStatistics& lightingStatistics() const { return lightStats; }
     // The lighting block of the last recorded frame (tests)
     const SceneLighting& lastLightingBlock() const { return lastBlock; }
-    // probe_lighting's sequence at a pixel of the next frames (10 frames; requests made before the sequence starts
-    // share it). The camera and the environment (with it the wind phases) are held during the sequence (setCamera /
-    // setEnvironment take effect after it); the callback runs after the last frame. While it runs, screenshots and
-    // preview conversions wait for the first frame after it (they would read the debug frames), and the output shows
-    // frame 1's image (the window does not flash the debug frames; ImGui stays live)
-    void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback);
+    // probe_lighting's sequence at a pixel of the next frames (kProbeFrames frames; requests made before the sequence
+    // starts share it). The camera and the environment (with it the wind phases) are held during the sequence
+    // (setCamera / setEnvironment take effect after it); the callback runs after the last frame. While it runs,
+    // screenshots and preview conversions wait for the first frame after it (they would read the debug frames), and the
+    // output shows frame 1's image (the window does not flash the debug frames; ImGui stays live)
+    // cancelled: the caller's flag (round 2, finding 13: set when it gives up, e.g. probe_lighting's deadline); a
+    // cancelled request is dropped, a sequence whose requests are all cancelled ends (the held camera and environment
+    // apply)
+    void requestProbe(ivec2 pixel, std::function<void(const LightingProbe&)> callback,
+                      std::shared_ptr<const bool> cancelled = nullptr);
     // The same at the pixel of a world point, projected with the camera of the sequence's frame 1 (outside the image:
     // inImage false)
-    void requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback);
+    void requestProbe(const Vec3& world, std::function<void(const LightingProbe&)> callback,
+                      std::shared_ptr<const bool> cancelled = nullptr);
     bool probeRunning() const { return probeRun != nullptr; }
     // A probe sequence runs in the next recorded frame (running or requested)
     bool probePending() const { return probeRun != nullptr || !probeRequests.empty(); }
-    static constexpr int kProbeFrames = 10;
+    static constexpr int kProbeFrames = 11;
 
     // ---- the sun and moon shadows (S36a2, A5) --------------------------------------------------------------------
     // The cascades (fitting, statistics, the depth array) and the shadow pipeline table (S27 / S34 register their
@@ -401,6 +421,31 @@ class SAIGA_VULKAN_API RenderScene
     HorizonShadows& horizonShadows() { return *horizon; }
     void requestHorizonRecompute(bool full);
 
+    // ---- local lights (S36b, B2 of the S36 plan, docs/engine_design.md §10.7) -------------------------------------
+    // A light of the scene at a chunk-relative position (main thread, from the next frame; also from the transfer
+    // callback). Lights of every space are kept; a frame lights with the camera space's
+    LightHandle addLight(const ChunkId& chunk, const LightData& light);
+    void setLight(LightHandle h, const ChunkId& chunk, const LightData& light);
+    void removeLight(LightHandle h);
+    // The bulk path of S30's piece lights: one list per chunk (never entities), removed as a whole
+    LightListHandle addLights(const ChunkId& chunk, const std::vector<LightData>& lights);
+    void removeLights(LightListHandle list);
+    // The CPU table of the lights and the frame's selection (the lights of the frame being recorded, the last frame
+    // between frames; in buffer order)
+    const LocalLights& localLights() const { return *lightTable; }
+    const std::vector<FrameLightInfo>& frameLights() const;
+    // The clustered light culling (B3): the cluster grid of the frame being recorded, the clusters' statistics and the
+    // CPU reference; the heat map's scale (lights per cluster at the top of the colour map; the ClusterLights view and
+    // the preview's default). The Clusters preview's slice is PreviewMapping::slice of its request
+    LightClusters& lightClusters() { return *clusterCull; }
+    const ClusterGrid& frameClusterGrid() const;
+    void setClusterHeatScale(float scale) { clusterHeatScale = std::max(scale, 1.0f); }
+    float clusterHeatScaleValue() const { return clusterHeatScale; }
+    // The cached shadow atlas (B4): its tiles and statistics. The Atlas preview's layer (PreviewMapping::layer: 0
+    // static, 1 dynamic) and the AtlasTile preview's light, face and layer are values of its request (round 2, finding
+    // 5)
+    ShadowAtlas& shadowAtlas() { return *atlasShadows; }
+
    private:
     friend class SceneFrameRenderer;
     void latchFrame();
@@ -420,6 +465,8 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<Atmosphere> atmosphere;
     std::unique_ptr<EnvironmentMap> envMap;
     std::unique_ptr<CloudLayer> clouds;
+    void ensureBrdf();
+    void ensureEnvironmentResources();
     // The debug core (S36a1b)
     std::unique_ptr<LightingDebug> debugImages;
     std::unique_ptr<DebugLines> lines;
@@ -427,6 +474,26 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<CascadedShadows> cascades;
     std::unique_ptr<ShadowPipelineTable> shadowTable;
     std::unique_ptr<HorizonShadows> horizon;
+    // S36b: the local lights and their clusters (the frame's grid; clustered this frame)
+    std::unique_ptr<LocalLights> lightTable;
+    std::unique_ptr<LightClusters> clusterCull;
+    std::unique_ptr<ClusterGrid> clusterGrid;
+    bool frameClusters      = false;
+    float clusterHeatScale  = 16;
+    void clusterOverlays();
+    // S36b: the shadow atlas (the frame's faces to render and their views)
+    std::unique_ptr<ShadowAtlas> atlasShadows;
+    struct AtlasFace;
+    std::vector<AtlasFace> atlasFaces;
+    void frameAtlas(vk::CommandBuffer cmd, const SceneCamera& camera, bool enclosed, SceneLighting& block,
+                    uint32_t frameIndex);
+    void markSetDirty(InstanceSetHandle set);
+    void markDynamicDirty(MeshId mesh, const ChunkId& chunk, const DynamicPose& pose);
+    // S36b round 1, finding 11: the dynamics snapped to a new place (by handle: frameCount at the call); a snap moves
+    // for the atlas in the next frame only, then the instance rests (settleSnapped: its rest bounds are dirty)
+    std::unordered_map<uint32_t, uint64_t> snappedDynamics;
+    void settleSnapped();
+    void markRegionDirty(const RegionId& region);
     bool freezeCascades = false;
     // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon
     int shadowLightChoice = 0;
@@ -445,6 +512,9 @@ class SAIGA_VULKAN_API RenderScene
     void frameShadows(const SceneCamera& camera, bool enclosed, SceneLighting& block, uint32_t frameIndex);
     // The overlays of the cascades and the horizon map (DebugLines)
     void cascadeOverlays();
+    // S36b: the local lights of the frame (selection, light buffer, the block's fields) and their overlays
+    void frameLocalLights(const SceneCamera& camera, SceneLighting& block, uint32_t frameIndex);
+    void lightOverlays();
     LightingDebugState userDebug, frameDebug;
     std::optional<LightingDebugState> debugOverride;
     // The radiance views write raw values (the probe frames)
@@ -462,6 +532,8 @@ class SAIGA_VULKAN_API RenderScene
         ivec2 pixel = ivec2(0, 0);
         std::optional<Vec3> world;
         std::function<void(const LightingProbe&)> callback;
+        std::shared_ptr<const bool> cancelled;
+        bool isCancelled() const { return cancelled && *cancelled; }
     };
     std::unique_ptr<ProbeRun> probeRun;
     std::vector<ProbeRequest> probeRequests;
@@ -477,6 +549,8 @@ class SAIGA_VULKAN_API RenderScene
     };
     std::optional<HeldCamera> heldCamera;
     void finishProbe();
+    // The camera and environment given during a sequence (after finishProbe or a cancelled sequence)
+    void applyHeldProbeState();
     // The view of the frame being recorded (the probe's step, the override of a read-back frame, the user's)
     void latchDebug();
     float framePreExposure = 1;

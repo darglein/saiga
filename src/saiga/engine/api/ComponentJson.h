@@ -24,6 +24,12 @@ namespace Saiga
 namespace Engine
 {
 class World;
+struct LightSource;
+
+// LightSource values merged into current: an error with the reason when the result is not a valid light
+// (LightSource::invalidReason; S36b round 1, finding 7: an invalid light was accepted and silently not rendered)
+SAIGA_ENGINE_API bool checkLightSourceValues(const LightSource& current, const json11::Json& values,
+                                             std::string& error);
 
 // Components that the generic add / remove / spawn paths do not handle (empty: none); adding: an add (else a remove)
 SAIGA_ENGINE_API std::string specialComponent(ComponentId id, bool adding);
@@ -35,7 +41,7 @@ SAIGA_ENGINE_API bool parentFromJson(const World& w, Entity child, const json11:
 SAIGA_ENGINE_API bool checkRenderMeshValues(const World& w, const RenderInstance& current, const json11::Json& values,
                                             std::string& error);
 // Checks the values of an initial or added component (nothing is changed): special components, RenderInstance meshes,
-// Parent, the fields and their types
+// LightSource validity, Parent, the fields and their types
 SAIGA_ENGINE_API bool checkComponentValues(const World& w, Entity child, ComponentId id, const json11::Json& values,
                                            std::string& error);
 // Adds a component with values (checked before; a Parent is checked again: hooks may have changed the world since).

@@ -7,7 +7,7 @@
 // The lighting of S36 (A3 of docs/stages/S36_lighting.plan.md, docs/engine_design.md §10.7): set 1 of the scene draws
 // (SceneLightingSet: 0 the block, 1 the foliage texture, 2 the ambient SH, 3 the cloud coverage, 4 the prefiltered
 // environment cube, 5 the BRDF LUT, 6 the transmittance LUT, 7 the sky-view LUT; a2: 8 the cascades, 9 the horizon map;
-// b: 10-14 the lights, clusters and atlas) and shadeSurface, which every scene pass calls, so every surface lights the
+// b: 10-14 the lights, clusters and atlas: clusters.glsl, atlas_shadow.glsl) and shadeSurface, which every scene pass calls, so every surface lights the
 // same way:
 // - clay mode (lighting.mode.x == 0: ToneMap::Identity, or no environment): the studio environment, S19a's model
 //   exactly: albedo (sun max(n.l, 0) + ambient) ao, the studio fog; unit-less;
@@ -44,6 +44,8 @@ layout(set = 1, binding = 7) uniform sampler2D skyViewLut;
 #include "ambient.glsl"
 #include "shadows.glsl"
 #include "vertex_light.glsl"
+#include "atlas_shadow.glsl"
+#include "clusters.glsl"
 
 // SurfaceInput::flags: foliage (wrapped diffuse) and surfaceShSpecular (the land of the terrain): rough dielectric
 // surfaces whose specular environment is the diffuse irradiance's mean radiance (irradiance(n) / pi, already
@@ -120,7 +122,8 @@ VertexLight surfaceVertexLight(vec3 relPos)
 // The debug views (LightingDebugView of LightingTypes.h)
 const uint viewNone = 0u, viewLightingOnly = 1u, viewAlbedo = 2u, viewNormals = 3u, viewRoughness = 4u,
            viewMetalness = 5u, viewMaterial = 6u, viewDirectOnly = 7u, viewAmbientOnly = 8u, viewSpecularOnly = 9u,
-           viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u, viewHorizonShadow = 14u;
+           viewCloudShadow = 10u, viewShadowFactor = 11u, viewExposure = 12u, viewShadowCascades = 13u, viewHorizonShadow = 14u,
+           viewLocalLightsOnly = 15u, viewClusterLights = 16u, viewAtlasShadow = 17u;
 // The overlay flags drawn in the shaders (LightingOverlay)
 const uint overlayCascadeColors = 2u;
 
@@ -180,8 +183,11 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
         s.emissive  = vec3(0.0);
         s.tint      = vec3(1.0);
     }
-    vec3 c, direct = vec3(0.0), ambientDiff = vec3(0.0), ambientSpec = vec3(0.0);
+    vec3 c, direct = vec3(0.0), ambientDiff = vec3(0.0), ambientSpec = vec3(0.0), local = vec3(0.0);
     vec4 fog = vec4(0.0, 0.0, 0.0, 1.0);
+    // S36b: the darkest atlas factor of the shadowed local lights that reach the surface and their count
+    float atlasMin = 1.0;
+    int atlasLights = 0;
     if (!physicalLighting())
     {
         // S19a: albedo (sun + ambient) ao, the material's emissive on top
@@ -219,6 +225,13 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
                 direct += pbrDirect(s.n, v, lighting.moon.xyz, s.albedo, rough, s.metalness, moonE, lut, wrap);
             }
         }
+        // S36b: the local lights (also in enclosed spaces); LIGHTING_NO_LOCAL_LIGHTS: a pipeline variant without their
+        // code for the frames without local lights (the grass's overdraw: no register cost when unused)
+#ifndef LIGHTING_NO_LOCAL_LIGHTS
+        if (lighting.lightCounts.x > 0u)
+            local = localLightsDirect(s.n, v, s.relPos, s.albedo, rough, s.metalness, lut, wrap, atlasMin,
+                                      atlasLights);
+#endif
         vec3 irradiance = ambientDiffuse(s.n, s.relPos);
         vec3 specular   = (s.flags & (surfaceFoliage | surfaceShSpecular)) != 0u
                               ? irradiance / kPi
@@ -227,11 +240,32 @@ vec3 shadeSurfaceView(SurfaceInput s, out int cascade)
         ambientSpec *= s.ao;
         ambientDiff *= s.ao;
         // The emissive colour keeps its displayed brightness (a display value divided by the exposure)
-        c = (direct + ambientDiff + ambientSpec) * s.tint + s.emissive / max(lighting.exposure.x, 1e-30);
+        c = (direct + local + ambientDiff + ambientSpec) * s.tint + s.emissive / max(lighting.exposure.x, 1e-30);
     }
     if (view == viewDirectOnly) return debugDisplay(direct * s.tint);
     if (view == viewAmbientOnly) return debugDisplay(ambientDiff * s.tint);
     if (view == viewSpecularOnly) return debugDisplay(ambientSpec * s.tint);
+    if (view == viewLocalLightsOnly) return debugDisplay(local * s.tint);
+    if (view == viewAtlasShadow)
+    {
+        // The atlas shadow: the highlighted light's, else the darkest of the shadowed lights that reach the fragment;
+        // raw in the probe frames: (factor, the lights counted, 0); blue-gray where no shadowed light reaches
+        if (lighting.debugParams.z > 0.5) return vec3(atlasMin, float(atlasLights), 0.0);
+        return atlasLights == 0 ? vec3(0.15, 0.18, 0.3) : vec3(0.05 + 0.95 * atlasMin);
+    }
+#ifndef LIGHTING_NO_LOCAL_LIGHTS
+    if (view == viewClusterLights)
+    {
+        // The lights of the fragment's cluster as a heat map (turbo over 0 .. atlasParams.w lights); an overflowed
+        // cluster magenta, beyond clusterFar black; raw in the probe frames: (count, total, cluster + 1)
+        int cl = lighting.lightCounts.x > 0u ? fragmentCluster(s.relPos) : -1;
+        uvec2 ct = cl >= 0 ? clusterTable[cl] : uvec2(0u);
+        if (lighting.debugParams.z > 0.5) return vec3(float(ct.x), float(ct.y), float(cl + 1));
+        if (cl < 0) return vec3(0.0);
+        if (ct.y > ct.x) return vec3(1.0, 0.0, 1.0);
+        return ct.x == 0u ? vec3(0.05) : turbo(float(ct.x) / max(lighting.atlasParams.w, 1.0));
+    }
+#endif
     // The fog: the physical path's from the light terms, clay's studio fog per fragment
     c = physicalLighting() ? c * fog.a + fog.rgb : lightingFog(c, s.relPos);
     if (view == viewLightingOnly) return debugDisplay(c);

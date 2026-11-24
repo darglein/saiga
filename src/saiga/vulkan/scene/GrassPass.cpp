@@ -76,21 +76,48 @@ void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLighti
                           {{0, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, posAo)},
                            {1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, normalWind)},
                            {2, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, uvLayer)}});
+    pipelineInfo = info;
+    initialized  = true;
+}
+
+void GrassPass::createPipeline()
+{
+    // On the first frame with grass (S36 review round 2, finding 4a: a scene without grass compiles none)
     pipeline.init(*base, 2);
     pipeline.addDescriptorSetLayout(TerrainPass::setLayout(), 0);
     pipeline.addDescriptorSetLayout(SceneLightingSet::layout(), 1);
     pipeline.addPushConstantRange(
         {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(BlockDraw)});
-    pipeline.shaderPipeline.load(base->device, {"vulkan/scene/grass.vert", "vulkan/scene/grass.frag"});
-    pipeline.create(sceneFormats, info);
+    // S36b: without the local lights' code (LIGHTING_NO_LOCAL_LIGHTS: the frames without local lights; the blades'
+    // overdraw pays for the code's registers otherwise); the variant with them on first use
+    pipeline.shaderPipeline.loadGLSL(base->device, {{"vulkan/scene/grass.vert", vk::ShaderStageFlagBits::eVertex, ""},
+                                                    {"vulkan/scene/grass.frag", vk::ShaderStageFlagBits::eFragment,
+                                                     "#define LIGHTING_NO_LOCAL_LIGHTS\n"}});
+    pipeline.create(sceneFormats, pipelineInfo);
+    pipelineCreated = true;
     creations++;
-    initialized = true;
+}
+
+void GrassPass::createLightsPipeline()
+{
+    lightsPipeline.init(*base, 2);
+    lightsPipeline.addDescriptorSetLayout(TerrainPass::setLayout(), 0);
+    lightsPipeline.addDescriptorSetLayout(SceneLightingSet::layout(), 1);
+    lightsPipeline.addPushConstantRange(
+        {vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, sizeof(BlockDraw)});
+    lightsPipeline.shaderPipeline.load(base->device, {"vulkan/scene/grass.vert", "vulkan/scene/grass.frag"});
+    lightsPipeline.create(sceneFormats, pipelineInfo);
+    lightsCreated = true;
+    creations++;
 }
 
 void GrassPass::destroy()
 {
     if (!initialized) return;
     pipeline.destroy();
+    pipelineCreated = false;
+    lightsPipeline.destroy();
+    lightsCreated = false;
     vertices.destroy();
     indices.destroy();
     draws.clear();
@@ -161,9 +188,12 @@ void GrassPass::update(const TerrainAtlas& atlas, const TerrainPass& terrain, co
     statistics.triangles   = statistics.clumps * int64_t(indexCount / 3);
 }
 
-void GrassPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, const TerrainPass& terrain)
+void GrassPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, const TerrainPass& terrain, bool localLights)
 {
     if (draws.empty() || !terrain.drawsThisFrame()) return;
+    if (localLights && !lightsCreated) createLightsPipeline();
+    if (!localLights && !pipelineCreated) createPipeline();
+    Pipeline& pipeline = localLights ? lightsPipeline : this->pipeline;
     if (!pipeline.bind(cmd)) return;
     vk::DescriptorSet set = terrain.descriptorSet(frameIndex);
     pipeline.bindRawDescriptorSet(cmd, set);

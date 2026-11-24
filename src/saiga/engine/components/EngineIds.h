@@ -34,6 +34,7 @@ enum class EngineComponent : uint8_t
     PendingTransition,  // S21
     WorldTime,          // S36
     Weather,            // S36
+    LightSource,        // S36b
     Count
 };
 

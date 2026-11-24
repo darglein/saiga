@@ -9,6 +9,7 @@
 
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/components/Health.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/Player.h"
@@ -28,6 +29,7 @@
 #include "saiga/engine/lighting/EnvironmentWrites.h"
 #include "saiga/engine/lighting/Systems.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/TerrainBrush.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
@@ -1326,6 +1328,88 @@ void registerLightingScenarios(ScenarioList& s)
           });
 }
 
+// S36b: the sink lights of a world's recording sink (host 0 or a client)
+const RecordingRenderSink::Light* onlyLight(ScenarioWorld& w, int peer)
+{
+    const auto& l = w.renderSink(peer).lights();
+    return l.size() == 1 ? &l.begin()->second : nullptr;
+}
+
+void registerLightScenarios(ScenarioList& s)
+{
+    // A lamp carried across a chunk border: its sink light follows the entity's pose (the offset applied), changes
+    // chunk, and is interpolated between the steps by updateLights; a client's light follows its replica
+    s.add("light_follows_entity",
+          [](ScenarioWorld& w)
+          {
+              const Entity lamp = w.world().create();
+              w.world().get<Transform>(lamp).setPosition(Vec3(250, 2, 10));
+              LightSource ls;
+              ls.offset = Vec3(0, 1, 0);
+              ls.lumen  = 1200;
+              ls.range  = 18;
+              w.world().add<LightSource>(lamp, ls);
+              w.step();
+              const RecordingRenderSink::Light* l = onlyLight(w, 0);
+              if (!w.check(l != nullptr, "the host's sink has the lamp's light")) return;
+              w.check((l->worldPosition() - Vec3(250, 3, 10)).norm() < 1e-4, "at the entity's pose plus the offset");
+              w.check(l->chunk.x == 0 && l->chunk.z == 0, "in chunk (0, 0)");
+              w.check(l->data.lumen == 1200 && l->data.range == 18, "with the component's lumen and range");
+              // Carried along +x across the border at 256 m
+              for (int k = 1; k <= 20; ++k)
+              {
+                  w.world().get<Transform>(lamp).setPosition(Vec3(250 + 0.5 * k, 2, 10));
+                  w.step();
+              }
+              l = onlyLight(w, 0);
+              if (!w.check(l != nullptr, "the light is still there")) return;
+              w.check(l->chunk.x == 1 && l->chunk.z == 0, "moved into chunk (1, 0)");
+              w.check((l->worldPosition() - Vec3(260, 3, 10)).norm() < 1e-4,
+                      "at the last step's pose: " + std::to_string(l->worldPosition()(0)));
+              // Between the steps: the interpolated pose (the last pair is (259.5, 260))
+              w.world().extract().updateLights(0.5);
+              l = onlyLight(w, 0);
+              w.check(l && (l->worldPosition() - Vec3(259.75, 3, 10)).norm() < 1e-4, "interpolated at alpha 0.5");
+              w.world().extract().updateLights(1.0);
+              if (!w.networked()) return;
+              const int bound = w.world().worldConfig().interpolationDelaySteps + w.networkConfig().delaySteps + 10 +
+                                (w.networkConfig().async ? 6 : 0);
+              auto clientFollows = [&]
+              {
+                  const RecordingRenderSink::Light* c = onlyLight(w, w.defaultPeer());
+                  return c && c->chunk.x == 1 && (c->worldPosition() - Vec3(260, 3, 10)).norm() < 1e-3;
+              };
+              w.check(w.stepUntil(clientFollows, bound), "the client's light follows the replica into chunk (1, 0)");
+          });
+    // on = false on the host removes the light on every peer (a reliable change), on = true brings it back
+    s.add("light_toggle_replicates",
+          [](ScenarioWorld& w)
+          {
+              const Entity lamp = w.world().create();
+              w.world().get<Transform>(lamp).setPosition(Vec3(20, 1, 20));
+              LightSource ls;
+              ls.kind = LightKind::Spot;
+              w.world().add<LightSource>(lamp, ls);
+              const int bound = w.world().worldConfig().interpolationDelaySteps + w.networkConfig().delaySteps + 10 +
+                                (w.networkConfig().async ? 6 : 0);
+              auto lightsOn = [&](size_t n)
+              {
+                  for (int p = 0; p <= (w.networked() ? w.clientCount() : 0); ++p)
+                      if (w.renderSink(p).lights().size() != n) return false;
+                  return true;
+              };
+              w.check(w.stepUntil([&] { return lightsOn(1); }, bound), "every peer renders the light");
+              const RecordingRenderSink::Light* l = onlyLight(w, 0);
+              w.check(l && l->data.kind == LightKind::Spot, "a spot light");
+              w.world().get<LightSource>(lamp).on = false;
+              w.check(w.stepUntil([&] { return lightsOn(0); }, bound), "switched off on every peer");
+              w.world().get<LightSource>(lamp).on = true;
+              w.check(w.stepUntil([&] { return lightsOn(1); }, bound), "switched on again on every peer");
+              w.world().destroy(lamp);
+              w.check(w.stepUntil([&] { return lightsOn(0); }, bound), "removed with its entity");
+          });
+}
+
 // A scenario with the setup it runs on and the registration it comes from
 struct Case
 {
@@ -1361,6 +1445,7 @@ std::vector<Case> allCases()
     collect(registerContentScenarios, contentSetupFor);
     collect(registerTombstoneScenarios, contentSetupFor);
     collect(registerLightingScenarios, lightingSetupFor);
+    collect(registerLightScenarios, setupFor);
     return cases;
 }
 }  // namespace

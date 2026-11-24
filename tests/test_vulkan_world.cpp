@@ -5,8 +5,10 @@
  */
 
 #include "saiga/vulkan/scene/GrassPass.h"
+#include "saiga/vulkan/scene/LightingDebug.h"
 #include "saiga/vulkan/scene/PrototypeWorld.h"
 #include "saiga/vulkan/scene/RenderScene.h"
+#include "saiga/vulkan/scene/ShadowAtlas.h"
 #include "saiga/vulkan/window/HeadlessWindow.h"
 #include "saiga/vulkan/world/ForestRenderer.h"
 #include "saiga/vulkan/world/PrototypeForest.h"
@@ -334,6 +336,15 @@ TEST(WorldBenchmark, Paths)
     }
     EXPECT_TRUE(WorldBenchmark::known("forest"));
     EXPECT_FALSE(WorldBenchmark::known("forests"));
+    // S36b: night_town circles 150 m around the centre, 30 m above the ground, looking at the centre
+    for (int i : {0, 300})
+    {
+        auto pose = WorldBenchmark::pose("night_town", ground, i);
+        EXPECT_NEAR(std::hypot(pose.eye(0) - c, pose.eye(2) - c), 150.0f, 0.01f);
+        EXPECT_NEAR(pose.eye(1), ground(pose.eye(0), pose.eye(2)) + 30.0, 1e-3);
+        EXPECT_NEAR(pose.target(0), c, 1e-3f);
+    }
+    EXPECT_TRUE(WorldBenchmark::known("night_town"));
 }
 
 // Regression: a minimized window or a swap chain recreation during the measured frames inflated p95 unnoticed
@@ -845,6 +856,59 @@ TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
     EXPECT_GT(pixelsDiffering(a, c), 0) << "the wind does not move";
 }
 
+// Regression (S36b round 1, finding 10): the trees in the cached shadow atlas use the wind phases 0 (B4), so a face
+// rendered in another frame has the same content. The old atlas variant of shadow_foliage.vert used the frame's
+// phases: a cached face froze the wind of its render frame. A shadowed lamp beside a tree; the faces rendered again
+// at other phases (invalidateAll) give the same atlas (the static layer's statistics)
+TEST_F(VulkanPrototypeScene, AtlasFoliageUsesWindPhaseZero)
+{
+    PrototypeScene p;
+    // 100 trees: only the one nearest to the centre is in the lamp's range (round 2, finding 4: test speed; 1000 were
+    // drawn in the view for nothing)
+    Attach(p, 100);
+    p.settings.wind = 4;
+    // The tree nearest to the area's centre, the lamp 3 m beside it at 4 m height
+    vec4 tree = trees[0].posYaw;
+    for (const auto& t : trees)
+        if ((t.posYaw.head<2>() - vec2(1536, 1536)).norm() < (tree.head<2>() - vec2(1536, 1536)).norm())
+            tree = t.posYaw;
+    const Vec3 base(tree(0), tree(1), tree(2));
+    LightingParameters lp = scene->lightingParameters();
+    lp.localLights        = true;
+    lp.atlasResolution    = 512;
+    lp.atlasTile          = 128;
+    lp.facesPerFrame      = 11;
+    scene->setLightingParameters(lp);
+    LightData d;
+    d.kind              = LightKind::Point;
+    d.position          = (base + Vec3(3, 4, 0)).cast<float>();
+    d.lumen             = 2000;
+    d.range             = 15;
+    d.castShadows       = true;
+    const LightHandle h = scene->addLight(ChunkId(), d);
+    auto atlasStats     = [&](float phase)
+    {
+        EnvironmentState e;
+        for (int i = 0; i < 5; ++i) e.phases[size_t(i)] = phase * float(i + 1);
+        scene->setEnvironment(e);
+        scene->shadowAtlas().invalidateAll();
+        Frame(p);
+        PreviewStatistics st;
+        scene->lightingDebugImages().request(LightingImage::Atlas, PreviewMapping(),
+                                             [&](const LightingDebug::Capture& c) { st = c.statistics; });
+        Frame(p);
+        scene->waitIdle();
+        EXPECT_EQ(scene->lightingStatistics().atlas.tilesUsed, 6u);
+        return st;
+    };
+    Shot(p, base + Vec3(-6, 6, 10), base, 1);
+    const PreviewStatistics a = atlasStats(0.0f), b = atlasStats(1.3f);
+    EXPECT_LT(a.min, 1.0f) << "the tree and the terrain are in the faces";
+    EXPECT_EQ(a.mean, b.mean);
+    EXPECT_EQ(a.histogram, b.histogram);
+    scene->removeLight(h);
+}
+
 // The depth is resolved with SAMPLE_ZERO (MSAA) or sampled directly (1 sample), with and without the depth pre-pass:
 // validation clean and the same image
 TEST_F(VulkanPrototypeScene, DepthResolveAndPrePass)
@@ -874,10 +938,10 @@ TEST_F(VulkanPrototypeScene, Sections)
 {
     const auto& names                       = RenderScene::gpuSectionNames();
     const std::vector<std::string> expected = {
-        "transfer",  "environment",   "cull",        "shadow",        "shadow.cascades",  "shadow.horizon",
-        "depth",     "depth.terrain", "scene",       "scene.terrain", "scene.instances",  "scene.grass",
-        "scene.sky", "scene.clouds",  "scene.debug", "resolve",       "lighting.preview", "post",
-        "imgui"};
+        "transfer",         "environment",  "cull",      "lights",        "shadow",      "shadow.cascades",
+        "shadow.horizon",   "shadow.atlas", "depth",     "depth.terrain", "scene",       "scene.terrain",
+        "scene.instances",  "scene.grass",  "scene.sky", "scene.clouds",  "scene.debug", "resolve",
+        "lighting.preview", "post",         "imgui"};
     ASSERT_EQ(names.size(), expected.size());
     for (size_t i = 0; i < names.size(); ++i) EXPECT_EQ(names[i], expected[i]);
     PrototypeScene p;
@@ -915,7 +979,7 @@ TEST_F(VulkanPrototypeScene, Sections)
                     if (std::string(names[j]).rfind(pass + ".", 0) == 0) sub += t.gpuSectionMs[j];
                 EXPECT_LE(sub, t.gpuSectionMs[i] + 0.01) << pass;
             }
-            EXPECT_GE(t.gpuMs, t.gpuSectionMs[8]);
+            EXPECT_GE(t.gpuMs, t.gpuSectionMs[10]);
         }
     }
     scene->waitIdle();
@@ -976,7 +1040,8 @@ TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
     const auto ta  = scene->statistics().terrainNodes;
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
     scene->setFoliageTexture(1);
-    auto b = Capture(3);
+    // (two frames: golden mode completes every effect per frame; round 2, finding 4: test speed)
+    auto b = Capture(2);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
     EXPECT_EQ(scene->statistics().terrainNodes, ta);
     EXPECT_EQ(pixelsDiffering(a, b), 0);

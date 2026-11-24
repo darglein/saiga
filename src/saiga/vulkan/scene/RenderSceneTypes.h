@@ -323,6 +323,60 @@ struct InstanceHandle
     explicit operator bool() const { return id != 0; }
 };
 
+// ---- local lights (S36b, docs/engine_design.md §10.7; RenderScene::addLight, RenderSink::addLight)
+
+// Count: visit's EnumNames convention (the engine's LightSource visits it)
+enum class LightKind : uint8_t
+{
+    Point,
+    Spot,
+    Count
+};
+inline const char* lightKindName(LightKind k)
+{
+    return k == LightKind::Spot ? "spot" : "point";
+}
+// A render-only flicker of the intensity (§10.7: presentation): 1 + amplitude * a sum of sines of the environment's
+// flicker phase (EnvironmentState::phases[6], computed in double; no absolute time in a shader) at about frequency Hz,
+// shifted by seed (one light's flicker differs from the next one's)
+struct LightFlicker
+{
+    float amplitude = 0;  // [0, 1]
+    float frequency = 0;  // Hz
+    uint32_t seed   = 0;
+    bool operator==(const LightFlicker& o) const
+    {
+        return amplitude == o.amplitude && frequency == o.frequency && seed == o.seed;
+    }
+};
+// A light of the scene: positions relative to its chunk's origin (float render data, R-MATH-1)
+struct LightData
+{
+    LightKind kind   = LightKind::Point;
+    vec3 position    = vec3(0, 0, 0);           // relative to the chunk's origin
+    vec3 direction   = vec3(0, -1, 0);          // the spot's axis (normalized; unused for points)
+    vec3 color       = vec3(1.0f, 0.9f, 0.8f);  // linear
+    float lumen      = 800;                     // luminous flux (point: lumen / 4 pi cd, spot: lumen / pi cd)
+    float range      = 10;                      // m, (0, 1000]; the light is 0 beyond it
+    float cosInner   = 0.9063078f;              // cos(25 degrees)
+    float cosOuter   = 0.8191520f;              // cos(35 degrees)
+    bool castShadows = false;
+    float priority   = 1;  // scales the importance (the budget order); >= 0 and finite (a non-finite one: not drawn)
+    LightFlicker flicker;
+};
+struct LightHandle
+{
+    uint32_t id = 0;  // 0: invalid
+    explicit operator bool() const { return id != 0; }
+    bool operator==(const LightHandle& o) const { return id == o.id; }
+};
+// The bulk path of many lights of one chunk (S30's piece lights): one list, no entities
+struct LightListHandle
+{
+    uint32_t id = 0;  // 0: invalid
+    explicit operator bool() const { return id != 0; }
+};
+
 // The statistics of a completed frame (RenderScene::statistics)
 // The render settings of a space (S21, docs/engine_design.md §10.1, §12.4; RenderScene::setSpaceSettings, forwarded by
 // the engine's World per SpaceId): an open-world space draws the terrain, grass, water and sky of the camera's space;
@@ -427,6 +481,18 @@ struct ShadowView
     int lodBias = 0;
     // The camera-relative light view-projection: depth 0 at zMax, 1 at zMin (not reversed), xy over the rectangle
     mat4 viewProj = mat4::Identity();
+    // S36b: a face of the shadow atlas (a perspective light view): its planes (camera-relative, inward) replace the
+    // volume's; the casters it draws (the static layer: static sets and terrain, the dynamic layer: dynamics)
+    bool perspective               = false;
+    std::array<Vec4, 6> facePlanes = {};
+    bool castStatic = true, castDynamic = true;
+    // The dynamic instances it draws: 0 all, 1 the resting ones (the static layer caches them), 2 the moving ones
+    int dynamicFilter = 0;
+    // The origin of the instances' LOD and end-distance cull (camera-relative; an atlas face: the light, so that a
+    // cached face does not depend on where the camera was when it was rendered; round 1, finding 5); off: the main
+    // camera's distance
+    bool lodFromOrigin = false;
+    Vec3 lodOrigin     = Vec3::Zero();
 
     // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
     // (zMin) and the near cap (zMax + the instances' or the terrain's cap)
@@ -452,6 +518,7 @@ struct ShadowView
     }
     std::array<Vec4, 6> planes(bool terrain) const
     {
+        if (perspective) return facePlanes;
         const double cap = zMax + (terrain ? terrainCap : instanceCap);
         auto plane       = [](const Vec3& n, double w) { return Vec4(n(0), n(1), n(2), w); };
         return {plane(axisX, -rectMin(0)), plane(-axisX, rectMax(0)), plane(axisY, -rectMin(1)),

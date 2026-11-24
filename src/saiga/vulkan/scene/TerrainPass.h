@@ -167,6 +167,22 @@ class SAIGA_VULKAN_API TerrainPass
         int nodes = 0, triangles = 0, deduplicated = 0;
     };
     const std::vector<ShadowStats>& shadowStats() const { return shadowStatistics; }
+    // S36b: the terrain casters of the shadow atlas (B4): per light sphere (camera-relative centre, radius) the nodes
+    // at the finest resident level under it (not the camera's CDLOD selection: a cached face stays valid while the
+    // camera moves), drawn without morph; keys: per sphere a hash of the selection (a finer level that becomes
+    // resident inside the sphere changes it). After transfer (the frame's anchor); nothing without a frame
+    void selectForAtlas(uint32_t frameIndex, const TerrainAtlas& atlas, const SceneCamera& camera,
+                        const std::vector<std::pair<Vec3, double>>& spheres, std::vector<uint64_t>& keys);
+    // Inside an atlas face's pass (D16): the nodes of sphere index with terrain_shadow.vert and atlas_depth.frag
+    // (ATLAS_DEPTH: the linear depth distance / range; light: xyz camera-relative, w 1 / range)
+    void renderAtlas(vk::CommandBuffer cmd, uint32_t frameIndex, size_t sphere, const mat4& viewProj, const vec4& light,
+                     const PrototypeSettings& s);
+    // The nodes of the last selectForAtlas (all spheres) and the nodes cut by the node buffer's limit (round 1,
+    // finding 13: a cut sphere's key includes its cut count, so its faces render again once there is room)
+    int atlasNodeCount() const { return atlasNodes; }
+    int atlasNodesTruncated() const { return atlasTruncated; }
+    // The node buffer's limit (at most 16384; tests lower it)
+    void setAtlasNodeLimit(uint32_t limit);
 
     // The frame's uniforms (the grass and the sky bind the set of the frame slot)
     const TerrainFrameUniforms& frameUniforms() const { return uniforms; }
@@ -205,6 +221,10 @@ class SAIGA_VULKAN_API TerrainPass
             uint32_t first = 0, full = 0, quarter = 0;
         };
         std::vector<ShadowRange> shadowRanges;
+        // S36b: the atlas spheres' nodes and the set with them at binding 5
+        Buffer atlasNodes;
+        vk::DescriptorSet atlasSet;
+        std::vector<ShadowRange> atlasRanges;
     };
     // The node selection's output (the main view's or a shadow view's)
     struct Selection
@@ -217,7 +237,15 @@ class SAIGA_VULKAN_API TerrainPass
     SceneLightingSet* lightingSet = nullptr;
     RenderingFormats sceneFormats;
     uint64_t creations = 0;
-    Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline, shadowPipeline;
+    Pipeline scenePipeline, depthPipeline, equalPipeline, skyPipeline, shadowPipeline, atlasPipeline;
+    int atlasNodes            = 0;
+    int atlasTruncated        = 0;
+    uint32_t atlasNodeLimit   = 16384;
+    bool atlasPipelineCreated = false;
+    void createAtlasPipeline();
+    // The nodes at the finest resident level that intersect a sphere (camera-relative centre)
+    void selectSphere(const TerrainAtlas& atlas, const Vec3& camera, const Vec3& centre, double radius, int level,
+                      int32_t nx, int32_t nz, int32_t anchorX, int32_t anchorZ, Selection& out, uint64_t& key);
     // S36a2: the scene and equal pipelines without the cascade and horizon code (LIGHTING_NO_SHADOWS)
     Pipeline sceneNoShadows, equalNoShadows;
     bool noShadowPipelines = false;
@@ -225,7 +253,20 @@ class SAIGA_VULKAN_API TerrainPass
     std::vector<ShadowStats> shadowStatistics;
     // The layouts the frame and sky sets are allocated from (independent of the pipelines)
     DescriptorSetLayout frameLayout, skyLayout;
-    void createPipelines();
+    // The pipelines are created on first use (S36 review round 2, finding 4a: a clay scene without shadows draws only
+    // the no-shadow variants, a scene without terrain none)
+    enum class Kind
+    {
+        Scene,
+        Depth,
+        Equal,
+        Sky,
+        Shadow,
+        Probe,
+    };
+    uint32_t createdPipelines = 0;
+    // The pipeline of the kind, created on first use
+    PipelineBase& pipeline(Kind k);
     // The sky's sets (binding 0: the frame's uniform buffer), written once
     std::array<vk::DescriptorSet, 2> skySets;
     bool skyValid = false;

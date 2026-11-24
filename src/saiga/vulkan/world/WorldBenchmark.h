@@ -76,7 +76,9 @@ class SAIGA_VULKAN_API WorldBenchmark
     // The ground under (x, z) for the camera paths (S20: max(terrainHeight, sea level))
     using Ground = std::function<double(double x, double z)>;
 
-    // The known benchmarks: "flyover", "forest", "terraform" (S22: the edit schedule lives in the game)
+    // The known benchmarks: "flyover", "forest", "terraform" (S22: the edit schedule lives in the game), "night" (S36b:
+    // the flyover path; the game sets 22:00 and its lamps), "night_town" (S36b: a low circle inside the game's lamp
+    // grid at 22:00)
     static const std::vector<std::string>& names();
     static bool known(const std::string& name);
     // The S03 keys of gpu_ms: "upload + cull", "terrain + water", "trees", "grass", "sky" (from RenderScene's

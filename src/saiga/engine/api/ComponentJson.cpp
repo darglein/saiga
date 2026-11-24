@@ -6,6 +6,7 @@
 
 #include "saiga/engine/api/ComponentJson.h"
 
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/Persistent.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/Transform.h"
@@ -67,6 +68,16 @@ bool checkRenderMeshValues(const World& w, const RenderInstance& current, const 
     return true;
 }
 
+bool checkLightSourceValues(const LightSource& current, const Json& values, std::string& error)
+{
+    LightSource l = current;
+    if (!fromJson(values, l, &error, true)) return false;
+    const std::string invalid = l.invalidReason();
+    if (invalid.empty()) return true;
+    error = "LightSource: " + invalid;
+    return false;
+}
+
 // A Parent value from JSON, checked: an alive parent, no cycle, no world-state child (child may be invalid: a new
 // entity of spawn)
 bool parentFromJson(const World& w, Entity child, const Json& values, Parent& out, std::string& error)
@@ -118,6 +129,8 @@ bool checkComponentValues(const World& w, Entity child, ComponentId id, const Js
     }
     if (id == RenderInstance::id && !values.is_null() && !checkRenderMeshValues(w, RenderInstance(), values, error))
         return false;
+    if (id == LightSource::id && !values.is_null() && !checkLightSourceValues(LightSource(), values, error))
+        return false;
     if (id == Parent::id)
     {
         Parent p;
@@ -158,6 +171,9 @@ bool mergeComponentValues(World& w, Entity e, ComponentId id, const Json& values
             return true;
         }
         if (values.is_null()) return true;
+        // LightSource: the values merged into the class's light must give a valid light (spawn checked them against
+        // the default light only; CodeRabbit #86)
+        if (id == LightSource::id && !checkLightSourceValues(w.read<LightSource>(e), values, error)) return false;
         // RenderInstance: the name write goes through renderMeshWritten (its cached ID and name record; the values
         // were checked before)
         std::string previousMesh;

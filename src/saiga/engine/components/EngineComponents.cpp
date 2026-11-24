@@ -10,6 +10,7 @@
 
 #include "saiga/engine/components/CharacterIntent.h"
 #include "saiga/engine/components/Health.h"
+#include "saiga/engine/components/LightSource.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/NetLocal.h"
 #include "saiga/engine/components/Parent.h"
@@ -64,6 +65,8 @@ void registerEngineComponents(Registry& registry, const WorldSetup& setup)
         registry.registerComponent<WorldTime>(Replicate::Host);
         registry.registerComponent<Weather>(Replicate::Host);
     }
+    // S36b: the local lights of entities (rarely changing: reliable, not in the snapshots; on/off toggles included)
+    registry.registerComponent<LightSource>(Replicate::HostReliable);
 }
 
 }  // namespace Engine
