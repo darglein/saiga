@@ -2483,6 +2483,11 @@ void RenderScene::finishProbe()
     }
 }
 
+uint64_t RenderScene::storageBufferLimit() const
+{
+    return culling->storageLimit();
+}
+
 uint64_t RenderScene::scenePipelineCreations() const
 {
     return culling->pipelineCreations() + terrain->pipelineCreations() + grass->pipelineCreations();

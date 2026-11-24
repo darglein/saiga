@@ -544,6 +544,14 @@ bool validateLightingValues(const Vulkan::EnvironmentSettings& settings, const V
         std::string e;
         if (!k.set(k.get(state), scratch, e)) errors += (errors.empty() ? "" : "; ") + e;
     }
+    // The cross-key rules (finding 23 of round 1; round 2, finding 9: also for the tab and the environment file)
+    if (parameters.clusterNear >= parameters.clusterFar)
+        errors += std::string(errors.empty() ? "" : "; ") + "cluster_near (" + std::to_string(parameters.clusterNear) +
+                  ") must be below cluster_far (" + std::to_string(parameters.clusterFar) + ")";
+    if (parameters.atlasTile > parameters.atlasResolution ||
+        parameters.atlasResolution % std::max(parameters.atlasTile, 1) != 0)
+        errors += std::string(errors.empty() ? "" : "; ") + "atlas_tile (" + std::to_string(parameters.atlasTile) +
+                  ") must divide atlas_resolution (" + std::to_string(parameters.atlasResolution) + ")";
     const std::vector<vec2>& curve = settings.exposure.curve;
     if (curve.empty()) errors += std::string(errors.empty() ? "" : "; ") + "exposure curve: empty";
     for (size_t i = 0; i < curve.size(); ++i)
@@ -557,6 +565,59 @@ bool validateLightingValues(const Vulkan::EnvironmentSettings& settings, const V
     if (errors.empty()) return true;
     error = errors;
     return false;
+}
+
+LightingMemoryEstimate lightingMemoryAfter(const Vulkan::LightingStatistics& ls, const Vulkan::LightingParameters& p)
+{
+    // The cascades (D32 layers) and the horizon maps (three RG32F maps) while on
+    const uint64_t cascadeBytes =
+        p.sunShadows ? uint64_t(p.cascadeResolution) * uint64_t(p.cascadeResolution) * 4 * uint64_t(p.cascadeCount) : 0;
+    const uint64_t horizonBytes =
+        p.horizonShadows ? uint64_t(p.horizonResolution) * uint64_t(p.horizonResolution) * 3 * 8 : 0;
+    // S36b: the atlas (two D16 layers) while the local lights are on
+    const uint64_t atlasBytes = p.localLights ? uint64_t(p.atlasResolution) * uint64_t(p.atlasResolution) * 4 : 0;
+    const uint64_t atlasNow   = uint64_t(ls.atlas.resolution) * uint64_t(ls.atlas.resolution) * 4;
+    // The cluster buffers (LightClusters::ensure; round 2, finding 2): per frame slot the (count, total) table and the
+    // light indices, the shared bounds (the per-light counts are small)
+    const uint64_t clusters =
+        uint64_t(std::max(p.clusterX, 0)) * uint64_t(std::max(p.clusterY, 0)) * uint64_t(std::max(p.clusterZ, 0));
+    const uint64_t indicesPerSlot = clusters * uint64_t(std::max(p.maxLightsPerCluster, 0)) * 4;
+    const uint64_t clusterBytes =
+        p.localLights && p.clusteredLights
+            ? (clusters * 8 + indicesPerSlot) * Vulkan::VulkanRenderer::framesInFlight + clusters * 32
+            : 0;
+    LightingMemoryEstimate m;
+    // (the horizon maps are replaced by the estimate, the resident chain stays: CodeRabbit #85 round 2)
+    const uint64_t replaced = ls.shadowMemoryBytes + (ls.horizon.memoryBytes - ls.horizon.chainBytes) + atlasNow +
+                              ls.lights.clusterMemory;
+    m.total = (ls.memoryBytes > replaced ? ls.memoryBytes - replaced : 0) + cascadeBytes + horizonBytes + atlasBytes +
+              clusterBytes;
+    m.largestBinding = p.localLights && p.clusteredLights ? indicesPerSlot : 0;
+    return m;
+}
+
+bool validateLighting(const Vulkan::LightingStatistics& now, uint64_t storageLimit,
+                      const Vulkan::EnvironmentSettings& settings, const Vulkan::LightingParameters& parameters,
+                      std::string& error, uint64_t* memory)
+{
+    if (!validateLightingValues(settings, parameters, error)) return false;
+    const LightingMemoryEstimate m = lightingMemoryAfter(now, parameters);
+    if (memory) *memory = m.total;
+    if (m.total > kLightingMemoryLimit)
+    {
+        error = "the lighting memory after the change (" + std::to_string(m.total) +
+                " bytes) exceeds 1 GiB (cascade_resolution, cascade_count, horizon_resolution, atlas_resolution, "
+                "cluster_x * cluster_y * cluster_z * max_lights_per_cluster)";
+        return false;
+    }
+    if (m.largestBinding > storageLimit)
+    {
+        error = "the cluster light indices (cluster_x * cluster_y * cluster_z * max_lights_per_cluster * 4 = " +
+                std::to_string(m.largestBinding) + " bytes) exceed the device's storage buffer limit (" +
+                std::to_string(storageLimit) + " bytes)";
+        return false;
+    }
+    return true;
 }
 
 namespace
@@ -1207,41 +1268,12 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 }
                 previous[k.name] = k.get(before);
             }
-            // The cross-key rules (finding 23): cluster_near < cluster_far, atlas_tile divides atlas_resolution
-            if (after.parameters.clusterNear >= after.parameters.clusterFar)
-                errors += std::string(errors.empty() ? "" : "; ") + "cluster_near (" +
-                          std::to_string(after.parameters.clusterNear) + ") must be below cluster_far (" +
-                          std::to_string(after.parameters.clusterFar) + ")";
-            if (after.parameters.atlasTile > after.parameters.atlasResolution ||
-                after.parameters.atlasResolution % std::max(after.parameters.atlasTile, 1) != 0)
-                errors += std::string(errors.empty() ? "" : "; ") + "atlas_tile (" +
-                          std::to_string(after.parameters.atlasTile) + ") must divide atlas_resolution (" +
-                          std::to_string(after.parameters.atlasResolution) + ")";
-            // The memory check of the whole call (finding 23): the cascades after the change next to the rest
-            const Vulkan::LightingStatistics& ls = app.scene()->lightingStatistics();
-            const uint64_t cascadeBytes          = after.parameters.sunShadows
-                                                       ? uint64_t(after.parameters.cascadeResolution) *
-                                                    uint64_t(after.parameters.cascadeResolution) * 4 *
-                                                    uint64_t(after.parameters.cascadeCount)
-                                                       : 0;
-            const uint64_t horizonBytes          = after.parameters.horizonShadows
-                                                       ? uint64_t(after.parameters.horizonResolution) *
-                                                    uint64_t(after.parameters.horizonResolution) * 3 * 8
-                                                       : 0;
-            // S36b: the atlas (two D16 layers) while the local lights are on
-            const uint64_t atlasBytes =
-                after.parameters.localLights
-                    ? uint64_t(after.parameters.atlasResolution) * uint64_t(after.parameters.atlasResolution) * 4
-                    : 0;
-            const uint64_t atlasNow = uint64_t(ls.atlas.resolution) * uint64_t(ls.atlas.resolution) * 4;
-            // (the horizon maps replaced by the estimate; the resident chain stays: CodeRabbit #85 round 2)
-            const uint64_t memory = ls.memoryBytes - ls.shadowMemoryBytes -
-                                    (ls.horizon.memoryBytes - ls.horizon.chainBytes) - atlasNow + cascadeBytes +
-                                    horizonBytes + atlasBytes;
-            if (errors.empty() && memory > (uint64_t(1) << 30))
-                errors = "the lighting memory after the change (" + std::to_string(memory) +
-                         " bytes) exceeds 1 GiB (cascade_resolution, cascade_count, horizon_resolution, "
-                         "atlas_resolution)";
+            // The whole state (round 2, findings 2, 9: the shared check of the tool and the tab): the ranges, the
+            // cross-key rules and the memory with the cluster buffers
+            uint64_t memory = 0;
+            if (errors.empty())
+                validateLighting(app.scene()->lightingStatistics(), app.scene()->storageBufferLimit(), after.settings,
+                                 after.parameters, errors, &memory);
             if (!errors.empty()) return respond(ToolResult::Error(errors + " (nothing changed)"));
             for (auto& kv : previous)
                 values[kv.first] = [&]

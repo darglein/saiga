@@ -178,7 +178,7 @@ void LightingTab::toolbar()
         }
     }
     Vulkan::LightingParameters p = scene->lightingParameters();
-    if (ImGui::Checkbox("force full updates", &p.forceFullUpdates)) scene->setLightingParameters(p);
+    if (ImGui::Checkbox("force full updates", &p.forceFullUpdates)) applyParameters(p);
     ImGui::SameLine();
     // S36a2: freeze the cascades (with the cascade bounds and frustum splits overlays: what each cascade covers)
     bool frozen = scene->cascadesFrozen();
@@ -192,7 +192,42 @@ void LightingTab::toolbar()
     }
     if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: studio light, time of day has no effect");
+    // The last refused write (validateLighting: a typed value out of range, a cross-key rule, the memory)
+    if (!writeError.empty()) DebugUiStyle::coloredText(DebugUiStyle::kError, ("not applied: " + writeError).c_str());
     if (d.view == Vulkan::LightingDebugView::Exposure) exposureLegend();
+}
+
+bool LightingTab::applySettings(const Vulkan::EnvironmentSettings& s)
+{
+    Vulkan::RenderScene* scene = app.scene();
+    std::string error;
+    const bool ok = scene ? validateLighting(scene->lightingStatistics(), scene->storageBufferLimit(), s,
+                                             scene->lightingParameters(), error)
+                          : validateLightingValues(s, Vulkan::LightingParameters(), error);
+    if (!ok)
+    {
+        writeError = error;
+        return false;
+    }
+    writeError.clear();
+    app.setEnvironmentSettings(s);
+    return true;
+}
+
+bool LightingTab::applyParameters(const Vulkan::LightingParameters& p)
+{
+    Vulkan::RenderScene* scene = app.scene();
+    if (!scene) return false;
+    std::string error;
+    if (!validateLighting(scene->lightingStatistics(), scene->storageBufferLimit(), app.environmentSettings(), p,
+                          error))
+    {
+        writeError = error;
+        return false;
+    }
+    writeError.clear();
+    scene->setLightingParameters(p);
+    return true;
 }
 
 void LightingTab::exposureLegend()
@@ -382,7 +417,7 @@ void LightingTab::sunAndMoon()
                 s.sunOverride = Vulkan::SunOverride{float(c.sunAzimuthDeg), float(c.sunElevationDeg)};
             else
                 s.sunOverride.reset();
-            app.setEnvironmentSettings(s);
+            applySettings(s);
         }
         if (s.sunOverride)
         {
@@ -391,7 +426,7 @@ void LightingTab::sunAndMoon()
             DebugUiStyle::property("elevation");
             changed = ImGui::SliderFloat("##override elevation", &s.sunOverride->elevationDeg, -90, 90, "%.1f deg") ||
                       changed;
-            if (changed) app.setEnvironmentSettings(s);
+            if (changed) applySettings(s);
         }
         DebugUiStyle::endProperties();
     }
@@ -412,13 +447,13 @@ void LightingTab::exposure()
         if (ImGui::Combo("##exposure mode", &mode, modeNames, 2))
         {
             s.exposure.mode = Vulkan::ExposureMode(mode);
-            app.setEnvironmentSettings(s);
+            applySettings(s);
         }
         // The EV100 of the fixed mode (set_lighting ev100's range)
         DebugUiStyle::property("fixed EV100");
         const bool fixed = s.exposure.mode == Vulkan::ExposureMode::Fixed;
         if (!fixed) ImGui::BeginDisabled();
-        if (ImGui::SliderFloat("##exposure ev100", &s.exposure.ev100, -20, 30, "%.2f")) app.setEnvironmentSettings(s);
+        if (ImGui::SliderFloat("##exposure ev100", &s.exposure.ev100, -20, 30, "%.2f")) applySettings(s);
         if (!fixed) ImGui::EndDisabled();
         DebugUiStyle::property("EV100 now");
         if (scene->hasEnvironment())
@@ -429,7 +464,7 @@ void LightingTab::exposure()
         ImGui::Text("%.2f", double(e.curveEv100));
         DebugUiStyle::property("compensation");
         if (ImGui::SliderFloat("##exposure compensation", &s.exposure.compensation, -10, 10, "%.1f EV"))
-            app.setEnvironmentSettings(s);
+            applySettings(s);
         DebugUiStyle::property("exposure");
         ImGui::Text("%.3g (multiplier %.3g)", double(scene->frameExposure()), double(scene->exposure()));
         DebugUiStyle::property("pre-exposure");
@@ -479,7 +514,7 @@ void LightingTab::ambient()
         bool changed = ImGui::SliderFloat("##ambient scale", &s.ambient.scale, 0, 4, "%.2f");
         DebugUiStyle::property("minimum (lux)");
         changed = ImGui::DragFloat3("##min ambient", s.ambient.minAmbient.data(), 0.001f, 0, 100, "%.3f") || changed;
-        if (changed) app.setEnvironmentSettings(s);
+        if (changed) applySettings(s);
         DebugUiStyle::property("dominant (SH L0)");
         const vec3 d  = ls.sh[0];
         const float m = std::max({d(0), d(1), d(2), 1e-6f});
@@ -584,7 +619,7 @@ void LightingTab::skyAndClouds()
         ImGui::Text("%llu", (unsigned long long)scene->lightingStatistics().lutComputations);
         DebugUiStyle::endProperties();
     }
-    if (changed) app.setEnvironmentSettings(s);
+    if (changed) applySettings(s);
     const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
     if (ls.clouds)
         ImGui::Text("cloud layer on, mean coverage %.2f", double(ls.cloudMeanCoverage));
@@ -694,7 +729,7 @@ void LightingTab::cascadesSection()
             ImGui::SliderFloat("##terrain caster distance", &p.cascadeCasterDistance, 0, 5000, "%.0f m") || changed;
         DebugUiStyle::endProperties();
     }
-    if (changed) scene->setLightingParameters(p);
+    if (changed) applyParameters(p);
     if (!ls.shadows) return;
     // A row per cascade (the casters of its last render)
     if (ImGui::BeginTable("##cascade rows", 8, ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit))
@@ -809,7 +844,7 @@ void LightingTab::horizonSection()
         ImGui::Text("%d (%.0f m cells)", h.levelAt10km, 32.0 * double(1 << h.levelAt10km));
         DebugUiStyle::endProperties();
     }
-    if (changed) scene->setLightingParameters(p);
+    if (changed) applyParameters(p);
     if (!h.valid) return;
     ImGui::RadioButton("R (from 64 m)", &horizonChannel, 0);
     ImGui::SameLine();
@@ -842,6 +877,7 @@ void LightingTab::localLightsSection()
         DebugUiStyle::property("max lights");
         changed =
             ImGui::SliderInt("##max lights", &p.maxLights, 1, 4096, "%d", ImGuiSliderFlags_Logarithmic) || changed;
+        ui.markItem("lighting/max lights");
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("at least 1: the \"local lights\" checkbox switches them off");
         DebugUiStyle::property("lights");
         ImGui::Text("%u submitted, %u candidates, %u visible, %u over budget", c.submitted, c.candidates, c.visible,
@@ -852,7 +888,7 @@ void LightingTab::localLightsSection()
         ImGui::Text("%.1f KiB", double(c.memoryBytes) / 1024);
         DebugUiStyle::endProperties();
     }
-    if (changed) scene->setLightingParameters(p);
+    if (changed) applyParameters(p);
     changed = false;
     if (!p.localLights)
         DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (LightingParameters::localLights)");
@@ -892,7 +928,7 @@ void LightingTab::localLightsSection()
                     c.overflowedClusters, (unsigned long long)c.droppedLights);
         DebugUiStyle::endProperties();
     }
-    if (changed) scene->setLightingParameters(p);
+    if (changed) applyParameters(p);
     if (c.overflowedClusters > 0)
         DebugUiStyle::coloredText(DebugUiStyle::kWarn,
                                   "clusters overflow: the least important lights of a cluster are dropped");
@@ -1002,7 +1038,7 @@ void LightingTab::atlasSection()
             ImGui::Text("%.1f MiB", double(as.memoryBytes) / (1 << 20));
             DebugUiStyle::endProperties();
         }
-        if (atlasChanged) scene->setLightingParameters(ap);
+        if (atlasChanged) applyParameters(ap);
         int longRange = 0;
         for (const Vulkan::LocalLights::Light& l : scene->localLights().lights())
             longRange += l.data.castShadows && l.data.range > 100 ? 1 : 0;

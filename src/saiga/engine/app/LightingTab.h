@@ -13,6 +13,7 @@
 
 #include <array>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace Saiga
@@ -66,6 +67,12 @@ class SAIGA_ENGINE_API LightingTab
     void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0);
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
+    // Every write of the settings and parameters goes through validateLighting (round 2, finding 9: the tab wrote
+    // without set_lighting's checks, e.g. a typed slider value out of range or a cluster grid beyond the memory limit);
+    // a refused write keeps the state and shows its error (writeError) until the next accepted one
+    bool applySettings(const Vulkan::EnvironmentSettings& s);
+    bool applyParameters(const Vulkan::LightingParameters& p);
+    std::string writeError;
     EngineApp& app;
     // Per preview image: its ImGui texture and the preview version it was registered for; the ImGui renderer they were
     // registered with (a new renderer, e.g. a recreated scene, registers them again; the old one's went with it)

@@ -197,10 +197,8 @@ bool validateFileValues(const EnvironmentFile& f, std::string& error)
     check("celestial.moonPhase", c.moonPhase, 0, 1);
     check("celestial.starIntensity", c.starIntensity, 0, 1e6);
     check("clouds.windScale", f.setup.cloudWindScale, -100, 100);
-    check("clouds.fogFalloff", f.settings.clouds.fogFalloff, 0, 1);
-    check("atmosphere.rayleighScale", f.settings.atmosphere.rayleighScale, 0, 100);
-    check("atmosphere.mieScale", f.settings.atmosphere.mieScale, 0, 100);
-    check("atmosphere.ozoneScale", f.settings.atmosphere.ozoneScale, 0, 100);
+    // (round 2, finding 9: the fog falloff and the atmosphere's scales have set_lighting keys, checked with their
+    // ranges by validateLightingValues; the looser ranges here were dead)
     if (errors.empty()) return true;
     error = errors;
     return false;

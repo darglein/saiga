@@ -337,6 +337,9 @@ class SAIGA_VULKAN_API RenderScene
     Atmosphere& atmosphereLuts();
     EnvironmentMap& environmentMap();
     CloudLayer& cloudLayer();
+    // The device's limit of a storage buffer binding (maxStorageBufferRange, or
+    // RenderSceneParameters::storageBufferLimit)
+    uint64_t storageBufferLimit() const;
     // Whether the environment's resources exist (the first setEnvironment or an accessor created them)
     bool environmentResourcesCreated() const { return atmosphere != nullptr; }
     // The scene pipelines created since the start (SceneCulling's, the terrain's and the grass's; a debug view switch

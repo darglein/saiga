@@ -609,7 +609,11 @@ TEST(EnvironmentFile, RangeErrorsNameTheKey)
         {R"({"celestial": {"sunIlluminance": -1}})", "celestial.sunIlluminance"},
         {R"({"celestial": {"yearLengthDays": 1e-300}})", "celestial.yearLengthDays"},
         {R"({"celestial": {"starIntensity": -1}})", "celestial.starIntensity"},
-        {R"({"atmosphere": {"mieScale": -1}})", "atmosphere.mieScale"},
+        // (round 2, finding 9: checked once, with set_lighting's range [0, 10]; the file's own [0, 100] was dead)
+        {R"({"atmosphere": {"mieScale": -1}})", "mie_scale"},
+        {R"({"atmosphere": {"mieScale": 50}})", "mie_scale"},
+        // (round 2, finding 9: the cross-key rules of set_lighting also for the file)
+        {R"({"lighting": {"clusterNear": 50, "clusterFar": 40}})", "cluster_near"},
     };
     int i = 0;
     for (const auto& [json, key] : cases)

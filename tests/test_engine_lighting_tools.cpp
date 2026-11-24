@@ -980,6 +980,75 @@ TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
     w.destroy(lamp);
 }
 
+// Regression (round 2, finding 9): the tab's writes go through set_lighting's checks (validateLighting). A value typed
+// into a slider (Ctrl+click: ImGui does not clamp it) beyond the key's range is refused with the error shown, the
+// parameters stay; the old tab applied it (max lights 5000, max_lights' range is [1, 4096]). An accepted value applies
+TEST_F(LightingTabTest, TypedValueOutOfRangeIsRefused)
+{
+    Json::object state = app->debugUi().state().object_items();
+    // Only the Local lights section open (the slider inside the 800 x 480 window)
+    Json::object sections;
+    for (const char* s :
+         {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",
+          "Far terrain shadows", "Local lights: clusters", "Local lights: shadow atlas", "GPU and memory"})
+        sections[std::string("lighting/") + s] = false;
+    sections["lighting/Local lights"] = true;
+    state["sections"]                 = sections;
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    const int before = app->scene()->lightingParameters().maxLights;
+    auto type        = [&](const char* value)
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app->debugUi().itemCenter("lighting/max lights", at));
+        ImGuiIO& io = ImGui::GetIO();
+        // The panel scrolled to the slider (mouse wheel over the panel)
+        for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 40; ++k)
+        {
+            io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+            io.AddMouseWheelEvent(0, -2);
+            app->runFrames(1, 1.0 / 60);
+            ASSERT_TRUE(app->debugUi().itemCenter("lighting/max lights", at));
+        }
+        ASSERT_LT(at.y, io.DisplaySize.y - 40);
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        click(*app, at);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        app->runFrames(1, 1.0 / 60);
+        // Replace the text (select all, then type) and confirm
+        io.AddKeyEvent(ImGuiMod_Ctrl, true);
+        io.AddKeyEvent(ImGuiKey_A, true);
+        app->runFrames(1, 1.0 / 60);
+        io.AddKeyEvent(ImGuiKey_A, false);
+        io.AddKeyEvent(ImGuiMod_Ctrl, false);
+        app->runFrames(1, 1.0 / 60);
+        io.AddInputCharactersUTF8(value);
+        app->runFrames(1, 1.0 / 60);
+        io.AddKeyEvent(ImGuiKey_Enter, true);
+        app->runFrames(1, 1.0 / 60);
+        io.AddKeyEvent(ImGuiKey_Enter, false);
+        app->runFrames(2, 1.0 / 60);
+    };
+    type("5000");
+    EXPECT_EQ(app->scene()->lightingParameters().maxLights, before);
+    type("77");
+    EXPECT_EQ(app->scene()->lightingParameters().maxLights, 77);
+}
+
+// Regression (round 2, finding 2): set_lighting refuses a cluster grid whose buffers exceed the lighting memory limit
+// (the old check left the cluster buffers out: this call passed every per-key range, then asked for 4 GiB), and
+// nothing changes
+TEST_F(LightingTools, ClusterMemoryIsChecked)
+{
+    const Json before = result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})")));
+    const Json r      = call(*app, "set_lighting", obj(R"({"local_lights": true, "clustered_lights": true,
+        "cluster_x": 64, "cluster_y": 64, "cluster_z": 128, "max_lights_per_cluster": 1024})"));
+    ASSERT_TRUE(isError(r));
+    EXPECT_NE(text(r).find("1 GiB"), std::string::npos) << text(r);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})"))), before);
+}
+
 // capture_lighting's mip is a value of its request: with the tab's Ambient section open (its preview at mip 0 every
 // frame) the capture returns the mip it asked for, and the tab's mip stays (review M5: the mip was scene state the tab
 // overwrote each frame, and the call changed the tab's preview)
@@ -1159,6 +1228,47 @@ TEST(LightingToolsNoDevice, FloatKeysRoundTripAtTheirBounds)
     p.minShadowElevationDeg    = 0.5f;
     std::string error;
     EXPECT_TRUE(validateLightingValues(settings, p, error)) << error;
+}
+
+// Regression (round 2, findings 2, 9): the shared check of set_lighting, the tab and the environment file
+// (validateLighting / validateLightingValues). The memory estimate includes the cluster buffers: a 64 x 64 x 128 grid
+// with 1024 slots asks for 2 GiB of light indices per frame slot (set_lighting's old check summed only the cascades,
+// the horizon map and the atlas, so the call passed and the allocation aborted the program); a grid within 1 GiB whose
+// index buffer exceeds the device's storage binding limit is refused too; the cross-key rules apply to the file loader
+TEST(LightingToolsNoDevice, ValidateLightingChecksClustersAndCrossKeys)
+{
+    Vulkan::EnvironmentSettings settings;
+    Vulkan::LightingParameters p;
+    p.localLights         = true;
+    p.clusteredLights     = true;
+    p.clusterX            = 64;
+    p.clusterY            = 64;
+    p.clusterZ            = 128;
+    p.maxLightsPerCluster = 1024;
+    const Vulkan::LightingStatistics now;
+    const LightingMemoryEstimate m = lightingMemoryAfter(now, p);
+    EXPECT_EQ(m.largestBinding, uint64_t(64 * 64 * 128) * 1024 * 4);
+    EXPECT_GT(m.total, uint64_t(4) << 30);
+    std::string error;
+    EXPECT_FALSE(validateLighting(now, uint64_t(4) << 30, settings, p, error));
+    EXPECT_NE(error.find("1 GiB"), std::string::npos) << error;
+    // Within 1 GiB, beyond a 128 MiB binding limit (64 x 64 x 32 clusters x 257 slots x 4 bytes)
+    p.clusterZ            = 32;
+    p.maxLightsPerCluster = 257;
+    error.clear();
+    EXPECT_FALSE(validateLighting(now, uint64_t(128) << 20, settings, p, error));
+    EXPECT_NE(error.find("storage buffer limit"), std::string::npos) << error;
+    p.maxLightsPerCluster = 64;
+    EXPECT_TRUE(validateLighting(now, uint64_t(128) << 20, settings, p, error)) << error;
+    // The cross-key rules
+    Vulkan::LightingParameters c;
+    c.clusterNear = 50;
+    c.clusterFar  = 40;
+    c.atlasTile   = 768;
+    error.clear();
+    EXPECT_FALSE(validateLightingValues(settings, c, error));
+    EXPECT_NE(error.find("cluster_near"), std::string::npos) << error;
+    EXPECT_NE(error.find("atlas_tile"), std::string::npos) << error;
 }
 
 TEST(LightingToolsNoDevice, NoWorldTimeIsAnError)

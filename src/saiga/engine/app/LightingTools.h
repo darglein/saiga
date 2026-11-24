@@ -41,11 +41,33 @@ class World;
  */
 SAIGA_ENGINE_API void registerLightingTools(McpServer& server, EngineApp& app);
 
-// The settings and parameters against set_lighting's ranges (every key, also the ones a later part adds) and the
-// exposure curve (not empty, finite, strictly ascending elevations); false and an error naming every invalid key (the
-// set_lighting key's name). Used by the environment file (tryReadEnvironmentFile)
+// The settings and parameters against set_lighting's ranges (every key, also the ones a later part adds), its cross-key
+// rules (cluster_near < cluster_far, atlas_tile divides atlas_resolution) and the exposure curve (not empty, finite,
+// strictly ascending elevations); false and an error naming every invalid key (the set_lighting key's name). Used by
+// the environment file (tryReadEnvironmentFile) and validateLighting
 SAIGA_ENGINE_API bool validateLightingValues(const Vulkan::EnvironmentSettings& settings,
                                              const Vulkan::LightingParameters& parameters, std::string& error);
+
+// The lighting memory after a change of the parameters (round 2, finding 2): the memory now (LightingStatistics) with
+// the cascades, the horizon maps, the shadow atlas and the cluster buffers replaced by their sizes for the parameters;
+// largestBinding: the largest single storage binding of the parameters (a frame slot's cluster light indices)
+struct LightingMemoryEstimate
+{
+    uint64_t total          = 0;
+    uint64_t largestBinding = 0;
+};
+SAIGA_ENGINE_API LightingMemoryEstimate lightingMemoryAfter(const Vulkan::LightingStatistics& now,
+                                                            const Vulkan::LightingParameters& after);
+// The lighting memory limit of set_lighting and the Lighting tab
+constexpr uint64_t kLightingMemoryLimit = uint64_t(1) << 30;
+
+// The whole check of a lighting state (round 2, findings 2, 9; set_lighting and every write of the Lighting tab):
+// validateLightingValues, then the memory (lightingMemoryAfter within kLightingMemoryLimit, the largest binding within
+// storageLimit, the device's maxStorageBufferRange); false and an error naming the keys. memory: the estimate
+SAIGA_ENGINE_API bool validateLighting(const Vulkan::LightingStatistics& now, uint64_t storageLimit,
+                                       const Vulkan::EnvironmentSettings& settings,
+                                       const Vulkan::LightingParameters& parameters, std::string& error,
+                                       uint64_t* memory = nullptr);
 
 // The world the lighting tools and the Lighting tab write: the hidden host with --coop, else the app's world
 SAIGA_ENGINE_API World& lightingWriteWorld(EngineApp& app);
