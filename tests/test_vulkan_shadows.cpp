@@ -6,8 +6,8 @@
 
 // The sun and moon shadows of S36a2 on RenderScene (docs/stages/S36_lighting.plan.md, Tests): the multi-view culling
 // of the shadow cascades against a CPU reference, the cascades' fitting (pure), the rendered cascade shadows (the
-// ShadowFactor view read back) and the shadow pipeline table. One scene per test suite (RenderSceneSuiteTest), skipped
-// without a Vulkan 1.3 device.
+// ShadowFactor view read back) and the shadow pipeline table. A scene per test (RenderSceneTest), skipped without a
+// Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/CascadedShadows.h"
 #include "saiga/vulkan/scene/HorizonShadows.h"
@@ -152,9 +152,17 @@ struct ViewReference
     }
 };
 
-class Cascades : public RenderSceneSuiteTest
+class Cascades : public RenderSceneTest
 {
    protected:
+    ivec2 Size() const override { return ivec2(128, 128); }
+    void SetUp() override
+    {
+        RenderSceneTest::SetUp();
+        if (!scene || IsSkipped()) return;
+        // The default lighting (not the fixture's golden mode): the staggered cascades are tested
+        scene->setLightingParameters(LightingParameters());
+    }
     // Renders frames and returns the last frame's statistics
     RenderStatistics Stats(int frames = 2)
     {
@@ -648,7 +656,7 @@ TEST_F(Cascades, ShadowLightSwitchHasHysteresis)
 
 namespace
 {
-class Shadows : public RenderSceneSuiteTest
+class Shadows : public RenderSceneTest
 {
    protected:
     ivec2 Size() const override { return ivec2(256, 256); }
@@ -656,25 +664,14 @@ class Shadows : public RenderSceneSuiteTest
 
     void SetUp() override
     {
-        RenderSceneSuiteTest::SetUp();
-        if (!scene) return;
+        RenderSceneTest::SetUp();
+        if (!scene || IsSkipped()) return;
         LightingParameters p;
         p.sunShadows        = true;
         p.cascadeResolution = 1024;
         p.shadowDistance    = 200;
         scene->setLightingParameters(p);
         scene->setLightingDebug({LightingDebugView::ShadowFactor, 0});
-    }
-    void TearDown() override
-    {
-        if (scene)
-        {
-            scene->setLightingDebug(LightingDebugState());
-            scene->setFreezeCascades(false);
-            for (int c = 0; c < pipelineClassCount; ++c)
-                scene->shadowPipelines().setEntry(c, ShadowPipelineTable::defaultEntry(c));
-        }
-        RenderSceneSuiteTest::TearDown();
     }
 
     // The studio sun towards the light (clay: the shadow light of the cascades), no fog
@@ -703,12 +700,7 @@ class Shadows : public RenderSceneSuiteTest
         if (x < 0 || y < 0 || x >= img.w || y >= img.h) return -1;
         return float(img(y, x)(0)) / 255.0f;
     }
-    void Camera(const Vec3& eye, const Vec3& forward)
-    {
-        cameraEye = eye;
-        SetCamera(0, eye, lookRotation(forward), 1.0);
-    }
-    Vec3 cameraEye = Vec3::Zero();
+    void Camera(const Vec3& eye, const Vec3& forward) { SetCamera(0, eye, lookRotation(forward), 1.0); }
 };
 }  // namespace
 
