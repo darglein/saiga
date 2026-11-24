@@ -12,8 +12,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
-#include <sstream>
 
 namespace Saiga
 {
@@ -34,16 +32,12 @@ constexpr ImGuiWindowFlags kFixedWindow = ImGuiWindowFlags_NoTitleBar | ImGuiWin
                                           ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
 }  // namespace
 
-DebugUi::DebugUi(McpServer* server, std::string stateFile)
-    : consolePtr(std::make_unique<DebugConsole>(server, engineLog())), file(std::move(stateFile))
+DebugUi::DebugUi(McpServer* server) : consolePtr(std::make_unique<DebugConsole>(server, engineLog()))
 {
     for (const char* name : {"Game", "Performance", "Engine", "Console", "Lighting"}) tabs.push_back(Tab{name, {}, {}});
 }
 
-DebugUi::~DebugUi()
-{
-    save();
-}
+DebugUi::~DebugUi() = default;
 
 void DebugUi::select(int tab)
 {
@@ -185,7 +179,6 @@ void DebugUi::draw()
     if (selectedTab != int(DebugTab::Game)) drawPanel(em);
     DebugUiStyle::pop();
     if (focusConsoleDelay > 0 && selectedTab != int(DebugTab::Console)) focusConsoleDelay = 0;
-    saveIfChanged();
 }
 
 void DebugUi::drawBar(float em)
@@ -335,49 +328,6 @@ void DebugUi::setState(const json11::Json& j)
         if (h.is_string()) consolePtr->hiddenCategories.insert(h.string_value());
     consolePtr->mcpOnly = c["mcp_only"].bool_value();
     consolePtr->search  = c["search"].string_value();
-}
-
-void DebugUi::load()
-{
-    if (file.empty()) return;
-    std::ifstream in(file);
-    if (!in) return;
-    std::stringstream ss;
-    ss << in.rdbuf();
-    std::string err;
-    json11::Json j = json11::Json::parse(ss.str(), err);
-    if (!err.empty())
-    {
-        SAIGA_LOG("app", "warning: %s is not valid JSON (%s); the debug UI starts with its defaults", file.c_str(),
-                  err.c_str());
-        // Written again only after a change (a hand-edited file is not replaced by the defaults at exit)
-        savedState = state().dump();
-        return;
-    }
-    setState(j);
-    savedState = state().dump();
-}
-
-void DebugUi::save()
-{
-    if (file.empty()) return;
-    const std::string s = state().dump();
-    if (s == savedState) return;
-    std::ofstream out(file);
-    if (!out) return;
-    out << s << "\n";
-    out.flush();
-    // Only a complete write counts (a failed one is tried again at the next change check)
-    if (out) savedState = s;
-}
-
-void DebugUi::saveIfChanged()
-{
-    if (file.empty()) return;
-    const double now = ImGui::GetTime();
-    if (now - lastSaveCheck < 1.0) return;
-    lastSaveCheck = now;
-    save();
 }
 
 }  // namespace Engine

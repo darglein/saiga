@@ -468,7 +468,7 @@ void LightingTab::summary()
         // The exposed key: the frame's log-average luminance times the exposure against mid-gray (UI rating round 2,
         // finding 3: "too dark / too bright" took mental arithmetic); held while a debug view replaces the frame
         // (finding 2: the reduction measured the debug image)
-        if (litLuminanceFrame > 0 && litLuminanceFrame + 600 >= scene->frames() && scene->sceneWritesLinear())
+        if (litLuminanceFrame > 0 && litLuminanceFrame + 600 >= scene->frames() && litLinear)
         {
             const double key  = exposedKey();
             const bool held   = d.view != Vulkan::LightingDebugView::None;
@@ -538,6 +538,7 @@ void LightingTab::updateLitLuminance()
         litLuminance      = ls.luminance;
         litLuminanceFrame = ls.luminanceFrame;
         litExposure       = scene->frameExposure();
+        litLinear         = scene->sceneWritesLinear();
     }
 }
 
@@ -552,12 +553,16 @@ void LightingTab::lightingGraph(const LightingGpuTimes& t)
     // budget as a dashed line (red frames above it), the scale from 0 to the larger of 1.25 x the budget and the
     // highest frame; hovering shows a frame's time
     const std::vector<double>& h = t.lightingHistory;
-    if (h.size() < 2) return;
-    const float em     = ImGui::GetFontSize();
-    const float width  = ImGui::GetContentRegionAvail().x;
-    // 6 lines (the user's request: larger than the first 3)
+    const float em               = ImGui::GetFontSize();
+    const float width            = ImGui::GetContentRegionAvail().x;
+    // 6 lines (the user's request: larger than the first 3); the space is taken also before the first two samples
+    // (the sections below moved down when the graph appeared a few frames after the tab opened)
     const float height = 6 * em;
-    if (width < 4 * em) return;
+    if (h.size() < 2 || width < 4 * em)
+    {
+        ImGui::Dummy(ImVec2(std::max(width, 1.0f), height));
+        return;
+    }
     double top = 1.25 * LightingGpuTimes::kBudgetMs;
     for (double v : h) top = std::max(top, v);
     const ImVec2 p0 = ImGui::GetCursorScreenPos();
@@ -982,7 +987,11 @@ void LightingTab::exposure()
         // The frame's exposure: from the EV100 times F3's multiplier (UI rating round 1, finding 5: "exposure" on two
         // tabs with two meanings); the pre-exposure in the tooltip
         DebugUiStyle::property("effective exposure");
-        ImGui::Text("%.3g (multiplier %.3g)", double(scene->frameExposure()), double(scene->exposure()));
+        // (held with the luminance while a debug view replaces the frame: round 3, finding 1)
+        if (scene->lightingDebug().view != Vulkan::LightingDebugView::None && litLuminanceFrame > 0)
+            ImGui::Text("%.3g held (multiplier %.3g)", double(litExposure), double(scene->exposure()));
+        else
+            ImGui::Text("%.3g (multiplier %.3g)", double(scene->frameExposure()), double(scene->exposure()));
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("The frame's exposure: from the EV100, times the exposure multiplier of F3 Engine > "
                               "Rendering.\nPre-exposure (the scene pass's scale): %.3g",
@@ -993,10 +1002,10 @@ void LightingTab::exposure()
         DebugUiStyle::property("luminance (log2)");
         if (litLuminanceFrame > 0)
             ImGui::Text("mean %.2f  max %.2f  (%s)%s", double(litLuminance.mean), double(litLuminance.max),
-                        scene->sceneWritesLinear() ? "cd/m^2" : "display", held ? " held" : "");
+                        litLinear ? "cd/m^2" : "display", held ? " held" : "");
         else
             ImGui::TextUnformatted("-");
-        if (litLuminanceFrame > 0 && scene->sceneWritesLinear())
+        if (litLuminanceFrame > 0 && litLinear)
         {
             DebugUiStyle::property("exposed key");
             const double key = exposedKey();
@@ -1018,7 +1027,7 @@ void LightingTab::exposure()
         ImGui::PlotHistogram("##luminance histogram", bins, 16, 0, nullptr, 0.0f, FLT_MAX, ImVec2(-1, 48));
         const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
         const float lo = litLuminance.rangeMin, hi = litLuminance.rangeMax;
-        if (hi > lo && scene->sceneWritesLinear())
+        if (hi > lo && litLinear)
         {
             const double gray = std::log2(0.18) - std::log2(std::max(double(litExposure), 1e-30));
             const float x     = a.x + (b.x - a.x) * float((gray - lo) / (hi - lo));
@@ -1909,431 +1918,440 @@ void LightingTab::lightTable()
                             st.hasPose ? (worldOf(st) - camera).norm() : std::numeric_limits<double>::infinity(),
                             (uint64_t(1) << 32) | st.entity.index});
         }
-    // A filter of the rows by handle, entity and state, and the counts the "visible" row does not have (UI rating round
-    // 2, finding 6: the caption repeated the visible count, and a lamp could only be found by scrolling)
+    // The table below the selected light's editor, always 12 rows high (the user after the S36 demo: the table
+    // shrank when a light was selected; round 2: the editor below the table was off screen)
+    auto drawTable = [&]()
     {
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextDisabled("filter");
-        ImGui::SameLine();
-        lightFilter.Draw("##light filter", 10 * ImGui::GetFontSize());
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Handle, entity or state, e.g. 424 or off (\"-\" excludes: -visible)");
-        std::string extra;
-        if (table.listCount() > 0) extra += std::to_string(table.listCount()) + " from lists";
-        if (unrendered > 0) extra += (extra.empty() ? "" : ", ") + std::to_string(unrendered) + " not rendered";
-        if (!extra.empty())
+        // A filter of the rows by handle, entity and state, and the counts the "visible" row does not have (UI rating round
+        // 2, finding 6: the caption repeated the visible count, and a lamp could only be found by scrolling)
         {
+            ImGui::AlignTextToFramePadding();
+            ImGui::TextDisabled("filter");
             ImGui::SameLine();
-            ImGui::TextDisabled("%s", extra.c_str());
-        }
-        if (lightFilter.IsActive())
-        {
-            auto match = [&](const Row& r)
+            lightFilter.Draw("##light filter", 10 * ImGui::GetFontSize());
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Handle, entity or state, e.g. 424 or off (\"-\" excludes: -visible)");
+            std::string extra;
+            if (table.listCount() > 0) extra += std::to_string(table.listCount()) + " from lists";
+            if (unrendered > 0) extra += (extra.empty() ? "" : ", ") + std::to_string(unrendered) + " not rendered";
+            if (!extra.empty())
             {
-                char text[96];
-                std::snprintf(text, sizeof(text), "%u %u %s", r.light ? r.light->handle.id : 0u,
-                              r.state ? r.state->entity.index : 0u,
-                              r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
-                return lightFilter.PassFilter(text);
-            };
-            rows.erase(std::remove_if(rows.begin(), rows.end(), [&](const Row& r) { return !match(r); }), rows.end());
-        }
-    }
-    // Columns clipped in a narrow tab (round 1, finding 17): a horizontal scroll with the handle column frozen, the
-    // units in the headers; 6 rows while a light is selected (round 2, finding 6: its editor below a 15-row table was
-    // off screen), the scrollbar's height added (it covered the last row)
-    const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
-                                  ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
-    const bool anySelected = selectedEntity.valid() || d.highlightLight != 0;
-    const float height =
-        ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), anySelected ? 6 : 12) + 2) +
-        ImGui::GetStyle().ScrollbarSize;
-    if (rows.empty() && lightFilter.IsActive()) ImGui::TextDisabled("no light matches the filter");
-    // (round 2, finding 12: A8's buffer index, the light's index in the frame's light buffer, as the last column)
-    if (!rows.empty() && ImGui::BeginTable("##light table", 11, flags, ImVec2(0, height)))
-    {
-        ImGui::TableSetupScrollFreeze(1, 1);
-        const char* headers[] = {"handle",  "entity",   "state", "kind",         "distance m", "lumen",
-                                 "range m", "clusters", "tiles", "shadow frame", "buffer"};
-        for (int i = 0; i < 11; ++i)
-            ImGui::TableSetupColumn(headers[i], i == 4 ? ImGuiTableColumnFlags_DefaultSort : 0);
-        ImGui::TableHeadersRow();
-        // The selected row in the selected light's yellow (UI rating round 1, finding 11: hardly visible)
-        ImGui::PushStyleColor(ImGuiCol_Header, (kSelectedLight & 0x00FFFFFFu) | (90u << IM_COL32_A_SHIFT));
-        if (ImGuiTableSortSpecs* sort = ImGui::TableGetSortSpecs())
-            if (sort->SpecsCount > 0)
-            {
-                lightSortColumn    = sort->Specs[0].ColumnIndex;
-                lightSortAscending = sort->Specs[0].SortDirection != ImGuiSortDirection_Descending;
+                ImGui::SameLine();
+                ImGui::TextDisabled("%s", extra.c_str());
             }
-        auto key = [&](const Row& r) -> double
-        {
-            const bool spot    = r.light ? r.light->data.kind == Vulkan::LightKind::Spot
-                                         : r.state->source.kind == Vulkan::LightKind::Spot;
-            const double lumen = r.light ? double(r.light->data.lumen) : r.state->source.lumen;
-            const double range = r.light ? double(r.light->data.range) : r.state->source.range;
-            switch (lightSortColumn)
+            if (lightFilter.IsActive())
             {
-                case 0:
-                    return r.light ? double(r.light->handle.id) : 4294967296.0;
-                case 1:
-                    return r.state ? double(r.state->entity.index) : -1.0;
-                case 2:
-                    return r.light ? (r.info ? 0.0 : 1.0) : 2.0;
-                case 3:
-                    return spot ? 1.0 : 0.0;
-                case 5:
-                    return lumen;
-                case 6:
-                    return range;
-                case 7:
-                    return r.info ? double(r.info->clusters) : -1.0;
-                case 8:
-                    return r.info ? double(r.info->tiles) : -1.0;
-                case 9:
-                    return r.info ? double(r.info->lastRender) : -1.0;
-                case 10:
-                    return r.info ? double(r.info->index) : -1.0;
-                default:
-                    return r.distance;
-            }
-        };
-        // The frame's lights, the other scene lights, the unrendered ones
-        auto rowGroup = [](const Row& r) { return r.info ? 0 : (r.light ? 1 : 2); };
-        // Sorted when the sort spec or the light set changes, else every 30 frames (the distances change slowly; S30's
-        // thousands of piece lights)
-        const uint64_t now = scene->frames();
-        bool resort        = orderColumn != lightSortColumn || orderAscending != lightSortAscending ||
-                      lightOrder.size() != rows.size() || now >= orderFrame + 30 || now < orderFrame;
-        if (!resort)
-        {
-            std::unordered_map<uint64_t, size_t> at;
-            for (size_t k = 0; k < rows.size(); ++k) at[rows[k].key] = k;
-            std::vector<Row> ordered;
-            ordered.reserve(rows.size());
-            for (uint64_t k : lightOrder)
-            {
-                auto it = at.find(k);
-                if (it == at.end()) break;
-                ordered.push_back(rows[it->second]);
-            }
-            if (ordered.size() == rows.size())
-                rows.swap(ordered);
-            else
-                resort = true;
-            // A light that changed its group (visible, rendered, not rendered) moves at once (CodeRabbit #86)
-            for (size_t k = 1; k < rows.size() && !resort; ++k) resort = rowGroup(rows[k]) < rowGroup(rows[k - 1]);
-        }
-        if (resort)
-        {
-            std::stable_sort(rows.begin(), rows.end(),
-                             [&](const Row& a, const Row& b)
-                             {
-                                 // The frame's lights first, then the other scene lights, then the unrendered ones
-                                 const int ga = rowGroup(a), gb = rowGroup(b);
-                                 if (ga != gb) return ga < gb;
-                                 // A NaN key (an invalid light's lumen) after the numbers in both directions (a
-                                 // strict weak order; CodeRabbit #86)
-                                 const double ka = key(a), kb = key(b);
-                                 const bool na = std::isnan(ka), nb = std::isnan(kb);
-                                 if (na != nb) return nb;
-                                 if (!na && ka != kb) return lightSortAscending ? ka < kb : ka > kb;
-                                 return a.key < b.key;
-                             });
-            lightOrder.clear();
-            for (const Row& r : rows) lightOrder.push_back(r.key);
-            orderColumn    = lightSortColumn;
-            orderAscending = lightSortAscending;
-            orderFrame     = now;
-        }
-        ImGuiListClipper clipper;
-        clipper.Begin(int(rows.size()));
-        while (clipper.Step())
-            for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
-            {
-                const Row& r = rows[size_t(i)];
-                ImGui::TableNextRow();
-                ImGui::TableNextColumn();
-                char label[48];
-                if (r.light)
-                    std::snprintf(label, sizeof(label), "%u", r.light->handle.id);
-                else
-                    std::snprintf(label, sizeof(label), "-##e%u", r.state->entity.index);
-                const bool selected = r.state ? r.state->entity == selectedEntity
-                                              : !selectedEntity.valid() && d.highlightLight == r.light->handle.id;
-                if (!r.info) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
-                if (ImGui::Selectable(label, selected, ImGuiSelectableFlags_SpanAllColumns))
+                auto match = [&](const Row& r)
                 {
-                    selectedEntity   = selected || !r.state ? Entity() : r.state->entity;
-                    d.highlightLight = selected ? 0u : (r.light ? r.light->handle.id : 0u);
-                    tabHighlight     = d.highlightLight;
-                    scene->setLightingDebug(d);
-                }
-                ImGui::TableNextColumn();
-                // (the generation only when it is not 0)
-                if (r.state && r.state->entity.generation != 0)
-                    ImGui::Text("%u:%u", r.state->entity.index, r.state->entity.generation);
-                else if (r.state)
-                    ImGui::Text("%u", r.state->entity.index);
-                else
-                    ImGui::TextUnformatted(r.light->list ? "list" : "-");
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
-                ImGui::TableNextColumn();
-                ImGui::TextUnformatted(Vulkan::lightKindName(r.light ? r.light->data.kind : r.state->source.kind));
-                // The numbers right-aligned
-                if (std::isfinite(r.distance))
-                    cellRightf("%.1f", r.distance);
-                else
-                    DebugUiStyle::cellRight("-");
-                cellRightf("%.0f", r.light ? double(r.light->data.lumen) : r.state->source.lumen);
-                cellRightf("%.1f", r.light ? double(r.light->data.range) : r.state->source.range);
-                if (r.info)
-                    cellRightf("%u", r.info->clusters);
-                else
-                    DebugUiStyle::cellRight("-");
-                const bool shadows = r.light ? r.light->data.castShadows : r.state->source.castShadows;
-                if (r.info && r.info->tiles > 0)
-                    cellRightf("%d%s", r.info->tiles, r.info->shadowReady ? "" : " (pending)");
-                else
-                    DebugUiStyle::cellRight(shadows ? (r.info ? "none" : "-") : "-");
-                if (r.info && r.info->lastRender)
-                    cellRightf("%llu", (unsigned long long)r.info->lastRender);
-                else
-                    DebugUiStyle::cellRight("-");
-                if (r.info)
-                    cellRightf("%u", r.info->index);
-                else
-                    DebugUiStyle::cellRight("-");
-                if (!r.info) ImGui::PopStyleColor();
+                    char text[96];
+                    std::snprintf(text, sizeof(text), "%u %u %s", r.light ? r.light->handle.id : 0u,
+                                  r.state ? r.state->entity.index : 0u,
+                                  r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
+                    return lightFilter.PassFilter(text);
+                };
+                rows.erase(std::remove_if(rows.begin(), rows.end(), [&](const Row& r) { return !match(r); }), rows.end());
             }
-        ImGui::PopStyleColor();
-        ImGui::EndTable();
-    }
-    // The selected light: its numbers, the camera, an entity light's fields (written through set_component; also
-    // while it is off or invalid)
-    const Vulkan::LocalLights::Light* sel =
-        d.highlightLight ? table.find(Vulkan::LightHandle{d.highlightLight}) : nullptr;
-    if (!sel && !selState) return;
-    Vec3 pos      = Vec3::Zero();
-    Vec3 dir      = Vec3(0, -1, 0);
-    double range  = 10;
-    bool hasPos   = true;
-    SpaceId space = 0;
-    bool spot     = false;
-    if (sel)
-    {
-        const Vulkan::LightData& ld = sel->data;
-        pos                         = sel->worldPosition();
-        dir                         = ld.direction.cast<double>();
-        range                       = double(ld.range);
-        space                       = sel->chunk.space;
-        spot                        = ld.kind == Vulkan::LightKind::Spot;
-        ImGui::PushTextWrapPos(0);
-        ImGui::Text("light %u: %s at (%.1f, %.1f, %.1f), %.0f lm, range %.1f m%s", sel->handle.id,
-                    Vulkan::lightKindName(ld.kind), pos(0), pos(1), pos(2), double(ld.lumen), double(ld.range),
-                    ld.castShadows ? ", shadowed" : "");
-        ImGui::PopTextWrapPos();
-        if (ld.castShadows && ld.range > 100)
-            DebugUiStyle::coloredText(DebugUiStyle::kWarn, "shadowed with a range above 100 m: coarse 16-bit depth");
-    }
-    else
-    {
-        hasPos = selState->hasPose;
-        pos    = worldOf(*selState);
-        // An invalid light (e.g. a NaN offset) is moved to at its entity's origin; without a finite one the camera is
-        // not moved (CodeRabbit #86 round 2: the tool held the camera at a NaN eye)
-        if (!pos.allFinite()) pos = selState->pose.position;
-        hasPos = hasPos && pos.allFinite();
-        dir    = selState->pose.rotation * selState->source.unitRotation() * Vec3(0, 0, -1);
-        range  = selState->source.range;
-        space  = selState->pose.space;
-        spot   = selState->source.kind == Vulkan::LightKind::Spot;
-        ImGui::Text("entity %u:%u: %s, not rendered (%s)", selectedEntity.index, selectedEntity.generation,
-                    Vulkan::lightKindName(selState->source.kind), selState->state.c_str());
-        if (selState->state.rfind("invalid", 0) == 0)
-            DebugUiStyle::coloredText(DebugUiStyle::kWarn, "an invalid LightSource is not rendered");
-    }
-    const bool moveCamera = hasPos && ImGui::SmallButton("move camera to light");
-    if (hasPos) app.debugUi().markItem("lighting/move camera to light");
-    if (moveCamera)
-    {
-        const auto [eye, rotation] = lightViewPose(pos, spot ? dir : Vec3::Zero(), range, app.viewCamera().rotation);
-        // Regression (S36 demo): the camera was held as by an MCP tool, so the free camera no longer moved; the button
-        // moves it once and leaves it free (also from a tool's hold: the user takes the camera)
-        app.releaseCamera();
-        app.setViewCameraByTool(space, eye, rotation, app.viewCamera().fovy, false);
-    }
-    if (hasPos) ImGui::SameLine();
-    if (ImGui::SmallButton("deselect"))
-    {
-        selectedEntity   = Entity();
-        d.highlightLight = 0;
-        tabHighlight     = 0;
-        scene->setLightingDebug(d);
-    }
-    if (!selState)
-    {
-        ImGui::TextUnformatted(sel && sel->list ? "a scene light of a list (read-only)" : "a scene light (read-only)");
-        return;
-    }
-    const Entity e = selectedEntity;
-    World& w       = app.world();
-    if (!w.alive(e) || !w.has<LightSource>(e)) return;
-    // --coop (round 2, finding 10): the client's LightSource is replicated (HostReliable), its writes are refused; the
-    // editor writes the host's entity of the same NetId (as the environment edits write the host's world)
-    Entity target = e;
-    if (app.coop())
-    {
-        const NetId id = w.replication().netIdOf(e);
-        target         = id ? app.hostWorld()->replication().entityOfNetId(id) : Entity();
-        if (!app.hostWorld()->alive(target) || !app.hostWorld()->has<LightSource>(target))
+        }
+        // Columns clipped in a narrow tab (round 1, finding 17): a horizontal scroll with the handle column frozen, the
+        // units in the headers; the scrollbar's height added (round 2, finding 6: it covered the last row)
+        const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
+                                      ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
+        const float height = ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), 12) + 2) +
+                             ImGui::GetStyle().ScrollbarSize;
+        if (rows.empty() && lightFilter.IsActive()) ImGui::TextDisabled("no light matches the filter");
+        // (round 2, finding 12: A8's buffer index, the light's index in the frame's light buffer, as the last column)
+        if (!rows.empty() && ImGui::BeginTable("##light table", 11, flags, ImVec2(0, height)))
         {
-            ImGui::TextUnformatted("read-only in --coop (no host entity of this light)");
+            ImGui::TableSetupScrollFreeze(1, 1);
+            const char* headers[] = {"handle",  "entity",   "state", "kind",         "distance m", "lumen",
+                                     "range m", "clusters", "tiles", "shadow frame", "buffer"};
+            for (int i = 0; i < 11; ++i)
+                ImGui::TableSetupColumn(headers[i], i == 4 ? ImGuiTableColumnFlags_DefaultSort : 0);
+            ImGui::TableHeadersRow();
+            // The selected row in the selected light's yellow (UI rating round 1, finding 11: hardly visible)
+            ImGui::PushStyleColor(ImGuiCol_Header, (kSelectedLight & 0x00FFFFFFu) | (90u << IM_COL32_A_SHIFT));
+            if (ImGuiTableSortSpecs* sort = ImGui::TableGetSortSpecs())
+                if (sort->SpecsCount > 0)
+                {
+                    lightSortColumn    = sort->Specs[0].ColumnIndex;
+                    lightSortAscending = sort->Specs[0].SortDirection != ImGuiSortDirection_Descending;
+                }
+            auto key = [&](const Row& r) -> double
+            {
+                const bool spot    = r.light ? r.light->data.kind == Vulkan::LightKind::Spot
+                                             : r.state->source.kind == Vulkan::LightKind::Spot;
+                const double lumen = r.light ? double(r.light->data.lumen) : r.state->source.lumen;
+                const double range = r.light ? double(r.light->data.range) : r.state->source.range;
+                switch (lightSortColumn)
+                {
+                    case 0:
+                        return r.light ? double(r.light->handle.id) : 4294967296.0;
+                    case 1:
+                        return r.state ? double(r.state->entity.index) : -1.0;
+                    case 2:
+                        return r.light ? (r.info ? 0.0 : 1.0) : 2.0;
+                    case 3:
+                        return spot ? 1.0 : 0.0;
+                    case 5:
+                        return lumen;
+                    case 6:
+                        return range;
+                    case 7:
+                        return r.info ? double(r.info->clusters) : -1.0;
+                    case 8:
+                        return r.info ? double(r.info->tiles) : -1.0;
+                    case 9:
+                        return r.info ? double(r.info->lastRender) : -1.0;
+                    case 10:
+                        return r.info ? double(r.info->index) : -1.0;
+                    default:
+                        return r.distance;
+                }
+            };
+            // The frame's lights, the other scene lights, the unrendered ones
+            auto rowGroup = [](const Row& r) { return r.info ? 0 : (r.light ? 1 : 2); };
+            // Sorted when the sort spec or the light set changes, else every 30 frames (the distances change slowly; S30's
+            // thousands of piece lights)
+            const uint64_t now = scene->frames();
+            bool resort        = orderColumn != lightSortColumn || orderAscending != lightSortAscending ||
+                          lightOrder.size() != rows.size() || now >= orderFrame + 30 || now < orderFrame;
+            if (!resort)
+            {
+                std::unordered_map<uint64_t, size_t> at;
+                for (size_t k = 0; k < rows.size(); ++k) at[rows[k].key] = k;
+                std::vector<Row> ordered;
+                ordered.reserve(rows.size());
+                for (uint64_t k : lightOrder)
+                {
+                    auto it = at.find(k);
+                    if (it == at.end()) break;
+                    ordered.push_back(rows[it->second]);
+                }
+                if (ordered.size() == rows.size())
+                    rows.swap(ordered);
+                else
+                    resort = true;
+                // A light that changed its group (visible, rendered, not rendered) moves at once (CodeRabbit #86)
+                for (size_t k = 1; k < rows.size() && !resort; ++k) resort = rowGroup(rows[k]) < rowGroup(rows[k - 1]);
+            }
+            if (resort)
+            {
+                std::stable_sort(rows.begin(), rows.end(),
+                                 [&](const Row& a, const Row& b)
+                                 {
+                                     // The frame's lights first, then the other scene lights, then the unrendered ones
+                                     const int ga = rowGroup(a), gb = rowGroup(b);
+                                     if (ga != gb) return ga < gb;
+                                     // A NaN key (an invalid light's lumen) after the numbers in both directions (a
+                                     // strict weak order; CodeRabbit #86)
+                                     const double ka = key(a), kb = key(b);
+                                     const bool na = std::isnan(ka), nb = std::isnan(kb);
+                                     if (na != nb) return nb;
+                                     if (!na && ka != kb) return lightSortAscending ? ka < kb : ka > kb;
+                                     return a.key < b.key;
+                                 });
+                lightOrder.clear();
+                for (const Row& r : rows) lightOrder.push_back(r.key);
+                orderColumn    = lightSortColumn;
+                orderAscending = lightSortAscending;
+                orderFrame     = now;
+            }
+            ImGuiListClipper clipper;
+            clipper.Begin(int(rows.size()));
+            while (clipper.Step())
+                for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
+                {
+                    const Row& r = rows[size_t(i)];
+                    ImGui::TableNextRow();
+                    ImGui::TableNextColumn();
+                    char label[48];
+                    if (r.light)
+                        std::snprintf(label, sizeof(label), "%u", r.light->handle.id);
+                    else
+                        std::snprintf(label, sizeof(label), "-##e%u", r.state->entity.index);
+                    const bool selected = r.state ? r.state->entity == selectedEntity
+                                                  : !selectedEntity.valid() && d.highlightLight == r.light->handle.id;
+                    if (!r.info) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+                    if (ImGui::Selectable(label, selected, ImGuiSelectableFlags_SpanAllColumns))
+                    {
+                        selectedEntity   = selected || !r.state ? Entity() : r.state->entity;
+                        d.highlightLight = selected ? 0u : (r.light ? r.light->handle.id : 0u);
+                        tabHighlight     = d.highlightLight;
+                        scene->setLightingDebug(d);
+                    }
+                    ImGui::TableNextColumn();
+                    // (the generation only when it is not 0)
+                    if (r.state && r.state->entity.generation != 0)
+                        ImGui::Text("%u:%u", r.state->entity.index, r.state->entity.generation);
+                    else if (r.state)
+                        ImGui::Text("%u", r.state->entity.index);
+                    else
+                        ImGui::TextUnformatted(r.light->list ? "list" : "-");
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
+                    ImGui::TableNextColumn();
+                    ImGui::TextUnformatted(Vulkan::lightKindName(r.light ? r.light->data.kind : r.state->source.kind));
+                    // The numbers right-aligned
+                    if (std::isfinite(r.distance))
+                        cellRightf("%.1f", r.distance);
+                    else
+                        DebugUiStyle::cellRight("-");
+                    cellRightf("%.0f", r.light ? double(r.light->data.lumen) : r.state->source.lumen);
+                    cellRightf("%.1f", r.light ? double(r.light->data.range) : r.state->source.range);
+                    if (r.info)
+                        cellRightf("%u", r.info->clusters);
+                    else
+                        DebugUiStyle::cellRight("-");
+                    const bool shadows = r.light ? r.light->data.castShadows : r.state->source.castShadows;
+                    if (r.info && r.info->tiles > 0)
+                        cellRightf("%d%s", r.info->tiles, r.info->shadowReady ? "" : " (pending)");
+                    else
+                        DebugUiStyle::cellRight(shadows ? (r.info ? "none" : "-") : "-");
+                    if (r.info && r.info->lastRender)
+                        cellRightf("%llu", (unsigned long long)r.info->lastRender);
+                    else
+                        DebugUiStyle::cellRight("-");
+                    if (r.info)
+                        cellRightf("%u", r.info->index);
+                    else
+                        DebugUiStyle::cellRight("-");
+                    if (!r.info) ImGui::PopStyleColor();
+                }
+            ImGui::PopStyleColor();
+            ImGui::EndTable();
+        }
+    };
+    auto drawEditor = [&]()
+    {
+        // The selected light: its numbers, the camera, an entity light's fields (written through set_component; also
+        // while it is off or invalid)
+        const Vulkan::LocalLights::Light* sel =
+            d.highlightLight ? table.find(Vulkan::LightHandle{d.highlightLight}) : nullptr;
+        if (!sel && !selState) return;
+        Vec3 pos      = Vec3::Zero();
+        Vec3 dir      = Vec3(0, -1, 0);
+        double range  = 10;
+        bool hasPos   = true;
+        SpaceId space = 0;
+        bool spot     = false;
+        if (sel)
+        {
+            const Vulkan::LightData& ld = sel->data;
+            pos                         = sel->worldPosition();
+            dir                         = ld.direction.cast<double>();
+            range                       = double(ld.range);
+            space                       = sel->chunk.space;
+            spot                        = ld.kind == Vulkan::LightKind::Spot;
+            ImGui::PushTextWrapPos(0);
+            ImGui::Text("light %u: %s at (%.1f, %.1f, %.1f), %.0f lm, range %.1f m%s", sel->handle.id,
+                        Vulkan::lightKindName(ld.kind), pos(0), pos(1), pos(2), double(ld.lumen), double(ld.range),
+                        ld.castShadows ? ", shadowed" : "");
+            ImGui::PopTextWrapPos();
+            if (ld.castShadows && ld.range > 100)
+                DebugUiStyle::coloredText(DebugUiStyle::kWarn, "shadowed with a range above 100 m: coarse 16-bit depth");
+        }
+        else
+        {
+            hasPos = selState->hasPose;
+            pos    = worldOf(*selState);
+            // An invalid light (e.g. a NaN offset) is moved to at its entity's origin; without a finite one the camera is
+            // not moved (CodeRabbit #86 round 2: the tool held the camera at a NaN eye)
+            if (!pos.allFinite()) pos = selState->pose.position;
+            hasPos = hasPos && pos.allFinite();
+            dir    = selState->pose.rotation * selState->source.unitRotation() * Vec3(0, 0, -1);
+            range  = selState->source.range;
+            space  = selState->pose.space;
+            spot   = selState->source.kind == Vulkan::LightKind::Spot;
+            ImGui::Text("entity %u:%u: %s, not rendered (%s)", selectedEntity.index, selectedEntity.generation,
+                        Vulkan::lightKindName(selState->source.kind), selState->state.c_str());
+            if (selState->state.rfind("invalid", 0) == 0)
+                DebugUiStyle::coloredText(DebugUiStyle::kWarn, "an invalid LightSource is not rendered");
+        }
+        const bool moveCamera = hasPos && ImGui::SmallButton("move camera to light");
+        if (hasPos) app.debugUi().markItem("lighting/move camera to light");
+        if (moveCamera)
+        {
+            const auto [eye, rotation] = lightViewPose(pos, spot ? dir : Vec3::Zero(), range, app.viewCamera().rotation);
+            // Regression (S36 demo): the camera was held as by an MCP tool, so the free camera no longer moved; the button
+            // moves it once and leaves it free (also from a tool's hold: the user takes the camera)
+            app.releaseCamera();
+            app.setViewCameraByTool(space, eye, rotation, app.viewCamera().fovy, false);
+        }
+        if (hasPos) ImGui::SameLine();
+        if (ImGui::SmallButton("deselect"))
+        {
+            selectedEntity   = Entity();
+            d.highlightLight = 0;
+            tabHighlight     = 0;
+            scene->setLightingDebug(d);
+        }
+        if (!selState)
+        {
+            ImGui::TextUnformatted(sel && sel->list ? "a scene light of a list (read-only)" : "a scene light (read-only)");
             return;
         }
-    }
-    // The values of the entity that is written (round 4, minor 2: in --coop the client's replica lags the host by the
-    // replication delay; a drag restarted from it each frame and an edit resent other fields' stale values)
-    const World& owner       = app.coop() ? *app.hostWorld() : w;
-    const LightSource before = owner.read<LightSource>(target);
-    LightSource s            = before;
-    bool edit                = false;
-    // What is changed most often always, the rest in a sub-section (UI rating round 1, finding 6)
-    if (DebugUiStyle::beginProperties("##lighting light source"))
-    {
-        DebugUiStyle::property("on");
-        edit = ImGui::Checkbox("##light on", &s.on) || edit;
-        app.debugUi().markItem("lighting/light on");
-        // (UI rating round 1, finding 10: the hint was a cut line above the editor)
-        ImGui::SameLine();
-        ImGui::TextDisabled("(?)");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("A game's systems may switch the light again (e.g. game_world's lamps follow the time "
-                              "of day)");
-        DebugUiStyle::property("cast shadows");
-        edit = ImGui::Checkbox("##light shadows", &s.castShadows) || edit;
-        app.debugUi().markItem("lighting/light shadows");
-        DebugUiStyle::property("kind");
-        int kind = s.kind == Vulkan::LightKind::Spot ? 1 : 0;
-        if (ImGui::Combo("##light kind", &kind, "point\0spot\0"))
+        const Entity e = selectedEntity;
+        World& w       = app.world();
+        if (!w.alive(e) || !w.has<LightSource>(e)) return;
+        // --coop (round 2, finding 10): the client's LightSource is replicated (HostReliable), its writes are refused; the
+        // editor writes the host's entity of the same NetId (as the environment edits write the host's world)
+        Entity target = e;
+        if (app.coop())
         {
-            s.kind = kind == 1 ? Vulkan::LightKind::Spot : Vulkan::LightKind::Point;
-            edit   = true;
-        }
-        DebugUiStyle::property("lumen");
-        float lumen = float(s.lumen);
-        if (ImGui::SliderFloat("##light lumen", &lumen, 0, 100000, "%.0f", ImGuiSliderFlags_Logarithmic))
-        {
-            s.lumen = lumen;
-            edit    = true;
-        }
-        DebugUiStyle::property("range");
-        float rangeF = float(s.range);
-        if (ImGui::SliderFloat("##light range", &rangeF, 0.1f, 1000, "%.1f m", ImGuiSliderFlags_Logarithmic))
-        {
-            s.range = rangeF;
-            edit    = true;
-        }
-        DebugUiStyle::property("color");
-        float col[3] = {float(s.color(0)), float(s.color(1)), float(s.color(2))};
-        if (ImGui::ColorEdit3("##light colour", col, ImGuiColorEditFlags_Float))
-        {
-            s.color = Vec3(col[0], col[1], col[2]);
-            edit    = true;
-        }
-        DebugUiStyle::endProperties();
-    }
-    if (app.debugUi().subSection("lighting/Local lights: Light details", "Offset, spot, priority, flicker", false) &&
-        DebugUiStyle::beginProperties("##lighting light details"))
-    {
-        DebugUiStyle::property("offset (entity, m)");
-        float off[3] = {float(s.offset(0)), float(s.offset(1)), float(s.offset(2))};
-        if (ImGui::DragFloat3("##light offset", off, 0.05f, -100, 100, "%.2f"))
-        {
-            s.offset = Vec3(off[0], off[1], off[2]);
-            edit     = true;
-        }
-        if (s.kind == Vulkan::LightKind::Spot)
-        {
-            DebugUiStyle::property("cone (inner, outer)");
-            float cone[2] = {float(s.innerAngleDeg), float(s.outerAngleDeg)};
-            if (ImGui::SliderFloat2("##light cone", cone, 1, 89, "%.0f deg"))
+            const NetId id = w.replication().netIdOf(e);
+            target         = id ? app.hostWorld()->replication().entityOfNetId(id) : Entity();
+            if (!app.hostWorld()->alive(target) || !app.hostWorld()->has<LightSource>(target))
             {
-                s.innerAngleDeg = std::min(cone[0], cone[1]);
-                s.outerAngleDeg = std::max(cone[0], cone[1]);
-                edit            = true;
+                ImGui::TextUnformatted("read-only in --coop (no host entity of this light)");
+                return;
             }
-            // The spot's direction relative to the entity (its -z after rotation) as yaw (about +y, 0: -z) and pitch
-            DebugUiStyle::property("direction (yaw, pitch)");
-            const Vec3 local = s.rotation * Vec3(0, 0, -1);
-            float yp[2]      = {float(std::atan2(-local(0), -local(2)) * 57.29577951308232),
-                                float(std::asin(std::clamp(local(1), -1.0, 1.0)) * 57.29577951308232)};
-            if (ImGui::SliderFloat2("##light direction", yp, -180, 180, "%.0f deg"))
+        }
+        // The values of the entity that is written (round 4, minor 2: in --coop the client's replica lags the host by the
+        // replication delay; a drag restarted from it each frame and an edit resent other fields' stale values)
+        const World& owner       = app.coop() ? *app.hostWorld() : w;
+        const LightSource before = owner.read<LightSource>(target);
+        LightSource s            = before;
+        bool edit                = false;
+        // What is changed most often always, the rest in a sub-section (UI rating round 1, finding 6)
+        if (DebugUiStyle::beginProperties("##lighting light source"))
+        {
+            DebugUiStyle::property("on");
+            edit = ImGui::Checkbox("##light on", &s.on) || edit;
+            app.debugUi().markItem("lighting/light on");
+            // (UI rating round 1, finding 10: the hint was a cut line above the editor)
+            ImGui::SameLine();
+            ImGui::TextDisabled("(?)");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("A game's systems may switch the light again (e.g. game_world's lamps follow the time "
+                                  "of day)");
+            DebugUiStyle::property("cast shadows");
+            edit = ImGui::Checkbox("##light shadows", &s.castShadows) || edit;
+            app.debugUi().markItem("lighting/light shadows");
+            DebugUiStyle::property("kind");
+            int kind = s.kind == Vulkan::LightKind::Spot ? 1 : 0;
+            if (ImGui::Combo("##light kind", &kind, "point\0spot\0"))
             {
-                const double yaw   = double(yp[0]) / 57.29577951308232;
-                const double pitch = std::clamp(double(yp[1]), -89.9, 89.9) / 57.29577951308232;
-                const Vec3 f(-std::sin(yaw) * std::cos(pitch), std::sin(pitch), -std::cos(yaw) * std::cos(pitch));
-                s.rotation = cameraLookRotation(f);
+                s.kind = kind == 1 ? Vulkan::LightKind::Spot : Vulkan::LightKind::Point;
+                edit   = true;
+            }
+            DebugUiStyle::property("lumen");
+            float lumen = float(s.lumen);
+            if (ImGui::SliderFloat("##light lumen", &lumen, 0, 100000, "%.0f", ImGuiSliderFlags_Logarithmic))
+            {
+                s.lumen = lumen;
+                edit    = true;
+            }
+            DebugUiStyle::property("range");
+            float rangeF = float(s.range);
+            if (ImGui::SliderFloat("##light range", &rangeF, 0.1f, 1000, "%.1f m", ImGuiSliderFlags_Logarithmic))
+            {
+                s.range = rangeF;
+                edit    = true;
+            }
+            DebugUiStyle::property("color");
+            float col[3] = {float(s.color(0)), float(s.color(1)), float(s.color(2))};
+            if (ImGui::ColorEdit3("##light colour", col, ImGuiColorEditFlags_Float))
+            {
+                s.color = Vec3(col[0], col[1], col[2]);
+                edit    = true;
+            }
+            DebugUiStyle::endProperties();
+        }
+        if (app.debugUi().subSection("lighting/Local lights: Light details", "Offset, spot, priority, flicker", false) &&
+            DebugUiStyle::beginProperties("##lighting light details"))
+        {
+            DebugUiStyle::property("offset (entity, m)");
+            float off[3] = {float(s.offset(0)), float(s.offset(1)), float(s.offset(2))};
+            if (ImGui::DragFloat3("##light offset", off, 0.05f, -100, 100, "%.2f"))
+            {
+                s.offset = Vec3(off[0], off[1], off[2]);
+                edit     = true;
+            }
+            if (s.kind == Vulkan::LightKind::Spot)
+            {
+                DebugUiStyle::property("cone (inner, outer)");
+                float cone[2] = {float(s.innerAngleDeg), float(s.outerAngleDeg)};
+                if (ImGui::SliderFloat2("##light cone", cone, 1, 89, "%.0f deg"))
+                {
+                    s.innerAngleDeg = std::min(cone[0], cone[1]);
+                    s.outerAngleDeg = std::max(cone[0], cone[1]);
+                    edit            = true;
+                }
+                // The spot's direction relative to the entity (its -z after rotation) as yaw (about +y, 0: -z) and pitch
+                DebugUiStyle::property("direction (yaw, pitch)");
+                const Vec3 local = s.rotation * Vec3(0, 0, -1);
+                float yp[2]      = {float(std::atan2(-local(0), -local(2)) * 57.29577951308232),
+                                    float(std::asin(std::clamp(local(1), -1.0, 1.0)) * 57.29577951308232)};
+                if (ImGui::SliderFloat2("##light direction", yp, -180, 180, "%.0f deg"))
+                {
+                    const double yaw   = double(yp[0]) / 57.29577951308232;
+                    const double pitch = std::clamp(double(yp[1]), -89.9, 89.9) / 57.29577951308232;
+                    const Vec3 f(-std::sin(yaw) * std::cos(pitch), std::sin(pitch), -std::cos(yaw) * std::cos(pitch));
+                    s.rotation = cameraLookRotation(f);
+                    edit       = true;
+                }
+            }
+            DebugUiStyle::property("priority");
+            float prio = float(s.priority);
+            if (ImGui::SliderFloat("##light priority", &prio, 0, 10, "%.2f"))
+            {
+                s.priority = prio;
                 edit       = true;
             }
-        }
-        DebugUiStyle::property("priority");
-        float prio = float(s.priority);
-        if (ImGui::SliderFloat("##light priority", &prio, 0, 10, "%.2f"))
-        {
-            s.priority = prio;
-            edit       = true;
-        }
-        DebugUiStyle::property("flicker");
-        float flicker[2] = {float(s.flickerAmplitude), float(s.flickerFrequency)};
-        if (ImGui::SliderFloat2("##light flicker", flicker, 0, 10, "%.2f"))
-        {
-            s.flickerAmplitude = std::clamp(double(flicker[0]), 0.0, 1.0);
-            s.flickerFrequency = flicker[1];
-            edit               = true;
-        }
-        DebugUiStyle::endProperties();
-    }
-    if (edit)
-    {
-        // A write through the world API (set_component, logged; refused on a pure client), between the steps; only the
-        // fields this frame changed (a field written meanwhile by the host or a system keeps its value)
-        auto vec3 = [](const Vec3& v) { return json11::Json::array{v(0), v(1), v(2)}; };
-        json11::Json::object values;
-        if (s.on != before.on) values["on"] = s.on;
-        if (s.castShadows != before.castShadows) values["castShadows"] = s.castShadows;
-        if (s.kind != before.kind) values["kind"] = s.kind == Vulkan::LightKind::Spot ? "spot" : "point";
-        if (s.lumen != before.lumen) values["lumen"] = s.lumen;
-        if (s.range != before.range) values["range"] = s.range;
-        if (s.color != before.color) values["color"] = vec3(s.color);
-        if (s.offset != before.offset) values["offset"] = vec3(s.offset);
-        if (s.rotation.coeffs() != before.rotation.coeffs())
-            values["rotation"] = json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()};
-        if (s.innerAngleDeg != before.innerAngleDeg) values["innerAngleDeg"] = s.innerAngleDeg;
-        if (s.outerAngleDeg != before.outerAngleDeg) values["outerAngleDeg"] = s.outerAngleDeg;
-        if (s.priority != before.priority) values["priority"] = s.priority;
-        if (s.flickerAmplitude != before.flickerAmplitude) values["flickerAmplitude"] = s.flickerAmplitude;
-        if (s.flickerFrequency != before.flickerFrequency) values["flickerFrequency"] = s.flickerFrequency;
-        if (values.empty()) return;
-        EngineApp* a = &app;
-        app.queueBetweenSteps(
-            [a, target, values]()
+            DebugUiStyle::property("flicker");
+            float flicker[2] = {float(s.flickerAmplitude), float(s.flickerFrequency)};
+            if (ImGui::SliderFloat2("##light flicker", flicker, 0, 10, "%.2f"))
             {
-                const json11::Json args = json11::Json::object{
-                    {"entity", WorldApi::entityJson(target)}, {"component", "LightSource"}, {"values", values}};
-                ApiResult r;
-                if (a->coop())
+                s.flickerAmplitude = std::clamp(double(flicker[0]), 0.0, 1.0);
+                s.flickerFrequency = flicker[1];
+                edit               = true;
+            }
+            DebugUiStyle::endProperties();
+        }
+        if (edit)
+        {
+            // A write through the world API (set_component, logged; refused on a pure client), between the steps; only the
+            // fields this frame changed (a field written meanwhile by the host or a system keeps its value)
+            auto vec3 = [](const Vec3& v) { return json11::Json::array{v(0), v(1), v(2)}; };
+            json11::Json::object values;
+            if (s.on != before.on) values["on"] = s.on;
+            if (s.castShadows != before.castShadows) values["castShadows"] = s.castShadows;
+            if (s.kind != before.kind) values["kind"] = s.kind == Vulkan::LightKind::Spot ? "spot" : "point";
+            if (s.lumen != before.lumen) values["lumen"] = s.lumen;
+            if (s.range != before.range) values["range"] = s.range;
+            if (s.color != before.color) values["color"] = vec3(s.color);
+            if (s.offset != before.offset) values["offset"] = vec3(s.offset);
+            if (s.rotation.coeffs() != before.rotation.coeffs())
+                values["rotation"] = json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()};
+            if (s.innerAngleDeg != before.innerAngleDeg) values["innerAngleDeg"] = s.innerAngleDeg;
+            if (s.outerAngleDeg != before.outerAngleDeg) values["outerAngleDeg"] = s.outerAngleDeg;
+            if (s.priority != before.priority) values["priority"] = s.priority;
+            if (s.flickerAmplitude != before.flickerAmplitude) values["flickerAmplitude"] = s.flickerAmplitude;
+            if (s.flickerFrequency != before.flickerFrequency) values["flickerFrequency"] = s.flickerFrequency;
+            if (values.empty()) return;
+            EngineApp* a = &app;
+            app.queueBetweenSteps(
+                [a, target, values]()
                 {
-                    // The host's world (its API: the same validation and log line)
-                    WorldApi host(*a->hostWorld());
-                    r = host.call("set_component", args);
-                }
-                else
-                    r = a->api().call("set_component", args);
-                if (!r.ok) SAIGA_LOG("lighting", "set_component LightSource: %s", r.error.c_str());
-            });
-    }
+                    const json11::Json args = json11::Json::object{
+                        {"entity", WorldApi::entityJson(target)}, {"component", "LightSource"}, {"values", values}};
+                    ApiResult r;
+                    if (a->coop())
+                    {
+                        // The host's world (its API: the same validation and log line)
+                        WorldApi host(*a->hostWorld());
+                        r = host.call("set_component", args);
+                    }
+                    else
+                        r = a->api().call("set_component", args);
+                    if (!r.ok) SAIGA_LOG("lighting", "set_component LightSource: %s", r.error.c_str());
+                });
+        }
+    };
+    drawEditor();
+    app.debugUi().endSubSection();
+    if (selectedEntity.valid() || d.highlightLight != 0) ImGui::Separator();
+    drawTable();
 }
 void LightingTab::gpuAndMemory()
 {

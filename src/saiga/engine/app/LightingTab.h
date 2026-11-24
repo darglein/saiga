@@ -88,6 +88,9 @@ class SAIGA_ENGINE_API LightingTab
     ImGuiTextFilter lightFilter;
     uint64_t litLuminanceFrame = 0, litLuminanceAfter = 0;
     float litExposure          = 1;
+    // The lit frame's scene wrote linear luminance (not clay; UI rating round 3, finding 1: a debug frame is not linear,
+    // so the held key and units were dropped while a view was on)
+    bool litLinear = false;
     void controls();
     void timeAndWeather();
     void sunAndMoon();

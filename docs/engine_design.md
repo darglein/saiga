@@ -3468,9 +3468,8 @@ right (fps, CPU and GPU busy, the step time, warnings for stutter, dropped steps
 tabs, not toggles: a key selects its tab. F1 shows the game alone (the game's own GUI, `GameRenderHooks::gui`, is drawn
 in every tab); F2-F4 share one panel docked at the right edge (not movable, the width can be dragged), never floating
 windows, in one look (`DebugUiStyle`: a color per quantity, section headers, property tables). Each tab shows what
-matters at a glance and keeps the details in sections that start collapsed (their state, the tab, the width and the
-console's filters and history are kept in `debug_ui.json` of the working directory; not when headless, with a screenshot
-option or a benchmark). Games add sections (`DebugUi::addSection`; the world prototype's settings and statistics) and
+matters at a glance and keeps the details in sections that start collapsed (every run starts from these defaults: since
+S36 the state is not kept between runs; S19c kept it in `debug_ui.json`). Games add sections (`DebugUi::addSection`; the world prototype's settings and statistics) and
 change the world from GUI buttons through `EngineApp::queueBetweenSteps` (run after the next `poll`, never while a frame
 is recorded). `EngineAppSetup::debugUi = false` turns it off. The Pause key pauses and resumes the world.
 

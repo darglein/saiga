@@ -928,12 +928,9 @@ void EngineApp::setupDebugUi()
             callLog->tick();
             return true;
         });
-    // The state file only for an interactive window (screenshots, benchmarks and tests start from the defaults)
-    const bool persist = appSetup.debugUiPersistence && !appSetup.headless && appOptions.screenshot.empty() &&
-                         appOptions.benchmark.empty();
-    ui = std::make_unique<DebugUi>(server.get(), persist ? std::string("debug_ui.json") : std::string());
+    // Every run starts from the defaults (no state file: S36, the user's choice)
+    ui = std::make_unique<DebugUi>(server.get());
     ui->setEnabled(appSetup.debugUi);
-    ui->load();
     if (appOptions.showStatistics) ui->select(DebugTab::Performance);
     if (appOptions.debugTab >= 1) ui->select(appOptions.debugTab - 1);
     ui->setTabContent(DebugTab::Performance, [this]() { performanceTab(); });
