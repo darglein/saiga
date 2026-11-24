@@ -139,13 +139,6 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLigh
     skyLayout.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
                                                            vk::ShaderStageFlagBits::eFragment));
     skyLayout.create(base);
-    createPipelines();
-
-    probePipeline.init(*base, 1);
-    probePipeline.addDescriptorSetLayout(setLayout(), 0);
-    probePipeline.addPushConstantRange({vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint32_t)});
-    probePipeline.shaderPipeline.loadCompute(base->device, "vulkan/scene/terrain_probe.comp");
-    probePipeline.create();
 
     // The four grids in one index buffer
     std::vector<uint16_t> all;
@@ -188,7 +181,6 @@ void TerrainPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLigh
         base->device.updateDescriptorSets(
             vk::WriteDescriptorSet(skySets[i], 0, 0, 1, vk::DescriptorType::eUniformBuffer, nullptr, &ubo), nullptr);
     }
-    probeSet    = probePipeline.createRawDescriptorSet();
     initialized = true;
 }
 
@@ -218,8 +210,17 @@ void TerrainPass::createNoShadowPipelines()
     noShadowPipelines = true;
 }
 
-void TerrainPass::createPipelines()
+PipelineBase& TerrainPass::pipeline(Kind k)
 {
+    const uint32_t bit = 1u << uint32_t(k);
+    PipelineBase* out  = k == Kind::Scene    ? static_cast<PipelineBase*>(&scenePipeline)
+                         : k == Kind::Depth  ? &depthPipeline
+                         : k == Kind::Equal  ? &equalPipeline
+                         : k == Kind::Sky    ? &skyPipeline
+                         : k == Kind::Shadow ? &shadowPipeline
+                                             : static_cast<PipelineBase*>(&probePipeline);
+    if (createdPipelines & bit) return *out;
+    createdPipelines |= bit;
     // Set 0: the terrain's frame data; set 1: the lighting set (S36: shadeSurface of lighting.glsl)
     const std::string defines;
     PipelineInfo info;
@@ -240,39 +241,67 @@ void TerrainPass::createPipelines()
         creations++;
     };
     const std::vector<std::string> shaders = {"vulkan/scene/terrain.vert", "vulkan/scene/terrain.frag"};
-    create(scenePipeline, shaders, sceneFormats, info, setLayout(), true);
-    RenderingFormats depthOnly = sceneFormats;
-    depthOnly.color.clear();
-    create(depthPipeline, {"vulkan/scene/terrain.vert"}, depthOnly, info, setLayout(), true);
-    PipelineInfo equal                       = info;
-    equal.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
-    equal.depthStencilState.depthWriteEnable = VK_FALSE;
-    create(equalPipeline, shaders, sceneFormats, equal, setLayout(), true);
-
-    // The sky: binding 0 only (the frame's uniforms, also without a terrain set)
-    DescriptorSetLayout sky0;
-    sky0.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
-                                                      vk::ShaderStageFlagBits::eFragment));
-    PipelineInfo sky                       = info;
-    sky.rasterizationState.cullMode        = vk::CullModeFlagBits::eNone;
-    sky.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
-    sky.depthStencilState.depthWriteEnable = VK_FALSE;
-    create(skyPipeline, {"vulkan/scene/sky.vert", "vulkan/scene/sky.frag"}, sceneFormats, sky, sky0, false);
-
-    // S36a2: the terrain casters of the cascades (D32, LESS_OR_EQUAL, the slope bias dynamic, set 0 only)
-    PipelineInfo shadow;
-    shadow.depthStencilState.depthCompareOp   = vk::CompareOp::eLessOrEqual;
-    shadow.depthStencilState.depthWriteEnable = VK_TRUE;
-    shadow.rasterizationState.depthBiasEnable = VK_TRUE;
-    shadow.dynamicStateEnables.push_back(vk::DynamicState::eDepthBias);
-    shadowPipeline.init(*base, 1);
-    shadowPipeline.addDescriptorSetLayout(setLayout(), 0);
-    shadowPipeline.addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(ShadowPush)});
-    shadowPipeline.shaderPipeline.loadGLSL(
-        base->device, {{"vulkan/scene/lighting/terrain_shadow.vert", vk::ShaderStageFlagBits::eVertex, defines}});
-    RenderingFormats shadowFormats;
-    shadowFormats.depth = vk::Format::eD32Sfloat;
-    shadowPipeline.create(shadowFormats, shadow);
+    switch (k)
+    {
+        case Kind::Scene:
+            create(scenePipeline, shaders, sceneFormats, info, setLayout(), true);
+            break;
+        case Kind::Depth:
+        {
+            RenderingFormats depthOnly = sceneFormats;
+            depthOnly.color.clear();
+            create(depthPipeline, {"vulkan/scene/terrain.vert"}, depthOnly, info, setLayout(), true);
+            break;
+        }
+        case Kind::Equal:
+        {
+            PipelineInfo equal                       = info;
+            equal.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
+            equal.depthStencilState.depthWriteEnable = VK_FALSE;
+            create(equalPipeline, shaders, sceneFormats, equal, setLayout(), true);
+            break;
+        }
+        case Kind::Sky:
+        {
+            // The sky: binding 0 only (the frame's uniforms, also without a terrain set)
+            DescriptorSetLayout sky0;
+            sky0.addBinding(0, vk::DescriptorSetLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1,
+                                                              vk::ShaderStageFlagBits::eFragment));
+            PipelineInfo sky                       = info;
+            sky.rasterizationState.cullMode        = vk::CullModeFlagBits::eNone;
+            sky.depthStencilState.depthCompareOp   = vk::CompareOp::eEqual;
+            sky.depthStencilState.depthWriteEnable = VK_FALSE;
+            create(skyPipeline, {"vulkan/scene/sky.vert", "vulkan/scene/sky.frag"}, sceneFormats, sky, sky0, false);
+            break;
+        }
+        case Kind::Shadow:
+        {
+            // S36a2: the terrain casters of the cascades (D32, LESS_OR_EQUAL, the slope bias dynamic, set 0 only)
+            PipelineInfo shadow;
+            shadow.depthStencilState.depthCompareOp   = vk::CompareOp::eLessOrEqual;
+            shadow.depthStencilState.depthWriteEnable = VK_TRUE;
+            shadow.rasterizationState.depthBiasEnable = VK_TRUE;
+            shadow.dynamicStateEnables.push_back(vk::DynamicState::eDepthBias);
+            shadowPipeline.init(*base, 1);
+            shadowPipeline.addDescriptorSetLayout(setLayout(), 0);
+            shadowPipeline.addPushConstantRange({vk::ShaderStageFlagBits::eVertex, 0, sizeof(ShadowPush)});
+            shadowPipeline.shaderPipeline.loadGLSL(base->device, {{"vulkan/scene/lighting/terrain_shadow.vert",
+                                                                   vk::ShaderStageFlagBits::eVertex, defines}});
+            RenderingFormats shadowFormats;
+            shadowFormats.depth = vk::Format::eD32Sfloat;
+            shadowPipeline.create(shadowFormats, shadow);
+            break;
+        }
+        case Kind::Probe:
+            probePipeline.init(*base, 1);
+            probePipeline.addDescriptorSetLayout(setLayout(), 0);
+            probePipeline.addPushConstantRange({vk::ShaderStageFlagBits::eCompute, 0, sizeof(uint32_t)});
+            probePipeline.shaderPipeline.loadCompute(base->device, "vulkan/scene/terrain_probe.comp");
+            probePipeline.create();
+            probeSet = probePipeline.createRawDescriptorSet();
+            break;
+    }
+    return *out;
 }
 
 void TerrainPass::destroy()
@@ -289,6 +318,7 @@ void TerrainPass::destroy()
     equalNoShadows.destroy();
     noShadowPipelines = false;
     probePipeline.destroy();
+    createdPipelines = 0;
     indices.destroy();
     auto* pool = &base->descriptorPool;
     for (Frame& f : frames)
@@ -310,7 +340,7 @@ void TerrainPass::destroy()
         sky = nullptr;
     }
     auto set = probeSet;
-    base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
+    if (set) base->deferDelete([pool, set]() { pool->freeDescriptorSet(set); });
     probeSet = nullptr;
     // The layouts after the sets (deferred, in order)
     DescriptorSetLayout fl = frameLayout, sl = skyLayout;
@@ -658,7 +688,7 @@ void TerrainPass::renderShadow(vk::CommandBuffer cmd, uint32_t frameIndex, size_
     Frame& f = frames[frameIndex];
     if (!frameValid || !s.terrain || view >= f.shadowRanges.size()) return;
     const Frame::ShadowRange r = f.shadowRanges[view];
-    if (r.full + r.quarter == 0 || !shadowPipeline.bind(cmd)) return;
+    if (r.full + r.quarter == 0 || !pipeline(Kind::Shadow).bind(cmd)) return;
     shadowPipeline.bindRawDescriptorSet(cmd, f.shadowSet);
     cmd.bindIndexBuffer(handle(indices), 0, vk::IndexType::eUint16);
     cmd.setDepthBias(0.0f, 0.0f, slopeBias);
@@ -846,9 +876,11 @@ void TerrainPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, 
     const bool water   = s.water && numWater > 0;
     if (!terrain && !water) return;
     if (!shadows && mode != Mode::Depth && !noShadowPipelines) createNoShadowPipelines();
-    Pipeline& p = mode == Mode::Depth   ? depthPipeline
-                  : mode == Mode::Equal ? (shadows ? equalPipeline : equalNoShadows)
-                                        : (shadows ? scenePipeline : sceneNoShadows);
+    Pipeline& p = !shadows && mode != Mode::Depth
+                      ? (mode == Mode::Equal ? equalNoShadows : sceneNoShadows)
+                      : static_cast<Pipeline&>(pipeline(mode == Mode::Depth   ? Kind::Depth
+                                                        : mode == Mode::Equal ? Kind::Equal
+                                                                              : Kind::Scene));
     if (!p.bind(cmd)) return;
     p.bindRawDescriptorSet(cmd, frames[frameIndex].set);
     p.bindRawDescriptorSet(cmd, lightingSet->set(frameIndex), 1);
@@ -870,7 +902,7 @@ void TerrainPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, Mode mode, 
 
 void TerrainPass::renderSky(vk::CommandBuffer cmd, uint32_t frameIndex, const PrototypeSettings& s)
 {
-    if (!skyValid || !s.sky || !skyPipeline.bind(cmd)) return;
+    if (!skyValid || !s.sky || !pipeline(Kind::Sky).bind(cmd)) return;
     skyPipeline.bindRawDescriptorSet(cmd, skySets[frameIndex]);
     skyPipeline.bindRawDescriptorSet(cmd, lightingSet->set(frameIndex), 1);
     cmd.draw(3, 1, 0, 0);
@@ -884,6 +916,7 @@ std::vector<vec4> TerrainPass::probeVertices(const std::vector<TerrainProbe>& pr
     SAIGA_ASSERT(lastAtlas->hasSet() && lastAtlas->stats().rebuilds == lastSetRebuilds,
                  "probeVertices: the terrain set changed after the last terrain frame");
     if (probes.empty()) return out;
+    pipeline(Kind::Probe);
     base->device.waitIdle();
     Buffer buffer;
     const size_t bytes = probes.size() * sizeof(ProbeGpu);

@@ -87,6 +87,8 @@ class SAIGA_VULKAN_API GrassPass
     bool lightsCreated = false;
     PipelineInfo pipelineInfo;
     void createLightsPipeline();
+    bool pipelineCreated = false;
+    void createPipeline();
     Buffer vertices, indices;
     uint32_t indexCount = 0;
     bool initialized    = false;

@@ -76,6 +76,13 @@ void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLighti
                           {{0, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, posAo)},
                            {1, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, normalWind)},
                            {2, 0, vk::Format::eR32G32B32A32Sfloat, offsetof(TreeVertex, uvLayer)}});
+    pipelineInfo = info;
+    initialized  = true;
+}
+
+void GrassPass::createPipeline()
+{
+    // On the first frame with grass (S36 review round 2, finding 4a: a scene without grass compiles none)
     pipeline.init(*base, 2);
     pipeline.addDescriptorSetLayout(TerrainPass::setLayout(), 0);
     pipeline.addDescriptorSetLayout(SceneLightingSet::layout(), 1);
@@ -86,10 +93,9 @@ void GrassPass::init(VulkanBase& b, const RenderingFormats& formats, SceneLighti
     pipeline.shaderPipeline.loadGLSL(base->device, {{"vulkan/scene/grass.vert", vk::ShaderStageFlagBits::eVertex, ""},
                                                     {"vulkan/scene/grass.frag", vk::ShaderStageFlagBits::eFragment,
                                                      "#define LIGHTING_NO_LOCAL_LIGHTS\n"}});
-    pipeline.create(sceneFormats, info);
+    pipeline.create(sceneFormats, pipelineInfo);
+    pipelineCreated = true;
     creations++;
-    pipelineInfo = info;
-    initialized  = true;
 }
 
 void GrassPass::createLightsPipeline()
@@ -109,6 +115,7 @@ void GrassPass::destroy()
 {
     if (!initialized) return;
     pipeline.destroy();
+    pipelineCreated = false;
     lightsPipeline.destroy();
     lightsCreated = false;
     vertices.destroy();
@@ -185,6 +192,7 @@ void GrassPass::render(vk::CommandBuffer cmd, uint32_t frameIndex, const Terrain
 {
     if (draws.empty() || !terrain.drawsThisFrame()) return;
     if (localLights && !lightsCreated) createLightsPipeline();
+    if (!localLights && !pipelineCreated) createPipeline();
     Pipeline& pipeline = localLights ? lightsPipeline : this->pipeline;
     if (!pipeline.bind(cmd)) return;
     vk::DescriptorSet set = terrain.descriptorSet(frameIndex);

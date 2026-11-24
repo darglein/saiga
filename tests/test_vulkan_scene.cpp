@@ -2367,20 +2367,22 @@ TEST_F(VulkanSceneContent, PipelinesReusedAcrossScenes)
         // The stats of the pooled device before this scene's pipelines: from the previous scene (none at first)
         if (scene) before = scene->base().pipelineReuseStats();
         CreateScene(p);
-        after = scene->base().pipelineReuseStats();
         scene->addMaterial(1, "flat", flatMaterial());
         scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
         scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -5), axisAngle(vec3(0, 1, 0), 0.4f), 1, 1)});
         camera.position = Vec3(0, 0, 0);
         camera.apply(*scene);
-        return SceneFrame();
+        auto img = SceneFrame();
+        // (after the frame: the scene creates its draw pipelines on first use, S36 review round 2)
+        after = scene->base().pipelineReuseStats();
+        return img;
     };
     VulkanBase::PipelineReuseStats b0, a0, b1, a1, b2, a2;
     const auto first = build(4, b0, a0);
     if (!scene->base().reusePipelines) GTEST_SKIP() << "pipeline reuse is off (SAIGA_TEST_NEW_DEVICES=1)";
     const auto second = build(4, b1, a1);
     // Every pipeline of the second scene came from the pool (the same device: the pool holds one device per key)
-    EXPECT_GT(a1.hits - b1.hits, 10u);
+    EXPECT_GT(a1.hits - b1.hits, 5u);
     EXPECT_EQ(a1.misses, b1.misses);
     EXPECT_EQ(maxPixelDiff(first, second), 0);
     int colored = 0;
@@ -2395,6 +2397,28 @@ TEST_F(VulkanSceneContent, PipelinesReusedAcrossScenes)
     for (int y = 0; y < single.h; ++y)
         for (int x = 0; x < single.w; ++x) colored += single(y, x)(0) > single(y, x)(2) + 20;
     EXPECT_GT(colored, 50);
+}
+
+// The lighting subsystems are created when a scene needs them (S36 review round 2, finding 4a: test speed and every
+// app's init): a clay scene's frames create no environment resources (the BRDF LUT, the atmosphere's LUTs, the
+// environment map, the clouds; the set-1 dummies are bound) and only the draw pipelines of the classes it draws; the
+// first setEnvironment creates the environment's resources (the physical frames are test_vulkan_lighting's)
+TEST_F(VulkanSceneContent, ClaySceneCreatesNoLightingResources)
+{
+    CreateScene();
+    const uint64_t created = scene->scenePipelineCreations();
+    scene->addMaterial(1, "flat", flatMaterial());
+    scene->addMesh(1, "box", boxMesh(vec3(1, 1, 1), vec3(0, 0, 0), {1000}, {ucvec4(200, 120, 60, 255)}), 1);
+    scene->addInstanceSet(RegionId(), {makeInstance(vec3(0, 0, -5), quat::Identity(), 1, 1)});
+    camera.position = Vec3(0, 0, 0);
+    camera.apply(*scene);
+    SceneFrame();
+    EXPECT_FALSE(scene->environmentResourcesCreated());
+    EXPECT_EQ(scene->lightingStatistics().lutComputations, 0u);
+    // One draw pipeline (the opaque class), no terrain or grass pipeline (no terrain)
+    EXPECT_EQ(scene->scenePipelineCreations() - created, 1u);
+    scene->setEnvironment(EnvironmentState());
+    EXPECT_TRUE(scene->environmentResourcesCreated());
 }
 
 class VulkanSceneSpaces : public VulkanSceneContent

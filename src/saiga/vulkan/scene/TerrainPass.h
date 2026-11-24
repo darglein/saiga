@@ -253,7 +253,20 @@ class SAIGA_VULKAN_API TerrainPass
     std::vector<ShadowStats> shadowStatistics;
     // The layouts the frame and sky sets are allocated from (independent of the pipelines)
     DescriptorSetLayout frameLayout, skyLayout;
-    void createPipelines();
+    // The pipelines are created on first use (S36 review round 2, finding 4a: a clay scene without shadows draws only
+    // the no-shadow variants, a scene without terrain none)
+    enum class Kind
+    {
+        Scene,
+        Depth,
+        Equal,
+        Sky,
+        Shadow,
+        Probe,
+    };
+    uint32_t createdPipelines = 0;
+    // The pipeline of the kind, created on first use
+    PipelineBase& pipeline(Kind k);
     // The sky's sets (binding 0: the frame's uniform buffer), written once
     std::array<vk::DescriptorSet, 2> skySets;
     bool skyValid = false;
