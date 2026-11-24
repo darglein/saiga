@@ -1495,9 +1495,45 @@ TEST_F(HorizonTest, ReceiverOutsidePreviousMapShadowedAfterAnchorMove)
     for (size_t i = 0; i < after.size(); ++i) EXPECT_LT(after[i], 0.1f) << "frame " << i << " after the completion";
 }
 
-// A terrain edit (a pyramid patch) rebuilds the max chain and recomputes the map: a raised block towards the light
-// raises the shadow heights behind it
-TEST_F(HorizonTest, EditMarksRowsDirty)
+// Regression (S36a2 review, finding 14): an edit during an incremental map continued that map on the new chain (its
+// rows before the edit kept the old terrain; the edit showed only after a second complete map). The map in progress
+// restarts: the first map completed after the edit holds the raised shadow heights behind the block
+TEST_F(HorizonTest, EditRestartsTheMapInProgress)
+{
+    const Vec3 eye(2000, 200, 2000);
+    Terrain(TerrainTestHooks::flatHook, eye);
+    Elevation(10);
+    Camera(eye, Vec3(1, -1, 0));
+    Capture(2);
+    HorizonShadows::MapTransform t;
+    const std::vector<vec2> before = Front(t);
+    LightingParameters p           = scene->lightingParameters();
+    p.forceFullUpdates             = false;
+    p.horizonRowsPerFrame          = 32;
+    scene->setLightingParameters(p);
+    // A new light (a jump: the base rows per frame) starts a map of 8 frames; the edit after its fifth frame (160 rows
+    // done, the probed row 128 among them)
+    Elevation(16);
+    for (int i = 0; i < 5; ++i) RenderFrame();
+    scene->waitIdle();
+    ASSERT_TRUE(scene->lightingStatistics().horizon.computing);
+    const uint64_t completed = scene->lightingStatistics().horizon.completed;
+    std::vector<int32_t> heights(6 * 6, 100 * 1024);
+    scene->patchTerrainPyramid(0, 75, 60, 6, 6, heights.data());
+    for (int i = 0; i < 40 && scene->lightingStatistics().horizon.completed == completed; ++i) Capture(1);
+    const HorizonStatistics st = scene->lightingStatistics().horizon;
+    ASSERT_GT(st.completed, completed);
+    EXPECT_EQ(st.restarts, 1u);
+    HorizonShadows::MapTransform u;
+    const std::vector<vec2> after = Front(u);
+    const int i = int((2200.0 - u.cornerX) / u.texel), j = int((2000.0 - u.cornerZ) / u.texel);
+    const size_t k = size_t(j) * size_t(u.resolution) + size_t(i);
+    EXPECT_GT(after[k](0), before[k](0) + 20) << "behind the block in the first map after the edit";
+}
+
+// A terrain edit (a pyramid patch) rebuilds the max chain and recomputes the whole map (nit 20: the name said dirty
+// rows): a raised block towards the light raises the shadow heights behind it
+TEST_F(HorizonTest, EditRecomputesMap)
 {
     const Vec3 eye(2000, 200, 2000);
     Terrain(TerrainTestHooks::flatHook, eye);

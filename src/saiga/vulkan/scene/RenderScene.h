@@ -392,17 +392,13 @@ class SAIGA_VULKAN_API RenderScene
     // fixed dt (S36a2 review, finding 9); a frame without it uses the wall clock since the previous frame
     void setFrameTime(double dt) { nextFrameDt = std::isfinite(dt) ? std::max(dt, 0.0) : 0.0; }
     bool cascadesFrozen() const { return freezeCascades; }
-    // The layer of the Cascade preview (LightingImage::Cascade)
-    void setCascadePreview(int cascade) { previewCascade = cascade; }
-    int cascadePreview() const { return previewCascade; }
     // The shadow views of the frame being recorded (empty without cascades this frame; a cascade not updated this
     // frame has an empty view)
     const std::vector<ShadowView>& frameShadowViews() const { return shadowViews; }
-    // The far terrain horizon map (A6): its maps, transforms and statistics; the channel of the Horizon preview (0: R,
-    // 1: G); requestHorizonRecompute: a new map from the next frame (full: completed in that frame)
+    // The far terrain horizon map (A6): its maps, transforms and statistics (the Cascade preview's layer and the
+    // Horizon preview's channel are PreviewMapping::layer of the request); requestHorizonRecompute: a new map from the
+    // next frame (full: completed in that frame)
     HorizonShadows& horizonShadows() { return *horizon; }
-    void setHorizonPreviewChannel(int channel) { horizonPreviewChannel = channel; }
-    int horizonPreviewChannelValue() const { return horizonPreviewChannel; }
     void requestHorizonRecompute(bool full);
 
    private:
@@ -431,9 +427,7 @@ class SAIGA_VULKAN_API RenderScene
     std::unique_ptr<CascadedShadows> cascades;
     std::unique_ptr<ShadowPipelineTable> shadowTable;
     std::unique_ptr<HorizonShadows> horizon;
-    int horizonPreviewChannel = 0;
-    bool freezeCascades       = false;
-    int previewCascade        = 0;
+    bool freezeCascades = false;
     // The shadow light of the last frame (the hysteresis, D13): 0 none, 1 the sun, 2 the moon
     int shadowLightChoice = 0;
     // The frame's cascades: rendered this frame, the views (cascade c is view c + 1)

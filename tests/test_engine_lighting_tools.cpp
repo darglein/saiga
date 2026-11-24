@@ -913,6 +913,36 @@ TEST_F(LightingTabTest, CaptureMipWithTabOpen)
     EXPECT_EQ(imageBlock(r0)["mip"], Json(0));
 }
 
+// Regression (S36a2 review, finding 7): the horizon map's channel was scene state that the tab's Far terrain section
+// set in every frame, so with the section open on R capture_lighting(horizon, channel: g) returned the R image (and
+// said "r"). The channel is a value of the request now: the capture returns G, the tab's R preview stays
+TEST_F(LightingTabTest, CaptureChannelWithTabOpen)
+{
+    Vulkan::RenderScene& s = *app->scene();
+    s.setTerrainPyramid(
+        0, TerrainTestHooks::testPyramid(TerrainTestHooks::mountainRidgeHook, TerrainTestHooks::testLayout(16, 2)));
+    TerrainTestHooks::renderUntilUploaded(s);
+    Vulkan::EnvironmentSettings env = app->environmentSettings();
+    env.sunOverride                 = Vulkan::SunOverride{90, 3};
+    app->setEnvironmentSettings(env);
+    app->setViewCameraByTool(0, Vec3(1500, 120, 2048.5), lookRotation(Vec3(0.5, -1, 0)), 1, false);
+    Json::object state = app->debugUi().state().object_items();
+    state["sections"]  = Json::object{{"lighting/Far terrain shadows", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(4, 1.0 / 60);
+    const Json r = callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "stats_only": true})"));
+    ASSERT_FALSE(isError(r)) << text(r);
+    const Json g =
+        callFrames(*app, "capture_lighting", obj(R"({"image": "horizon", "channel": "g", "stats_only": true})"));
+    ASSERT_FALSE(isError(g)) << text(g);
+    EXPECT_EQ(result(r)["channel"], Json("r"));
+    EXPECT_EQ(result(g)["channel"], Json("g"));
+    // G (from cascadeCasterDistance on) is not R (from 64 m) over the ridge's lee side
+    EXPECT_NE(result(g)["stats"]["mean"].number_value(), result(r)["stats"]["mean"].number_value());
+    EXPECT_LT(result(g)["stats"]["max"].number_value(), result(r)["stats"]["max"].number_value());
+}
+
 // S36: the write of the Lighting tab's settings (setEnvironmentSettings, which its compensation slider calls; the
 // slider's input itself is not driven here): a compensation of +2 EV lowers the next frame's EV100 by 2 (through the
 // environment extract)

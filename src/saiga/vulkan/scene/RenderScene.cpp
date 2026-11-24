@@ -904,7 +904,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         {
             const uint32_t res    = uint32_t(s.cascades->resolution());
             const uint32_t layers = uint32_t(s.cascades->layers());
-            const uint32_t layer  = uint32_t(std::clamp(s.previewCascade, 0, int(layers) - 1));
+            const uint32_t layer =
+                uint32_t(std::clamp(s.debugImages->sourceLayer(LightingImage::Cascade), 0, int(layers) - 1));
             src.setArray(LightingImage::Cascade, s.cascades->depth(), 2, layer, 1, std::max(1u, res / 1024));
             src.setArray(LightingImage::CascadeStrip, s.cascades->depth(), 2, 0, layers, std::max(1u, res / 512));
         }
@@ -912,7 +913,8 @@ void SceneFrameRenderer::render(const FrameInfo& frame)
         if (s.horizon->hasImages() && s.horizon->transform(s.horizon->frontLayer()).valid)
         {
             const uint32_t res = s.horizon->images()->width;
-            src.setArray(LightingImage::Horizon, s.horizon->images(), s.horizonPreviewChannel == 1 ? 4 : 3,
+            src.setArray(LightingImage::Horizon, s.horizon->images(),
+                         s.debugImages->sourceLayer(LightingImage::Horizon) == 1 ? 4 : 3,
                          uint32_t(s.horizon->frontLayer()), 1, std::max(1u, res / 1024), vk::ImageLayout::eGeneral);
         }
         // The cloud layer's previews (the coverage over the tile, the shadow around the camera)
@@ -1638,7 +1640,6 @@ void RenderScene::cascadeOverlays()
     const CascadedShadows& cs = *cascades;
     if (overlays & OverlayCascadeBounds)
     {
-        const LightingParameters& p = params.lighting;
         for (int c = 0; c < cs.count(); ++c)
         {
             const CascadedShadows::Cascade& k = cs.cascades()[size_t(c)];
@@ -1646,12 +1647,9 @@ void RenderScene::cascadeOverlays()
             const vec3 color = cascadeColor(c);
             auto corner      = [&](double sx, double sy, double z)
             { return k.axisX * (k.cx + sx * k.halfExtent) + k.axisY * (k.cy + sy * k.halfExtent) + k.axisZ * z; };
-            // The receivers' box (the shared depth range) and the instances' caster volume towards the light
-            const double el  = std::asin(std::clamp(k.axisZ(1), -1.0, 1.0));
-            const double cap = double(p.maxCasterHeight) /
-                               std::sin(std::max(el, double(std::clamp(p.minShadowElevationDeg, 0.5f, 90.0f)) *
-                                                         3.14159265358979 / 180));
-            const double zs[3] = {k.zFar, k.zNear, k.zNear + cap};
+            // The receivers' box (the shared depth range) and the instances' caster volume towards the light (the
+            // cap the culling used, CascadedShadows::Cascade::casterTop; nit 22: no copy of its formula)
+            const double zs[3] = {k.zFar, k.zNear, k.casterTop};
             for (int layer = 0; layer < 3; ++layer)
             {
                 const vec3 col = layer == 2 ? vec3(color * 0.5f) : color;
@@ -1779,7 +1777,8 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
         o.depthRange = float(k.zNear - k.zFar);
         o.texelSize  = float(k.texelSize);
         o.interval   = k.interval;
-        o.lastUpdate = k.lastUpdate;
+        o.lastUpdate       = k.lastUpdate;
+        o.updatedThisFrame = k.updated;
         o.instances  = cascadeInstances[size_t(c)];
         o.triangles  = cascadeTriangles[size_t(c)];
         if (k.updated && size_t(c) < terrain->shadowStats().size())

@@ -55,7 +55,7 @@ class SAIGA_ENGINE_API LightingTab
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
-    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0);
+    void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0);
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
     EngineApp& app;
@@ -69,7 +69,8 @@ class SAIGA_ENGINE_API LightingTab
     int enlargedCascade = -1;
     int horizonChannel  = 0;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
-    bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0);
+    bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0,
+                             int layer = 0);
 };
 
 }  // namespace Engine

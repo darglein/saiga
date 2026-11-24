@@ -23,6 +23,10 @@ namespace Vulkan
 using Stage  = vk::PipelineStageFlagBits2;
 using Access = vk::AccessFlagBits2;
 
+// horizon_map.comp's march (its cell sizes 32 m << level, its 16 / 32 m steps) assumes the pyramid's 32 m spacing
+// (nit 18): a change of the spacing must change the shader
+static_assert(TerrainLayout::pyramidSpacing == 32, "horizon_map.comp assumes 32 m pyramid cells");
+
 namespace
 {
 constexpr double kPi = 3.14159265358979323846;
@@ -199,7 +203,9 @@ void HorizonShadows::buildChain(vk::CommandBuffer cmd, const TerrainAtlas& atlas
                       Access::eShaderStorageRead | Access::eShaderStorageWrite);
     }
     // The level of the march's steps at 10 km (horizon_map.comp: cells of at least twice the step t / 16)
-    levelAt10km = std::min(int(std::ceil(std::log2(2.0 * (10000.0 / 16.0) / 32.0) - 1e-4)), int(levelSizes.size()) - 1);
+    levelAt10km =
+        std::min(int(std::ceil(std::log2(2.0 * (10000.0 / 16.0) / double(TerrainLayout::pyramidSpacing)) - 1e-4)),
+                 int(levelSizes.size()) - 1);
 }
 
 HorizonShadows::MapTransform HorizonShadows::targetTransform(const Vec3& camera, const Vec3& light,
@@ -314,6 +320,10 @@ int HorizonShadows::update(vk::CommandBuffer cmd, const Input& in)
         chainVersion  = version;
         chainPyramid  = &atlas;
         requested     = true;
+        // A map in progress restarts on the new chain (its rows before the change would keep the old terrain, and the
+        // edit would show only after a second complete map; S36a2 review, finding 14)
+        if (computing) restarts++;
+        computing = false;
     }
     // The light's angular speed (the rows per frame follow it); a jump of 5 degrees or more (a time change, a new
     // light) is no speed: it starts over from the base rows per frame (S36a2 review, finding 6d: the speed of the
@@ -421,6 +431,7 @@ HorizonStatistics HorizonShadows::statistics() const
     s.rowsThisFrame       = lastRows;
     s.blend               = blend;
     s.recomputes          = recomputes;
+    s.restarts            = restarts;
     s.completed           = completed;
     s.lastComplete        = lastComplete;
     s.levelAt10km         = levelAt10km;

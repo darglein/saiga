@@ -78,18 +78,20 @@ void LightingTab::draw()
     gpuAndMemory();
 }
 
-void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip)
+void LightingTab::previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip, int layer)
 {
     ImVec2 at;
-    previewImageClicked(image, log, maxWidth, at, mip);
+    previewImageClicked(image, log, maxWidth, at, mip, layer);
 }
 
-bool LightingTab::previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip)
+bool LightingTab::previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip,
+                                      int layer)
 {
     Vulkan::RenderScene* scene     = app.scene();
     Vulkan::PreviewMapping mapping = app.lightingPreviewMapping();
     mapping.log                    = log;  // the luminance passes the set_lighting_debug mapping's log
     mapping.mip                    = mip;
+    mapping.layer                  = layer;
     // Converted only while it is on screen (not scrolled out of the panel), at preview resolution and a few times per
     // second (LightingDebug::show)
     Vulkan::Texture2D* preview = scene->lightingDebugImages().preview(image);
@@ -676,6 +678,9 @@ void LightingTab::cascadesSection()
         changed = ImGui::SliderFloat("##small casters", &p.smallCasterTexels, 0, 10, "%.1f") || changed;
         DebugUiStyle::property("max caster height");
         changed = ImGui::SliderFloat("##max caster height", &p.maxCasterHeight, 0, 1000, "%.0f m") || changed;
+        DebugUiStyle::property("min caster elevation");
+        changed =
+            ImGui::SliderFloat("##min shadow elevation", &p.minShadowElevationDeg, 0.5f, 45, "%.1f deg") || changed;
         DebugUiStyle::property("terrain caster distance");
         changed =
             ImGui::SliderFloat("##terrain caster distance", &p.cascadeCasterDistance, 0, 5000, "%.0f m") || changed;
@@ -725,12 +730,12 @@ void LightingTab::cascadesSection()
     }
     else
     {
-        scene->setCascadePreview(enlargedCascade);
         ImGui::Text("cascade %d (texel %.3f m, half extent %.0f m); click to go back", enlargedCascade,
                     double(ls.cascades[size_t(enlargedCascade)].texelSize),
                     double(ls.cascades[size_t(enlargedCascade)].halfExtent));
         ImVec2 at;
-        if (previewImageClicked(Vulkan::LightingImage::Cascade, false, 512.0f, at)) enlargedCascade = -1;
+        if (previewImageClicked(Vulkan::LightingImage::Cascade, false, 512.0f, at, 0, enlargedCascade))
+            enlargedCascade = -1;
     }
 }
 
@@ -801,9 +806,8 @@ void LightingTab::horizonSection()
     ImGui::RadioButton("R (from 64 m)", &horizonChannel, 0);
     ImGui::SameLine();
     ImGui::RadioButton("G (beyond the cascades' terrain)", &horizonChannel, 1);
-    scene->setHorizonPreviewChannel(horizonChannel);
     ImGui::TextUnformatted("shadow height (m above the reference; light: high)");
-    previewImage(Vulkan::LightingImage::Horizon, false, 384.0f);
+    previewImage(Vulkan::LightingImage::Horizon, false, 384.0f, 0, horizonChannel);
 }
 
 void LightingTab::gpuAndMemory()

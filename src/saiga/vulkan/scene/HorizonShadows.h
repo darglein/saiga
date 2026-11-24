@@ -119,7 +119,7 @@ class SAIGA_VULKAN_API HorizonShadows
     // The light of the last update (the angular speed) and the recomputes so far
     Vec3 lastLight         = Vec3(0, 1, 0);
     double degreesPerFrame = 0;
-    uint64_t recomputes = 0, completed = 0, lastComplete = 0;
+    uint64_t recomputes = 0, completed = 0, lastComplete = 0, restarts = 0;
     bool requested = false, requestedFull = false;
     int levelAt10km = 0;
 

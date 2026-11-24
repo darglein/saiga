@@ -320,6 +320,9 @@ struct PreviewMapping
     // The source's mip (the environment map's cube; 0 for the other images): part of the request, so a capture and the
     // tab's preview of different mips do not overwrite each other (each frame converts one)
     int mip = 0;
+    // The source's layer or channel the same way (S36a2 review, finding 7): the cascade (Cascade) or the horizon map's
+    // channel (Horizon: 0 R, 1 G); 0 for the other images
+    int layer = 0;
 };
 
 // The reduction of a preview's source values (after the log2 of the mapping, if any): over the finite values of the
@@ -358,6 +361,9 @@ struct CascadeStatistics
     float texelSize     = 0;             // m
     int interval        = 1;
     uint64_t lastUpdate = 0;
+    // Rendered in this frame (a staggered cascade every interval frames, or again when its de-duplication no longer
+    // holds; nit 21)
+    bool updatedThisFrame = false;
     uint32_t instances = 0, triangles = 0, terrainNodes = 0, terrainTriangles = 0;
     // The terrain nodes skipped by the de-duplication (drawn by the previous cascade, with their subtrees)
     uint32_t terrainDeduplicated = 0;
@@ -378,6 +384,8 @@ struct HorizonStatistics
     int rowsDone = 0, rowsThisFrame = 0;
     float blend         = 1;
     uint64_t recomputes = 0, completed = 0, lastComplete = 0;
+    // Maps in progress restarted by a terrain change (their rows would mix the old and the new terrain)
+    uint64_t restarts    = 0;
     int levelAt10km      = 0;
     uint64_t memoryBytes = 0;
 };

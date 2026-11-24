@@ -62,6 +62,7 @@ float cellHeight(int l, ivec2 c)
 // The maximum height of the cells of level l the segment [a, b] touches (b - a no longer than a cell)
 float segmentMax(int l, vec2 a, vec2 b)
 {
+    // The pyramid's 32 m cells (TerrainLayout::pyramidSpacing; HorizonShadows.cpp asserts it)
     float size = 32.0 * float(1 << l);
     ivec2 ca   = ivec2(floor(a / size)), cb = ivec2(floor(b / size));
     float h    = max(cellHeight(l, ca), cellHeight(l, cb));

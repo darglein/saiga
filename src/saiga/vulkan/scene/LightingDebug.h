@@ -88,6 +88,8 @@ class SAIGA_VULKAN_API LightingDebug
     bool requested(LightingImage image) const { return images[size_t(image)].requested; }
     // The source mip of this frame's conversion of image (its request's or show's PreviewMapping::mip)
     int sourceMip(LightingImage image) const { return images[size_t(image)].mapping.mip; }
+    // The source layer or channel (PreviewMapping::layer) the same way
+    int sourceLayer(LightingImage image) const { return images[size_t(image)].mapping.layer; }
     // The pixels of the next recorded frame (in the image; out of range pixels are answered invalid)
     void requestPixels(const std::vector<ivec2>& pixels, PixelCallback callback);
     bool pixelsRequested() const { return !pixelRequests.empty(); }

@@ -811,6 +811,7 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                         {"texel_m", double(k.texelSize)},
                                         {"interval", k.interval},
                                         {"last_update", double(k.lastUpdate)},
+                                        {"updated_this_frame", k.updatedThisFrame},
                                         {"instances", double(k.instances)},
                                         {"triangles", double(k.triangles)},
                                         {"terrain_nodes", double(k.terrainNodes)},
@@ -1301,7 +1302,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         return respond(
                             ToolResult::Error("cascade: an integer 0.." + std::to_string(ls.cascadeCount - 1)));
                     cascade = int(c);
-                    scene->setCascadePreview(cascade);
                 }
                 else
                     image = Vulkan::LightingImage::CascadeStrip;
@@ -1317,7 +1317,6 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         "horizon: no horizon map (set_lighting horizon_shadows: true, a shadow light, terrain)"));
                 if (!a["channel"].is_null() && a["channel"] != Json("r") && a["channel"] != Json("g"))
                     return respond(ToolResult::Error("channel: r or g"));
-                scene->setHorizonPreviewChannel(a["channel"] == Json("g") ? 1 : 0);
                 if (a["full"].bool_value()) scene->requestHorizonRecompute(true);
             }
             else if (!a["channel"].is_null())
@@ -1338,6 +1337,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             if (!parseMapping(a["range"], a["log"], a["color_map"], mapping, error))
                 return respond(ToolResult::Error(error));
             mapping.mip = mip;
+            // The cascade's layer or the horizon map's channel of this request (not the tab's)
+            if (image == Vulkan::LightingImage::Cascade) mapping.layer = cascade;
+            if (image == Vulkan::LightingImage::Horizon) mapping.layer = a["channel"] == Json("g") ? 1 : 0;
             for (const char* b : {"full", "stats_only"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
@@ -1424,7 +1426,7 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                         if (Vulkan::RenderScene* sc = app.scene())
                         {
                             const Vulkan::HorizonStatistics& h = sc->lightingStatistics().horizon;
-                            block["channel"]                   = sc->horizonPreviewChannelValue() == 1 ? "g" : "r";
+                            block["channel"]                   = mapping.layer == 1 ? "g" : "r";
                             block["anchor"]                    = Json::array{h.corner(0), h.corner(1)};
                             block["extent"]                    = h.extent;
                             block["texel_m"]                   = h.texel;
@@ -1477,6 +1479,9 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "the environment are held during it. Answers depth, world position and distance, albedo, roughness, "
         "metalness, ao, normal, the shadow factors (cloud, cascade with the cascade index, null outside every cascade, "
         "horizon with the horizon map's shadow heights R and G above the receiver in m, and their product), the "
+        "probe pixel should lie inside a surface: the values are the MSAA average (at a cascade border or an edge the "
+        "cascade index is rounded from the average); R and G pass the fp16 target (about 1 m precision at 1-2 km, "
+        "2 m up to 4 km, 32 m near the +-60 km clamp), the "
         "direct, ambient (diffuse) and specular "
         "(environment) radiance and the frame's radiance (cd/m^2; clay: display values), its luminance and EV100, "
         "frames and consistent (false when the depth changed by more than 1% between the frames; the camera and the "

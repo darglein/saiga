@@ -61,7 +61,7 @@ double nowSeconds()
 bool sameMapping(const PreviewMapping& a, const PreviewMapping& b)
 {
     return a.autoRange == b.autoRange && a.min == b.min && a.max == b.max && a.log == b.log &&
-           a.colorMap == b.colorMap && a.mip == b.mip;
+           a.colorMap == b.colorMap && a.mip == b.mip && a.layer == b.layer;
 }
 
 void memoryBarrier(vk::CommandBuffer cmd, vk::PipelineStageFlags2 srcStage, vk::AccessFlags2 srcAccess,
