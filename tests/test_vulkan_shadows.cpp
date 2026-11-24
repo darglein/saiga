@@ -956,7 +956,7 @@ TEST_F(ShadowsTerrain, CliffNearCameraUsesCascade)
 // receivers still used the horizon map's G (from cascadeCasterDistance on), so the ridge's shadow (300-650 m away,
 // in neither G nor the faded cascade) had a lit gap along the border; outside the rectangles R shadowed it again. A
 // line of ground points in the ridge's shadow at 10 degrees (x = 1398, along z away from the camera: across every
-// cascade, their bands and beyond) is shadowed everywhere
+// cascade, their bands and beyond) is shadowed everywhere; with the terrain's de-duplication (finding 8)
 TEST_F(ShadowsTerrain, NoLitGapAtTheLastCascadeBorder)
 {
     const double el = 10 * kPi / 180;
@@ -996,6 +996,12 @@ TEST_F(ShadowsTerrain, NoLitGapAtTheLastCascadeBorder)
     }
     EXPECT_GT(checked, 100);
     EXPECT_GT(inBand, 5) << "the line crosses the last cascade's band";
+    // The terrain nodes inside the previous cascade are not drawn again (finding 8; the line above is shadowed through
+    // every cascade, so no caster was lost)
+    uint32_t deduplicated = 0;
+    for (int c = 1; c < st.cascadeCount; ++c) deduplicated += st.cascades[size_t(c)].terrainDeduplicated;
+    EXPECT_GT(deduplicated, 0u);
+    EXPECT_EQ(st.cascades[0].terrainDeduplicated, 0u);
 }
 
 namespace

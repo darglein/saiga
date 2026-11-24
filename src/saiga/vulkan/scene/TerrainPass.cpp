@@ -472,7 +472,7 @@ bool TerrainPass::transfer(vk::CommandBuffer, uint32_t frameIndex, TerrainAtlas&
 }
 
 void TerrainPass::select(const TerrainAtlas& atlas, const Vec3& camera, const std::array<Vec4, 6>& planes,
-                         int32_t anchorX, int32_t anchorZ, Selection& out)
+                         int32_t anchorX, int32_t anchorZ, Selection& out, const ShadowView* dedup)
 {
     out                    = Selection();
     const TerrainLayout& L = atlas.layout();
@@ -482,12 +482,13 @@ void TerrainPass::select(const TerrainAtlas& atlas, const Vec3& camera, const st
     ranges[size_t(R)] = std::numeric_limits<double>::infinity();
     const int roots   = L.sizeChunks / 16;
     for (int z = 0; z < roots; ++z)
-        for (int x = 0; x < roots; ++x) selectNode(atlas, camera, planes, R, x, z, anchorX, anchorZ, ranges, out);
+        for (int x = 0; x < roots; ++x)
+            selectNode(atlas, camera, planes, R, x, z, anchorX, anchorZ, ranges, out, dedup);
 }
 
 bool TerrainPass::selectNode(const TerrainAtlas& atlas, const Vec3& c, const std::array<Vec4, 6>& planes, int level,
                              int32_t nx, int32_t nz, int32_t anchorX, int32_t anchorZ,
-                             const std::vector<double>& ranges, Selection& out)
+                             const std::vector<double>& ranges, Selection& out, const ShadowView* dedup)
 {
     const TerrainLayout& L      = atlas.layout();
     const TerrainAtlas::Bound b = atlas.bound(level, nx, nz);
@@ -504,6 +505,13 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const Vec3& c, const std
     const double d = lodDistance(lo, hi, lodHeight);
     if (d > ranges[size_t(level)]) return false;
     if (boxCulled(lo, hi, planes)) return true;
+    // In the previous cascade's de-duplication volume: that cascade draws this node (the same main-view LOD) and its
+    // receivers sample it (as the instances' rule, A5)
+    if (dedup && dedup->dedupContains(lo, hi, true))
+    {
+        out.stats.deduplicated++;
+        return true;
+    }
     if (level == 0 || d > ranges[size_t(level - 1)])
     {
         addNode(atlas, level, ox, oz, false, anchorX, anchorZ, skirt, out);
@@ -525,15 +533,20 @@ bool TerrainPass::selectNode(const TerrainAtlas& atlas, const Vec3& c, const std
     for (int q = 0; q < 4; ++q)
     {
         const int32_t cx = 2 * nx + (q & 1), cz = 2 * nz + (q >> 1);
-        if (!selectNode(atlas, c, planes, child, cx, cz, anchorX, anchorZ, ranges, out))
+        if (!selectNode(atlas, c, planes, child, cx, cz, anchorX, anchorZ, ranges, out, dedup))
         {
             // The child is out of its range: its area at this level's spacing, culled with this level's own heights
             // (what the quarter draws; the child's bound misses them when the levels' data differ, PR review)
             const int32_t qx = cx * half, qz = cz * half;
             const Vec3 clo(double(qx) - c.x(), double(own.lo) * kHeightUnit - skirt - c.y(), double(qz) - c.z());
             const Vec3 chi(double(qx + half) - c.x(), double(own.hi) * kHeightUnit - c.y(), double(qz + half) - c.z());
-            if (atlas.bound(child, cx, cz).valid() && !boxCulled(clo, chi, planes))
-                addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt, out);
+            if (!atlas.bound(child, cx, cz).valid() || boxCulled(clo, chi, planes)) continue;
+            if (dedup && dedup->dedupContains(clo, chi, true))
+            {
+                out.stats.deduplicated++;
+                continue;
+            }
+            addNode(atlas, level, qx, qz, true, anchorX, anchorZ, skirt, out);
         }
     }
     return true;
@@ -587,7 +600,7 @@ void TerrainPass::selectForShadow(uint32_t frameIndex, const TerrainAtlas& atlas
     Selection sel;
     for (const ShadowView& v : views)
     {
-        select(atlas, camera.position, v.planes(true), anchorX, anchorZ, sel);
+        select(atlas, camera.position, v.planes(true), anchorX, anchorZ, sel, v.dedup ? &v : nullptr);
         Frame::ShadowRange r;
         r.first = used;
         r.full  = uint32_t(std::min<size_t>(sel.full.size(), cap - used));
@@ -599,7 +612,8 @@ void TerrainPass::selectForShadow(uint32_t frameIndex, const TerrainAtlas& atlas
         f.shadowRanges.push_back(r);
         ShadowStats st;
         st.nodes     = int(r.full + r.quarter);
-        st.triangles = int(r.full) * gridN * gridN * 2 + int(r.quarter) * (gridN / 2) * (gridN / 2) * 2;
+        st.triangles    = int(r.full) * gridN * gridN * 2 + int(r.quarter) * (gridN / 2) * (gridN / 2) * 2;
+        st.deduplicated = sel.stats.deduplicated;
         shadowStatistics.push_back(st);
     }
     // The set with the shadow nodes at binding 5 (the frame's set for the rest)

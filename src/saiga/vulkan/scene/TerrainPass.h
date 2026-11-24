@@ -110,7 +110,9 @@ class SAIGA_VULKAN_API TerrainPass
         int nodes = 0, quarters = 0;
         // Refinements refused because the children's tile was not GPU-resident
         int refusedResidency = 0;
-        bool water           = false;
+        // A shadow view's nodes skipped by its de-duplication (with their subtrees; S36a2 review, finding 8)
+        int deduplicated = 0;
+        bool water       = false;
         // Nodes beyond TerrainAtlas::maxNodes (clipped)
         int clipped   = 0;
         int triangles = 0;
@@ -160,7 +162,9 @@ class SAIGA_VULKAN_API TerrainPass
     // Per shadow view of the last selectForShadow: the nodes and triangles
     struct ShadowStats
     {
-        int nodes = 0, triangles = 0;
+        // The selected nodes and their triangles, the nodes skipped by the view's de-duplication (in the previous
+        // cascade; with their subtrees)
+        int nodes = 0, triangles = 0, deduplicated = 0;
     };
     const std::vector<ShadowStats>& shadowStats() const { return shadowStatistics; }
 
@@ -254,11 +258,12 @@ class SAIGA_VULKAN_API TerrainPass
     Stats statistics;
 
     // The selection inside the planes (camera-relative, inward) with the frame's LOD ranges
+    // dedup: a shadow view whose de-duplication skips the nodes inside the previous cascade (nullptr: none)
     void select(const TerrainAtlas& atlas, const Vec3& camera, const std::array<Vec4, 6>& planes, int32_t anchorX,
-                int32_t anchorZ, Selection& out);
+                int32_t anchorZ, Selection& out, const ShadowView* dedup = nullptr);
     bool selectNode(const TerrainAtlas& atlas, const Vec3& camera, const std::array<Vec4, 6>& planes, int level,
                     int32_t nx, int32_t nz, int32_t anchorX, int32_t anchorZ, const std::vector<double>& ranges,
-                    Selection& out);
+                    Selection& out, const ShadowView* dedup);
     void addNode(const TerrainAtlas& atlas, int level, int32_t ox, int32_t oz, bool quarter, int32_t anchorX,
                  int32_t anchorZ, double skirt, Selection& out);
     void writeDescriptors(Frame& f, TerrainAtlas& atlas, uint32_t frameIndex);

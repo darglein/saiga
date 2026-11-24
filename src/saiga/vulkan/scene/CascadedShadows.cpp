@@ -336,6 +336,10 @@ ShadowView CascadedShadows::view(int c, const Vec3& camera, const LightingParame
         v.dedupMax    = pr + Vec2(s.dedupHalf, s.dedupHalf);
         v.dedupZMin   = s.dedupZ0 - s.axisZ.dot(camera);
         v.dedupZMax   = s.dedupZ1 - s.axisZ.dot(camera);
+        // The terrain: also inside the previous cascade's terrain volume (its near end plus the terrain cap; the bases
+        // are equal or the rotation's slack is in the rectangle)
+        const Cascade& prev = state[size_t(c) - 1];
+        v.dedupZMaxTerrain  = std::min(v.dedupZMax, prev.zNear - prev.axisZ.dot(camera) + v.terrainCap);
     }
     v.smallRadius = double(p.smallCasterTexels) * s.texelSize;
     v.lodBias     = c >= 2 ? std::max(p.shadowLodBias, 0) : 0;

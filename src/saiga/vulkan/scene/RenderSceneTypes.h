@@ -418,6 +418,9 @@ struct ShadowView
     bool dedup    = false;
     Vec2 dedupMin = Vec2::Zero(), dedupMax = Vec2::Zero();
     double dedupZMin = 0, dedupZMax = 0;
+    // The terrain's de-duplication interval ends at the previous cascade's terrain cap (<= dedupZMax; S36a2 review,
+    // finding 8: the terrain nodes are de-duplicated like the instances)
+    double dedupZMaxTerrain = 0;
     // Casters with a (scaled) bounding radius below this are skipped (LightingParameters::smallCasterTexels texels)
     double smallRadius = 0;
     // LOD levels added to the main view's LOD (clamped at the mesh's last LOD; D10: 0 for cascades 0-1)
@@ -427,6 +430,26 @@ struct ShadowView
 
     // The volume's planes (inward normals, camera-relative: dot(n, p) + w >= -r is inside): the 4 sides, the far cap
     // (zMin) and the near cap (zMax + the instances' or the terrain's cap)
+    // The light-space footprint of the camera-relative AABB [lo, hi] lies inside the de-duplication rectangle and its
+    // light depth inside the de-duplication interval (of the instances, or of the terrain)
+    bool dedupContains(const Vec3& lo, const Vec3& hi, bool terrain) const
+    {
+        if (!dedup) return false;
+        double x0 = 1e300, x1 = -1e300, y0 = 1e300, y1 = -1e300, z0 = 1e300, z1 = -1e300;
+        for (int c = 0; c < 8; ++c)
+        {
+            const Vec3 p((c & 1) ? hi(0) : lo(0), (c & 2) ? hi(1) : lo(1), (c & 4) ? hi(2) : lo(2));
+            const double x = axisX.dot(p), y = axisY.dot(p), z = axisZ.dot(p);
+            x0 = std::min(x0, x);
+            x1 = std::max(x1, x);
+            y0 = std::min(y0, y);
+            y1 = std::max(y1, y);
+            z0 = std::min(z0, z);
+            z1 = std::max(z1, z);
+        }
+        return x0 >= dedupMin(0) && x1 <= dedupMax(0) && y0 >= dedupMin(1) && y1 <= dedupMax(1) && z0 >= dedupZMin &&
+               z1 <= (terrain ? dedupZMaxTerrain : dedupZMax);
+    }
     std::array<Vec4, 6> planes(bool terrain) const
     {
         const double cap = zMax + (terrain ? terrainCap : instanceCap);

@@ -359,6 +359,8 @@ struct CascadeStatistics
     int interval        = 1;
     uint64_t lastUpdate = 0;
     uint32_t instances = 0, triangles = 0, terrainNodes = 0, terrainTriangles = 0;
+    // The terrain nodes skipped by the de-duplication (drawn by the previous cascade, with their subtrees)
+    uint32_t terrainDeduplicated = 0;
 };
 
 // The horizon map (S36a2, LightingStatistics::horizon): the front map's transform (its corner in integer metres, its

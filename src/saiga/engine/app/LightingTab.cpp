@@ -709,7 +709,8 @@ void LightingTab::cascadesSection()
             ImGui::TableNextColumn();
             ImGui::Text("%.1fk", double(k.triangles) / 1000);
             ImGui::TableNextColumn();
-            ImGui::Text("%u nodes, %.0fk", k.terrainNodes, double(k.terrainTriangles) / 1000);
+            ImGui::Text("%u nodes (%u dedup), %.0fk", k.terrainNodes, k.terrainDeduplicated,
+                        double(k.terrainTriangles) / 1000);
         }
         ImGui::EndTable();
     }

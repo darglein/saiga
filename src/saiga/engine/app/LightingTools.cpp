@@ -814,7 +814,8 @@ bool lightingJson(EngineApp& app, const std::vector<std::string>& sections, Json
                                         {"instances", double(k.instances)},
                                         {"triangles", double(k.triangles)},
                                         {"terrain_nodes", double(k.terrainNodes)},
-                                        {"terrain_triangles", double(k.terrainTriangles)}});
+                                        {"terrain_triangles", double(k.terrainTriangles)},
+                                        {"terrain_nodes_deduplicated", double(k.terrainDeduplicated)}});
         }
         const char* light = ls.shadowLight == 0   ? "none"
                             : !ls.physical        ? "studio"

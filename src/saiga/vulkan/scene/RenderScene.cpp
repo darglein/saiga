@@ -1778,7 +1778,8 @@ void RenderScene::writeLightingSet(vk::CommandBuffer cmd, uint32_t frameIndex, c
         if (k.updated && size_t(c) < terrain->shadowStats().size())
             cascadeTerrain[size_t(c)] = terrain->shadowStats()[size_t(c)];
         o.terrainNodes     = uint32_t(cascadeTerrain[size_t(c)].nodes);
-        o.terrainTriangles = uint32_t(cascadeTerrain[size_t(c)].triangles);
+        o.terrainTriangles    = uint32_t(cascadeTerrain[size_t(c)].triangles);
+        o.terrainDeduplicated = uint32_t(cascadeTerrain[size_t(c)].deduplicated);
     }
 }
 
