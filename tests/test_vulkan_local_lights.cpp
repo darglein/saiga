@@ -6,7 +6,7 @@
 
 // The local lights of S36b on RenderScene (docs/stages/S36_lighting.plan.md, B2-B4, Tests): the light selection and
 // budget, the falloff and cones, flicker, the per-chunk lists, enclosed spaces; the clusters against a CPU reference
-// and the brute-force loop; the cached shadow atlas. One scene per test suite (RenderSceneSuiteTest), skipped without a
+// and the brute-force loop; the cached shadow atlas. A scene per test (RenderSceneTest, 128 x 128), skipped without a
 // Vulkan 1.3 device.
 
 #include "saiga/vulkan/scene/LightClusters.h"
@@ -125,14 +125,14 @@ LightData spotLight(const vec3& position, const vec3& direction, float lumen, fl
     return d;
 }
 
-class LightsTest : public RenderSceneSuiteTest
+class LightsTest : public RenderSceneTest
 {
    protected:
+    ivec2 Size() const override { return ivec2(128, 128); }
     void SetUp() override
     {
-        RenderSceneSuiteTest::SetUp();
-        if (IsSkipped()) return;
-        for (LightHandle h : lights) scene->removeLight(h);
+        RenderSceneTest::SetUp();
+        if (!scene || IsSkipped()) return;
         lights.clear();
         LightingParameters p;
         p.localLights     = true;
@@ -147,13 +147,8 @@ class LightsTest : public RenderSceneSuiteTest
     }
     void TearDown() override
     {
-        if (scene)
-        {
-            for (LightHandle h : lights) scene->removeLight(h);
-            lights.clear();
-            scene->setLightingDebug(LightingDebugState());
-        }
-        RenderSceneSuiteTest::TearDown();
+        lights.clear();
+        RenderSceneTest::TearDown();
     }
     LightHandle AddLight(const LightData& d, const ChunkId& chunk = ChunkId())
     {
