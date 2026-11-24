@@ -11,6 +11,7 @@
 #include "saiga/engine/terrain/TerrainMessages.h"
 #include "saiga/engine/terrain/TerrainStore.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 #include "saiga/vulkan/world/WorldBenchmark.h"
 
 #include <chrono>
@@ -36,9 +37,11 @@ constexpr BrushSpec kBrushes[8] = {
     {TerrainBrush::Add, 4},  {TerrainBrush::Flatten, 12}, {TerrainBrush::Subtract, 8},  {TerrainBrush::Smooth, 16},
     {TerrainBrush::Add, 16}, {TerrainBrush::Flatten, 8},  {TerrainBrush::Subtract, 12}, {TerrainBrush::Smooth, 4},
 };
+// The four chunk corners around the area's centre (S36: the area at the space's centre)
 Vec3 corner(int c)
 {
-    return Vec3(3840 + 256 * (c % 2), 0, 3840 + 256 * (c / 2));
+    const double base = Vulkan::kPrototypeAreaCentre - 256;
+    return Vec3(base + 256 * (c % 2), 0, base + 256 * (c / 2));
 }
 json11::Json stat(const std::vector<double>& v)
 {

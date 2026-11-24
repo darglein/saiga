@@ -24,9 +24,12 @@ namespace Vulkan
 constexpr int32_t kPrototypeSeaLevel = 6144;
 // The rough height of its mountains (m)
 constexpr double kPrototypeMountainHeight = 520;
-// The prototype's space: 128 chunks (32 km); its content (trees, benchmarks) lies in [0, kPrototypeArea]^2
+// The prototype's space: 128 chunks (32 km); its content (trees, benchmarks) lies in the 8 km area [origin, origin +
+// kPrototypeArea]^2 at the space's centre (S36: it was in the space's corner [0, 8192]^2, the start 3 km from the edge)
 constexpr int32_t kPrototypeSpaceChunks = 128;
 constexpr double kPrototypeArea         = 8192;
+constexpr double kPrototypeAreaOrigin   = 0.5 * (double(kPrototypeSpaceChunks) * 256.0 - kPrototypeArea);
+constexpr double kPrototypeAreaCentre   = kPrototypeAreaOrigin + 0.5 * kPrototypeArea;
 
 // The prototype's height hook (a TerrainHeightHook): the S01 noise of the old HeightField::generate, per point, with
 // the noise seed uint32_t(seed) * 7717 and the border falloff of 819.2 m at the edges of the 32 km space (A5: the old
@@ -49,7 +52,7 @@ SAIGA_VULKAN_API PrototypeAreaStats prototypeAreaStats(uint64_t seed, double x0,
 // The area of the prototype's content (trees) in the space: [x0, x0 + size] x [z0, z0 + size]; seed: the hook's
 struct PrototypeArea
 {
-    double x0 = 0, z0 = 0, size = kPrototypeArea;
+    double x0 = kPrototypeAreaOrigin, z0 = kPrototypeAreaOrigin, size = kPrototypeArea;
     uint64_t seed   = 1;
     int baseSpacing = 1;
 };

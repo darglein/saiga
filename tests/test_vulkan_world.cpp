@@ -115,6 +115,8 @@ TEST(VulkanWorld, SettingsJson)
 TEST(VulkanWorld, PrototypeTreeSets)
 {
     PrototypeArea area;
+    area.x0                     = 0;
+    area.z0                     = 0;
     area.size                   = 1024;
     area.baseSpacing            = 2;
     auto species                = FoliageGenerator::treeSpecies(1);
@@ -303,9 +305,9 @@ TEST(WorldBenchmark, SummaryText)
 
 TEST(WorldBenchmark, Paths)
 {
-    // S20: the paths over a ground callback around the centre (4096, 4096) of the prototype's 8 km area
+    // S20: the paths over a ground callback around the centre of the prototype's 8 km area (S36: at the space's centre)
     auto ground    = [](double x, double z) { return 20 + 0.01 * x - 0.02 * z + 5 * std::sin(x / 300); };
-    const double c = 4096;
+    const double c = kPrototypeAreaCentre;
     const int n    = WorldBenchmark::measuredFrames;
     for (int i : {0, 150, 300, 599})
     {
@@ -463,13 +465,14 @@ TEST(WorldBenchmark, TerrainStreamTime)
     bench.setTerrainInfo(json11::Json::object{{"resident_tiles", 12}});
     EXPECT_EQ(bench.result()["terrain"]["resident_tiles"].int_value(), 12);
     EXPECT_NE(WorldBenchmark::summaryText(bench.result()).find("terrain stream"), std::string::npos);
-    // The paths over the ground: the flyover 300 m above it, around (4096, 4096)
-    const auto p = WorldBenchmark::pose("flyover", ground, 0);
-    EXPECT_NEAR(p.eye(0), 4096 + 3000, 1e-3);
-    EXPECT_NEAR(p.eye(1), ground(7096, 4096) + 300, 1e-3);
-    EXPECT_NEAR(p.target(1), ground(4096, 4096), 1e-3);
+    // The paths over the ground: the flyover 300 m above it, around the area's centre
+    const double c = kPrototypeAreaCentre;
+    const auto p   = WorldBenchmark::pose("flyover", ground, 0);
+    EXPECT_NEAR(p.eye(0), c + 3000, 1e-3);
+    EXPECT_NEAR(p.eye(1), ground(c + 3000, c) + 300, 1e-3);
+    EXPECT_NEAR(p.target(1), ground(c, c), 1e-3);
     const auto f = WorldBenchmark::pose("forest", ground, 0);
-    EXPECT_NEAR(f.eye(1), ground(4096 - 300, 4096) + 2, 1e-3);
+    EXPECT_NEAR(f.eye(1), ground(c - 300, c) + 2, 1e-3);
 }
 
 // The prototype's hook and its surface (S20)

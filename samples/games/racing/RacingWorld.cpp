@@ -18,6 +18,7 @@
 #include "games/common/RenderAssets.h"
 
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <iostream>
 
@@ -41,17 +42,19 @@ std::shared_ptr<const RacingContext> RacingContext::create(uint64_t seed)
     area.baseSpacing = c->baseSpacing;
     const auto trees =
         Vulkan::ForestRenderer::placeTrees(area, kSiteTreeCount, 1, Vulkan::FoliageGenerator::treeSpecies(1));
+    // (cells relative to the area's origin: the area at the space's centre, S36)
     const double cell = 16;
-    const int cells   = int(Vulkan::kPrototypeArea / cell) + 1;
+    const int cells   = int(area.size / cell) + 1;
+    auto cellOf       = [&](double v, double origin) { return int(std::floor((v - origin) / cell)); };
     std::vector<int> perCell(size_t(cells) * cells, 0);
     for (auto& t : trees)
     {
-        int cx = int(t.posYaw(0) / cell), cz = int(t.posYaw(2) / cell);
+        int cx = cellOf(t.posYaw(0), area.x0), cz = cellOf(t.posYaw(2), area.z0);
         if (cx >= 0 && cz >= 0 && cx < cells && cz < cells) perCell[size_t(cz) * cells + cx]++;
     }
     auto treePenalty = [&](const Vec3& p)
     {
-        int cx = int(p(0) / cell), cz = int(p(2) / cell);
+        int cx = cellOf(p(0), area.x0), cz = cellOf(p(2), area.z0);
         return (cx >= 0 && cz >= 0 && cx < cells && cz < cells) ? 3.0 * perCell[size_t(cz) * cells + cx] : 0.0;
     };
     const RacingContext* ctx = c.get();
@@ -59,7 +62,8 @@ std::shared_ptr<const RacingContext> RacingContext::create(uint64_t seed)
     const double radius      = 220;
     const uint32_t trackSeed = 7;
     const double sea         = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
-    const Vec3 site = Track::findSite(ground, Vulkan::kPrototypeArea, radius, sea + 3, 12, trackSeed, treePenalty);
+    const Vec3 site =
+        Track::findSite(ground, area.x0, area.z0, area.size, radius, sea + 3, 12, trackSeed, treePenalty);
     c->track.width  = 12;
     c->track.build(Track::loop(site, radius, 12, trackSeed), 10);
     std::cout << "Racing: " << trees.size() << " trees and the track (" << c->track.length() << " m) in "
@@ -347,7 +351,8 @@ void racingScenarios(ScenarioList& list)
                      w.check(n >= 0 && n < 10, "in range after " + std::to_string(bad) + ": " + std::to_string(n));
                  }
              });
-    // The behavior before the port to the engine (S13b): the AI's first lap takes 62.07 s
+    // The AI's first lap takes 61.57 s (S13b: 62.07 s, the behavior before the port to the engine; S36: the track's
+    // site in the prototype area at the space's centre)
     list.add("ai_completes_a_lap",
              [](ScenarioWorld& w)
              {
@@ -356,7 +361,7 @@ void racingScenarios(ScenarioList& list)
                  w.check(w.stepUntil([&] { return w.world().read<LapState>(car).laps >= 1; }, 60 * 90),
                          "completes a lap");
                  const double t = w.world().read<LapState>(car).lastLapTime;
-                 w.check(std::abs(t - 62.07) < 0.5, "in 62.07 s: " + std::to_string(t));
+                 w.check(std::abs(t - 61.57) < 0.5, "in 61.57 s: " + std::to_string(t));
              });
 }
 

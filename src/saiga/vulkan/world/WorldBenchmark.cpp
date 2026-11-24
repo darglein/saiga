@@ -8,6 +8,7 @@
 
 #include "saiga/core/util/assert.h"
 #include "saiga/saiga_buildconfig.h"
+#include "saiga/vulkan/world/PrototypeTerrain.h"
 
 #include <algorithm>
 #include <array>
@@ -83,8 +84,8 @@ bool WorldBenchmark::known(const std::string& name)
 WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground& ground, int measuredFrame)
 {
     SAIGA_ASSERT(known(name), "unknown benchmark");
-    // The centre of the prototype's 8 km area (until S27, §17.7)
-    const double c = 4096;
+    // The centre of the prototype's 8 km area (until S27, §17.7; S36: at the space's centre)
+    const double c = kPrototypeAreaCentre;
     Pose p;
     if (name == "flyover" || name == "night")
     {
@@ -110,10 +111,12 @@ WorldBenchmark::Pose WorldBenchmark::pose(const std::string& name, const Ground&
     else if (name == "terraform")
     {
         // S22: a static pose about 85 degrees down over the four chunk corners of the edit schedule (the brush areas
-        // x, z in [3814, 4122]; the game's TerraformBenchmark); g = the ground at (3968, 3968), never edited
-        const double g = ground(3968, 3968);
-        p.eye          = vec3(3968.f, float(g + 300.0), 3940.f);
-        p.target       = vec3(3968.f, float(g), 3968.f);
+        // x, z in the area's centre - [282, -26]; the game's TerraformBenchmark); g = the ground at the centre - 128,
+        // never edited
+        const double e = c - 128;
+        const double g = ground(e, e);
+        p.eye          = vec3(float(e), float(g + 300.0), float(e - 28));
+        p.target       = vec3(float(e), float(g), float(e));
     }
     else
     {

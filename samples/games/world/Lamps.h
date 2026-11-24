@@ -45,10 +45,21 @@ struct LampPolicy
 void lampComponents(Engine::Registry& registry);
 // The meshes of the lamps (WorldSetup::renderAssets)
 void lampRenderAssets(Engine::World& world);
+// How spawnLamps spreads and sizes the lamps beyond the grid or ring: scale multiplies the meshes, the light's offset
+// and range (the lumen by scale^2: the same illuminance at the scaled distance); with a maxGround the grid has twice
+// the slots and skips the ones above it (the lamps in a valley); jitter moves each grid slot by up to that fraction of
+// the spacing (deterministic)
+struct LampLayout
+{
+    double scale     = 1;
+    double maxGround = 1e30;
+    double jitter    = 0;
+};
 // Spawns count lamps on a grid of spacing m centred at centre (x, z), or (ringRadius > 0) evenly on a circle of that
 // radius around it; the ground from ground(x, z), none below seaLevel; returns the lamps spawned
 int spawnLamps(Engine::World& world, int count, double centreX, double centreZ, double spacing, double ringRadius,
-               const std::function<double(double, double)>& ground, double seaLevel);
+               const std::function<double(double, double)>& ground, double seaLevel,
+               const LampLayout& layout = LampLayout());
 // Phase Gameplay (host): on a day/night transition (the sun below 4 degrees: night; the world's time and celestial
 // model) the LightSource of every lamp with a LampPolicy on or off; a lamp head or torch flame glows while its light is
 // on

@@ -3793,8 +3793,9 @@ goldens).
   center (4096, 4096) until S27; from S27 `(sizeChunks * 128 m, sizeChunks * 128 m)` on the 32 km world), at the ground
   height below the camera + 300 m, looking at the center) and `forest` (2 m above max(terrain, water level) from center
   minus 300 m to center plus 300 m along x in 600 frames, looking along +x); A4 (S20): `game_world`'s 32 km space at
-  1 m (`samples/games/common/PrototypeSpace.h`) with the 200k trees in the 8 km prototype area `[0, 8192]^2`, the paths
-  over a ground callback (`WorldBenchmark(name, ground, gpu)`: max(terrain, sea level)) around (4096, 4096) until S27;
+  1 m (`samples/games/common/PrototypeSpace.h`) with the 200k trees in the 8 km prototype area (until S36 `[0, 8192]^2`;
+  since S36 at the space's centre, `kPrototypeAreaOrigin` 12288), the paths over a ground callback
+  (`WorldBenchmark(name, ground, gpu)`: max(terrain, sea level)) around the area's centre (`kPrototypeAreaCentre`);
   terrain residency is completed in every frame (`EngineApp::setCompleteViewEachFrame`, E9; a frame that has to stream
   first waits for the GPU, so the GPU cannot run ahead during the stream; that wait stays in the interval as frame
   wait, so a path that streams in most frames, the flyover at 1 m, has a frame interval that is not comparable with a
