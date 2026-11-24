@@ -896,10 +896,16 @@ TEST_F(VulkanPrototypeScene, Sections)
             frames.push_back(t.frame);
             ASSERT_EQ(t.gpuSectionMs.size(), names.size());
             for (double ms : t.gpuSectionMs) EXPECT_GE(ms, 0);
-            EXPECT_LE(t.gpuSectionMs[4], t.gpuSectionMs[3] + 0.01);
-            EXPECT_LE(
-                t.gpuSectionMs[6] + t.gpuSectionMs[7] + t.gpuSectionMs[8] + t.gpuSectionMs[9] + t.gpuSectionMs[10],
-                t.gpuSectionMs[5] + 0.01);
+            // The sub-sections of a pass (by name: CodeRabbit #84, an index list left out scene.debug) inside it
+            for (size_t i = 0; i < names.size(); ++i)
+            {
+                const std::string pass = names[i];
+                if (pass.find('.') != std::string::npos) continue;
+                double sub = 0;
+                for (size_t j = 0; j < names.size(); ++j)
+                    if (std::string(names[j]).rfind(pass + ".", 0) == 0) sub += t.gpuSectionMs[j];
+                EXPECT_LE(sub, t.gpuSectionMs[i] + 0.01) << pass;
+            }
             EXPECT_GE(t.gpuMs, t.gpuSectionMs[5]);
         }
     }
