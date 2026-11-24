@@ -53,26 +53,28 @@ class SAIGA_VULKAN_API ShaderPipelineBase
      */
     bool valid();
 
-    // The loaded module of the handle (null if none): its SPIR-V size and hashes key the pipeline reuse
-    const ShaderModule* findModule(vk::ShaderModule module) const;
+    // The i-th loaded module (null if none; the order of the pipeline's stages): its SPIR-V size and hashes key the
+    // pipeline reuse
+    const ShaderModule* moduleAt(size_t i) const { return i < modules.size() ? &modules[i] : nullptr; }
 
    protected:
     std::vector<vk::PipelineShaderStageCreateInfo> pipelineInfo;
     std::vector<ShaderModule> modules;
 
-    void createPipelineInfo();
+    // createModules false: for the reuse key, without creating the modules (ShaderModule::createPipelineInfo)
+    void createPipelineInfo(bool createModules);
 };
 
 class SAIGA_VULKAN_API GraphicsShaderPipeline : public ShaderPipelineBase
 {
    public:
-    void addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo);
+    void addToPipeline(vk::GraphicsPipelineCreateInfo& pipelineCreateInfo, bool createModules = true);
 };
 
 class SAIGA_VULKAN_API ComputeShaderPipeline : public ShaderPipelineBase
 {
    public:
-    void addToPipeline(vk::ComputePipelineCreateInfo& pipelineCreateInfo);
+    void addToPipeline(vk::ComputePipelineCreateInfo& pipelineCreateInfo, bool createModules = true);
 };
 
 }  // namespace Vulkan

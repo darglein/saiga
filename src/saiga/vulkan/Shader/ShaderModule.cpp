@@ -37,6 +37,7 @@ ShaderModule& ShaderModule::operator=(ShaderModule&& other) noexcept
         destroy();
         stage              = other.stage;
         module             = std::exchange(other.module, nullptr);
+        code               = std::move(other.code);
         spirvSize          = other.spirvSize;
         spirvHashA         = other.spirvHashA;
         spirvHashB         = other.spirvHashB;
@@ -63,10 +64,8 @@ void ShaderModule::createModule(vk::Device _device, vk::ShaderStageFlagBits _sta
         // Compilation failed: leave the module invalid (see valid()) instead of creating an empty one.
         return;
     }
-    vk::ShaderModuleCreateInfo moduleCreateInfo{};
-    moduleCreateInfo.codeSize = size;
-    moduleCreateInfo.pCode    = (const uint32_t*)data;
-    CHECK_VK(device.createShaderModule(&moduleCreateInfo, nullptr, &module));
+    // The module itself is created on first use (handle())
+    code.assign(static_cast<const uint32_t*>(data), static_cast<const uint32_t*>(data) + size / 4);
     // FNV-1a 64 and a multiply-xorshift hash over the words
     const uint32_t* words = static_cast<const uint32_t*>(data);
     uint64_t a = 14695981039346656037ull, b = 0x9E3779B97F4A7C15ull ^ uint64_t(size);
@@ -165,6 +164,20 @@ bool ShaderModule::load(vk::Device device, const std::string& file, const std::s
     }
 }
 
+vk::ShaderModule ShaderModule::handle()
+{
+    if (!module && !code.empty())
+    {
+        vk::ShaderModuleCreateInfo moduleCreateInfo{};
+        moduleCreateInfo.codeSize = code.size() * sizeof(uint32_t);
+        moduleCreateInfo.pCode    = code.data();
+        CHECK_VK(device.createShaderModule(&moduleCreateInfo, nullptr, &module));
+        code.clear();
+        code.shrink_to_fit();
+    }
+    return module;
+}
+
 void ShaderModule::destroy()
 {
     if (module)
@@ -172,6 +185,7 @@ void ShaderModule::destroy()
         device.destroyShaderModule(module);
         module = nullptr;
     }
+    code.clear();
     spirvSize = spirvHashA = spirvHashB = 0;
 }
 
@@ -217,7 +231,7 @@ bool ShaderModule::reload()
 
 bool ShaderModule::valid()
 {
-    return (bool)module;
+    return module || !code.empty();
 }
 
 std::vector<std::filesystem::file_time_type> ShaderModule::getWriteTimes() const
@@ -253,13 +267,13 @@ bool ShaderModule::autoReload()
     return reload();
 }
 
-vk::PipelineShaderStageCreateInfo ShaderModule::createPipelineInfo()
+vk::PipelineShaderStageCreateInfo ShaderModule::createPipelineInfo(bool createModule)
 {
     vk::PipelineShaderStageCreateInfo info;
     info.pSpecializationInfo = NULL;
     info.stage               = stage;
     info.pName               = "main";
-    info.module              = module;
+    info.module              = createModule ? handle() : module;
     return info;
 }
 

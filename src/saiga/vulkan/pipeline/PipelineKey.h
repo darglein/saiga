@@ -55,14 +55,13 @@ struct PipelineKeyWriter
     {
         if (next) valid = false;
     }
-    void stage(const vk::PipelineShaderStageCreateInfo& s, const ShaderPipelineBase& shaders)
+    void stage(const vk::PipelineShaderStageCreateInfo& s, const ShaderModule* m)
     {
         none(s.pNext);
         f(s.flags);
         e(s.stage);
         str(s.pName);
         if (s.pSpecializationInfo) valid = false;
-        const ShaderModule* m = shaders.findModule(s.module);
         if (!m || m->spirvSize == 0)
         {
             valid = false;

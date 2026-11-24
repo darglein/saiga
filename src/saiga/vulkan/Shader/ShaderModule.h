@@ -49,7 +49,10 @@ class SAIGA_VULKAN_API ShaderModule
      * vk::ShaderStageFlagBits::eAll
      */
     vk::ShaderStageFlagBits stage = vk::ShaderStageFlagBits::eVertex;
-    vk::ShaderModule module       = nullptr;
+    // Created on first use (handle(), createPipelineInfo()): a pipeline that comes from the pipeline pool
+    // (VulkanBase::reusePipelines) needs only the SPIR-V hashes, and vkCreateShaderModule is expensive with the
+    // validation layer (it validates the SPIR-V: ~0.4 ms for a 50 KB lighting shader on every new scene of a test)
+    vk::ShaderModule module = nullptr;
     // The SPIR-V of the module: its size in bytes and two 64-bit hashes (the content key of pipeline reuse)
     uint64_t spirvSize = 0, spirvHashA = 0, spirvHashB = 0;
 
@@ -79,10 +82,14 @@ class SAIGA_VULKAN_API ShaderModule
 
 
 
+    // The module, created from the SPIR-V on the first call (null if the compilation failed)
+    vk::ShaderModule handle();
+
     /**
-     * Create the module info block used in pipepline creation.
+     * Create the module info block used in pipepline creation. createModule false: the info of the pipeline reuse key
+     * (module null if it was not created yet; the key uses the SPIR-V hashes).
      */
-    vk::PipelineShaderStageCreateInfo createPipelineInfo();
+    vk::PipelineShaderStageCreateInfo createPipelineInfo(bool createModule = true);
 
     /**
      * Destroys the vulkan object.
@@ -111,6 +118,8 @@ class SAIGA_VULKAN_API ShaderModule
     std::string file;
     std::string injection;
     bool isSpirv = false;
+    // The SPIR-V until the module is created (handle())
+    std::vector<uint32_t> code;
     // The file followed by all included files and their last write times.
     std::vector<std::string> dependencies;
     std::vector<std::filesystem::file_time_type> lastWrites;
