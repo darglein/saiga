@@ -197,7 +197,7 @@ data/                   Sample assets (textures, models); test goldens in data/t
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
-                        EngineApp: game_world, --benchmark, --lamps (S36b: Lamps.*), MCP of .mcp.json), the tech demos flight/, platformer/, racing/
+                        EngineApp: game_world, --benchmark, --lamps (S36b: Lamps.*), --scenarios (the lamp policy), MCP of .mcp.json), the tech demos flight/, platformer/, racing/
                         (on EngineApp: simulation in a World, <Game>World.* and <Game>Render.*; data in data/<game>/;
                         S23c: flight's integer OverworldGenerator in flight/content/ (linted), its prefab
                         data/flight/prefabs/ruin.json and hash file data/flight/content_hashes.json) and

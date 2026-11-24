@@ -1489,8 +1489,12 @@ void LightingTab::lightTable()
             return;
         }
     }
-    LightSource s = w.read<LightSource>(e);
-    bool edit     = false;
+    // The values of the entity that is written (round 4, minor 2: in --coop the client's replica lags the host by the
+    // replication delay; a drag restarted from it each frame and an edit resent other fields' stale values)
+    const World& owner       = app.coop() ? *app.hostWorld() : w;
+    const LightSource before = owner.read<LightSource>(target);
+    LightSource s            = before;
+    bool edit                = false;
     ImGui::TextDisabled(
         "(a game's systems may switch the light again, e.g. game_world's lamps follow the time of day)");
     if (DebugUiStyle::beginProperties("##lighting light source"))
@@ -1500,6 +1504,7 @@ void LightingTab::lightTable()
         app.debugUi().markItem("lighting/light on");
         DebugUiStyle::property("cast shadows");
         edit = ImGui::Checkbox("##light shadows", &s.castShadows) || edit;
+        app.debugUi().markItem("lighting/light shadows");
         DebugUiStyle::property("kind");
         int kind = s.kind == Vulkan::LightKind::Spot ? 1 : 0;
         if (ImGui::Combo("##light kind", &kind, "point\0spot\0"))
@@ -1578,21 +1583,25 @@ void LightingTab::lightTable()
     }
     if (edit)
     {
-        // A write through the world API (set_component, logged; refused on a pure client), between the steps
-        const json11::Json values = json11::Json::object{
-            {"on", s.on},
-            {"castShadows", s.castShadows},
-            {"kind", s.kind == Vulkan::LightKind::Spot ? "spot" : "point"},
-            {"lumen", s.lumen},
-            {"range", s.range},
-            {"color", json11::Json::array{s.color(0), s.color(1), s.color(2)}},
-            {"offset", json11::Json::array{s.offset(0), s.offset(1), s.offset(2)}},
-            {"rotation", json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()}},
-            {"innerAngleDeg", s.innerAngleDeg},
-            {"outerAngleDeg", s.outerAngleDeg},
-            {"priority", s.priority},
-            {"flickerAmplitude", s.flickerAmplitude},
-            {"flickerFrequency", s.flickerFrequency}};
+        // A write through the world API (set_component, logged; refused on a pure client), between the steps; only the
+        // fields this frame changed (a field written meanwhile by the host or a system keeps its value)
+        auto vec3 = [](const Vec3& v) { return json11::Json::array{v(0), v(1), v(2)}; };
+        json11::Json::object values;
+        if (s.on != before.on) values["on"] = s.on;
+        if (s.castShadows != before.castShadows) values["castShadows"] = s.castShadows;
+        if (s.kind != before.kind) values["kind"] = s.kind == Vulkan::LightKind::Spot ? "spot" : "point";
+        if (s.lumen != before.lumen) values["lumen"] = s.lumen;
+        if (s.range != before.range) values["range"] = s.range;
+        if (s.color != before.color) values["color"] = vec3(s.color);
+        if (s.offset != before.offset) values["offset"] = vec3(s.offset);
+        if (s.rotation.coeffs() != before.rotation.coeffs())
+            values["rotation"] = json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()};
+        if (s.innerAngleDeg != before.innerAngleDeg) values["innerAngleDeg"] = s.innerAngleDeg;
+        if (s.outerAngleDeg != before.outerAngleDeg) values["outerAngleDeg"] = s.outerAngleDeg;
+        if (s.priority != before.priority) values["priority"] = s.priority;
+        if (s.flickerAmplitude != before.flickerAmplitude) values["flickerAmplitude"] = s.flickerAmplitude;
+        if (s.flickerFrequency != before.flickerFrequency) values["flickerFrequency"] = s.flickerFrequency;
+        if (values.empty()) return;
         EngineApp* a = &app;
         app.queueBetweenSteps(
             [a, target, values]()

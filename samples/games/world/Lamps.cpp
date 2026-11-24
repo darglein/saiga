@@ -13,6 +13,7 @@
 #include "saiga/engine/components/WorldTime.h"
 #include "saiga/engine/lighting/Celestial.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
+#include "saiga/engine/tools/ScenarioWorld.h"
 
 #include "games/common/GameMath.h"
 #include "games/common/Mesh.h"
@@ -133,6 +134,7 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
             l.flickerAmplitude = 0.35;
             l.flickerFrequency = 6;
             w.add<LightSource>(e, l);
+            w.add<LampPolicy>(e);
         }
         else if (spawned % 20 == 5)
         {
@@ -149,6 +151,7 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
             l.rotation    = axisAngle(Vec3(1, 0, 0), -1.5707963267948966);
             l.castShadows = spawned % 40 == 5;
             w.add<LightSource>(e, l);
+            w.add<LampPolicy>(e);
         }
         else
         {
@@ -161,10 +164,16 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
             l.offset       = Vec3(0, -0.22, 0);
             l.castShadows  = spawned % 8 == 0;
             w.add<LightSource>(e, l);
+            w.add<LampPolicy>(e);
         }
         spawned++;
     }
     return spawned;
+}
+
+void lampComponents(Registry& r)
+{
+    r.registerComponent<LampPolicy>(Replicate::Never);
 }
 
 void lampPolicySystem(World& w, double)
@@ -173,14 +182,21 @@ void lampPolicySystem(World& w, double)
     const WorldTime& t = w.readGlobal<WorldTime>();
     const bool on =
         celestialState(w.environmentSetup().celestial, t.timeOfDay, t.day).sunElevationDeg < kLampsOnBelowDeg;
-    // Only the lamps whose state changes are written (the reliable replication sends the changes)
+    // Only the policy's lamps, only on a transition (a hand switch holds until the next one), and only the lights whose
+    // state changes are written (the reliable replication sends the changes)
+    const int8_t state = on ? 1 : 0;
     std::vector<Entity> change;
-    w.view<const LightSource>().each(
-        [&](Entity e, const LightSource& l)
+    w.view<const LampPolicy>().each(
+        [&](Entity e, const LampPolicy& p)
         {
-            if (l.on != on) change.push_back(e);
+            if (p.applied != state) change.push_back(e);
         });
-    for (Entity e : change) w.get<LightSource>(e).on = on;
+    for (Entity e : change)
+    {
+        w.get<LampPolicy>(e).applied = state;
+        const LightSource* l         = w.tryRead<LightSource>(e);
+        if (l && l->on != on) w.get<LightSource>(e).on = on;
+    }
     // The heads and flames glow while their light is on (also a light switched by hand, e.g. in the Lighting tab)
     w.view<const LightSource, const RenderInstance>().each(
         [&](Entity e, const LightSource& l, const RenderInstance& r)
@@ -191,6 +207,61 @@ void lampPolicySystem(World& w, double)
             const char* want = head ? (l.on ? kHeadMesh : kHeadOff) : (l.on ? kFlameMesh : kFlameOff);
             if (r.mesh != want) w.setRenderMesh(e, want);
         });
+}
+
+void lampScenarios(ScenarioList& list)
+{
+    // Regression (round 4, minor 1): the policy rewrote every LightSource's `on` each step, so a lamp switched by hand
+    // and a light added by hand were switched back in the next step. Now a hand switch holds until the next dusk or
+    // dawn, and only the policy's lamps are switched.
+    list.add(
+        "lamp_hand_switch_holds",
+        [](ScenarioWorld& s)
+        {
+            // s.world(), not a reference: the SaveLoad variant replaces the world
+            std::string error;
+            auto setHours = [&](double hours)
+            {
+                WorldTimeChange change;
+                change.hours = hours;
+                change.rate  = 0.0;
+                s.check(setWorldTime(s.world(), change, error), "setWorldTime: " + error);
+            };
+            setHours(0);
+            const int spawned = spawnLamps(s.world(), 1, 100, 100, 25, 0, [](double, double) { return 10.0; }, 0);
+            s.check(spawned == 1, "spawns a lamp");
+            Entity lamp;
+            s.world().view<const LampPolicy>().each([&](Entity e, const LampPolicy&) { lamp = e; });
+            s.check(s.world().tryRead<LightSource>(lamp) != nullptr, "the lamp carries a LightSource");
+            if (!s.world().tryRead<LightSource>(lamp)) return;
+            // A light added by hand at night, off: never switched
+            const Entity manual = s.world().create();
+            LightSource off;
+            off.on = false;
+            s.world().add<LightSource>(manual, off);
+            s.step(2);
+            s.check(s.world().read<LightSource>(lamp).on, "the lamp is on at night");
+            s.check(!s.world().read<LightSource>(manual).on, "a light added by hand stays off");
+            // Switched off by hand: holds through the night
+            s.world().get<LightSource>(lamp).on = false;
+            s.step(10);
+            s.check(!s.world().read<LightSource>(lamp).on, "a lamp switched off by hand stays off");
+            // Dawn and dusk switch it again
+            setHours(12);
+            s.step(2);
+            s.check(!s.world().read<LightSource>(lamp).on, "off by day");
+            s.world().get<LightSource>(lamp).on = true;
+            s.step(10);
+            s.check(s.world().read<LightSource>(lamp).on, "a lamp switched on by hand by day stays on");
+            setHours(0);
+            s.step(2);
+            s.check(s.world().read<LightSource>(lamp).on, "on at the next dusk");
+            setHours(12);
+            s.step(2);
+            s.check(!s.world().read<LightSource>(lamp).on, "off at the next dawn");
+            s.check(!s.world().read<LightSource>(manual).on, "the light added by hand was never switched");
+        },
+        true);
 }
 
 }  // namespace Game

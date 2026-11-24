@@ -1471,13 +1471,16 @@ TEST(EnvironmentWrites, CoopWritesTheHost)
 
 // Regression (round 2, finding 10): in --coop the Lighting tab's light editor writes the host's entity of the same
 // NetId. The client's LightSource is replicated (HostReliable), so the old editor's set_component on the client world
-// was refused (only a log line): nothing could be edited
+// was refused (only a log line): nothing could be edited. Regression (round 4, minor 2): the editor showed and resent
+// every field of the client's replica, which lags the host by the replication delay, so an edit of a second field
+// right after the first wrote the first field's old value back to the host
 TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
 {
     if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
     AppOptions o;
-    o.coop      = true;
-    o.coopDelay = 2;
+    o.coop = true;
+    // A delay longer than the two clicks (3 frames each): the second edit happens while the replica still lags
+    o.coopDelay = 20;
     EngineApp app(tabSetup(true), o);
     ASSERT_NE(app.hostWorld(), nullptr);
     Vulkan::LightingParameters lp = app.scene()->lightingParameters();
@@ -1487,7 +1490,7 @@ TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
     const Entity lamp = host.create();
     host.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
     host.add<LightSource>(lamp, LightSource());
-    app.runFrames(10, 1.0 / 60);
+    app.runFrames(30, 1.0 / 60);
     // The client's replica and its rendered light
     const NetId id = host.replication().netIdOf(lamp);
     ASSERT_NE(id, 0u);
@@ -1505,22 +1508,33 @@ TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
     app.runFrames(2, 1.0 / 60);
+    // Scrolled until both checkboxes are on the screen ("cast shadows" is the row below "on")
     ImVec2 at;
-    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light on", at));
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light shadows", at));
     ImGuiIO& io = ImGui::GetIO();
     for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 20; ++k)
     {
         io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
         io.AddMouseWheelEvent(0, -2);
         app.runFrames(1, 1.0 / 60);
-        ASSERT_TRUE(app.debugUi().itemCenter("lighting/light on", at));
+        ASSERT_TRUE(app.debugUi().itemCenter("lighting/light shadows", at));
     }
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light on", at));
     click(app, at);
-    app.runFrames(2, 1.0 / 60);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_FALSE(host.read<LightSource>(lamp).on);
+    EXPECT_TRUE(app.world().read<LightSource>(replica).on) << "the replica lags (the delay of the test)";
+    // A second field while the replica still lags: only that field is written, the first edit holds
+    ASSERT_TRUE(app.debugUi().itemCenter("lighting/light shadows", at));
+    click(app, at);
+    app.runFrames(1, 1.0 / 60);
+    EXPECT_TRUE(app.world().read<LightSource>(replica).on) << "the replica still lags";
+    EXPECT_TRUE(host.read<LightSource>(lamp).castShadows);
     EXPECT_FALSE(host.read<LightSource>(lamp).on);
     // The client follows the host
-    app.runFrames(10, 1.0 / 60);
+    app.runFrames(30, 1.0 / 60);
     EXPECT_FALSE(app.world().read<LightSource>(replica).on);
+    EXPECT_TRUE(app.world().read<LightSource>(replica).castShadows);
 }
 
 // Every tool is a console command (DebugConsole through McpServer::callLocal)

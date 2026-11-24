@@ -28,6 +28,7 @@
 
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
@@ -229,7 +230,8 @@ MeshLods syncBox(const vec3& half)
 // them), a light changes its kind (finding 1)
 TEST_F(SyncValidation, LocalLightsAndAtlasFrame)
 {
-    ASSERT_TRUE(syncValidationOn);
+    // Without sync validation (CI's old layer, the gate above) the frames still run under the core validation
+    RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
     const TerrainLayout layout = testLayout(16, 2);
     const Vec3 cam(300.5, 12, 300.5);
     fillTestTerrain(*scene, layout, flatHook, 1, std::nullopt, cam, false, 0, 60);
@@ -426,8 +428,17 @@ TEST_F(SyncValidation, FirstUsesInFlight)
     lamp.range       = 8;
     lamp.castShadows = true;
     scene->addLight(ChunkId(), lamp);
-    frame();
-    frame();
+    // The atlas is written in these frames (round 4, nit 6: the first shadowed light is the point of this step); the
+    // statistics are the newest frame's
+    uint32_t atlasRenders = 0, shadowed = 0;
+    for (int i = 0; i < 2; ++i)
+    {
+        frame();
+        atlasRenders += scene->lightingStatistics().atlas.staticRenders;
+        shadowed = std::max(shadowed, scene->lightingStatistics().lights.shadowed);
+    }
+    EXPECT_GT(atlasRenders, 0u);
+    EXPECT_GT(shadowed, 0u);
     scene->setLightingDebug(LightingDebugState{LightingDebugView::None, OverlaySunDirection | OverlayLightVolumes});
     frame();
     scene->lightingDebugImages().show(LightingImage::Luminance, PreviewMapping());

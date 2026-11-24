@@ -10,6 +10,7 @@
 #include "saiga/engine/lighting/LightingKeys.h"
 
 #include <algorithm>
+#include <cfloat>
 #include <cmath>
 #include <functional>
 #include <optional>
@@ -81,9 +82,12 @@ LightingKey floatKey(const char* name, bool parameter, double lo, double hi,
                        {
                            // The stored float against the bounds as floats (round 2, finding 17: 0.01 is stored as
                            // 0.0099999998, which failed the >= 0.01 check when it was sent back, e.g. the undo
-                           // payload or a saved environment file)
-                           const float f = j.is_number() ? float(j.number_value()) : 0.0f;
-                           if (!j.is_number() || !std::isfinite(f) || !(f >= float(lo) && f <= float(hi)))
+                           // payload or a saved environment file). The double is range checked before the
+                           // conversion (round 4, nit 3: a finite double above FLT_MAX converted to float is UB)
+                           const double d  = j.is_number() ? j.number_value() : 0.0;
+                           const bool fits = std::isfinite(d) && std::abs(d) <= double(FLT_MAX);
+                           const float f   = fits ? float(d) : 0.0f;
+                           if (!j.is_number() || !fits || !(f >= float(lo) && f <= float(hi)))
                            {
                                error = std::string(name) + ": expected a finite number in " + rangeText(lo, hi);
                                return false;

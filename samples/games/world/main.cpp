@@ -722,6 +722,8 @@ int main(int argc, char* argv[])
     };
     // S36b: the lamps' meshes and their policy (on while the sun is low), before enableEnvironment adds its systems
     setup.world.renderAssets = Game::lampRenderAssets;
+    setup.world.components   = Game::lampComponents;
+    setup.scenarios          = Game::lampScenarios;
     setup.world.systems      = [](SystemList& l)
     { l.add(Phase::Gameplay, "lampPolicy", Game::lampPolicySystem, RunOn::Host); };
     // S36: the environment (data/world/environment.json), ACES; the time is 10:00, frozen (the benchmark keeps it)
