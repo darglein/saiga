@@ -114,7 +114,9 @@ class SAIGA_VULKAN_API CascadedShadows
     // 12): within kEdgeMarginTexels of the rectangle's edge the PCF footprint and the normal offset would read beyond
     // the layer (clamp to edge), so the cascade's weight is 0 there (the shaders blend over band - margin); the band is
     // at least the margin plus kMinBlendTexels (also with cascadeBlend 0)
-    static constexpr double kEdgeMarginTexels = 3, kMinBlendTexels = 4;
+    // (one constant per declaration: MSVC C2487 in a dll interface class)
+    static constexpr double kEdgeMarginTexels = 3;
+    static constexpr double kMinBlendTexels   = 4;
     static double edgeMargin(int resolution) { return 2 * kEdgeMarginTexels / double(std::max(resolution, 1)); }
     static double blendBand(const LightingParameters& p, int resolution);
     // The shadow light's direction the cascades are fitted to moves in steps of this angle (S36a2 review, finding 13:

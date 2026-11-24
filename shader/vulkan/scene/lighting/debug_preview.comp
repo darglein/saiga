@@ -90,6 +90,8 @@ bool sourceValue(ivec2 p, out float v)
             // The horizon map's "no occluder" (-1e9): no value (drawn black)
             if (v < -1.0e8) return false;
         }
+        // Invalid before the log (as the 2D source)
+        if (isnan(v) || isinf(v)) return false;
         if (pc.useLog != 0u) v = log2(max(v, 1e-10));
         return !(isnan(v) || isinf(v));
     }
