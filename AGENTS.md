@@ -361,13 +361,16 @@ ctest -R test_core_ini --output-on-failure             # one test
   - Measure with `./build/tests/<binary> --gtest_print_time=1` (or the gtest XML of `GTEST_OUTPUT=xml:<dir>/`) on
     lavapipe; a new test case above 0.5 s needs a reason in its comment. Budget per binary, alone on lavapipe (24
     threads, a RelWithDebInfo build with Makefiles; all binaries: 207 s before the first pass, 89 s after it, now 54 s):
-    `test_vulkan_world` 9 s (prototype scenes with terrain and trees; S36a1c: shaded with the lighting), `test_engine_app`
-    7 s (the MCP deadline tests wait ~3 s of real time), `test_engine_terrain_render` 6.5 s (goldens at 512 x 512),
-    `test_vulkan_terrain` 6.5 s, `test_engine_content` 6 s (the test generator's pyramids and the committed hashes),
-    `test_vulkan_scene` 5.5 s, `test_vulkan_lighting` 2.5 s (the atmosphere and environment-map tests), every other
-    binary <= 2 s. (S36a1c raised the first four: every RenderScene creates the BRDF LUT, the atmosphere, the
-    environment map and the clouds at construction; S36b creates them with the first use and brings `test_vulkan_scene`,
-    `test_vulkan_terrain` and `test_engine_terrain_render` back to 5.5 / 5 / 6 s.) These are ceilings: a change that makes a binary slower than its budget makes it
+    `test_vulkan_world` 10 s (prototype scenes with terrain and trees; S36a1c: shaded with the lighting),
+    `test_engine_terrain_render` 9 s (goldens at 512 x 512; S36a2: the cascades and the horizon map),
+    `test_engine_app` 7.5 s (the MCP deadline tests wait ~3 s of real time), `test_vulkan_terrain` 7.5 s,
+    `test_vulkan_scene` 6.5 s, `test_engine_content` 6 s (the test generator's pyramids and the committed hashes),
+    `test_vulkan_shadows` 5 s (cascade and horizon maps rendered per test), `test_vulkan_lighting` 3 s (the atmosphere
+    and environment-map tests), `test_engine_lighting_tools` 2.5 s, every other binary <= 2 s. (S36a1c and S36a2 raised
+    them: every RenderScene creates the BRDF LUT, the atmosphere, the environment map, the clouds, the shadow pipelines
+    and the terrain's shadow pipelines at construction; S36b creates them with the first use and brings
+    `test_vulkan_scene`, `test_vulkan_terrain`, `test_engine_terrain_render` and `test_vulkan_shadows` back to 5.5 / 5 /
+    6 / 4 s.) These are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
     10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the
     dependency check; less with Ninja).
