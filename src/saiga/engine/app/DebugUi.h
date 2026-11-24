@@ -86,6 +86,9 @@ class SAIGA_ENGINE_API DebugUi
     int sectionCount(DebugTab tab) const { return int(tabs[size_t(tab)].sections.size()); }
     // A section header whose open state is kept in the state file (key: unique per tab, e.g. "engine/Simulation")
     bool section(const std::string& key, const char* title, bool defaultOpen = true);
+    // A sub-section inside a section: a tree node without indent (the details of a section, e.g. "lighting/Ambient: SH
+    // coefficients"), its open state kept in the state file like a section's
+    bool subSection(const std::string& key, const char* title, bool defaultOpen = false);
 
     // ---- Named controls (tests click a tab's real widgets)
     // Records the screen rectangle of the last ImGui item under a name, e.g. "lighting/rate x60" (in an ImGui frame)

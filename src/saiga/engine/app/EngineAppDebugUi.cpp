@@ -798,18 +798,20 @@ void EngineApp::engineTab()
             // The tone map and exposure of the frame (R-MECH-1; applied from the next frame)
             DebugUiStyle::property("tone map");
             int toneMap                = int(renderScene->parameters().toneMap);
-            const char* toneMapNames[] = {"identity (clay)", "ACES"};
+            const char* toneMapNames[] = {"clay (identity)", "ACES"};
             if (ImGui::Combo("##tone map", &toneMap, toneMapNames, 2))
                 renderScene->setToneMap(Vulkan::ToneMap(toneMap));
-            // The exposure acts only on the ACES tone map (the range of --exposure)
-            DebugUiStyle::property("exposure");
+            // The exposure multiplier acts only on the ACES tone map (the range of --exposure); a multiplier on top of
+            // the EV100 exposure of the Lighting tab (S36, UI rating round 1 of F5, finding 5: two "exposure" values on
+            // two tabs)
+            DebugUiStyle::property("exposure multiplier");
             float exposure = renderScene->parameters().exposure;
             ImGui::BeginDisabled(renderScene->parameters().toneMap == Vulkan::ToneMap::Identity);
             if (ImGui::SliderFloat("##exposure", &exposure, 1.0f / 1024, 1024, "%.3f", ImGuiSliderFlags_Logarithmic))
                 renderScene->setExposure(exposure);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Acts only on the ACES tone map");
+                ImGui::SetTooltip("A multiplier on the EV100 exposure of F5 Lighting > Exposure (ACES only)");
             DebugUiStyle::endProperties();
         }
         // What cannot be changed at runtime, in one line

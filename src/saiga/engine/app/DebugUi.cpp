@@ -117,6 +117,17 @@ bool DebugUi::section(const std::string& key, const char* title, bool defaultOpe
     return open;
 }
 
+bool DebugUi::subSection(const std::string& key, const char* title, bool defaultOpen)
+{
+    auto it = sections.find(key);
+    if (it == sections.end()) it = sections.emplace(key, defaultOpen).first;
+    ImGui::PushID(key.c_str());
+    ImGui::SetNextItemOpen(it->second, ImGuiCond_Always);
+    it->second = ImGui::TreeNodeEx(title, ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    ImGui::PopID();
+    return it->second;
+}
+
 InputState DebugUi::handleKeys(const InputState& now, const InputState& previous, bool captured)
 {
     if (!enabledFlag) return now;
