@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <optional>
 #include <string>
 #include <vector>
@@ -850,6 +851,17 @@ void LightingTab::localLightsSection()
         ImGui::Text("%.1f KiB", double(c.memoryBytes) / 1024);
         DebugUiStyle::endProperties();
     }
+    if (changed) scene->setLightingParameters(p);
+    changed = false;
+    if (!p.localLights)
+        DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (LightingParameters::localLights)");
+    else if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
+        DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: the local lights are not shaded (studio light)");
+    // The light table and the selected light's editor first (round 1, finding 17: reachable without scrolling past the
+    // previews), then the clusters and the shadow atlas as sections of their own
+    lightTable();
+    d = scene->lightingDebug();
+    if (!ui.section("lighting/Local lights: clusters", "Local lights: clusters", false)) return atlasSection();
     // The clusters (B3): the grid, the occupancy, the heat map
     if (DebugUiStyle::beginProperties("##lighting clusters"))
     {
@@ -883,10 +895,6 @@ void LightingTab::localLightsSection()
     if (c.overflowedClusters > 0)
         DebugUiStyle::coloredText(DebugUiStyle::kWarn,
                                   "clusters overflow: the least important lights of a cluster are dropped");
-    if (!p.localLights)
-        DebugUiStyle::coloredText(DebugUiStyle::kRef, "local lights are off (LightingParameters::localLights)");
-    else if (scene->parameters().toneMap == Vulkan::ToneMap::Identity)
-        DebugUiStyle::coloredText(DebugUiStyle::kRef, "clay: the local lights are not shaded (studio light)");
 
     // The cluster heat map: the ClusterLights view and the preview (a slice or the maximum over the slices)
     {
@@ -926,6 +934,16 @@ void LightingTab::localLightsSection()
             app.lightingPreviewMapping() = saved;
         }
     }
+    atlasSection();
+}
+
+void LightingTab::atlasSection()
+{
+    DebugUi& ui                = app.debugUi();
+    Vulkan::RenderScene* scene = app.scene();
+    if (!ui.section("lighting/Local lights: shadow atlas", "Local lights: shadow atlas", false)) return;
+    const Vulkan::LightingStatistics& ls = scene->lightingStatistics();
+    Vulkan::LightingDebugState d         = scene->lightingDebug();
     // The shadow atlas (B4): its parameters, the cache, the preview of a layer with the tiles' owners (a click on a
     // tile selects its light)
     {
@@ -1058,36 +1076,92 @@ void LightingTab::localLightsSection()
             }
         }
     }
-    // The light table: every light of the scene (the frame's ones with their buffer index); a row selects the light
-    // (highlighted in the light volumes overlay)
-    const Vulkan::LocalLights& table = scene->localLights();
+}
+
+void LightingTab::lightTable()
+{
+    Vulkan::RenderScene* scene   = app.scene();
+    Vulkan::LightingDebugState d = scene->lightingDebug();
+    // The light table: every light of the scene (the frame's ones with their buffer index) and the entity lights the
+    // scene does not have (off, invalid, no pose: greyed rows with their state; round 1, finding 8: a light switched
+    // off disappeared and could not be switched on again); a row selects the light (an entity light by its entity)
+    const Vulkan::LocalLights& table                                = scene->localLights();
+    const std::vector<ExtractSystem::LightEntityState> entityLights = app.world().extract().lightStates();
     std::unordered_map<uint32_t, Entity> entities;
-    for (const auto& el : app.world().extract().lightEntities()) entities[el.second.id] = el.first;
+    std::unordered_map<uint32_t, const ExtractSystem::LightEntityState*> byEntity;
+    for (const ExtractSystem::LightEntityState& st : entityLights)
+    {
+        if (st.handle) entities[st.handle.id] = st.entity;
+        byEntity[st.entity.index] = &st;
+    }
+    // Another change of the highlight (an atlas tile click, MCP) selects that light's entity
+    if (d.highlightLight != tabHighlight)
+    {
+        auto e         = entities.find(d.highlightLight);
+        selectedEntity = e != entities.end() ? e->second : Entity();
+        tabHighlight   = d.highlightLight;
+    }
+    const ExtractSystem::LightEntityState* selState = nullptr;
+    if (selectedEntity.valid())
+    {
+        auto it = byEntity.find(selectedEntity.index);
+        if (it != byEntity.end() && it->second->entity == selectedEntity)
+            selState = it->second;
+        else
+            selectedEntity = Entity();
+    }
+    // The selected entity light's current sink light is the highlight (0 while it is not rendered)
+    if (selState && selState->handle.id != d.highlightLight)
+    {
+        d.highlightLight = selState->handle.id;
+        tabHighlight     = d.highlightLight;
+        scene->setLightingDebug(d);
+    }
     std::unordered_map<uint32_t, const Vulkan::FrameLightInfo*> frame;
     for (const Vulkan::FrameLightInfo& f : scene->frameLights()) frame[f.handle] = &f;
     struct Row
     {
-        const Vulkan::LocalLights::Light* light;
-        const Vulkan::FrameLightInfo* info;
+        const Vulkan::LocalLights::Light* light;       // null: an entity light that is not rendered
+        const Vulkan::FrameLightInfo* info;            // null: not in this frame
+        const ExtractSystem::LightEntityState* state;  // null: a scene light
         double distance;
+        uint64_t key;
     };
+    auto worldOf = [](const ExtractSystem::LightEntityState& st)
+    { return Vec3(st.pose.position + st.pose.rotation * (st.source.offset * st.pose.scale)); };
     std::vector<Row> rows;
     const Vec3 camera = app.viewCamera().position;
+    size_t unrendered = 0;
     for (const Vulkan::LocalLights::Light& l : table.lights())
     {
-        auto f = frame.find(l.handle.id);
-        rows.push_back({&l, f == frame.end() ? nullptr : f->second, (l.worldPosition() - camera).norm()});
+        auto f  = frame.find(l.handle.id);
+        auto e  = entities.find(l.handle.id);
+        auto st = e != entities.end() ? byEntity.find(e->second.index) : byEntity.end();
+        rows.push_back({&l, f == frame.end() ? nullptr : f->second, st != byEntity.end() ? st->second : nullptr,
+                        (l.worldPosition() - camera).norm(), uint64_t(l.handle.id)});
     }
-    ImGui::Text("%zu lights (%zu in lists); visible rows first", table.size(), table.listCount());
-    const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollY | ImGuiTableFlags_RowBg |
-                                  ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
-    const float height = ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), 12) + 2);
-    if (!rows.empty() && ImGui::BeginTable("##light table", 9, flags, ImVec2(0, height)))
+    for (const ExtractSystem::LightEntityState& st : entityLights)
+        if (!st.handle)
+        {
+            unrendered++;
+            rows.push_back({nullptr, nullptr, &st,
+                            st.hasPose ? (worldOf(st) - camera).norm() : std::numeric_limits<double>::infinity(),
+                            (uint64_t(1) << 32) | st.entity.index});
+        }
+    ImGui::Text("%zu lights (%zu in lists), %zu entity lights not rendered; visible rows first", table.size(),
+                table.listCount(), unrendered);
+    // Columns clipped in a narrow tab (round 1, finding 17): a horizontal scroll with the handle column frozen, the
+    // units in the headers
+    const ImGuiTableFlags flags = ImGuiTableFlags_Sortable | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY |
+                                  ImGuiTableFlags_RowBg | ImGuiTableFlags_Borders | ImGuiTableFlags_SizingFixedFit;
+    const float height = ImGui::GetTextLineHeightWithSpacing() * float(std::min<size_t>(rows.size(), 12) + 3);
+    if (!rows.empty() && ImGui::BeginTable("##light table", 10, flags, ImVec2(0, height)))
     {
-        ImGui::TableSetupScrollFreeze(0, 1);
-        const char* headers[] = {"handle", "entity",   "kind",  "distance",    "lumen",
-                                 "range",  "clusters", "tiles", "shadow frame"};
-        for (int i = 0; i < 9; ++i) ImGui::TableSetupColumn(headers[i], i == 3 ? ImGuiTableColumnFlags_DefaultSort : 0);
+        ImGui::TableSetupScrollFreeze(1, 1);
+        const char* headers[] = {"handle", "entity",  "state",    "kind",  "distance m",
+                                 "lumen",  "range m", "clusters", "tiles", "shadow frame"};
+        for (int i = 0; i < 10; ++i)
+            ImGui::TableSetupColumn(headers[i], i == 4 ? ImGuiTableColumnFlags_DefaultSort : 0);
         ImGui::TableHeadersRow();
         if (ImGuiTableSortSpecs* sort = ImGui::TableGetSortSpecs())
             if (sort->SpecsCount > 0)
@@ -1097,83 +1171,126 @@ void LightingTab::localLightsSection()
             }
         auto key = [&](const Row& r) -> double
         {
-            const Vulkan::LightData& ld = r.light->data;
+            const bool spot    = r.light ? r.light->data.kind == Vulkan::LightKind::Spot
+                                         : r.state->source.kind == Vulkan::LightKind::Spot;
+            const double lumen = r.light ? double(r.light->data.lumen) : r.state->source.lumen;
+            const double range = r.light ? double(r.light->data.range) : r.state->source.range;
             switch (lightSortColumn)
             {
                 case 0:
-                    return double(r.light->handle.id);
+                    return r.light ? double(r.light->handle.id) : 4294967296.0;
                 case 1:
-                {
-                    auto e = entities.find(r.light->handle.id);
-                    return e == entities.end() ? -1.0 : double(e->second.index);
-                }
+                    return r.state ? double(r.state->entity.index) : -1.0;
                 case 2:
-                    return double(int(ld.kind));
-                case 4:
-                    return double(ld.lumen);
+                    return r.light ? (r.info ? 0.0 : 1.0) : 2.0;
+                case 3:
+                    return spot ? 1.0 : 0.0;
                 case 5:
-                    return double(ld.range);
+                    return lumen;
                 case 6:
-                    return r.info ? double(r.info->clusters) : -1.0;
+                    return range;
                 case 7:
-                    return r.info ? double(r.info->tiles) : -1.0;
+                    return r.info ? double(r.info->clusters) : -1.0;
                 case 8:
+                    return r.info ? double(r.info->tiles) : -1.0;
+                case 9:
                     return r.info ? double(r.info->lastRender) : -1.0;
                 default:
                     return r.distance;
             }
         };
-        std::stable_sort(rows.begin(), rows.end(),
-                         [&](const Row& a, const Row& b)
-                         {
-                             // The frame's lights first
-                             if ((a.info != nullptr) != (b.info != nullptr)) return a.info != nullptr;
-                             const double ka = key(a), kb = key(b);
-                             if (ka != kb) return lightSortAscending ? ka < kb : ka > kb;
-                             return a.light->handle.id < b.light->handle.id;
-                         });
+        // Sorted when the sort spec or the light set changes, else every 30 frames (the distances change slowly; S30's
+        // thousands of piece lights)
+        const uint64_t now = scene->frames();
+        bool resort        = orderColumn != lightSortColumn || orderAscending != lightSortAscending ||
+                      lightOrder.size() != rows.size() || now >= orderFrame + 30 || now < orderFrame;
+        if (!resort)
+        {
+            std::unordered_map<uint64_t, size_t> at;
+            for (size_t k = 0; k < rows.size(); ++k) at[rows[k].key] = k;
+            std::vector<Row> ordered;
+            ordered.reserve(rows.size());
+            for (uint64_t k : lightOrder)
+            {
+                auto it = at.find(k);
+                if (it == at.end()) break;
+                ordered.push_back(rows[it->second]);
+            }
+            if (ordered.size() == rows.size())
+                rows.swap(ordered);
+            else
+                resort = true;
+        }
+        if (resort)
+        {
+            std::stable_sort(rows.begin(), rows.end(),
+                             [&](const Row& a, const Row& b)
+                             {
+                                 // The frame's lights first, then the other scene lights, then the unrendered ones
+                                 const int ga = a.info ? 0 : (a.light ? 1 : 2), gb = b.info ? 0 : (b.light ? 1 : 2);
+                                 if (ga != gb) return ga < gb;
+                                 const double ka = key(a), kb = key(b);
+                                 if (ka != kb) return lightSortAscending ? ka < kb : ka > kb;
+                                 return a.key < b.key;
+                             });
+            lightOrder.clear();
+            for (const Row& r : rows) lightOrder.push_back(r.key);
+            orderColumn    = lightSortColumn;
+            orderAscending = lightSortAscending;
+            orderFrame     = now;
+        }
         ImGuiListClipper clipper;
         clipper.Begin(int(rows.size()));
         while (clipper.Step())
             for (int i = clipper.DisplayStart; i < clipper.DisplayEnd; ++i)
             {
-                const Row& r                = rows[size_t(i)];
-                const Vulkan::LightData& ld = r.light->data;
+                const Row& r = rows[size_t(i)];
                 ImGui::TableNextRow();
                 ImGui::TableNextColumn();
-                char label[32];
-                std::snprintf(label, sizeof(label), "%u", r.light->handle.id);
-                const bool selected = d.highlightLight == r.light->handle.id;
+                char label[48];
+                if (r.light)
+                    std::snprintf(label, sizeof(label), "%u", r.light->handle.id);
+                else
+                    std::snprintf(label, sizeof(label), "-##e%u", r.state->entity.index);
+                const bool selected = r.state ? r.state->entity == selectedEntity
+                                              : !selectedEntity.valid() && d.highlightLight == r.light->handle.id;
                 if (!r.info) ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
                 if (ImGui::Selectable(label, selected, ImGuiSelectableFlags_SpanAllColumns))
                 {
-                    d.highlightLight = selected ? 0u : r.light->handle.id;
+                    selectedEntity   = selected || !r.state ? Entity() : r.state->entity;
+                    d.highlightLight = selected ? 0u : (r.light ? r.light->handle.id : 0u);
+                    tabHighlight     = d.highlightLight;
                     scene->setLightingDebug(d);
                 }
                 ImGui::TableNextColumn();
-                auto e = entities.find(r.light->handle.id);
-                if (e != entities.end())
-                    ImGui::Text("%u:%u", e->second.index, e->second.generation);
+                if (r.state)
+                    ImGui::Text("%u:%u", r.state->entity.index, r.state->entity.generation);
                 else
                     ImGui::TextUnformatted(r.light->list ? "list" : "-");
                 ImGui::TableNextColumn();
-                ImGui::TextUnformatted(Vulkan::lightKindName(ld.kind));
+                ImGui::TextUnformatted(r.light ? (r.info ? "visible" : "rendered") : r.state->state.c_str());
                 ImGui::TableNextColumn();
-                ImGui::Text("%.1f m", r.distance);
+                ImGui::TextUnformatted(Vulkan::lightKindName(r.light ? r.light->data.kind : r.state->source.kind));
                 ImGui::TableNextColumn();
-                ImGui::Text("%.0f", double(ld.lumen));
+                if (std::isfinite(r.distance))
+                    ImGui::Text("%.1f", r.distance);
+                else
+                    ImGui::TextUnformatted("-");
                 ImGui::TableNextColumn();
-                ImGui::Text("%.1f m", double(ld.range));
+                ImGui::Text("%.0f", r.light ? double(r.light->data.lumen) : r.state->source.lumen);
+                ImGui::TableNextColumn();
+                ImGui::Text("%.1f", r.light ? double(r.light->data.range) : r.state->source.range);
                 ImGui::TableNextColumn();
                 if (r.info)
                     ImGui::Text("%u", r.info->clusters);
                 else
                     ImGui::TextUnformatted("-");
                 ImGui::TableNextColumn();
+                const bool shadows = r.light ? r.light->data.castShadows : r.state->source.castShadows;
                 if (r.info && r.info->tiles > 0)
                     ImGui::Text("%d%s", r.info->tiles, r.info->shadowReady ? "" : " (pending)");
                 else
-                    ImGui::TextUnformatted(ld.castShadows ? (r.info ? "none" : "-") : "-");
+                    ImGui::TextUnformatted(shadows ? (r.info ? "none" : "-") : "-");
                 ImGui::TableNextColumn();
                 if (r.info && r.info->lastRender)
                     ImGui::Text("%llu", (unsigned long long)r.info->lastRender);
@@ -1183,50 +1300,88 @@ void LightingTab::localLightsSection()
             }
         ImGui::EndTable();
     }
-    // The selected light: its numbers, the camera, an entity light's fields (written through set_component)
+    // The selected light: its numbers, the camera, an entity light's fields (written through set_component; also
+    // while it is off or invalid)
     const Vulkan::LocalLights::Light* sel =
         d.highlightLight ? table.find(Vulkan::LightHandle{d.highlightLight}) : nullptr;
-    if (!sel) return;
-    const Vulkan::LightData& ld = sel->data;
-    const Vec3 pos              = sel->worldPosition();
-    ImGui::Text("light %u: %s at (%.1f, %.1f, %.1f), %.0f lm, range %.1f m%s", sel->handle.id,
-                Vulkan::lightKindName(ld.kind), pos(0), pos(1), pos(2), double(ld.lumen), double(ld.range),
-                ld.castShadows ? ", shadowed" : "");
-    if (ld.castShadows && ld.range > 100)
-        DebugUiStyle::coloredText(DebugUiStyle::kWarn,
-                                  "a shadowed light with a range above 100 m: the atlas's D16 depth gets coarse");
-    if (ImGui::SmallButton("move camera to light"))
+    if (!sel && !selState) return;
+    Vec3 pos      = Vec3::Zero();
+    Vec3 dir      = Vec3(0, -1, 0);
+    double range  = 10;
+    bool hasPos   = true;
+    SpaceId space = 0;
+    bool spot     = false;
+    if (sel)
+    {
+        const Vulkan::LightData& ld = sel->data;
+        pos                         = sel->worldPosition();
+        dir                         = ld.direction.cast<double>();
+        range                       = double(ld.range);
+        space                       = sel->chunk.space;
+        spot                        = ld.kind == Vulkan::LightKind::Spot;
+        ImGui::Text("light %u: %s at (%.1f, %.1f, %.1f), %.0f lm, range %.1f m%s", sel->handle.id,
+                    Vulkan::lightKindName(ld.kind), pos(0), pos(1), pos(2), double(ld.lumen), double(ld.range),
+                    ld.castShadows ? ", shadowed" : "");
+        if (ld.castShadows && ld.range > 100)
+            DebugUiStyle::coloredText(DebugUiStyle::kWarn,
+                                      "a shadowed light with a range above 100 m: the atlas's D16 depth gets coarse");
+    }
+    else
+    {
+        hasPos = selState->hasPose;
+        pos    = worldOf(*selState);
+        dir    = selState->pose.rotation * selState->source.rotation * Vec3(0, 0, -1);
+        range  = selState->source.range;
+        space  = selState->pose.space;
+        spot   = selState->source.kind == Vulkan::LightKind::Spot;
+        ImGui::Text("entity %u:%u: %s, not rendered (%s)", selectedEntity.index, selectedEntity.generation,
+                    Vulkan::lightKindName(selState->source.kind), selState->state.c_str());
+        if (selState->state.rfind("invalid", 0) == 0)
+            DebugUiStyle::coloredText(DebugUiStyle::kWarn, "an invalid LightSource is not rendered");
+    }
+    if (hasPos && ImGui::SmallButton("move camera to light"))
     {
         // Back from the light along the view direction (a spot: behind and above its cone), looking at it
-        const Vec3 forward = ld.kind == Vulkan::LightKind::Spot ? Vec3(ld.direction.cast<double>().normalized())
-                                                                : Vec3(app.viewCamera().rotation * Vec3(0, 0, -1));
-        const double back  = std::max(2.0, 0.6 * double(ld.range));
+        const Vec3 forward =
+            spot && dir.norm() > 1e-9 ? Vec3(dir.normalized()) : Vec3(app.viewCamera().rotation * Vec3(0, 0, -1));
+        const double back  = std::max(2.0, 0.6 * range);
         const Vec3 eye     = pos - forward * back + Vec3(0, 0.3 * back, 0);
-        app.setViewCameraByTool(sel->chunk.space, eye, cameraLookRotation(pos - eye), app.viewCamera().fovy, true);
+        app.setViewCameraByTool(space, eye, cameraLookRotation(pos - eye), app.viewCamera().fovy, true);
     }
-    ImGui::SameLine();
+    if (hasPos) ImGui::SameLine();
     if (ImGui::SmallButton("deselect"))
     {
+        selectedEntity   = Entity();
         d.highlightLight = 0;
+        tabHighlight     = 0;
         scene->setLightingDebug(d);
     }
-    auto ent = entities.find(sel->handle.id);
-    if (ent == entities.end())
+    if (!selState)
     {
-        ImGui::TextUnformatted(sel->list ? "a scene light of a list (read-only)" : "a scene light (read-only)");
+        ImGui::TextUnformatted(sel && sel->list ? "a scene light of a list (read-only)" : "a scene light (read-only)");
         return;
     }
-    const Entity e = ent->second;
+    const Entity e = selectedEntity;
     World& w       = app.world();
     if (!w.alive(e) || !w.has<LightSource>(e)) return;
     LightSource s = w.read<LightSource>(e);
     bool edit     = false;
+    ImGui::TextDisabled(
+        "(a game's systems may switch the light again, e.g. game_world's lamps follow the time of day)");
     if (DebugUiStyle::beginProperties("##lighting light source"))
     {
         DebugUiStyle::property("on");
         edit = ImGui::Checkbox("##light on", &s.on) || edit;
+        app.debugUi().markItem("lighting/light on");
         DebugUiStyle::property("cast shadows");
         edit = ImGui::Checkbox("##light shadows", &s.castShadows) || edit;
+        DebugUiStyle::property("kind");
+        int kind = s.kind == Vulkan::LightKind::Spot ? 1 : 0;
+        if (ImGui::Combo("##light kind", &kind, "point\0spot\0"))
+        {
+            s.kind = kind == 1 ? Vulkan::LightKind::Spot : Vulkan::LightKind::Point;
+            edit   = true;
+        }
         DebugUiStyle::property("lumen");
         float lumen = float(s.lumen);
         if (ImGui::SliderFloat("##light lumen", &lumen, 0, 100000, "%.0f", ImGuiSliderFlags_Logarithmic))
@@ -1235,10 +1390,10 @@ void LightingTab::localLightsSection()
             edit    = true;
         }
         DebugUiStyle::property("range");
-        float range = float(s.range);
-        if (ImGui::SliderFloat("##light range", &range, 0.1f, 1000, "%.1f m", ImGuiSliderFlags_Logarithmic))
+        float rangeF = float(s.range);
+        if (ImGui::SliderFloat("##light range", &rangeF, 0.1f, 1000, "%.1f m", ImGuiSliderFlags_Logarithmic))
         {
-            s.range = range;
+            s.range = rangeF;
             edit    = true;
         }
         DebugUiStyle::property("colour");
@@ -1247,6 +1402,13 @@ void LightingTab::localLightsSection()
         {
             s.color = Vec3(col[0], col[1], col[2]);
             edit    = true;
+        }
+        DebugUiStyle::property("offset (entity, m)");
+        float off[3] = {float(s.offset(0)), float(s.offset(1)), float(s.offset(2))};
+        if (ImGui::DragFloat3("##light offset", off, 0.05f, -100, 100, "%.2f"))
+        {
+            s.offset = Vec3(off[0], off[1], off[2]);
+            edit     = true;
         }
         if (s.kind == Vulkan::LightKind::Spot)
         {
@@ -1257,6 +1419,19 @@ void LightingTab::localLightsSection()
                 s.innerAngleDeg = std::min(cone[0], cone[1]);
                 s.outerAngleDeg = std::max(cone[0], cone[1]);
                 edit            = true;
+            }
+            // The spot's direction relative to the entity (its -z after rotation) as yaw (about +y, 0: -z) and pitch
+            DebugUiStyle::property("direction (yaw, pitch)");
+            const Vec3 local = s.rotation * Vec3(0, 0, -1);
+            float yp[2]      = {float(std::atan2(-local(0), -local(2)) * 57.29577951308232),
+                                float(std::asin(std::clamp(local(1), -1.0, 1.0)) * 57.29577951308232)};
+            if (ImGui::SliderFloat2("##light direction", yp, -180, 180, "%.0f deg"))
+            {
+                const double yaw   = double(yp[0]) / 57.29577951308232;
+                const double pitch = std::clamp(double(yp[1]), -89.9, 89.9) / 57.29577951308232;
+                const Vec3 f(-std::sin(yaw) * std::cos(pitch), std::sin(pitch), -std::cos(yaw) * std::cos(pitch));
+                s.rotation = cameraLookRotation(f);
+                edit       = true;
             }
         }
         DebugUiStyle::property("priority");
@@ -1279,17 +1454,20 @@ void LightingTab::localLightsSection()
     if (edit)
     {
         // A write through the world API (set_component, logged; refused on a pure client), between the steps
-        const json11::Json values =
-            json11::Json::object{{"on", s.on},
-                                 {"castShadows", s.castShadows},
-                                 {"lumen", s.lumen},
-                                 {"range", s.range},
-                                 {"color", json11::Json::array{s.color(0), s.color(1), s.color(2)}},
-                                 {"innerAngleDeg", s.innerAngleDeg},
-                                 {"outerAngleDeg", s.outerAngleDeg},
-                                 {"priority", s.priority},
-                                 {"flickerAmplitude", s.flickerAmplitude},
-                                 {"flickerFrequency", s.flickerFrequency}};
+        const json11::Json values = json11::Json::object{
+            {"on", s.on},
+            {"castShadows", s.castShadows},
+            {"kind", s.kind == Vulkan::LightKind::Spot ? "spot" : "point"},
+            {"lumen", s.lumen},
+            {"range", s.range},
+            {"color", json11::Json::array{s.color(0), s.color(1), s.color(2)}},
+            {"offset", json11::Json::array{s.offset(0), s.offset(1), s.offset(2)}},
+            {"rotation", json11::Json::array{s.rotation.w(), s.rotation.x(), s.rotation.y(), s.rotation.z()}},
+            {"innerAngleDeg", s.innerAngleDeg},
+            {"outerAngleDeg", s.outerAngleDeg},
+            {"priority", s.priority},
+            {"flickerAmplitude", s.flickerAmplitude},
+            {"flickerFrequency", s.flickerFrequency}};
         EngineApp* a = &app;
         app.queueBetweenSteps(
             [a, e, values]()

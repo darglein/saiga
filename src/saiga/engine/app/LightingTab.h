@@ -7,11 +7,13 @@
 #pragma once
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/engine/ecs/Entity.h"
 #include "saiga/export.h"
 #include "saiga/vulkan/scene/LightingTypes.h"
 
 #include <array>
 #include <cstdint>
+#include <vector>
 
 namespace Saiga
 {
@@ -31,7 +33,8 @@ class EngineApp;
  * Cascades (the parameters, a row per cascade, the cascades' depth previews: a click on one enlarges it) and the
  * toolbar's "freeze cascades", Far terrain shadows (the horizon map: R / G preview, progress, direction, anchor, rows
  * per frame, recompute now); S36b Local lights (counts, the light table: a row selects and highlights a light, "move
- * camera to light", an entity light's LightSource fields written through set_component; S36b steps 3-4 add the
+ * camera to light", an entity light's LightSource fields written through set_component; entity lights that are not
+ * rendered (off, invalid, no pose) are greyed rows with their state and stay editable; S36b steps 3-4 add the
  * cluster heat map and the shadow atlas preview with its cache statistics).
  */
 class SAIGA_ENGINE_API LightingTab
@@ -55,6 +58,8 @@ class SAIGA_ENGINE_API LightingTab
     void cascadesSection();
     void horizonSection();
     void localLightsSection();
+    void lightTable();
+    void atlasSection();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
@@ -76,6 +81,17 @@ class SAIGA_ENGINE_API LightingTab
     bool lightSortAscending = true;
     int clusterSlice        = -1;
     int atlasTileFace       = 0;
+    // The selected entity light (round 1, finding 8: kept by entity, so it stays selected while switched off; its sink
+    // handle is the debug state's highlightLight while rendered) and the highlight the tab set last (another change of
+    // highlightLight, e.g. an atlas tile click or MCP, selects that light's entity)
+    Entity selectedEntity;
+    uint32_t tabHighlight = 0;
+    // The table's order (round 1, finding 17: sorted when the sort spec or the light set changes, else at most every
+    // 30 frames for the distances): row keys (a handle, or 1 << 32 | entity index for an unrendered entity light)
+    std::vector<uint64_t> lightOrder;
+    int orderColumn     = -1;
+    bool orderAscending = true;
+    uint64_t orderFrame = 0;
     // Draws a preview and returns whether it was clicked, with the click's position in [0, 1]^2 of the image
     bool previewImageClicked(Vulkan::LightingImage image, bool log, float maxWidth, ImVec2& at, int mip = 0,
                              int layer = 0);

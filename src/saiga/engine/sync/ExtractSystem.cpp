@@ -905,6 +905,34 @@ std::vector<std::pair<Entity, LightHandle>> ExtractSystem::lightEntities() const
     return r;
 }
 
+std::vector<ExtractSystem::LightEntityState> ExtractSystem::lightStates() const
+{
+    std::vector<LightEntityState> r;
+    r.reserve(lights.size());
+    for (const TrackedLight& l : lights)
+    {
+        LightEntityState s;
+        s.entity                  = l.entity;
+        s.handle                  = l.handle;
+        s.source                  = l.source;
+        s.hasPose                 = l.hasPose;
+        s.pose                    = l.curr;
+        const std::string invalid = l.source.invalidReason();
+        if (l.handle)
+            s.state = "rendered";
+        else if (!invalid.empty())
+            s.state = "invalid: " + invalid;
+        else if (!l.hasPose)
+            s.state = "no pose";
+        else if (!l.source.on)
+            s.state = "off";
+        else
+            s.state = "no render sink";
+        r.push_back(std::move(s));
+    }
+    return r;
+}
+
 LightHandle ExtractSystem::lightOf(Entity e) const
 {
     const TrackedLight* l = findLight(e);

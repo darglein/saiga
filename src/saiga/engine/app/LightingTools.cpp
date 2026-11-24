@@ -1873,36 +1873,53 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         });
     server.addTool(
         "list_lights",
-        "Reads the scene's local lights (S36b; entity lights of LightSource components and lights added on the scene, "
-        "e.g. S30's piece lights), ordered by handle: handle, entity (null for a scene light), kind (point or spot), "
+        "Reads the local lights (S36b): the scene's lights (entity lights of LightSource components and lights added "
+        "on "
+        "the scene, e.g. S30's piece lights) ordered by handle, then the entity lights that are not rendered (switched "
+        "off, invalid or without a pose) ordered by entity index. Each: handle (null when not rendered), entity (null "
+        "for a scene light), rendered and state (rendered, off, \"invalid: <reason>\", no pose), kind (point or spot), "
         "position (world), direction (spots), color (linear), lumen, range, inner and outer cone angles (degrees), "
         "shadowed (castShadows), visible this frame (selected within the budget), distance to the camera, the "
         "importance, the clusters it touches, its atlas tiles and their last render frame, the cache state. Filters: "
-        "near {position: [x, y, z], radius} (the light's sphere intersects), shadowed, visible. Paged: limit (default "
-        "100, at most 1000) and after (the last handle of the previous page; the answer's next). Entity lights are "
-        "edited with set_component (LightSource); scene lights are read-only. Changes nothing.",
+        "near {position: [x, y, z], radius} (the light's sphere intersects), shadowed, visible, rendered. Paged: "
+        "limit (default 100, at most 1000), after (the last handle of the previous page: the answer's next) or "
+        "after_entity (the last entity index of the previous page among the unrendered lights: the answer's "
+        "next_entity); matched_total counts every light that matches the filters. An off light is switched on with "
+        "set_component LightSource {on: true} (a game's systems may switch it again, e.g. game_world's lamps follow "
+        "the time of day); scene lights are read-only. Changes nothing.",
         schema(
             {{"near", Json::object{{"type", "object"},
                                    {"description", "{position: [x, y, z], radius}: lights whose sphere intersects"}}},
              {"shadowed", McpServer::BooleanProperty("Only lights with (true) or without (false) castShadows")},
              {"visible", McpServer::BooleanProperty("Only lights in (true) or not in (false) this frame")},
+             {"rendered",
+              McpServer::BooleanProperty("Only lights the scene has (true) or entity lights it does not have (false: "
+                                         "off, invalid, no pose)")},
              {"limit", McpServer::IntegerProperty("At most this many lights (default 100, 1..1000)")},
-             {"after", McpServer::IntegerProperty("Lights with a handle after this one (paging)")}}),
+             {"after", McpServer::IntegerProperty("Rendered lights with a handle after this one (paging)")},
+             {"after_entity", McpServer::IntegerProperty("Only unrendered lights with an entity index after this one "
+                                                         "(paging, the answer's next_entity)")}}),
         [&app](const Json& a, McpServer::Respond respond)
         {
             std::string error;
-            if (unknownArgument(a, {"near", "shadowed", "visible", "limit", "after"}, error))
+            if (unknownArgument(a, {"near", "shadowed", "visible", "rendered", "limit", "after", "after_entity"},
+                                error))
                 return respond(ToolResult::Error(error));
             Vulkan::RenderScene* scene = app.scene();
             if (!scene) return respond(ToolResult::Error(kNoDevice));
-            double limit = 100, after = 0;
+            double limit = 100, after = 0, afterEntity = -1;
             if (!a["limit"].is_null() && !number(a["limit"], "limit", 1, 1000, limit, error))
                 return respond(ToolResult::Error(error));
             if (!a["after"].is_null() && !number(a["after"], "after", 0, 4294967295.0, after, error))
                 return respond(ToolResult::Error(error));
-            if (limit != std::floor(limit) || after != std::floor(after))
-                return respond(ToolResult::Error("limit and after: integers"));
-            for (const char* b : {"shadowed", "visible"})
+            if (!a["after_entity"].is_null() &&
+                !number(a["after_entity"], "after_entity", 0, 4294967295.0, afterEntity, error))
+                return respond(ToolResult::Error(error));
+            if (limit != std::floor(limit) || after != std::floor(after) || afterEntity != std::floor(afterEntity))
+                return respond(ToolResult::Error("limit, after and after_entity: integers"));
+            if (!a["after"].is_null() && !a["after_entity"].is_null())
+                return respond(ToolResult::Error("after or after_entity, not both"));
+            for (const char* b : {"shadowed", "visible", "rendered"})
                 if (!a[b].is_null() && !a[b].is_bool())
                     return respond(ToolResult::Error(std::string(b) + ": true or false"));
             std::optional<std::pair<Vec3, double>> near;
@@ -1926,39 +1943,58 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 if (!number(n["radius"], "near.radius", 0, 1e7, r, error)) return respond(ToolResult::Error(error));
                 near = std::make_pair(pos, r);
             }
-            // The entity of each light (the view world's extract: the client world with --coop)
+            // The entity lights (the view world's extract: the client world with --coop), rendered or not
             std::unordered_map<uint32_t, Entity> entities;
-            for (const auto& el : app.world().extract().lightEntities()) entities[el.second.id] = el.first;
+            std::vector<ExtractSystem::LightEntityState> unrendered;
+            for (ExtractSystem::LightEntityState& st : app.world().extract().lightStates())
+            {
+                if (st.handle)
+                    entities[st.handle.id] = st.entity;
+                else
+                    unrendered.push_back(std::move(st));
+            }
+            std::sort(unrendered.begin(), unrendered.end(),
+                      [](const auto& x, const auto& y) { return x.entity.index < y.entity.index; });
             std::unordered_map<uint32_t, const Vulkan::FrameLightInfo*> frame;
             for (const Vulkan::FrameLightInfo& f : scene->frameLights()) frame[f.handle] = &f;
             std::vector<const Vulkan::LocalLights::Light*> list;
             for (const Vulkan::LocalLights::Light& l : scene->localLights().lights()) list.push_back(&l);
             std::sort(list.begin(), list.end(), [](auto* x, auto* y) { return x->handle.id < y->handle.id; });
             const Vec3 camera = app.viewCamera().position;
+            auto deg          = [](float c) { return std::acos(std::clamp(double(c), -1.0, 1.0)) * 57.29577951308232; };
+            auto passes       = [&](const Vec3* p, double range, bool shadowed, bool visible, bool rendered)
+            {
+                if (near && (!p || (*p - near->first).norm() > near->second + range)) return false;
+                if (!a["shadowed"].is_null() && a["shadowed"].bool_value() != shadowed) return false;
+                if (!a["visible"].is_null() && a["visible"].bool_value() != visible) return false;
+                if (!a["rendered"].is_null() && a["rendered"].bool_value() != rendered) return false;
+                return true;
+            };
             Json::array out;
-            uint32_t next  = 0;
+            Json next, nextEntity;
             size_t matched = 0;
+            // The scene's lights (by handle; none after an after_entity cursor)
             for (const Vulkan::LocalLights::Light* l : list)
             {
-                if (l->handle.id <= uint32_t(after)) continue;
+                if (afterEntity >= 0) break;
                 const Vulkan::LightData& d = l->data;
                 const Vec3 p               = l->worldPosition();
-                if (near && (p - near->first).norm() > near->second + double(d.range)) continue;
-                if (!a["shadowed"].is_null() && a["shadowed"].bool_value() != d.castShadows) continue;
-                auto f             = frame.find(l->handle.id);
-                const bool visible = f != frame.end();
-                if (!a["visible"].is_null() && a["visible"].bool_value() != visible) continue;
+                auto f                     = frame.find(l->handle.id);
+                const bool visible         = f != frame.end();
+                if (!passes(&p, double(d.range), d.castShadows, visible, true)) continue;
                 matched++;
+                if (l->handle.id <= uint32_t(after)) continue;
                 if (out.size() >= size_t(limit))
                 {
-                    next = out.empty() ? 0 : uint32_t(out.back()["handle"].number_value());
-                    break;
+                    if (next.is_null() && nextEntity.is_null()) next = out.back()["handle"];
+                    continue;
                 }
-                auto deg = [](float c) { return std::acos(std::clamp(double(c), -1.0, 1.0)) * 57.29577951308232; };
-                auto e   = entities.find(l->handle.id);
+                auto e = entities.find(l->handle.id);
                 Json::object o{{"handle", double(l->handle.id)},
                                {"entity", e != entities.end() ? WorldApi::entityJson(e->second) : Json()},
                                {"list", l->list ? Json(double(l->list)) : Json()},
+                               {"rendered", true},
+                               {"state", "rendered"},
                                {"kind", Vulkan::lightKindName(d.kind)},
                                {"space", int(l->chunk.space)},
                                {"position", vec3Json(p)},
@@ -1991,12 +2027,60 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                 }
                 out.push_back(o);
             }
+            // The entity lights the scene does not have (by entity index)
+            for (const ExtractSystem::LightEntityState& st : unrendered)
+            {
+                const LightSource& src = st.source;
+                Vec3 p                 = Vec3::Zero();
+                if (st.hasPose) p = st.pose.position + st.pose.rotation * (src.offset * st.pose.scale);
+                if (!passes(st.hasPose ? &p : nullptr, src.range, src.castShadows, false, false)) continue;
+                matched++;
+                if (afterEntity >= 0 && double(st.entity.index) <= afterEntity) continue;
+                if (out.size() >= size_t(limit))
+                {
+                    if (next.is_null() && nextEntity.is_null())
+                    {
+                        const Json& last = out.back();
+                        if (last["handle"].is_null())
+                            nextEntity = last["entity"]["index"];
+                        else
+                            next = last["handle"];
+                    }
+                    continue;
+                }
+                Json::object o{{"handle", Json()},
+                               {"entity", WorldApi::entityJson(st.entity)},
+                               {"list", Json()},
+                               {"rendered", false},
+                               {"state", st.state},
+                               {"on", src.on},
+                               {"kind", Vulkan::lightKindName(src.kind)},
+                               {"space", st.hasPose ? Json(int(st.pose.space)) : Json()},
+                               {"position", st.hasPose ? vec3Json(p) : Json()},
+                               {"color", vec3Json(src.color)},
+                               {"lumen", src.lumen},
+                               {"range", src.range},
+                               {"priority", src.priority},
+                               {"shadowed", src.castShadows},
+                               {"visible", false},
+                               {"distance", st.hasPose ? Json((p - camera).norm()) : Json()}};
+                if (src.kind == Vulkan::LightKind::Spot)
+                {
+                    o["direction"] =
+                        st.hasPose ? vec3Json(Vec3((st.pose.rotation * src.rotation * Vec3(0, 0, -1)))) : Json();
+                    o["inner_angle_deg"] = src.innerAngleDeg;
+                    o["outer_angle_deg"] = src.outerAngleDeg;
+                }
+                out.push_back(o);
+            }
             Json::object answer{{"lights", out},
                                 {"count", double(out.size())},
-                                {"total", double(scene->localLights().size())},
+                                {"total", double(scene->localLights().size() + unrendered.size())},
+                                {"matched_total", double(matched)},
+                                {"unrendered", double(unrendered.size())},
                                 {"frame", double(scene->lightingStatistics().frame)},
-                                {"next", next ? Json(double(next)) : Json()}};
-            (void)matched;
+                                {"next", next},
+                                {"next_entity", nextEntity}};
             respond(ToolResult::Text(Json(answer).dump()));
         });
 }

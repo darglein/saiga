@@ -11,6 +11,7 @@
 
 #include "saiga/core/image/templatedImage.h"
 #include "saiga/core/util/mcp/McpServer.h"
+#include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/app/DebugUi.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/components/LightSource.h"
@@ -113,10 +114,17 @@ EngineAppSetup tabSetup(bool environment)
 void showLightingTab(EngineApp& app)
 {
     Json::object state = app.debugUi().state().object_items();
-    state["sections"]  = Json::object{
-         {"lighting/Time and weather", true}, {"lighting/Sun and moon", true},        {"lighting/Exposure", true},
-         {"lighting/Ambient", true},          {"lighting/Sky and clouds", true},      {"lighting/GPU and memory", true},
-         {"lighting/Cascades", true},         {"lighting/Far terrain shadows", true}, {"lighting/Local lights", true}};
+    state["sections"]  = Json::object{{"lighting/Time and weather", true},
+                                      {"lighting/Sun and moon", true},
+                                      {"lighting/Exposure", true},
+                                      {"lighting/Ambient", true},
+                                      {"lighting/Sky and clouds", true},
+                                      {"lighting/GPU and memory", true},
+                                      {"lighting/Cascades", true},
+                                      {"lighting/Far terrain shadows", true},
+                                      {"lighting/Local lights", true},
+                                      {"lighting/Local lights: clusters", true},
+                                      {"lighting/Local lights: shadow atlas", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -922,6 +930,55 @@ TEST_F(LightingTabTest, RendersAndWrites)
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
 }
 
+// Regression (round 1, finding 8): an entity light switched off in the tab stays selected and editable (its row is
+// greyed with the state "off") and is switched on again by the same checkbox. The old tab lost the selection and the
+// editor with the sink light, so the light could not be switched on from the tab
+TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
+{
+    World& w          = app->world();
+    const Entity lamp = w.create();
+    w.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
+    w.add<LightSource>(lamp, LightSource());
+    Vulkan::LightingParameters lp = app->scene()->lightingParameters();
+    lp.localLights                = true;
+    app->scene()->setLightingParameters(lp);
+    app->runFrames(1, 1.0 / 60);
+    Vulkan::LightingDebugState d;
+    d.highlightLight = w.extract().lightOf(lamp).id;
+    ASSERT_NE(d.highlightLight, 0u);
+    app->scene()->setLightingDebug(d);
+    Json::object state = app->debugUi().state().object_items();
+    // Only the Local lights section open (the editor inside the 800 x 480 window)
+    state["sections"] = Json::object{{"lighting/Time and weather", false},
+                                     {"lighting/Sun and moon", false},
+                                     {"lighting/Exposure", false},
+                                     {"lighting/Local lights", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    for (bool on : {false, true})
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app->debugUi().itemCenter("lighting/light on", at)) << "the editor while on = " << !on;
+        // The panel scrolled down to the editor (mouse wheel over the panel)
+        ImGuiIO& io = ImGui::GetIO();
+        for (int k = 0; k < 40 && at.y > io.DisplaySize.y - 20; ++k)
+        {
+            io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+            io.AddMouseWheelEvent(0, -2);
+            app->runFrames(1, 1.0 / 60);
+            ASSERT_TRUE(app->debugUi().itemCenter("lighting/light on", at));
+        }
+        ASSERT_LT(at.y, io.DisplaySize.y - 20);
+        click(*app, at);
+        app->runFrames(2, 1.0 / 60);
+        EXPECT_EQ(w.read<LightSource>(lamp).on, on);
+        EXPECT_EQ(bool(w.extract().lightOf(lamp)), on);
+        EXPECT_EQ(app->scene()->lightingDebug().highlightLight, w.extract().lightOf(lamp).id) << "the selection";
+    }
+    w.destroy(lamp);
+}
+
 // capture_lighting's mip is a value of its request: with the tab's Ambient section open (its preview at mip 0 every
 // frame) the capture returns the mip it asked for, and the tab's mip stays (review M5: the mip was scene state the tab
 // overwrote each frame, and the call changed the tab's preview)
@@ -1256,6 +1313,40 @@ TEST_F(LightingDebugTools, LocalLightTools)
     EXPECT_NE(s.lightingParameters().maxLights, 7);
     EXPECT_TRUE(isError(call(*app, "set_lighting", obj(R"({"faces_per_frame": 12})"))));
     ASSERT_FALSE(isError(call(*app, "set_lighting", obj(R"({"atlas_resolution": 4096, "atlas_tile": 512})"))));
+    // Round 1, finding 8: an entity light that is off or invalid is listed (rendered false, its state) and can be
+    // switched on again with set_component; the filter rendered, after_entity paging, matched_total
+    ASSERT_FALSE(isError(call(*app, "set_component",
+                              Json::object{{"entity", WorldApi::entityJson(lamps[0])},
+                                           {"component", "LightSource"},
+                                           {"values", obj(R"({"on": false})")}})));
+    w.get<LightSource>(lamps[2]).range = 0;  // invalid, written in code (the API refuses it)
+    app->runFrames(1, 1.0 / 60);
+    const Json off = result(call(*app, "list_lights", obj(R"({"rendered": false})")));
+    ASSERT_EQ(off["lights"].array_items().size(), 2u) << off.dump();
+    EXPECT_EQ(off["matched_total"].number_value(), 2);
+    EXPECT_EQ(off["total"].number_value(), 6);
+    EXPECT_EQ(off["unrendered"].number_value(), 2);
+    EXPECT_EQ(off["lights"][0]["entity"]["index"].number_value(), double(lamps[0].index));
+    EXPECT_EQ(off["lights"][0]["state"], Json("off"));
+    EXPECT_TRUE(off["lights"][0]["handle"].is_null());
+    EXPECT_EQ(off["lights"][0]["rendered"], Json(false));
+    EXPECT_NE(off["lights"][1]["state"].string_value().find("invalid: range"), std::string::npos) << off.dump();
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"rendered": true})")))["lights"].array_items().size(), 4u);
+    // Paging across both parts: 4 rendered, then the 2 unrendered (after_entity)
+    const Json q1 = result(call(*app, "list_lights", obj(R"({"limit": 5})")));
+    ASSERT_EQ(q1["lights"].array_items().size(), 5u);
+    EXPECT_EQ(q1["matched_total"].number_value(), 6);
+    ASSERT_TRUE(q1["next_entity"].is_number()) << q1.dump();
+    const Json q2 = result(call(*app, "list_lights", Json::object{{"after_entity", q1["next_entity"]}, {"limit", 5}}));
+    ASSERT_EQ(q2["lights"].array_items().size(), 1u) << q2.dump();
+    EXPECT_TRUE(q2["next"].is_null() && q2["next_entity"].is_null());
+    EXPECT_TRUE(isError(call(*app, "list_lights", obj(R"({"after": 1, "after_entity": 1})"))));
+    ASSERT_FALSE(isError(call(*app, "set_component",
+                              Json::object{{"entity", WorldApi::entityJson(lamps[0])},
+                                           {"component", "LightSource"},
+                                           {"values", obj(R"({"on": true})")}})));
+    app->runFrames(1, 1.0 / 60);
+    EXPECT_EQ(result(call(*app, "list_lights", obj(R"({"rendered": false})")))["lights"].array_items().size(), 1u);
     for (Entity e : lamps) w.destroy(e);
     s.removeLights(list);
     app->runFrames(2, 1.0 / 60);

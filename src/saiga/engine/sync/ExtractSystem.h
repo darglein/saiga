@@ -90,6 +90,20 @@ class SAIGA_ENGINE_API ExtractSystem
     LightHandle lightOf(Entity e) const;
     // The entity of each sink light (the Lighting tab, list_lights)
     std::vector<std::pair<Entity, LightHandle>> lightEntities() const;
+    // Every tracked light entity, also those without a sink light (round 1, finding 8: a light switched off must stay
+    // visible and switchable in the Lighting tab and list_lights): the sink light (invalid: none), the component as
+    // last read, the entity's pose (when it has one) and the state: "rendered", "off", "invalid: <reason>" or
+    // "no pose"
+    struct LightEntityState
+    {
+        Entity entity;
+        LightHandle handle;
+        LightSource source;
+        bool hasPose = false;
+        WorldPose pose;
+        std::string state;
+    };
+    std::vector<LightEntityState> lightStates() const;
 
     // Tracked entities (with RenderInstance) and those with a sink instance
     size_t trackedCount() const { return tracked.size(); }
