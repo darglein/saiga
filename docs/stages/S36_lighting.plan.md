@@ -2914,6 +2914,44 @@ unchanged (CodeRabbit was reviewing #83); the fixes are on a1c, a2 and b.
   and `lighting_night` (stars) on a2 (bc0f7a878), `lighting_local_lights` on b (0ef460501); lavapipe. On a1c the
   lighting goldens were already stale; a2 regenerates them.
 
+### CodeRabbit round 1 (#85, #86), 2026-11-24
+
+#85: 21 minor, 3 nitpicks (review body); #86: 4 major inline, 36 minor, 1 nitpick. a1a..a1c are unchanged; the fixes
+are on a2 (#85, 8880e9d5f) and b (#86, eac5c6d72), with a regression test (failing on the old code) for each
+correctness bug that a test can reach.
+
+- **a2**: the horizon map is shown only in the space of its chain (`NoMapInAnotherSpace`) and recomputed when
+  `cascadeCasterDistance` changes (`CasterDistanceChangeRecomputes`); a changed near plane, field of view or aspect
+  refits every cascade (`ProjectionChangeRefitsEveryCascade`, a wider view: a narrower one refits through the
+  de-duplication anyway); the horizon map's bilinear neighbours clamped to the map; the preview strip's workgroups
+  aligned to its layers and its histogram over the reported range; `capture_lighting(cascade)` errs when the count
+  dropped below the cascade; one camera-history sample per clock time. Test fixes: the lighting goldens bind a
+  completed horizon map (one golden-mode frame before the capture: no golden changed), golden mode per scene in
+  `DepthResolveAndPrePass`, `FactorAt` NaN outside the image, the deferred invalid requests with frames, the
+  CascadeTools round trip of every key, `test_vulkan_sync`'s `SAIGA_TEST_SYNC_VALIDATION` over `VK_LAYER_VALIDATE_SYNC`.
+- **b**: the cluster index buffer within the storage-buffer limit (the slots per cluster reduced; covers environment
+  files and C++ callers: `ClusterSlotsWithinStorageLimit`); the atlas publishes a face's static or dynamic depth only
+  for the projection it was rendered with (per tile projection keys; a turned light is unshadowed until its face is
+  rendered: `TurnedLightUnshadowedUntilRendered`; another owner's dynamic depth is not sampled); spawn checks the
+  LightSource merged into the class's light (`SpawnChecksTheMergedLight`); a catch-up keeps an unchanged light's pair
+  and a teleport or source switch snaps it (`LightPairsKeptByCatchUpAndSnappedByTeleports`); a request without a
+  callback survives the cancelled ones (`CancelledCallbackKeepsARequestWithoutOne`); the clusters capture without
+  clustered shading (the table exists; the round 2, finding 6 test now expects the image). Without a test: the lights
+  discovered before a sink failure is rethrown, the cluster statistics' scene frame, a released cluster slot without a
+  pending result, the probe's cap only with clustered shading (and its contributions documented as unshadowed), the
+  resize ends a probe before the view is chosen, the swept mover bound, the light cull by view depth and non-finite
+  importance, the environment resources and `snappedMove` committed after the fallible steps, a budget of one face
+  alternating between the queues, the root bounds clamped in double, `highlight_light`'s null in the schema,
+  `get_lighting.clusters` from the frame's grid, the clusters slice checked against the frame's grid (no conversion),
+  the tab's group re-sort, NaN sort keys and atlas combos, `set_ui_tab` validating before it changes the UI, the
+  cancelled requests pruned before the sources, game_world's light statistics once per measured frame.
+- **Not fixed** (#85): the horizon march outside the space (the documented range ends at the space's edge; marching
+  outside texels changed `FarEdgeStableUnderSmallRotation`, with no terrain receiver there), `lighting_ms` (already one
+  list in b, bbb8fdacd), the ImportedMeshGolden factory (another fixture), the tab channel check (the
+  headless tab's preview is below the visible panel: never converted). (#86): the bounded wait for static faces
+  (B4's importance-then-age order), the atlas node materialization (nitpick; CPU only).
+- Goldens: none changed.
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
