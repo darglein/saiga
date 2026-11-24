@@ -2952,6 +2952,23 @@ correctness bug that a test can reach.
   (B4's importance-then-age order), the atlas node materialization (nitpick; CPU only).
 - Goldens: none changed.
 
+### CodeRabbit round 2 (#82), 2026-11-24
+
+4 inline, 3 outside the diff (minor). The fixes are on a1b (2da0c0c08), with a regression test (failing on the old
+code) for each correctness bug; the stack above is rebased.
+
+- **Fixed**: `pbrDirect` reflects no specular light where the shading normal faces away from the viewer (interpolated
+  normals, the back of a foliage card; `Pbr.NoSpecularFacingAway`); probe frame 1 takes the camera its transfer
+  callback sets, the later frames hold it (`ProbeAtWorldPoint`); `setToneMap` is held during a probe like the
+  environment, so every frame uses frame 1's light model (`ProbeHoldsToneMap`; applied by `applyHeldProbeState`
+  on b); the shared targets' barrier waits for the compute stage (the preview conversion samples `hdrResolved`).
+  Test fixes: `RequestsKeepTheirMapping`'s callbacks own their captures, `ProbeLighting` requires a hit and three
+  numbers before it compares the position.
+- **Not fixed**: a deferred `lighting_view` screenshot after `pbr` is switched off (the switch and the legacy variant
+  exist only between a1b and a1c's flip).
+- Goldens: `lighting_sunset` (the backlit foliage cards lose their highlights) on a1c (4bf04e748) and a2 (00f925ac0);
+  lavapipe.
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
