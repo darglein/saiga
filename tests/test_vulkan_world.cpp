@@ -863,7 +863,9 @@ TEST_F(VulkanPrototypeScene, TimeIndependentOfWallClock)
 TEST_F(VulkanPrototypeScene, AtlasFoliageUsesWindPhaseZero)
 {
     PrototypeScene p;
-    Attach(p, 1000);
+    // 100 trees: only the one nearest to the centre is in the lamp's range (round 2, finding 4: test speed; 1000 were
+    // drawn in the view for nothing)
+    Attach(p, 100);
     p.settings.wind = 4;
     // The tree nearest to the area's centre, the lamp 3 m beside it at 4 m height
     vec4 tree = trees[0].posYaw;
@@ -1038,7 +1040,8 @@ TEST_F(VulkanPrototypeScene, SetEnvironmentAgain)
     const auto ta  = scene->statistics().terrainNodes;
     ASSERT_GT(sa.visible[0] + sa.visible[1] + sa.visible[2], 0u);
     scene->setFoliageTexture(1);
-    auto b = Capture(3);
+    // (two frames: golden mode completes every effect per frame; round 2, finding 4: test speed)
+    auto b = Capture(2);
     EXPECT_EQ(p.forest().stats().visible, sa.visible);
     EXPECT_EQ(scene->statistics().terrainNodes, ta);
     EXPECT_EQ(pixelsDiffering(a, b), 0);
