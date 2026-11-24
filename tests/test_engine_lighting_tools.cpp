@@ -100,8 +100,8 @@ Json result(const Json& r)
 EngineAppSetup tabSetup(bool environment)
 {
     EngineAppSetup s            = lightingSetup(true);
-    s.width                     = 800;
-    s.height                    = 480;
+    s.width                     = 1280;
+    s.height                    = 720;
     s.render.imgui              = true;
     s.world.environment.enabled = environment;
     // S36a2: the cascades on (small: lavapipe)
@@ -1025,7 +1025,7 @@ TEST_F(LightingTabTest, MoveCameraToLightIsRepeatableAndFree)
     ASSERT_NE(d.highlightLight, 0u);
     app->scene()->setLightingDebug(d);
     Json::object state = app->debugUi().state().object_items();
-    // Only the Local lights section open (the button inside the 800 x 480 window)
+    // Only the Local lights section open (the button inside the 1280 x 720 window)
     state["sections"] = Json::object{{"lighting/Time and weather", false},
                                      {"lighting/Sun and moon", false},
                                      {"lighting/Exposure", false},
@@ -1075,7 +1075,7 @@ TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
     ASSERT_NE(d.highlightLight, 0u);
     app->scene()->setLightingDebug(d);
     Json::object state = app->debugUi().state().object_items();
-    // Only the Local lights section open (the editor inside the 800 x 480 window)
+    // Only the Local lights section open (the editor inside the 1280 x 720 window)
     state["sections"] = Json::object{{"lighting/Time and weather", false},
                                      {"lighting/Sun and moon", false},
                                      {"lighting/Exposure", false},
@@ -1112,7 +1112,7 @@ TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
 TEST_F(LightingTabTest, TypedValueOutOfRangeIsRefused)
 {
     Json::object state = app->debugUi().state().object_items();
-    // Only the Local lights section open (the slider inside the 800 x 480 window)
+    // Only the Local lights section open (the slider inside the 1280 x 720 window)
     Json::object sections;
     for (const char* s :
          {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",

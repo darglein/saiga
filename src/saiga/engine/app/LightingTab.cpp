@@ -480,9 +480,8 @@ void LightingTab::lightingGraph(const LightingGpuTimes& t)
     if (h.size() < 2) return;
     const float em     = ImGui::GetFontSize();
     const float width  = ImGui::GetContentRegionAvail().x;
-    // 6 lines (the user's request: larger than the first 3), less in a small window (the summary is pinned above the
-    // scrolling sections)
-    const float height = std::clamp(0.08f * ImGui::GetIO().DisplaySize.y, 3 * em, 6 * em);
+    // 6 lines (the user's request: larger than the first 3)
+    const float height = 6 * em;
     if (width < 4 * em) return;
     double top = 1.25 * LightingGpuTimes::kBudgetMs;
     for (double v : h) top = std::max(top, v);
