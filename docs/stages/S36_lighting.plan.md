@@ -2969,6 +2969,21 @@ code) for each correctness bug; the stack above is rebased.
 - Goldens: `lighting_sunset` (the backlit foliage cards lose their highlights) on a1c (4bf04e748) and a2 (00f925ac0);
   lavapipe.
 
+### CodeRabbit round 2 (#83, #84), 2026-11-24
+
+#83: 2 inline, #84: 6 inline and 2 nitpicks (minor). Fixed on a1c1 (81cc7f2db) and a1c (f23aac4bf, 4ddc65bc7); the
+stack above is rebased.
+
+- **Fixed**: the games skip only an absent `environment.json` (an unreadable one was skipped too, now reported); a
+  `requestFullUpdate` during a probe's held frames is kept for the first frame after it (`FullUpdateDuringProbe`, fails
+  on the old code); `CloudLayer::generate` records nothing without the noise dispatch (the old buffer became the
+  seed's coverage and cache entry). Test fixes: `FirstFrameAmbientIsFloor` without an explicit full update, a valid
+  shadow sample in `NoShadowAboveLayer`, generated coverage in `CoverageTilesSeamlessly`, `EdgeFades` a plain test,
+  one full capture in `StarsFadeWithTheSun`.
+- **Not fixed**: the capture mip per request (#83; already on a1c), the exposures of `ProbeColourWithoutEnvironment`
+  (the pre-exposure follows the previous frame's exposure, so the probe at exposure 4 latches 4).
+- Goldens: none changed.
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
