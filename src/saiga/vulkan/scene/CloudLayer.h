@@ -39,7 +39,9 @@ class SAIGA_VULKAN_API CloudLayer
     static constexpr uint32_t kSize = 1024;
     static constexpr double kTile   = 16384.0;
     // The mesh: rings (quadratic spacing) x segments
-    static constexpr int kRings = 64, kSegments = 128;
+    // (one constant per declaration: MSVC C2487 in a dll interface class)
+    static constexpr int kRings    = 64;
+    static constexpr int kSegments = 128;
     // The cloud shadow's opacity of full coverage (shader: kCloudShadowOpacity)
     static constexpr float kShadowOpacity = 0.85f;
 

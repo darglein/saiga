@@ -928,6 +928,29 @@ TEST_F(LightingDebugTest, ProbeHoldsToneMap)
     scene->setToneMap(ToneMap::Aces);
 }
 
+// The probe's colour is the radiance without the pre-exposure also with ACES and no environment (linear output, not
+// physical): independent of the exposure multiplier. Regression (CodeRabbit #82, fixed in a1b; the test needs a scene
+// without an environment, which the a1b suite fixture did not have): only a physical frame was divided, so the colour
+// grew with the exposure
+TEST_F(LightingDebugTest, ProbeColourWithoutEnvironment)
+{
+    PlaneScene(450);
+    scene->setToneMap(ToneMap::Aces);
+    const ivec2 pixel(width / 2 - 20, height / 2);
+    auto probeAt = [&](float exposure)
+    {
+        scene->setExposure(exposure);
+        Capture(3);
+        return runProbe(*scene, [&](auto cb) { scene->requestProbe(pixel, cb); });
+    };
+    const LightingProbe a = probeAt(1);
+    const LightingProbe b = probeAt(4);
+    ASSERT_TRUE(a.hit && b.hit);
+    EXPECT_FALSE(a.physical);
+    EXPECT_GT(a.luminance, 0);
+    EXPECT_NEAR(b.luminance, a.luminance, 0.01f * a.luminance);
+}
+
 // probe_lighting's sequence: 7 frames at a pixel of the lit plane, the values equal the views' at that pixel, the
 // camera and the environment are held (a setEnvironment during it takes effect after it), consistent
 TEST_F(LightingDebugTest, ProbeMatchesViews)

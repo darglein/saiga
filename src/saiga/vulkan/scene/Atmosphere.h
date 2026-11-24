@@ -42,7 +42,8 @@ class SAIGA_VULKAN_API Atmosphere
     static constexpr float kSkyLutScale = 1.0f / 16.0f;
     // The sky-view LUT's update thresholds: a body's direction (rad; about 3.5 s of the sun at the time rate 1), the
     // camera height (m)
-    static constexpr float kSkyViewDirection = 2.5e-4f, kSkyViewHeightM = 10.0f;
+    static constexpr float kSkyViewDirection = 2.5e-4f;
+    static constexpr float kSkyViewHeightM   = 10.0f;
 
     void init(VulkanBase& base);
     void destroy();
