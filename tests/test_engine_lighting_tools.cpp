@@ -1102,6 +1102,13 @@ TEST_F(LightingTools, ClusterMemoryIsChecked)
     ASSERT_TRUE(isError(r));
     EXPECT_NE(text(r).find("1 GiB"), std::string::npos) << text(r);
     EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})"))), before);
+    // Regression (round 3, finding 3): with clustered_lights off the check skipped the cluster buffers, but the frame
+    // builds them whenever the local lights are on: the call passed and the next frame's allocation aborted the app
+    const Json off = call(*app, "set_lighting", obj(R"({"local_lights": true, "clustered_lights": false,
+        "cluster_x": 64, "cluster_y": 64, "cluster_z": 128, "max_lights_per_cluster": 1024})"));
+    ASSERT_TRUE(isError(off));
+    EXPECT_NE(text(off).find("1 GiB"), std::string::npos) << text(off);
+    EXPECT_EQ(result(call(*app, "get_lighting", obj(R"({"sections": ["parameters"]})"))), before);
 }
 
 // capture_lighting's mip is a value of its request: with the tab's Ambient section open (its preview at mip 0 every
@@ -1397,6 +1404,17 @@ TEST(LightingToolsNoDevice, ValidateLightingChecksClustersAndCrossKeys)
     EXPECT_NE(error.find("storage buffer limit"), std::string::npos) << error;
     p.maxLightsPerCluster = 64;
     EXPECT_TRUE(validateLighting(now, uint64_t(128) << 20, settings, p, error)) << error;
+    // Regression (round 3, finding 10): the cluster buffers only grow, so a smaller grid keeps the current memory (the
+    // estimate subtracted it and added the smaller grid's, below what get_lighting then reported)
+    Vulkan::LightingStatistics big;
+    big.lights.clusterMemory = uint64_t(200) << 20;
+    big.memoryBytes          = big.lights.clusterMemory;
+    EXPECT_GE(lightingMemoryAfter(big, p).total, big.lights.clusterMemory);
+    // The buffers stay when the local lights go off
+    Vulkan::LightingParameters noLights = p;
+    noLights.localLights                = false;
+    EXPECT_GE(lightingMemoryAfter(big, noLights).total, big.lights.clusterMemory);
+    EXPECT_EQ(lightingMemoryAfter(big, noLights).largestBinding, 0u);
     // The cross-key rules
     Vulkan::LightingParameters c;
     c.clusterNear = 50;
@@ -1682,6 +1700,8 @@ TEST_F(LightingDebugTools, LocalLightTools)
     const Json q2 = result(call(*app, "list_lights", Json::object{{"after_entity", q1["next_entity"]}, {"limit", 5}}));
     ASSERT_EQ(q2["lights"].array_items().size(), 1u) << q2.dump();
     EXPECT_TRUE(q2["next"].is_null() && q2["next_entity"].is_null());
+    // Regression (round 3, finding 5): an after_entity page left the scene's lights out of matched_total
+    EXPECT_EQ(q2["matched_total"].number_value(), 6);
     EXPECT_TRUE(isError(call(*app, "list_lights", obj(R"({"after": 1, "after_entity": 1})"))));
     ASSERT_FALSE(isError(call(*app, "set_component",
                               Json::object{{"entity", WorldApi::entityJson(lamps[0])},

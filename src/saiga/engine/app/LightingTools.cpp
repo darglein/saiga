@@ -608,17 +608,19 @@ LightingMemoryEstimate lightingMemoryAfter(const Vulkan::LightingStatistics& ls,
     const uint64_t clusters =
         uint64_t(std::max(p.clusterX, 0)) * uint64_t(std::max(p.clusterY, 0)) * uint64_t(std::max(p.clusterZ, 0));
     const uint64_t indicesPerSlot = clusters * uint64_t(std::max(p.maxLightsPerCluster, 0)) * 4;
-    const uint64_t clusterBytes =
-        p.localLights && p.clusteredLights
-            ? (clusters * 8 + indicesPerSlot) * Vulkan::VulkanRenderer::framesInFlight + clusters * 32
-            : 0;
+    // Built whenever the local lights are on (also with clusteredLights off: the pass records the clusters for the
+    // brute-force loop's views and the probe; round 3, finding 3), and never shrunk (LightClusters::ensure only
+    // grows; round 3, finding 10): the larger of the current and the new grid's buffers
+    const uint64_t clusterNew =
+        p.localLights ? (clusters * 8 + indicesPerSlot) * Vulkan::VulkanRenderer::framesInFlight + clusters * 32 : 0;
+    const uint64_t clusterBytes = std::max(clusterNew, ls.lights.clusterMemory);
     LightingMemoryEstimate m;
     // (the horizon maps are replaced by the estimate, the resident chain stays: CodeRabbit #85 round 2)
     const uint64_t replaced = ls.shadowMemoryBytes + (ls.horizon.memoryBytes - ls.horizon.chainBytes) + atlasNow +
                               ls.lights.clusterMemory;
     m.total = (ls.memoryBytes > replaced ? ls.memoryBytes - replaced : 0) + cascadeBytes + horizonBytes + atlasBytes +
               clusterBytes;
-    m.largestBinding = p.localLights && p.clusteredLights ? indicesPerSlot : 0;
+    m.largestBinding = p.localLights ? indicesPerSlot : 0;
     return m;
 }
 
@@ -1275,8 +1277,10 @@ void registerLightingTools(McpServer& server, EngineApp& app)
         "atlas_tile (texels, divides atlas_resolution), faces_per_frame (0..11), atlas_depth_bias (D16 steps), "
         "atlas_normal_offset (texels). Returns "
         "values, previous "
-        "(an undo payload of this tool) and memory_bytes (the cascades after the change; more than 1 GiB of lighting "
-        "memory is refused). An error names every invalid key and changes nothing.",
+        "(an undo payload of this tool) and memory_bytes (the estimated lighting GPU memory after the change: "
+        "cascades, "
+        "horizon maps, atlas, cluster buffers and the rest; more than 1 GiB is refused, as a cluster index buffer "
+        "beyond the device's storage buffer limit). An error names every invalid key and changes nothing.",
         schema(setProperties),
         [&app](const Json& a, McpServer::Respond respond)
         {
@@ -2095,17 +2099,17 @@ void registerLightingTools(McpServer& server, EngineApp& app)
             Json::array out;
             Json next, nextEntity;
             size_t matched = 0;
-            // The scene's lights (by handle; none after an after_entity cursor)
+            // The scene's lights (by handle; none listed after an after_entity cursor, but counted in matched_total:
+            // round 3, finding 5)
             for (const Vulkan::LocalLights::Light* l : list)
             {
-                if (afterEntity >= 0) break;
                 const Vulkan::LightData& d = l->data;
                 const Vec3 p               = l->worldPosition();
                 auto f                     = frame.find(l->handle.id);
                 const bool visible         = f != frame.end();
                 if (!passes(&p, double(d.range), d.castShadows, visible, true)) continue;
                 matched++;
-                if (l->handle.id <= uint32_t(after)) continue;
+                if (afterEntity >= 0 || l->handle.id <= uint32_t(after)) continue;
                 if (out.size() >= size_t(limit))
                 {
                     if (next.is_null() && nextEntity.is_null()) next = out.back()["handle"];

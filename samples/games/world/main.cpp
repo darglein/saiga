@@ -59,6 +59,7 @@
 #include <memory>
 #include <set>
 #include <sstream>
+#include <string>
 #include <vector>
 
 using namespace Saiga;
@@ -671,25 +672,32 @@ int main(int argc, char* argv[])
     // line
     int baseSpacing = 1;
     std::vector<char*> args;
+    // An error of the game's own flags (round 3, nit 8: a flag without its value fell through to the engine's parser,
+    // "unknown argument", whose usage names neither flag)
+    auto flagError = [](const std::string& message)
+    {
+        std::cerr << message << "\nUsage: world [--lamps N] [--base-spacing 1|2] [the engine's options]" << std::endl;
+        return 1;
+    };
     for (int i = 0; i < argc; ++i)
     {
-        if (std::string(argv[i]) == "--lamps" && i + 1 < argc)
+        const std::string a = argv[i];
+        if (a == "--lamps" || a == "--base-spacing")
         {
-            game.lamps = std::atoi(argv[++i]);
-            if (game.lamps < 0 || game.lamps > 100000)
+            if (i + 1 >= argc) return flagError(a + ": expected a value");
+            const std::string v = argv[++i];
+            char* end           = nullptr;
+            const long n        = std::strtol(v.c_str(), &end, 10);
+            if (v.empty() || *end != 0) return flagError(a + ": expected an integer, got \"" + v + "\"");
+            if (a == "--lamps")
             {
-                std::cerr << "--lamps: 0..100000" << std::endl;
-                return 1;
+                if (n < 0 || n > 100000) return flagError("--lamps: 0..100000");
+                game.lamps = int(n);
             }
-            continue;
-        }
-        if (std::string(argv[i]) == "--base-spacing" && i + 1 < argc)
-        {
-            baseSpacing = std::atoi(argv[++i]);
-            if (baseSpacing != 1 && baseSpacing != 2)
+            else
             {
-                std::cerr << "--base-spacing: 1 or 2" << std::endl;
-                return 1;
+                if (n != 1 && n != 2) return flagError("--base-spacing: 1 or 2");
+                baseSpacing = int(n);
             }
             continue;
         }

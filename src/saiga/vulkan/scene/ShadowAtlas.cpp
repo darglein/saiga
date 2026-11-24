@@ -306,8 +306,10 @@ void ShadowAtlas::update(const std::vector<LightInput>& lights, const Vec3& came
         {
             uint32_t oldest = 0;
             uint64_t age    = ~uint64_t(0);
+            // The oldest; among equally old owners the smallest handle (the map's order is the hash's: round 3, nit 9)
             for (const auto& o : owners)
-                if (!inputOf.count(o.first) && o.second.lastUsed < age)
+                if (!inputOf.count(o.first) &&
+                    (o.second.lastUsed < age || (o.second.lastUsed == age && oldest != 0 && o.first < oldest)))
                 {
                     age    = o.second.lastUsed;
                     oldest = o.first;

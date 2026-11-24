@@ -304,11 +304,11 @@ TEST_F(SyncValidation, LocalLightsAndAtlasFrame)
 // has it bound) cannot occur. Here 8 frames are recorded back to back without a wait (2 frames in flight), each
 // changing something that rewrites resources of the frame before: the fovy (the projection; S36b: the cluster bounds,
 // round 2 finding 1: their single descriptor set was rewritten while the previous frame had it bound, an error of the
-// core validation; a local light keeps the clusters on), the cloud seed in consecutive frames (finding 11: the noise
-// and the coverage texture regenerated while the previous frame reads them), the environment map's resolution, the
-// horizon map's resolution, the cascade count and (S36b) the cluster grid's depth slices; a capture and a probe after
-// the eight frames. Small images (test speed): 32/64 texel environment maps, 256 texel cascades, 128/256 texel horizon
-// maps
+// core validation; a local light keeps the clusters on), the cloud seed in consecutive frames (the noise and the
+// coverage texture regenerated on the GPU while the previous frame reads them; finding 11's host copy runs only in
+// init), the environment map's resolution, the horizon map's resolution, the cascade count and (S36b) the cluster
+// grid's depth slices; a capture and a probe after the eight frames. Small images (test speed): 32/64 texel
+// environment maps, 256 texel cascades, 128/256 texel horizon maps
 TEST_F(SyncValidation, FramesInFlightWithChanges)
 {
     RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
@@ -384,4 +384,57 @@ TEST_F(SyncValidation, FramesInFlightWithChanges)
     EXPECT_TRUE(probed);
     EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
     EXPECT_GE(scene->cloudLayer().generations(), 2u);
+}
+
+// Round 3 (finding 6): the subsystems are created with their first use (round 2: the environment's resources, the
+// preview pipeline and its layout transitions in the frame's command buffer, the debug lines, the shadow and the draw
+// pipelines), here while the previous frame is in flight: frames recorded back to back from clay without an
+// environment, then a frame apart the first environment with ACES, the first shadowed local light (the atlas written
+// with two frames in flight), the first overlay and the first shown preview
+TEST_F(SyncValidation, FirstUsesInFlight)
+{
+    RecordProperty("sync_validation", syncValidationOn ? "on" : "off");
+    MaterialData m;
+    scene->addMaterial(MaterialId(910), "sync_first", m);
+    scene->addMesh(MeshId(910), "sync_first", syncBox(vec3(4, 0.25f, 4)), MaterialId(910));
+    AddSet({[&]()
+            {
+                StaticInstance s;
+                s.setPosition(vec3(0, -0.25f, 0));
+                s.mesh = MeshId(910);
+                return s;
+            }()});
+    LightingParameters p;
+    p.cascadeResolution     = 256;
+    p.environmentResolution = 32;
+    p.shadowDistance        = 30;
+    p.horizonShadows        = false;
+    p.localLights           = true;
+    scene->setLightingParameters(p);
+    const Vec3 cam(0, 4, 6);
+    SetCamera(0, cam, viewRotation(lookAt(cam.cast<float>(), vec3(0, 0, 0), vec3(0, 1, 0))), 1.0);
+    auto frame = [&]() { scene->renderFrame([](vk::CommandBuffer) {}, [](vk::CommandBuffer) {}, nullptr); };
+    frame();
+    frame();
+    scene->setEnvironment(EnvironmentState());
+    scene->setToneMap(ToneMap::Aces);
+    frame();
+    LightData lamp;
+    lamp.kind        = LightKind::Point;
+    lamp.position    = vec3(0, 2, 0);
+    lamp.lumen       = 2000;
+    lamp.range       = 8;
+    lamp.castShadows = true;
+    scene->addLight(ChunkId(), lamp);
+    frame();
+    frame();
+    scene->setLightingDebug(LightingDebugState{LightingDebugView::None, OverlaySunDirection | OverlayLightVolumes});
+    frame();
+    scene->lightingDebugImages().show(LightingImage::Luminance, PreviewMapping());
+    frame();
+    frame();
+    scene->waitIdle();
+    EXPECT_TRUE(scene->hasEnvironment());
+    EXPECT_GT(scene->lightingStatistics().lights.visible, 0u);
+    EXPECT_NE(scene->lightingDebugImages().preview(LightingImage::Luminance), nullptr);
 }
