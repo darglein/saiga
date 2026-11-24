@@ -1856,6 +1856,14 @@ Plan review rounds (local Opus) and later the PR reviews are recorded here: date
   `test_vulkan_world` as AGENTS.md's recipe says; the plan's Verification uses the right binary and AGENTS.md changes
   correct the recipe.
 
+### S36a1a code review round 1, 2026-11-22
+
+2 major, 9 minor, 6 nits (`r1_a1a.md`, the diff `origin/master..stage-s36a1a`). Fixed in ba2a960c8: majors 1
+(`normaliseWorldTime` saturating) and 2 (the tab's fixed EV100, the host's values in `--coop`), minors 3-11 (the
+extrapolated writes, the range-checked environment file, `get_lighting.exposure` of one frame, the tool and tab tests,
+the render cases on the suite apps, unique temporary files, the font check, writes only on change) and nits 12-17. Not
+fixed: none. Recorded in round 2 (finding 21; the entry was missing). See Design changes "Review round 1 of a1a".
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
