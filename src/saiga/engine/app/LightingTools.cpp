@@ -194,7 +194,24 @@ LightingGpuTimes lightingGpuTimes(EngineApp& app)
         s.hasLast    = p.lastSample(id, s.lastMs);
         s.meanMs     = p.scopeStats(id, LightingGpuTimes::kMeanFrames).avg;
         if (s.summed) (s.debug ? t.debugMs : t.lightingMs) += s.meanMs;
+        if (s.summed && !s.debug)
+        {
+            // Every scope's ring holds the same frames (a scope not timed in a frame counts 0)
+            const std::vector<double> h = p.scopeHistory(id);
+            if (t.lightingHistory.size() < h.size()) t.lightingHistory.resize(h.size(), 0.0);
+            for (size_t i = 0; i < h.size(); ++i) t.lightingHistory[i] += h[i];
+        }
         t.sections.push_back(s);
+    }
+    if (!t.lightingHistory.empty())
+    {
+        std::vector<double> sorted = t.lightingHistory;
+        // (rounded up as the benchmark's worst1PercentAvg: CodeRabbit #87)
+        const size_t n = std::max<size_t>(1, (sorted.size() + 99) / 100);
+        std::partial_sort(sorted.begin(), sorted.begin() + std::ptrdiff_t(n), sorted.end(), std::greater<double>());
+        double sum = 0;
+        for (size_t i = 0; i < n; ++i) sum += sorted[i];
+        t.lightingWorst1PercentMs = sum / double(n);
     }
     return t;
 }
@@ -1415,8 +1432,8 @@ void registerLightingTools(McpServer& server, EngineApp& app)
                             cl["overflowed"]                      = double(l.overflowedClusters);
                             // (the count's frame: the newest harvested one, not necessarily the capture's; CodeRabbit
                             // #86 round 2)
-                            cl["overflowed_frame"]                = double(l.clusterFrame);
-                            block["clusters"]                     = cl;
+                            cl["overflowed_frame"] = double(l.clusterFrame);
+                            block["clusters"]      = cl;
                         }
                     }
                     if (name == "cascade" || name == "cascade_strip")

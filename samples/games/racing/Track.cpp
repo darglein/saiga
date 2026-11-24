@@ -173,15 +173,15 @@ std::vector<Vec3> Track::loop(const Vec3& center, double radius, int points, uin
     return c;
 }
 
-Vec3 Track::findSite(const GroundHeight& ground, double size, double radius, double minHeight, int points,
-                     uint32_t seed, const std::function<double(const Vec3&)>& penalty)
+Vec3 Track::findSite(const GroundHeight& ground, double x0, double z0, double size, double radius, double minHeight,
+                     int points, uint32_t seed, const std::function<double(const Vec3&)>& penalty)
 {
-    Vec3 best       = Vec3(size / 2, 0, size / 2);
+    Vec3 best       = Vec3(x0 + size / 2, 0, z0 + size / 2);
     double bestCost = std::numeric_limits<double>::infinity();
     double margin   = radius * 1.8;
-    for (double z = margin; z <= size - margin; z += radius * 0.5)
+    for (double z = z0 + margin; z <= z0 + size - margin; z += radius * 0.5)
     {
-        for (double x = margin; x <= size - margin; x += radius * 0.5)
+        for (double x = x0 + margin; x <= x0 + size - margin; x += radius * 0.5)
         {
             Track t;
             t.build(loop(Vec3(x, 0, z), radius, points, seed), 1);

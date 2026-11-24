@@ -606,12 +606,13 @@ void EngineApp::performanceTab()
     perfSummary();
     ImGui::Spacing();
     // The graph gets the height the collapsed sections leave (measured before them: expanding one scrolls the panel,
-    // the graph keeps its size)
+    // the graph keeps its size), at most 18 lines (the user's request after the S36 demo: on a tall panel each plot
+    // took almost half the screen)
     {
         const float em      = ImGui::GetFontSize();
         const int sections  = 2 + ui->sectionCount(DebugTab::Performance) + (showEngineGpuSections() ? 1 : 0);
         const float reserve = float(sections + 2) * ImGui::GetFrameHeightWithSpacing();
-        perfGraph(std::max(ImGui::GetContentRegionAvail().y - reserve, 9 * em));
+        perfGraph(std::clamp(ImGui::GetContentRegionAvail().y - reserve, 9 * em, 18 * em));
     }
     // The window, copy and reset in one line under the graph (wrapped when the panel is narrow)
     const FrameStatistics::Summary& sum = shownStatistics.summary;
@@ -707,23 +708,28 @@ void EngineApp::barSummary(float width)
         for (const Item& i : items) w += itemWidth(i) + gap;
         return w - gap;
     };
-    for (int drop = 4; drop >= 1 && total() > width; --drop)
+    // The pause button before the numbers, in every tab (the user's request after the S36 demo; before, only a PAUSED
+    // button while paused): "pause" while running, the red "PAUSED (Pause)" while paused (a click resumes)
+    const bool paused   = gameWorld->isPaused();
+    const char* pausedL = paused ? "PAUSED (Pause)" : "pause";
+    const float pausedW = ImGui::CalcTextSize(pausedL).x + 2 * ImGui::GetStyle().FramePadding.x + gap;
+    for (int drop = 4; drop >= 1 && total() + pausedW > width; --drop)
         items.erase(std::remove_if(items.begin(), items.end(), [&](const Item& i) { return i.drop == drop; }),
                     items.end());
-    // PAUSED: a button (resumes) before the numbers
-    const bool paused   = gameWorld->isPaused();
-    const char* pausedL = "PAUSED (Pause)";
-    const float pausedW = paused ? ImGui::CalcTextSize(pausedL).x + 2 * ImGui::GetStyle().FramePadding.x + gap : 0.0f;
-    const float w       = total() + pausedW;
+    const float w = total() + pausedW;
     ImGui::SetCursorPosX(ImGui::GetCursorPosX() + std::max(width - w, 0.0f));
-    if (paused)
+    if (paused) ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(150, 60, 50, 255));
+    if (ImGui::Button(pausedL))
     {
-        ImGui::PushStyleColor(ImGuiCol_Button, IM_COL32(150, 60, 50, 255));
-        if (ImGui::Button(pausedL)) queueBetweenSteps([this]() { worldApi->call("resume", json11::Json::object{}); });
-        ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("The world is paused: click or press Pause to resume");
-        ImGui::SameLine(0, gap);
+        const char* tool = paused ? "resume" : "pause";
+        queueBetweenSteps([this, tool]() { worldApi->call(tool, json11::Json::object{}); });
     }
+    if (paused) ImGui::PopStyleColor();
+    if (ui) ui->markItem("bar/pause");
+    if (ImGui::IsItemHovered())
+        ImGui::SetTooltip(paused ? "The world is paused: click or press Pause to resume"
+                                 : "Pauses the world (the Pause key does the same)");
+    ImGui::SameLine(0, gap);
     ImGui::BeginGroup();
     for (size_t i = 0; i < items.size(); ++i)
     {
@@ -798,18 +804,20 @@ void EngineApp::engineTab()
             // The tone map and exposure of the frame (R-MECH-1; applied from the next frame)
             DebugUiStyle::property("tone map");
             int toneMap                = int(renderScene->parameters().toneMap);
-            const char* toneMapNames[] = {"identity (clay)", "ACES"};
+            const char* toneMapNames[] = {"clay (identity)", "ACES"};
             if (ImGui::Combo("##tone map", &toneMap, toneMapNames, 2))
                 renderScene->setToneMap(Vulkan::ToneMap(toneMap));
-            // The exposure acts only on the ACES tone map (the range of --exposure)
-            DebugUiStyle::property("exposure");
+            // The exposure multiplier acts only on the ACES tone map (the range of --exposure); a multiplier on top of
+            // the EV100 exposure of the Lighting tab (S36, UI rating round 1 of F5, finding 5: two "exposure" values on
+            // two tabs)
+            DebugUiStyle::property("exposure multiplier");
             float exposure = renderScene->parameters().exposure;
             ImGui::BeginDisabled(renderScene->parameters().toneMap == Vulkan::ToneMap::Identity);
             if (ImGui::SliderFloat("##exposure", &exposure, 1.0f / 1024, 1024, "%.3f", ImGuiSliderFlags_Logarithmic))
                 renderScene->setExposure(exposure);
             ImGui::EndDisabled();
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("Acts only on the ACES tone map");
+                ImGui::SetTooltip("A multiplier on the EV100 exposure of F5 Lighting > Exposure (ACES only)");
             DebugUiStyle::endProperties();
         }
         // What cannot be changed at runtime, in one line
@@ -920,12 +928,9 @@ void EngineApp::setupDebugUi()
             callLog->tick();
             return true;
         });
-    // The state file only for an interactive window (screenshots, benchmarks and tests start from the defaults)
-    const bool persist = appSetup.debugUiPersistence && !appSetup.headless && appOptions.screenshot.empty() &&
-                         appOptions.benchmark.empty();
-    ui = std::make_unique<DebugUi>(server.get(), persist ? std::string("debug_ui.json") : std::string());
+    // Every run starts from the defaults (no state file: S36, the user's choice)
+    ui = std::make_unique<DebugUi>(server.get());
     ui->setEnabled(appSetup.debugUi);
-    ui->load();
     if (appOptions.showStatistics) ui->select(DebugTab::Performance);
     if (appOptions.debugTab >= 1) ui->select(appOptions.debugTab - 1);
     ui->setTabContent(DebugTab::Performance, [this]() { performanceTab(); });

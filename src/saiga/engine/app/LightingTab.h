@@ -14,6 +14,7 @@
 #include <array>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace Saiga
@@ -21,6 +22,7 @@ namespace Saiga
 namespace Engine
 {
 class EngineApp;
+struct LightingGpuTimes;
 
 // The Lighting tab's preview selectors beyond mip and layer (PreviewMapping: the cluster slice, the atlas tile's light
 // and face)
@@ -31,21 +33,37 @@ struct LightingPreviewSelection
     int face       = 0;
 };
 
+// The camera pose of the Lighting tab's "move camera to light": back from the light (range) along the view's horizontal
+// direction, or (spotDirection non-zero) behind and above a spot's cone, looking at the light; applied again from its
+// own result it returns the same pose
+SAIGA_ENGINE_API std::pair<Vec3, Quat> lightViewPose(const Vec3& light, const Vec3& spotDirection, double range,
+                                                     const Quat& view);
+
 /**
- * The debug UI's Lighting tab (F5; docs/engine_design.md §17.1; S36), set by the app with DebugUi::setTabContent:
- * Time and weather (the time of day, day and rate, the weather of the view camera's space; writes through setWorldTime
+ * The debug UI's Lighting tab (F5; docs/engine_design.md §17.1; S36), set by the app with DebugUi::setTabContent. At
+ * the top, not scrolled with the sections (UI rating rounds 1-3): the tags of the states that change what the frame
+ * shows (each a button that undoes it: CLAY, SUN OVERRIDE, CASCADES FROZEN, VIEW) on their own line, a summary (the
+ * time, the sun and the moon, the shadow light; the EV100, the exposed key of the lit frame, the visible local lights,
+ * the lighting's GPU time and its 1% longest frames against the budget), the graph of the lighting's GPU time per frame
+ * and one row of controls (the debug view, the overlays in a popup, copy JSON). Then the sections, only Time and
+ * weather open at first; their details are closed, indented sub-sections (DebugUi::subSection); a section shows what
+ * is looked at first (state, preview) and its views and overlays after a "show:" label:
+ * Time and weather (the time of day, day and rate; the weather of the view camera's space; writes through setWorldTime
  * / setWeather between steps, so they replicate and appear in the log; with --coop on the hidden host, read-only on a
- * pure client), Sun and moon (directions, illuminance, the shadow light, the sun override) and Exposure (the EV100 of
- * the frame and of the curve, the compensation, the effective exposure and the pre-exposure; S36a1b: the luminance of
- * the frame (the Luminance preview and its reduction, computed only while the section is open) and the exposure
- * curve). S36a1b adds the toolbar (tone map, debug view, overlays, force full updates, the pipeline variant, copy
- * JSON), Ambient (scale, floor, SH9, the prototype albedo colours) and GPU and memory; S36a1c sky and clouds; S36a2
- * Cascades (the parameters, a row per cascade, the cascades' depth previews: a click on one enlarges it) and the
- * toolbar's "freeze cascades", Far terrain shadows (the horizon map: R / G preview, progress, direction, anchor, rows
- * per frame, recompute now); S36b Local lights (counts, the light table: a row selects and highlights a light, "move
- * camera to light", an entity light's LightSource fields written through set_component; entity lights that are not
- * rendered (off, invalid, no pose) are greyed rows with their state and stay editable; S36b steps 3-4 add the
- * cluster heat map and the shadow atlas preview with its cache statistics).
+ * pure client), Sun and moon (directions, illuminance, the shadow light, the sun override), Exposure (the tone map, the
+ * mode, the EV100, the compensation, the effective exposure, the lit frame's luminance and exposed key; the luminance
+ * histogram, the exposure curve with the current elevation, the Luminance preview), Ambient (scale, floor, SH L0; SH
+ * 1-8, the prototype albedo, the environment map), Sky and clouds (the cloud layer; the atmosphere, the previews),
+ * Cascades (the state, a row per cascade, the cascades' depth previews: a click on one enlarges it; split and
+ * resolution, bias, casters), Far terrain shadows (the horizon map: progress, near / far preview; settings, details),
+ * Local lights (one status line, the selected light's editor: "move camera to light", an entity light's LightSource
+ * fields written through set_component; the light table with a filter: a row selects and highlights a light, entity
+ * lights that are not rendered (off, invalid, no pose) are greyed rows with their state and stay editable; settings),
+ * Light clusters (the occupancy, the heat map; the grid), Shadow atlas (the tiles, the preview with the tile owners;
+ * settings, the cache details) and GPU and memory (the GPU sections against the budget, the memory, force full
+ * updates). The previews that use the shared preview mapping (set_lighting_debug mapping) have its button on their
+ * caption line; the luminance (log2 over a fixed range) and the cluster heat map (turbo over the heat scale) have
+ * their own mappings.
  */
 class SAIGA_ENGINE_API LightingTab
 {
@@ -59,7 +77,26 @@ class SAIGA_ENGINE_API LightingTab
     void draw();
 
    private:
-    void toolbar();
+    void summary();
+    // The summary's graph of the lighting's GPU time per frame against its budget
+    void lightingGraph(const LightingGpuTimes& t);
+    // The luminance reduction's own mapping (log2 over a fixed range), the statistics of the lit frame (held while a
+    // debug view is on) and their exposed key in EV (0: mid-gray)
+    Vulkan::PreviewMapping luminanceMapping() const;
+    void updateLitLuminance();
+    double exposedKey() const;
+    // (one declarator per line: MSVC C2487 in an exported class)
+    static constexpr float kLuminanceMin = -14;
+    static constexpr float kLuminanceMax = 18;
+    Vulkan::PreviewStatistics litLuminance;
+    // The light table's filter (handle, entity, state)
+    ImGuiTextFilter lightFilter;
+    uint64_t litLuminanceFrame = 0, litLuminanceAfter = 0;
+    float litExposure = 1;
+    // The lit frame's scene wrote linear luminance (not clay; UI rating round 3, finding 1: a debug frame is not
+    // linear, so the held key and units were dropped while a view was on)
+    bool litLinear = false;
+    void controls();
     void timeAndWeather();
     void sunAndMoon();
     void exposure();
@@ -69,13 +106,17 @@ class SAIGA_ENGINE_API LightingTab
     void horizonSection();
     void localLightsSection();
     void lightTable();
+    void clustersSection();
     void atlasSection();
+    void atlasPreview();
     void gpuAndMemory();
     // Requests the preview of an image in this frame and draws the last one (registered once per preview texture as an
     // ImGui texture), at most maxWidth wide
     using Selection = LightingPreviewSelection;
     void previewImage(Vulkan::LightingImage image, bool log, float maxWidth, int mip = 0, int layer = 0,
                       const Selection& selection = Selection());
+    // The preview mapping's button and popup (on the caption line of every preview that uses it)
+    void previewMappingControl();
     // The Exposure view's legend (a turbo colour bar of centre +- range / 2 EV100) and its centre / range controls
     void exposureLegend();
     // Every write of the settings and parameters goes through validateLighting (round 2, finding 9: the tab wrote

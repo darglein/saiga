@@ -47,13 +47,24 @@ MeshData moved(const MeshData& m, const Vec3& t)
     return out;
 }
 
-// An entity drawn with a mesh at a position
-Entity spawnMesh(World& w, const std::string& mesh, const Vec3& p)
+// An entity drawn with a mesh at a position (scaled uniformly)
+Entity spawnMesh(World& w, const std::string& mesh, const Vec3& p, double scale = 1)
 {
     const Entity e = w.create();
     w.get<Transform>(e).setPosition(p);
+    if (scale != 1) w.get<Transform>(e).setScale(Vec3(scale, scale, scale));
     w.add<RenderInstance>(e, RenderInstance(mesh));
     return e;
+}
+
+// A deterministic value in [-1, 1] for a slot and a salt
+double slotNoise(int k, uint32_t salt)
+{
+    uint32_t h = uint32_t(k) * 2654435761u ^ (salt * 2246822519u);
+    h ^= h >> 15;
+    h *= 2246822519u;
+    h ^= h >> 13;
+    return double(h % 20001u) / 10000.0 - 1.0;
 }
 }  // namespace
 
@@ -98,12 +109,21 @@ void lampRenderAssets(World& w)
 }
 
 int spawnLamps(World& w, int count, double centreX, double centreZ, double spacing, double ringRadius,
-               const std::function<double(double, double)>& ground, double seaLevel)
+               const std::function<double(double, double)>& ground, double seaLevel, const LampLayout& layout)
 {
-    // A square grid around the centre, row by row, or a ring (deterministic)
-    const int side  = int(std::ceil(std::sqrt(double(std::max(count, 0)))));
-    const int slots = ringRadius > 0 ? count : side * side;
-    int spawned     = 0;
+    // A square grid around the centre, row by row, or a ring (deterministic); in a valley (maxGround) twice the slots
+    const bool valley = layout.maxGround < 1e29;
+    const int side    = int(std::ceil(std::sqrt(double(std::max(count, 0)) * (valley ? 2.0 : 1.0))));
+    const int slots   = ringRadius > 0 ? count : side * side;
+    const double s    = layout.scale;
+    // The light's offset is in the entity's scaled frame (LightSource::offset * Transform scale): only the range and
+    // the lumen are scaled here
+    auto scaled = [s](LightSource& l)
+    {
+        l.range = float(double(l.range) * s);
+        l.lumen = float(double(l.lumen) * s * s);
+    };
+    int spawned = 0;
     for (int k = 0; k < slots && spawned < count; ++k)
     {
         double x = 0, z = 0;
@@ -115,31 +135,32 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
         }
         else
         {
-            x = centreX + (double(k % side) - 0.5 * double(side - 1)) * spacing;
-            z = centreZ + (double(k / side) - 0.5 * double(side - 1)) * spacing;
+            x = centreX + (double(k % side) - 0.5 * double(side - 1) + layout.jitter * slotNoise(k, 1)) * spacing;
+            z = centreZ + (double(k / side) - 0.5 * double(side - 1) + layout.jitter * slotNoise(k, 2)) * spacing;
         }
         const double y = ground(x, z);
-        if (!(y > seaLevel + 0.5)) continue;
+        if (!(y > seaLevel + 0.5) || y > layout.maxGround) continue;
         const Vec3 p(x, y, z);
         LightSource l;
         if (spawned % 20 == 10)
         {
             // A torch: short, orange, flickering (the flame carries the light)
-            spawnMesh(w, kTorchMesh, p);
-            const Entity e     = spawnMesh(w, kFlameMesh, p + Vec3(0, 1.6, 0));
+            spawnMesh(w, kTorchMesh, p, s);
+            const Entity e     = spawnMesh(w, kFlameMesh, p + Vec3(0, 1.6, 0) * s, s);
             l.color            = Vec3(1.0, 0.55, 0.22);
             l.lumen            = 400;
             l.range            = 9;
             l.offset           = Vec3(0, 0.15, 0);
             l.flickerAmplitude = 0.35;
             l.flickerFrequency = 6;
+            scaled(l);
             w.add<LightSource>(e, l);
             w.add<LampPolicy>(e);
         }
         else if (spawned % 20 == 5)
         {
             // A street lamp: a spot pointing down from the end of its arm
-            const Entity e  = spawnMesh(w, kStreetMesh, p);
+            const Entity e  = spawnMesh(w, kStreetMesh, p, s);
             l.kind          = LightKind::Spot;
             l.color         = Vec3(1.0, 0.85, 0.65);
             l.lumen         = 3000;
@@ -150,19 +171,21 @@ int spawnLamps(World& w, int count, double centreX, double centreZ, double spaci
             // -z rotated by -90 degrees about x points down
             l.rotation    = axisAngle(Vec3(1, 0, 0), -1.5707963267948966);
             l.castShadows = spawned % 40 == 5;
+            scaled(l);
             w.add<LightSource>(e, l);
             w.add<LampPolicy>(e);
         }
         else
         {
             // A lamp post: a warm point light under its head (the head carries the light); every 8th shadowed
-            spawnMesh(w, kPostMesh, p);
-            const Entity e = spawnMesh(w, kHeadMesh, p + Vec3(0.5, 3.52, 0));
+            spawnMesh(w, kPostMesh, p, s);
+            const Entity e = spawnMesh(w, kHeadMesh, p + Vec3(0.5, 3.52, 0) * s, s);
             l.color        = Vec3(1.0, 0.82, 0.6);
             l.lumen        = 1200;
             l.range        = 18;
             l.offset       = Vec3(0, -0.22, 0);
             l.castShadows  = spawned % 8 == 0;
+            scaled(l);
             w.add<LightSource>(e, l);
             w.add<LampPolicy>(e);
         }

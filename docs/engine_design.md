@@ -3468,9 +3468,8 @@ right (fps, CPU and GPU busy, the step time, warnings for stutter, dropped steps
 tabs, not toggles: a key selects its tab. F1 shows the game alone (the game's own GUI, `GameRenderHooks::gui`, is drawn
 in every tab); F2-F4 share one panel docked at the right edge (not movable, the width can be dragged), never floating
 windows, in one look (`DebugUiStyle`: a color per quantity, section headers, property tables). Each tab shows what
-matters at a glance and keeps the details in sections that start collapsed (their state, the tab, the width and the
-console's filters and history are kept in `debug_ui.json` of the working directory; not when headless, with a screenshot
-option or a benchmark). Games add sections (`DebugUi::addSection`; the world prototype's settings and statistics) and
+matters at a glance and keeps the details in sections that start collapsed (every run starts from these defaults: since
+S36 the state is not kept between runs; S19c kept it in `debug_ui.json`). Games add sections (`DebugUi::addSection`; the world prototype's settings and statistics) and
 change the world from GUI buttons through `EngineApp::queueBetweenSteps` (run after the next `poll`, never while a frame
 is recorded). `EngineAppSetup::debugUi = false` turns it off. The Pause key pauses and resumes the world.
 
@@ -3793,8 +3792,9 @@ goldens).
   center (4096, 4096) until S27; from S27 `(sizeChunks * 128 m, sizeChunks * 128 m)` on the 32 km world), at the ground
   height below the camera + 300 m, looking at the center) and `forest` (2 m above max(terrain, water level) from center
   minus 300 m to center plus 300 m along x in 600 frames, looking along +x); A4 (S20): `game_world`'s 32 km space at
-  1 m (`samples/games/common/PrototypeSpace.h`) with the 200k trees in the 8 km prototype area `[0, 8192]^2`, the paths
-  over a ground callback (`WorldBenchmark(name, ground, gpu)`: max(terrain, sea level)) around (4096, 4096) until S27;
+  1 m (`samples/games/common/PrototypeSpace.h`) with the 200k trees in the 8 km prototype area (until S36 `[0, 8192]^2`;
+  since S36 at the space's centre, `kPrototypeAreaOrigin` 12288), the paths over a ground callback
+  (`WorldBenchmark(name, ground, gpu)`: max(terrain, sea level)) around the area's centre (`kPrototypeAreaCentre`);
   terrain residency is completed in every frame (`EngineApp::setCompleteViewEachFrame`, E9; a frame that has to stream
   first waits for the GPU, so the GPU cannot run ahead during the stream; that wait stays in the interval as frame
   wait, so a path that streams in most frames, the flyover at 1 m, has a frame interval that is not comparable with a
@@ -3867,12 +3867,13 @@ goldens).
   against §17.10 and `streamingStalls`.
 - Terraforming benchmark [exists: S22, extended in S28] `game_world --benchmark terraform` (window, 1920 x 1080; the
   edit schedule in the game's `TerraformBenchmark`, `WorldBenchmark` only knows the name and the static pose: eye
-  (3968, g + 300, 3940) looking at (3968, g, 3968), g the ground there): it opts out of the per-frame `completeView`
+  (e, g + 300, e - 28) looking at (e, g, e), e = `kPrototypeAreaCentre` - 128 (S36; 3968 before), g the ground
+  there): it opts out of the per-frame `completeView`
   (the camera is fixed: the measured frames run `updateView` with the patch step under its budget, like a game frame;
   the first warm-up frame is a complete point), advances exactly one step per frame (`EngineApp::setFixedFrameTime`)
   and raises the floor of the game's `residencyRange0` rule to 600 m. 8 brushes, two on each of the 4 chunk corners
-  (3840 + 256 (c % 2), 3840 + 256 (c / 2)): Add r 4 / Flatten r 12, Subtract r 8 / Smooth r 16, Add r 16 / Flatten r
-  8, Subtract r 12 / Smooth r 4 (0.25 m or 0.5), orbiting the corner on a circle of half their radius, 1 m of arc per
+  (o + 256 (c % 2), o + 256 (c / 2)), o = `kPrototypeAreaCentre` - 256 (S36; 3840 before): Add r 4 / Flatten r 12,
+  Subtract r 8 / Smooth r 16, Add r 16 / Flatten r 8, Subtract r 12 / Smooth r 4 (0.25 m or 0.5), orbiting the corner on a circle of half their radius, 1 m of arc per
   edit; one edit per measured frame after the frame's step (600 edits, 60 edits/s), timed per `World::editTerrain`
   call; the host state list's new entry is encoded with the phase-8 encoder (timed separately, nothing sent).
   Asserted: every Add / Subtract edit changes exactly 4 chunks, `chunks_edited >= 1200`, the brush areas' level-0 tiles

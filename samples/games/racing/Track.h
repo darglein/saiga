@@ -52,11 +52,11 @@ class Track
 
     // A loop around center with the given radius and a little radial variation (deterministic for the seed)
     static std::vector<Vec3> loop(const Vec3& center, double radius, int points, uint32_t seed);
-    // Searches the world (x, z in [margin, size - margin]) for the center of a loop(center, radius, points, seed) that
-    // stays on land (above minHeight) and on gentle slopes; penalty (optional) adds a cost per sample (every 8 m) of
-    // the track, e.g. for trees. Returns the best center found.
-    static Vec3 findSite(const GroundHeight& ground, double size, double radius, double minHeight, int points,
-                         uint32_t seed, const std::function<double(const Vec3&)>& penalty = nullptr);
+    // Searches the area [x0, x0 + size] x [z0, z0 + size] (a margin inside it) for the center of a loop(center, radius,
+    // points, seed) that stays on land (above minHeight) and on gentle slopes; penalty (optional) adds a cost per
+    // sample (every 8 m) of the track, e.g. for trees. Returns the best center found.
+    static Vec3 findSite(const GroundHeight& ground, double x0, double z0, double size, double radius, double minHeight,
+                         int points, uint32_t seed, const std::function<double(const Vec3&)>& penalty = nullptr);
 
    private:
     std::vector<Vec3> samples;

@@ -91,9 +91,9 @@ struct EngineAppSetup
     float cameraSpeed = 10, cameraSpeedFast = 100;
     // The names --benchmark accepts (checked before the window opens; empty: the game has no benchmarks)
     std::vector<std::string> benchmarks;
-    // The debug UI (S19c, DebugUi): off frees F1..F10 for the game and draws nothing; persistence: its state in
-    // debug_ui.json of the working directory (never when headless, with a screenshot option or a benchmark)
-    bool debugUi = true, debugUiPersistence = true;
+    // The debug UI (S19c, DebugUi): off frees F1..F10 for the game and draws nothing (its state is not kept between
+    // runs)
+    bool debugUi = true;
     // The loading screen of a space switch (S21, §12.4; game policy, R-MECH-1): a load starts when the view camera's
     // space changes to one whose World::spaceReadiness within loadingRadius (m) is below 1, and ends at readiness 1
     // without pending terrain uploads, at a complete point, or after loadingMaxFrames frames (with a log line).

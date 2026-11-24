@@ -100,8 +100,8 @@ Json result(const Json& r)
 EngineAppSetup tabSetup(bool environment)
 {
     EngineAppSetup s            = lightingSetup(true);
-    s.width                     = 800;
-    s.height                    = 480;
+    s.width                     = 1280;
+    s.height                    = 720;
     s.render.imgui              = true;
     s.world.environment.enabled = environment;
     // S36a2: the cascades on (small: lavapipe)
@@ -112,21 +112,37 @@ EngineAppSetup tabSetup(bool environment)
     return s;
 }
 
-// Opens the sections of the Lighting tab and selects it
+// Opens the sections of the Lighting tab and their sub-sections and selects it
 void showLightingTab(EngineApp& app)
 {
     Json::object state = app.debugUi().state().object_items();
     state["sections"]  = Json::object{{"lighting/Time and weather", true},
+                                      {"lighting/Time and weather: Weather", true},
                                       {"lighting/Sun and moon", true},
                                       {"lighting/Exposure", true},
                                       {"lighting/Ambient", true},
+                                      {"lighting/Ambient: SH coefficients", true},
+                                      {"lighting/Ambient: Prototype albedo", true},
+                                      {"lighting/Ambient: Environment map", true},
                                       {"lighting/Sky and clouds", true},
+                                      {"lighting/Sky and clouds: Atmosphere", true},
+                                      {"lighting/Sky and clouds: Previews", true},
                                       {"lighting/GPU and memory", true},
                                       {"lighting/Cascades", true},
+                                      {"lighting/Cascades: Split and resolution", true},
+                                      {"lighting/Cascades: Bias", true},
+                                      {"lighting/Cascades: Casters", true},
                                       {"lighting/Far terrain shadows", true},
+                                      {"lighting/Far terrain shadows: Settings", true},
+                                      {"lighting/Far terrain shadows: Details", true},
                                       {"lighting/Local lights", true},
-                                      {"lighting/Local lights: clusters", true},
-                                      {"lighting/Local lights: shadow atlas", true}};
+                                      {"lighting/Local lights: Light details", true},
+                                      {"lighting/Local lights: Settings", true},
+                                      {"lighting/Light clusters", true},
+                                      {"lighting/Light clusters: Settings", true},
+                                      {"lighting/Shadow atlas", true},
+                                      {"lighting/Shadow atlas: Settings", true},
+                                      {"lighting/Shadow atlas: Details", true}};
     app.debugUi().setState(state);
     app.debugUi().select(DebugTab::Lighting);
 }
@@ -950,7 +966,8 @@ using LightingTabPlainTest = LightingTabSuite<false>;
 
 // S36: the Lighting tab (F5) with its a1a sections open renders headless (no validation error); its controls write:
 // a click on the rate button x60 queues setWorldTime (WorldTime::rate after the next frame, an api line in the log),
-// the "override sun" checkbox sets EnvironmentSettings::sunOverride; a click on the tab's button selects it
+// the "override sun" checkbox sets EnvironmentSettings::sunOverride, the summary's SUN OVERRIDE tag clears it; a click
+// on the tab's button selects it
 TEST_F(LightingTabTest, RendersAndWrites)
 {
     renderLightingTab(*app);
@@ -976,6 +993,13 @@ TEST_F(LightingTabTest, RendersAndWrites)
     EXPECT_LT(at.y, ImGui::GetIO().DisplaySize.y);
     click(*app, at);
     EXPECT_TRUE(app->environmentSettings().sunOverride.has_value());
+    // UI rating round 1, finding 1: the summary's tag of a forgotten state (here the override) undoes it (one frame:
+    // the summary was drawn before the checkbox set it)
+    app->runFrames(1, 1.0 / 60);
+    ASSERT_TRUE(app->debugUi().itemCenter("lighting/tag sun override", at));
+    EXPECT_LT(at.y, ImGui::GetIO().DisplaySize.y);
+    click(*app, at);
+    EXPECT_FALSE(app->environmentSettings().sunOverride.has_value());
 
     // The tab button "F5 Lighting" is the fifth on the bar
     app->debugUi().select(DebugTab::Game);
@@ -985,6 +1009,65 @@ TEST_F(LightingTabTest, RendersAndWrites)
         x += ImGui::CalcTextSize(("F" + std::to_string(i + 1) + " " + app->debugUi().tabName(i)).c_str()).x + 2 * 6 + 2;
     click(*app, ImVec2(x + 10, app->debugUi().barHeight() / 2));
     EXPECT_TRUE(app->debugUi().isSelected(DebugTab::Lighting));
+}
+
+// Regression (S36 demo): "move camera to light" held the camera as an MCP tool does (the free camera no longer moved),
+// and each further click moved the eye higher (it went back along the view's full forward, which then looked down at
+// the light). A second click keeps the pose; the camera is not held
+TEST_F(LightingTabTest, MoveCameraToLightIsRepeatableAndFree)
+{
+    World& w          = app->world();
+    const Entity lamp = w.create();
+    w.get<Transform>(lamp).setPosition(Vec3(3, 2, -4));
+    LightSource source;
+    source.range = 10;
+    w.add<LightSource>(lamp, source);
+    Vulkan::LightingParameters lp = app->scene()->lightingParameters();
+    lp.localLights                = true;
+    app->scene()->setLightingParameters(lp);
+    app->runFrames(1, 1.0 / 60);
+    Vulkan::LightingDebugState d;
+    d.highlightLight = w.extract().lightOf(lamp).id;
+    ASSERT_NE(d.highlightLight, 0u);
+    app->scene()->setLightingDebug(d);
+    Json::object state = app->debugUi().state().object_items();
+    // Only the Local lights section open (the button inside the 1280 x 720 window)
+    state["sections"] = Json::object{{"lighting/Time and weather", false},
+                                     {"lighting/Sun and moon", false},
+                                     {"lighting/Exposure", false},
+                                     {"lighting/Local lights", true}};
+    app->debugUi().setState(state);
+    app->debugUi().select(DebugTab::Lighting);
+    app->runFrames(2, 1.0 / 60);
+    std::vector<Vec3> eyes;
+    for (int k = 0; k < 2; ++k)
+    {
+        ImVec2 at;
+        ASSERT_TRUE(app->debugUi().itemCenter("lighting/move camera to light", at));
+        ImGuiIO& io = ImGui::GetIO();
+        for (int s = 0; s < 40 && at.y > io.DisplaySize.y - 20; ++s)
+        {
+            io.AddMousePosEvent(io.DisplaySize.x - 200, io.DisplaySize.y / 2);
+            io.AddMouseWheelEvent(0, -2);
+            app->runFrames(1, 1.0 / 60);
+            ASSERT_TRUE(app->debugUi().itemCenter("lighting/move camera to light", at));
+        }
+        ASSERT_LT(at.y, io.DisplaySize.y - 20);
+        click(*app, at);
+        app->runFrames(1, 1.0 / 60);
+        eyes.push_back(app->viewCamera().position);
+        EXPECT_FALSE(app->cameraHeldByTool()) << "click " << k;
+        // Moved away (the same rotation) before the second click: an ignored click would not return (CodeRabbit #87)
+        if (k == 0)
+        {
+            const ViewCamera v = app->viewCamera();
+            ASSERT_TRUE(app->setViewCamera(v.space, v.position + Vec3(30, 5, 0), v.rotation, v.fovy, true));
+            app->runFrames(1, 1.0 / 60);
+        }
+    }
+    EXPECT_LT((eyes[0] - Vec3(3, 2, -4)).norm(), 20.0) << "the camera moved to the light";
+    EXPECT_LT((eyes[1] - eyes[0]).norm(), 1e-6) << "the second click returns to the same pose";
+    w.destroy(lamp);
 }
 
 // Regression (round 1, finding 8): an entity light switched off in the tab stays selected and editable (its row is
@@ -1005,7 +1088,7 @@ TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
     ASSERT_NE(d.highlightLight, 0u);
     app->scene()->setLightingDebug(d);
     Json::object state = app->debugUi().state().object_items();
-    // Only the Local lights section open (the editor inside the 800 x 480 window)
+    // Only the Local lights section open (the editor inside the 1280 x 720 window)
     state["sections"] = Json::object{{"lighting/Time and weather", false},
                                      {"lighting/Sun and moon", false},
                                      {"lighting/Exposure", false},
@@ -1042,14 +1125,14 @@ TEST_F(LightingTabTest, SwitchedOffLightStaysEditable)
 TEST_F(LightingTabTest, TypedValueOutOfRangeIsRefused)
 {
     Json::object state = app->debugUi().state().object_items();
-    // Only the Local lights section open (the slider inside the 800 x 480 window)
+    // Only the Local lights section and its settings open (the slider inside the 1280 x 720 window)
     Json::object sections;
-    for (const char* s :
-         {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",
-          "Far terrain shadows", "Local lights: clusters", "Local lights: shadow atlas", "GPU and memory"})
+    for (const char* s : {"Time and weather", "Sun and moon", "Exposure", "Ambient", "Sky and clouds", "Cascades",
+                          "Far terrain shadows", "Light clusters", "Shadow atlas", "GPU and memory"})
         sections[std::string("lighting/") + s] = false;
-    sections["lighting/Local lights"] = true;
-    state["sections"]                 = sections;
+    sections["lighting/Local lights"]           = true;
+    sections["lighting/Local lights: Settings"] = true;
+    state["sections"]                           = sections;
     app->debugUi().setState(state);
     app->debugUi().select(DebugTab::Lighting);
     app->runFrames(2, 1.0 / 60);
@@ -1117,9 +1200,9 @@ TEST_F(LightingTools, ClusterMemoryIsChecked)
 // overwrote each frame, and the call changed the tab's preview)
 TEST_F(LightingTabTest, CaptureMipWithTabOpen)
 {
-    // Only the Ambient section open (its preview on screen)
+    // Only the Ambient section open with its environment map (its preview on screen)
     Json::object state = app->debugUi().state().object_items();
-    state["sections"]  = Json::object{{"lighting/Ambient", true}};
+    state["sections"]  = Json::object{{"lighting/Ambient", true}, {"lighting/Ambient: Environment map", true}};
     app->debugUi().setState(state);
     app->debugUi().select(DebugTab::Lighting);
     app->scene()->setToneMap(Vulkan::ToneMap::Aces);
@@ -1181,9 +1264,8 @@ TEST_F(LightingTabTest, CaptureClustersAndAtlasTileWithTabOpen)
         Json::object{{"image", "atlas_tile"}, {"light", double(b)}, {"face", 3}, {"stats_only", true}};
     // The tab with the clusters preview (at "max") and the atlas with light a's tile
     Json::object state = app->debugUi().state().object_items();
-    state["sections"]  = Json::object{{"lighting/Local lights", true},
-                                      {"lighting/Local lights: clusters", true},
-                                      {"lighting/Local lights: shadow atlas", true}};
+    state["sections"]  = Json::object{
+         {"lighting/Local lights", true}, {"lighting/Light clusters", true}, {"lighting/Shadow atlas", true}};
     app->debugUi().setState(state);
     app->debugUi().select(DebugTab::Lighting);
     app->runFrames(2, 1.0 / 60);

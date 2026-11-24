@@ -42,15 +42,16 @@ enum class DebugTab : int
  * frame from the display size; only its width can be dragged at its left edge. The grave key (`) selects the console
  * and focuses its command line.
  *
- * The state (selected tab, panel width, open sections, the console's filters and history) is kept in a JSON file
- * (empty name: not kept). Exists in every app mode (also without ImGui or a device), so games can register tabs and
- * sections unconditionally; disabled it draws nothing and passes the keys through. Main thread.
+ * The state (selected tab, panel width, open sections, the console's filters and history) is not kept between runs
+ * (S36: the user's choice; a saved file kept outdated defaults, e.g. every section open). Exists in every app mode
+ * (also without ImGui or a device), so games can register tabs and sections unconditionally; disabled it draws nothing
+ * and passes the keys through. Main thread.
  */
 class SAIGA_ENGINE_API DebugUi
 {
    public:
-    // server: the console's tools (may be null); stateFile: where the state is kept (empty: nowhere)
-    explicit DebugUi(McpServer* server = nullptr, std::string stateFile = "");
+    // server: the console's tools (may be null)
+    explicit DebugUi(McpServer* server = nullptr);
     ~DebugUi();
     DebugUi(const DebugUi&)            = delete;
     DebugUi& operator=(const DebugUi&) = delete;
@@ -84,8 +85,14 @@ class SAIGA_ENGINE_API DebugUi
 
     // The sections games added to a tab
     int sectionCount(DebugTab tab) const { return int(tabs[size_t(tab)].sections.size()); }
-    // A section header whose open state is kept in the state file (key: unique per tab, e.g. "engine/Simulation")
+    // A section header whose open state is kept by key (unique per tab, e.g. "engine/Simulation"; set_ui_tab sets it)
     bool section(const std::string& key, const char* title, bool defaultOpen = true);
+    // A sub-section inside a section: a tree node (the details of a section, e.g. "lighting/Ambient: SH coefficients"),
+    // its open state kept by key like a section's. An open one indents what follows until endSubSection,
+    // which the next section or sub-section calls (UI rating round 2, finding 5: the contents were not nested); call it
+    // after a tab's last sub-section and before other content of the same section
+    bool subSection(const std::string& key, const char* title, bool defaultOpen = false);
+    void endSubSection();
 
     // ---- Named controls (tests click a tab's real widgets)
     // Records the screen rectangle of the last ImGui item under a name, e.g. "lighting/rate x60" (in an ImGui frame)
@@ -114,12 +121,7 @@ class SAIGA_ENGINE_API DebugUi
     DebugConsole& console() { return *consolePtr; }
 
     // ---- State
-    // Reads the state file (no file: defaults); writes it (also called by the destructor and, at most once per
-    // second when something changed, by draw())
-    void load();
-    void save();
-    const std::string& stateFile() const { return file; }
-    // The state as JSON (tests)
+    // The state as JSON (set_ui_tab, tests)
     json11::Json state() const;
     void setState(const json11::Json& j);
 
@@ -139,16 +141,16 @@ class SAIGA_ENGINE_API DebugUi
     void drawBar(float em);
     void drawPanel(float em);
     void drawSplitter(float em, ImVec2 pos, ImVec2 size);
-    void saveIfChanged();
     float panelSize(float em) const;
 
     std::vector<Tab> tabs;
     std::map<std::string, ImVec2> markedItems;
+    // The indent of the open sub-section (0: none)
+    float subIndent = 0;
     std::unique_ptr<DebugConsole> consolePtr;
     std::function<void(float)> summary;
     std::function<void()> pauseKey;
     std::map<std::string, bool> sections;
-    std::string file;
     bool enabledFlag      = true;
     int selectedTab       = 0;
     float panelWidth      = 0;  // pixels; 0: the default
@@ -157,8 +159,6 @@ class SAIGA_ENGINE_API DebugUi
     // tabs): selected when it is added
     std::string pendingTab;
     int pendingTabIndex = -1;  // frames until the console's command line gets the focus
-    std::string savedState;
-    double lastSaveCheck = 0;
 };
 
 }  // namespace Engine

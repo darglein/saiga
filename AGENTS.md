@@ -480,7 +480,8 @@ ctest -R test_core_ini --output-on-failure             # one test
   (R-TEST-2), and a new baseline is committed when a change is accepted. Since S19a the `gpu_ms` keys (S03's names) come
   from RenderScene's sections: `trees` = `scene.instances`, `upload + cull` = `transfer` + `cull`, `terrain + water` =
   `depth.terrain` + `scene.terrain`, `grass`, `sky`; `cpu_work_ms` is the app's recording and submit (not comparable
-  with the S03 value). Since S20 the benchmark world is `game_world`'s 32 km space at 1 m (the trees in `[0, 8192]^2`);
+  with the S03 value). Since S20 the benchmark world is `game_world`'s 32 km space at 1 m (the trees in the 8 km area
+  at its centre, `kPrototypeAreaOrigin`; until S36 in its corner `[0, 8192]^2`: older baselines are not comparable);
   the terrain is completed in every frame (`completeView`), its time is excluded from the frame interval and reported
   as `terrain_stream_ms` with a `terrain` block; `--base-spacing 2` runs the same benchmark on a 2 m template (to
   separate code changes from the 1 m content). `terraform` (S22) edits the terrain once per frame from a static camera

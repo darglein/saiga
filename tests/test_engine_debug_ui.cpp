@@ -15,9 +15,6 @@
 
 #include "gtest/gtest.h"
 
-#include <chrono>
-#include <filesystem>
-#include <fstream>
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -67,12 +64,6 @@ InputState keys(std::initializer_list<int> down)
     InputState s;
     for (int k : down) s.keys[size_t(k)] = true;
     return s;
-}
-
-std::filesystem::path tempFile(const std::string& name)
-{
-    return std::filesystem::path(::testing::TempDir()) /
-           (name + "_" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".json");
 }
 }  // namespace
 
@@ -276,52 +267,30 @@ TEST(DebugUi, KeysSelectTabs)
     EXPECT_TRUE(out.keys[size_t(F1 + 1)]);
 }
 
-TEST(DebugUi, StatePersists)
+// The state as JSON (set_ui_tab, tests): setState restores what state() returns; nothing is kept between runs (S36: no
+// state file)
+TEST(DebugUi, StateRoundTrips)
 {
-    const std::filesystem::path file = tempFile("debug_ui_state");
-    {
-        DebugUi ui(nullptr, file.string());
-        ui.load();  // no file yet: the defaults
-        EXPECT_TRUE(ui.isSelected(DebugTab::Game));
-        ui.select(DebugTab::Console);
-        Json s           = ui.state();
-        Json::object o   = s.object_items();
-        o["panel_width"] = 480;
-        o["sections"]    = Json::object{{"engine/Systems", true}, {"performance/Graph", false}};
-        ui.setState(o);
-        ui.console().history = {"world_status", "spawn class=car"};
-        ui.console().hiddenCategories.insert("api");
-        ui.console().mcpOnly = true;
-        ui.save();
-    }
-    ASSERT_TRUE(std::filesystem::exists(file));
-    {
-        DebugUi ui(nullptr, file.string());
-        ui.load();
-        EXPECT_TRUE(ui.isSelected(DebugTab::Console));
-        const Json s = ui.state();
-        EXPECT_EQ(s["panel_width"].number_value(), 480);
-        EXPECT_EQ(s["sections"]["engine/Systems"], Json(true));
-        EXPECT_EQ(s["sections"]["performance/Graph"], Json(false));
-        EXPECT_EQ(ui.console().history, (std::vector<std::string>{"world_status", "spawn class=car"}));
-        EXPECT_EQ(ui.console().hiddenCategories, (std::set<std::string>{"api"}));
-        EXPECT_TRUE(ui.console().mcpOnly);
-    }
-    // Invalid JSON: the defaults
-    {
-        std::ofstream(file) << "{ not json";
-        DebugUi ui(nullptr, file.string());
-        ui.load();
-        EXPECT_TRUE(ui.isSelected(DebugTab::Game));
-    }
-    std::filesystem::remove(file);
-    // Without a file name nothing is read or written
-    {
-        DebugUi ui;
-        ui.select(DebugTab::Engine);
-        ui.save();
-        EXPECT_EQ(ui.stateFile(), "");
-    }
+    DebugUi ui;
+    EXPECT_TRUE(ui.isSelected(DebugTab::Game));
+    ui.select(DebugTab::Console);
+    Json::object o   = ui.state().object_items();
+    o["panel_width"] = 480;
+    o["sections"]    = Json::object{{"engine/Systems", true}, {"performance/Graph", false}};
+    ui.setState(o);
+    ui.console().history = {"world_status", "spawn class=car"};
+    ui.console().hiddenCategories.insert("api");
+    ui.console().mcpOnly = true;
+    DebugUi restored;
+    restored.setState(ui.state());
+    EXPECT_TRUE(restored.isSelected(DebugTab::Console));
+    const Json s = restored.state();
+    EXPECT_EQ(s["panel_width"].number_value(), 480);
+    EXPECT_EQ(s["sections"]["engine/Systems"], Json(true));
+    EXPECT_EQ(s["sections"]["performance/Graph"], Json(false));
+    EXPECT_EQ(restored.console().history, (std::vector<std::string>{"world_status", "spawn class=car"}));
+    EXPECT_EQ(restored.console().hiddenCategories, (std::set<std::string>{"api"}));
+    EXPECT_TRUE(restored.console().mcpOnly);
 }
 
 TEST(McpCallLog, LinesAndThrottling)

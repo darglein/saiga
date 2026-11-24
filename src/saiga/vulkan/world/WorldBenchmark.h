@@ -92,10 +92,11 @@ class SAIGA_VULKAN_API WorldBenchmark
      * - flyover: one revolution in measuredFrames frames on a circle of radius 3 km around the world center, 300 m
      *   above the ground below the camera, looking at the center (on the ground);
      * - forest: 2 m above max(terrain, water level), from center - 300 m to center + 300 m along x, looking along +x;
-     * - terraform (S22): static, eye (3968, g + 300, 3940) looking at (3968, g, 3968), g = the ground at (3968, 3968).
+     * - terraform (S22): static, eye (e, g + 300, e - 28) looking at (e, g, e), e = the centre - 128, g = the ground
+     *   at (e, e).
      */
-    // S20: the same paths over a ground callback (terrain or water, whichever is higher; the centre (4096, 4096) of the
-    // prototype's 8 km area until S27)
+    // S20: the same paths over a ground callback (terrain or water, whichever is higher) around the centre of the
+    // prototype's 8 km area (kPrototypeAreaCentre; S36: the area at the 32 km space's centre, before in its corner)
     static Pose pose(const std::string& name, const Ground& ground, int measuredFrame);
 
     // Median and p95 (nearest rank) of the values; zeros for an empty list.

@@ -2285,6 +2285,22 @@ nits; each fix on the branch named by the finding where it applies, see the revi
   stays in a1c: moved before step 3 it conflicts with steps 3-5 and three review commits (the same shaders and
   RenderScene.cpp).
 
+**F5 UI rating round 1** (b; the user: "a bit much at once with everything expanded"; the conventions of S19c's
+design changes):
+
+- **A summary and one control row at the top, not scrolled**: tags of the states that change the frame (CLAY, SUN
+  OVERRIDE, CASCADES FROZEN, VIEW; a click undoes one), the time, sun, moon and shadow light, the EV100, the frame's
+  luminance (the summary requests the Luminance statistics while the tab is shown), the visible lights and the
+  lighting's GPU time against its budget; then the view (readable names, the MCP name in the tooltip), the overlays in a
+  popup and copy JSON. The tone map moved to Exposure, force full updates to GPU and memory, the preview mapping to a
+  popup above the first preview on screen; "freeze cascades" is only in Cascades.
+- **Only Time and weather open at first**; the details are sub-sections (`DebugUi::subSection`: tree nodes without
+  indent whose state is persisted like a section's, keys `lighting/<section>: <sub-section>`). The clusters and the
+  shadow atlas are top-level sections (`lighting/Light clusters`, `lighting/Shadow atlas`), not headers inside Local
+  lights.
+- **One name per state**: an overlay or view with a control in a section has the same label there; F3's tone map has
+  the same names and its slider is the "exposure multiplier" (on top of F5's EV100 exposure).
+
 ## Results
 
 (filled per part: test counts and ctest times on lavapipe, golden runtime, benchmarks before / after with the features

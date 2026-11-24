@@ -12,8 +12,6 @@
 
 #include <algorithm>
 #include <cctype>
-#include <fstream>
-#include <sstream>
 
 namespace Saiga
 {
@@ -34,16 +32,12 @@ constexpr ImGuiWindowFlags kFixedWindow = ImGuiWindowFlags_NoTitleBar | ImGuiWin
                                           ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoDocking;
 }  // namespace
 
-DebugUi::DebugUi(McpServer* server, std::string stateFile)
-    : consolePtr(std::make_unique<DebugConsole>(server, engineLog())), file(std::move(stateFile))
+DebugUi::DebugUi(McpServer* server) : consolePtr(std::make_unique<DebugConsole>(server, engineLog()))
 {
     for (const char* name : {"Game", "Performance", "Engine", "Console", "Lighting"}) tabs.push_back(Tab{name, {}, {}});
 }
 
-DebugUi::~DebugUi()
-{
-    save();
-}
+DebugUi::~DebugUi() = default;
 
 void DebugUi::select(int tab)
 {
@@ -109,12 +103,41 @@ bool DebugUi::itemCenter(const std::string& name, ImVec2& center) const
 
 bool DebugUi::section(const std::string& key, const char* title, bool defaultOpen)
 {
+    endSubSection();
     auto it = sections.find(key);
     if (it == sections.end()) it = sections.emplace(key, defaultOpen).first;
     ImGui::PushID(key.c_str());
-    const bool open = DebugUiStyle::section(title, it->second);
+    const bool wasOpen = it->second;
+    const bool open    = DebugUiStyle::section(title, it->second);
     ImGui::PopID();
+    // A section opened by its header scrolls to the top of the panel (UI rating round 3, finding 5: a section near the
+    // bottom opened below the panel's edge)
+    if (open && !wasOpen) ImGui::SetScrollHereY(0.0f);
     return open;
+}
+
+bool DebugUi::subSection(const std::string& key, const char* title, bool defaultOpen)
+{
+    endSubSection();
+    auto it = sections.find(key);
+    if (it == sections.end()) it = sections.emplace(key, defaultOpen).first;
+    ImGui::PushID(key.c_str());
+    ImGui::SetNextItemOpen(it->second, ImGuiCond_Always);
+    it->second = ImGui::TreeNodeEx(title, ImGuiTreeNodeFlags_SpanAvailWidth | ImGuiTreeNodeFlags_NoTreePushOnOpen);
+    ImGui::PopID();
+    if (it->second)
+    {
+        subIndent = ImGui::GetFontSize();
+        ImGui::Indent(subIndent);
+    }
+    return it->second;
+}
+
+void DebugUi::endSubSection()
+{
+    if (subIndent <= 0) return;
+    ImGui::Unindent(subIndent);
+    subIndent = 0;
 }
 
 InputState DebugUi::handleKeys(const InputState& now, const InputState& previous, bool captured)
@@ -160,7 +183,6 @@ void DebugUi::draw()
     if (selectedTab != int(DebugTab::Game)) drawPanel(em);
     DebugUiStyle::pop();
     if (focusConsoleDelay > 0 && selectedTab != int(DebugTab::Console)) focusConsoleDelay = 0;
-    saveIfChanged();
 }
 
 void DebugUi::drawBar(float em)
@@ -310,49 +332,6 @@ void DebugUi::setState(const json11::Json& j)
         if (h.is_string()) consolePtr->hiddenCategories.insert(h.string_value());
     consolePtr->mcpOnly = c["mcp_only"].bool_value();
     consolePtr->search  = c["search"].string_value();
-}
-
-void DebugUi::load()
-{
-    if (file.empty()) return;
-    std::ifstream in(file);
-    if (!in) return;
-    std::stringstream ss;
-    ss << in.rdbuf();
-    std::string err;
-    json11::Json j = json11::Json::parse(ss.str(), err);
-    if (!err.empty())
-    {
-        SAIGA_LOG("app", "warning: %s is not valid JSON (%s); the debug UI starts with its defaults", file.c_str(),
-                  err.c_str());
-        // Written again only after a change (a hand-edited file is not replaced by the defaults at exit)
-        savedState = state().dump();
-        return;
-    }
-    setState(j);
-    savedState = state().dump();
-}
-
-void DebugUi::save()
-{
-    if (file.empty()) return;
-    const std::string s = state().dump();
-    if (s == savedState) return;
-    std::ofstream out(file);
-    if (!out) return;
-    out << s << "\n";
-    out.flush();
-    // Only a complete write counts (a failed one is tried again at the next change check)
-    if (out) savedState = s;
-}
-
-void DebugUi::saveIfChanged()
-{
-    if (file.empty()) return;
-    const double now = ImGui::GetTime();
-    if (now - lastSaveCheck < 1.0) return;
-    lastSaveCheck = now;
-    save();
 }
 
 }  // namespace Engine

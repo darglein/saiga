@@ -6,8 +6,8 @@
 
 /**
  * The world game (docs/engine_design.md §19): the large procedural world prototype (S20: a 32 km space of height tiles
- * at 1 m streamed by the engine, 200k trees in the 8 km area [0, 8192]^2, grass around the camera) on the engine app
- * (EngineApp), rendered in a uniform gray. S44 builds the first gameplay on it.
+ * at 1 m streamed by the engine, 200k trees in the 8 km area at the space's centre, grass around the camera) on the
+ * engine app (EngineApp), rendered in a uniform gray. S44 builds the first gameplay on it.
  *
  * Controls: WASD + mouse (left or middle button) to fly, shift = fast, space = up, F toggles the walk mode, G the GUI,
  * F1-F5 the debug UI's tabs (F2 performance, F4 the console, F5 lighting), F12 a screenshot, ESC quits. T toggles the
@@ -79,7 +79,8 @@ struct WorldGame
 {
     // The trees and settings on the scene; the terrain is the engine's (World::terrain through the render sink)
     Vulkan::PrototypeScene prototype;
-    // The prototype's 8 km area: its statistics on a 32 m grid (the start camera, game_get_state)
+    // The prototype's 8 km area at the centre of the space: its statistics on a 32 m grid (the start camera,
+    // game_get_state)
     Vulkan::PrototypeAreaStats area;
     uint32_t treeSeed  = 1;
     float lastLodRange = -1;
@@ -178,11 +179,12 @@ void initWorld(EngineApp& app)
               << std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count() << " s" << std::endl;
     g.prototype.attach(*app.scene(), trees, g.treeSeed);
 
-    // Start on a hill: next to the highest point of the 8 km area, looking over its centre
+    // Start on a hill: on the side of the 8 km area's highest point that faces its centre, looking over the centre (the
+    // S36 demo: from behind the peak, the peak hid the valley)
     const Vec3 peak = g.area.highest;
-    Vec3 center(Vulkan::kPrototypeArea * 0.5, 0, Vulkan::kPrototypeArea * 0.5);
+    Vec3 center(Vulkan::kPrototypeAreaCentre, 0, Vulkan::kPrototypeAreaCentre);
     const Vec3 toPeak(peak(0) - center(0), 0, peak(2) - center(2));
-    Vec3 eye  = peak + (toPeak.norm() > 1 ? toPeak.normalized() * 150.0 : Vec3(150, 0, 0));
+    Vec3 eye  = peak - (toPeak.norm() > 1 ? toPeak.normalized() * 150.0 : Vec3(150, 0, 0));
     eye(1)    = std::max(w.terrainHeight(0, eye(0), eye(2)), peak(1) - 40) + 60;
     center(1) = w.terrainHeight(0, center(0), center(2));
     app.setViewCamera(0, eye, cameraLookRotation(center - eye), radians(double(g.prototype.settings.fovy)));
@@ -192,23 +194,31 @@ void initWorld(EngineApp& app)
     {
         const bool nightBenchmark = g.benchmarkName == "night" || g.benchmarkName == "night_town";
         const bool dayBenchmark   = !g.benchmarkName.empty() && !nightBenchmark;
-        const int count         = g.lamps >= 0 ? g.lamps : dayBenchmark ? 0 : 400;
-        World& host             = app.startWorld();
-        auto groundAt           = [&host](double x, double z) { return host.terrainHeight(0, x, z); };
-        const double sea        = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
-        int spawned             = 0;
+        const int count           = g.lamps >= 0 ? g.lamps : dayBenchmark ? 0 : 400;
+        World& host               = app.startWorld();
+        auto groundAt             = [&host](double x, double z) { return host.terrainHeight(0, x, z); };
+        const double sea          = double(Vulkan::kPrototypeSeaLevel) * kHeightUnit;
+        int spawned               = 0;
         if (g.benchmarkName == "night")
-            spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeArea * 0.5, Vulkan::kPrototypeArea * 0.5, 0, 2500,
+            spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeAreaCentre, Vulkan::kPrototypeAreaCentre, 0, 2500,
                                        groundAt, sea);
         else if (g.benchmarkName == "night_town")
-            spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeArea * 0.5, Vulkan::kPrototypeArea * 0.5, 25, 0,
+            spawned = Game::spawnLamps(host, count, Vulkan::kPrototypeAreaCentre, Vulkan::kPrototypeAreaCentre, 25, 0,
                                        groundAt, sea);
         else
         {
+            // The valley in front of the start mountain (the user after the S36 demo: a look from the mountain over
+            // lights spread across a large valley): lamps four times the size (their lights 72 m), jittered 150 m
+            // apart over about 4 km centred 2 km ahead, only on ground at least 150 m below the eye
             Vec3 dir = center - eye;
             dir(1)   = 0;
             dir      = dir.norm() > 1 ? Vec3(dir.normalized()) : Vec3(1, 0, 0);
-            spawned = Game::spawnLamps(host, count, eye(0) + dir(0) * 250, eye(2) + dir(2) * 250, 25, 0, groundAt, sea);
+            Game::LampLayout layout;
+            layout.scale     = 4;
+            layout.jitter    = 0.35;
+            layout.maxGround = eye(1) - 150;
+            spawned = Game::spawnLamps(host, count, eye(0) + dir(0) * 2000, eye(2) + dir(2) * 2000, 150, 0, groundAt,
+                                       sea, layout);
         }
         if (count > 0) std::cout << "World: " << spawned << " lamps" << std::endl;
         g.lampsSpawned = spawned;
@@ -729,7 +739,8 @@ int main(int argc, char* argv[])
     { l.add(Phase::Gameplay, "lampPolicy", Game::lampPolicySystem, RunOn::Host); };
     // S36: the environment (data/world/environment.json), ACES; the time is 10:00, frozen (the benchmark keeps it)
     Game::enableEnvironment(setup, "world");
-    game.area                = Vulkan::prototypeAreaStats(setup.world.seed, 0, 0, Vulkan::kPrototypeArea, 32);
+    game.area = Vulkan::prototypeAreaStats(setup.world.seed, Vulkan::kPrototypeAreaOrigin, Vulkan::kPrototypeAreaOrigin,
+                                           Vulkan::kPrototypeArea, 32);
     setup.render.msaaSamples = 4;
     setup.cameraSpeed        = 25;
     setup.cameraSpeedFast    = 250;
@@ -807,7 +818,7 @@ int main(int argc, char* argv[])
                                     // S36b: --benchmark night and night_town at 22:00
                                     morning.hours =
                                         options.benchmark == "night" || options.benchmark == "night_town" ? 22.0 : 10.0;
-                                    morning.rate  = 0.0;
+                                    morning.rate = 0.0;
                                     std::string error;
                                     timeSet = setWorldTime(app.startWorld(), morning, error);
                                     if (!timeSet) std::cout << "The time of day was not set: " << error << std::endl;

@@ -1,4 +1,5 @@
 {
     "celestial": {"latitudeDeg": 45},
-    "clouds": {"altitude": 2200}
+    "clouds": {"altitude": 2200},
+    "lighting": {"clusterFar": 6000}
 }
