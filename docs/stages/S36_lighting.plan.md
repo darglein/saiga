@@ -2013,6 +2013,16 @@ extrapolated writes, the range-checked environment file, `get_lighting.exposure`
 the render cases on the suite apps, unique temporary files, the font check, writes only on change) and nits 12-17. Not
 fixed: none. Recorded in round 2 (finding 21; the entry was missing). See Design changes "Review round 1 of a1a".
 
+### S36a1b code review round 1, 2026-11-22
+
+6 major, 11 minor, 6 nits (`r1_a1b.md`, the diff `stage-s36a1a..stage-s36a1b`). Fixed in "S36a1b review: round 1
+fixes" (and the tab tests and the capture deadline of the two commits after it): majors 1-6 (the clamp-to-edge BRDF
+LUT, the per-request mapping, the refusal with `pbr` off, the probe deferral, the pre-exposure-scaled raw radiance,
+the shorter deadline test) and the minors and nits as listed in Design changes "Review round 1 of a1b". Not fixed,
+decided there: minor 7 ("Deviation kept: clay terrain without the prototype environment"). Recorded in round 2
+(finding 21; the entry was missing).
+
+
 ## Questions for the user
 
 Decided by the plan (D1-D28; the user can still override any of them): the five-part split, ACES by default for games
