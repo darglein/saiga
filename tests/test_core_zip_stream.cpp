@@ -4,6 +4,7 @@
  * See LICENSE file for more information.
  */
 
+#include "saiga/core/util/string_to_path.h"
 #include "saiga/core/util/zlib/zip_archive.h"
 #include "saiga/core/util/zlib/zip_stream_writer.h"
 
@@ -43,9 +44,11 @@ std::vector<uint8_t> pattern(size_t size, uint8_t seed)
     return data;
 }
 
+// `name` is UTF-8, as the writer stores it. Converted with string_to_path, since a plain std::string -> path
+// conversion uses the ANSI code page on Windows.
 std::vector<uint8_t> read_entry(const ZipArchive& archive, const std::string& name)
 {
-    auto [found, file] = archive.find_file(name);
+    auto [found, file] = archive.find_file(string_to_path(name));
     if (!found) return {};
     std::vector<uint8_t> data(file.uncompressed_size);
     if (!data.empty() && !file.read_all(data.data())) return {};
