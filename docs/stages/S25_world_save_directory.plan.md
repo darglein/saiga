@@ -1268,6 +1268,29 @@ Recorded per R-DOC-2; the plan's intent is kept in each case.
   counts at every use (rebuilt when stale): the full unload of 1000 groups of 100 entities took 7.2 s with the
   per-call pool scan, 0.1 s with the cache.
 - **Flight**: the scenario `driver_link_after_far_flight` (the driver and the plane stay linked and resident after 1 km).
+- **Review round 1 fixes**:
+  - **Corruption vs. format vs. IO** (Scope 5): a record's checksum is checked before its header is parsed; a world-state
+    file or record with a valid checksum that does not decode (a newer format) and every read or size error are open
+    errors that change nothing; only checksum, length and index/record mismatches fall back to the backup
+    (`SaveDirectory.NewerFormatIsAnErrorNotCorruption`). A commit whose old record cannot be read because of an IO error
+    fails and is retried instead of dropping its groups.
+  - The open verifies each indexed region file's header (`checkRegionHeader`; a mismatch is corruption).
+  - The encoders refuse a part above 256 MB uncompressed, so a commit never writes a file the open would refuse.
+  - A failed region listing fails the commit (a new generation must lie above every existing one); a lower-priority
+    read whose record moved (a commit or compaction ran first) is read again at the current location (Scope 4's claim
+    that a read queued before a commit runs before it holds only for reads of the same or higher priority).
+  - `beforeLoad` cancels the queued reads before it runs the lane to completion (the order was reversed).
+  - A space unload replaces a kept, unreloadable space group instead of appending a second one.
+  - A paused world or a frame without a step still completes commits (`commit_save` on a paused game).
+  - Without asserts, `save()` writes an unreadable stored group empty (its load then refuses it) instead of
+    dereferencing null; the reload catches non-standard exceptions of factories too; `World::subtree` asserts it is
+    not called inside `parallelEach` (it writes the link cache); `regionOf` computes in 64 bits.
+  - Windows: `GetLastError` is read before `CloseHandle`, a 0-byte `ReadFile` reports the end of the file, and the
+    lock creates nested directories (`--save a/b/c`, also on POSIX).
+- **Known costs** (review round 1, reported, not changed): the freeze and the completion walk the whole index on the
+  main thread (O(indexed chunks): every visited chunk is indexed in streaming worlds), and `closeSaveDirectory` (the
+  app's quit) reads every disk-only group back; both grow with the world. A persistent index and a close without the
+  read-back are the follow-ups if a game's measurements need them.
 
 ## Results
 

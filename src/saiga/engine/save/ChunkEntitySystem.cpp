@@ -152,6 +152,10 @@ void World::startReloadedObjects(const std::vector<std::pair<Entity, double>>& o
         {
             failure(e, std::string("the factory threw: ") + x.what());
         }
+        catch (...)
+        {
+            failure(e, "the factory threw a non-standard exception");
+        }
     }
     // Pass 2 configure, pass 3 onLoad (the load rules), pass 4 onCatchUp(elapsed) (like onSpawn: structural changes
     // apply at once)

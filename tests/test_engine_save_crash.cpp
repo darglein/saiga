@@ -108,7 +108,8 @@ uint64_t openImage(std::shared_ptr<MemorySaveFileSystem> fs, std::vector<uint8_t
     return r.commit;
 }
 
-// Every file is referenced by the newest commit or its backup (no .tmp, no stray region file)
+// No temporary or corrupt file is left after the open's cleanup (stray region files are covered by the next commit and
+// open succeeding, which they would break)
 void expectClean(const MemorySaveFileSystem& fs, const std::string& where)
 {
     for (const std::string& f : fs.files())
@@ -312,23 +313,6 @@ TEST(SaveCrash, CompactingCommit)
         });
 }
 
-namespace
-{
-struct CrateV2
-{
-    static constexpr const char* name = "Crate";
-    static constexpr ComponentId id   = ComponentId(UnloadTestComponent::Crate);
-    static constexpr uint32_t version = 2;
-    int32_t items = 0, extra = 0;
-    template <class V>
-    void visit(V& v)
-    {
-        v("items", items);
-        v("extra", extra);
-    }
-};
-}  // namespace
-
 TEST(SaveCrash, HeaderRewrite)
 {
     // A commit that appends a schema table: a group written with another table (a Crate on a reloaded root is unloaded
@@ -362,11 +346,7 @@ TEST(SaveCrash, KillDuringOpenCleanup)
     ASSERT_EQ(r.w->commit(), 2u);
     r.w->editTerrain(0, addBrush(1500, 1100));
     ASSERT_EQ(r.w->commit(), 3u);
-    const std::vector<uint8_t> blob2 = [&]
-    {
-        r.w->closeSaveDirectory();
-        return std::vector<uint8_t>();
-    }();
+    r.w->closeSaveDirectory();
     std::vector<uint8_t> world3 = r.fs->fileBytes("world.3.sgw");
     world3[30] ^= 0x55;
     r.fs->putFile("world.3.sgw", world3);
@@ -396,5 +376,4 @@ TEST(SaveCrash, KillDuringOpenCleanup)
                 EXPECT_EQ(blob, reference) << n;
             }
     }
-    (void)blob2;
 }

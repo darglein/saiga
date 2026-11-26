@@ -1318,6 +1318,8 @@ std::vector<Entity> World::collectSubtree(Entity e) const
     // destroy finite regardless).
     std::vector<Entity> doomed{e};
     if (childCount(e) == 0) return doomed;
+    // It writes the link cache: not inside a parallelEach body (R-PAR-1)
+    checkNotParallel("subtree");
     auto traverse = [&]()
     {
         doomed.assign(1, e);
@@ -1818,7 +1820,12 @@ void World::advance(double frameDt)
         SAIGA_ASSERT(false, "World::advance inside a step listener (not supported)");
         throw std::logic_error("World::advance inside a step listener (not supported)");
     }
-    if (paused) return;
+    // A paused world or a frame without a step still completes commits (commit_save on a paused game)
+    if (paused)
+    {
+        if (saveDir) saveDir->afterStep();
+        return;
+    }
     // NaN would poison the accumulator for good; +inf is a very long frame (the backlog is dropped below)
     if (std::isnan(frameDt)) frameDt = 0;
     if (std::isinf(frameDt)) frameDt = frameDt > 0 ? stepDt * (config.maxStepsPerAdvance + 1) : 0;
@@ -1836,6 +1843,7 @@ void World::advance(double frameDt)
         accumulator -= stepDt;
         n++;
     }
+    if (n == 0 && saveDir) saveDir->afterStep();
     if (accumulator >= stepDt)
     {
         // The backlog beyond maxStepsPerAdvance is dropped (a slow frame does not cause a spiral of catch-up steps)

@@ -121,8 +121,10 @@ class DiskSaveFileSystem final : public SaveFileSystem
             DWORD got         = 0;
             if (!ReadFile(h, out + done, chunk, &got, &o) || got == 0)
             {
+                // GetLastError before CloseHandle (which may change it); a 0-byte read is the end of the file
+                const std::string why = got == 0 ? std::string("unexpected end of file") : lastError();
                 CloseHandle(h);
-                return fail(error, "read " + path + ": " + lastError());
+                return fail(error, "read " + path + ": " + why);
             }
             done += got;
         }
@@ -145,36 +147,40 @@ class DiskSaveFileSystem final : public SaveFileSystem
     {
         HANDLE h = openFile(path, GENERIC_WRITE, CREATE_ALWAYS);
         if (h == INVALID_HANDLE_VALUE) return fail(error, "create " + path + ": " + lastError());
-        const bool ok = writeAll(h, data, size);
+        const bool ok         = writeAll(h, data, size);
+        const std::string why = ok ? std::string() : lastError();
         CloseHandle(h);
-        return ok || fail(error, "write " + path + ": " + lastError());
+        return ok || fail(error, "write " + path + ": " + why);
     }
     bool append(const std::string& path, const uint8_t* data, size_t size, std::string* error) override
     {
         HANDLE h = openFile(path, FILE_APPEND_DATA, OPEN_ALWAYS);
         if (h == INVALID_HANDLE_VALUE) return fail(error, "open " + path + ": " + lastError());
-        const bool ok = writeAll(h, data, size);
+        const bool ok         = writeAll(h, data, size);
+        const std::string why = ok ? std::string() : lastError();
         CloseHandle(h);
-        return ok || fail(error, "append " + path + ": " + lastError());
+        return ok || fail(error, "append " + path + ": " + why);
     }
     bool truncate(const std::string& path, uint64_t size, std::string* error) override
     {
         HANDLE h = openFile(path, GENERIC_WRITE, OPEN_EXISTING);
         if (h == INVALID_HANDLE_VALUE) return fail(error, "open " + path + ": " + lastError());
         LARGE_INTEGER li;
-        li.QuadPart   = LONGLONG(size);
-        const bool ok = SetFilePointerEx(h, li, nullptr, FILE_BEGIN) && SetEndOfFile(h);
+        li.QuadPart           = LONGLONG(size);
+        const bool ok         = SetFilePointerEx(h, li, nullptr, FILE_BEGIN) && SetEndOfFile(h);
+        const std::string why = ok ? std::string() : lastError();
         CloseHandle(h);
-        return ok || fail(error, "truncate " + path + ": " + lastError());
+        return ok || fail(error, "truncate " + path + ": " + why);
     }
     bool syncFile(const std::string& path, std::string* error) override
     {
         if (!doSync) return true;
         HANDLE h = openFile(path, GENERIC_WRITE, OPEN_EXISTING);
         if (h == INVALID_HANDLE_VALUE) return fail(error, "open " + path + ": " + lastError());
-        const bool ok = FlushFileBuffers(h);
+        const bool ok         = FlushFileBuffers(h);
+        const std::string why = ok ? std::string() : lastError();
         CloseHandle(h);
-        return ok || fail(error, "sync " + path + ": " + lastError());
+        return ok || fail(error, "sync " + path + ": " + why);
     }
     // NTFS orders the metadata of a rename (MOVEFILE_WRITE_THROUGH): no directory sync
     bool syncDirectory(const std::string&, std::string*) override { return true; }
@@ -189,7 +195,7 @@ class DiskSaveFileSystem final : public SaveFileSystem
     {
         if (lockHandle != INVALID_HANDLE_VALUE) return true;
         std::error_code ec;
-        std::filesystem::create_directory(full(""), ec);
+        std::filesystem::create_directories(full(""), ec);
         HANDLE h =
             CreateFileW(full("lock").wstring().c_str(), GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
@@ -292,7 +298,7 @@ class DiskSaveFileSystem final : public SaveFileSystem
     {
         if (lockFd >= 0) return true;
         std::error_code ec;
-        std::filesystem::create_directory(full(""), ec);
+        std::filesystem::create_directories(full(""), ec);
         const int fd = ::open(full("lock").c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
         if (fd < 0) return fail(error, "the lock file of " + root + ": " + lastError());
         // flock locks the open file description: a second open in this process conflicts as well

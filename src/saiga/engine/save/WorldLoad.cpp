@@ -875,7 +875,8 @@ bool WorldLoader::stageStore(const std::vector<uint8_t>& data)
         {
             GroupForm f;
             std::string ge;
-            parseGroupForm(g.bytes.data(), g.bytes.size(), stagedStore.tables[g.table]->types.size(), f, ge);
+            if (!parseGroupForm(g.bytes.data(), g.bytes.size(), stagedStore.tables[g.table]->types.size(), f, ge))
+                return fail("EGRP: " + where + ": " + ge);
             for (uint64_t id : f.persistentIds)
             {
                 if (!ids.insert(id).second)

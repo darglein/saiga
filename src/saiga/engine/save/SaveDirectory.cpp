@@ -97,31 +97,51 @@ std::string chunkName(const ChunkId& c)
     return "chunk (" + std::to_string(c.space) + ", " + std::to_string(c.x) + ", " + std::to_string(c.z) + ")";
 }
 
-// Reads one record: false with corrupt = true for a checksum, length or header mismatch
-bool readRecord(SaveFileSystem& fs, const RecordLocation& loc, const ChunkId& key, RecordContent& out,
-                std::string& error, bool* corrupt = nullptr)
+// Why a read failed: the open treats only Corrupt as a reason to fall back to the backup commit; an IO error (EIO,
+// EMFILE, a sharing violation) and a format error (a newer build's record) fail the open and change nothing on disk
+enum class ReadStatus
 {
-    if (corrupt) *corrupt = true;
-    std::vector<uint8_t> bytes(loc.length);
-    if (!fs.readAt(loc.file.path(), loc.offset, loc.length, bytes.data(), &error)) return false;
-    RecordHeader h;
-    if (!decodeRecordHeader(bytes.data(), bytes.size(), h, error)) return false;
-    if (h.key != key || h.commit != loc.commit || kRecordHeaderSize + size_t(h.payloadLength) + 8 != bytes.size() ||
-        h.kind != (isSpaceRecordKey(key) ? kRecordKindSpace : kRecordKindChunk))
+    Ok,
+    IoError,
+    Corrupt,
+    Format,
+};
+
+// Reads one record. The checksum is checked before anything is parsed, so a newer format with a valid checksum is a
+// format error, never corruption
+bool readRecord(SaveFileSystem& fs, const RecordLocation& loc, const ChunkId& key, RecordContent& out,
+                std::string& error, ReadStatus* status = nullptr)
+{
+    auto result = [&](ReadStatus s)
     {
-        error = chunkName(key) + ": the record does not match its index entry";
-        return false;
+        if (status) *status = s;
+        return s == ReadStatus::Ok;
+    };
+    std::vector<uint8_t> bytes(loc.length);
+    if (!fs.readAt(loc.file.path(), loc.offset, loc.length, bytes.data(), &error)) return result(ReadStatus::IoError);
+    if (bytes.size() < kRecordHeaderSize + 8)
+    {
+        error = chunkName(key) + ": the record is shorter than its header";
+        return result(ReadStatus::Corrupt);
     }
     uint64_t stored = 0;
     for (int i = 0; i < 8; ++i) stored |= uint64_t(bytes[bytes.size() - 8 + size_t(i)]) << (8 * i);
     if (fnv1a64Bytes(bytes.data(), bytes.size() - 8) != stored)
     {
         error = chunkName(key) + ": the record checksum failed";
-        return false;
+        return result(ReadStatus::Corrupt);
     }
-    // The checksum passed: a decode error is a format (version) error, not corruption
-    if (corrupt) *corrupt = false;
-    return decodeRecord(bytes.data(), bytes.size(), out, error);
+    RecordHeader h;
+    if (!decodeRecordHeader(bytes.data(), bytes.size(), h, error)) return result(ReadStatus::Format);
+    if (h.key != key || h.commit != loc.commit || kRecordHeaderSize + size_t(h.payloadLength) + 8 != bytes.size() ||
+        h.kind != (isSpaceRecordKey(key) ? kRecordKindSpace : kRecordKindChunk))
+    {
+        // A valid record of another chunk or commit at this location: the index and the region file disagree
+        error = chunkName(key) + ": the record does not match its index entry";
+        return result(ReadStatus::Corrupt);
+    }
+    if (!decodeRecord(bytes.data(), bytes.size(), out, error)) return result(ReadStatus::Format);
+    return result(ReadStatus::Ok);
 }
 }  // namespace
 
@@ -249,11 +269,20 @@ void SaveDirectory::requestStoredRead(const ChunkId& chunk, int priority, std::f
     lane.submit(
         priority, true,
         [fsp, loc, chunk, result]() { result->ok = readRecord(*fsp, loc, chunk, result->content, result->error); },
-        [this, chunk, result, generation, done]()
+        [this, chunk, result, generation, done, loc, priority]()
         {
             ChunkStore& store = w.chunkStore();
             if (store.generation() == generation)
             {
+                // A commit that ran before this (lower-priority) read moved the record (a rewrite, a compaction; the
+                // old file may be gone): read again at the current location
+                const ChunkEntry* now = store.entry(chunk);
+                if (!result->ok && now && now->record &&
+                    (!(now->record->file == loc.file) || now->record->offset != loc.offset))
+                {
+                    requestStoredRead(chunk, priority, done);
+                    return;
+                }
                 store.statsForUpdate().recordsRead++;
                 if (result->ok)
                     store.fillBytes(chunk, result->content.groups);
@@ -386,13 +415,20 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
     // backup commit names)
     std::map<SpaceId, bool> listed;
     std::map<RegionTriple, uint32_t> highest;
+    // false: the listing failed, so the next generation is unknown and the commit fails (it must not write generation 0
+    // over a file the backup names)
     auto listSpace = [&](SpaceId s)
     {
-        if (listed[s]) return;
-        listed[s] = true;
+        if (listed[s]) return true;
         std::vector<std::string> names;
         const std::string dir = "regions/" + std::to_string(s);
-        if (!fs.exists(dir) || !fs.list(dir, names, nullptr)) return;
+        if (!fs.exists(dir))
+        {
+            listed[s] = true;
+            return true;
+        }
+        if (!fs.list(dir, names, &e)) return false;
+        listed[s] = true;
         for (const std::string& n : names)
         {
             RegionKey k;
@@ -400,6 +436,7 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
             uint32_t& h = highest[triple(k)];
             h           = std::max(h, k.generation);
         }
+        return true;
     };
     // Targets: the file each region appends to this commit (and its end); created files get their header
     struct Target
@@ -429,7 +466,7 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
     };
     auto newFile = [&](const RegionTriple& t, Target& out)
     {
-        listSpace(std::get<0>(t));
+        if (!listSpace(std::get<0>(t))) return false;
         uint32_t g = 0;
         if (highest.count(t)) g = highest[t] + 1;
         auto it = current.find(t);
@@ -536,10 +573,16 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
                     {
                         auto content = std::make_shared<RecordContent>();
                         std::string re;
-                        if (readRecord(fs, *f.oldRecord, f.key, *content, re))
+                        ReadStatus status = ReadStatus::Ok;
+                        if (readRecord(fs, *f.oldRecord, f.key, *content, re, &status))
                         {
                             old              = content;
                             oldRecords[okey] = content;
+                        }
+                        else if (status == ReadStatus::IoError)
+                        {
+                            // A transient read error must not drop the groups: the commit fails and is retried
+                            return fail("read the old record of " + chunkName(f.key) + ": " + re);
                         }
                         else
                         {
@@ -620,7 +663,8 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
             continue;
         }
         std::vector<uint8_t> bytes;
-        encodeRecord(rc, snap.zstdLevel, bytes);
+        if (!encodeRecord(rc, snap.zstdLevel, bytes))
+            return fail(chunkName(f.key) + ": the record exceeds 256 MB uncompressed (it could never be opened)");
         const RegionTriple t = triple(regionKeyOf(f.key, 0));
         Target& tg           = targets[t];
         if (tg.end == 0 && !newFile(t, tg)) return fail("create a region file of " + chunkName(f.key));
@@ -666,7 +710,8 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
     wf.blob         = snap.blob;
     encodeIndex(index, wf.index);
     std::vector<uint8_t> bytes;
-    encodeWorldFile(wf, snap.zstdLevel, bytes);
+    if (!encodeWorldFile(wf, snap.zstdLevel, bytes))
+        return fail("the world-state file exceeds 256 MB uncompressed per part (it could never be opened)");
     const std::string name = worldFileName(snap.commit), tmp = name + ".tmp";
     if (!fs.writeNew(tmp, bytes.data(), bytes.size(), &e) || !fs.syncFile(tmp, &e)) return fail("write " + tmp);
     if (!fs.rename(tmp, name, &e)) return fail("rename " + tmp);
@@ -828,8 +873,9 @@ void SaveDirectory::afterStep()
 
 void SaveDirectory::beforeLoad()
 {
-    lane.drainOnCaller();
+    // The queued reads first (their chunks are dropped with the residency), then the commits run to completion
     lane.cancelReads();
+    lane.drainOnCaller();
 }
 
 void SaveDirectory::afterLoad()
@@ -882,7 +928,7 @@ SaveOpenResult SaveDirectory::open()
     std::vector<std::string> names;
     if (!fs->list("", names, &e)) return fail(e);
     std::vector<uint64_t> worldFiles;
-    std::vector<std::string> tmpFiles, corruptFiles;
+    std::vector<std::string> tmpFiles;
     bool anyWorld = false, hasHeader = false;
     for (const std::string& n : names)
     {
@@ -898,7 +944,6 @@ SaveOpenResult SaveDirectory::open()
         {
             if (kind == 0) worldFiles.push_back(c);
             if (kind == 1) tmpFiles.push_back(n);
-            if (kind == 2) corruptFiles.push_back(n);
             anyWorld = anyWorld || kind != 1;
             continue;
         }
@@ -975,18 +1020,16 @@ SaveOpenResult SaveDirectory::open()
         const std::string name = worldFileName(c);
         std::vector<uint8_t> bytes;
         WorldFile wf;
-        if (!fs->readAll(name, bytes, &e) || !checkTrailer(bytes))
+        // An IO error fails the open and changes nothing; only a failed checksum is corruption (the backup is tried);
+        // a valid checksum with an undecodable content is a newer format: an open error, never corruption
+        if (!fs->readAll(name, bytes, &e)) return fail(name + ": " + e);
+        if (!checkTrailer(bytes))
         {
             corruptCandidates.push_back(name);
             lastCorruption = name + ": the checksum failed";
             continue;
         }
-        if (!decodeWorldFile(bytes, wf, e))
-        {
-            corruptCandidates.push_back(name);
-            lastCorruption = name + ": " + e;
-            continue;
-        }
+        if (!decodeWorldFile(bytes, wf, e)) return fail(name + ": " + e);
         if (wf.commit != c) return fail(name + ": it names commit " + std::to_string(wf.commit));
         ChunkIndex index;
         if (!decodeIndex(wf.index.data(), wf.index.size(), index, e)) return fail(name + ": " + e);
@@ -998,10 +1041,21 @@ SaveOpenResult SaveDirectory::open()
         for (const auto& [k, end] : index.files)
         {
             uint64_t size = 0;
-            if (!fs->fileSize(k.path(), size, nullptr) || size < end)
+            if (fs->exists(k.path()) && !fs->fileSize(k.path(), size, &e)) return fail(k.path() + ": " + e);
+            if (!fs->exists(k.path()) || size < end || size < kRegionHeaderSize)
             {
                 corrupt        = true;
                 lastCorruption = name + ": " + k.path() + " is missing or shorter than its committed end";
+                continue;
+            }
+            // The file's header names this region and generation (a file of another region at this name: corruption)
+            std::vector<uint8_t> header(kRegionHeaderSize);
+            if (!fs->readAt(k.path(), 0, header.size(), header.data(), &e)) return fail(k.path() + ": " + e);
+            std::string he;
+            if (!checkRegionHeader(header.data(), header.size(), k, he))
+            {
+                corrupt        = true;
+                lastCorruption = name + ": " + he;
             }
         }
         // The staged state from the index and the records
@@ -1028,10 +1082,10 @@ SaveOpenResult SaveDirectory::open()
             const bool needRecord = ie.kind == kRecordKindSpace || ie.summary.needsRecord();
             if (needRecord)
             {
-                bool isCorrupt = false;
-                if (!readRecord(*fs, *ie.location, ie.key, rc, e, &isCorrupt))
+                ReadStatus status = ReadStatus::Ok;
+                if (!readRecord(*fs, *ie.location, ie.key, rc, e, &status))
                 {
-                    if (!isCorrupt) return fail(where + ": " + e);
+                    if (status != ReadStatus::Corrupt) return fail(where + ": " + e);
                     corrupt        = true;
                     lastCorruption = where + ": " + e;
                     break;

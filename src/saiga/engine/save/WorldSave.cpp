@@ -242,8 +242,10 @@ std::vector<uint8_t> World::saveBlob(bool worldStateForm) const
         {
             const GroupBytes b = bytesOf(c, g);
             w.write(numberOf(g.schema));
-            w.write(uint64_t(b->size()));
-            out.insert(out.end(), b->begin(), b->end());
+            // Without asserts an unreadable group is written empty: the blob's load refuses it with a message instead
+            // of this save dereferencing null
+            w.write(uint64_t(b ? b->size() : 0));
+            if (b) out.insert(out.end(), b->begin(), b->end());
         };
         w.write(uint32_t(store->chunksWithGroups()));
         for (const auto& [c, e] : store->chunks())

@@ -62,8 +62,9 @@ struct RecordContent
     RecordGroup spaceGroup;
 };
 
-// The whole record (header, zstd payload, checksum)
-SAIGA_ENGINE_API void encodeRecord(const RecordContent& content, int zstdLevel, std::vector<uint8_t>& out);
+// The whole record (header, zstd payload, checksum); false (nothing usable in out) when the uncompressed payload
+// exceeds kMaxUncompressedPart, which the decoder would refuse: such a record must not be committed
+SAIGA_ENGINE_API bool encodeRecord(const RecordContent& content, int zstdLevel, std::vector<uint8_t>& out);
 // A whole record: the checksum, the header (magic, format, kind), the payload's frame and sections
 SAIGA_ENGINE_API bool decodeRecord(const uint8_t* data, size_t size, RecordContent& out, std::string& error);
 // Only the header of a record (the open compares it with its index entry)
@@ -130,7 +131,8 @@ struct WorldFile
     std::vector<uint8_t> blob;   // the world-state blob
     std::vector<uint8_t> index;  // the encoded CIDX
 };
-SAIGA_ENGINE_API void encodeWorldFile(const WorldFile& file, int zstdLevel, std::vector<uint8_t>& out);
+// false when a part exceeds kMaxUncompressedPart (as encodeRecord)
+SAIGA_ENGINE_API bool encodeWorldFile(const WorldFile& file, int zstdLevel, std::vector<uint8_t>& out);
 // false: corruption (checksum, framing); the caller tries the next candidate
 SAIGA_ENGINE_API bool decodeWorldFile(const std::vector<uint8_t>& bytes, WorldFile& out, std::string& error);
 

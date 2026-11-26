@@ -56,6 +56,10 @@ void World::unloadSpaceNow(SpaceId space)
         g.schema = table;
         g.hash   = fnv1a64Bytes(res.bytes.data(), res.bytes.size());
         g.bytes  = std::make_shared<const std::vector<uint8_t>>(std::move(res.bytes));
+        // The space record holds one group: a stored group that failed to reload earlier (kept, G14) is replaced by the
+        // state the space had now, which superseded it (only groups[0] is ever loaded)
+        std::vector<StoredGroup> previous;
+        store->takeGroups(spaceRecordKey(space), previous);
         store->addGroup(spaceRecordKey(space), std::move(g));
         unloadRecords = true;
         try

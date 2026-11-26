@@ -93,8 +93,9 @@ inline bool isSpaceRecordKey(const ChunkId& c)
 // The region of a chunk (space records: region (0, 0))
 inline int32_t regionOf(int32_t chunkCoordinate)
 {
-    return chunkCoordinate >= 0 ? chunkCoordinate / kStoreRegionChunks
-                                : -((-chunkCoordinate + kStoreRegionChunks - 1) / kStoreRegionChunks);
+    // In 64 bits: a crafted index may carry INT32_MIN, whose negation overflows in 32 bits (the range check follows)
+    const int64_t c = chunkCoordinate;
+    return int32_t(c >= 0 ? c / kStoreRegionChunks : -((-c + kStoreRegionChunks - 1) / kStoreRegionChunks));
 }
 
 // One region file generation

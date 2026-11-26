@@ -356,6 +356,35 @@ TEST(SaveDirectory, CorruptNewestUsesBackup)
     EXPECT_FALSE(v.hasSaveDirectory());
 }
 
+// Regression (review round 1): a world-state file of a newer format with a valid checksum was treated as corruption,
+// renamed to .corrupt and its records truncated away; it is an open error that changes nothing
+TEST(SaveDirectory, NewerFormatIsAnErrorNotCorruption)
+{
+    Scene sc = makeScene();
+    World& w = *sc.w;
+    auto fs  = std::make_shared<MemorySaveFileSystem>();
+    ASSERT_TRUE(w.openSaveDirectory("mem", memOptions(fs)).ok);
+    w.editTerrain(0, addBrush(1152 + 256, 1152));
+    ASSERT_EQ(w.commit(), 2u);
+    w.closeSaveDirectory();
+    // world.2.sgw with format 2 (the u32 after the magic) and a recomputed trailer
+    std::vector<uint8_t> bytes = fs->fileBytes("world.2.sgw");
+    bytes[4]                   = 2;
+    bytes.resize(bytes.size() - 8);
+    appendTrailer(bytes);
+    fs->putFile("world.2.sgw", bytes);
+    const std::vector<std::string> before = fs->files();
+    World v(unloadTestSetup());
+    v.setStreamingSynchronous(true);
+    const std::vector<uint8_t> fresh = v.save();
+    const SaveOpenResult o           = v.openSaveDirectory("mem", memOptions(fs));
+    EXPECT_FALSE(o.ok);
+    EXPECT_FALSE(o.usedBackup);
+    EXPECT_EQ(fs->files(), before);
+    EXPECT_EQ(fs->fileBytes("world.2.sgw"), bytes);
+    EXPECT_EQ(v.save(), fresh);
+}
+
 TEST(SaveDirectory, NeverAdoptsOverASave)
 {
     auto tryOpen = [](std::shared_ptr<MemorySaveFileSystem> fs)
@@ -481,7 +510,7 @@ TEST(SaveDirectory, RecordErrors)
         rc.hasRecord        = true;
         rc.placementVersion = 1;
         std::vector<uint8_t> bytes;
-        encodeRecord(rc, 1, bytes);
+        ASSERT_TRUE(encodeRecord(rc, 1, bytes));
         RecordContent out;
         std::string e;
         ASSERT_TRUE(decodeRecord(bytes.data(), bytes.size(), out, e)) << e;

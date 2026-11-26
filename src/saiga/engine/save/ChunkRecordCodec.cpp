@@ -102,7 +102,7 @@ bool zstdDecompress(const uint8_t* data, size_t size, std::vector<uint8_t>& out,
 
 // ---- records
 
-void encodeRecord(const RecordContent& c, int zstdLevel, std::vector<uint8_t>& out)
+bool encodeRecord(const RecordContent& c, int zstdLevel, std::vector<uint8_t>& out)
 {
     std::vector<uint8_t> payload;
     if (c.kind == kRecordKindChunk)
@@ -153,6 +153,7 @@ void encodeRecord(const RecordContent& c, int zstdLevel, std::vector<uint8_t>& o
                     w.write(c.spaceGroup.schema);
                     writeBytes(w, payload, *c.spaceGroup.bytes);
                 });
+    if (payload.size() > kMaxUncompressedPart) return false;
     std::vector<uint8_t> frame;
     zstdCompress(payload.data(), payload.size(), zstdLevel, frame);
     const size_t start = out.size();
@@ -170,6 +171,7 @@ void encodeRecord(const RecordContent& c, int zstdLevel, std::vector<uint8_t>& o
     out.insert(out.end(), frame.begin(), frame.end());
     const uint64_t h = fnv1a64Bytes(out.data() + start, out.size() - start);
     w.write(h);
+    return true;
 }
 
 bool decodeRecordHeader(const uint8_t* data, size_t size, RecordHeader& out, std::string& error)
@@ -638,9 +640,10 @@ bool decodeDirHeader(const std::vector<uint8_t>& bytes, std::string& engineVersi
 
 // ---- the world-state file
 
-void encodeWorldFile(const WorldFile& f, int zstdLevel, std::vector<uint8_t>& out)
+bool encodeWorldFile(const WorldFile& f, int zstdLevel, std::vector<uint8_t>& out)
 {
     out.clear();
+    if (f.blob.size() > kMaxUncompressedPart || f.index.size() > kMaxUncompressedPart) return false;
     BinaryWriter w(out);
     w.write(kTagWorldFile);
     w.write(kWorldFileFormat);
@@ -655,6 +658,7 @@ void encodeWorldFile(const WorldFile& f, int zstdLevel, std::vector<uint8_t>& ou
         out.insert(out.end(), frame.begin(), frame.end());
     }
     appendTrailer(out);
+    return true;
 }
 
 bool decodeWorldFile(const std::vector<uint8_t>& bytes, WorldFile& out, std::string& error)
