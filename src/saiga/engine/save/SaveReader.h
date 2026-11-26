@@ -77,7 +77,38 @@ struct ParsedSave
     std::optional<Range> terrain;                    // TERR (parseTerrainSection)
     std::optional<GenerationSection> generation;     // GENR (S23a)
     std::optional<ChunkRecordSection> chunkRecords;  // CREC (S23a)
+    std::optional<Range> storedGroups;               // EGRP (S25; parseStoredGroups)
 };
+
+// EGRP format 1 (S25): the extra schema tables (number 0 is the blob's SCHM), the chunks with groups and the unloaded
+// spaces. Structure only (sorted unique chunks and spaces, table numbers in range, group forms structurally valid); the
+// loader checks the rest against the world
+struct StoredGroupsSection
+{
+    std::vector<SchemaTable> extraTables;
+    struct Group
+    {
+        uint32_t table = 0;
+        std::vector<uint8_t> bytes;
+    };
+    struct Chunk
+    {
+        ChunkId chunk;
+        std::vector<Group> groups;
+    };
+    std::vector<Chunk> chunks;
+    struct Space
+    {
+        SpaceId space = 0;
+        bool hasGroup = false;
+        Group group;
+    };
+    std::vector<Space> spaces;
+};
+constexpr uint32_t kStoredGroupsSectionVersion = 1;
+// The section's bytes after its version (ParsedSave::storedGroups' range); schema: the blob's SCHM
+SAIGA_ENGINE_API bool parseStoredGroups(const uint8_t* data, size_t size, uint32_t version, const SchemaTable& schema,
+                                        StoredGroupsSection& out, std::string& error);
 
 SAIGA_ENGINE_API bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& error);
 // SPCE format 1 (the one signature of the optional-section parsers: parseX(BinaryReader&, version, X&, error)): at

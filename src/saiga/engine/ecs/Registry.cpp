@@ -379,6 +379,16 @@ void Registry::addStaged(Entity e, ComponentId id, StagedValues& stage)
     slots[e.index].mask.set(id);
 }
 
+void Registry::addStagedAt(Entity e, ComponentId id, StagedValues& stage, size_t i)
+{
+    checkNotIterating("add");
+    checkAlive(e, "add");
+    SAIGA_ASSERT(id != Transform::id && infos[id].registered && pools[id], "addStagedAt: not a registered pool");
+    SAIGA_ASSERT(!pools[id]->has(e.index), "add: " + describe(e) + " already has " + infos[id].name);
+    pools[id]->emplaceStagedAt(e, stage, i);
+    slots[e.index].mask.set(id);
+}
+
 void Registry::removeById(Entity e, ComponentId id)
 {
     checkNotIterating("remove");

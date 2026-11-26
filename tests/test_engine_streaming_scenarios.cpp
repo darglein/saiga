@@ -163,18 +163,25 @@ void registerStreamingScenarios(ScenarioList& s)
           {
               const Vec3 start(1150, 0, 1400);
               const Entity player = w.spawnPlayer(start);
-              const Entity nearT  = w.spawn<Ticker>(start + Vec3(40, 0, 0));
-              const Entity farT   = w.spawn<Ticker>(start + Vec3(-100, 0, 0));
+              // S25: by PersistentId (the host extrapolates an owner-side teleport for a few steps in the delayed
+              // variants, S16: the transient pose can unload the tickers, which reload when the player arrives)
+              const PersistentId nearT = w.world().makePersistent(w.spawn<Ticker>(start + Vec3(40, 0, 0)));
+              const PersistentId farT  = w.world().makePersistent(w.spawn<Ticker>(start + Vec3(-100, 0, 0)));
+              auto ticks               = [&](PersistentId id)
+              {
+                  const Entity e = w.world().resolve(id);
+                  return e.valid() ? w.world().read<TickCount>(e).updates : 0u;
+              };
               w.step(10);
-              w.check(w.world().read<TickCount>(nearT).updates > 0, "the near one ticks");
-              w.check(w.world().read<TickCount>(farT).updates == 0, "the far one is frozen");
+              w.check(ticks(nearT) > 0, "the near one ticks");
+              w.check(ticks(farT) == 0, "the far one is frozen");
               w.check(teleportPlayerOnOwner(w, player, start + Vec3(-100, 0, 5)), "at the far one");
               w.step(3);
-              const uint32_t nearCount = w.world().read<TickCount>(nearT).updates;
-              const uint32_t farCount  = w.world().read<TickCount>(farT).updates;
+              const uint32_t nearCount = ticks(nearT);
+              const uint32_t farCount  = ticks(farT);
               w.step(10);
-              w.check(w.world().read<TickCount>(farT).updates > farCount, "the far one ticks now");
-              w.check(w.world().read<TickCount>(nearT).updates == nearCount, "the near one (now far) stopped");
+              w.check(ticks(farT) > farCount, "the far one ticks now");
+              w.check(ticks(nearT) == nearCount, "the near one (now far) stopped");
           });
 
     // request_arrival 3 km away: the player is at the target exactly one step later (synchronous), the target's chunks

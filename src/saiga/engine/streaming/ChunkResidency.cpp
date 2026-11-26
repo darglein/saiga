@@ -111,7 +111,49 @@ uint8_t ChunkResidency::partsWanted(const ChunkId& chunk) const
     if (w.spaceHasTerrain(chunk.space)) parts |= PartBase;
     const GeneratorList::Entry* g = w.generators().find(w.generation().space(chunk.space).generatorId);
     if (g && !g->slots.empty()) parts |= PartPlacement;
+    for (const ResidencyPartInfo& p : this->parts)
+        if (p.wanted && p.wanted(chunk)) parts |= p.bit;
     return parts;
+}
+
+void ChunkResidency::addPart(ResidencyPartInfo part)
+{
+    SAIGA_ASSERT(part.bit > PartPlacement && (part.bit & (part.bit - 1)) == 0, "addPart: a new single bit");
+    for (const ResidencyPartInfo& p : parts) SAIGA_ASSERT(p.bit != part.bit, "addPart: the bit is taken");
+    parts.push_back(std::move(part));
+}
+
+void ChunkResidency::requestParts()
+{
+    // The added parts of requested chunks (S25): asynchronous requests at the chunk's priority, nearest first
+    for (const ChunkId& c : requestedSet)
+    {
+        Entry& e = entries[c];
+        for (const ResidencyPartInfo& p : parts)
+        {
+            if (!(e.wanted & p.bit) || (e.partsDone & p.bit) || (e.partsRequested & p.bit)) continue;
+            e.partsRequested |= p.bit;
+            if (e.partSerial == 0) e.partSerial = ++nextSerial;
+            shared->partsInFlight++;
+            const int priority =
+                e.required ? -100000 + int(std::min(e.distance, 1e6)) : 50000 + int(std::min(e.distance, 1e6));
+            const std::shared_ptr<Shared> sh = shared;
+            const uint64_t generation        = shared->generation;
+            const uint64_t serial            = e.partSerial;
+            const uint8_t bit                = p.bit;
+            p.request(c, priority,
+                      [sh, generation, serial, bit, c]()
+                      {
+                          if (sh->generation != generation) return;
+                          sh->partsInFlight--;
+                          Delivery d;
+                          d.chunk  = c;
+                          d.serial = serial;
+                          d.parts  = bit;
+                          sh->deliveries.push_back(std::move(d));
+                      });
+        }
+    }
 }
 
 bool ChunkResidency::kept(const ChunkId& chunk) const
@@ -324,6 +366,35 @@ void ChunkResidency::requestPart(int limit)
                 if (d <= R) requiredSet.insert(id);
             }
     }
+    // S25: the kept discs (every chunk within the kept distance of a centre) and their flips, in ChunkId order
+    {
+        std::set<ChunkId> keptNow;
+        for (const auto& kv : nearest) keptNow.insert(keptNow.end(), kv.first);
+        bool any = false;
+        for (const auto& l : listeners) any = any || bool(l.second.onKeptChanged);
+        if (any)
+        {
+            std::vector<std::pair<ChunkId, bool>> flips;
+            auto a = keptSet.begin();
+            auto b = keptNow.begin();
+            while (a != keptSet.end() || b != keptNow.end())
+            {
+                if (b == keptNow.end() || (a != keptSet.end() && *a < *b))
+                    flips.push_back({*a++, false});
+                else if (a == keptSet.end() || *b < *a)
+                    flips.push_back({*b++, true});
+                else
+                {
+                    ++a;
+                    ++b;
+                }
+            }
+            for (const auto& [c, k] : flips)
+                for (const auto& l : listeners)
+                    if (l.second.onKeptChanged) l.second.onKeptChanged(c, k);
+        }
+        keptSet.swap(keptNow);
+    }
     // Unloads: beyond the kept distance of every centre (G2: jobs cancelled, the tile unpinned, the placement released)
     for (auto it = entries.begin(); it != entries.end();)
     {
@@ -360,6 +431,7 @@ void ChunkResidency::requestPart(int limit)
         }
         return;
     }
+    requestParts();
     StreamingPool* pool = w.terrain().poolCreated() ? &w.terrain().streamingPool() : nullptr;
     // A queued prefetch job whose chunk became required is cancelled and resubmitted at the required priority (the pool
     // cannot re-prioritise; a running one is left alone)
@@ -374,8 +446,9 @@ void ChunkResidency::requestPart(int limit)
     std::vector<std::tuple<int, int, ChunkId>> candidates;
     for (const ChunkId& c : requestedSet)
     {
-        const Entry& e = entries[c];
-        if (e.partsDone == e.wanted || e.jobId != 0) continue;
+        const Entry& e     = entries[c];
+        const uint8_t core = uint8_t(e.wanted & (PartBase | PartPlacement));
+        if ((e.partsDone & core) == core || e.jobId != 0) continue;
         candidates.push_back({e.required ? 0 : 1, int(std::min(e.distance, 1e6)), c});
     }
     std::sort(candidates.begin(), candidates.end());
@@ -474,6 +547,14 @@ void ChunkResidency::buildInline(const ChunkId& chunk, Entry& e)
         e.placement = w.generation().chunkPlacement(chunk, e.version);
         e.partsDone |= PartPlacement;
     }
+    // S25: the added parts inline
+    for (const ResidencyPartInfo& p : parts)
+    {
+        if (!(e.wanted & p.bit) || (e.partsDone & p.bit)) continue;
+        p.build(chunk);
+        e.partsDone |= p.bit;
+        e.partsRequested = uint8_t(e.partsRequested & ~p.bit);
+    }
     e.jobId = 0;
     statistics.syncBuilt++;
 }
@@ -487,6 +568,19 @@ void ChunkResidency::applyDeliveries()
     for (Delivery& d : list)
     {
         auto it = entries.find(d.chunk);
+        if (d.parts)
+        {
+            // S25: an added part (an unloaded chunk or a later request of it: another serial)
+            if (it == entries.end() || it->second.partSerial != d.serial || !(it->second.partsRequested & d.parts))
+            {
+                statistics.resultsDropped++;
+                continue;
+            }
+            it->second.partsDone |= d.parts;
+            it->second.partsRequested = uint8_t(it->second.partsRequested & ~d.parts);
+            statistics.applied++;
+            continue;
+        }
         // Only the entry and the serial decide: an unload erases the entry and a version change bumps the serial. The
         // cancel flag alone does not, since the promotion of a prefetch chunk to required "cancels" a running job too
         // (StreamingPool::cancel only flags it); dropping that result would leave the chunk Requested for ever.
@@ -522,16 +616,22 @@ void ChunkResidency::applyDeliveries()
 
 void ChunkResidency::promote()
 {
+    std::vector<ChunkId> promoted;
     for (auto& [c, e] : entries)
     {
         if (e.state != ChunkState::Requested || e.partsDone != e.wanted) continue;
         e.state = ChunkState::Resident;
+        promoted.push_back(c);
         if (e.base && !e.pinned)
         {
             w.terrain().pinSimulationTile(c, e.base);
             e.pinned = true;
         }
     }
+    // S25: onResident in ChunkId order
+    for (const ChunkId& c : promoted)
+        for (const auto& l : listeners)
+            if (l.second.onResident) l.second.onResident(c);
 }
 
 void ChunkResidency::notifyReadyChanges()
@@ -559,6 +659,8 @@ void ChunkResidency::unload(const ChunkId& chunk, Entry& e)
     }
     for (const auto& l : listeners)
         if (l.second.onUnload) l.second.onUnload(chunk);
+    for (const ResidencyPartInfo& p : parts)
+        if ((e.wanted & p.bit) && p.drop) p.drop(chunk);
     if (e.jobId != 0 && w.terrain().poolCreated() && w.terrain().streamingPool().cancel(e.jobId)) shared->inFlight--;
     if (e.pinned) w.terrain().unpinSimulationTile(chunk);
     statistics.unloaded++;
@@ -686,7 +788,7 @@ bool ChunkResidency::complete(double timeoutSeconds)
         if (!pool.runOneOnCaller())
         {
             if (pool.queued() == 0 && pool.running() == 0 && pool.finished() == 0 && shared->inFlight == 0 &&
-                shared->deliveries.empty())
+                shared->partsInFlight == 0 && shared->deliveries.empty())
             {
                 // Nothing can arrive: request again (a dropped result); stop if that submits nothing
                 requestPart(unlimited);
@@ -719,8 +821,10 @@ void ChunkResidency::dropAll()
     requiredSet.clear();
     currentCentres.clear();
     clientArrivals.clear();
+    keptSet.clear();
     shared->generation++;
-    shared->inFlight = 0;
+    shared->inFlight      = 0;
+    shared->partsInFlight = 0;
     shared->deliveries.clear();
     updateCurrentStats();
 }

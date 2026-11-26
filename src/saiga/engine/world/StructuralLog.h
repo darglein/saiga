@@ -35,6 +35,9 @@ class SAIGA_ENGINE_API StructuralLog
         Entity entity;
         ComponentId component = 0;
         bool added            = false;
+        // S25: a removal by the engine's unload (the entity went into an entity group of its chunk, no onDestroy);
+        // consumers that do not care treat it as a removal (replication sends Despawn instead of Destroy)
+        bool unloaded = false;
     };
 
     // Records reserved by prepare: append publishes one without allocation; the slots not appended are given back
@@ -45,12 +48,12 @@ class SAIGA_ENGINE_API StructuralLog
         Prepared(const Prepared&)            = delete;
         Prepared& operator=(const Prepared&) = delete;
         ~Prepared() { log.reserved -= left; }
-        void append(Entity e, ComponentId component, bool added)
+        void append(Entity e, ComponentId component, bool added, bool unloaded = false)
         {
             SAIGA_ASSERT(left > 0, "StructuralLog: more records appended than prepared");
             left--;
             log.reserved--;
-            log.records.push_back(Record{e, component, added});
+            log.records.push_back(Record{e, component, added, unloaded});
         }
 
        private:

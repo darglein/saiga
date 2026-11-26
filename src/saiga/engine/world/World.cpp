@@ -28,6 +28,11 @@
 #include "saiga/engine/gameplay/Systems.h"
 #include "saiga/engine/net/Replication.h"
 #include "saiga/engine/net/Varint.h"
+#include "saiga/engine/save/ChunkStore.h"
+#include "saiga/engine/save/EntityUnloading.h"
+#include "saiga/engine/save/SaveDirectory.h"
+#include "saiga/engine/save/SaveDirectoryFormat.h"
+#include "saiga/engine/save/Systems.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/streaming/Systems.h"
@@ -126,6 +131,15 @@ World::World(const WorldSetup& setup)
     residencyPtr = std::make_unique<ChunkResidency>(*this);
     simulation   = std::make_unique<SimulationSet>(*this);
     if (config.streaming) simulation->attach();
+    // S25: the chunk store (every world), the unloading (a streaming host, G18); the pool notifies the IO lane before
+    // a reset
+    store     = std::make_unique<ChunkStore>();
+    unloading = std::make_unique<EntityUnloading>(*this);
+    if (config.streaming && setup.role == NetRole::Host) unloading->attach();
+    terrainSys->beforePoolReset = [this]()
+    {
+        if (saveDir) saveDir->beforePoolReset();
+    };
 
     // Engine lists first, then the game's (§7.9, §18.2)
     registerEngineComponents(reg, setup);
@@ -144,12 +158,20 @@ World::World(const WorldSetup& setup)
     {
         systems.add(Phase::Streaming, "streaming", streamingSystem, RunOn::Both);
         systems.add(Phase::Streaming, "simulation", simulationSystem, RunOn::Both);
+        // S25: the state entities of spaces that got a centre, before stamping and the chunk reloads
+        systems.add(Phase::Streaming, "space_load", spaceLoadSystem, RunOn::Host);
     }
     // S23a: prefab stamping, the first system of phase 7, when some plan has sites or a generator in use is not legacy
     // (a load can replace the plans with the saved pins' plans, which may have sites; PR review: they were never
     // stamped); before setupProfiler: it gets its profiler scope. Legacy worlds (no sites possible) have neither
     if (pipeline->plans().anySites || pipeline->nonLegacy())
         systems.add(Phase::Streaming, "chunk_stamp", chunkStampSystem, RunOn::Host);
+    // S25: the reloads, the records of resident chunks and the one unload pass; then the space unloads
+    if (config.streaming)
+    {
+        systems.add(Phase::Streaming, "chunk_entities", chunkEntitySystem, RunOn::Host);
+        systems.add(Phase::Streaming, "space_unload", spaceUnloadSystem, RunOn::Host);
+    }
     if (setup.systems) setup.systems(systems);
 
     if (setup.classes) setup.classes(classes);
@@ -625,6 +647,8 @@ void World::moveToSpace(Entity e, SpaceId space, const Vec3& position, const Qua
         SAIGA_ASSERT(false, "moveToSpace: a client cannot move a replicated entity (or a subtree with one)");
         return;
     }
+    // S25: an unloaded target space loads at once (a command during a step: at the phase's flush)
+    if (isHost() && store->spaceUnloaded(space)) loadSpaceNow(space);
     if (isHost())
         repl->ownerMove(e, space, position, rotation);
     else
@@ -1017,6 +1041,8 @@ void World::setContentRenderSettings(const ContentRenderSettings& settings)
 
 void World::onRecordChanged(const ChunkId& chunk)
 {
+    // S25: the chunk's record differs from the newest commit (host; a no-op without a save directory)
+    if (isHost()) store->markDirty(chunk);
     contentRenderSys->recordChanged(chunk);
     // The chunk's generator grass mask (a placement-version change)
     terrainSys->recordChanged(chunk);
@@ -1098,6 +1124,22 @@ void World::editTerrain(SpaceId space, const TerrainBrush& brush)
 void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
 {
     if (box.empty()) return;
+    // S25: every chunk whose closed range intersects the box differs from the newest commit (host, with a directory)
+    if (isHost() && store->trackingDirty() && space < terrainEditStore->spaceCount())
+    {
+        const int64_t S = terrainEditStore->chunkSamples(space), n = terrainEditStore->sizeChunks(space);
+        const int64_t x0 = std::max<int64_t>(0, (box.i0 + S - 1) / S - 1), x1 = std::min<int64_t>(n - 1, box.i1 / S);
+        const int64_t z0 = std::max<int64_t>(0, (box.k0 + S - 1) / S - 1), z1 = std::min<int64_t>(n - 1, box.k1 / S);
+        for (int64_t z = z0; z <= z1; ++z)
+            for (int64_t x = x0; x <= x1; ++x)
+            {
+                ChunkId id;
+                id.space = space;
+                id.x     = int32_t(x);
+                id.z     = int32_t(z);
+                store->markDirty(id);
+            }
+    }
     TerrainChange c;
     c.space = space;
     c.box   = box;
@@ -1145,6 +1187,8 @@ double World::spaceReadiness(SpaceId space, const Vec3& camera, double radius) c
 
 World::~World()
 {
+    // S25: an in-flight commit is finished (no new one is made)
+    if (saveDir) saveDir->waitForCommits();
     // Observers (the world API, waiting tools) stop using the world
     for (auto& l : destroyListeners) l.second();
     // Before the structural log (a member declared after it): its consumer goes; the sink is not called
@@ -1378,7 +1422,7 @@ void World::destroyOne(Entity e)
         if (x.index < children.size()) children[x.index] = 0;
         // One removed record per component in ID order, Transform first
         for (size_t id = 0; id < kMaxComponents; ++id)
-            if (m.test(ComponentId(id))) prepared.append(x, ComponentId(id), false);
+            if (m.test(ComponentId(id))) prepared.append(x, ComponentId(id), false, unloadRecords);
         if (m.test(Parent::id) || doomed.size() > 1) hierarchyDirty = true;
         if (m.test(Parent::id) || m.test(NetOwner::id) || doomed.size() > 1) ownerCacheDirty = true;
     }
@@ -1743,6 +1787,8 @@ void World::step(int n)
         runStep();
         // After runStep: its step timer has stopped
         prof.endSample();
+        // S25: a requested or automatic commit, the IO lane's completions (between steps, before the listeners)
+        if (saveDir) saveDir->afterStep();
         runStepListeners();
     }
 }
@@ -1767,6 +1813,7 @@ void World::advance(double frameDt)
             runStep();
             // After runStep: its step timer has stopped
             prof.endSample();
+            if (saveDir) saveDir->afterStep();
             runStepListeners();
         }
         accumulator -= stepDt;
@@ -1878,6 +1925,22 @@ uint64_t World::hash() const
             // S23b: the tombstones (only inside a record: worlds without records hash as before)
             h.addU32(uint32_t(r.tombstones.size()));
             for (const InstanceKey& k : r.tombstones) h.addU32(k.generatorSlot).addU32(k.counter);
+        }
+    }
+    // S25 (§17.4): the stored groups (their byte hashes, kept when the bytes leave memory) and the unloaded spaces;
+    // nothing without them (worlds without unloading hash as before)
+    if (store->hasContent())
+    {
+        for (const auto& [c, e] : store->chunks())
+        {
+            if (isSpaceRecordKey(c) || e.groups.empty()) continue;
+            h.addU32(c.space).addI32(c.x).addI32(c.z).addU32(uint32_t(e.groups.size()));
+            for (const StoredGroup& g : e.groups) h.addU64(g.hash);
+        }
+        for (SpaceId s : store->unloadedSpaces())
+        {
+            const ChunkEntry* e = store->entry(spaceRecordKey(s));
+            h.addU32(s).addU64(e && !e->groups.empty() ? e->groups[0].hash : 0);
         }
     }
     return h.value();

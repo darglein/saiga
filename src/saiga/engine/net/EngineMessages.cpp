@@ -56,6 +56,8 @@ void registerEngineMessages(MessageList& list)
     list.addRaw(MessageId(EngineMessage::ChunkRecordState), "ChunkRecordState", Reliability::Reliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onChunkRecordState(from, d, n); });
+    list.add<DespawnMessage>(Reliability::Reliable, [](World& w, uint8_t from, const DespawnMessage& m)
+                             { w.replication().onDespawn(from, m); });
 }
 
 }  // namespace Engine

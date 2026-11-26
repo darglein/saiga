@@ -9,6 +9,7 @@
 #include "saiga/engine/save/SaveDiff.h"
 
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/save/EntityGroup.h"
 #include "saiga/engine/save/GenericDecode.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
@@ -243,6 +244,73 @@ void diffChunkRecords(const ChunkRecordSection& a, const ChunkRecordSection& b, 
     }
 }
 
+// EGRP (S25): per chunk with groups the group count and per differing group (by bytes) its position, root class and
+// entity count ("stored_group space 0 chunk (4, 5) group 0: ..."); the unloaded spaces
+template <class Add>
+void diffStoredGroups(const SchemaTable& schemaA, const StoredGroupsSection& a, const SchemaTable& schemaB,
+                      const StoredGroupsSection& b, Add& add)
+{
+    auto tableOf = [](const SchemaTable& schm, const StoredGroupsSection& s, uint32_t t) -> const SchemaTable&
+    { return t == 0 ? schm : s.extraTables[t - 1]; };
+    auto describe = [&](const SchemaTable& schm, const StoredGroupsSection& s, const StoredGroupsSection::Group& g)
+    {
+        std::string cls;
+        uint32_t n = 0;
+        describeGroup(g.bytes, tableOf(schm, s, g.table), cls, n);
+        return Json(Json::object{{"root_class", cls}, {"entities", double(n)}, {"bytes", double(g.bytes.size())}});
+    };
+    std::map<ChunkId, const StoredGroupsSection::Chunk*> ca, cb;
+    for (const auto& c : a.chunks) ca[c.chunk] = &c;
+    for (const auto& c : b.chunks) cb[c.chunk] = &c;
+    std::set<ChunkId> keys;
+    for (const auto& kv : ca) keys.insert(kv.first);
+    for (const auto& kv : cb) keys.insert(kv.first);
+    for (const ChunkId& k : keys)
+    {
+        const std::string where =
+            "space " + std::to_string(k.space) + " chunk (" + std::to_string(k.x) + ", " + std::to_string(k.z) + ")";
+        const auto* x   = ca.count(k) ? ca[k] : nullptr;
+        const auto* y   = cb.count(k) ? cb[k] : nullptr;
+        const size_t nx = x ? x->groups.size() : 0, ny = y ? y->groups.size() : 0;
+        if (nx != ny)
+        {
+            SaveDifference d;
+            d.kind      = "stored_group";
+            d.component = where;
+            d.field     = "groups";
+            d.a         = Json(double(nx));
+            d.b         = Json(double(ny));
+            add(std::move(d));
+        }
+        for (size_t i = 0; i < std::min(nx, ny); ++i)
+        {
+            if (x->groups[i].bytes == y->groups[i].bytes) continue;
+            SaveDifference d;
+            d.kind      = "stored_group";
+            d.component = where;
+            d.field     = "group " + std::to_string(i);
+            d.a         = describe(schemaA, a, x->groups[i]);
+            d.b         = describe(schemaB, b, y->groups[i]);
+            add(std::move(d));
+        }
+    }
+    std::set<SpaceId> sa, sb;
+    for (const auto& s : a.spaces) sa.insert(s.space);
+    for (const auto& s : b.spaces) sb.insert(s.space);
+    if (sa != sb)
+    {
+        Json::array ja, jb;
+        for (SpaceId s : sa) ja.push_back(double(s));
+        for (SpaceId s : sb) jb.push_back(double(s));
+        SaveDifference d;
+        d.kind      = "stored_group";
+        d.component = "unloaded spaces";
+        d.a         = Json(ja);
+        d.b         = Json(jb);
+        add(std::move(d));
+    }
+}
+
 // TERR (S22): per chunk with terrain state, one-sided chunks, sequence differences and per chunk the number of
 // differing delta samples with the first one ("terrain space 0 chunk (1, 2): ...")
 template <class Add>
@@ -344,7 +412,7 @@ std::string SaveDifference::describe() const
         return e + " " + component + " only in " + kind.substr(18);
     if (kind == "terrain")
         return "terrain " + component + (field.empty() ? "" : " " + field) + ": " + short_(a) + " != " + short_(b);
-    if (kind == "generation" || kind == "record")
+    if (kind == "generation" || kind == "record" || kind == "stored_group")
         return kind + " " + component + (field.empty() ? "" : " " + field) + ": " + short_(a) + " != " + short_(b);
     if (kind == "space")
         return "space " + field + ": " + (a.is_string() ? a.string_value() : "none") + " vs " +
@@ -463,6 +531,29 @@ SaveDiff diffSaves(const std::vector<uint8_t>& a, const std::vector<uint8_t>& b,
             return result;
         }
         diffTerrain(ta, tb, add);
+    }
+    // EGRP (S25): chunks with groups on one side, group count differences, per differing group its position, root class
+    // and entity count; unloaded space differences
+    section(kTagStoredGroups, pa.storedGroups.has_value(), pb.storedGroups.has_value());
+    if (pa.storedGroups || pb.storedGroups)
+    {
+        StoredGroupsSection ga, gb;
+        std::string e;
+        if (pa.storedGroups &&
+            !parseStoredGroups(a.data() + pa.storedGroups->begin, pa.storedGroups->end - pa.storedGroups->begin,
+                               pa.storedGroups->version, pa.schema, ga, e))
+        {
+            result.error = "a: " + e;
+            return result;
+        }
+        if (pb.storedGroups &&
+            !parseStoredGroups(b.data() + pb.storedGroups->begin, pb.storedGroups->end - pb.storedGroups->begin,
+                               pb.storedGroups->version, pb.schema, gb, e))
+        {
+            result.error = "b: " + e;
+            return result;
+        }
+        diffStoredGroups(pa.schema, ga, pb.schema, gb, add);
     }
     {
         std::map<std::string, bool> names;

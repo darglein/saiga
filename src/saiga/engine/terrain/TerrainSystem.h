@@ -206,6 +206,9 @@ class SAIGA_ENGINE_API TerrainSystem
     // edited masks, the dirty queue) and the sink's terrain is cleared (clearTerrain): the view's pyramid and tiles are
     // requested again
     void replaceSources(std::vector<TerrainHeightSource> sources, std::vector<ContentSource> content = {});
+    // S25: called before replaceSources resets the pool (the save directory's IO lane: its outstanding job's completion
+    // is discarded)
+    std::function<void()> beforePoolReset;
     // Engine-internal (S23b): the effective placement version of a chunk (World::effectivePlacementVersion)
     void setPlacementVersions(std::function<uint16_t(const ChunkId&)> fn) { placementVersionOf = std::move(fn); }
     // Engine-internal (S23b, World::onRecordChanged): a chunk's placement version may have changed; its generator mask

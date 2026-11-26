@@ -42,11 +42,25 @@ enum class ChunkState : uint8_t
     Requested,
     Resident
 };
-// The parts of a chunk's residency (S25 adds PartStored = 4, S28 PartColliders = 8)
+// The parts of a chunk's residency (S25 adds PartStored = 4 through addPart, S28 PartColliders = 8)
 enum ResidencyPart : uint8_t
 {
     PartBase      = 1,
-    PartPlacement = 2
+    PartPlacement = 2,
+    PartStored    = 4
+};
+
+// A residency part added by a consumer (S25: the chunk store's stored groups; S28 the colliders): wanted per chunk at
+// its request; built inline in synchronous mode, else requested (done() on the main thread applies it, e.g. from a
+// pool completion: the chunk becomes Resident only with every wanted part); dropped when the chunk unloads
+struct ResidencyPartInfo
+{
+    uint8_t bit = 0;
+    std::function<bool(const ChunkId&)> wanted;
+    std::function<void(const ChunkId&)> build;
+    // priority: the chunk's residency priority (required -100000 + d, prefetch 50000 + d)
+    std::function<void(const ChunkId&, int priority, std::function<void()> done)> request;
+    std::function<void(const ChunkId&)> drop;
 };
 
 // A streaming centre (G4): the root's world position (also a held player at its current position) or the target of a
@@ -72,6 +86,10 @@ struct ResidencyListener
     std::function<void(const ChunkId&)> onUnload;
     // ready() flipped (G7)
     std::function<void(const ChunkId&, bool)> onReadyChanged;
+    // S25: the chunk became Resident
+    std::function<void(const ChunkId&)> onResident;
+    // S25: kept() flipped, defined over the kept discs of the centres (also chunks that were never requested)
+    std::function<void(const ChunkId&, bool)> onKeptChanged;
 };
 
 // One chunk's residency for the tools (streaming_status)
@@ -124,6 +142,8 @@ class SAIGA_ENGINE_API ChunkResidency
     double islandProgress(SpaceId space, const Vec3& position) const;
     int addListener(ResidencyListener listener);
     void removeListener(int id);
+    // S25: a residency part (its bit above PartPlacement); before the first request
+    void addPart(ResidencyPartInfo part);
     // A load, replaceSources: unpins every tile it pinned, cancels its queued jobs, bumps the generation (completions
     // of running jobs deliver nothing), every chunk to None; no listener called (consumers reset themselves)
     void dropAll();
@@ -160,6 +180,9 @@ class SAIGA_ENGINE_API ChunkResidency
         uint32_t sequence = 0;
         uint64_t jobId    = 0;  // 0: no job in flight
         bool jobRequired  = false;
+        // S25: the added parts requested and not delivered yet, and the serial of their requests
+        uint8_t partsRequested = 0;
+        uint64_t partSerial    = 0;
         std::shared_ptr<const ChunkBase> base;
         std::shared_ptr<const ChunkPlacement> placement;
         bool pinned = false;
@@ -170,12 +193,14 @@ class SAIGA_ENGINE_API ChunkResidency
         uint64_t serial = 0;
         std::shared_ptr<const ChunkBase> base;
         std::shared_ptr<const ChunkPlacement> placement;
+        uint8_t parts = 0;  // S25: an added part's delivery (serial: the entry's partSerial)
     };
     // Shared with the jobs' completions (never the residency: the pool may outlive it)
     struct Shared
     {
         uint64_t generation = 0;
         int inFlight        = 0;
+        int partsInFlight   = 0;  // S25: requests of added parts
         std::vector<Delivery> deliveries;
     };
     struct ClientArrival
@@ -189,6 +214,10 @@ class SAIGA_ENGINE_API ChunkResidency
     World& w;
     std::map<ChunkId, Entry> entries;
     std::set<ChunkId> requestedSet, requiredSet;
+    // S25: the chunks within the kept distance of a centre (the kept discs), for onKeptChanged; the added parts
+    std::set<ChunkId> keptSet;
+    std::vector<ResidencyPartInfo> parts;
+    void requestParts();
     std::vector<StreamingCentre> currentCentres;
     std::shared_ptr<Shared> shared;
     uint64_t nextSerial = 0;

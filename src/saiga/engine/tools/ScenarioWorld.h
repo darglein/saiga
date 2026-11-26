@@ -168,7 +168,9 @@ class SAIGA_ENGINE_API ScenarioWorld
         {
             size_t n = w->registry().aliveCount();
             if (w->worldStateEntity().valid()) n--;
-            for (SpaceId s = 0; w->spaceStateEntity(s).valid(); ++s) n--;
+            // S25: every space (an unloaded space has no state entity)
+            for (size_t s = 0; s < w->spaceCount(); ++s)
+                if (w->spaceStateEntity(SpaceId(s)).valid()) n--;
             return n;
         }
         else

@@ -36,6 +36,7 @@ enum class EngineMessage : MessageId
     GenerationState,        // raw, host -> clients, State, reliable (S23a)
     TombstoneModification,  // raw, host -> clients, State, reliable (S23b)
     ChunkRecordState,       // raw, host -> clients, State, reliable (S23b)
+    Despawn,                // host -> clients, State, reliable (S25: an unloaded entity, no callbacks)
     Count,
     FirstGame = 64,
 };

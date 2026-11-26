@@ -9,6 +9,7 @@
 #include "saiga/engine/save/SaveReader.h"
 
 #include "saiga/engine/ecs/Registry.h"
+#include "saiga/engine/save/EntityGroup.h"
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/terrain/TerrainDeltaCodec.h"
 
@@ -467,6 +468,17 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
                         ok            = r.ok() && r.skip(r.remaining());
                         break;
                     }
+                case kTagStoredGroups:
+                    // S25: a raw range, parsed and checked by the loader (WorldLoader::stageStore) and diffSaves
+                    {
+                        ParsedSave::Range range;
+                        range.version    = version;
+                        range.begin      = base + r.position();
+                        range.end        = base + size_t(length);
+                        out.storedGroups = range;
+                        ok               = r.ok() && r.skip(r.remaining());
+                        break;
+                    }
                 default:
                     SAIGA_ASSERT(false, "parseSave: an optional section without a case");
                     break;
@@ -562,6 +574,83 @@ bool parseSave(const std::vector<uint8_t>& data, ParsedSave& out, std::string& e
         error = "unknown section " + tagName(tag) + " after the last one";
         return false;
     }
+    return true;
+}
+
+bool parseStoredGroups(const uint8_t* data, size_t size, uint32_t version, const SchemaTable& schema,
+                       StoredGroupsSection& out, std::string& error)
+{
+    out       = StoredGroupsSection();
+    auto fail = [&](const std::string& m)
+    {
+        error = "EGRP: " + m;
+        return false;
+    };
+    if (version != kStoredGroupsSectionVersion) return fail("version " + std::to_string(version));
+    BinaryReader r(data, size);
+    uint32_t extra = 0;
+    r.read(extra);
+    if (!r.ok() || extra > 65535) return fail("the table count does not fit");
+    out.extraTables.resize(extra);
+    for (uint32_t i = 0; i < extra; ++i)
+    {
+        std::string e;
+        if (!out.extraTables[i].read(r, e)) return fail("table " + std::to_string(i + 1) + ": " + e);
+    }
+    auto tableTypes = [&](uint32_t t) { return t == 0 ? schema.types.size() : out.extraTables[t - 1].types.size(); };
+    auto readGroup  = [&](StoredGroupsSection::Group& g, const std::string& where)
+    {
+        uint64_t length = 0;
+        r.read(g.table);
+        r.read(length);
+        if (!r.ok() || length > r.remaining()) return fail(where + ": a group does not fit");
+        if (g.table > extra) return fail(where + ": the table number " + std::to_string(g.table) + " is out of range");
+        g.bytes.assign(data + r.position(), data + r.position() + length);
+        r.skip(length);
+        GroupForm f;
+        std::string e;
+        if (!parseGroupForm(g.bytes.data(), g.bytes.size(), tableTypes(g.table), f, e)) return fail(where + ": " + e);
+        return true;
+    };
+    uint32_t chunks = 0;
+    r.read(chunks);
+    if (!r.ok() || uint64_t(chunks) * 14 > r.remaining()) return fail("the chunk count does not fit");
+    out.chunks.resize(chunks);
+    for (uint32_t i = 0; i < chunks; ++i)
+    {
+        StoredGroupsSection::Chunk& c = out.chunks[i];
+        uint32_t groups               = 0;
+        r.read(c.chunk.space);
+        r.read(c.chunk.x);
+        r.read(c.chunk.z);
+        r.read(groups);
+        const std::string where = "chunk (" + std::to_string(c.chunk.space) + ", " + std::to_string(c.chunk.x) + ", " +
+                                  std::to_string(c.chunk.z) + ")";
+        if (!r.ok() || groups == 0 || uint64_t(groups) * 12 > r.remaining())
+            return fail(where + ": the group count does not fit");
+        if (i > 0 && !(out.chunks[i - 1].chunk < c.chunk))
+            return fail(where + ": the chunks are not sorted and unique");
+        c.groups.resize(groups);
+        for (StoredGroupsSection::Group& g : c.groups)
+            if (!readGroup(g, where)) return false;
+    }
+    uint32_t spaces = 0;
+    r.read(spaces);
+    if (!r.ok() || uint64_t(spaces) * 3 > r.remaining()) return fail("the space count does not fit");
+    out.spaces.resize(spaces);
+    for (uint32_t i = 0; i < spaces; ++i)
+    {
+        StoredGroupsSection::Space& s = out.spaces[i];
+        uint8_t flag                  = 0;
+        r.read(s.space);
+        r.read(flag);
+        const std::string where = "unloaded space " + std::to_string(s.space);
+        if (!r.ok() || flag > 1) return fail(where + ": malformed");
+        if (i > 0 && s.space <= out.spaces[i - 1].space) return fail(where + ": the spaces are not sorted and unique");
+        s.hasGroup = flag == 1;
+        if (s.hasGroup && !readGroup(s.group, where)) return false;
+    }
+    if (!r.atEnd()) return fail("bytes left over");
     return true;
 }
 

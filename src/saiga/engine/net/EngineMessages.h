@@ -38,6 +38,23 @@ struct DestroyMessage
     }
 };
 
+// Host -> clients (S25, §13.4): the entity was unloaded on the host (its chunk is beyond the kept distance of every
+// centre): the client removes it with its subtree without onReplicatedDestroy and frees the NetId mapping (a reload is
+// a new spawn with new NetIds). One per entity, as Destroy; never for a bound NetId (state entities)
+struct DespawnMessage
+{
+    static constexpr MessageId id     = MessageId(EngineMessage::Despawn);
+    static constexpr const char* name = "Despawn";
+    static constexpr uint32_t version = 1;
+    static constexpr Channel channel  = Channel::State;
+    NetId netId                       = 0;
+    template <class V>
+    void visit(V& v)
+    {
+        v("netId", netId);
+    }
+};
+
 // Host -> clients: a reparenting (parent 0: the entity became a root) with the new LocalTransform
 struct HierarchyMessage
 {

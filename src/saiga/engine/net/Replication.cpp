@@ -1046,7 +1046,8 @@ void Replication::hostReplicate(bool networkOnly)
     candidates.clear();
     hierarchyNow.clear();
     changedNow.clear();
-    std::vector<NetId> destroyed;
+    // (NetId, unloaded: Despawn instead of Destroy; S25) in record order
+    std::vector<std::pair<NetId, bool>> destroyed;
     log.consume(
         logConsumer,
         [&](const StructuralLog::Record& r)
@@ -1063,8 +1064,10 @@ void Replication::hostReplicate(bool networkOnly)
                 HostSlot* s = hostSlot(e);
                 if (s && s->spawned)
                 {
-                    // Destroyed after its spawn (an entity spawned and destroyed in one step sends nothing)
-                    destroyed.push_back(s->netId);
+                    // Destroyed after its spawn (an entity spawned and destroyed in one step sends nothing). S25: an
+                    // unloaded entity is despawned; a bound NetId (an unloaded space's state entity) sends nothing,
+                    // the client keeps it and the reload's bound spawn updates it
+                    if (!r.unloaded || s->netId >= kFirstDynamicNetId) destroyed.push_back({s->netId, r.unloaded});
                     const NetId id = s->netId;
                     HostSlot& ws   = writeSlot(e.index);
                     ws.spawned     = false;
@@ -1192,9 +1195,15 @@ void Replication::hostReplicate(bool networkOnly)
 
     // 4. Destroys (after the hierarchy changes: a child moved out of a destroyed parent leaves it before the client's
     // cascade)
-    for (NetId id : destroyed)
+    for (const auto& [id, unloaded] : destroyed)
         for (uint8_t p : regularPeers)
         {
+            if (unloaded)
+            {
+                w.send(p, DespawnMessage{id});
+                counts.despawnsSent++;
+                continue;
+            }
             w.send(p, DestroyMessage{id});
             counts.destroysSent++;
         }
@@ -2072,6 +2081,22 @@ void Replication::onDestroy(uint8_t from, const DestroyMessage& m)
     if (!e.valid() || m.netId < kFirstDynamicNetId) return;
     Immediate scope(w.flushing);
     destroyReplicated(e, true);
+}
+
+void Replication::onDespawn(uint8_t from, const DespawnMessage& m)
+{
+    if (w.isHost() || from != 0)
+    {
+        w.rejectInput(from, "Despawn: only the host sends it to clients");
+        return;
+    }
+    const Entity e = entityOfNetId(m.netId);
+    // Already removed by the client's own cascade (a despawned parent): ignored; never a bound NetId
+    if (!e.valid() || m.netId < kFirstDynamicNetId) return;
+    Immediate scope(w.flushing);
+    // §13.4: no callbacks (the entity still exists in the world, only not on this peer)
+    destroyReplicated(e, false);
+    counts.despawnsApplied++;
 }
 
 void Replication::onHierarchy(uint8_t from, const HierarchyMessage& m)

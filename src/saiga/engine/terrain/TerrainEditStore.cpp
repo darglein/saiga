@@ -180,10 +180,45 @@ void TerrainEditStore::reserveBlock(SpaceId space, int64_t i, int64_t k)
                  "TerrainEditStore: sample outside the space");
     Space& s       = spaces[space];
     const auto key = blockKey(i, k);
-    if (s.blocks.count(key)) return;
+    auto it        = s.blocks.find(key);
+    if (it != s.blocks.end())
+    {
+        // S25: copy-on-write: a block a frozen commit still holds is cloned (the reserve step may allocate)
+        if (it->second.use_count() > 1) it->second = std::make_shared<TerrainEditBlock>(*it->second);
+        return;
+    }
     // The block first: a failed allocation leaves no null entry behind
-    auto b = std::make_unique<TerrainEditBlock>();
+    auto b = std::make_shared<TerrainEditBlock>();
     s.blocks.emplace(key, std::move(b));
+}
+
+void TerrainEditStore::freeze(const ChunkId& chunk, FrozenTerrain& out) const
+{
+    const Space& s = spaces[chunk.space];
+    out.N          = s.S + 1;
+    out.i0         = int64_t(chunk.x) * s.S;
+    out.k0         = int64_t(chunk.z) * s.S;
+    out.blocks.clear();
+    if (s.blocks.empty()) return;
+    for (int64_t bk = out.k0 >> 4; bk <= (out.k0 + out.N - 1) >> 4; ++bk)
+        for (int64_t bi = out.i0 >> 4; bi <= (out.i0 + out.N - 1) >> 4; ++bi)
+        {
+            auto it = s.blocks.find(blockKey(bi * 16, bk * 16));
+            if (it != s.blocks.end()) out.blocks.push_back({it->first, it->second});
+        }
+    std::sort(out.blocks.begin(), out.blocks.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+}
+
+void TerrainEditStore::FrozenTerrain::dense(std::vector<int32_t>& out) const
+{
+    out.assign(size_t(N * N), 0);
+    for (const auto& [key, b] : blocks)
+    {
+        const int64_t bi = int64_t(key & 0xFFFFFFFFu), bk = int64_t(key >> 32);
+        for (int64_t k = std::max(bk * 16, k0); k < std::min(bk * 16 + 16, k0 + N); ++k)
+            for (int64_t i = std::max(bi * 16, i0); i < std::min(bi * 16 + 16, i0 + N); ++i)
+                out[size_t((k - k0) * N + (i - i0))] = b->delta[(k & 15) * 16 + (i & 15)];
+    }
 }
 
 TerrainEditStore::EntryNode TerrainEditStore::makeEntry(const ChunkId& chunk) const
@@ -216,6 +251,7 @@ bool TerrainEditStore::writeDelta(SpaceId space, int64_t i, int64_t k, int32_t v
     }
     int32_t& slot = it->second->delta[(k & 15) * 16 + (i & 15)];
     if (slot == value) return false;
+    SAIGA_ASSERT(it->second.use_count() == 1, "TerrainEditStore::writeDelta: a frozen block (reserveFor first)");
     const int change = (value != 0 ? 1 : 0) - (slot != 0 ? 1 : 0);
     slot             = value;
     s.nonZero        = uint64_t(int64_t(s.nonZero) + change);

@@ -408,7 +408,9 @@ void WorldApi::journalRecord(const StructuralLog::Record& r, uint64_t stepIndex)
     {
         // Destroy appends Transform first, then the other components: folded
         lastDestroyed = r.added ? Entity{} : r.entity;
-        journal.push_back(Change{nextSeq++, stepIndex, r.added ? "created" : "destroyed", r.entity, -1});
+        // S25: an unload (the entity went into its chunk's stored groups) is not a destroy
+        journal.push_back(
+            Change{nextSeq++, stepIndex, r.added ? "created" : (r.unloaded ? "unloaded" : "destroyed"), r.entity, -1});
     }
     else if (!r.added && r.entity == lastDestroyed)
         return;

@@ -791,7 +791,10 @@ void ScenarioWorld::compareReplicas()
     {
         // A client must not keep replicated entities the host does not have
         for (NetId id : peers[p]->replication().netIds())
-            if (!std::binary_search(ids.begin(), ids.end(), id))
+            // S25: a client keeps the state entity of a space the host unloaded (a bound NetId, no Despawn)
+            if (!std::binary_search(ids.begin(), ids.end(), id) &&
+                !(id >= kFirstSpaceStateNetId && id < kFirstDynamicNetId &&
+                  id - kFirstSpaceStateNetId < w->spaceCount() && !w->spaceLoaded(SpaceId(id - kFirstSpaceStateNetId))))
                 fail("peer " + std::to_string(p) + " has NetId " + std::to_string(id) + ", the host does not");
     }
     for (NetId id : ids)

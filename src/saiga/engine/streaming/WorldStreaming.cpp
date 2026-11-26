@@ -78,6 +78,8 @@ void World::streamingStepStart()
     // The refresh (request part and promotion, the island count) when the centres changed since the last update: a
     // change between steps is seen by phase 1 exactly as after a load
     if (residencyPtr->centresChanged()) residencyPtr->refresh();
+    // S25: the step-start hooks (the reloads of chunks made ready by the refresh, completeResidency or a load)
+    for (size_t i = 0; i < stepStartHooks.size(); ++i) stepStartHooks[i].second();
     simulation->stepStart();
 }
 

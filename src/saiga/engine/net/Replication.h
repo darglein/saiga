@@ -40,6 +40,7 @@ namespace Engine
 class World;
 struct OwnerCommandMessage;
 struct DestroyMessage;
+struct DespawnMessage;
 struct HierarchyMessage;
 struct PlayerActionMessage;
 struct PingMessage;
@@ -57,6 +58,7 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     {
         uint64_t snapshotsSent = 0, snapshotMessagesSent = 0, snapshotBytesSent = 0, compressedMessages = 0;
         uint64_t spawnsSent = 0, destroysSent = 0, hierarchySent = 0, componentChangesSent = 0;
+        uint64_t despawnsSent = 0, despawnsApplied = 0;  // S25: unloaded entities
         uint64_t snapshotsApplied = 0, snapshotsDroppedEpoch = 0;
         uint64_t ownerStatesDropped = 0;  // an older command counter or a sender that does not own the entity
         uint64_t actionsDropped     = 0;  // PlayerActions for players the sender does not own
@@ -130,6 +132,7 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onSnapshot(uint8_t from, const uint8_t* data, size_t size);
     void onOwnerState(uint8_t from, const uint8_t* data, size_t size);
     void onDestroy(uint8_t from, const DestroyMessage& m);
+    void onDespawn(uint8_t from, const DespawnMessage& m);
     void onHierarchy(uint8_t from, const HierarchyMessage& m);
     void onOwnerCommand(uint8_t from, const OwnerCommandMessage& m);
     void onPlayerAction(uint8_t from, const PlayerActionMessage& m);
