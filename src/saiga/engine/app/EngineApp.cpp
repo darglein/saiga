@@ -1045,9 +1045,9 @@ void EngineApp::renderFrame()
     }
 }
 
-void EngineApp::requestCapture(CaptureCallback callback, bool fatal)
+void EngineApp::requestCapture(CaptureCallback callback, bool fatal, bool complete)
 {
-    pendingCaptures.push_back(PendingCapture{std::move(callback), fatal});
+    pendingCaptures.push_back(PendingCapture{std::move(callback), fatal, fatal || complete});
 }
 
 void EngineApp::streamTerrain()
@@ -1066,8 +1066,13 @@ void EngineApp::streamTerrain()
         streamIdleWaitMs = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - idle).count();
     }
     const auto start  = std::chrono::steady_clock::now();
-    bool fatalCapture = false, mcpCapture = false;
-    for (const PendingCapture& c : pendingCaptures) (c.fatal ? fatalCapture : mcpCapture) = true;
+    bool fatalCapture = false, mcpCapture = false, anyComplete = false;
+    for (const PendingCapture& c : pendingCaptures)
+    {
+        // Only a complete capture makes a complete point (a current-frame screenshot takes the frame as it is)
+        if (c.complete) (c.fatal ? fatalCapture : mcpCapture) = true;
+        anyComplete = anyComplete || c.complete;
+    }
     // An MCP capture completes the view only while one of its requests waits (else its readback is abandoned)
     const auto mcpDeadline = pendingScreenshotDeadline();
     mcpCapture             = mcpCapture && mcpDeadline.has_value();
@@ -1112,7 +1117,8 @@ void EngineApp::streamTerrain()
     // The captures take the first frame before which no terrain upload is pending (at most 16 frames later)
     if (!pendingCaptures.empty() && !mcpIncomplete)
     {
-        const bool ready = terrain.terrainUploadsPending() == 0;
+        // Current-frame captures do not wait for uploads either
+        const bool ready = !anyComplete || terrain.terrainUploadsPending() == 0;
         if (ready || captureWaitFrames >= 16 || !(fatal || mcpCapture))
         {
             if (!ready && (fatal || mcpCapture))
