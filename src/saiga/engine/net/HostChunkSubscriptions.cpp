@@ -14,6 +14,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <set>
 
 namespace Saiga
 {
@@ -253,6 +254,8 @@ size_t HostChunkSubscriptions::serve(uint32_t epoch)
     size_t total        = 0;
     walked              = 0;
     served.clear();
+    // The (peer, chunk) pairs served in this call (a set: the queue can hold thousands of entries per step)
+    std::set<std::pair<uint8_t, ChunkId>> servedPairs;
     ChunkSnapshotMessage snapshot;
     for (size_t i = 0; i < queue.size(); ++i)
     {
@@ -263,9 +266,7 @@ size_t HostChunkSubscriptions::serve(uint32_t epoch)
         if (pt == table.end()) continue;
         auto qt = pt->second.queued.find(chunk);
         if (qt == pt->second.queued.end()) continue;
-        bool twice = false;
-        for (const auto& s : served) twice = twice || (s.first.first == peer && s.first.second == chunk);
-        if (twice) continue;
+        if (!servedPairs.insert({peer, chunk}).second) continue;
         snapshotOf(w, epoch, qt->second, chunk, snapshot);
         bytes.clear();
         encodeChunkSnapshot(snapshot, bytes);

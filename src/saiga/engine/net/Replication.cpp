@@ -624,6 +624,9 @@ void Replication::onJoinRequest(uint8_t from, const uint8_t* data, size_t size)
     }
     auto refuse = [&](JoinRejectReason reason, const std::string& text)
     {
+        // At most one JoinReject (and log line) per peer and step: a peer flooding requests costs nothing more
+        if (joinRejectedAtStep[from] == w.stepIndex() + 1) return;
+        joinRejectedAtStep[from] = w.stepIndex() + 1;
         JoinReject r;
         r.reason = reason;
         r.text   = text;

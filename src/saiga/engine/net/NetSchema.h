@@ -92,7 +92,7 @@ struct SAIGA_ENGINE_API NetSchema
     uint64_t hash() const;
 };
 
-// The hash of section hashes (NetSchema::hash; also the host's check of a JoinRequest)
+// The hash of section hashes (NetSchema::hash)
 SAIGA_ENGINE_API uint64_t netSchemaHashOf(const std::array<uint64_t, kNetSchemaSections>& sections);
 
 }  // namespace Engine

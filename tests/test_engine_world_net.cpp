@@ -1716,6 +1716,37 @@ TEST(ChunkSync, AbortsKeepTheProtocol)
 }
 
 // Complete points never block on the network (S24 Scope 2): completeResidency returns although C's snapshot is held
+namespace
+{
+bool g_throwClientPhase1 = false;
+void throwingClientPhase1(World&, double)
+{
+    if (!g_throwClientPhase1) return;
+    g_throwClientPhase1 = false;
+    throw std::runtime_error("abort the client's phase 1");
+}
+void abortSystems(SystemList& s)
+{
+    StreamingTest::registerStreamingTestSystems(s);
+    s.add(Phase::Input, "throw_client_phase1", throwingClientPhase1, RunOn::Client);
+}
+}  // namespace
+
+// Regression (review round 1): the client sends its JoinRequest while it receives the Connected event in phase 1; an
+// abort of that phase dropped the request from the outbox, the event was consumed, and the client stayed Joining
+TEST(Handshake, JoinRequestSurvivesAnAbortedPhase1)
+{
+    WorldSetup setup = worldNetTestSetup(false);
+    setup.systems    = abortSystems;
+    NetPeers n(setup);
+    World& h            = *n.host;
+    World& c            = n.client();
+    g_throwClientPhase1 = true;
+    h.step();
+    EXPECT_THROW(c.step(), std::runtime_error);
+    ASSERT_TRUE(n.stepUntil([&] { return c.joinState() == JoinState::Joined; }));
+}
+
 TEST(ChunkSync, CompletePointDoesNotBlock)
 {
     WorldSetup setup                               = worldNetTestSetup(true);
@@ -1729,10 +1760,8 @@ TEST(ChunkSync, CompletePointDoesNotBlock)
     const auto t0 = std::chrono::steady_clock::now();
     EXPECT_TRUE(c.completeResidency(30));
     EXPECT_LT(std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count(), 10.0);
-    if (!c.chunkSynced(kC))
-    {
-        EXPECT_EQ(c.residency().state(kC), ChunkState::Requested);
-    }
+    // Unconditional: the gate decides the state (the snapshot may or may not have arrived by now)
+    EXPECT_EQ(c.residency().state(kC), c.chunkSynced(kC) ? ChunkState::Resident : ChunkState::Requested);
 }
 
 TEST(ChunkSync, ReadinessWaitsForSnapshots)

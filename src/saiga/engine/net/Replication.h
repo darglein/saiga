@@ -30,6 +30,7 @@
 #include <array>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -264,6 +265,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     std::unique_ptr<HostChunkSubscriptions> hostChunks;
     std::unique_ptr<ClientChunkSync> clientChunks;
     std::vector<uint8_t> filtered;
+    // Host: the step (+ 1; 0 = never) of the last JoinReject per peer (one per peer and step)
+    std::array<uint64_t, 256> joinRejectedAtStep{};
 
     std::vector<HostSlot> host;
     std::unordered_map<NetId, Entity> hostByNetId;

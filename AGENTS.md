@@ -109,7 +109,7 @@ src/
                         readiness, the single send point to the sink), TerrainStore, TerrainGeneration; S22
                         terraforming: TerrainBrush and the integer BrushKernel, applyTerrainEdit (World::editTerrain),
                         TerrainEditStore (delta blocks, per-chunk sequence, World::terrainEdits / terrainSample),
-                        TerrainDeltaCodec, TerrainMessages (TerrainModification, TerrainChunkState), the visual path
+                        TerrainDeltaCodec, TerrainMessages (TerrainModification), the visual path
                         (TerrainVisualPatch: merge at the send point and edited grass masks, TerrainDirtyQueue: the
                         patch step); tests/test_engine_terrain_edit.cpp, _net.cpp, _benchmark.cpp; S23a: HookGenerator
                         (an S20 height hook as a Generator: the games' prototype fixture, the tests' hooks);
@@ -122,12 +122,12 @@ src/
                         (checkContentHashes), ContentConvert (exact conversions), ChunkRecords (CREC state: placement
                         versions and, S23b, tombstones), chunkStampSystem (phase 7, host); S23b: Tombstones
                         (World::tombstone's checks and apply, tombstone-on-edit inside applyTerrainEdit,
-                        tierOneSurface), ContentMessages (TombstoneModification, ChunkRecordState),
+                        tierOneSurface), ContentMessages (TombstoneModification),
                         ContentRenderSystem (the content render sets: one instance set per chunk, centres None / View
                         (EngineApp) / Players (ScenarioWorld), the re-snap queue); content/gen/ (integer only, linted): FixedMath.h, TrigTable,
                         IntNoise, SitePatch, ChunkGeneration, SectionHash, FlatGenerator (GeneratorId 0),
                         AuthoredSpaceGenerator; api/ComponentJson (the component-JSON path of spawn and stamping);
-                        net/GenerationStateMessage; tests/test_engine_content.cpp (+ content_lint.h, the fixture in
+                        net/GenerationInfo (S26: the generation info of JoinAccept and Resync); tests/test_engine_content.cpp (+ content_lint.h, the fixture in
                         tests/content_lint_fixture/, content_test_generator.h, content_test_setup.h),
                         _content_benchmark.cpp; streaming/ (S24, §12.3; worlds with WorldConfig::streaming):
                         ChunkResidency (the resident chunk set around the streaming centres: pinned level-0 base tiles,

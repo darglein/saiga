@@ -1750,6 +1750,7 @@ Json partsJson(uint8_t parts)
     Json::array a;
     if (parts & PartBase) a.push_back("base");
     if (parts & PartPlacement) a.push_back("placement");
+    if (parts & PartStored) a.push_back("stored");
     return a;
 }
 

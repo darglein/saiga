@@ -1559,7 +1559,8 @@ TEST(EnvironmentWrites, CoopWritesTheHost)
 // NetId. The client's LightSource is replicated (HostReliable), so the old editor's set_component on the client world
 // was refused (only a log line): nothing could be edited. Regression (round 4, minor 2): the editor showed and resent
 // every field of the client's replica, which lags the host by the replication delay, so an edit of a second field
-// right after the first wrote the first field's old value back to the host
+// right after the first wrote the first field's old value back to the host. About 0.5 s (above the 0.5 s guideline):
+// a co-op app renders every frame on lavapipe, and the replication delay plus the S26 handshake need ~25 frames.
 TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
 {
     if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";

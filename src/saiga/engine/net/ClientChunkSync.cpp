@@ -137,6 +137,11 @@ bool ClientChunkSync::allIndexed() const
 void ClientChunkSync::hold(const ChunkId& chunk)
 {
     if (!w.streaming()) return;
+    // The host rejects a whole ChunkInterest for one chunk outside its space: a bad hold must not poison the others
+    SAIGA_ASSERT(chunk.space < w.spaceCount() && chunk.x >= 0 && chunk.z >= 0 &&
+                     chunk.x < w.spaceTemplate(chunk.space).sizeChunks &&
+                     chunk.z < w.spaceTemplate(chunk.space).sizeChunks,
+                 "ClientChunkSync::hold: the chunk is outside its space");
     held[chunk]++;
 }
 
@@ -328,6 +333,13 @@ void ClientChunkSync::onSnapshot(uint8_t from, const uint8_t* data, size_t size)
         reject(from, "ChunkSnapshot: N " + std::to_string(m.N) + " does not match the space", true);
         return;
     }
+    // A terrain sequence only in an open-world space (an enclosed one has no terrain store; TERR would refuse the
+    // entry on save), and deltas only with a sequence (no samples without an entry)
+    if ((!openWorld && m.sequence > 0) || (m.hasDeltas && m.sequence == 0))
+    {
+        reject(from, "ChunkSnapshot: a terrain sequence or deltas the chunk's space cannot have", true);
+        return;
+    }
     if (m.hasRecord)
     {
         if (m.placementVersion < g.pinned || m.placementVersion > g.current)
@@ -435,7 +447,14 @@ void ClientChunkSync::onIndex(uint8_t from, const uint8_t* data, size_t size)
     for (const auto& xz : m.chunks) listed.push_back(chunkIdOf(m.space, xz.first, xz.second));
     for (const ChunkId& c : listed)
     {
-        Entry& e        = table[c];
+        Entry& e = table[c];
+        // A chunk re-requested while the space waited for its index (a gap or a queue overflow) keeps its own ticket:
+        // the host's only snapshot of it answers that request
+        if (e.state == State::Pending && e.ticket != 0)
+        {
+            e.awaitingIndex = false;
+            continue;
+        }
         e.state         = State::Pending;
         e.ticket        = 0;
         e.awaitingIndex = false;

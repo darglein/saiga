@@ -1039,6 +1039,17 @@ Recorded per R-DOC-2; the plan's intent is kept in each case.
   keeps its second half on parts (its first half faked a stale `TerrainChunkState`). `test_engine_content`'s
   `GenerationState.*` are six `Handshake.*` cases. `EnvironmentWrites.CoopLightEditorWritesTheHost` runs at delay 10
   instead of 20 (the handshake's round trip comes first; every frame renders on lavapipe).
+- **Review round 1 fixes**:
+  - The client's `JoinRequest`, sent while it consumes the `Connected` event in phase 1, is re-tagged `Phase::None` so
+    an abort of that phase does not drop it (`Handshake.JoinRequestSurvivesAnAbortedPhase1`).
+  - A joining client drops unreliable messages instead of deferring them (they filled the 1024 bound and pushed out
+    reliable ones); the host sends at most one `JoinReject` per peer and step; a rejected client logs its dropped
+    messages once.
+  - `onIndex` keeps the ticket of a chunk re-requested while its space waited for the index; `ClientChunkSync::hold`
+    asserts the chunk is inside its space (the host rejects a whole `ChunkInterest` for one bad chunk); a snapshot with
+    a terrain sequence in an enclosed space or deltas with sequence 0 is rejected input.
+  - `HostChunkSubscriptions::serve` finds duplicates with a set (it was quadratic in the queue).
+  - `streaming_status` / `chunk_info` list the `stored` part (S25).
 
 ## Results
 

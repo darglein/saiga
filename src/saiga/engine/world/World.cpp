@@ -2257,7 +2257,13 @@ void World::receiveMessages(bool engineOnly)
                     joining.push_back(ev.peer);
             }
             else if (ev.peer == 0 && joinStateValue == JoinState::Joining)
+            {
+                // The Connected event is consumed here: the request must survive an abort of this step's phase 1
+                // (the outbox drops the aborted phase's entries; nothing would send it again)
+                const size_t mark = outbox.size();
                 repl->sendJoinRequest();
+                for (size_t k = mark; k < outbox.size(); ++k) outbox[k].phase = Phase::None;
+            }
         }
         else if (ev.type == TransportEvent::Disconnected)
         {
@@ -2308,12 +2314,23 @@ void World::receiveMessages(bool engineOnly)
             }
             else if (joinStateValue == JoinState::Rejected)
             {
-                rejectInput(m.peer, "a message after the join was rejected");
+                // Counted, logged once (a rejected client would otherwise log 8 lines every step for ever)
+                netCounts.rejected++;
+                if (counterRejected >= 0) prof.addCounter(counterRejected, 1);
+                if (!loggedRejectedDrops)
+                {
+                    loggedRejectedDrops = true;
+                    SAIGA_LOG("net", "the join was rejected: every later message of the host is dropped");
+                }
                 continue;
             }
             else if (joinStateValue == JoinState::Joining && m.id != MessageId(EngineMessage::JoinAccept) &&
                      m.id != MessageId(EngineMessage::JoinReject))
             {
+                // Unreliable messages (per-step snapshots, poses) are dropped, not deferred: they would fill the bound
+                // and push out the reliable ones that must not be lost (a newer one follows anyway)
+                const MessageList::Entry* de = messages.find(m.id);
+                if (de && de->reliability == Reliability::Unreliable) continue;
                 if (deferredWhileJoining.size() >= kMaxDeferredWhileJoining)
                     rejectInput(m.peer, "more than 1024 messages before JoinAccept");
                 else

@@ -1118,7 +1118,8 @@ class SAIGA_ENGINE_API World
     std::vector<ReceivedMessage> deferredWhileJoining;
     static constexpr size_t kMaxDeferredWhileJoining = 1024;
     std::array<int, 256> rejectLogs{};
-    int sendBatchDepth = 0;
+    bool loggedRejectedDrops = false;  // S26: a rejected client logs its dropped messages once
+    int sendBatchDepth       = 0;
     NetStats netCounts;
     int counterSentBytes = -1, counterReceivedBytes = -1, counterMessagesIn = -1, counterMessagesOut = -1,
         counterRejected = -1, counterSnapshotBytes = -1, counterSnapshots = -1;
