@@ -15,6 +15,7 @@
 // entities, 3600 steps paced at 60 Hz (real time, 2 pool workers); the local acceptance is 0 streaming stalls and the
 // step time within §17.10's 4 ms (release build).
 
+#include "saiga/core/util/env.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/streaming/SimulationSet.h"
@@ -51,15 +52,14 @@ double ms(Clock::time_point a, Clock::time_point b)
 
 bool fullRun()
 {
-    const char* v = std::getenv("SAIGA_STREAMING_BENCHMARK");
-    return v && (std::strcmp(v, "full") == 0 || std::strcmp(v, "full-off") == 0);
+    const std::string v = GetEnv("SAIGA_STREAMING_BENCHMARK");
+    return v == "full" || v == "full-off";
 }
 // SAIGA_STREAMING_BENCHMARK=full-off: the same run without streaming (S23b's behaviour, G1: every entity simulated, no
 // residency): the "before" numbers
 bool streamingOff()
 {
-    const char* v = std::getenv("SAIGA_STREAMING_BENCHMARK");
-    return v && std::strcmp(v, "full-off") == 0;
+    return GetEnv("SAIGA_STREAMING_BENCHMARK") == "full-off";
 }
 
 struct Stat
