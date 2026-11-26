@@ -76,9 +76,24 @@ NetSchema NetSchema::fromWorld(const World& world)
             addType(q->describe(), uint8_t(q->replicate), 0);
             q->describeNested(nested);
         }
-    std::sort(nested.begin(), nested.end(), [](const SchemaType& a, const SchemaType& b) { return a.name < b.name; });
-    for (size_t i = 0; i < nested.size(); ++i)
-        if (i == 0 || nested[i].name != nested[i - 1].name) addType(nested[i], 0, 0);
+    // Nested structs by their whole definition: two different structs of one name are both kept (a layout change of
+    // either changes the hash); only identical definitions (one struct used by several components) are merged. The
+    // order is total, so the encoding is deterministic.
+    auto key = [](const SchemaType& t)
+    {
+        std::string k = t.name + '\0' + std::to_string(t.version);
+        for (const FieldInfo& f : t.fields)
+        {
+            k += '\0' + f.name + '\0' + f.type + '\0' + std::to_string(f.quantize);
+            for (const std::string& v : f.enumValues) k += '\1' + v;
+        }
+        return k;
+    };
+    std::vector<std::pair<std::string, size_t>> order;
+    for (size_t i = 0; i < nested.size(); ++i) order.push_back({key(nested[i]), i});
+    std::sort(order.begin(), order.end());
+    for (size_t i = 0; i < order.size(); ++i)
+        if (i == 0 || order[i].first != order[i - 1].first) addType(nested[order[i].second], 0, 0);
     for (const ClassList::ClassInfo& c : world.classList().all())
         if (c.factory) s.classes.push_back({uint32_t(c.id), c.name});
     std::vector<MessageList::Entry> messages = world.messageList().entries();

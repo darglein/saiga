@@ -266,10 +266,18 @@ size_t HostChunkSubscriptions::serve(uint32_t epoch)
         if (pt == table.end()) continue;
         auto qt = pt->second.queued.find(chunk);
         if (qt == pt->second.queued.end()) continue;
-        if (!servedPairs.insert({peer, chunk}).second) continue;
+        if (servedPairs.count({peer, chunk})) continue;
         snapshotOf(w, epoch, qt->second, chunk, snapshot);
         bytes.clear();
         encodeChunkSnapshot(snapshot, bytes);
+        // A snapshot that would exceed the budget waits for the next step (it stays outside the walked prefix); the
+        // first one of a step is always sent, so an oversized snapshot cannot block the queue
+        if (!served.empty() && total + bytes.size() > budget)
+        {
+            walked--;
+            break;
+        }
+        servedPairs.insert({peer, chunk});
         w.sendRaw(peer, MessageId(EngineMessage::ChunkSnapshot), bytes.data(), bytes.size());
         total += bytes.size();
         served.push_back({{peer, chunk}, qt->second});

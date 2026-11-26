@@ -1578,7 +1578,14 @@ TEST(ChunkSync, SubscribeAtRequest)
 // target's chunks before the host moves the player; then the player is held until its chunk is synced
 TEST(ChunkSync, ArrivalSubscribesTarget)
 {
+    // Declared before the worlds (they join their workers first); the guard releases waiting jobs on every exit
+    std::atomic<bool> release{false};
     NetPeers n(worldNetTestSetup(true));
+    struct Release
+    {
+        std::atomic<bool>& r;
+        ~Release() { r = true; }
+    } releaseOnExit{release};
     World& h = *n.host;
     World& c = n.client();
     ASSERT_TRUE(n.stepUntil([&] { return c.joinState() == JoinState::Joined; }));
@@ -1589,26 +1596,28 @@ TEST(ChunkSync, ArrivalSubscribesTarget)
     const ChunkId far = chunkAt(0, 12, 12);
     // The host loads the target island asynchronously and its jobs wait for a latch: the arrival completes only after
     // the release (synchronous worlds complete it in the next step)
-    std::atomic<bool> release{false};
     h.setStreamingSynchronous(false);
     h.residency().jobHookForTests = [&](const ChunkId&)
     {
         while (!release) std::this_thread::yield();
     };
     ASSERT_TRUE(h.requestArrival(player, 0, target));
-    bool subscribedBeforeMove = false;
-    for (int k = 0; k < 64; ++k)
+    bool subscribedBeforeMove = false, moved = false;
+    // The released jobs run on the pool: bounded by wall time, not by steps (a slow CI runner)
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    for (int k = 0; std::chrono::steady_clock::now() < deadline; ++k)
     {
         if (k == 8) release = true;
         n.step();
         const Entity mine = c.replication().entityOfNetId(h.replication().netIdOf(player));
-        const bool moved  = mine.valid() && (c.read<Transform>(mine).position() - target).norm() < 300;
+        moved             = mine.valid() && (c.read<Transform>(mine).position() - target).norm() < 300;
         if (!moved && c.replication().chunkSync().state(far) != ClientChunkSync::State::None)
             subscribedBeforeMove = true;
         if (moved && c.chunkSynced(far) && c.residency().state(far) == ChunkState::Resident) break;
     }
     release                       = true;
     h.residency().jobHookForTests = nullptr;
+    EXPECT_TRUE(moved) << "the replicated player never reached the target";
     EXPECT_TRUE(subscribedBeforeMove);
     EXPECT_TRUE(c.chunkSynced(far));
     EXPECT_EQ(c.residency().state(far), ChunkState::Resident);

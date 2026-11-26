@@ -136,6 +136,8 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     void onDespawn(uint8_t from, const DespawnMessage& m);
     void onHierarchy(uint8_t from, const HierarchyMessage& m);
     void onOwnerCommand(uint8_t from, const OwnerCommandMessage& m);
+    // Client: OwnerCommands whose entity was not spawned yet are applied once it is (after every receive pass)
+    void retryOwnerCommands();
     void onPlayerAction(uint8_t from, const PlayerActionMessage& m);
     void onPing(uint8_t from, const PingMessage& m);
     void onPong(uint8_t from, const PongMessage& m);
@@ -267,6 +269,10 @@ class SAIGA_ENGINE_API Replication final : public NetIdResolver
     std::vector<uint8_t> filtered;
     // Host: the step (+ 1; 0 = never) of the last JoinReject per peer (one per peer and step)
     std::array<uint64_t, 256> joinRejectedAtStep{};
+    // Client: OwnerCommands that overtook their entity's Spawn (the step they arrived; bounded, dropped after a while)
+    std::vector<std::pair<uint64_t, std::shared_ptr<OwnerCommandMessage>>> pendingOwnerCommands;
+    static constexpr size_t kMaxPendingOwnerCommands    = 256;
+    static constexpr uint64_t kPendingOwnerCommandSteps = 600;
 
     std::vector<HostSlot> host;
     std::unordered_map<NetId, Entity> hostByNetId;

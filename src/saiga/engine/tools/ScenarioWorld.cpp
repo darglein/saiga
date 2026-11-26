@@ -818,6 +818,7 @@ void ScenarioWorld::finishNetwork()
     bool ownersDone = false;
     uint64_t needed = 0;
     int steps       = 0;
+    int entitySteps = -1;  // the step the entity and owner-state sync finished
     bool synced     = false;
     while (steps < 600 && !synced)
     {
@@ -856,17 +857,19 @@ void ScenarioWorld::finishNetwork()
         }
         if (ownersDone)
         {
-            synced = true;
-            for (auto& c : clientWorlds) synced = synced && c->replication().snapshotSequence() >= needed;
-            // S26: and the chunk sync is done (no pending chunk, queued part or queued snapshot; equal sequences)
-            synced = synced && chunksSynced();
+            bool entities = true;
+            for (auto& c : clientWorlds) entities = entities && c->replication().snapshotSequence() >= needed;
+            // The entity and owner-state sync has its timing bound; the chunk drain after it (S26: snapshots are
+            // budgeted per step) only the 600-step limit
+            if (entities && entitySteps < 0) entitySteps = steps;
+            synced = entities && chunksSynced();
         }
     }
     // A failure received during the drain fails the variant too (once; PR review of S23a: only onStep reported it)
     reportJoinFailures("final network sync");
     if (!check(synced, "the final network sync did not finish in 600 steps")) return;
-    check(steps <= bound, "the final network sync took " + std::to_string(steps) + " steps (at most " +
-                              std::to_string(bound) + " without loss)");
+    check(entitySteps <= bound, "the final network sync of the entities took " + std::to_string(entitySteps) +
+                                    " steps (at most " + std::to_string(bound) + " without loss)");
     compareReplicas();
 }
 

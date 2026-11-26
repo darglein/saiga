@@ -616,14 +616,22 @@ void EngineApp::stepAll(int n)
     }
     for (int i = 0; i < n; ++i)
     {
+        // A client rejected earlier steps no more (later batches of step / measure_performance run nothing)
+        if (gameWorld->joinState() == JoinState::Rejected)
+        {
+            if (exitStatus == 0) quit(1);
+            return;
+        }
         hostWorldPtr->step();
         gameWorld->step();
         // S26: a rejected client world (a broken setup: one binary cannot differ from itself) ends the app with an
         // error
-        if (gameWorld->joinState() == JoinState::Rejected && !quitRequested)
+        // error. The batch stops on every Rejected (also after a quit(0) of a listener), and a zero status becomes 1
+        if (gameWorld->joinState() == JoinState::Rejected)
         {
-            SAIGA_LOG("app", "co-op: the host rejected the client world: %s", gameWorld->joinRejection().c_str());
-            quit(1);
+            if (!quitRequested)
+                SAIGA_LOG("app", "co-op: the host rejected the client world: %s", gameWorld->joinRejection().c_str());
+            if (exitStatus == 0) quit(1);
             return;
         }
     }

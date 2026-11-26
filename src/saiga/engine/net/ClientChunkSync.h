@@ -41,6 +41,10 @@ class SAIGA_ENGINE_API ClientChunkSync
 {
    public:
     static constexpr size_t kMaxQueuedPartsPerChunk = 1024;
+    // Queued parts are also bounded by their decoded bytes (a full 257^2 part holds ~258 KiB): per chunk and across the
+    // client; above either the chunk is re-requested, as on a count overflow
+    static constexpr size_t kMaxQueuedBytesPerChunk = size_t(8) << 20;
+    static constexpr size_t kMaxQueuedBytesTotal    = size_t(64) << 20;
     enum class State : uint8_t
     {
         None,
@@ -62,6 +66,7 @@ class SAIGA_ENGINE_API ClientChunkSync
         // A chunk of a space whose ChunkIndex has not arrived (its live parts are queued)
         bool awaitingIndex = false;
         std::vector<Queued> queue;
+        size_t queuedBytes = 0;  // the decoded bytes of `queue` (bounded with the part count)
     };
     struct Stats
     {
@@ -116,6 +121,7 @@ class SAIGA_ENGINE_API ClientChunkSync
     };
     World& w;
     std::map<ChunkId, Entry> table;
+    size_t queuedBytesTotal = 0;  // the sum of the entries' queuedBytes
     std::vector<SpaceSync> spaces;
     std::map<ChunkId, int> held;
     uint32_t nextTicket = 1;
@@ -141,6 +147,8 @@ class SAIGA_ENGINE_API ClientChunkSync
     void rerequest(const ChunkId& chunk, const char* why);
     // Queues a part or entry of a Pending chunk (overflow: re-request)
     void enqueue(Entry& e, const ChunkId& chunk, Queued q);
+    // Every queue leaves an entry through here (the byte accounting)
+    std::vector<Queued> takeQueue(Entry& e);
     Entry* pendingEntry(const ChunkId& chunk);
     // Applies Synced parts of one space (each at current + 1, checked by the caller); one onTerrainChanged
     void applyParts(SpaceId space, const std::vector<const TerrainPart*>& parts);

@@ -327,6 +327,17 @@ void TerrainEditStore::dropChunk(const ChunkId& chunk, const std::function<bool(
             reserveFor(chunk.space, i, k, 0);
             writeDelta(chunk.space, i, k, 0);
         }
+    // The blocks of the chunk's range that hold only zeros now are freed (a client visiting many edited chunks would
+    // otherwise keep every block it ever saw); a block with a kept neighbour's sample stays. Only the store's
+    // reference goes: a frozen commit (FrozenTerrain) may still hold the block.
+    for (int64_t bk = k0 >> 4; bk <= (k0 + s.S) >> 4; ++bk)
+        for (int64_t bi = i0 >> 4; bi <= (i0 + s.S) >> 4; ++bi)
+        {
+            auto it = s.blocks.find(blockKey(bi << 4, bk << 4));
+            if (it == s.blocks.end()) continue;
+            const int32_t* d = it->second->delta;
+            if (std::all_of(d, d + 256, [](int32_t v) { return v == 0; })) s.blocks.erase(it);
+        }
 }
 
 void TerrainEditStore::clear()

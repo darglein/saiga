@@ -172,7 +172,7 @@ void ClientChunkSync::rerequest(const ChunkId& chunk, const char* why)
     e.state         = State::Pending;
     e.ticket        = newTicket();
     e.awaitingIndex = false;
-    e.queue.clear();
+    takeQueue(e);
     unsentAdds[chunk] = e.ticket;
     statistics.rerequests++;
     w.netCounts.chunkRerequests++;
@@ -182,7 +182,9 @@ void ClientChunkSync::rerequest(const ChunkId& chunk, const char* why)
 
 void ClientChunkSync::enqueue(Entry& e, const ChunkId& chunk, Queued q)
 {
-    if (e.queue.size() >= kMaxQueuedPartsPerChunk)
+    const size_t bytes = sizeof(Queued) + q.part.deltas.size() * sizeof(int32_t);
+    if (e.queue.size() >= kMaxQueuedPartsPerChunk || e.queuedBytes + bytes > kMaxQueuedBytesPerChunk ||
+        queuedBytesTotal + bytes > kMaxQueuedBytesTotal)
     {
         // Dropped with the queue: the new snapshot covers every part sent before the new subscription
         statistics.queueOverflows++;
@@ -190,7 +192,18 @@ void ClientChunkSync::enqueue(Entry& e, const ChunkId& chunk, Queued q)
         return;
     }
     e.queue.push_back(std::move(q));
+    e.queuedBytes += bytes;
+    queuedBytesTotal += bytes;
     statistics.partsQueued++;
+}
+
+std::vector<ClientChunkSync::Queued> ClientChunkSync::takeQueue(Entry& e)
+{
+    queuedBytesTotal -= std::min(queuedBytesTotal, e.queuedBytes);
+    e.queuedBytes = 0;
+    std::vector<Queued> q;
+    q.swap(e.queue);
+    return q;
 }
 
 ClientChunkSync::Entry* ClientChunkSync::pendingEntry(const ChunkId& chunk)
@@ -393,7 +406,7 @@ void ClientChunkSync::onSnapshot(uint8_t from, const uint8_t* data, size_t size)
     statistics.snapshotsApplied++;
     // The queue (D9), then Synced
     std::vector<Queued> queue;
-    queue.swap(it->second.queue);
+    queue = takeQueue(it->second);
     if (!drainQueue(c, std::move(queue))) return;
     auto now = table.find(c);
     if (now == table.end()) return;
@@ -466,7 +479,7 @@ void ClientChunkSync::onIndex(uint8_t from, const uint8_t* data, size_t size)
     for (const ChunkId& c : unlisted)
     {
         std::vector<Queued> queue;
-        queue.swap(table[c].queue);
+        queue                  = takeQueue(table[c]);
         table[c].awaitingIndex = false;
         if (drainQueue(c, std::move(queue))) table.erase(c);
     }
@@ -745,7 +758,15 @@ void ClientChunkSync::extract()
                 kept.push_back(add);
                 total++;
             }
-        if (kept.size() < adds.size()) statistics.interestCapped++;
+        if (kept.size() < adds.size())
+        {
+            // The limit must cover the chunks of the kept discs (a setup error otherwise): logged once
+            if (statistics.interestCapped++ == 0)
+                SAIGA_LOG("net",
+                          "the chunk subscriptions reached maxChunksPerPeer (%zu): chunks wait unsubscribed; raise the "
+                          "limit above the chunks within the kept distance of every centre",
+                          limit);
+        }
         adds.swap(kept);
         if (removes.empty() && adds.empty()) continue;
         // Messages of at most kMaxInterestEntries entries: removes first
@@ -810,6 +831,7 @@ void ClientChunkSync::abort()
 
 void ClientChunkSync::drop(const ChunkId& c)
 {
+    if (auto it = table.find(c); it != table.end()) takeQueue(it->second);
     table.erase(c);
     statistics.unsubscribed++;
     TerrainEditStore& st  = w.terrainEditsForUpdate();
@@ -837,6 +859,7 @@ void ClientChunkSync::onJoined()
 void ClientChunkSync::reset()
 {
     table.clear();
+    queuedBytesTotal = 0;
     std::fill(spaces.begin(), spaces.end(), SpaceSync::None);
     unsentAdds.clear();
     unsentAll.clear();

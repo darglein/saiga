@@ -2295,24 +2295,22 @@ void World::receiveMessages(bool engineOnly)
         for (; i < inbox.size(); ++i)
         {
             const ReceivedMessage& m = inbox[i];
+            // S26 (D13): the host accepts only a JoinRequest from a peer that is not admitted (checked before the
+            // engine-only deferral, so stepNetworkOnly and a full step treat it alike); a joining client defers
+            // everything but the host's answer (channels are ordered only per channel: a Control message of the
+            // admission step may overtake JoinAccept), a rejected client handles nothing
+            if (isHost() && m.id != MessageId(EngineMessage::JoinRequest) &&
+                std::find(peers.begin(), peers.end(), m.peer) == peers.end())
+            {
+                rejectInput(m.peer, "a message from a peer that was not admitted");
+                continue;
+            }
             if (engineOnly && m.id >= MessageId(EngineMessage::FirstGame))
             {
                 deferred.push_back(std::move(inbox[i]));
                 continue;
             }
-            // S26 (D13): the host accepts only a JoinRequest from a peer that is not admitted; a joining client defers
-            // everything but the host's answer (channels are ordered only per channel: a Control message of the
-            // admission step may overtake JoinAccept), a rejected client handles nothing
-            if (isHost())
-            {
-                if (m.id != MessageId(EngineMessage::JoinRequest) &&
-                    std::find(peers.begin(), peers.end(), m.peer) == peers.end())
-                {
-                    rejectInput(m.peer, "a message from a peer that was not admitted");
-                    continue;
-                }
-            }
-            else if (joinStateValue == JoinState::Rejected)
+            if (!isHost() && joinStateValue == JoinState::Rejected)
             {
                 // Counted, logged once (a rejected client would otherwise log 8 lines every step for ever)
                 netCounts.rejected++;
@@ -2391,6 +2389,8 @@ void World::receiveMessages(bool engineOnly)
         throw;
     }
     inbox.swap(deferred);
+    // OwnerCommands whose Spawn has arrived by now (in this pass or an earlier one) are applied
+    if (!isHost()) repl->retryOwnerCommands();
 }
 
 }  // namespace Engine

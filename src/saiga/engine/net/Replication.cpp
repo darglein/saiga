@@ -558,11 +558,14 @@ void Replication::sendHostStates()
             }
             else
             {
+                // Counted first: a peer that gets every part uses the shared encoding, so the parts (with their delta
+                // arrays) are copied only for a peer that needs a subset
                 total = e.parts.size();
                 parts.clear();
-                for (const TerrainPart& t : e.parts)
-                    if (hostChunks->subscribed(p, t.chunk)) parts.push_back(t);
-                kept = parts.size();
+                for (const TerrainPart& t : e.parts) kept += hostChunks->subscribed(p, t.chunk) ? 1 : 0;
+                if (kept != total && kept > 0)
+                    for (const TerrainPart& t : e.parts)
+                        if (hostChunks->subscribed(p, t.chunk)) parts.push_back(t);
                 ss.partsFiltered += total - kept;
             }
             if (kept == 0) continue;
@@ -621,6 +624,13 @@ void Replication::onJoinRequest(uint8_t from, const uint8_t* data, size_t size)
     {
         // Already admitted: ignored
         w.rejectInput(from, "JoinRequest: the peer was admitted already");
+        return;
+    }
+    // Only a connected peer may join: a request buffered before its Disconnected event of the same receive pass must
+    // not admit a peer no event would remove again
+    if (std::find(w.joining.begin(), w.joining.end(), from) == w.joining.end())
+    {
+        w.rejectInput(from, "JoinRequest: the peer is not connected");
         return;
     }
     auto refuse = [&](JoinRejectReason reason, const std::string& text)
@@ -2308,7 +2318,18 @@ void Replication::onOwnerCommand(uint8_t from, const OwnerCommandMessage& m)
         return;
     }
     const Entity e = entityOfNetId(m.netId);
-    if (!e.valid() || w.ownerOf(e) != w.selfPeer) return;
+    if (!e.valid())
+    {
+        // Its Spawn has not arrived yet (an OwnerCommand on Control can overtake the State channel, e.g. right after
+        // JoinAccept): kept and retried after every receive pass (retryOwnerCommands), so neither the pose nor the
+        // counter is lost; bounded
+        if (pendingOwnerCommands.size() < kMaxPendingOwnerCommands)
+            pendingOwnerCommands.push_back({w.stepIndex(), std::make_shared<OwnerCommandMessage>(m)});
+        else
+            w.rejectInput(from, "OwnerCommand: too many commands for entities that were not spawned");
+        return;
+    }
+    if (w.ownerOf(e) != w.selfPeer) return;
     if (m.space >= w.spaceCount())
     {
         // Network input never asserts: the pose is not applied, but the counter is taken (otherwise every later owner
@@ -2326,6 +2347,22 @@ void Replication::onOwnerCommand(uint8_t from, const OwnerCommandMessage& m)
             w.teleportTo(e, m.space, m.position, m.rotation);
     }
     if (ClientEntry* ce = clientEntry(e)) ce->command = m.counter;
+}
+
+void Replication::retryOwnerCommands()
+{
+    if (pendingOwnerCommands.empty()) return;
+    std::vector<std::pair<uint64_t, std::shared_ptr<OwnerCommandMessage>>> waiting;
+    waiting.swap(pendingOwnerCommands);
+    for (auto& [step, m] : waiting)
+    {
+        if (entityOfNetId(m->netId).valid())
+            onOwnerCommand(0, *m);
+        else if (w.stepIndex() - step < kPendingOwnerCommandSteps)
+            pendingOwnerCommands.push_back({step, m});
+        else
+            w.rejectInput(0, "OwnerCommand: its entity was never spawned (net id " + std::to_string(m->netId) + ")");
+    }
 }
 
 void Replication::onPlayerAction(uint8_t from, const PlayerActionMessage& m)

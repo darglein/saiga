@@ -890,11 +890,12 @@ ApiResult WorldApi::worldStatus(const Json&)
         else
         {
             const ClientChunkSync& sync = w->replication().chunkSync();
-            net["chunks"]               = Json::object{{"subscribed", double(sync.chunks().size())},
-                                                       {"pending", double(sync.pendingCount())},
-                                                       {"synced", double(sync.syncedCount())},
-                                                       {"queued_parts", double(sync.queuedParts())},
-                                                       {"rerequests", double(n.chunkRerequests)}};
+            // subscribed / pending / synced count the chunk table's entries (in a world without streaming only the
+            // indexed chunks with state); `indexed` tells when every space's index arrived (D19)
+            net["chunks"] = Json::object{
+                {"subscribed", double(sync.chunks().size())}, {"pending", double(sync.pendingCount())},
+                {"synced", double(sync.syncedCount())},       {"queued_parts", double(sync.queuedParts())},
+                {"rerequests", double(n.chunkRerequests)},    {"indexed", w->streaming() || sync.allIndexed()}};
         }
         o["net"] = net;
     }
