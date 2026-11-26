@@ -260,6 +260,8 @@ class SAIGA_ENGINE_API EngineApp
     void perfSimulation();
     void perfGpu();
     void engineTab();
+    // The Engine tab's Streaming section (S24)
+    void streamingSection();
     void barSummary(float width);
     // Pauses or resumes the world between steps (the Pause key, the buttons)
     void togglePause();

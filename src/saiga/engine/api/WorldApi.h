@@ -180,6 +180,9 @@ class SAIGA_ENGINE_API WorldApi
     // S23b: chunk records and content
     ApiResult chunkInfo(const json11::Json& a);
     ApiResult listSites(const json11::Json& a);
+    // S24
+    ApiResult streamingStatus(const json11::Json& a);
+    ApiResult requestArrival(const json11::Json& a);
     ApiResult tombstone(const json11::Json& a);
     ApiResult spawn(const json11::Json& a);
     ApiResult destroy(const json11::Json& a);

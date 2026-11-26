@@ -17,6 +17,7 @@
 #pragma once
 
 #include "saiga/engine/components/CharacterIntent.h"
+#include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/StreamingAnchor.h"
 #include "saiga/engine/core/Hash.h"

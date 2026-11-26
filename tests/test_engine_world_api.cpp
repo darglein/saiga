@@ -48,6 +48,7 @@
 
 #include "content_test_setup.h"
 #include "mcp_test_helper.h"
+#include "streaming_test_setup.h"
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -901,6 +902,9 @@ TEST(WorldTools, EveryToolAnswers)
     track("list_sites", Json::object{});
     // tombstone needs a generator with slots: WorldTools.ContentTools
     called.insert("tombstone");
+    // S24 (a world without streaming: enabled false; an arrival completes in the next step)
+    track("streaming_status", Json::object{});
+    track("request_arrival", Json::object{{"entity", WorldApi::entityJson(p)}, {"position", Json::array{5, 0, 5}}});
     track("get_global", obj(R"({"component": "TestWeather"})"));
     track("set_global", obj(R"({"component": "TestWeather", "values": {"rain": 1}})"));
     track("emit_event",
@@ -2514,4 +2518,135 @@ TEST(WorldTools, ContentToolsOnAClient)
     r = callTool(server, "chunk_info", obj(R"({"chunk": [4, 5]})"));
     EXPECT_FALSE(r["result"]["isError"].bool_value());
     EXPECT_TRUE(toolJson(r)["stamped"].is_null()) << "stamped is host-only";
+}
+
+// S24: the streaming tools through handleMessage: streaming_status (counts, centres, the paged chunk list, a world
+// without streaming), request_arrival (accepted with the progress, a refused second request, the island limit, a
+// client), chunk_info's residency, world_status's streaming block, inspect's held and an alwaysSimulate edit through
+// set_component (applied without a move)
+TEST(WorldTools, StreamingTools)
+{
+    WorldSetup s = StreamingTest::streamingTestSetup(StreamingTest::sharedStreamingCache());
+    // No prefetch: fewer chunks to generate (test speed)
+    for (SpaceTemplate& t : s.config.spaceTemplates) t.prefetchMargin = 0;
+    World w(s);
+    w.setStreamingSynchronous(true);
+    const Entity player = StreamingTest::addPlayer(w, Vec3(1150, 0, 1400));
+    // Beyond the simulation radius, in the player's (requested) chunk
+    const Entity npc = w.spawn<StreamingTest::Ticker>(Vec3(1270, 0, 1400));
+    w.step();
+    McpServer server("test");
+    auto api = registerWorldTools(server, w);
+    Poller poller(server);
+    auto call = [&](const std::string& name, const Json& args)
+    {
+        Json r = callTool(server, name, args);
+        EXPECT_FALSE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return toolJson(r);
+    };
+    auto error = [&](const std::string& name, const Json& args)
+    {
+        Json r = callTool(server, name, args);
+        EXPECT_TRUE(r["result"]["isError"].bool_value()) << name << ": " << r.dump();
+        return r["result"]["content"][0]["text"].string_value();
+    };
+    const Json st = call("streaming_status", Json::object{});
+    EXPECT_TRUE(st["enabled"].bool_value());
+    EXPECT_TRUE(st["synchronous"].bool_value());
+    ASSERT_EQ(st["spaces"].array_items().size(), 1u);
+    EXPECT_GT(st["spaces"][0]["resident"].number_value(), 0);
+    EXPECT_EQ(st["spaces"][0]["centres"][0]["entity"]["index"].number_value(), double(player.index));
+    EXPECT_FALSE(st["spaces"][0]["centres"][0]["arrival"].bool_value());
+    EXPECT_EQ(st["islands"]["count"].number_value(), 1);
+    EXPECT_GT(st["simulated"].number_value(), 0);
+    EXPECT_TRUE(st["chunks"].is_null());
+    // The chunk list, paged
+    const Json p1 = call("streaming_status", obj(R"({"chunks": true, "limit": 2})"));
+    ASSERT_EQ(p1["chunks"].array_items().size(), 2u);
+    EXPECT_EQ(p1["next"].number_value(), 1);
+    const Json p2 = call("streaming_status", obj(R"({"chunks": true, "limit": 2, "after": 1})"));
+    ASSERT_FALSE(p2["chunks"].array_items().empty());
+    EXPECT_NE(p2["chunks"][0]["chunk"], p1["chunks"][0]["chunk"]);
+    EXPECT_EQ(p1["chunks"][0]["state"].string_value(), "resident");
+    EXPECT_NE(error("streaming_status", obj(R"({"limit": 5000})")).find("limit"), std::string::npos);
+    // chunk_info's residency, world_status's streaming, inspect's held
+    const Json info = call("chunk_info", obj(R"({"position": [1150, 1400]})"));
+    EXPECT_EQ(info["residency"]["state"].string_value(), "resident");
+    EXPECT_TRUE(info["residency"]["requested"].bool_value());
+    EXPECT_EQ(info["residency"]["parts"].array_items().size(), 2u);
+    EXPECT_EQ(call("chunk_info", obj(R"({"position": [20000, 20000]})"))["residency"]["state"].string_value(), "none");
+    const Json ws = call("world_status", Json::object{});
+    EXPECT_TRUE(ws["streaming"]["enabled"].bool_value());
+    EXPECT_GT(ws["streaming"]["resident"].number_value(), 0);
+    EXPECT_EQ(ws["streaming"]["islands"].number_value(), 1);
+    const Json npcJson = Json::object{{"index", double(npc.index)}, {"generation", double(npc.generation)}};
+    Json in            = call("inspect", Json::object{{"entity", npcJson}});
+    EXPECT_FALSE(in["flags"]["simulated"].bool_value());
+    EXPECT_FALSE(in["held"].bool_value());
+    // An alwaysSimulate edit applies without a move (its chunk is requested and resident)
+    call("set_component",
+         Json::object{{"entity", npcJson}, {"component", "Behaviour"}, {"values", obj(R"({"alwaysSimulate": true})")}});
+    EXPECT_TRUE(w.simulated(npc));
+    // request_arrival: accepted (held until the next step), a second request refused with its reason
+    const Json playerJson = Json::object{{"index", double(player.index)}, {"generation", double(player.generation)}};
+    const Json ra = call("request_arrival", Json::object{{"entity", playerJson}, {"position", obj("[1300, 0, 1400]")}});
+    EXPECT_TRUE(ra["accepted"].bool_value());
+    EXPECT_GE(ra["progress"].number_value(), 0);
+    EXPECT_TRUE(ra["held"].bool_value());
+    in = call("inspect", Json::object{{"entity", playerJson}});
+    EXPECT_TRUE(in["held"].bool_value());
+    EXPECT_NE(error("request_arrival", Json::object{{"entity", playerJson}, {"position", obj("[9150, 0, 1400]")}})
+                  .find("pending"),
+              std::string::npos);
+    EXPECT_NE(error("request_arrival", Json::object{{"entity", npcJson}, {"position", obj("[-50, 0, 1400]")}})
+                  .find("outside"),
+              std::string::npos);
+    w.step();
+    EXPECT_NEAR(w.read<Transform>(player).position().x(), 1300, 1e-9);
+
+    // The hard island limit: refused with its reason
+    {
+        WorldSetup hs                  = s;
+        hs.config.maxSimulationIslands = 1;
+        hs.config.hardIslandLimit      = true;
+        World h(hs);
+        h.setStreamingSynchronous(true);
+        StreamingTest::addPlayer(h, Vec3(1150, 0, 1400));
+        const Entity b = StreamingTest::addPlayer(h, Vec3(1160, 0, 1400));
+        h.step();
+        WorldApi hapi(h);
+        const ApiResult r = hapi.call(
+            "request_arrival",
+            Json::object{{"entity", Json::object{{"index", double(b.index)}, {"generation", double(b.generation)}}},
+                         {"position", obj("[9150, 0, 1400]")}});
+        EXPECT_FALSE(r.ok);
+        EXPECT_NE(r.error.find("island"), std::string::npos) << r.error;
+    }
+    // A world without streaming
+    {
+        WorldSetup off       = s;
+        off.config.streaming = false;
+        World o(off);
+        WorldApi oapi(o);
+        const ApiResult r = oapi.call("streaming_status", Json::object{});
+        ASSERT_TRUE(r.ok);
+        EXPECT_FALSE(r.value["enabled"].bool_value());
+    }
+    // A client: request_arrival is a host command
+    {
+        auto t        = LoopbackTransport::createNetwork(2, LoopbackOptions());
+        WorldSetup cs = s;
+        cs.transport  = t[1].get();
+        cs.role       = NetRole::Client;
+        cs.localPeer  = 1;
+        World client(cs);
+        const Entity local = client.createIn(0);
+        WorldApi capi(client);
+        const ApiResult r = capi.call("request_arrival",
+                                      Json::object{{"entity", Json::object{{"index", double(local.index)},
+                                                                           {"generation", double(local.generation)}}},
+                                                   {"position", obj("[10, 0, 10]")}});
+        EXPECT_FALSE(r.ok);
+        EXPECT_NE(r.error.find("host"), std::string::npos) << r.error;
+    }
 }
