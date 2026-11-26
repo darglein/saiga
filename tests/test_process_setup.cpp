@@ -17,6 +17,8 @@
 // is released after the last test, so leaked objects are still reported by the validation layer (which fails the
 // run). SAIGA_TEST_NEW_DEVICES=1 creates a new device for every renderer, as an application does.
 
+#include "saiga/core/util/env.h"
+
 #include "gtest/gtest.h"
 
 #include <cstdlib>
@@ -33,8 +35,8 @@ namespace
 {
 bool envSet(const char* name)
 {
-    const char* v = std::getenv(name);
-    return v && *v && *v != '0';
+    const auto v = Saiga::GetEnvIfSet(name);
+    return v && !v->empty() && (*v)[0] != '0';
 }
 
 #if defined(SAIGA_TEST_VULKAN)

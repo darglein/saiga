@@ -8,6 +8,8 @@
 
 #include "saiga/engine/core/Log.h"
 
+#include "saiga/core/util/env.h"
+
 #include <atomic>
 #include <cstdarg>
 #include <cstdio>
@@ -25,8 +27,8 @@ namespace
 std::atomic<bool> echo{true};
 std::atomic<bool> mcpEcho{[]
                           {
-                              const char* e = std::getenv("SAIGA_MCP_ECHO");
-                              return e && std::strcmp(e, "1") == 0;
+                              const auto e = GetEnvIfSet("SAIGA_MCP_ECHO");
+                              return e && *e == "1";
                           }()};
 
 // Ring insertion and stdout echo under one lock: stdout shows the lines in sequence order, without interleaving.

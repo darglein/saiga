@@ -550,6 +550,9 @@ scene lights; clustered, the most important shadowed ones in the cached shadow a
 - Keep the code portable and free of warnings: it must build with GCC, Clang and MSVC (Linux and Windows); CI builds
   with `SAIGA_WARNINGS_AS_ERRORS=ON`. The MSVC CI job covers Core, Vulkan and Engine only (OpenGL, Vision and the
   samples are not built there).
+  MSVC compiles the saiga targets at warning level 3 (`SAIGA_WARNING_CXX_FLAGS`), where the CRT deprecations (C4996)
+  are warnings: use `Saiga::GetEnvIfSet` (`saiga/core/util/env.h`) instead of `std::getenv`, and the `_s` or `_r`
+  variants of `localtime`/`gmtime`.
 
 ## Gotchas
 

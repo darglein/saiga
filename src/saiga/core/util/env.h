@@ -8,6 +8,7 @@
 
 #include "saiga/config.h"
 
+#include <optional>
 #include <string>
 
 namespace Saiga
@@ -18,5 +19,9 @@ SAIGA_CORE_API int SetEnv(const std::string& name, const std::string& value, int
 
 // Read the current value of an enviroment variable. Returns an empty string if it is not set.
 SAIGA_CORE_API std::string GetEnv(const std::string& name);
+
+// The value of an environment variable, or nullopt if it is not set (unlike GetEnv, an empty value is not unset).
+// Use it instead of std::getenv, which the MSVC CRT deprecates (C4996).
+SAIGA_CORE_API std::optional<std::string> GetEnvIfSet(const std::string& name);
 
 }  // namespace Saiga

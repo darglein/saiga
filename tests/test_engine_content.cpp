@@ -7,6 +7,7 @@
 // The content generation (docs/engine_design.md §12.1, §15.3, R-CONTENT-1; S23a): the fixed-point toolkit and the
 // integer lint (this unit is compiled with trapping UBSan on the Clang CI job, SAIGA_CONTENT_UBSAN).
 
+#include "saiga/core/util/env.h"
 #include "saiga/engine/api/ComponentJson.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/SpaceLink.h"
@@ -1420,8 +1421,8 @@ TEST(ContentHash, CommittedHashesReproduce)
     const std::string root = SAIGA_PROJECT_SOURCE_DIR;
     ASSERT_FALSE(root.empty()) << "the committed hashes need SAIGA_WRITE_PROJECT_DIR_TO_HEADER=ON";
     // Only the value 1 (PR review: an exported SAIGA_UPDATE_CONTENT_HASHES=0 rewrote the committed file)
-    const char* env   = std::getenv("SAIGA_UPDATE_CONTENT_HASHES");
-    const bool update = env && std::string(env) == "1";
+    const auto env    = GetEnvIfSet("SAIGA_UPDATE_CONTENT_HASHES");
+    const bool update = env && *env == "1";
     const ContentHashReport report =
         checkContentHashes(ContentTest::contentTestSetup(2), contentHashFile(), update, hashCheckCache());
     std::cout << report.summary() << std::endl;
@@ -2337,8 +2338,8 @@ TEST(ContentSave, PreS23SaveNeedsLegacyGenerators)
 TEST(ContentSave, CommittedSaveLoads)
 {
     const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23a.bin";
-    const char* update     = std::getenv("SAIGA_UPDATE_GOLDEN");
-    if (update && std::string(update) == "1")
+    const auto update      = GetEnvIfSet("SAIGA_UPDATE_GOLDEN");
+    if (update && *update == "1")
     {
         World w(ContentTest::contentTestSetup(2));
         stampSiteZero(w);
@@ -3023,8 +3024,8 @@ TEST(ChunkRecords, CommittedSaveLoads)
 {
     const std::string path = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/save_s23b.bin";
     const ChunkId c45 = chunkAt(4, 5), c20 = chunkAt(20, 30);
-    const char* update = std::getenv("SAIGA_UPDATE_GOLDEN");
-    if (update && std::string(update) == "1")
+    const auto update = GetEnvIfSet("SAIGA_UPDATE_GOLDEN");
+    if (update && *update == "1")
     {
         World w(ContentTest::contentTestSetup(2));
         stampSiteZero(w);

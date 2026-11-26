@@ -384,12 +384,12 @@ class MatrixBase
 
         // code from
         // https://www.scratchapixel.com/lessons/mathematics-physics-for-computer-graphics/matrix-inverse
-        for (unsigned column = 0; column < N; ++column)
+        for (int column = 0; column < N; ++column)
         {
             // Partial pivoting: always use the row with the largest |pivot|. Swapping only on an exactly zero
             // pivot makes the elimination numerically unstable for tiny pivots.
-            unsigned big = column;
-            for (unsigned row = column + 1; row < N; ++row)
+            int big = column;
+            for (int row = column + 1; row < N; ++row)
                 if (fabs(m(row, column)) > fabs(m(big, column))) big = row;
             if (m(big, column) == 0)
             {
@@ -398,7 +398,7 @@ class MatrixBase
             }
             if (big != column)
             {
-                for (unsigned j = 0; j < N; ++j)
+                for (int j = 0; j < N; ++j)
                 {
                     auto tmp1    = m(column, j);
                     m(column, j) = m(big, j);
@@ -410,14 +410,14 @@ class MatrixBase
                 }
             }
             // Set each row in the column to 0
-            for (unsigned row = 0; row < N; ++row)
+            for (int row = 0; row < N; ++row)
             {
                 if (row != column)
                 {
                     Scalar coeff = m(row, column) / m(column, column);
                     if (coeff != 0)
                     {
-                        for (unsigned j = 0; j < N; ++j)
+                        for (int j = 0; j < N; ++j)
                         {
                             m(row, j) -= coeff * m(column, j);
                             mat(row, j) -= coeff * mat(column, j);
@@ -429,9 +429,9 @@ class MatrixBase
             }
         }
         // Set each element of the diagonal to 1
-        for (unsigned row = 0; row < N; ++row)
+        for (int row = 0; row < N; ++row)
         {
-            for (unsigned column = 0; column < N; ++column)
+            for (int column = 0; column < N; ++column)
             {
                 mat(row, column) /= m(row, row);
             }

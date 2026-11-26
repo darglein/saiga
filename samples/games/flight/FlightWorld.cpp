@@ -8,6 +8,7 @@
 
 #include "games/flight/FlightWorld.h"
 
+#include "saiga/core/util/env.h"
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/Player.h"
 #include "saiga/engine/components/RenderInstance.h"
@@ -502,8 +503,8 @@ void flightScenarios(ScenarioList& list)
         "flight_content_hashes",
         [](ScenarioWorld& w)
         {
-            const char* updateEnv  = std::getenv("SAIGA_UPDATE_CONTENT_HASHES");
-            const bool update      = updateEnv && std::string(updateEnv) == "1";
+            const auto updateEnv   = GetEnvIfSet("SAIGA_UPDATE_CONTENT_HASHES");
+            const bool update      = updateEnv && *updateEnv == "1";
             std::string file       = w.setup().dataDirectory + "/content_hashes.json";
             const std::string root = SAIGA_PROJECT_SOURCE_DIR;
             if (update)

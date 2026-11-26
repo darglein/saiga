@@ -9,6 +9,7 @@
 
 #include "saiga/core/imgui/imgui.h"
 #include "saiga/core/imgui/imgui_internal.h"
+#include "saiga/core/util/env.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
@@ -119,9 +120,9 @@ struct ScopedEnv
 {
     ScopedEnv(const char* name, const char* value) : name(name)
     {
-        const char* old = std::getenv(name);
-        had             = old != nullptr;
-        if (had) previous = old;
+        const auto old = GetEnvIfSet(name);
+        had            = old.has_value();
+        if (had) previous = *old;
         setEnv(name, value);
     }
     ~ScopedEnv() { setEnv(name.c_str(), had ? previous.c_str() : nullptr); }

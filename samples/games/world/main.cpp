@@ -30,6 +30,7 @@
  */
 
 #include "saiga/core/imgui/imgui.h"
+#include "saiga/core/util/env.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/EngineMain.h"
@@ -167,8 +168,8 @@ void initWorld(EngineApp& app)
     World& w     = app.world();
     // A benchmark always uses the default world (its result is compared with the baseline)
     int treeCount = 200000;
-    if (const char* trees = std::getenv("SAIGA_WORLD_TREES"); trees && g.benchmarkName.empty())
-        treeCount = std::atoi(trees);
+    if (auto trees = GetEnvIfSet("SAIGA_WORLD_TREES"); trees && g.benchmarkName.empty())
+        treeCount = std::atoi(trees->c_str());
     const auto t0 = std::chrono::steady_clock::now();
     Vulkan::PrototypeArea area;
     area.seed          = w.spaceSeed(0);

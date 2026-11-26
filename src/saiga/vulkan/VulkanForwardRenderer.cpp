@@ -7,6 +7,7 @@
 #include "VulkanForwardRenderer.h"
 
 #include "saiga/core/image/managedImage.h"
+#include "saiga/core/util/env.h"
 #include "saiga/vulkan/Shader/all.h"
 #include "saiga/vulkan/buffer/StagingBuffer.h"
 #include "saiga/vulkan/imgui/ImGuiVulkanRenderer.h"
@@ -43,9 +44,9 @@ VulkanForwardRenderer::VulkanForwardRenderer(VulkanWindow& window, VulkanParamet
 
     if (imGui) imGui->initResources(base(), renderingFormats());
 
-    if (const char* file = std::getenv("SAIGA_SCREENSHOT"))
+    if (auto file = GetEnvIfSet("SAIGA_SCREENSHOT"))
     {
-        autoScreenshotFile = file;
+        autoScreenshotFile = *file;
     }
     std::cout << "VulkanForwardRenderer init done." << std::endl;
 }

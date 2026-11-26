@@ -7,6 +7,7 @@
 #pragma once
 
 #include "saiga/core/image/templatedImage.h"
+#include "saiga/core/util/env.h"
 
 #include "gtest/gtest.h"
 
@@ -27,8 +28,8 @@ inline bool goldenGating(const std::string& deviceName)
 // SAIGA_UPDATE_GOLDEN=1: compareGolden writes the goldens instead of comparing (lavapipe only)
 inline bool goldenUpdateMode()
 {
-    const char* update = std::getenv("SAIGA_UPDATE_GOLDEN");
-    return update && std::string(update) == "1";
+    const auto update = Saiga::GetEnvIfSet("SAIGA_UPDATE_GOLDEN");
+    return update && *update == "1";
 }
 
 // The golden metrics of two images of the same size (§17.6): the mean absolute difference per channel (/255), the

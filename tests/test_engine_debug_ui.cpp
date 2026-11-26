@@ -7,6 +7,7 @@
 // The debug UI's logic without ImGui or a device (docs/engine_design.md §17.1; S19c): the console's commands, the tab
 // keys, the saved state and the MCP call log
 
+#include "saiga/core/util/env.h"
 #include "saiga/core/util/mcp/McpServer.h"
 #include "saiga/engine/app/DebugConsole.h"
 #include "saiga/engine/app/DebugUi.h"
@@ -367,7 +368,7 @@ TEST(McpCallLog, LinesAndThrottling)
 TEST(McpCallLog, NotEchoedByDefault)
 {
     // SAIGA_MCP_ECHO=1 turns the echo of the "mcp" lines on; the tests run without it
-    if (std::getenv("SAIGA_MCP_ECHO")) GTEST_SKIP() << "SAIGA_MCP_ECHO is set";
+    if (GetEnvIfSet("SAIGA_MCP_ECHO")) GTEST_SKIP() << "SAIGA_MCP_ECHO is set";
     EXPECT_FALSE(mcpLogEcho());
     // Through the default sink into the engine log, category mcp
     const uint64_t before = engineLog().lastSequence();

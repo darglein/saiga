@@ -6,6 +6,7 @@
 
 // Saves, loads, migrations and save comparison (docs/engine_design.md §15; stage S11)
 
+#include "saiga/core/util/env.h"
 #include "saiga/engine/components/Health.h"
 #include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/Parent.h"
@@ -1147,8 +1148,8 @@ namespace
 const std::string kGoldenDir = std::string(SAIGA_PROJECT_SOURCE_DIR) + "/data/tests/engine/";
 bool updateGolden()
 {
-    const char* v = std::getenv("SAIGA_UPDATE_GOLDEN");
-    return v && std::string(v) == "1";
+    const auto v = GetEnvIfSet("SAIGA_UPDATE_GOLDEN");
+    return v && *v == "1";
 }
 std::string readFile(const std::string& path)
 {

@@ -109,6 +109,9 @@ if (SAIGA_CXX_FLAGS_MSVC)
 
     # non dll-interface struct 'xx' used as base for dll-interface struct 'xx'
     list(APPEND SAIGA_CXX_FLAGS "/wd4275")
+    # 'member' needs to have dll-interface (std:: members of exported classes); config.h disables it with a pragma,
+    # which headers that only include export.h do not see
+    list(APPEND SAIGA_CXX_FLAGS "/wd4251")
 
 
     #    set(CMAKE_CXX_FLAGS "/MP ${CMAKE_CXX_FLAGS}")

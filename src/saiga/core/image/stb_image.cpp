@@ -8,4 +8,12 @@
 #include "saiga/core/image/stb_image.h"
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
+#ifdef _MSC_VER
+// stb (vendored) uses sprintf, which the MSVC CRT deprecates (C4996)
+#    pragma warning(push)
+#    pragma warning(disable : 4996)
+#endif
 #include "saiga/core/image/stb_image_write.h"
+#ifdef _MSC_VER
+#    pragma warning(pop)
+#endif
