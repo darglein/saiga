@@ -101,10 +101,9 @@ S25 (world save directory) has no dependency in either direction (§22); where t
   re-request after a gap and the re-subscription after a `Resync` need a client -> host message anyway; (c) games can
   hold extra chunks (a map preview, a teleport target) without the host knowing why (R-MECH-1); (d) clients are
   trusted (§2), so the host only bounds the requests (range, count, epoch). The host keeps one subscription table per
-  peer. S24's alternative (its S26 interface 4: the host derives each peer's chunks from its own centres) is not used;
-  see "Conflicts with S24".
+  peer. The alternative (the host derives each peer's chunks from its own copy of the client's centres) is not used.
 - **D2 Handshake of two messages plus a rejection.** `JoinRequest` (client -> host) carries everything the host checks;
-  the host answers `JoinReject` (reason code, text, optionally its network schema) or admits the peer and sends
+  the host answers `JoinReject` (reason code, text naming the differing schema section) or admits the peer and sends
   `JoinAccept` (epoch, generation info) before the spawn set, both on the reliable channels. The host checks what it
   can (protocol, environment, schema, render tables, seed, generator capabilities); the client re-validates
   `JoinAccept` (untrusted input) and adopts the pins; a failure of the adoption (a different plan hash after the
@@ -119,9 +118,12 @@ S25 (world save directory) has no dependency in either direction (§22); where t
   registered component (also `Saved::No`), its replicate mode, its kind (plain, global, space state: this is where
   `EnvironmentSetup::enabled` shows), the fields with their quantization, the events with their replicate mode, the
   classes, the messages with version, reliability, channel and raw flag, the player actions and held buttons, and the
-  space templates' layout (incl. S24's `simulationRadius`, `prefetchMargin`, `unloadMargin`) and the world flags that
-  change the protocol (`WorldConfig::streaming`, D19). `NetSchema::fromWorld(world)` builds it, its canonical
-  encoding is hashed with FNV-1a 64 (`core/Hash.h`). Data files (tunable values) and prefabs are not in it (prefabs
+  space templates' layout and the world flags that change the protocol (`WorldConfig::streaming`, D19); not the
+  streaming radii and margins (each client uses its own, D1) and not `Saved` (it does not change the wire).
+  `NetSchema::fromWorld(world)` builds it; the canonical encoding of each section (types, messages, classes, actions,
+  templates and flags) is hashed with FNV-1a 64 (`core/Hash.h`), and the schema hash is the hash of the section
+  hashes. `JoinRequest` carries the section hashes, so the host's rejection names the differing section without a
+  schema transfer or an untrusted schema decoder. Data files (tunable values) and prefabs are not in it (prefabs
   are in the plan hash).
 - **D5 Explicit fields for the specific reasons.** The environment flag, the render table hash, the seed and the
   generators are separate `JoinRequest` fields checked **before** the schema hash (the environment flag also changes
@@ -153,8 +155,8 @@ S25 (world save directory) has no dependency in either direction (§22); where t
   (`kMaxQueuedPartsPerChunk` = 1024 parts) is dropped and re-requested the same way.
 - **D10 Unload drops the client's state.** When a chunk leaves the client's interest it is unsubscribed and its state
   dropped: its record erased, its `TerrainEditStore` entry removed, and the samples of its closed range zeroed except
-  those that another subscribed chunk's closed range contains (shared borders stay: the neighbour's snapshot and live
-  parts keep them correct). Before S26 clients kept every edited sample forever (§12.2); that rule ends here.
+  those that another subscribed chunk's closed range contains (`Pending` or `Synced`: shared borders stay; the
+  neighbour's snapshot and live parts keep them correct). Before S26 clients kept every edited sample forever (§12.2); that rule ends here.
 - **D11 Epochs.** Every chunk message carries the epoch. A `Resync` (host load) voids every subscription on both
   sides: the host clears its tables and its snapshot queue in `onHostLoad`, the client clears its chunk state
   (`clearReplicatedChunkState`), adopts the generation info and re-subscribes every chunk it wants with new tickets in
@@ -176,9 +178,8 @@ S25 (world save directory) has no dependency in either direction (§22); where t
   keys then fit a few MB; tier-1 content has at most thousands of candidates per chunk; grass edits are S31's masks,
   not tombstones). `World::tombstone` and tombstone-on-edit refuse a key beyond it (a new check next to S23b's
   exhausted-sequence refusal; a log line, the world API's error).
-- **D15 Base snapshots are a reserved stub.** Base snapshots exist only for retired generator versions (§15.3), which
-  S25 defers (its G17: the stage that first retires a version, proposed S27). S26 reserves flag bit 3 of `ChunkSnapshot`
-  ("base follows"); its decoder rejects the bit; the retiring stage implements and tests it.
+- **D15 No base snapshots.** They exist only for retired generator versions (§15.3), which S25 defers (its G17: the
+  stage that first retires a version, proposed S27); that stage adds a flag bit (unknown bits are rejected today).
 - **D16 Steps and aborts.** Host: `ChunkInterest` applies to the subscription table in its phase-1 handler (a
   consumed message keeps its changes, S15); the snapshot queue's pops in phase 8 are staged and committed with the step
   (an aborted phase 8 keeps the queue; the outbox drops the encoded messages). Client: the interest diff is computed in
@@ -201,11 +202,11 @@ S25 (world save directory) has no dependency in either direction (§22); where t
   after the spawn set and apply when they arrive).
 - **D19 Worlds without streaming subscribe everything.** S24 makes streaming a world policy (G1, default off; on only
   for `game_flight`, G22); a client of such a world has no residency to subscribe from. It sends one `ChunkInterest`
-  per space with the flag `all` (and a ticket) when it is `Joined` and after every `Resync`, and never unsubscribes.
+  per space with the flag `all` (identified by its epoch) when it is `Joined` and after every `Resync`, and never unsubscribes.
   The host answers with one `ChunkIndex` per space (on `ChunkData`, not budgeted, at most 12 bytes per chunk with state:
-  the chunks with a sequence > 0 or a record and their sequences), then queues a `ChunkSnapshot` per listed chunk
+  the chunks with a sequence > 0 or a record), then queues a `ChunkSnapshot` per listed chunk
   (budgeted) and sends the space's live parts to that peer from then on. Until the index arrives every live part of
-  the space is queued per chunk; on the index the listed chunks become `Pending` with the space's ticket, every other
+  the space is queued per chunk; on the index the listed chunks become `Pending` with ticket 0, every other
   chunk is `Synced` at sequence 0 (its queued parts apply from sequence 1). This keeps today's behaviour (every client
   holds every edited chunk) for every non-streaming world, with the same queue, gap and epoch rules; the host + client
   variants of all existing scenarios (non-streaming) exercise it. `WorldConfig::streaming` is in the network schema,
@@ -274,13 +275,12 @@ its own apply paths), and S26's §13.2 amendment replacing S24's.
 
 S25 and S26 do not depend on each other (§22); they touch here:
 
-- **Base snapshots** (D15): neither stage implements them (S25 G17 defers retiring); the retiring stage fills flag bit
-  3 from a record's stored base.
+- **Base snapshots** (D15): neither stage implements them (S25 G17 defers retiring).
 - **Chunk store**: S25 keeps every chunk's modification state in memory (its G2), so the snapshot encoder reads
   `TerrainEditStore` / `ChunkRecords` unchanged. S25's every-visited-chunk records carry the current placement version
   and do not set the snapshot's "record present" flag.
-- **`Despawn`**: S25 adds `EngineMessage::Despawn` (per entity, not for bound NetIds); whichever of S25 and S26 lands
-  later appends it after the other's last message ID.
+- **`Despawn`**: S25 (implemented before S26) adds `EngineMessage::Despawn` (per entity, not for bound NetIds); S26's
+  renumbering includes it (Scope 1). Despawns go to every joined peer like `Destroy`; S26 filters only chunk messages.
 - **Records**: S25 records every generated chunk's placement version (§15.3). The snapshot's "record present" flag
   then covers chunks whose version differs from the host's current one; the client's rule (no record: current
   version) is unchanged.
@@ -302,11 +302,12 @@ change):
 | 2 | `JoinAccept` (raw) | host -> client, State, reliable | new (replaces the join's `Resync` and `GenerationState`) |
 | 3..12 | `Spawn`, `Destroy`, `Hierarchy`, `ComponentChange`, `Snapshot`, `OwnerState`, `OwnerCommand`, `PlayerAction`, `Ping`, `Pong` | unchanged | renumbered |
 | 13 | `Resync` (raw, version 2) | host -> client, State, reliable | epoch plus the generation info (was typed, epoch only) |
-| 14 | `TerrainModification` | host -> client, State, reliable | unchanged layout, filtered per peer (D8) |
-| 15 | `TombstoneModification` | host -> client, State, reliable | unchanged layout, filtered per peer (D8) |
-| 16 | `ChunkInterest` (raw) | client -> host, Control, reliable | new |
-| 17 | `ChunkSnapshot` (raw) | host -> client, ChunkData, reliable | new |
-| 18 | `ChunkIndex` (raw) | host -> client, ChunkData, reliable | new (worlds without streaming, D19) |
+| 14 | `Despawn` | host -> client, State, reliable | S25's, renumbered |
+| 15 | `TerrainModification` | host -> client, State, reliable | unchanged layout, filtered per peer (D8) |
+| 16 | `TombstoneModification` | host -> client, State, reliable | unchanged layout, filtered per peer (D8) |
+| 17 | `ChunkInterest` (raw) | client -> host, Control, reliable | new |
+| 18 | `ChunkSnapshot` (raw) | host -> client, ChunkData, reliable | new |
+| 19 | `ChunkIndex` (raw) | host -> client, ChunkData, reliable | new (worlds without streaming, D19) |
 
 Removed: `TerrainChunkState`, `GenerationState`, `ChunkRecordState` (and their encoders, decoders, handlers and
 `Replication::Stats` counters).
@@ -320,14 +321,14 @@ is untrusted-input safe: bounds, no bytes left over, `false` with an error):
 
 | Message | Layout | Bounds |
 |---|---|---|
-| `JoinRequest` | protocol version (u32); schema hash (u64); render table hash (u64); seed (u64); flags (u8: bit 0 environment enabled, bit 1 writes generation state); generator count (u16); per generator in name order: name (string), `version()` (u16), slot count (u16), per slot its name (string) | names <= 256 bytes, <= 1024 generators, <= 255 slots, payload <= 256 KB; unknown flag bits rejected |
-| `JoinReject` | reason (u8, `JoinRejectReason`); text (string); host schema length (varint, 0 = none) + the host's encoded `NetSchema` | text <= 4096 bytes, schema <= 4 MB |
+| `JoinRequest` | protocol version (u32); schema hash (u64); the section hashes (count u8, u64 each, in the order types, messages, classes, actions, templates and flags); render table hash (u64); seed (u64); flags (u8: bit 0 environment enabled, bit 1 writes generation state); generator count (u16); per generator in name order: name (string), `version()` (u16), slot count (u16), per slot its name (string) | names <= 256 bytes, <= 1024 generators, <= 255 slots, payload <= 256 KB; unknown flag bits rejected |
+| `JoinReject` | reason (u8, `JoinRejectReason`); text (string; for `Schema` it names the differing sections) | text <= 4096 bytes |
 | `JoinAccept` | epoch (u32); flags (u8: bit 0 generation info present); generation info | as `GenerationInfo` |
 | `Resync` v2 | epoch (u32); flags (u8: bit 0 generation info present); generation info | as `GenerationInfo` |
 | generation info | seed (u64); generator count (u16); per generator in name order: name (string), pinned (u16), current (u16), slot count (u16), per slot name (string) and flags (u32); space count (u32); combined plan hash (u64) | S23a's `GenerationState` bounds without its epoch |
-| `ChunkInterest` | flags (u8: bit 0 `all`, D19); epoch (u32); space (u16); with `all`: ticket (u32); else remove count (u16); add count (u16); removes: chunk x, z (i32); adds: chunk x, z (i32), ticket (u32) | `all`: no entries, only in a world without streaming; else 1..4096 entries in total, removes applied before adds, only in a streaming world |
-| `ChunkIndex` | epoch (u32); ticket (u32, the `all` subscription's); space (u16); count (varint); per chunk in `ChunkId` order: x, z (i32), sequence (u32) | count <= the space's chunk count (`sizeChunks^2`, <= 262144: at most ~3 MB); ascending, unique, in range |
-| `ChunkSnapshot` | flags (u8: bit 0 zstd body, bit 1 deltas present, bit 2 record present, bit 3 base (reserved, rejected, D15)); epoch (u32); ticket (u32); space (u16); chunk x, z (i32); sequence (u32, 0 allowed); N (u16; 0 for a space without a sample grid); body: [record: placement version (u16), key count (varint), keys ascending as varint differences of `slot << 24 \| counter` (the first absolute)] [deltas: encoded length (varint), the dense N x N deltas in `TerrainDeltaCodec`] | keys <= `kMaxChunkTombstones` (2^20), strictly ascending, slot <= 255, counter < 2^24; N <= 257; codec bounds of S22; decompressed body <= 8 MB |
+| `ChunkInterest` | flags (u8: bit 0 `all`, D19); epoch (u32); space (u16); without `all`: remove count (u16); add count (u16); removes: chunk x, z (i32); adds: chunk x, z (i32), ticket (u32) | `all`: no entries, only in a world without streaming, once per space and epoch (the epoch identifies it); else 1..4096 entries in total, removes applied before adds, only in a streaming world (or a re-request in an `all` space) |
+| `ChunkIndex` | epoch (u32); space (u16); count (varint); per chunk in `ChunkId` order: x, z (i32) | count <= the space's chunk count (`sizeChunks^2`, <= 262144: at most ~2 MB); ascending, unique, in range |
+| `ChunkSnapshot` | flags (u8: bit 0 zstd body, bit 1 deltas present, bit 2 record present; other bits rejected); epoch (u32); ticket (u32, 0 for a snapshot of an `all` space's index); space (u16); chunk x, z (i32); sequence (u32, 0 allowed); N (u16; 0 for a space without a sample grid); body: [record: placement version (u16), key count (varint), keys ascending as varint differences of `slot << 24 \| counter` (the first absolute)] [deltas: encoded length (varint), the dense N x N deltas in `TerrainDeltaCodec`] | keys <= `kMaxChunkTombstones` (2^20), strictly ascending, slot <= 255, counter < 2^24; N <= 257; codec bounds of S22; decompressed body <= 8 MB |
 
 - `JoinRejectReason`: `ProtocolVersion`, `Environment`, `Schema`, `RenderTables`, `Seed`, `Generators`, `Malformed`.
 - The generation info is S23a's `GenerationStateMessage` without the epoch; `net/GenerationStateMessage.{h,cpp}` is
@@ -351,7 +352,6 @@ struct SAIGA_ENGINE_API NetSchema
         std::string name;
         uint32_t id = 0, version = 0;
         uint8_t replicate = 0;   // Replicate (components), the event mode (events)
-        uint8_t saved     = 0;   // Saved (components)
         uint8_t stateKind = 0;   // 0 plain, 1 global, 2 space state (components; EnvironmentSetup::enabled shows here)
         std::vector<FieldInfo> fields;  // name, type, enum values, quantize
     };
@@ -366,11 +366,10 @@ struct SAIGA_ENGINE_API NetSchema
 
     static NetSchema fromWorld(const World& world);
     void encode(std::vector<uint8_t>& out) const;             // canonical
-    static bool decode(const uint8_t* data, size_t size, NetSchema& out, std::string& error);  // untrusted, bounded
-    uint64_t hash() const;                                    // fnv1a64Bytes over encode()
+    uint64_t hash() const;                                    // fnv1a64Bytes over the section hashes
 };
-// The first difference ("component Health: version 2 on the host, 1 here"); empty when equal
-SAIGA_ENGINE_API std::string netSchemaDifference(const NetSchema& host, const NetSchema& local);
+// The section hashes (types, messages, classes, actions, templates and flags) and their combined hash
+std::array<uint64_t, 5> sectionHashes() const;
 ```
 
 - `World` builds it at the end of construction (after `renderAssets`) and keeps it with its hash:
@@ -407,7 +406,7 @@ Sequence:
    `checkJoinRequest`:
    - protocol version equal;
    - environment flag equal ("environment: ... enabled on the host, disabled here");
-   - schema hash equal (the reject carries the host's encoded `NetSchema`);
+   - schema hash equal (the reject names every section whose hash differs: "schema: types, messages differ");
    - render table hash equal ("render name tables differ (meshes, materials, aliases)");
    - seed equal;
    - generators: the same names, the same `writesGenerationState`, per generator `version() >=` the host's current
@@ -431,10 +430,13 @@ Sequence:
    Adoption at join requires the adopted plan to have the client's space table (space count and the template per
    `SpaceId`; the client's space-state entities exist per space): otherwise the failure names "the host's world has N
    spaces, this client's plan M" (lifted by S33, which creates the client world from the host's info).
-5. Client `JoinReject` handler: `JoinState::Rejected`, `joinRejection()` = the text plus, with a schema, the
-   `netSchemaDifference(host, own)`; a `net` log line. Nothing else changes; the world keeps running locally.
-6. Before `Joined` a client rejects every message except `JoinAccept` / `JoinReject` (rejected input; the host sends
-   none). After `Rejected` every message is rejected input.
+5. Client `JoinReject` handler: `JoinState::Rejected`, `joinRejection()` = the text; a `net` log line. Nothing else changes; the world keeps running locally.
+6. While `Joining` a client handles `JoinAccept` / `JoinReject` and **defers** every other message in arrival order
+   (at most 1024; more is rejected input): channels are ordered only per channel, so a Control message of the
+   admission step (an `OwnerCommand` of a join policy that moves the new player) can overtake the State channel's
+   `JoinAccept`. The deferred messages are handled right after `Joined`, before the step's other messages. After
+   `Rejected` every message is rejected input. A `JoinRequest` from a peer that is already admitted is rejected input
+   (ignored).
 
 Removed with it: `Replication::onGenerationState`, `sendGenerationState`, `terrainRefused` and the "Spawn before a
 GenerationState" check of `onSpawn` (the handshake orders `JoinAccept` before every world message), `ResyncMessage`
@@ -463,18 +465,19 @@ class SAIGA_ENGINE_API ClientChunkSync
     const Stats& stats() const;
     // ...
 };
-// World (both roles): explicit interest on top of S24's residency, reference-counted per chunk (no-ops on the host
-// and in a world without streaming, where everything is subscribed)
-void World::holdChunk(const ChunkId& chunk);
-void World::releaseChunk(const ChunkId& chunk);
+// ClientChunkSync::hold / release: explicit interest on top of S24's residency, reference-counted per chunk
+// (engine-internal: tests through ScenarioWorld; a no-op in a world without streaming). A game API follows when a game
+// needs one.
 // Host: true; client: the chunk is Synced (D18)
 bool World::chunkSynced(const ChunkId& chunk) const;
 ```
 
 - **Wanted set** (streaming worlds) = the chunks of the client's `ChunkResidency` in state `Requested` or `Resident`,
-  every space (S24 interface 3; the enumeration of C1) union the holds, read in phase 8 of every step and
+  every space (`forEachChunk`, added to S24's class by S26) union the holds (`ClientChunkSync::hold` / `release`,
+  engine-internal; `ScenarioWorld` exposes them for tests), read in phase 8 of every step and
   `stepNetworkOnly` (D16), only while `Joined`. The diff against the table gives removes and adds per space,
-  encoded as `ChunkInterest` messages (removes before adds, at most 4096 entries per message, more messages if needed)
+  encoded as `ChunkInterest` messages (removes before adds, adds nearest-first by distance to the nearest centre so the
+  host's FIFO serves the chunk under a held player first; at most 4096 entries per message, more messages if needed)
   and staged; `commit()` applies them: a removed chunk is dropped (D10, `onTerrainChanged` with its box when it had
   deltas, `onRecordChanged` when it had a record), an added chunk becomes `Pending` with the next ticket (a per-world
   u32 counter, never 0). The diff of a chunk released and held again in the same step is empty (nothing dropped).
@@ -500,13 +503,19 @@ bool World::chunkSynced(const ChunkId& chunk) const;
 - **Re-request** (D9): `modificationGaps++` (S22's counter: the host + client variant still fails on any, a gap is a
   bug on a lossless transport), `rerequests++`, the chunk becomes `Pending` with a new ticket and an empty queue (the
   parts after the gap are queued anew), its state is kept, and an add with the new ticket is staged for the next phase
-  8 (a re-request between steps flushes at once outside a batching scope, as any send).
-- **`Resync`** (D11): the table is cleared without staging (`clearReplicatedChunkState` already notifies), every wanted
+  8 (also when the gap is found between steps: one rule). The residency keeps the chunk `Resident` meanwhile
+  (deliberately: its present state is valid up to the gap, and holding the mover for a re-request would stall on every
+  gap).
+- **Generation replaced** (the join's pin adoption, `Resync`): `World::replaceGeneration` calls
+  `residency().dropAll()` (S24 interface 5: `replaceSources` dropped the pinned tiles, and the held placements belong to
+  the old plans), so the next update requests every chunk again; with the cleared chunk table no chunk is `Resident`
+  before its new snapshot (the gate).
+- **`Resync`** (D11): the residency is dropped (above), the table is cleared without staging (`clearReplicatedChunkState` already notifies), every wanted
   chunk is added again in the next phase 8 (a world without streaming: one `all` subscription per space again).
-- **Worlds without streaming** (D19): on `Joined` and after a `Resync` the client stages one `ChunkInterest{all,
-  ticket}` per space; the space is `AllPending` (every live part queued per chunk, the queue bound applies per chunk)
-  until its `ChunkIndex` with that ticket arrives (another ticket or epoch: stale, dropped); then the listed chunks are
-  `Pending` with the ticket (their snapshots follow) and every other chunk of the space is `Synced` at sequence 0, its
+- **Worlds without streaming** (D19): on `Joined` and after a `Resync` the client stages one `ChunkInterest{all}` per
+  space; the space is `AllPending` (every live part queued per chunk, the queue bound applies per chunk)
+  until its `ChunkIndex` of the current epoch arrives (another epoch: stale, dropped); then the listed chunks are
+  `Pending` with ticket 0 (their snapshots follow) and every other chunk of the space is `Synced` at sequence 0, its
   queued parts applied from sequence 1 (a gap re-requests that chunk with a per-chunk add, which the host accepts in
   an `all` space too). A `ChunkIndex` is validated as a whole (ascending, unique, in range; a sequence of 0 is a chunk
   with only a record) before anything changes. `chunkSynced` is true for a chunk of an indexed space that is not
@@ -547,7 +556,7 @@ class SAIGA_ENGINE_API HostChunkSubscriptions
   space) (an entry with nothing left is
   not sent; `partsFiltered`, `entriesFiltered` count the removed ones); then the snapshot queue is served FIFO under
   the budget (D12), after this phase's `ChunkIndex` messages: `encodeChunkSnapshot(epoch, ticket, chunk, store,
-  records, out)` from the current `TerrainEditStore` and `ChunkRecords` state (in memory, S24 interface 7), sent with `sendRaw` on `ChunkData`. Pops are staged; `commit()`
+  records, out)` from the current `TerrainEditStore` and `ChunkRecords` state (in memory, S25 G2), sent with `sendRaw` on `ChunkData`. Pops are staged; `commit()`
   removes them, `abort(Phase::...)` keeps them.
 - `onHostLoad`: every table and queue is cleared (D11) before the `Resync`. A peer in `peersLeft()` loses its table.
 - S22's "the joining step's send-list entries are not sent to the joiner" rule is removed: a joiner subscribes later,
@@ -597,7 +606,7 @@ ChunkRecord& set(const ChunkId& chunk, uint16_t placementVersion, std::vector<In
   the dense delta of the closed range and the effective record equal the host's; a chunk that is not subscribed has no
   entry and no record on the client (its interior samples read 0); `modificationGaps`, `chunkRerequests` and
   `queueOverflows` are 0. A difference names the peer, the chunk, the sequence and the first differing sample or key.
-- `ScenarioWorld::holdChunk(peer, chunk)` / `releaseChunk(peer, chunk)` (the client's `World::holdChunk`), for
+- `ScenarioWorld::holdChunk(peer, chunk)` / `releaseChunk(peer, chunk)` (the client's `ClientChunkSync::hold` / `release`), for
   scenarios that drive interest without moving a player (streaming worlds).
 - In a world without streaming every client is subscribed to everything (D19), so the comparison covers every chunk
   with state on either side, as S22's and S23b's union rule did; the end condition adds "every space indexed".
@@ -605,7 +614,7 @@ ChunkRecord& set(const ChunkId& chunk, uint16_t placementVersion, std::vector<In
 
 ### 9. Engine scenarios (`tests/test_engine_scenarios.cpp`, engine scenario list)
 
-S24's five streaming scenarios (`registerStreamingScenarios` on `streamingScenarioSetup()`, S24 interface 12) run
+S24's five streaming scenarios (`registerStreamingScenarios` on `streamingScenarioSetup()`, S24's Tests; in S24's `test_engine_streaming_scenarios` binary) run
 their host + client variants over chunk subscriptions; `edit_far_chunk_then_visit` is the "edited before the client
 subscribed" case (the client never receives the live edit; the snapshot after the arrival carries it). Their checks on
 the client ("every chunk within `fullRadius` is resident", `streamingStalls` 0 in `streaming_follows_player`) now
@@ -620,10 +629,11 @@ One new scenario, added to `registerStreamingScenarios` and run in every variant
 
 - `streaming_reload_during_edit`: a player standing on chunk C (the setup's terrain); the host edits C every 3 steps
   for 30 steps while the player is moved (`requestArrival`, host) 600 m away (beyond the scenario worlds' kept distance
-  of 256 m, so C is unloaded and, on the client, unsubscribed and dropped) and back every 7 steps, so edits are in
-  flight during unsubscribe, resubscribe and pending snapshots at delay 2 and in the asynchronous variant; checks on the
-  host: the player stands on the edited surface after every return; the end comparison checks the heights and sequences
-  of C and its neighbours on the client.
+  of 256 m, so C is unloaded and, on the client, unsubscribed and dropped) and back, dwelling 16 steps at each end
+  (more than twice the `2 * delaySteps + 3` sync bound at delay 2), so edits are in flight during unsubscribe,
+  resubscribe and pending snapshots at delay 2 and in the asynchronous variant; checks after the final sync: on host
+  and client `terrainHeight` at the player's x/z equals the edited surface, and the end comparison checks the heights
+  and sequences of C and its neighbours on the client.
 
 ## Out of scope
 
@@ -633,8 +643,8 @@ One new scenario, added to `registerStreamingScenarios` and run in every variant
 - The view camera as an interest source on clients (S24 G4: the camera is never a centre; a free camera far from a
   streaming client's players sees base content there; holds can add chunks); S27 / S32 decide. Clients of worlds
   without streaming subscribe everything (D19) and are not affected.
-- Base snapshots of retired versions (D15; S25 or S26, whichever is later).
-- Entity interest (`interestRadius`, `Despawn`), snapshot rates, loss and reordering of the state channel (S32); the
+- Base snapshots of retired versions (D15; the retiring stage).
+- Entity interest (`interestRadius`; `Despawn` exists from S25), snapshot rates, loss and reordering of the state channel (S32); the
   chunk protocol is correct under reordering of reliable messages across channels, which S26 tests, and under loss
   of nothing (reliable).
 - Disconnect, rejoin, character files, seed adoption, a client world created from the host's info (S33); a
@@ -697,27 +707,36 @@ One new scenario, added to `registerStreamingScenarios` and run in every variant
 ## Tests
 
 New binary `tests/test_engine_world_net.cpp` (`saiga_test(test_engine_world_net.cpp "saiga_engine")` inside
-`if (MODULE_ENGINE)`; budget about 1.5 s; worlds with the content test setup on a 16-chunk space at 2 m spacing, two
+`if (MODULE_ENGINE)`; budget about 1.5 s; worlds of `tests/world_net_test_setup.h` (new: `worldNetTestSetup(streaming)`,
+S24's `streamingTestSetup` reduced to a 16 x 16-chunk overworld at 2 m with its slots and `test_dungeon`, streaming on or
+off), two
 or three worlds over `LoopbackTransport::createNetwork`, stepped host then clients; every timing loop is a `stepUntil`
 with a bound, no sleeps):
 
-- `NetSchema.EqualSetupsHashEqual`: two worlds of one setup: equal hash, empty difference, encode/decode round trip
-  equals.
-- `NetSchema.HashCoversRegistration`: the hash changes (and `netSchemaDifference` names the item) for: a component
-  field added, a component version, a replicate mode, `Saved`, `EnvironmentSetup::enabled` (WorldTime's kind), an
-  event, a class, a message's version and channel, an action, a held button, a space template's spacing.
-- `NetSchema.DecodeRejectsMalformed`: truncated, too many entries, a name above 256 bytes, bytes left over.
-- `JoinMessages.RoundTripsAndBounds`: `JoinRequest`, `JoinReject` (with and without schema), `JoinAccept`, `Resync`:
+- `NetSchema.EqualSetupsHashEqual`: two worlds of one setup: equal hash and section hashes.
+- `NetSchema.HashCoversRegistration`: the hash and the named section change for: a component field added, a component
+  version, a replicate mode, `EnvironmentSetup::enabled` (WorldTime's kind), an event, a class, a message's version and
+  channel, an action, a held button, a space template's spacing, `WorldConfig::streaming`; not for `Saved`, a streaming
+  radius or a data file.
+- `JoinMessages.RoundTripsAndBounds`: `JoinRequest`, `JoinReject`, `JoinAccept`, `Resync`:
   round trip; truncation, an unknown flag bit, oversized text, bytes left over are errors; the frozen prefixes (D3) are
   asserted byte by byte against a literal.
 - `ChunkMessages.RoundTripsAndBounds`: `ChunkInterest` (0 and 4097 entries rejected; `all` with entries rejected),
   `ChunkIndex` (empty, 1000 entries; unsorted, duplicate, out of range, more than `sizeChunks^2`: errors) and
   `ChunkSnapshot` (empty, record only, deltas only, both, zstd and raw; keys not ascending, a counter >= 2^24, more
-  than 2^20 keys, N > 257, the reserved base bit, a codec value above `kMaxTerrainDelta`, bytes left over: errors).
+  than 2^20 keys, N > 257, an unknown flag bit, a codec value above `kMaxTerrainDelta`, bytes left over: errors).
 - `Handshake.JoinOrderAndAdmission`: delay 2: the client's first message is `JoinRequest`; the host's `connectedPeers()`
   and `peersJoined()` contain the peer only from the step that admitted it; the client receives `JoinAccept` before
   any spawn; a game message the client sends before `Joined` is dropped (`droppedNotJoined`); `joinState()` goes
-  `Joining` -> `Joined`.
+  `Joining` -> `Joined`; a second `JoinRequest` of an admitted peer is ignored.
+- `Handshake.ControlBeforeAcceptIsDeferred`: `LoopbackOptions::bytesPerRound` small enough that the spawn set and
+  `JoinAccept` take several rounds, and a join policy that teleports the new player in the admission step: the
+  `OwnerCommand` arrives before `JoinAccept`, is deferred and applied after `Joined` (the player ends at the target).
+- `ChunkSync.PinAdoptionDropsResidency` (streaming): a client whose pins differ joins after its residency built
+  chunks: after the adoption every chunk is requested again with the new plans, none is `Resident` before its
+  snapshot; the same after a host load's `Resync`.
+- `ChunkSync.RerequestKeepsResident`: a gap on a `Resident` chunk re-requests it; the chunk stays `Resident` (the mover
+  does not hold) and ends equal to the host after the new snapshot.
 - `Handshake.SchemaHashMismatchIsRejected` (the acceptance test): the client registers one extra test component; host:
   `joinsRejected == 1`, no admitted peer, nothing sent but `JoinReject`; client: `Rejected`, `joinRejection()` names
   the schema and the extra component, no entity arrived, `connectedPeers()` empty.
@@ -783,9 +802,9 @@ with a bound, no sleeps):
   replicated `PendingTransition` makes the target a client centre (S24 G4) and the client subscribes the target island
   before the host moves the player; after the move the player is held until its chunk is synced, then free.
 - `ChunkSync.AllSubscriptionWithoutStreaming`: a world without streaming, 3 edited chunks and one with a record before
-  the join: the client's `ChunkIndex` lists exactly those 4 with their sequences; an edit of an unlisted chunk between
+  the join: the client's `ChunkIndex` lists exactly those 4; an edit of an unlisted chunk between
   the index's encoding and its arrival is queued and applied from sequence 1; the client ends equal to the host over
-  every chunk; `holdChunk` is a no-op; an entry-wise `ChunkInterest` from such a client (other than a re-request) is
+  every chunk; a hold is a no-op; an entry-wise `ChunkInterest` from such a client (other than a re-request) is
   rejected input; an `all` from a streaming world's client too.
 - `ChunkSync.ReadinessWaitsForSnapshots`: `spaceReadiness` on the client is below 1 while a subscribed chunk inside the
   radius is pending and 1 after.
@@ -799,18 +818,20 @@ Changed existing tests:
   moves).
 - `test_engine_terrain_net.cpp`: `LateJoinerGetsEveryChunkState` and `HostLoadSendsResyncThenTheStates` are replaced by
   `ChunkSync.*` / `Handshake.HostLoadResyncAdoptsNewPins`; `DuplicatesGapsAndEpochs` asserts the re-request instead of
-  the applied gap; the other tests hold the chunks they edit (the client receives nothing for chunks it does not hold).
+  the applied gap; the other tests are non-streaming worlds, which subscribe everything (D19), so they keep their
+  assertions with the handshake's extra round trip.
 - `test_engine_content.cpp`: `GenerationState.*` move to `Handshake.*` (equal setups pass, mismatches are rejected by
   the host, the legacy case); `TombstoneNet.LateJoinerSnapshotOrder`, `HostLoadResyncs` are replaced by the snapshot
   tests; `LiveAndFlatJoiner`, `SequencesGapsAndEpochs`, `RejectionsApplyNothing`, `ContentRender.ClientRecordChanges`,
-  `ContentEdit.ClientResnaps` hold their chunks; `TombstoneNet.MessageBounds` drops `ChunkRecordState`.
+  `ContentEdit.ClientResnaps` keep their assertions (non-streaming, D19); `TombstoneNet.MessageBounds` drops
+  `ChunkRecordState`.
 - `test_engine_app.cpp`: the `--coop` join test sees `peersJoined()` on the admission step; `world_status` /
   `chunk_info` `handleMessage` tests get the new fields (R-MCP-1).
-- `test_engine_scenarios.cpp`: `streaming_reload_during_edit`; S24's streaming scenarios pass their host + client
-  variants over subscriptions (the client check of `streaming_follows_player`, Scope 9); every other scenario (worlds
-  without streaming) passes its host + client variants over the `all` subscription (D19).
+- `test_engine_streaming_scenarios.cpp` (S24's binary): `streaming_reload_during_edit`; S24's streaming scenarios pass their host + client
+  variants over subscriptions (the client check of `streaming_follows_player`, Scope 9). `test_engine_scenarios.cpp`:
+  every other scenario (worlds without streaming) passes its host + client variants over the `all` subscription (D19).
 - `test_engine_streaming.cpp` (S24's `StreamingNet.*`): "no message type is added" becomes "the client's messages
-  are `JoinRequest` and `ChunkInterest` only"; the hold test is unchanged (the gate adds to it).
+  are `JoinRequest` and `ChunkInterest` only, the host's add `JoinAccept`, `ChunkSnapshot` and `Despawn` (S25)"; the hold test is unchanged (the gate adds to it).
 - `test_engine_net_benchmark.cpp` (non-gating): `NetBenchmark.ChunkSnapshotEncode` prints the encode and apply time
   of a fully edited 1 m chunk's snapshot and of 100 empty ones, and the per-peer filtering cost of 8 peers.
 
@@ -907,7 +928,7 @@ Changed:
 6. `chunkSnapshotBytesPerStep` default 1 MB, `maxChunksPerPeer` 16384, the queue bound 1024 parts, the tombstone cap
    2^20 keys: defaults as listed; the benchmark and the join-data test may move the first.
 7. A client whose adoption fails tells the host? Default: no (`JoinAbort` waits for S33's disconnect, D2).
-8. Base snapshots: stub with a reserved flag (D15) unless S25 is done when S26 starts.
+8. Base snapshots: none (D15); the retiring stage adds a flag bit.
 9. Worlds without streaming: subscribe everything (D19) or make streaming mandatory for networked worlds? Default:
    subscribe everything (S24 G1 keeps streaming a policy; the racing and platformer demos and most tests are
    networked without it).
@@ -925,7 +946,7 @@ Changed:
 - §12.3: the client bullets (queue, resident after the snapshot through the modification gate, `spaceReadiness`) as
   implemented; the subscribed set (requested or resident, C1), holds, the `all` subscription of worlds without
   streaming (D19); S24's "S24 (before S26)" sentence of §13.2 replaced.
-- §15.3: "connected clients ... are refused until S26" -> adopted (D6); the base-snapshot stub (D15).
+- §15.3: "connected clients ... are refused until S26" -> adopted (D6); base snapshots with the retiring stage (D15).
 - §7.9: "no join check before S26" -> the environment flag is a handshake field.
 - §10.1 (name tables): the handshake compares `renderTableHash`.
 - §17.3: the end condition and comparison of Scope 8.
