@@ -103,6 +103,10 @@ TEST(SaveBenchmark, FreezeAndWrite)
     // The 50 chunks edited again: the freeze holds block references (no delta copies)
     for (int i = 0; i < 50; ++i) w.editTerrain(0, brush(128 + 256.0 * (i % 25), 128 + 256.0 * (i / 25), 90));
     const uint64_t bytes = s.bytesWritten;
+    const auto b0        = Clock::now();
+    const size_t blob    = w.save().size();
+    std::cout << "  save() of the world (the blob, for comparison) " << ms(b0, Clock::now()) << " ms, " << blob
+              << " bytes" << std::endl;
     ASSERT_EQ(w.commit(), 2u);
     const double freeze = s.lastFreezeMs;
     ASSERT_TRUE(w.waitForCommits());

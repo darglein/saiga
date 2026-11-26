@@ -50,6 +50,8 @@
 #include <exception>
 #include <stdexcept>
 
+#include <unordered_set>
+
 namespace Saiga
 {
 namespace Engine
@@ -1309,33 +1311,47 @@ std::vector<Entity> World::collectDoomed(Entity e) const
 
 std::vector<Entity> World::collectSubtree(Entity e) const
 {
-    // The entity and its descendants (§7.4), parents before children. One pass over the Parent pool builds the
-    // (parent index, child) list, sorted for a deterministic order; the visited set stops at cycles (add<Parent>
-    // rejects them, this keeps destroy finite regardless).
+    // The entity and its descendants (§7.4), parents before children (children by entity index). The (parent index,
+    // child) links of the Parent pool, sorted, are cached (S25: the unload pass collects many subtrees per flush): a
+    // traversal is exact when every visited parent's found children (alive, Parent naming it) number its childCount;
+    // otherwise the links are rebuilt once. The visited set stops at cycles (add<Parent> rejects them, this keeps
+    // destroy finite regardless).
     std::vector<Entity> doomed{e};
     if (childCount(e) == 0) return doomed;
-    std::vector<std::pair<uint32_t, Entity>> links;
-    const_cast<Registry&>(reg).view<const Parent>().each([&](Entity child, const Parent& p)
-                                                         { links.push_back({p.entity.index, child}); });
-    std::sort(links.begin(), links.end(), [](const std::pair<uint32_t, Entity>& a, const std::pair<uint32_t, Entity>& b)
-              { return a.first != b.first ? a.first < b.first : a.second.index < b.second.index; });
-    std::vector<bool> visited(reg.slotCount(), false);
-    visited[e.index] = true;
-    for (size_t i = 0; i < doomed.size(); ++i)
+    auto traverse = [&]()
     {
-        const Entity parent = doomed[i];
-        auto it =
-            std::lower_bound(links.begin(), links.end(), parent.index,
-                             [](const std::pair<uint32_t, Entity>& l, uint32_t index) { return l.first < index; });
-        for (; it != links.end() && it->first == parent.index; ++it)
+        doomed.assign(1, e);
+        std::unordered_set<uint32_t> visited{e.index};
+        for (size_t i = 0; i < doomed.size(); ++i)
         {
-            const Entity child = it->second;
-            if (childCount(parent) == 0) break;
-            if (visited[child.index] || reg.read<Parent>(child).entity != parent) continue;
-            visited[child.index] = true;
-            doomed.push_back(child);
+            const Entity parent = doomed[i];
+            const uint32_t want = childCount(parent);
+            if (want == 0) continue;
+            uint32_t found = 0;
+            auto it =
+                std::lower_bound(linkCache.begin(), linkCache.end(), parent.index,
+                                 [](const std::pair<uint32_t, Entity>& l, uint32_t index) { return l.first < index; });
+            for (; it != linkCache.end() && it->first == parent.index; ++it)
+            {
+                const Entity child = it->second;
+                if (!reg.alive(child) || reg.read<Parent>(child).entity != parent) continue;
+                found++;
+                if (!visited.insert(child.index).second) continue;
+                doomed.push_back(child);
+            }
+            if (found != want) return false;
         }
-    }
+        return true;
+    };
+    if (linkCacheValid && traverse()) return doomed;
+    linkCache.clear();
+    const_cast<Registry&>(reg).view<const Parent>().each([&](Entity child, const Parent& p)
+                                                         { linkCache.push_back({p.entity.index, child}); });
+    std::sort(linkCache.begin(), linkCache.end(),
+              [](const std::pair<uint32_t, Entity>& a, const std::pair<uint32_t, Entity>& b)
+              { return a.first != b.first ? a.first < b.first : a.second.index < b.second.index; });
+    linkCacheValid = true;
+    traverse();
     return doomed;
 }
 

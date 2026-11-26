@@ -1,7 +1,7 @@
 # S25: World save directory
 
-Status: planned (written against `docs/engine_design.md` and the code of `master` at f92a2a42d, reconciled with
-`S24_streaming.plan.md`; before step 1 the plan is checked against the merged S24 code, R-DOC-2).
+Status: done (implemented on `stage-s25` on top of `stage-s24` at 2c75103a2; reconciled with the merged S24 code in step
+1; the deviations are listed in "Deviations during the implementation", the measurements in "Results").
 
 Sections follow the stage plan template of S05; "S24 interfaces used", "Conflicts with S24", "Interfaces for S26",
 "Implementation steps", "Risks and open questions" and "Design-doc amendments" are added for this stage. Decisions
@@ -1205,3 +1205,101 @@ Each with the default this plan uses.
 11. §17.2 / §17.4: the save/load variant's directory round trip; the hash part of stored groups and unloaded spaces.
 12. §17.10: the freeze budget and the reported measurements.
 13. §22: S25's row (retiring moved), S27's row if it takes retiring.
+
+## Deviations during the implementation
+
+Recorded per R-DOC-2; the plan's intent is kept in each case.
+
+- **Reconcile (step 1)**: the S24 names exist as planned. The S24 tests adapted (B15): `Residency.ResidentVersionChange`
+  (the resident chunk now has an auto record at version 2: the test rewrites its version through `ChunkRecords::replace`
+  instead of `injectForTests`), `Simulated.MatchesBruteForce` (the edits skip unloaded drifters; it asserts that groups
+  were unloaded), `Simulated.AlwaysSimulateWhileRequestedAndResident` (the player steps back 100 m instead of 250 m:
+  S24's position was beyond the kept distance, so the ticker now unloads), `Simulated.PlayersAndStateEntities` (the
+  spaces without a centre are unloaded), `Arrival.NonPlayerArrivalUsesS21Rule` (the NPC unloads in the arriving step's
+  phase 7), `StreamingNet.ClientStreamsAroundItsOwnPlayer` (the frozen "far" entity lies in the requested band; an
+  entity 20 km away unloads in its first step, before it is ever sent) and the scenario `far_entities_freeze` (by
+  `PersistentId`: in the delayed host + client variants the host extrapolates an owner-side teleport for up to 6 steps,
+  S16, and the transient pose unloads the tickers, which reload when the player arrives). The other B15 cases pass
+  unchanged (their far entities lie inside the kept distance).
+- **The kept coverage** (`onKeptChanged`) is the difference of the kept chunk set that `requestPart` computes anyway
+  (every chunk within the kept distance of a centre, also never-requested ones), not per-chunk counts.
+- **Parts**: `ResidencyPartInfo {bit, wanted, build, request(chunk, priority, done), drop}`; the requests of added parts
+  are counted separately (`partsInFlight`: they must not throttle the base jobs). `PartStored` registers no `drop`: the
+  unloading's `onUnload` listener applies the bytes rule to every leaving chunk.
+- **The unload pass**: candidates as planned; after a load the full pass runs, and the phase-6 changed list (every
+  transform is marked changed by the load) names every root once more in the next step. `farUnloads` counts roots
+  whose chunk has residency state `None` at the pass. The per-space root count is not kept: a scan runs only while a
+  loaded space has no centre (transitional: its roots unload in that step). `droppedReferences` is logged per unloaded
+  root (not one line per step). Roots above 65536 entities are re-examined every pass (logged once).
+- **Group form**: per value the slot `local index + 1` (the handles' numbering, so the staging core reads it unchanged)
+  and a block count before the blocks. `EntityFieldVisitor` maps the `Entity` fields of the live value in place and
+  restores them (no copy: components need not be copyable); `BinaryWriter` is unchanged.
+- **Staging core**: `StagingCore` (`save/StagingCore.h`) holds the staged values and the checks; `WorldLoader` and
+  `GroupLoader` derive from it (the methods kept in `WorldLoad.cpp`). A directory open passes `DirectoryLoad` (the
+  terrain and records assembled from the records, the staged store) to the unchanged loader.
+- **Files**: the World's members are in `save/ChunkEntitySystem.cpp` (unload, reload), `save/SpaceLoading.cpp` (space
+  unload / load), `save/WorldSaveDirectory.cpp` (open, commit, status); the bookkeeping class is
+  `save/EntityUnloading.{h,cpp}`; the options and results in `save/SaveTypes.h`. The crash harness is in
+  `tests/test_engine_save_crash.cpp` (no `save_crash_harness.h`); the shared worlds in `tests/unload_test_setup.h`.
+- **Formats**: a framed part of the world-state file carries its compressed length besides the uncompressed one; the
+  index's region files are keyed by (space, rx, rz, generation) in memory (`RecordLocation::file`). The directory sync
+  of the parent at the directory's creation is not done (the file system interface has no parent; the lock creates the
+  directory).
+- **Dirty marking**: a no-op without a directory; `onTerrainChanged` / `onRecordChanged` do not mark during a load (a
+  blob load marks every chunk with state explicitly, an open starts clean). Groups get their store-wide ids at the
+  open too (a completion maps frozen groups by id).
+- **Unreadable old records**: the groups the new record cannot carry are removed from the entry at the completion (they
+  are lost with that commit, G14; the backup commit still names the old record).
+- **save()** does not wait for a running IO task (appends never change a committed record); it reads each chunk record
+  once for all of its disk-only groups (`SaveDirectory::readRecordGroups`).
+- **`moveToSpace` into an unloaded space** loads it at once between steps and at a flush, as a command during a step.
+  `get_lighting` reads the extract (the defaults for an unloaded space) instead of returning an error.
+- **Tests**: `test_engine_unload` and the unload scenarios use flat spaces (`unloadTestSetup`, S24's scenario radii)
+  instead of S24's content setup (no generation cost); `space_unload_reload` enters through a `SpaceLink` and returns by
+  `requestArrival`; `ScenarioWorld::storedGroups` / `entitiesNamed` are not added (the tests read `chunkStoreView()` and
+  `resolve`). Not covered by a test: the asynchronous held `PartStored` read of `Unload.FollowsKeptSet` and the held read
+  / other-pins load of `SaveDirectory.LoadWhileCommitInFlight` (the commit case is tested); the committed directory has
+  no tombstone (the flat setup has no slots: RREC is covered by `EveryGeneratedChunkHasRecord` and the codec cases);
+  `SaveCrash.KillDuringCommit` has no tombstone; `SaveCrash.HeaderRewrite` interns a foreign table to force the header
+  rewrite. `Unload.DeterministicHash` compares run hashes; the open death tests of `LockedAndRefusals` are not written.
+- **App**: `EngineApp::finishSave` (run's end or the destructor) waits for an in-flight commit first (a commit requested
+  meanwhile would only be deferred). The Engine tab line is below the Streaming section.
+- **Performance fix**: `World::collectSubtree` caches the sorted (parent, child) links and verifies them by the child
+  counts at every use (rebuilt when stale): the full unload of 1000 groups of 100 entities took 7.2 s with the
+  per-call pool scan, 0.1 s with the cache.
+- **Flight**: the scenario `driver_link_after_far_flight` (the driver and the plane stay linked and resident after 1 km).
+
+## Results
+
+Measured on the development machine (24 threads; tests in RelWithDebInfo on lavapipe, alone; benchmarks in the
+release bench build without asserts unless named).
+
+- **Tests**: `test_engine_unload` 19 tests in 0.03 s, `test_engine_save_directory` 17 tests in 0.30 s,
+  `test_engine_save_crash` 7 cases in 0.52 s (every operation of each commit in four image kinds, deduplicated),
+  `test_engine_save_benchmark` 0.28 s (CI form), `test_engine_streaming_scenarios` 48 cases (S24's 30 plus the three
+  unload scenarios in six variants) in 0.35 s (before: 0.33 s), `test_engine_scenarios` 1.08 s (before: 1.07 s; the
+  directory round trip of the save/load variant), `test_engine_streaming` 1.21 s, `test_engine_save` 0.45 s,
+  `test_engine_world_api` 2.0 s, `test_engine_app` 7.9 s (the S25 tests 4 ms; the binary varies 7-8 s on this machine).
+  The whole `ctest --parallel 8` on lavapipe: 95 of 95 passed. `game_flight --scenarios`: 36 passed (incl. the new
+  `driver_link_after_far_flight` in six variants).
+- **Freeze** (`SAIGA_SAVE_BENCHMARK=full`, 10^5 resident entities, 50 dirty edited 1 m chunks): 9.9-16 ms (release;
+  13-26 ms RelWithDebInfo), nearly all of it the world-state serialization (a plain `save()` of that world takes 25 ms
+  with `TERR`); the copy-on-write references and the dense deltas moved to the pool cost nothing measurable (before the
+  delta hash moved to the pool: +12 ms). At the 10 ms budget: the trigger for an incremental world-state file stands.
+  The commit's write on the pool: 38-41 ms for 2.3-2.5 MB (51 records, zstd 3).
+- **Unload and reload** (1000 groups of 100 entities in one step): unload 97 ms (0.1 ms per 100-entity group, 1 us per
+  entity), reload with the record reads, decode, creation and hooks 84 ms (0.08 ms per group); both within the 1 ms
+  target per chunk of 100 entities. (Before the `collectSubtree` link cache: unload 7.2 s, reload 1.3 s.)
+- **save() of a directory world with 1000 stored groups on disk**: 17 ms (8 record reads, 11 MB blob); before reading
+  each record once per chunk: 556 ms (RelWithDebInfo).
+- **Open of 1000 edited chunks**: 215 ms, 1000 records read (the first commit of them: 79 ms, 0.8 MB).
+- **S24's streaming benchmark with unloading** (`SAIGA_STREAMING_BENCHMARK=full`, release, 10^5 entities, player at
+  30 m/s, 3600 steps paced at 60 Hz): **0 streaming stalls**; step median 3.63 ms, p95 4.95 ms, max 25.7 ms (S24 without
+  unloading: 3.55 / 6.51 / 10.4 ms); 987 unloads/s and 494 reloads/s (the entities behind the player unload, the ones
+  ahead reload), 70407 resident entities at the end; the `chunk_entities` system median 0.29 ms, p95 0.47 ms, max 12 ms
+  (a full pass after the start's load). The median is within §17.10's 4 ms; the p95 too (S24's was not).
+- **game_world --headless --save /tmp/...**: an `edit_terrain` over MCP, `quit` (commit 2 written), a restart opened
+  commit 2 (1 record read) with the edited height (terrain_height 45.99 m instead of 40.99 m). No screenshot taken.
+- **Not done**: the release `game_world --benchmark flyover|forest` (it opens a window); `game_flight --demo` was not run
+  (no visible windows: the scenarios cover the streaming game, incl. the far flight); the MSVC build is not compiled
+  here (the Windows file API branch of `SaveFileSystem.cpp` is written to the documented calls).

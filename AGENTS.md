@@ -166,7 +166,14 @@ src/
                         registerWorldTools (MCP world tools), ScenarioWorld/ScenarioList/ScenarioRunner
                         (scenario tests, §17.2); save/: World::save/tryLoad (SaveFormat.h, SchemaTable,
                         MigrationList, SaveDecoder, diffSaves; S21: the optional sections of kSaveSections, SPCE with the
-                        space table and its prefix rule); data/: data files (DataTypeList, DataStore, DataRef,
+                        space table and its prefix rule; S25: the world save directory: SaveFileSystem (disk) and
+                        MemorySaveFileSystem (the crash model of the tests), SaveDirectoryFormat.h / ChunkRecordCodec
+                        (records RTER / RREC / RGRP / RSPC, the index CIDX, header, world-state file), ChunkStore (stored
+                        entity groups, unloaded spaces, the index of the newest commit), SaveDirectory (open, commits on
+                        the SaveIoQueue lane, compaction, retention), EntityGroup (the group form) and GroupLoader on the
+                        StagingCore shared with the world loader, EntityUnloading (the step-start hook and the phase-7
+                        systems of Systems.h: space_load, chunk_entities, space_unload), EGRP; tests/test_engine_unload.cpp,
+                        _save_directory.cpp, _save_crash.cpp, _save_benchmark.cpp, tests/unload_test_setup.h); data/: data files (DataTypeList, DataStore, DataRef,
                         readDataFile); net/: Transport, LoopbackTransport, Fragmenter, MessageList (network messages,
                         World::send), the replication (S16: Replication with the host's NetId table and the client
                         handlers, NetVisitors.h, EngineMessages, NetOwner.h, HostClock, InterpolationSystem;
@@ -203,7 +210,10 @@ data/                   Sample assets (textures, models); test goldens in data/t
                         (GENR, CREC; rewritten with SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_content
                         --gtest_filter='ContentSave.CommittedSaveLoads' only for a new GENR / CREC format version);
                         S23b: save_s23b.bin (CREC format 2 with tombstones; the same way with
-                        --gtest_filter='ChunkRecords.CommittedSaveLoads')
+                        --gtest_filter='ChunkRecords.CommittedSaveLoads'); S25: the save directory save_dir_s25/ (a stored
+                        group, edited chunks, an unloaded space; rewritten only for a new directory format version with
+                        SAIGA_UPDATE_GOLDEN=1 ./build/tests/test_engine_save_directory
+                        --gtest_filter='SaveDirectory.CommittedDirectoryOpens', in a dedicated commit)
 samples/<module>/       One sample executable per sample_<module>_*.cpp/.cu
 samples/games/          Games on saiga_engine, one executable per samples/games/<name>/ (game_<name>, built with samples,
                         the engine and GLFW): the world game world/ (the world prototype on
@@ -313,7 +323,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-90 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+94 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -389,7 +399,9 @@ ctest -R test_core_ini --output-on-failure             # one test
     binaries `test_vulkan_shadows` 4 s (39 tests: cascade and horizon maps rendered per test), `test_engine_lighting_tools`
     4.7 s (34 tests: an EngineApp per test, the tab tests drive ImGui; measured 4.6-4.75 s after S36's UI rounds, the
     earlier 3.5 s line was stale), `test_engine_lighting_render` 3 s (goldens),
-    `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), every other binary <= 2 s. These
+    `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), S25's `test_engine_save_crash` 1 s
+    (the crash enumeration: every operation of a commit in four image kinds), `test_engine_save_directory` 1 s and
+    `test_engine_unload` 0.5 s (memory file system, flat worlds), every other binary <= 2 s. These
     are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
     10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the
@@ -482,6 +494,9 @@ ctest -R test_core_ini --output-on-failure             # one test
   # S24: the streaming benchmark (headless, no window; configure build-bench with -DSAIGA_BUILD_TESTS=ON for it):
   cmake --build build-bench --target test_engine_streaming_benchmark --parallel
   SAIGA_STREAMING_BENCHMARK=full ./build-bench/tests/test_engine_streaming_benchmark      # full-off: without streaming
+  # S25: the save benchmark (memory file system; freeze, unload / reload, save(), open), reported only:
+  cmake --build build-bench --target test_engine_save_benchmark --parallel
+  SAIGA_SAVE_BENCHMARK=full ./build-bench/tests/test_engine_save_benchmark
   ```
   It flies a fixed path at 1920 x 1080 (validation, vsync, ImGui, defragmentation and MCP off; `SAIGA_SCREENSHOT` is
   ignored) and writes
@@ -520,7 +535,12 @@ driver) and simulates a few seconds before the first frame, so `SAIGA_SCREENSHOT
 variants); they have no tests in `tests/` (the saiga tests test the engine). `--coop [delay]` (any engine game, S16b)
 runs co-op in one process: a hidden host world and the rendered client world over loopback (default delay 2 steps), the
 client's plane, car or character next to the host's demo one, the MCP tools on the client world:
-`SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --coop --demo`. The platformer's `--cellar`
+`SAIGA_SCREENSHOT=/tmp/racing_coop.png ./build/samples/games/game_racing --coop --demo`. `--save <dir>` (any engine game,
+S25; not with `--scenarios` or `--benchmark`) keeps the world in a save directory: opened after the game's start (an
+existing one is loaded), committed every 300 s of world time, at the `quit` tool and at the window's close
+(`./build/samples/games/game_world --headless --save /tmp/my_world`; `save_status` / `commit_save` over MCP). In
+`game_flight` (the only streaming game) entities beyond the kept distance of every player unload into their chunk's
+stored groups and reload when the chunk is ready again. The platformer's `--cellar`
 (S21) runs its demo through the enclosed cellar (the screenshot shows the cellar, solo and with `--coop`):
 `SAIGA_SCREENSHOT=/tmp/cellar.png ./build/samples/games/game_platformer --demo --cellar`. Stages that change the
 renderer, physics, animation or camera keep the demos working, run their scenarios and show their feature in them.

@@ -1125,6 +1125,9 @@ class SAIGA_ENGINE_API World
     // The entity and its descendants, parents before children (one pass over the Parent pool, cycle-safe; not
     // hierarchyOrder, which can be dirty in the middle of a step)
     std::vector<Entity> collectSubtree(Entity e) const;
+    // The sorted (parent index, child) links of collectSubtree, verified by the child counts at every use
+    mutable std::vector<std::pair<uint32_t, Entity>> linkCache;
+    mutable bool linkCacheValid = false;
     // ---- the space primitive (S21): the only code that writes Transform::space (with makeStateEntity and the spawn)
     // The space of a root and every descendant (no pose, no teleport flag); a child is always in its parent's space
     void setSubtreeSpace(Entity root, SpaceId space);

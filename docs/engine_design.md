@@ -188,6 +188,7 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition` (S24: an arrival, returns `bool`), `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
 | Terraforming (S22): `TerrainBrush`, `validateBrush`, the integer `BrushKernel`, `World::editTerrain` / `checkTerrainEdit` / `terrainSample` / `terrainEdits` / `pendingTerrainChanges`, `applyTerrainEdit`, the modification state `TerrainEditStore` (delta blocks, per-chunk sequence, revision, content hash), `TerrainEditedEvent`, the delta codec, the `TERR` save section, `hash()` and `diffSaves` of the state, the messages `TerrainModification` / `TerrainChunkState`, the host state list and `sendChunkSnapshot`, the visual path (merge at the send point, `TerrainDirtyQueue`, the patch step, edited grass masks in `TerrainVisualPatch`), `EngineApp::setFixedFrameTime`, the tools `edit_terrain` / `terrain_height` / `terrain_edits`, `game_world --benchmark terraform` and the terraform mode (§12.1, §12.2, §13.2, §15.1, §16.2, §17.7) | `src/saiga/engine/terrain/`, `src/saiga/engine/save/`, `src/saiga/engine/net/Replication.*`, `samples/games/world/TerraformBenchmark.*`, `tests/test_engine_terrain_edit.cpp`, `tests/test_engine_terrain_net.cpp`, `tests/test_engine_terrain_benchmark.cpp` | [exists: S22] |
 | Tombstones and content rendering (S23b): `ChunkRecord {placementVersion, tombstones}` on every peer, effective records, `World::onRecordChanged`, `CREC` format 2; `World::tombstone` / `checkTombstone` / `isTombstoned` / `chunkRecord` / `tierOnePosition` (`content/Tombstones`), the messages `TombstoneModification` / `ChunkRecordState` (`content/ContentMessages`), the host send-list entries, the snapshot's record part, `clearReplicatedChunkState`; the content render sets (`ContentRenderSystem`, centres `None \| View \| Players`, one set per chunk with tier 1 and static parts, the re-snap queue), `RecordingRenderSink`'s set arrays; grass masks from the generator (`Generator::grassEditRule`); tombstone-on-edit in `applyTerrainEdit`; the tools `chunk_info`, `list_sites`, `tombstone`; the `generated_site` golden (§10.1, §12.1, §12.2, §12.5, §13.2, §16.2, §17.6) | `src/saiga/engine/content/`, `src/saiga/engine/net/Replication.*`, `src/saiga/engine/terrain/`, `src/saiga/engine/sync/RecordingRenderSink.*`, `tests/test_engine_content.cpp`, `tests/test_engine_terrain_render.cpp` | [exists: S23b] |
+| World save directory (S25): `SaveFileSystem` (disk, `MemorySaveFileSystem` with the crash model), the formats (`SaveDirectoryFormat.h`, `ChunkRecordCodec`: records, `CIDX`, header, world-state file), `ChunkStore`, `SaveDirectory` (open, commits on the `SaveIoQueue`, compaction, retention), the entity groups (`EntityGroup`, `GroupLoader` on the `StagingCore` shared with the world loader, `EntityFieldVisitor`), `EntityUnloading` (the step-start hook, `spaceLoadSystem`, `chunkEntitySystem`, `spaceUnloadSystem`), `Despawn`, `EGRP`, the records of every resident chunk, `save_status` / `commit_save`, `--save` (§9.6, §12.3, §12.4, §15.1-§15.3) | `src/saiga/engine/save/`, `tests/test_engine_unload.cpp`, `test_engine_save_directory.cpp`, `test_engine_save_crash.cpp`, `test_engine_save_benchmark.cpp`, `tests/unload_test_setup.h` | [exists: S25] |
 | Streaming (S24): `WorldConfig::streaming` / `maxSimulationIslands` / `hardIslandLimit`, the `SpaceTemplate` radii (`residencyRadius`, `simulationRadius`, `prefetchMargin`, `unloadMargin`), `ChunkResidency` (the resident chunk set: pinned level-0 base tiles in `TerrainStore`, held placements, residency jobs on the streaming pool, phase 7 and the step-start refresh, synchronous mode, `completeResidency`), `SimulationSet` (the `Simulated` tag by 32 m cells), `StreamingAnchor`, the mover hold and the stall counters, arrivals (`requestArrival`, `checkArrival`, `arrivalProgress`; `requestTransition` returns `bool`; `PendingTransition` `Replicate::Host`; held roots hidden by the extract), islands (`Islands`, `IslandLimitEvent`, `IslandState`), stamping on ready chunks, the load's rebuild; the tools `streaming_status` / `request_arrival`, the Engine tab's Streaming section, the arrival's loading screen; `game_flight` streams (§7.9, §7.10, §8.1, §12.3, §12.4, §16.2) | `src/saiga/engine/streaming/`, `src/saiga/engine/components/StreamingAnchor.h`, `IslandState.h`, `tests/test_engine_streaming*.cpp`, `tests/streaming_test_setup.h` | [exists: S24] |
 | World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
@@ -547,6 +548,9 @@ Health& w = world.get<Health>(e);          // write access
   `RenderInstance` records (instances), the **name record** (a remove + add pair of `RenderInstance` that
   `World::renderMeshWritten` appends when an existing name changes; replication presence and `changes_since` report it
   as such) and the `RenderPose`, `Parent` and `NetOwner` records (the pose source, §10.3).
+- S25: `Record::unloaded` marks the removal records of an unload (`World::unloadNow`: the entity went into its chunk's
+  entity group, §9.6; no `onDestroy`); consumers that do not care treat it as a removal (the grid, the extract), the
+  replication sends `Despawn` instead of `Destroy`, `changes_since` reports `unloaded`.
 - `load()` appends one add record per loaded component to the structural log; `sync/`, `physics/` and `net/` create
   render instances, bodies (from `Collider`, `RigidBody` and the saved velocities, §11) and network IDs from it.
   The replacement world of `ScenarioWorld` gets its `RecordingRenderSink` like any world (`setRenderSink`, at any time).
@@ -593,7 +597,8 @@ completed step) together with the staged NetIds, spawned flags and hashes. Clien
 World-level state (time of day, weather, global game flags such as "boss killed") lives in components of special
 entities, so saves, hashes, replication and MCP treat it like any other state: one **world-state entity** and one
 **space-state entity** per space. The world-state entity is never unloaded and in every client's interest; a
-space-state entity is resident while its space is loaded (stored with the space otherwise) and in the interest of the
+space-state entity is resident while its space is loaded (stored in the space record otherwise; S25: §12.4,
+`spaceStateEntity(s)` is `Entity{}` and `World::spaceLoaded(s)` false) and in the interest of the
 clients whose player is in that space. Access:
 `world.global<T>()` and `world.spaceState<T>(space)` (`T&`; const variants `readGlobal`, `readSpaceState`; a missing
 component asserts: world-state components are added at world creation by their registration). Both kinds are flagged
@@ -992,6 +997,11 @@ app's load listener neutralizes the local player's `PlayerInput` (`move`, `heldB
 input is transient). `run_scenario` does not replace the live world (the sketch below): it runs the scenario in its own
 worlds and brings the end state back as a snapshot (§16.2).
 
+S25: `--save <dir>` (`EngineAppSetup::saveDirectory`, `saveCommitIntervalSeconds` 300, `saveSync`): `engineMain` opens
+the directory after the game's start (`EngineApp::openSaveDirectory`; an open error stops the game), the app commits
+and waits at quit (`EngineApp::finishSave`: `run()`'s end or the destructor) and closes it. Games keep their entity
+handles from the start: after an open that replaces the world they re-find them like after `load_snapshot`.
+
 S16b (`docs/stages/S16b_coop_demos.plan.md`): **co-op in one process**, `--coop [delay]` (`AppOptions::coop`,
 `coopDelay` 0..30, default 2; a following argument that is not an integer is not consumed; not with `--scenarios` or
 `--benchmark`; `EngineAppSetup::checkOptions` lets a game adjust the parsed options, the tech demos clamp the delay to 8
@@ -1348,7 +1358,7 @@ unsorted form for order-insensitive callers (S16 interest, the world API): it re
 was made with, so distances (hysteresis, nearest player) use the same state. The grid is derived data (not saved, not hashed); `rebuildSpatialGrid(world)` (engine-internal)
 rebuilds it from all entities (S11 `load`). World-state entities (S10) are excluded.
 
-### 9.6 Far from players: persistence and simulation policy [planned: S25]
+### 9.6 Far from players: persistence and simulation policy [exists: S10 (PersistentId), S24 (Simulated), S25 (unloading)]
 
 Stages: the `PersistentId` type in S07 (`engine/ecs/PersistentId.h`); `Persistent`, `makePersistent` and `resolve` in
 S10; unloading and the rest of this section in S25.
@@ -1367,25 +1377,40 @@ in the same phase returns the pending ID) and accepts entities reserved in the s
   resident" (`chunkReady`, G7: the unload hysteresis does not keep it simulated); un-freezing calls no `onCatchUp`
   (`sinceTick` continues; S25's reload calls it). When their chunk unloads they unload like every
   other entity; a game that needs traveling NPCs far from players moves them abstractly (policy, R-MECH-1).
-- When a chunk is unloaded (rule in §12.3: `fullRadius + unloadMargin`), the root entities (no `Parent`) in it
-  are serialized with their descendants into the chunk's state and removed with the
-  engine-internal `unload` command (no `onDestroy`; structural log records flagged `unloaded`; replication sends
-  `Despawn`, never destroy) (commands
-  in phase 7). Inside such a group `Entity` fields are stored as group-local indices and remapped on reload; fields
-  pointing outside the group are stored as null (use `PersistentId`).
-- In phase 6, a root entity whose chunk is not resident and not requested (spawned with `spawnIn` far from players,
-  flung or teleported there) is unloaded with the same group rules into an in-memory pending list of that chunk (part
-  of the world-state snapshot of each commit); the list is merged into the chunk record when the chunk reloads or at
-  the next commit on the streaming pool. Phase 6 does no IO.
-- Player entities are never written into chunk state.
-- On reload (phase 7, commands, serialized order) the group is recreated with new handles; then `configure()`,
-  `onLoad()` and `onCatchUp(elapsed)` run per game object (elapsed = simulation time since the unload; what catches up
-  is game policy, R-MECH-1).
-- `PersistentId {uint64_t}` for entities that must stay referable: engine component `Persistent {PersistentId id}`;
-  `world.makePersistent(e)` assigns the next value of a world counter (saved) and is idempotent; the world
-  keeps an id -> entity index, updated from the structural log; `world.resolve(pid)` returns `Entity{}` if not
-  resident. Available from S10 (everything resident), unloading from S25.
-- The states of unloaded chunks are part of the save.
+- [exists: S25] **Unloading** (worlds with `WorldConfig::streaming` on the host only, G18: without streaming nothing
+  unloads): every unloadable root whose chunk (the `ChunkId` of its `Transform` position, clamped to the space) is not
+  `residency().kept` (beyond the kept distance of every current centre: a pure predicate, so the hysteresis band needs
+  no history) is serialized with its descendants into an **entity group** of that chunk and removed by the
+  engine-internal `unload` command (`World::unloadNow`): no `onDestroy`, the structural log's removal records are
+  flagged `unloaded`, slots freed, the `Persistent` index entries removed (`resolve` is `Entity{}` while stored), the
+  game objects deleted without hooks; replication sends `Despawn` per entity (the client removes it without
+  `onReplicatedDestroy`), none for a bound NetId. **One unload pass in phase 7** (`chunkEntitySystem`, after
+  `chunk_stamp`; deviation from the earlier phase-6 pending list, G19 of the S25 plan): the candidates are the roots of
+  chunks whose kept coverage flipped to 0 (`onKeptChanged`), the roots moved or created since the last pass, the roots
+  whose exclusion ended (a removed `Player`, `PendingTransition`, `NetOwner`, `Parent`), every root after a load or
+  open; in root entity-index order, one command each (a root spawned or flung far from players unloads in the same
+  step's phase 7). The accumulated state is consumed by the last command at the flush (an aborted phase loses nothing).
+- **Never unloaded**: a group with a `Player` (player entities stay in the world-state file until S33), a root owned
+  by a client (`NetOwner` of another peer: its owner simulates it), a group with an entity that has
+  `PendingTransition`, state entities, a subtree above 65536 entities (logged). `alwaysSimulate` does not prevent it.
+- **Group form** (format 1, `engine/save/EntityGroup.h`): the unload step, the entity count, the group's
+  `PersistentId`s (checked at loads without decoding) and the saved component blocks in component ID order (the `COMP`
+  form). `Entity` fields inside the group are written as `Entity{local + 1, 0}` (one `EntityFieldVisitor` maps them in
+  place on the live value and back: no copy), every other `Entity` value as `Entity{}` (counted: `droppedReferences`);
+  use `PersistentId` for references that survive unloading. The schema table number is stored next to the bytes.
+- **Reload** when the chunk becomes ready (requested and resident; a chunk whose groups are only on disk becomes
+  `Resident` only with them read: the residency part `PartStored`): in the step-start hook (after S24's refresh,
+  between steps: the entities of an arrival's island exist before the phase 1 that completes it) and in
+  `chunkEntitySystem` before its unload pass, in `ChunkId` order. `GroupLoader` validates then commits each group on
+  the staging core shared with the world loader (types mapped by the group's schema table: lazy migration, `Removed`
+  policies; local indices, `Parent` only to an earlier entity, known classes, the chunk's space, `PersistentId`s not in
+  use); a group that fails is kept (logged, `failedGroups`) and retried at the next reload. The groups of one chunk are
+  created at free slots, then in passes over all their game objects: `configure()`, `onLoad()` (load rules), then
+  `onCatchUp(elapsed)` with `elapsed = (step - unloadStep) * dt` (no load rules, like `onSpawn`); `onSpawn` is not
+  called; a throwing hook removes its entity with its descendants without hooks (`reloadHookErrors`). Reloaded entities
+  are created entities (S24's `evaluateCreated` sets their `Simulated` flag). A reload consumes the groups: an entity
+  is in the world-state file or in one record of a commit, never both (G4).
+- The stored groups are part of `save()` (`EGRP`, §15.1) and of `world.hash()` (§17.4).
 
 ### 9.7 Navigation (optional module) [planned: S45]
 
@@ -2526,7 +2551,7 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   by `TERR`, sent by `TerrainChunkState`). Every writer calls `World::onRecordChanged(chunk)` after a change (host
   tombstones and tombstone-on-edit, stamping, the client's record messages and `Resync` clear, a host load's commit per
   chunk with a record before or after): it reaches the content render sets and the grass masks (§10.1).
-  `ChunkRecords::injectForTests` (test only). No other chunk has a record before S25.
+  `ChunkRecords::injectForTests` (test only). S25: in streaming worlds every chunk that became resident gets a record at the current version (§15.3; the one writer that calls no `onRecordChanged`: the effective record does not change).
 - **Tombstones** (S23b, §12.5): `World::tombstone(ChunkId, InstanceKey)` on the host, validated at the call
   (`checkTombstone`), idempotent, a command during a step; `World::tierOnePosition(chunk, key)` (an optional exact
   position: `ReSnapOnEdit` instances at the current surface, `TombstoneOnEdit` ones at their generated y; empty for a
@@ -2549,7 +2574,7 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   for all spaces (E10). A chunk "has deltas" (a terrain record) iff nonZeroSamples > 0. The revision (F1) is the store's
   monotone delta-change counter at the last change of a delta of the chunk's closed range (not saved, hashed or sent;
   `bumpSequence` alone does not change it); the edited grass masks key their staleness on it. The dense per-chunk form
-  (N x N, row = z) exists only in saves, messages, hashes and replica comparisons. Never evicted before S25.
+  (N x N, row = z) exists only in saves, messages, hashes and replica comparisons. Never evicted (S25, G2: the modification state stays in memory; the chunk store holds it durably, §15.1).
 
 ### 12.2 Height-map terrain [exists: S20 (height tiles), S22 (terraforming)]
 
@@ -2601,7 +2626,7 @@ has none).
   (`TerrainSystem::pinSimulationTile`, a tile sharing the `ChunkBase`'s heights); a tile is visual (stored by a visual
   completion or desired by the view; the visual budget `tilesPerLevel` counts these only, eviction clears the flag) and
   / or pinned; a pinned tile survives eviction and the view-space switch, the sink holds only visual tiles. The chunk
-  store follows in S25.
+  store (S25) keeps no bases: stored bases come with retiring a version (S27).
 - The base spacing is a `SpaceTemplate` parameter (1 m with 257 x 257 tiles, or 2 m with 129 x 129 tiles; shared
   borders); `samples/games/world` uses 1 m (the engine default stays 2 m); coarser levels double the spacing (level L
   covers 2^L chunks) and are streamed by distance; a coarse whole-space pyramid (e.g. 32 m) is always resident on CPU
@@ -2776,9 +2801,16 @@ has none).
   `IslandState` of streaming worlds, written at the phase-7 flush with the event; an aborted phase 8 loses that event:
   accepted) and counts `islandLimitSteps`; with `hardIslandLimit` `requestArrival` refuses an arrival that would raise
   the count above the limit.
-- **Interfaces of the later stages**: S25 adds the listener members `onResident` / `onKeptChanged`, the part
-  registration `addPart` (`PartStored`; S28 `PartColliders`) and the step-start hooks; S26 the modification gate and
-  `forEachChunk` (the plan's "Interfaces for S25 and S26").
+- **Interfaces of the later stages**: S25 added the listener members `onResident` / `onKeptChanged` (the latter over the
+  kept discs: every chunk within the kept distance of a centre, also chunks never requested), the part registration
+  `addPart(ResidencyPartInfo)` (`PartStored`: a chunk whose stored groups are only on disk becomes `Resident` only with
+  them read; S28 `PartColliders`) and `World::addStepStartHook` (after the refresh, before phase 1); S26 the
+  modification gate and `forEachChunk` (the plan's "Interfaces for S25 and S26").
+- **Entity unloading** [exists: S25] (§9.6): only in streaming worlds (G18) and beyond the kept distance of every centre;
+  no synchronous load of modification state exists (it stays in memory, §15.1); the stored groups reload when their
+  chunk is ready; a load's residency rebuild reloads every ready chunk's groups at the next step start (`fullReload`)
+  and the next phase 7 examines every root (`fullUnload`), so a plain and a loaded world unload and reload the same
+  groups at the same points.
 
 **The design before S24** (kept as history):
 
@@ -2823,7 +2855,7 @@ has none).
   `IslandLimitEvent {count}` and a statistic, the engine keeps simulating; with `WorldConfig::hardIslandLimit` set,
   `requestArrival` returns false. A Steam Deck can host small sessions (default: 4 players, 2 islands).
 
-### 12.4 Spaces and transitions [exists: S21, S23a (space instances from the plan, stamped entrances), S24 (arrivals); planned: S25 unloading]
+### 12.4 Spaces and transitions [exists: S21, S23a (space instances from the plan, stamped entrances), S24 (arrivals), S25 (space unloading)]
 
 - The open world is a height field. Caves, dungeons and interiors are **separate spaces** (enclosed scenes): authored
   from prefabs or generated, with their own chunk grid, static mesh geometry and colliders, ambient light and fog
@@ -2850,7 +2882,7 @@ has none).
   rendering of two spaces at once. S21 (A12): one GPU terrain set for the camera's space (S20); a switch rebuilds it
   (the layouts may differ), a terrain-less camera space clears it (`clearTerrain`, E1), other spaces keep only their
   CPU-cached pyramid; an exit into an overworld with terrain re-streams its tiles around the camera (a short loading
-  screen; keeping them is S25's residency question).
+  screen; S25 closed the question: the visual set stays S20's, re-streamed on return).
 - **Before S23** (S21): there was one space instance per `spaceTemplates` entry (`SpaceId` = template index; seed: the
   world seed for space 0, hashCombine(world seed, index) for index >= 1, S20 D11). **From S23a** the instances come from
   the plan (§12.1): `spaceCount()`, `spaceTemplate(i)` and `spaceSeed(i)` are plan-backed, the space-state entities
@@ -2902,7 +2934,15 @@ has none).
   terrain upload is pending and `chunkReady` holds at the player's position (on a client: its own residency);
   `loadingMaxFrames` counts from the move. The app's fatal complete points call `World::completeResidency(30)` before
   `completeView` (with `--coop` also the hidden host world's).
-  **Before S25**: no space unloading; the second space (height map or empty) keeps all its chunks resident.
+  **Space unloading** [exists: S25] (streaming worlds, host): a space is loaded while it has a streaming centre (a
+  player root, a `StreamingAnchor`, a pending player arrival's target). `spaceUnloadSystem` (phase 7, after
+  `chunkEntitySystem`) unloads a loaded space without centres once it has no root left (its roots unload by the same
+  phase-7 pass, so the space unloads one step after its last root): its space-state entity is written as a group into
+  the space record and removed (`spaceLoaded(s)` false, `spaceStateEntity(s)` `Entity{}`; `spaceState<T>` asserts;
+  `set_weather`, `get_global` with the space refuse; the world-state entity is never unloaded; a world without
+  space-state components only flips the flag). It loads again (`spaceLoadSystem`, the step-start hook, a `moveToSpace`
+  into it) from the in-memory space group. Replication: no `Despawn` for the bound NetId, the client keeps its state
+  entity with stale values until the reload's bound spawn. The state does not advance while unloaded (policy).
 
 ### 12.5 Placed pieces (tier 1p) [planned: S30, extended in S31]
 
@@ -2950,7 +2990,8 @@ void World::editGrass(SpaceId space, const Vec3& center, double radius, double d
   presentation and the systems registered `RunOn::Client` / `RunOn::Both`.
 - Clients are trusted (§2). Single player is a host without clients (same code path).
 - **Skeleton (S15, S16)**: `Transport` interface and `LoopbackTransport`, `NetOwner`, `Replicate` modes, `RunOn`
-  filtering, `ownedBy`, `NetId` mapping, reliable spawn/destroy (`Despawn`: S32 with interest), `OwnerCommand` with
+  filtering, `ownedBy`, `NetId` mapping, reliable spawn/destroy (`Despawn`: S25 for unloaded entities, S32 with
+  interest; S26 renumbers it with the other messages), `OwnerCommand` with
   the teleport counter,
   `RenderPose` and the interpolation buffer, full-state snapshots of all entities (§13.4), host + client scenario
   variant.
@@ -3156,7 +3197,10 @@ from the spawn, a `Resync` and the `OwnerCommand` (§13.3).
   `NetId`s and resolves them when the target arrives. Spawn (with `classId` and all replicated components) and destroy
   are reliable messages on `Channel::State`; a snapshot entry for an unknown `NetId` is ignored (the reliable spawn
   follows and the next snapshot carries the full state anyway). Leaving the interest set is a `Despawn` (no
-  callbacks).
+  callbacks). [exists: S25] `DespawnMessage {NetId}` (`EngineMessage::Despawn`, State, reliable, one per entity like
+  `Destroy`) for an entity the host unloaded (§9.6): the client removes it with its subtree without
+  `onReplicatedDestroy`; never for a bound NetId (an unloaded space's state entity stays on the client); a reload is a
+  new spawn with new NetIds.
 - Clients render remote entities from an interpolation buffer (~100 ms) that writes `RenderPose` (`Replicate::Never`,
   `Saved::No`).
 - **Time**: `stepIndex` is local to each peer. Every snapshot carries the host step. A client keeps an estimate
@@ -3314,23 +3358,49 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
 
 ### 15.1 Save content and layout
 
-- **World save = a directory**: a header (schema table, §15.2; seed; world id: random, created with the world; pinned
-  generator versions), a world-state file
-  (entity indices, generations and slot states, so `Entity` fields stay valid without remapping; all saved components
-  (`Saved::Yes`) of resident entities through `visit`, excluding player entity groups from S33 (§15.4; until S33 players
-  are saved here); the RNG state; pending events; step index and time; from S33 the latest export of every character that has played in the world,
-  §15.4) and a
-  **chunk store** [planned: S25] (region files with the
-  chunk states: modification state, stored generated base, entity groups). Binary, zstd compressed.
-- Dirty chunk states are written incrementally on the streaming pool; unloaded chunks live on disk, not in memory.
-- **Commits** [planned: S25]: a save is a sequence of commits (the commit interval is game policy, default 5 min). At
-  the commit step the main thread freezes, between steps, the world-state snapshot and immutable copies (copy-on-write)
-  of all chunk states dirty since the last commit; the pool writes these chunk records with commit number c, flushes
-  them, and only then writes the world-state file (temporary file, flush, rename) naming c; later changes go into c + 1.
-  Chunk records are appended (never overwritten in place); loading ignores chunk records newer than that commit; the
-  previous commit is kept as a backup; compaction runs on the streaming pool. The world-state snapshot is serialized
-  between steps on the main thread into memory (budget: one step time, measured in S25), then compressed and written on
-  the pool.
+- **World save = a directory** [exists: S25] (`engine/save/SaveDirectory.*`, `SaveDirectoryFormat.h`; all IO through
+  `SaveFileSystem`: the disk one, or `MemorySaveFileSystem` with a crash model for tests and `ScenarioWorld`): `lock`
+  (an advisory lock: a second world or process is refused), `header.sgh` (the schema tables every commit shares,
+  append-only, numbered from 0; rewritten only when a table is appended: tmp, sync, rename, sync the directory),
+  `world.<c>.sgw` (the world-state file of commit c: the world-state blob, i.e. `World::save` without `TERR`, `CREC`
+  and `EGRP`, and the chunk index `CIDX`, each zstd framed, with a trailing FNV-1a 64), `regions/<space>/<rx>.<rz>.<g>.sgr`
+  (region file generation g of 16 x 16 chunks: appended records, never rewritten). A **record** is the complete state
+  of one chunk at a commit (G1): `RTER` (sequence, the dense delta), `RREC` (placement version, stamped, tombstones),
+  `RGRP` (the entity groups with their schema numbers) or, for an unloaded space, `RSPC` (its space-state entity as one
+  group); a 32-byte header, one zstd payload, an FNV-1a 64; sections with their own versions (an unknown tag or a higher
+  version is an error naming the chunk). The index names at most one record per chunk and keeps a summary per chunk
+  (sequence, flags, delta hash, placement version, tombstone count, group schemas and hashes): a chunk whose state fits
+  the summary (a record without tombstones, no deltas, no groups: the records of every visited chunk, §15.3) needs no
+  record. Players and every resident entity stay in the world-state file (until S33). Players' `--save <dir>` (§8.3).
+- **The modification state stays in memory** (G2 of the S25 plan; replaces "unloaded chunks live on disk"): terrain
+  deltas and chunk records of every chunk are in memory (exact, lock-free `terrainHeight` / `terrainSample` for any
+  point, synchronous edits of non-resident chunks, the visual path's coarse levels); the store holds them durably and a
+  commit writes only dirty chunks (marked at `onTerrainChanged`, `onRecordChanged`, unload and reload). Entity groups,
+  the large and unbounded part, live on disk: a group's bytes leave memory once it is in the current record and its
+  chunk is neither requested nor resident (at a commit's completion and when the residency unloads the chunk).
+- **Commits** [exists: S25]: `World::commit()` between steps freezes the world-state blob, a snapshot of the index and
+  every dirty chunk (copy-on-write references of its `TerrainEditStore` blocks: a writer clones a block a frozen commit
+  still holds in its reserve step; its record, its groups by shared bytes) and hands it to the **IO lane**
+  (`SaveIoQueue`: one task at a time on the streaming pool; reads of stored groups at their chunk's residency priority,
+  commits at -50000; `synchronousIo` runs a task inside the call: tests, `ScenarioWorld`). The commit task: truncates
+  every region file it touches to its committed end, writes the header if a table was appended, decides compaction (a
+  region file at least 1 MiB with less than half live bytes gets generation g + 1 with its live records copied
+  verbatim), appends one record per frozen chunk (a disk-only group read from the old record; an unreadable one is
+  omitted, counted and logged: the backup commit still names it), syncs every touched file and every directory with a
+  new entry, then writes `world.<c>.sgw` (tmp, sync, rename: **the commit point**, then sync the directory) and removes
+  `world.<c - 2>.sgw` and the region files no kept commit names. Two commits are kept (the newest and its backup). A
+  failed commit marks its chunks dirty again and reuses its number; a commit while one is in flight is deferred to the
+  first step boundary after it completed; automatic commits every `commitIntervalSeconds` of world time (game policy,
+  default 300 s). Every load and open bumps the store's generation (completions of the old one apply nothing) and first
+  waits for the commits.
+- **Open** (`World::openSaveDirectory`): the lock; a missing or empty directory, or one with only the garbage of a
+  crashed first commit (no `world.*.sgw` of any kind), adopts the current world as commit 1; any unknown name or only
+  invalid world-state files is an error (never overwritten). Otherwise the newest valid `world.<c>.sgw` (trailer, frames)
+  with the records of its chunks with deltas or tombstones and every space record goes through the world loader
+  (validate-then-commit, every S11-S23 check); only corruption (a checksum, a framing, a record that does not match its
+  index entry) tries the backup (`usedBackup`), a semantic or version error is an open error at once. Then the cleanup:
+  corrupt newer candidates renamed to `.corrupt`, `.tmp` and unreferenced files removed, kept region files truncated to
+  the largest end a kept commit records. `closeSaveDirectory` reads every disk-only group back and unlocks.
 - `world.save()` / `load()` (byte blobs) remain for scenario worlds, tests and the world API's snapshots. [exists: S11]
   Blob layout (`engine/save/SaveFormat.h`): magic, format version, sections `HEAD` (engine version, step rate, step,
   time), `SCHM` (schema table), `ENTS` (slot table and free list), `COMP` (per type the values in the pool's dense
@@ -3356,7 +3426,7 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   a load (its components are no longer registered as state) must have no children, `PersistentId` or game object, and
   state entities never have game objects.
 - **Optional sections** [exists: S21] (A11, D7): the blob's sections follow a fixed order, `HEAD, SCHM, SPCE?, GENR?,
-  TERR?, CREC?, ENTS, COMP, EVNT, ACTN, STAT` (? optional; the table `kSaveSections` with each optional entry's highest
+  TERR?, CREC?, EGRP?, ENTS, COMP, EVNT, ACTN, STAT` (? optional; the table `kSaveSections` with each optional entry's highest
   readable format version). An optional section may be absent; it starts with its own format version (u32), and a
   version this build does not read is a load error naming the section; an unknown tag, a section out of order or twice
   and a missing required section are errors naming the expected sections. `kSaveFormatVersion` stays 1 (older builds
@@ -3398,6 +3468,15 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   site and an edited chunk) is the format-1 input (`ChunkRecords.Format1LoadsWithoutTombstones`: read without
   tombstones, saved as format 2); `save_s23b.bin` guards format 2 with persisted tombstones
   (`ChunkRecords.CommittedSaveLoads`); `save_v1.bin` (flat, no `GENR`) keeps loading.
+- **`EGRP`** [S25] (format 1, written only when the chunk store has stored groups or unloaded spaces; so worlds without
+  unloading save as before): the extra schema tables the groups use besides `SCHM` (number 0), the chunks with groups
+  in `ChunkId` order (per group its table number and the group form), the unloaded spaces (a flag and the space-state
+  entity's group). `save()` reads disk-only groups through the file system (one read per chunk record, `syncReads`;
+  blobs stay self-contained). The load checks chunks inside their spaces, sorted and unique, group forms structurally
+  valid, `PersistentId`s unique across `COMP` and every group, no state entity of an unloaded space in `ENTS`; the
+  groups' values are decoded at reload (lazy). A blob load into a world with a directory marks every chunk with state or
+  groups dirty. `diffSaves` reports kind `stored_group` (group counts, per differing group its position, root class and
+  entity count, the unloaded spaces); `dumpJson()` lists the stored groups per chunk (root class, entities).
 - JSON dump (`world.dumpJson()`) for debugging: the JSON form of `VisitJson.h` (exact numbers; 64-bit values beyond 2^53
   as strings). `diffSaves(a, b)` compares two blobs by name (fields, entities and components on one side, world-level
   state; filters and paging) without building worlds; `World::diff` formats it.
@@ -3426,8 +3505,10 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   merged into a default value; a field type change without a version increment, a version gap without a migration and
   a save from a newer version are load errors; a stored enum value whose name was removed is an error. Types without
   saved values need no `Removed` entry; pending events of unregistered event types are dropped (logged); a component
-  now registered `Saved::No` is dropped. Cross-component migrations (split, merge) come with the save directory (S25)
-  when a game needs them. A committed golden save (`data/tests/engine/save_v1.bin`) and the committed engine schema
+  now registered `Saved::No` is dropped. Cross-component migrations (split, merge) come when a game needs them. S25: every
+  entity group stores its schema table number (the directory header's numbering; a blob's `EGRP` numbering) and is
+  migrated lazily when it reloads (a group that cannot be decoded is kept, logged and retried); the record sections and
+  the index have their own format versions. A committed golden save (`data/tests/engine/save_v1.bin`) and the committed engine schema
   (`data/tests/engine/schema.json`, S19b: with `RenderInstance`) make R-SAVE-1 violations of engine types fail in CI.
 - **Mesh names** (S19b): `RenderInstance` is saved by mesh name; the loader step `checkRenderMeshes` (over the staged
   `RenderInstance` values, before the commit, validate-then-commit) resolves aliases (`World::registerMeshAlias(old,
@@ -3436,7 +3517,7 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   reported in one `render` log line per load with the names and the entity count, so a save stays loadable. The IDs of a
   save's names follow the loading world's registration order (the hash does not depend on it).
 
-### 15.3 Generator versions [exists: S23a (pins, records of stamped chunks, GENR / CREC); planned: S25 (every generated chunk, retiring a version)]
+### 15.3 Generator versions [exists: S23a (pins, records of stamped chunks, GENR / CREC), S25 (every resident chunk of a streaming world); planned: S27 (retiring a version)]
 
 - A world **pins** the world-plan and terrain generator versions it was created with, so terrain stays continuous
   across chunk borders and under existing bases.
@@ -3453,7 +3534,13 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   reaches existing worlds only through a new plan version (never for an existing world). All shipped prefab versions
   stay in the game data.
 - Retiring a version is an explicit one-time conversion on load that stores the affected chunks' generated bases;
-  only such chunks are sent to clients as base snapshots (§13.2) [planned: S25].
+  only such chunks are sent to clients as base snapshots (§13.2) [planned: S27, which reads stored bases for far
+  content; deferred by S25 (G17): no shipped game retires a version, the record format takes it as a new section].
+- **S25: every resident chunk gets a record** (streaming worlds on the host, spaces whose generator has slots or whose
+  plan has sites): when a chunk becomes resident (`onResident`) and has none, the step-start hook or
+  `chunkEntitySystem` writes `{current placement version, no tombstones}` (no `onRecordChanged`: the effective record
+  does not change). A newer placement version then reaches only chunks that were never resident; worlds without
+  streaming keep the accepted drift in visited but unmodified chunks.
 - **S23a**: one version counter per generator: the plan and the terrain at the pinned version, candidates and grass at
   the chunk's placement version (>= pinned; `candidate(p, plan)` accepts a plan of any version <= p). A new world pins
   every registered generator's `version()`; the current placement version is `version()` on the host and on clients.
@@ -3511,6 +3598,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | Stop | MCP tool `quit`, ESC in the window, or SIGTERM by the full executable path (the main thread is renamed `Saiga::main`, `pkill -x` by name does not match) | [exists: S13] |
 | Benchmark | `--benchmark <name>` (§17.7) | [exists] (S03; S13: `game_world` on `EngineApp`) |
 | Co-op in one process | `--coop [delay]` (§8.3): a hidden host and the rendered client world over loopback; the tools see the client | [exists: S16b] |
+| Save directory | `--save <dir>` (§8.3, §15.1; any engine game; not with `--scenarios` or `--benchmark`; with `--coop` the host world): opened after the game's start (an existing directory replaces the world through the load path, a new one adopts it), automatic commits every `EngineAppSetup::saveCommitIntervalSeconds` (300 s of world time), the commit at quit (the `quit` tool, the window's close) and its wait; the Engine tab (F3) shows the commit, the one in flight and the last error; `save_status` / `commit_save` | [exists: S25] |
 
 ### 16.2 MCP tools
 
@@ -3539,6 +3627,7 @@ entity is removed after the export is acknowledged. The save directory contains 
 | `apply(operations)` | a batch `[{op, ...arguments}]` or `[{op, args: {arguments}}]` (for `edit_terrain`, whose brush argument is `op` too) in order; stops at the first failing operation (the earlier ones stay applied); available read-only when every operation reads | [exists: S10] |
 | `save_snapshot(name, overwrite?)`, `load_snapshot(name, paused?)`, `list_snapshots`, `delete_snapshot(name)`, `diff_snapshot(name, against?, entity?, components?, limit?, after?)`, `export_snapshot(name, file, overwrite?)`, `import_snapshot(name, file, overwrite?)` | in-memory saves of the world (16, 256 MB) to roll back experiments and compare them (`diffSaves`: summary per kind and component, paged differences with class and position of one-sided entities); files only in the directory set by the app (`WorldToolsOptions::snapshotDirectory`, plain names); a load is one `world_loaded` entry in `changes_since` (cursors from before stay valid and answer `reloaded: true`); `WorldApi::rebind(World&)` moves the API and the tools to another world | [exists: S11] |
 | `get_data(type, name?)`, `reload_data(reconfigure?)` | the data files (§14): an entry or the entry names; re-read after edits (nothing changes on an error), optionally reconfiguring every game object (a save and load) | [exists: S11] |
+| `save_status`, `commit_save` | S25, `save_status` reads (the `SaveStatus` fields: open, path, committed, in flight, the last commit's step and world time, the last error, dirty / stored chunks, stored groups, unloaded spaces, region files and bytes, live bytes, the terrain modification state's memory; and the chunk store's statistics: unloads, reloads, dropped references, failed groups, hook errors, space unloads, records read and written, commits, failed commits, compactions, the freeze times); `commit_save` changes: `World::commit` (returns `{commit}`, or `{deferred: true, in_flight}` while a commit is in flight; errors without a directory and on a client). `world_status` adds `save: {committed, in_flight}` with a directory | [exists: S25] |
 | `list_scenarios(filter?)`, `run_scenario(name, variants?, keep?, load?)` | the game's scenarios; runs one headless in the call (its own worlds with the live world's data store, read-only; the variants Plain (default), Repeat, SaveLoad, and from S16b HostClient, HostClientDelay, HostClientAsync; per variant passed, failures, steps, seconds, the report of a failure; at the answer deadline the running variant stops: `aborted: stopped: tool time budget`, and no further run of a variant starts; the deadline is checked after each step, so a scenario that does not step blocks the call until it returns, and an end state that comes after the deadline is neither stored nor loaded); `keep` stores the Plain end state as the snapshot `scenario_<name>`; `load` also loads it, paused, after saving the live world as `before_scenario` (kept while the live world comes from these loads); refused inside a step or hook | [exists: S14] |
 | `quit`, `app_status`, `set_input(axes?, held?, pressed?, steps?)` | the app: ends the loop after the frame; reads headless, rendering, size, frames, fps, steps, the local player and the input bindings (S19c: and the debug UI's tab `ui_tab`); drives the local player through the input map like a player (a virtual device for n world steps; a paused world keeps it until steps run); S21: `app_status.space_loading` (`null` or `{space, name, progress, frames}`, §12.4); S36: `app_status.lighting` (`{time_of_day, ev100, tone_map, debug_view}`, null without a device) | [exists: S13] |
 | `get_lighting(sections?)` | S36: reads the lighting of the view camera's space: `time` (hours, day, rate; null without `WorldTime`), `weather`, `sun` / `moon` (direction, azimuth / elevation, illuminance at the top and on the ground, phase), `shadow_light`, `tone_map` (with `identity` a note that clay ignores time and weather), `exposure` (mode, source, ev100, curve_ev100, compensation, multiplier, effective: now, as the next frame uses them; frame_ev100, frame_effective: the last rendered frame's; pre_exposure; without an environment only the unit-less multiplier), `ambient`, `environment` (S36a1c: the environment map's validity, last capture frame, captures, progress, the LUT recomputations, the cloud layer's state and mean coverage), `clouds`, `settings` and `parameters` (the `set_lighting` keys), `debug`, `gpu`, `memory` (S36a1b), `cascades` (S36a2: per cascade split, box, texel, interval, last update, instances, triangles, terrain nodes; the shadow light, frozen, memory) and `horizon` (S36a2: the front map's anchor, extent, texel, reference, direction, the progress and blend, the recomputes), `lights` (S36b: submitted, candidates, visible, over budget, shadowed, without tiles), `clusters` (S36b: the grid, max, mean, overflowed clusters, dropped lights) and `atlas` (S36b: tiles used / total, static and dynamic renders, clears, hits, queue, lights with and without tiles); `sections` filters the top-level keys; answered at once; an error without a device | [exists: S36a1a, S36a2, S36b] |
@@ -3820,7 +3909,12 @@ checks them per space over the union of the chunks with a record on either side 
   from S23a, only when the world writes generation state (a non-legacy generator or chunk records; flat and hook worlds
   hash as before), after S22's block: the seed, per generator in name order its name, pinned and current version, and
   per chunk record in (`SpaceId`, `ChunkId`) order the chunk, its placement version and the stamped flag, and (S23b) the
-  tombstone count and per key slot and counter (worlds without records hash as before); S25 adds the other chunk states. It is a debugging aid and the check of the repeat variant.
+  tombstone count and per key slot and counter (worlds without records hash as before); S25: only when the chunk store
+  has stored groups or unloaded spaces, per chunk with groups in `ChunkId` order the chunk, the group count and each
+  group's byte hash (kept when the bytes leave memory: a directory world hashes like a blob world), per unloaded space
+  the space and its group's hash. It is a debugging aid and the check of the repeat variant. S25: the save/load
+  variant also round-trips the state through a save directory on a `MemorySaveFileSystem` (the old world adopts it,
+  a fresh world opens it and must save the blob; `ScenarioOptions::directoryRoundTrip`, off for the games' runners).
 - Variants of every scenario [exists: S12]: (0) **plain**: once; (a) **repeat**: the scenario runs twice and the
   per-step hashes, the step count and the final hash must be equal (catches wall-clock time, unordered containers and
   uninitialized memory); on a mismatch the runner runs both again up to the first differing step and prints
@@ -4108,6 +4202,13 @@ Network (defaults): steady-state host upload <= 256 kbit/s per client (8 players
 edited chunks (incl. a placed-piece base once S30 is done). Upload is measured by `host_step` (S32), join data by the
 S33 two-process session (local). These are reported, not gates: exceeding the upload budget is the trigger to add delta
 compression (§13.4, §20).
+
+Save directory (S25, desktop reference, reported by `test_engine_save_benchmark` with `SAIGA_SAVE_BENCHMARK=full`):
+the freeze of a commit (the world-state serialization plus the copy-on-write references) <= 10 ms with 10^5 resident
+entities and 50 dirty edited chunks (a commit every 300 s may cost one such frame; exceeding it is the trigger for an
+incremental world-state file); unload and reload <= 1 ms per chunk of 100 entities on the main thread; the first step
+after a large open and `save()` of a directory world with many stored groups, the open of 1000 edited chunks and the
+write throughput are reported.
 
 Budgets are measured in the release configuration (`SAIGA_ASSERTS` off).
 
@@ -4482,9 +4583,9 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S23b | Tombstones and content rendering (done) | Tombstones in chunk records with replication (TombstoneModification, ChunkRecordState; the sequence stays S22's), content render sets (tier 1, static parts), generated grass masks, re-snap and tombstone-on-edit from applied changed boxes, MCP tools, the generated_site golden (§12.1, §12.2, §12.5, §13.1, §16.2) | S23a | a tombstoned instance is hidden on the client in the host + client variants; generated_site golden with its count check (CI) |
 | S23c | Overworld generator (tech demo) (done) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
 | S24 | Streaming (done) | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
-| S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading; players saved in the world-state file until S33 (§9.6, §15.1) | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
+| S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading, records of every resident chunk; players saved in the world-state file until S33; retiring generator versions moved to S27 (§9.6, §12.4, §15.1-§15.3) [exists] | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
 | S26 | World over the network | Handshake with schema hash (and the environment flag of `EnvironmentSetup::enabled`), chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
-| S27 | Far content | Region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4), impostor shadow casters in the far cascades (the shadow pipeline table's impostor entry, S36a2); tech demo: the flight demo shows far content to the horizon over 32 km | S26, S23c | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
+| S27 | Far content | Retiring a generator version (stored bases of the affected chunks, §15.3; moved from S25), region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4), impostor shadow casters in the far cascades (the shadow pipeline table's impostor entry, S36a2); tech demo: the flight demo shows far content to the horizon over 32 km | S26, S23c | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
 | S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11); tech demo: the racing car on Jolt (vehicle constraint) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default); the racing demo drives on Jolt (local) |
 | S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16, S16b | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |
 | S30 | Placed pieces | Piece types, per-chunk piece arrays, stamped pieces of prefabs, rendering, merged far meshes per region and summary input, colliders, light descriptions (through `RenderScene::addLights`, one list per chunk, S36b), queries, live modifications (§12.5) | S27, S28 | build-a-wall scenario incl. save/load and host + client (CI); synchronous cell rebuild for a piece edit in a full base cell within the step budget; `host_step` re-run with the placed-piece base (local) |

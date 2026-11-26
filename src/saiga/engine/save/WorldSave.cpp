@@ -209,10 +209,27 @@ std::vector<uint8_t> World::saveBlob(bool worldStateForm) const
             }
             return uint32_t(number[t]);
         };
+        // The record of the chunk is read once for all its disk-only groups
+        ChunkId readChunk;
+        bool haveRead = false;
+        std::vector<RecordGroup> readGroups;
         auto bytesOf = [&](const ChunkId& c, const StoredGroup& g)
         {
             GroupBytes b = g.bytes;
-            if (!b && saveDir) saveDir->readGroupForSave(c, g, b);
+            if (!b && saveDir && g.recordIndex >= 0)
+            {
+                if (!haveRead || !(readChunk == c))
+                {
+                    readGroups.clear();
+                    saveDir->readRecordGroups(c, readGroups);
+                    readChunk = c;
+                    haveRead  = true;
+                }
+                if (size_t(g.recordIndex) < readGroups.size() && readGroups[size_t(g.recordIndex)].bytes &&
+                    fnv1a64Bytes(readGroups[size_t(g.recordIndex)].bytes->data(),
+                                 readGroups[size_t(g.recordIndex)].bytes->size()) == g.hash)
+                    b = readGroups[size_t(g.recordIndex)].bytes;
+            }
             SAIGA_ASSERT(b, "save: a stored group of " + std::to_string(c.space) + ", " + std::to_string(c.x) + ", " +
                                 std::to_string(c.z) + " cannot be read");
             return b;

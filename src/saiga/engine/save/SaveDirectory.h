@@ -74,6 +74,8 @@ class SAIGA_ENGINE_API SaveDirectory
     void requestStoredRead(const ChunkId& chunk, int priority, std::function<void()> done);
     // save(): the bytes of a disk-only group, read now (mutates nothing; counted in syncReads)
     bool readGroupForSave(const ChunkId& chunk, const StoredGroup& group, GroupBytes& out) const;
+    // The groups of a chunk's current record (one read for all its disk-only groups; save())
+    bool readRecordGroups(const ChunkId& chunk, std::vector<RecordGroup>& out) const;
     // The streaming pool is about to be reset (TerrainSystem::replaceSources)
     void beforePoolReset() { lane.poolReset(); }
     bool synchronousIo() const;

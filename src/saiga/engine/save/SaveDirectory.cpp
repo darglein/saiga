@@ -284,6 +284,18 @@ bool SaveDirectory::readGroupForSave(const ChunkId& chunk, const StoredGroup& gr
     return out && fnv1a64Bytes(out->data(), out->size()) == group.hash;
 }
 
+bool SaveDirectory::readRecordGroups(const ChunkId& chunk, std::vector<RecordGroup>& out) const
+{
+    const ChunkEntry* e = w.chunkStoreView().entry(chunk);
+    if (!e || !e->record) return false;
+    RecordContent content;
+    std::string error;
+    const_cast<World&>(w).chunkStore().statsForUpdate().syncReads++;
+    if (!readRecord(*fs, *e->record, chunk, content, error)) return false;
+    out = std::move(content.groups);
+    return true;
+}
+
 // ---- commits
 
 std::shared_ptr<SaveDirectory::Snapshot> SaveDirectory::freeze(uint64_t c, bool)
