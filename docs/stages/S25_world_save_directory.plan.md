@@ -5,7 +5,7 @@ Status: planned (written against `docs/engine_design.md` and the code of `master
 
 Sections follow the stage plan template of S05; "S24 interfaces used", "Conflicts with S24", "Interfaces for S26",
 "Implementation steps", "Risks and open questions" and "Design-doc amendments" are added for this stage. Decisions
-are numbered G1-G18; S24's plan also uses G numbers, so its decisions are cited as "S24 G<n>".
+are numbered G1-G19; S24's plan also uses G numbers, so its decisions are cited as "S24 G<n>".
 
 ## Goal
 
@@ -38,7 +38,7 @@ commit, also with an unload between two commits (CI).
 ## Depends on
 
 - **S24** (streaming; the names in "S24 interfaces used"): `WorldConfig::streaming`, `ChunkResidency` (requested,
-  ready, centres, the per-step change lists, listeners, parts), synchronous mode, arrivals through
+  ready, kept, centres, listeners, parts), synchronous mode, arrivals through
   `PendingTransition`, `Simulated` in phase 7 with `evaluateCreated` and `refreshSimulated`, the modification state kept
   in memory, the step-start refresh, the load's residency rebuild, the streaming benchmark.
 - **S11** (save, schema, migration): `World::save` / `tryLoad` (`engine/save/WorldSave.cpp`, `WorldLoad.cpp`: the
@@ -70,7 +70,7 @@ commit, also with an unload between two commits (CI).
 ## S24 interfaces used
 
 The S24 names this plan builds on (`S24_streaming.plan.md`: decisions G1-G22 of S24, cited as "S24 G<n>", and its
-"Interfaces for S25 and S26"). S25's own decisions keep their numbers G1-G18 (cited without a prefix).
+"Interfaces for S25 and S26"). S25's own decisions keep their numbers G1-G19 (cited without a prefix).
 
 - **B1 Streaming is opt-in** (S24 G1): `WorldConfig::streaming` (default `false`). **Without streaming S25 unloads
   nothing** (G18): no entity unloading, no space unloading, no auto records (Scope 12); the three
@@ -104,8 +104,7 @@ The S24 names this plan builds on (`S24_streaming.plan.md`: decisions G1-G22 of 
   `SaveDirectoryOptions::synchronousIo` defaults to it, and the `PartStored` read runs inline too.
 - **B8 Parts** (S24 Scope 2): `ChunkResidency::addPart(ResidencyPartInfo {bit, wanted(ChunkId), build(ChunkId)
   (synchronous), request(pool, ChunkId, priority, done) (asynchronous), drop(ChunkId)})`; S25 registers `PartStored =
-  4` (Scope 9): wanted on the host for a chunk with a group whose bytes are only on disk (or whose space record is on
-  disk), so such a chunk becomes `Resident` (and `ready`) only with its groups read.
+  4` (Scope 9): wanted on the host for a chunk with a group whose bytes are only on disk, so such a chunk becomes `Resident` (and `ready`) only with its groups read.
 - **B9 Modification state in memory** (S24 G2, G20): S22's deltas and S23b's records stay in memory for every chunk;
   edits of non-resident chunks are synchronous. S25 keeps all of it in memory (G2), so it needs no load hook (S24 adds
   none).
@@ -137,8 +136,8 @@ The S24 names this plan builds on (`S24_streaming.plan.md`: decisions G1-G22 of 
 
 ## Conflicts with S24
 
-None open. S24's plan was updated with the two proposals of the first draft (its Interfaces for S25: the requested set
-is the entity unload rule, the kept distance applies to data only; S24 adds no `ensureModificationState` hook, since no
+None open. S24's plan carries the agreed interfaces (its Interfaces for S25: entities unload beyond the kept distance
+of every current centre, a pure predicate; S24 adds no `ensureModificationState` hook, since no
 stage evicts modification state) and with the listener and part interfaces this plan uses (B2, B8), the step-start
 refresh (B4, B10) and `evaluateCreated` (B12).
 
@@ -230,8 +229,7 @@ SAIGA_ENGINE_API std::shared_ptr<SaveFileSystem> diskFileSystem(const std::strin
 All integers little-endian; every file ends with an FNV-1a 64 (`core/Hash.h`) of all its preceding bytes except
 region files, whose records carry their own checksum.
 
-- **Header** `header.sgh` (format 1): magic `SGWH`, format (u32), world id (u64: random, `std::random_device` at
-  creation, not simulation state), the engine version that created the directory (string), the schema tables (count
+- **Header** `header.sgh` (format 1): magic `SGWH`, format (u32), the engine version that created the directory (string), the schema tables (count
   u32; per table `SchemaTable::write`), trailer. The seed and the generator pins are not repeated here: the
   world-state blob's `GENR` is their single authority. Tables are append-only and numbered from 0 by position (G7); a build uses
   the number of the stored table whose `write` bytes equal `SchemaTable::fromWorld(world)`'s, or appends a new one
@@ -350,7 +348,6 @@ struct SaveDirectoryOptions
     // The commit's IO runs inside commit(), reads inside the step (tests, ScenarioWorld); unset: follows
     // streamingSettings().synchronous (B7)
     std::optional<bool> synchronousIo;
-    std::optional<uint64_t> worldIdForTests;     // a fixed world id (byte-equal directories in tests)
 };
 struct SaveStatus
 {
@@ -409,7 +406,9 @@ deleted only two commits after the index stopped naming it), and records are app
 **Write** (the commit task, pool thread):
 
 0. every region file this task will touch is `truncate`d to its committed end from the index snapshot (a failed or
-   torn earlier attempt leaves garbage behind the end; the offsets of this commit start at the committed end);
+   torn earlier attempt leaves garbage behind the end; the offsets of this commit start at the committed end); a
+   region file that exists but is not in the index (a crashed first commit, a failed compaction's generation `g + 1`)
+   is recreated with `writeNew` (its header), never appended to;
 1. if the header needs a new schema table (or is missing): write `header.sgh.tmp`, `syncFile`, `rename` to
    `header.sgh`, `syncDirectory(".")`;
 2. compaction is decided first (G12): a region file below the thresholds gets a new generation `g + 1`; this commit's
@@ -440,6 +439,17 @@ boundary. Failure (any file system error): `lastError`, logged (category `save`)
 are marked dirty again (nothing was dropped), the commit number is reused, the next commit's step 0 cuts the garbage.
 A load (blob or snapshot) resets `lastCommitTime` to the loaded `time()`.
 
+**Loads and an in-flight commit**: `tryLoad` / `load_snapshot` / `openSaveDirectory` on a world with a directory call
+`waitForCommits()` before their commit point, so a commit's completion never lands in a replaced store. The IO lane
+is not a job of `TerrainSystem`'s pool generation: `replaceSources` resets the pool (`TerrainSystem.cpp:1234-1235`) only
+after `waitForCommits`, and the lane resubmits its head task to the new pool.
+
+**Errors after the commit point**: once the step-5 rename succeeded the commit is a success (`committed = c`); a failing
+`syncDirectory(".")` after it is reported in `lastError` and logged, without rollback (the file is visible, its records
+are synced), and step-6 removal errors are logged only (garbage removed at the next open). The open compares each read
+record's header (kind, space, x, z, commit, payload length) with its index entry; a mismatch is corruption of that
+candidate (Scope 5).
+
 ### 5. Open (`World::openSaveDirectory`)
 
 ```cpp
@@ -458,11 +468,12 @@ struct SaveOpenResult
 
 - Between steps on the host only, not in a hook; a second open of a world that has a directory is refused. The lock
   is taken first (another process or world holding it: an error naming the directory).
-- **No commit, adopt**: only when the directory is missing or empty, or contains nothing but the lock file, `*.tmp`
-  files, region files and `header.sgh` (the garbage of a crashed first commit, whose step 1 writes the header before
+- **No commit, adopt**: only when the directory is missing or empty, or contains nothing but names of the known
+  patterns other than world-state files (the lock file, `*.tmp`, `regions/**/*.sgr`, `header.sgh`) (the garbage of a crashed first commit, whose step 1 writes the header before
   the commit point; the header holds no world state): no `world.*.sgw*` of any kind, incl. `.corrupt`. Then the directory is created, the current world is adopted (every chunk with state and every stored
   group dirty) and commit 1 is made at once (`created`, `commit = 1`; with `synchronousIo` written before the call
-  returns). A directory with world-state files but no valid one, or other unknown content, is an open error (never overwritten: a player's save must not be replaced by a fresh world).
+  returns). A directory with world-state files but no valid one, or any name outside the known patterns, is an open
+  error (never overwritten: a player's save must not be replaced by a fresh world).
 - **Existing commits**: the candidates are the valid `world.<c>.sgw` files (trailer checksum and frames), newest first.
   Validate-then-commit like `tryLoad`, per candidate until one succeeds (`usedBackup` when it is not the newest):
   1. the parts are assembled into one `ParsedSave`: the world-state blob is parsed as today; the index is checked
@@ -483,7 +494,7 @@ struct SaveOpenResult
      end offset that a kept commit records for it (records of a crashed later commit disappear, G8); the header is read
      before step 1 (missing or invalid with world-state files present: an open error);
   5. in a streaming world S24's load path runs (B10: `dropAll`, `completeResidency`, `PartStored` read inline) and S25's
-     `fullPass` is set for the next phase 7.
+     `fullReload` and `fullUnload` are set (B10).
 - The next commit is `c + 1` of the loaded commit.
 
 ### 6. Entity groups (`engine/save/EntityGroup.{h,cpp}`)
@@ -525,7 +536,8 @@ policies (drop the entity: it and its descendants leave the group; drop the comp
   pass**: every unloadable root whose chunk (B11) is not `residency().kept(chunk)` (beyond the kept distance of every
   current centre: a pure predicate, so the hysteresis band between the requested and the kept distance needs no
   history; whether a band chunk's groups are stored or resident is state, saved in `EGRP`) is unloaded, in root
-  entity-index order, each with one command. The candidates (so the pass costs what changed, not 10^5 roots per step):
+  entity-index order, each with one command. The candidates (so the pass costs what changed, not 10^5 roots per step; `setOwner` changes and a subtree shrinking
+  below the 65536 limit add their root too):
   the roots of chunks whose `kept` flipped to false (accumulated from `onKeptChanged`, found through the spatial grid's
   cells of the chunk), the roots that moved or were created since the last pass (`changedTransforms`, the structural
   log's created records, incl. the phase-7 flush of the previous step), and the roots whose exclusion ended (`Player`,
@@ -555,8 +567,10 @@ policies (drop the entity: it and its descendants leave the group; drop the comp
   entity without `onReplicatedDestroy` and frees the NetId mapping (§13.4's "no callbacks"). The host frees the NetIds
   as for a destroy. A reload is an ordinary spawn with new NetIds. **Bound NetIds** (state entities,
   `net/NetIds.h:43-49`): no `Despawn` is sent for them (a space unload, Scope 10); the client keeps its state entity
-  (its `spaceLoaded` stays true, its values stale until the reload), and the reload's bound `Spawn` updates the
-  existing client entity instead of hitting the setup-mismatch exit (`Replication.cpp:1887-1889`).
+  (its `spaceLoaded` stays true, its values stale until the reload). The work is on the host: its structural log
+  consumer suppresses `Destroy` / `Despawn` for the bound NetId of an unloaded state entity, and the reload re-binds
+  that NetId to the new handle and sends its bound `Spawn`, which the client applies to its existing entity
+  (`net/Replication.cpp:1873-1893`).
 - **World API journal**: `changes_since` reports `kind: "unloaded"` for these records (reloaded entities appear as
   `created`).
 
@@ -614,18 +628,20 @@ every blob). A world without streaming has no such pass (B1, G18).
   `chunkEntitySystem`, B4) recreates the state entities of spaces that became loaded (below), so they exist before any
   chunk group of that space reloads (also run by the step-start hook before its reloads). `spaceUnloadSystem` (phase 7,
   after `chunkEntitySystem`; both in `engine/save/SpaceLoading.cpp`, R-FILE-1's `Systems.h` rule): a space is **loaded**
-  while it has a streaming centre (`residency().centres()`: a `Player` root or a pending arrival's target, B2, B5) or
-  a requested chunk (S24 G3: the requested chunks follow the centres, so this only covers the step in which the last
-  centre left); a loaded space that stops being loaded is
-  unloaded at the end of phase 7 once every root of it has been unloaded (none left: chunk groups go first; a root
-  that cannot be unloaded, Scope 7, keeps the space loaded): its space-state entity (if the world has one) is written
+  while it has a streaming centre (`residency().centres()`: a player root, a `StreamingAnchor` or a pending player
+  arrival's target, B2, B5). Level-triggered: every phase 7 (and after a load) a loaded space without centres is
+  unloaded at the end of phase 7 once it has no root left (the World keeps a per-space root count, updated by
+  `moveToSpace`, creation and removal, so no scan; chunk groups go first; a root that cannot be unloaded, Scope 7,
+  keeps the space loaded): its space-state entity (if the world has one) is written
   as a group into the space record (`RSPC`) and removed with the `unload` command; `World::spaceLoaded(SpaceId)`
   becomes false and `spaceStateEntity(space)` returns `Entity{}`.
 - A space becomes loaded again when it gets a centre (a player moved in, a player's arrival targets it): its space
   record's group is always in memory (a single small group per space: read at the open, never dropped), so
   `spaceLoadSystem` recreates the state entity through `makeStateEntity`'s path at a free slot without IO.
-- An arrival of a non-player root (S24 G12: no centre) into an unloaded space is refused by `requestArrival` (false, a
-  log line "the space is not loaded"); such an entity would otherwise live in a space without state.
+- A non-player root that enters an unloaded space (an NPC arrival, `spawnIn`, `moveToSpace`) is not kept there: the
+  space has no centre, so every chunk is beyond the kept distance and the root is unloaded by the same step's phase-7
+  pass into its chunk's groups (it never runs a phase 2-5 in a space without state; it reloads when a player brings the
+  space back).
 - **Replication of a space unload**: no `Despawn` for the state entity (a bound NetId, Scope 7); the client keeps it
   with stale values until the reload; `compareReplicas` skips the state entities of spaces the host has unloaded.
 - The world-state entity is never unloaded. A world without space-state components only flips the flag.
@@ -652,13 +668,13 @@ every blob). A world without streaming has no such pass (B1, G18).
   (count u32; per entry in (kind, `SpaceId`, `ChunkId`) order: kind (u8), space (u16), x, z (i32), file index (u32,
   `0xFFFFFFFF`: summary only), offset (u64), length (u32), commit (u64), and the summary: sequence (u32), flags (u8:
   bit 0 deltas, bit 1 chunk record, bit 2 stamped), delta content hash (u64, with deltas), placement version (u16,
-  with a record), tombstone count (u32), group count (u32), per group its schema number (u32) and hash (u64)), and the
-  nothing else.
+  with a record), tombstone count (u32), group count (u32), per group its schema number (u32) and hash (u64)).
 - Section order (D7): `HEAD, SCHM, SPCE?, GENR?, TERR?, CREC?, EGRP?, ENTS, COMP, EVNT, ACTN, STAT`; `kSaveSections`
   gains `EGRP`; `kSaveFormatVersion` stays 1 (older builds reject a blob with it).
 - **Load checks** (before the commit, errors with the world unchanged): `EGRP` chunks inside their space, sorted and
   unique; group forms structurally valid (counts and lengths within bounds, schema numbers within the table list);
-  `PersistentId`s unique across `COMP` and every group; an unloaded space has no space-state entity in `ENTS` and
+  `PersistentId`s unique across `COMP` and every group (a blob load decodes the groups' ID lists; a directory open
+  reads only the records it needs, so there the check is the reload's "not in use" rule of Scope 9); an unloaded space has no space-state entity in `ENTS` and
   every space-state entity's space is loaded. The index (open only): entries sorted, unique, inside their spaces, files
   and offsets within the table and below each file's committed end. Components inside groups are decoded at reload, not at load (lazy migration; a group that fails
   then is kept, Scope 9).
@@ -688,20 +704,20 @@ every blob). A world without streaming has no such pass (B1, G18).
 - Consequences: a newer placement version reaches only chunks that were never resident; `CREC` and the hash grow with
   the visited chunks of such spaces (streaming worlds only: S23a's and S23b's content scenarios, which do not stream,
   are unchanged). **Worlds without streaming** keep §15.3's accepted placement drift in visited but unmodified chunks
-  (there is no residency that says which chunks were visited; decision G19). In the directory such records are
+  (there is no residency that says which chunks were visited; G18). In the directory such records are
   summary-only index entries (Scope 2), so they cost no record IO.
 - **Retiring a version is deferred** (G17): no shipped game has a retired generator version; storing generated bases
   touches every base consumer (`TerrainSystem::sample`, placements, stamping, grass, content render sets, S27's far
-  content) and the base snapshots to clients go through S26's `ChunkSnapshot` (flag bit 3, reserved by S26 D15). The
-  record format takes it as a new optional section (`RBAS`) without a format break. §15.3 and §22 are amended (the stage
+  content) and the base snapshots to clients go through S26's `ChunkSnapshot` (a new flag bit then). The record format
+  takes it as a new section without a format break. §15.3 and §22 are amended (the stage
   that first retires a version implements it; proposed: with S27, which reads stored bases for far content).
 
 ### 13. Scenarios (`engine/tools/ScenarioWorld.*`, `ScenarioRunner.*`)
 
 - Scenario worlds have a memory store (no directory) and run IO synchronously (B7: `ScenarioWorld` sets
   `setStreamingSynchronous(true)`). Unloading happens only in scenarios whose setup turns `WorldConfig::streaming` on
-  (the S24 streaming scenarios and S25's unload scenarios); with S24's scenario radii (128 m, prefetch 0) a group
-  unloads 128 m from the last player.
+  (the S24 streaming scenarios and S25's unload scenarios); with S24's scenario distances (S24 Scope 1: requested
+  128 m, kept 192 m) a group unloads once its chunk is 192 m from the last player.
 - **The save/load variant also round-trips through a directory**: at the swap point, after the blob round trip as
   today, the old world opens a save directory on a fresh `MemorySaveFileSystem` (`created`: commit 1 of the current
   state, synchronous IO) and closes it (`closeSaveDirectory`: the lock is released), a second fresh `World` of the same
@@ -713,7 +729,8 @@ every blob). A world without streaming has no such pass (B1, G18).
 
 ### 14. API, World API, MCP tools, app
 
-- `World`: `openSaveDirectory`, `hasSaveDirectory`, `commit`, `waitForCommits`, `saveStatus`, `spaceLoaded`,
+- `World`: `openSaveDirectory`, `closeSaveDirectory`, `hasSaveDirectory`, `commit`, `waitForCommits`, `saveStatus`,
+  `spaceLoaded`,
   `chunkStoreView`; `~World` waits for an in-flight commit (it does not commit).
 - World API (`WorldApi`, read-only rule unchanged): `save_status` -> the `SaveStatus` fields and the store statistics
   (reads); `commit_save` -> `{commit}` (changes: freezes a commit; errors: no directory, a client, a commit in flight
@@ -734,6 +751,9 @@ every blob). A world without streaming has no such pass (B1, G18).
   every 300 s may cost one such frame) with
   10^5 resident entities and 50 dirty edited chunks, release, desktop reference (Scope 15; reported, the trigger for an
   incremental world-state file if exceeded).
+- **The first step after a large load or open**: `fullReload` decodes and runs the hooks of every ready chunk's groups
+  in one step-start hook; reported with 1000 stored groups around the players (spread over several steps if above
+  the frame budget).
 - **Unload and reload**: the group write and removal, and the decode, creation and hooks, per entity and for a chunk
   of 100 entities (target <= 1 ms each on the main thread); reported.
 - **Synchronous loads** (§12.3 "S25 measures it"): `editTerrain` and `tombstone` on a non-resident chunk (S24's base
@@ -778,7 +798,7 @@ every blob). A world without streaming has no such pass (B1, G18).
   counted twice. So every commit has
   each entity either in its world-state file or in exactly one of its records, and a crash returns to one such commit.
   The crash tests check this with `PersistentId`s.
-- **G5 A header for things every commit shares** (schema tables, pins, world id), rewritten rarely and before the
+- **G5 A header for the schema tables every commit shares**, rewritten rarely and before the
   records that need it; the world-state file still carries its own `SCHM`, so the S11 loader reads it unchanged.
 - **G6 Regions of 16 x 16 chunks**: few files (a 32 km space at 256 m chunks: at most 64 regions), appends that stay
   local to where players are, compaction per file.
@@ -809,12 +829,13 @@ every blob). A world without streaming has no such pass (B1, G18).
 - **G16 Client-owned groups stay**: their owner simulates them (R-NET-2); unloading them under the owner would break
   ownership. Players already keep their chunks resident, so this rarely matters.
 - **G17 Retiring later**: see Scope 12.
-- **G18 Unloading needs streaming** (B1): without `WorldConfig::streaming` there is no requested set, so nothing
-  decides what is far; such worlds (small levels, tests without players, `game_world`, `game_racing`,
+- **G18 Unloading needs streaming** (B1): without `WorldConfig::streaming` there are no centres and no kept set, so
+  nothing decides what is far; such worlds (small levels, tests without players, `game_world`, `game_racing`,
   `game_platformer`) keep every entity and space, while their saves still use the directory, the chunk records and
-  commits. Unloading follows S24's requested set, so the repeat and save/load variants stay exact.
+  commits. Unloading follows S24's kept predicate of the current centres, so the repeat and save/load variants stay
+  exact.
 - **G19 One unload pass in phase 7** (deviation from §9.6's phase-6 pending list): the chunk unloads and the roots
-  that end up on a chunk that is not requested are the same rule (not requested), so one pass with one order (entity
+  that end up on a chunk that is not kept are the same rule (not kept), so one pass with one order (entity
   index) serves both; a loaded world (full pass) and a plain world unload the same roots in the same phase. Records
   of every visited chunk exist only in streaming worlds.
 
@@ -822,7 +843,7 @@ every blob). A world without streaming has no such pass (B1, G18).
 
 S26 (`S26_world_network.plan.md`: the handshake, `ChunkInterest` / `ChunkSnapshot` on `ChunkData` replacing
 `GenerationState`, `ChunkRecordState`, `TerrainChunkState` and `sendChunkSnapshot`, per-peer filtering) and S25 do not
-depend on each other; whichever lands later integrates. Where they touch (S26's "S25 touchpoints"):
+depend on each other; S26 is implemented after S25 and integrates. Where they touch (S26's "S25 touchpoints"):
 
 - **Chunk snapshots read memory, not the store**: the modification state of every chunk stays in memory (G2), so S26's
   `encodeChunkSnapshot` reads `TerrainEditStore` / `ChunkRecords` unchanged and never reads region files; S26's
@@ -849,8 +870,8 @@ depend on each other; whichever lands later integrates. Where they touch (S26's 
 Each step builds with warnings as errors and passes ctest with the tests named in it.
 
 1. **Reconcile** with the merged S24 code (the names of "S24 interfaces used": `ChunkResidency`, `ResidencyPartInfo`,
-   the phase order, `setStreamingSynchronous`, the load path, `refreshSimulated`) and, if S26 landed, its message
-   numbering; update this plan (R-DOC-1).
+   the phase order, `setStreamingSynchronous`, the load path, `refreshSimulated`); update this plan (R-DOC-1). S26 is
+   implemented after S25.
 2. **File system layer**: `SaveFileSystem`, `DiskSaveFileSystem`, `MemorySaveFileSystem` with the crash model;
    `SaveFileSystem.*` tests.
 3. **Formats**: `SaveDirectoryFormat.h`, `RegionFile`, `ChunkRecordCodec` (record header, sections, `RTER` / `RREC` /
@@ -895,8 +916,11 @@ open-world space with edits and a test game object; budget about 1.5 s):
   `world.3.sgw.corrupt` exists after the open, the state equals commit 2's blob); both corrupt: an error, the world
   unchanged and no file renamed or removed.
 - `SaveDirectory.NeverAdoptsOverASave`: a directory whose world-state files are all invalid, one with only `.corrupt`
-  files, and a non-empty directory without `header.sgh`: open errors, nothing written; a directory with only a lock
-  file, `*.tmp` and region files (a crashed first commit) is adopted.
+  files, and a directory with an unknown file name: open errors, nothing written; a directory with only a lock file,
+  `*.tmp`, region files and a header (a crashed first commit) is adopted, and its stale region files are recreated.
+- `SaveDirectory.LoadWhileCommitInFlight` (a latch holds the IO task): `tryLoad` of a blob with the same pins and one
+  with other pins wait for the commit; afterwards `inFlight` is 0, the store is the loaded one and the next commit
+  succeeds.
 - `SaveDirectory.RecordErrors`: a flipped payload byte in a record with groups: open succeeds, the reload logs the
   chunk, `failedGroups` counts them; an edit of that chunk then commits: the new record omits them, the old location
   is still named by the backup commit, the commit succeeds; in a record
@@ -913,14 +937,16 @@ open-world space with edits and a test game object; budget about 1.5 s):
   written, the old one survives one more commit (the backup names it) and is removed after the next; the region file
   shrinks; open equals the live world.
 - `SaveDirectory.AsyncEqualsSynchronous`: the same steps with pool IO (`waitForCommits`) and with `synchronousIo` give
-  byte-equal files (`worldIdForTests`).
+  byte-equal files.
 - `SaveDirectory.CommitWhileInFlight` (a latch holds the IO task): `commit()` returns 0 and the request runs after the
   first completes; a chunk edited and one unloaded while the commit is in flight are in the next commit; a reload
   while its record is being written reads the frozen groups from memory; a chunk with disk-only groups (from an
   earlier commit) reloaded while commit c + 1 is in flight: after the completion the entry has no groups, the next
   commit's record has none and the entities exist once (opening commit c + 2 and counting `PersistentId`s).
-- `SaveDirectory.FailedCommitRetries`: a file system that fails the next append (clean, and with `tornWrite`, which
-  leaves half a record behind the committed end): `lastError` set, the world continues, the dirty chunks stay dirty;
+- `SaveDirectory.FailedCommitRetries`: a file system that fails each mutating operation of a commit in turn; before
+  the rename: the commit fails and is retried as below; after the rename (the directory sync, a step-6 remove): the
+  commit counts as done, the error is reported, and the next open loads it. A failing append (clean, and with
+  `tornWrite`, which leaves half a record behind the committed end): `lastError` set, the world continues, the dirty chunks stay dirty;
   after the file system recovers the next commit truncates the garbage, writes them and opens equal (the index
   offsets point at the records).
 - `SaveDirectory.EveryGeneratedChunkHasRecord` (`tests/content_test_setup.h`, test generator v1): a player's resident
@@ -945,7 +971,8 @@ torn write, entries without data, power loss), opened in a fresh world, and asse
 - the loaded world's `save()` equals that commit's reference blob;
 - every test `PersistentId` exists exactly once, counted over the resident entities and the stored groups **read** from
   the records (a failed read fails the test);
-- no `.tmp` and no unreferenced file remain, and one more commit and open succeed.
+- no `.tmp` and no unreferenced file remain; one more commit and open succeed (checked at n = 0, K / 2 and K only: the
+  open of every image is the expensive part; the budget is measured in step 10).
 
 Cases:
 
@@ -998,7 +1025,7 @@ Cases:
   `reloadHookErrors` 1, the other groups of the chunk reload.
 - `Unload.FarSpawnUnloadsInPhase7`: `spawnIn` 2 km from the player: the root and its child are unloaded in phase 7 of
   the spawning step (`onSpawn` ran once); when the player arrives the group reloads with `onCatchUp`.
-- `Unload.CandidatesNotFullScan`: 10^4 roots inside the requested set and a player standing still: the pass examines
+- `Unload.CandidatesNotFullScan`: 10^4 roots inside the kept set and a player standing still: the pass examines
   only changed roots (a statistic `unloadCandidates`), and a root whose `Player` is removed is unloaded in that step;
   after a load the full pass runs once.
 - `Unload.LoadEqualsPlain`: a player teleported 1 km between steps right before a save: the plain world and the
@@ -1020,9 +1047,8 @@ save/load variant add at most 0.4 s, measured in step 11; `registerUnloadScenari
 the setup of S24's streaming scenarios with `WorldConfig::streaming`):
 
 - `chunk_unload_reload` (the acceptance): a player and a `Grower` group (root, child, an in-group reference, an outside
-  reference, a `PersistentId`) 100 m away inside the requested set; the player is moved 1 km away with
-  `requestArrival` (B5; it completes in phase 1 after the island is resident), so the group's chunk leaves the
-  requested set: the group is stored (`storedGroups` 1), `resolve` empty, on
+  reference, a `PersistentId`) 100 m away; the player is moved 1 km away with `requestArrival` (B5; it completes in
+  phase 1 after the island is resident), so the group's chunk is no longer kept: the group is stored (`storedGroups` 1), `resolve` empty, on
   clients the entity is gone; the player returns: the group is resident again with remapped references, the outside
   reference null, `grown` advanced by the elapsed time, `resolve` gives the new root. In the save/load variant the swap
   falls into the unloaded phase (the blob and directory round trips carry the stored group).
@@ -1054,16 +1080,22 @@ chunks.
   and image kind; the other `SaveCrash.*` cases pass (CI).
 - The other tests above (CI); every existing engine test, scenario, golden save and hash unchanged for worlds without
   unloading (CI); the measurements of Scope 15 reported, S24's streaming benchmark (full form) with unloading within
-  §17.10 (local); `game_world --save <dir>`: a terrain edit survives a restart (local, headless);
+  §17.10 (local); `game_world --save <dir>`: a terrain edit survives a restart (local, headless); `game_flight
+  --scenarios` passes in every variant and `game_flight --demo` runs with unloading (the only streaming game; its
+  driver and aircraft are separate roots linked by `Entity` fields, `samples/games/common/Driving.h:52-68`: both stay in
+  the player's kept chunks, and a scenario checks the link after flying far from the start) (local);
   `docs/engine_design.md` and `AGENTS.md` updated.
 
 ## Verification
 
-- The CI recipe of AGENTS.md; `ctest -R "test_engine_(save|save_directory|unload|scenarios|world_api|app|content|
-  replication|spaces)" --output-on-failure`.
-- `./build/tests/test_engine_save_directory --gtest_print_time=1` and `./build/tests/test_engine_unload
-  --gtest_print_time=1` within the AGENTS.md budget.
-- The engine scenarios binary's time before and after (the extra directory round trip per save/load variant).
+- The CI recipe of AGENTS.md; `ctest -R "test_engine_(save|save_directory|save_crash|unload|scenarios|streaming|
+  streaming_scenarios|world_api|app|content|replication|spaces)" --output-on-failure`.
+- `./build/tests/test_engine_save_directory`, `test_engine_save_crash` and `test_engine_unload` with
+  `--gtest_print_time=1` within the AGENTS.md budget.
+- The scenario binaries' times before and after (the extra directory round trip per save/load variant: at most 0.3 s
+  for `test_engine_scenarios`, included in the 0.4 s of `test_engine_streaming_scenarios`). The round trip runs for the
+  engine's scenario lists; the games' runners keep the blob round trip (`ScenarioRunner` option, off for the games).
+- `./build/samples/games/game_flight --scenarios` (local).
 - Local, release build of AGENTS.md's benchmark recipe: `test_engine_save_benchmark`, `SAIGA_STREAMING_BENCHMARK=full
   test_engine_streaming_benchmark` with unloading; `game_world --headless --save /tmp/s25_world` with an `edit_terrain`
   over MCP, `quit`, restart, the edit is present (screenshot through `SAIGA_SCREENSHOT`, headless).
@@ -1088,7 +1120,8 @@ Changed:
   MessageList,Replication}.*` (`Despawn`), `engine/lighting/EnvironmentWrites.cpp`, `engine/app/{LightingTools,
   EngineApp,EngineMain,EngineAppDebugUi}.*`, `EngineAppSetup.h`, `engine/api/WorldApi.*`, `engine/tools/{WorldTools,
   ScenarioWorld,ScenarioRunner}.*`.
-- `tests/CMakeLists.txt` (four targets), `tests/test_engine_{streaming_scenarios,world_api,app,save}.cpp`.
+- `tests/CMakeLists.txt` (four targets), `tests/test_engine_{streaming_scenarios,streaming,streaming_benchmark,world_api,app,
+  save}.cpp` (S24's tests adapted per B15).
 - `docs/engine_design.md`, `AGENTS.md` (layout, test list and count, the committed directory's update recipe), this
   file.
 
@@ -1130,13 +1163,12 @@ Each with the default this plan uses.
    record; `spaceStateEntity` is `Entity{}`, `spaceLoaded`.
 3. §12.1: chunk records for every chunk that became resident in a non-legacy space (no `onRecordChanged`); the
    modification state stays in memory (G2).
-4. §12.3: entity unloading only in streaming worlds (G18) and by the requested set; synchronous loads: none for
+4. §12.3: entity unloading only in streaming worlds (G18) and beyond the kept distance of every centre; synchronous loads: none for
    the modification state (it stays in memory); stored groups are the residency part
    `PartStored` and reload when the chunk is ready; the load's residency rebuild reloads groups.
 5. §12.4: space unloading as implemented (Scope 10: a space without streaming centres); the GPU-terrain residency
    question closed (open question 12).
-6. §13.1 / §13.4: `Despawn` exists from S25 (unloading), S32 adds interest; its `EngineMessage` ID precedes S26's
-   numbering if S26 landed first.
+6. §13.1 / §13.4: `Despawn` exists from S25 (unloading), S32 adds interest; S26 renumbers it with the other messages.
 7. §15.1: the directory layout, header, world-state file (world-state form, `CIDX`), region files, records, commit
    protocol (fsync order, commit point, retention, compaction, cleanup at open), the memory store, `EGRP`, blob
    self-containment, G2's sentence replacing "unloaded chunks live on disk, not in memory".
