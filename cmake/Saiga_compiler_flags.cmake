@@ -26,13 +26,16 @@ message(STATUS "SAIGA_CXX_FLAGS_MSVC: ${SAIGA_CXX_FLAGS_MSVC}")
 ######### warnings #########
 
 
+# SAIGA_WARNING_CXX_FLAGS: the warning level of the saiga targets (the modules through SAIGA_PRIVATE_CXX_FLAGS, the
+# tests), not of the submodules and not of projects that use saiga.
+set(SAIGA_WARNING_CXX_FLAGS)
 if (SAIGA_CXX_FLAGS_MSVC)
-    # Force to always compile with W1
-    if (CMAKE_CXX_FLAGS MATCHES "/W[0-4]")
-        string(REGEX REPLACE "/W[0-4]" "/W1" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    else ()
-        #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W1")
-    endif ()
+    # Level 3, the MSVC default. CMake >= 3.15 (CMP0092) no longer puts /W3 into CMAKE_CXX_FLAGS, which left cl at its
+    # level 1, so /WX missed e.g. the CRT deprecations (C4996) and the narrowing conversions (C4244, C4267) that
+    # clang-cl reports. A /W flag in CMAKE_CXX_FLAGS is removed: it would apply to the submodules too, and cl warns
+    # when a later /W overrides it (D9025).
+    string(REGEX REPLACE "/W[0-4]" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+    list(APPEND SAIGA_WARNING_CXX_FLAGS "/W3")
 endif ()
 
 if (SAIGA_CXX_FLAGS_GNU)
@@ -43,6 +46,7 @@ if (SAIGA_CXX_FLAGS_GNU)
     list(APPEND SAIGA_CXX_FLAGS "-Wno-missing-braces")
     list(APPEND SAIGA_PRIVATE_CXX_FLAGS "-fvisibility=hidden")
 endif ()
+list(APPEND SAIGA_PRIVATE_CXX_FLAGS ${SAIGA_WARNING_CXX_FLAGS})
 
 # SAIGA_WARNINGS_AS_ERRORS: added by saiga_core to its build interface (the libraries and everything in this build that
 # links them: tests, samples); the submodules are not affected.

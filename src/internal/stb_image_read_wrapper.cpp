@@ -12,7 +12,8 @@ bool loadImageSTB(const std::filesystem::path& path, Image& img)
 {
     // Handle unicode paths
 #ifdef _WIN32
-    FILE* file = _wfopen(path.c_str(), L"rb");
+    FILE* file = nullptr;
+    if (_wfopen_s(&file, path.c_str(), L"rb") != 0) file = nullptr;
 #else
     FILE* file = fopen(path.c_str(), "rb");
 #endif

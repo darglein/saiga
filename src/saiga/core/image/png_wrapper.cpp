@@ -98,7 +98,7 @@ struct ScopedFile
 #    ifdef WIN32
         // Minor fix: _wfopen expects a wide string mode too
         std::wstring wmode(mode, mode + strlen(mode));
-        fp = _wfopen(path.c_str(), wmode.c_str());
+        if (_wfopen_s(&fp, path.c_str(), wmode.c_str()) != 0) fp = nullptr;
 #    else
         fp = fopen(path.c_str(), mode);
 #    endif

@@ -190,10 +190,7 @@ void SignalHandler(int signal)
 
 void catchSegFaults()
 {
-    typedef void (*SignalHandlerPointer)(int);
-
-    SignalHandlerPointer previousHandler;
-    previousHandler = signal(SIGSEGV, SignalHandler);
+    signal(SIGSEGV, SignalHandler);
 }
 #endif
 
