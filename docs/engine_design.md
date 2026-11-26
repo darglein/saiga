@@ -186,9 +186,10 @@ The engine serves several games of the same genre. It offers capabilities; each 
 | `RenderScene` terrain (S20): the GPU terrain set `TerrainAtlas` (int32 storage buffers: atlas, pyramid, page table, grass masks; the upload queue with a per-frame byte cap; rebuild per space or layout; patches; hierarchical node bounds; `memoryEstimate`), the CDLOD `TerrainPass` (selection in double, 64 m frame anchor, integer node origins, skirts, the water plane, `TerrainFrame`, the probe hooks), the chunk-relative `GrassPass` from grass masks, the pure generation `TerrainTiles` (§10.1, §12.2) | `src/saiga/vulkan/scene/Terrain*`, `GrassPass.*`, `shader/vulkan/scene/terrain*`, `grass.*`, `sky.*`, `tests/test_vulkan_terrain.cpp` | [exists: S20] |
 | Engine terrain (S20): `SpaceTemplate` and `WorldConfig::spaceTemplates`, `World::terrainHeight` / `spaceSeed` / `spaceTemplate`, the mover on the terrain, `StreamingPool`, `TerrainSystem` (visual streaming of the view camera's space, `completeView`, `readiness`, the single send point), `TerrainStore`, `TerrainGeneration`, the sink terrain calls, the app's complete points and stream time; `TerrainSurface.h` (the surface rule, `TerrainHeightSource`) (§7.9, §8.5, §12.2) | `src/saiga/engine/terrain/`, `src/saiga/engine/world/SpaceTemplate.h`, `src/saiga/engine/core/StreamingPool.*`, `src/saiga/core/math/TerrainSurface.h`, `tests/test_engine_terrain*.cpp`, `tests/test_core_terrain_surface.cpp` | [exists: S20] |
 | Spaces and transitions (S21): several space templates (open world, flat, `SpaceTemplate::enclosed` with its site origin and background), `World::moveToSpace` (the space primitive `setSubtreeSpace` / `teleportTo`, children follow at once and on attach), one space-state entity per space, `SpaceLink`, `PendingTransition`, `requestTransition` (S24: an arrival, returns `bool`), `spaceTransitionSystem` (phase 1) and the optional `spaceLinkSystem`, `SpaceTransitionEvent`; the root's space in spawns, snapshots and `OwnerCommand` v2, `RenderPose::space`; optional save sections (`SPCE`); `RenderSink::setSpaceSettings` and the enclosed frame of `RenderScene`; `World::spaceReadiness` and the app's loading screen (`LoadingScreen`); `move_to_space`, `set_camera(space)` (§7.4, §7.8, §10.1, §12.4, §13.3, §15.1, §16.2) | `src/saiga/engine/world/`, `src/saiga/engine/components/`, `src/saiga/engine/save/`, `src/saiga/engine/net/`, `src/saiga/engine/app/LoadingScreen.*`, `src/saiga/vulkan/scene/RenderScene.*`, `tests/test_engine_spaces.cpp` | [exists] |
-| Terraforming (S22): `TerrainBrush`, `validateBrush`, the integer `BrushKernel`, `World::editTerrain` / `checkTerrainEdit` / `terrainSample` / `terrainEdits` / `pendingTerrainChanges`, `applyTerrainEdit`, the modification state `TerrainEditStore` (delta blocks, per-chunk sequence, revision, content hash), `TerrainEditedEvent`, the delta codec, the `TERR` save section, `hash()` and `diffSaves` of the state, the messages `TerrainModification` / `TerrainChunkState`, the host state list and `sendChunkSnapshot`, the visual path (merge at the send point, `TerrainDirtyQueue`, the patch step, edited grass masks in `TerrainVisualPatch`), `EngineApp::setFixedFrameTime`, the tools `edit_terrain` / `terrain_height` / `terrain_edits`, `game_world --benchmark terraform` and the terraform mode (§12.1, §12.2, §13.2, §15.1, §16.2, §17.7) | `src/saiga/engine/terrain/`, `src/saiga/engine/save/`, `src/saiga/engine/net/Replication.*`, `samples/games/world/TerraformBenchmark.*`, `tests/test_engine_terrain_edit.cpp`, `tests/test_engine_terrain_net.cpp`, `tests/test_engine_terrain_benchmark.cpp` | [exists: S22] |
-| Tombstones and content rendering (S23b): `ChunkRecord {placementVersion, tombstones}` on every peer, effective records, `World::onRecordChanged`, `CREC` format 2; `World::tombstone` / `checkTombstone` / `isTombstoned` / `chunkRecord` / `tierOnePosition` (`content/Tombstones`), the messages `TombstoneModification` / `ChunkRecordState` (`content/ContentMessages`), the host send-list entries, the snapshot's record part, `clearReplicatedChunkState`; the content render sets (`ContentRenderSystem`, centres `None \| View \| Players`, one set per chunk with tier 1 and static parts, the re-snap queue), `RecordingRenderSink`'s set arrays; grass masks from the generator (`Generator::grassEditRule`); tombstone-on-edit in `applyTerrainEdit`; the tools `chunk_info`, `list_sites`, `tombstone`; the `generated_site` golden (§10.1, §12.1, §12.2, §12.5, §13.2, §16.2, §17.6) | `src/saiga/engine/content/`, `src/saiga/engine/net/Replication.*`, `src/saiga/engine/terrain/`, `src/saiga/engine/sync/RecordingRenderSink.*`, `tests/test_engine_content.cpp`, `tests/test_engine_terrain_render.cpp` | [exists: S23b] |
+| Terraforming (S22): `TerrainBrush`, `validateBrush`, the integer `BrushKernel`, `World::editTerrain` / `checkTerrainEdit` / `terrainSample` / `terrainEdits` / `pendingTerrainChanges`, `applyTerrainEdit`, the modification state `TerrainEditStore` (delta blocks, per-chunk sequence, revision, content hash), `TerrainEditedEvent`, the delta codec, the `TERR` save section, `hash()` and `diffSaves` of the state, the message `TerrainModification` (S26: the chunk state is in `ChunkSnapshot`), the host state list, the visual path (merge at the send point, `TerrainDirtyQueue`, the patch step, edited grass masks in `TerrainVisualPatch`), `EngineApp::setFixedFrameTime`, the tools `edit_terrain` / `terrain_height` / `terrain_edits`, `game_world --benchmark terraform` and the terraform mode (§12.1, §12.2, §13.2, §15.1, §16.2, §17.7) | `src/saiga/engine/terrain/`, `src/saiga/engine/save/`, `src/saiga/engine/net/Replication.*`, `samples/games/world/TerraformBenchmark.*`, `tests/test_engine_terrain_edit.cpp`, `tests/test_engine_terrain_net.cpp`, `tests/test_engine_terrain_benchmark.cpp` | [exists: S22] |
+| Tombstones and content rendering (S23b): `ChunkRecord {placementVersion, tombstones}` on every peer, effective records, `World::onRecordChanged`, `CREC` format 2; `World::tombstone` / `checkTombstone` / `isTombstoned` / `chunkRecord` / `tierOnePosition` (`content/Tombstones`), the message `TombstoneModification` (`content/ContentMessages`; S26: the records are in `ChunkSnapshot`), the host send-list entries, `clearReplicatedChunkState`; the content render sets (`ContentRenderSystem`, centres `None \| View \| Players`, one set per chunk with tier 1 and static parts, the re-snap queue), `RecordingRenderSink`'s set arrays; grass masks from the generator (`Generator::grassEditRule`); tombstone-on-edit in `applyTerrainEdit`; the tools `chunk_info`, `list_sites`, `tombstone`; the `generated_site` golden (§10.1, §12.1, §12.2, §12.5, §13.2, §16.2, §17.6) | `src/saiga/engine/content/`, `src/saiga/engine/net/Replication.*`, `src/saiga/engine/terrain/`, `src/saiga/engine/sync/RecordingRenderSink.*`, `tests/test_engine_content.cpp`, `tests/test_engine_terrain_render.cpp` | [exists: S23b] |
 | World save directory (S25): `SaveFileSystem` (disk, `MemorySaveFileSystem` with the crash model), the formats (`SaveDirectoryFormat.h`, `ChunkRecordCodec`: records, `CIDX`, header, world-state file), `ChunkStore`, `SaveDirectory` (open, commits on the `SaveIoQueue`, compaction, retention), the entity groups (`EntityGroup`, `GroupLoader` on the `StagingCore` shared with the world loader, `EntityFieldVisitor`), `EntityUnloading` (the step-start hook, `spaceLoadSystem`, `chunkEntitySystem`, `spaceUnloadSystem`), `Despawn`, `EGRP`, the records of every resident chunk, `save_status` / `commit_save`, `--save` (§9.6, §12.3, §12.4, §15.1-§15.3) | `src/saiga/engine/save/`, `tests/test_engine_unload.cpp`, `test_engine_save_directory.cpp`, `test_engine_save_crash.cpp`, `test_engine_save_benchmark.cpp`, `tests/unload_test_setup.h` | [exists: S25] |
+| World over the network (S26): the handshake (`JoinRequest` / `JoinReject` / `JoinAccept`, `Resync` v2; `JoinMessages`, `JoinCheck`, `kProtocolVersion`), the network schema (`NetSchema`, `World::netSchema` / `netSchemaHash`), admission in the peer lists, `World::joinState` / `joinRejection`, the generation info and the adoption of the host's pins (`GenerationInfo`, `World::replaceGeneration`), chunk interest, index and snapshots (`ChunkMessages`), the client's chunk sync (`ClientChunkSync`: queue, re-requests, unload drops, the `all` subscription of worlds without streaming, holds), the host's subscriptions and snapshot budget (`HostChunkSubscriptions`, `WorldConfig::network`), per-peer filtering of the live modifications, the residency's modification gate and `forEachChunk`, `World::chunkSynced`, the tombstone cap, `world_status.net` / `chunk_info.sync` (§13.2, §13.6, §12.3, §15.3) | `src/saiga/engine/net/`, `src/saiga/engine/tools/ScenarioWorld.*`, `tests/test_engine_world_net.cpp`, `tests/world_net_test_setup.h` | [exists: S26] |
 | Streaming (S24): `WorldConfig::streaming` / `maxSimulationIslands` / `hardIslandLimit`, the `SpaceTemplate` radii (`residencyRadius`, `simulationRadius`, `prefetchMargin`, `unloadMargin`), `ChunkResidency` (the resident chunk set: pinned level-0 base tiles in `TerrainStore`, held placements, residency jobs on the streaming pool, phase 7 and the step-start refresh, synchronous mode, `completeResidency`), `SimulationSet` (the `Simulated` tag by 32 m cells), `StreamingAnchor`, the mover hold and the stall counters, arrivals (`requestArrival`, `checkArrival`, `arrivalProgress`; `requestTransition` returns `bool`; `PendingTransition` `Replicate::Host`; held roots hidden by the extract), islands (`Islands`, `IslandLimitEvent`, `IslandState`), stamping on ready chunks, the load's rebuild; the tools `streaming_status` / `request_arrival`, the Engine tab's Streaming section, the arrival's loading screen; `game_flight` streams (§7.9, §7.10, §8.1, §12.3, §12.4, §16.2) | `src/saiga/engine/streaming/`, `src/saiga/engine/components/StreamingAnchor.h`, `IslandState.h`, `tests/test_engine_streaming*.cpp`, `tests/streaming_test_setup.h` | [exists: S24] |
 | World prototype, game side (S19a; S20): the prototype hook and its surface (`PrototypeTerrain`: `prototypeHeight`, `prototypeSurfaceHeight`, `prototypeAreaStats`), the generators (`FoliageGenerator`, `ForestRenderer::placeTrees` over a `PrototypeArea`, OpenMP, `WorldNoise`), `WorldSettings` (GUI, MCP; mapped to `PrototypeSettings`), `PrototypeForest` (the trees' meshes, material and instance sets, `prototypeTreeSets`), `PrototypeScene` (`attach`, `update`, the settings widgets as a debug UI section, `statsJson`; replaces `WorldRenderer` and `WorldStatistics.cpp`); `samples/games/common/PrototypeSpace.h` (the 32 km space template of `game_world`, flight and racing) | `src/saiga/vulkan/world/`, `shader/vulkan/world/prototype_shading.glsl`, `samples/games/common/PrototypeSpace.h` | [exists], prototype |
 | MCP server (HTTP JSON-RPC, tools run in `poll()`, `handleMessage`, deferred `Respond`; binds 127.0.0.1 only and rejects non-local Origin/Host headers and non-JSON bodies) | `src/saiga/core/util/mcp/McpServer.*` | [exists] |
@@ -608,7 +609,8 @@ interest and residency follow only the rules above.
 a registered prefix, `Registry::validateRegistration`), as global / space state only with
 `WorldSetup::environment.enabled` (`EnvironmentSetup`), otherwise as plain components that no entity has (plain worlds
 keep their entities, hashes and saves; one schema for every world); `registerEngineComponents(Registry&, const
-WorldSetup&)` chooses the kind. Host and clients must be built with the same `enabled` (no join check before S26).
+WorldSetup&)` chooses the kind. Host and clients must be built with the same `enabled` (S26: the handshake checks it
+before the schema and rejects a difference as "environment", §13.2).
 [exists: S10 for the mechanism (`global`, `spaceState`, `readGlobal`, `readSpaceState`); S21: one space-state entity
 per space; S36a1a: `WorldTime`, `Weather`]
 
@@ -1673,7 +1675,8 @@ uint32_t packPrototypeFoliageColor(int layer, float ao, float wind);   // the Pr
   `RenderScene` (S19a's tree meshes and material, the demos' level geometry; `VulkanRenderSink::scene()`) takes IDs of
   the game range `1 .. kGameReservedIds - 1` through `RenderScene::reserveIds`; the World assigns mesh and material IDs
   from `kGameReservedIds` (256) upward in registration order; S30's generated meshes take the top. The table hash
-  (names, IDs, aliases) is what S26's handshake compares; the host + client scenario variant fails on different tables.
+  (names, IDs, aliases) is what S26's handshake compares (`JoinReject` "render name tables differ"; the host + client
+  scenario variant fails on a rejected client).
 - `RenderSink` (`engine/sync/RenderSink.h`) is the engine's interface to rendering, implemented by `VulkanRenderSink`
   (`engine/sync/VulkanRenderSink.h`, over `RenderScene`; an identical (ID, name) registration again is a no-op, a
   different one asserts) and `RecordingRenderSink` (headless tests and every scenario world: state (the registered
@@ -2459,7 +2462,7 @@ class Generator   // engine/content/Generator.h [exists: S23a]; implemented by g
     virtual const char* name() const = 0;          // saves, messages and the hash file name generators by name
     virtual uint16_t version() const = 0;          // the newest version; every older one stays callable
     virtual std::vector<GeneratorSlot> slots() const = 0;   // append-only; {name, flags, meshes}: name and flags are
-                                                   // content (GENR, GenerationState), meshes presentation only
+                                                   // content (GENR, the generation info), meshes presentation only
     virtual bool integerOnly() const { return true; }       // false only for the float prototype fixture
     virtual bool legacyTerrain() const { return false; }    // heights equal a pre-S23 hook: no slots, no sites, no
                                                             // generation state
@@ -2546,10 +2549,11 @@ void GeneratorList::add(GeneratorId id, std::shared_ptr<const Generator> generat
   tombstone (every peer), and a record received or loaded with another placement version; a terrain edit creates
   none. Spaces whose generator has no slots never get a tombstone. The **effective record** of a chunk without one is
   `{current placement version, no tombstones}` (`World::effectiveRecord` / `effectivePlacementVersion`; equal on host
-  and clients: `GenerationState` refuses other versions). **No sequence in the record**: a tombstone advances S22's
+  and clients: a client adopts the host's pins, S26). **No sequence in the record**: a tombstone advances S22's
   per-chunk sequence (`TerrainEditStore::bumpSequence`; a tombstone-only chunk gets S22's entry without deltas, saved
-  by `TERR`, sent by `TerrainChunkState`). Every writer calls `World::onRecordChanged(chunk)` after a change (host
-  tombstones and tombstone-on-edit, stamping, the client's record messages and `Resync` clear, a host load's commit per
+  by `TERR`, sent in S26's `ChunkSnapshot`). At most `kMaxChunkTombstones` (2^20) keys per record (S26, D14). Every
+  writer calls `World::onRecordChanged(chunk)` after a change (host tombstones and tombstone-on-edit, stamping, the
+  client's snapshots, tombstone messages, unloads and `Resync` clear, a host load's commit per
   chunk with a record before or after): it reaches the content render sets and the grass masks (§10.1).
   `ChunkRecords::injectForTests` (test only). S25: in streaming worlds every chunk that became resident gets a record at the current version (§15.3; the one writer that calls no `onRecordChanged`: the effective record does not change).
 - **Tombstones** (S23b, §12.5): `World::tombstone(ChunkId, InstanceKey)` on the host, validated at the call
@@ -2619,9 +2623,9 @@ has none).
   (the asynchronous path is visual only). From S23a every space's height source is its generator through the generation
   pipeline (`GenerationPipeline::heightSource`: the natural height with the site patches composed; the prototype hook
   is the `HookGenerator` "prototype"); S20's tile and pyramid functions take it as their `TerrainHeightSource`
-  unchanged. Before S26 (S22) the host sends every live modification to every client, and
-  clients keep every edited sample in memory (never evicted); S22's minimal snapshot (`sendChunkSnapshot`, §13.2) serves
-  late joiners and host loads; per-loaded-chunk snapshots and the reload rules of §13.2 come with S26. S24: the
+  unchanged. S26 (§13.2): a client holds the modification state of the chunks it subscribed only (a world without
+  streaming subscribes every space); an unsubscribed chunk's entry and record are dropped and the samples of its closed
+  range that no other subscribed chunk contains are zeroed (D10; before S26 clients kept every edited sample). S24: the
   residency (§12.3) pins the level-0 base tiles of the resident chunks of every space in `TerrainStore`
   (`TerrainSystem::pinSimulationTile`, a tile sharing the `ChunkBase`'s heights); a tile is visual (stored by a visual
   completion or desired by the view; the visual budget `tilesPerLevel` counts these only, eviction clears the flag) and
@@ -2712,7 +2716,7 @@ has none).
   S27 (S22: it is merged and patched on the visual path; no synchronous CPU pyramid write).
 - Terrain, grass, water, sky/fog and culling shaders work region/camera relative.
 
-### 12.3 Streaming [exists: S24 (residency, Simulated, arrivals, islands); planned: S25 entity unloading, S26 clients' snapshots, S28 colliders]
+### 12.3 Streaming [exists: S24 (residency, Simulated, arrivals, islands), S25 entity unloading, S26 clients' snapshots; planned: S28 colliders]
 
 | Distance from a streaming centre (defaults; `SpaceTemplate`) | Content |
 |---|---|
@@ -2793,8 +2797,14 @@ has none).
   `moveToSpace` or `ownerTeleport` into non-resident chunks is allowed; the entity is held there until the chunks
   arrive (far teleports use `requestArrival`).
 - **Clients** (G10): a client computes its own residency around its own centres and generates the base and placement
-  itself (R-CONTENT-1); in S24 every client receives every modification (S22, S23b), so no snapshot gates residency
-  (S26 adds the gate and the per-chunk snapshots, §13.2). Clients never stamp.
+  itself (R-CONTENT-1). S26 (§13.2): it subscribes every chunk its residency has `Requested` or `Resident`
+  (`ChunkResidency::forEachChunk`, from the request on, so the snapshot is under way before the base is generated) plus
+  explicit holds (`ClientChunkSync::hold`), and unsubscribes (and drops the state of) the chunks it unloads; a chunk is
+  `Resident` on a client only with the host's snapshot applied (`setModificationGate(World::chunkSynced)`), so the
+  owner's mover holds, the stall counters count and the loading screen waits until then; a re-request (a gap) keeps a
+  `Resident` chunk resident; `complete()` never waits for the gate; `spaceReadiness` takes the synced fraction of the
+  subscribed chunks in its radius. A client of a world without streaming subscribes every space as a whole (D19).
+  Clients never stamp.
 - **Islands** (G14): per space the connected components of the player roots (pairs within `2 * simulationRadius`),
   summed over the spaces (`World::islandCount`, `Islands::count`). Above `WorldConfig::maxSimulationIslands` (default
   4) the host's streaming system emits `IslandLimitEvent {count}` once per rise (the last reported count is the global
@@ -2991,13 +3001,14 @@ void World::editGrass(SpaceId space, const Vec3& center, double radius, double d
 - Clients are trusted (§2). Single player is a host without clients (same code path).
 - **Skeleton (S15, S16)**: `Transport` interface and `LoopbackTransport`, `NetOwner`, `Replicate` modes, `RunOn`
   filtering, `ownedBy`, `NetId` mapping, reliable spawn/destroy (`Despawn`: S25 for unloaded entities, S32 with
-  interest; S26 renumbers it with the other messages), `OwnerCommand` with
+  interest; S26 renumbered it with the other messages), `OwnerCommand` with
   the teleport counter,
   `RenderPose` and the interpolation buffer, full-state snapshots of all entities (§13.4), host + client scenario
   variant.
-- **With the features that need them** (over `LoopbackTransport`): the world handshake and chunk snapshots (S26), live
-  terrain edits (S22), the generation state check (S23a: `GenerationState`, §13.2), tombstones (S23b: `TombstoneModification`,
-  `ChunkRecordState`; sent like the S22 live terrain modifications to every client until S26), pieces (S30).
+- **With the features that need them** (over `LoopbackTransport`): the world handshake with the network schema, the
+  generation info and the adoption of the host's pins, chunk interest, indexes and snapshots (S26, §13.2), live terrain
+  edits (S22) and tombstones (S23b: `TombstoneModification`), sent since S26 only to the clients that subscribed the
+  chunk, pieces (S30).
 - **S32** interest radius, snapshot rate, cosmetic events, loss and reordering; **S33** UDP transport, sessions.
 
 ```cpp
@@ -3025,7 +3036,7 @@ LoopbackTransport::createPair(double dropRate = 0, int delaySteps = 0, uint64_t 
 void LoopbackTransport::disconnect(uint8_t peer);   // [S33] both ends receive Disconnected (tests)
 ```
 
-### 13.2 The world over the network [planned: S26; live terrain edits: exists, S22; GenerationState: exists, S23a; chunk records: exists, S23b]
+### 13.2 The world over the network [exists: S26; live terrain edits: S22; tombstones: S23b; region levels: S27]
 
 The world is generated from the seed on every machine (§12.1). The handshake sends the seed and the pinned generator
 versions and compares the protocol version and a hash of the schema table (§15.2); a mismatch rejects the join with a
@@ -3040,67 +3051,69 @@ until the host's modification snapshot (not only its local base) is applied, dro
 snapshot's, and treats a gap as an error that re-requests the snapshot. Live terrain modifications carry the integer
 result as a difference rectangle (new heights minus base), never the brush; clients do not evaluate brushes.
 
-**S24 (before S26)**: clients stream their own residency (§12.3, G10) around their own player roots, anchors and
-arrival targets and generate base and placement locally; every client still receives every modification (S22, S23b),
-so no per-chunk snapshot gates a client's residency: the modification gate, the per-chunk snapshots and the queueing of
-live modifications are S26's (`ChunkResidency::setModificationGate`, `forEachChunk`).
+**S26 as implemented** (`net/JoinMessages`, `JoinCheck`, `NetSchema`, `GenerationInfo`, `ChunkMessages`,
+`ClientChunkSync`, `HostChunkSubscriptions`; `docs/stages/S26_world_network.plan.md`):
 
-**S22 (before S26)**: two raw engine messages host -> clients on `Channel::State`, reliable, with the epoch (ordered
-with `Resync` and the spawn set; S26 moves snapshots to `ChunkData` with its re-request protocol):
-`TerrainModification` (one per applied edit: flags (zstd), epoch, space, parts; per part the chunk, its sequence after
-the change, the chunk-local box and the new deltas of the box) and `TerrainChunkState` (flags (zstd, deltas present),
-epoch, chunk, sequence > 0, N, optionally the dense N x N delta). Values are absolute deltas; every rectangle is
-encoded by `TerrainDeltaCodec` (row-major zigzag varint differences, the predictor reset to 0 per part and per chunk,
-optionally zstd; the decoder bounds the size, the value count and |delta| <= 2^24 and leaves no bytes over). The
-minimal snapshot `Replication::sendChunkSnapshot(peer)` sends one `TerrainChunkState` per chunk with state, in
-`SpaceId`, `ChunkId` order: on a join after the spawn set (`Resync` first if the epoch is not 0; S23a's
-`GenerationState` before the spawn set), on a host load from `onHostLoad` right after `Resync` and `GenerationState`. A
-client validates each
-message on its own into scratch (flags, epoch, an open-world space, chunks in range, boxes inside the tile, the codec's
-bounds, sequence > 0, equal values for samples shared by parts of one message; no check against its present
-neighbours: the host is authoritative) and applies nothing on a failure (`NetStats::rejected`); per part a sequence
-<= the current one is a duplicate (dropped), `current + 1` applies, a larger one is a gap: before S26 logged, counted
-in `NetStats::modificationGaps` and applied. A chunk state replaces the chunk's deltas and sequence if its sequence is
-not older. A client `Resync` clears the whole modification state (each cleared chunk with deltas goes through
-`onTerrainChanged`).
+- **Handshake.** On its transport's connection a client sends `JoinRequest` (ID 0, `Control`): the protocol version
+  (`kProtocolVersion`, the frozen first field), the network schema hash and its six section hashes (types, messages,
+  classes, actions, templates, flags: `NetSchema::fromWorld`, every registered component with its replicate mode and
+  kind, the fields with their quantization, the events, classes, messages with version and channel, actions and held
+  buttons, the templates' layout and `WorldConfig::streaming`), the render table hash, the seed, the environment and
+  non-legacy flags and the generators with `version()` and slot names. The host reads the frozen version first (another
+  version: `JoinReject{ProtocolVersion}` before the rest is decoded), then checks in the order protocol, environment,
+  schema (the rejection names the differing sections), render tables, seed, generators (the same names, every host
+  current version runnable, the host's slot tables a prefix); a failure sends `JoinReject` (ID 1: reason, text; frozen),
+  counts `NetStats::joinsRejected` and logs; a malformed request is `JoinReject{Malformed}`. Admission (D13) puts the
+  peer into `connectedPeers()` / `peersJoined()`: the peer lists, the replication and the join policies see admitted
+  peers only; before admission the host accepts only `JoinRequest` from a peer and sends it nothing but the handshake;
+  a client sends nothing but `JoinRequest` before it joined (both count `droppedNotJoined`). Phase 8 sends `JoinAccept`
+  (ID 2, `State`: the epoch and the generation info when the world writes generation state) before the spawn set. The
+  client validates the generation info (`adoptablePins`), builds the host's pins when they differ (E11: phase A and B,
+  the same space table, the host's combined plan hash), commits them (`World::replaceGeneration`: plans, terrain
+  sources, content sets, residency) and is `Joined`; a failure is local (`JoinState::Rejected`, `generationMismatch()`).
+  A joining client defers every other message (at most 1024) and handles them right after `JoinAccept`, in sequence
+  order.
+- **Resync v2** (a host load): the epoch and the loaded generation info; the client adopts it like `JoinAccept`, drops
+  its replicated entities and its chunk state and subscribes again in the new epoch.
+- **Chunk interest** (D1, D19). A streaming client subscribes the chunks its own residency has `Requested` or
+  `Resident` (`ChunkResidency::forEachChunk`) plus explicit holds, diffed in phase 8 into `ChunkInterest` messages
+  (`Control`; removes, then adds nearest first, each add with a ticket) and staged (an aborted phase 8 sends again). A
+  client of a world without streaming sends one `ChunkInterest{all}` per space; the host answers with a `ChunkIndex`
+  (`ChunkData`) of the chunks whose snapshot carries something (a sequence > 0 or a record with tombstones or another
+  placement version than the current one), then their snapshots; every other chunk is synced at sequence 0. The host
+  checks the interest (range, duplicates, `NetworkConfig::maxChunksPerPeer`, the epoch: another one is dropped).
+- **Snapshots** (D7, D12). The host serves its FIFO snapshot queue in phase 8 after the host state list, up to
+  `NetworkConfig::chunkSnapshotBytesPerStep` encoded bytes per step (at least one): `ChunkSnapshot` (`ChunkData`) with
+  the epoch, the ticket, the chunk's sequence, its record (placement version, tombstones as varint key differences) and
+  its dense N x N deltas, zstd over the body when that is smaller; encoded from the current state, so it includes every
+  edit up to its encoding. A resubscription of a queued chunk replaces its ticket.
+- **Live modifications** (D8): `TerrainModification` and `TombstoneModification` stay on `State` and are sent per peer
+  with only the parts / entries of the chunks the peer subscribed (`partsFiltered`, `entriesFiltered`).
+- **The client's queue** (D9). Per subscribed chunk `Pending` (ticket, queue) or `Synced`. A snapshot applies only to a
+  `Pending` chunk with its ticket (else stale), replaces the closed range, the sequence and the record, then the queued
+  parts with a sequence `<=` the snapshot's are dropped and the rest applied each at `current + 1`. A gap or a queue
+  above 1024 parts applies nothing, counts `modificationGaps` (the gap) and `chunkRerequests`, drops the queue and
+  re-requests the chunk (a new ticket; its present state kept until the new snapshot). A chunk that leaves the interest
+  is dropped (D10): its record and entry go and the samples of its closed range that no other subscribed chunk contains
+  are zeroed.
+- **Resident after the snapshot** (D18): on a streaming client `World::chunkSynced` is the residency's modification
+  gate (a chunk with its parts ready stays `Requested` until its snapshot applied: the mover hold, the stall counters
+  and the loading screen wait for it); `spaceReadiness` takes the synced fraction of the subscribed chunks in its radius.
+- `World::tombstone` and tombstone-on-edit refuse a chunk's key beyond `kMaxChunkTombstones` (2^20, D14).
 
-**S23a (before S26)**: `GenerationState` (`net/GenerationStateMessage`; raw, host -> clients, `Channel::State`,
-reliable, with the epoch): the seed, per generator in name order its name, pinned and current version and slot table,
-the space count and the combined plan hash. Sent only by a host whose world writes generation state
-(`World::writesGenerationState`: a non-legacy generator or chunk records; flat and hook worlds send nothing), in E5's
-order: on a join after `Resync` and before the spawn set, on a host load right after `Resync` (before the chunk
-snapshot). The client validates and refuses (untrusted input): the seed equals its setup seed (D11), the generator
-names are its registered ones, the host's pins equal its pins and the host's current versions its `version()`, the
-slot tables are equal, and the space count and combined plan hash equal its own; a failure is counted in
-`NetStats::rejected`, logged (category `content`, naming the first difference) and sets `World::generationMismatch()`
-(the host + client scenario variants fail on it); nothing is applied (later spawns still are, except a state entity
-of a space this client does not have: refused instead of the setup-mismatch exit). A valid message changes nothing
-(`World::generationChecked()`): the client generates the host's content already. Adopting the host's pins is S26's
-handshake (E11): until then a client of another binary version, or a host that loaded a save of an older generator
-version, is refused. The host logs once per world when the first peer joins and a generator in use is not integer only
-(the prototype fixture: "clients on other machines or compilers may see other terrain").
-
-**S23b (before S26)**: two raw engine messages host -> clients on `Channel::State`, reliable, with the epoch
-(`content/ContentMessages`), applied in phase 1 and by `stepNetworkOnly`: `TombstoneModification` (epoch, space,
-1..4096 entries; per entry chunk x, z, placement version, the chunk's sequence after the change, slot (u8), counter;
-at most about 78 KB) and `ChunkRecordState` (epoch, space, 1..1024 parts, at most 8192 keys; per part chunk x, z,
-placement version, its keys; at most about 55 KB; a record with more keys is split into parts that repeat chunk and
-version, in consecutive messages, united on the client). S22's terrain messages are unchanged. The host send list
-(§8.1) keeps application order, so per chunk the sequence order of terrain parts and tombstones is preserved; an edit's
-tombstones follow its `TerrainModification`. Snapshot (E5): `sendChunkSnapshot` sends the `ChunkRecordState`s (only
-records with tombstones or another placement version than the current one, per space) before the `TerrainChunkState`s:
-per join `Resync` (epoch != 0), `GenerationState`, spawn set, record states, terrain states; per host load `Resync`,
-`GenerationState`, record states, terrain states. The joining step's send-list entries are not sent to the joiner (the
-snapshot includes them). The client validates the whole message before any entry applies (a failure counts in
-`NetStats::rejected`, logs in the categories `net` and `content`, applies nothing): the epoch (another: dropped, not
-counted), no `generationMismatch`, the space, the chunk range, the bounds, the placement version between its pinned and
-current version and equal to the chunk's effective version when it has a record (a `TombstoneModification` for a chunk
-without one carries the current version; older versions reach a client only after S26's handshake), for keys only: a
-generator with slots, slot below the slot count, counter below `candidatesPerChunk`, keys sorted and unique per part.
-`TombstoneModification` sequences against S22's `sequence(chunk)`, cumulatively per chunk within the message: `<=`
-dropped, `+ 1` applied, larger a gap (logged, counted in `modificationGaps`, applied). A client does not check that a
-key is an accepted candidate (no chunk generation on message apply). A client `Resync` clears S22's store and the
-records together (`clearReplicatedChunkState`), then `onTerrainChanged` / `onRecordChanged` per cleared chunk.
+The live messages (S22, S23b) as they remain: `TerrainModification` (raw, host -> clients, `Channel::State`, reliable,
+with the epoch; flags (zstd), epoch, space, parts; per part the chunk, its sequence after the change, the chunk-local
+box and the new deltas of the box; values are absolute deltas encoded by `TerrainDeltaCodec`: row-major zigzag varint
+differences, the predictor reset to 0 per rectangle, optionally zstd; the decoder bounds the size, the value count and
+|delta| <= 2^24 and leaves no bytes over) and `TombstoneModification` (epoch, space, 1..4096 entries; per entry chunk
+x, z, placement version, the chunk's sequence after the change, slot (u8), counter). The host send list (§8.1) keeps
+application order, so per chunk the sequence order of terrain parts and tombstones is preserved. A client validates each
+message as a whole into scratch before anything applies (flags, epoch: another one dropped, not counted; an open-world
+space, chunks in range, boxes inside the tile, the codec's bounds, sequence > 0, one part per chunk, equal values for
+samples shared by parts of one message; for tombstones the slot and counter in range and, for a `Synced` chunk, the
+placement version equal to its effective one; no check against its present neighbours: the host is authoritative) and
+applies nothing on a failure (`NetStats::rejected`); then each part / entry is routed by its chunk's state (above). The
+host logs once per world when the first peer joins and a generator in use is not integer only.
 
 ### 13.3 Ownership [planned: S16; moving platforms: S40]
 
@@ -3277,15 +3290,26 @@ S15 implementation (`engine/net/`; `docs/stages/S15_transport_messages.plan.md`)
   outbox before its listeners; sends from `configure` / `onLoad` of a load are dropped. Profiler counters
   `net/sent_bytes`, `net/received_bytes`, `net/messages_in`, `net/messages_out`, `net/rejected`; `world_status.net`,
   `describe_world.messages`.
-- S22: `NetStats::modificationGaps` counts received terrain parts whose sequence skipped one (§13.2; the host + client
-  variant fails on any).
+- S22, S26: `NetStats::modificationGaps` counts received terrain parts and tombstones whose sequence skipped one (S26:
+  not applied, the chunk is re-requested, `chunkRerequests`; §13.2; the host + client variant fails on any).
+- S26: `MessageList::Entry::version` (`M::version`, `addRaw(id, name, version, ...)`: in the network schema). The peer
+  lists list admitted peers (D13: the host accepted the peer's `JoinRequest`; a client lists the host once joined), not
+  transport connections; the host accepts only `JoinRequest` from a peer before admission, sends nothing but
+  `JoinReject` / `JoinAccept` to it, and a client sends nothing but `JoinRequest` before it joined (`droppedNotJoined`);
+  `joinsRejected` counts the host's rejections. Profiler counters `net/chunk_snapshot_bytes`, `net/chunk_snapshots`.
+  The engine's messages since S26: `JoinRequest` 0, `JoinReject` 1, `JoinAccept` 2 (frozen), `Spawn`, `Destroy`,
+  `Hierarchy`, `ComponentChange`, `Snapshot`, `OwnerState`, `OwnerCommand`, `PlayerAction`, `Ping`, `Pong` (3..12),
+  `Resync` (13, version 2), `Despawn` (14), `TerrainModification` (15), `TombstoneModification` (16), `ChunkInterest`
+  (17), `ChunkSnapshot` (18), `ChunkIndex` (19); `TerrainChunkState`, `GenerationState` and `ChunkRecordState` are
+  removed (no backward compatibility of the wire format).
 
 Internet sessions need NAT traversal: candidates in S33 are Steam Networking Sockets (relay, NAT traversal) and ENet
 (LAN, tests), both behind the `Transport` interface (§13.1). `using MessageId = uint16_t;` with an `EngineMessage` enum
 (game messages from 64); messages are sent with `world.send(peer, message)` on `Channel::Control` and handled by the
-handler registered in `MessageList::add`. S16: the engine's messages (IDs 0..10: `Spawn`, `Destroy`, `Hierarchy`,
+handler registered in `MessageList::add`. S16: the engine's messages (`Spawn`, `Destroy`, `Hierarchy`,
 `ComponentChange`, `Snapshot`, `OwnerState`, `OwnerCommand`, `PlayerAction`, `Ping`, `Pong`, `Resync`; the raw ones
-serialized once with the network visitors) are registered by `registerEngineMessages` (`engine/net/EngineMessages.*`);
+serialized once with the network visitors; S26's IDs above) are registered by `registerEngineMessages`
+(`engine/net/EngineMessages.*`);
 a handler that receives a message of the wrong direction rejects it as malformed input. `ScenarioWorld` creates the
 host and the clients over `LoopbackTransport::createNetwork` and steps the clients from the host's step observer
 (§17.3); `spawnPlayer` creates the player entity on the host and calls `setOwner(player, peer)`; the host sends a
@@ -3549,7 +3573,8 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   (placement drift after an upgrade in visited but unmodified chunks is accepted until S25). `GENR` stores the seed,
   the generator per template, per generator (name order) the pinned and current version and the slot table, and the
   space count with the combined plan hash; `CREC` the records with the host's stamped flag. Both, like
-  `GenerationState` and the generation part of `world.hash()`, exist only when the world writes generation state (a
+  the generation info of the handshake (S26) and the generation part of `world.hash()`, exist only when the world
+  writes generation state (a
   non-legacy generator or records). The load checks (before the commit, each a load error with the world unchanged):
   the saved seed equals the setup seed (D11: the seed is setup); the saved generator per template equals the
   registered one (templates beyond the saved count are new); no version above `version()`; slot tables are an
@@ -3559,7 +3584,10 @@ asynchronous client stepping comes from a seeded `Rng`); two runs give equal hos
   before S23, or of a flat or hook world) loads only if every template's generator is `legacyTerrain`. A host load with
   other pins (the same space table) replaces the plans and drops everything derived from the old ones (the terrain
   store, pyramids, edited masks; the sink's terrain is cleared); S22's deltas lie on the loaded pins' base (lazy
-  base). Connected clients receive the new `GenerationState` after `Resync` and are refused until S26.
+  base). Connected clients receive the loaded generation info in `Resync` v2 and adopt the loaded pins (S26, D6: the
+  same phase A and B build, the host's combined plan hash; a failure is local, `JoinState::Rejected`); a joining client
+  adopts the host's pins from `JoinAccept` the same way (E11). Base snapshots of retired versions come with the stage
+  that first retires a version (S26 D15; `ChunkSnapshot` then gains a flag bit).
 
 ### 15.4 Characters [planned: S33]
 
@@ -3833,7 +3861,8 @@ void registerEngineScenarios(ScenarioList& s)
   creates one per `runScenarios` call, `ScenarioWorld` one per scenario if the setup has none; "per setup", not per
   process: equal setups may share one explicitly); scenario terrain comes from the setup's generators (flat by default);
   `ScenarioWorld::setup()` gives a scenario the setup its worlds are built from (e.g. for `checkContentHashes`); a client
-  that refuses the host's `GenerationState` fails the host + client variants.
+  whose join is rejected (S26: by the host, or its adoption of the host's generation failed) fails the host + client
+  variants.
   [exists: S20] `ScenarioWorld` uses the setup's `spaceTemplates` (flat without a hook): `terrainHeight` and the mover
   follow the terrain as in the game; its `RecordingRenderSink` requests no tiles (only the app's view camera streams,
   §12.2), so a scenario world starts no streaming pool. [exists: S24] `scenarioSetup` also lowers `simulationRadius` to
@@ -3890,13 +3919,17 @@ what they last wrote per (entity, component) and every other legitimate writer (
 `Hierarchy`, `OwnerCommand`, `ownerTeleport`) refreshes it; a mismatch before the next write fails the scenario
 (R-NET-2), naming the peer, the entity and the component. The save/load variant stays host-only.
 
-S22: the end condition also waits until every client's chunk sequences equal the host's (within the same bound), and
-the comparison includes the terrain modification state of every scenario: per space over the union of the chunks with
-a sequence > 0 on either side the sequence and, for chunks with deltas, the dense delta (exact; a difference names the
-peer, the chunk, the sequence and the first differing sample); any `NetStats::modificationGaps` on a client fails.
-S23b: the end condition also waits until every client's effective chunk records equal the host's, and the comparison
-checks them per space over the union of the chunks with a record on either side (placement version, tombstone set;
-`stamped` is host-only and not compared).
+S26 (replacing S22's and S23b's union rule): `ScenarioWorld`'s constructor joins the clients first (network-only steps
+of host and clients, no host step: its step count and hash are unchanged, until every client is `Joined` and, in a
+world without streaming, its spaces are indexed and the initial snapshots applied; a client that is not joined within
+`4 * delaySteps + 8` pumps or is rejected fails the variant with its `joinRejection()`). The end condition also waits
+until no client has a `Pending` chunk or a queued part (every space indexed without streaming), the host has no
+queued snapshot and every `Synced` chunk's sequence equals the host's (within the same bound). The comparison: per
+client over its `Synced` chunks (a world without streaming: every chunk with state on either side) the sequence, the
+dense delta of the closed range and the effective record equal the host's (exact; a difference names the peer, the
+chunk, the sequence and the first differing sample or the record); a chunk that is not subscribed has no entry and no
+record on the client; any `modificationGaps`, `chunkRerequests` or queue overflow on a client fails.
+`ScenarioWorld::holdChunk` / `releaseChunk` drive a client's interest without a player (streaming worlds).
 
 ### 17.4 Repeat and save/load tests [exists: S08 (hash), S12 (variants)]
 
@@ -4584,7 +4617,7 @@ GitHub Actions; "local" = GPU checks with MCP.
 | S23c | Overworld generator (tech demo) (done) | The flight demo's integer OverworldGenerator with ruin sites, the game's committed hashes and scenario (§12.1, §18.4) | S23b | flight_content_hashes and the flight demo screenshot over a ruin (local) |
 | S24 | Streaming (done) | Simulation radii, prefetch, results applied when ready (synchronous in `ScenarioWorld`), arrivals, `Simulated` tag, edits of non-resident or pending chunks (§12.3) | S23b, S22 | scenarios with streaming incl. the repeat and save/load variants; unit test with the asynchronous pool and a held result: an edit on a pending chunk survives when the result is applied, an edit on a non-resident chunk is in its modification state (CI); a headless run with the asynchronous pool and a player at 30 m/s has 0 streaming stalls (local); step time with 10^5 resident and 10^4 simulated entities and one player at 30 m/s within §17.10 (benchmark, local) |
 | S25 | World save directory | Chunk store with commits, entity unload/reload with group remapping, `onCatchUp`, space unloading, records of every resident chunk; players saved in the world-state file until S33; retiring generator versions moved to S27 (§9.6, §12.4, §15.1-§15.3) [exists] | S24, S11 | unload/reload scenario; the save directory survives a kill at any point of a commit, also with an unload between two commits (CI) |
-| S26 | World over the network | Handshake with schema hash (and the environment flag of `EnvironmentSetup::enabled`), chunk messages and snapshots, modification sequence numbers, live modifications over loopback (§13.2) | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
+| S26 | World over the network | Handshake with schema hash (and the environment flag of `EnvironmentSetup::enabled`), the adoption of the host's pins, chunk interest, indexes and snapshots, modification sequence numbers with the client's queue and re-requests, live modifications per subscribed chunk over loopback (§13.2) [exists] | S24, S16 | host + client variant with streaming; a join with a different schema hash is rejected; a client that reloads a chunk while an edit is in flight ends with the host's heights (CI) |
 | S27 | Far content | Retiring a generator version (stored bases of the affected chunks, §15.3; moved from S25), region quadtree with hierarchical placement, modification summaries in `save()` blobs and chunk messages (in chunk store records once S25 is done), relightable impostors, baking tool (§10.4), impostor shadow casters in the far cascades (the shadow pipeline table's impostor entry, S36a2); tech demo: the flight demo shows far content to the horizon over 32 km | S26, S23c | flight across 32 km at 200 m/s: p99 <= 1.5x median, no frame > 33 ms, 0 streaming stalls (local); far set equals the filtered full chunk incl. a site; a tombstoned area stays cleared at all levels; a region with mixed placement versions (CI); flight demo flight to the horizon reviewed (local) |
 | S28 | Physics core | Jolt required by the engine (CMake default, all engine CI jobs), `PhysicsWorld`, terrain and compound colliders, edit patches, bodies (recreated from components on load), `collisionAssets`, contacts (§7.9, §11); tech demo: the racing car on Jolt (vehicle constraint) | S24 | physics scenarios incl. the repeat and save/load variants; an edit on a chunk corner without a rebuild; Jolt's diagonal equals the terrain surface rule (CI); terraforming benchmark re-run with collider patches within §17.10 (local); `AGENTS.md` updated (`SAIGA_WITH_JOLT` default); the racing demo drives on Jolt (local) |
 | S29 | Characters and proxies | `CharacterVirtual` movers, client proxy bodies (§11, §13.3); tech demo: the platformer character on `CharacterVirtual` | S28, S16, S16b | character scenarios incl. host + client (CI); `--benchmark host_step` without clients within §17.10 and with 0 streaming stalls (local); the platformer demo runs on `CharacterVirtual` (local) |

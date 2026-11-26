@@ -177,7 +177,15 @@ src/
                         readDataFile); net/: Transport, LoopbackTransport, Fragmenter, MessageList (network messages,
                         World::send), the replication (S16: Replication with the host's NetId table and the client
                         handlers, NetVisitors.h, EngineMessages, NetOwner.h, HostClock, InterpolationSystem;
-                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld);
+                        tests/test_engine_replication.cpp; the host + client scenario variants in ScenarioWorld;
+                        S26 the world over the network: the handshake JoinRequest / JoinReject / JoinAccept and Resync
+                        v2 (JoinMessages, JoinCheck, kProtocolVersion; admission gates the peer lists), NetSchema (the
+                        wire's registration, section hashes), GenerationInfo (the adoption of the host's pins,
+                        World::replaceGeneration), ChunkMessages (ChunkInterest, ChunkSnapshot, ChunkIndex),
+                        ClientChunkSync (per chunk Pending / Synced, the queue, re-requests, unload drops, the `all`
+                        subscription of worlds without streaming), HostChunkSubscriptions (subscriptions, the budgeted
+                        snapshot queue, per-peer filtering of the live modifications), WireFormat.h;
+                        tests/test_engine_world_net.cpp, tests/world_net_test_setup.h);
                         sync/ (S19b, depends on saiga_vulkan): RenderSink, VulkanRenderSink (over RenderScene),
                         RecordingRenderSink (tests, every scenario world), ExtractSystem (render instances from the
                         structural log, pose pairs from Transform or RenderPose, the catch-up between steps,
@@ -323,7 +331,7 @@ cmake --build build --parallel -- -k 0
 
 The configure prints `Module enabled: <Name>` and `Test enabled: <name>` lines — check them to see
 what is actually built. With the CI options on a plain Ubuntu 24.04, that is **Core + Opengl + Vulkan + Engine** and
-94 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
+95 tests (incl. 10 compile-fail cases of the ECS field rules, `tests/compile_fail/`; a test binary whose tests all skip, e.g. the Vulkan tests without a driver, is reported by ctest as skipped). The Vision module and its tests need `-DSAIGA_WITH_TINY_EIGEN=OFF` (real Eigen); the Ceres-based vision tests (`test_vision_bundle_adjustment*`, `test_vision_pose_*`,
 `test_vision_imu_decoupled_solver`) are only built when Ceres is installed.
 
 ## Tests
@@ -401,7 +409,8 @@ ctest -R test_core_ini --output-on-failure             # one test
     earlier 3.5 s line was stale), `test_engine_lighting_render` 3 s (goldens),
     `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), S25's `test_engine_save_crash` 1 s
     (the crash enumeration: every operation of a commit in four image kinds), `test_engine_save_directory` 1 s and
-    `test_engine_unload` 0.5 s (memory file system, flat worlds), every other binary <= 2 s. These
+    `test_engine_unload` 0.5 s (memory file system, flat worlds), S26's `test_engine_world_net` 1.5 s (a host and up
+    to 8 clients per test over loopback; the join data of 50 edited 1 m chunks), every other binary <= 2 s. These
     are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the
     10 compile-fail cases run one at a time (one build directory) and cost ~0.75 s each with Makefiles (most of it the

@@ -1565,8 +1565,9 @@ TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
     if (!Vulkan::Instance::suitableDeviceAvailable()) GTEST_SKIP() << "No Vulkan 1.3 device available";
     AppOptions o;
     o.coop = true;
-    // A delay longer than the two clicks (3 frames each): the second edit happens while the replica still lags
-    o.coopDelay = 20;
+    // A delay longer than the two clicks (3 frames each): the second edit happens while the replica still lags (S26:
+    // 10, not 20: the handshake's round trip comes first and every frame renders on lavapipe)
+    o.coopDelay = 10;
     EngineApp app(tabSetup(true), o);
     ASSERT_NE(app.hostWorld(), nullptr);
     Vulkan::LightingParameters lp = app.scene()->lightingParameters();
@@ -1576,9 +1577,8 @@ TEST(EnvironmentWrites, CoopLightEditorWritesTheHost)
     const Entity lamp = host.create();
     host.get<Transform>(lamp).setPosition(Vec3(0, 1, 0));
     host.add<LightSource>(lamp, LightSource());
-    // S26: the handshake's round trip at delay 20 comes first (until the replica arrived, at most 100 frames)
-    app.runFrames(30, 1.0 / 60);
-    for (int k = 0; k < 70 && !app.world().replication().entityOfNetId(host.replication().netIdOf(lamp)).valid(); ++k)
+    // S26: the handshake's round trip comes first (until the replica arrived, at most 100 frames)
+    for (int k = 0; k < 100 && !app.world().replication().entityOfNetId(host.replication().netIdOf(lamp)).valid(); ++k)
         app.runFrames(1, 1.0 / 60);
     app.runFrames(1, 1.0 / 60);
     // The client's replica and its rendered light
