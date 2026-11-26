@@ -2950,20 +2950,11 @@ void holdResidencyJobs(World& w)
 }
 }  // namespace
 
-// The first frame's complete point leaves every required chunk of the streaming centres resident (the asynchronous
-// residency, World::completeResidency before completeView)
-TEST_F(EngineAppRender, StreamingCompletePoint)
+namespace
 {
-    EngineApp app(streamingAppSetup());
-    noTerrainDraws(app);
-    World& w = app.world();
-    // test_small: a pyramid of 129^2 samples (the overworld's 1025^2 cost 0.4 s; test speed)
-    const SpaceId s = StreamingTest::spaceNamed(w, "test_small");
-    const Entity p  = StreamingTest::addPlayer(w, Vec3(1150, 0, 1400), s);
-    app.setLocalPlayer(p);
-    app.setViewCamera(s, Vec3(1150, w.terrainHeight(s, 1150, 1400) + 20, 1400), Quat::Identity(), 1.0);
-    ASSERT_FALSE(w.streamingSettings().synchronous);
-    app.runFrames(1, 1.0 / 60);
+// Every chunk within the required distance of (1150, 1400) is ready
+void expectRequiredReady(World& w, SpaceId s)
+{
     const SpaceTemplate& t = w.spaceTemplate(s);
     int checked            = 0;
     for (int z = 0; z < t.sizeChunks; ++z)
@@ -2981,23 +2972,32 @@ TEST_F(EngineAppRender, StreamingCompletePoint)
         }
     EXPECT_GT(checked, 0);
 }
+}  // namespace
 
-// The loading screen of the local player's arrival starts at the request frame (the target space, progress below 0.5
-// while the island is held), continues after the move and ends with the player's chunk ready
-TEST_F(EngineAppRender, StreamingLoadingAtRequest)
+// The first frame's complete point leaves every required chunk of the streaming centres resident (the asynchronous
+// residency, World::completeResidency before completeView); then (one app for both: an EngineApp with a RenderScene
+// costs 0.3 s on lavapipe) the loading screen of the local player's arrival
+// starts at the request frame (the target space, progress below 0.5 while the island is held), continues after the
+// move and ends with the player's chunk ready
+TEST_F(EngineAppRender, StreamingCompletePointAndLoadingAtRequest)
 {
     EngineApp app(streamingAppSetup());
     noTerrainDraws(app);
-    World& w        = app.world();
+    World& w = app.world();
+    // test_small: a pyramid of 129^2 samples (the overworld's 1025^2 cost 0.4 s; test speed)
     const SpaceId s = StreamingTest::spaceNamed(w, "test_small");
     const Entity p  = StreamingTest::addPlayer(w, Vec3(1150, 0, 1400), s);
     app.setLocalPlayer(p);
     app.setViewCamera(s, Vec3(1150, w.terrainHeight(s, 1150, 1400) + 20, 1400), Quat::Identity(), 1.0);
+    ASSERT_FALSE(w.streamingSettings().synchronous);
     app.runFrames(1, 1.0 / 60);
+    expectRequiredReady(w, s);
     ASSERT_EQ(app.spaceLoading(), nullptr);
     holdResidencyJobs(w);
     TerrainTestHooks::ScopedLatch latch;
-    const Vec3 target(3150, 0, 1400);
+    // Beyond the kept distance (192 m + the island's 64 m): its island has chunks that are not resident (a near target:
+    // few new chunks to generate, test speed)
+    const Vec3 target(1600, 0, 1400);
     ASSERT_TRUE(w.requestArrival(p, s, target));
     app.runFrames(1, 1.0 / 60);
     ASSERT_NE(app.spaceLoading(), nullptr);
@@ -3030,26 +3030,23 @@ TEST_F(EngineAppRender, StreamingLoadingAtRequest)
 }
 
 // The Engine tab's Streaming section renders (a streaming world and one without streaming)
+// (a streaming world; the section of a world without streaming is one disabled line: test speed, one app)
 TEST_F(EngineAppRender, DebugUiStreamingSectionRenders)
 {
-    for (bool streaming : {true, false})
-    {
-        EngineAppSetup s         = streamingAppSetup();
-        s.world.config.streaming = streaming;
-        s.render.imgui           = true;
-        s.width                  = 800;
-        s.height                 = 600;
-        EngineApp app(s);
-        noTerrainDraws(app);
-        const SpaceId small = StreamingTest::spaceNamed(app.world(), "test_small");
-        StreamingTest::addPlayer(app.world(), Vec3(1150, 0, 1400), small);
-        app.setViewCamera(small, Vec3(1150, 300, 1400), Quat::Identity(), 1.0);
-        Json::object state = app.debugUi().state().object_items();
-        state["sections"]  = Json::object{{"engine/Streaming", true}};
-        app.debugUi().setState(state);
-        app.debugUi().select(DebugTab::Engine);
-        app.runFrames(3, 1.0 / 60);
-        ASSERT_TRUE(ImGui::GetCurrentContext());
-        EXPECT_NE(ImGui::FindWindowByName("##debug panel"), nullptr);
-    }
+    EngineAppSetup s = streamingAppSetup();
+    s.render.imgui   = true;
+    s.width          = 800;
+    s.height         = 600;
+    EngineApp app(s);
+    noTerrainDraws(app);
+    const SpaceId small = StreamingTest::spaceNamed(app.world(), "test_small");
+    StreamingTest::addPlayer(app.world(), Vec3(1150, 0, 1400), small);
+    app.setViewCamera(small, Vec3(1150, 300, 1400), Quat::Identity(), 1.0);
+    Json::object state = app.debugUi().state().object_items();
+    state["sections"]  = Json::object{{"engine/Streaming", true}};
+    app.debugUi().setState(state);
+    app.debugUi().select(DebugTab::Engine);
+    app.runFrames(3, 1.0 / 60);
+    ASSERT_TRUE(ImGui::GetCurrentContext());
+    EXPECT_NE(ImGui::FindWindowByName("##debug panel"), nullptr);
 }

@@ -27,6 +27,7 @@
 #include "saiga/engine/save/SaveFormat.h"
 #include "saiga/engine/save/SaveReader.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
+#include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/sync/ExtractSystem.h"
 #include "saiga/engine/terrain/TerrainEdit.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
@@ -815,6 +816,7 @@ ApiResult WorldApi::worldStatus(const Json&)
     }
     // S24: streaming (the residency of this peer)
     {
+        if (w->streaming()) w->simulationSet().countSimulated();
         const StreamingStats& s = w->residency().stats();
         o["streaming"]          = Json::object{{"enabled", w->streaming()},
                                                {"resident", s.residentChunks},
@@ -1786,6 +1788,7 @@ ApiResult WorldApi::streamingStatus(const Json& a)
         filtered = true;
     }
     const ChunkResidency& r = w->residency();
+    if (w->streaming()) w->simulationSet().countSimulated();
     const StreamingStats& s = r.stats();
     Json::object o{{"enabled", w->streaming()},
                    {"synchronous", w->streamingSettings().synchronous},

@@ -12,6 +12,7 @@
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/app/LightingTab.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
+#include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
 #include "saiga/vulkan/scene/RenderScene.h"
 #include "saiga/vulkan/window/Window.h"
@@ -776,6 +777,7 @@ void EngineApp::streamingSection()
         ImGui::TextDisabled("streaming is off (WorldConfig::streaming): every entity is simulated");
         return;
     }
+    gameWorld->simulationSet().countSimulated();
     const ChunkResidency& r = w.residency();
     const StreamingStats& s = r.stats();
     if (DebugUiStyle::beginProperties("##streaming"))

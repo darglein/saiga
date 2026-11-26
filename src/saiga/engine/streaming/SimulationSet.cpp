@@ -187,20 +187,21 @@ void SimulationSet::evaluateCreated()
     if (!init || now.empty()) return;
     // The roots of the created entities and the structural changes now (with the coverage of the last pass); their
     // other effects (a new centre's coverage) follow in the next pass
-    std::set<uint32_t> players, anchors;
-    computeRootSets(players, anchors);
-    std::vector<Entity> roots;
+    playerRoots.clear();
+    anchorRoots.clear();
+    computeRootSets(playerRoots, anchorRoots);
+    std::set<uint32_t> roots;
     for (Entity e : now)
     {
         if (!w.alive(e)) continue;
-        const Entity r = w.rootOf(e);
-        if (std::find(roots.begin(), roots.end(), r) == roots.end()) roots.push_back(r);
+        roots.insert(w.rootOf(e).index);
         dirty.insert(e.index);
     }
-    for (Entity r : roots)
+    for (uint32_t i : roots)
     {
-        setRoot(r, rule(r, players, anchors, coverage));
-        w.residency().statsForUpdate().evaluations++;
+        const Entity r = w.registry().aliveAt(i);
+        if (!r.valid()) continue;
+        evaluate(r);
         propagateSubtree(r);
     }
 }
@@ -208,11 +209,11 @@ void SimulationSet::evaluateCreated()
 void SimulationSet::refresh(Entity e)
 {
     if (consumer < 0 || !init || !w.alive(e)) return;
-    std::set<uint32_t> players, anchors;
-    computeRootSets(players, anchors);
+    playerRoots.clear();
+    anchorRoots.clear();
+    computeRootSets(playerRoots, anchorRoots);
     const Entity r = w.rootOf(e);
-    setRoot(r, rule(r, players, anchors, coverage));
-    w.residency().statsForUpdate().evaluations++;
+    evaluate(r);
     propagateSubtree(r);
     // Its effect on the coverage (a moved centre) in the next pass
     dirty.insert(r.index);
@@ -285,11 +286,19 @@ void SimulationSet::run(bool full)
             for (const CellKey& k : flipped)
                 grid.forEachInCell(std::get<0>(k), std::get<1>(k), std::get<2>(k),
                                    [&](const SpatialGrid::Item& it) { addRoot(it.entity.index); });
+            // A chunk's ready state matters only to alwaysSimulate roots
+            const bool behaviours = reg.registered(Behaviour::id);
             for (const ChunkId& c : dirtyChunks)
-                for (int32_t z = 0; z < kCellsPerChunk; ++z)
+                for (int32_t z = 0; z < kCellsPerChunk && behaviours; ++z)
                     for (int32_t x = 0; x < kCellsPerChunk; ++x)
                         grid.forEachInCell(c.space, c.x * kCellsPerChunk + x, c.z * kCellsPerChunk + z,
-                                           [&](const SpatialGrid::Item& it) { addRoot(it.entity.index); });
+                                           [&](const SpatialGrid::Item& it)
+                                           {
+                                               if (!reg.alive(it.entity)) return;
+                                               const Entity r     = w.rootOf(it.entity);
+                                               const Behaviour* b = reg.tryRead<Behaviour>(r);
+                                               if (b && b->alwaysSimulate) roots.insert(r.index);
+                                           });
             // The centres themselves (a new or moved player root)
             for (uint32_t i : playerRoots) addRoot(i);
             for (uint32_t i : anchorRoots) addRoot(i);
@@ -304,17 +313,30 @@ void SimulationSet::run(bool full)
     dirtyChunks.clear();
     for (uint32_t i : dirty) addRoot(i);
     dirty.clear();
-    bool flippedAny       = false;
-    StreamingStats& stats = w.residency().statsForUpdate();
+    // The moved roots whose cell changed since their last evaluation (a move inside a cell changes nothing: coverage
+    // flips, ready flips and structural changes have their own triggers); a moved child follows its root
+    for (uint32_t i : moved)
+    {
+        const Entity e = reg.aliveAt(i);
+        if (!e.valid() || reg.has<Parent>(e)) continue;
+        const Transform& t = reg.read<Transform>(e);
+        const int32_t cx = SpatialGrid::cellOf(t.position().x()), cz = SpatialGrid::cellOf(t.position().z());
+        if (i < lastCell.size())
+        {
+            const EvaluatedCell& c = lastCell[i];
+            if (c.valid && c.space == t.space() && c.x == cx && c.z == cz) continue;
+        }
+        roots.insert(i);
+    }
+    moved.clear();
+    bool flippedAny = false;
     if (full)
     {
         // Every alive root (the state entities too); then every child takes its parent's flag
         reg.view<const Transform>().each(
             [&](Entity e, const Transform&)
             {
-                if (reg.has<Parent>(e)) return;
-                setRoot(e, rule(e, playerRoots, anchorRoots, coverage));
-                stats.evaluations++;
+                if (!reg.has<Parent>(e)) evaluate(e);
             });
         propagateAll();
         init           = true;
@@ -326,8 +348,7 @@ void SimulationSet::run(bool full)
         {
             const Entity r = reg.aliveAt(i);
             if (!r.valid()) continue;
-            flippedAny = setRoot(r, rule(r, playerRoots, anchorRoots, coverage)) || flippedAny;
-            stats.evaluations++;
+            flippedAny = evaluate(r) || flippedAny;
         }
         if (flippedAny || parentsChanged) propagateAll();
         parentsChanged = false;
@@ -343,7 +364,21 @@ void SimulationSet::run(bool full)
     }
 }
 
-void SimulationSet::countSimulated()
+bool SimulationSet::evaluate(Entity root)
+{
+    const bool changed = setRoot(root, rule(root, playerRoots, anchorRoots, coverage));
+    const Transform& t = w.registry().read<Transform>(root);
+    if (root.index >= lastCell.size()) lastCell.resize(size_t(root.index) + 1);
+    EvaluatedCell& c = lastCell[root.index];
+    c.space          = t.space();
+    c.x              = SpatialGrid::cellOf(t.position().x());
+    c.z              = SpatialGrid::cellOf(t.position().z());
+    c.valid          = true;
+    w.residency().statsForUpdate().evaluations++;
+    return changed;
+}
+
+int SimulationSet::countSimulated()
 {
     const Registry& reg = w.registry();
     int n               = 0;
@@ -353,6 +388,7 @@ void SimulationSet::countSimulated()
         n += e.valid() && (reg.flags(e) & Registry::kSimulated) ? 1 : 0;
     }
     w.residency().statsForUpdate().simulated = n;
+    return n;
 }
 
 void SimulationSet::update()
@@ -364,10 +400,11 @@ void SimulationSet::update()
     else
     {
         // The moved entities (this or the previous step, phase 6's list)
-        for (uint32_t i : w.changedTransforms()) dirty.insert(i);
+        moved = w.changedTransforms();
         run(false);
     }
-    countSimulated();
+    // The count is a statistic: a pass over the slots every 16th update (the tools count on demand)
+    if (updates++ % 16 == 0) countSimulated();
     w.residency().statsForUpdate().lastSimulationMs =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 }
@@ -382,12 +419,8 @@ void SimulationSet::stepStart()
         return;
     }
     // The transforms changed between steps (the flags shifted at the end of the last step)
-    Registry& reg = w.registry();
-    reg.view<const Transform>().each(
-        [&](Entity e, const Transform& t)
-        {
-            if (t.changedInThisStep()) dirty.insert(e.index);
-        });
+    moved.clear();
+    w.registry().collectChangedThisStep(moved);
     run(false);
 }
 

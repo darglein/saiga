@@ -223,6 +223,7 @@ if (MODULE_ENGINE)
     # non-gating streaming benchmark (SAIGA_STREAMING_BENCHMARK=full: the local form)
     saiga_test(test_engine_streaming.cpp "saiga_engine")
     saiga_test(test_engine_streaming_scenarios.cpp "saiga_engine")
+    saiga_test(test_engine_streaming_benchmark.cpp "saiga_engine")
 
     # Compile-fail tests of the visit field rules (docs/engine_design.md §7.2): case 0 must compile, the others must
     # fail with their static_assert message. The targets are not built by default; ctest builds them one at a time.

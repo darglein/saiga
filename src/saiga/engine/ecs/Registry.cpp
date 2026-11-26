@@ -168,6 +168,12 @@ void Registry::shiftTransformFlags(std::vector<Entity>* changedOut)
     }
 }
 
+void Registry::collectChangedThisStep(std::vector<uint32_t>& out) const
+{
+    for (uint32_t i = 1; i < uint32_t(slots.size()); ++i)
+        if (slots[i].state == SlotState::Alive && transforms[i].changedInThisStep()) out.push_back(i);
+}
+
 void Registry::ensureFreeCapacity(size_t extra)
 {
     const size_t needed = freeSlots.size() + extra + reservedSlots;

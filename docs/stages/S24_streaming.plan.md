@@ -1,6 +1,7 @@
 # S24: Streaming
 
-Status: planned (written against `master` after S36c and the ZipStreamWriter change, f92a2a42d).
+Status: done (implemented on `stage-s24` against f92a2a42d; the deviations are listed in "Deviations during the
+implementation", the measurements in "Results").
 
 Sections follow the stage plan template of S05 (§22); "Current state", "Decisions", "Interfaces for S25 and S26",
 "Implementation steps", "Risks and open questions" and "Design changes to engine_design.md" are added for this stage.
@@ -1016,3 +1017,92 @@ Applied in the stage's change (R-DOC-2); listed with the decision that causes th
 - §20: the simplification "Round-robin tick/`Simulated` re-evaluation" becomes "`Simulated` by 32 m cells, exact" (G8);
   a new simplification "Streaming is opt-in per world" (G1).
 - §22: the S24 row's status when done.
+
+All of the above are applied in the stage's change (§3 row, §7.5, §7.9, §7.10, §8.1, §8.2, §8.5, §8.6, §9.3, §9.4, §9.6,
+§12.2, §12.3 rewritten as implemented with the earlier design kept as history, §12.4, §13.2, §15.1, §16.2, §17.2,
+§17.7, §20, §22; AGENTS.md: the layout of `engine/streaming/`, the tests, the test count, the bench recipe, the budget of
+`test_engine_app`).
+
+## Deviations during the implementation
+
+Recorded per R-DOC-2; the plan's intent is kept in each case.
+
+- **Validation** (Scope 1): the checks `simulationRadius <= fullRadius` and `residencyRadius` in
+  `[simulationRadius, fullRadius]` apply only to worlds with `WorldConfig::streaming`
+  (`validateSpaceTemplates(templates, streaming)`); finite values, positive `fullRadius` / `simulationRadius` and
+  non-negative margins are checked for every world. Reason: existing tests (S23b's content render tests, a terrain render
+  test) set `fullRadius` below the default `simulationRadius` 384 and must stay unchanged (G1).
+- **ScenarioWorld** lowers `simulationRadius` to `min(simulationRadius, 128, fullRadius)` (a template whose lowered
+  `fullRadius` is below 128 would otherwise fail the streaming validation).
+- **The test setup** appends a fourth template `test_small` (test_terrain, 16 chunks at 2 m, no sites) besides
+  `test_flat`: the visual-path tests (`VisualKeepsPinnedTiles`, `PinnedTilesDoNotOverflowAtlas`,
+  `ViewSwitchKeepsPinnedTiles`), the app tests, `TransitionIsArrival` and the space change of `MatchesBruteForce` run
+  there (the overworld's 1025^2 pyramid costs 0.4 s per process, test_valley's 1 m chunks four times the 2 m cost).
+  `ViewSwitchKeepsPinnedTiles` switches the view to `test_flat` (the switch drops the old view space's streamed data the
+  same way). Every streaming test shares `sharedStreamingCache()` (also the `Residency.*` cases: none of them counts
+  generations; job order and held results come from the hook and the latch), and the tests reuse a few positions, so
+  each area is generated once per process (`test_engine_streaming` 1.3 s alone).
+- **`MatchesBruteForce`** runs 200 steps with 400 `Drifter`s, ten children, spawns, destroys, teleports, re-parents and
+  a player changing space twice (the plan: 400 steps, 2000 Drifters; test speed); the brute force is an implementation of
+  its own in the test (centre cells of the roots, the rule), not the `SimulationSet`'s.
+- **`DebugUi.StreamingSectionRenders`** is `EngineAppRender.DebugUiStreamingSectionRenders` in `test_engine_app.cpp`
+  (the section needs an `EngineApp`; a streaming world only: the section of a world without streaming is one disabled
+  line), and `EngineApp.StreamingLoadingAtRequest` / `StreamingCompletePoint` are one test
+  (`EngineAppRender.StreamingCompletePointAndLoadingAtRequest`, one app instead of two).
+- **`Arrival.ClientKeepsTargetUntilMoveApplied`** is `StreamingNet.ClientKeepsTargetUntilMoveApplied`: it checks the
+  invariant over every step of a delayed loopback run (whenever the client's player is not at the target yet, the target
+  is requested on the client and the player held) instead of forcing the State message to overtake the Control message.
+  The client keeps an arrival in `ChunkResidency::clientAwaitsMove` until its `OwnerCommand` counter changed; a fallback
+  drops it when the root already stands at the target (a command applied before the component arrived).
+- **`SimulationSet`** (G8): a moved root is re-evaluated only when its 32 m cell changed since its last evaluation (the
+  rule depends on the position only through the cell and its chunk; coverage flips, ready flips and structural changes
+  have their own triggers), and a chunk's ready flip re-evaluates only the `alwaysSimulate` roots of its cells. The
+  `simulated` count is a statistic: a pass over the slots every 16th phase-7 update and on demand by the tools and the
+  Engine tab. Held player roots are no simulation centres (they are about to leave); the stall count skips held roots;
+  the islands count every player root at its current position. A plain write of `Behaviour::alwaysSimulate` is not in
+  the structural log: the writer calls `World::refreshSimulated` (the world API's component edits do).
+- **Results of cancelled running jobs** count `resultsDropped` (an unload or a version change of a running job;
+  `StaleResultDropped`).
+- **Files**: the World's streaming members are in `streaming/WorldStreaming.cpp` (settings, `chunkAt`, `chunkReady`,
+  `completeResidency`, `refreshSimulated`, the step start), the arrival members in `streaming/Arrivals.cpp`. Engine-
+  internal helpers added: `World::rootOf`, `isPlayerRoot`, `heldRoot`, `chunkAt`, `subtree`, `hasChildren`,
+  `Registry::collectChangedThisStep`, `ensureHierarchyOrder`, `SpatialGrid::forEachInCell` / `cellOf`,
+  `ChunkResidency::refresh` / `centresChanged` / `chunkStatuses` (`ChunkStatus`) / `heldPlacement` /
+  `clientAwaitsMove` / `stalledPlayers` / `recentStalls` / `partsWanted`, `SimulationSet::countSimulated` /
+  `bruteForce`, `ContentCache::baseInJob`, `TerrainStore::pinTile` / `unpinTile` / `pinnedTiles` / `pinnedBytes`,
+  `TerrainSystem::Stats::pinnedBytes`, `SpaceTemplate::requiredDistance` / `requestedDistance` / `keptDistance`. None of
+  them is a hook without a consumer.
+- **Benchmark**: `SAIGA_STREAMING_BENCHMARK=full-off` runs the full form without streaming (the "before" numbers of
+  S23b's behaviour, G1) in the same build.
+- **Flight** (Scope 13): every plane gets `StreamingAnchor` in `AircraftBase::onSpawn` (the demo's autopilot, the
+  autopilot scenario's plane and the players' planes); `TerrainViewSettings::workers` stays 2 (no stalls measured).
+
+## Results
+
+Measured on the development machine (24 threads, NVIDIA GPU for the flight demo, lavapipe for the tests).
+
+- **Tests** (RelWithDebInfo, alone, lavapipe): `test_engine_streaming` 49 tests in 1.27 s (budget about 1 s, at most
+  1.5 s), `test_engine_streaming_scenarios` 30 cases (5 scenarios x 6 variants) in 0.33 s (budget 0.6 s),
+  `test_engine_streaming_benchmark` 0.11 s (CI form), `test_engine_world_api` 1.98 s (+ `WorldTools.StreamingTools`
+  0.13 s), `test_engine_app` 7.5 s (the S24 tests 0.83 s; the binary took 7.0-7.3 s without them on this machine:
+  AGENTS.md's budget is 7.5 s now). The whole `ctest --parallel 8` on lavapipe: 91 of 91 passed.
+- **The full streaming benchmark** (`SAIGA_STREAMING_BENCHMARK=full`, release bench build without asserts, 10^5
+  entities over 2.15 km, 10 % Drifters, a player at 30 m/s, 3600 steps paced at 60 Hz, 2 pool workers, default radii):
+  **0 streaming stalls** (0 player stall steps, 0 mover holds); step time median **3.55 ms**, p95 6.51 ms, max 10.4 ms
+  (parts, medians: streaming 0.13 ms, simulation 0.04 ms (p95 0.33), step start 0.69 ms (the scan of 10^5 transforms'
+  change flags, G5), tick 0.08 ms, behaviour 1.0 ms); 7618 simulated, 98 resident chunks (25.9 MB of 1 m bases);
+  `completeResidency` before the run 445 ms (65 required chunks of the prototype hook at 1 m, cold cache).
+  **Before** (`full-off`: streaming off, every entity simulated, the movers' heights point-evaluated): median 11.16 ms,
+  p95 11.60 ms, max 12.8 ms. The median is within §17.10's 4 ms; the p95 is not (behaviour p95 2.1 ms and the step
+  start's scan p95 1.3 ms; the step start's scan is the price of G5's exactness for changes between steps).
+- **Rebuild** (full radii): `completeResidency` cold 414 ms, warm cache 4.5 ms; `tryLoad` 3.9 ms (the residency rebuild
+  3.8 ms, 62 chunks).
+- **Flight** (`game_flight --headless --demo`, its radii of G22): 163 chunks resident at a steady state (about 43 MB of
+  1 m bases: 264 KB each), 0 streaming stalls, 3 simulated entities; at the demo's 65 m/s about 4 new chunks per second
+  (G22's estimate for 200 m/s: 10 per second). The first frame's complete point (`completeResidency` + `completeView`)
+  took 4.15 s with streaming against 4.68 s without (the stream time is dominated by `completeView`'s tiles and content
+  sets; the pinned level-0 tiles serve the visual path). `game_flight --scenarios`: 30 passed (incl. the ruin and
+  `flight_content_hashes`). The `--demo` and `--coop --demo` screenshots are unchanged against the build without
+  streaming (the ruin stamped, the plane flying; the red "dropped steps" of the bar is there without streaming too).
+- **Not run**: `game_world --benchmark flyover|forest` (it opens a window: only with the user's approval; streaming is
+  off in `game_world`, and the `TerrainStore` change adds a flag check per tile).

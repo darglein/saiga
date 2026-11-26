@@ -58,6 +58,9 @@ class SAIGA_ENGINE_API SimulationSet
     // A load: the next evaluation is a full one (the World runs it before tryLoad returns)
     void invalidate();
     bool initialised() const { return init; }
+    // Counts the simulated entities into StreamingStats::simulated (a pass over the slots: every 16th phase-7 update,
+    // and on demand by the tools) and returns it
+    int countSimulated();
     // The rule for one root from scratch (tests: the brute-force comparison; the coverage from the current positions)
     bool bruteForce(Entity root) const;
 
@@ -69,6 +72,17 @@ class SAIGA_ENGINE_API SimulationSet
     std::vector<CellKey> centreCells;  // sorted, with duplicates
     std::map<CellKey, uint32_t> coverage;
     std::set<uint32_t> dirty;  // entity indices
+    // The moved entities of this pass (a root is evaluated only when its cell changed since its last evaluation: the
+    // rule depends on the position only through the cell and its chunk)
+    std::vector<uint32_t> moved;
+    struct EvaluatedCell
+    {
+        SpaceId space = 0;
+        int32_t x = 0, z = 0;
+        bool valid = false;
+    };
+    std::vector<EvaluatedCell> lastCell;  // by entity index
+    uint64_t updates = 0;
     std::set<ChunkId> dirtyChunks;
     bool parentsChanged = false;
     // The roots with a Player / StreamingAnchor in their subtree (by index), computed per pass
@@ -93,7 +107,8 @@ class SAIGA_ENGINE_API SimulationSet
     // The subtree of root takes its flag (collectSubtree; few roots) / every child takes its parent's (hierarchyOrder)
     void propagateSubtree(Entity root);
     void propagateAll();
-    void countSimulated();
+    // Evaluates a root and records its cell; returns whether its flag changed
+    bool evaluate(Entity root);
 };
 
 }  // namespace Engine
