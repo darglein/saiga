@@ -968,7 +968,8 @@ TEST(SaveDirectory, CommittedDirectoryOpens)
         if (!entry.is_regular_file()) continue;
         std::ifstream in(entry.path(), std::ios::binary);
         std::vector<uint8_t> bytes((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
-        fs->putFile(path_to_string(std::filesystem::relative(entry.path(), string_to_path(dir))), bytes);
+        // '/'-separated UTF-8 (the save file system's path form; Windows separates with '\')
+        fs->putFile(std::filesystem::relative(entry.path(), string_to_path(dir)).generic_u8string(), bytes);
     }
     ASSERT_TRUE(fs->exists("world.1.sgw"));
     auto ref = makeWorld(s);

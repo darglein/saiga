@@ -92,7 +92,8 @@ class DiskSaveFileSystem final : public SaveFileSystem
         names.clear();
         std::error_code ec;
         for (std::filesystem::directory_iterator it(full(dir), ec), end; !ec && it != end; it.increment(ec))
-            names.push_back(path_to_string(it->path().filename()));
+            // UTF-8 (C++17: u8string is a std::string); path_to_string gives the ANSI code page on Windows
+            names.push_back(it->path().filename().u8string());
         if (ec) return fail(error, "list " + dir + ": " + ec.message());
         std::sort(names.begin(), names.end());
         return true;
