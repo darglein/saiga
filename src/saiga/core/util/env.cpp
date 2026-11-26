@@ -31,8 +31,24 @@ int SetEnv(const std::string& name, const std::string& value, int replace)
 
 std::string GetEnv(const std::string& name)
 {
+    return GetEnvIfSet(name).value_or(std::string());
+}
+
+std::optional<std::string> GetEnvIfSet(const std::string& name)
+{
+#if defined(_WIN32)
+    // getenv is deprecated in the MSVC CRT (C4996)
+    char* value = nullptr;
+    size_t size = 0;
+    if (_dupenv_s(&value, &size, name.c_str()) != 0 || !value) return std::nullopt;
+    std::string result(value);
+    free(value);
+    return result;
+#else
     const char* value = getenv(name.c_str());
-    return value ? std::string(value) : std::string();
+    if (!value) return std::nullopt;
+    return std::string(value);
+#endif
 }
 
 

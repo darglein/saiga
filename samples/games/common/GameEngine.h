@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include "saiga/core/util/env.h"
 #include "saiga/engine/components/RenderPose.h"
 #include "saiga/engine/components/Transform.h"
 #include "saiga/engine/gameplay/Behaviour.h"
@@ -50,8 +51,8 @@ T* gameObjectAs(World& w, Entity e)
 // The tree count of the world prototype (SAIGA_WORLD_TREES overrides it, e.g. for slow GPUs)
 inline int worldTreeCount(int fallback = 200000)
 {
-    const char* t = std::getenv("SAIGA_WORLD_TREES");
-    return t ? std::atoi(t) : fallback;
+    const auto t = GetEnvIfSet("SAIGA_WORLD_TREES");
+    return t ? std::atoi(t->c_str()) : fallback;
 }
 
 // The time between two rendered frames (the first frame: one step), at most 0.1 s

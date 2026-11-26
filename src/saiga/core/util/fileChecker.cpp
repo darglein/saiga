@@ -120,7 +120,7 @@ bool FileChecker::existsFile(const std::filesystem::path& file)
     {
         return std::filesystem::exists(file);
     }
-    catch (std::filesystem::filesystem_error& e)
+    catch (std::filesystem::filesystem_error&)
     {
         // A filesystem error when checking if a file exists should usually not happen.
         // But if it does this file is certainly not readable.

@@ -18,6 +18,7 @@
 // without a Vulkan 1.3 device.
 
 #include "saiga/core/math/math.h"
+#include "saiga/core/util/env.h"
 #include "saiga/vulkan/scene/CloudLayer.h"
 #include "saiga/vulkan/scene/GrassPass.h"
 #include "saiga/vulkan/scene/LightingDebug.h"
@@ -50,7 +51,7 @@ namespace
 void setEnv(const char* name, const char* value, bool overwrite)
 {
 #if defined(_WIN32)
-    if (overwrite || !std::getenv(name)) _putenv_s(name, value);
+    if (overwrite || !GetEnvIfSet(name)) _putenv_s(name, value);
 #else
     setenv(name, value, overwrite ? 1 : 0);
 #endif
@@ -93,14 +94,14 @@ const bool syncValidationOn = []()
     const uint32_t layer = validationLayerVersion();
     bool requested       = layer >= kMinSyncValidationLayer;
     const char* source   = "the layer version";
-    if (const char* forced = std::getenv("SAIGA_TEST_SYNC_VALIDATION"))
+    if (auto forced = GetEnvIfSet("SAIGA_TEST_SYNC_VALIDATION"))
     {
-        requested = std::string(forced) != "0";
+        requested = *forced != "0";
         source    = "SAIGA_TEST_SYNC_VALIDATION";
     }
-    else if (const char* env = std::getenv("VK_LAYER_VALIDATE_SYNC"))
+    else if (auto env = GetEnvIfSet("VK_LAYER_VALIDATE_SYNC"))
     {
-        requested = std::string(env) != "0" && std::string(env) != "false";
+        requested = *env != "0" && *env != "false";
         source    = "VK_LAYER_VALIDATE_SYNC";
     }
     setEnv("VK_LAYER_VALIDATE_SYNC", requested ? "1" : "0", true);

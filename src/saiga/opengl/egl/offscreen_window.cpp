@@ -5,6 +5,7 @@
  */
 
 #include "saiga/config.h"
+#include "saiga/core/util/env.h"
 #if defined(SAIGA_USE_OPENGL) && defined(SAIGA_USE_EGL)
 #    include "saiga/core/util/assert.h"
 #    include "saiga/opengl/imgui/imgui_impl_headless_gl3.h"
@@ -54,8 +55,8 @@ static std::vector<EGLDisplay> CandidateDisplays()
     auto queryDevices       = (PFNEGLQUERYDEVICESEXTPROC)eglGetProcAddress("eglQueryDevicesEXT");
 
     // Mesa's LIBGL_ALWAYS_SOFTWARE: use only its software device (Mesa crashes initializing a hardware device then).
-    const char* force_software = std::getenv("LIBGL_ALWAYS_SOFTWARE");
-    bool software_only         = force_software && std::strcmp(force_software, "0") != 0;
+    const auto force_software = GetEnvIfSet("LIBGL_ALWAYS_SOFTWARE");
+    bool software_only        = force_software && *force_software != "0";
 
     if (getPlatformDisplay && queryDevices && HasClientExtension("EGL_EXT_platform_device"))
     {

@@ -9,6 +9,7 @@
 #include "saiga/engine/app/EngineMain.h"
 
 #include "saiga/core/util/crash.h"
+#include "saiga/core/util/env.h"
 #include "saiga/engine/app/EngineApp.h"
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/lighting/EnvironmentWrites.h"
@@ -41,14 +42,15 @@ bool parseInt(const char* s, int min, int max, int& out)
 bool parseCommandLine(int argc, const char* const* argv, const std::vector<std::string>& gameFlags,
                       EngineAppSetup& setup, AppOptions& options, std::string& error)
 {
-    if (const char* port = std::getenv("SAIGA_MCP_PORT"))
-        if (!parseInt(port, 0, 65535, setup.mcpPort))
+    if (auto port = GetEnvIfSet("SAIGA_MCP_PORT"))
+        if (!parseInt(port->c_str(), 0, 65535, setup.mcpPort))
         {
             error = "SAIGA_MCP_PORT: a port 0..65535";
             return false;
         }
-    if (const char* shot = std::getenv("SAIGA_SCREENSHOT"); shot && *shot) options.screenshot = shot;
-    if (const char* tab = std::getenv("SAIGA_DEBUG_TAB"); tab && *tab) options.debugTab = std::max(std::atoi(tab), 0);
+    if (auto shot = GetEnvIfSet("SAIGA_SCREENSHOT"); shot && !shot->empty()) options.screenshot = *shot;
+    if (auto tab = GetEnvIfSet("SAIGA_DEBUG_TAB"); tab && !tab->empty())
+        options.debugTab = std::max(std::atoi(tab->c_str()), 0);
     bool dataGiven = false, screenshotFromArgument = false;
     for (int i = 1; i < argc; ++i)
     {

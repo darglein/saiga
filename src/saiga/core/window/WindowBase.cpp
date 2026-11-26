@@ -34,8 +34,14 @@ void WindowBase::resize(int width, int height)
 
 std::string WindowBase::getTimeString()
 {
-    time_t t       = time(0);  // get time now
-    struct tm* now = localtime(&t);
+    time_t t = time(0);  // get time now
+    struct tm local_time;
+#ifdef _WIN32
+    localtime_s(&local_time, &t);
+#else
+    localtime_r(&t, &local_time);
+#endif
+    const struct tm* now = &local_time;
 
     std::string str;
     str = std::to_string(now->tm_year + 1900) + '-' + std::to_string(now->tm_mon + 1) + '-' +

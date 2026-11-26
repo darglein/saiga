@@ -50,7 +50,7 @@ static inline uint32_t uint32_mux(uint32_t mask, uint32_t a, uint32_t b)
 
 static inline uint32_t uint32_nez(uint32_t a)
 {
-    return (uint32_t)((int32_t)(a | -a) >> 31);
+    return (uint32_t)((int32_t)(a | (0u - a)) >> 31);
 }
 
 // static inline uint32_t uint32_nez_p(uint32_t a)
