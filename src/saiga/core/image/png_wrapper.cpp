@@ -12,6 +12,9 @@
 #include <cstring>
 #include <iostream>
 #include <limits>
+#ifdef _WIN32
+#    include <share.h>
+#endif
 
 #ifdef SAIGA_USE_PNG
 #    include "internal/noGraphicsAPI.h"
@@ -98,7 +101,8 @@ struct ScopedFile
 #    ifdef WIN32
         // Minor fix: _wfopen expects a wide string mode too
         std::wstring wmode(mode, mode + strlen(mode));
-        if (_wfopen_s(&fp, path.c_str(), wmode.c_str()) != 0) fp = nullptr;
+        // _wfsopen with _SH_DENYNO shares the file like _wfopen (deprecated, C4996); _wfopen_s would deny write sharing
+        fp = _wfsopen(path.c_str(), wmode.c_str(), _SH_DENYNO);
 #    else
         fp = fopen(path.c_str(), mode);
 #    endif

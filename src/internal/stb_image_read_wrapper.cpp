@@ -5,6 +5,9 @@
 #include "saiga/core/image/stb_image.h"
 #include "saiga/core/util/string_to_path.h"
 #include <fstream>
+#ifdef _WIN32
+#    include <share.h>
+#endif
 
 namespace Saiga
 {
@@ -12,8 +15,8 @@ bool loadImageSTB(const std::filesystem::path& path, Image& img)
 {
     // Handle unicode paths
 #ifdef _WIN32
-    FILE* file = nullptr;
-    if (_wfopen_s(&file, path.c_str(), L"rb") != 0) file = nullptr;
+    // _wfsopen with _SH_DENYNO shares the file like _wfopen (deprecated, C4996); _wfopen_s would deny write sharing
+    FILE* file = _wfsopen(path.c_str(), L"rb", _SH_DENYNO);
 #else
     FILE* file = fopen(path.c_str(), "rb");
 #endif
