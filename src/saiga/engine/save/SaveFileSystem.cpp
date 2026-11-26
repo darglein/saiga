@@ -14,6 +14,7 @@
 #include <cerrno>
 #include <cstring>
 #include <filesystem>
+#include <vector>
 
 #include <system_error>
 
@@ -119,10 +120,12 @@ class DiskSaveFileSystem final : public SaveFileSystem
             o.OffsetHigh      = DWORD(at >> 32);
             const DWORD chunk = DWORD(std::min<uint64_t>(size - done, 1u << 30));
             DWORD got         = 0;
-            if (!ReadFile(h, out + done, chunk, &got, &o) || got == 0)
+            const BOOL ok     = ReadFile(h, out + done, chunk, &got, &o);
+            if (!ok || got == 0)
             {
-                // GetLastError before CloseHandle (which may change it); a 0-byte read is the end of the file
-                const std::string why = got == 0 ? std::string("unexpected end of file") : lastError();
+                // GetLastError before CloseHandle (which may change it); a successful 0-byte read is the end of the
+                // file
+                const std::string why = ok ? std::string("unexpected end of file") : lastError();
                 CloseHandle(h);
                 return fail(error, "read " + path + ": " + why);
             }
@@ -297,8 +300,27 @@ class DiskSaveFileSystem final : public SaveFileSystem
     bool lock(std::string* error) override
     {
         if (lockFd >= 0) return true;
+        // The path components that do not exist yet: after creating them, each one's parent is synced so a new save
+        // directory survives a power loss (a created entry is durable only once its directory is)
+        std::filesystem::path dir = std::filesystem::path(full("")).lexically_normal();
+        if (!dir.has_filename()) dir = dir.parent_path();
+        std::vector<std::filesystem::path> created;
         std::error_code ec;
-        std::filesystem::create_directories(full(""), ec);
+        for (std::filesystem::path p = dir; !p.empty() && !std::filesystem::exists(p, ec); p = p.parent_path())
+        {
+            created.push_back(p);
+            if (p == p.parent_path()) break;
+        }
+        std::filesystem::create_directories(dir, ec);
+        if (doSync)
+            for (const std::filesystem::path& p : created)
+            {
+                const std::filesystem::path parent = p.parent_path().empty() ? "." : p.parent_path();
+                const int d                        = ::open(parent.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+                if (d < 0) continue;
+                ::fsync(d);
+                ::close(d);
+            }
         const int fd = ::open(full("lock").c_str(), O_RDWR | O_CREAT | O_CLOEXEC, 0644);
         if (fd < 0) return fail(error, "the lock file of " + root + ": " + lastError());
         // flock locks the open file description: a second open in this process conflicts as well

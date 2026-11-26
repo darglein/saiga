@@ -106,11 +106,12 @@ void World::loadSpaceNow(SpaceId space)
         }
         else
         {
-            // The space loads with default state; the group stays stored (G14)
-            SAIGA_LOG("save", "space %d: its stored state entity is not reloaded: %s", int(space),
+            // The space loads with default state and the failed group is dropped (logged, counted). Unlike a chunk
+            // group it cannot be kept (G14): a loaded space has no space record, and its next unload stores the state
+            // the space has then
+            SAIGA_LOG("save", "space %d: its stored state entity is not reloaded and is dropped: %s", int(space),
                       loader.errorMessage().c_str());
             store->statsForUpdate().failedGroups++;
-            store->putBack(spaceRecordKey(space), std::move(groups));
         }
     }
     if (anySpace)

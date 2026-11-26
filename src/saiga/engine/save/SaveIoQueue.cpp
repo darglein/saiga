@@ -122,27 +122,13 @@ void SaveIoQueue::drainOnCaller()
     draining = false;
 }
 
-void SaveIoQueue::cancelReads()
-{
-    std::vector<Done> dones;
-    for (auto it = queue.begin(); it != queue.end();)
-    {
-        if (!it->read)
-        {
-            ++it;
-            continue;
-        }
-        dones.push_back(std::move(it->done));
-        it = queue.erase(it);
-    }
-    for (Done& d : dones)
-        if (d) d();
-}
-
 void SaveIoQueue::poolReset()
 {
     if (!outstanding) return;
-    // The job's completion is discarded with the pool (its run may have run: every task is idempotent)
+    // The job's completion is discarded with the pool and the task is queued again. Only a read may be re-run (it is
+    // idempotent); a commit is not (it truncates behind a renamed world file), and loads drain the lane before they
+    // reset the pool, so no commit can be outstanding here
+    SAIGA_ASSERT(current.read, "SaveIoQueue::poolReset with a commit outstanding (a load must drain the lane first)");
     outstanding = false;
     queue.push_front(std::move(current));
     current = Task();

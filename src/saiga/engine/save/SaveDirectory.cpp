@@ -118,7 +118,15 @@ bool readRecord(SaveFileSystem& fs, const RecordLocation& loc, const ChunkId& ke
         return s == ReadStatus::Ok;
     };
     std::vector<uint8_t> bytes(loc.length);
-    if (!fs.readAt(loc.file.path(), loc.offset, loc.length, bytes.data(), &error)) return result(ReadStatus::IoError);
+    if (!fs.readAt(loc.file.path(), loc.offset, loc.length, bytes.data(), &error))
+    {
+        // A missing file or one that ends before the record is corruption (a retry cannot help); else an IO error
+        uint64_t size = 0;
+        if (!fs.exists(loc.file.path()) ||
+            (fs.fileSize(loc.file.path(), size, nullptr) && size < loc.offset + uint64_t(loc.length)))
+            return result(ReadStatus::Corrupt);
+        return result(ReadStatus::IoError);
+    }
     if (bytes.size() < kRecordHeaderSize + 8)
     {
         error = chunkName(key) + ": the record is shorter than its header";
@@ -275,10 +283,12 @@ void SaveDirectory::requestStoredRead(const ChunkId& chunk, int priority, std::f
             if (store.generation() == generation)
             {
                 // A commit that ran before this (lower-priority) read moved the record (a rewrite, a compaction; the
-                // old file may be gone): read again at the current location
+                // old file may be gone, or still hold a superseded record whose group indices no longer match): read
+                // again at the current location, whether the read failed or not
                 const ChunkEntry* now = store.entry(chunk);
-                if (!result->ok && now && now->record &&
-                    (!(now->record->file == loc.file) || now->record->offset != loc.offset))
+                if (now && now->record &&
+                    (!(now->record->file == loc.file) || now->record->offset != loc.offset ||
+                     now->record->commit != loc.commit))
                 {
                     requestStoredRead(chunk, priority, done);
                     return;
@@ -579,9 +589,10 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
                             old              = content;
                             oldRecords[okey] = content;
                         }
-                        else if (status == ReadStatus::IoError)
+                        else if (status == ReadStatus::IoError || status == ReadStatus::Format)
                         {
-                            // A transient read error must not drop the groups: the commit fails and is retried
+                            // A transient read error or a record of a newer build must not drop the groups: the
+                            // commit fails (the chunk stays dirty) and is retried; only corruption omits them
                             return fail("read the old record of " + chunkName(f.key) + ": " + re);
                         }
                         else
@@ -873,8 +884,9 @@ void SaveDirectory::afterStep()
 
 void SaveDirectory::beforeLoad()
 {
-    // The queued reads first (their chunks are dropped with the residency), then the commits run to completion
-    lane.cancelReads();
+    // Everything queued runs to completion (commits and reads). Reads are not cancelled: a refused load keeps the
+    // world, and a cancelled read would deliver its chunk without its groups; after a committed load the store's
+    // generation changed, so a read completion of the old store applies nothing (requestStoredRead)
     lane.drainOnCaller();
 }
 
@@ -896,6 +908,17 @@ bool SaveDirectory::close()
         e.record.reset();
         e.summary = IndexSummary();
         e.dirty   = false;
+        // A group that could not be read back is dropped (logged): without the directory nothing could read it later,
+        // and a memory store group without bytes would make every save leave it out
+        const size_t before = e.groups.size();
+        e.groups.erase(std::remove_if(e.groups.begin(), e.groups.end(), [](const StoredGroup& g) { return !g.bytes; }),
+                       e.groups.end());
+        if (e.groups.size() != before)
+        {
+            store.statsForUpdate().failedGroups += before - e.groups.size();
+            SAIGA_LOG("save", "close: %zu stored groups of %s cannot be read and are dropped", before - e.groups.size(),
+                      chunkName(c).c_str());
+        }
         for (StoredGroup& g : e.groups) g.recordIndex = -1;
     }
     store.setTracking(false);
@@ -1054,6 +1077,16 @@ SaveOpenResult SaveDirectory::open()
             std::string he;
             if (!checkRegionHeader(header.data(), header.size(), k, he))
             {
+                // The same magic, space, region and generation with a newer format (the u32 after the magic): a newer
+                // build's file, an open error that changes nothing (never corruption)
+                std::vector<uint8_t> expected = encodeRegionHeader(k);
+                uint32_t format               = 0;
+                for (int b = 0; b < 4; ++b) format |= uint32_t(header[size_t(4 + b)]) << (8 * b);
+                bool sameExceptFormat = true;
+                for (size_t b = 0; b < kRegionHeaderSize; ++b)
+                    if ((b < 4 || b >= 8) && header[b] != expected[b]) sameExceptFormat = false;
+                if (sameExceptFormat && format > kRegionFormat)
+                    return fail(k.path() + ": a region file of a newer format (" + std::to_string(format) + ")");
                 corrupt        = true;
                 lastCorruption = name + ": " + he;
             }
@@ -1201,19 +1234,37 @@ SaveOpenResult SaveDirectory::open()
         WorldFile prev;
         ChunkIndex prevIndex;
         std::string pe;
-        if (fs->exists(worldFileName(c - 1)) && fs->readAll(worldFileName(c - 1), prevBytes, nullptr) &&
-            decodeWorldFile(prevBytes, prev, pe) && decodeIndex(prev.index.data(), prev.index.size(), prevIndex, pe))
-            for (const auto& kv : prevIndex.files)
+        // The backup's files are kept by the cleanup. A backup that exists but cannot be read (an IO error) or decoded
+        // with a valid checksum (a newer format) is not "no backup": the cleanup is skipped, so its regions survive
+        // (only a failed checksum means it is garbage)
+        bool keepEverything = false;
+        if (fs->exists(worldFileName(c - 1)))
+        {
+            if (!fs->readAll(worldFileName(c - 1), prevBytes, &pe))
+                keepEverything = true;
+            else if (checkTrailer(prevBytes))
             {
-                backupFiles[kv.first] = kv.second;
-                keptEnds[kv.first]    = std::max(keptEnds[kv.first], kv.second);
+                if (decodeWorldFile(prevBytes, prev, pe) &&
+                    decodeIndex(prev.index.data(), prev.index.size(), prevIndex, pe))
+                    for (const auto& kv : prevIndex.files)
+                    {
+                        backupFiles[kv.first] = kv.second;
+                        keptEnds[kv.first]    = std::max(keptEnds[kv.first], kv.second);
+                    }
+                else
+                    keepEverything = true;
             }
+        }
         regionBytes = 0;
         for (const auto& kv : files) regionBytes += kv.second;
         if (!corruptCandidates.empty())
             SAIGA_LOG("save", "%s: loaded commit %llu (the newer world-state files are corrupt: %s)",
                       fs->describe().c_str(), (unsigned long long)c, lastCorruption.c_str());
-        cleanupAfterOpen(c, keptEnds, corruptCandidates);
+        if (keepEverything)
+            SAIGA_LOG("save", "%s: the backup commit cannot be read (%s): no cleanup at this open",
+                      fs->describe().c_str(), pe.c_str());
+        else
+            cleanupAfterOpen(c, keptEnds, corruptCandidates);
         afterLoad();
         out.ok          = true;
         out.openSeconds = nowSeconds() - start;

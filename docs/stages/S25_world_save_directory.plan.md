@@ -414,7 +414,7 @@ deleted only two commits after the index stopped naming it), and records are app
 0. every region file this task will touch is `truncate`d to its committed end from the index snapshot (a failed or
    torn earlier attempt leaves garbage behind the end; the offsets of this commit start at the committed end); a
    region file that exists but is not in the index (a crashed first commit, a failed compaction's generation `g + 1`)
-   is recreated with `writeNew` (its header), never appended to;
+   is never appended to: a new file takes a generation above every existing one of its region (step 3);
 1. if the header needs a new schema table (or is missing): write `header.sgh.tmp`, `syncFile`, `rename` to
    `header.sgh`, `syncDirectory(".")`;
 2. compaction is decided first (G12): a region file below the thresholds gets a new generation `g + 1`; this commit's
@@ -426,9 +426,11 @@ deleted only two commits after the index stopped naming it), and records are app
    region file, also after its region dropped out of the index, takes a generation above every existing generation of
    that region in the directory listing, so it never overwrites a file the backup commit names); a chunk
    whose state is empty (no sequence, no record, not stamped, no groups) is dropped from the index; a chunk whose state
-   fits the summary gets no record (Scope 2). **An unreadable old record** (checksum or decode failure): its groups
+   fits the summary gets no record (Scope 2). **A corrupt old record** (checksum, length or index mismatch): its groups
    cannot be separated, so the new record omits them, they are counted in `failedGroups` and logged with the chunk,
-   and the commit succeeds; the backup commit still names the old record for one more commit (G14);
+   and the commit succeeds; the backup commit still names the old record for one more commit (G14). An old record that
+   cannot be read because of an IO error or that a newer build wrote (a valid checksum, an unknown format) fails the
+   commit instead (retried; nothing is dropped);
 4. `syncFile` every region file appended to or created in this commit; `syncDirectory` of every directory that got a
    new entry (`regions`, `regions/<space>`, and `.` when `regions/` was created), all before step 5; on the directory's
    creation also its parent;
@@ -1291,6 +1293,21 @@ Recorded per R-DOC-2; the plan's intent is kept in each case.
   main thread (O(indexed chunks): every visited chunk is indexed in streaming worlds), and `closeSaveDirectory` (the
   app's quit) reads every disk-only group back; both grow with the world. A persistent index and a close without the
   read-back are the follow-ups if a game's measurements need them.
+- **Review round 2 fixes**: an old record of a newer format fails the commit like an IO error (it was omitted and its
+  groups dropped); a short read or a missing region file is corruption, not an IO error (a retry cannot help); an
+  unreadable or undecodable backup world file skips the open's cleanup (its regions were deleted as unreferenced); a
+  region file whose header differs only by a newer format is an open error; `save()` leaves an unreadable stored group
+  out of the blob with a log line (it asserted), and `closeSaveDirectory` drops groups it cannot read back; no read is
+  cancelled before a load (a refused load left chunks resident without their groups; stale completions are ignored
+  by the store's generation), so `SaveIoQueue::cancelReads` is gone and `poolReset` asserts no commit is outstanding;
+  a lower-priority read re-reads whenever its record moved (also after a successful read of a superseded record); a
+  space-state group that fails to reload is dropped with a log line (a loaded space has no record to keep it in); a
+  new save directory syncs the parents of the path components it created (POSIX); the Windows read error message.
+
+## Deviations (review round 2): known gaps
+
+- No fault-injecting read in `MemorySaveFileSystem`: the IO-error paths of the open and the commit are reviewed, not
+  tested.
 
 ## Results
 

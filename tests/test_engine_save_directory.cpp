@@ -28,6 +28,7 @@
 
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <mutex>
 #include <thread>
 
@@ -373,15 +374,21 @@ TEST(SaveDirectory, NewerFormatIsAnErrorNotCorruption)
     bytes.resize(bytes.size() - 8);
     appendTrailer(bytes);
     fs->putFile("world.2.sgw", bytes);
-    const std::vector<std::string> before = fs->files();
+    // Every file's bytes before the open (a truncation or rename must show)
+    auto snapshot = [&]()
+    {
+        std::map<std::string, std::vector<uint8_t>> m;
+        for (const std::string& f : fs->files()) m[f] = fs->fileBytes(f);
+        return m;
+    };
+    const auto before = snapshot();
     World v(unloadTestSetup());
     v.setStreamingSynchronous(true);
     const std::vector<uint8_t> fresh = v.save();
     const SaveOpenResult o           = v.openSaveDirectory("mem", memOptions(fs));
     EXPECT_FALSE(o.ok);
-    EXPECT_FALSE(o.usedBackup);
-    EXPECT_EQ(fs->files(), before);
-    EXPECT_EQ(fs->fileBytes("world.2.sgw"), bytes);
+    EXPECT_NE(o.error.find("format"), std::string::npos) << o.error;
+    EXPECT_EQ(snapshot(), before);
     EXPECT_EQ(v.save(), fresh);
 }
 

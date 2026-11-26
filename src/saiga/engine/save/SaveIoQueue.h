@@ -46,8 +46,6 @@ class SAIGA_ENGINE_API SaveIoQueue
     bool busy() const;
     // Runs every task on the caller (waits for a running one, then runs the queued ones inline)
     void drainOnCaller();
-    // Drops the queued reads (their done() is called, the run is not: a load replaces the store)
-    void cancelReads();
     // The pool is about to be reset: the outstanding job's completion will be discarded
     void poolReset();
     // Submits the head task if no job is outstanding (after a pool reset, between steps)

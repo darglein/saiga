@@ -1122,8 +1122,8 @@ class SAIGA_ENGINE_API World
     void destroyNow(Entity e);
     void destroyOne(Entity e);
     std::vector<Entity> collectDoomed(Entity e) const;
-    // The entity and its descendants, parents before children (one pass over the Parent pool, cycle-safe; not
-    // hierarchyOrder, which can be dirty in the middle of a step)
+    // The entity and its descendants, parents before children (the cached (parent, child) links, verified by the child
+    // counts and rebuilt when stale; cycle-safe; not hierarchyOrder, which can be dirty in the middle of a step)
     std::vector<Entity> collectSubtree(Entity e) const;
     // The sorted (parent index, child) links of collectSubtree, verified by the child counts at every use
     mutable std::vector<std::pair<uint32_t, Entity>> linkCache;

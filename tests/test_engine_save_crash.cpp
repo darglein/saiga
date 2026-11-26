@@ -11,7 +11,7 @@
 // process with a torn last write, directory entries without their data, a power loss), opened in a fresh world and
 // checked: the open succeeds, it loads c or c + 1, monotone in n per kind, c + 1 at n = K for every kind (the protocol
 // syncs before its commit point), the loaded world saves the reference blob of its commit (so every PersistentId
-// exists exactly once: resident or in a stored group), and at n = 0, K / 2 and K no .tmp or unreferenced file remains
+// exists exactly once: resident or in a stored group), and at n = 0, K / 2 and K no .tmp or .corrupt file remains
 // and one more commit and open succeed. Equal images are opened once (a hash of the file system state).
 
 #include "saiga/engine/core/Log.h"

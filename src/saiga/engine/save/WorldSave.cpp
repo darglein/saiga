@@ -9,6 +9,7 @@
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/EngineVersion.h"
+#include "saiga/engine/core/Log.h"
 #include "saiga/engine/gameplay/Behaviour.h"
 #include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/save/EntityGroup.h"
@@ -230,41 +231,68 @@ std::vector<uint8_t> World::saveBlob(bool worldStateForm) const
                                  readGroups[size_t(g.recordIndex)].bytes->size()) == g.hash)
                     b = readGroups[size_t(g.recordIndex)].bytes;
             }
-            SAIGA_ASSERT(b, "save: a stored group of " + std::to_string(c.space) + ", " + std::to_string(c.x) + ", " +
-                                std::to_string(c.z) + " cannot be read");
             return b;
         };
-        for (const auto& [c, e] : store->chunks())
-            for (const StoredGroup& g : e.groups) numberOf(g.schema);
-        w.write(uint32_t(extra.size()));
-        for (uint32_t t : extra) tables[t]->write(w);
-        auto writeGroupBytes = [&](const ChunkId& c, const StoredGroup& g)
+        // The readable groups first: a group whose record cannot be read (IO, corruption) is left out of the blob with
+        // a log line (a data error must not abort a save; the directory keeps the record)
+        using Readable = std::vector<std::pair<uint32_t, GroupBytes>>;
+        std::vector<std::pair<ChunkId, Readable>> chunkGroups;
+        auto readable = [&](const ChunkId& c, const ChunkEntry& e, size_t count)
         {
-            const GroupBytes b = bytesOf(c, g);
-            w.write(numberOf(g.schema));
-            // Without asserts an unreadable group is written empty: the blob's load refuses it with a message instead
-            // of this save dereferencing null
-            w.write(uint64_t(b ? b->size() : 0));
-            if (b) out.insert(out.end(), b->begin(), b->end());
+            Readable r;
+            size_t lost = 0;
+            for (size_t i = 0; i < count; ++i)
+            {
+                GroupBytes b = bytesOf(c, e.groups[i]);
+                if (b)
+                    r.push_back({e.groups[i].schema, b});
+                else
+                    lost++;
+            }
+            if (lost > 0)
+                SAIGA_LOG("save", "save: %zu stored groups of (%d, %d, %d) cannot be read and are not in the blob",
+                          lost, int(c.space), int(c.x), int(c.z));
+            return r;
         };
-        w.write(uint32_t(store->chunksWithGroups()));
         for (const auto& [c, e] : store->chunks())
         {
             if (isSpaceRecordKey(c) || e.groups.empty()) continue;
-            w.write(c.space);
-            w.write(c.x);
-            w.write(c.z);
-            w.write(uint32_t(e.groups.size()));
-            for (const StoredGroup& g : e.groups) writeGroupBytes(c, g);
+            Readable r = readable(c, e, e.groups.size());
+            if (!r.empty()) chunkGroups.push_back({c, std::move(r)});
         }
-        w.write(uint32_t(store->unloadedSpaces().size()));
+        std::vector<std::pair<SpaceId, Readable>> spaceGroups;
         for (SpaceId sp : store->unloadedSpaces())
         {
             const ChunkEntry* e = store->entry(spaceRecordKey(sp));
-            const bool group    = e && !e->groups.empty();
+            spaceGroups.push_back({sp, e && !e->groups.empty() ? readable(spaceRecordKey(sp), *e, 1) : Readable()});
+        }
+        for (const auto& [c, r] : chunkGroups)
+            for (const auto& g : r) numberOf(g.first);
+        for (const auto& [sp, r] : spaceGroups)
+            for (const auto& g : r) numberOf(g.first);
+        w.write(uint32_t(extra.size()));
+        for (uint32_t t : extra) tables[t]->write(w);
+        auto writeGroupBytes = [&](uint32_t schema, const GroupBytes& b)
+        {
+            w.write(numberOf(schema));
+            w.write(uint64_t(b->size()));
+            out.insert(out.end(), b->begin(), b->end());
+        };
+        w.write(uint32_t(chunkGroups.size()));
+        for (const auto& [c, r] : chunkGroups)
+        {
+            w.write(c.space);
+            w.write(c.x);
+            w.write(c.z);
+            w.write(uint32_t(r.size()));
+            for (const auto& g : r) writeGroupBytes(g.first, g.second);
+        }
+        w.write(uint32_t(spaceGroups.size()));
+        for (const auto& [sp, r] : spaceGroups)
+        {
             w.write(sp);
-            w.write(uint8_t(group ? 1 : 0));
-            if (group) writeGroupBytes(spaceRecordKey(sp), e->groups[0]);
+            w.write(uint8_t(r.empty() ? 0 : 1));
+            if (!r.empty()) writeGroupBytes(r[0].first, r[0].second);
         }
         s.end();
     }
