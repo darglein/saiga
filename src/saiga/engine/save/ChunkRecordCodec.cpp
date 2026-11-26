@@ -467,7 +467,7 @@ bool decodeIndex(const uint8_t* data, size_t size, ChunkIndex& out, std::string&
         out.files.push_back({k, end});
     }
     r.read(entries);
-    if (!r.ok() || uint64_t(entries) * 49 > r.remaining())
+    if (!r.ok() || uint64_t(entries) * 48 > r.remaining())
     {
         error = "CIDX: the entries do not fit";
         return false;

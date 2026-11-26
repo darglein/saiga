@@ -80,6 +80,10 @@ class SAIGA_ENGINE_API EngineApp
 
     // Runs frames until quit (or the window closes); returns the exit code
     int run();
+    // S25: opens EngineAppSetup::saveDirectory on the host world (engineMain after the game's start; throws on an open
+    // error) / commits and waits at quit (run's end, or the destructor; once)
+    void openSaveDirectory();
+    void finishSave();
     // count frames with a fixed frame time (tests, benchmarks; deterministic)
     void runFrames(int count, double dt);
     // One iteration of the loop with a measured frame time
@@ -285,6 +289,7 @@ class SAIGA_ENGINE_API EngineApp
     // is destroyed before the host
     std::vector<std::unique_ptr<LoopbackTransport>> coopTransports;
     std::unique_ptr<World> hostWorldPtr;
+    bool saveFinished = false;
     std::unique_ptr<World> gameWorld;
     std::unique_ptr<McpServer> server;
     std::shared_ptr<WorldApi> worldApi;

@@ -9,6 +9,7 @@
 // the kept set, the reloads with configure / onLoad / onCatchUp, abort safety, determinism across saves, blobs with
 // stored groups, and space unloading. Worlds of tests/unload_test_setup.h (flat spaces: no generation cost).
 
+#include "saiga/engine/api/WorldApi.h"
 #include "saiga/engine/components/Parent.h"
 #include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/Weather.h"
@@ -183,8 +184,19 @@ TEST(Unload, NoOnDestroyAndLogFlag)
     const Entity g = w.spawn<Grower>(kA + Vec3(30, 0, 0));
     w.step();
     const int consumer = w.structuralLog().addConsumer();
+    WorldApi api(w);
+    const ApiResult c0 = api.call("changes_since", json11::Json(json11::Json::object{{"cursor", 0}}));
+    ASSERT_TRUE(c0.ok) << c0.error;
     teleport(w, p, kB);
     w.step();
+    // changes_since reports the unload as "unloaded" (not "destroyed")
+    const ApiResult c1 = api.call("changes_since", json11::Json(json11::Json::object{{"cursor", c0.value["cursor"]}}));
+    ASSERT_TRUE(c1.ok) << c1.error;
+    bool reported = false;
+    for (const auto& c : c1.value["changes"].array_items())
+        reported = reported ||
+                   (c["kind"].string_value() == "unloaded" && c["entity"]["index"].number_value() == double(g.index));
+    EXPECT_TRUE(reported) << c1.value.dump();
     EXPECT_FALSE(w.alive(g));
     EXPECT_EQ(hooks().destroys, 0);
     int unloaded = 0, removed = 0;

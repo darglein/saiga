@@ -966,6 +966,18 @@ void EngineApp::engineTab()
     }
     // S24: the resident chunk set of this world (its streaming centres), stalls, islands, Simulated
     if (ui->section("engine/Streaming", "Streaming", false)) streamingSection();
+    // S25: the save directory in one line (commit, in flight, last error)
+    {
+        const World& sw = startWorld();
+        if (sw.hasSaveDirectory())
+        {
+            const SaveStatus st = sw.saveStatus();
+            ImGui::Text("save: commit %llu, in flight %llu%s%s", (unsigned long long)st.committed,
+                        (unsigned long long)st.inFlight, st.lastError.empty() ? "" : ", error: ", st.lastError.c_str());
+        }
+        else
+            ImGui::TextDisabled("save: no save directory (--save <dir>)");
+    }
     if (ui->section("engine/Camera", "Camera and input", false))
     {
         if (DebugUiStyle::beginProperties("##camera"))

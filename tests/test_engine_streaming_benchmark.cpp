@@ -17,6 +17,7 @@
 
 #include "saiga/core/util/env.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/streaming/ChunkResidency.h"
 #include "saiga/engine/streaming/SimulationSet.h"
 #include "saiga/engine/terrain/TerrainSystem.h"
@@ -142,7 +143,7 @@ TEST(StreamingBenchmark, StepTime)
     ASSERT_TRUE(w.completeResidency(120));
     const double completeMs = ms(t0, Clock::now());
     w.step();
-    std::vector<double> step, streaming, simulation, tick, behaviour, startScope;
+    std::vector<double> step, streaming, simulation, tick, behaviour, startScope, unloadPass;
     const double dt = 1.0 / 60;
     auto next       = Clock::now();
     for (int i = 0; i < steps; ++i)
@@ -160,6 +161,7 @@ TEST(StreamingBenchmark, StepTime)
         tick.push_back(lastScope(w, "step/phase:transform/system:tick"));
         behaviour.push_back(lastScope(w, "step/phase:behaviour/system:behaviour"));
         startScope.push_back(lastScope(w, "step/streaming_start"));
+        unloadPass.push_back(lastScope(w, "step/phase:streaming/system:chunk_entities"));
     }
     if (w.streaming()) w.simulationSet().countSimulated();
     const StreamingStats& s = w.residency().stats();
@@ -177,6 +179,13 @@ TEST(StreamingBenchmark, StepTime)
               << s.evaluations << std::endl;
     std::cout << "  streaming stalls " << s.streamingStalls << " (player stall steps " << s.playerStallSteps
               << "), mover holds " << s.moverHolds << std::endl;
+    // S25: the unloads and reloads (beyond the kept distance of the player) and the resident entities
+    const ChunkStore::Stats& st = w.chunkStoreView().stats();
+    const double seconds        = double(steps) * w.dt();
+    std::cout << "  unloads " << st.groupsUnloaded << " (" << double(st.groupsUnloaded) / seconds << "/s), reloads "
+              << st.groupsReloaded << " (" << double(st.groupsReloaded) / seconds << "/s), stored groups "
+              << w.chunkStoreView().totalGroups() << ", resident entities " << w.registry().aliveCount() << std::endl;
+    print("  chunk_entities (unload pass, reloads)", stat(unloadPass));
     // Correctness: the player moved and is simulated, the far entities are frozen
     EXPECT_GT(w.read<Transform>(player).position().x(), start.x());
     EXPECT_TRUE(w.simulated(player));

@@ -1042,7 +1042,8 @@ void World::setContentRenderSettings(const ContentRenderSettings& settings)
 void World::onRecordChanged(const ChunkId& chunk)
 {
     // S25: the chunk's record differs from the newest commit (host; a no-op without a save directory)
-    if (isHost()) store->markDirty(chunk);
+    // (not inside a load: a blob load marks its chunks itself, a directory open starts clean)
+    if (isHost() && !loadInProgress) store->markDirty(chunk);
     contentRenderSys->recordChanged(chunk);
     // The chunk's generator grass mask (a placement-version change)
     terrainSys->recordChanged(chunk);
@@ -1125,7 +1126,7 @@ void World::onTerrainChanged(SpaceId space, const SampleRect& box, bool load)
 {
     if (box.empty()) return;
     // S25: every chunk whose closed range intersects the box differs from the newest commit (host, with a directory)
-    if (isHost() && store->trackingDirty() && space < terrainEditStore->spaceCount())
+    if (isHost() && !load && !loadInProgress && store->trackingDirty() && space < terrainEditStore->spaceCount())
     {
         const int64_t S = terrainEditStore->chunkSamples(space), n = terrainEditStore->sizeChunks(space);
         const int64_t x0 = std::max<int64_t>(0, (box.i0 + S - 1) / S - 1), x1 = std::min<int64_t>(n - 1, box.i1 / S);

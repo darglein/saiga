@@ -162,6 +162,9 @@ void ChunkStore::replace(StoreStage&& stage)
         currentNumber = -1;
         entries       = std::move(stage.indexEntries);
         for (auto& [c, groups] : stage.groups) entries[c].groups = std::move(groups);
+        // Every group gets its store-wide id (a commit's completion maps the frozen groups by it)
+        for (auto& [c, e] : entries)
+            for (StoredGroup& g : e.groups) g.id = nextGroupId++;
         return;
     }
     // A blob load: the blob's tables interned into this store's numbering (a directory's tables stay: its header is

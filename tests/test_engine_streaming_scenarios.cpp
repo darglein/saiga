@@ -10,14 +10,18 @@
 // strictContinuation, host + client with delay 0 and 2 and asynchronous stepping). Their own binary: S25 and S26 add
 // theirs. The content cache is shared by every run (once per process, as runScenarios shares one per setup).
 
+#include "saiga/engine/components/LocalTransform.h"
 #include "saiga/engine/components/PendingTransition.h"
 #include "saiga/engine/components/RenderInstance.h"
 #include "saiga/engine/components/SpaceLink.h"
+#include "saiga/engine/components/Weather.h"
 #include "saiga/engine/content/ChunkRecords.h"
 #include "saiga/engine/content/ContentConvert.h"
 #include "saiga/engine/content/ContentRenderSystem.h"
 #include "saiga/engine/content/GenerationPipeline.h"
 #include "saiga/engine/core/Log.h"
+#include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/ChunkStore.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
 #include "saiga/engine/tools/ScenarioList.h"
@@ -30,6 +34,7 @@
 #include <set>
 
 #include "streaming_test_setup.h"
+#include "unload_test_setup.h"
 
 using namespace Saiga;
 using namespace Saiga::Engine;
@@ -326,15 +331,141 @@ void registerStreamingScenarios(ScenarioList& s)
           });
 }
 
+// ---- S25: the unload scenarios (registerUnloadScenarios) on tests/unload_test_setup.h (flat spaces, S24's scenario
+// distances: a group unloads once its chunk is 192 m from the last player), with the environment (space-state
+// entities) for the space unload
+
+WorldSetup unloadScenarioSetup()
+{
+    WorldSetup s          = UnloadTest::unloadTestSetup();
+    s.environment.enabled = true;
+    return s;
+}
+
+// The player's position on the host
+bool playerAt(ScenarioWorld& w, Entity player, SpaceId space, const Vec3& p)
+{
+    const Transform& t = w.world().read<Transform>(player);
+    return t.space() == space && std::abs(t.position().x() - p.x()) < 1 && std::abs(t.position().z() - p.z()) < 1;
+}
+
+// The replicated entity of a NetId is gone on every client (or never arrived)
+bool goneOnClients(ScenarioWorld& w, NetId id)
+{
+    for (int c = 1; c <= w.clientCount(); ++c)
+        if (w.client(c).replication().entityOfNetId(id).valid()) return false;
+    return true;
+}
+
+void registerUnloadScenarios(ScenarioList& s)
+{
+    using UnloadTest::Grower;
+    using UnloadTest::GrowerState;
+    // The acceptance (§22): a group (root, child, an in-group reference, an outside reference, a PersistentId) 100 m
+    // from the player; the player arrives 1 km away: the group is stored, resolve is empty, on clients the entity is
+    // gone; the player returns: the group is resident again with remapped references, the outside reference null and
+    // grown advanced by the elapsed time
+    s.add("chunk_unload_reload",
+          [](ScenarioWorld& w)
+          {
+              const Vec3 start(1000, 0, 1000), away(2000, 0, 1000);
+              const Entity player = w.spawnPlayer(start);
+              const Entity root   = w.spawn<Grower>(start + Vec3(100, 0, 0));
+              const Entity child  = w.world().create();
+              w.world().add<LocalTransform>(child);
+              w.world().add<Parent>(child, Parent{root});
+              w.world().get<GrowerState>(root).buddy   = child;
+              w.world().get<GrowerState>(root).outside = player;
+              const PersistentId id                    = w.world().makePersistent(root);
+              w.step(3);
+              const NetId netId = w.networked() ? w.world().replication().netIdOf(root) : 0;
+              w.check(w.world().requestArrival(player, 0, away), "requestArrival away");
+              w.check(w.stepUntil([&] { return playerAt(w, player, 0, away); }, 30), "arrived away");
+              w.step(2);
+              const ChunkId chunk = UnloadTest::chunkOf(0, start.x() + 100, start.z());
+              w.check(w.world().chunkStoreView().groupCount(chunk) == 1, "the group is stored");
+              w.check(!w.world().resolve(id).valid(), "resolve is empty while stored");
+              if (w.networked())
+                  w.check(w.stepUntil([&] { return goneOnClients(w, netId); }, syncBound(w)), "gone on the clients");
+              w.step(10);
+              w.check(w.world().requestArrival(player, 0, start), "requestArrival back");
+              w.check(w.stepUntil([&] { return playerAt(w, player, 0, start); }, 30), "arrived back");
+              const Entity r = w.world().resolve(id);
+              if (!w.check(r.valid(), "the group is resident again")) return;
+              const GrowerState& g = w.world().read<GrowerState>(r);
+              w.check(g.grown > 0.1, "grown advanced by the elapsed time");
+              w.check(w.world().alive(g.buddy) && w.world().read<Parent>(g.buddy).entity == r,
+                      "the in-group reference is remapped");
+              w.check(!g.outside.valid(), "the outside reference is null");
+              w.check(w.world().chunkStoreView().groupCount(chunk) == 0, "the chunk keeps no groups");
+          });
+    // A Grower spawned 2 km from the player is unloaded in its spawning step and reloads when the player arrives
+    s.add("far_spawn_reload",
+          [](ScenarioWorld& w)
+          {
+              const Vec3 start(1000, 0, 1000), far(3000, 0, 1000);
+              const Entity player   = w.spawnPlayer(start);
+              const PersistentId id = w.world().makePersistent(w.spawn<Grower>(far));
+              w.step();
+              w.check(!w.world().resolve(id).valid(), "unloaded in its spawning step");
+              w.check(w.world().chunkStoreView().groupCount(UnloadTest::chunkOf(0, far.x(), far.z())) == 1,
+                      "stored at its chunk");
+              w.step(5);
+              w.check(w.world().requestArrival(player, 0, far + Vec3(10, 0, 0)), "requestArrival");
+              w.check(w.stepUntil([&] { return w.world().resolve(id).valid(); }, 30), "reloaded");
+              w.step(2);
+              const Entity e = w.world().resolve(id);
+              w.check(e.valid() && w.world().read<GrowerState>(e).catchUps == 1, "onCatchUp ran once");
+          });
+    // The player enters the cellar through a SpaceLink: space 0 unloads with its Grower and its state entity; back in
+    // space 0 the player finds them with caught-up grown and the Weather restored
+    s.add("space_unload_reload",
+          [](ScenarioWorld& w)
+          {
+              const Vec3 start(1000, 0, 1000);
+              const Entity player = w.spawnPlayer(start);
+              const Entity link   = w.world().createIn(0);
+              w.world().get<Transform>(link).teleport(start + Vec3(5, 0, 0), Quat::Identity());
+              SpaceLink l;
+              l.target  = 1;
+              l.arrival = Vec3(100, 0, 100);
+              w.world().add<SpaceLink>(link, l);
+              const PersistentId id = w.world().makePersistent(w.spawn<Grower>(start + Vec3(20, 0, 0)));
+              w.world().spaceState<Weather>(0).cloudiness = 0.75;
+              w.step(3);
+              w.check(w.world().requestTransition(player, link), "requestTransition into the cellar");
+              w.check(w.stepUntil([&] { return w.world().read<Transform>(player).space() == 1; }, 30), "in the cellar");
+              w.check(w.stepUntil([&] { return !w.world().spaceLoaded(0); }, 10), "space 0 unloads");
+              w.check(!w.world().spaceStateEntity(0).valid(), "its state entity is stored");
+              w.check(!w.world().resolve(id).valid(), "its Grower is stored");
+              w.step(10);
+              w.check(w.world().requestArrival(player, 0, start), "requestArrival back");
+              w.check(w.stepUntil([&] { return playerAt(w, player, 0, start); }, 30), "back in space 0");
+              w.check(w.world().spaceLoaded(0), "space 0 is loaded");
+              w.check(w.world().readSpaceState<Weather>(0).cloudiness == 0.75, "the Weather is restored");
+              const Entity e = w.world().resolve(id);
+              w.check(e.valid() && w.world().read<GrowerState>(e).grown > 0.1, "the Grower caught up");
+          });
+}
+
 struct Case
 {
     std::string scenario;
     ScenarioVariant variant;
+    bool unload = false;
 };
 
 std::vector<Case> allCases()
 {
     std::vector<Case> cases;
+    {
+        ScenarioList list;
+        registerUnloadScenarios(list);
+        ScenarioOptions options;
+        options.networkVariants = true;
+        for (const auto& e : list.entries())
+            for (ScenarioVariant v : variantsFor(e, options)) cases.push_back(Case{e.name, v, true});
+    }
     ScenarioList list;
     registerStreamingScenarios(list);
     ScenarioOptions options;
@@ -352,14 +483,18 @@ class StreamingScenario : public ::testing::TestWithParam<Case>
 TEST_P(StreamingScenario, Passes)
 {
     ScenarioList list;
-    registerStreamingScenarios(list);
+    if (GetParam().unload)
+        registerUnloadScenarios(list);
+    else
+        registerStreamingScenarios(list);
     const ScenarioList::Entry* entry = list.find(GetParam().scenario);
     ASSERT_TRUE(entry);
     ScenarioOptions options;
     options.varyThreads        = true;
     options.strictContinuation = true;
     options.networkVariants    = true;
-    const ScenarioResult r     = runScenario(streamingScenarioSetup(entry->name), *entry, GetParam().variant, options);
+    const WorldSetup setup     = GetParam().unload ? unloadScenarioSetup() : streamingScenarioSetup(entry->name);
+    const ScenarioResult r     = runScenario(setup, *entry, GetParam().variant, options);
     EXPECT_TRUE(r.passed) << r.report;
 }
 

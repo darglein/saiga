@@ -246,6 +246,22 @@ std::vector<ToolSpec> toolSpecs()
                           {"limit", S::IntegerProperty("Chunks per page (1..1000, default 100)")},
                           {"after", S::IntegerProperty("The next value of the previous page")}},
                          {})},
+        {"save_status",
+         "Reads the save directory of the world (S25; open false without one: --save <dir>): path, committed (the "
+         "newest successful commit), in_flight (the commit being written, 0: none), last_commit_step and "
+         "last_commit_time (world time of the last freeze), last_error (of the last failed commit), dirty_chunks "
+         "(differing from the newest commit), stored_chunks / stored_groups (entity groups of unloaded chunks), "
+         "unloaded_spaces, region_files, region_bytes, live_bytes, terrain_memory_bytes, and the statistics "
+         "(groups and entities unloaded and reloaded, dropped references, failed groups, reload hook errors, spaces "
+         "unloaded and reloaded, records read and written, bytes written, commits, failed commits, compactions, the "
+         "last and largest freeze in ms, the last commit's write time in ms). Changes nothing.",
+         S::ObjectSchema({}, {})},
+        {"commit_save",
+         "Commits the world to its save directory now (S25): freezes the state between steps and writes it on the IO "
+         "lane (the commit point is the world-state file's rename). Returns {commit, deferred: false}; while a commit "
+         "is in flight {deferred: true, in_flight} (the request commits at the first step boundary after it "
+         "completed). An error without a save directory (--save <dir>) and on a client.",
+         S::ObjectSchema({}, {})},
         {"list_sites",
          "Reads the sites (authored places) of a space's world plan in plan order: key, prefab, version, position "
          "[x, base height, z] in metres, quarter_turns, base_height, footprint [x0, z0, x1, z1] in local metres, the "

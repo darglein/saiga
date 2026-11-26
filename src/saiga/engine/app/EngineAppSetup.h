@@ -86,7 +86,13 @@ struct EngineAppSetup
     double statisticsWarmupSeconds = 1.0;
     std::string inputFile;          // default: <data directory>/input.json if it exists
     std::string snapshotDirectory;  // export_snapshot / import_snapshot (empty: refused)
-    std::string mcpInstructions;    // the MCP server's instructions (initialize); a generic text if empty or noRender
+    // S25: the save directory (--save <dir>; empty: none), opened after the game's start (an existing directory
+    // replaces the world through the load path, a new one adopts it) and committed at quit; the commit interval in
+    // world time (0: only at quit and commit_save) and the file syncs (the app test turns them off)
+    std::string saveDirectory;
+    double saveCommitIntervalSeconds = 300;
+    bool saveSync                    = true;
+    std::string mcpInstructions;  // the MCP server's instructions (initialize); a generic text if empty or noRender
     // The free camera's speeds (m/s; fast: with shift)
     float cameraSpeed = 10, cameraSpeedFast = 100;
     // The names --benchmark accepts (checked before the window opens; empty: the game has no benchmarks)

@@ -12,6 +12,7 @@
 #include "saiga/engine/core/Log.h"
 #include "saiga/engine/net/NetOwner.h"
 #include "saiga/engine/net/Replication.h"
+#include "saiga/engine/save/MemorySaveFileSystem.h"
 #include "saiga/engine/save/SaveDiff.h"
 #include "saiga/engine/sync/RecordingRenderSink.h"
 #include "saiga/engine/terrain/TerrainEditStore.h"
@@ -630,6 +631,47 @@ void ScenarioWorld::saveLoad()
                          ": save/load: the loaded world saves differently (state outside the saved components, "
                          "R-STATE-1):" +
                          text);
+    }
+    // S25: the same state through a save directory (a memory file system): the old world adopts it (commit 1,
+    // synchronous IO) and closes it, a fresh world of the same setup opens it and must save the blob
+    if (options.directoryRoundTrip)
+    {
+        auto fs = std::make_shared<MemorySaveFileSystem>();
+        SaveDirectoryOptions o;
+        o.fileSystem                 = fs;
+        o.synchronousIo              = true;
+        o.commitIntervalSeconds      = 0;
+        o.zstdLevel                  = 1;
+        const SaveOpenResult created = w->openSaveDirectory("scenario", o);
+        if (!created.ok)
+            failed.push_back("step " + std::to_string(observedSteps) +
+                             ": save/load: the directory round trip could not create the directory: " + created.error);
+        else
+        {
+            w->closeSaveDirectory();
+            World other(worldSetup);
+            other.setTickEveryStep(w->tickEveryStep());
+            other.setStreamingSynchronous(true);
+            const SaveOpenResult opened = other.openSaveDirectory("scenario", o);
+            if (!opened.ok)
+                failed.push_back("step " + std::to_string(observedSteps) +
+                                 ": save/load: the directory round trip could not open the directory: " + opened.error);
+            else
+            {
+                const std::vector<uint8_t> viaDirectory = other.save();
+                other.closeSaveDirectory();
+                if (viaDirectory != saved)
+                {
+                    DiffFilter f;
+                    f.limit          = 20;
+                    const SaveDiff d = diffSaves(saved, viaDirectory, f);
+                    std::string text;
+                    for (const SaveDifference& x : d.differences) text += "\n  " + x.describe();
+                    failed.push_back("step " + std::to_string(observedSteps) +
+                                     ": save/load: the directory round trip differs:" + text);
+                }
+            }
+        }
     }
     // Step listeners the runner does not know would be lost with the old world: fail instead of losing them silently
     // (by ID: a scenario listener the world removed after it threw must not hide a direct one)

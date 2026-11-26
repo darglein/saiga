@@ -691,14 +691,6 @@ TEST(SaveDirectory, Compaction)
     {
         w.editTerrain(0, addBrush(kB.x() + 60, 900 + i));
         w.commit();
-        if (getenv("S25DBG"))
-        {
-            uint64_t sz    = 0;
-            const auto* en = w.chunkStoreView().entry(chunkOf(0, kB.x(), kB.z()));
-            fs->fileSize(en->record->file.path(), sz, nullptr);
-            printf("commit %d: %s size %llu record %u groups %zu dirty %d\n", i, en->record->file.path().c_str(),
-                   (unsigned long long)sz, en->record->length, en->groups.size(), int(en->dirty));
-        }
         if (!(w.chunkStoreView().entry(chunkOf(0, kB.x(), kB.z()))->record->file == first))
         {
             compactedAt = i;

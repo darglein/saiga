@@ -324,11 +324,8 @@ std::shared_ptr<SaveDirectory::Snapshot> SaveDirectory::freeze(uint64_t c, bool)
             {
                 f.sequence  = te->sequence;
                 f.hasDeltas = te->nonZeroSamples > 0;
-                if (f.hasDeltas)
-                {
-                    f.deltaHash = terrain.contentHash(key);
-                    terrain.freeze(key, f.terrain);
-                }
+                // The blocks by reference; the dense delta and its hash are built on the pool
+                if (f.hasDeltas) terrain.freeze(key, f.terrain);
             }
             if (const ChunkRecord* r = records.find(key))
             {
@@ -573,7 +570,6 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
             rc.hasDeltas             = f.hasDeltas;
             summary.sequence         = f.sequence;
             summary.deltas           = f.hasDeltas;
-            summary.deltaHash        = f.deltaHash;
             rc.hasRecord             = f.hasRecord;
             rc.placementVersion      = f.placementVersion;
             rc.stamped               = f.stamped;
@@ -588,8 +584,12 @@ void SaveDirectory::writeCommit(const Snapshot& snap, SaveFileSystem& fs, Result
             if (f.hasDeltas)
             {
                 f.terrain.dense(dense);
-                rc.N      = uint16_t(f.terrain.N);
-                rc.deltas = dense;
+                // TerrainEditStore::contentHash's value (the hash part of world.hash())
+                Hasher dh;
+                for (int32_t v : dense) dh.addI32(v);
+                summary.deltaHash = dh.value();
+                rc.N              = uint16_t(f.terrain.N);
+                rc.deltas         = dense;
             }
         }
         if (empty)

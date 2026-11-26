@@ -530,8 +530,60 @@ TEST(FrameStatistics, PacingAndTrim)
     EXPECT_EQ(fs.summarize(10).interval.samples, 0);
 }
 
+// S25: --save <dir> and its refusals with --scenarios and --benchmark
+TEST(AppCommandLine, SaveDirectory)
+{
+    EngineAppSetup s;
+    AppOptions o;
+    std::string error;
+    auto a = argv({"--save", "/tmp/s25_save"});
+    ASSERT_TRUE(parseCommandLine(int(a.size()), a.data(), {}, s, o, error)) << error;
+    EXPECT_EQ(s.saveDirectory, "/tmp/s25_save");
+    for (auto bad : {argv({"--save"}), argv({"--save", "d", "--scenarios"}), argv({"--save", "d", "--benchmark", "x"})})
+    {
+        EngineAppSetup u;
+        u.benchmarks = {"x"};
+        AppOptions q;
+        EXPECT_FALSE(parseCommandLine(int(bad.size()), bad.data(), {}, u, q, error)) << bad[1];
+    }
+}
+
 // ---------------------------------------------------------------------------------------------------------------------
 // The app without a device (servers, agents, CI without Vulkan)
+
+// S25: a headless app with --save (no file syncs: the protocol is covered by the memory file system): an edit through
+// edit_terrain, quit commits; a second app on the directory has the edit
+TEST(EngineAppNoRender, SaveDirectoryQuitCommits)
+{
+    const std::string dir =
+        ::testing::TempDir() + "saiga_s25_app_" + std::to_string(std::hash<std::string>{}(::testing::TempDir()));
+    std::filesystem::remove_all(dir);
+    EngineAppSetup s = appSetup(false);
+    s.saveDirectory  = dir;
+    s.saveSync       = false;
+    double edited    = 0;
+    {
+        EngineApp app(s);
+        app.openSaveDirectory();
+        EXPECT_TRUE(app.world().hasSaveDirectory());
+        app.runFrames(2, 1.0 / 60);
+        Poller poller(app.mcp());
+        EXPECT_FALSE(
+            callTool(app.mcp(), "edit_terrain",
+                     obj(R"({"op": "add", "center": [10, 0, 10], "radius": 3, "strength": 1})"))["result"]["isError"]
+                .bool_value());
+        edited = app.world().terrainHeight(0, 10, 10);
+        EXPECT_NE(edited, 0);
+        EXPECT_FALSE(callTool(app.mcp(), "quit", Json::object{})["result"]["isError"].bool_value());
+    }
+    {
+        EngineApp app(s);
+        app.openSaveDirectory();
+        EXPECT_EQ(app.world().terrainHeight(0, 10, 10), edited);
+        EXPECT_EQ(app.world().saveStatus().committed, 2u);
+    }
+    std::filesystem::remove_all(dir);
+}
 
 TEST(EngineAppNoRender, AdvancesAndAnswersTools)
 {
