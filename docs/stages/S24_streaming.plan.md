@@ -1076,6 +1076,15 @@ Recorded per R-DOC-2; the plan's intent is kept in each case.
   S23b's behaviour, G1) in the same build.
 - **Flight** (Scope 13): every plane gets `StreamingAnchor` in `AircraftBase::onSpawn` (the demo's autopilot, the
   autopilot scenario's plane and the players' planes); `TerrainViewSettings::workers` stays 2 (no stalls measured).
+- **Between-step spawns** (review round 1): a between-step `spawn` is evaluated by the step-start evaluation, not at
+  once (Scope 6 said "at once"): no system runs before it, so no entity is simulated for a step it should not be, but
+  `World::simulated()` and `inspect` report a new far entity as simulated until the next step starts.
+- **Transform writes after phase 6** (review round 1): a system that writes a `Transform` in phase 7 or 8 (after
+  phase 6's changed list) is re-evaluated only at the next step start, a step later than G8 states; no engine system
+  does this, and a game system that does must call `refreshSimulated`.
+- **Stale results** (review round 1): a delivery is dropped only for an unloaded entry or another serial, never for the
+  pool's cancel flag: promoting a running prefetch job "cancels" it (the pool only flags a running job), and dropping
+  its result left the chunk `Requested` for ever (`Residency.PromotedRunningPrefetchApplies`).
 
 ## Results
 

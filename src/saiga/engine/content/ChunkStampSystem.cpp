@@ -187,7 +187,6 @@ void chunkStampSystem(World& w, double)
     {
         if (space < g.spaceCount())
         {
-            if (space >= g.spaceCount()) return;
             const SpaceGeneration& sp = g.space(space);
             if (sp.plan->sitesByChunk.empty()) return;
             const double r =

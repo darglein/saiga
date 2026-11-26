@@ -170,7 +170,6 @@ class SAIGA_ENGINE_API ChunkResidency
         uint64_t serial = 0;
         std::shared_ptr<const ChunkBase> base;
         std::shared_ptr<const ChunkPlacement> placement;
-        bool cancelled = false;
     };
     // Shared with the jobs' completions (never the residency: the pool may outlive it)
     struct Shared

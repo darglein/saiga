@@ -387,7 +387,8 @@ ctest -R test_core_ini --output-on-failure             # one test
     the S36 golden mode: cascades at 1024, the horizon map, ACES), `test_engine_content` 6 s (the test generator's
     pyramids and the committed hashes), `test_vulkan_scene` 5.5 s, `test_vulkan_terrain` 5 s, the S36 lighting
     binaries `test_vulkan_shadows` 4 s (39 tests: cascade and horizon maps rendered per test), `test_engine_lighting_tools`
-    3.5 s (34 tests: an EngineApp per test, the tab tests drive ImGui), `test_engine_lighting_render` 3 s (goldens),
+    4.7 s (34 tests: an EngineApp per test, the tab tests drive ImGui; measured 4.6-4.75 s after S36's UI rounds, the
+    earlier 3.5 s line was stale), `test_engine_lighting_render` 3 s (goldens),
     `test_vulkan_lighting` 2.5 s (38 tests: the atmosphere and environment-map tests), every other binary <= 2 s. These
     are ceilings: a change that makes a binary slower than its budget makes it
     faster again or explains why. `ctest --parallel 4` on lavapipe: 14 s (before: 60 s, 30 s after the first pass); the

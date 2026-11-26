@@ -45,6 +45,16 @@ void spaceTransitionSystem(World& w, double)
             invalid = "the entity is a state entity";
         else if (p.target >= w.spaceCount())
             invalid = "the target is not a space";
+        else if (!p.position.allFinite())
+            invalid = "the position is not finite";
+        else if (w.streaming() && w.isPlayerRoot(e))
+        {
+            // Only requestArrival validates the range; a save or add_component does not, and a held player root whose
+            // island is outside its space would wait (frozen) for ever
+            const double size = w.spaceTemplate(p.target).sizeMeters();
+            if (p.position.x() < 0 || p.position.z() < 0 || p.position.x() > size || p.position.z() > size)
+                invalid = "the position is outside the space's x/z range";
+        }
         if (invalid)
         {
             SAIGA_LOG_E("world", e, "space transition to space %d dropped: %s", int(p.target), invalid);

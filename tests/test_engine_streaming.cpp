@@ -35,6 +35,7 @@
 
 #include "gtest/gtest.h"
 
+#include <atomic>
 #include <chrono>
 #include <cstring>
 #include <mutex>
@@ -890,6 +891,31 @@ TEST(Residency, PromotedPrefetchResubmitted)
     latch().open();
     ASSERT_TRUE(stepUntil(w, [&] { return w.residency().ready(chunkOf(0, 1300, 1400)); }));
     ASSERT_TRUE(stepUntil(w, [&] { return w.residency().stats().pendingJobs == 0; }));
+}
+
+// Regression: a running prefetch job whose chunk becomes required was "cancelled" by the promotion (the pool only flags
+// a running job) and its result dropped, which left the chunk Requested for ever.
+TEST(Residency, PromotedRunningPrefetchApplies)
+{
+    World w(streamingTestSetup(sharedStreamingCache()));
+    const ChunkId target = chunkOf(0, 1300, 1400);  // 130 m from the player: a prefetch chunk
+    std::atomic<bool> running{false};
+    w.residency().jobHookForTests = [&](const ChunkId& c)
+    {
+        if (c != target) return;
+        running = true;
+        latch().wait();
+    };
+    ScopedLatch hold;
+    const Entity player = addPlayer(w, Vec3(1150, 0, 1400));
+    ASSERT_TRUE(stepUntil(w, [&] { return running.load(); }));
+    ASSERT_EQ(w.residency().state(target), ChunkState::Requested);
+    // The target's job is running (held on the latch); moving 20 m east makes the chunk required
+    w.get<Transform>(player).setPosition(Vec3(1170, 0, 1400));
+    w.step();
+    latch().open();
+    ASSERT_TRUE(stepUntil(w, [&] { return w.residency().ready(target); }));
+    EXPECT_TRUE(w.completeResidency(10));
 }
 
 TEST(Residency, OutOfRangeClamped)

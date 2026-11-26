@@ -442,7 +442,7 @@ void ChunkResidency::submit(const ChunkId& chunk, Entry& e, bool required)
             throw std::runtime_error(what + ": " + x.what());
         }
     };
-    StreamingPool::Completion done = [sh, generation, serial, chunk, result](bool cancelled)
+    StreamingPool::Completion done = [sh, generation, serial, chunk, result](bool)
     {
         // A dropAll since the submission (a load, replaceSources): nothing is delivered or counted
         if (sh->generation != generation) return;
@@ -452,7 +452,6 @@ void ChunkResidency::submit(const ChunkId& chunk, Entry& e, bool required)
         d.serial    = serial;
         d.base      = result->base;
         d.placement = result->placement;
-        d.cancelled = cancelled;
         sh->deliveries.push_back(std::move(d));
     };
     // Required chunks before everything (-100000 + d), prefetch after the visual tiles and before the masks (G16)
@@ -488,10 +487,12 @@ void ChunkResidency::applyDeliveries()
     for (Delivery& d : list)
     {
         auto it = entries.find(d.chunk);
-        if (d.cancelled || it == entries.end() || it->second.serial != d.serial)
+        // Only the entry and the serial decide: an unload erases the entry and a version change bumps the serial. The
+        // cancel flag alone does not, since the promotion of a prefetch chunk to required "cancels" a running job too
+        // (StreamingPool::cancel only flags it); dropping that result would leave the chunk Requested for ever.
+        if (it == entries.end() || it->second.serial != d.serial)
         {
-            // A cancelled running job (an unload, a version change), an unloaded chunk, or one requested again since
-            // (another serial)
+            // An unloaded chunk, or one requested again since (another serial)
             statistics.resultsDropped++;
             continue;
         }
