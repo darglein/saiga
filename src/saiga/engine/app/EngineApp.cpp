@@ -618,6 +618,14 @@ void EngineApp::stepAll(int n)
     {
         hostWorldPtr->step();
         gameWorld->step();
+        // S26: a rejected client world (a broken setup: one binary cannot differ from itself) ends the app with an
+        // error
+        if (gameWorld->joinState() == JoinState::Rejected && !quitRequested)
+        {
+            SAIGA_LOG("app", "co-op: the host rejected the client world: %s", gameWorld->joinRejection().c_str());
+            quit(1);
+            return;
+        }
     }
 }
 

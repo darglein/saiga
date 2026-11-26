@@ -934,6 +934,15 @@ TEST(Messages, WorldApiReportsTheNetwork)
     // S26: the handshake state and the schema hash
     EXPECT_EQ(s.value["net"]["join"]["state"].string_value(), "joined") << s.value.dump();
     EXPECT_FALSE(s.value["net"]["schema_hash"].string_value().empty());
+    EXPECT_EQ(s.value["net"]["chunks"]["pending"].number_value(), 0);
+    // The host: its admitted peers with their subscriptions
+    WorldApi hostApi(host);
+    const ApiResult hs = hostApi.call("world_status", Json::object{});
+    ASSERT_TRUE(hs.ok) << hs.error;
+    EXPECT_EQ(hs.value["net"]["join"]["state"].string_value(), "local");
+    EXPECT_EQ(hs.value["net"]["peers"][0]["peer"].int_value(), 1) << hs.value.dump();
+    EXPECT_EQ(hs.value["net"]["peers"][0]["queued_snapshots"].number_value(), 0);
+    EXPECT_EQ(hs.value["net"]["schema_hash"], s.value["net"]["schema_hash"]);
     const ApiResult d = api.call("describe_world", Json::object{});
     ASSERT_TRUE(d.ok);
     bool found = false;

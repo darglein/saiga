@@ -1732,6 +1732,7 @@ void Replication::extract(bool networkOnly)
         ownerStateSend(networkOnly);
         // S26 (D16): the chunk interest of this phase 8 (staged; commit applies it)
         clientChunks->extract();
+        if (w.debugAfterReplication) w.debugAfterReplication();
     }
     if (!networkOnly) interpolationSystem(w, w.stepDt);
 }

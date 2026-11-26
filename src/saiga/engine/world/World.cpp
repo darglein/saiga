@@ -2340,13 +2340,20 @@ void World::receiveMessages(bool engineOnly)
             // and with its sends (an abort later in phase 1 must not drop a consumed message's reply)
             flushCommands();
             for (size_t k = outboxMark; k < outbox.size(); ++k) outbox[k].phase = Phase::None;
-            // S26: the messages deferred while joining are handled right after JoinAccept, before the round's others
+            // S26: the messages deferred while joining are handled right after JoinAccept, merged with the round's rest
+            // in (peer, sequence) order (an OwnerCommand that overtook JoinAccept on Control follows the spawn sent
+            // before it on State when both are here)
             if (wasJoining && joinStateValue != JoinState::Joining && !deferredWhileJoining.empty())
             {
                 if (joinStateValue == JoinState::Joined)
+                {
                     inbox.insert(inbox.begin() + std::ptrdiff_t(i + 1),
                                  std::make_move_iterator(deferredWhileJoining.begin()),
                                  std::make_move_iterator(deferredWhileJoining.end()));
+                    std::stable_sort(inbox.begin() + std::ptrdiff_t(i + 1), inbox.end(),
+                                     [](const ReceivedMessage& a, const ReceivedMessage& b)
+                                     { return a.peer != b.peer ? a.peer < b.peer : a.sequence < b.sequence; });
+                }
                 deferredWhileJoining.clear();
             }
         }

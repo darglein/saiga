@@ -994,7 +994,7 @@ class SAIGA_ENGINE_API World
     bool rebuildHierarchyState();
 
     // Tests only: runs in phase 8 right after the replication (an exception aborts the step after the bookkeeping was
-    // staged, S16)
+    // staged, S16); on a client after its owner state and chunk interest (S26)
     std::function<void()> debugAfterReplication;
 
    private:

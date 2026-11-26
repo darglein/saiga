@@ -2000,6 +2000,14 @@ TEST(EngineAppCoop, ToolsActOnBothWorlds)
     const Json ws = toolJson(callApp(app, "world_status", Json::object{}));
     EXPECT_EQ(ws["host"]["step"].number_value(), double(host.stepIndex())) << ws.dump();
     EXPECT_TRUE(ws["host"]["hash"].is_string());
+    // S26 (R-MCP-1): the client's handshake, the schema hash and its chunk sync
+    EXPECT_EQ(ws["net"]["join"]["state"].string_value(), "joined") << ws.dump();
+    EXPECT_EQ(ws["net"]["schema_hash"].string_value().size(), 16u);
+    EXPECT_EQ(ws["net"]["chunks"]["pending"].number_value(), 0);
+    EXPECT_EQ(ws["net"]["chunks"]["rerequests"].number_value(), 0);
+    const Json ci = toolJson(callApp(app, "chunk_info", obj(R"({"position": [10, 10]})")));
+    EXPECT_EQ(ci["sync"]["state"].string_value(), "synced") << ci.dump();
+    EXPECT_EQ(ci["sync"]["queued_parts"].number_value(), 0);
     const Json gp = toolJson(callApp(app, "get_profile", obj(R"({"steps": 5})")));
     EXPECT_EQ(gp["host"]["samples"].number_value(), 5) << gp.dump();
 

@@ -179,11 +179,12 @@ void ClientChunkSync::enqueue(Entry& e, const ChunkId& chunk, Queued q)
 {
     if (e.queue.size() >= kMaxQueuedPartsPerChunk)
     {
+        // Dropped with the queue: the new snapshot covers every part sent before the new subscription
         statistics.queueOverflows++;
         rerequest(chunk, "queue overflow");
+        return;
     }
-    Entry& now = table[chunk];
-    now.queue.push_back(std::move(q));
+    e.queue.push_back(std::move(q));
     statistics.partsQueued++;
 }
 
@@ -269,8 +270,9 @@ bool ClientChunkSync::drainQueue(const ChunkId& chunk, std::vector<Queued> queue
             SAIGA_LOG("net", "a gap in the queue of chunk (%d, %d) of space %d: sequence %u after %u", int(chunk.x),
                       int(chunk.z), int(chunk.space), q.sequence, current);
             w.netCounts.modificationGaps++;
+            // The rest of the queue goes: the missing sequence never arrives (one ordered channel), the new snapshot
+            // covers every part sent before the host received the new subscription
             rerequest(chunk, "a gap");
-            for (size_t k = i; k < queue.size(); ++k) table[chunk].queue.push_back(std::move(queue[k]));
             return false;
         }
         if (q.tombstone)
@@ -542,12 +544,8 @@ void ClientChunkSync::onTerrainModification(uint8_t from, const uint8_t* data, s
             SAIGA_LOG("net", "TerrainModification: a gap in chunk (%d, %d) of space %d: sequence %u after %u",
                       int(p.chunk.x), int(p.chunk.z), int(m.space), p.sequence, current);
             w.netCounts.modificationGaps++;
+            // Not applied, not queued: the new snapshot includes it (it was sent before the new subscription)
             rerequest(p.chunk, "a gap");
-            Queued q;
-            q.sequence = p.sequence;
-            q.part     = std::move(p);
-            table[q.part.chunk].queue.push_back(std::move(q));
-            statistics.partsQueued++;
             continue;
         }
         apply.push_back(&p);
@@ -639,12 +637,6 @@ void ClientChunkSync::onTombstoneModification(uint8_t from, const uint8_t* data,
                       int(e.x), int(e.z), int(m.space), e.sequence, current);
             w.netCounts.modificationGaps++;
             rerequest(c, "a gap");
-            Queued q;
-            q.tombstone = true;
-            q.sequence  = e.sequence;
-            q.entry     = e;
-            table[c].queue.push_back(std::move(q));
-            statistics.partsQueued++;
             continue;
         }
         applyTombstone(m.space, e);
