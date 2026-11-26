@@ -18,18 +18,18 @@ namespace Engine
 {
 void registerEngineMessages(MessageList& list)
 {
-    list.addRaw(MessageId(EngineMessage::Spawn), "Spawn", Reliability::Reliable, Channel::State,
+    list.addRaw(MessageId(EngineMessage::Spawn), "Spawn", 1, Reliability::Reliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n) { w.replication().onSpawn(from, d, n); });
     list.add<DestroyMessage>(Reliability::Reliable, [](World& w, uint8_t from, const DestroyMessage& m)
                              { w.replication().onDestroy(from, m); });
     list.add<HierarchyMessage>(Reliability::Reliable, [](World& w, uint8_t from, const HierarchyMessage& m)
                                { w.replication().onHierarchy(from, m); });
-    list.addRaw(MessageId(EngineMessage::ComponentChange), "ComponentChange", Reliability::Reliable, Channel::State,
+    list.addRaw(MessageId(EngineMessage::ComponentChange), "ComponentChange", 1, Reliability::Reliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onComponentChange(from, d, n); });
-    list.addRaw(MessageId(EngineMessage::Snapshot), "Snapshot", Reliability::Unreliable, Channel::State,
+    list.addRaw(MessageId(EngineMessage::Snapshot), "Snapshot", 1, Reliability::Unreliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n) { w.replication().onSnapshot(from, d, n); });
-    list.addRaw(MessageId(EngineMessage::OwnerState), "OwnerState", Reliability::Unreliable, Channel::State,
+    list.addRaw(MessageId(EngineMessage::OwnerState), "OwnerState", 1, Reliability::Unreliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n) { w.replication().onOwnerState(from, d, n); });
     list.add<OwnerCommandMessage>(Reliability::Reliable, [](World& w, uint8_t from, const OwnerCommandMessage& m)
                                   { w.replication().onOwnerCommand(from, m); });
@@ -41,20 +41,20 @@ void registerEngineMessages(MessageList& list)
                           [](World& w, uint8_t from, const PongMessage& m) { w.replication().onPong(from, m); });
     list.add<ResyncMessage>(Reliability::Reliable,
                             [](World& w, uint8_t from, const ResyncMessage& m) { w.replication().onResync(from, m); });
-    list.addRaw(MessageId(EngineMessage::TerrainModification), "TerrainModification", Reliability::Reliable,
+    list.addRaw(MessageId(EngineMessage::TerrainModification), "TerrainModification", 1, Reliability::Reliable,
                 Channel::State, [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onTerrainModification(from, d, n); });
-    list.addRaw(MessageId(EngineMessage::TerrainChunkState), "TerrainChunkState", Reliability::Reliable, Channel::State,
-                [](World& w, uint8_t from, const uint8_t* d, size_t n)
+    list.addRaw(MessageId(EngineMessage::TerrainChunkState), "TerrainChunkState", 1, Reliability::Reliable,
+                Channel::State, [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onTerrainChunkState(from, d, n); });
-    list.addRaw(MessageId(EngineMessage::GenerationState), "GenerationState", Reliability::Reliable, Channel::State,
+    list.addRaw(MessageId(EngineMessage::GenerationState), "GenerationState", 1, Reliability::Reliable, Channel::State,
                 [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onGenerationState(from, d, n); });
-    list.addRaw(MessageId(EngineMessage::TombstoneModification), "TombstoneModification", Reliability::Reliable,
+    list.addRaw(MessageId(EngineMessage::TombstoneModification), "TombstoneModification", 1, Reliability::Reliable,
                 Channel::State, [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onTombstoneModification(from, d, n); });
-    list.addRaw(MessageId(EngineMessage::ChunkRecordState), "ChunkRecordState", Reliability::Reliable, Channel::State,
-                [](World& w, uint8_t from, const uint8_t* d, size_t n)
+    list.addRaw(MessageId(EngineMessage::ChunkRecordState), "ChunkRecordState", 1, Reliability::Reliable,
+                Channel::State, [](World& w, uint8_t from, const uint8_t* d, size_t n)
                 { w.replication().onChunkRecordState(from, d, n); });
     list.add<DespawnMessage>(Reliability::Reliable, [](World& w, uint8_t from, const DespawnMessage& m)
                              { w.replication().onDespawn(from, m); });

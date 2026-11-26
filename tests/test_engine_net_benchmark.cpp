@@ -80,7 +80,7 @@ double msSince(std::chrono::steady_clock::time_point t0)
 void messages(MessageList& l)
 {
     l.add<Small>(Reliability::Reliable, onSmall);
-    l.addRaw(65, "Big", Reliability::Reliable, Channel::ChunkData, onBig);
+    l.addRaw(65, "Big", 1, Reliability::Reliable, Channel::ChunkData, onBig);
 }
 }  // namespace
 

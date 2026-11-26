@@ -516,7 +516,7 @@ void testMessages(MessageList& l)
 {
     l.add<Ping>(Reliability::Reliable, onPing);
     l.add<Note>(Reliability::Unreliable, onNote);
-    l.addRaw(kRaw, "Raw", Reliability::Reliable, Channel::ChunkData, onRaw);
+    l.addRaw(kRaw, "Raw", 1, Reliability::Reliable, Channel::ChunkData, onRaw);
     l.add<Spawned>(Reliability::Reliable, onSpawned);
     l.add<Echo>(Reliability::Reliable, onEcho);
 }
@@ -581,15 +581,15 @@ TEST(Messages, RegistrationErrors)
         {
             MessageList l;
             l.beginGameMessages();
-            l.addRaw(3, "Low", Reliability::Reliable, Channel::Control, onRaw);
+            l.addRaw(3, "Low", 1, Reliability::Reliable, Channel::Control, onRaw);
         },
         "game messages start at 64");
     EXPECT_DEATH(
         {
             MessageList l;
             l.beginGameMessages();
-            l.addRaw(80, "Raw", Reliability::Reliable, Channel::Control, onRaw);
-            l.addRaw(81, "Raw", Reliability::Reliable, Channel::Control, onRaw);
+            l.addRaw(80, "Raw", 1, Reliability::Reliable, Channel::Control, onRaw);
+            l.addRaw(81, "Raw", 1, Reliability::Reliable, Channel::Control, onRaw);
         },
         "registered twice");
     EXPECT_DEATH(

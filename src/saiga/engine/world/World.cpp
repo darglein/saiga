@@ -218,6 +218,9 @@ World::World(const WorldSetup& setup)
     // Phase B of the content generation (S23a): the prefab entities against the classes, components and meshes
     const std::string contentError = GenerationPipeline::validateEntities(*this, pipeline->plans());
     if (!contentError.empty()) SAIGA_EXIT_ERROR("content generation: " + contentError);
+    // S26 (D4): the network schema of the finished registration
+    schemaOfNet     = NetSchema::fromWorld(*this);
+    schemaHashOfNet = schemaOfNet.hash();
 }
 
 void World::setupProfiler()

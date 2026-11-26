@@ -12,12 +12,13 @@ namespace Saiga
 {
 namespace Engine
 {
-void MessageList::addRaw(MessageId id, const char* name, Reliability reliability, Channel channel,
+void MessageList::addRaw(MessageId id, const char* name, uint32_t version, Reliability reliability, Channel channel,
                          void (*handler)(World&, uint8_t fromPeer, const uint8_t* data, size_t size))
 {
     Entry e;
     e.id          = id;
     e.name        = name ? name : "";
+    e.version     = version;
     e.reliability = reliability;
     e.channel     = channel;
     e.raw         = true;

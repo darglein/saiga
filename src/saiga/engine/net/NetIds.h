@@ -17,10 +17,14 @@ namespace Engine
 {
 using MessageId = uint16_t;
 
-// The engine's messages (S16, §13.4); game messages start at FirstGame
+// The engine's messages (S16, §13.4, §13.6); game messages start at FirstGame. S26 renumbered them: the handshake's
+// IDs 0..2 are frozen (D3 of S26: a peer of another protocol version always reads a JoinReject)
 enum class EngineMessage : MessageId
 {
-    Spawn = 0,              // raw, host -> clients, State, reliable
+    JoinRequest = 0,        // raw, client -> host, Control, reliable (S26; frozen)
+    JoinReject  = 1,        // raw, host -> client, Control, reliable (S26; frozen)
+    JoinAccept  = 2,        // raw, host -> client, State, reliable (S26)
+    Spawn,                  // raw, host -> clients, State, reliable
     Destroy,                // host -> clients, State, reliable
     Hierarchy,              // host -> clients, State, reliable
     ComponentChange,        // raw, host -> clients, State, reliable
@@ -30,13 +34,17 @@ enum class EngineMessage : MessageId
     PlayerAction,           // owner -> host, Control, reliable
     Ping,                   // client -> host, Control, unreliable
     Pong,                   // host -> client, Control, unreliable
-    Resync,                 // host -> clients, State, reliable
-    TerrainModification,    // raw, host -> clients, State, reliable (S22)
-    TerrainChunkState,      // raw, host -> clients, State, reliable (S22)
-    GenerationState,        // raw, host -> clients, State, reliable (S23a)
-    TombstoneModification,  // raw, host -> clients, State, reliable (S23b)
-    ChunkRecordState,       // raw, host -> clients, State, reliable (S23b)
+    Resync,                 // raw, host -> clients, State, reliable (S26: version 2 with the generation info)
     Despawn,                // host -> clients, State, reliable (S25: an unloaded entity, no callbacks)
+    TerrainModification,    // raw, host -> clients, State, reliable (S22; S26: per peer, subscribed chunks only)
+    TombstoneModification,  // raw, host -> clients, State, reliable (S23b; S26: per peer, subscribed chunks only)
+    ChunkInterest,          // raw, client -> host, Control, reliable (S26)
+    ChunkSnapshot,          // raw, host -> clients, ChunkData, reliable (S26)
+    ChunkIndex,             // raw, host -> clients, ChunkData, reliable (S26: worlds without streaming)
+    // TEMPORARY until step 3 of S26 (removed with their messages)
+    TerrainChunkState,
+    GenerationState,
+    ChunkRecordState,
     Count,
     FirstGame = 64,
 };
@@ -54,6 +62,16 @@ enum class NetRole : uint8_t
 {
     Host,
     Client,
+};
+
+// The handshake state of a world (S26, §13.2): Local for a host or a world without transport; a client is Joining
+// until the host's JoinAccept (Joined) or JoinReject, or a failed adoption of the host's generation (Rejected)
+enum class JoinState : uint8_t
+{
+    Local,
+    Joining,
+    Joined,
+    Rejected,
 };
 
 }  // namespace Engine

@@ -28,6 +28,7 @@
 #include "saiga/engine/net/MessageList.h"
 #include "saiga/engine/net/NetIds.h"
 #include "saiga/engine/net/NetOwner.h"
+#include "saiga/engine/net/NetSchema.h"
 #include "saiga/engine/net/Transport.h"
 #include "saiga/engine/save/LoadResult.h"
 #include "saiga/engine/save/MigrationList.h"
@@ -328,6 +329,9 @@ class SAIGA_ENGINE_API World
     const std::vector<uint8_t>& peersJoined() const { return joined; }
     const std::vector<uint8_t>& peersLeft() const { return left; }
     const NetStats& netStats() const { return netCounts; }
+    // The network schema of this world (S26, D4; built at the end of the construction, constant) and its hash
+    const NetSchema& netSchema() const { return schemaOfNet; }
+    uint64_t netSchemaHash() const { return schemaHashOfNet; }
     // The role of this world (WorldSetup::role, localPeer; S16)
     uint8_t localPeer() const { return selfPeer; }
     bool isHost() const { return role == NetRole::Host; }
@@ -1289,6 +1293,9 @@ class SAIGA_ENGINE_API World
     std::vector<std::pair<int, std::function<void(const ChunkId&)>>> recordListeners;
     bool generationMismatchFlag = false, generationCheckedFlag = false, nonIntegerWarned = false;
     uint64_t setupSeed = 0;
+    // S26: the network schema and its hash (built last in the constructor)
+    NetSchema schemaOfNet;
+    uint64_t schemaHashOfNet = 0;
     EnvironmentSetup envSetup;
     double accumulator    = 0;
     double scale          = 1;
